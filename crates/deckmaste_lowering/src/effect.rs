@@ -218,9 +218,9 @@ mod tests {
         assert_matches!(
             deckmaste_semantics::OneShotEffect::Act(minimal_action()).lower(),
             deckmaste_core::OneShotEffect::Act(deckmaste_core::Action::DealDamage(
-                deckmaste_core::Reference::This,
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::Count::X,
-                deckmaste_core::Reference::This
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
             ))
         );
     }
@@ -282,7 +282,7 @@ mod tests {
                     deckmaste_core::ObjectKind::Ability
                 )),
                 into: _,
-                by: deckmaste_core::Reference::This,
+                by: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 note: None,
                 then: None
             })
@@ -295,7 +295,7 @@ mod tests {
             deckmaste_semantics::OneShotEffect::ChoosePile(minimal_choose_pile()).lower(),
             deckmaste_core::OneShotEffect::ChoosePile(deckmaste_core::ChoosePile {
                 from: deckmaste_core::PileSource::Labels(_),
-                by: deckmaste_core::Reference::This,
+                by: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 random: false,
                 then: _
             })
@@ -307,7 +307,7 @@ mod tests {
         assert_matches!(
             deckmaste_semantics::OneShotEffect::May(minimal_may()).lower(),
             deckmaste_core::OneShotEffect::May(deckmaste_core::May {
-                who: deckmaste_core::Reference::This,
+                who: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 effect: _,
                 if_did: None,
                 if_not: None
@@ -347,7 +347,9 @@ mod tests {
         assert_matches!(
             deckmaste_semantics::OneShotEffect::Each(minimal_each()).lower(),
             deckmaste_core::OneShotEffect::Each(deckmaste_core::Each {
-                binder: deckmaste_core::Binder::TheRef(deckmaste_core::Reference::This),
+                binder: deckmaste_core::Binder::TheRef(deckmaste_core::Reference::Reg(
+                    deckmaste_core::RefId(0)
+                )),
                 effect: _
             })
         );
@@ -358,7 +360,9 @@ mod tests {
         assert_matches!(
             deckmaste_semantics::OneShotEffect::With(minimal_with()).lower(),
             deckmaste_core::OneShotEffect::With(deckmaste_core::With {
-                binder: deckmaste_core::Binder::TheRef(deckmaste_core::Reference::This),
+                binder: deckmaste_core::Binder::TheRef(deckmaste_core::Reference::Reg(
+                    deckmaste_core::RefId(0)
+                )),
                 body: _
             })
         );
@@ -370,7 +374,9 @@ mod tests {
             deckmaste_semantics::OneShotEffect::Distribute(minimal_distribute()).lower(),
             deckmaste_core::OneShotEffect::Distribute(deckmaste_core::Distribute {
                 amount: deckmaste_core::Count::X,
-                binder: deckmaste_core::Binder::TheRef(deckmaste_core::Reference::This),
+                binder: deckmaste_core::Binder::TheRef(deckmaste_core::Reference::Reg(
+                    deckmaste_core::RefId(0)
+                )),
                 body: _
             })
         );
@@ -415,7 +421,7 @@ mod tests {
                     count: deckmaste_core::Quantity::Range(None, None),
                     up_to: false,
                     repeats: false,
-                    chooser: deckmaste_core::Reference::This,
+                    chooser: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                     rider: None
                 },
                 modes: _
@@ -460,7 +466,7 @@ mod tests {
         assert_matches!(
             deckmaste_semantics::OneShotEffect::RevealUntil(minimal_reveal_until()).lower(),
             deckmaste_core::OneShotEffect::RevealUntil(deckmaste_core::RevealUntil {
-                whose: deckmaste_core::Reference::This,
+                whose: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 matches: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
                 body: _
             })
@@ -478,9 +484,9 @@ mod tests {
             })
             .lower(),
             deckmaste_core::OneShotEffect::Act(deckmaste_core::Action::DealDamage(
-                deckmaste_core::Reference::This,
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::Count::X,
-                deckmaste_core::Reference::This
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
             ))
         );
     }
@@ -525,7 +531,7 @@ mod tests {
             }
             .lower(),
             deckmaste_core::May {
-                who: deckmaste_core::Reference::This,
+                who: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 effect: _,
                 if_did: None,
                 if_not: None
@@ -590,7 +596,9 @@ mod tests {
             }
             .lower(),
             deckmaste_core::Each {
-                binder: deckmaste_core::Binder::TheRef(deckmaste_core::Reference::This),
+                binder: deckmaste_core::Binder::TheRef(deckmaste_core::Reference::Reg(
+                    deckmaste_core::RefId(0)
+                )),
                 effect: _
             }
         );
@@ -605,7 +613,9 @@ mod tests {
             }
             .lower(),
             deckmaste_core::With {
-                binder: deckmaste_core::Binder::TheRef(deckmaste_core::Reference::This),
+                binder: deckmaste_core::Binder::TheRef(deckmaste_core::Reference::Reg(
+                    deckmaste_core::RefId(0)
+                )),
                 body: _
             }
         );
@@ -622,7 +632,9 @@ mod tests {
             .lower(),
             deckmaste_core::Distribute {
                 amount: deckmaste_core::Count::X,
-                binder: deckmaste_core::Binder::TheRef(deckmaste_core::Reference::This),
+                binder: deckmaste_core::Binder::TheRef(deckmaste_core::Reference::Reg(
+                    deckmaste_core::RefId(0)
+                )),
                 body: _
             }
         );
@@ -638,7 +650,7 @@ mod tests {
             }
             .lower(),
             deckmaste_core::RevealUntil {
-                whose: deckmaste_core::Reference::This,
+                whose: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 matches: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
                 body: _
             }
@@ -658,7 +670,7 @@ mod tests {
                     count: deckmaste_core::Quantity::Range(None, None),
                     up_to: false,
                     repeats: false,
-                    chooser: deckmaste_core::Reference::This,
+                    chooser: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                     rider: None
                 },
                 modes: _
@@ -694,7 +706,7 @@ mod tests {
                     deckmaste_core::ObjectKind::Ability
                 )),
                 into: _,
-                by: deckmaste_core::Reference::This,
+                by: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 note: None,
                 then: None
             }
@@ -713,7 +725,7 @@ mod tests {
             .lower(),
             deckmaste_core::ChoosePile {
                 from: deckmaste_core::PileSource::Labels(_),
-                by: deckmaste_core::Reference::This,
+                by: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 random: false,
                 then: _
             }
@@ -738,7 +750,7 @@ mod tests {
             .lower(),
             deckmaste_core::PileSource::Noted {
                 note: _,
-                of: deckmaste_core::Reference::This
+                of: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
             }
         );
     }

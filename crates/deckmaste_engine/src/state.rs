@@ -579,8 +579,8 @@ pub struct GameState {
         std::collections::HashMap<crate::object::ObjectSource, crate::payment::LogicalObject>,
     /// Activation records are resolution-local environments and deliberately
     /// live outside transactional game images.
-    pub(crate) activations: crate::activation::ActivationTable,
-    pub(crate) next_activation: u64,
+    pub(crate) activations: std::cell::RefCell<crate::activation::ActivationTable>,
+    pub(crate) next_activation: std::cell::Cell<u64>,
 }
 
 impl std::ops::Deref for GameState {
@@ -749,8 +749,8 @@ impl GameState {
             next_mana_action: 0,
             payment_observations: std::collections::HashSet::new(),
             payment_logical_objects: std::collections::HashMap::new(),
-            activations: std::collections::HashMap::new(),
-            next_activation: 0,
+            activations: std::cell::RefCell::new(std::collections::HashMap::new()),
+            next_activation: std::cell::Cell::new(0),
         }
     }
 
@@ -782,10 +782,13 @@ impl GameState {
     pub(crate) fn begin_test_frame(&mut self) {
         let working = self.active().clone();
         let payer = working.turn.active_player;
+        let mut frame = crate::payment::PaymentFrame::proposal(working, payer);
+        frame.activations = self.activations.borrow().clone();
+        frame.next_activation = self.next_activation.get();
         self.payment
             .get_or_insert_with(crate::payment::PaymentController::default)
             .frames
-            .push(crate::payment::PaymentFrame::proposal(working, payer));
+            .push(frame);
     }
 
     /// Mints a fresh [`crate::stack::Payment`] id ([CR#118.10]) — call

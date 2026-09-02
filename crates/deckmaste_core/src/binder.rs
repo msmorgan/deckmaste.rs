@@ -44,7 +44,6 @@ pub enum Binder {
         /// What may be picked (the Idris `Predicate`).
         filter: Predicate,
         /// Who chooses (default `You`).
-        #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
         by: Reference,
     },
     /// Run an [`Action`] for effect and bind its product — the moved/created
@@ -62,11 +61,9 @@ pub enum Binder {
         /// The card sought (the Idris `Predicate`).
         filter: Predicate,
         /// Who performs the search (default `You`).
-        #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
         by: Reference,
         /// Whose zones are searched (default `You` — own library) — e.g.
         /// Bribery searches an opponent's library.
-        #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
         whose: Reference,
         /// The zones searched (default `[Library]`; e.g. library and/or
         /// graveyard).
@@ -90,7 +87,6 @@ pub enum Binder {
         /// What may be picked (the Idris `Predicate`).
         filter: Predicate,
         /// Who chooses (default `You`).
-        #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
         by: Reference,
     },
     /// An existing group/selection — Many → `That` (group).
@@ -106,10 +102,8 @@ pub enum Binder {
         /// The cards sought (the Idris `Predicate`).
         filter: Predicate,
         /// Who performs the search (default `You`).
-        #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
         by: Reference,
         /// Whose zones are searched (default `You`).
-        #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
         whose: Reference,
         /// The zones searched (default `[Library]`).
         #[serde(default = "from_library", skip_serializing_if = "is_from_library")]
@@ -120,18 +114,6 @@ pub enum Binder {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         if_none: Option<Arc<crate::OneShotEffect>>,
     },
-}
-
-/// The `by`/`whose` default — the searching/choosing player is the controller
-/// ([`Reference::You`]). Mirrors the Idris `{default You by}` / `{default You
-/// whose}` on `ChooseOne`/`Choose`/`Search`/`SearchOne`.
-fn ref_you() -> Reference {
-    Reference::You
-}
-
-/// Whether a [`Reference`] is the default `You` (so it is omitted on write).
-fn ref_is_you(r: &Reference) -> bool {
-    matches!(*r, Reference::You)
 }
 
 /// The default search domain — a player's library. Mirrors the Idris

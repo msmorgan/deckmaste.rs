@@ -95,7 +95,7 @@ fn payment_fixture_with_source_cost(
         ability: Arc::new(activated_ability(
             source_cost,
             OneShotEffect::Act(CoreAction::AddMana(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 ManaSpec::Specific(Color::Green.into()).into(),
             )),
@@ -182,15 +182,15 @@ fn nested_optional_mana_fixture() -> (
             OneShotEffect::Sequentially(
                 vec![
                     OneShotEffect::Act(CoreAction::Shuffle(deckmaste_core::Selection::LibraryOf(
-                        Reference::You,
+                        Reference::Reg(deckmaste_core::RefId(1)),
                     ))),
                     OneShotEffect::May(May {
-                        who: Reference::You,
+                        who: Reference::Reg(deckmaste_core::RefId(1)),
                         effect: Arc::new(OneShotEffect::Act(CoreAction::Pay(Cost(
                             vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
                         )))),
                         if_did: Some(Arc::new(OneShotEffect::Act(CoreAction::AddMana(
-                            Reference::You,
+                            Reference::Reg(deckmaste_core::RefId(1)),
                             Count::Literal(1),
                             ManaSpec::Specific(Color::Green.into()).into(),
                         )))),
@@ -209,7 +209,7 @@ fn nested_optional_mana_fixture() -> (
             ability: Arc::new(activated_ability(
                 Cost(vec![CostComponent::Tap].into()),
                 OneShotEffect::Act(CoreAction::AddMana(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(1),
                     ManaSpec::Specific(Color::Green.into()).into(),
                 )),
@@ -236,12 +236,12 @@ fn self_spending_optional_mana_fixture() -> (
             OneShotEffect::Sequentially(
                 vec![
                     OneShotEffect::Act(CoreAction::AddMana(
-                        Reference::You,
+                        Reference::Reg(deckmaste_core::RefId(1)),
                         Count::Literal(1),
                         ManaSpec::Specific(Color::Green.into()).into(),
                     )),
                     OneShotEffect::May(May {
-                        who: Reference::You,
+                        who: Reference::Reg(deckmaste_core::RefId(1)),
                         effect: Arc::new(OneShotEffect::Act(CoreAction::Pay(Cost(
                             vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
                         )))),
@@ -270,23 +270,23 @@ fn resolution_scope_mana_fixture() -> (
             OneShotEffect::Sequentially(
                 vec![
                     OneShotEffect::Act(CoreAction::DealDamage(
-                        Reference::This,
+                        Reference::Reg(deckmaste_core::RefId(0)),
                         Count::Literal(5),
-                        Reference::You,
+                        Reference::Reg(deckmaste_core::RefId(1)),
                     )),
                     OneShotEffect::May(May {
-                        who: Reference::You,
+                        who: Reference::Reg(deckmaste_core::RefId(1)),
                         effect: Arc::new(OneShotEffect::Act(CoreAction::Pay(Cost(
                             vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
                         )))),
                         if_did: Some(Arc::new(OneShotEffect::Act(CoreAction::ChangeLife(
-                            Reference::You,
+                            Reference::Reg(deckmaste_core::RefId(1)),
                             LifeOp::Up(Count::ThatMuch),
                         )))),
                         if_not: None,
                     }),
                     OneShotEffect::Act(CoreAction::AddMana(
-                        Reference::You,
+                        Reference::Reg(deckmaste_core::RefId(1)),
                         Count::Literal(1),
                         ManaSpec::Specific(Color::Green.into()).into(),
                     )),
@@ -303,13 +303,13 @@ fn resolution_scope_mana_fixture() -> (
             ability: Arc::new(activated_ability(
                 Cost(
                     vec![CostComponent::do_action(CoreAction::ChangeLife(
-                        Reference::You,
+                        Reference::Reg(deckmaste_core::RefId(1)),
                         LifeOp::Down(Count::Literal(1)),
                     ))]
                     .into(),
                 ),
                 OneShotEffect::Act(CoreAction::AddMana(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(1),
                     ManaSpec::Specific(Color::Green.into()).into(),
                 )),
@@ -335,16 +335,18 @@ fn cost_replacement_nested_mana_fixture() -> (
         ability: Arc::new(activated_ability(
             Cost(
                 vec![CostComponent::do_action(CoreAction::Sacrifice(
-                    Reference::You,
-                    Reference::This,
+                    Reference::Reg(deckmaste_core::RefId(1)),
+                    Reference::Reg(deckmaste_core::RefId(0)),
                 ))]
                 .into(),
             ),
             OneShotEffect::Sequentially(
                 vec![
-                    OneShotEffect::Act(CoreAction::Shuffle(Selection::LibraryOf(Reference::You))),
+                    OneShotEffect::Act(CoreAction::Shuffle(Selection::LibraryOf(Reference::Reg(
+                        deckmaste_core::RefId(1),
+                    )))),
                     OneShotEffect::Act(CoreAction::AddMana(
-                        Reference::You,
+                        Reference::Reg(deckmaste_core::RefId(1)),
                         Count::Literal(1),
                         ManaSpec::Specific(Color::Green.into()).into(),
                     )),
@@ -366,7 +368,7 @@ fn cost_replacement_nested_mana_fixture() -> (
                     cause: None,
                 },
                 instead: OneShotEffect::May(May {
-                    who: Reference::You,
+                    who: Reference::Reg(deckmaste_core::RefId(1)),
                     effect: Arc::new(OneShotEffect::Act(CoreAction::Pay(Cost(
                         vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
                     )))),
@@ -384,7 +386,7 @@ fn cost_replacement_nested_mana_fixture() -> (
             ability: Arc::new(activated_ability(
                 Cost(vec![CostComponent::Tap].into()),
                 OneShotEffect::Act(CoreAction::AddMana(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(1),
                     ManaSpec::Specific(Color::Green.into()).into(),
                 )),
@@ -410,7 +412,7 @@ fn created_nested_optional_mana_fixture() -> (
         ability: Arc::new(activated_ability(
             Cost(vec![CostComponent::Tap].into()),
             OneShotEffect::Act(CoreAction::AddMana(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 ManaSpec::Specific(Color::Green.into()).into(),
             )),
@@ -433,21 +435,21 @@ fn created_nested_optional_mana_fixture() -> (
             OneShotEffect::Sequentially(
                 vec![
                     OneShotEffect::Act(CoreAction::Shuffle(deckmaste_core::Selection::LibraryOf(
-                        Reference::You,
+                        Reference::Reg(deckmaste_core::RefId(1)),
                     ))),
                     OneShotEffect::Act(CoreAction::Create {
-                        agent: Reference::You,
+                        agent: Reference::Reg(deckmaste_core::RefId(1)),
                         count: Count::Literal(1),
                         token: token.into(),
                         riders: Arc::from([]),
                     }),
                     OneShotEffect::May(May {
-                        who: Reference::You,
+                        who: Reference::Reg(deckmaste_core::RefId(1)),
                         effect: Arc::new(OneShotEffect::Act(CoreAction::Pay(Cost(
                             vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
                         )))),
                         if_did: Some(Arc::new(OneShotEffect::Act(CoreAction::AddMana(
-                            Reference::You,
+                            Reference::Reg(deckmaste_core::RefId(1)),
                             Count::Literal(1),
                             ManaSpec::Specific(Color::Green.into()).into(),
                         )))),
@@ -506,14 +508,14 @@ fn modal_payment_fixture_with_ordinary_mode(
             count: Quantity::one(),
             up_to: false,
             repeats: false,
-            chooser: Reference::You,
+            chooser: Reference::Reg(deckmaste_core::RefId(1)),
             rider: None,
         },
         modes: vec![
             Mode {
                 targets: [].into(),
                 effect: OneShotEffect::Act(CoreAction::AddMana(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(1),
                     ManaSpec::Specific(Color::Green.into()).into(),
                 ))
@@ -599,7 +601,7 @@ fn kci_fixture() -> (
             Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
             Predicate::r#type(Type::Artifact),
             Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
             )))),
         ]
         .into(),
@@ -607,11 +609,11 @@ fn kci_fixture() -> (
     let sacrifice = CostComponent::ChooseAndPay {
         binder: Arc::new(Binder::ChooseOne {
             filter: artifact,
-            by: Reference::You,
+            by: Reference::Reg(deckmaste_core::RefId(1)),
         }),
         body: Cost(
             vec![CostComponent::do_action(CoreAction::Sacrifice(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 Reference::That(Sort::Permanent),
             ))]
             .into(),
@@ -624,7 +626,7 @@ fn kci_fixture() -> (
             ability: Arc::new(activated_ability(
                 Cost(vec![sacrifice].into()),
                 OneShotEffect::Act(CoreAction::AddMana(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(2),
                     ManaSpec::Specific(deckmaste_core::ColorOrColorless::Colorless).into(),
                 )),
@@ -688,7 +690,7 @@ fn triggered_mana_fixture() -> (
             ability: Arc::new(activated_ability(
                 Cost(vec![CostComponent::Tap].into()),
                 OneShotEffect::Act(CoreAction::AddMana(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(1),
                     ManaSpec::Specific(Color::Green.into()).into(),
                 )),
@@ -712,7 +714,7 @@ fn triggered_mana_fixture() -> (
                 condition: None,
                 limits: Arc::from([]),
                 effect: OneShotEffect::Act(CoreAction::AddMana(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(1),
                     ManaSpec::ProducedByEvent.into(),
                 ))
@@ -778,7 +780,7 @@ fn nested_resolution_cast_trigger_fixture() -> (
             ability: Arc::new(activated_ability(
                 Cost(vec![CostComponent::Tap].into()),
                 OneShotEffect::Act(CoreAction::AddMana(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(1),
                     ManaSpec::Specific(Color::Green.into()).into(),
                 )),
@@ -821,23 +823,23 @@ fn nested_resolution_cast_trigger_fixture() -> (
                 effect: OneShotEffect::Sequentially(
                     vec![
                         OneShotEffect::May(May {
-                            who: Reference::You,
+                            who: Reference::Reg(deckmaste_core::RefId(1)),
                             effect: Arc::new(OneShotEffect::Act(CoreAction::Cast(
-                                Reference::You,
+                                Reference::Reg(deckmaste_core::RefId(1)),
                                 cast_ref,
                                 None,
                             ))),
                             if_did: Some(Arc::new(OneShotEffect::Act(CoreAction::ChangeLife(
-                                Reference::You,
+                                Reference::Reg(deckmaste_core::RefId(1)),
                                 LifeOp::Up(Count::Literal(3)),
                             )))),
                             if_not: Some(Arc::new(OneShotEffect::Act(CoreAction::ChangeLife(
-                                Reference::You,
+                                Reference::Reg(deckmaste_core::RefId(1)),
                                 LifeOp::Up(Count::Literal(5)),
                             )))),
                         }),
                         OneShotEffect::Act(CoreAction::AddMana(
-                            Reference::You,
+                            Reference::Reg(deckmaste_core::RefId(1)),
                             Count::Literal(1),
                             ManaSpec::Specific(Color::Black.into()).into(),
                         )),
@@ -901,7 +903,7 @@ fn causal_trigger_fixture(
     causal_trigger_fixture_with_effect(
         event,
         OneShotEffect::Act(CoreAction::AddMana(
-            Reference::You,
+            Reference::Reg(deckmaste_core::RefId(1)),
             Count::Literal(1),
             ManaSpec::Specific(Color::Green.into()).into(),
         )),
@@ -935,7 +937,7 @@ fn causal_trigger_fixture_with_effect_and_limits(
         source_effect,
         limits,
         OneShotEffect::Act(CoreAction::AddMana(
-            Reference::You,
+            Reference::Reg(deckmaste_core::RefId(1)),
             Count::Literal(1),
             ManaSpec::Specific(Color::Black.into()).into(),
         )),
@@ -1032,7 +1034,7 @@ fn bare_nonmana_mana_added_fixture() -> (GameState, PlayerId, deckmaste_engine::
         abilities: vec![Ability::activated(activated_ability(
             Cost(vec![CostComponent::Mana("{0}".parse::<ManaCost>().unwrap())].into()),
             OneShotEffect::Act(CoreAction::AddMana(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 ManaSpec::Specific(Color::Green.into()).into(),
             )),
@@ -1054,7 +1056,7 @@ fn bare_nonmana_mana_added_fixture() -> (GameState, PlayerId, deckmaste_engine::
                 condition: None,
                 limits: Arc::from([]),
                 effect: OneShotEffect::Act(CoreAction::AddMana(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(1),
                     ManaSpec::Specific(Color::Black.into()).into(),
                 ))
@@ -2389,12 +2391,12 @@ fn mana_added_triggers_wait_for_all_effects_of_the_source_mana_ability() {
     let source_effect = OneShotEffect::Sequentially(
         vec![
             OneShotEffect::Act(CoreAction::AddMana(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 ManaSpec::Specific(Color::Green.into()).into(),
             )),
             OneShotEffect::Act(CoreAction::AddMana(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 ManaSpec::Specific(Color::Blue.into()).into(),
             )),
@@ -2460,12 +2462,12 @@ fn triggered_mana_use_limit_is_gated_between_causal_firings() {
     let source_effect = OneShotEffect::Sequentially(
         vec![
             OneShotEffect::Act(CoreAction::AddMana(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 ManaSpec::Specific(Color::Green.into()).into(),
             )),
             OneShotEffect::Act(CoreAction::AddMana(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 ManaSpec::Specific(Color::Blue.into()).into(),
             )),
@@ -2518,12 +2520,12 @@ fn triggered_mana_production_facts_include_units_spent_before_finish() {
     let trigger_effect = OneShotEffect::Sequentially(
         vec![
             OneShotEffect::Act(CoreAction::AddMana(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 ManaSpec::Specific(Color::Black.into()).into(),
             )),
             OneShotEffect::May(May {
-                who: Reference::You,
+                who: Reference::Reg(deckmaste_core::RefId(1)),
                 effect: Arc::new(OneShotEffect::Act(CoreAction::Pay(Cost(
                     vec![CostComponent::Mana("{B}".parse().unwrap())].into(),
                 )))),
@@ -2539,7 +2541,7 @@ fn triggered_mana_production_facts_include_units_spent_before_finish() {
             by: Predicate::Any,
         },
         OneShotEffect::Act(CoreAction::AddMana(
-            Reference::You,
+            Reference::Reg(deckmaste_core::RefId(1)),
             Count::Literal(1),
             ManaSpec::Specific(Color::Green.into()).into(),
         )),

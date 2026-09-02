@@ -240,6 +240,95 @@ fn wizards_cards_lower() {
     );
 }
 
+/// The named substrate witnesses stay loadable through the production
+/// semantic-to-core boundary, including generated `.ron.todo` cards whose
+/// remaining `Unparsed` text belongs to later grammar work. Every executable
+/// ability they already contain must carry a valid region telescope.
+#[test]
+#[cfg_attr(
+    not(wizards_corpus),
+    ignore = "needs the generated plugins/wizards corpus (cargo xtask generate)"
+)]
+fn core_region_substrate_witness_cards_lower_with_valid_regions() {
+    let wizards = Plugin::load_with_sibling_prelude(workspace_root().join("plugins/wizards"))
+        .expect("wizards loads over the builtin prelude");
+    let cards = plugin_dir("wizards", "cards");
+    let witnesses = [
+        "Angel of Finality",
+        "Arbiter of Woe",
+        "Blasphemous Edict",
+        "Bloodtithe Collector",
+        "Burglar Rat",
+        "Deadly Brew",
+        "Duress",
+        "Liliana, Dreadhorde General",
+        "Painful Quandary",
+        "Perforating Artist",
+        "Pilfer",
+        "River's Rebuke",
+        "Tribute to Hunger",
+        "Tinybones, Bauble Burglar",
+        "Fiery Annihilation",
+        "Run Away Together",
+        "Steel Hellkite",
+        "Trygon Predator",
+        "Predator Ooze",
+    ];
+
+    let mut regions = 0;
+    for name in witnesses {
+        let regular = cards.join(format!("{name}.ron"));
+        let path = if regular.is_file() { regular } else { cards.join(format!("{name}.ron.todo")) };
+        let source = fs::read_to_string(&path).expect("witness source reads");
+        // `.ron.todo` keeps unsupported oracle clauses as a one-line
+        // `Unparsed` pseudo-ability that the production reader deliberately
+        // rejects. Remove only those unrelated placeholders; every parsed
+        // ability still takes the real reader/lowering path below.
+        let source = source
+            .lines()
+            .filter(|line| !line.trim_start().starts_with("Unparsed("))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let loaded = wizards
+            .card_from_str(&source)
+            .unwrap_or_else(|error| panic!("{} did not lower: {error}", path.display()));
+        let printed_name = match &loaded.core {
+            deckmaste_card::Card::Normal(face) => face.name.as_ref(),
+            deckmaste_card::Card::TwoFaced { front, .. } => front.name.as_ref(),
+        };
+        assert_eq!(
+            printed_name,
+            name,
+            "{} loaded the wrong card",
+            path.display()
+        );
+
+        for ability in core_abilities(&loaded.core) {
+            if let Some(ability) = ability.as_activated() {
+                deckmaste_core::validate_telescope(&ability.effect, &ability.targets, None)
+                    .unwrap_or_else(|error| panic!("{name}: invalid activated region: {error}"));
+                regions += 1;
+            } else if let Some(ability) = ability.as_triggered() {
+                deckmaste_core::validate_telescope(
+                    &ability.effect,
+                    &ability.targets,
+                    ability.where_x.as_ref(),
+                )
+                .unwrap_or_else(|error| panic!("{name}: invalid triggered region: {error}"));
+                regions += 1;
+            } else if let deckmaste_core::Ability::Spell(ability) = ability {
+                deckmaste_core::validate_telescope(&ability.effect, &ability.targets, None)
+                    .unwrap_or_else(|error| panic!("{name}: invalid spell region: {error}"));
+                regions += 1;
+            }
+        }
+    }
+    assert!(
+        regions > 0,
+        "the witness set contained no executable regions"
+    );
+}
+
 /// Every face of a semantic card, front-to-back. `deckmaste_semantics::Card`
 /// has no public accessor for this (its two variants are the whole public
 /// surface), so — like the same-shaped private helpers in
@@ -535,22 +624,18 @@ fn nested_in_any(lowered: &[&deckmaste_core::Ability], image: &deckmaste_core::A
     lowered.iter().any(|a| ability_contains(a, image))
 }
 
-fn same_ability_kind(left: &deckmaste_core::Ability, right: &deckmaste_core::Ability) -> bool {
-    std::mem::discriminant(left) == std::mem::discriminant(right)
-}
-
 fn ability_contains(ability: &deckmaste_core::Ability, image: &deckmaste_core::Ability) -> bool {
     core_nested_abilities(ability)
         .into_iter()
-        .any(|child| same_ability_kind(child, image) || ability_contains(child, image))
+        .any(|child| child == image || ability_contains(child, image))
 }
 
-/// Every semantic ability subterm remains represented at the same nesting
-/// depth after lowering. Region construction deliberately makes the lowered
-/// value context-dependent (references become local register loads), so this
-/// gate compares ability kinds rather than requiring byte-identical values.
+/// Every semantic ability subterm remains represented verbatim at the same
+/// nesting depth after lowering. Each ability owns its region, so lowering at
+/// `Ability` granularity assigns the same parameter provenance and registers
+/// whether the ability is isolated or nested in a card.
 #[test]
-fn every_semantic_ability_subterm_kind_appears_in_its_lowered_card() {
+fn every_semantic_ability_subterm_appears_in_its_lowered_card() {
     let canon = Plugin::load_with_sibling_prelude(plugin_dir("canon", "")).unwrap();
     let mut checked = 0;
     for source in ron_files(&plugin_dir("canon", CARDS_DIR)) {
@@ -561,10 +646,9 @@ fn every_semantic_ability_subterm_kind_appears_in_its_lowered_card() {
                 for subterm in semantic_ability_subterms(semantic) {
                     let image = subterm.clone().lower();
                     assert!(
-                        lowered.iter().any(|a| same_ability_kind(a, &image))
-                            || nested_in_any(&lowered, &image),
+                        lowered.iter().any(|a| **a == image) || nested_in_any(&lowered, &image),
                         "{}: a semantic ability subterm's lowering is absent from the \
-                         lowered card",
+                         lowered card — lowering is context-dependent at Ability granularity",
                         source.display(),
                     );
                     checked += 1;

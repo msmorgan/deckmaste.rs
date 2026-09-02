@@ -164,7 +164,7 @@ fn green_source(name: &str) -> Arc<Card> {
 }
 
 fn mana_source(name: &str, cost: Cost, color: Color) -> Arc<Card> {
-    mana_source_for(name, cost, color, Reference::You)
+    mana_source_for(name, cost, color, Reference::Reg(deckmaste_core::RefId(1)))
 }
 
 fn mana_source_for(name: &str, cost: Cost, color: Color, recipient: Reference) -> Arc<Card> {
@@ -199,7 +199,7 @@ fn suspending_barred_mana_source() -> Arc<Card> {
             count: Quantity::one(),
             up_to: false,
             repeats: false,
-            chooser: Reference::You,
+            chooser: Reference::Reg(deckmaste_core::RefId(1)),
             rider: None,
         },
         modes: vec![
@@ -231,14 +231,14 @@ fn suspending_barred_mana_source() -> Arc<Card> {
                 effect: OneShotEffect::Sequentially(
                     vec![
                         OneShotEffect::Act(CoreAction::Move(
-                            Reference::This,
+                            Reference::Reg(deckmaste_core::RefId(0)),
                             Destination::Library(Anchor::FromBottom(Count::Literal(0))),
                             Arc::from([]),
                             Some(Zone::Battlefield),
                         )),
                         choose,
                         OneShotEffect::Act(CoreAction::AddMana(
-                            Reference::You,
+                            Reference::Reg(deckmaste_core::RefId(1)),
                             Count::Literal(1),
                             ManaSpec::Specific(Color::Green.into()).into(),
                         )),
@@ -273,7 +273,7 @@ fn token_creating_barred_mana_source() -> Arc<Card> {
                 targets: [].into(),
                 cost: Cost(
                     vec![CostComponent::do_action(CoreAction::Move(
-                        Reference::This,
+                        Reference::Reg(deckmaste_core::RefId(0)),
                         Destination::Library(Anchor::FromBottom(Count::Literal(0))),
                         Arc::from([]),
                         Some(Zone::Battlefield),
@@ -287,13 +287,13 @@ fn token_creating_barred_mana_source() -> Arc<Card> {
                 effect: OneShotEffect::Sequentially(
                     vec![
                         OneShotEffect::Act(CoreAction::Create {
-                            agent: Reference::You,
+                            agent: Reference::Reg(deckmaste_core::RefId(1)),
                             count: Count::Literal(1),
                             token: token.into(),
                             riders: Arc::from([]),
                         }),
                         OneShotEffect::Act(CoreAction::AddMana(
-                            Reference::You,
+                            Reference::Reg(deckmaste_core::RefId(1)),
                             Count::Literal(1),
                             ManaSpec::Specific(Color::Green.into()).into(),
                         )),
@@ -327,10 +327,10 @@ fn token_creating_source_with_a_token_mana_ability() -> Arc<Card> {
                         ]
                         .into(),
                     ),
-                    by: Reference::You,
+                    by: Reference::Reg(deckmaste_core::RefId(1)),
                 },
                 body: Arc::new(OneShotEffect::Act(CoreAction::AddMana(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(1),
                     ManaSpec::Specific(Color::Green.into()).into(),
                 ))),
@@ -358,7 +358,7 @@ fn token_creating_source_with_a_token_mana_ability() -> Arc<Card> {
                 targets: [].into(),
                 cost: Cost(
                     vec![CostComponent::do_action(CoreAction::Move(
-                        Reference::This,
+                        Reference::Reg(deckmaste_core::RefId(0)),
                         Destination::Library(Anchor::FromBottom(Count::Literal(0))),
                         Arc::from([]),
                         Some(Zone::Battlefield),
@@ -372,13 +372,13 @@ fn token_creating_source_with_a_token_mana_ability() -> Arc<Card> {
                 effect: OneShotEffect::Sequentially(
                     vec![
                         OneShotEffect::Act(CoreAction::Create {
-                            agent: Reference::You,
+                            agent: Reference::Reg(deckmaste_core::RefId(1)),
                             count: Count::Literal(1),
                             token: token.into(),
                             riders: Arc::from([]),
                         }),
                         OneShotEffect::Act(CoreAction::AddMana(
-                            Reference::You,
+                            Reference::Reg(deckmaste_core::RefId(1)),
                             Count::Literal(1),
                             ManaSpec::Specific(Color::Green.into()).into(),
                         )),
@@ -404,7 +404,7 @@ fn fulfillment_created_mana_source_replacements() -> (Arc<Card>, Arc<Card>) {
             condition: None,
             limits: Arc::from([]),
             effect: OneShotEffect::Act(CoreAction::AddMana(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 ManaSpec::Specific(Color::Green.into()).into(),
             ))
@@ -430,13 +430,13 @@ fn fulfillment_created_mana_source_replacements() -> (Arc<Card>, Arc<Card>) {
         instead: OneShotEffect::Sequentially(
             vec![
                 OneShotEffect::Act(CoreAction::Create {
-                    agent: Reference::You,
+                    agent: Reference::Reg(deckmaste_core::RefId(1)),
                     count: Count::Literal(1),
                     token: token.into(),
                     riders: Arc::from([]),
                 }),
                 OneShotEffect::Act(CoreAction::Shuffle(deckmaste_core::Selection::LibraryOf(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                 ))),
             ]
             .into(),
@@ -458,7 +458,7 @@ fn fulfillment_created_mana_source_replacements() -> (Arc<Card>, Arc<Card>) {
             cause: None,
         },
         instead: OneShotEffect::May(May {
-            who: Reference::You,
+            who: Reference::Reg(deckmaste_core::RefId(1)),
             effect: Arc::new(OneShotEffect::Act(CoreAction::Pay(Cost(
                 vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
             )))),
@@ -497,7 +497,7 @@ fn token_creating_then_choosing_barred_mana_source() -> Arc<Card> {
                 targets: [].into(),
                 cost: Cost(
                     vec![CostComponent::do_action(CoreAction::Move(
-                        Reference::This,
+                        Reference::Reg(deckmaste_core::RefId(0)),
                         Destination::Library(Anchor::FromBottom(Count::Literal(0))),
                         Arc::from([]),
                         Some(Zone::Battlefield),
@@ -511,7 +511,7 @@ fn token_creating_then_choosing_barred_mana_source() -> Arc<Card> {
                 effect: OneShotEffect::Sequentially(
                     vec![
                         OneShotEffect::Act(CoreAction::Create {
-                            agent: Reference::You,
+                            agent: Reference::Reg(deckmaste_core::RefId(1)),
                             count: Count::Literal(1),
                             token: token.into(),
                             riders: Arc::from([]),
@@ -527,10 +527,10 @@ fn token_creating_then_choosing_barred_mana_source() -> Arc<Card> {
                                     ]
                                     .into(),
                                 ),
-                                by: Reference::You,
+                                by: Reference::Reg(deckmaste_core::RefId(1)),
                             },
                             body: Arc::new(OneShotEffect::Act(CoreAction::AddMana(
-                                Reference::You,
+                                Reference::Reg(deckmaste_core::RefId(1)),
                                 Count::Literal(1),
                                 ManaSpec::Specific(Color::Green.into()).into(),
                             ))),
@@ -572,7 +572,7 @@ fn token_revealing_reversible_mana_source() -> Arc<Card> {
                 effect: OneShotEffect::Sequentially(
                     vec![
                         OneShotEffect::Act(CoreAction::Create {
-                            agent: Reference::You,
+                            agent: Reference::Reg(deckmaste_core::RefId(1)),
                             count: Count::Literal(1),
                             token: token.into(),
                             riders: Arc::from([]),
@@ -591,7 +591,7 @@ fn token_revealing_reversible_mana_source() -> Arc<Card> {
                             })),
                         }),
                         OneShotEffect::Act(CoreAction::AddMana(
-                            Reference::You,
+                            Reference::Reg(deckmaste_core::RefId(1)),
                             Count::Literal(1),
                             ManaSpec::Specific(Color::Green.into()).into(),
                         )),
@@ -616,11 +616,11 @@ fn krark_clan_ironworks() -> Arc<Card> {
                 ]
                 .into(),
             ),
-            by: Reference::You,
+            by: Reference::Reg(deckmaste_core::RefId(1)),
         }),
         body: Cost(
             vec![CostComponent::do_action(CoreAction::Sacrifice(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 Reference::That(Sort::Permanent),
             ))]
             .into(),
@@ -639,7 +639,7 @@ fn krark_clan_ironworks() -> Arc<Card> {
                 condition: None,
                 limits: Arc::from([]),
                 effect: OneShotEffect::Act(CoreAction::AddMana(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(2),
                     ManaSpec::Specific(deckmaste_core::ColorOrColorless::Colorless).into(),
                 ))
@@ -662,11 +662,11 @@ fn wheel_of_sun_and_moon() -> Arc<Card> {
         instead: OneShotEffect::Sequentially(
             vec![
                 OneShotEffect::Act(CoreAction::Reveal {
-                    what: Reference::EventObject,
+                    what: Reference::Reg(deckmaste_core::RefId(2)),
                     to: None,
                 }),
                 OneShotEffect::Act(CoreAction::Move(
-                    Reference::EventObject,
+                    Reference::Reg(deckmaste_core::RefId(2)),
                     Destination::Library(Anchor::FromBottom(Count::Literal(0))),
                     Arc::from([]),
                     None,
@@ -701,7 +701,7 @@ fn mox_amber_fixture() -> Arc<Card> {
             ))),
             Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
             Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
             )))),
         ]
         .into(),
@@ -710,7 +710,7 @@ fn mox_amber_fixture() -> Arc<Card> {
         colored_legend,
     )));
     let effect = OneShotEffect::Act(CoreAction::AddMana(
-        Reference::You,
+        Reference::Reg(deckmaste_core::RefId(1)),
         Count::Literal(1),
         ManaSpec::AmongColorsOf(sole_eligible_legend).into(),
     ));
@@ -757,7 +757,10 @@ fn colored_legendary_artifact() -> Arc<Card> {
 }
 
 fn omnath_fixture() -> Arc<Card> {
-    let green = Count::ManaAvailableKind(Reference::You, Color::Green.into());
+    let green = Count::ManaAvailableKind(
+        Reference::Reg(deckmaste_core::RefId(1)),
+        Color::Green.into(),
+    );
     Arc::new(Card::Normal(CardFace {
         name: "Omnath, Locus of Mana".into(),
         mana_cost: "{2}{G}".parse().unwrap(),
@@ -766,7 +769,7 @@ fn omnath_fixture() -> Arc<Card> {
         power: Some(StatValue::Number(1)),
         toughness: Some(StatValue::Number(1)),
         abilities: vec![Ability::r#static(StaticEffect::Modify(
-            Reference::This,
+            Reference::Reg(deckmaste_core::RefId(0)),
             Modification::Several(
                 vec![
                     Modification::Power(NumericOp::Up(green.clone())),
@@ -799,7 +802,7 @@ fn mana_cylix_fixture() -> Arc<Card> {
                 condition: None,
                 limits: Arc::from([]),
                 effect: OneShotEffect::Act(CoreAction::AddMana(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(1),
                     ManaSpec::AnyColor.into(),
                 ))
@@ -817,7 +820,7 @@ fn bighorner_rancher_fixture() -> Arc<Card> {
             Predicate::creature(),
             Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
             Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
             )))),
         ]
         .into(),
@@ -845,7 +848,7 @@ fn bighorner_rancher_fixture() -> Arc<Card> {
                 condition: None,
                 limits: Arc::from([]),
                 effect: OneShotEffect::Act(CoreAction::AddMana(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     greatest_power,
                     ManaSpec::Specific(Color::Green.into()).into(),
                 ))
@@ -910,7 +913,9 @@ fn mana_dependencies_qualify_pool_local_ids_by_player() {
         "Opponent producer",
         Cost(vec![CostComponent::Tap].into()),
         Color::Green,
-        Reference::Opponent,
+        Reference::OpponentOf(std::sync::Arc::new(Reference::Reg(deckmaste_core::RefId(
+            1,
+        )))),
     );
     let self_source = green_source("Self producer");
     let costed_source = mana_source(
@@ -961,7 +966,7 @@ fn mana_dependencies_qualify_pool_local_ids_by_player() {
 #[test]
 fn rescind_replays_unrelated_later_fulfillment() {
     let pay_life = CostComponent::do_action(CoreAction::ChangeLife(
-        Reference::You,
+        Reference::Reg(deckmaste_core::RefId(1)),
         LifeOp::Down(Count::Literal(2)),
     ));
     let (mut state, payer, source) = activation_fixture(vec![CostComponent::Tap, pay_life]);
@@ -1003,7 +1008,7 @@ fn rescind_replays_unrelated_later_fulfillment() {
 #[test]
 fn library_barrier_rejects_selective_rescind_without_mutation() {
     let put_on_bottom = CostComponent::do_action(CoreAction::Move(
-        Reference::This,
+        Reference::Reg(deckmaste_core::RefId(0)),
         Destination::Library(Anchor::FromBottom(Count::Literal(0))),
         Arc::from([]),
         Some(Zone::Battlefield),
@@ -1042,7 +1047,7 @@ fn library_barrier_rejects_selective_rescind_without_mutation() {
 #[test]
 fn decline_unannounces_while_retaining_a_barred_root_fulfillment() {
     let put_on_bottom = CostComponent::do_action(CoreAction::Move(
-        Reference::This,
+        Reference::Reg(deckmaste_core::RefId(0)),
         Destination::Library(Anchor::FromBottom(Count::Literal(0))),
         Arc::from([]),
         Some(Zone::Battlefield),
@@ -1081,7 +1086,7 @@ fn unreplayable_dependency_rejects_without_repair_or_mutation() {
     let move_chosen = |filter, destination, from| CostComponent::ChooseAndPay {
         binder: Arc::new(Binder::ChooseOne {
             filter,
-            by: Reference::You,
+            by: Reference::Reg(deckmaste_core::RefId(1)),
         }),
         body: Cost(
             vec![CostComponent::do_action(CoreAction::Move(
@@ -1151,7 +1156,7 @@ fn replay_restores_ordinary_triggers_caused_by_a_retained_fulfillment() {
             ability_word: None,
             targets: [].into(),
             event: EventFilter::LifeLost {
-                who: Predicate::Ref(Reference::You),
+                who: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
                 amount: None,
             },
             from: None,
@@ -1163,7 +1168,7 @@ fn replay_restores_ordinary_triggers_caused_by_a_retained_fulfillment() {
         ..CardFace::default()
     }));
     let pay_life = CostComponent::do_action(CoreAction::ChangeLife(
-        Reference::You,
+        Reference::Reg(deckmaste_core::RefId(1)),
         LifeOp::Down(Count::Literal(2)),
     ));
     let (mut state, payer, source) =
@@ -1201,7 +1206,7 @@ fn replay_rebinds_a_retained_card_after_an_earlier_zone_remint_is_omitted() {
     let move_chosen = |filter, destination, from| CostComponent::ChooseAndPay {
         binder: Arc::new(Binder::ChooseOne {
             filter,
-            by: Reference::You,
+            by: Reference::Reg(deckmaste_core::RefId(1)),
         }),
         body: Cost(
             vec![CostComponent::do_action(CoreAction::Move(
@@ -1674,7 +1679,7 @@ fn a_nested_producer_spent_by_a_barred_outer_cost_is_forced_to_remain() {
         vec![
             CostComponent::Mana("{1}".parse::<ManaCost>().unwrap()),
             CostComponent::do_action(CoreAction::Move(
-                Reference::This,
+                Reference::Reg(deckmaste_core::RefId(0)),
                 Destination::Library(Anchor::FromBottom(Count::Literal(0))),
                 Arc::from([]),
                 Some(Zone::Battlefield),
@@ -1771,8 +1776,10 @@ fn decline_is_available_during_an_in_flight_replacement_choice() {
         ],
         ..CardFace::default()
     }));
-    let sacrifice_self =
-        CostComponent::do_action(CoreAction::Sacrifice(Reference::You, Reference::This));
+    let sacrifice_self = CostComponent::do_action(CoreAction::Sacrifice(
+        Reference::Reg(deckmaste_core::RefId(1)),
+        Reference::Reg(deckmaste_core::RefId(0)),
+    ));
     let (mut state, payer, source) =
         activation_fixture_with_extras(vec![sacrifice_self], vec![shield]);
     put_named_in_play(&mut state, payer, "Double replacement");
@@ -1810,10 +1817,10 @@ fn rescind_replays_an_optional_payment_nested_inside_a_fulfillment() {
             cause: None,
         },
         instead: OneShotEffect::May(May {
-            who: Reference::You,
+            who: Reference::Reg(deckmaste_core::RefId(1)),
             effect: Arc::new(OneShotEffect::Act(CoreAction::Pay(Cost(
                 vec![CostComponent::do_action(CoreAction::ChangeLife(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     LifeOp::Down(Count::Literal(1)),
                 ))]
                 .into(),
@@ -1830,8 +1837,10 @@ fn rescind_replays_an_optional_payment_nested_inside_a_fulfillment() {
         )))],
         ..CardFace::default()
     }));
-    let sacrifice =
-        CostComponent::do_action(CoreAction::Sacrifice(Reference::You, Reference::This));
+    let sacrifice = CostComponent::do_action(CoreAction::Sacrifice(
+        Reference::Reg(deckmaste_core::RefId(1)),
+        Reference::Reg(deckmaste_core::RefId(0)),
+    ));
     let (mut state, payer, source) =
         activation_fixture_with_extras(vec![CostComponent::Tap, sacrifice], vec![shield]);
     put_named_in_play(&mut state, payer, "Optional replacement");
@@ -1899,7 +1908,7 @@ fn fulfillment_owned_mana_child_remains_a_separate_reversal_unit() {
             cause: None,
         },
         instead: OneShotEffect::May(May {
-            who: Reference::You,
+            who: Reference::Reg(deckmaste_core::RefId(1)),
             effect: Arc::new(OneShotEffect::Act(CoreAction::Pay(Cost(
                 vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
             )))),
@@ -1916,8 +1925,10 @@ fn fulfillment_owned_mana_child_remains_a_separate_reversal_unit() {
         ..CardFace::default()
     }));
     let helper_card = green_source("Fulfillment-owned helper");
-    let sacrifice =
-        CostComponent::do_action(CoreAction::Sacrifice(Reference::You, Reference::This));
+    let sacrifice = CostComponent::do_action(CoreAction::Sacrifice(
+        Reference::Reg(deckmaste_core::RefId(1)),
+        Reference::Reg(deckmaste_core::RefId(0)),
+    ));
     let (mut state, payer, source) =
         activation_fixture_with_extras(vec![sacrifice], vec![shield, helper_card]);
     put_named_in_play(&mut state, payer, "Optional mana replacement");
@@ -2012,10 +2023,10 @@ fn fulfillment_owned_mana_child_can_reverse_under_a_retained_parent() {
         instead: OneShotEffect::Sequentially(
             vec![
                 OneShotEffect::Act(CoreAction::Shuffle(deckmaste_core::Selection::LibraryOf(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                 ))),
                 OneShotEffect::May(May {
-                    who: Reference::You,
+                    who: Reference::Reg(deckmaste_core::RefId(1)),
                     effect: Arc::new(OneShotEffect::Act(CoreAction::Pay(Cost(
                         vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
                     )))),
@@ -2035,8 +2046,10 @@ fn fulfillment_owned_mana_child_can_reverse_under_a_retained_parent() {
         ..CardFace::default()
     }));
     let helper_card = green_source("Barred fulfillment helper");
-    let sacrifice =
-        CostComponent::do_action(CoreAction::Sacrifice(Reference::You, Reference::This));
+    let sacrifice = CostComponent::do_action(CoreAction::Sacrifice(
+        Reference::Reg(deckmaste_core::RefId(1)),
+        Reference::Reg(deckmaste_core::RefId(0)),
+    ));
     let (mut state, payer, source) =
         activation_fixture_with_extras(vec![sacrifice], vec![shield, helper_card]);
     put_named_in_play(&mut state, payer, "Barred optional mana replacement");
@@ -2116,11 +2129,13 @@ fn fulfillment_owned_mana_child_can_reverse_under_a_retained_parent() {
 fn omitted_fulfillment_mana_child_replays_after_earlier_created_source() {
     let (creator, optional) = fulfillment_created_mana_source_replacements();
     let pay_life = CostComponent::do_action(CoreAction::ChangeLife(
-        Reference::You,
+        Reference::Reg(deckmaste_core::RefId(1)),
         LifeOp::Down(Count::Literal(1)),
     ));
-    let sacrifice =
-        CostComponent::do_action(CoreAction::Sacrifice(Reference::You, Reference::This));
+    let sacrifice = CostComponent::do_action(CoreAction::Sacrifice(
+        Reference::Reg(deckmaste_core::RefId(1)),
+        Reference::Reg(deckmaste_core::RefId(0)),
+    ));
     let (mut state, payer, source) =
         activation_fixture_with_extras(vec![pay_life, sacrifice], vec![creator, optional]);
     put_named_in_play(&mut state, payer, "Fulfillment source creator");
@@ -2261,7 +2276,7 @@ fn suspended_fulfillment_keeps_dependent_mana_children_separately_reversible() {
             count: Quantity::one(),
             up_to: false,
             repeats: false,
-            chooser: Reference::You,
+            chooser: Reference::Reg(deckmaste_core::RefId(1)),
             rider: None,
         },
         modes: vec![
@@ -2288,10 +2303,10 @@ fn suspended_fulfillment_keeps_dependent_mana_children_separately_reversible() {
         instead: OneShotEffect::Sequentially(
             vec![
                 OneShotEffect::Act(CoreAction::Shuffle(deckmaste_core::Selection::LibraryOf(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                 ))),
                 OneShotEffect::May(May {
-                    who: Reference::You,
+                    who: Reference::Reg(deckmaste_core::RefId(1)),
                     effect: Arc::new(OneShotEffect::Act(CoreAction::Pay(Cost(
                         vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
                     )))),
@@ -2322,8 +2337,10 @@ fn suspended_fulfillment_keeps_dependent_mana_children_separately_reversible() {
         ),
         Color::Black,
     );
-    let sacrifice =
-        CostComponent::do_action(CoreAction::Sacrifice(Reference::You, Reference::This));
+    let sacrifice = CostComponent::do_action(CoreAction::Sacrifice(
+        Reference::Reg(deckmaste_core::RefId(1)),
+        Reference::Reg(deckmaste_core::RefId(0)),
+    ));
     let (mut state, payer, source) =
         activation_fixture_with_extras(vec![sacrifice], vec![shield, helper_card, filter_card]);
     put_named_in_play(&mut state, payer, "Suspended optional mana replacement");
@@ -2461,7 +2478,7 @@ fn decline_retains_a_library_move_from_an_in_flight_fulfillment() {
             count: Quantity::one(),
             up_to: false,
             repeats: false,
-            chooser: Reference::You,
+            chooser: Reference::Reg(deckmaste_core::RefId(1)),
             rider: None,
         },
         modes: vec![
@@ -2488,7 +2505,7 @@ fn decline_retains_a_library_move_from_an_in_flight_fulfillment() {
         instead: OneShotEffect::Sequentially(
             vec![
                 OneShotEffect::Act(CoreAction::Move(
-                    Reference::EventObject,
+                    Reference::Reg(deckmaste_core::RefId(2)),
                     Destination::Library(Anchor::FromBottom(Count::Literal(0))),
                     Arc::from([]),
                     Some(Zone::Battlefield),
@@ -2506,8 +2523,10 @@ fn decline_retains_a_library_move_from_an_in_flight_fulfillment() {
         )))],
         ..CardFace::default()
     }));
-    let sacrifice_self =
-        CostComponent::do_action(CoreAction::Sacrifice(Reference::You, Reference::This));
+    let sacrifice_self = CostComponent::do_action(CoreAction::Sacrifice(
+        Reference::Reg(deckmaste_core::RefId(1)),
+        Reference::Reg(deckmaste_core::RefId(0)),
+    ));
     let (mut state, payer, source) =
         activation_fixture_with_extras(vec![sacrifice_self], vec![shield]);
     put_named_in_play(&mut state, payer, "Barred replacement");
@@ -2571,7 +2590,7 @@ fn decline_replays_a_retained_fulfillment_that_creates_then_remints_a_token() {
         instead: OneShotEffect::Sequentially(
             vec![
                 OneShotEffect::Act(CoreAction::Create {
-                    agent: Reference::You,
+                    agent: Reference::Reg(deckmaste_core::RefId(1)),
                     count: Count::Literal(1),
                     token: token.into(),
                     riders: Arc::from([]),
@@ -2605,7 +2624,7 @@ fn decline_replays_a_retained_fulfillment_that_creates_then_remints_a_token() {
         ..CardFace::default()
     }));
     let pay_life = CostComponent::do_action(CoreAction::ChangeLife(
-        Reference::You,
+        Reference::Reg(deckmaste_core::RefId(1)),
         LifeOp::Down(Count::Literal(1)),
     ));
     let (mut state, payer, source) = activation_fixture_with_extras(vec![pay_life], vec![shield]);
@@ -2636,7 +2655,7 @@ fn decline_preserves_a_public_reveal_without_crossing_an_observation_barrier() {
             count: Quantity::one(),
             up_to: false,
             repeats: false,
-            chooser: Reference::You,
+            chooser: Reference::Reg(deckmaste_core::RefId(1)),
             rider: None,
         },
         modes: vec![
@@ -2663,7 +2682,7 @@ fn decline_preserves_a_public_reveal_without_crossing_an_observation_barrier() {
         instead: OneShotEffect::Sequentially(
             vec![
                 OneShotEffect::Act(CoreAction::Reveal {
-                    what: Reference::EventObject,
+                    what: Reference::Reg(deckmaste_core::RefId(2)),
                     to: None,
                 }),
                 modal,
@@ -2679,8 +2698,10 @@ fn decline_preserves_a_public_reveal_without_crossing_an_observation_barrier() {
         )))],
         ..CardFace::default()
     }));
-    let sacrifice_self =
-        CostComponent::do_action(CoreAction::Sacrifice(Reference::You, Reference::This));
+    let sacrifice_self = CostComponent::do_action(CoreAction::Sacrifice(
+        Reference::Reg(deckmaste_core::RefId(1)),
+        Reference::Reg(deckmaste_core::RefId(0)),
+    ));
     let (mut state, payer, source) =
         activation_fixture_with_extras(vec![sacrifice_self], vec![shield]);
     put_named_in_play(&mut state, payer, "Observe then choose");
@@ -2718,7 +2739,7 @@ fn decline_preserves_a_public_reveal_without_crossing_an_observation_barrier() {
 fn submitted_mana_action_with_a_library_barrier_is_forced_to_remain() {
     let put_self_on_bottom = Cost(
         vec![CostComponent::do_action(CoreAction::Move(
-            Reference::This,
+            Reference::Reg(deckmaste_core::RefId(0)),
             Destination::Library(Anchor::FromBottom(Count::Literal(0))),
             Arc::from([]),
             Some(Zone::Battlefield),
@@ -3710,7 +3731,7 @@ fn rancher_before_cylix_produces_exact_coverage_and_omnath_tracks_each_green_spe
 fn declining_unsubmitted_mana_child_retains_only_its_barred_cost() {
     let put_self_on_bottom = Cost(
         vec![CostComponent::do_action(CoreAction::Move(
-            Reference::This,
+            Reference::Reg(deckmaste_core::RefId(0)),
             Destination::Library(Anchor::FromBottom(Count::Literal(0))),
             Arc::from([]),
             Some(Zone::Battlefield),

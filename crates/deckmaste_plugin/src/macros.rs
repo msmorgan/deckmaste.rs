@@ -846,8 +846,8 @@ mod tests {
         assert_eq!(
             *action,
             deckmaste_core::Action::Sacrifice(
-                deckmaste_core::Reference::You,
-                deckmaste_core::Reference::This,
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(1)),
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
             )
         );
     }

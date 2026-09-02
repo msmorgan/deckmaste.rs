@@ -369,7 +369,7 @@ impl GameState {
                 Progress::Resolving(obj)
             }
             WorkItem::RunEffect { effect, frame } => {
-                let source = frame.source;
+                let source = frame.source(self);
                 self.run_effect(Arc::unwrap_or_clone(effect), &frame);
                 Progress::Resolving(source)
             }
@@ -3242,7 +3242,7 @@ mod tests {
             PlayerId(0),
             vec![Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
                 DeonticAction::Untap {
-                    what: Predicate::Ref(Reference::This),
+                    what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 },
             )))],
         );

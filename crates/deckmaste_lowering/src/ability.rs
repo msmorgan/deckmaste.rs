@@ -475,7 +475,7 @@ mod tests {
                 count: deckmaste_core::Quantity::Range(None, None),
                 up_to: false,
                 repeats: false,
-                chooser: deckmaste_core::Reference::This,
+                chooser: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 rider: None
             }
         );

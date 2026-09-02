@@ -184,7 +184,9 @@ mod tests {
     fn lowers_mana_spec_among_colors_of() {
         assert_matches!(
             deckmaste_semantics::ManaSpec::AmongColorsOf(minimal_reference()).lower(),
-            deckmaste_core::ManaSpec::AmongColorsOf(deckmaste_core::Reference::This)
+            deckmaste_core::ManaSpec::AmongColorsOf(deckmaste_core::Reference::Reg(
+                deckmaste_core::RefId(0)
+            ))
         );
     }
 

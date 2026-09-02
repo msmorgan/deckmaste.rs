@@ -777,11 +777,11 @@ mod tests {
         let with = CostComponent::ChooseAndPay {
             binder: Arc::new(Binder::ChooseOne {
                 filter: creature,
-                by: Reference::You,
+                by: Reference::Reg(crate::RefId(1)),
             }),
             body: Cost(
                 vec![CostComponent::do_action(crate::Action::Sacrifice(
-                    Reference::You,
+                    Reference::Reg(crate::RefId(1)),
                     Reference::That(crate::Sort::OfType(Type::Creature)),
                 ))]
                 .into(),
@@ -791,8 +791,10 @@ mod tests {
 
         // Exile-as-cost is a Move to the Exile zone — `Action::Move` is
         // agent-silent, so this spells with no agent slot.
-        let exile =
-            CostComponent::do_action(crate::Action::move_to(Reference::This, crate::Zone::Exile));
+        let exile = CostComponent::do_action(crate::Action::move_to(
+            Reference::Reg(crate::RefId(0)),
+            crate::Zone::Exile,
+        ));
         assert_eq!(
             read(&to_string(&exile)),
             exile,
@@ -818,7 +820,8 @@ mod tests {
         let mana_two = CostComponent::Mana(ManaCost::from(Arc::<[ManaSymbol]>::from(vec![
             ManaSymbol::Simple(SimpleManaSymbol::Generic(2)),
         ])));
-        let discard_self = CostComponent::do_action(crate::Action::discard_what(Reference::This));
+        let discard_self =
+            CostComponent::do_action(crate::Action::discard_what(Reference::Reg(crate::RefId(0))));
         let lumpy = Cost(
             vec![
                 CostComponent::Cost(Cost(vec![mana_two.clone()].into())),
@@ -872,7 +875,10 @@ mod tests {
         assert_eq!(read("Tap"), CostComponent::Tap);
         assert_eq!(
             read("Act(Sacrifice(Reg(1), Reg(0)))"),
-            CostComponent::do_action(crate::Action::Sacrifice(Reference::You, Reference::This)),
+            CostComponent::do_action(crate::Action::Sacrifice(
+                Reference::Reg(crate::RefId(1)),
+                Reference::Reg(crate::RefId(0))
+            )),
         );
     }
 
@@ -883,7 +889,10 @@ mod tests {
             crate::Predicate::Any,
         )));
         assert_eq!(
-            CostComponent::try_do_action(crate::Action::Sacrifice(Reference::You, random)),
+            CostComponent::try_do_action(crate::Action::Sacrifice(
+                Reference::Reg(crate::RefId(1)),
+                random
+            )),
             Err(RunnableCostActionError::UnresolvedSubject),
         );
     }
@@ -898,14 +907,17 @@ mod tests {
         };
         let random_count = || Count::StatOf(random(), crate::Stat::Power);
         for action in [
-            crate::Action::ChangeLife(Reference::You, crate::LifeOp::Down(random_count())),
+            crate::Action::ChangeLife(
+                Reference::Reg(crate::RefId(1)),
+                crate::LifeOp::Down(random_count()),
+            ),
             crate::Action::PutCounters(
-                Reference::This,
+                Reference::Reg(crate::RefId(0)),
                 crate::CounterRef::from("Charge"),
                 random_count(),
             ),
             crate::Action::Move(
-                Reference::This,
+                Reference::Reg(crate::RefId(0)),
                 crate::Destination::Library(crate::Anchor::FromTop(random_count())),
                 vec![crate::EnterRider::WithCounters(
                     crate::CounterRef::from("Charge"),
@@ -926,7 +938,7 @@ mod tests {
             body: Arc::new(crate::OneShotEffect::Act(crate::Action::DealDamage(
                 random(),
                 Count::Literal(1),
-                Reference::You,
+                Reference::Reg(crate::RefId(1)),
             ))),
         };
         assert_eq!(
@@ -944,7 +956,7 @@ mod tests {
                         crate::Supertype::Legendary,
                     )),
                     Predicate::Relation(crate::RelationPredicate::ControlledBy(Arc::new(
-                        Predicate::Ref(Reference::You),
+                        Predicate::Ref(Reference::Reg(crate::RefId(1))),
                     ))),
                 ]
                 .into(),
@@ -955,7 +967,7 @@ mod tests {
         )));
         assert!(cost_binder_is_runnable(&Binder::Produce(Arc::new(
             crate::Action::Move(
-                Reference::This,
+                Reference::Reg(crate::RefId(0)),
                 crate::Destination::Zone(crate::Zone::Exile),
                 Arc::from([]),
                 None,
@@ -1005,7 +1017,7 @@ mod tests {
             ),
         ))));
         assert!(!cost_binder_is_runnable(&Binder::Produce(Arc::new(
-            crate::Action::DrawCard(Reference::You),
+            crate::Action::DrawCard(Reference::Reg(crate::RefId(1))),
         ))));
 
         let unchecked_whiff = crate::OneShotEffect::With(crate::With {
@@ -1014,8 +1026,8 @@ mod tests {
         });
         assert!(!cost_binder_is_runnable(&Binder::SearchOne {
             filter: Predicate::Any,
-            by: Reference::You,
-            whose: Reference::You,
+            by: Reference::Reg(crate::RefId(1)),
+            whose: Reference::Reg(crate::RefId(1)),
             from: Arc::from([crate::Zone::Library]),
             if_none: Some(Arc::new(unchecked_whiff)),
         }));
@@ -1028,9 +1040,11 @@ mod tests {
     fn mana_cost_of_round_trips() {
         assert_eq!(
             read("ManaCostOf(Reg(0))"),
-            CostComponent::ManaCostOf(Reference::This),
+            CostComponent::ManaCostOf(Reference::Reg(crate::RefId(0))),
         );
-        let v = CostComponent::ManaCostOf(Reference::ControllerOf(Arc::new(Reference::This)));
+        let v = CostComponent::ManaCostOf(Reference::ControllerOf(Arc::new(Reference::Reg(
+            crate::RefId(0),
+        ))));
         let written = crate::ron::options().to_string(&v).unwrap();
         assert_eq!(read(&written), v, "round-trips: {written}");
     }

@@ -159,7 +159,10 @@ mod tests {
         use deckmaste_core::Stat;
         let s: Selector = read("(pick: Max, by: StatOf(Reg(0), Power), among: Some(Any))");
         assert_eq!(s.pick, Extremum::Max);
-        assert_eq!(s.by, Count::StatOf(Reference::This, Stat::Power));
+        assert_eq!(
+            s.by,
+            Count::StatOf(Reference::Reg(deckmaste_core::RefId(0)), Stat::Power)
+        );
         assert_eq!(s.among, Some(Predicate::Any));
     }
 

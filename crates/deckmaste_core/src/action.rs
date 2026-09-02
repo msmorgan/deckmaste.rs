@@ -562,7 +562,7 @@ impl Action {
     /// target)`); this ctor fills it in.
     #[must_use]
     pub fn deal_damage(target: Reference, amount: Count) -> Action {
-        Action::DealDamage(Reference::This, amount, target)
+        Action::DealDamage(Reference::Reg(crate::RefId(0)), amount, target)
     }
 
     /// `Move` to a plain zone — the common relocation (`Move(This,

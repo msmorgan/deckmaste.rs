@@ -69,7 +69,7 @@ fn builtin_counter_decls()
 /// (BF→GY with verb "Destroy").
 fn destroyed_self() -> EventFilter {
     EventFilter::ZoneChange {
-        what: Predicate::Ref(Reference::This),
+        what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
         from: Some(Zone::Battlefield),
         to: Some(Zone::Graveyard),
         cause: Some(deckmaste_core::Cause::Cause(CausePattern {
@@ -116,11 +116,11 @@ fn combatant_creature_def() -> deckmaste_core::TypeDef {
         Condition::And(
             vec![
                 Condition::Matches(
-                    Reference::This,
+                    Reference::Reg(deckmaste_core::RefId(0)),
                     Predicate::State(StatePredicate::SummoningSick),
                 ),
                 Condition::Not(Arc::new(Condition::Matches(
-                    Reference::This,
+                    Reference::Reg(deckmaste_core::RefId(0)),
                     Predicate::Characteristic(CharacteristicPredicate::Has("Haste".into())),
                 ))),
             ]
@@ -133,11 +133,11 @@ fn combatant_creature_def() -> deckmaste_core::TypeDef {
         permanent: true,
         confers: vec![
             ability(StaticEffect::Deontic(Deontic::May(DeonticAction::Attack {
-                by: Predicate::Ref(Reference::This),
+                by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 on: Predicate::Any,
             }))),
             ability(StaticEffect::Deontic(Deontic::May(DeonticAction::Block {
-                by: Predicate::Ref(Reference::This),
+                by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 on: Predicate::Any,
                 count: None,
             }))),
@@ -145,7 +145,7 @@ fn combatant_creature_def() -> deckmaste_core::TypeDef {
                 sick_not_hasty(),
                 Arc::new(StaticEffect::Deontic(Deontic::Cant(
                     DeonticAction::Attack {
-                        by: Predicate::Ref(Reference::This),
+                        by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                         on: Predicate::Any,
                     },
                 ))),
@@ -154,7 +154,7 @@ fn combatant_creature_def() -> deckmaste_core::TypeDef {
                 sick_not_hasty(),
                 Arc::new(StaticEffect::Deontic(Deontic::Cant(
                     DeonticAction::Activate {
-                        what: Predicate::Ref(Reference::This),
+                        what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                         by: Predicate::Any,
                         cost: Some(CostPredicate::IncludesTapSymbol),
                     },
@@ -300,7 +300,7 @@ fn find_in_graveyard(state: &GameState, player: PlayerId, card_id: CardId) -> Op
 fn instead_redirects_destruction_to_exile() {
     // The `instead` body: Move(This, Zone(Exile)) is agent-silent.
     let instead_body = OneShotEffect::Act(Action::Move(
-        Reference::This,
+        Reference::Reg(deckmaste_core::RefId(0)),
         deckmaste_core::Destination::Zone(Zone::Exile),
         vec![].into(),
         None,
@@ -344,7 +344,7 @@ fn indestructible_still_survives_via_cant_pass() {
         1,
         vec![Ability::r#static(StaticEffect::CantHappen(
             EventFilter::ZoneChange {
-                what: Predicate::Ref(Reference::This),
+                what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 from: Some(Zone::Battlefield),
                 to: Some(Zone::Graveyard),
                 cause: None,
@@ -569,7 +569,7 @@ fn regenerate_effect(subject_ref: Reference) -> OneShotEffect {
     // `That`; the watch and body refer to that captured permanent as
     // `ThatObject` (NOT `This` — `This` stays the source ability).
     let would = EventFilter::ZoneChange {
-        what: Predicate::Ref(Reference::EventObject),
+        what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(2))),
         from: Some(Zone::Battlefield),
         to: Some(Zone::Graveyard),
         cause: Some(deckmaste_core::Cause::Cause(CausePattern {
@@ -581,9 +581,11 @@ fn regenerate_effect(subject_ref: Reference) -> OneShotEffect {
     let instead = OneShotEffect::Sequentially(
         vec![
             // [CR#701.19a]: remove all damage from That (the regenerated permanent).
-            OneShotEffect::Act(Action::RemoveDamage(Reference::EventObject)),
+            OneShotEffect::Act(Action::RemoveDamage(Reference::Reg(deckmaste_core::RefId(
+                2,
+            )))),
             // [CR#701.19a]: its controller taps it.
-            OneShotEffect::Act(Action::Tap(Reference::EventObject)),
+            OneShotEffect::Act(Action::Tap(Reference::Reg(deckmaste_core::RefId(2)))),
         ]
         .into(),
     );
@@ -651,7 +653,11 @@ fn regenerated_creature_survives_lethal_damage() {
     let card_id = state.objects.obj(id).card_id().expect("backed by a card");
 
     // Resolve "Regenerate ~" — creates a shield on id.
-    resolve_and_drive(&mut state, regenerate_effect(Reference::This), id);
+    resolve_and_drive(
+        &mut state,
+        regenerate_effect(Reference::Reg(deckmaste_core::RefId(0))),
+        id,
+    );
     assert_eq!(state.shields.len(), 1, "shield registered after regenerate");
 
     // Mark lethal damage (toughness = 2).
@@ -696,7 +702,11 @@ fn regenerated_creature_survives_deathtouch_strike() {
     let card_id = state.objects.obj(id).card_id().expect("backed by a card");
 
     // Resolve "Regenerate ~" — creates a single one-shot shield on id.
-    resolve_and_drive(&mut state, regenerate_effect(Reference::This), id);
+    resolve_and_drive(
+        &mut state,
+        regenerate_effect(Reference::Reg(deckmaste_core::RefId(0))),
+        id,
+    );
     assert_eq!(state.shields.len(), 1, "shield registered after regenerate");
 
     // SUBLETHAL physical damage (1 < toughness 2) dealt by a DEATHTOUCH source:
@@ -793,7 +803,8 @@ fn regenerate_target_creature_heals_the_subject_not_the_source() {
     // effect now wraps the `CreateReplacement` in a `With(TheRef(...))`; this
     // test builds the shield instance directly, so it peels the `With` to reach
     // the replacement (the shield's subject is set explicitly below).
-    let OneShotEffect::With(deckmaste_core::With { body, .. }) = regenerate_effect(Reference::This)
+    let OneShotEffect::With(deckmaste_core::With { body, .. }) =
+        regenerate_effect(Reference::Reg(deckmaste_core::RefId(0)))
     else {
         unreachable!("regenerate_effect builds a With(TheRef, CreateReplacement)")
     };
@@ -850,7 +861,11 @@ fn regeneration_shield_expires_end_of_turn() {
     let card_id = state.objects.obj(id).card_id().expect("backed by a card");
 
     // Register a regen shield.
-    resolve_and_drive(&mut state, regenerate_effect(Reference::This), id);
+    resolve_and_drive(
+        &mut state,
+        regenerate_effect(Reference::Reg(deckmaste_core::RefId(0))),
+        id,
+    );
     assert_eq!(state.shields.len(), 1, "shield registered");
 
     // Simulate end-of-turn sweep (what cleanup calls).
@@ -882,18 +897,20 @@ fn regeneration_shield_expires_end_of_turn() {
 /// are both live on the battlefield; `aura.attached_to == Some(creature)`.
 fn enchanted_with_umbra() -> (GameState, CardId, CardId) {
     // The `would.what` for "the enchanted permanent":
-    // `Predicate::Ref(Reference::AttachHostOf(Arc::new(Reference::This)))` —
+    // `Predicate::Ref(Reference::AttachHostOf(Arc::new(Reference::Reg(deckmaste_core::RefId(0)))))` —
     // "the object THIS (the Aura) is attached to" ([CR#702.89a]).
-    let enchanted_perm = Predicate::Ref(Reference::AttachHostOf(Arc::new(Reference::This)));
+    let enchanted_perm = Predicate::Ref(Reference::AttachHostOf(Arc::new(Reference::Reg(
+        deckmaste_core::RefId(0),
+    ))));
 
     let instead_body = OneShotEffect::Sequentially(
         vec![
             // [CR#701.19a,702.89a]: remove all damage from the enchanted permanent.
             OneShotEffect::Act(Action::RemoveDamage(Reference::AttachHostOf(Arc::new(
-                Reference::This,
+                Reference::Reg(deckmaste_core::RefId(0)),
             )))),
             // [CR#702.89a]: destroy this Aura.
-            OneShotEffect::Act(Action::destroy(Reference::This)),
+            OneShotEffect::Act(Action::destroy(Reference::Reg(deckmaste_core::RefId(0)))),
         ]
         .into(),
     );
@@ -929,7 +946,7 @@ fn enchanted_with_umbra() -> (GameState, CardId, CardId) {
         types: vec![Type::Enchantment.def()],
         abilities: vec![
             Ability::r#static(StaticEffect::Deontic(Deontic::May(DeonticAction::Attach {
-                what: Predicate::Ref(Reference::This),
+                what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 to: Predicate::creature(),
             }))),
             Ability::r#static(StaticEffect::Replacement(Arc::new(umbra_armor))),
@@ -1102,7 +1119,7 @@ fn lifegain_replaced_by_draw() {
         amount: None,
     };
     let instead_body = OneShotEffect::Act(deckmaste_core::Action::ChangeLife(
-        Reference::You,
+        Reference::Reg(deckmaste_core::RefId(1)),
         LifeOp::Down(deckmaste_core::Count::Literal(1)),
     ));
     let (mut state, _src) = creature_with_non_destroy_replacement(Replacement::Instead {
@@ -1170,7 +1187,7 @@ fn set_life_above_current_enters_the_replacement_window() {
         amount: None,
     };
     let instead_body = OneShotEffect::Act(Action::ChangeLife(
-        Reference::You,
+        Reference::Reg(deckmaste_core::RefId(1)),
         LifeOp::Down(deckmaste_core::Count::Literal(1)),
     ));
     let (mut state, src) = creature_with_non_destroy_replacement(Replacement::Instead {
@@ -1187,7 +1204,7 @@ fn set_life_above_current_enters_the_replacement_window() {
     resolve_and_drive(
         &mut state,
         OneShotEffect::Act(Action::ChangeLife(
-            Reference::You,
+            Reference::Reg(deckmaste_core::RefId(1)),
             LifeOp::Set(deckmaste_core::Count::Literal(target)),
         )),
         src,
@@ -1217,7 +1234,7 @@ fn set_life_equal_to_current_emits_nothing() {
         amount: None,
     };
     let instead_body = OneShotEffect::Act(Action::ChangeLife(
-        Reference::You,
+        Reference::Reg(deckmaste_core::RefId(1)),
         LifeOp::Down(deckmaste_core::Count::Literal(1)),
     ));
     let (mut state, src) = creature_with_non_destroy_replacement(Replacement::Instead {
@@ -1231,7 +1248,7 @@ fn set_life_equal_to_current_emits_nothing() {
     resolve_and_drive(
         &mut state,
         OneShotEffect::Act(Action::ChangeLife(
-            Reference::You,
+            Reference::Reg(deckmaste_core::RefId(1)),
             LifeOp::Set(deckmaste_core::Count::Literal(target)),
         )),
         src,
@@ -1289,7 +1306,7 @@ fn double_damage_lineage_terminates() {
     //   Damage(to: Ref(This))
     let would = EventFilter::Damage {
         source: Predicate::Any,
-        to: Predicate::Ref(Reference::This),
+        to: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
         combat: None,
         amount: None,
     };
@@ -1297,7 +1314,7 @@ fn double_damage_lineage_terminates() {
     // The `instead` body: deal 10 damage to this creature (a fixed amount
     // rather than a doubled one — see doc-comment above for rationale).
     let instead_body = OneShotEffect::Act(deckmaste_core::Action::deal_damage(
-        Reference::This,
+        Reference::Reg(deckmaste_core::RefId(0)),
         Count::Literal(10),
     ));
 
@@ -1375,7 +1392,7 @@ fn double_damage_lineage_terminates() {
 fn damage_as_counters_static(on: Predicate, recipient: Reference, kind: &str) -> Ability {
     use deckmaste_core::Count;
     let would = EventFilter::Damage {
-        source: Predicate::Ref(Reference::This),
+        source: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
         to: on,
         combat: None,
         amount: None,
@@ -1459,7 +1476,7 @@ fn deal_damage(state: &mut GameState, source: ObjectId, target: ObjectId, amount
 fn wither_batch_places_counters_for_every_member_and_sbas_run_after() {
     let wither = damage_as_counters_static(
         Predicate::r#type(Type::Creature),
-        Reference::EventObject,
+        Reference::Reg(deckmaste_core::RefId(2)),
         "M1M1Counter",
     );
     let four_four = |name: &str| {
@@ -1564,7 +1581,7 @@ fn wither_batch_places_counters_for_every_member_and_sbas_run_after() {
 fn wither_source_puts_minus_counters_not_marked_damage() {
     let wither = damage_as_counters_static(
         Predicate::r#type(Type::Creature),
-        Reference::EventObject,
+        Reference::Reg(deckmaste_core::RefId(2)),
         "M1M1Counter",
     );
     let (mut state, source, target) = source_and_target(vec![wither]);
@@ -1590,7 +1607,7 @@ fn wither_source_puts_minus_counters_not_marked_damage() {
 fn infect_source_puts_minus_counters_on_a_creature() {
     let infect_creature = damage_as_counters_static(
         Predicate::r#type(Type::Creature),
-        Reference::EventObject,
+        Reference::Reg(deckmaste_core::RefId(2)),
         "M1M1Counter",
     );
     let (mut state, source, target) = source_and_target(vec![infect_creature]);
@@ -1616,7 +1633,7 @@ fn infect_source_puts_minus_counters_on_a_creature() {
 fn infect_source_gives_player_poison_not_life_loss() {
     let infect_player = damage_as_counters_static(
         Predicate::Kind(deckmaste_core::ObjectKind::Player),
-        Reference::EventPatient,
+        Reference::Reg(deckmaste_core::RefId(3)),
         "Poison",
     );
     let (mut state, source, _target) = source_and_target(vec![infect_player]);
@@ -1650,7 +1667,7 @@ fn infect_source_gives_player_poison_not_life_loss() {
 fn ten_poison_counters_lose_the_game() {
     let infect_player = damage_as_counters_static(
         Predicate::Kind(deckmaste_core::ObjectKind::Player),
-        Reference::EventPatient,
+        Reference::Reg(deckmaste_core::RefId(3)),
         "Poison",
     );
     let (mut state, source, _target) = source_and_target(vec![infect_player]);
@@ -1688,7 +1705,7 @@ fn ten_poison_counters_lose_the_game() {
 fn by_matcher_fires_only_for_damage_from_its_own_source() {
     let wither = damage_as_counters_static(
         Predicate::r#type(Type::Creature),
-        Reference::EventObject,
+        Reference::Reg(deckmaste_core::RefId(2)),
         "M1M1Counter",
     );
     let (mut state, wither_src, target) = source_and_target(vec![wither]);
@@ -1735,7 +1752,7 @@ fn by_matcher_fires_only_for_damage_from_its_own_source() {
 fn event_patient_object_reads_the_damage_recipient_creature() {
     let wither = damage_as_counters_static(
         Predicate::r#type(Type::Creature),
-        Reference::EventPatient,
+        Reference::Reg(deckmaste_core::RefId(3)),
         "M1M1Counter",
     );
     let (mut state, source, target) = source_and_target(vec![wither]);
@@ -1762,7 +1779,7 @@ fn event_patient_object_reads_the_damage_recipient_creature() {
 fn event_patient_player_reads_the_damage_recipient_player() {
     let infect_player = damage_as_counters_static(
         Predicate::Kind(deckmaste_core::ObjectKind::Player),
-        Reference::EventPatient,
+        Reference::Reg(deckmaste_core::RefId(3)),
         "Poison",
     );
     let (mut state, source, _target) = source_and_target(vec![infect_player]);

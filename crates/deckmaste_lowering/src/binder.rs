@@ -79,7 +79,9 @@ mod tests {
     fn lowers_binder_the_ref() {
         assert_matches!(
             deckmaste_semantics::Binder::TheRef(minimal_reference()).lower(),
-            deckmaste_core::Binder::TheRef(deckmaste_core::Reference::This)
+            deckmaste_core::Binder::TheRef(deckmaste_core::Reference::Reg(deckmaste_core::RefId(
+                0
+            )))
         );
     }
 
@@ -93,7 +95,7 @@ mod tests {
             .lower(),
             deckmaste_core::Binder::ChooseOne {
                 filter: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                by: deckmaste_core::Reference::This
+                by: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
             }
         );
     }
@@ -119,8 +121,8 @@ mod tests {
             .lower(),
             deckmaste_core::Binder::SearchOne {
                 filter: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                by: deckmaste_core::Reference::This,
-                whose: deckmaste_core::Reference::This,
+                by: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
+                whose: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 from: _,
                 if_none: None
             }
@@ -139,7 +141,7 @@ mod tests {
             deckmaste_core::Binder::Choose {
                 quantity: deckmaste_core::Quantity::Range(None, None),
                 filter: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                by: deckmaste_core::Reference::This
+                by: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
             }
         );
     }
@@ -169,8 +171,8 @@ mod tests {
             deckmaste_core::Binder::Search {
                 quantity: deckmaste_core::Quantity::Range(None, None),
                 filter: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                by: deckmaste_core::Reference::This,
-                whose: deckmaste_core::Reference::This,
+                by: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
+                whose: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 from: _,
                 if_none: None
             }
@@ -187,7 +189,9 @@ mod tests {
                 value: Box::new(minimal_binder())
             })
             .lower(),
-            deckmaste_core::Binder::TheRef(deckmaste_core::Reference::This)
+            deckmaste_core::Binder::TheRef(deckmaste_core::Reference::Reg(deckmaste_core::RefId(
+                0
+            )))
         );
     }
 }

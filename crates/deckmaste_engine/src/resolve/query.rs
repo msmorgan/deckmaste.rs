@@ -104,12 +104,10 @@ impl GameState {
     /// ignoring a gone target), so a wholly-departed slot reads empty and its
     /// verb no-ops. An out-of-range index reads empty (never-crash).
     fn live_target_slot(&self, frame: &Frame, n: usize) -> Vec<ObjectId> {
-        frame.anaphora.targets.get(n).map_or_else(Vec::new, |slot| {
-            slot.iter()
-                .copied()
-                .filter(|&t| self.objects.get(t).is_some())
-                .collect()
-        })
+        self.activation_target_objects(frame.activation, n)
+            .into_iter()
+            .filter(|&target| self.objects.get(target).is_some())
+            .collect()
     }
 
     /// [CR#707.10d]'s could-target set for the stack entry `spell` names —
@@ -470,22 +468,34 @@ impl GameState {
             .map_or_else(Vec::new, |_| vec![object])
     }
 
-    /// Resolve the complete object product carried by a reference. Region
-    /// registers use the activation table; legacy binders are adapted here so
-    /// every information query has one current/LKI lookup path.
+    /// Resolve the complete object product carried by a reference. Declared
+    /// region registers read their activation-table values; residual bare
+    /// rule and cost scopes read the same activation context until those
+    /// scopes gain regions of their own.
     pub(crate) fn eval_reference_product(
         &self,
         reference: &Reference,
         frame: &Frame,
     ) -> crate::activation::ReferenceProduct {
         if let Reference::Reg(register) = reference {
-            if let Some(product) = self.activation_product(frame.activation, *register) {
-                return product;
-            }
-            // Hand-built engine fixtures may wrap an instruction in an empty
-            // compatibility region. Loaded data is validated, so only those
-            // fixtures can reach this fixed-ABI adapter.
-            return self.legacy_register_product(*register, frame);
+            return self
+                .activation_product(frame.activation, *register)
+                .or_else(|| {
+                    let provenance = match register.0 {
+                        0 => deckmaste_core::Provenance::Source,
+                        1 => deckmaste_core::Provenance::Controller,
+                        2 => deckmaste_core::Provenance::EventObject,
+                        3 => deckmaste_core::Provenance::EventPatient,
+                        4 => deckmaste_core::Provenance::EventActor,
+                        5 => deckmaste_core::Provenance::DefendingPlayer,
+                        target => deckmaste_core::Provenance::AnnouncedTarget(target - 6),
+                    };
+                    self.activation_context_product(frame.activation, &provenance)
+                })
+                .unwrap_or(crate::activation::ReferenceProduct {
+                    current: None,
+                    lki: None,
+                });
         }
 
         let current_id = self.eval_reference(reference, frame);
@@ -500,82 +510,6 @@ impl GameState {
         crate::activation::ReferenceProduct { current, lki }
     }
 
-    fn legacy_register_product(
-        &self,
-        register: deckmaste_core::RefId,
-        frame: &Frame,
-    ) -> crate::activation::ReferenceProduct {
-        use crate::activation::ReferenceProduct;
-        let live = |id| self.objects.get(id).map(|_| id);
-        match register.0 {
-            0 => ReferenceProduct {
-                current: live(frame.source),
-                lki: frame.this.clone(),
-            },
-            1 => ReferenceProduct {
-                current: Some(self.player(frame.controller).object),
-                lki: None,
-            },
-            2 => frame.anaphora.that_object.clone().map_or(
-                ReferenceProduct {
-                    current: None,
-                    lki: None,
-                },
-                |snapshot| ReferenceProduct {
-                    current: live(snapshot.object),
-                    lki: Some(snapshot),
-                },
-            ),
-            3 => match frame.anaphora.that_patient.as_ref() {
-                Some(crate::trigger::EventPatient::Object(snapshot)) => ReferenceProduct {
-                    current: live(snapshot.object),
-                    lki: Some(snapshot.clone()),
-                },
-                Some(crate::trigger::EventPatient::Player(player)) => ReferenceProduct {
-                    current: Some(self.player(*player).object),
-                    lki: None,
-                },
-                None => ReferenceProduct {
-                    current: None,
-                    lki: None,
-                },
-            },
-            4 => ReferenceProduct {
-                current: frame
-                    .anaphora
-                    .that_player
-                    .map(|player| self.player(player).object),
-                lki: None,
-            },
-            5 => ReferenceProduct {
-                current: frame
-                    .defending_player
-                    .map(|player| self.player(player).object),
-                lki: None,
-            },
-            n if n == u32::MAX - 1 => ReferenceProduct {
-                current: Some(self.player(self.next_live_after(frame.controller)).object),
-                lki: None,
-            },
-            n if n >= 6 => ReferenceProduct {
-                current: frame
-                    .anaphora
-                    .targets
-                    .get((n - 6) as usize)
-                    .and_then(|slot| {
-                        slot.iter()
-                            .copied()
-                            .find(|id| self.objects.get(*id).is_some())
-                    }),
-                lki: None,
-            },
-            _ => ReferenceProduct {
-                current: None,
-                lki: None,
-            },
-        }
-    }
-
     /// Resolve a [`Reference`] to an `ObjectId`.
     ///
     /// # Panics
@@ -588,10 +522,7 @@ impl GameState {
         match reference {
             Reference::Reg(_) => {
                 let product = self.eval_reference_product(reference, frame);
-                product
-                    .current
-                    .or_else(|| product.lki.map(|lki| lki.object))
-                    .unwrap_or_else(ObjectId::null)
+                product.current.unwrap_or_else(ObjectId::null)
             }
             Reference::OpponentOf(inner) => {
                 let player_object = self.eval_reference(inner, frame);
@@ -805,28 +736,31 @@ mod tests {
         // channels — never-crash, never a wrong slot.
         assert!(
             state
-                .eval_reference(&Reference::Target(0), &frame)
+                .eval_reference(&Reference::Reg(deckmaste_core::RefId(6)), &frame)
                 .is_null()
         );
         assert!(
             state
-                .eval_selection_set(&deckmaste_core::Selection::Targets(0), &frame)
+                .eval_selection_set(
+                    &deckmaste_core::Selection::Reg(deckmaste_core::RefId(6)),
+                    &frame
+                )
                 .is_empty()
         );
         // Event roles read outside any trigger — were `.expect()` panics.
         assert!(
             state
-                .eval_reference(&Reference::EventObject, &frame)
+                .eval_reference(&Reference::Reg(deckmaste_core::RefId(2)), &frame)
                 .is_null()
         );
         assert!(
             state
-                .eval_reference(&Reference::EventActor, &frame)
+                .eval_reference(&Reference::Reg(deckmaste_core::RefId(4)), &frame)
                 .is_null()
         );
         assert!(
             state
-                .eval_reference(&Reference::DefendingPlayer, &frame)
+                .eval_reference(&Reference::Reg(deckmaste_core::RefId(5)), &frame)
                 .is_null()
         );
         // A derived reference over an unbound inner stays null, not a secondary
@@ -871,7 +805,7 @@ mod tests {
             .collect::<Vec<_>>()
             .into();
         let region = Region::new(params, Arc::from([]));
-        let mut frame = frame_src_targets(source, vec![target]);
+        let mut frame = frame_src_targets(&state, source, vec![target]);
         frame.activation = state.enter_region(&region, &frame);
 
         let snapshot = crate::lki::LkiSnapshot::capture(&state, target);
@@ -894,18 +828,18 @@ mod tests {
     #[test]
     fn departed_target_reads_null_and_empty_patient_set() {
         let (mut state, source, departed) = two_permanents_on_field();
-        let frame = frame_src_targets(source, vec![departed]);
+        let frame = frame_src_targets(&state, source, vec![departed]);
         state.zones.battlefield.retain(|&object| object != departed);
         state.objects.remove(departed);
 
         assert!(
             state
-                .eval_reference(&Reference::Target(0), &frame)
+                .eval_reference(&Reference::Reg(deckmaste_core::RefId(6)), &frame)
                 .is_null()
         );
         assert!(
             state
-                .eval_reference_set(&Reference::Target(0), &frame)
+                .eval_reference_set(&Reference::Reg(deckmaste_core::RefId(6)), &frame)
                 .is_empty()
         );
     }
@@ -920,7 +854,7 @@ mod tests {
         state.moved_chain.push((a, b));
 
         // That(Sort) over a One binding chases a -> b.
-        let mut frame = frame_src(a);
+        let mut frame = frame_src(&state, a);
         frame.anaphora.that = Some(crate::stack::ThatBinding {
             cardinality: crate::stack::Cardinality::One,
             kind: crate::stack::RefKind::Object,
@@ -932,8 +866,11 @@ mod tests {
         );
 
         // Target(n) does NOT chase.
-        frame.anaphora.targets = vec![vec![a]];
-        assert_eq!(state.eval_reference(&Reference::Target(0), &frame), a);
+        state.frame_set_targets(&mut frame, &[vec![a]]);
+        assert_eq!(
+            state.eval_reference(&Reference::Reg(deckmaste_core::RefId(6)), &frame),
+            a
+        );
 
         // The `It` Object binding chases.
         let snap = crate::lki::LkiSnapshot::capture(&state, a);
@@ -941,7 +878,7 @@ mod tests {
         assert_eq!(state.eval_reference(&Reference::It, &frame), b);
 
         // A lone target does not implicitly bind the iteration anaphor.
-        let lone = frame_src_targets(a, vec![a]);
+        let lone = frame_src_targets(&state, a, vec![a]);
         assert!(state.eval_reference(&Reference::It, &lone).is_null());
     }
 
@@ -958,7 +895,7 @@ mod tests {
             Some(Zone::Battlefield),
         );
         state.moved_chain.push((a, c));
-        let mut frame = frame_src(a);
+        let mut frame = frame_src(&state, a);
         frame.anaphora.that = Some(crate::stack::ThatBinding {
             cardinality: crate::stack::Cardinality::Many,
             kind: crate::stack::RefKind::Object,
@@ -978,7 +915,7 @@ mod tests {
         use deckmaste_core::Destination;
 
         let (mut state, a, _) = two_permanents_on_field();
-        let mut frame = frame_src(a);
+        let mut frame = frame_src(&state, a);
         frame.anaphora.that = Some(crate::stack::ThatBinding {
             cardinality: crate::stack::Cardinality::One,
             kind: crate::stack::RefKind::Object,
@@ -1013,7 +950,7 @@ mod tests {
         use slotmap::Key;
 
         let (mut state, a, _) = two_permanents_on_field();
-        let frame = frame_src(a);
+        let frame = frame_src(&state, a);
 
         // Nothing moved yet: unbound.
         assert!(
@@ -1026,7 +963,7 @@ mod tests {
         // public move.
         state.run_effect(
             OneShotEffect::Act(Action::Move(
-                Reference::This,
+                Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::Destination::Zone(Zone::Exile),
                 vec![].into(),
                 None,
@@ -1044,10 +981,10 @@ mod tests {
 
         // Send the product to a HIDDEN zone: not found, and no fallback to an
         // older antecedent.
-        let pframe = frame_src(product);
+        let pframe = frame_src(&state, product);
         state.run_effect(
             OneShotEffect::Act(Action::Move(
-                Reference::This,
+                Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::Destination::Zone(Zone::Hand),
                 vec![].into(),
                 None,
@@ -1072,11 +1009,11 @@ mod tests {
         use deckmaste_core::With;
 
         let (mut state, a, _) = two_permanents_on_field();
-        let frame = frame_src(a);
+        let frame = frame_src(&state, a);
         state.run_effect(
             OneShotEffect::With(With {
                 binder: Binder::Produce(Arc::new(Action::Move(
-                    Reference::This,
+                    Reference::Reg(deckmaste_core::RefId(0)),
                     Destination::Zone(Zone::Exile),
                     vec![].into(),
                     None,
@@ -1108,10 +1045,10 @@ mod tests {
         let (mut state, a, b) = two_permanents_on_field();
         state.objects.obj_mut(a).attached_to = Some(b);
 
-        let frame_a = frame_src(a);
+        let frame_a = frame_src(&state, a);
         assert_eq!(
             state.eval_reference(
-                &Reference::AttachHostOf(Arc::new(Reference::This)),
+                &Reference::AttachHostOf(Arc::new(Reference::Reg(deckmaste_core::RefId(0)))),
                 &frame_a
             ),
             b,
@@ -1166,12 +1103,14 @@ mod tests {
             ]
             .into(),
         );
-        let frame = frame_src(bear);
+        let frame = frame_src(&state, bear);
         state.run_effect(
             OneShotEffect::With(With {
                 binder: Binder::ChooseOne {
                     filter: creatures,
-                    by: Reference::Opponent,
+                    by: Reference::OpponentOf(std::sync::Arc::new(Reference::Reg(
+                        deckmaste_core::RefId(1),
+                    ))),
                 },
                 body: Arc::new(OneShotEffect::Act(Action::destroy(Reference::That(
                     deckmaste_core::Sort::Permanent,
@@ -1202,20 +1141,22 @@ mod tests {
         // handed to player 1: owner stays player 0, controller becomes player 1.
         let theirs = second_bear_to_player_1(&mut state);
 
-        let frame = Frame {
-            this: Some(crate::lki::LkiSnapshot::capture(&state, bear)),
-            anaphora: Anaphora {
-                targets: vec![vec![theirs]],
-                that_object: Some(crate::lki::LkiSnapshot::capture(&state, theirs)),
-                that_player: Some(PlayerId(1)),
-                ..Anaphora::empty()
-            },
-            ..Frame::bare(bear, PlayerId(0))
-        };
+        let mut frame = Frame::bare(bear, PlayerId(0));
+        state.frame_set_source_lki(
+            &mut frame,
+            Some(crate::lki::LkiSnapshot::capture(&state, bear)),
+        );
+        state.frame_set_targets(&mut frame, &[vec![theirs]]);
+        state.frame_set_event_bindings(
+            &mut frame,
+            Some(crate::lki::LkiSnapshot::capture(&state, theirs)),
+            Some(PlayerId(1)),
+            None,
+        );
 
         assert_eq!(
             state.eval_reference(
-                &Reference::ControllerOf(Arc::new(Reference::Target(0))),
+                &Reference::ControllerOf(Arc::new(Reference::Reg(deckmaste_core::RefId(6)))),
                 &frame
             ),
             state.player(PlayerId(1)).object,
@@ -1223,8 +1164,8 @@ mod tests {
         );
         let payer = Reference::Coalesce(
             vec![
-                Reference::ControllerOf(Arc::new(Reference::Target(0))),
-                Reference::Target(0),
+                Reference::ControllerOf(Arc::new(Reference::Reg(deckmaste_core::RefId(6)))),
+                Reference::Reg(deckmaste_core::RefId(6)),
             ]
             .into(),
         );
@@ -1233,15 +1174,16 @@ mod tests {
             state.player(PlayerId(1)).object,
             "a nonplayer target selects its controller"
         );
-        let mut player_frame = frame.clone();
-        player_frame.anaphora.targets = vec![vec![state.player(PlayerId(1)).object]];
+        let mut player_frame = state.fork_frame(&frame);
+        let player_object = state.player(PlayerId(1)).object;
+        state.frame_set_targets(&mut player_frame, &[vec![player_object]]);
         assert_eq!(
             state.eval_reference(&payer, &player_frame),
             state.player(PlayerId(1)).object,
             "a player target falls back to the player itself"
         );
         let only_you = Reference::Single(Arc::new(Selection::SelectAll(Predicate::Ref(
-            Reference::You,
+            Reference::Reg(deckmaste_core::RefId(1)),
         ))));
         assert_eq!(
             state.eval_reference(&only_you, &frame),
@@ -1256,19 +1198,22 @@ mod tests {
             "Single fails closed when the selection has multiple values"
         );
         assert_eq!(
-            state.eval_reference(&Reference::OwnerOf(Arc::new(Reference::Target(0))), &frame),
+            state.eval_reference(
+                &Reference::OwnerOf(Arc::new(Reference::Reg(deckmaste_core::RefId(6)))),
+                &frame
+            ),
             state.player(PlayerId(0)).object,
             "owner is still player 0"
         );
         // The provenance-explicit event roles ([CR#603.2e]): the OBJECT (the
         // moved/acting object) and the ACTOR (the responsible player).
         assert_eq!(
-            state.eval_reference(&Reference::EventObject, &frame),
+            state.eval_reference(&Reference::Reg(deckmaste_core::RefId(2)), &frame),
             theirs,
             "EventObject is the bound snapshot's object (the moved/acting object)"
         );
         assert_eq!(
-            state.eval_reference(&Reference::EventActor, &frame),
+            state.eval_reference(&Reference::Reg(deckmaste_core::RefId(4)), &frame),
             state.player(PlayerId(1)).object,
             "EventActor is the responsible player"
         );
@@ -1285,38 +1230,41 @@ mod tests {
 
         // An OBJECT patient (a damage recipient creature) distinct from the
         // agent — what makes a two-object event spellable.
-        let object_patient = Frame {
-            this: Some(crate::lki::LkiSnapshot::capture(&state, bear)),
-            defending_player: Some(PlayerId(1)),
-            anaphora: Anaphora {
-                that_patient: Some(crate::trigger::EventPatient::Object(
-                    crate::lki::LkiSnapshot::capture(&state, theirs),
-                )),
-                ..Anaphora::empty()
-            },
-            ..Frame::bare(bear, PlayerId(0))
-        };
+        let mut object_patient = Frame::bare(bear, PlayerId(0));
+        state.frame_set_source_lki(
+            &mut object_patient,
+            Some(crate::lki::LkiSnapshot::capture(&state, bear)),
+        );
+        state.frame_set_defending_player(&mut object_patient, Some(PlayerId(1)));
+        state.frame_set_event_bindings(
+            &mut object_patient,
+            None,
+            None,
+            Some(crate::trigger::EventPatient::Object(
+                crate::lki::LkiSnapshot::capture(&state, theirs),
+            )),
+        );
         assert_eq!(
-            state.eval_reference(&Reference::EventPatient, &object_patient),
+            state.eval_reference(&Reference::Reg(deckmaste_core::RefId(3)), &object_patient),
             theirs,
             "an object patient resolves to its object"
         );
         assert_eq!(
-            state.eval_reference(&Reference::DefendingPlayer, &object_patient),
+            state.eval_reference(&Reference::Reg(deckmaste_core::RefId(5)), &object_patient),
             state.player(PlayerId(1)).object,
             "DefendingPlayer is always the player proxy"
         );
 
         // A PLAYER patient (a damage recipient player) resolves to the proxy.
-        let player_patient = Frame {
-            anaphora: Anaphora {
-                that_patient: Some(crate::trigger::EventPatient::Player(PlayerId(1))),
-                ..Anaphora::empty()
-            },
-            ..Frame::bare(bear, PlayerId(0))
-        };
+        let mut player_patient = Frame::bare(bear, PlayerId(0));
+        state.frame_set_event_bindings(
+            &mut player_patient,
+            None,
+            None,
+            Some(crate::trigger::EventPatient::Player(PlayerId(1))),
+        );
         assert_eq!(
-            state.eval_reference(&Reference::EventPatient, &player_patient),
+            state.eval_reference(&Reference::Reg(deckmaste_core::RefId(3)), &player_patient),
             state.player(PlayerId(1)).object,
             "a player patient resolves to the player proxy"
         );
@@ -1340,7 +1288,10 @@ mod tests {
             "fixture must leave a multi-card library for an order check"
         );
         assert_eq!(
-            state.eval_selection_set(&Selection::LibraryOf(Reference::You), &frame),
+            state.eval_selection_set(
+                &Selection::LibraryOf(Reference::Reg(deckmaste_core::RefId(1))),
+                &frame
+            ),
             expected,
             "LibraryOf(You) is the whole library, in zone order"
         );
@@ -1348,7 +1299,7 @@ mod tests {
             state.eval_selection_set(
                 &Selection::TopOfLibrary {
                     count: deckmaste_core::Count::Literal(2),
-                    whose: Reference::You,
+                    whose: Reference::Reg(deckmaste_core::RefId(1)),
                 },
                 &frame,
             ),
@@ -1377,12 +1328,15 @@ mod tests {
         let (state, _bear) = bear_on_field();
         let frame = frame_for(&state, PlayerId(0));
 
-        let inner = Selection::LibraryOf(Reference::You);
+        let inner = Selection::LibraryOf(Reference::Reg(deckmaste_core::RefId(1)));
         let direct = state.eval_selection_set(&inner, &frame);
         assert!(!direct.is_empty(), "fixture leaves a non-empty library");
         assert_eq!(
             state.eval_selection_set(
-                &Selection::InChosenOrder(Arc::new(inner), Reference::You),
+                &Selection::InChosenOrder(
+                    Arc::new(inner),
+                    Reference::Reg(deckmaste_core::RefId(1))
+                ),
                 &frame,
             ),
             direct,
@@ -1441,7 +1395,7 @@ mod tests {
                 // The body is irrelevant to the read under test; any
                 // slot-referencing action keeps the declaration well-formed.
                 effect: OneShotEffect::Act(Action::deal_damage(
-                    Reference::Target(0),
+                    Reference::Reg(deckmaste_core::RefId(6)),
                     deckmaste_core::Count::Literal(1),
                 ))
                 .into(),
@@ -1483,9 +1437,11 @@ mod tests {
         );
 
         // `This` names the spell itself off the frame's source.
-        let frame = crate::test_support::frame_src(spell);
-        let mut got =
-            state.eval_selection_set(&Selection::ValidTargetsFor(Reference::This), &frame);
+        let frame = crate::test_support::frame_src(&state, spell);
+        let mut got = state.eval_selection_set(
+            &Selection::ValidTargetsFor(Reference::Reg(deckmaste_core::RefId(0))),
+            &frame,
+        );
         got.sort_unstable();
         let mut want = vec![bear_a, bear_b];
         want.sort_unstable();

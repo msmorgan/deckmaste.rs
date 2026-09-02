@@ -103,7 +103,7 @@ impl GameState {
         match effect {
             // `Tap` is agent-silent, so the `AsEnters` sugar expands to
             // `Act(Tap(This))`.
-            OneShotEffect::Act(Action::Tap(Reference::This)) => {
+            OneShotEffect::Act(Action::Tap(Reference::Reg(deckmaste_core::RefId(0)))) => {
                 status.tapped = true;
             }
             // [CR#303.4,303.4f]: enters attached. The enters-attached shape is
@@ -229,7 +229,7 @@ fn host_quality(binder: &deckmaste_core::Binder) -> Option<&Predicate> {
 
 /// Whether a `Reference` is this object itself (`This`).
 fn is_self_reference(r: &Reference) -> bool {
-    matches!(*r, Reference::This)
+    matches!(*r, Reference::Reg(deckmaste_core::RefId(0)))
 }
 
 /// Whether an `also` effect is this object attaching itself on entry — the
@@ -248,7 +248,10 @@ fn would_is_self_enter(would: &EventFilter) -> bool {
         // A move *to* the battlefield, of this object (or match-anything).
         EventFilter::ZoneChange { what, to, .. } => {
             *to == Some(Zone::Battlefield)
-                && matches!(what, Predicate::Ref(Reference::This) | Predicate::Any)
+                && matches!(
+                    what,
+                    Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))) | Predicate::Any
+                )
         }
         _ => false,
     }
@@ -314,12 +317,12 @@ mod tests {
             types: vec![Type::Enchantment.def()],
             abilities: vec![
                 Ability::r#static(StaticEffect::Deontic(Deontic::May(DeonticAction::Attach {
-                    what: Predicate::Ref(Reference::This),
+                    what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                     to: Predicate::creature(),
                 }))),
                 Ability::r#static(StaticEffect::Replacement(Arc::new(Replacement::Also {
                     would: EventFilter::ZoneChange {
-                        what: Predicate::Ref(Reference::This),
+                        what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                         from: None,
                         to: Some(Zone::Battlefield),
                         cause: None,
@@ -335,10 +338,10 @@ mod tests {
                                 ]
                                 .into(),
                             ),
-                            by: Reference::You,
+                            by: Reference::Reg(deckmaste_core::RefId(1)),
                         },
                         body: Arc::new(OneShotEffect::Act(Action::Attach {
-                            what: Reference::This,
+                            what: Reference::Reg(deckmaste_core::RefId(0)),
                             to: Reference::It,
                         })),
                     }),
@@ -454,12 +457,12 @@ mod tests {
             types: vec![Type::Enchantment.def()],
             abilities: vec![
                 Ability::r#static(StaticEffect::Deontic(Deontic::May(DeonticAction::Attach {
-                    what: Predicate::Ref(Reference::This),
+                    what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                     to: Predicate::creature(),
                 }))),
                 Ability::r#static(StaticEffect::Replacement(Arc::new(Replacement::Also {
                     would: EventFilter::ZoneChange {
-                        what: Predicate::Ref(Reference::This),
+                        what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                         from: None,
                         to: Some(Zone::Battlefield),
                         cause: None,
@@ -473,15 +476,15 @@ mod tests {
                                     )),
                                     Predicate::creature(),
                                     Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
-                                        Predicate::Ref(Reference::You),
+                                        Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
                                     ))),
                                 ]
                                 .into(),
                             ),
-                            by: Reference::You,
+                            by: Reference::Reg(deckmaste_core::RefId(1)),
                         },
                         body: Arc::new(OneShotEffect::Act(Action::Attach {
-                            what: Reference::This,
+                            what: Reference::Reg(deckmaste_core::RefId(0)),
                             to: Reference::It,
                         })),
                     }),
@@ -578,13 +581,13 @@ mod tests {
             abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
                 Replacement::Also {
                     would: EventFilter::ZoneChange {
-                        what: Predicate::Ref(Reference::This),
+                        what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                         from: None,
                         to: Some(Zone::Battlefield),
                         cause: None,
                     },
                     also: OneShotEffect::Act(Action::PutCounters(
-                        Reference::This,
+                        Reference::Reg(deckmaste_core::RefId(0)),
                         "P1P1Counter".into(),
                         Count::Literal(2),
                     )),
@@ -654,16 +657,18 @@ mod tests {
             abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
                 Replacement::Also {
                     would: EventFilter::ZoneChange {
-                        what: Predicate::Ref(Reference::This),
+                        what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                         from: None,
                         to: Some(Zone::Battlefield),
                         cause: None,
                     },
                     also: compose(
                         vec![
-                            OneShotEffect::Act(Action::Tap(Reference::This)),
+                            OneShotEffect::Act(Action::Tap(Reference::Reg(deckmaste_core::RefId(
+                                0,
+                            )))),
                             OneShotEffect::Act(Action::PutCounters(
-                                Reference::This,
+                                Reference::Reg(deckmaste_core::RefId(0)),
                                 "SlumberCounter".into(),
                                 Count::Literal(5),
                             )),
@@ -780,9 +785,11 @@ mod tests {
         let other_lands_you_control = Predicate::And(
             vec![
                 Predicate::r#type(Type::Land),
-                Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
+                Predicate::Not(Arc::new(Predicate::Ref(Reference::Reg(
+                    deckmaste_core::RefId(0),
+                )))),
                 Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                 )))),
             ]
             .into(),
@@ -800,14 +807,16 @@ mod tests {
             abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
                 Replacement::Also {
                     would: EventFilter::ZoneChange {
-                        what: Predicate::Ref(Reference::This),
+                        what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                         from: None,
                         to: Some(Zone::Battlefield),
                         cause: None,
                     },
                     also: OneShotEffect::If(If {
                         condition: Condition::Not(Arc::new(gate)),
-                        then: Arc::new(OneShotEffect::Act(Action::Tap(Reference::This))),
+                        then: Arc::new(OneShotEffect::Act(Action::Tap(Reference::Reg(
+                            deckmaste_core::RefId(0),
+                        )))),
                         otherwise: None,
                     }),
                 },
@@ -919,13 +928,13 @@ mod tests {
             confer: Property::Ability(Arc::new(Ability::r#static(StaticEffect::Replacement(
                 Arc::new(Replacement::Also {
                     would: EventFilter::ZoneChange {
-                        what: Predicate::Ref(Reference::This),
+                        what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                         from: None,
                         to: Some(Zone::Battlefield),
                         cause: None,
                     },
                     also: OneShotEffect::Act(Action::PutCounters(
-                        Reference::This,
+                        Reference::Reg(deckmaste_core::RefId(0)),
                         "LoyaltyCounter".into(),
                         Count::Literal(3),
                     )),

@@ -497,7 +497,7 @@ fn ascend_macro_expands_to_static_sba() {
                     vec![
                         Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                         Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
-                            Predicate::Ref(Reference::You),
+                            Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
                         ))),
                     ]
                     .into(),
@@ -506,7 +506,7 @@ fn ascend_macro_expands_to_static_sba() {
                 Count::Literal(10),
             ),
             Condition::Not(Arc::new(Condition::Matches(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 Predicate::State(StatePredicate::Designated("CitysBlessing".into())),
             ))),
         ]
@@ -529,7 +529,6 @@ fn ascend_macro_expands_to_static_sba() {
 fn cycling_confers_from_hand_discard_self_draw() {
     use deckmaste_core::Ability;
     use deckmaste_core::Cost;
-    use deckmaste_core::OneShotEffect;
     use deckmaste_core::Zone;
 
     let plugin = builtin();
@@ -565,16 +564,23 @@ fn cycling_confers_from_hand_discard_self_draw() {
         "cycling cost is the printed cost + discard this card, spliced flat"
     );
 
-    assert!(
-        matches!(
-            act.effect.body.as_ref(),
-            [OneShotEffect::Batch(deckmaste_core::Count::Literal(1), effect)]
-                if matches!(effect.as_ref(), OneShotEffect::Act(deckmaste_core::Action::DrawCard(
-                    deckmaste_core::Reference::Reg(deckmaste_core::RefId(1))
-                )))
-        ),
-        "cycling draws a card for the activation's controller"
-    );
+    // (3) Effect = the independently expanded `Draw(1)` macro, lowered as an
+    // activated-ability region so its controller reference receives the same
+    // provenance-assigned register as Cycling's body.
+    let expected_effect: deckmaste_semantics::OneShotEffect =
+        plugin.macros.read_str("Draw(1)").unwrap();
+    let expected = deckmaste_semantics::ActivatedAbility {
+        ability_word: None,
+        cost: deckmaste_semantics::Cost([].into()),
+        from: None,
+        window: None,
+        condition: None,
+        limits: [].into(),
+        effect: expected_effect,
+    }
+    .lower()
+    .effect;
+    assert_eq!(act.effect, expected, "cycling draws a card");
 }
 
 /// [CR#702.77a]: **Reinforce N—[cost]** confers an Activated ability that
@@ -812,7 +818,7 @@ fn soulshift_confers_dies_may_return_spirit_from_graveyard() {
         matches!(
             &trig.event,
             EventFilter::ZoneChange {
-                what: Predicate::Ref(Reference::This),
+                what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 from: Some(Zone::Battlefield),
                 to: Some(Zone::Graveyard),
                 cause: None,
@@ -916,7 +922,7 @@ fn afterlife_confers_dies_create_spirit_tokens_with_flying() {
         matches!(
             &trig.event,
             EventFilter::ZoneChange {
-                what: Predicate::Ref(Reference::This),
+                what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 from: Some(Zone::Battlefield),
                 to: Some(Zone::Graveyard),
                 cause: None,

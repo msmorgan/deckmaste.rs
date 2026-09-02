@@ -1157,7 +1157,7 @@ impl GameState {
                 match bindings.frame {
                     Some(frame) => self.eval_reference(of, frame) == used,
                     None => match *deref_reference(of) {
-                        Reference::This => self
+                        Reference::Reg(deckmaste_core::RefId(0)) => self
                             .objects
                             .iter()
                             .find(|ob| ob.source == bindings.watcher)
@@ -1258,7 +1258,7 @@ impl GameState {
             EventFilter::Within(inner, within) => {
                 let controller = bindings
                     .frame
-                    .map(|frame| frame.controller)
+                    .map(|frame| frame.controller(self))
                     .or_else(|| self.controller_of_source(bindings.watcher));
                 let in_window = match (*within, fact.seq, controller) {
                     (Lookback::SinceYour(_), Some(seq), Some(controller)) => {

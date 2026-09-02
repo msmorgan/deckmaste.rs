@@ -53,7 +53,7 @@ fn basic_land_subtype(name: &str, color: Color) -> Subtype {
                 condition: None,
                 limits: vec![].into(),
                 effect: OneShotEffect::Act(Action::AddMana(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(1),
                     ManaSpec::Specific(ColorOrColorless::Color(color)).into(),
                 ))
@@ -86,7 +86,7 @@ fn land_type() -> deckmaste_core::TypeDef {
         confers: vec![Property::Ability(Arc::new(Ability::r#static(
             deckmaste_core::StaticEffect::Deontic(deckmaste_core::Deontic::May(
                 deckmaste_core::DeonticAction::Play {
-                    what: deckmaste_core::Predicate::Ref(Reference::This),
+                    what: deckmaste_core::Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                     by: deckmaste_core::Predicate::Any,
                     from: None,
                 },
@@ -234,7 +234,7 @@ fn regenerate_macro_expands_with_typed_reference_param() {
     };
     assert_eq!(
         binder,
-        deckmaste_core::Binder::TheRef(Reference::This),
+        deckmaste_core::Binder::TheRef(Reference::Reg(deckmaste_core::RefId(0))),
         "the regenerated permanent is bound by With(TheRef(This))"
     );
     let OneShotEffect::Act(Action::CreateReplacement {
@@ -391,7 +391,11 @@ fn wave_macros_expand_to_their_blessed_bodies() {
     let OneShotEffect::May(m) = &unless else {
         panic!("Unless must lower to May, got {unless:?}");
     };
-    assert_eq!(m.who, Reference::You, "the payer defaults to You");
+    assert_eq!(
+        m.who,
+        Reference::Reg(deckmaste_core::RefId(1)),
+        "the payer defaults to You"
+    );
     assert!(
         m.if_did.is_none(),
         "no positive branch — this is the punisher shape"
@@ -411,7 +415,7 @@ fn wave_macros_expand_to_their_blessed_bodies() {
         matches!(
             draw_inner.as_ref(),
             OneShotEffect::Act(Action::DrawCard(who))
-                if *who == Reference::You
+                if *who == Reference::Reg(deckmaste_core::RefId(1))
         ),
         "or_else carries the unpaid Draw batch, got {draw_inner:?}"
     );
@@ -423,7 +427,12 @@ fn wave_macros_expand_to_their_blessed_bodies() {
     assert!(
         matches!(
             exile,
-            OneShotEffect::Act(Action::Move(Reference::This, _, _, _))
+            OneShotEffect::Act(Action::Move(
+                Reference::Reg(deckmaste_core::RefId(0)),
+                _,
+                _,
+                _
+            ))
         ),
         "Exile(This) lowers to Move(This, Exile)"
     );
@@ -443,7 +452,7 @@ fn wave_macros_expand_to_their_blessed_bodies() {
                 if name.as_str() == "Destroy"
                     && matches!(
                         body.as_ref(),
-                        OneShotEffect::Act(Action::Move(Reference::This, _, _, _))
+                        OneShotEffect::Act(Action::Move(Reference::Reg(deckmaste_core::RefId(0)), _, _, _))
                     )
         ),
         "DestroyNoRegen's first part destroys This, got {:?}",
@@ -594,7 +603,7 @@ fn loyalty_macros_expand_to_sorcery_speed_shared_once_per_turn() {
                 if matches!(
                     action.as_ref(),
                     deckmaste_core::Action::PutCounters(
-                        deckmaste_core::Reference::This,
+                        deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                         counter,
                         _,
                     ) if *counter == CounterRef::from("LoyaltyCounter")
@@ -625,7 +634,7 @@ fn loyalty_macros_expand_to_sorcery_speed_shared_once_per_turn() {
                 if matches!(
                     action.as_ref(),
                     deckmaste_core::Action::RemoveCounters(
-                        deckmaste_core::Reference::This,
+                        deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                         counter,
                         _,
                     ) if *counter == CounterRef::from("LoyaltyCounter")
@@ -678,7 +687,7 @@ fn amass_decomposes_into_core_primitives() {
         guard.condition,
     );
     let OneShotEffect::Act(Action::Create {
-        agent: Reference::You,
+        agent: Reference::Reg(deckmaste_core::RefId(1)),
         token: TokenSpec::Token(tok),
         ..
     }) = guard.then.as_ref()

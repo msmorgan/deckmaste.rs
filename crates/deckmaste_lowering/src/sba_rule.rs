@@ -45,9 +45,9 @@ mod tests {
                     deckmaste_core::Count::X
                 ),
                 then: deckmaste_core::OneShotEffect::Act(deckmaste_core::Action::DealDamage(
-                    deckmaste_core::Reference::This,
+                    deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                     deckmaste_core::Count::X,
-                    deckmaste_core::Reference::This
+                    deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
                 ))
             }
         );

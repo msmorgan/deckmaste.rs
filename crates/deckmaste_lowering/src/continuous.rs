@@ -441,7 +441,9 @@ mod tests {
     fn lowers_modification_set_controller() {
         assert_matches!(
             deckmaste_semantics::Modification::SetController(minimal_reference()).lower(),
-            deckmaste_core::Modification::SetController(deckmaste_core::Reference::This)
+            deckmaste_core::Modification::SetController(deckmaste_core::Reference::Reg(
+                deckmaste_core::RefId(0)
+            ))
         );
     }
 
@@ -561,7 +563,7 @@ mod tests {
             deckmaste_semantics::StaticEffect::Modify(minimal_reference(), minimal_modification())
                 .lower(),
             deckmaste_core::StaticEffect::Modify(
-                deckmaste_core::Reference::This,
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::Modification::Power(deckmaste_core::NumericOp::Set(
                     deckmaste_core::StatValue::DefinedByAbility
                 ))
@@ -578,9 +580,11 @@ mod tests {
             )
             .lower(),
             deckmaste_core::StaticEffect::BecomesCopy(
-                deckmaste_core::Reference::This,
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::CopySpec {
-                    source: deckmaste_core::CopySource::Object(deckmaste_core::Reference::This),
+                    source: deckmaste_core::CopySource::Object(deckmaste_core::Reference::Reg(
+                        deckmaste_core::RefId(0)
+                    )),
                     exceptions: _
                 }
             )
@@ -694,7 +698,7 @@ mod tests {
             )
             .lower(),
             deckmaste_core::StaticEffect::ModifyPlayer(
-                deckmaste_core::Reference::This,
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::PlayerMod::SetTo(
                     deckmaste_core::PlayerAttr::Life,
                     deckmaste_core::Count::X
@@ -853,7 +857,7 @@ mod tests {
             })
             .lower(),
             deckmaste_core::StaticEffect::Modify(
-                deckmaste_core::Reference::This,
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::Modification::Power(deckmaste_core::NumericOp::Set(
                     deckmaste_core::StatValue::DefinedByAbility
                 ))

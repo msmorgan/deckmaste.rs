@@ -431,7 +431,10 @@ fn bake_counter_counts(
     let bake = |count: &Count| -> Count {
         match count {
             Count::CounterCount(reference, kind)
-                if matches!(**reference, deckmaste_core::Reference::This) =>
+                if matches!(
+                    **reference,
+                    deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
+                ) =>
             {
                 Count::Literal(holder.get(kind.as_str()).copied().unwrap_or(0))
             }
@@ -699,7 +702,7 @@ fn resolve_source_relative(
     use deckmaste_core::Reference;
     match reference {
         // The carrying object itself.
-        &Reference::This => vec![source],
+        &Reference::Reg(deckmaste_core::RefId(0)) => vec![source],
         // The host an attachment is attached to ([CR#301.5,303.4]) — read the
         // attachment→host link off the resolved inner object. No host (an
         // unattached attachment) → empty, so nothing is buffed.
@@ -980,7 +983,7 @@ fn resolve_count_ref(
 ) -> Option<ObjectId> {
     use deckmaste_core::Reference;
     match reference {
-        &Reference::You => Some(state.player(controller).object),
+        &Reference::Reg(deckmaste_core::RefId(1)) => Some(state.player(controller).object),
         Reference::ControllerOf(inner) => {
             let id = resolve_count_ref(state, working, inner, watcher, controller)?;
             let player = working.get(&id).map_or_else(
@@ -1746,7 +1749,7 @@ fn apply_static(
 
 /// Resolve a control-change effect's new controller ([CR#613.1b]) to a concrete
 /// player. Per [CR#611.2c] the effect's references are locked when it is
-/// created, so `Reference::You` resolves to the effect's controller (the happy
+/// created, so `Reference::Reg(deckmaste_core::RefId(1))` resolves to the effect's controller (the happy
 /// path: "you gain control of …"). General `Reference` resolution needs the
 /// resolve-time `Frame` machinery (`engine-resolve-effects`); any other
 /// reference is a documented seam that leaves the controller unchanged.
@@ -1756,7 +1759,7 @@ fn resolve_new_controller(
 ) -> Option<PlayerId> {
     use deckmaste_core::Reference;
     match *reference {
-        Reference::You => Some(effect_controller),
+        Reference::Reg(deckmaste_core::RefId(1)) => Some(effect_controller),
         // SEAM: opponent / each-player / bound references need a `Frame` to
         // resolve a specific player; not reachable by current control fixtures.
         _ => None,
@@ -2334,7 +2337,7 @@ mod tests {
                         condition: None,
                         limits: vec![].into(),
                         effect: OneShotEffect::Act(deckmaste_core::Action::AddMana(
-                            Reference::You,
+                            Reference::Reg(deckmaste_core::RefId(1)),
                             Count::Literal(1),
                             ManaProduction::Bare(ManaSpec::Specific(ColorOrColorless::Color(
                                 deckmaste_core::Color::Blue,
@@ -2523,7 +2526,7 @@ mod tests {
     fn host_pump_static(n: u32) -> Ability {
         use deckmaste_core::Reference;
         Ability::r#static(StaticEffect::Modify(
-            Reference::AttachHostOf(Arc::new(Reference::This)),
+            Reference::AttachHostOf(Arc::new(Reference::Reg(deckmaste_core::RefId(0)))),
             Modification::Several(
                 vec![
                     Modification::Power(NumericOp::Up(Count::Literal(n))),
@@ -2628,7 +2631,7 @@ mod tests {
         use deckmaste_core::Reference;
 
         let pump = Ability::r#static(StaticEffect::Modify(
-            Reference::This,
+            Reference::Reg(deckmaste_core::RefId(0)),
             Modification::Power(NumericOp::Up(Count::Literal(1))),
         ));
         let (state, id) = creature_on_field(game(), vec![pump]);
@@ -2782,12 +2785,14 @@ mod tests {
             Selection::SelectAll(Predicate::And(
                 vec![
                     Predicate::creature(),
-                    Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
+                    Predicate::Not(Arc::new(Predicate::Ref(Reference::Reg(
+                        deckmaste_core::RefId(0),
+                    )))),
                     Predicate::Characteristic(CharacteristicPredicate::Subtype(
                         deckmaste_core::SubtypeRef::named("Goblin".into()),
                     )),
                     Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                        Reference::You,
+                        Reference::Reg(deckmaste_core::RefId(1)),
                     )))),
                 ]
                 .into(),
@@ -2918,7 +2923,7 @@ mod tests {
                 vec![
                     Predicate::creature(),
                     Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                        Reference::You,
+                        Reference::Reg(deckmaste_core::RefId(1)),
                     )))),
                 ]
                 .into(),
@@ -2963,7 +2968,7 @@ mod tests {
         use deckmaste_core::Reference;
         let count = Count::CountOf(Countable::Objects(Arc::new(Predicate::creature())));
         Ability::r#static(StaticEffect::Modify(
-            Reference::This,
+            Reference::Reg(deckmaste_core::RefId(0)),
             Modification::Several(
                 vec![
                     Modification::Power(NumericOp::Set(StatValue::Count(count.clone()))),
@@ -3008,7 +3013,7 @@ mod tests {
         use deckmaste_core::Reference;
         let count = Count::CountOf(Countable::Objects(Arc::new(Predicate::creature())));
         Ability::r#static(StaticEffect::Modify(
-            Reference::This,
+            Reference::Reg(deckmaste_core::RefId(0)),
             Modification::Several(
                 vec![
                     Modification::Power(NumericOp::Up(count.clone())),
@@ -3244,7 +3249,7 @@ mod tests {
     fn self_pump_static() -> Ability {
         use deckmaste_core::Reference;
         Ability::r#static(StaticEffect::Modify(
-            Reference::This,
+            Reference::Reg(deckmaste_core::RefId(0)),
             Modification::Several(
                 vec![
                     Modification::Power(NumericOp::Up(Count::Literal(1))),
@@ -3267,7 +3272,9 @@ mod tests {
             Selection::SelectAll(Predicate::And(
                 vec![
                     Predicate::creature(),
-                    Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
+                    Predicate::Not(Arc::new(Predicate::Ref(Reference::Reg(
+                        deckmaste_core::RefId(0),
+                    )))),
                 ]
                 .into(),
             )),
@@ -3369,16 +3376,16 @@ mod tests {
     fn same_layer_change_enables_conditional_static() {
         let conditional_vigilance = Ability::r#static(StaticEffect::Conditionally(
             Condition::Matches(
-                Reference::This,
+                Reference::Reg(deckmaste_core::RefId(0)),
                 Predicate::Characteristic(CharacteristicPredicate::Has("Trample".into())),
             ),
             Arc::new(StaticEffect::Modify(
-                Reference::This,
+                Reference::Reg(deckmaste_core::RefId(0)),
                 Modification::GainAbility(Arc::new(Ability::Keyword(KeywordAbility::Vigilance))),
             )),
         ));
         let grant_trample = Ability::r#static(StaticEffect::Modify(
-            Reference::This,
+            Reference::Reg(deckmaste_core::RefId(0)),
             Modification::GainAbility(Arc::new(Ability::Keyword(KeywordAbility::Trample))),
         ));
         let (state, id) = creature_on_field(game(), vec![conditional_vigilance, grant_trample]);

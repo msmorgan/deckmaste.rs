@@ -139,7 +139,7 @@ mod tests {
             deckmaste_semantics::Condition::Matches(minimal_reference(), minimal_predicate())
                 .lower(),
             deckmaste_core::Condition::Matches(
-                deckmaste_core::Reference::This,
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
             )
         );
@@ -149,7 +149,9 @@ mod tests {
     fn lowers_condition_legally_attached() {
         assert_matches!(
             deckmaste_semantics::Condition::LegallyAttached(minimal_reference()).lower(),
-            deckmaste_core::Condition::LegallyAttached(deckmaste_core::Reference::This)
+            deckmaste_core::Condition::LegallyAttached(deckmaste_core::Reference::Reg(
+                deckmaste_core::RefId(0)
+            ))
         );
     }
 

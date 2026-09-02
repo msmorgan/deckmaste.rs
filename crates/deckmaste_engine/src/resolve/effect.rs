@@ -73,6 +73,7 @@ impl GameState {
         }
         let iid = crate::replace_registry::InstanceId(self.next_shield_id);
         self.next_shield_id += 1;
+        let source = frame.source(self);
         self.shields
             .push(crate::replace_registry::ReplacementInstance {
                 id: iid,
@@ -80,7 +81,7 @@ impl GameState {
                 subject: id,
                 duration,
                 one_shot,
-                source: frame.source,
+                source,
             });
     }
 
@@ -299,7 +300,7 @@ impl GameState {
                 let (label, quantity) = among_noted_choice(selection)?;
                 let live = self.live_noted_members(label);
                 let (min, max) = self.choice_bounds(quantity, live.len(), frame);
-                Some((frame.controller, live, min, max))
+                Some((frame.controller(self), live, min, max))
             }
             _ => None,
         }
@@ -599,21 +600,29 @@ impl GameState {
                             // the stored change to the `You` shape
                             // `resolve_new_controller` already handles. A bare
                             // `SetController(You)` keeps today's
-                            // `frame.controller` path untouched.
+                            // `frame.controller(self)` path untouched.
                             let (changes, controller) = match change {
                                 Modification::SetController(value)
-                                    if !matches!(*value, Reference::You) =>
+                                    if !matches!(
+                                        *value,
+                                        Reference::Reg(deckmaste_core::RefId(1))
+                                    ) =>
                                 {
                                     if let Some(p) = self.eval_player_ref(value, frame) {
-                                        (vec![Modification::SetController(Reference::You)], p)
+                                        (
+                                            vec![Modification::SetController(Reference::Reg(
+                                                deckmaste_core::RefId(1),
+                                            ))],
+                                            p,
+                                        )
                                     } else {
                                         void = true;
-                                        (vec![], frame.controller)
+                                        (vec![], frame.controller(self))
                                     }
                                 }
                                 _ => (
                                     Modification::flatten(std::slice::from_ref(change)).to_vec(),
-                                    frame.controller,
+                                    frame.controller(self),
                                 ),
                             };
                             let origin = match &e.duration {
@@ -797,12 +806,13 @@ impl GameState {
                 {
                     return;
                 }
+                let controller = frame.controller(self);
                 self.continuous.push(ContinuousEffect {
                     timestamp,
                     // The continuous effect's controller is the controller
                     // of the spell/ability that created it ([CR#611.2c]);
                     // it resolves the `You` in a layer-2 control change.
-                    controller: frame.controller,
+                    controller,
                     scope,
                     changes: changes.to_vec(),
                     rows,
@@ -915,7 +925,7 @@ impl GameState {
                 // next remint/shuffle).
                 if Self::is_top_of_library_peek(&each.binder) {
                     for &obj in &matches {
-                        self.grant_payment_look(frame.controller, obj);
+                        self.grant_payment_look(frame.controller(self), obj);
                     }
                 }
                 // [CR#401.4]: if the body puts cards into ordered library
@@ -927,7 +937,7 @@ impl GameState {
                 let can_reposition = Self::body_repositions_ordered(&each.effect);
                 if can_reposition {
                     self.arrange_scope = Some(crate::state::ArrangeScope {
-                        arranger: frame.controller,
+                        arranger: frame.controller(self),
                         landings: Vec::new(),
                     });
                 }
@@ -1479,14 +1489,14 @@ impl GameState {
                 // FIRST ([CR#608.2k] — one antecedent set per body), so a
                 // trigger body's own `that_player`/`that_patient` can't leak
                 // into this payment's body.
-                let mut body_frame = frame.clone();
-                body_frame.anaphora.that_object = None;
-                body_frame.anaphora.that_player = None;
-                body_frame.anaphora.that_patient = None;
-                if let Some(snapshot) = self.cost_paid_object(&cost, frame) {
-                    body_frame.anaphora.that_object = Some(snapshot);
-                }
-                body_frame.anaphora.that_player = Some(frame.controller);
+                let mut body_frame = self.fork_frame(frame);
+                let paid = self.cost_paid_object(&cost, frame);
+                self.frame_set_event_bindings(
+                    &mut body_frame,
+                    paid,
+                    Some(frame.controller(self)),
+                    None,
+                );
                 // [CR#118.10]: one fresh payment id for this cost's whole
                 // drain — every component below shares it; `body_frame`
                 // (the consequence, not the payment) never carries it.
@@ -1499,7 +1509,10 @@ impl GameState {
                         // Render each cost component as the controller's payment
                         // effect; a cost-side `With` becomes an `OneShotEffect::With`
                         // (its choice surfaced at payment), not a single action.
-                        effect: Arc::new(crate::decide::unless_cost_effect(c, &Reference::You)),
+                        effect: Arc::new(crate::decide::unless_cost_effect(
+                            c,
+                            &Reference::Reg(deckmaste_core::RefId(1)),
+                        )),
                         frame: payment_frame.clone(),
                     })
                     .collect();
@@ -1523,9 +1536,10 @@ impl GameState {
             OneShotEffect::Delayed(ability) => {
                 if !self.scan_created_reflexive(&ability, frame) {
                     let (source, bindings) = self.created_trigger_context(frame);
+                    let controller = frame.controller(self);
                     self.delayed_triggers.push(crate::trigger::CreatedTrigger {
                         source,
-                        controller: frame.controller,
+                        controller,
                         ability,
                         bindings,
                     });
@@ -1568,7 +1582,7 @@ impl GameState {
     /// never a panic.
     fn batch_act_head(&self, unit: &BatchUnit<'_>, frame: &Frame) -> Option<BatchActHead> {
         use deckmaste_core::Agency;
-        let agent = Some((frame.source, frame.controller));
+        let agent = Some((frame.source(self), frame.controller(self)));
         let (name, body) = match unit {
             // Draw ([CR#121.1]) is a game action, NOT a keyword action
             // ([CR#701]) — it has no composite body, so there are no stored
@@ -1685,7 +1699,7 @@ impl GameState {
     ///
     /// [CR#400.7j]: when the creating source itself MOVED during the same
     /// resolution (madness exiles the very card whose ability is discarding
-    /// it — `frame.source` is reminted and gone), `~`/`This` falls back to the
+    /// it — `frame.source(self)` is reminted and gone), `~`/`This` falls back to the
     /// `With(Produce(...))` product bound as `That`, so the delayed body's
     /// filter still anchors `Ref(This)` on the just-produced object and its
     /// watcher-source is that live card rather than a bare player proxy.
@@ -1694,20 +1708,20 @@ impl GameState {
         frame: &Frame,
     ) -> (ObjectSource, crate::trigger::TriggerBindings) {
         let this = frame
-            .this
-            .clone()
+            .source_lki(self)
             .or_else(|| {
                 self.objects
-                    .get(frame.source)
-                    .map(|_| crate::lki::LkiSnapshot::capture(self, frame.source))
+                    .get(frame.source(self))
+                    .map(|_| crate::lki::LkiSnapshot::capture(self, frame.source(self)))
             })
             .or_else(|| self.produced_that_snapshot(frame));
-        let source = this
-            .as_ref()
-            .map_or_else(|| ObjectSource::Player(frame.controller), |s| s.source);
+        let source = this.as_ref().map_or_else(
+            || ObjectSource::Player(frame.controller(self)),
+            |s| s.source,
+        );
         let bindings = crate::trigger::TriggerBindings {
             this,
-            defending_player: frame.defending_player,
+            defending_player: frame.defending_player(self),
             ..crate::trigger::TriggerBindings::default()
         };
         (source, bindings)
@@ -1767,7 +1781,7 @@ impl GameState {
                     TriggerFired {
                         source,
                         ability: 0,
-                        controller: frame.controller,
+                        controller: frame.controller(self),
                         created: Some(Arc::new(ability.clone())),
                         bindings: Box::new(bindings),
                     },
@@ -2214,7 +2228,7 @@ mod tests {
     #[test]
     fn targeted_effect_resolves_its_inner_effect() {
         let (mut state, bear) = bear_on_field();
-        let frame = frame_src_targets(bear, vec![bear]);
+        let frame = frame_src_targets(&state, bear, vec![bear]);
         state.run_effect(
             OneShotEffect::Act(Action::deal_damage(
                 Reference::Reg(deckmaste_core::RefId(6)),
@@ -2241,7 +2255,7 @@ mod tests {
         state.objects.obj_mut(b).zone = Some(Zone::Battlefield);
         state.zones.battlefield.push(b);
 
-        let frame = frame_src(a);
+        let frame = frame_src(&state, a);
         let filter = Predicate::And(
             vec![
                 Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
@@ -2264,7 +2278,7 @@ mod tests {
     #[test]
     fn each_player_deal_damage_hits_both_players() {
         let (mut state, src) = bear_on_field();
-        let frame = frame_src(src);
+        let frame = frame_src(&state, src);
 
         let effect = OneShotEffect::Each(deckmaste_core::Each {
             binder: Binder::Existing(Selection::SelectAll(Predicate::Kind(ObjectKind::Player))),
@@ -2301,7 +2315,7 @@ mod tests {
         state.objects.obj_mut(b).zone = Some(Zone::Battlefield);
         state.zones.battlefield.push(b);
 
-        let frame = frame_src(a);
+        let frame = frame_src(&state, a);
         let effect = OneShotEffect::Each(deckmaste_core::Each {
             binder: Binder::Existing(Selection::SelectAll(Predicate::And(
                 vec![
@@ -2360,7 +2374,7 @@ mod tests {
         state.zones.battlefield.push(b);
         let hand_before = state.zones.hands[0].len();
 
-        let frame = frame_src(a);
+        let frame = frame_src(&state, a);
         let effect = OneShotEffect::Each(deckmaste_core::Each {
             binder: Binder::Existing(Selection::SelectAll(Predicate::And(
                 vec![
@@ -2370,7 +2384,7 @@ mod tests {
                 .into(),
             ))),
             effect: Arc::new(OneShotEffect::Act(Action::discard(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 false,
             ))),
@@ -2422,7 +2436,7 @@ mod tests {
         let life0 = state.player(p0).life;
 
         let body = OneShotEffect::Act(Action::ChangeLife(
-            Reference::You,
+            Reference::Reg(deckmaste_core::RefId(1)),
             LifeOp::Up(Count::Literal(2)),
         ));
         state.run_effect(
@@ -2450,7 +2464,7 @@ mod tests {
         let agenda_before = state.agenda.len();
 
         let body = OneShotEffect::Act(Action::ChangeLife(
-            Reference::You,
+            Reference::Reg(deckmaste_core::RefId(1)),
             LifeOp::Up(Count::Literal(2)),
         ));
         state.run_effect(
@@ -2499,9 +2513,9 @@ mod tests {
 
         let may_gain_3 = || {
             OneShotEffect::May(deckmaste_core::May {
-                who: Reference::You,
+                who: Reference::Reg(deckmaste_core::RefId(1)),
                 effect: Arc::new(OneShotEffect::Act(Action::ChangeLife(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     LifeOp::Up(Count::Literal(3)),
                 ))),
                 if_did: None,
@@ -2555,7 +2569,7 @@ mod tests {
         let agenda_before = state.agenda.len();
 
         let body = OneShotEffect::Act(Action::ChangeLife(
-            Reference::You,
+            Reference::Reg(deckmaste_core::RefId(1)),
             LifeOp::Up(Count::Literal(1)),
         ));
         state.run_effect(
@@ -2607,7 +2621,7 @@ mod tests {
         let life0 = state.player(p0).life;
 
         let body = OneShotEffect::Act(Action::ChangeLife(
-            Reference::You,
+            Reference::Reg(deckmaste_core::RefId(1)),
             LifeOp::Up(Count::Literal(1)),
         ));
         state.run_effect(
@@ -2646,7 +2660,7 @@ mod tests {
         let agenda_before = state.agenda.len();
 
         let body = OneShotEffect::Act(Action::ChangeLife(
-            Reference::You,
+            Reference::Reg(deckmaste_core::RefId(1)),
             LifeOp::Up(Count::Literal(2)),
         ));
         state.run_effect(
@@ -2730,7 +2744,7 @@ mod tests {
             instead: OneShotEffect::Batch(
                 Count::Times(Arc::new(Count::Literal(2)), Arc::new(Count::ThatMany)),
                 Arc::new(OneShotEffect::Act(deckmaste_core::Action::mill_one(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                 ))),
             ),
         };
@@ -2747,7 +2761,9 @@ mod tests {
         );
 
         let frame = frame_for(&state, p0);
-        let mill_one = OneShotEffect::Act(deckmaste_core::Action::mill_one(Reference::You));
+        let mill_one = OneShotEffect::Act(deckmaste_core::Action::mill_one(Reference::Reg(
+            deckmaste_core::RefId(1),
+        )));
         state.run_effect(
             OneShotEffect::Batch(Count::Literal(3), Arc::new(mill_one)),
             &frame,
@@ -2820,7 +2836,7 @@ mod tests {
             instead: OneShotEffect::Batch(
                 Count::Literal(2),
                 Arc::new(OneShotEffect::Act(deckmaste_core::Action::draw_one(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                 ))),
             ),
         };
@@ -2838,7 +2854,7 @@ mod tests {
 
         let frame = frame_for(&state, p0);
         state.run_effect(
-            OneShotEffect::draw(Reference::You, Count::Literal(1)),
+            OneShotEffect::draw(Reference::Reg(deckmaste_core::RefId(1)), Count::Literal(1)),
             &frame,
         );
         let _ = drain_progress(&mut state, 60);
@@ -2884,7 +2900,7 @@ mod tests {
                             cause: None,
                         },
                         effect: OneShotEffect::Act(Action::ChangeLife(
-                            Reference::You,
+                            Reference::Reg(deckmaste_core::RefId(1)),
                             LifeOp::Up(Count::Literal(1)),
                         ))
                         .into(),
@@ -2895,7 +2911,9 @@ mod tests {
         );
 
         let frame = frame_for(&state, p0);
-        let mill_one = OneShotEffect::Act(deckmaste_core::Action::mill_one(Reference::You));
+        let mill_one = OneShotEffect::Act(deckmaste_core::Action::mill_one(Reference::Reg(
+            deckmaste_core::RefId(1),
+        )));
         state.run_effect(
             OneShotEffect::Batch(Count::Literal(3), Arc::new(mill_one)),
             &frame,
@@ -2932,12 +2950,15 @@ mod tests {
         };
         let a = mint_on_field(&mut state, fighter("Batch Fighter A"));
         let b = mint_on_field(&mut state, fighter("Batch Fighter B"));
-        let frame = frame_src_targets(a, vec![a, b]);
+        let frame = frame_src_targets(&state, a, vec![a, b]);
 
         state.run_effect(
             OneShotEffect::Batch(
                 Count::Literal(2),
-                Arc::new(fight_effect(&Reference::Target(0), &Reference::Target(1))),
+                Arc::new(fight_effect(
+                    &Reference::Reg(deckmaste_core::RefId(6)),
+                    &Reference::Reg(deckmaste_core::RefId(7)),
+                )),
             ),
             &frame,
         );
@@ -2992,12 +3013,15 @@ mod tests {
         };
         let a = mint_on_field(&mut state, fighter("Zero Fighter A"));
         let b = mint_on_field(&mut state, fighter("Zero Fighter B"));
-        let frame = frame_src_targets(a, vec![a, b]);
+        let frame = frame_src_targets(&state, a, vec![a, b]);
 
         state.run_effect(
             OneShotEffect::Batch(
                 Count::Literal(1),
-                Arc::new(fight_effect(&Reference::Target(0), &Reference::Target(1))),
+                Arc::new(fight_effect(
+                    &Reference::Reg(deckmaste_core::RefId(6)),
+                    &Reference::Reg(deckmaste_core::RefId(7)),
+                )),
             ),
             &frame,
         );
@@ -3045,7 +3069,9 @@ mod tests {
         );
 
         let frame = frame_for(&state, p0);
-        let mill_one = OneShotEffect::Act(deckmaste_core::Action::mill_one(Reference::You));
+        let mill_one = OneShotEffect::Act(deckmaste_core::Action::mill_one(Reference::Reg(
+            deckmaste_core::RefId(1),
+        )));
         let agenda_before = state.agenda.len();
         state.run_effect(
             OneShotEffect::Batch(Count::Literal(2), Arc::new(mill_one)),
@@ -3087,15 +3113,15 @@ mod tests {
     #[test]
     fn reveal_until_fizzles_to_a_no_op() {
         let (mut state, a) = bear_on_field();
-        let frame = frame_src(a);
+        let frame = frame_src(&state, a);
         let life0 = state.player(PlayerId(0)).life;
         let agenda_before = state.agenda.len();
 
         let effect = OneShotEffect::RevealUntil(deckmaste_core::RevealUntil {
-            whose: Reference::You,
+            whose: Reference::Reg(deckmaste_core::RefId(1)),
             matches: Predicate::creature(),
             body: Arc::new(OneShotEffect::Act(Action::ChangeLife(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(99)),
             ))),
         });
@@ -3129,15 +3155,18 @@ mod tests {
         let effect = OneShotEffect::Sequentially(
             vec![
                 OneShotEffect::Act(Action::ChooseValue(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     ChosenValueKind::Number,
                     key,
                 )),
-                OneShotEffect::mill(deckmaste_core::Reference::You, Count::Noted(key)),
+                OneShotEffect::mill(
+                    deckmaste_core::Reference::Reg(deckmaste_core::RefId(1)),
+                    Count::Noted(key),
+                ),
             ]
             .into(),
         );
-        let frame = frame_src(a);
+        let frame = frame_src(&state, a);
         state.run_effect(effect, &frame);
         run_injected(&mut state);
 
@@ -3222,7 +3251,7 @@ mod tests {
             "a fresh resolution clears the note store ([CR#608.2c])"
         );
         // The consuming read fizzles to 0 (not the stale 5), never panics.
-        let frame = frame_src(spell);
+        let frame = frame_src(&state, spell);
         assert_eq!(
             state.eval_count(&Count::Noted(key), &frame),
             0,
@@ -3261,7 +3290,7 @@ mod tests {
             )),
             effect: Arc::new(OneShotEffect::Act(Action::destroy(Reference::It))),
         });
-        let frame = frame_src(a);
+        let frame = frame_src(&state, a);
         state.run_effect(effect, &frame);
 
         let Some(PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects {
@@ -3310,10 +3339,10 @@ mod tests {
     #[test]
     fn choose_value_color_fizzles_without_panic() {
         let (mut state, a) = bear_on_field();
-        let frame = frame_src(a);
+        let frame = frame_src(&state, a);
         state.run_effect(
             OneShotEffect::Act(Action::ChooseValue(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 ChosenValueKind::Color,
                 deckmaste_core::Ident::from("c"),
             )),
@@ -3329,11 +3358,11 @@ mod tests {
         use crate::decide::PendingDecision;
 
         let (mut state, a) = bear_on_field();
-        let frame = frame_src(a);
+        let frame = frame_src(&state, a);
         let key = deckmaste_core::Ident::from("cn");
         state.run_effect(
             OneShotEffect::Act(Action::ChooseValue(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 ChosenValueKind::CardName,
                 key,
             )),
@@ -3393,7 +3422,7 @@ mod tests {
             .read_str(r"ExchangeControl(Target(0), Target(1))")
             .unwrap();
         let effect: OneShotEffect = deckmaste_lowering::Lower::lower(semantic);
-        let frame = frame_src_targets(mine, vec![mine, other]);
+        let frame = frame_src_targets(&state, mine, vec![mine, other]);
         state.run_effect(effect, &frame);
 
         // ONE batch of two ControlChanged facts.
@@ -3440,7 +3469,7 @@ mod tests {
             .read_str(r"ExchangeControl(Target(0), Target(1))")
             .unwrap();
         let effect: OneShotEffect = deckmaste_lowering::Lower::lower(semantic);
-        let frame = frame_src_targets(mine, vec![mine, other]);
+        let frame = frame_src_targets(&state, mine, vec![mine, other]);
         state.run_effect(effect, &frame);
         assert!(
             !state.agenda.iter().any(|w| matches!(w, WorkItem::Emit(_))),
@@ -3480,8 +3509,11 @@ mod tests {
         let (mut state, mine, other) = two_permanents_on_field();
         state.objects.obj_mut(other).controller = PlayerId(1);
 
-        let effect = avarice_totem_body(&Reference::This, &Reference::Target(0));
-        let frame = frame_src_targets(mine, vec![other]);
+        let effect = avarice_totem_body(
+            &Reference::Reg(deckmaste_core::RefId(0)),
+            &Reference::Reg(deckmaste_core::RefId(6)),
+        );
+        let frame = frame_src_targets(&state, mine, vec![other]);
         state.run_effect(effect, &frame);
 
         assert_eq!(
@@ -3508,8 +3540,11 @@ mod tests {
     fn avarice_totem_same_controller_exchange_is_a_no_op() {
         let (mut state, mine, other) = two_permanents_on_field();
 
-        let effect = avarice_totem_body(&Reference::This, &Reference::Target(0));
-        let frame = frame_src_targets(mine, vec![other]);
+        let effect = avarice_totem_body(
+            &Reference::Reg(deckmaste_core::RefId(0)),
+            &Reference::Reg(deckmaste_core::RefId(6)),
+        );
+        let frame = frame_src_targets(&state, mine, vec![other]);
         state.run_effect(effect, &frame);
 
         assert_eq!(
@@ -3531,9 +3566,12 @@ mod tests {
     #[test]
     fn fight_deals_each_others_power_as_one_noncombat_batch() {
         let (mut state, a, b) = two_permanents_on_field();
-        let frame = frame_src_targets(a, vec![a, b]);
+        let frame = frame_src_targets(&state, a, vec![a, b]);
         state.run_effect(
-            fight_effect(&Reference::Target(0), &Reference::Target(1)),
+            fight_effect(
+                &Reference::Reg(deckmaste_core::RefId(6)),
+                &Reference::Reg(deckmaste_core::RefId(7)),
+            ),
             &frame,
         );
         // Both packets land as ONE applied batch occurrence.
@@ -3574,9 +3612,12 @@ mod tests {
         // b leaves before the fight resolves.
         state.zones.battlefield.retain(|&o| o != b);
         state.objects.remove(b);
-        let frame = frame_src_targets(a, vec![a, b]);
+        let frame = frame_src_targets(&state, a, vec![a, b]);
         state.run_effect(
-            fight_effect(&Reference::Target(0), &Reference::Target(1)),
+            fight_effect(
+                &Reference::Reg(deckmaste_core::RefId(6)),
+                &Reference::Reg(deckmaste_core::RefId(7)),
+            ),
             &frame,
         );
         run_injected(&mut state);
@@ -3600,9 +3641,12 @@ mod tests {
     #[test]
     fn self_fight_deals_twice_its_power_to_itself() {
         let (mut state, a, _b) = two_permanents_on_field();
-        let frame = frame_src_targets(a, vec![a, a]);
+        let frame = frame_src_targets(&state, a, vec![a, a]);
         state.run_effect(
-            fight_effect(&Reference::Target(0), &Reference::Target(1)),
+            fight_effect(
+                &Reference::Reg(deckmaste_core::RefId(6)),
+                &Reference::Reg(deckmaste_core::RefId(7)),
+            ),
             &frame,
         );
         run_injected(&mut state);
@@ -3630,9 +3674,12 @@ mod tests {
     #[test]
     fn fight_commits_one_fact_per_fighter_sharing_a_batch_id() {
         let (mut state, a, b) = two_permanents_on_field();
-        let frame = frame_src_targets(a, vec![a, b]);
+        let frame = frame_src_targets(&state, a, vec![a, b]);
         state.run_effect(
-            fight_effect(&Reference::Target(0), &Reference::Target(1)),
+            fight_effect(
+                &Reference::Reg(deckmaste_core::RefId(6)),
+                &Reference::Reg(deckmaste_core::RefId(7)),
+            ),
             &frame,
         );
         run_injected(&mut state);
@@ -3663,9 +3710,12 @@ mod tests {
     #[test]
     fn self_fight_commits_exactly_one_fact() {
         let (mut state, a, _b) = two_permanents_on_field();
-        let frame = frame_src_targets(a, vec![a, a]);
+        let frame = frame_src_targets(&state, a, vec![a, a]);
         state.run_effect(
-            fight_effect(&Reference::Target(0), &Reference::Target(1)),
+            fight_effect(
+                &Reference::Reg(deckmaste_core::RefId(6)),
+                &Reference::Reg(deckmaste_core::RefId(7)),
+            ),
             &frame,
         );
         run_injected(&mut state);
@@ -3695,9 +3745,12 @@ mod tests {
             Some(Zone::Battlefield),
         );
         state.zones.battlefield.push(myr);
-        let frame = frame_src_targets(a, vec![myr, a]);
+        let frame = frame_src_targets(&state, a, vec![myr, a]);
         state.run_effect(
-            fight_effect(&Reference::Target(0), &Reference::Target(1)),
+            fight_effect(
+                &Reference::Reg(deckmaste_core::RefId(6)),
+                &Reference::Reg(deckmaste_core::RefId(7)),
+            ),
             &frame,
         );
         run_injected(&mut state);
@@ -3726,7 +3779,7 @@ mod tests {
         use deckmaste_core::StaticEffect;
 
         let (mut state, src) = bear_on_field();
-        let frame = frame_src(src);
+        let frame = frame_src(&state, src);
 
         assert!(state.continuous.is_empty(), "no effects before resolve");
 
@@ -3774,11 +3827,11 @@ mod tests {
         use deckmaste_core::StaticEffect;
 
         let (mut state, src) = bear_on_field();
-        let frame = frame_src(src);
+        let frame = frame_src(&state, src);
 
         let effect = OneShotEffect::Continuously(Continuously {
             effect: Arc::new(StaticEffect::Modify(
-                Reference::This,
+                Reference::Reg(deckmaste_core::RefId(0)),
                 Modification::Toughness(NumericOp::Up(Count::Literal(2))),
             )),
             duration: Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn),
@@ -3814,10 +3867,10 @@ mod tests {
 
         let (mut state, src) = bear_on_field();
         // The bear is the lone announced target — the restriction's subject.
-        let frame = frame_src_targets(src, vec![src]);
+        let frame = frame_src_targets(&state, src, vec![src]);
         let effect = OneShotEffect::Continuously(Continuously {
             effect: Arc::new(StaticEffect::Deontic(Deontic::Cant(DeonticAction::Block {
-                by: Predicate::Ref(Reference::Target(0)),
+                by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(6))),
                 on: Predicate::Any,
                 count: None,
             }))),
@@ -3859,7 +3912,7 @@ mod tests {
         use deckmaste_core::TurnMarker;
 
         let (mut state, src) = bear_on_field();
-        let frame = frame_src(src);
+        let frame = frame_src(&state, src);
         let effect = OneShotEffect::Continuously(Continuously {
             effect: Arc::new(StaticEffect::CostModifier {
                 of: Predicate::creature(),
@@ -3889,7 +3942,7 @@ mod tests {
         use deckmaste_core::TurnMarker;
 
         let (mut state, src) = bear_on_field();
-        let frame = frame_src(src);
+        let frame = frame_src(&state, src);
         let filter = EventFilter::Damage {
             source: Predicate::Any,
             to: Predicate::Any,
@@ -3921,7 +3974,7 @@ mod tests {
         use deckmaste_core::TurnMarker;
 
         let (mut state, src) = bear_on_field();
-        let frame = frame_src(src);
+        let frame = frame_src(&state, src);
         let effect = OneShotEffect::Continuously(Continuously {
             effect: Arc::new(StaticEffect::Prevention(Arc::new(
                 Prevention::PreventNextInstance {
@@ -3950,12 +4003,12 @@ mod tests {
         use deckmaste_core::StaticEffect;
 
         let (mut state, src) = bear_on_field();
-        let frame = frame_src(src);
+        let frame = frame_src(&state, src);
         // "for as long as an object matching not-anything exists" — always false.
         let cond = Condition::Exists(Predicate::Not(Arc::new(Predicate::Any)));
         let effect = OneShotEffect::Continuously(Continuously {
             effect: Arc::new(StaticEffect::Modify(
-                Reference::This,
+                Reference::Reg(deckmaste_core::RefId(0)),
                 Modification::Power(NumericOp::Up(Count::Literal(1))),
             )),
             duration: Duration::ForAsLongAs(cond),
@@ -3983,14 +4036,17 @@ mod tests {
         use deckmaste_core::StaticEffect;
 
         let (mut state, src) = bear_on_field();
-        let frame = frame_src(src);
+        let frame = frame_src(&state, src);
         let spec = CopySpec {
             source: CopySource::SelfCard,
             exceptions: vec![],
         };
 
         let effect = OneShotEffect::Continuously(Continuously {
-            effect: Arc::new(StaticEffect::BecomesCopy(Reference::This, spec.clone())),
+            effect: Arc::new(StaticEffect::BecomesCopy(
+                Reference::Reg(deckmaste_core::RefId(0)),
+                spec.clone(),
+            )),
             duration: Duration::EndOfGame,
         });
         state.run_effect(effect, &frame);
@@ -4001,7 +4057,11 @@ mod tests {
 
         let until = OneShotEffect::Until(
             Duration::EndOfGame,
-            vec![StaticEffect::BecomesCopy(Reference::This, spec)].into(),
+            vec![StaticEffect::BecomesCopy(
+                Reference::Reg(deckmaste_core::RefId(0)),
+                spec,
+            )]
+            .into(),
         );
         state.run_effect(until, &frame);
         // `Until` lowers its one part to a scheduled
@@ -4029,6 +4089,7 @@ mod tests {
 
         let (mut state, src) = bear_on_field();
         let cond = Condition::Exists(Predicate::Not(Arc::new(Predicate::Any)));
+        let origin = frame_src(&state, src);
         state.continuous.push(crate::layer::ContinuousEffect {
             timestamp: crate::object::Timestamp(1),
             controller: PlayerId(0),
@@ -4036,7 +4097,7 @@ mod tests {
             changes: vec![Modification::Power(NumericOp::Up(Count::Literal(1)))],
             rows: vec![],
             duration: Duration::ForAsLongAs(cond),
-            origin: Some(Box::new(frame_src(src))),
+            origin: Some(Box::new(origin)),
             is_cda: false,
         });
         state.sweep_condition_durations();
@@ -4064,11 +4125,11 @@ mod tests {
         use deckmaste_core::StaticEffect;
 
         let (mut state, src) = bear_on_field();
-        let frame = frame_src(src);
+        let frame = frame_src(&state, src);
         let seq = OneShotEffect::Sequentially(
             vec![
                 OneShotEffect::Act(Action::ChangeLife(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     LifeOp::Up(Count::Literal(1)),
                 )),
                 OneShotEffect::Until(
@@ -4076,7 +4137,7 @@ mod tests {
                     vec![StaticEffect::Deontic(Deontic::Cant(
                         DeonticAction::Regenerate {
                             by: Predicate::Any,
-                            on: Predicate::Ref(Reference::This),
+                            on: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                         },
                     ))]
                     .into(),
@@ -4115,14 +4176,14 @@ mod tests {
         use deckmaste_core::StaticEffect;
 
         let (mut state, src) = bear_on_field();
-        let frame = frame_src(src);
+        let frame = frame_src(&state, src);
         let seq = OneShotEffect::Sequentially(
             vec![OneShotEffect::Until(
                 Duration::ForThisEvent,
                 vec![StaticEffect::Deontic(Deontic::Cant(
                     DeonticAction::Regenerate {
                         by: Predicate::Any,
-                        on: Predicate::Ref(Reference::This),
+                        on: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                     },
                 ))]
                 .into(),
@@ -4151,7 +4212,7 @@ mod tests {
         use deckmaste_core::Replacement;
 
         let (mut state, src) = bear_on_field();
-        let frame = frame_src(src);
+        let frame = frame_src(&state, src);
         // The sweepable-duration guard is LOUD before the `That` subject read.
         state.create_shield(
             Replacement::Skip {
@@ -4247,6 +4308,7 @@ mod tests {
             combat: None,
             amount: None,
         };
+        let origin = frame_src(&state, src);
         state.continuous.push(crate::layer::ContinuousEffect {
             timestamp: crate::object::Timestamp(1),
             controller: PlayerId(0),
@@ -4254,7 +4316,7 @@ mod tests {
             changes: vec![Modification::Power(NumericOp::Up(Count::Literal(1)))],
             rows: vec![],
             duration: Duration::UntilEvent(filter),
-            origin: Some(Box::new(frame_src(src))),
+            origin: Some(Box::new(origin)),
             is_cda: false,
         });
         // A non-matching fact (a life gain) leaves it in place.
@@ -4292,7 +4354,7 @@ mod tests {
     fn divide_among_splits_amount_and_binds_allotment() {
         use deckmaste_core::Distribute;
         let (mut state, a, b) = two_permanents_on_field();
-        let frame = frame_src(a);
+        let frame = frame_src(&state, a);
         let effect = OneShotEffect::Distribute(Distribute {
             amount: Count::Literal(3),
             binder: Binder::Existing(Selection::SelectAll(Predicate::And(
@@ -4338,7 +4400,7 @@ mod tests {
         // chosen `CreatureOrPlayer` set, bound by an enclosing `With`);
         // `split_evenly(3, 2)` is [2, 1], so the first-listed creature takes 2,
         // the player takes 1.
-        let mut frame = frame_src(creature);
+        let mut frame = frame_src(&state, creature);
         frame.anaphora.that = Some(ThatBinding {
             cardinality: Cardinality::Many,
             kind: RefKind::Object,
@@ -4379,7 +4441,7 @@ mod tests {
             state.player(PlayerId(0)).life,
             state.player(PlayerId(1)).life,
         ];
-        let frame = frame_src(bear);
+        let frame = frame_src(&state, bear);
         state.run_effect(
             OneShotEffect::Each(Each {
                 binder: Binder::Existing(Selection::SelectAll(Predicate::Kind(ObjectKind::Player))),
@@ -4417,13 +4479,13 @@ mod tests {
             ]
             .into(),
         );
-        let frame = frame_src(bear);
+        let frame = frame_src(&state, bear);
         state.run_effect(
             OneShotEffect::Each(deckmaste_core::Each {
                 binder: Binder::Choose {
                     quantity: Quantity::Range(Some(Count::Literal(2)), Some(Count::Literal(2))),
                     filter: creatures,
-                    by: Reference::You,
+                    by: Reference::Reg(deckmaste_core::RefId(1)),
                 },
                 effect: Arc::new(OneShotEffect::Act(Action::destroy(Reference::It))),
             }),
@@ -4474,7 +4536,7 @@ mod tests {
     #[should_panic(expected = "Allotment outside a Distribute body")]
     fn nested_each_clears_outer_divide_among_allotment() {
         let (mut state, a, _b) = two_permanents_on_field();
-        let frame = frame_src(a);
+        let frame = frame_src(&state, a);
         let creatures = Predicate::And(
             vec![
                 Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
@@ -4516,7 +4578,7 @@ mod tests {
         let no = Condition::Compare(Count::Literal(0), Cmp::AtLeast, Count::Literal(1));
         let gain = |n| {
             OneShotEffect::Act(Action::ChangeLife(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(n)),
             ))
         };
@@ -4592,7 +4654,7 @@ mod tests {
             ]
             .into(),
         );
-        let frame = frame_src(bear);
+        let frame = frame_src(&state, bear);
         state.run_effect(
             OneShotEffect::Each(Each {
                 binder: Binder::Existing(Selection::SelectAll(creatures)),
@@ -4622,13 +4684,13 @@ mod tests {
             ]
             .into(),
         );
-        let frame = frame_src(bear);
+        let frame = frame_src(&state, bear);
         let life0 = state.player(PlayerId(0)).life;
         state.run_effect(
             OneShotEffect::Each(Each {
                 binder: Binder::Existing(Selection::SelectAll(creatures)),
                 effect: Arc::new(OneShotEffect::Act(Action::ChangeLife(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     LifeOp::Up(Count::Literal(1)),
                 ))),
             }),
@@ -4654,12 +4716,12 @@ mod tests {
 
         let gain = |n| {
             OneShotEffect::Act(Action::ChangeLife(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(n)),
             ))
         };
         let may = || May {
-            who: Reference::You,
+            who: Reference::Reg(deckmaste_core::RefId(1)),
             effect: Arc::new(gain(3)),
             if_did: Some(Arc::new(gain(10))),
             if_not: Some(Arc::new(gain(1))),
@@ -4697,7 +4759,7 @@ mod tests {
         let life0 = state.player(p0).life;
         state.run_effect(
             OneShotEffect::May(May {
-                who: Reference::You,
+                who: Reference::Reg(deckmaste_core::RefId(1)),
                 effect: Arc::new(gain(3)),
                 if_did: None,
                 if_not: None,
@@ -4725,7 +4787,7 @@ mod tests {
         let gain_mode = |n| Mode {
             targets: [].into(),
             effect: OneShotEffect::Act(Action::ChangeLife(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(n)),
             ))
             .into(),
@@ -4739,7 +4801,7 @@ mod tests {
             ),
             up_to,
             repeats: false,
-            chooser: Reference::You,
+            chooser: Reference::Reg(deckmaste_core::RefId(1)),
             rider: None,
         };
         let p0 = PlayerId(0);
@@ -4806,6 +4868,45 @@ mod tests {
         state.submit_decision(Decision::Modes(vec![0, 2])).unwrap();
         let _ = drain_progress(&mut state, 40);
         assert_eq!(state.player(p0).life, life0 + 10, "both chosen modes run");
+
+        // A lowered `Sequentially` is a multi-instruction mode block. Every
+        // instruction runs; resolution must not truncate the block to its
+        // first element.
+        let mut state = game();
+        let frame = frame_for(&state, p0);
+        let life0 = state.player(p0).life;
+        state.run_effect(
+            OneShotEffect::Modal(Modal {
+                choose: spec(1, false),
+                modes: vec![Mode {
+                    targets: [].into(),
+                    effect: OneShotEffect::Sequentially(
+                        vec![
+                            OneShotEffect::Act(Action::ChangeLife(
+                                Reference::Reg(deckmaste_core::RefId(1)),
+                                LifeOp::Up(Count::Literal(2)),
+                            )),
+                            OneShotEffect::Act(Action::ChangeLife(
+                                Reference::Reg(deckmaste_core::RefId(1)),
+                                LifeOp::Up(Count::Literal(4)),
+                            )),
+                        ]
+                        .into(),
+                    )
+                    .into(),
+                    cost: None,
+                }]
+                .into(),
+            }),
+            &frame,
+        );
+        state.submit_decision(Decision::Modes(vec![0])).unwrap();
+        let _ = drain_progress(&mut state, 40);
+        assert_eq!(
+            state.player(p0).life,
+            life0 + 6,
+            "the whole mode block runs"
+        );
     }
 
     /// Regression guard for the crash this task fixed: canon's Collective
@@ -4836,7 +4937,7 @@ mod tests {
         let destroy_target = |predicate: Predicate| Mode {
             targets: vec![TargetSpec::Target(Quantity::one(), predicate)].into(),
             effect: OneShotEffect::Act(Action::ChangeLife(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(0)),
             ))
             .into(),
@@ -4845,7 +4946,7 @@ mod tests {
         let gain_mode = |n| Mode {
             targets: [].into(),
             effect: OneShotEffect::Act(Action::ChangeLife(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(n)),
             ))
             .into(),
@@ -4854,7 +4955,7 @@ mod tests {
         let escalate = || {
             Some(ModalCostRider::Escalate(Cost(
                 vec![CostComponent::do_action(Action::ChangeLife(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     LifeOp::Down(Count::Literal(1)),
                 ))]
                 .into(),
@@ -4871,7 +4972,7 @@ mod tests {
                     count: Quantity::Range(Some(Count::Literal(1)), None),
                     up_to: false,
                     repeats: false,
-                    chooser: Reference::You,
+                    chooser: Reference::Reg(deckmaste_core::RefId(1)),
                     rider: escalate(),
                 },
                 modes: vec![
@@ -4899,7 +5000,7 @@ mod tests {
                     count: Quantity::one(),
                     up_to: false,
                     repeats: false,
-                    chooser: Reference::You,
+                    chooser: Reference::Reg(deckmaste_core::RefId(1)),
                     rider: escalate(),
                 },
                 modes: vec![gain_mode(3), gain_mode(5)].into(),
@@ -4930,7 +5031,7 @@ mod tests {
         let gain_mode = |n| Mode {
             targets: [].into(),
             effect: OneShotEffect::Act(Action::ChangeLife(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(n)),
             ))
             .into(),
@@ -4947,7 +5048,9 @@ mod tests {
                     count: Quantity::one(),
                     up_to: false,
                     repeats: false,
-                    chooser: Reference::Opponent,
+                    chooser: Reference::OpponentOf(std::sync::Arc::new(Reference::Reg(
+                        deckmaste_core::RefId(1),
+                    ))),
                     rider: None,
                 },
                 modes: vec![gain_mode(3), gain_mode(5)].into(),
@@ -4966,7 +5069,7 @@ mod tests {
     /// [CR#118.12,608.2d]: `May.who` is the decider — Browbeat's "Any
     /// player may have Browbeat deal 5 damage to them" proves it isn't always
     /// the controller. Surfaced via `acting_player`, not hardcoded to
-    /// `frame.controller`. `who: You` is the only spelling in canon today,
+    /// `frame.controller(self)`. `who: You` is the only spelling in canon today,
     /// so this pins the new routing for a non-`You` decider without changing
     /// any existing card's behavior.
     #[test]
@@ -4981,9 +5084,11 @@ mod tests {
         let frame = frame_for(&state, p0);
         state.run_effect(
             OneShotEffect::May(May {
-                who: Reference::Opponent,
+                who: Reference::OpponentOf(std::sync::Arc::new(Reference::Reg(
+                    deckmaste_core::RefId(1),
+                ))),
                 effect: Arc::new(OneShotEffect::Act(Action::ChangeLife(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     LifeOp::Up(Count::Literal(3)),
                 ))),
                 if_did: None,
@@ -5019,18 +5124,18 @@ mod tests {
         let pay_cost = || {
             OneShotEffect::Act(Action::Pay(Cost(
                 vec![CostComponent::do_action(Action::ChangeLife(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     LifeOp::Down(Count::Literal(2)),
                 ))]
                 .into(),
             )))
         };
         let must_pay = || May {
-            who: Reference::You,
+            who: Reference::Reg(deckmaste_core::RefId(1)),
             effect: Arc::new(pay_cost()),
             if_did: None,
             if_not: Some(Arc::new(OneShotEffect::Act(Action::ChangeLife(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(10)),
             )))),
         };
@@ -5093,21 +5198,21 @@ mod tests {
         let pay_cost = || {
             OneShotEffect::Act(Action::Pay(Cost(
                 vec![CostComponent::do_action(Action::ChangeLife(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     LifeOp::Down(Count::Literal(2)),
                 ))]
                 .into(),
             )))
         };
         let may_pay = || May {
-            who: Reference::You,
+            who: Reference::Reg(deckmaste_core::RefId(1)),
             effect: Arc::new(pay_cost()),
             if_did: Some(Arc::new(OneShotEffect::Act(Action::ChangeLife(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(10)),
             )))),
             if_not: Some(Arc::new(OneShotEffect::Act(Action::ChangeLife(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(1)),
             )))),
         };
@@ -5168,19 +5273,19 @@ mod tests {
 
         let (mut state, bear) = bear_on_field();
         let p0 = PlayerId(0);
-        let frame = frame_src(bear);
+        let frame = frame_src(&state, bear);
         let pay_cost = OneShotEffect::Act(Action::Pay(Cost(
             vec![CostComponent::do_action(Action::Sacrifice(
-                Reference::You,
-                Reference::This,
+                Reference::Reg(deckmaste_core::RefId(1)),
+                Reference::Reg(deckmaste_core::RefId(0)),
             ))]
             .into(),
         )));
         let may = May {
-            who: Reference::You,
+            who: Reference::Reg(deckmaste_core::RefId(1)),
             effect: Arc::new(pay_cost),
             if_did: Some(Arc::new(OneShotEffect::Act(Action::ChangeLife(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(7)),
             )))),
             if_not: None,
@@ -5245,20 +5350,20 @@ mod tests {
         let frame = frame_for(&state, p0);
         let pay_cost = OneShotEffect::Act(Action::Pay(Cost(
             vec![CostComponent::do_action(Action::ChangeLife(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Down(Count::Literal(5)),
             ))]
             .into(),
         )));
         let may = May {
-            who: Reference::You,
+            who: Reference::Reg(deckmaste_core::RefId(1)),
             effect: Arc::new(pay_cost),
             if_did: Some(Arc::new(OneShotEffect::Act(Action::ChangeLife(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(10)),
             )))),
             if_not: Some(Arc::new(OneShotEffect::Act(Action::ChangeLife(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(1)),
             )))),
         };
@@ -5310,21 +5415,21 @@ mod tests {
             .insert("P1P1Counter".into(), 3);
         let p0 = PlayerId(0);
         let life0 = state.player(p0).life;
-        let frame = frame_src(bear);
+        let frame = frame_src(&state, bear);
 
         state.run_effect(
             OneShotEffect::AdditionalCost(AdditionalCost {
                 pay: Cost(
                     vec![CostComponent::do_action(Action::Sacrifice(
-                        Reference::You,
-                        Reference::This,
+                        Reference::Reg(deckmaste_core::RefId(1)),
+                        Reference::Reg(deckmaste_core::RefId(0)),
                     ))]
                     .into(),
                 ),
                 body: Arc::new(OneShotEffect::Act(Action::ChangeLife(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     LifeOp::Up(Count::CounterCount(
-                        Arc::new(Reference::EventObject),
+                        Arc::new(Reference::Reg(deckmaste_core::RefId(2))),
                         "P1P1Counter".into(),
                     )),
                 ))),
@@ -5363,23 +5468,28 @@ mod tests {
         use deckmaste_core::CostComponent;
 
         let (mut state, bear) = bear_on_field();
-        let mut frame = frame_src(bear);
+        let mut frame = frame_src(&state, bear);
         // Simulate an enclosing scope's own stale event-role binding — the
         // shape a triggered ability's frame carries when ITS firing event
         // named a patient (`resolve/mod.rs`'s trigger-frame construction).
-        frame.anaphora.that_patient = Some(crate::trigger::EventPatient::Player(PlayerId(1)));
+        state.frame_set_event_bindings(
+            &mut frame,
+            None,
+            None,
+            Some(crate::trigger::EventPatient::Player(PlayerId(1))),
+        );
 
         state.run_effect(
             OneShotEffect::AdditionalCost(AdditionalCost {
                 pay: Cost(
                     vec![CostComponent::do_action(Action::Sacrifice(
-                        Reference::You,
-                        Reference::This,
+                        Reference::Reg(deckmaste_core::RefId(1)),
+                        Reference::Reg(deckmaste_core::RefId(0)),
                     ))]
                     .into(),
                 ),
                 body: Arc::new(OneShotEffect::Act(Action::ChangeLife(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     LifeOp::Up(Count::Literal(1)),
                 ))),
             }),
@@ -5399,8 +5509,13 @@ mod tests {
             })
             .expect("the AdditionalCost body's RunEffect is scheduled");
 
-        assert_eq!(
-            body_frame.anaphora.that_patient, None,
+        assert!(
+            state
+                .activation_context_product(
+                    body_frame.activation,
+                    &deckmaste_core::Provenance::EventPatient,
+                )
+                .is_none(),
             "a stale outer EventPatient binding must not leak into the payment body"
         );
     }
@@ -5433,7 +5548,7 @@ mod tests {
                         vec![
                             Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                             Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
-                                Predicate::Ref(Reference::You),
+                                Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
                             ))),
                         ]
                         .into(),
@@ -5442,7 +5557,7 @@ mod tests {
                     Count::Literal(10),
                 ),
                 Condition::Not(Arc::new(Condition::Matches(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     Predicate::State(StatePredicate::Designated("CitysBlessing".into())),
                 ))),
             ]
@@ -5469,19 +5584,22 @@ mod tests {
                 OneShotEffect::If(If {
                     condition: ascend_gate(),
                     then: Arc::new(OneShotEffect::Act(Action::GetDesignation(
-                        Reference::You,
+                        Reference::Reg(deckmaste_core::RefId(1)),
                         "CitysBlessing".into(),
                     ))),
                     otherwise: None,
                 }),
                 OneShotEffect::If(If {
                     condition: Condition::Matches(
-                        Reference::You,
+                        Reference::Reg(deckmaste_core::RefId(1)),
                         Predicate::State(StatePredicate::Designated("CitysBlessing".into())),
                     ),
-                    then: Arc::new(OneShotEffect::draw(Reference::You, Count::Literal(3))),
+                    then: Arc::new(OneShotEffect::draw(
+                        Reference::Reg(deckmaste_core::RefId(1)),
+                        Count::Literal(3),
+                    )),
                     otherwise: Some(Arc::new(OneShotEffect::draw(
-                        Reference::You,
+                        Reference::Reg(deckmaste_core::RefId(1)),
                         Count::Literal(2),
                     ))),
                 }),
@@ -5619,7 +5737,7 @@ mod tests {
         let (mut sd, p0, lib_before) = secrets_on_stack(10);
         let dframe = frame_for(&sd, p0);
         sd.run_effect(
-            OneShotEffect::draw(Reference::You, Count::Literal(3)),
+            OneShotEffect::draw(Reference::Reg(deckmaste_core::RefId(1)), Count::Literal(3)),
             &dframe,
         );
         let _ = drain_progress(&mut sd, 40);
@@ -5768,7 +5886,7 @@ mod tests {
         let top2 = state.eval_selection_set(
             &Selection::TopOfLibrary {
                 count: Count::Literal(2),
-                whose: deckmaste_core::Reference::You,
+                whose: deckmaste_core::Reference::Reg(deckmaste_core::RefId(1)),
             },
             &frame,
         );
@@ -5796,7 +5914,7 @@ mod tests {
             OneShotEffect::With(With {
                 binder: deckmaste_core::Binder::Existing(Selection::TopOfLibrary {
                     count: Count::Literal(2),
-                    whose: deckmaste_core::Reference::You,
+                    whose: deckmaste_core::Reference::Reg(deckmaste_core::RefId(1)),
                 }),
                 body: Arc::new(OneShotEffect::Sequentially(vec![].into())),
             }),
@@ -5834,8 +5952,8 @@ mod tests {
         let effect = OneShotEffect::With(With {
             binder: Binder::SearchOne {
                 filter: Predicate::r#type(Type::Land),
-                by: Reference::You,
-                whose: Reference::You,
+                by: Reference::Reg(deckmaste_core::RefId(1)),
+                whose: Reference::Reg(deckmaste_core::RefId(1)),
                 from: vec![Zone::Library].into(),
                 if_none: None,
             },
@@ -5847,7 +5965,9 @@ mod tests {
                         vec![EnterRider::Tapped].into(),
                         None,
                     )),
-                    OneShotEffect::Act(Action::Shuffle(Selection::LibraryOf(Reference::You))),
+                    OneShotEffect::Act(Action::Shuffle(Selection::LibraryOf(Reference::Reg(
+                        deckmaste_core::RefId(1),
+                    )))),
                 ]
                 .into(),
             )),
@@ -5924,8 +6044,8 @@ mod tests {
         let effect = OneShotEffect::With(With {
             binder: Binder::SearchOne {
                 filter: Predicate::r#type(Type::Land),
-                by: Reference::You,
-                whose: Reference::You,
+                by: Reference::Reg(deckmaste_core::RefId(1)),
+                whose: Reference::Reg(deckmaste_core::RefId(1)),
                 from: vec![Zone::Library].into(),
                 if_none: None,
             },
@@ -5941,7 +6061,9 @@ mod tests {
                         vec![].into(),
                         None,
                     )),
-                    OneShotEffect::Act(Action::Shuffle(Selection::LibraryOf(Reference::You))),
+                    OneShotEffect::Act(Action::Shuffle(Selection::LibraryOf(Reference::Reg(
+                        deckmaste_core::RefId(1),
+                    )))),
                 ]
                 .into(),
             )),
@@ -5981,8 +6103,8 @@ mod tests {
             OneShotEffect::With(With {
                 binder: Binder::SearchOne {
                     filter: Predicate::Kind(ObjectKind::Card),
-                    by: Reference::You,
-                    whose: Reference::You,
+                    by: Reference::Reg(deckmaste_core::RefId(1)),
+                    whose: Reference::Reg(deckmaste_core::RefId(1)),
                     from: vec![Zone::Library].into(),
                     if_none: None,
                 },
@@ -6031,13 +6153,13 @@ mod tests {
             OneShotEffect::With(With {
                 binder: Binder::SearchOne {
                     filter: Predicate::Kind(ObjectKind::Card),
-                    by: Reference::You,
-                    whose: Reference::You,
+                    by: Reference::Reg(deckmaste_core::RefId(1)),
+                    whose: Reference::Reg(deckmaste_core::RefId(1)),
                     from: vec![Zone::Library].into(),
                     if_none: None,
                 },
                 body: Arc::new(OneShotEffect::Act(Action::Shuffle(Selection::LibraryOf(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                 )))),
             }),
             &frame,
@@ -6083,13 +6205,13 @@ mod tests {
             OneShotEffect::With(With {
                 binder: Binder::SearchOne {
                     filter: Predicate::r#type(Type::Land),
-                    by: Reference::You,
-                    whose: Reference::You,
+                    by: Reference::Reg(deckmaste_core::RefId(1)),
+                    whose: Reference::Reg(deckmaste_core::RefId(1)),
                     from: vec![Zone::Library].into(),
                     if_none: None,
                 },
                 body: Arc::new(OneShotEffect::Act(Action::Shuffle(Selection::LibraryOf(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                 )))),
             }),
             &frame,
@@ -6133,16 +6255,16 @@ mod tests {
             OneShotEffect::With(With {
                 binder: Binder::SearchOne {
                     filter: Predicate::r#type(Type::Land),
-                    by: Reference::You,
-                    whose: Reference::You,
+                    by: Reference::Reg(deckmaste_core::RefId(1)),
+                    whose: Reference::Reg(deckmaste_core::RefId(1)),
                     from: vec![Zone::Library].into(),
                     if_none: Some(Arc::new(OneShotEffect::Act(Action::ChangeLife(
-                        Reference::You,
+                        Reference::Reg(deckmaste_core::RefId(1)),
                         LifeOp::Down(Count::Literal(1)),
                     )))),
                 },
                 body: Arc::new(OneShotEffect::Act(Action::Shuffle(Selection::LibraryOf(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                 )))),
             }),
             &frame,
@@ -6189,8 +6311,8 @@ mod tests {
                 binder: Binder::Search {
                     quantity: Quantity::Range(Some(Count::Literal(0)), Some(Count::Literal(2))),
                     filter: Predicate::r#type(Type::Land),
-                    by: Reference::You,
-                    whose: Reference::You,
+                    by: Reference::Reg(deckmaste_core::RefId(1)),
+                    whose: Reference::Reg(deckmaste_core::RefId(1)),
                     from: vec![Zone::Library].into(),
                     if_none: None,
                 },
@@ -6205,7 +6327,9 @@ mod tests {
                                 None,
                             ))),
                         }),
-                        OneShotEffect::Act(Action::Shuffle(Selection::LibraryOf(R::You))),
+                        OneShotEffect::Act(Action::Shuffle(Selection::LibraryOf(R::Reg(
+                            deckmaste_core::RefId(1),
+                        )))),
                     ]
                     .into(),
                 )),
@@ -6298,7 +6422,7 @@ mod tests {
         let semantic: deckmaste_semantics::OneShotEffect =
             builtin().macros.read_str("Explore").unwrap();
         let effect: OneShotEffect = deckmaste_lowering::Lower::lower(semantic);
-        state.run_effect(effect, &frame_src(source));
+        state.run_effect(effect, &frame_src(&state, source));
         let _ = drain_progress(&mut state, 80);
 
         assert!(
@@ -6342,7 +6466,7 @@ mod tests {
         let semantic: deckmaste_semantics::OneShotEffect =
             builtin().macros.read_str("Explore").unwrap();
         let effect: OneShotEffect = deckmaste_lowering::Lower::lower(semantic);
-        state.run_effect(effect, &frame_src(source));
+        state.run_effect(effect, &frame_src(&state, source));
         // Drains through the reveal + counter and STOPS at the may-to-graveyard
         // decision ([CR#701.44a]).
         let _ = drain_progress(&mut state, 80);
@@ -6406,7 +6530,7 @@ mod tests {
         let bottom2 = state.eval_selection_set(
             &Selection::BottomOfLibrary {
                 count: Count::Literal(2),
-                whose: deckmaste_core::Reference::You,
+                whose: deckmaste_core::Reference::Reg(deckmaste_core::RefId(1)),
             },
             &frame,
         );
@@ -6418,11 +6542,11 @@ mod tests {
             &Selection::Union(vec![
                 Selection::TopOfLibrary {
                     count: Count::Literal(2),
-                    whose: deckmaste_core::Reference::You,
+                    whose: deckmaste_core::Reference::Reg(deckmaste_core::RefId(1)),
                 },
                 Selection::BottomOfLibrary {
                     count: Count::Literal(2),
-                    whose: deckmaste_core::Reference::You,
+                    whose: deckmaste_core::Reference::Reg(deckmaste_core::RefId(1)),
                 },
             ]),
             &frame,
@@ -6470,7 +6594,7 @@ mod tests {
         let top1 = state.eval_selection_set(
             &Selection::TopOfGraveyard {
                 count: Count::Literal(1),
-                of: deckmaste_core::Reference::You,
+                of: deckmaste_core::Reference::Reg(deckmaste_core::RefId(1)),
             },
             &frame,
         );
@@ -6479,7 +6603,7 @@ mod tests {
         let top2 = state.eval_selection_set(
             &Selection::TopOfGraveyard {
                 count: Count::Literal(2),
-                of: deckmaste_core::Reference::You,
+                of: deckmaste_core::Reference::Reg(deckmaste_core::RefId(1)),
             },
             &frame,
         );
@@ -6490,7 +6614,7 @@ mod tests {
         let bad = state.eval_selection_set(
             &Selection::TopOfGraveyard {
                 count: Count::Literal(1),
-                of: deckmaste_core::Reference::This,
+                of: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
             },
             &Frame::bare(a, p0),
         );

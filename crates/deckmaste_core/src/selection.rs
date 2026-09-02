@@ -54,20 +54,12 @@ pub enum Selection {
     /// position is the whole point). `whose` names the library's player; the
     /// default `You` writes bare. Feeds the scry `Each` over the peeked
     /// top-N ([CR#701.22a]).
-    TopOfLibrary {
-        count: Count,
-        #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
-        whose: Reference,
-    },
+    TopOfLibrary { count: Count, whose: Reference },
     /// The bottom `count` cards of a library, bottom → up (ordered) — the
     /// Idris `BottomOfLibrary`, mirroring
     /// [`TopOfLibrary`](Self::TopOfLibrary). `whose` names the library's
     /// player; the default `You` writes bare.
-    BottomOfLibrary {
-        count: Count,
-        #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
-        whose: Reference,
-    },
+    BottomOfLibrary { count: Count, whose: Reference },
     /// A WHOLE library as one group, top → bottom (ordered) — the whole-zone
     /// term the slice family [`TopOfLibrary`](Self::TopOfLibrary) /
     /// [`BottomOfLibrary`](Self::BottomOfLibrary) lacks. The [`Reference`]
@@ -87,11 +79,7 @@ pub enum Selection {
     /// `of` names the graveyard's player; the default `You` writes bare, like
     /// [`TopOfLibrary`](Self::TopOfLibrary)'s. Graveyard-topped effects
     /// (Volrath's Shapeshifter, Soldevi Digger) name the player they inspect.
-    TopOfGraveyard {
-        count: Count,
-        #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
-        of: Reference,
-    },
+    TopOfGraveyard { count: Count, of: Reference },
     /// Everything legal for EVERY target slot of a stack object at once —
     /// [CR#707.10d]'s same-object rule. That rule copies a spell "for each
     /// player or object it could target", requires that "each of its targets
@@ -145,33 +133,4 @@ pub enum Selection {
     /// and ties yield the whole group (narrowed by the usual single/choice
     /// path downstream).
     Pick { op: AggregateOp, proj: Projection },
-}
-
-impl Selection {
-    /// Compatibility constructor for Rust fixtures; lowered core stores the
-    /// announced group in the corresponding region register.
-    #[allow(non_snake_case, reason = "compatibility spelling for Rust fixtures")]
-    #[must_use]
-    ///
-    /// # Panics
-    ///
-    /// Panics if `index` cannot be represented in the register ABI.
-    pub fn Targets(index: usize) -> Self {
-        let index = u32::try_from(index).expect("target index fits u32");
-        Self::Reg(crate::RefId(
-            6_u32.checked_add(index).expect("target index overflow"),
-        ))
-    }
-}
-
-/// serde default for [`TopOfLibrary.whose`] — the library belongs to "you"
-/// unless the text names another player.
-fn ref_you() -> Reference {
-    Reference::You
-}
-
-/// `skip_serializing_if` predicate for [`TopOfLibrary.whose`]: the default
-/// `You` is omitted from RON.
-fn ref_is_you(r: &Reference) -> bool {
-    matches!(*r, Reference::You)
 }

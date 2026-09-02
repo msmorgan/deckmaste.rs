@@ -347,7 +347,9 @@ mod tests {
     #[test]
     fn core_boundary_rejects_ineligible_action_before_plugin_lint() {
         assert_eq!(
-            CostComponent::try_do_action(Action::DrawCard(Reference::You)),
+            CostComponent::try_do_action(Action::DrawCard(Reference::Reg(deckmaste_core::RefId(
+                1
+            )))),
             Err(deckmaste_core::RunnableCostActionError::Ineligible),
         );
     }

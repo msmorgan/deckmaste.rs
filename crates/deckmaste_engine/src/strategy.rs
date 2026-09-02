@@ -1,6 +1,6 @@
 //! Strategy evaluation context: the `Frame` a data-driven strategy's sensing
-//! (`Condition`/`Count`/`Reference`) is evaluated against. `Reference::You`
-//! binds to the deciding seat; `Reference::This`/`~` binds to the candidate
+//! (`Condition`/`Count`/`Reference`) is evaluated against. `Reference::Reg(deckmaste_core::RefId(1))`
+//! binds to the deciding seat; `Reference::Reg(deckmaste_core::RefId(0))`/`~` binds to the candidate
 //! option being scored. The engine's existing
 //! `eval_count`/`condition_holds`/`eval_reference` do the rest — there is no
 //! second evaluator. `strategy-evaluator-core` builds the `StrategyEvaluator`
@@ -24,7 +24,7 @@ use crate::strategy_def::Selector;
 use crate::strategy_def::Strategy as StrategyDef;
 
 /// The evaluation frame for scoring a `candidate` option from `seat`'s
-/// perspective: `Reference::You` resolves to `seat`, and `Reference::This`/`~`
+/// perspective: `Reference::Reg(deckmaste_core::RefId(1))` resolves to `seat`, and `Reference::Reg(deckmaste_core::RefId(0))`/`~`
 /// resolves to `candidate` — or, when there is no candidate (player-only
 /// sensing), to `seat`'s own player proxy. Sensing only: no targets, trigger
 /// bindings, choice, or X. The engine's `eval_count`/`condition_holds`/
@@ -734,20 +734,26 @@ mod tests {
 
         // `You` → the seat's player proxy; `This` → the candidate object.
         assert_eq!(
-            state.eval_reference(&Reference::You, &frame),
+            state.eval_reference(&Reference::Reg(deckmaste_core::RefId(1)), &frame),
             state.player(PlayerId(0)).object,
         );
-        assert_eq!(state.eval_reference(&Reference::This, &frame), bear);
+        assert_eq!(
+            state.eval_reference(&Reference::Reg(deckmaste_core::RefId(0)), &frame),
+            bear
+        );
 
         // A `Count` over the candidate: Grizzly Bears' power is 2.
         assert_eq!(
-            state.eval_count(&Count::StatOf(Reference::This, Stat::Power), &frame),
+            state.eval_count(
+                &Count::StatOf(Reference::Reg(deckmaste_core::RefId(0)), Stat::Power),
+                &frame
+            ),
             2,
         );
 
         // A `Condition` comparing the candidate's power against a literal: 2 >= 2.
         let cond = Condition::Compare(
-            Count::StatOf(Reference::This, Stat::Power),
+            Count::StatOf(Reference::Reg(deckmaste_core::RefId(0)), Stat::Power),
             Cmp::AtLeast,
             Count::Literal(2),
         );
@@ -772,11 +778,11 @@ mod tests {
         });
         let frame = eval_frame(&state, PlayerId(1), None);
         assert_eq!(
-            state.eval_reference(&Reference::You, &frame),
+            state.eval_reference(&Reference::Reg(deckmaste_core::RefId(1)), &frame),
             state.player(PlayerId(1)).object,
         );
         assert_eq!(
-            state.eval_reference(&Reference::This, &frame),
+            state.eval_reference(&Reference::Reg(deckmaste_core::RefId(0)), &frame),
             state.player(PlayerId(1)).object,
         );
     }
@@ -793,7 +799,7 @@ mod tests {
         let selector = Selector {
             pick: Extremum::First,
             by: Count::Literal(1),
-            among: Some(Predicate::Ref(Reference::This)),
+            among: Some(Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0)))),
         };
         let eval = StrategyEvaluator::new(always_prefer(Preference::Pass), seat);
 
@@ -814,7 +820,10 @@ mod tests {
         let mut state = empty_two_player();
         let frame = eval_frame(&state, PlayerId(0), None);
         assert_eq!(
-            state.eval_count(&Count::ManaAvailable(Reference::You), &frame),
+            state.eval_count(
+                &Count::ManaAvailable(Reference::Reg(deckmaste_core::RefId(1))),
+                &frame
+            ),
             0,
             "an empty pool reads 0",
         );
@@ -831,7 +840,10 @@ mod tests {
         );
         let frame = eval_frame(&state, PlayerId(0), None);
         assert_eq!(
-            state.eval_count(&Count::ManaAvailable(Reference::You), &frame),
+            state.eval_count(
+                &Count::ManaAvailable(Reference::Reg(deckmaste_core::RefId(1))),
+                &frame
+            ),
             3,
             "three floated units read as 3",
         );
@@ -882,7 +894,7 @@ mod tests {
                 prefer: Preference::Cast {
                     what: Selector {
                         pick: Extremum::Max,
-                        by: Count::StatOf(Reference::This, Stat::Power),
+                        by: Count::StatOf(Reference::Reg(deckmaste_core::RefId(0)), Stat::Power),
                         among: None,
                     },
                     target: None,
@@ -947,7 +959,7 @@ mod tests {
                         count: Quantity::one(),
                         up_to: false,
                         repeats: false,
-                        chooser: Reference::You,
+                        chooser: Reference::Reg(deckmaste_core::RefId(1)),
                         rider: None,
                     },
                     modes: vec![
@@ -997,7 +1009,7 @@ mod tests {
                 },
                 target: Some(Selector {
                     pick: Extremum::Max,
-                    by: Count::StatOf(Reference::This, Stat::Power),
+                    by: Count::StatOf(Reference::Reg(deckmaste_core::RefId(0)), Stat::Power),
                     among: None,
                 }),
             }),
@@ -1173,7 +1185,7 @@ mod tests {
             always_prefer(Preference::Discard {
                 what: Selector {
                     pick: Extremum::Min,
-                    by: Count::StatOf(Reference::This, Stat::ManaValue),
+                    by: Count::StatOf(Reference::Reg(deckmaste_core::RefId(0)), Stat::ManaValue),
                     among: None,
                 },
             }),

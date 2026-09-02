@@ -145,13 +145,7 @@ fn tribal_flames_expands_the_domain_count() {
         .unwrap()
         .expand_all()
         .lower();
-    assert!(
-        matches!(
-            domain,
-            Count::CountDistinct(deckmaste_core::Characteristic::BasicLandTypes, _)
-        ),
-        "the Domain macro expands to the same count constructor"
-    );
+    assert_eq!(count, &domain, "Tribal Flames' damage is Domain's body");
     assert!(matches!(
         count,
         Count::CountDistinct(deckmaste_core::Characteristic::BasicLandTypes, _),

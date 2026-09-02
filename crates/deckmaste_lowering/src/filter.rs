@@ -517,7 +517,9 @@ mod tests {
     fn lowers_predicate_ref() {
         assert_matches!(
             deckmaste_semantics::Predicate::Ref(minimal_reference()).lower(),
-            deckmaste_core::Predicate::Ref(deckmaste_core::Reference::This)
+            deckmaste_core::Predicate::Ref(deckmaste_core::Reference::Reg(deckmaste_core::RefId(
+                0
+            )))
         );
     }
 
@@ -528,7 +530,7 @@ mod tests {
                 .lower(),
             deckmaste_core::Predicate::Adjacent(
                 deckmaste_core::Adjacency::Above,
-                deckmaste_core::Reference::This
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
             )
         );
     }

@@ -48,7 +48,6 @@ use crate::lki::LkiSnapshot;
 use crate::object::ObjectId;
 use crate::object::ObjectSource;
 use crate::player::PlayerId;
-use crate::stack::Anaphora;
 use crate::stack::Frame;
 use crate::stack::StackEntry;
 use crate::stack::StackObject;
@@ -81,18 +80,18 @@ pub struct TriggerBindings {
     /// The firing object's last-known self (`~`/`This`/source).
     pub this: Option<LkiSnapshot>,
     /// The event OBJECT — the moved object of a `ZoneMove`, the damage source.
-    /// Read by `Reference::EventObject`.
+    /// Read by `Reference::Reg(deckmaste_core::RefId(2))`.
     pub that_object: Option<LkiSnapshot>,
     /// The event ACTOR — the responsible player ("that player"). Read by
-    /// `Reference::EventActor`.
+    /// `Reference::Reg(deckmaste_core::RefId(4))`.
     pub that_player: Option<PlayerId>,
     /// The event PATIENT — the acted-upon thing (damage recipient, …),
-    /// kind-poly ([CR#120.3]). Read by `Reference::EventPatient`.
+    /// kind-poly ([CR#120.3]). Read by `Reference::Reg(deckmaste_core::RefId(3))`.
     pub that_patient: Option<EventPatient>,
     /// Types the causing mana-production fact actually added.
     pub produced_mana: Vec<deckmaste_core::ColorOrColorless>,
     /// The combat DEFENDING player ([CR#506.2,508.5]) — always a player. Read
-    /// by `Reference::DefendingPlayer`.
+    /// by `Reference::Reg(deckmaste_core::RefId(5))`.
     pub defending_player: Option<PlayerId>,
     /// The event MAGNITUDE — the amount of an amount-carrying event (damage
     /// dealt, life lost/gained), fixed at fire time; the set mirrors the
@@ -495,14 +494,11 @@ impl GameState {
             {
                 None => false,
                 Some((carrier, controller)) => {
-                    let frame = Frame {
-                        activation,
-                        anaphora: Anaphora {
-                            it: Some(crate::stack::ItBinding::Object(snapshot.clone())),
-                            ..Anaphora::empty()
-                        },
-                        ..Frame::bare(carrier, controller)
-                    };
+                    let mut frame = Frame::bare(carrier, controller);
+                    if activation != crate::ActivationId::NONE {
+                        frame.activation = activation;
+                    }
+                    frame.anaphora.it = Some(crate::stack::ItBinding::Object(snapshot.clone()));
                     self.condition_holds(cond, &frame)
                 }
             },
@@ -686,25 +682,25 @@ impl GameState {
     /// roles (no targets chosen at the gate). Mirrors the printed-trigger
     /// gate in `scan_event`.
     fn created_gate_frame(&self, ct: &CreatedTrigger, bindings: &TriggerBindings) -> Frame {
-        Frame {
-            activation: crate::ActivationId::NONE,
-            source: bindings
-                .this
-                .as_ref()
-                .map_or_else(|| self.player(ct.controller).object, |s| s.object),
-            controller: ct.controller,
-            this: bindings.this.clone(),
-            defending_player: bindings.defending_player,
-            payment: None,
-            anaphora: Anaphora {
-                that_object: bindings.that_object.clone(),
-                that_player: bindings.that_player,
-                that_patient: bindings.that_patient.clone(),
-                produced_mana: bindings.produced_mana.clone(),
-                crossed: bindings.crossed,
-                ..Anaphora::empty()
-            },
-        }
+        let source = bindings
+            .this
+            .as_ref()
+            .map_or_else(|| self.player(ct.controller).object, |s| s.object);
+        let mut frame = Frame::bare(source, ct.controller);
+        self.frame_set_source_lki(&mut frame, bindings.this.clone());
+        self.frame_set_defending_player(&mut frame, bindings.defending_player);
+        self.frame_set_event_bindings(
+            &mut frame,
+            bindings.that_object.clone(),
+            bindings.that_player,
+            bindings.that_patient.clone(),
+        );
+        frame
+            .anaphora
+            .produced_mana
+            .clone_from(&bindings.produced_mana);
+        frame.anaphora.crossed = bindings.crossed;
+        frame
     }
 
     /// The firing event's provenance roles ([CR#603.2e,608.2k,120.3,714.2b]) —
@@ -993,24 +989,20 @@ impl GameState {
                 // when the event occurs (no targets are chosen yet, so the gate
                 // frame carries none); it is rechecked at resolution.
                 if let Some(c) = &t.condition {
-                    let frame = Frame {
-                        activation: crate::ActivationId::NONE,
-                        source: this.object,
-                        controller,
-                        // Exophoric: the firing object's snapshot + combat defender.
-                        this: Some(this.clone()),
-                        defending_player: bindings.defending_player,
-                        payment: None,
-                        // Endophoric event roles (no targets chosen at the gate).
-                        anaphora: Anaphora {
-                            that_object: bindings.that_object.clone(),
-                            that_player: bindings.that_player,
-                            that_patient: bindings.that_patient.clone(),
-                            produced_mana: bindings.produced_mana.clone(),
-                            crossed: bindings.crossed,
-                            ..Anaphora::empty()
-                        },
-                    };
+                    let mut frame = Frame::bare(this.object, controller);
+                    self.frame_set_source_lki(&mut frame, Some(this.clone()));
+                    self.frame_set_defending_player(&mut frame, bindings.defending_player);
+                    self.frame_set_event_bindings(
+                        &mut frame,
+                        bindings.that_object.clone(),
+                        bindings.that_player,
+                        bindings.that_patient.clone(),
+                    );
+                    frame
+                        .anaphora
+                        .produced_mana
+                        .clone_from(&bindings.produced_mana);
+                    frame.anaphora.crossed = bindings.crossed;
                     if !self.condition_holds(c, &frame) {
                         continue;
                     }
@@ -1349,14 +1341,14 @@ impl GameState {
                 .map_or(id, |snapshot| snapshot.object),
             controller,
         );
-        frame.this.clone_from(&bindings.this);
-        frame.defending_player = bindings.defending_player;
-        frame.anaphora.that_object.clone_from(&bindings.that_object);
-        frame.anaphora.that_player = bindings.that_player;
-        frame
-            .anaphora
-            .that_patient
-            .clone_from(&bindings.that_patient);
+        self.frame_set_source_lki(&mut frame, bindings.this.clone());
+        self.frame_set_defending_player(&mut frame, bindings.defending_player);
+        self.frame_set_event_bindings(
+            &mut frame,
+            bindings.that_object.clone(),
+            bindings.that_player,
+            bindings.that_patient.clone(),
+        );
         frame
             .anaphora
             .produced_mana
@@ -2018,7 +2010,7 @@ mod tests {
         // Pattern: Dies(Ref(This))
         let self_dies = EventFilter::ZoneChange {
             cause: None,
-            what: Predicate::Ref(Reference::This),
+            what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
             from: Some(Zone::Battlefield),
             to: Some(Zone::Graveyard),
         };
@@ -2087,7 +2079,7 @@ mod tests {
         // Pattern: Enters(Ref(This))
         let self_enters = EventFilter::ZoneChange {
             cause: None,
-            what: Predicate::Ref(Reference::This),
+            what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
             from: None,
             to: Some(Zone::Battlefield),
         };
@@ -2250,10 +2242,12 @@ mod tests {
     /// the real intervening-if frame (the exophoric `this` set to the firing
     /// object's snapshot), so `frame_watcher` resolves `This` to the carrier.
     fn carrier_gate_frame(state: &GameState, carrier: ObjectId) -> Frame {
-        Frame {
-            this: Some(crate::lki::LkiSnapshot::capture(state, carrier)),
-            ..Frame::bare(carrier, PlayerId(0))
-        }
+        let mut frame = Frame::bare(carrier, PlayerId(0));
+        state.frame_set_source_lki(
+            &mut frame,
+            Some(crate::lki::LkiSnapshot::capture(state, carrier)),
+        );
+        frame
     }
 
     /// The Training intervening-if as the macro spells it.
@@ -2269,11 +2263,13 @@ mod tests {
                     vec![
                         Predicate::creature(),
                         Predicate::State(StatePredicate::Attacking),
-                        Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
+                        Predicate::Not(Arc::new(Predicate::Ref(Reference::Reg(
+                            deckmaste_core::RefId(0),
+                        )))),
                         Predicate::Where(Arc::new(Condition::Compare(
                             Count::StatOf(Reference::It, Stat::Power),
                             Cmp::Greater,
-                            Count::StatOf(Reference::This, Stat::Power),
+                            Count::StatOf(Reference::Reg(deckmaste_core::RefId(0)), Stat::Power),
                         ))),
                     ]
                     .into(),
@@ -2344,7 +2340,7 @@ mod tests {
             event,
             EventFilter::ZoneChange {
                 cause: None,
-                what: Predicate::Ref(Reference::This),
+                what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 from: None,
                 to: Some(Zone::Battlefield),
             }
@@ -2659,7 +2655,7 @@ mod tests {
             id
         };
         let pattern = EventFilter::StateBecame {
-            of: Predicate::Ref(Reference::This),
+            of: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
             becomes: StateChange::Tapped,
             cause: None,
         };
@@ -2818,7 +2814,7 @@ mod tests {
         let blocker_source = state.objects.obj(blocker).source;
         let pattern = EventFilter::BlockDeclared {
             by: Predicate::Any,
-            of: Predicate::Ref(Reference::This),
+            of: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
         };
         let event = GameEvent::Blocked(Blocked { blocker, attacker });
         assert!(
@@ -2963,7 +2959,7 @@ mod tests {
         let pattern = EventFilter::Act {
             verb: VerbName::from("Fight"),
             who: Predicate::Any,
-            on: Predicate::Ref(Reference::This),
+            on: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
             cause: None,
         };
         let fact_for = |subject: ObjectId| {
@@ -3010,7 +3006,7 @@ mod tests {
                 .mint(ObjectSource::Card(card), PlayerId(1), Some(Zone::Stack))
         };
         let pattern = EventFilter::BecomesTarget {
-            what: Predicate::Ref(Reference::This),
+            what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
             by: Predicate::Any,
             source: None,
         };
@@ -3034,10 +3030,10 @@ mod tests {
         // Ward's by-narrowing: an opponent-controlled stack object matches;
         // one the watcher's own controller controls does not.
         let by_opponent = EventFilter::BecomesTarget {
-            what: Predicate::Ref(Reference::This),
+            what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
             by: Predicate::Relation(deckmaste_core::RelationPredicate::ControlledBy(Arc::new(
                 Predicate::Relation(deckmaste_core::RelationPredicate::OpponentOf(Arc::new(
-                    Predicate::Ref(Reference::You),
+                    Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
                 ))),
             ))),
             source: None,
@@ -3077,7 +3073,7 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
         let pattern = EventFilter::Cast {
-            who: Predicate::Ref(Reference::You),
+            who: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
             what: Predicate::And(
                 vec![
                     Predicate::Kind(ObjectKind::Spell),
@@ -3132,7 +3128,7 @@ mod tests {
             id
         };
         let pattern = EventFilter::Damage {
-            source: Predicate::Ref(Reference::This),
+            source: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
             to: Predicate::Any,
             combat: None,
             amount: None,
@@ -3246,7 +3242,7 @@ mod tests {
         let watcher_source = state.objects.obj(bear).source;
         let pattern = EventFilter::ZoneChange {
             what: Predicate::Relation(deckmaste_core::RelationPredicate::ControlledBy(Arc::new(
-                Predicate::Ref(Reference::You),
+                Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
             ))),
             from: None,
             to: None,
@@ -3323,7 +3319,7 @@ mod tests {
         };
         let pattern = EventFilter::ControlChanged {
             of: Predicate::creature(),
-            to: Predicate::Ref(Reference::You),
+            to: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
         };
         let to_you = GameEvent::ControlChanged(ControlChanged {
             object: other,
@@ -3372,7 +3368,7 @@ mod tests {
         };
         let named_narrowed = EventFilter::DesignationChanged {
             name: "DayNight".into(),
-            of: Predicate::Ref(Reference::You),
+            of: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
             to: None,
         };
         let wrong_name = EventFilter::DesignationChanged {
@@ -3391,7 +3387,7 @@ mod tests {
         });
         let monarch_you = EventFilter::DesignationChanged {
             name: "Monarch".into(),
-            of: Predicate::Ref(Reference::You),
+            of: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
             to: None,
         };
         assert!(
@@ -3459,7 +3455,7 @@ mod tests {
     }
 
     /// Confirm that reading `Dies(Ref(This))` yields
-    /// `Predicate::Ref(Reference::This)` in the `what` position — the "this
+    /// `Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0)))` in the `what` position — the "this
     /// object" form.
     #[test]
     fn dies_this_filter_ref_reference_this() {
@@ -3473,8 +3469,8 @@ mod tests {
         };
         assert_eq!(
             what,
-            Predicate::Ref(Reference::This),
-            "Dies(Ref(This)) must use Predicate::Ref(Reference::This)"
+            Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
+            "Dies(Ref(This)) must use Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0)))"
         );
     }
 
@@ -3594,10 +3590,13 @@ mod tests {
         use deckmaste_core::Reference;
 
         let (mut state, goblin) = fixture_on_field("Footlight Fiend");
-        let frame = crate::test_support::frame_src(goblin);
+        let frame = crate::test_support::frame_src(&state, goblin);
         // An EFFECT destroy (not the lethal-damage SBA) — the dual-facet
         // `Act(Destroy)` commits Battlefield→Graveyard on apply.
-        state.run_effect(OneShotEffect::Act(Action::destroy(Reference::This)), &frame);
+        state.run_effect(
+            OneShotEffect::Act(Action::destroy(Reference::Reg(deckmaste_core::RefId(0)))),
+            &frame,
+        );
         for _ in 0..30 {
             if !state.pending_triggers.is_empty() {
                 break;
@@ -3677,13 +3676,17 @@ mod tests {
             where_x: None,
             from: None,
             event: EventFilter::StateBecame {
-                of: Predicate::Ref(Reference::This),
+                of: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 becomes: StateChange::Transformed,
                 cause: None,
             },
             condition: None,
             limits: Vec::new().into(),
-            effect: OneShotEffect::draw(Reference::You, Count::Literal(1)).into(),
+            effect: OneShotEffect::draw(
+                Reference::Reg(deckmaste_core::RefId(1)),
+                Count::Literal(1),
+            )
+            .into(),
         });
         let face = |name: &str| CardFace {
             name: name.into(),
@@ -3717,9 +3720,9 @@ mod tests {
 
         let mut state = empty_game();
         let dfc = put_synthetic_on_field(&mut state, transform_watcher_dfc(), PlayerId(0));
-        let frame = crate::test_support::frame_src(dfc);
+        let frame = crate::test_support::frame_src(&state, dfc);
         state.run_effect(
-            OneShotEffect::Act(Action::Transform(Reference::This)),
+            OneShotEffect::Act(Action::Transform(Reference::Reg(deckmaste_core::RefId(0)))),
             &frame,
         );
 
@@ -3861,9 +3864,9 @@ mod tests {
             "1/1 front + 2/2 UEOT = 3/3 pre-transform"
         );
 
-        let frame = crate::test_support::frame_src(delver);
+        let frame = crate::test_support::frame_src(&state, delver);
         state.run_effect(
-            OneShotEffect::Act(Action::Transform(Reference::This)),
+            OneShotEffect::Act(Action::Transform(Reference::Reg(deckmaste_core::RefId(0)))),
             &frame,
         );
         // Break the instant the flip lands — NOT on `agenda.is_empty()`,
@@ -3907,7 +3910,10 @@ mod tests {
         // 3. A genuine zone change resets to front-up [CR#712.14]: dies to
         // the graveyard (a real remint, [CR#400.7]) then returns to the
         // battlefield as yet another new object.
-        state.run_effect(OneShotEffect::Act(Action::destroy(Reference::This)), &frame);
+        state.run_effect(
+            OneShotEffect::Act(Action::destroy(Reference::Reg(deckmaste_core::RefId(0)))),
+            &frame,
+        );
         for _ in 0..30 {
             if state.objects.get(delver).is_none() {
                 break;
@@ -3922,9 +3928,12 @@ mod tests {
             .last()
             .expect("the destroyed DFC reminted into P0's graveyard");
 
-        let gy_frame = crate::test_support::frame_src(in_graveyard);
+        let gy_frame = crate::test_support::frame_src(&state, in_graveyard);
         state.run_effect(
-            OneShotEffect::Act(Action::move_to(Reference::This, Zone::Battlefield)),
+            OneShotEffect::Act(Action::move_to(
+                Reference::Reg(deckmaste_core::RefId(0)),
+                Zone::Battlefield,
+            )),
             &gy_frame,
         );
         for _ in 0..30 {
@@ -4040,7 +4049,7 @@ mod tests {
         let top_ref = || {
             Reference::Single(Arc::new(Selection::TopOfLibrary {
                 count: Count::Literal(1),
-                whose: Reference::You,
+                whose: Reference::Reg(deckmaste_core::RefId(1)),
             }))
         };
         let upkeep_effect = || {
@@ -4060,14 +4069,16 @@ mod tests {
                     ),
                 ),
                 then: Arc::new(OneShotEffect::May(May {
-                    who: Reference::You,
+                    who: Reference::Reg(deckmaste_core::RefId(1)),
                     effect: Arc::new(OneShotEffect::Sequentially(
                         vec![
                             OneShotEffect::Act(Action::Reveal {
                                 what: top_ref(),
                                 to: None,
                             }),
-                            OneShotEffect::Act(Action::Transform(Reference::This)),
+                            OneShotEffect::Act(Action::Transform(Reference::Reg(
+                                deckmaste_core::RefId(0),
+                            ))),
                         ]
                         .into(),
                     )),
@@ -4090,7 +4101,7 @@ mod tests {
             );
             assert_eq!(state.layers().power(d), Some(1), "the front face is 1/1");
 
-            state.run_effect(upkeep_effect(), &crate::test_support::frame_src(d));
+            state.run_effect(upkeep_effect(), &crate::test_support::frame_src(&state, d));
             // Drive resolution, saying "yes" to the optional reveal; break the
             // instant the flip lands (NOT on an empty agenda — that would drain
             // into `empty_game`'s ambient turn cascade, [CR#712.18]).
@@ -4122,7 +4133,7 @@ mod tests {
             let d = put_synthetic_on_field(&mut state, delver(), PlayerId(0));
             put_on_top(&mut state, "Grizzly Bears", Type::Creature);
 
-            state.run_effect(upkeep_effect(), &crate::test_support::frame_src(d));
+            state.run_effect(upkeep_effect(), &crate::test_support::frame_src(&state, d));
             for _ in 0..40 {
                 match state.step() {
                     StepOutcome::NeedsDecision(PendingDecision::YesNo(_)) => {
@@ -4194,7 +4205,7 @@ mod tests {
                 condition: None,
                 limits: Vec::new().into(),
                 effect: OneShotEffect::Act(Action::Create {
-                    agent: Reference::You,
+                    agent: Reference::Reg(deckmaste_core::RefId(1)),
                     count: Count::Literal(1),
                     token: goblin_token.into(),
                     riders: vec![].into(),
@@ -4346,7 +4357,11 @@ mod tests {
             event,
             condition: None,
             limits: Vec::new().into(),
-            effect: OneShotEffect::draw(Reference::You, Count::Literal(1)).into(),
+            effect: OneShotEffect::draw(
+                Reference::Reg(deckmaste_core::RefId(1)),
+                Count::Literal(1),
+            )
+            .into(),
         }
     }
 
@@ -4596,7 +4611,11 @@ mod tests {
                 },
                 condition: None,
                 limits: Vec::new().into(),
-                effect: OneShotEffect::draw(Reference::You, Count::Literal(1)).into(),
+                effect: OneShotEffect::draw(
+                    Reference::Reg(deckmaste_core::RefId(1)),
+                    Count::Literal(1),
+                )
+                .into(),
             })],
             ..CardFace::default()
         })
@@ -4881,7 +4900,11 @@ mod tests {
             },
             condition: None,
             limits: Vec::new().into(),
-            effect: OneShotEffect::draw(Reference::You, Count::Literal(1)).into(),
+            effect: OneShotEffect::draw(
+                Reference::Reg(deckmaste_core::RefId(1)),
+                Count::Literal(1),
+            )
+            .into(),
         };
         let front = CardFace {
             name: "Front Vanilla".into(),
@@ -5625,7 +5648,7 @@ mod tests {
                 condition: None,
                 limits: limits.into(),
                 effect: OneShotEffect::Act(Action::ChangeLife(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     LifeOp::Up(Count::Literal(1)),
                 ))
                 .into(),
@@ -5716,7 +5739,7 @@ mod tests {
                 condition: None,
                 limits: vec![].into(),
                 effect: OneShotEffect::Act(Action::ChangeLife(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     LifeOp::Up(Count::ThatMuch),
                 ))
                 .into(),
@@ -5915,7 +5938,7 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
         let pattern = EventFilter::Drawn {
-            who: Predicate::Ref(Reference::You),
+            who: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
             amount: None,
         };
         let draw_fact = |state: &GameState, card| {
@@ -5965,7 +5988,7 @@ mod tests {
         let (state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
         let pattern = EventFilter::LifeLost {
-            who: Predicate::Ref(Reference::You),
+            who: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
             amount: None,
         };
         let you_lose = GameEvent::LifeLost(LifeLost {
@@ -5996,7 +6019,7 @@ mod tests {
         let (state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
         let pattern = EventFilter::LifeGained {
-            who: Predicate::Ref(Reference::You),
+            who: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
             amount: None,
         };
         let you_gain = GameEvent::LifeGained(LifeGained {
@@ -6028,7 +6051,7 @@ mod tests {
         let (state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
         let pattern = EventFilter::Shuffled {
-            by: Predicate::Ref(Reference::You),
+            by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
         };
         assert!(
             state.event_matches(&pattern, &GameEvent::Shuffled(PlayerId(0)), watcher_source),
@@ -6057,7 +6080,7 @@ mod tests {
                 .mint(ObjectSource::Card(card), PlayerId(0), None)
         };
         let pattern = EventFilter::Revealed {
-            what: Predicate::Ref(Reference::This),
+            what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
         };
         let reveals_bear = GameEvent::Revealed(Revealed {
             objects: vec![bear],
@@ -6496,7 +6519,7 @@ mod tests {
         let controller = state.objects.obj(bear).controller;
         let gate = Condition::happened(
             EventFilter::Used {
-                of: Reference::This,
+                of: Reference::Reg(deckmaste_core::RefId(0)),
             },
             deckmaste_core::Lookback::ThisGame,
         );

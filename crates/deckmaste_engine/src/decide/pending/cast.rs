@@ -417,16 +417,17 @@ impl DecisionHandler for ChooseModes {
                 // modes' effects in printed order. [CR#608.2c,700.2d]
                 let items = picks
                     .into_iter()
-                    .map(|i| WorkItem::RunEffect {
-                        effect: Arc::new(
-                            modes[i as usize]
-                                .effect
-                                .body
-                                .first()
-                                .cloned()
-                                .expect("a chosen mode has an instruction"),
-                        ),
-                        frame: frame.clone(),
+                    .flat_map(|i| {
+                        modes[i as usize]
+                            .effect
+                            .body
+                            .iter()
+                            .cloned()
+                            .map(|effect| WorkItem::RunEffect {
+                                effect: Arc::new(effect),
+                                frame: frame.clone(),
+                            })
+                            .collect::<Vec<_>>()
                     })
                     .collect();
                 g.schedule_front(items);

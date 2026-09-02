@@ -228,7 +228,7 @@ pub enum CostChange {
 /// (Panharmonicon / Yarok), so it is the serde default and is omitted from RON.
 fn affected_you_control() -> Predicate {
     Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-        Reference::You,
+        Reference::Reg(crate::RefId(1)),
     ))))
 }
 

@@ -431,14 +431,18 @@ mod tests {
             where_x: None,
             from: None,
             event: EventFilter::ZoneChange {
-                what: deckmaste_core::Predicate::Ref(Reference::This),
+                what: deckmaste_core::Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 from: None,
                 to: Some(Zone::Graveyard),
                 cause: None,
             },
             condition: None,
             limits: vec![].into(),
-            effect: OneShotEffect::draw(Reference::You, deckmaste_core::Count::Literal(1)).into(),
+            effect: OneShotEffect::draw(
+                Reference::Reg(deckmaste_core::RefId(1)),
+                deckmaste_core::Count::Literal(1),
+            )
+            .into(),
         };
         let card = Card::Normal(CardFace {
             name: "Innate Triggerer".into(),
@@ -543,14 +547,18 @@ mod tests {
             where_x: None,
             from: None,
             event: EventFilter::ZoneChange {
-                what: deckmaste_core::Predicate::Ref(Reference::This),
+                what: deckmaste_core::Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 from: None,
                 to: Some(Zone::Graveyard),
                 cause: None,
             },
             condition: None,
             limits: vec![].into(),
-            effect: OneShotEffect::draw(Reference::You, deckmaste_core::Count::Literal(1)).into(),
+            effect: OneShotEffect::draw(
+                Reference::Reg(deckmaste_core::RefId(1)),
+                deckmaste_core::Count::Literal(1),
+            )
+            .into(),
         };
         // Front: vanilla 1/1, ZERO printed abilities. Back: 3/2 with ONE
         // triggered ability the front lacks — distinct printed lengths (0 vs 1).

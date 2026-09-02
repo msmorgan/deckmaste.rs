@@ -13,7 +13,6 @@ use crate::lki::LkiSnapshot;
 use crate::object::ObjectId;
 use crate::object::ObjectSource;
 use crate::player::PlayerId;
-use crate::trigger::EventPatient;
 use crate::trigger::TriggerBindings;
 
 /// What sits on (or is going onto) the stack.
@@ -242,31 +241,16 @@ pub struct ThatBinding {
 /// reads ([CR#608.2]) — every referent an OPERATOR introduces and binds for a
 /// sub-scope, in either direction (anaphora "choose a creature; destroy *it*"
 /// AND cataphora "deal 2 damage to *each creature*"). Mirrors the single Idris
-/// `Bindings` record. Folds together what `engine-anaphor-threading` landed as
-/// separate `Frame` fields: the announce/event state (`targets`, `chosen`,
-/// `x`), the per-slot anaphor bindings threaded by `With`/`Each`/`Distribute`
-/// (the `It` iteration/projection element, the `That` one/many group, the
-/// `Distribute` per-element allotment share), and the firing event's
-/// provenance-explicit roles (`that_object`/`that_player`/`that_patient`).
-///
-/// Exophoric refs — `This`/`~`, `You`, `Opponent`, `DefendingPlayer` — name the
-/// game *situation*, are never bound by an operator, and so live on the
-/// [`Frame`] OUTSIDE this record.
+/// `Bindings` record. This retains only transient discourse introduced while
+/// an instruction runs. Source, controller, event roles, announced targets,
+/// and X are activation inputs represented by region parameters instead.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Anaphora {
-    /// Chosen at announce ([CR#601.2c]) or trigger placement ([CR#603.3d]);
-    /// read back by the slot-bound anaphors (`It`/`They`, or by position via
-    /// `Reference::Target(n)`). One inner set per `TargetSpec` slot (see
-    /// [`StackEntry::targets`]).
-    pub targets: Vec<Vec<ObjectId>>,
     /// A `Choose`/`Random` selection resolved into this scope for a re-run
     /// ([CR#608.2d]). Set only on the continuation the choice produces;
     /// `eval_selection_set` reads it for the `Choose`/`Random` slot. `None`
     /// on a fresh scope.
     pub chosen: Option<Vec<ObjectId>>,
-    /// [CR#107.3a]: the announced X for the resolving object — read by
-    /// `Count::X`. `None` for triggers and non-X spells.
-    pub x: Option<deckmaste_core::Uint>,
     /// The resolving ability's "where X is …" definition
     /// ([CR#702.21b] — a ward-{X} toll's X is determined as the ability
     /// RESOLVES, never locked in at trigger time). Threaded from
@@ -293,16 +277,6 @@ pub struct Anaphora {
     /// `bindIt`), so an outer share can never leak into a nested loop. `None`
     /// outside a `Distribute` body.
     pub allotment: Option<deckmaste_core::Uint>,
-    /// The event OBJECT ([CR#608.2k]) — the moved/acting object a fired
-    /// trigger carried, or the object an `AdditionalCost` payment bound. Read
-    /// by `Reference::EventObject`.
-    pub that_object: Option<LkiSnapshot>,
-    /// The event ACTOR ([CR#608.2k]) — the responsible player ("that player").
-    /// Read by `Reference::EventActor`.
-    pub that_player: Option<PlayerId>,
-    /// The event PATIENT ([CR#608.2k,120.3]) — the acted-upon thing, kind-poly
-    /// (object or player). Read by `Reference::EventPatient`.
-    pub that_patient: Option<EventPatient>,
     /// Mana types carried by the causing production event. Triggered mana
     /// effects read this for `ManaSpec::ProducedByEvent` ([CR#106.12a]).
     pub produced_mana: Vec<deckmaste_core::ColorOrColorless>,
@@ -326,23 +300,15 @@ pub struct Anaphora {
 }
 
 impl Anaphora {
-    /// An empty binding environment: no targets, no anaphor bound, no event
-    /// role. The starting point every fresh `Frame` builds from (combine with
-    /// functional-record-update — `Anaphora { targets, ..Anaphora::empty()
-    /// }`).
+    /// An empty transient discourse environment.
     #[must_use]
     pub fn empty() -> Self {
         Anaphora {
-            targets: Vec::new(),
             chosen: None,
-            x: None,
             where_x: None,
             it: None,
             that: None,
             allotment: None,
-            that_object: None,
-            that_player: None,
-            that_patient: None,
             produced_mana: Vec::new(),
             crossed: None,
             inherited_replacements: std::collections::HashSet::new(),
@@ -369,53 +335,50 @@ pub struct Payment {
     pub id: deckmaste_core::Uint,
 }
 
-/// The binding environment a resolving effect reads ([CR#608.2]), split along
-/// the anaphora/exophora line. The always-available **exophoric** refs that
-/// name the game *situation* stay here — `source`/`controller` (read by
-/// `This`/`You`/`Opponent`), the firing object's last-known self (`this`), and
-/// the combat `defending_player` — while everything an operator binds for a
-/// sub-scope lives in the nested [`Anaphora`] record.
+/// The lightweight execution cursor carried by agenda work. Binding values
+/// live in the activation table; cloning a frame never clones the region's
+/// register file.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Frame {
     /// The one shared activation record for this region entry.
     pub activation: crate::activation::ActivationId,
-    pub source: ObjectId,
-    pub controller: PlayerId,
-    /// The firing object's last-known self (`~`/`This`/source), exophoric —
-    /// `None` is a spell frame (`Reference::This` reads the live `source`),
-    /// `Some` a trigger/activated frame (`This` reads this snapshot, which
-    /// survives the source's removal — [CR#603.10a]).
-    pub this: Option<LkiSnapshot>,
-    /// The combat DEFENDING player ([CR#506.2,508.5]) — always a player,
-    /// exophoric. Read by `Reference::DefendingPlayer`; `None` outside combat.
-    pub defending_player: Option<PlayerId>,
     /// `Some` iff this frame is running as part of a cost payment's drain
     /// ([CR#118.10]) — see [`Payment`]. `None` (the default, via
     /// [`Frame::bare`]) keeps every existing `Cause::*` construction exactly
     /// as `Agency::EffectInstruction`.
     pub payment: Option<Payment>,
-    /// The text-internal binding environment — targets, the `It`/`That`
-    /// anaphors, the `Distribute` allotment, the chosen value, X, and the
-    /// firing event's roles. See [`Anaphora`].
+    /// The transient text-internal discourse (`It`/`That`, allotment, and
+    /// other operator-local state). See [`Anaphora`].
     pub anaphora: Anaphora,
 }
 
 impl Frame {
     /// A bare resolution frame: the exophoric `source`/`controller`, no trigger
-    /// snapshot (a spell frame — `Reference::This` reads the live `source`), no
+    /// snapshot (a spell frame — `Reference::Reg(deckmaste_core::RefId(0))` reads the live `source`), no
     /// combat defender, not a payment, and an empty [`Anaphora`]. The common
-    /// starting shape for gate/payability/instant frames; add targets, X, or
-    /// an anaphor by populating `.anaphora`.
+    /// starting shape for gate/payability/instant frames.
     #[must_use]
     pub fn bare(source: ObjectId, controller: PlayerId) -> Self {
         Frame {
-            activation: crate::activation::ActivationId::NONE,
-            source,
-            controller,
-            this: None,
-            defending_player: None,
+            activation: crate::activation::ActivationId::bare(source, controller),
             payment: None,
             anaphora: Anaphora::empty(),
         }
+    }
+
+    pub(crate) fn source(&self, state: &crate::state::GameState) -> ObjectId {
+        state.activation_source(self.activation)
+    }
+
+    pub(crate) fn controller(&self, state: &crate::state::GameState) -> PlayerId {
+        state.activation_controller(self.activation)
+    }
+
+    pub(crate) fn source_lki(&self, state: &crate::state::GameState) -> Option<LkiSnapshot> {
+        state.activation_source_lki(self.activation)
+    }
+
+    pub(crate) fn defending_player(&self, state: &crate::state::GameState) -> Option<PlayerId> {
+        state.activation_defending_player(self.activation)
     }
 }

@@ -1732,7 +1732,7 @@ mod tests {
             "Test Equipment",
             vec![Type::Artifact],
             vec![innate_may_attach(
-                Predicate::Ref(Reference::This),
+                Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 creature(),
             )],
         );
@@ -1782,7 +1782,7 @@ mod tests {
             "Aura",
             vec![Type::Enchantment],
             vec![innate_may_attach(
-                Predicate::Ref(Reference::This),
+                Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 creature(),
             )],
         );
@@ -1813,7 +1813,7 @@ mod tests {
             "Aura",
             vec![Type::Enchantment],
             vec![innate_may_attach(
-                Predicate::Ref(Reference::This),
+                Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 creature(),
             )],
         );
@@ -1825,7 +1825,7 @@ mod tests {
             vec![Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
                 DeonticAction::Attach {
                     what: Predicate::Any,
-                    to: Predicate::Ref(Reference::This),
+                    to: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 },
             )))],
         );
@@ -1862,9 +1862,9 @@ mod tests {
         // behind `LegallyAttached(This)` — the self-referential shape that
         // recurses through the collector.
         let pathological = Ability::r#static(StaticEffect::Conditionally(
-            Condition::LegallyAttached(Reference::This),
+            Condition::LegallyAttached(Reference::Reg(deckmaste_core::RefId(0))),
             Arc::new(StaticEffect::Deontic(Deontic::May(DeonticAction::Attach {
-                what: Predicate::Ref(Reference::This),
+                what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 to: Predicate::Any,
             }))),
         ));
@@ -1903,7 +1903,10 @@ mod tests {
         // (`Sba(Not(LegallyAttached(Ref(This))), …)`), which must not hang.
         let frame = crate::stack::Frame::bare(aura, PlayerId(0));
         assert!(
-            !state.condition_holds(&Condition::LegallyAttached(Reference::This), &frame),
+            !state.condition_holds(
+                &Condition::LegallyAttached(Reference::Reg(deckmaste_core::RefId(0))),
+                &frame
+            ),
             "LegallyAttached(This) reads false for the bootstrap-impossible aura, \
              and terminates"
         );
@@ -1930,7 +1933,7 @@ mod tests {
             "Plain Aura",
             vec![Type::Enchantment],
             vec![innate_may_attach(
-                Predicate::Ref(Reference::This),
+                Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 Predicate::Any,
             )],
         );
@@ -1971,7 +1974,7 @@ mod tests {
             condition: None,
             limits: vec![].into(),
             effect: OneShotEffect::Act(Action::AddMana(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 ManaProduction::Bare(ManaSpec::Specific(ColorOrColorless::Colorless)),
             ))
@@ -1988,7 +1991,7 @@ mod tests {
     fn innate_static() -> Ability {
         Ability::Innate(Arc::new(Ability::r#static(StaticEffect::Deontic(
             Deontic::Cant(DeonticAction::Attach {
-                what: Predicate::Ref(Reference::This),
+                what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 to: Predicate::Not(Arc::new(creature())),
             }),
         ))))
@@ -2072,7 +2075,7 @@ mod tests {
             name: "Enchant".into(),
             abilities: vec![Ability::r#static(StaticEffect::Deontic(Deontic::May(
                 DeonticAction::Attach {
-                    what: Predicate::Ref(Reference::This),
+                    what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                     to: creature(),
                 },
             )))],
@@ -2115,7 +2118,7 @@ mod tests {
             vec![Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
                 DeonticAction::Counter {
                     by: Predicate::Any,
-                    on: Predicate::Ref(Reference::This),
+                    on: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 },
             )))],
         );
@@ -2146,7 +2149,7 @@ mod tests {
             permanent: false,
             confers: vec![deckmaste_core::Property::Ability(Arc::new(
                 Ability::r#static(StaticEffect::Deontic(Deontic::May(DeonticAction::Cast {
-                    what: Predicate::Ref(Reference::This),
+                    what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                     by: Predicate::Any,
                     from: None,
                     window: Some(Timing::InstantSpeed),
@@ -2354,7 +2357,7 @@ mod tests {
                 DeonticAction::Cast {
                     what: Predicate::Any,
                     by: Predicate::Relation(RelationPredicate::OpponentOf(Arc::new(
-                        Predicate::Ref(Reference::You),
+                        Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
                     ))),
                     from: None,
                     window: None,
@@ -2451,7 +2454,7 @@ mod tests {
             permanent: true,
             confers: vec![deckmaste_core::Property::Ability(Arc::new(
                 Ability::r#static(StaticEffect::Deontic(Deontic::May(DeonticAction::Play {
-                    what: Predicate::Ref(Reference::This),
+                    what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                     by: Predicate::Any,
                     from: None,
                 }))),
@@ -2536,7 +2539,7 @@ mod tests {
         // The inner `Cant(Attack)` static the `Conditionally` wraps.
         let cant = || {
             StaticEffect::Deontic(Deontic::Cant(DeonticAction::Attack {
-                by: Predicate::Ref(Reference::This),
+                by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 on: Predicate::Any,
             }))
         };
@@ -2596,11 +2599,11 @@ mod tests {
             Condition::And(
                 vec![
                     Condition::Matches(
-                        Reference::This,
+                        Reference::Reg(deckmaste_core::RefId(0)),
                         Predicate::State(StatePredicate::SummoningSick),
                     ),
                     Condition::Not(Arc::new(Condition::Matches(
-                        Reference::This,
+                        Reference::Reg(deckmaste_core::RefId(0)),
                         Predicate::Characteristic(CharacteristicPredicate::Has("Haste".into())),
                     ))),
                 ]
@@ -2613,11 +2616,11 @@ mod tests {
             permanent: true,
             confers: vec![
                 ability(StaticEffect::Deontic(Deontic::May(DeonticAction::Attack {
-                    by: Predicate::Ref(Reference::This),
+                    by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                     on: Predicate::Any,
                 }))),
                 ability(StaticEffect::Deontic(Deontic::May(DeonticAction::Block {
-                    by: Predicate::Ref(Reference::This),
+                    by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                     on: Predicate::Any,
                     count: None,
                 }))),
@@ -2625,7 +2628,7 @@ mod tests {
                     sick_not_hasty(),
                     Arc::new(StaticEffect::Deontic(Deontic::Cant(
                         DeonticAction::Attack {
-                            by: Predicate::Ref(Reference::This),
+                            by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                             on: Predicate::Any,
                         },
                     ))),
@@ -2634,7 +2637,7 @@ mod tests {
                     sick_not_hasty(),
                     Arc::new(StaticEffect::Deontic(Deontic::Cant(
                         DeonticAction::Activate {
-                            what: Predicate::Ref(Reference::This),
+                            what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                             by: Predicate::Any,
                             cost: Some(CostPredicate::IncludesTapSymbol),
                         },
@@ -2776,7 +2779,7 @@ mod tests {
             false,
             vec![Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
                 DeonticAction::Attack {
-                    by: Predicate::Ref(Reference::This),
+                    by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                     on: Predicate::Any,
                 },
             )))],
@@ -2867,7 +2870,7 @@ mod tests {
             condition: None,
             limits: vec![].into(),
             effect: OneShotEffect::Act(Action::ChangeLife(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(1)),
             ))
             .into(),

@@ -139,7 +139,9 @@ mod tests {
     fn lowers_cost_component_mana_cost_of() {
         assert_matches!(
             deckmaste_semantics::CostComponent::ManaCostOf(minimal_reference()).lower(),
-            deckmaste_core::CostComponent::ManaCostOf(deckmaste_core::Reference::This)
+            deckmaste_core::CostComponent::ManaCostOf(deckmaste_core::Reference::Reg(
+                deckmaste_core::RefId(0)
+            ))
         );
     }
 

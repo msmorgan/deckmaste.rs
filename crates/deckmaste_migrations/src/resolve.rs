@@ -531,7 +531,7 @@ mod tests {
                         vec![
                             Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                             Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
-                                Predicate::Ref(Reference::You),
+                                Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
                             ))),
                         ]
                         .into(),
@@ -540,7 +540,7 @@ mod tests {
                     Count::Literal(10),
                 ),
                 Condition::Not(Arc::new(Condition::Matches(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     Predicate::State(StatePredicate::Designated("CitysBlessing".into())),
                 ))),
             ]

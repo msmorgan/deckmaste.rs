@@ -393,8 +393,8 @@ pub(crate) fn unless_cost_action(
         },
         // {T}/{Q} tap/untap the source permanent the cost rides on — both
         // agent-silent ([CR#701.26a..701.26b]), so `who` has no slot to ride.
-        CostComponent::Tap => Action::Tap(Reference::This),
-        CostComponent::Untap => Action::Untap(Reference::This),
+        CostComponent::Tap => Action::Tap(Reference::Reg(deckmaste_core::RefId(0))),
+        CostComponent::Untap => Action::Untap(Reference::Reg(deckmaste_core::RefId(0))),
         // Provenance is erased at `lower` (`deckmaste_lowering`), so no
         // loaded value reaches here wrapped. The arm survives only because
         // the variant does; `core-demacro` deletes both.
@@ -1164,7 +1164,7 @@ mod snow_provenance_tests {
 
     /// Never-crash ([CR#107.4h]): a mana ability can resolve after its source
     /// has ceased to exist (a token that left the game, or an LKI-only
-    /// snapshot id) — `frame.source` then names an object absent from the
+    /// snapshot id) — `frame.source(self)` then names an object absent from the
     /// store. `snow_provenance` must fizzle to no provenance rather than
     /// panic in the `objects.obj` / `layers().get` lookups. Regression for a
     /// latent panic surfaced while writing an `AmongColorsOf` test.

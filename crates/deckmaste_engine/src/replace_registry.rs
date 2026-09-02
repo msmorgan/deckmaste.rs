@@ -759,28 +759,23 @@ fn schedule_body(
     // recipient is the provenance-explicit `EventPatient`; a card/token
     // recipient ALSO mirrors into `that_object` so `EventObject` bodies keep
     // reading it (regeneration/wither/infect-on-a-creature).
-    let anaphora = that.map_or_else(Anaphora::empty, |id| match state.objects.obj(id).source {
-        ObjectSource::Player(p) => Anaphora {
-            that_patient: Some(EventPatient::Player(p)),
-            ..Anaphora::empty()
-        },
-        ObjectSource::Card(_) => {
-            let snapshot = LkiSnapshot::capture(state, id);
-            Anaphora {
-                that_object: Some(snapshot.clone()),
-                that_patient: Some(EventPatient::Object(snapshot)),
-                ..Anaphora::empty()
+    let (event_object, event_patient) =
+        that.map_or((None, None), |id| match state.objects.obj(id).source {
+            ObjectSource::Player(p) => (None, Some(EventPatient::Player(p))),
+            ObjectSource::Card(_) => {
+                let snapshot = LkiSnapshot::capture(state, id);
+                (Some(snapshot.clone()), Some(EventPatient::Object(snapshot)))
             }
-        }
-    });
+        });
     let anaphora = Anaphora {
         inherited_replacements: applied.clone(),
-        ..anaphora
+        ..Anaphora::empty()
     };
-    let frame = crate::stack::Frame {
+    let mut frame = crate::stack::Frame {
         anaphora,
         ..crate::stack::Frame::bare(source, controller)
     };
+    state.frame_set_event_bindings(&mut frame, event_object, None, event_patient);
     state.schedule_front(vec![crate::agenda::WorkItem::RunEffect {
         effect: Arc::new(effect),
         frame,
@@ -1135,7 +1130,7 @@ mod tests {
         let would = EventFilter::Act {
             verb: deckmaste_core::VerbName::from("Destroy"),
             who: Predicate::Any,
-            on: Predicate::Ref(Reference::This),
+            on: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
             cause: None,
         };
         let e = GameEvent::Act(Act {
@@ -1163,7 +1158,7 @@ mod tests {
         let would = EventFilter::Act {
             verb: deckmaste_core::VerbName::from("Destroy"),
             who: Predicate::Any,
-            on: Predicate::Ref(Reference::This),
+            on: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
             cause: None,
         };
         let e = GameEvent::ZoneChange(ZoneChange {
@@ -1188,7 +1183,7 @@ mod tests {
             deckmaste_core::StaticEffect::CantHappen(EventFilter::Act {
                 verb: deckmaste_core::VerbName::from("Destroy"),
                 who: Predicate::Any,
-                on: Predicate::Ref(Reference::This),
+                on: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 cause: None,
             }),
         );
@@ -1324,7 +1319,7 @@ mod tests {
     fn cant_happen_cast_suppresses_matching_casts() {
         let (mut state, _watcher) = super::tests_support::creature_with_static(
             deckmaste_core::StaticEffect::CantHappen(EventFilter::Cast {
-                who: Predicate::Ref(Reference::You),
+                who: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
                 what: Predicate::Any,
             }),
         );
@@ -1417,7 +1412,7 @@ mod tests {
                 cause: None,
             },
             instead: OneShotEffect::Act(deckmaste_core::Action::move_to(
-                Reference::EventObject,
+                Reference::Reg(deckmaste_core::RefId(2)),
                 Zone::Exile,
             )),
         };
@@ -1568,7 +1563,7 @@ mod tests {
 
         // "damage dealt BY this creature" — keyed to the watching object.
         let would = EventFilter::Damage {
-            source: Predicate::Ref(Reference::This),
+            source: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
             to: Predicate::Any,
             combat: None,
             amount: None,
@@ -1614,7 +1609,7 @@ mod tests {
         EventFilter::Act {
             verb: deckmaste_core::VerbName::from("Destroy"),
             who: Predicate::Any,
-            on: Predicate::Ref(Reference::This),
+            on: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
             cause: None,
         }
     }
@@ -1629,7 +1624,7 @@ mod tests {
         let (mut state, id) = super::tests_support::creature_with_static(StaticEffect::Prevention(
             Arc::new(Prevention::PreventAll {
                 from: Predicate::Any,
-                to: Predicate::Ref(Reference::This),
+                to: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 duration: None,
             }),
         ));
@@ -1662,7 +1657,7 @@ mod tests {
             Arc::new(Prevention::PreventNext {
                 n: Count::Literal(2),
                 from: Predicate::Any,
-                to: Predicate::Ref(Reference::This),
+                to: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 duration: None,
             }),
         ));

@@ -60,8 +60,8 @@ pub(crate) fn is_loyalty_ability(cost: &deckmaste_core::Cost) -> bool {
     summary.verbs.iter().any(|v| {
         matches!(
             v,
-            Action::PutCounters(Reference::This, counter, _)
-                | Action::RemoveCounters(Reference::This, counter, _)
+            Action::PutCounters(Reference::Reg(deckmaste_core::RefId(0)), counter, _)
+                | Action::RemoveCounters(Reference::Reg(deckmaste_core::RefId(0)), counter, _)
                 if *counter == loyalty
         )
     })
@@ -535,7 +535,7 @@ impl GameState {
         // pays the announced X. Without this binding, `eval_count(Count::X, …)`
         // on an X-less frame would panic.
         let mut frame = Frame::bare(subject, player);
-        frame.anaphora.x = Some(0);
+        self.frame_set_x(&mut frame, Some(0));
         // TODO(engine-cost-payment / deontics): [CR#119.8] "can't pay life" is
         // NOT YET ENFORCED. Under a continuous effect saying a player can't lose
         // life, a cost that involves having that player pay life can't be paid —
@@ -681,7 +681,7 @@ impl GameState {
         let src = self.objects.obj(object).source;
         let id = self.objects.mint(src, controller, Some(Zone::Stack));
         let mut frame = crate::stack::Frame::bare(object, controller);
-        frame.this.clone_from(&bindings.this);
+        self.frame_set_source_lki(&mut frame, bindings.this.clone());
         let activation = self.enter_region(&ability.effect, &frame);
         self.announcing = Some(PendingStackEntry {
             optional_components: Vec::new(),
@@ -806,7 +806,10 @@ mod tests {
 
     fn noop_effect() -> OneShotEffect {
         // A no-target effect: Sacrifice(You, This) — available in core.
-        OneShotEffect::Act(Action::Sacrifice(Reference::You, Reference::This))
+        OneShotEffect::Act(Action::Sacrifice(
+            Reference::Reg(deckmaste_core::RefId(1)),
+            Reference::Reg(deckmaste_core::RefId(0)),
+        ))
     }
 
     // -- as_activated --
@@ -825,7 +828,7 @@ mod tests {
             // `Ability::Static` shell (vs. `Activated`) matters, so a
             // no-op `Several([])` stands in for "any static ability".
             as_activated(&Ability::r#static(deckmaste_core::StaticEffect::Modify(
-                deckmaste_core::Reference::This,
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::Modification::Several(vec![].into()),
             )))
             .is_none()
@@ -837,7 +840,9 @@ mod tests {
     #[test]
     fn non_eligible_do_cost_cannot_cross_the_core_boundary() {
         assert_eq!(
-            CostComponent::try_do_action(Action::DrawCard(Reference::You)),
+            CostComponent::try_do_action(Action::DrawCard(Reference::Reg(deckmaste_core::RefId(
+                1
+            )))),
             Err(deckmaste_core::RunnableCostActionError::Ineligible),
         );
     }
@@ -847,7 +852,10 @@ mod tests {
         let cost = vec![
             CostComponent::Mana("{1}".parse().unwrap()),
             CostComponent::Tap,
-            CostComponent::do_action(Action::Sacrifice(Reference::You, Reference::This)),
+            CostComponent::do_action(Action::Sacrifice(
+                Reference::Reg(deckmaste_core::RefId(1)),
+                Reference::Reg(deckmaste_core::RefId(0)),
+            )),
         ];
         let summary = cost_summary(&cost).expect("verb costs no longer abort the summary");
         assert_eq!(summary.mana, "{1}".parse().unwrap());
@@ -903,7 +911,7 @@ mod tests {
                                 && matches!(
                                     body.as_ref(),
                                     deckmaste_core::OneShotEffect::Act(Action::Move(
-                                        Reference::This,
+                                        Reference::Reg(deckmaste_core::RefId(0)),
                                         deckmaste_core::Destination::Zone(Zone::Graveyard),
                                         _,
                                         _,
@@ -1291,7 +1299,7 @@ mod tests {
         let player = PlayerId(0);
         let ability = activated(
             vec![CostComponent::do_action(Action::ChangeLife(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Down(deckmaste_core::Count::Literal(2)),
             ))],
             noop_effect(),
@@ -1350,7 +1358,7 @@ mod tests {
         let obj = make_object_on_battlefield(&mut state, player);
         let ability = activated(
             vec![CostComponent::do_action(Action::ChangeLife(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Down(deckmaste_core::Count::Literal(2)),
             ))],
             noop_effect(),
@@ -1376,7 +1384,7 @@ mod tests {
             state.can_pay_verbs(
                 player,
                 &[Action::ChangeLife(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     LifeOp::Down(deckmaste_core::Count::Literal(0)),
                 )],
                 obj,
@@ -1409,7 +1417,7 @@ mod tests {
             state.can_pay_verbs(
                 player,
                 &[Action::ChangeLife(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     LifeOp::Down(deckmaste_core::Count::Literal(2)),
                 )],
                 obj,
@@ -1425,7 +1433,7 @@ mod tests {
         let player = PlayerId(0);
         let obj = make_object_on_battlefield(&mut state, player);
         let verbs = [Action::discard(
-            Reference::You,
+            Reference::Reg(deckmaste_core::RefId(1)),
             deckmaste_core::Count::Literal(1),
             false,
         )];
@@ -1470,12 +1478,14 @@ mod tests {
 
         let filter = Predicate::And(Arc::from(vec![
             Predicate::creature(),
-            Predicate::Not(Arc::new(Predicate::Ref(Reference::This))),
+            Predicate::Not(Arc::new(Predicate::Ref(Reference::Reg(
+                deckmaste_core::RefId(0),
+            )))),
         ]));
         let with = CostComponent::ChooseAndPay {
             binder: Arc::new(Binder::ChooseOne {
                 filter,
-                by: Reference::You,
+                by: Reference::Reg(deckmaste_core::RefId(1)),
             }),
             body: Cost(Arc::from(vec![])),
         };
@@ -1520,8 +1530,8 @@ mod tests {
         let search_one = CostComponent::ChooseAndPay {
             binder: Arc::new(Binder::SearchOne {
                 filter: Predicate::Kind(ObjectKind::Card),
-                by: Reference::You,
-                whose: Reference::You,
+                by: Reference::Reg(deckmaste_core::RefId(1)),
+                whose: Reference::Reg(deckmaste_core::RefId(1)),
                 from: vec![Zone::Library].into(),
                 if_none: None,
             }),
@@ -1536,8 +1546,8 @@ mod tests {
             binder: Arc::new(Binder::Search {
                 quantity: Quantity::one(),
                 filter: Predicate::Kind(ObjectKind::Card),
-                by: Reference::You,
-                whose: Reference::You,
+                by: Reference::Reg(deckmaste_core::RefId(1)),
+                whose: Reference::Reg(deckmaste_core::RefId(1)),
                 from: vec![Zone::Library].into(),
                 if_none: None,
             }),
@@ -1558,7 +1568,10 @@ mod tests {
         assert!(
             state.can_pay_verbs(
                 player,
-                &[Action::Sacrifice(Reference::You, Reference::This)],
+                &[Action::Sacrifice(
+                    Reference::Reg(deckmaste_core::RefId(1)),
+                    Reference::Reg(deckmaste_core::RefId(0))
+                )],
                 obj,
             ),
             "a self-sacrifice always has its one object to pay with"
@@ -1576,7 +1589,7 @@ mod tests {
         let obj = make_object_on_battlefield(&mut state, player);
         let proxy = state.player(player).object;
         let verbs = [Action::RemoveCounters(
-            Reference::You,
+            Reference::Reg(deckmaste_core::RefId(1)),
             deckmaste_core::CounterRef::from("Energy"),
             deckmaste_core::Count::Literal(2),
         )];
@@ -1621,7 +1634,7 @@ mod tests {
         let player = PlayerId(0);
         let obj = make_object_on_battlefield(&mut state, player);
         let verbs = [Action::RemoveCounters(
-            Reference::This,
+            Reference::Reg(deckmaste_core::RefId(0)),
             deckmaste_core::CounterRef::from("LoyaltyCounter"),
             deckmaste_core::Count::Literal(3),
         )];
@@ -1696,7 +1709,9 @@ mod tests {
         let player = PlayerId(0);
         let printed: ManaCost = "{1}{U}".parse().unwrap();
         let act = activated(
-            vec![CostComponent::ManaCostOf(Reference::This)],
+            vec![CostComponent::ManaCostOf(Reference::Reg(
+                deckmaste_core::RefId(0),
+            ))],
             noop_effect(),
         );
         let card_id = state.cards.push(
@@ -1710,7 +1725,10 @@ mod tests {
 
         let summary = cost_summary(&act.cost).expect("ManaCostOf cost summarizes");
         assert!(summary.mana.is_empty(), "no literal mana, only ManaCostOf");
-        assert_eq!(summary.mana_cost_of, vec![Reference::This]);
+        assert_eq!(
+            summary.mana_cost_of,
+            vec![Reference::Reg(deckmaste_core::RefId(0))]
+        );
 
         let resolved = state.resolve_cost_mana(&summary, obj, player);
         assert_eq!(
@@ -1737,7 +1755,9 @@ mod tests {
         let player = PlayerId(0);
         let printed: ManaCost = "{1}{U}".parse().unwrap();
         let act = activated(
-            vec![CostComponent::ManaCostOf(Reference::This)],
+            vec![CostComponent::ManaCostOf(Reference::Reg(
+                deckmaste_core::RefId(0),
+            ))],
             noop_effect(),
         );
         let card_id = state

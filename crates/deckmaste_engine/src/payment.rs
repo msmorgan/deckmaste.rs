@@ -227,6 +227,11 @@ pub struct PaymentFrame {
     /// transaction was speculative. Decline may reverse physical work, but
     /// it must never make already-seen entropy available to draw again.
     pub(crate) observed_rng: Option<RecordedRngState>,
+    /// Activation records referenced by frames in the speculative image.
+    /// Replay starts from this snapshot because activations live outside
+    /// `GameImage`.
+    pub(crate) activations: crate::activation::ActivationTable,
+    pub(crate) next_activation: u64,
     /// The negative branch of a resolution-time `May(Cast)` announcement.
     /// Submission leaves the queued `if_did` continuation intact; decline
     /// restores `proposal_base` and schedules this branch instead.
@@ -299,6 +304,8 @@ impl PaymentFrame {
             logical_objects: std::collections::HashMap::new(),
             replay_random_outcome: None,
             observed_rng: None,
+            activations: std::collections::HashMap::new(),
+            next_activation: 0,
             announcement_if_not: None,
             mana_action: None,
         }
@@ -797,6 +804,13 @@ pub struct PaymentController {
 }
 
 impl GameState {
+    fn payment_replay_frame(&self, frame: &PaymentFrame) -> PaymentFrame {
+        let mut replay = frame.clone();
+        replay.activations.clone_from(&self.activations.borrow());
+        replay.next_activation = self.next_activation.get();
+        replay
+    }
+
     /// Deterministic compatibility answer for the currently pending payment.
     ///
     /// This intentionally narrow runner shim covers the current monocolor
@@ -1045,10 +1059,14 @@ impl GameState {
         let working = self.active().clone();
         let observations = self.payment_observations.clone();
         let logical_objects = self.payment_logical_objects.clone();
+        let activations = self.activations.borrow().clone();
+        let next_activation = self.next_activation.get();
         let controller = self.payment.get_or_insert_with(PaymentController::default);
         let mut frame = PaymentFrame::proposal(working, payer);
         frame.observations = observations;
         frame.logical_objects = logical_objects;
+        frame.activations = activations;
+        frame.next_activation = next_activation;
         controller.frames.push(frame);
     }
 
@@ -1089,9 +1107,13 @@ impl GameState {
         let working = self.active().clone();
         let observations = self.payment_observations.clone();
         let logical_objects = self.payment_logical_objects.clone();
+        let activations = self.activations.borrow().clone();
+        let next_activation = self.next_activation.get();
         let mut proposal = PaymentFrame::proposal(working, payer);
         proposal.observations = observations;
         proposal.logical_objects = logical_objects;
+        proposal.activations = activations;
+        proposal.next_activation = next_activation;
         self.payment
             .get_or_insert_with(PaymentController::default)
             .frames
@@ -1100,7 +1122,7 @@ impl GameState {
         let mut payment_frame = frame.clone();
         payment_frame.payment = Some(self.mint_payment());
         let subject = PaymentSubject::Effect {
-            source: frame.source,
+            source: frame.source(self),
         };
         let locked = lock_cost(self, payer, subject, &payment_frame, &cost, &[])
             .expect("a lowered optional cost is concrete at the runnable boundary");
@@ -1307,7 +1329,8 @@ impl GameState {
                 .as_ref()
                 .and_then(|controller| controller.frames.last())
                 .expect("a Payment decision has a frame");
-            replay::reconstruct_frame(frame, &retained).map_err(|error| {
+            let replay_frame = self.payment_replay_frame(frame);
+            replay::reconstruct_frame(&replay_frame, &retained).map_err(|error| {
                 crate::decide::DecisionError::Illegal {
                     reason: format!("payment replay failed: {error}"),
                 }
@@ -1316,6 +1339,8 @@ impl GameState {
 
         self.payment_logical_objects
             .clone_from(&rebuilt.logical_objects);
+        self.activations.replace(rebuilt.activations);
+        self.next_activation.set(rebuilt.next_activation);
         let controller = self.payment.as_mut().expect("controller remains live");
         let frame = controller.frames.last_mut().expect("frame remains live");
         frame.working = rebuilt.working;
@@ -1594,7 +1619,7 @@ impl GameState {
                 .as_ref()
                 .and_then(|controller| controller.frames.last())
                 .expect("nested resolution cast has an announcement frame");
-            let mut replay_frame = frame.clone();
+            let mut replay_frame = self.payment_replay_frame(frame);
             if let Some(record) = self.partial_fulfillment_record(frame)
                 && (!record.reversal_barriers.is_empty()
                     || records_contain_mana_action(&record.children))
@@ -1648,6 +1673,8 @@ impl GameState {
         }
         self.payment_logical_objects
             .clone_from(&reconstructed.logical_objects);
+        self.activations.replace(reconstructed.activations);
+        self.next_activation.set(reconstructed.next_activation);
         {
             let child = self
                 .payment
@@ -1737,7 +1764,7 @@ impl GameState {
                         || records_cross_observation_barrier(&record.children)
                 })
                 || !action.observation_barriers.is_empty();
-            let mut replay_frame = child.clone();
+            let mut replay_frame = self.payment_replay_frame(child);
             if !forced_costs.is_empty()
                 || (action.is_submitted() && !action.reversal_barriers.is_empty())
                 || (action.is_submitted() && !action.observation_barriers.is_empty())
@@ -1788,6 +1815,8 @@ impl GameState {
             })?;
         }
         self.payment_logical_objects = reconstructed.logical_objects;
+        self.activations.replace(reconstructed.activations);
+        self.next_activation.set(reconstructed.next_activation);
         let mut rebuilt = reconstructed.working;
         rebuilt.pending = None;
         rebuilt.finish_mana_resolution_scope();
@@ -1982,7 +2011,7 @@ impl GameState {
         {
             forced_costs.push(record.clone());
         }
-        let mut replay_frame = child.clone();
+        let mut replay_frame = self.payment_replay_frame(child);
         if !forced_costs.is_empty() {
             replay_frame
                 .records
@@ -2034,7 +2063,7 @@ impl GameState {
         else {
             return Vec::new();
         };
-        let mut replay_frame = frame.clone();
+        let mut replay_frame = self.payment_replay_frame(frame);
         if let Some(record) = self.partial_fulfillment_record(frame)
             && (!record.reversal_barriers.is_empty()
                 || records_contain_mana_action(&record.children))
@@ -2120,6 +2149,8 @@ impl GameState {
             crossed_reversal,
             crossed_observation,
             rebuilt,
+            activations,
+            next_activation,
             announcement_if_not,
         ) = {
             let frame = self
@@ -2127,7 +2158,7 @@ impl GameState {
                 .as_ref()
                 .and_then(|controller| controller.frames.last())
                 .expect("announcement decline has an active frame");
-            let mut replay_frame = frame.clone();
+            let mut replay_frame = self.payment_replay_frame(frame);
             if let Some(record) = self.partial_fulfillment_record(frame)
                 && (!record.reversal_barriers.is_empty()
                     || records_contain_mana_action(&record.children))
@@ -2168,6 +2199,8 @@ impl GameState {
                     reason: format!("payment decline replay failed: {error}"),
                 },
             )?;
+            let activations = rebuilt.activations;
+            let next_activation = rebuilt.next_activation;
             (
                 frame.payer,
                 frame.subject,
@@ -2176,11 +2209,15 @@ impl GameState {
                 crossed_reversal,
                 crossed_observation,
                 rebuilt.working,
+                activations,
+                next_activation,
                 frame.announcement_if_not.clone(),
             )
         };
         let _ = retained;
         self.committed = rebuilt;
+        self.activations.replace(activations);
+        self.next_activation.set(next_activation);
         self.payment = None;
         self.clear_payment_metadata();
         if let Some((effect, frame)) = announcement_if_not {
@@ -2348,7 +2385,7 @@ impl LockBuilder<'_> {
 
     fn lock_action(&mut self, action: &RunnableCostAction) {
         let kind = match action.as_action() {
-            Action::ChangeLife(Reference::You, LifeOp::Down(count)) => {
+            Action::ChangeLife(Reference::Reg(deckmaste_core::RefId(1)), LifeOp::Down(count)) => {
                 IouKind::PayLife(self.state.eval_count(count, self.frame))
             }
             _ => IouKind::Act(action.clone()),
@@ -2483,7 +2520,7 @@ mod tests {
         if_not: Option<Arc<OneShotEffect>>,
     ) -> OneShotEffect {
         OneShotEffect::May(May {
-            who: Reference::You,
+            who: Reference::Reg(deckmaste_core::RefId(1)),
             effect: Arc::new(OneShotEffect::Act(Action::Pay(cost))),
             if_did,
             if_not,
@@ -2492,7 +2529,7 @@ mod tests {
 
     fn gain_life(amount: u32) -> Arc<OneShotEffect> {
         Arc::new(OneShotEffect::Act(Action::ChangeLife(
-            Reference::You,
+            Reference::Reg(deckmaste_core::RefId(1)),
             LifeOp::Up(Count::Literal(amount)),
         )))
     }
@@ -2621,7 +2658,9 @@ mod tests {
             payer,
             PaymentSubject::Spell(subject),
             &Frame::bare(subject, payer),
-            &cost(vec![CostComponent::ManaCostOf(Reference::This)]),
+            &cost(vec![CostComponent::ManaCostOf(Reference::Reg(
+                deckmaste_core::RefId(0),
+            ))]),
             &[
                 (PipClass::Generic, alternative.clone()),
                 (PipClass::Colored(Color::Green), alternative.clone()),
@@ -2813,7 +2852,7 @@ mod tests {
         state.run_effect(
             may_pay(
                 cost(vec![CostComponent::do_action(Action::ChangeLife(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     LifeOp::Down(Count::Literal(2)),
                 ))]),
                 Some(gain_life(10)),
@@ -2860,7 +2899,7 @@ mod tests {
         state.run_effect(
             may_pay(
                 cost(vec![CostComponent::do_action(Action::ChangeLife(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     LifeOp::Down(Count::Literal(2)),
                 ))]),
                 None,
@@ -2901,7 +2940,7 @@ mod tests {
         state.run_effect(
             may_pay(
                 cost(vec![CostComponent::do_action(Action::ChangeLife(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     LifeOp::Down(Count::Literal(2)),
                 ))]),
                 None,
@@ -2979,8 +3018,8 @@ mod tests {
         state.run_effect(
             may_pay(
                 cost(vec![CostComponent::do_action(Action::Sacrifice(
-                    Reference::You,
-                    Reference::This,
+                    Reference::Reg(deckmaste_core::RefId(1)),
+                    Reference::Reg(deckmaste_core::RefId(0)),
                 ))]),
                 None,
                 Some(gain_life(1)),

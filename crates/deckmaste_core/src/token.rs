@@ -180,14 +180,22 @@ impl PredefinedToken {
             types: vec![Type::Artifact].into(),
             confers: [].into(),
         };
-        let sac = CostComponent::do_action(Action::Sacrifice(Reference::You, Reference::This));
+        let sac = CostComponent::do_action(Action::Sacrifice(
+            Reference::Reg(crate::RefId(1)),
+            Reference::Reg(crate::RefId(0)),
+        ));
         let mana = |n: u32| {
             let symbols: Arc<[ManaSymbol]> =
                 [ManaSymbol::Simple(SimpleManaSymbol::Generic(n))].into();
             CostComponent::Mana(ManaCost::from(symbols))
         };
-        let add_any =
-            || Action::AddMana(Reference::You, Count::Literal(1), ManaSpec::AnyColor.into());
+        let add_any = || {
+            Action::AddMana(
+                Reference::Reg(crate::RefId(1)),
+                Count::Literal(1),
+                ManaSpec::AnyColor.into(),
+            )
+        };
         // Vibranium's "Add {C}. This mana can't be spent to cast a nonartifact
         // spell." ([CR#111.10w]) — a colorless unit carrying a `SpendOnly`
         // rider ([CR#106.6]) whose filter admits everything EXCEPT a
@@ -201,7 +209,7 @@ impl PredefinedToken {
                 .into(),
             );
             Action::AddMana(
-                Reference::You,
+                Reference::Reg(crate::RefId(1)),
                 Count::Literal(1),
                 ManaProduction::WithRiders {
                     mana: ManaSpec::Specific(ColorOrColorless::Colorless),
@@ -223,7 +231,7 @@ impl PredefinedToken {
                     EventFilter::Act {
                         verb: crate::VerbName::from("Destroy"),
                         who: Predicate::Any,
-                        on: Predicate::Ref(Reference::This),
+                        on: Predicate::Ref(Reference::Reg(crate::RefId(0))),
                         cause: None,
                     },
                 ))],
@@ -244,7 +252,7 @@ impl PredefinedToken {
                     [].into(),
                     vec![mana(2), CostComponent::Tap, sac].into(),
                     OneShotEffect::Act(Action::ChangeLife(
-                        Reference::You,
+                        Reference::Reg(crate::RefId(1)),
                         LifeOp::Up(Count::Literal(3)),
                     )),
                 ),
@@ -254,7 +262,7 @@ impl PredefinedToken {
                 Self::Clue => (
                     [].into(),
                     vec![mana(2), sac].into(),
-                    crate::OneShotEffect::draw(Reference::You, Count::Literal(1)),
+                    crate::OneShotEffect::draw(Reference::Reg(crate::RefId(1)), Count::Literal(1)),
                 ),
                 // [CR#111.10g] "{1}, {T}, Discard a card, Sacrifice this token: Draw a card."
                 Self::Blood => (
@@ -263,14 +271,14 @@ impl PredefinedToken {
                         mana(1),
                         CostComponent::Tap,
                         CostComponent::do_action(crate::Action::discard(
-                            Reference::You,
+                            Reference::Reg(crate::RefId(1)),
                             Count::Literal(1),
                             false,
                         )),
                         sac,
                     ]
                     .into(),
-                    crate::OneShotEffect::draw(Reference::You, Count::Literal(1)),
+                    crate::OneShotEffect::draw(Reference::Reg(crate::RefId(1)), Count::Literal(1)),
                 ),
                 // [CR#111.10w] indestructible; "{T}: Add {C}. This mana can't be
                 // spent to cast a nonartifact spell."

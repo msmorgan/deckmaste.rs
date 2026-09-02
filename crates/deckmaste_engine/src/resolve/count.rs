@@ -314,7 +314,7 @@ impl GameState {
             // value announced as it was cast (engine-x-costs threads it onto the
             // resolution frame). [CR#107.3f] text-X chosen at resolution is a
             // separate seam.
-            Count::X => frame.anaphora.x.expect(
+            Count::X => self.activation_x(frame.activation).expect(
                 "Count::X on a frame with no announced X — a card referenced X without an {X} cost",
             ),
             // [CR#608.2i]: count history facts matching `event` within `within` —
@@ -336,7 +336,7 @@ impl GameState {
                         self.turn.turn_number,
                         self.turn.current,
                         self.turn.active_player,
-                        frame.controller,
+                        frame.controller(self),
                     )
                     .filter_map(|(_, entry)| entry.view.as_ref())
                     .filter(|view| self.eval(event, view, crate::eval::Lane::History, &bindings))
@@ -359,7 +359,7 @@ impl GameState {
                         self.turn.turn_number,
                         self.turn.current,
                         self.turn.active_player,
-                        frame.controller,
+                        frame.controller(self),
                     )
                     .filter(|(_, entry)| {
                         entry.view.as_ref().is_some_and(|view| {
@@ -402,7 +402,7 @@ impl GameState {
             Count::TimesPaid(tag) => self
                 .stack
                 .iter()
-                .find(|e| e.id == frame.source)
+                .find(|e| e.id == frame.source(self))
                 .and_then(|e| e.paid_costs.iter().find(|(t, _)| t == tag).map(|(_, n)| *n))
                 .unwrap_or(0),
             Count::Damage(reference) => {
@@ -658,7 +658,6 @@ mod tests {
     use crate::object::ObjectSource;
     use crate::player::PlayerId;
     use crate::resolve::fixtures::*;
-    use crate::stack::Anaphora;
     use crate::stack::Frame;
     use crate::state::GameConfig;
     use crate::state::GameState;
@@ -690,14 +689,20 @@ mod tests {
 
         assert_eq!(
             state.eval_count(
-                &Count::ManaAvailableKind(Reference::You, Color::Green.into()),
+                &Count::ManaAvailableKind(
+                    Reference::Reg(deckmaste_core::RefId(1)),
+                    Color::Green.into()
+                ),
                 &frame,
             ),
             3,
         );
         assert_eq!(
             state.eval_count(
-                &Count::ManaAvailableKind(Reference::You, ColorOrColorless::Colorless,),
+                &Count::ManaAvailableKind(
+                    Reference::Reg(deckmaste_core::RefId(1)),
+                    ColorOrColorless::Colorless,
+                ),
                 &frame,
             ),
             0,
@@ -786,7 +791,7 @@ mod tests {
             );
         }
         let draw_event = EventFilter::Drawn {
-            who: Predicate::Ref(Reference::You),
+            who: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
             amount: None,
         };
         assert_eq!(
@@ -829,7 +834,7 @@ mod tests {
             "lands played by p this turn (direct helper)"
         );
         let play_event = EventFilter::Played {
-            who: Predicate::Ref(Reference::You),
+            who: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
             what: Predicate::Any,
         };
         assert_eq!(
@@ -872,11 +877,11 @@ mod tests {
             }),
         );
         let lose_event = EventFilter::LifeLost {
-            who: Predicate::Ref(Reference::You),
+            who: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
             amount: None,
         };
         let gain_event = EventFilter::LifeGained {
-            who: Predicate::Ref(Reference::You),
+            who: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
             amount: None,
         };
         assert_eq!(
@@ -903,7 +908,7 @@ mod tests {
             what: Predicate::Any,
         };
         let draw_event2 = EventFilter::Drawn {
-            who: Predicate::Ref(Reference::You),
+            who: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
             amount: None,
         };
         assert_eq!(
@@ -955,13 +960,13 @@ mod tests {
                         who: Predicate::Any,
                         what: Predicate::Any,
                     },
-                    EventFilter::Before(Reference::This),
+                    EventFilter::Before(Reference::Reg(deckmaste_core::RefId(0))),
                 ]
                 .into(),
             )),
             Lookback::ThisTurn,
         );
-        let frame = frame_src(storm);
+        let frame = frame_src(&state, storm);
         assert_eq!(
             state.eval_count(&storm_count, &frame),
             2,
@@ -1000,13 +1005,13 @@ mod tests {
                         who: Predicate::Any,
                         what: Predicate::Any,
                     },
-                    EventFilter::Before(Reference::This),
+                    EventFilter::Before(Reference::Reg(deckmaste_core::RefId(0))),
                 ]
                 .into(),
             )),
             Lookback::ThisTurn,
         );
-        let frame = frame_src(storm);
+        let frame = frame_src(&state, storm);
         assert_eq!(
             state.eval_count(&storm_count, &frame),
             2,
@@ -1091,7 +1096,7 @@ mod tests {
         // A second bear onto the battlefield, then handed to player 1.
         let _ = second_bear_to_player_1(&mut state);
 
-        let frame = frame_src(bear);
+        let frame = frame_src(&state, bear);
         let creatures = Predicate::And(
             vec![
                 Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
@@ -1112,7 +1117,7 @@ mod tests {
             vec![
                 creatures,
                 Predicate::Relation(deckmaste_core::RelationPredicate::ControlledBy(Arc::new(
-                    Predicate::Ref(Reference::You),
+                    Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
                 ))),
             ]
             .into(),
@@ -1153,11 +1158,11 @@ mod tests {
 
         let mut state = game();
         let gg1 = permanent_with_cost(&mut state, "{G}{G}{1}");
-        let frame = frame_src(gg1);
+        let frame = frame_src(&state, gg1);
         assert_eq!(
             state.eval_count(
                 &Count::CountOf(Countable::ManaSymbols(
-                    Arc::new(Reference::This),
+                    Arc::new(Reference::Reg(deckmaste_core::RefId(0))),
                     SymbolPred::CountsAs(deckmaste_core::Color::Green),
                 )),
                 &frame,
@@ -1167,11 +1172,11 @@ mod tests {
         );
 
         let gwgw = permanent_with_cost(&mut state, "{G/W}{G/W}");
-        let frame = frame_src(gwgw);
+        let frame = frame_src(&state, gwgw);
         assert_eq!(
             state.eval_count(
                 &Count::CountOf(Countable::ManaSymbols(
-                    Arc::new(Reference::This),
+                    Arc::new(Reference::Reg(deckmaste_core::RefId(0))),
                     SymbolPred::CountsAs(deckmaste_core::Color::Green),
                 )),
                 &frame,
@@ -1182,7 +1187,7 @@ mod tests {
         assert_eq!(
             state.eval_count(
                 &Count::CountOf(Countable::ManaSymbols(
-                    Arc::new(Reference::This),
+                    Arc::new(Reference::Reg(deckmaste_core::RefId(0))),
                     SymbolPred::CountsAs(deckmaste_core::Color::White),
                 )),
                 &frame,
@@ -1193,7 +1198,7 @@ mod tests {
         assert_eq!(
             state.eval_count(
                 &Count::CountOf(Countable::ManaSymbols(
-                    Arc::new(Reference::This),
+                    Arc::new(Reference::Reg(deckmaste_core::RefId(0))),
                     SymbolPred::Or(
                         vec![
                             SymbolPred::CountsAs(deckmaste_core::Color::White),
@@ -1248,13 +1253,13 @@ mod tests {
         let _ = permanent_with_cost(&mut state, "{2}{G}");
         let _ = permanent_with_cost(&mut state, "{G}{G}");
         let src = permanent_with_cost(&mut state, "{1}");
-        let frame = frame_src(src);
+        let frame = frame_src(&state, src);
 
         let your_permanents = Predicate::And(
             vec![
                 Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                 Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                 )))),
             ]
             .into(),
@@ -1281,7 +1286,7 @@ mod tests {
         let src = permanent_with_cost(&mut power_state, "{1}");
         let _ = creature_with_power(&mut power_state, 2);
         let _ = creature_with_power(&mut power_state, 5);
-        let frame = frame_src(src);
+        let frame = frame_src(&power_state, src);
         let total_power = Count::Aggregate(
             AggregateOp::SumOf,
             Projection {
@@ -1340,7 +1345,7 @@ mod tests {
 
         let mut state = game();
         let src = permanent_with_cost(&mut state, "{1}");
-        let frame = frame_src(src);
+        let frame = frame_src(&state, src);
         state.player_mut(PlayerId(0)).life = 12;
         state.player_mut(PlayerId(1)).life = 20;
 
@@ -1409,7 +1414,7 @@ mod tests {
 
         let mut state = game();
         let src = permanent_with_cost(&mut state, "{1}");
-        let frame = frame_src(src);
+        let frame = frame_src(&state, src);
         state.player_mut(PlayerId(0)).life = 20;
         state.player_mut(PlayerId(1)).life = 10;
 
@@ -1458,7 +1463,7 @@ mod tests {
                 vec![
                     Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                     Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                        Reference::You,
+                        Reference::Reg(deckmaste_core::RefId(1)),
                     )))),
                 ]
                 .into(),
@@ -1490,7 +1495,7 @@ mod tests {
         let _ = permanent_with_cost(&mut state, "{W}");
         let _ = permanent_with_cost(&mut state, "{B}");
         let src = permanent_with_cost(&mut state, "{W/B}");
-        let frame = frame_src(src);
+        let frame = frame_src(&state, src);
         assert_eq!(
             state.eval_count(
                 &devotion_wb(Countable::Objects(Arc::new(your_permanents()))),
@@ -1514,7 +1519,7 @@ mod tests {
         let src = empty_state
             .objects
             .mint(ObjectSource::Card(cid), PlayerId(0), Some(Zone::Hand));
-        let frame = frame_src(src);
+        let frame = frame_src(&empty_state, src);
         assert_eq!(
             empty_state.eval_count(
                 &devotion_wb(Countable::Objects(Arc::new(your_permanents()))),
@@ -1530,7 +1535,7 @@ mod tests {
     #[test]
     fn stat_of_reads_derived_stats() {
         let (mut state, bear) = bear_on_field();
-        let frame = frame_src_targets(bear, vec![bear]);
+        let frame = frame_src_targets(&state, bear, vec![bear]);
 
         let power = Count::StatOf(
             Reference::Reg(deckmaste_core::RefId(6)),
@@ -1539,7 +1544,10 @@ mod tests {
         assert_eq!(state.eval_count(&power, &frame), 2);
         assert_eq!(
             state.eval_count(
-                &Count::StatOf(Reference::This, deckmaste_core::Stat::ManaValue),
+                &Count::StatOf(
+                    Reference::Reg(deckmaste_core::RefId(0)),
+                    deckmaste_core::Stat::ManaValue
+                ),
                 &frame
             ),
             2,
@@ -1569,7 +1577,7 @@ mod tests {
     #[test]
     fn that_much_gains_life_equal_to_damage_dealt() {
         let (mut state, bear) = bear_on_field();
-        let frame = frame_src_targets(bear, vec![bear]);
+        let frame = frame_src_targets(&state, bear, vec![bear]);
         state.run_effect(
             OneShotEffect::Sequentially(
                 vec![
@@ -1578,7 +1586,7 @@ mod tests {
                         Count::Literal(3),
                     )),
                     OneShotEffect::Act(Action::ChangeLife(
-                        Reference::You,
+                        Reference::Reg(deckmaste_core::RefId(1)),
                         LifeOp::Up(Count::ThatMuch),
                     )),
                 ]
@@ -1597,13 +1605,8 @@ mod tests {
     #[test]
     fn count_x_reads_announced_value() {
         let (state, src) = bear_on_field();
-        let frame = Frame {
-            anaphora: Anaphora {
-                x: Some(3),
-                ..Anaphora::empty()
-            },
-            ..Frame::bare(src, PlayerId(0))
-        };
+        let mut frame = Frame::bare(src, PlayerId(0));
+        state.frame_set_x(&mut frame, Some(3));
         assert_eq!(state.eval_count(&Count::X, &frame), 3);
     }
 
@@ -1613,7 +1616,7 @@ mod tests {
     #[test]
     fn count_noted_missing_key_fizzles_to_zero() {
         let (state, a) = bear_on_field();
-        let frame = frame_src(a);
+        let frame = frame_src(&state, a);
         assert_eq!(
             state.eval_count(&Count::Noted(deckmaste_core::Ident::from("absent")), &frame),
             0
@@ -1631,17 +1634,23 @@ mod tests {
             .obj_mut(bear)
             .counters
             .insert("P1P1Counter".into(), 3);
-        let frame = frame_src(bear);
+        let frame = frame_src(&state, bear);
         assert_eq!(
             state.eval_count(
-                &Count::CounterCount(Arc::new(Reference::This), "P1P1Counter".into()),
+                &Count::CounterCount(
+                    Arc::new(Reference::Reg(deckmaste_core::RefId(0))),
+                    "P1P1Counter".into()
+                ),
                 &frame
             ),
             3
         );
         assert_eq!(
             state.eval_count(
-                &Count::CounterCount(Arc::new(Reference::This), "M1M1Counter".into()),
+                &Count::CounterCount(
+                    Arc::new(Reference::Reg(deckmaste_core::RefId(0))),
+                    "M1M1Counter".into()
+                ),
                 &frame
             ),
             0,
@@ -1668,14 +1677,15 @@ mod tests {
         state.objects.remove(bear);
         assert!(state.objects.get(bear).is_none(), "the object is gone");
 
-        let frame = Frame {
-            this: Some(snapshot),
-            ..Frame::bare(bear, PlayerId(0))
-        };
+        let mut frame = Frame::bare(bear, PlayerId(0));
+        state.frame_set_source_lki(&mut frame, Some(snapshot));
 
         assert_eq!(
             state.eval_count(
-                &Count::CounterCount(Arc::new(Reference::This), "P1P1Counter".into()),
+                &Count::CounterCount(
+                    Arc::new(Reference::Reg(deckmaste_core::RefId(0))),
+                    "P1P1Counter".into()
+                ),
                 &frame
             ),
             2,
@@ -1683,7 +1693,10 @@ mod tests {
         );
         assert_eq!(
             state.eval_count(
-                &Count::CounterCount(Arc::new(Reference::This), "M1M1Counter".into()),
+                &Count::CounterCount(
+                    Arc::new(Reference::Reg(deckmaste_core::RefId(0))),
+                    "M1M1Counter".into()
+                ),
                 &frame
             ),
             0,
@@ -1720,9 +1733,12 @@ mod tests {
             .obj_mut(walker)
             .counters
             .insert("LoyaltyCounter".into(), 1);
-        let frame = frame_src(walker);
+        let frame = frame_src(&state, walker);
         assert_eq!(
-            state.eval_count(&Count::StatOf(Reference::This, Stat::Loyalty), &frame),
+            state.eval_count(
+                &Count::StatOf(Reference::Reg(deckmaste_core::RefId(0)), Stat::Loyalty),
+                &frame
+            ),
             4,
             "printed loyalty (4), not the loyalty-counter count (1)"
         );
@@ -1740,10 +1756,13 @@ mod tests {
             .obj_mut(bear)
             .counters
             .insert("LoyaltyCounter".into(), 4);
-        let frame = frame_src(bear);
+        let frame = frame_src(&state, bear);
         assert_eq!(
             state.eval_count(
-                &Count::CounterCount(Arc::new(Reference::This), "LoyaltyCounter".into()),
+                &Count::CounterCount(
+                    Arc::new(Reference::Reg(deckmaste_core::RefId(0))),
+                    "LoyaltyCounter".into()
+                ),
                 &frame
             ),
             4,
@@ -1807,11 +1826,11 @@ mod tests {
             // production now takes.
             let semantic: deckmaste_semantics::Predicate = canon().macros.read_str(filter).unwrap();
             let parsed: Predicate = deckmaste_lowering::Lower::lower(semantic);
-            let frame = frame_src(source);
+            let frame = frame_src(&state, source);
             let before = state.zones.battlefield.len();
             state.run_effect(
                 OneShotEffect::Act(Action::Create {
-                    agent: Reference::You,
+                    agent: Reference::Reg(deckmaste_core::RefId(1)),
                     count: Count::CountOf(Countable::Objects(Arc::new(parsed))),
                     token: deckmaste_core::Token {
                         name: None,
@@ -2022,7 +2041,9 @@ mod tests {
         let frame = frame_for(&state, PlayerId(0));
 
         let lose_life_pattern = EventFilter::LifeLost {
-            who: deckmaste_core::Predicate::Ref(deckmaste_core::Reference::You),
+            who: deckmaste_core::Predicate::Ref(deckmaste_core::Reference::Reg(
+                deckmaste_core::RefId(1),
+            )),
             amount: None,
         };
 
@@ -2125,12 +2146,12 @@ mod tests {
         // The frame's source is `obj`; `Used(by: This)` resolves `This` to it.
         let obj = ObjectId::from_raw(1);
         let other = ObjectId::from_raw(2);
-        let frame = frame_src(obj);
+        let frame = frame_src(&state, obj);
 
         let used = |n| {
             Count::EventCount(
                 Arc::new(EventFilter::Used {
-                    of: Reference::This,
+                    of: Reference::Reg(deckmaste_core::RefId(0)),
                 }),
                 n,
             )
@@ -2169,7 +2190,7 @@ mod tests {
             }),
         );
 
-        // Only `obj`'s two uses count (`This` == frame.source == obj).
+        // Only `obj`'s two uses count (`This` == frame.source(self) == obj).
         assert_eq!(
             state.eval_count(&used(Lookback::ThisTurn), &frame),
             2,
@@ -2219,13 +2240,13 @@ mod tests {
         state.turn.turn_number = 1;
 
         let obj = ObjectId::from_raw(1);
-        let frame = frame_src(obj);
+        let frame = frame_src(&state, obj);
 
         // "if this object's abilities have been used exactly twice this turn".
         let twice = Condition::Compare(
             Count::EventCount(
                 Arc::new(EventFilter::Used {
-                    of: Reference::This,
+                    of: Reference::Reg(deckmaste_core::RefId(0)),
                 }),
                 Lookback::ThisTurn,
             ),

@@ -66,11 +66,11 @@ fn combatant_creature_def() -> deckmaste_core::TypeDef {
         Condition::And(
             vec![
                 Condition::Matches(
-                    Reference::This,
+                    Reference::Reg(deckmaste_core::RefId(0)),
                     Predicate::State(StatePredicate::SummoningSick),
                 ),
                 Condition::Not(Arc::new(Condition::Matches(
-                    Reference::This,
+                    Reference::Reg(deckmaste_core::RefId(0)),
                     Predicate::Characteristic(CharacteristicPredicate::Has("Haste".into())),
                 ))),
             ]
@@ -83,11 +83,11 @@ fn combatant_creature_def() -> deckmaste_core::TypeDef {
         permanent: true,
         confers: vec![
             ability(StaticEffect::Deontic(Deontic::May(DeonticAction::Attack {
-                by: Predicate::Ref(Reference::This),
+                by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 on: Predicate::Any,
             }))),
             ability(StaticEffect::Deontic(Deontic::May(DeonticAction::Block {
-                by: Predicate::Ref(Reference::This),
+                by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 on: Predicate::Any,
                 count: None,
             }))),
@@ -95,7 +95,7 @@ fn combatant_creature_def() -> deckmaste_core::TypeDef {
                 sick_not_hasty(),
                 Arc::new(StaticEffect::Deontic(Deontic::Cant(
                     DeonticAction::Attack {
-                        by: Predicate::Ref(Reference::This),
+                        by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                         on: Predicate::Any,
                     },
                 ))),
@@ -104,7 +104,7 @@ fn combatant_creature_def() -> deckmaste_core::TypeDef {
                 sick_not_hasty(),
                 Arc::new(StaticEffect::Deontic(Deontic::Cant(
                     DeonticAction::Activate {
-                        what: Predicate::Ref(Reference::This),
+                        what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                         by: Predicate::Any,
                         cost: Some(CostPredicate::IncludesTapSymbol),
                     },

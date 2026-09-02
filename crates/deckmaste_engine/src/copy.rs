@@ -68,13 +68,13 @@ use crate::ObjectId;
 /// evaluation (`GameState::eval_reference`, the engine's single-object read —
 /// see `resolve/query.rs`, consumed throughout `resolve/player_action.rs`).
 /// `CopySource::SelfCard` reads "the card doing the copying... from its own
-/// zone" (its doc comment) — exactly `frame.source`, the exophoric binding
-/// `Reference::This` itself falls back to in a spell frame.
+/// zone" (its doc comment) — exactly `frame.source(self)`, the exophoric binding
+/// `Reference::Reg(deckmaste_core::RefId(0))` itself falls back to in a spell frame.
 #[must_use]
 pub fn resolve_source(state: &GameState, frame: &Frame, source: &CopySource) -> Option<ObjectId> {
     let id = match source {
         CopySource::Object(reference) => state.eval_reference(reference, frame),
-        CopySource::SelfCard => frame.source,
+        CopySource::SelfCard => frame.source(state),
     };
     state.objects.get(id).map(|_| id)
 }
@@ -545,7 +545,7 @@ fn defines_pt(ability: &Ability, axis: PtAxis) -> bool {
 
 fn static_defines_pt(effect: &StaticEffect, axis: PtAxis) -> bool {
     match effect {
-        StaticEffect::Modify(Reference::This, modification) => {
+        StaticEffect::Modify(Reference::Reg(deckmaste_core::RefId(0)), modification) => {
             modification_defines_pt(modification, axis)
         }
         _ => false,
@@ -616,7 +616,6 @@ mod tests {
     use deckmaste_core::Zone;
 
     use super::*;
-    use crate::Anaphora;
     use crate::ObjectSource;
     use crate::player::PlayerId;
     use crate::state::GameConfig;
@@ -671,7 +670,7 @@ mod tests {
     #[test]
     fn modify_set_power_drops_pt_defining_cda() {
         let cda = Ability::r#static(StaticEffect::Modify(
-            Reference::This,
+            Reference::Reg(deckmaste_core::RefId(0)),
             Modification::Several(
                 vec![
                     Modification::Power(NumericOp::Set(StatValue::Count(Count::CountOf(
@@ -719,7 +718,7 @@ mod tests {
     #[test]
     fn modify_set_power_non_literal_count_is_true_noop() {
         let cda = Ability::r#static(StaticEffect::Modify(
-            Reference::This,
+            Reference::Reg(deckmaste_core::RefId(0)),
             Modification::Power(NumericOp::Set(StatValue::Number(0))),
         ));
         let base = CopiableValues {
@@ -754,7 +753,7 @@ mod tests {
     #[test]
     fn retain_power_keeps_value_drops_defining_ability() {
         let cda = Ability::r#static(StaticEffect::Modify(
-            Reference::This,
+            Reference::Reg(deckmaste_core::RefId(0)),
             Modification::Power(NumericOp::Set(StatValue::Number(0))),
         ));
         let base = CopiableValues {
@@ -916,15 +915,13 @@ mod tests {
         let mut state = bare_game();
         let source = mint_card(&mut state, CardFace::default());
         let target = mint_card(&mut state, CardFace::default());
-        let frame = Frame {
-            anaphora: Anaphora {
-                targets: vec![vec![target]],
-                ..Anaphora::empty()
-            },
-            ..Frame::bare(source, PlayerId(0))
-        };
+        let frame = crate::test_support::frame_src_targets(&state, source, vec![target]);
         assert_eq!(
-            resolve_source(&state, &frame, &CopySource::Object(Reference::Target(0))),
+            resolve_source(
+                &state,
+                &frame,
+                &CopySource::Object(Reference::Reg(deckmaste_core::RefId(6)))
+            ),
             Some(target),
             "CopySource::Object resolves a live announced target to its id"
         );
@@ -940,15 +937,13 @@ mod tests {
         let mut state = bare_game();
         let source = mint_card(&mut state, CardFace::default());
         let dead = ObjectId::from_raw(999);
-        let frame = Frame {
-            anaphora: Anaphora {
-                targets: vec![vec![dead]],
-                ..Anaphora::empty()
-            },
-            ..Frame::bare(source, PlayerId(0))
-        };
+        let frame = crate::test_support::frame_src_targets(&state, source, vec![dead]);
         assert_eq!(
-            resolve_source(&state, &frame, &CopySource::Object(Reference::Target(0))),
+            resolve_source(
+                &state,
+                &frame,
+                &CopySource::Object(Reference::Reg(deckmaste_core::RefId(6)))
+            ),
             None,
             "a departed target resolves to None, never a panic"
         );
@@ -967,7 +962,7 @@ mod tests {
     #[test]
     fn has_unbuilt_enter_rider_excludes_as_copy_and_built_riders() {
         let spec = deckmaste_core::CopySpec {
-            source: CopySource::Object(Reference::Target(0)),
+            source: CopySource::Object(Reference::Reg(deckmaste_core::RefId(6))),
             exceptions: vec![],
         };
 

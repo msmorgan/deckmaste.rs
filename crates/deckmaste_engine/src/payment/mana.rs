@@ -415,6 +415,8 @@ impl GameState {
             observation_barriers: Vec::new(),
         });
         let mut child = PaymentFrame::proposal(working, controller_player);
+        child.activations.clone_from(&self.activations.borrow());
+        child.next_activation = self.next_activation.get();
         child.mana_action = Some(id);
         controller.frames.push(child);
 
@@ -466,24 +468,10 @@ impl GameState {
             "a nested payment activation must announce a lowering-classified mana mode"
         );
 
-        let this = bindings
-            .this
-            .as_ref()
-            .expect("begin_activate captures the source snapshot")
-            .clone();
         let frame = Frame {
-            activation: crate::ActivationId::NONE,
-            source: this.object,
-            controller: pending.controller,
-            this: Some(this),
-            defending_player: bindings.defending_player,
+            activation: pending.activation,
             payment: None,
             anaphora: Anaphora {
-                targets: pending.targets.clone(),
-                x: pending.x,
-                that_object: bindings.that_object,
-                that_player: bindings.that_player,
-                that_patient: bindings.that_patient,
                 produced_mana: bindings.produced_mana,
                 ..Anaphora::empty()
             },
@@ -738,17 +726,20 @@ impl GameState {
                 ability: ability_u,
             }),
         );
+        let mut seed = Frame::bare(source, controller);
+        self.frame_set_source_lki(&mut seed, bindings.this.clone());
+        self.frame_set_defending_player(&mut seed, bindings.defending_player);
+        self.frame_set_event_bindings(
+            &mut seed,
+            bindings.that_object.clone(),
+            bindings.that_player,
+            bindings.that_patient.clone(),
+        );
+        let activation = self.enter_region(&triggered.effect, &seed);
         let frame = Frame {
-            activation: crate::ActivationId::NONE,
-            source,
-            controller,
-            this: bindings.this.clone(),
-            defending_player: bindings.defending_player,
+            activation,
             payment: None,
             anaphora: Anaphora {
-                that_object: bindings.that_object,
-                that_player: bindings.that_player,
-                that_patient: bindings.that_patient,
                 produced_mana: bindings.produced_mana,
                 crossed: bindings.crossed,
                 ..Anaphora::empty()

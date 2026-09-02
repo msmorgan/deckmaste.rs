@@ -631,7 +631,7 @@ fn losing_creature_type_removes_the_attack_grant() {
 
     let may_attack = Ability::Innate(Arc::new(Ability::r#static(StaticEffect::Deontic(
         Deontic::May(DeonticAction::Attack {
-            by: Predicate::Ref(Reference::This),
+            by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
             on: Predicate::Any,
         }),
     ))));
@@ -709,7 +709,7 @@ fn printed_creature_grant_is_not_doubled_by_the_fold() {
 
     let may_attack = Ability::Innate(Arc::new(Ability::r#static(StaticEffect::Deontic(
         Deontic::May(DeonticAction::Attack {
-            by: Predicate::Ref(Reference::This),
+            by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
             on: Predicate::Any,
         }),
     ))));
@@ -755,7 +755,9 @@ fn gain_control_changes_derived_controller() {
         timestamp: Timestamp(1_000),
         controller: PlayerId(1),
         scope: ScopeResolved::Locked(vec![bear]),
-        changes: vec![Modification::SetController(Reference::You)],
+        changes: vec![Modification::SetController(Reference::Reg(
+            deckmaste_core::RefId(1),
+        ))],
         duration: Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn),
         rows: vec![],
         origin: None,
@@ -785,7 +787,9 @@ fn gained_control_reverts_when_effect_expires() {
         timestamp: Timestamp(1_000),
         controller: PlayerId(1),
         scope: ScopeResolved::Locked(vec![bear]),
-        changes: vec![Modification::SetController(Reference::You)],
+        changes: vec![Modification::SetController(Reference::Reg(
+            deckmaste_core::RefId(1),
+        ))],
         duration: Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn),
         rows: vec![],
         origin: None,
@@ -823,7 +827,9 @@ fn stolen_creature_attacks_for_new_controller() {
         timestamp: Timestamp(1_000),
         controller: PlayerId(1),
         scope: ScopeResolved::Locked(vec![bear]),
-        changes: vec![Modification::SetController(Reference::You)],
+        changes: vec![Modification::SetController(Reference::Reg(
+            deckmaste_core::RefId(1),
+        ))],
         duration: Duration::EndOfGame,
         rows: vec![],
         origin: None,

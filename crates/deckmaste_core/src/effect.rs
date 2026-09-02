@@ -251,17 +251,6 @@ pub struct Noting {
     pub effect: Arc<OneShotEffect>,
 }
 
-/// serde default for the paying/acting player — "you" unless the text names
-/// another ([CR#118.12a]).
-fn ref_you() -> Reference {
-    Reference::You
-}
-
-/// `skip_serializing_if` predicate: the default `You` is omitted from RON.
-fn ref_is_you(r: &Reference) -> bool {
-    matches!(*r, Reference::You)
-}
-
 /// `AdditionalCost { pay, body }` — "As an additional cost, [pay]; then run
 /// [body]" ([CR#601.2f,118.8]). The payment is an event, so `body` reads the
 /// sacrificed/exiled object through the event references
@@ -348,7 +337,6 @@ pub struct Label {
 pub struct SeparatePiles {
     pub group: crate::Selection,
     pub into: Arc<[crate::Ident]>,
-    #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
     pub by: Reference,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub note: Option<crate::Ident>,
@@ -362,7 +350,6 @@ pub struct SeparatePiles {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct ChoosePile {
     pub from: PileSource,
-    #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
     pub by: Reference,
     #[serde(default, skip_serializing_if = "core::ops::Not::not")]
     pub random: bool,

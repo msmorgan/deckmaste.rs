@@ -91,7 +91,9 @@ mod tests {
     fn lowers_decider_spec_named() {
         assert_matches!(
             deckmaste_semantics::DeciderSpec::Named(minimal_reference()).lower(),
-            deckmaste_core::DeciderSpec::Named(deckmaste_core::Reference::This)
+            deckmaste_core::DeciderSpec::Named(deckmaste_core::Reference::Reg(
+                deckmaste_core::RefId(0)
+            ))
         );
     }
 

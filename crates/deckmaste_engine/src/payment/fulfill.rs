@@ -713,12 +713,16 @@ impl GameState {
             CostComponent::Act(action) => {
                 self.preflight_cost_action(action.as_action(), payer, frame)
             }
-            CostComponent::Tap => {
-                self.preflight_cost_action(&Action::Tap(Reference::This), payer, frame)
-            }
-            CostComponent::Untap => {
-                self.preflight_cost_action(&Action::Untap(Reference::This), payer, frame)
-            }
+            CostComponent::Tap => self.preflight_cost_action(
+                &Action::Tap(Reference::Reg(deckmaste_core::RefId(0))),
+                payer,
+                frame,
+            ),
+            CostComponent::Untap => self.preflight_cost_action(
+                &Action::Untap(Reference::Reg(deckmaste_core::RefId(0))),
+                payer,
+                frame,
+            ),
             CostComponent::Cost(inner) => self.preflight_cost_components(inner, payer, frame),
             CostComponent::ChooseAndPay { .. }
             | CostComponent::Mana(_)
@@ -1182,10 +1186,10 @@ fn runnable_cost_body_effect(
         match component {
             CostComponent::Act(action) => Ok(OneShotEffect::Act(action.as_action().clone())),
             CostComponent::Tap => Ok(OneShotEffect::Act(Action::Tap(
-                deckmaste_core::Reference::This,
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
             ))),
             CostComponent::Untap => Ok(OneShotEffect::Act(Action::Untap(
-                deckmaste_core::Reference::This,
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
             ))),
             CostComponent::ChooseAndPay { binder, body } => {
                 Ok(OneShotEffect::With(deckmaste_core::With {

@@ -38,6 +38,44 @@ pub(crate) use targets::target_spec_filter;
 pub(crate) use targets::validate_target_set;
 
 impl GameState {
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "resolution region entry carries the complete stack-entry context"
+    )]
+    fn resolution_region_frame(
+        &self,
+        region: &deckmaste_core::Region,
+        activation: crate::ActivationId,
+        source: ObjectId,
+        controller: crate::PlayerId,
+        targets: &[Vec<ObjectId>],
+        x: Option<deckmaste_core::Uint>,
+        bindings: Option<&crate::trigger::TriggerBindings>,
+    ) -> Frame {
+        if matches!(activation, crate::ActivationId::Stored(_)) {
+            return Frame {
+                activation,
+                payment: None,
+                anaphora: Anaphora::empty(),
+            };
+        }
+        let mut frame = Frame::bare(source, controller);
+        if let Some(bindings) = bindings {
+            self.frame_set_source_lki(&mut frame, bindings.this.clone());
+            self.frame_set_defending_player(&mut frame, bindings.defending_player);
+            self.frame_set_event_bindings(
+                &mut frame,
+                bindings.that_object.clone(),
+                bindings.that_player,
+                bindings.that_patient.clone(),
+            );
+        }
+        self.frame_set_targets(&mut frame, targets);
+        self.frame_set_x(&mut frame, x);
+        frame.activation = self.enter_region(region, &frame);
+        frame
+    }
+
     /// [CR#608]: resolve the committed stack entry whose `id` is `id`. Schedules
     /// the work and the trailing cleanup event.
     ///
@@ -135,22 +173,18 @@ impl GameState {
                     ))]);
                 } else if self.targets_still_legal(&entry) {
                     // Instant/sorcery with all targets still legal: run its effect.
-                    let frame = Frame {
-                        activation: entry.activation,
-                        source: spell,
-                        controller: entry.controller,
-                        this: None,
-                        defending_player: None,
-                        payment: None,
-                        anaphora: Anaphora {
-                            targets: entry.targets.clone(),
-                            x: entry.x,
-                            ..Anaphora::empty()
-                        },
-                    };
                     let effect = self
                         .spell_effect(spell)
                         .expect("an instant/sorcery has a Spell ability");
+                    let frame = self.resolution_region_frame(
+                        &effect,
+                        entry.activation,
+                        spell,
+                        entry.controller,
+                        &entry.targets,
+                        entry.x,
+                        None,
+                    );
                     let leave = if entry.copy {
                         // [CR#707.10a]: a copy leaves the stack by CEASING to exist
                         // — no zone move, no card. Same shape as a triggered
@@ -239,29 +273,26 @@ impl GameState {
                         }
                     }
                 };
-                let frame = Frame {
-                    activation: entry.activation,
-                    // [CR#608.2,603.10a]: `~`/`This` is the firing object's
-                    // last-known self; the live source may be gone.
-                    source: bindings.this.as_ref().map_or(entry.id, |s| s.object),
-                    controller: entry.controller,
-                    // Exophoric: the firing object's LKI and the combat defender.
-                    this: bindings.this.clone(),
-                    defending_player: bindings.defending_player,
-                    payment: None,
-                    // Endophoric: the targets plus the event's bound roles.
-                    anaphora: Anaphora {
-                        targets: entry.targets.clone(),
-                        // "where X is …" rides the resolving ability's text
-                        // and is evaluated at RESOLUTION ([CR#702.21b]).
-                        where_x: t.where_x.clone(),
-                        that_object: bindings.that_object.clone(),
-                        that_player: bindings.that_player,
-                        that_patient: bindings.that_patient.clone(),
-                        produced_mana: bindings.produced_mana.clone(),
-                        crossed: bindings.crossed,
-                        ..Anaphora::empty()
-                    },
+                let source_id = bindings
+                    .this
+                    .as_ref()
+                    .map_or(entry.id, |snapshot| snapshot.object);
+                let mut frame = self.resolution_region_frame(
+                    &t.effect,
+                    entry.activation,
+                    source_id,
+                    entry.controller,
+                    &entry.targets,
+                    entry.x,
+                    Some(bindings),
+                );
+                frame.anaphora = Anaphora {
+                    // "where X is …" rides the resolving ability's text
+                    // and is evaluated at RESOLUTION ([CR#702.21b]).
+                    where_x: t.where_x.clone(),
+                    produced_mana: bindings.produced_mana.clone(),
+                    crossed: bindings.crossed,
+                    ..Anaphora::empty()
                 };
                 // [CR#603.4]: an intervening-if is rechecked as the ability
                 // resolves. If it no longer holds, the ability is removed from
@@ -300,33 +331,23 @@ impl GameState {
             // [CR#602.2a]: an activated ability resolves its carried text,
             // then vanishes like a trigger — no zone move.
             StackObject::Activated {
-                ability, bindings, ..
+                source,
+                ability,
+                bindings,
             } => {
                 if self.targets_still_legal(&entry) {
-                    let this = bindings
-                        .this
-                        .as_ref()
-                        .expect("begin_activate captures the source snapshot unconditionally");
-                    let frame = Frame {
-                        activation: entry.activation,
-                        // [CR#608.2]: `~` is the source's announce-time
-                        // snapshot; the live object may be gone.
-                        source: this.object,
-                        controller: entry.controller,
-                        // Exophoric: the source snapshot and combat defender.
-                        this: Some(this.clone()),
-                        defending_player: bindings.defending_player,
-                        payment: None,
-                        // Endophoric: targets, announced X, and event roles.
-                        anaphora: Anaphora {
-                            targets: entry.targets.clone(),
-                            x: entry.x,
-                            that_object: bindings.that_object.clone(),
-                            that_player: bindings.that_player,
-                            that_patient: bindings.that_patient.clone(),
-                            produced_mana: bindings.produced_mana.clone(),
-                            ..Anaphora::empty()
-                        },
+                    let mut frame = self.resolution_region_frame(
+                        &ability.effect,
+                        entry.activation,
+                        *source,
+                        entry.controller,
+                        &entry.targets,
+                        entry.x,
+                        Some(bindings),
+                    );
+                    frame.anaphora = Anaphora {
+                        produced_mana: bindings.produced_mana.clone(),
+                        ..Anaphora::empty()
                     };
                     let mut items = crate::cast::announced_effect_items(
                         self,
@@ -389,9 +410,9 @@ impl GameState {
     /// else the live source object's.
     pub(crate) fn frame_watcher(&self, frame: &Frame) -> crate::object::ObjectSource {
         frame
-            .this
+            .source_lki(self)
             .as_ref()
-            .map_or_else(|| self.objects.obj(frame.source).source, |s| s.source)
+            .map_or_else(|| self.objects.obj(frame.source(self)).source, |s| s.source)
     }
 
     /// True iff any of the card's printed types is a PERMANENT type

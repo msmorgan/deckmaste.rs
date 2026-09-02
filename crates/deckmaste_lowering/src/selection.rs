@@ -31,7 +31,9 @@ impl Lower for deckmaste_semantics::Selection {
                 of: of.lower(),
             },
             Self::Targets(index) => crate::region::target(index).map_or(
-                deckmaste_core::Selection::Targets(index),
+                deckmaste_core::Selection::Reg(deckmaste_core::RefId(
+                    6 + u32::try_from(index).expect("target index fits u32"),
+                )),
                 deckmaste_core::Selection::Reg,
             ),
             Self::ValidTargetsFor(f0) => deckmaste_core::Selection::ValidTargetsFor(f0.lower()),
@@ -94,7 +96,10 @@ mod tests {
                 minimal_reference()
             )
             .lower(),
-            deckmaste_core::Selection::InChosenOrder(_, deckmaste_core::Reference::This)
+            deckmaste_core::Selection::InChosenOrder(
+                _,
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
+            )
         );
     }
 
@@ -127,7 +132,7 @@ mod tests {
             .lower(),
             deckmaste_core::Selection::TopOfLibrary {
                 count: deckmaste_core::Count::X,
-                whose: deckmaste_core::Reference::This
+                whose: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
             }
         );
     }
@@ -142,7 +147,7 @@ mod tests {
             .lower(),
             deckmaste_core::Selection::BottomOfLibrary {
                 count: deckmaste_core::Count::X,
-                whose: deckmaste_core::Reference::This
+                whose: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
             }
         );
     }
@@ -151,7 +156,9 @@ mod tests {
     fn lowers_selection_library_of() {
         assert_matches!(
             deckmaste_semantics::Selection::LibraryOf(minimal_reference()).lower(),
-            deckmaste_core::Selection::LibraryOf(deckmaste_core::Reference::This)
+            deckmaste_core::Selection::LibraryOf(deckmaste_core::Reference::Reg(
+                deckmaste_core::RefId(0)
+            ))
         );
     }
 
@@ -165,7 +172,7 @@ mod tests {
             .lower(),
             deckmaste_core::Selection::TopOfGraveyard {
                 count: deckmaste_core::Count::X,
-                of: deckmaste_core::Reference::This
+                of: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
             }
         );
     }
@@ -182,7 +189,9 @@ mod tests {
     fn lowers_selection_valid_targets_for() {
         assert_matches!(
             deckmaste_semantics::Selection::ValidTargetsFor(minimal_reference()).lower(),
-            deckmaste_core::Selection::ValidTargetsFor(deckmaste_core::Reference::This)
+            deckmaste_core::Selection::ValidTargetsFor(deckmaste_core::Reference::Reg(
+                deckmaste_core::RefId(0)
+            ))
         );
     }
 
@@ -212,7 +221,7 @@ mod tests {
             .lower(),
             deckmaste_core::Selection::PilesOf {
                 note: _,
-                of: deckmaste_core::Reference::This
+                of: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
             }
         );
     }

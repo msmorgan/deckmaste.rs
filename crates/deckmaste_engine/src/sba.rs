@@ -137,7 +137,7 @@ pub fn sweep(state: &GameState) -> Vec<GameEvent> {
         {
             let frame = crate::stack::Frame::bare(entry.id, entry.controller);
             let effect = deckmaste_core::OneShotEffect::Act(deckmaste_core::Action::Cease(
-                deckmaste_core::Reference::This,
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
             ));
             for mut ev in run_sba_effect(state, &effect, &frame) {
                 stamp_sba_cause(&mut ev);
@@ -837,7 +837,7 @@ mod tests {
         };
         state.run_effect(
             OneShotEffect::Act(Action::Create {
-                agent: Reference::You,
+                agent: Reference::Reg(deckmaste_core::RefId(1)),
                 count: Count::Literal(1),
                 token: token.into(),
                 riders: vec![].into(),
@@ -996,11 +996,11 @@ mod tests {
         let frame = crate::stack::Frame::bare(bear, PlayerId(0));
         state.run_effect(
             OneShotEffect::Act(Action::Create {
-                agent: Reference::You,
+                agent: Reference::Reg(deckmaste_core::RefId(1)),
                 count: Count::Literal(1),
                 token: deckmaste_core::TokenSpec::Copy(
                     CopySpec {
-                        source: CopySource::Object(Reference::This),
+                        source: CopySource::Object(Reference::Reg(deckmaste_core::RefId(0))),
                         exceptions: vec![],
                     }
                     .into(),
@@ -1128,10 +1128,10 @@ mod tests {
     fn aura_graveyard_sba() -> Ability {
         Ability::Innate(Arc::new(Ability::r#static(StaticEffect::Sba {
             when: Arc::new(Condition::Not(Arc::new(Condition::LegallyAttached(
-                Reference::This,
+                Reference::Reg(deckmaste_core::RefId(0)),
             )))),
             then: Arc::new(OneShotEffect::Act(deckmaste_core::Action::move_to(
-                Reference::This,
+                Reference::Reg(deckmaste_core::RefId(0)),
                 Zone::Graveyard,
             ))),
         })))
@@ -1143,7 +1143,7 @@ mod tests {
     fn may_attach_creature() -> Ability {
         Ability::Innate(Arc::new(Ability::r#static(StaticEffect::Deontic(
             Deontic::May(DeonticAction::Attach {
-                what: Predicate::Ref(Reference::This),
+                what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 to: Predicate::r#type(Type::Creature),
             }),
         ))))
@@ -1319,7 +1319,7 @@ mod tests {
             vec![Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
                 DeonticAction::Attach {
                     what: Predicate::Any,
-                    to: Predicate::Ref(Reference::This),
+                    to: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 },
             )))],
         );
@@ -1361,7 +1361,7 @@ mod tests {
                         vec![
                             Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                             Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
-                                Predicate::Ref(Reference::You),
+                                Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
                             ))),
                         ]
                         .into(),
@@ -1370,7 +1370,7 @@ mod tests {
                     Count::Literal(10),
                 ),
                 Condition::Not(Arc::new(Condition::Matches(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     Predicate::State(StatePredicate::Designated(name)),
                 ))),
             ]
@@ -1379,7 +1379,7 @@ mod tests {
         let ascend = Ability::r#static(StaticEffect::Sba {
             when: Arc::new(gate),
             then: Arc::new(OneShotEffect::Act(Action::GetDesignation(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 name,
             ))),
         });
@@ -1458,7 +1458,7 @@ mod tests {
                                 vec![
                                     Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                                     Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
-                                        Predicate::Ref(Reference::You),
+                                        Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
                                     ))),
                                 ]
                                 .into(),
@@ -1467,14 +1467,14 @@ mod tests {
                             Count::Literal(10),
                         ),
                         Condition::Not(Arc::new(Condition::Matches(
-                            Reference::You,
+                            Reference::Reg(deckmaste_core::RefId(1)),
                             Predicate::State(StatePredicate::Designated(name)),
                         ))),
                     ]
                     .into(),
                 )),
                 then: Arc::new(OneShotEffect::Act(Action::GetDesignation(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     name,
                 ))),
             })
@@ -1831,7 +1831,7 @@ mod tests {
         crate::stack::Frame::bare(id, state.objects.obj(id).controller)
     }
 
-    /// [CR#120.3]: `Count::Damage(Reference::This)` reads an object's marked
+    /// [CR#120.3]: `Count::Damage(Reference::Reg(deckmaste_core::RefId(0)))` reads an object's marked
     /// damage. Grizzly Bears has toughness 2; at 2 damage the lethal-damage
     /// condition holds; at 1 it does not.
     #[test]
@@ -1845,9 +1845,9 @@ mod tests {
         let (mut state, bear) = bear_on_field(); // Grizzly Bears, toughness 2
         let frame = this_frame(&state, bear);
         let lethal = Condition::Compare(
-            Count::Damage(Reference::This),
+            Count::Damage(Reference::Reg(deckmaste_core::RefId(0))),
             Cmp::AtLeast,
-            Count::StatOf(Reference::This, Stat::Toughness),
+            Count::StatOf(Reference::Reg(deckmaste_core::RefId(0)), Stat::Toughness),
         );
         state.objects.obj_mut(bear).set_marked_damage(2);
         assert!(

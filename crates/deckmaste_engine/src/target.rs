@@ -277,7 +277,7 @@ pub(crate) fn matches_with_activation(
 
         // "this object" ([CR#603.10a]): match only when `id` is the watching
         // object. Unreachable without a carrier (frameless targeting).
-        Predicate::Ref(Reference::This) => match watcher {
+        Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))) => match watcher {
             Some(w) => state.objects.obj(id).source == w,
             None => todo!(
                 "engine seam: Ref(This) at a frameless position — targeting threads no \
@@ -285,7 +285,7 @@ pub(crate) fn matches_with_activation(
             ),
         },
         // "you" ([CR#109.5]): `id` is the watcher's controller's proxy.
-        Predicate::Ref(Reference::You) => match watcher {
+        Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))) => match watcher {
             Some(w) => {
                 let controller = state.controller_of_source(w);
                 matches!(state.objects.obj(id).source,
@@ -305,7 +305,7 @@ pub(crate) fn matches_with_activation(
         // The general `AttachHostOf(inner)` case needs `eval_reference` and is
         // therefore left as a seam.
         Predicate::Ref(Reference::AttachHostOf(inner))
-            if matches!(*inner.as_ref(), Reference::This) =>
+            if matches!(*inner.as_ref(), Reference::Reg(deckmaste_core::RefId(0))) =>
         {
             match watcher {
                 Some(w) => {
@@ -635,8 +635,10 @@ fn resolve_watcher_reference(
     watcher: Option<ObjectSource>,
 ) -> Option<ObjectId> {
     match (r, watcher) {
-        (&Reference::This, Some(w)) => state.objects.iter().find(|o| o.source == w).map(|o| o.id),
-        (&Reference::You, Some(w)) => {
+        (&Reference::Reg(deckmaste_core::RefId(0)), Some(w)) => {
+            state.objects.iter().find(|o| o.source == w).map(|o| o.id)
+        }
+        (&Reference::Reg(deckmaste_core::RefId(1)), Some(w)) => {
             let controller = state.controller_of_source(w)?;
             Some(state.player(controller).object)
         }
@@ -793,7 +795,9 @@ fn resolve_count(
         && let Some(carrier) = state.objects.iter().find(|o| o.source == w)
     {
         let mut frame = Frame::bare(carrier.id, carrier.controller);
-        frame.activation = activation;
+        if activation != crate::ActivationId::NONE {
+            frame.activation = activation;
+        }
         return state.eval_count(count, &frame);
     }
     const_count(count)
@@ -1270,7 +1274,7 @@ mod tests {
         let skulk_filter = cf(CF::Stat(
             Stat::Power,
             Cmp::Greater,
-            Count::StatOf(Reference::This, Stat::Power),
+            Count::StatOf(Reference::Reg(deckmaste_core::RefId(0)), Stat::Power),
         ));
 
         // A second 2/2 candidate does not exceed the watcher's power (2 is
@@ -1818,7 +1822,10 @@ mod tests {
             Condition::And(
                 vec![
                     Condition::Matches(Reference::It, Predicate::Characteristic(ColorIs(c))),
-                    Condition::Matches(Reference::This, Predicate::Characteristic(ColorIs(c))),
+                    Condition::Matches(
+                        Reference::Reg(deckmaste_core::RefId(0)),
+                        Predicate::Characteristic(ColorIs(c)),
+                    ),
                 ]
                 .into(),
             )
@@ -1949,7 +1956,7 @@ mod tests {
                 Predicate::Where(Arc::new(Condition::Compare(
                     Count::StatOf(Reference::It, Stat::Power),
                     Cmp::Less,
-                    Count::StatOf(Reference::This, Stat::Power),
+                    Count::StatOf(Reference::Reg(deckmaste_core::RefId(0)), Stat::Power),
                 ))),
             ]
             .into(),
@@ -2032,8 +2039,8 @@ mod tests {
         state.zones.graveyards[p0.index()].push(c);
 
         let watcher = Some(state.objects.obj(b).source);
-        let above = Predicate::Adjacent(Adjacency::Above, Reference::This);
-        let below = Predicate::Adjacent(Adjacency::Below, Reference::This);
+        let above = Predicate::Adjacent(Adjacency::Above, Reference::Reg(deckmaste_core::RefId(0)));
+        let below = Predicate::Adjacent(Adjacency::Below, Reference::Reg(deckmaste_core::RefId(0)));
 
         assert!(
             matches_with(&state, c, &above, watcher),

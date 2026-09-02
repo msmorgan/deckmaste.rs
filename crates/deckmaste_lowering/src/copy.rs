@@ -78,7 +78,9 @@ mod tests {
             }
             .lower(),
             deckmaste_core::CopySpec {
-                source: deckmaste_core::CopySource::Object(deckmaste_core::Reference::This),
+                source: deckmaste_core::CopySource::Object(deckmaste_core::Reference::Reg(
+                    deckmaste_core::RefId(0)
+                )),
                 exceptions: _
             }
         );
@@ -88,7 +90,9 @@ mod tests {
     fn lowers_copy_source_object() {
         assert_matches!(
             deckmaste_semantics::CopySource::Object(minimal_reference()).lower(),
-            deckmaste_core::CopySource::Object(deckmaste_core::Reference::This)
+            deckmaste_core::CopySource::Object(deckmaste_core::Reference::Reg(
+                deckmaste_core::RefId(0)
+            ))
         );
     }
 

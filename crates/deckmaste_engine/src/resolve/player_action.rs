@@ -90,7 +90,7 @@ impl GameState {
                             object,
                             cause: Some(Cause::tap(
                                 Agency::EffectInstruction,
-                                Some((frame.source, frame.controller)),
+                                Some((frame.source(self), frame.controller(self))),
                             )),
                         })
                     })
@@ -118,15 +118,15 @@ impl GameState {
             Action::ChangeLife(patient, op) => {
                 let patient = self.acting_player(patient, frame);
                 // [CR#119.9]'s source: the resolving ability and its
-                // controller, the shared `(frame.source, frame.controller)`
+                // controller, the shared `(frame.source(self), frame.controller(self))`
                 // cause binding every other verb uses — never the patient
                 // (there is no agent role, [CR#119.9,119.10]).
                 let gain_cause = Some(
-                    Cause::gain_life(agency, Some((frame.source, frame.controller)))
+                    Cause::gain_life(agency, Some((frame.source(self), frame.controller(self))))
                         .with_payment(payment_id),
                 );
                 let lose_cause = Some(
-                    Cause::lose_life(agency, Some((frame.source, frame.controller)))
+                    Cause::lose_life(agency, Some((frame.source(self), frame.controller(self))))
                         .with_payment(payment_id),
                 );
                 match op {
@@ -188,7 +188,7 @@ impl GameState {
                             object,
                             Some(Cause::untap(
                                 Agency::EffectInstruction,
-                                Some((frame.source, frame.controller)),
+                                Some((frame.source(self), frame.controller(self))),
                             )),
                         )
                     })
@@ -227,12 +227,12 @@ impl GameState {
                             // can't replace it; the cause says so.
                             face: None,
                             cause: Some(
-                                // The shared `(frame.source, frame.controller)`
+                                // The shared `(frame.source(self), frame.controller(self))`
                                 // cause binding every other verb uses (design
                                 // record §10.2) — NOT the sacrificer, which
                                 // can differ under an edict ("target player
                                 // sacrifices a creature").
-                                Cause::sacrifice(agency, Some((frame.source, frame.controller)))
+                                Cause::sacrifice(agency, Some((frame.source(self), frame.controller(self))))
                                     .with_payment(payment_id),
                             ),
                         })
@@ -505,7 +505,7 @@ impl GameState {
                     to: None,
                     cause: Some(Cause::draw(
                         Agency::EffectInstruction,
-                        Some((frame.source, frame.controller)),
+                        Some((frame.source(self), frame.controller(self))),
                     )),
                     committed: false,
                     contents: None,
@@ -570,7 +570,7 @@ impl GameState {
                             cause: Some(
                                 crate::event::Cause::put_counters(
                                     agency,
-                                    Some((frame.source, frame.controller)),
+                                    Some((frame.source(self), frame.controller(self))),
                                 )
                                 .with_payment(payment_id),
                             ),
@@ -602,7 +602,7 @@ impl GameState {
                             cause: Some(
                                 crate::event::Cause::remove_counters(
                                     agency,
-                                    Some((frame.source, frame.controller)),
+                                    Some((frame.source(self), frame.controller(self))),
                                 )
                                 .with_payment(payment_id),
                             ),
@@ -628,9 +628,9 @@ impl GameState {
                 // provenance regardless of the riders the ability text
                 // declares — snow-ness is a property of the producing source,
                 // not the effect.
-                riders.extend(self.snow_provenance(frame.source));
+                riders.extend(self.snow_provenance(frame.source(self)));
                 let provenance = crate::player::ManaProvenance {
-                    source: Some(frame.source),
+                    source: Some(frame.source(self)),
                     action: self.resolving_mana_actions.last().copied(),
                 };
                 match spec {
@@ -971,14 +971,14 @@ mod tests {
             .find(|&&o| obj_matches(&state, o, &Predicate::creature()))
             .expect("a second Grizzly Bears in the opening hand");
         let before = state.zones.battlefield.len();
-        let frame = frame_src(second);
+        let frame = frame_src(&state, second);
         let spec = CopySpec {
-            source: CopySource::Object(Reference::This),
+            source: CopySource::Object(Reference::Reg(deckmaste_core::RefId(0))),
             exceptions: vec![],
         };
         state.run_effect(
             OneShotEffect::Act(Action::Move(
-                Reference::This,
+                Reference::Reg(deckmaste_core::RefId(0)),
                 Destination::Zone(Zone::Battlefield),
                 vec![EnterRider::AsCopy(spec)].into(),
                 None,
@@ -1010,10 +1010,10 @@ mod tests {
 
         let before: std::collections::HashSet<ObjectId> =
             state.zones.battlefield.iter().copied().collect();
-        let frame = frame_src(object);
+        let frame = frame_src(state, object);
         state.run_effect(
             OneShotEffect::Act(Action::Move(
-                Reference::This,
+                Reference::Reg(deckmaste_core::RefId(0)),
                 Destination::Zone(Zone::Battlefield),
                 riders.into(),
                 None,
@@ -1103,7 +1103,9 @@ mod tests {
         let new = move_onto_battlefield_with_riders(
             &mut state,
             second,
-            vec![EnterRider::UnderControlOf(Reference::Opponent)],
+            vec![EnterRider::UnderControlOf(Reference::OpponentOf(
+                std::sync::Arc::new(Reference::Reg(deckmaste_core::RefId(1))),
+            ))],
         );
         assert_eq!(
             state.objects.obj(new).controller,
@@ -1159,7 +1161,9 @@ mod tests {
         let new = move_onto_battlefield_with_riders(
             &mut state,
             second,
-            vec![EnterRider::Attacking(Some(Reference::Opponent))],
+            vec![EnterRider::Attacking(Some(Reference::OpponentOf(
+                std::sync::Arc::new(Reference::Reg(deckmaste_core::RefId(1))),
+            )))],
         );
         assert!(
             state.combat.is_attacking(new),
@@ -1213,7 +1217,7 @@ mod tests {
         use deckmaste_core::EnterRider;
 
         let (mut state, bear) = bear_on_field();
-        let frame = frame_src(bear);
+        let frame = frame_src(&state, bear);
         let token = deckmaste_core::Token {
             name: Some("Test Token".into()),
             color_indicator: vec![].into(),
@@ -1228,7 +1232,7 @@ mod tests {
             state.zones.battlefield.iter().copied().collect();
         state.run_effect(
             OneShotEffect::Act(Action::Create {
-                agent: Reference::You,
+                agent: Reference::Reg(deckmaste_core::RefId(1)),
                 count: Count::Literal(1),
                 token: token.into(),
                 riders: vec![EnterRider::Tapped].into(),
@@ -1262,7 +1266,7 @@ mod tests {
         use deckmaste_core::RetargetMode;
 
         let (state, src) = bear_on_field();
-        let frame = frame_src(src);
+        let frame = frame_src(&state, src);
         for mode in [
             RetargetMode::ChangeAll,
             RetargetMode::ChangeOne,
@@ -1270,8 +1274,8 @@ mod tests {
         ] {
             let act = Action::Retarget {
                 mode: mode.clone(),
-                of: Reference::This,
-                by: Reference::You,
+                of: Reference::Reg(deckmaste_core::RefId(0)),
+                by: Reference::Reg(deckmaste_core::RefId(1)),
             };
             let items = state.player_action_items(&act, &frame);
             assert!(
@@ -1282,8 +1286,8 @@ mod tests {
         }
         let act = Action::Retarget {
             mode: RetargetMode::ChooseNew,
-            of: Reference::This,
-            by: Reference::You,
+            of: Reference::Reg(deckmaste_core::RefId(0)),
+            by: Reference::Reg(deckmaste_core::RefId(1)),
         };
         let items = state.player_action_items(&act, &frame);
         assert_eq!(items.len(), 1, "ChooseNew still schedules the retarget");
@@ -1297,9 +1301,9 @@ mod tests {
     #[test]
     fn choose_value_color_fizzles_no_reader_grammar_yet() {
         let (state, src) = bear_on_field();
-        let frame = frame_src(src);
+        let frame = frame_src(&state, src);
         let act = Action::ChooseValue(
-            Reference::You,
+            Reference::Reg(deckmaste_core::RefId(1)),
             ChosenValueKind::Color,
             deckmaste_core::Ident::from("k"),
         );
@@ -1324,11 +1328,11 @@ mod tests {
         use crate::step::StepOutcome;
 
         let (mut state, src) = bear_on_field();
-        let frame = frame_src(src);
+        let frame = frame_src(&state, src);
         let green = ColorOrColorless::Color(Color::Green);
         state.run_effect(
             OneShotEffect::Act(Action::AddMana(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(2),
                 ManaSpec::Specific(green).into(),
             )),
@@ -1339,7 +1343,7 @@ mod tests {
 
         state.run_effect(
             OneShotEffect::Act(Action::AddMana(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 ManaSpec::AnyColor.into(),
             )),
@@ -1389,12 +1393,12 @@ mod tests {
         use crate::step::StepOutcome;
 
         let (mut state, src) = bear_on_field();
-        let frame = frame_src(src);
+        let frame = frame_src(&state, src);
         let white = ColorOrColorless::Color(Color::White);
         let blue = ColorOrColorless::Color(Color::Blue);
         state.run_effect(
             OneShotEffect::Act(Action::AddMana(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 ManaSpec::OneOfRuns(
                     vec![vec![white, white], vec![white, blue], vec![blue, blue]].into(),
@@ -1439,12 +1443,12 @@ mod tests {
         use deckmaste_core::Predicate;
 
         let (mut state, src) = bear_on_field();
-        let frame = frame_src(src);
+        let frame = frame_src(&state, src);
         let red = ColorOrColorless::Color(Color::Red);
         let rider = ManaRider::SpendOnly(Predicate::Any);
         state.run_effect(
             OneShotEffect::Act(Action::AddMana(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 ManaProduction::WithRiders {
                     mana: ManaSpec::Specific(red),
@@ -1478,7 +1482,7 @@ mod tests {
         use deckmaste_core::ManaSpec;
 
         let (mut state, source, imprinted) = two_permanents_on_field();
-        let frame = frame_src_targets(source, vec![imprinted]);
+        let frame = frame_src_targets(&state, source, vec![imprinted]);
         state.objects.remove(imprinted);
         assert!(
             state.objects.get(imprinted).is_none(),
@@ -1490,7 +1494,7 @@ mod tests {
         );
 
         let act = Action::AddMana(
-            Reference::You,
+            Reference::Reg(deckmaste_core::RefId(1)),
             Count::Literal(1),
             ManaSpec::AmongColorsOf(Reference::It).into(),
         );
@@ -1513,10 +1517,14 @@ mod tests {
         use crate::step::StepOutcome;
 
         let (mut state, src) = bear_on_field();
-        let frame = frame_src(src);
+        let frame = frame_src(&state, src);
         let hand_before = state.zones.hands[0].len();
         state.run_effect(
-            OneShotEffect::Act(Action::discard(Reference::You, Count::Literal(2), false)),
+            OneShotEffect::Act(Action::discard(
+                Reference::Reg(deckmaste_core::RefId(1)),
+                Count::Literal(2),
+                false,
+            )),
             &frame,
         );
         // The carry future `Act` opens (and passes) its own [CR#616.1] window
@@ -1558,7 +1566,11 @@ mod tests {
         // Clamp: an instruction to discard far more than the hand holds
         // discards the whole hand.
         state.run_effect(
-            OneShotEffect::Act(Action::discard(Reference::You, Count::Literal(99), false)),
+            OneShotEffect::Act(Action::discard(
+                Reference::Reg(deckmaste_core::RefId(1)),
+                Count::Literal(99),
+                false,
+            )),
             &frame,
         );
         let pending = (0..5)
@@ -1595,7 +1607,7 @@ mod tests {
         use deckmaste_core::Token;
 
         let (mut state, src) = bear_on_field();
-        let frame = frame_src(src);
+        let frame = frame_src(&state, src);
         let token = Token {
             name: None,
             color_indicator: vec![].into(),
@@ -1608,7 +1620,7 @@ mod tests {
         };
         state.run_effect(
             OneShotEffect::Act(Action::Create {
-                agent: Reference::You,
+                agent: Reference::Reg(deckmaste_core::RefId(1)),
                 count: Count::Literal(2),
                 token: token.into(),
                 riders: vec![].into(),
@@ -1677,10 +1689,10 @@ mod tests {
     #[test]
     fn create_named_treasure_token() {
         let (mut state, src) = bear_on_field();
-        let frame = frame_src(src);
+        let frame = frame_src(&state, src);
         state.run_effect(
             OneShotEffect::Act(Action::Create {
-                agent: Reference::You,
+                agent: Reference::Reg(deckmaste_core::RefId(1)),
                 count: Count::Literal(1),
                 token: deckmaste_core::TokenSpec::Named(deckmaste_core::TokenName::from(
                     "Treasure",
@@ -1716,11 +1728,11 @@ mod tests {
     #[test]
     fn create_builtin_treasure_token() {
         let (mut state, src) = bear_on_field();
-        let frame = frame_src(src);
+        let frame = frame_src(&state, src);
         let treasure = builtin().token("Treasure").unwrap().core;
         state.run_effect(
             OneShotEffect::Act(Action::Create {
-                agent: Reference::You,
+                agent: Reference::Reg(deckmaste_core::RefId(1)),
                 count: Count::Literal(1),
                 token: treasure.into(),
                 riders: vec![].into(),
@@ -1773,14 +1785,14 @@ mod tests {
         use deckmaste_core::StatValue;
 
         let (mut state, a, b) = two_permanents_on_field();
-        let frame = frame_src_targets(a, vec![b]);
+        let frame = frame_src_targets(&state, a, vec![b]);
         state.run_effect(
             OneShotEffect::Act(Action::Create {
-                agent: Reference::You,
+                agent: Reference::Reg(deckmaste_core::RefId(1)),
                 count: Count::Literal(1),
                 token: deckmaste_core::TokenSpec::Copy(
                     CopySpec {
-                        source: CopySource::Object(Reference::Target(0)),
+                        source: CopySource::Object(Reference::Reg(deckmaste_core::RefId(6))),
                         exceptions: vec![],
                     }
                     .into(),
@@ -1842,15 +1854,15 @@ mod tests {
 
         let (state, a) = bear_on_field();
         let dead = ObjectId::from_raw(999);
-        let frame = frame_src_targets(a, vec![dead]);
+        let frame = frame_src_targets(&state, a, vec![dead]);
         assert_eq!(
             state.action_items(
                 &Action::Create {
-                    agent: Reference::You,
+                    agent: Reference::Reg(deckmaste_core::RefId(1)),
                     count: Count::Literal(1),
                     token: deckmaste_core::TokenSpec::Copy(
                         CopySpec {
-                            source: CopySource::Object(Reference::Target(0)),
+                            source: CopySource::Object(Reference::Reg(deckmaste_core::RefId(6))),
                             exceptions: vec![],
                         }
                         .into()
@@ -1881,15 +1893,15 @@ mod tests {
                 ..CardFace::default()
             }),
         );
-        let frame = frame_src_targets(a, vec![bolt]);
+        let frame = frame_src_targets(&state, a, vec![bolt]);
         assert_eq!(
             state.action_items(
                 &Action::Create {
-                    agent: Reference::You,
+                    agent: Reference::Reg(deckmaste_core::RefId(1)),
                     count: Count::Literal(1),
                     token: deckmaste_core::TokenSpec::Copy(
                         CopySpec {
-                            source: CopySource::Object(Reference::Target(0)),
+                            source: CopySource::Object(Reference::Reg(deckmaste_core::RefId(6))),
                             exceptions: vec![],
                         }
                         .into()
@@ -1916,14 +1928,14 @@ mod tests {
         use deckmaste_core::StatValue;
 
         let (mut state, a, b) = two_permanents_on_field();
-        let frame = frame_src_targets(a, vec![b]);
+        let frame = frame_src_targets(&state, a, vec![b]);
         state.run_effect(
             OneShotEffect::Act(Action::Create {
-                agent: Reference::You,
+                agent: Reference::Reg(deckmaste_core::RefId(1)),
                 count: Count::Literal(1),
                 token: deckmaste_core::TokenSpec::Copy(
                     CopySpec {
-                        source: CopySource::Object(Reference::Target(0)),
+                        source: CopySource::Object(Reference::Reg(deckmaste_core::RefId(6))),
                         exceptions: vec![
                             CopyException::Modify(Modification::Power(NumericOp::Set(
                                 StatValue::Number(4),
@@ -1997,7 +2009,7 @@ mod tests {
                         if matches!(
                             action.as_ref(),
                             Action::Move(
-                                Reference::This,
+                                Reference::Reg(deckmaste_core::RefId(0)),
                                 deckmaste_core::Destination::Zone(Zone::Exile),
                                 _,
                                 _
@@ -2067,7 +2079,8 @@ mod tests {
 
         let (mut state, src) = bear_on_field();
         let effect = keyword_copy_effect("Eternalize([Mana([Generic(4),Black])])");
-        run_test_region(&mut state, &effect, frame_src(src));
+        let frame = frame_src(&state, src);
+        run_test_region(&mut state, &effect, frame);
         let _ = state.step(); // the TokenCreated batch applies
 
         let face = minted_copy_face(&state, &[src]);
@@ -2103,7 +2116,8 @@ mod tests {
 
         let (mut state, src) = bear_on_field();
         let effect = keyword_copy_effect("Embalm([Mana([Generic(3),White])])");
-        run_test_region(&mut state, &effect, frame_src(src));
+        let frame = frame_src(&state, src);
+        run_test_region(&mut state, &effect, frame);
         let _ = state.step();
 
         let face = minted_copy_face(&state, &[src]);
@@ -2135,7 +2149,8 @@ mod tests {
 
         let (mut state, src) = bear_on_field();
         let effect = keyword_copy_effect("Offspring([Mana([Generic(1)])])");
-        run_test_region(&mut state, &effect, frame_src(src));
+        let frame = frame_src(&state, src);
+        run_test_region(&mut state, &effect, frame);
         let _ = state.step();
 
         let face = minted_copy_face(&state, &[src]);
@@ -2172,7 +2187,7 @@ mod tests {
         // Mint the creature token to be populated (a 2/2 Bear token you control).
         state.run_effect(
             OneShotEffect::Act(Action::Create {
-                agent: Reference::You,
+                agent: Reference::Reg(deckmaste_core::RefId(1)),
                 count: Count::Literal(1),
                 token: Token {
                     name: None,
@@ -2192,7 +2207,7 @@ mod tests {
                 .into(),
                 riders: vec![].into(),
             }),
-            &frame_src(src),
+            &frame_src(&state, src),
         );
         run_injected(&mut state);
         let &token = state
@@ -2208,7 +2223,7 @@ mod tests {
         let semantic: deckmaste_semantics::OneShotEffect =
             builtin().macros.read_str("Populate").unwrap();
         let populate: OneShotEffect = deckmaste_lowering::Lower::lower(semantic);
-        state.run_effect(populate, &frame_src(src));
+        state.run_effect(populate, &frame_src(&state, src));
 
         // The `With(ChooseOne(...))` surfaces the pick.
         let StepOutcome::NeedsDecision(PendingDecision::ChooseObjects(choose)) = state.step()
@@ -2308,7 +2323,7 @@ mod tests {
         let semantic: deckmaste_semantics::OneShotEffect =
             builtin().macros.read_str("Amass(Zombie, 2)").unwrap();
         let amass: OneShotEffect = deckmaste_lowering::Lower::lower(semantic);
-        state.run_effect(amass, &frame_src(src));
+        state.run_effect(amass, &frame_src(&state, src));
 
         // Step 1's guard (`Not(Exists(Army creature you control))`) is FALSE —
         // the Army above already exists — so no guard token is created; step to
@@ -2406,28 +2421,32 @@ mod tests {
                 where_x: None,
                 from: None,
                 event: EventFilter::ZoneChange {
-                    what: Predicate::Ref(Reference::This),
+                    what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                     from: None,
                     to: Some(Zone::Battlefield),
                     cause: None,
                 },
                 condition: None,
                 limits: Vec::new().into(),
-                effect: OneShotEffect::draw(Reference::You, Count::Literal(1)).into(),
+                effect: OneShotEffect::draw(
+                    Reference::Reg(deckmaste_core::RefId(1)),
+                    Count::Literal(1),
+                )
+                .into(),
             })],
             ..CardFace::default()
         };
         let src = mint_on_field(&mut state, Card::Normal(source_face));
 
-        let frame = frame_src_targets(actor, vec![src]);
+        let frame = frame_src_targets(&state, actor, vec![src]);
         let hand_before = state.zones.hands[PlayerId(0).index()].len();
         state.run_effect(
             OneShotEffect::Act(Action::Create {
-                agent: Reference::You,
+                agent: Reference::Reg(deckmaste_core::RefId(1)),
                 count: Count::Literal(1),
                 token: deckmaste_core::TokenSpec::Copy(
                     CopySpec {
-                        source: CopySource::Object(Reference::Target(0)),
+                        source: CopySource::Object(Reference::Reg(deckmaste_core::RefId(6))),
                         exceptions: vec![],
                     }
                     .into(),
@@ -2481,7 +2500,7 @@ mod tests {
         use deckmaste_core::StaticEffect;
         let count = Count::CountOf(Countable::Objects(Arc::new(Predicate::creature())));
         Ability::r#static(StaticEffect::Modify(
-            Reference::This,
+            Reference::Reg(deckmaste_core::RefId(0)),
             Modification::Several(
                 vec![
                     Modification::Power(NumericOp::Set(StatValue::Count(count.clone()))),
@@ -2523,14 +2542,14 @@ mod tests {
                 ..CardFace::default()
             }),
         );
-        let frame = frame_src_targets(goyf, vec![goyf]);
+        let frame = frame_src_targets(&state, goyf, vec![goyf]);
         state.run_effect(
             OneShotEffect::Act(Action::Create {
-                agent: Reference::You,
+                agent: Reference::Reg(deckmaste_core::RefId(1)),
                 count: Count::Literal(1),
                 token: deckmaste_core::TokenSpec::Copy(
                     CopySpec {
-                        source: CopySource::Object(Reference::Target(0)),
+                        source: CopySource::Object(Reference::Reg(deckmaste_core::RefId(6))),
                         exceptions: vec![
                             CopyException::Modify(Modification::Power(NumericOp::Set(
                                 StatValue::Number(5),
@@ -2611,14 +2630,14 @@ mod tests {
                 ..CardFace::default()
             }),
         );
-        let frame = frame_src_targets(goyf, vec![goyf]);
+        let frame = frame_src_targets(&state, goyf, vec![goyf]);
         state.run_effect(
             OneShotEffect::Act(Action::Create {
-                agent: Reference::You,
+                agent: Reference::Reg(deckmaste_core::RefId(1)),
                 count: Count::Literal(1),
                 token: deckmaste_core::TokenSpec::Copy(
                     CopySpec {
-                        source: CopySource::Object(Reference::Target(0)),
+                        source: CopySource::Object(Reference::Reg(deckmaste_core::RefId(6))),
                         exceptions: vec![],
                     }
                     .into(),
@@ -2695,15 +2714,15 @@ mod tests {
         use deckmaste_core::Token;
 
         let (mut state, a, b) = two_permanents_on_field();
-        let frame = frame_src_targets(a, vec![b]);
+        let frame = frame_src_targets(&state, a, vec![b]);
 
         state.run_effect(
             OneShotEffect::Act(Action::Create {
-                agent: Reference::You,
+                agent: Reference::Reg(deckmaste_core::RefId(1)),
                 count: Count::Literal(1),
                 token: deckmaste_core::TokenSpec::Copy(
                     CopySpec {
-                        source: CopySource::Object(Reference::Target(0)),
+                        source: CopySource::Object(Reference::Reg(deckmaste_core::RefId(6))),
                         exceptions: vec![],
                     }
                     .into(),
@@ -2726,7 +2745,7 @@ mod tests {
         };
         state.run_effect(
             OneShotEffect::Act(Action::Create {
-                agent: Reference::You,
+                agent: Reference::Reg(deckmaste_core::RefId(1)),
                 count: Count::Literal(1),
                 token: plain_token.into(),
                 riders: vec![].into(),
@@ -2774,7 +2793,10 @@ mod tests {
     fn win_game_verb_sets_win_outcome() {
         let (mut state, _bear) = bear_on_field();
         let frame = frame_for(&state, PlayerId(0));
-        state.run_effect(OneShotEffect::Act(Action::WinGame(Reference::You)), &frame);
+        state.run_effect(
+            OneShotEffect::Act(Action::WinGame(Reference::Reg(deckmaste_core::RefId(1)))),
+            &frame,
+        );
         let _ = state.step();
         assert_eq!(
             state.outcome,
@@ -2790,7 +2812,10 @@ mod tests {
         let (state, _ids) = battlefield_with(&["Platinum Angel"]);
         let frame = frame_for(&state, PlayerId(1));
         assert_eq!(
-            state.action_items(&Action::WinGame(Reference::You), &frame),
+            state.action_items(
+                &Action::WinGame(Reference::Reg(deckmaste_core::RefId(1))),
+                &frame
+            ),
             vec![],
             "Platinum Angel's opponents-can't-win gate suppresses the WinGame verb"
         );
@@ -2802,7 +2827,10 @@ mod tests {
     fn lose_game_verb_sets_loss_and_opponent_wins() {
         let (mut state, _bear) = bear_on_field();
         let frame = frame_for(&state, PlayerId(0));
-        state.run_effect(OneShotEffect::Act(Action::LoseGame(Reference::You)), &frame);
+        state.run_effect(
+            OneShotEffect::Act(Action::LoseGame(Reference::Reg(deckmaste_core::RefId(1)))),
+            &frame,
+        );
         let _ = state.step();
         assert!(state.players[0].lost);
         assert_eq!(
@@ -2818,7 +2846,10 @@ mod tests {
         let (state, _ids) = battlefield_with(&["Platinum Angel"]);
         let frame = frame_for(&state, PlayerId(0));
         assert_eq!(
-            state.action_items(&Action::LoseGame(Reference::You), &frame),
+            state.action_items(
+                &Action::LoseGame(Reference::Reg(deckmaste_core::RefId(1))),
+                &frame
+            ),
             vec![],
             "Platinum Angel's you-can't-lose gate suppresses the LoseGame verb"
         );
@@ -2860,7 +2891,11 @@ mod tests {
         let p0 = PlayerId(0);
         let frame = frame_for(&state, p0);
         state.run_effect(
-            OneShotEffect::Act(Action::FlipCoins(Reference::You, Count::Literal(3), false)),
+            OneShotEffect::Act(Action::FlipCoins(
+                Reference::Reg(deckmaste_core::RefId(1)),
+                Count::Literal(3),
+                false,
+            )),
             &frame,
         );
         drain_progress(&mut state, 20);
@@ -2897,7 +2932,11 @@ mod tests {
         let p0 = PlayerId(0);
         let frame = frame_for(&state, p0);
         state.run_effect(
-            OneShotEffect::Act(Action::RollDice(Reference::You, Count::Literal(3), 6)),
+            OneShotEffect::Act(Action::RollDice(
+                Reference::Reg(deckmaste_core::RefId(1)),
+                Count::Literal(3),
+                6,
+            )),
             &frame,
         );
         drain_progress(&mut state, 20);
@@ -2940,7 +2979,11 @@ mod tests {
         }
         let frame = frame_for(&state, p0);
         state.run_effect(
-            OneShotEffect::Act(Action::discard(Reference::You, Count::Literal(2), true)),
+            OneShotEffect::Act(Action::discard(
+                Reference::Reg(deckmaste_core::RefId(1)),
+                Count::Literal(2),
+                true,
+            )),
             &frame,
         );
         // Drain until the discard resolves (graveyard gains 2) or SOME
@@ -2988,12 +3031,20 @@ mod tests {
             let p0 = PlayerId(0);
             let frame = frame_for(&state, p0);
             state.run_effect(
-                OneShotEffect::Act(Action::FlipCoins(Reference::You, Count::Literal(3), false)),
+                OneShotEffect::Act(Action::FlipCoins(
+                    Reference::Reg(deckmaste_core::RefId(1)),
+                    Count::Literal(3),
+                    false,
+                )),
                 &frame,
             );
             drain_progress(&mut state, 20);
             state.run_effect(
-                OneShotEffect::Act(Action::RollDice(Reference::You, Count::Literal(3), 6)),
+                OneShotEffect::Act(Action::RollDice(
+                    Reference::Reg(deckmaste_core::RefId(1)),
+                    Count::Literal(3),
+                    6,
+                )),
                 &frame,
             );
             drain_progress(&mut state, 20);
@@ -3044,7 +3095,11 @@ mod tests {
         let p0 = PlayerId(0);
         let frame = frame_for(&state, p0);
         state.run_effect(
-            OneShotEffect::Act(Action::FlipCoins(Reference::You, Count::Literal(1), true)),
+            OneShotEffect::Act(Action::FlipCoins(
+                Reference::Reg(deckmaste_core::RefId(1)),
+                Count::Literal(1),
+                true,
+            )),
             &frame,
         );
         drain_progress(&mut state, 20);
@@ -3093,7 +3148,11 @@ mod tests {
         let p0 = PlayerId(0);
         let frame = frame_for(&state, p0);
         state.run_effect(
-            OneShotEffect::Act(Action::FlipCoins(Reference::You, Count::Literal(3), true)),
+            OneShotEffect::Act(Action::FlipCoins(
+                Reference::Reg(deckmaste_core::RefId(1)),
+                Count::Literal(3),
+                true,
+            )),
             &frame,
         );
         drain_progress(&mut state, 20);
@@ -3147,7 +3206,11 @@ mod tests {
         let p0 = PlayerId(0);
         let frame = frame_for(&state, p0);
         state.run_effect(
-            OneShotEffect::Act(Action::FlipCoins(Reference::You, Count::Literal(1), true)),
+            OneShotEffect::Act(Action::FlipCoins(
+                Reference::Reg(deckmaste_core::RefId(1)),
+                Count::Literal(1),
+                true,
+            )),
             &frame,
         );
         drain_progress(&mut state, 20);
@@ -3206,7 +3269,11 @@ mod tests {
                 event,
                 condition: None,
                 limits: Vec::new().into(),
-                effect: OneShotEffect::draw(Reference::You, Count::Literal(1)).into(),
+                effect: OneShotEffect::draw(
+                    Reference::Reg(deckmaste_core::RefId(1)),
+                    Count::Literal(1),
+                )
+                .into(),
             })],
             ..CardFace::default()
         });
@@ -3267,7 +3334,7 @@ mod tests {
             &mut state,
             p0,
             EventFilter::CoinFlipped {
-                by: Predicate::Ref(Reference::You),
+                by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
                 won: Some(true),
             },
         );
@@ -3276,7 +3343,11 @@ mod tests {
         let mut won = false;
         for i in 0..50 {
             state.run_effect(
-                OneShotEffect::Act(Action::FlipCoins(Reference::You, Count::Literal(1), true)),
+                OneShotEffect::Act(Action::FlipCoins(
+                    Reference::Reg(deckmaste_core::RefId(1)),
+                    Count::Literal(1),
+                    true,
+                )),
                 &frame,
             );
             // Pop exactly the front-scheduled `FlipCoins` work item — it
@@ -3352,13 +3423,17 @@ mod tests {
             &mut state,
             p0,
             EventFilter::CoinFlipped {
-                by: Predicate::Ref(Reference::You),
+                by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
                 won: Some(true),
             },
         );
         let frame = frame_for(&state, p0);
         state.run_effect(
-            OneShotEffect::Act(Action::FlipCoins(Reference::You, Count::Literal(1), false)),
+            OneShotEffect::Act(Action::FlipCoins(
+                Reference::Reg(deckmaste_core::RefId(1)),
+                Count::Literal(1),
+                false,
+            )),
             &frame,
         );
         drain_progress(&mut state, 20);
@@ -3395,12 +3470,16 @@ mod tests {
             &mut state,
             p0,
             EventFilter::DiceRolled {
-                by: Predicate::Ref(Reference::You),
+                by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
             },
         );
         let frame = frame_for(&state, p0);
         state.run_effect(
-            OneShotEffect::Act(Action::RollDice(Reference::You, Count::Literal(2), 6)),
+            OneShotEffect::Act(Action::RollDice(
+                Reference::Reg(deckmaste_core::RefId(1)),
+                Count::Literal(2),
+                6,
+            )),
             &frame,
         );
         drain_progress(&mut state, 20);
@@ -3466,14 +3545,22 @@ mod tests {
             // leftover ambient turn-structure agenda, surfacing a stray
             // `Priority` that then blocks the next `run_effect`.)
             state.run_effect(
-                OneShotEffect::Act(Action::FlipCoins(Reference::You, Count::Literal(2), false)),
+                OneShotEffect::Act(Action::FlipCoins(
+                    Reference::Reg(deckmaste_core::RefId(1)),
+                    Count::Literal(2),
+                    false,
+                )),
                 &frame,
             );
             step_n(&mut state, 2);
 
             // 1 called flip — the same call answer on both drives.
             state.run_effect(
-                OneShotEffect::Act(Action::FlipCoins(Reference::You, Count::Literal(1), true)),
+                OneShotEffect::Act(Action::FlipCoins(
+                    Reference::Reg(deckmaste_core::RefId(1)),
+                    Count::Literal(1),
+                    true,
+                )),
                 &frame,
             );
             step_n(&mut state, 1);
@@ -3488,7 +3575,11 @@ mod tests {
 
             // RollDice(2, 20).
             state.run_effect(
-                OneShotEffect::Act(Action::RollDice(Reference::You, Count::Literal(2), 20)),
+                OneShotEffect::Act(Action::RollDice(
+                    Reference::Reg(deckmaste_core::RefId(1)),
+                    Count::Literal(2),
+                    20,
+                )),
                 &frame,
             );
             step_n(&mut state, 2);
@@ -3508,7 +3599,11 @@ mod tests {
             // then applying THAT batch actually records the past-form
             // `ZoneChange` facts to history (apply #5).
             state.run_effect(
-                OneShotEffect::Act(Action::discard(Reference::You, Count::Literal(2), true)),
+                OneShotEffect::Act(Action::discard(
+                    Reference::Reg(deckmaste_core::RefId(1)),
+                    Count::Literal(2),
+                    true,
+                )),
                 &frame,
             );
             step_n(&mut state, 5);

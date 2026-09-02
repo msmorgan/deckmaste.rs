@@ -149,7 +149,7 @@ pub fn concretize(
                     // [CR#107.4f]: 2 life in place of the colored mana.
                     SymbolChoice::Life => {
                         verbs.push(CostComponent::do_action(Action::ChangeLife(
-                            Reference::You,
+                            Reference::Reg(deckmaste_core::RefId(1)),
                             LifeOp::Down(Count::Literal(2)),
                         )));
                     }
@@ -257,7 +257,7 @@ mod tests {
         assert_eq!(
             verbs,
             vec![CostComponent::do_action(Action::ChangeLife(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Down(Count::Literal(2))
             ))]
         );
@@ -302,7 +302,7 @@ mod tests {
         assert_eq!(
             verbs,
             vec![CostComponent::do_action(Action::ChangeLife(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Down(Count::Literal(2))
             ))]
         );
@@ -427,7 +427,7 @@ mod tests {
         assert_eq!(
             verbs,
             vec![CostComponent::do_action(Action::ChangeLife(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Down(Count::Literal(2))
             ))]
         );
@@ -445,7 +445,7 @@ mod tests {
         assert_eq!(
             verbs,
             vec![CostComponent::do_action(Action::ChangeLife(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Down(Count::Literal(2)),
             ))]
         );

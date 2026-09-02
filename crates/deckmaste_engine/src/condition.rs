@@ -22,7 +22,7 @@ impl GameState {
     /// targets), and the resolution recheck of an intervening-if ([CR#603.4])
     /// passes the resolving entry's full frame.
     pub(crate) fn condition_holds(&self, cond: &Condition, frame: &Frame) -> bool {
-        let you = frame.controller;
+        let you = frame.controller(self);
         match cond {
             // "if you control a creature" / "if a creature is on the battlefield"
             // — threads the frame's watcher (mirrors `Condition::Is` below) so
@@ -62,7 +62,10 @@ impl GameState {
                 // lethal-damage SBA's deathtouch clause is
                 // `Is(Source, Has(Deathtouch))`.
                 if let deckmaste_core::Reference::Source = reference {
-                    let this = self.eval_reference(&deckmaste_core::Reference::This, frame);
+                    let this = self.eval_reference(
+                        &deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
+                        frame,
+                    );
                     return self.objects.get(this).is_some_and(|obj| {
                         obj.damage
                             .iter()
@@ -152,7 +155,7 @@ impl GameState {
                         self.turn.turn_number,
                         self.turn.current,
                         self.turn.active_player,
-                        frame.controller,
+                        frame.controller(self),
                     )
                     .filter_map(|(_, entry)| entry.view.as_ref())
                     .any(|view| self.eval(event, view, crate::eval::Lane::History, &bindings))
@@ -187,7 +190,7 @@ impl GameState {
             Condition::PaidCost(tag) => self
                 .stack
                 .iter()
-                .find(|e| e.id == frame.source)
+                .find(|e| e.id == frame.source(self))
                 .is_some_and(|e| e.paid_costs.iter().any(|(t, n)| t == tag && *n > 0)),
 
             // "if its [keyword] cost was paid" ([CR#702.34a,702.74a]) — the
@@ -286,7 +289,6 @@ mod tests {
     use crate::lki::LkiSnapshot;
     use crate::object::ObjectSource;
     use crate::player::PlayerId;
-    use crate::stack::Anaphora;
     use crate::stack::Frame;
     use crate::state::GameConfig;
     use crate::state::GameState;
@@ -445,18 +447,9 @@ mod tests {
             Some(Zone::Battlefield),
         );
         state.zones.battlefield.push(bear);
-        let frame = Frame {
-            activation: crate::ActivationId::NONE,
-            source: bear,
-            controller: PlayerId(0),
-            this: Some(LkiSnapshot::capture(&state, bear)),
-            defending_player: None,
-            payment: None,
-            anaphora: Anaphora {
-                targets: vec![vec![bear]],
-                ..Anaphora::empty()
-            },
-        };
+        let mut frame = Frame::bare(bear, PlayerId(0));
+        state.frame_set_source_lki(&mut frame, Some(LkiSnapshot::capture(&state, bear)));
+        state.frame_set_targets(&mut frame, &[vec![bear]]);
 
         let creature = Predicate::creature();
         let land = Predicate::r#type(Type::Land);
@@ -464,14 +457,17 @@ mod tests {
         // Is(This, …): the bear is a creature …
         assert!(
             state.condition_holds(
-                &Condition::Matches(Reference::This, creature.clone()),
+                &Condition::Matches(Reference::Reg(deckmaste_core::RefId(0)), creature.clone()),
                 &frame
             ),
             "the bear is a creature"
         );
         // … and not a land.
         assert!(
-            !state.condition_holds(&Condition::Matches(Reference::This, land), &frame),
+            !state.condition_holds(
+                &Condition::Matches(Reference::Reg(deckmaste_core::RefId(0)), land),
+                &frame
+            ),
             "the bear is not a land"
         );
         // The first announced target is that same bear.
@@ -486,7 +482,10 @@ mod tests {
         // self-reference inside the filter anchors and matches.
         assert!(
             state.condition_holds(
-                &Condition::Matches(Reference::This, Predicate::Ref(Reference::This)),
+                &Condition::Matches(
+                    Reference::Reg(deckmaste_core::RefId(0)),
+                    Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0)))
+                ),
                 &frame
             ),
             "the resolved object is the frame's own source"
@@ -537,7 +536,7 @@ mod tests {
                     condition: Some(Condition::Exists(Predicate::r#type(Type::Creature))),
                     limits: Vec::new().into(),
                     effect: OneShotEffect::Act(deckmaste_core::Action::ChangeLife(
-                        Reference::You,
+                        Reference::Reg(deckmaste_core::RefId(1)),
                         deckmaste_core::LifeOp::Up(deckmaste_core::Count::Literal(0)),
                     ))
                     .into(),
@@ -661,12 +660,10 @@ mod tests {
                 "the dying object's id is stale after removal"
             );
 
-            let frame = Frame {
-                this: Some(snapshot),
-                ..Frame::bare(bear, PlayerId(0))
-            };
+            let mut frame = Frame::bare(bear, PlayerId(0));
+            state.frame_set_source_lki(&mut frame, Some(snapshot));
             let cond = Condition::Matches(
-                Reference::This,
+                Reference::Reg(deckmaste_core::RefId(0)),
                 Predicate::State(StatePredicate::HasCounter(CounterRef::from(kind))),
             );
             state.condition_holds(&cond, &frame)
@@ -754,9 +751,10 @@ mod tests {
         use deckmaste_core::RelationPredicate;
 
         let your_turn = Condition::YourTurn;
-        let turn_of_you = Condition::TurnOf(Predicate::Ref(Reference::You));
+        let turn_of_you =
+            Condition::TurnOf(Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))));
         let turn_of_opp = Condition::TurnOf(Predicate::Relation(RelationPredicate::OpponentOf(
-            Arc::new(Predicate::Ref(Reference::You)),
+            Arc::new(Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1)))),
         )));
 
         for active in [PlayerId(0), PlayerId(1)] {
@@ -940,14 +938,14 @@ mod tests {
         let evolve_if = Condition::Or(
             vec![
                 Condition::Compare(
-                    Count::StatOf(Reference::EventObject, Stat::Power),
+                    Count::StatOf(Reference::Reg(deckmaste_core::RefId(2)), Stat::Power),
                     Cmp::Greater,
-                    Count::StatOf(Reference::This, Stat::Power),
+                    Count::StatOf(Reference::Reg(deckmaste_core::RefId(0)), Stat::Power),
                 ),
                 Condition::Compare(
-                    Count::StatOf(Reference::EventObject, Stat::Toughness),
+                    Count::StatOf(Reference::Reg(deckmaste_core::RefId(2)), Stat::Toughness),
                     Cmp::Greater,
-                    Count::StatOf(Reference::This, Stat::Toughness),
+                    Count::StatOf(Reference::Reg(deckmaste_core::RefId(0)), Stat::Toughness),
                 ),
             ]
             .into(),
@@ -955,13 +953,16 @@ mod tests {
 
         // Build a trigger-style frame whose `This` is the carrier and whose
         // `EventObject` is the just-entered creature `entrant`.
-        let frame_for_entrant = |state: &GameState, entrant| Frame {
-            this: Some(LkiSnapshot::capture(state, carrier)),
-            anaphora: Anaphora {
-                that_object: Some(LkiSnapshot::capture(state, entrant)),
-                ..Anaphora::empty()
-            },
-            ..Frame::bare(carrier, PlayerId(0))
+        let frame_for_entrant = |state: &GameState, entrant| {
+            let mut frame = Frame::bare(carrier, PlayerId(0));
+            state.frame_set_source_lki(&mut frame, Some(LkiSnapshot::capture(state, carrier)));
+            state.frame_set_event_bindings(
+                &mut frame,
+                Some(LkiSnapshot::capture(state, entrant)),
+                None,
+                None,
+            );
+            frame
         };
 
         let enter = |state: &mut GameState, card: &Arc<deckmaste_card::Card>| {
@@ -1025,7 +1026,7 @@ mod tests {
             EventFilter::Damage {
                 source: Predicate::any(),
                 to: Predicate::Relation(RelationPredicate::OpponentOf(Arc::new(Predicate::Ref(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                 )))),
                 combat: None,
                 amount: None,
@@ -1325,7 +1326,7 @@ mod tests {
         let mut state = game();
         let p0 = PlayerId(0);
         let cond = Condition::Matches(
-            Reference::You,
+            Reference::Reg(deckmaste_core::RefId(1)),
             Predicate::State(StatePredicate::Designated("CitysBlessing".into())),
         );
         assert!(

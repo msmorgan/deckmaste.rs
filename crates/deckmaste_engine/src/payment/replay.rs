@@ -210,11 +210,15 @@ pub(crate) struct ReconstructedFrame {
     pub fulfilled: Vec<(IouId, FulfillmentWitness)>,
     pub records: Vec<TransactionRecord>,
     pub logical_objects: HashMap<crate::object::ObjectSource, LogicalObject>,
+    pub activations: crate::activation::ActivationTable,
+    pub next_activation: u64,
 }
 
 pub(crate) struct ReconstructedDecline {
     pub working: GameImage,
     pub logical_objects: HashMap<crate::object::ObjectSource, LogicalObject>,
+    pub activations: crate::activation::ActivationTable,
+    pub next_activation: u64,
 }
 
 /// Rebuild only `retained` records from the frame's single payment base.
@@ -249,6 +253,8 @@ pub(crate) fn reconstruct_frame(
 
     let mut replay_frame =
         PaymentFrame::new(base.clone(), frame.purpose.clone(), frame.locked.clone());
+    replay_frame.activations.clone_from(&frame.activations);
+    replay_frame.next_activation = frame.next_activation;
     replay_frame.observations.clone_from(&frame.observations);
     replay_frame.payment_base = Some(base.clone());
     replay_frame.stage = PaymentStage::Paying;
@@ -272,8 +278,8 @@ pub(crate) fn reconstruct_frame(
         next_mana_action: 0,
         payment_observations: std::collections::HashSet::new(),
         payment_logical_objects,
-        activations: std::collections::HashMap::new(),
-        next_activation: 0,
+        activations: std::cell::RefCell::new(frame.activations.clone()),
+        next_activation: std::cell::Cell::new(frame.next_activation),
     };
 
     let mut replay_map = ReplayMap::default();
@@ -287,6 +293,8 @@ pub(crate) fn reconstruct_frame(
     }
 
     let logical_objects = state.payment_logical_objects.clone();
+    let activations = state.activations.borrow().clone();
+    let next_activation = state.next_activation.get();
     let mut controller = state.payment.take().ok_or(ReplayError::MissingBase)?;
     let mut rebuilt = controller.frames.pop().ok_or(ReplayError::MissingBase)?;
     rebuilt.records.clone_from(&records);
@@ -313,6 +321,8 @@ pub(crate) fn reconstruct_frame(
         fulfilled,
         records,
         logical_objects,
+        activations,
+        next_activation,
     })
 }
 
@@ -930,10 +940,17 @@ pub(crate) fn cancel_replayed_mana_proposal(
             .collect::<Result<Vec<_>, _>>()?;
         (child, retained)
     };
-    let rebuilt = { reconstruct_frame(child, &retained)? };
+    let mut replay_child = child.clone();
+    replay_child
+        .activations
+        .clone_from(&state.activations.borrow());
+    replay_child.next_activation = state.next_activation.get();
+    let rebuilt = reconstruct_frame(&replay_child, &retained)?;
     state
         .payment_logical_objects
         .clone_from(&rebuilt.logical_objects);
+    state.activations.replace(rebuilt.activations);
+    state.next_activation.set(rebuilt.next_activation);
     let controller = state.payment.as_mut().ok_or(ReplayError::MissingBase)?;
     let mut child = controller.frames.pop().ok_or(ReplayError::MissingBase)?;
     child.working = rebuilt.working;
@@ -1319,6 +1336,8 @@ fn replay_omitted_fulfillment_mana_actions(
         )
     };
     let mut window = PaymentFrame::proposal(working, payer);
+    window.activations.clone_from(&state.activations.borrow());
+    window.next_activation = state.next_activation.get();
     window.stage = PaymentStage::PrePayment;
     window.payment_base = None;
     window.observations = observations;
@@ -1377,6 +1396,8 @@ pub(crate) fn reconstruct_decline(
     let base = frame.proposal_base.clone();
     let mut replay_frame =
         PaymentFrame::new(base.clone(), frame.purpose.clone(), frame.locked.clone());
+    replay_frame.activations.clone_from(&frame.activations);
+    replay_frame.next_activation = frame.next_activation;
     replay_frame.observations.clone_from(&frame.observations);
     replay_frame.stage = PaymentStage::PrePayment;
     replay_frame.payment_base = None;
@@ -1405,8 +1426,8 @@ pub(crate) fn reconstruct_decline(
         next_mana_action: 0,
         payment_observations: std::collections::HashSet::new(),
         payment_logical_objects,
-        activations: std::collections::HashMap::new(),
-        next_activation: 0,
+        activations: std::cell::RefCell::new(frame.activations.clone()),
+        next_activation: std::cell::Cell::new(frame.next_activation),
     };
     let mut replay_map = ReplayMap::default();
     // Root payment mana actions all precede the first fulfillment: activated
@@ -1465,6 +1486,8 @@ pub(crate) fn reconstruct_decline(
         }
     }
     let logical_objects = state.payment_logical_objects.clone();
+    let activations = state.activations.borrow().clone();
+    let next_activation = state.next_activation.get();
     let mut controller = state.payment.take().ok_or(ReplayError::MissingBase)?;
     let mut rebuilt = controller.frames.pop().ok_or(ReplayError::MissingBase)?;
     rebuilt.working.pending = base.pending;
@@ -1476,6 +1499,8 @@ pub(crate) fn reconstruct_decline(
     Ok(ReconstructedDecline {
         working: rebuilt.working,
         logical_objects,
+        activations,
+        next_activation,
     })
 }
 

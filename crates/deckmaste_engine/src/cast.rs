@@ -459,9 +459,9 @@ pub fn auto_pay_spendable(pool: &ManaPool, cost: &ManaCost, spendable: &[bool]) 
 
 /// [CR#601.2h]: one `RunEffect` per cost-eligible verb, each performed by the
 /// activating `player` against the ability's `source`, over a fresh
-/// resolution frame whose `controller` is the activator — so `Reference::You`
+/// resolution frame whose `controller` is the activator — so `Reference::Reg(deckmaste_core::RefId(1))`
 /// (the verb's own agent slot, spelled) resolves to that player and
-/// `Reference::This` (a self-sacrifice) to the source — mirroring the frame
+/// `Reference::Reg(deckmaste_core::RefId(0))` (a self-sacrifice) to the source — mirroring the frame
 /// any effect node resolves against (`targets`/`bindings`/`chosen` empty: a
 /// cost verb names no targets and carries no trigger context). A
 /// `With(ChooseOne/Choose)` binder inside a verb surfaces its own
@@ -480,18 +480,17 @@ pub fn auto_pay_spendable(pool: &ManaPool, cost: &ManaCost, spendable: &[bool]) 
 /// reads as `Agency::CostPayment` and shares one payment id.
 fn verb_payment_items(
     verbs: &[CoreAction],
-    source: ObjectId,
-    player: PlayerId,
-    x: Option<Uint>,
+    activation: crate::ActivationId,
     payment: crate::stack::Payment,
 ) -> Vec<WorkItem> {
     verbs
         .iter()
         .map(|verb| {
-            // A cost verb names no targets; it may read the announced X.
-            let mut frame = Frame::bare(source, player);
-            frame.anaphora.x = x;
-            frame.payment = Some(payment);
+            let frame = Frame {
+                activation,
+                payment: Some(payment),
+                anaphora: crate::stack::Anaphora::empty(),
+            };
             WorkItem::RunEffect {
                 effect: Arc::new(OneShotEffect::Act(verb.clone())),
                 frame,
@@ -729,7 +728,7 @@ pub(crate) fn announced_effect_items(
 ) -> Vec<WorkItem> {
     let [OneShotEffect::Modal(modal)] = effect.body.as_ref() else {
         let mut region_frame = frame.clone();
-        if region_frame.activation == crate::ActivationId::NONE {
+        if !matches!(region_frame.activation, crate::ActivationId::Stored(_)) {
             region_frame.activation = state.enter_region(effect, frame);
         }
         return effect
@@ -752,8 +751,8 @@ pub(crate) fn announced_effect_items(
                 .get(index as usize)
                 .expect("ChooseModes validated every announced index");
             let count = mode.targets.len();
-            let mut mode_frame = frame.clone();
-            mode_frame.anaphora.targets = targets[offset..offset + count].to_vec();
+            let mut mode_frame = state.fork_frame(frame);
+            state.frame_set_targets(&mut mode_frame, &targets[offset..offset + count]);
             mode_frame.activation = state.enter_region(&mode.effect, &mode_frame);
             offset += count;
             mode.effect
@@ -1804,19 +1803,17 @@ impl GameState {
             StackObject::Activated {
                 source,
                 ability,
-                bindings,
+                bindings: _,
             } => {
                 let mut components = vec![CostComponent::Mana(mana)];
                 append_nonmana(&ability.cost, &mut components);
                 components.extend(extra_components);
-                let mut frame = Frame::bare(source, payer);
-                frame.this = bindings.this;
                 (
                     crate::payment::PaymentSubject::Activated {
                         ability: pending.id,
                         source,
                     },
-                    frame,
+                    Frame::bare(source, payer),
                     components,
                     Vec::new(),
                 )
@@ -1825,8 +1822,7 @@ impl GameState {
                 unreachable!("a triggered ability never occupies the announce slot")
             }
         };
-        frame.anaphora.targets = pending.targets;
-        frame.anaphora.x = pending.x;
+        frame.activation = pending.activation;
         frame.payment = Some(self.mint_payment());
         let cost = deckmaste_core::Cost(components.into());
         let locked = crate::payment::lock_cost(self, payer, subject, &frame, &cost, &pay_pips)
@@ -1853,26 +1849,29 @@ impl GameState {
         reason = "retained temporarily while staged fulfillment replaces each legacy payment arm"
     )]
     pub(crate) fn legacy_pay_cost(&mut self) -> Result<(), &'static str> {
-        let pending = self.announcing.as_ref().expect("an announce in flight");
-        let controller = pending.controller;
-        // `announced_x` (defaulted to 0) concretizes `{X}` mana; `x_binding`
-        // (the raw `Option`) is threaded onto cost-verb frames so a `Count::X`
-        // verb operand reads the same announced value — `None` leaves an X-free
-        // cost's verb frames exactly as before.
-        let announced_x = pending.x.unwrap_or(0);
-        let x_binding = pending.x;
+        let (controller, activation, announced_x, concretized, optional_components, object) = {
+            let pending = self.announcing.as_ref().expect("an announce in flight");
+            (
+                pending.controller,
+                pending.activation,
+                pending.x.unwrap_or(0),
+                pending.concretized.clone(),
+                pending.optional_components.clone(),
+                pending.object.clone(),
+            )
+        };
+        // `announced_x` (defaulted to 0) concretizes `{X}` mana. Cost-verb
+        // frames share the announcement activation, whose X parameter already
+        // carries the chosen value.
         // [CR#601.2b]: the announced concretization — always set by the
         // preceding `ChooseCostOptions` step.
-        let (mana, extra_verbs) = pending
-            .concretized
-            .clone()
-            .expect("ChooseCostOptions concretized the cost before PayCost");
+        let (mana, extra_verbs) =
+            concretized.expect("ChooseCostOptions concretized the cost before PayCost");
         // [CR#601.2f]: the announced optional additional components.
-        let optional_components = pending.optional_components.clone();
         // The Phyrexian-life picks rode as `Do(LoseLife(2))` cost components;
         // unwrap them into payable verbs ([CR#601.2h]).
         let extra_verbs = phyrexian_life_verbs(&extra_verbs);
-        match &pending.object {
+        match &object {
             StackObject::Spell(o) => {
                 let object = *o;
                 // [CR#118.10]: one fresh payment id for this spell's WHOLE
@@ -1884,8 +1883,7 @@ impl GameState {
                 // decision (if any) and ahead of the `SpellCast` becomes-cast
                 // step. The source is the spell object; the payer its
                 // controller.
-                let mut items =
-                    verb_payment_items(&extra_verbs, object, controller, x_binding, payment);
+                let mut items = verb_payment_items(&extra_verbs, activation, payment);
                 // [CR#601.2b]: apply the announced X to the concretized mana
                 // ({X} -> Generic(announced_x); hybrid/Phyrexian already resolved).
                 let mana = concretize_x(&mana, announced_x);
@@ -1899,9 +1897,7 @@ impl GameState {
                         CostComponent::Act(pa) => {
                             items.extend(verb_payment_items(
                                 &[(**pa).clone()],
-                                object,
-                                controller,
-                                x_binding,
+                                activation,
                                 payment,
                             ));
                         }
@@ -1986,20 +1982,8 @@ impl GameState {
                 // the {T}/{Q} events and before `AbilityActivated`. The
                 // ability's own verb costs come first, then the
                 // concretization's Phyrexian-life verbs.
-                items.extend(verb_payment_items(
-                    &summary.verbs,
-                    source,
-                    controller,
-                    x_binding,
-                    payment,
-                ));
-                items.extend(verb_payment_items(
-                    &extra_verbs,
-                    source,
-                    controller,
-                    x_binding,
-                    payment,
-                ));
+                items.extend(verb_payment_items(&summary.verbs, activation, payment));
+                items.extend(verb_payment_items(&extra_verbs, activation, payment));
                 // [CR#601.2b,601.2h]: pay each cost-side `With` choose-then-pay
                 // step. Rendered as an `OneShotEffect::With` (choosing kept OUT of the
                 // verb) and run over a fresh frame whose controller is the
@@ -2008,8 +1992,10 @@ impl GameState {
                 // exactly like the effect-side `With`. One `RunEffect` per step,
                 // in the same payment window as the verb costs.
                 for with in &summary.withs {
-                    let effect =
-                        crate::decide::unless_cost_effect(with, &deckmaste_core::Reference::You);
+                    let effect = crate::decide::unless_cost_effect(
+                        with,
+                        &deckmaste_core::Reference::Reg(deckmaste_core::RefId(1)),
+                    );
                     let mut frame = Frame::bare(source, controller);
                     frame.payment = Some(payment);
                     items.push(WorkItem::RunEffect {
@@ -2766,14 +2752,14 @@ mod tests {
                         count: Quantity::one(),
                         up_to: false,
                         repeats: false,
-                        chooser: Reference::You,
+                        chooser: Reference::Reg(deckmaste_core::RefId(1)),
                         rider: None,
                     },
                     modes: vec![
                         deckmaste_core::Mode {
                             targets: [].into(),
                             effect: OneShotEffect::Act(CoreAction::ChangeLife(
-                                Reference::You,
+                                Reference::Reg(deckmaste_core::RefId(1)),
                                 deckmaste_core::LifeOp::Up(Count::Literal(1)),
                             ))
                             .into(),
@@ -2781,8 +2767,10 @@ mod tests {
                         },
                         Mode {
                             targets: vec![target.clone()].into(),
-                            effect: OneShotEffect::Act(CoreAction::destroy(Reference::Target(0)))
-                                .into(),
+                            effect: OneShotEffect::Act(CoreAction::destroy(Reference::Reg(
+                                deckmaste_core::RefId(6),
+                            )))
+                            .into(),
                             cost: None,
                         },
                     ]
@@ -2839,7 +2827,7 @@ mod tests {
         let life_mode = |amount| Mode {
             targets: [].into(),
             effect: OneShotEffect::Act(CoreAction::ChangeLife(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 deckmaste_core::LifeOp::Up(Count::Literal(amount)),
             ))
             .into(),
@@ -2857,7 +2845,7 @@ mod tests {
                         count: Quantity::Range(Some(Count::Literal(2)), Some(Count::Literal(2))),
                         up_to: false,
                         repeats: false,
-                        chooser: Reference::You,
+                        chooser: Reference::Reg(deckmaste_core::RefId(1)),
                         rider: None,
                     },
                     modes: vec![life_mode(3), life_mode(5)].into(),
@@ -2913,7 +2901,7 @@ mod tests {
                         count: Quantity::one(),
                         up_to: false,
                         repeats: false,
-                        chooser: Reference::You,
+                        chooser: Reference::Reg(deckmaste_core::RefId(1)),
                         rider: None,
                     },
                     modes: vec![impossible_mode(), impossible_mode()].into(),
@@ -2943,7 +2931,7 @@ mod tests {
             )]
             .into(),
             effect: OneShotEffect::Act(CoreAction::ChangeLife(
-                Reference::Target(0),
+                Reference::Reg(deckmaste_core::RefId(6)),
                 deckmaste_core::LifeOp::Up(Count::Literal(amount)),
             ))
             .into(),
@@ -2961,7 +2949,7 @@ mod tests {
                         count: Quantity::Range(Some(Count::Literal(2)), Some(Count::Literal(2))),
                         up_to: false,
                         repeats: false,
-                        chooser: Reference::You,
+                        chooser: Reference::Reg(deckmaste_core::RefId(1)),
                         rider: None,
                     },
                     modes: vec![life_mode(3), life_mode(5)].into(),
@@ -3017,7 +3005,7 @@ mod tests {
         let mode = |generic| Mode {
             targets: [].into(),
             effect: OneShotEffect::Act(CoreAction::ChangeLife(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 deckmaste_core::LifeOp::Up(Count::Literal(1)),
             ))
             .into(),
@@ -3040,7 +3028,7 @@ mod tests {
                         count: Quantity::one(),
                         up_to: false,
                         repeats: false,
-                        chooser: Reference::You,
+                        chooser: Reference::Reg(deckmaste_core::RefId(1)),
                         rider: None,
                     },
                     modes: vec![mode(1), mode(2)].into(),
@@ -3081,7 +3069,7 @@ mod tests {
         let mode = || Mode {
             targets: [].into(),
             effect: OneShotEffect::Act(CoreAction::ChangeLife(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 deckmaste_core::LifeOp::Up(Count::Literal(1)),
             ))
             .into(),
@@ -3099,7 +3087,7 @@ mod tests {
                         count: Quantity::one(),
                         up_to: false,
                         repeats: false,
-                        chooser: Reference::You,
+                        chooser: Reference::Reg(deckmaste_core::RefId(1)),
                         rider: Some(ModalCostRider::Entwine(Cost(
                             vec![CostComponent::Mana("{3}".parse().unwrap())].into(),
                         ))),
@@ -3140,7 +3128,7 @@ mod tests {
         let mode = |mana: &str| Mode {
             targets: [].into(),
             effect: OneShotEffect::Act(CoreAction::ChangeLife(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 deckmaste_core::LifeOp::Up(Count::Literal(1)),
             ))
             .into(),
@@ -3159,7 +3147,7 @@ mod tests {
                             count: Quantity::one(),
                             up_to: false,
                             repeats: false,
-                            chooser: Reference::You,
+                            chooser: Reference::Reg(deckmaste_core::RefId(1)),
                             rider: None,
                         },
                         modes: vec![mode("{X}"), mode("{1}")].into(),
@@ -3214,7 +3202,7 @@ mod tests {
             mana_cost: printed.parse().unwrap(),
             types: vec![Type::Artifact.def()],
             abilities: vec![Ability::r#static(StaticEffect::CostModifier {
-                of: Predicate::Ref(Reference::This),
+                of: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 change: CostChange::Scaled {
                     change: Arc::new(CostChange::Reduce(
                         vec![CostComponent::Mana("{1}".parse().unwrap())].into(),
@@ -3354,7 +3342,7 @@ mod tests {
             condition: None,
             limits: vec![].into(),
             effect: OneShotEffect::Act(CoreAction::AddMana(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 ManaSpec::Specific(color).into(),
             ))
@@ -3385,7 +3373,7 @@ mod tests {
             confers: vec![deckmaste_core::Property::Ability(Arc::new(
                 Ability::r#static(StaticEffect::Deontic(deckmaste_core::Deontic::May(
                     deckmaste_core::DeonticAction::Cast {
-                        what: Predicate::Ref(Reference::This),
+                        what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                         by: Predicate::Any,
                         from: None,
                         window: Some(Timing::InstantSpeed),
@@ -3472,7 +3460,7 @@ mod tests {
             confers: vec![deckmaste_core::Property::Ability(Arc::new(
                 Ability::r#static(StaticEffect::Deontic(deckmaste_core::Deontic::May(
                     deckmaste_core::DeonticAction::Play {
-                        what: Predicate::Ref(Reference::This),
+                        what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                         by: Predicate::Any,
                         from: None,
                     },

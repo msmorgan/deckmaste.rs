@@ -49,7 +49,10 @@ fn mana_2() -> CostComponent {
 /// so the loaded token carries the body directly, not a remembered
 /// `Expanded` wrapper.
 fn sacrifice_this() -> CostComponent {
-    CostComponent::do_action(Action::Sacrifice(Reference::You, Reference::This))
+    CostComponent::do_action(Action::Sacrifice(
+        Reference::Reg(deckmaste_core::RefId(1)),
+        Reference::Reg(deckmaste_core::RefId(0)),
+    ))
 }
 
 fn mana_ability(ability: ActivatedAbility) -> Ability {
@@ -111,7 +114,7 @@ fn treasure_token_parses() {
                 condition: None,
                 limits: vec![].into(),
                 effect: ability_region(OneShotEffect::Act(Action::AddMana(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(1),
                     ManaSpec::AnyColor.into()
                 ))),
@@ -184,7 +187,7 @@ fn food_token_parses() {
                 condition: None,
                 limits: vec![].into(),
                 effect: ability_region(OneShotEffect::Act(Action::ChangeLife(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     LifeOp::Up(Count::Literal(3))
                 ))),
             })]
@@ -216,7 +219,7 @@ fn gold_token_parses() {
                 condition: None,
                 limits: vec![].into(),
                 effect: ability_region(OneShotEffect::Act(Action::AddMana(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(1),
                     ManaSpec::AnyColor.into()
                 ))),
@@ -305,7 +308,7 @@ fn vibranium_token_parses() {
             EventFilter::Act {
                 verb: deckmaste_core::VerbName::from("Destroy"),
                 who: Predicate::Any,
-                on: Predicate::Ref(Reference::This),
+                on: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 cause: None,
             },
         ))],
@@ -313,7 +316,7 @@ fn vibranium_token_parses() {
     // "{T}: Add {C}. This mana can't be spent to cast a nonartifact spell." The
     // SpendOnly rider admits everything EXCEPT a nonartifact spell.
     let restricted_mana = OneShotEffect::Act(Action::AddMana(
-        Reference::You,
+        Reference::Reg(deckmaste_core::RefId(1)),
         Count::Literal(1),
         ManaProduction::WithRiders {
             mana: ManaSpec::Specific(ColorOrColorless::Colorless),

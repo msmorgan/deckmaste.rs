@@ -295,7 +295,9 @@ mod tests {
     fn lowers_enter_rider_under_control_of() {
         assert_matches!(
             deckmaste_semantics::EnterRider::UnderControlOf(minimal_reference()).lower(),
-            deckmaste_core::EnterRider::UnderControlOf(deckmaste_core::Reference::This)
+            deckmaste_core::EnterRider::UnderControlOf(deckmaste_core::Reference::Reg(
+                deckmaste_core::RefId(0)
+            ))
         );
     }
 
@@ -332,7 +334,9 @@ mod tests {
         assert_matches!(
             deckmaste_semantics::EnterRider::AsCopy(minimal_copy_spec()).lower(),
             deckmaste_core::EnterRider::AsCopy(deckmaste_core::CopySpec {
-                source: deckmaste_core::CopySource::Object(deckmaste_core::Reference::This),
+                source: deckmaste_core::CopySource::Object(deckmaste_core::Reference::Reg(
+                    deckmaste_core::RefId(0)
+                )),
                 exceptions: _
             })
         );
@@ -342,7 +346,9 @@ mod tests {
     fn lowers_arrangement_chosen_order() {
         assert_matches!(
             deckmaste_semantics::Arrangement::ChosenOrder(minimal_reference()).lower(),
-            deckmaste_core::Arrangement::ChosenOrder(deckmaste_core::Reference::This)
+            deckmaste_core::Arrangement::ChosenOrder(deckmaste_core::Reference::Reg(
+                deckmaste_core::RefId(0)
+            ))
         );
     }
 
@@ -380,9 +386,9 @@ mod tests {
             )
             .lower(),
             deckmaste_core::Action::DealDamage(
-                deckmaste_core::Reference::This,
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::Count::X,
-                deckmaste_core::Reference::This
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
             )
         );
     }
@@ -391,7 +397,9 @@ mod tests {
     fn lowers_action_counter() {
         assert_matches!(
             deckmaste_semantics::Action::Counter(minimal_reference()).lower(),
-            deckmaste_core::Action::Counter(deckmaste_core::Reference::This)
+            deckmaste_core::Action::Counter(deckmaste_core::Reference::Reg(deckmaste_core::RefId(
+                0
+            )))
         );
     }
 
@@ -399,7 +407,9 @@ mod tests {
     fn lowers_action_transform() {
         assert_matches!(
             deckmaste_semantics::Action::Transform(minimal_reference()).lower(),
-            deckmaste_core::Action::Transform(deckmaste_core::Reference::This)
+            deckmaste_core::Action::Transform(deckmaste_core::Reference::Reg(
+                deckmaste_core::RefId(0)
+            ))
         );
     }
 
@@ -407,7 +417,7 @@ mod tests {
     fn lowers_action_cease() {
         assert_matches!(
             deckmaste_semantics::Action::Cease(minimal_reference()).lower(),
-            deckmaste_core::Action::Cease(deckmaste_core::Reference::This)
+            deckmaste_core::Action::Cease(deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)))
         );
     }
 
@@ -420,8 +430,8 @@ mod tests {
             }
             .lower(),
             deckmaste_core::Action::Attach {
-                what: deckmaste_core::Reference::This,
-                to: deckmaste_core::Reference::This
+                what: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
+                to: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
             }
         );
     }
@@ -430,7 +440,9 @@ mod tests {
     fn lowers_action_unattach() {
         assert_matches!(
             deckmaste_semantics::Action::Unattach(minimal_reference()).lower(),
-            deckmaste_core::Action::Unattach(deckmaste_core::Reference::This)
+            deckmaste_core::Action::Unattach(deckmaste_core::Reference::Reg(
+                deckmaste_core::RefId(0)
+            ))
         );
     }
 
@@ -445,7 +457,7 @@ mod tests {
             )
             .lower(),
             deckmaste_core::Action::Move(
-                deckmaste_core::Reference::This,
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::Destination::Zone(deckmaste_core::Zone::Battlefield),
                 _,
                 None
@@ -468,7 +480,7 @@ mod tests {
                     deckmaste_core::ObjectKind::Ability
                 )),
                 arrangement: deckmaste_core::Arrangement::ChosenOrder(
-                    deckmaste_core::Reference::This
+                    deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
                 ),
                 to: deckmaste_core::Destination::Zone(deckmaste_core::Zone::Battlefield),
                 riders: _
@@ -482,8 +494,8 @@ mod tests {
             deckmaste_semantics::Action::GainControl(minimal_reference(), minimal_reference())
                 .lower(),
             deckmaste_core::Action::GainControl(
-                deckmaste_core::Reference::This,
-                deckmaste_core::Reference::This
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
             )
         );
     }
@@ -495,7 +507,7 @@ mod tests {
                 .lower(),
             deckmaste_core::Action::ExtraPhase(
                 deckmaste_core::PhaseKind::Beginning,
-                deckmaste_core::Reference::This
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
             )
         );
     }
@@ -514,8 +526,8 @@ mod tests {
                     deckmaste_core::CounterRef(_),
                     deckmaste_core::Count::X
                 ),
-                deckmaste_core::Reference::This,
-                deckmaste_core::Reference::This
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
             )
         );
     }
@@ -559,7 +571,7 @@ mod tests {
         assert_matches!(
             deckmaste_semantics::Action::ChangeLife(minimal_reference(), minimal_life_op()).lower(),
             deckmaste_core::Action::ChangeLife(
-                deckmaste_core::Reference::This,
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::LifeOp::Set(deckmaste_core::Count::X)
             )
         );
@@ -575,7 +587,7 @@ mod tests {
             )
             .lower(),
             deckmaste_core::Action::AddMana(
-                deckmaste_core::Reference::This,
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::Count::X,
                 deckmaste_core::ManaProduction::WithRiders {
                     mana: deckmaste_core::ManaSpec::AnyColor,
@@ -596,7 +608,7 @@ mod tests {
             }
             .lower(),
             deckmaste_core::Action::Create {
-                agent: deckmaste_core::Reference::This,
+                agent: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 count: deckmaste_core::Count::X,
                 token: deckmaste_core::TokenSpec::Token(_),
                 riders: _
@@ -610,8 +622,8 @@ mod tests {
             deckmaste_semantics::Action::Sacrifice(minimal_reference(), minimal_reference())
                 .lower(),
             deckmaste_core::Action::Sacrifice(
-                deckmaste_core::Reference::This,
-                deckmaste_core::Reference::This
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
             )
         );
     }
@@ -620,7 +632,9 @@ mod tests {
     fn lowers_action_draw_card() {
         assert_matches!(
             deckmaste_semantics::Action::DrawCard(minimal_reference()).lower(),
-            deckmaste_core::Action::DrawCard(deckmaste_core::Reference::This)
+            deckmaste_core::Action::DrawCard(deckmaste_core::Reference::Reg(
+                deckmaste_core::RefId(0)
+            ))
         );
     }
 
@@ -628,7 +642,7 @@ mod tests {
     fn lowers_action_tap() {
         assert_matches!(
             deckmaste_semantics::Action::Tap(minimal_reference()).lower(),
-            deckmaste_core::Action::Tap(deckmaste_core::Reference::This)
+            deckmaste_core::Action::Tap(deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)))
         );
     }
 
@@ -636,7 +650,7 @@ mod tests {
     fn lowers_action_untap() {
         assert_matches!(
             deckmaste_semantics::Action::Untap(minimal_reference()).lower(),
-            deckmaste_core::Action::Untap(deckmaste_core::Reference::This)
+            deckmaste_core::Action::Untap(deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)))
         );
     }
 
@@ -644,7 +658,10 @@ mod tests {
     fn lowers_action_get_emblem() {
         assert_matches!(
             deckmaste_semantics::Action::GetEmblem(minimal_reference(), [].into()).lower(),
-            deckmaste_core::Action::GetEmblem(deckmaste_core::Reference::This, _)
+            deckmaste_core::Action::GetEmblem(
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
+                _
+            )
         );
     }
 
@@ -652,7 +669,10 @@ mod tests {
     fn lowers_action_get_designation() {
         assert_matches!(
             deckmaste_semantics::Action::GetDesignation(minimal_reference(), "X".into()).lower(),
-            deckmaste_core::Action::GetDesignation(deckmaste_core::Reference::This, _)
+            deckmaste_core::Action::GetDesignation(
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
+                _
+            )
         );
     }
 
@@ -675,7 +695,7 @@ mod tests {
             )
             .lower(),
             deckmaste_core::Action::ChooseValue(
-                deckmaste_core::Reference::This,
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::ChosenValueKind::Color,
                 _
             )
@@ -692,9 +712,11 @@ mod tests {
             }
             .lower(),
             deckmaste_core::Action::CopySpell {
-                controller: deckmaste_core::Reference::This,
+                controller: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 spec: deckmaste_core::CopySpec {
-                    source: deckmaste_core::CopySource::Object(deckmaste_core::Reference::This),
+                    source: deckmaste_core::CopySource::Object(deckmaste_core::Reference::Reg(
+                        deckmaste_core::RefId(0)
+                    )),
                     exceptions: _
                 },
                 retarget: deckmaste_core::CopyRetarget::AsIs
@@ -707,9 +729,11 @@ mod tests {
         assert_matches!(
             deckmaste_semantics::Action::CastCopy(minimal_reference(), minimal_copy_spec()).lower(),
             deckmaste_core::Action::CastCopy(
-                deckmaste_core::Reference::This,
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::CopySpec {
-                    source: deckmaste_core::CopySource::Object(deckmaste_core::Reference::This),
+                    source: deckmaste_core::CopySource::Object(deckmaste_core::Reference::Reg(
+                        deckmaste_core::RefId(0)
+                    )),
                     exceptions: _
                 }
             )
@@ -722,8 +746,8 @@ mod tests {
             deckmaste_semantics::Action::Cast(minimal_reference(), minimal_reference(), None)
                 .lower(),
             deckmaste_core::Action::Cast(
-                deckmaste_core::Reference::This,
-                deckmaste_core::Reference::This,
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 None
             )
         );
@@ -740,8 +764,8 @@ mod tests {
             .lower(),
             deckmaste_core::Action::Retarget {
                 mode: deckmaste_core::RetargetMode::ChangeAll,
-                of: deckmaste_core::Reference::This,
-                by: deckmaste_core::Reference::This
+                of: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
+                by: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
             }
         );
     }
@@ -752,7 +776,7 @@ mod tests {
             deckmaste_semantics::Action::FlipCoins(minimal_reference(), minimal_count(), false)
                 .lower(),
             deckmaste_core::Action::FlipCoins(
-                deckmaste_core::Reference::This,
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::Count::X,
                 false
             )
@@ -764,7 +788,7 @@ mod tests {
         assert_matches!(
             deckmaste_semantics::Action::RollDice(minimal_reference(), minimal_count(), 0).lower(),
             deckmaste_core::Action::RollDice(
-                deckmaste_core::Reference::This,
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::Count::X,
                 0
             )
@@ -775,7 +799,9 @@ mod tests {
     fn lowers_action_roll_planar_die() {
         assert_matches!(
             deckmaste_semantics::Action::RollPlanarDie(minimal_reference()).lower(),
-            deckmaste_core::Action::RollPlanarDie(deckmaste_core::Reference::This)
+            deckmaste_core::Action::RollPlanarDie(deckmaste_core::Reference::Reg(
+                deckmaste_core::RefId(0)
+            ))
         );
     }
 
@@ -789,7 +815,7 @@ mod tests {
             )
             .lower(),
             deckmaste_core::Action::PutCounters(
-                deckmaste_core::Reference::This,
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::CounterRef(_),
                 deckmaste_core::Count::X
             )
@@ -806,7 +832,7 @@ mod tests {
             )
             .lower(),
             deckmaste_core::Action::RemoveCounters(
-                deckmaste_core::Reference::This,
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::CounterRef(_),
                 deckmaste_core::Count::X
             )
@@ -817,7 +843,9 @@ mod tests {
     fn lowers_action_win_game() {
         assert_matches!(
             deckmaste_semantics::Action::WinGame(minimal_reference()).lower(),
-            deckmaste_core::Action::WinGame(deckmaste_core::Reference::This)
+            deckmaste_core::Action::WinGame(deckmaste_core::Reference::Reg(deckmaste_core::RefId(
+                0
+            )))
         );
     }
 
@@ -825,7 +853,9 @@ mod tests {
     fn lowers_action_lose_game() {
         assert_matches!(
             deckmaste_semantics::Action::LoseGame(minimal_reference()).lower(),
-            deckmaste_core::Action::LoseGame(deckmaste_core::Reference::This)
+            deckmaste_core::Action::LoseGame(deckmaste_core::Reference::Reg(
+                deckmaste_core::RefId(0)
+            ))
         );
     }
 
@@ -856,7 +886,7 @@ mod tests {
             }
             .lower(),
             deckmaste_core::Action::Reveal {
-                what: deckmaste_core::Reference::This,
+                what: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 to: None
             }
         );
@@ -866,7 +896,9 @@ mod tests {
     fn lowers_action_remove_damage() {
         assert_matches!(
             deckmaste_semantics::Action::RemoveDamage(minimal_reference()).lower(),
-            deckmaste_core::Action::RemoveDamage(deckmaste_core::Reference::This)
+            deckmaste_core::Action::RemoveDamage(deckmaste_core::Reference::Reg(
+                deckmaste_core::RefId(0)
+            ))
         );
     }
 
@@ -889,9 +921,9 @@ mod tests {
             })
             .lower(),
             deckmaste_core::Action::DealDamage(
-                deckmaste_core::Reference::This,
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::Count::X,
-                deckmaste_core::Reference::This
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
             )
         );
     }
@@ -972,7 +1004,9 @@ mod tests {
     fn lowers_copy_retarget_targets_that() {
         assert_matches!(
             deckmaste_semantics::CopyRetarget::TargetsThat(minimal_reference()).lower(),
-            deckmaste_core::CopyRetarget::TargetsThat(deckmaste_core::Reference::This)
+            deckmaste_core::CopyRetarget::TargetsThat(deckmaste_core::Reference::Reg(
+                deckmaste_core::RefId(0)
+            ))
         );
     }
 }

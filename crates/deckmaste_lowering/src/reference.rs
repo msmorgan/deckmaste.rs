@@ -9,16 +9,18 @@ impl Lower for deckmaste_semantics::Reference {
     fn lower(self) -> <Self as Lower>::Target {
         match self {
             Self::This => crate::region::source().map_or(
-                deckmaste_core::Reference::This,
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::Reference::Reg,
             ),
             Self::Single(f0) => deckmaste_core::Reference::Single(f0.lower()),
             Self::You => crate::region::controller().map_or(
-                deckmaste_core::Reference::You,
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(1)),
                 deckmaste_core::Reference::Reg,
             ),
             Self::Opponent => crate::region::controller().map_or(
-                deckmaste_core::Reference::Opponent,
+                deckmaste_core::Reference::OpponentOf(std::sync::Arc::new(
+                    deckmaste_core::Reference::Reg(deckmaste_core::RefId(1)),
+                )),
                 |controller| {
                     deckmaste_core::Reference::OpponentOf(std::sync::Arc::new(
                         deckmaste_core::Reference::Reg(controller),
@@ -27,23 +29,25 @@ impl Lower for deckmaste_semantics::Reference {
             ),
             Self::It => deckmaste_core::Reference::It,
             Self::Target(index) => crate::region::target(index).map_or(
-                deckmaste_core::Reference::Target(index),
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(
+                    6 + u32::try_from(index).expect("target index fits u32"),
+                )),
                 deckmaste_core::Reference::Reg,
             ),
             Self::EventObject => crate::region::event_object().map_or(
-                deckmaste_core::Reference::EventObject,
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(2)),
                 deckmaste_core::Reference::Reg,
             ),
             Self::EventPatient => crate::region::event_patient().map_or(
-                deckmaste_core::Reference::EventPatient,
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(3)),
                 deckmaste_core::Reference::Reg,
             ),
             Self::EventActor => crate::region::event_actor().map_or(
-                deckmaste_core::Reference::EventActor,
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(4)),
                 deckmaste_core::Reference::Reg,
             ),
             Self::DefendingPlayer => crate::region::defending_player().map_or(
-                deckmaste_core::Reference::DefendingPlayer,
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(5)),
                 deckmaste_core::Reference::Reg,
             ),
             Self::That(f0) => deckmaste_core::Reference::That(f0.lower()),
@@ -81,7 +85,7 @@ mod tests {
     fn lowers_reference_this() {
         assert_matches!(
             deckmaste_semantics::Reference::This.lower(),
-            deckmaste_core::Reference::This
+            deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
         );
     }
 
@@ -98,7 +102,7 @@ mod tests {
     fn lowers_reference_you() {
         assert_matches!(
             deckmaste_semantics::Reference::You.lower(),
-            deckmaste_core::Reference::You
+            deckmaste_core::Reference::Reg(deckmaste_core::RefId(1))
         );
     }
 
@@ -106,7 +110,7 @@ mod tests {
     fn lowers_reference_opponent() {
         assert_matches!(
             deckmaste_semantics::Reference::Opponent.lower(),
-            deckmaste_core::Reference::Opponent
+            deckmaste_core::Reference::OpponentOf(_)
         );
     }
 
@@ -130,7 +134,7 @@ mod tests {
     fn lowers_reference_event_object() {
         assert_matches!(
             deckmaste_semantics::Reference::EventObject.lower(),
-            deckmaste_core::Reference::EventObject
+            deckmaste_core::Reference::Reg(deckmaste_core::RefId(2))
         );
     }
 
@@ -138,7 +142,7 @@ mod tests {
     fn lowers_reference_event_patient() {
         assert_matches!(
             deckmaste_semantics::Reference::EventPatient.lower(),
-            deckmaste_core::Reference::EventPatient
+            deckmaste_core::Reference::Reg(deckmaste_core::RefId(3))
         );
     }
 
@@ -146,7 +150,7 @@ mod tests {
     fn lowers_reference_event_actor() {
         assert_matches!(
             deckmaste_semantics::Reference::EventActor.lower(),
-            deckmaste_core::Reference::EventActor
+            deckmaste_core::Reference::Reg(deckmaste_core::RefId(4))
         );
     }
 
@@ -154,7 +158,7 @@ mod tests {
     fn lowers_reference_defending_player() {
         assert_matches!(
             deckmaste_semantics::Reference::DefendingPlayer.lower(),
-            deckmaste_core::Reference::DefendingPlayer
+            deckmaste_core::Reference::Reg(deckmaste_core::RefId(5))
         );
     }
 
@@ -235,7 +239,7 @@ mod tests {
                 value: Box::new(minimal_reference())
             })
             .lower(),
-            deckmaste_core::Reference::This
+            deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
         );
     }
 }

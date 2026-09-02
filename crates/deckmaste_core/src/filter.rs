@@ -251,7 +251,7 @@ impl Predicate {
     /// "~ itself" predicate rendering and the replacement layer test for.
     #[must_use]
     pub fn is_this(&self) -> bool {
-        matches!(self, Predicate::Ref(Reference::This))
+        matches!(self, Predicate::Ref(Reference::Reg(crate::RefId(0))))
     }
 }
 

@@ -200,7 +200,7 @@ fn mana_cylix_fixture() -> Arc<Card> {
                 condition: None,
                 limits: Arc::from([]),
                 effect: OneShotEffect::Act(CoreAction::AddMana(
-                    Reference::You,
+                    Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(1),
                     ManaSpec::AnyColor.into(),
                 ))
@@ -251,9 +251,11 @@ fn vanilla_creature(name: &str, power: i32) -> Arc<Card> {
 }
 
 fn discard_two_cost() -> CostComponent {
-    let CoreAction::Composite { name, body } =
-        CoreAction::discard(Reference::You, deckmaste_core::Count::Literal(2), false)
-    else {
+    let CoreAction::Composite { name, body } = CoreAction::discard(
+        Reference::Reg(deckmaste_core::RefId(1)),
+        deckmaste_core::Count::Literal(2),
+        false,
+    ) else {
         unreachable!()
     };
     let OneShotEffect::With(with) = body.as_ref() else { unreachable!() };
@@ -378,7 +380,7 @@ fn fulfillment_stays_in_flight_until_its_finish_sentinel() {
 #[test]
 fn deferred_library_iou_waits_for_the_ordinary_tier() {
     let library_move = CostComponent::do_action(CoreAction::Move(
-        Reference::This,
+        Reference::Reg(deckmaste_core::RefId(0)),
         Destination::Zone(Zone::Exile),
         Arc::from([]),
         Some(Zone::Library),
@@ -466,7 +468,7 @@ fn choose_one_cost(filter: Predicate, actions: Vec<CoreAction>) -> CostComponent
     CostComponent::ChooseAndPay {
         binder: Arc::new(Binder::ChooseOne {
             filter,
-            by: Reference::You,
+            by: Reference::Reg(deckmaste_core::RefId(1)),
         }),
         body: Cost(
             actions
@@ -484,7 +486,7 @@ fn choose_and_pay_preflights_the_entire_bound_body() {
         vec![
             Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
             Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
             )))),
         ]
         .into(),
@@ -521,7 +523,7 @@ fn choose_and_pay_preflight_accounts_for_zone_change_remint() {
         vec![
             Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
             Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
             )))),
         ]
         .into(),
@@ -574,7 +576,10 @@ fn choose_and_pay_rejects_sacrificing_an_opponents_permanent() {
     let bound = Reference::That(deckmaste_core::Sort::Card);
     let cost = choose_one_cost(
         Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-        vec![CoreAction::Sacrifice(Reference::You, bound)],
+        vec![CoreAction::Sacrifice(
+            Reference::Reg(deckmaste_core::RefId(1)),
+            bound,
+        )],
     );
     let (mut state, payer, source) = activation_fixture_with_extras(
         vec![cost],
@@ -666,7 +671,7 @@ fn tap_total_enumerates_and_accepts_every_live_satisfying_subset() {
             Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
             Predicate::r#type(Type::Creature),
             Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
             )))),
         ]
         .into(),
@@ -1111,9 +1116,11 @@ fn unaffordable_activation_is_still_a_legal_proposal() {
 }
 
 fn random_discard_two_cost() -> CostComponent {
-    let CoreAction::Composite { name, body } =
-        CoreAction::discard(Reference::You, deckmaste_core::Count::Literal(2), true)
-    else {
+    let CoreAction::Composite { name, body } = CoreAction::discard(
+        Reference::Reg(deckmaste_core::RefId(1)),
+        deckmaste_core::Count::Literal(2),
+        true,
+    ) else {
         unreachable!()
     };
     let OneShotEffect::With(with) = body.as_ref() else { unreachable!() };
@@ -1248,8 +1255,8 @@ fn omitted_random_cost_advances_rng_before_a_retained_shuffle() {
     let move_from_library = CostComponent::ChooseAndPay {
         binder: Arc::new(Binder::SearchOne {
             filter: Predicate::Any,
-            by: Reference::You,
-            whose: Reference::You,
+            by: Reference::Reg(deckmaste_core::RefId(1)),
+            whose: Reference::Reg(deckmaste_core::RefId(1)),
             from: vec![Zone::Library].into(),
             if_none: None,
         }),
@@ -1275,7 +1282,7 @@ fn omitted_random_cost_advances_rng_before_a_retained_shuffle() {
                     cause: None,
                 },
                 also: OneShotEffect::Act(CoreAction::Shuffle(
-                    deckmaste_core::Selection::LibraryOf(Reference::You),
+                    deckmaste_core::Selection::LibraryOf(Reference::Reg(deckmaste_core::RefId(1))),
                 )),
             },
         )))],
@@ -1445,8 +1452,8 @@ fn search_cost_validates_and_runs_an_explicit_complete_witness() {
     let search = CostComponent::ChooseAndPay {
         binder: Arc::new(Binder::SearchOne {
             filter: Predicate::Any,
-            by: Reference::You,
-            whose: Reference::You,
+            by: Reference::Reg(deckmaste_core::RefId(1)),
+            whose: Reference::Reg(deckmaste_core::RefId(1)),
             from: Arc::from([Zone::Hand]),
             if_none: None,
         }),
@@ -1506,8 +1513,8 @@ fn plural_library_search_cost_is_deferred_and_requires_the_complete_set() {
                 Some(deckmaste_core::Count::Literal(2)),
             ),
             filter: Predicate::Any,
-            by: Reference::You,
-            whose: Reference::You,
+            by: Reference::Reg(deckmaste_core::RefId(1)),
+            whose: Reference::Reg(deckmaste_core::RefId(1)),
             from: Arc::from([Zone::Library]),
             if_none: None,
         }),
@@ -1571,7 +1578,7 @@ fn plural_library_search_cost_is_deferred_and_requires_the_complete_set() {
 fn producer_cost_runs_the_producer_then_binds_its_moved_product() {
     let producer = CostComponent::ChooseAndPay {
         binder: Arc::new(Binder::Produce(Arc::new(CoreAction::Move(
-            Reference::This,
+            Reference::Reg(deckmaste_core::RefId(0)),
             Destination::Zone(Zone::Exile),
             Arc::from([]),
             Some(Zone::Battlefield),
@@ -1606,7 +1613,7 @@ fn producer_cost_runs_the_producer_then_binds_its_moved_product() {
 #[test]
 fn unresolved_choice_cannot_construct_a_runnable_core_act() {
     let malformed = CostComponent::try_do_action(CoreAction::discard(
-        Reference::You,
+        Reference::Reg(deckmaste_core::RefId(1)),
         deckmaste_core::Count::Literal(1),
         false,
     ));
@@ -1621,7 +1628,7 @@ fn random_library_exile_two_cost() -> CostComponent {
         vec![
             Predicate::State(StatePredicate::InZone(Zone::Library)),
             Predicate::Relation(RelationPredicate::Owner(Arc::new(Predicate::Ref(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
             )))),
         ]
         .into(),

@@ -51,7 +51,7 @@ mod tests {
             deckmaste_semantics::Property::Continuous(minimal_reference(), minimal_modification())
                 .lower(),
             deckmaste_core::Property::Continuous(
-                deckmaste_core::Reference::This,
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::Modification::Power(deckmaste_core::NumericOp::Set(
                     deckmaste_core::StatValue::DefinedByAbility
                 ))

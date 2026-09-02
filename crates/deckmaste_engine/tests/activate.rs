@@ -1195,7 +1195,7 @@ fn pinger_fizzles_when_target_dies() {
 /// so a test can isolate the *cost* being performed from the effect.
 fn gain_zero() -> OneShotEffect {
     OneShotEffect::Act(CoreAction::ChangeLife(
-        Reference::You,
+        Reference::Reg(deckmaste_core::RefId(1)),
         LifeOp::Up(Count::Literal(0)),
     ))
 }
@@ -1294,7 +1294,10 @@ fn activated_ability_pays_self_sacrifice_cost() {
         NAME,
         vec![
             CostComponent::Mana("{0}".parse().unwrap()),
-            CostComponent::do_action(CoreAction::Sacrifice(Reference::You, Reference::This)),
+            CostComponent::do_action(CoreAction::Sacrifice(
+                Reference::Reg(deckmaste_core::RefId(1)),
+                Reference::Reg(deckmaste_core::RefId(0)),
+            )),
         ],
     );
     let mut state = cost_game(7, &card);
@@ -1332,7 +1335,7 @@ fn activated_ability_pays_life_cost() {
         vec![
             CostComponent::Mana("{0}".parse().unwrap()),
             CostComponent::do_action(CoreAction::ChangeLife(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Down(Count::Literal(2)),
             )),
         ],
@@ -1383,7 +1386,7 @@ fn activated_ability_pays_loyalty_plus_cost() {
         vec![
             CostComponent::Mana("{0}".parse().unwrap()),
             CostComponent::do_action(CoreAction::PutCounters(
-                Reference::This,
+                Reference::Reg(deckmaste_core::RefId(0)),
                 "LoyaltyCounter".into(),
                 Count::Literal(2),
             )),
@@ -1427,7 +1430,7 @@ fn activated_ability_pays_loyalty_minus_cost() {
         vec![
             CostComponent::Mana("{0}".parse().unwrap()),
             CostComponent::do_action(CoreAction::RemoveCounters(
-                Reference::This,
+                Reference::Reg(deckmaste_core::RefId(0)),
                 "LoyaltyCounter".into(),
                 Count::Literal(2),
             )),
@@ -1473,7 +1476,7 @@ fn activated_ability_announces_and_pays_nonmana_x_cost() {
         vec![
             CostComponent::Mana("{0}".parse().unwrap()),
             CostComponent::do_action(CoreAction::RemoveCounters(
-                Reference::This,
+                Reference::Reg(deckmaste_core::RefId(0)),
                 "LoyaltyCounter".into(),
                 Count::X,
             )),
@@ -1560,11 +1563,11 @@ fn activated_ability_pays_choose_sacrifice_cost() {
             CostComponent::ChooseAndPay {
                 binder: Arc::new(deckmaste_core::Binder::ChooseOne {
                     filter: creature_filter,
-                    by: Reference::You,
+                    by: Reference::Reg(deckmaste_core::RefId(1)),
                 }),
                 body: deckmaste_core::Cost(
                     vec![CostComponent::do_action(CoreAction::Sacrifice(
-                        Reference::You,
+                        Reference::Reg(deckmaste_core::RefId(1)),
                         Reference::That(deckmaste_core::Sort::Permanent),
                     ))]
                     .into(),

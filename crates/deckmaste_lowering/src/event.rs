@@ -1030,7 +1030,7 @@ mod tests {
             }
             .lower(),
             deckmaste_core::EventFilter::Used {
-                of: deckmaste_core::Reference::This
+                of: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
             }
         );
     }
@@ -1174,7 +1174,9 @@ mod tests {
     fn lowers_event_filter_before() {
         assert_matches!(
             deckmaste_semantics::EventFilter::Before(minimal_reference()).lower(),
-            deckmaste_core::EventFilter::Before(deckmaste_core::Reference::This)
+            deckmaste_core::EventFilter::Before(deckmaste_core::Reference::Reg(
+                deckmaste_core::RefId(0)
+            ))
         );
     }
 

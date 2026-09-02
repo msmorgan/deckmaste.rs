@@ -8,7 +8,7 @@
 //! (`Raise(LandPlaysPerTurn, 1)`, [CR#305.2]) and Reliquary Tower
 //! (`NoMax(HandSizeLimit)`, [CR#402.2]).
 //!
-//! Scope today: `Reference::You` resolves to the source permanent's controller
+//! Scope today: `Reference::Reg(deckmaste_core::RefId(1))` resolves to the source permanent's controller
 //! (the "you" default both cards use); other player references and dynamic
 //! (non-literal) `Count` magnitudes are documented seams that need the
 //! resolve-time `Frame` machinery (`engine-resolve-effects`).
@@ -43,7 +43,7 @@ fn literal(count: &Count) -> Int {
 /// `Frame` and are skipped (a documented seam).
 fn resolve_player_ref(reference: &Reference, controller: PlayerId) -> Option<PlayerId> {
     match *reference {
-        Reference::You => Some(controller),
+        Reference::Reg(deckmaste_core::RefId(1)) => Some(controller),
         _ => None,
     }
 }
@@ -202,7 +202,7 @@ mod tests {
             name: "Test Player Static".into(),
             types: vec![Type::Enchantment.def()],
             abilities: vec![Ability::r#static(StaticEffect::ModifyPlayer(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 pmod,
             ))],
             ..CardFace::default()
@@ -266,7 +266,7 @@ mod tests {
             name: "Exploring Back".into(),
             types: vec![Type::Enchantment.def()],
             abilities: vec![Ability::r#static(StaticEffect::ModifyPlayer(
-                Reference::You,
+                Reference::Reg(deckmaste_core::RefId(1)),
                 PlayerMod::Raise(PlayerAttr::LandPlaysPerTurn, Count::Literal(1)),
             ))],
             ..CardFace::default()

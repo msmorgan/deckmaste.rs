@@ -422,7 +422,7 @@ mod tests {
         assert_matches!(
             deckmaste_semantics::Count::StatOf(minimal_reference(), minimal_stat()).lower(),
             deckmaste_core::Count::StatOf(
-                deckmaste_core::Reference::This,
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::Stat::Power
             )
         );
@@ -434,7 +434,7 @@ mod tests {
             deckmaste_semantics::Count::PlayerStatOf(minimal_reference(), minimal_player_attr())
                 .lower(),
             deckmaste_core::Count::PlayerStatOf(
-                deckmaste_core::Reference::This,
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::PlayerAttr::Life
             )
         );
@@ -444,7 +444,9 @@ mod tests {
     fn lowers_count_opponents() {
         assert_matches!(
             deckmaste_semantics::Count::Opponents(minimal_reference()).lower(),
-            deckmaste_core::Count::Opponents(deckmaste_core::Reference::This)
+            deckmaste_core::Count::Opponents(deckmaste_core::Reference::Reg(
+                deckmaste_core::RefId(0)
+            ))
         );
     }
 
@@ -573,7 +575,9 @@ mod tests {
     fn lowers_count_targets_of() {
         assert_matches!(
             deckmaste_semantics::Count::TargetsOf(minimal_reference()).lower(),
-            deckmaste_core::Count::TargetsOf(deckmaste_core::Reference::This)
+            deckmaste_core::Count::TargetsOf(deckmaste_core::Reference::Reg(
+                deckmaste_core::RefId(0)
+            ))
         );
     }
 
@@ -645,7 +649,7 @@ mod tests {
     fn lowers_count_damage() {
         assert_matches!(
             deckmaste_semantics::Count::Damage(minimal_reference()).lower(),
-            deckmaste_core::Count::Damage(deckmaste_core::Reference::This)
+            deckmaste_core::Count::Damage(deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)))
         );
     }
 
@@ -653,7 +657,9 @@ mod tests {
     fn lowers_count_mana_available() {
         assert_matches!(
             deckmaste_semantics::Count::ManaAvailable(minimal_reference()).lower(),
-            deckmaste_core::Count::ManaAvailable(deckmaste_core::Reference::This)
+            deckmaste_core::Count::ManaAvailable(deckmaste_core::Reference::Reg(
+                deckmaste_core::RefId(0)
+            ))
         );
     }
 
@@ -666,7 +672,7 @@ mod tests {
             )
             .lower(),
             deckmaste_core::Count::ManaAvailableKind(
-                deckmaste_core::Reference::This,
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::ColorOrColorless::Colorless,
             )
         );
