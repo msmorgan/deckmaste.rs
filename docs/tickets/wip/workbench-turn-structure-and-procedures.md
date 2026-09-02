@@ -416,3 +416,110 @@ Standard constraints apply.
   you may begin the game with it on the battlefield", 17 supported cards, a
   pregame opening-hand action [CR#103.6] region, not a small carrier. Leyline of
   Transformation's ascription line already writes.
+
+## As landed (round of 2026-09-02)
+
+Every count below was re-measured this round over `jq 'select(.supported)'`;
+where it differs from the inventory above, the corrected figure is the one to
+carry forward.
+
+### Rows minted
+
+- **`TurnPart.BeginningPhase`** — the added beginning phase, 3 lines
+  (Cyclonus, Shadow of the Second Sun, Sphinx of the Second Sun). SPHINX OF
+  THE SECOND SUN benches whole.
+- **`Owner.EachOthers`** — the other-marked quantifier possessor, one cell,
+  reused by the untap grant rather than minted privately for it.
+- **`Effect.GetsAdditionalPart`** — the "you get" frame as a SECOND ROW,
+  [CR#500.10a]. 3 lines. OBEKA, SPLITTER OF SECONDS and PARADOX HAZE bench
+  whole; The Ninth Doctor's clause as a fragment. Obeka's variable count
+  rides the shared `Amount` (`ThatMuch` off its own header). The anchor is
+  NOT a slot: all three write the deictic "after this step/phase".
+- **`Effect.SkipsAllOf`** — the quantified part. EMPTY CITY RUSE and FALSE
+  PEACE bench whole.
+- **`StaticEffect.UntapsDuringStep`** — the recurring untap grant, 14 lines
+  (the ticket said 12). Windowed by `OnlyDuring UntapStep (Just EachOthers)`,
+  not by a private slot. SEEDBORN MUSE, UNWINDING CLOCK, DRUMBELLOWER and
+  THOUSAND MOONS INFANTRY bench whole.
+- **`StaticEffect.MayBlockAdditional`** — the block allowance, an OBJECT row
+  beside the player one, 30 supported cards (the ticket said 31 sentences;
+  the 31st is Camouflage's predicate read "creatures that can block
+  additional creatures", a different construction). Window derived, quantity
+  bound copied from the land cell. FORIYSIAN BRIGADE, TWO-HEADED GIANT OF
+  FORIYS, HIGH GROUND and WATCHER IN THE WEB bench whole.
+- **`AbilityAt.MayBeginOnBattlefield`** — the pregame opening-hand action
+  [CR#103.6,103.6a], a FIFTH ability kind, 17 supported cards writing one
+  sentence. LEYLINE OF THE MEEK and LEYLINE OF VITALITY bench whole.
+- **`Effect.RestartsGame`** — [CR#727.1], minted at its one-line count as the
+  ticket's override directed. Karn's clause as a fragment.
+- **`Repetition.AgainExcludingChosen`** — the Lores' repeat-with-exclusion.
+  Forgotten Lore's first two sentences as a fragment.
+
+### Generalisation
+
+- **`elemIntro`/`ForEachOf` are indexed by the group's `Kind`**, with
+  `elemPayload` minting the member payload the kind fixes (object / player /
+  quality / ability / join). The player element is reached by that index and
+  not by a second row; BLATANT THIEVERY benches whole. The joined arm is
+  admitted by the same index — the closure table's "no binding possible"
+  reason is gone and there is nothing left to pin. The 237/220 wider surface
+  stays out.
+
+### Premises corrected
+
+- **There is no `SkipCount` closed table.** `SkipsNext` has always taken an
+  `Amount`, and `Amount` has `LetterVal`, so "their next X turns" was never
+  refused. Ral Zarek, Guest Lecturer's ultimate benches as a fragment
+  (`FlipCoins` + `SkipsNext … (LetterVal X)` + `Define X (CoinsShowing
+  Heads)`); what the card still wants whole is its other three loyalty
+  abilities.
+- **The additional CARD needed no row.** 23 supported cards over 15 lines;
+  the word is an adverbial on the draw the draw step already performs
+  [CR#504.1]. RITES OF FLOURISHING benches whole on `Draw` plus the landed
+  land allowance.
+- **The second introducer is 7 cards, not 2** (Azor, Emrakul, Mindslaver,
+  Oracle en-Vec, Sorin Markov, Sphinx's Decree, Worst Fears), and five of
+  them want a next-turn window on a CONTROL GRANT rather than a turn mention
+  from `ExtraTurn`. It is not one prepend from the built reader.
+- **The would-worded skip is 6 cards, not 4** — the extra-turn form is
+  written by four (Gerrard's Hourglass Pendant, Stranglehold, Trouble in
+  Pairs, Ugin's Nexus), not two.
+- **The repeated schema is 4 filled-slot cards, not 6**; no supported card
+  named Linessa writes it.
+- **The additional TIME is not an allowance sibling.** All 32 lines of the
+  trigger multiplier (35 cards) are conditional replacements over a
+  triggering event, so the cell belongs to `Intercepts` with an
+  ability-valued subject, not beside the land and block allowances.
+
+### Bundles
+
+- **Pile partitions: NOT taken, and not sliced.** Re-measured at 41 supported
+  cards. The naming ruling has opened it. Design pointer for whoever takes
+  it: the partition machinery already exists — `theRestOk`, `partsTaken`,
+  `countedGroupSize` and `groupSpent` in `Words.idr`, `SomeOf` for "one of
+  those piles", and `TheOther` for "return the other to the battlefield"
+  verbatim. The cost is a `PileP` payload and a `PileW` word (so "that card"
+  cannot read a pile) — roughly a hundred mechanical clauses across
+  `wordReaches`, the `payload*` family and `samePayload` — plus the
+  partition row. Death or Glory and Fact or Fiction are the two-sentence
+  whole cards waiting on it.
+- **The secret-choice and voting pair: NOT taken.** 17 supported cards write
+  "secretly", 39 write a vote. Menacing Ogre wants a secrecy marking on
+  `Choose`, the reveal, and "each player with the highest number" (an
+  aggregate predicate over a chosen quality); the vote arm wants a ballot,
+  per-option vote counts and "the voter".
+- The draft, bidding and end-the-turn bundles were not opened.
+
+### Remainders
+
+The full residue list, with this round's counts and each blocker named, is in
+`idris/src/Experimental/Cards.idr` under "The turn schedule's residues,
+re-measured 2026-09-02 and not built": the ordinal anchor, the second
+introducer, "during that turn", Savor the Moment, Emrakul's fronted anchor,
+the for-each multiplier, the class-of-turns read, the would-worded skip, the
+windowed scheduled skip, the draw-event six, the additional time, Fastbond,
+the joined element's two cards, the repeated schema, the loop's forward
+announcement, and the two opening-hand residues (Gemstone Caverns,
+Quicksilver).
+
+`badAnyNumberOfAdditionalLands` was not touched and still refuses.

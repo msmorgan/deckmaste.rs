@@ -17474,3 +17474,137 @@ alluringSuitorPump =
 -- is True and the table's own docstring names Luxior, Giada's Gift as the
 -- printing that opened it. Re-measured 2026-09-02: "equipped permanent" 1
 -- line, "equipped planeswalker" 0, "enchanted permanent" 105.
+--
+-- ---------------------------------------------------------------------------
+-- The turn schedule's residues, re-measured 2026-09-02 and not built.
+-- ---------------------------------------------------------------------------
+--
+-- THE ORDINAL ANCHOR, 1: World at War's "After the second main phase this
+-- turn". `AdditionalPart`'s anchor is a `TurnPart` and an ordinal over a
+-- turn's parts is a second surface; the sentence additionally reads the
+-- ADDED combat back ("at the beginning of that combat"), a deixis asked at
+-- a PART where `TurnRef`/`ThatTurns` is asked at a turn. Both halves are
+-- one round's work and neither is bought by one card.
+--
+-- THE TURN MENTION'S SECOND INTRODUCER, 7 supported cards -- Azor the
+-- Lawbringer, Emrakul the Promised End, Mindslaver, Oracle en-Vec, Sorin
+-- Markov, Sphinx's Decree, Worst Fears. The ticket's inventory said 2; the
+-- adverbial "during that player's next turn" is written by seven, five of
+-- them control-granting lines that want no extra turn at all. So the
+-- introducer is not one prepend away from the built reader: what those five
+-- want is a NEXT-TURN window on a control grant, which is `Duration`'s
+-- question and not `ExtraTurn`'s. Recorded as the corrected count.
+--
+-- "DURING THAT TURN", 2: Alchemist's Gambit, Kang the Conqueror. A
+-- demonstrative on the PART rather than a possessive determiner before it,
+-- so `Owner` is the wrong slot and the cell is `Timing`/`Duration`'s.
+--
+-- SAVOR THE MOMENT's "the untap step of that turn", 1. `SkipsNext` derives
+-- its possessive from the SUBJECT by design; a turn slot here is a second
+-- surface, not a cell.
+--
+-- EMRAKUL'S FRONTED ANCHOR, 1: "After that turn, that player takes an extra
+-- turn" -- the one sentence that does not write "after this one".
+--
+-- THE FOR-EACH MULTIPLIER, 3: Ral Zarek, Expropriate, Sage of Hours. A
+-- scaling adverbial over a count of one, NOT a third count cell on
+-- `ExtraTurn`; all three are additionally blocked on their own clause (a
+-- coin count, a vote count, a per-five counter count).
+--
+-- THE EXTRA TURN AS A CLASS OF TURNS, 1: Medomai the Ageless's "Medomai
+-- can't attack during extra turns". It READS extra turns rather than
+-- creating one, and is a `TriggerWindow`/restriction question; folding it
+-- into `ExtraTurn` would put a description in a creation row.
+--
+-- THE WOULD-WORDED SKIP, 6 supported cards -- Fasting, Time Vault,
+-- Gerrard's Hourglass Pendant, Stranglehold, Trouble in Pairs, Ugin's
+-- Nexus. The ticket's inventory said 4; the extra-turn form is written by
+-- four cards, not two. All six want a BEGINS-A-STEP/TURN event for
+-- `Intercepts` to watch, which no `GameEvent` row supplies, and the four
+-- extra-turn ones additionally want the extra turn as a DESCRIPTION rather
+-- than as a creation ([CR#500.7] is the rule that knows one).
+--
+-- THE WINDOWED SCHEDULED SKIP, 3: Elfhame Sanctuary ("your draw step this
+-- turn"), Moment of Silence ("their next combat phase this turn", window
+-- AND "next"), Fatespinner ("each instance of the chosen step or phase this
+-- turn"). `SkipsNext` and `Skips` take no window; Fatespinner additionally
+-- wants a chosen turn part, which `QualitySort` has no sort for.
+--
+-- THE DRAW-EVENT SKIP, 6 (Island Sanctuary, Living Conundrum, Notion Thief,
+-- Obstinate Familiar, Plagiarize, Possessed Portal): an EVENT skip and not
+-- a turn part's, ledgered with the interception. The landed skip rows take
+-- a `TurnPart` and reach none of the six.
+--
+-- THE ADDITIONAL TIME, 35 supported cards over 32 distinct lines: "that
+-- ability triggers an additional time" (Panharmonicon's family) and "while
+-- voting, you may vote an additional time" (3). The trigger multiplier is
+-- not an allowance at a third subject sort: every one of the 32 lines is a
+-- CONDITIONAL replacement over a triggering event ("if a creature entering
+-- the battlefield causes a triggered ability of a permanent you control to
+-- trigger, that ability triggers an additional time"), so what it wants is
+-- an ability-valued subject inside `Intercepts` and not a sibling of the
+-- land and block allowances. The vote arm waits on the voting bundle.
+--
+-- THE ADDITIONAL CARD needed NO row and is landed as spelling: 23 supported
+-- cards over 15 lines write "draws an additional card", and the word is an
+-- adverbial on the draw the draw step already performs [CR#504.1]. Rites of
+-- Flourishing benches whole on `Draw` plus the landed land allowance.
+--
+-- FASTBOND's "you may play any number of lands on each of your turns", 1:
+-- the UNBOUNDED allowance, which drops the word "additional" and states the
+-- whole number rather than increasing it. `badAnyNumberOfAdditionalLands`
+-- still refuses it and this round did not touch that pin. Nahiri's
+-- Lithoforming's "you may play X additional lands this turn" is admitted
+-- and has been since the land row's quantity gate became a delta test.
+--
+-- THE JOINED ELEMENT, 2: Kaboom! and Soulfire Eruption. `ForEachOf`'s kind
+-- index now admits a joined group -- `elemPayload`'s `PhJoin` row mints
+-- each half its own payload -- so there is nothing left to pin here. Both
+-- cards stay blocked on their PAYLOADS: Kaboom! on "choose a number greater
+-- than 0" read back by an unless-reveal comparison, Soulfire Eruption on
+-- its damage-and-exile body.
+--
+-- THE REPEATED SCHEMA, 4 supported cards with a FILLED slot -- Equipoise,
+-- Firemind's Foresight, Invoke Despair, Kathril -- plus Protection Racket's
+-- forward-announced one. (The ticket's inventory said 6 and named Linessa;
+-- no supported card of that name writes it.) Nothing abstracts a slot out
+-- of a written process and refills it, and PROTECTION RACKET STILL DOES NOT
+-- COMPOSE WITH `ForEachOf`, re-checked after this round's kind index: the
+-- iteration is ORDERED ("in turn order"), which no `ForEachOf` says, and
+-- the process is stated forward across the four sentences that follow.
+--
+-- THE LOOP'S FORWARD ANNOUNCEMENT, 2: Torment of Hailfire and Protection
+-- Racket. `Repeat` stays a LEAF and not a container, and the 20-of-44
+-- conditional-consequent count is unanswered by these two: a body-carrying
+-- loop would have to restate the gate as a termination phrase on every one
+-- of those 20. Torment of Hailfire is additionally blocked on a disjunctive
+-- alternative payment ("unless that player sacrifices a nonland permanent
+-- of their choice OR discards a card").
+--
+-- THE PILE-PARTITION BUNDLE, 41 supported cards write "pile" -- NOT taken
+-- this round, and not sliced. The naming ruling has opened it (piles are
+-- never named; every read is positional or by the chooser), and the design
+-- it lands on is already here: `theRestOk`/`partsTaken`/`countedGroupSize`
+-- are a worked partition machinery, `SomeOf` is "one of those piles", and
+-- `TheOther` is "return the other to the battlefield" verbatim. What it
+-- costs is a `PileP` payload and a `PileW` word so that "that card" cannot
+-- read a pile -- roughly a hundred mechanical clauses across `wordReaches`,
+-- `payload*` and `samePayload` -- plus the partition row itself. Death or
+-- Glory ([CR#700.3c] keeps its piles in the GRAVEYARD, so this is not the
+-- library search gap) and Fact or Fiction are the two-sentence whole cards
+-- waiting on it.
+--
+-- THE SECRET-CHOICE AND VOTING PAIR, 17 supported cards write "secretly"
+-- and 39 write a vote -- NOT taken this round. Menacing Ogre wants a
+-- secrecy marking on `Choose`, the reveal of what was chosen, and "each
+-- player with the highest number", an aggregate predicate over a chosen
+-- quality; the vote arm wants a ballot, the per-option vote counts, and
+-- "the voter". Both are whole procedures and neither is a row.
+--
+-- GAME RESTART is minted regardless of its one-line count: `RestartsGame`,
+-- with Karn Liberated's [CR#727.5] exemption rider as the one gap.
+--
+-- THE OPENING-HAND RESIDUES, 2: Gemstone Caverns (a second condition, an
+-- entry rider and a follow-up) and Quicksilver, Brash Blur (its own name
+-- and "him" for "this card" and "it"). Both sit beside the 17 Leylines the
+-- landed row spells and neither is a slot on it.

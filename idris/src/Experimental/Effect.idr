@@ -2630,7 +2630,8 @@ mutual
     ||| its honest count because a procedure the rules give a section of
     ||| their own to is not a carrier: the restarted game "immediately
     ||| ends", no player wins, loses or draws it, and all its players
-    ||| then start a new game by the starting procedure [CR#103.1].
+    ||| then start a new game by the start-of-game procedure that
+    ||| begins at [CR#103.1].
     ||| Nullary. The one printed line's rider -- "leaving in exile all
     ||| non-Aura permanent cards exiled with Karn" -- is [CR#727.5]'s
     ||| exemption ("effects may exempt certain cards from the procedure
@@ -3353,11 +3354,12 @@ mutual
     ||| nothing at all. The subject is written and never derived: Paradox
     ||| Haze says it of "that player" where the other two say "you".
     ||| The ANCHOR is not a slot. All three lines write the deictic
-    ||| "after this step" / "after this phase", which [CR#500.8] and
-    ||| [CR#500.9] read as the part the ability is resolving in; which of
-    ||| the two sort words is printed follows from that part and is
-    ||| spelling, exactly as it is on `AdditionalPart`. No supported
-    ||| "you get" line names its anchor.
+    ||| "after this step" / "after this phase". [CR#500.8] and
+    ||| [CR#500.9] both add relative to a SPECIFIED phase or step, and
+    ||| what the demonstrative specifies is the part the ability is
+    ||| resolving in; which of the two sort words is printed follows
+    ||| from that part and is spelling, exactly as it is on
+    ||| `AdditionalPart`. No supported "you get" line names its anchor.
     ||| Obeka's variable count rides the shared `Amount`, reading the
     ||| combat damage its own header announced.
     ||| -- spelling: "[who] get(s) [count] additional [part](s) after
