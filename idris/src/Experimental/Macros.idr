@@ -2534,6 +2534,29 @@ eventCountFrom ev who w what src =
   EventCount ev who w
     (Just (FromZones src (Just (Involving what {cp})) {pl} {ok = zo})) {cw} {sb}
 
+||| "if you search your library this way": a lookback condition whose
+||| complement names the zone the act was performed IN.
+public export
+happenedAt : {k : Kind} -> (ev : EventName) -> (who : Noun bs k) ->
+             (w : Lookback) -> (z : ZoneExpr (nomIntro who)) ->
+             {auto 0 zo : So (lookbackLocusOk ev (zoneSort z))} ->
+             {auto 0 cw : ComplementWritten
+                            (Just (AtZone {bs = nomIntro who} {ev} {ks = k}
+                                          z {ok = zo}))} ->
+             {auto 0 sb : LookbackSubject ev k} -> Condition bs
+happenedAt ev who w z = Happened ev who w (Just (AtZone z {ok = zo})) {cw} {sb}
+
+||| "each player who searched their library this way": `happenedAt`'s
+||| relative-clause voice, the same complement read off the subject.
+public export
+happenedToAt : {k : Kind} -> (ev : EventName) -> (w : Lookback) ->
+               (z : ZoneExpr bs) ->
+               {auto 0 zo : So (lookbackLocusOk ev (zoneSort z))} ->
+               {auto 0 cw : ComplementWritten
+                              (Just (AtZone {bs} {ev} {ks = k} z {ok = zo}))} ->
+               {auto 0 sb : LookbackSubject ev k} -> Predicate bs k
+happenedToAt ev w z = HappenedTo ev w (Just (AtZone z {ok = zo})) {cw} {sb}
+
 ||| "At the beginning of enchanted player's upkeep, …": a turn part
 ||| possessed by a noun rather than by a quantifier word.
 public export

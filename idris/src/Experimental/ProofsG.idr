@@ -255,6 +255,32 @@ badNestedDestination : Unspellable (Predicate [] Object) (\ok =>
 badNestedDestination Oh impossible
 
 
+||| "if a creature died in your graveyard this way"
+||| A locus is where an act was PERFORMED, and a death is no act performed in a place: [CR#700.4] makes it a move from the battlefield to a graveyard, whose two ends are an origin and a destination and neither of them a place the act happened in.
+public export
+badLocusOnDeath : Unspellable (Condition []) (\ok =>
+  Happened Death (Macros.a Macros.creature) Lookback.ThisWay
+           (Just (AtZone (Macros.graveyardOf You) {ok = ok})))
+badLocusOnDeath Oh impossible
+
+
+||| "if you searched this way, shuffle"
+||| [CR#701.23a] searches for a card IN A ZONE, so a search that names none names no act -- the same refusal a bare "you discarded" takes for leaving out the card [CR#701.9a].
+public export
+badBareSearchLookback : Unspellable (Condition []) (\ok =>
+  Happened (VerbedAct "Search") You Lookback.ThisWay Nothing {cw = LeftBare {ok}})
+badBareSearchLookback Oh impossible
+
+
+||| "if you shuffled your graveyard this way"
+||| [CR#701.24a] randomizes a LIBRARY or a face-down pile; a graveyard is neither, so the act names it nowhere.
+public export
+badShuffleLocusAtGraveyard : Unspellable (Condition []) (\ok =>
+  Happened (VerbedAct "Shuffle") You Lookback.ThisWay
+           (Just (AtZone (Macros.graveyardOf You) {ok = ok})))
+badShuffleLocusAtGraveyard Oh impossible
+
+
 ||| "if it entered from the battlefield"
 ||| [CR#400.7] makes a zone change a move from one zone to ANOTHER, so the battlefield is the one zone a permanent cannot enter it from.
 public export

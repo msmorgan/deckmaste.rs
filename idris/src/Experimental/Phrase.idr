@@ -302,6 +302,25 @@ mutual
                {auto 0 pl : So (complementSourced what)} ->
                {auto 0 ok : So (lookbackDestOk ev (zoneSort to))} ->
                EventComplement bs ev ks
+    ||| "if you search your library this way", "each player who searched
+    ||| their library this way", "if they search their library this way":
+    ||| the complement's FOURTH payload sort, the zone the act was
+    ||| performed IN. [CR#701.23a] makes a search an act on a named zone
+    ||| rather than on an object, which is why `actPatient` leaves Search
+    ||| empty and why this is not `Involving`; and nothing moves out of
+    ||| the searched zone or into it -- [CR#701.23e] leaves even the
+    ||| reveal to the instructing clause -- which is why it is neither
+    ||| `FromZones` nor `IntoZone`. `lookbackLocusOk` keys which events
+    ||| write it, and a verbed act is the only one that does.
+    ||| It wraps NOTHING. The other two zone sorts wrap because printed
+    ||| English nests them ("your commander from the command zone", "into
+    ||| your graveyard from anywhere"); a locus is written alone in every
+    ||| supported line, the act's participants being its subject and the
+    ||| card the instructing clause names.
+    ||| -- spelling: "[who] search[es|ed] [z] this way".
+    AtZone : (z : ZoneExpr bs) ->
+             {auto 0 ok : So (lookbackLocusOk ev (zoneSort z))} ->
+             EventComplement bs ev ks
 
   public export
   data ComplementWritten : {0 bs : Bindings} -> {0 ev : EventName} ->
@@ -322,6 +341,7 @@ mutual
   complementPlain (Just (Involving _)) = True
   complementPlain (Just (FromZones _ _)) = False
   complementPlain (Just (IntoZone _ _)) = False
+  complementPlain (Just (AtZone _)) = False
 
   ||| What a DESTINATION may wrap: the origin, or a participant. Not a
   ||| second destination -- one clause names one arrival.
@@ -332,6 +352,8 @@ mutual
   complementSourced (Just (Involving _)) = True
   complementSourced (Just (FromZones _ _)) = True
   complementSourced (Just (IntoZone _ _)) = False
+  -- a locus is no origin, so a destination cannot nest one.
+  complementSourced (Just (AtZone _)) = False
 
   ||| Every named zone must be one the event's clause may name as its
   ||| origin, and a coordination that names none is no coordination.
@@ -2987,6 +3009,7 @@ mutual
     sourceDelta src ++ complementDelta what
   complementDelta (Just (IntoZone to what)) =
     zoneDelta to ++ complementDelta what
+  complementDelta (Just (AtZone z)) = zoneDelta z
 
   public export
   zonesDelta : {bs : Bindings} -> List (ZoneExpr bs) -> List Binding

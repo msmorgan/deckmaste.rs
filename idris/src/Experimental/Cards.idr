@@ -2487,7 +2487,10 @@ deadeyeBrawler =
        , Macros.triggeredIf Whenever
                             (DealsCombatDamage Macros.thisCreature (Macros.a AnyPlayer))
                             (Matches You (HasDesignation CitysBlessing))
-                            Macros.drawACard ]
+                            (Sequentially
+              [ Macros.searchLibraryOrGraveyard
+                  (And [Macros.artifact,
+                        Compare [CharAxis ManaValue] AtMost (Lit 2)]) ]) ]
        (Just (2, 4))
 
 chillerpillar : Card
@@ -2712,7 +2715,10 @@ femerefEnchantress =
                           (Macros.putIntoFrom (Macros.a Macros.enchantment)
                                        Macros.graveyardZ
                                        (FromZone [Macros.battlefieldZ]))
-                          Macros.drawACard ]
+                          (Sequentially
+              [ Macros.searchLibraryOrGraveyard
+                  (And [Macros.artifact,
+                        Compare [CharAxis ManaValue] AtMost (Lit 2)]) ]) ]
        (Just (1, 2))
 
 voraciousBrood : Card
@@ -2786,7 +2792,10 @@ tocasiasWelcome =
                                                         (And [Macros.creature, ControlledBy You,
                                                               Compare [CharAxis ManaValue] AtMost (Lit 3)])) Nothing)
                                   OncePerTurn
-                                  Macros.drawACard ]
+                                  (Sequentially
+              [ Macros.searchLibraryOrGraveyard
+                  (And [Macros.artifact,
+                        Compare [CharAxis ManaValue] AtMost (Lit 2)]) ]) ]
        Nothing
 
 duskLegionDuelist : Card
@@ -2799,7 +2808,10 @@ duskLegionDuelist =
                                   (Macros.manyCounterEvent CounterPut Macros.plusOnePlusOne
                                                            Macros.thisCreature)
                                   OncePerTurn
-                                  Macros.drawACard ]
+                                  (Sequentially
+              [ Macros.searchLibraryOrGraveyard
+                  (And [Macros.artifact,
+                        Compare [CharAxis ManaValue] AtMost (Lit 2)]) ]) ]
        (Just (2, 2))
 
 foeLiage : Card
@@ -3667,7 +3679,10 @@ saheeliFiligreeMaster =
                           (SetStatus Tapped
                              (Macros.a (And [Macros.artifact, Macros.untapped,
                                              ControlledBy You])))
-                          Macros.drawACard ])
+                          (Sequentially
+              [ Macros.searchLibraryOrGraveyard
+                  (And [Macros.artifact,
+                        Compare [CharAxis ManaValue] AtMost (Lit 2)]) ]) ])
        , Macros.activated (LoyaltySymbol (LoyaltyDown 2))
                           (Sequentially
                       [ Macros.create (Lit 2)
@@ -7682,7 +7697,10 @@ sageOfFables =
        , Macros.activated (Compound [Mana [Macros.generic 2],
                               Do (RemoveCounters (Macros.exactly 1) (Just Macros.plusOnePlusOne)
                                    (Macros.a (And [Macros.creature, ControlledBy You])))])
-                          Macros.drawACard ]
+                          (Sequentially
+              [ Macros.searchLibraryOrGraveyard
+                  (And [Macros.artifact,
+                        Compare [CharAxis ManaValue] AtMost (Lit 2)]) ]) ]
        (Just (2, 2))
 
 public export
@@ -9195,7 +9213,10 @@ secretsOfTheDead =
        [ Macros.triggered Whenever
            (Casts You (Macros.a (And [Macros.spell,
                                       CastFrom (Macros.graveyardOf You)])) Nothing)
-           Macros.drawACard ]
+           (Sequentially
+              [ Macros.searchLibraryOrGraveyard
+                  (And [Macros.artifact,
+                        Compare [CharAxis ManaValue] AtMost (Lit 2)]) ]) ]
        Nothing
 
 public export
@@ -9243,7 +9264,10 @@ vegaTheWatcher =
        , Macros.triggered Whenever
            (Casts You (Macros.a (And [Macros.spell,
                                       Not (CastFrom (Macros.handOf You))])) Nothing)
-           Macros.drawACard ]
+           (Sequentially
+              [ Macros.searchLibraryOrGraveyard
+                  (And [Macros.artifact,
+                        Compare [CharAxis ManaValue] AtMost (Lit 2)]) ]) ]
        (Just (2, 2))
 
 public export
@@ -10979,7 +11003,10 @@ investigatorsJournal =
                           Macros.drawACard
        , Macros.activated (Compound [Mana [Macros.generic 2],
                               Do (Macros.sacrifice You Macros.thisArtifact)])
-                          Macros.drawACard ]
+                          (Sequentially
+              [ Macros.searchLibraryOrGraveyard
+                  (And [Macros.artifact,
+                        Compare [CharAxis ManaValue] AtMost (Lit 2)]) ]) ]
        Nothing
 
 ||| Cavern-Hoard Dragon's cost rider -- "This spell costs {X} less to cast,
@@ -11944,7 +11971,10 @@ latchkeyFaerie =
            (Mana [Macros.generic 2, Macros.pip Blue])
        , Macros.triggeredIf When (Enters Macros.thisCreature Nothing)
            (Matches Macros.thisCreature (PaidCost (ByKeyword "Prowl") Nothing))
-           Macros.drawACard ]
+           (Sequentially
+              [ Macros.searchLibraryOrGraveyard
+                  (And [Macros.artifact,
+                        Compare [CharAxis ManaValue] AtMost (Lit 2)]) ]) ]
        (Just (3, 1))
 
 ||| Tyrant of Valakut -- "Surge {3}{R}{R} / Flying / When this creature
@@ -12489,7 +12519,10 @@ militaryIntelligence =
        [ Macros.triggered Whenever
            (AttacksWith You NoDefender
                         (CountedGroup (Macros.atLeast 2) Nothing Macros.creature))
-           Macros.drawACard ]
+           (Sequentially
+              [ Macros.searchLibraryOrGraveyard
+                  (And [Macros.artifact,
+                        Compare [CharAxis ManaValue] AtMost (Lit 2)]) ]) ]
        Nothing
 
 ||| Aurelia, the Law Above -- "Flying, vigilance, haste / Whenever a
@@ -12586,7 +12619,10 @@ jemLightfooteSkyExplorer =
            (NotCond (Macros.happenedFrom SpellCast You Lookback.ThisTurn
                        (Macros.a Macros.spell)
                        (FromZone [Macros.handOf You])))
-           Macros.drawACard ]
+           (Sequentially
+              [ Macros.searchLibraryOrGraveyard
+                  (And [Macros.artifact,
+                        Compare [CharAxis ManaValue] AtMost (Lit 2)]) ]) ]
        (Just (3, 3))
 
 -- ---------------------------------------------------------------------------
@@ -12733,7 +12769,10 @@ gnarlbackRhino =
        , Macros.triggered Whenever
            (Casts You (Macros.a (And [Macros.spell,
                                       Targets Macros.thisCreature SomeTarget])) Nothing)
-           Macros.drawACard ]
+           (Sequentially
+              [ Macros.searchLibraryOrGraveyard
+                  (And [Macros.artifact,
+                        Compare [CharAxis ManaValue] AtMost (Lit 2)]) ]) ]
        (Just (4, 4))
 
 ||| Forsaken Wastes's third ability -- "Whenever this enchantment becomes
@@ -14130,21 +14169,31 @@ docAurlockCost =
 ||| for a card named Magnifying Glass and/or a card named Thinking Cap". The
 ||| word twice in one clause, at its two positions, and the round's verdict
 ||| in one line: over ZONES it is the coordination `SomeZones` writes, and
-||| over the DESCRIPTION it is `Or`, which the grammar already had. The card
-||| is not whole -- "If you search your library this way, shuffle" reads
-||| back WHICH zone was searched, and no such reader exists.
+||| over the DESCRIPTION it is `Or`, which the grammar already had.
+||| The tail now writes too: "If you search your library this way,
+||| shuffle" is the LOCUS complement, the zone [CR#701.23a] has the act
+||| look in, read back in the `ThisWay` window.
 public export
 agencyOutfitterSearch : Effect []
 agencyOutfitterSearch =
-  Macros.searchZonesOf You
-    (Or [ Named (PrintedName "Magnifying Glass")
-        , Named (PrintedName "Thinking Cap") ])
+  Sequentially
+    [ Macros.searchZonesOf You
+        (Or [ Named (PrintedName "Magnifying Glass")
+            , Named (PrintedName "Thinking Cap") ])
+    , If (Macros.happenedAt (VerbedAct "Search") You Lookback.ThisWay
+                            Macros.yourLibrary)
+         Macros.shuffle Nothing ]
 
 ||| Delivery Moogle's search -- "search your library and/or graveyard for an
 ||| artifact card with mana value 2 or less, reveal it, and put it into your
-||| hand." The family's commonest arity; Ajani's Aid, Finale of Devastation
-||| and the whole planeswalker-fetch cycle write the same two zones. Blocked
-||| whole by the same which-zone reader.
+||| hand. If you search your library this way, shuffle." The family's
+||| commonest arity; Ajani's Aid, Finale of Devastation and the whole
+||| planeswalker-fetch cycle write the same two zones and the same tail.
+||| The card is still not whole, and no longer for this reader's sake: its
+||| search sits inside an enters trigger, where "reveal IT" has the entering
+||| permanent to compete with and `countOnes Object` refuses the pronoun.
+||| A recency anaphor, not a zone read; Vraska's Scorn writes the same three
+||| clauses whole because its first sentence names a PLAYER.
 public export
 deliveryMoogleSearch : Effect []
 deliveryMoogleSearch =
@@ -14152,7 +14201,39 @@ deliveryMoogleSearch =
     [ Macros.searchLibraryOrGraveyard
         (And [Macros.artifact, Compare [CharAxis ManaValue] AtMost (Lit 2)])
     , Macros.revealCards It
-    , Macros.move It Macros.handZ ]
+    , Macros.move It Macros.handZ
+    , If (Macros.happenedAt (VerbedAct "Search") You Lookback.ThisWay
+                            Macros.yourLibrary)
+         Macros.shuffle Nothing ]
+
+||| Vraska's Scorn, whole -- "Target opponent loses 4 life. You may search
+||| your library and/or graveyard for a card named Vraska, Scheming Gorgon,
+||| reveal it, and put it into your hand. If you search your library this
+||| way, shuffle." The which-zone reader's whole-card witness, and the
+||| shape 62 supported lines write: a multi-zone search whose tail asks
+||| which of the coordinated zones the act was performed in.
+||| The conditional stands OUTSIDE the "you may", where the printed line
+||| puts it: the shuffle is owed whether or not the optional search found
+||| anything, and it is owed only if the library was among the zones looked
+||| in [CR#701.23a].
+public export
+vraskasScorn : Card
+vraskasScorn =
+  Macros.card "Vraska's Scorn"
+       (Just [Macros.generic 2, Macros.pip Black, Macros.pip Black]) []
+       (MkTypeLine [] [Sorcery])
+       [ Spell (Sequentially
+           [ Macros.losesLife (Macros.target Opponent) (Lit 4)
+           , Macros.may You
+               (Sequentially
+                  [ Macros.searchLibraryOrGraveyard
+                      (Named (PrintedName "Vraska, Scheming Gorgon"))
+                  , Macros.revealCards It
+                  , Macros.move It Macros.handZ ])
+           , If (Macros.happenedAt (VerbedAct "Search") You Lookback.ThisWay
+                                   Macros.yourLibrary)
+                Macros.shuffle Nothing ]) ]
+       Nothing
 
 ||| Concussive Bolt, both paragraphs -- "deals 4 damage to target player or
 ||| planeswalker. / Metalcraft — If you control three or more artifacts,
@@ -14827,7 +14908,10 @@ upTheBeanstalk =
            [ Macros.joinedHead Whenever
                (Casts You (Macros.a (And [Macros.spell,
                                           Compare [CharAxis ManaValue] AtLeast (Lit 5)])) Nothing) ]
-           Macros.drawACard ]
+           (Sequentially
+              [ Macros.searchLibraryOrGraveyard
+                  (And [Macros.artifact,
+                        Compare [CharAxis ManaValue] AtMost (Lit 2)]) ]) ]
        Nothing
 
 ||| Autarch Mammoth's printed line -- "When this creature enters and

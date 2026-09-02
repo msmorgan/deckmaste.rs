@@ -671,7 +671,12 @@ bareLookbackOk AbilityActivation Player = False
 -- "you scried this turn" is whole, because [CR#701.22a] gives the act no
 -- patient to leave out. From the patient's own side the act is named
 -- either way.
-bareLookbackOk (VerbedAct v) Player = not (actNamesPatient v)
+-- An act performed on a ZONE drops just as much by leaving it out:
+-- [CR#701.23a] searches a NAMED zone, so a bare "if you searched this
+-- way" leaves out the place, exactly as a bare "you discarded" leaves
+-- out the card. So the cell is both facts, not the patient alone.
+bareLookbackOk (VerbedAct v) Player =
+  not (actNamesPatient v) && not (actNamesLocus v)
 bareLookbackOk (VerbedAct _) Object = True
 -- "target creature that dealt damage this turn", with the recipient
 -- dropped, still names the event: [CR#120.1] makes every deal a deal to
@@ -1445,6 +1450,23 @@ public export
 lookbackDestOk : EventName -> Zone -> Bool
 lookbackDestOk Placement z = placementDestOk z
 lookbackDestOk _ _ = False
+
+||| Which zone an event's clause may name as the place the act was
+||| PERFORMED IN -- "if you search your library this way", "each player
+||| who searched their library this way". Neither an origin nor a
+||| destination: nothing moves out of the searched zone or into it, and
+||| the card the search finds is moved by the instructing clause
+||| [CR#701.23e]. So it is the complement's fourth payload sort and not a
+||| reading of `FromZones`.
+||| Only a verbed act writes one, and which zones it may name is the
+||| ACT's own business rather than the zone's: [CR#701.23a] admits every
+||| zone a search may look in and [CR#701.24a] names the library a
+||| shuffle randomizes, so the table reads `actLoci` and adds no zone
+||| axis of its own.
+public export
+lookbackLocusOk : EventName -> Zone -> Bool
+lookbackLocusOk (VerbedAct v) z = elem z (actLociOf v)
+lookbackLocusOk _ _ = False
 
 public export
 data CastableTy : PlayVerb -> Maybe CardType -> Type where
