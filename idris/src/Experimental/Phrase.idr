@@ -2370,6 +2370,37 @@ mutual
     ||| -- spelling: the two arms joined by "or".
     EitherOf : (l : Noun bs k) -> (r : Noun bs k) ->
                {auto 0 ag : nounPlur l = nounPlur r} -> Noun bs k
+    ||| "you or planeswalkers you control", "you or a planeswalker you
+    ||| control": two mentions of DIFFERENT kinds coordinated by "or".
+    ||| The SIXTH coordination, and the cell the grid `EitherOf`'s
+    ||| docstring names was missing -- `Both` is the cross-kind
+    ||| conjunction, `Joined` the cross-kind head, `EitherOf` and
+    ||| `BothOf` the same-kind pair. It is `EitherOf`'s meaning at
+    ||| `Both`'s kind: both arms are read in the SAME context, they are
+    ||| alternatives rather than a sequence, and the pair writes no joint
+    ||| binding because no constructor builds a `Payload k` out of an
+    ||| arbitrary mention.
+    ||| It is NOT `Both` under a different spelling. A defender is ONE
+    ||| object or player [CR#506.3,508.1b], so "creatures can't attack
+    ||| you or planeswalkers you control" names the alternatives an
+    ||| attack may not pick, where a conjunction would name a pair no
+    ||| attack can be declared against. 48 supported lines write it: 25
+    ||| with the plural right arm (Archangel of Tithes, Norn's Annex,
+    ||| Sphere of Safety, the six Vows, Assault Suit, ...) and 23 with
+    ||| the singular indefinite, 16 of those the attack trigger
+    ||| ("Whenever a creature attacks you or a planeswalker you
+    ||| control").
+    ||| NO AGREEMENT GATE, which is the one place it parts from
+    ||| `EitherOf`: the arms may disagree in number and the printed lines
+    ||| do ("YOU or PLANESWALKERS you control"). The phrase's own number
+    ||| is its arms' where they agree and `ManyOf` where they do not,
+    ||| which is `nounTys (BothOf ...)`'s rule at the other projection --
+    ||| a disjunction of two singulars still names one thing, and one
+    ||| whose arm names many covers many.
+    ||| -- spelling: the two arms joined by "or".
+    EitherJoined : {ka : Kind} -> {kb : Kind} ->
+                   (l : Noun bs ka) -> (r : Noun bs kb) ->
+                   Noun bs (ka \/ kb)
     ||| "target creature and all other creatures with the same name as
     ||| that creature", "target artifact and target land", "their hand
     ||| and graveyard": two mentions of the SAME kind coordinated by
@@ -2740,6 +2771,7 @@ mutual
   nounEqRef (EachOf _) _ = False
   nounEqRef (Both _ _) _ = False
   nounEqRef (EitherOf _ _) _ = False
+  nounEqRef (EitherJoined _ _) _ = False
   nounEqRef (BothOf _ _) _ = False
   nounEqRef (EachOfBoth _) _ = False
   nounEqRef (LibrarySlice _ _ _) _ = False
@@ -2840,6 +2872,7 @@ mutual
   nounDelta (EachOf grp) = nounDelta grp
   nounDelta (Both l r) = nounDelta r ++ nounDelta l
   nounDelta (EitherOf l r) = nounDelta l ++ nounDelta r
+  nounDelta (EitherJoined l r) = nounDelta l ++ nounDelta r
   nounDelta (BothOf l r) = nounDelta r ++ nounDelta l
   nounDelta (EachOfBoth p) = nounDelta p
   nounDelta (LibrarySlice pos amt whose) =
@@ -4041,6 +4074,7 @@ mutual
   anchorPhrase (EachOf _) = False
   anchorPhrase (Both _ _) = False
   anchorPhrase (EitherOf l r) = anchorPhrase l && anchorPhrase r
+  anchorPhrase (EitherJoined l r) = anchorPhrase l && anchorPhrase r
   anchorPhrase (BothOf _ _) = False
   anchorPhrase (EachOfBoth _) = False
   anchorPhrase (LibrarySlice _ _ _) = False
@@ -4106,6 +4140,7 @@ mutual
   choosable (EachOf _) = False
   choosable (Both _ _) = False
   choosable (EitherOf _ _) = False
+  choosable (EitherJoined _ _) = False
   choosable (BothOf _ _) = False
   choosable (EachOfBoth _) = False
   choosable (LibrarySlice _ _ _) = False
@@ -4173,6 +4208,7 @@ mutual
   groupMention (EachOf _) = False
   groupMention (Both _ _) = False
   groupMention (EitherOf _ _) = False
+  groupMention (EitherJoined _ _) = False
   groupMention (BothOf _ _) = False
   groupMention (EachOfBoth _) = False
   groupMention (LibrarySlice _ _ _) = True
@@ -5155,6 +5191,7 @@ mutual
   costNounOk (NamesAgree _ grp) = costNounOk grp
   costNounOk (Both _ _) = False
   costNounOk (EitherOf l r) = costNounOk l && costNounOk r
+  costNounOk (EitherJoined l r) = costNounOk l && costNounOk r
   costNounOk (BothOf _ _) = False
   costNounOk (EachOfBoth _) = False
   costNounOk (LibrarySlice _ _ _) = True
@@ -5201,6 +5238,7 @@ mutual
   nounIsYou (NamesAgree _ _) = False
   nounIsYou (Both _ _) = False
   nounIsYou (EitherOf _ _) = False
+  nounIsYou (EitherJoined _ _) = False
   nounIsYou (BothOf _ _) = False
   nounIsYou (EachOfBoth _) = False
   nounIsYou (LibrarySlice _ _ _) = False
@@ -5247,6 +5285,7 @@ mutual
   nounTargeted (NamesAgree _ grp) = nounTargeted grp
   nounTargeted (Both l r) = nounTargeted l || nounTargeted r
   nounTargeted (EitherOf l r) = nounTargeted l || nounTargeted r
+  nounTargeted (EitherJoined l r) = nounTargeted l || nounTargeted r
   nounTargeted (BothOf l r) = nounTargeted l || nounTargeted r
   nounTargeted (EachOfBoth p) = nounTargeted p
   nounTargeted (LibrarySlice _ _ _) = False
@@ -5504,6 +5543,7 @@ mutual
   moveIntro p (NamesAgree _ grp) z = moveIntro p grp z
   moveIntro p nn@(Both _ _) z = nomIntro nn
   moveIntro p nn@(EitherOf _ _) z = nomIntro nn
+  moveIntro p nn@(EitherJoined _ _) z = nomIntro nn
   moveIntro p nn@(BothOf _ _) z = nomIntro nn
   moveIntro p nn@(EachOfBoth _) z = nomIntro nn
   moveIntro p nn@(LibrarySlice _ _ _) z = setZoneHead p z (nomIntro nn)
@@ -5654,6 +5694,7 @@ mutual
   nounZone (NamesAgree _ grp) = nounZone grp
   nounZone (Both _ _) = Nothing
   nounZone (EitherOf _ _) = Nothing
+  nounZone (EitherJoined _ _) = Nothing
   -- the pair's place is its arms' where they agree; a phrase naming
   -- two zones names no one zone [CR#109.2a].
   nounZone (BothOf l r) = if nounZone l == nounZone r then nounZone l else Nothing
@@ -5710,6 +5751,7 @@ mutual
   nounTy (NamesAgree _ grp) = nounTy grp
   nounTy (Both _ _) = Nothing
   nounTy (EitherOf _ _) = Nothing
+  nounTy (EitherJoined _ _) = Nothing
   nounTy (BothOf l r) = if nounTy l == nounTy r then nounTy l else Nothing
   nounTy (EachOfBoth p) = nounTy p
   nounTy (LibrarySlice _ _ _) = Nothing
@@ -5754,6 +5796,10 @@ mutual
   nounTys (NamesAgree _ grp) = nounTys grp
   nounTys (SomeOf _ d grp) = SoleTy (sliceTy d grp)
   nounTys (Both l r) = JoinTy (nounTys l) (nounTys r)
+  -- the disjunction's halves are its own, each asked about its own
+  -- description: "you or planeswalkers you control" passes at the
+  -- player half and at `Planeswalker` on the object half.
+  nounTys (EitherJoined l r) = JoinTy (nounTys l) (nounTys r)
   -- the pair is same-kinded and so names one description, its arms'
   -- where they agree; `SoleTy`, never `JoinTy`, which indexes a join.
   nounTys (BothOf l r) = SoleTy (if nounTy l == nounTy r then nounTy l else Nothing)
@@ -5781,6 +5827,8 @@ mutual
   nounPlur (BothOf _ _) = ManyOf
   nounPlur (EachOfBoth _) = ManyOf
   nounPlur (EitherOf l r) = nounPlur l
+  nounPlur (EitherJoined l r) =
+    if samePlur (nounPlur l) (nounPlur r) then nounPlur l else ManyOf
   nounPlur (LibrarySlice _ amt whose) = outputPlur (nounPlur whose) (amtPlur amt)
   nounPlur (SomeOf q _ _) = slicePlur q
   nounPlur TheRest = ManyOf

@@ -17636,6 +17636,46 @@ archangelOfTithesBlockToll =
                (GatedBy (ScaledMana GenericUnit (Times 1 GroupSize)))
                ["Block"] Agent NoDeonticPatient))
 
+||| Archangel of Tithes' ATTACK line -- the DISJOINED defender, and the
+||| line the gate round recorded as the one thing its cost work could not
+||| reach. "As long as this creature is untapped, creatures can't attack
+||| you or planeswalkers you control unless their controller pays {1} for
+||| each of those creatures." `EitherJoined` is the whole of what was
+||| missing: the seat took a joined kind already, and no noun spelled one
+||| out of two mentions.
+public export
+archangelOfTithesAttackToll : Ability
+archangelOfTithesAttackToll =
+  Static (Macros.asLongAs (Matches Macros.thisCreature (HasStatus Untapped))
+            (Macros.deontic (AllOf Macros.creature)
+               (GatedBy (ScaledMana GenericUnit (Times 1 GroupSize)))
+               ["Attack"] Agent
+               (DefendingPlayer (EitherJoined You
+                                   (AllOf (And [HasType Planeswalker,
+                                                ControlledBy You]))))))
+
+||| Archon of Absolution, whole -- the same defender with no condition
+||| over it. "Flying / Protection from white / Creatures can't attack you
+||| or planeswalkers you control unless their controller pays {1} for
+||| each of those creatures." Baird, Forbidding Spirit and Nils write the
+||| same sentence; Sphere of Safety and Norn's Annex write it with the
+||| scaled payments sub-round 3 landed.
+public export
+archonOfAbsolution : Card
+archonOfAbsolution =
+  Macros.card "Archon of Absolution"
+       (Just [Macros.generic 3, Macros.pip White]) []
+       (MkTypeLine [creatureType "Archon"] [Creature])
+       [ Macros.keyword "Flying"
+       , Macros.keywordQuality "Protection" (ColorIs White)
+       , Static (Macros.deontic (AllOf Macros.creature)
+                   (GatedBy (ScaledMana GenericUnit (Times 1 GroupSize)))
+                   ["Attack"] Agent
+                   (DefendingPlayer (EitherJoined You
+                                       (AllOf (And [HasType Planeswalker,
+                                                    ControlledBy You]))))) ]
+       (Just (3, 2))
+
 ||| Myr Prototype, whole -- "At the beginning of your upkeep, put a
 ||| +1/+1 counter on this creature. / This creature can't attack or block
 ||| unless you pay {1} for each +1/+1 counter on it."

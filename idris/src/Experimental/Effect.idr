@@ -1524,11 +1524,14 @@ mutual
     ||| controller pays ..."), and this arm serves them all at Attack /
     ||| `Agent` -- the case the row was recorded as refusing, which it
     ||| has not refused since the carrier unified.
-    ||| WHAT IS STILL REFUSED HERE: a DISJOINED defender. 8 of those 17
-    ||| write "you or planeswalkers you control", which is one mention
-    ||| at a joined kind and wants a noun-level disjunction the grammar
-    ||| does not spell; `Attackable` would admit it the moment one
-    ||| exists.
+    ||| THE DISJOINED DEFENDER IS PAID, and the note above was right that
+    ||| `Attackable` would admit it the moment a noun-level disjunction
+    ||| existed: `EitherJoined` is that disjunction, and this row needed
+    ||| nothing. Re-measured 2026-09-02, the population is far larger
+    ||| than the 8 gate lines the gate round counted -- 48 supported
+    ||| lines write "you or (a) planeswalker(s) you control", 25 with the
+    ||| plural arm and 23 with the singular, and only 8 of them pair it
+    ||| with a cost.
     DefendingPlayer : {k : Kind} -> (m : Noun bs k) ->
                       {auto 0 at : Attackable m} ->
                       DeonticPatient {bs} ds r
