@@ -62,6 +62,12 @@ Two remainders from trigger-2 (done 2026-08-27) whose named owner
   event neither rule names; the `BecomesAttached` event landed, the AS-frame
   seat for it did not.
 
+- **Routed from cost-tail (close, 2026-09-02):** the ORDINAL-PER-TURN
+  activation restrictor ("the first equip ability you activate each turn",
+  5 lines — the ordinal family at the activation seat) and the FACE-DOWN
+  SPELL description ([CR#708.4]'s cast, 3 lines — [CR#110.5d] keeps
+  `HasStatus` off spells, so the description needs its own carrier).
+
 - **Routed from choice-tail (close, 2026-09-02):** two sub-bar payload
   residues — Master Biomancer's entry-time type ascription (`EntersRider`
   row, 1 line) and the SUBTYPE retention payload ("It's still a
