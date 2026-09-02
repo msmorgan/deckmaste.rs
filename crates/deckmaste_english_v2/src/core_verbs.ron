@@ -74,6 +74,7 @@
         Predicate([ObjectNounPhrase]),
         Predicate([ObjectNounPhrase, Role("ScalarEquality")]),
         Predicate([Role("QuotedAbility")]),
+        Predicate([Role("KeywordAbility")]),
     ]),
     (identity: Get, bare: "get", third_person: "gets", valences: [
         Predicate([Role("PowerToughnessAdjustment"), OptionalRole("DurationPhrase")]),

@@ -1,13 +1,11 @@
 use std::cmp::Ordering;
 use std::path::Path;
 
-use deckmaste_english_v2::ast::BareLocativeNoun;
 use deckmaste_english_v2::ast::CardName;
 use deckmaste_english_v2::ast::CardinalNumber;
 use deckmaste_english_v2::ast::CatalogProvider;
 use deckmaste_english_v2::ast::Color;
 use deckmaste_english_v2::ast::CommonNoun;
-use deckmaste_english_v2::ast::ControllerNoun;
 use deckmaste_english_v2::ast::CountReference;
 use deckmaste_english_v2::ast::MannerReference;
 use deckmaste_english_v2::ast::Noun;
@@ -116,11 +114,6 @@ impl Visitor for NominalVisitor {
     fn visit_singular_selector(&mut self, value: &deckmaste_english_v2::ast::SingularSelector) {
         self.events.push("SingularSelector".to_owned());
         deckmaste_english_v2::visit::walk_singular_selector(self, value);
-    }
-
-    fn visit_plural_selector(&mut self, value: &deckmaste_english_v2::ast::PluralSelector) {
-        self.events.push("PluralSelector".to_owned());
-        deckmaste_english_v2::visit::walk_plural_selector(self, value);
     }
 
     fn visit_singular_nominal(&mut self, value: &deckmaste_english_v2::ast::SingularNominal) {
@@ -367,21 +360,6 @@ impl Visitor for NominalVisitor {
         ScalarOrGreater,
         walk_scalar_or_greater
     );
-    record_product!(
-        visit_scalar_less_than,
-        ScalarLessThan,
-        walk_scalar_less_than
-    );
-    record_product!(
-        visit_scalar_greater_than,
-        ScalarGreaterThan,
-        walk_scalar_greater_than
-    );
-    record_product!(
-        visit_scalar_less_than_or_equal_to,
-        ScalarLessThanOrEqualTo,
-        walk_scalar_less_than_or_equal_to
-    );
     record_product!(visit_count_or_more, CountOrMore, walk_count_or_more);
     record_product!(visit_count_or_fewer, CountOrFewer, walk_count_or_fewer);
     record_product!(
@@ -398,11 +376,6 @@ impl Visitor for NominalVisitor {
         visit_unmarked_singular_selector,
         UnmarkedSingularSelector,
         walk_unmarked_singular_selector
-    );
-    record_product!(
-        visit_unmarked_plural_selector,
-        UnmarkedPluralSelector,
-        walk_unmarked_plural_selector
     );
     record_product!(
         visit_bare_singular_nominal,
@@ -507,14 +480,6 @@ impl Visitor for NominalVisitor {
 
     fn visit_status(&mut self, value: Status) {
         self.events.push(format!("Status:{value:?}"));
-    }
-
-    fn visit_controller_noun(&mut self, value: ControllerNoun) {
-        self.events.push(format!("ControllerNoun:{value:?}"));
-    }
-
-    fn visit_bare_locative_noun(&mut self, value: BareLocativeNoun) {
-        self.events.push(format!("BareLocativeNoun:{value:?}"));
     }
 
     fn visit_supertype(&mut self, value: Supertype) {
@@ -2941,9 +2906,6 @@ fn restricted_nominal_postmodifiers_and_comparison_families_parse() {
         "Destroy target card in a coin.",
         "Destroy target creature with power 2 or less.",
         "Destroy target creature with power 2 or greater.",
-        "Destroy target creature with power less than 2.",
-        "Destroy target creature with power greater than 2.",
-        "Destroy target creature with power less than or equal to 2.",
         "Destroy target creature with mana value X or greater.",
         "Destroy two or more creatures.",
         "Destroy two or fewer creatures.",
@@ -3520,7 +3482,6 @@ const TYPED_VISITOR_CASES: &[(&str, &[&str])] = &[
             "OpponentControls",
             "SingularController",
             "OpponentController",
-            "ControllerNoun:Opponent",
             "VerbInventory:Core(Control)",
         ],
     ),
@@ -3603,7 +3564,7 @@ const TYPED_VISITOR_CASES: &[(&str, &[&str])] = &[
             "NounSingularHead",
             "InPhrase",
             "InBareLocative",
-            "BareLocativeNoun:Exile",
+            "CommonNoun:Exile",
         ],
     ),
     (
@@ -3641,105 +3602,6 @@ const TYPED_VISITOR_CASES: &[(&str, &[&str])] = &[
             "ScalarThreshold",
             "VariableScalarThreshold",
             "Variable:X",
-        ],
-    ),
-    (
-        "Destroy target creature with power less than 2.",
-        &[
-            "QualifiedNounPhrase",
-            "NumericStage",
-            "ScalarQualifiedReference",
-            "LocativeStage",
-            "UnqualifiedLocativeStage",
-            "ControllerStage",
-            "UnqualifiedControllerStage",
-            "UnqualifiedReference",
-            "DeterminedNominal",
-            "Determinative",
-            "Nominal",
-            "SingularNominal",
-            "BareSingularNominal",
-            "SingularHead",
-            "NounSingularHead",
-            "ScalarQualification",
-            "ScalarQualificationValue",
-            "ScalarMeasure",
-            "NominalScalarMeasure",
-            "SingularNominal",
-            "BareSingularNominal",
-            "SingularHead",
-            "NounSingularHead",
-            "CommonNoun:Power",
-            "ScalarComparison",
-            "ScalarLessThan",
-            "ScalarThreshold",
-            "FixedScalarThreshold",
-        ],
-    ),
-    (
-        "Destroy target creature with power greater than 2.",
-        &[
-            "QualifiedNounPhrase",
-            "NumericStage",
-            "ScalarQualifiedReference",
-            "LocativeStage",
-            "UnqualifiedLocativeStage",
-            "ControllerStage",
-            "UnqualifiedControllerStage",
-            "UnqualifiedReference",
-            "DeterminedNominal",
-            "Determinative",
-            "Nominal",
-            "SingularNominal",
-            "BareSingularNominal",
-            "SingularHead",
-            "NounSingularHead",
-            "ScalarQualification",
-            "ScalarQualificationValue",
-            "ScalarMeasure",
-            "NominalScalarMeasure",
-            "SingularNominal",
-            "BareSingularNominal",
-            "SingularHead",
-            "NounSingularHead",
-            "CommonNoun:Power",
-            "ScalarComparison",
-            "ScalarGreaterThan",
-            "ScalarThreshold",
-            "FixedScalarThreshold",
-        ],
-    ),
-    (
-        "Destroy target creature with power less than or equal to 2.",
-        &[
-            "QualifiedNounPhrase",
-            "NumericStage",
-            "ScalarQualifiedReference",
-            "LocativeStage",
-            "UnqualifiedLocativeStage",
-            "ControllerStage",
-            "UnqualifiedControllerStage",
-            "UnqualifiedReference",
-            "DeterminedNominal",
-            "Determinative",
-            "Nominal",
-            "SingularNominal",
-            "BareSingularNominal",
-            "SingularHead",
-            "NounSingularHead",
-            "ScalarQualification",
-            "ScalarQualificationValue",
-            "ScalarMeasure",
-            "NominalScalarMeasure",
-            "SingularNominal",
-            "BareSingularNominal",
-            "SingularHead",
-            "NounSingularHead",
-            "CommonNoun:Power",
-            "ScalarComparison",
-            "ScalarLessThanOrEqualTo",
-            "ScalarThreshold",
-            "FixedScalarThreshold",
         ],
     ),
     (
@@ -3822,7 +3684,6 @@ fn assert_typed_visitor_preorders(cases: &[(&str, &[&str])]) {
                         | "OpponentController"
                         | "YouOwn"
                         | "SubjectPronoun:You"
-                        | "ControllerNoun:Opponent"
                         | "VerbInventory:Core(Control)"
                         | "VerbInventory:Core(Own)"
                         | "FromPhrase"
@@ -3834,7 +3695,7 @@ fn assert_typed_visitor_preorders(cases: &[(&str, &[&str])]) {
                         | "PossessedSingularReference"
                         | "PossessiveDeterminerPronoun:Your"
                         | "CommonNoun:Graveyard"
-                        | "BareLocativeNoun:Exile"
+                        | "CommonNoun:Exile"
                         | "ScalarQualification"
                         | "ScalarQualificationValue"
                         | "ScalarMeasure"
@@ -3851,9 +3712,6 @@ fn assert_typed_visitor_preorders(cases: &[(&str, &[&str])]) {
                         | "CommonNoun:Value"
                         | "ScalarComparison"
                         | "ScalarOrGreater"
-                        | "ScalarLessThan"
-                        | "ScalarGreaterThan"
-                        | "ScalarLessThanOrEqualTo"
                         | "ScalarThreshold"
                         | "FixedScalarThreshold"
                         | "VariableScalarThreshold"
@@ -5486,17 +5344,6 @@ impl Visitor for CoordinationVisitor {
         deckmaste_english_v2::visit::walk_modified_singular_coordination_member(self, value);
     }
 
-    fn visit_negative_modified_singular_coordination_member(
-        &mut self,
-        value: &deckmaste_english_v2::ast::NegativeModifiedSingularCoordinationMember,
-    ) {
-        self.events
-            .push("NegativeModifiedSingularCoordinationMember");
-        deckmaste_english_v2::visit::walk_negative_modified_singular_coordination_member(
-            self, value,
-        );
-    }
-
     fn visit_bare_plural_coordination_member(
         &mut self,
         value: &deckmaste_english_v2::ast::BarePluralCoordinationMember,
@@ -5511,14 +5358,6 @@ impl Visitor for CoordinationVisitor {
     ) {
         self.events.push("ModifiedPluralCoordinationMember");
         deckmaste_english_v2::visit::walk_modified_plural_coordination_member(self, value);
-    }
-
-    fn visit_negative_modified_plural_coordination_member(
-        &mut self,
-        value: &deckmaste_english_v2::ast::NegativeModifiedPluralCoordinationMember,
-    ) {
-        self.events.push("NegativeModifiedPluralCoordinationMember");
-        deckmaste_english_v2::visit::walk_negative_modified_plural_coordination_member(self, value);
     }
 
     fn visit_singular_and_nominal_coordination(
@@ -5567,14 +5406,6 @@ impl Visitor for CoordinationVisitor {
     ) {
         self.events.push("PluralAndOrNominalCoordination");
         deckmaste_english_v2::visit::walk_plural_and_or_nominal_coordination(self, value);
-    }
-
-    fn visit_unmarked_plural_coordination_selector(
-        &mut self,
-        value: &deckmaste_english_v2::ast::UnmarkedPluralCoordinationSelector,
-    ) {
-        self.events.push("UnmarkedPluralCoordinationSelector");
-        deckmaste_english_v2::visit::walk_unmarked_plural_coordination_selector(self, value);
     }
 
     fn visit_full_and_noun_phrase_coordination(
@@ -5955,42 +5786,6 @@ fn visitor_callbacks_have_literal_full_preorders() {
                 "NegativeModifierMember",
                 "NegativeNominalModifier",
                 "NegativeModifierMember",
-            ][..],
-        ),
-        (
-            "Destroy target nonartifact, nonblack creature or artifact.",
-            &[
-                "DeterminedNominal",
-                "Determinative",
-                "Nominal",
-                "SingularNominalCoordination",
-                "SingularOrNominalCoordination",
-                "SingularCoordinationMember",
-                "NegativeModifiedSingularCoordinationMember",
-                "NegativeNominalModifier",
-                "NegativeModifierMember",
-                "NegativeNominalModifier",
-                "NegativeModifierMember",
-                "SingularCoordinationMember",
-                "BareSingularCoordinationMember",
-            ][..],
-        ),
-        (
-            "Destroy all nonartifact, nonblack creatures or artifacts.",
-            &[
-                "DeterminedNominal",
-                "Determinative",
-                "Nominal",
-                "PluralNominalCoordination",
-                "PluralOrNominalCoordination",
-                "PluralCoordinationMember",
-                "NegativeModifiedPluralCoordinationMember",
-                "NegativeNominalModifier",
-                "NegativeModifierMember",
-                "NegativeNominalModifier",
-                "NegativeModifierMember",
-                "PluralCoordinationMember",
-                "BarePluralCoordinationMember",
             ][..],
         ),
         (

@@ -64,7 +64,6 @@ constructions! {
         Youre = "you're",
     }
     vocab FloatedQuantifier { All = "all", Both = "both", Each = "each", }
-    vocab BareLocativeNoun { Exile = "exile", Hand = "hand", }
     vocab CostComparisonDirection { More = "more", Less = "less", }
     vocab DistributionReplacement { Instead = "instead", }
     vocab PastPossession { Had = "had", }
@@ -111,7 +110,6 @@ constructions! {
     }
     vocab IndefinitePronoun { Everything = "everything", }
     vocab SingularDemonstrative { This = "this", That = "that", }
-    vocab ControllerNoun { Opponent = "opponent", Player = "player", }
     vocab FixedCostSymbol {
         Variable = "X",
         White = "W",
@@ -798,6 +796,9 @@ constructions! {
         Finite: FiniteClause,
         IrrealisCopular: IrrealisCopularClause,
     }
+    abstract sum BareLocative {
+        Noun: BareLocativeNoun,
+    }
     abstract sum PossessiveComplement {
         Object: Object,
         Keyword: KeywordPossessiveComplement,
@@ -808,8 +809,6 @@ constructions! {
         TransitiveFrame,
         NumerativeFrame,
         ObjectAmountFrame,
-        WithObjectFrame,
-        ObjectWithObjectFrame,
         ObjectForObjectFrame,
         ObjectIntoObjectFrame,
     }
@@ -822,14 +821,11 @@ constructions! {
         Coordination: ManaCoordination,
     }
     abstract sum ManaCoordination {
-        And: AndManaCoordination,
         Or: OrManaCoordination,
-        AndOr: AndOrManaCoordination,
     }
     abstract sum CastingRestriction {
         Conditional: OnlyIfRestriction,
         Timing: OnlyDuringRestriction,
-        TemporalClause: OnlyTemporalClauseRestriction,
     }
     abstract sum DurationPhrase {
         Fixed: FixedDurationPhrase,
@@ -845,11 +841,8 @@ constructions! {
         Auxiliary: AuxiliaryObjectGapRelativeClause,
         ContractedPerfect: ContractedPerfectObjectGapRelativeClause,
         BareNegative: BareNegativeObjectGapRelativeClause,
-        ThirdPersonNegative: ThirdPersonNegativeObjectGapRelativeClause,
     }
     abstract sum SubjectGapRelativeClause {
-        Finite: FiniteSubjectGapRelativeClause,
-        Modal: ModalSubjectGapRelativeClause,
         Copular: CopularSubjectGapRelativeClause,
         ModalPassive: ModalPassiveSubjectGapRelativeClause,
     }
@@ -966,7 +959,6 @@ constructions! {
         Designation: PredicativeDesignationComplement,
         Nominal: PredicativeNominalComplement,
         Status: PredicativeStatus,
-        Ability: PredicativeAbilityComplement,
         Orientation: PredicativeFaceOrientation,
         PowerToughness: PredicativePowerToughnessComplement,
         Scalar: PredicativeScalarComplement,
@@ -1007,17 +999,11 @@ constructions! {
         PreposedAsLongAs,
         PreposedAsLongAsPredicate,
         PostposedAsLongAs,
-        PostposedAsLongAsPredicate,
         PreposedFor,
         PreposedForPredicate,
-        PreposedWhile,
-        PreposedWhilePredicate,
         PreposedDuring,
         PreposedDuringPredicate,
-        PreposedUntil,
-        PreposedUntilPredicate,
         PreposedDuration,
-        PreposedDurationPredicate,
         PreposedTemporalRelation,
         ThenSequence,
         AdditionalCost,
@@ -1152,10 +1138,6 @@ constructions! {
         element FixedSymbol { symbol: lex FixedCostSymbol, }
         form fixed_cost_symbol = lex(symbol);
     }
-    construction monocolored_hybrid_symbol: CostSymbol {
-        element MonocoloredHybridSymbol { color: lex MonocoloredHybridColor, }
-        form monocolored_hybrid_symbol = prefix("2/", lex(color));
-    }
     construction symbol_run: ActivationCostComponent {
         element SymbolRun {
             symbols: seq CostSymbol separated by "}{",
@@ -1259,11 +1241,6 @@ constructions! {
         element PostposedAsLongAs { body: Clause, condition: FiniteClause, }
         form postposed_as_long_as = body "as" "long" "as" condition;
     }
-    construction postposed_as_long_as_predicate: ClauseAttachment {
-        element PostposedAsLongAsPredicate { body: Predicate, condition: FiniteClause, }
-        derive body.agreement = Values::Bare;
-        form postposed_as_long_as_predicate = body "as" "long" "as" condition;
-    }
     construction postposed_while_clause: PostposedWhileClause {
         element PostposedWhileClauseValue { body: Clause, condition: FiniteClause, }
         form postposed_while_clause = body "while" condition;
@@ -1284,15 +1261,6 @@ constructions! {
         derive body.agreement = Values::Bare;
         form preposed_for_predicate = basis "," body;
     }
-    construction preposed_while: ClauseAttachment {
-        element PreposedWhile { condition: FiniteClause, body: Clause, }
-        form preposed_while = "while" condition "," body;
-    }
-    construction preposed_while_predicate: ClauseAttachment {
-        element PreposedWhilePredicate { condition: FiniteClause, body: Predicate, }
-        derive body.agreement = Values::Bare;
-        form preposed_while_predicate = "while" condition "," body;
-    }
     construction preposed_during: ClauseAttachment {
         element PreposedDuring { timing: DuringPhrase, body: Clause, }
         form preposed_during = timing "," body;
@@ -1305,26 +1273,9 @@ constructions! {
         derive body.agreement = Values::Bare;
         form preposed_during_predicate = timing "," body;
     }
-    construction preposed_until: ClauseAttachment {
-        element PreposedUntil { condition: FiniteClause, body: Clause, }
-        form preposed_until = "until" condition "," body;
-    }
-    construction preposed_until_predicate: ClauseAttachment {
-        element PreposedUntilPredicate { condition: FiniteClause, body: Predicate, }
-        derive body.agreement = Values::Bare;
-        form preposed_until_predicate = "until" condition "," body;
-    }
     construction preposed_duration: ClauseAttachment {
         element PreposedDuration { duration: DurationPhrase, body: Clause, }
         form preposed_duration = duration "," body;
-    }
-    construction preposed_duration_predicate: ClauseAttachment {
-        element PreposedDurationPredicate {
-            duration: DurationPhrase,
-            body: Predicate,
-        }
-        derive body.agreement = Values::Bare;
-        form preposed_duration_predicate = duration "," body;
     }
     construction temporal_relation_phrase: TemporalRelationPhrase {
         element TemporalRelationPhraseValue {
@@ -1435,19 +1386,6 @@ constructions! {
         derive agreement = members.agreement;
         form or_predicate_coordination = members;
     }
-    construction and_or_predicate_coordination: PredicateCoordination {
-        element AndOrPredicateCoordination {
-            members: seq CoordinatedPredicate separated by position {
-                pair = " and/or ";
-                first = ", ";
-                middle = ", ";
-                last = ", and/or ";
-            },
-        }
-        require len(members) >= 2;
-        derive agreement = members.agreement;
-        form and_or_predicate_coordination = members;
-    }
     construction bare_and_predicate_coordination: BarePredicateCoordination {
         element BareAndPredicateCoordination {
             members: seq BareCoordinatedPredicate separated by position {
@@ -1473,19 +1411,6 @@ constructions! {
         require len(members) >= 2;
         derive agreement = members.agreement;
         form bare_or_predicate_coordination = members;
-    }
-    construction bare_and_or_predicate_coordination: BarePredicateCoordination {
-        element BareAndOrPredicateCoordination {
-            members: seq BareCoordinatedPredicate separated by position {
-                pair = " and/or ";
-                first = ", ";
-                middle = ", ";
-                last = ", and/or ";
-            },
-        }
-        require len(members) >= 2;
-        derive agreement = members.agreement;
-        form bare_and_or_predicate_coordination = members;
     }
     construction predicative_adjective: PredicativeAdjectiveComplement {
         element PredicativeAdjectiveValue { adjective: lex PredicativeAdjective, }
@@ -1535,11 +1460,6 @@ constructions! {
             agent: Object,
         }
         form participial_except_by_complement = verb(head) "except" "by" agent;
-    }
-    construction predicative_ability: PredicativeAbilityComplement {
-        element PredicativeAbilityValue { predicate: Predicate, }
-        derive predicate.agreement = Values::Bare;
-        form predicative_ability = "able" "to" predicate;
     }
     construction predicative_power_toughness: PredicativePowerToughnessComplement {
         element PredicativePowerToughnessValue {
@@ -1638,14 +1558,6 @@ constructions! {
         }
         derive predicate.agreement = Values::Bare;
         form infinitive_complement = lex(negator) "to" predicate;
-    }
-    construction choose_infinitive_predicate: VerbPhrase {
-        element ChooseInfinitivePredicate {
-            head: lex ChooseInfinitiveVerb,
-            complement: InfinitiveComplement,
-        }
-        derive agreement = head.agreement;
-        form choose_infinitive_predicate = verb(head) complement;
     }
     construction requirement_predicate: RequirementPredicate {
         element RequirementPredicateValue {
@@ -1834,13 +1746,6 @@ constructions! {
         element OnlyDuringRestriction { timing: RestrictionTurn, }
         form only_during_restriction = "only" "during" timing;
     }
-    construction only_temporal_clause_restriction: CastingRestriction {
-        element OnlyTemporalClauseRestriction {
-            relation: lex TemporalRelation,
-            condition: FiniteClause,
-        }
-        form only_temporal_clause_restriction = "only" lex(relation) condition;
-    }
     construction action_restriction_predicate: ActionRestrictionPredicate {
         element ActionRestrictionPredicateValue {
             _head: lex TransitiveVerb,
@@ -1905,24 +1810,6 @@ constructions! {
             complement: PredicativeComplement,
         }
         form contracted_copular_clause = lex(subject) lex(negator) complement;
-    }
-    construction contracted_perfect_transitive_clause: FiniteClause {
-        element ContractedPerfectTransitiveClause {
-            subject: lex ContractedPerfectSubject,
-            head: lex DeclaredTransitiveParticipleHead,
-            object: Object,
-        }
-        form contracted_perfect_transitive_clause = lex(subject) verb(head) object;
-    }
-    construction contracted_perfect_object_on_clause: FiniteClause {
-        element ContractedPerfectObjectOnClause {
-            subject: lex ContractedPerfectSubject,
-            head: lex ObjectOnParticipleHead,
-            object: Object,
-            complement: OnPhrase,
-        }
-        form contracted_perfect_object_on_clause =
-            lex(subject) verb(head) object complement;
     }
     construction contracted_perfect_passive_clause: FiniteClause {
         element ContractedPerfectPassiveClause {
@@ -2002,18 +1889,6 @@ constructions! {
         }
         require len(members) >= 2;
         form or_clause_coordination = members;
-    }
-    construction and_or_clause_coordination: ClauseCoordination {
-        element AndOrClauseCoordination {
-            members: seq CoordinatedClause separated by position {
-                pair = " and/or ";
-                first = ", ";
-                middle = ", ";
-                last = ", and/or ";
-            },
-        }
-        require len(members) >= 2;
-        form and_or_clause_coordination = members;
     }
     construction where: WhereClauseCategory {
         element WhereClause { clause: FiniteClause, }
@@ -2124,6 +1999,14 @@ constructions! {
         derive onset = noun.onset;
         derive possessive_ending = noun.possessive_ending;
         form noun_plural_head = noun(noun);
+    }
+    construction bare_locative_noun: BareLocative {
+        element BareLocativeNoun {
+            noun: lex Noun checked by noun_is_bare_locative(),
+        }
+        derive noun.number = Values::Singular;
+        derive number = Values::Singular;
+        form bare_locative_noun = noun(noun);
     }
     construction color_modifier: NominalModifier {
         element ColorModifier { color: lex Color, }
@@ -2308,13 +2191,6 @@ constructions! {
         }
         form final_serial_and_modifier_tail = penultimate "," "and" last;
     }
-    construction recursive_serial_and_modifier_tail: SerialAndModifierTail {
-        element RecursiveSerialAndModifierTail {
-            next: CoordinatedNominalModifier,
-            tail: SerialAndModifierTail,
-        }
-        form recursive_serial_and_modifier_tail = next "," tail;
-    }
     construction serial_and_shared_head_modifier: NominalModifier {
         element SerialAndSharedHeadModifier {
             first: CoordinatedNominalModifier,
@@ -2392,19 +2268,6 @@ constructions! {
         derive head.number = Values::Singular;
         form bare_relational_reference = noun(head);
     }
-    construction modified_bare_relational_reference: UnqualifiedReference {
-        element ModifiedBareRelationalReference {
-            first: NominalModifier,
-            rest: seq NominalModifier separated by " ",
-            head: lex Noun,
-        }
-        require head.relationality is Relational;
-        derive agreement = Values::ThirdPersonSingular;
-        derive number = Values::Singular;
-        derive onset = first.onset;
-        derive head.number = Values::Singular;
-        form modified_bare_relational_reference = first rest noun(head);
-    }
     construction participial_singular_reference: UnqualifiedReference {
         element ParticipialSingularReference {
             adjective: ParticipialAdjective,
@@ -2415,20 +2278,6 @@ constructions! {
         derive number = Values::Singular;
         derive onset = adjective.onset;
         form participial_singular_reference = adjective head;
-    }
-    construction premodified_participial_singular_reference: UnqualifiedReference {
-        element PremodifiedParticipialSingularReference {
-            first: NominalModifier,
-            rest: seq NominalModifier separated by " ",
-            adjective: ParticipialAdjective,
-            head: SingularHead,
-        }
-        require first.modifier_license is LocalDeterminer;
-        derive agreement = head.agreement;
-        derive head.number = Values::Singular;
-        derive number = Values::Singular;
-        derive onset = first.onset;
-        form premodified_participial_singular_reference = first rest adjective head;
     }
     construction bare_plural_nominal: PluralNominal {
         element BarePluralNominal { head: PluralHead, }
@@ -2480,18 +2329,6 @@ constructions! {
         derive onset = modifier.onset;
         form modified_singular_coordination_member = modifier head;
     }
-    construction negative_modified_singular_coordination_member: SingularCoordinationMember {
-        element NegativeModifiedSingularCoordinationMember {
-            leading: opt CoordinatedNominalModifier,
-            modifiers: seq NegativeNominalModifier separated by ", ",
-            head: SingularHead,
-        }
-        require len(modifiers) >= 2;
-        derive agreement = head.agreement;
-        derive number = head.number;
-        derive onset = Values::Consonant;
-        form negative_modified_singular_coordination_member = leading modifiers head;
-    }
     construction bare_plural_coordination_member: PluralCoordinationMember {
         element BarePluralCoordinationMember { head: PluralHead, }
         derive agreement = head.agreement;
@@ -2508,18 +2345,6 @@ constructions! {
         derive number = head.number;
         derive onset = modifier.onset;
         form modified_plural_coordination_member = modifier head;
-    }
-    construction negative_modified_plural_coordination_member: PluralCoordinationMember {
-        element NegativeModifiedPluralCoordinationMember {
-            leading: opt CoordinatedNominalModifier,
-            modifiers: seq NegativeNominalModifier separated by ", ",
-            head: PluralHead,
-        }
-        require len(modifiers) >= 2;
-        derive agreement = head.agreement;
-        derive number = head.number;
-        derive onset = Values::Consonant;
-        form negative_modified_plural_coordination_member = leading modifiers head;
     }
     construction singular_and_nominal_coordination: SingularNominalCoordination {
         element SingularAndNominalCoordination {
@@ -2712,22 +2537,6 @@ constructions! {
         derive onset = nominal.onset;
         form unmarked_singular_selector = nominal;
     }
-    construction unmarked_plural_selector: PluralSelector {
-        element UnmarkedPluralSelector { nominal: PluralNominal, }
-        derive agreement = nominal.agreement;
-        derive number = nominal.number;
-        derive onset = nominal.onset;
-        form unmarked_plural_selector = nominal;
-    }
-    construction unmarked_plural_coordination_selector: PluralSelector {
-        element UnmarkedPluralCoordinationSelector {
-            coordination: PluralNominalCoordination,
-        }
-        derive agreement = Values::Bare;
-        derive number = Values::Plural;
-        derive onset = Values::Consonant;
-        form unmarked_plural_coordination_selector = coordination;
-    }
     construction singular_simple_determinative: Determinative {
         element SingularSimpleDeterminative {
             head: lex DeterminativeHead checked by determinative_licenses_singular(
@@ -2828,16 +2637,6 @@ constructions! {
         derive onset = Values::Vowel;
         form any_number_quantifying_determiner = "any" unit "of";
     }
-    construction no_more_quantifying_determiner: Determinative {
-        element NoMoreQuantifyingDeterminer {}
-        derive agreement = Values::Bare;
-        derive number = Values::Plural;
-        derive determiner_number = Values::PluralOnly;
-        derive nominal_license = Values::CountNominal;
-        derive fused_head_license = Values::FusedHead;
-        derive onset = Values::Consonant;
-        form no_more_quantifying_determiner = "no" "more";
-    }
     construction counted_quantifying_determiner: Determinative {
         element CountedQuantifyingDeterminer { count: CountReference, }
         derive agreement = count.agreement;
@@ -2929,51 +2728,40 @@ constructions! {
     }
     construction genitive_determiner_singular_reference: UnqualifiedReference {
         element GenitiveDeterminerSingularReference {
-            possessor: UnqualifiedReference,
+            possessor: Possessive,
             nominal: SingularNominal,
         }
         require possessor.number is Singular;
         derive agreement = nominal.agreement;
         derive number = nominal.number;
         derive onset = Values::Consonant;
-        form genitive_determiner_singular_reference = suffix(possessor, "'s") nominal;
+        form genitive_determiner_singular_reference = possessor nominal;
     }
     construction genitive_determiner_plural_reference: UnqualifiedReference {
         element GenitiveDeterminerPluralReference {
-            possessor: UnqualifiedReference,
+            possessor: Possessive,
             nominal: PluralNominal,
         }
         require possessor.number is Singular;
         derive agreement = nominal.agreement;
         derive number = nominal.number;
         derive onset = Values::Consonant;
-        form genitive_determiner_plural_reference = suffix(possessor, "'s") nominal;
-    }
-    construction plural_genitive_determiner_singular_reference: UnqualifiedReference {
-        element PluralGenitiveDeterminerSingularReference {
-            possessor: UnqualifiedReference,
-            nominal: SingularNominal,
-        }
-        require possessor.number is Plural;
-        derive agreement = nominal.agreement;
-        derive number = nominal.number;
-        derive onset = Values::Consonant;
-        form plural_genitive_determiner_singular_reference = suffix(possessor, "'") nominal;
+        form genitive_determiner_plural_reference = possessor nominal;
     }
     construction plural_genitive_determiner_plural_reference: UnqualifiedReference {
         element PluralGenitiveDeterminerPluralReference {
-            possessor: UnqualifiedReference,
+            possessor: Possessive,
             nominal: PluralNominal,
         }
         require possessor.number is Plural;
         derive agreement = nominal.agreement;
         derive number = nominal.number;
         derive onset = Values::Consonant;
-        form plural_genitive_determiner_plural_reference = suffix(possessor, "'") nominal;
+        form plural_genitive_determiner_plural_reference = possessor nominal;
     }
     construction genitive_determiner_mass_reference: UnqualifiedReference {
         element GenitiveDeterminerMassReference {
-            possessor: UnqualifiedReference,
+            possessor: Possessive,
             nominal: Nominal,
         }
         require all(
@@ -2983,11 +2771,11 @@ constructions! {
         derive agreement = nominal.agreement;
         derive number = nominal.number;
         derive onset = Values::Consonant;
-        form genitive_determiner_mass_reference = suffix(possessor, "'s") nominal;
+        form genitive_determiner_mass_reference = possessor nominal;
     }
     construction plural_genitive_determiner_mass_reference: UnqualifiedReference {
         element PluralGenitiveDeterminerMassReference {
-            possessor: UnqualifiedReference,
+            possessor: Possessive,
             nominal: Nominal,
         }
         require all(
@@ -2997,7 +2785,7 @@ constructions! {
         derive agreement = nominal.agreement;
         derive number = nominal.number;
         derive onset = Values::Consonant;
-        form plural_genitive_determiner_mass_reference = suffix(possessor, "'") nominal;
+        form plural_genitive_determiner_mass_reference = possessor nominal;
     }
     construction possessive_absolute_reference: UnqualifiedReference {
         element PossessiveAbsoluteReference { word: lex PossessiveAbsolutePronoun, }
@@ -3117,30 +2905,6 @@ constructions! {
             suffix(identity(spelling), "'") nominal;
         form apostrophe_s otherwise = suffix(identity(spelling), "'s") nominal;
     }
-    construction self_genitive_plural_reference: UnqualifiedReference {
-        element SelfGenitivePluralReference {
-            spelling: identity SelfReferenceSpelling,
-            nominal: PluralNominal,
-        }
-        derive agreement = nominal.agreement;
-        derive number = nominal.number;
-        derive onset = spelling.onset;
-        form apostrophe when spelling.possessive_ending is EndsInS =
-            suffix(identity(spelling), "'") nominal;
-        form apostrophe_s otherwise = suffix(identity(spelling), "'s") nominal;
-    }
-    construction self_genitive_coordination_reference: UnqualifiedReference {
-        element SelfGenitiveCoordinationReference {
-            spelling: identity SelfReferenceSpelling,
-            coordination: SingularNominalCoordination,
-        }
-        derive agreement = Values::Bare;
-        derive number = Values::Plural;
-        derive onset = spelling.onset;
-        form apostrophe when spelling.possessive_ending is EndsInS =
-            suffix(identity(spelling), "'") coordination;
-        form apostrophe_s otherwise = suffix(identity(spelling), "'s") coordination;
-    }
     construction this_way: MannerReference {
         element ThisWay {
             demonstrative: lex SingularDemonstrative checked by singular_demonstrative_is_this(),
@@ -3197,16 +2961,6 @@ constructions! {
         derive head.agreement = Values::Bare;
         form bare_negative_object_gap_relative = subject lex(auxiliary) verb(head);
     }
-    construction third_person_negative_object_gap_relative: ThirdPersonNegativeObjectGapRelativeClause {
-        element ThirdPersonNegativeObjectGapRelativeClauseValue {
-            subject: Subject,
-            auxiliary: lex ThirdPersonAuxiliary,
-            head: lex TransitiveVerb,
-        }
-        derive subject.agreement = Values::ThirdPersonSingular;
-        derive head.agreement = Values::Bare;
-        form third_person_negative_object_gap_relative = subject lex(auxiliary) verb(head);
-    }
     construction singular_partitive_selection: PartitiveSelection {
         element SingularPartitiveSelection { nominal: SingularNominal, }
         derive agreement = Values::ThirdPersonSingular;
@@ -3232,8 +2986,8 @@ constructions! {
         form of_phrase = "of" complement;
     }
     construction from_bare_locative: FromPhrase {
-        element FromBareLocative { complement: lex BareLocativeNoun, }
-        form from_bare_locative = "from" lex(complement);
+        element FromBareLocative { complement: BareLocative, }
+        form from_bare_locative = "from" complement;
     }
     construction from_anywhere: FromPhrase {
         element FromAnywhere {}
@@ -3280,8 +3034,8 @@ constructions! {
         form in_phrase = "in" complement;
     }
     construction in_bare_locative: InPhrase {
-        element InBareLocative { complement: lex BareLocativeNoun, }
-        form in_bare_locative = "in" lex(complement);
+        element InBareLocative { complement: BareLocative, }
+        form in_bare_locative = "in" complement;
     }
     construction fixed_scalar_threshold: ScalarThreshold {
         element FixedScalarThreshold { value: lex ScalarNumber, }
@@ -3302,18 +3056,6 @@ constructions! {
     construction scalar_or_greater: ScalarComparison {
         element ScalarOrGreater { threshold: ScalarThreshold, }
         form scalar_or_greater = threshold "or" "greater";
-    }
-    construction scalar_less_than: ScalarComparison {
-        element ScalarLessThan { threshold: ScalarThreshold, }
-        form scalar_less_than = "less" "than" threshold;
-    }
-    construction scalar_greater_than: ScalarComparison {
-        element ScalarGreaterThan { threshold: ScalarThreshold, }
-        form scalar_greater_than = "greater" "than" threshold;
-    }
-    construction scalar_less_than_or_equal_to: ScalarComparison {
-        element ScalarLessThanOrEqualTo { threshold: ScalarThreshold, }
-        form scalar_less_than_or_equal_to = "less" "than" "or" "equal" "to" threshold;
     }
     construction count_or_more: CountComparison {
         element CountOrMore {}
@@ -3374,13 +3116,6 @@ constructions! {
     construction twice_scalar_value: ScalarValue {
         element TwiceScalarValue { value: ScalarValue, }
         form twice_scalar_value = "twice" value;
-    }
-    construction offset_scalar_value: ScalarValue {
-        element OffsetScalarValue {
-            offset: CardinalQuantity,
-            basis: ScalarValue,
-        }
-        form offset_scalar_value = offset "plus" basis;
     }
     construction greatest_scalar_value: ScalarValue {
         element GreatestScalarValue {
@@ -3626,12 +3361,6 @@ constructions! {
         derive onset = pronoun.onset;
         form indefinite_pronoun_nominal = lex(pronoun);
     }
-    construction possessive_self_reference: PossessiveOwner {
-        element PossessiveSelfReference { spelling: identity SelfReferenceSpelling, }
-        derive number = Values::Singular;
-        derive possessive_ending = spelling.possessive_ending;
-        form possessive_self_reference = identity(spelling);
-    }
     construction possessive_plural_noun: PossessiveOwner {
         element PossessiveNoun { head: PluralHead, }
         derive number = Values::Plural;
@@ -3644,6 +3373,13 @@ constructions! {
         derive number = Values::Singular;
         derive possessive_ending = Values::Other;
         form possessive_singular_reference = reference;
+    }
+    construction possessive_plural_reference: PossessiveOwner {
+        element PossessivePluralReference { reference: UnqualifiedReference, }
+        require reference.number is Plural;
+        derive number = Values::Plural;
+        derive possessive_ending = Values::EndsInS;
+        form possessive_plural_reference = reference;
     }
     construction possessive: Possessive {
         element PossessiveValue { owner: PossessiveOwner, }
@@ -3742,23 +3478,6 @@ constructions! {
         derive agreement = head.agreement;
         form declared_object_amount_frame = verb(head) object amount;
     }
-    construction declared_with_object_frame: WithObjectFrame {
-        element DeclaredWithObjectFrame {
-            head: lex WithObjectVerb,
-            object: Object,
-        }
-        derive agreement = head.agreement;
-        form declared_with_object_frame = verb(head) "with" object;
-    }
-    construction declared_object_with_object_frame: ObjectWithObjectFrame {
-        element DeclaredObjectWithObjectFrame {
-            head: lex ObjectWithObjectVerb,
-            object: Object,
-            complement: Object,
-        }
-        derive agreement = head.agreement;
-        form declared_object_with_object_frame = verb(head) object "with" complement;
-    }
     construction declared_object_for_object_frame: ObjectForObjectFrame {
         element DeclaredObjectForObjectFrame {
             head: lex ObjectForObjectVerb,
@@ -3803,20 +3522,6 @@ constructions! {
         derive predicate.agreement = Values::Bare;
         derive agreement = auxiliary.agreement;
         form modal_passive_subject_gap_relative_clause = "that" auxiliary predicate;
-    }
-    construction finite_subject_gap_relative_clause: FiniteSubjectGapRelativeClause {
-        element FiniteSubjectGapRelativeClauseValue { head: lex IntransitiveVerb, }
-        derive agreement = head.agreement;
-        form finite_subject_gap_relative_clause = "that" verb(head);
-    }
-    construction modal_subject_gap_relative_clause: ModalSubjectGapRelativeClause {
-        element ModalSubjectGapRelativeClauseValue {
-            auxiliary: AuxiliaryHead,
-            head: lex IntransitiveVerb,
-        }
-        derive agreement = auxiliary.agreement;
-        derive head.agreement = Values::Bare;
-        form modal_subject_gap_relative_clause = "that" auxiliary verb(head);
     }
     construction copular_subject_gap_relative_clause: CopularSubjectGapRelativeClause {
         element CopularSubjectGapRelativeClauseValue {
@@ -3911,15 +3616,6 @@ constructions! {
         derive agreement = head.agreement;
         form put_on = verb(head) object source destination;
     }
-    construction put_to: VerbPhrase {
-        element PutTo {
-            head: lex ObjectToVerb,
-            object: Object,
-            destination: ToPhrase,
-        }
-        derive agreement = head.agreement;
-        form put_to = verb(head) object destination;
-    }
     construction return_to: VerbPhrase {
         element ReturnTo {
             head: lex ObjectFromToResultControlVerb,
@@ -3975,14 +3671,6 @@ constructions! {
         derive agreement = head.agreement;
         form declared_to_object_predicate = verb(head) object "to" complement;
     }
-    construction declared_for_object_predicate: VerbPhrase {
-        element DeclaredForObjectPredicate {
-            head: lex ForObjectVerb,
-            object: Object,
-        }
-        derive agreement = head.agreement;
-        form declared_for_object_predicate = verb(head) "for" object;
-    }
     // A quoted granted ability is a document in its own right: its interior
     // parses with the same grammar as printed rules text (oracle convention,
     // style guide "Quotation marks"; the CR does not describe the quoting).
@@ -4037,26 +3725,12 @@ constructions! {
         require run is SymbolRun;
         form mana_amount = run;
     }
-    construction and_mana_coordination: ManaCoordination {
-        element AndManaCoordination {
-            members: seq ManaAmount separated by " and ",
-        }
-        require len(members) >= 2;
-        form and_mana_coordination = members;
-    }
     construction or_mana_coordination: ManaCoordination {
         element OrManaCoordination {
             members: seq ManaAmount separated by " or ",
         }
         require len(members) >= 2;
         form or_mana_coordination = members;
-    }
-    construction and_or_mana_coordination: ManaCoordination {
-        element AndOrManaCoordination {
-            members: seq ManaAmount separated by " and/or ",
-        }
-        require len(members) >= 2;
-        form and_or_mana_coordination = members;
     }
     construction number: Amount {
         element NumberAmount { number: lex ScalarNumber, }
@@ -4097,12 +3771,7 @@ constructions! {
         ManaClauseCosted: ManaClauseCostedKeywordLineItem,
         Amounted: AmountKeywordLineItem,
         AmountManaCosted: AmountManaCostKeywordLineItem,
-        AmountClauseCosted: AmountClauseCostKeywordLineItem,
-        AmountManaClauseCosted: AmountManaClauseCostKeywordLineItem,
         Qualified: QualifiedKeywordLineItem,
-        QualityManaCosted: QualityManaCostKeywordLineItem,
-        QualityClauseCosted: QualityClauseCostKeywordLineItem,
-        QualityManaClauseCosted: QualityManaClauseCostKeywordLineItem,
         Subject: SubjectKeywordLineItem,
     }
     abstract sum KeywordQuality {
@@ -4166,26 +3835,6 @@ constructions! {
         form amount_mana_cost_keyword_line_item =
             lex(keyword) amount sentence_initial("—") cost;
     }
-    construction amount_clause_cost_keyword_line_item: AmountClauseCostKeywordLineItem {
-        element AmountClauseCostKeywordLineItemValue {
-            keyword: lex AmountCostKeywordAbility,
-            amount: Amount,
-            cost: KeywordCostPredicate,
-        }
-        form amount_clause_cost_keyword_line_item = lex(keyword) amount
-            sentence_initial("—") cost;
-    }
-    construction amount_mana_clause_cost_keyword_line_item: AmountManaClauseCostKeywordLineItem {
-        element AmountManaClauseCostKeywordLineItemValue {
-            keyword: lex AmountCostKeywordAbility,
-            amount: Amount,
-            mana: ActivationCostComponent,
-            cost: KeywordCostPredicate,
-        }
-        require mana is SymbolRun;
-        form amount_mana_clause_cost_keyword_line_item = lex(keyword) amount
-            sentence_initial("—") mana sentence_initial(", ") cost;
-    }
     construction keyword_quality_coordination: KeywordQualityCoordination {
         element KeywordQualityCoordinationValue {
             members: seq Nominal separated by position {
@@ -4204,36 +3853,6 @@ constructions! {
             quality: KeywordQuality,
         }
         form qualified_keyword_line_item = lex(keyword) quality;
-    }
-    construction quality_mana_cost_keyword_line_item: QualityManaCostKeywordLineItem {
-        element QualityManaCostKeywordLineItemValue {
-            keyword: lex QualityCostKeywordAbility,
-            quality: KeywordQuality,
-            cost: ActivationCostComponent,
-        }
-        require cost is SymbolRun;
-        form quality_mana_cost_keyword_line_item =
-            lex(keyword) quality sentence_initial("—") cost;
-    }
-    construction quality_clause_cost_keyword_line_item: QualityClauseCostKeywordLineItem {
-        element QualityClauseCostKeywordLineItemValue {
-            keyword: lex QualityCostKeywordAbility,
-            quality: KeywordQuality,
-            cost: KeywordCostPredicate,
-        }
-        form quality_clause_cost_keyword_line_item = lex(keyword) quality
-            sentence_initial("—") cost;
-    }
-    construction quality_mana_clause_cost_keyword_line_item: QualityManaClauseCostKeywordLineItem {
-        element QualityManaClauseCostKeywordLineItemValue {
-            keyword: lex QualityCostKeywordAbility,
-            quality: KeywordQuality,
-            mana: ActivationCostComponent,
-            cost: KeywordCostPredicate,
-        }
-        require mana is SymbolRun;
-        form quality_mana_clause_cost_keyword_line_item = lex(keyword) quality
-            sentence_initial("—") mana sentence_initial(", ") cost;
     }
     construction subject_keyword_line_item: SubjectKeywordLineItem {
         element SubjectKeywordLineItemValue {
@@ -4343,6 +3962,10 @@ fn singular_demonstrative_is_this(demonstrative: &SingularDemonstrative) -> bool
 
 fn noun_is_way(noun: &Noun) -> bool {
     matches!(noun, Noun::Lexeme(CommonNoun::Way))
+}
+
+fn noun_is_bare_locative(noun: &Noun) -> bool {
+    matches!(noun, Noun::Lexeme(CommonNoun::Exile | CommonNoun::Hand))
 }
 
 fn determinative_is_all(head: &Determinative) -> bool {

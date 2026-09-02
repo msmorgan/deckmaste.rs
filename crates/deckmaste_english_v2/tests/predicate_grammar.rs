@@ -723,11 +723,6 @@ impl Visitor for ObjectFrameVisitor {
         deckmaste_english_v2::visit::walk_declared_to_object_predicate(self, value);
     }
 
-    fn visit_declared_for_object_predicate(&mut self, value: &DeclaredForObjectPredicate) {
-        self.0.push("declared-for-object");
-        deckmaste_english_v2::visit::walk_declared_for_object_predicate(self, value);
-    }
-
     fn visit_predicative_scalar_value(&mut self, value: &PredicativeScalarValue) {
         self.0.push("predicative-scalar");
         deckmaste_english_v2::visit::walk_predicative_scalar_value(self, value);
@@ -961,51 +956,10 @@ fn declared_custom_valences_select_one_frame_per_linguistic_shape() {
 
     for text in [
         "Amass Slivers 2.",
-        "Clash with target opponent.",
-        "Exchange target creature with target artifact.",
         "Exchange target creature for target artifact.",
         "Shuffle target card into its owner's library.",
     ] {
         assert_selected_with_specificity(&parser, &context, text, true);
-    }
-}
-
-#[test]
-fn vote_uses_declared_for_object_valence_and_productive_common_noun_choices() {
-    let parser = parser();
-    let context = context();
-    let text = "Starting with her, each player votes for death or taxes.";
-    let ability = assert_selected_with_specificity(&parser, &context, text, true);
-    let Ability::Plain(Plain { body }) = &ability else {
-        panic!("vote witness has an ordinary ability envelope")
-    };
-    let AbilityBody::Sentences(sentences) = body else {
-        panic!("vote witness has an ordinary sentence body")
-    };
-    let Sentence::Attached(Attached { attachment }) = &sentences.sentences()[0] else {
-        panic!("vote order stays a typed preposed clause attachment")
-    };
-    let ClauseAttachment::StartingWith(starting) = attachment.as_ref() else {
-        panic!("vote order stays a typed preposed clause attachment")
-    };
-    assert!(matches!(
-        starting.starter,
-        Object::ObjectPronoun(PersonalObject {
-            word: ObjectPronoun::Her,
-        })
-    ));
-    let mut visitor = ObjectFrameVisitor::default();
-    visitor.visit_ability(&ability);
-    assert_eq!(visitor.0, ["declared-for-object"]);
-
-    for productive in [
-        "Starting with you, each player votes for card or token.",
-        "Starting with target player, each player votes for card or token.",
-    ] {
-        let ability = assert_selected_with_specificity(&parser, &context, productive, true);
-        let mut visitor = ObjectFrameVisitor::default();
-        visitor.visit_ability(&ability);
-        assert_eq!(visitor.0, ["declared-for-object"]);
     }
 }
 
@@ -1209,28 +1163,6 @@ fn negative_adjustments_build_render_visit_and_claim_the_typed_sign_product() {
                 "structural:Sentences/sentences/terminator/0".to_owned(),
             ),
         ],
-    );
-}
-
-#[test]
-fn preposed_duration_attaches_to_finite_and_imperative_bodies() {
-    let parser = parser();
-    let context = context();
-
-    for text in [
-        "Until end of turn, target creature gets +1/+1.",
-        "Until end of turn, gain 1 life.",
-        "Until your next turn, target creature gets +1/+1.",
-        "Until the end of your next turn, gain 1 life.",
-    ] {
-        assert_selected_with_specificity(&parser, &context, text, true);
-    }
-
-    assert!(
-        parser
-            .parse("Until the end your next turn, gain 1 life.", &context,)
-            .is_err(),
-        "boundary complements require the preposition of",
     );
 }
 
@@ -1506,7 +1438,6 @@ fn copular_change_auxiliary_and_passive_minimal_pairs_select() {
         "It was tapped.",
         "They were 2/2.",
         "It is a creature.",
-        "It is able to attack.",
         "Be white.",
         "Become tapped.",
         "It becomes blocked by target creature.",
@@ -1534,7 +1465,6 @@ fn copular_change_auxiliary_and_passive_minimal_pairs_select() {
                     | "It was tapped."
                     | "They were 2/2."
                     | "It is a creature."
-                    | "It is able to attack."
                     | "It is dealt damage."
                     | "It is dealt combat damage."
                     | "It is put into your graveyard from the battlefield."
@@ -1596,7 +1526,6 @@ fn finite_clause_generalization_preserves_complements_and_rejects_crossed_forms(
         "They are white.",
         "It is a creature.",
         "It was tapped.",
-        "It is able to attack.",
         "They were 2/2.",
         "Be white.",
         "Become tapped.",
@@ -1727,7 +1656,6 @@ fn scalar_values_compose_genitives_counts_and_post_recipient_equalities() {
         "Deal damage equal to the number of Slivers you control to target artifact.",
         "Deal damage to target artifact equal to the number of Slivers you control.",
         "Gain life equal to twice the number of Slivers you control.",
-        "Gain life equal to one plus the number of Slivers you control.",
         "Draw cards equal to the greatest power among creatures you control.",
         "Draw cards equal to the number of artifacts they control.",
     ] {
@@ -1763,7 +1691,6 @@ fn scalar_values_compose_genitives_counts_and_post_recipient_equalities() {
         "Draw cards equal to the blue creature's toughness.",
         "Deal damage to target artifact equal to the number of Slivers you control.",
         "Gain life equal to twice the number of Slivers you control.",
-        "Gain life equal to one plus the number of Slivers you control.",
         "Draw cards equal to the greatest power among creatures you control.",
     ] {
         let analysis = parser.analyze(text, &context);
@@ -1812,7 +1739,6 @@ fn object_gap_relatives_follow_subject_agreement() {
         "Creatures target player controls get -2/-2 until end of turn.",
         "It deals X damage divided evenly, rounded down, among all creatures target opponent controls.",
         "Destroy target creature you don't control.",
-        "Destroy target creature that player doesn't control.",
     ] {
         assert_selected_with_specificity(&parser, &context, text, true);
     }
@@ -1925,33 +1851,9 @@ fn postposed_as_long_as_attaches_to_clauses_and_bare_predicates() {
         &context,
         "This creature gets +1/+1 as long as you control a Forest.",
     );
-    assert_selected_with_specificity(
-        &parser,
-        &context,
-        "Draw a card as long as you control a Forest.",
-        true,
-    );
     assert!(
         parser
             .parse("Draw a card as long you control a Forest.", &context)
-            .is_err(),
-    );
-}
-
-#[test]
-fn temporal_casting_restrictions_take_finite_clause_complements() {
-    let parser = parser();
-    let context = context();
-
-    for text in [
-        "Cast this spell only before attackers are declared.",
-        "Cast this spell only after blockers are declared.",
-    ] {
-        assert_selected_with_specificity(&parser, &context, text, true);
-    }
-    assert!(
-        parser
-            .parse("Cast this spell only before attackers declared.", &context)
             .is_err(),
     );
 }
@@ -2284,40 +2186,6 @@ fn contracted_perfect_object_gap_relatives_use_participles() {
 }
 
 #[test]
-fn contracted_perfect_transitive_clauses_keep_their_object() {
-    let parser = parser();
-    let context = context();
-
-    assert_selected(&parser, &context, "You've drawn a card.");
-    assert_selected_with_specificity(
-        &parser,
-        &context,
-        "As long as you've drawn a card, draw a card.",
-        true,
-    );
-    assert!(parser.parse("You've draw a card.", &context).is_err(),);
-}
-
-#[test]
-fn contracted_perfect_object_on_clauses_keep_their_selected_preposition() {
-    let parser = parser();
-    let context = context();
-
-    assert_selected(&parser, &context, "You've put a counter on this creature.");
-    assert_selected_with_specificity(
-        &parser,
-        &context,
-        "As long as you've put one or more +1/+1 counters on this creature, draw a card.",
-        true,
-    );
-    assert!(
-        parser
-            .parse("You've put a counter this creature.", &context)
-            .is_err(),
-    );
-}
-
-#[test]
 fn contracted_perfect_passive_clauses_accept_participles_and_temporal_adjuncts() {
     let parser = parser();
     let context = context();
@@ -2386,11 +2254,7 @@ fn negative_nominal_quantifiers_preserve_singular_and_plural_agreement() {
     let parser = parser();
     let context = context();
 
-    for text in [
-        "There is no card.",
-        "There are no cards.",
-        "There are no more counters.",
-    ] {
+    for text in ["There is no card.", "There are no cards."] {
         assert_selected(&parser, &context, text);
     }
     for text in ["There are no card.", "There is no cards."] {
@@ -2427,30 +2291,6 @@ fn do_proforms_reuse_ordinary_conditional_and_trigger_structure() {
             "{text:?}: {path:?}",
         );
     }
-}
-
-#[test]
-fn infinitival_negation_is_separate_from_the_invariant_to_marker() {
-    let parser = parser();
-    let context = context();
-    let text = "Choose not to draw a card.";
-
-    assert_selected_with_specificity(&parser, &context, text, true);
-    let trace = exact_claim_trace(&parser, &context, text);
-    assert!(
-        trace
-            .iter()
-            .all(|(_, owner)| !owner.contains("InfinitiveMarker")),
-        "{trace:?}",
-    );
-    assert!(
-        trace.iter().any(|(surface, _)| surface == " not"),
-        "{trace:?}"
-    );
-    assert!(
-        trace.iter().any(|(surface, _)| surface == " to"),
-        "{trace:?}"
-    );
 }
 
 #[test]
@@ -2792,7 +2632,6 @@ fn distributed_quantifiers_and_declared_participle_modifiers_compose() {
         "Destroy target activated ability.",
         "Discard up to one card.",
         "Discard up to two cards.",
-        "You may choose not to untap this creature during your untap step.",
     ] {
         assert_selected_with_specificity(&parser, &context, text, true);
     }
@@ -2800,8 +2639,6 @@ fn distributed_quantifiers_and_declared_participle_modifiers_compose() {
     for malformed in [
         "Destroy target activate ability.",
         "Discard up to two card.",
-        "You may choose not untap this creature during your untap step.",
-        "You may choose not to untap this creature your untap step.",
     ] {
         let result = parser.parse(malformed, &context);
         assert!(
@@ -2880,12 +2717,6 @@ fn opaque_self_names_form_ordinary_genitive_noun_phrases() {
     let context = context();
 
     assert_selected_with_specificity(&parser, &context, "Context Card's color is red.", true);
-    assert_selected_with_specificity(
-        &parser,
-        &context,
-        "Context Card's power and toughness are 1/1.",
-        true,
-    );
     assert!(
         parser
             .parse("Context Card color is red.", &context)
@@ -3180,7 +3011,6 @@ fn movement_frames_select_exact_source_destination_state_and_control_roles() {
     let context = context();
     for (text, permits_specificity) in [
         ("Put that card into your hand.", true),
-        ("Put that card to your hand.", true),
         (
             "Put target creature card from your graveyard onto the battlefield tapped under your control.",
             true,

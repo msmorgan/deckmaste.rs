@@ -877,7 +877,6 @@ enum CostVisit {
     Fixed(FixedCostSymbol),
     Generic(u32),
     LoyaltyMagnitude(NonZeroU32),
-    MonocoloredHybrid(MonocoloredHybridColor),
 }
 
 #[derive(Default)]
@@ -921,15 +920,6 @@ impl Visitor for CostVisitor {
 
     fn visit_fixed_cost_symbol(&mut self, value: FixedCostSymbol) {
         self.0.push(CostVisit::Fixed(value));
-    }
-
-    fn visit_monocolored_hybrid_symbol(&mut self, value: &MonocoloredHybridSymbol) {
-        self.0.push(CostVisit::Node("MonocoloredHybridSymbol"));
-        deckmaste_english_v2::visit::walk_monocolored_hybrid_symbol(self, value);
-    }
-
-    fn visit_monocolored_hybrid_color(&mut self, value: MonocoloredHybridColor) {
-        self.0.push(CostVisit::MonocoloredHybrid(value));
     }
 
     fn visit_scalar_number(&mut self, value: &ScalarNumber) {
@@ -1432,8 +1422,6 @@ fn at_phrase_composes_temporal_nouns_through_the_general_noun_phrase_grammar() {
     for text in [
         "At the beginning of turn, you gain X life.",
         "At the beginning of beginning phase, you gain X life.",
-        "At the beginning of first main phase, you gain X life.",
-        "At the beginning of second main phase, you gain X life.",
         "At the beginning of precombat main phase, you gain X life.",
         "At the beginning of postcombat main phase, you gain X life.",
         "At the beginning of main phase, you gain X life.",
@@ -1545,11 +1533,7 @@ fn temporal_and_intervening_boundaries_own_exact_bytes_and_visit_structure() {
             (16, 19, "form:of_phrase/of_phrase/0"),
             (19, 24, "determinative:DeterminativeHead/Each"),
             (24, 31, "lexeme:CommonNoun/Player/singular"),
-            (
-                31,
-                33,
-                "form:genitive_determiner_singular_reference/genitive_determiner_singular_reference/0/affix"
-            ),
+            (31, 33, "form:possessive/singular/0/affix"),
             (33, 43, "lexeme:turn_part/DrawStep/singular"),
             (43, 44, "form:triggered/triggered/1"),
             (44, 48, "vocab:SubjectPronoun/You"),
@@ -1947,30 +1931,6 @@ fn every_fixed_symbol_interior_and_generic_decimal_has_one_typed_ast() {
                 symbol: expected
             })],
             "fixed symbol identity is typed rather than slash text: {text}",
-        );
-    }
-
-    for (interior, expected) in [
-        ("2/W", MonocoloredHybridColor::White),
-        ("2/U", MonocoloredHybridColor::Blue),
-        ("2/B", MonocoloredHybridColor::Black),
-        ("2/R", MonocoloredHybridColor::Red),
-        ("2/G", MonocoloredHybridColor::Green),
-    ] {
-        let text = format!("{{{interior}}}: You gain X life.");
-        let Ability::Activated(activated) = assert_selected_activated(&parser, &context, &text)
-        else {
-            panic!("a monocolored hybrid symbol has the activated envelope: {text}")
-        };
-        let [ActivationCostComponent::SymbolRun(run)] = activated.costs() else {
-            panic!("one monocolored hybrid symbol is one symbol-run component: {text}")
-        };
-        assert_eq!(
-            run.symbols(),
-            &[CostSymbol::MonocoloredHybridSymbol(
-                MonocoloredHybridSymbol { color: expected },
-            )],
-            "the monocolored-hybrid color is typed and slash text is derived: {text}",
         );
     }
 
@@ -2613,7 +2573,6 @@ fn auxiliaries_are_lexical_clause_structure_with_derived_bare_predicates() {
 enum CoordinationKind {
     And,
     Or,
-    AndOr,
 }
 
 fn assert_predicate_coordination(
@@ -2640,9 +2599,6 @@ fn assert_predicate_coordination(
         (CoordinationKind::Or, PredicateCoordination::OrPredicateCoordination(value)) => {
             value.members()
         }
-        (CoordinationKind::AndOr, PredicateCoordination::AndOrPredicateCoordination(value)) => {
-            value.members()
-        }
         _ => panic!("coordinator meaning is stored independently of punctuation: {text}"),
     };
     assert_eq!(
@@ -2659,11 +2615,7 @@ fn assert_predicate_coordination(
 fn predicate_coordination_is_nary_with_exact_pair_serial_and_final_surfaces() {
     let parser = parser();
     let context = context("Context Card", false);
-    for (kind, coordinator) in [
-        (CoordinationKind::And, "and"),
-        (CoordinationKind::Or, "or"),
-        (CoordinationKind::AndOr, "and/or"),
-    ] {
+    for (kind, coordinator) in [(CoordinationKind::And, "and"), (CoordinationKind::Or, "or")] {
         for (text, members) in [
             (
                 format!("You gain 1 life {coordinator} connive."),
@@ -2699,9 +2651,6 @@ fn assert_clause_coordination(
             value.members()
         }
         (CoordinationKind::Or, ClauseCoordination::OrClauseCoordination(value)) => value.members(),
-        (CoordinationKind::AndOr, ClauseCoordination::AndOrClauseCoordination(value)) => {
-            value.members()
-        }
         _ => panic!("clause coordinator meaning is stored independently: {text}"),
     };
     assert_eq!(
@@ -2718,11 +2667,7 @@ fn assert_clause_coordination(
 fn complete_finite_clause_coordination_is_nary_and_preserves_member_agreement() {
     let parser = parser();
     let context = context("Aang, A Lot to Learn", true);
-    for (kind, coordinator) in [
-        (CoordinationKind::And, "and"),
-        (CoordinationKind::Or, "or"),
-        (CoordinationKind::AndOr, "and/or"),
-    ] {
+    for (kind, coordinator) in [(CoordinationKind::And, "and"), (CoordinationKind::Or, "or")] {
         for (text, members) in [
             (
                 format!("Aang gains 1 life {coordinator} you connive."),
@@ -3149,24 +3094,6 @@ fn conditional_attachments_have_distinct_position_shapes_and_exact_asts() {
                         body: Box::new(body.clone()),
                     },
                 ))),
-            }),
-        ),
-        (
-            "While you connive, you gain 2 life.",
-            Sentence::Attached(Attached {
-                attachment: Box::new(ClauseAttachment::PreposedWhile(Box::new(PreposedWhile {
-                    condition: condition.clone(),
-                    body: Box::new(body.clone()),
-                }))),
-            }),
-        ),
-        (
-            "Until you connive, you gain 2 life.",
-            Sentence::Attached(Attached {
-                attachment: Box::new(ClauseAttachment::PreposedUntil(Box::new(PreposedUntil {
-                    condition,
-                    body: Box::new(body),
-                }))),
             }),
         ),
     ] {
@@ -3924,20 +3851,6 @@ fn predicate_attachments_are_staged_without_recursive_clause_bracketings() {
             "As long as you connive, gain 2 life.",
             ClauseAttachment::PreposedAsLongAsPredicate(Box::new(
                 PreposedAsLongAsPredicate::new(preposed_condition.clone(), Box::new(gain.clone()))
-                    .expect("the attached gain predicate is bare"),
-            )),
-        ),
-        (
-            "While you connive, gain 2 life.",
-            ClauseAttachment::PreposedWhilePredicate(Box::new(
-                PreposedWhilePredicate::new(condition.clone(), Box::new(gain.clone()))
-                    .expect("the attached gain predicate is bare"),
-            )),
-        ),
-        (
-            "Until you connive, gain 2 life.",
-            ClauseAttachment::PreposedUntilPredicate(Box::new(
-                PreposedUntilPredicate::new(condition.clone(), Box::new(gain.clone()))
                     .expect("the attached gain predicate is bare"),
             )),
         ),

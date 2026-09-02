@@ -1408,7 +1408,7 @@ mod tests {
             (CoreVerbIdentity::Draw, "draw", "draws", Some("drawn"), 3),
             (CoreVerbIdentity::Enter, "enter", "enters", None, 5),
             (CoreVerbIdentity::Flip, "flip", "flips", None, 1),
-            (CoreVerbIdentity::Gain, "gain", "gains", None, 3),
+            (CoreVerbIdentity::Gain, "gain", "gains", None, 4),
             (CoreVerbIdentity::Get, "get", "gets", None, 1),
             (CoreVerbIdentity::Have, "have", "has", None, 5),
             (CoreVerbIdentity::Leave, "leave", "leaves", None, 2),

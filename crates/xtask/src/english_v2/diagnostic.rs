@@ -1077,6 +1077,8 @@ enum NonterminalKind {
     PluralSelector,
     FullNounPhraseCoordination,
     PartitiveSelection,
+    BareLocative,
+    BareLocativeNoun,
     FromPhrase,
     IntoPhrase,
     OntoPhrase,
@@ -1618,17 +1620,10 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::PreposedAsLongAsPredicate => {
             NonterminalKind::PreposedAsLongAsPredicate
         }
-        NonterminalCategory::PreposedWhile => NonterminalKind::PreposedWhile,
-        NonterminalCategory::PreposedWhilePredicate => NonterminalKind::PreposedWhilePredicate,
         NonterminalCategory::PreposedDuring => NonterminalKind::PreposedDuring,
         NonterminalCategory::PreposedDuringPredicate => NonterminalKind::PreposedDuringPredicate,
         NonterminalCategory::DuringPhrase => NonterminalKind::DuringPhrase,
         NonterminalCategory::PreposedDuration => NonterminalKind::PreposedDuration,
-        NonterminalCategory::PreposedDurationPredicate => {
-            NonterminalKind::PreposedDurationPredicate
-        }
-        NonterminalCategory::PreposedUntil => NonterminalKind::PreposedUntil,
-        NonterminalCategory::PreposedUntilPredicate => NonterminalKind::PreposedUntilPredicate,
         NonterminalCategory::ThenSequence => NonterminalKind::ThenSequence,
         NonterminalCategory::ThenPredicateSequence => NonterminalKind::ThenPredicateSequence,
         NonterminalCategory::BareThenPredicateSequence => {
@@ -1691,9 +1686,6 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::ParticipialExceptByComplement => {
             NonterminalKind::ParticipialExceptByComplement
         }
-        NonterminalCategory::PredicativeAbilityComplement => {
-            NonterminalKind::PredicativeAbilityComplement
-        }
         NonterminalCategory::PredicativePowerToughnessComplement => {
             NonterminalKind::PredicativePowerToughnessComplement
         }
@@ -1719,22 +1711,7 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::AmountManaCostKeywordLineItem => {
             NonterminalKind::AmountManaCostKeywordLineItem
         }
-        NonterminalCategory::AmountClauseCostKeywordLineItem => {
-            NonterminalKind::AmountClauseCostKeywordLineItem
-        }
-        NonterminalCategory::AmountManaClauseCostKeywordLineItem => {
-            NonterminalKind::AmountManaClauseCostKeywordLineItem
-        }
         NonterminalCategory::QualifiedKeywordLineItem => NonterminalKind::QualifiedKeywordLineItem,
-        NonterminalCategory::QualityManaCostKeywordLineItem => {
-            NonterminalKind::QualityManaCostKeywordLineItem
-        }
-        NonterminalCategory::QualityClauseCostKeywordLineItem => {
-            NonterminalKind::QualityClauseCostKeywordLineItem
-        }
-        NonterminalCategory::QualityManaClauseCostKeywordLineItem => {
-            NonterminalKind::QualityManaClauseCostKeywordLineItem
-        }
         NonterminalCategory::SubjectKeywordLineItem => NonterminalKind::SubjectKeywordLineItem,
         NonterminalCategory::KeywordQualityCoordination => {
             NonterminalKind::KeywordQualityCoordination
@@ -1827,11 +1804,12 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::Nominal => NonterminalKind::Nominal,
         NonterminalCategory::Determinative => NonterminalKind::Determinative,
         NonterminalCategory::SingularSelector => NonterminalKind::SingularSelector,
-        NonterminalCategory::PluralSelector => NonterminalKind::PluralSelector,
         NonterminalCategory::FullNounPhraseCoordination => {
             NonterminalKind::FullNounPhraseCoordination
         }
         NonterminalCategory::PartitiveSelection => NonterminalKind::PartitiveSelection,
+        NonterminalCategory::BareLocative => NonterminalKind::BareLocative,
+        NonterminalCategory::BareLocativeNoun => NonterminalKind::BareLocativeNoun,
         NonterminalCategory::FromPhrase => NonterminalKind::FromPhrase,
         NonterminalCategory::IntoPhrase => NonterminalKind::IntoPhrase,
         NonterminalCategory::OntoPhrase => NonterminalKind::OntoPhrase,
@@ -1891,12 +1869,6 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::ModalPassiveSubjectGapRelativeClause => {
             NonterminalKind::ModalPassiveSubjectGapRelativeClause
         }
-        NonterminalCategory::FiniteSubjectGapRelativeClause => {
-            NonterminalKind::FiniteSubjectGapRelativeClause
-        }
-        NonterminalCategory::ModalSubjectGapRelativeClause => {
-            NonterminalKind::ModalSubjectGapRelativeClause
-        }
         NonterminalCategory::CopularSubjectGapRelativeClause => {
             NonterminalKind::CopularSubjectGapRelativeClause
         }
@@ -1904,7 +1876,6 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::ObjectForObjectFrame => NonterminalKind::ObjectForObjectFrame,
         NonterminalCategory::ObjectGapRelativeClause => NonterminalKind::ObjectGapRelativeClause,
         NonterminalCategory::ObjectIntoObjectFrame => NonterminalKind::ObjectIntoObjectFrame,
-        NonterminalCategory::ObjectWithObjectFrame => NonterminalKind::ObjectWithObjectFrame,
         NonterminalCategory::OfPhrase => NonterminalKind::OfPhrase,
         NonterminalCategory::OrScalarDegreePhrase => NonterminalKind::OrScalarDegreePhrase,
         NonterminalCategory::PositiveObjectGapRelativeClause => {
@@ -1924,21 +1895,9 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::SingleScalarDegreePhrase => NonterminalKind::SingleScalarDegreePhrase,
         NonterminalCategory::TemporalEndpoint => NonterminalKind::TemporalEndpoint,
         NonterminalCategory::TemporalRelationPhrase => NonterminalKind::TemporalRelationPhrase,
-        NonterminalCategory::ThirdPersonNegativeObjectGapRelativeClause => {
-            NonterminalKind::ThirdPersonNegativeObjectGapRelativeClause
-        }
         NonterminalCategory::UntilDurationPhrase => NonterminalKind::UntilDurationPhrase,
-        NonterminalCategory::WithObjectFrame => NonterminalKind::WithObjectFrame,
-        NonterminalCategory::AndManaCoordination => NonterminalKind::AndManaCoordination,
-        NonterminalCategory::AndOrManaCoordination => NonterminalKind::AndOrManaCoordination,
-        NonterminalCategory::OnlyTemporalClauseRestriction => {
-            NonterminalKind::OnlyTemporalClauseRestriction
-        }
         NonterminalCategory::OrManaCoordination => NonterminalKind::OrManaCoordination,
         NonterminalCategory::PostposedAsLongAs => NonterminalKind::PostposedAsLongAs,
-        NonterminalCategory::PostposedAsLongAsPredicate => {
-            NonterminalKind::PostposedAsLongAsPredicate
-        }
         NonterminalCategory::PreposedFor => NonterminalKind::PreposedFor,
         NonterminalCategory::PreposedForPredicate => NonterminalKind::PreposedForPredicate,
         NonterminalCategory::PreposedTemporalRelation => NonterminalKind::PreposedTemporalRelation,

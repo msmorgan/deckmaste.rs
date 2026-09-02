@@ -21,3 +21,33 @@ first in the chain so the general-constituent work starts clean.
 Acceptance: ratchet up or equal, zero ties, no new literals for content
 words, the two vocabs gone, census table in the landing record. Standard
 constraints apply.
+
+## Landing record (2026-09-02)
+
+| census point | constructions | zero-routed |
+| --- | ---: | ---: |
+| first exact pass after the initial possessive cleanup | 396 | 45 |
+| landed grammar | 356 | 0 |
+
+- Added `KeywordAbility` to `Gain`'s declaration-driven valence. `Target
+  creature gains flying.` now selects uniquely through
+  `VerbPhraseHaveKeywordAbility`.
+- Probed `You may play it as though it were a land.` and `Add one mana of
+  any type.`. Both already select through the general clause and noun/PP
+  trees, so no phrase-specific constructions or content-word literals were
+  added.
+- Removed the `BareLocativeNoun` and `ControllerNoun` vocabs. Bare `exile`
+  and `hand` locatives now use a checked `Noun` constituent backed by the
+  common noun inventory; controller references already use the general noun
+  path.
+- Routed singular and plural genitives through the general `Possessive`
+  root. The corpus proves the singular, plural-reference, plural-nominal, and
+  plural-mass routes live, including `their owners' libraries` and `their
+  owners' control`.
+- Deleted every remaining construction with no selected corpus route and
+  removed the corresponding generated API/test residue. The final census has
+  no zero-routed construction.
+- Confirmed `english-v2-pp-construction` already records the corrected
+  per-preposition family count as approximately 15.
+- Coverage rose from 15,886 to 15,927 selected-and-covered identities, with
+  zero unresolved ties, ownership failures, or round-trip mismatches.
