@@ -237,7 +237,7 @@ badReaderBeforeChooser : Unspellable Card (\ok =>
        [ Static (Gets (AllOf (And [Macros.creature,
                                    OfChosen (SubtypeQ Creature) {ok = ok}]))
                       (PtUp (Lit 1)) (PtUp (Lit 1)))
-       , Static (EntersChoice Macros.thisEnchantment (QSort (SubtypeQ Creature)) Nothing) ]
+       , Static (EntersChoice Macros.thisEnchantment (QSort (SubtypeQ Creature)) Nothing Openly) ]
        Nothing)
 badReaderBeforeChooser Refl impossible
 
@@ -247,8 +247,8 @@ badReaderBeforeChooser Refl impossible
 public export
 badTwoChoosersOneSortRead : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
-       [ Static (EntersChoice Macros.thisEnchantment (QSort (SubtypeQ Creature)) Nothing)
-       , Static (EntersChoice Macros.thisEnchantment (QSort (SubtypeQ Creature)) Nothing)
+       [ Static (EntersChoice Macros.thisEnchantment (QSort (SubtypeQ Creature)) Nothing Openly)
+       , Static (EntersChoice Macros.thisEnchantment (QSort (SubtypeQ Creature)) Nothing Openly)
        , Static (Gets (AllOf (And [Macros.creature,
                                    OfChosen (SubtypeQ Creature) {ok = ok}]))
                       (PtUp (Lit 1)) (PtUp (Lit 1))) ]
@@ -261,7 +261,7 @@ badTwoChoosersOneSortRead Refl impossible
 public export
 badChosenReadWrongSort : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
-       [ Static (EntersChoice Macros.thisEnchantment (QSort Color) Nothing)
+       [ Static (EntersChoice Macros.thisEnchantment (QSort Color) Nothing Openly)
        , Static (Gets (AllOf (And [Macros.creature,
                                    OfChosen (SubtypeQ Creature) {ok = ok}]))
                       (PtUp (Lit 1)) (PtUp (Lit 1))) ]
@@ -276,7 +276,7 @@ badChosenProtectionBeforeChoice : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [creatureType "Angel"] [Creature])
        [ Static (Gains Macros.thisCreature
                        (KeywordAbility "Protection" (Just (ParamQuality (OfChosen Color {ok = ok})))))
-       , Static (EntersChoice Macros.thisCreature (QSort Color) Nothing) ]
+       , Static (EntersChoice Macros.thisCreature (QSort Color) Nothing Openly) ]
        (Just (2, 2)))
 badChosenProtectionBeforeChoice Refl impossible
 
@@ -289,7 +289,7 @@ badAscribedQualityBeforeChoice : Unspellable Card (\ok =>
        [ Static (AddsChosenQuality
                    (AllOf (And [Macros.creature, ControlledBy You]))
                    (OfChosen (SubtypeQ Creature) {ok = ok}))
-       , Static (EntersChoice Macros.thisEnchantment (QSort (SubtypeQ Creature)) Nothing) ]
+       , Static (EntersChoice Macros.thisEnchantment (QSort (SubtypeQ Creature)) Nothing Openly) ]
        Nothing)
 badAscribedQualityBeforeChoice Refl impossible
 
@@ -314,7 +314,7 @@ badNameMatchBeforeChooser : Unspellable Card (\ok =>
                    (Macros.counterSpell
                       (Macros.target (And [Macros.spell,
                                            Named (ChosenName {ok = ok})]))) Nothing Nothing Nothing Nothing
-       , Static (EntersChoice Macros.thisEnchantment (QSort CardName) Nothing) ]
+       , Static (EntersChoice Macros.thisEnchantment (QSort CardName) Nothing Openly) ]
        Nothing)
 badNameMatchBeforeChooser Refl impossible
 
@@ -324,7 +324,7 @@ badNameMatchBeforeChooser Refl impossible
 public export
 badNameMatchWrongSort : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
-       [ Static (EntersChoice Macros.thisEnchantment (QSort Color) Nothing)
+       [ Static (EntersChoice Macros.thisEnchantment (QSort Color) Nothing Openly)
        , Activated (Mana [Macros.pip Blue])
                    (Macros.counterSpell
                       (Macros.target (And [Macros.spell,
@@ -628,7 +628,7 @@ badLastChosenBeforeChooser : Unspellable Card (\ok =>
                           (Just (AllOf (And [Macros.source,
                                              OfLastChosen Color {ok = ok}])))
                           Nothing)
-       , Static (EntersChoice Macros.thisEnchantment (QSort Color) Nothing) ]
+       , Static (EntersChoice Macros.thisEnchantment (QSort Color) Nothing Openly) ]
        Nothing)
 badLastChosenBeforeChooser ChoiceMade impossible
 
@@ -638,7 +638,7 @@ badLastChosenBeforeChooser ChoiceMade impossible
 public export
 badLastChosenWrongSort : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
-       [ Static (EntersChoice Macros.thisEnchantment (QSort (SubtypeQ Creature)) Nothing)
+       [ Static (EntersChoice Macros.thisEnchantment (QSort (SubtypeQ Creature)) Nothing Openly)
        , Static (Prevents AnyDamage AllOfIt
                           (Macros.shieldingIt You)
                           (Just (AllOf (And [Macros.source,
@@ -646,3 +646,23 @@ badLastChosenWrongSort : Unspellable Card (\ok =>
                           Nothing) ]
        Nothing)
 badLastChosenWrongSort ChoiceMade impossible
+
+
+||| "Starting with you, each player votes for death or death."
+||| [CR#701.38b] connects each of a ballot's words to A DIFFERENT effect, so
+||| one word listed twice is one option twice over and the reads that name an
+||| option ("if death gets more votes", "for each death vote") have nothing to
+||| tell apart.
+public export
+badRepeatedBallotOption : Unspellable (Ballot []) (\ok =>
+  ByLabel ["death", "death"] {ok})
+badRepeatedBallotOption Oh impossible
+
+
+||| "Starting with you, each player votes for death."
+||| [CR#701.38a] has each player vote "for one choice from A LIST OF OPTIONS";
+||| a list of one leaves no choice to make and no tally to compare.
+public export
+badSingletonBallot : Unspellable (Ballot []) (\ok =>
+  ByLabel ["death"] {ok})
+badSingletonBallot Oh impossible

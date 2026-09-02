@@ -64,7 +64,7 @@ badBarePluralDamageRecipient Oh impossible
 ||| A plural read is no better than a plural mention at the recipient slot.
 public export
 badThemCounterRecipient : Unspellable (Effect []) (\ok =>
-  Sequentially [Choose (TargetGroup Macros.anyNumber Macros.creature) Nothing,
+  Sequentially [Choose (TargetGroup Macros.anyNumber Macros.creature) Nothing Openly,
                 PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) Them {pm = ok}])
 badThemCounterRecipient Oh impossible
 
@@ -135,7 +135,7 @@ badRestOverTwoAnnouncements Oh impossible
 ||| A partitive needs a chooser, and this clause has no agent slot to name one.
 public export
 badChooseSomeOf : Unspellable (Effect []) (\ok =>
-  Sequentially [Macros.lookAt (Macros.topCards 4), Choose (Macros.oneOf Them) Nothing {ch = ok}])
+  Sequentially [Macros.lookAt (Macros.topCards 4), Choose (Macros.oneOf Them) Nothing Openly {ch = ok}])
 badChooseSomeOf BareChoice impossible
 
 

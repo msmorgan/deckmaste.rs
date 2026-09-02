@@ -1867,6 +1867,94 @@ public export
 data ChoiceStands : Nat -> Type where
   ChoiceMade : ChoiceStands (S n)
 
+||| Whether a decision is made in the OPEN or in SECRET -- the hidden
+||| protocol's one marking, shared by the chooser and the vote.
+|||
+||| It marks a real difference of rules and not of wording. [CR#101.4]
+||| runs several players' simultaneous decisions in APNAP order, and
+||| [CR#101.4b] states the default outright: "A player knows the choices
+||| made by the previous players when making their choice". A printed
+||| "secretly" is exactly the switch that turns that rule off, and Wheel
+||| of Misfortune's ruling says what
+||| replaces it -- each player writes their choice down and "keeps their
+||| number secret until all players simultaneously reveal". So a secret
+||| decision is made without the knowledge the open one is made with, and
+||| the reveal that follows is what puts the information back.
+|||
+||| [CR#101.4a] is NOT this marking and is not folded into it: a card in
+||| a hidden zone "may remain face down as [it is] chosen", which hides
+||| the card's IDENTITY from an ordinary open choice and still lets each
+||| player see that a choice was made. Secrecy hides the decision itself.
+|||
+||| 17 supported cards write "secretly", 6 of them at the vote (measured
+||| 2026-09-02).
+public export
+data Disclosure = Openly | Secretly
+
+public export
+Eq Disclosure where
+  (==) Openly Openly = True
+  (==) Openly Secretly = False
+  (==) Secretly Openly = False
+  (==) Secretly Secretly = True
+
+||| What a hidden decision's reveal NAMES, which is the one thing that
+||| varies in its spelling: "then those NUMBERS are revealed" (Menacing
+||| Ogre, Wheel of Misfortune) against "then those CHOICES are revealed"
+||| (Call to the Void, Expert-Level Safe, Malik, Prisoner's Dilemma).
+||| Carried and not derived from a `ChoiceSort`, because the choosers
+||| behind it do not all have one: Prisoner's Dilemma's "silence or
+||| snitch" is a list of words with no rules meaning, which is no sort at
+||| all, and Call to the Void's creatures are `Object`, where
+||| `choiceSortAt` answers `Nothing` by design.
+public export
+data HiddenSort = HiddenNumbers | HiddenChoices
+
+public export
+Eq HiddenSort where
+  (==) HiddenNumbers HiddenNumbers = True
+  (==) HiddenNumbers HiddenChoices = False
+  (==) HiddenChoices HiddenNumbers = False
+  (==) HiddenChoices HiddenChoices = True
+
+||| One option on a ballot, where the option is a printed word.
+|||
+||| An OPEN label, for the reason [CR#207.2d]'s flavor words are one:
+||| [CR#701.38b] admits "words with no rules meaning that are each
+||| connected to a different effect" among a vote's choices, and no rule
+||| enumerates them -- each card coins its own pair (death or taxes,
+||| carnage or homage, evidence or bribery). 26 of the 33 supported
+||| vote-casting cards write a ballot of exactly two such words
+||| (measured 2026-09-02).
+public export
+VoteLabel : Type
+VoteLabel = String
+
+public export
+distinctLabels : List VoteLabel -> Bool
+distinctLabels [] = True
+distinctLabels (l :: ls) = not (elem l ls) && distinctLabels ls
+
+||| What a printed ballot must be: two or more options, no two of them
+||| the same word.
+|||
+||| Both halves are [CR#701.38]'s and neither is a count. [CR#701.38a]
+||| has each player "vote for ONE CHOICE FROM A LIST OF OPTIONS", and a
+||| list of one offers no choice to make -- there is nothing for the
+||| turn-order pass to decide and nothing for a tally to compare.
+||| [CR#701.38b] settles the second half: the words on a ballot are
+||| "each connected to A DIFFERENT EFFECT", so two occurrences of one
+||| word are one option twice over, and the reads that name an option
+||| ("if death gets more votes", "for each death vote") could not tell
+||| the two apart if they were both there.
+public export
+ballotLabelsOk : List VoteLabel -> Bool
+ballotLabelsOk opts = 2 <= length opts && distinctLabels opts
+
+public export
+0 BallotLabelsOk : List VoteLabel -> Type
+BallotLabelsOk opts = So (ballotLabelsOk opts)
+
 ||| Every mention of the letter, introduced or defined alike.
 public export
 countLetter : Letter -> Bindings -> Nat

@@ -25,7 +25,7 @@ badChosenNumberRead Oh impossible
 ||| Two creatures have no single power [CR#208.1]; a fold word writes the group's.
 public export
 badGroupPower : Unspellable (Effect []) (\ok =>
-  Sequentially [Choose (TargetGroup (Macros.exactly 2) Macros.creature) Nothing,
+  Sequentially [Choose (TargetGroup (Macros.exactly 2) Macros.creature) Nothing Openly,
                 Macros.gainsLife You (Macros.powerOf Them {one = ok})])
 badGroupPower Refl impossible
 
@@ -34,7 +34,7 @@ badGroupPower Refl impossible
 ||| Two cards need not share an owner [CR#108.3].
 public export
 badGroupOwner : Unspellable (Effect []) (\ok =>
-  Sequentially [Choose (TargetGroup (Macros.exactly 2) Macros.creature) Nothing,
+  Sequentially [Choose (TargetGroup (Macros.exactly 2) Macros.creature) Nothing Openly,
                 Macros.losesLife (OwnerOf Them {one = ok}) (Lit 1)])
 badGroupOwner Refl impossible
 
@@ -241,8 +241,8 @@ badChosenCounterKindRead Oh impossible
 ||| Two group mentions leave "them" ambiguous.
 public export
 badThemAmbig : Unspellable (Effect []) (\ok =>
-  Sequentially [Choose (TargetGroup (Macros.exactly 2) Macros.creature) Nothing,
-               Choose (TargetGroup (Macros.exactly 2) Macros.creature) Nothing,
+  Sequentially [Choose (TargetGroup (Macros.exactly 2) Macros.creature) Nothing Openly,
+               Choose (TargetGroup (Macros.exactly 2) Macros.creature) Nothing Openly,
                SetStatus Tapped (Them {ok})])
 badThemAmbig Refl impossible
 
@@ -476,7 +476,7 @@ badConflictingZones Oh impossible
 ||| Targets are objects and players [CR#115.1]; qualities are chosen.
 public export
 badTargetColor : Unspellable (Effect []) (\ok =>
-  Choose (Macros.target (QualityNoun Color Nothing) {tk = ok}) Nothing)
+  Choose (Macros.target (QualityNoun Color Nothing) {tk = ok}) Nothing Openly)
 badTargetColor ObjectTgt impossible
 
 
@@ -537,7 +537,7 @@ badUnknownVerbLabel Oh impossible
 ||| A written quantity permits at least one; the demand is on its MAXIMUM.
 public export
 badZeroGroup : Unspellable (Effect []) (\ok =>
-  Choose (TargetGroup (Macros.exactly 0) Macros.creature {nz = Builtin.fst ok} {wf = Builtin.snd ok}) Nothing)
+  Choose (TargetGroup (Macros.exactly 0) Macros.creature {nz = Builtin.fst ok} {wf = Builtin.snd ok}) Nothing Openly)
 badZeroGroup (MaxAtLeastOne, _) impossible
 
 

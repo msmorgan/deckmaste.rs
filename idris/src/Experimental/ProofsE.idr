@@ -69,7 +69,7 @@ public export
 badChooseDefinite : Unspellable (Effect []) (\ok =>
   Choose (Definite (And [Macros.creature,
                          Superlative MinOf (CharAxis Toughness)
-                                     Macros.creatureYouControl])) Nothing {ch = ok})
+                                     Macros.creatureYouControl])) Nothing Openly {ch = ok})
 badChooseDefinite BareChoice impossible
 
 
@@ -275,7 +275,7 @@ public export
 badAgentChooseTheRest : Unspellable (Effect []) (\ok =>
   Sequentially [ Macros.lookAt (Macros.topCards 4)
                , Move (Macros.oneOf Them) Macros.handZ (MkMoveRiders [] Nothing Nothing)
-               , Choose TheRest (Just (Macros.a Opponent)) {ch = ok} ])
+               , Choose TheRest (Just (Macros.a Opponent)) Openly {ch = ok} ])
 badAgentChooseTheRest AgentChoice impossible
 
 

@@ -1318,6 +1318,16 @@ data StaticKind = PtDelta | KeywordGrant | DeedRestriction | TypeAddition
                 -- the block allowance: [CR#509.1a]'s blocker declaration
                 -- raised, the land allowance's object-sorted sibling.
                 | BlockAllowance
+                -- the extra vote: [CR#701.38d]'s allowance, the land and
+                -- block allowances' third sibling and their subject sort
+                -- again. Its own kind because what it adds to is a
+                -- PROCEDURE and not a permission -- the rule says the
+                -- extra votes "all happen at the same time the player
+                -- would otherwise have voted", which is a statement
+                -- about when [CR#701.38a]'s turn-order pass reaches the
+                -- voter, and neither allowance says anything of the
+                -- kind.
+                | VoteAllowance
                 -- the recurring untap grant: an addition to
                 -- [CR#502.3]'s turn-based action, which no other kind
                 -- names.

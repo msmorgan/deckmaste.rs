@@ -996,6 +996,56 @@ mutual
                   {auto 0 ex : IsExtremal op} ->
                   {auto 0 sc : projScope ax = k} ->
                   Predicate bs k
+    ||| "each permanent with the most votes or tied for most votes",
+    ||| "each card with the most votes or tied for most votes",
+    ||| "protection from each color with the most votes or tied for most
+    ||| votes": the ballot's winners.
+    |||
+    ||| NOT `Superlative`, and the collapse is refused rather than
+    ||| deferred. That row measures its domain along a `ProjAxis`, which
+    ||| is a characteristic of an object [CR#109.3] or a `PlayerStat`; a
+    ||| vote count is neither -- it is not a property of the candidate at
+    ||| all but of the ballot just cast, and it exists only for the
+    ||| duration of [CR#701.38a]'s pass. Widening `ProjAxis` to carry it
+    ||| would give `Aggregate` and `Compare` a measure at every kind at
+    ||| once, which is a kind-polymorphic axis this grammar does not have.
+    |||
+    ||| The tie rides the ROW and is no slot: all four supported cards
+    ||| that write it write the full phrase verbatim, and the rules leave
+    ||| them no alternative -- [CR#701.38] gives a vote no tiebreak, so a
+    ||| bare "the permanent with the most votes" would name nothing
+    ||| whenever two candidates drew, which is why every printed line
+    ||| says "or tied for most votes".
+    |||
+    ||| Kind-indexed for [CR#701.38b]'s reason: the rule admits objects
+    ||| and "other variables" among a vote's choices alike, so the
+    ||| winners are read at whatever kind the ballot ran over. It carries
+    ||| `VotesFor`'s recorded ungatedness unchanged.
+    ||| -- spelling: "with the most votes or tied for most votes".
+    WithMostVotes : {k : Kind} -> Predicate bs k
+    ||| "each player with the highest number" (Menacing Ogre): the
+    ||| players whose secretly chosen number is the extreme one.
+    |||
+    ||| The chooser is distributive -- "each player secretly chooses a
+    ||| number" -- so the choice leaves one number PER PLAYER, and this
+    ||| reads the extreme across them. `ChosenNumber` is the other read
+    ||| and not this one: that amount names THE chosen number left by a
+    ||| single chooser [CR#607.2d], where this describes the players a
+    ||| comparison ACROSS choosers picks out.
+    |||
+    ||| It NAMES the extreme number, which is what the sentence goes on
+    ||| to read: "each player with the highest number loses THAT MUCH
+    ||| life". So it introduces `NamedNumber`, the quantity anaphor
+    ||| `ThatMuch` takes, exactly as a `DefinesPt` does -- [CR#608.2c]
+    ||| lets later text name a number an earlier part of the same effect
+    ||| determined.
+    |||
+    ||| Extremal only, and both extremes attested in one card: Wheel of
+    ||| Misfortune determines "the highest and lowest numbers revealed
+    ||| this way". `IsExtremal` is the same gate `Superlative` carries.
+    ||| -- spelling: "with the highest/lowest number".
+    ChoseExtreme : (op : AggregateOp) ->
+                   {auto 0 ex : IsExtremal op} -> Predicate bs Player
     ||| "an opponent who controls more lands than you", "a player who has
     ||| more cards in hand than you": the member-relative comparison.
     ||| `Compare` reads one of the referent's OWN characteristics against
@@ -1331,6 +1381,8 @@ mutual
   seedType (Compare cs _ _) = axisTypes cs
   seedType (Superlative _ (CharAxis c) _) = comparedType c
   seedType (Superlative _ (PlayerStatAxis _) _) = Nothing
+  seedType WithMostVotes = Nothing
+  seedType (ChoseExtreme _) = Nothing
   seedType (CompareOver dom _ _ _) = seedType dom
   seedType (HasSubtype s) = Just (subtypeType s)
   seedType (And ps) = seedTypeAll ps
@@ -1431,6 +1483,8 @@ mutual
   hasHead (Compare _ _ _) = False
   hasHead (CounterCompare _ _ _) = False
   hasHead (Superlative _ _ _) = False
+  hasHead WithMostVotes = False
+  hasHead (ChoseExtreme _) = False
   -- the row writes its domain out ("an opponent who ..."), so the head
   -- word is the domain's.
   hasHead (CompareOver dom _ _ _) = hasHead dom
@@ -1490,6 +1544,12 @@ mutual
   -- [CR#607.2d]'s linkage makes the phrase name exactly one player.
   uniquifies ChosenPlayer = True
   uniquifies (Superlative _ _ _) = True
+  -- the tie is written INTO the phrase ("or tied for most votes"), so
+  -- it names as many candidates as drew, never exactly one; the same
+  -- goes for "each player with the highest number", which Menacing
+  -- Ogre's own next sentence reads as a group ("one of those players").
+  uniquifies WithMostVotes = False
+  uniquifies (ChoseExtreme _) = False
   -- [CR#508.1b]: one attacker names exactly one defender.
   uniquifies (AttackedBy _) = True
   -- a rank over a player's casts names at most one spell: [CR#601.2]
@@ -1686,6 +1746,10 @@ mutual
   predEq (Superlative o a d) (Superlative p b e) =
     o == p && a == b && predEq d e
   predEq (Superlative _ _ _) _ = False
+  predEq WithMostVotes WithMostVotes = True
+  predEq WithMostVotes _ = False
+  predEq (ChoseExtreme o) (ChoseExtreme p) = o == p
+  predEq (ChoseExtreme _) _ = False
   -- the two measurements live under their own domains' binders, so no
   -- comparison of them is even well typed; the conservative answer is
   -- the honest one.
@@ -2027,6 +2091,8 @@ mutual
   isComparison : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   isComparison (Compare _ _ _) = True
   isComparison (Superlative _ _ _) = True
+  isComparison WithMostVotes = True
+  isComparison (ChoseExtreme _) = True
   isComparison (CounterCompare _ _ _) = True
   isComparison (CompareOver _ _ _ _) = True
   isComparison _ = False
@@ -2233,6 +2299,8 @@ mutual
   predSays (Compare _ _ _) = True
   predSays (CounterCompare _ _ _) = True
   predSays (Superlative _ _ _) = True
+  predSays WithMostVotes = True
+  predSays (ChoseExtreme _) = True
   predSays (CompareOver _ _ _ _) = True
   predSays (InZone _) = True
   predSays (And ps) = predSaysAny ps
@@ -2313,6 +2381,8 @@ mutual
   predNegFree (Compare _ _ _) = True
   predNegFree (CounterCompare _ _ _) = True
   predNegFree (Superlative _ _ _) = True
+  predNegFree WithMostVotes = True
+  predNegFree (ChoseExtreme _) = True
   predNegFree (CompareOver _ _ _ _) = True
   predNegFree (InZone _) = True
   predNegFree (And ps) = predNegFreeAll ps
@@ -3269,6 +3339,10 @@ mutual
   predDelta (OtherThan n) = nounDelta n
   predDelta (Compare _ _ b) = amtDelta b
   predDelta (Superlative _ _ d) = predDelta d
+  predDelta WithMostVotes = []
+  -- the phrase NAMES the extreme number, which the rest of the sentence
+  -- reads back as "that much" [CR#608.2c].
+  predDelta (ChoseExtreme _) = [outcomeB NamedNumber]
   -- the margin the comparison names, and the domain's own mentions; the
   -- measurement is per-member, so its deltas stay inside, exactly as
   -- `AggregateOver`'s body's do.
@@ -3556,6 +3630,33 @@ mutual
     ||| last chosen number" behind a repeatable one.
     ChosenNumber : {auto 0 ok : ChoiceStands (countChoice (QSort Number) bs)} ->
                    Amount bs
+    ||| "for each death vote", "the number of truth votes": how many of
+    ||| the votes just cast went to one named option.
+    |||
+    ||| ONE row for the two spellings, which are the multiplier and the
+    ||| bare read of a single number -- the same pair `CountOf` already
+    ||| carries -- and 12 supported cards write them (11 the "for each"
+    ||| and Emissary Green the "the number of", Truth or Consequences
+    ||| both).
+    |||
+    ||| It reads a LABEL and not a mention, because a label is what the
+    ||| printed sentence names. [CR#701.38b] makes a ballot's words
+    ||| "words with no rules meaning", so no kind holds one and no
+    ||| binding could carry it; the option is spelled back exactly as the
+    ||| ballot spelled it.
+    |||
+    ||| RECORDED OVERGENERATION, not gated, in `ChoiceStands`' posture:
+    ||| nothing in the bindings records that a vote stands or which words
+    ||| were on its ballot, because that would take a `Kind` of its own,
+    ||| so the row admits a tally read after no vote at all and a read of
+    ||| a word no ballot listed. [CR#701.38c] is what such a sentence
+    ||| would violate -- "if the text of a spell or ability refers to
+    ||| 'voting,' it refers only to an actual vote, not to any spell or
+    ||| ability that involves the players making choices or decisions
+    ||| without using the word 'vote'" -- and every one of the 12 printed
+    ||| sites reads a word off a ballot its own sentence-list put up.
+    ||| -- spelling: "the number of [l] votes", "for each [l] vote".
+    VotesFor : (l : VoteLabel) -> Amount bs
     PreventedThisWay : {auto 0 ok : countOutcomes DamagePrevented bs = 1} ->
                        Amount bs
     ||| "for each charge counter removed this way", "for each storage
@@ -3795,6 +3896,7 @@ mutual
   amtDelta (TimesOf per a) = amtDelta per ++ amtDelta a
   amtDelta ThatMuch = []
   amtDelta ChosenNumber = []
+  amtDelta (VotesFor _) = []
   amtDelta PreventedThisWay = []
   amtDelta RemovedThisWay = []
   amtDelta TheResult = []
@@ -3834,6 +3936,7 @@ mutual
   amtIntro (TimesOf per a) = amtIntro a
   amtIntro ThatMuch = bs
   amtIntro ChosenNumber = bs
+  amtIntro (VotesFor _) = bs
   amtIntro PreventedThisWay = bs
   amtIntro RemovedThisWay = bs
   amtIntro TheResult = bs
@@ -3878,6 +3981,7 @@ mutual
   amtPlur (TimesOf _ _) = ManyOf
   amtPlur ThatMuch = ManyOf
   amtPlur ChosenNumber = ManyOf
+  amtPlur (VotesFor _) = ManyOf
   amtPlur PreventedThisWay = ManyOf
   amtPlur RemovedThisWay = ManyOf
   amtPlur TheResult = ManyOf
@@ -4010,6 +4114,9 @@ mutual
   readAmount ThatMuch = False
   -- Announced under [CR#608.2d], as `UpTo` is; no game state carries it.
   readAmount ChosenNumber = False
+  -- a tally of votes actually cast, which is game state at the moment
+  -- the effect applies and not a number the text stated.
+  readAmount (VotesFor _) = True
   readAmount PreventedThisWay = False
   readAmount RemovedThisWay = False
   -- the die's number is a read of the roll, not a re-mention of a
@@ -4422,6 +4529,40 @@ mutual
     AgentChoice : {0 by : Noun bs Player} -> {0 n : Noun bs k} ->
                   {auto 0 ok : So (agentChoosable n)} ->
                   ChoiceClause (Just by) n
+
+  ||| The list of options a vote picks from [CR#701.38a].
+  |||
+  ||| Two arms and not three, because [CR#701.38b]'s enumeration collapses
+  ||| to two once the corpus is read: the printed ballots are either a
+  ||| list of WORDS with no rules meaning ("death or taxes", 26 supported
+  ||| cards) or a DESCRIPTION whose candidates are whatever answers it
+  ||| ("a nonland permanent you don't control", 6 supported cards; 4 of
+  ||| them at `Object` and 2 at `Player`). The rule's "or other variables
+  ||| relevant to the resolution" is the third possibility and one
+  ||| supported card writes it -- Council Guardian's "blue, black, red,
+  ||| or green" -- which is a printed list of VALUES from a closed
+  ||| vocabulary and neither of these arms. It is not minted for one
+  ||| card; the residue is recorded in `Cards.idr`.
+  |||
+  ||| The ballot ANNOUNCES NOTHING, which is why no arm carries a delta.
+  ||| Council's Judgment's ruling states it for the candidate arm --
+  ||| "None of the candidate permanents are targeted" -- and the tally
+  ||| sentence that follows writes a fresh description ("each permanent
+  ||| with the most votes or tied for most votes") rather than reading a
+  ||| mention back.
+  public export
+  data Ballot : Bindings -> Type where
+    ||| "votes for death or taxes", "votes for blue, black, red, or
+    ||| green" as words: the printed labels.
+    ByLabel : (opts : List VoteLabel) ->
+              {auto 0 ok : BallotLabelsOk opts} -> Ballot bs
+    ||| "votes for a nonland permanent you don't control", "votes for a
+    ||| player": every object or player answering the description is a
+    ||| candidate. The gate is `choosable`, the chooser's own: what a
+    ||| player may vote for is what a player may be told to pick, and
+    ||| [CR#701.38a] makes the vote a choice from among them.
+    ByCandidate : {k : Kind} -> (n : Noun bs k) ->
+                  {auto 0 ok : So (choosable n)} -> Ballot bs
 
   public export
   groupMention : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
@@ -4896,6 +5037,28 @@ mutual
     ||| already named, "If it comes up tails, [e]."
     FlipFace : (face : CoinFace) ->
                {auto 0 fl : So (coinFlipInScope bs)} -> Condition bs
+    ||| "If death gets more votes, …", "If torture gets more votes or the
+    ||| vote is tied, …": the two-option ballot's read, 14 supported
+    ||| cards (13 of which write the tie).
+    |||
+    ||| The TIE IS A SLOT and not derived, because what it covaries with
+    ||| is the arm's POSITION and not the row: every card that writes two
+    ||| arms writes the bare "gets more votes" first and the
+    ||| tie-inclusive "gets more votes or the vote is tied" second, and
+    ||| Trial of a Time Lord writes a single bare arm and no second one
+    ||| at all. The rules say why one arm must absorb the tie:
+    ||| [CR#701.38] gives a vote no tiebreak, so with the tie left out of
+    ||| both arms a drawn vote would do nothing, and with it in both the
+    ||| effect would be ambiguous [CR#608.2d].
+    |||
+    ||| It is a CONDITION and not a `CompareAmt` over two `VotesFor`
+    ||| amounts. "More votes" is a comparison against every OTHER option
+    ||| on the ballot at once -- Council Guardian's ballot has four --
+    ||| and the losing options are not named in the printed sentence at
+    ||| all; a `CompareAmt` would have to name one.
+    ||| It carries `VotesFor`'s recorded ungatedness unchanged.
+    ||| -- spelling: "[l] gets more votes[ or the vote is tied]".
+    VoteLead : (l : VoteLabel) -> (orTied : Bool) -> Condition bs
     ||| "If any of those results was 10 or higher, …": the existential
     ||| over the results of the dice one clause rolled. [CR#706.2] gives
     ||| each die its own result and stops there, so a clause that rolled
@@ -5048,6 +5211,7 @@ mutual
   condNegated (PreventedFromSource _) = False
   condNegated (FlipCalled _ _) = False
   condNegated (FlipFace _) = False
+  condNegated (VoteLead _ _) = False
   condNegated (AnyResultIs _ _) = False
   condNegated RolledDoubles = False
   condNegated (NotCond _) = True
@@ -5116,6 +5280,7 @@ mutual
   condDelta (PreventedFromSource _) = []
   condDelta (FlipCalled _ _) = []
   condDelta (FlipFace _) = []
+  condDelta (VoteLead _ _) = []
   condDelta (AnyResultIs _ _) = []
   condDelta RolledDoubles = []
   -- a comparison that did NOT hold leaves neither a margin nor a tie
@@ -5353,11 +5518,30 @@ mutual
     ExposedCards : (n : Noun bs Object) -> Exposed bs
     ExposedZone : (z : ZoneExpr bs) ->
                   {auto 0 ok : ExposableZone (zoneSort z)} -> Exposed bs
+    ||| "Reveal the player you chose", "you reveal the number you
+    ||| chose": the value a SECRET choice hid, put back into the open by
+    ||| its chooser. 5 supported lines -- three of them the activation
+    ||| cost of an Ingenious Infiltrator-style once-only ability
+    ||| (Emissary of Grudges, Guardian Archon, Stalking Leonin), one A
+    ||| Killer Among Us' creature type, one The Toymaker's Trap's number.
+    |||
+    ||| A third arm and not an `ExposedCards`: what is revealed is a
+    ||| VALUE and not an object -- [CR#607.2d]'s "the chosen [value]" --
+    ||| and `ExposedCards` takes a `Noun bs Object` that no chosen colour
+    ||| or number could fill.
+    ||| The gate is `ChoiceStands`' existence, `ChosenNumber`'s own: the
+    ||| clause names a value some chooser bound, and the count that finds
+    ||| it is the one [CR#607.2d]'s linkage runs on.
+    ||| -- spelling: "the [q] you chose".
+    ExposedChoice : (q : ChoiceSort) ->
+                    {auto 0 ok : ChoiceStands (countChoice q bs)} ->
+                    Exposed bs
 
   public export
   exposedIntro : {bs : Bindings} -> Exposed bs -> Bindings
   exposedIntro (ExposedCards n) = nomIntro n
   exposedIntro (ExposedZone z) = zoneDelta z ++ bs
+  exposedIntro (ExposedChoice _) = bs
 
   ||| What a STANDING visibility rider exposes -- the complement of
   ||| "play with [x] revealed" and "you may look at [x] any time". Two

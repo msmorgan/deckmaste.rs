@@ -472,7 +472,7 @@ badDuplicateModes Refl impossible
 ||| A choice binds a new referent out of a described set; a definite participant describes none.
 public export
 badChooseYou : Unspellable (Effect []) (\ok =>
-  Choose You Nothing {ch = ok})
+  Choose You Nothing Openly {ch = ok})
 badChooseYou BareChoice impossible
 
 

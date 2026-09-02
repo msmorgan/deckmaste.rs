@@ -1314,6 +1314,34 @@ mutual
                            {auto 0 lt : So (isNil (quantDelta q))} ->
                            {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                            StaticEffect bs
+      ||| "While voting, you may vote an additional time": [CR#701.38d]'s
+      ||| allowance, the land and block cells' third sibling at the
+      ||| player sort again. 4 supported cards (Ballot Broker, Brago's
+      ||| Representative, The Valeyard, Tivit).
+      |||
+      ||| THE WINDOW IS DERIVED, as it is on the other two allowances:
+      ||| all four printed lines write "While voting," and no other
+      ||| window is possible, because [CR#701.38d] puts the extra votes
+      ||| "at the same time the player would otherwise have voted" --
+      ||| there is no moment outside a vote at which the allowance says
+      ||| anything.
+      ||| The quantity bound is the land cell's, for the land cell's
+      ||| reason: a statement that introduces no mention can carry no
+      ||| amount that would announce one. All four cards write one extra.
+      |||
+      ||| Brago's Representative's "you GET an additional vote" is a
+      ||| SECOND SURFACE and not a second row: [CR#500.10a] made the
+      ||| additional-part pair a difference of meaning, and [CR#701.38d]
+      ||| makes this pair none -- both are an effect that "gives a player
+      ||| multiple votes", with the same timing rule stated for both. The
+      ||| one surface is recorded in `Cards.idr` and not benched.
+      ||| -- spelling: "While voting, [who] may vote [q] additional
+      ||| time(s)".
+      MayVoteAdditional : (who : Noun bs Player) -> (q : Quantity bs) ->
+                          {auto 0 nz : NonZeroQ q} ->
+                          {auto 0 wf : WellFormedQ q} ->
+                          {auto 0 lt : So (isNil (quantDelta q))} ->
+                          StaticEffect bs
       ||| [CR#506.3a] and [CR#508.4d] both say what happens when a
       ||| permanent enters attacking, so either rider is a real entry.
       EntersRider : (n : Noun bs Object) -> (rider : TokenRider) ->
@@ -1377,8 +1405,16 @@ mutual
                      (exc : List (CopyExcept (selfSubjIntro n))) ->
                      {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                      {auto 0 pm : PerMember src} -> StaticEffect bs
+      ||| The entry chooser carries `Choose`'s own `Disclosure`, and for
+      ||| the same reason: [CR#101.4b] is what a printed "secretly"
+      ||| switches off, wherever the choice is made. "As this creature
+      ||| enters, secretly choose an opponent" is 3 supported cards
+      ||| (Emissary of Grudges, Guardian Archon, Stalking Leonin), each
+      ||| pairing it with a later `ExposedChoice` reveal as an activation
+      ||| cost; A Killer Among Us writes the pair at a resolving chooser
+      ||| instead.
       EntersChoice : (n : Noun bs Object) -> (q : ChoiceSort) ->
-                     (dom : Maybe (ChoiceDomain q)) ->
+                     (dom : Maybe (ChoiceDomain q)) -> (disc : Disclosure) ->
                      {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                      StaticEffect bs
       ||| "As [n] becomes attached to [host], choose [q]" -- the choice
@@ -2156,13 +2192,14 @@ mutual
   staticKind (Visibility _ _ _) = VisibilityRider
   staticKind (MayPlayAdditionalLands _ _) = LandAllowance
   staticKind (MayBlockAdditional _ _) = BlockAllowance
+  staticKind (MayVoteAdditional _ _) = VoteAllowance
   staticKind (EntersRider _ _) = EntryRider
   -- an entry rider and not a `CopyEffect`: what it modifies is HOW the
   -- permanent enters [CR#614.12], and it stands as long as the permanent
   -- does, which is `EntersRider`'s seat and not `BecomesCopy`'s.
   staticKind (EntersAsCopy _ _ _ _) = EntryRider
   staticKind (EntersWithCounters _ _ _ _) = EntryRider
-  staticKind (EntersChoice _ _ _) = EntryRider
+  staticKind (EntersChoice _ _ _ _) = EntryRider
   staticKind (AttachChoice _ _ _) = Replacement
   staticKind (AndAlso _) = Coordination
   staticKind (OfSubject _ _) = Coordination
@@ -2242,6 +2279,7 @@ mutual
   staticIntro (Visibility _ who what) = visibleIntro what
   staticIntro (MayPlayAdditionalLands who _) = nomIntro who
   staticIntro (MayBlockAdditional n _) = selfSubjIntro n
+  staticIntro (MayVoteAdditional who _) = nomIntro who
   staticIntro (EntersRider n _) = selfSubjIntro n
   -- the SUBJECT alone. The copy source is a constructor argument and
   -- never a mention, on `TokenCopyOf`'s law: a second singular object in
@@ -2249,7 +2287,7 @@ mutual
   -- antecedents apiece.
   staticIntro (EntersAsCopy n _ _ _) = selfSubjIntro n
   staticIntro (EntersWithCounters n amt _ _) = amtDelta amt ++ selfSubjIntro n
-  staticIntro (EntersChoice n _ _) = selfSubjIntro n
+  staticIntro (EntersChoice n _ _ _) = selfSubjIntro n
   staticIntro (AttachChoice n _ _) = selfSubjIntro n
   staticIntro (AndAlso parts) = partsIntro parts
   staticIntro (OfSubject n vps) = vpsIntro vps
@@ -2272,7 +2310,7 @@ mutual
   ||| touched.
   public export
   staticChoiceDelta : {bs : Bindings} -> StaticEffect bs -> List Binding
-  staticChoiceDelta (EntersChoice _ q _) = [choiceB q]
+  staticChoiceDelta (EntersChoice _ q _ _) = [choiceB q]
   staticChoiceDelta (AttachChoice _ q _) = [choiceB q]
   staticChoiceDelta (AndAlso parts) = partsChoiceDelta parts
   -- The additional cost's whole delta, which carries two things at once.
@@ -3195,9 +3233,71 @@ mutual
     ||| where the restart finishes resolving.
     ||| -- spelling: "Restart the game".
     RestartsGame : Effect bs
+    ||| The chooser, open or secret. The `Disclosure` is a SLOT on this
+    ||| row and no second row beside it: [CR#101.4b] states what an open
+    ||| choice knows and a printed "secretly" turns that one clause off,
+    ||| leaving the act, its domain, its agent and everything the choice
+    ||| binds identical -- Menacing Ogre's secret number is read back by
+    ||| the same [CR#607.2d] linkage an open one is.
+    ||| 11 supported cards write the marking at this row (the other 6 of
+    ||| the 17 write it at the vote), measured 2026-09-02.
+    ||| -- spelling: "[by ]choose[s][ secretly] [n]", the adverb before
+    ||| the verb ("each player secretly chooses a number").
     Choose : {k : Kind} -> (n : Noun bs k) ->
-             (by : Maybe (Noun bs Player)) ->
+             (by : Maybe (Noun bs Player)) -> (disc : Disclosure) ->
              {auto 0 ch : ChoiceClause by n} -> Effect bs
+    ||| "Then those choices are revealed", "Then those numbers are
+    ||| revealed": the reveal that closes a hidden decision and puts the
+    ||| information [CR#101.4b] would have given back.
+    |||
+    ||| Its own sentence and not a rider on the chooser, because 4 of the
+    ||| 6 supported cards print it as one (Call to the Void, Expert-Level
+    ||| Safe, Malik, Menacing Ogre; Prisoner's Dilemma and Wheel of
+    ||| Misfortune comma-join it). The vote's reveal is NOT this row --
+    ||| all 6 secret-vote cards write it inside the vote sentence, so it
+    ||| is spelled off `Vote`'s own `Secretly`.
+    |||
+    ||| RECORDED OVERGENERATION, not gated: the row admits a reveal with
+    ||| no secret chooser before it. A gate would have to find that
+    ||| chooser in the bindings, and three of the six leave nothing there
+    ||| to find -- `choiceSortAt Object` is `Nothing` by design
+    ||| ([CR#607.2d] links a chosen VALUE), and Prisoner's Dilemma's
+    ||| "silence or snitch" is a list of words with no rules meaning and
+    ||| no sort at all. This is `ChoiceStands`' posture: the fact that
+    ||| would close it lives in a subsystem the context does not carry.
+    ||| -- spelling: "Then those [numbers|choices] are revealed".
+    ChoicesRevealed : (s : HiddenSort) -> Effect bs
+    ||| "Starting with you, each player votes for death or taxes",
+    ||| "Each player secretly votes for a player, then those votes are
+    ||| revealed": [CR#701.38a]'s procedure. 33 supported cards cast a
+    ||| vote (27 openly, 6 secretly), measured 2026-09-02.
+    |||
+    ||| NOT a `Choose`, and the two must never collapse. [CR#701.38c]
+    ||| says so outright -- "if the text of a spell or ability refers to
+    ||| 'voting,' it refers only to an actual vote, not to any spell or
+    ||| ability that involves the players making choices or decisions
+    ||| without using the word 'vote'" -- which makes the difference one
+    ||| of MEANING and not of wording: every "vote" read (`VotesFor`,
+    ||| `VoteLead`, `WithMostVotes`, `MayVoteAdditional`) attaches to
+    ||| this row and to nothing a chooser leaves. Prisoner's Dilemma is
+    ||| the card that proves the line matters: it writes a ballot's exact
+    ||| shape ("secretly chooses silence or snitch, then the choices are
+    ||| revealed") in the chooser's words, and no vote read may touch it.
+    |||
+    ||| THE STARTING PLAYER IS DERIVED FROM THE DISCLOSURE and is no
+    ||| slot. [CR#701.38a] has the pass begin at "a specified player and
+    ||| proceed in turn order", and that specification is exactly what a
+    ||| secret vote has no use for -- with every ballot cast at once
+    ||| there is no order to start. The corpus covaries perfectly: all 27
+    ||| open votes write "Starting with you," and none of the 6 secret
+    ||| ones writes a starting player. Recorded boundary: the rule allows
+    ||| a specified player other than the caster and no supported card
+    ||| prints one.
+    ||| -- spelling: openly, "Starting with [you], [voters] vote(s) for
+    ||| [ballot]"; secretly, "[voters] secretly vote(s) for [ballot],
+    ||| then those votes are revealed".
+    Vote : (voters : Noun bs Player) -> (disc : Disclosure) ->
+           (ballot : Ballot (nomIntro voters)) -> Effect bs
     Move : (what : Noun bs Object) -> (to : ZoneExpr (nomIntro what)) ->
            (riders : MoveRiders (nomIntro what)) ->
            {auto 0 ok : DestOk to} ->
@@ -4103,7 +4203,9 @@ mutual
   heldUntilOk (ChooseNewTargets _) = False
   heldUntilOk (CopyTargets _ _) = False
   heldUntilOk (CopyCard _ _ _) = False
-  heldUntilOk (Choose _ _) = False
+  heldUntilOk (Choose _ _ _) = False
+  heldUntilOk (ChoicesRevealed _) = False
+  heldUntilOk (Vote _ _ _) = False
   heldUntilOk (Move _ _ _) = True
   heldUntilOk (ExchangeLife _) = False
   heldUntilOk (ChangeLife _ _) = False
@@ -4232,7 +4334,11 @@ mutual
   reflexEncloseUse (Expose _ _ _) = EncReflexive   -- 2
   reflexEncloseUse (AddMana _ _ _ _) = EncReflexive
   reflexEncloseUse (Draw _ _) = EncReflexive       -- 1 ([CR#121.1]: a PLAYER draws)
-  reflexEncloseUse (Choose _ _) = EncReflexive       -- 1
+  reflexEncloseUse (Choose _ _ _) = EncReflexive       -- 1
+  -- the reveal names no agent at all ("those choices are revealed"),
+  -- and the vote's voters are its own subject.
+  reflexEncloseUse (ChoicesRevealed _) = EncAgentless
+  reflexEncloseUse (Vote _ _ _) = EncReflexive
   reflexEncloseUse (Search _ _ _ _) = EncReflexive
   reflexEncloseUse (Shuffle _) = EncReflexive
   reflexEncloseUse (FlipCoins _ _) = EncReflexive
@@ -4344,7 +4450,9 @@ mutual
   thisWayOutcomeOk (ChooseNewTargets _) = True
   thisWayOutcomeOk (CopyTargets _ _) = True
   thisWayOutcomeOk (CopyCard _ _ _) = True
-  thisWayOutcomeOk (Choose _ _) = True
+  thisWayOutcomeOk (Choose _ _ _) = True
+  thisWayOutcomeOk (ChoicesRevealed _) = True
+  thisWayOutcomeOk (Vote _ _ _) = True
   thisWayOutcomeOk (Move _ _ _) = True
   thisWayOutcomeOk (ExchangeLife _) = True
   thisWayOutcomeOk (ChangeLife _ _) = True
@@ -4468,7 +4576,11 @@ mutual
   costActionOk (ChooseNewTargets what) = costNounOk what
   costActionOk (CopyTargets copy _) = costNounOk copy
   costActionOk (CopyCard _ what _) = costNounOk what
-  costActionOk (Choose n _) = costNounOk n
+  costActionOk (Choose n _ _) = costNounOk n
+  costActionOk (ChoicesRevealed _) = False
+  -- [CR#701.38a] runs a vote as part of a spell's or ability's
+  -- resolution and no supported card pays one as a cost.
+  costActionOk (Vote _ _ _) = False
   costActionOk (Move what _ _) = costNounOk what
   costActionOk (ExchangeLife parties) = costNounOk parties
   costActionOk (ChangeLife _ _) = True
@@ -4627,7 +4739,13 @@ mutual
   effEq (ChooseNewTargets _) _ = False
   effEq (CopyTargets _ _) _ = False
   effEq (CopyCard _ _ _) _ = False
-  effEq (Choose _ _) _ = False
+  effEq (Choose _ _ _) _ = False
+  effEq (ChoicesRevealed a) (ChoicesRevealed b) = a == b
+  effEq (ChoicesRevealed _) _ = False
+  -- the ballot sits under the voters' own context, so no comparison of
+  -- two of them is well typed; `If`, `Modal` and `Sequentially` answer
+  -- their nested slots the same conservative way.
+  effEq (Vote _ _ _) _ = False
   effEq (Move a s _) (Move b t _) = nounEqRef a b && zoneSort s == zoneSort t
   effEq (Move _ _ _) _ = False
   effEq (ExchangeLife a) (ExchangeLife b) = nounEqRef a b
@@ -4767,8 +4885,14 @@ mutual
     MkBinding TheD Object (outputPlur (nounPlur what) (amtPlur times))
               (ObjectP (nounTy what) (nounZone what) Nothing (Just CopyOrigin) Nothing)
       :: amtIntro times
-  effIntro (Choose n Nothing) = chosenIntro n
-  effIntro (Choose n (Just b)) = nounDelta b ++ chosenIntro n
+  effIntro (Choose n Nothing _) = chosenIntro n
+  effIntro (Choose n (Just b) _) = nounDelta b ++ chosenIntro n
+  effIntro (ChoicesRevealed _) = bs
+  -- a vote announces nothing: [CR#701.38] gives it no object, and
+  -- Council's Judgment's ruling is explicit that the candidates are
+  -- not even targeted, so the tally sentence that follows writes a
+  -- fresh description rather than reading a mention back.
+  effIntro (Vote _ _ _) = bs
   -- a destination that shuffles [CR#701.24c] takes the discourse with
   -- it, exactly as the bare `Shuffle` does.
   effIntro (Move what to _) =
@@ -4916,7 +5040,9 @@ mutual
   preIntro (ChooseNewTargets what) = nomIntro what
   preIntro (CopyTargets copy whom) = nomIntro whom
   preIntro (CopyCard who what times) = amtIntro times
-  preIntro (Choose n _) = chosenIntro n
+  preIntro (Choose n _ _) = chosenIntro n
+  preIntro (ChoicesRevealed _) = bs
+  preIntro (Vote _ _ _) = bs
   preIntro (Move what to _) = nomIntro what
   preIntro (ExchangeLife parties) = nomIntro parties
   preIntro (ChangeLife who (Up a)) = lifeIntro (Up a)
@@ -5062,7 +5188,9 @@ mutual
   annIntro (ChooseNewTargets what) = nomIntro what
   annIntro (CopyTargets copy whom) = nomIntro whom
   annIntro (CopyCard who what times) = amtIntro times
-  annIntro (Choose n _) = chosenIntro n
+  annIntro (Choose n _ _) = chosenIntro n
+  annIntro (ChoicesRevealed _) = bs
+  annIntro (Vote _ _ _) = bs
   annIntro (Move what to _) = nomIntro what
   annIntro (ExchangeLife parties) = nomIntro parties
   annIntro (ChangeLife who (Up a)) = lifeIntro (Up a)
@@ -5214,7 +5342,9 @@ mutual
   deedDelta (CopyCard who what times) =
     [MkBinding TheD Object (outputPlur (nounPlur what) (amtPlur times))
                (ObjectP (nounTy what) (nounZone what) Nothing (Just CopyOrigin) Nothing)]
-  deedDelta (Choose n _) = []
+  deedDelta (Choose n _ _) = []
+  deedDelta (ChoicesRevealed _) = []
+  deedDelta (Vote _ _ _) = []
   deedDelta (Move what to _) = []
   -- [CR#701.12c] settles the exchange by having EACH player "gain or
   -- lose the amount of life necessary", so both outcomes are readable and
@@ -5841,8 +5971,8 @@ mutual
   ||| colors" would let the singular read name one of two.
   public export
   effChoiceDelta : {0 bs : Bindings} -> Effect bs -> List Binding
-  effChoiceDelta (Choose {k} (Indefinite _ _) _) = choiceDeltaAt k
-  effChoiceDelta (Choose _ _) = []
+  effChoiceDelta (Choose {k} (Indefinite _ _) _ _) = choiceDeltaAt k
+  effChoiceDelta (Choose _ _ _) = []
   effChoiceDelta (Sequentially es) = effsChoiceDelta es
   effChoiceDelta (May _ body _ _) = effChoiceDelta body
   effChoiceDelta _ = []

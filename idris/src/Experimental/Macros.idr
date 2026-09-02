@@ -1912,7 +1912,7 @@ proliferate : {bs : Bindings} ->
               Effect bs
 proliferate =
   Enact "Proliferate" {kn = Oh}
-        (Sequentially [ Choose (CountedGroup Macros.anyNumber Nothing Macros.proliferable) Nothing
+        (Sequentially [ Choose (CountedGroup Macros.anyNumber Nothing Macros.proliferable) Nothing Openly
                       , GiveCountersOfOwnKinds (EachOf (Those JoinW {ok = mj})) ])
 
 ||| "<player> loses N <kind> counters": the counted removal beside the
@@ -2604,13 +2604,28 @@ public export
 choose : {k : Kind} -> (n : Noun bs k) ->
          {auto 0 ch : ChoiceClause (the (Maybe (Noun bs Player)) Nothing) n} ->
          Effect bs
-choose n = Choose n Nothing {ch}
+choose n = Choose n Nothing Openly {ch}
 
 ||| "<player> chooses …": a choice made by someone other than you.
 public export
 chooses : {k : Kind} -> (who : Noun bs Player) -> (n : Noun bs k) ->
           {auto 0 ch : ChoiceClause (Just who) n} -> Effect bs
-chooses who n = Choose n (Just who) {ch}
+chooses who n = Choose n (Just who) Openly {ch}
+
+||| "[who] secretly chooses <noun>": the hidden chooser, [CR#101.4b]
+||| switched off. The open wrappers above stay the default arity; this
+||| is the marked one.
+public export
+secretlyChooses : {k : Kind} -> (who : Noun bs Player) -> (n : Noun bs k) ->
+                  {auto 0 ch : ChoiceClause (Just who) n} -> Effect bs
+secretlyChooses who n = Choose n (Just who) Secretly {ch}
+
+||| "Secretly choose <noun>": the hidden chooser with no chooser named.
+public export
+secretlyChoose : {k : Kind} -> (n : Noun bs k) ->
+                 {auto 0 ch : ChoiceClause (the (Maybe (Noun bs Player)) Nothing) n} ->
+                 Effect bs
+secretlyChoose n = Choose n Nothing Secretly {ch}
 
 ||| "Discard [amt] cards": the counted wrapper over `discard`, in the
 ||| canonical iterated-singular form -- one pass per card, each choosing
@@ -2752,7 +2767,7 @@ public export
 entersChoosing : (n : Noun bs Object) -> (q : QualitySort) ->
                  {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                  StaticEffect bs
-entersChoosing n q = EntersChoice n (QSort q) Nothing {zn}
+entersChoosing n q = EntersChoice n (QSort q) Nothing Openly {zn}
 
 ||| "As … enters, choose a color other than red."
 public export
@@ -2760,7 +2775,7 @@ entersChoosingFrom : (n : Noun bs Object) -> (q : QualitySort) ->
                      (d : ChoiceDomain (QSort q)) ->
                      {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                      StaticEffect bs
-entersChoosingFrom n q d = EntersChoice n (QSort q) (Just d) {zn}
+entersChoosingFrom n q d = EntersChoice n (QSort q) (Just d) Openly {zn}
 
 ||| "As … enters, choose a player." / "… choose an opponent."
 public export
@@ -2768,7 +2783,16 @@ entersChoosingPlayer : (n : Noun bs Object) ->
                        (d : Maybe (ChoiceDomain PlayerC)) ->
                        {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                        StaticEffect bs
-entersChoosingPlayer n d = EntersChoice n PlayerC d {zn}
+entersChoosingPlayer n d = EntersChoice n PlayerC d Openly {zn}
+
+||| "As [n] enters, secretly choose a player": `entersChoosingPlayer`'s
+||| hidden twin, the three once-only reveal creatures' first line.
+public export
+entersChoosingPlayerSecretly : (n : Noun bs Object) ->
+                               (d : Maybe (ChoiceDomain PlayerC)) ->
+                               {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                               StaticEffect bs
+entersChoosingPlayerSecretly n d = EntersChoice n PlayerC d Secretly {zn}
 
 ||| "As this Equipment becomes attached to a creature, choose a color."
 public export
