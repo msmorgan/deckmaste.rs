@@ -64,6 +64,71 @@ mutual
     OnePartner : {0 m : Noun bs Object} ->
                  {auto 0 zn : ZoneFits (nounZone m) (Just Battlefield)} -> BlockPartner (Just m)
 
+  ||| A DOOR [CR#709.5j]: "some cards refer to a 'door' of a Room
+  ||| permanent. A door is a half of that permanent."
+  |||
+  ||| THE HALF-LEVEL REFERENT, and it is no `Noun`. A `NounWord` at the
+  ||| `Object` kind would say a door is an object, and [CR#709.5b] says
+  ||| the opposite -- "the existence of each half of an object with a
+  ||| shared type line" is part of THAT OBJECT's copiable values, so the
+  ||| halves are values one object has and not two objects. What a half
+  ||| needs instead is the RELATION this type carries: which object, and
+  ||| which of its halves.
+  |||
+  ||| THE HALF ITSELF IS NEVER WRITTEN, at either arm, and that is the
+  ||| English rather than an omission. No printed line says "the left
+  ||| door" -- what a line writes is a deixis ("this door", the half the
+  ||| ability is printed on) or an indefinite half of a described
+  ||| permanent ("a locked door of a Room you control"), and
+  ||| `RoomHalf`/`halfDesignation` are what the semantics quantifies and
+  ||| reads over. The LOCK ADJECTIVE is the slot that read answers:
+  ||| [CR#709.5c] keys each unlocked designation on a half, so "locked"
+  ||| is a question about the pair -- the permanent AND which half -- and
+  ||| that is exactly why it sits here and not as a `HasDesignation`
+  ||| predicate inside `room`.
+  |||
+  ||| -- spelling: `ThisDoor`, "this door"; `DoorOf`, "[state] door of
+  ||| [room]".
+  public export
+  data Door : Bindings -> Type where
+    ||| "this door" -- the half the ability is printed on. A DEIXIS on
+    ||| `This`'s model, and for `This`'s reason: [CR#709.5h] triggers its
+    ||| abilities when the permanent "is given the appropriate unlocked
+    ||| designation", and what makes one appropriate is the ability's own
+    ||| position, which no written noun states. The frame law that keeps
+    ||| the position real is `Card.doorFrameOk`.
+    ThisDoor : Door bs
+    ||| "a locked door of a Room you control", "a door of target Room you
+    ||| control": an indefinite half of a described permanent. The host
+    ||| is on the battlefield because [CR#709.5c] gives the designations
+    ||| to "a permanent on the battlefield".
+    DoorOf : (state : Maybe LockState) -> (room : Noun bs Object) ->
+             {auto 0 zn : ZoneFits (nounZone room) (Just Battlefield)} ->
+             Door bs
+
+  ||| What a door phrase announces: its host permanent's own mention
+  ||| where one is described, and nothing where the deixis names none --
+  ||| `This` announces no mention either.
+  public export
+  doorIntro : {bs : Bindings} -> Door bs -> Bindings
+  doorIntro ThisDoor = bs
+  doorIntro (DoorOf _ room) = nomIntro room
+
+  ||| Whether a door phrase NAMES the permanent whose half it is.
+  ||| [CR#709.5f]'s instruction needs one: "to unlock half of a
+  ||| permanent, a player chooses a locked half of THAT PERMANENT", and
+  ||| the deixis names no permanent for the choice to range over. The
+  ||| header has no such demand -- [CR#709.5h] watches a designation the
+  ||| ability's own position fixes.
+  public export
+  doorNamesHost : {0 bs : Bindings} -> Door bs -> Bool
+  doorNamesHost ThisDoor = False
+  doorNamesHost (DoorOf _ _) = True
+
+  public export
+  DoorNamesHost : {0 bs : Bindings} -> Door bs -> Type
+  DoorNamesHost {bs} d = So (doorNamesHost d)
+
   public export
   data CreationVoice : {0 bs : Bindings} -> Maybe Causer ->
                        Maybe (Noun bs Player) -> Maybe (Noun bs Player) -> Type where
@@ -796,6 +861,27 @@ mutual
                   {auto 0 bc : VerbBecomes v becomes} ->
                   {auto 0 fm : So (not forMana || verbForManaOk v)} ->
                   GameEvent bs
+    ||| "When you unlock this door," -- [CR#709.5h]'s header, all 28
+    ||| supported lines of it the same string (re-measured 2026-09-02).
+    |||
+    ||| ITS OWN ROW because its patient is no `Noun`. `VerbedEvent` takes
+    ||| the label vocabulary's patient, which is a `Noun bs Object`, and
+    ||| [CR#709.5j]'s door is a half -- which is why `verbFacts`' Unlock
+    ||| row records no patient kind and why the half rides here instead.
+    ||| Its neighbour [CR#709.5i] needs no row at all, because a
+    ||| fully-unlock's patient IS a permanent: that header is
+    ||| `VerbedEvent` at the "Fully Unlock" label.
+    ||| The ACTOR is written because [CR#709.5h] writes one -- "when a
+    ||| PLAYER unlocks a particular half of a permanent" -- and every
+    ||| printed line spells it "you".
+    ||| `eventName` answers `VerbedAct "Unlock"`, not a name of its own:
+    ||| the event that happened is the keyword action, and the seat this
+    ||| row adds is the door, not a second act. So every name-keyed table
+    ||| answers about the unlock through `verbFacts`, as it does for the
+    ||| labels `VerbedEvent` carries.
+    ||| -- spelling: "[who] unlock(s) [door]"
+    UnlocksDoor : (who : Noun bs Player) -> (door : Door (nomIntro who)) ->
+                  GameEvent bs
     ||| The ordinal occurrence of an event: "When the fourth plan counter
     ||| is put on this enchantment", "Whenever you cast your first spell
     ||| during each opponent's turn". The ordinal names WHICH occurrence in
@@ -943,6 +1029,12 @@ mutual
   eventName (PaysLife _) = LifePayment
   eventName (LifeChanges _ dir) = lifeEventName dir
   eventName (VerbedEvent _ v _ _ _) = VerbedAct v
+  -- the act that happened is the unlock [CR#709.5f] states; the door is
+  -- the seat this row adds, and not a second event. `VerbedAct` carries
+  -- the label, and the label needs no [CR#701] entry -- [CR#701.1]
+  -- leaves an unkeyworded verb its standard English meaning and the
+  -- rule's own sentence says the rest.
+  eventName (UnlocksDoor _ _) = VerbedAct "Unlock"
   eventName (NthOccurrence _ _ ev) = eventName ev
   eventName (Triggers _) = AbilityTrigger
   eventName (Causes _ what) = eventName what
@@ -1040,6 +1132,13 @@ mutual
     outcomeB (lifeMoveOutcome dir) :: selfSubjIntro who
   eventIntro (VerbedEvent who _ Nothing _ _) = agentIntro who
   eventIntro (VerbedEvent _ _ (Just what) _ _) = selfSubjIntro what
+  -- the actor, and the door's host where one is described. The half
+  -- itself announces nothing: [CR#709.5b] leaves it a value of the
+  -- permanent, so there is no second referent for a later clause to
+  -- name, and no printed body names one -- all 28 lines read the
+  -- permanent back through `This` ("this Room deals 4 damage") and
+  -- never the door.
+  eventIntro (UnlocksDoor who door) = doorIntro door
   eventIntro (NthOccurrence _ _ ev) = eventIntro ev
   eventIntro (Triggers what) = selfSubjIntro what
   -- the caused event's announcement, which already stands on the
@@ -1124,6 +1223,11 @@ mutual
       moveIntro (Just v) what (maybe (nounZone what) Just (actDestOf v))
   eventAfter (VerbedEvent _ v (Just what) _ False) =
     moveIntro (Just v) what (maybe (nounZone what) Just (actDestOf v))
+  -- the same discourse the announcement left: [CR#709.5f] moves nothing
+  -- and gives the permanent a designation where it stands, so the act
+  -- stamps no mention and leaves none behind that its announcement had
+  -- not already named.
+  eventAfter (UnlocksDoor who door) = doorIntro door
   eventAfter (NthOccurrence _ _ ev) = eventAfter ev
   eventAfter (Triggers what) = nomIntro what
   eventAfter (Causes _ what) = eventAfter what
@@ -1173,9 +1277,35 @@ mutual
   -- unreachable: `VerbedVoice` refuses an act with neither actor nor
   -- patient written; folded here rather than left to a catch-all.
   eventSubjectPlur (VerbedEvent Nothing _ Nothing _ _) = OneOf
+  -- the actor is the surface subject, exactly as at the active
+  -- `VerbedEvent`: "when YOU unlock this door".
+  eventSubjectPlur (UnlocksDoor who _) = nounPlur who
   eventSubjectPlur (NthOccurrence _ _ ev) = eventSubjectPlur ev
   eventSubjectPlur (Triggers what) = nounPlur what
   eventSubjectPlur (Causes _ what) = eventSubjectPlur what
+
+  ||| Whether an event pattern writes the DOOR DEIXIS [CR#709.5j] -- "this
+  ||| door", the half the ability is printed on. Read by the card layer's
+  ||| frame law (`Card.doorFrameOk`), which is what keeps the deixis on a
+  ||| face that HAS a door to be: [CR#709.5c] gives the unlocked
+  ||| designations only to a permanent with a shared type line
+  ||| [CR#709.5], so a half of any other layout -- or a one-faced card,
+  ||| which has no half at all -- is a half nothing can unlock, and
+  ||| "this door" would name it.
+  ||| The described arm answers False, and rightly: `DoorOf` names its own
+  ||| permanent and reads on any face that can write a noun.
+  public export
+  eventNamesThisDoor : {0 bs : Bindings} -> GameEvent bs -> Bool
+  eventNamesThisDoor (UnlocksDoor _ ThisDoor) = True
+  eventNamesThisDoor (NthOccurrence _ _ ev) = eventNamesThisDoor ev
+  eventNamesThisDoor (Causes _ what) = eventNamesThisDoor what
+  eventNamesThisDoor _ = False
+
+  public export
+  anyEventNamesThisDoor : {0 bs : Bindings} -> List (GameEvent bs) -> Bool
+  anyEventNamesThisDoor [] = False
+  anyEventNamesThisDoor (e :: es) =
+    eventNamesThisDoor e || anyEventNamesThisDoor es
 
   ||| Whether every arm of a coordination announces exactly what the head
   ||| event announces, under the reader its seat uses.
@@ -1596,6 +1726,23 @@ mutual
   joinedCtx [] ds = ds
   joinedCtx (j :: js) ds =
     if sameBindings ds (joinedAfter j) then joinedCtx js ds else bs
+
+  public export
+  concurrentNamesThisDoor : {0 bs : Bindings} -> Maybe (Concurrent bs) -> Bool
+  concurrentNamesThisDoor Nothing = False
+  concurrentNamesThisDoor (Just (WhileTrue _)) = False
+  concurrentNamesThisDoor (Just (WhileDoing ev)) = eventNamesThisDoor ev
+
+  public export
+  joinedNamesThisDoor : {0 bs : Bindings} -> JoinedHeader bs -> Bool
+  joinedNamesThisDoor (MkJoinedHeader _ ev alts while _) =
+    eventNamesThisDoor ev || anyEventNamesThisDoor alts ||
+      concurrentNamesThisDoor while
+
+  public export
+  joinsNameThisDoor : {0 bs : Bindings} -> List (JoinedHeader bs) -> Bool
+  joinsNameThisDoor [] = False
+  joinsNameThisDoor (j :: js) = joinedNamesThisDoor j || joinsNameThisDoor js
 
   public export
   chapterDefaultsOk : {bs : Bindings} ->

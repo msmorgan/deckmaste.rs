@@ -236,6 +236,29 @@ chapterFrameOk : {0 bs : Bindings} -> List Subtype -> AbilitySeq bs -> Bool
 chapterFrameOk subs [] = True
 chapterFrameOk subs (a :: as) = chapterLineOk subs a && chapterFrameOk subs as
 
+||| THE DOOR FRAME LAW [CR#709.5j]. "A door is a half of that permanent",
+||| and the permanents whose halves can be locked or unlocked are
+||| [CR#709.5]'s: [CR#709.5c] gives the unlocked designations to a
+||| permanent with a shared type line and to nothing else. So "this door"
+||| -- the deixis on the half the ability is printed on -- names nothing
+||| on a face that is not such a half, whether because its layout's halves
+||| are the ordinary [CR#709.4] kind or because it has no half at all, and
+||| this is the law that says so.
+|||
+||| A FRAME law and not a text law, on `chapterLineOk`'s model: it is a
+||| demand the line makes on the CARD it sits on, which is why it lives
+||| here and is restated at every face rather than inside the ability
+||| vocabulary. The shared-line half's own laws omit it, that being the
+||| one face with a half to point at.
+public export
+doorFrameOk : {0 bs : Bindings} -> AbilitySeq bs -> Bool
+doorFrameOk [] = True
+doorFrameOk (a :: as) = not (abilityNamesThisDoor a) && doorFrameOk as
+
+public export
+DoorFrame : {0 bs : Bindings} -> AbilitySeq bs -> Type
+DoorFrame as = So (doorFrameOk as)
+
 public export
 data PrintedStat = PrintedNum Integer | PrintedStar | PrintedStarPlus Nat
                  | PrintedMinusStar Nat
@@ -500,6 +523,7 @@ data FaceLaws : CardFace -> Type where
                {auto 0 ch : CardChapters f.line f.text} ->
                {auto 0 bx : CardBox f.line f.text f.box} ->
                {auto 0 mc : CardCost f.line f.cost} ->
+               {auto 0 dr : DoorFrame f.text} ->
                FaceLaws f
 
 ||| The same laws at a costless face, with two of them restated for it.
@@ -515,7 +539,55 @@ data AltFaceLaws : AltFace -> Type where
                   {auto 0 tx : CardText f.line f.text} ->
                   {auto 0 ch : CardChapters f.line f.text} ->
                   {auto 0 bx : AltCardBox f.line f.text f.box} ->
+                  {auto 0 dr : DoorFrame f.text} ->
                   AltFaceLaws f
+
+||| Half of a SHARED-TYPE-LINE split card [CR#709.5]: "some split cards are
+||| permanent cards with a single shared type line."
+|||
+||| What the half prints of its OWN is a name [CR#709.4a], a mana cost
+||| [CR#709.4b] and a text box [CR#709.4c] -- and not a type line, which is
+||| the whole of what [CR#709.5a] takes away: "each half of a split card
+||| with a shared type line shares the types and subtypes listed on that
+||| card's shared type line." So this record has no `line` field rather than
+||| a law equating two of them, which is what makes the sharing a fact of
+||| the shape instead of a coincidence two faces must be checked into.
+||| That is also why it is not `CardFace`: a uniform face record would give
+||| each half a line of its own and state the sharing away, exactly as the
+||| layout constructors' own note says of the boxes.
+|||
+||| NO CORNER BOX field either, and for the same reason: [CR#200.1] puts the
+||| box in the lower right of the CARD, and the type line that decides which
+||| box the card needs [CR#208.1,209.1,210.1] is the shared one. The box
+||| therefore sits beside the shared line at `SharedLineSplit`, and each
+||| half's own laws are restated against that one box.
+public export
+record SharedLineHalf where
+  constructor MkSharedHalf
+  name : String
+  cost : Maybe ManaCost
+  text : AbilitySeq (costLetters cost)
+
+||| Every card-level law restated at one shared-line half, on `FaceLaws`'
+||| model and with the same reading: [CR#709.4c] gives each half its own
+||| text box, so the text, chapter and cost laws are each half's -- while
+||| the LINE and the BOX are arguments here rather than fields, because
+||| [CR#709.5a] makes them the card's and not the half's.
+|||
+||| `DoorFrame` is the law this one drops. [CR#709.5j]'s door is a half of
+||| a permanent with a shared type line, and this IS that half: it is the
+||| one face in the vocabulary that has a door to point at, which is what
+||| makes the frame law elsewhere a refusal rather than a blanket ban.
+public export
+data SharedLineHalfLaws : (l : TypeLine) -> Maybe PrintedBox ->
+                          SharedLineHalf -> Type where
+  MkSharedLineHalfLaws : {0 l : TypeLine} -> {0 box : Maybe PrintedBox} ->
+                         {0 h : SharedLineHalf} ->
+                         {auto 0 tx : CardText l h.text} ->
+                         {auto 0 ch : CardChapters l h.text} ->
+                         {auto 0 bx : CardBox l h.text box} ->
+                         {auto 0 mc : CardCost l h.cost} ->
+                         SharedLineHalfLaws l box h
 
 ||| An adventurer card's inset frame [CR#715.1]. A player chooses to play the
 ||| card "as an Adventure" [CR#715.3], and Adventure is a spell type
@@ -562,14 +634,16 @@ FlipHalf l = So (flipHalfOk l)
 
 ||| One card: its faces, and the rule its layout answers.
 |||
-||| Five layouts, five constructors — not one record with a layout tag. The
-||| layouts disagree about which boxes a face prints, and a uniform face record
+||| Six layouts, six constructors — not one record with a layout tag. The
+||| layouts disagree about which parts a face prints, and a uniform face record
 ||| would state that disagreement away: it would let a flip card's upside-down
 ||| half [CR#710.1c] or a nonmodal back face [CR#202.3a] carry a mana cost
-||| neither prints, and would give a costed face to a layout that has none to
-||| give. What the layouts do share — a full face with a cost of its own — is
-||| `CardFace`; a costless half is `AltFace`; and every card-level law is
-||| re-stated at each face by `FaceLaws` and `AltFaceLaws`, so no law silently
+||| neither prints, would give a costed face to a layout that has none to
+||| give, and would give a shared-type-line half [CR#709.5a] a type line the
+||| rule takes off it. What the layouts do share — a full face with a cost of
+||| its own — is `CardFace`; a costless half is `AltFace`; a lineless half is
+||| `SharedLineHalf`; and every card-level law is re-stated at each face by
+||| `FaceLaws`, `AltFaceLaws` and `SharedLineHalfLaws`, so no law silently
 ||| applies to one face of two.
 |||
 ||| MELD [CR#712.4] adds no sixth constructor, and this is the ruling
@@ -617,10 +691,50 @@ data Card : Type where
 
   ||| A split card [CR#709.1]: two faces on one card whose other side is the
   ||| normal card back. [CR#709.4b] gives each half its own mana cost and
-  ||| [CR#709.4c] its own card types and text box.
+  ||| [CR#709.4c] its own card types and text box. The half that writes no
+  ||| type line of its own is [CR#709.5]'s shared-line card, below.
   SplitCard : (left : CardFace) -> (right : CardFace) ->
               {auto 0 lf : FaceLaws left} ->
               {auto 0 rf : FaceLaws right} -> Card
+
+  ||| A split card with a SHARED TYPE LINE [CR#709.5]: "some split cards are
+  ||| permanent cards with a single shared type line."
+  |||
+  ||| A SIXTH constructor and not a flag on `SplitCard`, on the same ground
+  ||| the five stand on: the two layouts disagree about which parts a half
+  ||| prints, and a shared flag would state that disagreement away.
+  ||| [CR#709.5a] gives both halves the card's types and subtypes, so a
+  ||| shared-line half prints no line of its own -- while [CR#709.4c] gives
+  ||| an ordinary split half "each card type specified on either of its
+  ||| halves", each half writing its own. One record cannot say both.
+  |||
+  ||| It is named for the rule and not for the Room. [CR#709.5] describes a
+  ||| permanent card with a shared type line and never says Room; Room is a
+  ||| subtype the printed examples all happen to carry, and [CR#709.5j] is
+  ||| the one sentence in the section that names it. The same reading left
+  ||| `designationSeedType` at `Nothing` for the unlocked pair.
+  |||
+  ||| PERMANENT because [CR#709.5] says so in its first sentence -- these
+  ||| are permanent cards -- and the two static abilities that same sentence
+  ||| gives the shared line "function on the battlefield".
+  |||
+  ||| WHAT IS NOT MODELLED, and stated so a reader does not take the
+  ||| constructor to claim it: the two static abilities [CR#709.5] has the
+  ||| shared line represent are supplied by the rule and written on no card,
+  ||| exactly as [CR#310.12b]'s intrinsic Siege ability is; [CR#709.5b]'s
+  ||| copiable half existence and [CR#709.5d]'s entry designations are facts
+  ||| about the permanent in play, which no card-shape term states. The
+  ||| printed reminder text ("You may cast either half. That door unlocks on
+  ||| the battlefield. ...", 56 supported lines, all parenthesized) is
+  ||| reminder for the same reason the adventure rider is.
+  SharedLineSplit : (line : TypeLine) -> (supers : List Supertype) ->
+                    (box : Maybe PrintedBox) ->
+                    (left : SharedLineHalf) -> (right : SharedLineHalf) ->
+                    {auto 0 ln : CardLine line} ->
+                    {auto 0 sp : CardSupers supers} ->
+                    {auto 0 pc : So (anyPermanentType line.tys)} ->
+                    {auto 0 lh : SharedLineHalfLaws line box left} ->
+                    {auto 0 rh : SharedLineHalfLaws line box right} -> Card
 
   ||| An adventurer card [CR#715.1]: the normal face, printed as usual, and the
   ||| inset frame whose alternative characteristics the object has while it is

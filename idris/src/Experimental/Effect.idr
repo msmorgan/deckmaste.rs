@@ -3246,6 +3246,34 @@ mutual
                        (span : Maybe (Duration (nomIntro n))) ->
                        {auto 0 sc : designationScope d = HeldBy k} ->
                        {auto 0 zn : DesignationHolder d (nounZone n)} -> Effect bs
+    ||| "unlock a locked door of a Room you control", "unlock a locked
+    ||| door of up to one target Room you control": [CR#709.5f]'s
+    ||| instruction, whose whole content that rule states -- "to unlock
+    ||| half of a permanent, a player chooses a locked half of that
+    ||| permanent, and that permanent is given the appropriate unlocked
+    ||| designation".
+    |||
+    ||| NOT `GainsDesignation`, and the rule is what parts them. That row
+    ||| names the designation OUTRIGHT and gives it to a described
+    ||| referent; here the designation is chosen -- [CR#709.5f] picks a
+    ||| locked half first and `halfDesignation` reads the appropriate
+    ||| designation off it -- so the sentence names a permanent and a
+    ||| lock state and never a designation at all. Writing it as a
+    ||| designation conferral would have the line say which half, which
+    ||| no printed line says.
+    ||| The door must NAME its permanent (`DoorNamesHost`): the act
+    ||| chooses among the halves of "that permanent", and the deixis
+    ||| names none. 0 supported lines write "unlock this door" as an
+    ||| instruction (measured 2026-09-02); the deixis's 28 are all
+    ||| headers.
+    ||| The LOCK STATE is written and not implied: the rule already
+    ||| restricts the choice to a locked half, so a printed "locked" is
+    ||| the rule restated -- redundant, which is not meaningless -- and
+    ||| both spellings are printed ("unlock a LOCKED door of a Room you
+    ||| control", "Lock or unlock A DOOR of target Room you control").
+    ||| -- spelling: "unlock [door]"
+    Unlock : (door : Door bs) ->
+             {auto 0 nh : DoorNamesHost door} -> Effect bs
     GameBecomes : (d : Designation) ->
                   {auto 0 sc : designationScope d = HeldByGame} ->
                   {auto 0 at : So (designationGiven d)} -> Effect bs
@@ -4312,6 +4340,10 @@ mutual
   heldUntilOk (Regenerate _) = False
   heldUntilOk (CantBe _ _ _) = False
   heldUntilOk (GainsDesignation _ _ _ _) = False
+  -- [CR#709.5f] gives the designation outright and states no span; a
+  -- "lock" is a separate instruction [CR#709.5g] and not this act
+  -- running out.
+  heldUntilOk (Unlock _) = False
   heldUntilOk (GameBecomes _) = False
   heldUntilOk (Concludes _ _) = False
   heldUntilOk GameDrawn = False
@@ -4431,6 +4463,7 @@ mutual
   reflexEncloseUse (Regenerate _) = EncAgentless
   reflexEncloseUse (CantBe _ _ _) = EncAgentless
   reflexEncloseUse (GainsDesignation _ _ _ _) = EncAgentless
+  reflexEncloseUse (Unlock _) = EncAgentless
   reflexEncloseUse (GameBecomes _) = EncAgentless
   reflexEncloseUse (Concludes _ _) = EncAgentless
   reflexEncloseUse GameDrawn = EncAgentless
@@ -4569,6 +4602,7 @@ mutual
   thisWayOutcomeOk (Regenerate _) = True
   thisWayOutcomeOk (CantBe _ _ _) = True
   thisWayOutcomeOk (GainsDesignation _ _ _ _) = True
+  thisWayOutcomeOk (Unlock _) = True
   thisWayOutcomeOk (GameBecomes _) = True
   thisWayOutcomeOk (Concludes _ _) = True
   thisWayOutcomeOk GameDrawn = True
@@ -4696,6 +4730,10 @@ mutual
   costActionOk (Regenerate n) = costNounOk n
   costActionOk (CantBe e _ _) = costActionOk e
   costActionOk (GainsDesignation n _ _ _) = costNounOk n
+  -- the host is read at the cost seat like any other described noun;
+  -- the deixis arm is unreachable here, `DoorNamesHost` refusing it.
+  costActionOk (Unlock ThisDoor) = True
+  costActionOk (Unlock (DoorOf _ room)) = costNounOk room
   costActionOk (GameBecomes _) = True
   costActionOk (Concludes _ _) = True
   costActionOk GameDrawn = True
@@ -4855,6 +4893,7 @@ mutual
   effEq (Regenerate _) _ = False
   effEq (CantBe _ _ _) _ = False
   effEq (GainsDesignation _ _ _ _) _ = False
+  effEq (Unlock _) _ = False
   effEq (GameBecomes a) (GameBecomes b) = a == b
   effEq (GameBecomes _) _ = False
   effEq (Concludes v a) (Concludes w b) = v == w && nounEqRef a b
@@ -4999,6 +5038,9 @@ mutual
   effIntro (Regenerate n) = nomIntro n
   effIntro (CantBe e _ _) = effIntro e
   effIntro (GainsDesignation n _ _ _) = nomIntro n
+  -- the permanent whose half was chosen; the half itself announces
+  -- nothing, being a value of that permanent [CR#709.5b].
+  effIntro (Unlock door) = doorIntro door
   effIntro (GameBecomes _) = bs
   effIntro (Concludes _ who) = nomIntro who
   effIntro GameDrawn = bs
@@ -5169,6 +5211,7 @@ mutual
   preIntro (Regenerate n) = nomIntro n
   preIntro (CantBe e _ _) = preIntro e
   preIntro (GainsDesignation n _ _ _) = nomIntro n
+  preIntro (Unlock door) = doorIntro door
   preIntro (GameBecomes _) = bs
   preIntro (Concludes _ who) = nomIntro who
   preIntro GameDrawn = bs
@@ -5321,6 +5364,7 @@ mutual
   annIntro (Regenerate n) = nomIntro n
   annIntro (CantBe e _ _) = annIntro e
   annIntro (GainsDesignation n _ _ _) = nomIntro n
+  annIntro (Unlock door) = doorIntro door
   annIntro (GameBecomes _) = bs
   annIntro (Concludes _ who) = nomIntro who
   annIntro GameDrawn = bs
@@ -5476,6 +5520,7 @@ mutual
   deedDelta (Regenerate _) = []
   deedDelta (CantBe e _ _) = deedDelta e
   deedDelta (GainsDesignation _ _ _ _) = []
+  deedDelta (Unlock _) = []
   deedDelta (GameBecomes _) = []
   deedDelta (Concludes _ _) = []
   deedDelta GameDrawn = []
@@ -5890,6 +5935,30 @@ mutual
   public export
   Untargeting : {bs : Bindings} -> StaticEffect bs -> Type
   Untargeting {bs} se = So (not (anyTargetedAt (staticIntro se)))
+
+  ||| Whether an ability's own TRIGGER HEADER writes the door deixis
+  ||| [CR#709.5j]. The card layer's frame law reads it, so that "this
+  ||| door" is printable only on a half of [CR#709.5]'s shared-type-line
+  ||| permanent card -- the one layout whose halves [CR#709.5c] gives the
+  ||| unlocked designations to.
+  |||
+  ||| It reads the header and reads through the two wrappers, which is
+  ||| every position the corpus writes: all 28 supported "When you unlock
+  ||| this door," lines are a bare header on a shared-type-line half
+  ||| (re-measured 2026-09-02). It does NOT walk effect bodies, so a
+  ||| deixis buried inside a delayed or intercepted event would escape
+  ||| the frame; 0 supported lines write one, and that residue is
+  ||| recorded rather than paid for with a second full traversal of the
+  ||| effect vocabulary. The instruction seat needs no such walk --
+  ||| `Unlock` refuses the deixis outright through `DoorNamesHost`.
+  public export
+  abilityNamesThisDoor : {0 bs : Bindings} -> AbilityAt bs -> Bool
+  abilityNamesThisDoor (Triggered _ ev alts while joins _ _ _ _) =
+    eventNamesThisDoor ev || anyEventNamesThisDoor alts ||
+      concurrentNamesThisDoor while || joinsNameThisDoor joins
+  abilityNamesThisDoor (ItalicHead _ ab) = abilityNamesThisDoor ab
+  abilityNamesThisDoor (AlsoForKeywords ab _) = abilityNamesThisDoor ab
+  abilityNamesThisDoor _ = False
 
   public export
   lineKeyword : {0 bs : Bindings} -> AbilityAt bs -> Maybe KeywordLabel

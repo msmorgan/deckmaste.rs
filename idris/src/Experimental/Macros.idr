@@ -149,10 +149,11 @@ cardOf : (name : String) -> (cost : Maybe ManaCost) -> (supers : List Supertype)
          {auto 0 ch : CardChapters line text} ->
          {auto 0 bx : CardBox line text box} ->
          {auto 0 mc : CardCost line cost} ->
+         {auto 0 dr : DoorFrame text} ->
          Card
 cardOf name cost supers line text box =
   SingleFaced (MkFace name cost supers line text box)
-              {fl = MkFaceLaws {ln} {sp} {tx} {ch} {bx} {mc}}
+              {fl = MkFaceLaws {ln} {sp} {tx} {ch} {bx} {mc} {dr}}
 
 ||| The lower-right box a creature card writes [CR#208.1], from its two plain
 ||| numbers.
@@ -181,9 +182,10 @@ card : (name : String) -> (cost : Maybe ManaCost) -> (supers : List Supertype) -
        {auto 0 ch : CardChapters line text} ->
        {auto 0 bx : CardBox line text (printedBox stats)} ->
        {auto 0 mc : CardCost line cost} ->
+       {auto 0 dr : DoorFrame text} ->
        Card
 card name cost supers line text stats =
-  cardOf name cost supers line text (printedBox stats) {ln} {sp} {tx} {ch} {bx} {mc}
+  cardOf name cost supers line text (printedBox stats) {ln} {sp} {tx} {ch} {bx} {mc} {dr}
 
 public export
 counterSpell : {k : Kind} -> (n : Noun bs k) ->
