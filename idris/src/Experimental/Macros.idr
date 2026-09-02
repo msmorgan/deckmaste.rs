@@ -604,6 +604,52 @@ untap : (n : Noun bs Object) -> {auto 0 ok : OnBattlefield (nounZone n)} ->
         Effect bs
 untap n = Enact "Untap" (SetStatus Untapped n)
 
+||| "Transform [n]": [CR#701.27a] turns the permanent over so that its
+||| other face is up. The body is `TurnOver`, which is the whole act --
+||| unlike the discard, whose body is a move the grammar already had --
+||| so what the LABEL buys here is not an expansion but the trigger:
+||| [CR#701.27e] has abilities trigger when an object "transforms into"
+||| something, and `VerbedEvent` names that event by this label. 221
+||| supported faces write the imperative with reminder text stripped, and
+||| 39 write a trigger on the act (measured 2026-08-28).
+public export
+transform : (n : Noun bs Object) ->
+            {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
+transform n = Enact "Transform" (TurnOver n)
+
+||| "Convert [n]": the same act under the second printed word.
+||| [CR#701.28a] states convert by routing it back through the transform
+||| rules outright, so the body is `transform`'s unchanged and only the
+||| label differs -- which is what two labels over one body are for. 23
+||| supported faces
+||| write the imperative across 14 cards, reminder text stripped
+||| (measured 2026-08-28), and every one of them is a Transformers
+||| double-faced card -- the printed word is that set's, not a second
+||| game action.
+public export
+convert : (n : Noun bs Object) ->
+          {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
+convert n = Enact "Convert" (TurnOver n)
+
+||| "meld them into [into]": [CR#701.42a]'s keyword action in full --
+||| put the two cards onto the battlefield with their back faces up and
+||| combined. The body is the move the rule writes and the rider is the
+||| rest of that sentence, so the label sits where every other keyword
+||| action's does: on the innermost act.
+||| The exile the printed lines write first is NOT part of it. All 7
+||| supported lines spell "exile them, then meld them into [Z]" --
+||| [CR#701.42a] says nothing about exiling, so the exile is the
+||| instructing clause's own `Sequentially` step and the meld reads the
+||| cards back.
+public export
+meldInto : (n : Noun bs Object) -> (into : String) ->
+           {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
+           {auto 0 pl : Placeable (nounTy n) Battlefield} ->
+           Effect bs
+meldInto n into =
+  Enact "Meld"
+        (Move n battlefieldZ (MkMoveRiders [EntersMelded into] Nothing Nothing) {arr} {pl})
+
 ||| "Return [n] to [to]": the labeled zone change. "Return" is no
 ||| [CR#701] keyword action -- [CR#701.1] leaves it its standard English
 ||| meaning -- and the label states nothing the body does not; what it
@@ -617,6 +663,25 @@ returnTo : (n : Noun bs Object) -> (to : ZoneExpr (nomIntro n)) ->
            {auto 0 pl : Placeable (nounTy n) (zoneSort to)} ->
            Effect bs
 returnTo n to = Enact "Return" (Move n to noRiders {ok} {arr} {pl})
+
+||| "return it to the battlefield transformed under [ctrl]'s control":
+||| `returnToBattlefield` with the arrival [CR#712.14a] states, and the
+||| controller override the printed line nearly always writes with it.
+||| 94 supported faces write this arrival (measured 2026-08-28), which
+||| makes it the transform region's largest single phrasing -- larger
+||| than the imperative's carriers -- and it is NOT the verb: nothing is
+||| turned over, the card arrives with its back face up.
+public export
+returnToBattlefieldTransformed :
+  (n : Noun bs Object) -> (ctrl : Maybe (Noun (nomIntro n) Player)) ->
+  {auto 0 one : CtrlOverrideOk ctrl} ->
+  {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
+  {auto 0 pl : Placeable (nounTy n) Battlefield} ->
+  Effect bs
+returnToBattlefieldTransformed n ctrl =
+  Enact "Return"
+        (Move n battlefieldZ (MkMoveRiders [EntersTransformed] ctrl Nothing {one})
+              {arr} {pl})
 
 ||| `returnTo` at the battlefield, the destination 93 of the family's
 ||| lines write.

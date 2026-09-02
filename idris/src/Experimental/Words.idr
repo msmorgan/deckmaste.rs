@@ -1231,6 +1231,41 @@ verbFacts =
   -- is the whole printed phrase.
   , MkVerbFacts "The Ring Tempts You" Nothing    Nothing
                               Nothing            Nothing False
+  -- [CR#701.27a] turns a PERMANENT over so that its other face is up,
+  -- and admits only permanents represented by double-faced tokens and
+  -- double-faced cards, so the act finds its patient on the battlefield
+  -- and leaves it standing there: a zone, and no destination, exactly as
+  -- the tap rows read.
+  -- NO PARTICIPLE, and a rule says so rather than a printed zero.
+  -- [CR#701.27g] has already given those words to a STATE -- a
+  -- "transformed permanent" is "a double-faced permanent on the
+  -- battlefield with its back face up", and "a permanent with its front
+  -- face up is never considered a transformed permanent, even if it had
+  -- its back face up previously" -- so a verbed anaphor spelling them
+  -- would name the wrong permanents, the ones this act left front face
+  -- up among them. 0 supported lines write "the transformed [noun]" as
+  -- a lookback (measured 2026-08-28).
+  , MkVerbFacts "Transform"   Nothing            (Just Object)
+                              (Just Battlefield) Nothing False
+  -- [CR#701.28a] converts by turning a permanent so that its other face
+  -- is up, and routes the whole of it back through the transform rules
+  -- in as many words: one act under a second printed word, which is what
+  -- two labels over one body are for. The row is `Transform`'s
+  -- unchanged, for that reason.
+  , MkVerbFacts "Convert"     Nothing            (Just Object)
+                              (Just Battlefield) Nothing False
+  -- [CR#701.42a] melds the two cards of a meld pair by putting THEM
+  -- onto the battlefield with their back faces up and combined: a
+  -- patient the act carries and a destination it states. No zone of its
+  -- own to find them in -- every printed line exiles them first ("exile
+  -- them, then meld them into [Z]", 7 supported faces, measured
+  -- 2026-08-28), which is the instructing clause's business and not the
+  -- act's. No participle: what the act leaves is one permanent
+  -- represented by two cards [CR#712.4a], so there is no melded object
+  -- beside it for a later clause to name, and 0 supported lines write
+  -- "melded" at all.
+  , MkVerbFacts "Meld"        Nothing            (Just Object)
+                              Nothing            (Just Battlefield) False
   ]
 public export
 factsIn : VerbLabel -> List VerbFacts -> Maybe VerbFacts
@@ -3638,6 +3673,28 @@ keywordFacts =
   -- multiplier escalate writes has no term at all.
   , MkKeywordFacts "Entwine"          CostParam    False (Just AtCasting)    True  True  False
   , MkKeywordFacts "Escalate"         CostParam    False (Just AtCasting)    True  True  False
+  -- [CR#702.102a]: "Fuse is a static ability found on some split cards
+  -- ... that applies while the card with fuse is in a player's hand. If
+  -- a player casts a split card with fuse from their hand, the player
+  -- may choose to cast both halves of that split card rather than choose
+  -- one half." The word takes no parameter -- the total cost is the two
+  -- halves' own mana costs [CR#702.102c] and no slot is written after it
+  -- -- so `NoParam`, and the ability acts as the spell is cast, which is
+  -- `AtCasting`.
+  -- 17 supported cards print the word, one keyword line on EACH half
+  -- (measured 2026-08-28), and every one of the 34 halves is an instant
+  -- or a sorcery: 18 sorcery halves and 16 instant halves, no permanent
+  -- half among them. So the permanent cell is a measured zero and not a
+  -- refusal -- [CR#709.5] admits permanent split cards and nothing in
+  -- [CR#702.102] forbids one carrying fuse; the corpus has not printed
+  -- it.
+  -- WHAT THE ROW DOES NOT BUY: the fused spell itself. [CR#702.102b] and
+  -- [CR#702.102d] give the resulting spell the combined characteristics
+  -- of both halves and resolve the left half's instructions then the
+  -- right's, which is a spell the grammar has no term for -- a card
+  -- writes the WORD, and the two halves it fuses are `SplitCard`'s
+  -- already.
+  , MkKeywordFacts "Fuse"             NoParam      False (Just AtCasting)    False True  False
   ]
 
 public export
@@ -4101,6 +4158,20 @@ data ManaUnit : Type where
 ||| whichever cost the permanent has, and Qarsi Deceiver prints both
 ||| readings side by side ("pay a mana cost to turn a manifested creature
 ||| face up, or pay a morph cost") precisely because they come apart.
+||| [CR#116.2m]'s unlock action is [CR#709.5e] read from the special-action
+||| side: a player controlling a permanent with one or more locked halves
+||| "may pay the mana cost of a locked half of that permanent to give that
+||| permanent the appropriate unlocked designation", any time they have
+||| priority with an empty stack during a main phase of their turn. That
+||| is what `UnlockDoor` names here, and the designations it gives are
+||| `LeftHalfUnlocked` and `RightHalfUnlocked`. The action is named at
+||| this seat and nowhere else -- it is not taken, because taking one is
+||| a player's choice in play and no card face writes an instruction to
+||| take it. The 2 supported lines that instruct an unlock ("unlock a
+||| locked door of up to one target Room you control", "Lock or unlock a
+||| door of target Room you control") are [CR#709.5f]/[CR#709.5g]
+||| EFFECTS rather than this special action, and they wait on the door
+||| noun [CR#709.5j] the Room scope fence left out.
 ||| -- spelling: "to turn permanents face up", "to foretell cards", "to
 ||| unlock doors".
 public export
@@ -4431,6 +4502,21 @@ Eq Supertype where
   (==) World World = True
   (==) World _ = False
 
+||| A designation a player, an object, a card or the game can hold.
+|||
+||| The UNLOCKED PAIR is the one entry no printed line names. [CR#709.5c]
+||| states it outright -- "'Left half unlocked' and 'right half unlocked'
+||| are designations that a permanent on the battlefield can have" -- and
+||| [CR#709.5d] gives one as the permanent enters, [CR#709.5f] gives one
+||| on an instruction to "unlock", [CR#709.5g] takes one away on an
+||| instruction to "lock". So the rows are the rule's own vocabulary, and
+||| what a card prints is always the DOOR: "unlock a locked door of up to
+||| one target Room you control", "Lock or unlock a door of target Room
+||| you control", "the number of unlocked doors among Rooms you control".
+||| 0 supported lines write either designation by name, measured
+||| 2026-08-28 -- so `HasDesignation` and `GainsDesignation` can reach
+||| them and no printed sentence yet does, the door noun [CR#709.5j]
+||| being the spelling that stands between.
 public export
 data Designation
   = -- PLAYER-held ([CR#725.1], [CR#726.1], [CR#702.131c], [CR#702.195b]).
@@ -4438,6 +4524,8 @@ data Designation
   | -- OBJECT-held: the permanent markers ([CR#701.15b], [CR#701.54b]).
     Goaded | RingBearer | Monstrous | Renowned | Suspected | Saddled
   | Prepared
+  | -- OBJECT-held, the unlocked pair ([CR#709.5c]).
+    LeftHalfUnlocked | RightHalfUnlocked
   | -- CARD-held ([CR#903.3]).
     CommanderD
   | -- GAME-held ([CR#731.1]).
@@ -4459,6 +4547,8 @@ designationScope Renowned = HeldBy Object
 designationScope Suspected = HeldBy Object
 designationScope Saddled = HeldBy Object
 designationScope Prepared = HeldBy Object
+designationScope LeftHalfUnlocked = HeldBy Object
+designationScope RightHalfUnlocked = HeldBy Object
 designationScope CommanderD = HeldByCard
 designationScope Day = HeldByGame
 designationScope Night = HeldByGame
@@ -4487,6 +4577,10 @@ Eq Designation where
   (==) Saddled _ = False
   (==) Prepared Prepared = True
   (==) Prepared _ = False
+  (==) LeftHalfUnlocked LeftHalfUnlocked = True
+  (==) LeftHalfUnlocked _ = False
+  (==) RightHalfUnlocked RightHalfUnlocked = True
+  (==) RightHalfUnlocked _ = False
   (==) CommanderD CommanderD = True
   (==) CommanderD _ = False
   (==) Day Day = True
@@ -4507,6 +4601,8 @@ designationChecked Renowned = True
 designationChecked Suspected = True
 designationChecked Saddled = True
 designationChecked Prepared = True
+designationChecked LeftHalfUnlocked = True
+designationChecked RightHalfUnlocked = True
 designationChecked CommanderD = False
 designationChecked Day = True
 designationChecked Night = True
@@ -4524,6 +4620,8 @@ designationGiven Renowned = True
 designationGiven Suspected = True
 designationGiven Saddled = True
 designationGiven Prepared = True
+designationGiven LeftHalfUnlocked = True
+designationGiven RightHalfUnlocked = True
 designationGiven CommanderD = False
 designationGiven Day = True
 designationGiven Night = True
@@ -4569,6 +4667,8 @@ designationSeedZone Renowned = Just Battlefield
 designationSeedZone Suspected = Just Battlefield
 designationSeedZone Saddled = Just Battlefield
 designationSeedZone Prepared = Just Battlefield
+designationSeedZone LeftHalfUnlocked = Just Battlefield
+designationSeedZone RightHalfUnlocked = Just Battlefield
 designationSeedZone CommanderD = Nothing
 designationSeedZone Day = Nothing
 designationSeedZone Night = Nothing
@@ -4586,6 +4686,12 @@ designationSeedType Renowned = Just Creature
 designationSeedType Suspected = Just Creature
 designationSeedType Saddled = Nothing
 designationSeedType Prepared = Just Creature
+-- [CR#709.5c] gives the unlocked pair to "a permanent on the
+-- battlefield" and names no card type, where every row above takes the
+-- type its own rule names. Rooms are the only permanents that carry
+-- them today; the rule is not written about Rooms, and neither is this.
+designationSeedType LeftHalfUnlocked = Nothing
+designationSeedType RightHalfUnlocked = Nothing
 designationSeedType CommanderD = Nothing
 designationSeedType Day = Nothing
 designationSeedType Night = Nothing
@@ -5363,6 +5469,44 @@ data TokenRider : Type where
   EntersAs : {0 c : StatusCat} -> (v : StatusVal c) ->
              {auto 0 at : StatusEffectVal v} -> TokenRider
   EntersAttacking : TokenRider
+  ||| "Return this card to the battlefield transformed", "put it onto
+  ||| the battlefield transformed under its owner's control": the back
+  ||| face arrives face up. [CR#712.14a] makes it an arrival property
+  ||| and not a second instruction -- "If a spell or ability puts a
+  ||| double-faced card onto the battlefield 'transformed' or
+  ||| 'converted,' it enters the battlefield with its back face up" --
+  ||| which is the same sentence shape [CR#708.3] writes for the face-down
+  ||| rider `EntersAs` already carries.
+  ||| NOT an `EntersAs` value. [CR#110.5] closes a permanent's status at
+  ||| four categories of two values each and back-face-up is none of them,
+  ||| and [CR#701.27b] says in as many words that transforming a permanent
+  ||| and turning one face up "are different game actions" even though
+  ||| they share the physical
+  ||| motion. So the vocabulary a `StatusVal` indexes cannot reach it and
+  ||| a row of its own is what the rules leave.
+  ||| 94 supported faces write it (measured 2026-08-28): 67 "to the
+  ||| battlefield transformed", 92 occurrences of the "transformed under
+  ||| [possessor]'s control" tail, and Corruption of Towashi's "a permanent
+  ||| you control enters transformed".
+  ||| -- spelling: "transformed" after the destination, before the
+  ||| controller override.
+  EntersTransformed : TokenRider
+  ||| "exile them, then meld them into Brisela, Voice of Nightmares":
+  ||| [CR#701.42a]'s own arrival, "put them onto the battlefield with
+  ||| their back faces up and combined". Beside `EntersTransformed` and
+  ||| not a use of it, because "combined" is the whole of what melding
+  ||| adds -- [CR#712.4a] leaves "a single object represented by two
+  ||| cards" where a transformed arrival leaves one card back face up.
+  ||| The name is the clause's own slot: all 7 supported meld lines write
+  ||| it, and it names the melded permanent rather than either component
+  ||| [CR#712.4b].
+  ||| It states no pairing gate. [CR#701.42b] admits only two cards of
+  ||| the same meld pair and [CR#701.42c] leaves anything else in its
+  ||| current zone, which is a fact about the CARDS named and not about
+  ||| the clause naming them; nothing a card face writes could be
+  ||| refused here for it.
+  ||| -- spelling: "into [name]" after the verb.
+  EntersMelded : (into : String) -> TokenRider
 
 ||| The commonest arrival rider, spelled as the status word it is.
 public export

@@ -1343,3 +1343,21 @@ public export
 badThisManaWithoutAdd : Unspellable (StaticEffect []) (\ok =>
   KeepsUnspentMana You (ThisMana {ok = ok}))
 badThisManaWithoutAdd Refl impossible
+
+
+||| "Transform target creature card in your graveyard."
+||| [CR#701.27a] turns a PERMANENT over, and [CR#110.1] leaves a card in a graveyard no permanent at all, so there is nothing on that card's other side for the act to turn up.
+public export
+badTurnOverOffField : Unspellable (Effect []) (\ok =>
+  TurnOver (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)]))
+           {ok})
+badTurnOverOffField OnField impossible
+
+
+||| "Return target creature card from your graveyard to your hand transformed."
+||| [CR#712.14a] states the transformed arrival for one destination -- a spell or ability that "puts a double-faced card onto the battlefield 'transformed' ... it enters the battlefield with its back face up" -- and a card in a hand has no face up at all [CR#712.14], so the rider names a way of arriving somewhere it cannot arrive.
+public export
+badTransformedArrivalOffField : Unspellable (Effect []) (\ok =>
+  Move (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)]))
+       Macros.handZ (MkMoveRiders [EntersTransformed] Nothing Nothing) {rf = ok})
+badTransformedArrivalOffField Oh impossible

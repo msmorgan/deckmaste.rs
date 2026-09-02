@@ -459,6 +459,21 @@ data AltFaceLaws : AltFace -> Type where
 ||| instant or a sorcery is not restated here: `CardLine`'s `subsFitLine`
 ||| already fits a spell type to no other card type, and a second conjunct
 ||| saying so would be unreachable.
+|||
+||| THE EXILE-AND-RECAST RIDER HAS NO ROW, and the corpus settles it
+||| rather than taste. [CR#715.3d] states the whole of it as a rule --
+||| "Instead of putting a spell that was cast as an Adventure into its
+||| owner's graveyard as it resolves, its controller exiles it. For as
+||| long as that card remains exiled, that player may play it" -- and
+||| every printed occurrence of the words is REMINDER TEXT: 108 supported
+||| adventure faces write "(Then exile this card. You may cast the
+||| [type] later from exile.)" and all 108 are parenthesized, with no
+||| unparenthesized occurrence anywhere in the supported corpus
+||| (measured 2026-08-28). So the inset frame is what a card prints and
+||| the rider is what the rule supplies, exactly as [CR#310.12b]'s
+||| intrinsic Siege ability is supplied rather than written. This is the
+||| verdict the card round left unstated; it is not a measured zero
+||| waiting on a carrier.
 public export
 adventureInsetOk : TypeLine -> Bool
 adventureInsetOk l = elem (spellType "Adventure") l.subs
@@ -493,9 +508,25 @@ FlipHalf l = So (flipHalfOk l)
 ||| re-stated at each face by `FaceLaws` and `AltFaceLaws`, so no law silently
 ||| applies to one face of two.
 |||
-||| Meld [CR#712.4] is not among them. A meld pair's combined back face belongs
-||| to two cards at once [CR#712.4b], so it is not a second face of one card
-||| and does not fit this shape.
+||| MELD [CR#712.4] adds no sixth constructor, and this is the ruling
+||| (user, 2026-08-27) rather than a reading of the rules. Each of the two
+||| cards in a meld pair is written as a `Transforming` card whose back is the
+||| combined face, so THE SAME back face is duplicated on both -- the shape a
+||| JSON printing of the pair takes, and the one the corpus this bench reads
+||| hands over. What the duplication throws away is [CR#712.4b]'s own point,
+||| that the combined face belongs to the two cards at once and determines
+||| the characteristics of one permanent represented by both: no cross-card
+||| reference is written, so nothing here states that the two copies are the
+||| same face. That is acknowledged debt, and `Cards.idr`'s meld bench carries
+||| the identity lint that holds it in place -- a `Refl` between the two
+||| cards' backs, which fails the build the moment they drift apart.
+||| Two further differences are recorded and not modelled: [CR#712.4c] refuses
+||| to transform or convert a meld card, where `Transforming`'s other members
+||| are the [CR#712.2] cards whose abilities do exactly that; and [CR#712.21]
+||| puts two cards into the new zone when the one melded permanent leaves it.
+||| Both are facts about the permanent in play, which no card-shape term
+||| states -- but neither is stated here EITHER, and a reader should not take
+||| the constructor to be claiming them.
 public export
 data Card : Type where
   ||| A card with a single face; the other side is the normal Magic card back.

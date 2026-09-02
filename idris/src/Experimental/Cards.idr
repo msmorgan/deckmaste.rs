@@ -10290,8 +10290,9 @@ orochiEggwatcher =
 ||| puts the number on each planeswalker *card*, and [CR#712.8a] reads a
 ||| double-faced card's characteristics off its front face off the battlefield,
 ||| so the back's box is optional and `AltCardBox` — not `CardBox` — is what a
-||| costless face answers. Both whole cards wait on a transform verb (Ledger),
-||| so the evidence is the law, not an entry.
+||| costless face answers. The probe stands on its own terms; the Arlinn card
+||| it stood in for is benched whole as `arlinnKord`, and Garruk Relentless
+||| waits on a state trigger rather than on the verb (see `predatoryWurm`).
 public export
 planeswalkerBackWithoutLoyalty : AltFace
 planeswalkerBackWithoutLoyalty =
@@ -13276,7 +13277,15 @@ talrandsInvocation =
 ||| DESCRIPTION rather than off a type line: [CR#109.2] reads a
 ||| description naming a card type or subtype onto the battlefield, so a
 ||| card may name the planeswalker set without being in it. Garruk
-||| Relentless is still blocked on the transform verb.
+||| Relentless's own card is blocked on a STATE TRIGGER, not on the
+||| transform verb: "When Garruk has two or fewer loyalty counters on
+||| him, transform him" is [CR#603.8]'s shape, whose header is a
+||| CONDITION rather than an event, and `Triggered` takes a `GameEvent`.
+||| Its two loyalty abilities and its whole back face write today, and
+||| the verb it waited on is landed. 1 supported face writes a
+||| loyalty-counter state trigger and it is this one (measured
+||| 2026-08-28), so the machinery waits on a carrier count this card
+||| cannot supply alone.
 public export
 predatoryWurm : Card
 predatoryWurm =
@@ -14736,9 +14745,16 @@ umbrisPump =
 ||| Obelisk of Undoing -- "{6}, {T}: Return target permanent you both own
 ||| and control to your hand." The non-melding carrier of "you both own
 ||| and control": the conjunction row reaches the phrase as two
-||| descriptions the moment ownership has one, where all seven cards
-||| writing the same words as a CONDITION end in a meld this grammar has
-||| no vocabulary for.
+||| descriptions the moment ownership has one. The seven cards writing
+||| the same words as a CONDITION still do not land, and the meld
+||| vocabulary is no longer why -- `meldInto` and its `Meld` label are
+||| landed. What is left is the CONDITION's own shape: each of the seven
+||| writes "you both own and control [X] and [a Y named Z]", one clause
+||| over TWO named objects, and then reads them back as a single "them".
+||| `AndCond` writes the two existence claims, and `Them` admits one
+||| `ManyOf` mention where they leave two `OneOf`s -- so the plural
+||| anaphor over two singular antecedents is the whole of the remaining
+||| blocker, shared by all seven.
 ||| -- spelling: the destination is the BARE hand zone, as every other
 ||| benched return writes it. The printed "your hand" adds nothing the
 ||| description has not already said: the returned permanent is one YOU
@@ -16541,3 +16557,238 @@ voidMirror =
            (NotCond (ManaSpentToCast It (Just MatchAnyColor)))
            (CounterSpell (That SpellW)) ]
        Nothing
+
+
+-- ---------------------------------------------------------------------------
+-- The transform verb, the transformed arrival, the meld pair and fuse.
+-- ---------------------------------------------------------------------------
+
+||| Arlinn Kord // Arlinn, Embraced by the Moon, whole -- the transform
+||| verb's named carrier, and a nonmodal double-faced card [CR#712.2]
+||| whose back writes no mana cost [CR#202.3a] and no loyalty number
+||| [CR#209.1,712.8a]. `planeswalkerBackWithoutLoyaltyOk` probed that box
+||| law on this very face; the card it was standing in for is now here.
+||| Both faces write the verb, at the [0] and the [-1], which is what a
+||| nonmodal double-faced card's abilities are for [CR#712.2].
+public export
+arlinnKord : Card
+arlinnKord =
+  Transforming
+    (MkFace "Arlinn Kord" (Just [Macros.generic 2, Macros.pip Red, Macros.pip Green])
+            [Legendary] (MkTypeLine [planeswalkerType "Arlinn"] [Planeswalker])
+            [ Macros.activated (LoyaltySymbol (LoyaltyUp 1))
+                (Continuously
+                   (AndAlso [ Gets (TargetGroup (Macros.upTo 1) Macros.creature)
+                                   (PtUp (Lit 2)) (PtUp (Lit 2))
+                            , Gains It (Macros.keyword "Vigilance")
+                            , Gains It (Macros.keyword "Haste") ])
+                   (Just Macros.untilEndOfTurn))
+            , Macros.activated (LoyaltySymbol LoyaltyZero)
+                (Sequentially
+                   [ Macros.create (Lit 1)
+                       (Macros.creatureTok 2 2 [Green] [creatureType "Wolf"])
+                   , Macros.transform Macros.thisPlaneswalker ]) ]
+            (Macros.loyaltyBox 3))
+    (MkAltFace "Arlinn, Embraced by the Moon" [Legendary]
+               (MkTypeLine [planeswalkerType "Arlinn"] [Planeswalker])
+               [ Macros.activated (LoyaltySymbol (LoyaltyUp 1))
+                   (Continuously
+                      (AndAlso [ Gets (AllOf Macros.creatureYouControl)
+                                      (PtUp (Lit 1)) (PtUp (Lit 1))
+                               , Gains Them (Macros.keyword "Trample") ])
+                      (Just Macros.untilEndOfTurn))
+               , Macros.activated (LoyaltySymbol (LoyaltyDown 1))
+                   (Sequentially
+                      [ DealDamage This (Lit 3) (Macros.target Macros.anyTarget)
+                      , Macros.transform Macros.thisPlaneswalker ])
+               , Macros.activated (LoyaltySymbol (LoyaltyDown 6))
+                   (GetsEmblem You
+                      [ Static (AndAlso
+                          [ Gains (AllOf Macros.creatureYouControl) (Macros.keyword "Haste")
+                          , Gains Them (Macros.activated TapSymbol
+                              (DealDamageOwn Macros.thisCreature Power (Macros.target Macros.anyTarget))) ]) ]) ]
+               Nothing)
+
+||| Neglected Heirloom // Ashmouth Blade, whole -- the transform verb and
+||| the TRIGGER on the act in one card. "When equipped creature
+||| transforms, transform this Equipment" is the only supported line that
+||| writes the bare act as a header ([CR#701.27e] names the family; 39
+||| supported faces write a trigger on transforming and 37 of them narrow
+||| it with "into [name]", which this one does not). The event is
+||| `VerbedEvent` under the `Transform` label, in the voice that names no
+||| actor -- [CR#701.27a] turns the permanent over and the permanent is
+||| what the header announces.
+public export
+neglectedHeirloom : Card
+neglectedHeirloom =
+  Transforming
+    (MkFace "Neglected Heirloom" (Just [Macros.generic 1]) []
+            (MkTypeLine [artifactType "Equipment"] [Artifact])
+            [ Static (Gets (AttachHost Equipped (TypeW Creature))
+                           (PtUp (Lit 1)) (PtUp (Lit 1)))
+            , Macros.triggered When
+                (VerbedEvent Nothing "Transform"
+                             (Just (AttachHost Equipped (TypeW Creature))) False)
+                (Macros.transform Macros.thisEquipment)
+            , Macros.keywordCosting "Equip" (Mana [Macros.generic 1]) ]
+            Nothing)
+    (MkAltFace "Ashmouth Blade" []
+               (MkTypeLine [artifactType "Equipment"] [Artifact])
+               [ Static (AndAlso [ Gets (AttachHost Equipped (TypeW Creature))
+                                        (PtUp (Lit 3)) (PtUp (Lit 3))
+                                 , Gains It (Macros.keyword "FirstStrike") ])
+               , Macros.keywordCosting "Equip" (Mana [Macros.generic 3]) ]
+               Nothing)
+
+||| Harvest Hand // Scrounged Scythe, whole -- the TRANSFORMED ARRIVAL,
+||| which is a different thing from the verb: [CR#712.14a] has the card
+||| enter with its back face up, and nothing is turned over. The rider
+||| carries the controller override the printed line writes beside it.
+public export
+harvestHand : Card
+harvestHand =
+  Transforming
+    (MkFace "Harvest Hand" (Just [Macros.generic 3]) []
+            (MkTypeLine [creatureType "Scarecrow"] [Artifact, Creature])
+            [ Macros.triggered When (Dies Macros.thisCreature)
+                (Macros.returnToBattlefieldTransformed It (Just You)) ]
+            (Macros.printedBox (Just (2, 2))))
+    (MkAltFace "Scrounged Scythe" []
+               (MkTypeLine [artifactType "Equipment"] [Artifact])
+               [ Static (Gets (AttachHost Equipped (TypeW Creature))
+                              (PtUp (Lit 1)) (PtUp (Lit 1)))
+               , Static (Macros.asLongAs
+                           (Matches (AttachHost Equipped (TypeW Creature))
+                                    (HasSubtype (creatureType "Human")))
+                           (Gains It (Macros.keyword "Menace")))
+               , Macros.keywordCosting "Equip" (Mana [Macros.generic 2]) ]
+               Nothing)
+
+-- --- The meld pair, and the identity lint the ruling asks for --------------
+
+||| Chittering Host as the MIDNIGHT SCAVENGERS card carries it: the
+||| combined back face of the Graf Rats / Midnight Scavengers meld pair
+||| [CR#712.4]. Under the 2026-08-27 ruling the reverse face is
+||| DUPLICATED on each card of the pair rather than shared by reference,
+||| so this is one of two copies and `chitteringHostOnGrafRats` is the
+||| other. See `Card`'s docstring for what the duplication throws away.
+public export
+chitteringHostOnScavengers : AltFace
+chitteringHostOnScavengers =
+  MkAltFace "Chittering Host" []
+            (MkTypeLine [creatureType "Eldrazi", creatureType "Horror"] [Creature])
+            [ Macros.keyword "Haste"
+            , Macros.keyword "Menace"
+            , Macros.triggered When (Enters Macros.thisCreature Nothing)
+                (Continuously
+                   (AndAlso [ Gets (AllOf (Macros.otherCreatureYouControl Macros.thisCreature))
+                                   (PtUp (Lit 1)) (PtUp (Lit 0))
+                            , Gains Them (Macros.keyword "Menace") ])
+                   (Just Macros.untilEndOfTurn)) ]
+            (Macros.printedBox (Just (5, 6)))
+
+||| Chittering Host as the GRAF RATS card carries it -- the second copy,
+||| written out rather than aliased so that the lint below has two terms
+||| to compare. Graf Rats' own card is not benched: its whole printed
+||| text is the meld trigger, whose "you both own and control this
+||| creature and a creature named Midnight Scavengers" wants a single
+||| clause over two named objects and a plural "them" reading them both
+||| back, and `Them` admits one `ManyOf` mention where that condition
+||| leaves two `OneOf`s. That is the blocker all 7 supported melders
+||| share, and it is not the verb.
+public export
+chitteringHostOnGrafRats : AltFace
+chitteringHostOnGrafRats =
+  MkAltFace "Chittering Host" []
+            (MkTypeLine [creatureType "Eldrazi", creatureType "Horror"] [Creature])
+            [ Macros.keyword "Haste"
+            , Macros.keyword "Menace"
+            , Macros.triggered When (Enters Macros.thisCreature Nothing)
+                (Continuously
+                   (AndAlso [ Gets (AllOf (Macros.otherCreatureYouControl Macros.thisCreature))
+                                   (PtUp (Lit 1)) (PtUp (Lit 0))
+                            , Gains Them (Macros.keyword "Menace") ])
+                   (Just Macros.untilEndOfTurn)) ]
+            (Macros.printedBox (Just (5, 6)))
+
+||| THE MELD IDENTITY LINT, and the whole of what holds the 2026-08-27
+||| ruling's acknowledged debt in place. [CR#712.4b] makes the two back
+||| faces of a meld pair ONE face, used together to determine the
+||| characteristics of one permanent; the duplication writes it twice and
+||| states no relation between the copies. This law is that relation,
+||| kept by the typechecker: the two copies reduce to the same `AltFace`
+||| or the build fails. Cheap on purpose -- the ruling names the lint as
+||| the cheap option beside a real cross-card reference, and this costs
+||| one `Refl`.
+public export
+meldBackFacesAgree : Cards.chitteringHostOnScavengers = Cards.chitteringHostOnGrafRats
+meldBackFacesAgree = Refl
+
+||| Midnight Scavengers // Chittering Host, whole -- the benchable half of
+||| a meld pair, and the first meld card in this bench. `Transforming` is
+||| the shape by the ruling and not by [CR#712.2]: a meld card is no
+||| nonmodal double-faced card and [CR#712.4c] refuses to transform it.
+||| The front's own text says nothing about melding -- "(Melds with Graf
+||| Rats.)" is reminder text -- so this face writes exactly what the
+||| grammar already had, and the pair's meld ability sits on the other
+||| card.
+public export
+midnightScavengers : Card
+midnightScavengers =
+  Transforming
+    (MkFace "Midnight Scavengers" (Just [Macros.generic 4, Macros.pip Black]) []
+            (MkTypeLine [creatureType "Human", creatureType "Rogue"] [Creature])
+            [ Macros.triggered When (Enters Macros.thisCreature Nothing)
+                (Macros.may You
+                   (Macros.returnTo
+                      (Macros.target (And [ Macros.creature
+                                          , InZone (Macros.graveyardOf You)
+                                          , Compare [CharAxis ManaValue] AtMost (Lit 3) ]))
+                      Macros.handZ)) ]
+            (Macros.printedBox (Just (3, 3))))
+    Cards.chitteringHostOnScavengers
+
+||| The meld EFFECT vocabulary's own witness, written at the effect
+||| rather than at a card: "exile them, then meld them into Chittering
+||| Host", the second half of every one of the 7 supported meld lines.
+||| [CR#701.42a]'s act is the meld alone -- the exile is the instructing
+||| clause's own step, which is why the two are `Sequentially` and not one
+||| row -- and the meld reads the exiled pair back through the stamp the
+||| exile left. The clause that would introduce that pair is the
+||| ownership condition named above; this term supplies it as a plain
+||| plural description so that the verb's own shape is on the bench while
+||| the condition is not.
+public export
+meldThemInto : Effect []
+meldThemInto =
+  Sequentially
+    [ Macros.exile (AllOf (And [Macros.creature, ControlledBy You]))
+    , Macros.meldInto (Macros.themVerbed "Exile") "Chittering Host" ]
+
+||| Profit // Loss, whole -- the FUSE witness, and what the ticket's
+||| earlier round avoided by choosing Wax // Wane over Wear // Tear.
+||| [CR#702.102a] makes fuse a static ability of the split CARD that
+||| applies in its owner's hand, so the word is printed once per half and
+||| written here as a keyword line on each: 17 supported cards carry it,
+||| all 34 halves instants or sorceries (measured 2026-08-28).
+||| What the row does not buy is the fused spell [CR#702.102b,702.102d];
+||| see `keywordFacts`.
+public export
+profitLoss : Card
+profitLoss =
+  SplitCard
+    (MkFace "Profit" (Just [Macros.generic 1, Macros.pip White]) []
+            (MkTypeLine [] [Instant])
+            [ Spell (Macros.gets (AllOf Macros.creatureYouControl)
+                                 (PtUp (Lit 1)) (PtUp (Lit 1))
+                                 (Just Macros.untilEndOfTurn))
+            , Macros.keyword "Fuse" ]
+            Nothing)
+    (MkFace "Loss" (Just [Macros.generic 2, Macros.pip Black]) []
+            (MkTypeLine [] [Instant])
+            [ Spell (Macros.gets
+                       (AllOf Macros.creatureYourOpponentsControl)
+                       (PtDown (Lit 1)) (PtDown (Lit 1))
+                       (Just Macros.untilEndOfTurn))
+            , Macros.keyword "Fuse" ]
+            Nothing)

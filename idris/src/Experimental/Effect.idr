@@ -2254,6 +2254,38 @@ mutual
     SetStatus : {c : StatusCat} -> (v : StatusVal c) -> (n : Noun bs Object) ->
                 {auto 0 ok : OnBattlefield (nounZone n)} ->
                 {auto 0 at : StatusEffectVal v} -> Effect bs
+    ||| "Transform this creature", "Transform Arlinn Kord", "Convert
+    ||| target permanent": the permanent is turned over so that its
+    ||| other face is up [CR#701.27a]. The whole act and the only
+    ||| building block under it, which is why it is a row and not an
+    ||| expansion the way [CR#701.9a]'s discard is -- and why ONE row
+    ||| serves both printed words: [CR#701.28a] states convert by routing
+    ||| it back through the transform rules in as many words, so the two
+    ||| labels name one body.
+    ||| NOT a status change. [CR#110.5] closes a permanent's status at
+    ||| four categories of two values each, none of them a side of a card,
+    ||| and [CR#701.27b] says outright that transforming a permanent and
+    ||| turning one face up "are different game actions" that share only
+    ||| the physical motion
+    ||| -- so `SetStatus` is the wrong row here, and a fifth `StatusCat`
+    ||| would have stated that difference away.
+    ||| ON THE BATTLEFIELD, on [CR#701.27a]'s own word: it turns a
+    ||| PERMANENT over, and [CR#712.9] restates the restriction over the
+    ||| double-faced cards and tokens that can carry it out.
+    ||| THREE REFUSALS LEFT TO THE ENGINE, and no term could state any
+    ||| of them: [CR#701.27c] and [CR#712.9] ignore the instruction where
+    ||| the permanent is represented by neither a double-faced token nor
+    ||| a double-faced card, [CR#701.27d] and [CR#712.10] where the face
+    ||| it would turn into is an instant or sorcery face, and
+    ||| [CR#712.4c] where the card is a meld card. All three are facts
+    ||| about the permanent the clause names, decided in play; the
+    ||| printed line is a printed line either way, and each rule says
+    ||| "nothing happens" rather than refusing the sentence.
+    ||| 221 supported faces write the transform imperative and 23 the
+    ||| convert one, reminder text stripped (measured 2026-08-28).
+    ||| -- spelling: the label's own verb, imperative -- "[verb] [what]".
+    TurnOver : (what : Noun bs Object) ->
+               {auto 0 ok : OnBattlefield (nounZone what)} -> Effect bs
     RemoveFromCombat : (n : Noun bs Object) ->
                        {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
     ||| "attach it to target creature you control", "attach this
@@ -3084,6 +3116,7 @@ mutual
   heldUntilOk (Fights _ _) = False
   -- [CR#610.4]: "until" also rides a permanent phasing out, and the
   -- second one-shot phases it back in.
+  heldUntilOk (TurnOver _) = False
   heldUntilOk (SetStatus PhasedOut _) = True
   heldUntilOk (SetStatus _ _) = False
   heldUntilOk (GetsCounters _ _ _) = False
@@ -3193,6 +3226,7 @@ mutual
   reflexEncloseUse (Enact _ _) = EncReflexive
   -- a status change is the effect's, not a player's: [CR#603.12]'s
   -- agent form has no subject to inflect.
+  reflexEncloseUse (TurnOver _) = EncAgentless
   reflexEncloseUse (SetStatus _ _) = EncAgentless
   reflexEncloseUse (GetsCounters _ _ _) = EncAgentless
   reflexEncloseUse (GetsCountersOfThoseKinds _ _) = EncAgentless
@@ -3310,6 +3344,7 @@ mutual
   thisWayOutcomeOk (DealDamage _ _ _) = True
   thisWayOutcomeOk (Distribute _ _ _) = True
   thisWayOutcomeOk (Fights _ _) = True
+  thisWayOutcomeOk (TurnOver _) = True
   thisWayOutcomeOk (SetStatus _ _) = True
   thisWayOutcomeOk (DealDamageOwn _ _ _) = True
   thisWayOutcomeOk (ControllerSacrifices _) = True
@@ -3428,6 +3463,7 @@ mutual
   costActionOk (AdditionalPart _ _ _ _) = True
   costActionOk (Distribute _ _ among) = costNounOk among
   costActionOk (Fights a _) = costNounOk a
+  costActionOk (TurnOver n) = costNounOk n
   costActionOk (SetStatus _ n) = costNounOk n
   costActionOk (GetsCounters who _ _) = costNounOk who
   -- the distributive twin reads an announced batch, which no cost has.
@@ -3554,6 +3590,8 @@ mutual
   effEq (AdditionalPart _ _ _ _) _ = False
   effEq (Distribute _ _ _) _ = False
   effEq (Fights _ _) _ = False
+  effEq (TurnOver a) (TurnOver b) = nounEqRef a b
+  effEq (TurnOver _) _ = False
   effEq (SetStatus v a) (SetStatus w b) = sameStatusVal v w && nounEqRef a b
   effEq (SetStatus _ _) _ = False
   -- The two player-counter rows compare kind AND amount, and both narrow
@@ -3693,6 +3731,7 @@ mutual
     MkBinding TheD Player OneOf PlayerP
       :: moveIntro (Just "Sacrifice") n (Just Graveyard)
   effIntro (Fights a b) = nomIntro b
+  effIntro (TurnOver n) = nomIntro n
   effIntro (SetStatus _ n) = nomIntro n
   effIntro (DoesntUntapNext n steps) = amtDelta steps ++ nomIntro n
   effIntro (SkipsNext w _ count) = amtDelta count ++ nomIntro w
@@ -3838,6 +3877,7 @@ mutual
   preIntro (ControllerSacrifices n) = MkBinding TheD Player OneOf PlayerP :: selfSubjIntro n
   preIntro (Distribute v amt among) = nomIntro among
   preIntro (Fights a b) = nomIntro b
+  preIntro (TurnOver n) = nomIntro n
   preIntro (SetStatus _ n) = nomIntro n
   preIntro (DoesntUntapNext n steps) = amtDelta steps ++ nomIntro n
   preIntro (SkipsNext w _ count) = amtDelta count ++ nomIntro w
@@ -3977,6 +4017,7 @@ mutual
   annIntro (ControllerSacrifices n) = MkBinding TheD Player OneOf PlayerP :: selfSubjIntro n
   annIntro (Distribute v amt among) = nomIntro among
   annIntro (Fights a b) = nomIntro b
+  annIntro (TurnOver n) = nomIntro n
   annIntro (SetStatus _ n) = nomIntro n
   annIntro (DoesntUntapNext n steps) = amtDelta steps ++ nomIntro n
   annIntro (SkipsNext w _ count) = amtDelta count ++ nomIntro w
@@ -4119,6 +4160,7 @@ mutual
   deedDelta (Distribute (DividedDamage _) amt among) = [outcomeB DamageDealt]
   deedDelta (Distribute (DistributedCounters _) amt among) = []
   deedDelta (Fights a b) = []
+  deedDelta (TurnOver _) = []
   deedDelta (SetStatus _ _) = []
   deedDelta (DoesntUntapNext _ _) = []
   deedDelta (SkipsNext _ _ _) = []
