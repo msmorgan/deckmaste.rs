@@ -467,6 +467,42 @@ mutual
                   {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                   {auto 0 at : StatusEventVal v} -> GameEvent bs
     DayNightShift : GameEvent bs
+    ||| "When you control no Islands, sacrifice this creature", "When
+    ||| Garruk has two or fewer loyalty counters on him, transform him",
+    ||| "When there are no creatures on the battlefield, sacrifice this
+    ||| enchantment": the STATE TRIGGER. [CR#603.8] names the family and
+    ||| states the whole of what it is -- abilities that "trigger when a
+    ||| game state ... is true, rather than triggering when an event
+    ||| occurs", triggering "as soon as the game state matches the
+    ||| condition".
+    |||
+    ||| A `GameEvent` row and not a second kind of header, because
+    ||| [CR#603.2] already writes the header's slot as matching "a game
+    ||| event or game state" and [CR#603.1] spells one header for both.
+    ||| So the whole of the trigger vocabulary -- the window, the joined
+    ||| header, the usage limit, the intervening clause -- keeps working
+    ||| over this row without a second `Triggered`.
+    |||
+    ||| It is none of the three condition seats the header already has.
+    ||| Not the INTERVENING clause: [CR#603.4]'s rule reaches only "an
+    ||| `if` that immediately follows a trigger condition" and re-checks
+    ||| it on resolution, where this condition IS the trigger condition.
+    ||| Not `Concurrent.WhileTrue`, which narrows an event the header
+    ||| names and leaves the event doing the triggering; this header names
+    ||| no event at all. Not `Static`'s guard, which generates a
+    ||| continuous effect rather than putting an ability on the stack.
+    |||
+    ||| It announces NOTHING, for `WhileTrue`'s reason: a condition names
+    ||| no referent, so a body saying "him" or "it" reads the source or an
+    ||| outer mention, exactly as Garruk Relentless's does.
+    ||| [CR#603.8]'s re-trigger discipline -- the ability does not trigger
+    ||| again until it has left the stack, and then only if the state
+    ||| still matches -- is the engine's and no slot here.
+    ||| All 35 supported lines write the word "When" (measured
+    ||| 2026-09-02); the zero at "Whenever" is recorded rather than gated,
+    ||| [CR#603.8] naming no word of its own.
+    ||| -- spelling: "[word] [c], [effect]".
+    StateHolds : (c : Condition bs) -> GameEvent bs
     LastCounterRemoved : (kind : CounterKind) -> (n : Noun bs Object) ->
                          (by : Maybe (Noun bs Player)) ->
                          {auto 0 sc : counterScope kind = Object} ->
@@ -753,6 +789,7 @@ mutual
   eventName (BecomesTarget _ _) = BecomesTarget
   eventName (StatusEvent {c} _ _) = statusEventName c
   eventName DayNightShift = TimeShift
+  eventName (StateHolds _) = StateMatch
   eventName (LastCounterRemoved _ _ _) = LastCounterRemoval
   eventName (PutInto _ _ _) = Placement
   eventName (CounterEvent dir _ _ _ _ _) = counterEventName dir
@@ -812,6 +849,8 @@ mutual
   eventIntro (BecomesTarget _ by) = selfSubjIntro by
   eventIntro (StatusEvent n _) = selfSubjIntro n
   eventIntro DayNightShift = bs
+  -- a condition names no referent, so the header announces nothing.
+  eventIntro (StateHolds _) = bs
   eventIntro (LastCounterRemoved _ n _) = selfSubjIntro n
   eventIntro (PutInto n _ _) = selfSubjIntro n
   eventIntro (CounterEvent _ _ n OneCounter _ _) = selfSubjIntro n
@@ -890,6 +929,7 @@ mutual
   eventAfter (BeginningOf _ whose) = possessorIntro whose
   eventAfter (StatusEvent n _) = selfSubjIntro n
   eventAfter DayNightShift = bs
+  eventAfter (StateHolds _) = bs
   eventAfter (LastCounterRemoved _ n _) = selfSubjIntro n
   eventAfter (PutInto n to _) = moveIntro Nothing n (Just (zoneSort to))
   eventAfter (CounterEvent _ _ n OneCounter _ _) = selfSubjIntro n
@@ -950,6 +990,8 @@ mutual
   eventSubjectPlur (BecomesTarget n _) = nounPlur n
   eventSubjectPlur (StatusEvent n _) = nounPlur n
   eventSubjectPlur DayNightShift = OneOf
+  -- no subject noun at all: the header writes a clause, not a phrase.
+  eventSubjectPlur (StateHolds _) = OneOf
   eventSubjectPlur (LastCounterRemoved _ n _) = nounPlur n
   eventSubjectPlur (PutInto n _ _) = nounPlur n
   eventSubjectPlur (CounterEvent _ _ n _ _ _) = nounPlur n

@@ -1954,6 +1954,16 @@ public export
 whileState : {0 bs : Bindings} -> Condition bs -> Concurrent bs
 whileState c = WhileTrue c
 
+||| "When <state>": [CR#603.8]'s state trigger at the header, where
+||| `whileState` writes the same condition INSIDE a header that already
+||| names an event. 35 supported lines write one and all 35 write the
+||| word "When" (measured 2026-09-02); the largest family is the
+||| landhome sacrifice, "When you control no Islands, sacrifice this
+||| creature", at 13.
+public export
+whenState : {0 bs : Bindings} -> Condition bs -> GameEvent bs
+whenState c = StateHolds c
+
 ||| "When <event1> and <word> <event2>, <effect>": two whole headers over
 ||| one effect. The effect reads what the headers announce alike
 ||| (`joinedCtx`).

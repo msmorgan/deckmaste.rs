@@ -14090,15 +14090,8 @@ talrandsInvocation =
 ||| DESCRIPTION rather than off a type line: [CR#109.2] reads a
 ||| description naming a card type or subtype onto the battlefield, so a
 ||| card may name the planeswalker set without being in it. Garruk
-||| Relentless's own card is blocked on a STATE TRIGGER, not on the
-||| transform verb: "When Garruk has two or fewer loyalty counters on
-||| him, transform him" is [CR#603.8]'s shape, whose header is a
-||| CONDITION rather than an event, and `Triggered` takes a `GameEvent`.
-||| Its two loyalty abilities and its whole back face write today, and
-||| the verb it waited on is landed. 1 supported face writes a
-||| loyalty-counter state trigger and it is this one (measured
-||| 2026-08-28), so the machinery waits on a carrier count this card
-||| cannot supply alone.
+||| Relentless's own front-face state trigger is `garrukRelentlessFlip`
+||| below; the state-trigger machinery it waited on is landed.
 public export
 predatoryWurm : Card
 predatoryWurm =
@@ -14109,6 +14102,52 @@ predatoryWurm =
                    (Exists (And [HasSubtype (planeswalkerType "Garruk"), ControlledBy You]))
                    (Gets Macros.thisCreature (PtUp (Lit 2)) (PtUp (Lit 2)))) ]
        (Just (4, 4))
+
+||| Skeleton Ship, whole -- "When you control no Islands, sacrifice
+||| Skeleton Ship. / {T}: Put a -1/-1 counter on target creature." The
+||| STATE TRIGGER [CR#603.8] at its commonest carrier: the landhome
+||| sacrifice, 13 of the 35 supported state-trigger lines. The header
+||| names no event and no moment -- [CR#603.8] has the ability trigger
+||| "as soon as the game state matches the condition" -- so what sits
+||| before the comma is a `Condition` and the row that carries it is
+||| `StateHolds`.
+||| The condition is the negated existence the printed words spell:
+||| "no Islands" is not a counter word here but the absence of a
+||| description, which `NotCond` over `Exists` is.
+public export
+skeletonShip : Card
+skeletonShip =
+  Macros.card "Skeleton Ship"
+       (Just [Macros.generic 3, Macros.pip Blue, Macros.pip Black]) [Legendary]
+       (MkTypeLine [creatureType "Skeleton"] [Creature])
+       [ Macros.triggered When
+           (Macros.whenState
+              (NotCond (Exists (And [Macros.land,
+                                     HasSubtype (landType "Island"),
+                                     ControlledBy You]))))
+           (Macros.sacrifice You Macros.thisCreature)
+       , Macros.activated TapSymbol
+           (PutCounters (Lit 1) (PrintedKind Macros.minusOneMinusOne)
+                        (Macros.target Macros.creature)) ]
+       (Just (0, 3))
+
+||| Garruk Relentless's front-face flip trigger -- "When Garruk has two
+||| or fewer loyalty counters on him, transform him." The state trigger
+||| over a COUNTER COUNT, which is the one supported line reading a
+||| loyalty state that way and the reason this card was the transform
+||| round's last blocker. The whole card is `garrukRelentless` once the
+||| back face's "reveal it" has a carrier.
+||| The header announces nothing -- a condition names no referent -- so
+||| "him" is the source's own deixis and not a mention threaded out of
+||| the clause before it.
+public export
+garrukRelentlessFlip : Ability
+garrukRelentlessFlip =
+  Macros.triggered When
+    (Macros.whenState
+       (Matches Macros.thisPlaneswalker
+                (CounterCompare (Just LoyaltyCounter) AtMost (Lit 2))))
+    (Macros.transform Macros.thisPlaneswalker)
 
 ||| Soul Ransom's ransom clause -- "This Aura's controller sacrifices it,
 ||| then draws two cards." The SELF-ANTECEDENT pronoun. A possessive

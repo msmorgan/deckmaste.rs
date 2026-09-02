@@ -64,6 +64,12 @@ data EventName = Death | Departure | DamageTaken
                -- read `verbFacts` instead. `Destruction` retired into
                -- this arm as `VerbedAct "Destroy"` [CR#701.8a].
                | VerbedAct VerbLabel
+               -- a game STATE being true rather than an event happening
+               -- [CR#603.8]. Its own name because it is not any event's:
+               -- the header that writes it names no occurrence, so every
+               -- table keyed by an event's participants, zones or moment
+               -- answers this name negatively and says why once.
+               | StateMatch
 
 public export
 statusEventName : StatusCat -> EventName
@@ -262,6 +268,12 @@ sameEventName BecomesTarget _ = False
 -- game term for the verb.
 sameEventName (VerbedAct a) (VerbedAct b) = a == b
 sameEventName (VerbedAct _) _ = False
+-- [CR#603.8] separates a state trigger from every event outright --
+-- these abilities trigger "rather than triggering when an event
+-- occurs" -- and the states two headers watch are the conditions they
+-- write, which this name does not carry. So no two state triggers are
+-- taken to name one event.
+sameEventName StateMatch _ = False
 
 public export
 sameLookback : Lookback -> Lookback -> Bool
@@ -420,6 +432,9 @@ eventHasMagnitude LifePayment = True
 -- count is `EventCount`'s reading.
 eventHasMagnitude BecomesTarget = False
 eventHasMagnitude (VerbedAct _) = False
+-- [CR#603.8]'s trigger condition is a game state being true, which
+-- happens in no amount at all.
+eventHasMagnitude StateMatch = False
 
 public export
 data ReplUse = Repeatedly | NextTimeOnly
@@ -555,6 +570,11 @@ lookbackSubjectOk BecomesTarget Object = True
 lookbackSubjectOk BecomesTarget Player = True
 lookbackSubjectOk (VerbedAct v) Object = actPatientOf v == Just Object
 lookbackSubjectOk (VerbedAct _) Player = True
+-- nothing HAPPENED to look back on: [CR#603.8] has the ability trigger
+-- on a game state rather than on an event, so no participant of it can
+-- be named afterwards.
+lookbackSubjectOk StateMatch Object = False
+lookbackSubjectOk StateMatch Player = False
 lookbackSubjectOk _ (Quality _) = False
 lookbackSubjectOk _ Outcome = False
 lookbackSubjectOk _ Gap = False

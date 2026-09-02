@@ -357,6 +357,14 @@ badHappenedToPlayerDied : Unspellable (Noun [] Player) (\ok =>
 badHappenedToPlayerDied MkLookbackSubject impossible
 
 
+||| "each opponent who a state matched this turn"
+||| [CR#603.8]'s state trigger fires when a game state is true "rather than triggering when an event occurs", so nothing happened and no participant of it can be looked back on afterwards -- at either kind.
+public export
+badStateMatchLookback : Unspellable (Noun [] Player) (\ok =>
+  Each (And [Opponent, HappenedTo StateMatch Lookback.ThisTurn Nothing {sb = ok}]))
+badStateMatchLookback MkLookbackSubject impossible
+
+
 ||| "target colorless white creature"
 ||| [CR#105.2c] gives a colorless object no color, so the two words describe nothing together.
 public export
