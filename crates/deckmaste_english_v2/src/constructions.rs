@@ -4893,7 +4893,7 @@ constructions! {
     }
 
     // A level symbol is a keyword ability whose band owns the power/toughness
-    // printed in its striation [CR#711.2a,711.2b].
+    // printed in its striation [CR#711.2,711.2a,711.2b].
     abstract sum LevelRange {
         Bounded: BoundedLevelRange,
         Open: OpenLevelRange,

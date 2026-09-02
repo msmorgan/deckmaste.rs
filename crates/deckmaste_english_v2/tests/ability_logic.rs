@@ -4086,7 +4086,11 @@ fn every_plain_modal_header_selects_independently_in_every_ability_envelope() {
                 header.to_owned()
             };
             let text = wrapped_modal_text(envelope, &written);
-            let selected = assert_resolved_logic_candidate(&parser, &context, &text);
+            let selected = if envelope == "trigger" {
+                assert_resolved_logic_candidate(&parser, &context, &text)
+            } else {
+                assert_one_logic_candidate(&parser, &context, &text)
+            };
             let modal = selected_plain_modal(&selected, envelope);
             assert!(
                 matches!(modal.head.as_ref(), ModalHead::Dash(_)),
@@ -4121,7 +4125,7 @@ fn every_modal_head_kind_selects_with_its_own_mode_markers() {
         (keyword, false),
         (pawprint, false),
     ] {
-        let selected = assert_resolved_logic_candidate(&parser, &context, text);
+        let selected = assert_one_logic_candidate(&parser, &context, text);
         let modal = selected_plain_modal(&selected, "root");
         assert_eq!(modal.modes().len(), 2, "{text}");
         assert_eq!(bullet_modes(modal), bullet, "{text}");
@@ -4132,16 +4136,14 @@ fn every_modal_head_kind_selects_with_its_own_mode_markers() {
         );
     }
 
-    let dash_head = selected_plain_modal(
-        &assert_resolved_logic_candidate(&parser, &context, dash),
-        "root",
-    )
-    .head
-    .as_ref()
-    .clone();
+    let dash_head =
+        selected_plain_modal(&assert_one_logic_candidate(&parser, &context, dash), "root")
+            .head
+            .as_ref()
+            .clone();
     assert!(matches!(dash_head, ModalHead::Dash(_)));
     let sentence_head = selected_plain_modal(
-        &assert_resolved_logic_candidate(&parser, &context, sentence),
+        &assert_one_logic_candidate(&parser, &context, sentence),
         "root",
     )
     .head
@@ -4152,7 +4154,7 @@ fn every_modal_head_kind_selects_with_its_own_mode_markers() {
         "a period-terminated allowance is a sentence head, not a dash head",
     );
     let keyword_head = selected_plain_modal(
-        &assert_resolved_logic_candidate(&parser, &context, keyword),
+        &assert_one_logic_candidate(&parser, &context, keyword),
         "root",
     )
     .head
@@ -4168,7 +4170,7 @@ fn every_modal_head_kind_selects_with_its_own_mode_markers() {
 fn the_weighted_mode_marker_is_one_construction_for_spree_and_pawprint() {
     let parser = parser();
     let context = context("Context Card", false);
-    let selected = assert_resolved_logic_candidate(
+    let selected = assert_one_logic_candidate(
         &parser,
         &context,
         "Spree\n+ {1} — You gain 1 life.\n{P}{P} — You gain 2 life.",
@@ -4213,7 +4215,7 @@ fn plain_modal_modes_render_visitor_and_claims_are_hand_derived() {
     let parser = parser();
     let context = context("Context Card", false);
     let text = "Choose one —\n• You gain 1 life. You connive.\n• You gain 2 life.";
-    let selected = assert_resolved_logic_candidate(&parser, &context, text);
+    let selected = assert_one_logic_candidate(&parser, &context, text);
     let modal = selected_plain_modal(&selected, "root");
     assert_eq!(
         modal.modes(),
@@ -4455,7 +4457,11 @@ fn modal_self_reference_licensing_is_identical_in_every_envelope() {
         let legendary_text = wrapped_modal_text(envelope, legendary_header)
             .replace("You gain 1 life", "Aang gains 1 life")
             .replace("You gain 2 life", "Aang gains 2 life");
-        let selected = assert_resolved_logic_candidate(&parser, &legendary, &legendary_text);
+        let selected = if envelope == "trigger" {
+            assert_resolved_logic_candidate(&parser, &legendary, &legendary_text)
+        } else {
+            assert_one_logic_candidate(&parser, &legendary, &legendary_text)
+        };
         let mut visitor = SelfReferenceVisitor::default();
         visitor.visit_ability(&selected);
         assert_eq!(
@@ -4520,7 +4526,11 @@ fn nonlegendary_full_self_reference_selects_complete_modal_envelopes() {
         let text = wrapped_modal_text(envelope, header)
             .replace("You gain 1 life", "Grizzly Bears gains 1 life")
             .replace("You gain 2 life", "Grizzly Bears gains 2 life");
-        let selected = assert_resolved_logic_candidate(&parser, &ordinary, &text);
+        let selected = if envelope == "trigger" {
+            assert_resolved_logic_candidate(&parser, &ordinary, &text)
+        } else {
+            assert_one_logic_candidate(&parser, &ordinary, &text)
+        };
         assert_eq!(
             selected_plain_modal(&selected, envelope).modes(),
             full_self_reference_modes(&ordinary),
