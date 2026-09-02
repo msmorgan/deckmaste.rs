@@ -2834,8 +2834,8 @@ mutual
     ||| subterm of this constructor and is structural.
     ||| `Nothing` where the clause writes no chooser -- "one of those
     ||| piles" as a `Choose` clause's object, or "one pile" as a
-    ||| disposal's -- which leaves the pick with the clause's own agent
-    ||| [CR#608.2d].
+    ||| disposal's -- which leaves the pick to be announced by the player
+    ||| applying the effect [CR#608.2d].
     ||| -- spelling: "one of those piles"; with the head repeated and the
     ||| partitive left out, "one pile"; with a chooser, "the pile of
     ||| [chooser]'s choice", and "of your choice" where the chooser is you.

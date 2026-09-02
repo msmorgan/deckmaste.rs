@@ -20092,3 +20092,104 @@ steamAugury =
                   , Macros.move (That PileW) Macros.handZ
                   , Macros.move TheOther Macros.graveyardZ ]) ]
        Nothing
+
+||| Sphinx of Uthuun, whole card -- "Flying / When this creature enters,
+||| reveal the top five cards of your library. An opponent separates those
+||| cards into two piles. Put one pile into your hand and the other into
+||| your graveyard."
+||| Fact or Fiction's three sentences on a CREATURE, inside a trigger.
+||| The row is not spell-only and asks nothing of its carrier: the
+||| separation reads the prefix its own reveal left and leaves the piles
+||| for the two disposals, the same whether a spell or a triggered
+||| ability is resolving. Unesh, Criosphinx Sovereign and Sphinx of Clear
+||| Skies write the same trigger and are blocked on their other lines
+||| (a cost reduction; a domain-counted X).
+public export
+sphinxOfUthuun : Card
+sphinxOfUthuun =
+  Macros.card "Sphinx of Uthuun"
+       (Just [Macros.generic 5, Macros.pip Blue, Macros.pip Blue]) []
+       (MkTypeLine [creatureType "Sphinx"] [Creature])
+       [ Macros.keyword "Flying"
+       , Macros.triggered When (Enters Macros.thisCreature Nothing)
+           (Sequentially
+              [ Macros.revealCards (Macros.topSlice (Lit 5))
+              , SeparateIntoPiles Macros.anOpponent Them 2
+              , Macros.move Macros.onePile Macros.handZ
+              , Macros.move TheOther Macros.graveyardZ ]) ]
+       (Just (5, 6))
+
+
+-- THE PILE PARTITION'S RESIDUES, re-measured 2026-09-02 and not built.
+-- 38 supported cards write "pile" (the ticket said 41), over 96
+-- sentences. The partition itself, the pile partitive, the pile
+-- demonstrative and the subset complement landed; what follows is what
+-- did not, each with the count and the blocker.
+--
+-- THE PILE-CONTENTS READ, 13 lines over 12 cards -- the largest single
+-- blocker, and the reason Do or Die, Liliana of the Veil's ultimate,
+-- Boneyard Parley, Fight or Flight, Truth or Tale and Phyrexian Portal
+-- do not bench whole. "Destroy all creatures in the pile of that
+-- player's choice", "Put all cards from the pile of your choice onto the
+-- battlefield", "Look at the cards in the other pile", "Search the other
+-- pile for a card". This wants a `Predicate bs Object` testing pile
+-- MEMBERSHIP, and there is no row for it: [CR#700.3b] leaves the pile no
+-- object, so `Contains`/`ExiledWith` have nothing to hold, and
+-- [CR#700.3c] keeps the members in the zone they were in, so `InZone`
+-- cannot say it either. A pile is the one grouping the predicate
+-- vocabulary has no term for.
+--
+-- THE FACE MARKING ON A PILE, 17 lines over 16 cards. Two shapes behind
+-- one blocker. The PAIR -- "separates them into a face-down pile and a
+-- face-up pile" (Atris, Curator of Destinies, Fortune's Favor, Riddles
+-- in the Dark, Sauron's Ransom) and "two face-down piles" (Phyrexian
+-- Portal) -- writes the partition this round landed with each pile's
+-- face stated. The SINGLE PILE -- "exile [them] in a face-down pile,
+-- shuffle that pile, then cloak/manifest those cards", 7 cards (Become
+-- Anonymous, Expose the Culprit, Ghastly Conscription, Jeskai
+-- Infiltrator, Mangara's Tome, Parallel Thoughts, Triumph of Saint
+-- Katherine) -- is not a partition at all: one pile, made by the exile
+-- itself, and no choice follows. Both want a face on a pile, and the
+-- grammar's `FaceDown` is a battlefield-permanent STATUS
+-- (`HasStatus`/`SetStatus` are both `OnBattlefield`-gated) where these
+-- cards mark cards in exile and in the library. Shuffling a pile (7
+-- lines) is a second gap in the same cards, and the rule is on the
+-- cards' side: [CR#701.24a] shuffles "a library or a FACE-DOWN PILE of
+-- cards" in one sentence, so the act is defined at both and it is this
+-- grammar's shuffle that is typed at the library alone.
+--
+-- THE PER-PLAYER PARTITION, 6 lines over 5 cards -- Bend or Break, Make
+-- an Example, Raging River, Stand or Fall, Whims of the Fates. "Each
+-- player separates all permanents they control into three piles. Then
+-- each player chooses one of their piles at random and sacrifices those
+-- permanents." The partition has to run once per player and the piles
+-- one pass made have to be readable inside that pass alone ("their
+-- chosen pile"), where `SeparateIntoPiles` mints ONE piles mention for
+-- the clause. `ForEachOf` at the player kind is landed and is where this
+-- goes, but the piles mention would have to be scoped to the body rather
+-- than to the effect -- which is the element-scoping question and not a
+-- slot on this row. Whims of the Fates wants "at random" on the pick
+-- besides, and Bend or Break "one of their opponents of their choice"
+-- as the chooser.
+--
+-- THE LABELED AND VARIABLE PARTITION, 4 lines over 2 cards -- Camouflage
+-- and Raging River. "Divides all creatures without flying they control
+-- into a 'left' pile and a 'right' pile", then "for each attacking
+-- creature you control, choose 'left' or 'right'"; and Camouflage's
+-- pile count read off the number of attacking creatures, with the piles
+-- assigned to attackers at random. Three separate widenings: a pile
+-- LABEL (the naming ruling refuses a pile named across abilities, and
+-- these name one within a single ability), a variable pile count where
+-- the row takes a `Nat`, and an assignment of piles to objects. Both
+-- cards are blocked on their combat lines independently.
+--
+-- THE EMPTY-PILE REMINDER, 5 lines (Camouflage, Make an Example, Sphinx
+-- of Clear Skies, Split the Spoils, Whims of the Fates). Reminder text
+-- restating [CR#700.3d], which the row already admits by writing no
+-- lower bound on a pile's contents. Nothing to build.
+--
+-- THE CHOOSER IN THE PHRASE beyond its one witness, 5 of the 6 lines.
+-- `PileOf`'s `by` slot landed on Death or Glory and the other five write
+-- it over a pile-CONTENTS read ("all creatures in the pile of that
+-- player's choice") or over the face marking ("turn a pile of your
+-- choice face up"), so they are blocked above and not here.

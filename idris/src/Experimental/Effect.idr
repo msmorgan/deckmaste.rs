@@ -3256,10 +3256,10 @@ mutual
     ||| one, and it is what lets "the other" count against the PILES
     ||| rather than against the cards.
     |||
-    ||| The count is a bare `Nat` with no lower bound written. [CR#700.3d]
-    ||| lets a pile hold zero or more objects and [CR#700.3b] makes the
-    ||| pile no object of its own, so no number of piles is
-    ||| rules-impossible and the row states what the card prints.
+    ||| The count is a bare `Nat` with no lower bound written: [CR#700.3d]
+    ||| lets a pile hold zero or more objects, so an empty pile is legal
+    ||| and no printed number of piles is rules-impossible. The row states
+    ||| what the card prints and refuses no count.
     ||| The pile mention keeps the group's ZONE, which [CR#700.3c] leaves
     ||| where it was -- Death or Glory partitions the GRAVEYARD, and this
     ||| is not the library-search gap.

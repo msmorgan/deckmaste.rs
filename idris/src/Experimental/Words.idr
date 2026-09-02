@@ -1557,8 +1557,9 @@ payloadTy GapP = Nothing
 payloadTy LetterP = Nothing
 payloadTy TurnRefP = Nothing
 payloadTy (AbilityP _) = Nothing
--- a pile has no card type, and [CR#700.3a] does not make its members
--- share one.
+-- [CR#700.3b] leaves the pile no object, so it has no characteristics of
+-- its own to report; the objects grouped into it keep theirs and need
+-- not agree [CR#700.3a].
 payloadTy (PileP _ _) = Nothing
 payloadTy (JoinP l r) = joinSeed (payloadTy l) (payloadTy r)
 
@@ -2435,8 +2436,9 @@ pubB (MkBinding _ _ _ GapP) = True          -- so is a comparison's margin
 pubB (MkBinding _ _ _ LetterP) = True       -- and so is a value the text defines
 pubB (MkBinding _ _ _ TurnRefP) = True       -- and so is a value the text defines
 pubB (MkBinding _ _ _ (AbilityP _)) = True       -- an ability class is public too
--- [CR#700.3b] leaves the grouped objects individual and where they were,
--- so what a pile mention hides is what its members' zone hides.
+-- [CR#700.3b] leaves the grouped objects individual and [CR#700.3c]
+-- leaves them where they were, so what a pile mention hides is exactly
+-- what its members' zone hides.
 pubB (MkBinding _ _ _ (PileP (Just z) _)) = publicZone z
 pubB (MkBinding _ _ _ (PileP Nothing _)) = True
 pubB (MkBinding _ _ _ (JoinP _ _)) = True         -- a target is public whichever half it is
