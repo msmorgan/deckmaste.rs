@@ -246,8 +246,14 @@ fn apply_with_writer_and_retirement(
     if retirement_path.is_some() && mode != CoverageLockMode::Bless {
         bail!("a coverage retirement manifest is valid only with --bless");
     }
-    let (selected_uncovered, unresolved, internal, exception_resolved, exception_uses) =
-        report.gate_failure_counts();
+    let (
+        selected_uncovered,
+        unresolved,
+        internal,
+        exception_resolved,
+        exception_uses,
+        literal_lexicon_collisions,
+    ) = report.gate_failure_counts();
     if selected_uncovered != 0 {
         bail!(
             "coverage gate rejected {selected_uncovered} selected-uncovered unit{}",
@@ -271,6 +277,12 @@ fn apply_with_writer_and_retirement(
             "coverage gate rejected {exception_resolved} exception-resolved unit{} and {exception_uses} exception use{}",
             if exception_resolved == 1 { "" } else { "s" },
             if exception_uses == 1 { "" } else { "s" },
+        );
+    }
+    if literal_lexicon_collisions != 0 {
+        bail!(
+            "coverage gate rejected {literal_lexicon_collisions} literal/lexicon collision{}",
+            if literal_lexicon_collisions == 1 { "" } else { "s" },
         );
     }
     let current = report.selected_covered_ids()?;

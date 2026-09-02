@@ -924,7 +924,14 @@ fn resolve_constructor_feature(
                 proc_macro2::Span::call_site(),
             );
             let field = field_local(locals, stored)?;
-            quote! { #function(#field) }
+            if plan
+                .runtime_declaration_noun_for(stored.terminal())
+                .is_some()
+            {
+                quote! { #function(&#field) }
+            } else {
+                quote! { #function(#field) }
+            }
         } else {
             if stored.kind() != ConstructionFieldKind::Category {
                 return Err(internal(
@@ -1005,6 +1012,8 @@ fn feature_value(value: crate::feature::FeatureValue) -> TokenStream {
         crate::feature::FeatureValue::NonCompoundable => {
             quote! { Compoundability::NonCompoundable }
         }
+        crate::feature::FeatureValue::Count => quote! { Countability::Count },
+        crate::feature::FeatureValue::Mass => quote! { Countability::Mass },
         crate::feature::FeatureValue::Unrestricted => quote! { ModifierLicense::Unrestricted },
         crate::feature::FeatureValue::LocalDeterminer => {
             quote! { ModifierLicense::LocalDeterminer }
@@ -1029,6 +1038,7 @@ fn feature_value(value: crate::feature::FeatureValue) -> TokenStream {
             quote! { NominalForm::PluralCoordination }
         }
         crate::feature::FeatureValue::MassNoun => quote! { NominalForm::MassNoun },
+        crate::feature::FeatureValue::AnyNominal => quote! { NominalLicense::AnyNominal },
         crate::feature::FeatureValue::CountNominal => quote! { NominalLicense::CountNominal },
         crate::feature::FeatureValue::LicensedBareSingularNoun => {
             quote! { NominalLicense::BareSingularNoun }
@@ -1036,6 +1046,12 @@ fn feature_value(value: crate::feature::FeatureValue) -> TokenStream {
         crate::feature::FeatureValue::LicensedMassOrPluralCount => {
             quote! { NominalLicense::MassOrPluralCount }
         }
+        crate::feature::FeatureValue::Common => quote! { Properness::Common },
+        crate::feature::FeatureValue::Proper => quote! { Properness::Proper },
+        crate::feature::FeatureValue::NonRelational => {
+            quote! { Relationality::NonRelational }
+        }
+        crate::feature::FeatureValue::Relational => quote! { Relationality::Relational },
     }
 }
 
@@ -1983,7 +1999,10 @@ mod tests {
                 "Agreement",
                 "Cardinality",
                 "Compoundability",
+                "Countability",
                 "ModifierLicense",
+                "Properness",
+                "Relationality",
                 "DeterminerNumber",
                 "FusedHeadLicense",
                 "NominalForm",
@@ -2001,6 +2020,9 @@ mod tests {
                 "DeclarationClass",
                 "DeclarationMatcher",
                 "DeclarationLeaf",
+                "FormLiteralSurface",
+                "LexiconSurface",
+                "VerbTailLiteralSurface",
                 "Lexical",
                 "Leaf",
                 "TerminalClass",

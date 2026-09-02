@@ -125,18 +125,7 @@ fn indefinite_articles_are_guarded_by_frozen_onset_without_ast_article_state() {
         else {
             panic!("the public staged indefinite AST stores its noun head: {parsed:?}")
         };
-        assert!(matches!(
-            head,
-            SingularHead::CommonSingularHead(_)
-                | SingularHead::TypeSingularHead(_)
-                | SingularHead::ArtifactSubtypeSingularHead(_)
-                | SingularHead::BattleSubtypeSingularHead(_)
-                | SingularHead::CreatureSubtypeSingularHead(_)
-                | SingularHead::EnchantmentSubtypeSingularHead(_)
-                | SingularHead::LandSubtypeSingularHead(_)
-                | SingularHead::PlaneswalkerSubtypeSingularHead(_)
-                | SingularHead::SpellSubtypeSingularHead(_)
-        ));
+        assert!(matches!(head, SingularHead::NounSingularHead(_)));
         assert_eq!(parsed.render(&context, &environment), text);
         let ownership = parser
             .analyze(text, &context)
@@ -433,17 +422,11 @@ fn self_reference(spelling: SelfReferenceSpelling, card_name: &str) -> SourceSel
     SourceSelfReference::new(spelling, &context).expect("test spelling is valid for its context")
 }
 
-enum Noun {
-    Lexeme(CommonNoun),
-    Type(TypeNoun),
-}
-
 fn singular_nominal(noun: Noun) -> SingularNominal {
     SingularNominal::BareSingularNominal(BareSingularNominal {
-        head: match noun {
-            Noun::Lexeme(noun) => SingularHead::CommonSingularHead(CommonSingularHead { noun }),
-            Noun::Type(noun) => SingularHead::TypeSingularHead(TypeSingularHead { noun }),
-        },
+        head: SingularHead::NounSingularHead(
+            NounSingularHead::new(noun).expect("test noun is countable"),
+        ),
     })
 }
 
@@ -454,10 +437,7 @@ fn plural_nominal(noun: Noun) -> PluralNominal {
 }
 
 fn plural_head(noun: Noun) -> PluralHead {
-    match noun {
-        Noun::Lexeme(noun) => PluralHead::CommonPluralHead(CommonPluralHead { noun }),
-        Noun::Type(noun) => PluralHead::TypePluralHead(TypePluralHead { noun }),
-    }
+    PluralHead::NounPluralHead(NounPluralHead::new(noun).expect("test noun is countable"))
 }
 
 fn singular_nominal_value(noun: Noun) -> Nominal {
@@ -498,7 +478,9 @@ fn noun_phrase(reference: UnqualifiedReference) -> NounPhrase {
                 reference: Box::new(LocativeStage::UnqualifiedLocativeStage(
                     UnqualifiedLocativeStage {
                         reference: Box::new(ControllerStage::UnqualifiedControllerStage(
-                            UnqualifiedControllerStage { reference },
+                            UnqualifiedControllerStage {
+                                reference: Box::new(reference),
+                            },
                         )),
                     },
                 )),
@@ -546,13 +528,13 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
                     UnqualifiedLocativeStage {
                         reference: Box::new(ControllerStage::RelativeQualifiedReference(
                             RelativeQualifiedReference {
-                                reference: UnqualifiedReference::DeterminedNominal(
+                                reference: Box::new(UnqualifiedReference::DeterminedNominal(
                                     DeterminedNominal::new(
                                         Determiner::Zero,
                                         plural_nominal_value(creatures()),
                                     )
                                     .expect("zero-headed plural is valid for a determined nominal"),
-                                ),
+                                )),
                                 clause: Box::new(ObjectGapRelativeClause::Positive(Box::new(
                                     PositiveObjectGapRelativeClause::PositiveObjectGapRelative(
                                         PositiveObjectGapRelativeClauseValue {
@@ -566,8 +548,8 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
                     },
                 )),
                 scalar: ScalarQualification::ScalarQualification(ScalarQualificationValue {
-                    measure: ScalarMeasure::CharacteristicScalar(CharacteristicScalar {
-                        characteristic: ScalarCharacteristic::Power,
+                    measure: ScalarMeasure::NominalScalarMeasure(NominalScalarMeasure {
+                        nominal: singular_nominal(Noun::Lexeme(CommonNoun::Power)),
                     }),
                     comparison: ScalarComparison::ScalarOrLess(ScalarOrLess {
                         threshold: ScalarThreshold::FixedScalarThreshold(FixedScalarThreshold {
@@ -590,7 +572,9 @@ fn number_of(counted: Object) -> NounPhrase {
             UnqualifiedNumericStage {
                 reference: Box::new(LocativeStage::OfQualifiedReference(OfQualifiedReference {
                     reference: Box::new(ControllerStage::UnqualifiedControllerStage(
-                        UnqualifiedControllerStage { reference: number },
+                        UnqualifiedControllerStage {
+                            reference: Box::new(number),
+                        },
                     )),
                     complement: Box::new(OfPhrase::OfPhrase(OfPhraseValue {
                         complement: Box::new(counted),
@@ -957,9 +941,13 @@ fn typed_where_staging_rejects_a_finite_subordinate_clause_in_the_chart() {
             .collect::<Vec<_>>(),
         [
             ("DeterminativePluralSimpleDeterminative", 17, 18),
+            ("NounPhraseFusedDeterminativeReference", 8, 10),
+            ("NounPhraseFusedDeterminativeReference", 8, 10),
             ("NounPhraseFusedDeterminativeReference", 17, 18),
+            ("UnqualifiedReferenceDeterminedNominalDetPresent", 8, 15),
+            ("UnqualifiedReferenceDeterminedNominalDetPresent", 8, 15),
         ],
-        "the rejected determiner contributes only its expected plural and fused-head guards"
+        "the rejected subordinate exposes the exact generic nominal guard inventory"
     );
 
     let allowed =
@@ -1052,24 +1040,24 @@ fn parse_error_is_a_standard_error_and_converts_to_anyhow() {
 
 fn creature() -> Noun {
     let environment = environment();
-    Noun::Type(TypeNoun::Declaration(
-        DeclarationTypeNoun::new(
+    Noun::Declaration(
+        DeclarationNoun::new(
             &environment,
             DeclarationId::new(DeclarationKind::Type, "Creature"),
         )
         .expect("Creature is a normalized noun declaration"),
-    ))
+    )
 }
 
 fn creatures() -> Noun {
     let environment = environment();
-    Noun::Type(TypeNoun::Declaration(
-        DeclarationTypeNoun::new(
+    Noun::Declaration(
+        DeclarationNoun::new(
             &environment,
             DeclarationId::new(DeclarationKind::Type, "Creature"),
         )
         .expect("Creature has a normalized plural noun reading"),
-    ))
+    )
 }
 
 fn target_creature() -> Object {
@@ -1116,25 +1104,46 @@ fn core_transitive_head(identity: CoreVerbIdentity) -> DeclarationTransitiveVerb
         .expect("core inventory row licenses the transitive frame")
 }
 
+fn quantified_mass_object(amount: Amount, noun: CommonNoun) -> Object {
+    let determiner = Determiner::Headed(Determinative::MassQuantityDeterminer(
+        MassQuantityDeterminer { amount },
+    ));
+    let nominal = Nominal::MassNominal(MassNominal {
+        noun: MassNoun::MassNoun(
+            MassNounValue::new(Noun::Lexeme(noun))
+                .expect("the helper is called only with declared mass nouns"),
+        ),
+    });
+    let reference = UnqualifiedReference::DeterminedNominal(
+        DeterminedNominal::new(determiner, nominal)
+            .expect("a quantity determiner licenses a mass noun"),
+    );
+    nominal_object(noun_phrase(reference))
+}
+
 fn gain_life(amount: Amount) -> VerbPhrase {
-    let head = DeclarationLifeAmountVerb::new(
-        &environment(),
-        VerbInventoryRef::Core(CoreVerbIdentity::Gain),
-    )
-    .expect("Gain licenses the shared life-amount frame");
-    VerbPhrase::LifeAmount(LifeAmount { head, amount })
+    let head = core_transitive_head(CoreVerbIdentity::Gain);
+    VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
+        frame: Box::new(BaseVerbFrame::TransitiveFrame(Box::new(
+            TransitiveFrame::TransitivePredicate(TransitivePredicate {
+                head,
+                object: quantified_mass_object(amount, CommonNoun::Life),
+            }),
+        ))),
+    })
 }
 
 fn deal_damage(amount: Amount, recipient: ToPhrase) -> VerbPhrase {
-    let head = DeclarationDealAmountDamageVerb::new(
+    let head = DeclarationToObjectVerb::new(
         &environment(),
         VerbInventoryRef::Core(CoreVerbIdentity::Deal),
     )
-    .expect("Deal licenses the amount-damage frame");
-    VerbPhrase::DealAmountDamage(DealAmountDamage {
+    .expect("Deal licenses the object-to-object frame");
+    let ToPhrase::ToPhrase(ToPhraseValue { complement }) = recipient;
+    VerbPhrase::DeclaredToObjectPredicate(DeclaredToObjectPredicate {
         head,
-        amount,
-        recipient,
+        object: quantified_mass_object(amount, CommonNoun::Damage),
+        complement,
     })
 }
 
@@ -1411,7 +1420,7 @@ fn parser_analysis_repeats_exactly_and_preserves_selected_rendered_bytes() {
             "DeterminativeSingularSimpleDeterminative".to_owned(),
             "NominalSingularNominalValue".to_owned(),
             "SingularNominalBareSingularNominal".to_owned(),
-            "SingularHeadTypeSingularHead".to_owned(),
+            "SingularHeadNounSingularHead".to_owned(),
         ]
     );
     assert_eq!(parser.parse(text, &context), first.into_parse_result(),);
@@ -1521,7 +1530,7 @@ fn explicit_named_card_identity_scans_exact_longest_renders_and_owns() {
     else {
         panic!("explicit card name has its generated AST construction: {parsed:?}");
     };
-    let UnqualifiedReference::NamedCardReference(NamedCardReference { name }) =
+    let UnqualifiedReference::NamedCardReference(NamedCardReference { name, .. }) =
         unqualified_reference(value)
     else {
         panic!("explicit card name has its generated AST construction: {parsed:?}");
@@ -1756,7 +1765,7 @@ fn parser_trace_selected_projection_is_exact_bounded_repeatable_and_private_resu
                     "DeterminativeSingularSimpleDeterminative",
                     "NominalSingularNominalValue",
                     "SingularNominalBareSingularNominal",
-                    "SingularHeadTypeSingularHead",
+                    "SingularHeadNounSingularHead",
                 ]
             );
             assert_eq!(candidate.specificity().total(), 17);
@@ -1896,7 +1905,9 @@ fn disallowed_declaration_kind_is_a_parse_failure() {
     };
     assert_eq!(span, TextSpan { start: 15, end: 21 });
     assert!(!expectations.is_empty());
-    assert!(expectations.contains(&Expectation::Terminal(TerminalClass::Noun)));
+    assert!(expectations.iter().any(|expectation| {
+        matches!(expectation, Expectation::Terminal(class) if class.to_string().contains("noun"))
+    }));
 }
 
 #[test]

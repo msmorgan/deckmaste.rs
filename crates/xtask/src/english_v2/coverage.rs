@@ -21,7 +21,7 @@ use super::corpus::Corpus;
 use super::corpus::CorpusUnit;
 use super::corpus::map_corpus_units;
 
-const REPORT_SCHEMA_VERSION: u32 = 2;
+const REPORT_SCHEMA_VERSION: u32 = 3;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum CoverageLockMode {
@@ -594,6 +594,8 @@ pub(super) struct CoverageSummary {
     exception_uses: usize,
     roundtrip_mismatch_units: usize,
     ownership_failure_units: usize,
+    /// Environment loading rejects every such collision before census work.
+    literal_lexicon_collisions: usize,
     claims: usize,
     claimed_bytes: usize,
     form_literal_claims: usize,
@@ -636,6 +638,7 @@ summary_getters!(
     exception_uses,
     roundtrip_mismatch_units,
     ownership_failure_units,
+    literal_lexicon_collisions,
     claims,
     claimed_bytes,
 );
@@ -889,13 +892,14 @@ impl CoverageReport {
         &self.source_fingerprint
     }
 
-    pub(super) const fn gate_failure_counts(&self) -> (usize, usize, usize, usize, usize) {
+    pub(super) const fn gate_failure_counts(&self) -> (usize, usize, usize, usize, usize, usize) {
         (
             self.summary.selected_uncovered_units,
             self.summary.unresolved_ties,
             self.summary.internal_failures,
             self.summary.exception_resolved,
             self.summary.exception_uses,
+            self.summary.literal_lexicon_collisions,
         )
     }
 
@@ -1862,6 +1866,7 @@ mod tests {
         assert_eq!(summary.exception_uses(), 0);
         assert_eq!(summary.roundtrip_mismatch_units(), 1);
         assert_eq!(summary.ownership_failure_units(), 1);
+        assert_eq!(summary.literal_lexicon_collisions(), 0);
         assert_eq!(summary.claims(), 55);
         assert_eq!(summary.claimed_bytes(), 550);
 
@@ -1879,6 +1884,7 @@ mod tests {
                 "exception_uses": 0,
                 "roundtrip_mismatch_units": 1,
                 "ownership_failure_units": 1,
+                "literal_lexicon_collisions": 0,
                 "claims": 55,
                 "claimed_bytes": 550,
                 "form_literal_claims": 3,
@@ -1927,6 +1933,7 @@ mod tests {
                 "exception_uses",
                 "roundtrip_mismatch_units",
                 "ownership_failure_units",
+                "literal_lexicon_collisions",
                 "claims",
                 "claimed_bytes",
                 "form_literal_claims",

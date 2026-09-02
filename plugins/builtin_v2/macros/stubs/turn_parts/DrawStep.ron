@@ -1,0 +1,6 @@
+TurnPart(
+    name: "DrawStep",
+    spelling: "draw step",
+    grammar: Noun(singular: "draw step"),
+    params: [],
+)

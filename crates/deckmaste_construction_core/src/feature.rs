@@ -12,6 +12,7 @@ pub(crate) enum Feature {
     Agreement,
     Cardinality,
     Compoundability,
+    Countability,
     ModifierLicense,
     DeterminerNumber,
     FusedHeadLicense,
@@ -21,6 +22,8 @@ pub(crate) enum Feature {
     Onset,
     Participle,
     PossessiveEnding,
+    Properness,
+    Relationality,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -39,6 +42,8 @@ pub(crate) enum FeatureValue {
     TwoPlus,
     Compoundable,
     NonCompoundable,
+    Count,
+    Mass,
     Unrestricted,
     LocalDeterminer,
     SingularOnly,
@@ -53,9 +58,14 @@ pub(crate) enum FeatureValue {
     ModifiedPluralNoun,
     PluralCoordination,
     MassNoun,
+    AnyNominal,
     CountNominal,
     LicensedBareSingularNoun,
     LicensedMassOrPluralCount,
+    Common,
+    Proper,
+    NonRelational,
+    Relational,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -99,6 +109,7 @@ impl Feature {
             Self::Agreement => &[FeatureValue::Bare, FeatureValue::ThirdPersonSingular],
             Self::Cardinality => &[FeatureValue::Zero, FeatureValue::One, FeatureValue::TwoPlus],
             Self::Compoundability => &[FeatureValue::Compoundable, FeatureValue::NonCompoundable],
+            Self::Countability => &[FeatureValue::Count, FeatureValue::Mass],
             Self::ModifierLicense => &[FeatureValue::Unrestricted, FeatureValue::LocalDeterminer],
             Self::DeterminerNumber => &[
                 FeatureValue::SingularOnly,
@@ -116,6 +127,7 @@ impl Feature {
                 FeatureValue::MassNoun,
             ],
             Self::NominalLicense => &[
+                FeatureValue::AnyNominal,
                 FeatureValue::CountNominal,
                 FeatureValue::LicensedBareSingularNoun,
                 FeatureValue::LicensedMassOrPluralCount,
@@ -124,6 +136,8 @@ impl Feature {
             Self::Onset => &[FeatureValue::Consonant, FeatureValue::Vowel],
             Self::Participle => &[FeatureValue::Participle],
             Self::PossessiveEnding => &[FeatureValue::EndsInS, FeatureValue::Other],
+            Self::Properness => &[FeatureValue::Common, FeatureValue::Proper],
+            Self::Relationality => &[FeatureValue::NonRelational, FeatureValue::Relational],
         }
     }
 
@@ -149,6 +163,7 @@ impl Feature {
             Self::Agreement => "agreement",
             Self::Cardinality => "cardinality",
             Self::Compoundability => "compoundability",
+            Self::Countability => "countability",
             Self::ModifierLicense => "modifier_license",
             Self::DeterminerNumber => "determiner_number",
             Self::FusedHeadLicense => "fused_head_license",
@@ -158,6 +173,8 @@ impl Feature {
             Self::Onset => "onset",
             Self::Participle => "participle",
             Self::PossessiveEnding => "possessive_ending",
+            Self::Properness => "properness",
+            Self::Relationality => "relationality",
         }
     }
 }
@@ -179,6 +196,8 @@ impl FeatureValue {
             Self::TwoPlus => "TwoPlus",
             Self::Compoundable => "Compoundable",
             Self::NonCompoundable => "NonCompoundable",
+            Self::Count => "Count",
+            Self::Mass => "Mass",
             Self::Unrestricted => "Unrestricted",
             Self::LocalDeterminer => "LocalDeterminer",
             Self::SingularOnly => "SingularOnly",
@@ -193,8 +212,13 @@ impl FeatureValue {
             Self::ModifiedPluralNoun => "ModifiedPluralNoun",
             Self::PluralCoordination => "PluralCoordination",
             Self::MassNoun => "MassNoun",
+            Self::AnyNominal => "AnyNominal",
             Self::CountNominal => "CountNominal",
             Self::LicensedMassOrPluralCount => "MassOrPluralCount",
+            Self::Common => "Common",
+            Self::Proper => "Proper",
+            Self::NonRelational => "NonRelational",
+            Self::Relational => "Relational",
         }
     }
 }
@@ -327,6 +351,7 @@ impl Feature {
             Self::Agreement => "agreement",
             Self::Cardinality => "cardinality",
             Self::Compoundability => "compoundability",
+            Self::Countability => "countability",
             Self::ModifierLicense => "modifier_license",
             Self::DeterminerNumber => "determiner_number",
             Self::FusedHeadLicense => "fused_head_license",
@@ -336,6 +361,8 @@ impl Feature {
             Self::Onset => "onset",
             Self::Participle => "participle",
             Self::PossessiveEnding => "possessive_ending",
+            Self::Properness => "properness",
+            Self::Relationality => "relationality",
         }
     }
 }
@@ -358,6 +385,8 @@ impl FeatureValue {
             Self::TwoPlus => "TwoPlus",
             Self::Compoundable => "Compoundable",
             Self::NonCompoundable => "NonCompoundable",
+            Self::Count => "Count",
+            Self::Mass => "Mass",
             Self::Unrestricted => "Unrestricted",
             Self::LocalDeterminer => "LocalDeterminer",
             Self::SingularOnly => "SingularOnly",
@@ -372,8 +401,13 @@ impl FeatureValue {
             Self::ModifiedPluralNoun => "ModifiedPluralNoun",
             Self::PluralCoordination => "PluralCoordination",
             Self::MassNoun => "MassNoun",
+            Self::AnyNominal => "AnyNominal",
             Self::CountNominal => "CountNominal",
             Self::LicensedMassOrPluralCount => "MassOrPluralCount",
+            Self::Common => "Common",
+            Self::Proper => "Proper",
+            Self::NonRelational => "NonRelational",
+            Self::Relational => "Relational",
         }
     }
 }
@@ -415,6 +449,8 @@ pub(crate) fn lower_constant(
         (model::Feature::Cardinality, "TwoPlus") => FeatureValue::TwoPlus,
         (model::Feature::Compoundability, "Compoundable") => FeatureValue::Compoundable,
         (model::Feature::Compoundability, "NonCompoundable") => FeatureValue::NonCompoundable,
+        (model::Feature::Countability, "Count") => FeatureValue::Count,
+        (model::Feature::Countability, "Mass") => FeatureValue::Mass,
         (model::Feature::ModifierLicense, "Unrestricted") => FeatureValue::Unrestricted,
         (model::Feature::ModifierLicense, "LocalDeterminer") => FeatureValue::LocalDeterminer,
         (model::Feature::DeterminerNumber, "SingularOnly") => FeatureValue::SingularOnly,
@@ -429,6 +465,7 @@ pub(crate) fn lower_constant(
         (model::Feature::NominalForm, "ModifiedPluralNoun") => FeatureValue::ModifiedPluralNoun,
         (model::Feature::NominalForm, "PluralCoordination") => FeatureValue::PluralCoordination,
         (model::Feature::NominalForm, "MassNoun") => FeatureValue::MassNoun,
+        (model::Feature::NominalLicense, "AnyNominal") => FeatureValue::AnyNominal,
         (model::Feature::NominalLicense, "CountNominal") => FeatureValue::CountNominal,
         (model::Feature::NominalLicense, "BareSingularNoun") => {
             FeatureValue::LicensedBareSingularNoun
@@ -436,6 +473,10 @@ pub(crate) fn lower_constant(
         (model::Feature::NominalLicense, "MassOrPluralCount") => {
             FeatureValue::LicensedMassOrPluralCount
         }
+        (model::Feature::Properness, "Common") => FeatureValue::Common,
+        (model::Feature::Properness, "Proper") => FeatureValue::Proper,
+        (model::Feature::Relationality, "NonRelational") => FeatureValue::NonRelational,
+        (model::Feature::Relationality, "Relational") => FeatureValue::Relational,
         (model::Feature::Agreement, _) => {
             return Err(syn::Error::new_spanned(
                 path,
@@ -452,6 +493,12 @@ pub(crate) fn lower_constant(
             return Err(syn::Error::new_spanned(
                 path,
                 format!("`{name}` is not a compoundability value"),
+            ));
+        }
+        (model::Feature::Countability, _) => {
+            return Err(syn::Error::new_spanned(
+                path,
+                format!("`{name}` is not a countability value"),
             ));
         }
         (model::Feature::ModifierLicense, _) => {
@@ -508,6 +555,18 @@ pub(crate) fn lower_constant(
                 format!("`{name}` is not a participle value"),
             ));
         }
+        (model::Feature::Properness, _) => {
+            return Err(syn::Error::new_spanned(
+                path,
+                format!("`{name}` is not a properness value"),
+            ));
+        }
+        (model::Feature::Relationality, _) => {
+            return Err(syn::Error::new_spanned(
+                path,
+                format!("`{name}` is not a relationality value"),
+            ));
+        }
     };
     Ok(value)
 }
@@ -518,6 +577,7 @@ impl From<model::Feature> for Feature {
             model::Feature::Agreement => Self::Agreement,
             model::Feature::Cardinality => Self::Cardinality,
             model::Feature::Compoundability => Self::Compoundability,
+            model::Feature::Countability => Self::Countability,
             model::Feature::ModifierLicense => Self::ModifierLicense,
             model::Feature::DeterminerNumber => Self::DeterminerNumber,
             model::Feature::FusedHeadLicense => Self::FusedHeadLicense,
@@ -527,6 +587,8 @@ impl From<model::Feature> for Feature {
             model::Feature::Onset => Self::Onset,
             model::Feature::Participle => Self::Participle,
             model::Feature::PossessiveEnding => Self::PossessiveEnding,
+            model::Feature::Properness => Self::Properness,
+            model::Feature::Relationality => Self::Relationality,
         }
     }
 }
@@ -557,6 +619,17 @@ mod tests {
         );
         assert!(lower_constant(Feature::Number, &syn::parse_quote!(Anything::Bare)).is_err());
         assert!(lower_constant(Feature::Agreement, &syn::parse_quote!(Anything::Plural)).is_err());
+        assert_eq!(
+            lower_constant(
+                Feature::Relationality,
+                &syn::parse_quote!(Anything::Relational),
+            )
+            .unwrap(),
+            FeatureValue::Relational
+        );
+        assert!(
+            lower_constant(Feature::Relationality, &syn::parse_quote!(Anything::Common),).is_err()
+        );
         assert_eq!(
             lower_constant(
                 Feature::FusedHeadLicense,

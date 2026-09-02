@@ -1,4 +1,5 @@
-//! Unit tests for the compiler-owned feature recipes declared in `constructions!`.
+//! Unit tests for the compiler-owned feature recipes declared in
+//! `constructions!`.
 
 #[cfg(test)]
 mod coordination_feature_recipes {
@@ -11,7 +12,9 @@ mod coordination_feature_recipes {
                     reference: Box::new(LocativeStage::UnqualifiedLocativeStage(
                         UnqualifiedLocativeStage {
                             reference: Box::new(ControllerStage::UnqualifiedControllerStage(
-                                UnqualifiedControllerStage { reference },
+                                UnqualifiedControllerStage {
+                                    reference: Box::new(reference),
+                                },
                             )),
                         },
                     )),
@@ -22,19 +25,25 @@ mod coordination_feature_recipes {
 
     fn singular_member(noun: CommonNoun) -> SingularCoordinationMember {
         SingularCoordinationMember::BareSingularCoordinationMember(BareSingularCoordinationMember {
-            head: SingularHead::CommonSingularHead(CommonSingularHead { noun }),
+            head: SingularHead::NounSingularHead(NounSingularHead {
+                noun: Noun::Lexeme(noun),
+            }),
         })
     }
 
     fn plural_member(noun: CommonNoun) -> PluralCoordinationMember {
         PluralCoordinationMember::BarePluralCoordinationMember(BarePluralCoordinationMember {
-            head: PluralHead::CommonPluralHead(CommonPluralHead { noun }),
+            head: PluralHead::NounPluralHead(NounPluralHead {
+                noun: Noun::Lexeme(noun),
+            }),
         })
     }
 
     fn singular_nominal(noun: CommonNoun) -> SingularNominal {
         SingularNominal::BareSingularNominal(BareSingularNominal {
-            head: SingularHead::CommonSingularHead(CommonSingularHead { noun }),
+            head: SingularHead::NounSingularHead(NounSingularHead {
+                noun: Noun::Lexeme(noun),
+            }),
         })
     }
 
@@ -88,18 +97,22 @@ mod coordination_feature_recipes {
             CoordinatedNounPhrase {
                 coordination: FullNounPhraseCoordination::FullAndNounPhraseCoordination(
                     FullAndNounPhraseCoordination::new(Box::new(vec![
-                        determined(
-                            determinative(Number::Singular),
-                            Nominal::SingularNominalValue(SingularNominalValue {
-                                nominal: singular_nominal(CommonNoun::Player),
-                            }),
-                        ),
-                        determined(
-                            determinative(Number::Singular),
-                            Nominal::SingularNominalValue(SingularNominalValue {
-                                nominal: singular_nominal(CommonNoun::Opponent),
-                            }),
-                        ),
+                        ControllerStage::UnqualifiedControllerStage(UnqualifiedControllerStage {
+                            reference: Box::new(determined(
+                                determinative(Number::Singular),
+                                Nominal::SingularNominalValue(SingularNominalValue {
+                                    nominal: singular_nominal(CommonNoun::Player),
+                                }),
+                            )),
+                        }),
+                        ControllerStage::UnqualifiedControllerStage(UnqualifiedControllerStage {
+                            reference: Box::new(determined(
+                                determinative(Number::Singular),
+                                Nominal::SingularNominalValue(SingularNominalValue {
+                                    nominal: singular_nominal(CommonNoun::Opponent),
+                                }),
+                            )),
+                        }),
                     ]))
                     .expect("binary full-NP coordination satisfies minimum arity"),
                 ),
@@ -129,7 +142,9 @@ mod reference_onset_recipes {
                     reference: Box::new(LocativeStage::UnqualifiedLocativeStage(
                         UnqualifiedLocativeStage {
                             reference: Box::new(ControllerStage::UnqualifiedControllerStage(
-                                UnqualifiedControllerStage { reference },
+                                UnqualifiedControllerStage {
+                                    reference: Box::new(reference),
+                                },
                             )),
                         },
                     )),
@@ -146,8 +161,8 @@ mod reference_onset_recipes {
                 )),
                 Nominal::PluralNominalValue(PluralNominalValue {
                     nominal: PluralNominal::BarePluralNominal(BarePluralNominal {
-                        head: PluralHead::CommonPluralHead(CommonPluralHead {
-                            noun: CommonNoun::Player,
+                        head: PluralHead::NounPluralHead(NounPluralHead {
+                            noun: Noun::Lexeme(CommonNoun::Player),
                         }),
                     }),
                 }),
@@ -213,7 +228,10 @@ mod mass_nominal_feature_recipes {
     #[test]
     fn zero_determiner_licenses_a_mass_nominal() {
         let nominal = Nominal::MassNominal(MassNominal {
-            noun: MassCommonNoun::Damage,
+            noun: MassNoun::MassNoun(
+                MassNounValue::new(Noun::Lexeme(CommonNoun::Damage))
+                    .expect("damage is declared mass"),
+            ),
         });
         assert_eq!(nominal_form_for_nominal(&nominal), NominalForm::MassNoun);
         assert_eq!(number_for_nominal(&nominal), Number::Singular);

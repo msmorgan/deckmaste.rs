@@ -20,7 +20,8 @@ impl DeclarationNoun {
     ) -> Option<Self> {
         matches!(
             id.kind(), ::macro_ron::v2::DeclarationKind::Type |
-            ::macro_ron::v2::DeclarationKind::Subtype(_)
+            ::macro_ron::v2::DeclarationKind::Subtype(_) |
+            ::macro_ron::v2::DeclarationKind::TurnPart
         )
             .then_some(Self { id })
     }

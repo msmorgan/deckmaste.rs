@@ -957,16 +957,11 @@ enum NonterminalKind {
     AdditionalCost,
     AdditionalCostPredicateBody,
     AdditionalCostFiniteBody,
-    ManaCostReference,
-    ThisSpellManaCost,
-    DefiniteManaCost,
-    SingularPronounManaCost,
-    PluralPronounManaCosts,
     CastingRestriction,
     OnlyIfRestriction,
     OnlyDuringRestriction,
-    RatherThanManaCostPredicate,
-    WithoutPayingManaCostPredicate,
+    AlternativePredicate,
+    WithoutGerundObjectPredicate,
     ControlledCostAction,
     CostComparisonPredicate,
     ForEachCostBasis,
@@ -982,20 +977,17 @@ enum NonterminalKind {
     PredicativeStatus,
     PassivePredicate,
     StateDurationBase,
-    DamageDistribution,
+    DistributionPhrase,
     DistributionRecipient,
-    DistributedDamageAmount,
-    ScalarDistributedDamageAmount,
-    TwiceVariableAmount,
-    VariablePlusAmount,
     PredicativeAdjectiveComplement,
     PredicativeColorComplement,
     PredicativeDesignationComplement,
     PredicativeStatusComplement,
     PredicativeParticipialAdjectiveComplement,
     ParticipialAdjective,
-    BlockedByStatusComplement,
-    BlockedExceptByStatusComplement,
+    PredicativeDeclaredParticipleComplement,
+    ParticipialByComplement,
+    ParticipialExceptByComplement,
     PredicativeAbilityComplement,
     PredicativePowerToughnessComplement,
     PredicativeScalarComplement,
@@ -1024,34 +1016,29 @@ enum NonterminalKind {
     AbilityWordLabel,
     ChapterLabel,
     BareCopularPredicate,
-    PassiveDamagePredicate,
     PassiveMovementPredicate,
     PassiveOrientationPredicate,
-    DeclaredTransitivePassivePredicate,
+    DeclaredObjectPassivePredicate,
     DeclaredTransitivePassiveFromPredicate,
     BarePassivePredicate,
     StateDurationPredicate,
     ObjectDistributionRecipient,
-    ChosenDamageDistribution,
-    EvenDamageDistribution,
+    ChosenDistributionPhrase,
+    EvenDistributionPhrase,
     ObjectInfinitivePredicate,
     InfinitiveComplement,
     RequirementPredicate,
     TransitiveRequirementPredicate,
     AsThoughPredicate,
-    IntransitiveAsThoughPredicate,
-    TransitiveAsThoughPredicate,
+    CounterfactualClause,
+    IrrealisCopularClause,
+    PossessiveComplement,
+    KeywordPossessiveComplement,
     OrderedPredicate,
-    CounterfactualFiniteClause,
-    CounterfactualStatusClause,
-    CounterfactualNegativeAbilityClause,
-    CounterfactualPastAbilityClause,
     PurposePredicate,
     DurationPredicate,
     InsteadPredicate,
     MannerPredicate,
-    CopularClause,
-    PassiveFiniteClause,
     FiniteClause,
     ClauseCoordination,
     CoordinatedClause,
@@ -1061,14 +1048,12 @@ enum NonterminalKind {
     NounPhrase,
     UnqualifiedReference,
     CountReference,
+    MassNoun,
     MannerReference,
     ScalarReference,
     ScalarValue,
     ScalarEquality,
-    CardQuantity,
     CounterKind,
-    CounterQuantity,
-    DieObject,
     ManaAmount,
     PowerToughnessAdjustment,
     PowerToughnessAdjustmentMagnitude,
@@ -1091,7 +1076,6 @@ enum NonterminalKind {
     SingularSelector,
     PluralSelector,
     FullNounPhraseCoordination,
-    OwnerPossessor,
     PartitiveSelection,
     FromPhrase,
     IntoPhrase,
@@ -1100,7 +1084,7 @@ enum NonterminalKind {
     OnPhrase,
     ToPhrase,
     InPhrase,
-    ControlPostmodifier,
+    UnderPhrase,
     ScalarThreshold,
     ScalarMeasure,
     ScalarComparison,
@@ -1128,12 +1112,9 @@ enum NonterminalKind {
     AuxiliaryHead,
     AuxiliaryObjectGapRelativeClause,
     AuxiliaryPredicate,
-    BareBoundaryTemporalEndpoint,
     BareNegativeObjectGapRelativeClause,
-    BoundaryTemporalEndpoint,
     ContractedPerfectObjectGapRelativeClause,
     DeclaredToObjectPassivePredicate,
-    DefiniteTemporalEndpoint,
     DurationPhrase,
     FiniteCopularPredicate,
     FinitePassivePredicate,
@@ -1156,7 +1137,6 @@ enum NonterminalKind {
     OfPhrase,
     OrScalarDegreePhrase,
     PositiveObjectGapRelativeClause,
-    PossessedTemporalEndpoint,
     PostposedForAsLongAsClause,
     PostposedWhileClause,
     PredicativeFaceOrientation,
@@ -1660,19 +1640,12 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
             NonterminalKind::AdditionalCostPredicateBody
         }
         NonterminalCategory::AdditionalCostFiniteBody => NonterminalKind::AdditionalCostFiniteBody,
-        NonterminalCategory::ManaCostReference => NonterminalKind::ManaCostReference,
-        NonterminalCategory::ThisSpellManaCost => NonterminalKind::ThisSpellManaCost,
-        NonterminalCategory::DefiniteManaCost => NonterminalKind::DefiniteManaCost,
-        NonterminalCategory::SingularPronounManaCost => NonterminalKind::SingularPronounManaCost,
-        NonterminalCategory::PluralPronounManaCosts => NonterminalKind::PluralPronounManaCosts,
         NonterminalCategory::CastingRestriction => NonterminalKind::CastingRestriction,
         NonterminalCategory::OnlyIfRestriction => NonterminalKind::OnlyIfRestriction,
         NonterminalCategory::OnlyDuringRestriction => NonterminalKind::OnlyDuringRestriction,
-        NonterminalCategory::RatherThanManaCostPredicate => {
-            NonterminalKind::RatherThanManaCostPredicate
-        }
-        NonterminalCategory::WithoutPayingManaCostPredicate => {
-            NonterminalKind::WithoutPayingManaCostPredicate
+        NonterminalCategory::AlternativePredicate => NonterminalKind::AlternativePredicate,
+        NonterminalCategory::WithoutGerundObjectPredicate => {
+            NonterminalKind::WithoutGerundObjectPredicate
         }
         NonterminalCategory::ControlledCostAction => NonterminalKind::ControlledCostAction,
         NonterminalCategory::CostComparisonPredicate => NonterminalKind::CostComparisonPredicate,
@@ -1693,14 +1666,8 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::PredicativeStatus => NonterminalKind::PredicativeStatus,
         NonterminalCategory::PassivePredicate => NonterminalKind::PassivePredicate,
         NonterminalCategory::StateDurationBase => NonterminalKind::StateDurationBase,
-        NonterminalCategory::DamageDistribution => NonterminalKind::DamageDistribution,
+        NonterminalCategory::DistributionPhrase => NonterminalKind::DistributionPhrase,
         NonterminalCategory::DistributionRecipient => NonterminalKind::DistributionRecipient,
-        NonterminalCategory::DistributedDamageAmount => NonterminalKind::DistributedDamageAmount,
-        NonterminalCategory::ScalarDistributedDamageAmount => {
-            NonterminalKind::ScalarDistributedDamageAmount
-        }
-        NonterminalCategory::TwiceVariableAmount => NonterminalKind::TwiceVariableAmount,
-        NonterminalCategory::VariablePlusAmount => NonterminalKind::VariablePlusAmount,
         NonterminalCategory::PredicativeAdjectiveComplement => {
             NonterminalKind::PredicativeAdjectiveComplement
         }
@@ -1717,11 +1684,12 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
             NonterminalKind::PredicativeParticipialAdjectiveComplement
         }
         NonterminalCategory::ParticipialAdjective => NonterminalKind::ParticipialAdjective,
-        NonterminalCategory::BlockedByStatusComplement => {
-            NonterminalKind::BlockedByStatusComplement
+        NonterminalCategory::PredicativeDeclaredParticipleComplement => {
+            NonterminalKind::PredicativeDeclaredParticipleComplement
         }
-        NonterminalCategory::BlockedExceptByStatusComplement => {
-            NonterminalKind::BlockedExceptByStatusComplement
+        NonterminalCategory::ParticipialByComplement => NonterminalKind::ParticipialByComplement,
+        NonterminalCategory::ParticipialExceptByComplement => {
+            NonterminalKind::ParticipialExceptByComplement
         }
         NonterminalCategory::PredicativeAbilityComplement => {
             NonterminalKind::PredicativeAbilityComplement
@@ -1777,13 +1745,12 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::AbilityWordLabel => NonterminalKind::AbilityWordLabel,
         NonterminalCategory::ChapterLabel => NonterminalKind::ChapterLabel,
         NonterminalCategory::BareCopularPredicate => NonterminalKind::BareCopularPredicate,
-        NonterminalCategory::PassiveDamagePredicate => NonterminalKind::PassiveDamagePredicate,
         NonterminalCategory::PassiveMovementPredicate => NonterminalKind::PassiveMovementPredicate,
         NonterminalCategory::PassiveOrientationPredicate => {
             NonterminalKind::PassiveOrientationPredicate
         }
-        NonterminalCategory::DeclaredTransitivePassivePredicate => {
-            NonterminalKind::DeclaredTransitivePassivePredicate
+        NonterminalCategory::DeclaredObjectPassivePredicate => {
+            NonterminalKind::DeclaredObjectPassivePredicate
         }
         NonterminalCategory::DeclaredTransitivePassiveFromPredicate => {
             NonterminalKind::DeclaredTransitivePassiveFromPredicate
@@ -1793,8 +1760,8 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::ObjectDistributionRecipient => {
             NonterminalKind::ObjectDistributionRecipient
         }
-        NonterminalCategory::ChosenDamageDistribution => NonterminalKind::ChosenDamageDistribution,
-        NonterminalCategory::EvenDamageDistribution => NonterminalKind::EvenDamageDistribution,
+        NonterminalCategory::ChosenDistributionPhrase => NonterminalKind::ChosenDistributionPhrase,
+        NonterminalCategory::EvenDistributionPhrase => NonterminalKind::EvenDistributionPhrase,
         NonterminalCategory::ObjectInfinitivePredicate => {
             NonterminalKind::ObjectInfinitivePredicate
         }
@@ -1804,31 +1771,17 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
             NonterminalKind::TransitiveRequirementPredicate
         }
         NonterminalCategory::AsThoughPredicate => NonterminalKind::AsThoughPredicate,
-        NonterminalCategory::IntransitiveAsThoughPredicate => {
-            NonterminalKind::IntransitiveAsThoughPredicate
-        }
-        NonterminalCategory::TransitiveAsThoughPredicate => {
-            NonterminalKind::TransitiveAsThoughPredicate
+        NonterminalCategory::CounterfactualClause => NonterminalKind::CounterfactualClause,
+        NonterminalCategory::IrrealisCopularClause => NonterminalKind::IrrealisCopularClause,
+        NonterminalCategory::PossessiveComplement => NonterminalKind::PossessiveComplement,
+        NonterminalCategory::KeywordPossessiveComplement => {
+            NonterminalKind::KeywordPossessiveComplement
         }
         NonterminalCategory::OrderedPredicate => NonterminalKind::OrderedPredicate,
-        NonterminalCategory::CounterfactualFiniteClause => {
-            NonterminalKind::CounterfactualFiniteClause
-        }
-        NonterminalCategory::CounterfactualStatusClause => {
-            NonterminalKind::CounterfactualStatusClause
-        }
-        NonterminalCategory::CounterfactualNegativeAbilityClause => {
-            NonterminalKind::CounterfactualNegativeAbilityClause
-        }
-        NonterminalCategory::CounterfactualPastAbilityClause => {
-            NonterminalKind::CounterfactualPastAbilityClause
-        }
         NonterminalCategory::PurposePredicate => NonterminalKind::PurposePredicate,
         NonterminalCategory::DurationPredicate => NonterminalKind::DurationPredicate,
         NonterminalCategory::InsteadPredicate => NonterminalKind::InsteadPredicate,
         NonterminalCategory::MannerPredicate => NonterminalKind::MannerPredicate,
-        NonterminalCategory::CopularClause => NonterminalKind::CopularClause,
-        NonterminalCategory::PassiveFiniteClause => NonterminalKind::PassiveFiniteClause,
         NonterminalCategory::FiniteClause => NonterminalKind::FiniteClause,
         NonterminalCategory::ClauseCoordination => NonterminalKind::ClauseCoordination,
         NonterminalCategory::CoordinatedClause => NonterminalKind::CoordinatedClause,
@@ -1838,14 +1791,12 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::NounPhrase => NonterminalKind::NounPhrase,
         NonterminalCategory::UnqualifiedReference => NonterminalKind::UnqualifiedReference,
         NonterminalCategory::CountReference => NonterminalKind::CountReference,
+        NonterminalCategory::MassNoun => NonterminalKind::MassNoun,
         NonterminalCategory::MannerReference => NonterminalKind::MannerReference,
         NonterminalCategory::ScalarReference => NonterminalKind::ScalarReference,
         NonterminalCategory::ScalarValue => NonterminalKind::ScalarValue,
         NonterminalCategory::ScalarEquality => NonterminalKind::ScalarEquality,
-        NonterminalCategory::CardQuantity => NonterminalKind::CardQuantity,
         NonterminalCategory::CounterKind => NonterminalKind::CounterKind,
-        NonterminalCategory::CounterQuantity => NonterminalKind::CounterQuantity,
-        NonterminalCategory::DieObject => NonterminalKind::DieObject,
         NonterminalCategory::ManaAmount => NonterminalKind::ManaAmount,
         NonterminalCategory::PowerToughnessAdjustment => NonterminalKind::PowerToughnessAdjustment,
         NonterminalCategory::PowerToughnessAdjustmentMagnitude => {
@@ -1880,7 +1831,6 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::FullNounPhraseCoordination => {
             NonterminalKind::FullNounPhraseCoordination
         }
-        NonterminalCategory::OwnerPossessor => NonterminalKind::OwnerPossessor,
         NonterminalCategory::PartitiveSelection => NonterminalKind::PartitiveSelection,
         NonterminalCategory::FromPhrase => NonterminalKind::FromPhrase,
         NonterminalCategory::IntoPhrase => NonterminalKind::IntoPhrase,
@@ -1889,7 +1839,7 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::OnPhrase => NonterminalKind::OnPhrase,
         NonterminalCategory::ToPhrase => NonterminalKind::ToPhrase,
         NonterminalCategory::InPhrase => NonterminalKind::InPhrase,
-        NonterminalCategory::ControlPostmodifier => NonterminalKind::ControlPostmodifier,
+        NonterminalCategory::UnderPhrase => NonterminalKind::UnderPhrase,
         NonterminalCategory::ScalarThreshold => NonterminalKind::ScalarThreshold,
         NonterminalCategory::ScalarMeasure => NonterminalKind::ScalarMeasure,
         NonterminalCategory::ScalarComparison => NonterminalKind::ScalarComparison,
@@ -1919,20 +1869,15 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
             NonterminalKind::AuxiliaryObjectGapRelativeClause
         }
         NonterminalCategory::AuxiliaryPredicate => NonterminalKind::AuxiliaryPredicate,
-        NonterminalCategory::BareBoundaryTemporalEndpoint => {
-            NonterminalKind::BareBoundaryTemporalEndpoint
-        }
         NonterminalCategory::BareNegativeObjectGapRelativeClause => {
             NonterminalKind::BareNegativeObjectGapRelativeClause
         }
-        NonterminalCategory::BoundaryTemporalEndpoint => NonterminalKind::BoundaryTemporalEndpoint,
         NonterminalCategory::ContractedPerfectObjectGapRelativeClause => {
             NonterminalKind::ContractedPerfectObjectGapRelativeClause
         }
         NonterminalCategory::DeclaredToObjectPassivePredicate => {
             NonterminalKind::DeclaredToObjectPassivePredicate
         }
-        NonterminalCategory::DefiniteTemporalEndpoint => NonterminalKind::DefiniteTemporalEndpoint,
         NonterminalCategory::DurationPhrase => NonterminalKind::DurationPhrase,
         NonterminalCategory::FiniteCopularPredicate => NonterminalKind::FiniteCopularPredicate,
         NonterminalCategory::FinitePassivePredicate => NonterminalKind::FinitePassivePredicate,
@@ -1964,9 +1909,6 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::OrScalarDegreePhrase => NonterminalKind::OrScalarDegreePhrase,
         NonterminalCategory::PositiveObjectGapRelativeClause => {
             NonterminalKind::PositiveObjectGapRelativeClause
-        }
-        NonterminalCategory::PossessedTemporalEndpoint => {
-            NonterminalKind::PossessedTemporalEndpoint
         }
         NonterminalCategory::PostposedForAsLongAsClause => {
             NonterminalKind::PostposedForAsLongAsClause

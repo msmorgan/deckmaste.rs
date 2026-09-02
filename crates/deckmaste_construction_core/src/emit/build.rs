@@ -325,6 +325,14 @@ fn emit_arm_from_plan(
                         internal("form guard feature role has no lowered build value")
                     })?;
                     let helper = ident(&feature_helper(feature.key(), field.terminal()));
+                    let value = if plan
+                        .runtime_declaration_noun_for(field.terminal())
+                        .is_some()
+                    {
+                        quote! { &#value }
+                    } else {
+                        quote! { #value }
+                    };
                     ResolvedFeatureValue::Computed(quote! { #helper(#value) })
                 };
                 let expected = feature_value(*value);
@@ -453,7 +461,14 @@ fn lower_checked_field_arguments(
                         ));
                     }
                     let helper = ident(&feature_helper(feature.key(), source.terminal()));
-                    Ok(quote! { #helper(#value) })
+                    if plan
+                        .runtime_declaration_noun_for(source.terminal())
+                        .is_some()
+                    {
+                        Ok(quote! { #helper(&#value) })
+                    } else {
+                        Ok(quote! { #helper(#value) })
+                    }
                 }
                 crate::semantic::ConstructionFieldKind::Identity => Err(internal(
                     "checked field feature source is not a category or lexical value",
@@ -3406,6 +3421,10 @@ fn construction_possessive_ending(
     Ok(resolved_feature_value_tokens(&output))
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "the generated feature-axis lowering matrix stays exhaustive in one dispatcher"
+)]
 fn resolve_feature_place(
     validated: &SemanticPlan,
     row: &ConstructionPlan,
@@ -3475,13 +3494,22 @@ fn resolve_feature_place(
                     });
                     ResolvedFeatureValue::Computed(quote! { match #source { #(#arms,)* } })
                 }
-                FeaturePlace::Construction(Feature::Compoundability)
+                FeaturePlace::Construction(
+                    Feature::Compoundability
+                    | Feature::Countability
+                    | Feature::Properness
+                    | Feature::Relationality,
+                )
                 | FeaturePlace::Role {
-                    feature: Feature::Compoundability,
+                    feature:
+                        Feature::Compoundability
+                        | Feature::Countability
+                        | Feature::Properness
+                        | Feature::Relationality,
                     ..
                 } => {
                     return Err(internal(
-                        "compoundability is closed lexeme metadata, not an equation value",
+                        "lexical classification is closed noun metadata, not an equation value",
                     ));
                 }
                 FeaturePlace::Construction(Feature::ModifierLicense)
@@ -3675,6 +3703,8 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::TwoPlus => quote! { Cardinality::TwoPlus },
         FeatureValue::Compoundable => quote! { Compoundability::Compoundable },
         FeatureValue::NonCompoundable => quote! { Compoundability::NonCompoundable },
+        FeatureValue::Count => quote! { Countability::Count },
+        FeatureValue::Mass => quote! { Countability::Mass },
         FeatureValue::Unrestricted => quote! { ModifierLicense::Unrestricted },
         FeatureValue::LocalDeterminer => quote! { ModifierLicense::LocalDeterminer },
         FeatureValue::SingularOnly => quote! { DeterminerNumber::SingularOnly },
@@ -3689,9 +3719,14 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::ModifiedPluralNoun => quote! { NominalForm::ModifiedPluralNoun },
         FeatureValue::PluralCoordination => quote! { NominalForm::PluralCoordination },
         FeatureValue::MassNoun => quote! { NominalForm::MassNoun },
+        FeatureValue::AnyNominal => quote! { NominalLicense::AnyNominal },
         FeatureValue::CountNominal => quote! { NominalLicense::CountNominal },
         FeatureValue::LicensedBareSingularNoun => quote! { NominalLicense::BareSingularNoun },
         FeatureValue::LicensedMassOrPluralCount => quote! { NominalLicense::MassOrPluralCount },
+        FeatureValue::Common => quote! { Properness::Common },
+        FeatureValue::Proper => quote! { Properness::Proper },
+        FeatureValue::NonRelational => quote! { Relationality::NonRelational },
+        FeatureValue::Relational => quote! { Relationality::Relational },
     }
 }
 fn vocab_argument(name: &str) -> String {

@@ -1,0 +1,6 @@
+TurnPart(
+    name: "CombatDamageStep",
+    spelling: "combat damage step",
+    grammar: Noun(singular: "combat damage step"),
+    params: [],
+)

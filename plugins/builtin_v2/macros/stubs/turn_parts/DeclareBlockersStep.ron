@@ -1,0 +1,6 @@
+TurnPart(
+    name: "DeclareBlockersStep",
+    spelling: "declare blockers step",
+    grammar: Noun(singular: "declare blockers step"),
+    params: [],
+)

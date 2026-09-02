@@ -1,0 +1,6 @@
+TurnPart(
+    name: "Cleanup",
+    spelling: "cleanup",
+    grammar: Noun(singular: "cleanup"),
+    params: [],
+)

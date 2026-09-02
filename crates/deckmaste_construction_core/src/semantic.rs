@@ -755,6 +755,7 @@ impl TerminalPlan {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum DeclarationKindFamily {
     Type,
+    TurnPart,
     Subtype,
     SubtypeFamily(macro_ron::v2::SubtypeCategory),
 }
@@ -1857,6 +1858,10 @@ impl SemanticPlan {
             TerminalPlan::Lexeme(lexeme) if lexeme.name() == name => {
                 lexeme.feature_members(feature).is_some()
             }
+            TerminalPlan::DeclarationNoun(codec) if codec.codec_name() == name => codec
+                .closed_lexeme()
+                .and_then(|closed| self.lexeme(&closed.to_string()))
+                .is_some_and(|closed| closed.feature_members(feature).is_some()),
             _ => false,
         })
     }
@@ -1879,6 +1884,17 @@ impl SemanticPlan {
             };
             (index, codec)
         })
+    }
+
+    pub(crate) fn runtime_aggregate_noun(&self) -> Option<&DeclarationNounPlan> {
+        let noun_lexeme = self.runtime_noun_lexeme()?.name();
+        self.runtime_declaration_nouns()
+            .map(|(_, codec)| codec)
+            .find(|codec| {
+                codec
+                    .closed_lexeme()
+                    .is_some_and(|closed| closed == noun_lexeme)
+            })
     }
 
     pub(crate) fn runtime_declaration_noun_for(
@@ -6025,6 +6041,7 @@ impl DeclarationNounPlan {
                     kind.subtype_family.as_ref().map(identifier_key),
                 ) {
                     ("Type", None) => DeclarationKindFamily::Type,
+                    ("TurnPart", None) => DeclarationKindFamily::TurnPart,
                     ("Subtype", None) => DeclarationKindFamily::Subtype,
                     ("Subtype", Some(family)) => DeclarationKindFamily::SubtypeFamily(match family
                         .as_str()
@@ -6120,6 +6137,7 @@ impl DeclarationDeterminativePlan {
                         "BareSingularNoun" => {
                             macro_ron::v2::DeterminativeNominalLicense::BareSingularNoun
                         }
+                        "AnyNominal" => macro_ron::v2::DeterminativeNominalLicense::AnyNominal,
                         "MassOrPluralCount" => {
                             macro_ron::v2::DeterminativeNominalLicense::MassOrPluralCount
                         }

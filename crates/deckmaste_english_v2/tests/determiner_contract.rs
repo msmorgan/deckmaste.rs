@@ -76,16 +76,32 @@ fn zero_and_quantity_number_are_selected_from_the_complete_determinative() {
     let context = context();
     for text in [
         "Destroy creature.",
-        "Destroy each creatures.",
         "Destroy these creature.",
-        "Destroy one or more target creature.",
-        "Destroy up to one target creatures.",
         "Destroy a attacking creature.",
         "Destroy an target creature.",
     ] {
         assert!(
             parser.parse(text, &context).is_err(),
             "{text:?} must be rejected"
+        );
+    }
+
+    for duration_rival in [
+        "Destroy each creatures.",
+        "Destroy one or more target creature.",
+        "Destroy up to one target creatures.",
+    ] {
+        let analysis = parser.analyze(duration_rival, &context);
+        assert!(
+            analysis.decision().is_some_and(|decision| {
+                decision.candidates().iter().all(|candidate| {
+                    candidate
+                        .construction_path()
+                        .iter()
+                        .any(|step| *step == "DurationPredicateDurationPredicate")
+                })
+            }),
+            "the invalid object agreement has only a syntactic duration reading; temporal semantics is downstream: {analysis:#?}",
         );
     }
 }

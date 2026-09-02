@@ -28,8 +28,10 @@ parses purely on literal specificity — delete outright.
 Dead grammar: 71 constructions route zero units, including the general
 Possessive root; delete or make them the live path (the possessive
 literals in G2/G3/G7 carry ~750 units that belong to it).
-Multi-word vocab tokens ("the beginning of", "combat damage", "end step",
-"an opponent chooses") dissolve into phrases.
+Multi-word grammatical literals ("the beginning of", "an opponent chooses")
+dissolve into phrases. CR-closed phase and step names such as "combat damage
+step" and "end step" are `TurnPart` declaration rows contributing to the one
+noun inventory, not vocab and not topic-specific noun categories.
 
 COMPILER TRIPWIRE (required, lands first): a Literal tail atom or form
 literal whose surface equals a declared noun or verb surface is a load
@@ -66,5 +68,10 @@ Coordinator amendments (modal landing review, 2026-09-02):
 - This ticket also owns the unimplemented half of the 2026-09-02 ruling:
   the literal/lexicon-collision (or structural-depth) metric in the gate
   summary.
+- Noun-provider ruling (2026-09-02): one aggregate `Noun` codec is the union
+  of the core ordinary-noun seed plus `Type`, `Subtype`, and `TurnPart`
+  declarations. Number is morphology-derived; syntax reads declared noun
+  features, while temporal/object semantics stay downstream. The compiler
+  rejects parallel declaration-noun providers.
 - The frame-key-reduction -> 14-10 needs edge is RATIFIED by the
   coordinator: dissolution precedes the long-tail loop by design.

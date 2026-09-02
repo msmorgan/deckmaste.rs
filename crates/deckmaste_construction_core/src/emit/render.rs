@@ -1690,6 +1690,7 @@ fn emit_vocab_feature_helper(helper: VocabFeatureHelper<'_>) -> GeneratedItem {
         Feature::Agreement => quote! { Agreement },
         Feature::Cardinality => quote! { Cardinality },
         Feature::Compoundability => quote! { Compoundability },
+        Feature::Countability => quote! { Countability },
         Feature::ModifierLicense => quote! { ModifierLicense },
         Feature::DeterminerNumber => quote! { DeterminerNumber },
         Feature::FusedHeadLicense => quote! { FusedHeadLicense },
@@ -1699,6 +1700,8 @@ fn emit_vocab_feature_helper(helper: VocabFeatureHelper<'_>) -> GeneratedItem {
         Feature::Onset => quote! { Onset },
         Feature::Participle => quote! { Participle },
         Feature::PossessiveEnding => quote! { PossessiveEnding },
+        Feature::Properness => quote! { Properness },
+        Feature::Relationality => quote! { Relationality },
     };
     let arms = helper
         .vocab
@@ -3690,6 +3693,9 @@ fn feature_expr(
                     Feature::Compoundability => {
                         Err(internal("compoundability is closed lexeme metadata"))
                     }
+                    Feature::Countability | Feature::Properness | Feature::Relationality => {
+                        Err(internal("noun classification is closed lexical metadata"))
+                    }
                     Feature::ModifierLicense => {
                         Err(internal("verb slot does not provide modifier license"))
                     }
@@ -3839,10 +3845,13 @@ fn feature_expr(
                     )?;
                     let writer_value =
                         field_value(construction, &identifier_key(writer_role), locals)?;
-                    (
-                        vocabulary.to_owned(),
-                        copy_value(construction, &identifier_key(writer_role), writer_value)?,
-                    )
+                    let writer_value =
+                        if validated.runtime_declaration_noun_for(vocabulary).is_some() {
+                            writer_value
+                        } else {
+                            copy_value(construction, &identifier_key(writer_role), writer_value)?
+                        };
+                    (vocabulary.to_owned(), writer_value)
                 }
                 ConstructionFieldKind::Identity => {
                     return Err(internal(
@@ -4589,6 +4598,7 @@ fn emit_feature_helper(
         Feature::Agreement => quote! { Agreement },
         Feature::Cardinality => quote! { Cardinality },
         Feature::Compoundability => quote! { Compoundability },
+        Feature::Countability => quote! { Countability },
         Feature::ModifierLicense => quote! { ModifierLicense },
         Feature::DeterminerNumber => quote! { DeterminerNumber },
         Feature::FusedHeadLicense => quote! { FusedHeadLicense },
@@ -4598,6 +4608,8 @@ fn emit_feature_helper(
         Feature::Onset => quote! { Onset },
         Feature::Participle => quote! { Participle },
         Feature::PossessiveEnding => quote! { PossessiveEnding },
+        Feature::Properness => quote! { Properness },
+        Feature::Relationality => quote! { Relationality },
     };
     let mut entries: Vec<(TokenStream, String, TokenStream)> = Vec::new();
     for construction in members {
@@ -4630,7 +4642,7 @@ fn emit_feature_helper(
         } else {
             let mut roles = feature_roles(validated, construction, equation.value())?;
             extend_bound_prefix_guard_roles(validated, construction, equation.value(), &mut roles)?;
-            let (pattern, locals) = feature_constant_pattern(
+            let (pattern, mut locals) = feature_constant_pattern(
                 validated,
                 construction,
                 &ty,
@@ -4639,6 +4651,7 @@ fn emit_feature_helper(
                 &roles,
                 &mut arm_allocator,
             );
+            locals.category = quote! { #argument };
             let value = feature_expr(validated, construction, equation.value(), feature, &locals)?;
             let value_key = value.to_string();
             let group_key = if needs_whole_value(construction) || !roles.is_empty() {
@@ -5167,6 +5180,8 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::TwoPlus => quote! { Cardinality::TwoPlus },
         FeatureValue::Compoundable => quote! { Compoundability::Compoundable },
         FeatureValue::NonCompoundable => quote! { Compoundability::NonCompoundable },
+        FeatureValue::Count => quote! { Countability::Count },
+        FeatureValue::Mass => quote! { Countability::Mass },
         FeatureValue::Unrestricted => quote! { ModifierLicense::Unrestricted },
         FeatureValue::LocalDeterminer => quote! { ModifierLicense::LocalDeterminer },
         FeatureValue::SingularOnly => quote! { DeterminerNumber::SingularOnly },
@@ -5181,9 +5196,14 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::ModifiedPluralNoun => quote! { NominalForm::ModifiedPluralNoun },
         FeatureValue::PluralCoordination => quote! { NominalForm::PluralCoordination },
         FeatureValue::MassNoun => quote! { NominalForm::MassNoun },
+        FeatureValue::AnyNominal => quote! { NominalLicense::AnyNominal },
         FeatureValue::CountNominal => quote! { NominalLicense::CountNominal },
         FeatureValue::LicensedBareSingularNoun => quote! { NominalLicense::BareSingularNoun },
         FeatureValue::LicensedMassOrPluralCount => quote! { NominalLicense::MassOrPluralCount },
+        FeatureValue::Common => quote! { Properness::Common },
+        FeatureValue::Proper => quote! { Properness::Proper },
+        FeatureValue::NonRelational => quote! { Relationality::NonRelational },
+        FeatureValue::Relational => quote! { Relationality::Relational },
     }
 }
 
@@ -5410,6 +5430,7 @@ fn feature_name(feature: Feature) -> &'static str {
         Feature::Agreement => "agreement",
         Feature::Cardinality => "cardinality",
         Feature::Compoundability => "compoundability",
+        Feature::Countability => "countability",
         Feature::ModifierLicense => "modifier_license",
         Feature::Number => "number",
         Feature::Onset => "onset",
@@ -5419,6 +5440,8 @@ fn feature_name(feature: Feature) -> &'static str {
         Feature::FusedHeadLicense => "fused_head_license",
         Feature::NominalForm => "nominal_form",
         Feature::NominalLicense => "nominal_license",
+        Feature::Properness => "properness",
+        Feature::Relationality => "relationality",
     }
 }
 fn ident(name: &str) -> syn::Ident {

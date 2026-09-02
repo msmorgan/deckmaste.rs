@@ -1,0 +1,6 @@
+TurnPart(
+    name: "Upkeep",
+    spelling: "upkeep",
+    grammar: Noun(singular: "upkeep"),
+    params: [],
+)

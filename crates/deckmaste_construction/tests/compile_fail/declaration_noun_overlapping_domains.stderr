@@ -1,4 +1,4 @@
-error: declaration_noun domains `SubtypeNoun` and `CreatureNoun` overlap at `Subtype(Creature)`
+error: multiple declaration_noun inventories `SubtypeNoun` and `CreatureNoun`; combine declaration kinds in one codec
   --> tests/compile_fail/declaration_noun_overlapping_domains.rs:14:11
    |
 14 |     codec CreatureNoun {

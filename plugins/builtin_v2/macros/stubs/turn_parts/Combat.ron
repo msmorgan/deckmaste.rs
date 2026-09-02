@@ -1,0 +1,6 @@
+TurnPart(
+    name: "Combat",
+    spelling: "combat",
+    grammar: Noun(singular: "combat"),
+    params: [],
+)

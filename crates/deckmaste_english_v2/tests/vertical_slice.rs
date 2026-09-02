@@ -112,12 +112,6 @@ fn environment() -> ParserEnvironment {
     .expect("builtin-v2 declaration and catalog environment freezes")
 }
 
-enum Noun {
-    Lexeme(CommonNoun),
-    Type(TypeNoun),
-    ArtifactSubtype(ArtifactSubtypeNoun),
-}
-
 fn card_type(spelling: &str) -> Noun {
     declaration_noun(DeclarationKind::Type, spelling, SurfaceFeature::Singular)
 }
@@ -126,20 +120,13 @@ fn declaration_noun(kind: DeclarationKind, name: &str, _feature: SurfaceFeature)
     let environment = environment();
     let id = DeclarationId::new(kind, name);
     match kind {
-        DeclarationKind::Type => Noun::Type(TypeNoun::Declaration(
-            DeclarationTypeNoun::new(&environment, id)
-                .expect("normalized Type noun declaration is present"),
-        )),
-        DeclarationKind::Subtype(SubtypeCategory::Artifact) => {
-            Noun::ArtifactSubtype(ArtifactSubtypeNoun::Declaration(
-                DeclarationArtifactSubtypeNoun::new(&environment, id)
-                    .expect("normalized Subtype noun declaration is present"),
-            ))
+        DeclarationKind::Type | DeclarationKind::Subtype(_) | DeclarationKind::TurnPart => {
+            Noun::Declaration(
+                DeclarationNoun::new(&environment, id)
+                    .expect("normalized noun declaration is present in the aggregate inventory"),
+            )
         }
-        DeclarationKind::Subtype(_) => {
-            panic!("this vertical-slice builder uses only its Artifact subtype fixture")
-        }
-        _ => panic!("test helper accepts only Type/Subtype noun identities"),
+        _ => panic!("test helper accepts only noun-contributing declaration identities"),
     }
 }
 
@@ -184,13 +171,9 @@ fn self_reference(spelling: SelfReferenceSpelling, card_name: &str) -> SourceSel
 
 fn singular_nominal(noun: Noun) -> SingularNominal {
     SingularNominal::BareSingularNominal(BareSingularNominal {
-        head: match noun {
-            Noun::Lexeme(noun) => SingularHead::CommonSingularHead(CommonSingularHead { noun }),
-            Noun::Type(noun) => SingularHead::TypeSingularHead(TypeSingularHead { noun }),
-            Noun::ArtifactSubtype(noun) => {
-                SingularHead::ArtifactSubtypeSingularHead(ArtifactSubtypeSingularHead { noun })
-            }
-        },
+        head: SingularHead::NounSingularHead(
+            NounSingularHead::new(noun).expect("test noun is countable"),
+        ),
     })
 }
 
@@ -201,13 +184,7 @@ fn plural_nominal(noun: Noun) -> PluralNominal {
 }
 
 fn plural_head(noun: Noun) -> PluralHead {
-    match noun {
-        Noun::Lexeme(noun) => PluralHead::CommonPluralHead(CommonPluralHead { noun }),
-        Noun::Type(noun) => PluralHead::TypePluralHead(TypePluralHead { noun }),
-        Noun::ArtifactSubtype(noun) => {
-            PluralHead::ArtifactSubtypePluralHead(ArtifactSubtypePluralHead { noun })
-        }
-    }
+    PluralHead::NounPluralHead(NounPluralHead::new(noun).expect("test noun is countable"))
 }
 
 fn noun_phrase(reference: UnqualifiedReference) -> NounPhrase {
@@ -217,7 +194,9 @@ fn noun_phrase(reference: UnqualifiedReference) -> NounPhrase {
                 reference: Box::new(LocativeStage::UnqualifiedLocativeStage(
                     UnqualifiedLocativeStage {
                         reference: Box::new(ControllerStage::UnqualifiedControllerStage(
-                            UnqualifiedControllerStage { reference },
+                            UnqualifiedControllerStage {
+                                reference: Box::new(reference),
+                            },
                         )),
                     },
                 )),
@@ -227,19 +206,7 @@ fn noun_phrase(reference: UnqualifiedReference) -> NounPhrase {
 }
 
 fn indefinite(noun: Noun) -> NounPhrase {
-    match noun {
-        Noun::Lexeme(noun) => determined_singular(
-            DeterminativeHeadLemma::IndefiniteArticle,
-            Noun::Lexeme(noun),
-        ),
-        Noun::Type(noun) => {
-            determined_singular(DeterminativeHeadLemma::IndefiniteArticle, Noun::Type(noun))
-        }
-        Noun::ArtifactSubtype(noun) => determined_singular(
-            DeterminativeHeadLemma::IndefiniteArticle,
-            Noun::ArtifactSubtype(noun),
-        ),
-    }
+    determined_singular(DeterminativeHeadLemma::IndefiniteArticle, noun)
 }
 
 fn target_noun(noun: Noun) -> NounPhrase {
@@ -277,7 +244,7 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
                     UnqualifiedLocativeStage {
                         reference: Box::new(ControllerStage::RelativeQualifiedReference(
                             RelativeQualifiedReference {
-                                reference: UnqualifiedReference::DeterminedNominal(
+                                reference: Box::new(UnqualifiedReference::DeterminedNominal(
                                     DeterminedNominal::new(
                                         Determiner::Zero,
                                         Nominal::PluralNominalValue(PluralNominalValue {
@@ -285,7 +252,7 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
                                         }),
                                     )
                                     .expect("a zero determiner agrees with a plural nominal"),
-                                ),
+                                )),
                                 clause: Box::new(ObjectGapRelativeClause::Positive(Box::new(
                                     PositiveObjectGapRelativeClause::PositiveObjectGapRelative(
                                         PositiveObjectGapRelativeClauseValue {
@@ -305,8 +272,8 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
                     },
                 )),
                 scalar: ScalarQualification::ScalarQualification(ScalarQualificationValue {
-                    measure: ScalarMeasure::CharacteristicScalar(CharacteristicScalar {
-                        characteristic: ScalarCharacteristic::Power,
+                    measure: ScalarMeasure::NominalScalarMeasure(NominalScalarMeasure {
+                        nominal: singular_nominal(Noun::Lexeme(CommonNoun::Power)),
                     }),
                     comparison: ScalarComparison::ScalarOrLess(ScalarOrLess {
                         threshold: ScalarThreshold::FixedScalarThreshold(FixedScalarThreshold {
@@ -338,7 +305,9 @@ fn number_of(counted: Object) -> NounPhrase {
             UnqualifiedNumericStage {
                 reference: Box::new(LocativeStage::OfQualifiedReference(OfQualifiedReference {
                     reference: Box::new(ControllerStage::UnqualifiedControllerStage(
-                        UnqualifiedControllerStage { reference: number },
+                        UnqualifiedControllerStage {
+                            reference: Box::new(number),
+                        },
                     )),
                     complement: Box::new(OfPhrase::OfPhrase(OfPhraseValue {
                         complement: Box::new(counted),
@@ -419,28 +388,51 @@ fn damage(amount: Amount) -> VerbPhrase {
     damage_to(amount, to_phrase(it()))
 }
 
+fn quantified_mass_object(amount: Amount, noun: CommonNoun) -> Object {
+    let determiner = Determiner::Headed(Determinative::MassQuantityDeterminer(
+        MassQuantityDeterminer { amount },
+    ));
+    let nominal = Nominal::MassNominal(MassNominal {
+        noun: MassNoun::MassNoun(
+            MassNounValue::new(Noun::Lexeme(noun))
+                .expect("the helper is called only with declared mass nouns"),
+        ),
+    });
+    let reference = UnqualifiedReference::DeterminedNominal(
+        DeterminedNominal::new(determiner, nominal)
+            .expect("a quantity determiner licenses a mass noun"),
+    );
+    nominal_object(noun_phrase(reference))
+}
+
 fn damage_to(amount: Amount, recipient: ToPhrase) -> VerbPhrase {
     let environment = environment();
-    let head = DeclarationDealAmountDamageVerb::new(
-        &environment,
-        VerbInventoryRef::Core(CoreVerbIdentity::Deal),
-    )
-    .expect("the core inventory declares Deal with an amount-damage frame");
-    VerbPhrase::DealAmountDamage(DealAmountDamage {
+    let head =
+        DeclarationToObjectVerb::new(&environment, VerbInventoryRef::Core(CoreVerbIdentity::Deal))
+            .expect("the core inventory declares Deal with an object-to-object frame");
+    let ToPhrase::ToPhrase(ToPhraseValue { complement }) = recipient;
+    VerbPhrase::DeclaredToObjectPredicate(DeclaredToObjectPredicate {
         head,
-        amount,
-        recipient,
+        object: quantified_mass_object(amount, CommonNoun::Damage),
+        complement,
     })
 }
 
 fn gain_life(amount: Amount) -> VerbPhrase {
     let environment = environment();
-    let head = DeclarationLifeAmountVerb::new(
+    let head = DeclarationTransitiveVerb::new(
         &environment,
         VerbInventoryRef::Core(CoreVerbIdentity::Gain),
     )
-    .expect("the core inventory declares Gain with an amount-life frame");
-    VerbPhrase::LifeAmount(LifeAmount { head, amount })
+    .expect("the core inventory declares Gain with a transitive frame");
+    VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
+        frame: Box::new(BaseVerbFrame::TransitiveFrame(Box::new(
+            TransitiveFrame::TransitivePredicate(TransitivePredicate {
+                head,
+                object: quantified_mass_object(amount, CommonNoun::Life),
+            }),
+        ))),
+    })
 }
 
 fn atomic(predicate: VerbPhrase) -> Predicate {
@@ -821,21 +813,21 @@ fn paragraph_and_oracle_text_constructors_and_traversal_preserve_structural_orde
 fn declaration_noun_construction_requires_allowed_environment_membership() {
     let environment = environment();
     assert!(
-        DeclarationTypeNoun::new(
+        DeclarationNoun::new(
             &environment,
             DeclarationId::new(DeclarationKind::Type, "Creature"),
         )
         .is_some()
     );
     assert!(
-        DeclarationTypeNoun::new(
+        DeclarationNoun::new(
             &environment,
             DeclarationId::new(DeclarationKind::Type, "Definitely Not A Type"),
         )
         .is_none()
     );
     assert!(
-        DeclarationTypeNoun::new(
+        DeclarationNoun::new(
             &environment,
             DeclarationId::new(DeclarationKind::KeywordAbility, "Flying"),
         )
@@ -995,7 +987,7 @@ fn demonstrative_references_visit_their_unified_nominal_ast_nodes() {
             deckmaste_english_v2::visit::walk_nominal(self, nominal);
         }
 
-        fn visit_declaration_type_noun(&mut self, noun: &DeclarationTypeNoun) {
+        fn visit_declaration_noun(&mut self, noun: &DeclarationNoun) {
             self.0
                 .push(Event::Head(noun.id().kind(), noun.id().name().to_owned()));
         }
@@ -1118,7 +1110,17 @@ fn visitor_reaches_every_vertical_slice_leaf() {
         vec![SelfReferenceSpelling::Abbreviated]
     );
     assert_eq!(visitor.trigger_markers, vec![TriggerMarker::Whenever]);
-    assert_eq!(visitor.nouns, vec![CommonNoun::Player, CommonNoun::Number]);
+    assert_eq!(
+        visitor.nouns,
+        vec![
+            CommonNoun::Player,
+            CommonNoun::Damage,
+            CommonNoun::Life,
+            CommonNoun::Number,
+            CommonNoun::Power,
+            CommonNoun::Damage,
+        ]
+    );
     assert_eq!(
         visitor.declarations,
         vec![

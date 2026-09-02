@@ -1,0 +1,6 @@
+TurnPart(
+    name: "UntapStep",
+    spelling: "untap step",
+    grammar: Noun(singular: "untap step"),
+    params: [],
+)

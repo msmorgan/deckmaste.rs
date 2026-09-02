@@ -657,6 +657,7 @@ fn validate_sequence_feature_roles(
                     ParsedFeature::Onset => Feature::Onset,
                     ParsedFeature::Cardinality
                     | ParsedFeature::Compoundability
+                    | ParsedFeature::Countability
                     | ParsedFeature::ModifierLicense
                     | ParsedFeature::DeterminerNumber
                     | ParsedFeature::FusedHeadLicense
@@ -664,7 +665,9 @@ fn validate_sequence_feature_roles(
                     | ParsedFeature::NominalLicense
                     | ParsedFeature::Number
                     | ParsedFeature::Participle
-                    | ParsedFeature::PossessiveEnding => {
+                    | ParsedFeature::PossessiveEnding
+                    | ParsedFeature::Properness
+                    | ParsedFeature::Relationality => {
                         unreachable!("unsupported sequence feature was rejected")
                     }
                 },
@@ -2039,13 +2042,17 @@ fn validate_lexeme_declaration_shape(
     for default in &lexeme.feature_defaults {
         if !matches!(
             default.feature,
-            crate::model::Feature::Compoundability | crate::model::Feature::ModifierLicense
+            crate::model::Feature::Compoundability
+                | crate::model::Feature::Countability
+                | crate::model::Feature::ModifierLicense
+                | crate::model::Feature::Properness
+                | crate::model::Feature::Relationality
         ) {
             combine(
                 errors,
                 syn::Error::new(
                     default.value.span(),
-                    "closed lexeme metadata supports only Compoundability and ModifierLicense",
+                    "closed lexeme metadata supports only Compoundability, Countability, ModifierLicense, Properness, and Relationality",
                 ),
             );
         }
@@ -2109,13 +2116,17 @@ fn validate_lexeme_declaration_shape(
         for override_ in &member.feature_overrides {
             if !matches!(
                 override_.feature,
-                crate::model::Feature::Compoundability | crate::model::Feature::ModifierLicense
+                crate::model::Feature::Compoundability
+                    | crate::model::Feature::Countability
+                    | crate::model::Feature::ModifierLicense
+                    | crate::model::Feature::Properness
+                    | crate::model::Feature::Relationality
             ) {
                 combine(
                     errors,
                     syn::Error::new(
                         override_.value.span(),
-                        "closed lexeme metadata supports only Compoundability and ModifierLicense",
+                        "closed lexeme metadata supports only Compoundability, Countability, ModifierLicense, Properness, and Relationality",
                     ),
                 );
             }
@@ -2569,7 +2580,12 @@ fn validate_determinative_member(
         &member.nominal_license_slots,
         &member.lemma,
         "nominal_license",
-        &["CountNominal", "BareSingularNoun", "MassOrPluralCount"],
+        &[
+            "AnyNominal",
+            "CountNominal",
+            "BareSingularNoun",
+            "MassOrPluralCount",
+        ],
         errors,
     );
     match member.realization_slots.as_slice() {
@@ -2882,6 +2898,10 @@ fn validate_declaration_term_domains_are_pairwise_intentional(
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one validator keeps the sealed declaration-term recipe contract together"
+)]
 fn validate_declaration_term_source(
     source: &crate::model::DeclarationTermSource,
     errors: &mut Option<syn::Error>,
@@ -2977,7 +2997,7 @@ fn validate_declaration_term_source(
         .feature_slots
         .first()
         .is_some_and(|feature| identifier_key(&feature.value) == "BlockLabel")
-        && !position.is_some_and(|position| identifier_key(position) == "FixedKeyword")
+        && position.is_none_or(|position| identifier_key(position) != "FixedKeyword")
     {
         combine(
             errors,
@@ -3213,30 +3233,25 @@ fn validate_declaration_noun_domains_are_pairwise_intentional(
         .iter()
         .filter_map(|declaration| {
             let Declaration::Codec(binding) = declaration else { return None };
-            let Some(crate::model::GeneratedCodecRecipe::DeclarationNoun(source)) =
-                &binding.generated
+            let Some(crate::model::GeneratedCodecRecipe::DeclarationNoun(_)) = &binding.generated
             else {
                 return None;
             };
-            Some((binding, declaration_noun_domain_members(source)))
+            Some(binding)
         })
         .collect::<Vec<_>>();
-    for (index, (left, left_domain)) in nouns.iter().enumerate() {
-        for (right, right_domain) in &nouns[index + 1..] {
-            let overlap = left_domain.intersection(right_domain).next().cloned();
-            if let Some(overlap) = overlap {
-                combine(
-                    errors,
-                    syn::Error::new(
-                        right.name.span(),
-                        format!(
-                            "declaration_noun domains `{}` and `{}` overlap at `{overlap}`",
-                            left.name, right.name
-                        ),
-                    ),
-                );
-            }
-        }
+    let Some(first) = nouns.first() else { return };
+    for duplicate in nouns.iter().skip(1) {
+        combine(
+            errors,
+            syn::Error::new(
+                duplicate.name.span(),
+                format!(
+                    "multiple declaration_noun inventories `{}` and `{}`; combine declaration kinds in one codec",
+                    first.name, duplicate.name
+                ),
+            ),
+        );
     }
 }
 
@@ -3254,6 +3269,9 @@ fn declaration_noun_domain_members(
         ) {
             ("Type", None) => {
                 members.insert("Type".to_owned());
+            }
+            ("TurnPart", None) => {
+                members.insert("TurnPart".to_owned());
             }
             ("Subtype", None) => {
                 for family in declaration_subtype_families() {
@@ -3684,23 +3702,23 @@ fn validate_declaration_noun_kinds(
     let mut seen = HashSet::new();
     for kind in &kinds.kinds {
         let name = identifier_key(&kind.kind);
-        if !matches!(name.as_str(), "Type" | "Subtype") {
+        if !matches!(name.as_str(), "Type" | "TurnPart" | "Subtype") {
             combine(
                 errors,
                 syn::Error::new(
                     kind.kind.span(),
-                    "declaration_noun kinds must be `Type` or `Subtype`",
+                    "declaration_noun kinds must be `Type`, `TurnPart`, or `Subtype`",
                 ),
             );
             continue;
         }
         let family = kind.subtype_family.as_ref().map(identifier_key);
-        if name == "Type" && family.is_some() {
+        if matches!(name.as_str(), "Type" | "TurnPart") && family.is_some() {
             combine(
                 errors,
                 syn::Error::new(
                     kind.kind.span(),
-                    "declaration_noun `Type` filter does not accept a subtype family",
+                    format!("declaration_noun `{name}` filter does not accept a subtype family"),
                 ),
             );
             continue;
@@ -4986,6 +5004,7 @@ fn generated_name_inventory(
                         ParsedFeature::Agreement => ("agreement", "Agreement"),
                         ParsedFeature::Cardinality => ("cardinality", "Cardinality"),
                         ParsedFeature::Compoundability => ("compoundability", "Compoundability"),
+                        ParsedFeature::Countability => ("countability", "Countability"),
                         ParsedFeature::ModifierLicense => ("modifier_license", "ModifierLicense"),
                         ParsedFeature::DeterminerNumber => {
                             ("determiner_number", "DeterminerNumber")
@@ -5001,6 +5020,8 @@ fn generated_name_inventory(
                         ParsedFeature::PossessiveEnding => {
                             ("possessive_ending", "PossessiveEnding")
                         }
+                        ParsedFeature::Properness => ("properness", "Properness"),
+                        ParsedFeature::Relationality => ("relationality", "Relationality"),
                     };
                     names.register_value(
                         &feature_helper(spelling, &vocab),
@@ -5594,6 +5615,7 @@ fn raw_category_reads_feature(raw: &Declarations, category: &str, feature: Featu
         Feature::Agreement => ParsedFeature::Agreement,
         Feature::Cardinality => ParsedFeature::Cardinality,
         Feature::Compoundability => ParsedFeature::Compoundability,
+        Feature::Countability => ParsedFeature::Countability,
         Feature::ModifierLicense => ParsedFeature::ModifierLicense,
         Feature::DeterminerNumber => ParsedFeature::DeterminerNumber,
         Feature::FusedHeadLicense => ParsedFeature::FusedHeadLicense,
@@ -5603,6 +5625,8 @@ fn raw_category_reads_feature(raw: &Declarations, category: &str, feature: Featu
         Feature::Onset => ParsedFeature::Onset,
         Feature::Participle => ParsedFeature::Participle,
         Feature::PossessiveEnding => ParsedFeature::PossessiveEnding,
+        Feature::Properness => ParsedFeature::Properness,
+        Feature::Relationality => ParsedFeature::Relationality,
     };
     raw.declarations.iter().any(|declaration| {
         let Declaration::Construction(construction) = declaration else { return false };
@@ -5645,6 +5669,7 @@ fn raw_sequence_reads_inherent_category_feature(
         Feature::Agreement => ParsedFeature::Agreement,
         Feature::Cardinality => ParsedFeature::Cardinality,
         Feature::Compoundability => ParsedFeature::Compoundability,
+        Feature::Countability => ParsedFeature::Countability,
         Feature::ModifierLicense => ParsedFeature::ModifierLicense,
         Feature::DeterminerNumber => ParsedFeature::DeterminerNumber,
         Feature::FusedHeadLicense => ParsedFeature::FusedHeadLicense,
@@ -5654,6 +5679,8 @@ fn raw_sequence_reads_inherent_category_feature(
         Feature::Onset => ParsedFeature::Onset,
         Feature::Participle => ParsedFeature::Participle,
         Feature::PossessiveEnding => ParsedFeature::PossessiveEnding,
+        Feature::Properness => ParsedFeature::Properness,
+        Feature::Relationality => ParsedFeature::Relationality,
     };
     raw.declarations.iter().any(|declaration| {
         let Declaration::Construction(construction) = declaration else {
@@ -5900,6 +5927,7 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                     .then(|| (identifier_key(field), ParsedFeature::Number)),
                 ParsedFeature::Agreement
                 | ParsedFeature::Compoundability
+                | ParsedFeature::Countability
                 | ParsedFeature::ModifierLicense
                 | ParsedFeature::DeterminerNumber
                 | ParsedFeature::FusedHeadLicense
@@ -5907,7 +5935,9 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                 | ParsedFeature::NominalLicense
                 | ParsedFeature::Onset
                 | ParsedFeature::Participle
-                | ParsedFeature::PossessiveEnding => None,
+                | ParsedFeature::PossessiveEnding
+                | ParsedFeature::Properness
+                | ParsedFeature::Relationality => None,
             }
         }));
         for (form, (form_verbs, form_open_verb_count)) in
@@ -6400,6 +6430,7 @@ fn open_declaration_kind(kind: &syn::Ident) -> Option<macro_ron::v2::Declaration
         "KeywordAction" => Some(DeclarationKind::KeywordAction),
         "KeywordAbility" => Some(DeclarationKind::KeywordAbility),
         "Type" => Some(DeclarationKind::Type),
+        "TurnPart" => Some(DeclarationKind::TurnPart),
         "CounterKind" => Some(DeclarationKind::CounterKind),
         "Designation" => Some(DeclarationKind::Designation),
         _ => None,
@@ -9445,6 +9476,34 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
             providers.insert((terminal.clone(), ParsedFeature::FusedHeadLicense));
             providers.insert((terminal, ParsedFeature::NominalLicense));
         }
+        if let Some(crate::model::GeneratedCodecRecipe::DeclarationNoun(recipe)) =
+            &binding.generated
+            && let Some(closed) = recipe.closed_slots.first()
+            && let Some(lexeme) =
+                raw.declarations
+                    .iter()
+                    .find_map(|declaration| match declaration {
+                        Declaration::Lexeme(lexeme)
+                            if identifier_key(&lexeme.name) == identifier_key(&closed.value) =>
+                        {
+                            Some(lexeme)
+                        }
+                        _ => None,
+                    })
+        {
+            let terminal = identifier_key(&binding.name);
+            for default in &lexeme.feature_defaults {
+                if matches!(
+                    default.feature,
+                    ParsedFeature::Compoundability
+                        | ParsedFeature::Countability
+                        | ParsedFeature::Properness
+                        | ParsedFeature::Relationality
+                ) {
+                    providers.insert((terminal.clone(), default.feature));
+                }
+            }
+        }
         if let Some(crate::model::GeneratedCodecRecipe::DeclarationVerb(recipe)) =
             &binding.generated
             && let Some(feature) = recipe.feature_slots.first()
@@ -9502,6 +9561,7 @@ fn feature_name(feature: ParsedFeature) -> &'static str {
         ParsedFeature::Agreement => "agreement",
         ParsedFeature::Cardinality => "cardinality",
         ParsedFeature::Compoundability => "compoundability",
+        ParsedFeature::Countability => "countability",
         ParsedFeature::ModifierLicense => "modifier_license",
         ParsedFeature::DeterminerNumber => "determiner_number",
         ParsedFeature::FusedHeadLicense => "fused_head_license",
@@ -9511,6 +9571,8 @@ fn feature_name(feature: ParsedFeature) -> &'static str {
         ParsedFeature::Onset => "onset",
         ParsedFeature::Participle => "participle",
         ParsedFeature::PossessiveEnding => "possessive_ending",
+        ParsedFeature::Properness => "properness",
+        ParsedFeature::Relationality => "relationality",
     }
 }
 
@@ -9889,6 +9951,7 @@ fn validate_lowerable_backend_shapes(raw: &Declarations) -> syn::Result<()> {
 
 #[expect(
     clippy::match_same_arms,
+    clippy::too_many_lines,
     reason = "the finite feature matrix keeps each unsupported feature/value axis explicit"
 )]
 fn validate_lowerable_feature_compositions(
@@ -9935,7 +9998,15 @@ fn validate_lowerable_feature_compositions(
                 ParsedFeature::Cardinality => role_provides_cardinality(raw, &fields, &source.role),
                 _ => false,
             },
-            (ParsedFeaturePlace::Construction(ParsedFeature::Compoundability), _) => false,
+            (
+                ParsedFeaturePlace::Construction(
+                    ParsedFeature::Compoundability
+                    | ParsedFeature::Countability
+                    | ParsedFeature::Properness
+                    | ParsedFeature::Relationality,
+                ),
+                _,
+            ) => false,
             (
                 ParsedFeaturePlace::Construction(
                     ParsedFeature::DeterminerNumber
@@ -9982,7 +10053,11 @@ fn validate_lowerable_feature_compositions(
             },
             (
                 ParsedFeaturePlace::Role {
-                    feature: ParsedFeature::Compoundability,
+                    feature:
+                        ParsedFeature::Compoundability
+                        | ParsedFeature::Countability
+                        | ParsedFeature::Properness
+                        | ParsedFeature::Relationality,
                     ..
                 },
                 _,
@@ -10231,6 +10306,7 @@ fn parsed_feature_name(feature: ParsedFeature) -> &'static str {
         ParsedFeature::Agreement => "agreement",
         ParsedFeature::Cardinality => "cardinality",
         ParsedFeature::Compoundability => "compoundability",
+        ParsedFeature::Countability => "countability",
         ParsedFeature::ModifierLicense => "modifier_license",
         ParsedFeature::DeterminerNumber => "determiner_number",
         ParsedFeature::FusedHeadLicense => "fused_head_license",
@@ -10240,6 +10316,8 @@ fn parsed_feature_name(feature: ParsedFeature) -> &'static str {
         ParsedFeature::Onset => "onset",
         ParsedFeature::Participle => "participle",
         ParsedFeature::PossessiveEnding => "possessive_ending",
+        ParsedFeature::Properness => "properness",
+        ParsedFeature::Relationality => "relationality",
     }
 }
 
@@ -12023,7 +12101,7 @@ pub(crate) mod tests {
                     kinds = [Type, KeywordAction];
                     feature = Number;
                 },
-                "kinds must be `Type` or `Subtype`",
+                "kinds must be `Type`, `TurnPart`, or `Subtype`",
             ),
             (
                 quote! {
@@ -12053,8 +12131,36 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn declaration_noun_domains_and_role_number_flow_are_typed() {
+    fn declaration_noun_inventory_combines_contributors_and_role_number_flow() {
         validate(quote! {
+            morphology EnglishNoun { feature = Number; recipe = english_noun; }
+            lexeme NounLexeme using EnglishNoun { Player = "player", }
+            codec Noun {
+                generate declaration_noun {
+                    closed = NounLexeme;
+                    position = Noun;
+                    kinds = [Type, Subtype(Creature), TurnPart];
+                    feature = Number;
+                }
+            }
+            construction modified: Phrase {
+                element Modified {
+                    modifier: lex Noun,
+                    head: lex Noun,
+                }
+                derive modifier.number = Values::Singular;
+                derive head.number = modifier.number;
+                derive number = head.number;
+                form modified = noun(modifier) noun(head);
+            }
+            root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("one aggregate noun inventory and role-derived Number validate");
+    }
+
+    #[test]
+    fn parallel_declaration_noun_inventories_are_rejected() {
+        let error = validate(quote! {
             morphology EnglishNoun { feature = Number; recipe = english_noun; }
             lexeme NounLexeme using EnglishNoun { Player = "player", }
             codec TypeNoun {
@@ -12067,25 +12173,21 @@ pub(crate) mod tests {
             }
             codec CreatureNoun {
                 generate declaration_noun {
-                    closed = NounLexeme;
                     position = Noun;
                     kinds = [Subtype(Creature)];
                     feature = Number;
                 }
             }
-            construction modified: Phrase {
-                element Modified {
-                    modifier: lex TypeNoun,
-                    head: lex CreatureNoun,
-                }
-                derive modifier.number = Values::Singular;
-                derive head.number = modifier.number;
-                derive number = head.number;
-                form modified = noun(modifier) noun(head);
-            }
-            root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
+            construction only: Cat { element Only {} form only = "only"; }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
         })
-        .expect("typed declaration noun domains and role-derived Number validate");
+        .expect_err("parallel topical noun codecs must not recreate multiple inventories");
+        assert!(
+            error
+                .to_string()
+                .contains("multiple declaration_noun inventories `TypeNoun` and `CreatureNoun`; combine declaration kinds in one codec"),
+            "{error}"
+        );
     }
 
     #[test]
@@ -16434,7 +16536,7 @@ pub(crate) mod tests {
         assert_eq!(validated.semantic().constructions().len(), 6);
         assert_eq!(validated.semantic().terminals().len(), 8);
         assert_eq!(validated.semantic().roots().len(), 1);
-        assert_eq!(expansion.plan().items().len(), 119);
+        assert_eq!(expansion.plan().items().len(), 128);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -16781,7 +16883,7 @@ pub(crate) mod tests {
             snapshot.dynamic_number_constructions,
             vec!["leaf".to_owned()]
         );
-        assert_eq!(expansion.plan().items().len(), 119);
+        assert_eq!(expansion.plan().items().len(), 128);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -16921,7 +17023,7 @@ pub(crate) mod tests {
 
         let emission = crate::plan::plan_emission(validated.semantic())
             .expect("the already validated semantic plan emits");
-        assert_eq!(emission.items().len(), 119);
+        assert_eq!(emission.items().len(), 128);
         assert!(emission.items().iter().any(|item| {
             matches!(
                 &item.key,

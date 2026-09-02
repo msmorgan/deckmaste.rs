@@ -1076,6 +1076,35 @@ prepositions, punctuation, and closed grammatical words; content words
 enter only through lexemes and declarations. The gate census reports a
 structural-depth or literal/lexicon-collision metric beside unit counts.
 
+### One noun inventory closes the content-word escape hatch
+
+English v2 has one noun inventory and one `Noun` codec. Its closed inventory
+is the union of the core `CommonNoun` seed and every noun grammar row
+contributed by the `Type`, `Subtype`, and `TurnPart` declaration kinds.
+Contributor kind and declaration identity remain provenance on the value;
+they do not create parallel noun terminal categories. The construction
+compiler therefore rejects a second declaration-noun provider instead of
+letting multiple typed noun inventories coexist.
+
+Turn-part names are declaration data, not core vocabulary. The builtin
+`TurnPart` rows cover the CR-closed phase and step inventory: the five phases
+[CR#500.1], beginning-phase steps [CR#501.1], combat-phase steps [CR#506.1],
+and ending-phase steps [CR#512.1], together with the Oracle shorthand noun
+surfaces that name those parts. They contribute through the same `Noun` codec
+as every type, subtype, and core noun.
+
+Number is the noun recipe's feature axis. Regular plurals are derived; an
+attested exception is a per-word override, never a separately authored plural
+inventory. Grammar may distinguish noun behavior only through declared
+grammatical features such as countability, properness, compoundability, and
+relationality. Topic or semantic classes such as “temporal” and “object” are
+downstream concerns and may not become terminal categories.
+
+This aggregation closes the remaining literal escape hatch: a content noun
+has exactly one legal home in the noun inventory, so the frame-literal
+collision tripwire detects evasion rather than compensating for an absent
+provider path.
+
 
 ## Ruling: one noun inventory, multiple contributors (2026-09-02)
 

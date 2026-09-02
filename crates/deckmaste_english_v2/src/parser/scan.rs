@@ -474,7 +474,17 @@ fn value_label_v1(value: &Leaf) -> String {
         current.values += 1;
         counts.set(current);
     });
-    format!("{value:?}")
+    match value {
+        Leaf::Noun {
+            noun: crate::constructions::Noun::Lexeme(noun),
+            number,
+            onset,
+            possessive_ending,
+        } => format!(
+            "Noun {{ noun: {noun:?}, number: {number:?}, onset: {onset:?}, possessive_ending: {possessive_ending:?} }}"
+        ),
+        _ => format!("{value:?}"),
+    }
 }
 fn raw_family_identity(family: &Family<Leaf, LexicalOwner>) -> RawFamilyIdentity {
     RawFamilyIdentity(
@@ -1224,21 +1234,14 @@ mod tests {
     use super::terminal_name_v1;
     use super::trace_label_counts;
     use super::value_label_v1;
-    use crate::ast::ArtifactSubtypeNoun;
-    use crate::ast::BattleSubtypeNoun;
     use crate::ast::CommonNoun;
-    use crate::ast::CreatureSubtypeNoun;
-    use crate::ast::DeclarationTypeNoun;
-    use crate::ast::EnchantmentSubtypeNoun;
-    use crate::ast::LandSubtypeNoun;
+    use crate::ast::DeclarationNoun;
+    use crate::ast::Noun;
     use crate::ast::ObjectPronoun;
-    use crate::ast::PlaneswalkerSubtypeNoun;
     use crate::ast::ScalarNumber;
     use crate::ast::SelfReferenceSpelling;
-    use crate::ast::SpellSubtypeNoun;
     use crate::ast::SubjectPronoun;
     use crate::ast::TriggerMarker;
-    use crate::ast::TypeNoun;
     use crate::ast::Variable;
     use crate::constructions::Agreement;
     use crate::constructions::CasePosition;
@@ -1544,6 +1547,19 @@ mod tests {
             );
         }
 
+        let noun_codec = RULES
+            .iter()
+            .find(|rule| rule.id == RuleId::SingularHeadNounSingularHead)
+            .and_then(|rule| {
+                rule.rhs.iter().find_map(|position| match position {
+                    RulePosition::Lexical(terminal) => match terminal.matcher {
+                        Lexical::DeclarationNoun(codec, _) => Some(codec),
+                        _ => None,
+                    },
+                    _ => None,
+                })
+            })
+            .expect("the noun inventory head owns its aggregate terminal");
         for (text, number, owner) in [
             (
                 "Player.",
@@ -1558,8 +1574,8 @@ mod tests {
         ] {
             let matches = scan(
                 text,
-                Lexical::Noun(FeatureConstraint::Exact(number)),
-                LexicalOwnerTemplate::NounLexeme,
+                Lexical::DeclarationNoun(noun_codec, FeatureConstraint::Exact(number)),
+                LexicalOwnerTemplate::DeclarationNoun(noun_codec),
             );
             let closed = matches
                 .iter()
@@ -1567,7 +1583,7 @@ mod tests {
                     matches!(
                         matched.value,
                         Leaf::Noun {
-                            noun: CommonNoun::Player,
+                            noun: Noun::Lexeme(CommonNoun::Player),
                             number: actual,
                             ..
                         } if actual == number
@@ -1579,8 +1595,8 @@ mod tests {
         assert!(
             scan(
                 "Playersx.",
-                Lexical::Noun(FeatureConstraint::Any),
-                LexicalOwnerTemplate::NounLexeme,
+                Lexical::DeclarationNoun(noun_codec, FeatureConstraint::Any),
+                LexicalOwnerTemplate::DeclarationNoun(noun_codec),
             )
             .is_empty()
         );
@@ -2246,10 +2262,10 @@ mod tests {
     #[test]
     #[expect(
         clippy::too_many_lines,
-        reason = "the category-safe scanner matrix keeps both declaration domains, offsets, features, and direct common-noun ownership together"
+        reason = "the aggregate scanner test authenticates every contributor, feature, and provenance boundary"
     )]
-    fn declaration_noun_scanner_retains_collisions_features_and_exact_offsets() {
-        let declarations = [
+    fn aggregate_noun_scanner_keeps_core_and_declaration_provenance_in_one_terminal() {
+        let environment = ParserEnvironment::try_from_declarations([
             read_str(
                 "/synthetic/types/Elf.ron",
                 r#"Type(name:"Elf",spelling:"elf",grammar:Noun(singular:"elf",plural:"elves"))"#,
@@ -2261,33 +2277,8 @@ mod tests {
             )
             .unwrap(),
             read_str(
-                "/synthetic/subtypes/artifact/Clue.ron",
-                r#"Subtype(category:Artifact,name:"Clue",spelling:"Clue",grammar:Noun(singular:"Clue"))"#,
-            )
-            .unwrap(),
-            read_str(
-                "/synthetic/subtypes/battle/Siege.ron",
-                r#"Subtype(category:Battle,name:"Siege",spelling:"Siege",grammar:Noun(singular:"Siege"))"#,
-            )
-            .unwrap(),
-            read_str(
-                "/synthetic/subtypes/enchantment/Aura.ron",
-                r#"Subtype(category:Enchantment,name:"Aura",spelling:"Aura",grammar:Noun(singular:"Aura"))"#,
-            )
-            .unwrap(),
-            read_str(
-                "/synthetic/subtypes/land/Forest.ron",
-                r#"Subtype(category:Land,name:"Forest",spelling:"Forest",grammar:Noun(singular:"Forest"))"#,
-            )
-            .unwrap(),
-            read_str(
-                "/synthetic/subtypes/planeswalker/Jace.ron",
-                r#"Subtype(category:Planeswalker,name:"Jace",spelling:"Jace",grammar:Noun(singular:"Jace"))"#,
-            )
-            .unwrap(),
-            read_str(
-                "/synthetic/subtypes/spell/Arcane.ron",
-                r#"Subtype(category:Spell,name:"Arcane",spelling:"Arcane",grammar:Noun(singular:"Arcane"))"#,
+                "/synthetic/turn_parts/Upkeep.ron",
+                r#"TurnPart(name:"Upkeep",spelling:"upkeep",grammar:Noun(singular:"upkeep"))"#,
             )
             .unwrap(),
             read_str(
@@ -2300,62 +2291,23 @@ mod tests {
                 r#"KeywordAbility(name:"Flying",spelling:"flying",grammar:Noun(singular:"flying"))"#,
             )
             .unwrap(),
-        ];
-        let environment = ParserEnvironment::try_from_declarations(declarations).unwrap();
-        let context = context("Context Card");
-        let declaration_noun_codec = |rule_id| {
-            RULES
-                .iter()
-                .find(|rule| rule.id == rule_id)
-                .and_then(|rule| {
-                    rule.rhs.iter().find_map(|position| match position {
-                        RulePosition::Lexical(terminal) => match terminal.matcher {
-                            Lexical::DeclarationNoun(codec, _) => Some(codec),
-                            _ => None,
-                        },
-                        _ => None,
-                    })
-                })
-                .expect("the semantic noun-head rule owns one declaration noun terminal")
-        };
-        let type_codec = declaration_noun_codec(RuleId::SingularHeadTypeSingularHead);
-        let subtype_codecs = [
-            (
-                declaration_noun_codec(RuleId::SingularHeadArtifactSubtypeSingularHead),
-                SubtypeCategory::Artifact,
-            ),
-            (
-                declaration_noun_codec(RuleId::SingularHeadBattleSubtypeSingularHead),
-                SubtypeCategory::Battle,
-            ),
-            (
-                declaration_noun_codec(RuleId::SingularHeadCreatureSubtypeSingularHead),
-                SubtypeCategory::Creature,
-            ),
-            (
-                declaration_noun_codec(RuleId::SingularHeadEnchantmentSubtypeSingularHead),
-                SubtypeCategory::Enchantment,
-            ),
-            (
-                declaration_noun_codec(RuleId::SingularHeadLandSubtypeSingularHead),
-                SubtypeCategory::Land,
-            ),
-            (
-                declaration_noun_codec(RuleId::SingularHeadPlaneswalkerSubtypeSingularHead),
-                SubtypeCategory::Planeswalker,
-            ),
-            (
-                declaration_noun_codec(RuleId::SingularHeadSpellSubtypeSingularHead),
-                SubtypeCategory::Spell,
-            ),
-        ];
-        let creature_subtype_codec = subtype_codecs
+        ])
+        .unwrap();
+        let codec = RULES
             .iter()
-            .find_map(|(codec, category)| {
-                (*category == SubtypeCategory::Creature).then_some(*codec)
+            .find(|rule| rule.id == RuleId::SingularHeadNounSingularHead)
+            .and_then(|rule| {
+                rule.rhs.iter().find_map(|position| match position {
+                    RulePosition::Lexical(terminal) => match terminal.matcher {
+                        Lexical::DeclarationNoun(codec, _) => Some(codec),
+                        _ => None,
+                    },
+                    _ => None,
+                })
             })
-            .expect("the semantic codec matrix includes creature subtypes");
-        let scan = |codec, text, byte_offset, case, wanted| {
+            .expect("the noun head owns the single aggregate terminal");
+        let context = context("Context Card");
+        let scan = |text, byte_offset, case, wanted| {
             super::scan_lexical(
                 &ScanInput {
                     text,
@@ -2378,201 +2330,54 @@ mod tests {
                 },
             )
         };
-        let declarations =
-            |matches: Vec<super::LexicalMatch<Leaf, crate::constructions::LexicalOwner>>| {
-                matches
-                    .into_iter()
-                    .filter_map(|matched| match matched.value {
-                        Leaf::TypeNoun {
-                            noun: TypeNoun::Declaration(noun),
-                            number,
-                            ..
-                        } => Some((
-                            matched.end,
-                            noun.id().kind(),
-                            noun.id().name().to_owned(),
-                            number,
-                        )),
-                        Leaf::ArtifactSubtypeNoun {
-                            noun: ArtifactSubtypeNoun::Declaration(noun),
-                            number,
-                            ..
-                        } => Some((
-                            matched.end,
-                            noun.id().kind(),
-                            noun.id().name().to_owned(),
-                            number,
-                        )),
-                        Leaf::BattleSubtypeNoun {
-                            noun: BattleSubtypeNoun::Declaration(noun),
-                            number,
-                            ..
-                        } => Some((
-                            matched.end,
-                            noun.id().kind(),
-                            noun.id().name().to_owned(),
-                            number,
-                        )),
-                        Leaf::CreatureSubtypeNoun {
-                            noun: CreatureSubtypeNoun::Declaration(noun),
-                            number,
-                            ..
-                        } => Some((
-                            matched.end,
-                            noun.id().kind(),
-                            noun.id().name().to_owned(),
-                            number,
-                        )),
-                        Leaf::EnchantmentSubtypeNoun {
-                            noun: EnchantmentSubtypeNoun::Declaration(noun),
-                            number,
-                            ..
-                        } => Some((
-                            matched.end,
-                            noun.id().kind(),
-                            noun.id().name().to_owned(),
-                            number,
-                        )),
-                        Leaf::LandSubtypeNoun {
-                            noun: LandSubtypeNoun::Declaration(noun),
-                            number,
-                            ..
-                        } => Some((
-                            matched.end,
-                            noun.id().kind(),
-                            noun.id().name().to_owned(),
-                            number,
-                        )),
-                        Leaf::PlaneswalkerSubtypeNoun {
-                            noun: PlaneswalkerSubtypeNoun::Declaration(noun),
-                            number,
-                            ..
-                        } => Some((
-                            matched.end,
-                            noun.id().kind(),
-                            noun.id().name().to_owned(),
-                            number,
-                        )),
-                        Leaf::SpellSubtypeNoun {
-                            noun: SpellSubtypeNoun::Declaration(noun),
-                            number,
-                            ..
-                        } => Some((
-                            matched.end,
-                            noun.id().kind(),
-                            noun.id().name().to_owned(),
-                            number,
-                        )),
-                        _ => None,
-                    })
-                    .collect::<Vec<_>>()
-            };
-
-        let mut elf_declarations = declarations(scan(
-            type_codec,
+        let elf_kinds = scan(
             "Elves.",
             0,
             CasePosition::DocumentInitial,
             FeatureConstraint::Exact(Number::Plural),
-        ));
-        elf_declarations.extend(declarations(scan(
-            creature_subtype_codec,
-            "Elves.",
-            0,
-            CasePosition::DocumentInitial,
-            FeatureConstraint::Exact(Number::Plural),
-        )));
+        )
+        .into_iter()
+        .filter_map(|matched| match matched.value {
+            Leaf::Noun {
+                noun: Noun::Declaration(noun),
+                number: Number::Plural,
+                ..
+            } => Some(noun.id().kind()),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
         assert_eq!(
-            elf_declarations,
+            elf_kinds,
             [
-                (5, DeclarationKind::Type, "Elf".to_owned(), Number::Plural,),
-                (
-                    5,
-                    DeclarationKind::Subtype(SubtypeCategory::Creature),
-                    "Elf".to_owned(),
-                    Number::Plural,
-                ),
-            ],
-            "same-spelling Type/Subtype readings remain distinct across sealed terminals",
+                DeclarationKind::Subtype(SubtypeCategory::Creature),
+                DeclarationKind::Type,
+            ]
         );
-        let mut continued = declarations(scan(
-            type_codec,
+        let continued_elf_kinds = scan(
             "prefix elf.",
             6,
             CasePosition::Continuation,
             FeatureConstraint::Exact(Number::Singular),
-        ));
-        continued.extend(declarations(scan(
-            creature_subtype_codec,
-            "prefix elf.",
-            6,
-            CasePosition::Continuation,
-            FeatureConstraint::Exact(Number::Singular),
-        )));
+        )
+        .into_iter()
+        .filter_map(|matched| match matched.value {
+            Leaf::Noun {
+                noun: Noun::Declaration(noun),
+                number: Number::Singular,
+                ..
+            } => Some((matched.end, noun.id().kind())),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
         assert_eq!(
-            continued,
+            continued_elf_kinds,
             [
-                (
-                    10,
-                    DeclarationKind::Type,
-                    "Elf".to_owned(),
-                    Number::Singular,
-                ),
-                (
-                    10,
-                    DeclarationKind::Subtype(SubtypeCategory::Creature),
-                    "Elf".to_owned(),
-                    Number::Singular,
-                ),
-            ],
+                (10, DeclarationKind::Subtype(SubtypeCategory::Creature),),
+                (10, DeclarationKind::Type),
+            ]
         );
-
-        for ((codec, category), (text, spelling)) in subtype_codecs.iter().copied().zip([
-            ("Clue.", "Clue"),
-            ("Siege.", "Siege"),
-            ("Elf.", "Elf"),
-            ("Aura.", "Aura"),
-            ("Forest.", "Forest"),
-            ("Jace.", "Jace"),
-            ("Arcane.", "Arcane"),
-        ]) {
-            assert_eq!(
-                declarations(scan(
-                    codec,
-                    text,
-                    0,
-                    CasePosition::DocumentInitial,
-                    FeatureConstraint::Exact(Number::Singular),
-                )),
-                [(
-                    spelling.len(),
-                    DeclarationKind::Subtype(category),
-                    spelling.to_owned(),
-                    Number::Singular,
-                )],
-                "the exact family terminal accepts its own normalized declaration",
-            );
-            for wrong_codec in subtype_codecs
-                .iter()
-                .map(|(wrong_codec, _)| *wrong_codec)
-                .filter(|wrong_codec| *wrong_codec != codec)
-            {
-                assert!(
-                    declarations(scan(
-                        wrong_codec,
-                        text,
-                        0,
-                        CasePosition::DocumentInitial,
-                        FeatureConstraint::Exact(Number::Singular),
-                    ))
-                    .is_empty(),
-                    "a cross-family terminal mutation must reject {spelling}",
-                );
-            }
-        }
 
         let player = scan(
-            type_codec,
             "Player.",
             0,
             CasePosition::DocumentInitial,
@@ -2580,65 +2385,59 @@ mod tests {
         );
         assert_eq!(
             player.len(),
-            1,
-            "the Type terminal retains only the open Type reading"
+            2,
+            "core and declaration readings both survive"
         );
         assert!(player.iter().all(|matched| matched.end == 6));
         assert!(player.iter().any(|matched| matches!(
-            &matched.value,
-            Leaf::TypeNoun {
-                noun: TypeNoun::Declaration(noun),
-                number: Number::Singular,
+            matched.value,
+            Leaf::Noun {
+                noun: Noun::Lexeme(CommonNoun::Player),
                 ..
             }
-                if noun.id() == &DeclarationId::new(DeclarationKind::Type, "Player")
         )));
-        let common_player = super::scan_lexical(
-            &ScanInput {
-                text: "Player.",
-                position: ScanPosition {
-                    byte_offset: 0,
-                    case: CasePosition::DocumentInitial,
-                    prefix: PrefixPosition::None,
-                },
-                environment: &environment,
-                context: &context,
-            },
-            LexicalTerminal {
-                matcher: Lexical::Noun(FeatureConstraint::Exact(Number::Singular)),
-                owner: LexicalOwnerTemplate::NounLexeme,
-                right_boundary: LexicalBoundary::Separated,
-            },
+        assert!(player.iter().any(|matched| matches!(
+            &matched.value,
+            Leaf::Noun {
+                noun: Noun::Declaration(noun),
+                ..
+            } if noun.id() == &DeclarationId::new(DeclarationKind::Type, "Player")
+        )));
+        let owners = player
+            .iter()
+            .map(|matched| matched.owner.as_ref().unwrap().stable_id())
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            owners.len(),
+            2,
+            "provenance keeps colliding readings distinct"
         );
+
         assert!(matches!(
-            common_player.as_slice(),
+            scan(
+                "Upkeeps.",
+                0,
+                CasePosition::DocumentInitial,
+                FeatureConstraint::Exact(Number::Plural),
+            )
+            .as_slice(),
             [super::LexicalMatch {
                 value: Leaf::Noun {
-                    noun: CommonNoun::Player,
-                    number: Number::Singular,
+                    noun: Noun::Declaration(noun),
+                    number: Number::Plural,
                     ..
                 },
                 ..
-            }]
+            }] if noun.id().kind() == DeclarationKind::TurnPart
         ));
-        assert_eq!(
-            common_player[0].owner.as_ref().unwrap().stable_id(),
-            "lexeme:CommonNoun/Player/singular",
-        );
-        assert_eq!(
-            player[0].owner.as_ref().unwrap().stable_id(),
-            "lexeme:type/Player/singular",
-        );
         assert!(
             scan(
-                type_codec,
                 "Flying.",
                 0,
                 CasePosition::DocumentInitial,
                 FeatureConstraint::Any,
             )
-            .is_empty(),
-            "a noun-position reading of a disallowed declaration kind is rejected",
+            .is_empty()
         );
     }
 
@@ -2867,7 +2666,7 @@ mod tests {
             reset_trace_label_counts();
             let mut observed = StructuralObservation::new(TraceLimits::new(limit));
             observed.checked_completion(
-                RootRuleId::Grammar(RuleId::VerbPhraseHaveLife),
+                RootRuleId::Grammar(RuleId::VerbPhraseBaseVerbPhrase),
                 1,
                 2,
                 &family,
@@ -2982,7 +2781,7 @@ mod tests {
             (Leaf::Variable(Variable::X), "Variable(X)"),
             (
                 Leaf::Noun {
-                    noun: CommonNoun::Player,
+                    noun: Noun::Lexeme(CommonNoun::Player),
                     number: super::Number::Singular,
                     onset: Onset::Consonant,
                     possessive_ending: PossessiveEnding::Other,
@@ -2991,7 +2790,7 @@ mod tests {
             ),
             (
                 Leaf::Noun {
-                    noun: CommonNoun::Player,
+                    noun: Noun::Lexeme(CommonNoun::Player),
                     number: super::Number::Plural,
                     onset: Onset::Consonant,
                     possessive_ending: PossessiveEnding::EndsInS,
@@ -3325,17 +3124,17 @@ mod tests {
             environment.surface(&id, SurfaceFeature::Plural),
             Some("creatures")
         );
-        let identity = DeclarationTypeNoun::from_reading(id)
-            .expect("Type is an allowed declaration noun kind");
-        let value = Leaf::TypeNoun {
-            noun: TypeNoun::Declaration(identity),
+        let identity =
+            DeclarationNoun::from_reading(id).expect("Type is an allowed declaration noun kind");
+        let value = Leaf::Noun {
+            noun: Noun::Declaration(identity),
             number: super::Number::Plural,
             onset: Onset::Consonant,
             possessive_ending: PossessiveEnding::EndsInS,
         };
         assert_eq!(
             value_label_v1(&value),
-            "TypeNoun { noun: Declaration(DeclarationTypeNoun { id: DeclarationIdentity { kind: Type, name: \"Creature\" } }), number: Plural, onset: Consonant, possessive_ending: EndsInS }"
+            "Noun { noun: Declaration(DeclarationNoun { id: DeclarationIdentity { kind: Type, name: \"Creature\" } }), number: Plural, onset: Consonant, possessive_ending: EndsInS }"
         );
     }
 

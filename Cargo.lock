@@ -570,6 +570,8 @@ dependencies = [
  "anyhow",
  "deckmaste_construction",
  "macro_ron",
+ "ron",
+ "serde",
  "syn 2.0.117",
  "tempfile",
  "thiserror",

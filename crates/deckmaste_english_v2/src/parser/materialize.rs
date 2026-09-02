@@ -907,12 +907,13 @@ mod tests {
     use crate::ast::BaseVerbFrame;
     use crate::ast::BaseVerbPhrase;
     use crate::ast::CommonNoun;
-    use crate::ast::CommonSingularHead;
     use crate::ast::DeclarationIntransitiveVerb;
     use crate::ast::FiniteClause;
     use crate::ast::Imperative;
     use crate::ast::IntransitiveFrame;
     use crate::ast::IntransitivePredicate;
+    use crate::ast::Noun;
+    use crate::ast::NounSingularHead;
     use crate::ast::PersonalSubject;
     use crate::ast::PlainFiniteClause;
     use crate::ast::Predicate;
@@ -1155,9 +1156,10 @@ mod tests {
                 BuildValue::Nominal(
                     Nominal::SingularNominalValue(SingularNominalValue {
                         nominal: SingularNominal::BareSingularNominal(BareSingularNominal {
-                            head: SingularHead::CommonSingularHead(CommonSingularHead {
-                                noun: CommonNoun::Player,
-                            }),
+                            head: SingularHead::NounSingularHead(
+                                NounSingularHead::new(Noun::Lexeme(CommonNoun::Player))
+                                    .expect("player is a count noun"),
+                            ),
                         }),
                     }),
                     Agreement::ThirdPersonSingular,
@@ -1629,37 +1631,39 @@ mod tests {
 
     #[test]
     fn materialize_builds_checked_slice_values() {
-        for (text, card_name) in [
-            ("Destroy target creature.", "Context Card"),
+        for (text, card_name, expected_candidates) in [
+            ("Destroy target creature.", "Context Card", 1),
             (
                 "Whenever a player connives, you gain X life.",
                 "Context Card",
+                2,
             ),
             (
                 "You gain X life, where X is the number of creatures you control with power 2 or less.",
                 "Context Card",
+                4,
             ),
             (
                 "Zacama deals 3 damage to target creature.",
                 "Zacama, Primal Calamity",
+                1,
             ),
         ] {
             let forest = slice_candidates(text, card_name).expect("scanner accepts rendered input");
             let context = context(card_name);
             let environment = canonical_test_environment();
             let candidates = materialize::<crate::ast::Ability>(&forest, &context, &environment);
+            assert_eq!(
+                candidates.len(),
+                expected_candidates,
+                "unexpected candidates for {text:?}",
+            );
+            assert!(
+                candidates
+                    .iter()
+                    .all(|candidate| candidate.value.render(&context, &environment) == text)
+            );
             if text.contains("the number of creatures") {
-                assert_eq!(
-                    candidates.len(),
-                    2,
-                    "both scalar attachments remain visible"
-                );
-                assert!(
-                    candidates
-                        .iter()
-                        .all(|candidate| candidate.value.render(&context, &environment) == text)
-                );
-
                 let parser = crate::parser::Parser::new(environment.clone())
                     .expect("canonical environment satisfies the grammar");
                 let analysis = parser.analyze(text, &context);
@@ -1684,6 +1688,7 @@ mod tests {
                 assert_eq!(
                     selected_numeric_stages,
                     [
+                        "NumericStageUnqualifiedNumericStage",
                         "NumericStageUnqualifiedNumericStage",
                         "NumericStageScalarQualifiedReference",
                     ],
@@ -1717,9 +1722,6 @@ mod tests {
                 assert!(ownership.failures().is_empty());
                 assert!(ownership.summary().covered());
                 assert_eq!(ownership.summary().claimed_bytes(), text.len());
-            } else {
-                assert_eq!(candidates.len(), 1, "unexpected candidates for {text:?}");
-                assert_eq!(candidates[0].value.render(&context, &environment), text);
             }
         }
     }
@@ -1730,8 +1732,29 @@ mod tests {
         let context = context("Context Card");
         let environment = canonical_test_environment();
         let candidates = materialize::<crate::ast::Ability>(&forest, &context, &environment);
-        assert_eq!(candidates.len(), 1);
-        assert_eq!(candidates[0].value.render(&context, &environment), text);
+        assert_eq!(candidates.len(), 2);
+        assert!(
+            candidates
+                .iter()
+                .all(|candidate| candidate.value.render(&context, &environment) == text)
+        );
+        let parser = crate::parser::Parser::new(environment)
+            .expect("canonical environment satisfies the grammar");
+        let analysis = parser.analyze(text, &context);
+        assert_eq!(
+            analysis
+                .decision()
+                .expect("the generic duration rival requires selection")
+                .resolution(),
+            SelectionResolution::Specificity,
+        );
+        assert_eq!(
+            analysis
+                .selected()
+                .expect("specificity selects the finite clause")
+                .render(&context, parser.environment()),
+            text,
+        );
     }
 
     #[test]
@@ -1759,7 +1782,7 @@ mod tests {
                 Construction::DeterminativeSingularSimpleDeterminative,
                 Construction::NominalSingularNominalValue,
                 Construction::SingularNominalBareSingularNominal,
-                Construction::SingularHeadTypeSingularHead,
+                Construction::SingularHeadNounSingularHead,
             ]
         );
         assert_eq!(

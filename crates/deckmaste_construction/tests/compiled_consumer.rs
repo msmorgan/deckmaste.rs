@@ -12,7 +12,7 @@ pub mod environment {
     use macro_ron::v2::Onset;
     use macro_ron::v2::SurfaceFeature;
 
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
     pub(crate) struct CoreVerbIdentity;
 
     impl CoreVerbIdentity {
@@ -25,7 +25,7 @@ pub mod environment {
         }
     }
 
-    #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    #[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
     pub(crate) enum VerbInventoryRef {
         Core(CoreVerbIdentity),
         Declaration(DeclarationIdentity),
@@ -406,60 +406,11 @@ mod declaration_noun_fixture {
             Player = "player",
             Artifact = "artifact" { Plural = "units", },
         }
-        codec TypeNoun {
-            generate declaration_noun {
-                position = Noun;
-                kinds = [Type];
-                feature = Number;
-            }
-        }
-        codec CreatureNoun {
+        codec Noun {
             generate declaration_noun {
                 closed = NounLexeme;
                 position = Noun;
-                kinds = [Subtype(Creature)];
-                feature = Number;
-            }
-        }
-        codec ArtifactSubtypeNoun {
-            generate declaration_noun {
-                position = Noun;
-                kinds = [Subtype(Artifact)];
-                feature = Number;
-            }
-        }
-        codec BattleSubtypeNoun {
-            generate declaration_noun {
-                position = Noun;
-                kinds = [Subtype(Battle)];
-                feature = Number;
-            }
-        }
-        codec EnchantmentSubtypeNoun {
-            generate declaration_noun {
-                position = Noun;
-                kinds = [Subtype(Enchantment)];
-                feature = Number;
-            }
-        }
-        codec LandSubtypeNoun {
-            generate declaration_noun {
-                position = Noun;
-                kinds = [Subtype(Land)];
-                feature = Number;
-            }
-        }
-        codec PlaneswalkerSubtypeNoun {
-            generate declaration_noun {
-                position = Noun;
-                kinds = [Subtype(Planeswalker)];
-                feature = Number;
-            }
-        }
-        codec SpellSubtypeNoun {
-            generate declaration_noun {
-                position = Noun;
-                kinds = [Subtype(Spell)];
+                kinds = [Type, Subtype];
                 feature = Number;
             }
         }
@@ -476,9 +427,9 @@ mod declaration_noun_fixture {
         construction constant_pair: ConstantOutputPair {
             element ConstantOutputPairNode {
                 left_source: NumberSource,
-                left: lex TypeNoun,
+                left: lex Noun,
                 right_source: NumberSource,
-                right: lex CreatureNoun,
+                right: lex Noun,
             }
             derive left.number = left_source.number;
             derive right.number = right_source.number;
@@ -489,9 +440,9 @@ mod declaration_noun_fixture {
             element ElsewhereOutputPairNode {
                 output_source: NumberSource,
                 left_source: NumberSource,
-                left: lex TypeNoun,
+                left: lex Noun,
                 right_source: NumberSource,
-                right: lex CreatureNoun,
+                right: lex Noun,
             }
             derive left.number = left_source.number;
             derive right.number = right_source.number;
@@ -500,8 +451,8 @@ mod declaration_noun_fixture {
         }
         construction modified: Phrase {
             element ModifiedPhrase {
-                modifier: lex TypeNoun,
-                head: lex CreatureNoun,
+                modifier: lex Noun,
+                head: lex Noun,
             }
             derive modifier.number = Values::Singular;
             derive head.number = modifier.number;
@@ -511,7 +462,7 @@ mod declaration_noun_fixture {
         construction article_noun: InflectedArticle {
             element ArticleNoun {
                 source: NumberSource,
-                head: lex CreatureNoun,
+                head: lex Noun,
             }
             derive head.number = source.number;
             derive number = source.number;
@@ -667,8 +618,8 @@ mod declaration_noun_fixture {
             matches!(
                 head,
                 LexicalTerminal {
-                    matcher: Lexical::DeclarationNoun(2, FeatureConstraint::Any,),
-                    owner: LexicalOwnerTemplate::DeclarationNoun(2),
+                    matcher: Lexical::DeclarationNoun(1, FeatureConstraint::Any,),
+                    owner: LexicalOwnerTemplate::DeclarationNoun(1),
                     ..
                 }
             ),
@@ -677,7 +628,7 @@ mod declaration_noun_fixture {
         (*modifier, *head)
     }
 
-    fn assert_exact_subtype_domains(
+    fn assert_aggregate_noun_domain(
         environment: &crate::environment::ParserEnvironment,
     ) -> macro_ron::v2::DeclarationIdentity {
         let subtype = |category, name| {
@@ -686,108 +637,69 @@ mod declaration_noun_fixture {
                 name,
             )
         };
-        let clue = subtype(macro_ron::v2::SubtypeCategory::Artifact, "Clue");
-        let siege = subtype(macro_ron::v2::SubtypeCategory::Battle, "Siege");
-        let elf = subtype(macro_ron::v2::SubtypeCategory::Creature, "Elf");
-        let aura = subtype(macro_ron::v2::SubtypeCategory::Enchantment, "Aura");
-        let forest = subtype(macro_ron::v2::SubtypeCategory::Land, "Forest");
-        let jace = subtype(macro_ron::v2::SubtypeCategory::Planeswalker, "Jace");
-        let arcane = subtype(macro_ron::v2::SubtypeCategory::Spell, "Arcane");
-
-        macro_rules! assert_exact_subtype_domain {
-            ($noun:ty, $accepted:expr; $($rejected:expr),+ $(,)?) => {{
-                assert!(<$noun>::new(environment, $accepted.clone()).is_some());
-                $(
-                    assert!(
-                        <$noun>::new(environment, $rejected.clone()).is_none(),
-                        "a compiled exact subtype terminal admitted a cross-family identity",
-                    );
-                )+
-            }};
+        let declarations = [
+            subtype(macro_ron::v2::SubtypeCategory::Artifact, "Clue"),
+            subtype(macro_ron::v2::SubtypeCategory::Battle, "Siege"),
+            subtype(macro_ron::v2::SubtypeCategory::Creature, "Elf"),
+            subtype(macro_ron::v2::SubtypeCategory::Enchantment, "Aura"),
+            subtype(macro_ron::v2::SubtypeCategory::Land, "Forest"),
+            subtype(macro_ron::v2::SubtypeCategory::Planeswalker, "Jace"),
+            subtype(macro_ron::v2::SubtypeCategory::Spell, "Arcane"),
+        ];
+        for declaration in &declarations {
+            assert!(
+                DeclarationNoun::new(environment, declaration.clone()).is_some(),
+                "every subtype family contributes to the aggregate noun inventory",
+            );
         }
-        assert_exact_subtype_domain!(
-            DeclarationArtifactSubtypeNoun,
-            clue;
-            siege, elf, aura, forest, jace, arcane,
+        assert!(
+            DeclarationNoun::new(
+                environment,
+                macro_ron::v2::DeclarationIdentity::new(
+                    macro_ron::v2::DeclarationKind::KeywordAbility,
+                    "Fraud",
+                ),
+            )
+            .is_none(),
+            "a noncontributing declaration kind stays outside the noun inventory",
         );
-        assert_exact_subtype_domain!(
-            DeclarationBattleSubtypeNoun,
-            siege;
-            clue, elf, aura, forest, jace, arcane,
-        );
-        assert_exact_subtype_domain!(
-            DeclarationCreatureNoun,
-            elf;
-            clue, siege, aura, forest, jace, arcane,
-        );
-        assert_exact_subtype_domain!(
-            DeclarationEnchantmentSubtypeNoun,
-            aura;
-            clue, siege, elf, forest, jace, arcane,
-        );
-        assert_exact_subtype_domain!(
-            DeclarationLandSubtypeNoun,
-            forest;
-            clue, siege, elf, aura, jace, arcane,
-        );
-        assert_exact_subtype_domain!(
-            DeclarationPlaneswalkerSubtypeNoun,
-            jace;
-            clue, siege, elf, aura, forest, arcane,
-        );
-        assert_exact_subtype_domain!(
-            DeclarationSpellSubtypeNoun,
-            arcane;
-            clue, siege, elf, aura, forest, jace,
-        );
-        elf
+        declarations[2].clone()
     }
-
     pub(crate) fn run() {
         let environment = environment();
         let context = ParseContext::default();
         let relic =
             macro_ron::v2::DeclarationIdentity::new(macro_ron::v2::DeclarationKind::Type, "Relic");
-        let elf = assert_exact_subtype_domains(&environment);
+        let elf = assert_aggregate_noun_domain(&environment);
 
-        let public_type = DeclarationTypeNoun::new(&environment, relic.clone())
+        let public_type = DeclarationNoun::new(&environment, relic.clone())
             .expect("the public declaration noun stores a valid identity");
         assert_eq!(public_type.id(), &relic);
-        assert!(DeclarationTypeNoun::new(&environment, elf.clone()).is_none());
-        assert!(DeclarationCreatureNoun::new(&environment, elf.clone()).is_some());
+        assert!(DeclarationNoun::new(&environment, elf.clone()).is_some());
 
         let (modifier_terminal, head_terminal) = phrase_rule_terminals();
         let modifier = scan_terminal(&environment, &context, "Relic Elf.", 0, modifier_terminal);
         let head = scan_terminal(&environment, &context, "Relic Elf.", 5, head_terminal);
         assert!(
-            scan_terminal(&environment, &context, "Elf.", 0, modifier_terminal).is_empty(),
-            "deliberately swapping the Creature declaration into the Type role fails",
+            !scan_terminal(&environment, &context, "Elf.", 0, modifier_terminal).is_empty(),
+            "one noun inventory admits a subtype in the modifier role",
         );
         assert!(
-            scan_terminal(&environment, &context, "Relic.", 0, head_terminal).is_empty(),
-            "deliberately swapping the Type declaration into the Creature role fails",
+            !scan_terminal(&environment, &context, "Relic.", 0, head_terminal).is_empty(),
+            "one noun inventory admits a type in the head role",
         );
-        let swapped_modifier_index = LexicalTerminal {
+        let unknown_terminal_index = LexicalTerminal {
             matcher: Lexical::DeclarationNoun(2, FeatureConstraint::Exact(Number::Singular)),
             owner: LexicalOwnerTemplate::DeclarationNoun(2),
             right_boundary: LexicalBoundary::Separated,
         };
-        let swapped_head_index = LexicalTerminal {
-            matcher: Lexical::DeclarationNoun(1, FeatureConstraint::Any),
-            owner: LexicalOwnerTemplate::DeclarationNoun(1),
-            right_boundary: LexicalBoundary::Separated,
-        };
         assert!(
-            scan_terminal(&environment, &context, "Relic.", 0, swapped_modifier_index,).is_empty(),
-            "deliberately swapping the generated modifier terminal index fails",
+            scan_terminal(&environment, &context, "Relic.", 0, unknown_terminal_index,).is_empty(),
+            "an unknown declaration-noun terminal index rejects without a union scan",
         );
         assert!(
-            scan_terminal(&environment, &context, "Elf.", 0, swapped_head_index,).is_empty(),
-            "deliberately swapping the generated head terminal index fails",
-        );
-        assert!(
-            scan_terminal(&environment, &context, "Clue.", 0, head_terminal).is_empty(),
-            "the exact Creature family filter rejects an Artifact subtype",
+            !scan_terminal(&environment, &context, "Clue.", 0, head_terminal).is_empty(),
+            "every subtype contributor enters the same noun terminal",
         );
         assert!(
             scan(&environment, &context, "Relic.", 0, usize::MAX).is_empty(),
@@ -796,8 +708,8 @@ mod declaration_noun_fixture {
         assert!(matches!(
             modifier.as_slice(),
             [LexicalMatch {
-                value: Leaf::TypeNoun {
-                    noun: TypeNoun::Declaration(noun),
+                value: Leaf::Noun {
+                    noun: Noun::Declaration(noun),
                     number: Number::Singular,
                     onset: macro_ron::v2::Onset::Consonant,
                     ..
@@ -808,8 +720,8 @@ mod declaration_noun_fixture {
         assert!(matches!(
             head.as_slice(),
             [LexicalMatch {
-                value: Leaf::CreatureNoun {
-                    noun: CreatureNoun::Declaration(noun),
+                value: Leaf::Noun {
+                    noun: Noun::Declaration(noun),
                     number: Number::Singular,
                     onset: macro_ron::v2::Onset::Vowel,
                     ..
@@ -835,8 +747,8 @@ mod declaration_noun_fixture {
             "Relic Elf."
         );
 
-        let Leaf::CreatureNoun { noun, .. } = &head[0].value else { unreachable!() };
-        let mismatched = Leaf::CreatureNoun {
+        let Leaf::Noun { noun, .. } = &head[0].value else { unreachable!() };
+        let mismatched = Leaf::Noun {
             noun: noun.clone(),
             number: Number::Plural,
             onset: macro_ron::v2::Onset::Vowel,
@@ -877,23 +789,12 @@ mod declaration_noun_fixture {
 
     fn declaration_leaf(noun: &Leaf, number: Number) -> BuildValue {
         match noun {
-            Leaf::TypeNoun {
+            Leaf::Noun {
                 noun,
                 onset,
                 possessive_ending,
                 ..
-            } => BuildValue::Leaf(Leaf::TypeNoun {
-                noun: noun.clone(),
-                number,
-                onset: *onset,
-                possessive_ending: *possessive_ending,
-            }),
-            Leaf::CreatureNoun {
-                noun,
-                onset,
-                possessive_ending,
-                ..
-            } => BuildValue::Leaf(Leaf::CreatureNoun {
+            } => BuildValue::Leaf(Leaf::Noun {
                 noun: noun.clone(),
                 number,
                 onset: *onset,
@@ -921,7 +822,7 @@ mod declaration_noun_fixture {
         let environment = environment();
         let context = ParseContext::default();
         let left = &scan(&environment, &context, "Relic", 0, 1)[0].value;
-        let right = &scan(&environment, &context, "Elf", 0, 2)[0].value;
+        let right = &scan(&environment, &context, "Elf", 0, 1)[0].value;
 
         let valid = independently_numbered_children(left, Number::Singular, right, Number::Plural);
         assert!(
@@ -1001,8 +902,8 @@ mod declaration_noun_fixture {
             assert!(matches!(
                 scanned.as_slice(),
                 [LexicalMatch {
-                    value: Leaf::CreatureNoun {
-                        noun: CreatureNoun::Lexeme(NounLexeme::Artifact),
+                    value: Leaf::Noun {
+                        noun: Noun::Lexeme(NounLexeme::Artifact),
                         number: actual_number,
                         onset,
                         ..
@@ -1053,7 +954,7 @@ mod declaration_noun_fixture {
         let environment = environment();
         let context = ParseContext::default();
         let left = &scan(&environment, &context, "Relic", 0, 1)[0].value;
-        let right = &scan(&environment, &context, "Elf", 0, 2)[0].value;
+        let right = &scan(&environment, &context, "Elf", 0, 1)[0].value;
         let children = std::iter::once(number_source(Number::Singular))
             .chain(independently_numbered_children(
                 left,

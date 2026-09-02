@@ -1,0 +1,6 @@
+TurnPart(
+    name: "BeginningPhase",
+    spelling: "beginning phase",
+    grammar: Noun(singular: "beginning phase"),
+    params: [],
+)

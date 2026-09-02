@@ -55,6 +55,7 @@ struct RuntimeInventory<'a> {
     vocabs: Vec<&'a VocabPlan>,
     unused_vocab_lexicals: Vec<&'a VocabPlan>,
     noun_lexeme: Option<&'a LexemePlan>,
+    noun_lexeme_is_aggregated: bool,
     verb_lexeme: Option<&'a LexemePlan>,
     noun_binding: Option<&'a BindingPlan>,
     direct_bindings: Vec<&'a BindingPlan>,
@@ -100,6 +101,7 @@ impl<'a> RuntimeInventory<'a> {
             vocabs,
             unused_vocab_lexicals,
             noun_lexeme: plan.runtime_noun_lexeme(),
+            noun_lexeme_is_aggregated: plan.runtime_aggregate_noun().is_some(),
             verb_lexeme: plan.runtime_verb_lexeme(),
             noun_binding: plan.runtime_noun_binding(),
             direct_bindings: plan.runtime_direct_bindings().collect(),
@@ -118,7 +120,11 @@ impl<'a> RuntimeInventory<'a> {
     fn noun_type(&self) -> Option<syn::Ident> {
         self.noun_binding
             .map(|binding| binding.value_type_name().clone())
-            .or_else(|| self.noun_lexeme.map(|lexeme| lexeme.name_ident().clone()))
+            .or_else(|| {
+                (!self.noun_lexeme_is_aggregated)
+                    .then(|| self.noun_lexeme.map(|lexeme| lexeme.name_ident().clone()))
+                    .flatten()
+            })
     }
 }
 
@@ -151,10 +157,31 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             },
         ),
         named_type(
+            "Countability",
+            quote! {
+                #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+                pub(crate) enum Countability { Count, Mass }
+            },
+        ),
+        named_type(
             "ModifierLicense",
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
                 pub(crate) enum ModifierLicense { Unrestricted, LocalDeterminer }
+            },
+        ),
+        named_type(
+            "Properness",
+            quote! {
+                #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+                pub(crate) enum Properness { Common, Proper }
+            },
+        ),
+        named_type(
+            "Relationality",
+            quote! {
+                #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+                pub(crate) enum Relationality { NonRelational, Relational }
             },
         ),
         named_type(
@@ -171,7 +198,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
         ),
         named_type(
             NOMINAL_LICENSE_TYPE,
-            quote! { #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)] pub(crate) enum NominalLicense { CountNominal, BareSingularNoun, MassOrPluralCount } },
+            quote! { #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)] pub(crate) enum NominalLicense { AnyNominal, CountNominal, BareSingularNoun, MassOrPluralCount } },
         ),
         named_type(
             NUMBER_TYPE,
@@ -284,6 +311,41 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 }
             },
         ),
+        named_type(
+            "FormLiteralSurface",
+            quote! {
+                #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+                pub(crate) struct FormLiteralSurface {
+                    pub(crate) surface: &'static str,
+                    pub(crate) construction: &'static str,
+                    pub(crate) form: &'static str,
+                    pub(crate) atom_index: usize,
+                }
+            },
+        ),
+        named_type(
+            "LexiconSurface",
+            quote! {
+                #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+                pub(crate) struct LexiconSurface {
+                    pub(crate) surface: &'static str,
+                    pub(crate) terminal: &'static str,
+                    pub(crate) member: &'static str,
+                    pub(crate) position: ::macro_ron::v2::GrammarPosition,
+                }
+            },
+        ),
+        named_type(
+            "VerbTailLiteralSurface",
+            quote! {
+                #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+                pub(crate) struct VerbTailLiteralSurface {
+                    pub(crate) surface: &'static str,
+                    pub(crate) codec: &'static str,
+                    pub(crate) atom_index: usize,
+                }
+            },
+        ),
     ];
 
     if !inventory.declaration_verbs.is_empty() {
@@ -294,6 +356,9 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
     items.extend(emit_semantic_runtime_types(plan));
     items.extend(emit_generated_roots(plan));
     items.extend(emit_runtime_impls(&inventory));
+    items.push(emit_form_literal_surfaces(plan));
+    items.push(emit_lexicon_surfaces(plan));
+    items.push(emit_verb_tail_literal_surfaces(plan));
     if plan.has_open_declarations() {
         items.push(emit_required_declarations(plan));
     }
@@ -302,6 +367,140 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
         item.origins.clone_from(&origins);
     }
     items
+}
+
+fn emit_verb_tail_literal_surfaces(plan: &SemanticPlan) -> GeneratedItem {
+    let rows = plan
+        .runtime_declaration_verbs()
+        .flat_map(|(_, verb)| {
+            verb.frame_key()
+                .atoms()
+                .iter()
+                .enumerate()
+                .filter_map(move |(atom_index, atom)| {
+                    let crate::semantic::VerbFrameAtom::Literal(surface) = atom else {
+                        return None;
+                    };
+                    let surface = syn::LitStr::new(surface, Span::call_site());
+                    let codec = syn::LitStr::new(verb.codec_name(), verb.codec_ident().span());
+                    Some(quote! {
+                        VerbTailLiteralSurface {
+                            surface: #surface,
+                            codec: #codec,
+                            atom_index: #atom_index,
+                        }
+                    })
+                })
+        })
+        .collect::<Vec<_>>();
+
+    GeneratedItem::new(
+        ItemKey::Named {
+            kind: crate::plan::NamedKind::Constant,
+            name: "VERB_TAIL_LITERAL_SURFACES".to_owned(),
+        },
+        quote! {
+            pub(crate) const VERB_TAIL_LITERAL_SURFACES: &[VerbTailLiteralSurface] = &[#(#rows),*];
+        },
+        plan.declaration_keys().to_vec(),
+    )
+}
+
+fn emit_lexicon_surfaces(plan: &SemanticPlan) -> GeneratedItem {
+    let rows = [
+        (
+            plan.runtime_noun_lexeme(),
+            macro_ron::v2::GrammarPosition::Noun,
+        ),
+        (
+            plan.runtime_verb_lexeme(),
+            macro_ron::v2::GrammarPosition::Verb,
+        ),
+    ]
+    .into_iter()
+    .flat_map(|(lexeme, position)| {
+        lexeme.into_iter().flat_map(move |lexeme| {
+            lexeme.surfaces().iter().map(move |row| {
+                let surface = syn::LitStr::new(row.surface(), Span::call_site());
+                let terminal = syn::LitStr::new(lexeme.name(), lexeme.name_ident().span());
+                let member = syn::LitStr::new(row.member(), lexeme.name_ident().span());
+                let position = crate::emit::grammar_position(position);
+                quote! {
+                    LexiconSurface {
+                        surface: #surface,
+                        terminal: #terminal,
+                        member: #member,
+                        position: #position,
+                    }
+                }
+            })
+        })
+    })
+    .collect::<Vec<_>>();
+
+    GeneratedItem::new(
+        ItemKey::Named {
+            kind: crate::plan::NamedKind::Constant,
+            name: "LEXICON_SURFACES".to_owned(),
+        },
+        quote! {
+            pub(crate) const LEXICON_SURFACES: &[LexiconSurface] = &[#(#rows),*];
+        },
+        plan.declaration_keys().to_vec(),
+    )
+}
+
+fn emit_form_literal_surfaces(plan: &SemanticPlan) -> GeneratedItem {
+    let rows = plan
+        .constructions()
+        .iter()
+        .flat_map(|construction| {
+            construction.forms().iter().flat_map(move |form| {
+                form.atoms()
+                    .iter()
+                    .enumerate()
+                    .filter_map(move |(atom_index, atom)| {
+                        let surface = match atom {
+                            AtomPlan::Literal(surface)
+                            | AtomPlan::SentenceInitialLiteral(surface) => surface,
+                            AtomPlan::Category { .. }
+                            | AtomPlan::Lex { .. }
+                            | AtomPlan::Identity { .. }
+                            | AtomPlan::Noun { .. }
+                            | AtomPlan::VerbFixed { .. }
+                            | AtomPlan::OpenDeclaration(_)
+                            | AtomPlan::Bound { .. }
+                            | AtomPlan::Circumfix { .. } => return None,
+                        };
+                        let surface = syn::LitStr::new(surface, Span::call_site());
+                        let construction = syn::LitStr::new(
+                            construction.construction_id(),
+                            construction.origin_span(),
+                        );
+                        let form = syn::LitStr::new(form.name(), form.origin_span());
+                        Some(quote! {
+                            FormLiteralSurface {
+                                surface: #surface,
+                                construction: #construction,
+                                form: #form,
+                                atom_index: #atom_index,
+                            }
+                        })
+                    })
+            })
+        })
+        .collect::<Vec<_>>();
+
+    GeneratedItem::new(
+        ItemKey::Named {
+            kind: crate::plan::NamedKind::Constant,
+            name: "FORM_LITERAL_SURFACES".to_owned(),
+        },
+        quote! {
+            pub(crate) const FORM_LITERAL_SURFACES: &[FormLiteralSurface] = &[#(#rows),*];
+        },
+        plan.declaration_keys().to_vec(),
+    )
 }
 
 fn emit_declaration_verb_frame_types() -> Vec<GeneratedItem> {
@@ -1214,7 +1413,10 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
 }
 
 fn emit_owner_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
-    let noun_lexeme = inventory.noun_lexeme.map(|_| quote! { NounLexeme, });
+    let noun_lexeme = inventory
+        .noun_lexeme
+        .filter(|_| !inventory.noun_lexeme_is_aggregated)
+        .map(|_| quote! { NounLexeme, });
     let declaration_noun =
         (!inventory.declaration_nouns.is_empty()).then(|| quote! { DeclarationNoun(usize), });
     let declaration_determinative = (!inventory.declaration_determinatives.is_empty())
@@ -1809,38 +2011,42 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
             }
         })
     });
-    let noun_lexeme_owner_arms = inventory.noun_lexeme.into_iter().flat_map(|lexeme| {
-        let noun = lexeme.name_ident();
-        lexeme.surfaces().iter().map(move |row| {
-            let member = emitted_ident(row.member(), Span::call_site());
-            let number = match row.feature() {
-                macro_ron::v2::SurfaceFeature::Singular => quote! { Number::Singular },
-                macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
-                macro_ron::v2::SurfaceFeature::Bare
-                | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
-                | macro_ron::v2::SurfaceFeature::Participle
-                | macro_ron::v2::SurfaceFeature::Fixed
-                | macro_ron::v2::SurfaceFeature::BlockLabel => {
-                    unreachable!("validated noun lexeme has the Number feature axis")
+    let noun_lexeme_owner_arms = inventory
+        .noun_lexeme
+        .filter(|_| !inventory.noun_lexeme_is_aggregated)
+        .into_iter()
+        .flat_map(|lexeme| {
+            let noun = lexeme.name_ident();
+            lexeme.surfaces().iter().map(move |row| {
+                let member = emitted_ident(row.member(), Span::call_site());
+                let number = match row.feature() {
+                    macro_ron::v2::SurfaceFeature::Singular => quote! { Number::Singular },
+                    macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
+                    macro_ron::v2::SurfaceFeature::Bare
+                    | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                    | macro_ron::v2::SurfaceFeature::Participle
+                    | macro_ron::v2::SurfaceFeature::Fixed
+                    | macro_ron::v2::SurfaceFeature::BlockLabel => {
+                        unreachable!("validated noun lexeme has the Number feature axis")
+                    }
+                };
+                let stable_id =
+                    crate::emit::closed_lexeme_owner_id(lexeme.name(), row.member(), row.feature());
+                quote! {
+                    (
+                        LexicalOwnerTemplate::NounLexeme,
+                        Leaf::Noun {
+                            noun: #noun::#member,
+                            number: #number,
+                            ..
+                        },
+                    ) => Some(LexicalOwner::static_owner(
+                        LexicalProvenanceKind::Lexeme,
+                        #stable_id,
+                    )),
                 }
-            };
-            let stable_id =
-                crate::emit::closed_lexeme_owner_id(lexeme.name(), row.member(), row.feature());
-            quote! {
-                (
-                    LexicalOwnerTemplate::NounLexeme,
-                    Leaf::Noun {
-                        noun: #noun::#member,
-                        number: #number,
-                        ..
-                    },
-                ) => Some(LexicalOwner::static_owner(
-                    LexicalProvenanceKind::Lexeme,
-                    #stable_id,
-                )),
-            }
-        })
-    });
+            })
+        });
     let declaration_noun_owner =
         inventory
             .declaration_nouns
@@ -2061,6 +2267,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                             ::macro_ron::v2::SubtypeCategory::Spell => "spell_subtype",
                         },
                         ::macro_ron::v2::DeclarationKind::Type => "type",
+                        ::macro_ron::v2::DeclarationKind::TurnPart => "turn_part",
                         ::macro_ron::v2::DeclarationKind::CounterKind => "counter_kind",
                         ::macro_ron::v2::DeclarationKind::Designation => "designation",
                     };

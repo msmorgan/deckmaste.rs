@@ -402,6 +402,7 @@ fn declaration_determinative_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                 },
             );
             let nominal = match member.nominal_license() {
+                ::macro_ron::v2::DeterminativeNominalLicense::AnyNominal => quote! { NominalLicense::AnyNominal },
                 ::macro_ron::v2::DeterminativeNominalLicense::CountNominal => quote! { NominalLicense::CountNominal },
                 ::macro_ron::v2::DeterminativeNominalLicense::BareSingularNoun => quote! { NominalLicense::BareSingularNoun },
                 ::macro_ron::v2::DeterminativeNominalLicense::MassOrPluralCount => quote! { NominalLicense::MassOrPluralCount },
@@ -461,6 +462,9 @@ fn verb_lexeme_arm(plan: &SemanticPlan) -> Option<TokenStream> {
 }
 
 fn noun_lexeme_arm(plan: &SemanticPlan) -> Option<TokenStream> {
+    if plan.runtime_aggregate_noun().is_some() {
+        return None;
+    }
     plan.runtime_noun_lexeme().map(|lexeme| {
         let candidates = noun_surface_candidates(lexeme);
         quote! {
@@ -545,6 +549,9 @@ fn declaration_noun_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
             crate::semantic::DeclarationKindFamily::Type => {
                 quote! { ::macro_ron::v2::DeclarationKind::Type }
             }
+            crate::semantic::DeclarationKindFamily::TurnPart => {
+                quote! { ::macro_ron::v2::DeclarationKind::TurnPart }
+            }
             crate::semantic::DeclarationKindFamily::Subtype => {
                 quote! { ::macro_ron::v2::DeclarationKind::Subtype(_) }
             }
@@ -559,6 +566,7 @@ fn declaration_noun_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
             crate::feature::Feature::Agreement
             | crate::feature::Feature::Cardinality
             | crate::feature::Feature::Compoundability
+            | crate::feature::Feature::Countability
             | crate::feature::Feature::ModifierLicense
             | crate::feature::Feature::DeterminerNumber
             | crate::feature::Feature::FusedHeadLicense
@@ -566,7 +574,9 @@ fn declaration_noun_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
             | crate::feature::Feature::NominalLicense
             | crate::feature::Feature::Onset
             | crate::feature::Feature::Participle
-            | crate::feature::Feature::PossessiveEnding => {
+            | crate::feature::Feature::PossessiveEnding
+            | crate::feature::Feature::Properness
+            | crate::feature::Feature::Relationality => {
                 unreachable!("validated declaration_noun has the Number feature axis")
             }
         };

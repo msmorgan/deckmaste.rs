@@ -44,6 +44,7 @@ pub enum Declaration {
     AbilityWord(DeclarationFields),
     Subtype(SubtypeDeclaration),
     Type(DeclarationFields),
+    TurnPart(DeclarationFields),
     CounterKind(DeclarationFields),
     Designation(DeclarationFields),
 }
@@ -58,6 +59,7 @@ impl Declaration {
             Declaration::AbilityWord(_) => DeclarationKind::AbilityWord,
             Declaration::Subtype(declaration) => DeclarationKind::Subtype(declaration.category),
             Declaration::Type(_) => DeclarationKind::Type,
+            Declaration::TurnPart(_) => DeclarationKind::TurnPart,
             Declaration::CounterKind(_) => DeclarationKind::CounterKind,
             Declaration::Designation(_) => DeclarationKind::Designation,
         }
@@ -73,6 +75,7 @@ impl Declaration {
                 declaration.into_fields(),
             ),
             Declaration::Type(fields) => (DeclarationKind::Type, fields),
+            Declaration::TurnPart(fields) => (DeclarationKind::TurnPart, fields),
             Declaration::CounterKind(fields) => (DeclarationKind::CounterKind, fields),
             Declaration::Designation(fields) => (DeclarationKind::Designation, fields),
         }
@@ -132,6 +135,7 @@ pub enum DeclarationKind {
     AbilityWord,
     Subtype(SubtypeCategory),
     Type,
+    TurnPart,
     CounterKind,
     Designation,
 }
@@ -144,6 +148,7 @@ impl fmt::Display for DeclarationKind {
             DeclarationKind::AbilityWord => f.write_str("ability word"),
             DeclarationKind::Subtype(category) => write!(f, "{category} subtype"),
             DeclarationKind::Type => f.write_str("type"),
+            DeclarationKind::TurnPart => f.write_str("turn part"),
             DeclarationKind::CounterKind => f.write_str("counter kind"),
             DeclarationKind::Designation => f.write_str("designation"),
         }
@@ -301,6 +306,7 @@ pub enum DeterminativeNumberLicense {
 /// The kind of nominal selected by one Determinative realization.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum DeterminativeNominalLicense {
+    AnyNominal,
     CountNominal,
     BareSingularNoun,
     MassOrPluralCount,
@@ -676,6 +682,7 @@ enum DiagnosticDeclaration<'a> {
     AbilityWord(#[serde(borrow)] DiagnosticFields<'a>),
     Subtype(#[serde(borrow)] DiagnosticSubtype<'a>),
     Type(#[serde(borrow)] DiagnosticFields<'a>),
+    TurnPart(#[serde(borrow)] DiagnosticFields<'a>),
     CounterKind(#[serde(borrow)] DiagnosticFields<'a>),
     Designation(#[serde(borrow)] DiagnosticFields<'a>),
 }
@@ -918,6 +925,7 @@ impl ValidationSourceMap {
             | DiagnosticDeclaration::KeywordAbility(fields)
             | DiagnosticDeclaration::AbilityWord(fields)
             | DiagnosticDeclaration::Type(fields)
+            | DiagnosticDeclaration::TurnPart(fields)
             | DiagnosticDeclaration::CounterKind(fields)
             | DiagnosticDeclaration::Designation(fields) => Self::from_fields(
                 path,
@@ -1356,6 +1364,21 @@ fn normalize(
     })
 }
 
+type NormalizedGrammarParts = (
+    String,
+    GrammarRecipe,
+    Vec<RealizedSurface>,
+    Option<RealizedSurface>,
+    Option<RealizedSurface>,
+);
+
+#[derive(Clone, Copy)]
+struct FixedGrammarPositions {
+    surface: SourcePosition,
+    participial_adjective: Option<SourcePosition>,
+    block_label: Option<SourcePosition>,
+}
+
 fn normalize_grammar(
     path: &Path,
     source_map: &GrammarSourceMap,
@@ -1437,33 +1460,15 @@ fn normalize_grammar(
                     singular: singular_position,
                     plural: plural_position,
                 },
-            ) => {
-                validate_surface(path, *singular_position, "singular", &singular)?;
-                let plural = realize_derived_surface(
-                    path,
-                    *singular_position,
-                    *plural_position,
-                    "plural",
-                    english_noun(&singular),
-                    plural,
-                )?;
-                let mut surfaces = vec![RealizedSurface {
-                    feature: SurfaceFeature::Singular,
-                    onset: normalized_onset(path, *singular_position, &singular, singular_onset)?,
-                    onset_override: singular_onset,
-                    text: singular.clone(),
-                }];
-                if let Some(text) = plural {
-                    let position = plural_position.unwrap_or(*singular_position);
-                    surfaces.push(RealizedSurface {
-                        feature: SurfaceFeature::Plural,
-                        onset: normalized_onset(path, position, &text, plural_onset)?,
-                        onset_override: plural_onset,
-                        text,
-                    });
-                }
-                (singular, GrammarRecipe::Noun, surfaces, None, None)
-            }
+            ) => normalize_noun_grammar(
+                path,
+                *singular_position,
+                *plural_position,
+                singular,
+                singular_onset,
+                plural,
+                plural_onset,
+            )?,
             (
                 Grammar::FixedTerm { surface, onset },
                 GrammarSourceMap::Fixed {
@@ -1498,9 +1503,11 @@ fn normalize_grammar(
                 },
             ) => normalize_fixed_keyword_grammar(
                 path,
-                *position,
-                *participial_adjective_surface,
-                *block_label_surface,
+                FixedGrammarPositions {
+                    surface: *position,
+                    participial_adjective: *participial_adjective_surface,
+                    block_label: *block_label_surface,
+                },
                 surface,
                 onset,
                 participial_adjective,
@@ -1519,12 +1526,50 @@ fn normalize_grammar(
         path,
         spelling_position,
         spelling,
-        grammar_head,
-        recipe,
-        surfaces,
-        participial_adjective,
-        block_label,
+        (
+            grammar_head,
+            recipe,
+            surfaces,
+            participial_adjective,
+            block_label,
+        ),
     )
+}
+
+fn normalize_noun_grammar(
+    path: &Path,
+    singular_position: SourcePosition,
+    plural_position: Option<SourcePosition>,
+    singular: String,
+    singular_onset: Option<Onset>,
+    plural: DerivedSurface,
+    plural_onset: Option<Onset>,
+) -> Result<NormalizedGrammarParts, ReadError> {
+    validate_surface(path, singular_position, "singular", &singular)?;
+    let plural = realize_derived_surface(
+        path,
+        singular_position,
+        plural_position,
+        "plural",
+        english_noun(&singular),
+        plural,
+    )?;
+    let mut surfaces = vec![RealizedSurface {
+        feature: SurfaceFeature::Singular,
+        onset: normalized_onset(path, singular_position, &singular, singular_onset)?,
+        onset_override: singular_onset,
+        text: singular.clone(),
+    }];
+    if let Some(text) = plural {
+        let position = plural_position.unwrap_or(singular_position);
+        surfaces.push(RealizedSurface {
+            feature: SurfaceFeature::Plural,
+            onset: normalized_onset(path, position, &text, plural_onset)?,
+            onset_override: plural_onset,
+            text,
+        });
+    }
+    Ok((singular, GrammarRecipe::Noun, surfaces, None, None))
 }
 
 fn normalize_fixed_grammar(
@@ -1533,42 +1578,22 @@ fn normalize_fixed_grammar(
     surface: String,
     onset: Option<Onset>,
     recipe: GrammarRecipe,
-) -> Result<
-    (
-        String,
-        GrammarRecipe,
-        Vec<RealizedSurface>,
-        Option<RealizedSurface>,
-        Option<RealizedSurface>,
-    ),
-    ReadError,
-> {
+) -> Result<NormalizedGrammarParts, ReadError> {
     let (head, recipe, surfaces) = fixed_grammar(path, position, surface, onset, recipe)?;
     Ok((head, recipe, surfaces, None, None))
 }
 
 fn normalize_fixed_keyword_grammar(
     path: &Path,
-    surface_position: SourcePosition,
-    participial_adjective_position: Option<SourcePosition>,
-    block_label_position: Option<SourcePosition>,
+    positions: FixedGrammarPositions,
     surface: String,
     onset: Option<Onset>,
     participial_adjective: Option<ParticipialAdjectiveGrammar>,
     block_label: Option<BlockLabelGrammar>,
-) -> Result<
-    (
-        String,
-        GrammarRecipe,
-        Vec<RealizedSurface>,
-        Option<RealizedSurface>,
-        Option<RealizedSurface>,
-    ),
-    ReadError,
-> {
+) -> Result<NormalizedGrammarParts, ReadError> {
     let (head, recipe, surfaces) = fixed_grammar(
         path,
-        surface_position,
+        positions.surface,
         surface,
         onset,
         GrammarRecipe::FixedKeyword,
@@ -1577,15 +1602,17 @@ fn normalize_fixed_keyword_grammar(
         .map(|grammar| {
             normalize_participial_adjective(
                 path,
-                surface_position,
-                participial_adjective_position,
+                positions.surface,
+                positions.participial_adjective,
                 &head,
                 grammar,
             )
         })
         .transpose()?;
     let block_label = block_label
-        .map(|grammar| normalize_block_label(path, surface_position, block_label_position, grammar))
+        .map(|grammar| {
+            normalize_block_label(path, positions.surface, positions.block_label, grammar)
+        })
         .transpose()?;
     Ok((head, recipe, surfaces, participial_adjective, block_label))
 }
@@ -1594,12 +1621,9 @@ fn finish_grammar_normalization(
     path: &Path,
     spelling_position: SourcePosition,
     spelling: &[SpellingPart],
-    grammar_head: String,
-    recipe: GrammarRecipe,
-    surfaces: Vec<RealizedSurface>,
-    participial_adjective: Option<RealizedSurface>,
-    block_label: Option<RealizedSurface>,
+    normalized: NormalizedGrammarParts,
 ) -> Result<GrammarRow, ReadError> {
+    let (grammar_head, recipe, surfaces, participial_adjective, block_label) = normalized;
     let spelling_head = spelling_head(spelling);
     if spelling_head != grammar_head {
         return Err(validation_error_at(
@@ -2105,6 +2129,7 @@ fn expected_builtin_identity(
         ["keyword_abilities", _] => DeclarationKind::KeywordAbility,
         ["ability_words", _] => DeclarationKind::AbilityWord,
         ["types", _] => DeclarationKind::Type,
+        ["turn_parts", _] => DeclarationKind::TurnPart,
         ["counter_kinds", _] => DeclarationKind::CounterKind,
         ["designations", _] => DeclarationKind::Designation,
         ["subtypes", category, _] => DeclarationKind::Subtype(match *category {

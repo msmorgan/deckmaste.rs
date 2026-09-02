@@ -1,0 +1,6 @@
+TurnPart(
+    name: "EndingPhase",
+    spelling: "ending phase",
+    grammar: Noun(singular: "ending phase"),
+    params: [],
+)

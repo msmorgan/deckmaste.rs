@@ -1,0 +1,6 @@
+TurnPart(
+    name: "EndOfCombatStep",
+    spelling: "end of combat step",
+    grammar: Noun(singular: "end of combat step"),
+    params: [],
+)

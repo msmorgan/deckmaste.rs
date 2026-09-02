@@ -781,6 +781,7 @@ fn feature_from_ident(ident: &Ident) -> Option<Feature> {
         "agreement" => Some(Feature::Agreement),
         "cardinality" => Some(Feature::Cardinality),
         "compoundability" => Some(Feature::Compoundability),
+        "countability" => Some(Feature::Countability),
         "modifier_license" => Some(Feature::ModifierLicense),
         "determiner_number" => Some(Feature::DeterminerNumber),
         "fused_head_license" => Some(Feature::FusedHeadLicense),
@@ -790,6 +791,8 @@ fn feature_from_ident(ident: &Ident) -> Option<Feature> {
         "onset" => Some(Feature::Onset),
         "possessive_ending" => Some(Feature::PossessiveEnding),
         "participle" => Some(Feature::Participle),
+        "properness" => Some(Feature::Properness),
+        "relationality" => Some(Feature::Relationality),
         _ => None,
     }
 }
@@ -797,7 +800,10 @@ fn feature_from_ident(ident: &Ident) -> Option<Feature> {
 fn lexeme_feature_from_ident(ident: &Ident) -> Option<Feature> {
     (ident == "Compoundability")
         .then_some(Feature::Compoundability)
+        .or_else(|| (ident == "Countability").then_some(Feature::Countability))
         .or_else(|| (ident == "ModifierLicense").then_some(Feature::ModifierLicense))
+        .or_else(|| (ident == "Properness").then_some(Feature::Properness))
+        .or_else(|| (ident == "Relationality").then_some(Feature::Relationality))
         .or_else(|| feature_from_ident(ident))
 }
 

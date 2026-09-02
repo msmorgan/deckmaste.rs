@@ -120,10 +120,28 @@ pub(crate) fn emit(
                     items.push(emit_lexeme_compoundability_helper(row, origin.clone()));
                 }
                 if row
+                    .feature_members(crate::feature::Feature::Countability)
+                    .is_some()
+                {
+                    items.push(emit_lexeme_countability_helper(row, origin.clone()));
+                }
+                if row
                     .feature_members(crate::feature::Feature::ModifierLicense)
                     .is_some()
                 {
                     items.push(emit_lexeme_modifier_license_helper(row, origin.clone()));
+                }
+                if row
+                    .feature_members(crate::feature::Feature::Properness)
+                    .is_some()
+                {
+                    items.push(emit_lexeme_properness_helper(row, origin.clone()));
+                }
+                if row
+                    .feature_members(crate::feature::Feature::Relationality)
+                    .is_some()
+                {
+                    items.push(emit_lexeme_relationality_helper(row, origin.clone()));
                 }
                 contributions.push(TerminalContribution::new(
                     origin,
@@ -286,7 +304,7 @@ pub(crate) fn emit(
                             }
                         }
                     },
-                    vec![origin],
+                    vec![origin.clone()],
                 ));
             }
             TerminalPlan::CatalogIdentity(row) => {
@@ -413,6 +431,9 @@ pub(crate) fn emit(
                     crate::semantic::DeclarationKindFamily::Type => {
                         quote! { ::macro_ron::v2::DeclarationKind::Type }
                     }
+                    crate::semantic::DeclarationKindFamily::TurnPart => {
+                        quote! { ::macro_ron::v2::DeclarationKind::TurnPart }
+                    }
                     crate::semantic::DeclarationKindFamily::Subtype => {
                         quote! { ::macro_ron::v2::DeclarationKind::Subtype(_) }
                     }
@@ -475,8 +496,14 @@ pub(crate) fn emit(
                             Declaration(#declaration),
                         }
                     },
-                    vec![origin],
+                    vec![origin.clone()],
                 ));
+                if let Some(closed) = row.closed_lexeme() {
+                    let closed = validated
+                        .lexeme(&closed.to_string())
+                        .expect("validated aggregate noun closed branch names a lexeme");
+                    items.extend(emit_aggregate_noun_feature_helpers(row, closed));
+                }
             }
             TerminalPlan::DeclarationDeterminative(row) => {
                 let origin = row.origin().clone();
@@ -657,13 +684,16 @@ fn emit_lexeme_surface_helper(
         crate::Feature::Participle => (quote! { Participle }, quote! { participle }),
         crate::Feature::Cardinality
         | crate::Feature::Compoundability
+        | crate::Feature::Countability
         | crate::Feature::ModifierLicense
         | crate::Feature::DeterminerNumber
         | crate::Feature::FusedHeadLicense
         | crate::Feature::NominalForm
         | crate::Feature::NominalLicense
         | crate::Feature::Onset
-        | crate::Feature::PossessiveEnding => {
+        | crate::Feature::PossessiveEnding
+        | crate::Feature::Properness
+        | crate::Feature::Relationality => {
             unreachable!("derived surface features are not morphology axes")
         }
     };
@@ -740,6 +770,223 @@ fn emit_lexeme_compoundability_helper(
         quote! { fn #function(value: #ty) -> Compoundability { match value { #(#members),* } } },
         vec![origin],
     )
+}
+
+fn emit_lexeme_countability_helper(
+    lexeme: &crate::semantic::LexemePlan,
+    origin: DeclarationKey,
+) -> GeneratedItem {
+    let function_name = feature_helper("countability", lexeme.name());
+    let function = emitted_ident(&function_name, lexeme.name_ident().span());
+    let ty = emitted_ident(lexeme.name(), lexeme.name_ident().span());
+    let members = lexeme
+        .feature_members(crate::feature::Feature::Countability)
+        .expect("requested sealed countability metadata")
+        .iter()
+        .map(|(member, value)| {
+            let member = emitted_ident(member, lexeme.name_ident().span());
+            let value = match value {
+                crate::feature::FeatureValue::Count => quote! { Countability::Count },
+                crate::feature::FeatureValue::Mass => quote! { Countability::Mass },
+                _ => unreachable!("sealed countability has its closed domain"),
+            };
+            quote! { #ty::#member => #value }
+        });
+    GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function_name,
+        },
+        quote! { fn #function(value: #ty) -> Countability { match value { #(#members),* } } },
+        vec![origin],
+    )
+}
+
+fn emit_lexeme_properness_helper(
+    lexeme: &crate::semantic::LexemePlan,
+    origin: DeclarationKey,
+) -> GeneratedItem {
+    let function_name = feature_helper("properness", lexeme.name());
+    let function = emitted_ident(&function_name, lexeme.name_ident().span());
+    let ty = emitted_ident(lexeme.name(), lexeme.name_ident().span());
+    let members = lexeme
+        .feature_members(crate::feature::Feature::Properness)
+        .expect("requested sealed properness metadata")
+        .iter()
+        .map(|(member, value)| {
+            let member = emitted_ident(member, lexeme.name_ident().span());
+            let value = match value {
+                crate::feature::FeatureValue::Common => quote! { Properness::Common },
+                crate::feature::FeatureValue::Proper => quote! { Properness::Proper },
+                _ => unreachable!("sealed properness has its closed domain"),
+            };
+            quote! { #ty::#member => #value }
+        });
+    GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function_name,
+        },
+        quote! { fn #function(value: #ty) -> Properness { match value { #(#members),* } } },
+        vec![origin],
+    )
+}
+
+fn emit_lexeme_relationality_helper(
+    lexeme: &crate::semantic::LexemePlan,
+    origin: DeclarationKey,
+) -> GeneratedItem {
+    let function_name = feature_helper("relationality", lexeme.name());
+    let function = emitted_ident(&function_name, lexeme.name_ident().span());
+    let ty = emitted_ident(lexeme.name(), lexeme.name_ident().span());
+    let members = lexeme
+        .feature_members(crate::feature::Feature::Relationality)
+        .expect("requested sealed relationality metadata")
+        .iter()
+        .map(|(member, value)| {
+            let member = emitted_ident(member, lexeme.name_ident().span());
+            let value = match value {
+                crate::feature::FeatureValue::NonRelational => {
+                    quote! { Relationality::NonRelational }
+                }
+                crate::feature::FeatureValue::Relational => {
+                    quote! { Relationality::Relational }
+                }
+                _ => unreachable!("sealed relationality has its closed domain"),
+            };
+            quote! { #ty::#member => #value }
+        });
+    GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function_name,
+        },
+        quote! { fn #function(value: #ty) -> Relationality { match value { #(#members),* } } },
+        vec![origin],
+    )
+}
+
+fn emit_aggregate_noun_feature_helpers(
+    noun: &crate::semantic::DeclarationNounPlan,
+    closed: &crate::semantic::LexemePlan,
+) -> Vec<GeneratedItem> {
+    let ty = noun.codec_ident();
+    let origin = noun.origin().clone();
+    let closed_ident = closed.name_ident();
+    let compoundability_name = feature_helper("compoundability", noun.codec_name());
+    let compoundability = emitted_ident(&compoundability_name, ty.span());
+    let closed_compoundability = emitted_ident(
+        &feature_helper("compoundability", closed.name()),
+        closed_ident.span(),
+    );
+    let countability_name = feature_helper("countability", noun.codec_name());
+    let countability = emitted_ident(&countability_name, ty.span());
+    let closed_countability = emitted_ident(
+        &feature_helper("countability", closed.name()),
+        closed_ident.span(),
+    );
+    let properness_name = feature_helper("properness", noun.codec_name());
+    let properness = emitted_ident(&properness_name, ty.span());
+    let closed_properness = emitted_ident(
+        &feature_helper("properness", closed.name()),
+        closed_ident.span(),
+    );
+    let relationality_name = feature_helper("relationality", noun.codec_name());
+    let relationality = emitted_ident(&relationality_name, ty.span());
+    let closed_relationality = emitted_ident(
+        &feature_helper("relationality", closed.name()),
+        closed_ident.span(),
+    );
+    let mut items = Vec::new();
+    if closed
+        .feature_members(crate::feature::Feature::Compoundability)
+        .is_some()
+    {
+        items.push(GeneratedItem::new(
+            ItemKey::Named {
+                kind: NamedKind::Function,
+                name: compoundability_name,
+            },
+            quote! {
+                fn #compoundability(value: impl ::std::borrow::Borrow<#ty>) -> Compoundability {
+                    match ::std::borrow::Borrow::borrow(&value) {
+                        #ty::Lexeme(value) => #closed_compoundability(*value),
+                        #ty::Declaration(_) => Compoundability::Compoundable,
+                    }
+                }
+            },
+            vec![origin.clone()],
+        ));
+    }
+    if closed
+        .feature_members(crate::feature::Feature::Countability)
+        .is_some()
+    {
+        items.push(GeneratedItem::new(
+            ItemKey::Named {
+                kind: NamedKind::Function,
+                name: countability_name,
+            },
+            quote! {
+                fn #countability(value: impl ::std::borrow::Borrow<#ty>) -> Countability {
+                    match ::std::borrow::Borrow::borrow(&value) {
+                        #ty::Lexeme(value) => #closed_countability(*value),
+                        #ty::Declaration(_) => Countability::Count,
+                    }
+                }
+            },
+            vec![origin.clone()],
+        ));
+    }
+    if closed
+        .feature_members(crate::feature::Feature::Properness)
+        .is_some()
+    {
+        items.push(GeneratedItem::new(
+            ItemKey::Named {
+                kind: NamedKind::Function,
+                name: properness_name,
+            },
+            quote! {
+                fn #properness(value: impl ::std::borrow::Borrow<#ty>) -> Properness {
+                    match ::std::borrow::Borrow::borrow(&value) {
+                        #ty::Lexeme(value) => #closed_properness(*value),
+                        #ty::Declaration(value) => match value.id().kind() {
+                            ::macro_ron::v2::DeclarationKind::Subtype(_) => Properness::Proper,
+                            _ => Properness::Common,
+                        },
+                    }
+                }
+            },
+            vec![origin.clone()],
+        ));
+    }
+    if closed
+        .feature_members(crate::feature::Feature::Relationality)
+        .is_some()
+    {
+        items.push(GeneratedItem::new(
+            ItemKey::Named {
+                kind: NamedKind::Function,
+                name: relationality_name,
+            },
+            quote! {
+                fn #relationality(value: impl ::std::borrow::Borrow<#ty>) -> Relationality {
+                    match ::std::borrow::Borrow::borrow(&value) {
+                        #ty::Lexeme(value) => #closed_relationality(*value),
+                        #ty::Declaration(value) => match value.id().kind() {
+                            ::macro_ron::v2::DeclarationKind::TurnPart => {
+                                Relationality::Relational
+                            }
+                            _ => Relationality::NonRelational,
+                        },
+                    }
+                }
+            },
+            vec![origin],
+        ));
+    }
+    items
 }
 
 fn emit_lexeme_modifier_license_helper(
@@ -973,6 +1220,64 @@ mod tests {
         assert!(
             !source.contains("\"two_words\""),
             "member spelling became a lemma: {source}"
+        );
+    }
+
+    #[test]
+    fn aggregate_noun_relationality_preserves_core_metadata_and_declaration_provenance() {
+        let expansion = crate::generate(quote::quote! {
+            morphology EnglishNoun { feature = Number; recipe = english_noun; }
+            lexeme CoreNoun using EnglishNoun {
+                feature Relationality = NonRelational;
+                Player = "player",
+                End = "end" { feature Relationality = Relational; },
+            }
+            codec Noun {
+                generate declaration_noun {
+                    closed = CoreNoun;
+                    position = Noun;
+                    kinds = [Type, Subtype, TurnPart];
+                    feature = Number;
+                }
+            }
+            construction relational: Phrase {
+                element Relational { head: lex Noun, }
+                require head.relationality is Relational;
+                derive head.number = Values::Singular;
+                derive number = head.number;
+                form relational = noun(head);
+            }
+            root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("aggregate noun relationality generates");
+        let helper = expansion
+            .items()
+            .iter()
+            .find(|item| {
+                matches!(
+                    &item.key,
+                    ItemKey::Named { name, .. } if name == "relationality_for_noun"
+                )
+            })
+            .expect("aggregate relationality helper is emitted");
+
+        assert_eq!(
+            parse_item(helper),
+            syn::parse_quote! {
+                fn relationality_for_noun(
+                    value: impl ::std::borrow::Borrow<Noun>
+                ) -> Relationality {
+                    match ::std::borrow::Borrow::borrow(&value) {
+                        Noun::Lexeme(value) => relationality_for_core_noun(*value),
+                        Noun::Declaration(value) => match value.id().kind() {
+                            ::macro_ron::v2::DeclarationKind::TurnPart => {
+                                Relationality::Relational
+                            }
+                            _ => Relationality::NonRelational,
+                        },
+                    }
+                }
+            }
         );
     }
 

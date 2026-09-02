@@ -947,30 +947,22 @@ mod tests {
     }
 
     #[test]
-    fn declaration_noun_roles_resolve_to_exact_source_ordered_terminal_plans() {
+    fn declaration_noun_roles_share_one_aggregate_inventory_terminal() {
         let source: proc_macro2::TokenStream = quote::quote! {
             morphology EnglishNoun { feature = Number; recipe = english_noun; }
             lexeme NounLexeme using EnglishNoun { Player = "player", }
-            codec TypeNoun {
+            codec Noun {
                 generate declaration_noun {
                     closed = NounLexeme;
                     position = Noun;
-                    kinds = [Type];
-                    feature = Number;
-                }
-            }
-            codec CreatureNoun {
-                generate declaration_noun {
-                    closed = NounLexeme;
-                    position = Noun;
-                    kinds = [Subtype(Creature)];
+                    kinds = [Type, Subtype(Creature), TurnPart];
                     feature = Number;
                 }
             }
             construction modified: Phrase {
                 element Modified {
-                    modifier: lex TypeNoun,
-                    head: lex CreatureNoun,
+                    modifier: lex Noun,
+                    head: lex Noun,
                 }
                 derive modifier.number = Values::Singular;
                 derive head.number = modifier.number;
@@ -989,24 +981,22 @@ mod tests {
             .runtime_declaration_nouns()
             .map(|(index, terminal)| (index, terminal.codec_name()))
             .collect::<Vec<_>>();
-        assert_eq!(terminals, [(1, "TypeNoun"), (2, "CreatureNoun")]);
+        assert_eq!(terminals, [(1, "Noun")]);
 
         let construction = plan
             .constructions()
             .iter()
             .find(|construction| construction.construction_id() == "modified")
             .expect("the consumer construction is sealed");
-        for (role, expected_type, expected_index) in
-            [("modifier", "TypeNoun", 1), ("head", "CreatureNoun", 2)]
-        {
+        for role in ["modifier", "head"] {
             let field = construction.field(role).expect("the noun role is sealed");
-            assert_eq!(field.terminal(), expected_type);
+            assert_eq!(field.terminal(), "Noun");
             assert!(matches!(
                 plan.atom_terminal(field.terminal()),
                 Ok(crate::semantic::AtomTerminal::DeclarationNoun {
                     terminal_index,
                     plan: terminal,
-                }) if terminal_index == expected_index && terminal.codec_name() == expected_type
+                }) if terminal_index == 1 && terminal.codec_name() == "Noun"
             ));
         }
     }
@@ -2002,7 +1992,7 @@ mod tests {
                 generate declaration_noun {
                     closed = NounLexeme;
                     position = Noun;
-                    kinds = [Type, Subtype];
+                    kinds = [Type, Subtype, TurnPart];
                     feature = Number;
                 }
             }
@@ -2716,7 +2706,7 @@ mod tests {
                 },
             ]
         );
-        assert_eq!(keys.len(), 100);
+        assert_eq!(keys.len(), 109);
         assert_representative_agreement_match(&first);
         assert!(keys.contains(&&ItemKey::Named {
             kind: NamedKind::Trait,

@@ -192,7 +192,9 @@ fn builtin_noun_morphology(root: &Path) -> anyhow::Result<BuiltinNounMorphology>
             .map_err(anyhow::Error::new)
             .with_context(|| format!("reparsing authenticated noun source {}", path.display()))?;
         let (name, grammar) = match &raw {
-            Declaration::Type(fields) => (&fields.name, fields.grammar.as_ref()),
+            Declaration::Type(fields) | Declaration::TurnPart(fields) => {
+                (&fields.name, fields.grammar.as_ref())
+            }
             Declaration::Subtype(fields) => (&fields.name, fields.grammar.as_ref()),
             Declaration::KeywordAction(_)
             | Declaration::KeywordAbility(_)
@@ -262,6 +264,7 @@ fn declaration_kind_key(kind: macro_ron::v2::DeclarationKind) -> &'static str {
             macro_ron::v2::SubtypeCategory::Spell => "spell_subtype",
         },
         macro_ron::v2::DeclarationKind::Type => "type",
+        macro_ron::v2::DeclarationKind::TurnPart => "turn_part",
         macro_ron::v2::DeclarationKind::CounterKind => "counter_kind",
         macro_ron::v2::DeclarationKind::Designation => "designation",
     }
@@ -724,8 +727,8 @@ mod tests {
         assert_eq!(
             report.noun_morphology,
             NounMorphologyCensus {
-                total: 472,
-                derived_plural: 146,
+                total: 491,
+                derived_plural: 165,
                 explicit_plural: 26,
                 unavailable_plural: 300,
             }
@@ -876,6 +879,7 @@ mod tests {
                 .expect("authenticated source reparses independently");
             let (name, kind_key, grammar) = match raw {
                 Declaration::Type(fields) => (fields.name, "type", fields.grammar),
+                Declaration::TurnPart(fields) => (fields.name, "turn_part", fields.grammar),
                 Declaration::Subtype(fields) => {
                     let kind_key = match fields.category {
                         macro_ron::v2::SubtypeCategory::Artifact => "artifact_subtype",
@@ -976,8 +980,8 @@ mod tests {
         let census = builtin_noun_morphology_census(&root)
             .expect("authenticated builtin-v2 noun sources census cleanly");
 
-        assert_eq!(census.total, 472);
-        assert_eq!(census.derived_plural, 146);
+        assert_eq!(census.total, 491);
+        assert_eq!(census.derived_plural, 165);
         assert_eq!(census.explicit_plural, 26);
         assert_eq!(census.unavailable_plural, 300);
         assert_eq!(

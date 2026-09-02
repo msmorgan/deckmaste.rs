@@ -233,6 +233,7 @@ pub enum Feature {
     Agreement,
     Cardinality,
     Compoundability,
+    Countability,
     ModifierLicense,
     DeterminerNumber,
     FusedHeadLicense,
@@ -242,6 +243,8 @@ pub enum Feature {
     Onset,
     Participle,
     PossessiveEnding,
+    Properness,
+    Relationality,
 }
 
 #[derive(Debug)]

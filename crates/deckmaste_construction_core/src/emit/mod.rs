@@ -361,6 +361,7 @@ pub(super) fn feature_type(feature: crate::feature::Feature) -> TokenStream {
         crate::feature::Feature::Agreement => quote! { Agreement },
         crate::feature::Feature::Cardinality => quote! { Cardinality },
         crate::feature::Feature::Compoundability => quote! { Compoundability },
+        crate::feature::Feature::Countability => quote! { Countability },
         crate::feature::Feature::ModifierLicense => quote! { ModifierLicense },
         crate::feature::Feature::DeterminerNumber => quote! { DeterminerNumber },
         crate::feature::Feature::FusedHeadLicense => quote! { FusedHeadLicense },
@@ -370,6 +371,8 @@ pub(super) fn feature_type(feature: crate::feature::Feature) -> TokenStream {
         crate::feature::Feature::Onset => quote! { Onset },
         crate::feature::Feature::Participle => quote! { Participle },
         crate::feature::Feature::PossessiveEnding => quote! { PossessiveEnding },
+        crate::feature::Feature::Properness => quote! { Properness },
+        crate::feature::Feature::Relationality => quote! { Relationality },
     }
 }
 
@@ -470,6 +473,7 @@ fn emit_predicate_atom(
                 crate::feature::Feature::Agreement => local_ident("Agreement"),
                 crate::feature::Feature::Cardinality => local_ident("Cardinality"),
                 crate::feature::Feature::Compoundability => local_ident("Compoundability"),
+                crate::feature::Feature::Countability => local_ident("Countability"),
                 crate::feature::Feature::ModifierLicense => local_ident("ModifierLicense"),
                 crate::feature::Feature::DeterminerNumber => local_ident("DeterminerNumber"),
                 crate::feature::Feature::FusedHeadLicense => local_ident("FusedHeadLicense"),
@@ -479,6 +483,8 @@ fn emit_predicate_atom(
                 crate::feature::Feature::Onset => local_ident("Onset"),
                 crate::feature::Feature::Participle => local_ident("Participle"),
                 crate::feature::Feature::PossessiveEnding => local_ident("PossessiveEnding"),
+                crate::feature::Feature::Properness => local_ident("Properness"),
+                crate::feature::Feature::Relationality => local_ident("Relationality"),
             };
             let members = allowed
                 .iter()
@@ -589,6 +595,7 @@ pub(super) fn declaration_kind(kind: macro_ron::v2::DeclarationKind) -> TokenStr
             quote! { ::macro_ron::v2::DeclarationKind::AbilityWord }
         }
         DeclarationKind::Type => quote! { ::macro_ron::v2::DeclarationKind::Type },
+        DeclarationKind::TurnPart => quote! { ::macro_ron::v2::DeclarationKind::TurnPart },
         DeclarationKind::CounterKind => quote! { ::macro_ron::v2::DeclarationKind::CounterKind },
         DeclarationKind::Designation => quote! { ::macro_ron::v2::DeclarationKind::Designation },
         DeclarationKind::Subtype(_) => unreachable!("open_verb validation excludes subtype kinds"),

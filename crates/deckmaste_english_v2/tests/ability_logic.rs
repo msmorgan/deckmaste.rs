@@ -227,6 +227,12 @@ fn finite_subject_coordination_and_exclusion_are_linguistic_structure() {
                 "Nominal",
                 "SingularNominalCoordination",
                 "SingularOrNominalCoordination",
+                "DeterminedNominal",
+                "Determinative",
+                "Nominal",
+                "DeterminedNominal",
+                "Determinative",
+                "Nominal",
             ][..],
             &[
                 "determinative:DeterminativeHead/IndefiniteArticle",
@@ -238,6 +244,12 @@ fn finite_subject_coordination_and_exclusion_are_linguistic_structure() {
             "FullNounPhraseCoordinationFullOrNounPhraseCoordination",
             &[
                 "FullOrNounPhraseCoordination",
+                "DeterminedNominal",
+                "Determinative",
+                "Nominal",
+                "DeterminedNominal",
+                "Determinative",
+                "Nominal",
                 "DeterminedNominal",
                 "Determinative",
                 "Nominal",
@@ -260,6 +272,12 @@ fn finite_subject_coordination_and_exclusion_are_linguistic_structure() {
                 "Nominal",
                 "SingularNominalCoordination",
                 "SingularOrNominalCoordination",
+                "DeterminedNominal",
+                "Determinative",
+                "Nominal",
+                "DeterminedNominal",
+                "Determinative",
+                "Nominal",
             ][..],
             &[
                 "determinative:DeterminativeHead/IndefiniteArticle",
@@ -271,6 +289,12 @@ fn finite_subject_coordination_and_exclusion_are_linguistic_structure() {
             "FullNounPhraseCoordinationFullOrNounPhraseCoordination",
             &[
                 "FullOrNounPhraseCoordination",
+                "DeterminedNominal",
+                "Determinative",
+                "Nominal",
+                "DeterminedNominal",
+                "Determinative",
+                "Nominal",
                 "DeterminedNominal",
                 "Determinative",
                 "Nominal",
@@ -291,6 +315,12 @@ fn finite_subject_coordination_and_exclusion_are_linguistic_structure() {
                 "DeterminedNominal",
                 "Determinative",
                 "Nominal",
+                "DeterminedNominal",
+                "Determinative",
+                "Nominal",
+                "DeterminedNominal",
+                "Determinative",
+                "Nominal",
             ][..],
             &["structural:FullOrNounPhraseCoordination/members/separator/pair/0"][..],
         ),
@@ -303,6 +333,12 @@ fn finite_subject_coordination_and_exclusion_are_linguistic_structure() {
                 "Nominal",
                 "SingularNominalCoordination",
                 "SingularAndOrNominalCoordination",
+                "DeterminedNominal",
+                "Determinative",
+                "Nominal",
+                "DeterminedNominal",
+                "Determinative",
+                "Nominal",
             ][..],
             &[
                 "determinative:DeterminativeHead/Another",
@@ -318,6 +354,12 @@ fn finite_subject_coordination_and_exclusion_are_linguistic_structure() {
                 "Determinative",
                 "Nominal",
                 "DemonstrativePossessiveReference",
+                "DeterminedNominal",
+                "Determinative",
+                "Nominal",
+                "DeterminedNominal",
+                "Determinative",
+                "Nominal",
             ][..],
             &[
                 "form:other_than_qualified_reference/other_than_qualified_reference/1",
@@ -480,7 +522,7 @@ fn existential_there_preserves_its_pivot_before_the_predicate_boundary() {
         "UnqualifiedReferenceDeterminedNominal",
         "PluralNominalModifiedPluralNominal",
         "NominalModifierSupertypeModifier",
-        "NominalModifierTypeModifier",
+        "NominalModifierNounModifier",
         "AmongPhraseAmongPhrase",
         "ControllerStageRelativeQualifiedReference",
         "PositiveObjectGapRelativeClausePositiveObjectGapRelative",
@@ -593,9 +635,9 @@ impl Visitor for ExistentialStructureVisitor {
         deckmaste_english_v2::visit::walk_supertype_modifier(self, value);
     }
 
-    fn visit_type_modifier(&mut self, value: &TypeModifier) {
-        self.0.push("TypeModifier");
-        deckmaste_english_v2::visit::walk_type_modifier(self, value);
+    fn visit_noun_modifier(&mut self, value: &NounModifier) {
+        self.0.push("NounModifier");
+        deckmaste_english_v2::visit::walk_noun_modifier(self, value);
     }
 
     fn visit_among_phrase(&mut self, value: &AmongPhrase) {
@@ -689,6 +731,12 @@ fn existential_there_derives_be_agreement_and_visits_the_complete_structure() {
     assert_eq!(
         visitor.0,
         [
+            "DeterminedNominal",
+            "Determinative",
+            "Nominal",
+            "DeterminedNominal",
+            "Determinative",
+            "Nominal",
             "ConditionClause",
             "ExistentialFiniteClause",
             "DeterminedNominal",
@@ -696,13 +744,16 @@ fn existential_there_derives_be_agreement_and_visits_the_complete_structure() {
             "Nominal",
             "ModifiedPluralNominal",
             "SupertypeModifier",
-            "TypeModifier",
+            "NounModifier",
             "AmongPhrase",
             "AmongPhraseValue",
             "RelativeQualifiedReference",
             "DeterminedNominal",
             "Nominal",
             "PositiveObjectGapRelative",
+            "DeterminedNominal",
+            "Determinative",
+            "Nominal",
             "DeterminedNominal",
             "Determinative",
             "Nominal",
@@ -745,10 +796,6 @@ impl Visitor for SelfReferenceVisitor {
 struct AbilityEnvelopeVisitor(Vec<&'static str>);
 
 impl Visitor for AbilityEnvelopeVisitor {
-    fn visit_at_boundary(&mut self, _value: AtBoundary) {
-        self.0.push("AtBoundary");
-    }
-
     fn visit_ability(&mut self, value: &Ability) {
         self.0.push("Ability");
         deckmaste_english_v2::visit::walk_ability(self, value);
@@ -786,18 +833,6 @@ impl Visitor for AbilityEnvelopeVisitor {
 
     fn visit_trigger_marker(&mut self, _value: TriggerMarker) {
         self.0.push("TriggerMarker");
-    }
-
-    fn visit_turn_owner_postmodifier(&mut self, _value: TurnOwnerPostmodifier) {
-        self.0.push("TurnOwnerPostmodifier");
-    }
-
-    fn visit_turn_part(&mut self, _value: TurnPart) {
-        self.0.push("TurnPart");
-    }
-
-    fn visit_turn_specifier(&mut self, _value: TurnSpecifier) {
-        self.0.push("TurnSpecifier");
     }
 
     fn visit_clause(&mut self, value: &Clause) {
@@ -969,11 +1004,6 @@ impl Visitor for CostVisitor {
         self.0.push(CostVisit::Node("TransitivePredicate"));
         deckmaste_english_v2::visit::walk_transitive_predicate(self, value);
     }
-
-    fn visit_life_amount(&mut self, value: &LifeAmount) {
-        self.0.push(CostVisit::Node("LifeAmount"));
-        deckmaste_english_v2::visit::walk_life_amount(self, value);
-    }
 }
 
 #[test]
@@ -1014,7 +1044,7 @@ fn finite_trigger_boundaries_preserve_case_ownership_and_structural_visit_order(
             (27, 31, "vocab:SubjectPronoun/You"),
             (31, 36, "core-verb:Gain"),
             (36, 38, "vocab:Variable/X"),
-            (38, 43, "form:life_amount/life_amount/2"),
+            (38, 43, "lexeme:CommonNoun/Life/singular"),
             (43, 44, "structural:Sentences/sentences/terminator/0"),
             (44, 45, "structural:Sentences/sentences/separator/uniform/0"),
             (45, 52, "lexeme:keyword_action/Destroy/bare"),
@@ -1356,10 +1386,10 @@ fn finite_temporal_and_intervening_trigger_prefixes_have_dedicated_generated_sha
     };
     assert!(intervening_if.as_ref().is_none());
     let AtPhrase::AtPhrase(phrase) = phrase;
-    assert_eq!(phrase.boundary(), AtBoundary::Beginning);
-    assert_eq!(phrase.specifier(), Some(&TurnSpecifier::EachPlayer));
-    assert_eq!(phrase.part(), TurnPart::DrawStep);
-    assert_eq!(phrase.postmodifier(), None);
+    assert!(matches!(
+        phrase.endpoint.as_ref(),
+        TemporalEndpoint::Reference(_)
+    ));
 
     let intervening_text = "Whenever a player connives, if you connive, you gain X life.";
     let intervening = assert_selected_trigger(&parser, &context, intervening_text);
@@ -1395,7 +1425,7 @@ fn finite_temporal_and_intervening_trigger_prefixes_have_dedicated_generated_sha
 }
 
 #[test]
-fn at_phrase_accepts_every_closed_vocabulary_member_and_restricted_cross_product() {
+fn at_phrase_composes_temporal_nouns_through_the_general_noun_phrase_grammar() {
     let parser = parser();
     let context = context("Context Card", false);
 
@@ -1444,29 +1474,29 @@ fn at_phrase_accepts_every_closed_vocabulary_member_and_restricted_cross_product
         "At the beginning of the next combat on your turn, you gain X life.",
         "At the beginning of the next combat on each opponent's turn, you gain X life.",
         "At end of combat, you gain X life.",
-    ] {
-        assert_selected_trigger(&parser, &context, text);
-    }
-
-    for invalid in [
         "At your upkeep, you gain X life.",
         "At end of turn, you gain X life.",
         "At the end of combat, you gain X life.",
         "At end of your combat, you gain X life.",
         "At the beginning of an opponent's upkeep, you gain X life.",
-        "At the beginning of luncheon, you gain X life.",
-        "At the beginning of each of your upkeep, you gain X life.",
         "At the beginning of each of your upkeeps, you gain X life.",
         "At the beginning of upkeep on your turn, you gain X life.",
         "At the beginning of draw step on each opponent's turn, you gain X life.",
         "At the beginning of your upkeep on your turn, you gain X life.",
         "At end of combat on your turn, you gain X life.",
-        "At the beginning of each of your combat on your turn, you gain X life.",
         "At the beginning of each of your combats on your turn, you gain X life.",
+    ] {
+        assert_selected_trigger(&parser, &context, text);
+    }
+
+    for invalid in [
+        "At the beginning of luncheon, you gain X life.",
+        "At the beginning of each of your upkeep, you gain X life.",
+        "At the beginning of each of your combat on your turn, you gain X life.",
     ] {
         assert!(
             parser.parse(invalid, &context).is_err(),
-            "forbidden At-phrase cross-product must not parse: {invalid}"
+            "unknown words and singular `each of` wholes remain ungrammatical: {invalid}"
         );
     }
 }
@@ -1509,15 +1539,23 @@ fn temporal_and_intervening_boundaries_own_exact_bytes_and_visit_structure() {
             ))
             .collect::<Vec<_>>(),
         [
-            (0, 2, "form:temporal/temporal/0"),
-            (2, 19, "vocab:AtBoundary/Beginning"),
-            (19, 33, "vocab:TurnSpecifier/EachPlayer"),
-            (33, 43, "vocab:TurnPart/DrawStep"),
+            (0, 2, "form:at_phrase/at_phrase/0"),
+            (2, 6, "determinative:DeterminativeHead/DefiniteArticle"),
+            (6, 16, "lexeme:CommonNoun/Beginning/singular"),
+            (16, 19, "form:of_phrase/of_phrase/0"),
+            (19, 24, "determinative:DeterminativeHead/Each"),
+            (24, 31, "lexeme:CommonNoun/Player/singular"),
+            (
+                31,
+                33,
+                "form:genitive_determiner_singular_reference/genitive_determiner_singular_reference/0/affix"
+            ),
+            (33, 43, "lexeme:turn_part/DrawStep/singular"),
             (43, 44, "form:triggered/triggered/1"),
             (44, 48, "vocab:SubjectPronoun/You"),
             (48, 53, "core-verb:Gain"),
             (53, 55, "vocab:Variable/X"),
-            (55, 60, "form:life_amount/life_amount/2"),
+            (55, 60, "lexeme:CommonNoun/Life/singular"),
             (60, 61, "structural:Sentences/sentences/terminator/0"),
         ]
     );
@@ -1533,9 +1571,6 @@ fn temporal_and_intervening_boundaries_own_exact_bytes_and_visit_structure() {
             "Temporal",
             "AtPhrase",
             "AtPhraseValue",
-            "AtBoundary",
-            "TurnSpecifier",
-            "TurnPart",
             "AbilityBody",
             "Sentences",
             "Clause",
@@ -1580,7 +1615,7 @@ fn temporal_and_intervening_boundaries_own_exact_bytes_and_visit_structure() {
             (43, 47, "vocab:SubjectPronoun/You"),
             (47, 52, "core-verb:Gain"),
             (52, 54, "vocab:Variable/X"),
-            (54, 59, "form:life_amount/life_amount/2"),
+            (54, 59, "lexeme:CommonNoun/Life/singular"),
             (59, 60, "structural:Sentences/sentences/terminator/0"),
         ]
     );
@@ -1625,9 +1660,6 @@ fn temporal_and_intervening_boundaries_own_exact_bytes_and_visit_structure() {
             "Temporal",
             "AtPhrase",
             "AtPhraseValue",
-            "AtBoundary",
-            "TurnPart",
-            "TurnOwnerPostmodifier",
             "AbilityBody",
             "Sentences",
             "Clause",
@@ -1831,15 +1863,19 @@ fn assert_selected_activated(parser: &Parser, context: &ParseContext<'_>, text: 
     let selected = analysis
         .selected()
         .unwrap_or_else(|| panic!("closed activated surface must select: {text}: {analysis:?}"));
-    assert_eq!(
-        analysis
-            .decision()
-            .expect("a selected activation has a selection decision")
-            .candidates()
-            .len(),
-        1,
-        "closed activated surface has one semantic candidate: {text}",
-    );
+    let decision = analysis
+        .decision()
+        .expect("a selected activation has a selection decision");
+    if text.contains(" X life.") {
+        assert_eq!(decision.candidates().len(), 2, "{text}: {decision:#?}");
+        assert_eq!(decision.resolution(), SelectionResolution::Specificity);
+    } else {
+        assert_eq!(decision.candidates().len(), 1, "{text}: {decision:#?}");
+        assert_eq!(decision.resolution(), SelectionResolution::Unique);
+    }
+    assert_eq!(decision.survivors(), [0], "{text}: {decision:#?}");
+    assert_eq!(decision.selected(), Some(0), "{text}: {decision:#?}");
+    assert!(decision.exception_uses().is_empty(), "{text}");
     assert_eq!(selected.render(context, parser.environment()), text);
     let ownership = analysis
         .ownership()
@@ -2063,15 +2099,14 @@ fn mixed_activation_has_exact_ast_render_build_visit_and_byte_ownership() {
     let selected = analysis
         .selected()
         .unwrap_or_else(|| panic!("mixed activation must select: {analysis:?}"));
-    assert_eq!(
-        analysis
-            .decision()
-            .expect("selected mixed activation has a decision")
-            .candidates()
-            .len(),
-        1,
-        "the generated build yields one semantic AST",
-    );
+    let decision = analysis
+        .decision()
+        .expect("selected mixed activation has a decision");
+    assert_eq!(decision.candidates().len(), 2, "{decision:#?}");
+    assert_eq!(decision.survivors(), [0], "{decision:#?}");
+    assert_eq!(decision.selected(), Some(0), "{decision:#?}");
+    assert_eq!(decision.resolution(), SelectionResolution::Specificity);
+    assert!(decision.exception_uses().is_empty());
     assert_eq!(selected.render(&context, parser.environment()), text);
 
     let Ability::Activated(activated) = selected else {
@@ -2149,7 +2184,7 @@ fn mixed_activation_has_exact_ast_render_build_visit_and_byte_ownership() {
             (46, 49, "vocab:SubjectPronoun/You"),
             (49, 54, "core-verb:Gain"),
             (54, 56, "vocab:Variable/X"),
-            (56, 61, "form:life_amount/life_amount/2"),
+            (56, 61, "lexeme:CommonNoun/Life/singular"),
             (61, 62, "structural:Sentences/sentences/terminator/0"),
             (62, 63, "structural:Sentences/sentences/separator/uniform/0"),
             (63, 70, "lexeme:keyword_action/Destroy/bare"),
@@ -2191,7 +2226,7 @@ fn mixed_activation_has_exact_ast_render_build_visit_and_byte_ownership() {
             CostVisit::Node("Sentence"),
             CostVisit::Node("Declarative"),
             CostVisit::Node("VerbPhrase"),
-            CostVisit::Node("LifeAmount"),
+            CostVisit::Node("TransitivePredicate"),
             CostVisit::Node("Sentence"),
             CostVisit::Node("Imperative"),
             CostVisit::Node("VerbPhrase"),
@@ -2285,12 +2320,46 @@ fn gain_life_predicate(magnitude: u32) -> VerbPhrase {
 
 fn gain_life(amount: Amount) -> VerbPhrase {
     let environment = environment();
-    let head = DeclarationLifeAmountVerb::new(
+    let head = DeclarationTransitiveVerb::new(
         &environment,
         VerbInventoryRef::Core(CoreVerbIdentity::Gain),
     )
-    .expect("the core inventory declares Gain with an amount-life frame");
-    VerbPhrase::LifeAmount(LifeAmount { head, amount })
+    .expect("the core inventory declares Gain with a transitive frame");
+    let determiner = Determiner::Headed(Determinative::MassQuantityDeterminer(
+        MassQuantityDeterminer { amount },
+    ));
+    let nominal = Nominal::MassNominal(MassNominal {
+        noun: MassNoun::MassNoun(
+            MassNounValue::new(Noun::Lexeme(CommonNoun::Life))
+                .expect("life is declared as a mass noun"),
+        ),
+    });
+    let reference = UnqualifiedReference::DeterminedNominal(
+        DeterminedNominal::new(determiner, nominal)
+            .expect("a quantity determiner licenses the mass noun life"),
+    );
+    let object = Object::ObjectNominal(NominalObject {
+        value: Box::new(NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
+            reference: Box::new(NumericStage::UnqualifiedNumericStage(
+                UnqualifiedNumericStage {
+                    reference: Box::new(LocativeStage::UnqualifiedLocativeStage(
+                        UnqualifiedLocativeStage {
+                            reference: Box::new(ControllerStage::UnqualifiedControllerStage(
+                                UnqualifiedControllerStage {
+                                    reference: Box::new(reference),
+                                },
+                            )),
+                        },
+                    )),
+                },
+            )),
+        })),
+    });
+    VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
+        frame: Box::new(BaseVerbFrame::TransitiveFrame(Box::new(
+            TransitiveFrame::TransitivePredicate(TransitivePredicate { head, object }),
+        ))),
+    })
 }
 
 fn you_subject() -> Subject {
@@ -2307,17 +2376,13 @@ fn plain_finite(subject: Subject, predicate: Predicate) -> FiniteClause {
 }
 
 fn predicate_identity(predicate: &VerbPhrase) -> String {
-    match predicate {
-        predicate if declared_action_name(predicate) == Some("Connive") => "connive".to_owned(),
-        VerbPhrase::LifeAmount(LifeAmount {
-            amount:
-                Amount::Number(NumberAmount {
-                    number: ScalarNumber { magnitude },
-                }),
-            ..
-        }) => format!("gain:{magnitude}"),
-        other => panic!("unexpected coordination predicate payload: {other:?}"),
+    if declared_action_name(predicate) == Some("Connive") {
+        return "connive".to_owned();
     }
+    if let Some(magnitude) = gain_life_magnitude(predicate) {
+        return format!("gain:{magnitude}");
+    }
+    panic!("unexpected coordination predicate payload: {predicate:?}")
 }
 
 fn coordinated_predicate_identity(predicate: &CoordinatedPredicate) -> String {
@@ -2344,6 +2409,35 @@ fn unqualified_reference(noun_phrase: &NounPhrase) -> &UnqualifiedReference {
     &controller.reference
 }
 
+fn gain_life_magnitude(predicate: &VerbPhrase) -> Option<u32> {
+    let VerbPhrase::BaseVerbPhrase(BaseVerbPhrase { frame }) = predicate else {
+        return None;
+    };
+    let BaseVerbFrame::TransitiveFrame(frame) = frame.as_ref() else {
+        return None;
+    };
+    let TransitiveFrame::TransitivePredicate(TransitivePredicate { head, object }) = frame.as_ref();
+    if head.reference() != &VerbInventoryRef::Core(CoreVerbIdentity::Gain) {
+        return None;
+    }
+    let Object::ObjectNominal(NominalObject { value }) = object else {
+        return None;
+    };
+    let UnqualifiedReference::DeterminedNominal(determined) = unqualified_reference(value) else {
+        return None;
+    };
+    let Determiner::Headed(Determinative::MassQuantityDeterminer(MassQuantityDeterminer {
+        amount:
+            Amount::Number(NumberAmount {
+                number: ScalarNumber { magnitude },
+            }),
+    })) = determined.det()
+    else {
+        return None;
+    };
+    matches!(determined.nominal, Nominal::MassNominal(_)).then_some(*magnitude)
+}
+
 fn is_indefinite_player(reference: &UnqualifiedReference) -> bool {
     let UnqualifiedReference::DeterminedNominal(determined) = reference else {
         return false;
@@ -2357,11 +2451,9 @@ fn is_indefinite_player(reference: &UnqualifiedReference) -> bool {
             &determined.nominal,
             Nominal::SingularNominalValue(SingularNominalValue {
                 nominal: SingularNominal::BareSingularNominal(BareSingularNominal {
-                    head: SingularHead::CommonSingularHead(CommonSingularHead {
-                        noun: CommonNoun::Player,
-                    }),
+                    head: SingularHead::NounSingularHead(head),
                 }),
-            })
+            }) if head.noun() == &Noun::Lexeme(CommonNoun::Player)
         )
 }
 
@@ -2371,9 +2463,10 @@ fn indefinite_player_reference() -> UnqualifiedReference {
     });
     let nominal = Nominal::SingularNominalValue(SingularNominalValue {
         nominal: SingularNominal::BareSingularNominal(BareSingularNominal {
-            head: SingularHead::CommonSingularHead(CommonSingularHead {
-                noun: CommonNoun::Player,
-            }),
+            head: SingularHead::NounSingularHead(
+                NounSingularHead::new(Noun::Lexeme(CommonNoun::Player))
+                    .expect("player is a count noun"),
+            ),
         }),
     });
     UnqualifiedReference::DeterminedNominal(
@@ -2418,9 +2511,7 @@ fn finite_clause_identity(clause: &FiniteClause) -> String {
 }
 
 fn coordinated_clause_identity(clause: &CoordinatedClause) -> String {
-    let CoordinatedClause::Finite(clause) = clause else {
-        panic!("legacy coordination witness has a finite clause payload: {clause:?}")
-    };
+    let CoordinatedClause::Finite(clause) = clause;
     finite_clause_identity(clause)
 }
 
@@ -2750,18 +2841,12 @@ impl Visitor for LogicVisitor {
     }
 
     fn visit_verb_phrase(&mut self, value: &VerbPhrase) {
-        match value {
-            VerbPhrase::LifeAmount(LifeAmount {
-                amount:
-                    Amount::Number(NumberAmount {
-                        number: ScalarNumber { magnitude },
-                    }),
-                ..
-            }) => self.0.push(LogicVisit::GainLife(*magnitude)),
-            predicate if declared_action_name(predicate) == Some("Connive") => {
-                self.0.push(LogicVisit::Connive);
-            }
-            other => panic!("unexpected logic visitor predicate payload: {other:?}"),
+        if let Some(magnitude) = gain_life_magnitude(value) {
+            self.0.push(LogicVisit::GainLife(magnitude));
+        } else if declared_action_name(value) == Some("Connive") {
+            self.0.push(LogicVisit::Connive);
+        } else {
+            panic!("unexpected logic visitor predicate payload: {value:?}");
         }
     }
 
@@ -2957,7 +3042,7 @@ fn player_subject() -> Subject {
                         UnqualifiedLocativeStage {
                             reference: Box::new(ControllerStage::UnqualifiedControllerStage(
                                 UnqualifiedControllerStage {
-                                    reference: indefinite_player_reference(),
+                                    reference: Box::new(indefinite_player_reference()),
                                 },
                             )),
                         },
@@ -3133,8 +3218,6 @@ fn ordered_then_and_proverb_conditions_are_linguistic_and_disjoint() {
             .map(|member| match member {
                 Clause::Finite(member) => finite_clause_identity(member),
                 Clause::Coordination(_)
-                | Clause::Copular(_)
-                | Clause::Passive(_)
                 | Clause::PostposedWhile(_)
                 | Clause::PostposedForAsLongAs(_) => {
                     panic!("then members retain their finite clause shape")
@@ -3470,17 +3553,7 @@ impl Visitor for AttachmentEnvelopeVisitor {
             Predicate::Atomic(predicate) if declared_action_name(predicate) == Some("Connive") => {
                 self.0.push("Predicate:Connive");
             }
-            Predicate::Atomic(predicate)
-                if matches!(
-                    predicate.as_ref(),
-                    VerbPhrase::LifeAmount(LifeAmount {
-                        amount: Amount::Number(NumberAmount {
-                            number: ScalarNumber { magnitude: 2 },
-                        }),
-                        ..
-                    })
-                ) =>
-            {
+            Predicate::Atomic(predicate) if gain_life_magnitude(predicate) == Some(2) => {
                 self.0.push("Predicate:Gain2");
             }
             other => panic!("unexpected attachment predicate payload: {other:?}"),
@@ -3761,7 +3834,7 @@ fn conditional_attachment_rejects_composed_and_reordered_surfaces() {
         &parser,
         &context,
         "If you connive, gain 2 life if you connive.",
-        TextSpan { start: 28, end: 30 },
+        TextSpan { start: 31, end: 34 },
     );
     assert_attachment_has_no_selection(
         &parser,
@@ -3779,7 +3852,7 @@ fn conditional_attachment_rejects_composed_and_reordered_surfaces() {
         &parser,
         &context,
         "{T}: If you connive, gain 2 life if you connive.",
-        TextSpan { start: 33, end: 35 },
+        TextSpan { start: 36, end: 39 },
     );
 }
 
@@ -4272,7 +4345,7 @@ fn plain_modal_modes_render_visitor_and_claims_are_hand_derived() {
             (19, 22, "vocab:SubjectPronoun/You"),
             (22, 27, "core-verb:Gain"),
             (27, 29, "codec:ScalarNumber"),
-            (29, 34, "form:life_amount/life_amount/2"),
+            (29, 34, "lexeme:CommonNoun/Life/singular"),
             (34, 35, "structural:ModalModeValue/sentences/terminator/0"),
             (
                 35,
@@ -4287,7 +4360,7 @@ fn plain_modal_modes_render_visitor_and_claims_are_hand_derived() {
             (53, 56, "vocab:SubjectPronoun/You"),
             (56, 61, "core-verb:Gain"),
             (61, 63, "codec:ScalarNumber"),
-            (63, 68, "form:life_amount/life_amount/2"),
+            (63, 68, "lexeme:CommonNoun/Life/singular"),
             (68, 69, "structural:ModalModeValue/sentences/terminator/0"),
         ],
         "the dash head and both bullet markers own disjoint structural bytes",
@@ -4491,7 +4564,9 @@ fn full_self_reference_subject(context: &ParseContext<'_>) -> Subject {
                         UnqualifiedLocativeStage {
                             reference: Box::new(ControllerStage::UnqualifiedControllerStage(
                                 UnqualifiedControllerStage {
-                                    reference: UnqualifiedReference::SelfReference(reference),
+                                    reference: Box::new(UnqualifiedReference::SelfReference(
+                                        reference,
+                                    )),
                                 },
                             )),
                         },
@@ -4588,6 +4663,8 @@ fn english_v2_direct_dependency_set_stays_independent_of_core_features_and_v1() 
             "deckmaste_construction".to_owned(),
             "deckmaste_english_v2".to_owned(),
             "macro_ron".to_owned(),
+            "ron".to_owned(),
+            "serde".to_owned(),
             "thiserror".to_owned(),
         ]),
         "the complete direct normal-dependency set remains unchanged and excludes deckmaste_core, deckmaste_features, and deckmaste_english",

@@ -1,0 +1,6 @@
+TurnPart(
+    name: "CombatPhase",
+    spelling: "combat phase",
+    grammar: Noun(singular: "combat phase"),
+    params: [],
+)
