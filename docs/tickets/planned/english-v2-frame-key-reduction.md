@@ -44,3 +44,9 @@ x290, "as though it were" x83, "mana of any type" x56). Naming rule:
 constructions named for linguistic shape, never lexeme or mechanic. Tie
 during dissolution not explained by a not-yet-deleted rival = STOP.
 Standard constraints apply.
+
+Fold-in (13-10 landing, 2026-09-02): the ruling that froze the seed table
+means `gains "…"` (135 faces) cannot take `Role("QuotedAbility")` until
+core verbs live in declaration data; the `have` frame already does. The
+declaration-side route for a core verb's frame lands here — the quoted
+grant is its first consumer.
