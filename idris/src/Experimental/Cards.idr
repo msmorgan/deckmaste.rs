@@ -7437,9 +7437,9 @@ paradoxHaze =
            (GetsAdditionalPart (That PlayerW) Upkeep (Lit 1)) ]
        Nothing
 
-||| The Ninth Doctor's chapter clause. The card is blocked on its ability
-||| word ("Into the TARDIS") being a flavour word rather than an
-||| `AbilityWordName`, and on the untap-of-self header.
+||| The Ninth Doctor's chapter clause. Its italicized head ("Into the
+||| TARDIS") is a flavor word and is now writable (`Macros.flavorWord`);
+||| the card is still blocked on the untap-of-self header.
 public export
 ninthDoctorAdditionalUpkeep : Effect []
 ninthDoctorAdditionalUpkeep = GetsAdditionalPart You Upkeep (Lit 1)

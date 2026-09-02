@@ -255,3 +255,190 @@ Standard constraints apply.
 - **Routed from workbench-description-1 (close, 2026-08-28):** "all X from
   among them" (10 lines re-measured) — a partitive whose count position is
   the universal; NOT a `Quantity` value. Surface-shape work, so it lands here.
+
+## As landed (2026-09-02)
+
+Everything below was re-measured against the current tree. **The sweep's
+inventory is heavily stale**: of the twenty-odd names it convicts or flags,
+eleven no longer exist, and several of the merges it asks for were performed
+by intervening rounds. Counts are re-measured; supported-only (`jq
+'select(.supported)'`), 32,568 supported faces.
+
+### Landed
+
+- **Flavor words.** [CR#207.2c]'s ability word and [CR#207.2d]'s flavor word
+  are ONE row: `AbilityWord` becomes `ItalicHead : ItalicWord -> AbilityAt bs
+  -> …` over `ItalicWord = AnAbilityWord AbilityWordName | AFlavorWord
+  FlavorWordLabel`, with the phrase names at `Macros.abilityWord` /
+  `Macros.flavorWord` and the no-nesting gate renamed `NotWordHeaded`. The
+  flavor word is an OPEN LABEL (`FlavorWordLabel = String`), on the
+  subtypes-are-labels rule: **441 distinct words head 446 supported lines
+  over 398 supported cards** (measured 2026-09-02). Benched at all three
+  ability kinds — Owlbear (triggered), Canoptek Wraith (static), Tymora's
+  Invoker (activated) — mirroring the three ability-word benches.
+- **"All X from among them."** **10 supported lines over 10 cards**
+  (re-measured 2026-09-02: Animist's Awakening, Beluna Grandsquall,
+  Cantankerous Keepers, Depala, Glamdring, Marina Vendrell, Muxus, Nissa
+  Nature's Artisan, Tamiyo Collector of Tales, Tezzeret Master of the
+  Bridge). `SomeOf`'s count position becomes a `SliceCount`, whose
+  `CountedSlice` arm carries the `Quantity` and its `NonZeroQ`/`WellFormedQ`
+  gates and whose `WholeSlice` arm carries none — the same two forms the top
+  of a phrase already has (`CountedGroup` / `AllOf`). NOT a `Quantity` arm:
+  every other `Quantity` position (mode headcount [CR#700.2], die-result
+  range [CR#706.3a]) would be widened to admit a word it does not write.
+  Three readers carry the measurements (`sliceExact`, `slicePlur`,
+  `sliceCountDelta`). Benched as Gleam of Death and Tezzeret's line.
+  **Regression case:** `theOtherRefusesTheUniversalSlice` pins the
+  counted-group / universal distinction — the universal slice states no
+  count, so "the other" refuses it and "the rest" stands, which is what
+  6 of the 10 lines write.
+- **`FollowerPart` + `AnchorPart` → `AddedPartWritten`.** They were the same
+  two constructors twice over `partAddable`; `AdditionalPart`'s two `Maybe
+  TurnPart` slots now share one witness, and the binder label (`an`, `fb`)
+  says which refused. Kept `data` (the `Maybe` index solves the slot).
+- **`Whose` → `Owner` + `durationPossessorOk`** (convicted family 8). `Whose`
+  was a two-arm datatype spelled row for row like `Owner`'s first two, with
+  one consumer (`DurationEnd`). Now one vocabulary and one admission table;
+  the six refused arms each have a stated reason ([CR#500.1] for the four
+  quantifiers and the indefinite; the deictic names a turn, not a player).
+  Two ProofsD pins keep the refusals measured now that the type no longer
+  makes them unwritable.
+- **`TwoConjuncts` + `TwoDisjuncts` → `AtLeastTwoArms`.** One question
+  (`atLeastTwoCs`) under two names — not the "named apart so a refusal says
+  which question" idiom, which needs two questions. `FlatConjuncts` /
+  `FlatDisjuncts` stay two: those really do differ.
+- **`writtenBound` deleted** (routed ledger). Confirmed dead: 34 lines in
+  `Phrase.idr`, every one of them its own defining equation, no call site
+  anywhere in `idris/src`.
+
+### Refused, with the reason recorded in source
+
+- **The `Not*` non-nesting gates** (convicted family 1). Seven, not ten, and
+  the mechanism is ALREADY one: a `Bool` reader answering `False` for the
+  rows a wrapper may not wrap, and a `So` of it at the gate. Idris has no
+  way to say "matches this constructor" once for eight constructors of five
+  datatypes. The per-row names are the `GameEvent` gates' idiom. Documentary
+  fix landed: the idiom is named once at `notConditional` and the docstrings
+  no longer chain "for the same reason" into each other.
+- **`Aggregate` / `AggregateOver`** (routed ledger). The ledger's premise is
+  **wrong**: `AggregateOver op p (StatOf c It)` does not recover `Aggregate
+  op (CharAxis c) p`, because the recovery reads the bound member through a
+  PRONOUN and `It` presupposes exactly one singular object mention in scope
+  (`countOnes Object … = 1`) where an axis read presupposes nothing. Spiked:
+  the generic macro fails to elaborate, and **2 of the 6 benched sites**
+  (Carrion Grub, Towering Titan) fail as `S (countOnes Object …) = 1`.
+  Collapsing would narrow the row. Recorded on `Aggregate`'s docstring.
+- **The four one-shot counter verbs** (convicted family 7). Not a 2x2 grid of
+  one shape: `PutCounters`/`GetsCounters` and `RemoveCounters`/`LosesCounters`
+  bind their slots in OPPOSITE ORDER ("put [amt] on [on]" against "[who] gets
+  [amt]"), and a constructor has one slot order; and the count slots are
+  three separately measured types (`Amount`; `Quantity`, because a removal's
+  size is the actor's choice — 19 "any number of", 6 "up to"; `Maybe Amount`,
+  whose silence spells "all"). The kind-indexed merge the lens asks for is
+  already present where the slots agree: `GiveCountersOfOwnKinds` and
+  `DoubleCountersOfOwnKinds` carry no count and are kind-indexed over
+  `Object \/ Player`.
+- **The prevention/redirection family** (convicted family 6). The "relative
+  clause vs event clause" argument does not exist in the source. The real
+  split is `Shield` (`AllOfIt`/`TheNext n`, a standing quantity) against
+  `PreventCut` (`CutAll`/`CutSome`/`CutAllBut`/`CutHalf`, a per-event
+  arithmetic), plus two further disagreeing slots (`by` against `src`; the
+  `ReplUse` only the source-side rows carry). Three facts, not one. The four
+  rows carried NO docstrings at all; a family header now records the split.
+- **`Not` / `NotCond`** (family 3) and **`Compare` / `CompareAmt`** (family
+  4). Different datatypes (`Predicate` against `Condition`) in one mutual
+  block — Idris refuses. `Compare`'s docstring already records the family-4
+  verdict ("a description takes no subject and a condition names one"), and
+  the duplicated spelling comments family 3 named are gone.
+
+### Already done before this round (verdict: nothing to do)
+
+- **`ObjectCant` / `CantBe`** (family 5): `ObjectCant`, `PlayerCant` and
+  `OutcomeGate` are gone, unified into `Deontic` over the open deed
+  vocabulary. `CantBe`'s docstring already records that the two read one act
+  vocabulary and differ only in what they attach to.
+- **The five closed two-row `Nat` tables**: gone. `NextUntapCount`,
+  `ExtraTurnCount`, `SkipCount`, `PhaseCount`, `CapBound` and their four
+  three-count pins do not exist; the counts are `Amount` slots on
+  `DoesntUntapNext`, `SkipsNext`, `ExtraTurn` and `AdditionalPart`. The
+  `AttestedCount` proposal is moot.
+- **The four (part x owner) grids**: `headerWindowOk`, `partUse` and
+  `spanUse` do not exist. There are TWO functions — `windowOk : TurnPart ->
+  Maybe Owner -> Bool` and `pointWindowOk : TurnPoint -> Maybe Owner -> Bool`
+  — read from four call sites (`Timing.DuringPart`, `Timing.BeforePoint`,
+  `TriggerWindow.DuringWindow`, `Effect.OnlyDuring`). One table, N readers:
+  the recommended shape, already. No cell disagrees with any other, because
+  there is nothing to disagree with.
+- **`keywordCardOk`'s Flash cell**: the two-table split is gone.
+  `keywordCardOk` and `keywordStackRegime` are both projections of the ONE
+  `keywordFacts` catalog. Flash's row is `regime = Just AtCasting`, `perm =
+  True`, `spell = True`, `cz = False`, and `keywordCardOk`'s docstring
+  already records why that is not a disagreement ([CR#702.8a] restricts the
+  word to no card type; on an instant it is redundant, which is not
+  meaningless).
+- **`grantableAb`'s quotation cells**: there are not three, there is one
+  sentence, and it already says the settled thing — whether a grant quotes
+  is rendering and no cell indexes on it. The routed ledger item about
+  `grantableAb (Spell _) = False` is likewise answered in place: the
+  docstring now calls that cell STRUCTURAL ([CR#113.3a]'s spell ability is
+  followed only while an instant or sorcery resolves, so an object handed one
+  has nothing to follow), not a narrowing of [CR#113.3a].
+- **`Interceptable` / `Holdable` / `Triggerable` / `Awaitable`**: only
+  `Interceptable` exists, and it is the good shape (`So (interceptOk
+  (eventName ev))`). `eventUse` is a misremembering of `eventName`.
+- **`Timing` / `TriggerWindow`**: two types over one `windowOk`, which is the
+  recommended shape. The docstring the sweep quotes ("a gate that would have
+  had to refuse two of its own rows") does not exist.
+- **`TokenTyped` / `TokenPt` / `SubtypesFit` / `TokenCanonical` /
+  `AdditionUnnamed`**: five witnesses over FIVE different readers of one
+  record, not five names for one body. Already the good shape — the named
+  source of the idiom.
+- **`LetterDefinition` / `DefiningValue`**: `DefiningValue` and
+  `letterDefines` never existed. `LetterDefinition` is one `StaticKind` tag.
+  The letter machinery's real duplication is the `Define` pair, which is two
+  datatypes and already carries the deference ("-- spelling: as `Define`").
+- **The nine list-scanning witnesses**: `AnyTargetLone` and `LoneComparison`
+  do not exist; six are real, over three distinct scan shapes, each a
+  different question. `TwoDisjuncts` was at the Condition layer, not this
+  one, and is merged above.
+- **`CostSubject` / `CapSubject` / `LandSubject` / `ActSubject` /
+  `GrantSubject`**: three of the five do not exist (`ActSubject` retired with
+  `ObjectAct`, and says so). The surviving two read genuinely different
+  tables — `CostSubject` demands the stack outright, `GrantSubject` admits
+  off-stack subjects gated on the granted ability's regime.
+- **`WrittenCount` / `ReadAmount` / `ComparableBound` / `ForEachAmount` /
+  `RepeatCount` / `DefiningValue`**: three do not exist, `RepeatCount` is an
+  `OutcomeSort` constructor and not a predicate at all, and the two that
+  remain (`ReadAmount`, `ForEachAmount`) read different tables.
+- **`AttackDefender` / `BlockPartner` / `CreationVoice` etc.**: only
+  `BlockPartner` and `CounterKindNamed` share the optional-slot body;
+  `CtrlSingular` is now `CtrlOverrideOk` and forks its `Just` arm in two,
+  `AttackDefender` is not `Maybe`-indexed, and `CreationVoice` is indexed by
+  a triple. `EventAgent` and `CausedBy` are the event round's lane and were
+  deliberately not touched.
+- **The `Rider`-family deferral stands**, verified rather than assumed:
+  `Define` is still the ONLY name shared between `StaticEffect` (54
+  constructors) and `Effect` (83). No second cross-category trailing-rider
+  construction exists.
+
+### Stale acceptance
+
+The two toolchain bullets in Acceptance ("the generator is the only place the
+shape is stated"; "the `OneOrMore` gap error is gone") belong to
+`workbench-lifted-scans-and-oneormore-emit`, which took that work on
+2026-08-22. Nothing in this round touches `crates/` or
+`idris/scripts/emit-tables`.
+
+### Remainders
+
+- `abLetterDelta`'s four supported lines are confirmed correct (Ulamog the
+  Defiler's annihilator X, Fumiko the Lowblood's bushido X, Avenger of the
+  Fallen and Infantry Shield's mobilize X, re-measured 2026-09-02). Only
+  Fumiko is benched; the other three wait on annihilator and mobilize
+  keyword-facts rows. The sweep's "24 corpus lines" matches nothing.
+- The Ninth Doctor is now unblocked on its flavor word ("Into the TARDIS")
+  and still blocked on the untap-of-self header; `Cards.idr`'s note is
+  updated only to the extent the constructor rename required.
+- `partAddable` and `partTriggerOk` have identical bodies (both refuse
+  `Turn` alone) and are different questions with different rules. Left as
+  two; noted so a future sweep does not re-flag it as a duplicate.
