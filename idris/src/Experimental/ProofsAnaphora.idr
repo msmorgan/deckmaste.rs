@@ -1200,7 +1200,7 @@ markTyKeepsOnes j ty (MkBinding det Object ManyOf (ObjectP Nothing zn st og _)) 
 markTyKeepsOnes j ty (MkBinding det Object plur (ObjectP (Just t) zn st og _)) = Refl
 -- `markTy` writes a type onto an untyped OBJECT mention and a pile has
 -- none to write [CR#700.3b], so the re-mark is the identity here.
-markTyKeepsOnes j ty (MkBinding det Object plur (PileP zn sz)) = Refl
+markTyKeepsOnes j ty (MkBinding det Object plur (PileP zn sz fc)) = Refl
 markTyKeepsOnes j ty (MkBinding det Player plur PlayerP) = Refl
 markTyKeepsOnes j ty (MkBinding det Player plur ChosenPlayerP) = Refl
 markTyKeepsOnes j ty (MkBinding det (Quality q) plur QualityP) = Refl
@@ -1218,7 +1218,7 @@ markTyKeepsAt : (sl : SlotCarrier) -> (ty : Maybe CardType) -> (b : Binding) ->
                 itAtReaches sl (markTy ty b) = itAtReaches sl b
 markTyKeepsAt sl ty (MkBinding det Object plur (ObjectP Nothing zn st og _)) = Refl
 markTyKeepsAt sl ty (MkBinding det Object plur (ObjectP (Just t) zn st og _)) = Refl
-markTyKeepsAt sl ty (MkBinding det Object plur (PileP zn sz)) = Refl
+markTyKeepsAt sl ty (MkBinding det Object plur (PileP zn sz fc)) = Refl
 markTyKeepsAt sl ty (MkBinding det Player plur PlayerP) = Refl
 markTyKeepsAt sl ty (MkBinding det Player plur ChosenPlayerP) = Refl
 markTyKeepsAt sl ty (MkBinding det (Quality q) plur QualityP) = Refl

@@ -20333,7 +20333,7 @@ factOrFiction =
        (MkTypeLine [] [Instant])
        [ Spell (Sequentially
                   [ Macros.revealCards (Macros.topSlice (Lit 5))
-                  , SeparateIntoPiles Macros.anOpponent Them 2
+                  , SeparateIntoPiles Macros.anOpponent Them 2 []
                   , Macros.move Macros.onePile Macros.handZ
                   , Macros.move TheOther Macros.graveyardZ ]) ]
        Nothing
@@ -20360,7 +20360,7 @@ deathOrGlory =
        [ Spell (Sequentially
                   [ SeparateIntoPiles You
                       (AllOf (And [Macros.creature,
-                                   InZone (Macros.graveyardOf You)])) 2
+                                   InZone (Macros.graveyardOf You)])) 2 []
                   , Macros.exile (Macros.pileOfChoice Macros.anOpponent)
                   , Macros.move TheOther Macros.battlefieldZ ]) ]
        Nothing
@@ -20389,7 +20389,7 @@ steamAugury =
        (MkTypeLine [] [Instant])
        [ Spell (Sequentially
                   [ Macros.revealCards (Macros.topSlice (Lit 5))
-                  , SeparateIntoPiles You Them 2
+                  , SeparateIntoPiles You Them 2 []
                   , Macros.chooses Macros.anOpponent Macros.onePile
                   , Macros.move (That PileW) Macros.handZ
                   , Macros.move TheOther Macros.graveyardZ ]) ]
@@ -20416,63 +20416,258 @@ sphinxOfUthuun =
        , Macros.triggered When (Enters Macros.thisCreature Nothing)
            (Sequentially
               [ Macros.revealCards (Macros.topSlice (Lit 5))
-              , SeparateIntoPiles Macros.anOpponent Them 2
+              , SeparateIntoPiles Macros.anOpponent Them 2 []
               , Macros.move Macros.onePile Macros.handZ
               , Macros.move TheOther Macros.graveyardZ ]) ]
        (Just (5, 6))
 
 
--- THE PILE PARTITION'S RESIDUES, re-measured 2026-09-02 and not built.
--- 38 supported cards write "pile" (the ticket said 41), over 96
--- sentences. The partition itself, the pile partitive, the pile
--- demonstrative and the subset complement landed; what follows is what
--- did not, each with the count and the blocker.
+||| Riddles in the Dark, whole card -- "Look at the top four cards of
+||| your library and separate them into a face-down pile and a face-up
+||| pile. An opponent chooses one of the piles. Put that pile into your
+||| hand and the other into your graveyard."
+||| Steam Augury's three sentences with the piles' FACES stated, and the
+||| plainest carrier of the pair. The two faces are what make the card a
+||| different game from Steam Augury: the separator sees four cards and
+||| shows the chooser only half of them, so the chooser picks between a
+||| known pile and an unknown one. [CR#110.5d] is why that is not a
+||| status -- the cards are in the LIBRARY, where [CR#700.3c] leaves
+||| them, and the rule denies any correlation between a face-down card
+||| off the battlefield and a face-down permanent.
+public export
+riddlesInTheDark : Card
+riddlesInTheDark =
+  Macros.card "Riddles in the Dark"
+       (Just [Macros.generic 2, Macros.pip Blue]) []
+       (MkTypeLine [] [Instant])
+       [ Spell (Sequentially
+                  [ Macros.lookAt (Macros.topSlice (Lit 4))
+                  , SeparateIntoPiles You Them 2 [FaceDownPile, FaceUpPile]
+                  , Macros.chooses Macros.anOpponent Macros.onePile
+                  , Macros.move (That PileW) Macros.handZ
+                  , Macros.move TheOther Macros.graveyardZ ]) ]
+       Nothing
+
+||| Fortune's Favor, whole card -- "Target opponent looks at the top four
+||| cards of your library and separates them into a face-down pile and a
+||| face-up pile. Put one pile into your hand and the other into your
+||| graveyard."
+||| The same pair with the roles swapped and the choice left out: the
+||| OPPONENT looks and separates, and no one chooses -- you take a pile
+||| blind. It is the face pair's cleanest witness for that reason, since
+||| the faces are the only thing standing between the two piles.
+public export
+fortunesFavor : Card
+fortunesFavor =
+  Macros.card "Fortune's Favor"
+       (Just [Macros.generic 3, Macros.pip Blue]) []
+       (MkTypeLine [] [Instant])
+       [ Spell (Sequentially
+                  [ Expose LookAt (Macros.target Opponent)
+                           (ExposedCards (Macros.topSlice (Lit 4)))
+                  , SeparateIntoPiles They Them 2 [FaceDownPile, FaceUpPile]
+                  , Macros.move Macros.onePile Macros.handZ
+                  , Macros.move TheOther Macros.graveyardZ ]) ]
+       Nothing
+
+||| Curator of Destinies, whole card -- "This spell can't be countered. /
+||| Flying / When this creature enters, look at the top five cards of
+||| your library and separate them into a face-down pile and a face-up
+||| pile. An opponent chooses one of those piles. Put that pile into your
+||| hand and the other into your graveyard."
+||| Riddles in the Dark's body inside a trigger, which is what the face
+||| slot has to survive to be a slot and not a spell-only rider: the
+||| partition states its piles' faces the same whether a spell or a
+||| triggered ability is resolving.
+public export
+curatorOfDestinies : Card
+curatorOfDestinies =
+  Macros.card "Curator of Destinies"
+       (Just [Macros.generic 4, Macros.pip Blue, Macros.pip Blue]) []
+       (MkTypeLine [creatureType "Sphinx"] [Creature])
+       [ Static (Macros.objectCant "Counter" This)
+       , Macros.keyword "Flying"
+       , Macros.triggered When (Enters Macros.thisCreature Nothing)
+           (Sequentially
+              [ Macros.lookAt (Macros.topSlice (Lit 5))
+              , SeparateIntoPiles You Them 2 [FaceDownPile, FaceUpPile]
+              , Macros.chooses Macros.anOpponent Macros.onePile
+              , Macros.move (That PileW) Macros.handZ
+              , Macros.move TheOther Macros.graveyardZ ]) ]
+       (Just (5, 5))
+
+||| Atris, Oracle of Half-Truths, whole card -- "Menace / When Atris
+||| enters, target opponent looks at the top three cards of your library
+||| and separates them into a face-down pile and a face-up pile. Put one
+||| pile into your hand and the other into your graveyard."
+||| Fortune's Favor on a creature, and the face pair's fourth spelling:
+||| a TARGETED separator inside a trigger.
+public export
+atrisOracleOfHalfTruths : Card
+atrisOracleOfHalfTruths =
+  Macros.cardOf "Atris, Oracle of Half-Truths"
+       (Just [Macros.generic 2, Macros.pip Blue, Macros.pip Black]) [Legendary]
+       (MkTypeLine [creatureType "Human", creatureType "Advisor"] [Creature])
+       [ Macros.keyword "Menace"
+       , Macros.triggered When (Enters Macros.thisCreature Nothing)
+           (Sequentially
+              [ Expose LookAt (Macros.target Opponent)
+                       (ExposedCards (Macros.topSlice (Lit 3)))
+              , SeparateIntoPiles They Them 2 [FaceDownPile, FaceUpPile]
+              , Macros.move Macros.onePile Macros.handZ
+              , Macros.move TheOther Macros.graveyardZ ]) ]
+       (Macros.printedBox (Just (3, 2)))
+
+||| Do or Die, whole card -- "Separate all creatures target player
+||| controls into two piles. Destroy all creatures in the pile of that
+||| player's choice. They can't be regenerated."
+||| The pile-CONTENTS read's marquee bench, and the shortest card that
+||| needs it: everything before the second sentence was landed by the
+||| partition round, and the sentence itself asks the one question the
+||| predicate vocabulary had no term for. Neither `InZone` nor
+||| `ExiledWith` can stand here -- [CR#700.3c] leaves both piles on the
+||| BATTLEFIELD, where a zone clause narrows nothing, and [CR#700.3b]
+||| leaves the pile no object for a link to hold.
+||| The chooser is the partitioned player and not the spell's caster,
+||| which is the divide-and-choose pair the other way round from Death
+||| or Glory: you separate, they choose, and the pile they choose dies.
+public export
+doOrDie : Card
+doOrDie =
+  Macros.card "Do or Die" (Just [Macros.generic 1, Macros.pip Black]) []
+       (MkTypeLine [] [Sorcery])
+       [ Spell (Sequentially
+                  [ SeparateIntoPiles You
+                      (AllOf (And [Macros.creature,
+                                   ControlledBy (Macros.target AnyPlayer)])) 2 []
+                  , CantBe (Macros.destroy
+                              (AllOf (And [Macros.creature,
+                                           InPile (Macros.pileOfChoice They)])))
+                           "Regenerate" (ThemVerbed "Destroy") ]) ]
+       Nothing
+
+||| Liliana of the Veil, whole card -- "[+1]: Each player discards a
+||| card. / [-2]: Target player sacrifices a creature. / [-6]: Separate
+||| all permanents target player controls into two piles. That player
+||| sacrifices all permanents in the pile of their choice."
+||| The pile-contents read on a PLANESWALKER, and the ultimate's two
+||| sentences are Do or Die's two with the disposal changed: the same
+||| separation and the same membership read, at permanents rather than
+||| creatures and with the partitioned player carrying it out. The
+||| chooser inside the phrase and the sacrificing agent are one player,
+||| which is what "the pile of THEIR choice" says and what the row's
+||| `by` slot spells.
+public export
+lilianaOfTheVeil : Card
+lilianaOfTheVeil =
+  Macros.cardOf "Liliana of the Veil"
+       (Just [Macros.generic 1, Macros.pip Black, Macros.pip Black])
+       [Legendary] (MkTypeLine [planeswalkerType "Liliana"] [Planeswalker])
+       [ Macros.activated (LoyaltySymbol (LoyaltyUp 1))
+                          (Macros.discardsACard (Each AnyPlayer))
+       , Macros.activated (LoyaltySymbol (LoyaltyDown 2))
+                          (Macros.sacrifice (Macros.target AnyPlayer)
+                                            (Macros.aTheirChoice Macros.creature))
+       , Macros.activated (LoyaltySymbol (LoyaltyDown 6))
+           (Sequentially
+              [ SeparateIntoPiles You
+                  (AllOf (And [Permanent,
+                               ControlledBy (Macros.target AnyPlayer)])) 2 []
+              , Macros.sacrifice They
+                  (AllOf (And [Permanent,
+                               InPile (Macros.pileOfChoice They)])) ]) ]
+       (Macros.loyaltyBox 3)
+
+-- THE PILE FAMILY'S RESIDUES, re-measured 2026-09-02 after the CONTENTS
+-- read and the pile FACE landed. 38 supported cards write the word
+-- "pile". The partition, the pile partitive, the pile demonstrative and
+-- the subset complement landed with the partition round; the membership
+-- predicate and the partition's face slot landed with this one. What
+-- follows is what did not, each with the count and the blocker.
 --
--- THE PILE-CONTENTS READ, 13 lines over 12 cards -- the largest single
--- blocker, and the reason Do or Die, Liliana of the Veil's ultimate,
--- Boneyard Parley, Fight or Flight, Truth or Tale and Phyrexian Portal
--- do not bench whole. "Destroy all creatures in the pile of that
--- player's choice", "Put all cards from the pile of your choice onto the
--- battlefield", "Look at the cards in the other pile", "Search the other
--- pile for a card". This wants a `Predicate bs Object` testing pile
--- MEMBERSHIP, and there is no row for it: [CR#700.3b] leaves the pile no
--- object, so `Contains`/`ExiledWith` have nothing to hold, and
--- [CR#700.3c] keeps the members in the zone they were in, so `InZone`
--- cannot say it either. A pile is the one grouping the predicate
--- vocabulary has no term for.
+-- THE SINGLE PILE MADE BY AN EXILE, 10 cards over 10 sentences --
+-- Abstract Performance, Become Anonymous, Expose the Culprit, Ghastly
+-- Conscription, Hostile Negotiations, Jeskai Infiltrator, Mangara's
+-- Tome, Parallel Thoughts, The Celestial Toymaker, Triumph of Saint
+-- Katherine. "Exile the top four cards of your library in a face-down
+-- pile", "exile any number of them in a face-down pile and the rest in
+-- a face-up pile". The FACE these want is the one `SeparateIntoPiles`
+-- now states; what is missing is the pile itself, made by the move
+-- rather than by a partition. `MoveRiders` cannot carry it -- its field
+-- riders are battlefield-gated and no rider contributes a binding --
+-- and a partition row cannot say it either, because five of the ten
+-- make their two piles with two SEPARATE exiles and one splits a group
+-- the text does not count ("any number of them ... and the rest").
+-- NOT BUILT BECAUSE NO WITNESS PAYS: every one of the ten is blocked
+-- elsewhere too. Seven want `cloak` or `manifest`, neither of which is
+-- a verb or a keyword this vocabulary knows; Mangara's Tome and
+-- Parallel Thoughts want a TOP-OF read over a pile besides (below);
+-- The Celestial Toymaker wants a chooser its row refuses
+-- (`choosable TheDefendingPlayer` is False) and a second ability that
+-- counts pile-making spells; Abstract Performance and Hostile
+-- Negotiations want the two below.
 --
--- THE FACE MARKING ON A PILE, 17 lines over 16 cards. Two shapes behind
--- one blocker. The PAIR -- "separates them into a face-down pile and a
--- face-up pile" (Atris, Curator of Destinies, Fortune's Favor, Riddles
--- in the Dark, Sauron's Ransom) and "two face-down piles" (Phyrexian
--- Portal) -- writes the partition this round landed with each pile's
--- face stated. The SINGLE PILE -- "exile [them] in a face-down pile,
--- shuffle that pile, then cloak/manifest those cards", 7 cards (Become
--- Anonymous, Expose the Culprit, Ghastly Conscription, Jeskai
--- Infiltrator, Mangara's Tome, Parallel Thoughts, Triumph of Saint
--- Katherine) -- is not a partition at all: one pile, made by the exile
--- itself, and no choice follows. Both want a face on a pile, and the
--- grammar's `FaceDown` is a battlefield-permanent STATUS
--- (`HasStatus`/`SetStatus` are both `OnBattlefield`-gated) where these
--- cards mark cards in exile and in the library. Shuffling a pile (7
--- lines) is a second gap in the same cards, and the rule is on the
--- cards' side: [CR#701.24a] shuffles "a library or a FACE-DOWN PILE of
--- cards" in one sentence, so the act is defined at both and it is this
--- grammar's shuffle that is typed at the library alone.
+-- SHUFFLING A PILE, 7 lines over 7 cards (the same seven, less Abstract
+-- Performance, The Celestial Toymaker and Hostile Negotiations, plus
+-- Phyrexian Portal's remainder shuffle). The rule is on the cards'
+-- side: [CR#701.24a] shuffles "a library or a FACE-DOWN PILE of cards"
+-- in one sentence, [CR#406.3] names the same act ("part of a pile of
+-- cards that are shuffled"), and this grammar's `Shuffle` takes a
+-- PLAYER and so is typed at the library alone. The arm is small and is
+-- not built, because it has NO CARRIER: all 7 lines shuffle a pile the
+-- exile above made, so the arm cannot be reached until that pile can be
+-- written. Phyrexian Portal's eighth line, "shuffle the rest of that
+-- pile into your library", is a `Move` to a shuffled library and not
+-- this act at all; it is blocked with its card.
+--
+-- THE FACE CHANGE ON A PILE, 1 line (Hostile Negotiations, "turn a pile
+-- of your choice face up"). `SetStatus` is battlefield-gated and must
+-- stay so -- [CR#110.5d] gives status to permanents alone, which is what
+-- `badPileFaceAsAStatus` pins -- so this wants a face-setting effect
+-- over a `PileP` beside the partition's stated faces. One line, on a
+-- card blocked on the exile-made pile twice over.
+--
+-- THE TOP OF A PILE, 2 lines over 2 cards (Mangara's Tome, Parallel
+-- Thoughts): "put the top card of the exiled pile into its owner's
+-- hand". A POSITION within a pile, where `PileOf` takes a count and
+-- `LibrarySlice`'s `OnTop` is typed at a library. [CR#400.5] is what
+-- makes the position meaningful -- the order of "objects arranged in
+-- face-down piles in other zones" can't be changed either -- so the
+-- read is not rules-impossible; it is unwritten and unwitnessed, both
+-- cards being blocked on the exile-made pile and its shuffle besides.
+--
+-- THE COMPLEMENT AFTER A MEMBERSHIP READ, 1 card (Boneyard Parley,
+-- "Put all cards from the pile of your choice onto the battlefield
+-- under your control and the rest into their owners' graveyards").
+-- Everything but the last clause writes. Naming a pile's members mints
+-- a GROUP mention beside the piles, and `theRestOk` measures at most
+-- one group, so "the rest" is refused with two standing -- and the
+-- refusal is honest, because the two plural mentions denote the same
+-- cards under two descriptions. `TheOther` is refused by the same
+-- measure. The question is `theRestOk`'s and not the pile
+-- vocabulary's; it is the one card this round left one clause short.
+--
+-- ONLY X CAN ATTACK / CAN BLOCK, 2 lines over 2 cards (Fight or Flight,
+-- Stand or Fall). Both write their partition and their membership read
+-- with the rows now landed and are blocked on the EXCLUSIVE permission:
+-- `Compulsion`'s `Permit` spells "[n] can [deed]" and there is no arm
+-- for "ONLY [n] can", which is a permission plus the closure of its
+-- complement. Stand or Fall wants the per-player partition besides.
 --
 -- THE PER-PLAYER PARTITION, 6 lines over 5 cards -- Bend or Break, Make
 -- an Example, Raging River, Stand or Fall, Whims of the Fates. "Each
 -- player separates all permanents they control into three piles. Then
 -- each player chooses one of their piles at random and sacrifices those
--- permanents." The partition has to run once per player and the piles
--- one pass made have to be readable inside that pass alone ("their
--- chosen pile"), where `SeparateIntoPiles` mints ONE piles mention for
--- the clause. `ForEachOf` at the player kind is landed and is where this
--- goes, but the piles mention would have to be scoped to the body rather
--- than to the effect -- which is the element-scoping question and not a
--- slot on this row. Whims of the Fates wants "at random" on the pick
--- besides, and Bend or Break "one of their opponents of their choice"
--- as the chooser.
+-- permanents." The membership read this round landed is what these
+-- write in their second sentence; the partition has to run once per
+-- player, and the piles one pass made have to be readable inside that
+-- pass alone ("their chosen pile"), where `SeparateIntoPiles` mints ONE
+-- piles mention for the clause. `ForEachOf` at the player kind is
+-- landed and is where this goes, but the piles mention would have to be
+-- scoped to the body rather than to the effect -- the element-scoping
+-- question, and not a slot on this row. Whims of the Fates wants "at
+-- random" on the pick besides, and Bend or Break "one of their
+-- opponents of their choice" as the chooser.
 --
 -- THE LABELED AND VARIABLE PARTITION, 4 lines over 2 cards -- Camouflage
 -- and Raging River. "Divides all creatures without flying they control
@@ -20485,16 +20680,22 @@ sphinxOfUthuun =
 -- the row takes a `Nat`, and an assignment of piles to objects. Both
 -- cards are blocked on their combat lines independently.
 --
+-- SEARCHING A PILE, 1 line (Phyrexian Portal, "Search the other pile
+-- for a card"). `SearchScope` takes zones and a pile is no zone
+-- [CR#700.3c], so the locus has no group-valued form. The card is
+-- blocked on the pile shuffle besides.
+--
 -- THE EMPTY-PILE REMINDER, 5 lines (Camouflage, Make an Example, Sphinx
 -- of Clear Skies, Split the Spoils, Whims of the Fates). Reminder text
 -- restating [CR#700.3d], which the row already admits by writing no
 -- lower bound on a pile's contents. Nothing to build.
 --
--- THE CHOOSER IN THE PHRASE beyond its one witness, 5 of the 6 lines.
--- `PileOf`'s `by` slot landed on Death or Glory and the other five write
--- it over a pile-CONTENTS read ("all creatures in the pile of that
--- player's choice") or over the face marking ("turn a pile of your
--- choice face up"), so they are blocked above and not here.
+-- THE CHOOSER IN THE PHRASE, now at three witnesses of the six lines.
+-- `PileOf`'s `by` slot landed on Death or Glory and this round added Do
+-- or Die and Liliana of the Veil, both writing it over the membership
+-- read. The other three write it over the face change ("turn a pile of
+-- your choice face up") or inside a per-player pass, so they are
+-- blocked above and not here.
 
 -- ---------------------------------------------------------------------------
 -- The mandatory "if you do" (round of 2026-09-02)

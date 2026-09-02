@@ -1454,6 +1454,55 @@ isCopyOrigin (Just CopyOrigin) = True
 isCopyOrigin (Just TokenOrigin) = False
 isCopyOrigin Nothing = False
 
+||| Which way up a pile's cards are kept. Its OWN type and not a
+||| `StatusVal FaceC`, on [CR#110.5d]'s own sentence: "only permanents
+||| have status. Cards not on the battlefield do not. ALTHOUGH AN EXILED
+||| CARD MAY BE FACE DOWN, THIS HAS NO CORRELATION TO THE FACE-DOWN
+||| STATUS OF A PERMANENT." [CR#700.3c] leaves a pile's members in the
+||| zone they were in, which for every supported carrier is the library
+||| or exile, so reusing the status value would assert exactly the
+||| correlation the rule denies.
+||| It is a term the rules themselves use, in three places and for three
+||| different purposes: [CR#701.24a] shuffles "a library or a FACE-DOWN
+||| PILE of cards", [CR#400.5] fixes the order of "objects arranged in
+||| FACE-DOWN PILES in other zones", and [CR#406.4] keeps face-down
+||| exiled cards "in separate PILES". So a pile's face is a stated fact
+||| about the pile itself, recorded where its zone and its size are.
+public export
+data PileFace = FaceDownPile | FaceUpPile
+
+public export
+Eq PileFace where
+  (==) FaceDownPile FaceDownPile = True
+  (==) FaceUpPile FaceUpPile = True
+  (==) _ _ = False
+
+||| Whether a partition's written faces answer for its piles: either the
+||| text stated none, or it stated one per pile. "Separates them into a
+||| face-down pile and a face-up pile" states two over two; "separates
+||| them into two face-down piles" states two over two as well, both the
+||| same; "separates those cards into two piles" states none. A count of
+||| faces that is neither is not a printed line and not a reading.
+public export
+facesFit : List PileFace -> Nat -> Bool
+facesFit [] _ = True
+facesFit fs n = length fs == n
+
+public export
+FacesFit : List PileFace -> Nat -> Type
+FacesFit fs n = So (facesFit fs n)
+
+||| The ONE face a mention over several piles can report. `joinSeed`'s
+||| rule at the face field: piles that agree give the mention their face,
+||| piles that disagree leave it none, and stated nothing leaves it none.
+||| "Two face-down piles" is one answer; "a face-down pile and a face-up
+||| pile" is two and so no answer, which is right -- the plural mention
+||| denotes both and neither face is true of it.
+public export
+pileMentionFace : List PileFace -> Maybe PileFace
+pileMentionFace [] = Nothing
+pileMentionFace (f :: fs) = if all (== f) fs then Just f else Nothing
+
 public export
 data Payload : Kind -> Type where
   ||| The last field is the mention's own CARDINALITY, where the text
@@ -1514,13 +1563,24 @@ data Payload : Kind -> Type where
   ||| (`objGroup`/`countParts`/`theRestOk`/`groupSpent`) reads it without
   ||| a widening.
   |||
-  ||| The two fields are `ObjectP`'s two that a pile can answer. The zone
-  ||| is where the grouped objects are, which [CR#700.3c] fixes and does
-  ||| not change -- Death or Glory's piles are in the GRAVEYARD -- and the
-  ||| size is the mention's own cardinality in PILES, so a two-pile
-  ||| partition records 2 and "the other" can ask. No type is carried: a
-  ||| pile has no card type, and the objects in it need not share one.
-  PileP : (zone : Maybe Zone) -> (size : Maybe Nat) -> Payload Object
+  ||| The first two fields are `ObjectP`'s two that a pile can answer.
+  ||| The zone is where the grouped objects are, which [CR#700.3c] fixes
+  ||| and does not change -- Death or Glory's piles are in the GRAVEYARD
+  ||| -- and the size is the mention's own cardinality in PILES, so a
+  ||| two-pile partition records 2 and "the other" can ask. No type is
+  ||| carried: a pile has no card type, and the objects in it need not
+  ||| share one.
+  |||
+  ||| The third is the FACE the text stated, and it is a third thing the
+  ||| rules ask a pile and not its members: [CR#701.24a], [CR#400.5] and
+  ||| [CR#406.4] each name "a face-down pile" as such. It is a `PileFace`
+  ||| and not a `StatusVal`, for [CR#110.5d]'s reason written on that
+  ||| type. A mention spanning piles that DISAGREE reports none, on
+  ||| `joinSeed`'s rule for a head two halves do not share -- "a
+  ||| face-down pile and a face-up pile" is two piles with two faces and
+  ||| no single answer, where "two face-down piles" has one.
+  PileP : (zone : Maybe Zone) -> (size : Maybe Nat) ->
+          (face : Maybe PileFace) -> Payload Object
   ||| A union mention carries what it knows about EACH half -- "target
   ||| creature or player" is `JoinP (ObjectP (Just Creature) ...) PlayerP`
   ||| -- and that pair is what the demonstrative echo reads back.
@@ -1555,7 +1615,7 @@ payloadZone TurnRefP = Nothing
 payloadZone (AbilityP _) = Nothing
 -- [CR#700.3c] keeps the grouped objects in the zone they were in, so a
 -- pile mention places its members exactly where the partition found them.
-payloadZone (PileP zn _) = zn
+payloadZone (PileP zn _ _) = zn
 payloadZone (JoinP l r) = maybe (payloadZone r) Just (payloadZone l)
 
 ||| One head type for a two-half phrase: the type its halves agree on, and
@@ -1587,7 +1647,7 @@ payloadTy (AbilityP _) = Nothing
 -- [CR#700.3b] leaves the pile no object, so it has no characteristics of
 -- its own to report; the objects grouped into it keep theirs and need
 -- not agree [CR#700.3a].
-payloadTy (PileP _ _) = Nothing
+payloadTy (PileP _ _ _) = Nothing
 payloadTy (JoinP l r) = joinSeed (payloadTy l) (payloadTy r)
 
 public export
@@ -1615,12 +1675,26 @@ payloadSize TurnRefP = Nothing
 payloadSize (AbilityP _) = Nothing
 -- counted in PILES, which is what makes "the other" writable after one
 -- of two has been taken.
-payloadSize (PileP _ sz) = sz
+payloadSize (PileP _ sz _) = sz
 payloadSize (JoinP l r) = maybe (payloadSize r) Just (payloadSize l)
 
 public export
 bindingSize : Binding -> Maybe Nat
 bindingSize (MkBinding _ _ _ pl) = payloadSize pl
+
+||| The face a mention's piles were stated to be kept at. Only a pile
+||| mention has one: the term the rules use is "a face-down PILE"
+||| [CR#701.24a,406.4], and the members' own face-down-ness is no status
+||| of theirs [CR#110.5d]. A mention whose piles disagree reports none,
+||| which is where `PileP`'s field was already collapsed.
+public export
+payloadFace : Payload k -> Maybe PileFace
+payloadFace (PileP _ _ fc) = fc
+payloadFace _ = Nothing
+
+public export
+bindingFace : Binding -> Maybe PileFace
+bindingFace (MkBinding _ _ _ pl) = payloadFace pl
 
 ||| Write a stated count onto a mention `bindFor` already built. The
 ||| determiner rows that carry a quantity mint their binding through
@@ -1631,8 +1705,8 @@ public export
 sized : Maybe Nat -> Binding -> Binding
 sized sz (MkBinding det Object pl (ObjectP ty zn pv og _)) =
   MkBinding det Object pl (ObjectP ty zn pv og sz)
-sized sz (MkBinding det Object pl (PileP zn _)) =
-  MkBinding det Object pl (PileP zn sz)
+sized sz (MkBinding det Object pl (PileP zn _ fc)) =
+  MkBinding det Object pl (PileP zn sz fc)
 sized _ b = b
 
 
@@ -2298,8 +2372,8 @@ samePayload (AbilityP og) (AbilityP og') = sameMaybeBy sameOrigin og og'
 samePayload (AbilityP _) _ = False
 -- two pile mentions are the same mention when they place their members
 -- in the same zone; the size is left out for `ObjectP`'s reason.
-samePayload (PileP zn _) (PileP zn' _) = sameMaybeBy (==) zn zn'
-samePayload (PileP _ _) _ = False
+samePayload (PileP zn _ _) (PileP zn' _ _) = sameMaybeBy (==) zn zn'
+samePayload (PileP _ _ _) _ = False
 samePayload (JoinP l r) (JoinP l' r') = samePayload l l' && samePayload r r'
 samePayload (JoinP _ _) _ = False
 
@@ -2463,11 +2537,17 @@ pubB (MkBinding _ _ _ GapP) = True          -- so is a comparison's margin
 pubB (MkBinding _ _ _ LetterP) = True       -- and so is a value the text defines
 pubB (MkBinding _ _ _ TurnRefP) = True       -- and so is a value the text defines
 pubB (MkBinding _ _ _ (AbilityP _)) = True       -- an ability class is public too
--- [CR#700.3b] leaves the grouped objects individual and [CR#700.3c]
--- leaves them where they were, so what a pile mention hides is exactly
--- what its members' zone hides.
-pubB (MkBinding _ _ _ (PileP (Just z) _)) = publicZone z
-pubB (MkBinding _ _ _ (PileP Nothing _)) = True
+-- A pile stated FACE DOWN hides its members wherever they lie, which is
+-- [CR#400.2]'s own exception -- a public zone shows every face "except
+-- for those cards that some rule or effect specifically allow to be face
+-- down" -- and what [CR#406.3] spells out for the commonest carrier:
+-- cards "exiled face down" can't be examined by any player except when
+-- instructions allow it. Otherwise [CR#700.3b] leaves the grouped
+-- objects individual and [CR#700.3c] leaves them where they were, so
+-- what the mention hides is exactly what its members' zone hides.
+pubB (MkBinding _ _ _ (PileP _ _ (Just FaceDownPile))) = False
+pubB (MkBinding _ _ _ (PileP (Just z) _ _)) = publicZone z
+pubB (MkBinding _ _ _ (PileP Nothing _ _)) = True
 pubB (MkBinding _ _ _ (JoinP _ _)) = True         -- a target is public whichever half it is
 
 public export
@@ -2539,7 +2619,7 @@ payloadProv TurnRefP = Nothing
 payloadProv (AbilityP _) = Nothing
 -- a pile is not a thing a labeled action acted on; its MEMBERS are, and
 -- they keep their own mentions.
-payloadProv (PileP _ _) = Nothing
+payloadProv (PileP _ _ _) = Nothing
 payloadProv (JoinP l r) = maybe (payloadProv r) Just (payloadProv l)
 
 ||| The ORIGIN a payload records -- what made the referent -- read like
@@ -2558,7 +2638,7 @@ payloadOrig GapP = Nothing
 payloadOrig LetterP = Nothing
 payloadOrig TurnRefP = Nothing
 payloadOrig (AbilityP og) = og
-payloadOrig (PileP _ _) = Nothing
+payloadOrig (PileP _ _ _) = Nothing
 payloadOrig (JoinP l r) = maybe (payloadOrig r) Just (payloadOrig l)
 
 ||| An `It`/`Them` anaphor is of kind `Object`, and `kindLte` is what
@@ -2862,7 +2942,7 @@ joinedPayload GapP = False
 joinedPayload LetterP = False
 joinedPayload TurnRefP = False
 joinedPayload (AbilityP _) = False
-joinedPayload (PileP _ _) = False
+joinedPayload (PileP _ _ _) = False
 joinedPayload (JoinP _ _) = True
 
 public export
@@ -2876,7 +2956,7 @@ wordReaches (TypeW t) (MkBinding _ _ _ GapP) = False
 wordReaches (TypeW t) (MkBinding _ _ _ LetterP) = False
 wordReaches (TypeW t) (MkBinding _ _ _ TurnRefP) = False
 wordReaches (TypeW t) (MkBinding _ _ _ (AbilityP _)) = False
-wordReaches (TypeW t) (MkBinding _ _ _ (PileP _ _)) = False
+wordReaches (TypeW t) (MkBinding _ _ _ (PileP _ _ _)) = False
 wordReaches (TypeW t) (MkBinding _ _ _ pl@(JoinP _ _)) = halfReaches (TypeW t) pl
 wordReaches CardW (MkBinding _ _ _ (ObjectP _ zn _ _ _)) = isCardZone zn
 wordReaches CardW (MkBinding _ _ _ PlayerP) = False
@@ -2887,7 +2967,7 @@ wordReaches CardW (MkBinding _ _ _ GapP) = False
 wordReaches CardW (MkBinding _ _ _ LetterP) = False
 wordReaches CardW (MkBinding _ _ _ TurnRefP) = False
 wordReaches CardW (MkBinding _ _ _ (AbilityP _)) = False
-wordReaches CardW (MkBinding _ _ _ (PileP _ _)) = False
+wordReaches CardW (MkBinding _ _ _ (PileP _ _ _)) = False
 wordReaches CardW (MkBinding _ _ _ (JoinP _ _)) = False
 wordReaches (TypedCardW t) (MkBinding _ _ _ (ObjectP ty zn _ _ _)) =
   isCardZone zn && tyIs t ty
@@ -2899,7 +2979,7 @@ wordReaches (TypedCardW t) (MkBinding _ _ _ GapP) = False
 wordReaches (TypedCardW t) (MkBinding _ _ _ LetterP) = False
 wordReaches (TypedCardW t) (MkBinding _ _ _ TurnRefP) = False
 wordReaches (TypedCardW t) (MkBinding _ _ _ (AbilityP _)) = False
-wordReaches (TypedCardW t) (MkBinding _ _ _ (PileP _ _)) = False
+wordReaches (TypedCardW t) (MkBinding _ _ _ (PileP _ _ _)) = False
 wordReaches (TypedCardW t) (MkBinding _ _ _ (JoinP _ _)) = False
 wordReaches SpellW (MkBinding _ _ _ (ObjectP _ zn _ og _)) =
   onStackZone zn && not (isCopyOrigin og)
@@ -2911,7 +2991,7 @@ wordReaches SpellW (MkBinding _ _ _ GapP) = False
 wordReaches SpellW (MkBinding _ _ _ LetterP) = False
 wordReaches SpellW (MkBinding _ _ _ TurnRefP) = False
 wordReaches SpellW (MkBinding _ _ _ (AbilityP _)) = False
-wordReaches SpellW (MkBinding _ _ _ (PileP _ _)) = False
+wordReaches SpellW (MkBinding _ _ _ (PileP _ _ _)) = False
 wordReaches SpellW (MkBinding _ _ _ (JoinP _ _)) = False
 wordReaches PlayerW (MkBinding _ _ _ (ObjectP _ _ _ _ _)) = False
 wordReaches PlayerW (MkBinding _ _ _ PlayerP) = True
@@ -2922,7 +3002,7 @@ wordReaches PlayerW (MkBinding _ _ _ GapP) = False
 wordReaches PlayerW (MkBinding _ _ _ LetterP) = False
 wordReaches PlayerW (MkBinding _ _ _ TurnRefP) = False
 wordReaches PlayerW (MkBinding _ _ _ (AbilityP _)) = False
-wordReaches PlayerW (MkBinding _ _ _ (PileP _ _)) = False
+wordReaches PlayerW (MkBinding _ _ _ (PileP _ _ _)) = False
 wordReaches PlayerW (MkBinding _ _ _ pl@(JoinP _ _)) = halfReaches PlayerW pl
 -- on the battlefield now, or where a labeled action took it off the
 -- battlefield: [CR#608.2h] reads a departed referent by its last known
@@ -2938,7 +3018,7 @@ wordReaches PermanentW (MkBinding _ _ _ GapP) = False
 wordReaches PermanentW (MkBinding _ _ _ LetterP) = False
 wordReaches PermanentW (MkBinding _ _ _ TurnRefP) = False
 wordReaches PermanentW (MkBinding _ _ _ (AbilityP _)) = False
-wordReaches PermanentW (MkBinding _ _ _ (PileP _ _)) = False
+wordReaches PermanentW (MkBinding _ _ _ (PileP _ _ _)) = False
 wordReaches PermanentW (MkBinding _ _ _ pl@(JoinP _ _)) = halfReaches PermanentW pl
 wordReaches TokenW (MkBinding _ _ _ (ObjectP _ zn _ og _)) =
   onFieldZone zn && isTokenOrigin og
@@ -2950,7 +3030,7 @@ wordReaches TokenW (MkBinding _ _ _ GapP) = False
 wordReaches TokenW (MkBinding _ _ _ LetterP) = False
 wordReaches TokenW (MkBinding _ _ _ TurnRefP) = False
 wordReaches TokenW (MkBinding _ _ _ (AbilityP _)) = False
-wordReaches TokenW (MkBinding _ _ _ (PileP _ _)) = False
+wordReaches TokenW (MkBinding _ _ _ (PileP _ _ _)) = False
 wordReaches TokenW (MkBinding _ _ _ (JoinP _ _)) = False
 -- The ORIGIN alone, and no zone. A copy clause is the only thing that
 -- stamps `CopyOrigin`, and [CR#707.12] creates its copy "in the same
@@ -2966,14 +3046,14 @@ wordReaches CopyW (MkBinding _ _ _ GapP) = False
 wordReaches CopyW (MkBinding _ _ _ LetterP) = False
 wordReaches CopyW (MkBinding _ _ _ TurnRefP) = False
 wordReaches CopyW (MkBinding _ _ _ (AbilityP _)) = False
-wordReaches CopyW (MkBinding _ _ _ (PileP _ _)) = False
+wordReaches CopyW (MkBinding _ _ _ (PileP _ _ _)) = False
 wordReaches CopyW (MkBinding _ _ _ (JoinP _ _)) = False
 -- The two ability words ask the origin alone: `AbilityP` places nothing,
 -- so there is no stack to re-ask, and the copy clause is the only thing
 -- that writes an origin at this kind. They part on it as `SpellW` and
 -- `CopyW` part at `Object`.
 wordReaches AbilityW (MkBinding _ _ _ (AbilityP og)) = not (isCopyOrigin og)
-wordReaches AbilityW (MkBinding _ _ _ (PileP _ _)) = False
+wordReaches AbilityW (MkBinding _ _ _ (PileP _ _ _)) = False
 wordReaches AbilityW (MkBinding _ _ _ (ObjectP _ _ _ _ _)) = False
 wordReaches AbilityW (MkBinding _ _ _ PlayerP) = False
 wordReaches AbilityW (MkBinding _ _ _ ChosenPlayerP) = False
@@ -2984,7 +3064,7 @@ wordReaches AbilityW (MkBinding _ _ _ LetterP) = False
 wordReaches AbilityW (MkBinding _ _ _ TurnRefP) = False
 wordReaches AbilityW (MkBinding _ _ _ (JoinP _ _)) = False
 wordReaches AbilityCopyW (MkBinding _ _ _ (AbilityP og)) = isCopyOrigin og
-wordReaches AbilityCopyW (MkBinding _ _ _ (PileP _ _)) = False
+wordReaches AbilityCopyW (MkBinding _ _ _ (PileP _ _ _)) = False
 wordReaches AbilityCopyW (MkBinding _ _ _ (ObjectP _ _ _ _ _)) = False
 wordReaches AbilityCopyW (MkBinding _ _ _ PlayerP) = False
 wordReaches AbilityCopyW (MkBinding _ _ _ ChosenPlayerP) = False
@@ -3007,7 +3087,7 @@ wordReaches AbilityCopyW (MkBinding _ _ _ (JoinP _ _)) = False
 -- the other half of [CR#700.3b]'s sentence -- the grouped objects stay
 -- individual objects, so a group mention of them is not a pile and this
 -- word must miss it.
-wordReaches PileW (MkBinding _ _ _ (PileP _ _)) = True
+wordReaches PileW (MkBinding _ _ _ (PileP _ _ _)) = True
 wordReaches PileW (MkBinding _ _ _ (ObjectP _ _ _ _ _)) = False
 wordReaches PileW (MkBinding _ _ _ PlayerP) = False
 wordReaches PileW (MkBinding _ _ _ ChosenPlayerP) = False
@@ -3298,7 +3378,7 @@ public export
 verbedMatch : VerbLabel -> NounWord -> Binding -> Bool
 -- a pile carries no stamp (`payloadProv`), so no participle read finds
 -- one: [CR#700.3b] leaves the acting to the members.
-verbedMatch v w (MkBinding _ _ _ (PileP _ _)) = False
+verbedMatch v w (MkBinding _ _ _ (PileP _ _ _)) = False
 verbedMatch v w (MkBinding _ _ OneOf (ObjectP ty zn (Just st) _ _)) = stampWordOk v w st ty zn
 verbedMatch v w (MkBinding _ _ OneOf (ObjectP _ _ Nothing _ _)) = False
 verbedMatch v w (MkBinding _ _ ManyOf (ObjectP _ _ _ _ _)) = False
@@ -3314,7 +3394,7 @@ verbedMatch v w (MkBinding _ _ _ (JoinP _ _)) = False
 
 public export
 verbedMatchMany : VerbLabel -> NounWord -> Binding -> Bool
-verbedMatchMany v w (MkBinding _ _ _ (PileP _ _)) = False
+verbedMatchMany v w (MkBinding _ _ _ (PileP _ _ _)) = False
 verbedMatchMany v w (MkBinding _ _ ManyOf (ObjectP ty zn (Just st) _ _)) = stampWordOk v w st ty zn
 verbedMatchMany v w (MkBinding _ _ ManyOf (ObjectP _ _ Nothing _ _)) = False
 verbedMatchMany v w (MkBinding _ _ OneOf (ObjectP _ _ _ _ _)) = False
@@ -3438,6 +3518,20 @@ zoneOfThose w (b :: bs) =
   case (b.plur, wordNow w b) of
     (ManyOf, True) => bindingZone b
     _ => zoneOfThose w bs
+
+||| `zoneOfThose`' twin at the face field: a slice taken out of piles the
+||| text stated a face for inherits that face. Taking one pile of several
+||| leaves that pile exactly what it was -- [CR#700.3a] put each object
+||| into one pile and choosing among the piles moves nothing -- so the
+||| part reports what the whole did. A mention over piles that disagree
+||| carries none to inherit.
+public export
+faceOfThose : NounWord -> Bindings -> Maybe PileFace
+faceOfThose w [] = Nothing
+faceOfThose w (b :: bs) =
+  case (b.plur, wordNow w b) of
+    (ManyOf, True) => bindingFace b
+    _ => faceOfThose w bs
 
 ||| The stamp readers, `zoneOf…`'s twins at the provenance field. Only a
 ||| mention that READS BACK a binding can report one: a stamp is written

@@ -3325,12 +3325,30 @@ mutual
     ||| The pile mention keeps the group's ZONE, which [CR#700.3c] leaves
     ||| where it was -- Death or Glory partitions the GRAVEYARD, and this
     ||| is not the library-search gap.
+    |||
+    ||| The FACES are the second thing the text may state about the piles
+    ||| it makes, one per pile and in printed order: 6 supported lines
+    ||| write them, 5 as "a face-down pile and a face-up pile" (Atris,
+    ||| Curator of Destinies, Fortune's Favor, Riddles in the Dark,
+    ||| Sauron's Ransom) and one as "two face-down piles" (Phyrexian
+    ||| Portal). They are a slot on the PARTITION because the partition is
+    ||| what makes the piles, and per-pile because the commonest line
+    ||| gives its two piles DIFFERENT faces -- which is the card's whole
+    ||| mechanism, the separator knowing both halves and the chooser one.
+    ||| The mention the row leaves reports a face only where they agree
+    ||| (`pileMentionFace`), and `FacesFit` admits the empty list for the
+    ||| 20 lines that state none. Nothing here is a status: [CR#110.5d]
+    ||| gives status to permanents alone and denies any correlation
+    ||| between a face-down card off the battlefield and a face-down
+    ||| permanent, which is why `PileFace` is its own type.
     ||| -- spelling: "[separator] separates [group] into [n] piles"; with
     ||| the separator unwritten, the imperative "separate [group] into [n]
-    ||| piles".
+    ||| piles"; with the faces written, "into a [face] pile and a [face]
+    ||| pile" or "into [n] [face] piles".
     SeparateIntoPiles : (who : Noun bs Player) ->
                         (grp : Noun (nomIntro who) Object) ->
-                        (piles : Nat) ->
+                        (piles : Nat) -> (faces : List PileFace) ->
+                        {auto 0 ff : FacesFit faces piles} ->
                         {auto 0 pl : nounPlur grp = ManyOf} -> Effect bs
     ||| The chooser, open or secret. The `Disclosure` is a SLOT on this
     ||| row and no second row beside it: [CR#101.4b] states what an open
@@ -4348,7 +4366,7 @@ mutual
   heldUntilOk (Concludes _ _) = False
   heldUntilOk GameDrawn = False
   heldUntilOk RestartsGame = False
-  heldUntilOk (SeparateIntoPiles _ _ _) = False
+  heldUntilOk (SeparateIntoPiles _ _ _ _) = False
   heldUntilOk (CounterSpell _) = False
   heldUntilOk (CopyStack _ _ _ _) = False
   heldUntilOk (ChooseNewTargets _) = False
@@ -4470,7 +4488,7 @@ mutual
   reflexEncloseUse RestartsGame = EncAgentless
   -- one named player's single action, so "if they do" has a subject to
   -- inflect for [CR#603.12].
-  reflexEncloseUse (SeparateIntoPiles _ _ _) = EncReflexive
+  reflexEncloseUse (SeparateIntoPiles _ _ _ _) = EncReflexive
   reflexEncloseUse (CounterSpell _) = EncAgentless
   reflexEncloseUse (CopyStack _ _ _ _) = EncAgentless
   reflexEncloseUse (ChooseNewTargets _) = EncReflexive
@@ -4607,7 +4625,7 @@ mutual
   thisWayOutcomeOk (Concludes _ _) = True
   thisWayOutcomeOk GameDrawn = True
   thisWayOutcomeOk RestartsGame = True
-  thisWayOutcomeOk (SeparateIntoPiles _ _ _) = True
+  thisWayOutcomeOk (SeparateIntoPiles _ _ _ _) = True
   thisWayOutcomeOk (CounterSpell _) = True
   thisWayOutcomeOk (CopyStack _ _ _ _) = True
   thisWayOutcomeOk (ChooseNewTargets _) = True
@@ -4738,7 +4756,7 @@ mutual
   costActionOk (Concludes _ _) = True
   costActionOk GameDrawn = True
   costActionOk RestartsGame = False
-  costActionOk (SeparateIntoPiles _ grp _) = costNounOk grp
+  costActionOk (SeparateIntoPiles _ grp _ _) = costNounOk grp
   costActionOk (CounterSpell _) = True
   costActionOk (CopyStack _ what _ _) = costNounOk what
   costActionOk (ChooseNewTargets what) = costNounOk what
@@ -4902,7 +4920,7 @@ mutual
   effEq GameDrawn _ = False
   effEq RestartsGame RestartsGame = True
   effEq RestartsGame _ = False
-  effEq (SeparateIntoPiles _ _ _) _ = False
+  effEq (SeparateIntoPiles _ _ _ _) _ = False
   -- kind-indexed, so two subjects need not share a kind to compare;
   -- `Choose`'s row gives up on the same ground, and the retarget row
   -- joined them when the copy verb's complement opened past `Object`.
@@ -5045,8 +5063,9 @@ mutual
   effIntro (Concludes _ who) = nomIntro who
   effIntro GameDrawn = bs
   effIntro RestartsGame = bs
-  effIntro (SeparateIntoPiles who grp piles) =
-    MkBinding TheD Object ManyOf (PileP (nounZone grp) (Just piles))
+  effIntro (SeparateIntoPiles who grp piles faces) =
+    MkBinding TheD Object ManyOf
+              (PileP (nounZone grp) (Just piles) (pileMentionFace faces))
       :: groupSpent (nomIntro grp)
   effIntro (CounterSpell what) = nomIntro what
   effIntro (CopyStack {k} {ph} agent what times exc) =
@@ -5218,7 +5237,7 @@ mutual
   preIntro RestartsGame = bs
   -- before the separation is made there are no piles to read, only the
   -- separator and the group.
-  preIntro (SeparateIntoPiles who grp _) = nomIntro grp
+  preIntro (SeparateIntoPiles who grp _ _) = nomIntro grp
   preIntro (CounterSpell what) = nomIntro what
   preIntro (CopyStack agent what times exc) = amtIntro times
   preIntro (ChooseNewTargets what) = nomIntro what
@@ -5369,8 +5388,9 @@ mutual
   annIntro (Concludes _ who) = nomIntro who
   annIntro GameDrawn = bs
   annIntro RestartsGame = bs
-  annIntro (SeparateIntoPiles who grp piles) =
-    MkBinding TheD Object ManyOf (PileP (nounZone grp) (Just piles))
+  annIntro (SeparateIntoPiles who grp piles faces) =
+    MkBinding TheD Object ManyOf
+              (PileP (nounZone grp) (Just piles) (pileMentionFace faces))
       :: groupSpent (nomIntro grp)
   annIntro (CounterSpell what) = nomIntro what
   annIntro (CopyStack agent what times exc) = amtIntro times
@@ -5525,8 +5545,9 @@ mutual
   deedDelta (Concludes _ _) = []
   deedDelta GameDrawn = []
   deedDelta RestartsGame = []
-  deedDelta (SeparateIntoPiles who grp piles) =
-    [MkBinding TheD Object ManyOf (PileP (nounZone grp) (Just piles))]
+  deedDelta (SeparateIntoPiles who grp piles faces) =
+    [MkBinding TheD Object ManyOf
+               (PileP (nounZone grp) (Just piles) (pileMentionFace faces))]
   deedDelta (CounterSpell _) = []
   deedDelta (CopyStack {k} {ph} agent what times exc) =
     [MkBinding TheD k (outputPlur (nounPlur what) (amtPlur times))

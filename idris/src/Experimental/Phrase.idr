@@ -1082,6 +1082,31 @@ mutual
                   (r : Comparator) -> (bound : Amount bs) ->
                   Predicate bs k
     InZone : ZoneExpr bs -> Predicate bs Object          -- zone clause "in/from [zone]" ([CR#109.2a])
+    ||| "all creatures in the pile of that player's choice", "all cards
+    ||| from the pile of your choice", "a card from the chosen pile",
+    ||| "the cards in the other pile": membership in a pile, narrowing a
+    ||| described set to the members a partition put in one of its parts
+    ||| [CR#700.3a].
+    ||| A ROW OF ITS OWN and neither `InZone` nor `ExiledWith`, and the
+    ||| pile rules refuse both by name. [CR#700.3c] says objects grouped
+    ||| into piles "don't leave the zone they're currently in", so the
+    ||| pile is not a place and the zone clause narrows nothing -- Death
+    ||| or Glory's two piles are both in the graveyard and `InZone` would
+    ||| keep every card in it. [CR#700.3b] says "the pile is not an
+    ||| object", so a containment read that holds an object -- which is
+    ||| what `ExiledWith`'s `LinkSource` demands -- has nothing to hold.
+    ||| A pile is the one grouping whose members can be named only by
+    ||| naming the pile, which is why the slot takes a phrase and gates
+    ||| it at `PileMention`.
+    ||| It SEEDS NO ZONE, which is the same sentence again: [CR#700.3c]
+    ||| leaves the members where they were, so a pile is not a place and
+    ||| the description's other words go on saying where its referents
+    ||| are -- Liliana of the Veil's piles are on the battlefield and
+    ||| Death or Glory's in the graveyard, and neither fact comes from
+    ||| the membership read.
+    ||| -- spelling: "[dom] in/from [pile]".
+    InPile : (pile : Noun bs Object) -> {auto 0 pm : PileMention pile} ->
+             Predicate bs Object
     ExiledWith : (src : Noun bs Object) ->
                  {auto 0 ls : LinkSource src} -> Predicate bs Object
     And : (ps : List (Predicate bs k)) -> {auto 0 zc : ZoneCoherent ps} ->
@@ -1297,6 +1322,11 @@ mutual
   -- the current ones back. The ability side carries no zone of its own
   -- and ignores this.
   seedZone (Targets _ _) = Just Stack
+  -- A pile is not a PLACE: [CR#700.3c] says objects grouped into piles
+  -- "don't leave the zone they're currently in", so the membership read
+  -- fixes no zone and the description's own words keep saying where its
+  -- referents are.
+  seedZone (InPile _) = Nothing
   seedZone (ExiledWith _) = Just Exile
   seedZone (CompareOver dom _ _ _) = seedZone dom
   seedZone (And ps) = seedZoneAll ps
@@ -1489,6 +1519,7 @@ mutual
   -- word is the domain's.
   hasHead (CompareOver dom _ _ _) = hasHead dom
   hasHead (InZone _) = True
+  hasHead (InPile _) = False
   hasHead (ExiledWith _) = True
   -- ANY member heads a conjunction, but EVERY alternative has to head a
   -- disjunction: each disjunct stands where the phrase's head would.
@@ -1663,6 +1694,8 @@ mutual
   predEq (NthCastBy _ _ _) _ = False
   predEq (ExiledWith a) (ExiledWith b) = nounEqRef a b
   predEq (ExiledWith _) _ = False
+  predEq (InPile a) (InPile b) = nounEqRef a b
+  predEq (InPile _) _ = False
   predEq Attacking Attacking = True
   predEq Attacking _ = False
   predEq BeingDeclaredAttacker BeingDeclaredAttacker = True
@@ -2273,6 +2306,7 @@ mutual
   predSays (CastBy _) = True
   predSays (NthCastBy _ _ _) = True
   predSays (ExiledWith _) = True
+  predSays (InPile _) = True
   predSays Attacking = True
   predSays BeingDeclaredAttacker = True
   predSays Blocking = True
@@ -2355,6 +2389,7 @@ mutual
   predNegFree (CastBy _) = True
   predNegFree (NthCastBy _ _ _) = True
   predNegFree (ExiledWith _) = True
+  predNegFree (InPile _) = True
   predNegFree Attacking = True
   predNegFree BeingDeclaredAttacker = True
   predNegFree Blocking = True
@@ -3233,11 +3268,13 @@ mutual
   -- [CR#700.3c] and it carries no type, for `PileP`'s reason.
   nounDelta (PileOf q Nothing) =
     MkBinding PartD Object (slicePlur q)
-              (PileP (zoneOfThose PileW bs) (sliceExact q))
+              (PileP (zoneOfThose PileW bs) (sliceExact q)
+                     (faceOfThose PileW bs))
       :: sliceCountDelta q
   nounDelta (PileOf q (Just by)) =
     MkBinding PartD Object (slicePlur q)
-              (PileP (zoneOfThose PileW bs) (sliceExact q))
+              (PileP (zoneOfThose PileW bs) (sliceExact q)
+                     (faceOfThose PileW bs))
       :: (sliceCountDelta q ++ nounDelta by)
   nounDelta It = []
   nounDelta ItAbility = []
@@ -3407,6 +3444,11 @@ mutual
   predDelta (IsAttached _) = []
   predDelta (AttachedBy _ by) = nounDelta by
   predDelta (AttachedTo host) = nounDelta host
+  -- the pile phrase leaves the delta any phrase leaves, exactly as
+  -- `ControlledBy` and `AttachedTo` leave their nouns'. `PileOf`'s is a
+  -- `PartD` mention, so a pile named inside a description is one the
+  -- piles have had taken from them.
+  predDelta (InPile p) = nounDelta p
   predDelta (InZone z) = zoneDelta z
   predDelta (And ps) = predDeltaAll ps
   predDelta (Not p) = []
@@ -4538,6 +4580,29 @@ mutual
                        {0 asc : Ascribable This} ->
                        {0 way : So (ascriptionOk t sub)} ->
                        LinkSource (AsType t This sub {asc} {way})
+
+  ||| Which phrases name a PILE. Enumerated the way `LinkSource` is, and
+  ||| for the same reason: the answer is a fact about the constructor and
+  ||| not about anything it computes, so the positive cases are written
+  ||| out and every other phrase is refused by having no case.
+  ||| The three are the whole pile vocabulary the partition round landed
+  ||| -- the partitive `PileOf` ("the pile of that player's choice", "one
+  ||| of those piles") and the demonstrative `PileW` in its two numbers
+  ||| ("that pile" / "the chosen pile", "those piles" / "the chosen
+  ||| piles"). [CR#700.3b] leaves the pile no object, so nothing that
+  ||| describes an object may stand here: `wordReaches` already keeps
+  ||| every object word off a `PileP`, and this is the same refusal read
+  ||| from the phrase side.
+  public export
+  data PileMention : Noun bs Object -> Type where
+    PilePartitive : {0 q : SliceCount bs} ->
+                    {0 by : Maybe (Noun bs Player)} ->
+                    {0 ok : countManyWord PileW bs = 1} ->
+                    PileMention (PileOf q by {ok})
+    ThatPile : {0 ok : countWord PileW bs = 1} ->
+               PileMention {bs} (That PileW {ok})
+    ThosePiles : {0 ok : countManyWord PileW bs = 1} ->
+                 PileMention {bs} (Those PileW {ok})
 
   public export
   choosable : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
@@ -5934,8 +5999,8 @@ mutual
   -- a disposal names the pile and moves its MEMBERS [CR#700.3c], so the
   -- mention is re-zoned exactly as an object group is. No stamp is
   -- written: `PileP` records none, for `payloadProv`'s reason.
-  setZone p z (MkBinding det Object plur (PileP _ sz)) =
-    MkBinding det Object plur (PileP z sz)
+  setZone p z (MkBinding det Object plur (PileP _ sz fc)) =
+    MkBinding det Object plur (PileP z sz fc)
   setZone p z (MkBinding det Player plur PlayerP) = MkBinding det Player plur PlayerP
   setZone p z (MkBinding det Player plur ChosenPlayerP) =
     MkBinding det Player plur ChosenPlayerP

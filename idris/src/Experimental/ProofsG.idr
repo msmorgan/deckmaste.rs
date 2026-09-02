@@ -1447,7 +1447,7 @@ badCardWordReadsPiles : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Instant])
        [ Spell (Sequentially
                   [ Macros.revealCards (Macros.topSlice (Lit 5))
-                  , SeparateIntoPiles Macros.anOpponent Them 2
+                  , SeparateIntoPiles Macros.anOpponent Them 2 []
                   , Macros.move (Those CardW {ok = ok}) Macros.handZ ]) ]
        Nothing)
 badCardWordReadsPiles Refl impossible
@@ -1471,6 +1471,34 @@ public export
 badPilePartitiveWithoutAPartition : Unspellable (Effect []) (\ok =>
   Macros.move (Macros.onePile {ok = ok}) Macros.handZ)
 badPilePartitiveWithoutAPartition Refl impossible
+
+
+||| "Reveal the top five cards of your library. Put all cards in those cards into your hand."
+||| The membership read's own reading of [CR#700.3b]: a pile is not an object, and its converse -- a group of objects is not a pile -- is what leaves the phrase nothing to be in. Only a clause that GROUPS objects into piles [CR#700.3] makes a thing membership can be asked of, and a reveal groups nothing; "those cards" is a group of cards standing in a zone, which every card in that zone is equally in.
+public export
+badMembershipInANonPile : Unspellable Card (\ok =>
+  Macros.card "" Nothing [] (MkTypeLine [] [Instant])
+       [ Spell (Sequentially
+                  [ Macros.revealCards (Macros.topSlice (Lit 5))
+                  , Macros.move (AllOf (And [IsCard, InPile Them {pm = ok}]))
+                                Macros.handZ ]) ]
+       Nothing)
+badMembershipInANonPile PilePartitive impossible
+badMembershipInANonPile ThatPile impossible
+badMembershipInANonPile ThosePiles impossible
+
+
+||| "Reveal the top five cards of your library. An opponent separates those cards into two piles. Turn those piles face down."
+||| A pile's face is not a STATUS, and [CR#110.5d] says so in three sentences: "only permanents have status. Cards not on the battlefield do not. Although an exiled card may be face down, this has no correlation to the face-down status of a permanent." [CR#700.3c] leaves these cards in the LIBRARY while they are grouped, so `SetStatus`' battlefield gate refuses the sentence -- which is why the face the partition states is a `PileFace` on the pile and not a status on its members.
+public export
+badPileFaceAsAStatus : Unspellable Card (\ok =>
+  Macros.card "" Nothing [] (MkTypeLine [] [Instant])
+       [ Spell (Sequentially
+                  [ Macros.revealCards (Macros.topSlice (Lit 5))
+                  , SeparateIntoPiles Macros.anOpponent Them 2 []
+                  , SetStatus FaceDown (Those PileW) {ok = ok} ]) ]
+       Nothing)
+badPileFaceAsAStatus OnField impossible
 
 
 ||| "If a triggered ability of a permanent you control would trigger, draw a card instead."
