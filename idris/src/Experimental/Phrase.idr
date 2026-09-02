@@ -4447,7 +4447,7 @@ mutual
                       Condition bs
     NotCond : (c : Condition bs) -> Condition bs
     AndCond : (cs : List (Condition bs)) ->
-              {auto 0 tw : TwoConjuncts cs} ->
+              {auto 0 tw : AtLeastTwoArms cs} ->
               {auto 0 fl : FlatConjuncts cs} -> Condition bs
     ||| "if X or if Y": the condition disjunction, `AndCond`'s twin.
     ||| [CR#603.4] is the one rule that gives "if" a meaning of its own,
@@ -4472,7 +4472,7 @@ mutual
     ||| disambiguates that one in print and this row does not narrow it.
     ||| -- spelling: "if [c] or if [c]"; singly marked, "if [c] or [c]".
     OrCond : (cs : List (Condition bs)) ->
-             {auto 0 tw : TwoDisjuncts cs} ->
+             {auto 0 tw : AtLeastTwoArms cs} ->
              {auto 0 fd : FlatDisjuncts cs} -> Condition bs
 
   public export
@@ -4481,16 +4481,16 @@ mutual
   atLeastTwoCs (_ :: []) = False
   atLeastTwoCs (_ :: _ :: _) = True
 
+  ||| ONE arity witness for both coordinations. `atLeastTwoCs` counts
+  ||| arms and does not care which word joins them, so `AndCond` and
+  ||| `OrCond` were asking one question under two names -- not the
+  ||| "named apart so a refusal says which question" idiom, which needs
+  ||| two questions. The flatness gates beside them stay two, because
+  ||| those really do differ: a disjunct may be a conjunction and a
+  ||| conjunct may not be a conjunction.
   public export
-  TwoConjuncts : List (Condition bs) -> Type
-  TwoConjuncts {bs} cs = So (atLeastTwoCs cs)
-
-  ||| The same arity demand for the OR row: `atLeastTwoCs` counts arms and
-  ||| does not care which word joins them, so the measurement is shared and
-  ||| only the name is new.
-  public export
-  TwoDisjuncts : List (Condition bs) -> Type
-  TwoDisjuncts {bs} cs = So (atLeastTwoCs cs)
+  AtLeastTwoArms : List (Condition bs) -> Type
+  AtLeastTwoArms {bs} cs = So (atLeastTwoCs cs)
 
   public export
   isAndCond : {0 bs : Bindings} -> Condition bs -> Bool

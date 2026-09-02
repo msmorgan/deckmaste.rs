@@ -916,6 +916,21 @@ mutual
                    (limit : Maybe UsageLimit) ->
                    {auto 0 ok : Interceptable ev} ->
                    {auto 0 oks : InterceptableArms alts} -> StaticEffect bs
+      ||| The four prevention/redirection rows are two pairs, and the
+      ||| split between the pairs is the SHIELD versus the CUT. `Prevents`
+      ||| and `Redirects` size a shield the effect sets up ahead of the
+      ||| damage -- `Shield` is `AllOfIt` or `TheNext n`, a standing
+      ||| quantity spent as damage arrives. `PreventsFrom` and
+      ||| `RedirectsFrom` name a SOURCE and cut each event it would cause
+      ||| -- `PreventCut` is `CutAll`, `CutSome`, `CutAllBut` or
+      ||| `CutHalf r`, a per-event arithmetic. Neither type is the
+      ||| other's special case, and the two also disagree on two further
+      ||| slots (`by` against `src`; the `ReplUse` only the source-side
+      ||| rows carry), so the "which row you picked" fact is three facts
+      ||| and not one. Recorded rather than merged.
+      ||| Within a pair the difference IS one slot -- prevention has no
+      ||| destination, redirection does -- which is why those two stay
+      ||| two rows and not one with a `Maybe`.
       Prevents : (kind : DamageKind) -> (size : Shield bs) ->
                  (scope : DamageScope (shieldIntro size)) ->
                  (by : Maybe (Noun (scopeIntro scope) Object)) ->
@@ -1476,6 +1491,18 @@ mutual
   asThoughOk Permit ds (Just a) = all (deedPremiseOk (asThoughSort a)) ds
   asThoughOk _ _ (Just _) = False
 
+  ||| THE NON-NESTING GATES. `notConditional`, `notWindowed`,
+  ||| `notExtended`, `notCarvedOut`, `isCoord`, `isCompound`, `isInstead`
+  ||| and `notWordHeaded` are one idiom, not eight: a `Bool` reader that
+  ||| answers `False` for exactly the rows a wrapper may not wrap, and a
+  ||| `So` of it at the wrapper's gate. The mechanism is already shared
+  ||| -- it is `So` -- and the per-row names are the `GameEvent` gates'
+  ||| idiom, kept so a refusal says which question was asked; nothing
+  ||| further merges, because Idris has no way to say "matches this
+  ||| constructor" once for eight different constructors of five
+  ||| different datatypes. Each reader's own docstring carries its own
+  ||| rule; none of them restates this paragraph.
+  |||
   ||| The gate on both static conditionals: a conditioned statement is not
   ||| conditioned again. It is a NARROWING and not a pin, and it is
   ||| asserted by nothing on purpose. A nested conditional is
@@ -3185,6 +3212,14 @@ mutual
                               {auto 0 pm : PerMember on} ->
                               {auto 0 ok : countOutcomes CountersPut bs = 1} ->
                               Effect bs
+    ||| The player cell of the put verb, and NOT `PutCounters` at a kind
+    ||| index. The two rows bind their slots in opposite order -- "put
+    ||| [amt] counters on [on]" announces the amount before the
+    ||| recipient, "[who] gets [amt] counters" announces the recipient
+    ||| first -- and a constructor has one slot order. The kind-blind
+    ||| rows below ARE kind-indexed (`GiveCountersOfOwnKinds`,
+    ||| `DoubleCountersOfOwnKinds`), which is what the shared shape buys
+    ||| where there is one: those carry no count at all.
     GetsCounters : (who : Noun bs Player) -> (amt : Amount (nomIntro who)) ->
                    (kind : CounterKind) ->
                    {auto 0 sc : counterScope kind = Player} -> Effect bs
@@ -3261,6 +3296,15 @@ mutual
     ||| they take off an opponent. The amount is therefore a slot, and
     ||| leaving it unwritten is the "all" spelling rather than the only
     ||| reading available.
+    ||| `RemoveCounters`' player cell, kept apart for `GetsCounters`'
+    ||| reason and one more: the count slots are three different types
+    ||| across the four verbs, each separately measured. A removal's size
+    ||| is the actor's choice, so it is a `Quantity` (19 "any number of",
+    ||| 6 "up to"); a player's loss writes a number or nothing, so it is
+    ||| a `Maybe Amount` where the silence spells "all"; both put verbs
+    ||| write a plain `Amount`. A merged row would carry a three-armed
+    ||| count and a table saying which verb admits which arm, which is
+    ||| the same three facts one indirection further from the row.
     LosesCounters : (who : Noun bs Player) -> (kind : Maybe CounterKind) ->
                     (amt : Maybe (Amount (nomIntro who))) ->
                     {auto 0 pk : CounterKindNamed Player kind} -> Effect bs

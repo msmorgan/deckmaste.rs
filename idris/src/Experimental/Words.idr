@@ -285,7 +285,7 @@ data Kind : Type where
   ||| `Object \/ Player` antecedent because `Object` sits below it.
   ||| Idempotence, commutativity and associativity hold up to that order.
   ||| The semilattice is UNBOUNDED by decision -- `Or` carries
-  ||| `TwoDisjuncts`, so a heterogeneous fold seeds with a non-empty list's
+  ||| `AtLeastTwoArms`, so a heterogeneous fold seeds with a non-empty list's
   ||| head and needs no unit: no `Top`, no `Bottom`.
   (\/) : Kind -> Kind -> Kind
 
