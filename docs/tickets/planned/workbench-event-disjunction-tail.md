@@ -31,3 +31,9 @@ Two remainders from trigger-2 (done 2026-08-27) whose named owner
   causer-voiced header, Cobra Trap's by-source agent. Land TOGETHER or not at
   all — the parent round proved pieces buy zero cards. 3 supported "would
   CAUSE" lines (re-measured down from 4).
+
+- **Routed from workbench-turn-structure (close, 2026-09-02):** the
+  ADDITIONAL-TIME family — all 32 lines / 35 cards are conditional
+  replacements over a triggering event with an ABILITY-VALUED subject on
+  `Intercepts` ("if this ability has triggered … instead"); not an allowance
+  sibling. Replacement-seat machinery, so it lands here.
