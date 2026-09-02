@@ -40,3 +40,9 @@ Re-measure at claim; several may fall out of each other.
   + Ghostly Dancers — not `Modal`'s bulleted spell [CR#700.2]; brings
   [CR#709.5g]'s Lock label with it) and the PLURAL door count (3 reads —
   halves of a described group with distinct names per [CR#709.5]).
+
+- **Routed from mixed-head-disjunction (close, 2026-09-02):** the
+  all-headless PRESUPPOSITION disagreement (3 lines — Sonar Strike, Tetsuo
+  Umezawa, Dire Downdraft; the Talion `Compare`-list precedent's own
+  question) and the `historic` PREDICATE ([CR#700.6], 57 supported cards —
+  its reminder is a substantive list, not a mixed coordination).
