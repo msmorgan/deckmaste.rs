@@ -13771,10 +13771,7 @@ nautiloidShipTrigger =
 ||| too, at the SPEND deed: [CR#118.14] makes "mana of any type can be
 ||| spent" the same permission as "you may spend mana as though it were",
 ||| so the passive is spelling and this is the same row Rogue Class
-||| writes actively. What the card still waits on is the possessed-hand
-||| destination Roads Go Ever, Ever On's chapter wants: `DestOk` admits
-||| bare zones only, which is a move-destination gap and not a linkage
-||| one.
+||| writes actively.
 public export
 summonEsperValigarmandaCast : StaticEffect []
 summonEsperValigarmandaCast =
@@ -13784,6 +13781,22 @@ summonEsperValigarmandaCast =
           , Macros.maySpendAsThough You Nothing MatchAnyType
               (Just (ToCast (And [Macros.instantOrSorcery,
                                   ExiledWith Macros.thisSaga]))) ]
+
+||| Roads Go Ever, Ever On's chapters II and III -- "Put a card exiled
+||| with this Saga into its owner's hand." The linkage read at the move's
+||| SUBJECT, and the POSSESSED-ZONE destination's witness.
+||| -- spelling: the destination is the BARE hand zone. "Its owner's
+||| hand" needs no possessor on the zone: [CR#400.3] routes a moved card
+||| to its owner's corresponding zone regardless of what the sentence
+||| says, so the bare zone IS the owner-rooted destination -- the same
+||| ruling Blight Herder's plural "their owners' graveyards" and Obelisk
+||| of Undoing's singular "its owner's hand" already write.
+public export
+roadsGoEverEverOnChapters : Ability
+roadsGoEverEverOnChapters =
+  Macros.triggered When (ChapterMark [ChapterII, ChapterIII])
+    (Macros.move (Macros.a (And [IsCard, ExiledWith Macros.thisSaga]))
+                 Macros.handZ)
 
 ||| Rogue Class's level-3 body -- "You may play cards exiled with this
 ||| Class, and you may spend mana as though it were mana of any color to
@@ -15344,6 +15357,19 @@ obeliskOfUndoing =
                    (Macros.returnTo
                       (Macros.target (And [Permanent, OwnedBy You, ControlledBy You]))
                       Macros.handZ)
+
+||| Flickering Ward's activated ability -- "{W}: Return this Aura to its
+||| owner's hand." The self-returning Aura, and the possessed-hand
+||| destination read at a SELF mention where Roads Go Ever, Ever On reads
+||| it at a described card. Same ruling on the destination: [CR#400.3]
+||| makes the bare zone the owner-rooted one, so the possessive is
+||| spelling. The whole card additionally wants the as-enters colour
+||| choice and the protection grant that reads it back.
+public export
+flickeringWardBounce : Ability
+flickeringWardBounce =
+  Macros.activated (Mana [Macros.pip White])
+                   (Macros.returnTo Macros.thisAura Macros.handZ)
 
 ||| Blight Herder's cast trigger -- "you may put two cards your opponents
 ||| own from exile into their owners' graveyards." The ownership
