@@ -2716,7 +2716,7 @@ misterFantastic =
        , Macros.triggered Whenever
                           (Enters (CountedGroup (Macros.atLeast 1) Nothing
                                          (And [IsToken, ControlledBy You])) Nothing)
-                          (May Nothing Macros.drawACard Nothing Nothing) ]
+                          (Macros.may You Macros.drawACard) ]
        (Just (2, 4))
 
 
@@ -13910,10 +13910,9 @@ moonlitMeditation =
                    (TokensCreated (CountedGroup (Macros.atLeast 1) Nothing IsToken)
                                   Nothing (Just You) Nothing)
                    [] Nothing
-                   (May (Just You)
+                   (Macros.may You
                         (Create You GroupSize
-                                (TokenCopyOf (AttachHost Enchanted PermanentW) []) [])
-                        Nothing Nothing)
+                                (TokenCopyOf (AttachHost Enchanted PermanentW) []) []))
                    Repeatedly (Just OncePerTurn)) ]
        Nothing
 
@@ -14591,12 +14590,12 @@ eachPlayerBindsAGroup = Refl
 ||| and 0 supported cards ask it to.
 public export
 eachPlayerOfferBindsOneMember :
-  countOnes Player (mayCtx (Just (Each {bs = []} AnyPlayer))) = 1
+  countOnes Player (mayCtx (Each {bs = []} AnyPlayer)) = 1
 eachPlayerOfferBindsOneMember = Refl
 
 public export
 eachPlayerOfferDropsTheGroup :
-  countManys Player (mayCtx (Just (Each {bs = []} AnyPlayer))) = 0
+  countManys Player (mayCtx (Each {bs = []} AnyPlayer)) = 0
 eachPlayerOfferDropsTheGroup = Refl
 
 --------------------------------------------------------------------------------
@@ -15736,13 +15735,13 @@ testMox1 =
 ||| don't, put it into its owner's graveyard. / {T}: Add {G}. / {T}:
 ||| Target creature gets +1/+1 until end of turn."
 ||| The replacement's body is ONE instruction with two conditional
-||| continuations over the same antecedent, and that pair is `May`'s own
+||| continuations over the same antecedent, and that pair is `IfDone`'s
 ||| two arms: [CR#608.2c] reads the sentences in the order written, and
 ||| the second arm is reachable without an offer because [CR#609.3] does
 ||| only as much as possible -- a player who controls no Forest leaves
 ||| the instructed sacrifice undone, and the third sentence says what
-||| happens then. So the offer slot stays empty here and Mox Diamond
-||| writes it; nothing else separates the cycle's members.
+||| happens then. So the mandatory row carries this card and Mox Diamond
+||| writes the offered one; nothing else separates the cycle's members.
 ||| The third sentence's printed pronoun is written as the self: the
 ||| replacement's body is PROSPECTIVE, so the entry it intercepts has
 ||| introduced no mention to read, and the sentence's "it" is the same
@@ -15752,12 +15751,12 @@ heartOfYavimaya : Card
 heartOfYavimaya =
   Macros.card "Heart of Yavimaya" Nothing [] (MkTypeLine [] [Land])
        [ Static (Intercepts (Enters This Nothing) [] Nothing
-                   (May Nothing
+                   (Macros.doThenElse
                         (Macros.sacrifice You
                            (Macros.a (And [Macros.land,
                                            HasSubtype (landType "Forest")])))
-                        (Just (Macros.putOntoBattlefield This))
-                        (Just (Macros.move This Macros.graveyardZ)))
+                        (Macros.putOntoBattlefield This)
+                        (Macros.move This Macros.graveyardZ))
                    Repeatedly Nothing)
        , Macros.activated TapSymbol
                           (AddMana You (Lit 1) (Runs [[OfColor Green]]) [])
@@ -15779,11 +15778,11 @@ moxDiamond : Card
 moxDiamond =
   Macros.card "Mox Diamond" Nothing [] (MkTypeLine [] [Artifact])
        [ Static (Intercepts (Enters This Nothing) [] Nothing
-                   (May (Just You)
+                   (Macros.mayThenElse You
                         (Macros.discard
                            (Macros.a (And [Macros.land, InZone Macros.handZ])))
-                        (Just (Macros.putOntoBattlefield This))
-                        (Just (Macros.move This Macros.graveyardZ)))
+                        (Macros.putOntoBattlefield This)
+                        (Macros.move This Macros.graveyardZ))
                    Repeatedly Nothing)
        , Macros.activated TapSymbol
                           (AddMana You (Lit 1) (AnyColor SameColor) []) ]
@@ -17661,12 +17660,11 @@ public export
 akiriUnattachOffer : Ability
 akiriUnattachOffer =
   Macros.activated (Mana [Macros.pip White])
-    (May (Just You)
+    (Macros.mayThen You
        (Unattach
           (Macros.a (And [ HasSubtype (artifactType "Equipment")
                          , AttachedTo (Macros.a Macros.creatureYouControl) ])))
-       (Just (SetStatus Tapped (That (TypeW Creature))))
-       Nothing)
+       (SetStatus Tapped (That (TypeW Creature))))
 
 ||| Black Ward, whole -- "Enchant creature / Enchanted creature has
 ||| protection from black. This effect doesn't remove this Aura."

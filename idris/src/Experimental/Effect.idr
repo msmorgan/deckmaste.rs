@@ -4002,9 +4002,56 @@ mutual
           (times : PayTimes) ->
           {auto 0 pb : Payable c} ->
           {auto 0 ag : PayAgrees who c} -> Effect bs
-    May : (offer : Maybe (Noun bs Player)) -> (body : Effect (mayCtx offer)) ->
+    ||| "[offer] may [body]. If [offer] do[es], [ifDid]. If [offer]
+    ||| don't, [ifNot]." The OFFERED action and its two conditional
+    ||| continuations. The arms test a DECISION: [CR#608.2d] has the
+    ||| player announce the effect's choices as it is applied, and
+    ||| declining is one of them, so what the arms branch on is which
+    ||| option was announced.
+    ||| The decider is written, always: an offer has a subject, and the
+    ||| mandatory clause that spells no offer is `IfDone` beside this
+    ||| row rather than an empty slot here. Keeping the two apart is
+    ||| what stops "you may draw a card" and "sacrifice a creature"
+    ||| from sharing a term.
+    ||| -- spelling: "[offer] may [body]", with "If [offer] do[es], …"
+    ||| and "If [offer] don't, …" after it.
+    May : (offer : Noun bs Player) -> (body : Effect (mayCtx offer)) ->
           (ifDid : Maybe (Effect (effIntro body))) ->
           (ifNot : Maybe (Effect (mayCtx offer))) -> Effect bs
+    ||| "[body]. If you do, [ifDid]. If you don't, [ifNot]." -- the same
+    ||| two continuations over a MANDATORY instruction, where there is
+    ||| no decision for them to test.
+    |||
+    ||| What "if you do" tests here is whether the instruction's action
+    ||| actually HAPPENED. [CR#608.2c] has the controller follow the
+    ||| instructions in the order written and read the whole text as
+    ||| English; [CR#609.3] makes an effect that attempts something
+    ||| impossible do only as much as possible. So a mandatory
+    ||| instruction can leave its action undone -- no creature card in
+    ||| the graveyard to exile, the permanent already gone from the
+    ||| battlefield so it can't be sacrificed -- and the sentence after
+    ||| it says what happens in each case. That is [CR#603.12]'s own
+    ||| question, "when [a player] does or doesn't take that action",
+    ||| asked at a conditional continuation instead of at a trigger;
+    ||| the rule already covers a mandatory antecedent ("allow OR
+    ||| INSTRUCT a player to take an action"), which is why
+    ||| `Reflexively` needs no widening to sit over one.
+    |||
+    ||| The body carries `ReflexEnclosure` for that reason: the pro-verb
+    ||| needs a player to inflect for, and a clause where no player acts
+    ||| ("this creature deals 3 damage to any target") leaves "if you
+    ||| do" nothing to abbreviate. At least one arm must be written --
+    ||| a row with neither denotes exactly its body.
+    ||| The didn't-arm is typed at `bs`, not at the body's post-state:
+    ||| it runs because the action did not happen, so it reads nothing
+    ||| the instruction would have announced.
+    ||| -- spelling: the body's own words, with "If you do, …" and
+    ||| "Otherwise, …" / "If you don't, …" after it.
+    IfDone : (body : Effect bs) ->
+             (ifDid : Maybe (Effect (effIntro body))) ->
+             (ifNot : Maybe (Effect bs)) ->
+             {auto 0 en : ReflexEnclosure body} ->
+             {auto 0 br : So (ifDoneArmed body ifDid ifNot)} -> Effect bs
     ||| The postposed conditional, "[e] if [c]" / "[e] unless [c]": the
     ||| condition is written after the clause and reads what the clause has
     ||| announced — "Counter target spell if it's red" — and is checked as
@@ -4312,6 +4359,7 @@ mutual
   heldUntilOk (Does _ _ _) = False
   heldUntilOk (Pay _ _ _) = False
   heldUntilOk (May _ _ _ _) = False
+  heldUntilOk (IfDone _ _ _) = False
   heldUntilOk (OnlyIf _ _ _) = False
   heldUntilOk (If _ _ _) = False
   heldUntilOk (Unless _ _ _) = False
@@ -4431,6 +4479,10 @@ mutual
   -- do, so a declined arm leaves one offered action to inflect.
   reflexEncloseUse (May _ body Nothing _) = reflexEncloseUse body
   reflexEncloseUse (May _ _ _ _) = EncNotOneAction
+  -- and the mandatory clause answers the same way: its instruction is
+  -- the one action "you do" abbreviates, until a did-arm adds a second.
+  reflexEncloseUse (IfDone body Nothing _) = reflexEncloseUse body
+  reflexEncloseUse (IfDone _ _ _) = EncNotOneAction
   -- [CR#603.12] asks whether the player took the action, and a postposed
   -- condition gates whether the enclosure's ONE action happens rather
   -- than adding a second one to abbreviate: "Then sacrifice it if it has
@@ -4490,6 +4542,7 @@ mutual
   thisWayOutcomeOk (Delayed _ _ _ _) = False
   -- an offer's outcome is its body's; the arms are separate sentences.
   thisWayOutcomeOk (May _ body _ _) = thisWayOutcomeOk body
+  thisWayOutcomeOk (IfDone body _ _) = thisWayOutcomeOk body
   thisWayOutcomeOk (DoesntUntapNext _ _) = True
   thisWayOutcomeOk (SkipsNext _ _ _) = True
   thisWayOutcomeOk (ExtraTurn _ _) = True
@@ -4695,6 +4748,8 @@ mutual
   costActionOk (Pay _ _ _) = False
   costActionOk (May _ body ifDid ifNot) =
     costActionOk body && costActionOkOpt ifDid && costActionOkOpt ifNot
+  costActionOk (IfDone body ifDid ifNot) =
+    costActionOk body && costActionOkOpt ifDid && costActionOkOpt ifNot
   costActionOk (OnlyIf e _ otherwise) = costActionOk e && costActionOkOpt otherwise
   costActionOk (If _ e otherwise) = costActionOk e && costActionOkOpt otherwise
   -- an offer another player answers at resolution [CR#118.12a]
@@ -4861,6 +4916,7 @@ mutual
   effEq (Does _ _ _) _ = False
   effEq (Pay _ _ _) _ = False
   effEq (May _ _ _ _) _ = False
+  effEq (IfDone _ _ _) _ = False
   effEq (OnlyIf _ _ _) _ = False
   effEq (If _ _ _) _ = False
   effEq (Unless _ _ _) _ = False
@@ -5042,6 +5098,7 @@ mutual
   effIntro (Pay who c AnyNumberOfTimes) = outcomeB RepeatCount :: costIntro c
   effIntro (Pay who c (UpToTimes _)) = outcomeB RepeatCount :: costIntro c
   effIntro (May d body did notd) = mayIntro body did notd
+  effIntro (IfDone body did notd) = mayIntro body did notd
   -- a conditioned clause exports what it ANNOUNCED and no more: the
   -- condition may have failed, so nothing the clause would have DONE
   -- stands after it -- but [CR#601.2c] chose its targets as the spell was
@@ -5165,6 +5222,7 @@ mutual
   preIntro (Does s v e) = preIntro e
   preIntro (Pay who c _) = nomIntro who
   preIntro (May d body did notd) = mayIntro body did notd
+  preIntro (IfDone body did notd) = mayIntro body did notd
   preIntro (OnlyIf e c oth) = annIntro e
   preIntro (If c e oth) = bs
   preIntro (Unless e who c) = annIntro e
@@ -5316,6 +5374,7 @@ mutual
   annIntro (Does s v e) = annIntro e
   annIntro (Pay who c _) = nomIntro who
   annIntro (May d body did notd) = annIntro body
+  annIntro (IfDone body did notd) = annIntro body
   annIntro (OnlyIf e c oth) = annIntro e
   annIntro (If c e oth) = bs
   annIntro (Unless e who c) = annIntro e
@@ -5362,6 +5421,7 @@ mutual
   replacedCtx : {bs : Bindings} -> Effect bs -> Bindings
   replacedCtx (Sequentially es) = annSeqs es
   replacedCtx (May d body did notd) = replacedCtx body
+  replacedCtx (IfDone body did notd) = replacedCtx body
   replacedCtx (OnlyIf e c oth) = replacedCtx e
   replacedCtx (If c e oth) = bs
   replacedCtx (Unless e who c) = replacedCtx e
@@ -5481,6 +5541,7 @@ mutual
   deedDelta (Does s v e) = deedDelta e
   deedDelta (Pay who c _) = []
   deedDelta (May d body did notd) = []
+  deedDelta (IfDone body did notd) = []
   deedDelta (OnlyIf e c oth) = []
   deedDelta (If c e oth) = []
   deedDelta (Unless e who c) = []
@@ -5506,7 +5567,8 @@ mutual
 
   ||| The context a may's body and its declined arm are typed in: an
   ||| offered may writes its decider first [CR#118.12], so the body reads
-  ||| it; the mandatory form writes none.
+  ||| it. The mandatory form writes none, and is `IfDone`, whose body is
+  ||| typed at `bs` for exactly that reason.
   ||| The decider takes `agentIntro`, not `nomIntro`, for `Does`'s reason
   ||| and on the same evidence. An offer is DECIDED per player --
   ||| [CR#101.4] has each of several players make their own choice -- so a
@@ -5518,9 +5580,16 @@ mutual
   ||| "each player/opponent may [verb]" and 46 of them read the member
   ||| back. Every other decider is `nomIntro`'s own answer, unchanged.
   public export
-  mayCtx : {bs : Bindings} -> Maybe (Noun bs Player) -> Bindings
-  mayCtx Nothing = bs
-  mayCtx (Just d) = agentIntro d
+  mayCtx : {bs : Bindings} -> Noun bs Player -> Bindings
+  mayCtx d = agentIntro d
+
+  ||| Does the mandatory clause write a continuation at all? With
+  ||| neither arm it denotes exactly its body, so `IfDone` demands one.
+  public export
+  ifDoneArmed : {0 bs : Bindings} -> (body : Effect bs) ->
+                Maybe (Effect (effIntro body)) -> Maybe (Effect bs) -> Bool
+  ifDoneArmed _ Nothing Nothing = False
+  ifDoneArmed _ _ _ = True
 
   public export
   mayIntro : {bs : Bindings} -> (body : Effect bs) ->
@@ -6064,6 +6133,7 @@ mutual
   effChoiceDelta (Choose _ _ _) = []
   effChoiceDelta (Sequentially es) = effsChoiceDelta es
   effChoiceDelta (May _ body _ _) = effChoiceDelta body
+  effChoiceDelta (IfDone body _ _) = effChoiceDelta body
   effChoiceDelta _ = []
 
   public export

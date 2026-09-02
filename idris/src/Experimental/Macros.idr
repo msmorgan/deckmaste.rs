@@ -1115,17 +1115,17 @@ gainsLife who amt = ChangeLife who (Up amt)
 -- on; see `mayCtx`.
 public export
 may : (decider : Noun bs Player) -> Effect (agentIntro decider) -> Effect bs
-may d body = May (Just d) body Nothing Nothing
+may d body = May d body Nothing Nothing
 
 public export
 mayThen : (decider : Noun bs Player) -> (body : Effect (agentIntro decider)) ->
           Effect (effIntro body) -> Effect bs
-mayThen d body did = May (Just d) body (Just did) Nothing
+mayThen d body did = May d body (Just did) Nothing
 
 public export
 mayElse : (decider : Noun bs Player) -> (body : Effect (agentIntro decider)) ->
           Effect (agentIntro decider) -> Effect bs
-mayElse d body notd = May (Just d) body Nothing (Just notd)
+mayElse d body notd = May d body Nothing (Just notd)
 
 public export
 -- the did-branch reads everything the body introduced (it only runs if
@@ -1134,7 +1134,7 @@ public export
 mayThenElse : (decider : Noun bs Player) ->
               (body : Effect (agentIntro decider)) ->
               Effect (effIntro body) -> Effect (agentIntro decider) -> Effect bs
-mayThenElse d body did notd = May (Just d) body (Just did) (Just notd)
+mayThenElse d body did notd = May d body (Just did) (Just notd)
 
 
 public export
@@ -1670,13 +1670,27 @@ public export
 payLife : (who : Noun bs Player) -> (n : Nat) -> Cost bs
 payLife who n = Do (ChangeLife who (Down (Lit n)))
 
+-- The MANDATORY instruction's two continuations. No offer is written,
+-- so what the arms test is whether the instruction's action happened
+-- [CR#608.2c,609.3]; see `IfDone`.
 public export
-doThen : (body : Effect bs) -> Effect (effIntro body) -> Effect bs
-doThen body did = May Nothing body (Just did) Nothing
+doThen : (body : Effect bs) -> Effect (effIntro body) ->
+         {auto 0 en : ReflexEnclosure body} -> Effect bs
+doThen body did = IfDone body (Just did) Nothing {en}
 
+||| "[body]. If you don't, [notd]." -- the didn't-arm alone, which the
+||| Pacts write ("pay {3}{U}{U}. If you don't, you lose the game").
 public export
-doElse : (body : Effect bs) -> Effect bs -> Effect bs
-doElse body notd = May Nothing body Nothing (Just notd)
+doElse : (body : Effect bs) -> Effect bs ->
+         {auto 0 en : ReflexEnclosure body} -> Effect bs
+doElse body notd = IfDone body Nothing (Just notd) {en}
+
+||| "[body]. If you do, [did]. Otherwise, [notd]." -- both arms, the
+||| shape the land cycle and Charnel Troll write.
+public export
+doThenElse : (body : Effect bs) -> Effect (effIntro body) -> Effect bs ->
+             {auto 0 en : ReflexEnclosure body} -> Effect bs
+doThenElse body did notd = IfDone body (Just did) (Just notd) {en}
 
 public export
 -- a reflexive trigger waits on the stack rather than continuing in the
@@ -1687,7 +1701,7 @@ mayWhen : (decider : Noun bs Player) -> (body : Effect (agentIntro decider)) ->
           {auto 0 ok : So (admitsReflexEnclosure (reflexEncloseUse body))} ->
           Effect bs
 mayWhen d body trig =
-  Reflexively (May (Just d) body Nothing Nothing) trig {en = ok}
+  Reflexively (May d body Nothing Nothing) trig {en = ok}
 
 
 -- Wrapping macros for the optional and proof-carrying slots, so a card
