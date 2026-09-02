@@ -2332,6 +2332,27 @@ mutual
     ||| not a bound, so no determinate batch stands after the loop.
     ||| -- spelling: "repeat this process until [c]".
     Until : (c : Condition bs) -> Repetition bs
+    ||| "Repeat this process except that [chooser] can't choose a
+    ||| [thing] already chosen": the repeat with MEMORY of the earlier
+    ||| passes' picks. Forgotten Lore and Shrouded Lore, 2 supported
+    ||| lines over 2 cards (measured 2026-09-02), both "repeat this
+    ||| process except that opponent can't choose a card already chosen
+    ||| for [this card]".
+    ||| Beside `Again` and not a rider on it. The exclusion is what makes
+    ||| the loop terminate -- each pass takes one more card out of the
+    ||| chooser's range, and a graveyard is finite -- so it is the
+    ||| repetition's own bound, standing where `Until`'s condition and
+    ||| `MoreTimes`' count stand.
+    ||| It states neither the chooser nor the excluded description: both
+    ||| are the repeated process's own, which [CR#608.2c] has already
+    ||| been written before this clause is read, and no supported line
+    ||| excludes anything but what the process itself chose. The printed
+    ||| "already chosen FOR [name]" is the self-name [CR#201.5] -- text
+    ||| naming the object it is on means that object -- and is
+    ||| spelling.
+    ||| -- spelling: "repeat this process except that [chooser] can't
+    ||| choose a [thing] already chosen for [self]".
+    AgainExcludingChosen : Repetition bs
 
   ||| One striation of a results table: the results it covers and the
   ||| effect they bring about. [CR#706.3a] gives the left column three
@@ -2604,6 +2625,21 @@ mutual
                   {auto 0 at : So (designationGiven d)} -> Effect bs
     Concludes : (v : OutcomeVerb) -> (who : Noun bs Player) -> Effect bs
     GameDrawn : Effect bs
+    ||| "Restart the game": [CR#727.1]'s procedure, one supported line
+    ||| over one card (Karn Liberated, re-measured 2026-09-02). Minted at
+    ||| its honest count because a procedure the rules give a section of
+    ||| their own to is not a carrier: the restarted game "immediately
+    ||| ends", no player wins, loses or draws it, and all its players
+    ||| then start a new game by the starting procedure [CR#103.1].
+    ||| Nullary. The one printed line's rider -- "leaving in exile all
+    ||| non-Aura permanent cards exiled with Karn" -- is [CR#727.5]'s
+    ||| exemption ("effects may exempt certain cards from the procedure
+    ||| that restarts the game"), a second statement about which cards
+    ||| the new game starts with rather than a slot on the restart; and
+    ||| its following sentence is an ordinary `Move`, run at [CR#727.4]
+    ||| where the restart finishes resolving.
+    ||| -- spelling: "Restart the game".
+    RestartsGame : Effect bs
     Choose : {k : Kind} -> (n : Noun bs k) ->
              (by : Maybe (Noun bs Player)) ->
              {auto 0 ch : ChoiceClause by n} -> Effect bs
@@ -3154,7 +3190,30 @@ mutual
     ||| "then" at that seam.
     Define : (l : Letter) -> (amt : Amount bs) ->
              {auto 0 ok : So (anyOpenLetter l bs)} -> Effect bs
-    ForEachOf : (grp : Noun bs Object) ->
+    ||| "For each [group], [body]": the anaphoric per-member loop,
+    ||| [CR#608.2f]'s construction -- "some spells and abilities include
+    ||| actions taken on multiple players and/or objects", processed
+    ||| "considering each [player or object] individually".
+    |||
+    ||| The group's KIND indexes the row. It was typed at `Object` on
+    ||| that sort's own evidence; the PLAYER sort is 53 supported
+    ||| sentences over 50 cards, 32 of which read the member back as
+    ||| "that player" (re-measured 2026-09-02), Blatant Thievery's "for
+    ||| each opponent, gain control of target permanent that player
+    ||| controls" among them -- the rule's own first worked example. The
+    ||| joined sort is 2 cards, Kaboom! and Soulfire Eruption. All three
+    ||| are ONE construction reaching one member at a time, and the
+    ||| generalisation is over the element row's index rather than a
+    ||| second marked row beside the object one, which is what
+    ||| `elemPayload` mints.
+    ||| The WIDER "for each [fresh description]" surface stays out: 237
+    ||| supported sentences over 220 cards front those words, and most of
+    ||| them are the ordinary multiplier `CountOf` already spells. What
+    ||| this row admits is the read-back subset.
+    ||| -- spelling: "For each [grp], [body]", the member read back by
+    ||| its own kind's demonstrative.
+    ForEachOf : {k : Kind} -> {auto ph : Phrasal k} ->
+                (grp : Noun bs k) ->
                 (body : Effect (elemIntro grp)) ->
                 {auto 0 pl : nounPlur grp = ManyOf} ->
                 Effect bs
@@ -3344,6 +3403,7 @@ mutual
   heldUntilOk (GameBecomes _) = False
   heldUntilOk (Concludes _ _) = False
   heldUntilOk GameDrawn = False
+  heldUntilOk RestartsGame = False
   heldUntilOk (CounterSpell _) = False
   heldUntilOk (CopyStack _ _ _ _) = False
   heldUntilOk (ChooseNewTargets _) = False
@@ -3455,6 +3515,7 @@ mutual
   reflexEncloseUse (GameBecomes _) = EncAgentless
   reflexEncloseUse (Concludes _ _) = EncAgentless
   reflexEncloseUse GameDrawn = EncAgentless
+  reflexEncloseUse RestartsGame = EncAgentless
   reflexEncloseUse (CounterSpell _) = EncAgentless
   reflexEncloseUse (CopyStack _ _ _ _) = EncAgentless
   reflexEncloseUse (ChooseNewTargets _) = EncReflexive
@@ -3577,6 +3638,7 @@ mutual
   thisWayOutcomeOk (GameBecomes _) = True
   thisWayOutcomeOk (Concludes _ _) = True
   thisWayOutcomeOk GameDrawn = True
+  thisWayOutcomeOk RestartsGame = True
   thisWayOutcomeOk (CounterSpell _) = True
   thisWayOutcomeOk (CopyStack _ _ _ _) = True
   thisWayOutcomeOk (ChooseNewTargets _) = True
@@ -3697,6 +3759,7 @@ mutual
   costActionOk (GameBecomes _) = True
   costActionOk (Concludes _ _) = True
   costActionOk GameDrawn = True
+  costActionOk RestartsGame = False
   costActionOk (CounterSpell _) = True
   costActionOk (CopyStack _ what _ _) = costNounOk what
   costActionOk (ChooseNewTargets what) = costNounOk what
@@ -3848,6 +3911,8 @@ mutual
   effEq (Concludes _ _) _ = False
   effEq GameDrawn GameDrawn = True
   effEq GameDrawn _ = False
+  effEq RestartsGame RestartsGame = True
+  effEq RestartsGame _ = False
   -- kind-indexed, so two subjects need not share a kind to compare;
   -- `Choose`'s row gives up on the same ground.
   effEq (CounterSpell _) _ = False
@@ -3976,6 +4041,7 @@ mutual
   effIntro (GameBecomes _) = bs
   effIntro (Concludes _ who) = nomIntro who
   effIntro GameDrawn = bs
+  effIntro RestartsGame = bs
   effIntro (CounterSpell what) = nomIntro what
   effIntro (CopyStack agent what times exc) =
     MkBinding TheD Object (outputPlur (nounPlur what) (amtPlur times))
@@ -4124,6 +4190,7 @@ mutual
   preIntro (GameBecomes _) = bs
   preIntro (Concludes _ who) = nomIntro who
   preIntro GameDrawn = bs
+  preIntro RestartsGame = bs
   preIntro (CounterSpell what) = nomIntro what
   preIntro (CopyStack agent what times exc) = amtIntro times
   preIntro (ChooseNewTargets what) = nomIntro what
@@ -4266,6 +4333,7 @@ mutual
   annIntro (GameBecomes _) = bs
   annIntro (Concludes _ who) = nomIntro who
   annIntro GameDrawn = bs
+  annIntro RestartsGame = bs
   annIntro (CounterSpell what) = nomIntro what
   annIntro (CopyStack agent what times exc) = amtIntro times
   annIntro (ChooseNewTargets what) = nomIntro what
@@ -4410,6 +4478,7 @@ mutual
   deedDelta (GameBecomes _) = []
   deedDelta (Concludes _ _) = []
   deedDelta GameDrawn = []
+  deedDelta RestartsGame = []
   deedDelta (CounterSpell _) = []
   deedDelta (CopyStack agent what times exc) =
     [MkBinding TheD Object (outputPlur (nounPlur what) (amtPlur times))
@@ -4651,6 +4720,41 @@ mutual
     Static : (se : StaticEffect bs) ->
              {auto 0 ut : Untargeting se} -> AbilityAt bs
     Spell : (eff : Effect bs) -> AbilityAt bs
+    ||| "If this card is in your opening hand, you may begin the game
+    ||| with it on the battlefield": the PREGAME opening-hand action.
+    ||| 17 supported cards write this sentence word for word -- the
+    ||| sixteen Leylines and Leyline Axe (measured 2026-09-02).
+    |||
+    ||| A FIFTH ability kind, and none of the four. [CR#103.6] gives the
+    ||| action its whole procedure: "some cards allow a player to take
+    ||| actions with them from their opening hand. Once the mulligan
+    ||| process ... is complete, the starting player may take any such
+    ||| actions in any order. Then each other player in turn order may
+    ||| do the same." [CR#103.8] has the starting player take their
+    ||| first turn only afterwards, so the action is taken before the
+    ||| game's first turn and on no stack: not activated (no cost is
+    ||| paid and no ability is put on the stack [CR#602.2]), not
+    ||| triggered (no event -- no turn has begun), not static (nothing
+    ||| continuous is generated), and not a spell ability, the card
+    ||| never being cast [CR#113.3a]. [CR#103.6a] states the deed
+    ||| itself: "if a card allows a player to begin the game with that
+    ||| card on the battlefield, the player taking this action puts that
+    ||| card onto the battlefield."
+    |||
+    ||| It carries NO slot, because the seventeen lines differ in
+    ||| nothing. The "if this card is in your opening hand" clause is
+    ||| the rule's own precondition restated, not a written gate; the
+    ||| "you may" is [CR#103.6]'s own permission; and the deed is the
+    ||| one deed these cards take. The two supported lines that write
+    ||| more are RESIDUES and not slots on this row -- Gemstone
+    ||| Caverns adds a second condition ("and you're not the starting
+    ||| player"), an entry rider ("with a luck counter on it") and a
+    ||| follow-up ("if you do, exile a card from your hand"), and
+    ||| Quicksilver, Brash Blur writes its own name and "him" where
+    ||| these write "this card" and "it".
+    ||| -- spelling: "If this card is in your opening hand, you may
+    ||| begin the game with it on the battlefield."
+    MayBeginOnBattlefield : AbilityAt bs
     AlsoForKeywords : (ab : AbilityAt bs) -> (ks : List KeywordTerm) ->
                       {auto 0 ex : KeywordExtendable ab} ->
                       {auto 0 lk : KeywordListOk ab ks} -> AbilityAt bs
@@ -4766,6 +4870,9 @@ mutual
   grantableAb (Triggered _ _ _ _ _ _ _ _ _) = True
   grantableAb (Static _) = True
   grantableAb (Spell _) = False
+  -- [CR#103.6] gives the action to a card in a player's OPENING HAND,
+  -- which nothing on the battlefield can be granted into.
+  grantableAb MayBeginOnBattlefield = False
   grantableAb (AlsoForKeywords _ _) = False
   grantableAb (AbilityWord _ ab) = grantableAb ab
 
@@ -4782,6 +4889,7 @@ mutual
   emblemAbilityOk (AlsoForKeywords _ _) = False
   emblemAbilityOk (AbilityWord _ ab) = emblemAbilityOk ab
   emblemAbilityOk (Spell _) = False
+  emblemAbilityOk MayBeginOnBattlefield = False
 
   public export
   emblemAbilitiesAll : List (AbilityAt []) -> Bool
@@ -4857,6 +4965,7 @@ mutual
   abRegime (AlsoForKeywords ab _) = abRegime ab
   abRegime (AbilityWord _ ab) = abRegime ab
   abRegime (Spell _) = Nothing
+  abRegime MayBeginOnBattlefield = Nothing
 
   public export
   castingOnly : Maybe StackRegime -> Bool
@@ -4938,6 +5047,7 @@ mutual
   abIntro (AlsoForKeywords ab _) = abIntro ab
   abIntro (AbilityWord _ ab) = abIntro ab
   abIntro (Spell eff) = effChoiceDelta eff ++ bs
+  abIntro MayBeginOnBattlefield = bs
 
   ||| The letter a granted ability's NUMBER parameter leaves open. 4
   ||| supported lines write one: Ulamog, the Defiler's annihilator X,

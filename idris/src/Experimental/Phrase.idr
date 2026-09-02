@@ -2724,11 +2724,29 @@ mutual
   ||| able to say "the exiled creature", and to know the member was on the
   ||| battlefield, which the participle read asks of every referent it
   ||| names.
+  ||| The member payload a per-member pass mints, chosen by the group's
+  ||| own KIND. The lattice kind indexes the binding exactly as it does
+  ||| in `bindFor` -- the element row's index IS the kind, so nothing
+  ||| here is a second marked row beside the object one -- and the object
+  ||| arm keeps the type, zone, stamp and size-one record it always
+  ||| carried. A joined group hands each half its own payload, which is
+  ||| what "for each of them, … that player or planeswalker" reads back.
   public export
-  elemIntro : {bs : Bindings} -> Noun bs Object -> Bindings
-  elemIntro grp =
-    MkBinding TheD Object OneOf
-              (ObjectP (nounTy grp) (nounZone grp) (nounProv grp) Nothing (Just 1))
+  elemPayload : {k : Kind} -> Phrasal k -> Maybe CardType -> Maybe Zone ->
+                Maybe Stamp -> Payload k
+  elemPayload PhObject ty zn pv = ObjectP ty zn pv Nothing (Just 1)
+  elemPayload PhPlayer _ _ _ = PlayerP
+  elemPayload {k = Quality q} PhQuality _ _ _ = QualityP
+  elemPayload PhAbility _ _ _ = AbilityP
+  elemPayload (PhJoin l r) ty zn pv =
+    JoinP (elemPayload l ty zn pv) (elemPayload r ty zn pv)
+
+  public export
+  elemIntro : {bs : Bindings} -> {k : Kind} -> {auto ph : Phrasal k} ->
+              Noun bs k -> Bindings
+  elemIntro {k} grp =
+    MkBinding TheD k OneOf
+              (elemPayload ph (nounTy grp) (nounZone grp) (nounProv grp))
       :: nomIntro grp
 
   ||| What a DISTRIBUTIVE AGENT hands the clause it governs: the member

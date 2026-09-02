@@ -123,6 +123,9 @@ classAbilityOk PermanentCard (Static _) = True
 classAbilityOk PermanentCard (AlsoForKeywords ab _) = classAbilityOk PermanentCard ab
 classAbilityOk PermanentCard (Spell _) = False
 classAbilityOk PermanentCard (AbilityWord _ ab) = classAbilityOk PermanentCard ab
+-- [CR#103.6a] puts the card ONTO THE BATTLEFIELD, so only a permanent
+-- card can take the action.
+classAbilityOk PermanentCard MayBeginOnBattlefield = True
 classAbilityOk SpellCard (KeywordAbility k _) = keywordCardOk SpellCard k
 classAbilityOk SpellCard (Activated c _ _ _ _ _) = costOffBattlefield c
 classAbilityOk SpellCard (Triggered _ _ _ _ _ _ _ _ _) = True
@@ -130,6 +133,7 @@ classAbilityOk SpellCard (Static se) = staticOnSpellCardOk se
 classAbilityOk SpellCard (AlsoForKeywords ab _) = classAbilityOk SpellCard ab
 classAbilityOk SpellCard (Spell _) = True
 classAbilityOk SpellCard (AbilityWord _ ab) = classAbilityOk SpellCard ab
+classAbilityOk SpellCard MayBeginOnBattlefield = False
 -- A command-zone card is never a permanent and is never cast
 -- [CR#309.2c,311.2,312.2,313.2,314.2,315.3], so it prints no spell
 -- ability [CR#113.3a] and its activated ability's cost is read off the
@@ -145,6 +149,9 @@ classAbilityOk CommandZoneCard (Static _) = True
 classAbilityOk CommandZoneCard (AlsoForKeywords ab _) = classAbilityOk CommandZoneCard ab
 classAbilityOk CommandZoneCard (Spell _) = False
 classAbilityOk CommandZoneCard (AbilityWord _ ab) = classAbilityOk CommandZoneCard ab
+-- a command-zone card is never in a hand [CR#309.2c,311.2,313.2,314.2,315.3],
+-- so it has no opening hand to act from.
+classAbilityOk CommandZoneCard MayBeginOnBattlefield = False
 
 ||| What ONE command-zone type's own rule licenses, where that rule reads
 ||| a narrower list than the shared frame. Three of the six read the frame

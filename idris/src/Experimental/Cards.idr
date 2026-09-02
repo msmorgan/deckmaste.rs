@@ -7307,6 +7307,73 @@ ritesOfFlourishing =
        , Static (MayPlayAdditionalLands (Each AnyPlayer) (Macros.exactly 1)) ]
        Nothing
 
+||| Karn Liberated's restart clause. The whole loyalty ability is one
+||| gap from written: [CR#727.5]'s exemption rider ("leaving in exile all
+||| non-Aura permanent cards exiled with Karn") has no row, and the
+||| following sentence reads "those cards" off it.
+public export
+karnRestart : Effect []
+karnRestart = RestartsGame
+
+||| Forgotten Lore's first two sentences -- the repeat with MEMORY of the
+||| earlier passes' picks. The card's third sentence, "then put the LAST
+||| CHOSEN card into your hand", is the remaining gap: the marked chosen
+||| read exists at the amount sort (`ChosenNumber`) and not at the object
+||| one. Shrouded Lore writes the same two sentences with {B}.
+public export
+forgottenLoreRepeat : Effect []
+forgottenLoreRepeat =
+  Sequentially
+    [ Choose (Macros.a (InZone (Macros.graveyardOf You)))
+             (Just (Macros.target Opponent))
+    , Macros.mayThen You (Pay You (Mana [Macros.pip Green]) PaidOnce)
+                     (Repeat AgainExcludingChosen) ]
+
+||| Leyline of the Meek, whole card -- the pregame OPENING-HAND action
+||| [CR#103.6] beside a plain power/toughness static.
+public export
+leylineOfTheMeek : Card
+leylineOfTheMeek =
+  Macros.card "Leyline of the Meek"
+       (Just [Macros.generic 2, Macros.pip White, Macros.pip White]) []
+       (MkTypeLine [] [Enchantment])
+       [ MayBeginOnBattlefield
+       , Static (Gets (AllOf (And [Macros.creature, IsToken]))
+                      (PtUp (Lit 1)) (PtUp (Lit 1))) ]
+       Nothing
+
+||| Leyline of Vitality, whole card -- the same action beside a static
+||| and a trigger, so the row is exercised on a three-line card too.
+public export
+leylineOfVitality : Card
+leylineOfVitality =
+  Macros.card "Leyline of Vitality"
+       (Just [Macros.generic 2, Macros.pip Green, Macros.pip Green]) []
+       (MkTypeLine [] [Enchantment])
+       [ MayBeginOnBattlefield
+       , Static (Gets (AllOf Macros.creatureYouControl)
+                      (PtUp (Lit 0)) (PtUp (Lit 1)))
+       , Macros.triggered Whenever
+           (Enters (Macros.a Macros.creatureYouControl) Nothing)
+           (Macros.may You (Macros.gainsLife You (Lit 1))) ]
+       Nothing
+
+||| Blatant Thievery, whole card -- the PLAYER element, [CR#608.2f]'s
+||| first worked example, reached by `ForEachOf`'s kind index rather than
+||| by a second row.
+public export
+blatantThievery : Card
+blatantThievery =
+  Macros.card "Blatant Thievery"
+       (Just [Macros.generic 4, Macros.pip Blue, Macros.pip Blue,
+              Macros.pip Blue]) []
+       (MkTypeLine [] [Sorcery])
+       [ Spell (ForEachOf (Each Opponent)
+                  (Continuously
+                     (GainsControl You (Macros.target (ControlledBy (That PlayerW))))
+                     Nothing)) ]
+       Nothing
+
 ||| Ral Zarek, Guest Lecturer's ultimate -- the VARIABLE skip count.
 ||| `SkipsNext` takes an `Amount`, so `LetterVal` carries it and no
 ||| closed count table stands in the way; what the card still wants
