@@ -1038,17 +1038,20 @@ mutual
   AddedPart : TurnPart -> Type
   AddedPart p = So (partAddable p)
 
+  ||| `AddedPart` at an OPTIONAL part slot. `AdditionalPart` has two of
+  ||| them -- the anchor the added part follows and the part that follows
+  ||| it -- and both ask `partAddable` of a written part and nothing at
+  ||| all of an unwritten one. ONE witness, not one per slot: the two
+  ||| were the same two constructors under different names, and which
+  ||| slot refused is already said by the slot's own binder label (`an`,
+  ||| `fb`) rather than by a constructor name.
+  ||| It stays `data` and does not collapse to a `So` synonym: the
+  ||| `Maybe TurnPart` index is what solves the slot at the call sites.
   public export
-  data FollowerPart : Maybe TurnPart -> Type where
-    NoFollower : FollowerPart Nothing
-    MkFollowerPart : {auto 0 ok : So (partAddable p)} ->
-                     FollowerPart (Just p)
-
-  public export
-  data AnchorPart : Maybe TurnPart -> Type where
-    BareAnchor : AnchorPart Nothing
-    MkAnchorPart : {auto 0 ok : So (partAddable p)} ->
-                   AnchorPart (Just p)
+  data AddedPartWritten : Maybe TurnPart -> Type where
+    NoPartWritten : AddedPartWritten Nothing
+    PartWritten : {auto 0 ok : So (partAddable p)} ->
+                  AddedPartWritten (Just p)
 
   public export
   data TurnDeixis : Maybe Owner -> Bindings -> Type where

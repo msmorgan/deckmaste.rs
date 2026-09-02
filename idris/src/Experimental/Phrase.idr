@@ -3038,6 +3038,24 @@ mutual
              {auto 0 one : nounPlur n = OneOf} -> Amount bs
     CountOf : {k : Kind} -> (p : Predicate bs k) ->
               Amount bs
+    ||| The axis fold over a DESCRIBED domain: "the greatest power among
+    ||| creature cards in your graveyard", "the total power of creatures
+    ||| you control".
+    |||
+    ||| NOT a special case of `AggregateOver`, and the collapse of the
+    ||| pair is refused rather than deferred. The recovery would write
+    ||| the axis read as the body -- `AggregateOver op p (StatOf c It)`
+    ||| -- and that goes through a PRONOUN where this row goes through
+    ||| an axis. `It` presupposes exactly one singular object mention in
+    ||| scope (`countOnes Object … = 1`); the axis read presupposes
+    ||| nothing. So the recovery is unwritable wherever the surrounding
+    ||| clause already names an object, which is 2 of the 6 benched
+    ||| sites: Carrion Grub ("Carrion Grub gets +X/+0, where X is the
+    ||| greatest power among creature cards in your graveyard") and
+    ||| Towering Titan ("enters with X +1/+1 counters, where X is the
+    ||| total toughness of the other creatures you control") both fail
+    ||| elaboration as `S (countOnes Object …) = 1`. Collapsing would
+    ||| narrow the row, not rename it.
     Aggregate : {k : Kind} -> (op : AggregateOp) -> (ax : ProjAxis) ->
                 (p : Predicate bs k) ->
                 {auto 0 sc : projScope ax = k} ->
@@ -3416,42 +3434,6 @@ mutual
   amtPlur (DistinctCount _ _) = ManyOf
   -- Agreement follows the written bound: "up to three cards", "up to one card".
   amtPlur (UpTo b) = amtPlur b
-
-  public export
-  writtenBound : {0 bs : Bindings} -> Amount bs -> Bool
-  writtenBound (Lit _) = True
-  writtenBound (StatOf _ _) = False
-  writtenBound (PlayerStatOf _ _) = False
-  writtenBound (CountersOn _ _) = False
-  writtenBound (TimesPaid _ _) = False
-  writtenBound (EventCount _ _ _ _) = False
-  writtenBound (CountOf _) = False
-  writtenBound (Aggregate _ _ _) = False
-  writtenBound (Times _ _) = False
-  writtenBound (TimesOf _ _) = False
-  writtenBound ThatMuch = False
-  writtenBound ChosenNumber = False
-  writtenBound PreventedThisWay = False
-  writtenBound RemovedThisWay = False
-  writtenBound TheResult = False
-  writtenBound TheTotal = False
-  writtenBound (CoinsShowing _) = False
-  writtenBound (GreatestStoredMatch _) = False
-  writtenBound GroupSize = False
-  writtenBound TheDifference = False
-  writtenBound (LetterVal _) = True
-  writtenBound (Plus _ _) = False
-  writtenBound (Minus _ _) = False
-  writtenBound (Devotion _ _ _) = False
-  writtenBound (Half _ _) = False
-  writtenBound (DifferenceBetween _ _) = False
-  writtenBound (EventSum _ _ _ _) = False
-  writtenBound (AggregateOf _ _ _) = False
-  writtenBound (AggregateOver _ _ _) = False
-  writtenBound (CountOfGroup _) = False
-  writtenBound (DistinctCount _ _) = False
-  -- The bound is written; the number the ceiling stands for is not.
-  writtenBound (UpTo _) = False
 
   public export
   boundEq : {0 bs : Bindings} -> Amount bs -> Amount bs -> Bool

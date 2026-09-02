@@ -2364,7 +2364,7 @@ public export
 additionalPart : (part : TurnPart) -> (anchor : Maybe TurnPart) ->
                  (count : Amount bs) ->
                  {auto 0 ad : AddedPart part} ->
-                 {auto 0 an : AnchorPart anchor} -> Effect bs
+                 {auto 0 an : AddedPartWritten anchor} -> Effect bs
 additionalPart part anchor count = AdditionalPart part anchor count Nothing {ad} {an}
 
 ||| "… followed by <part>": an added turn part with a successor.
@@ -2372,8 +2372,8 @@ public export
 additionalPartThen : (part : TurnPart) -> (anchor : Maybe TurnPart) ->
                      (count : Amount bs) -> (next : TurnPart) ->
                      {auto 0 ad : AddedPart part} ->
-                     {auto 0 an : AnchorPart anchor} ->
-                     {auto 0 fb : FollowerPart (Just next)} -> Effect bs
+                     {auto 0 an : AddedPartWritten anchor} ->
+                     {auto 0 fb : AddedPartWritten (Just next)} -> Effect bs
 additionalPartThen part anchor count next =
   AdditionalPart part anchor count (Just next) {ad} {an} {fb}
 
@@ -2765,3 +2765,4 @@ public export
 coinsThatCameUp : (face : CoinFace) ->
                   {auto 0 fl : So (coinFlipInScope bs)} -> Amount bs
 coinsThatCameUp face = CoinsShowing face {fl}
+

@@ -3537,8 +3537,8 @@ mutual
                      (count : Amount bs) ->
                      (followedBy : Maybe TurnPart) ->
                      {auto 0 ad : AddedPart part} ->
-                     {auto 0 an : AnchorPart anchor} ->
-                     {auto 0 fb : FollowerPart followedBy} -> Effect bs
+                     {auto 0 an : AddedPartWritten anchor} ->
+                     {auto 0 fb : AddedPartWritten followedBy} -> Effect bs
     ||| "[who] get(s) [count] additional [part](s) after this
     ||| step/phase": the "YOU GET" frame. Obeka, Splitter of Seconds,
     ||| Paradox Haze and The Ninth Doctor, 3 supported lines over 3
