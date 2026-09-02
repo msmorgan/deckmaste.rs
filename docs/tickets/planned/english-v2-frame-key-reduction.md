@@ -1,15 +1,46 @@
 ---
 needs: [english-v2-stage-5-grammar-buildout-11-10]
 ---
-Reduce single-member verb frame keys and MTG-named sentence-grammar codecs
-(contract-landing-review findings 2 and 3). The verb dissolution moved
-lexeme closure into frame-key closure: 22 of 42 verb codecs use role atoms
-outside the plugin tail set and 24 of 29 core frame keys hold exactly one
-verb. Collapse toward shared general frames: make "life" an ordinary mass
-noun, unify the four encodings of "damage", route the GainLifeVerb /
-LookAtVerb / Deal*Damage* class through general transitive/measure frames
-with ordinary PP complements (~9 codec collapse estimated by the review).
-Naming rule: codecs are named for their linguistic shape, never a lexeme
-or mechanic. Coverage must not drop; ties during collapse follow the
-dissolve-in-same-commit rule; genuine tie = STOP. Standard constraints
-apply.
+Dissolve the noun-as-literal frames (gaming audits 2026-09-02:
+docs/memory/scratch/plan09-postmortem/gaming-audit-static.md and
+gaming-audit-dynamic.md — both converge: ~40% of selected units, 5,5-5,8k,
+route through cop-out constructors; no sentence memorization exists).
+
+G1 (5,026 units): verb-specific literal-tail frames seeded in Rust
+(environment.rs:1070-1330) with MTG-named VerbPhrase constructions — the
+noun is a frame literal ("damage", "life", "mana of any", "card",
+"counter", "at", "with … counters", "base power and toughness"), so those
+phrases are never NPs. Replace with general frames + real nominals:
+damage/life/mana as mass common nouns under a quantity licence, "mana
+cost" as a compound noun, counters as ordinary NPs, and core verbs moved
+out of Rust into declaration data with linguistic valences only.
+G2 (589): at_phrase — fixed clause with vocab-slot tokens ("each
+opponent's", "on your turn") and a six-arm require that is corpus census;
+replace with a general temporal PP trigger prefix (also admits the 306
+excluded "next end step" units).
+G3-G7: mana-cost NP as four literal constructions; "as though" as three
+fixed shapes; "each combat if able"; "blocked (except) by" with the
+participle literal (use the Block participle); shadow NP grammars for
+card/counter/die/owner/control; `require possessor is Their`.
+Shadowing (2,662 units): draw_cards, put_counters, put_into,
+passive_finite_clause, copular_clause win over existing compositional
+parses purely on literal specificity — delete outright.
+Dead grammar: 71 constructions route zero units, including the general
+Possessive root; delete or make them the live path (the possessive
+literals in G2/G3/G7 carry ~750 units that belong to it).
+Multi-word vocab tokens ("the beginning of", "combat damage", "end step",
+"an opponent chooses") dissolve into phrases.
+
+COMPILER TRIPWIRE (required, lands first): a Literal tail atom or form
+literal whose surface equals a declared noun or verb surface is a load
+error. Closed-world decidable; kills the incentive permanently. Add a
+structural-depth or literal/lexicon-collision metric to the gate summary
+so this class is visible in the census (the ratchet counts units only).
+
+Acceptance: coupled dissolution — every replacement lands with its
+deletion; zero net coverage loss (deleting without replacement would drop
+~4,214 units); expect NET GAIN from the excluded siblings ("gains flying"
+x290, "as though it were" x83, "mana of any type" x56). Naming rule:
+constructions named for linguistic shape, never lexeme or mechanic. Tie
+during dissolution not explained by a not-yet-deleted rival = STOP.
+Standard constraints apply.
