@@ -928,7 +928,7 @@ fn lower_terminal_value(
                 expression: quote! { *#binding },
             })
         }
-        AtomTerminal::Lexeme => {
+        AtomTerminal::Lexeme(_) => {
             let binding = binders.allocate(preferred);
             Ok(LoweredValue {
                 pattern: quote! { BuildValue::Leaf(Leaf::Noun { noun: #binding, number: _, onset: _, possessive_ending: _ }) },
@@ -1747,7 +1747,16 @@ fn fixed_lex_pattern(
             let value = ident(variant);
             Ok(quote! { BuildValue::Leaf(Leaf::#leaf(#leaf::#value)) })
         }
-        _ => Err(internal(
+        AtomTerminal::Lexeme(_)
+        | AtomTerminal::Binding(_)
+        | AtomTerminal::ContextIdentity(_)
+        | AtomTerminal::CatalogIdentity { .. }
+        | AtomTerminal::SignedDecimal(_)
+        | AtomTerminal::UnsignedNumber(_)
+        | AtomTerminal::DeclarationNoun { .. }
+        | AtomTerminal::DeclarationDeterminative { .. }
+        | AtomTerminal::DeclarationTerm { .. }
+        | AtomTerminal::DeclarationVerb { .. } => Err(internal(
             "fixed structural lexeme lowering currently requires a vocabulary terminal",
         )),
     }
@@ -2350,7 +2359,7 @@ fn lower_terminal_role(
             );
             return Ok(());
         }
-        AtomTerminal::Lexeme => {
+        AtomTerminal::Lexeme(_) => {
             let value = lowering.binders.allocate(&identifier_key(&role));
             let number = noun_number_pattern(validated, row, &role, lowering)?;
             let onset = lowering

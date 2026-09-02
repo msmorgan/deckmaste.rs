@@ -26,7 +26,7 @@ use crate::plan::NamedKind;
 use crate::semantic::AccessorMode;
 use crate::semantic::AgreementAuthorityPlan;
 use crate::semantic::AtomPlan;
-use crate::semantic::BindingPlan;
+use crate::semantic::AtomTerminal;
 use crate::semantic::BindingRenderPlan;
 use crate::semantic::ConstructionFieldKind;
 use crate::semantic::ConstructionFieldPlan;
@@ -39,7 +39,6 @@ use crate::semantic::LexemePlan;
 use crate::semantic::RootPlan;
 use crate::semantic::SemanticPlan;
 use crate::semantic::SeparatorPlan;
-use crate::semantic::SignedDecimalPlan;
 use crate::semantic::StructuralFieldKindPlan;
 use crate::semantic::TerminalPlan;
 use crate::semantic::UnsignedNumberKind;
@@ -1020,14 +1019,21 @@ fn fixed_surface_atom_text(
             Ok(syn::LitStr::new(value, Span::call_site()))
         }
         crate::semantic::FixedSurfaceAtomPlan::Lex { terminal, variant } => {
-            let vocab = plan
-                .terminals()
-                .iter()
-                .find_map(|terminal_plan| match terminal_plan {
-                    TerminalPlan::Vocab(vocab) if vocab.name() == terminal => Some(vocab),
-                    _ => None,
-                })
-                .ok_or_else(|| internal("fixed lexical surface lacks its vocabulary"))?;
+            let vocab = match plan.atom_terminal(terminal)? {
+                AtomTerminal::Vocab(vocab) => vocab,
+                AtomTerminal::Lexeme(_)
+                | AtomTerminal::Binding(_)
+                | AtomTerminal::ContextIdentity(_)
+                | AtomTerminal::CatalogIdentity { .. }
+                | AtomTerminal::SignedDecimal(_)
+                | AtomTerminal::UnsignedNumber(_)
+                | AtomTerminal::DeclarationNoun { .. }
+                | AtomTerminal::DeclarationDeterminative { .. }
+                | AtomTerminal::DeclarationTerm { .. }
+                | AtomTerminal::DeclarationVerb { .. } => {
+                    return Err(internal("fixed lexical surface lacks its vocabulary"));
+                }
+            };
             let value = vocab
                 .variants()
                 .iter()
@@ -1423,16 +1429,20 @@ fn structural_value_requires_context(
         }
         ValueKindPlan::Product(_) | ValueKindPlan::Sum(_) => Ok(true),
         ValueKindPlan::Lex(_) => Ok(false),
-        ValueKindPlan::Identity(name) => {
-            if find_context_identity(plan, name).is_some() {
-                Ok(true)
-            } else if find_catalog_identity(plan, name).is_some() {
-                Ok(false)
-            } else {
-                find_binding(plan, name)?;
-                Ok(true)
+        ValueKindPlan::Identity(name) => match plan.atom_terminal(name)? {
+            AtomTerminal::ContextIdentity(_) | AtomTerminal::Binding(_) => Ok(true),
+            AtomTerminal::CatalogIdentity { .. } => Ok(false),
+            AtomTerminal::Vocab(_)
+            | AtomTerminal::Lexeme(_)
+            | AtomTerminal::SignedDecimal(_)
+            | AtomTerminal::UnsignedNumber(_)
+            | AtomTerminal::DeclarationNoun { .. }
+            | AtomTerminal::DeclarationDeterminative { .. }
+            | AtomTerminal::DeclarationTerm { .. }
+            | AtomTerminal::DeclarationVerb { .. } => {
+                Err(internal("structural identity has a non-identity terminal"))
             }
-        }
+        },
     }
 }
 
@@ -1477,8 +1487,8 @@ fn render_structural_value(
             let function = ident(&crate::identifier::prefixed("render_", name));
             Ok(quote! { #function(writer, #expression, context #environment); })
         }
-        ValueKindPlan::Lex(name) => {
-            if let Some(vocab) = find_vocab(plan, name) {
+        ValueKindPlan::Lex(name) => match plan.atom_terminal(name)? {
+            AtomTerminal::Vocab(vocab) => {
                 let function = ident(&format!("render_{}", snake_case(vocab.name())));
                 let ty = emitted_ident(vocab.name(), vocab.name_ident().span());
                 let owner_arms = vocab.variants().iter().map(|variant| {
@@ -1501,7 +1511,8 @@ fn render_structural_value(
                         |writer| #function(writer, *#expression),
                     );
                 })
-            } else if let Some(codec) = find_signed_decimal(plan, name) {
+            }
+            AtomTerminal::SignedDecimal(codec) => {
                 let function = ident(&format!("render_{}", snake_case(codec.codec_name())));
                 let stable_id = syn::LitStr::new(&format!("codec:{name}"), Span::call_site());
                 Ok(quote! {
@@ -1513,7 +1524,8 @@ fn render_structural_value(
                         |writer| #function(writer, #expression),
                     );
                 })
-            } else if let Some(codec) = find_unsigned_number(plan, name) {
+            }
+            AtomTerminal::UnsignedNumber(codec) => {
                 let function = ident(&format!("render_{}", snake_case(codec.codec_name())));
                 let stable_id = syn::LitStr::new(&format!("codec:{name}"), Span::call_site());
                 Ok(quote! {
@@ -1525,8 +1537,8 @@ fn render_structural_value(
                         |writer| #function(writer, #expression),
                     );
                 })
-            } else {
-                let binding = find_binding(plan, name)?;
+            }
+            AtomTerminal::Binding(binding) => {
                 let Some(BindingRenderPlan::Runtime(function)) = binding.render() else {
                     return Err(internal("structural lexical value lacks runtime rendering"));
                 };
@@ -1550,9 +1562,18 @@ fn render_structural_value(
                     );
                 })
             }
-        }
-        ValueKindPlan::Identity(name) => {
-            if let Some(identity) = find_context_identity(plan, name) {
+            AtomTerminal::Lexeme(_)
+            | AtomTerminal::ContextIdentity(_)
+            | AtomTerminal::CatalogIdentity { .. }
+            | AtomTerminal::DeclarationNoun { .. }
+            | AtomTerminal::DeclarationDeterminative { .. }
+            | AtomTerminal::DeclarationTerm { .. }
+            | AtomTerminal::DeclarationVerb { .. } => Err(internal(
+                "structural lexical value has a non-lexical terminal",
+            )),
+        },
+        ValueKindPlan::Identity(name) => match plan.atom_terminal(name)? {
+            AtomTerminal::ContextIdentity(identity) => {
                 let ty = identity.ident();
                 let owner_arms = identity.arms().iter().map(|arm| {
                     let member = arm.variant();
@@ -1571,25 +1592,24 @@ fn render_structural_value(
                         |writer| writer.identity((#expression).surface(context)),
                     );
                 })
-            } else if find_catalog_identity(plan, name).is_some() {
-                Ok(quote! {
-                    writer.claim(
-                        || LexicalOwner::catalog_owner(
-                            (#expression).provider(),
-                            (#expression).canonical_identity.clone(),
-                        ),
-                        |writer| writer.identity(
-                            environment
-                                .catalog_surface(
-                                    (#expression).provider(),
-                                    (#expression).canonical_identity(),
-                                )
-                                .expect("validated catalog identity remains in its frozen provider"),
-                        ),
-                    );
-                })
-            } else {
-                let binding = find_binding(plan, name)?;
+            }
+            AtomTerminal::CatalogIdentity { .. } => Ok(quote! {
+                writer.claim(
+                    || LexicalOwner::catalog_owner(
+                        (#expression).provider(),
+                        (#expression).canonical_identity.clone(),
+                    ),
+                    |writer| writer.identity(
+                        environment
+                            .catalog_surface(
+                                (#expression).provider(),
+                                (#expression).canonical_identity(),
+                            )
+                            .expect("validated catalog identity remains in its frozen provider"),
+                    ),
+                );
+            }),
+            AtomTerminal::Binding(binding) => {
                 let Some(BindingRenderPlan::Runtime(function)) = binding.render() else {
                     return Err(internal("structural identity lacks runtime rendering"));
                 };
@@ -1608,7 +1628,17 @@ fn render_structural_value(
                     );
                 })
             }
-        }
+            AtomTerminal::Vocab(_)
+            | AtomTerminal::Lexeme(_)
+            | AtomTerminal::SignedDecimal(_)
+            | AtomTerminal::UnsignedNumber(_)
+            | AtomTerminal::DeclarationNoun { .. }
+            | AtomTerminal::DeclarationDeterminative { .. }
+            | AtomTerminal::DeclarationTerm { .. }
+            | AtomTerminal::DeclarationVerb { .. } => {
+                Err(internal("structural identity has a non-identity terminal"))
+            }
+        },
     }
 }
 
@@ -1634,9 +1664,23 @@ fn collect_vocab_feature_helpers(
                 }
             };
             let field = construction.field(&identifier_key(role))?;
-            let vocab = find_vocab(validated, field.terminal()).ok_or_else(|| {
-                internal("sealed vocabulary feature match is not rooted in a vocabulary")
-            })?;
+            let vocab = match validated.atom_terminal(field.terminal())? {
+                AtomTerminal::Vocab(vocab) => vocab,
+                AtomTerminal::Lexeme(_)
+                | AtomTerminal::Binding(_)
+                | AtomTerminal::ContextIdentity(_)
+                | AtomTerminal::CatalogIdentity { .. }
+                | AtomTerminal::SignedDecimal(_)
+                | AtomTerminal::UnsignedNumber(_)
+                | AtomTerminal::DeclarationNoun { .. }
+                | AtomTerminal::DeclarationDeterminative { .. }
+                | AtomTerminal::DeclarationTerm { .. }
+                | AtomTerminal::DeclarationVerb { .. } => {
+                    return Err(internal(
+                        "sealed vocabulary feature match is not rooted in a vocabulary",
+                    ));
+                }
+            };
             let values = vocab
                 .variants()
                 .iter()
@@ -1811,70 +1855,85 @@ fn render_allocator(
                         .get(role)
                         .ok_or_else(|| internal("resolved lexical role is absent"))?;
                     let terminal = field.terminal();
-                    if let Some((_, codec)) = validated.runtime_declaration_verb_for(terminal) {
-                        if codec.closed_lexeme().is_some() {
-                            let lexeme = validated
-                                .lexeme(
-                                    &codec
-                                        .closed_lexeme()
-                                        .expect("checked closed lexeme")
-                                        .to_string(),
-                                )
-                                .ok_or_else(|| {
-                                    internal("declaration verb lacks its sealed lexeme plan")
-                                })?;
-                            allocator.reserve(lexeme_surface_helper(lexeme.name()));
+                    match validated.atom_terminal(terminal)? {
+                        AtomTerminal::DeclarationVerb { plan: codec, .. } => {
+                            if let Some(closed) = codec.closed_lexeme() {
+                                let lexeme = resolved_lexeme(validated, &closed.to_string())?;
+                                allocator.reserve(lexeme_surface_helper(lexeme.name()));
+                            }
+                            let target = FeaturePlace::Role {
+                                field: syn::Ident::new(role, construction.origin_span()),
+                                feature: Feature::Agreement,
+                            };
+                            if let Some(equation) = validated
+                                .feature_equations(construction.construction_id())
+                                .iter()
+                                .find(|equation| equation.target() == &target)
+                            {
+                                reserve_feature_callees(
+                                    validated,
+                                    construction,
+                                    equation.value(),
+                                    &mut allocator,
+                                )?;
+                            }
                         }
-                        let target = FeaturePlace::Role {
-                            field: syn::Ident::new(role, construction.origin_span()),
-                            feature: Feature::Agreement,
-                        };
-                        if let Some(equation) = validated
-                            .feature_equations(construction.construction_id())
-                            .iter()
-                            .find(|equation| equation.target() == &target)
-                        {
-                            reserve_feature_callees(
-                                validated,
-                                construction,
-                                equation.value(),
-                                &mut allocator,
-                            )?;
+                        AtomTerminal::DeclarationDeterminative { .. }
+                        | AtomTerminal::DeclarationTerm { .. } => {}
+                        AtomTerminal::Vocab(vocab) => {
+                            allocator.reserve(format!("render_{}", snake_case(vocab.name())));
                         }
-                    } else if find_declaration_determinative(validated, terminal).is_some()
-                        || validated.runtime_declaration_term_for(terminal).is_some()
-                    {
-                    } else if let Some(vocab) = find_vocab(validated, terminal) {
-                        allocator.reserve(format!("render_{}", snake_case(vocab.name())));
-                    } else if let Some(codec) = find_signed_decimal(validated, terminal) {
-                        allocator.reserve(format!("render_{}", snake_case(codec.codec_name())));
-                    } else if let Some(codec) = find_unsigned_number(validated, terminal) {
-                        allocator.reserve(format!("render_{}", snake_case(codec.codec_name())));
-                    } else if let BindingRenderPlan::Runtime(path) =
-                        find_binding(validated, terminal)?
-                            .render()
-                            .ok_or_else(|| internal("lex terminal lacks render metadata"))?
-                    {
-                        reserve_bare_path(&mut allocator, path);
+                        AtomTerminal::SignedDecimal(codec) => {
+                            allocator.reserve(format!("render_{}", snake_case(codec.codec_name())));
+                        }
+                        AtomTerminal::UnsignedNumber(codec) => {
+                            allocator.reserve(format!("render_{}", snake_case(codec.codec_name())));
+                        }
+                        AtomTerminal::Binding(binding) => {
+                            if let BindingRenderPlan::Runtime(path) = binding
+                                .render()
+                                .ok_or_else(|| internal("lex terminal lacks render metadata"))?
+                            {
+                                reserve_bare_path(&mut allocator, path);
+                            }
+                        }
+                        AtomTerminal::Lexeme(_)
+                        | AtomTerminal::ContextIdentity(_)
+                        | AtomTerminal::CatalogIdentity { .. }
+                        | AtomTerminal::DeclarationNoun { .. } => {
+                            return Err(internal("lex atom has a non-lexical terminal"));
+                        }
                     }
                 }
                 AtomPlan::Identity { role, .. } => {
                     let field = fields
                         .get(role)
                         .ok_or_else(|| internal("resolved identity role is absent"))?;
-                    if find_context_identity(validated, field.terminal()).is_none()
-                        && find_catalog_identity(validated, field.terminal()).is_none()
-                        && let BindingRenderPlan::Runtime(path) =
-                            find_binding(validated, field.terminal())?
+                    match validated.atom_terminal(field.terminal())? {
+                        AtomTerminal::ContextIdentity(_) | AtomTerminal::CatalogIdentity { .. } => {
+                        }
+                        AtomTerminal::Binding(binding) => {
+                            if let BindingRenderPlan::Runtime(path) = binding
                                 .render()
                                 .ok_or_else(|| internal("identity lacks render metadata"))?
-                    {
-                        reserve_bare_path(&mut allocator, path);
+                            {
+                                reserve_bare_path(&mut allocator, path);
+                            }
+                        }
+                        AtomTerminal::Vocab(_)
+                        | AtomTerminal::Lexeme(_)
+                        | AtomTerminal::SignedDecimal(_)
+                        | AtomTerminal::UnsignedNumber(_)
+                        | AtomTerminal::DeclarationNoun { .. }
+                        | AtomTerminal::DeclarationDeterminative { .. }
+                        | AtomTerminal::DeclarationTerm { .. }
+                        | AtomTerminal::DeclarationVerb { .. } => {
+                            return Err(internal("identity atom has a non-identity terminal"));
+                        }
                     }
                 }
                 AtomPlan::VerbFixed { terminal, .. } => {
-                    let lexeme = find_lexeme(validated, terminal)
-                        .ok_or_else(|| internal("fixed verb lacks its sealed lexeme plan"))?;
+                    let lexeme = resolved_lexeme(validated, terminal)?;
                     allocator.reserve(lexeme_surface_helper(lexeme.name()));
                     let equations = validated.feature_equations(construction.construction_id());
                     if let Some(equation) = equations.iter().find(|equation| {
@@ -1905,27 +1964,34 @@ fn render_allocator(
                     let field = fields
                         .get(role)
                         .ok_or_else(|| internal("resolved noun role is absent"))?;
-                    if validated
-                        .runtime_declaration_noun_for(field.terminal())
-                        .is_none()
-                    {
-                        if let Some(lexeme) = find_lexeme(validated, field.terminal()) {
+                    match validated.atom_terminal(field.terminal())? {
+                        AtomTerminal::Lexeme(lexeme) => {
                             allocator.reserve(lexeme_surface_helper(lexeme.name()));
-                        } else {
-                            let binding = find_binding(validated, field.terminal())?;
+                        }
+                        AtomTerminal::Binding(binding) => {
                             let Some(BindingRenderPlan::Runtime(path)) = binding.render() else {
                                 return Err(internal("noun terminal lacks runtime render binding"));
                             };
                             reserve_bare_path(&mut allocator, path);
                         }
-                    } else if let Some((_, codec)) =
-                        validated.runtime_declaration_noun_for(field.terminal())
-                        && codec.closed_lexeme().is_some()
-                    {
-                        let lexeme = validated.runtime_noun_lexeme().ok_or_else(|| {
-                            internal("declaration noun lacks its sealed lexeme plan")
-                        })?;
-                        allocator.reserve(lexeme_surface_helper(lexeme.name()));
+                        AtomTerminal::DeclarationNoun { plan: codec, .. } => {
+                            if codec.closed_lexeme().is_some() {
+                                let lexeme = validated.runtime_noun_lexeme().ok_or_else(|| {
+                                    internal("declaration noun lacks its sealed lexeme plan")
+                                })?;
+                                allocator.reserve(lexeme_surface_helper(lexeme.name()));
+                            }
+                        }
+                        AtomTerminal::Vocab(_)
+                        | AtomTerminal::ContextIdentity(_)
+                        | AtomTerminal::CatalogIdentity { .. }
+                        | AtomTerminal::SignedDecimal(_)
+                        | AtomTerminal::UnsignedNumber(_)
+                        | AtomTerminal::DeclarationDeterminative { .. }
+                        | AtomTerminal::DeclarationTerm { .. }
+                        | AtomTerminal::DeclarationVerb { .. } => {
+                            return Err(internal("noun atom has a non-noun terminal"));
+                        }
                     }
                     let role_number = FeaturePlace::Role {
                         field: syn::Ident::new(role, construction.origin_span()),
@@ -2021,7 +2087,7 @@ fn reserve_feature_callees(
         *source_feature,
         Feature::Agreement | Feature::Cardinality | Feature::DeterminerNumber | Feature::Number
     ) && field.kind() == ConstructionFieldKind::Lex
-        && let Some(codec) = find_unsigned_number(validated, field.terminal())
+        && let Some(codec) = resolved_unsigned_number(validated, field.terminal())?
         && codec.kind() == UnsignedNumberKind::EnglishCardinal
     {
         allocator.reserve(feature_helper(
@@ -2291,7 +2357,7 @@ fn render_atoms(
                     root_names,
                 )?;
                 if let ValueKindPlan::Category(category) = structural.kind().value()
-                    && category_contains_declaration_determinative(validated, category)
+                    && category_contains_declaration_determinative(validated, category)?
                     && let Some(following) = form
                         .atoms()
                         .get(atom_index + 1)
@@ -2318,7 +2384,8 @@ fn render_atoms(
             }
             if let AtomPlan::Lex { role, .. } = atom
                 && let Some(field) = fields.get(role)
-                && let Some(codec) = find_declaration_determinative(validated, field.terminal())
+                && let Some(codec) =
+                    resolved_declaration_determinative(validated, field.terminal())?
             {
                 let value = field_value(construction, role, locals)?;
                 let surface = declaration_determinative_surface_expr(
@@ -2362,7 +2429,7 @@ fn render_atoms(
                 let Some(field) = fields.get(role) else {
                     return Ok(statement);
                 };
-                if category_contains_declaration_determinative(validated, field.terminal())
+                if category_contains_declaration_determinative(validated, field.terminal())?
                     && let Some(following) = form
                         .atoms()
                         .get(atom_index + 1)
@@ -2651,8 +2718,8 @@ fn render_atom_statement(
                 .ok_or_else(|| internal("resolved lexical role is absent"))?;
             let terminal = field.terminal();
             let value = field_value(construction, role, locals)?;
-            if let Some((_, codec)) = validated.runtime_declaration_verb_for(terminal) {
-                render_declaration_verb_atom(
+            match validated.atom_terminal(terminal)? {
+                AtomTerminal::DeclarationVerb { plan: codec, .. } => render_declaration_verb_atom(
                     validated,
                     construction,
                     codec,
@@ -2660,36 +2727,47 @@ fn render_atom_statement(
                     &value,
                     locals,
                     &method_writer,
-                )
-            } else if let Some((_, codec)) = validated.runtime_declaration_term_for(terminal) {
-                let feature = crate::emit::surface_feature(codec.feature());
-                Ok(quote! {
-                    #method_writer.word(
-                        environment
-                            .surface((#value).id(), #feature)
-                            .expect("stored declaration term remains in its parser environment"),
-                    );
-                })
-            } else if let Some(vocab) = find_vocab(validated, terminal) {
-                let function = ident(&format!("render_{}", snake_case(vocab.name())));
-                let value = copy_value(construction, role, value)?;
-                Ok(quote! { #function(#call_writer, #value); })
-            } else if let Some(codec) = find_signed_decimal(validated, terminal) {
-                let function = ident(&format!("render_{}", snake_case(codec.codec_name())));
-                Ok(quote! { #function(#call_writer, #value); })
-            } else if let Some(codec) = find_unsigned_number(validated, terminal) {
-                let function = ident(&format!("render_{}", snake_case(codec.codec_name())));
-                Ok(quote! { #function(#call_writer, #value); })
-            } else {
-                let binding = find_binding(validated, terminal)?;
-                let Some(BindingRenderPlan::Runtime(function)) = binding.render() else {
-                    return Err(internal("lex terminal lacks runtime render binding"));
-                };
-                let value = match binding.traversal().mode() {
-                    VisitMode::Copy => copy_value(construction, role, value)?,
-                    VisitMode::Borrowed => value,
-                };
-                Ok(quote! { #function(#call_writer, #value); })
+                ),
+                AtomTerminal::DeclarationTerm { plan: codec, .. } => {
+                    let feature = crate::emit::surface_feature(codec.feature());
+                    Ok(quote! {
+                        #method_writer.word(
+                            environment
+                                .surface((#value).id(), #feature)
+                                .expect("stored declaration term remains in its parser environment"),
+                        );
+                    })
+                }
+                AtomTerminal::Vocab(vocab) => {
+                    let function = ident(&format!("render_{}", snake_case(vocab.name())));
+                    let value = copy_value(construction, role, value)?;
+                    Ok(quote! { #function(#call_writer, #value); })
+                }
+                AtomTerminal::SignedDecimal(codec) => {
+                    let function = ident(&format!("render_{}", snake_case(codec.codec_name())));
+                    Ok(quote! { #function(#call_writer, #value); })
+                }
+                AtomTerminal::UnsignedNumber(codec) => {
+                    let function = ident(&format!("render_{}", snake_case(codec.codec_name())));
+                    Ok(quote! { #function(#call_writer, #value); })
+                }
+                AtomTerminal::Binding(binding) => {
+                    let Some(BindingRenderPlan::Runtime(function)) = binding.render() else {
+                        return Err(internal("lex terminal lacks runtime render binding"));
+                    };
+                    let value = match binding.traversal().mode() {
+                        VisitMode::Copy => copy_value(construction, role, value)?,
+                        VisitMode::Borrowed => value,
+                    };
+                    Ok(quote! { #function(#call_writer, #value); })
+                }
+                AtomTerminal::Lexeme(_)
+                | AtomTerminal::ContextIdentity(_)
+                | AtomTerminal::CatalogIdentity { .. }
+                | AtomTerminal::DeclarationNoun { .. }
+                | AtomTerminal::DeclarationDeterminative { .. } => {
+                    Err(internal("lex atom has a non-lexical terminal"))
+                }
             }
         }
         AtomPlan::Identity { role, .. } => {
@@ -2697,20 +2775,19 @@ fn render_atom_statement(
                 .get(role)
                 .ok_or_else(|| internal("resolved identity role is absent"))?;
             let value = field_value(construction, role, locals)?;
-            if find_context_identity(validated, field.terminal()).is_some() {
-                let value = copy_value(construction, role, value)?;
-                Ok(quote! { #method_writer.identity((#value).surface(context)); })
-            } else if find_catalog_identity(validated, field.terminal()).is_some() {
-                Ok(quote! {
+            match validated.atom_terminal(field.terminal())? {
+                AtomTerminal::ContextIdentity(_) => {
+                    let value = copy_value(construction, role, value)?;
+                    Ok(quote! { #method_writer.identity((#value).surface(context)); })
+                }
+                AtomTerminal::CatalogIdentity { .. } => Ok(quote! {
                     #method_writer.identity(
                         environment
                             .catalog_surface((#value).provider(), (#value).canonical_identity())
                             .expect("validated catalog identity remains in its frozen provider"),
                     );
-                })
-            } else {
-                let binding = find_binding(validated, field.terminal())?;
-                match binding
+                }),
+                AtomTerminal::Binding(binding) => match binding
                     .render()
                     .ok_or_else(|| internal("identity lacks render metadata"))?
                 {
@@ -2738,6 +2815,16 @@ fn render_atom_statement(
                         };
                         Ok(quote! { match #value { #(#match_arms),* } })
                     }
+                },
+                AtomTerminal::Vocab(_)
+                | AtomTerminal::Lexeme(_)
+                | AtomTerminal::SignedDecimal(_)
+                | AtomTerminal::UnsignedNumber(_)
+                | AtomTerminal::DeclarationNoun { .. }
+                | AtomTerminal::DeclarationDeterminative { .. }
+                | AtomTerminal::DeclarationTerm { .. }
+                | AtomTerminal::DeclarationVerb { .. } => {
+                    Err(internal("identity atom has a non-identity terminal"))
                 }
             }
         }
@@ -2770,25 +2857,29 @@ fn render_atom_statement(
     }
 }
 
-fn category_contains_declaration_determinative(plan: &SemanticPlan, category: &str) -> bool {
-    plan.constructions()
+fn category_contains_declaration_determinative(
+    plan: &SemanticPlan,
+    category: &str,
+) -> syn::Result<bool> {
+    let fields = plan
+        .constructions()
         .iter()
         .filter(|construction| construction.category() == category)
-        .any(|construction| {
-            construction.fields().iter().any(|field| {
-                field.kind() == ConstructionFieldKind::Lex
-                    && plan
-                        .runtime_declaration_determinative_for(field.terminal())
-                        .is_some_and(|(_, codec)| {
-                            codec.closed().iter().any(|member| {
-                                member
-                                    .realizations()
-                                    .iter()
-                                    .any(|realization| realization.following_onset().is_some())
-                            })
-                        })
+        .flat_map(ConstructionPlan::fields)
+        .filter(|field| field.kind() == ConstructionFieldKind::Lex);
+    for field in fields {
+        if resolved_declaration_determinative(plan, field.terminal())?.is_some_and(|codec| {
+            codec.closed().iter().any(|member| {
+                member
+                    .realizations()
+                    .iter()
+                    .any(|realization| realization.following_onset().is_some())
             })
-        })
+        }) {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 fn render_construction_structural_field(
@@ -2962,8 +3053,7 @@ fn render_fixed_verb_atom(
 ) -> syn::Result<TokenStream> {
     let method_writer = quote! { writer };
     let agreement = verb_agreement(validated, construction, locals)?;
-    let lexeme = find_lexeme(validated, terminal)
-        .ok_or_else(|| internal("fixed verb terminal lacks its lexeme plan"))?;
+    let lexeme = resolved_lexeme(validated, terminal)?;
     let surface = ident(&lexeme_surface_helper(lexeme.name()));
     Ok(quote! { #method_writer.word(#surface(#variant, #agreement)); })
 }
@@ -3004,125 +3094,141 @@ fn render_owner(
             let field = construction.field(role)?;
             let terminal = field.terminal();
             let value = field_value(construction, role, locals)?;
-            if let Some((_, codec)) = validated.runtime_declaration_verb_for(terminal) {
-                return declaration_verb_owner(
-                    validated,
-                    construction,
-                    codec,
-                    role,
-                    &value,
-                    locals,
-                );
-            }
-            if let Some((_, codec)) = validated.runtime_declaration_term_for(terminal) {
-                let feature = crate::emit::surface_feature(codec.feature());
-                return Ok(quote! {
-                    LexicalOwner::declaration_owner(
-                        (#value).id().clone(),
-                        #feature,
-                    )
-                });
-            }
-            if let Some(codec) = find_declaration_determinative(validated, terminal) {
-                let ty = codec.codec_ident();
-                let lemma = codec.lemma_ident();
-                let closed = codec.closed().iter().map(|member| {
-                    let member = member.lemma();
-                    let stable_id = syn::LitStr::new(
-                        &format!("determinative:{terminal}/{member}"),
-                        Span::call_site(),
-                    );
-                    quote! {
-                        #ty::Closed(#lemma::#member) => LexicalOwner::static_owner(
-                            LexicalProvenanceKind::Codec,
-                            #stable_id,
-                        )
-                    }
-                });
-                return Ok(quote! {
-                    match #value {
-                        #(#closed,)*
-                    }
-                });
-            }
-            if let Some(vocab) = find_vocab(validated, terminal) {
-                let ty = emitted_ident(vocab.name(), vocab.name_ident().span());
-                let value = copy_value(construction, role, value)?;
-                let arms = vocab.variants().iter().map(|variant| {
-                    let member =
-                        emitted_ident(&identifier_key(variant.name()), variant.name().span());
-                    let stable_id = syn::LitStr::new(
-                        &format!("vocab:{}/{}", vocab.name(), member),
-                        Span::call_site(),
-                    );
-                    quote! {
-                        #ty::#member => LexicalOwner::static_owner(
-                            LexicalProvenanceKind::Vocab,
-                            #stable_id,
-                        )
-                    }
-                });
-                return Ok(quote! { match #value { #(#arms,)* } });
-            }
-            let (kind, prefix) = if find_signed_decimal(validated, terminal).is_some()
-                || find_unsigned_number(validated, terminal).is_some()
-            {
-                (quote! { LexicalProvenanceKind::Codec }, "codec")
-            } else {
-                let binding = find_binding(validated, terminal)?;
-                match binding.kind() {
-                    crate::model::TerminalBindingKind::Codec => {
-                        (quote! { LexicalProvenanceKind::Codec }, "codec")
-                    }
-                    crate::model::TerminalBindingKind::Identity => {
-                        (quote! { LexicalProvenanceKind::Identity }, "identity")
-                    }
+            match validated.atom_terminal(terminal)? {
+                AtomTerminal::DeclarationVerb { plan: codec, .. } => {
+                    declaration_verb_owner(validated, construction, codec, role, &value, locals)
                 }
-            };
-            let stable_id = syn::LitStr::new(&format!("{prefix}:{terminal}"), Span::call_site());
-            Ok(quote! { LexicalOwner::static_owner(#kind, #stable_id) })
+                AtomTerminal::DeclarationTerm { plan: codec, .. } => {
+                    let feature = crate::emit::surface_feature(codec.feature());
+                    Ok(quote! {
+                        LexicalOwner::declaration_owner(
+                            (#value).id().clone(),
+                            #feature,
+                        )
+                    })
+                }
+                AtomTerminal::DeclarationDeterminative { plan: codec, .. } => {
+                    let ty = codec.codec_ident();
+                    let lemma = codec.lemma_ident();
+                    let closed = codec.closed().iter().map(|member| {
+                        let member = member.lemma();
+                        let stable_id = syn::LitStr::new(
+                            &format!("determinative:{terminal}/{member}"),
+                            Span::call_site(),
+                        );
+                        quote! {
+                            #ty::Closed(#lemma::#member) => LexicalOwner::static_owner(
+                                LexicalProvenanceKind::Codec,
+                                #stable_id,
+                            )
+                        }
+                    });
+                    Ok(quote! {
+                        match #value {
+                            #(#closed,)*
+                        }
+                    })
+                }
+                AtomTerminal::Vocab(vocab) => {
+                    let ty = emitted_ident(vocab.name(), vocab.name_ident().span());
+                    let value = copy_value(construction, role, value)?;
+                    let arms = vocab.variants().iter().map(|variant| {
+                        let member =
+                            emitted_ident(&identifier_key(variant.name()), variant.name().span());
+                        let stable_id = syn::LitStr::new(
+                            &format!("vocab:{}/{}", vocab.name(), member),
+                            Span::call_site(),
+                        );
+                        quote! {
+                            #ty::#member => LexicalOwner::static_owner(
+                                LexicalProvenanceKind::Vocab,
+                                #stable_id,
+                            )
+                        }
+                    });
+                    Ok(quote! { match #value { #(#arms,)* } })
+                }
+                AtomTerminal::SignedDecimal(_) | AtomTerminal::UnsignedNumber(_) => {
+                    let stable_id =
+                        syn::LitStr::new(&format!("codec:{terminal}"), Span::call_site());
+                    Ok(quote! {
+                        LexicalOwner::static_owner(LexicalProvenanceKind::Codec, #stable_id)
+                    })
+                }
+                AtomTerminal::Binding(binding) => {
+                    let (kind, prefix) = match binding.kind() {
+                        crate::model::TerminalBindingKind::Codec => {
+                            (quote! { LexicalProvenanceKind::Codec }, "codec")
+                        }
+                        crate::model::TerminalBindingKind::Identity => {
+                            (quote! { LexicalProvenanceKind::Identity }, "identity")
+                        }
+                    };
+                    let stable_id =
+                        syn::LitStr::new(&format!("{prefix}:{terminal}"), Span::call_site());
+                    Ok(quote! { LexicalOwner::static_owner(#kind, #stable_id) })
+                }
+                AtomTerminal::Lexeme(_)
+                | AtomTerminal::ContextIdentity(_)
+                | AtomTerminal::CatalogIdentity { .. }
+                | AtomTerminal::DeclarationNoun { .. } => {
+                    Err(internal("lex atom has a non-lexical terminal"))
+                }
+            }
         }
         AtomPlan::Identity { role, .. } => {
             let field = construction.field(role)?;
             let terminal = field.terminal();
             let value = field_value(construction, role, locals)?;
-            if let Some(identity) = find_context_identity(validated, terminal) {
-                let ty = identity.ident();
-                let value = copy_value(construction, role, value)?;
-                let arms = identity.arms().iter().map(|arm| {
-                    let member = arm.variant();
-                    let stable_id = syn::LitStr::new(
-                        &format!("identity:{terminal}/{member}"),
-                        Span::call_site(),
-                    );
-                    quote! {
-                        #ty::#member => LexicalOwner::static_owner(
-                            LexicalProvenanceKind::Identity,
-                            #stable_id,
-                        )
-                    }
-                });
-                return Ok(quote! { match #value { #(#arms,)* } });
-            }
-            if find_catalog_identity(validated, terminal).is_some() {
-                return Ok(quote! {
+            match validated.atom_terminal(terminal)? {
+                AtomTerminal::ContextIdentity(identity) => {
+                    let ty = identity.ident();
+                    let value = copy_value(construction, role, value)?;
+                    let arms = identity.arms().iter().map(|arm| {
+                        let member = arm.variant();
+                        let stable_id = syn::LitStr::new(
+                            &format!("identity:{terminal}/{member}"),
+                            Span::call_site(),
+                        );
+                        quote! {
+                            #ty::#member => LexicalOwner::static_owner(
+                                LexicalProvenanceKind::Identity,
+                                #stable_id,
+                            )
+                        }
+                    });
+                    Ok(quote! { match #value { #(#arms,)* } })
+                }
+                AtomTerminal::CatalogIdentity { .. } => Ok(quote! {
                     LexicalOwner::catalog_owner(
                         (#value).provider(),
                         (#value).canonical_identity.clone(),
                     )
-                });
+                }),
+                AtomTerminal::Binding(_) => {
+                    let stable_id =
+                        syn::LitStr::new(&format!("identity:{terminal}"), Span::call_site());
+                    Ok(quote! {
+                        LexicalOwner::static_owner(LexicalProvenanceKind::Identity, #stable_id)
+                    })
+                }
+                AtomTerminal::Vocab(_)
+                | AtomTerminal::Lexeme(_)
+                | AtomTerminal::SignedDecimal(_)
+                | AtomTerminal::UnsignedNumber(_)
+                | AtomTerminal::DeclarationNoun { .. }
+                | AtomTerminal::DeclarationDeterminative { .. }
+                | AtomTerminal::DeclarationTerm { .. }
+                | AtomTerminal::DeclarationVerb { .. } => {
+                    Err(internal("identity atom has a non-identity terminal"))
+                }
             }
-            let stable_id = syn::LitStr::new(&format!("identity:{terminal}"), Span::call_site());
-            Ok(quote! {
-                LexicalOwner::static_owner(LexicalProvenanceKind::Identity, #stable_id)
-            })
         }
         AtomPlan::VerbFixed {
             terminal, variant, ..
         } => {
             let agreement = verb_agreement(validated, construction, locals)?;
-            let lexeme = find_lexeme(validated, terminal)
-                .ok_or_else(|| internal("fixed verb terminal lacks its lexeme plan"))?;
+            let lexeme = resolved_lexeme(validated, terminal)?;
             let arms = lexeme
                 .surfaces()
                 .iter()
@@ -3173,90 +3279,104 @@ fn render_owner(
             let field = construction.field(role)?;
             let value = field_value(construction, role, locals)?;
             let number = noun_role_number(validated, construction, role, locals)?;
-            if let Some(lexeme) = find_lexeme(validated, field.terminal()) {
-                let noun = lexeme.name_ident();
-                let arms = lexeme.surfaces().iter().map(|row| {
-                    let member = emitted_ident(row.member(), Span::call_site());
-                    let feature = match row.feature() {
-                        macro_ron::v2::SurfaceFeature::Singular => quote! { Number::Singular },
-                        macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
-                        macro_ron::v2::SurfaceFeature::Bare
-                        | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
-                        | macro_ron::v2::SurfaceFeature::Participle
-                        | macro_ron::v2::SurfaceFeature::Fixed
-                        | macro_ron::v2::SurfaceFeature::BlockLabel => {
-                            unreachable!("validated noun lexeme has the Number feature axis")
+            match validated.atom_terminal(field.terminal())? {
+                AtomTerminal::Lexeme(lexeme) => {
+                    let noun = lexeme.name_ident();
+                    let arms = lexeme.surfaces().iter().map(|row| {
+                        let member = emitted_ident(row.member(), Span::call_site());
+                        let feature = match row.feature() {
+                            macro_ron::v2::SurfaceFeature::Singular => quote! { Number::Singular },
+                            macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
+                            macro_ron::v2::SurfaceFeature::Bare
+                            | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                            | macro_ron::v2::SurfaceFeature::Participle
+                            | macro_ron::v2::SurfaceFeature::Fixed
+                            | macro_ron::v2::SurfaceFeature::BlockLabel => {
+                                unreachable!("validated noun lexeme has the Number feature axis")
+                            }
+                        };
+                        let stable_id = crate::emit::closed_lexeme_owner_id(
+                            lexeme.name(),
+                            row.member(),
+                            row.feature(),
+                        );
+                        quote! {
+                            (#noun::#member, #feature) => LexicalOwner::static_owner(
+                                LexicalProvenanceKind::Lexeme,
+                                #stable_id,
+                            )
                         }
-                    };
-                    let stable_id = crate::emit::closed_lexeme_owner_id(
-                        lexeme.name(),
-                        row.member(),
-                        row.feature(),
-                    );
-                    quote! {
-                        (#noun::#member, #feature) => LexicalOwner::static_owner(
-                            LexicalProvenanceKind::Lexeme,
-                            #stable_id,
-                        )
-                    }
-                });
-                return Ok(quote! { match (#value, #number) { #(#arms,)* } });
-            }
-            let Some((_, codec)) = validated.runtime_declaration_noun_for(field.terminal()) else {
-                let stable_id =
-                    syn::LitStr::new(&format!("codec:{}", field.terminal()), Span::call_site());
-                return Ok(quote! {
-                    LexicalOwner::static_owner(LexicalProvenanceKind::Codec, #stable_id)
-                });
-            };
-            let noun = codec.codec_ident();
-            let closed_arms = if let Some(closed) = codec.closed_lexeme() {
-                validated
-                    .runtime_noun_lexeme()
-                    .expect("validated declaration noun has a closed lexeme")
-                    .surfaces()
-                    .iter()
-                    .map(|row| {
-                    let member = emitted_ident(row.member(), Span::call_site());
-                    let feature = match row.feature() {
-                        macro_ron::v2::SurfaceFeature::Singular => quote! { Number::Singular },
-                        macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
-                        macro_ron::v2::SurfaceFeature::Bare
-                        | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
-                        | macro_ron::v2::SurfaceFeature::Participle
-                        | macro_ron::v2::SurfaceFeature::Fixed
-                        | macro_ron::v2::SurfaceFeature::BlockLabel => {
-                            unreachable!("validated noun lexeme has the Number feature axis")
-                        }
-                    };
-                    let stable_id = crate::emit::closed_lexeme_owner_id(
-                        &closed.to_string(),
-                        row.member(),
-                        row.feature(),
-                    );
-                    quote! {
-                        (#noun::Lexeme(#closed::#member), #feature) => LexicalOwner::static_owner(
-                            LexicalProvenanceKind::Lexeme,
-                            #stable_id,
-                        )
-                    }
-                    })
-                    .collect::<Vec<_>>()
-            } else {
-                Vec::new()
-            };
-            Ok(quote! {
-                match (#value, #number) {
-                    #(#closed_arms,)*
-                    (#noun::Declaration(declaration), _) => LexicalOwner::declaration_owner(
-                        declaration.id().clone(),
-                        match #number {
-                            Number::Singular => ::macro_ron::v2::SurfaceFeature::Singular,
-                            Number::Plural => ::macro_ron::v2::SurfaceFeature::Plural,
-                        },
-                    ),
+                    });
+                    Ok(quote! { match (#value, #number) { #(#arms,)* } })
                 }
-            })
+                AtomTerminal::DeclarationNoun { plan: codec, .. } => {
+                    let noun = codec.codec_ident();
+                    let closed_arms = if let Some(closed) = codec.closed_lexeme() {
+                        validated
+                            .runtime_noun_lexeme()
+                            .expect("validated declaration noun has a closed lexeme")
+                            .surfaces()
+                            .iter()
+                            .map(|row| {
+                            let member = emitted_ident(row.member(), Span::call_site());
+                            let feature = match row.feature() {
+                                macro_ron::v2::SurfaceFeature::Singular => quote! { Number::Singular },
+                                macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
+                                macro_ron::v2::SurfaceFeature::Bare
+                                | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                                | macro_ron::v2::SurfaceFeature::Participle
+                                | macro_ron::v2::SurfaceFeature::Fixed
+                                | macro_ron::v2::SurfaceFeature::BlockLabel => {
+                                    unreachable!("validated noun lexeme has the Number feature axis")
+                                }
+                            };
+                            let stable_id = crate::emit::closed_lexeme_owner_id(
+                                &closed.to_string(),
+                                row.member(),
+                                row.feature(),
+                            );
+                            quote! {
+                                (#noun::Lexeme(#closed::#member), #feature) => LexicalOwner::static_owner(
+                                    LexicalProvenanceKind::Lexeme,
+                                    #stable_id,
+                                )
+                            }
+                            })
+                            .collect::<Vec<_>>()
+                    } else {
+                        Vec::new()
+                    };
+                    Ok(quote! {
+                        match (#value, #number) {
+                            #(#closed_arms,)*
+                            (#noun::Declaration(declaration), _) => LexicalOwner::declaration_owner(
+                                declaration.id().clone(),
+                                match #number {
+                                    Number::Singular => ::macro_ron::v2::SurfaceFeature::Singular,
+                                    Number::Plural => ::macro_ron::v2::SurfaceFeature::Plural,
+                                },
+                            ),
+                        }
+                    })
+                }
+                AtomTerminal::Binding(_) => {
+                    let stable_id =
+                        syn::LitStr::new(&format!("codec:{}", field.terminal()), Span::call_site());
+                    Ok(quote! {
+                        LexicalOwner::static_owner(LexicalProvenanceKind::Codec, #stable_id)
+                    })
+                }
+                AtomTerminal::Vocab(_)
+                | AtomTerminal::ContextIdentity(_)
+                | AtomTerminal::CatalogIdentity { .. }
+                | AtomTerminal::SignedDecimal(_)
+                | AtomTerminal::UnsignedNumber(_)
+                | AtomTerminal::DeclarationDeterminative { .. }
+                | AtomTerminal::DeclarationTerm { .. }
+                | AtomTerminal::DeclarationVerb { .. } => {
+                    Err(internal("noun atom has a non-noun terminal"))
+                }
+            }
         }
         AtomPlan::Bound { .. } | AtomPlan::Circumfix { .. } => {
             unreachable!("value_atom removes form wrappers")
@@ -3275,55 +3395,67 @@ fn render_noun_atom(
 ) -> syn::Result<TokenStream> {
     let number = noun_role_number(validated, construction, role, locals)?;
     let value = field_value(construction, role, locals)?;
-    if let Some(lexeme) = find_lexeme(validated, field.terminal()) {
-        let surface = ident(&lexeme_surface_helper(lexeme.name()));
-        let value = copy_value(construction, role, value)?;
-        return Ok(quote! { #method_writer.word(#surface(#value, #number)); });
+    match validated.atom_terminal(field.terminal())? {
+        AtomTerminal::Lexeme(lexeme) => {
+            let surface = ident(&lexeme_surface_helper(lexeme.name()));
+            let value = copy_value(construction, role, value)?;
+            Ok(quote! { #method_writer.word(#surface(#value, #number)); })
+        }
+        AtomTerminal::Binding(binding) => {
+            let Some(BindingRenderPlan::Runtime(function)) = binding.render() else {
+                return Err(internal("noun terminal lacks runtime render binding"));
+            };
+            Ok(quote! { #function(#call_writer, #value, #number); })
+        }
+        AtomTerminal::DeclarationNoun { plan: codec, .. } => {
+            let noun = codec.codec_ident();
+            let closed_arm = if let Some(closed) = codec.closed_lexeme() {
+                let lexeme = validated.runtime_noun_lexeme().ok_or_else(|| {
+                    internal("validated declaration noun lacks a closed lexeme plan")
+                })?;
+                if closed != lexeme.name() {
+                    return Err(internal(
+                        "declaration noun closed lexeme plan is inconsistent",
+                    ));
+                }
+                let surface = ident(&lexeme_surface_helper(lexeme.name()));
+                Some(quote! {
+                    #noun::Lexeme(lexeme) => {
+                        #method_writer.word(#surface(*lexeme, #number));
+                    }
+                })
+            } else {
+                None
+            };
+            Ok(quote! {
+                match #value {
+                    #closed_arm
+                    #noun::Declaration(declaration) => {
+                        let surface = environment
+                            .surface(
+                                declaration.id(),
+                                match #number {
+                                    Number::Singular => ::macro_ron::v2::SurfaceFeature::Singular,
+                                    Number::Plural => ::macro_ron::v2::SurfaceFeature::Plural,
+                                },
+                            )
+                            .expect("stored declaration noun remains in its parser environment");
+                        #method_writer.word(surface);
+                    }
+                }
+            })
+        }
+        AtomTerminal::Vocab(_)
+        | AtomTerminal::ContextIdentity(_)
+        | AtomTerminal::CatalogIdentity { .. }
+        | AtomTerminal::SignedDecimal(_)
+        | AtomTerminal::UnsignedNumber(_)
+        | AtomTerminal::DeclarationDeterminative { .. }
+        | AtomTerminal::DeclarationTerm { .. }
+        | AtomTerminal::DeclarationVerb { .. } => {
+            Err(internal("noun atom has a non-noun terminal"))
+        }
     }
-    let Some((_, codec)) = validated.runtime_declaration_noun_for(field.terminal()) else {
-        let binding = find_binding(validated, field.terminal())?;
-        let Some(BindingRenderPlan::Runtime(function)) = binding.render() else {
-            return Err(internal("noun terminal lacks runtime render binding"));
-        };
-        return Ok(quote! { #function(#call_writer, #value, #number); });
-    };
-
-    let noun = codec.codec_ident();
-    let closed_arm = if let Some(closed) = codec.closed_lexeme() {
-        let lexeme = validated
-            .runtime_noun_lexeme()
-            .ok_or_else(|| internal("validated declaration noun lacks a closed lexeme plan"))?;
-        if closed != lexeme.name() {
-            return Err(internal(
-                "declaration noun closed lexeme plan is inconsistent",
-            ));
-        }
-        let surface = ident(&lexeme_surface_helper(lexeme.name()));
-        Some(quote! {
-            #noun::Lexeme(lexeme) => {
-                #method_writer.word(#surface(*lexeme, #number));
-            }
-        })
-    } else {
-        None
-    };
-    Ok(quote! {
-        match #value {
-            #closed_arm
-            #noun::Declaration(declaration) => {
-                let surface = environment
-                    .surface(
-                        declaration.id(),
-                        match #number {
-                            Number::Singular => ::macro_ron::v2::SurfaceFeature::Singular,
-                            Number::Plural => ::macro_ron::v2::SurfaceFeature::Plural,
-                        },
-                    )
-                    .expect("stored declaration noun remains in its parser environment");
-                #method_writer.word(surface);
-            }
-        }
-    })
 }
 
 fn render_declaration_verb_atom(
@@ -3352,9 +3484,7 @@ fn render_declaration_verb_atom(
     };
     if let Some(closed) = codec.closed_lexeme() {
         let verb = codec.codec_ident();
-        let lexeme = validated
-            .lexeme(&closed.to_string())
-            .ok_or_else(|| internal("validated declaration verb lacks a closed lexeme plan"))?;
+        let lexeme = resolved_lexeme(validated, &closed.to_string())?;
         if closed != lexeme.name() {
             return Err(internal(
                 "declaration verb closed lexeme plan is inconsistent",
@@ -3410,9 +3540,7 @@ fn declaration_verb_owner(
     };
     if let Some(closed) = codec.closed_lexeme() {
         let verb = codec.codec_ident();
-        let lexeme = validated
-            .lexeme(&closed.to_string())
-            .ok_or_else(|| internal("validated declaration verb lacks a closed lexeme plan"))?;
+        let lexeme = resolved_lexeme(validated, &closed.to_string())?;
         let arms = lexeme.surfaces().iter().map(|row| {
             let member = emitted_ident(row.member(), Span::call_site());
             let axis = match codec.feature_axis() {
@@ -3790,7 +3918,7 @@ fn feature_expr(
                     | Feature::DeterminerNumber
                     | Feature::Number
             ) && field.kind() == ConstructionFieldKind::Lex
-                && let Some(codec) = find_unsigned_number(validated, field.terminal())
+                && let Some(codec) = resolved_unsigned_number(validated, field.terminal())?
                 && codec.kind() == UnsignedNumberKind::EnglishCardinal
             {
                 let function = ident(&feature_helper(
@@ -3859,12 +3987,11 @@ fn feature_expr(
                     )?;
                     let writer_value =
                         field_value(construction, &identifier_key(writer_role), locals)?;
-                    let writer_value =
-                        if validated.runtime_declaration_noun_for(vocabulary).is_some() {
-                            writer_value
-                        } else {
-                            copy_value(construction, &identifier_key(writer_role), writer_value)?
-                        };
+                    let writer_value = if terminal_is_declaration_noun(validated, vocabulary)? {
+                        writer_value
+                    } else {
+                        copy_value(construction, &identifier_key(writer_role), writer_value)?
+                    };
                     (vocabulary.to_owned(), writer_value)
                 }
                 ConstructionFieldKind::Identity => {
@@ -3923,8 +4050,7 @@ fn implicit_verb_onset(
             if !validated.terminal_provides_onset(terminal) {
                 return Err(internal("validated fixed verb lacks onset capability"));
             }
-            let lexeme = find_lexeme(validated, terminal)
-                .ok_or_else(|| internal("fixed verb onset lacks its sealed lexeme"))?;
+            let lexeme = resolved_lexeme(validated, terminal)?;
             let arms = lexeme
                 .surfaces()
                 .iter()
@@ -4173,10 +4299,6 @@ fn bound_prefix_onset(
     }))
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "lexical onset rendering exhaustively dispatches every sealed lexical family"
-)]
 fn lexical_onset_expr(
     validated: &SemanticPlan,
     construction: &ConstructionPlan,
@@ -4185,180 +4307,113 @@ fn lexical_onset_expr(
     role_value: TokenStream,
     locals: &RenderLocals,
 ) -> syn::Result<TokenStream> {
-    if let Some(vocab) = find_vocab(validated, field.terminal()) {
-        let ty = ident(vocab.name());
-        let value = copy_value(construction, role, role_value)?;
-        let arms = vocab.variants().iter().map(|variant| {
-            let member = variant.name();
-            let onset = super::onset(variant.onset());
-            quote! { #ty::#member => #onset }
-        });
-        return Ok(quote! { match #value { #(#arms,)* } });
-    }
-    if let Some(identity) = find_context_identity(validated, field.terminal()) {
-        let ty = identity.ident();
-        let value = copy_value(construction, role, role_value)?;
-        let arms = identity.arms().iter().map(|arm| {
-            let member = arm.variant();
-            let accessor = ident(&format!("{}_onset", identifier_key(arm.accessor())));
-            quote! { #ty::#member => context.#accessor() }
-        });
-        return Ok(quote! { match #value { #(#arms,)* } });
-    }
-    if find_catalog_identity(validated, field.terminal()).is_some() {
-        return Ok(quote! {
+    match validated.atom_terminal(field.terminal())? {
+        AtomTerminal::Vocab(vocab) => {
+            let ty = ident(vocab.name());
+            let value = copy_value(construction, role, role_value)?;
+            let arms = vocab.variants().iter().map(|variant| {
+                let member = variant.name();
+                let onset = super::onset(variant.onset());
+                quote! { #ty::#member => #onset }
+            });
+            Ok(quote! { match #value { #(#arms,)* } })
+        }
+        AtomTerminal::ContextIdentity(identity) => {
+            let ty = identity.ident();
+            let value = copy_value(construction, role, role_value)?;
+            let arms = identity.arms().iter().map(|arm| {
+                let member = arm.variant();
+                let accessor = ident(&format!("{}_onset", identifier_key(arm.accessor())));
+                quote! { #ty::#member => context.#accessor() }
+            });
+            Ok(quote! { match #value { #(#arms,)* } })
+        }
+        AtomTerminal::CatalogIdentity { .. } => Ok(quote! {
             environment
                 .catalog_onset((#role_value).provider(), (#role_value).canonical_identity())
                 .expect("validated catalog identity remains in its frozen provider")
-        });
-    }
-    if let Some(lexeme) = find_lexeme(validated, field.terminal()) {
-        let noun = lexeme.name_ident();
-        let number = noun_role_number(validated, construction, role, locals)?;
-        let arms = lexeme.surfaces().iter().map(|row| {
-            let member = ident(row.member());
-            let feature = match row.feature() {
-                macro_ron::v2::SurfaceFeature::Singular => quote! { Number::Singular },
-                macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
-                macro_ron::v2::SurfaceFeature::Bare
-                | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
-                | macro_ron::v2::SurfaceFeature::Participle
-                | macro_ron::v2::SurfaceFeature::Fixed
-                | macro_ron::v2::SurfaceFeature::BlockLabel => {
-                    unreachable!("validated noun lexeme has the Number feature axis")
-                }
-            };
-            let onset = super::onset(row.onset());
-            quote! { (#noun::#member, #feature) => #onset }
-        });
-        return Ok(quote! { match (#role_value, #number) { #(#arms,)* } });
-    }
-    if let Some(codec) = find_declaration_determinative(validated, field.terminal()) {
-        let (form, atom_index) = construction
-            .forms()
-            .iter()
-            .find_map(|form| {
-                form.atoms()
-                    .iter()
-                    .enumerate()
-                    .find_map(|(atom_index, atom)| {
-                        matches!(atom, AtomPlan::Lex { role: found, .. } if found == role)
-                            .then_some((form, atom_index))
-                    })
-            })
-            .ok_or_else(|| internal("validated determinative role has no surface atom"))?;
-        let surface = declaration_determinative_surface_expr(
-            validated,
-            construction,
-            form,
-            atom_index,
-            codec,
-            role,
-            &role_value,
-            locals,
-            None,
-        )?;
-        return Ok(quote! {
-            ::macro_ron::v2::normalize_surface_onset(#surface, None)
-                .expect("validated determinative realization has an onset")
-        });
-    }
-    if let Some((_, codec)) = validated.runtime_declaration_term_for(field.terminal()) {
-        let feature = crate::emit::surface_feature(codec.feature());
-        return Ok(quote! {
-            environment
-                .onset((#role_value).id(), #feature)
-                .expect("stored declaration term remains in its parser environment")
-        });
-    }
-    if let Some((_, codec)) = validated.runtime_declaration_verb_for(field.terminal()) {
-        let verb = codec.codec_ident();
-        if let Some(closed) = codec.closed_lexeme() {
-            let lexeme = validated
-                .lexeme(&closed.to_string())
-                .ok_or_else(|| internal("validated declaration verb lacks a closed lexeme plan"))?;
-            return match codec.feature_axis() {
-                Feature::Agreement => {
-                    let agreement =
-                        projected_verb_agreement(validated, construction, role, locals)?;
-                    let closed_arms = lexeme.surfaces().iter().map(|row| {
-                        let member = ident(row.member());
-                        let agreement = match row.feature() {
-                            macro_ron::v2::SurfaceFeature::Bare => quote! { Agreement::Bare },
-                            macro_ron::v2::SurfaceFeature::ThirdPersonSingular => {
-                                quote! { Agreement::ThirdPersonSingular }
-                            }
-                            _ => unreachable!(
-                                "validated Agreement declaration verb has Agreement rows"
-                            ),
-                        };
-                        let onset = super::onset(row.onset());
-                        quote! { (#verb::Lexeme(#closed::#member), #agreement) => #onset }
-                    });
-                    Ok(quote! {
-                        match (#role_value, #agreement) {
-                            #(#closed_arms,)*
-                            (#verb::Declaration(declaration), agreement) => environment
-                                .verb_inventory_onset(
-                                    declaration.reference(),
-                                    match agreement {
-                                        Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
-                                        Agreement::ThirdPersonSingular => {
-                                            ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular
-                                        }
-                                    },
-                                )
-                                .expect("stored declaration verb remains in its normalized parser environment"),
-                        }
-                    })
-                }
-                Feature::Participle => {
-                    let closed_arms = lexeme.surfaces().iter().map(|row| {
-                        let member = ident(row.member());
-                        let onset = super::onset(row.onset());
-                        quote! { #verb::Lexeme(#closed::#member) => #onset }
-                    });
-                    Ok(quote! {
-                        match #role_value {
-                            #(#closed_arms,)*
-                            #verb::Declaration(declaration) => environment
-                                .verb_inventory_onset(
-                                    declaration.reference(),
-                                    ::macro_ron::v2::SurfaceFeature::Participle,
-                                )
-                                .expect("stored declaration verb remains in its normalized parser environment"),
-                        }
-                    })
-                }
-                _ => unreachable!("validated declaration verb feature axis is closed"),
-            };
-        }
-        let feature = match codec.feature_axis() {
-            Feature::Agreement => {
-                let agreement = projected_verb_agreement(validated, construction, role, locals)?;
-                quote! {
-                    match #agreement {
-                        Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
-                        Agreement::ThirdPersonSingular => {
-                            ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular
-                        }
+        }),
+        AtomTerminal::Lexeme(lexeme) => {
+            let noun = lexeme.name_ident();
+            let number = noun_role_number(validated, construction, role, locals)?;
+            let arms = lexeme.surfaces().iter().map(|row| {
+                let member = ident(row.member());
+                let feature = match row.feature() {
+                    macro_ron::v2::SurfaceFeature::Singular => quote! { Number::Singular },
+                    macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
+                    macro_ron::v2::SurfaceFeature::Bare
+                    | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                    | macro_ron::v2::SurfaceFeature::Participle
+                    | macro_ron::v2::SurfaceFeature::Fixed
+                    | macro_ron::v2::SurfaceFeature::BlockLabel => {
+                        unreachable!("validated noun lexeme has the Number feature axis")
                     }
-                }
-            }
-            Feature::Participle => quote! { ::macro_ron::v2::SurfaceFeature::Participle },
-            _ => unreachable!("validated declaration verb feature axis is closed"),
-        };
-        return Ok(quote! {
-            environment
-                .verb_inventory_onset((#role_value).reference(), #feature)
-                .expect("stored declaration verb remains in its normalized parser environment")
-        });
-    }
-    let Some((_, codec)) = validated.runtime_declaration_noun_for(field.terminal()) else {
-        return Err(internal(
+                };
+                let onset = super::onset(row.onset());
+                quote! { (#noun::#member, #feature) => #onset }
+            });
+            Ok(quote! { match (#role_value, #number) { #(#arms,)* } })
+        }
+        AtomTerminal::DeclarationDeterminative { plan: codec, .. } => {
+            let (form, atom_index) = construction
+                .forms()
+                .iter()
+                .find_map(|form| {
+                    form.atoms()
+                        .iter()
+                        .enumerate()
+                        .find_map(|(atom_index, atom)| {
+                            matches!(atom, AtomPlan::Lex { role: found, .. } if found == role)
+                                .then_some((form, atom_index))
+                        })
+                })
+                .ok_or_else(|| internal("validated determinative role has no surface atom"))?;
+            let surface = declaration_determinative_surface_expr(
+                validated,
+                construction,
+                form,
+                atom_index,
+                codec,
+                role,
+                &role_value,
+                locals,
+                None,
+            )?;
+            Ok(quote! {
+                ::macro_ron::v2::normalize_surface_onset(#surface, None)
+                    .expect("validated determinative realization has an onset")
+            })
+        }
+        AtomTerminal::DeclarationTerm { plan: codec, .. } => {
+            let feature = crate::emit::surface_feature(codec.feature());
+            Ok(quote! {
+                environment
+                    .onset((#role_value).id(), #feature)
+                    .expect("stored declaration term remains in its parser environment")
+            })
+        }
+        AtomTerminal::DeclarationVerb { plan: codec, .. } => {
+            declaration_verb_onset_expr(validated, construction, role, &role_value, locals, codec)
+        }
+        AtomTerminal::DeclarationNoun { plan: codec, .. } => {
+            declaration_noun_onset_expr(validated, construction, role, &role_value, locals, codec)
+        }
+        AtomTerminal::Binding(_)
+        | AtomTerminal::SignedDecimal(_)
+        | AtomTerminal::UnsignedNumber(_) => Err(internal(
             "lexical onset source has no sealed terminal onset plan",
-        ));
-    };
+        )),
+    }
+}
+
+fn declaration_noun_onset_expr(
+    validated: &SemanticPlan,
+    construction: &ConstructionPlan,
+    role: &str,
+    role_value: &TokenStream,
+    locals: &RenderLocals,
+    codec: &crate::semantic::DeclarationNounPlan,
+) -> syn::Result<TokenStream> {
     let noun = codec.codec_ident();
     let number = noun_role_number(validated, construction, role, locals)?;
     let closed_arms = if let Some(closed) = codec.closed_lexeme() {
@@ -4403,6 +4458,94 @@ fn lexical_onset_expr(
     })
 }
 
+fn declaration_verb_onset_expr(
+    validated: &SemanticPlan,
+    construction: &ConstructionPlan,
+    role: &str,
+    role_value: &TokenStream,
+    locals: &RenderLocals,
+    codec: &crate::semantic::DeclarationVerbPlan,
+) -> syn::Result<TokenStream> {
+    let verb = codec.codec_ident();
+    if let Some(closed) = codec.closed_lexeme() {
+        let lexeme = resolved_lexeme(validated, &closed.to_string())?;
+        return match codec.feature_axis() {
+            Feature::Agreement => {
+                let agreement = projected_verb_agreement(validated, construction, role, locals)?;
+                let closed_arms = lexeme.surfaces().iter().map(|row| {
+                    let member = ident(row.member());
+                    let agreement = match row.feature() {
+                        macro_ron::v2::SurfaceFeature::Bare => quote! { Agreement::Bare },
+                        macro_ron::v2::SurfaceFeature::ThirdPersonSingular => {
+                            quote! { Agreement::ThirdPersonSingular }
+                        }
+                        _ => {
+                            unreachable!("validated Agreement declaration verb has Agreement rows")
+                        }
+                    };
+                    let onset = super::onset(row.onset());
+                    quote! { (#verb::Lexeme(#closed::#member), #agreement) => #onset }
+                });
+                Ok(quote! {
+                    match (#role_value, #agreement) {
+                        #(#closed_arms,)*
+                        (#verb::Declaration(declaration), agreement) => environment
+                            .verb_inventory_onset(
+                                declaration.reference(),
+                                match agreement {
+                                    Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
+                                    Agreement::ThirdPersonSingular => {
+                                        ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                                    }
+                                },
+                            )
+                            .expect("stored declaration verb remains in its normalized parser environment"),
+                    }
+                })
+            }
+            Feature::Participle => {
+                let closed_arms = lexeme.surfaces().iter().map(|row| {
+                    let member = ident(row.member());
+                    let onset = super::onset(row.onset());
+                    quote! { #verb::Lexeme(#closed::#member) => #onset }
+                });
+                Ok(quote! {
+                    match #role_value {
+                        #(#closed_arms,)*
+                        #verb::Declaration(declaration) => environment
+                            .verb_inventory_onset(
+                                declaration.reference(),
+                                ::macro_ron::v2::SurfaceFeature::Participle,
+                            )
+                            .expect("stored declaration verb remains in its normalized parser environment"),
+                    }
+                })
+            }
+            _ => unreachable!("validated declaration verb feature axis is closed"),
+        };
+    }
+    let feature = match codec.feature_axis() {
+        Feature::Agreement => {
+            let agreement = projected_verb_agreement(validated, construction, role, locals)?;
+            quote! {
+                match #agreement {
+                    Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
+                    Agreement::ThirdPersonSingular => {
+                        ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                    }
+                }
+            }
+        }
+        Feature::Participle => quote! { ::macro_ron::v2::SurfaceFeature::Participle },
+        _ => unreachable!("validated declaration verb feature axis is closed"),
+    };
+    Ok(quote! {
+        environment
+            .verb_inventory_onset((#role_value).reference(), #feature)
+            .expect("stored declaration verb remains in its normalized parser environment")
+    })
+}
+
 fn lexical_possessive_ending_expr(
     validated: &SemanticPlan,
     construction: &ConstructionPlan,
@@ -4411,71 +4554,39 @@ fn lexical_possessive_ending_expr(
     role_value: TokenStream,
     locals: &RenderLocals,
 ) -> syn::Result<TokenStream> {
-    if let Some(vocab) = find_vocab(validated, field.terminal()) {
-        let ty = ident(vocab.name());
-        let value = copy_value(construction, role, role_value)?;
-        let arms = vocab.variants().iter().map(|variant| {
-            let member = variant.name();
-            let ending = possessive_ending_for_surface(&variant.word().value());
-            quote! { #ty::#member => #ending }
-        });
-        return Ok(quote! { match #value { #(#arms,)* } });
-    }
-    if let Some(identity) = find_context_identity(validated, field.terminal()) {
-        let ty = identity.ident();
-        let value = copy_value(construction, role, role_value)?;
-        let arms = identity.arms().iter().map(|arm| {
-            let member = arm.variant();
-            let accessor = arm.accessor();
-            let ending = runtime_possessive_ending(&quote! { context.#accessor() });
-            quote! { #ty::#member => #ending }
-        });
-        return Ok(quote! { match #value { #(#arms,)* } });
-    }
-    if find_catalog_identity(validated, field.terminal()).is_some() {
-        return Ok(runtime_possessive_ending(&quote! {
+    match validated.atom_terminal(field.terminal())? {
+        AtomTerminal::Vocab(vocab) => {
+            let ty = ident(vocab.name());
+            let value = copy_value(construction, role, role_value)?;
+            let arms = vocab.variants().iter().map(|variant| {
+                let member = variant.name();
+                let ending = possessive_ending_for_surface(&variant.word().value());
+                quote! { #ty::#member => #ending }
+            });
+            Ok(quote! { match #value { #(#arms,)* } })
+        }
+        AtomTerminal::ContextIdentity(identity) => {
+            let ty = identity.ident();
+            let value = copy_value(construction, role, role_value)?;
+            let arms = identity.arms().iter().map(|arm| {
+                let member = arm.variant();
+                let accessor = arm.accessor();
+                let ending = runtime_possessive_ending(&quote! { context.#accessor() });
+                quote! { #ty::#member => #ending }
+            });
+            Ok(quote! { match #value { #(#arms,)* } })
+        }
+        AtomTerminal::CatalogIdentity { .. } => Ok(runtime_possessive_ending(&quote! {
             environment
                 .catalog_surface((#role_value).provider(), (#role_value).canonical_identity())
                 .expect("validated catalog identity remains in its frozen provider")
-        }));
-    }
-    if let Some(lexeme) = find_lexeme(validated, field.terminal()) {
-        let noun = lexeme.name_ident();
-        let number = noun_role_number(validated, construction, role, locals)?;
-        let arms = lexeme.surfaces().iter().map(|row| {
-            let member = ident(row.member());
-            let feature = match row.feature() {
-                macro_ron::v2::SurfaceFeature::Singular => quote! { Number::Singular },
-                macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
-                macro_ron::v2::SurfaceFeature::Bare
-                | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
-                | macro_ron::v2::SurfaceFeature::Participle
-                | macro_ron::v2::SurfaceFeature::Fixed
-                | macro_ron::v2::SurfaceFeature::BlockLabel => {
-                    unreachable!("validated noun lexeme has the Number feature axis")
-                }
-            };
-            let ending = possessive_ending_for_surface(row.surface());
-            quote! { (#noun::#member, #feature) => #ending }
-        });
-        return Ok(quote! { match (#role_value, #number) { #(#arms,)* } });
-    }
-    let Some((_, codec)) = validated.runtime_declaration_noun_for(field.terminal()) else {
-        return Err(internal(
-            "possessive-ending source has no sealed lexical surface plan",
-        ));
-    };
-    let noun = codec.codec_ident();
-    let number = noun_role_number(validated, construction, role, locals)?;
-    let closed_arms = if let Some(closed) = codec.closed_lexeme() {
-        validated
-            .runtime_noun_lexeme()
-            .expect("validated declaration noun has a closed lexeme")
-            .surfaces()
-            .iter()
-            .map(|row| {
+        })),
+        AtomTerminal::Lexeme(lexeme) => {
+            let noun = lexeme.name_ident();
+            let number = noun_role_number(validated, construction, role, locals)?;
+            let arms = lexeme.surfaces().iter().map(|row| {
                 let member = ident(row.member());
-                let number = match row.feature() {
+                let feature = match row.feature() {
                     macro_ron::v2::SurfaceFeature::Singular => quote! { Number::Singular },
                     macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
                     macro_ron::v2::SurfaceFeature::Bare
@@ -4487,29 +4598,66 @@ fn lexical_possessive_ending_expr(
                     }
                 };
                 let ending = possessive_ending_for_surface(row.surface());
-                quote! { (#noun::Lexeme(#closed::#member), #number) => #ending }
-            })
-            .collect::<Vec<_>>()
-    } else {
-        Vec::new()
-    };
-    let dynamic = runtime_possessive_ending(&quote! {
-        environment
-            .surface(
-                declaration.id(),
-                match number {
-                    Number::Singular => ::macro_ron::v2::SurfaceFeature::Singular,
-                    Number::Plural => ::macro_ron::v2::SurfaceFeature::Plural,
-                },
-            )
-            .expect("stored declaration noun remains in its normalized parser environment")
-    });
-    Ok(quote! {
-        match (#role_value, #number) {
-            #(#closed_arms,)*
-            (#noun::Declaration(declaration), number) => #dynamic,
+                quote! { (#noun::#member, #feature) => #ending }
+            });
+            Ok(quote! { match (#role_value, #number) { #(#arms,)* } })
         }
-    })
+        AtomTerminal::DeclarationNoun { plan: codec, .. } => {
+            let noun = codec.codec_ident();
+            let number = noun_role_number(validated, construction, role, locals)?;
+            let closed_arms = if let Some(closed) = codec.closed_lexeme() {
+                validated
+                    .runtime_noun_lexeme()
+                    .expect("validated declaration noun has a closed lexeme")
+                    .surfaces()
+                    .iter()
+                    .map(|row| {
+                        let member = ident(row.member());
+                        let number = match row.feature() {
+                            macro_ron::v2::SurfaceFeature::Singular => quote! { Number::Singular },
+                            macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
+                            macro_ron::v2::SurfaceFeature::Bare
+                            | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                            | macro_ron::v2::SurfaceFeature::Participle
+                            | macro_ron::v2::SurfaceFeature::Fixed
+                            | macro_ron::v2::SurfaceFeature::BlockLabel => {
+                                unreachable!("validated noun lexeme has the Number feature axis")
+                            }
+                        };
+                        let ending = possessive_ending_for_surface(row.surface());
+                        quote! { (#noun::Lexeme(#closed::#member), #number) => #ending }
+                    })
+                    .collect::<Vec<_>>()
+            } else {
+                Vec::new()
+            };
+            let dynamic = runtime_possessive_ending(&quote! {
+                environment
+                    .surface(
+                        declaration.id(),
+                        match number {
+                            Number::Singular => ::macro_ron::v2::SurfaceFeature::Singular,
+                            Number::Plural => ::macro_ron::v2::SurfaceFeature::Plural,
+                        },
+                    )
+                    .expect("stored declaration noun remains in its normalized parser environment")
+            });
+            Ok(quote! {
+                match (#role_value, #number) {
+                    #(#closed_arms,)*
+                    (#noun::Declaration(declaration), number) => #dynamic,
+                }
+            })
+        }
+        AtomTerminal::Binding(_)
+        | AtomTerminal::SignedDecimal(_)
+        | AtomTerminal::UnsignedNumber(_)
+        | AtomTerminal::DeclarationDeterminative { .. }
+        | AtomTerminal::DeclarationTerm { .. }
+        | AtomTerminal::DeclarationVerb { .. } => Err(internal(
+            "possessive-ending source has no sealed lexical surface plan",
+        )),
+    }
 }
 
 fn possessive_ending_for_surface(surface: &str) -> TokenStream {
@@ -4665,7 +4813,7 @@ fn emit_feature_helper(
                 &element,
                 &roles,
                 &mut arm_allocator,
-            );
+            )?;
             locals.category = quote! { #argument };
             let value = feature_expr(validated, construction, equation.value(), feature, &locals)?;
             let value_key = value.to_string();
@@ -4864,7 +5012,7 @@ fn emit_category_agreement_match_helper(
                         &element,
                         &roles,
                         &mut allocator,
-                    );
+                    )?;
                     let expected = feature_expr(
                         validated,
                         construction,
@@ -5013,12 +5161,12 @@ fn feature_roles(
                     .find(|equation| {
                         matches!(equation.target(), FeaturePlace::Role { field, feature } if identifier_key(field) == identifier_key(role) && feature == source_feature)
                     });
-                let derived_role = field.is_some_and(|field| {
+                let derived_role = if let Some(field) = field {
                     field.kind() == ConstructionFieldKind::Category
-                        || validated
-                            .runtime_declaration_noun_for(field.terminal())
-                            .is_some()
-                });
+                        || terminal_is_declaration_noun(validated, field.terminal())?
+                } else {
+                    false
+                };
                 let result = if field.is_none() || derived_role && writer.is_some() {
                     if let Some(writer) = writer {
                         collect(validated, construction, writer.value(), roles, visiting)
@@ -5116,28 +5264,28 @@ fn feature_constant_pattern(
     element: &syn::Ident,
     roles: &HashSet<String>,
     allocator: &mut LocalAllocator,
-) -> (TokenStream, RenderLocals) {
+) -> syn::Result<(TokenStream, RenderLocals)> {
     if construction.fields().is_empty() {
-        return (
+        return Ok((
             quote! { #category::#variant(#element) },
             RenderLocals {
                 whole: None,
                 fields: HashMap::new(),
                 category: TokenStream::new(),
             },
-        );
+        ));
     }
     if needs_whole_value(construction) {
         let whole = allocator.allocate(construction.construction_id());
         let pattern = quote! { #category::#variant(#whole) };
-        return (
+        return Ok((
             pattern,
             RenderLocals {
                 whole: Some(whole),
                 fields: HashMap::new(),
                 category: TokenStream::new(),
             },
-        );
+        ));
     }
     let mut fields = Vec::new();
     let mut locals = HashMap::new();
@@ -5154,7 +5302,7 @@ fn feature_constant_pattern(
             continue;
         }
         let pattern = if field.kind() == ConstructionFieldKind::Lex {
-            if let Some(vocab) = find_vocab(validated, field.terminal()) {
+            if let Some(vocab) = resolved_vocab(validated, field.terminal())? {
                 let ty = ident(vocab.name());
                 let variants = vocab.variants().iter().map(|variant| {
                     let variant = ident(&identifier_key(variant.name()));
@@ -5169,14 +5317,14 @@ fn feature_constant_pattern(
         };
         fields.push(pattern);
     }
-    (
+    Ok((
         quote! { #category::#variant(#element { #(#fields),* }) },
         RenderLocals {
             whole: None,
             fields: locals,
             category: TokenStream::new(),
         },
-    )
+    ))
 }
 
 fn feature_value(value: FeatureValue) -> TokenStream {
@@ -5291,92 +5439,93 @@ fn category_groups(constructions: &[ConstructionPlan]) -> Vec<(String, Vec<&Cons
     result
 }
 
-fn find_vocab<'a>(validated: &'a SemanticPlan, name: &str) -> Option<&'a VocabPlan> {
-    for terminal in validated.terminals() {
-        if let TerminalPlan::Vocab(row) = terminal
-            && row.name() == name
-        {
-            return Some(row);
-        }
+fn resolved_lexeme<'a>(validated: &'a SemanticPlan, name: &str) -> syn::Result<&'a LexemePlan> {
+    match validated.atom_terminal(name)? {
+        AtomTerminal::Lexeme(lexeme) => Ok(lexeme),
+        AtomTerminal::Vocab(_)
+        | AtomTerminal::Binding(_)
+        | AtomTerminal::ContextIdentity(_)
+        | AtomTerminal::CatalogIdentity { .. }
+        | AtomTerminal::SignedDecimal(_)
+        | AtomTerminal::UnsignedNumber(_)
+        | AtomTerminal::DeclarationNoun { .. }
+        | AtomTerminal::DeclarationDeterminative { .. }
+        | AtomTerminal::DeclarationTerm { .. }
+        | AtomTerminal::DeclarationVerb { .. } => Err(internal("terminal is not a sealed lexeme")),
     }
-    None
 }
 
-fn find_lexeme<'a>(validated: &'a SemanticPlan, name: &str) -> Option<&'a LexemePlan> {
-    validated
-        .terminals()
-        .iter()
-        .find_map(|terminal| match terminal {
-            TerminalPlan::Lexeme(lexeme) if lexeme.name() == name => Some(lexeme),
-            TerminalPlan::Lexeme(_)
-            | TerminalPlan::Vocab(_)
-            | TerminalPlan::Binding(_)
-            | TerminalPlan::ContextIdentity(_)
-            | TerminalPlan::CatalogIdentity(_)
-            | TerminalPlan::SignedDecimal(_)
-            | TerminalPlan::UnsignedNumber(_)
-            | TerminalPlan::DeclarationDeterminative(_)
-            | TerminalPlan::DeclarationNoun(_)
-            | TerminalPlan::DeclarationTerm(_) => None,
-        })
-}
-
-fn find_declaration_determinative<'a>(
+fn resolved_unsigned_number<'a>(
     validated: &'a SemanticPlan,
     name: &str,
-) -> Option<&'a crate::semantic::DeclarationDeterminativePlan> {
-    validated
-        .runtime_declaration_determinative_for(name)
-        .map(|(_, codec)| codec)
-}
-
-fn find_binding<'a>(validated: &'a SemanticPlan, name: &str) -> syn::Result<&'a BindingPlan> {
-    for terminal in validated.terminals() {
-        if let TerminalPlan::Binding(row) = terminal
-            && row.name() == name
-        {
-            return Ok(row);
-        }
+) -> syn::Result<Option<&'a UnsignedNumberPlan>> {
+    match validated.atom_terminal(name)? {
+        AtomTerminal::UnsignedNumber(codec) => Ok(Some(codec)),
+        AtomTerminal::Vocab(_)
+        | AtomTerminal::Lexeme(_)
+        | AtomTerminal::Binding(_)
+        | AtomTerminal::ContextIdentity(_)
+        | AtomTerminal::CatalogIdentity { .. }
+        | AtomTerminal::SignedDecimal(_)
+        | AtomTerminal::DeclarationNoun { .. }
+        | AtomTerminal::DeclarationDeterminative { .. }
+        | AtomTerminal::DeclarationTerm { .. }
+        | AtomTerminal::DeclarationVerb { .. } => Ok(None),
     }
-    Err(internal(&format!(
-        "resolved terminal binding `{name}` is absent"
-    )))
 }
 
-fn find_context_identity<'a>(
+fn resolved_declaration_determinative<'a>(
     validated: &'a SemanticPlan,
     name: &str,
-) -> Option<&'a crate::semantic::ContextIdentityPlan> {
-    validated
-        .runtime_context_identities()
-        .find(|identity| identity.name() == name)
+) -> syn::Result<Option<&'a crate::semantic::DeclarationDeterminativePlan>> {
+    match validated.atom_terminal(name)? {
+        AtomTerminal::DeclarationDeterminative { plan, .. } => Ok(Some(plan)),
+        AtomTerminal::Vocab(_)
+        | AtomTerminal::Lexeme(_)
+        | AtomTerminal::Binding(_)
+        | AtomTerminal::ContextIdentity(_)
+        | AtomTerminal::CatalogIdentity { .. }
+        | AtomTerminal::SignedDecimal(_)
+        | AtomTerminal::UnsignedNumber(_)
+        | AtomTerminal::DeclarationNoun { .. }
+        | AtomTerminal::DeclarationTerm { .. }
+        | AtomTerminal::DeclarationVerb { .. } => Ok(None),
+    }
 }
 
-fn find_catalog_identity<'a>(
-    validated: &'a SemanticPlan,
-    name: &str,
-) -> Option<&'a crate::semantic::CatalogIdentityPlan> {
-    validated
-        .runtime_catalog_identities()
-        .find_map(|(_, identity)| (identity.name() == name).then_some(identity))
+fn terminal_is_declaration_noun(validated: &SemanticPlan, name: &str) -> syn::Result<bool> {
+    match validated.atom_terminal(name)? {
+        AtomTerminal::DeclarationNoun { .. } => Ok(true),
+        AtomTerminal::Vocab(_)
+        | AtomTerminal::Lexeme(_)
+        | AtomTerminal::Binding(_)
+        | AtomTerminal::ContextIdentity(_)
+        | AtomTerminal::CatalogIdentity { .. }
+        | AtomTerminal::SignedDecimal(_)
+        | AtomTerminal::UnsignedNumber(_)
+        | AtomTerminal::DeclarationDeterminative { .. }
+        | AtomTerminal::DeclarationTerm { .. }
+        | AtomTerminal::DeclarationVerb { .. } => Ok(false),
+    }
 }
 
-fn find_signed_decimal<'a>(
+fn resolved_vocab<'a>(
     validated: &'a SemanticPlan,
     name: &str,
-) -> Option<&'a SignedDecimalPlan> {
-    validated
-        .runtime_signed_decimal()
-        .filter(|codec| codec.codec_name() == name)
-}
-
-fn find_unsigned_number<'a>(
-    validated: &'a SemanticPlan,
-    name: &str,
-) -> Option<&'a UnsignedNumberPlan> {
-    validated
-        .runtime_unsigned_numbers()
-        .find(|codec| codec.codec_name() == name)
+) -> syn::Result<Option<&'a VocabPlan>> {
+    match validated.atom_terminal(name)? {
+        AtomTerminal::Vocab(vocab) => Ok(Some(vocab)),
+        AtomTerminal::Lexeme(_)
+        | AtomTerminal::Binding(_)
+        | AtomTerminal::ContextIdentity(_)
+        | AtomTerminal::CatalogIdentity { .. }
+        | AtomTerminal::SignedDecimal(_)
+        | AtomTerminal::UnsignedNumber(_)
+        | AtomTerminal::DeclarationNoun { .. }
+        | AtomTerminal::DeclarationDeterminative { .. }
+        | AtomTerminal::DeclarationTerm { .. }
+        | AtomTerminal::DeclarationVerb { .. } => Ok(None),
+    }
 }
 
 fn field_value(

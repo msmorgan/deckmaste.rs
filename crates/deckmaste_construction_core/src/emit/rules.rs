@@ -2152,7 +2152,7 @@ fn owner_template(plan: &SemanticPlan, terminal: &str) -> syn::Result<TokenStrea
         AtomTerminal::Vocab(_) => Ok(quote! {
             LexicalOwnerTemplate::Vocab { declaration: #declaration }
         }),
-        AtomTerminal::Lexeme => Ok(quote! { LexicalOwnerTemplate::NounLexeme }),
+        AtomTerminal::Lexeme(_) => Ok(quote! { LexicalOwnerTemplate::NounLexeme }),
         AtomTerminal::Binding(binding) => {
             let (kind, prefix) = match binding.kind() {
                 TerminalBindingKind::Codec => (quote! { LexicalProvenanceKind::Codec }, "codec"),
@@ -2205,7 +2205,7 @@ fn lexical_variant(plan: &SemanticPlan, name: &str) -> syn::Result<TokenStream> 
             let name = ident(vocab.name());
             Ok(quote! { Lexical::#name })
         }
-        AtomTerminal::Lexeme => Ok(quote! { Lexical::Noun }),
+        AtomTerminal::Lexeme(_) => Ok(quote! { Lexical::Noun }),
         AtomTerminal::Binding(binding) => {
             if binding.codec_atom() == Some(crate::model::CodecAtomClass::Noun) {
                 return Ok(quote! { Lexical::Noun });

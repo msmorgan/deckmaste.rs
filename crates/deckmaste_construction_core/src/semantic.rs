@@ -1139,7 +1139,7 @@ fn is_punctuation_literal(literal: &str) -> bool {
 
 pub(crate) enum AtomTerminal<'a> {
     Vocab(&'a VocabPlan),
-    Lexeme,
+    Lexeme(&'a LexemePlan),
     Binding(&'a BindingPlan),
     ContextIdentity(&'a ContextIdentityPlan),
     CatalogIdentity {
@@ -1921,14 +1921,6 @@ impl SemanticPlan {
             })
     }
 
-    pub(crate) fn runtime_declaration_determinative_for(
-        &self,
-        value_type: &str,
-    ) -> Option<(usize, &DeclarationDeterminativePlan)> {
-        self.runtime_declaration_determinatives()
-            .find(|(_, codec)| codec.codec_name() == value_type)
-    }
-
     pub(crate) fn runtime_declaration_terms(
         &self,
     ) -> impl Iterator<Item = (usize, &DeclarationTermPlan)> {
@@ -1938,14 +1930,6 @@ impl SemanticPlan {
             };
             (index, codec)
         })
-    }
-
-    pub(crate) fn runtime_declaration_term_for(
-        &self,
-        value_type: &str,
-    ) -> Option<(usize, &DeclarationTermPlan)> {
-        self.runtime_declaration_terms()
-            .find(|(_, codec)| codec.codec_name() == value_type)
     }
 
     pub(crate) fn runtime_declaration_verbs(
@@ -1962,6 +1946,7 @@ impl SemanticPlan {
         })
     }
 
+    #[cfg(test)]
     pub(crate) fn runtime_declaration_verb_for(
         &self,
         value_type: &str,
@@ -2785,7 +2770,7 @@ impl SemanticPlan {
                     return Ok(AtomTerminal::Vocab(row));
                 }
                 TerminalPlan::Lexeme(row) if row.name() == name => {
-                    return Ok(AtomTerminal::Lexeme);
+                    return Ok(AtomTerminal::Lexeme(row));
                 }
                 TerminalPlan::Binding(row) if row.name() == name => {
                     if let Some(plan) = row.declaration_verb() {
