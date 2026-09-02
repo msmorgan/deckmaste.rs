@@ -1490,3 +1490,28 @@ badMultipliedNonTrigger : Unspellable (StaticEffect []) (\ok =>
   TriggersAdditionally (Dies (Macros.a Macros.creatureYouControl))
                        (Macros.exactly 1) {ok})
 badMultipliedNonTrigger Oh impossible
+
+
+||| "Sacrifice a creature."
+||| A mandatory clause with neither continuation denotes exactly its body, and the row is the two arms.
+public export
+badIfDoneWithNeitherArm : Unspellable (Effect []) (\ok =>
+  IfDone (Macros.sacrifice You (Macros.a Macros.creature)) Nothing Nothing {br = ok})
+badIfDoneWithNeitherArm Oh impossible
+
+
+||| "This creature deals 3 damage to any target. If you do, draw a card."
+||| No player takes the action, so [CR#603.12]'s pro-verb has no subject to inflect and "if you do" abbreviates nothing.
+public export
+badIfDoneOverAgentlessBody : Unspellable (Effect []) (\ok =>
+  IfDone (DealDamage Macros.thisCreature (Lit 3) (Macros.target Macros.anyTarget))
+         (Just Macros.drawACard) Nothing {en = ok})
+badIfDoneOverAgentlessBody Oh impossible
+
+
+||| "Take an extra turn after this one. If you do, draw a card."
+||| The clause schedules its action rather than taking it, so nothing has "occurred earlier during the resolution" [CR#603.12] for the arm to test.
+public export
+badIfDoneOverScheduledBody : Unspellable (Effect []) (\ok =>
+  IfDone (ExtraTurn You (Lit 1)) (Just Macros.drawACard) Nothing {en = ok})
+badIfDoneOverScheduledBody Oh impossible

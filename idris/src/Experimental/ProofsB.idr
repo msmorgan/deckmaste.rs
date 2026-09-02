@@ -491,7 +491,7 @@ badConditionalArmAntecedent Refl impossible
 ||| The may exports its body and neither arm: the branch turns on the choice, not the outcome [CR#118.12].
 public export
 badBothArmsAntecedent : Unspellable (Effect []) (\ok =>
-  Sequentially [May (Just You) (Macros.gainsLife You (Lit 1))
+  Sequentially [May You (Macros.gainsLife You (Lit 1))
                      (Just (Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [creatureType "Soldier"])))
                      (Just (Macros.create (Lit 2) (Macros.creatureTok 1 1 [White] [creatureType "Soldier"]))),
                 PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) (It {ok})])

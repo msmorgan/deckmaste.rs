@@ -430,7 +430,7 @@ badSameColorHybrid Oh impossible
 
 
 ||| "Sacrifice a creature. If you don't, exile it."
-||| The declined arm runs only when the payment never started [CR#118.12], so the body named nothing.
+||| The didn't-arm runs precisely because the instruction's action did not happen [CR#609.3], so the body named nothing for "it" to read.
 public export
 badIfNotReadsMandatoryBody : Unspellable (Effect []) (\ok =>
   Macros.doElse (Macros.sacrifice You (Macros.a Macros.creature)) (Macros.exile (It {ok})))

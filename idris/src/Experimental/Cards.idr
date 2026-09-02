@@ -20333,3 +20333,186 @@ sphinxOfUthuun =
 -- it over a pile-CONTENTS read ("all creatures in the pile of that
 -- player's choice") or over the face marking ("turn a pile of your
 -- choice face up"), so they are blocked above and not here.
+
+-- ---------------------------------------------------------------------------
+-- The mandatory "if you do" (round of 2026-09-02)
+-- ---------------------------------------------------------------------------
+--
+-- `IfDone`'s carriers. What the arms test here is whether the
+-- instruction's action HAPPENED: [CR#608.2c] follows the instructions in
+-- the order written and reads the whole text as English, and [CR#609.3]
+-- lets an impossible one do only as much as possible, so a mandatory
+-- sentence can leave its action undone and the sentence after it says
+-- what follows in each case. Measured 2026-09-02 over the supported
+-- corpus, clause-bounded with a may/unless-free antecedent: 94 lines
+-- over 93 cards write "if you do" this way -- 84 with the did-arm alone,
+-- 8 with an "if you don't" arm beside it, 2 with "Otherwise". The
+-- reflexive TRIGGER over the same mandatory antecedent ("when you do")
+-- is a further 64 lines over 63 cards, and needs nothing new:
+-- [CR#603.12] already writes over a clause that "allow[s] OR
+-- INSTRUCT[s] a player to take an action".
+
+||| Charnel Troll, whole -- "Trample / At the beginning of your upkeep,
+||| exile a creature card from your graveyard. If you do, put a +1/+1
+||| counter on this creature. Otherwise, sacrifice it. / {B}{G}, Discard
+||| a creature card: Put a +1/+1 counter on this creature."
+||| The mandatory pair at its plainest, and the card whose official
+||| ruling states the reading in as many words: "You can't choose not to
+||| exile a creature card from your graveyard if you have one to exile."
+||| There is no offer to decline, so the only way the second sentence
+||| fails is [CR#609.3]'s -- an empty graveyard leaves the instruction
+||| nothing to do -- and "Otherwise" is what the text writes for that
+||| case, the same arm "If you don't" fills on the land cycle.
+public export
+charnelTroll : Card
+charnelTroll =
+  Macros.card "Charnel Troll"
+       (Just [Macros.generic 1, Macros.pip Black, Macros.pip Green]) []
+       (MkTypeLine [creatureType "Troll"] [Creature])
+       [ Macros.keyword "Trample"
+       , Macros.triggered At (BeginningOf Upkeep (ByWord Yours))
+           (Macros.doThenElse
+              (Macros.exile (Macros.a (And [Macros.creature,
+                                            InZone (Macros.graveyardOf You)])))
+              (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
+                           Macros.thisCreature)
+              (Macros.sacrifice You Macros.thisCreature))
+       , Macros.activated
+           (Compound [ Mana [Macros.pip Black, Macros.pip Green]
+                     , Do (Macros.discard
+                             (Macros.a (And [Macros.creature,
+                                             InZone Macros.handZ]))) ])
+           (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
+                        Macros.thisCreature) ]
+       (Just (4, 4))
+
+||| Promise of Bunrei, whole -- "When a creature you control dies,
+||| sacrifice this enchantment. If you do, create four 1/1 colorless
+||| Spirit creature tokens." The did-arm alone, which is what 84 of the
+||| 94 lines write.
+public export
+promiseOfBunrei : Card
+promiseOfBunrei =
+  Macros.card "Promise of Bunrei"
+       (Just [Macros.generic 2, Macros.pip White]) []
+       (MkTypeLine [] [Enchantment])
+       [ Macros.triggered When (Dies (Macros.a Macros.creatureYouControl))
+           (Macros.doThen
+              (Macros.sacrifice You Macros.thisEnchantment)
+              (Macros.create (Lit 4)
+                 (Macros.creatureTok 1 1 [] [creatureType "Spirit"]))) ]
+       Nothing
+
+||| Grave Peril, whole -- "When a nonblack creature enters, sacrifice
+||| this enchantment. If you do, destroy that creature." The did-arm
+||| reading past its own antecedent: "that creature" is the HEADER's
+||| entering permanent, not the enchantment the instruction sacrificed,
+||| and the type word is what separates them. The arm is typed at
+||| `effIntro` of the instruction, so both mentions stand in it and the
+||| ordinary demonstrative resolution picks the creature.
+public export
+gravePeril : Card
+gravePeril =
+  Macros.card "Grave Peril" (Just [Macros.generic 1, Macros.pip Black]) []
+       (MkTypeLine [] [Enchantment])
+       [ Macros.triggered When
+           (Enters (Macros.a (And [Macros.creature, Not (ColorIs Black)])) Nothing)
+           (Macros.doThen
+              (Macros.sacrifice You Macros.thisEnchantment)
+              (Macros.destroy (That (TypeW Creature)))) ]
+       Nothing
+
+||| Mistbreath Elder, whole -- "At the beginning of your upkeep, return
+||| another creature you control to its owner's hand. If you do, put a
+||| +1/+1 counter on this creature. Otherwise, you may return this
+||| creature to its owner's hand." Both arms with an OFFER inside the
+||| second: the mandatory row and the offered one nest, which is what
+||| keeping them apart buys. The didn't-arm is typed at the clause's own
+||| context and reads nothing the bounce would have announced, which is
+||| right here -- it runs precisely because no creature was returned.
+public export
+mistbreathElder : Card
+mistbreathElder =
+  Macros.card "Mistbreath Elder" (Just [Macros.pip Green]) []
+       (MkTypeLine [creatureType "Frog", creatureType "Warrior"] [Creature])
+       [ Macros.triggered At (BeginningOf Upkeep (ByWord Yours))
+           (Macros.doThenElse
+              (Macros.returnTo
+                 (Macros.a (Macros.otherCreatureYouControl Macros.thisCreature))
+                 Macros.handZ)
+              (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
+                           Macros.thisCreature)
+              (Macros.may You (Macros.returnTo Macros.thisCreature Macros.handZ))) ]
+       (Just (2, 2))
+
+||| Woeleecher, whole -- the ability above with its card. The
+||| counter-removal antecedent, which 7 of the 94 lines write: taking a
+||| counter off is a player's own act -- [CR#608.2c] has the controller
+||| of the resolving ability follow the instruction, and what it takes
+||| off is [CR#122.1]'s marker on an object -- so the pro-verb inflects
+||| for it exactly as a sacrifice does, and a creature with no -1/-1
+||| counter on it leaves the instruction undone by [CR#609.3].
+public export
+woeleecherWhole : Card
+woeleecherWhole =
+  Macros.card "Woeleecher" (Just [Macros.generic 5, Macros.pip White]) []
+       (MkTypeLine [creatureType "Elemental"] [Creature])
+       [ Cards.woeleecher ]
+       (Just (3, 5))
+
+||| Garruk Relentless // Garruk, the Veil-Cursed, whole -- the round's
+||| marquee, and the card the transform round left one line short. The
+||| front face's state trigger was `garrukRelentlessFlip`; the back
+||| face's "[−1]: Sacrifice a creature. If you do, search your library
+||| for a creature card, reveal it, put it into your hand, then shuffle"
+||| was the last blocker, and it is this round's row.
+||| Its official ruling is the mandatory reading stated from the other
+||| side -- "when that ability resolves, you must sacrifice a creature if
+||| you control one" -- so what "if you do" tests is [CR#609.3]'s
+||| shortfall and not a declined offer.
+||| A nonmodal double-faced card [CR#712.2] whose back writes no mana
+||| cost [CR#202.3a] and no loyalty number [CR#209.1,712.8a], which
+||| `planeswalkerBackWithoutLoyaltyOk` probed on Arlinn's face.
+public export
+garrukRelentless : Card
+garrukRelentless =
+  Transforming
+    (MkFace "Garruk Relentless" (Just [Macros.generic 3, Macros.pip Green])
+            [Legendary] (MkTypeLine [planeswalkerType "Garruk"] [Planeswalker])
+            [ Cards.garrukRelentlessFlip
+            , Macros.activated (LoyaltySymbol LoyaltyZero)
+                (Sequentially
+                   [ DealDamage Macros.thisPlaneswalker (Lit 3)
+                                (Macros.target Macros.creature)
+                   , DealDamageOwn (That (TypeW Creature)) Power
+                                   Macros.thisPlaneswalker ])
+            , Macros.activated (LoyaltySymbol LoyaltyZero)
+                (Macros.create (Lit 1)
+                   (Macros.creatureTok 2 2 [Green] [creatureType "Wolf"])) ]
+            (Macros.loyaltyBox 3))
+    (MkAltFace "Garruk, the Veil-Cursed" [Legendary]
+               (MkTypeLine [planeswalkerType "Garruk"] [Planeswalker])
+               [ Macros.activated (LoyaltySymbol (LoyaltyUp 1))
+                   (Macros.create (Lit 1)
+                      (MkToken (Just (Lit 1 ** Lit 1)) [Black]
+                               (MkTypeLine [creatureType "Wolf"] [Creature])
+                               [Macros.keyword "Deathtouch"] Nothing))
+               , Macros.activated (LoyaltySymbol (LoyaltyDown 1))
+                   (Macros.doThen
+                      (Macros.sacrifice You (Macros.a Macros.creature))
+                      (Sequentially
+                         [ Macros.searchLibraryFor Macros.creature
+                         , Macros.revealsIt
+                         , Macros.move Macros.foundCard Macros.handZ
+                         , Macros.shuffle ]))
+               , Macros.activated (LoyaltySymbol (LoyaltyDown 3))
+                   (Sequentially
+                      [ Continuously
+                          (AndAlso
+                             [ Gains (AllOf Macros.creatureYouControl)
+                                     (Macros.keyword "Trample")
+                             , Gets Them (PtUp (LetterVal X)) (PtUp (LetterVal X)) ])
+                          (Just Macros.untilEndOfTurn)
+                      , Define X (CountOf (And [Macros.creature,
+                                                InZone (Macros.graveyardOf You)])) ]) ]
+               Nothing)
