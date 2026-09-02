@@ -3430,6 +3430,26 @@ mutavault =
                       (Just Macros.untilEndOfTurn)) ]
        Nothing
 
+||| Soulstone Sanctuary, whole card -- the same cell with a KEYWORD
+||| riding the bundle beside the quantifier ("becomes a 3/3 creature with
+||| vigilance and all creature types"), and with no duration, the setting
+||| standing. Faceless Haven writes this shape too and wants `{S}`.
+public export
+soulstoneSanctuary : Card
+soulstoneSanctuary =
+  Macros.card "Soulstone Sanctuary" Nothing [] (MkTypeLine [] [Land])
+       [ Macros.activated TapSymbol (AddMana You (Lit 1) (Runs [[Colorless]]) [])
+       , Macros.activated (Mana [Macros.generic 4])
+                          (Continuously
+                      (SetsType Macros.thisLand
+                                (MkTokenChars (Just (Lit 3 ** Lit 3)) []
+                                              (MkTypeLine [] [Creature])
+                                              [Macros.keyword "Vigilance"] Nothing
+                                              [WithEveryType CreatureSpace])
+                                (Just Land))
+                      Nothing) ]
+       Nothing
+
 windZendikon : Card
 windZendikon =
   Macros.card "Wind Zendikon" (Just [Macros.pip Blue]) []
