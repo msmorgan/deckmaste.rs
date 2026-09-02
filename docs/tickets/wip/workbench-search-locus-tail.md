@@ -95,6 +95,19 @@ wants a description-layer row plus its binding, and by the round's own
 note none of the eight becomes a whole card even then — each
 additionally wants a per-player optional search.
 
+Re-measured a second time at the round's close, and the **8 holds for
+the possessive**; one addendum the earlier pass did not record. A NINTH
+card, Tempt with Discovery, writes the same description-layer seat with
+the INDEFINITE possessive instead — "Then each player who searched **a**
+library this way shuffles" — so the underlying gap ("each player who
+[did the thing] this way") has 9 carriers and 8 of them additionally
+want the self-possessive on top. Nothing about the verdict changes; the
+description-layer row is what both phrasings wait on.
+
+The same seam is what workbench-upto-shortfall-read's whole-card
+remainder waits on from the effect side ("that player" after a
+distributive pass). One decision, not two.
+
 ### 3. "Reveal it" — LANDED, and the carrier is not the one the ticket guessed
 
 `Macros.foundCard` / `Macros.revealsIt`, at the **producing** verb's

@@ -100,13 +100,19 @@ state-trigger family, and that is **35 supported lines**:
 
 | shape | lines |
 | --- | --- |
-| "When you control no [description]" | 21 |
+| "When you control no [description]" | 24 |
 | "When there are no [description]" | 5 |
 | "When [n] has no [kind] counters on it" | 2 |
 | "When [player] has 10 or less life" | 2 |
 | "When a player has no cards in hand" | 1 |
 | "When Garruk has two or fewer loyalty counters on him" | 1 |
-| landhome subtotal ("no Islands") | 13 of the 21 |
+| landhome subtotal ("no Islands") | 13 of the 24 |
+
+(The first row and the subtotal read 21 when this section was first
+written; the rows then summed to 32 against a stated 35. Re-measured at
+the round's close — 24 supported lines write it, all line-initial and all
+reminder-stripped — and the table now sums to the 35 the round reported.
+The verdict and the machinery are untouched.)
 
 All 35 write the word `When`; the zero at `Whenever` is recorded rather
 than gated, [CR#603.8] naming no word of its own.
