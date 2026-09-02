@@ -5838,9 +5838,6 @@ Eq TurnPart where
 public export
 data TurnPoint = AttackersDeclared
 
-public export
-data Whose = Yours | ThatPlayers
-
 namespace Owner
   public export
   data Owner = Yours | ThatPlayers | EachPlayers | EachOpponents
@@ -5898,8 +5895,39 @@ possessorB (Just ThatTurns) = []
 -- clause reads one of them back.
 possessorB (Just EachOthers) = [MkBinding EachD Player OneOf PlayerP]
 
+||| Which possessor may say WHOSE turn part a duration ends at. A
+||| duration ends at ONE moment, and [CR#500.1] runs every phase and
+||| step on every turn, so a possessor naming several players names
+||| several such moments and no end at all: the four quantifier words
+||| and the indefinite are refused here. `ThatTurns` is refused for the
+||| other reason -- it names a TURN and not a player, so it answers a
+||| different question than the one this slot asks.
+|||
+||| The two admitted words were a two-arm datatype of their own
+||| (`Whose`), spelled row for row like `Owner`'s first two. One
+||| vocabulary and an admission table is the house shape; the sub-enum
+||| paid a second datatype to say what this one line says.
 public export
-data DurationEnd = StartOf TurnPart (Maybe Whose)
-                 | EndOf TurnPart (Maybe Whose)
+durationPossessorOk : Maybe Owner -> Bool
+durationPossessorOk Nothing = True
+durationPossessorOk (Just Yours) = True
+durationPossessorOk (Just ThatPlayers) = True
+durationPossessorOk (Just EachPlayers) = False
+durationPossessorOk (Just EachOpponents) = False
+durationPossessorOk (Just EachYours) = False
+durationPossessorOk (Just AnOpponents) = False
+durationPossessorOk (Just ThatTurns) = False
+durationPossessorOk (Just EachOthers) = False
+
+public export
+DurationPossessor : Maybe Owner -> Type
+DurationPossessor w = So (durationPossessorOk w)
+
+public export
+data DurationEnd : Type where
+  StartOf : TurnPart -> (w : Maybe Owner) ->
+            {auto 0 dp : DurationPossessor w} -> DurationEnd
+  EndOf : TurnPart -> (w : Maybe Owner) ->
+          {auto 0 dp : DurationPossessor w} -> DurationEnd
 
 

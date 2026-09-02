@@ -568,3 +568,20 @@ badCostSubjectOnBattlefield : Unspellable (StaticEffect []) (\ok =>
 badCostSubjectOnBattlefield MkCostSubject impossible
 
 
+
+
+||| "until the beginning of each player's next upkeep"
+||| A duration ends at one moment, and [CR#500.1] runs every phase and step
+||| on every turn, so a quantifier possessor names several ends and no end.
+public export
+badDurationEndEachPlayers : Unspellable DurationEnd (\ok =>
+  StartOf Upkeep (Just EachPlayers) {dp = ok})
+badDurationEndEachPlayers Oh impossible
+
+
+||| "until the end of that turn's combat"
+||| The deictic possessor names a TURN, not whose turn part the end falls in.
+public export
+badDurationEndThatTurns : Unspellable DurationEnd (\ok =>
+  EndOf Combat (Just ThatTurns) {dp = ok})
+badDurationEndThatTurns Oh impossible
