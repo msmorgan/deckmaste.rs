@@ -19,8 +19,8 @@ must hoist the first sentence's patient into a binder (`With`/`That`) so the
 follow-up's `It`/`That` anaphor resolves — which shape (rebindable `That`,
 `With` chaining, `Sequentially` + provenance) is a design call that
 `core-with-rebindable-that` opens. The core half of the binding story now
-lives in `core-reference-slots` (semantics keeps the anaphors, core drops
-them for explicit slots, lowering resolves once) — what remains here is
+lives in `core-regions-discourse` (semantics keeps the anaphors, core drops
+them for explicit regions, lowering resolves once) — what remains here is
 the authored emission shape. Possessive anaphora (`its controller`,
 `that creature's controller`) additionally needs the controller-of-That
 reference form. Sub-shapes worth staging: (1) bare `Then <effect>.`

@@ -79,7 +79,7 @@ executing; this ticket dates and drifts.
   labeled-anaphora family (zero canon usage). Idris correctly uses positional
   anaphora (`It`/`That`/`ThatMany`) per the no-stringly-binders ruling in
   [Authored card surface](../../decisions/authored-card-surface.md). Rust is retiring these via the
-  planned `engine-bound-references` + `parse-subject-filter-stringly-channels`
+  planned `core-regions-costs-and-captures` + `parse-subject-filter-stringly-channels`
   tickets. No Idris change; converge by Rust's retirement.
 - **`Selection::PilesOf`** — stringly pile-division read; defer until the piles
   mechanic is built, then give Idris a positional model.

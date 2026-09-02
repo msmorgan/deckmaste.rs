@@ -1,5 +1,5 @@
 ---
-needs: [engine-reference-resolution-snapshot-channel]
+needs: [core-regions-substrate]
 ---
 **Engine: make `Count::StatOf` consume a live-or-LKI reference result instead
 of a bare `ObjectId`.** Today power/toughness route a stale or null id into

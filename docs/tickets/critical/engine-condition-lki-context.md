@@ -1,5 +1,5 @@
 ---
-needs: [engine-reference-resolution-snapshot-channel]
+needs: [core-regions-substrate]
 ---
 **Engine: make `Condition::Matches` explicit about whether it asks for current
 state or last-known information.** Its current fallback applies any predicate

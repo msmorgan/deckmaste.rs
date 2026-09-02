@@ -1,5 +1,5 @@
 ---
-needs: []
+needs: [core-regions-piles]
 ---
 **Engine: grouped piles have no resolution or read path.**
 

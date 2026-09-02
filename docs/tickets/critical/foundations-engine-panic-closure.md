@@ -1,5 +1,5 @@
 ---
-needs: [core-as-enters-choices, engine-candidate-frame-bindings, engine-cast-from-zones, engine-condition-lki-context, engine-deontic-legality-residue, engine-departed-reference-fizzle, engine-granted-prevention-rows, engine-granted-static-rows, engine-piles, engine-root-additional-cost-hoist, engine-snapshot-combat-state, engine-snapshot-frame-references, engine-snapshot-object-classification, engine-statof-reference-channel, engine-turn-modification]
+needs: [core-as-enters-choices, core-regions-substrate, core-regions-discourse, core-regions-costs-and-captures, engine-cast-from-zones, engine-condition-lki-context, engine-deontic-legality-residue, engine-departed-reference-fizzle, engine-granted-prevention-rows, engine-granted-static-rows, engine-piles, engine-snapshot-combat-state, engine-snapshot-object-classification, engine-statof-reference-channel, engine-turn-modification]
 ---
 **Epic: close every runtime abort exposed by faithfully lowering Foundations
 cards to `deckmaste_core`.** The 2026-08-09 audit covered all 517 distinct
@@ -23,12 +23,12 @@ variants seem covered.”
 | Cast/play permissions with a source zone or cost override | [[engine-deontic-legality-residue]], [[engine-cast-from-zones]] | Muldrotha, the Gravetide; Omniscience; Quilled Greatwurm; Tinybones, Bauble Burglar; Vizier of the Menagerie |
 | Snapshot object kind/subtype predicates | [[engine-snapshot-object-classification]] | Arahbo, the First Fang; Crossway Troublemakers; Gate Colossus; Gateway Sneak; High-Society Hunter; Infernal Vessel; Kalastria Highborn; Lathliss, Dragon Queen; Midnight Reaper; Spinner of Souls; Valkyrie’s Call; Wildborn Preserver; Youthful Valkyrie |
 | Snapshot combat-state predicates | [[engine-snapshot-combat-state]] | Garna, Bloodfist of Keld |
-| Snapshot candidate/reference bindings | [[engine-snapshot-frame-references]] | Predator Ooze |
+| Snapshot candidate/reference bindings | [[core-regions-substrate]] | Predator Ooze |
 | Live/LKI-aware `StatOf` | [[engine-statof-reference-channel]] | Heartfire Immolator; Halana and Alena, Partners; Ovika, Enigma Goliath; Prime Speaker Zegana; plus the gone-reference side of Bite Down, Felling Blow, and Heroes’ Bane |
-| Root additional-cost hoisting and paid-object binding | [[engine-root-additional-cost-hoist]] | Ayli, Eternal Pilgrim |
+| Root additional-cost hoisting and paid-object binding | [[core-regions-costs-and-captures]] | Ayli, Eternal Pilgrim |
 | Departed action operands after partial target loss/source departure | [[engine-departed-reference-fizzle]] | Bite Down; Drakuseth, Maw of Flames; Felling Blow; Heroes’ Bane |
 | Current-state conditions must not accidentally consume LKI | [[engine-condition-lki-context]] | Affectionate Indrik |
-| Full frame in candidate matching | [[engine-candidate-frame-bindings]] | Angel of Finality; Arbiter of Woe; Blasphemous Edict; Bloodtithe Collector; Burglar Rat; Deadly Brew; Duress; Fiery Annihilation; Liliana, Dreadhorde General; Painful Quandary; Perforating Artist; Pilfer; River’s Rebuke; Run Away Together; Steel Hellkite; Tribute to Hunger; Trygon Predator. Tinybones also reaches this family after its deontic row is consumed. |
+| Full frame in candidate matching | [[core-regions-substrate]] | Angel of Finality; Arbiter of Woe; Blasphemous Edict; Bloodtithe Collector; Burglar Rat; Deadly Brew; Duress; Fiery Annihilation; Liliana, Dreadhorde General; Painful Quandary; Perforating Artist; Pilfer; River’s Rebuke; Run Away Together; Steel Hellkite; Tribute to Hunger; Trygon Predator. Tinybones also reaches this family after its deontic row is consumed. |
 
 Done means:
 

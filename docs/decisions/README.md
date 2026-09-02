@@ -54,3 +54,6 @@ requires explicit review rather than an opportunistic refactor.
 - [Card authoring binds no implicits](card-authoring-binds-no-implicits.md) —
   A card applies constructors and card-language functions positionally; a
   wrapping macro fills every optional slot and proof.
+- [Core is explicit regions](core-explicit-regions.md) — Every core binding
+  is a declared param or numbered def; references are register reads;
+  lowering resolves once.

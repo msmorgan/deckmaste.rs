@@ -12,7 +12,7 @@ the canonical meaning representation. This is a vocabulary and crate rename;
 the architecture and type boundary are unchanged.
 Amended 2026-08-06: §17 records the divergence trajectory — semantics
 drifts toward English constructions, core toward explicit slot reference
-(`core-reference-slots`) — and the certifier/resolver role split; no type
+(`core-reference-slots`; superseded 2026-09-02 by [Core is explicit regions](core-explicit-regions.md)) — and the certifier/resolver role split; no type
 boundary changes today.
 Amended 2026-08-07 as `idris-mirror-semantics` landed: §10 records the
 reattachment as executed — the mirror is `idris/src/Semantics.idr` (renamed
@@ -334,7 +334,7 @@ when a second compatible antecedent makes it a guess) excludes them;
 post-move re-mentions are the separate `That(Sort)` product channel.
 Current code deviates in two known, ticket-owned places: the engine
 carries a deliberate lone-target `It` compatibility arm
-(`engine-it-target-fallback-removal`), and the doc comment on `Targeted`
+(`core-regions-substrate`, which deletes it), and the doc comment on `Targeted`
 itself still describes the pre-invariant anaphor reading
 (`post-reshape-comment-rot`). Neither weakens the invariant as the design
 target.
@@ -595,7 +595,7 @@ and nothing checks its destination. Mirroring the rest is
 - Known gate-coverage debt is unchanged by the move and more naturally
   closed after it (the emitter walks stored artifacts directly): the canon
   emitter gap and ungated wizards corpus tracked by
-  `validate-unbound-anaphor-lint` — and NOTE: batch `idris-check`
+  `core-regions-substrate`'s validator — and NOTE: batch `idris-check`
   currently reports failures without a failing exit status, so "no
   regressions" gates need the checked-in pass/gap baseline that
   `ci-idris-gate` owns.
@@ -760,11 +760,11 @@ tracked tree); the deltas restated here are self-contained.
   `frames-catalog-merge`. Stage 4: `target-sugar-elaboration`.
   Follow-ups: `plugin-rider-split`, `engine-base-characteristics`,
   `engine-ability-origin-refs` (maybe, trigger-gated),
-  `engine-it-target-fallback-removal`,
+  `core-regions-substrate`,
   `idris-distinct-position-proof`, `spelling-engine-requirements`,
   `post-reshape-comment-rot`, `ci-idris-gate` (the idris-check baseline),
   the re-aimed `core-remove-default-args`, and the design-gated
-  `characteristics-atoms-crate` and `core-reference-slots` (§17).
+  `characteristics-atoms-crate` and [Core is explicit regions](core-explicit-regions.md) (§17).
 
 ## 16. Verification obligations
 
@@ -776,7 +776,7 @@ tracked tree); the deltas restated here are self-contained.
    measured at the two §5 levels (stored-byte round-trip; lowered core).
 2. The engine `It`→lone-target compatibility arm is deliberate, guarded,
    and self-documented — its removal requires the corpus re-spell sweep
-   first (`engine-it-target-fallback-removal`).
+   first (`core-regions-substrate`).
 3. The per-variant mapping tests (§9) run in CI. Coverage is total and
    stays total: a new variant on either side is already a build error, and
    its test lands with it. When an arm diverges, its test is edited to the
@@ -814,7 +814,7 @@ explicitness budget on exactly what its consumer needs.
   pronouns, and anaphora"), and the spelling relation needs the anaphors.
   Grouping is what turns explicit.
 - **Core drifts toward evaluation shape; its anaphoric channel is
-  direction-settled for removal** (`core-reference-slots`, design-gated).
+  direction-settled for removal** (superseded 2026-09-02 by [Core is explicit regions](core-explicit-regions.md), which replaces the slot environment below with closed regions).
   The discourse reads mirrored at the fork (`It`/`That(Sort)` outside
   binders, R1/R2-resolved dynamically at engine eval time) are replaced by
   an explicit per-scope slot environment — absolute indices, telescope
