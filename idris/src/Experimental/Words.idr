@@ -5855,6 +5855,25 @@ data TurnPart = Turn | Upkeep | EndStep | Combat | UntapStep | EndOfCombat
               -- this phase" (measured 2026-09-02).
               | BeginningPhase
 
+||| Over what period a RANK counts. "The second spell you cast this
+||| turn" ranks inside one stretch already named; "the second spell you
+||| cast each turn" ranks inside every one of them, the count starting
+||| again as the period does.
+|||
+||| The recurring value is NOT a `Lookback` arm and could not be one.
+||| A `Lookback` names a stretch a retrospective reader scopes an event
+||| to, and `sameWindow` compares two such stretches; "each turn" names
+||| no stretch -- it says over what period a COUNT resets. That is the
+||| distinction `NthOccurrence` already draws on the event side, where
+||| the reset is its own slot beside the header's window for the same
+||| reason.
+||| -- spelling: "this turn" / "this game" at `RankWithin`, "each turn"
+||| at `RankEach`.
+public export
+data RankPeriod : Type where
+  RankWithin : Lookback -> RankPeriod
+  RankEach : TurnPart -> RankPeriod
+
 public export
 Eq TurnPart where
   (==) Turn Turn = True

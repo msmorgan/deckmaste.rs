@@ -501,6 +501,35 @@ mutual
     ||| both own and control" (with `ControlledBy` beside it).
     OwnedBy : (n : Noun bs Player) -> {auto 0 ps : SoleHolder n} -> Predicate bs Object
     CastBy : (n : Noun bs Player) -> {auto 0 ps : SoleHolder n} -> Predicate bs Object
+    ||| "the second spell you cast each turn" (Highspire Bell-Ringer and
+    ||| four kin), "the first spell you've cast this game" (Once Upon a
+    ||| Time): WHICH of a player's casts the object is. `CastBy`'s
+    ||| ordinal sibling.
+    |||
+    ||| Its own arm and not a slot on `CastBy`: the two ask different
+    ||| questions of the same history. `CastBy` asks WHO cast the object,
+    ||| and 25 benched lines write it with no rank at all; this asks
+    ||| which of that player's casts it is, and every line that ranks one
+    ||| also writes the period the rank counts inside -- a slot the
+    ||| unranked reader would have to carry unwritten on every one of
+    ||| those lines. The caster rides HERE rather than being left to a
+    ||| `CastBy` beside it, because a rank with no caster names nothing:
+    ||| "the second spell each turn" is not English.
+    |||
+    ||| It is the [CR#611.3] regime and not [CR#611.2f]'s. A static
+    ||| ability's continuous effect "applies at any given moment to
+    ||| whatever its text indicates" [CR#611.3a], which is what lets the
+    ||| description be read live against the casts so far; [CR#611.2f]'s
+    ||| "the NEXT spell you cast" is a one-shot effect that begins to
+    ||| apply when the player next puts an appropriate spell on the
+    ||| stack, a different construction that this arm must not be used to
+    ||| spell.
+    ||| The rank is `Ordinal`'s third site, which the word's own note
+    ||| already named. It seeds no zone, on `CastBy`'s reasons
+    ||| [CR#400.7d].
+    ||| -- spelling: "the [ord] [description] [who] cast(s) [period]".
+    NthCastBy : (ord : Ordinal) -> (n : Noun bs Player) -> (per : RankPeriod) ->
+                {auto 0 ps : SoleHolder n} -> Predicate bs Object
     CastFrom : (z : ZoneExpr bs) ->
                {auto 0 pf : So (playableFrom (Just (zoneSort z)))} ->
                Predicate bs Object
@@ -1087,6 +1116,7 @@ mutual
   -- ability reference the spell it was cast as, and [CR#702.40a] counts
   -- spells cast earlier this turn that have long left the stack.
   seedZone (CastBy _) = Nothing
+  seedZone (NthCastBy _ _ _) = Nothing
   -- a spell or ability has its targets while it is on the stack:
   -- [CR#115.1] declares them as it is put there, and [CR#115.9b] reads
   -- the current ones back. The ability side carries no zone of its own
@@ -1235,6 +1265,7 @@ mutual
   hasHead (ControlledBy _) = False
   hasHead (OwnedBy _) = False
   hasHead (CastBy _) = False
+  hasHead (NthCastBy _ _ _) = False
   hasHead Attacking = False
   hasHead BeingDeclaredAttacker = False
   hasHead Blocking = False
@@ -1330,6 +1361,10 @@ mutual
   uniquifies (Superlative _ _ _) = True
   -- [CR#508.1b]: one attacker names exactly one defender.
   uniquifies (AttackedBy _) = True
+  -- a rank over a player's casts names at most one spell: [CR#601.2]
+  -- puts each spell on the stack in its turn, so the casts inside a
+  -- period are a sequence and the Nth of it is one member.
+  uniquifies (NthCastBy _ _ _) = True
   uniquifies (And ps) = uniquifiesAny ps
   uniquifies _ = False
 
@@ -1434,6 +1469,7 @@ mutual
   predEq (OwnedBy _) _ = False
   predEq (CastBy a) (CastBy b) = nounEqRef a b
   predEq (CastBy _) _ = False
+  predEq (NthCastBy _ _ _) _ = False
   predEq (ExiledWith a) (ExiledWith b) = nounEqRef a b
   predEq (ExiledWith _) _ = False
   predEq Attacking Attacking = True
@@ -1997,6 +2033,7 @@ mutual
   predSays (ControlledBy _) = True
   predSays (OwnedBy _) = True
   predSays (CastBy _) = True
+  predSays (NthCastBy _ _ _) = True
   predSays (ExiledWith _) = True
   predSays Attacking = True
   predSays BeingDeclaredAttacker = True
@@ -2073,6 +2110,7 @@ mutual
   predNegFree (ControlledBy _) = True
   predNegFree (OwnedBy _) = True
   predNegFree (CastBy _) = True
+  predNegFree (NthCastBy _ _ _) = True
   predNegFree (ExiledWith _) = True
   predNegFree Attacking = True
   predNegFree BeingDeclaredAttacker = True
@@ -2876,6 +2914,7 @@ mutual
   predDelta (ControlledBy n) = nounDelta n
   predDelta (OwnedBy n) = nounDelta n
   predDelta (CastBy n) = nounDelta n
+  predDelta (NthCastBy _ n _) = nounDelta n
   predDelta (AttackerOf m) = nounDelta m
   predDelta (BlockerOf m) = nounDelta m
   predDelta (CounterKindOn n) = nounDelta n

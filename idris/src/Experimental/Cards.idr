@@ -1440,6 +1440,21 @@ goadTargetCreature =
   Macros.activated (Compound [Mana [Macros.generic 3], TapSymbol])
                    (Macros.gainsDesignation (Macros.target Macros.creature) Goaded Instructed)
 
+||| Frenzied Gorespawn's entry trigger -- "for each opponent, goad target
+||| creature that player controls." The routed blocker was that
+||| `ForEachOf` took an object group only; the turn round's kind index
+||| made the player group free, and the member reads back as `That
+||| PlayerW` exactly as Blatant Thievery's does. A FRAGMENT: the card's
+||| second line triggers on "one or more creatures attack one of your
+||| opponents", which is not this item's.
+public export
+frenziedGorespawnGoad : Effect []
+frenziedGorespawnGoad =
+  ForEachOf (Each Opponent)
+    (Macros.gainsDesignation
+       (Macros.target (And [Macros.creature, ControlledBy (That PlayerW)]))
+       Goaded Instructed)
+
 goadedAttackTrigger : Ability
 goadedAttackTrigger =
   Macros.triggered Whenever (Macros.attacks (Macros.a (And [Macros.creature, HasDesignation Goaded])))
@@ -2057,6 +2072,39 @@ emeraldMedallion =
        [ Static (CostsToCast (AllOf (And [ColorIs Green, Macros.spell, CastBy You]))
                              (CostLess (Lit 1) Nothing)) ]
        Nothing
+
+||| Highspire Bell-Ringer, whole -- the ORDINAL cast read. "The second
+||| spell you cast each turn costs {1} less to cast." A definite
+||| singular rather than `AllOf`: the rank picks one spell out of the
+||| turn's sequence where the medallions describe a class.
+||| The period is `RankEach Turn` and not a `Lookback`: "each turn" says
+||| the count resets, not that a stretch has passed. [CR#611.3]'s
+||| regime throughout -- a static ability's effect applies to whatever
+||| its text indicates at the moment [CR#611.3a], which is what makes
+||| the rank readable live; the "next spell you cast" grants are
+||| [CR#611.2f] one-shots and are not this.
+||| The four kin are Alisaie Leveilleur, Monk Class, Raging Battle
+||| Mouse and Uthros Psionicist (measured 2026-09-02).
+public export
+highspireBellRinger : Card
+highspireBellRinger =
+  Macros.card "Highspire Bell-Ringer"
+       (Just [Macros.generic 2, Macros.pip Blue]) []
+       (MkTypeLine [creatureType "Djinn", creatureType "Monk"] [Creature])
+       [ Macros.keyword "Flying"
+       , Static (CostsToCast
+                   (Definite (And [Macros.spell,
+                                   NthCastBy (Nth 2) You (RankEach Turn)]))
+                   (CostLess (Lit 1) Nothing)) ]
+       (Just (1, 4))
+
+||| Once Upon a Time's alternative-cost condition -- the same ordinal
+||| read at the GAME period, where `RankWithin ThisGame` is a stretch
+||| already named and no reset is written. A FRAGMENT: the card's second
+||| line is the look-and-reveal, which is not this item's.
+public export
+onceUponATimeFirstCast : Predicate [] Object
+onceUponATimeFirstCast = NthCastBy (Nth 1) You (RankWithin Lookback.ThisGame)
 
 foundryInspector : Card
 foundryInspector =

@@ -5278,6 +5278,7 @@ mutual
   predRegime : {0 bs : Bindings} -> {0 k : Kind} ->
                Predicate bs k -> Maybe StackRegime
   predRegime (CastBy _) = Just AtCasting
+  predRegime (NthCastBy _ _ _) = Just AtCasting
   predRegime (CastFrom _) = Just AtCasting
   predRegime WasCast = Just AtCasting
   predRegime (ControlledBy _) = Just AtResolution
