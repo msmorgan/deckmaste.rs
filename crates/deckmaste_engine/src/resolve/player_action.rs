@@ -544,12 +544,18 @@ impl GameState {
             // agent so "you put a counter" reads ([CR#603.2e]-style transition
             // views) resolve to the right controller.
             Action::PutCounters(sel, kind, count) => {
+                let objects = self.eval_reference_set(sel, frame);
+                // [CR#608.2b]: an illegal target or departed `This` recipient
+                // cannot be affected. Resolve it before a quantity that may
+                // itself read that object (Heroes' Bane's power).
+                if objects.is_empty() {
+                    return vec![];
+                }
                 let n = self.eval_count(count, frame);
                 if n == 0 {
                     return vec![];
                 }
-                let events: Vec<GameEvent> = self
-                    .eval_reference_set(sel, frame)
+                let events: Vec<GameEvent> = objects
                     .into_iter()
                     .map(|object| {
                         GameEvent::CounterPlaced(CounterPlaced {
@@ -578,12 +584,15 @@ impl GameState {
                 }
             }
             Action::RemoveCounters(sel, kind, count) => {
+                let objects = self.eval_reference_set(sel, frame);
+                if objects.is_empty() {
+                    return vec![];
+                }
                 let n = self.eval_count(count, frame);
                 if n == 0 {
                     return vec![];
                 }
-                let events: Vec<GameEvent> = self
-                    .eval_reference_set(sel, frame)
+                let events: Vec<GameEvent> = objects
                     .into_iter()
                     .map(|object| {
                         GameEvent::CounterRemoved(CounterRemoved {

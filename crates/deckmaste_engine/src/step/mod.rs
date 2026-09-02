@@ -806,7 +806,10 @@ impl GameState {
     /// Applies an occurrence: each event through the pipe, returned as the
     /// facts that occurred. A `Batch` applies with no SBA/trigger interleaving.
     /// After applying, runs `check_game_end` so a simultaneous multi-loss batch
-    /// is evaluated as a whole.
+    /// is evaluated as a whole. A damage/counter event whose current-only
+    /// recipient departed after the event was queued is discarded before cant,
+    /// replacement, mutation, history, or trigger processing ([CR#608.2b]); a
+    /// stale damage source remains valid LKI ([CR#608.2h,113.7a]).
     fn apply_occurrence(&mut self, mut occ: Occurrence) -> Occurrence {
         // [CR#104.3f]: a player who would simultaneously win and lose, loses
         // — drop any `PlayerWon{p}` that the same batch also carries a
@@ -833,13 +836,19 @@ impl GameState {
         let occurred = match occ {
             Occurrence::Single(e) => {
                 // [CR#614.17]: can't-happen pass — suppressed before replacements.
-                if crate::replace_registry::cant_event(self, &e) {
+                if !self.event_current_recipient_is_live(&e)
+                    || crate::replace_registry::cant_event(self, &e)
+                {
                     Occurrence::Batch(vec![]) // suppressed, nothing occurred
                 } else {
                     // [CR#616.1]: replacement-effect loop.
                     match crate::replace_registry::replace_event(self, e) {
                         crate::replace_registry::ReplaceOutcome::Pass(e2) => {
-                            Occurrence::Single(self.apply(e2))
+                            if self.event_current_recipient_is_live(&e2) {
+                                Occurrence::Single(self.apply(e2))
+                            } else {
+                                Occurrence::Batch(vec![])
+                            }
                         }
                         crate::replace_registry::ReplaceOutcome::Nothing => {
                             Occurrence::Batch(vec![]) // replaced to nothing
@@ -865,6 +874,7 @@ impl GameState {
                 // follow-on occurrence ([CR#603.2c]).
                 let live: Vec<GameEvent> = events
                     .into_iter()
+                    .filter(|e| self.event_current_recipient_is_live(e))
                     .filter(|e| !crate::replace_registry::cant_event(self, e))
                     .collect();
                 debug_assert!(
@@ -877,7 +887,9 @@ impl GameState {
                 while let Some(e) = iter.next() {
                     match crate::replace_registry::replace_event(self, e) {
                         crate::replace_registry::ReplaceOutcome::Pass(e2) => {
-                            facts.push(self.apply(e2));
+                            if self.event_current_recipient_is_live(&e2) {
+                                facts.push(self.apply(e2));
+                            }
                         }
                         crate::replace_registry::ReplaceOutcome::Nothing => {}
                         crate::replace_registry::ReplaceOutcome::Suspend => {
@@ -890,6 +902,7 @@ impl GameState {
                             // interactively split batch commits its halves as
                             // separate occurrences.)
                             let remaining: Vec<GameEvent> = iter
+                                .filter(|ev| self.event_current_recipient_is_live(ev))
                                 .filter(|ev| !crate::replace_registry::cant_event(self, ev))
                                 .collect();
                             if let Some(rs) = self.replace_state.as_mut() {
@@ -934,6 +947,20 @@ impl GameState {
         // vec is empty except across a `ForThisEvent` destroy.
         self.no_regen_subjects.clear();
         occurred
+    }
+
+    /// Whether the event's current-only recipient still exists immediately
+    /// before application. Builders perform the same check at resolution time;
+    /// this closes the queue window in which an earlier event can remint or
+    /// remove the recipient before this event reaches the apply funnel.
+    fn event_current_recipient_is_live(&self, event: &GameEvent) -> bool {
+        let recipient = match event {
+            GameEvent::DamageDealt(DamageDealt { target, .. }) => Some(*target),
+            GameEvent::CounterPlaced(CounterPlaced { object, .. })
+            | GameEvent::CounterRemoved(CounterRemoved { object, .. }) => Some(*object),
+            _ => None,
+        };
+        recipient.is_none_or(|object| self.objects.get(object).is_some())
     }
 
     /// Front-schedules the batch-evolution collector's contents as ONE

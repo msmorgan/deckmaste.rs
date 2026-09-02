@@ -934,10 +934,9 @@ mod tests {
 
     /// An unresolvable `CopySource::Object` reference — its announced target
     /// has since left play — is `None`, never a panic. `eval_reference`'s
-    /// `Reference::Target` arm gracefully falls back to the stale id for a
-    /// departed slot member ([CR#608.2b] partial fizzle) rather than
-    /// panicking; `resolve_source`'s own liveness check then turns that
-    /// stale id into `None`.
+    /// `Reference::Target` turns a departed slot member into the null id
+    /// ([CR#608.2b] partial fizzle) rather than panicking; `resolve_source`'s
+    /// own liveness check then turns that into `None`.
     #[test]
     fn resolve_source_object_reference_departed_target_is_none_not_panic() {
         let mut state = bare_game();

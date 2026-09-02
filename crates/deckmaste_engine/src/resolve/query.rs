@@ -446,14 +446,18 @@ impl GameState {
         }
     }
 
-    /// The object(s) a verb's [`Reference`] patient acts on — exactly one.
+    /// The object(s) a verb's [`Reference`] patient acts on — zero or one.
     /// Plurality is never the verb's: a "for each"/"all" instruction is an
     /// enclosing [`OneShotEffect::Each`]/[`OneShotEffect::Distribute`] whose
     /// body names a single reference per element ([CR#608.2]). A 1-element
-    /// vector so the verb arms keep their batch-shaped `.into_iter()…`
-    /// bodies.
+    /// vector keeps the verb arms' batch-shaped `.into_iter()…` bodies; null
+    /// and departed current-only patients become the empty set so no action
+    /// event is constructed for them ([CR#608.2b]).
     pub(crate) fn eval_reference_set(&self, reference: &Reference, frame: &Frame) -> Vec<ObjectId> {
-        vec![self.eval_reference(reference, frame)]
+        let object = self.eval_reference(reference, frame);
+        self.objects
+            .get(object)
+            .map_or_else(Vec::new, |_| vec![object])
     }
 
     /// Resolve a [`Reference`] to an `ObjectId`.
@@ -558,22 +562,18 @@ impl GameState {
             }
             // The nth announced target SLOT ([CR#115.3,601.2c]) read as a
             // single object — its first still-live member (a quantity-one slot
-            // has exactly one; a departed member is skipped, partial fizzle
-            // [CR#608.2b], falling back to the first so downstream appliers
-            // no-op on it). A plural slot's full set is read via `They`.
-            Reference::Target(n) => frame
-                .anaphora
-                .targets
-                .get(*n)
-                .and_then(|slot| {
-                    slot.iter()
-                        .find(|&&t| self.objects.get(t).is_some())
-                        .or_else(|| slot.first())
-                        .copied()
-                })
-                .unwrap_or_else(|| {
-                    Self::unbound_ref(reference, "announced target index out of range")
-                }),
+            // has exactly one). A wholly departed slot is a valid partial
+            // fizzle and reads null ([CR#608.2b]); only an out-of-range index
+            // is malformed semantic input. A plural slot's full set is read
+            // via `They`.
+            Reference::Target(n) => match frame.anaphora.targets.get(*n) {
+                Some(slot) => slot
+                    .iter()
+                    .copied()
+                    .find(|&target| self.objects.get(target).is_some())
+                    .unwrap_or_else(ObjectId::null),
+                None => Self::unbound_ref(reference, "announced target index out of range"),
+            },
             Reference::Single(selection) => {
                 let values = self.eval_selection_set(selection, frame);
                 if let [only] = values.as_slice() { *only } else { ObjectId::null() }
@@ -786,6 +786,28 @@ mod tests {
             state
                 .eval_reference(&Reference::ControllerOf(Arc::new(Reference::It)), &frame)
                 .is_null()
+        );
+    }
+
+    /// [CR#608.2b]: an announced target that has left its expected zone is no
+    /// longer a resolvable current object. Singular reads become null and the
+    /// action-patient set becomes empty, so instructions aimed at it fizzle.
+    #[test]
+    fn departed_target_reads_null_and_empty_patient_set() {
+        let (mut state, source, departed) = two_permanents_on_field();
+        let frame = frame_src_targets(source, vec![departed]);
+        state.zones.battlefield.retain(|&object| object != departed);
+        state.objects.remove(departed);
+
+        assert!(
+            state
+                .eval_reference(&Reference::Target(0), &frame)
+                .is_null()
+        );
+        assert!(
+            state
+                .eval_reference_set(&Reference::Target(0), &frame)
+                .is_empty()
         );
     }
 

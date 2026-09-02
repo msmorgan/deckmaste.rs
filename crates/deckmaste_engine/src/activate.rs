@@ -600,13 +600,15 @@ impl GameState {
             // "pay {E}" is unpayable (partial payment forbidden, [CR#601.2h]).
             Action::RemoveCounters(sel, kind, count) => {
                 let need = self.eval_count(count, frame);
-                self.eval_reference_set(sel, frame).iter().all(|&id| {
-                    self.objects
-                        .get(id)
-                        .and_then(|o| o.counters.get(kind.as_str()).copied())
-                        .unwrap_or(0)
-                        >= need
-                })
+                let carriers = self.eval_reference_set(sel, frame);
+                !carriers.is_empty()
+                    && carriers.iter().all(|&id| {
+                        self.objects
+                            .get(id)
+                            .and_then(|o| o.counters.get(kind.as_str()).copied())
+                            .unwrap_or(0)
+                            >= need
+                    })
             }
             // Out of this ticket's listed scope — the reveal window is unbuilt,
             // so treat as payable for now.

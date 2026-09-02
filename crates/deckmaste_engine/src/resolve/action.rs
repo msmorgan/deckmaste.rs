@@ -8,6 +8,7 @@ use deckmaste_core::EnterRider;
 use deckmaste_core::Reference;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
+use slotmap::Key;
 
 use super::occurrence_of;
 use crate::agenda::FinalizeWatch;
@@ -58,6 +59,17 @@ impl GameState {
             // unchanged; an explicit source carries non-self-source damage and
             // "fight" ([CR#120.1,701.14a]).
             Action::DealDamage(source, qty, sel) => {
+                let dealer = self.eval_reference(source, frame);
+                let targets = self.eval_reference_set(sel, frame);
+                // [CR#608.2b]: an illegal announced source cannot supply the
+                // information this damage instruction needs, and a departed
+                // recipient cannot be affected. Preflight both before reading
+                // a dependent quantity such as `StatOf(Target(0), Power)`.
+                // A departed `This`/event source remains a non-null LKI id and
+                // may still deal damage ([CR#608.2h,113.7a]).
+                if dealer.is_null() || targets.is_empty() {
+                    return Vec::new();
+                }
                 let amount = self.eval_count(qty, frame);
                 // [CR#120.8,614.7a]: zero damage is no event at all. Drop it
                 // before opening the cant/replacement window: an effect that
@@ -65,8 +77,6 @@ impl GameState {
                 if amount == 0 {
                     return Vec::new();
                 }
-                let dealer = self.eval_reference(source, frame);
-                let targets = self.eval_reference_set(sel, frame);
                 let events: Vec<GameEvent> = targets
                     .into_iter()
                     .map(|target| {
@@ -3930,6 +3940,170 @@ mod tests {
             )),
             "DamageDealt carries the explicit source b, not frame.source a"
         );
+    }
+
+    /// [CR#608.2b]: one illegal target does not cancel independent later
+    /// instructions. The departed target's packet fizzles; the live target's
+    /// packet still resolves and is the only damage fact recorded.
+    #[test]
+    fn departed_damage_target_does_not_cancel_later_packet() {
+        let (mut state, source, departed) = two_permanents_on_field();
+        let survivor = state.players[1].object;
+        let frame = frame_src_targets(source, vec![departed, survivor]);
+        let life_before = state.player(PlayerId(1)).life;
+        state.zones.battlefield.retain(|&object| object != departed);
+        state.objects.remove(departed);
+
+        state.run_effect(
+            OneShotEffect::Sequentially(
+                vec![
+                    OneShotEffect::Act(Action::DealDamage(
+                        Reference::This,
+                        Count::Literal(4),
+                        Reference::Target(0),
+                    )),
+                    OneShotEffect::Act(Action::DealDamage(
+                        Reference::This,
+                        Count::Literal(3),
+                        Reference::Target(1),
+                    )),
+                ]
+                .into(),
+            ),
+            &frame,
+        );
+        run_injected(&mut state);
+
+        assert_eq!(state.player(PlayerId(1)).life, life_before - 3);
+        let damage: Vec<_> = state
+            .history
+            .scan(Lookback::ThisGame, state.turn.turn_number)
+            .filter_map(|event| match event {
+                GameEvent::DamageDealt(dealt) => Some(dealt),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(damage.len(), 1);
+        assert_eq!(damage[0].target, survivor);
+        assert_eq!(damage[0].amount, 3);
+    }
+
+    /// [CR#608.2b]: a departed target cannot be changed or supply current
+    /// information to a dependent instruction. Neither the counter placement
+    /// nor the damage based on that target's power occurs.
+    #[test]
+    fn departed_target_damage_source_fizzles_dependent_instructions() {
+        let (mut state, departed, survivor) = two_permanents_on_field();
+        let frame = frame_src_targets(survivor, vec![departed, survivor]);
+        state.zones.battlefield.retain(|&object| object != departed);
+        state.objects.remove(departed);
+
+        state.run_effect(
+            OneShotEffect::Sequentially(
+                vec![
+                    OneShotEffect::Act(Action::PutCounters(
+                        Reference::Target(0),
+                        deckmaste_core::CounterRef::from("P1P1Counter"),
+                        Count::Literal(1),
+                    )),
+                    OneShotEffect::Act(Action::DealDamage(
+                        Reference::Target(0),
+                        Count::StatOf(Reference::Target(0), deckmaste_core::Stat::Power),
+                        Reference::Target(1),
+                    )),
+                ]
+                .into(),
+            ),
+            &frame,
+        );
+        run_injected(&mut state);
+
+        assert_eq!(state.objects.obj(survivor).total_damage(), 0);
+        assert!(!logged(&state, |event| matches!(
+            event,
+            GameEvent::DamageDealt(_) | GameEvent::CounterPlaced(_)
+        )));
+    }
+
+    /// A departed `This` used as the counter carrier fizzles before evaluating
+    /// a count that also depends on its current characteristics.
+    #[test]
+    fn departed_this_counter_recipient_fizzles_before_stat_read() {
+        let (mut state, source) = bear_on_field();
+        let frame = frame_src(source);
+        state.zones.battlefield.retain(|&object| object != source);
+        state.objects.remove(source);
+
+        state.run_effect(
+            OneShotEffect::Act(Action::PutCounters(
+                Reference::This,
+                deckmaste_core::CounterRef::from("P1P1Counter"),
+                Count::StatOf(Reference::This, deckmaste_core::Stat::Power),
+            )),
+            &frame,
+        );
+        run_injected(&mut state);
+
+        assert!(!logged(&state, |event| matches!(
+            event,
+            GameEvent::CounterPlaced(_)
+        )));
+    }
+
+    /// A recipient may depart after an event is queued but before it applies.
+    /// The application boundary discards both damage and counter events rather
+    /// than dereferencing stale object ids or recording false history.
+    #[test]
+    fn queued_damage_and_counter_events_discard_departed_recipients() {
+        let (mut damage_state, source, damage_target) = two_permanents_on_field();
+        let damage_frame = frame_src_targets(source, vec![damage_target]);
+        damage_state.run_effect(
+            OneShotEffect::Act(Action::DealDamage(
+                Reference::This,
+                Count::Literal(2),
+                Reference::Target(0),
+            )),
+            &damage_frame,
+        );
+        damage_state
+            .zones
+            .battlefield
+            .retain(|&object| object != damage_target);
+        damage_state.objects.remove(damage_target);
+        assert!(matches!(
+            damage_state.step(),
+            StepOutcome::Progress(Progress::Applied(Occurrence::Batch(events)))
+                if events.is_empty()
+        ));
+        assert!(!logged(&damage_state, |event| matches!(
+            event,
+            GameEvent::DamageDealt(_)
+        )));
+
+        let (mut counter_state, counter_target) = bear_on_field();
+        let counter_frame = frame_src(counter_target);
+        counter_state.run_effect(
+            OneShotEffect::Act(Action::PutCounters(
+                Reference::This,
+                deckmaste_core::CounterRef::from("P1P1Counter"),
+                Count::Literal(1),
+            )),
+            &counter_frame,
+        );
+        counter_state
+            .zones
+            .battlefield
+            .retain(|&object| object != counter_target);
+        counter_state.objects.remove(counter_target);
+        assert!(matches!(
+            counter_state.step(),
+            StepOutcome::Progress(Progress::Applied(Occurrence::Batch(events)))
+                if events.is_empty()
+        ));
+        assert!(!logged(&counter_state, |event| matches!(
+            event,
+            GameEvent::CounterPlaced(_)
+        )));
     }
 
     /// [CR#120.8,614.7a]: a source dealing zero damage produces no
