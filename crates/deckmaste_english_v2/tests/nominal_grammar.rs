@@ -189,14 +189,12 @@ impl Visitor for NominalVisitor {
         deckmaste_english_v2::visit::walk_numeric_stage(self, value);
     }
 
-    fn visit_from_phrase(&mut self, value: &deckmaste_english_v2::ast::FromPhrase) {
-        self.events.push("FromPhrase".to_owned());
-        deckmaste_english_v2::visit::walk_from_phrase(self, value);
-    }
-
-    fn visit_in_phrase(&mut self, value: &deckmaste_english_v2::ast::InPhrase) {
-        self.events.push("InPhrase".to_owned());
-        deckmaste_english_v2::visit::walk_in_phrase(self, value);
+    fn visit_prepositional_phrase(
+        &mut self,
+        value: &deckmaste_english_v2::ast::PrepositionalPhrase,
+    ) {
+        self.events.push("PrepositionalPhrase".to_owned());
+        deckmaste_english_v2::visit::walk_prepositional_phrase(self, value);
     }
 
     fn visit_scalar_threshold(&mut self, value: &deckmaste_english_v2::ast::ScalarThreshold) {
@@ -314,30 +312,19 @@ impl Visitor for NominalVisitor {
         walk_unqualified_numeric_stage
     );
     record_product!(
-        visit_from_qualified_reference,
-        FromQualifiedReference,
-        walk_from_qualified_reference
+        visit_prepositional_qualified_reference,
+        PrepositionalQualifiedReference,
+        walk_prepositional_qualified_reference
     );
     record_product!(
-        visit_in_qualified_reference,
-        InQualifiedReference,
-        walk_in_qualified_reference
+        visit_prepositional_phrase_value,
+        PrepositionalPhraseValue,
+        walk_prepositional_phrase_value
     );
     record_product!(
-        visit_from_phrase_value,
-        FromPhraseValue,
-        walk_from_phrase_value
-    );
-    record_product!(
-        visit_from_bare_locative,
-        FromBareLocative,
-        walk_from_bare_locative
-    );
-    record_product!(visit_in_phrase_value, InPhraseValue, walk_in_phrase_value);
-    record_product!(
-        visit_in_bare_locative,
-        InBareLocative,
-        walk_in_bare_locative
+        visit_bare_locative_prepositional_phrase,
+        BareLocativePrepositionalPhrase,
+        walk_bare_locative_prepositional_phrase
     );
     record_product!(
         visit_fixed_scalar_threshold,
@@ -3031,8 +3018,8 @@ fn restricted_postmodifier_paths_ownership_and_ambiguity_are_exact() {
         (
             "Raise Dead",
             "Destroy target creature card from your graveyard.",
-            "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageFromQualifiedReference/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDeterminedNominal/DeterminativeSingularSimpleDeterminative/NominalSingularNominalValue/SingularNominalModifiedSingularNominal/NominalModifierNounModifier/SingularHeadNounSingularHead/FromPhraseFromPhrase/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferencePossessedSingularReference/SingularNominalBareSingularNominal/SingularHeadNounSingularHead",
-            "NNNNTNNNNNNNNNTNNNTTLNNNNNNTNNT",
+            "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStagePrepositionalQualifiedReference/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDeterminedNominal/DeterminativeSingularSimpleDeterminative/NominalSingularNominalValue/SingularNominalModifiedSingularNominal/NominalModifierNounModifier/SingularHeadNounSingularHead/PrepositionalPhrasePrepositionalPhrase/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferencePossessedSingularReference/SingularNominalBareSingularNominal/SingularHeadNounSingularHead",
+            "NNNNTNNNNNNNNNTNNNTTTNNNNNNTNNT",
         ),
         (
             "Context Card",
@@ -3515,7 +3502,7 @@ const TYPED_VISITOR_CASES: &[(&str, &[&str])] = &[
             "NumericStage",
             "UnqualifiedNumericStage",
             "LocativeStage",
-            "FromQualifiedReference",
+            "PrepositionalQualifiedReference",
             "ControllerStage",
             "UnqualifiedControllerStage",
             "UnqualifiedReference",
@@ -3528,8 +3515,8 @@ const TYPED_VISITOR_CASES: &[(&str, &[&str])] = &[
             "NounModifier",
             "SingularHead",
             "NounSingularHead",
-            "FromPhrase",
-            "FromPhraseValue",
+            "PrepositionalPhrase",
+            "PrepositionalPhraseValue",
             "QualifiedNounPhrase",
             "NumericStage",
             "UnqualifiedNumericStage",
@@ -3554,7 +3541,7 @@ const TYPED_VISITOR_CASES: &[(&str, &[&str])] = &[
             "NumericStage",
             "UnqualifiedNumericStage",
             "LocativeStage",
-            "InQualifiedReference",
+            "PrepositionalQualifiedReference",
             "ControllerStage",
             "UnqualifiedControllerStage",
             "UnqualifiedReference",
@@ -3565,8 +3552,8 @@ const TYPED_VISITOR_CASES: &[(&str, &[&str])] = &[
             "BareSingularNominal",
             "SingularHead",
             "NounSingularHead",
-            "InPhrase",
-            "InBareLocative",
+            "PrepositionalPhrase",
+            "BareLocativePrepositionalPhrase",
             "CommonNoun:Exile",
         ],
     ),
@@ -3672,8 +3659,7 @@ fn assert_typed_visitor_preorders(cases: &[(&str, &[&str])]) {
                         | "ControllerStage"
                         | "UnqualifiedControllerStage"
                         | "ControllerQualifiedReference"
-                        | "FromQualifiedReference"
-                        | "InQualifiedReference"
+                        | "PrepositionalQualifiedReference"
                         | "ScalarQualifiedReference"
                         | "CountComparisonReference"
                         | "UnqualifiedReference"
@@ -3689,12 +3675,9 @@ fn assert_typed_visitor_preorders(cases: &[(&str, &[&str])]) {
                         | "SubjectPronoun:You"
                         | "VerbInventory:Core(Control)"
                         | "VerbInventory:Core(Own)"
-                        | "FromPhrase"
-                        | "FromPhraseValue"
-                        | "InPhrase"
-                        | "InPhraseValue"
-                        | "InBareLocative"
-                        | "FromBareLocative"
+                        | "PrepositionalPhrase"
+                        | "PrepositionalPhraseValue"
+                        | "BareLocativePrepositionalPhrase"
                         | "PossessedSingularReference"
                         | "PossessiveDeterminerPronoun:Your"
                         | "CommonNoun:Graveyard"

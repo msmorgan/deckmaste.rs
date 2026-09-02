@@ -19,10 +19,12 @@ pub(crate) enum Feature {
     FusedHeadLicense,
     NominalForm,
     NominalLicense,
+    NounComplement,
     Number,
     Onset,
     Participle,
     PossessiveEnding,
+    PrepositionClass,
     Properness,
     Relationality,
 }
@@ -69,6 +71,12 @@ pub(crate) enum FeatureValue {
     Proper,
     NonRelational,
     Relational,
+    AdjunctCapable,
+    PostmodifierOnly,
+    PostmodifierBareLocative,
+    SelectedOnly,
+    NoComplement,
+    OfComplement,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -142,6 +150,13 @@ impl Feature {
             Self::PossessiveEnding => &[FeatureValue::EndsInS, FeatureValue::Other],
             Self::Properness => &[FeatureValue::Common, FeatureValue::Proper],
             Self::Relationality => &[FeatureValue::NonRelational, FeatureValue::Relational],
+            Self::NounComplement => &[FeatureValue::NoComplement, FeatureValue::OfComplement],
+            Self::PrepositionClass => &[
+                FeatureValue::AdjunctCapable,
+                FeatureValue::PostmodifierOnly,
+                FeatureValue::PostmodifierBareLocative,
+                FeatureValue::SelectedOnly,
+            ],
         }
     }
 
@@ -180,6 +195,8 @@ impl Feature {
             Self::PossessiveEnding => "possessive_ending",
             Self::Properness => "properness",
             Self::Relationality => "relationality",
+            Self::NounComplement => "noun_complement",
+            Self::PrepositionClass => "preposition_class",
         }
     }
 }
@@ -226,6 +243,12 @@ impl FeatureValue {
             Self::Proper => "Proper",
             Self::NonRelational => "NonRelational",
             Self::Relational => "Relational",
+            Self::AdjunctCapable => "AdjunctCapable",
+            Self::PostmodifierOnly => "PostmodifierOnly",
+            Self::PostmodifierBareLocative => "PostmodifierBareLocative",
+            Self::SelectedOnly => "SelectedOnly",
+            Self::NoComplement => "NoComplement",
+            Self::OfComplement => "OfComplement",
         }
     }
 }
@@ -371,6 +394,8 @@ impl Feature {
             Self::PossessiveEnding => "possessive_ending",
             Self::Properness => "properness",
             Self::Relationality => "relationality",
+            Self::NounComplement => "noun_complement",
+            Self::PrepositionClass => "preposition_class",
         }
     }
 }
@@ -418,6 +443,12 @@ impl FeatureValue {
             Self::Proper => "Proper",
             Self::NonRelational => "NonRelational",
             Self::Relational => "Relational",
+            Self::AdjunctCapable => "AdjunctCapable",
+            Self::PostmodifierOnly => "PostmodifierOnly",
+            Self::PostmodifierBareLocative => "PostmodifierBareLocative",
+            Self::SelectedOnly => "SelectedOnly",
+            Self::NoComplement => "NoComplement",
+            Self::OfComplement => "OfComplement",
         }
     }
 }
@@ -433,6 +464,10 @@ impl FeatureResolution {
     }
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "the feature-value lowering table is deliberately exhaustive and literal"
+)]
 pub(crate) fn lower_constant(
     feature: model::Feature,
     path: &syn::Path,
@@ -489,6 +524,14 @@ pub(crate) fn lower_constant(
         (model::Feature::Properness, "Proper") => FeatureValue::Proper,
         (model::Feature::Relationality, "NonRelational") => FeatureValue::NonRelational,
         (model::Feature::Relationality, "Relational") => FeatureValue::Relational,
+        (model::Feature::NounComplement, "NoComplement") => FeatureValue::NoComplement,
+        (model::Feature::NounComplement, "OfComplement") => FeatureValue::OfComplement,
+        (model::Feature::PrepositionClass, "AdjunctCapable") => FeatureValue::AdjunctCapable,
+        (model::Feature::PrepositionClass, "PostmodifierOnly") => FeatureValue::PostmodifierOnly,
+        (model::Feature::PrepositionClass, "PostmodifierBareLocative") => {
+            FeatureValue::PostmodifierBareLocative
+        }
+        (model::Feature::PrepositionClass, "SelectedOnly") => FeatureValue::SelectedOnly,
         (model::Feature::Agreement, _) => {
             return Err(syn::Error::new_spanned(
                 path,
@@ -579,6 +622,18 @@ pub(crate) fn lower_constant(
                 format!("`{name}` is not a properness value"),
             ));
         }
+        (model::Feature::NounComplement, _) => {
+            return Err(syn::Error::new_spanned(
+                path,
+                format!("`{name}` is not a noun-complement value"),
+            ));
+        }
+        (model::Feature::PrepositionClass, _) => {
+            return Err(syn::Error::new_spanned(
+                path,
+                format!("`{name}` is not a preposition-class value"),
+            ));
+        }
         (model::Feature::Relationality, _) => {
             return Err(syn::Error::new_spanned(
                 path,
@@ -602,10 +657,12 @@ impl From<model::Feature> for Feature {
             model::Feature::FusedHeadLicense => Self::FusedHeadLicense,
             model::Feature::NominalForm => Self::NominalForm,
             model::Feature::NominalLicense => Self::NominalLicense,
+            model::Feature::NounComplement => Self::NounComplement,
             model::Feature::Number => Self::Number,
             model::Feature::Onset => Self::Onset,
             model::Feature::Participle => Self::Participle,
             model::Feature::PossessiveEnding => Self::PossessiveEnding,
+            model::Feature::PrepositionClass => Self::PrepositionClass,
             model::Feature::Properness => Self::Properness,
             model::Feature::Relationality => Self::Relationality,
         }

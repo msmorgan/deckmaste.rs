@@ -32,7 +32,27 @@ constructions! {
     vocab PredicativeAdjective { Legendary = "legendary", }
     vocab FaceOrientation { FaceUp = "face up", }
     vocab ObjectOrder { Any = "any", Random = "a random", }
-    vocab TemporalRelation { Before = "before", After = "after", }
+    // One preposition class for the single general prepositional phrase.
+    // Which phrase a verb selects is a fact of the verb's declared valence,
+    // not of the preposition, so this vocabulary is flat.
+    vocab Preposition {
+        feature PrepositionClass = SelectedOnly;
+        After = "after" { feature PrepositionClass = AdjunctCapable; },
+        Among = "among",
+        At = "at",
+        Before = "before" { feature PrepositionClass = AdjunctCapable; },
+        During = "during" { feature PrepositionClass = AdjunctCapable; },
+        For = "for" { feature PrepositionClass = AdjunctCapable; },
+        From = "from" { feature PrepositionClass = PostmodifierBareLocative; },
+        In = "in" { feature PrepositionClass = PostmodifierBareLocative; },
+        Into = "into",
+        Of = "of" { feature PrepositionClass = PostmodifierOnly; },
+        On = "on" { feature PrepositionClass = PostmodifierOnly; },
+        Onto = "onto",
+        To = "to",
+        Under = "under",
+    }
+    vocab LocativeProform { Anywhere = "anywhere", }
     vocab ComparativeQuantifier { Fewer = "fewer", More = "more", }
     vocab FrequencyAdverb { Once = "once", Twice = "twice", }
     vocab ScalarDegree { Equal = "equal", Lesser = "lesser", Greater = "greater", }
@@ -243,7 +263,9 @@ constructions! {
         Spell = "spell",
         Stack = "stack",
         Step = "step" { feature Relationality = Relational; },
-        Target = "target" { feature Compoundability = NonCompoundable; },
+        Target = "target" {
+            feature Compoundability = NonCompoundable;
+        },
         Tax = "tax" {
             Plural = "taxes",
         },
@@ -337,7 +359,7 @@ constructions! {
     codec AmongObjectVerb {
         generate declaration_verb {
             position = Verb;
-            tail = [AmongPhrase];
+            tail = ["among", recipient: Object];
             feature = Agreement;
         }
     }
@@ -365,13 +387,13 @@ constructions! {
     }
     codec DistributedMeasureVerb { generate declaration_verb { position = Verb; tail = [Amount, MassNoun, DistributionPhrase, DistributionReplacement?]; feature = Agreement; } }
     codec ObjectEqualityVerb { generate declaration_verb { position = Verb; tail = [object: ObjectNounPhrase, ScalarEquality]; feature = Agreement; } }
-    codec ObjectEqualityToVerb { generate declaration_verb { position = Verb; tail = [object: ObjectNounPhrase, ScalarEquality, ToPhrase]; feature = Agreement; } }
-    codec ObjectToEqualityVerb { generate declaration_verb { position = Verb; tail = [object: ObjectNounPhrase, ToPhrase, ScalarEquality]; feature = Agreement; } }
+    codec ObjectEqualityToVerb { generate declaration_verb { position = Verb; tail = [object: ObjectNounPhrase, ScalarEquality, "to", recipient: Object]; feature = Agreement; } }
+    codec ObjectToEqualityVerb { generate declaration_verb { position = Verb; tail = [object: ObjectNounPhrase, "to", recipient: Object, ScalarEquality]; feature = Agreement; } }
     codec ManaPhraseVerb { generate declaration_verb { position = Verb; tail = [ManaPhrase]; feature = Agreement; } }
     codec ObjectFromVerb {
         generate declaration_verb {
             position = Verb;
-            tail = [object: ObjectNounPhrase, FromPhrase];
+            tail = [object: ObjectNounPhrase, "from", source: FrameComplement];
             feature = Agreement;
         }
     }
@@ -380,10 +402,11 @@ constructions! {
             position = Verb;
             tail = [
                 Object,
-                FromPhrase?,
-                OntoPhrase,
+                SourcePhrase?,
+                "onto",
+                destination: FrameComplement,
                 PredicativeComplement?,
-                UnderPhrase?,
+                ControlPhrase?,
             ];
             feature = Agreement;
         }
@@ -391,14 +414,14 @@ constructions! {
     codec ObjectFromOnVerb {
         generate declaration_verb {
             position = Verb;
-            tail = [Object, FromPhrase?, OnPhrase];
+            tail = [Object, SourcePhrase?, "on", destination: FrameComplement];
             feature = Agreement;
         }
     }
     codec ObjectToVerb {
         generate declaration_verb {
             position = Verb;
-            tail = [Object, ToPhrase];
+            tail = [Object, "to", destination: FrameComplement];
             feature = Agreement;
         }
     }
@@ -407,10 +430,11 @@ constructions! {
             position = Verb;
             tail = [
                 Object,
-                FromPhrase?,
-                ToPhrase,
+                SourcePhrase?,
+                "to",
+                destination: FrameComplement,
                 PredicativeComplement?,
-                UnderPhrase?,
+                ControlPhrase?,
             ];
             feature = Agreement;
         }
@@ -451,7 +475,7 @@ constructions! {
         generate declaration_verb {
             class = Predicate;
             position = Verb;
-            tail = [Object, FromPhrase?, OnPhrase, "in", ObjectOrder, "order"];
+            tail = [Object, SourcePhrase?, "on", destination: FrameComplement, "in", ObjectOrder, "order"];
             feature = Agreement;
         }
     }
@@ -487,21 +511,21 @@ constructions! {
     codec EnterWithCountersVerb {
         generate declaration_verb {
             position = Verb;
-            tail = ["with", object: ObjectNounPhrase, OnPhrase];
+            tail = ["with", object: ObjectNounPhrase, "on", recipient: FrameComplement];
             feature = Agreement;
         }
     }
     codec EnterLocationVerb {
         generate declaration_verb {
             position = Verb;
-            tail = [Object, PredicativeComplement?, UnderPhrase?];
+            tail = [Object, PredicativeComplement?, ControlPhrase?];
             feature = Agreement;
         }
     }
     codec EnterControlVerb {
         generate declaration_verb {
             position = Verb;
-            tail = [UnderPhrase];
+            tail = ["under", control: Object];
             feature = Agreement;
         }
     }
@@ -798,6 +822,7 @@ constructions! {
         IrrealisCopular: IrrealisCopularClause,
     }
     abstract sum BareLocative {
+        Proform: BareLocativeProform,
         Noun: BareLocativeNoun,
     }
     abstract sum PossessiveComplement {
@@ -842,6 +867,21 @@ constructions! {
         Or: OrScalarDegreePhrase,
     }
     abstract sum TemporalEndpoint { Reference: NounPhrase, }
+    // A preposition takes an ordinary object, a bare locative, an edge
+    // locative, or another prepositional phrase ("from among ...").
+    abstract sum PrepositionalComplement {
+        Object: Object,
+        Edge: EdgeOfPhrase,
+        Phrase: PrepositionalPhrase,
+    }
+    // A frame names its own preposition, so its complement also admits the
+    // determiner-less locative that the free phrase licenses by class.
+    abstract sum FrameComplement {
+        Object: Object,
+        Locative: BareLocative,
+        Edge: EdgeOfPhrase,
+        Phrase: PrepositionalPhrase,
+    }
     abstract sum ObjectGapRelativeClause {
         Positive: PositiveObjectGapRelativeClause,
         Auxiliary: AuxiliaryObjectGapRelativeClause,
@@ -862,8 +902,7 @@ constructions! {
         BarePassive: BarePassivePredicate,
         FinitePassive: FinitePassivePredicate,
         Auxiliary: AuxiliaryPredicate,
-        ForAdjunct: ForAdjunctPredicate,
-        DuringAdjunct: DuringAdjunctPredicate,
+        PrepositionalAdjunct: PrepositionalAdjunctPredicate,
         Cause: ObjectInfinitivePredicate,
         Requirement: RequirementPredicate,
         TransitiveRequirement: TransitiveRequirementPredicate,
@@ -884,8 +923,7 @@ constructions! {
         Atomic: VerbPhrase,
         BareCopular: BareCopularPredicate,
         BarePassive: BarePassivePredicate,
-        ForAdjunct: ForAdjunctPredicate,
-        DuringAdjunct: DuringAdjunctPredicate,
+        PrepositionalAdjunct: PrepositionalAdjunctPredicate,
         Cause: ObjectInfinitivePredicate,
         Requirement: RequirementPredicate,
         TransitiveRequirement: TransitiveRequirementPredicate,
@@ -908,8 +946,7 @@ constructions! {
         ThenSequence: BareThenPredicateSequence,
         BareCopular: BareCopularPredicate,
         BarePassive: BarePassivePredicate,
-        ForAdjunct: ForAdjunctPredicate,
-        DuringAdjunct: DuringAdjunctPredicate,
+        PrepositionalAdjunct: PrepositionalAdjunctPredicate,
         Cause: ObjectInfinitivePredicate,
         Requirement: RequirementPredicate,
         TransitiveRequirement: TransitiveRequirementPredicate,
@@ -935,8 +972,7 @@ constructions! {
         BarePassive: BarePassivePredicate,
         FinitePassive: FinitePassivePredicate,
         Auxiliary: AuxiliaryPredicate,
-        ForAdjunct: ForAdjunctPredicate,
-        DuringAdjunct: DuringAdjunctPredicate,
+        PrepositionalAdjunct: PrepositionalAdjunctPredicate,
         Cause: ObjectInfinitivePredicate,
         Requirement: RequirementPredicate,
         TransitiveRequirement: TransitiveRequirementPredicate,
@@ -1010,17 +1046,14 @@ constructions! {
         PreposedAsLongAsPredicate,
         PostposedAsLongAs,
         PostposedAsLongAsPredicate,
-        PreposedFor,
-        PreposedForPredicate,
+        PreposedPrepositionalAdjunct,
+        PreposedPrepositionalAdjunctPredicate,
         PreposedWhile,
         PreposedWhilePredicate,
-        PreposedDuring,
-        PreposedDuringPredicate,
         PreposedUntil,
         PreposedUntilPredicate,
         PreposedDuration,
         PreposedDurationPredicate,
-        PreposedTemporalRelation,
         ThenSequence,
         AdditionalCost,
     }
@@ -1028,10 +1061,6 @@ constructions! {
     construction finite_condition: FiniteCondition {
         element FiniteConditionValue { clause: Clause, }
         form finite_condition = "if" clause ",";
-    }
-    construction among_phrase: AmongPhrase {
-        element AmongPhraseValue { domain: Object, }
-        form among_phrase = "among" domain;
     }
     // A class level bar's activated ability sets the Class's level; a level is
     // a declared designation carrying a number [CR#716.2a,716.2b].
@@ -1131,12 +1160,8 @@ constructions! {
         form finite = lex(marker) clause;
     }
     construction temporal: TriggerPrefix {
-        element Temporal { phrase: AtPhrase, }
+        element Temporal { phrase: PrepositionalPhrase, }
         form temporal = phrase;
-    }
-    construction at_phrase: AtPhrase {
-        element AtPhraseValue { endpoint: TemporalEndpoint, }
-        form at_phrase = "at" endpoint;
     }
     construction triggered: Ability {
         element Triggered {
@@ -1277,14 +1302,22 @@ constructions! {
         }
         form postposed_for_as_long_as_clause = body "for" "as" "long" "as" condition;
     }
-    construction preposed_for: ClauseAttachment {
-        element PreposedFor { basis: ForPhrase, body: Clause, }
-        form preposed_for = basis "," body;
+    construction preposed_prepositional_adjunct: ClauseAttachment {
+        element PreposedPrepositionalAdjunct {
+            adjunct: PrepositionalPhrase,
+            body: Clause,
+        }
+        require adjunct.preposition_class is AdjunctCapable;
+        form preposed_prepositional_adjunct = adjunct "," body;
     }
-    construction preposed_for_predicate: ClauseAttachment {
-        element PreposedForPredicate { basis: ForPhrase, body: Predicate, }
+    construction preposed_prepositional_adjunct_predicate: ClauseAttachment {
+        element PreposedPrepositionalAdjunctPredicate {
+            adjunct: PrepositionalPhrase,
+            body: Predicate,
+        }
+        require adjunct.preposition_class is AdjunctCapable;
         derive body.agreement = Values::Bare;
-        form preposed_for_predicate = basis "," body;
+        form preposed_prepositional_adjunct_predicate = adjunct "," body;
     }
     construction preposed_while: ClauseAttachment {
         element PreposedWhile { condition: FiniteClause, body: Clause, }
@@ -1294,18 +1327,6 @@ constructions! {
         element PreposedWhilePredicate { condition: FiniteClause, body: Predicate, }
         derive body.agreement = Values::Bare;
         form preposed_while_predicate = "while" condition "," body;
-    }
-    construction preposed_during: ClauseAttachment {
-        element PreposedDuring { timing: DuringPhrase, body: Clause, }
-        form preposed_during = timing "," body;
-    }
-    construction preposed_during_predicate: ClauseAttachment {
-        element PreposedDuringPredicate {
-            timing: DuringPhrase,
-            body: Predicate,
-        }
-        derive body.agreement = Values::Bare;
-        form preposed_during_predicate = timing "," body;
     }
     construction preposed_until: ClauseAttachment {
         element PreposedUntil { condition: FiniteClause, body: Clause, }
@@ -1327,20 +1348,6 @@ constructions! {
         }
         derive body.agreement = Values::Bare;
         form preposed_duration_predicate = duration "," body;
-    }
-    construction temporal_relation_phrase: TemporalRelationPhrase {
-        element TemporalRelationPhraseValue {
-            relation: lex TemporalRelation,
-            complement: Object,
-        }
-        form temporal_relation_phrase = lex(relation) complement;
-    }
-    construction preposed_temporal_relation: ClauseAttachment {
-        element PreposedTemporalRelation {
-            adjunct: TemporalRelationPhrase,
-            body: Clause,
-        }
-        form preposed_temporal_relation = adjunct "," body;
     }
     construction fixed_duration_phrase: FixedDurationPhrase {
         element FixedDurationPhraseValue { endpoint: TemporalEndpoint, }
@@ -1576,10 +1583,11 @@ constructions! {
     construction passive_movement_predicate: PassiveMovementPredicate {
         element PassiveMovementPredicateValue {
             head: lex MovementParticipleHead,
-            destination: IntoPhrase,
-            source: FromPhrase,
+            destination: FrameComplement,
+            source: FrameComplement,
         }
-        form passive_movement_predicate = verb(head) destination source;
+        form passive_movement_predicate =
+            verb(head) "into" destination "from" source;
     }
     construction passive_orientation_predicate: PassiveOrientationPredicate {
         element PassiveOrientationPredicateValue {
@@ -1591,16 +1599,16 @@ constructions! {
     construction declared_transitive_passive_from_predicate: DeclaredTransitivePassiveFromPredicate {
         element DeclaredTransitivePassiveFromPredicateValue {
             head: lex DeclaredTransitiveParticipleHead,
-            source: FromPhrase,
+            source: FrameComplement,
         }
-        form declared_transitive_passive_from_predicate = verb(head) source;
+        form declared_transitive_passive_from_predicate = verb(head) "from" source;
     }
     construction declared_to_object_passive_predicate: DeclaredToObjectPassivePredicate {
         element DeclaredToObjectPassivePredicateValue {
             head: lex DeclaredToObjectParticipleHead,
-            complement: ToPhrase,
+            complement: FrameComplement,
         }
-        form declared_to_object_passive_predicate = verb(head) complement;
+        form declared_to_object_passive_predicate = verb(head) "to" complement;
     }
     construction bare_passive_predicate: BarePassivePredicate {
         element BarePassivePredicateValue {
@@ -1679,13 +1687,13 @@ constructions! {
         element OrderedPredicateValue {
             head: lex OrderedVerb,
             object: Object,
-            source: opt FromPhrase,
-            destination: OnPhrase,
+            source: opt SourcePhrase,
+            destination: FrameComplement,
             order: lex ObjectOrder,
         }
         derive agreement = head.agreement;
         form ordered_predicate =
-            verb(head) object source destination "in" lex(order) "order";
+            verb(head) object source "on" destination "in" lex(order) "order";
     }
     construction irrealis_copular_clause: IrrealisCopularClause {
         element IrrealisCopularClauseValue {
@@ -1725,29 +1733,14 @@ constructions! {
         derive agreement = predicate.agreement;
         form duration_predicate = predicate duration;
     }
-    construction for_phrase: ForPhrase {
-        element ForPhraseValue { complement: Object, }
-        form for_phrase = "for" complement;
-    }
-    construction during_phrase: DuringPhrase {
-        element DuringPhraseValue { complement: Object, }
-        form during_phrase = "during" complement;
-    }
-    construction for_adjunct_predicate: ForAdjunctPredicate {
-        element ForAdjunctPredicateValue {
+    construction prepositional_adjunct_predicate: PrepositionalAdjunctPredicate {
+        element PrepositionalAdjunctPredicateValue {
             predicate: VerbPhrase,
-            adjunct: ForPhrase,
+            adjunct: PrepositionalPhrase,
         }
+        require adjunct.preposition_class is AdjunctCapable;
         derive agreement = predicate.agreement;
-        form for_adjunct_predicate = predicate adjunct;
-    }
-    construction during_adjunct_predicate: DuringAdjunctPredicate {
-        element DuringAdjunctPredicateValue {
-            predicate: VerbPhrase,
-            adjunct: DuringPhrase,
-        }
-        derive agreement = predicate.agreement;
-        form during_adjunct_predicate = predicate adjunct;
+        form prepositional_adjunct_predicate = predicate adjunct;
     }
     construction instead_predicate: InsteadPredicate {
         element InsteadPredicateValue { predicate: VerbPhrase, }
@@ -1838,7 +1831,7 @@ constructions! {
     }
     construction only_temporal_clause_restriction: CastingRestriction {
         element OnlyTemporalClauseRestriction {
-            relation: lex TemporalRelation,
+            relation: lex Preposition,
             condition: FiniteClause,
         }
         form only_temporal_clause_restriction = "only" lex(relation) condition;
@@ -1921,10 +1914,10 @@ constructions! {
             subject: lex ContractedPerfectSubject,
             head: lex ObjectOnParticipleHead,
             object: Object,
-            complement: OnPhrase,
+            complement: FrameComplement,
         }
         form contracted_perfect_object_on_clause =
-            lex(subject) verb(head) object complement;
+            lex(subject) verb(head) object "on" complement;
     }
     construction contracted_perfect_passive_clause: FiniteClause {
         element ContractedPerfectPassiveClause {
@@ -1938,7 +1931,7 @@ constructions! {
         element ExistentialFiniteClause {
             copula: lex FiniteCopula,
             pivot: NounPhrase,
-            domain: opt AmongPhrase,
+            domain: opt PrepositionalPhrase,
         }
         derive copula.agreement = match copula {
             Is => Values::ThirdPersonSingular,
@@ -2126,6 +2119,11 @@ constructions! {
         derive onset = noun.onset;
         derive possessive_ending = noun.possessive_ending;
         form noun_plural_head = noun(noun);
+    }
+    construction bare_locative_proform: BareLocative {
+        element BareLocativeProform { word: lex LocativeProform, }
+        derive number = Values::Singular;
+        form bare_locative_proform = lex(word);
     }
     construction bare_locative_noun: BareLocative {
         element BareLocativeNoun {
@@ -3245,33 +3243,36 @@ constructions! {
         derive number = Values::Plural;
         form fixed_partitive_selection = count nominal;
     }
-    construction from_phrase: FromPhrase {
-        element FromPhraseValue { complement: Object, }
-        form from_phrase = "from" complement;
+    // The single prepositional phrase. Temporal, locative, source, goal and
+    // manner readings are values of the preposition, never categories.
+    construction prepositional_phrase: PrepositionalPhrase {
+        element PrepositionalPhraseValue {
+            preposition: lex Preposition,
+            complement: PrepositionalComplement,
+        }
+        derive preposition_class = preposition.preposition_class;
+        form prepositional_phrase = lex(preposition) complement;
     }
-    construction of_phrase: OfPhrase {
-        element OfPhraseValue { complement: Object, }
-        form of_phrase = "of" complement;
+    // A determiner-less locative is licensed by the preposition class as well
+    // as by the noun's own bare-locative license.
+    construction bare_locative_prepositional_phrase: PrepositionalPhrase {
+        element BareLocativePrepositionalPhrase {
+            preposition: lex Preposition,
+            complement: BareLocative,
+        }
+        require preposition.preposition_class is PostmodifierBareLocative;
+        derive preposition_class = preposition.preposition_class;
+        form bare_locative_prepositional_phrase = lex(preposition) complement;
     }
-    construction from_bare_locative: FromPhrase {
-        element FromBareLocative { complement: BareLocative, }
-        form from_bare_locative = "from" complement;
+    // Two frame roles whose preposition is declared valence data. They exist
+    // because a codec tail cannot carry an optional literal.
+    construction source_phrase: SourcePhrase {
+        element SourcePhraseValue { complement: FrameComplement, }
+        form source_phrase = "from" complement;
     }
-    construction from_anywhere: FromPhrase {
-        element FromAnywhere {}
-        form from_anywhere = "from" "anywhere";
-    }
-    construction from_among_phrase: FromPhrase {
-        element FromAmongPhrase { complement: AmongPhrase, }
-        form from_among_phrase = "from" complement;
-    }
-    construction into_phrase: IntoPhrase {
-        element IntoPhraseValue { complement: Object, }
-        form into_phrase = "into" complement;
-    }
-    construction onto_phrase: OntoPhrase {
-        element OntoPhraseValue { complement: Object, }
-        form onto_phrase = "onto" complement;
+    construction control_phrase: ControlPhrase {
+        element ControlPhraseValue { complement: Object, }
+        form control_phrase = "under" complement;
     }
     construction edge_of_phrase: EdgeOfPhrase {
         element EdgeOfPhraseValue {
@@ -3280,30 +3281,6 @@ constructions! {
         }
         form top when position is Top = lex(position) "of" whole;
         form bottom otherwise = "the" lex(position) "of" whole;
-    }
-    construction on_phrase: OnPhrase {
-        element OnPhraseValue { complement: Object, }
-        form on_phrase = "on" complement;
-    }
-    construction on_edge_phrase: OnPhrase {
-        element OnEdgePhrase { complement: EdgeOfPhrase, }
-        form on_edge_phrase = "on" complement;
-    }
-    construction to_phrase: ToPhrase {
-        element ToPhraseValue { complement: Object, }
-        form to_phrase = "to" complement;
-    }
-    construction under_phrase: UnderPhrase {
-        element UnderPhraseValue { complement: Object, }
-        form under_phrase = "under" complement;
-    }
-    construction in_phrase: InPhrase {
-        element InPhraseValue { complement: Object, }
-        form in_phrase = "in" complement;
-    }
-    construction in_bare_locative: InPhrase {
-        element InBareLocative { complement: BareLocative, }
-        form in_bare_locative = "in" complement;
     }
     construction fixed_scalar_threshold: ScalarThreshold {
         element FixedScalarThreshold { value: lex ScalarNumber, }
@@ -3407,9 +3384,9 @@ constructions! {
     construction greatest_scalar_value: ScalarValue {
         element GreatestScalarValue {
             measure: ScalarMeasure,
-            domain: AmongPhrase,
+            domain: Object,
         }
-        form greatest_scalar_value = "the" "greatest" measure domain;
+        form greatest_scalar_value = "the" "greatest" measure "among" domain;
     }
     construction scalar_equality: ScalarEquality {
         element ScalarEqualityValue { value: ScalarValue, }
@@ -3450,14 +3427,15 @@ constructions! {
         element ContractedCopularRelativeReference {
             reference: UnqualifiedReference,
             nominal: SingularNominal,
-            complement: OfPhrase,
+            complement: Object,
         }
         require reference.number is Singular;
         derive agreement = reference.agreement;
         derive number = reference.number;
         derive onset = reference.onset;
         derive possessive_ending = Values::Other;
-        form contracted_copular_relative_reference = reference "that's" "a" nominal complement;
+        form contracted_copular_relative_reference =
+            reference "that's" "a" nominal "of" complement;
     }
     construction reduced_passive_qualified_reference: ControllerStage {
         element ReducedPassiveQualifiedReference {
@@ -3488,45 +3466,18 @@ constructions! {
         derive onset = reference.onset;
         form unqualified_locative_stage = reference;
     }
-    construction from_qualified_reference: LocativeStage {
-        element FromQualifiedReference {
+    // Low attachment: a prepositional phrase postmodifies the nearest
+    // nominal that licenses it, per the derived-attachment ruling.
+    construction prepositional_qualified_reference: LocativeStage {
+        element PrepositionalQualifiedReference {
             reference: ControllerStage,
-            source: FromPhrase,
+            modifier: PrepositionalPhrase,
         }
+        require modifier.preposition_class in [AdjunctCapable, PostmodifierOnly, PostmodifierBareLocative];
         derive agreement = reference.agreement;
         derive number = reference.number;
         derive onset = reference.onset;
-        form from_qualified_reference = reference source;
-    }
-    construction in_qualified_reference: LocativeStage {
-        element InQualifiedReference {
-            reference: ControllerStage,
-            location: InPhrase,
-        }
-        derive agreement = reference.agreement;
-        derive number = reference.number;
-        derive onset = reference.onset;
-        form in_qualified_reference = reference location;
-    }
-    construction on_qualified_reference: LocativeStage {
-        element OnQualifiedReference {
-            reference: ControllerStage,
-            location: OnPhrase,
-        }
-        derive agreement = reference.agreement;
-        derive number = reference.number;
-        derive onset = reference.onset;
-        form on_qualified_reference = reference location;
-    }
-    construction of_qualified_reference: LocativeStage {
-        element OfQualifiedReference {
-            reference: ControllerStage,
-            complement: OfPhrase,
-        }
-        derive agreement = reference.agreement;
-        derive number = reference.number;
-        derive onset = reference.onset;
-        form of_qualified_reference = reference complement;
+        form prepositional_qualified_reference = reference modifier;
     }
     construction unqualified_numeric_stage: NumericStage {
         element UnqualifiedNumericStage { reference: LocativeStage, }
@@ -3816,10 +3767,10 @@ constructions! {
         element DeclaredObjectIntoObjectFrame {
             head: lex ObjectIntoObjectVerb,
             object: Object,
-            destination: IntoPhrase,
+            destination: Object,
         }
         derive agreement = head.agreement;
-        form declared_object_into_object_frame = verb(head) object destination;
+        form declared_object_into_object_frame = verb(head) object "into" destination;
     }
     construction object_distribution_recipient: DistributionRecipient {
         element ObjectDistributionRecipient { object: Object, }
@@ -3828,11 +3779,11 @@ constructions! {
     construction chosen_distribution_phrase: DistributionPhrase {
         element ChosenDistributionPhrase {
             head: lex AmongObjectVerb,
-            recipient: AmongPhrase,
+            recipient: Object,
         }
         derive head.agreement = Values::Bare;
         form chosen_distribution_phrase =
-            "divided" "as" "you" verb(head) recipient;
+            "divided" "as" "you" verb(head) "among" recipient;
     }
     construction even_distribution_phrase: DistributionPhrase {
         element EvenDistributionPhrase { recipient: DistributionRecipient, }
@@ -3895,20 +3846,22 @@ constructions! {
             head: lex ObjectEqualityToVerb,
             object: Object,
             equality: ScalarEquality,
-            recipient: ToPhrase,
+            recipient: Object,
         }
         derive agreement = head.agreement;
-        form declared_object_equality_to_predicate = verb(head) object equality recipient;
+        form declared_object_equality_to_predicate =
+            verb(head) object equality "to" recipient;
     }
     construction declared_object_to_equality_predicate: VerbPhrase {
         element DeclaredObjectToEqualityPredicate {
             head: lex ObjectToEqualityVerb,
             object: Object,
-            recipient: ToPhrase,
+            recipient: Object,
             equality: ScalarEquality,
         }
         derive agreement = head.agreement;
-        form declared_object_to_equality_predicate = verb(head) object recipient equality;
+        form declared_object_to_equality_predicate =
+            verb(head) object "to" recipient equality;
     }
     construction declared_object_equality_predicate: VerbPhrase {
         element DeclaredObjectEqualityPredicate {
@@ -3928,53 +3881,53 @@ constructions! {
         element DeclaredObjectFromPredicate {
             head: lex ObjectFromVerb,
             object: Object,
-            source: FromPhrase,
+            source: FrameComplement,
         }
         derive agreement = head.agreement;
-        form declared_object_from_predicate = verb(head) object source;
+        form declared_object_from_predicate = verb(head) object "from" source;
     }
     construction put_onto: VerbPhrase {
         element PutOnto {
             head: lex ObjectFromOntoResultControlVerb,
             object: Object,
-            source: opt FromPhrase,
-            destination: OntoPhrase,
+            source: opt SourcePhrase,
+            destination: FrameComplement,
             result: opt PredicativeComplement,
-            control: opt UnderPhrase,
+            control: opt ControlPhrase,
         }
         derive agreement = head.agreement;
-        form put_onto = verb(head) object source destination result control;
+        form put_onto = verb(head) object source "onto" destination result control;
     }
     construction put_on: VerbPhrase {
         element PutOn {
             head: lex ObjectFromOnVerb,
             object: Object,
-            source: opt FromPhrase,
-            destination: OnPhrase,
+            source: opt SourcePhrase,
+            destination: FrameComplement,
         }
         derive agreement = head.agreement;
-        form put_on = verb(head) object source destination;
+        form put_on = verb(head) object source "on" destination;
     }
     construction put_to: VerbPhrase {
         element PutTo {
             head: lex ObjectToVerb,
             object: Object,
-            destination: ToPhrase,
+            destination: FrameComplement,
         }
         derive agreement = head.agreement;
-        form put_to = verb(head) object destination;
+        form put_to = verb(head) object "to" destination;
     }
     construction return_to: VerbPhrase {
         element ReturnTo {
             head: lex ObjectFromToResultControlVerb,
             object: Object,
-            source: opt FromPhrase,
-            destination: ToPhrase,
+            source: opt SourcePhrase,
+            destination: FrameComplement,
             result: opt PredicativeComplement,
-            control: opt UnderPhrase,
+            control: opt ControlPhrase,
         }
         derive agreement = head.agreement;
-        form return_to = verb(head) object source destination result control;
+        form return_to = verb(head) object source "to" destination result control;
     }
     construction predicative_complement_predicate: VerbPhrase {
         element PredicativeComplementPredicate { head: lex PredicativeComplementVerb, complement: PredicativeComplement, }
@@ -3985,25 +3938,26 @@ constructions! {
         element DeclaredWithObjectOnPredicate {
             head: lex EnterWithCountersVerb,
             object: Object,
-            recipient: OnPhrase,
+            recipient: FrameComplement,
         }
         derive agreement = head.agreement;
-        form declared_with_object_on_predicate = verb(head) "with" object recipient;
+        form declared_with_object_on_predicate =
+            verb(head) "with" object "on" recipient;
     }
     construction enter_location: VerbPhrase {
         element EnterLocation {
             head: lex EnterLocationVerb,
             location: Object,
             result: opt PredicativeComplement,
-            control: opt UnderPhrase,
+            control: opt ControlPhrase,
         }
         derive agreement = head.agreement;
         form enter_location = verb(head) location result control;
     }
     construction enter_control: VerbPhrase {
-        element EnterControl { head: lex EnterControlVerb, control: UnderPhrase, }
+        element EnterControl { head: lex EnterControlVerb, control: Object, }
         derive agreement = head.agreement;
-        form enter_control = verb(head) control;
+        form enter_control = verb(head) "under" control;
     }
     construction look_at: VerbPhrase {
         element LookAt { head: lex LookAtVerb, object: Object, }

@@ -900,6 +900,15 @@ enum Expectation {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 enum NonterminalKind {
+    FrameComplement,
+    SourcePhrase,
+    ControlPhrase,
+    PrepositionalPhrase,
+    PrepositionalComplement,
+    PrepositionalAdjunctPredicate,
+    PreposedPrepositionalAdjunct,
+    PreposedPrepositionalAdjunctPredicate,
+    BareLocativeProform,
     Ability,
     AbilityBody,
     ModalMode,
@@ -924,7 +933,6 @@ enum NonterminalKind {
     CostClause,
     CostSymbol,
     LoyaltyValue,
-    AtPhrase,
     TriggerPrefix,
     DocumentBlock,
     OracleText,
@@ -943,9 +951,6 @@ enum NonterminalKind {
     PreposedAsLongAsPredicate,
     PreposedWhile,
     PreposedWhilePredicate,
-    PreposedDuring,
-    PreposedDuringPredicate,
-    DuringPhrase,
     PreposedDuration,
     PreposedDurationPredicate,
     PreposedUntil,
@@ -1079,14 +1084,7 @@ enum NonterminalKind {
     PartitiveSelection,
     BareLocative,
     BareLocativeNoun,
-    FromPhrase,
-    IntoPhrase,
-    OntoPhrase,
     EdgeOfPhrase,
-    OnPhrase,
-    ToPhrase,
-    InPhrase,
-    UnderPhrase,
     ScalarThreshold,
     ScalarMeasure,
     ScalarComparison,
@@ -1106,7 +1104,6 @@ enum NonterminalKind {
     CardinalQuantity,
     ConditionClause,
     FiniteCondition,
-    AmongPhrase,
     QuotedAbility,
     GrantedAbility,
     QuotedBlock,
@@ -1121,9 +1118,6 @@ enum NonterminalKind {
     FiniteCopularPredicate,
     FinitePassivePredicate,
     FixedDurationPhrase,
-    ForAdjunctPredicate,
-    ForPhrase,
-    DuringAdjunctPredicate,
     ManaCoordination,
     ManaPhrase,
     SubjectGapRelativeClause,
@@ -1136,7 +1130,6 @@ enum NonterminalKind {
     ObjectGapRelativeClause,
     ObjectIntoObjectFrame,
     ObjectWithObjectFrame,
-    OfPhrase,
     OrScalarDegreePhrase,
     PositiveObjectGapRelativeClause,
     PostposedForAsLongAsClause,
@@ -1146,7 +1139,6 @@ enum NonterminalKind {
     ScalarDegreePhrase,
     SingleScalarDegreePhrase,
     TemporalEndpoint,
-    TemporalRelationPhrase,
     ThirdPersonNegativeObjectGapRelativeClause,
     UntilDurationPhrase,
     WithObjectFrame,
@@ -1156,9 +1148,6 @@ enum NonterminalKind {
     OrManaCoordination,
     PostposedAsLongAs,
     PostposedAsLongAsPredicate,
-    PreposedFor,
-    PreposedForPredicate,
-    PreposedTemporalRelation,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -1577,6 +1566,21 @@ fn expectation(expectation: &RuntimeExpectation) -> Expectation {
 )]
 fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
     match kind {
+        NonterminalCategory::FrameComplement => NonterminalKind::FrameComplement,
+        NonterminalCategory::SourcePhrase => NonterminalKind::SourcePhrase,
+        NonterminalCategory::ControlPhrase => NonterminalKind::ControlPhrase,
+        NonterminalCategory::PrepositionalPhrase => NonterminalKind::PrepositionalPhrase,
+        NonterminalCategory::PrepositionalComplement => NonterminalKind::PrepositionalComplement,
+        NonterminalCategory::PrepositionalAdjunctPredicate => {
+            NonterminalKind::PrepositionalAdjunctPredicate
+        }
+        NonterminalCategory::PreposedPrepositionalAdjunct => {
+            NonterminalKind::PreposedPrepositionalAdjunct
+        }
+        NonterminalCategory::PreposedPrepositionalAdjunctPredicate => {
+            NonterminalKind::PreposedPrepositionalAdjunctPredicate
+        }
+        NonterminalCategory::BareLocativeProform => NonterminalKind::BareLocativeProform,
         NonterminalCategory::Ability => NonterminalKind::Ability,
         NonterminalCategory::AbilityBody => NonterminalKind::AbilityBody,
         NonterminalCategory::ModalMode => NonterminalKind::ModalMode,
@@ -1601,7 +1605,6 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::CostClause => NonterminalKind::CostClause,
         NonterminalCategory::CostSymbol => NonterminalKind::CostSymbol,
         NonterminalCategory::LoyaltyValue => NonterminalKind::LoyaltyValue,
-        NonterminalCategory::AtPhrase => NonterminalKind::AtPhrase,
         NonterminalCategory::TriggerPrefix => NonterminalKind::TriggerPrefix,
         NonterminalCategory::DocumentBlock => NonterminalKind::DocumentBlock,
         NonterminalCategory::OracleText => NonterminalKind::OracleText,
@@ -1620,9 +1623,6 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::PreposedAsLongAsPredicate => {
             NonterminalKind::PreposedAsLongAsPredicate
         }
-        NonterminalCategory::PreposedDuring => NonterminalKind::PreposedDuring,
-        NonterminalCategory::PreposedDuringPredicate => NonterminalKind::PreposedDuringPredicate,
-        NonterminalCategory::DuringPhrase => NonterminalKind::DuringPhrase,
         NonterminalCategory::PreposedDuration => NonterminalKind::PreposedDuration,
         NonterminalCategory::ThenSequence => NonterminalKind::ThenSequence,
         NonterminalCategory::ThenPredicateSequence => NonterminalKind::ThenPredicateSequence,
@@ -1810,14 +1810,7 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::PartitiveSelection => NonterminalKind::PartitiveSelection,
         NonterminalCategory::BareLocative => NonterminalKind::BareLocative,
         NonterminalCategory::BareLocativeNoun => NonterminalKind::BareLocativeNoun,
-        NonterminalCategory::FromPhrase => NonterminalKind::FromPhrase,
-        NonterminalCategory::IntoPhrase => NonterminalKind::IntoPhrase,
-        NonterminalCategory::OntoPhrase => NonterminalKind::OntoPhrase,
         NonterminalCategory::EdgeOfPhrase => NonterminalKind::EdgeOfPhrase,
-        NonterminalCategory::OnPhrase => NonterminalKind::OnPhrase,
-        NonterminalCategory::ToPhrase => NonterminalKind::ToPhrase,
-        NonterminalCategory::InPhrase => NonterminalKind::InPhrase,
-        NonterminalCategory::UnderPhrase => NonterminalKind::UnderPhrase,
         NonterminalCategory::ScalarThreshold => NonterminalKind::ScalarThreshold,
         NonterminalCategory::ScalarMeasure => NonterminalKind::ScalarMeasure,
         NonterminalCategory::ScalarComparison => NonterminalKind::ScalarComparison,
@@ -1837,7 +1830,6 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::CardinalQuantity => NonterminalKind::CardinalQuantity,
         NonterminalCategory::ConditionClause => NonterminalKind::ConditionClause,
         NonterminalCategory::FiniteCondition => NonterminalKind::FiniteCondition,
-        NonterminalCategory::AmongPhrase => NonterminalKind::AmongPhrase,
         NonterminalCategory::QuotedAbility => NonterminalKind::QuotedAbility,
         NonterminalCategory::GrantedAbility => NonterminalKind::GrantedAbility,
         NonterminalCategory::QuotedBlock => NonterminalKind::QuotedBlock,
@@ -1860,9 +1852,6 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::FiniteCopularPredicate => NonterminalKind::FiniteCopularPredicate,
         NonterminalCategory::FinitePassivePredicate => NonterminalKind::FinitePassivePredicate,
         NonterminalCategory::FixedDurationPhrase => NonterminalKind::FixedDurationPhrase,
-        NonterminalCategory::ForAdjunctPredicate => NonterminalKind::ForAdjunctPredicate,
-        NonterminalCategory::ForPhrase => NonterminalKind::ForPhrase,
-        NonterminalCategory::DuringAdjunctPredicate => NonterminalKind::DuringAdjunctPredicate,
         NonterminalCategory::ManaCoordination => NonterminalKind::ManaCoordination,
         NonterminalCategory::ManaPhrase => NonterminalKind::ManaPhrase,
         NonterminalCategory::SubjectGapRelativeClause => NonterminalKind::SubjectGapRelativeClause,
@@ -1876,7 +1865,6 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::ObjectForObjectFrame => NonterminalKind::ObjectForObjectFrame,
         NonterminalCategory::ObjectGapRelativeClause => NonterminalKind::ObjectGapRelativeClause,
         NonterminalCategory::ObjectIntoObjectFrame => NonterminalKind::ObjectIntoObjectFrame,
-        NonterminalCategory::OfPhrase => NonterminalKind::OfPhrase,
         NonterminalCategory::OrScalarDegreePhrase => NonterminalKind::OrScalarDegreePhrase,
         NonterminalCategory::PositiveObjectGapRelativeClause => {
             NonterminalKind::PositiveObjectGapRelativeClause
@@ -1894,13 +1882,9 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::ScalarDegreePhrase => NonterminalKind::ScalarDegreePhrase,
         NonterminalCategory::SingleScalarDegreePhrase => NonterminalKind::SingleScalarDegreePhrase,
         NonterminalCategory::TemporalEndpoint => NonterminalKind::TemporalEndpoint,
-        NonterminalCategory::TemporalRelationPhrase => NonterminalKind::TemporalRelationPhrase,
         NonterminalCategory::UntilDurationPhrase => NonterminalKind::UntilDurationPhrase,
         NonterminalCategory::OrManaCoordination => NonterminalKind::OrManaCoordination,
         NonterminalCategory::PostposedAsLongAs => NonterminalKind::PostposedAsLongAs,
-        NonterminalCategory::PreposedFor => NonterminalKind::PreposedFor,
-        NonterminalCategory::PreposedForPredicate => NonterminalKind::PreposedForPredicate,
-        NonterminalCategory::PreposedTemporalRelation => NonterminalKind::PreposedTemporalRelation,
         NonterminalCategory::PostposedAsLongAsPredicate => {
             NonterminalKind::PostposedAsLongAsPredicate
         }

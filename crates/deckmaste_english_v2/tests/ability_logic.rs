@@ -531,7 +531,7 @@ fn existential_there_preserves_its_pivot_before_the_predicate_boundary() {
         "PluralNominalModifiedPluralNominal",
         "NominalModifierSupertypeModifier",
         "NominalModifierNounModifier",
-        "AmongPhraseAmongPhrase",
+        "PrepositionalPhrasePrepositionalPhrase",
         "ControllerStageRelativeQualifiedReference",
         "PositiveObjectGapRelativeClausePositiveObjectGapRelative",
         "UnqualifiedReferenceDeterminedNominal",
@@ -556,10 +556,7 @@ fn existential_there_preserves_its_pivot_before_the_predicate_boundary() {
             "form:existential_finite_clause/existential_finite_clause/0",
         ),
         (TextSpan { start: 50, end: 54 }, "vocab:FiniteCopula/Are"),
-        (
-            TextSpan { start: 84, end: 90 },
-            "form:among_phrase/among_phrase/0",
-        ),
+        (TextSpan { start: 84, end: 90 }, "vocab:Preposition/Among"),
         (TextSpan { start: 67, end: 73 }, "vocab:Supertype/Basic"),
         (TextSpan { start: 73, end: 78 }, "lexeme:type/Land/singular"),
         (
@@ -648,14 +645,14 @@ impl Visitor for ExistentialStructureVisitor {
         deckmaste_english_v2::visit::walk_noun_modifier(self, value);
     }
 
-    fn visit_among_phrase(&mut self, value: &AmongPhrase) {
-        self.0.push("AmongPhrase");
-        deckmaste_english_v2::visit::walk_among_phrase(self, value);
+    fn visit_prepositional_phrase(&mut self, value: &PrepositionalPhrase) {
+        self.0.push("PrepositionalPhrase");
+        deckmaste_english_v2::visit::walk_prepositional_phrase(self, value);
     }
 
-    fn visit_among_phrase_value(&mut self, value: &AmongPhraseValue) {
-        self.0.push("AmongPhraseValue");
-        deckmaste_english_v2::visit::walk_among_phrase_value(self, value);
+    fn visit_prepositional_phrase_value(&mut self, value: &PrepositionalPhraseValue) {
+        self.0.push("PrepositionalPhraseValue");
+        deckmaste_english_v2::visit::walk_prepositional_phrase_value(self, value);
     }
 
     fn visit_relative_qualified_reference(&mut self, value: &RelativeQualifiedReference) {
@@ -739,9 +736,13 @@ fn existential_there_derives_be_agreement_and_visits_the_complete_structure() {
     assert_eq!(
         visitor.0,
         [
+            "PrepositionalPhrase",
+            "PrepositionalPhraseValue",
             "DeterminedNominal",
             "Determinative",
             "Nominal",
+            "PrepositionalPhrase",
+            "PrepositionalPhraseValue",
             "DeterminedNominal",
             "Determinative",
             "Nominal",
@@ -753,8 +754,8 @@ fn existential_there_derives_be_agreement_and_visits_the_complete_structure() {
             "ModifiedPluralNominal",
             "SupertypeModifier",
             "NounModifier",
-            "AmongPhrase",
-            "AmongPhraseValue",
+            "PrepositionalPhrase",
+            "PrepositionalPhraseValue",
             "RelativeQualifiedReference",
             "DeterminedNominal",
             "Nominal",
@@ -829,14 +830,14 @@ impl Visitor for AbilityEnvelopeVisitor {
         deckmaste_english_v2::visit::walk_temporal(self, value);
     }
 
-    fn visit_at_phrase(&mut self, value: &AtPhrase) {
-        self.0.push("AtPhrase");
-        deckmaste_english_v2::visit::walk_at_phrase(self, value);
+    fn visit_prepositional_phrase(&mut self, value: &PrepositionalPhrase) {
+        self.0.push("PrepositionalPhrase");
+        deckmaste_english_v2::visit::walk_prepositional_phrase(self, value);
     }
 
-    fn visit_at_phrase_value(&mut self, value: &AtPhraseValue) {
-        self.0.push("AtPhraseValue");
-        deckmaste_english_v2::visit::walk_at_phrase_value(self, value);
+    fn visit_prepositional_phrase_value(&mut self, value: &PrepositionalPhraseValue) {
+        self.0.push("PrepositionalPhraseValue");
+        deckmaste_english_v2::visit::walk_prepositional_phrase_value(self, value);
     }
 
     fn visit_trigger_marker(&mut self, _value: TriggerMarker) {
@@ -1383,10 +1384,13 @@ fn finite_temporal_and_intervening_trigger_prefixes_have_dedicated_generated_sha
         panic!("At takes the dedicated temporal phrase")
     };
     assert!(intervening_if.as_ref().is_none());
-    let AtPhrase::AtPhrase(phrase) = phrase;
+    let PrepositionalPhrase::PrepositionalPhrase(phrase) = phrase else {
+        panic!("the temporal trigger takes an ordinary prepositional complement")
+    };
+    assert!(matches!(phrase.preposition, Preposition::At));
     assert!(matches!(
-        phrase.endpoint.as_ref(),
-        TemporalEndpoint::Reference(_)
+        phrase.complement.as_ref(),
+        PrepositionalComplement::Object(_)
     ));
 
     let intervening_text = "Whenever a player connives, if you connive, you gain X life.";
@@ -1535,10 +1539,10 @@ fn temporal_and_intervening_boundaries_own_exact_bytes_and_visit_structure() {
             ))
             .collect::<Vec<_>>(),
         [
-            (0, 2, "form:at_phrase/at_phrase/0"),
+            (0, 2, "vocab:Preposition/At"),
             (2, 6, "determinative:DeterminativeHead/DefiniteArticle"),
             (6, 16, "lexeme:CommonNoun/Beginning/singular"),
-            (16, 19, "form:of_phrase/of_phrase/0"),
+            (16, 19, "vocab:Preposition/Of"),
             (19, 24, "determinative:DeterminativeHead/Each"),
             (24, 31, "lexeme:CommonNoun/Player/singular"),
             (31, 33, "form:possessive/singular/0/affix"),
@@ -1561,8 +1565,10 @@ fn temporal_and_intervening_boundaries_own_exact_bytes_and_visit_structure() {
             "Triggered",
             "TriggerPrefix",
             "Temporal",
-            "AtPhrase",
-            "AtPhraseValue",
+            "PrepositionalPhrase",
+            "PrepositionalPhraseValue",
+            "PrepositionalPhrase",
+            "PrepositionalPhraseValue",
             "AbilityBody",
             "Sentences",
             "Clause",
@@ -1650,8 +1656,12 @@ fn temporal_and_intervening_boundaries_own_exact_bytes_and_visit_structure() {
             "Triggered",
             "TriggerPrefix",
             "Temporal",
-            "AtPhrase",
-            "AtPhraseValue",
+            "PrepositionalPhrase",
+            "PrepositionalPhraseValue",
+            "PrepositionalPhrase",
+            "PrepositionalPhraseValue",
+            "PrepositionalPhrase",
+            "PrepositionalPhraseValue",
             "AbilityBody",
             "Sentences",
             "Clause",

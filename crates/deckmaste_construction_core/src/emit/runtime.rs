@@ -179,6 +179,25 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             },
         ),
         named_type(
+            "NounComplement",
+            quote! {
+                #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+                pub(crate) enum NounComplement { NoComplement, OfComplement }
+            },
+        ),
+        named_type(
+            "PrepositionClass",
+            quote! {
+                #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+                pub(crate) enum PrepositionClass {
+                    AdjunctCapable,
+                    PostmodifierOnly,
+                    PostmodifierBareLocative,
+                    SelectedOnly,
+                }
+            },
+        ),
+        named_type(
             "Properness",
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]

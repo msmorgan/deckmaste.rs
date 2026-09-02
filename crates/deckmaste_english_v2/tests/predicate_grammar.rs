@@ -383,9 +383,9 @@ impl Visitor for PredicateVisitor {
         deckmaste_english_v2::visit::walk_predicative_nominal_value(self, value);
     }
 
-    fn visit_from_anywhere(&mut self, value: &FromAnywhere) {
+    fn visit_bare_locative_proform(&mut self, value: &BareLocativeProform) {
         self.0.push("from-anywhere");
-        deckmaste_english_v2::visit::walk_from_anywhere(self, value);
+        deckmaste_english_v2::visit::walk_bare_locative_proform(self, value);
     }
 
     fn visit_verb_inventory(&mut self, verb: &VerbInventoryRef) {
@@ -1152,7 +1152,7 @@ fn negative_adjustments_build_render_visit_and_claim_the_typed_sign_product() {
             ),
             (
                 " of".to_owned(),
-                "form:of_phrase/of_phrase/0".to_owned(),
+                "vocab:Preposition/Of".to_owned(),
             ),
             (
                 " turn".to_owned(),

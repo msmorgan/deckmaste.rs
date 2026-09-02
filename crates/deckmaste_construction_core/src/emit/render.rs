@@ -518,6 +518,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         Feature::Number,
         Feature::Onset,
         Feature::PossessiveEnding,
+        Feature::PrepositionClass,
     ] {
         for (category, members) in &categories {
             let provider_helper = matches!(
@@ -527,6 +528,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
                     | Feature::ModifierLicense
                     | Feature::NominalForm
                     | Feature::NominalLicense
+                    | Feature::PrepositionClass
             ) && validated.carries_feature(category, feature);
             if !validated.category_reads_feature(category, feature) && !provider_helper {
                 continue;
@@ -554,7 +556,11 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
     {
         items.push(emit_sum_agreement_match_helper(validated, sum)?);
     }
-    for feature in [Feature::ModifierLicense, Feature::NominalForm] {
+    for feature in [
+        Feature::ModifierLicense,
+        Feature::NominalForm,
+        Feature::PrepositionClass,
+    ] {
         for sum in validated
             .sums()
             .iter()
@@ -1747,6 +1753,8 @@ fn emit_vocab_feature_helper(helper: VocabFeatureHelper<'_>) -> GeneratedItem {
         Feature::PossessiveEnding => quote! { PossessiveEnding },
         Feature::Properness => quote! { Properness },
         Feature::Relationality => quote! { Relationality },
+        Feature::NounComplement => quote! { NounComplement },
+        Feature::PrepositionClass => quote! { PrepositionClass },
     };
     let arms = helper
         .vocab
@@ -2073,8 +2081,10 @@ fn reserve_feature_callees(
     {
         return Ok(());
     }
-    if *source_feature == Feature::ModifierLicense
-        && field.kind() == ConstructionFieldKind::Lex
+    if matches!(
+        *source_feature,
+        Feature::ModifierLicense | Feature::PrepositionClass
+    ) && field.kind() == ConstructionFieldKind::Lex
         && validated.terminal_has_feature(field.terminal(), *source_feature)
     {
         allocator.reserve(feature_helper(
@@ -3827,8 +3837,14 @@ fn feature_expr(
                     Feature::BareLocativeLicense | Feature::Compoundability => {
                         Err(internal("noun licensing is closed lexeme metadata"))
                     }
-                    Feature::Countability | Feature::Properness | Feature::Relationality => {
+                    Feature::Countability
+                    | Feature::NounComplement
+                    | Feature::Properness
+                    | Feature::Relationality => {
                         Err(internal("noun classification is closed lexical metadata"))
+                    }
+                    Feature::PrepositionClass => {
+                        Err(internal("verb slot does not provide preposition class"))
                     }
                     Feature::ModifierLicense => {
                         Err(internal("verb slot does not provide modifier license"))
@@ -3970,8 +3986,10 @@ fn feature_expr(
                     locals,
                 );
             }
-            if *source_feature == Feature::ModifierLicense
-                && field.kind() == ConstructionFieldKind::Lex
+            if matches!(
+                *source_feature,
+                Feature::ModifierLicense | Feature::PrepositionClass
+            ) && field.kind() == ConstructionFieldKind::Lex
                 && validated.terminal_has_feature(field.terminal(), *source_feature)
             {
                 let function = ident(&feature_helper(
@@ -4793,6 +4811,8 @@ fn emit_feature_helper(
         Feature::PossessiveEnding => quote! { PossessiveEnding },
         Feature::Properness => quote! { Properness },
         Feature::Relationality => quote! { Relationality },
+        Feature::NounComplement => quote! { NounComplement },
+        Feature::PrepositionClass => quote! { PrepositionClass },
     };
     let mut entries: Vec<(TokenStream, String, TokenStream)> = Vec::new();
     for construction in members {
@@ -5369,6 +5389,14 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::Mass => quote! { Countability::Mass },
         FeatureValue::Unrestricted => quote! { ModifierLicense::Unrestricted },
         FeatureValue::LocalDeterminer => quote! { ModifierLicense::LocalDeterminer },
+        FeatureValue::AdjunctCapable => quote! { PrepositionClass::AdjunctCapable },
+        FeatureValue::PostmodifierOnly => quote! { PrepositionClass::PostmodifierOnly },
+        FeatureValue::PostmodifierBareLocative => {
+            quote! { PrepositionClass::PostmodifierBareLocative }
+        }
+        FeatureValue::SelectedOnly => quote! { PrepositionClass::SelectedOnly },
+        FeatureValue::NoComplement => quote! { NounComplement::NoComplement },
+        FeatureValue::OfComplement => quote! { NounComplement::OfComplement },
         FeatureValue::SingularOnly => quote! { DeterminerNumber::SingularOnly },
         FeatureValue::PluralOnly => quote! { DeterminerNumber::PluralOnly },
         FeatureValue::Both => quote! { DeterminerNumber::Both },
@@ -5629,6 +5657,8 @@ fn feature_name(feature: Feature) -> &'static str {
         Feature::NominalLicense => "nominal_license",
         Feature::Properness => "properness",
         Feature::Relationality => "relationality",
+        Feature::NounComplement => "noun_complement",
+        Feature::PrepositionClass => "preposition_class",
     }
 }
 fn ident(name: &str) -> syn::Ident {

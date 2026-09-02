@@ -54,10 +54,6 @@ fn context(card_name: &str) -> ParseContext<'_> {
         .expect("test card name is a valid parse context")
 }
 
-fn to_phrase(complement: Object) -> ToPhrase {
-    ToPhrase::ToPhrase(ToPhraseValue { complement })
-}
-
 fn legendary_context(card_name: &str) -> ParseContext<'_> {
     ParseContext::new(card_name, true, Onset::Consonant)
         .expect("test legendary card name is a valid parse context")
@@ -570,16 +566,22 @@ fn number_of(counted: Object) -> NounPhrase {
     NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
         reference: Box::new(NumericStage::UnqualifiedNumericStage(
             UnqualifiedNumericStage {
-                reference: Box::new(LocativeStage::OfQualifiedReference(OfQualifiedReference {
-                    reference: Box::new(ControllerStage::UnqualifiedControllerStage(
-                        UnqualifiedControllerStage {
-                            reference: Box::new(number),
-                        },
-                    )),
-                    complement: Box::new(OfPhrase::OfPhrase(OfPhraseValue {
-                        complement: Box::new(counted),
-                    })),
-                })),
+                reference: Box::new(LocativeStage::PrepositionalQualifiedReference(
+                    PrepositionalQualifiedReference::new(
+                        Box::new(ControllerStage::UnqualifiedControllerStage(
+                            UnqualifiedControllerStage {
+                                reference: Box::new(number),
+                            },
+                        )),
+                        PrepositionalPhrase::PrepositionalPhrase(PrepositionalPhraseValue {
+                            preposition: Preposition::Of,
+                            complement: Box::new(PrepositionalComplement::Object(Box::new(
+                                counted,
+                            ))),
+                        }),
+                    )
+                    .expect("`of` is a licensed nominal postmodifier"),
+                )),
             },
         )),
     })
@@ -997,7 +999,7 @@ fn demonstrative_references_select_the_unified_determined_nominal_construction()
                 Amount::Number(NumberAmount {
                     number: ScalarNumber { magnitude: 3 },
                 }),
-                to_phrase(object_it()),
+                object_it(),
             ),
         );
 
@@ -1133,17 +1135,16 @@ fn gain_life(amount: Amount) -> VerbPhrase {
     })
 }
 
-fn deal_damage(amount: Amount, recipient: ToPhrase) -> VerbPhrase {
+fn deal_damage(amount: Amount, recipient: Object) -> VerbPhrase {
     let head = DeclarationToObjectVerb::new(
         &environment(),
         VerbInventoryRef::Core(CoreVerbIdentity::Deal),
     )
     .expect("Deal licenses the object-to-object frame");
-    let ToPhrase::ToPhrase(ToPhraseValue { complement }) = recipient;
     VerbPhrase::DeclaredToObjectPredicate(DeclaredToObjectPredicate {
         head,
         object: quantified_mass_object(amount, CommonNoun::Damage),
-        complement,
+        complement: recipient,
     })
 }
 
@@ -1211,7 +1212,7 @@ fn triggered_damage() -> Ability {
         connive_event(),
         vec![declarative(
             nominal_subject(that_noun(creature())),
-            deal_damage(variable_x(), to_phrase(object_it())),
+            deal_damage(variable_x(), object_it()),
         )],
     )
 }
@@ -1241,7 +1242,7 @@ fn zacama_deals_damage() -> Ability {
             Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
             }),
-            to_phrase(target_creature()),
+            target_creature(),
         ),
     ))
 }
@@ -1866,7 +1867,7 @@ fn no_comma_self_reference_parses_once_as_full_and_round_trips() {
             Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
             }),
-            to_phrase(target_creature()),
+            target_creature(),
         ),
     ));
 
@@ -1886,7 +1887,7 @@ fn self_reference_identity_preserves_its_inherent_case() {
             Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
             }),
-            to_phrase(target_creature()),
+            target_creature(),
         ),
     ));
 
@@ -1940,7 +1941,9 @@ fn agreement_mismatch_reports_a_nonempty_chart_failure() {
     assert_eq!(span, TextSpan { start: 16, end: 17 });
     assert!(!expectations.is_empty());
     assert!(expectations.contains(&Expectation::Literal(" and ")));
-    assert!(expectations.contains(&Expectation::Nonterminal(NonterminalCategory::ForPhrase)));
+    assert!(expectations.contains(&Expectation::Nonterminal(
+        NonterminalCategory::PrepositionalPhrase
+    )));
 }
 
 #[test]

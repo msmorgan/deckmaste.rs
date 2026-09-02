@@ -240,10 +240,12 @@ pub enum Feature {
     FusedHeadLicense,
     NominalForm,
     NominalLicense,
+    NounComplement,
     Number,
     Onset,
     Participle,
     PossessiveEnding,
+    PrepositionClass,
     Properness,
     Relationality,
 }

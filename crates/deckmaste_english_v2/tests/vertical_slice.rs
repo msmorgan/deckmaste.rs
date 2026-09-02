@@ -317,16 +317,22 @@ fn number_of(counted: Object) -> NounPhrase {
     NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
         reference: Box::new(NumericStage::UnqualifiedNumericStage(
             UnqualifiedNumericStage {
-                reference: Box::new(LocativeStage::OfQualifiedReference(OfQualifiedReference {
-                    reference: Box::new(ControllerStage::UnqualifiedControllerStage(
-                        UnqualifiedControllerStage {
-                            reference: Box::new(number),
-                        },
-                    )),
-                    complement: Box::new(OfPhrase::OfPhrase(OfPhraseValue {
-                        complement: Box::new(counted),
-                    })),
-                })),
+                reference: Box::new(LocativeStage::PrepositionalQualifiedReference(
+                    PrepositionalQualifiedReference::new(
+                        Box::new(ControllerStage::UnqualifiedControllerStage(
+                            UnqualifiedControllerStage {
+                                reference: Box::new(number),
+                            },
+                        )),
+                        PrepositionalPhrase::PrepositionalPhrase(PrepositionalPhraseValue {
+                            preposition: Preposition::Of,
+                            complement: Box::new(PrepositionalComplement::Object(Box::new(
+                                counted,
+                            ))),
+                        }),
+                    )
+                    .expect("`of` is a licensed nominal postmodifier"),
+                )),
             },
         )),
     })
@@ -394,12 +400,8 @@ fn it() -> Object {
     })
 }
 
-fn to_phrase(complement: Object) -> ToPhrase {
-    ToPhrase::ToPhrase(ToPhraseValue { complement })
-}
-
 fn damage(amount: Amount) -> VerbPhrase {
-    damage_to(amount, to_phrase(it()))
+    damage_to(amount, it())
 }
 
 fn quantified_mass_object(amount: Amount, noun: CommonNoun) -> Object {
@@ -419,16 +421,15 @@ fn quantified_mass_object(amount: Amount, noun: CommonNoun) -> Object {
     nominal_object(noun_phrase(reference))
 }
 
-fn damage_to(amount: Amount, recipient: ToPhrase) -> VerbPhrase {
+fn damage_to(amount: Amount, recipient: Object) -> VerbPhrase {
     let environment = environment();
     let head =
         DeclarationToObjectVerb::new(&environment, VerbInventoryRef::Core(CoreVerbIdentity::Deal))
             .expect("the core inventory declares Deal with an object-to-object frame");
-    let ToPhrase::ToPhrase(ToPhraseValue { complement }) = recipient;
     VerbPhrase::DeclaredToObjectPredicate(DeclaredToObjectPredicate {
         head,
         object: quantified_mass_object(amount, CommonNoun::Damage),
-        complement,
+        complement: recipient,
     })
 }
 
@@ -915,7 +916,7 @@ fn renders_real_abbreviated_self_reference_with_a_declaration_noun() {
             Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
             }),
-            to_phrase(target_creature()),
+            target_creature(),
         ),
     );
     assert_eq!(
@@ -940,7 +941,7 @@ fn the_same_self_reference_value_renders_from_two_card_contexts() {
             Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
             }),
-            to_phrase(target_creature()),
+            target_creature(),
         ),
     );
 
@@ -1081,7 +1082,7 @@ fn visitor_reaches_every_vertical_slice_leaf() {
             Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
             }),
-            to_phrase(target_creature()),
+            target_creature(),
         ),
     );
 

@@ -376,6 +376,8 @@ pub(super) fn feature_type(feature: crate::feature::Feature) -> TokenStream {
         crate::feature::Feature::PossessiveEnding => quote! { PossessiveEnding },
         crate::feature::Feature::Properness => quote! { Properness },
         crate::feature::Feature::Relationality => quote! { Relationality },
+        crate::feature::Feature::NounComplement => quote! { NounComplement },
+        crate::feature::Feature::PrepositionClass => quote! { PrepositionClass },
     }
 }
 
@@ -489,6 +491,8 @@ fn emit_predicate_atom(
                 crate::feature::Feature::PossessiveEnding => local_ident("PossessiveEnding"),
                 crate::feature::Feature::Properness => local_ident("Properness"),
                 crate::feature::Feature::Relationality => local_ident("Relationality"),
+                crate::feature::Feature::NounComplement => local_ident("NounComplement"),
+                crate::feature::Feature::PrepositionClass => local_ident("PrepositionClass"),
             };
             let members = allowed
                 .iter()

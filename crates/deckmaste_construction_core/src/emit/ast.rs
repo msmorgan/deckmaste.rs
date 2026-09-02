@@ -1028,6 +1028,24 @@ fn feature_value(value: crate::feature::FeatureValue) -> TokenStream {
         crate::feature::FeatureValue::LocalDeterminer => {
             quote! { ModifierLicense::LocalDeterminer }
         }
+        crate::feature::FeatureValue::AdjunctCapable => {
+            quote! { PrepositionClass::AdjunctCapable }
+        }
+        crate::feature::FeatureValue::PostmodifierOnly => {
+            quote! { PrepositionClass::PostmodifierOnly }
+        }
+        crate::feature::FeatureValue::PostmodifierBareLocative => {
+            quote! { PrepositionClass::PostmodifierBareLocative }
+        }
+        crate::feature::FeatureValue::SelectedOnly => {
+            quote! { PrepositionClass::SelectedOnly }
+        }
+        crate::feature::FeatureValue::NoComplement => {
+            quote! { NounComplement::NoComplement }
+        }
+        crate::feature::FeatureValue::OfComplement => {
+            quote! { NounComplement::OfComplement }
+        }
         crate::feature::FeatureValue::SingularOnly => quote! { DeterminerNumber::SingularOnly },
         crate::feature::FeatureValue::PluralOnly => quote! { DeterminerNumber::PluralOnly },
         crate::feature::FeatureValue::Both => quote! { DeterminerNumber::Both },
@@ -2012,6 +2030,8 @@ mod tests {
                 "Compoundability",
                 "Countability",
                 "ModifierLicense",
+                "NounComplement",
+                "PrepositionClass",
                 "Properness",
                 "Relationality",
                 "DeterminerNumber",

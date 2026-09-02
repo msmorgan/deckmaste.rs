@@ -3627,6 +3627,7 @@ fn resolve_feature_place(
                     Feature::BareLocativeLicense
                     | Feature::Compoundability
                     | Feature::Countability
+                    | Feature::NounComplement
                     | Feature::Properness
                     | Feature::Relationality,
                 )
@@ -3635,6 +3636,7 @@ fn resolve_feature_place(
                         Feature::BareLocativeLicense
                         | Feature::Compoundability
                         | Feature::Countability
+                        | Feature::NounComplement
                         | Feature::Properness
                         | Feature::Relationality,
                     ..
@@ -3643,9 +3645,11 @@ fn resolve_feature_place(
                         "lexical classification is closed noun metadata, not an equation value",
                     ));
                 }
-                FeaturePlace::Construction(Feature::ModifierLicense)
+                FeaturePlace::Construction(
+                    Feature::ModifierLicense | Feature::PrepositionClass,
+                )
                 | FeaturePlace::Role {
-                    feature: Feature::ModifierLicense,
+                    feature: Feature::ModifierLicense | Feature::PrepositionClass,
                     ..
                 } => {
                     let ty = ident(terminal_for_role(row, role)?);
@@ -3840,6 +3844,14 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::Mass => quote! { Countability::Mass },
         FeatureValue::Unrestricted => quote! { ModifierLicense::Unrestricted },
         FeatureValue::LocalDeterminer => quote! { ModifierLicense::LocalDeterminer },
+        FeatureValue::AdjunctCapable => quote! { PrepositionClass::AdjunctCapable },
+        FeatureValue::PostmodifierOnly => quote! { PrepositionClass::PostmodifierOnly },
+        FeatureValue::PostmodifierBareLocative => {
+            quote! { PrepositionClass::PostmodifierBareLocative }
+        }
+        FeatureValue::SelectedOnly => quote! { PrepositionClass::SelectedOnly },
+        FeatureValue::NoComplement => quote! { NounComplement::NoComplement },
+        FeatureValue::OfComplement => quote! { NounComplement::OfComplement },
         FeatureValue::SingularOnly => quote! { DeterminerNumber::SingularOnly },
         FeatureValue::PluralOnly => quote! { DeterminerNumber::PluralOnly },
         FeatureValue::Both => quote! { DeterminerNumber::Both },

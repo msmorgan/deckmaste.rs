@@ -1999,12 +1999,15 @@ fn validate_morphology(raw: &Declarations) -> syn::Result<()> {
 fn validate_vocab_declaration_shape(vocab: &crate::model::Vocab, errors: &mut Option<syn::Error>) {
     let mut feature_defaults = HashSet::new();
     for default in &vocab.feature_defaults {
-        if default.feature != crate::model::Feature::ModifierLicense {
+        if !matches!(
+            default.feature,
+            crate::model::Feature::ModifierLicense | crate::model::Feature::PrepositionClass
+        ) {
             combine(
                 errors,
                 syn::Error::new(
                     default.value.span(),
-                    "closed vocab metadata supports only ModifierLicense",
+                    "closed vocab metadata supports only ModifierLicense and PrepositionClass",
                 ),
             );
         }
@@ -2027,12 +2030,15 @@ fn validate_vocab_declaration_shape(vocab: &crate::model::Vocab, errors: &mut Op
     for variant in &vocab.variants {
         let mut feature_overrides = HashSet::new();
         for override_ in &variant.feature_overrides {
-            if override_.feature != crate::model::Feature::ModifierLicense {
+            if !matches!(
+                override_.feature,
+                crate::model::Feature::ModifierLicense | crate::model::Feature::PrepositionClass
+            ) {
                 combine(
                     errors,
                     syn::Error::new(
                         override_.value.span(),
-                        "closed vocab metadata supports only ModifierLicense",
+                        "closed vocab metadata supports only ModifierLicense and PrepositionClass",
                     ),
                 );
             }
@@ -2076,6 +2082,7 @@ fn validate_lexeme_declaration_shape(
                 | crate::model::Feature::Compoundability
                 | crate::model::Feature::Countability
                 | crate::model::Feature::ModifierLicense
+                | crate::model::Feature::NounComplement
                 | crate::model::Feature::Properness
                 | crate::model::Feature::Relationality
         ) {
@@ -2083,7 +2090,7 @@ fn validate_lexeme_declaration_shape(
                 errors,
                 syn::Error::new(
                     default.value.span(),
-                    "closed lexeme metadata supports only BareLocativeLicense, Compoundability, Countability, ModifierLicense, Properness, and Relationality",
+                    "closed lexeme metadata supports only BareLocativeLicense, Compoundability, Countability, ModifierLicense, NounComplement, Properness, and Relationality",
                 ),
             );
         }
@@ -2151,6 +2158,7 @@ fn validate_lexeme_declaration_shape(
                     | crate::model::Feature::Compoundability
                     | crate::model::Feature::Countability
                     | crate::model::Feature::ModifierLicense
+                    | crate::model::Feature::NounComplement
                     | crate::model::Feature::Properness
                     | crate::model::Feature::Relationality
             ) {
@@ -2158,7 +2166,7 @@ fn validate_lexeme_declaration_shape(
                     errors,
                     syn::Error::new(
                         override_.value.span(),
-                        "closed lexeme metadata supports only BareLocativeLicense, Compoundability, Countability, ModifierLicense, Properness, and Relationality",
+                        "closed lexeme metadata supports only BareLocativeLicense, Compoundability, Countability, ModifierLicense, NounComplement, Properness, and Relationality",
                     ),
                 );
             }
@@ -5060,6 +5068,10 @@ fn generated_name_inventory(
                         }
                         ParsedFeature::Properness => ("properness", "Properness"),
                         ParsedFeature::Relationality => ("relationality", "Relationality"),
+                        ParsedFeature::NounComplement => ("noun_complement", "NounComplement"),
+                        ParsedFeature::PrepositionClass => {
+                            ("preposition_class", "PrepositionClass")
+                        }
                     };
                     names.register_value(
                         &feature_helper(spelling, &vocab),
@@ -5666,6 +5678,8 @@ fn raw_category_reads_feature(raw: &Declarations, category: &str, feature: Featu
         Feature::PossessiveEnding => ParsedFeature::PossessiveEnding,
         Feature::Properness => ParsedFeature::Properness,
         Feature::Relationality => ParsedFeature::Relationality,
+        Feature::NounComplement => ParsedFeature::NounComplement,
+        Feature::PrepositionClass => ParsedFeature::PrepositionClass,
     };
     raw.declarations.iter().any(|declaration| {
         let Declaration::Construction(construction) = declaration else { return false };
@@ -5721,6 +5735,8 @@ fn raw_sequence_reads_inherent_category_feature(
         Feature::PossessiveEnding => ParsedFeature::PossessiveEnding,
         Feature::Properness => ParsedFeature::Properness,
         Feature::Relationality => ParsedFeature::Relationality,
+        Feature::NounComplement => ParsedFeature::NounComplement,
+        Feature::PrepositionClass => ParsedFeature::PrepositionClass,
     };
     raw.declarations.iter().any(|declaration| {
         let Declaration::Construction(construction) = declaration else {
@@ -5977,6 +5993,8 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                 | ParsedFeature::Onset
                 | ParsedFeature::Participle
                 | ParsedFeature::PossessiveEnding
+                | ParsedFeature::NounComplement
+                | ParsedFeature::PrepositionClass
                 | ParsedFeature::Properness
                 | ParsedFeature::Relationality => None,
             }
@@ -9495,6 +9513,7 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
             ParsedFeature::Number,
             ParsedFeature::Onset,
             ParsedFeature::PossessiveEnding,
+            ParsedFeature::PrepositionClass,
         ] {
             if constructions.iter().all(|construction| construction.equations.iter().any(|equation| matches!(equation.target, ParsedFeaturePlace::Construction(found) if found == feature))) {
                 providers.insert((category.clone(), feature));
@@ -9546,6 +9565,7 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
                     ParsedFeature::BareLocativeLicense
                         | ParsedFeature::Compoundability
                         | ParsedFeature::Countability
+                        | ParsedFeature::NounComplement
                         | ParsedFeature::Properness
                         | ParsedFeature::Relationality
                 ) {
@@ -9623,6 +9643,8 @@ fn feature_name(feature: ParsedFeature) -> &'static str {
         ParsedFeature::PossessiveEnding => "possessive_ending",
         ParsedFeature::Properness => "properness",
         ParsedFeature::Relationality => "relationality",
+        ParsedFeature::NounComplement => "noun_complement",
+        ParsedFeature::PrepositionClass => "preposition_class",
     }
 }
 
@@ -10053,6 +10075,7 @@ fn validate_lowerable_feature_compositions(
                     ParsedFeature::BareLocativeLicense
                     | ParsedFeature::Compoundability
                     | ParsedFeature::Countability
+                    | ParsedFeature::NounComplement
                     | ParsedFeature::Properness
                     | ParsedFeature::Relationality,
                 ),
@@ -10064,7 +10087,8 @@ fn validate_lowerable_feature_compositions(
                     | ParsedFeature::FusedHeadLicense
                     | ParsedFeature::NominalForm
                     | ParsedFeature::NominalLicense
-                    | ParsedFeature::ModifierLicense,
+                    | ParsedFeature::ModifierLicense
+                    | ParsedFeature::PrepositionClass,
                 ),
                 ParsedFeatureValue::FromRole(source),
             ) => role_feature_is_constructible(
@@ -10108,6 +10132,7 @@ fn validate_lowerable_feature_compositions(
                         ParsedFeature::BareLocativeLicense
                         | ParsedFeature::Compoundability
                         | ParsedFeature::Countability
+                        | ParsedFeature::NounComplement
                         | ParsedFeature::Properness
                         | ParsedFeature::Relationality,
                     ..
@@ -10128,7 +10153,8 @@ fn validate_lowerable_feature_compositions(
                         | ParsedFeature::FusedHeadLicense
                         | ParsedFeature::NominalForm
                         | ParsedFeature::NominalLicense
-                        | ParsedFeature::ModifierLicense,
+                        | ParsedFeature::ModifierLicense
+                        | ParsedFeature::PrepositionClass,
                     ..
                 },
                 ParsedFeatureValue::Constant(_) | ParsedFeatureValue::FromRole(_),
@@ -10371,6 +10397,8 @@ fn parsed_feature_name(feature: ParsedFeature) -> &'static str {
         ParsedFeature::PossessiveEnding => "possessive_ending",
         ParsedFeature::Properness => "properness",
         ParsedFeature::Relationality => "relationality",
+        ParsedFeature::NounComplement => "noun_complement",
+        ParsedFeature::PrepositionClass => "preposition_class",
     }
 }
 
@@ -16627,7 +16655,7 @@ pub(crate) mod tests {
         assert_eq!(validated.semantic().constructions().len(), 6);
         assert_eq!(validated.semantic().terminals().len(), 8);
         assert_eq!(validated.semantic().roots().len(), 1);
-        assert_eq!(expansion.plan().items().len(), 131);
+        assert_eq!(expansion.plan().items().len(), 133);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -16974,7 +17002,7 @@ pub(crate) mod tests {
             snapshot.dynamic_number_constructions,
             vec!["leaf".to_owned()]
         );
-        assert_eq!(expansion.plan().items().len(), 131);
+        assert_eq!(expansion.plan().items().len(), 133);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -17114,7 +17142,7 @@ pub(crate) mod tests {
 
         let emission = crate::plan::plan_emission(validated.semantic())
             .expect("the already validated semantic plan emits");
-        assert_eq!(emission.items().len(), 131);
+        assert_eq!(emission.items().len(), 133);
         assert!(emission.items().iter().any(|item| {
             matches!(
                 &item.key,

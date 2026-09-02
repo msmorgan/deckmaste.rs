@@ -68,6 +68,12 @@ pub(crate) fn emit(
                 {
                     items.push(emit_vocab_modifier_license_helper(row, origin.clone()));
                 }
+                if row
+                    .feature_members(crate::feature::Feature::PrepositionClass)
+                    .is_some()
+                {
+                    items.push(emit_vocab_preposition_class_helper(row, origin.clone()));
+                }
                 contributions.push(TerminalContribution::new(
                     origin,
                     TerminalKind::Vocab,
@@ -139,6 +145,12 @@ pub(crate) fn emit(
                     .is_some()
                 {
                     items.push(emit_lexeme_modifier_license_helper(row, origin.clone()));
+                }
+                if row
+                    .feature_members(crate::feature::Feature::NounComplement)
+                    .is_some()
+                {
+                    items.push(emit_lexeme_noun_complement_helper(row, origin.clone()));
                 }
                 if row
                     .feature_members(crate::feature::Feature::Properness)
@@ -680,6 +692,46 @@ fn emit_vocab_modifier_license_helper(
     )
 }
 
+fn emit_vocab_preposition_class_helper(
+    vocab: &crate::semantic::VocabPlan,
+    origin: DeclarationKey,
+) -> GeneratedItem {
+    let function_name = feature_helper("preposition_class", vocab.name());
+    let function = emitted_ident(&function_name, vocab.name_ident().span());
+    let ty = emitted_ident(vocab.name(), vocab.name_ident().span());
+    let members = vocab
+        .feature_members(crate::feature::Feature::PrepositionClass)
+        .expect("requested sealed preposition-class metadata")
+        .iter()
+        .map(|(member, value)| {
+            let member = emitted_ident(member, vocab.name_ident().span());
+            let value = match value {
+                crate::feature::FeatureValue::AdjunctCapable => {
+                    quote! { PrepositionClass::AdjunctCapable }
+                }
+                crate::feature::FeatureValue::PostmodifierOnly => {
+                    quote! { PrepositionClass::PostmodifierOnly }
+                }
+                crate::feature::FeatureValue::PostmodifierBareLocative => {
+                    quote! { PrepositionClass::PostmodifierBareLocative }
+                }
+                crate::feature::FeatureValue::SelectedOnly => {
+                    quote! { PrepositionClass::SelectedOnly }
+                }
+                _ => unreachable!("sealed preposition class has its closed domain"),
+            };
+            quote! { #ty::#member => #value }
+        });
+    GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function_name,
+        },
+        quote! { fn #function(value: #ty) -> PrepositionClass { match value { #(#members),* } } },
+        vec![origin],
+    )
+}
+
 fn emit_lexeme_surface_helper(
     lexeme: &crate::semantic::LexemePlan,
     origin: DeclarationKey,
@@ -700,8 +752,10 @@ fn emit_lexeme_surface_helper(
         | crate::Feature::FusedHeadLicense
         | crate::Feature::NominalForm
         | crate::Feature::NominalLicense
+        | crate::Feature::NounComplement
         | crate::Feature::Onset
         | crate::Feature::PossessiveEnding
+        | crate::Feature::PrepositionClass
         | crate::Feature::Properness
         | crate::Feature::Relationality => {
             unreachable!("derived surface features are not morphology axes")
@@ -882,6 +936,40 @@ fn emit_lexeme_properness_helper(
     )
 }
 
+fn emit_lexeme_noun_complement_helper(
+    lexeme: &crate::semantic::LexemePlan,
+    origin: DeclarationKey,
+) -> GeneratedItem {
+    let function_name = feature_helper("noun_complement", lexeme.name());
+    let function = emitted_ident(&function_name, lexeme.name_ident().span());
+    let ty = emitted_ident(lexeme.name(), lexeme.name_ident().span());
+    let members = lexeme
+        .feature_members(crate::feature::Feature::NounComplement)
+        .expect("requested sealed noun-complement metadata")
+        .iter()
+        .map(|(member, value)| {
+            let member = emitted_ident(member, lexeme.name_ident().span());
+            let value = match value {
+                crate::feature::FeatureValue::NoComplement => {
+                    quote! { NounComplement::NoComplement }
+                }
+                crate::feature::FeatureValue::OfComplement => {
+                    quote! { NounComplement::OfComplement }
+                }
+                _ => unreachable!("sealed noun complement has its closed domain"),
+            };
+            quote! { #ty::#member => #value }
+        });
+    GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function_name,
+        },
+        quote! { fn #function(value: #ty) -> NounComplement { match value { #(#members),* } } },
+        vec![origin],
+    )
+}
+
 fn emit_lexeme_relationality_helper(
     lexeme: &crate::semantic::LexemePlan,
     origin: DeclarationKey,
@@ -916,6 +1004,10 @@ fn emit_lexeme_relationality_helper(
     )
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "one arm per sealed noun classification keeps the aggregate literal"
+)]
 fn emit_aggregate_noun_feature_helpers(
     noun: &crate::semantic::DeclarationNounPlan,
     closed: &crate::semantic::LexemePlan,
@@ -951,6 +1043,12 @@ fn emit_aggregate_noun_feature_helpers(
     let relationality = emitted_ident(&relationality_name, ty.span());
     let closed_relationality = emitted_ident(
         &feature_helper("relationality", closed.name()),
+        closed_ident.span(),
+    );
+    let noun_complement_name = feature_helper("noun_complement", noun.codec_name());
+    let noun_complement = emitted_ident(&noun_complement_name, ty.span());
+    let closed_noun_complement = emitted_ident(
+        &feature_helper("noun_complement", closed.name()),
         closed_ident.span(),
     );
     let mut items = Vec::new();
@@ -1033,6 +1131,26 @@ fn emit_aggregate_noun_feature_helpers(
                             ::deckmaste_construction_core::macro_def::DeclarationKind::Subtype(_) => Properness::Proper,
                             _ => Properness::Common,
                         },
+                    }
+                }
+            },
+            vec![origin.clone()],
+        ));
+    }
+    if closed
+        .feature_members(crate::feature::Feature::NounComplement)
+        .is_some()
+    {
+        items.push(GeneratedItem::new(
+            ItemKey::Named {
+                kind: NamedKind::Function,
+                name: noun_complement_name,
+            },
+            quote! {
+                fn #noun_complement(value: impl ::std::borrow::Borrow<#ty>) -> NounComplement {
+                    match ::std::borrow::Borrow::borrow(&value) {
+                        #ty::Lexeme(value) => #closed_noun_complement(*value),
+                        #ty::Declaration(_) => NounComplement::NoComplement,
                     }
                 }
             },

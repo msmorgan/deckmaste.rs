@@ -794,6 +794,8 @@ fn feature_from_ident(ident: &Ident) -> Option<Feature> {
         "participle" => Some(Feature::Participle),
         "properness" => Some(Feature::Properness),
         "relationality" => Some(Feature::Relationality),
+        "noun_complement" => Some(Feature::NounComplement),
+        "preposition_class" => Some(Feature::PrepositionClass),
         _ => None,
     }
 }
@@ -806,6 +808,8 @@ fn lexeme_feature_from_ident(ident: &Ident) -> Option<Feature> {
         .or_else(|| (ident == "ModifierLicense").then_some(Feature::ModifierLicense))
         .or_else(|| (ident == "Properness").then_some(Feature::Properness))
         .or_else(|| (ident == "Relationality").then_some(Feature::Relationality))
+        .or_else(|| (ident == "NounComplement").then_some(Feature::NounComplement))
+        .or_else(|| (ident == "PrepositionClass").then_some(Feature::PrepositionClass))
         .or_else(|| feature_from_ident(ident))
 }
 

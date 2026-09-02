@@ -577,6 +577,8 @@ fn declaration_noun_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
             | crate::feature::Feature::FusedHeadLicense
             | crate::feature::Feature::NominalForm
             | crate::feature::Feature::NominalLicense
+            | crate::feature::Feature::NounComplement
+            | crate::feature::Feature::PrepositionClass
             | crate::feature::Feature::Onset
             | crate::feature::Feature::Participle
             | crate::feature::Feature::PossessiveEnding
