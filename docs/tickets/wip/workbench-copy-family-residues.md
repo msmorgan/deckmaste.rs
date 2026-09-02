@@ -207,3 +207,131 @@ Standard constraints apply.
   past Object-kinded `OnStack` and `ChooseNewTargets`/`CopyW` likewise; the
   ability-noun vocabulary (`AnyTriggered` etc.) is ready and waiting. Same
   slot family as the Reverberation kind-index item already here.
+
+## As landed (2026-09-02)
+
+Full gate green from scratch: `idris/scripts/build` → 23/23, exit 0, no
+warnings. Five commits, one per coherent piece.
+
+### The copy verb opened past `Object` (routed from workbench-static-frame)
+
+- `CopyStack` and `ChooseNewTargets` are kind-indexed under a new
+  `Copiable`, `Counterable`'s twin at [CR#707.10]. ONE gate for both
+  verbs: [CR#707.10c] states the retarget as a thing done to a copy, so
+  what may be retargeted is what may be copied.
+- `ControlledBy` is kind-indexed under [CR#109.4] — "target triggered
+  ability you control" needed it, and 38 supported lines write
+  "abilit[y|ies] you control".
+- `AbilityP` carries an origin, and three noun words part on it:
+  `AbilityW` (the plain ability demonstrative, `SpellW`'s row at that
+  kind), `AbilityCopyW` (`CopyW`'s), and `CopyJoinW` (`AbilityJoinW`'s,
+  which gained the not-a-copy guard in turn).
+- **Re-measured**: 14 lines write "copy target [class] ability you
+  control" and 15 write "copy that ability" — the ledger's "15 at copy"
+  had merged the two halves.
+- Benches: **Strionic Resonator** (whole), **Mister Fantastic**'s plural
+  ("twice… the copies"), **Rowan's Talent**'s anaphor.
+- Deviation recorded: `effEq (ChooseNewTargets _)` gives up on kind
+  comparison, joining `CounterSpell` and `CopyStack`, which loosens
+  `distinctModes` for two identical retarget modes. No printed line
+  writes one.
+
+### The copy-on-entry row
+
+- `EntersAsCopy` at `EntryRider`'s seat, [CR#707.5]'s own sentence.
+  **Re-measured at 60 supported lines over 60 cards, not 64/63**; the
+  would-enter-instead form is still ZERO.
+- The DESIGN OBLIGATION is honoured and written into the row: the copy
+  source is a constructor argument and is NOT announced (`staticIntro`
+  is `selfSubjIntro n` alone), on `TokenCopyOf`'s `specDelta = []` law.
+  38 of the 60 lines write "except it" and every one means the entering
+  permanent; the exceptions are elaborated in the SUBJECT's discourse,
+  not the source's.
+- The two rule-given riders ([CR#707.5]'s enters-with/as-enters
+  abilities of the copied text, [CR#707.6]'s fresh as-enters choices)
+  are the row's consequences and are recorded on it, not slots: no
+  printed line states either.
+- The `optional` flag is the printed "you may have" — 56 of 60 write it.
+- Benches: **Clone**, **Quicksilver Gargantuan** (paying `ExceptPt`'s
+  outstanding witness debt, [CR#707.9d]'s own worked example),
+  **Sculpting Steel**, **Sakashima's Student**.
+
+### The exception kinds
+
+- `ExceptName` — 16 lines, always its own clause. The ticket's pin prose
+  was STALE: `badAscribedName`, `badYourChoiceCardName` and
+  `badChosenCardNameRead` no longer exist and `chosenQualityReadOk
+  CardName` is now `True`. The live pin is `badNamedAddition` ("a name
+  is set and never added"), and it still holds — this row sets a name at
+  a different seat, which [CR#707.9d] is the rule for.
+- `ExceptChars` — the bundle as ONE payload, `SetsType`'s `TokenChars`.
+  **Re-measured: 35 tails, 23 setting and 12 adding — not the ticket's
+  27/16/11.** The `typesAdded` flag is carried because [CR#707.9d] makes
+  it a RULES difference (a setting stops the copied type-defining
+  ability coming across; an "in addition to" addition does not), and
+  `ExceptTypes` stays as the type-only addition that rule names outright.
+  `copyBundleSays` requires two stated characteristics, so the partition
+  against the singleton arms is exact and no sentence has two spellings.
+- Benches: **Croaking Counterpart** (bundle), **Chameleon, Master of
+  Disguise** (name).
+
+### The discourse union of alternatives (routed from coordination-2)
+
+- `sharedCtx` gains a third outcome: where a coordination's arms
+  announce different things it hands on their UNION, falling back to the
+  bare outer discourse where no union exists. This is NOT the meet the
+  old rule refused — that one took a shared PREFIX, dropping mentions
+  and shifting indices; the union drops nothing, stands at every
+  position, keeps agreed fields and pairs disagreeing sorts into `JoinP`.
+  A union with no reading word behind it is refused in `unionPayload`.
+- The refused join is NOT re-litigated: the `Joined` head is one phrase
+  over ONE event, and this card's arms are three events with three
+  verbs, which is exactly why the answer had to be at the discourse.
+- **Re-measured: 5 supported lines**, all of them copy lines.
+- Bench: **Repeated Reverberation**, whole card. `AbilityJoinW` reads
+  the union, `CopyJoinW` reads the copy of it.
+- The whole workbench (all pins, all benched cards) builds unchanged
+  with the union in, which is the evidence that it widens nothing else.
+
+### The copy-a-CARD verb and the copy's specified target
+
+- `CopyCard`, [CR#707.12]'s verb, gated `isCardZone` where the stack
+  copy is gated `OnStack`; the copy is announced in the CARD's zone.
+  `CopyW` drops its stack demand and asks the origin alone — the copy
+  clause is the only thing that stamps `CopyOrigin`, and a token copy
+  carries `TokenOrigin`.
+- **`MayPlay`'s neighbourhood was measured first and the verdict is: no
+  second without-paying rider.** `PlayPayment.WithoutPaying` already
+  carries [CR#118.9]'s alternative cost at a permission.
+- **Re-measured: 19 copy verbs (not 22) and 39 cast readbacks (not 45).**
+- `CopyTargets`, [CR#707.10e]'s specified target — `Targets`' relation at
+  the statement seat, 6 lines.
+- Benches: **Flawless Forgery** (verb + permission), **Frontline
+  Heroism** ([CR#707.10e]'s own worked example).
+
+### Zeros held
+
+- The participial read stays at zero and is now PINNED:
+  `copyParticipleUnwritten` in `ProofsG` proves
+  `verbedMarkingOk "Copy" Attributive = False`. "The copied spell" and
+  "copied this way" are 0 lines apiece; `verbedWordOk` answers `False`
+  for the copy words at all three kinds and the copy verbs mint no
+  `VerbName` stamp.
+- The would-enter-instead form: still 0.
+- `badCopyPermanent` and `badRetargetPermanent` were re-pointed from
+  `{zn}` to `{cp}` when the gate moved; both still refuse.
+
+### Not built, with counts
+
+Recorded in `Cards.idr`'s ledger under "THE COPY FAMILY'S REMAINDER":
+the could-target amount (5) and distribution (7, blocked on NOUN
+vocabulary — "each copy" and "a different one of those X"); the
+once-each-turn rider (32, [CR#603.2h], trigger machinery held by the
+sibling round's lane); "the copy they control" (2); "an additional time"
+(4); Double Major's conditional exception (1); the starting-loyalty
+readback (1); the type-setting exception (4); the retain exception (1);
+"with no mana cost" inside the bundle (12 of 35 tails, `TokenChars` has
+no mana slot); "enter tapped as a copy" (3). Also the ABILITY PRONOUN —
+`It` is `Noun bs Object` and 5 of the 15 "copy that ability" lines write
+"if it isn't a mana ability" — which is the noun vocabulary's row, not
+this family's.

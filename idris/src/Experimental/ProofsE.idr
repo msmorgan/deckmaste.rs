@@ -554,18 +554,24 @@ badEmptyCopyTypeException Oh impossible
 
 ||| "Copy target creature."
 ||| The stack verbs act on an object on the stack [CR#707.10,112.1], which a permanent is not.
+||| The gate moved when the verb opened past `Object` -- it is `Copiable`
+||| now, whose object row asks the same stack -- and the refusal is
+||| unchanged: `SpellCopied` is the only row a creature phrase could take
+||| and it demands the zone this one does not have.
 public export
 badCopyPermanent : Unspellable (Effect []) (\ok =>
-  CopyStack You (Macros.target Macros.creature) (Lit 1) [] {zn = ok})
-badCopyPermanent OnTheStack impossible
+  CopyStack You (Macros.target Macros.creature) (Lit 1) [] {cp = ok})
+badCopyPermanent SpellCopied impossible
 
 
 ||| "Choose new targets for target creature."
 ||| [CR#707.10c] gives the retarget a spell or ability, and a permanent is no longer on the stack [CR#112.1].
+||| Under `Copiable` for `badCopyPermanent`'s reason: what may be
+||| retargeted is what may be copied.
 public export
 badRetargetPermanent : Unspellable (Effect []) (\ok =>
-  ChooseNewTargets (Macros.target Macros.creature) {zn = ok})
-badRetargetPermanent OnTheStack impossible
+  ChooseNewTargets (Macros.target Macros.creature) {cp = ok})
+badRetargetPermanent SpellCopied impossible
 
 
 ||| "Copy target instant or sorcery spell. Untap that token."

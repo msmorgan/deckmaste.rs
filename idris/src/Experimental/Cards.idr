@@ -4035,11 +4035,12 @@ chameleonCopy =
 ||| copy that spell or ability twice. You may choose new targets for the
 ||| copies."
 ||| THE UNION OF ALTERNATIVES, and its own mechanism rather than a join
-||| of phrases. The join was refused here and stays refused: [CR#115.1]
-||| gives a `Joined` head one phrase naming either half of ONE event,
-||| where this card's arms are three separate events with three separate
-||| verbs, and [CR#603.7b] fires the delayed ability on whichever of them
-||| happens -- so "that spell" has to be able to name nothing when the
+||| of phrases. The join was refused here and stays refused: a `Joined`
+||| head is ONE phrase, and [CR#115.1] is what it names -- the objects
+||| and/or players one spell or ability declares as its targets. This
+||| card's arms are three separate events with three separate verbs, and
+||| [CR#603.7b] fires the delayed ability the next time ANY of them
+||| occurs -- so "that spell" has to be able to name nothing when the
 ||| ability arm was the one that fired.
 ||| What answers it is at the DISCOURSE: `sharedCtx` unions what the arms
 ||| announce instead of refusing them, pairing the spell and the ability
@@ -4217,7 +4218,7 @@ misterFantasticCopy =
 ||| Rowan's Talent's third line -- "Whenever you activate a loyalty
 ||| ability of enchanted planeswalker, copy that ability. You may choose
 ||| new targets for the copy." The ANAPHORIC ability copy: the header
-||| announces the activated ability [CR#603.6] and the body reads it back
+||| announces the activated ability and the body reads it back
 ||| with the plain ability demonstrative, then reads the copy back with
 ||| the copy one. Both mentions are `AbilityP` and the ORIGIN is all that
 ||| tells them apart, which is `SpellW`/`CopyW`'s arrangement at the
@@ -17719,6 +17720,56 @@ alluringSuitorPump =
 -- ---------------------------------------------------------------------------
 -- Measured, and deliberately not built.
 -- ---------------------------------------------------------------------------
+--
+-- THE COPY FAMILY'S REMAINDER after the close-out round (2026-09-02).
+-- Every count here is re-measured against the supported corpus, and
+-- several of them are smaller than the ledger that queued them said.
+--
+-- THE COULD-TARGET MULTIPLICATION [CR#707.10d], and it is two
+-- constructions, not one. The AMOUNT counting what a named spell "could
+-- target" is FIVE supported lines, not the nineteen the ticket carried
+-- (Radiate, Zada, Precursor Golem, Ink-Treader Nephilim, Mirrorwing
+-- Dragon and Agrus Kos's ability-side twin write the family; five of
+-- them write "for each … could target"). The DISTRIBUTION sentence,
+-- "Each copy targets a different one of those creatures", is SEVEN. The
+-- verb for the second is landed -- `CopyTargets` writes the copy's
+-- specified target and its subject is the copy mention -- and what is
+-- missing is NOUN vocabulary at both ends: a distributive read of a
+-- plural copy mention ("each copy") and a partitive with distinctness
+-- ("a different one of those creatures"). Neither is copy machinery, so
+-- neither was minted here; the amount wants a counting phrase over
+-- [CR#115.9b]'s targeting relation, which is the same relation
+-- `Targets` and `CopyTargets` already state at their own two seats.
+--
+-- THE ONCE-EACH-TURN RIDER, 32 supported lines and not a copy question
+-- at all: [CR#603.2h] makes "Do this only once each turn" a restriction
+-- on the ACTION, which `Triggered`'s `limit` (a restriction on
+-- TRIGGERING) explicitly is not. It sits in the trigger vocabulary and
+-- a sibling round holds that lane, so this round left it where it was
+-- rather than edit the same rows from two sides. Iron Man, Bleeding
+-- Edge and Donal, Herald of Wings are blocked on nothing else.
+--
+-- THE SMALL COPY RESIDUES, re-measured: "the copy they control" (2, a
+-- possessive on the mention -- Curse of Echoes, Tempt with Mayhem);
+-- "copy that spell an additional time" (4, an increment on a count some
+-- other clause set); the CONDITIONAL exception (1, Double Major's
+-- "except it isn't legendary if the spell is legendary", which
+-- [CR#707.9f] is the rule for); the starting-loyalty readback (1).
+--
+-- THE SMALL EXCEPTION KINDS: the enters-with exception is 4 lines and
+-- `ExceptEntersWithCounters` already writes it; the type SETTING
+-- exception ("and it loses all other card types") is 4; the RETAIN
+-- exception [CR#707.9c] is 1 (Vesuvan Doppelganger). Inside the bundle
+-- arm, 12 of the 35 tails end "with no mana cost" -- a mana-cost
+-- setting `TokenChars` has no slot for, since a written token names no
+-- cost -- so those 12 write everything but that phrase.
+--
+-- THE ENTRY ROW'S TAPPED RIDER: 3 lines write "enter tapped as a copy"
+-- (Polymorphine's clue, a land and a creature), one entry event
+-- carrying two modifications. `EntersRider n EntersTapped` beside
+-- `EntersAsCopy` in an `AndAlso` spells two sentences where the card
+-- writes one; a rider slot on the copy row would spell it, and 3 lines
+-- is under this round's bar.
 --
 -- THE GRANTED ABILITY'S SUBJECT IN A NON-BATTLEFIELD ZONE: FOUR supported
 -- spans, re-measured 2026-09-02 and unchanged. Case of the Uneaten Feast,

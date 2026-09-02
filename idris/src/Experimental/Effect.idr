@@ -2390,10 +2390,12 @@ mutual
     ||| write it (re-measured 2026-09-02), always as its own clause and
     ||| never inside a bundle noun phrase.
     |||
-    ||| A name is a characteristic [CR#109.3] and [CR#707.9d] states the
-    ||| operation this row is -- a copy effect that "provides a specific
-    ||| set of values for a certain characteristic" -- so the copy seat
-    ||| may set one where the ADDITION seat may not: `badNamedAddition`
+    ||| A name is a characteristic [CR#109.3], [CR#707.9b] licenses the
+    ||| operation -- "some copy effects modify a characteristic as part
+    ||| of the copying process" -- and [CR#707.9d] names this shape of it,
+    ||| a copy effect that "provides a specific set of values for a
+    ||| certain characteristic". So the copy seat may set a name where the
+    ||| ADDITION seat may not: `badNamedAddition`
     ||| pins "a Zombie named Bob in addition to its other types" as
     ||| unspellable, and [CR#205.1b] is why, adding types and leaving the
     ||| rest. Both stand together; a name is set here and added nowhere.

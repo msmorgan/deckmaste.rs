@@ -477,6 +477,19 @@ badWarpGrantInGraveyard Oh impossible
 -- pair is refused any more, so the pairs the old join gate would not
 -- admit are simply written.
 
+||| THE COPY PARTICIPLE'S MEASURED ZERO, held explicitly so that a
+||| widening cannot pass it silently. "The copied spell" and "copied this
+||| way" are ZERO supported lines apiece (re-measured 2026-09-02), and
+||| two things keep them unwritable: "Copy" is not among the verb labels
+||| at all, so `participleOf` finds no word to spell, and the copy verbs
+||| mint no `VerbName` stamp for a participial read to count. This proof
+||| holds the first, which is the one a new verb-facts row could undo.
+||| Its sibling is the table: `verbedWordOk` answers `False` for the copy
+||| words themselves, at all three kinds.
+public export
+copyParticipleUnwritten : verbedMarkingOk "Copy" Attributive = False
+copyParticipleUnwritten = Refl
+
 ||| "Change the target of target spell or ability with a single target."
 ||| (Bolt Bend.) `Object \/ Ability` is writable, and its payload carries
 ||| each half separately: the spell half is a card on the stack [CR#112.1],
