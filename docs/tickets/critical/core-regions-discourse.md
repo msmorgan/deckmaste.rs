@@ -38,6 +38,18 @@ and the engine's anaphora record is deleted.** Standard constraints apply.
   slice (the certifier/resolver split of `semantics-spelling-lowering.md`
   §17), and the resolver runs on every card at lower time, wizards included.
 
+- Closeout debt (review of `core: close explicit region substrate`,
+  2026-09-02): lowering builds one universal param prefix for every region
+  kind (`lowering/src/region.rs`, `let _ = kind;`) and the engine reads it
+  by literal register at roughly 25 production sites (`layer.rs` maps
+  `Reg(RefId(0))` to the source and `RefId(1)` to the controller;
+  `target.rs`, `player_statics.rs`, `eval.rs` likewise), mostly on
+  frameless paths with no activation in hand. This stage assigns param
+  order per region kind (law 2) and makes every engine read dispatch on
+  provenance (law 4): frameless paths get the region's param table, not a
+  fixed offset. Gate: no literal `RefId(n)` in `deckmaste_engine/src`
+  production code.
+
 ## Absorbed tickets (deleted 2026-09-02; their fixtures are gates here)
 
 - `engine-chosen-slot-provenance`: a chooser nested under another chooser,
