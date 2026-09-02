@@ -41,6 +41,15 @@ Re-measure at claim; several may fall out of each other.
   [CR#709.5g]'s Lock label with it) and the PLURAL door count (3 reads —
   halves of a described group with distinct names per [CR#709.5]).
 
+- **Routed from pile-contents-and-faces (close, 2026-09-02):** the
+  EXILE-MADE pile + the shuffle's pile arm (10 + 7 lines — waits on
+  cloak/manifest, fence territory; [CR#701.24a]'s gap recorded); Boneyard
+  Parley's `theRestOk` two-standing-groups question; `Reveal`'s missing
+  participle (Truth or Tale); the exclusive-permission arm ("only [n] can" —
+  Fight or Flight, Stand or Fall); Sauron's Ransom's Ring-tempts
+  INSTRUCTION; and a stale-note flag worth a bench attempt (Unesh / Sphinx
+  of Clear Skies — daruWarchief/tribalFlames may already write both halves).
+
 - **Routed from mixed-head-disjunction (close, 2026-09-02):** the
   all-headless PRESUPPOSITION disagreement (3 lines — Sonar Strike, Tetsuo
   Umezawa, Dire Downdraft; the Talion `Compare`-list precedent's own
