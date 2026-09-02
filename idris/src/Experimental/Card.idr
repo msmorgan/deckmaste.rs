@@ -94,7 +94,17 @@ staticOnSpellCardOk : {0 bs : Bindings} -> StaticEffect bs -> Bool
 -- says nothing about how broadly its subject may be described.
 staticOnSpellCardOk (Deontic _ Forbid ["Counter"] Patient _ _ _) = True
 staticOnSpellCardOk (Deontic _ Forbid ["Copy"] Patient _ _ _) = True
-staticOnSpellCardOk (AltCost _ _) = True
+staticOnSpellCardOk (AltCost This _) = True
+-- [CR#113.6e] again, and the reason the SUBJECT is asked here where the
+-- alternative cost's is asked one line up: the rule functions off the
+-- battlefield only for "an object's ability that restricts or modifies
+-- how THAT PARTICULAR OBJECT can be played or cast". A reduction stated
+-- of this spell is that ability; one stated of a class of other spells
+-- is a battlefield static and belongs on a permanent card.
+-- 12 supported lines pair an any-number additional cost with a
+-- self-reduction counting it, and 6 of them are instants or sorceries
+-- (Explosive Singularity and the five Marches).
+staticOnSpellCardOk (CostsToCast This _) = True
 -- [CR#113.6e] again: an additional cost is an ability of the object that
 -- modifies how that object can be cast, so it functions in the zone the
 -- spell is cast from and on the stack. 308 of the 315 supported "as an

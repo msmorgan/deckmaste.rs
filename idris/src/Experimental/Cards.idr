@@ -12434,20 +12434,49 @@ requitingHexAdditionalRead =
   Spell (If (Matches This (PaidCost TheAdditional Nothing))
             (Macros.gainsLife You (Lit 2)) Nothing)
 
-||| Burn at the Stake's additional cost -- "As an additional cost to cast
-||| this spell, tap any number of untapped creatures you control." The
-||| mandatory half of the row, at the any-number quantity. What the card
-||| still waits on is its damage line: "three times the number of
-||| creatures tapped this way" reads the stamp the COST's action left,
-||| and `staticChoiceDelta` exports a chooser across the ability
-||| boundary and not a whole delta.
+||| Burn at the Stake, WHOLE -- the cost-action stamp across the ability
+||| boundary. "As an additional cost to cast this spell, tap any number
+||| of untapped creatures you control. / Burn at the Stake deals damage
+||| to any target equal to three times the number of creatures tapped
+||| this way." The cost is an ACTION [CR#118.1], the action is a labelled
+||| keyword action that stamps what it tapped, and the spell ability
+||| re-mentions that group -- which it can now do because the additional
+||| cost exports its whole delta and not merely a chooser.
 public export
-burnAtTheStakeAddedCost : Ability
-burnAtTheStakeAddedCost =
-  Static (AddedCost (Do (SetStatus Tapped
-                           (CountedGroup Macros.anyNumber Nothing
-                              (And [Macros.creature, ControlledBy You,
-                                    HasStatus Untapped])))) False)
+burnAtTheStake : Card
+burnAtTheStake =
+  Macros.card "Burn at the Stake"
+       (Just [Macros.generic 2, Macros.pip Red, Macros.pip Red, Macros.pip Red]) []
+       (MkTypeLine [] [Sorcery])
+       [ Static (AddedCost (Do (Macros.tap
+                                  (CountedGroup Macros.anyNumber Nothing
+                                     (And [Macros.creature, ControlledBy You,
+                                           HasStatus Untapped])))) False)
+       , Spell (DealDamage This (Times 3 GroupSize)
+                           (Macros.target Macros.anyTarget)) ]
+       Nothing
+
+||| Explosive Singularity, whole -- the SECOND reader of the same stamp,
+||| and the shape 12 supported lines share. "As an additional cost to
+||| cast this spell, you may tap any number of untapped creatures you
+||| control. This spell costs {1} less to cast for each creature tapped
+||| this way. / Explosive Singularity deals 10 damage to any target."
+||| The offered additional cost [CR#118.8b] and the reduction that counts
+||| what it did are two statements, and the second reads the first the
+||| way Burn at the Stake's damage line does.
+public export
+explosiveSingularity : Card
+explosiveSingularity =
+  Macros.card "Explosive Singularity"
+       (Just [Macros.generic 8, Macros.pip Red, Macros.pip Red]) []
+       (MkTypeLine [] [Sorcery])
+       [ Static (AddedCost (Do (Macros.tap
+                                  (CountedGroup Macros.anyNumber Nothing
+                                     (And [Macros.creature, ControlledBy You,
+                                           HasStatus Untapped])))) True)
+       , Static (CostsToCast This (CostLess (Times 1 GroupSize) Nothing))
+       , Spell (DealDamage This (Lit 10) (Macros.target Macros.anyTarget)) ]
+       Nothing
 
 ||| Caller of the Hunt, whole -- "As an additional cost to cast this
 ||| spell, choose a creature type. / Caller of the Hunt's power and

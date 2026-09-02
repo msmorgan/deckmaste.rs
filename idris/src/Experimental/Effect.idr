@@ -2240,30 +2240,41 @@ mutual
   staticIntro (AndAlso parts) = partsIntro parts
   staticIntro (OfSubject n vps) = vpsIntro vps
 
-  ||| The choice a STATEMENT binds, for the abilities after it to read
+  ||| What a STATEMENT binds for the abilities after it to read
   ||| [CR#607.2d]. A delta rather than a context because a coordination
   ||| binds as many as it has parts: "choose a color and a creature
   ||| type" is ONE sentence of two choices (Riptide Replicator,
   ||| Volrath's Laboratory; "choose a color and an opponent", Call to
   ||| Arms), and what it wanted was the spelling of two choosers in one
   ||| statement, not a second linkage mechanism.
+  |||
+  ||| The as-enters rows export the CHOICE alone, which is all a chooser
+  ||| position has to give. `AddedCost` exports its cost's WHOLE delta,
+  ||| and the difference is the rows' and not a widening for its own
+  ||| sake: an as-enters choice is a value picked, where an additional
+  ||| cost is an ACTION carried out [CR#118.1] and what it did to the
+  ||| objects it named is a fact the next sentence may read -- "creatures
+  ||| tapped this way", the participial stamp [CR#608.2c] licenses.
   public export
-  staticChoiceDelta : {0 bs : Bindings} -> StaticEffect bs -> List Binding
+  staticChoiceDelta : {bs : Bindings} -> StaticEffect bs -> List Binding
   staticChoiceDelta (EntersChoice _ q _) = [choiceB q]
   staticChoiceDelta (AttachChoice _ q _) = [choiceB q]
   staticChoiceDelta (AndAlso parts) = partsChoiceDelta parts
-  -- The chooser position an additional cost announces from: 6 supported
-  -- lines write "As an additional cost to cast this spell, choose ..."
-  -- (Caller of the Hunt, Close Encounter, Liquid Fire, and three under a
-  -- "you may"), and the line that reads "the chosen [value]" is
-  -- [CR#607.2d]'s linked ability -- the same link the as-enters rider
-  -- and the ability bodies export across, at the position the cost
-  -- occupies. Only the choice crosses: what a cost's ACTION stamped
-  -- ("the number of creatures tapped this way", Burn at the Stake) is
-  -- the effect's whole delta, and `effDelta` needs `bs` un-erased where
-  -- this function has it at multiplicity 0, so that read is the row's
-  -- one recorded remainder.
-  staticChoiceDelta (AddedCost c _) = costChoiceDelta c
+  -- The additional cost's whole delta, which carries two things at once.
+  -- The CHOOSER position: 6 supported lines write "As an additional cost
+  -- to cast this spell, choose ..." (Caller of the Hunt, Close
+  -- Encounter, Liquid Fire, and three under a "you may"), and the line
+  -- that reads "the chosen [value]" is [CR#607.2d]'s linked ability. And
+  -- the COST-ACTION STAMP: 12 supported lines pair an any-number
+  -- additional cost with a for-each reduction counting what it did
+  -- ("you may sacrifice any number of artifacts and/or creatures. This
+  -- spell costs {2} less to cast for each permanent sacrificed this
+  -- way", Dargo; also Gorex, Explosive Singularity, Rottenmouth Viper,
+  -- Torgaar, Extus, Hierophant Bio-Titan and the five Marches), and Burn
+  -- at the Stake reads the same stamp from its damage line.
+  -- The 13th line of that shape is Mutated Cultist's, whose stamp comes
+  -- from a TRIGGER's own clause and not from a cost.
+  staticChoiceDelta (AddedCost c _) = costDelta c
   staticChoiceDelta _ = []
 
   public export
@@ -6001,6 +6012,14 @@ mutual
   costsIntro [] = bs
   costsIntro (c :: cs) = costsIntro cs
 
+  ||| Everything a COST binds: `effDelta`'s move at the cost seat, and
+  ||| for its reason -- a cost is an action a player carries out
+  ||| [CR#118.1], so whatever its clause announced is announced. A mana
+  ||| or symbol cost announces nothing and the delta is empty of itself.
+  public export
+  costDelta : {bs : Bindings} -> Cost bs -> List Binding
+  costDelta c = take (length (costIntro c) `minus` length bs) (costIntro c)
+
   ||| The choice a COST binds, for the ability after it to read --
   ||| `effChoiceDelta` reached through the cost's action, and nothing
   ||| else: a mana or symbol cost announces no value.
@@ -6025,7 +6044,7 @@ mutual
   ||| coordination is read left to right [CR#608.2c] and the bindings
   ||| are nearest-first.
   public export
-  partsChoiceDelta : {0 n : Nat} -> {0 bs : Bindings} ->
+  partsChoiceDelta : {0 n : Nat} -> {bs : Bindings} ->
                      StaticParts n bs -> List Binding
   partsChoiceDelta [] = []
   partsChoiceDelta (se :: rest) = partsChoiceDelta rest ++ staticChoiceDelta se
