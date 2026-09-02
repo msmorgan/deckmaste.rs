@@ -50,6 +50,13 @@ Two remainders from trigger-2 (done 2026-08-27) whose named owner
   instruction (the optionality family's gap; `Reflexively` keys off an
   offer) — Garruk Relentless's last blocker.
 
+- **Routed from prohibition-tail (close, 2026-09-02):** two description
+  residues — the ATTACHMENT-HOST word that names no card type ("enchanted
+  permanent"-style head with no type; 7 of the 19 remaining Aura-headed
+  prohibition lines) and the DISJUNCT-HEAD TYPE READ (`nounTy` collapses a
+  coordinated head, so an excluded disjunct is no longer refused — newly
+  reachable after the agent-typing decision).
+
 - **Routed from keyword-tail (close, 2026-09-02):** the 3 "As … becomes
   attached" replacement clauses — [CR#614.1c,614.1e]'s family written at an
   event neither rule names; the `BecomesAttached` event landed, the AS-frame
