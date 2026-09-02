@@ -2801,6 +2801,46 @@ mutual
     ||| -- spelling: "the other", and with a head noun repeated, "the
     ||| other [card]".
     TheOther : {auto 0 ok : So (theOtherOk bs)} -> Noun bs Object
+    ||| "an opponent chooses ONE OF THOSE PILES", "put ONE PILE into your
+    ||| hand", "exile THE PILE OF AN OPPONENT'S CHOICE": one part of a
+    ||| partition [CR#700.3], taken out of the piles a separation clause
+    ||| left standing. 11 supported lines write the partitive spelling, 8
+    ||| the bare head, and 6 the chooser's (re-measured 2026-09-02).
+    |||
+    ||| `SomeOf`'s row at the pile sort, and a SECOND ROW rather than a
+    ||| payload switch inside it. `SomeOf` mints an `ObjectP` outright,
+    ||| and it has to: `nounDelta` is read at the TYPE level by every
+    ||| phrase typed over a prefix, so a partitive that chose its payload
+    ||| CONSTRUCTOR by a test on its base would stop reducing wherever
+    ||| that base is abstract, and every reader downstream stalls with it.
+    ||| Two rows keep both constructors concrete.
+    |||
+    ||| It takes NO base mention, where `SomeOf` takes one. A partitive
+    ||| over objects names the group it slices ("one of them"), but the
+    ||| piles a partition made carry no name of their own -- the naming
+    ||| ruling leaves every pile read positional or by its chooser -- so
+    ||| the pile WORD is the whole question and the gate is the plural
+    ||| demonstrative's, not `PartitiveBase`'s.
+    ||| The CHOOSER is a slot on the row and not a `ChoiceMode`, for two
+    ||| reasons. `ChoiceMode` has no player position at all -- its
+    ||| `TheirChoice` arm reads the one chooser a prefix already holds --
+    ||| and these lines name a chooser the phrase itself introduces
+    ||| ("an opponent's choice", where no earlier sentence mentioned one).
+    ||| And it is on the ROW rather than on the `SliceCount`: the
+    ||| chooser's own delta has to be threaded, and threading it from
+    ||| `sliceCountDelta` adds a `nounDelta` edge that the mutual block's
+    ||| termination check cannot see decreasing -- measured, and it costs
+    ||| every type in `Phrase` its totality. Here the recursion is on a
+    ||| subterm of this constructor and is structural.
+    ||| `Nothing` where the clause writes no chooser -- "one of those
+    ||| piles" as a `Choose` clause's object, or "one pile" as a
+    ||| disposal's -- which leaves the pick with the clause's own agent
+    ||| [CR#608.2d].
+    ||| -- spelling: "one of those piles"; with the head repeated and the
+    ||| partitive left out, "one pile"; with a chooser, "the pile of
+    ||| [chooser]'s choice", and "of your choice" where the chooser is you.
+    PileOf : (q : SliceCount bs) -> (by : Maybe (Noun bs Player)) ->
+             {auto 0 ok : countManyWord PileW bs = 1} -> Noun bs Object
     It : {auto 0 ok : countOnes Object bs = 1} -> Noun bs Object
     ||| "it" naming an ABILITY the clause announced: "Whenever you
     ||| activate an ability, IF IT ISN'T A MANA ABILITY, …" (5 supported
@@ -3053,6 +3093,7 @@ mutual
   nounEqRef (NamesAgree _ _) _ = False
   nounEqRef TheRest _ = False
   nounEqRef TheOther _ = False
+  nounEqRef (PileOf _ _) _ = False
   nounEqRef It It = True
   nounEqRef It _ = False
   nounEqRef ItAbility ItAbility = True
@@ -3164,6 +3205,17 @@ mutual
       :: (sliceCountDelta q ++ sliceDelta d ++ nounDelta grp)
   nounDelta TheRest = []
   nounDelta TheOther = []
+  -- the part a partition leaves, marked `PartD` so that "the other"
+  -- can count what has been taken. Its zone is the piles' own
+  -- [CR#700.3c] and it carries no type, for `PileP`'s reason.
+  nounDelta (PileOf q Nothing) =
+    MkBinding PartD Object (slicePlur q)
+              (PileP (zoneOfThose PileW bs) (sliceExact q))
+      :: sliceCountDelta q
+  nounDelta (PileOf q (Just by)) =
+    MkBinding PartD Object (slicePlur q)
+              (PileP (zoneOfThose PileW bs) (sliceExact q))
+      :: (sliceCountDelta q ++ nounDelta by)
   nounDelta It = []
   nounDelta ItAbility = []
   nounDelta (ItAt _) = []
@@ -4423,6 +4475,7 @@ mutual
   anchorPhrase (NamesAgree _ grp) = anchorPhrase grp
   anchorPhrase TheRest = False
   anchorPhrase TheOther = False
+  anchorPhrase (PileOf _ _) = False
   anchorPhrase It = True
   anchorPhrase ItAbility = True
   anchorPhrase (ItAt _) = True
@@ -4491,6 +4544,7 @@ mutual
   choosable (NamesAgree _ grp) = choosable grp
   choosable TheRest = False
   choosable TheOther = False
+  choosable (PileOf _ _) = False
   choosable It = False
   choosable ItAbility = False
   choosable (ItAt _) = False
@@ -4595,6 +4649,7 @@ mutual
   groupMention (NamesAgree _ grp) = groupMention grp
   groupMention TheRest = False
   groupMention TheOther = False
+  groupMention (PileOf _ _) = False
   groupMention It = False
   groupMention ItAbility = False
   groupMention (ItAt _) = False
@@ -5622,6 +5677,7 @@ mutual
   costNounOk (SomeOf _ _ grp) = costNounOk grp
   costNounOk TheRest = True
   costNounOk TheOther = True
+  costNounOk (PileOf _ _) = True
   costNounOk It = True
   costNounOk ItAbility = True
   costNounOk (ItAt _) = True
@@ -5671,6 +5727,7 @@ mutual
   nounIsYou (SomeOf _ _ _) = False
   nounIsYou TheRest = False
   nounIsYou TheOther = False
+  nounIsYou (PileOf _ _) = False
   nounIsYou It = False
   nounIsYou ItAbility = False
   nounIsYou (ItAt _) = False
@@ -5720,6 +5777,7 @@ mutual
   nounTargeted (SomeOf _ _ grp) = nounTargeted grp
   nounTargeted TheRest = False
   nounTargeted TheOther = False
+  nounTargeted (PileOf _ _) = False
   nounTargeted It = False
   nounTargeted ItAbility = False
   nounTargeted (ItAt _) = False
@@ -5983,6 +6041,10 @@ mutual
   moveIntro p nn@(SomeOf _ _ _) z = setZoneHead p z (nomIntro nn)
   moveIntro p TheRest z = groupSpent bs
   moveIntro p TheOther z = groupSpent bs
+  -- a disposal re-zones the part it names and leaves the partition
+  -- standing, exactly as `SomeOf`'s row does: what "the other" reads
+  -- afterwards is the piles binding and this one.
+  moveIntro p nn@(PileOf _ _) z = setZoneHead p z (nomIntro nn)
   moveIntro p It z = setZoneIt p z bs
   -- a move names a `Noun bs Object`, so this pronoun is never what is
   -- moved; nothing is restated.
@@ -6140,6 +6202,7 @@ mutual
   nounZone (SomeOf _ _ grp) = nounZone grp
   nounZone TheRest = zoneOfGroup bs
   nounZone TheOther = zoneOfGroup bs
+  nounZone (PileOf _ _) = zoneOfThose PileW bs
   nounZone It = zoneOfIt bs
   nounZone ItAbility = Nothing
   nounZone (ItAt sl) = zoneOfItAt sl bs
@@ -6197,6 +6260,7 @@ mutual
   nounTy (SomeOf _ d grp) = sliceTy d grp
   nounTy TheRest = tyOfGroup bs
   nounTy TheOther = tyOfGroup bs
+  nounTy (PileOf _ _) = Nothing
   nounTy It = tyOfIt bs
   nounTy ItAbility = Nothing
   nounTy (ItAt sl) = tyOfItAt sl bs
@@ -6276,6 +6340,7 @@ mutual
   -- the whole point of the row: one member is left, so the phrase is
   -- singular and a singular destination or verb takes it.
   nounPlur TheOther = OneOf
+  nounPlur (PileOf q _) = slicePlur q
   nounPlur It = OneOf
   nounPlur ItAbility = OneOf
   nounPlur (ItAt _) = OneOf

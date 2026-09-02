@@ -3004,6 +3004,14 @@ wordNow w b = case b.det of
                 _ => wordReaches w b
 
 
+||| Whether a word is the PILE word. Asked instead of matching `PileW`
+||| under `Those`/`That`, whose result kind is `kindOfW w`: the question
+||| is about the word and not about the mention's kind.
+public export
+isPileW : NounWord -> Bool
+isPileW PileW = True
+isPileW _ = False
+
 public export
 kindOfW : NounWord -> Kind
 kindOfW (TypeW _) = Object
