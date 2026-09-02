@@ -5561,6 +5561,16 @@ public export
 data TurnPart = Turn | Upkeep | EndStep | Combat | UntapStep | EndOfCombat
               | FirstMain | PostcombatMain | DrawStep
               | MainPhase
+              -- the beginning phase [CR#500.1], the one phase the corpus
+              -- ADDS that no other row names. Its three steps are the
+              -- untap, upkeep and draw steps [CR#501.1], each of which
+              -- already has a row, so this is the phase and never a
+              -- spelling of one of them: [CR#500.8] adds a phase where
+              -- [CR#500.9] adds a step. 3 supported lines write it --
+              -- Cyclonus, Shadow of the Second Sun and Sphinx of the
+              -- Second Sun, all "an additional beginning phase after
+              -- this phase" (measured 2026-09-02).
+              | BeginningPhase
 
 public export
 Eq TurnPart where
@@ -5584,6 +5594,8 @@ Eq TurnPart where
   (==) DrawStep _ = False
   (==) MainPhase MainPhase = True
   (==) MainPhase _ = False
+  (==) BeginningPhase BeginningPhase = True
+  (==) BeginningPhase _ = False
 
 ||| A turn-based action a window is written relative to, where
 ||| `TurnPart` names a part to be inside [CR#508.1].
@@ -5598,6 +5610,18 @@ namespace Owner
   data Owner = Yours | ThatPlayers | EachPlayers | EachOpponents
              | EachYours | AnOpponents
              | ThatTurns
+             -- "each OTHER player's untap step": the quantifier
+             -- possessor with an other-marking over it. Beside
+             -- `EachPlayers` and not a spelling of it -- [CR#102.1]
+             -- makes the active player one of the players, so a
+             -- quantifier that excludes the sentence's own subject
+             -- ranges over a different set, and the 14 supported lines
+             -- that write it (Seedborn Muse's family, measured
+             -- 2026-09-02) all mean the step the subject's controller
+             -- does not get. Not `EachOpponents` either: [CR#102.2]
+             -- leaves a teammate a non-opponent [CR#102.3], and the
+             -- word printed here is "other player", not "opponent".
+             | EachOthers
 
 public export
 Eq Owner where
@@ -5615,6 +5639,8 @@ Eq Owner where
   (==) AnOpponents _ = False
   (==) ThatTurns ThatTurns = True
   (==) ThatTurns _ = False
+  (==) EachOthers EachOthers = True
+  (==) EachOthers _ = False
 
 ||| The possessor a turn part's header announces, read back by the
 ||| effect as "that player". "Your" and "each of your" name the
@@ -5631,6 +5657,10 @@ possessorB (Just EachOpponents) = [MkBinding EachD Player OneOf PlayerP]
 possessorB (Just EachYours) = []
 possessorB (Just AnOpponents) = [MkBinding AD Player OneOf PlayerP]
 possessorB (Just ThatTurns) = []
+-- the other-marked quantifier announces a player exactly as the plain
+-- one does: "each other player" ranges over players and a following
+-- clause reads one of them back.
+possessorB (Just EachOthers) = [MkBinding EachD Player OneOf PlayerP]
 
 public export
 data DurationEnd = StartOf TurnPart (Maybe Whose)

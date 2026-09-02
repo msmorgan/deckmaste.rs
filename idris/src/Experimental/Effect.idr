@@ -619,6 +619,27 @@ mutual
       DoesntUntap : (n : Noun bs Object) ->
                     {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                     StaticEffect bs
+      ||| "Untap [n] during each other player's untap step": Seedborn
+      ||| Muse's family, 14 supported lines over 14 cards (measured
+      ||| 2026-09-02). The GRANT where `DoesntUntap` and `CantMoreThan`
+      ||| deny. [CR#502.3] gives the untap step's untapping to the ACTIVE
+      ||| player's permanents alone -- "the active player determines
+      ||| which permanents they control will untap" -- so a line that
+      ||| untaps a non-active player's permanents there states an
+      ||| addition to that turn-based action and not an exception to a
+      ||| restriction.
+      |||
+      ||| It states NO window of its own. The window is `OnlyDuring`'s,
+      ||| the same wrapper every other windowed static takes, and the
+      ||| possessor the family writes is `Owner.EachOthers`; a private
+      ||| window slot here would say a second time what that pair
+      ||| already says, and would admit periods the deed has no rule
+      ||| for. What is left on the row is the untapped SET, which is all
+      ||| the fourteen lines differ in.
+      ||| -- spelling: "Untap [n]", the window's own phrase after it.
+      UntapsDuringStep : (n : Noun bs Object) ->
+                         {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                         StaticEffect bs
       ||| "[who] can't [deed] more than [k] [p]": the COUNT CAP, and the
       ||| one qualifier family the carrier's complement cannot say. A cap
       ||| is a bound on how MANY times the deed may be done, not a
@@ -1081,6 +1102,40 @@ mutual
                                {auto 0 wf : WellFormedQ q} ->
                                {auto 0 lt : So (isNil (quantDelta q))} ->
                                StaticEffect bs
+      ||| The block allowance, "[n] can block [q] additional creature(s)":
+      ||| the land allowance's OBJECT-SORTED sibling. 30 supported cards
+      ||| write it (measured 2026-09-02); 20 of them say it of the
+      ||| subject alone, 4 of a described set ("each creature you
+      ||| control"), 3 of an attachment host, and the quantity axis
+      ||| writes "an", "up to two", "seven" and "ninety-nine".
+      |||
+      ||| A SECOND ROW beside the land allowance and never a widening of
+      ||| it, on `PlayerCant`/`ObjectCant`'s own ground: the subject is
+      ||| an OBJECT, not a player, and the rule raised is
+      ||| [CR#509.1a]'s blocker declaration -- "for each of the chosen
+      ||| creatures, the defending player chooses ONE creature for it to
+      ||| block" -- where the land allowance raises [CR#305.2]'s land
+      ||| count. Nothing about the two shares a subject, a rule or a
+      ||| deed.
+      |||
+      ||| The WINDOW is derived, exactly as it is on the land cell.
+      ||| [CR#509.1] declares blockers once a combat, so "each combat"
+      ||| adds nothing to a standing statement and "this turn" adds
+      ||| nothing to a resolving one but the span `Continuously` already
+      ||| spells; which of the two a card prints follows from whether
+      ||| the sentence stands or resolves, and every line the corpus
+      ||| writes agrees.
+      ||| The quantity bound repeats the land cell's: a statement that
+      ||| introduces no mention of its own can carry no amount that
+      ||| would announce one.
+      ||| -- spelling: "[n] can block [q] additional creature(s)", the
+      ||| period from the sentence's own kind.
+      MayBlockAdditional : (n : Noun bs Object) -> (q : Quantity bs) ->
+                           {auto 0 nz : NonZeroQ q} ->
+                           {auto 0 wf : WellFormedQ q} ->
+                           {auto 0 lt : So (isNil (quantDelta q))} ->
+                           {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                           StaticEffect bs
       ||| [CR#506.3a] and [CR#508.4d] both say what happens when a
       ||| permanent enters attacking, so either rider is a real entry.
       EntersRider : (n : Noun bs Object) -> (rider : TokenRider) ->
@@ -1626,6 +1681,9 @@ mutual
   -- deed and modifies no cost.
   staticKind (KeepsUnspentMana _ _) = ManaPersistence
   staticKind (MayDeclineUntap _) = DeedRestriction
+  -- an addition to [CR#502.3]'s turn-based action, restricting no deed
+  -- and replacing no event: its own kind, beside the land allowance's.
+  staticKind (UntapsDuringStep _) = UntapGrant
   staticKind (BecomesAlso _ _) = TypeAddition
   staticKind (AddsEveryType _ _) = TypeAddition
   staticKind (LosesEveryType _ _) = TypeLoss
@@ -1655,6 +1713,7 @@ mutual
   staticKind (NoLossFrom _ _) = OutcomeImmunity
   staticKind (Visibility _ _ _) = VisibilityRider
   staticKind (MayPlayAdditionalLands _ _) = LandAllowance
+  staticKind (MayBlockAdditional _ _) = BlockAllowance
   staticKind (EntersRider _ _) = EntryRider
   staticKind (EntersWithCounters _ _ _ _) = EntryRider
   staticKind (EntersChoice _ _ _) = EntryRider
@@ -1699,6 +1758,7 @@ mutual
   staticIntro (Skips _ _) = bs
   staticIntro (KeepsUnspentMana who _) = nomIntro who
   staticIntro (MayDeclineUntap n) = selfSubjIntro n
+  staticIntro (UntapsDuringStep n) = selfSubjIntro n
   staticIntro (BecomesAlso n _) = selfSubjIntro n
   staticIntro (AddsEveryType n _) = selfSubjIntro n
   staticIntro (LosesEveryType n _) = selfSubjIntro n
@@ -1736,6 +1796,7 @@ mutual
   staticIntro (NoLossFrom who _) = nomIntro who
   staticIntro (Visibility _ who what) = visibleIntro what
   staticIntro (MayPlayAdditionalLands who _) = nomIntro who
+  staticIntro (MayBlockAdditional n _) = selfSubjIntro n
   staticIntro (EntersRider n _) = selfSubjIntro n
   staticIntro (EntersWithCounters n amt _ _) = amtDelta amt ++ selfSubjIntro n
   staticIntro (EntersChoice n _ _) = selfSubjIntro n
@@ -3187,6 +3248,29 @@ mutual
                       {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
     SkipsNext : (who : Noun bs Player) -> (part : TurnPart) ->
                 (count : Amount bs) -> Effect bs
+    ||| "[who] skips all [part]s of their next turn": the QUANTIFIED
+    ||| part, beside `SkipsNext`'s counted one. Empty City Ruse and
+    ||| False Peace, 2 supported lines over 2 cards (measured
+    ||| 2026-09-02), both writing "skips all combat phases of their next
+    ||| turn".
+    |||
+    ||| A second row and not a count on `SkipsNext`. [CR#500.1] runs one
+    ||| of each phase and step on every turn, so "their next combat
+    ||| phase" and "all combat phases of their next turn" name the same
+    ||| thing until [CR#500.8] or [CR#500.9] has added one; the
+    ||| quantifier is written exactly so that the added ones are skipped
+    ||| too, which is a statement about a turn's CONTENTS where the
+    ||| counted row's is about a run of turns. No `Amount` says it: the
+    ||| number is whatever the turn turns out to hold.
+    ||| The turn is "their next" and is no slot -- both printed lines
+    ||| write it, and a possessor other than the subject's would need
+    ||| the mention `SkipsNext` also has no room for.
+    ||| The part is gated by `partAddable`: [CR#500.1] makes a turn
+    ||| neither a phase nor a step, so "all turns of their next turn"
+    ||| quantifies over nothing.
+    ||| -- spelling: "[who] skips all [part]s of their next turn".
+    SkipsAllOf : (who : Noun bs Player) -> (part : TurnPart) ->
+                 {auto 0 ad : AddedPart part} -> Effect bs
     ExtraTurn : (who : Noun bs Player) -> (count : Amount bs) -> Effect bs
     AdditionalPart : (part : TurnPart) -> (anchor : Maybe TurnPart) ->
                      (count : Amount bs) ->
@@ -3194,6 +3278,34 @@ mutual
                      {auto 0 ad : AddedPart part} ->
                      {auto 0 an : AnchorPart anchor} ->
                      {auto 0 fb : FollowerPart followedBy} -> Effect bs
+    ||| "[who] get(s) [count] additional [part](s) after this
+    ||| step/phase": the "YOU GET" frame. Obeka, Splitter of Seconds,
+    ||| Paradox Haze and The Ninth Doctor, 3 supported lines over 3
+    ||| cards (measured 2026-09-02).
+    |||
+    ||| A SECOND ROW beside `AdditionalPart`, and the difference is
+    ||| MEANING and not wording. [CR#500.10a]: "if an effect that says
+    ||| 'you get' an additional step or phase would add a step or phase
+    ||| to a turn other than its controller's, no steps or phases are
+    ||| added." `AdditionalPart`'s existential frame ("there is an
+    ||| additional combat phase") carries no such subject and no such
+    ||| restriction, so a subject slot on that row would have had one
+    ||| value meaning something the rule denies and another meaning
+    ||| nothing at all. The subject is written and never derived: Paradox
+    ||| Haze says it of "that player" where the other two say "you".
+    ||| The ANCHOR is not a slot. All three lines write the deictic
+    ||| "after this step" / "after this phase", which [CR#500.8] and
+    ||| [CR#500.9] read as the part the ability is resolving in; which of
+    ||| the two sort words is printed follows from that part and is
+    ||| spelling, exactly as it is on `AdditionalPart`. No supported
+    ||| "you get" line names its anchor.
+    ||| Obeka's variable count rides the shared `Amount`, reading the
+    ||| combat damage its own header announced.
+    ||| -- spelling: "[who] get(s) [count] additional [part](s) after
+    ||| this step", the sort word derived from the anchoring part.
+    GetsAdditionalPart : (who : Noun bs Player) -> (part : TurnPart) ->
+                         (count : Amount bs) ->
+                         {auto 0 ad : AddedPart part} -> Effect bs
 
   ||| [CR#610.3] hangs the "until" rider on a one-shot that changes an
   ||| object's zone and [CR#610.4] on one that phases a permanent out.
@@ -3208,6 +3320,8 @@ mutual
   heldUntilOk (SkipsNext _ _ _) = False
   heldUntilOk (ExtraTurn _ _) = False
   heldUntilOk (AdditionalPart _ _ _ _) = False
+  heldUntilOk (GetsAdditionalPart _ _ _) = False
+  heldUntilOk (SkipsAllOf _ _) = False
   heldUntilOk (Distribute _ _ _) = False
   heldUntilOk (Fights _ _) = False
   -- [CR#610.4]: "until" also rides a permanent phasing out, and the
@@ -3309,6 +3423,8 @@ mutual
   reflexEncloseUse (SkipsNext _ _ _) = EncNotYetTaken
   reflexEncloseUse (ExtraTurn _ _) = EncNotYetTaken
   reflexEncloseUse (AdditionalPart _ _ _ _) = EncAgentless
+  reflexEncloseUse (GetsAdditionalPart _ _ _) = EncNotYetTaken
+  reflexEncloseUse (SkipsAllOf _ _) = EncNotYetTaken
   reflexEncloseUse (Distribute _ _ _) = EncAgentless
   reflexEncloseUse (Fights _ _) = EncAgentless
   reflexEncloseUse (ExchangeLife _) = EncAgentless
@@ -3436,6 +3552,8 @@ mutual
   thisWayOutcomeOk (SkipsNext _ _ _) = True
   thisWayOutcomeOk (ExtraTurn _ _) = True
   thisWayOutcomeOk (AdditionalPart _ _ _ _) = True
+  thisWayOutcomeOk (GetsAdditionalPart _ _ _) = True
+  thisWayOutcomeOk (SkipsAllOf _ _) = True
   thisWayOutcomeOk (HeldUntil _ _) = True
   thisWayOutcomeOk (DealDamage _ _ _) = True
   thisWayOutcomeOk (Distribute _ _ _) = True
@@ -3557,6 +3675,8 @@ mutual
   costActionOk (SkipsNext _ _ _) = False
   costActionOk (ExtraTurn who _) = costNounOk who
   costActionOk (AdditionalPart _ _ _ _) = True
+  costActionOk (GetsAdditionalPart who _ _) = costNounOk who
+  costActionOk (SkipsAllOf _ _) = False
   costActionOk (Distribute _ _ among) = costNounOk among
   costActionOk (Fights a _) = costNounOk a
   costActionOk (TurnOver n) = costNounOk n
@@ -3684,6 +3804,11 @@ mutual
   effEq (AdditionalPart p a c _) (AdditionalPart q b d _) =
     p == q && a == b && boundEq c d
   effEq (AdditionalPart _ _ _ _) _ = False
+  effEq (GetsAdditionalPart w p c) (GetsAdditionalPart x q d) =
+    nounEqRef w x && p == q && boundEq c d
+  effEq (GetsAdditionalPart _ _ _) _ = False
+  effEq (SkipsAllOf w p) (SkipsAllOf x q) = nounEqRef w x && p == q
+  effEq (SkipsAllOf _ _) _ = False
   effEq (Distribute _ _ _) _ = False
   effEq (Fights _ _) _ = False
   effEq (TurnOver a) (TurnOver b) = nounEqRef a b
@@ -3833,6 +3958,8 @@ mutual
   effIntro (SkipsNext w _ count) = amtDelta count ++ nomIntro w
   effIntro (ExtraTurn w count) = turnRefB :: (amtDelta count ++ nomIntro w)
   effIntro (AdditionalPart _ _ count _) = amtDelta count ++ bs
+  effIntro (GetsAdditionalPart w _ count) = amtDelta count ++ nomIntro w
+  effIntro (SkipsAllOf w _) = nomIntro w
   effIntro (GetsCounters who amt _) = amtIntro amt
   effIntro (GetsCountersOfThoseKinds who amt) = amtIntro amt
   effIntro (LosesCounters who _ amt) = optAmtIntro amt
@@ -3979,6 +4106,8 @@ mutual
   preIntro (SkipsNext w _ count) = amtDelta count ++ nomIntro w
   preIntro (ExtraTurn w count) = amtDelta count ++ nomIntro w
   preIntro (AdditionalPart _ _ count _) = amtDelta count ++ bs
+  preIntro (GetsAdditionalPart w _ count) = amtDelta count ++ nomIntro w
+  preIntro (SkipsAllOf w _) = nomIntro w
   preIntro (GetsCounters who amt _) = amtIntro amt
   preIntro (GetsCountersOfThoseKinds who amt) = amtIntro amt
   preIntro (LosesCounters who _ amt) = optAmtIntro amt
@@ -4119,6 +4248,8 @@ mutual
   annIntro (SkipsNext w _ count) = amtDelta count ++ nomIntro w
   annIntro (ExtraTurn w count) = turnRefB :: (amtDelta count ++ nomIntro w)
   annIntro (AdditionalPart _ _ count _) = amtDelta count ++ bs
+  annIntro (GetsAdditionalPart w _ count) = amtDelta count ++ nomIntro w
+  annIntro (SkipsAllOf w _) = nomIntro w
   annIntro (GetsCounters who amt _) = amtIntro amt
   annIntro (GetsCountersOfThoseKinds who amt) = amtIntro amt
   annIntro (LosesCounters who _ amt) = optAmtIntro amt
@@ -4262,6 +4393,8 @@ mutual
   deedDelta (SkipsNext _ _ _) = []
   deedDelta (ExtraTurn _ _) = []
   deedDelta (AdditionalPart _ _ _ _) = []
+  deedDelta (GetsAdditionalPart _ _ _) = []
+  deedDelta (SkipsAllOf _ _) = []
   deedDelta (GetsCounters _ _ _) = []
   deedDelta (GetsCountersOfThoseKinds _ _) = []
   deedDelta (LosesCounters _ _ _) = []

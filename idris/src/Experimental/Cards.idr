@@ -7136,6 +7136,188 @@ public export
 yshtolaAdditionalEndStep : Effect []
 yshtolaAdditionalEndStep = Macros.additionalPart EndStep Nothing (Lit 1)
 
+||| Sphinx of the Second Sun, whole card -- the added BEGINNING PHASE,
+||| the one part the corpus adds that `TurnPart` had no row for.
+public export
+sphinxOfTheSecondSun : Card
+sphinxOfTheSecondSun =
+  Macros.card "Sphinx of the Second Sun"
+       (Just [Macros.generic 6, Macros.pip Blue, Macros.pip Blue]) []
+       (MkTypeLine [creatureType "Sphinx"] [Creature])
+       [ Macros.keyword "Flying"
+       , Macros.triggered At (BeginningOf PostcombatMain (ByWord EachYours))
+           (Macros.additionalPart BeginningPhase (Just PostcombatMain) (Lit 1)) ]
+       (Just (6, 6))
+
+||| Obeka, Splitter of Seconds, whole card -- the "you get" frame with a
+||| variable count reading the damage its own header announced.
+public export
+obekaSplitterOfSeconds : Card
+obekaSplitterOfSeconds =
+  Macros.card "Obeka, Splitter of Seconds"
+       (Just [Macros.generic 1, Macros.pip Blue, Macros.pip Black,
+              Macros.pip Red]) [Legendary]
+       (MkTypeLine [creatureType "Ogre", creatureType "Warlock"] [Creature])
+       [ Macros.keyword "Menace"
+       , Macros.triggered Whenever
+           (DealsCombatDamage Macros.thisCreature (Macros.a AnyPlayer))
+           (GetsAdditionalPart You Upkeep ThatMuch) ]
+       (Just (2, 5))
+
+||| Paradox Haze, whole card -- the "you get" frame said of a player the
+||| header named, which is the difference [CR#500.10a] makes.
+public export
+paradoxHaze : Card
+paradoxHaze =
+  Macros.card "Paradox Haze" (Just [Macros.generic 2, Macros.pip Blue]) []
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
+       [ Macros.keywordSubject "Enchant" AnyPlayer
+       , Macros.triggered At
+           (NthOccurrence (Nth 1) (Just Turn)
+              (Macros.beginningOfPossessed Upkeep (AttachHost Enchanted PlayerW)))
+           (GetsAdditionalPart (That PlayerW) Upkeep (Lit 1)) ]
+       Nothing
+
+||| The Ninth Doctor's chapter clause. The card is blocked on its ability
+||| word ("Into the TARDIS") being a flavour word rather than an
+||| `AbilityWordName`, and on the untap-of-self header.
+public export
+ninthDoctorAdditionalUpkeep : Effect []
+ninthDoctorAdditionalUpkeep = GetsAdditionalPart You Upkeep (Lit 1)
+
+||| Empty City Ruse, whole card -- the QUANTIFIED part.
+public export
+emptyCityRuse : Card
+emptyCityRuse =
+  Macros.card "Empty City Ruse" (Just [Macros.pip White]) []
+       (MkTypeLine [] [Sorcery])
+       [Spell (SkipsAllOf (Macros.target Opponent) Combat)] Nothing
+
+||| False Peace, whole card -- Empty City Ruse's line at the wider
+||| subject.
+public export
+falsePeace : Card
+falsePeace =
+  Macros.card "False Peace" (Just [Macros.pip White]) []
+       (MkTypeLine [] [Sorcery])
+       [Spell (SkipsAllOf (Macros.target AnyPlayer) Combat)] Nothing
+
+||| Seedborn Muse, whole card -- the recurring untap GRANT under the
+||| other-marked quantifier possessor, the window `OnlyDuring`'s own.
+public export
+seedbornMuse : Card
+seedbornMuse =
+  Macros.card "Seedborn Muse"
+       (Just [Macros.generic 3, Macros.pip Green, Macros.pip Green]) []
+       (MkTypeLine [creatureType "Spirit"] [Creature])
+       [ Static (OnlyDuring UntapStep (Just EachOthers)
+                   (UntapsDuringStep (AllOf (ControlledBy You)))) ]
+       (Just (2, 4))
+
+||| Unwinding Clock, whole card -- the same grant over a described set.
+public export
+unwindingClock : Card
+unwindingClock =
+  Macros.card "Unwinding Clock" (Just [Macros.generic 4]) []
+       (MkTypeLine [] [Artifact])
+       [ Static (OnlyDuring UntapStep (Just EachOthers)
+                   (UntapsDuringStep
+                      (AllOf (And [Macros.artifact, ControlledBy You])))) ]
+       Nothing
+
+||| Drumbellower, whole card.
+public export
+drumbellower : Card
+drumbellower =
+  Macros.card "Drumbellower" (Just [Macros.generic 2, Macros.pip White]) []
+       (MkTypeLine [creatureType "Spirit"] [Creature])
+       [ Macros.keyword "Flying"
+       , Static (OnlyDuring UntapStep (Just EachOthers)
+                   (UntapsDuringStep
+                      (AllOf (And [Macros.creature, ControlledBy You])))) ]
+       (Just (2, 1))
+
+||| Thousand Moons Infantry, whole card -- the grant at its narrowest
+||| set, the subject itself.
+public export
+thousandMoonsInfantry : Card
+thousandMoonsInfantry =
+  Macros.card "Thousand Moons Infantry"
+       (Just [Macros.generic 2, Macros.pip White]) []
+       (MkTypeLine [creatureType "Human", creatureType "Soldier"] [Creature])
+       [ Static (OnlyDuring UntapStep (Just EachOthers)
+                   (UntapsDuringStep Macros.thisCreature)) ]
+       (Just (2, 4))
+
+||| Foriysian Brigade, whole card -- the block allowance at its
+||| commonest subject, the sentence's own.
+public export
+foriysianBrigade : Card
+foriysianBrigade =
+  Macros.card "Foriysian Brigade" (Just [Macros.generic 3, Macros.pip White]) []
+       (MkTypeLine [creatureType "Human", creatureType "Soldier"] [Creature])
+       [Static (MayBlockAdditional Macros.thisCreature (Macros.exactly 1))]
+       (Just (2, 4))
+
+||| Two-Headed Giant of Foriys, whole card.
+public export
+twoHeadedGiantOfForiys : Card
+twoHeadedGiantOfForiys =
+  Macros.card "Two-Headed Giant of Foriys"
+       (Just [Macros.generic 4, Macros.pip Red]) []
+       (MkTypeLine [creatureType "Giant"] [Creature])
+       [ Macros.keyword "Trample"
+       , Static (MayBlockAdditional Macros.thisCreature (Macros.exactly 1)) ]
+       (Just (4, 4))
+
+||| High Ground, whole card -- the allowance said of a described set.
+public export
+highGround : Card
+highGround =
+  Macros.card "High Ground" (Just [Macros.pip White]) []
+       (MkTypeLine [] [Enchantment])
+       [Static (MayBlockAdditional (Each Macros.creatureYouControl)
+                                   (Macros.exactly 1))]
+       Nothing
+
+||| Watcher in the Web, whole card -- the quantity axis at its largest
+||| printed literal.
+public export
+watcherInTheWeb : Card
+watcherInTheWeb =
+  Macros.card "Watcher in the Web" (Just [Macros.generic 4, Macros.pip Green]) []
+       (MkTypeLine [creatureType "Spider"] [Creature])
+       [ Macros.keyword "Reach"
+       , Static (MayBlockAdditional Macros.thisCreature (Macros.exactly 7)) ]
+       (Just (2, 5))
+
+||| Rites of Flourishing, whole card. The ADDITIONAL CARD needed no row:
+||| the word is an adverbial on the draw the draw step already performs
+||| [CR#504.1], so the trigger's own header supplies it and the sentence
+||| is `Draw` with the count it prints. Its other line is the each-player
+||| land allowance that already landed.
+public export
+ritesOfFlourishing : Card
+ritesOfFlourishing =
+  Macros.card "Rites of Flourishing"
+       (Just [Macros.generic 2, Macros.pip Green]) []
+       (MkTypeLine [] [Enchantment])
+       [ Macros.triggered At (BeginningOf DrawStep (ByWord EachPlayers))
+           (Draw (That PlayerW) (Lit 1))
+       , Static (MayPlayAdditionalLands (Each AnyPlayer) (Macros.exactly 1)) ]
+       Nothing
+
+||| Ral Zarek, Guest Lecturer's ultimate -- the VARIABLE skip count.
+||| `SkipsNext` takes an `Amount`, so `LetterVal` carries it and no
+||| closed count table stands in the way; what the card still wants
+||| whole is its other three loyalty abilities.
+public export
+ralZarekGuestLecturerUltimate : Effect []
+ralZarekGuestLecturerUltimate =
+  Sequentially [ FlipCoins You (FlipCount (Lit 5))
+               , SkipsNext (Macros.target Opponent) Turn (LetterVal X)
+               , Define X (CoinsShowing Heads) ]
+
 
 
 public export

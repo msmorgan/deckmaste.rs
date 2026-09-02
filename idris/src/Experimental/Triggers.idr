@@ -1034,6 +1034,7 @@ mutual
   isTurnDeictic (Just EachOpponents) = False
   isTurnDeictic (Just EachYours) = False
   isTurnDeictic (Just AnOpponents) = False
+  isTurnDeictic (Just EachOthers) = False
   isTurnDeictic (Just ThatTurns) = True
 
   ||| Which endpoint words a duration adverbial spells. [CR#611.2a]

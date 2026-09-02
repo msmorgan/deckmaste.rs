@@ -1167,6 +1167,13 @@ data StaticKind = PtDelta | KeywordGrant | DeedRestriction | TypeAddition
                 | VisibilityRider
                 | OutcomeImmunity
                 | LandAllowance
+                -- the block allowance: [CR#509.1a]'s blocker declaration
+                -- raised, the land allowance's object-sorted sibling.
+                | BlockAllowance
+                -- the recurring untap grant: an addition to
+                -- [CR#502.3]'s turn-based action, which no other kind
+                -- names.
+                | UntapGrant
                 | TurnSkip
                 | LetterDefinition
 
