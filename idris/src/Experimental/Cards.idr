@@ -3928,6 +3928,108 @@ saheelisCopy =
                , Macros.gainsHaste (That TokenW) Nothing
                , Macros.delayed (BeginningOf EndStep NoPossessor) (Macros.exile It) ]
 
+||| Clone, whole card -- "You may have this creature enter as a copy of
+||| any creature on the battlefield." The copy-on-entry row's BARE
+||| sentence, [CR#707.5]'s own: the permanent "becomes a copy AS it
+||| enters" rather than entering and then becoming one. Chapter 92 fenced
+||| this family on a probe rather than on a missing carrier; the carrier
+||| is `EntersAsCopy` and this is the line with nothing riding on it.
+||| 60 supported lines over 60 cards write the sentence (re-measured
+||| 2026-09-02) and the would-enter-instead form writes ZERO.
+||| -- spelling note: the printed determiner is "any", which is `a`'s
+||| word here -- the phrase restricts nothing and names no target.
+public export
+clone : Card
+clone =
+  Macros.card "Clone" (Just [Macros.generic 3, Macros.pip Blue]) []
+       (MkTypeLine [creatureType "Shapeshifter"] [Creature])
+       [ Static (EntersAsCopy Macros.thisCreature True
+                              (Macros.a Macros.creature) []) ]
+       (Just (0, 0))
+
+||| Quicksilver Gargantuan, whole card -- "You may have this creature
+||| enter as a copy of any creature on the battlefield, except it's 7/7."
+||| [CR#707.9d]'s own worked example, and `ExceptPt`'s WITNESS: that arm
+||| landed with finding 481's bar declared unmet, its bare-P/T lines all
+||| multi-clause or behind this row's fence. The fence is down and the
+||| debt is paid here -- the stack copy was checked for a payer and found
+||| none, so this row owed it.
+public export
+quicksilverGargantuan : Card
+quicksilverGargantuan =
+  Macros.card "Quicksilver Gargantuan"
+       (Just [Macros.generic 5, Macros.pip Blue, Macros.pip Blue]) []
+       (MkTypeLine [creatureType "Shapeshifter"] [Creature])
+       [ Static (EntersAsCopy Macros.thisCreature True
+                              (Macros.a Macros.creature)
+                              [ExceptPt (Lit 7) (Lit 7)]) ]
+       (Just (7, 7))
+
+||| Sculpting Steel, whole card -- "You may have this artifact enter as a
+||| copy of any artifact on the battlefield." The row at a subject that
+||| is not a creature, and the witness that the subject is the printed
+||| permanent word rather than a fixed self-creature.
+public export
+sculptingSteel : Card
+sculptingSteel =
+  Macros.card "Sculpting Steel" (Just [Macros.generic 3]) []
+       (MkTypeLine [] [Artifact])
+       [ Static (EntersAsCopy Macros.thisArtifact True
+                              (Macros.a Macros.artifact) []) ]
+       Nothing
+
+||| Sakashima's Student's copy line -- "You may have this creature enter
+||| as a copy of any creature on the battlefield, except it's a Ninja in
+||| addition to its other creature types." The TYPE-ADDING rider on the
+||| entry row, and the "except IT" pronoun with the one antecedent the
+||| row's law leaves it: 38 of the 60 lines write that pronoun, and every
+||| one means the entering permanent. The source is a constructor
+||| argument and announces nothing, so the count is 1.
+||| A FRAGMENT: the card's other line is ninjutsu, whose keyword row this
+||| round did not mint.
+public export
+sakashimasStudentCopy : Ability
+sakashimasStudentCopy =
+  Static (EntersAsCopy Macros.thisCreature True
+                       (Macros.a Macros.creature)
+                       [ExceptTypes (MkTypeLine [creatureType "Ninja"] [])])
+
+||| Croaking Counterpart's first line -- "Create a token that's a copy of
+||| target non-Frog creature, except it's a 1/1 green Frog." The
+||| CHARACTERISTICS BUNDLE, benched at the token seat where its three
+||| characteristics ride one noun phrase. `[ExceptPt, ExceptColor,
+||| ExceptTypes]` would spell three sentences; this is one.
+||| A FRAGMENT: the card's other line is flashback, a keyword row this
+||| round did not mint.
+public export
+croakingCounterpartCopy : Effect []
+croakingCounterpartCopy =
+  Create You (Lit 1)
+    (TokenCopyOf (Macros.target (And [ Macros.creature
+                                     , Not (HasSubtype (creatureType "Frog")) ]))
+                 [ExceptChars (MkToken (Just (Lit 1 ** Lit 1)) [Green]
+                                       (MkTypeLine [creatureType "Frog"] [])
+                                       [] Nothing)
+                              False])
+    []
+
+||| Chameleon, Master of Disguise's copy line -- "You may have Chameleon
+||| enter as a copy of a creature you control, except his name is
+||| Chameleon, Master of Disguise." The NAME exception, [CR#707.9d]'s
+||| "specific set of values for a certain characteristic" over the
+||| characteristic [CR#109.3] calls a name.
+||| The pin beside it still holds: `badNamedAddition` refuses a name
+||| inside an addition bundle, and this row is a setting at a different
+||| seat, so the two say different things about different operations.
+||| A FRAGMENT: the card's other line is mayhem, a keyword row this round
+||| did not mint.
+public export
+chameleonCopy : Ability
+chameleonCopy =
+  Static (EntersAsCopy Macros.thisCreature True
+                       (Macros.a (And [Macros.creature, ControlledBy You]))
+                       [ExceptName "Chameleon, Master of Disguise"])
+
 public export
 twincast : Card
 twincast =

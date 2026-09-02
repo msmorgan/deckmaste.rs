@@ -1152,6 +1152,53 @@ mutual
                            (kind : CounterKindSource bs) ->
                            (mark : EntryCounterMark) ->
                            StaticEffect bs
+      ||| "You may have this creature enter as a copy of any creature on
+      ||| the battlefield, except it's a Wall in addition to its other
+      ||| types": the copy-on-entry row, [CR#707.5]'s own sentence.
+      ||| 60 supported lines over 60 cards write it (re-measured
+      ||| 2026-09-02) and the would-enter-instead form is ZERO.
+      |||
+      ||| A ROW and not the composition it looks like. `Intercepts` over
+      ||| a `Continuously (BecomesCopy …)` compiles and spells the
+      ||| sentence [CR#707.5] exists to distinguish: the object "becomes
+      ||| a copy as it enters the battlefield. It doesn't enter the
+      ||| battlefield, and then become a copy". Two things ride on the
+      ||| difference and neither composition can carry them --
+      ||| [CR#707.5]'s "enters with" and "as [this] enters" abilities of
+      ||| the COPIED text take effect, which a permanent that had already
+      ||| entered would be past, and [CR#707.6] hands the copy's
+      ||| controller the as-enters choices fresh rather than copying the
+      ||| original's. So the row is the one place both attach, and they
+      ||| are the rule's consequences of entering as a copy rather than
+      ||| slots a card writes: no printed line states either.
+      |||
+      ||| `EntryRider`'s seat, with `EntersRider`'s subject gate:
+      ||| [CR#614.1d] makes a line reading "[this permanent] enters …" a
+      ||| replacement effect, and [CR#614.12] has it modify HOW the
+      ||| permanent enters.
+      |||
+      ||| The SOURCE IS NOT ANNOUNCED, and this is the row's design law
+      ||| rather than an omission -- `TokenCopyOf`'s `specDelta = []`
+      ||| said first, for the same reason at the same seat. The
+      ||| exceptions are elaborated in the SUBJECT's discourse and not
+      ||| the source's, because 38 of the 60 lines write "except IT",
+      ||| every one of them meaning the entering permanent; announcing
+      ||| the source would put a second singular object beside it and
+      ||| leave that pronoun with two antecedents. The source is a
+      ||| constructor argument, never a discourse mention.
+      |||
+      ||| The optional flag is the printed "you may have": 56 of the 60
+      ||| lines write it and the other 4 do not -- two describe a CLASS
+      ||| of entering permanents rather than the source itself ("Creatures
+      ||| you control enter as a copy of this creature"), which is also
+      ||| why the subject is a noun and not fixed to the self.
+      ||| -- spelling: "[You may have ][n] enter as a copy of [src][,
+      ||| except [exc]]".
+      EntersAsCopy : (n : Noun bs Object) -> (optional : Bool) ->
+                     (src : Noun (selfSubjIntro n) Object) ->
+                     (exc : List (CopyExcept (selfSubjIntro n))) ->
+                     {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                     {auto 0 pm : PerMember src} -> StaticEffect bs
       EntersChoice : (n : Noun bs Object) -> (q : ChoiceSort) ->
                      (dom : Maybe (ChoiceDomain q)) ->
                      {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
@@ -1715,6 +1762,10 @@ mutual
   staticKind (MayPlayAdditionalLands _ _) = LandAllowance
   staticKind (MayBlockAdditional _ _) = BlockAllowance
   staticKind (EntersRider _ _) = EntryRider
+  -- an entry rider and not a `CopyEffect`: what it modifies is HOW the
+  -- permanent enters [CR#614.12], and it stands as long as the permanent
+  -- does, which is `EntersRider`'s seat and not `BecomesCopy`'s.
+  staticKind (EntersAsCopy _ _ _ _) = EntryRider
   staticKind (EntersWithCounters _ _ _ _) = EntryRider
   staticKind (EntersChoice _ _ _) = EntryRider
   staticKind (AttachChoice _ _ _) = Replacement
@@ -1798,6 +1849,11 @@ mutual
   staticIntro (MayPlayAdditionalLands who _) = nomIntro who
   staticIntro (MayBlockAdditional n _) = selfSubjIntro n
   staticIntro (EntersRider n _) = selfSubjIntro n
+  -- the SUBJECT alone. The copy source is a constructor argument and
+  -- never a mention, on `TokenCopyOf`'s law: a second singular object in
+  -- the discourse would leave the 38 "except it" lines with two
+  -- antecedents apiece.
+  staticIntro (EntersAsCopy n _ _ _) = selfSubjIntro n
   staticIntro (EntersWithCounters n amt _ _) = amtDelta amt ++ selfSubjIntro n
   staticIntro (EntersChoice n _ _) = selfSubjIntro n
   staticIntro (AttachChoice n _ _) = selfSubjIntro n
@@ -2296,10 +2352,85 @@ mutual
     MkSpendPurposes : {0 p : SpendPurpose bs} -> {0 ps : List (SpendPurpose bs)} ->
                       SpendPurposes (p :: ps)
 
+  ||| What a BUNDLE exception has to say to be one. A copy exception
+  ||| naming a single characteristic already has a row -- `ExceptPt` for
+  ||| the P/T, `ExceptColor` for the colour, `ExceptTypes` for the type
+  ||| line -- so the bundle arm exists for the phrase those rows cannot
+  ||| write: "a 4/4 black Zombie" is ONE noun phrase setting three
+  ||| characteristics, and a list of three exceptions would spell three
+  ||| sentences. Two stated characteristics is therefore the bar, and it
+  ||| is a partition rather than a preference: no sentence has two
+  ||| spellings.
+  public export
+  copyBundleSays : {0 bs : Bindings} -> TokenChars bs -> Bool
+  copyBundleSays t =
+    let said = (if ptWritten t.pt then 1 else 0) +
+               (if someWritten t.colors then 1 else 0) +
+               (if lineNonEmpty t.line then 1 else 0)
+    in said >= 2
+
+  public export
+  CopyBundle : TokenChars bs -> Type
+  CopyBundle {bs} t = So (copyBundleSays t)
+
   public export
   data CopyExcept : Bindings -> Type where
+    ||| The TYPE-ONLY addition, and [CR#707.9d]'s own carve-out: that
+    ||| rule stops a copy effect copying a characteristic-defining
+    ||| ability for a characteristic it sets, and then exempts
+    ||| "exceptions that state the object is a certain card type,
+    ||| supertype, and/or subtype 'in addition to its other types'" --
+    ||| in those cases the type-defining ability IS copied. So an added
+    ||| type line is not a setting with a word on it; it is the other
+    ||| operation, which is why this row carries no setting flag.
     ExceptTypes : (added : TypeLine) ->
                   {auto 0 ne : LineNonEmpty added} -> CopyExcept bs
+    ||| "…, except its name is Sakashima the Impostor", "…, except his
+    ||| name is Absorbing Man": the NAME exception. 16 supported lines
+    ||| write it (re-measured 2026-09-02), always as its own clause and
+    ||| never inside a bundle noun phrase.
+    |||
+    ||| A name is a characteristic [CR#109.3] and [CR#707.9d] states the
+    ||| operation this row is -- a copy effect that "provides a specific
+    ||| set of values for a certain characteristic" -- so the copy seat
+    ||| may set one where the ADDITION seat may not: `badNamedAddition`
+    ||| pins "a Zombie named Bob in addition to its other types" as
+    ||| unspellable, and [CR#205.1b] is why, adding types and leaving the
+    ||| rest. Both stand together; a name is set here and added nowhere.
+    ||| -- spelling: "except [its/his/her] name is [nm]".
+    ExceptName : (nm : String) -> CopyExcept bs
+    ||| "…, except it's a 4/4 black Zombie" (the Scarab God family),
+    ||| "…, except it's a 3/3 Golem artifact creature in addition to its
+    ||| other types": the CHARACTERISTICS BUNDLE. 35 supported lines
+    ||| write a number inside a whole bundle (re-measured 2026-09-02).
+    |||
+    ||| ONE payload and not a list of three rows. The printed phrase is a
+    ||| single noun phrase naming a P/T, a colour and a type line at
+    ||| once; `[ExceptPt, ExceptColor, ExceptTypes]` would spell "except
+    ||| it's 4/4, it's black and it's a Zombie in addition to its other
+    ||| types", which is three sentences and not this one. The payload is
+    ||| `SetsType`'s, the same phrase in the statement position.
+    |||
+    ||| `typesAdded` is carried and is not spelling: [CR#707.9d] makes it
+    ||| a rules difference -- a bundle that SETS the types stops the
+    ||| copied type-defining ability coming across, and one that adds
+    ||| them "in addition to its other types" does not. Re-measured
+    ||| 2026-09-02: 23 of the 35 set and 12 add, so the bundle is not
+    ||| uniformly a setting and the flag cannot be defaulted away. The
+    ||| P/T is a setting under either flag; no printed line writes a
+    ||| power "in addition to" another.
+    |||
+    ||| It carries NO NAME under either flag, where `TokenChars` has the
+    ||| slot: the name exception is its own clause in all 16 printed
+    ||| lines, and letting one ride here would give the added case a
+    ||| spelling `badNamedAddition` refuses at the statement seat.
+    ||| -- spelling: "except it's [t]" / "except it's [t] in addition to
+    ||| its other types".
+    ExceptChars : (t : TokenChars bs) -> (typesAdded : Bool) ->
+                  {auto 0 bd : CopyBundle t} ->
+                  {auto 0 tc : TokenCanonical t} ->
+                  {auto 0 ta : TokenAbilities t} ->
+                  {auto 0 un : AdditionUnnamed t} -> CopyExcept bs
     ExceptAbility : (ab : AbilityAt []) ->
                     {auto 0 gr : Grantable ab} -> CopyExcept bs
     ExceptThisAbility : CopyExcept bs
