@@ -1,5 +1,5 @@
 ---
-needs: [english-v2-pp-construction]
+needs: [english-v2-genitive-possessor-licensing]
 ---
 One predicate-adjunct class (A3) consuming PPs and adverbials — temporal,
 locative, manner, purpose, duration as values of one class. The at_phrase
