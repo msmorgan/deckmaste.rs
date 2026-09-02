@@ -3159,6 +3159,46 @@ mutual
                      {auto 0 wf : WellFormedQ q} ->
                      {auto 0 kn : CounterKindNamed Object kind} ->
                      {auto 0 cm : CounterMemory from} -> Effect bs
+    ||| "Remove three counters from among creatures you control"
+    ||| (Tayam, Luminous Enigma): the counter PARTITIVE. The count is on
+    ||| the COUNTERS and the source is a described GROUP, so the removal
+    ||| is one act over the group and the actor decides how it falls
+    ||| across the members [CR#608.2d] -- where `RemoveCounters`' source
+    ||| names the holder and `Each` there distributes per member.
+    |||
+    ||| Its own row and not a widening of `RemoveCounters`' source slot.
+    ||| The two write different prepositions ("from" against "from
+    ||| among") and the pooling is the whole of the difference, so one
+    ||| shared slot would carry a gate saying which preposition each
+    ||| reading spells -- the same fact one indirection further from the
+    ||| row, which is the reason `LosesCounters` is kept apart too.
+    ||| The group takes `PartitiveBase` for `SomeOf`'s reason:
+    ||| [CR#608.2d] has the choice announced while the effect is
+    ||| applied, so the members are the ones that answer the description
+    ||| then. It takes `CounterMemory` for `RemoveCounters`'
+    ||| [CR#122.2,400.7], and the count stays a `Quantity` because the
+    ||| family writes "one or more" (Ooze Flux, Jetfire), "any number
+    ||| of" (Galloping Lizrog, Iron Spider, Eventide's Shadow), "up to
+    ||| three" (Sensational Spider-Man) and plain numbers alike.
+    ||| Measured 2026-09-02: 18 supported cards write the partitive, 17
+    ||| of them this removal -- 11 in an activation or alternative cost
+    ||| (Tayam, Tekuthal, The Filigree Sylex, Retribution of the
+    ||| Ancients, Hopeful Initiate, Novijen Sages, Dawnhand Dissident,
+    ||| Ooze Flux, Jetfire, Light Up the Night, Quilled Greatwurm) and 6
+    ||| in an effect. The 18th is the MOVE partitive (Slippery
+    ||| Bogbonder, "move any number of counters from among creatures you
+    ||| control onto that creature"), which `MoveCounters`' source does
+    ||| not yet reach and which is ledgered, not built, at one line.
+    |||
+    ||| It announces how many it took, as `RemoveCounters` does: Ooze
+    ||| Flux and Iron Spider read `RemovedThisWay` back.
+    ||| -- spelling: "remove [q] [kind] counter(s) from among [grp]".
+    RemoveCountersAmong : (q : Quantity bs) -> (kind : Maybe CounterKind) ->
+                          (among : Noun (quantIntro q) Object) ->
+                          {auto 0 wf : WellFormedQ q} ->
+                          {auto 0 kn : CounterKindNamed Object kind} ->
+                          {auto 0 cm : CounterMemory among} ->
+                          {auto 0 pb : PartitiveBase among} -> Effect bs
     ||| "Move [amt] [kind] counter(s) from [src] onto [dst]": the
     ||| two-holder transfer verb [CR#122.5], which is a remove and a put
     ||| taken together. The kind is a `Maybe`, as everywhere: the slot
@@ -3680,6 +3720,7 @@ mutual
   heldUntilOk (GetsEmblem _ _) = False
   heldUntilOk (PutCounters _ _ _) = False
   heldUntilOk (RemoveCounters _ _ _) = False
+  heldUntilOk (RemoveCountersAmong _ _ _) = False
   heldUntilOk (MoveCounters _ _ _ _) = False
   heldUntilOk (PutSameCounters _ _) = False
   heldUntilOk (PutCountersOfThoseKinds _ _) = False
@@ -3774,6 +3815,7 @@ mutual
   reflexEncloseUse (GetsEmblem _ _) = EncAgentless
   reflexEncloseUse (PutCounters _ _ _) = EncReflexive    -- 8
   reflexEncloseUse (RemoveCounters _ _ _) = EncReflexive -- 7
+  reflexEncloseUse (RemoveCountersAmong _ _ _) = EncReflexive
   reflexEncloseUse (MoveCounters _ _ _ _) = EncReflexive
   reflexEncloseUse (PutSameCounters _ _) = EncReflexive
   reflexEncloseUse (PutCountersOfThoseKinds _ _) = EncReflexive
@@ -3919,6 +3961,7 @@ mutual
   thisWayOutcomeOk (GetsEmblem _ _) = True
   thisWayOutcomeOk (PutCounters _ _ _) = True
   thisWayOutcomeOk (RemoveCounters _ _ _) = True
+  thisWayOutcomeOk (RemoveCountersAmong _ _ _) = True
   thisWayOutcomeOk (MoveCounters _ _ _ _) = True
   thisWayOutcomeOk (PutSameCounters _ _) = True
   thisWayOutcomeOk (PutCountersOfThoseKinds _ _) = True
@@ -4043,6 +4086,7 @@ mutual
   costActionOk (GetsEmblem _ _) = True
   costActionOk (PutCounters _ _ on) = costNounOk on
   costActionOk (RemoveCounters _ _ from) = costNounOk from
+  costActionOk (RemoveCountersAmong _ _ among) = costNounOk among
   costActionOk (MoveCounters _ _ src dst) = costNounOk src && costNounOk dst
   costActionOk (PutSameCounters src dst) = costNounOk src && costNounOk dst
   costActionOk (GiveCountersOfOwnKinds on) = costNounOk on
@@ -4203,6 +4247,7 @@ mutual
   effEq (GetsEmblem _ _) _ = False
   effEq (PutCounters _ _ _) _ = False
   effEq (RemoveCounters _ _ _) _ = False
+  effEq (RemoveCountersAmong _ _ _) _ = False
   effEq (MoveCounters _ _ _ _) _ = False
   effEq (PutSameCounters _ _) _ = False
   effEq (PutCountersOfThoseKinds _ _) _ = False
@@ -4363,6 +4408,7 @@ mutual
   effIntro (Distribute (DividedDamage _) amt among) = outcomeB DamageDealt :: nomIntro among
   effIntro (Distribute (DistributedCounters _) amt among) = nomIntro among
   effIntro (RemoveCounters q kind from) = outcomeB CountersRemoved :: nomIntro from
+  effIntro (RemoveCountersAmong q kind among) = outcomeB CountersRemoved :: nomIntro among
   effIntro (MoveCounters amt kind src dst) = nomIntro dst
   effIntro (PutSameCounters src dst) = nomIntro dst
   effIntro (PutCountersOfThoseKinds amt on) = nomIntro on
@@ -4490,6 +4536,7 @@ mutual
   preIntro (GetsEmblem who _) = nomIntro who
   preIntro (PutCounters amt kind on) = nomIntro on
   preIntro (RemoveCounters q kind from) = nomIntro from
+  preIntro (RemoveCountersAmong q kind among) = nomIntro among
   preIntro (MoveCounters amt kind src dst) = nomIntro dst
   preIntro (PutSameCounters src dst) = nomIntro dst
   preIntro (PutCountersOfThoseKinds amt on) = nomIntro on
@@ -4635,6 +4682,7 @@ mutual
   annIntro (GetsEmblem who _) = nomIntro who
   annIntro (PutCounters amt kind on) = nomIntro on
   annIntro (RemoveCounters q kind from) = nomIntro from
+  annIntro (RemoveCountersAmong q kind among) = nomIntro among
   annIntro (MoveCounters amt kind src dst) = nomIntro dst
   annIntro (PutSameCounters src dst) = nomIntro dst
   annIntro (PutCountersOfThoseKinds amt on) = nomIntro on
@@ -4795,6 +4843,7 @@ mutual
   deedDelta (GetsEmblem _ _) = []
   deedDelta (PutCounters amt kind on) = []
   deedDelta (RemoveCounters q kind from) = [outcomeB CountersRemoved]
+  deedDelta (RemoveCountersAmong q kind among) = [outcomeB CountersRemoved]
   deedDelta (MoveCounters amt kind src dst) = []
   deedDelta (PutSameCounters src dst) = []
   deedDelta (PutCountersOfThoseKinds amt on) = []

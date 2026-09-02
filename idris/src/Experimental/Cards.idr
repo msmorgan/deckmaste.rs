@@ -3827,6 +3827,41 @@ blackManaBattery =
                              , AddMana You RemovedThisWay (Runs [[OfColor Black]]) [] ]) ]
        Nothing
 
+||| Galloping Lizrog, whole -- the counter PARTITIVE at the EFFECT seat.
+||| "You may remove any number of +1/+1 counters from among creatures
+||| you control. If you do, put twice that many +1/+1 counters on this
+||| creature." The removal announces its size and the did-branch reads
+||| it back, which is why the count sits on the COUNTERS and the group
+||| only says where they come from.
+public export
+gallopingLizrog : Card
+gallopingLizrog =
+  Macros.card "Galloping Lizrog"
+       (Just [Macros.generic 3, Macros.pip Green, Macros.pip Blue]) []
+       (MkTypeLine [creatureType "Frog", creatureType "Lizard"] [Creature])
+       [ Macros.keyword "Trample"
+       , Macros.triggered When (Enters Macros.thisCreature Nothing)
+           (Macros.mayThen You
+              (RemoveCountersAmong Macros.anyNumber (Just Macros.plusOnePlusOne)
+                                   (AllOf Macros.creatureYouControl))
+              (PutCounters (Times 2 RemovedThisWay)
+                           (PrintedKind Macros.plusOnePlusOne)
+                           Macros.thisCreature)) ]
+       (Just (3, 3))
+
+||| Novijen Sages' draw ability -- the same partitive at the COST seat,
+||| where 11 of the family's 17 removal lines write it: "{1}, Remove two
+||| +1/+1 counters from among creatures you control: Draw a card."
+||| A FRAGMENT: graft is not in the keyword catalog.
+public export
+novijenSagesDraw : Ability
+novijenSagesDraw =
+  Macros.activated (Compound [Mana [Macros.generic 1],
+                       Do (RemoveCountersAmong (Macros.exactly 2)
+                             (Just Macros.plusOnePlusOne)
+                             (AllOf Macros.creatureYouControl))])
+                   (Macros.drawCards 1)
+
 ||| Cyclone's upkeep trigger, first sentence -- "put a wind counter on
 ||| this enchantment, then sacrifice this enchantment unless you pay {G}
 ||| for each wind counter on it". The COLOURED scaled payment: the count
