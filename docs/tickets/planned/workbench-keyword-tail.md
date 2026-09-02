@@ -20,3 +20,10 @@ The keyword umbrella's survivors, gathered at its close (both sub-rounds done
   door vocabulary.
 
 Re-measure at claim.
+
+- **Update from the transform round (2026-09-02):** the Room door items got
+  counts — 28 "When you unlock this door" triggers, 2 unlock/lock
+  instructions, 3 door-counting reads; the unlock designations
+  (`LeftHalfUnlocked`/`RightHalfUnlocked` [CR#709.5c]) and
+  `SpecialAction.UnlockDoor` are LANDED; what waits here is the door NOUN
+  [CR#709.5j] and the unlock trigger header [CR#709.5h].
