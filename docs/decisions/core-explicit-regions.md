@@ -63,9 +63,13 @@ engine tickets its stages absorb (listed in each stage ticket).
 8. **Linked memory** [CR#607]. A card declares its memory cells;
    `Remember { cell, value: RefId }` writes one; a reading ability takes the
    cell as a param with linked provenance.
-9. **Announcement is declared on the ability.** Targets and costs are fields
-   of `SpellAbility`, `ActivatedAbility`, `TriggeredAbility`, and `Mode`,
-   never effect nodes [CR#601.2b,601.2c]. The cost is a block run at
+9. **Announcement is declared on the ability.** Targets are fields of
+   `SpellAbility`, `ActivatedAbility`, `TriggeredAbility`, and `Mode`, never
+   effect nodes [CR#601.2b,601.2c]. A cost is a field of the kinds that have
+   one: spells and activated abilities announce and pay theirs, a mode carries
+   its optional rider, and a triggered ability has none, since nothing about
+   it is announced or paid. Amended 2026-09-02 to record that deviation, which
+   the cost landing made and argued only in a code comment. The cost is a block run at
    announcement in the ability's own activation, so a paid product is a def
    the body reads. `OneShotEffect::Targeted` and the root `AdditionalCost`
    are deleted.

@@ -28,6 +28,18 @@ alone; the ADR's Staging section still names one stage-3 ticket, and its laws
   a LINKED ability read: it must survive the one zone change from stack to
   battlefield, which the stack entry does not.
 
+## The live defect
+
+Captures are not merely unbuilt; they silently produce nothing. A created
+region's params already carry capture provenance, but a delayed trigger's
+`CreatedTrigger` has no activation to read them from, so every capture
+resolves to an unavailable value at firing time. A card whose delayed
+trigger reads a captured object therefore fizzles that read rather than
+failing loudly, and `created_trigger_context` still hand-captures only the
+source and the defending player. Whatever shape the capture list takes, a
+capture that cannot be supplied must be a load-time or lowering error, never
+an unavailable value at firing.
+
 ## Context from the cost half
 
 `CostComponent::Act { dest, .. }` already captures a paid product's register,
