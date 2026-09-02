@@ -384,6 +384,12 @@ mutual
     ||| Manipulator -- 5 supported lines, measured 2026-08-28) reads the
     ||| opponents of a player some earlier clause bound, and this row has
     ||| no slot for that player.
+    ||| Re-measured 2026-09-02 and the count is **10**: the Oath cycle's
+    ||| chooser clause writes the same possessor as a postnominal test --
+    ||| "that player chooses target player who … and IS THEIR OPPONENT"
+    ||| (Oaths of Druids, Ghouls, Lieges, Mages, Scholars). Those five are
+    ||| not payable on this gap alone; see `CompareOver`, whose member the
+    ||| same clause cannot name either.
     ||| -- spelling: "an opponent", "one of your opponents"; see
     ||| `Macros.anOpponent` for which environment writes which.
     Opponent : Predicate bs Player
@@ -1002,6 +1008,18 @@ mutual
     ||| can bind it.
     ||| The bound is read in the OUTER context, so "than you" is the
     ||| reader's own count and no member leaks into it.
+    ||| MEASURED LIMIT (2026-09-02): the measure names the member by
+    ||| prefix uniqueness (`They`/`It` gate on exactly one mention of the
+    ||| kind), so the row writes only where the ENCLOSING clause has bound
+    ||| no singular referent of the domain's kind. "That player chooses
+    ||| target player who controls more lands than THEY do" (the Oath
+    ||| cycle, 5 supported cards) sits inside "at the beginning of each
+    ||| player's upkeep", which already bound one player, and the measure
+    ||| is then refused at `countOnes Player … = 1` with two mentions in
+    ||| scope -- the bound side is fine, since it reads that outer player
+    ||| and wants exactly one. Naming a member past an outer mention is a
+    ||| recency read, which `ItPrior` refuses on purpose; no cheaper seat
+    ||| was found and none is invented here.
     ||| It leaves the margin behind, as `CompareAmt` does: [CR#608.2h]
     ||| settles both counts once, when the effect applies, so the amount
     ||| by which one exceeds the other is a determinate number, and

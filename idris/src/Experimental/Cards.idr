@@ -15058,11 +15058,10 @@ vraskasScorn =
 ||| [CR#701.23a]'s search names a ZONE and no possessor for it, and
 ||| [CR#400.1] gives each player a library of their own, so the printed
 ||| possessive is the deciding member's and so is the shuffle after it.
-||| 9 supported lines write "each player/opponent may search
-||| their library" (re-measured 2026-09-02); the six of them that go on to
-||| say "then each player who searched their library this way shuffles"
-||| are still fragments, on the description-layer gap this round did not
-||| close.
+||| 9 supported cards write "each player/opponent may search their
+||| library" (re-measured 2026-09-02); the five that go on to say "then
+||| each player who searched a/their library this way shuffles" are still
+||| fragments, on the description-layer gap this round did not close.
 public export
 oldGrowthDryads : Card
 oldGrowthDryads =
@@ -16843,6 +16842,34 @@ eachPlayerShufflesTheirHandAndGraveyard =
   Macros.shufflesInto (Each AnyPlayer)
     (BothOf (AllOf (InZone (Macros.handOf They)))
             (AllOf (InZone (Macros.graveyardOf They))))
+
+||| ...and the OFFERED twin of the line above -- "Each player may shuffle
+||| their hand and graveyard into their library" (2 supported lines). The
+||| possessive is the same `They` reading the same member; what changed is
+||| that `mayCtx` now seats an offer's body where `Does` already seated a
+||| pass's, so the two spellings differ by the offer alone.
+public export
+eachPlayerMayShuffleTheirHandAndGraveyard : Effect []
+eachPlayerMayShuffleTheirHandAndGraveyard =
+  Macros.may (Each AnyPlayer)
+    (Macros.shufflesInto They
+       (BothOf (AllOf (InZone (Macros.handOf They)))
+               (AllOf (InZone (Macros.graveyardOf They)))))
+
+||| "Each player may discard their hand and draw seven cards" -- the
+||| largest member-reading offer family, 6 supported cards (Imposing
+||| Grandeur, Raphael's Technique, Ruin Grinder, Sail into the West,
+||| Snort, Will of the Jeskai; re-measured 2026-09-02, two of them at
+||| five cards drawn rather than seven). Both clauses
+||| are the member's and both read it back, which is the whole of what
+||| the offered agent seat buys: the hand discarded is the decider's own
+||| [CR#400.1], and the cards drawn are theirs.
+public export
+eachPlayerMayDiscardTheirHandAndDrawSeven : Effect []
+eachPlayerMayDiscardTheirHandAndDrawSeven =
+  Macros.may (Each AnyPlayer)
+    (Sequentially [ Macros.discards They (AllOf (InZone (Macros.handOf They)))
+                  , Draw They (Lit 7) ])
 
 ||| Pir, Imaginative Rascal's replacement -- "If one or more counters
 ||| would be put on a permanent your team controls, that many plus one of
