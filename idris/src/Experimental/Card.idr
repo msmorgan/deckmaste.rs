@@ -94,7 +94,7 @@ staticOnSpellCardOk : {0 bs : Bindings} -> StaticEffect bs -> Bool
 -- says nothing about how broadly its subject may be described.
 staticOnSpellCardOk (Deontic _ Forbid ["Counter"] Patient _ _ _) = True
 staticOnSpellCardOk (Deontic _ Forbid ["Copy"] Patient _ _ _) = True
-staticOnSpellCardOk (AltCost _) = True
+staticOnSpellCardOk (AltCost _ _) = True
 -- [CR#113.6e] again: an additional cost is an ability of the object that
 -- modifies how that object can be cast, so it functions in the zone the
 -- spell is cast from and on the stack. 308 of the 315 supported "as an

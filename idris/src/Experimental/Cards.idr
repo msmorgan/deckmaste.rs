@@ -8650,7 +8650,7 @@ forceOfWill =
   Macros.card "Force of Will"
        (Just [Macros.generic 3, Macros.pip Blue, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Static (AltCost (Just (Compound
+       [ Static (AltCost This (Just (Compound
                    [ Do (ChangeLife You (Down (Lit 1)))
                    , Do (Macros.exile (Macros.a (And [ColorIs Blue,
                                                       InZone (Macros.handOf You)]))) ])))
@@ -8662,7 +8662,7 @@ crash : Card
 crash =
   Macros.card "Crash" (Just [Macros.generic 2, Macros.pip Red]) []
        (MkTypeLine [] [Instant])
-       [ Static (AltCost (Just (Do (Macros.sacrifice You
+       [ Static (AltCost This (Just (Do (Macros.sacrifice You
                    (Macros.a (And [Macros.land, HasSubtype (landType "Mountain")]))))))
        , Spell (Macros.destroy (Macros.target Macros.artifact)) ]
        Nothing
@@ -8678,7 +8678,7 @@ moggSalvage =
                                      ControlledBy Macros.anOpponent])
                       , Exists (And [Macros.land, HasSubtype (landType "Mountain"),
                                      ControlledBy You]) ])
-                   (AltCost Nothing))
+                   (AltCost This Nothing))
        , Spell (Macros.destroy (Macros.target Macros.artifact)) ]
        Nothing
 
@@ -8687,7 +8687,7 @@ abolish : Card
 abolish =
   Macros.card "Abolish" (Just [Macros.generic 1, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Static (AltCost (Just (Do (Macros.discards You
+       [ Static (AltCost This (Just (Do (Macros.discards You
                    (Macros.a (And [HasSubtype (landType "Plains"), InZone Macros.handZ]))))))
        , Spell (Macros.destroy (Macros.target (Or [Macros.artifact,
                                                    Macros.enchantment]))) ]
@@ -8698,7 +8698,7 @@ gush : Card
 gush =
   Macros.card "Gush" (Just [Macros.generic 4, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Static (AltCost (Just (Do (Macros.move
+       [ Static (AltCost This (Just (Do (Macros.move
                    (CountedGroup (Macros.exactly 2) Nothing
                                  (And [Macros.land, HasSubtype (landType "Island"),
                                        ControlledBy You]))
@@ -8712,7 +8712,7 @@ sunscour =
   Macros.card "Sunscour"
        (Just [Macros.generic 5, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [] [Sorcery])
-       [ Static (AltCost (Just (Do (Macros.exile
+       [ Static (AltCost This (Just (Do (Macros.exile
                    (CountedGroup (Macros.exactly 2) Nothing
                                  (And [ColorIs White,
                                        InZone (Macros.handOf You)]))))))
@@ -8727,7 +8727,7 @@ admiralsOrder =
        (MkTypeLine [] [Instant])
        [ Static (Macros.asLongAs
                    (Macros.happened AttackDeclaration You Lookback.ThisTurn)
-                   (AltCost (Just (Mana [Macros.pip Blue]))))
+                   (AltCost This (Just (Mana [Macros.pip Blue]))))
        , Spell (Macros.counterSpell (Macros.target Macros.spell)) ]
        Nothing
 
@@ -8743,7 +8743,7 @@ massacre =
                                      ControlledBy Macros.anOpponent])
                       , Exists (And [Macros.land, HasSubtype (landType "Swamp"),
                                      ControlledBy You]) ])
-                   (AltCost Nothing))
+                   (AltCost This Nothing))
        , Spell (Continuously
                   (Gets (AllOf Macros.creature) (PtDown (Lit 2)) (PtDown (Lit 2)))
                   (Just Macros.untilEndOfTurn)) ]
@@ -8760,7 +8760,7 @@ kyrenLegate =
                                      ControlledBy Macros.anOpponent])
                       , Exists (And [Macros.land, HasSubtype (landType "Mountain"),
                                      ControlledBy You]) ])
-                   (AltCost Nothing))
+                   (AltCost This Nothing))
        , Macros.keyword "Haste" ]
        (Just (1, 1))
 
@@ -8771,7 +8771,7 @@ rouse =
        (MkTypeLine [] [Instant])
        [ Static (Macros.asLongAs
                    (Exists (And [Macros.land, HasSubtype (landType "Swamp"), ControlledBy You]))
-                   (AltCost (Just (Do (ChangeLife You (Down (Lit 2)))))))
+                   (AltCost This (Just (Do (ChangeLife You (Down (Lit 2)))))))
        , Spell (Continuously
                   (Gets (Macros.target Macros.creature) (PtUp (Lit 2)) (PtUp (Lit 0)))
                   (Just Macros.untilEndOfTurn)) ]
@@ -8783,7 +8783,7 @@ demonOfDeathsGate =
   Macros.card "Demon of Death's Gate"
        (Just [Macros.generic 6, Macros.pip Black, Macros.pip Black, Macros.pip Black]) []
        (MkTypeLine [creatureType "Demon"] [Creature])
-       [ Static (AltCost (Just (Compound
+       [ Static (AltCost This (Just (Compound
                    [ Do (ChangeLife You (Down (Lit 6)))
                    , Do (Macros.sacrifice You
                            (CountedGroup (Macros.exactly 3) Nothing
@@ -8798,7 +8798,7 @@ thwart =
   Macros.card "Thwart"
        (Just [Macros.generic 2, Macros.pip Blue, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Static (AltCost (Just (Do (Macros.move
+       [ Static (AltCost This (Just (Do (Macros.move
                    (CountedGroup (Macros.exactly 3) Nothing
                                  (And [Macros.land, HasSubtype (landType "Island"),
                                        ControlledBy You]))
@@ -8809,7 +8809,7 @@ thwart =
 public export
 theLadyOfOtariaLine : StaticEffect []
 theLadyOfOtariaLine =
-  AltCost (Just (Do (SetStatus Tapped
+  AltCost This (Just (Do (SetStatus Tapped
             (CountedGroup (Macros.exactly 3) Nothing
                           (And [Macros.creature, HasSubtype (creatureType "Dwarf"),
                                 ControlledBy You, HasStatus Untapped])))))
@@ -8820,7 +8820,7 @@ shiningShoal =
   Macros.card "Shining Shoal"
        (Just [Variable, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [spellType "Arcane"] [Instant])
-       [ Static (AltCost (Just (Do (Macros.exile
+       [ Static (AltCost This (Just (Do (Macros.exile
                    (Macros.a (And [ColorIs White,
                                    Compare [CharAxis ManaValue] Eq (LetterVal X),
                                    InZone (Macros.handOf You)]))))))
@@ -8840,7 +8840,7 @@ disruptingShoal =
   Macros.card "Disrupting Shoal"
        (Just [Variable, Macros.pip Blue, Macros.pip Blue]) []
        (MkTypeLine [spellType "Arcane"] [Instant])
-       [ Static (AltCost (Just (Do (Macros.exile
+       [ Static (AltCost This (Just (Do (Macros.exile
                    (Macros.a (And [ColorIs Blue,
                                    Compare [CharAxis ManaValue] Eq (LetterVal X),
                                    InZone (Macros.handOf You)]))))))
@@ -8881,7 +8881,7 @@ blazingShoal =
   Macros.card "Blazing Shoal"
        (Just [Variable, Macros.pip Red, Macros.pip Red]) []
        (MkTypeLine [spellType "Arcane"] [Instant])
-       [ Static (AltCost (Just (Do (Macros.exile
+       [ Static (AltCost This (Just (Do (Macros.exile
                    (Macros.a (And [ColorIs Red,
                                    Compare [CharAxis ManaValue] Eq (LetterVal X),
                                    InZone (Macros.handOf You)]))))))
@@ -8895,7 +8895,7 @@ sickeningShoal =
   Macros.card "Sickening Shoal"
        (Just [Variable, Macros.pip Black, Macros.pip Black]) []
        (MkTypeLine [spellType "Arcane"] [Instant])
-       [ Static (AltCost (Just (Do (Macros.exile
+       [ Static (AltCost This (Just (Do (Macros.exile
                    (Macros.a (And [ColorIs Black,
                                    Compare [CharAxis ManaValue] Eq (LetterVal X),
                                    InZone (Macros.handOf You)]))))))
@@ -8909,7 +8909,7 @@ nourishingShoal =
   Macros.card "Nourishing Shoal"
        (Just [Variable, Macros.pip Green, Macros.pip Green]) []
        (MkTypeLine [spellType "Arcane"] [Instant])
-       [ Static (AltCost (Just (Do (Macros.exile
+       [ Static (AltCost This (Just (Do (Macros.exile
                    (Macros.a (And [ColorIs Green,
                                    Compare [CharAxis ManaValue] Eq (LetterVal X),
                                    InZone (Macros.handOf You)]))))))
@@ -9096,7 +9096,7 @@ snuffOut =
        [ Static (Macros.asLongAs
                    (Exists (And [Macros.land, HasSubtype (landType "Swamp"),
                                  ControlledBy You]))
-                   (AltCost (Just (Do (ChangeLife You (Down (Lit 4)))))))
+                   (AltCost This (Just (Do (ChangeLife You (Down (Lit 4)))))))
        , Spell (CantBe (Macros.destroy (Macros.target
                   (And [Macros.creature, Not (ColorIs Black)])))
                 "Regenerate" (Macros.itVerbed "Destroy")) ]
@@ -12220,7 +12220,7 @@ invigorate =
        [ Static (Macros.asLongAs
                    (Exists (And [Macros.land, HasSubtype (landType "Forest"),
                                  ControlledBy You]))
-                   (AltCost (Just (Do (ChangeLife Macros.anOpponent
+                   (AltCost This (Just (Do (ChangeLife Macros.anOpponent
                                                   (Up (Lit 3)))))))
        , Spell (Continuously
                   (Gets (Macros.target Macros.creature)
@@ -12242,12 +12242,86 @@ deflectingSwatCommanderAltCost : Ability
 deflectingSwatCommanderAltCost =
   Static (Macros.asLongAs
             (Exists (And [HasCardDesignation CommanderD, ControlledBy You]))
-            (AltCost Nothing))
+            (AltCost This Nothing))
+
+||| Fist of Suns, whole -- `AltCost`'s SUBJECT slot, and the generic
+||| grant at its plainest: "You may pay {W}{U}{B}{R}{G} rather than pay
+||| the mana cost for spells you cast." The statement prices a described
+||| CLASS of spells rather than the object it is printed on, which is
+||| the one thing the row could not say before the slot landed.
+public export
+fistOfSuns : Card
+fistOfSuns =
+  Macros.card "Fist of Suns" (Just [Macros.generic 3]) []
+       (MkTypeLine [] [Artifact])
+       [ Static (AltCost (AllOf (And [Macros.spell, CastBy You]))
+                   (Just (Mana [Macros.pip White, Macros.pip Blue,
+                                Macros.pip Black, Macros.pip Red,
+                                Macros.pip Green]))) ]
+       Nothing
+
+||| Rooftop Storm, whole -- the same slot with the class NARROWED, "You
+||| may pay {0} rather than pay the mana cost for Zombie creature spells
+||| you cast." The subject is an ordinary description; nothing about the
+||| row changes when it gets one.
+public export
+rooftopStorm : Card
+rooftopStorm =
+  Macros.card "Rooftop Storm"
+       (Just [Macros.generic 5, Macros.pip Blue]) []
+       (MkTypeLine [] [Enchantment])
+       [ Static (AltCost (AllOf (And [ HasSubtype (creatureType "Zombie")
+                                     , Macros.creature, Macros.spell
+                                     , CastBy You ]))
+                   (Just (Mana [Macros.generic 0]))) ]
+       Nothing
+
+||| Heart of Kiran's third line -- the SAME slot at the ABILITY arm, and
+||| the non-mana declined cost with it. "You may remove a loyalty counter
+||| from a planeswalker you control rather than pay Heart of Kiran's crew
+||| cost." [CR#602.2b] extends the cost machinery to activation costs in
+||| one sentence, so an alternative cost may be offered for one; what the
+||| line declines is the crew ability's own cost [CR#702.122a], named the
+||| way `CostsToCast`'s equip discounts name theirs.
+public export
+heartOfKiranCrewAltCost : Ability
+heartOfKiranCrewAltCost =
+  Static (AltCost (AllOf (And [AbilityHead (KeywordClass "Crew"),
+                               AbilityOf This]))
+            (Just (Do (RemoveCounters (Just (Macros.exactly 1))
+                                      (Just LoyaltyCounter)
+                                      (Macros.a (And [HasType Planeswalker,
+                                                      ControlledBy You]))))))
+
+||| New Perspectives' second line, the declined cost at a BARE keyword
+||| class -- "you may pay {0} rather than pay cycling costs". No
+||| restrictor at all, where Heart of Kiran's names one ability and the
+||| equip discounts name a targeted class; [CR#702.29a] makes cycling an
+||| activated ability, so the plural names every one of them.
+public export
+newPerspectivesCyclingAltCost : Ability
+newPerspectivesCyclingAltCost =
+  Static (AltCost (AllOf (AbilityHead (KeywordClass "Cycling")))
+            (Just (Mana [Macros.generic 0])))
+
+||| Thick-Skinned Goblin's first line -- the declined cost at a
+||| TRIGGERED keyword ability, "you may pay {0} rather than pay the echo
+||| cost for permanents you control". [CR#702.30a] makes echo an upkeep
+||| trigger whose sacrifice is averted by paying, so the cost the line
+||| declines is that trigger's and the subject is Training Grounds'
+||| shape at a different head.
+public export
+thickSkinnedGoblinEchoAltCost : Ability
+thickSkinnedGoblinEchoAltCost =
+  Static (AltCost (AllOf (And [ AbilityHead (KeywordClass "Echo")
+                              , AbilityOf (AllOf (And [Permanent,
+                                                       ControlledBy You])) ]))
+            (Just (Mana [Macros.generic 0])))
 
 -- THE FREE CAST OF ANOTHER CARD, 296 supported lines. [CR#118.9] lets an
 -- effect license a cast "without paying its mana cost"; where the 16
 -- self lines say it of the object the line is printed on -- which is
--- `AltCost Nothing`, landed -- these say it of a card the clause has
+-- `AltCost This Nothing`, landed -- these say it of a card the clause has
 -- picked out, so the licence and the spell being cast are two different
 -- objects and the rider belongs on the permission.
 

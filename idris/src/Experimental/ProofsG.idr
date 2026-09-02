@@ -330,7 +330,7 @@ public export
 badUnlessConjunction : Unspellable (StaticEffect []) (\ok =>
   Conditionally (AndCond [ Exists (And [Macros.artifact, ControlledBy You])
                          , Exists (And [Macros.enchantment, ControlledBy You]) ])
-                (AltCost Nothing) Unless {mk = ok})
+                (AltCost This Nothing) Unless {mk = ok})
 badUnlessConjunction MkMarkingOk impossible
 
 

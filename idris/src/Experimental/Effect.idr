@@ -522,17 +522,41 @@ mutual
       ||| different slot, re-measured 2026-08-28 (the alternative-cost
       ||| round's own counts are corrected where they differ):
       |||
-      ||| * 13 GENERIC GRANTS -- "rather than pay the mana cost FOR
-      |||   [spells you cast]" (As Foretold, Fist of Suns, Dream Halls,
-      |||   Jodah, Rooftop Storm, ...). They price a described CLASS of
-      |||   spells, which is a subject slot this row has none of and
-      |||   `CostsToCast` has. Counted 14 before; 13 on the re-measure.
-      ||| * 11 NON-MANA DECLINED COSTS -- "you may pay {0} rather than
-      |||   pay the equip cost" (Bruenor Battlehammer, Forge Anew), the
-      |||   cycling, echo, power-up and crew ones, and K'rrik's per-pip
-      |||   life swap. What they decline is a COST NAMED BY A KEYWORD or
-      |||   a pip inside one, not the mana cost, so the declined side
-      |||   wants to be a value -- `Pay`'s standing decline.
+      ||| * THE GENERIC GRANTS ARE PAID: the subject slot is here, and it
+      |||   is `CostsToCast`'s own -- a `Noun` under `CostSubject`, whose
+      |||   object arm asks for the stack ([CR#601.2a] puts the spell
+      |||   there before [CR#601.2f] determines its cost) and whose
+      |||   ability arm asks nothing ([CR#602.2b] extends the whole cost
+      |||   machine to activation costs). Re-measured 2026-09-02: 12
+      |||   supported lines write "rather than pay the mana cost FOR
+      |||   [a described class of spells]" -- As Foretold, Fist of Suns,
+      |||   Jodah, Rooftop Storm, Conspiracy Unraveler, Darksteel
+      |||   Monolith, Kentaro, Leyline of Mutation, Nissa Worldsoul
+      |||   Speaker, Runeforge Champion, Charred Foyer, Tlincalli Hunter
+      |||   (13 on the previous round's count, 14 on the umbrella's).
+      |||   The SAME slot carries the NON-MANA DECLINED COSTS -- 10 lines
+      |||   re-measured, not 11, and no second decline was needed: they
+      |||   name an ABILITY and decline ITS cost, which is
+      |||   `AbilityCostSubject`. THREE write today: Heart of Kiran's
+      |||   crew cost (one named ability), New Perspectives' bare
+      |||   "cycling costs" (the whole keyword class), Thick-Skinned
+      |||   Goblin's "echo cost for permanents you control" (Training
+      |||   Grounds' possessive at a triggered head [CR#702.30a]).
+      |||   FIVE wait on ONE thing that is no part of this row -- an
+      |||   ordinal-per-turn restrictor over ACTIVATIONS, "the first
+      |||   equip ability you activate each turn" (Bruenor Battlehammer,
+      |||   Forge Anew, Kili, Advancing the Spirit's power-up, Gavi's
+      |||   cycled card). `NthCastBy` is that restrictor at the CASTING
+      |||   history; the activation history has no twin.
+      |||   TWO are not this slot's at all: K'rrik ("for each {B} in a
+      |||   cost, you may pay 2 life rather than pay that mana") and
+      |||   Heirloom Epic replace a SYMBOL inside a cost, which
+      |||   [CR#107.4b] makes a component of a cost rather than a cost --
+      |||   Jegantha's gap in the other voice.
+      |||   ONE grant also stays short: As Foretold writes "Once each
+      |||   turn" over the whole statement and a where-clause letter
+      |||   inside the subject's description, neither of which is the
+      |||   subject slot's.
       ||| * 23 PRONOUN-TAIL LINES -- "you may cast this card from your
       |||   graveyard BY PAYING [c] rather than paying its mana cost"
       |||   (Worldheart Phoenix, Squee, Raffine's Guidance, Bolas's
@@ -547,10 +571,21 @@ mutual
       ||| Invigorate (`costActionOk` already admits the life gain) and
       ||| the 5 commander-gated free spells (`HasCardDesignation`
       ||| [CR#903.3] reads `CommanderD`'s card-held scope).
-      ||| -- spelling: the cost, then "rather than pay this spell's mana
-      ||| cost"; at `Nothing`, "without paying its mana cost".
-      AltCost : (c : Maybe (Cost bs)) ->
-                {auto 0 ap : AltPayment c} -> StaticEffect bs
+      ||| THE SUBJECT SEAT is `CostsToCast`'s, first and at `bs`, with
+      ||| the cost at `selfSubjIntro n` -- `Gets`' seat, so a deictic
+      ||| subject announces itself and the trailing where-clause
+      ||| ("... for Samurai spells you cast, WHERE X IS THAT SPELL'S mana
+      ||| value", Kentaro) has a mention to read. The printed line writes
+      ||| the cost FIRST and the subject after it, so a cost reading the
+      ||| subject would be a forward reference; no supported line writes
+      ||| one, and the width is the tolerated kind, not a claim.
+      ||| -- spelling: the cost, then "rather than pay [n]'s mana cost";
+      ||| at `This`, "... this spell's mana cost", and at `Nothing` for
+      ||| the cost, "without paying its mana cost".
+      AltCost : {k : Kind} -> (n : Noun bs k) ->
+                (c : Maybe (Cost (selfSubjIntro n))) ->
+                {auto 0 ap : AltPayment c} ->
+                {auto 0 cs : CostSubject n} -> StaticEffect bs
       ||| "As an additional cost to cast this spell, [c]" [CR#118.8] --
       ||| 308 supported lines, 260 of them mandatory and 48 written with
       ||| "you may", which is what `offered` marks [CR#118.8b]. Beside
@@ -2062,7 +2097,7 @@ mutual
   staticKind (HasBasePt _ _ _) = BasePtSet
   staticKind (SwitchesPt _) = PtSwitch
   staticKind (CostsToCast _ _) = CostModification
-  staticKind (AltCost _) = CostModification
+  staticKind (AltCost _ _) = CostModification
   staticKind (AddedCost _ _) = CostModification
   staticKind (Gains _ _) = KeywordGrant
   staticKind (GainsAbilitiesOf _ _ _ _) = KeywordGrant
@@ -2131,7 +2166,7 @@ mutual
   staticIntro (HasBasePt n pow tou) = amtDelta tou ++ amtDelta pow ++ selfSubjIntro n
   staticIntro (SwitchesPt n) = selfSubjIntro n
   staticIntro (CostsToCast n sh) = costShiftDelta sh ++ selfSubjIntro n
-  staticIntro (AltCost _) = bs
+  staticIntro (AltCost n _) = selfSubjIntro n
   -- The cost is a statement about the payment, not a clause that
   -- announces anything: the additional cost is paid at [CR#601.2f..601.2h],
   -- long before any line of the card reads a mention.
@@ -6010,7 +6045,7 @@ mutual
   public export
   clauseStaticOk : {0 bs : Bindings} -> StaticEffect bs -> Bool
   clauseStaticOk (DefinesPt _ _ _) = False
-  clauseStaticOk (AltCost _) = False
+  clauseStaticOk (AltCost _ _) = False
   clauseStaticOk (AndAlso parts) = partsClauseOk parts
   clauseStaticOk _ = True
 

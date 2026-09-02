@@ -514,7 +514,7 @@ badCastAbilityClass BareParticipant impossible
 ||| [CR#107.5] fixes "{T}" as tapping a permanent, and a spell being paid for is on the stack [CR#601.2b].
 public export
 badAltCostTapSymbol : Unspellable (StaticEffect []) (\ok =>
-  AltCost (Just TapSymbol) {ap = ok})
+  AltCost This (Just TapSymbol) {ap = ok})
 badAltCostTapSymbol NoAltPayment impossible
 badAltCostTapSymbol AltPaymentWritten impossible
 
@@ -523,7 +523,7 @@ badAltCostTapSymbol AltPaymentWritten impossible
 ||| [CR#606.2] makes the loyalty symbol an activation-cost component, payable only on a permanent [CR#606.3].
 public export
 badAltCostLoyaltySymbol : Unspellable (StaticEffect []) (\ok =>
-  AltCost (Just (LoyaltySymbol (LoyaltyUp 1))) {ap = ok})
+  AltCost This (Just (LoyaltySymbol (LoyaltyUp 1))) {ap = ok})
 badAltCostLoyaltySymbol NoAltPayment impossible
 badAltCostLoyaltySymbol AltPaymentWritten impossible
 
@@ -556,7 +556,7 @@ badAddedCostLoyaltySymbol AddedPaymentWritten impossible
 ||| [CR#113.6d] prices one object, and the node names none: the clause has no spell to price.
 public export
 badAltCostClause : Unspellable (Effect []) (\ok =>
-  Continuously (AltCost (Just (Do (Macros.sacrifice You
+  Continuously (AltCost This (Just (Do (Macros.sacrifice You
                   (Macros.a (And [Macros.land, HasSubtype (landType "Mountain")]))))))
                Nothing {cl = ok})
 badAltCostClause Oh impossible
