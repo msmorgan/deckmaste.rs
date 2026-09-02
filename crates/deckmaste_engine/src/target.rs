@@ -291,8 +291,9 @@ pub(crate) fn matches_with_activation(
         {
             match watcher {
                 Some(w) => {
-                    // Find the live object whose source is the watcher (the Aura)
-                    // and check whether it is attached to `id` (the would-be
+                    // Find the live object whose source is the watcher (the
+                    // Aura) and check whether it is
+                    // attached to `id` (the would-be
                     // destroyed creature). If the watcher has no live object on
                     // the battlefield (e.g. it left already), the match fails.
                     state
@@ -1468,7 +1469,8 @@ mod tests {
             &Predicate::State(StatePredicate::Blocking)
         ));
 
-        // Declare the block — blocker is blocking, attacker no longer unblocked.
+        // Declare the block — blocker is blocking, attacker no longer
+        // unblocked.
         state.combat.declare_block(blocker, attacker);
         assert!(matches(
             &state,
@@ -1583,7 +1585,8 @@ mod tests {
             !matches(&state, p1, &teammate),
             "no teammates exist in a 1v1 game (singleton teams)"
         );
-        // The opponent relation still resolves (P1 is an opponent of marked P0).
+        // The opponent relation still resolves (P1 is an opponent of marked
+        // P0).
         let opponent = Predicate::Relation(RelationPredicate::OpponentOf(Arc::new(marked())));
         assert!(matches(&state, p1, &opponent));
     }
@@ -1666,7 +1669,8 @@ mod tests {
             &Predicate::Kind(ObjectKind::Ability)
         ));
 
-        // "counter target ability": the ability is a candidate, the spell isn't.
+        // "counter target ability": the ability is a candidate, the spell
+        // isn't.
         let abilities = candidates(&state, &Predicate::Kind(ObjectKind::Ability));
         assert!(abilities.contains(&ability_id));
         assert!(!abilities.contains(&spell_id));
@@ -1988,5 +1992,272 @@ mod tests {
         // No watcher (frameless) → `This` is unresolvable → no match, never a
         // panic.
         assert!(!matches_with(&state, c, &above, None));
+    }
+
+    /// A per-candidate predicate is a REGION (ADR law 1): the candidate it
+    /// tests is parameter zero and the carrier (`This`) is parameter one, so
+    /// a cross-object comparison reads two declared registers rather than two
+    /// anaphors.
+    fn candidate_region_with_carrier(
+        condition: deckmaste_core::Condition,
+    ) -> Arc<deckmaste_core::Region<deckmaste_core::Condition>> {
+        Arc::new(deckmaste_core::Region::new(
+            Arc::from([
+                deckmaste_core::Param {
+                    def: deckmaste_core::DefId(0),
+                    kind: deckmaste_core::Kind::Object,
+                    provenance: deckmaste_core::Provenance::Candidate,
+                },
+                deckmaste_core::Param {
+                    def: deckmaste_core::DefId(1),
+                    kind: deckmaste_core::Kind::Object,
+                    provenance: deckmaste_core::Provenance::Source,
+                },
+            ]),
+            condition,
+        ))
+    }
+
+    /// The candidate under test inside [`candidate_region_with_carrier`].
+    const CANDIDATE: deckmaste_core::RefId = deckmaste_core::RefId(0);
+    /// The carrier (`This`) inside [`candidate_region_with_carrier`].
+    const CARRIER: deckmaste_core::RefId = deckmaste_core::RefId(1);
+
+    /// The Mentor target filter: an attacking creature whose power is less than
+    /// the carrier's power ([CR#702.134a]) — the `Where` cross-object stat
+    /// comparison the keyword macro emits, re-spelled as the two register
+    /// reads the candidate region declares.
+    fn mentor_target_filter() -> Predicate {
+        use deckmaste_core::Cmp;
+        use deckmaste_core::Condition;
+        use deckmaste_core::Count;
+        use deckmaste_core::Reference;
+        use deckmaste_core::Stat;
+        Predicate::And(
+            vec![
+                Predicate::State(StatePredicate::Attacking),
+                Predicate::Where(candidate_region_with_carrier(Condition::Compare(
+                    Count::StatOf(Reference::Reg(CANDIDATE), Stat::Power),
+                    Cmp::Less,
+                    Count::StatOf(Reference::Reg(CARRIER), Stat::Power),
+                ))),
+            ]
+            .into(),
+        )
+    }
+
+    fn where_is_candidate_color(c: deckmaste_core::Color) -> Predicate {
+        Predicate::Where(candidate_region_with_carrier(
+            deckmaste_core::Condition::Matches(
+                deckmaste_core::Reference::Reg(CANDIDATE),
+                Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::ColorIs(c)),
+            ),
+        ))
+    }
+
+    /// `Where(SharesColor(candidate, carrier))` spelled out: the candidate
+    /// shares a color with the carrier.
+    fn where_shares_color_with_carrier() -> Predicate {
+        use deckmaste_core::CharacteristicPredicate::ColorIs;
+        use deckmaste_core::Color::Black;
+        use deckmaste_core::Color::Blue;
+        use deckmaste_core::Color::Green;
+        use deckmaste_core::Color::Red;
+        use deckmaste_core::Color::White;
+        use deckmaste_core::Condition;
+        use deckmaste_core::Reference;
+        let branch = |c| {
+            Condition::And(
+                vec![
+                    Condition::Matches(
+                        Reference::Reg(CANDIDATE),
+                        Predicate::Characteristic(ColorIs(c)),
+                    ),
+                    Condition::Matches(
+                        Reference::Reg(CARRIER),
+                        Predicate::Characteristic(ColorIs(c)),
+                    ),
+                ]
+                .into(),
+            )
+        };
+        Predicate::Where(candidate_region_with_carrier(Condition::Or(
+            vec![
+                branch(White),
+                branch(Blue),
+                branch(Black),
+                branch(Red),
+                branch(Green),
+            ]
+            .into(),
+        )))
+    }
+
+    /// A per-candidate sanity slice of the same comparison via `matches_with`:
+    /// the carrier anchors the region's source parameter, the candidate its
+    /// candidate parameter.
+    #[test]
+    fn mentor_filter_matches_with_carrier() {
+        let (state, courser, bears, hunter) = mentor_board();
+        let carrier = Some(state.objects.obj(courser).source);
+        let f = mentor_target_filter();
+        assert!(matches_with(&state, bears, &f, carrier));
+        assert!(!matches_with(&state, hunter, &f, carrier));
+        assert!(!matches_with(&state, courser, &f, carrier));
+    }
+
+    /// `candidates_with(.., Some(carrier))` over the Mentor filter admits ONLY
+    /// the lesser-power attacker: the 2/2 Bears (2 < 3), never the 4/4 Hunter
+    /// (4 < 3 is false) nor the 3/3 carrier itself (3 < 3 is false). This is
+    /// the load-bearing target-path fix — the carrier resolves through the
+    /// threaded watcher into the candidate region's source parameter, so the
+    /// dynamic `StatOf(carrier, Power)` bound evaluates instead of tripping
+    /// the frameless `todo!`.
+    #[test]
+    fn mentor_filter_targets_only_lesser_power_attacker() {
+        let (state, courser, bears, hunter) = mentor_board();
+        let carrier = Some(state.objects.obj(courser).source);
+        let admitted = candidates_with(&state, &mentor_target_filter(), carrier);
+        assert!(
+            admitted.contains(&bears),
+            "the 2/2 Bears has power less than the 3/3 carrier — a legal Mentor target"
+        );
+        assert!(
+            !admitted.contains(&hunter),
+            "the 4/4 Hunter does NOT have lesser power — not a Mentor target"
+        );
+        assert!(
+            !admitted.contains(&courser),
+            "the carrier itself is not lesser-power than itself ([CR#702.134a])"
+        );
+        // Only the bears (the two player proxies have no power → the inner
+        // candidate StatOf(.., Power) read fails their match, never the
+        // carrier's).
+        assert_eq!(admitted, vec![bears], "exactly the lesser-power attacker");
+    }
+
+    /// The candidate register inside a `Where` condition resolves to the
+    /// object being matched: a green Grizzly Bears satisfies
+    /// `Where(Is(candidate, ColorIs(Green)))` but not `ColorIs(White)`.
+    /// Re-spelled from `where_binds_subject_to_the_candidate` — the anaphor
+    /// is now the region's candidate parameter.
+    #[test]
+    fn where_binds_the_candidate_register_to_the_candidate() {
+        let (state, bear, _ghoul) = game_with_bear_and_ghoul();
+        let carrier = Some(state.objects.obj(bear).source);
+        assert!(matches_with(
+            &state,
+            bear,
+            &where_is_candidate_color(deckmaste_core::Color::Green),
+            carrier
+        ));
+        assert!(!matches_with(
+            &state,
+            bear,
+            &where_is_candidate_color(deckmaste_core::Color::White),
+            carrier
+        ));
+    }
+
+    /// `SharesColor(candidate, carrier)` compares the candidate to the
+    /// carrier: a green candidate shares a color with a green carrier; a black
+    /// one does not. The candidate is parameter zero, the carrier parameter
+    /// one (the `watcher`).
+    #[test]
+    fn where_shares_color_compares_candidate_to_carrier() {
+        let (state, bear, ghoul) = game_with_bear_and_ghoul();
+        let carrier = Some(state.objects.obj(bear).source);
+        assert!(matches_with(
+            &state,
+            bear,
+            &where_shares_color_with_carrier(),
+            carrier
+        ));
+        assert!(!matches_with(
+            &state,
+            ghoul,
+            &where_shares_color_with_carrier(),
+            carrier
+        ));
+    }
+
+    /// FIXTURE — a nested per-candidate predicate reading the OUTER candidate.
+    /// ADR law 1: every per-candidate predicate is a region, and a nested one
+    /// declares its own candidate at register 0 with the enclosing candidate as
+    /// a capture — so the depth-0 restriction is gone and an inner predicate
+    /// can compare each inner candidate to the outer one.
+    ///
+    /// The filter is "a creature, if some OTHER creature exists": the inner
+    /// predicate ranges over every creature and excludes the outer candidate by
+    /// its captured register. With one creature on the battlefield nothing
+    /// matches; with two, both do.
+    #[test]
+    fn a_nested_predicate_reads_the_enclosing_candidate() {
+        use deckmaste_core::Cmp;
+        use deckmaste_core::Condition;
+        use deckmaste_core::Count;
+        use deckmaste_core::Countable;
+        use deckmaste_core::Reference;
+
+        /// The enclosing candidate as seen from the inner filter region: the
+        /// inner candidate takes register 0 and captures the `Where`
+        /// condition's own candidate at register 1.
+        const ENCLOSING_CANDIDATE: deckmaste_core::RefId = deckmaste_core::RefId(1);
+
+        let inner = Arc::new(deckmaste_core::Region::new(
+            Arc::from([
+                deckmaste_core::Param {
+                    def: deckmaste_core::DefId(0),
+                    kind: deckmaste_core::Kind::Object,
+                    provenance: deckmaste_core::Provenance::Candidate,
+                },
+                deckmaste_core::Param {
+                    def: deckmaste_core::DefId(1),
+                    kind: deckmaste_core::Kind::Object,
+                    provenance: deckmaste_core::Provenance::Capture(deckmaste_core::RefId(0)),
+                },
+            ]),
+            Predicate::And(
+                vec![
+                    Predicate::creature(),
+                    Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                    Predicate::Not(Arc::new(Predicate::Ref(Reference::Reg(
+                        ENCLOSING_CANDIDATE,
+                    )))),
+                ]
+                .into(),
+            ),
+        ));
+        let another_creature_exists = Predicate::And(
+            vec![
+                Predicate::creature(),
+                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                Predicate::Where(candidate_region_with_carrier(Condition::Compare(
+                    Count::CountOf(Countable::Objects(inner)),
+                    Cmp::AtLeast,
+                    Count::Literal(1),
+                ))),
+            ]
+            .into(),
+        );
+
+        // One creature: no OTHER creature exists, so it fails its own filter.
+        let (state, lone) = game_with_a_bear_on_the_field();
+        let carrier = Some(state.objects.obj(lone).source);
+        assert!(
+            !matches_with(&state, lone, &another_creature_exists, carrier),
+            "the sole creature is excluded by its own captured register"
+        );
+
+        // Three creatures: each one has two others, so each matches.
+        let (state, courser, bears, hunter) = mentor_board();
+        let carrier = Some(state.objects.obj(courser).source);
+        let admitted = candidates_with(&state, &another_creature_exists, carrier);
+        for id in [courser, bears, hunter] {
+            assert!(
+                admitted.contains(&id),
+                "every creature has another creature besides itself"
+            );
+        }
     }
 }

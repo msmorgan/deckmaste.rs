@@ -236,4 +236,75 @@ mod tests {
             deckmaste_core::Selection::SelectAll(_)
         );
     }
+
+    /// A plural anaphor ("they") reads the register holding the group.
+    /// Re-spelled from `lowers_selection_they`: `Selection::They` left core
+    /// with the discourse channel.
+    #[test]
+    fn lowers_selection_they_to_the_group_register() {
+        let (_, lowered) = crate::region::in_region(crate::region::RegionKind::Spell, 0, || {
+            let group = crate::region::define(deckmaste_core::Kind::Objects);
+            crate::region::push_antecedent(
+                group.into(),
+                deckmaste_core::Kind::Objects,
+                crate::region::Cardinality::Many,
+                None,
+                crate::region::Site::Frame,
+            );
+            deckmaste_semantics::Selection::They.lower()
+        });
+        assert_eq!(
+            lowered,
+            deckmaste_core::Selection::Reg(deckmaste_core::RefId(3))
+        );
+    }
+
+    /// A sorted plural anaphor ("those players") picks the group register
+    /// whose sort it matches. Re-spelled from `lowers_selection_them`.
+    #[test]
+    fn lowers_selection_them_to_the_sorted_group_register() {
+        let (_, lowered) = crate::region::in_region(crate::region::RegionKind::Spell, 0, || {
+            let cards = crate::region::define(deckmaste_core::Kind::Objects);
+            crate::region::push_antecedent(
+                cards.into(),
+                deckmaste_core::Kind::Objects,
+                crate::region::Cardinality::Many,
+                Some(deckmaste_semantics::Sort::Card),
+                crate::region::Site::Frame,
+            );
+            let players = crate::region::define(deckmaste_core::Kind::Objects);
+            crate::region::push_antecedent(
+                players.into(),
+                deckmaste_core::Kind::Objects,
+                crate::region::Cardinality::Many,
+                Some(deckmaste_semantics::Sort::Player),
+                crate::region::Site::Frame,
+            );
+            deckmaste_semantics::Selection::Them(deckmaste_semantics::Sort::Player).lower()
+        });
+        assert_eq!(
+            lowered,
+            deckmaste_core::Selection::Reg(deckmaste_core::RefId(4)),
+            "the sort picks the player group, not the nearer card one"
+        );
+    }
+
+    /// "Among the cards noted this way" reads the register the noting
+    /// instruction defined ([CR#607.2a]) — core keeps no name-keyed store.
+    /// Re-spelled from `lowers_selection_among_noted`.
+    #[test]
+    fn lowers_selection_among_noted_to_the_noted_register() {
+        let (_, lowered) = crate::region::in_region(crate::region::RegionKind::Spell, 0, || {
+            crate::region::bind_named("X".into(), deckmaste_core::RefId(2));
+            deckmaste_semantics::Selection::AmongNoted(
+                "X".into(),
+                deckmaste_semantics::Quantity::one(),
+            )
+            .lower()
+        });
+        assert_eq!(
+            lowered,
+            deckmaste_core::Selection::Reg(deckmaste_core::RefId(2))
+        );
+    }
 }

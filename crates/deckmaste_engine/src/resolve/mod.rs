@@ -23,6 +23,7 @@ mod count;
 mod effect;
 mod player_action;
 mod query;
+pub(crate) use query::search_is_bare_quantity;
 mod targets;
 
 // The mill apply re-derives its top-slice group off the stored body facet.
@@ -624,4 +625,78 @@ mod tests {
     // Unbuilt: uncalled coin flips, dice rolls, random discard — the work-item
     // machinery drawing from the seeded rng (`engine-randomness` Task 3).
     // ========================================================================
+
+    /// The loop element's product tracks the element's source ([CR#120.3]): a
+    /// card/token element carries its LKI snapshot, so reads survive its
+    /// removal; a player proxy is zoneless and carries none. Re-spelled from
+    /// `it_binding_kind_distinguishes_player_and_object` — `ItBinding` and
+    /// `RefKind` left with the discourse record, and the distinction is now
+    /// the shape of the value the loop region's element parameter holds.
+    #[test]
+    fn loop_element_products_distinguish_player_and_object() {
+        let (state, creature) = bear_on_field();
+        let player = state.player(PlayerId(0)).object;
+        let frame = crate::test_support::frame_src(&state, creature);
+        let body = deckmaste_core::Region::new(
+            Arc::from([deckmaste_core::Param {
+                def: deckmaste_core::DefId(0),
+                kind: deckmaste_core::Kind::Object,
+                provenance: deckmaste_core::Provenance::LoopElement,
+            }]),
+            deckmaste_core::Block::default(),
+        );
+        let element = |id| {
+            let mut sub = frame.clone();
+            sub.activation = state.enter_loop_region(&body, &frame, id, None);
+            state.eval_reference_product(
+                &deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
+                &sub,
+            )
+        };
+
+        let object = element(creature);
+        assert_eq!(
+            object.current,
+            Some(creature),
+            "a creature element reads back as that object"
+        );
+        assert!(
+            object.lki.is_some(),
+            "an object element carries its LKI snapshot"
+        );
+
+        let ply = element(player);
+        assert_eq!(
+            ply.current,
+            Some(player),
+            "a player element reads back as that player's proxy"
+        );
+        assert!(
+            ply.lki.is_none(),
+            "a player element is zoneless — no snapshot"
+        );
+    }
+
+    /// Targets are structural ability data rather than an effect wrapper
+    /// ([CR#115.1,601.2c]).
+    #[test]
+    fn spell_targets_are_explicit() {
+        let spec = deckmaste_core::TargetSpec::Target(
+            deckmaste_core::Quantity::one(),
+            Arc::new(deckmaste_core::Region::candidate(
+                deckmaste_core::Predicate::creature(),
+            )),
+        );
+        let ability = deckmaste_core::SpellAbility {
+            ability_word: None,
+            cost: deckmaste_core::Cost([].into()),
+            targets: vec![spec.clone()].into(),
+            effect: deckmaste_core::Instr::act(deckmaste_core::Action::deal_damage(
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(6)),
+                deckmaste_core::Count::Literal(3),
+            ))
+            .into(),
+        };
+        assert_eq!(ability.targets.as_ref(), std::slice::from_ref(&spec));
+    }
 }

@@ -263,4 +263,58 @@ mod tests {
             deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
         );
     }
+
+    /// "It" names the nearest compatible antecedent as a register read.
+    /// Re-spelled from `lowers_reference_it`: `Reference::It` left core with
+    /// the discourse channel, so the anaphor's image is the register the
+    /// antecedent occupies.
+    #[test]
+    fn lowers_reference_it_to_the_nearest_antecedents_register() {
+        let (_, lowered) = crate::region::in_region(crate::region::RegionKind::Spell, 0, || {
+            let product = crate::region::define(deckmaste_core::Kind::Object);
+            crate::region::push_antecedent(
+                product.into(),
+                deckmaste_core::Kind::Object,
+                crate::region::Cardinality::One,
+                None,
+                crate::region::Site::Frame,
+            );
+            deckmaste_semantics::Reference::It.lower()
+        });
+        assert_eq!(
+            lowered,
+            deckmaste_core::Reference::Reg(deckmaste_core::RefId(3))
+        );
+    }
+
+    /// A sorted anaphor ("that player") reads the register of the nearest
+    /// antecedent whose sort it is compatible with. Re-spelled from
+    /// `lowers_reference_that`.
+    #[test]
+    fn lowers_reference_that_to_the_nearest_sorted_antecedents_register() {
+        let (_, lowered) = crate::region::in_region(crate::region::RegionKind::Spell, 0, || {
+            let card = crate::region::define(deckmaste_core::Kind::Object);
+            crate::region::push_antecedent(
+                card.into(),
+                deckmaste_core::Kind::Object,
+                crate::region::Cardinality::One,
+                Some(deckmaste_semantics::Sort::Card),
+                crate::region::Site::Frame,
+            );
+            let player = crate::region::define(deckmaste_core::Kind::Object);
+            crate::region::push_antecedent(
+                player.into(),
+                deckmaste_core::Kind::Object,
+                crate::region::Cardinality::One,
+                Some(deckmaste_semantics::Sort::Player),
+                crate::region::Site::Frame,
+            );
+            deckmaste_semantics::Reference::That(deckmaste_semantics::Sort::Player).lower()
+        });
+        assert_eq!(
+            lowered,
+            deckmaste_core::Reference::Reg(deckmaste_core::RefId(4)),
+            "the sort picks the player register, not the nearer card one"
+        );
+    }
 }

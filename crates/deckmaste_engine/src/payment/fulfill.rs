@@ -421,7 +421,11 @@ impl GameState {
                 // [CR#701.23b..701.23d]: a stated-quality search never compels
                 // a find; only a bare-quantity search must take as many as
                 // exist.
-                let min = if search_is_bare_quantity(&search.filter.body) { lo } else { 0 };
+                let min = if crate::resolve::search_is_bare_quantity(&search.filter.body) {
+                    lo
+                } else {
+                    0
+                };
                 validate_search_witness(objects, &candidates, min, hi)?;
                 self.activation_write_objects(frame.activation, search.dest, objects);
                 FulfillmentPlan {
@@ -862,13 +866,6 @@ fn illegal<T>(reason: impl Into<String>) -> Result<T, DecisionError> {
     Err(DecisionError::Illegal {
         reason: reason.into(),
     })
-}
-
-fn search_is_bare_quantity(filter: &Predicate) -> bool {
-    matches!(
-        filter,
-        Predicate::Kind(deckmaste_core::ObjectKind::Card) | Predicate::Any
-    )
 }
 
 fn validate_search_witness(

@@ -555,7 +555,8 @@ fn bolt_kills_grizzly_bears() {
     assert_eq!(state.stack[0].targets, vec![vec![bear]]);
     assert!(!state.zones.battlefield.contains(&bolt));
 
-    // Both players pass: the instant resolves, deals 3, SBA destroys the creature.
+    // Both players pass: the instant resolves, deals 3, SBA destroys the
+    // creature.
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
     let _ = run_to_priority(&mut state, PlayerId(1), PhaseStep::PrecombatMain);
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
@@ -681,9 +682,9 @@ fn ward_counters_targeting_spell_via_that_object() {
         .unwrap();
 
     // Choosing the target fires the BecameTarget fact → Ward triggers (P1's),
-    // placed above the Bolt. Pass priority; when the Ward toll's YesNo surfaces,
-    // P1 declines → Counter(ThatObject) counters the Bolt. Drive to an empty
-    // stack.
+    // placed above the Bolt. Pass priority; when the Ward toll's YesNo
+    // surfaces, P1 declines → Counter(ThatObject) counters the Bolt. Drive
+    // to an empty stack.
     let mut declined = false;
     loop {
         let (_t, stop) = step_to_stop(&mut state);
@@ -734,9 +735,10 @@ fn ward_counters_targeting_spell_via_that_object() {
         "the Ward toll's optional payment surfaced and was declined"
     );
 
-    // The Bolt was countered: it left the stack and reminted into P0's graveyard
-    // ([CR#701.6a]) WITHOUT resolving — the Ward creature is unharmed (proving
-    // `Counter(ThatObject)` hit the spell, not the warded permanent).
+    // The Bolt was countered: it left the stack and reminted into P0's
+    // graveyard ([CR#701.6a]) WITHOUT resolving — the Ward creature is
+    // unharmed (proving `Counter(ThatObject)` hit the spell, not the warded
+    // permanent).
     assert!(
         state.objects.get(bolt).is_none(),
         "the old Bolt stack id is gone (countered → reminted)"
@@ -1305,8 +1307,8 @@ fn grizzly_bears_resolves_to_a_two_two_on_the_battlefield() {
     let _ = step_to_stop(&mut state);
 
     // [CR#608.3]/[CR#400.7]: the permanent spell enters the battlefield via a
-    // stack→battlefield future-form ZoneChange that remints — the old stack id is
-    // gone and a fresh object is on the battlefield under P0's control.
+    // stack→battlefield future-form ZoneChange that remints — the old stack id
+    // is gone and a fresh object is on the battlefield under P0's control.
     assert!(
         state.objects.get(bears).is_none(),
         "old stack id must be gone after the permanent enters and remints"
@@ -1377,7 +1379,8 @@ fn sorcery_speed_gate_blocks_bears_off_turn_and_on_a_nonempty_stack() {
                 types: std::collections::HashMap::new(),
             })
         };
-        // Pick a seed whose P0 opening hand holds both an instant and a creature.
+        // Pick a seed whose P0 opening hand holds both an instant and a
+        // creature.
         let mut state = (0u64..1000)
             .map(build)
             .find(|s| {
@@ -1418,7 +1421,8 @@ fn sorcery_speed_gate_blocks_bears_off_turn_and_on_a_nonempty_stack() {
 
         let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
         // Float R,R,G,G: the first {R} instant leaves R,G,G for the gate
-        // comparison (a second {R} instant and a {1}{G} creature are both payable).
+        // comparison (a second {R} instant and a {1}{G} creature are both
+        // payable).
         float_mana(&mut state, PlayerId(0), 4);
         // Cast the first instant onto the stack, targeting the creature.
         state
@@ -1738,7 +1742,8 @@ fn second_bolt_fizzles_when_its_target_is_already_dead() {
         // [CR#400.7]: after reminting, the old `bear` id is gone — break when the
         // stack is empty and P1's graveyard has a (new) object in it.
         if state.stack.is_empty() && !state.zones.graveyards[1].is_empty() {
-            // Drain any remaining priority passes for the empty stack, then stop.
+            // Drain any remaining priority passes for the empty stack, then
+            // stop.
             break;
         }
     }
@@ -1940,7 +1945,8 @@ fn illegal_target_and_payment_submissions_are_rejected_and_retryable() {
         )),
         Err(DecisionError::Illegal { .. })
     ));
-    // (ii) Referencing a floating-mana id the pool does not contain is rejected.
+    // (ii) Referencing a floating-mana id the pool does not contain is
+    // rejected.
     let mut unknown = deckmaste_engine::ManaCoverage::empty();
     unknown.insert(
         generic,
@@ -2018,7 +2024,8 @@ fn dies_trigger_deals_damage_from_the_dead_source() {
                 .any(|&o| is_card(s, o, "Lightning Bolt"))
         })
         .expect("a seed with a bolt in P0's opening hand");
-    // Load builtin rules so the lethal-damage SBA fires after the bolt resolves.
+    // Load builtin rules so the lethal-damage SBA fires after the bolt
+    // resolves.
     state.sba_rules = builtin().sba_rules;
 
     let fiend_obj = force_into_play(&mut state, PlayerId(0), "Footlight Fiend");
@@ -2088,8 +2095,8 @@ fn dies_trigger_deals_damage_from_the_dead_source() {
         .submit_decision(Decision::Targets(vec![vec![p1_proxy]]))
         .unwrap();
 
-    // A `Triggered` stack object now sits on the stack; both players pass and it
-    // resolves, dealing 1 to P1.
+    // A `Triggered` stack object now sits on the stack; both players pass and
+    // it resolves, dealing 1 to P1.
     let triggered_on_stack = state
         .stack
         .iter()
@@ -2215,7 +2222,8 @@ fn etb_trigger_draws_a_card() {
         .submit_decision(Decision::Act(Action::CastSpell { object: creature }))
         .unwrap();
 
-    // {1}{G}: one green pip + one generic (the other Forest's green covers {1}).
+    // {1}{G}: one green pip + one generic (the other Forest's green covers
+    // {1}).
     let _ = step_through_payment(&mut state);
 
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
@@ -2276,13 +2284,14 @@ fn etb_trigger_draws_a_card() {
     assert!(card_drawn, "the ETB draw reached hand");
 
     // The ETB creature entered the battlefield; the spell left the hand; a card
-    // was drawn. Net hand change: -1 (cast) + 1 (draw) = 0 relative to hand_before.
-    // Wait — hand_before includes the creature in hand. After cast: hand_before -
+    // was drawn. Net hand change: -1 (cast) + 1 (draw) = 0 relative to
+    // hand_before. Wait — hand_before includes the creature in hand. After
+    // cast: hand_before -
     // 1. After draw: hand_before - 1 + 1 = hand_before. But the trigger draws,
     // so final hand size == hand_before (cast removes creature, draw adds one).
-    // The creature left the hand when cast (goes to stack), then leaves the stack
-    // when it enters. So net: hand size unchanged from before cast, but now
-    // includes one NEW card drawn instead of the creature.
+    // The creature left the hand when cast (goes to stack), then leaves the
+    // stack when it enters. So net: hand size unchanged from before cast,
+    // but now includes one NEW card drawn instead of the creature.
     let hand_after = state.zones.hands[0].len();
     // The key assertion: drawing happened (+1 from the trigger).
     // Since the creature left hand when cast (-1), and the draw added +1, the
@@ -2497,15 +2506,17 @@ fn occurrence_batch_and_apnap_ordering() {
                             saw_damage_batch,
                             "damage batch observed before OrderTriggers"
                         );
-                        // All seven notes (P0's four + P1's three) were taken in
-                        // the same scan; none have been placed yet.
+                        // All seven notes (P0's four + P1's three) were taken
+                        // in the same scan; none have
+                        // been placed yet.
                         assert_eq!(
                             state.pending_triggers.len(),
                             7,
                             "all seven notes pending at the first ordering"
                         );
 
-                        // Submit invalid orders first (rejected; still pending).
+                        // Submit invalid orders first (rejected; still
+                        // pending).
                         let err = state
                             .submit_decision(Decision::Order(vec![0, 0]))
                             .unwrap_err();
@@ -2528,7 +2539,8 @@ fn occurrence_batch_and_apnap_ordering() {
                         p1_ordered = true;
                     }
                 }
-                // Keep the noted order: first noted placed first (resolves last).
+                // Keep the noted order: first noted placed first (resolves
+                // last).
                 state
                     .submit_decision(Decision::Order((0..n).collect()))
                     .unwrap();
@@ -3421,6 +3433,99 @@ fn nonflash_creature_not_castable_at_instant_timing() {
     );
 }
 
+/// An inline "Blink" instant: "Exile target creature, then return that card
+/// to the battlefield." Built in-test (not a canon card) because the
+/// return-to-battlefield oracle wording needs enter-rider rendering/execution
+/// (a separate ticket); this exercises the find-moved-object mechanism
+/// ([CR#400.7j]) through the full cast path. The exile records old→new in the
+/// resolution-scoped move record; the return reads the exile's PRODUCT
+/// register — a NEW object, [CR#400.7] — and returns it, all in one
+/// resolution. Re-spelled from the deleted product-sited `That(Card)`: the
+/// exile is now `Act { dest, .. }` and the return reads `dest` by register.
+fn inline_blink() -> Card {
+    use deckmaste_core::Action;
+    use deckmaste_core::DefId;
+    use deckmaste_core::Destination;
+    use deckmaste_core::Kind;
+    use deckmaste_core::OneShotEffect;
+    use deckmaste_core::Param;
+    use deckmaste_core::Predicate;
+    use deckmaste_core::Provenance;
+    use deckmaste_core::Quantity;
+    use deckmaste_core::RefId;
+    use deckmaste_core::Reference;
+    use deckmaste_core::Region;
+    use deckmaste_core::TargetSpec;
+
+    // A spell region declares source(0), controller(1), announced target(2)
+    // and announced X(3), so the exile's product is definition 4.
+    let exiled = DefId(4);
+    let params: Arc<[Param]> = Arc::from([
+        Param {
+            def: DefId(0),
+            kind: Kind::Object,
+            provenance: Provenance::Source,
+        },
+        Param {
+            def: DefId(1),
+            kind: Kind::Object,
+            provenance: Provenance::Controller,
+        },
+        Param {
+            def: DefId(2),
+            kind: Kind::Objects,
+            provenance: Provenance::AnnouncedTarget(0),
+        },
+        Param {
+            def: DefId(3),
+            kind: Kind::Number,
+            provenance: Provenance::AnnouncedX,
+        },
+    ]);
+
+    Card::Normal(deckmaste_card::CardFace {
+        name: "Blink".into(),
+        mana_cost: "{W}".parse().unwrap(),
+        types: vec![deckmaste_core::Type::Instant.def()],
+        abilities: vec![deckmaste_core::Ability::spell(
+            deckmaste_core::SpellAbility {
+                ability_word: None,
+                cost: deckmaste_core::Cost::default(),
+                targets: vec![TargetSpec::Target(
+                    Quantity::one(),
+                    Arc::new(Region::candidate(Predicate::creature())),
+                )]
+                .into(),
+                effect: Region::new(
+                    params,
+                    OneShotEffect::Sequentially(
+                        vec![
+                            OneShotEffect::producing(
+                                exiled,
+                                Action::Move(
+                                    Reference::Reg(RefId(2)),
+                                    Destination::Zone(Zone::Exile),
+                                    vec![].into(),
+                                    None,
+                                ),
+                            ),
+                            OneShotEffect::Act(Action::Move(
+                                Reference::Reg(exiled.into()),
+                                Destination::Zone(Zone::Battlefield),
+                                vec![].into(),
+                                None,
+                            )),
+                        ]
+                        .into(),
+                    )
+                    .into(),
+                ),
+            },
+        )],
+        ..deckmaste_card::CardFace::default()
+    })
+}
+
 /// Cloudshift end-to-end ([CR#400.7j,110.2a]): a REAL canon card (unlike
 /// `inline_blink` below, which predates `engine-enter-rider-execution` and
 /// carries no rider at all) casts through the full stack, exiles the
@@ -3483,7 +3588,8 @@ fn cloudshift_returns_the_exiled_creature_under_the_casters_control() {
     assert_eq!(state.stack.len(), 1, "Cloudshift sits on the stack");
     assert_eq!(state.stack[0].object, StackObject::Spell(cloudshift));
 
-    // Both players pass: Cloudshift resolves — exile then return, one resolution.
+    // Both players pass: Cloudshift resolves — exile then return, one
+    // resolution.
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
     let _ = run_to_priority(&mut state, PlayerId(1), PhaseStep::PrecombatMain);
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
@@ -3510,6 +3616,92 @@ fn cloudshift_returns_the_exiled_creature_under_the_casters_control() {
         PlayerId(0),
         "UnderControlOf(You) returns it under the caster's control"
     );
+    assert_eq!(
+        printed_pt(&state, after),
+        Some((2, 2)),
+        "still Grizzly Bears"
+    );
+    assert!(state.stack.is_empty());
+}
+
+/// Blink end-to-end ([CR#400.7j]): cast through the full stack, exile the
+/// targeted creature and return THAT CARD in one resolution. The original id
+/// is gone; a NEW object is on the battlefield ([CR#400.7]).
+#[test]
+fn blink_exiles_and_returns_the_target_in_one_resolution() {
+    let blink = Arc::new(inline_blink());
+    let bears = card("Grizzly Bears");
+    let plains = Arc::new(builtin().card("Plains").unwrap().core);
+    let mut p0 = vec![Arc::clone(&blink); 5];
+    p0.extend(vec![Arc::clone(&bears); 5]);
+    p0.extend(vec![Arc::clone(&plains); 5]);
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig { deck: p0 },
+            PlayerConfig {
+                deck: vec![Arc::clone(&plains); 10],
+            },
+        ],
+        seed: 5,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        conferral_rules: vec![],
+        damage_result_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
+    });
+    state.sba_rules = builtin().sba_rules;
+    let before = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
+    force_onto_battlefield(&mut state, PlayerId(0), "Plains");
+    let blink = find_in_hand(&state, PlayerId(0), "Blink");
+
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    float_mana(&mut state, PlayerId(0), 1); // {W}
+
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: blink }))
+        .unwrap();
+    let (_, stop) = step_to_stop(&mut state);
+    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+        deckmaste_engine::ChooseTargets { legal, .. },
+    )) = stop
+    else {
+        panic!("expected ChooseTargets, got {stop:?}");
+    };
+    assert!(legal[0].contains(&before), "the creature is a legal target");
+    state
+        .submit_decision(Decision::Targets(vec![vec![before]]))
+        .unwrap();
+
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    assert_eq!(state.stack.len(), 1, "Blink sits on the stack");
+    assert_eq!(state.stack[0].object, StackObject::Spell(blink));
+
+    // Both players pass: Blink resolves — exile then return, one resolution.
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = run_to_priority(&mut state, PlayerId(1), PhaseStep::PrecombatMain);
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = step_to_stop(&mut state);
+
+    assert!(
+        state.objects.get(before).is_none(),
+        "pre-exile object is gone ([CR#400.7])"
+    );
+    assert!(
+        state.zones.exile.is_empty(),
+        "the exile leg is transient within this one resolution"
+    );
+    let after = *state
+        .zones
+        .battlefield
+        .iter()
+        .find(|&&o| is_card(&state, o, "Grizzly Bears"))
+        .expect("the returned creature is on the battlefield");
+    assert_ne!(after, before, "a NEW object returned ([CR#400.7])");
+    assert_eq!(state.objects.obj(after).zone, Some(Zone::Battlefield));
+    assert_eq!(state.objects.obj(after).controller, PlayerId(0));
     assert_eq!(
         printed_pt(&state, after),
         Some((2, 2)),
@@ -3753,7 +3945,8 @@ fn cast_and_copy_bolt_at_face(state: &mut GameState) -> (ObjectId, ObjectId, Obj
         PlayerId(1),
         "Creature tap-activated CopySpell Target Spell",
     );
-    // Documents the precondition; see `copied_bolt_shares_targets_and_controller`.
+    // Documents the precondition; see
+    // `copied_bolt_shares_targets_and_controller`.
     state.objects.obj_mut(copier).summoning_sick = false;
 
     let _ = run_to_priority(state, PlayerId(0), PhaseStep::PrecombatMain);
@@ -4049,10 +4242,10 @@ fn off_stack_copy_classifies_as_card_copy() {
         "[CR#707.10]: still genuinely on the stack, the copy is a Spell"
     );
 
-    // Force-move the copy off the stack, exactly as `off_stack_copy_ceases_via_sba`
-    // does: mutate its backing object's zone directly (simulating an
-    // as-yet-unbuilt generic mover leaving it mid-transition). `state.stack`
-    // still carries the copy's entry.
+    // Force-move the copy off the stack, exactly as
+    // `off_stack_copy_ceases_via_sba` does: mutate its backing object's
+    // zone directly (simulating an as-yet-unbuilt generic mover leaving it
+    // mid-transition). `state.stack` still carries the copy's entry.
     state.objects.obj_mut(copy).zone = Some(Zone::Graveyard);
 
     assert_eq!(
@@ -4084,7 +4277,8 @@ fn resolved_permanent_copy_vanishes_without_entering_battlefield() {
         PlayerId(1),
         "Creature tap-activated CopySpell Target Spell",
     );
-    // Documents the precondition; see `copied_bolt_shares_targets_and_controller`.
+    // Documents the precondition; see
+    // `copied_bolt_shares_targets_and_controller`.
     state.objects.obj_mut(copier).summoning_sick = false;
 
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
@@ -4272,7 +4466,8 @@ fn drive_to_choose_new_targets(state: &mut GameState) -> (ObjectId, ObjectId, Ob
         PlayerId(1),
         "Creature tap-activated Retarget Target Spell",
     );
-    // Documents the precondition; see `copied_bolt_shares_targets_and_controller`.
+    // Documents the precondition; see
+    // `copied_bolt_shares_targets_and_controller`.
     state.objects.obj_mut(retargeter).summoning_sick = false;
     let bear1 = force_into_play(state, PlayerId(1), "Grizzly Bears");
     let bear2 = force_into_play(state, PlayerId(1), "Grizzly Bears");
@@ -4598,7 +4793,8 @@ fn copied_filter_fires_on_copy_and_cast_filter_does_not() {
         PlayerId(0),
         "Creature tap-activated CopySpell Target Spell",
     );
-    // Documents the precondition; see `copied_bolt_shares_targets_and_controller`.
+    // Documents the precondition; see
+    // `copied_bolt_shares_targets_and_controller`.
     state.objects.obj_mut(copier).summoning_sick = false;
     force_into_play(&mut state, PlayerId(0), "Mountain");
     let watcher_source = state.objects.obj(watcher).source;

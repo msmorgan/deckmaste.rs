@@ -204,6 +204,742 @@ mod tests {
             }
         );
     }
+
+    // ---- Instruction lowering, restored from the discourse landing ----
+    //
+    // A `Spell` region declares source(0), controller(1), announced X(2); the
+    // first instruction definition is therefore register 3.
+
+    /// One authored `Act` becomes the instruction pair its magnitude needs:
+    /// the amount is pinned at its evaluation moment and the verb reads that
+    /// register ([CR#608.2h]).
+    #[test]
+    fn lowers_one_shot_effect_act() {
+        let lowered =
+            in_spell_region(|| deckmaste_semantics::OneShotEffect::Act(minimal_action()).lower());
+        assert!(is_minimal_lowered_effect(&lowered));
+    }
+
+    #[test]
+    fn lowers_one_shot_effect_batch() {
+        let lowered = in_spell_region(|| {
+            deckmaste_semantics::OneShotEffect::Batch(
+                minimal_count(),
+                std::sync::Arc::new(minimal_one_shot_effect()),
+            )
+            .lower()
+        });
+        let deckmaste_core::OneShotEffect::Batch(count, body) = &lowered else {
+            panic!("a semantic Batch lowers to a core Batch");
+        };
+        assert_eq!(
+            *count,
+            deckmaste_core::Count::Reg(deckmaste_core::RefId(2)),
+            "announced X is a declared region parameter, not a frame field"
+        );
+        assert!(is_minimal_lowered_effect(body));
+    }
+
+    #[test]
+    fn lowers_one_shot_effect_repeat() {
+        let lowered = in_spell_region(|| {
+            deckmaste_semantics::OneShotEffect::Repeat(
+                minimal_count(),
+                std::sync::Arc::new(minimal_one_shot_effect()),
+            )
+            .lower()
+        });
+        let deckmaste_core::OneShotEffect::Repeat(count, body) = &lowered else {
+            panic!("a semantic Repeat lowers to a core Repeat");
+        };
+        assert_eq!(*count, deckmaste_core::Count::Reg(deckmaste_core::RefId(2)));
+        assert!(is_minimal_lowered_effect(body));
+    }
+
+    /// A macro invocation's provenance does not cross `lower`: the expansion
+    /// wrapper erases to its value.
+    #[test]
+    fn lowers_one_shot_effect_expanded() {
+        let lowered = in_spell_region(|| {
+            deckmaste_semantics::OneShotEffect::Expanded(macro_ron::Expansion {
+                name: "X".into(),
+                args: macro_ron::ExpansionArgs::none(),
+                template: None,
+                value: Box::new(minimal_one_shot_effect()),
+            })
+            .lower()
+        });
+        assert!(is_minimal_lowered_effect(&lowered));
+    }
+
+    #[test]
+    fn lowers_one_shot_effect_if() {
+        assert_matches!(
+            in_spell_region(|| deckmaste_semantics::OneShotEffect::If(minimal_if()).lower()),
+            deckmaste_core::OneShotEffect::If(deckmaste_core::If {
+                condition: deckmaste_core::Condition::Compare(
+                    deckmaste_core::Count::Reg(deckmaste_core::RefId(2)),
+                    deckmaste_core::Cmp::Eq,
+                    deckmaste_core::Count::Reg(deckmaste_core::RefId(2))
+                ),
+                then: _,
+                otherwise: None
+            })
+        );
+    }
+
+    #[test]
+    fn lowers_if() {
+        assert_matches!(
+            in_spell_region(|| deckmaste_semantics::If {
+                condition: minimal_condition(),
+                then: std::sync::Arc::new(minimal_one_shot_effect()),
+                otherwise: None
+            }
+            .lower()),
+            deckmaste_core::If {
+                condition: deckmaste_core::Condition::Compare(
+                    deckmaste_core::Count::Reg(deckmaste_core::RefId(2)),
+                    deckmaste_core::Cmp::Eq,
+                    deckmaste_core::Count::Reg(deckmaste_core::RefId(2))
+                ),
+                then: _,
+                otherwise: None
+            }
+        );
+    }
+
+    #[test]
+    fn lowers_one_shot_effect_may() {
+        assert_matches!(
+            in_spell_region(|| deckmaste_semantics::OneShotEffect::May(minimal_may()).lower()),
+            deckmaste_core::OneShotEffect::May(deckmaste_core::May {
+                who: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
+                effect: _,
+                if_did: None,
+                if_not: None
+            })
+        );
+    }
+
+    #[test]
+    fn lowers_may() {
+        assert_matches!(
+            in_spell_region(|| deckmaste_semantics::May {
+                who: minimal_reference(),
+                effect: std::sync::Arc::new(minimal_one_shot_effect()),
+                if_did: None,
+                if_not: None
+            }
+            .lower()),
+            deckmaste_core::May {
+                who: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
+                effect: _,
+                if_did: None,
+                if_not: None
+            }
+        );
+    }
+
+    /// `Targeted` is an ANNOUNCEMENT declaration, not an instruction
+    /// ([CR#601.2b,601.2c]): its slots become the ability's declared targets
+    /// and the node itself erases to its body. Re-spelled from
+    /// `lowers_targeted` / `lowers_one_shot_effect_targeted` — core deletes
+    /// `OneShotEffect::Targeted`.
+    #[test]
+    fn lowers_one_shot_effect_targeted() {
+        let lowered = in_spell_region(|| {
+            deckmaste_semantics::OneShotEffect::Targeted(minimal_targeted()).lower()
+        });
+        assert!(is_minimal_lowered_effect(&lowered));
+    }
+
+    #[test]
+    fn lowers_targeted() {
+        let lowered = in_spell_region(|| {
+            deckmaste_semantics::Targeted {
+                targets: [].into(),
+                effect: std::sync::Arc::new(minimal_one_shot_effect()),
+            }
+            .lower()
+        });
+        assert!(is_minimal_lowered_effect(&lowered));
+    }
+
+    /// An announced target reaches the ability's declaration, and the region
+    /// takes it as a parameter — never as an effect node ([CR#601.2c], ADR
+    /// law 9).
+    #[test]
+    fn a_target_slot_becomes_an_announced_region_parameter() {
+        let lowered = deckmaste_semantics::SpellAbility {
+            ability_word: None,
+            effect: deckmaste_semantics::OneShotEffect::Targeted(deckmaste_semantics::Targeted {
+                targets: [deckmaste_semantics::TargetSpec::Target(
+                    minimal_quantity(),
+                    deckmaste_semantics::Predicate::Any,
+                )]
+                .into(),
+                effect: std::sync::Arc::new(minimal_one_shot_effect()),
+            }),
+        }
+        .lower();
+        assert_eq!(
+            lowered.targets.len(),
+            1,
+            "the slot reaches the announcement"
+        );
+        assert_eq!(
+            lowered
+                .effect
+                .reference_for(&deckmaste_core::Provenance::AnnouncedTarget(0)),
+            Some(deckmaste_core::RefId(2)),
+            "the region declares the announced slot as a parameter"
+        );
+    }
+
+    /// `Label` is erased at lowering: the labelled body's instructions survive
+    /// unchanged and the name becomes an alias for the register that body
+    /// defined ([CR#607.2a]). Re-spelled from `lowers_label` /
+    /// `lowers_one_shot_effect_label` — core deletes the `Label` node.
+    #[test]
+    fn lowers_label_to_its_body_and_binds_the_name_to_its_register() {
+        let name: deckmaste_semantics::Ident = "X".into();
+        let (_, (lowered, bound)) =
+            crate::region::in_region(crate::region::RegionKind::Spell, 0, || {
+                let lowered = deckmaste_semantics::OneShotEffect::Label(minimal_label()).lower();
+                let bound = crate::region::named(&"X".into());
+                (lowered, bound)
+            });
+        let _ = name;
+        assert!(is_minimal_lowered_effect(&lowered));
+        assert_eq!(
+            bound,
+            Some(deckmaste_core::RefId(3)),
+            "the label names the register its body defined"
+        );
+    }
+
+    /// `Noting` is the same erasure under a memory key ([CR#607.2a]).
+    /// Re-spelled from `lowers_noting` / `lowers_one_shot_effect_noting`.
+    #[test]
+    fn lowers_noting_to_its_body_and_binds_the_key_to_its_register() {
+        let (_, (lowered, bound)) =
+            crate::region::in_region(crate::region::RegionKind::Spell, 0, || {
+                let lowered = deckmaste_semantics::OneShotEffect::Noting(minimal_noting()).lower();
+                let bound = crate::region::named(&"X".into());
+                (lowered, bound)
+            });
+        assert!(is_minimal_lowered_effect(&lowered));
+        assert_eq!(
+            bound,
+            Some(deckmaste_core::RefId(3)),
+            "the note key names the register its body defined"
+        );
+    }
+
+    /// A `With` binder becomes a DEFINING instruction and its body flattens
+    /// into the enclosing block; nothing survives to re-resolve at runtime.
+    /// Re-spelled from `lowers_with` / `lowers_one_shot_effect_with` — core
+    /// deletes the `With` node and the `Binder` enum.
+    #[test]
+    fn lowers_with_to_a_defining_instruction_then_its_flattened_body() {
+        let lowered =
+            in_spell_region(|| deckmaste_semantics::OneShotEffect::With(minimal_with()).lower());
+        let deckmaste_core::OneShotEffect::Sequentially(parts) = &lowered else {
+            panic!("a binder plus its body is a sequence of instructions");
+        };
+        assert_matches!(
+            parts.as_ref(),
+            [
+                deckmaste_core::OneShotEffect::Let(deckmaste_core::Let {
+                    dest: deckmaste_core::DefId(3),
+                    expr: deckmaste_core::Expr::Object(deckmaste_core::Reference::Reg(
+                        deckmaste_core::RefId(0)
+                    )),
+                }),
+                deckmaste_core::OneShotEffect::Let(_),
+                deckmaste_core::OneShotEffect::Act { dest: None, .. },
+            ],
+            "the binder defines register 3, then the body's own instructions follow"
+        );
+    }
+
+    /// `Each` is a region: the body declares its loop element as a parameter
+    /// and iterates the register the binder defined. Re-spelled from
+    /// `lowers_each` / `lowers_one_shot_effect_each`.
+    #[test]
+    fn lowers_each_to_a_loop_region_over_the_binders_register() {
+        let lowered =
+            in_spell_region(|| deckmaste_semantics::OneShotEffect::Each(minimal_each()).lower());
+        let deckmaste_core::OneShotEffect::Sequentially(parts) = &lowered else {
+            panic!("a binder plus its loop is a sequence of instructions");
+        };
+        let [
+            deckmaste_core::OneShotEffect::Let(deckmaste_core::Let { dest, .. }),
+            deckmaste_core::OneShotEffect::Each(each),
+        ] = parts.as_ref()
+        else {
+            panic!("the binder's definition precedes the loop that reads it");
+        };
+        assert_eq!(
+            each.over,
+            deckmaste_core::Selection::Reg((*dest).into()),
+            "the loop iterates the register the binder defined"
+        );
+        assert_eq!(
+            each.body.params[0],
+            deckmaste_core::Param {
+                def: deckmaste_core::DefId(0),
+                kind: deckmaste_core::Kind::Object,
+                provenance: deckmaste_core::Provenance::LoopElement,
+            },
+            "the body declares its element as parameter zero"
+        );
+    }
+
+    /// `Distribute` is a region with two intrinsic parameters — the recipient
+    /// and its allotted share ([CR#601.2d]). Re-spelled from
+    /// `lowers_distribute` / `lowers_one_shot_effect_distribute`.
+    #[test]
+    fn lowers_distribute_to_a_region_with_element_and_allotment_parameters() {
+        let lowered = in_spell_region(|| {
+            deckmaste_semantics::OneShotEffect::Distribute(minimal_distribute()).lower()
+        });
+        let deckmaste_core::OneShotEffect::Sequentially(parts) = &lowered else {
+            panic!("a binder plus its distribution is a sequence of instructions");
+        };
+        let [
+            deckmaste_core::OneShotEffect::Let(deckmaste_core::Let { dest, .. }),
+            deckmaste_core::OneShotEffect::Distribute(distribute),
+        ] = parts.as_ref()
+        else {
+            panic!("the binder's definition precedes the distribution that reads it");
+        };
+        assert_eq!(
+            distribute.amount,
+            deckmaste_core::Count::Reg(deckmaste_core::RefId(2))
+        );
+        assert_eq!(
+            distribute.over,
+            deckmaste_core::Selection::Reg((*dest).into())
+        );
+        assert_eq!(
+            distribute.body.params[0].provenance,
+            deckmaste_core::Provenance::LoopElement
+        );
+        assert_eq!(
+            distribute.body.params[1],
+            deckmaste_core::Param {
+                def: deckmaste_core::DefId(1),
+                kind: deckmaste_core::Kind::Number,
+                provenance: deckmaste_core::Provenance::Allotment,
+            },
+            "the share is the body's second declared parameter"
+        );
+    }
+
+    /// A dig-until supplies its found card and passed-over prefix as
+    /// DEFINITIONS ([CR#702.85]), and its match test is a candidate region.
+    /// Re-spelled from `lowers_reveal_until` /
+    /// `lowers_one_shot_effect_reveal_until`.
+    #[test]
+    fn lowers_reveal_until_to_definitions_plus_a_candidate_region() {
+        let lowered = in_spell_region(|| {
+            deckmaste_semantics::OneShotEffect::RevealUntil(minimal_reveal_until()).lower()
+        });
+        let deckmaste_core::OneShotEffect::RevealUntil(reveal) = &lowered else {
+            panic!("a semantic RevealUntil lowers to a core RevealUntil");
+        };
+        assert_eq!(
+            reveal.whose,
+            deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
+        );
+        assert_eq!(reveal.found, deckmaste_core::DefId(3));
+        assert_eq!(reveal.passed, deckmaste_core::DefId(4));
+        assert_eq!(
+            reveal.matches.params[0].provenance,
+            deckmaste_core::Provenance::Candidate,
+            "the match test is a per-candidate region"
+        );
+        assert_eq!(
+            reveal.matches.body,
+            deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+        );
+    }
+
+    /// A pile choice writes the chosen pile to a definition the nested body
+    /// reads ([CR#700.3b]). Re-spelled from `lowers_choose_pile` /
+    /// `lowers_one_shot_effect_choose_pile` — `ChoosePile` gained `dest`.
+    #[test]
+    fn lowers_one_shot_effect_choose_pile() {
+        assert_matches!(
+            in_spell_region(|| deckmaste_semantics::OneShotEffect::ChoosePile(
+                minimal_choose_pile()
+            )
+            .lower()),
+            deckmaste_core::OneShotEffect::ChoosePile(deckmaste_core::ChoosePile {
+                dest: deckmaste_core::DefId(3),
+                from: deckmaste_core::PileSource::Labels(_),
+                by: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
+                random: false,
+                then: _
+            })
+        );
+    }
+
+    #[test]
+    fn lowers_choose_pile() {
+        assert_matches!(
+            in_spell_region(|| deckmaste_semantics::ChoosePile {
+                from: minimal_pile_source(),
+                by: minimal_reference(),
+                random: false,
+                then: std::sync::Arc::new(minimal_one_shot_effect())
+            }
+            .lower()),
+            deckmaste_core::ChoosePile {
+                dest: deckmaste_core::DefId(3),
+                from: deckmaste_core::PileSource::Labels(_),
+                by: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
+                random: false,
+                then: _
+            }
+        );
+    }
+
+    /// [CR#118.8]: an additional cost is announced and paid with the spell's
+    /// mana cost, so the declaration is HOISTED onto the ability rather than
+    /// surviving as an instruction. Re-spelled from `lowers_additional_cost` /
+    /// `lowers_one_shot_effect_additional_cost` — core deletes the node.
+    #[test]
+    fn lowers_additional_cost_onto_the_abilitys_announcement() {
+        let lowered = deckmaste_semantics::SpellAbility {
+            ability_word: None,
+            effect: deckmaste_semantics::OneShotEffect::AdditionalCost(
+                deckmaste_semantics::AdditionalCost {
+                    pay: deckmaste_semantics::Cost(
+                        [deckmaste_semantics::CostComponent::do_action(
+                            deckmaste_semantics::Action::Sacrifice(
+                                deckmaste_semantics::Reference::You,
+                                deckmaste_semantics::Reference::This,
+                            ),
+                        )]
+                        .into(),
+                    ),
+                    body: std::sync::Arc::new(minimal_one_shot_effect()),
+                },
+            ),
+        }
+        .lower();
+        assert_eq!(
+            lowered.cost.0.len(),
+            1,
+            "the declared additional cost reaches the ability's announcement"
+        );
+        assert!(is_minimal_lowered_effect(&super::one(
+            lowered.effect.body.to_vec()
+        )));
+    }
+
+    /// A nested additional cost has no announcement to be paid at
+    /// ([CR#118.8a]); a payment made while a spell resolves is `May`
+    /// ([CR#118.12]).
+    #[test]
+    #[should_panic(expected = "nested AdditionalCost")]
+    fn a_nested_additional_cost_is_a_lowering_error() {
+        let _ = in_spell_region(|| {
+            deckmaste_semantics::OneShotEffect::May(deckmaste_semantics::May {
+                who: minimal_reference(),
+                effect: std::sync::Arc::new(deckmaste_semantics::OneShotEffect::AdditionalCost(
+                    minimal_additional_cost(),
+                )),
+                if_did: None,
+                if_not: None,
+            })
+            .lower()
+        });
+    }
+
+    // ---- The named fixtures the discourse stage's ticket required ----
+    //
+    // A `Spell` region with one announced target declares source(0),
+    // controller(1), the target(2) and announced X(3), so its first
+    // instruction definition is register 4.
+
+    use deckmaste_semantics as sem;
+
+    /// The first instruction definition of a one-target spell region.
+    const FIRST_TARGETED_DEF: deckmaste_core::DefId = deckmaste_core::DefId(4);
+    /// The announced target of a one-target spell region.
+    const TARGET_0: deckmaste_core::RefId = deckmaste_core::RefId(2);
+
+    /// One target slot admitting any creature.
+    fn one_creature_target() -> sem::TargetSpec {
+        sem::TargetSpec::Target(
+            sem::Quantity::one(),
+            sem::Predicate::r#type(sem::Type::Creature),
+        )
+    }
+
+    /// Lower `effect` as a spell ability with one announced creature target.
+    fn lower_targeted_spell(effect: sem::OneShotEffect) -> deckmaste_core::SpellAbility {
+        sem::SpellAbility {
+            ability_word: None,
+            effect: sem::OneShotEffect::Targeted(sem::Targeted {
+                targets: [one_creature_target()].into(),
+                effect: std::sync::Arc::new(effect),
+            }),
+        }
+        .lower()
+    }
+
+    fn move_to(what: sem::Reference, zone: sem::Zone) -> sem::OneShotEffect {
+        sem::OneShotEffect::Act(sem::Action::Move(
+            what,
+            sem::Destination::Zone(zone),
+            [].into(),
+            None,
+        ))
+    }
+
+    /// FIXTURE — exile and return. "Exile target creature, then return it to
+    /// the battlefield under its owner's control" ([CR#400.7,400.7j]): the
+    /// exile is a PRODUCING instruction whose destination the return reads, so
+    /// the second clause names the new object rather than re-reading the
+    /// announced slot (which is now a departed target).
+    #[test]
+    fn exile_and_return_reads_the_exiles_product_definition() {
+        let lowered = lower_targeted_spell(sem::OneShotEffect::Sequentially(
+            [
+                move_to(sem::Reference::Target(0), sem::Zone::Exile),
+                move_to(
+                    sem::Reference::That(sem::Sort::Card),
+                    sem::Zone::Battlefield,
+                ),
+            ]
+            .into(),
+        ));
+        let [
+            deckmaste_core::OneShotEffect::Act {
+                dest: Some(product),
+                action: exile,
+            },
+            deckmaste_core::OneShotEffect::Act {
+                dest: Some(_),
+                action: ret,
+            },
+        ] = lowered.effect.body.as_ref()
+        else {
+            panic!(
+                "two producing move instructions, got {:?}",
+                lowered.effect.body
+            );
+        };
+        assert_eq!(
+            *product, FIRST_TARGETED_DEF,
+            "the exile defines the region's first instruction product"
+        );
+        assert_eq!(
+            *exile,
+            deckmaste_core::Action::Move(
+                deckmaste_core::Reference::Reg(TARGET_0),
+                deckmaste_core::Destination::Zone(deckmaste_core::Zone::Exile),
+                [].into(),
+                None,
+            ),
+            "the exile reads the announced slot"
+        );
+        assert_eq!(
+            *ret,
+            deckmaste_core::Action::Move(
+                deckmaste_core::Reference::Reg((*product).into()),
+                deckmaste_core::Destination::Zone(deckmaste_core::Zone::Battlefield),
+                [].into(),
+                None,
+            ),
+            "the return reads the exile's product, not the announced slot"
+        );
+    }
+
+    /// FIXTURE — the insertion negative. Inserting a producing clause between a
+    /// binder and its mention RE-RESOLVES the mention at lowering; it never
+    /// silently keeps the old register. With two equally compatible products in
+    /// scope the resolver refuses (R2) rather than picking one, so the change
+    /// is loud at compile time instead of a wrong object at resolution.
+    #[test]
+    #[should_panic(expected = "ambiguous discourse anaphor")]
+    fn a_clause_inserted_between_binder_and_mention_re_resolves() {
+        // Sanity: without the insertion the mention resolves — see
+        // `exile_and_return_reads_the_exiles_product_definition`.
+        let _ = lower_targeted_spell(sem::OneShotEffect::Sequentially(
+            [
+                move_to(sem::Reference::Target(0), sem::Zone::Exile),
+                // The inserted producing clause: it defines a second card-sorted
+                // product between the binder and its mention.
+                move_to(sem::Reference::This, sem::Zone::Graveyard),
+                move_to(
+                    sem::Reference::That(sem::Sort::Card),
+                    sem::Zone::Battlefield,
+                ),
+            ]
+            .into(),
+        ));
+    }
+
+    /// FIXTURE — a multi-sentence anaphora card. "Create a Treasure token.
+    /// Sacrifice it." — the second sentence's anaphor reads the register the
+    /// first sentence's product defined ([CR#400.7j]), across the sentence
+    /// boundary and with no name to carry it.
+    #[test]
+    fn a_multi_sentence_anaphor_reads_the_earlier_sentences_product() {
+        let lowered = sem::SpellAbility {
+            ability_word: None,
+            effect: sem::OneShotEffect::Sequentially(
+                [
+                    sem::OneShotEffect::Act(sem::Action::Create {
+                        agent: sem::Reference::You,
+                        count: sem::Count::Literal(1),
+                        token: sem::TokenSpec::Named(sem::TokenName::from("Treasure")),
+                        riders: [].into(),
+                    }),
+                    sem::OneShotEffect::Act(sem::Action::Sacrifice(
+                        sem::Reference::You,
+                        sem::Reference::That(sem::Sort::Token),
+                    )),
+                ]
+                .into(),
+            ),
+        }
+        .lower();
+        let [
+            deckmaste_core::OneShotEffect::Act {
+                dest: Some(token),
+                action: deckmaste_core::Action::Create { .. },
+            },
+            deckmaste_core::OneShotEffect::Act {
+                dest: _,
+                action: deckmaste_core::Action::Sacrifice(_, sacrificed),
+            },
+        ] = lowered.effect.body.as_ref()
+        else {
+            panic!(
+                "a creating instruction then a sacrifice, got {:?}",
+                lowered.effect.body
+            );
+        };
+        assert_eq!(
+            *sacrificed,
+            deckmaste_core::Reference::Reg((*token).into()),
+            "the second sentence sacrifices the register the first defined"
+        );
+    }
+
+    /// Two damage clauses, then a life gain reading one of them.
+    fn two_magnitudes_then(gain: sem::Count, label: Option<&str>) -> sem::SpellAbility {
+        let damage = |amount| {
+            sem::OneShotEffect::Act(sem::Action::DealDamage(
+                sem::Reference::This,
+                sem::Count::Literal(amount),
+                sem::Reference::Opponent,
+            ))
+        };
+        let first = match label {
+            Some(name) => sem::OneShotEffect::Label(sem::Label {
+                r#as: name.into(),
+                effect: std::sync::Arc::new(damage(2)),
+            }),
+            None => damage(2),
+        };
+        sem::SpellAbility {
+            ability_word: None,
+            effect: sem::OneShotEffect::Sequentially(
+                [
+                    first,
+                    damage(5),
+                    sem::OneShotEffect::Act(sem::Action::ChangeLife(
+                        sem::Reference::You,
+                        sem::LifeOp::Up(gain),
+                    )),
+                ]
+                .into(),
+            ),
+        }
+    }
+
+    /// Every numeric definition a lowered spell's block pins, in order.
+    fn numeric_pins(ability: &deckmaste_core::SpellAbility) -> Vec<deckmaste_core::DefId> {
+        ability
+            .effect
+            .body
+            .iter()
+            .filter_map(|instruction| match instruction {
+                deckmaste_core::OneShotEffect::Let(deckmaste_core::Let {
+                    dest,
+                    expr: deckmaste_core::Expr::Number(_),
+                }) => Some(*dest),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// FIXTURE — a two-magnitude card, half one. Each clause pins its own
+    /// magnitude at its own evaluation moment ([CR#608.2h]), so the two amounts
+    /// occupy two registers rather than one shared slot the second clause would
+    /// overwrite. That alone makes the wrong-magnitude bug unrepresentable.
+    #[test]
+    fn a_two_magnitude_card_pins_each_magnitude_separately() {
+        let lowered = two_magnitudes_then(sem::Count::Noted("first".into()), Some("first")).lower();
+        let pins = numeric_pins(&lowered);
+        assert_eq!(
+            pins.len(),
+            3,
+            "two damage amounts and the life gain each get their own definition"
+        );
+        assert_eq!(
+            pins.iter().collect::<std::collections::BTreeSet<_>>().len(),
+            3,
+            "three DISTINCT registers — no shared magnitude slot"
+        );
+    }
+
+    /// FIXTURE — a two-magnitude card, half two. A bare "that much" after TWO
+    /// pinned magnitudes is refused at lowering (R2): the resolver never
+    /// guesses which one the card meant, so the ambiguity is a compile-time
+    /// error rather than a wrong amount at resolution.
+    #[test]
+    #[should_panic(expected = "ambiguous discourse anaphor")]
+    fn a_bare_that_much_after_two_magnitudes_is_refused() {
+        let _ = two_magnitudes_then(sem::Count::ThatMuch, None).lower();
+    }
+
+    /// FIXTURE — a two-magnitude card, half three. A card that NAMES the
+    /// magnitude it means reads exactly that register ([CR#607.2a]) — the
+    /// escape the refusal above leaves open. The life gain pins its own amount
+    /// at its own moment ([CR#608.2h]), and the expression it pins is the
+    /// named clause's register.
+    #[test]
+    fn a_named_magnitude_reads_the_clause_that_bound_it() {
+        let lowered = two_magnitudes_then(sem::Count::Noted("first".into()), Some("first")).lower();
+        let pins = numeric_pins(&lowered);
+        let pinned: Vec<&deckmaste_core::Count> = lowered
+            .effect
+            .body
+            .iter()
+            .filter_map(|instruction| match instruction {
+                deckmaste_core::OneShotEffect::Let(deckmaste_core::Let {
+                    expr: deckmaste_core::Expr::Number(count),
+                    ..
+                }) => Some(count),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(pinned.len(), 3);
+        assert_eq!(
+            *pinned[2],
+            deckmaste_core::Count::Reg(pins[0].into()),
+            "the life gain pins the FIRST clause's register, not the nearer second one"
+        );
+    }
 }
 
 pub(crate) fn lower_block(effect: deckmaste_semantics::OneShotEffect) -> deckmaste_core::Block {

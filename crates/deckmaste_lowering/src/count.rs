@@ -572,6 +572,91 @@ mod tests {
             deckmaste_core::Count::Literal(0)
         );
     }
+
+    /// "That many" names the magnitude a count pinned earlier ([CR#608.2h]).
+    /// Re-spelled from `lowers_count_that_many`: `Count::ThatMany` left core
+    /// with the discourse channel, so the anaphor's image is the register read
+    /// of the pinned amount.
+    #[test]
+    fn lowers_count_that_many_to_the_pinned_amount_register() {
+        let (_, lowered) = crate::region::in_region(crate::region::RegionKind::Spell, 0, || {
+            let amount = crate::region::define(deckmaste_core::Kind::Number);
+            crate::region::push_antecedent(
+                amount.into(),
+                deckmaste_core::Kind::Number,
+                crate::region::Cardinality::One,
+                Some(deckmaste_semantics::Sort::Amount),
+                crate::region::Site::Product,
+            );
+            deckmaste_semantics::Count::ThatMany.lower()
+        });
+        assert_eq!(
+            lowered,
+            deckmaste_core::Count::Reg(deckmaste_core::RefId(3))
+        );
+    }
+
+    /// "That much" is the same register read as "that many" — one amount
+    /// anaphor, one channel ([CR#608.2h]). Re-spelled from
+    /// `lowers_count_that_much`.
+    #[test]
+    fn lowers_count_that_much_to_the_pinned_amount_register() {
+        let (_, lowered) = crate::region::in_region(crate::region::RegionKind::Spell, 0, || {
+            let amount = crate::region::define(deckmaste_core::Kind::Number);
+            crate::region::push_antecedent(
+                amount.into(),
+                deckmaste_core::Kind::Number,
+                crate::region::Cardinality::One,
+                Some(deckmaste_semantics::Sort::Amount),
+                crate::region::Site::Product,
+            );
+            deckmaste_semantics::Count::ThatMuch.lower()
+        });
+        assert_eq!(
+            lowered,
+            deckmaste_core::Count::Reg(deckmaste_core::RefId(3))
+        );
+    }
+
+    /// A distributed share reads the loop body's allotment parameter
+    /// ([CR#601.2d]) rather than a `Count::Allotment` variant. Re-spelled from
+    /// `lowers_count_allotment`.
+    #[test]
+    fn lowers_count_allotment_to_the_loop_bodys_allotment_parameter() {
+        let (_, lowered) = crate::region::in_region(crate::region::RegionKind::Spell, 0, || {
+            crate::region::push_antecedent(
+                deckmaste_core::RefId(1),
+                deckmaste_core::Kind::Number,
+                crate::region::Cardinality::One,
+                Some(deckmaste_semantics::Sort::Amount),
+                crate::region::Site::Allotment,
+            );
+            deckmaste_semantics::Count::Allotment.lower()
+        });
+        assert_eq!(
+            lowered,
+            deckmaste_core::Count::Reg(deckmaste_core::RefId(1))
+        );
+    }
+
+    /// The allotment channel is its own site: an ordinary pinned amount in
+    /// scope is NOT what "that much" means inside a `Distribute` body
+    /// ([CR#601.2d]), so an allotment read never falls back to it.
+    #[test]
+    #[should_panic(expected = "unbound distribution allotment")]
+    fn allotment_does_not_fall_back_to_a_plain_amount_antecedent() {
+        let _ = crate::region::in_region(crate::region::RegionKind::Spell, 0, || {
+            let amount = crate::region::define(deckmaste_core::Kind::Number);
+            crate::region::push_antecedent(
+                amount.into(),
+                deckmaste_core::Kind::Number,
+                crate::region::Cardinality::One,
+                Some(deckmaste_semantics::Sort::Amount),
+                crate::region::Site::Product,
+            );
+            deckmaste_semantics::Count::Allotment.lower()
+        });
+    }
 }
 
 impl Lower for deckmaste_semantics::RoundMode {

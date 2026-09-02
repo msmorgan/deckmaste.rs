@@ -644,3 +644,73 @@ fn every_top_level_semantic_ability_appears_in_its_lowered_card() {
     }
     assert!(checked > 0, "corpus produced no top-level abilities");
 }
+
+/// Every `Ability` reachable from `ability`, at ANY depth, in pre-order —
+/// `ability` itself plus the full transitive closure of
+/// [`nested_abilities`](deckmaste_semantics::Ability::nested_abilities).
+/// This is the semantic-side walk
+/// [`ProvenanceIndex::insert_ability_owned`](deckmaste_plugin::provenance::ProvenanceIndex)
+/// does when indexing (`crates/deckmaste_plugin/src/provenance.rs`) — an
+/// ability granting an ability that itself grants an ability is indexed at
+/// every depth there, so this test has to visit every depth too, or a
+/// context-dependence bug two-or-more `Ability`-levels down would pass
+/// silently. Reuses `nested_abilities` (one level) recursively rather than
+/// re-implementing the walk.
+fn semantic_ability_subterms(
+    ability: &deckmaste_semantics::Ability,
+) -> Vec<&deckmaste_semantics::Ability> {
+    let mut out = vec![ability];
+    for child in ability.nested_abilities() {
+        out.extend(semantic_ability_subterms(child));
+    }
+    out
+}
+
+/// Every semantic ability subterm remains represented verbatim at the same
+/// nesting depth after lowering.
+///
+/// The premise this test was written on — "each ability owns its region, so
+/// lowering at `Ability` granularity assigns the same parameter provenance and
+/// registers whether the ability is isolated or nested in a card" — is now
+/// false BY DESIGN, so the test is kept as the record of the lost coverage
+/// rather than rewritten into a claim it never made. Measured against the
+/// canon corpus: 14 of 245 subterms fail, all of them nested, across
+/// `Chandra, Torch of Defiance`, `Collective Resistance`, `Falkenrath Gorger`
+/// and `Glaring Spotlight`; 3 differ only in the region's `params`, the other
+/// 11 also in a nested region's.
+///
+/// The narrower
+/// [`every_top_level_semantic_ability_appears_in_its_lowered_card`]
+/// covers depth 0 only; nothing covers depths below it.
+#[test]
+#[ignore = "blocker: lowering is no longer context-free at Ability granularity. \
+A carried ability's region appends a Capture parameter per enclosing register \
+(deckmaste_lowering::region::in_carried_region) and its references resolve \
+against that captured file, while an isolated `subterm.lower()` runs with no \
+region context and falls back to the root prefix — so the two values can never \
+be equal. Unblocked by either a lowering entry point that lowers one subterm \
+under a supplied enclosing register file, or a capture-erasing normalization \
+both sides can be compared through."]
+fn every_semantic_ability_subterm_appears_in_its_lowered_card() {
+    let canon = Plugin::load_with_sibling_prelude(plugin_dir("canon", "")).unwrap();
+    let mut checked = 0;
+    for source in ron_files(&plugin_dir("canon", CARDS_DIR)) {
+        let loaded = load_card_pair(&canon, &source).unwrap();
+        let lowered: Vec<&deckmaste_core::Ability> = core_abilities(&loaded.core).collect();
+        for face in semantic_faces(&loaded.semantic) {
+            for semantic in &face.abilities {
+                for subterm in semantic_ability_subterms(semantic) {
+                    let image = subterm.clone().lower();
+                    assert!(
+                        lowered.iter().any(|a| **a == image) || nested_in_any(&lowered, &image),
+                        "{}: a semantic ability subterm's lowering is absent from the \
+                         lowered card — lowering is context-dependent at Ability granularity",
+                        source.display(),
+                    );
+                    checked += 1;
+                }
+            }
+        }
+    }
+    assert!(checked > 0, "corpus produced no ability subterms");
+}

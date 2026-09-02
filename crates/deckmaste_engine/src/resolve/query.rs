@@ -528,6 +528,20 @@ impl GameState {
     }
 }
 
+/// Whether `filter` states NO quality at all — "a card"/"N cards", the
+/// bare-quantity search [CR#701.23d] compels finding that many (or as many as
+/// exist); anything else is a STATED quality ([CR#701.23b]), which never
+/// compels a find even when matches are present. `Kind(Card)` is what the
+/// migrations parser emits for a bare "a card"; `Any` is its match-everything
+/// twin.
+pub(crate) fn search_is_bare_quantity(filter: &deckmaste_core::Predicate) -> bool {
+    matches!(
+        filter,
+        deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Card)
+            | deckmaste_core::Predicate::Any
+    )
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(
@@ -536,24 +550,22 @@ mod tests {
     )]
     use std::sync::Arc;
 
+    use deckmaste_core::Action;
+    use deckmaste_core::OneShotEffect;
     use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
     use deckmaste_core::Selection;
+    use deckmaste_core::StatePredicate;
+    use deckmaste_core::Zone;
     use slotmap::Key;
 
+    use crate::agenda::WorkItem;
+    use crate::event::Occurrence;
     use crate::player::PlayerId;
     use crate::resolve::fixtures::*;
     use crate::test_support::frame_for;
     use crate::test_support::frame_src;
     use crate::test_support::frame_src_targets;
-
-    /// Semantic-input errors in card data never crash the engine (the Invalid
-    /// semantic input fizzles decision,
-    /// `docs/decisions/invalid-semantic-input-fizzles.md`): an unresolvable
-    /// semantic reference degrades to the null object id (the
-    /// effect fizzles) rather than panicking. Soundness — that a
-    /// well-formed card's references always resolve — is the Idris re-emit
-    /// gate's job, not a runtime panic.
 
     #[test]
     fn activation_target_product_keeps_lki_after_departure() {
@@ -848,6 +860,556 @@ mod tests {
             ),
             direct,
             "the wrapper changes no members while the choice is unwired"
+        );
+    }
+
+    /// A per-candidate predicate region — the candidate at parameter zero,
+    /// then the enclosing source and controller.
+    fn candidate_region<T>(body: T) -> Arc<deckmaste_core::Region<T>> {
+        Arc::new(deckmaste_core::Region::new(
+            Arc::from([
+                deckmaste_core::Param {
+                    def: deckmaste_core::DefId(0),
+                    kind: deckmaste_core::Kind::Object,
+                    provenance: deckmaste_core::Provenance::Candidate,
+                },
+                deckmaste_core::Param {
+                    def: deckmaste_core::DefId(1),
+                    kind: deckmaste_core::Kind::Object,
+                    provenance: deckmaste_core::Provenance::Source,
+                },
+                deckmaste_core::Param {
+                    def: deckmaste_core::DefId(2),
+                    kind: deckmaste_core::Kind::Object,
+                    provenance: deckmaste_core::Provenance::Controller,
+                },
+            ]),
+            body,
+        ))
+    }
+
+    /// Creatures on the battlefield — the filter the choice fixtures use.
+    fn creatures_on_the_battlefield() -> Predicate {
+        Predicate::And(
+            vec![
+                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                Predicate::creature(),
+            ]
+            .into(),
+        )
+    }
+
+    /// The first instruction definition of a `frame_src` activation: source(0),
+    /// controller(1), the four event roles(2..=5), announced X(6).
+    const FIRST_DEF: deckmaste_core::DefId = deckmaste_core::DefId(7);
+
+    /// The first instruction definition of a one-target `frame_src_targets`
+    /// activation, which inserts the announced slot at register 6 and X at 7.
+    const FIRST_DEF_WITH_TARGET: deckmaste_core::DefId = deckmaste_core::DefId(8);
+
+    /// ADR law 2, the provenance split: an instruction PRODUCT is a new object
+    /// ([CR#400.7j]) and its register read chases the same-resolution move
+    /// record to the object it became; an ANNOUNCED slot is positional and
+    /// keeps the partial-fizzle read ([CR#608.2b]) — it never chases onto a
+    /// successor. Re-spelled from `bound_role_reads_chase_the_move_record`,
+    /// whose `That`/`It` bindings are these two registers.
+    #[test]
+    fn product_registers_chase_the_move_record_but_announced_slots_do_not() {
+        let (mut state, a, b) = two_permanents_on_field();
+        let frame = frame_src_targets(&state, a, vec![a]);
+        state.activation_write_object(frame.activation, FIRST_DEF_WITH_TARGET, a);
+        state.moved_chain.push((a, b));
+        state.objects.remove(a);
+
+        assert_eq!(
+            state.eval_reference(&Reference::Reg(FIRST_DEF_WITH_TARGET.into()), &frame),
+            b,
+            "an instruction product reads its latest same-resolution incarnation"
+        );
+        assert!(
+            state
+                .eval_reference(&Reference::Reg(deckmaste_core::RefId(6)), &frame)
+                .is_null(),
+            "the announced slot stays positional: a departed target fizzles, it does not chase"
+        );
+    }
+
+    /// A group read returns the register the deciding instruction wrote — the
+    /// chooser writes its own `dest` and later instructions read it
+    /// ([CR#601.2b]); no shared slot, no re-surfacing. A `Random` selection is
+    /// a DECISION and is never evaluated by this pure reader
+    /// ([CR#608.2h], ADR law 5). Re-spelled from
+    /// `eval_selection_set_reads_bound_choice`.
+    #[test]
+    fn a_group_read_returns_the_register_the_decision_wrote() {
+        let (state, bear) = bear_on_field();
+        let frame = frame_src(&state, bear);
+        state.activation_write_objects(frame.activation, FIRST_DEF, &[bear]);
+        assert_eq!(
+            state.eval_selection_set(&Selection::Reg(FIRST_DEF.into()), &frame),
+            vec![bear]
+        );
+        assert!(
+            state
+                .eval_selection_set(
+                    &Selection::Random(
+                        deckmaste_core::Quantity::one(),
+                        creatures_on_the_battlefield()
+                    ),
+                    &frame
+                )
+                .is_empty(),
+            "a decision-bearing selection never resolves in a pure read"
+        );
+    }
+
+    /// A foreign chooser routes the `ChooseObjects` decision to the choice
+    /// instruction's resolved `by` player, not the spell's controller
+    /// ([CR#608.2d] — "that player sacrifices a creature of their choice",
+    /// [CR#701.21a]).
+    #[test]
+    fn foreign_by_routes_choice_to_that_player() {
+        use crate::decide::PendingDecision;
+
+        let (mut state, bear) = bear_on_field();
+        let _theirs = second_bear_to_player_1(&mut state);
+        let frame = frame_src(&state, bear);
+        state.run_effect(
+            OneShotEffect::Sequentially(
+                vec![
+                    OneShotEffect::Choose(deckmaste_core::Choose {
+                        dest: FIRST_DEF,
+                        by: Reference::OpponentOf(std::sync::Arc::new(
+                            Reference::controller_parameter(),
+                        )),
+                        quantity: deckmaste_core::Quantity::one(),
+                        filter: candidate_region(creatures_on_the_battlefield()),
+                    }),
+                    OneShotEffect::Act(Action::destroy(Reference::Reg(FIRST_DEF.into()))),
+                ]
+                .into(),
+            ),
+            &frame,
+        );
+        drain_progress(&mut state, 20);
+        let Some(PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects {
+            player,
+            ..
+        })) = state.pending.clone()
+        else {
+            panic!("expected ChooseObjects, got {:?}", state.pending);
+        };
+        assert_eq!(
+            player,
+            PlayerId(1),
+            "the opponent (the choice instruction's `by`) makes the pick"
+        );
+    }
+
+    /// A group register chases PER ELEMENT ([CR#400.7j]): each member reads
+    /// its own latest same-resolution incarnation, and a member with no move
+    /// record stays itself. Re-spelled from `group_read_chases_per_element`,
+    /// whose Many `that` binding is this register.
+    #[test]
+    fn group_register_reads_chase_per_element() {
+        let (mut state, a, b) = two_permanents_on_field();
+        // `c` MUST come from the SAME state (see
+        // `chase_moved_follows_chain_transitively` on cross-state id
+        // collision).
+        let c = state.objects.mint(
+            crate::object::ObjectSource::Player(PlayerId(1)),
+            PlayerId(1),
+            Some(Zone::Battlefield),
+        );
+        let frame = frame_src(&state, b);
+        state.activation_write_objects(frame.activation, FIRST_DEF, &[a, b]);
+        state.moved_chain.push((a, c));
+        state.objects.remove(a);
+        assert_eq!(
+            state.eval_selection_set(&Selection::Reg(FIRST_DEF.into()), &frame),
+            vec![c, b],
+            "a chases to c; b unrecorded stays b"
+        );
+    }
+
+    /// `LibraryOf(whose)` reads the WHOLE library, top→bottom — the un-sliced
+    /// twin of `TopOfLibrary` and shuffle's own object ([CR#701.24a]). Checked
+    /// against the zone itself (order-exact, not merely set-equal) and against
+    /// the slice family, whose read must be this one's prefix.
+    #[test]
+    fn library_of_reads_the_whole_library_top_to_bottom() {
+        /// A register no activation declares — the frameless unbound read.
+        const UNBOUND: deckmaste_core::RefId = deckmaste_core::RefId(20);
+
+        let (state, _bear) = bear_on_field();
+        let frame = frame_for(&state, PlayerId(0));
+
+        let expected: Vec<_> = state.zones.libraries[PlayerId(0).index()]
+            .iter()
+            .copied()
+            .collect();
+        assert!(
+            expected.len() > 2,
+            "fixture must leave a multi-card library for an order check"
+        );
+        assert_eq!(
+            state.eval_selection_set(
+                &Selection::LibraryOf(Reference::controller_parameter()),
+                &frame
+            ),
+            expected,
+            "LibraryOf(controller) is the whole library, in zone order"
+        );
+        assert_eq!(
+            state.eval_selection_set(
+                &Selection::TopOfLibrary {
+                    count: deckmaste_core::Count::Literal(2),
+                    whose: Reference::controller_parameter(),
+                },
+                &frame,
+            ),
+            expected[..2].to_vec(),
+            "the slice family reads a prefix of the same ordered zone"
+        );
+
+        // A `whose` that is not a player proxy fizzles to the empty group
+        // rather than panicking — the `TopOfGraveyard` convention, not the
+        // slice family's panic (semantic-input errors never crash the engine).
+        assert!(
+            state
+                .eval_selection_set(&Selection::LibraryOf(Reference::Reg(UNBOUND)), &frame)
+                .is_empty(),
+            "an unresolvable whose fizzles, never panics"
+        );
+    }
+
+    /// [CR#400.7,603.7c]: an object-op whose register resolved to a GONE id
+    /// (hidden destination / stale) is a NO-OP, not a panic. Re-spelled from
+    /// `move_of_a_gone_bound_role_is_a_noop`.
+    #[test]
+    fn move_of_a_gone_register_is_a_noop() {
+        use deckmaste_core::Destination;
+
+        let (mut state, a, b) = two_permanents_on_field();
+        let frame = frame_src(&state, b);
+        state.activation_write_object(frame.activation, FIRST_DEF, a);
+        // Kill `a` outright (no record entry — e.g. it bounced to hand).
+        state.objects.remove(a);
+        let items = state.move_items(
+            &Reference::Reg(FIRST_DEF.into()),
+            &Destination::Zone(Zone::Exile),
+            None,
+            &[],
+            &frame,
+        );
+        assert!(
+            items.iter().all(|item| match item {
+                WorkItem::Emit(Occurrence::Batch(v)) => v.is_empty(),
+                WorkItem::Emit(Occurrence::Single(_)) => false,
+                _ => true,
+            }),
+            "a gone register produces no zone-change emit",
+        );
+    }
+
+    /// The move product's own definition ([CR#400.7j] — "exile it, then return
+    /// THAT CARD"): an `Act` with a `dest` writes the object it became, and
+    /// the register reads that product; once the product leaves for a HIDDEN
+    /// zone nothing is recorded, so the read degrades to null rather than
+    /// finding an older antecedent ([CR#400.7]). Re-spelled from
+    /// `product_sited_that_reads_the_newest_live_move_product` — the
+    /// product-sited `That` is a declared definition now.
+    #[test]
+    fn a_move_products_definition_reads_the_live_product_only() {
+        use slotmap::Key;
+
+        let (mut state, a, _) = two_permanents_on_field();
+        let frame = frame_src(&state, a);
+
+        // Nothing written yet: unbound.
+        assert!(
+            state
+                .eval_reference(&Reference::Reg(FIRST_DEF.into()), &frame)
+                .is_null()
+        );
+
+        // Exile `a` through the real effect machinery: the apply records the
+        // public move and the instruction writes its product.
+        state.run_effect(
+            OneShotEffect::Act {
+                dest: Some(FIRST_DEF),
+                action: Action::Move(
+                    Reference::source_parameter(),
+                    deckmaste_core::Destination::Zone(Zone::Exile),
+                    vec![].into(),
+                    None,
+                ),
+            },
+            &frame,
+        );
+        run_injected(&mut state);
+        let product = state.chase_moved(a);
+        assert_ne!(product, a, "the exile reminted a new object");
+        assert_eq!(
+            state.eval_reference(&Reference::Reg(FIRST_DEF.into()), &frame),
+            product,
+            "the product definition reads the exile product"
+        );
+
+        // Send the product to a HIDDEN zone: nothing is recorded, so the
+        // register finds nothing and does not fall back to an older object.
+        let pframe = frame_src(&state, product);
+        state.run_effect(
+            OneShotEffect::Act(Action::Move(
+                Reference::source_parameter(),
+                deckmaste_core::Destination::Zone(Zone::Hand),
+                vec![].into(),
+                None,
+            )),
+            &pframe,
+        );
+        run_injected(&mut state);
+        assert!(
+            state
+                .eval_reference(&Reference::Reg(FIRST_DEF.into()), &frame)
+                .is_null(),
+            "a product that left its public zone is NOT found ([CR#400.7])"
+        );
+    }
+
+    /// Semantic-input errors in card data never crash the engine (the Invalid
+    /// semantic input fizzles decision,
+    /// `docs/decisions/invalid-semantic-input-fizzles.md`, and ADR law 10): a
+    /// register read that finds nothing degrades to the null object id (the
+    /// effect fizzles) rather than panicking. Validation at load makes "never
+    /// bound" unrepresentable; what remains at run time is bound-but-departed,
+    /// and that must fizzle.
+    #[test]
+    fn unbound_reference_degrades_to_null_not_panic() {
+        use deckmaste_core::Reference;
+        use slotmap::Key;
+
+        let state = game();
+        let frame = frame_for(&state, PlayerId(0));
+        // An out-of-range positional read degrades on both channels —
+        // never-crash, never a wrong slot.
+        assert!(
+            state
+                .eval_reference(&Reference::Reg(deckmaste_core::RefId(6)), &frame)
+                .is_null()
+        );
+        assert!(
+            state
+                .eval_selection_set(
+                    &deckmaste_core::Selection::Reg(deckmaste_core::RefId(6)),
+                    &frame
+                )
+                .is_empty()
+        );
+        // A register far past any declared parameter — the shape a stale
+        // instruction product would take.
+        assert!(
+            state
+                .eval_reference(&Reference::Reg(deckmaste_core::RefId(20)), &frame)
+                .is_null()
+        );
+        assert!(
+            state
+                .eval_selection_set(
+                    &deckmaste_core::Selection::Reg(deckmaste_core::RefId(20)),
+                    &frame
+                )
+                .is_empty()
+        );
+        // Event roles read outside any trigger — were `.expect()` panics.
+        for role in [2_u32, 4, 5] {
+            assert!(
+                state
+                    .eval_reference(&Reference::Reg(deckmaste_core::RefId(role)), &frame)
+                    .is_null(),
+                "event role register {role} outside a trigger is null, not a panic"
+            );
+        }
+        // A derived reference over an unbound inner stays null, not a secondary
+        // panic in `layers().controller()`.
+        assert!(
+            state
+                .eval_reference(
+                    &Reference::ControllerOf(Arc::new(Reference::Reg(deckmaste_core::RefId(20)))),
+                    &frame
+                )
+                .is_null()
+        );
+    }
+
+    /// [CR#707.10d]: `ValidTargetsFor` INTERSECTS the spell's per-slot legal
+    /// sets — "each object that the spell could target" means legal in EVERY
+    /// slot at once, not in any one of them.
+    ///
+    /// The board holds two creatures and one land; the spell announces two
+    /// slots, one admitting creatures and one admitting anything on the
+    /// battlefield. A union would yield all three objects and a first-slot-only
+    /// read would coincidentally also yield the creatures — so the land is what
+    /// discriminates: it is legal for slot 1 and must still be absent.
+    #[test]
+    fn valid_targets_for_intersects_slots_rather_than_unioning_them() {
+        use deckmaste_card::Card;
+        use deckmaste_card::CardFace;
+        use deckmaste_core::Ability;
+        use deckmaste_core::Quantity;
+        use deckmaste_core::SpellAbility;
+        use deckmaste_core::TargetSpec;
+        use deckmaste_core::Type;
+
+        use crate::object::ObjectSource;
+        use crate::stack::StackEntry;
+        use crate::stack::StackObject;
+
+        let (mut state, bear_a, bear_b) = two_permanents_on_field();
+        let land = mint_on_field(
+            &mut state,
+            Card::Normal(CardFace {
+                name: "Test Land".into(),
+                types: vec![Type::Land.def()],
+                ..CardFace::default()
+            }),
+        );
+
+        let face = CardFace {
+            name: "Two-Slot Spell".into(),
+            types: vec![Type::Instant.def()],
+            abilities: vec![Ability::Spell(Arc::new(SpellAbility {
+                ability_word: None,
+                cost: deckmaste_core::Cost([].into()),
+                targets: vec![
+                    // Slot 0: creatures only.
+                    TargetSpec::Target(Quantity::one(), candidate_region(Predicate::creature())),
+                    // Slot 1: anything on the battlefield — a strict superset.
+                    TargetSpec::Target(
+                        Quantity::one(),
+                        candidate_region(Predicate::State(StatePredicate::InZone(
+                            Zone::Battlefield,
+                        ))),
+                    ),
+                ]
+                .into(),
+                // The body is irrelevant to the read under test; any
+                // slot-referencing action keeps the declaration well-formed.
+                effect: OneShotEffect::Act(Action::deal_damage(
+                    Reference::Reg(deckmaste_core::RefId(6)),
+                    deckmaste_core::Count::Literal(1),
+                ))
+                .into(),
+            }))],
+            ..CardFace::default()
+        };
+        let cid = state.cards.push(Arc::new(Card::Normal(face)), PlayerId(0));
+        let spell = state
+            .objects
+            .mint(ObjectSource::Card(cid), PlayerId(0), Some(Zone::Stack));
+        state.stack.push(StackEntry {
+            activation: crate::ActivationId::NONE,
+            id: spell,
+            object: StackObject::Spell(spell),
+            controller: PlayerId(0),
+            targets: vec![],
+            chosen_modes: std::sync::Arc::from([]),
+            x: None,
+            paid_costs: Vec::new(),
+            copy: false,
+        });
+
+        // Premise check. Without it the intersection assertion below could pass
+        // vacuously: a land legal for NEITHER slot would also be absent from
+        // the result, proving nothing about the fold. Pin that the land really
+        // is legal for slot 1, so a union would demonstrably admit it.
+        let view = state.layers();
+        let specs = state.stack_object_target_specs(&view, &StackObject::Spell(spell), &[]);
+        let per_slot = state.legal_targets_for_specs(&specs, spell, crate::ActivationId::NONE);
+        assert_eq!(per_slot.len(), 2, "the spell announces two slots");
+        assert!(
+            !per_slot[0].contains(&land),
+            "slot 0 admits creatures only, so it excludes the land"
+        );
+        assert!(
+            per_slot[1].contains(&land),
+            "slot 1 admits the whole battlefield INCLUDING the land — this is what \
+             makes the intersection assertion discriminating"
+        );
+
+        // The source register names the spell itself.
+        let frame = crate::test_support::frame_src(&state, spell);
+        let mut got = state.eval_selection_set(
+            &Selection::ValidTargetsFor(Reference::source_parameter()),
+            &frame,
+        );
+        got.sort_unstable();
+        let mut want = vec![bear_a, bear_b];
+        want.sort_unstable();
+        assert_eq!(
+            got, want,
+            "the intersection is the creatures; the land is legal for slot 1 only and must drop"
+        );
+        assert!(
+            !got.contains(&land),
+            "a union fold would have admitted the land"
+        );
+
+        // A reference naming no live stack entry fizzles to the empty group.
+        let bare = frame_for(&state, PlayerId(0));
+        assert!(
+            state
+                .eval_selection_set(
+                    &Selection::ValidTargetsFor(Reference::Reg(deckmaste_core::RefId(20))),
+                    &bare
+                )
+                .is_empty(),
+            "ValidTargetsFor over a non-stack reference fizzles, never panics"
+        );
+    }
+
+    /// A producing instruction writes the MOVED OBJECT'S PRODUCT to its
+    /// destination, and the next instruction reads that register
+    /// ([CR#400.7j]) — the exile-and-return shape. Re-spelled from
+    /// `with_produce_binds_the_moved_objects_product`, whose `Binder::Produce`
+    /// is an `Act { dest }` now.
+    #[test]
+    fn a_producing_instruction_binds_the_moved_objects_product() {
+        use deckmaste_core::Destination;
+
+        let (mut state, a, _) = two_permanents_on_field();
+        let frame = frame_src(&state, a);
+        state.run_effect(
+            OneShotEffect::Sequentially(
+                vec![
+                    OneShotEffect::Act {
+                        dest: Some(FIRST_DEF),
+                        action: Action::Move(
+                            Reference::source_parameter(),
+                            Destination::Zone(Zone::Exile),
+                            vec![].into(),
+                            None,
+                        ),
+                    },
+                    OneShotEffect::Act(Action::Move(
+                        Reference::Reg(FIRST_DEF.into()),
+                        Destination::Zone(Zone::Battlefield),
+                        vec![].into(),
+                        None,
+                    )),
+                ]
+                .into(),
+            ),
+            &frame,
+        );
+        run_injected(&mut state);
+        // The original id is gone; a NEW object is back on the battlefield.
+        assert!(state.objects.get(a).is_none(), "original exiled (stale)");
+        let back = state.chase_moved(a);
+        assert_ne!(back, a);
+        assert_eq!(
+            state.objects.get(back).unwrap().zone,
+            Some(Zone::Battlefield)
         );
     }
 }

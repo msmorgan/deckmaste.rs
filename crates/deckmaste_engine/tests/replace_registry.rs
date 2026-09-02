@@ -58,10 +58,6 @@ fn builtin_sba_rules() -> Vec<deckmaste_core::SbaRule> {
 /// Load the builtin plugin's counter declarations — `M1M1Counter`'s
 /// conferred -1/-1 rides them ([CR#122.1a]; consumer-injected like
 /// `sba_rules`).
-#[allow(
-    dead_code,
-    reason = "shared fixture retained for neighboring replacement cases"
-)]
 fn builtin_counter_decls()
 -> std::collections::HashMap<deckmaste_core::Ident, deckmaste_core::Counter> {
     Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin"))
@@ -320,7 +316,8 @@ fn instead_redirects_destruction_to_exile() {
     // Mark lethal damage (toughness = 2, so damage ≥ 2 is lethal).
     state.objects.obj_mut(id).set_marked_damage(2);
 
-    // Drive SBAs: CheckSbas → sweep → Act(Destroy) → replace_event → exile instead.
+    // Drive SBAs: CheckSbas → sweep → Act(Destroy) → replace_event → exile
+    // instead.
     drive_sbas(&mut state);
 
     // The creature should be in exile, NOT in the graveyard.
@@ -525,10 +522,6 @@ fn two_applicable_replacements_second_choice_also_survives() {
 // ── Task 6: Regeneration helpers ─────────────────────────────────────────────
 
 /// Build a vanilla creature (no abilities) on the battlefield.
-#[allow(
-    dead_code,
-    reason = "shared fixture retained for neighboring replacement cases"
-)]
 fn vanilla_creature(power: i32, toughness: i32) -> (GameState, ObjectId) {
     creature_with_abilities("Vanilla", power, toughness, vec![])
 }
@@ -609,6 +602,355 @@ fn find_on_battlefield(state: &GameState, card_id: CardId) -> ObjectId {
 
 // ── Task 6: Regeneration tests
 // ────────────────────────────────────────────────
+
+/// The first instruction definition in a region declaring the
+/// [`deckmaste_core::event_region_params`] prefix (registers 0..=6).
+const REGEN_SUBJECT: deckmaste_core::DefId = deckmaste_core::DefId(7);
+
+/// Build the effect that registers a regeneration shield on `subject_ref`:
+/// "the next time [subject] would be destroyed this turn, instead remove all
+/// damage marked on it and tap it." [CR#701.19a,614.8]
+///
+/// Re-spelled from the deleted `With(TheRef(subject_ref), CreateReplacement)`
+/// form: a binder is now an explicit register definition, so the subject is
+/// pinned by a `Let` and `create_shield` freezes that product as the shield's
+/// subject.
+fn regenerate_effect(subject_ref: Reference) -> OneShotEffect {
+    // The shield resolves `subject` to a concrete object and remembers it; the
+    // watch and body refer to that captured permanent as `EventObject`
+    // (`Reg(2)`), NOT `Reg(0)` — the source register stays the source ability.
+    let would = EventFilter::ZoneChange {
+        what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(2))),
+        from: Some(Zone::Battlefield),
+        to: Some(Zone::Graveyard),
+        cause: Some(deckmaste_core::Cause::Cause(CausePattern {
+            verb: Some(deckmaste_core::VerbName::from("Destroy")),
+            agency: None,
+            agent: None,
+        })),
+    };
+    let instead = OneShotEffect::Sequentially(
+        vec![
+            // [CR#701.19a]: remove all damage from the regenerated permanent.
+            OneShotEffect::Act(Action::RemoveDamage(Reference::Reg(deckmaste_core::RefId(
+                2,
+            )))),
+            // [CR#701.19a]: its controller taps it.
+            OneShotEffect::Act(Action::Tap(Reference::Reg(deckmaste_core::RefId(2)))),
+        ]
+        .into(),
+    );
+    // [CR#614.3]: the shield's subject is the region product the preceding
+    // `Let` pinned; `create_shield` freezes that resolved identity (there is no
+    // semantic `subject:` field).
+    OneShotEffect::Sequentially(
+        vec![
+            OneShotEffect::Let(deckmaste_core::Let {
+                dest: REGEN_SUBJECT,
+                expr: deckmaste_core::Expr::Object(subject_ref),
+            }),
+            OneShotEffect::Act(Action::CreateReplacement {
+                replacement: Arc::new(Replacement::Instead { would, instead }),
+                duration: Duration::FixedUntil(TurnMarker::EndOfTurn),
+                one_shot: true,
+            }),
+        ]
+        .into(),
+    )
+}
+
+/// Resolve `effect` as an activated ability of `source` ([CR#602.2a]), then
+/// drive until stable — the region-anchored twin of [`resolve_and_drive`].
+///
+/// A `Let` destination is a register WRITE and `Frame::bare` carries no stored
+/// register file, so a body that pins a product has to run under a real region
+/// entry. Putting the body on the stack as an activated ability is the
+/// production path that mints one; `resolve_and_drive`'s bare frame would
+/// silently register no shield at all.
+fn resolve_region_and_drive(state: &mut GameState, effect: OneShotEffect, source: ObjectId) {
+    state.agenda.clear();
+    state.pending = None;
+    let controller = state.objects.obj(source).controller;
+    let ability = deckmaste_core::ActivatedAbility {
+        ability_word: None,
+        cost: deckmaste_core::Cost(Arc::from([])),
+        from: None,
+        window: None,
+        condition: None,
+        limits: Arc::from([]),
+        targets: Arc::from([]),
+        effect: deckmaste_core::Region::new(deckmaste_core::event_region_params(), effect.into()),
+    };
+    let object_source = state.objects.obj(source).source;
+    let id = state
+        .objects
+        .mint(object_source, controller, Some(Zone::Stack));
+    state.stack.push(deckmaste_engine::StackEntry {
+        id,
+        activation: deckmaste_engine::ActivationId::NONE,
+        object: deckmaste_engine::StackObject::Activated {
+            source,
+            ability: Box::new(ability),
+            bindings: deckmaste_engine::TriggerBindings::default(),
+        },
+        controller,
+        targets: Vec::new(),
+        chosen_modes: Arc::from([]),
+        x: None,
+        paid_costs: Vec::new(),
+        copy: false,
+    });
+    state.agenda.push_front(WorkItem::Resolve(id));
+    drive(state);
+}
+
+/// [CR#704.5h,701.19a]: a creature that regenerates from *deathtouch* damage
+/// must survive. Deathtouch provenance now rides the damage mark itself, so
+/// regeneration's heal — which removes the marks — drops the deathtouch clause
+/// with them; the post-heal re-check sees no deathtouch source and does not
+/// re-destroy the creature. Regression for the bug where a deal-time flag,
+/// decoupled from the damage, survived the heal and drove a *second*
+/// `Act(Destroy)` on the very next check with no shield left, wrongly
+/// destroying the creature (Drudge Skeletons vs a deathtouch attacker).
+#[test]
+fn regenerated_creature_survives_deathtouch_strike() {
+    let (mut state, id) = vanilla_creature(2, 2);
+    let card_id = state.objects.obj(id).card_id().expect("backed by a card");
+
+    // Resolve "Regenerate ~" — creates a single one-shot shield on id.
+    resolve_region_and_drive(
+        &mut state,
+        regenerate_effect(Reference::Reg(deckmaste_core::RefId(0))),
+        id,
+    );
+    assert_eq!(state.shields.len(), 1, "shield registered after regenerate");
+
+    // SUBLETHAL physical damage (1 < toughness 2) dealt by a DEATHTOUCH source:
+    // only the deal-time deathtouch provenance makes this lethal ([CR#704.5h]).
+    state.objects.obj_mut(id).mark_damage(
+        None,
+        vec![deckmaste_core::Ability::Keyword(
+            deckmaste_core::KeywordAbility::Deathtouch,
+        )],
+        1,
+    );
+
+    // Drive SBAs: first check → Act(Destroy) → shield replaces → heal (marks
+    // cleared, taking the deathtouch provenance with them) + tap; the re-check
+    // then sees no deathtouch source and no lethal damage.
+    drive_sbas(&mut state);
+
+    let live = find_on_battlefield(&state, card_id);
+    assert!(
+        state.objects.get(live).is_some(),
+        "creature regenerated from deathtouch damage must survive; bf={:?}",
+        state.zones.battlefield
+    );
+    assert_eq!(
+        state.objects.obj(live).total_damage(),
+        0,
+        "damage — and its deathtouch provenance — must be cleared by regeneration [CR#701.19a]"
+    );
+    assert!(
+        state.objects.obj(live).damage.is_empty(),
+        "no marks remain after the heal, so the healed creature is not re-destroyed ([CR#704.5h])"
+    );
+    assert!(
+        state.shields.is_empty(),
+        "only one shield existed and it was consumed by the single destroy [CR#614.3]"
+    );
+}
+
+/// [CR#701.19a,614.8]: Resolve "Regenerate ~" on a 2/2 → a shield registers.
+/// Then mark lethal damage → SBA → `Act(Destroy)` → the shield replaces it:
+/// damage is removed, creature is tapped, shield is consumed. Creature
+/// survives.
+#[test]
+fn regenerated_creature_survives_lethal_damage() {
+    let (mut state, id) = vanilla_creature(2, 2);
+    let card_id = state.objects.obj(id).card_id().expect("backed by a card");
+
+    // Resolve "Regenerate ~" — creates a shield on id.
+    resolve_region_and_drive(
+        &mut state,
+        regenerate_effect(Reference::Reg(deckmaste_core::RefId(0))),
+        id,
+    );
+    assert_eq!(state.shields.len(), 1, "shield registered after regenerate");
+
+    // Mark lethal damage (toughness = 2).
+    state.objects.obj_mut(id).set_marked_damage(5);
+
+    // Drive SBAs: sweep → Act(Destroy) → shield replaces → heal + tap.
+    drive_sbas(&mut state);
+
+    // Creature must still be on the battlefield (same id — it didn't move).
+    let live = find_on_battlefield(&state, card_id);
+    assert!(
+        state.objects.get(live).is_some(),
+        "regenerated creature must survive lethal damage; bf={:?}",
+        state.zones.battlefield
+    );
+    assert_eq!(
+        state.objects.obj(live).total_damage(),
+        0,
+        "damage must be cleared by regeneration [CR#701.19a]"
+    );
+    assert!(
+        state.objects.obj(live).tapped,
+        "creature must be tapped by regeneration [CR#701.19a]"
+    );
+    assert!(
+        state.shields.is_empty(),
+        "one-shot shield must be consumed after use [CR#614.3]"
+    );
+}
+
+/// "Regenerate TARGET creature" — the shield's SOURCE (the regenerating spell/
+/// ability) is a different object than its SUBJECT (the protected creature).
+/// Because the shield matches by stored subject identity and its body reads
+/// `EventObject` (the affected permanent), the SUBJECT is healed and tapped
+/// while the source is untouched — and the source register never had to move
+/// off the source. [CR#701.19a]
+#[test]
+fn regenerate_target_creature_heals_the_subject_not_the_source() {
+    use deckmaste_engine::InstanceId;
+    use deckmaste_engine::ReplacementInstance;
+
+    let subj_card = Arc::new(Card::Normal(CardFace {
+        name: "Subject".into(),
+        types: vec![Type::Creature.def()],
+        power: Some(StatValue::Number(2)),
+        toughness: Some(StatValue::Number(2)),
+        ..CardFace::default()
+    }));
+    let src_card = Arc::new(Card::Normal(CardFace {
+        name: "Source".into(),
+        types: vec![Type::Creature.def()],
+        power: Some(StatValue::Number(1)),
+        toughness: Some(StatValue::Number(1)),
+        ..CardFace::default()
+    }));
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig {
+                deck: vec![subj_card, src_card],
+            },
+            PlayerConfig { deck: vec![] },
+        ],
+        seed: 7,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        conferral_rules: vec![],
+        damage_result_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
+    });
+    // Load builtin rules so data-driven SBAs (lethal-damage destroy) fire.
+    state.sba_rules = builtin_sba_rules();
+    let subject = find_in_hand(&state, "Subject");
+    force_onto_battlefield(&mut state, subject);
+    let source = find_in_hand(&state, "Source");
+    force_onto_battlefield(&mut state, source);
+    let subj_card_id = state
+        .objects
+        .obj(subject)
+        .card_id()
+        .expect("backed by a card");
+
+    // A shield protecting the SUBJECT, created by a distinct SOURCE. The
+    // effect pins the subject with a leading `Let`; this test builds the shield
+    // instance directly, so it peels that instruction off to reach the
+    // replacement (the shield's subject is set explicitly below).
+    let OneShotEffect::Sequentially(steps) =
+        regenerate_effect(Reference::Reg(deckmaste_core::RefId(0)))
+    else {
+        unreachable!("regenerate_effect builds a Let + CreateReplacement sequence")
+    };
+    let [
+        _,
+        OneShotEffect::Act {
+            action: Action::CreateReplacement { replacement, .. },
+            ..
+        },
+    ] = &*steps
+    else {
+        unreachable!("the pinned subject is followed by the CreateReplacement")
+    };
+    state.shields.push(ReplacementInstance {
+        id: InstanceId(7),
+        replacement: (**replacement).clone(),
+        subject,
+        source, // distinct from subject — the key of this test
+        duration: Duration::FixedUntil(TurnMarker::EndOfTurn),
+        one_shot: true,
+    });
+
+    // Clear the startup agenda so the cascade is just the SBA sweep + the
+    // shield body (a leftover BeginStep(Untap) would untap the active player's
+    // creature again after regeneration taps it).
+    state.agenda.clear();
+    state.pending = None;
+
+    state.objects.obj_mut(subject).set_marked_damage(5); // lethal
+    drive_sbas(&mut state);
+
+    let live = find_on_battlefield(&state, subj_card_id);
+    assert!(
+        state.objects.get(live).is_some(),
+        "the targeted subject survives, not the source"
+    );
+    assert_eq!(
+        state.objects.obj(live).total_damage(),
+        0,
+        "the SUBJECT's damage is removed — the body healed EventObject, not the source"
+    );
+    assert!(state.objects.obj(live).tapped, "the SUBJECT is tapped");
+    assert!(
+        state.objects.get(source).is_some() && state.zones.battlefield.contains(&source),
+        "the source is untouched"
+    );
+    assert!(
+        state.shields.is_empty(),
+        "one-shot shield consumed [CR#614.3]"
+    );
+}
+
+/// [CR#614.3]: A regeneration shield registered at end of turn is swept by
+/// `expire_end_of_turn`. After expiry, a fresh lethal hit destroys the
+/// creature.
+#[test]
+fn regeneration_shield_expires_end_of_turn() {
+    let (mut state, id) = vanilla_creature(2, 2);
+    let card_id = state.objects.obj(id).card_id().expect("backed by a card");
+
+    // Register a regen shield.
+    resolve_region_and_drive(
+        &mut state,
+        regenerate_effect(Reference::Reg(deckmaste_core::RefId(0))),
+        id,
+    );
+    assert_eq!(state.shields.len(), 1, "shield registered");
+
+    // Simulate end-of-turn sweep (what cleanup calls).
+    state.expire_end_of_turn();
+    assert!(
+        state.shields.is_empty(),
+        "shield must expire at end of turn"
+    );
+
+    // Now a lethal hit must destroy the creature (no shield left).
+    state.objects.obj_mut(id).set_marked_damage(5);
+    drive_sbas(&mut state);
+
+    assert!(
+        find_in_graveyard(&state, PlayerId(0), card_id).is_some(),
+        "creature must be destroyed after shield expired; graveyard={:?}",
+        state.zones.graveyards[0]
+    );
+}
 
 // ── Task 7: Umbra/totem armor ([CR#702.89a]) ─────────────────────────────────
 
@@ -698,7 +1040,8 @@ fn enchanted_with_umbra() -> (GameState, CardId, CardId) {
     // Load builtin rules so data-driven SBAs (lethal-damage destroy) fire.
     state.sba_rules = builtin_sba_rules();
 
-    // Both cards are in hand after `GameState::new`; force them to the battlefield.
+    // Both cards are in hand after `GameState::new`; force them to the
+    // battlefield.
     let creature_obj = find_in_hand(&state, "Host Creature");
     let aura_obj = find_in_hand(&state, "Umbra Armor");
 
@@ -725,7 +1068,8 @@ fn enchanted_with_umbra() -> (GameState, CardId, CardId) {
 fn umbra_armor_redirects_host_destruction_to_aura() {
     let (mut state, creature_card_id, aura_card_id) = enchanted_with_umbra();
 
-    // Find current object ids (the cards were force-moved onto the battlefield).
+    // Find current object ids (the cards were force-moved onto the
+    // battlefield).
     let creature = find_on_battlefield(&state, creature_card_id);
 
     // Mark lethal damage on the creature (toughness = 2).
@@ -836,8 +1180,9 @@ fn creature_with_non_destroy_replacement(replacement: Replacement) -> (GameState
 fn lifegain_replaced_by_draw() {
     // Build the GainLife → LoseLife(1) instead. We use LoseLife rather than
     // Draw because player 0's library may be empty after the opening-hand draw,
-    // and an empty-library draw would silently set `drew_from_empty` rather than
-    // adding a card. LoseLife(1) is directly observable as a life-total change.
+    // and an empty-library draw would silently set `drew_from_empty` rather
+    // than adding a card. LoseLife(1) is directly observable as a
+    // life-total change.
     let would = EventFilter::LifeGained {
         who: Predicate::Any,
         amount: None,
@@ -873,7 +1218,8 @@ fn lifegain_replaced_by_draw() {
     // Drive until stable.
     drive(&mut state);
 
-    // Player 0 should NOT have gained the 3 life (Instead: event replaced away).
+    // Player 0 should NOT have gained the 3 life (Instead: event replaced
+    // away).
     assert!(
         state.players[0].life < before_life,
         "player 0 should lose 1 life from Instead body (not gain 3); \
@@ -1082,12 +1428,13 @@ fn double_damage_lineage_terminates() {
         "one-shot shield must be consumed after firing [CR#614.3]"
     );
 
-    // The creature must still be on the battlefield (10 damage < lethal for a 2/2
-    // without SBA running here — drive() doesn't push CheckSbas).
+    // The creature must still be on the battlefield (10 damage < lethal for a
+    // 2/2 without SBA running here — drive() doesn't push CheckSbas).
     let live = find_on_battlefield(&state, card_id);
 
     // The original 2-damage event was replaced away (Instead).
-    // The body's 10-damage event applied once (no replacement on the fresh event).
+    // The body's 10-damage event applied once (no replacement on the fresh
+    // event).
     assert_eq!(
         state.objects.obj(live).total_damage(),
         10,
@@ -1109,10 +1456,6 @@ fn double_damage_lineage_terminates() {
 
 /// Build a source creature with the given abilities plus a separate target
 /// creature, both on player 0's battlefield. Returns `(state, source, target)`.
-#[allow(
-    dead_code,
-    reason = "shared fixture retained for neighboring replacement cases"
-)]
 fn source_and_target(source_abilities: Vec<Ability>) -> (GameState, ObjectId, ObjectId) {
     let src_card = Arc::new(Card::Normal(CardFace {
         name: "Source".into(),
@@ -1160,10 +1503,6 @@ fn source_and_target(source_abilities: Vec<Ability>) -> (GameState, ObjectId, Ob
 }
 
 /// Emit `amount` damage from `source` to `target` and drive to stability.
-#[allow(
-    dead_code,
-    reason = "shared fixture retained for neighboring replacement cases"
-)]
 fn deal_damage(state: &mut GameState, source: ObjectId, target: ObjectId, amount: u32) {
     state
         .agenda
@@ -1178,6 +1517,306 @@ fn deal_damage(state: &mut GameState, source: ObjectId, target: ObjectId, amount
     drive(state);
 }
 
+/// A Static "damage by This to `on` → put `kind` counters on the recipient
+/// instead" replacement — the shape both Wither and Infect expand to. The
+/// recipient is read as `recipient` (`EventObject`/`Reg(2)` for a creature;
+/// `EventPatient`/`Reg(3)` for a player — the kind-poly patient, [CR#119.9]'s
+/// distinction: the affected player is never `EventActor`, the retired
+/// compat alias).
+///
+/// The magnitude is `Count::Reg(RefId(6))` — the `EventAmount` register of the
+/// static region's `event_region_params()` prefix. Re-spelled from the deleted
+/// `Count::ThatMuch`, which read the same replaced-intent magnitude off a
+/// `GameState` slot instead of a declared parameter.
+fn damage_as_counters_static(on: Predicate, recipient: Reference, kind: &str) -> Ability {
+    use deckmaste_core::Count;
+    let would = EventFilter::Damage {
+        source: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
+        to: on,
+        combat: None,
+        amount: None,
+    };
+    let instead = OneShotEffect::Act(Action::PutCounters(
+        recipient,
+        kind.into(),
+        Count::Reg(deckmaste_core::RefId(6)),
+    ));
+    Ability::r#static(StaticEffect::Replacement(Arc::new(Replacement::Instead {
+        would,
+        instead,
+    })))
+}
+
+/// The source-matcher: a source-keyed replacement (`source: Ref(Reg(0))`) fires
+/// ONLY for damage from its own object. Damage from a DIFFERENT source must not
+/// trigger it — the Wither source's counters appear only when IT deals the
+/// damage, never when a third creature does.
+#[test]
+fn by_matcher_fires_only_for_damage_from_its_own_source() {
+    let wither = damage_as_counters_static(
+        Predicate::r#type(Type::Creature),
+        Reference::Reg(deckmaste_core::RefId(2)),
+        "M1M1Counter",
+    );
+    let (mut state, wither_src, target) = source_and_target(vec![wither]);
+    let m1m1: deckmaste_core::Ident = "M1M1Counter".into();
+
+    // `target` is a plain creature (no wither). Damage FROM it (a different
+    // source than wither_src) must NOT trigger the wither replacement, whose
+    // `would` is keyed `source: Ref(Reg(0))` = wither_src.
+    deal_damage(&mut state, target, target, 4);
+    assert_eq!(
+        state.objects.obj(target).counters.get(&m1m1).copied(),
+        None,
+        "the wither replacement (source: Ref(Reg(0))=wither_src) must NOT fire for \
+         damage from a different source [CR#702.80a]"
+    );
+    assert_eq!(
+        state.objects.obj(target).total_damage(),
+        4,
+        "damage from a non-wither source is marked normally [CR#120.3e]"
+    );
+
+    // Now damage FROM the wither source: counters appear, no marked damage
+    // added.
+    deal_damage(&mut state, wither_src, target, 2);
+    assert_eq!(
+        state.objects.obj(target).counters.get(&m1m1).copied(),
+        Some(2),
+        "the wither replacement DOES fire for damage from its own source"
+    );
+}
+
+/// [CR#702.90b]: an Infect source dealing N to a PLAYER gives that player N
+/// poison counters instead of losing life.
+#[test]
+fn infect_source_gives_player_poison_not_life_loss() {
+    let infect_player = damage_as_counters_static(
+        Predicate::Kind(deckmaste_core::ObjectKind::Player),
+        Reference::Reg(deckmaste_core::RefId(3)),
+        "Poison",
+    );
+    let (mut state, source, _target) = source_and_target(vec![infect_player]);
+    let poison: deckmaste_core::Ident = "Poison".into();
+    let victim = PlayerId(1);
+    let victim_proxy = state.player(victim).object;
+    let life_before = state.players[victim.index()].life;
+
+    deal_damage(&mut state, source, victim_proxy, 3);
+
+    assert_eq!(
+        state
+            .objects
+            .obj(victim_proxy)
+            .counters
+            .get(&poison)
+            .copied(),
+        Some(3),
+        "infect damage to a player = that many poison counters [CR#702.90b]"
+    );
+    assert_eq!(
+        state.players[victim.index()].life,
+        life_before,
+        "infect damage to a player does NOT cause life loss [CR#702.90b]"
+    );
+}
+
+/// [CR#702.90c]: an Infect source dealing N to a creature places N -1/-1
+/// counters (the creature branch of infect, same shape as wither).
+#[test]
+fn infect_source_puts_minus_counters_on_a_creature() {
+    let infect_creature = damage_as_counters_static(
+        Predicate::r#type(Type::Creature),
+        Reference::Reg(deckmaste_core::RefId(2)),
+        "M1M1Counter",
+    );
+    let (mut state, source, target) = source_and_target(vec![infect_creature]);
+    let m1m1: deckmaste_core::Ident = "M1M1Counter".into();
+
+    deal_damage(&mut state, source, target, 2);
+
+    assert_eq!(
+        state.objects.obj(target).counters.get(&m1m1).copied(),
+        Some(2),
+        "infect damage to a creature = that many -1/-1 counters [CR#702.90c]"
+    );
+    assert_eq!(
+        state.objects.obj(target).total_damage(),
+        0,
+        "not marked [CR#702.90c]"
+    );
+}
+
+/// [CR#704.5c,122.1f]: ten or more poison counters → that player loses. Drives
+/// the infect player branch up to 10, then runs the SBA sweep.
+#[test]
+fn ten_poison_counters_lose_the_game() {
+    let infect_player = damage_as_counters_static(
+        Predicate::Kind(deckmaste_core::ObjectKind::Player),
+        Reference::Reg(deckmaste_core::RefId(3)),
+        "Poison",
+    );
+    let (mut state, source, _target) = source_and_target(vec![infect_player]);
+    let victim = PlayerId(1);
+    let victim_proxy = state.player(victim).object;
+
+    // Two 5-damage infect hits → 10 poison counters.
+    deal_damage(&mut state, source, victim_proxy, 5);
+    deal_damage(&mut state, source, victim_proxy, 5);
+    let poison: deckmaste_core::Ident = "Poison".into();
+    assert_eq!(
+        state
+            .objects
+            .obj(victim_proxy)
+            .counters
+            .get(&poison)
+            .copied(),
+        Some(10),
+        "two 5-poison hits accumulate to 10"
+    );
+
+    // The SBA sweep must register the loss ([CR#704.5c]).
+    drive_sbas(&mut state);
+    assert!(
+        state.players[victim.index()].lost,
+        "a player with 10 poison counters loses the game [CR#704.5c]"
+    );
+}
+
+/// A wither source damaging two creatures as one simultaneous batch: each
+/// member is replaced independently ([CR#616.1]) into -1/-1 counters
+/// ([CR#702.80a]), the counters land in the batch's wake with NO SBA
+/// between members, and the SBA sweep runs only AFTER the whole batch —
+/// both creatures then go to their graveyards together.
+#[test]
+fn wither_batch_places_counters_for_every_member_and_sbas_run_after() {
+    let wither = damage_as_counters_static(
+        Predicate::r#type(Type::Creature),
+        Reference::Reg(deckmaste_core::RefId(2)),
+        "M1M1Counter",
+    );
+    let four_four = |name: &str| {
+        Arc::new(Card::Normal(CardFace {
+            name: name.into(),
+            types: vec![Type::Creature.def()],
+            power: Some(StatValue::Number(4)),
+            toughness: Some(StatValue::Number(4)),
+            ..CardFace::default()
+        }))
+    };
+    let src_card = Arc::new(Card::Normal(CardFace {
+        name: "Source".into(),
+        types: vec![Type::Creature.def()],
+        power: Some(StatValue::Number(3)),
+        toughness: Some(StatValue::Number(3)),
+        abilities: vec![wither],
+        ..CardFace::default()
+    }));
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig {
+                deck: vec![src_card, four_four("Target"), four_four("Target Two")],
+            },
+            PlayerConfig { deck: vec![] },
+        ],
+        seed: 7,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        conferral_rules: vec![],
+        damage_result_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
+    });
+    let source = find_in_hand(&state, "Source");
+    force_onto_battlefield(&mut state, source);
+    let t1 = find_in_hand(&state, "Target");
+    force_onto_battlefield(&mut state, t1);
+    let t2 = find_in_hand(&state, "Target Two");
+    force_onto_battlefield(&mut state, t2);
+    state.agenda.clear();
+    state.pending = None;
+    state.sba_rules = builtin_sba_rules();
+    state.counter_decls = builtin_counter_decls();
+    let m1m1: deckmaste_core::Ident = "M1M1Counter".into();
+
+    // ONE batch of two damage packets (a "deals 4 damage to each of two
+    // target creatures" shape).
+    state
+        .agenda
+        .push_front(WorkItem::Emit(deckmaste_engine::Occurrence::Batch(vec![
+            deckmaste_engine::GameEvent::DamageDealt(DamageDealt {
+                source,
+                target: t1,
+                amount: 4,
+                combat: false,
+            }),
+            deckmaste_engine::GameEvent::DamageDealt(DamageDealt {
+                source,
+                target: t2,
+                amount: 4,
+                combat: false,
+            }),
+        ])));
+    drive(&mut state);
+
+    // Counters landed for BOTH members; nothing was marked; and no SBA has
+    // run between/after the members yet — both creatures still stand at
+    // 0/0 until the next SBA boundary.
+    for &t in &[t1, t2] {
+        assert_eq!(
+            state.objects.obj(t).counters.get(&m1m1).copied(),
+            Some(4),
+            "each batch member's damage became counters ([CR#702.80a])"
+        );
+        assert_eq!(state.objects.obj(t).total_damage(), 0, "no marked damage");
+        assert!(
+            state.zones.battlefield.contains(&t),
+            "SBAs never run between a batch's members — only at the next \
+             CheckSbas boundary"
+        );
+    }
+
+    // The SBA boundary: both 0-toughness creatures leave TOGETHER.
+    drive_sbas(&mut state);
+    assert!(
+        !state.zones.battlefield.contains(&t1) && !state.zones.battlefield.contains(&t2),
+        "the toughness-0 SBA swept both after the whole batch ([CR#704.5f])"
+    );
+    assert_eq!(
+        state.zones.graveyards[0].len(),
+        2,
+        "both creatures in the graveyard"
+    );
+}
+
+/// [CR#702.80a,120.3d]: a Wither source dealing N damage to a creature places N
+/// -1/-1 counters on it instead of marking damage.
+#[test]
+fn wither_source_puts_minus_counters_not_marked_damage() {
+    let wither = damage_as_counters_static(
+        Predicate::r#type(Type::Creature),
+        Reference::Reg(deckmaste_core::RefId(2)),
+        "M1M1Counter",
+    );
+    let (mut state, source, target) = source_and_target(vec![wither]);
+    let m1m1: deckmaste_core::Ident = "M1M1Counter".into();
+
+    deal_damage(&mut state, source, target, 3);
+
+    assert_eq!(
+        state.objects.obj(target).counters.get(&m1m1).copied(),
+        Some(3),
+        "wither damage = that many -1/-1 counters [CR#702.80a]"
+    );
+    assert_eq!(
+        state.objects.obj(target).total_damage(),
+        0,
+        "wither damage is NOT marked [CR#702.80a]"
+    );
+}
+
 // ── EventPatient: the recipient read through the provenance-explicit role ────
 //
 // The damage recipient IS the event PATIENT ([CR#608.2k,120.3]) — the
@@ -1186,3 +1825,65 @@ fn deal_damage(state: &mut GameState, source: ObjectId, target: ObjectId, amount
 // body reads the recipient through the role instead of the flat `ThatObject`/
 // `ThatPlayer` aliases. These drive the same wither/infect shape through the
 // new reference, proving the binder populates the patient slot end-to-end.
+
+/// [CR#702.80a,608.2k]: a Wither source reading its creature recipient via the
+/// kind-poly `EventPatient` (an OBJECT patient) places the -1/-1 counters on
+/// it.
+#[test]
+fn event_patient_object_reads_the_damage_recipient_creature() {
+    let wither = damage_as_counters_static(
+        Predicate::r#type(Type::Creature),
+        Reference::Reg(deckmaste_core::RefId(3)),
+        "M1M1Counter",
+    );
+    let (mut state, source, target) = source_and_target(vec![wither]);
+    let m1m1: deckmaste_core::Ident = "M1M1Counter".into();
+
+    deal_damage(&mut state, source, target, 3);
+
+    assert_eq!(
+        state.objects.obj(target).counters.get(&m1m1).copied(),
+        Some(3),
+        "EventPatient resolves to the creature recipient (object patient)"
+    );
+    assert_eq!(
+        state.objects.obj(target).total_damage(),
+        0,
+        "the damage is replaced, not marked"
+    );
+}
+
+/// [CR#702.90b,608.2k,120.3]: an Infect source reading its PLAYER recipient via
+/// `EventPatient` (a PLAYER patient — the proxy is zoneless) gives that player
+/// the poison counters. The same role spells both kinds of recipient.
+#[test]
+fn event_patient_player_reads_the_damage_recipient_player() {
+    let infect_player = damage_as_counters_static(
+        Predicate::Kind(deckmaste_core::ObjectKind::Player),
+        Reference::Reg(deckmaste_core::RefId(3)),
+        "Poison",
+    );
+    let (mut state, source, _target) = source_and_target(vec![infect_player]);
+    let poison: deckmaste_core::Ident = "Poison".into();
+    let victim = PlayerId(1);
+    let victim_proxy = state.player(victim).object;
+    let life_before = state.players[victim.index()].life;
+
+    deal_damage(&mut state, source, victim_proxy, 3);
+
+    assert_eq!(
+        state
+            .objects
+            .obj(victim_proxy)
+            .counters
+            .get(&poison)
+            .copied(),
+        Some(3),
+        "EventPatient resolves to the player recipient (player patient)"
+    );
+    assert_eq!(
+        state.players[victim.index()].life,
+        life_before,
+        "the damage is replaced, not life loss"
+    );
+}

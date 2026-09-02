@@ -516,18 +516,20 @@ impl GameState {
         let snapshot = crate::lki::LkiSnapshot::capture(self, object);
         self.activation_departed(object, &snapshot);
 
-        // 2. (replace stage — other-object and destination-rewriting replacements are
-        //    Stage-4 seams; AsEnters self-replacement applied below at mint.)
+        // 2. (replace stage — other-object and destination-rewriting
+        //    replacements are Stage-4 seams; AsEnters self-replacement applied
+        //    below at mint.)
 
-        // 3. Move + remint. Remove the old object from its `from` zone's list, then
-        //    from the store; mint a fresh object into `to`.
+        // 3. Move + remint. Remove the old object from its `from` zone's list,
+        //    then from the store; mint a fresh object into `to`.
         match from {
             Some(Zone::Stack) => self.remove_stack_entry(object),
             Some(Zone::Battlefield) => {
                 // [CR#506.4]: an object that leaves the battlefield is removed
-                // from combat. Prune the OLD/leaving id (not a reminted one) from
-                // the combat registry immediately, so a creature that dies/leaves
-                // mid-combat stops being tracked as an attacker/blocker at once.
+                // from combat. Prune the OLD/leaving id (not a reminted one)
+                // from the combat registry immediately, so a
+                // creature that dies/leaves mid-combat stops
+                // being tracked as an attacker/blocker at once.
                 self.combat.remove_object(object);
                 // [CR#506.4c]: if `object` was an attacked planeswalker, the
                 // creatures attacking it are NOT removed from combat — each
@@ -589,7 +591,8 @@ impl GameState {
             entering.attach_to = entering.attach_to.or(as_enters.attach_to);
             entering.counters.extend(as_enters.counters);
             // [CR#302.6]: a permanent entering the battlefield is summoning-sick
-            // until its controller's turn begins with it under continuous control.
+            // until its controller's turn begins with it under continuous
+            // control.
             self.objects.obj_mut(new).summoning_sick = true;
         }
         if entering.tapped {
@@ -602,8 +605,9 @@ impl GameState {
             *self.objects.obj_mut(new).counters.entry(*kind).or_insert(0) += n;
         }
         // [CR#303.4]: enters attached atomically — set the link on the freshly
-        // minted object before the past-form `ZoneChange` fact, so no unattached
-        // window is observable. The `Attached` fact is scheduled after the entry fact.
+        // minted object before the past-form `ZoneChange` fact, so no
+        // unattached window is observable. The `Attached` fact is
+        // scheduled after the entry fact.
         let attached_host = entering.attach_to.filter(|&host| {
             to == Zone::Battlefield && self.objects.get(host).is_some() && host != new
         });
@@ -918,8 +922,9 @@ impl GameState {
             self.scan_triggers(&occurred);
             // [CR#610.3,611.2b]: beside the trigger scan, end any floating
             // one-shot whose ending EVENT has now happened (`UntilEvent`) or
-            // whose CONDITION has just lapsed (`ForAsLongAs`). Post-apply, so an
-            // effect lasts through the very event/state-change that ends it.
+            // whose CONDITION has just lapsed (`ForAsLongAs`). Post-apply, so
+            // an effect lasts through the very event/state-change
+            // that ends it.
             self.sweep_event_durations(&occurred);
             self.sweep_condition_durations();
         }
@@ -1333,8 +1338,9 @@ impl GameState {
         // [CR#510.4]: the FirstCombatDamage step exists only when at least one
         // attacking or blocking creature has first/double strike. When none
         // does, elide it entirely — no StepBegan, no turn-based action, no
-        // priority window — and schedule the regular CombatDamage step directly.
-        // (`turn.current` is NOT advanced; the step never owns a turn.)
+        // priority window — and schedule the regular CombatDamage step
+        // directly. (`turn.current` is NOT advanced; the step never
+        // owns a turn.)
         if s == PhaseStep::Combat(CombatStep::FirstCombatDamage)
             && !crate::combat::any_first_or_double_striker(self)
         {
@@ -1350,9 +1356,10 @@ impl GameState {
         }
         self.turn.current = s;
         // [CR#611.2b]: a step transition can end a `ForAsLongAs` effect (its
-        // condition may read the phase/step, or a between-steps state change may
-        // have lapsed it) — re-check with the new step current. Safe here: this
-        // is outside `layer::gather`, so `condition_holds` may derive the board.
+        // condition may read the phase/step, or a between-steps state change
+        // may have lapsed it) — re-check with the new step current.
+        // Safe here: this is outside `layer::gather`, so
+        // `condition_holds` may derive the board.
         self.sweep_condition_durations();
         items.push(WorkItem::Emit(Occurrence::single(GameEvent::StepBegan(s))));
         items.extend(self.turn_based_actions(s));
@@ -1573,20 +1580,22 @@ impl GameState {
         // Snapshot the agenda length before applying: `apply_occurrence` may
         // schedule follow-on work items at the front (e.g. `Emit(ZoneChange)`
         // future-form from an `Act(Destroy).apply`). If we re-check immediately
-        // after, the follow-ons haven't run yet so the board looks unchanged — a
-        // destructible creature with lethal damage hasn't moved yet and the
-        // re-check re-emits an Act(Destroy), looping. By inserting the re-check
-        // AFTER the follow-on slots the re-check runs once the future-form and
-        // past-form `ZoneChange` facts have settled (and the creature is gone),
-        // so the next sweep is clean.
+        // after, the follow-ons haven't run yet so the board looks unchanged —
+        // a destructible creature with lethal damage hasn't moved yet
+        // and the re-check re-emits an Act(Destroy), looping. By
+        // inserting the re-check AFTER the follow-on slots the re-check
+        // runs once the future-form and past-form `ZoneChange` facts
+        // have settled (and the creature is gone), so the next sweep is
+        // clean.
         let n_before = self.agenda.len();
         let applied = self.apply_occurrence(Occurrence::Batch(events));
         let n_after = self.agenda.len();
         let changed = !matches!(&applied, Occurrence::Batch(facts) if facts.is_empty());
         if changed {
-            // `n_after - n_before` items were prepended by apply_occurrence (the
-            // follow-on Emit(ZoneChange) etc). Insert the re-check right
-            // behind them so they settle before the next sweep.
+            // `n_after - n_before` items were prepended by apply_occurrence
+            // (the follow-on Emit(ZoneChange) etc). Insert the
+            // re-check right behind them so they settle before the
+            // next sweep.
             let added = n_after.saturating_sub(n_before);
             self.agenda.insert(added, WorkItem::CheckSbas);
         }
@@ -2088,9 +2097,9 @@ impl GameState {
         // [CR#510.4]: which sources deal this step is a pure keyword filter on
         // the current combat-damage step (no "already dealt" bookkeeping). In
         // the FIRST step only first/double strikers deal; in the REGULAR step
-        // everyone EXCEPT a plain first-striker deals (a double-striker deals in
-        // both). The regular filter includes everyone when no first strike
-        // exists, so a single-pass combat is unchanged.
+        // everyone EXCEPT a plain first-striker deals (a double-striker deals
+        // in both). The regular filter includes everyone when no first
+        // strike exists, so a single-pass combat is unchanged.
         let deals_this_step: fn(&crate::layer::LayeredView, ObjectId) -> bool =
             if self.turn.current == PhaseStep::Combat(CombatStep::FirstCombatDamage) {
                 crate::combat::deals_first_strike
@@ -2104,17 +2113,19 @@ impl GameState {
         // ([CR#510.1b]); unblocked, target gone → NO damage (the attacker
         // "isn't attacking anything", [CR#510.1b]); blocked → its live blockers
         // ([CR#510.1c]); blocked-but-no-live-blockers → nothing (plain block,
-        // no trample). Trample ([CR#702.19]) widens the blocked cases: a blocked
-        // trampler's recipients are its live blockers followed by the thing it's
-        // attacking ([CR#702.19b]) — spilling to that planeswalker, NEVER past
-        // it to the defending player ([CR#702.19f]; "trample over planeswalkers",
-        // [CR#702.19c], is a separate keyword not modeled here).
+        // no trample). Trample ([CR#702.19]) widens the blocked cases: a
+        // blocked trampler's recipients are its live blockers followed
+        // by the thing it's attacking ([CR#702.19b]) — spilling to that
+        // planeswalker, NEVER past it to the defending player
+        // ([CR#702.19f]; "trample over planeswalkers", [CR#702.19c], is
+        // a separate keyword not modeled here).
         for &attacker in self.combat.attackers() {
             if !deals_this_step(&view, attacker) {
                 continue; // [CR#510.4]: not dealing in this step.
             }
-            // `target_of` is `None` only for an undeclared attacker (unreachable
-            // in this loop); a live target still on-side is validated below.
+            // `target_of` is `None` only for an undeclared attacker
+            // (unreachable in this loop); a live target still
+            // on-side is validated below.
             let target = self.combat.target_of(attacker);
             let recipients: Vec<ObjectId> = if self.combat.is_blocked(attacker) {
                 let mut blockers = self.combat.blockers_of(attacker).to_vec();
@@ -2123,7 +2134,8 @@ impl GameState {
                     && self.combat_target_live(&view, t)
                 {
                     // [CR#702.19b]: lethal to the blockers, excess to the thing
-                    // it's attacking; a gone target takes no spill ([CR#510.1b]).
+                    // it's attacking; a gone target takes no spill
+                    // ([CR#510.1b]).
                     blockers.push(t);
                 }
                 blockers
@@ -2478,7 +2490,8 @@ mod tests {
         assert_ne!(new, old, "public move recorded");
         assert_eq!(state.objects.get(new).unwrap().zone, Some(Zone::Exile));
 
-        // Move the NEW object to a hidden zone: no entry — chase dead-ends at `new`.
+        // Move the NEW object to a hidden zone: no entry — chase dead-ends at
+        // `new`.
         state.apply_zone_will_change(new, Some(Zone::Exile), Zone::Hand, None, None, None, None);
         assert_eq!(state.chase_moved(old), new, "hidden move NOT recorded");
         assert!(
@@ -3302,6 +3315,68 @@ mod tests {
             state.objects.obj(id).side,
             Side::Front,
             "transform again flips back to front"
+        );
+    }
+
+    /// A cause-amount zone-change batch (a discard) fixes the magnitude
+    /// anaphor to its CARD COUNT ([CR#107.3,701.9a]) — "discards all the cards
+    /// in their hand, then draws that many" reads the batch size, not 1.
+    #[test]
+    #[ignore = "blocker: a zone-change batch's card count has no register. \
+                `core: complete discourse regions` deleted \
+                GameState.that_much, step::fix_occurrence_amount and the \
+                entailment table's `amount` column together, and lowering \
+                pins a magnitude only where the amount is known before the \
+                instruction runs (DealDamage, ChangeLife, DrawCard) — a \
+                discard/mill batch's size is a resolution-time tally with no \
+                DefId to land in. Unblocked by giving the batching \
+                instructions a magnitude definition in \
+                deckmaste_lowering::effect::lower_action."]
+    fn discard_batch_fixes_the_magnitude_anaphor_to_its_card_count() {
+        const TALLY: deckmaste_core::RefId = deckmaste_core::RefId(8);
+
+        let (mut state, _view, source) = crate::replace_registry::tests_support::lone_creature();
+        let frame = crate::test_support::frame_src(&state, source);
+        // Two cards in hand to discard.
+        let mut in_hand = Vec::new();
+        for name in ["Discard A", "Discard B"] {
+            let card = Arc::new(deckmaste_card::Card::Normal(deckmaste_card::CardFace {
+                name: name.into(),
+                types: vec![deckmaste_core::Type::Sorcery.def()],
+                ..deckmaste_card::CardFace::default()
+            }));
+            let cid = state.cards.push(card, PlayerId(0));
+            let id = state
+                .objects
+                .mint(ObjectSource::Card(cid), PlayerId(0), Some(Zone::Hand));
+            state.zones.hands[0].push(id);
+            in_hand.push(id);
+        }
+        let events: Vec<GameEvent> = in_hand
+            .into_iter()
+            .map(|object| {
+                GameEvent::ZoneChange(ZoneChange {
+                    snapshot: None,
+                    object,
+                    from: Some(Zone::Hand),
+                    to: Zone::Graveyard,
+                    enters: None,
+                    position: None,
+                    face: None,
+                    cause: Some(crate::event::Cause::discard(
+                        deckmaste_core::Agency::EffectInstruction,
+                        None,
+                    )),
+                })
+            })
+            .collect();
+        state.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(events))]);
+        let _ = state.step(); // the intent batch
+        let _ = state.step(); // the committed past-form ZoneChange batch
+        assert_eq!(
+            state.activation_number(frame.activation, TALLY),
+            Some(2),
+            "the discard clause's amount is its card count"
         );
     }
 }

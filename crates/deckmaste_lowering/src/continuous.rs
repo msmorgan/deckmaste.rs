@@ -774,6 +774,29 @@ mod tests {
             deckmaste_core::PlayerMod::NoMax(deckmaste_core::PlayerAttr::Life)
         );
     }
+
+    #[test]
+    fn lowers_static_effect_replacement() {
+        assert_matches!(
+            in_spell_region(|| deckmaste_semantics::StaticEffect::Replacement(
+                std::sync::Arc::new(minimal_replacement())
+            )
+            .lower()),
+            deckmaste_core::StaticEffect::Replacement(_)
+        );
+    }
+
+    #[test]
+    fn lowers_static_effect_sba() {
+        assert_matches!(
+            in_spell_region(|| deckmaste_semantics::StaticEffect::Sba {
+                when: std::sync::Arc::new(minimal_condition()),
+                then: std::sync::Arc::new(minimal_one_shot_effect())
+            }
+            .lower()),
+            deckmaste_core::StaticEffect::Sba { when: _, then: _ }
+        );
+    }
 }
 
 impl Lower for deckmaste_semantics::NumericOp {

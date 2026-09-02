@@ -2397,3 +2397,351 @@ fn bare_nonmana_ability_mana_added_trigger_resolves_immediately() {
     );
     assert!(state.pending_triggers.is_empty());
 }
+
+// ---- cost-block and pinned-magnitude mana cases ----
+
+/// A cost block's first instruction definition in these fixtures. An
+/// announcement's register file opens with source(0) and controller(1), so a
+/// payment-time decision writes register 2 ([CR#601.2b]).
+const PAID: deckmaste_core::DefId = deckmaste_core::DefId(2);
+
+/// [`PAID`] as the register the verb that spends the payment subject reads.
+const PAID_REF: deckmaste_core::RefId = deckmaste_core::RefId(2);
+
+/// The register an effect region pins a magnitude in before the verb that
+/// uses it runs ([CR#608.2h]) — the "that much" anaphor as a definition.
+const AMOUNT: deckmaste_core::DefId = deckmaste_core::DefId(2);
+
+/// [`AMOUNT`] as a numeric register read.
+const AMOUNT_REF: deckmaste_core::RefId = deckmaste_core::RefId(2);
+
+/// Krark-Clan Ironworks: a mana ability whose cost sacrifices an artifact the
+/// payer controls, activated while the artifact's own ability is announced.
+///
+/// Re-spelled from the deleted `CostComponent::ChooseAndPay { binder, body }`
+/// fixture — `Binder::ChooseOne` is retired, so the choice is its own
+/// `CostComponent::Choose` and the sacrifice reads the register it writes
+/// ([CR#601.2b]).
+fn kci_fixture() -> (
+    GameState,
+    PlayerId,
+    deckmaste_engine::ObjectId,
+    deckmaste_engine::ObjectId,
+) {
+    let payer = PlayerId(0);
+    let parent = Arc::new(Card::Normal(CardFace {
+        name: "Artifact parent".into(),
+        types: vec![Type::Artifact.def(), Type::Creature.def()],
+        abilities: vec![Ability::activated(activated_ability(
+            Cost(vec![CostComponent::Mana("{0}".parse::<ManaCost>().unwrap())].into()),
+            OneShotEffect::Sequentially(Arc::from([])),
+        ))],
+        ..CardFace::default()
+    }));
+    let artifact = Predicate::And(
+        vec![
+            Predicate::State(deckmaste_core::StatePredicate::InZone(Zone::Battlefield)),
+            Predicate::r#type(Type::Artifact),
+            Predicate::Relation(deckmaste_core::RelationPredicate::ControlledBy(Arc::new(
+                Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
+            ))),
+        ]
+        .into(),
+    );
+    let sacrifice = vec![
+        CostComponent::Choose(deckmaste_core::Choose {
+            dest: PAID,
+            by: Reference::Reg(deckmaste_core::RefId(1)),
+            quantity: Quantity::one(),
+            filter: Arc::new(deckmaste_core::Region::candidate(artifact)),
+        }),
+        CostComponent::do_action(CoreAction::Sacrifice(
+            Reference::Reg(deckmaste_core::RefId(1)),
+            Reference::Reg(PAID_REF),
+        )),
+    ];
+    let kci = Arc::new(Card::Normal(CardFace {
+        name: "KCI".into(),
+        types: vec![Type::Artifact.def()],
+        abilities: vec![Ability::Mana(ManaAbility::Activated {
+            ability: Arc::new(activated_ability(
+                Cost(sacrifice.into()),
+                OneShotEffect::Act(CoreAction::AddMana(
+                    Reference::Reg(deckmaste_core::RefId(1)),
+                    Count::Literal(2),
+                    ManaSpec::Specific(deckmaste_core::ColorOrColorless::Colorless).into(),
+                )),
+            )),
+            profile: ActivatedManaProfile::Always,
+        })],
+        ..CardFace::default()
+    }));
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig {
+                deck: vec![parent, kci],
+            },
+            PlayerConfig { deck: vec![] },
+        ],
+        seed: 13,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(payer),
+        sba_rules: vec![],
+        conferral_rules: vec![],
+        damage_result_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
+    });
+    let parent = put_in_play(&mut state, payer, "Artifact parent");
+    let kci = put_in_play(&mut state, payer, "KCI");
+    state.turn.priority = Some(PriorityRound {
+        holder: payer,
+        consecutive_passes: 0,
+    });
+    state.pending = Some(PendingDecision::Priority(Priority {
+        player: payer,
+        legal: vec![Action::ActivateAbility {
+            object: parent,
+            ability: 0,
+        }],
+    }));
+    (state, payer, parent, kci)
+}
+
+/// A mana ability whose resolution pins a magnitude, deals that much damage,
+/// then offers an optional mana payment that reads the SAME register back —
+/// plus a second mana source whose own resolution pins its own magnitude in
+/// the same register of its own activation.
+///
+/// Re-spelled from the deleted `Count::ThatMuch` fixture: the magnitude
+/// anaphor is now a definition written before the damage verb runs
+/// ([CR#608.2h]), and the nested source's competing magnitude is what must
+/// not reach the outer region.
+fn resolution_scope_mana_fixture() -> (
+    GameState,
+    PlayerId,
+    deckmaste_engine::ObjectId,
+    deckmaste_engine::ObjectId,
+    deckmaste_engine::ObjectId,
+) {
+    let outer = Ability::Mana(ManaAbility::Activated {
+        ability: Arc::new(activated_ability(
+            Cost(vec![CostComponent::Tap].into()),
+            OneShotEffect::Sequentially(
+                vec![
+                    OneShotEffect::Let(deckmaste_core::Let {
+                        dest: AMOUNT,
+                        expr: deckmaste_core::Expr::Number(Count::Literal(5)),
+                    }),
+                    OneShotEffect::Act(CoreAction::DealDamage(
+                        Reference::Reg(deckmaste_core::RefId(0)),
+                        Count::Reg(AMOUNT_REF),
+                        Reference::Reg(deckmaste_core::RefId(1)),
+                    )),
+                    OneShotEffect::May(May {
+                        who: Reference::Reg(deckmaste_core::RefId(1)),
+                        effect: Arc::new(OneShotEffect::Act(CoreAction::Pay(Cost(
+                            vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
+                        )))),
+                        if_did: Some(Arc::new(OneShotEffect::Act(CoreAction::ChangeLife(
+                            Reference::Reg(deckmaste_core::RefId(1)),
+                            LifeOp::Up(Count::Reg(AMOUNT_REF)),
+                        )))),
+                        if_not: None,
+                    }),
+                    OneShotEffect::Act(CoreAction::AddMana(
+                        Reference::Reg(deckmaste_core::RefId(1)),
+                        Count::Literal(1),
+                        ManaSpec::Specific(Color::Green.into()).into(),
+                    )),
+                ]
+                .into(),
+            ),
+        )),
+        profile: ActivatedManaProfile::Always,
+    });
+    let helper = Arc::new(Card::Normal(CardFace {
+        name: "Resolution scope helper".into(),
+        types: vec![Type::Land.def()],
+        abilities: vec![Ability::Mana(ManaAbility::Activated {
+            ability: Arc::new(activated_ability(
+                Cost(
+                    vec![CostComponent::do_action(CoreAction::ChangeLife(
+                        Reference::Reg(deckmaste_core::RefId(1)),
+                        LifeOp::Down(Count::Literal(1)),
+                    ))]
+                    .into(),
+                ),
+                OneShotEffect::Sequentially(
+                    vec![
+                        OneShotEffect::Let(deckmaste_core::Let {
+                            dest: AMOUNT,
+                            expr: deckmaste_core::Expr::Number(Count::Literal(1)),
+                        }),
+                        OneShotEffect::Act(CoreAction::AddMana(
+                            Reference::Reg(deckmaste_core::RefId(1)),
+                            Count::Reg(AMOUNT_REF),
+                            ManaSpec::Specific(Color::Green.into()).into(),
+                        )),
+                    ]
+                    .into(),
+                ),
+            )),
+            profile: ActivatedManaProfile::Always,
+        })],
+        ..CardFace::default()
+    }));
+    let (mut state, payer, parent, outer) =
+        payment_fixture_with_source_ability_and_extras(outer, vec![helper]);
+    let helper = put_in_play(&mut state, payer, "Resolution scope helper");
+    (state, payer, parent, outer, helper)
+}
+
+#[test]
+fn nested_mana_resolution_restores_the_containing_that_much_register() {
+    let (mut state, payer, parent, outer, helper) = resolution_scope_mana_fixture();
+    state
+        .submit_decision(Decision::Act(Action::ActivateAbility {
+            object: parent,
+            ability: 0,
+        }))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::ActivateManaAbility {
+            source: outer,
+            ability: 0,
+        }))
+        .unwrap();
+    let outer_cost = run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: outer_cost.outstanding[0].id,
+            witness: FulfillmentWitness::Bound,
+        }))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+
+    run_to_payment(&mut state);
+    assert_eq!(
+        state.player(payer).life,
+        15,
+        "the damage verb reads the magnitude the region pinned",
+    );
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::ActivateManaAbility {
+            source: helper,
+            ability: 0,
+        }))
+        .unwrap();
+    let helper_cost = run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: helper_cost.outstanding[0].id,
+            witness: FulfillmentWitness::PayLife,
+        }))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+
+    let optional = run_to_payment(&mut state);
+    let pip = optional.outstanding[0].id;
+    let unit = state.player(payer).mana_pool.units()[0].id;
+    let mut coverage = deckmaste_engine::ManaCoverage::empty();
+    coverage.insert(pip, deckmaste_engine::ManaPayment::Floating(unit));
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::BeginPayment(coverage)))
+        .unwrap();
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: pip,
+            witness: FulfillmentWitness::CoveredMana,
+        }))
+        .unwrap();
+    run_to_payment(&mut state);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+    run_to_payment(&mut state);
+
+    assert_eq!(
+        state.player(payer).life,
+        19,
+        "the helper's own pinned magnitude must not replace the outer region's five",
+    );
+}
+
+#[test]
+fn source_can_be_announced_then_sacrificed_to_kci() {
+    let (mut state, payer, parent, kci) = kci_fixture();
+    state
+        .submit_decision(Decision::Act(Action::ActivateAbility {
+            object: parent,
+            ability: 0,
+        }))
+        .unwrap();
+    let parent_prompt = run_to_payment(&mut state);
+    assert_eq!(parent_prompt.stage, PaymentStage::PrePayment);
+    assert!(parent_prompt.mana_abilities.contains(&(kci, 0)));
+
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::ActivateManaAbility {
+            source: kci,
+            ability: 0,
+        }))
+        .unwrap();
+    let kci_prompt = run_to_payment(&mut state);
+    assert_eq!(kci_prompt.stage, PaymentStage::Paying);
+    let choice = kci_prompt.outstanding[0].id;
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: choice,
+            witness: FulfillmentWitness::Objects(vec![parent]),
+        }))
+        .unwrap();
+    let sacrifice = run_to_payment(&mut state).outstanding[0].id;
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+            iou: sacrifice,
+            witness: FulfillmentWitness::Bound,
+        }))
+        .unwrap();
+    assert_eq!(run_to_payment(&mut state).stage, PaymentStage::Ready);
+    assert!(state.objects.get(parent).is_none());
+
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+    let resumed = run_to_payment(&mut state);
+    assert_eq!(resumed.stage, PaymentStage::PrePayment);
+    assert_eq!(
+        state
+            .player(payer)
+            .mana_pool
+            .amount(deckmaste_core::ColorOrColorless::Colorless),
+        2
+    );
+
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::BeginPayment(
+            deckmaste_engine::ManaCoverage::empty(),
+        )))
+        .unwrap();
+    assert_eq!(run_to_payment(&mut state).stage, PaymentStage::Ready);
+    state
+        .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
+        .unwrap();
+    for _ in 0..20 {
+        if !state.stack.is_empty() {
+            break;
+        }
+        assert!(matches!(state.step(), StepOutcome::Progress(_)));
+    }
+    assert_eq!(state.stack.len(), 1);
+}

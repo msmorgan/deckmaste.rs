@@ -286,14 +286,15 @@ pub(crate) struct Applicable {
 pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applicable> {
     let mut out = Vec::new();
 
-    // Static replacements on every battlefield object (self- and other-watching).
-    // Reads the DERIVED ability list ([`derive::derived_abilities_of`]) rather
-    // than the printed-only spine, so a CONDITIONALLY-conferred replacement (a
-    // lord granting "if this would be destroyed, exile it instead") participates
-    // in the [CR#616.1] window. The `ai` index is a lineage discriminator only
-    // (`ReplacementKey::Static` never re-fetches the ability by index), so the
-    // conferred tail's non-index-stable positions are harmless here. Hot path:
-    // the derived read recomputes conferrals per candidate per event (perf-last).
+    // Static replacements on every battlefield object (self- and
+    // other-watching). [CR#616.1]: reads the DERIVED ability list
+    // ([`derive::derived_abilities_of`]) rather than the printed-only spine,
+    // so a CONDITIONALLY-conferred replacement (a lord granting "if this would
+    // be destroyed, exile it instead") participates in the window too. The
+    // `ai` index is a lineage discriminator only (`ReplacementKey::Static`
+    // never re-fetches the ability by index), so the conferred tail's
+    // non-index-stable positions are harmless here. Hot path: the derived read
+    // recomputes conferrals per candidate per event (perf-last).
     for &obj in &state.zones.battlefield {
         let (abilities, _printed_len) =
             crate::derive::derived_abilities_of(state, Some(obj), state.objects.obj(obj).source);
@@ -354,8 +355,8 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
     {
         // DERIVED read (see the battlefield sweep above): a Falkenrath-Gorger-
         // shape static confers madness on an owned off-battlefield card, so the
-        // self-replacement that redirects its discard is a CONFERRED ability the
-        // printed-only spine would never surface here.
+        // self-replacement that redirects its discard is a CONFERRED ability
+        // the printed-only spine would never surface here.
         let (abilities, _printed_len) =
             crate::derive::derived_abilities_of(state, Some(obj), state.objects.obj(obj).source);
         for (ai, ability) in abilities.iter().enumerate() {
@@ -414,8 +415,9 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
     }) = *e
     {
         for &obj in &state.zones.battlefield {
-            // DERIVED read (see the replacement sweep above): a conferred damage
-            // prevention participates too — derived ⊇ printed, `ai` is lineage-only.
+            // DERIVED read (see the replacement sweep above): a conferred
+            // damage prevention participates too — derived ⊇
+            // printed, `ai` is lineage-only.
             let (abilities, _printed_len) = crate::derive::derived_abilities_of(
                 state,
                 Some(obj),
@@ -482,10 +484,10 @@ fn replacement_would(
         Replacement::Skip { .. } => {
             state.remove_activation_family(frame.activation);
             false
-        } // handled in begin_step, Task 9
-          // Provenance is erased at `lower` (`deckmaste_lowering`), so no
-          // loaded value reaches here wrapped. The arm survives only because
-          // the variant does; `core-demacro` deletes both.
+        } /* handled in begin_step, Task 9
+           * Provenance is erased at `lower` (`deckmaste_lowering`), so no
+           * loaded value reaches here wrapped. The arm survives only because
+           * the variant does; `core-demacro` deletes both. */
     }
 }
 
@@ -702,16 +704,27 @@ fn apply_one(
         Some(Affected::Object(id)) => Some(id),
         _ => None,
     };
+    let event_amount = intent_magnitude(state, &e);
     match &a.effect {
         ApplicableEffect::Replacement(replacement) => {
             match (**replacement).clone() {
                 Replacement::Instead { instead, .. } => {
                     // [CR#614.1a,614.6]: the event is replaced — it does NOT happen.
-                    // Schedule the `instead` body; consume a one-shot shield if present.
-                    schedule_body(state, instead, a.source, that, applied, a.params.clone());
+                    // Schedule the `instead` body; consume a one-shot shield if
+                    // present.
+                    schedule_body(
+                        state,
+                        instead,
+                        a.source,
+                        that,
+                        applied,
+                        a.params.clone(),
+                        event_amount,
+                    );
                     // [CR#614.3]: only consume a floating instance when it is one-shot
-                    // (e.g. a regeneration shield). Duration-only floating replacements
-                    // (one_shot: false) persist until their duration expires and must
+                    // (e.g. a regeneration shield). Duration-only floating
+                    // replacements (one_shot: false)
+                    // persist until their duration expires and must
                     // NOT be consumed on use.
                     if let ReplacementKey::Floating(iid) = a.key
                         && state.shields.iter().any(|s| s.id == iid && s.one_shot)
@@ -723,15 +736,24 @@ fn apply_one(
                 Replacement::Also { also, .. } => {
                     // [CR#614.1c]: the event still happens AND `also` happens.
                     // Schedule the body; the (unchanged) event continues.
-                    schedule_body(state, also, a.source, that, applied, a.params.clone());
+                    schedule_body(
+                        state,
+                        also,
+                        a.source,
+                        that,
+                        applied,
+                        a.params.clone(),
+                        event_amount,
+                    );
                     Some(e)
                 }
                 Replacement::Skip { .. } => {
-                    // Skip is handled by the step-elision pass (Task 9), not here.
+                    // Skip is handled by the step-elision pass (Task 9), not
+                    // here.
                     Some(e)
-                } // Provenance is erased at `lower` (`deckmaste_lowering`), so
-                  // no loaded value reaches here wrapped. The arm survives only
-                  // because the variant does; `core-demacro` deletes both.
+                } /* Provenance is erased at `lower` (`deckmaste_lowering`), so
+                   * no loaded value reaches here wrapped. The arm survives only
+                   * because the variant does; `core-demacro` deletes both. */
             }
         }
         ApplicableEffect::Prevention(prevention) => {
@@ -793,6 +815,16 @@ fn apply_one(
 /// keyword-action window `effect` resolves into starts its OWN
 /// `replace_event` loop pre-excluding it ([`inherited_seed`]), rather than
 /// being caught by the SAME replacement all over again.
+/// The magnitude an amount-carrying intent supplies to a replacement body's
+/// `EventAmount` parameter ([CR#107.3], "that many"). An `Instead` replaces the
+/// intent away — it never reaches the apply funnel that a trigger's magnitude
+/// comes from — so a body that reads "that many" (infect's poison/-1/-1
+/// counters, [CR#702.90b,702.90c]; Bruvac's doubled mill, [CR#616.1g,121.2a])
+/// must have it supplied HERE, off the replaced intent.
+fn intent_magnitude(state: &GameState, e: &GameEvent) -> Option<deckmaste_core::Uint> {
+    state.event_roles(e).event_amount
+}
+
 fn schedule_body(
     state: &mut GameState,
     effect: deckmaste_core::OneShotEffect,
@@ -800,6 +832,7 @@ fn schedule_body(
     that: Option<ObjectId>,
     applied: &std::collections::HashSet<ReplacementKey>,
     params: Arc<[deckmaste_core::Param]>,
+    event_amount: Option<deckmaste_core::Uint>,
 ) {
     let controller = state.objects.obj(source).controller;
     // [CR#608.2,608.2k]: bind the affected recipient — the event PATIENT
@@ -820,6 +853,9 @@ fn schedule_body(
     let mut frame = crate::stack::Frame::bare(source, controller);
     state.frame_set_action_context(&mut frame, applied.clone(), false);
     state.frame_set_event_bindings(&mut frame, event_object, None, event_patient);
+    // [CR#107.3]: the replaced intent's own magnitude reaches the body through
+    // the region's `EventAmount` parameter.
+    state.frame_set_event_extras(&mut frame, event_amount, Vec::new(), None);
     frame.activation = state.enter_region(&deckmaste_core::Region::new(params, ()), &frame);
     state.schedule_front(vec![crate::agenda::WorkItem::RunEffect {
         effect: Arc::new(effect),
@@ -1326,7 +1362,8 @@ mod tests {
         };
         // A cause-bearing ZoneChange-view intent (the `Act(Destroy)` filter
         // narrows by patient, not agent, so the agent lift is exercised on the
-        // still-cause-bearing future-form `ZoneChange` — same would-lane mechanism).
+        // still-cause-bearing future-form `ZoneChange` — same would-lane
+        // mechanism).
         let intent = |agent| {
             GameEvent::ZoneChange(ZoneChange {
                 snapshot: None,
@@ -1614,7 +1651,8 @@ mod tests {
             amount: None,
         };
 
-        // `this == source_a`: damage from A fires the watch; damage from B does not.
+        // `this == source_a`: damage from A fires the watch; damage from B does
+        // not.
         let from_a = GameEvent::DamageDealt(DamageDealt {
             source: source_a,
             target,

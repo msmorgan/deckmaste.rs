@@ -607,9 +607,10 @@ impl GameState {
         // after the scan (a `&self` `scan_event` cannot mutate the registry).
         let mut fired_delayed: Vec<usize> = Vec::new();
         for event in events {
-            // Skip facts no trigger pattern watches; never scan a `TriggerFired`
-            // (avoids any chance of recursion). The future-form `ZoneChange`
-            // (`snapshot: None`) is skipped because trigger-matching happens on
+            // Skip facts no trigger pattern watches; never scan a
+            // `TriggerFired` (avoids any chance of recursion). The
+            // future-form `ZoneChange` (`snapshot: None`) is
+            // skipped because trigger-matching happens on
             // the downstream past-form fact (already queued by the will-change
             // apply at the agenda front — [CR#603.6]); matching on the intent
             // would double-fire every zone-move trigger.
@@ -846,7 +847,8 @@ impl GameState {
             _ => None,
         };
         // The event MAGNITUDE — the amount-carrying set the apply funnel fixes
-        // into the `EventAmount` parameter ("whenever you gain life, … that much").
+        // into the `EventAmount` parameter ("whenever you gain life, … that
+        // much").
         let event_amount = match event {
             GameEvent::DamageDealt(DamageDealt { amount, .. })
             | GameEvent::LifeLost(LifeLost { amount, .. })
@@ -856,6 +858,14 @@ impl GameState {
             | GameEvent::TappedForMana(TappedForMana { produced, .. }) => {
                 Some(Uint::try_from(produced.len()).expect("produced mana count fits in Uint"))
             }
+            // [CR#616.1g,121.2a]: a `Batch(n, keyword-action)` aggregate window
+            // carries its own cardinality, and that IS the magnitude "that
+            // many" names — a count-multiplying replacement (Bruvac's "mills
+            // twice that many cards instead") reads it off the replaced
+            // AGGREGATE intent, before any contained per-entity future exists.
+            // An ordinary (non-aggregate) `Act` carries `None`, like every
+            // other amount-less event.
+            GameEvent::Act(crate::event::Act { batch, .. }) => *batch,
             _ => None,
         };
         // The counter event's before/after totals ([CR#714.2b]) — the
@@ -927,12 +937,12 @@ impl GameState {
         // derived once per fact and shared with the delayed-trigger scan.
         let roles = self.event_roles(event);
 
-        // The watcher set ([CR#603.6,113.6b]): every live battlefield permanent,
-        // plus every object in a graveyard or hand (for graveyard/hand-
-        // FUNCTIONING triggers — Madness, Bridge from Below; a per-ability
-        // `from`-zone gate below keeps a battlefield-default ability on such an
-        // object from firing), plus the leaving object's snapshot for a
-        // battlefield-leave.
+        // The watcher set ([CR#603.6,113.6b]): every live battlefield
+        // permanent, plus every object in a graveyard or hand (for
+        // graveyard/hand- FUNCTIONING triggers — Madness, Bridge from
+        // Below; a per-ability `from`-zone gate below keeps a
+        // battlefield-default ability on such an object from firing),
+        // plus the leaving object's snapshot for a battlefield-leave.
         let mut watchers: Vec<Watcher> = self
             .zones
             .battlefield
@@ -998,10 +1008,12 @@ impl GameState {
                 ObjectSource::Card(c) if self.cards.get(c).is_emblem => Zone::Command,
                 _ => Zone::Battlefield,
             };
-            // DERIVED enumeration: the printed spine (index-stable, `printed_len`
-            // long) followed by this object's CONFERRED triggered abilities
-            // ([CR#603.2]), so a Falkenrath-Gorger-shape conferral's trigger
-            // participates in the scan where the printed-only spine would miss it.
+            // DERIVED enumeration: the printed spine (index-stable,
+            // `printed_len` long) followed by this object's
+            // CONFERRED triggered abilities ([CR#603.2]), so a
+            // Falkenrath-Gorger-shape conferral's trigger
+            // participates in the scan where the printed-only spine would miss
+            // it.
             let (abilities, printed_len) =
                 crate::derive::derived_abilities_of(self, live_id, source);
             // Whether this watcher is a battlefield permanent showing its BACK
@@ -1017,9 +1029,10 @@ impl GameState {
                     continue;
                 };
                 // [CR#113.6,113.6b]: the ability triggers only while its source
-                // is in its function-zone (`from`, default battlefield — command
-                // for an emblem). A graveyard/hand object considers only its
-                // graveyard/hand triggers; a battlefield permanent only its
+                // is in its function-zone (`from`, default battlefield —
+                // command for an emblem). A graveyard/hand
+                // object considers only its graveyard/hand
+                // triggers; a battlefield permanent only its
                 // battlefield ones; an emblem only its command-zone ones.
                 if watcher_zone != Some(t.from.unwrap_or(default_zone)) {
                     continue;
@@ -1053,7 +1066,8 @@ impl GameState {
                 // Doubling Season's trigger half). The same fired trigger is
                 // emitted `1 + extra` times — NOT a copy, so each emit is an
                 // independent `TriggerFired` that places its own stack instance
-                // ([CR#603.3]) and chooses its own modes/targets. Multipliers ADD.
+                // ([CR#603.3]) and chooses its own modes/targets. Multipliers
+                // ADD.
                 let extra = self.trigger_multiplier_extra(event, this.object);
                 if matches!(
                     ability.as_mana(),
@@ -1072,19 +1086,22 @@ impl GameState {
                 }
                 // A trigger carries its body BY VALUE — the channel
                 // delayed/reflexive triggers use ([CR#603.7,603.12]) — when the
-                // by-index `(source, idx)` re-read at resolution can't recover it:
+                // by-index `(source, idx)` re-read at resolution can't recover
+                // it:
                 //
-                //  * a CONFERRED trigger (idx past the printed spine) has no index-stable
-                //    identity, and
-                //  * a back-up permanent's section-1 PRINTED trigger is sourced from its BACK
-                //    face ([CR#712.8e]); if the permanent leaves the battlefield between firing
-                //    and resolution ([CR#603.3] — a trigger resolves independently of its
-                //    source), `abilities_of_source` finds no live battlefield object and falls
-                //    back to the FRONT face (a different, possibly shorter list) — an
-                //    out-of-bounds / wrong-body read. Capturing the back body now sidesteps it.
+                //  * a CONFERRED trigger (idx past the printed spine) has no
+                //    index-stable identity, and
+                //  * a back-up permanent's section-1 PRINTED trigger is sourced
+                //    from its BACK face ([CR#712.8e]); if the permanent leaves
+                //    the battlefield between firing and resolution ([CR#603.3]
+                //    — a trigger resolves independently of its source),
+                //    `abilities_of_source` finds no live battlefield object and
+                //    falls back to the FRONT face (a different, possibly
+                //    shorter list) — an out-of-bounds / wrong-body read.
+                //    Capturing the back body now sidesteps it.
                 //
-                // A front-up printed trigger keeps `created: None` and resolves by
-                // index, unchanged.
+                // A front-up printed trigger keeps `created: None` and resolves
+                // by index, unchanged.
                 let created =
                     (idx >= printed_len || showing_back).then(|| std::sync::Arc::new(t.clone()));
                 let fired = GameEvent::TriggerFired(TriggerFired {
@@ -1130,8 +1147,9 @@ impl GameState {
                 } = &effect.body
                 {
                     // The fact that fired the trigger must match the cause, and
-                    // the trigger's source permanent must match `affected` (with
-                    // `Ref(You)` anchored on the multiplier's controller).
+                    // the trigger's source permanent must match `affected`
+                    // (with `Ref(You)` anchored on the
+                    // multiplier's controller).
                     if self.event_matches(cause, event, multiplier_source)
                         && self.filter_matches_live(affected, trig_object, multiplier_source)
                     {
@@ -1164,7 +1182,8 @@ impl GameState {
             .into_iter()
             .find(|&p| self.pending_triggers.iter().any(|t| t.controller == p))
         else {
-            // Triggers exist but none belong to a live APNAP player — drop them.
+            // Triggers exist but none belong to a live APNAP player — drop
+            // them.
             self.pending_triggers.clear();
             return Progress::TriggersPlaced { placed: 0 };
         };
@@ -1456,7 +1475,7 @@ pub(crate) struct EventRoles {
     that_player: Option<PlayerId>,
     that_patient: Option<EventPatient>,
     defending_player: Option<PlayerId>,
-    event_amount: Option<Uint>,
+    pub(crate) event_amount: Option<Uint>,
     crossed: Option<(Uint, Uint)>,
     produced_mana: Vec<deckmaste_core::ColorOrColorless>,
 }
@@ -2241,8 +2260,9 @@ mod tests {
     // Training's intervening-if ([CR#702.149a,603.4]): "at least one other
     // creature with power greater than this creature's power attacks" — the
     // `Compare(CountOf(... Where(StatOf vs This) ...), AtLeast, 1)` the keyword
-    // macro emits. `CountOf` threads the carrier watcher into the filter, so the
-    // candidate-vs-carrier power comparison resolves `This` to the carrier.
+    // macro emits. `CountOf` threads the carrier watcher into the filter, so
+    // the candidate-vs-carrier power comparison resolves `This` to the
+    // carrier.
     // -------------------------------------------------------------------------
 
     /// Build a board (all P0) of declared attackers: a 3/3 Centaur Courser
@@ -3295,7 +3315,8 @@ mod tests {
             !state.event_matches(&pattern, &sacrifice(&state, theirs), watcher_source),
             "an opponent's sacrifice fails by: Ref(You)"
         );
-        // An unattributed death is not a sacrifice ([CR#700.4] vs [CR#701.21a]).
+        // An unattributed death is not a sacrifice ([CR#700.4] vs
+        // [CR#701.21a]).
         let plain_death = zone_changed_event(&state, bear, Zone::Battlefield, Zone::Graveyard);
         assert!(
             !state.event_matches(&pattern, &plain_death, watcher_source),
@@ -3463,8 +3484,8 @@ mod tests {
     }
 
     /// Confirm that reading `Dies(Ref(This))` yields
-    /// `Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0)))` in the `what` position — the "this
-    /// object" form.
+    /// `Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0)))` in the `what`
+    /// position — the "this object" form.
     #[test]
     fn dies_this_filter_ref_reference_this() {
         use deckmaste_core::EventFilter;
@@ -4133,8 +4154,9 @@ mod tests {
             );
         }
 
-        // 2. Creature on top → the condition fails → nothing offers, ~ stays front. A
-        //    YesNo surfacing here would mean the type gate wrongly passed.
+        // 2. Creature on top → the condition fails → nothing offers, ~ stays
+        //    front. A YesNo surfacing here would mean the type gate wrongly
+        //    passed.
         {
             let mut state = empty_game();
             let d = put_synthetic_on_field(&mut state, delver(), PlayerId(0));
@@ -4429,7 +4451,8 @@ mod tests {
             "an unmatched delayed trigger stays registered"
         );
 
-        // The end step begins: it fires exactly once, carrying its body by value.
+        // The end step begins: it fires exactly once, carrying its body by
+        // value.
         state.scan_triggers(&Occurrence::single(GameEvent::StepBegan(
             PhaseStep::Ending(EndingStep::End),
         )));
@@ -5286,7 +5309,8 @@ mod tests {
         let (mut state, w0) = fixture_on_field("Moonlit Wake");
         let source = state.objects.obj(w0).source;
         let bindings = || super::TriggerBindings::default();
-        // Two notes from the same controller (as if two creatures died at once).
+        // Two notes from the same controller (as if two creatures died at
+        // once).
         state.pending_triggers.push(super::NotedTrigger {
             source,
             ability: 0,
@@ -6124,7 +6148,8 @@ mod tests {
 
     // -------------------------------------------------------------------------
     // Emblems ([CR#114.1]) — an abilities-only object minted into the command
-    // zone; its static and triggered abilities function FROM there ([CR#114.4]).
+    // zone; its static and triggered abilities function FROM there
+    // ([CR#114.4]).
     // -------------------------------------------------------------------------
 
     /// Parse an emblem's abilities (a RON ability list under the canon macro
@@ -6438,6 +6463,209 @@ mod tests {
         assert!(
             !state.condition_holds(&gate, &other_gate_frame),
             "object-scoped: a different carrier does not match"
+        );
+    }
+
+    /// A per-candidate predicate region: candidate at parameter zero, the
+    /// carrier (`This`) at parameter one — the shape
+    /// `region::candidate_region` builds at lowering.
+    fn candidate_region<T>(body: T) -> Arc<deckmaste_core::Region<T>> {
+        Arc::new(deckmaste_core::Region::new(
+            Arc::from([
+                deckmaste_core::Param {
+                    def: deckmaste_core::DefId(0),
+                    kind: deckmaste_core::Kind::Object,
+                    provenance: deckmaste_core::Provenance::Candidate,
+                },
+                deckmaste_core::Param {
+                    def: deckmaste_core::DefId(1),
+                    kind: deckmaste_core::Kind::Object,
+                    provenance: deckmaste_core::Provenance::Source,
+                },
+            ]),
+            body,
+        ))
+    }
+
+    /// A synthetic "whenever a creature is dealt damage, you gain that much
+    /// life" watcher — the trigger-bound magnitude lane. Re-spelled from the
+    /// deleted `pain_gainer`: `Count::ThatMuch` is the `EventAmount` register
+    /// the triggered region declares ([CR#107.3]).
+    fn pain_gainer() -> deckmaste_card::Card {
+        use deckmaste_card::Card;
+        use deckmaste_card::CardFace;
+        use deckmaste_core::Ability;
+        use deckmaste_core::Action;
+        use deckmaste_core::Count;
+        use deckmaste_core::LifeOp;
+        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::StatValue;
+        use deckmaste_core::TriggeredAbility;
+
+        Card::Normal(CardFace {
+            name: "Pain Gainer".into(),
+            types: vec![Type::Creature.def()],
+            abilities: vec![Ability::triggered(TriggeredAbility {
+                ability_word: None,
+                targets: [].into(),
+                from: None,
+                event: EventFilter::Damage {
+                    source: Predicate::Any,
+                    to: Predicate::creature(),
+                    combat: None,
+                    amount: None,
+                },
+                condition: None,
+                limits: vec![].into(),
+                effect: deckmaste_core::Region::new(
+                    deckmaste_core::event_region_params(),
+                    OneShotEffect::Act(Action::ChangeLife(
+                        Reference::controller_parameter(),
+                        LifeOp::Up(Count::Reg(EVENT_AMOUNT)),
+                    ))
+                    .into(),
+                ),
+            })],
+            power: Some(StatValue::Number(2)),
+            toughness: Some(StatValue::Number(4)),
+            ..CardFace::default()
+        })
+    }
+
+    /// The firing event's magnitude in the fixed event-role prefix
+    /// ([`deckmaste_core::event_region_params`]).
+    const EVENT_AMOUNT: deckmaste_core::RefId = deckmaste_core::RefId(6);
+
+    /// The Training intervening-if as the macro spells it, re-spelled against
+    /// the candidate regions the discourse stage introduced: the counted
+    /// candidate is register 0 of its own region and the carrier is register 1.
+    fn training_condition() -> Condition {
+        use deckmaste_core::Cmp;
+        use deckmaste_core::Count;
+        use deckmaste_core::Reference;
+        use deckmaste_core::Stat;
+        use deckmaste_core::StatePredicate;
+        const CANDIDATE: deckmaste_core::RefId = deckmaste_core::RefId(0);
+        const CARRIER: deckmaste_core::RefId = deckmaste_core::RefId(1);
+        Condition::Compare(
+            Count::CountOf(deckmaste_core::Countable::Objects(candidate_region(
+                Predicate::And(
+                    vec![
+                        Predicate::creature(),
+                        Predicate::State(StatePredicate::Attacking),
+                        Predicate::Not(Arc::new(Predicate::Ref(Reference::Reg(CARRIER)))),
+                        Predicate::Where(candidate_region(Condition::Compare(
+                            Count::StatOf(Reference::Reg(CANDIDATE), Stat::Power),
+                            Cmp::Greater,
+                            Count::StatOf(Reference::Reg(CARRIER), Stat::Power),
+                        ))),
+                    ]
+                    .into(),
+                ),
+            ))),
+            deckmaste_core::Cmp::AtLeast,
+            Count::Literal(1),
+        )
+    }
+
+    /// Does NOT hold when the only other attacker is lesser/equal power: a 2/2
+    /// Grizzly Bears (lesser) and a second 3/3 Courser (equal — `Greater` is
+    /// strict) both fail the comparison, so no "other creature with greater
+    /// power" exists.
+    #[test]
+    fn training_condition_fails_without_a_greater_power_attacker() {
+        let (state, carrier) = attacking_board(&["Grizzly Bears", "Centaur Courser"]); // 2/2, 3/3
+        assert!(
+            !state.condition_holds(&training_condition(), &carrier_gate_frame(&state, carrier)),
+            "lesser (2/2) and equal (3/3) co-attackers do not satisfy 'greater power' ([CR#702.149a])"
+        );
+    }
+
+    /// Holds when another attacker (4/4 Fangren Hunter) has power greater than
+    /// the 3/3 carrier.
+    #[test]
+    fn training_condition_holds_with_a_greater_power_attacker() {
+        let (state, carrier) = attacking_board(&["Fangren Hunter"]); // 4/4 > 3/3
+        assert!(
+            state.condition_holds(&training_condition(), &carrier_gate_frame(&state, carrier)),
+            "a 4/4 co-attacker has greater power than the 3/3 carrier ([CR#702.149a])"
+        );
+    }
+
+    /// The firing event's magnitude rides `TriggerBindings.event_amount` —
+    /// captured at fire time — and reaches the fired ability through its
+    /// declared `EventAmount` region parameter ("whenever …, … that much").
+    /// Re-spelled from `trigger_bound_that_much_reads_the_firing_events_
+    /// magnitude`: the binding field was `that_much` and the read was
+    /// `Count::ThatMuch`; both are now the one declared register.
+    #[test]
+    fn trigger_bound_event_amount_reads_the_firing_events_magnitude() {
+        use deckmaste_core::Zone;
+
+        use crate::stack::StackEntry;
+        use crate::stack::StackObject;
+
+        let mut state = empty_game();
+        state.turn.active_player = PlayerId(0);
+        let gainer = put_synthetic_on_field(&mut state, pain_gainer(), PlayerId(0));
+        state.agenda.clear();
+        let life_before = state.players[0].life;
+
+        // 3 damage to the gainer through the emit funnel — the post-
+        // replacement fact the trigger scan sees.
+        let source = state.players[1].object;
+        state.schedule_front(vec![WorkItem::Emit(Occurrence::Single(
+            GameEvent::DamageDealt(DamageDealt {
+                source,
+                target: gainer,
+                amount: 3,
+                combat: false,
+            }),
+        ))]);
+        for _ in 0..10 {
+            if state.agenda.is_empty() {
+                break;
+            }
+            let _ = state.step();
+        }
+
+        // Fire-time capture: the noted trigger carries the magnitude.
+        assert_eq!(noted_for(&state, gainer), 1, "the damage notes the trigger");
+        let noted = state.pending_triggers[0].clone();
+        assert_eq!(noted.bindings.event_amount, Some(3));
+
+        // Resolve the trigger directly (no priority dance): the `EventAmount`
+        // register reads the seeded magnitude, not a same-resolution apply.
+        let id = state
+            .objects
+            .mint(noted.source, noted.controller, Some(Zone::Stack));
+        state.stack.push(StackEntry {
+            activation: crate::ActivationId::NONE,
+            paid_costs: Vec::new(),
+            id,
+            object: StackObject::Triggered {
+                source: noted.source,
+                ability: noted.ability,
+                created: noted.created.clone(),
+                bindings: noted.bindings.clone(),
+            },
+            controller: noted.controller,
+            targets: Vec::new(),
+            chosen_modes: std::sync::Arc::from([]),
+            x: None,
+            copy: false,
+        });
+        state.resolve_object(id);
+        for _ in 0..10 {
+            if state.agenda.is_empty() {
+                break;
+            }
+            let _ = state.step();
+        }
+        assert_eq!(
+            state.players[0].life,
+            life_before + 3,
+            "GainLife through the EventAmount register reads the trigger-bound 3"
         );
     }
 }

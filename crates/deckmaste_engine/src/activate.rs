@@ -552,13 +552,30 @@ impl GameState {
     )]
     pub(crate) fn verb_cost_payable(&self, verb: &Action, player: PlayerId, frame: &Frame) -> bool {
         match verb {
-            // Sacrifice/Move (exile is `Move(_, Exile)`)/Tap/Untap take a
-            // single `Reference` (an agent slot spelled `You` in cost
-            // context on the verbs that carry one) — it always names its one
-            // object, so it is payable. The choose-feasibility of "sacrifice
-            // a creature" lives in the cost `With(ChooseOne(filter), …)`
-            // binder, not the verb.
-            Action::Sacrifice(..) | Action::Move(..) | Action::Tap(_) | Action::Untap(_) => true,
+            // [CR#701.21a]: "a player can't sacrifice something that isn't a
+            // permanent, or something that's a permanent they don't control."
+            // The cost's own `Choose` filter may already restrict control, but
+            // it need not, so the verb enforces the rule itself — a witness
+            // naming a permanent the payer does not control is unpayable, and
+            // partial payment is forbidden ([CR#601.2h]).
+            Action::Sacrifice(agent, what) => {
+                let sacrificer = self.eval_reference(agent, frame);
+                let subjects = self.eval_reference_set(what, frame);
+                !subjects.is_empty()
+                    && subjects.iter().all(|&id| {
+                        self.objects.get(id).is_some_and(|object| {
+                            object.zone == Some(deckmaste_core::Zone::Battlefield)
+                                && self.player(object.controller).object == sacrificer
+                        })
+                    })
+            }
+            // Move (exile is `Move(_, Exile)`)/Tap/Untap take a single
+            // `Reference` (an agent slot spelled as the controller register in
+            // cost context on the verbs that carry one) — it always names its
+            // one object, so it is payable. The choose-feasibility of "sacrifice
+            // a creature" lives in the cost's own `Choose` instruction, not the
+            // verb.
+            Action::Move(..) | Action::Tap(_) | Action::Untap(_) => true,
             // [CR#119.4]: pay-life needs life ≥ the amount; [CR#119.4b]: paying
             // 0 is always allowed (and `life >= 0` holds trivially).
             Action::ChangeLife(_, LifeOp::Down(count)) => {

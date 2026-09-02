@@ -733,3 +733,508 @@ pub(crate) fn candidate_region<T>(f: impl FnOnce() -> T) -> deckmaste_core::Regi
     });
     deckmaste_core::Region::new(params, body)
 }
+
+#[cfg(test)]
+mod tests {
+    use deckmaste_core::DefId;
+    use deckmaste_core::Kind;
+    use deckmaste_core::Param;
+    use deckmaste_core::Provenance;
+    use deckmaste_core::RefId;
+
+    use super::Cardinality;
+    use super::RegionKind;
+    use super::Site;
+
+    /// The `(kind, provenance)` pairs a region declares, in order.
+    fn abi(params: &[Param]) -> Vec<(Kind, Provenance)> {
+        params
+            .iter()
+            .map(|param| (param.kind, param.provenance.clone()))
+            .collect()
+    }
+
+    /// Every region's parameters are dense and ordered from `DefId(0)` — the
+    /// invariant `deckmaste_core::validate` enforces at load (ADR law 2).
+    fn assert_dense(params: &[Param]) {
+        for (index, param) in params.iter().enumerate() {
+            assert_eq!(
+                param.def,
+                DefId(u32::try_from(index).expect("param count fits u32")),
+                "parameter {index} is out of sequence"
+            );
+        }
+    }
+
+    /// An announcement region declares source, controller and announced X, plus
+    /// one parameter per target slot in order ([CR#601.2b,601.2c], ADR law 2).
+    #[test]
+    fn an_announcement_region_declares_source_controller_targets_then_x() {
+        let (params, ()) = super::in_region(RegionKind::Spell, 2, || ());
+        assert_dense(&params);
+        assert_eq!(
+            abi(&params),
+            vec![
+                (Kind::Object, Provenance::Source),
+                (Kind::Object, Provenance::Controller),
+                (Kind::Objects, Provenance::AnnouncedTarget(0)),
+                (Kind::Objects, Provenance::AnnouncedTarget(1)),
+                (Kind::Number, Provenance::AnnouncedX),
+            ]
+        );
+    }
+
+    /// An event-observing region declares the fixed event-role prefix, so a
+    /// trigger and a replacement read the same registers (ADR law 2).
+    #[test]
+    fn an_event_region_declares_the_fixed_event_role_prefix() {
+        let (params, ()) = super::in_region(RegionKind::Triggered, 0, || ());
+        assert_dense(&params);
+        assert_eq!(
+            abi(&params),
+            vec![
+                (Kind::Object, Provenance::Source),
+                (Kind::Object, Provenance::Controller),
+                (Kind::Object, Provenance::EventObject),
+                (Kind::Object, Provenance::EventPatient),
+                (Kind::Object, Provenance::EventActor),
+                (Kind::Object, Provenance::DefendingPlayer),
+                (Kind::Number, Provenance::EventAmount),
+                (Kind::Number, Provenance::AnnouncedX),
+            ]
+        );
+        assert_eq!(
+            abi(&params)[..7],
+            abi(&deckmaste_core::event_region_params())[..7],
+            "the prefix is the one core publishes"
+        );
+    }
+
+    /// A static ability pays no cost and announces no X ([CR#601.2b] applies to
+    /// casting and activation, not to a static), so its region stops at the
+    /// event roles.
+    #[test]
+    fn a_static_region_declares_no_announced_x() {
+        let (params, ()) = super::in_region(RegionKind::Static, 0, || ());
+        assert_dense(&params);
+        assert!(
+            !params
+                .iter()
+                .any(|param| param.provenance == Provenance::AnnouncedX),
+            "a static ability has no announcement to declare X in"
+        );
+        assert_eq!(params.len(), 7);
+    }
+
+    /// Instruction definitions continue the parameter sequence densely
+    /// (ADR law 3): the first definition of a spell region is register 3.
+    #[test]
+    fn definitions_continue_the_parameter_sequence() {
+        let (params, defs) = super::in_region(RegionKind::Spell, 0, || {
+            [
+                super::define(Kind::Objects),
+                super::define(Kind::Number),
+                super::define(Kind::Object),
+            ]
+        });
+        assert_eq!(params.len(), 3, "source, controller, X");
+        assert_eq!(defs, [DefId(3), DefId(4), DefId(5)]);
+    }
+
+    /// A nested region declares its own intrinsic parameters FIRST and then
+    /// captures the enclosing register file in definition order (ADR law 7),
+    /// so a body reads nothing it did not declare.
+    #[test]
+    fn a_nested_region_declares_intrinsics_then_captures_the_enclosing_file() {
+        let (_, inner) = super::in_region(RegionKind::Spell, 1, || {
+            let (params, ()) = super::in_child([(Kind::Object, Provenance::LoopElement)], || ());
+            params
+        });
+        assert_dense(&inner);
+        assert_eq!(
+            abi(&inner),
+            vec![
+                (Kind::Object, Provenance::LoopElement),
+                (Kind::Object, Provenance::Source),
+                (Kind::Object, Provenance::Controller),
+                (Kind::Objects, Provenance::AnnouncedTarget(0)),
+                (Kind::Number, Provenance::AnnouncedX),
+            ],
+            "the element takes register 0 and the enclosing parameters follow"
+        );
+    }
+
+    /// A capture of a nested-only role (a loop element, an allotment, a
+    /// candidate) becomes an explicit `Capture` of the outer register rather
+    /// than repeating the role — the outer loop's element is not this body's
+    /// own element (ADR law 7).
+    #[test]
+    fn a_nested_only_role_is_captured_not_repeated() {
+        let (_, inner) = super::in_region(RegionKind::Spell, 0, || {
+            let (_, inner) = super::in_child([(Kind::Object, Provenance::LoopElement)], || {
+                let (params, ()) =
+                    super::in_child([(Kind::Object, Provenance::LoopElement)], || ());
+                params
+            });
+            inner
+        });
+        assert_eq!(
+            abi(&inner),
+            vec![
+                (Kind::Object, Provenance::LoopElement),
+                (Kind::Object, Provenance::Capture(RefId(0))),
+                (Kind::Object, Provenance::Source),
+                (Kind::Object, Provenance::Controller),
+                (Kind::Number, Provenance::AnnouncedX),
+            ]
+        );
+    }
+
+    /// A carried body (a delayed trigger, a floating replacement) keeps its OWN
+    /// intrinsic ABI and takes the enclosing registers as explicit captures
+    /// afterwards ([CR#603.7,603.12], ADR law 7).
+    #[test]
+    fn a_carried_region_keeps_its_own_abi_then_captures() {
+        let (_, carried) = super::in_region(RegionKind::Spell, 0, || {
+            let (params, ()) = super::in_carried_region(RegionKind::Triggered, 0, || ());
+            params
+        });
+        assert_dense(&carried);
+        let roles = abi(&carried);
+        assert_eq!(
+            roles[..8],
+            abi(&super::in_region(RegionKind::Triggered, 0, || ()).0)[..8],
+            "the carried trigger's own ABI comes first"
+        );
+        assert_eq!(
+            roles[8..],
+            vec![
+                (Kind::Object, Provenance::Capture(RefId(0))),
+                (Kind::Object, Provenance::Capture(RefId(1))),
+                (Kind::Number, Provenance::Capture(RefId(2))),
+            ],
+            "then the enclosing spell region's three registers"
+        );
+    }
+
+    /// R1: "it" reads the NEAREST antecedent — the most recently pushed one.
+    #[test]
+    fn it_resolves_to_the_nearest_antecedent() {
+        let (_, reference) = super::in_region(RegionKind::Spell, 0, || {
+            let first = super::define(Kind::Object);
+            super::push_antecedent(
+                first.into(),
+                Kind::Object,
+                Cardinality::One,
+                None,
+                Site::Frame,
+            );
+            let second = super::define(Kind::Object);
+            super::push_antecedent(
+                second.into(),
+                Kind::Object,
+                Cardinality::One,
+                None,
+                Site::Frame,
+            );
+            super::it()
+        });
+        assert_eq!(reference, Some(RefId(4)), "the later definition wins");
+    }
+
+    /// A loop element outranks an ordinary frame antecedent: inside a body that
+    /// iterates, "it" is the element ([CR#608.2]).
+    #[test]
+    fn it_prefers_a_loop_element_over_a_frame_antecedent() {
+        let (_, reference) = super::in_region(RegionKind::Spell, 0, || {
+            let product = super::define(Kind::Object);
+            super::push_antecedent(
+                product.into(),
+                Kind::Object,
+                Cardinality::One,
+                None,
+                Site::Frame,
+            );
+            super::push_antecedent(RefId(0), Kind::Object, Cardinality::One, None, Site::Loop);
+            super::it()
+        });
+        assert_eq!(reference, Some(RefId(0)));
+    }
+
+    /// R2: two equally compatible antecedents on the general search are a
+    /// refusal, not a silent pick — the resolver never guesses between two
+    /// equally good readings.
+    #[test]
+    #[should_panic(expected = "ambiguous discourse anaphor")]
+    fn a_second_compatible_antecedent_refuses() {
+        let _ = super::in_region(RegionKind::Spell, 0, || {
+            for _ in 0..2 {
+                let def = super::define(Kind::Object);
+                super::push_antecedent(
+                    def.into(),
+                    Kind::Object,
+                    Cardinality::One,
+                    Some(deckmaste_semantics::Sort::Card),
+                    Site::Product,
+                );
+            }
+            super::that(deckmaste_semantics::Sort::Card)
+        });
+    }
+
+    /// R1 is what a SITE-preferred search runs: among the antecedents at the
+    /// preferred site the nearest wins outright, which is why a clause that
+    /// moves two cards in turn still reads "that card" as the second. R2's
+    /// refusal (above) governs the general search that follows.
+    #[test]
+    fn two_antecedents_at_a_preferred_site_resolve_to_the_nearest() {
+        let (_, reference) = super::in_region(RegionKind::Spell, 0, || {
+            for _ in 0..2 {
+                let def = super::define(Kind::Object);
+                super::push_antecedent(
+                    def.into(),
+                    Kind::Object,
+                    Cardinality::One,
+                    Some(deckmaste_semantics::Sort::Card),
+                    Site::Frame,
+                );
+            }
+            super::that(deckmaste_semantics::Sort::Card)
+        });
+        assert_eq!(reference, Some(RefId(4)), "the later definition wins");
+    }
+
+    /// An EXACT sort match followed by a widened one is not ambiguous: "that
+    /// card" prefers the card antecedent over a permanent one.
+    #[test]
+    fn an_exact_sort_beats_a_widened_one_without_refusing() {
+        let (_, reference) = super::in_region(RegionKind::Spell, 0, || {
+            let permanent = super::define(Kind::Object);
+            super::push_antecedent(
+                permanent.into(),
+                Kind::Object,
+                Cardinality::One,
+                Some(deckmaste_semantics::Sort::Permanent),
+                Site::Frame,
+            );
+            let card = super::define(Kind::Object);
+            super::push_antecedent(
+                card.into(),
+                Kind::Object,
+                Cardinality::One,
+                Some(deckmaste_semantics::Sort::Card),
+                Site::Frame,
+            );
+            super::that(deckmaste_semantics::Sort::Card)
+        });
+        assert_eq!(reference, Some(RefId(4)));
+    }
+
+    /// A sorted anaphor SKIPS an incompatible antecedent rather than taking the
+    /// nearest: "that player" is not the card the previous clause moved.
+    #[test]
+    fn a_sorted_anaphor_skips_an_incompatible_antecedent() {
+        let (_, reference) = super::in_region(RegionKind::Spell, 0, || {
+            let player = super::define(Kind::Object);
+            super::push_antecedent(
+                player.into(),
+                Kind::Object,
+                Cardinality::One,
+                Some(deckmaste_semantics::Sort::Player),
+                Site::Frame,
+            );
+            let card = super::define(Kind::Object);
+            super::push_antecedent(
+                card.into(),
+                Kind::Object,
+                Cardinality::One,
+                Some(deckmaste_semantics::Sort::Card),
+                Site::Frame,
+            );
+            super::that(deckmaste_semantics::Sort::Player)
+        });
+        assert_eq!(
+            reference,
+            Some(RefId(3)),
+            "the player register, not the card"
+        );
+    }
+
+    /// Cardinality separates the singular and plural anaphors: a group
+    /// antecedent answers "they", never "that".
+    #[test]
+    fn cardinality_separates_the_singular_and_plural_anaphors() {
+        let (_, (singular, plural)) = super::in_region(RegionKind::Spell, 0, || {
+            let group = super::define(Kind::Objects);
+            super::push_antecedent(
+                group.into(),
+                Kind::Objects,
+                Cardinality::Many,
+                Some(deckmaste_semantics::Sort::Card),
+                Site::Frame,
+            );
+            (
+                super::they(Some(deckmaste_semantics::Sort::Card)),
+                super::amount(),
+            )
+        });
+        assert_eq!(singular, Some(RefId(3)), "the group answers `they`");
+        assert_eq!(plural, None, "a group is not an amount");
+    }
+
+    /// An allotment is its own channel ([CR#601.2d]): a plain pinned amount in
+    /// scope answers "that much" but never a distribution's share.
+    #[test]
+    fn an_allotment_read_is_its_own_channel() {
+        let (_, (amount, allotment)) = super::in_region(RegionKind::Spell, 0, || {
+            let pinned = super::define(Kind::Number);
+            super::push_antecedent(
+                pinned.into(),
+                Kind::Number,
+                Cardinality::One,
+                Some(deckmaste_semantics::Sort::Amount),
+                Site::Product,
+            );
+            (super::amount(), super::allotment())
+        });
+        assert_eq!(amount, Some(RefId(3)));
+        assert_eq!(allotment, None);
+    }
+
+    /// A block scope retires the definitions it introduced (ADR law 6): a
+    /// sibling block neither reads them nor captures them.
+    #[test]
+    fn a_scoped_block_retires_its_own_definitions() {
+        let (_, captured) = super::in_region(RegionKind::Spell, 0, || {
+            super::scoped_antecedents(|| {
+                let inner = super::define(Kind::Object);
+                super::push_antecedent(
+                    inner.into(),
+                    Kind::Object,
+                    Cardinality::One,
+                    None,
+                    Site::Frame,
+                );
+            });
+            let (params, ()) = super::in_child([], || ());
+            params
+        });
+        assert_eq!(
+            abi(&captured),
+            vec![
+                (Kind::Object, Provenance::Source),
+                (Kind::Object, Provenance::Controller),
+                (Kind::Number, Provenance::AnnouncedX),
+            ],
+            "the closed block's definition is not visible to capture"
+        );
+    }
+
+    /// A cost block scopes its ANAPHORA without retiring its definitions
+    /// ([CR#601.2b]): the payment subject is read by the verbs that spend it,
+    /// and the ability body reads the paid product only through the channel
+    /// the announcement declares — but the register itself stays live.
+    #[test]
+    fn a_cost_block_scopes_anaphora_but_keeps_its_definitions_live() {
+        let (_, (after, captured)) = super::in_region(RegionKind::Activated, 0, || {
+            super::scoped_anaphora(|| {
+                let paid = super::define(Kind::Objects);
+                super::push_antecedent(
+                    paid.into(),
+                    Kind::Objects,
+                    Cardinality::One,
+                    Some(deckmaste_semantics::Sort::Permanent),
+                    Site::Frame,
+                );
+            });
+            let (params, ()) = super::in_child([], || ());
+            (super::that(deckmaste_semantics::Sort::Permanent), params)
+        });
+        assert_eq!(after, None, "the payment subject is out of anaphoric scope");
+        assert_eq!(
+            captured.len(),
+            4,
+            "but its register is still live and capturable"
+        );
+    }
+
+    /// A target constraint sees only the target slots announced BEFORE it
+    /// ([CR#601.2c]): slot 1's filter may read slot 0, never itself or a later
+    /// slot, and never the announced X that follows the whole list.
+    #[test]
+    fn a_target_constraint_sees_only_earlier_slots() {
+        let (_, seen) = super::in_region(RegionKind::Spell, 3, || {
+            super::with_target_prefix(1, || (super::target(0), super::target(1), super::x()))
+        });
+        assert_eq!(seen.0, Some(RefId(2)), "slot 0 is in scope");
+        assert_eq!(seen.1, None, "slot 1 is the one being constrained");
+        assert_eq!(seen.2, None, "X is announced after the target list");
+    }
+
+    /// The prefix is RESTORED after the constraint: the ability body sees every
+    /// slot and X again.
+    #[test]
+    fn the_full_announcement_returns_after_a_target_constraint() {
+        let (_, seen) = super::in_region(RegionKind::Spell, 2, || {
+            super::with_target_prefix(0, || ());
+            (super::target(0), super::target(1), super::x())
+        });
+        assert_eq!(
+            seen,
+            (Some(RefId(2)), Some(RefId(3)), Some(RefId(4))),
+            "the constraint's narrowing is undone"
+        );
+    }
+
+    /// A named role is a register alias ([CR#607]): binding a name and reading
+    /// it back yields the same register, and an unbound name yields nothing.
+    #[test]
+    fn a_named_role_aliases_a_register() {
+        let (_, (bound, unbound)) = super::in_region(RegionKind::Spell, 0, || {
+            super::bind_named("kept".into(), RefId(2));
+            (
+                super::named(&deckmaste_semantics::Ident::from("kept")),
+                super::named(&deckmaste_semantics::Ident::from("absent")),
+            )
+        });
+        assert_eq!(bound, Some(RefId(2)));
+        assert_eq!(unbound, None);
+    }
+
+    /// A predicate lowered with no enclosing region still gets one: the
+    /// candidate is parameter zero, followed by source and controller, so a
+    /// carrier-relative filter has registers to read (ADR law 1).
+    #[test]
+    fn a_candidate_region_stands_alone_when_there_is_no_enclosing_region() {
+        assert!(!super::is_active(), "no region is open");
+        let region = super::candidate_region(|| deckmaste_core::Predicate::Any);
+        assert_dense(&region.params);
+        assert_eq!(
+            abi(&region.params),
+            vec![
+                (Kind::Object, Provenance::Candidate),
+                (Kind::Object, Provenance::Source),
+                (Kind::Object, Provenance::Controller),
+            ]
+        );
+    }
+
+    /// Inside a candidate region the candidate answers "it" ([CR#608.2] — the
+    /// role the retired `Subject` named).
+    #[test]
+    fn a_candidate_region_answers_it_with_its_candidate() {
+        let region = super::candidate_region(super::it);
+        assert_eq!(region.body, Some(RefId(0)));
+    }
+
+    /// A lone announced target is an unambiguous antecedent, so the corpus's
+    /// bare "it" after a single `target` clause resolves ([CR#601.2c]); two or
+    /// more slots must be named explicitly and leave the anaphor unbound.
+    #[test]
+    fn a_lone_announced_target_answers_it_but_two_do_not() {
+        let (_, one) = super::in_region(RegionKind::Spell, 1, super::it);
+        assert_eq!(one, Some(RefId(2)));
+        let (_, two) = super::in_region(RegionKind::Spell, 2, super::it);
+        assert_eq!(two, None, "two slots are ambiguous — name them");
+    }
+}

@@ -525,11 +525,16 @@ fn automatic_step_witness(
                 watcher,
                 frame.activation,
             );
+            // [CR#107.1c]: "any number" includes zero, so a choice with no
+            // lower bound is completely paid by choosing nothing — the payer
+            // spends exactly what the cost demands and no more ([CR#601.2h]:
+            // the prohibition is on PARTIAL payment, which a zero-lower-bound
+            // cost paid at zero is not).
             let (lo, _) = choice.quantity.bounds();
             let count = lo.map_or(0, |count| state.eval_count(count, frame));
             let count = usize::try_from(count).ok()?;
             (candidates.len() >= count).then(|| {
-                candidates.truncate(count.max(1).min(candidates.len()));
+                candidates.truncate(count);
                 FulfillmentWitness::Objects(candidates)
             })
         }
@@ -3104,6 +3109,119 @@ mod tests {
         assert!(
             ended,
             "concession should terminate through normal game-end processing"
+        );
+    }
+
+    /// Put `n` vanilla creatures onto the battlefield under `owner`'s control.
+    fn creatures_on_field(
+        state: &mut GameState,
+        owner: PlayerId,
+        n: usize,
+    ) -> Vec<crate::ObjectId> {
+        (0..n)
+            .map(|index| {
+                let cid = state.cards.push(
+                    Arc::new(Card::Normal(CardFace {
+                        name: format!("Sacrificial creature {index}").into(),
+                        types: vec![Type::Creature.def()],
+                        ..CardFace::default()
+                    })),
+                    owner,
+                );
+                let id =
+                    state
+                        .objects
+                        .mint(ObjectSource::Card(cid), owner, Some(Zone::Battlefield));
+                state.zones.battlefield.push(id);
+                id
+            })
+            .collect()
+    }
+
+    /// One payment-time object choice over the creatures on the battlefield.
+    fn choose_creatures(quantity: deckmaste_core::Quantity) -> CostComponent {
+        CostComponent::Choose(deckmaste_core::Choose {
+            dest: deckmaste_core::DefId(9),
+            by: Reference::controller_parameter(),
+            quantity,
+            filter: Arc::new(deckmaste_core::Region::candidate(Predicate::And(
+                vec![
+                    Predicate::creature(),
+                    Predicate::State(deckmaste_core::StatePredicate::InZone(Zone::Battlefield)),
+                ]
+                .into(),
+            ))),
+        })
+    }
+
+    /// [CR#107.1c]: "If a rule or ability instructs a player to choose 'any
+    /// number,' that player may choose any positive number or zero." A cost
+    /// choice with no lower bound is therefore COMPLETELY paid by choosing
+    /// nothing — that is a whole payment, not a partial one ([CR#601.2h]), and
+    /// no rule requires a payer to spend more than the cost demands. The
+    /// automatic payer must not sacrifice a permanent the cost never asked
+    /// for.
+    #[test]
+    fn the_automatic_payer_spends_nothing_on_an_any_number_cost_choice() {
+        let (mut state, payer, subject) = fixture("{0}");
+        let creatures = creatures_on_field(&mut state, payer, 2);
+        let frame = crate::test_support::frame_src(&state, subject);
+
+        let witness = super::automatic_step_witness(
+            &state,
+            &choose_creatures(deckmaste_core::Quantity::Range(None, None)),
+            &frame,
+        );
+        assert_eq!(
+            witness,
+            Some(FulfillmentWitness::Objects(Vec::new())),
+            "an \"any number\" cost is paid in full by choosing zero ([CR#107.1c]); \
+             the {} creatures on the battlefield stay put",
+            creatures.len()
+        );
+    }
+
+    /// The same payer takes exactly the lower bound when the cost states one —
+    /// the demand is met, and nothing beyond it is spent ([CR#601.2h]).
+    #[test]
+    fn the_automatic_payer_spends_exactly_the_costs_lower_bound() {
+        let (mut state, payer, subject) = fixture("{0}");
+        let creatures = creatures_on_field(&mut state, payer, 3);
+        let frame = crate::test_support::frame_src(&state, subject);
+
+        let Some(FulfillmentWitness::Objects(chosen)) = super::automatic_step_witness(
+            &state,
+            &choose_creatures(deckmaste_core::Quantity::Range(
+                Some(Count::Literal(2)),
+                None,
+            )),
+            &frame,
+        ) else {
+            panic!("three candidates satisfy a lower bound of two");
+        };
+        assert_eq!(chosen.len(), 2, "exactly the demanded two, of three legal");
+        assert!(chosen.iter().all(|id| creatures.contains(id)));
+    }
+
+    /// A cost the battlefield cannot satisfy has no witness at all
+    /// ([CR#601.2h]: unpayable costs can't be paid).
+    #[test]
+    fn the_automatic_payer_offers_no_witness_for_an_unsatisfiable_choice() {
+        let (mut state, payer, subject) = fixture("{0}");
+        creatures_on_field(&mut state, payer, 1);
+        let frame = crate::test_support::frame_src(&state, subject);
+
+        assert_eq!(
+            super::automatic_step_witness(
+                &state,
+                &choose_creatures(deckmaste_core::Quantity::Range(
+                    Some(Count::Literal(2)),
+                    None,
+                )),
+                &frame,
+            ),
+            None,
+            "one creature cannot pay a cost demanding two"
         );
     }
 }

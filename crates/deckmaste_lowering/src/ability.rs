@@ -643,6 +643,38 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn classifies_sacrifice_cost_mana_ability_without_external_replacement_effects() {
+        let mut ability = minimal_activated_ability();
+        ability.cost = deckmaste_semantics::Cost(
+            vec![deckmaste_semantics::CostComponent::With {
+                binder: std::sync::Arc::new(deckmaste_semantics::Binder::ChooseOne {
+                    filter: deckmaste_semantics::Predicate::Any,
+                    by: deckmaste_semantics::Reference::You,
+                }),
+                body: deckmaste_semantics::Cost(
+                    vec![deckmaste_semantics::CostComponent::do_action(
+                        deckmaste_semantics::Action::Sacrifice(
+                            deckmaste_semantics::Reference::You,
+                            deckmaste_semantics::Reference::That(deckmaste_semantics::Sort::Card),
+                        ),
+                    )]
+                    .into(),
+                ),
+            }]
+            .into(),
+        );
+        ability.effect = semantic_mana_effect();
+
+        assert_matches!(
+            deckmaste_semantics::Ability::Activated(std::sync::Arc::new(ability)).lower(),
+            deckmaste_core::Ability::Mana(deckmaste_core::ManaAbility::Activated {
+                profile: deckmaste_core::ActivatedManaProfile::Always,
+                ..
+            })
+        );
+    }
 }
 
 /// Split an ability's effect into its announcement declarations and the body

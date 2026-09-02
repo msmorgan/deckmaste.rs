@@ -219,7 +219,8 @@ impl GameState {
                         // `attachment_legal` reads the attach deontics
                         // generically (default-deny: the attachment's own
                         // enchant/Innate `May(Attach)` grant must permit, the
-                        // host's protection `Cant` subtracts), never the subtype.
+                        // host's protection `Cant` subtracts), never the
+                        // subtype.
                         if !crate::legal::attachment_legal(self, attachment, host) {
                             continue;
                         }
@@ -371,7 +372,8 @@ impl GameState {
                 // A group member with no zone to leave — a player proxy
                 // (`zone: None`, which `Predicate::Any` matches) — is skipped,
                 // never moved; an all-zoneless selection then fizzles via the
-                // empty guard below (the engine-never-crashes-on-invalid-semantics
+                // empty guard below (the
+                // engine-never-crashes-on-invalid-semantics
                 // -mistakes ruling). Each surviving member carries its `from`
                 // zone alongside its id, so the zone read can't panic.
                 let objects: Vec<(ObjectId, Zone)> = self
@@ -524,9 +526,10 @@ impl GameState {
                 continue;
             }
             // A resolved member with no zone to leave — a player proxy
-            // (`zone: None`, which `Predicate::Any` matches) — is skipped, never
-            // moved (the Invalid semantic input fizzles decision,
-            // `docs/decisions/invalid-semantic-input-fizzles.md`).
+            // (`zone: None`, which `Predicate::Any` matches) — is skipped,
+            // never moved (the Invalid semantic input fizzles
+            // decision, `docs/decisions/
+            // invalid-semantic-input-fizzles.md`).
             let Some(from) = self.objects.obj(object).zone else {
                 continue;
             };
@@ -1380,7 +1383,8 @@ mod tests {
             OneShotEffect::Act(Action::destroy(Reference::Reg(deckmaste_core::RefId(0)))),
             &frame,
         );
-        // Act(Destroy) applies and schedules no zone move (replaced to nothing).
+        // Act(Destroy) applies and schedules no zone move (replaced to
+        // nothing).
         let _ = state.step();
         assert!(
             state.objects.get(myr).is_some(),
@@ -1664,7 +1668,8 @@ mod tests {
 
         // By(You, LoseLife(3)) -> one Single(LifeLost{player0, 3}) carrying
         // the effect-instruction cause triple ([CR#119.9]'s source — the
-        // shared (frame.source(self), frame.controller(self)) binding, not the patient).
+        // shared (frame.source(self), frame.controller(self)) binding, not the
+        // patient).
         let items = state.action_items(
             &Action::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
@@ -2157,7 +2162,8 @@ mod tests {
         );
     }
 
-    // ===== Madness matrix (Task 10): the real `Madness` keyword end-to-end =====
+    // ===== Madness matrix (Task 10): the real `Madness` keyword end-to-end
+    // =====
 
     /// A creature card FACE carrying Madness {1}{R} and a printed {3}{R} cost —
     /// a castable creature spell (so a madness cast is affordable when the pool
@@ -2326,9 +2332,11 @@ mod tests {
                 StepOutcome::NeedsDecision(PendingDecision::PayMana(
                     crate::decide::pending::PayMana { cost, .. },
                 )) => {
-                    // The pool only ever holds the {1}{R} madness cost (topped up
-                    // above), never the four mana the printed {3}{R} would need —
-                    // a successful pay here IS the alternative cost ([CR#118.9]).
+                    // The pool only ever holds the {1}{R} madness cost (topped
+                    // up above), never the four mana the
+                    // printed {3}{R} would need —
+                    // a successful pay here IS the alternative cost
+                    // ([CR#118.9]).
                     assert_eq!(
                         cost,
                         deckmaste_core::ManaCost::from(Arc::from(vec![
@@ -2357,9 +2365,10 @@ mod tests {
                 StepOutcome::NeedsDecision(PendingDecision::ChooseReplacement(
                     crate::decide::pending::ChooseReplacement { applicable, .. },
                 )) => {
-                    // Apply madness first — its self-replacement is sourced from
-                    // the discarded card, which is OFF the battlefield (the
-                    // graveyard-hoser sibling is a battlefield permanent).
+                    // Apply madness first — its self-replacement is sourced
+                    // from the discarded card, which is OFF
+                    // the battlefield (the graveyard-hoser
+                    // sibling is a battlefield permanent).
                     let key = applicable
                         .iter()
                         .copied()
@@ -2589,8 +2598,9 @@ mod tests {
             zone_has_named(&state, &state.zones.exile, "Madcap Skills"),
             "the card exiled once"
         );
-        // EXACTLY ONE exile move for the card ([CR#616.1] — one Instead replaces
-        // the discard away; the other madness never also fires).
+        // EXACTLY ONE exile move for the card ([CR#616.1] — one Instead
+        // replaces the discard away; the other madness never also
+        // fires).
         let exiles = state
             .history
             .entries()
@@ -2619,9 +2629,10 @@ mod tests {
         use crate::step::StepOutcome;
         let mut offers = 0;
         for _ in 0..200 {
-            // Keep enough mana floating to afford either madness cost ({1}{R} or
-            // {2}{B}) — else an unpayable cast auto-declines with no offer to
-            // count ([CR#608.2g]). Mana empties at each step boundary.
+            // Keep enough mana floating to afford either madness cost ({1}{R}
+            // or {2}{B}) — else an unpayable cast auto-declines
+            // with no offer to count ([CR#608.2g]). Mana empties at
+            // each step boundary.
             if state.player(PlayerId(0)).mana_pool.is_empty() {
                 grant_red(state, PlayerId(0), 2);
                 state.player_mut(PlayerId(0)).mana_pool.add(
@@ -2670,7 +2681,8 @@ mod tests {
     fn madness_cast_pays_the_alternative_cost_and_exile_empties() {
         let (mut state, _a) = bear_on_field();
         // Two red covers {1}{R} (one Red pip + one Red spent as generic); the
-        // printed {3}{R} would need four — proving the alternative cost is used.
+        // printed {3}{R} would need four — proving the alternative cost is
+        // used.
         grant_red(&mut state, PlayerId(0), 2);
         let card = mint_in_hand_with(&mut state, PlayerId(0), madness_creature("Madcap Skills"));
         let frame = frame_src(&state, card);
@@ -2912,7 +2924,8 @@ mod tests {
         );
         run_injected(&mut state);
         // Drive the fired conferred trigger through the stack to resolution
-        // (declining any offers — there are none here but the driver is shared).
+        // (declining any offers — there are none here but the driver is
+        // shared).
         drive_declining_or_casting(&mut state, false);
 
         assert_eq!(
@@ -2945,9 +2958,10 @@ mod tests {
         }
         state.zones.hands[0].clear();
         // Falkenrath Gorger on the battlefield (P0's) — its card static grants
-        // madness to P0's off-battlefield Vampires through the layer view, which
-        // `derived_abilities_of` folds into the replacement scan. No conferral
-        // rules are installed: the grant is the layer path, not a global rule.
+        // madness to P0's off-battlefield Vampires through the layer view,
+        // which `derived_abilities_of` folds into the replacement scan.
+        // No conferral rules are installed: the grant is the layer
+        // path, not a global rule.
         let _gorger = mint_on_field(&mut state, canon().card("Falkenrath Gorger").unwrap().core);
         // A Vampire in hand that ALSO prints its own madness — the two-source
         // stack.
@@ -2972,12 +2986,13 @@ mod tests {
         run_injected(&mut state);
 
         // Two applicable madness self-replacements now surface a [CR#616.1]
-        // replacement-selection: the card's PRINTED madness and the one Gorger's
-        // static GRANTS it through the layer view. (Before the grant functioned,
-        // only the printed one applied and no choice surfaced — the stack was
-        // never actually exercised.) Both are sourced from the same
-        // off-battlefield card, so whichever applies first exiles it and the
-        // sibling then has nothing left to replace ([CR#616.1f]).
+        // replacement-selection: the card's PRINTED madness and the one
+        // Gorger's static GRANTS it through the layer view. (Before the
+        // grant functioned, only the printed one applied and no choice
+        // surfaced — the stack was never actually exercised.) Both are
+        // sourced from the same off-battlefield card, so whichever
+        // applies first exiles it and the sibling then has nothing left
+        // to replace ([CR#616.1f]).
         let Some(crate::decide::PendingDecision::ChooseReplacement(
             crate::decide::pending::ChooseReplacement {
                 chooser,
@@ -3096,8 +3111,8 @@ mod tests {
         let mine = mint_in_hand_with(&mut state, PlayerId(0), vanilla_vampire("P0 Vampire"));
         let theirs = mint_in_hand_with(&mut state, PlayerId(1), vanilla_vampire("P1 Vampire"));
 
-        // Discard P0's Vampire: the conferred madness self-replacement redirects
-        // its Hand → Graveyard to Exile ([CR#702.35a]).
+        // Discard P0's Vampire: the conferred madness self-replacement
+        // redirects its Hand → Graveyard to Exile ([CR#702.35a]).
         let frame = frame_src(&state, mine);
         state.run_effect(
             OneShotEffect::Act(Action::discard_what(Reference::Reg(deckmaste_core::RefId(
@@ -3162,7 +3177,8 @@ mod tests {
             },
         );
         let plain = mint_in_hand(&mut state, PlayerId(0), "Hand Plain");
-        // Anje's OWN attack-trigger effect (discard your hand, then draw three).
+        // Anje's OWN attack-trigger effect (discard your hand, then draw
+        // three).
         let effect = {
             let Card::Normal(face) = state.def(anje) else {
                 panic!("Anje's Ravager is single-faced")
@@ -3573,7 +3589,8 @@ mod tests {
         let life_before = state.player(PlayerId(0)).life;
         let frame = frame_src(&state, a);
         // The shape `verb_payment_items` builds for a cost-position
-        // `Do(Action::discard(..))`: `WorkItem::RunEffect{Act(discard), frame}`.
+        // `Do(Action::discard(..))`: `WorkItem::RunEffect{Act(discard),
+        // frame}`.
         state.run_effect(
             OneShotEffect::Act(Action::discard(
                 Reference::Reg(deckmaste_core::RefId(1)),
@@ -3639,9 +3656,9 @@ mod tests {
     // --- resolution note slots ([CR#608.2c,607.2]) --------------------
 
     /// [CR#120.1,701.14a]: `DealDamage`'s explicit `source` is the dealer — the
-    /// emitted `DamageDealt` carries it, NOT `frame.source(self)`. The fight shape:
-    /// `b` (the "second" slot) deals damage equal to its power to `a` (the
-    /// "first" slot), with the frame source set to `a`.
+    /// emitted `DamageDealt` carries it, NOT `frame.source(self)`. The fight
+    /// shape: `b` (the "second" slot) deals damage equal to its power to
+    /// `a` (the "first" slot), with the frame source set to `a`.
     #[test]
     fn deal_damage_uses_explicit_source_not_frame_source() {
         let (mut state, a, b) = two_permanents_on_field();
@@ -4038,10 +4055,11 @@ mod tests {
 
     /// [CR#107.14,122.1]: "you get {E}{E}" is `PutCounters(You, Energy, N)` —
     /// a player-borne counter placement ([CR#122.1] — a counter is a marker on
-    /// an object OR player). `Reference::Reg(deckmaste_core::RefId(1))` resolves to the controller's
-    /// proxy object, so the same apply path lands the energy on the PLAYER
-    /// (energy sits on the player, [CR#107.14]), and a second gain sums
-    /// ([CR#122.1] — counters are interchangeable).
+    /// an object OR player). `Reference::Reg(deckmaste_core::RefId(1))`
+    /// resolves to the controller's proxy object, so the same apply path
+    /// lands the energy on the PLAYER (energy sits on the player,
+    /// [CR#107.14]), and a second gain sums ([CR#122.1] — counters are
+    /// interchangeable).
     #[test]
     fn get_energy_adds_counters_to_the_player_proxy() {
         let (mut state, bear) = bear_on_field();
@@ -4397,8 +4415,9 @@ mod tests {
             )),
             &frame,
         );
-        // No future-form ZoneChange was scheduled; step a couple of times anyway to
-        // prove the guard mismatch doesn't half-apply or panic.
+        // No future-form ZoneChange was scheduled; step a couple of times
+        // anyway to prove the guard mismatch doesn't half-apply or
+        // panic.
         for _ in 0..2 {
             let _ = state.step();
         }
@@ -4542,15 +4561,16 @@ mod tests {
         });
         let gy_before = state.zones.graveyards[0].len();
 
-        // The source's effect tries to counter that spell (chosen as Target(0)).
+        // The source's effect tries to counter that spell (chosen as
+        // Target(0)).
         let frame = frame_src_targets(&state, bear, vec![spell]);
         state.run_effect(
             OneShotEffect::Act(Action::Counter(Reference::Reg(deckmaste_core::RefId(6)))),
             &frame,
         );
         // Process the (empty) emit the refused counter scheduled. The refusal
-        // emits no future-form ZoneChange, so — unlike the happy path — there is no
-        // follow-up item; step exactly once.
+        // emits no future-form ZoneChange, so — unlike the happy path — there
+        // is no follow-up item; step exactly once.
         let _ = state.step();
 
         assert!(
@@ -4811,7 +4831,8 @@ mod tests {
         let mut state = game();
         let host = vanilla_creature(&mut state, "Enchanted Bear");
         // A real Aura: Enchant(creature) keyword (targeting Spell + May(Attach)
-        // grant + AsEnters) + the Aura subtype's Innate graveyard SBA + "+2/+2".
+        // grant + AsEnters) + the Aura subtype's Innate graveyard SBA +
+        // "+2/+2".
         let aura_card = Card::Normal(CardFace {
             name: "Test Aura".into(),
             types: vec![Type::Enchantment.def()],
@@ -4836,8 +4857,9 @@ mod tests {
             copy: false,
         });
         // Resolve the Aura spell — it enters attached to its chosen target.
-        // (`resolve_object` schedules the entering ZoneMove at the agenda front;
-        // `run_injected` processes just that, without parking priority.)
+        // (`resolve_object` schedules the entering ZoneMove at the agenda
+        // front; `run_injected` processes just that, without parking
+        // priority.)
         state.resolve_object(spell);
         run_injected(&mut state);
 
@@ -4858,8 +4880,9 @@ mod tests {
             "the enchanted creature gets +2/+2"
         );
 
-        // Destroy the host (source = host, `This` = the dying creature); the SBA
-        // sweep then sends the now-unattached Aura to the graveyard ([CR#704.5m]).
+        // Destroy the host (source = host, `This` = the dying creature); the
+        // SBA sweep then sends the now-unattached Aura to the graveyard
+        // ([CR#704.5m]).
         let frame = frame_src(&state, host);
         state.run_effect(
             OneShotEffect::Act(Action::destroy(Reference::Reg(deckmaste_core::RefId(0)))),
@@ -5459,6 +5482,887 @@ mod tests {
                 |e| matches!(e, GameEvent::Transformed(o) if *o == id)
             ),
             "no Transformed fact when the destination face is a sorcery"
+        );
+    }
+
+    // ---- Region-form fixtures for the restored keyword-action tests ----
+
+    /// The loop element inside a [`loop_region`] — the register the retired
+    /// `Reference::It` named.
+    const ELEMENT: deckmaste_core::RefId = deckmaste_core::RefId(0);
+    /// The enclosing controller as seen from inside a [`loop_region`].
+    const LOOP_CONTROLLER: deckmaste_core::RefId = deckmaste_core::RefId(2);
+    /// The first instruction definition of a `frame_src`/`frame_for`-shaped
+    /// activation: source(0), controller(1), the four event roles(2..=5),
+    /// announced X(6).
+    const FIRST_DEF: deckmaste_core::DefId = deckmaste_core::DefId(7);
+
+    /// A loop body region: the element at parameter zero, then the enclosing
+    /// source and controller — the prefix lowering's `in_child` builds for an
+    /// `Each` body.
+    fn loop_region(body: OneShotEffect) -> deckmaste_core::Region {
+        deckmaste_core::Region::new(
+            Arc::from([
+                deckmaste_core::Param {
+                    def: deckmaste_core::DefId(0),
+                    kind: deckmaste_core::Kind::Object,
+                    provenance: deckmaste_core::Provenance::LoopElement,
+                },
+                deckmaste_core::Param {
+                    def: deckmaste_core::DefId(1),
+                    kind: deckmaste_core::Kind::Object,
+                    provenance: deckmaste_core::Provenance::Source,
+                },
+                deckmaste_core::Param {
+                    def: deckmaste_core::DefId(2),
+                    kind: deckmaste_core::Kind::Object,
+                    provenance: deckmaste_core::Provenance::Controller,
+                },
+            ]),
+            body.into(),
+        )
+    }
+
+    /// A per-candidate predicate region — the candidate at parameter zero.
+    fn candidate_region(body: Predicate) -> Arc<deckmaste_core::Region<Predicate>> {
+        Arc::new(deckmaste_core::Region::candidate(body))
+    }
+
+    fn creatures_on_the_battlefield() -> Predicate {
+        Predicate::And(
+            vec![
+                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                Predicate::creature(),
+            ]
+            .into(),
+        )
+    }
+
+    /// The recomposed `scry n` effect ([CR#701.22a]): the committed north-star
+    /// shape — `Composite Scry (Each (TopOfLibrary n) (Modal 1-of-2
+    /// [Move(<element>, Library(FromTop 0)), Move(<element>,
+    /// Library(FromBottom 0))]))`. Re-spelled from the deleted `scry_effect`,
+    /// whose `Binder::Existing` and `Reference::It` are the loop's `over`
+    /// selection and its element parameter now.
+    fn scry_effect(n: Uint) -> OneShotEffect {
+        let mode = |anchor| deckmaste_core::Mode {
+            targets: [].into(),
+            effect: OneShotEffect::Act(Action::Move(
+                Reference::Reg(ELEMENT),
+                Destination::Library(anchor),
+                vec![].into(),
+                None,
+            ))
+            .into(),
+            cost: deckmaste_core::Cost([].into()),
+        };
+        OneShotEffect::Act(Action::Composite {
+            name: deckmaste_core::VerbName::from("Scry"),
+            body: Arc::new(OneShotEffect::Each(deckmaste_core::Each {
+                over: Selection::TopOfLibrary {
+                    count: Count::Literal(n),
+                    whose: Reference::controller_parameter(),
+                },
+                body: loop_region(OneShotEffect::Modal(deckmaste_core::Modal {
+                    choose: deckmaste_core::ChooseSpec {
+                        count: deckmaste_core::Quantity::Range(
+                            Some(Count::Literal(1)),
+                            Some(Count::Literal(1)),
+                        ),
+                        up_to: false,
+                        repeats: false,
+                        chooser: Reference::Reg(LOOP_CONTROLLER),
+                        rider: None,
+                    },
+                    modes: vec![
+                        mode(Anchor::FromTop(Count::Literal(0))),
+                        mode(Anchor::FromBottom(Count::Literal(0))),
+                    ]
+                    .into(),
+                })),
+            })),
+        })
+    }
+
+    /// Run `effect` inside an explicit note window ([CR#607.2a]): the runtime
+    /// product-group store collects every enacted move fact between
+    /// `BeginNote` and `EndNote`.
+    fn run_effect_noting(
+        state: &mut GameState,
+        key: &str,
+        effect: OneShotEffect,
+        frame: &crate::stack::Frame,
+    ) {
+        state.schedule_front(vec![
+            WorkItem::BeginNote {
+                key: deckmaste_core::Ident::from(key),
+            },
+            WorkItem::RunEffect {
+                effect: Arc::new(effect),
+                frame: frame.clone(),
+            },
+            WorkItem::EndNote,
+        ]);
+    }
+
+    /// [CR#701.22b,614.17]: a `Cant(Act(name: "Scry"))` static on the
+    /// battlefield suppresses the scry `Action::Composite`'s `Act` event, so
+    /// its body never runs — no per-card decision surfaces, no `Act` fact
+    /// fires, and the library is untouched. Absent the static, the same scry
+    /// runs normally. Proves the keyword-action event flows through the guard
+    /// (cant) pass, modelled on `replace_registry`'s
+    /// indestructible/cant-happen patterns.
+    #[test]
+    fn cant_act_suppresses_composite_body() {
+        use deckmaste_core::EventFilter;
+
+        let p0 = PlayerId(0);
+
+        // ABSENT the cant: scry-1 runs, surfacing the per-card top/bottom pick.
+        let mut state = game();
+        mint_in_library(&mut state, p0, "A");
+        mint_in_library(&mut state, p0, "B");
+        let frame = frame_for(&state, p0);
+        state.run_effect(scry_effect(1), &frame);
+        drain_events(&mut state, 60);
+        assert!(
+            matches!(
+                state.pending,
+                Some(PendingDecision::ChooseModes(
+                    crate::decide::pending::ChooseModes { .. }
+                ))
+            ),
+            "without the cant, scry runs and surfaces its pick, got {:?}",
+            state.pending
+        );
+
+        // WITH a `Cant(Act(Scry(Any)))` static on the battlefield: the
+        // Act event is suppressed, so the body never runs.
+        let mut state = game();
+        let a = mint_in_library(&mut state, p0, "A");
+        let b = mint_in_library(&mut state, p0, "B");
+        mint_on_field(
+            &mut state,
+            Card::Normal(CardFace {
+                name: "Scry Warden".into(),
+                types: vec![Type::Creature.def()],
+                abilities: vec![Ability::r#static(StaticEffect::CantHappen(
+                    EventFilter::Act {
+                        verb: deckmaste_core::VerbName::from("Scry"),
+                        who: Predicate::Any,
+                        on: Predicate::Any,
+                        cause: None,
+                    },
+                ))],
+                ..CardFace::default()
+            }),
+        );
+        let frame = frame_for(&state, p0);
+        state.run_effect(scry_effect(1), &frame);
+        let events = drain_events(&mut state, 60);
+        assert!(
+            !matches!(
+                state.pending,
+                Some(PendingDecision::ChooseModes(
+                    crate::decide::pending::ChooseModes { .. }
+                ))
+            ),
+            "the canted Act suppresses the scry body — its per-card pick never surfaces, got {:?}",
+            state.pending
+        );
+        assert!(
+            !events
+                .iter()
+                .any(|e| matches!(e, GameEvent::Act(Act { .. }))),
+            "a suppressed composite fires no keyword-action fact"
+        );
+        assert_eq!(
+            state.zones.libraries[p0.index()]
+                .iter()
+                .copied()
+                .collect::<Vec<_>>(),
+            vec![a, b],
+            "the library is untouched — the scry body never ran"
+        );
+    }
+
+    /// [CR#401.4]: a pile of MORE THAN ONE card at a library end surfaces one
+    /// arrange decision (both-on-top), while a scry whose picks split one card
+    /// to each end surfaces NONE (every pile is a single card).
+    #[test]
+    fn scry_arrange_surfaces_only_for_multi_card_piles() {
+        let p0 = PlayerId(0);
+
+        // Both on top → one arrange decision over the two-card pile.
+        let mut state = game();
+        let a = mint_in_library(&mut state, p0, "A");
+        let b = mint_in_library(&mut state, p0, "B");
+        mint_in_library(&mut state, p0, "C");
+        let frame = frame_for(&state, p0);
+        state.run_effect(scry_effect(2), &frame);
+        drain_events(&mut state, 60);
+        state.submit_decision(Decision::Modes(vec![0])).unwrap(); // a → top
+        drain_events(&mut state, 60);
+        state.submit_decision(Decision::Modes(vec![0])).unwrap(); // b → top
+        drain_events(&mut state, 60);
+        let Some(PendingDecision::ArrangePile(crate::decide::pending::ArrangePile {
+            player,
+            objects,
+        })) = state.pending.clone()
+        else {
+            panic!("expected an ArrangePile decision, got {:?}", state.pending);
+        };
+        assert_eq!(player, p0, "the scrying player arranges");
+        assert_eq!(
+            objects
+                .iter()
+                .copied()
+                .collect::<std::collections::HashSet<_>>(),
+            [a, b].into_iter().collect(),
+            "the top pile holds both peeked cards"
+        );
+
+        // One top, one bottom → two singleton piles → no arrange decision.
+        let mut state = game();
+        mint_in_library(&mut state, p0, "A");
+        mint_in_library(&mut state, p0, "B");
+        mint_in_library(&mut state, p0, "C");
+        let frame = frame_for(&state, p0);
+        state.run_effect(scry_effect(2), &frame);
+        drain_events(&mut state, 60);
+        state.submit_decision(Decision::Modes(vec![0])).unwrap(); // a → top
+        drain_events(&mut state, 60);
+        state.submit_decision(Decision::Modes(vec![1])).unwrap(); // b → bottom
+        let events = drain_events(&mut state, 60);
+        assert!(
+            !matches!(
+                state.pending,
+                Some(PendingDecision::ArrangePile(
+                    crate::decide::pending::ArrangePile { .. }
+                ))
+            ),
+            "two singleton piles surface no arrange decision, got {:?}",
+            state.pending
+        );
+        assert!(
+            events.iter().any(|e| matches!(
+                e,
+                GameEvent::Act(Act { verb, .. }) if verb.as_str() == "Scry"
+            )),
+            "the keyword event still fires"
+        );
+    }
+
+    /// [CR#701.22d]: the "whenever you scry" trigger fact —
+    /// the `Act(Scry)` — is recorded only AFTER the arrange commits. The
+    /// `Act(Scry)` applied fact must come after the last library reposition in
+    /// the resolution trace.
+    #[test]
+    fn scry_fact_records_after_the_arrange() {
+        let p0 = PlayerId(0);
+        let mut state = game();
+        mint_in_library(&mut state, p0, "A");
+        mint_in_library(&mut state, p0, "B");
+        let frame = frame_for(&state, p0);
+        state.run_effect(scry_effect(1), &frame);
+        drain_progress(&mut state, 60); // → the per-card top/bottom pick.
+        state.submit_decision(Decision::Modes(vec![1])).unwrap(); // bottom.
+        let trace = drain_progress(&mut state, 60);
+
+        let repos = trace
+            .iter()
+            .rposition(|p| matches!(p, Progress::Repositioned(_)))
+            .expect("the scry repositioned a card");
+        let act = trace
+            .iter()
+            .position(|p| matches!(p, Progress::Applied(occ)
+                if occ_has(occ, |e| matches!(e, GameEvent::Act(Act { verb, .. }) if verb.as_str() == "Scry"))))
+            .expect("the scry fact was recorded");
+        assert!(
+            act > repos,
+            "the Act(Scry) fact ({act}) records after the reposition ({repos})"
+        );
+    }
+
+    /// [CR#701.22a,401.7]: scry-1 to the BOTTOM repositions the peeked card
+    /// within the SAME library — the `ObjectId` is preserved, no `ZoneChange`
+    /// fires (a pile of one surfaces no arrange decision), and the
+    /// keyword-action event fires once the pick lands ([CR#701.22d]).
+    #[test]
+    fn scry_reposition_keeps_id_and_fires_no_zone_change() {
+        let p0 = PlayerId(0);
+        let mut state = game();
+        let a = mint_in_library(&mut state, p0, "A");
+        let b = mint_in_library(&mut state, p0, "B");
+        let c = mint_in_library(&mut state, p0, "C");
+        // library top→bottom = [a, b, c].
+        let frame = frame_for(&state, p0);
+        state.run_effect(scry_effect(1), &frame);
+        drain_events(&mut state, 60); // → the single Modal decision
+        assert!(
+            matches!(
+                state.pending,
+                Some(PendingDecision::ChooseModes(
+                    crate::decide::pending::ChooseModes { .. }
+                ))
+            ),
+            "scry surfaces the per-card top/bottom pick, got {:?}",
+            state.pending
+        );
+        // The looker sees the peeked card.
+        assert!(state.look_grants.contains(&(p0, a)), "peek grants look");
+        // Pick mode 1 (bottom).
+        state.submit_decision(Decision::Modes(vec![1])).unwrap();
+        let events = drain_events(&mut state, 60);
+        // `a` moved to the bottom, SAME id, no zone change.
+        assert_eq!(
+            state.zones.libraries[p0.index()]
+                .iter()
+                .copied()
+                .collect::<Vec<_>>(),
+            vec![b, c, a],
+            "a repositioned to the bottom, keeping its id"
+        );
+        assert!(
+            state.objects.get(a).is_some(),
+            "the repositioned object id is preserved (not reminted)"
+        );
+        assert!(
+            !events.iter().any(|e| matches!(
+                e,
+                GameEvent::ZoneChange(ZoneChange {
+                    snapshot: Some(_),
+                    ..
+                })
+            )),
+            "a same-library reposition fires no past-form ZoneChange"
+        );
+        assert!(
+            events.iter().any(|e| matches!(
+                e,
+                GameEvent::Act(Act { verb, .. }) if verb.as_str() == "Scry"
+            )),
+            "scry-1 fires the keyword-action event"
+        );
+    }
+
+    /// [CR#701.22a]: a full scry-2 both-on-top round trip — the arrange decision
+    /// orders the top pile, and the library ends up in the chosen order above
+    /// the untouched rest, every id preserved.
+    #[test]
+    fn scry_two_both_top_round_trip() {
+        let p0 = PlayerId(0);
+        let mut state = game();
+        let a = mint_in_library(&mut state, p0, "A");
+        let b = mint_in_library(&mut state, p0, "B");
+        let c = mint_in_library(&mut state, p0, "C");
+        let d = mint_in_library(&mut state, p0, "D");
+        // top→bottom = [a, b, c, d].
+        let frame = frame_for(&state, p0);
+        state.run_effect(scry_effect(2), &frame);
+        drain_events(&mut state, 60);
+        state.submit_decision(Decision::Modes(vec![0])).unwrap(); // a → top
+        drain_events(&mut state, 60);
+        state.submit_decision(Decision::Modes(vec![0])).unwrap(); // b → top
+        drain_events(&mut state, 60);
+        // Arrange the top pile as b, then a (top → down).
+        state
+            .submit_decision(Decision::Arranged(vec![b, a]))
+            .unwrap();
+        drain_events(&mut state, 60);
+        assert_eq!(
+            state.zones.libraries[p0.index()]
+                .iter()
+                .copied()
+                .collect::<Vec<_>>(),
+            vec![b, a, c, d],
+            "the chosen order sits on top, the rest untouched, ids preserved"
+        );
+    }
+
+    /// [CR#701.22b]: scry 0 does nothing and fires NO keyword event; scry N>0
+    /// fires exactly one `Act`.
+    #[test]
+    fn scry_zero_fires_no_event_but_nonzero_does() {
+        let p0 = PlayerId(0);
+
+        // scry 0 over a stocked library: no decision, no event.
+        let mut state = game();
+        mint_in_library(&mut state, p0, "A");
+        mint_in_library(&mut state, p0, "B");
+        let frame = frame_for(&state, p0);
+        state.run_effect(scry_effect(0), &frame);
+        let events = drain_events(&mut state, 60);
+        assert!(
+            !events
+                .iter()
+                .any(|e| matches!(e, GameEvent::Act(Act { .. }))),
+            "scry 0 emits no keyword event ([CR#701.22b])"
+        );
+
+        // scry 1 fires exactly one.
+        let mut state = game();
+        mint_in_library(&mut state, p0, "A");
+        mint_in_library(&mut state, p0, "B");
+        let frame = frame_for(&state, p0);
+        state.run_effect(scry_effect(1), &frame);
+        drain_events(&mut state, 60);
+        state.submit_decision(Decision::Modes(vec![0])).unwrap();
+        let events = drain_events(&mut state, 60);
+        let scries = events
+            .iter()
+            .filter(|e| {
+                matches!(
+                    e,
+                    GameEvent::Act(Act { verb, .. }) if verb.as_str() == "Scry"
+                )
+            })
+            .count();
+        assert_eq!(scries, 1, "scry 1 fires exactly one keyword event");
+    }
+
+    /// "Cards milled this way" ([CR#701.17a,701.17c,607.2a]): a mill inside a
+    /// note window commits the three moves as ONE cause-carried batch and
+    /// populates the product group from the enacted facts. Re-spelled from
+    /// `cards_milled_this_way_reads_the_enacted_product_group` — core deletes
+    /// the `Noting` node, so the window is scheduled directly; the follow-on
+    /// clause that ACTED on the group has no core spelling left and rides
+    /// `a_noted_product_group_can_be_acted_on` below.
+    #[test]
+    fn cards_milled_this_way_reads_the_enacted_product_group() {
+        let (mut state, a) = bear_on_field();
+        let libsize = state.zones.libraries[0].len();
+        assert!(libsize >= 3, "the harness deck has cards to mill");
+
+        let frame = frame_src(&state, a);
+        run_effect_noting(
+            &mut state,
+            "milled",
+            OneShotEffect::mill(Reference::controller_parameter(), Count::Literal(3)),
+            &frame,
+        );
+        run_injected(&mut state);
+
+        let group = &state.noted[&deckmaste_core::Ident::from("milled")];
+        assert_eq!(group.len(), 3, "three enacted mill facts");
+        assert!(
+            logged(&state, |e| matches!(
+                e,
+                GameEvent::ZoneChange(ZoneChange {
+                    snapshot: Some(_),
+                    cause: Some(c),
+                    to: Zone::Graveyard,
+                    ..
+                }) if c.verb.as_str() == "Mill"
+            )),
+            "the moves carry the Mill cause ([CR#701.17a])"
+        );
+        assert_eq!(
+            state.zones.libraries[0].len(),
+            libsize - 3,
+            "three cards left the library"
+        );
+        assert_eq!(
+            state.zones.graveyards[0].len(),
+            3,
+            "the milled cards are in the graveyard"
+        );
+    }
+
+    /// The half of `cards_milled_this_way_reads_the_enacted_product_group`
+    /// that ACTED on the group: "exile the cards milled this way" iterates the
+    /// noted product group ([CR#607.2a]) and moves exactly those cards.
+    #[test]
+    #[ignore = "blocker: a noted product group has no core spelling. `core: \
+                complete discourse regions` deleted Noting and \
+                Selection::AmongNoted, and the runtime store they drove \
+                (GameState.noted, WorkItem::BeginNote/EndNote) now has no \
+                producer — nothing in the engine schedules a note window and \
+                no register reads one back. Unblocked by giving the linked \
+                memory stage ([CR#607], ADR law 8) a Remember instruction \
+                whose cell a later region takes as a Linked parameter."]
+    fn a_noted_product_group_can_be_acted_on() {
+        let (mut state, a) = bear_on_field();
+        let frame = frame_src(&state, a);
+        run_effect_noting(
+            &mut state,
+            "milled",
+            OneShotEffect::mill(Reference::controller_parameter(), Count::Literal(3)),
+            &frame,
+        );
+        run_injected(&mut state);
+        let milled: Vec<ObjectId> = state.noted[&deckmaste_core::Ident::from("milled")]
+            .iter()
+            .filter_map(|member| member.now)
+            .collect();
+        assert_eq!(milled.len(), 3, "three enacted mill facts");
+
+        state.run_effect(
+            OneShotEffect::Each(deckmaste_core::Each {
+                over: Selection::PilesOf {
+                    note: deckmaste_core::Ident::from("milled"),
+                    of: Reference::controller_parameter(),
+                },
+                body: loop_region(OneShotEffect::Act(Action::Move(
+                    Reference::Reg(ELEMENT),
+                    Destination::Zone(Zone::Exile),
+                    vec![].into(),
+                    None,
+                ))),
+            }),
+            &frame,
+        );
+        run_injected(&mut state);
+        assert_eq!(
+            state.zones.exile.len(),
+            3,
+            "the follow-on clause exiled exactly the cards milled this way"
+        );
+        assert!(
+            state.zones.graveyards[0].is_empty(),
+            "the milled cards moved on from the graveyard"
+        );
+    }
+
+    /// A payment-time-shaped choice instruction surfaces `ChooseObjects`; an
+    /// out-of-range count and an out-of-pool object are rejected; a legal pick
+    /// destroys exactly that creature ([CR#608.2d]). Choosing is its own
+    /// instruction, writing the register the verb reads — never part of the
+    /// verb. Re-spelled from
+    /// `destroy_choose_surfaces_decision_validates_and_destroys`.
+    #[test]
+    fn destroy_choose_surfaces_decision_validates_and_destroys() {
+        let (mut state, bear) = bear_on_field();
+        let theirs = second_bear_to_player_1(&mut state);
+
+        let frame = frame_src(&state, bear);
+        state.run_effect(
+            OneShotEffect::Sequentially(
+                vec![
+                    OneShotEffect::Choose(deckmaste_core::Choose {
+                        dest: FIRST_DEF,
+                        by: Reference::controller_parameter(),
+                        quantity: deckmaste_core::Quantity::one(),
+                        filter: candidate_region(creatures_on_the_battlefield()),
+                    }),
+                    OneShotEffect::Act(Action::destroy(Reference::Reg(FIRST_DEF.into()))),
+                ]
+                .into(),
+            ),
+            &frame,
+        );
+
+        drain_events(&mut state, 20);
+        let Some(PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects {
+            player,
+            candidates,
+            min,
+            max,
+        })) = state.pending.clone()
+        else {
+            panic!("expected ChooseObjects, got {:?}", state.pending);
+        };
+        assert_eq!(player, PlayerId(0));
+        assert_eq!((min, max), (1, 1));
+        assert_eq!(
+            candidates.len(),
+            2,
+            "both battlefield creatures are candidates"
+        );
+
+        // Too many (count 2 > max 1).
+        assert!(
+            state
+                .submit_decision(Decision::Chosen(candidates.clone()))
+                .is_err_and(|err| err.to_string().contains("illegal object selection")),
+            "count must be within [min, max]"
+        );
+        // Out of pool (a player proxy is not a creature).
+        assert!(
+            state
+                .submit_decision(Decision::Chosen(vec![state.player(PlayerId(0)).object]))
+                .is_err_and(|err| err.to_string().contains("illegal object selection")),
+            "every chosen object must be a candidate"
+        );
+
+        // Legal: destroy player 1's creature.
+        state
+            .submit_decision(Decision::Chosen(vec![theirs]))
+            .unwrap();
+        // Pump the agenda to completion (bounded safety cap; we assert on the
+        // post-condition, not the iteration count).
+        for _ in 0..30 {
+            if !state.zones.battlefield.contains(&theirs) {
+                break;
+            }
+            let _ = state.step();
+        }
+        assert!(
+            !state.zones.battlefield.contains(&theirs),
+            "the chosen creature is destroyed"
+        );
+        assert!(
+            state.zones.battlefield.contains(&bear),
+            "the unchosen creature survives"
+        );
+    }
+
+    /// The Blood-Money shape ([CR#607.2a] fact-backed product groups): a
+    /// destroy-all over three creatures inside a note window, one of which
+    /// can't be destroyed — "destroyed this way" is exactly the clause's
+    /// enacted destroy-caused past-form `ZoneChange` facts, so the survivor is
+    /// excluded BY CONSTRUCTION (its `Act(Destroy)` was canted; no move
+    /// fact exists), and the two dies-facts share one history batch id
+    /// ([CR#603.2c]).
+    #[test]
+    fn destroyed_this_way_product_group_excludes_indestructible_survivor() {
+        let (mut state, a, b) = two_permanents_on_field();
+        // The indestructible shape ([CR#702.12b] — destruction can't
+        // happen), as the canted static.
+        let survivor = {
+            let source = "Normal(name: \"Darksteel Test\", types: [Creature], abilities: [\
+                 Static(CantHappen(ZoneChange(what: Ref(This), \
+                 from: Battlefield, to: Graveyard)))])";
+            let card = builtin().card_from_str(source).unwrap().core;
+            mint_on_field(&mut state, card)
+        };
+
+        let frame = frame_src(&state, a);
+        run_effect_noting(
+            &mut state,
+            "destroyed",
+            OneShotEffect::Each(deckmaste_core::Each {
+                over: Selection::SelectAll(candidate_region(creatures_on_the_battlefield())),
+                body: loop_region(OneShotEffect::Act(Action::destroy(Reference::Reg(ELEMENT)))),
+            }),
+            &frame,
+        );
+        run_injected(&mut state);
+
+        assert!(
+            state.objects.get(survivor).is_some()
+                && state.objects.obj(survivor).zone == Some(Zone::Battlefield),
+            "the can't-be-destroyed creature survived"
+        );
+        let group = &state.noted[&deckmaste_core::Ident::from("destroyed")];
+        assert_eq!(
+            group.len(),
+            2,
+            "the product group is the ENACTED destroy facts, not the gathered set"
+        );
+        let members: Vec<ObjectId> = group.iter().map(|m| m.snapshot.object).collect();
+        assert!(
+            members.contains(&a) && members.contains(&b),
+            "exactly the two destroyed creatures, by LKI"
+        );
+        // The dies-facts committed as ONE batch ([CR#603.2c]).
+        let ids: Vec<Option<deckmaste_core::Uint>> = state
+            .history
+            .entries()
+            .filter(|e| {
+                matches!(
+                    e.fact,
+                    GameEvent::ZoneChange(ZoneChange {
+                        snapshot: Some(_),
+                        ..
+                    })
+                )
+            })
+            .map(|e| e.batch)
+            .collect();
+        assert_eq!(ids.len(), 2);
+        assert!(ids[0].is_some() && ids[0] == ids[1], "one shared batch id");
+    }
+
+    /// A `Random` group drives a verb with NO surfaced decision:
+    /// `Each(Random(Exactly 1, creature), Destroy(<element>))` samples the pick
+    /// through the seeded rng and destroys exactly that one creature
+    /// ([CR#608.2d,701.9b]). Re-spelled from
+    /// `destroy_random_destroys_one_without_a_decision` — the sample is the
+    /// iterator's own, not a pre-bound frame slot.
+    #[test]
+    fn destroy_random_destroys_one_without_a_decision() {
+        let (mut state, bear) = bear_on_field();
+        let theirs = second_bear_to_player_1(&mut state);
+
+        let frame = frame_src(&state, bear);
+        let before = [bear, theirs]
+            .iter()
+            .filter(|o| state.zones.battlefield.contains(o))
+            .count();
+        assert_eq!(before, 2);
+
+        state.run_effect(
+            OneShotEffect::Each(deckmaste_core::Each {
+                over: Selection::Random(
+                    deckmaste_core::Quantity::one(),
+                    creatures_on_the_battlefield(),
+                ),
+                body: loop_region(OneShotEffect::Act(Action::destroy(Reference::Reg(ELEMENT)))),
+            }),
+            &frame,
+        );
+        // No decision: the sample is taken by the iterator itself.
+        assert!(
+            !matches!(state.step(), StepOutcome::NeedsDecision(_)),
+            "a randomly sampled group surfaces no decision"
+        );
+        // Pump the agenda to completion (bounded safety cap; assert on the
+        // post-condition, not the iteration count).
+        for _ in 0..30 {
+            let alive = [bear, theirs]
+                .iter()
+                .filter(|o| state.zones.battlefield.contains(o))
+                .count();
+            if alive == 1 {
+                break;
+            }
+            let _ = state.step();
+        }
+        let alive = [bear, theirs]
+            .iter()
+            .filter(|o| state.zones.battlefield.contains(o))
+            .count();
+        assert_eq!(
+            alive, 1,
+            "exactly one creature destroyed (the sampled pick)"
+        );
+    }
+
+    /// [CR#114.1]: the `GetEmblem` verb lowers to exactly one `EmblemCreated`
+    /// fact carrying the emblem's abilities for the actor — the resolution wire
+    /// the command-zone mint (`apply_emblem_created`) applies.
+    #[test]
+    fn get_emblem_emits_emblem_created_for_the_actor() {
+        let state = game();
+        let p0 = PlayerId(0);
+        let frame = frame_for(&state, p0);
+        let abilities = vec![deckmaste_core::Ability::r#static(
+            deckmaste_core::StaticEffect::Modify(
+                deckmaste_core::Reference::source_parameter(),
+                deckmaste_core::Modification::Power(deckmaste_core::NumericOp::Up(
+                    deckmaste_core::Count::Literal(1),
+                )),
+            ),
+        )];
+        let act = deckmaste_core::Action::GetEmblem(
+            Reference::controller_parameter(),
+            abilities.clone().into(),
+        );
+
+        let items = state.player_action_items(&act, &frame);
+        assert_eq!(items.len(), 1, "GetEmblem emits exactly one fact");
+        match &items[0] {
+            crate::agenda::WorkItem::Emit(Occurrence::Single(GameEvent::EmblemCreated(
+                crate::event::EmblemCreated {
+                    player,
+                    abilities: emitted,
+                },
+            ))) => {
+                assert_eq!(*player, p0, "the emblem goes to the actor ([CR#114.2])");
+                assert_eq!(*emitted, abilities, "carries the payload abilities");
+            }
+            other => panic!("expected one EmblemCreated emit, got {other:?}"),
+        }
+    }
+
+    /// Finalization ([CR#701.9c]): a replacement that REDIRECTS the discard's
+    /// move (to Exile) rather than fully replacing it still lets the
+    /// `Act(Discard)` name-fact record — the Megrim-under-madness shape. The
+    /// card lands in exile, and the discard fact is recorded so a
+    /// "whenever ~ discards" trigger would still fire.
+    #[test]
+    fn redirected_discard_still_records_the_name_fact() {
+        use deckmaste_core::EventFilter;
+        use deckmaste_core::Replacement;
+        use deckmaste_core::VerbName;
+
+        let mut state = game();
+        let field = mint_on_field(
+            &mut state,
+            Card::Normal(CardFace {
+                name: "Leyline".into(),
+                types: vec![Type::Creature.def()],
+                abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
+                    Replacement::Instead {
+                        would: EventFilter::Act {
+                            verb: VerbName::from("Discard"),
+                            who: Predicate::Any,
+                            on: Predicate::Any,
+                            cause: None,
+                        },
+                        instead: OneShotEffect::Act(Action::move_to(
+                            Reference::Reg(deckmaste_core::RefId(2)),
+                            Zone::Exile,
+                        )),
+                    },
+                )))],
+                ..CardFace::default()
+            }),
+        );
+        // A card in player 0's hand to discard.
+        let card = mint_in_hand(&mut state, PlayerId(0), "Discardee");
+
+        // The discarded card rides an instruction definition — the register
+        // the retired `It` binding named.
+        let frame = frame_src(&state, field);
+        state.activation_write_object(frame.activation, FIRST_DEF, card);
+        state.run_effect(
+            OneShotEffect::Act(Action::discard_what(Reference::Reg(FIRST_DEF.into()))),
+            &frame,
+        );
+        drain_events(&mut state, 30);
+
+        // Zone changes REMINT ids ([CR#400.7]), so membership is by backing
+        // card, not the pre-move `ObjectId`.
+        assert!(
+            zone_has_named(&state, &state.zones.exile, "Discardee"),
+            "the redirected discard put the card into exile"
+        );
+        assert!(
+            !zone_has_named(&state, &state.zones.hands[0], "Discardee"),
+            "the card left the hand"
+        );
+        assert!(
+            state.zones.graveyards[0].is_empty(),
+            "the redirect kept the card out of the graveyard"
+        );
+        assert!(
+            logged(
+                &state,
+                |e| matches!(e, GameEvent::Act(Act { verb, committed: true, .. })
+                    if verb.as_str() == "Discard")
+            ),
+            "the Act(Discard) name-fact still records ([CR#701.9c])"
+        );
+    }
+
+    /// [CR#701.8a]: a keyword action whose performer register resolves to
+    /// nobody FIZZLES — no `Act(Draw)` fact, no `DrewFromEmpty`, no panic.
+    #[test]
+    fn unresolvable_who_fizzles_draw() {
+        /// A register no activation declares — the frameless unbound read.
+        const UNBOUND: deckmaste_core::RefId = deckmaste_core::RefId(20);
+
+        let (mut state, src) = bear_on_field();
+        let frame = frame_src(&state, src);
+        state.run_effect(
+            OneShotEffect::draw(Reference::Reg(UNBOUND), Count::Literal(1)),
+            &frame,
+        );
+        let events = drain_events(&mut state, 30);
+
+        assert!(
+            !events
+                .iter()
+                .any(|e| matches!(e, GameEvent::Act(Act { .. }))),
+            "an unresolvable draw fires no keyword-action fact"
+        );
+        assert!(
+            !events
+                .iter()
+                .any(|e| matches!(e, GameEvent::DrewFromEmpty(_))),
+            "an unresolvable draw never reaches the empty-library loss"
         );
     }
 }

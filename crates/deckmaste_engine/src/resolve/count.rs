@@ -2229,4 +2229,457 @@ mod tests {
             "distinct toughnesses {{2,4,3}}",
         );
     }
+
+    /// A per-candidate region: the candidate at parameter zero, then the
+    /// enclosing source and controller — the prefix lowering's `in_child`
+    /// builds for a nested predicate or projection.
+    fn candidate_region<T>(body: T) -> Arc<deckmaste_core::Region<T>> {
+        Arc::new(deckmaste_core::Region::new(
+            Arc::from([
+                deckmaste_core::Param {
+                    def: deckmaste_core::DefId(0),
+                    kind: deckmaste_core::Kind::Object,
+                    provenance: deckmaste_core::Provenance::Candidate,
+                },
+                deckmaste_core::Param {
+                    def: deckmaste_core::DefId(1),
+                    kind: deckmaste_core::Kind::Object,
+                    provenance: deckmaste_core::Provenance::Source,
+                },
+                deckmaste_core::Param {
+                    def: deckmaste_core::DefId(2),
+                    kind: deckmaste_core::Kind::Object,
+                    provenance: deckmaste_core::Provenance::Controller,
+                },
+            ]),
+            body,
+        ))
+    }
+
+    /// The element under test inside a [`candidate_region`] — the register the
+    /// retired `Reference::It` named.
+    const ELEMENT: deckmaste_core::RefId = deckmaste_core::RefId(0);
+    /// The enclosing controller as seen from inside a [`candidate_region`].
+    const NESTED_CONTROLLER: deckmaste_core::RefId = deckmaste_core::RefId(2);
+
+    /// `Count::Aggregate(op, Projection)` folds a per-element `Count` over the
+    /// projected set ([CR#107.1]), each element supplied through the
+    /// projection region's candidate parameter. Devotion decomposes to
+    /// `Aggregate(SumOf, Project(<your permanents>, CountOf(ManaSymbols(<the
+    /// element>, CountsAs(Green)))))` ([CR#700.5]); `SumOf` over
+    /// `StatOf(<element>, Power)` totals power; every `AggregateOp` folds the
+    /// empty set to 0 (never-crash).
+    #[test]
+    fn aggregate_folds_a_projection_over_a_selection() {
+        use deckmaste_core::AggregateOp;
+        use deckmaste_core::Color;
+        use deckmaste_core::Projection;
+        use deckmaste_core::RelationPredicate;
+        use deckmaste_core::StatePredicate;
+        use deckmaste_core::SymbolPred;
+
+        let mut state = game();
+        let _ = permanent_with_cost(&mut state, "{2}{G}");
+        let _ = permanent_with_cost(&mut state, "{G}{G}");
+        let src = permanent_with_cost(&mut state, "{1}");
+        let frame = frame_src(&state, src);
+
+        let your_permanents = || {
+            Predicate::And(
+                vec![
+                    Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                    Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
+                        Reference::Reg(NESTED_CONTROLLER),
+                    )))),
+                ]
+                .into(),
+            )
+        };
+
+        let devotion_green = Count::Aggregate(
+            AggregateOp::SumOf,
+            Projection {
+                of: Countable::Objects(candidate_region(your_permanents())),
+                by: candidate_region(Count::CountOf(Countable::ManaSymbols(
+                    Arc::new(Reference::Reg(ELEMENT)),
+                    SymbolPred::CountsAs(Color::Green),
+                ))),
+            },
+        );
+        assert_eq!(
+            state.eval_count(&devotion_green, &frame),
+            3,
+            "{{2}}{{G}} + {{G}}{{G}} + {{1}} = 3 green pips total"
+        );
+
+        // `SumOf` over `StatOf(<element>, Power)`: total power of your
+        // creatures.
+        let mut power_state = game();
+        let src = permanent_with_cost(&mut power_state, "{1}");
+        let _ = creature_with_power(&mut power_state, 2);
+        let _ = creature_with_power(&mut power_state, 5);
+        let frame = frame_src(&power_state, src);
+        let total_power = Count::Aggregate(
+            AggregateOp::SumOf,
+            Projection {
+                of: Countable::Objects(candidate_region(Predicate::And(
+                    vec![
+                        Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                        Predicate::creature(),
+                    ]
+                    .into(),
+                ))),
+                by: candidate_region(Count::StatOf(
+                    Reference::Reg(ELEMENT),
+                    deckmaste_core::Stat::Power,
+                )),
+            },
+        );
+        assert_eq!(power_state.eval_count(&total_power, &frame), 7);
+
+        // The empty set folds every `AggregateOp` to 0.
+        for op in [
+            AggregateOp::SumOf,
+            AggregateOp::MinOf,
+            AggregateOp::MaxOf,
+            AggregateOp::AverageOf(deckmaste_core::RoundMode::RoundUp),
+        ] {
+            let empty_fold = Count::Aggregate(
+                op,
+                Projection {
+                    of: Countable::Objects(candidate_region(Predicate::Not(Arc::new(
+                        Predicate::Any,
+                    )))),
+                    by: candidate_region(Count::StatOf(
+                        Reference::Reg(ELEMENT),
+                        deckmaste_core::Stat::Power,
+                    )),
+                },
+            );
+            assert_eq!(
+                power_state.eval_count(&empty_fold, &frame),
+                0,
+                "{op:?} over the empty set is 0"
+            );
+        }
+    }
+
+    /// Devotion end-to-end ([CR#700.5]), the two cases
+    /// `aggregate_folds_a_projection_over_a_selection` doesn't already cover:
+    /// a two-color disjunction (`Or([White, Black])`) summed across SEPARATE
+    /// permanents (not just one object's multiple pips), and an actually
+    /// empty battlefield (no permanents minted at all, not a `Not(Any)`
+    /// filter trick).
+    #[test]
+    fn devotion_sums_a_color_disjunction_across_permanents_and_fizzles_to_zero_on_empty() {
+        use deckmaste_core::AggregateOp;
+        use deckmaste_core::Color;
+        use deckmaste_core::Projection;
+        use deckmaste_core::RelationPredicate;
+        use deckmaste_core::StatePredicate;
+        use deckmaste_core::SymbolPred;
+
+        let your_permanents = || {
+            Predicate::And(
+                vec![
+                    Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                    Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
+                        Reference::Reg(NESTED_CONTROLLER),
+                    )))),
+                ]
+                .into(),
+            )
+        };
+        let devotion_wb = || {
+            Count::Aggregate(
+                AggregateOp::SumOf,
+                Projection {
+                    of: Countable::Objects(candidate_region(your_permanents())),
+                    by: candidate_region(Count::CountOf(Countable::ManaSymbols(
+                        Arc::new(Reference::Reg(ELEMENT)),
+                        SymbolPred::Or(
+                            vec![
+                                SymbolPred::CountsAs(Color::White),
+                                SymbolPred::CountsAs(Color::Black),
+                            ]
+                            .into(),
+                        ),
+                    ))),
+                },
+            )
+        };
+
+        // `{W}{B}{W/B}` split across three separate permanents you control =
+        // 1 + 1 + 1 = 3 (the hybrid pip counts toward both W and B devotion,
+        // but only once per object — `Or` matches, it doesn't double-count).
+        let mut state = game();
+        let _ = permanent_with_cost(&mut state, "{W}");
+        let _ = permanent_with_cost(&mut state, "{B}");
+        let src = permanent_with_cost(&mut state, "{W/B}");
+        let frame = frame_src(&state, src);
+        assert_eq!(
+            state.eval_count(&devotion_wb(), &frame),
+            3,
+            "{{W}} + {{B}} + {{W/B}} = 3 devotion to white-and-black"
+        );
+
+        // An empty battlefield — no permanents at all, not an artificial
+        // never-matching filter — folds to 0 (never-crash). `src` itself
+        // lives in hand, so `InZone(Battlefield)` matches nothing.
+        let mut empty_state = game();
+        let card = Card::Normal(CardFace {
+            name: "Test Card".into(),
+            mana_cost: "{1}".parse().unwrap(),
+            types: vec![Type::Artifact.def()],
+            ..CardFace::default()
+        });
+        let cid = empty_state.cards.push(Arc::new(card), PlayerId(0));
+        let src = empty_state
+            .objects
+            .mint(ObjectSource::Card(cid), PlayerId(0), Some(Zone::Hand));
+        let frame = frame_src(&empty_state, src);
+        assert_eq!(
+            empty_state.eval_count(&devotion_wb(), &frame),
+            0,
+            "no permanents on the battlefield → devotion 0"
+        );
+    }
+
+    /// `Selection::Pick` ([CR#107.1]) takes the extremal element: the creature
+    /// with the greatest power is the 3/3 Centaur Courser; the least-power pick
+    /// is the whole tied 2-power group.
+    #[test]
+    fn pick_extremal_creature_by_power() {
+        let (state, ids) = battlefield_with(&["Grizzly Bears", "Giant Spider", "Centaur Courser"]);
+        let courser = ids[2];
+        let frame = frame_for(&state, PlayerId(0));
+        let pick = |op| deckmaste_core::Selection::Pick {
+            op,
+            proj: deckmaste_core::Projection {
+                of: deckmaste_core::Countable::Objects(candidate_region(creatures_in_play())),
+                by: candidate_region(Count::StatOf(
+                    Reference::Reg(ELEMENT),
+                    deckmaste_core::Stat::Power,
+                )),
+            },
+        };
+        assert_eq!(
+            state.eval_selection_set(&pick(deckmaste_core::AggregateOp::MaxOf), &frame),
+            vec![courser],
+            "Centaur Courser (3 power) is the unique greatest",
+        );
+        let picked = state.eval_selection_set(&pick(deckmaste_core::AggregateOp::MinOf), &frame);
+        assert_eq!(picked.len(), 2, "the two 2-power creatures tie for least");
+        assert!(
+            !picked.contains(&courser),
+            "the 3-power creature is not least"
+        );
+    }
+
+    /// The cross-player fold ([CR#119.1] Arbiter of Knollridge): `Aggregate`
+    /// over a `Countable::Players` source reads each matching player's
+    /// `PlayerStatOf(<element>, Life)` and folds per `AggregateOp` — the
+    /// player-sourced twin of `aggregate_folds_a_projection_over_a_selection`'s
+    /// object-sourced coverage above. `MaxOf` reads the higher of the two
+    /// players' life totals ("the highest life total among all players");
+    /// every `AggregateOp` folds an EMPTY player set to 0 (never-crash) —
+    /// exercised on a real `Countable::Players` source, not just the object
+    /// analog, since `Iterator::min`/`max`'s `None` case is the concrete
+    /// panic risk (`.unwrap()` on an empty iterator) the never-crash ruling
+    /// guards against.
+    #[test]
+    fn player_aggregate_folds_life_totals_and_fizzles_to_zero_on_empty() {
+        use deckmaste_core::AggregateOp;
+        use deckmaste_core::ObjectKind;
+        use deckmaste_core::PlayerAttr;
+        use deckmaste_core::Projection;
+
+        let mut state = game();
+        let src = permanent_with_cost(&mut state, "{1}");
+        let frame = frame_src(&state, src);
+        state.player_mut(PlayerId(0)).life = 12;
+        state.player_mut(PlayerId(1)).life = 20;
+
+        let life_fold = |op: AggregateOp, who: Predicate| {
+            Count::Aggregate(
+                op,
+                Projection {
+                    of: Countable::Players(candidate_region(who)),
+                    by: candidate_region(Count::PlayerStatOf(
+                        Reference::Reg(ELEMENT),
+                        PlayerAttr::Life,
+                    )),
+                },
+            )
+        };
+        let all_players = || Predicate::Kind(ObjectKind::Player);
+        assert_eq!(
+            state.eval_count(&life_fold(AggregateOp::MaxOf, all_players()), &frame),
+            20,
+            "the highest life total among all players"
+        );
+        assert_eq!(
+            state.eval_count(&life_fold(AggregateOp::MinOf, all_players()), &frame),
+            12,
+            "the lowest life total among all players"
+        );
+        assert_eq!(
+            state.eval_count(&life_fold(AggregateOp::SumOf, all_players()), &frame),
+            32,
+            "the total life across all players"
+        );
+
+        // An empty player set (a semantic-input error, but must stay safe on
+        // ANY input, not just the real ≥1-player fixtures) folds every op to
+        // 0 rather than panicking on `Iterator::min`/`max` of an empty set.
+        for op in [
+            AggregateOp::SumOf,
+            AggregateOp::MinOf,
+            AggregateOp::MaxOf,
+            AggregateOp::AverageOf(deckmaste_core::RoundMode::RoundUp),
+        ] {
+            assert_eq!(
+                state.eval_count(
+                    &life_fold(op, Predicate::Not(Arc::new(Predicate::Any))),
+                    &frame
+                ),
+                0,
+                "{op:?} over the empty player set is 0"
+            );
+        }
+    }
+
+    /// "That much" reads the amount the damage instruction PINNED
+    /// ([CR#608.2h]): the magnitude is a definition written before the damage
+    /// verb runs, and the later life gain reads that register. Re-spelled from
+    /// `that_much_gains_life_equal_to_damage_dealt` — `Count::ThatMuch` and
+    /// `GameState.that_much` left with the discourse channel, so the anaphor
+    /// is the `Let` lowering now emits ahead of every `DealDamage`.
+    #[test]
+    fn a_pinned_magnitude_gains_life_equal_to_damage_dealt() {
+        // `frame_src_targets` declares source(0), controller(1), the four
+        // event roles(2..=5), one announced target(6) and X(7), so the first
+        // instruction definition is register 8.
+        const AMOUNT: deckmaste_core::DefId = deckmaste_core::DefId(8);
+        const TARGET: deckmaste_core::RefId = deckmaste_core::RefId(6);
+
+        let (mut state, bear) = bear_on_field();
+        let frame = frame_src_targets(&state, bear, vec![bear]);
+        state.run_effect(
+            OneShotEffect::Sequentially(
+                vec![
+                    OneShotEffect::Let(deckmaste_core::Let {
+                        dest: AMOUNT,
+                        expr: deckmaste_core::Expr::Number(Count::Literal(3)),
+                    }),
+                    OneShotEffect::Act(Action::deal_damage(
+                        Reference::Reg(TARGET),
+                        Count::Reg(AMOUNT.into()),
+                    )),
+                    OneShotEffect::Act(Action::ChangeLife(
+                        Reference::controller_parameter(),
+                        deckmaste_core::LifeOp::Up(Count::Reg(AMOUNT.into())),
+                    )),
+                ]
+                .into(),
+            ),
+            &frame,
+        );
+        // Let → RunEffect(damage) → Emit(DamageDealt) → RunEffect(gain) →
+        // Emit(LifeGained).
+        for _ in 0..6 {
+            let _ = state.step();
+        }
+        assert_eq!(state.objects.obj(bear).total_damage(), 3);
+        assert_eq!(state.players[0].life, 23);
+    }
+
+    /// FIXTURE — a nested `Where` inside a `Pick`, reading BOTH candidates.
+    /// ADR law 1: every per-candidate predicate is its own region, so the
+    /// `Where` inside the pick's filter reads the PICK's candidate through its
+    /// own parameter while the projection nested inside that `Where` reads its
+    /// OWN per-element candidate through a distinct one. The depth-0
+    /// restriction is gone ([CR#107.1]).
+    ///
+    /// "The creature with the greatest power among creatures some other
+    /// creature outpowers": on a 2/2, 3/3, 4/4 board the filter admits the 2/2
+    /// and the 3/3 (the 4/4 is outpowered by nobody), and the pick takes the
+    /// 3/3. A reading that confused the two candidates would admit or pick the
+    /// 4/4.
+    #[test]
+    fn a_where_nested_in_a_pick_reads_both_candidates() {
+        use deckmaste_core::AggregateOp;
+        use deckmaste_core::Cmp;
+        use deckmaste_core::Condition;
+        use deckmaste_core::Projection;
+        use deckmaste_core::StatePredicate;
+
+        let (state, ids) =
+            battlefield_with(&["Grizzly Bears", "Fangren Hunter", "Centaur Courser"]);
+        let (bears, hunter, courser) = (ids[0], ids[1], ids[2]);
+        let frame = frame_for(&state, PlayerId(0));
+
+        let battlefield_creatures = || {
+            Predicate::And(
+                vec![
+                    Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                    Predicate::creature(),
+                ]
+                .into(),
+            )
+        };
+        let power_of = |register| {
+            candidate_region(Count::StatOf(
+                Reference::Reg(register),
+                deckmaste_core::Stat::Power,
+            ))
+        };
+        // The greatest power on the board, folded over the projection's OWN
+        // per-element candidate.
+        let greatest_power = Count::Aggregate(
+            AggregateOp::MaxOf,
+            Projection {
+                of: Countable::Objects(candidate_region(battlefield_creatures())),
+                by: power_of(ELEMENT),
+            },
+        );
+        // The pick's filter: a creature the greatest power exceeds. `ELEMENT`
+        // here is the WHERE region's own candidate — the pick's candidate —
+        // not the projection's.
+        let outpowered = Predicate::And(
+            vec![
+                battlefield_creatures(),
+                Predicate::Where(candidate_region(Condition::Compare(
+                    greatest_power,
+                    Cmp::Greater,
+                    Count::StatOf(Reference::Reg(ELEMENT), deckmaste_core::Stat::Power),
+                ))),
+            ]
+            .into(),
+        );
+
+        let picked = state.eval_selection_set(
+            &deckmaste_core::Selection::Pick {
+                op: AggregateOp::MaxOf,
+                proj: Projection {
+                    of: Countable::Objects(candidate_region(outpowered)),
+                    by: power_of(ELEMENT),
+                },
+            },
+            &frame,
+        );
+        assert_eq!(
+            picked,
+            vec![courser],
+            "the 3/3 is the greatest-power creature that something outpowers"
+        );
+        assert!(
+            !picked.contains(&hunter),
+            "the 4/4 is outpowered by nobody, so the nested Where excludes it"
+        );
+        assert!(
+            !picked.contains(&bears),
+            "the 2/2 is not the greatest of those"
+        );
+    }
 }

@@ -3480,4 +3480,282 @@ mod tests {
             "same seed ⇒ identical random-discard sample"
         );
     }
+
+    /// [CR#105.2]: `AmongColorsOf` reads the referenced object's colors off
+    /// the live layers view — `LayeredView::get` panics on an id absent from
+    /// `state.objects`. A referent that's fully CEASED (a token that left the
+    /// game, an LKI-only snapshot id with no live twin) must fizzle to no
+    /// colors — no production at all — never crash. `source` (the Chrome-Mox
+    /// stand-in mana-producing permanent) stays alive throughout — only the
+    /// REFERENCED object (`imprinted`, reached through its announced-target
+    /// register) goes away, mirroring how an imprinted/exiled card can cease
+    /// independently of the producing permanent.
+    #[test]
+    fn among_colors_of_gone_referent_fizzles_empty() {
+        use deckmaste_core::ManaSpec;
+
+        // `frame_src_targets` declares source(0), controller(1), the four
+        // event roles(2..=5), then the announced target at register 6.
+        const TARGET: deckmaste_core::RefId = deckmaste_core::RefId(6);
+
+        let (mut state, source, imprinted) = two_permanents_on_field();
+        let frame = frame_src_targets(&state, source, vec![imprinted]);
+        state.objects.remove(imprinted);
+        assert!(
+            state.objects.get(imprinted).is_none(),
+            "the referent is gone"
+        );
+        assert!(
+            state.objects.get(source).is_some(),
+            "the mana source is still live"
+        );
+
+        let act = Action::AddMana(
+            Reference::controller_parameter(),
+            Count::Literal(1),
+            ManaSpec::AmongColorsOf(Reference::Reg(TARGET)).into(),
+        );
+        // Must not panic dereferencing the gone id via `self.layers().get(..)`.
+        let items = state.player_action_items(&act, &frame);
+        assert!(
+            items.is_empty(),
+            "a gone AmongColorsOf referent has no colors to choose among, so no production"
+        );
+    }
+
+    /// [CR#705.2]: a single CALLED flip surfaces one `CallFlip` decision (no
+    /// draw yet); submitting the call draws the coin and scores `won = (call
+    /// == heads)`. Seed-pinned (via `game()`'s seed 7): the draw is
+    /// deterministic, so the assertion is exact, not just a shape check.
+    #[test]
+    fn called_flip_surfaces_call_and_scores_won() {
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+
+        let mut state = game();
+        let p0 = PlayerId(0);
+        let frame = frame_for(&state, p0);
+        state.run_effect(
+            OneShotEffect::Act(Action::FlipCoins(
+                Reference::controller_parameter(),
+                Count::Literal(1),
+                true,
+            )),
+            &frame,
+        );
+        drain_progress(&mut state, 20);
+        let Some(PendingDecision::CallFlip(crate::decide::pending::CallFlip { player })) =
+            state.pending.clone()
+        else {
+            panic!("expected a pending CallFlip, got {:?}", state.pending);
+        };
+        assert_eq!(player, p0);
+
+        state.submit_decision(Decision::Answer(true)).unwrap();
+        drain_progress(&mut state, 20);
+
+        let flips = coin_flips(&state);
+        assert_eq!(flips.len(), 1, "exactly one CoinFlipped fact");
+        let (heads, won) = flips[0];
+        assert_eq!(
+            won,
+            Some(heads),
+            "the call was heads: won iff the draw landed heads"
+        );
+    }
+
+    /// [CR#706.1]: `RollDice(3, 6)` draws 3 naturals in `1..=6` from the
+    /// seeded rng, each `result == natural` (no modifier pipeline yet), as
+    /// ONE simultaneous batch.
+    #[test]
+    fn dice_roll_emits_per_die_results() {
+        let mut state = game();
+        let p0 = PlayerId(0);
+        let frame = frame_for(&state, p0);
+        state.run_effect(
+            OneShotEffect::Act(Action::RollDice(
+                Reference::controller_parameter(),
+                Count::Literal(3),
+                6,
+            )),
+            &frame,
+        );
+        drain_progress(&mut state, 20);
+
+        let rolls = die_rolls(&state);
+        assert_eq!(rolls.len(), 3, "3 DieRolled facts, one per drawn die");
+        assert!(
+            rolls
+                .iter()
+                .all(|&(natural, result)| (1..=6).contains(&natural) && natural == result),
+            "every natural lands in 1..=6 and result == natural (no modifier pipeline yet)"
+        );
+    }
+
+    /// [CR#705.2]: a 3-coin CALLED flip pauses per coin — three sequential
+    /// `CallFlip` decisions, each drawing (and scoring) only when its call is
+    /// submitted — then front-schedules ONE simultaneous batch
+    /// ([CR#603.2c]) once all three are called.
+    #[test]
+    fn multi_coin_called_flip_pauses_per_coin() {
+        use crate::decide::Decision;
+        use crate::decide::PendingDecision;
+
+        let mut state = game();
+        let p0 = PlayerId(0);
+        let frame = frame_for(&state, p0);
+        state.run_effect(
+            OneShotEffect::Act(Action::FlipCoins(
+                Reference::controller_parameter(),
+                Count::Literal(3),
+                true,
+            )),
+            &frame,
+        );
+        drain_progress(&mut state, 20);
+
+        for (i, call) in [true, false, true].into_iter().enumerate() {
+            let Some(PendingDecision::CallFlip(crate::decide::pending::CallFlip { player })) =
+                state.pending.clone()
+            else {
+                panic!(
+                    "coin {i}: expected a pending CallFlip, got {:?}",
+                    state.pending
+                );
+            };
+            assert_eq!(player, p0, "coin {i}");
+            state.submit_decision(Decision::Answer(call)).unwrap();
+            drain_progress(&mut state, 20);
+        }
+
+        let flips = coin_flips(&state);
+        assert_eq!(flips.len(), 3, "3 CoinFlipped facts, one per called coin");
+        assert!(
+            flips.iter().all(|&(_, won)| won.is_some()),
+            "every called flip records a winner/loser"
+        );
+    }
+
+    /// [CR#705.1]: an uncalled `FlipCoins(3, false)` draws 3 coins straight
+    /// from the seeded rng with NO decision and no winner/loser, as ONE
+    /// simultaneous batch. Seed-pinned (via `game()`'s seed 7): same seed ⇒
+    /// same draw, so the assertions are exact, not just shape checks.
+    #[test]
+    fn uncalled_flip_emits_batch_without_a_decision() {
+        let mut state = game();
+        let p0 = PlayerId(0);
+        let frame = frame_for(&state, p0);
+        state.run_effect(
+            OneShotEffect::Act(Action::FlipCoins(
+                Reference::controller_parameter(),
+                Count::Literal(3),
+                false,
+            )),
+            &frame,
+        );
+        drain_progress(&mut state, 20);
+
+        let flips = coin_flips(&state);
+        assert_eq!(flips.len(), 3, "3 CoinFlipped facts, one per drawn coin");
+        assert!(
+            flips.iter().all(|&(_, won)| won.is_none()),
+            "an uncalled flip never records a winner/loser"
+        );
+    }
+
+    /// Every `CoinFlipped` fact in the history, as `(heads, won)`.
+    fn coin_flips(state: &GameState) -> Vec<(bool, Option<bool>)> {
+        state
+            .history
+            .entries()
+            .filter_map(|e| match &e.fact {
+                GameEvent::CoinFlipped(CoinFlipped { heads, won, .. }) => Some((*heads, *won)),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// Every `DieRolled` fact in the history, as `(natural, result)`.
+    fn die_rolls(state: &GameState) -> Vec<(Uint, Uint)> {
+        state
+            .history
+            .entries()
+            .filter_map(|e| match &e.fact {
+                GameEvent::DieRolled(DieRolled {
+                    natural, result, ..
+                }) => Some((*natural, *result)),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// [CR#107.3,705.2,706.2]: a flip/roll batch fixes the magnitude anaphor —
+    /// won flips for a called flip, heads for an uncalled one, summed results
+    /// for dice — so "flip three coins, then draw that many cards" reads the
+    /// batch's own tally.
+    ///
+    /// The four assertions this carries are the halves the restored
+    /// `called_flip_surfaces_call_and_scores_won`,
+    /// `multi_coin_called_flip_pauses_per_coin`,
+    /// `uncalled_flip_emits_batch_without_a_decision` and
+    /// `dice_roll_emits_per_die_results` used to make against
+    /// `GameState.that_much`.
+    #[test]
+    #[ignore = "blocker: a flip/roll tally has no register. `core: complete \
+                discourse regions` deleted GameState.that_much and \
+                step::fix_occurrence_amount, and lowering defines a magnitude \
+                only for the statically-known amounts (DealDamage, \
+                ChangeLife, DrawCard) — Action::FlipCoins and Action::RollDice \
+                get no Let and no dest, so a runtime tally reaches no \
+                DefId. Unblocked by giving those actions a magnitude \
+                definition in deckmaste_lowering::effect::lower_action."]
+    fn flip_and_roll_batches_fix_the_magnitude_anaphor() {
+        const TALLY: deckmaste_core::RefId = deckmaste_core::RefId(8);
+
+        let tally_after = |action: Action| {
+            let mut state = game();
+            let frame = frame_for(&state, PlayerId(0));
+            state.run_effect(OneShotEffect::Act(action), &frame);
+            drain_progress(&mut state, 20);
+            while let Some(crate::decide::PendingDecision::CallFlip(_)) = state.pending.clone() {
+                state
+                    .submit_decision(crate::decide::Decision::Answer(true))
+                    .unwrap();
+                drain_progress(&mut state, 20);
+            }
+            let tally = state.activation_number(frame.activation, TALLY);
+            (state, tally)
+        };
+
+        let (state, tally) = tally_after(Action::FlipCoins(
+            Reference::controller_parameter(),
+            Count::Literal(3),
+            false,
+        ));
+        let heads = Uint::try_from(coin_flips(&state).iter().filter(|&&(h, _)| h).count())
+            .expect("heads count fits Uint");
+        assert_eq!(tally, Some(heads), "an uncalled flip tallies heads");
+
+        let (state, tally) = tally_after(Action::FlipCoins(
+            Reference::controller_parameter(),
+            Count::Literal(3),
+            true,
+        ));
+        let wins = Uint::try_from(
+            coin_flips(&state)
+                .iter()
+                .filter(|&&(_, won)| won == Some(true))
+                .count(),
+        )
+        .expect("win count fits Uint");
+        assert_eq!(tally, Some(wins), "a called flip tallies wins");
+
+        let (state, tally) = tally_after(Action::RollDice(
+            Reference::controller_parameter(),
+            Count::Literal(3),
+            6,
+        ));
+        let sum: Uint = die_rolls(&state).iter().map(|&(_, result)| result).sum();
+        assert_eq!(tally, Some(sum), "a dice roll tallies the summed results");
+    }
 }

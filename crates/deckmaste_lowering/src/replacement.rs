@@ -107,6 +107,82 @@ mod tests {
             }
         );
     }
+
+    #[test]
+    fn lowers_replacement_also() {
+        let lowered = in_spell_region(|| {
+            deckmaste_semantics::Replacement::Also {
+                would: minimal_event_filter(),
+                also: minimal_one_shot_effect(),
+            }
+            .lower()
+        });
+        let deckmaste_core::Replacement::Also { would, also } = &lowered else {
+            panic!("an `Also` replacement lowers to an `Also` replacement");
+        };
+        assert_matches!(
+            would,
+            deckmaste_core::EventFilter::ZoneChange {
+                what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                from: None,
+                to: None,
+                cause: None
+            }
+        );
+        assert!(is_minimal_lowered_effect(also));
+    }
+
+    /// A macro invocation's provenance does not cross `lower`: the expansion
+    /// wrapper is erased and only its value survives.
+    #[test]
+    fn lowers_replacement_expanded() {
+        let lowered = in_spell_region(|| {
+            deckmaste_semantics::Replacement::Expanded(macro_ron::Expansion {
+                name: "X".into(),
+                args: macro_ron::ExpansionArgs::none(),
+                template: None,
+                value: Box::new(minimal_replacement()),
+            })
+            .lower()
+        });
+        let deckmaste_core::Replacement::Instead { would, instead } = &lowered else {
+            panic!("the expansion erases to its wrapped `Instead` replacement");
+        };
+        assert_matches!(
+            would,
+            deckmaste_core::EventFilter::ZoneChange {
+                what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                from: None,
+                to: None,
+                cause: None
+            }
+        );
+        assert!(is_minimal_lowered_effect(instead));
+    }
+
+    #[test]
+    fn lowers_replacement_instead() {
+        let lowered = in_spell_region(|| {
+            deckmaste_semantics::Replacement::Instead {
+                would: minimal_event_filter(),
+                instead: minimal_one_shot_effect(),
+            }
+            .lower()
+        });
+        let deckmaste_core::Replacement::Instead { would, instead } = &lowered else {
+            panic!("an `Instead` replacement lowers to an `Instead` replacement");
+        };
+        assert_matches!(
+            would,
+            deckmaste_core::EventFilter::ZoneChange {
+                what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                from: None,
+                to: None,
+                cause: None
+            }
+        );
+        assert!(is_minimal_lowered_effect(instead));
+    }
 }
 
 impl Lower for deckmaste_semantics::Prevention {

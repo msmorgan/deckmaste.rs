@@ -6,6 +6,44 @@
     reason = "a type not used at any field position needs no helper caller"
 )]
 
+/// Lower `f` inside a minimal spell region.
+///
+/// Instruction lowering DEFINES registers — a damage or life-change magnitude
+/// is pinned by a `Let` at its evaluation moment ([CR#608.2h]) — so any value
+/// carrying an instruction can only be lowered with a region context open.
+pub fn in_spell_region<T>(f: impl FnOnce() -> T) -> T {
+    crate::region::in_region(crate::region::RegionKind::Spell, 0, f).1
+}
+
+/// The lowered image of [`minimal_one_shot_effect`]: `DealDamage` pins its
+/// magnitude in a `Let` at the instruction's program point and then reads that
+/// register ([CR#608.2h]), so one authored action becomes a two-instruction
+/// sequence whose second half reads the first half's definition.
+pub fn is_minimal_lowered_effect(effect: &deckmaste_core::OneShotEffect) -> bool {
+    let deckmaste_core::OneShotEffect::Sequentially(parts) = effect else {
+        return false;
+    };
+    let [
+        deckmaste_core::OneShotEffect::Let(deckmaste_core::Let {
+            dest,
+            expr: deckmaste_core::Expr::Number(_),
+        }),
+        deckmaste_core::OneShotEffect::Act {
+            dest: None,
+            action:
+                deckmaste_core::Action::DealDamage(
+                    deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
+                    deckmaste_core::Count::Reg(read),
+                    deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
+                ),
+        },
+    ] = parts.as_ref()
+    else {
+        return false;
+    };
+    deckmaste_core::RefId::from(*dest) == *read
+}
+
 pub fn minimal_ability() -> deckmaste_semantics::Ability {
     deckmaste_semantics::Ability::Static(std::sync::Arc::new(minimal_static_effect()))
 }

@@ -72,6 +72,38 @@ mod tests {
         let written = crate::ron::options().to_string(&value).unwrap();
         assert_eq!(read(&written), value);
     }
+
+    /// The discourse anaphors have no core spelling: `It` and `That(Sort)`
+    /// resolve to register reads at lowering, so core RON never parses them.
+    /// Re-spelled from `it_round_trips` and `sorted_that_round_trips`, whose
+    /// variants this stage deletes.
+    #[test]
+    fn discourse_anaphors_have_no_core_spelling() {
+        for source in ["It", "That(Card)", "That(Player)", "That(OfType(Creature))"] {
+            assert!(
+                crate::ron::options().from_str::<Reference>(source).is_err(),
+                "core has no anaphor spelling for {source}"
+            );
+        }
+    }
+
+    /// An instruction product's register — past the fixed parameter prefix —
+    /// reads bare and round-trips. This is the successor spelling of every
+    /// retired anaphor: a definition's ordinal, whatever the English that
+    /// introduced it.
+    #[test]
+    fn instruction_product_registers_round_trip() {
+        for index in [7_u32, 12, 30] {
+            let value = Reference::Reg(crate::RefId(index));
+            assert_eq!(
+                read(&format!("Reg({index})")),
+                value,
+                "reads bare: Reg({index})"
+            );
+            let written = crate::ron::options().to_string(&value).unwrap();
+            assert_eq!(read(&written), value, "round-trips: {written}");
+        }
+    }
 }
 
 /// A bound variable: a value fixed earlier (at announce, by the rules of

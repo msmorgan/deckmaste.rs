@@ -395,134 +395,188 @@ mod tests {
     // is the cost INSTRUCTION that writes the payment subject's register
     // ([CR#601.2b]) — same binder, same asserted shape.
 
+    /// The predicate a payment-time decision filters by is a per-candidate
+    /// REGION ([CR#601.2b]); this reads its body and checks it declares its
+    /// candidate as parameter zero.
+    fn pins_minimal_filter(filter: &deckmaste_core::Region<deckmaste_core::Predicate>) -> bool {
+        filter.body == deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+            && filter.params[0].provenance == deckmaste_core::Provenance::Candidate
+            && filter.params[0].kind == deckmaste_core::Kind::Object
+    }
+
+    /// An `Activated` region declares source(0), controller(1), announced X(2),
+    /// so a payment binder's own definition is register 3.
+    const FIRST_PAYMENT_DEF: deckmaste_core::DefId = deckmaste_core::DefId(3);
+
     #[test]
     fn lowers_binder_the_ref() {
-        assert_matches!(
+        assert_eq!(
             lower_payment_binder(deckmaste_semantics::Binder::TheRef(minimal_reference()))
                 .as_slice(),
             [deckmaste_core::CostComponent::Let(deckmaste_core::Let {
-                dest: _,
-                expr: deckmaste_core::Expr::Object(deckmaste_core::Reference::Reg(_)),
+                dest: FIRST_PAYMENT_DEF,
+                expr: deckmaste_core::Expr::Object(deckmaste_core::Reference::Reg(
+                    deckmaste_core::RefId(0)
+                )),
             })]
         );
     }
 
     #[test]
     fn lowers_binder_choose_one() {
-        assert_matches!(
-            lower_payment_binder(deckmaste_semantics::Binder::ChooseOne {
-                filter: minimal_predicate(),
-                by: minimal_reference(),
-            })
-            .as_slice(),
-            [deckmaste_core::CostComponent::Choose(
-                deckmaste_core::Choose {
-                    quantity: deckmaste_core::Quantity::Range(
-                        Some(deckmaste_core::Count::Literal(1)),
-                        Some(deckmaste_core::Count::Literal(1)),
-                    ),
-                    ..
-                }
-            )]
+        let lowered = lower_payment_binder(deckmaste_semantics::Binder::ChooseOne {
+            filter: minimal_predicate(),
+            by: minimal_reference(),
+        });
+        let [deckmaste_core::CostComponent::Choose(choice)] = lowered.as_slice() else {
+            panic!("a payment-time single choice is one Choose instruction");
+        };
+        assert_eq!(choice.dest, FIRST_PAYMENT_DEF);
+        assert_eq!(
+            choice.by,
+            deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
         );
+        assert_eq!(
+            choice.quantity,
+            deckmaste_core::Quantity::Range(
+                Some(deckmaste_core::Count::Literal(1)),
+                Some(deckmaste_core::Count::Literal(1)),
+            )
+        );
+        assert!(pins_minimal_filter(&choice.filter));
     }
 
     #[test]
     fn lowers_binder_produce() {
-        assert_matches!(
-            lower_payment_binder(deckmaste_semantics::Binder::Produce(std::sync::Arc::new(
-                deckmaste_semantics::Action::Move(
-                    deckmaste_semantics::Reference::This,
-                    deckmaste_semantics::Destination::Zone(deckmaste_semantics::Zone::Exile),
-                    [].into(),
-                    None,
-                )
-            )))
-            .as_slice(),
-            [deckmaste_core::CostComponent::Act { dest: Some(_), .. }]
+        let lowered = lower_payment_binder(deckmaste_semantics::Binder::Produce(
+            std::sync::Arc::new(deckmaste_semantics::Action::Move(
+                deckmaste_semantics::Reference::This,
+                deckmaste_semantics::Destination::Zone(deckmaste_semantics::Zone::Exile),
+                [].into(),
+                None,
+            )),
+        ));
+        let [deckmaste_core::CostComponent::Act { dest, action }] = lowered.as_slice() else {
+            panic!("a producing payment is one runnable action cost");
+        };
+        assert_eq!(
+            *dest,
+            Some(FIRST_PAYMENT_DEF),
+            "the paid product is a definition the ability body reads ([CR#400.7])"
+        );
+        assert_eq!(
+            **action,
+            deckmaste_core::Action::Move(
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
+                deckmaste_core::Destination::Zone(deckmaste_core::Zone::Exile),
+                [].into(),
+                None,
+            )
         );
     }
 
     #[test]
     fn lowers_binder_search_one() {
-        assert_matches!(
-            lower_payment_binder(deckmaste_semantics::Binder::SearchOne {
-                filter: minimal_predicate(),
-                by: minimal_reference(),
-                whose: minimal_reference(),
-                from: [].into(),
-                if_none: None,
-            })
-            .as_slice(),
-            [deckmaste_core::CostComponent::Search(
-                deckmaste_core::Search {
-                    quantity: deckmaste_core::Quantity::Range(
-                        Some(deckmaste_core::Count::Literal(1)),
-                        Some(deckmaste_core::Count::Literal(1)),
-                    ),
-                    ..
-                }
-            )]
+        let lowered = lower_payment_binder(deckmaste_semantics::Binder::SearchOne {
+            filter: minimal_predicate(),
+            by: minimal_reference(),
+            whose: minimal_reference(),
+            from: [].into(),
+            if_none: None,
+        });
+        let [deckmaste_core::CostComponent::Search(search)] = lowered.as_slice() else {
+            panic!("a payment-time single search is one Search instruction");
+        };
+        assert_eq!(search.dest, FIRST_PAYMENT_DEF);
+        assert_eq!(
+            search.by,
+            deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
         );
+        assert_eq!(
+            search.whose,
+            deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
+        );
+        assert_eq!(
+            search.quantity,
+            deckmaste_core::Quantity::Range(
+                Some(deckmaste_core::Count::Literal(1)),
+                Some(deckmaste_core::Count::Literal(1)),
+            )
+        );
+        assert!(search.from.is_empty());
+        assert!(search.if_none.is_empty());
+        assert!(pins_minimal_filter(&search.filter));
     }
 
     #[test]
     fn lowers_binder_choose() {
-        assert_matches!(
-            lower_payment_binder(deckmaste_semantics::Binder::Choose {
-                quantity: minimal_quantity(),
-                filter: minimal_predicate(),
-                by: minimal_reference(),
-            })
-            .as_slice(),
-            [deckmaste_core::CostComponent::Choose(
-                deckmaste_core::Choose {
-                    quantity: deckmaste_core::Quantity::Range(None, None),
-                    by: deckmaste_core::Reference::Reg(_),
-                    ..
-                }
-            )]
+        let lowered = lower_payment_binder(deckmaste_semantics::Binder::Choose {
+            quantity: minimal_quantity(),
+            filter: minimal_predicate(),
+            by: minimal_reference(),
+        });
+        let [deckmaste_core::CostComponent::Choose(choice)] = lowered.as_slice() else {
+            panic!("a payment-time plural choice is one Choose instruction");
+        };
+        assert_eq!(choice.dest, FIRST_PAYMENT_DEF);
+        assert_eq!(
+            choice.by,
+            deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
         );
+        assert_eq!(choice.quantity, deckmaste_core::Quantity::Range(None, None));
+        assert!(pins_minimal_filter(&choice.filter));
     }
 
     #[test]
     fn lowers_binder_existing() {
-        assert_matches!(
-            lower_payment_binder(deckmaste_semantics::Binder::Existing(minimal_selection()))
-                .as_slice(),
-            [deckmaste_core::CostComponent::Let(deckmaste_core::Let {
-                dest: _,
-                expr: deckmaste_core::Expr::Objects(deckmaste_core::Selection::SelectAll(_)),
-            })]
-        );
+        let lowered =
+            lower_payment_binder(deckmaste_semantics::Binder::Existing(minimal_selection()));
+        let [deckmaste_core::CostComponent::Let(deckmaste_core::Let { dest, expr })] =
+            lowered.as_slice()
+        else {
+            panic!("an existing group is pinned by one Let instruction");
+        };
+        assert_eq!(*dest, FIRST_PAYMENT_DEF);
+        let deckmaste_core::Expr::Objects(deckmaste_core::Selection::SelectAll(filter)) = expr
+        else {
+            panic!("the pinned expression is the authored group query");
+        };
+        assert!(pins_minimal_filter(filter));
     }
 
     #[test]
     fn lowers_binder_search() {
-        assert_matches!(
-            lower_payment_binder(deckmaste_semantics::Binder::Search {
-                quantity: minimal_quantity(),
-                filter: minimal_predicate(),
-                by: minimal_reference(),
-                whose: minimal_reference(),
-                from: [].into(),
-                if_none: None,
-            })
-            .as_slice(),
-            [deckmaste_core::CostComponent::Search(
-                deckmaste_core::Search {
-                    quantity: deckmaste_core::Quantity::Range(None, None),
-                    by: deckmaste_core::Reference::Reg(_),
-                    whose: deckmaste_core::Reference::Reg(_),
-                    ..
-                }
-            )]
+        let lowered = lower_payment_binder(deckmaste_semantics::Binder::Search {
+            quantity: minimal_quantity(),
+            filter: minimal_predicate(),
+            by: minimal_reference(),
+            whose: minimal_reference(),
+            from: [].into(),
+            if_none: None,
+        });
+        let [deckmaste_core::CostComponent::Search(search)] = lowered.as_slice() else {
+            panic!("a payment-time plural search is one Search instruction");
+        };
+        assert_eq!(search.dest, FIRST_PAYMENT_DEF);
+        assert_eq!(
+            search.by,
+            deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
         );
+        assert_eq!(
+            search.whose,
+            deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
+        );
+        assert_eq!(search.quantity, deckmaste_core::Quantity::Range(None, None));
+        assert!(search.from.is_empty());
+        assert!(search.if_none.is_empty());
+        assert!(pins_minimal_filter(&search.filter));
     }
 
+    /// A macro invocation's provenance does not cross `lower`: the wrapper
+    /// erases and the wrapped binder's own image is what lands.
     #[test]
     fn lowers_binder_expanded() {
-        assert_matches!(
+        assert_eq!(
             lower_payment_binder(deckmaste_semantics::Binder::Expanded(
                 macro_ron::Expansion {
                     name: "X".into(),
@@ -533,8 +587,10 @@ mod tests {
             ))
             .as_slice(),
             [deckmaste_core::CostComponent::Let(deckmaste_core::Let {
-                dest: _,
-                expr: deckmaste_core::Expr::Object(deckmaste_core::Reference::Reg(_)),
+                dest: FIRST_PAYMENT_DEF,
+                expr: deckmaste_core::Expr::Object(deckmaste_core::Reference::Reg(
+                    deckmaste_core::RefId(0)
+                )),
             })]
         );
     }
@@ -601,5 +657,118 @@ mod tests {
                 locked: false
             }
         );
+    }
+
+    /// A chooser embedded in a keyword action is LIFTED into cost position:
+    /// the decision becomes its own cost instruction, made before the verb
+    /// that spends it ([CR#601.2b,701.9]), and the runnable action retains no
+    /// binder. Re-spelled from
+    /// `lifts_action_embedded_choice_into_cost_position`
+    /// — `CostComponent::ChooseAndPay` and the `Binder` enum left core, so the
+    /// lift's image is the instruction pair.
+    #[test]
+    fn lifts_action_embedded_choice_into_cost_position() {
+        use deckmaste_semantics::Action;
+        use deckmaste_semantics::OneShotEffect;
+        use deckmaste_semantics::With;
+
+        let semantic =
+            deckmaste_semantics::CostComponent::Do(std::sync::Arc::new(Action::Composite {
+                name: "Discard".into(),
+                body: std::sync::Arc::new(OneShotEffect::With(With {
+                    binder: deckmaste_semantics::Binder::ChooseOne {
+                        filter: deckmaste_semantics::Predicate::Any,
+                        by: deckmaste_semantics::Reference::You,
+                    },
+                    body: std::sync::Arc::new(OneShotEffect::Act(Action::discard_what(
+                        deckmaste_semantics::Reference::That(deckmaste_semantics::Sort::Card),
+                    ))),
+                })),
+            }));
+
+        let (_, (lowered, _)) =
+            crate::region::in_region(crate::region::RegionKind::Activated, 0, || {
+                super::lower_cost_block(&[semantic])
+            });
+        let [
+            deckmaste_core::CostComponent::Choose(choice),
+            deckmaste_core::CostComponent::Act { action, .. },
+        ] = lowered.as_ref()
+        else {
+            panic!("the lifted choice precedes the one runnable action cost");
+        };
+        let deckmaste_core::Action::Composite { body, .. } = action.as_ref() else {
+            panic!("lifting must retain the authored keyword-action boundary");
+        };
+        assert!(
+            !body_carries_a_binder(body),
+            "the runnable action must not retain the lifted choice"
+        );
+        assert!(
+            reads_register(body, choice.dest.into()),
+            "the runnable action pays through the register the choice wrote"
+        );
+    }
+
+    /// A random payment subject is lifted the same way: the sample is its own
+    /// cost instruction and the runnable action reads its register
+    /// ([CR#601.2b]). Re-spelled from
+    /// `lifts_action_embedded_random_selection_into_cost_position`.
+    #[test]
+    fn lifts_action_embedded_random_selection_into_cost_position() {
+        let semantic = deckmaste_semantics::CostComponent::Do(std::sync::Arc::new(
+            deckmaste_semantics::Action::discard(
+                deckmaste_semantics::Reference::You,
+                deckmaste_semantics::Count::Literal(2),
+                true,
+            ),
+        ));
+        let (_, (lowered, _)) =
+            crate::region::in_region(crate::region::RegionKind::Activated, 0, || {
+                super::lower_cost_block(&[semantic])
+            });
+        let [first, deckmaste_core::CostComponent::Act { action, .. }] = lowered.as_ref() else {
+            panic!("the sampled subject precedes the one runnable action cost");
+        };
+        let sampled = match first {
+            deckmaste_core::CostComponent::Let(deckmaste_core::Let {
+                dest,
+                expr: deckmaste_core::Expr::Objects(deckmaste_core::Selection::Random(..)),
+            }) => *dest,
+            other => {
+                panic!("an action-embedded random subject lowers into cost position: {other:?}")
+            }
+        };
+        let deckmaste_core::Action::Composite { body, .. } = action.as_ref() else {
+            panic!("lowering retains the authored discard action boundary");
+        };
+        assert!(
+            !body_carries_a_binder(body),
+            "the runnable action retains no unresolved random selection"
+        );
+        assert!(
+            reads_register(body, sampled.into()),
+            "the runnable action spends the sampled register"
+        );
+    }
+
+    /// Whether a lowered instruction tree still carries a resolution-time
+    /// binding decision — the thing lifting into cost position removes.
+    fn body_carries_a_binder(body: &deckmaste_core::OneShotEffect) -> bool {
+        deckmaste_core::ron::options()
+            .to_string(body)
+            .expect("a lowered instruction tree serializes")
+            .contains("Choose(")
+    }
+
+    /// Whether a lowered instruction tree reads `register` anywhere.
+    fn reads_register(
+        body: &deckmaste_core::OneShotEffect,
+        register: deckmaste_core::RefId,
+    ) -> bool {
+        deckmaste_core::ron::options()
+            .to_string(body)
+            .expect("a lowered instruction tree serializes")
+            .contains(&format!("Reg({})", register.0))
     }
 }

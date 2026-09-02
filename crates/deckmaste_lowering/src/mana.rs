@@ -394,4 +394,28 @@ mod tests {
             [deckmaste_semantics::ManaSymbol],
         >::from([])));
     }
+
+    #[test]
+    fn lowers_mana_rider_grant_on_spend() {
+        assert_matches!(
+            in_spell_region(
+                || deckmaste_semantics::ManaRider::GrantOnSpend(std::sync::Arc::new(
+                    minimal_one_shot_effect()
+                ))
+                .lower()
+            ),
+            deckmaste_core::ManaRider::GrantOnSpend(_)
+        );
+    }
+
+    #[test]
+    fn lowers_mana_rider_trigger_on_spend() {
+        assert_matches!(
+            in_spell_region(|| deckmaste_semantics::ManaRider::TriggerOnSpend(
+                std::sync::Arc::new(minimal_one_shot_effect())
+            )
+            .lower()),
+            deckmaste_core::ManaRider::TriggerOnSpend(_)
+        );
+    }
 }

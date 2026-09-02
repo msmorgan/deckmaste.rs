@@ -761,6 +761,40 @@ mod tests {
             ))
         );
     }
+
+    #[test]
+    fn lowers_action_composite() {
+        assert_matches!(
+            in_spell_region(|| deckmaste_semantics::Action::Composite {
+                name: minimal_verb_name(),
+                body: std::sync::Arc::new(minimal_one_shot_effect())
+            }
+            .lower()),
+            deckmaste_core::Action::Composite {
+                name: deckmaste_core::VerbName(_),
+                body: _
+            }
+        );
+    }
+
+    #[test]
+    fn lowers_action_create_replacement() {
+        assert_matches!(
+            in_spell_region(|| deckmaste_semantics::Action::CreateReplacement {
+                replacement: std::sync::Arc::new(minimal_replacement()),
+                duration: minimal_duration(),
+                one_shot: false
+            }
+            .lower()),
+            deckmaste_core::Action::CreateReplacement {
+                replacement: _,
+                duration: deckmaste_core::Duration::FixedUntil(
+                    deckmaste_core::TurnMarker::EndOfTurn
+                ),
+                one_shot: false
+            }
+        );
+    }
 }
 
 impl Lower for deckmaste_semantics::Destination {
