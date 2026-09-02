@@ -3672,6 +3672,17 @@ mutual
   public export
   testSubjectOk : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bool
   testSubjectOk (Definite _) = True
+  -- The library slice announces with the DEFINITE's own determiner:
+  -- `nounDelta` mints its mention at `TheD`, and [CR#401.2] keeps a
+  -- library in one ordered pile, so "the top card of your library" names
+  -- its referent rather than supposing one. Admitted for the definite
+  -- row's stated reason -- the condition frame carries the announcement
+  -- out again -- and not as a second rule. Conspicuous Snoop and Skill
+  -- Borrower are what it is for: both write "as long as the top card of
+  -- your library is [a description], this creature has all activated
+  -- abilities of THAT CARD", and the read is of what the condition's
+  -- subject announced.
+  testSubjectOk (LibrarySlice _ _ _) = True
   testSubjectOk n = case nounDelta n of
                       [] => True
                       _ => False

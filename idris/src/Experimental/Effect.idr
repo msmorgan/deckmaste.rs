@@ -497,6 +497,53 @@ mutual
       Gains : (n : Noun bs Object) -> (ab : AbilityAt bs) ->
               {auto 0 ok : GrantSubject ab n} ->
               {auto 0 gr : Grantable ab} -> StaticEffect bs
+      ||| The grant whose payload is DESCRIBED rather than quoted: "this
+      ||| creature has all activated abilities of that card" (Conspicuous
+      ||| Snoop, Skill Borrower), "each other planeswalker you control
+      ||| has the loyalty abilities of Kasmina", "Nicol Bolas has all
+      ||| loyalty abilities of all other planeswalkers on the
+      ||| battlefield", "Koh has all activated and triggered abilities of
+      ||| the last chosen card". [CR#613.1f]'s layer 6 again, and the
+      ||| same operation `Gains` performs -- what differs is that no
+      ||| ability is written down. `Gains` takes an `AbilityAt`, which is
+      ||| a payload the card SPELLS; here the payload is a set picked out
+      ||| of another object by class, and the abilities it names are
+      ||| whatever that object has when the effect applies.
+      |||
+      ||| 29 supported lines write it (measured 2026-08-28) and the
+      ||| description vocabulary they use is `AbilityClass`' own, already
+      ||| minted for the ability on the stack: 26 write "all activated
+      ||| abilities", 2 "all activated and triggered abilities" (Koh,
+      ||| Idris, Soul of the TARDIS) and 2 the loyalty class (Kasmina's
+      ||| "the loyalty abilities of", Nicol Bolas' "all loyalty abilities
+      ||| of"). The determiner is spelling. The class slot is a LIST on
+      ||| `Deontic`'s ground -- the English coordinates class words
+      ||| inside one description -- and nothing is refused by count:
+      ||| every arm of the vocabulary is a class of abilities an object
+      ||| can have.
+      |||
+      ||| The EXCEPTION carves a class back out: Scheming Fence's "except
+      ||| for loyalty abilities" and Sharkey, Tyrant of the Shire's
+      ||| "except mana abilities" are the two supported lines. It is a
+      ||| `Predicate` over `Ability` and not a second class list, because
+      ||| the two printed exceptions are not both classes: "loyalty
+      ||| abilities" is `AbilityHead LoyaltyClass` and a mana ability is
+      ||| [CR#605.1a]'s derived property, which `IsManaAbility` already
+      ||| spells. One description vocabulary serves both.
+      |||
+      ||| NO subject-zone demand. [CR#113.6b] makes a granted ability
+      ||| function from the zones it names, so a grant may name a subject
+      ||| in any zone; that every supported subject here is on the
+      ||| battlefield is a count and not a rule.
+      ||| -- spelling: "[n] has [cls] abilities of [src]", the classes
+      ||| coordinated with "and"; with an exception, "except [except]".
+      GainsAbilitiesOf : (n : Noun bs Object) ->
+                         (cls : List AbilityClass) ->
+                         (src : Noun (nomIntro n) Object) ->
+                         (except : Maybe (Predicate (nomIntro src) Ability)) ->
+                         {auto 0 ne : NonEmpty cls} ->
+                         {auto 0 dc : So (distinctClasses cls)} ->
+                         StaticEffect bs
       ||| THE deontic carrier: one subject, one modality, one or more
       ||| deeds, one role, an optional other participant and an optional
       ||| [CR#609.4] counterfactual. It is the whole modal algebra --
@@ -776,9 +823,50 @@ mutual
       BecomesCopy : (n : Noun bs Object) -> (src : Noun (nomIntro n) Object) ->
                     (exc : List (CopyExcept (nomIntro src))) ->
                     {auto 0 pm : PerMember src} -> StaticEffect bs
+      ||| "Enchanted creature loses all abilities", "All lands lose all
+      ||| abilities except mana abilities" (Blood Sun): [CR#613.1f]'s
+      ||| layer 6 emptying an object.
+      ||| The EXCEPTION carves a described class back out, and it is the
+      ||| slot `GainsAbilitiesOf` buys rather than one minted here: Blood
+      ||| Sun is still the only supported line that writes an exception
+      ||| on the LOSS (re-measured 2026-08-28), where the grant writes
+      ||| two (Sharkey, Tyrant of the Shire's "except mana abilities" and
+      ||| Scheming Fence's "except for loyalty abilities"). One shape,
+      ||| three lines, two carriers -- the same `Predicate` over
+      ||| `Ability` at both.
+      ||| -- spelling: "[n] loses all abilities"; with an exception,
+      ||| "except [except]".
       LosesAllAbilities : (n : Noun bs Object) ->
+                          (except : Maybe (Predicate (selfSubjIntro n) Ability)) ->
                           {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                           StaticEffect bs
+      ||| The loss that names WHICH abilities: "All creatures lose
+      ||| trample until end of turn" (Blind Fury), "Creatures your
+      ||| opponents control lose hexproof and can't have or gain
+      ||| hexproof" (Archetype of Endurance), "Permanents your opponents
+      ||| control lose hexproof and indestructible until end of turn"
+      ||| (Shadowspear). [CR#613.1f] puts ability-removing effects in the
+      ||| same layer as ability-adding ones, and this is `Gains`' mirror
+      ||| at that layer: the payload is an ability the line writes down,
+      ||| where `LosesAllAbilities` names none and takes them all.
+      ||| 76 supported lines write it (measured 2026-08-28) over 76
+      ||| cards, "loses flying" the commonest at 32.
+      ||| The payload is a LIST on `Deontic`'s ground -- the English is
+      ||| n-ary ("lose hexproof, indestructible, protection, shroud, and
+      ||| ward") -- and its elements are `AbilityAt`s, which is what lets
+      ||| one row carry the bare keyword, the parameterised one
+      ||| ("protection from black", Cephalid Snitch) and the quoted
+      ||| ability ("loses 'enchant creature card in a graveyard'") that
+      ||| the corpus writes at this seat. Each element answers
+      ||| `grantableAb`: an object can be made to lose only what it could
+      ||| have had.
+      ||| -- spelling: "[n] loses [abl]", the abilities coordinated with
+      ||| "and".
+      LosesAbilities : (n : Noun bs Object) -> (abl : List (AbilityAt bs)) ->
+                       {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                       {auto 0 ne : NonEmpty abl} ->
+                       {auto 0 hd : So (abilitiesHoldable abl)} ->
+                       StaticEffect bs
       GainsControl : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
                      {auto 0 zn : ZoneFits (nounZone what) (Just Battlefield)} -> StaticEffect bs
       ||| The cap slot is the trigger rider's word reused, not a third
@@ -1527,6 +1615,7 @@ mutual
   staticKind (AltCost _) = CostModification
   staticKind (AddedCost _ _) = CostModification
   staticKind (Gains _ _) = KeywordGrant
+  staticKind (GainsAbilitiesOf _ _ _ _) = KeywordGrant
   staticKind (Deontic _ _ _ _ _ _) = DeedRestriction
   staticKind (DoesntUntap _) = DeedRestriction
   staticKind (CantMoreThan _ _ _ _) = DeedRestriction
@@ -1545,7 +1634,8 @@ mutual
   staticKind (SetsType _ _ _) = TypeSet
   staticKind (AddsChosenQuality _ _) = TypeAddition
   staticKind (SetsChosenQuality _ _) = TypeSet
-  staticKind (LosesAllAbilities _) = AbilityLoss
+  staticKind (LosesAllAbilities _ _) = AbilityLoss
+  staticKind (LosesAbilities _ _) = AbilityLoss
   staticKind (GainsControl _ _) = ControlGrant
   staticKind (Intercepts _ _ _ _ _ _) = Replacement
   staticKind (Prevents _ _ _ _ _) = Prevention
@@ -1598,6 +1688,10 @@ mutual
   -- was missing was the OPENING, since `ParamNumber`'s amount is typed
   -- at `[]` and its own `amtIntro` reaches nothing here.
   staticIntro (Gains n ab) = abLetterDelta ab ++ selfSubjIntro n
+  -- the source is named after the subject, so what it announces is what
+  -- the statement leaves; the class words and the exception describe
+  -- abilities and name no object.
+  staticIntro (GainsAbilitiesOf n _ src _) = nomIntro src
   staticIntro (Deontic n _ _ _ _ _) = selfSubjIntro n
   staticIntro (DoesntUntap n) = selfSubjIntro n
   staticIntro (CantMoreThan _ _ _ _) = bs
@@ -1613,7 +1707,8 @@ mutual
   staticIntro (SetsType n _ _) = selfSubjIntro n
   staticIntro (AddsChosenQuality n _) = selfSubjIntro n
   staticIntro (SetsChosenQuality n _) = selfSubjIntro n
-  staticIntro (LosesAllAbilities n) = selfSubjIntro n
+  staticIntro (LosesAllAbilities n _) = selfSubjIntro n
+  staticIntro (LosesAbilities n _) = selfSubjIntro n
   -- the control change is a labeled act of its own: [CR#613.1b]
   -- applies it in layer 2 and [CR#110.2] makes the controller a
   -- property of the permanent, which stays where it stands. So the row
@@ -4572,6 +4667,14 @@ mutual
   abilitiesGrantable : List (AbilityAt []) -> Bool
   abilitiesGrantable [] = True
   abilitiesGrantable (a :: as) = grantableAb a && abilitiesGrantable as
+
+  ||| The same question at a list typed in a live context, which the
+  ||| ability LOSS asks of its payload: an object can be made to lose
+  ||| only what it could have had.
+  public export
+  abilitiesHoldable : {0 bs : Bindings} -> List (AbilityAt bs) -> Bool
+  abilitiesHoldable [] = True
+  abilitiesHoldable (a :: as) = grantableAb a && abilitiesHoldable as
 
   public export
   tokenAbilitiesOk : {0 bs : Bindings} -> TokenChars bs -> Bool

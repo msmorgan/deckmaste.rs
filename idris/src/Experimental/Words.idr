@@ -3934,6 +3934,16 @@ Eq AbilityClass where
   (==) (KeywordClass a) (KeywordClass b) = a == b
   (==) (KeywordClass _) _ = False
 
+||| Whether a LIST of ability classes names each class once. A described
+||| set of abilities is written as a coordination of class words ("all
+||| activated and triggered abilities of the last chosen card", Koh, the
+||| Face Stealer), and a word written twice describes the same abilities
+||| twice.
+public export
+distinctClasses : List AbilityClass -> Bool
+distinctClasses [] = True
+distinctClasses (c :: cs) = not (elem c cs) && distinctClasses cs
+
 
 ||| [CR#207.2c]: an ability word appears in italics at the beginning of some
 ||| abilities. The words tie together cards with similar functionality but

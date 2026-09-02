@@ -3357,7 +3357,7 @@ windZendikon =
 nullhideFerox : Ability
 nullhideFerox =
   Macros.activated (Mana [Macros.generic 2])
-                   (Continuously (LosesAllAbilities Macros.thisCreature)
+                   (Continuously (LosesAllAbilities Macros.thisCreature Nothing)
                           (Just Macros.untilEndOfTurn))
 
 
@@ -3386,7 +3386,7 @@ turnToFrog =
   Macros.card "Turn to Frog" (Just [Macros.generic 1, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
        [ Spell (Continuously
-                  (AndAlso [ LosesAllAbilities (Macros.target Macros.creature)
+                  (AndAlso [ LosesAllAbilities (Macros.target Macros.creature) Nothing
                            , SetsType It (MkToken Nothing [Blue]
                                                   (MkTypeLine [creatureType "Frog"] []) [] Nothing)
                                       Nothing
@@ -3398,7 +3398,7 @@ humility : Card
 humility =
   Macros.card "Humility" (Just [Macros.generic 2, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [] [Enchantment])
-       [ Static (AndAlso [ LosesAllAbilities (AllOf Macros.creature)
+       [ Static (AndAlso [ LosesAllAbilities (AllOf Macros.creature) Nothing
                          , HasBasePt Them (Lit 1) (Lit 1) ]) ]
        Nothing
 
@@ -3438,7 +3438,7 @@ frogify =
   Macros.card "Frogify" (Just [Macros.generic 1, Macros.pip Blue]) []
        (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject "Enchant" Macros.creature
-       , Static (AndAlso [ LosesAllAbilities (AttachHost Enchanted (TypeW Creature))
+       , Static (AndAlso [ LosesAllAbilities (AttachHost Enchanted (TypeW Creature)) Nothing
                          , SetsType It (MkToken Nothing [Blue]
                                                 (MkTypeLine [creatureType "Frog"] [Creature]) [] Nothing)
                                     Nothing
@@ -3458,7 +3458,7 @@ darksteelMutation =
                                     Nothing
                          , HasBasePt It (Lit 0) (Lit 1)
                          , Gains It (Macros.keyword "Indestructible")
-                         , LosesAllAbilities It ]) ]
+                         , LosesAllAbilities It Nothing ]) ]
        Nothing
 
 kenrithsTransformation : Card
@@ -3467,7 +3467,7 @@ kenrithsTransformation =
        (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject "Enchant" Macros.creature
        , Macros.triggered When (Enters Macros.thisAura Nothing) (Draw You (Lit 1))
-       , Static (AndAlso [ LosesAllAbilities (AttachHost Enchanted (TypeW Creature))
+       , Static (AndAlso [ LosesAllAbilities (AttachHost Enchanted (TypeW Creature)) Nothing
                          , SetsType It (MkToken Nothing [Green]
                                                 (MkTypeLine [creatureType "Elk"] [Creature]) [] Nothing)
                                     Nothing
@@ -3481,7 +3481,7 @@ amphibianDownpour =
        [ Macros.keyword "Flash"
        , Macros.keyword "Storm"
        , Macros.keywordSubject "Enchant" Macros.creature
-       , Static (AndAlso [ LosesAllAbilities (AttachHost Enchanted (TypeW Creature))
+       , Static (AndAlso [ LosesAllAbilities (AttachHost Enchanted (TypeW Creature)) Nothing
                          , SetsType It (MkToken Nothing [Blue]
                                                 (MkTypeLine [creatureType "Frog"] [Creature]) [] Nothing)
                                     Nothing
@@ -3499,7 +3499,7 @@ lignify =
                                              [] Nothing)
                                     Nothing
                          , HasBasePt It (Lit 0) (Lit 4)
-                         , LosesAllAbilities It ]) ]
+                         , LosesAllAbilities It Nothing ]) ]
        Nothing
 
 ||| Invasion of Dominaria // Serra Faithkeeper, a nonmodal double-faced card
@@ -5498,9 +5498,15 @@ beckoningWillOWispChooser =
 ||| card exiled with Koh." The chooser at an ACTIVATED ability and at an
 ||| OBJECT: the exile linkage [CR#607.2a] narrows the choice and the clause
 ||| leaves a mention, not a chosen value. The card's fourth line, "Koh has
-||| all activated and triggered abilities of the last chosen card", wants
-||| two things this round does not buy: a grant of ANOTHER object's whole
-||| ability set, which no row writes, and the object-sorted marked read.
+||| all activated and triggered abilities of the last chosen card", wanted
+||| two things: a grant of ANOTHER object's described ability set, which
+||| `GainsAbilitiesOf` now writes at exactly this pair of classes, and the
+||| object-sorted marked read, which is still the line's blocker. Idris,
+||| Soul of the TARDIS writes the same class pair and is blocked the same
+||| way -- its source is "the exiled card", a participle definite its own
+||| earlier ability stamped, and no static line reads across an ability
+||| boundary. So the class slot's LIST arm has no bench entry: both
+||| supported lines that write two classes are held up by their SOURCE.
 public export
 kohChooser : Ability
 kohChooser =
@@ -6871,7 +6877,7 @@ public export
 lithoformBlightLoss : StaticEffect []
 lithoformBlightLoss =
   AndAlso [ LosesEveryType (AttachHost Enchanted (TypeW Land)) LandSpace
-          , LosesAllAbilities It ]
+          , LosesAllAbilities It Nothing ]
 
 ||| Energybending -- "Lands you control gain all basic land types until end
 ||| of turn. / Draw a card." The basic-land grant cell, which needed only
@@ -13512,7 +13518,7 @@ sugarCoat =
                                    (Macros.gainsLife You (Lit 3)) ]
                                Nothing)
                       Nothing
-           , LosesAllAbilities It ]) ]
+           , LosesAllAbilities It Nothing ]) ]
        Nothing
 
 ||| Doc Aurlock, Grizzled Genius's first line -- "Spells you cast from your
@@ -16792,3 +16798,149 @@ profitLoss =
                        (Just Macros.untilEndOfTurn))
             , Macros.keyword "Fuse" ]
             Nothing)
+
+||| Kasmina, Enigma Sage's first line -- "Each other planeswalker you
+||| control has the loyalty abilities of Kasmina." The DESCRIBED ability
+||| payload at the loyalty class, with the grantor named by self-name
+||| [CR#113.7a]. The other half of the ledgered pair is Nicol Bolas,
+||| Dragon-God below; neither was writable while `Gains` was the only
+||| grant, since neither card quotes an ability.
+public export
+kasminaLoyaltySharing : StaticEffect []
+kasminaLoyaltySharing =
+  GainsAbilitiesOf (AllOf (And [HasType Planeswalker, ControlledBy You,
+                                OtherThan This]))
+                   [LoyaltyClass] This Nothing
+
+||| Nicol Bolas, Dragon-God's first line -- "Nicol Bolas has all loyalty
+||| abilities of all other planeswalkers on the battlefield." The same
+||| row read from the other side: the source is the described GROUP and
+||| the subject is the card itself.
+public export
+nicolBolasDragonGodSharing : StaticEffect []
+nicolBolasDragonGodSharing =
+  GainsAbilitiesOf This [LoyaltyClass]
+                   (AllOf (And [HasType Planeswalker, OtherThan This,
+                                InZone Macros.battlefieldZ]))
+                   Nothing
+
+||| Myr Welder's second line -- "This creature has all activated
+||| abilities of all cards exiled with it." The commonest spelling of the
+||| described payload (26 of the 29 supported lines write "all activated
+||| abilities of"), over the exile linkage [CR#607.2a] its own first line
+||| makes. Dark Impostor, Patchwork Crawler and Rex, Cyber-Hound write
+||| the same sentence.
+public export
+myrWelderBorrowedAbilities : StaticEffect []
+myrWelderBorrowedAbilities =
+  GainsAbilitiesOf Macros.thisCreature [AnyActivated]
+                   (AllOf (ExiledWith This)) Nothing
+
+||| Sharkey, Tyrant of the Shire's third line -- "Sharkey has all
+||| activated abilities of lands your opponents control except mana
+||| abilities." The EXCEPTION slot at [CR#605.1a]'s derived property,
+||| which `IsManaAbility` already spelled for the ability-on-the-stack
+||| noun. Scheming Fence writes the other supported exception ("except
+||| for loyalty abilities") and does not bench: its source is "the chosen
+||| permanent", the object-sorted marked read.
+public export
+sharkeyBorrowedLandAbilities : StaticEffect []
+sharkeyBorrowedLandAbilities =
+  GainsAbilitiesOf This [AnyActivated]
+                   (AllOf (And [Macros.land,
+                                ControlledBy (PlayerGroup YourOpponents)]))
+                   (Just IsManaAbility)
+
+
+||| Conspicuous Snoop, whole card -- "Play with the top card of your
+||| library revealed. / You may cast Goblin spells from the top of your
+||| library. / As long as the top card of your library is a Goblin card,
+||| this creature has all activated abilities of that card." The first
+||| two lines were the visibility rider and the top-of-library
+||| permission; the third was the ability-borrowing gap, and it is the
+||| described payload over a condition's own mention.
+public export
+conspicuousSnoop : Card
+conspicuousSnoop =
+  Macros.card "Conspicuous Snoop" (Just [Macros.pip Red, Macros.pip Red]) []
+       (MkTypeLine [creatureType "Goblin", creatureType "Rogue"] [Creature])
+       [ Static (Visibility Reveal You TopOfLibrary)
+       , Static (Macros.mayPlayFrom You
+                   (AllOf (And [Macros.spell,
+                                HasSubtype (creatureType "Goblin")]))
+                   Macros.onTopZ)
+       , Static (Macros.asLongAs
+                   (Matches Macros.topCard (HasSubtype (creatureType "Goblin")))
+                   (GainsAbilitiesOf Macros.thisCreature [AnyActivated]
+                                     (That CardW) Nothing)) ]
+       (Just (2, 2))
+
+||| Skill Borrower, whole card -- the same two lines at an artifact
+||| creature, the condition widened to "an artifact or creature card".
+||| Its reminder text is [CR#201.5a]'s name substitution restated and is
+||| not part of the ability.
+public export
+skillBorrower : Card
+skillBorrower =
+  Macros.card "Skill Borrower"
+       (Just [Macros.generic 2, Macros.pip Blue]) []
+       (MkTypeLine [creatureType "Human", creatureType "Wizard"]
+                   [Artifact, Creature])
+       [ Static (Visibility Reveal You TopOfLibrary)
+       , Static (Macros.asLongAs
+                   (Matches Macros.topCard (Or [Macros.artifact, Macros.creature]))
+                   (GainsAbilitiesOf Macros.thisCreature [AnyActivated]
+                                     (That CardW) Nothing)) ]
+       (Just (1, 3))
+
+||| Blind Fury, whole card -- "All creatures lose trample until end of
+||| turn. / If a creature would deal combat damage to a creature this
+||| turn, it deals double that damage to that creature instead." The
+||| named-ability loss was the card's last blocker; its second sentence
+||| is the ordinary combat-damage doubling.
+public export
+blindFury : Card
+blindFury =
+  Macros.card "Blind Fury"
+       (Just [Macros.generic 2, Macros.pip Red, Macros.pip Red]) []
+       (MkTypeLine [] [Instant])
+       [ Spell (Sequentially
+                  [ Continuously
+                      (LosesAbilities (AllOf Macros.creature)
+                                      [KeywordAbility "Trample" Nothing])
+                      (Just Macros.untilEndOfTurn)
+                  , Continuously
+                      (Scales CombatOnly (Macros.a Macros.creature)
+                              (Macros.shieldingIt (Macros.a Macros.creature))
+                              (Multiplied Doubled) Repeatedly)
+                      (Just Macros.thisTurn) ]) ]
+       Nothing
+
+||| Shadowspear's second line -- "{1}: Permanents your opponents control
+||| lose hexproof and indestructible until end of turn." The payload's
+||| LIST arm: one subject, one loss, two abilities. Bonds of Mortality
+||| and The Fire Nation Drill write the same sentence, and Shay Cormac
+||| writes it at five words.
+public export
+shadowspearStrip : Ability
+shadowspearStrip =
+  Macros.activated (Mana [Macros.generic 1])
+    (Continuously
+       (LosesAbilities
+          (AllOf (And [Permanent, ControlledBy (PlayerGroup YourOpponents)]))
+          [ KeywordAbility "Hexproof" Nothing
+          , KeywordAbility "Indestructible" Nothing ])
+       (Just Macros.untilEndOfTurn))
+
+||| Blood Sun, whole card -- "When this enchantment enters, draw a card. /
+||| All lands lose all abilities except mana abilities." The exception on
+||| the ability LOSS, and the corpus's only line that writes one there.
+public export
+bloodSun : Card
+bloodSun =
+  Macros.card "Blood Sun" (Just [Macros.generic 2, Macros.pip Red]) []
+       (MkTypeLine [] [Enchantment])
+       [ Macros.triggered When (Enters Macros.thisEnchantment Nothing)
+                          Macros.drawACard
+       , Static (LosesAllAbilities (AllOf Macros.land) (Just IsManaAbility)) ]
+       Nothing
