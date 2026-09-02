@@ -14,3 +14,10 @@ Two binder reads over players, from tails-b's close (2026-09-02):
   Oath cycle's unbuilt chooser clause, so land the chooser clause with it.
 
 Re-measure at claim.
+
+- **Routed from tails-a (close, 2026-09-02):** the DISTRIBUTIVE PASS's member
+  read in the SENTENCE AFTER the pass — Truce/Temporary Truce's "that player"
+  (2 cards) and the description-side "each player who searched their/a
+  library this way" (9 carriers, 8 also wanting the self-possessive). Both
+  wait on ONE decision at this ticket's seam (`agentIntro`'s member scope),
+  not two.

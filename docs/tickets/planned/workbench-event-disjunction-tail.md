@@ -45,3 +45,7 @@ Two remainders from trigger-2 (done 2026-08-27) whose named owner
   waits on it. And the `MoveCounters` partitive source (Slippery Bogbonder,
   1 line — deliberately unbuilt at one carrier; recorded here so it stays
   live).
+
+- **Routed from tails-a (close, 2026-09-02):** "if you do" after a MANDATORY
+  instruction (the optionality family's gap; `Reflexively` keys off an
+  offer) — Garruk Relentless's last blocker.
