@@ -856,13 +856,14 @@ deontic : {k : Kind} -> (n : Noun bs k) -> (c : Compulsion (selfSubjIntro n)) ->
           (deeds : Deeds) -> (role : Role) ->
           (patient : DeonticPatient {bs = nomIntro n} deeds role) ->
           {auto 0 ne : NonEmpty deeds} ->
+          {auto 0 dd : So (distinctDeeds deeds)} ->
           {auto 0 kd : KnownDeeds deeds} ->
           {auto 0 zn : ZoneFits (nounZone n) (deedsZone deeds role)} ->
           {auto 0 dp : DeedParticipant deeds role k (nounTy n)} ->
-          {auto 0 pt : So (deonticPatientOk n deeds role patient)} ->
+          {auto 0 pt : So (deonticPatientOk n deeds role patient NoDeonticRider)} ->
           StaticEffect bs
 deontic n c deeds role patient =
-  Deontic n c deeds role patient Nothing {ne} {kd} {zn} {dp} {pt}
+  Deontic n c deeds role patient Nothing NoDeonticRider {ne} {dd} {kd} {zn} {dp} {pt}
 
 public export
 cantAttack : (n : Noun bs Object) -> (span : Maybe (Duration (selfSubjIntro n))) ->
@@ -870,7 +871,7 @@ cantAttack : (n : Noun bs Object) -> (span : Maybe (Duration (selfSubjIntro n)))
              {auto 0 dp : DeedParticipant ["Attack"] Agent Object (nounTy n)} ->
              {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
 cantAttack n span =
-  Continuously (Deontic n Forbid ["Attack"] Agent NoDeonticPatient Nothing {zn} {dp}) span {sp}
+  Continuously (Deontic n Forbid ["Attack"] Agent NoDeonticPatient Nothing NoDeonticRider {zn} {dp}) span {sp}
 
 public export
 cantBlock : (n : Noun bs Object) -> (span : Maybe (Duration (selfSubjIntro n))) ->
@@ -878,7 +879,7 @@ cantBlock : (n : Noun bs Object) -> (span : Maybe (Duration (selfSubjIntro n))) 
             {auto 0 dp : DeedParticipant ["Block"] Agent Object (nounTy n)} ->
             {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
 cantBlock n span =
-  Continuously (Deontic n Forbid ["Block"] Agent NoDeonticPatient Nothing {zn} {dp}) span {sp}
+  Continuously (Deontic n Forbid ["Block"] Agent NoDeonticPatient Nothing NoDeonticRider {zn} {dp}) span {sp}
 
 ||| "[n] can't attack or block": ONE subject, ONE modality, TWO deeds --
 ||| the coordination the carrier's deed list is, and the shape the
@@ -892,7 +893,7 @@ cantAttackOrBlock : (n : Noun bs Object) ->
                     {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
 cantAttackOrBlock n span =
   Continuously (Deontic n Forbid ["Attack", "Block"] Agent NoDeonticPatient Nothing
-                  {zn} {dp}) span {sp}
+                  NoDeonticRider {zn} {dp}) span {sp}
 
 ||| "[n] can [deed]": the permission, the deed restriction's twin. No
 ||| counterfactual is present and none is needed -- [CR#609.4]'s slot is
@@ -903,7 +904,7 @@ canDo : {k : Kind} -> (n : Noun bs k) -> (deed : VerbLabel) ->
         {auto 0 zn : ZoneFits (nounZone n) (deedsZone [deed] Agent)} ->
         {auto 0 dp : DeedParticipant [deed] Agent k (nounTy n)} ->
         StaticEffect bs
-canDo n deed = Deontic n Permit [deed] Agent NoDeonticPatient Nothing {kd} {zn} {dp}
+canDo n deed = Deontic n Permit [deed] Agent NoDeonticPatient Nothing NoDeonticRider {kd} {zn} {dp}
 
 ||| "[n] can [deed] as though [p]": the permission with [CR#609.4]'s
 ||| premise riding it. "This creature can attack as though it didn't have
@@ -918,7 +919,8 @@ canDoAsThough : {k : Kind} -> (n : Noun bs k) -> (deed : VerbLabel) ->
                 {auto 0 at : So (asThoughOk (Permit {bs = selfSubjIntro n}) [deed] (Just (AsThoughOf p)))} ->
                 StaticEffect bs
 canDoAsThough n deed p =
-  Deontic n Permit [deed] Agent NoDeonticPatient (Just (AsThoughOf p)) {kd} {zn} {dp} {at}
+  Deontic n Permit [deed] Agent NoDeonticPatient (Just (AsThoughOf p)) NoDeonticRider
+          {kd} {zn} {dp} {at}
 
 ||| "[who] may spend [what] mana as though it were [as] [purpose]", and
 ||| its passive "[as] can be spent [purpose]": [CR#609.4b]'s payment
@@ -936,7 +938,8 @@ maySpendAsThough : (who : Noun bs Player) ->
                    StaticEffect bs
 maySpendAsThough who what as purpose =
   Deontic who Permit ["Spend"] Agent NoDeonticPatient
-          (Just (AsThoughMana what as purpose)) {kd} {zn} {dp} {at} {pt = Oh}
+          (Just (AsThoughMana what as purpose)) NoDeonticRider
+          {kd = Oh} {dd = Oh} {zn} {dp} {at} {pt = Oh} {rd = Oh}
 
 ||| "[who] can't [deed]": the player-subject prohibition, `PlayerCant`'s
 ||| whole content as a spelling over the carrier.
@@ -946,7 +949,8 @@ playerCant : (deed : VerbLabel) -> (who : Noun bs Player) ->
              {auto 0 zn : ZoneFits (nounZone who) (deedsZone [deed] Agent)} ->
              {auto 0 dp : DeedParticipant [deed] Agent Player (nounTy who)} ->
              StaticEffect bs
-playerCant deed who = Deontic who Forbid [deed] Agent NoDeonticPatient Nothing {kd} {zn} {dp}
+playerCant deed who = Deontic who Forbid [deed] Agent NoDeonticPatient Nothing NoDeonticRider
+                              {kd} {zn} {dp}
 
 ||| "[what] can't be [deed]ed": the object-subject prohibition,
 ||| `ObjectCant`'s whole content as a spelling over the carrier. The same
@@ -960,7 +964,7 @@ objectCant : {k : Kind} -> (deed : VerbLabel) -> (what : Noun bs k) ->
              {auto 0 dp : DeedParticipant [deed] Patient k (nounTy what)} ->
              StaticEffect bs
 objectCant deed what =
-  Deontic what Forbid [deed] Patient NoDeonticPatient Nothing {kd} {zn} {dp}
+  Deontic what Forbid [deed] Patient NoDeonticPatient Nothing NoDeonticRider {kd} {zn} {dp}
 
 ||| "[who] can't [deed] [what]": the prohibition whose act carries an
 ||| OBJECT DESCRIPTION rather than naming the act bare. 101 supported
@@ -987,10 +991,11 @@ cantDoTo : {k : Kind} -> {kw : Kind} -> (deed : VerbLabel) ->
            {auto 0 zn : ZoneFits (nounZone who) (deedsZone [deed] Agent)} ->
            {auto 0 dp : DeedParticipant [deed] Agent k (nounTy who)} ->
            {auto 0 pt : So (deonticPatientOk who [deed] Agent
-                              (DeonticCounterpart what))} ->
+                              (DeonticCounterpart what)
+                              NoDeonticRider)} ->
            StaticEffect bs
 cantDoTo deed who what =
-  Deontic who Forbid [deed] Agent (DeonticCounterpart what) Nothing
+  Deontic who Forbid [deed] Agent (DeonticCounterpart what) Nothing NoDeonticRider
           {kd} {zn} {dp} {pt}
 
 ||| "[what] can't be the target of [by]": the targeting prohibition, 30
@@ -1005,7 +1010,7 @@ cantBeTargetedBy : {k : Kind} -> {ka : Kind} -> (what : Noun bs k) ->
                    {auto 0 dp : DeedParticipant ["Target"] Patient k (nounTy what)} ->
                    StaticEffect bs
 cantBeTargetedBy what by =
-  Deontic what Forbid ["Target"] Patient (TargetedBy by {tr}) Nothing {zn} {dp}
+  Deontic what Forbid ["Target"] Patient (TargetedBy by {tr}) Nothing NoDeonticRider {zn} {dp}
 
 ||| "[what] can be the target of [by] as though [p]": Glaring Spotlight's
 ||| line, the targeting deed's permission with [CR#609.4]'s premise.
@@ -1018,7 +1023,8 @@ canBeTargetedAsThough : {k : Kind} -> {ka : Kind} -> (what : Noun bs k) ->
                         {auto 0 dp : DeedParticipant ["Target"] Patient k (nounTy what)} ->
                         StaticEffect bs
 canBeTargetedAsThough what by p =
-  Deontic what Permit ["Target"] Patient (TargetedBy by {tr}) (Just (AsThoughOf p)) {zn} {dp}
+  Deontic what Permit ["Target"] Patient (TargetedBy by {tr}) (Just (AsThoughOf p))
+          NoDeonticRider {zn} {dp}
 
 public export
 cantBeBlocked : (n : Noun bs Object) -> (span : Maybe (Duration (selfSubjIntro n))) ->
@@ -1026,7 +1032,7 @@ cantBeBlocked : (n : Noun bs Object) -> (span : Maybe (Duration (selfSubjIntro n
                 {auto 0 dp : DeedParticipant ["Block"] Patient Object (nounTy n)} ->
                 {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
 cantBeBlocked n span =
-  Continuously (Deontic n Forbid ["Block"] Patient NoDeonticPatient Nothing {zn} {dp}) span {sp}
+  Continuously (Deontic n Forbid ["Block"] Patient NoDeonticPatient Nothing NoDeonticRider {zn} {dp}) span {sp}
 
 ||| "[n] blocks IT this turn if able": the forced block whose blocked
 ||| creature is named by the pronoun (Fighter Class, Feral Contest,
@@ -1049,12 +1055,13 @@ mustBlockIt : {bs : Bindings} -> (n : Noun bs Object) ->
               {auto 0 dp : DeedParticipant ["Block"] Agent Object (nounTy n)} ->
               {auto 0 ok : countOnes Object bs = 1} ->
               {auto 0 pt : So (deonticPatientOk n ["Block"] Agent
-                                 (DeonticCounterpart (ItOtherThan (nounDelta n) bs {ok})))} ->
+                                 (DeonticCounterpart (ItOtherThan (nounDelta n) bs {ok}))
+                                 NoDeonticRider)} ->
               {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
 mustBlockIt n span =
   Continuously (Deontic n Require ["Block"] Agent
                   (DeonticCounterpart (ItOtherThan (nounDelta n) bs {ok}))
-                  Nothing {zn} {dp} {pt})
+                  Nothing NoDeonticRider {zn} {dp} {pt})
                span {sp}
 
 
@@ -2158,62 +2165,150 @@ activatedOnlyOnceIf : (cost : Cost (dropLetter X bs)) ->
 activatedOnlyOnceIf cost eff lim g =
   Activated cost eff Nothing (Just lim) (Just g) Nothing {tp} {py} {ul}
 
+||| The play permission's shared shape: `Permit` at one play deed, with
+||| the played card as the statement's complement and everything else on
+||| the rider. Nine wrappers below differ only in the deed and the rider
+||| slots they fill; none of them is a row of its own.
+public export
+mayPlayDeed : (deed : VerbLabel) -> (who : Noun bs Player) ->
+              (what : Noun (nomIntro who) Object) ->
+              (rider : DeonticRider (nomIntro what)) ->
+              {auto 0 kd : KnownDeeds [deed]} ->
+              {auto 0 dd : So (distinctDeeds [deed])} ->
+              {auto 0 zn : ZoneFits (nounZone who) (deedsZone [deed] Agent)} ->
+              {auto 0 dp : DeedParticipant [deed] Agent Player (nounTy who)} ->
+              {auto 0 pt : So (deonticPatientOk who [deed] Agent
+                                                (DeonticCounterpart what)
+                                                rider)} ->
+              {auto 0 rd : So (deonticRiderOk [deed] Agent
+                                              (Permit {bs = selfSubjIntro who})
+                                              (DeonticCounterpart what) False
+                                              rider)} ->
+              StaticEffect bs
+mayPlayDeed deed who what rider =
+  Deontic who Permit [deed] Agent (DeonticCounterpart what) Nothing rider
+          {kd} {dd} {zn} {dp} {pt} {rd}
+
 ||| "You may play <what>."
 public export
 mayPlay : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
-          {auto 0 pz : PlaySource (nounZone what)
-                                  (the (Maybe (ZoneExpr (nomIntro what))) Nothing)
-                                  False} ->
-          {auto 0 cv : CastableTy Play (nounTy what)} -> StaticEffect bs
-mayPlay who what = MayPlay who what Play Nothing Nothing Nothing Nothing False ItsOwnCost {pz} {cv}
+          {auto 0 zn : ZoneFits (nounZone who) (deedsZone ["Play"] Agent)} ->
+          {auto 0 dp : DeedParticipant ["Play"] Agent Player (nounTy who)} ->
+          {auto 0 pt : So (deonticPatientOk who ["Play"] Agent
+                                            (DeonticCounterpart what)
+                                            (PlayRider Nothing Nothing Nothing False ItsOwnCost))} ->
+          {auto 0 rd : So (deonticRiderOk ["Play"] Agent
+                                          (Permit {bs = selfSubjIntro who})
+                                          (DeonticCounterpart what) False
+                                          (PlayRider Nothing Nothing Nothing
+                                                     False ItsOwnCost))} ->
+          StaticEffect bs
+mayPlay who what =
+  mayPlayDeed "Play" who what (PlayRider Nothing Nothing Nothing False ItsOwnCost)
+              {zn} {dp} {pt} {rd}
 
 ||| "You may cast <what> from <zone>."
 public export
 mayCastFrom : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
               (from : ZoneExpr (nomIntro what)) ->
-              {auto 0 pz : PlaySource (nounZone what) (Just from) False} ->
-              {auto 0 cv : CastableTy Cast (nounTy what)} -> StaticEffect bs
+              {auto 0 zn : ZoneFits (nounZone who) (deedsZone ["Cast"] Agent)} ->
+              {auto 0 dp : DeedParticipant ["Cast"] Agent Player (nounTy who)} ->
+              {auto 0 pt : So (deonticPatientOk who ["Cast"] Agent
+                                                (DeonticCounterpart what)
+                                                (PlayRider (Just from) Nothing Nothing False ItsOwnCost))} ->
+              {auto 0 rd : So (deonticRiderOk ["Cast"] Agent
+                                              (Permit {bs = selfSubjIntro who})
+                                              (DeonticCounterpart what) False
+                                              (PlayRider (Just from) Nothing Nothing
+                                                         False ItsOwnCost))} ->
+              StaticEffect bs
 mayCastFrom who what from =
-  MayPlay who what Cast (Just from) Nothing Nothing Nothing False ItsOwnCost {pz} {cv}
+  mayPlayDeed "Cast" who what
+              (PlayRider (Just from) Nothing Nothing False ItsOwnCost)
+              {zn} {dp} {pt} {rd}
 
 ||| "You may play <what> from <zone>."
 public export
 mayPlayFrom : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
               (from : ZoneExpr (nomIntro what)) ->
-              {auto 0 pz : PlaySource (nounZone what) (Just from) False} ->
-              {auto 0 cv : CastableTy Play (nounTy what)} -> StaticEffect bs
+              {auto 0 zn : ZoneFits (nounZone who) (deedsZone ["Play"] Agent)} ->
+              {auto 0 dp : DeedParticipant ["Play"] Agent Player (nounTy who)} ->
+              {auto 0 pt : So (deonticPatientOk who ["Play"] Agent
+                                                (DeonticCounterpart what)
+                                                (PlayRider (Just from) Nothing Nothing False ItsOwnCost))} ->
+              {auto 0 rd : So (deonticRiderOk ["Play"] Agent
+                                              (Permit {bs = selfSubjIntro who})
+                                              (DeonticCounterpart what) False
+                                              (PlayRider (Just from) Nothing Nothing
+                                                         False ItsOwnCost))} ->
+              StaticEffect bs
 mayPlayFrom who what from =
-  MayPlay who what Play (Just from) Nothing Nothing Nothing False ItsOwnCost {pz} {cv}
+  mayPlayDeed "Play" who what
+              (PlayRider (Just from) Nothing Nothing False ItsOwnCost)
+              {zn} {dp} {pt} {rd}
 
 ||| "You may cast <what> from <zone>", under a play limit.
 public export
 mayCastFromLimited : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
                      (from : ZoneExpr (nomIntro what)) -> (lim : PlayLimit) ->
-                     {auto 0 pz : PlaySource (nounZone what) (Just from) False} ->
-                     {auto 0 cv : CastableTy Cast (nounTy what)} -> StaticEffect bs
+                     {auto 0 zn : ZoneFits (nounZone who) (deedsZone ["Cast"] Agent)} ->
+                     {auto 0 dp : DeedParticipant ["Cast"] Agent Player (nounTy who)} ->
+                     {auto 0 pt : So (deonticPatientOk who ["Cast"] Agent
+                                                       (DeonticCounterpart what)
+                                                       (PlayRider (Just from) (Just lim) Nothing False ItsOwnCost))} ->
+                     {auto 0 rd : So (deonticRiderOk ["Cast"] Agent
+                                                     (Permit {bs = selfSubjIntro who})
+                                                     (DeonticCounterpart what) False
+                                                     (PlayRider (Just from) (Just lim)
+                                                                Nothing False ItsOwnCost))} ->
+                     StaticEffect bs
 mayCastFromLimited who what from lim =
-  MayPlay who what Cast (Just from) Nothing (Just lim) Nothing False ItsOwnCost {pz} {cv}
+  mayPlayDeed "Cast" who what
+              (PlayRider (Just from) (Just lim) Nothing False ItsOwnCost)
+              {zn} {dp} {pt} {rd}
 
 ||| "You may cast <what> from <zone>, but not from anywhere else."
 ||| Haakon, Stromgald Scourge's first line and the only one printed.
 public export
 mayCastFromOnly : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
                   (from : ZoneExpr (nomIntro what)) ->
-                  {auto 0 pz : PlaySource (nounZone what) (Just from) False} ->
-                  {auto 0 cv : CastableTy Cast (nounTy what)} -> StaticEffect bs
+                  {auto 0 zn : ZoneFits (nounZone who) (deedsZone ["Cast"] Agent)} ->
+                  {auto 0 dp : DeedParticipant ["Cast"] Agent Player (nounTy who)} ->
+                  {auto 0 pt : So (deonticPatientOk who ["Cast"] Agent
+                                                    (DeonticCounterpart what)
+                                                    (PlayRider (Just from) Nothing Nothing True ItsOwnCost))} ->
+                  {auto 0 rd : So (deonticRiderOk ["Cast"] Agent
+                                                  (Permit {bs = selfSubjIntro who})
+                                                  (DeonticCounterpart what) False
+                                                  (PlayRider (Just from) Nothing Nothing
+                                                             True ItsOwnCost))} ->
+                  StaticEffect bs
 mayCastFromOnly who what from =
-  MayPlay who what Cast (Just from) Nothing Nothing Nothing True ItsOwnCost {pz} {cv}
+  mayPlayDeed "Cast" who what
+              (PlayRider (Just from) Nothing Nothing True ItsOwnCost)
+              {zn} {dp} {pt} {rd}
 
 ||| "During each of your turns, you may play <what> from <zone>."
 public export
 mayPlayFromEachYourTurn : (who : Noun bs Player) ->
                           (what : Noun (nomIntro who) Object) ->
                           (from : ZoneExpr (nomIntro what)) ->
-                          {auto 0 pz : PlaySource (nounZone what) (Just from) False} ->
-                          {auto 0 cv : CastableTy Play (nounTy what)} -> StaticEffect bs
+                          {auto 0 zn : ZoneFits (nounZone who) (deedsZone ["Play"] Agent)} ->
+                          {auto 0 dp : DeedParticipant ["Play"] Agent Player (nounTy who)} ->
+                          {auto 0 pt : So (deonticPatientOk who ["Play"] Agent
+                                                            (DeonticCounterpart what)
+                                                            (PlayRider (Just from) Nothing (Just DuringEachOfYourTurns) False ItsOwnCost))} ->
+                          {auto 0 rd : So (deonticRiderOk ["Play"] Agent
+                                                          (Permit {bs = selfSubjIntro who})
+                                                          (DeonticCounterpart what) False
+                                                          (PlayRider (Just from) Nothing
+                                                                     (Just DuringEachOfYourTurns)
+                                                                     False ItsOwnCost))} ->
+                          StaticEffect bs
 mayPlayFromEachYourTurn who what from =
-  MayPlay who what Play (Just from) Nothing Nothing (Just DuringEachOfYourTurns)
-          False ItsOwnCost {pz} {cv}
+  mayPlayDeed "Play" who what
+              (PlayRider (Just from) Nothing (Just DuringEachOfYourTurns) False ItsOwnCost)
+              {zn} {dp} {pt} {rd}
 
 ||| "You may cast <what> from <zone> without paying its mana cost."
 ||| [CR#118.9]'s alternative cost at a permission, over a card the clause
@@ -2222,21 +2317,43 @@ mayPlayFromEachYourTurn who what from =
 public export
 mayCastFromFree : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
                   (from : ZoneExpr (nomIntro what)) ->
-                  {auto 0 pz : PlaySource (nounZone what) (Just from) False} ->
-                  {auto 0 cv : CastableTy Cast (nounTy what)} -> StaticEffect bs
+                  {auto 0 zn : ZoneFits (nounZone who) (deedsZone ["Cast"] Agent)} ->
+                  {auto 0 dp : DeedParticipant ["Cast"] Agent Player (nounTy who)} ->
+                  {auto 0 pt : So (deonticPatientOk who ["Cast"] Agent
+                                                    (DeonticCounterpart what)
+                                                    (PlayRider (Just from) Nothing Nothing False WithoutPaying))} ->
+                  {auto 0 rd : So (deonticRiderOk ["Cast"] Agent
+                                                  (Permit {bs = selfSubjIntro who})
+                                                  (DeonticCounterpart what) False
+                                                  (PlayRider (Just from) Nothing Nothing
+                                                             False WithoutPaying))} ->
+                  StaticEffect bs
 mayCastFromFree who what from =
-  MayPlay who what Cast (Just from) Nothing Nothing Nothing False WithoutPaying {pz} {cv}
+  mayPlayDeed "Cast" who what
+              (PlayRider (Just from) Nothing Nothing False WithoutPaying)
+              {zn} {dp} {pt} {rd}
 
 ||| "During each of your turns, you may cast <what> from <zone>."
 public export
 mayCastFromEachYourTurn : (who : Noun bs Player) ->
                           (what : Noun (nomIntro who) Object) ->
                           (from : ZoneExpr (nomIntro what)) ->
-                          {auto 0 pz : PlaySource (nounZone what) (Just from) False} ->
-                          {auto 0 cv : CastableTy Cast (nounTy what)} -> StaticEffect bs
+                          {auto 0 zn : ZoneFits (nounZone who) (deedsZone ["Cast"] Agent)} ->
+                          {auto 0 dp : DeedParticipant ["Cast"] Agent Player (nounTy who)} ->
+                          {auto 0 pt : So (deonticPatientOk who ["Cast"] Agent
+                                                            (DeonticCounterpart what)
+                                                            (PlayRider (Just from) Nothing (Just DuringEachOfYourTurns) False ItsOwnCost))} ->
+                          {auto 0 rd : So (deonticRiderOk ["Cast"] Agent
+                                                          (Permit {bs = selfSubjIntro who})
+                                                          (DeonticCounterpart what) False
+                                                          (PlayRider (Just from) Nothing
+                                                                     (Just DuringEachOfYourTurns)
+                                                                     False ItsOwnCost))} ->
+                          StaticEffect bs
 mayCastFromEachYourTurn who what from =
-  MayPlay who what Cast (Just from) Nothing Nothing (Just DuringEachOfYourTurns)
-          False ItsOwnCost {pz} {cv}
+  mayPlayDeed "Cast" who what
+              (PlayRider (Just from) Nothing (Just DuringEachOfYourTurns) False ItsOwnCost)
+              {zn} {dp} {pt} {rd}
 
 ||| "You may cast <what> as though it had flash." The hardcoded
 ||| `PlayAsThough = HadFlash` retired: the premise is the carrier's
@@ -2244,13 +2361,22 @@ mayCastFromEachYourTurn who what from =
 ||| other counterfactual payload. 89 supported lines write it.
 public export
 mayCastAsThough : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
-                  {auto 0 pz : PlaySource (nounZone what)
-                                          (the (Maybe (ZoneExpr (nomIntro what))) Nothing)
-                                          True} ->
-                  {auto 0 cv : CastableTy Cast (nounTy what)} -> StaticEffect bs
+                  {auto 0 zn : ZoneFits (nounZone who) (deedsZone ["Cast"] Agent)} ->
+                  {auto 0 dp : DeedParticipant ["Cast"] Agent Player (nounTy who)} ->
+                  {auto 0 pt : So (deonticPatientOk who ["Cast"] Agent
+                                                    (DeonticCounterpart what)
+                                                    (PlayRider Nothing Nothing Nothing False ItsOwnCost))} ->
+                  {auto 0 rd : So (deonticRiderOk ["Cast"] Agent
+                                                  (Permit {bs = selfSubjIntro who})
+                                                  (DeonticCounterpart what) True
+                                                  (PlayRider Nothing Nothing Nothing
+                                                             False ItsOwnCost))} ->
+                  StaticEffect bs
 mayCastAsThough who what =
-  MayPlay who what Cast Nothing (Just (AsThoughOf (HasKeyword (TheKeyword "Flash")))) Nothing Nothing
-          False ItsOwnCost {pz} {cv}
+  Deontic who Permit ["Cast"] Agent (DeonticCounterpart what)
+          (Just (AsThoughOf (HasKeyword (TheKeyword "Flash"))))
+          (PlayRider Nothing Nothing Nothing False ItsOwnCost)
+          {zn} {dp} {pt} {rd}
 
 ||| "[n] leaves the battlefield": the zone the leaves-the-battlefield
 ||| ability names [CR#603.10a], written into the row's source slot.
@@ -2801,10 +2927,22 @@ onlyIfSo se c = OnlyWhile se c IfSo {nn}
 public export
 mayCastFromWhileSearching : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
                             (from : ZoneExpr (nomIntro what)) ->
-                            {auto 0 pz : PlaySource (nounZone what) (Just from) False} ->
-                            {auto 0 cv : CastableTy Cast (nounTy what)} -> StaticEffect bs
+                            {auto 0 zn : ZoneFits (nounZone who) (deedsZone ["Cast"] Agent)} ->
+                            {auto 0 dp : DeedParticipant ["Cast"] Agent Player (nounTy who)} ->
+                            {auto 0 pt : So (deonticPatientOk who ["Cast"] Agent
+                                                              (DeonticCounterpart what)
+                                                              (PlayRider (Just from) Nothing (Just WhileSearchingLibrary) False ItsOwnCost))} ->
+                            {auto 0 rd : So (deonticRiderOk ["Cast"] Agent
+                                                            (Permit {bs = selfSubjIntro who})
+                                                            (DeonticCounterpart what) False
+                                                            (PlayRider (Just from) Nothing
+                                                                       (Just WhileSearchingLibrary)
+                                                                       False ItsOwnCost))} ->
+                            StaticEffect bs
 mayCastFromWhileSearching who what from =
-  MayPlay who what Cast (Just from) Nothing Nothing (Just WhileSearchingLibrary) False ItsOwnCost {pz} {cv}
+  mayPlayDeed "Cast" who what
+              (PlayRider (Just from) Nothing (Just WhileSearchingLibrary) False ItsOwnCost)
+              {zn} {dp} {pt} {rd}
 
 ||| "N1—N2": a results table's two-ended range [CR#706.3a].
 public export

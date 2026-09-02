@@ -92,8 +92,8 @@ public export
 staticOnSpellCardOk : {0 bs : Bindings} -> StaticEffect bs -> Bool
 -- [CR#113.6g] licenses a "can't be countered" static on any object and
 -- says nothing about how broadly its subject may be described.
-staticOnSpellCardOk (Deontic _ Forbid ["Counter"] Patient _ _) = True
-staticOnSpellCardOk (Deontic _ Forbid ["Copy"] Patient _ _) = True
+staticOnSpellCardOk (Deontic _ Forbid ["Counter"] Patient _ _ _) = True
+staticOnSpellCardOk (Deontic _ Forbid ["Copy"] Patient _ _ _) = True
 staticOnSpellCardOk (AltCost _) = True
 -- [CR#113.6e] again: an additional cost is an ability of the object that
 -- modifies how that object can be cast, so it functions in the zone the
@@ -108,7 +108,7 @@ staticOnSpellCardOk (AddedCost _ _) = True
 -- only during ..." -- and it is the windowed permission and not a bare
 -- one, since what the line restricts is when the only permission there
 -- is holds.
-staticOnSpellCardOk (OnlyDuring _ _ (Deontic _ Permit ["Cast"] Patient _ _)) = True
+staticOnSpellCardOk (OnlyDuring _ _ (Deontic _ Permit ["Cast"] Patient _ _ _)) = True
 staticOnSpellCardOk (OnlyDuring _ _ se) = staticOnSpellCardOk se
 staticOnSpellCardOk (Conditionally _ se _) = staticOnSpellCardOk se
 staticOnSpellCardOk (OnlyWhile se _ _) = staticOnSpellCardOk se

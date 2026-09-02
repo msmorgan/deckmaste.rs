@@ -4231,8 +4231,8 @@ flawlessForgeryLine =
                                        , InZone (Macros.graveyardOf
                                                    (Macros.a Opponent)) ]))
     , CopyCard You (That CardW) (Lit 1)
-    , Continuously (MayPlay You (That CopyW) Cast Nothing Nothing Nothing
-                            Nothing False WithoutPaying)
+    , Continuously (Macros.mayPlayDeed "Cast" You (That CopyW)
+                       (PlayRider Nothing Nothing Nothing False WithoutPaying))
                    Nothing ]
 
 public export
@@ -10486,7 +10486,7 @@ canoptekWraith : Ability
 canoptekWraith =
   Macros.flavorWord "Wraith Form"
     (Static (Deontic Macros.thisCreature Forbid ["Block"] Patient
-                     NoDeonticPatient Nothing))
+                     NoDeonticPatient Nothing NoDeonticRider))
 
 ||| Tymora's Invoker: "Sleight of Hand — {8}: Draw two cards." The flavor
 ||| word over an ACTIVATED ability, `ghorClanRampager`'s cell. Three
@@ -14103,9 +14103,10 @@ nautiloidShipTrigger =
 public export
 summonEsperValigarmandaCast : StaticEffect []
 summonEsperValigarmandaCast =
-  AndAlso [ MayPlay You (Macros.a (And [Macros.instantOrSorcery,
-                                        ExiledWith Macros.thisSaga]))
-                    Cast Nothing Nothing Nothing Nothing False ItsOwnCost
+  AndAlso [ Macros.mayPlayDeed "Cast" You
+                      (Macros.a (And [Macros.instantOrSorcery,
+                                      ExiledWith Macros.thisSaga]))
+                      (PlayRider Nothing Nothing Nothing False ItsOwnCost)
           , Macros.maySpendAsThough You Nothing MatchAnyType
               (Just (ToCast (And [Macros.instantOrSorcery,
                                   ExiledWith Macros.thisSaga]))) ]
@@ -15763,8 +15764,9 @@ apexOfPowerCast =
   Sequentially
     [ Macros.exile (LibrarySlice OnTop (Lit 7) You)
     , Continuously
-        (MayPlay You (Macros.fromAmong Macros.anyNumber Macros.spell Them)
-                 Cast Nothing Nothing Nothing Nothing False ItsOwnCost)
+        (Macros.mayPlayDeed "Cast" You
+             (Macros.fromAmong Macros.anyNumber Macros.spell Them)
+             (PlayRider Nothing Nothing Nothing False ItsOwnCost))
         (Just ThisTurn) ]
 
 ||| Umbris, Fear Manifest's first line -- "Umbris gets +1/+1 for each card
@@ -18393,13 +18395,13 @@ bedrockTortoiseWindow =
 ||| "this token" (measured 2026-09-02), and `TokenChars.abilities`
 ||| already held whole abilities.
 |||
-||| The word ascribes NO type, which is the point of the third axis and
-||| also its limit: "This token can't block" (Harried Spearguard, Anax,
-||| Hardened in the Forge) still does not write, because the deed table
-||| gives "Block" a Creature-typed agent and refuses a bare subject
-||| ([CR#509.1a] chooses blockers from among creatures). That is the deed
-||| vocabulary's cell, not this word's -- a payload whose verb demands a
-||| typed subject needs the type word, and the marker word is not one.
+||| The word ascribes NO type, which is the point of the third axis --
+||| and the cell that was recorded as blocked by it is now open at the
+||| deed table's end rather than at this word's: "This token can't
+||| block" (Harried Spearguard, Anax, Hardened in the Forge) writes,
+||| because [CR#506.3] restricts which objects can block rather than how
+||| a sentence may name the one it is said of, and the blocking agent's
+||| row admits an untyped head. See `harriedSpearguard`.
 public export
 nestingDragonInnerToken : AbilityAt []
 nestingDragonInnerToken =
@@ -18544,6 +18546,7 @@ retroMutation =
                       Nothing
            , HasBasePt It (Lit 0) (Lit 1)
            , Deontic It Forbid ["Attack"] Agent NoDeonticPatient Nothing
+                      NoDeonticRider
            , LosesAllAbilities It Nothing ]) ]
        Nothing
 
@@ -18803,6 +18806,96 @@ alluringSuitorPump =
 -- entry rider and a follow-up) and Quicksilver, Brash Blur (its own name
 -- and "him" for "this card" and "it"). Both sit beside the 17 Leylines the
 -- landed row spells and neither is a slot on it.
+
+
+||| Hotshot Mechanic, whole card -- "This creature crews Vehicles as
+||| though its power were 2 greater." The counterfactual-VALUE premise's
+||| witness, and the smallest of the 18 supported lines that write one:
+||| this card is the sentence and nothing else.
+||| [CR#702.122b] gives the deed its two ends -- a creature crews a
+||| Vehicle when it's tapped to pay the crew cost -- and [CR#702.122a]
+||| makes that cost a total POWER, which is why the premise shifts a
+||| characteristic instead of describing the creature. `AsThoughOf`
+||| could not have said it: a `Predicate` states what an object is.
+public export
+hotshotMechanic : Card
+hotshotMechanic =
+  Macros.card "Hotshot Mechanic" (Just [Macros.pip White]) []
+       (MkTypeLine [creatureType "Fox", creatureType "Pilot"] [Artifact, Creature])
+       [ Static (Deontic Macros.thisCreature Permit ["Crew"] Agent
+                   (DeonticCounterpart (AllOf (HasSubtype (artifactType "Vehicle"))))
+                   (Just (AsThoughGreater Power (Lit 2)))
+                   NoDeonticRider) ]
+       (Just (2, 1))
+
+||| Cloudspire Captain's second line -- "This creature saddles Mounts and
+||| crews Vehicles as though its power were 2 greater." The PER-DEED
+||| complement's other witness, and the shape 13 of the 18 lines write:
+||| one subject, one premise and two deeds, each with its own object.
+||| A shared complement could not say it -- [CR#702.171b] leaves saddling
+||| every permanent type where [CR#702.122a] gives crewing an artifact,
+||| so one noun checked against both deeds fails at whichever it was not
+||| written for.
+||| The card's first line ("Mounts and Vehicles you control get +1/+1")
+||| waits on a coordinated subtype subject.
+public export
+cloudspireCaptainCrewLine : StaticEffect []
+cloudspireCaptainCrewLine =
+  Deontic Macros.thisCreature Permit ["Saddle", "Crew"] Agent
+          (CounterpartsAt
+             [ MkDeedComplement "Saddle" (AllOf (HasSubtype (creatureType "Mount")))
+             , MkDeedComplement "Crew" (AllOf (HasSubtype (artifactType "Vehicle"))) ])
+          (Just (AsThoughGreater Power (Lit 2)))
+          NoDeonticRider
+
+||| Revoke Privileges, whole card -- "Enchant creature / Enchanted
+||| creature can't attack, block, or crew Vehicles." The PER-DEED
+||| complement's own sentence, 4 supported lines over 3 cards (this,
+||| Bound in Gold, Intercessor's Arrest, the last two writing "enchanted
+||| permanent" and a second clause about activated abilities).
+||| [CR#506.3] admits only a planeswalker or a battle at an attack's
+||| patient, so "Vehicles" checked against every coordinated deed fails
+||| for two of the three; the printed line gives the object to "crew"
+||| alone, and [CR#702.122d] states that conjunct's meaning outright --
+||| "if an effect states that a creature 'can't crew Vehicles,' that
+||| creature can't be tapped to pay the crew cost of a Vehicle".
+public export
+revokePrivileges : Card
+revokePrivileges =
+  Macros.card "Revoke Privileges" (Just [Macros.generic 2, Macros.pip White]) []
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
+       [ Macros.keywordSubject "Enchant" Macros.creature
+       , Static (Deontic (AttachHost Enchanted (TypeW Creature))
+                   Forbid ["Attack", "Block", "Crew"] Agent
+                   (CounterpartsAt
+                      [ MkDeedComplement "Crew"
+                          (AllOf (HasSubtype (artifactType "Vehicle"))) ])
+                   Nothing NoDeonticRider) ]
+       Nothing
+
+||| Harried Spearguard, whole card -- "Haste / When this creature dies,
+||| create a 1/1 black Rat creature token with 'This token can't
+||| block.'" The SELF-BLOCK token cell, and the witness the marker word
+||| was minted short of: the payload's subject is `AsMarker TokenMarker`,
+||| which ascribes no card type, and the deed table now admits an untyped
+||| head at the blocking agent. [CR#506.3] restricts which objects can
+||| block, not how a sentence may name the one it is said of, and the
+||| token the same clause creates is a creature.
+public export
+harriedSpearguard : Card
+harriedSpearguard =
+  Macros.card "Harried Spearguard" (Just [Macros.pip Red]) []
+       (MkTypeLine [creatureType "Human", creatureType "Soldier"] [Creature])
+       [ Macros.keyword "Haste"
+       , Macros.triggered When (Dies Macros.thisCreature)
+           (Macros.create (Lit 1)
+              (MkToken (Just (Lit 1 ** Lit 1)) [Black]
+                       (MkTypeLine [creatureType "Rat"] [Creature])
+                       [ Static (Deontic (AsMarker TokenMarker This)
+                                   Forbid ["Block"] Agent NoDeonticPatient
+                                   Nothing NoDeonticRider) ]
+                       Nothing)) ]
+       (Just (1, 1))
 
 -- ---------------------------------------------------------------------------
 -- The Room door, and the keyword umbrella's fence-deferred sub-machinery.

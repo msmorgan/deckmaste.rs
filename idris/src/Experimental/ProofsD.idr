@@ -132,26 +132,39 @@ badCounterJoinedPlayer JoinCountered impossible
 ||| [CR#112.1] makes an object on the stack a spell, and a spell has already been cast.
 public export
 badPlayFromStack : Unspellable (Effect []) (\ok =>
-  Continuously (MayPlay You (Macros.a Macros.spell) Play Nothing Nothing Nothing Nothing False ItsOwnCost {pz = ok}) (Just Macros.thisTurn))
-badPlayFromStack MkPlaySource impossible
+  Continuously (Deontic You Permit ["Play"] Agent
+                  (DeonticCounterpart (Macros.a Macros.spell)) Nothing
+                  (PlayRider Nothing Nothing Nothing False ItsOwnCost) {rd = ok})
+               (Just Macros.thisTurn))
+badPlayFromStack Oh impossible
 
 
 ||| "You may cast a land card from your graveyard this turn."
 ||| A land card "can be played only as a land. It can't be cast as a spell" [CR#305.9].
 public export
 badCastALand : Unspellable (Effect []) (\ok =>
-  Continuously (MayPlay You (Macros.a (And [Macros.land, InZone (Macros.graveyardOf You)])) Cast Nothing Nothing Nothing Nothing False ItsOwnCost {cv = ok})
+  Continuously (Deontic You Permit ["Cast"] Agent
+                  (DeonticCounterpart
+                     (Macros.a (And [Macros.land, InZone (Macros.graveyardOf You)])))
+                  Nothing (PlayRider Nothing Nothing Nothing False ItsOwnCost)
+                  {pt = ok})
                (Just Macros.thisTurn))
-badCastALand MkCastableTy impossible
+badCastALand Oh impossible
 
 
 ||| "You may play a creature card in exile from your graveyard this turn."
 ||| A written source phrase must agree with the zone the complement already names.
 public export
 badPlayFromWrongZone : Unspellable (Effect []) (\ok =>
-  Continuously (MayPlay You (Macros.a (And [Macros.creature, InZone Macros.exileZ])) Play (Just (Macros.graveyardOf You)) Nothing Nothing Nothing False ItsOwnCost {pz = ok})
+  Continuously (Deontic You Permit ["Play"] Agent
+                  (DeonticCounterpart
+                     (Macros.a (And [Macros.creature, InZone Macros.exileZ])))
+                  Nothing
+                  (PlayRider (Just (Macros.graveyardOf You)) Nothing Nothing
+                             False ItsOwnCost)
+                  {rd = ok})
                (Just Macros.thisTurn))
-badPlayFromWrongZone MkPlaySource impossible
+badPlayFromWrongZone Oh impossible
 
 
 ||| "Put target creature onto the stack."

@@ -209,14 +209,6 @@ badCantAttackLand : Unspellable (Effect []) (\ok =>
 badCantAttackLand Participant impossible
 
 
-||| "Target creature or land can't block this turn."
-||| A coordinated head fixes no type, and an untyped head cannot prove participation.
-public export
-badCantDisjunctSubject : Unspellable (Effect []) (\ok =>
-  Macros.cantBlock (Macros.target (Or [Macros.creature, Macros.land])) (Just Macros.thisTurn) {dp = ok})
-badCantDisjunctSubject Participant impossible
-
-
 ||| "Target creature can't be attacked this turn."
 ||| Only a player, a planeswalker, or a battle can be attacked [CR#506.3].
 public export

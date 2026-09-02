@@ -1383,7 +1383,8 @@ badActivatedClosesCardLetter Oh impossible
 public export
 badManaPremiseAtAttack : Unspellable (StaticEffect []) (\ok =>
   Deontic Macros.thisCreature Permit ["Attack"] Agent NoDeonticPatient
-          (Just (AsThoughMana Nothing MatchAnyColor Nothing)) {at = ok})
+          (Just (AsThoughMana Nothing MatchAnyColor Nothing)) NoDeonticRider
+          {at = ok})
 badManaPremiseAtAttack Oh impossible
 
 
@@ -1392,7 +1393,7 @@ badManaPremiseAtAttack Oh impossible
 public export
 badObjectPremiseAtSpend : Unspellable (StaticEffect []) (\ok =>
   Deontic You Permit ["Spend"] Agent NoDeonticPatient
-          (Just (AsThoughOf (Not Macros.creature))) {at = ok})
+          (Just (AsThoughOf (Not Macros.creature))) NoDeonticRider {at = ok})
 badObjectPremiseAtSpend Oh impossible
 
 

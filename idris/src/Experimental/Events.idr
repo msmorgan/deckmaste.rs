@@ -842,8 +842,15 @@ verbForManaOk v = v == "Tap"
 ||| ("this creature can attack as though it were mana of any color").
 ||| The alternative -- one payload union admitted everywhere -- would
 ||| make every such pairing spellable and pin nothing.
+||| The third sort is the VALUE one: "this creature crews Vehicles as
+||| though its power were 2 greater" counterfactualises a QUANTITY the
+||| deed's own cost is paid in, not a description of an object and not a
+||| mana matcher. [CR#702.122a] makes the crew cost a total power and
+||| [CR#702.171a] does the same for saddle, so a premise at those deeds
+||| has a number to shift and nothing else; a predicate there would say
+||| what the creature IS, which is not what the sentence says.
 public export
-data PremiseSort = ObjectPremise | ManaPremise
+data PremiseSort = ObjectPremise | ManaPremise | ValuePremise
 
 public export
 Eq PremiseSort where
@@ -851,6 +858,8 @@ Eq PremiseSort where
   (==) ObjectPremise _ = False
   (==) ManaPremise ManaPremise = True
   (==) ManaPremise _ = False
+  (==) ValuePremise ValuePremise = True
+  (==) ValuePremise _ = False
 
 ||| One ROLE's facts. [CR#506.3] states attacking's and blocking's
 ||| outright -- "Only a creature can attack or block. Only a player, a
@@ -921,23 +930,48 @@ record DeedFacts where
   ||| regenerated"), where the carrier states a continuous restriction.
   ||| Both read this one label vocabulary; only the flag differs.
   deedRides : Bool
+  ||| whether a permission of this deed may carry the PLAY RIDER -- the
+  ||| source zone, the per-window cap, the window, the exclusion and the
+  ||| payment. [CR#601.3] is why the rider is the deed's and not the
+  ||| carrier's: a player may begin to cast a spell only if a rule or
+  ||| effect allows it, so the licence's own scope -- from where, how
+  ||| often, when, and at what price -- is part of what an allowing
+  ||| effect says, and only the two deeds an effect can allow this way
+  ||| have anything to say it about. [CR#701.18a] gives playing a land
+  ||| the same shape.
+  deedPlays : Bool
 
 ||| The deed table, open by construction: a row is a name, two roles and
-||| four flags, and adding one obliges nothing else.
+||| five flags, and adding one obliges nothing else.
 public export
 deedFacts : List DeedFacts
 deedFacts =
   -- [CR#506.3]: "Only a creature can attack or block. Only a player, a
   -- planeswalker, or a battle can be attacked." The player half is
   -- `DefendingPlayer`'s, which is why the flag rides beside the types.
+  --
+  -- THE AGENT IS BARE-ADMITTING, and that is the deliberate reading of
+  -- [CR#506.3] rather than a hole in it: the rule says which objects can
+  -- perform the act, not how a sentence may DESCRIBE the one it is said
+  -- of. The corpus settles it -- "Enchanted permanent can't attack,
+  -- block, or crew Vehicles" (Bound in Gold, Intercessor's Arrest) and
+  -- "This token can't block" name an object whose card type the noun
+  -- never writes, and [CR#702.122d] states the first of those as a
+  -- sentence an effect may make. What still refuses is a subject that
+  -- WRITES a type the rule excludes ("enchanted land can't block",
+  -- "enchanted planeswalker can't attack"), which is `deedTypeOk`'s
+  -- half of the same row, and a subject off the battlefield, which is
+  -- the zone's. The patient keeps its closed types: there the rule names
+  -- what may be attacked or blocked and a description is checked against
+  -- that list.
   [ MkDeedFacts "Attack"
-      (MkDeedRole [Object] [Creature] False (Just Battlefield))
+      (MkDeedRole [Object] [Creature] True (Just Battlefield))
       (MkDeedRole [Object] [Planeswalker, Battle] False (Just Battlefield))
-      True False (Just ObjectPremise) False
+      True False (Just ObjectPremise) False False
   , MkDeedFacts "Block"
+      (MkDeedRole [Object] [Creature] True (Just Battlefield))
       (MkDeedRole [Object] [Creature] False (Just Battlefield))
-      (MkDeedRole [Object] [Creature] False (Just Battlefield))
-      False False (Just ObjectPremise) False
+      False False (Just ObjectPremise) False False
   -- [CR#115.1] makes the targets "object(s) and/or player(s) the spell
   -- or ability will affect", and they are chosen wherever they are, so
   -- the patient's zone is unstated and its type is whatever the printed
@@ -947,7 +981,7 @@ deedFacts =
       (MkDeedRole [] [] True (Just Stack))
       (MkDeedRole [Object, Player] [Creature, Artifact, Land, Enchantment, Instant, Sorcery,
                    Planeswalker, Battle, Kindred] True Nothing)
-      False True (Just ObjectPremise) False
+      False True (Just ObjectPremise) False False
   -- [CR#601.2] takes the spell from where it is and puts it on the
   -- stack; [CR#305.1] keeps a land off it -- "Since the land doesn't go
   -- on the stack, it is never a spell". The agent is the player who
@@ -956,27 +990,38 @@ deedFacts =
       (MkDeedRole [Player] [] True Nothing)
       (MkDeedRole [Object] [Creature, Artifact, Enchantment, Instant, Sorcery,
                    Planeswalker, Battle, Kindred] True (Just Stack))
-      False False (Just ObjectPremise) True
+      False False (Just ObjectPremise) True True
   -- [CR#701.18a]: "To play a land means to put it onto the battlefield
   -- from the zone it's in" -- a special action, never on the stack, so
   -- the patient's zone is the one the clause names and not this rule's.
+  -- The patient's TYPES are the land's and the castable ones together,
+  -- because playing a CARD is defined as both: the glossary's own entry
+  -- reads "to play a card is to play that card as a land or cast that
+  -- card as a spell, whichever is appropriate", pointing at [CR#305.1]
+  -- and [CR#601.2] for the two halves. So "you may play cards exiled
+  -- with this Class" reaches every card either half admits, and the six
+  -- types no half admits -- the ones [CR#311.2,312.2,313.2,314.2,315.3]
+  -- and [CR#309.2c] each say outright can't be cast, none of them a land
+  -- -- stay out, which the retired `castableTy Play` admitted on no rule
+  -- at all.
   , MkDeedFacts "Play"
       (MkDeedRole [Player] [] True Nothing)
-      (MkDeedRole [Object] [Land] True Nothing)
-      False False (Just ObjectPremise) True
+      (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment, Instant, Sorcery,
+                   Planeswalker, Battle, Kindred] True Nothing)
+      False False (Just ObjectPremise) True True
   -- [CR#701.6a] cancels a spell or ability and removes it from the
   -- stack, so both ends of the deed are stack objects.
   , MkDeedFacts "Counter"
       (MkDeedRole [] [] True (Just Stack))
       (MkDeedRole [Object] [Creature, Artifact, Enchantment, Instant, Sorcery,
                    Planeswalker, Battle, Kindred] True (Just Stack))
-      False False Nothing True
+      False False Nothing True False
   -- [CR#707.10] puts a copy of a spell or ability onto the stack.
   , MkDeedFacts "Copy"
       (MkDeedRole [] [] True (Just Stack))
       (MkDeedRole [Object] [Creature, Artifact, Enchantment, Instant, Sorcery,
                    Planeswalker, Battle, Kindred] True (Just Stack))
-      False False Nothing False
+      False False Nothing False False
   -- [CR#602.2] puts an ability on the stack and pays its costs; only
   -- the object's controller activates it. [CR#109.1] makes the ability
   -- an object with no card type, which is why the patient is bare with
@@ -984,19 +1029,19 @@ deedFacts =
   , MkDeedFacts "Activate"
       (MkDeedRole [Player] [] True Nothing)
       (MkDeedRole [Ability] [] True Nothing)
-      False False Nothing False
+      False False Nothing False False
   -- [CR#614.8] makes regeneration a destruction-replacement on a
   -- permanent, so the patient is on the battlefield.
   , MkDeedFacts "Regenerate"
       (MkDeedRole [] [] True Nothing)
       (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment,
                             Planeswalker, Battle] True (Just Battlefield))
-      False False Nothing True
+      False False Nothing True False
   -- [CR#119.3] adjusts a PLAYER's life total; nothing is done to a
   -- second participant.
   , MkDeedFacts "GainLife"
       (MkDeedRole [Player] [] True Nothing) noRole
-      False False Nothing False
+      False False Nothing False False
   -- [CR#121.1] has a player put the top card of their library into
   -- their hand, so the deed's patient is that card, read where the rule
   -- finds it. The patient row exists for the COUNT CAP -- "can't draw
@@ -1005,7 +1050,7 @@ deedFacts =
   , MkDeedFacts "DrawCard"
       (MkDeedRole [Player] [] True Nothing)
       (MkDeedRole [Object] [] True (Just Library))
-      False False Nothing False
+      False False Nothing False False
   -- [CR#502.3] has the active player untap the PERMANENTS THEY CONTROL
   -- as a turn-based action, so both ends of the deed are named by that
   -- one sentence: a player at the agent, a battlefield permanent at the
@@ -1019,7 +1064,7 @@ deedFacts =
       (MkDeedRole [Player] [] True Nothing)
       (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment,
                             Planeswalker, Battle] True (Just Battlefield))
-      False False Nothing False
+      False False Nothing False False
   -- [CR#603.2] has the ability itself trigger -- "that ability
   -- automatically triggers" -- and nothing is done to a second
   -- participant. [CR#603.2a] says outright that triggering is neither
@@ -1028,18 +1073,18 @@ deedFacts =
   -- don't trigger" is a statement no activation prohibition reaches.
   , MkDeedFacts "Trigger"
       (MkDeedRole [Ability] [] True Nothing) noRole
-      False False Nothing False
+      False False Nothing False False
   , MkDeedFacts "Untap"
       (MkDeedRole [Player] [] True Nothing)
       (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment,
                             Planeswalker, Battle] True (Just Battlefield))
-      False False Nothing False
+      False False Nothing False False
   -- [CR#701.23a] looks at all cards in a zone and finds one; what a
   -- printed line writes after the verb is the zone, which is no `Kind`
   -- here, so the deed states only its agent.
   , MkDeedFacts "SearchLibrary"
       (MkDeedRole [Player] [] True Nothing) noRole
-      False False Nothing False
+      False False Nothing False False
   -- [CR#104.3] and [CR#104.2] name the ways a player loses and wins;
   -- the deed's agent is the player the outcome befalls and there is no
   -- second participant. Two labels rather than one signed row, because
@@ -1048,10 +1093,10 @@ deedFacts =
   -- what that coordination is.
   , MkDeedFacts "LoseGame"
       (MkDeedRole [Player] [] True Nothing) noRole
-      False False Nothing False
+      False False Nothing False False
   , MkDeedFacts "WinGame"
       (MkDeedRole [Player] [] True Nothing) noRole
-      False False Nothing False
+      False False Nothing False False
   -- [CR#106.1]: "Players spend mana to pay costs." The agent is that
   -- player, in no zone [CR#400.1]. The patient is `noRole` and the
   -- omission is the rules': what is spent is MANA, and mana is a
@@ -1064,7 +1109,34 @@ deedFacts =
   -- is a mana matcher and not a description of an object.
   , MkDeedFacts "Spend"
       (MkDeedRole [Player] [] True Nothing) noRole
-      False False (Just ManaPremise) False
+      False False (Just ManaPremise) False False
+  -- [CR#702.122b]: "A creature 'crews a Vehicle' when it's tapped to pay
+  -- the cost to activate a Vehicle's crew ability." Both ends come from
+  -- that one sentence -- a creature at the agent, the Vehicle at the
+  -- patient, both on the battlefield, a Vehicle being an artifact
+  -- [CR#702.122a]. [CR#702.122d] states the prohibition as a sentence an
+  -- effect may make: "if an effect states that a creature 'can't crew
+  -- Vehicles,' that creature can't be tapped to pay the crew cost".
+  -- The counterfactual sort is the VALUE one, because what the printed
+  -- permission counterfactualises is the crewing creature's POWER --
+  -- the quantity the crew cost is paid in -- and not what the creature
+  -- is.
+  , MkDeedFacts "Crew"
+      (MkDeedRole [Object] [Creature] True (Just Battlefield))
+      (MkDeedRole [Object] [Artifact] True (Just Battlefield))
+      False False (Just ValuePremise) False False
+  -- [CR#702.171c]: "A creature 'saddles' a permanent as it's tapped to
+  -- pay the cost to activate a permanent's saddle ability", and
+  -- [CR#702.171b] leaves the patient at "only permanents can be or
+  -- become saddled" -- every permanent type and no card type excluded,
+  -- which is why the patient's list is the battlefield's own. Saddle's
+  -- own cost is a total power too [CR#702.171a], so it reads the same
+  -- premise sort.
+  , MkDeedFacts "Saddle"
+      (MkDeedRole [Object] [Creature] True (Just Battlefield))
+      (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment,
+                            Planeswalker, Battle] True (Just Battlefield))
+      False False (Just ValuePremise) False False
   ]
 
 public export
@@ -1146,6 +1218,13 @@ public export
 deedRidesOk : VerbLabel -> Bool
 deedRidesOk v = maybe False deedRides (deedFactsFor v)
 
+||| Whether a permission of the deed may carry the play rider. Asked of
+||| every deed a coordination names, which is what keeps the rider off a
+||| list one of whose deeds has nothing to say it about.
+public export
+deedPlaysOk : VerbLabel -> Bool
+deedPlaysOk v = maybe False deedPlays (deedFactsFor v)
+
 ||| A statement's deeds: one label, or the several a single subject and
 ||| a single modality coordinate ("can't attack or block", "can't lose
 ||| the game or win the game this turn"). The coordination lives HERE,
@@ -1165,6 +1244,16 @@ knownDeeds ds = all knownDeed ds
 public export
 KnownDeeds : Deeds -> Type
 KnownDeeds ds = So (knownDeeds ds)
+
+||| Whether a list of labels names each deed once. `distinctClasses`'
+||| content at the deed vocabulary, and asked at both seats that build a
+||| list of them: a coordination that wrote one deed twice would forbid
+||| the same act twice, and a per-conjunct complement written at one deed
+||| twice would give that conjunct two objects.
+public export
+distinctDeeds : Deeds -> Bool
+distinctDeeds [] = True
+distinctDeeds (d :: ds) = not (elem d ds) && distinctDeeds ds
 
 ||| A coordination's shared zone: the zone every coordinated deed puts
 ||| the role's participant in, and `Nothing` where they disagree or
@@ -1192,8 +1281,19 @@ data DeedParticipant : Deeds -> Role -> Kind -> Maybe CardType -> Type where
   ||| the participant whose card type the phrase does not state -- a
   ||| player, an ability [CR#109.1], or an object described by
   ||| something other than its type ("spells with the chosen name").
-  ||| Refused wherever the deed's rule names the types outright, which
-  ||| is what keeps [CR#506.3]'s two deeds as tight as they were.
+  ||| Refused wherever the deed's rule names the types outright FOR THAT
+  ||| ROLE -- which after the agent-typing decision is every patient and
+  ||| no agent: [CR#506.3] says which objects may attack or block, not
+  ||| how a sentence may describe the one it is said of, and the printed
+  ||| "enchanted permanent can't attack, block, or crew Vehicles" and
+  ||| "this token can't block" name no card type at all. What the
+  ||| decision costs is one refusal: a head that names SEVERAL types, one
+  ||| of them excluded ("target creature or land can't block"), reads
+  ||| `nounTy` as `Nothing` and is no longer refused, because a
+  ||| coordinated head collapses to no type here and the disjuncts'
+  ||| types are not asked for anywhere. `badCantDisjunctSubject` retired
+  ||| with it; the typed refusals it stood beside (a land host, a
+  ||| planeswalker attacker) are unaffected.
   BareParticipant : {auto 0 kk : So (all (\d => deedKindOk d r k) ds)} ->
                     {auto 0 ok : So (all (\d => deedBareOk d r) ds)} ->
                     DeedParticipant ds r k Nothing
@@ -1201,7 +1301,7 @@ data DeedParticipant : Deeds -> Role -> Kind -> Maybe CardType -> Type where
 public export
 data StaticKind = PtDelta | KeywordGrant | DeedRestriction | TypeAddition
                 | ControlGrant | Replacement | Prevention
-                | Conditional | PlayPermission | EntryRider
+                | Conditional | EntryRider
                 | CostModification
                 -- the statement that keeps mana in a pool past the
                 -- emptying [CR#106.4] names as the end of each step and
@@ -1263,9 +1363,6 @@ public export
 data CondMarking = AsLongAs | Unless | IfSo
 
 public export
-data PlayVerb = Play | Cast
-
-public export
 data PlayLimit = OnceEachYourTurn | OnceEachTurn
 
 ||| A stretch of time a static play permission is confined to. NOT
@@ -1308,43 +1405,6 @@ playWindowOk _ _ = True
 public export
 PlayWindowOk : Maybe PlayLimit -> Maybe PlayWindow -> Type
 PlayWindowOk l w = So (playWindowOk l w)
-
-
-public export
-castComplementOk : Maybe Zone -> Bool
-castComplementOk Nothing = True
-castComplementOk (Just Battlefield) = False
--- a cast complement names what casting will make the object (a spell),
--- not where it is [CR#701.5b].
-castComplementOk (Just Stack) = True
-castComplementOk (Just Graveyard) = True
-castComplementOk (Just Exile) = True
-castComplementOk (Just Hand) = True
-castComplementOk (Just Library) = True
-castComplementOk (Just Command) = True
-
-public export
-castableTy : PlayVerb -> Maybe CardType -> Bool
-castableTy Play _ = True
-castableTy Cast Nothing = True
-castableTy Cast (Just Creature) = True
-castableTy Cast (Just Artifact) = True
-castableTy Cast (Just Land) = False
-castableTy Cast (Just Enchantment) = True
-castableTy Cast (Just Instant) = True
-castableTy Cast (Just Sorcery) = True
-castableTy Cast (Just Planeswalker) = True
-castableTy Cast (Just Battle) = True
-castableTy Cast (Just Kindred) = True
--- [CR#311.2,312.2,313.2,314.2,315.3] and [CR#309.2c] each say outright
--- that the card can't be cast; a dungeon enters the game by the venture
--- keyword action instead [CR#309.2].
-castableTy Cast (Just Conspiracy) = False
-castableTy Cast (Just Dungeon) = False
-castableTy Cast (Just Phenomenon) = False
-castableTy Cast (Just Plane) = False
-castableTy Cast (Just Scheme) = False
-castableTy Cast (Just Vanguard) = False
 
 
 public export
@@ -1510,10 +1570,6 @@ public export
 lookbackLocusOk : EventName -> Zone -> Bool
 lookbackLocusOk (VerbedAct v) z = elem z (actLociOf v)
 lookbackLocusOk _ _ = False
-
-public export
-data CastableTy : PlayVerb -> Maybe CardType -> Type where
-  MkCastableTy : {auto 0 ok : So (castableTy v ty)} -> CastableTy v ty
 
 public export
 data ChoiceMode : Bindings -> Type where

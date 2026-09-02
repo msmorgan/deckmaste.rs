@@ -5075,12 +5075,6 @@ mutual
   playSourceOk _ (Just z) True = playableFrom (Just (zoneSort z))
 
   public export
-  data PlaySource : {0 bs : Bindings} -> Maybe Zone -> Maybe (ZoneExpr bs) ->
-                    Bool -> Type where
-    MkPlaySource : {0 fz : Maybe (ZoneExpr bs)} ->
-                   {auto 0 ok : So (playSourceOk zn fz at)} -> PlaySource zn fz at
-
-  public export
   data Exposed : Bindings -> Type where
     ExposedCards : (n : Noun bs Object) -> Exposed bs
     ExposedZone : (z : ZoneExpr bs) ->

@@ -94,7 +94,7 @@ data ManaHeld : Bindings -> Type where
 ||| condition, so a closed payload would refuse rules-meaningful
 ||| sentences and pin nothing.
 |||
-||| TWO arms, one per premise SORT, and which sort a deed admits is the
+||| THREE arms, one per premise SORT, and which sort a deed admits is the
 ||| deed's own fact (`deedPremiseSort`) rather than a free choice here:
 ||| [CR#609.4b] gives spending mana "as though it were mana of any [type
 ||| or color]" its own rule and its own payload -- a mana matcher, not a
@@ -150,12 +150,41 @@ data AsThough : Bindings -> Type where
   AsThoughMana : (what : Maybe ColorOrColorless) ->
                  (as : ManaMatch) ->
                  (purpose : Maybe (SpendPurpose bs)) -> AsThough bs
+  ||| "This creature saddles Mounts and crews Vehicles as though its
+  ||| power were 2 greater": the VALUE counterfactual, and the whole of
+  ||| what the crew/saddle permissions say. 18 supported lines write it
+  ||| (measured 2026-09-02) -- 4 of them the printed static and 14 the
+  ||| same sentence quoted inside a created Pilot token's text -- and all
+  ||| 18 write the same characteristic and the same shift.
+  |||
+  ||| A THIRD ARM and not a payload of `AsThoughOf`: a `Predicate bs
+  ||| Object` says what an object IS, and no predicate states a
+  ||| characteristic SHIFTED by an amount. What the sentence shifts is
+  ||| the quantity the deed's own cost is counted in -- [CR#702.122a]
+  ||| makes the crew cost a total power and [CR#702.171a] the saddle cost
+  ||| -- so the premise names a `Characteristic` and an amount, which is
+  ||| what [CR#609.4]'s "treat the game exactly as if the stated
+  ||| condition were true" has to be told here.
+  |||
+  ||| ONE DIRECTION, minted because it is the one printed: the arm says
+  ||| "greater" in its name rather than carrying a sign, on `LoseCause`'s
+  ||| law -- the rule states no restriction on the condition and a
+  ||| printed "less" would mint its own arm beside this one, where a
+  ||| direction slot would spell an axis no line writes.
+  ||| The amount ANNOUNCES NOTHING, and for `MayPlayAdditionalLands`'
+  ||| reason: the premise introduces no mention of its own, so an amount
+  ||| that announced one would be announced nowhere.
+  ||| -- spelling: "as though its [ch] were [amt] greater".
+  AsThoughGreater : {bs : Bindings} -> (ch : Characteristic) ->
+                    (amt : Amount bs) ->
+                    {auto 0 nd : So (isNil (amtDelta amt))} -> AsThough bs
 
 ||| The premise's own sort, which the deed's rule must admit.
 public export
 asThoughSort : {0 bs : Bindings} -> AsThough bs -> PremiseSort
 asThoughSort (AsThoughOf _) = ObjectPremise
 asThoughSort (AsThoughMana _ _ _) = ManaPremise
+asThoughSort (AsThoughGreater _ _) = ValuePremise
 
 
 ||| The pair an exchange runs between. [CR#701.12c] gives the effect
@@ -447,7 +476,7 @@ mutual
       |||   graveyard BY PAYING [c] rather than paying its mana cost"
       |||   (Worldheart Phoenix, Squee, Raffine's Guidance, Bolas's
       |||   Citadel). Those are play permissions with an alternative-cost
-      |||   rider, so they are `MayPlay`'s: `PlayPayment`'s third,
+      |||   rider, so they are the play rider's: `PlayPayment`'s third,
       |||   cost-carrying arm and not this row's.
       |||
       ||| The other two the round left refused have since written with
@@ -567,20 +596,36 @@ mutual
       ||| game or win the game this turn" are one subject and one
       ||| modality over two labels, which is what the list says and what
       ||| no per-family fix could have said once.
+      ||| THE PLAY PERMISSION IS THIS ROW. "You may cast this card from
+      ||| your graveyard", "you may play lands from the top of your
+      ||| library", "you may cast that spell without paying its mana
+      ||| cost" are `Permit` at the `"Cast"` and `"Play"` deeds with the
+      ||| played card as the complement, and everything the retired
+      ||| `MayPlay` carried beyond that -- the source zone, the per-window
+      ||| cap, the window, the exclusion and the payment -- is
+      ||| `DeonticRider`'s, keyed to those two deeds by `deedPlays`. The
+      ||| separate row said nothing this one does not: its verb was a
+      ||| two-member enum where the deeds are labels, its complement was
+      ||| the counterpart slot, and its own `castableTy` table was
+      ||| `deedTypeOk` at the `Cast` patient spelled a second time.
       ||| -- spelling: "[n] can't/must/may [deed]", the deeds coordinated
       ||| with "or"; under `GatedBy`, "unless [cost]"; with a premise,
-      ||| "as though [premise]".
+      ||| "as though [premise]"; with a rider, the rider's own phrases.
       Deontic : {k : Kind} -> (n : Noun bs k) ->
                 (c : Compulsion (selfSubjIntro n)) ->
                 (deeds : Deeds) -> (role : Role) ->
                 (patient : DeonticPatient {bs = nomIntro n} deeds role) ->
                 (asThough : Maybe (AsThough (nomIntro n))) ->
+                (rider : DeonticRider (deonticPatientIntro patient)) ->
                 {auto 0 ne : NonEmpty deeds} ->
+                {auto 0 dd : So (distinctDeeds deeds)} ->
                 {auto 0 kd : KnownDeeds deeds} ->
                 {auto 0 zn : ZoneFits (nounZone n) (deedsZone deeds role)} ->
                 {auto 0 dp : DeedParticipant deeds role k (nounTy n)} ->
-                {auto 0 pt : So (deonticPatientOk n deeds role patient)} ->
+                {auto 0 pt : So (deonticPatientOk n deeds role patient rider)} ->
                 {auto 0 at : So (asThoughOk c deeds asThough)} ->
+                {auto 0 rd : So (deonticRiderOk deeds role c patient
+                                                (isJust asThough) rider)} ->
                 StaticEffect bs
       ||| "Until end of turn, you don't lose this mana as steps and
       ||| phases end" (Tundra Fumarole, Kruphix's kin), "You don't lose
@@ -1050,34 +1095,6 @@ mutual
                    {auto 0 wk : WindowOk p w} ->
                    {auto 0 nw : So (notWindowed se)} ->
                    StaticEffect bs
-      ||| THE static play permission: "[who] may play/cast [what]", with
-      ||| an optional source zone, a [CR#609.4] premise, a per-window
-      ||| count cap and a window.
-      ||| `exclusive` is the negative co-ordinate Haakon, Stromgald
-      ||| Scourge writes and nothing else does -- "you may cast this card
-      ||| from your graveyard, BUT NOT FROM ANYWHERE ELSE". [CR#601.3]
-      ||| makes casting depend on a rule or effect ALLOWING it, and the
-      ||| default is itself such a rule -- [CR#302.1] lets a player cast a
-      ||| creature card FROM THEIR HAND -- so a line may take it away;
-      ||| that is a second thing said about the
-      ||| same act in the same sentence, not a description of the object,
-      ||| which is why it rides here rather than being a `Predicate` or a
-      ||| second statement. It requires a written source: with no source
-      ||| phrase there is no "else" to exclude and the sentence would
-      ||| grant and revoke the same permission.
-      ||| -- spelling: ", but not from anywhere else" after the source.
-      MayPlay : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
-                (verb : PlayVerb) ->
-                (from : Maybe (ZoneExpr (nomIntro what))) ->
-                (asThough : Maybe (AsThough (nomIntro what))) ->
-                (limit : Maybe PlayLimit) ->
-                (window : Maybe PlayWindow) ->
-                (exclusive : Bool) ->
-                (payment : PlayPayment) ->
-                {auto 0 pz : PlaySource (nounZone what) from (isJust asThough)} ->
-                {auto 0 cv : CastableTy verb (nounTy what)} ->
-                {auto 0 pw : PlayWindowOk limit window} ->
-                {auto 0 xo : So (not exclusive || isJust from)} -> StaticEffect bs
       ||| The standing visibility rider: "[who] play(s) with [what]
       ||| revealed", "[who] may look at [what] any time". One row for
       ||| both audiences -- [CR#701.20e] makes looking revealing shown to
@@ -1425,6 +1442,96 @@ mutual
     TargetedBy : {k : Kind} -> (m : Noun bs k) ->
                  {auto 0 tr : Targeter k} ->
                  DeonticPatient {bs} ds r
+    ||| The complement written at ONE deed of a coordination: "enchanted
+    ||| permanent can't attack, block, or CREW VEHICLES" (Revoke
+    ||| Privileges, Bound in Gold, Intercessor's Arrest -- 4 supported
+    ||| lines over 3 cards), "this creature saddles MOUNTS and crews
+    ||| VEHICLES".
+    |||
+    ||| A SECOND complement arm and not a widening of the first, because
+    ||| the two are different sentences and `deonticPatientOk` asks a
+    ||| different question of each. `DeonticCounterpart` is the SHARED
+    ||| complement -- one noun checked against every coordinated deed,
+    ||| which is what a single-deed statement writes and what "can't be
+    ||| blocked by Walls" would say of a coordination. This one is the
+    ||| complement of one conjunct: [CR#506.3] admits only a planeswalker
+    ||| or a battle at an attack's patient, so a Vehicle checked against
+    ||| the attack arm fails, and the printed sentence says nothing of
+    ||| the sort -- "attack" and "block" are intransitive there and only
+    ||| "crew" takes the object. [CR#702.122d] states that conjunct's
+    ||| meaning outright.
+    ||| Each named deed is one of the statement's own and named once; a
+    ||| deed the list leaves out is the intransitive conjunct.
+    ||| -- spelling: the complement after its own deed word, the deeds
+    ||| coordinated as usual.
+    CounterpartsAt : (cs : List (DeedComplement bs)) ->
+                     {auto 0 ne : NonEmpty cs} ->
+                     DeonticPatient {bs} ds r
+
+  ||| One conjunct's complement: the deed it belongs to, and the noun.
+  public export
+  data DeedComplement : Bindings -> Type where
+    MkDeedComplement : {k : Kind} -> (d : VerbLabel) -> (m : Noun bs k) ->
+                       DeedComplement bs
+
+  public export
+  complementDeed : {0 bs : Bindings} -> DeedComplement bs -> VerbLabel
+  complementDeed (MkDeedComplement d _) = d
+
+  ||| Where a statement's own rider is typed: after the complement, which
+  ||| is the only part of the statement written between the deed and the
+  ||| rider. A statement with no complement leaves the prefix as it found
+  ||| it, and the per-conjunct complements announce nothing -- they are a
+  ||| LIST, so no one of them is the seat a following phrase would read.
+  public export
+  deonticPatientIntro : {bs : Bindings} -> {0 ds : Deeds} -> {0 r : Role} ->
+                        DeonticPatient {bs} ds r -> Bindings
+  deonticPatientIntro NoDeonticPatient = bs
+  deonticPatientIntro (DefendingPlayer m) = nomIntro m
+  deonticPatientIntro (DeonticCounterpart m) = nomIntro m
+  deonticPatientIntro (TargetedBy m) = nomIntro m
+  deonticPatientIntro (CounterpartsAt cs) = bs
+
+  ||| What a statement may write BESIDE the deed, where the deed's own
+  ||| rule leaves it something to write. `DeonticPatient`'s mold at the
+  ||| other slot: an unindexed sum whose admissibility is asked once at
+  ||| the carrier against `deedFacts`, so the arms are not indexed by the
+  ||| deed and a deed with nothing to say adds no constructor here.
+  |||
+  ||| ONE arm today, and it is the whole of the retired `MayPlay` row.
+  ||| [CR#601.3] makes casting depend on a rule or effect ALLOWING it, so
+  ||| a licence's own scope -- from where, how often, when, whether it
+  ||| revokes the default, and at what price -- is part of what the
+  ||| allowing sentence says rather than a second statement beside it.
+  ||| That is why the five ride here together and why they ride the deed:
+  ||| no other deed's rule leaves an effect any of those to state, which
+  ||| `deedPlays` records.
+  |||
+  ||| `exclusive` is the negative co-ordinate Haakon, Stromgald Scourge
+  ||| writes and nothing else does -- "you may cast this card from your
+  ||| graveyard, BUT NOT FROM ANYWHERE ELSE". The default is itself an
+  ||| allowing rule -- [CR#302.1] lets a player cast a creature card FROM
+  ||| THEIR HAND -- so a line may take it away; that is a second thing
+  ||| said about the same act in the same sentence, not a description of
+  ||| the object, which is why it rides here rather than being a
+  ||| `Predicate` or a second statement.
+  ||| -- spelling: "from [from]" after the complement, then the limit,
+  ||| the window, ", but not from anywhere else" and the payment.
+  public export
+  data DeonticRider : Bindings -> Type where
+    NoDeonticRider : DeonticRider bs
+    PlayRider : (from : Maybe (ZoneExpr bs)) ->
+                (limit : Maybe PlayLimit) ->
+                (window : Maybe PlayWindow) ->
+                (exclusive : Bool) ->
+                (payment : PlayPayment) -> DeonticRider bs
+
+  ||| Whether the statement carries the play rider: the one question
+  ||| every other gate asks of it.
+  public export
+  playRidden : {0 bs : Bindings} -> DeonticRider bs -> Bool
+  playRidden NoDeonticRider = False
+  playRidden (PlayRider _ _ _ _ _) = True
 
   public export
   agentRole : Role -> Bool
@@ -1436,15 +1543,28 @@ mutual
   ||| of every coordinated deed at once. `DeedParticipant`'s content as a
   ||| Bool, because the counterpart is checked from the carrier rather
   ||| than at its own constructor.
+  ||| The last argument says the complement is named BEFORE the deed
+  ||| moves it, and the play permission is the only statement of which
+  ||| that is true: [CR#601.2a] takes the object "from where it is" and
+  ||| puts it on the stack, so a licence's complement is a CARD in a zone
+  ||| it may be cast from where the same deed's PROHIBITION describes the
+  ||| spell that casting produced ("spells with the chosen name can't be
+  ||| cast"). Which zones the licence's complement may name is not one
+  ||| zone and so cannot be `roleZone`'s: it is `playSourceOk`'s
+  ||| question, asked at the rider with the written source in hand, and
+  ||| asking the role's single zone here as well would refuse every
+  ||| printed permission. The kind and the card type are asked of both
+  ||| readings alike -- a land is no more castable before the move than
+  ||| after it.
   public export
   counterpartFits : {bs : Bindings} -> {k : Kind} -> Deeds -> Role ->
-                    Noun bs k -> Bool
-  counterpartFits {k} ds r m =
+                    Noun bs k -> Bool -> Bool
+  counterpartFits {k} ds r m moved =
     all (\d => deedKindOk d r k) ds &&
     (case nounTy m of
        Just ty => all (\d => deedTypeOk d r ty) ds
        Nothing => all (\d => deedBareOk d r) ds) &&
-    zoneFits (nounZone m) (deedsZone ds r)
+    (moved || zoneFits (nounZone m) (deedsZone ds r))
 
   ||| A creature never blocks itself and never attacks itself.
   ||| [CR#509.1a] has the DEFENDING player choose the blockers from among
@@ -1474,12 +1594,29 @@ mutual
   public export
   deonticPatientOk : {bs : Bindings} -> {k : Kind} -> (n : Noun bs k) ->
                      (ds : Deeds) -> (r : Role) ->
-                     DeonticPatient {bs = nomIntro n} ds r -> Bool
-  deonticPatientOk n ds r NoDeonticPatient = True
-  deonticPatientOk n ds r (DefendingPlayer m) = all deedDefendsOk ds && agentRole r
-  deonticPatientOk n ds r (DeonticCounterpart m) =
-    counterpartFits ds (counterRole r) m && counterpartNotSelf n m
-  deonticPatientOk n ds r (TargetedBy m) = all deedTargetedOk ds
+                     (patient : DeonticPatient {bs = nomIntro n} ds r) ->
+                     DeonticRider (deonticPatientIntro patient) -> Bool
+  deonticPatientOk n ds r NoDeonticPatient _ = True
+  deonticPatientOk n ds r (DefendingPlayer m) _ = all deedDefendsOk ds && agentRole r
+  deonticPatientOk n ds r (DeonticCounterpart m) rider =
+    counterpartFits ds (counterRole r) m (playRidden rider) &&
+    counterpartNotSelf n m
+  deonticPatientOk n ds r (TargetedBy m) _ = all deedTargetedOk ds
+  deonticPatientOk n ds r (CounterpartsAt cs) _ =
+    distinctDeeds (map complementDeed cs) &&
+    all (complementAtOk n ds r) cs
+
+  ||| One conjunct's complement, checked against ITS OWN deed alone --
+  ||| which is the whole of what this arm buys over the shared one. The
+  ||| deed must be one the statement names, or the sentence would give an
+  ||| object to a verb it never wrote.
+  public export
+  complementAtOk : {bs : Bindings} -> {k : Kind} -> (n : Noun bs k) ->
+                   (ds : Deeds) -> (r : Role) ->
+                   DeedComplement (nomIntro n) -> Bool
+  complementAtOk n ds r (MkDeedComplement d m) =
+    elem d ds && counterpartFits [d] (counterRole r) m False &&
+    counterpartNotSelf n m
 
   ||| [CR#609.4]'s slot opens on the PERMISSION alone. The rule's own
   ||| sentence is "a player may do something 'as though' ... or a
@@ -1493,6 +1630,40 @@ mutual
   asThoughOk _ ds Nothing = True
   asThoughOk Permit ds (Just a) = all (deedPremiseOk (asThoughSort a)) ds
   asThoughOk _ _ (Just _) = False
+
+  ||| The modality as a Bool, for the gates that open on the permission
+  ||| alone.
+  public export
+  permits : {0 cs : Bindings} -> Compulsion cs -> Bool
+  permits Permit = True
+  permits _ = False
+
+  ||| Which statements may carry the play rider, asked once at the
+  ||| carrier. Five demands, each the fold's inheritance from the row it
+  ||| replaced:
+  ||| * the PERMISSION alone, and every deed a play deed
+  |||   ([CR#601.3]/[CR#701.18a] give an allowing effect its scope; a
+  |||   can't states no source and no price);
+  ||| * the subject at the AGENT -- the player who plays, [CR#601.2]'s
+  |||   own -- with the played card as the statement's complement, since
+  |||   a licence with nothing licensed says nothing;
+  ||| * `playSourceOk` over the complement's own zone word and the
+  |||   written source, unchanged;
+  ||| * `playWindowOk`, which refuses the one pairing that would spell a
+  |||   turn phrase twice;
+  ||| * the exclusion's written source, since with no source phrase there
+  |||   is no "else" to exclude.
+  public export
+  deonticRiderOk : {bs : Bindings} -> {0 cs : Bindings} ->
+                   (ds : Deeds) -> (r : Role) -> Compulsion cs ->
+                   (patient : DeonticPatient {bs} ds r) -> Bool ->
+                   DeonticRider (deonticPatientIntro patient) -> Bool
+  deonticRiderOk ds r c pat at NoDeonticRider = True
+  deonticRiderOk ds r c (DeonticCounterpart m) at (PlayRider from lim win exc pay) =
+    permits c && all deedPlaysOk ds && agentRole r &&
+    playSourceOk (nounZone m) from at &&
+    playWindowOk lim win && (not exc || isJust from)
+  deonticRiderOk ds r c _ at (PlayRider _ _ _ _ _) = False
 
   ||| THE NON-NESTING GATES. `notConditional`, `notWindowed`,
   ||| `notExtended`, `notCarvedOut`, `isCoord`, `isCompound`, `isInstead`
@@ -1749,7 +1920,7 @@ mutual
   staticKind (AddedCost _ _) = CostModification
   staticKind (Gains _ _) = KeywordGrant
   staticKind (GainsAbilitiesOf _ _ _ _) = KeywordGrant
-  staticKind (Deontic _ _ _ _ _ _) = DeedRestriction
+  staticKind (Deontic _ _ _ _ _ _ _) = DeedRestriction
   staticKind (DoesntUntap _) = DeedRestriction
   staticKind (CantMoreThan _ _ _ _) = DeedRestriction
   staticKind (Skips _ _) = TurnSkip
@@ -1786,7 +1957,6 @@ mutual
   staticKind (OnlyWhile _ _ _) = Conditional
   staticKind (AlsoOffBattlefield se) = staticKind se
   staticKind (DoesntRemove se _) = staticKind se
-  staticKind (MayPlay _ _ _ _ _ _ _ _ _) = PlayPermission
   staticKind (NoLossFrom _ _) = OutcomeImmunity
   staticKind (Visibility _ _ _) = VisibilityRider
   staticKind (MayPlayAdditionalLands _ _) = LandAllowance
@@ -1833,7 +2003,7 @@ mutual
   -- the statement leaves; the class words and the exception describe
   -- abilities and name no object.
   staticIntro (GainsAbilitiesOf n _ src _) = nomIntro src
-  staticIntro (Deontic n _ _ _ _ _) = selfSubjIntro n
+  staticIntro (Deontic n _ _ _ _ _ _) = selfSubjIntro n
   staticIntro (DoesntUntap n) = selfSubjIntro n
   staticIntro (CantMoreThan _ _ _ _) = bs
   staticIntro (Skips _ _) = bs
@@ -1873,7 +2043,6 @@ mutual
   staticIntro (OnlyWhile se c _) = staticIntro se
   staticIntro (AlsoOffBattlefield se) = staticIntro se
   staticIntro (DoesntRemove _ n) = nomIntro n
-  staticIntro (MayPlay who what _ _ _ _ _ _ _) = selfSubjIntro what
   staticIntro (NoLossFrom who _) = nomIntro who
   staticIntro (Visibility _ who what) = visibleIntro what
   staticIntro (MayPlayAdditionalLands who _) = nomIntro who
@@ -2852,8 +3021,8 @@ mutual
     ||| The gate is `isCardZone` and not `OnStack`: [CR#707.12] is about
     ||| an object that is a card somewhere, which is exactly the set
     ||| `CardW` reads.
-    ||| The cast permission wants NO new row -- `MayPlay`'s neighbourhood
-    ||| already carries it, `PlayPayment.WithoutPaying` being
+    ||| The cast permission wants NO new row -- the deontic carrier's
+    ||| play rider already carries it, `PlayPayment.WithoutPaying` being
     ||| [CR#118.9]'s alternative cost at a permission -- so no second
     ||| without-paying rider is minted here. [CR#707.12a] settles the
     ||| plural's per-object choice within that permission.

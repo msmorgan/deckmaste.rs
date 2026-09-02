@@ -490,8 +490,11 @@ badStaticTargets Oh impossible
 ||| A battlefield permanent has already been played [CR#604.6].
 public export
 badPlayFromBattlefield : Unspellable (Effect []) (\ok =>
-  Continuously (MayPlay You (Macros.a Macros.creature) Play Nothing Nothing Nothing Nothing False ItsOwnCost {pz = ok}) (Just Macros.thisTurn))
-badPlayFromBattlefield MkPlaySource impossible
+  Continuously (Deontic You Permit ["Play"] Agent
+                  (DeonticCounterpart (Macros.a Macros.creature)) Nothing
+                  (PlayRider Nothing Nothing Nothing False ItsOwnCost) {rd = ok})
+               (Just Macros.thisTurn))
+badPlayFromBattlefield Oh impossible
 
 
 ||| "Target creature gets +3/+3 until the beginning of your next upkeep." on the event axis
