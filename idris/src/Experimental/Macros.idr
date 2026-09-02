@@ -1352,13 +1352,13 @@ bottomCard = LibrarySlice OnBottom (Lit 1) You
 
 public export
 oneOf : (grp : Noun bs Object) -> {auto 0 gm : PartitiveBase grp} -> Noun bs Object
-oneOf grp = SomeOf (exactly 1) Nothing grp {gm}
+oneOf grp = SomeOf (CountedSlice (exactly 1)) Nothing grp {gm}
 
 public export
 someOf : (n : Nat) -> (grp : Noun bs Object) -> {auto 0 gm : PartitiveBase grp} ->
          {auto 0 nz : NonZeroQ (exactly {bs} n)} ->
          {auto 0 wf : WellFormedQ (exactly {bs} n)} -> Noun bs Object
-someOf n grp = SomeOf (exactly n) Nothing grp {gm} {nz} {wf}
+someOf n grp = SomeOf (CountedSlice (exactly n) {nz} {wf}) Nothing grp {gm}
 
 ||| "[q] [description] from among [grp]": the DESCRIBED partitive --
 ||| "put a creature card from among them into your hand". `someOf`'s
@@ -1370,14 +1370,22 @@ fromAmong : (q : Quantity bs) -> (p : Predicate bs Object) ->
             {auto 0 gm : PartitiveBase grp} ->
             {auto 0 nz : NonZeroQ q} ->
             {auto 0 wf : WellFormedQ q} -> Noun bs Object
-fromAmong q p grp = SomeOf q (Just p) grp {gm} {nz} {wf}
+fromAmong q p grp = SomeOf (CountedSlice q {nz} {wf}) (Just p) grp {gm}
+
+||| "all [description] from among [grp]": `fromAmong` at the UNIVERSAL
+||| count. 10 supported lines write it (measured 2026-09-02) -- see
+||| `SliceCount`.
+public export
+allFromAmong : (p : Predicate bs Object) -> (grp : Noun bs Object) ->
+               {auto 0 gm : PartitiveBase grp} -> Noun bs Object
+allFromAmong p grp = SomeOf WholeSlice (Just p) grp {gm}
 
 ||| "a [description] from among [grp]": `fromAmong` at the one-member
 ||| count, which is what most of the family writes.
 public export
 oneFromAmong : (p : Predicate bs Object) -> (grp : Noun bs Object) ->
                {auto 0 gm : PartitiveBase grp} -> Noun bs Object
-oneFromAmong p grp = SomeOf (exactly 1) (Just p) grp {gm}
+oneFromAmong p grp = SomeOf (CountedSlice (exactly 1)) (Just p) grp {gm}
 
 
 public export
@@ -1598,7 +1606,7 @@ lookedTop bs amt = nomIntro (topSlice {bs} amt)
 public export
 lookedRest : (bs : Bindings) -> (0 mn : countManys Object bs = 1) ->
              (z : Zone) -> Bindings
-lookedRest bs mn z = moveIntro {bs} Nothing (SomeOf anyNumber Nothing (Them {ok = mn}) {gm = Oh} {wf = Oh}) (Just z)
+lookedRest bs mn z = moveIntro {bs} Nothing (SomeOf (CountedSlice anyNumber {wf = Oh}) Nothing (Them {ok = mn}) {gm = Oh}) (Just z)
 
 ||| The look a slice-partitioning keyword action opens with, over the
 ||| player the clause has already named.
@@ -1625,7 +1633,7 @@ scry : {bs : Bindings} -> (amt : Amount bs) ->
 scry amt =
   Does You "Scry" {kn = Oh}
        (Sequentially [ lookAt (topSlice amt)
-                     , move (SomeOf anyNumber Nothing (Them {ok = mn}) {gm = Oh} {wf = Oh})
+                     , move (SomeOf (CountedSlice anyNumber {wf = Oh}) Nothing (Them {ok = mn}) {gm = Oh})
                             (onBottomIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = ps}
                      , move (TheRest {ok = tr})
                             (onTopIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
@@ -1644,7 +1652,7 @@ surveil : {bs : Bindings} -> (amt : Amount bs) ->
 surveil amt =
   Does You "Surveil" {kn = Oh}
        (Sequentially [ lookAt (topSlice amt)
-                     , move (SomeOf anyNumber Nothing (Them {ok = mn}) {gm = Oh} {wf = Oh})
+                     , move (SomeOf (CountedSlice anyNumber {wf = Oh}) Nothing (Them {ok = mn}) {gm = Oh})
                             graveyardZ {ok = GraveyardOkBare} {arr = Oh} {pl = ps}
                      , move (TheRest {ok = tr})
                             (onTopIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
@@ -1696,7 +1704,7 @@ playerScries : {bs : Bindings} -> (agent : Noun bs Player) ->
 playerScries agent amt =
   Does agent "Scry" {kn = Oh}
        (Sequentially [ theyLookAtTop amt {an}
-                     , move (SomeOf anyNumber Nothing (Them {ok = mn}) {gm = Oh} {wf = Oh})
+                     , move (SomeOf (CountedSlice anyNumber {wf = Oh}) Nothing (Them {ok = mn}) {gm = Oh})
                             (onBottomIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = ps}
                      , move (TheRest {ok = tr})
                             (onTopIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
@@ -1713,7 +1721,7 @@ playerSurveils : {bs : Bindings} -> (agent : Noun bs Player) ->
 playerSurveils agent amt =
   Does agent "Surveil" {kn = Oh}
        (Sequentially [ theyLookAtTop amt {an}
-                     , move (SomeOf anyNumber Nothing (Them {ok = mn}) {gm = Oh} {wf = Oh})
+                     , move (SomeOf (CountedSlice anyNumber {wf = Oh}) Nothing (Them {ok = mn}) {gm = Oh})
                             graveyardZ {ok = GraveyardOkBare} {arr = Oh} {pl = ps}
                      , move (TheRest {ok = tr})
                             (onTopIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])

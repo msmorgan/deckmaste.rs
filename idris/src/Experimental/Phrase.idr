@@ -2330,11 +2330,13 @@ mutual
     ||| The universal is admitted because it is the one description that
     ||| fixes its members outright: every object answering it, at the
     ||| moment the clause is applied.
-    SomeOf : (q : Quantity bs) -> (descr : Maybe (Predicate bs Object)) ->
+    ||| The count position is a `SliceCount` and not a `Quantity`: the
+    ||| universal fills it in 10 supported lines ("put all land cards
+    ||| from among them onto the battlefield"), and that is a
+    ||| determiner and not a written count. See `SliceCount`.
+    SomeOf : (q : SliceCount bs) -> (descr : Maybe (Predicate bs Object)) ->
              (grp : Noun bs Object) ->
-             {auto 0 gm : PartitiveBase grp} ->
-             {auto 0 nz : NonZeroQ q} ->
-             {auto 0 wf : WellFormedQ q} -> Noun bs Object
+             {auto 0 gm : PartitiveBase grp} -> Noun bs Object
     ||| "three artifact cards with different names", "two or more
     ||| permanents with the same name as one another": a constraint on the
     ||| GROUP a counted mention picks out. Every `Predicate` in this
@@ -2689,9 +2691,9 @@ mutual
   -- binds once and the phrase reads back as itself.
   nounDelta (NamesAgree _ grp) = nounDelta grp
   nounDelta (SomeOf q d grp) =
-    MkBinding PartD Object (quantPlur q)
-              (ObjectP (sliceTy d grp) (nounZone grp) Nothing Nothing (quantExact q))
-      :: (quantDelta q ++ sliceDelta d ++ nounDelta grp)
+    MkBinding PartD Object (slicePlur q)
+              (ObjectP (sliceTy d grp) (nounZone grp) Nothing Nothing (sliceExact q))
+      :: (sliceCountDelta q ++ sliceDelta d ++ nounDelta grp)
   nounDelta TheRest = []
   nounDelta TheOther = []
   nounDelta It = []
@@ -3645,6 +3647,36 @@ mutual
   WellFormedQ : Quantity bs -> Type
   WellFormedQ q = So (quantWellFormed q)
 
+  ||| What fills a PARTITIVE's count position. The same two forms the
+  ||| count position at the top of a phrase already has -- `CountedGroup`
+  ||| takes a `Quantity`, `AllOf` takes every member the description
+  ||| answers -- and `SomeOf` was offering only the first. 10 supported
+  ||| lines over 10 cards write the universal one (measured 2026-09-02):
+  ||| "put ALL land cards from among them onto the battlefield"
+  ||| (Animist's Awakening, Nissa, Nature's Artisan), "all instant and
+  ||| sorcery cards" (Glamdring), "all Goblin creature cards with mana
+  ||| value 5 or less" (Muxus), "all cards with the chosen name"
+  ||| (Tamiyo, Collector of Tales), and Cantankerous Keepers, Depala,
+  ||| Marina Vendrell, Tezzeret and Beluna Grandsquall's Adventure read.
+  |||
+  ||| `WholeSlice` is NOT a `Quantity` arm. A `Quantity` states a count
+  ||| the text wrote, and every reader of one is built on that: `quantExact`
+  ||| answers a number, `quantWellFormed` compares a floor to a ceiling,
+  ||| `NonZeroQ` asks whether one member is permitted. "All" states no
+  ||| count -- it takes whatever the group turns out to hold -- so an arm
+  ||| for it would have to answer those three questions with silences, at
+  ||| every OTHER `Quantity` position too: a mode headcount [CR#700.2],
+  ||| a die-result range [CR#706.3a], `CountedGroup`'s own count. Those
+  ||| positions do not write "all", and widening them to admit it is what
+  ||| the split avoids.
+  public export
+  data SliceCount : Bindings -> Type where
+    CountedSlice : (q : Quantity bs) ->
+                   {auto 0 nz : NonZeroQ q} ->
+                   {auto 0 wf : WellFormedQ q} -> SliceCount bs
+    ||| "all [description] from among [grp]".
+    WholeSlice : SliceCount bs
+
   ||| The count a written AMOUNT states, where it states one. A literal
   ||| is the only amount whose value the text fixes; every other amount
   ||| is read at resolution and states no size here.
@@ -3708,6 +3740,28 @@ mutual
   quantDelta (Range _ _) = []
   quantDelta (UpToOf a) = amtDelta a
   quantDelta (ExactlyOf a) = amtDelta a
+
+  ||| The three measurements a partitive reads off its count position,
+  ||| at the universal arm. Each carries the fact the counted arm's
+  ||| reader would have carried, and none of them is a silence:
+  ||| the universal states NO number (`sliceExact`), is always written
+  ||| plural -- all 10 supported lines write "all [plural] from among
+  ||| them" (`slicePlur`) -- and writes no amount of its own to
+  ||| introduce (`sliceCountDelta`).
+  public export
+  sliceExact : {0 bs : Bindings} -> SliceCount bs -> Maybe Nat
+  sliceExact (CountedSlice q) = quantExact q
+  sliceExact WholeSlice = Nothing
+
+  public export
+  slicePlur : {0 bs : Bindings} -> SliceCount bs -> Plurality
+  slicePlur (CountedSlice q) = quantPlur q
+  slicePlur WholeSlice = ManyOf
+
+  public export
+  sliceCountDelta : {bs : Bindings} -> SliceCount bs -> List Binding
+  sliceCountDelta (CountedSlice q) = quantDelta q
+  sliceCountDelta WholeSlice = []
 
   ||| `amtIntro`'s move at the quantity seat: what the text after a
   ||| written count can see. A `Range` writes no amount and so introduces
@@ -5485,7 +5539,7 @@ mutual
   nounPlur (EachOfBoth _) = ManyOf
   nounPlur (EitherOf l r) = nounPlur l
   nounPlur (LibrarySlice _ amt whose) = outputPlur (nounPlur whose) (amtPlur amt)
-  nounPlur (SomeOf q _ _) = quantPlur q
+  nounPlur (SomeOf q _ _) = slicePlur q
   nounPlur TheRest = ManyOf
   -- the whole point of the row: one member is left, so the phrase is
   -- singular and a singular destination or verb takes it.

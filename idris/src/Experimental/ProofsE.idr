@@ -245,7 +245,7 @@ badEachOfCountedGroup Oh impossible
 ||| The same cell at the partitive: the group's members are not yet fixed to pick among.
 public export
 badPartitiveOfCountedGroup : Unspellable (Noun [] Object) (\ok =>
-  SomeOf (Macros.exactly 1) Nothing
+  SomeOf (CountedSlice (Macros.exactly 1)) Nothing
          (CountedGroup (Macros.atLeast 1) Nothing Macros.creature)
          {gm = ok})
 badPartitiveOfCountedGroup Oh impossible

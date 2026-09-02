@@ -13397,6 +13397,40 @@ bindToLife =
                , Macros.move (Macros.oneFromAmong Macros.creature Them)
                              Macros.battlefieldZ ]
 
+||| Glamdring, Foe-hammer's Gleam of Death -- "Mill six cards, then put
+||| all instant and sorcery cards from among them into your hand."
+||| `bindToLife`'s line at the UNIVERSAL count: the same partitive over
+||| the same bare group pronoun, with "all" where that one writes "a".
+||| 10 supported lines write this count position (measured 2026-09-02).
+public export
+gleamOfDeath : Effect []
+gleamOfDeath =
+  Sequentially [ Macros.mills You (Lit 6) You
+               , Macros.move (Macros.allFromAmong
+                                (Or [Macros.instant, Macros.sorcery]) Them)
+                             Macros.handZ ]
+
+||| Tezzeret, Master of the Bridge -- "Put all artifact cards from among
+||| them onto the battlefield." The universal count with a bare
+||| single-type description, and a destination that is not the hand.
+public export
+tezzeretAllArtifacts : Effect []
+tezzeretAllArtifacts =
+  Sequentially [ Macros.mills You (Lit 6) You
+               , Macros.move (Macros.allFromAmong Macros.artifact Them)
+                             Macros.battlefieldZ ]
+
+||| The universal slice is written PLURAL and states no count, where the
+||| counted slice states both. Both facts are cells of `slicePlur` and
+||| `sliceExact`, and this is the pair that separates them: the same
+||| partitive, the same base, one count position apart.
+public export
+wholeSliceIsPluralAndUncounted :
+  (nounPlur (SomeOf {bs = []} WholeSlice (Just Macros.artifact)
+                    (LibrarySlice OnTop (Lit 5) You) {gm = Oh}),
+   sliceExact (WholeSlice {bs = []})) = (ManyOf, Nothing)
+wholeSliceIsPluralAndUncounted = Refl
+
 ||| The same partitive over the PARTICIPLE spelling of the same batch --
 ||| "You may put an artifact card from among the cards milled this way
 ||| into your hand" (Tomakul Scrapsmith). One group mention, three
@@ -15518,24 +15552,46 @@ codecrackerHoundLook =
 ||| buys: nothing else reads a mention's size.
 public export
 theOtherAfterATwoCardLook :
-  theOtherOk (nomIntro (SomeOf {bs = []} (Macros.exactly 1) Nothing
+  theOtherOk (nomIntro (SomeOf {bs = []}
+                        (CountedSlice (Macros.exactly 1) {nz = MaxAtLeastOne} {wf = Oh})
+                        Nothing
                                (LibrarySlice OnTop (Lit 2) You)
-                               {gm = Oh} {nz = MaxAtLeastOne} {wf = Oh})) = True
+                               {gm = Oh})) = True
 theOtherAfterATwoCardLook = Refl
 
 public export
 theOtherNeedsAStatedCount :
-  theOtherOk (nomIntro (SomeOf {bs = []} (Macros.exactly 1) Nothing
+  theOtherOk (nomIntro (SomeOf {bs = []}
+                        (CountedSlice (Macros.exactly 1) {nz = MaxAtLeastOne} {wf = Oh})
+                        Nothing
                                (LibrarySlice OnTop (CountOf Macros.creature) You)
-                               {gm = Oh} {nz = MaxAtLeastOne} {wf = Oh})) = False
+                               {gm = Oh})) = False
 theOtherNeedsAStatedCount = Refl
 
 public export
 theRestStandsWhereTheOtherRefuses :
-  theRestOk (nomIntro (SomeOf {bs = []} (Macros.exactly 1) Nothing
+  theRestOk (nomIntro (SomeOf {bs = []}
+                        (CountedSlice (Macros.exactly 1) {nz = MaxAtLeastOne} {wf = Oh})
+                        Nothing
                               (LibrarySlice OnTop (CountOf Macros.creature) You)
-                              {gm = Oh} {nz = MaxAtLeastOne} {wf = Oh})) = True
+                              {gm = Oh})) = True
 theRestStandsWhereTheOtherRefuses = Refl
+
+||| The COUNTED / UNIVERSAL distinction at the same seam. A universal
+||| slice states no count either -- it takes whatever answers the
+||| description -- so "the other" refuses it for exactly the reason it
+||| refuses a slice off an unstated-size group, while "the rest" stands.
+||| This is what the printed lines write: 6 of the 10 supported "all …
+||| from among them" lines continue "and the rest …" and none of them
+||| writes "the other".
+public export
+theOtherRefusesTheUniversalSlice :
+  (theOtherOk (nomIntro (SomeOf {bs = []} WholeSlice (Just Macros.artifact)
+                                (LibrarySlice OnTop (Lit 5) You) {gm = Oh})),
+   theRestOk (nomIntro (SomeOf {bs = []} WholeSlice (Just Macros.artifact)
+                               (LibrarySlice OnTop (Lit 5) You) {gm = Oh})))
+    = (False, True)
+theOtherRefusesTheUniversalSlice = Refl
 
 ||| Talion, the Kindly Lord's trigger -- "Whenever an opponent casts a
 ||| spell with mana value, power, or toughness equal to the chosen
