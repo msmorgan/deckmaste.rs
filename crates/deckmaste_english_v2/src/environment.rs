@@ -468,6 +468,7 @@ impl ParserEnvironment {
                             .surfaces()
                             .iter()
                             .chain(grammar.participial_adjective())
+                            .chain(grammar.block_label())
                             .map(|surface| (surface.feature(), surface.onset(), surface.text())),
                     )?,
                 ),

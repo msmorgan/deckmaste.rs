@@ -95,6 +95,7 @@ fn declared_keyword_lines_parse_render_visit_and_own_exactly() {
         ("Enchant creature you control", vec!["Enchant"]),
         ("Enchant creature or Vehicle", vec!["Enchant"]),
         ("Protection from black", vec!["Protection"]),
+        ("LEVEL 1-3\n4/4", vec!["LevelUp"]),
         ("Protection from everything", vec!["Protection"]),
         ("Protection from black and from red", vec!["Protection"]),
         (

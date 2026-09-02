@@ -54,6 +54,9 @@ pub(super) fn surface_feature(value: macro_ron::v2::SurfaceFeature) -> TokenStre
         macro_ron::v2::SurfaceFeature::Fixed => {
             quote! { ::macro_ron::v2::SurfaceFeature::Fixed }
         }
+        macro_ron::v2::SurfaceFeature::BlockLabel => {
+            quote! { ::macro_ron::v2::SurfaceFeature::BlockLabel }
+        }
     }
 }
 
@@ -629,7 +632,7 @@ pub(super) fn closed_lexeme_owner_id(
         macro_ron::v2::SurfaceFeature::Singular => "singular",
         macro_ron::v2::SurfaceFeature::Plural => "plural",
         macro_ron::v2::SurfaceFeature::Participle => "participle",
-        macro_ron::v2::SurfaceFeature::Fixed => {
+        macro_ron::v2::SurfaceFeature::Fixed | macro_ron::v2::SurfaceFeature::BlockLabel => {
             unreachable!("closed lexemes use only Agreement or Number features")
         }
     };

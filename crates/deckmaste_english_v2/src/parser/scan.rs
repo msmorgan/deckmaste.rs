@@ -881,7 +881,8 @@ impl ScanInput<'_> {
                     SurfaceFeature::Bare
                     | SurfaceFeature::ThirdPersonSingular
                     | SurfaceFeature::Participle
-                    | SurfaceFeature::Fixed => continue,
+                    | SurfaceFeature::Fixed
+                    | SurfaceFeature::BlockLabel => continue,
                 };
                 if matches!(wanted, FeatureConstraint::Any)
                     || matches!(wanted, FeatureConstraint::Exact(expected) if expected == number)

@@ -530,6 +530,7 @@ fn surface_feature_key(feature: macro_ron::v2::SurfaceFeature) -> &'static str {
         macro_ron::v2::SurfaceFeature::Plural => "plural",
         macro_ron::v2::SurfaceFeature::Participle => "participle",
         macro_ron::v2::SurfaceFeature::Fixed => "fixed",
+        macro_ron::v2::SurfaceFeature::BlockLabel => "block_label",
     }
 }
 

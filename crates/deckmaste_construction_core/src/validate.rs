@@ -2948,14 +2948,14 @@ fn validate_declaration_term_source(
     if let Some(feature) = source.feature_slots.first()
         && !matches!(
             identifier_key(&feature.value).as_str(),
-            "Fixed" | "Participle"
+            "Fixed" | "Participle" | "BlockLabel"
         )
     {
         combine(
             errors,
             syn::Error::new(
                 feature.value.span(),
-                "declaration_term feature must be `Fixed` or `Participle`",
+                "declaration_term feature must be `Fixed`, `Participle`, or `BlockLabel`",
             ),
         );
     }
@@ -2970,6 +2970,20 @@ fn validate_declaration_term_source(
             syn::Error::new(
                 source.feature_slots[0].value.span(),
                 "FixedTerm declaration_term codecs support only the `Fixed` feature",
+            ),
+        );
+    }
+    if source
+        .feature_slots
+        .first()
+        .is_some_and(|feature| identifier_key(&feature.value) == "BlockLabel")
+        && !position.is_some_and(|position| identifier_key(position) == "FixedKeyword")
+    {
+        combine(
+            errors,
+            syn::Error::new(
+                source.feature_slots[0].value.span(),
+                "BlockLabel declaration_term codecs require the `FixedKeyword` position",
             ),
         );
     }
@@ -11462,6 +11476,14 @@ pub(crate) mod tests {
                     feature = Participle;
                 }
             }
+            codec KeywordBlockLabel {
+                generate declaration_term {
+                    position = FixedKeyword;
+                    kinds = [KeywordAbility];
+                    params = Any;
+                    feature = BlockLabel;
+                }
+            }
             codec FixedTerm {
                 generate declaration_term {
                     position = FixedTerm;
@@ -11526,7 +11548,7 @@ pub(crate) mod tests {
                 kinds = [KeywordAbility];
                 feature = Plural;
             })
-            .contains("declaration_term feature must be `Fixed` or `Participle`")
+            .contains("declaration_term feature must be `Fixed`, `Participle`, or `BlockLabel`")
         );
     }
 

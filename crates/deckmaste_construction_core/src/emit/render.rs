@@ -3132,7 +3132,8 @@ fn render_owner(
                         macro_ron::v2::SurfaceFeature::Singular
                         | macro_ron::v2::SurfaceFeature::Plural
                         | macro_ron::v2::SurfaceFeature::Participle
-                        | macro_ron::v2::SurfaceFeature::Fixed => {
+                        | macro_ron::v2::SurfaceFeature::Fixed
+                        | macro_ron::v2::SurfaceFeature::BlockLabel => {
                             unreachable!("validated verb lexeme has the Agreement feature axis")
                         }
                     };
@@ -3178,7 +3179,8 @@ fn render_owner(
                         macro_ron::v2::SurfaceFeature::Bare
                         | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
                         | macro_ron::v2::SurfaceFeature::Participle
-                        | macro_ron::v2::SurfaceFeature::Fixed => {
+                        | macro_ron::v2::SurfaceFeature::Fixed
+                        | macro_ron::v2::SurfaceFeature::BlockLabel => {
                             unreachable!("validated noun lexeme has the Number feature axis")
                         }
                     };
@@ -3218,7 +3220,8 @@ fn render_owner(
                         macro_ron::v2::SurfaceFeature::Bare
                         | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
                         | macro_ron::v2::SurfaceFeature::Participle
-                        | macro_ron::v2::SurfaceFeature::Fixed => {
+                        | macro_ron::v2::SurfaceFeature::Fixed
+                        | macro_ron::v2::SurfaceFeature::BlockLabel => {
                             unreachable!("validated noun lexeme has the Number feature axis")
                         }
                     };
@@ -3912,7 +3915,8 @@ fn implicit_verb_onset(
                         macro_ron::v2::SurfaceFeature::Singular
                         | macro_ron::v2::SurfaceFeature::Plural
                         | macro_ron::v2::SurfaceFeature::Participle
-                        | macro_ron::v2::SurfaceFeature::Fixed => {
+                        | macro_ron::v2::SurfaceFeature::Fixed
+                        | macro_ron::v2::SurfaceFeature::BlockLabel => {
                             unreachable!("validated verb lexeme has the Agreement feature axis")
                         }
                     };
@@ -4196,7 +4200,8 @@ fn lexical_onset_expr(
                 macro_ron::v2::SurfaceFeature::Bare
                 | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
                 | macro_ron::v2::SurfaceFeature::Participle
-                | macro_ron::v2::SurfaceFeature::Fixed => {
+                | macro_ron::v2::SurfaceFeature::Fixed
+                | macro_ron::v2::SurfaceFeature::BlockLabel => {
                     unreachable!("validated noun lexeme has the Number feature axis")
                 }
             };
@@ -4347,7 +4352,8 @@ fn lexical_onset_expr(
                     macro_ron::v2::SurfaceFeature::Bare
                     | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
                     | macro_ron::v2::SurfaceFeature::Participle
-                    | macro_ron::v2::SurfaceFeature::Fixed => {
+                    | macro_ron::v2::SurfaceFeature::Fixed
+                    | macro_ron::v2::SurfaceFeature::BlockLabel => {
                         unreachable!("validated noun lexeme has the Number feature axis")
                     }
                 };
@@ -4421,7 +4427,8 @@ fn lexical_possessive_ending_expr(
                 macro_ron::v2::SurfaceFeature::Bare
                 | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
                 | macro_ron::v2::SurfaceFeature::Participle
-                | macro_ron::v2::SurfaceFeature::Fixed => {
+                | macro_ron::v2::SurfaceFeature::Fixed
+                | macro_ron::v2::SurfaceFeature::BlockLabel => {
                     unreachable!("validated noun lexeme has the Number feature axis")
                 }
             };
@@ -4451,7 +4458,8 @@ fn lexical_possessive_ending_expr(
                     macro_ron::v2::SurfaceFeature::Bare
                     | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
                     | macro_ron::v2::SurfaceFeature::Participle
-                    | macro_ron::v2::SurfaceFeature::Fixed => {
+                    | macro_ron::v2::SurfaceFeature::Fixed
+                    | macro_ron::v2::SurfaceFeature::BlockLabel => {
                         unreachable!("validated noun lexeme has the Number feature axis")
                     }
                 };

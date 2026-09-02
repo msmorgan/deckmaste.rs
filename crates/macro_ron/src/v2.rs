@@ -258,6 +258,8 @@ pub enum Grammar {
         onset: Option<Onset>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         participial_adjective: Option<ParticipialAdjectiveGrammar>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        block_label: Option<BlockLabelGrammar>,
     },
 }
 
@@ -272,6 +274,18 @@ pub struct ParticipialAdjectiveGrammar {
     /// Omission derives the English participle from the fixed keyword surface.
     #[serde(default, skip_serializing_if = "DerivedSurface::is_derived")]
     pub surface: DerivedSurface,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub onset: Option<Onset>,
+}
+
+/// A supplemental document block-label use of a fixed keyword declaration.
+///
+/// This spelling is distinct from the declaration's ordinary keyword-line
+/// surface and is consumed only by a block-label grammar position.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct BlockLabelGrammar {
+    pub surface: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub onset: Option<Onset>,
 }
@@ -488,6 +502,7 @@ pub struct GrammarRow {
     recipe: GrammarRecipe,
     surfaces: Vec<RealizedSurface>,
     participial_adjective: Option<RealizedSurface>,
+    block_label: Option<RealizedSurface>,
 }
 
 impl GrammarRow {
@@ -505,6 +520,12 @@ impl GrammarRow {
     #[must_use]
     pub fn participial_adjective(&self) -> Option<&RealizedSurface> {
         self.participial_adjective.as_ref()
+    }
+
+    /// Returns the declaration's supplemental document block-label surface.
+    #[must_use]
+    pub fn block_label(&self) -> Option<&RealizedSurface> {
+        self.block_label.as_ref()
     }
 }
 
@@ -551,6 +572,7 @@ pub enum SurfaceFeature {
     Singular,
     Plural,
     Fixed,
+    BlockLabel,
 }
 
 /// One complete scan/render surface row.
@@ -643,6 +665,7 @@ enum GrammarSourceMap {
     Fixed {
         surface: SourcePosition,
         participial_adjective_surface: Option<SourcePosition>,
+        block_label_surface: Option<SourcePosition>,
     },
 }
 
@@ -722,6 +745,8 @@ enum DiagnosticGrammar<'a> {
         surface: &'a RawValue,
         #[serde(default, borrow)]
         participial_adjective: Option<DiagnosticParticipialAdjectiveGrammar<'a>>,
+        #[serde(default, borrow)]
+        block_label: Option<DiagnosticBlockLabelGrammar<'a>>,
     },
 }
 
@@ -729,6 +754,12 @@ enum DiagnosticGrammar<'a> {
 struct DiagnosticParticipialAdjectiveGrammar<'a> {
     #[serde(default, borrow)]
     surface: Option<&'a RawValue>,
+}
+
+#[derive(Deserialize)]
+struct DiagnosticBlockLabelGrammar<'a> {
+    #[serde(borrow)]
+    surface: &'a RawValue,
 }
 
 struct LeadingVariant;
@@ -985,16 +1016,22 @@ impl GrammarSourceMap {
             | DiagnosticGrammar::FixedClause { surface } => Ok(Self::Fixed {
                 surface: raw_position(path, source, surface, declaration)?,
                 participial_adjective_surface: None,
+                block_label_surface: None,
             }),
             DiagnosticGrammar::FixedKeyword {
                 surface,
                 participial_adjective,
+                block_label,
             } => Ok(Self::Fixed {
                 surface: raw_position(path, source, surface, declaration)?,
                 participial_adjective_surface: participial_adjective
                     .as_ref()
                     .and_then(|grammar| grammar.surface)
                     .map(|value| raw_position(path, source, value, declaration))
+                    .transpose()?,
+                block_label_surface: block_label
+                    .as_ref()
+                    .map(|grammar| raw_position(path, source, grammar.surface, declaration))
                     .transpose()?,
             }),
         }
@@ -1326,144 +1363,157 @@ fn normalize_grammar(
     spelling: &[SpellingPart],
     grammar: Grammar,
 ) -> Result<GrammarRow, ReadError> {
-    let (grammar_head, recipe, surfaces, participial_adjective) = match (grammar, source_map) {
-        (
-            Grammar::Verb {
-                bare,
-                bare_onset,
-                third_person,
-                third_person_onset,
-                participle,
-                participle_onset,
-                valence,
-            },
-            GrammarSourceMap::Verb {
-                bare: bare_position,
-                third_person: third_person_position,
-                participle: participle_position,
-                valence: valence_position,
-            },
-        ) => {
-            validate_surface(path, *bare_position, "bare", &bare)?;
-            validate_valence(path, *valence_position, &valence)?;
-            let third_person = realize_derived_surface(
-                path,
-                *bare_position,
-                *third_person_position,
-                "third_person",
-                english_verb(&bare),
-                third_person,
-            )?;
-            let participle = realize_derived_surface(
-                path,
-                *bare_position,
-                *participle_position,
-                "participle",
-                english_participle(&bare),
-                participle,
-            )?;
-            let mut surfaces = vec![RealizedSurface {
-                feature: SurfaceFeature::Bare,
-                onset: normalized_onset(path, *bare_position, &bare, bare_onset)?,
-                onset_override: bare_onset,
-                text: bare.clone(),
-            }];
-            if let Some(text) = third_person {
-                let position = third_person_position.unwrap_or(*bare_position);
-                surfaces.push(RealizedSurface {
-                    feature: SurfaceFeature::ThirdPersonSingular,
-                    onset: normalized_onset(path, position, &text, third_person_onset)?,
-                    onset_override: third_person_onset,
-                    text,
-                });
+    let (grammar_head, recipe, surfaces, participial_adjective, block_label) =
+        match (grammar, source_map) {
+            (
+                Grammar::Verb {
+                    bare,
+                    bare_onset,
+                    third_person,
+                    third_person_onset,
+                    participle,
+                    participle_onset,
+                    valence,
+                },
+                GrammarSourceMap::Verb {
+                    bare: bare_position,
+                    third_person: third_person_position,
+                    participle: participle_position,
+                    valence: valence_position,
+                },
+            ) => {
+                validate_surface(path, *bare_position, "bare", &bare)?;
+                validate_valence(path, *valence_position, &valence)?;
+                let third_person = realize_derived_surface(
+                    path,
+                    *bare_position,
+                    *third_person_position,
+                    "third_person",
+                    english_verb(&bare),
+                    third_person,
+                )?;
+                let participle = realize_derived_surface(
+                    path,
+                    *bare_position,
+                    *participle_position,
+                    "participle",
+                    english_participle(&bare),
+                    participle,
+                )?;
+                let mut surfaces = vec![RealizedSurface {
+                    feature: SurfaceFeature::Bare,
+                    onset: normalized_onset(path, *bare_position, &bare, bare_onset)?,
+                    onset_override: bare_onset,
+                    text: bare.clone(),
+                }];
+                if let Some(text) = third_person {
+                    let position = third_person_position.unwrap_or(*bare_position);
+                    surfaces.push(RealizedSurface {
+                        feature: SurfaceFeature::ThirdPersonSingular,
+                        onset: normalized_onset(path, position, &text, third_person_onset)?,
+                        onset_override: third_person_onset,
+                        text,
+                    });
+                }
+                if let Some(text) = participle {
+                    let position = participle_position.unwrap_or(*bare_position);
+                    surfaces.push(RealizedSurface {
+                        feature: SurfaceFeature::Participle,
+                        onset: normalized_onset(path, position, &text, participle_onset)?,
+                        onset_override: participle_onset,
+                        text,
+                    });
+                }
+                (bare, GrammarRecipe::Verb { valence }, surfaces, None, None)
             }
-            if let Some(text) = participle {
-                let position = participle_position.unwrap_or(*bare_position);
-                surfaces.push(RealizedSurface {
-                    feature: SurfaceFeature::Participle,
-                    onset: normalized_onset(path, position, &text, participle_onset)?,
-                    onset_override: participle_onset,
-                    text,
-                });
+            (
+                Grammar::Noun {
+                    singular,
+                    singular_onset,
+                    plural,
+                    plural_onset,
+                },
+                GrammarSourceMap::Noun {
+                    singular: singular_position,
+                    plural: plural_position,
+                },
+            ) => {
+                validate_surface(path, *singular_position, "singular", &singular)?;
+                let plural = realize_derived_surface(
+                    path,
+                    *singular_position,
+                    *plural_position,
+                    "plural",
+                    english_noun(&singular),
+                    plural,
+                )?;
+                let mut surfaces = vec![RealizedSurface {
+                    feature: SurfaceFeature::Singular,
+                    onset: normalized_onset(path, *singular_position, &singular, singular_onset)?,
+                    onset_override: singular_onset,
+                    text: singular.clone(),
+                }];
+                if let Some(text) = plural {
+                    let position = plural_position.unwrap_or(*singular_position);
+                    surfaces.push(RealizedSurface {
+                        feature: SurfaceFeature::Plural,
+                        onset: normalized_onset(path, position, &text, plural_onset)?,
+                        onset_override: plural_onset,
+                        text,
+                    });
+                }
+                (singular, GrammarRecipe::Noun, surfaces, None, None)
             }
-            (bare, GrammarRecipe::Verb { valence }, surfaces, None)
-        }
-        (
-            Grammar::Noun {
-                singular,
-                singular_onset,
-                plural,
-                plural_onset,
-            },
-            GrammarSourceMap::Noun {
-                singular: singular_position,
-                plural: plural_position,
-            },
-        ) => {
-            validate_surface(path, *singular_position, "singular", &singular)?;
-            let plural = realize_derived_surface(
+            (
+                Grammar::FixedTerm { surface, onset },
+                GrammarSourceMap::Fixed {
+                    surface: position, ..
+                },
+            ) => {
+                normalize_fixed_grammar(path, *position, surface, onset, GrammarRecipe::FixedTerm)?
+            }
+            (
+                Grammar::FixedClause { surface, onset },
+                GrammarSourceMap::Fixed {
+                    surface: position, ..
+                },
+            ) => normalize_fixed_grammar(
                 path,
-                *singular_position,
-                *plural_position,
-                "plural",
-                english_noun(&singular),
-                plural,
-            )?;
-            let mut surfaces = vec![RealizedSurface {
-                feature: SurfaceFeature::Singular,
-                onset: normalized_onset(path, *singular_position, &singular, singular_onset)?,
-                onset_override: singular_onset,
-                text: singular.clone(),
-            }];
-            if let Some(text) = plural {
-                let position = plural_position.unwrap_or(*singular_position);
-                surfaces.push(RealizedSurface {
-                    feature: SurfaceFeature::Plural,
-                    onset: normalized_onset(path, position, &text, plural_onset)?,
-                    onset_override: plural_onset,
-                    text,
-                });
-            }
-            (singular, GrammarRecipe::Noun, surfaces, None)
-        }
-        (
-            Grammar::FixedTerm { surface, onset },
-            GrammarSourceMap::Fixed {
-                surface: position, ..
-            },
-        ) => normalize_fixed_grammar(path, *position, surface, onset, GrammarRecipe::FixedTerm)?,
-        (
-            Grammar::FixedClause { surface, onset },
-            GrammarSourceMap::Fixed {
-                surface: position, ..
-            },
-        ) => normalize_fixed_grammar(path, *position, surface, onset, GrammarRecipe::FixedClause)?,
-        (
-            Grammar::FixedKeyword {
+                *position,
+                surface,
+                onset,
+                GrammarRecipe::FixedClause,
+            )?,
+            (
+                Grammar::FixedKeyword {
+                    surface,
+                    onset,
+                    participial_adjective,
+                    block_label,
+                },
+                GrammarSourceMap::Fixed {
+                    surface: position,
+                    participial_adjective_surface,
+                    block_label_surface,
+                },
+            ) => normalize_fixed_keyword_grammar(
+                path,
+                *position,
+                *participial_adjective_surface,
+                *block_label_surface,
                 surface,
                 onset,
                 participial_adjective,
-            },
-            GrammarSourceMap::Fixed {
-                surface: position,
-                participial_adjective_surface,
-            },
-        ) => normalize_fixed_keyword_grammar(
-            path,
-            *position,
-            *participial_adjective_surface,
-            surface,
-            onset,
-            participial_adjective,
-        )?,
-        _ => {
-            return Err(source_map_parse_error(
-                path,
-                spelling_position,
-                "grammar recipe disagreed with its validation source map",
-            ));
-        }
-    };
+                block_label,
+            )?,
+            _ => {
+                return Err(source_map_parse_error(
+                    path,
+                    spelling_position,
+                    "grammar recipe disagreed with its validation source map",
+                ));
+            }
+        };
 
     finish_grammar_normalization(
         path,
@@ -1473,6 +1523,7 @@ fn normalize_grammar(
         recipe,
         surfaces,
         participial_adjective,
+        block_label,
     )
 }
 
@@ -1488,25 +1539,29 @@ fn normalize_fixed_grammar(
         GrammarRecipe,
         Vec<RealizedSurface>,
         Option<RealizedSurface>,
+        Option<RealizedSurface>,
     ),
     ReadError,
 > {
     let (head, recipe, surfaces) = fixed_grammar(path, position, surface, onset, recipe)?;
-    Ok((head, recipe, surfaces, None))
+    Ok((head, recipe, surfaces, None, None))
 }
 
 fn normalize_fixed_keyword_grammar(
     path: &Path,
     surface_position: SourcePosition,
     participial_adjective_position: Option<SourcePosition>,
+    block_label_position: Option<SourcePosition>,
     surface: String,
     onset: Option<Onset>,
     participial_adjective: Option<ParticipialAdjectiveGrammar>,
+    block_label: Option<BlockLabelGrammar>,
 ) -> Result<
     (
         String,
         GrammarRecipe,
         Vec<RealizedSurface>,
+        Option<RealizedSurface>,
         Option<RealizedSurface>,
     ),
     ReadError,
@@ -1529,7 +1584,10 @@ fn normalize_fixed_keyword_grammar(
             )
         })
         .transpose()?;
-    Ok((head, recipe, surfaces, participial_adjective))
+    let block_label = block_label
+        .map(|grammar| normalize_block_label(path, surface_position, block_label_position, grammar))
+        .transpose()?;
+    Ok((head, recipe, surfaces, participial_adjective, block_label))
 }
 
 fn finish_grammar_normalization(
@@ -1540,6 +1598,7 @@ fn finish_grammar_normalization(
     recipe: GrammarRecipe,
     surfaces: Vec<RealizedSurface>,
     participial_adjective: Option<RealizedSurface>,
+    block_label: Option<RealizedSurface>,
 ) -> Result<GrammarRow, ReadError> {
     let spelling_head = spelling_head(spelling);
     if spelling_head != grammar_head {
@@ -1557,6 +1616,23 @@ fn finish_grammar_normalization(
         recipe,
         surfaces,
         participial_adjective,
+        block_label,
+    })
+}
+
+fn normalize_block_label(
+    path: &Path,
+    fallback: SourcePosition,
+    position: Option<SourcePosition>,
+    grammar: BlockLabelGrammar,
+) -> Result<RealizedSurface, ReadError> {
+    let position = position.unwrap_or(fallback);
+    validate_surface(path, position, "block label", &grammar.surface)?;
+    Ok(RealizedSurface {
+        feature: SurfaceFeature::BlockLabel,
+        onset: normalized_onset(path, position, &grammar.surface, grammar.onset)?,
+        onset_override: grammar.onset,
+        text: grammar.surface,
     })
 }
 

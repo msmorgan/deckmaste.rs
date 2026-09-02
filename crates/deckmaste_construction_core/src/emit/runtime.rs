@@ -210,14 +210,14 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
         named_type(
             CASE_POSITION_TYPE,
             quote! {
-                #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Ord, PartialOrd)]
+                #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
                 pub(crate) enum CasePosition { DocumentInitial, SentenceInitial, Continuation }
             },
         ),
         named_type(
             PREFIX_POSITION_TYPE,
             quote! {
-                #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Ord, PartialOrd)]
+                #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
                 pub(crate) enum PrefixPosition { WordOwnedSpace, SurfaceOwned, None }
             },
         ),
@@ -243,7 +243,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
         named_type(
             SCAN_POSITION_TYPE,
             quote! {
-                #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Ord, PartialOrd)]
+                #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
                 pub(crate) struct ScanPosition {
                     pub(crate) byte_offset: usize,
                     pub(crate) case: CasePosition,
@@ -1784,7 +1784,8 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                 macro_ron::v2::SurfaceFeature::Singular
                 | macro_ron::v2::SurfaceFeature::Plural
                 | macro_ron::v2::SurfaceFeature::Participle
-                | macro_ron::v2::SurfaceFeature::Fixed => {
+                | macro_ron::v2::SurfaceFeature::Fixed
+                | macro_ron::v2::SurfaceFeature::BlockLabel => {
                     unreachable!("validated verb lexeme has the Agreement feature axis")
                 }
             };
@@ -1818,7 +1819,8 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                 macro_ron::v2::SurfaceFeature::Bare
                 | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
                 | macro_ron::v2::SurfaceFeature::Participle
-                | macro_ron::v2::SurfaceFeature::Fixed => {
+                | macro_ron::v2::SurfaceFeature::Fixed
+                | macro_ron::v2::SurfaceFeature::BlockLabel => {
                     unreachable!("validated noun lexeme has the Number feature axis")
                 }
             };
@@ -1861,7 +1863,8 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                                 macro_ron::v2::SurfaceFeature::Bare
                                 | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
                                 | macro_ron::v2::SurfaceFeature::Participle
-                                | macro_ron::v2::SurfaceFeature::Fixed => {
+                                | macro_ron::v2::SurfaceFeature::Fixed
+                                | macro_ron::v2::SurfaceFeature::BlockLabel => {
                                     unreachable!(
                                         "validated noun lexeme has the Number feature axis"
                                     )
@@ -2070,6 +2073,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                         ::macro_ron::v2::SurfaceFeature::Plural => "plural",
                         ::macro_ron::v2::SurfaceFeature::Participle => "participle",
                         ::macro_ron::v2::SurfaceFeature::Fixed => "fixed",
+                        ::macro_ron::v2::SurfaceFeature::BlockLabel => "block_label",
                     };
                     LexicalOwner::construct_label(|| {
                         format!("lexeme:{kind}/{}/{feature}", id.name())

@@ -2810,7 +2810,8 @@ fn verb_onset_pattern(
             macro_ron::v2::SurfaceFeature::Singular
             | macro_ron::v2::SurfaceFeature::Plural
             | macro_ron::v2::SurfaceFeature::Participle
-            | macro_ron::v2::SurfaceFeature::Fixed => {
+            | macro_ron::v2::SurfaceFeature::Fixed
+            | macro_ron::v2::SurfaceFeature::BlockLabel => {
                 unreachable!("validated verb lexeme has Agreement rows")
             }
         };

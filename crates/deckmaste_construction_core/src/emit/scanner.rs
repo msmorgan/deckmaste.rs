@@ -431,7 +431,8 @@ fn verb_lexeme_arm(plan: &SemanticPlan) -> Option<TokenStream> {
                 macro_ron::v2::SurfaceFeature::Singular
                 | macro_ron::v2::SurfaceFeature::Plural
                 | macro_ron::v2::SurfaceFeature::Participle
-                | macro_ron::v2::SurfaceFeature::Fixed => {
+                | macro_ron::v2::SurfaceFeature::Fixed
+                | macro_ron::v2::SurfaceFeature::BlockLabel => {
                     unreachable!("validated verb lexeme has the Agreement feature axis")
                 }
             };
@@ -498,7 +499,8 @@ fn noun_surface_candidates(
             macro_ron::v2::SurfaceFeature::Bare
             | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
             | macro_ron::v2::SurfaceFeature::Participle
-            | macro_ron::v2::SurfaceFeature::Fixed => {
+            | macro_ron::v2::SurfaceFeature::Fixed
+            | macro_ron::v2::SurfaceFeature::BlockLabel => {
                 unreachable!("validated noun lexeme has the Number feature axis")
             }
         };

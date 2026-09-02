@@ -6284,6 +6284,7 @@ impl DeclarationTermPlan {
                     |slot| match identifier_key(&slot.value).as_str() {
                         "Fixed" => macro_ron::v2::SurfaceFeature::Fixed,
                         "Participle" => macro_ron::v2::SurfaceFeature::Participle,
+                        "BlockLabel" => macro_ron::v2::SurfaceFeature::BlockLabel,
                         _ => unreachable!("validated declaration_term feature is closed"),
                     },
                 );

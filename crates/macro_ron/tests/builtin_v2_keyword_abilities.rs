@@ -256,3 +256,20 @@ fn attachment_keywords_declare_their_participial_adjective_surfaces() {
         assert_eq!(adjective.text(), surface, "{name}");
     }
 }
+
+#[test]
+fn level_up_declares_its_distinct_block_label_surface() {
+    let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let declarations = read_builtin_v2(workspace_root.join("plugins/builtin_v2"))
+        .expect("builtin-v2 declarations must load");
+    let grammar = ability(&declarations, "LevelUp")
+        .grammar()
+        .expect("Level Up contributes keyword grammar");
+
+    assert_eq!(grammar.surfaces()[0].text(), "level up");
+    let label = grammar
+        .block_label()
+        .expect("Level Up contributes its level-band label");
+    assert_eq!(label.feature(), SurfaceFeature::BlockLabel);
+    assert_eq!(label.text(), "LEVEL");
+}

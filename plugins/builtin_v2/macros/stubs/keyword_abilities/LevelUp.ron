@@ -4,5 +4,6 @@ KeywordAbility(
     spelling: "level up",
     grammar: FixedKeyword(
         surface: "level up",
+        block_label: (surface: "LEVEL"),
     ),
 )

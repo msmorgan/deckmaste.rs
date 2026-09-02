@@ -728,6 +728,14 @@ constructions! {
             feature = Participle;
         }
     }
+    codec LevelBlockLabel {
+        generate declaration_term {
+            position = FixedKeyword;
+            kinds = [KeywordAbility];
+            params = Any;
+            feature = BlockLabel;
+        }
+    }
     codec CostedKeywordAbility {
         generate declaration_term {
             position = FixedKeyword;
@@ -4911,10 +4919,11 @@ constructions! {
     }
     construction level_band: LevelBand {
         element LevelBandValue {
+            label: lex LevelBlockLabel,
             range: LevelRange,
             power_toughness: PredicativePowerToughnessComplement,
         }
-        form level_band = "LEVEL" range sentence_initial("\n") power_toughness;
+        form level_band = lex(label) range sentence_initial("\n") power_toughness;
     }
 
     abstract sum DocumentBlock {

@@ -682,7 +682,8 @@ fn emit_lexeme_surface_helper(
                 macro_ron::v2::SurfaceFeature::Participle => {
                     quote! { Participle::Participle }
                 }
-                macro_ron::v2::SurfaceFeature::Fixed => {
+                macro_ron::v2::SurfaceFeature::Fixed
+                | macro_ron::v2::SurfaceFeature::BlockLabel => {
                     return Err(syn::Error::new(
                         Span::call_site(),
                         "sealed lexeme surface has an unsupported fixed feature",
