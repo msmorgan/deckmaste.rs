@@ -2748,7 +2748,7 @@ mutual
   elemPayload PhObject ty zn pv = ObjectP ty zn pv Nothing (Just 1)
   elemPayload PhPlayer _ _ _ = PlayerP
   elemPayload {k = Quality q} PhQuality _ _ _ = QualityP
-  elemPayload PhAbility _ _ _ = AbilityP
+  elemPayload PhAbility _ _ _ = AbilityP Nothing
   elemPayload (PhJoin l r) ty zn pv =
     JoinP (elemPayload l ty zn pv) (elemPayload r ty zn pv)
 
