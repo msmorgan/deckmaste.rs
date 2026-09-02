@@ -3049,6 +3049,142 @@ doublingSeason =
                    Repeatedly Nothing) ]
        Nothing
 
+||| Katara, the Fearless, whole -- "If a triggered ability of an Ally you
+||| control triggers, that ability triggers an additional time."
+||| [CR#603.2d]'s trigger multiplier at its BARE triggering, the form 15
+||| of the family's 35 lines write. The whole printed text is this one
+||| sentence, and the row is the whole sentence: "that ability triggers
+||| an additional time" states no content of its own, because the rule
+||| fixes what happens once the count is known.
+public export
+kataraTheFearless : Card
+kataraTheFearless =
+  Macros.card "Katara, the Fearless"
+       (Just [Macros.pip Green, Macros.pip White, Macros.pip Blue]) [Legendary]
+       (MkTypeLine [ creatureType "Human", creatureType "Warrior"
+                   , creatureType "Ally" ] [Creature])
+       [ Static (TriggersAdditionally
+                   (Triggers
+                      (Macros.a (And [ AbilityHead AnyTriggered
+                                     , AbilityOf (Macros.a
+                                         (And [ HasSubtype (creatureType "Ally")
+                                              , ControlledBy You ])) ])))
+                   (Macros.exactly 1)) ]
+       (Just (3, 3))
+
+||| Naban, Dean of Iteration, whole -- "If a Wizard you control entering
+||| causes a triggered ability of a permanent you control to trigger,
+||| that ability triggers an additional time."
+||| The PERIPHRASTIC CAUSATION at the seat that motivated it: 20 of the
+||| family's 35 lines write a causing EVENT in front of the triggering,
+||| and the wrapper is transparent to `eventName`, so `triggerCountOk`
+||| sees the same `AbilityTrigger` it sees at Katara's bare form.
+||| [CR#603.2] is why the causer may be an event at all -- a game event
+||| matching a trigger condition is what makes an ability trigger.
+public export
+nabanDeanOfIteration : Card
+nabanDeanOfIteration =
+  Macros.card "Naban, Dean of Iteration"
+       (Just [Macros.generic 1, Macros.pip Blue]) [Legendary]
+       (MkTypeLine [creatureType "Human", creatureType "Wizard"] [Creature])
+       [ Static (TriggersAdditionally
+                   (Causes
+                      (CausedByEvent
+                         (Enters (Macros.a (And [ HasSubtype (creatureType "Wizard")
+                                                , ControlledBy You ])) Nothing))
+                      (Triggers
+                         (Macros.a (And [ AbilityHead AnyTriggered
+                                        , AbilityOf (Macros.a
+                                            (And [Permanent, ControlledBy You])) ]))))
+                   (Macros.exactly 1)) ]
+       (Just (2, 1))
+
+||| Psychic Purge, whole -- "Psychic Purge deals 1 damage to any target."
+||| and "When a spell or ability an opponent controls causes you to
+||| discard this card, that player loses 5 life."
+||| The causation at a TRIGGER HEADER with a DESCRIBED SOURCE, which is
+||| the second of its two causer sorts and the shape 23 supported lines
+||| over 22 cards write. It witnesses the threading: the cause is named
+||| before the caused event and stays in the discourse afterwards, so
+||| "that player" reaches the opponent inside the causer's own
+||| description -- a mention the caused discard never makes.
+public export
+psychicPurge : Card
+psychicPurge =
+  Macros.card "Psychic Purge" (Just [Macros.pip Blue]) []
+       (MkTypeLine [] [Sorcery])
+       [ Spell (DealDamage This (Lit 1) (Macros.target Macros.anyTarget))
+       , Macros.triggered When
+           (Causes
+              (CausedBySource
+                 (Macros.a (And [ Joined Macros.spell (AbilityHead AnyOnStack)
+                                , ControlledBy (Macros.a Opponent) ])))
+              (VerbedEvent (Just You) "Discard" (Just This) Nothing False))
+           (Macros.losesLife (That PlayerW) (Lit 5)) ]
+       Nothing
+
+||| Rain of Gore, whole -- "If a spell or ability would cause its
+||| controller to gain life, that player loses that much life instead."
+||| The causation at the REPLACEMENT seat, and the reason `eventName`
+||| lifts through the wrapper rather than naming the causation itself:
+||| what [CR#614.1] replaces here is the LIFE GAIN, so `interceptOk` must
+||| see `LifeGain` through the "would cause". The other two supported
+||| "would cause" lines are Silhouette's and Unpredictable Cyclone's.
+||| It also witnesses the causer's threading at the prospective reader:
+||| "its controller" is the causer's possessor, and `eventIntro` reaches
+||| it because the cause is named before the event it causes.
+public export
+rainOfGore : Card
+rainOfGore =
+  Macros.card "Rain of Gore" (Just [Macros.pip Black, Macros.pip Red]) []
+       (MkTypeLine [] [Enchantment])
+       [ Static (Intercepts
+                   (Causes
+                      (CausedBySource
+                         (Macros.a (Joined Macros.spell (AbilityHead AnyOnStack))))
+                      (LifeChanges (ControllerOf It) LifeGoesUp))
+                   [] Nothing
+                   (Macros.losesLife (That PlayerW) ThatMuch)
+                   Repeatedly Nothing) ]
+       Nothing
+
+-- THE PERIPHRASTIC CAUSATION'S RESIDUES, measured 2026-09-02 over
+-- `jq 'select(.supported)'` with reminder text stripped, and not built.
+--
+-- The family the round DID land is 61 lines: the trigger multiplier's 35,
+-- the causation trigger header's 23 over 22 cards ("a spell or ability an
+-- opponent controls causes you to discard this card" and its kin), and the
+-- 3 "would CAUSE" replacements. What is left:
+--
+-- NEGATED CAUSATION, 17 lines over 17 cards. Three shapes, and only the
+-- first is one construction with the landed row: the entry-trigger denial
+-- (Torpor Orb, Tocatli Honor Guard, Hushwing Gryff, Hushbringer, Doorkeeper
+-- Thrull, Elesh Norn -- 6), the source-side prohibition ("Spells and
+-- abilities your opponents control can't cause you to sacrifice
+-- permanents", Sigarda, Tajuru Preserver, Tamiyo, Ashiok, The Master -- 5),
+-- and the Clockwork cycle's CEILING ("this ability can't cause the total
+-- number of +1/+0 counters on this creature to be greater than four" -- 4),
+-- which causes a STATE and not an event and is not this family at all.
+-- Johan's and Archon of Coronation's are one apiece. `Causes` is a
+-- `GameEvent` and these are deontics: what they want is the causation at a
+-- DEED, on `nowhereToRunWardLine`'s model, which needs the caused event in
+-- a deontic patient position.
+--
+-- THE COORDINATED CAUSER, 2 lines. Veyran, Voice of Duality's "you casting
+-- or copying an instant or sorcery spell" and Gandalf the White's "a
+-- legendary permanent or an artifact entering or leaving the battlefield"
+-- coordinate the causing EVENT itself. `Causing` takes one, and the arm
+-- list `AltEvent` carries is the header seat's, not this slot's.
+--
+-- THE CAUSER-AS-NOUN WIDENING is NOT the same question and did not land
+-- with the core; see the ticket's remainder list. `Words.Causer` is still
+-- the nullary `AnEffect` at `CreationVoice`, `CausedBy`, `TokensCreated`
+-- and `CounterEvent`, and `Causing` above is `Causes`' own slot rather
+-- than a widening of it: the two vocabularies answer different questions
+-- (what a creation or a counter placement was DONE BY, against what a
+-- described causation names as its subject), and nothing in the 61 landed
+-- lines reaches the four rows.
+
 ||| Doc Samson, Super Psychiatrist — "If you would put one or more counters
 ||| on a permanent you control, put that many plus one of each of those
 ||| kinds of counters on that permanent instead": the per-kind spelling
@@ -19296,15 +19432,21 @@ alluringSuitorPump =
 -- a turn part's, ledgered with the interception. The landed skip rows take
 -- a `TurnPart` and reach none of the six.
 --
--- THE ADDITIONAL TIME, 35 supported cards over 32 distinct lines: "that
--- ability triggers an additional time" (Panharmonicon's family) and "while
--- voting, you may vote an additional time" (3). The trigger multiplier is
--- not an allowance at a third subject sort: every one of the 32 lines is a
--- CONDITIONAL replacement over a triggering event ("if a creature entering
--- the battlefield causes a triggered ability of a permanent you control to
--- trigger, that ability triggers an additional time"), so what it wants is
--- an ability-valued subject inside `Intercepts` and not a sibling of the
--- land and block allowances. The vote arm waits on the voting bundle.
+-- THE ADDITIONAL TIME is LANDED (2026-09-02) as `TriggersAdditionally`,
+-- and the premise recorded here was wrong twice. Re-measured: 35 supported
+-- lines over 35 cards write "that ability triggers an additional time",
+-- and none of them is a replacement. [CR#603.2d] gives the trigger
+-- multiplier its own procedure -- "determine how many times it should
+-- trigger, then that ability triggers that many times" -- and says it
+-- "doesn't apply to other effects that affect how many times an ability
+-- triggers", which is the opposite of the reach [CR#614.5] gives a
+-- replacement over modified events. So the cell is neither `Intercepts`
+-- nor a fourth allowance: `interceptOk AbilityTrigger` is False and
+-- `badTriggeringReplaced` pins it. 20 of the 35 write the periphrastic
+-- cause in front of the triggering (`Causes`) and 15 the bare triggering
+-- (`Triggers`). Benched at `kataraTheFearless` and `nabanDeanOfIteration`.
+-- The vote arm ("while voting, you may vote an additional time", 3) was
+-- never this family and still waits on the voting bundle.
 --
 -- THE ADDITIONAL CARD needed NO row and is landed as spelling: 23 supported
 -- cards over 15 lines write "draws an additional card", and the word is an

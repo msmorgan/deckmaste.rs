@@ -1471,3 +1471,22 @@ public export
 badPilePartitiveWithoutAPartition : Unspellable (Effect []) (\ok =>
   Macros.move (Macros.onePile {ok = ok}) Macros.handZ)
 badPilePartitiveWithoutAPartition Refl impossible
+
+
+||| "If a triggered ability of a permanent you control would trigger, draw a card instead."
+||| [CR#603.2] makes an ability's triggering automatic on the match and gives the moment no content a replacement could take over, and [CR#603.2d] is the rules' own device for changing it -- one that "doesn't apply to other effects that affect how many times an ability triggers", the opposite of the reach [CR#614.5] gives a replacement. So `interceptOk` answers the triggering negatively.
+public export
+badTriggeringReplaced : Unspellable (StaticEffect []) (\ok =>
+  Intercepts (Triggers (Macros.a (And [ AbilityHead AnyTriggered
+                                      , AbilityOf (Macros.a (And [Permanent, ControlledBy You])) ])))
+             [] Nothing (Draw You (Lit 1)) Repeatedly Nothing {ok})
+badTriggeringReplaced Oh impossible
+
+
+||| "If a creature you control dies, that ability triggers an additional time."
+||| [CR#603.2d] states the multiplier of one thing only -- how many times a TRIGGERED ABILITY triggers -- and a death is not a triggering, so the sentence counts occurrences of an event the rule says nothing about and names no ability to count them for.
+public export
+badMultipliedNonTrigger : Unspellable (StaticEffect []) (\ok =>
+  TriggersAdditionally (Dies (Macros.a Macros.creatureYouControl))
+                       (Macros.exactly 1) {ok})
+badMultipliedNonTrigger Oh impossible

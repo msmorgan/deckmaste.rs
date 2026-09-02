@@ -827,6 +827,84 @@ mutual
     ||| [ord] spell [window]"; the reset, "each [part]".
     NthOccurrence : (ord : Ordinal) -> (per : Maybe TurnPart) ->
                     (ev : GameEvent bs) -> GameEvent bs
+    ||| "If a triggered ability of a permanent you control triggers",
+    ||| "if a triggered ability of another Elemental you control
+    ||| triggers": a triggered ability TRIGGERING, on `Activates`'s
+    ||| model and with the same two gates. [CR#603.2] gives the moment
+    ||| its own description -- the ability triggers and "doesn't do
+    ||| anything at this point" -- so it is an occurrence the grammar can
+    ||| name, and [CR#603.2d] is a rule stated about exactly this
+    ||| occurrence.
+    ||| No ACTOR slot, which is the one place it parts from `Activates`:
+    ||| [CR#113.3c] puts a triggered ability on the stack without anyone
+    ||| activating it, so there is no player whose act this is. Whose
+    ||| ability it is rides the ability's own description (`AbilityOf`),
+    ||| where every printed line writes it.
+    ||| -- spelling: "[what] triggers"
+    Triggers : (what : Noun bs Ability) ->
+               {auto 0 one : nounPlur what = OneOf} ->
+               {auto 0 nt : Nontarget what} -> GameEvent bs
+    ||| "If a land entering causes a triggered ability of a permanent you
+    ||| control to trigger", "when a spell or ability an opponent
+    ||| controls causes you to discard this card", "if a spell or ability
+    ||| would cause its controller to gain life": the PERIPHRASTIC
+    ||| CAUSATION, a wrapper on `NthOccurrence`'s model.
+    ||| `eventName` LIFTS THROUGH it, which is the whole
+    ||| event-composition answer: [CR#603.2] matches a trigger condition
+    ||| against the game event that occurred, and the event that occurred
+    ||| here is the CAUSED one -- the discard, the life gain, the
+    ||| triggering. The causation is a restriction naming where that
+    ||| event came from, not a second event beside it, so every
+    ||| name-keyed table (`interceptOk`, `durationOk`, `triggerCountOk`)
+    ||| answers about the caused event and the classifier stays total.
+    ||| The CAUSE is threaded before the caused event because the English
+    ||| writes it there and the caused event reads it back: Rain of
+    ||| Gore's "its controller" is the causer's possessor, and Psychic
+    ||| Purge's "that player" is the opponent inside the causer's own
+    ||| description.
+    ||| -- spelling: "[by] cause(s) [what, with its subject fronted]"
+    Causes : (by : Causing bs) -> (what : GameEvent (causingIntro by)) ->
+             GameEvent bs
+
+  ||| What a periphrastic causation names as the CAUSE. Three arms
+  ||| because the corpus writes three sorts and the rules keep them
+  ||| apart: a described SOURCE -- "a spell or ability an opponent
+  ||| controls", "a land's ability", "a white instant or sorcery spell"
+  ||| -- which is an object on the stack [CR#109.1]; an EVENT -- "a land
+  ||| entering", "a creature dying", "a creature you control attacking"
+  ||| -- which is what [CR#603.2] has cause a triggering in the first
+  ||| place; and the bare EFFECT, which is neither, because [CR#609.1]
+  ||| makes an effect something that happens as a RESULT of a spell or
+  ||| ability rather than an object anything can describe.
+  ||| The source's KIND is open, on `IsDealtDamage`'s model: the printed
+  ||| causers are spells (`Object`), abilities (`Ability`) and the join
+  ||| of the two, and no rule closes the set further, so a kind no card
+  ||| happens to write stands open at its zero rather than behind a gate
+  ||| that would be refusing a count.
+  public export
+  data Causing : Bindings -> Type where
+    ||| -- spelling: the noun, bare ("a spell or ability an opponent
+    ||| controls causes …")
+    CausedBySource : {k : Kind} -> (src : Noun bs k) -> Causing bs
+    ||| -- spelling: the event as a gerund ("a land entering causes …")
+    CausedByEvent : (ev : GameEvent bs) -> Causing bs
+    ||| Library of Leng's "if an effect causes you to discard a card".
+    ||| Nullary because [CR#609.1]'s effect is not an object: there is no
+    ||| noun to describe, and the one printed line describes none.
+    ||| -- spelling: "an effect causes …"
+    CausedByAnEffect : Causing bs
+
+  ||| What the causation has announced by the time the caused event is
+  ||| named. `agentIntro`'s shape at the cause seat: a described source
+  ||| announces itself, and a causing event announces what it left
+  ||| behind, because it HAPPENED -- that is what "causes" says of it.
+  public export
+  causingIntro : {bs : Bindings} -> Causing bs -> Bindings
+  causingIntro (CausedBySource src) = nomIntro src
+  causingIntro (CausedByEvent ev) = eventAfter ev
+  -- nothing to announce: [CR#609.1]'s effect is not an object, so no
+  -- mention of it stands for a later word to read.
+  causingIntro CausedByAnEffect = bs
 
   public export
   eventName : {0 bs : Bindings} -> GameEvent bs -> EventName
@@ -866,6 +944,8 @@ mutual
   eventName (LifeChanges _ dir) = lifeEventName dir
   eventName (VerbedEvent _ v _ _ _) = VerbedAct v
   eventName (NthOccurrence _ _ ev) = eventName ev
+  eventName (Triggers _) = AbilityTrigger
+  eventName (Causes _ what) = eventName what
 
   ||| What an event pattern contributes before it happens — its announced
   ||| subject phrase [CR#601.2c]. Read by an interception's replacement,
@@ -961,6 +1041,11 @@ mutual
   eventIntro (VerbedEvent who _ Nothing _ _) = agentIntro who
   eventIntro (VerbedEvent _ _ (Just what) _ _) = selfSubjIntro what
   eventIntro (NthOccurrence _ _ ev) = eventIntro ev
+  eventIntro (Triggers what) = selfSubjIntro what
+  -- the caused event's announcement, which already stands on the
+  -- causation's: the cause is threaded into its context, so nothing is
+  -- added here and Rain of Gore's "its controller" is already in it.
+  eventIntro (Causes _ what) = eventIntro what
 
   ||| The discourse after the event has happened, read by a trigger's
   ||| effect body: it looks for the object in the zone it moved to
@@ -1040,6 +1125,8 @@ mutual
   eventAfter (VerbedEvent _ v (Just what) _ False) =
     moveIntro (Just v) what (maybe (nounZone what) Just (actDestOf v))
   eventAfter (NthOccurrence _ _ ev) = eventAfter ev
+  eventAfter (Triggers what) = nomIntro what
+  eventAfter (Causes _ what) = eventAfter what
 
   public export
   eventSubjectPlur : {bs : Bindings} -> GameEvent bs -> Plurality
@@ -1087,6 +1174,8 @@ mutual
   -- patient written; folded here rather than left to a catch-all.
   eventSubjectPlur (VerbedEvent Nothing _ Nothing _ _) = OneOf
   eventSubjectPlur (NthOccurrence _ _ ev) = eventSubjectPlur ev
+  eventSubjectPlur (Triggers what) = nounPlur what
+  eventSubjectPlur (Causes _ what) = eventSubjectPlur what
 
   ||| Whether every arm of a coordination announces exactly what the head
   ||| event announces, under the reader its seat uses.
@@ -1136,6 +1225,35 @@ mutual
   ||| The reader is the seat's own: `eventAfter` where the event happened
   ||| [CR#603.6], `eventIntro` where a replacement keeps it from happening
   ||| [CR#614.6].
+  |||
+  ||| THE GENERAL EVENT DISJUNCTION WAS REOPENED HERE AND DECLINED
+  ||| (2026-09-02). The standing ask was to retire `AltEvent` for a
+  ||| `GameEvent` row, on the theory that the coordinated headers whose
+  ||| arms disagree are waiting on a more general disjunction. They are
+  ||| not. The seat-versus-row question is settled by `eventName`'s
+  ||| totality (see the note above `GameEvent`), and what refuses those
+  ||| headers is not the seat: it is THIS function and the words that
+  ||| read it. `unionBindings` unions POINTWISE and has no union for
+  ||| lists of different lengths, so a coordination one of whose arms
+  ||| announces a participant the others do not falls back to the outer
+  ||| discourse bare -- and moving the disjunction from a slot to a
+  ||| constructor changes not one step of that. Nothing about the arms,
+  ||| their readers, or `unionPayload` would be different on the other
+  ||| shape, so the move buys no card and costs three seats.
+  ||| The live successor question is the TAIL-ALIGNED union: aligning two
+  ||| announcement lists on their shared END rather than requiring equal
+  ||| length. It is index-safe as this vocabulary reads mentions -- `It`
+  ||| counts (`countOnes`) and the demonstratives match on word and
+  ||| payload, so dropping the extra RECENT mentions of the longer arm
+  ||| shifts nothing that remains -- and it would move
+  ||| `badThreeArmHeaderReadback` (Giggling Skitterspike's "it", which
+  ||| every arm announces). It is not built here because it would also
+  ||| move `badAltHeaderMixedReadback` onto a referent the printed card
+  ||| does not mean: the bare-partner "blocks" arm announces only the
+  ||| self, so a tail-aligned union hands "that creature" the self and
+  ||| not the blocker. Whether a union may name a determinate referent
+  ||| that is the WRONG one is the question to settle before widening,
+  ||| and it is a question about these two pins' claims.
   public export
   sharedCtx : {bs : Bindings} -> (read : GameEvent bs -> Bindings) ->
               List (GameEvent bs) -> GameEvent bs -> Bindings

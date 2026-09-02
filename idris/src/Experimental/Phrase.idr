@@ -3023,7 +3023,19 @@ mutual
                   (marking : VerbedMarking) ->
                   {auto 0 ok : countManyVerbed v w bs = 1} ->
                   {auto 0 mk : VerbedMarkingOk v marking} -> Noun bs (kindOfW w)
-    ControllerOf : (n : Noun bs Object) -> {auto 0 one : nounPlur n = OneOf} -> Noun bs Player
+    ||| "its controller", "that spell's controller". The base's KIND is
+    ||| open under `controlKind`, which is the same test `ControlledBy`
+    ||| asks: [CR#109.4]'s and [CR#110.2]'s controller belongs to a spell
+    ||| or an ability on the stack as much as to a permanent, and the
+    ||| corpus writes the relation over exactly that join -- "counter
+    ||| that spell or ability unless its controller pays {1}" (6 lines),
+    ||| Rain of Gore's causer and Widespread Panic's, 8 supported lines
+    ||| in all. `OwnerOf` is NOT widened beside it and could not be:
+    ||| [CR#108.3] gives an owner to the CARD a player started the game
+    ||| with, and an ability on the stack is no card.
+    ControllerOf : {k : Kind} -> (n : Noun bs k) ->
+                   {auto 0 one : nounPlur n = OneOf} ->
+                   {auto 0 ck : So (controlKind k)} -> Noun bs Player
     OwnerOf : (n : Noun bs Object) -> {auto 0 one : nounPlur n = OneOf} -> Noun bs Player
     ||| "their owners' hands", "their controllers' graveyards", "their
     ||| owners shuffle them into their libraries": the possessor derived

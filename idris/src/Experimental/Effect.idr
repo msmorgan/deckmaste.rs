@@ -1342,6 +1342,35 @@ mutual
                           {auto 0 wf : WellFormedQ q} ->
                           {auto 0 lt : So (isNil (quantDelta q))} ->
                           StaticEffect bs
+      ||| "If a triggered ability of a permanent you control triggers,
+      ||| that ability triggers an additional time", "if a land entering
+      ||| causes a triggered ability of a permanent you control to
+      ||| trigger, that ability triggers an additional time": the TRIGGER
+      ||| MULTIPLIER [CR#603.2d], 35 supported lines over 35 cards
+      ||| (re-measured 2026-09-02), of which 20 write the periphrastic
+      ||| cause and 15 the bare triggering.
+      ||| The whole line is the row: the "if" clause is the watched event
+      ||| and "that ability triggers an additional time" states no
+      ||| further content, because [CR#603.2d] fixes what happens once
+      ||| the count is known. So there is no body slot and nothing reads
+      ||| the row back -- "that ability" is the event's own subject said
+      ||| again, which is spelling.
+      ||| The event is gated by NAME (`triggerCountOk`), which is what
+      ||| lets `Causes` carry it: the causation lifts `eventName`
+      ||| through, so the caused triggering is what the gate sees.
+      ||| The count is a `Quantity` on `MayVoteAdditional`'s model --
+      ||| every printed line writes "an additional time" and
+      ||| [CR#603.2d]'s own wording is "additional timeS", so the number
+      ||| is written and not fixed at one -- and carries that row's three
+      ||| gates for the same reasons.
+      ||| -- spelling: "[ev], that ability triggers [q] additional
+      ||| time(s)"
+      TriggersAdditionally : (ev : GameEvent bs) -> (q : Quantity bs) ->
+                             {auto 0 nz : NonZeroQ q} ->
+                             {auto 0 wf : WellFormedQ q} ->
+                             {auto 0 lt : So (isNil (quantDelta q))} ->
+                             {auto 0 ok : So (triggerCountOk (eventName ev))} ->
+                             StaticEffect bs
       ||| [CR#506.3a] and [CR#508.4d] both say what happens when a
       ||| permanent enters attacking, so either rider is a real entry.
       EntersRider : (n : Noun bs Object) -> (rider : TokenRider) ->
@@ -2193,6 +2222,7 @@ mutual
   staticKind (MayPlayAdditionalLands _ _) = LandAllowance
   staticKind (MayBlockAdditional _ _) = BlockAllowance
   staticKind (MayVoteAdditional _ _) = VoteAllowance
+  staticKind (TriggersAdditionally _ _) = TriggerMultiplier
   staticKind (EntersRider _ _) = EntryRider
   -- an entry rider and not a `CopyEffect`: what it modifies is HOW the
   -- permanent enters [CR#614.12], and it stands as long as the permanent
@@ -2280,6 +2310,10 @@ mutual
   staticIntro (MayPlayAdditionalLands who _) = nomIntro who
   staticIntro (MayBlockAdditional n _) = selfSubjIntro n
   staticIntro (MayVoteAdditional who _) = nomIntro who
+  -- the outer discourse unchanged: the row is a whole sentence with no
+  -- clause after it, and the ability it counts is named inside the
+  -- watched event rather than left standing for anything to read.
+  staticIntro (TriggersAdditionally _ _) = bs
   staticIntro (EntersRider n _) = selfSubjIntro n
   -- the SUBJECT alone. The copy source is a constructor argument and
   -- never a mention, on `TokenCopyOf`'s law: a second singular object in

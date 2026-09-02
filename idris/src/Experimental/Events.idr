@@ -77,6 +77,16 @@ data EventName = Death | Departure | DamageTaken
                -- table keyed by an event's participants, zones or moment
                -- answers this name negatively and says why once.
                | StateMatch
+               -- a triggered ability TRIGGERING. [CR#603.2] makes the
+               -- match between a game event and a trigger condition its
+               -- own moment -- the ability "automatically triggers" and
+               -- does nothing yet -- and [CR#603.2d] is a rule about how
+               -- many times that moment happens, so the rules count it.
+               -- Its own name and not `AbilityActivation`'s: [CR#113.3c]
+               -- puts a triggered ability on the stack without anyone
+               -- activating it, which is the difference the two names
+               -- record.
+               | AbilityTrigger
 
 public export
 statusEventName : StatusCat -> EventName
@@ -285,6 +295,8 @@ sameEventName (VerbedAct _) _ = False
 -- write, which this name does not carry. So no two state triggers are
 -- taken to name one event.
 sameEventName StateMatch _ = False
+sameEventName AbilityTrigger AbilityTrigger = True
+sameEventName AbilityTrigger _ = False
 
 public export
 sameLookback : Lookback -> Lookback -> Bool
@@ -321,7 +333,27 @@ interceptOk DamageDealing = True
 -- [CR#115.1], so becoming one is a thing that would happen; no printed
 -- line replaces it, and no rule refuses the reading.
 interceptOk BecomesTarget = True
+-- an ability's TRIGGERING is not a thing a replacement reaches.
+-- [CR#603.2] makes it automatic on the match, and the rules' own device
+-- for changing it is [CR#603.2d], which counts the triggering rather
+-- than replacing it. The two are not one mechanism said twice: a
+-- replacement gets its one opportunity at the event "or any modified
+-- events that may replace that event" [CR#614.5], while [CR#603.2d]
+-- says a trigger multiplier "doesn't apply to other effects that affect
+-- how many times an ability triggers" -- the opposite reach.
+interceptOk AbilityTrigger = False
 interceptOk _ = True
+
+||| Which event a [CR#603.2d] trigger multiplier may count. One name:
+||| the rule is about a triggered ability triggering additional times and
+||| nothing else, so the table is the row's whole gate. Keyed by the
+||| NAME, which is what lets the periphrastic causation carry it -- "if a
+||| land entering causes a triggered ability … to trigger" names the
+||| triggering through the wrapper.
+public export
+triggerCountOk : EventName -> Bool
+triggerCountOk AbilityTrigger = True
+triggerCountOk _ = False
 
 ||| One phrase, one slot: `Until (StartOf …)` already spells a turn
 ||| part's beginning, so the event form does not spell it a second time.
@@ -450,6 +482,10 @@ eventHasMagnitude (VerbedAct _) = False
 -- [CR#603.8]'s trigger condition is a game state being true, which
 -- happens in no amount at all.
 eventHasMagnitude StateMatch = False
+-- [CR#603.2] has the ability trigger and do nothing at that point, so
+-- the triggering carries no number; [CR#603.2d]'s multiplier is a COUNT
+-- of triggerings, which is `EventCount`'s reading and not this one.
+eventHasMagnitude AbilityTrigger = False
 
 public export
 data ReplUse = Repeatedly | NextTimeOnly
@@ -598,6 +634,12 @@ lookbackSubjectOk (VerbedAct _) Player = True
 -- be named afterwards.
 lookbackSubjectOk StateMatch Object = False
 lookbackSubjectOk StateMatch Player = False
+-- the ability that triggered is an object [CR#109.1] and would be a
+-- nameable participant; no printed line looks back on one, and no rule
+-- refuses it, so the object cell stands open at its zero. No player
+-- triggers an ability [CR#113.3c], so its cell is closed.
+lookbackSubjectOk AbilityTrigger Object = True
+lookbackSubjectOk AbilityTrigger Player = False
 lookbackSubjectOk _ (Quality _) = False
 lookbackSubjectOk _ Outcome = False
 lookbackSubjectOk _ Gap = False
@@ -1332,6 +1374,15 @@ data StaticKind = PtDelta | KeywordGrant | DeedRestriction | TypeAddition
                 -- [CR#502.3]'s turn-based action, which no other kind
                 -- names.
                 | UntapGrant
+                -- the trigger multiplier [CR#603.2d]. Its own kind and
+                -- NOT one of the three allowances, which the additional
+                -- word made it look like: an allowance raises a limit on
+                -- what a PLAYER may do, and this effect gives no one a
+                -- choice -- the rule has the game "determine how many
+                -- times it should trigger" and then trigger that many.
+                -- Nor a `Replacement`: `interceptOk` says why at the
+                -- name.
+                | TriggerMultiplier
                 | TurnSkip
                 | LetterDefinition
 
