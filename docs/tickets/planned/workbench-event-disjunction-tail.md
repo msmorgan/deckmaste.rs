@@ -61,3 +61,9 @@ Two remainders from trigger-2 (done 2026-08-27) whose named owner
   attached" replacement clauses — [CR#614.1c,614.1e]'s family written at an
   event neither rule names; the `BecomesAttached` event landed, the AS-frame
   seat for it did not.
+
+- **Routed from choice-tail (close, 2026-09-02):** two sub-bar payload
+  residues — Master Biomancer's entry-time type ascription (`EntersRider`
+  row, 1 line) and the SUBTYPE retention payload ("It's still a
+  Shapeshifter/Cave land", 2 lines — `SetsType.ret` is `Maybe CardType`).
+  Both wait for a second carrier or ride a future rider round.
