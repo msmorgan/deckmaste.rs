@@ -104,7 +104,9 @@ impl Lower for deckmaste_semantics::Predicate {
             Self::And(f0) => deckmaste_core::Predicate::And(f0.lower()),
             Self::Or(f0) => deckmaste_core::Predicate::Or(f0.lower()),
             Self::Not(f0) => deckmaste_core::Predicate::Not(f0.lower()),
-            Self::Where(f0) => deckmaste_core::Predicate::Where(f0.lower()),
+            Self::Where(f0) => deckmaste_core::Predicate::Where(std::sync::Arc::new(
+                crate::region::candidate_region(|| std::sync::Arc::unwrap_or_clone(f0).lower()),
+            )),
             Self::Any => deckmaste_core::Predicate::Any,
             // Invocation provenance does not cross `lower`: the core grammar is
             // a compiled artifact and carries no record of the semantic

@@ -37,7 +37,7 @@ Normal(
     // the battlefield and would contradict the `Not(InZone(Battlefield))` gate).
     Static(Each(
       SelectAll(And([Type(Creature), Subtype(Vampire), Owner(Ref(You)), Not(InZone(Battlefield))])),
-      Modify(It, GainAbility(Keyword(Madness([ManaCostOf(It)])))),
+      Modify(It, GainAbility(Keyword(Madness([ManaCostOf(EventObject)])))),
     )),
   ],
   power: 2,

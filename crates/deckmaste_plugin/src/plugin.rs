@@ -393,7 +393,20 @@ impl Plugin {
     /// If the source doesn't expand to a card.
     pub fn card_from_str(&self, source: &str) -> anyhow::Result<LoadedCard> {
         let semantic: deckmaste_semantics::Card = self.macros.read_str_restricted(source)?;
-        let core = semantic.clone().lower();
+        let card_name = match &semantic {
+            deckmaste_semantics::Card::Normal(face) => face.name.to_string(),
+            deckmaste_semantics::Card::TwoFaced { front, .. } => front.name.to_string(),
+        };
+        let core =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| semantic.clone().lower()))
+                .map_err(|payload| {
+                    let message = payload
+                        .downcast_ref::<String>()
+                        .map(String::as_str)
+                        .or_else(|| payload.downcast_ref::<&str>().copied())
+                        .unwrap_or("lowering failed");
+                    anyhow::anyhow!("lowering {card_name}: {message}")
+                })?;
         validate_card_regions(&core)?;
         Ok(LoadedCard { semantic, core })
     }
@@ -488,8 +501,9 @@ fn validate_card_regions(card: &deckmaste_card::Card) -> anyhow::Result<()> {
     };
     for face in faces {
         for ability in &face.abilities {
-            validate_ability_regions(ability)
-                .with_context(|| format!("validating regions on {}", face.name))?;
+            if let Err(error) = validate_ability_regions(ability) {
+                anyhow::bail!("validating regions on {}: {error}", face.name);
+            }
         }
     }
     Ok(())
@@ -500,20 +514,17 @@ fn validate_ability_regions(ability: &deckmaste_core::Ability) -> anyhow::Result
     use deckmaste_core::ManaAbility;
     match ability {
         Ability::Activated(ability) | Ability::Mana(ManaAbility::Activated { ability, .. }) => {
-            deckmaste_core::validate_telescope(&ability.effect, &ability.targets, None)?;
+            deckmaste_core::validate_telescope(&ability.effect, &ability.targets)?;
         }
         Ability::Triggered(ability) | Ability::Mana(ManaAbility::Triggered(ability)) => {
-            deckmaste_core::validate_telescope(
-                &ability.effect,
-                &ability.targets,
-                ability.where_x.as_ref(),
-            )?;
+            deckmaste_core::validate_telescope(&ability.effect, &ability.targets)?;
         }
         Ability::Spell(ability) => {
-            deckmaste_core::validate_telescope(&ability.effect, &ability.targets, None)?;
+            deckmaste_core::validate_telescope(&ability.effect, &ability.targets)?;
         }
         Ability::Innate(inner) => validate_ability_regions(inner)?,
-        Ability::Static(_) | Ability::Keyword(_) => {}
+        Ability::Static(region) => deckmaste_core::validate_static(region)?,
+        Ability::Keyword(_) => {}
     }
     Ok(())
 }
@@ -607,7 +618,11 @@ fn load_sba_rules(root: &Path, macros: &MacroSet) -> anyhow::Result<Vec<deckmast
         let file: Vec<deckmaste_semantics::SbaRule> = macros
             .read_str(&source)
             .with_context(|| format!(r#"loading SBA rules from "{}""#, path.display()))?;
-        rules.extend(file.into_iter().map(Lower::lower));
+        for rule in file.into_iter().map(Lower::lower) {
+            deckmaste_core::validate_sba(&rule.region)
+                .with_context(|| format!(r#"validating SBA regions from "{}""#, path.display()))?;
+            rules.push(rule);
+        }
     }
     Ok(rules)
 }
@@ -812,12 +827,10 @@ mod tests {
         );
         // Every authored row, including the `Destroy(This)` macro invocation,
         // has been lowered to a runnable action before it reaches core.
-        assert!(
-            plugin
-                .sba_rules
-                .iter()
-                .all(|r| matches!(r.then, deckmaste_core::OneShotEffect::Act(_)))
-        );
+        assert!(plugin.sba_rules.iter().all(|r| matches!(
+            r.region.body.then,
+            deckmaste_core::OneShotEffect::Act { .. }
+        )));
     }
 
     /// `builtin/rules/grant/planeswalker-loyalty.ron` confers the

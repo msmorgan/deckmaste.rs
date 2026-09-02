@@ -39,42 +39,6 @@ mod tests {
         }
     }
 
-    /// `It` — the iteration / projection element ("it") — reads bare and
-    /// round-trips (the Idris `Reference.It`).
-    #[test]
-    fn it_round_trips() {
-        assert_eq!(read("It"), Reference::It);
-        let written = crate::ron::options().to_string(&Reference::It).unwrap();
-        assert_eq!(read(&written), Reference::It);
-    }
-
-    /// The sorted anaphor uses the plain-serde enum form of [`Sort`].
-    #[test]
-    fn sorted_that_round_trips() {
-        use crate::Sort;
-        use crate::Type;
-        assert_eq!(read("That(Card)"), Reference::That(Sort::Card));
-        assert_eq!(
-            read("That(OfType(Creature))"),
-            Reference::That(Sort::OfType(Type::Creature))
-        );
-        for value in [
-            Reference::That(Sort::Card),
-            Reference::That(Sort::OfType(Type::Creature)),
-            Reference::That(Sort::Player),
-        ] {
-            let written = crate::ron::options().to_string(&value).unwrap();
-            assert_eq!(read(&written), value, "round-trips: {written}");
-        }
-        assert_eq!(
-            crate::ron::options()
-                .to_string(&Reference::That(Sort::OfType(Type::Creature)))
-                .unwrap(),
-            "That(OfType(Creature))",
-            "OfType keeps its explicit plain-serde wrapper"
-        );
-    }
-
     /// Announced targets serialize as their fixed-prefix register reads.
     #[test]
     fn target_index_round_trips() {
@@ -99,9 +63,12 @@ mod tests {
 
     #[test]
     fn single_round_trips() {
-        let value = Reference::Single(Arc::new(crate::Selection::SelectAll(
-            crate::Predicate::Ref(Reference::Reg(crate::RefId(1))),
-        )));
+        let value = Reference::Single(Arc::new(crate::Selection::SelectAll(Arc::new(
+            crate::Region::new(
+                Arc::from([]),
+                crate::Predicate::Ref(Reference::Reg(crate::RefId(0))),
+            ),
+        ))));
         let written = crate::ron::options().to_string(&value).unwrap();
         assert_eq!(read(&written), value);
     }
@@ -123,40 +90,9 @@ pub enum Reference {
     Single(Arc<crate::Selection>),
     /// An opponent of the player produced by the inner expression.
     OpponentOf(Arc<Reference>),
-    /// The wildcard singular anaphor — "it". Inside a binder it is the
-    /// innermost bound element, deterministically: the loop variable of
-    /// [`Each`](crate::Each) / [`Distribute`](crate::Distribute), a
-    /// [`With`](crate::With) binder's choice, the per-subject candidate a
-    /// continuous modifier reads, the candidate a per-object filter
-    /// ([`Predicate::Where`](crate::Predicate::Where)) or extremal projection
-    /// ([`Selection::Pick`](crate::Selection::Pick)) is currently testing —
-    /// subsuming the old `Subject` role (candidate-relative predicates spell
-    /// as `SharesColor(It, This)`, "with the same name as ~"). OUTSIDE every
-    /// binder it resolves over the antecedent stack — the nearest singular
-    /// antecedent of ANY sort (R1), refused when a second compatible
-    /// antecedent makes it a guess (the R2 uniqueness gate; both are
-    /// soundness invariants proven by the Idris re-emit gate).
-    ///
-    /// NEVER an announced target: target slots are indexed region parameters.
-    /// A bare `It` in a targeted body with no loop, binder, or product
-    /// antecedent is an unbound read, not a target.
-    It,
-    /// The SORTED singular anaphor — "that card", "that creature", "that
-    /// player": the nearest singular antecedent of this [`Sort`](crate::Sort)
-    /// on the antecedent stack (R1 nearest-compatible, R2 uniqueness gate).
-    /// Antecedents are pushed by producing clauses (the moved/created object,
-    /// [CR#400.7]), event bodies ([CR#603.2e]), and binders ([CR#608.2d]) —
-    /// NOT by target slots, which are region parameters. This is the read for
-    /// a move's PRODUCT ("exile target creature … return that **card**"): the
-    /// returned card is a new object [CR#400.7], so its original target
-    /// register cannot name it and `That(Card)` does. Resolution is dynamic at
-    /// engine eval time, and its soundness is proven by the Idris re-emit gate. A
-    /// many-antecedent is read instead as
-    /// [`Selection::They`](crate::Selection::They) /
-    /// [`Selection::Them`](crate::Selection::Them).
-    That(crate::Sort),
-    /// A named role bound by an event pattern or instruction (e.g. the
-    /// attacker vs. the blocker).
+    /// A named role bound by an event pattern or instruction (for example,
+    /// the attacker versus the blocker). Announced targets and lexical
+    /// instruction results use indexed region parameters instead.
     Bound(crate::Ident),
     /// Information remembered by a linked ability ([CR#607]): the object
     /// exiled with this, the chosen value, the cost paid.
@@ -184,4 +120,18 @@ pub enum Reference {
     /// (the binding is over stored deal-time records), so it has no Idris
     /// counterpart.
     Source,
+}
+
+impl Reference {
+    /// Canonical source parameter used by root ability regions.
+    #[must_use]
+    pub const fn source_parameter() -> Self {
+        Self::Reg(crate::RefId(0))
+    }
+
+    /// Canonical controller parameter used by root ability regions.
+    #[must_use]
+    pub const fn controller_parameter() -> Self {
+        Self::Reg(crate::RefId(1))
+    }
 }

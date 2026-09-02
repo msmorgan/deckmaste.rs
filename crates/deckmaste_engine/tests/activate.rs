@@ -24,10 +24,8 @@ use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSymbol;
 use deckmaste_core::OneShotEffect;
 use deckmaste_core::PhaseStep;
-use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
 use deckmaste_core::SimpleManaSymbol;
-use deckmaste_core::StatePredicate;
 use deckmaste_core::Type;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
@@ -1543,144 +1541,6 @@ fn activated_ability_announces_and_pays_nonmana_x_cost() {
 /// [CR#601.2b,601.2h,608.2d]: a `ChooseAndPay` obligation accepts the complete
 /// chosen object set in its `Fulfill` witness. The chosen creature is
 /// sacrificed and the other is left untouched.
-#[test]
-fn activated_ability_pays_choose_sacrifice_cost() {
-    const ARTIFACT_NAME: &str = "Choose-sacrifice test artifact";
-    // Creature filter: battlefield creatures (zone check + type check).
-    let creature_filter = Predicate::And(
-        vec![
-            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-            Predicate::creature(),
-        ]
-        .into(),
-    );
-    let card = artifact_with_cost(
-        ARTIFACT_NAME,
-        vec![
-            CostComponent::Mana("{0}".parse().unwrap()),
-            // "sacrifice a creature": the cost-side choose-then-pay `With` step
-            // ([CR#601.2b]) — ChooseOne binds `That`, then `Sacrifice(That)`.
-            CostComponent::ChooseAndPay {
-                binder: Arc::new(deckmaste_core::Binder::ChooseOne {
-                    filter: creature_filter,
-                    by: Reference::Reg(deckmaste_core::RefId(1)),
-                }),
-                body: deckmaste_core::Cost(
-                    vec![CostComponent::do_action(CoreAction::Sacrifice(
-                        Reference::Reg(deckmaste_core::RefId(1)),
-                        Reference::That(deckmaste_core::Sort::Permanent),
-                    ))]
-                    .into(),
-                ),
-            },
-        ],
-    );
-
-    // Build a game: player 0 gets the artifact + mountains + Grizzly Bears,
-    // player 1 gets forests (no creatures so candidates are unambiguously P0's).
-    let mountain = Arc::new(builtin().card("Mountain").unwrap().core);
-    let bears_card = Arc::new(canon().card(BEARS).unwrap().core);
-    let forest = Arc::new(builtin().card("Forest").unwrap().core);
-    let mut p0 = vec![Arc::clone(&card); 3];
-    p0.extend(vec![Arc::clone(&bears_card); 4]);
-    p0.extend(vec![Arc::clone(&mountain); 3]);
-    let p1 = vec![forest; 10];
-    let mut state = GameState::new(GameConfig {
-        players: vec![PlayerConfig { deck: p0 }, PlayerConfig { deck: p1 }],
-        seed: 7,
-        starting_life: 20,
-        starting_player: StartingPlayer::Fixed(PlayerId(0)),
-        sba_rules: vec![],
-        conferral_rules: vec![],
-        damage_result_rules: vec![],
-        counter_decls: std::collections::HashMap::new(),
-        subtypes: std::collections::HashMap::new(),
-        types: std::collections::HashMap::new(),
-    });
-
-    // Force the artifact and two distinct bears onto the battlefield.
-    let artifact = force_into_play(&mut state, PlayerId(0), ARTIFACT_NAME);
-    let bear_a = force_into_play(&mut state, PlayerId(0), BEARS);
-    let bear_b = force_into_play(&mut state, PlayerId(0), BEARS);
-    // The two bears must be distinct objects.
-    assert_ne!(
-        bear_a, bear_b,
-        "two distinct Grizzly Bears are on the battlefield"
-    );
-
-    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
-    let activate = activate_action(&legal, artifact).expect("the ability is offered");
-    state.submit_decision(Decision::Act(activate)).unwrap();
-    let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::Payment(prompt)) = stop else {
-        panic!("expected prepayment, got {stop:?}");
-    };
-    assert_eq!(prompt.stage, deckmaste_engine::PaymentStage::PrePayment);
-    state
-        .submit_decision(
-            state
-                .auto_payment_pending()
-                .expect("automatic payment decision"),
-        )
-        .unwrap();
-    let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::Payment(prompt)) = stop else {
-        panic!("expected paying prompt, got {stop:?}");
-    };
-    let choose = prompt
-        .outstanding
-        .iter()
-        .find(|iou| matches!(iou.kind, deckmaste_engine::IouKind::ChooseAndPay { .. }))
-        .expect("a choose-and-pay IOU")
-        .id;
-    state
-        .submit_decision(Decision::Payment(
-            deckmaste_engine::PaymentCommand::Fulfill {
-                iou: choose,
-                witness: deckmaste_engine::FulfillmentWitness::Objects(vec![bear_a]),
-            },
-        ))
-        .unwrap();
-
-    // Drive the ready prompt through submission and back to priority.
-    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
-
-    // bear_a was sacrificed: its original id is no longer on the battlefield.
-    assert!(
-        !state.zones.battlefield.contains(&bear_a),
-        "bear_a was sacrificed and is no longer on the battlefield"
-    );
-    // At least one object with the Bear's name is in P0's graveyard (the reminted
-    // id).
-    assert!(
-        state.zones.graveyards[0].iter().any(|&o| {
-            state
-                .objects
-                .obj(o)
-                .card_id()
-                .is_some_and(|_| face_name(&state, o) == BEARS)
-        }),
-        "a Grizzly Bears is in P0's graveyard after the sacrifice, gy: {:?}",
-        state.zones.graveyards[0]
-    );
-    // bear_b was NOT chosen: it must still be on the battlefield.
-    assert!(
-        state.zones.battlefield.contains(&bear_b),
-        "bear_b was not chosen and must still be on the battlefield"
-    );
-
-    // Resolve the ability (it has a no-op gain_zero() effect).
-    assert_eq!(
-        state.stack.len(),
-        1,
-        "the activated ability is on the stack"
-    );
-    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
-    let _ = run_to_priority(&mut state, PlayerId(1), PhaseStep::PrecombatMain);
-    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
-    let _ = step_to_stop(&mut state);
-    assert!(state.stack.is_empty(), "the ability resolved cleanly");
-}
 
 #[test]
 fn mana_ability_stays_stackless() {

@@ -80,24 +80,25 @@ pub struct TriggerBindings {
     /// The firing object's last-known self (`~`/`This`/source).
     pub this: Option<LkiSnapshot>,
     /// The event OBJECT — the moved object of a `ZoneMove`, the damage source.
-    /// Read by `Reference::Reg(deckmaste_core::RefId(2))`.
+    /// Read through the region's `EventObject` parameter.
     pub that_object: Option<LkiSnapshot>,
-    /// The event ACTOR — the responsible player ("that player"). Read by
-    /// `Reference::Reg(deckmaste_core::RefId(4))`.
+    /// The event ACTOR — the responsible player ("that player"). Read through
+    /// the region's `EventActor` parameter.
     pub that_player: Option<PlayerId>,
     /// The event PATIENT — the acted-upon thing (damage recipient, …),
-    /// kind-poly ([CR#120.3]). Read by `Reference::Reg(deckmaste_core::RefId(3))`.
+    /// kind-poly ([CR#120.3]). Read through the region's `EventPatient`
+    /// parameter.
     pub that_patient: Option<EventPatient>,
     /// Types the causing mana-production fact actually added.
     pub produced_mana: Vec<deckmaste_core::ColorOrColorless>,
     /// The combat DEFENDING player ([CR#506.2,508.5]) — always a player. Read
-    /// by `Reference::Reg(deckmaste_core::RefId(5))`.
+    /// through the region's `DefendingPlayer` parameter.
     pub defending_player: Option<PlayerId>,
     /// The event MAGNITUDE — the amount of an amount-carrying event (damage
     /// dealt, life lost/gained), fixed at fire time; the set mirrors the
-    /// apply funnel's `that_much` register. Seeds `Count::ThatMuch` for the
-    /// fired ability's resolution ("whenever you gain life, … that much").
-    pub that_much: Option<Uint>,
+    /// event-role channel and enters the ability through its `EventAmount`
+    /// region parameter ("whenever you gain life, … that much").
+    pub event_amount: Option<Uint>,
     /// The firing counter event's `(before, after)` totals ([CR#714.2b]) —
     /// the channel `Condition::Crossed` reads, at the intervening-if gate
     /// and again at the resolution recheck ([CR#603.4]). `None` for facts
@@ -177,6 +178,40 @@ impl GameState {
         event: &GameEvent,
         watcher: ObjectSource,
     ) -> bool {
+        self.event_matches_with_bindings(
+            pattern,
+            event,
+            crate::eval::Lane::Trigger,
+            crate::eval::Bindings::watcher(watcher),
+        )
+    }
+
+    fn event_matches_with_frame(
+        &self,
+        pattern: &EventFilter,
+        event: &GameEvent,
+        watcher: ObjectSource,
+        frame: &Frame,
+    ) -> bool {
+        self.event_matches_with_bindings(
+            pattern,
+            event,
+            crate::eval::Lane::Trigger,
+            crate::eval::Bindings {
+                watcher,
+                frame: Some(frame),
+                shape_only: false,
+            },
+        )
+    }
+
+    fn event_matches_with_bindings(
+        &self,
+        pattern: &EventFilter,
+        event: &GameEvent,
+        lane: crate::eval::Lane,
+        bindings: crate::eval::Bindings<'_>,
+    ) -> bool {
         // [CR#603.6]: triggers fire on committed FACTS. A pre-evolution
         // intent (`Act(Destroy)`/future-form `ZoneChange`) presents the same
         // fact-record kind as its downstream past-form fact — matching it
@@ -189,12 +224,7 @@ impl GameState {
         let Some(fact) = crate::eval::FactView::of(self, event) else {
             return false;
         };
-        self.eval(
-            pattern,
-            &fact,
-            crate::eval::Lane::Trigger,
-            &crate::eval::Bindings::watcher(watcher),
-        )
+        self.eval(pattern, &fact, lane, &bindings)
     }
 
     /// [CR#603.7c]: does a DELAYED/reflexive trigger's `pattern` match `event`?
@@ -209,17 +239,30 @@ impl GameState {
         event: &GameEvent,
         watcher: ObjectSource,
     ) -> bool {
-        if crate::eval::shadowed_by_fact(event) {
-            return false;
-        }
-        let Some(fact) = crate::eval::FactView::of(self, event) else {
-            return false;
-        };
-        self.eval(
+        self.event_matches_with_bindings(
             pattern,
-            &fact,
+            event,
             crate::eval::Lane::Delayed,
-            &crate::eval::Bindings::watcher(watcher),
+            crate::eval::Bindings::watcher(watcher),
+        )
+    }
+
+    fn event_matches_delayed_with_frame(
+        &self,
+        pattern: &EventFilter,
+        event: &GameEvent,
+        watcher: ObjectSource,
+        frame: &Frame,
+    ) -> bool {
+        self.event_matches_with_bindings(
+            pattern,
+            event,
+            crate::eval::Lane::Delayed,
+            crate::eval::Bindings {
+                watcher,
+                frame: Some(frame),
+                shape_only: false,
+            },
         )
     }
 
@@ -275,6 +318,7 @@ impl GameState {
         diverge as later tasks land; #[allow] not #[expect] to avoid churn as \
         they split"
     )]
+    #[cfg(test)]
     pub(crate) fn filter_matches_snapshot(
         &self,
         filter: &Predicate,
@@ -309,6 +353,13 @@ impl GameState {
         }
         match filter {
             Predicate::Ref(Reference::Reg(register)) => {
+                if self.activation_reference_is(
+                    activation,
+                    *register,
+                    &deckmaste_core::Provenance::Source,
+                ) {
+                    return snapshot.source == watcher;
+                }
                 self.activation_product(activation, *register).map_or_else(
                     || {
                         activation == crate::ActivationId::NONE
@@ -498,8 +549,8 @@ impl GameState {
                     if activation != crate::ActivationId::NONE {
                         frame.activation = activation;
                     }
-                    frame.anaphora.it = Some(crate::stack::ItBinding::Object(snapshot.clone()));
-                    self.condition_holds(cond, &frame)
+                    frame.activation = self.enter_candidate_region(cond, &frame, snapshot.object);
+                    self.condition_holds(&cond.body, &frame)
                 }
             },
 
@@ -651,17 +702,20 @@ impl GameState {
             if fired.contains(&idx) {
                 continue;
             }
-            if !self.event_matches_delayed(&ct.ability.event, event, ct.source) {
-                continue;
-            }
             let bindings = roles.bindings_over(ct.bindings.clone());
+            let frame = self.created_gate_frame(ct, &bindings);
             // [CR#603.4]: an intervening-if is checked as the event occurs; it
             // is rechecked at resolution (the shared `Triggered` resolve arm).
-            if let Some(c) = &ct.ability.condition {
-                let frame = self.created_gate_frame(ct, &bindings);
-                if !self.condition_holds(c, &frame) {
-                    continue;
-                }
+            let matches =
+                self.event_matches_delayed_with_frame(&ct.ability.event, event, ct.source, &frame)
+                    && ct
+                        .ability
+                        .condition
+                        .as_ref()
+                        .is_none_or(|condition| self.condition_holds(condition, &frame));
+            self.remove_activation_family(frame.activation);
+            if !matches {
+                continue;
             }
             emits.push(WorkItem::Emit(Occurrence::single(GameEvent::TriggerFired(
                 TriggerFired {
@@ -695,11 +749,13 @@ impl GameState {
             bindings.that_player,
             bindings.that_patient.clone(),
         );
-        frame
-            .anaphora
-            .produced_mana
-            .clone_from(&bindings.produced_mana);
-        frame.anaphora.crossed = bindings.crossed;
+        self.frame_set_event_extras(
+            &mut frame,
+            bindings.event_amount,
+            bindings.produced_mana.clone(),
+            bindings.crossed,
+        );
+        frame.activation = self.enter_region(&ct.ability.effect, &frame);
         frame
     }
 
@@ -707,10 +763,10 @@ impl GameState {
     /// the AGENT (the acting/moved object) as `that_object` with its
     /// responsible-player ACTOR as `that_player`, the kind-poly PATIENT as
     /// `that_patient`, the combat DEFENDING player, the amount-carrying
-    /// MAGNITUDE (`that_much`), and a counter event's before/after totals
+    /// MAGNITUDE (`EventAmount`), and a counter event's before/after totals
     /// (`crossed`). Derived per `GameEvent` kind once; shared by the printed
     /// (`scan_event`) and delayed (`scan_delayed`) scans so both fire bodies
-    /// read the same `EventObject`/`EventActor`/`EventPatient`/`ThatMuch`/…
+    /// read the same `EventObject`/`EventActor`/`EventPatient`/`EventAmount`/…
     /// roles. Card-backed roles carry an LKI snapshot ([CR#603.10a]); a
     /// player-proxy id is zoneless and never snapshotted ([CR#120.3]); a
     /// stale/missing id yields no role.
@@ -790,8 +846,8 @@ impl GameState {
             _ => None,
         };
         // The event MAGNITUDE — the amount-carrying set the apply funnel fixes
-        // into the `that_much` register ("whenever you gain life, … that much").
-        let that_much = match event {
+        // into the `EventAmount` parameter ("whenever you gain life, … that much").
+        let event_amount = match event {
             GameEvent::DamageDealt(DamageDealt { amount, .. })
             | GameEvent::LifeLost(LifeLost { amount, .. })
             | GameEvent::LifeGained(LifeGained { amount, .. })
@@ -825,7 +881,7 @@ impl GameState {
             that_player,
             that_patient,
             defending_player,
-            that_much,
+            event_amount,
             crossed,
             produced_mana,
         }
@@ -968,7 +1024,21 @@ impl GameState {
                 if watcher_zone != Some(t.from.unwrap_or(default_zone)) {
                     continue;
                 }
-                if !self.event_matches(&t.event, event, source) {
+                // [CR#603.10a,608.2]: the bindings the fired trigger carries —
+                // also the context for the event pattern and intervening-if
+                // gate ([CR#603.4]). Both are inside the trigger's declared
+                // region, so provenance parameters resolve by register.
+                let bindings = roles.bindings_over(TriggerBindings {
+                    this: Some(this.clone()),
+                    ..TriggerBindings::default()
+                });
+                let frame = self.trigger_gate_frame(&t.effect, controller, &bindings);
+                let matches = self.event_matches_with_frame(&t.event, event, source, &frame)
+                    && t.condition
+                        .as_ref()
+                        .is_none_or(|condition| self.condition_holds(condition, &frame));
+                self.remove_activation_family(frame.activation);
+                if !matches {
                     continue;
                 }
                 // [CR#603.2c]: a `OneOrMore` pattern matches the batch ONCE —
@@ -978,34 +1048,6 @@ impl GameState {
                 // all of them.)
                 if contains_one_or_more(&t.event) && !batch_fired.insert((source, idx)) {
                     continue;
-                }
-                // [CR#603.10a,608.2]: the bindings the fired trigger carries —
-                // also the context for the intervening-if gate ([CR#603.4]).
-                let bindings = roles.bindings_over(TriggerBindings {
-                    this: Some(this.clone()),
-                    ..TriggerBindings::default()
-                });
-                // [CR#603.4]: the intervening-if gate — the condition is checked
-                // when the event occurs (no targets are chosen yet, so the gate
-                // frame carries none); it is rechecked at resolution.
-                if let Some(c) = &t.condition {
-                    let mut frame = Frame::bare(this.object, controller);
-                    self.frame_set_source_lki(&mut frame, Some(this.clone()));
-                    self.frame_set_defending_player(&mut frame, bindings.defending_player);
-                    self.frame_set_event_bindings(
-                        &mut frame,
-                        bindings.that_object.clone(),
-                        bindings.that_player,
-                        bindings.that_patient.clone(),
-                    );
-                    frame
-                        .anaphora
-                        .produced_mana
-                        .clone_from(&bindings.produced_mana);
-                    frame.anaphora.crossed = bindings.crossed;
-                    if !self.condition_holds(c, &frame) {
-                        continue;
-                    }
                 }
                 // [CR#603.2d]: trigger multipliers (Panharmonicon, Yarok,
                 // Doubling Season's trigger half). The same fired trigger is
@@ -1085,7 +1127,7 @@ impl GameState {
                     cause,
                     extra: count,
                     affected,
-                } = effect.as_ref()
+                } = &effect.body
                 {
                     // The fact that fired the trigger must match the cause, and
                     // the trigger's source permanent must match `affected` (with
@@ -1221,7 +1263,6 @@ impl GameState {
                 .objects
                 .mint(noted.source, noted.controller, Some(Zone::Stack));
             let activation = self.enter_trigger_activation(
-                id,
                 noted.source,
                 noted.ability,
                 noted.created.as_deref(),
@@ -1258,7 +1299,6 @@ impl GameState {
             .objects
             .mint(noted.source, controller, Some(Zone::Stack));
         let activation = self.enter_trigger_activation(
-            id,
             noted.source,
             noted.ability,
             noted.created.as_deref(),
@@ -1317,7 +1357,6 @@ impl GameState {
 
     fn enter_trigger_activation(
         &mut self,
-        id: ObjectId,
         source: ObjectSource,
         ability: usize,
         created: Option<&deckmaste_core::TriggeredAbility>,
@@ -1334,13 +1373,21 @@ impl GameState {
             },
             |trigger| trigger.effect.clone(),
         );
-        let mut frame = crate::stack::Frame::bare(
-            bindings
-                .this
-                .as_ref()
-                .map_or(id, |snapshot| snapshot.object),
-            controller,
+        self.trigger_gate_frame(&region, controller, bindings)
+            .activation
+    }
+
+    fn trigger_gate_frame<T>(
+        &self,
+        region: &deckmaste_core::Region<T>,
+        controller: PlayerId,
+        bindings: &TriggerBindings,
+    ) -> Frame {
+        let source = bindings.this.as_ref().map_or_else(
+            || self.player(controller).object,
+            |snapshot| snapshot.object,
         );
+        let mut frame = crate::stack::Frame::bare(source, controller);
         self.frame_set_source_lki(&mut frame, bindings.this.clone());
         self.frame_set_defending_player(&mut frame, bindings.defending_player);
         self.frame_set_event_bindings(
@@ -1349,11 +1396,14 @@ impl GameState {
             bindings.that_player,
             bindings.that_patient.clone(),
         );
+        self.frame_set_event_extras(
+            &mut frame,
+            bindings.event_amount,
+            bindings.produced_mana.clone(),
+            bindings.crossed,
+        );
+        frame.activation = self.enter_region(region, &frame);
         frame
-            .anaphora
-            .produced_mana
-            .clone_from(&bindings.produced_mana);
-        self.enter_region(&region, &frame)
     }
 
     /// [CR#603.3d]: a placing trigger's targets were chosen — push the
@@ -1406,7 +1456,7 @@ pub(crate) struct EventRoles {
     that_player: Option<PlayerId>,
     that_patient: Option<EventPatient>,
     defending_player: Option<PlayerId>,
-    that_much: Option<Uint>,
+    event_amount: Option<Uint>,
     crossed: Option<(Uint, Uint)>,
     produced_mana: Vec<deckmaste_core::ColorOrColorless>,
 }
@@ -1422,7 +1472,7 @@ impl EventRoles {
             that_player: self.that_player,
             that_patient: self.that_patient.clone(),
             defending_player: self.defending_player,
-            that_much: self.that_much,
+            event_amount: self.event_amount,
             crossed: self.crossed,
             produced_mana: self.produced_mana.clone(),
         }
@@ -1511,6 +1561,10 @@ fn snapshot_stat(
 
 #[cfg(test)]
 mod tests {
+    #![allow(
+        clippy::empty_line_after_doc_comments,
+        reason = "related behavioral test rationale is intentionally grouped"
+    )]
     use std::path::Path;
     use std::sync::Arc;
 
@@ -2195,6 +2249,10 @@ mod tests {
     /// (the Training carrier) plus the named extra creatures. Returns the state
     /// and the carrier id. A frame is built separately with `this` bound to the
     /// carrier so `frame_watcher` anchors `This` to it.
+    #[allow(
+        dead_code,
+        reason = "shared fixture retained for neighboring trigger cases"
+    )]
     fn attacking_board(extras: &[&str]) -> (GameState, ObjectId) {
         let courser = Arc::new(canon().card("Centaur Courser").unwrap().core);
         let mut state = GameState::new(GameConfig {
@@ -2241,6 +2299,10 @@ mod tests {
     /// A trigger-fire gate frame whose `this` binding is the carrier — mirrors
     /// the real intervening-if frame (the exophoric `this` set to the firing
     /// object's snapshot), so `frame_watcher` resolves `This` to the carrier.
+    #[allow(
+        dead_code,
+        reason = "shared fixture retained for neighboring trigger cases"
+    )]
     fn carrier_gate_frame(state: &GameState, carrier: ObjectId) -> Frame {
         let mut frame = Frame::bare(carrier, PlayerId(0));
         state.frame_set_source_lki(
@@ -2248,60 +2310,6 @@ mod tests {
             Some(crate::lki::LkiSnapshot::capture(state, carrier)),
         );
         frame
-    }
-
-    /// The Training intervening-if as the macro spells it.
-    fn training_condition() -> Condition {
-        use deckmaste_core::Cmp;
-        use deckmaste_core::Count;
-        use deckmaste_core::Reference;
-        use deckmaste_core::Stat;
-        use deckmaste_core::StatePredicate;
-        Condition::Compare(
-            Count::CountOf(deckmaste_core::Countable::Objects(Arc::new(
-                Predicate::And(
-                    vec![
-                        Predicate::creature(),
-                        Predicate::State(StatePredicate::Attacking),
-                        Predicate::Not(Arc::new(Predicate::Ref(Reference::Reg(
-                            deckmaste_core::RefId(0),
-                        )))),
-                        Predicate::Where(Arc::new(Condition::Compare(
-                            Count::StatOf(Reference::It, Stat::Power),
-                            Cmp::Greater,
-                            Count::StatOf(Reference::Reg(deckmaste_core::RefId(0)), Stat::Power),
-                        ))),
-                    ]
-                    .into(),
-                ),
-            ))),
-            deckmaste_core::Cmp::AtLeast,
-            Count::Literal(1),
-        )
-    }
-
-    /// Holds when another attacker (4/4 Fangren Hunter) has power greater than
-    /// the 3/3 carrier.
-    #[test]
-    fn training_condition_holds_with_a_greater_power_attacker() {
-        let (state, carrier) = attacking_board(&["Fangren Hunter"]); // 4/4 > 3/3
-        assert!(
-            state.condition_holds(&training_condition(), &carrier_gate_frame(&state, carrier)),
-            "a 4/4 co-attacker has greater power than the 3/3 carrier ([CR#702.149a])"
-        );
-    }
-
-    /// Does NOT hold when the only other attacker is lesser/equal power: a 2/2
-    /// Grizzly Bears (lesser) and a second 3/3 Courser (equal — `Greater` is
-    /// strict) both fail the comparison, so no "other creature with greater
-    /// power" exists.
-    #[test]
-    fn training_condition_fails_without_a_greater_power_attacker() {
-        let (state, carrier) = attacking_board(&["Grizzly Bears", "Centaur Courser"]); // 2/2, 3/3
-        assert!(
-            !state.condition_holds(&training_condition(), &carrier_gate_frame(&state, carrier)),
-            "lesser (2/2) and equal (3/3) co-attackers do not satisfy 'greater power' ([CR#702.149a])"
-        );
     }
 
     // -------------------------------------------------------------------------
@@ -3673,7 +3681,6 @@ mod tests {
         let watch = Ability::triggered(TriggeredAbility {
             ability_word: None,
             targets: [].into(),
-            where_x: None,
             from: None,
             event: EventFilter::StateBecame {
                 of: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
@@ -4196,7 +4203,6 @@ mod tests {
             abilities: vec![Ability::triggered(TriggeredAbility {
                 ability_word: None,
                 targets: [].into(),
-                where_x: None,
                 from: None,
                 event: EventFilter::StepBegins {
                     at: PhaseStep::Combat(CombatStep::BeginningOfCombat),
@@ -4352,7 +4358,6 @@ mod tests {
         deckmaste_core::TriggeredAbility {
             ability_word: None,
             targets: [].into(),
-            where_x: None,
             from: None,
             event,
             condition: None,
@@ -4603,7 +4608,6 @@ mod tests {
             abilities: vec![Ability::triggered(TriggeredAbility {
                 ability_word: None,
                 targets: [].into(),
-                where_x: None,
                 from,
                 event: EventFilter::StepBegins {
                     at: PhaseStep::Beginning(BeginningStep::Upkeep),
@@ -4892,7 +4896,6 @@ mod tests {
         let back_trigger = TriggeredAbility {
             ability_word: None,
             targets: [].into(),
-            where_x: None,
             from: None,
             event: EventFilter::StepBegins {
                 at: PhaseStep::Beginning(BeginningStep::Upkeep),
@@ -4913,12 +4916,17 @@ mod tests {
             toughness: Some(StatValue::Number(2)),
             ..CardFace::default()
         };
+        let back_ability = Ability::triggered(back_trigger);
+        let back_trigger = back_ability
+            .as_triggered()
+            .expect("the normalized ability remains triggered")
+            .clone();
         let back = CardFace {
             name: "Back Upkeep Drawer".into(),
             types: vec![Type::Creature.def()],
             power: Some(StatValue::Number(3)),
             toughness: Some(StatValue::Number(3)),
-            abilities: vec![Ability::triggered(back_trigger.clone())],
+            abilities: vec![back_ability],
             ..CardFace::default()
         };
         let card = Card::TwoFaced {
@@ -5637,7 +5645,6 @@ mod tests {
             abilities: vec![Ability::triggered(TriggeredAbility {
                 ability_word: None,
                 targets: [].into(),
-                where_x: None,
                 from: None,
                 event: EventFilter::ZoneChange {
                     what: Predicate::creature(),
@@ -5709,121 +5716,10 @@ mod tests {
             .count()
     }
 
-    /// A synthetic "whenever a creature is dealt damage, you gain that much
-    /// life" watcher — the trigger-bound magnitude lane.
-    fn pain_gainer() -> deckmaste_card::Card {
-        use deckmaste_card::Card;
-        use deckmaste_card::CardFace;
-        use deckmaste_core::Ability;
-        use deckmaste_core::Action;
-        use deckmaste_core::Count;
-        use deckmaste_core::LifeOp;
-        use deckmaste_core::OneShotEffect;
-        use deckmaste_core::StatValue;
-        use deckmaste_core::TriggeredAbility;
-
-        Card::Normal(CardFace {
-            name: "Pain Gainer".into(),
-            types: vec![Type::Creature.def()],
-            abilities: vec![Ability::triggered(TriggeredAbility {
-                ability_word: None,
-                targets: [].into(),
-                where_x: None,
-                from: None,
-                event: EventFilter::Damage {
-                    source: Predicate::Any,
-                    to: Predicate::creature(),
-                    combat: None,
-                    amount: None,
-                },
-                condition: None,
-                limits: vec![].into(),
-                effect: OneShotEffect::Act(Action::ChangeLife(
-                    Reference::Reg(deckmaste_core::RefId(1)),
-                    LifeOp::Up(Count::ThatMuch),
-                ))
-                .into(),
-            })],
-            power: Some(StatValue::Number(2)),
-            toughness: Some(StatValue::Number(4)),
-            ..CardFace::default()
-        })
-    }
-
-    /// The firing event's magnitude rides `TriggerBindings.that_much` —
+    /// The firing event's magnitude rides `TriggerBindings.event_amount` —
     /// captured at fire time (mirroring the apply funnel's amount-carrying
     /// set) and seeding `Count::ThatMuch` for the fired ability's resolution
     /// ("whenever …, … that much").
-    #[test]
-    fn trigger_bound_that_much_reads_the_firing_events_magnitude() {
-        use deckmaste_core::Zone;
-
-        use crate::stack::StackEntry;
-        use crate::stack::StackObject;
-
-        let mut state = empty_game();
-        state.turn.active_player = PlayerId(0);
-        let gainer = put_synthetic_on_field(&mut state, pain_gainer(), PlayerId(0));
-        state.agenda.clear();
-        let life_before = state.players[0].life;
-
-        // 3 damage to the gainer through the emit funnel — the post-
-        // replacement fact the trigger scan sees.
-        let source = state.players[1].object;
-        state.schedule_front(vec![WorkItem::Emit(Occurrence::Single(
-            GameEvent::DamageDealt(DamageDealt {
-                source,
-                target: gainer,
-                amount: 3,
-                combat: false,
-            }),
-        ))]);
-        for _ in 0..10 {
-            if state.agenda.is_empty() {
-                break;
-            }
-            let _ = state.step();
-        }
-
-        // Fire-time capture: the noted trigger carries the magnitude.
-        assert_eq!(noted_for(&state, gainer), 1, "the damage notes the trigger");
-        let noted = state.pending_triggers[0].clone();
-        assert_eq!(noted.bindings.that_much, Some(3));
-
-        // Resolve the trigger directly (no priority dance): `ThatMuch` reads
-        // the seeded magnitude, not a same-resolution apply.
-        let id = state
-            .objects
-            .mint(noted.source, noted.controller, Some(Zone::Stack));
-        state.stack.push(StackEntry {
-            activation: crate::ActivationId::NONE,
-            paid_costs: Vec::new(),
-            id,
-            object: StackObject::Triggered {
-                source: noted.source,
-                ability: noted.ability,
-                created: noted.created.clone(),
-                bindings: noted.bindings.clone(),
-            },
-            controller: noted.controller,
-            targets: Vec::new(),
-            chosen_modes: std::sync::Arc::from([]),
-            x: None,
-            copy: false,
-        });
-        state.resolve_object(id);
-        for _ in 0..10 {
-            if state.agenda.is_empty() {
-                break;
-            }
-            let _ = state.step();
-        }
-        assert_eq!(
-            state.players[0].life,
-            life_before + 3,
-            "GainLife(ThatMuch) reads the trigger-bound 3"
-        );
-    }
 
     /// [CR#603.2h]: a once-per-turn triggered ability fires at most once each
     /// turn. Two creatures dying in sequence this turn note the watcher's

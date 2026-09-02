@@ -16,7 +16,7 @@
             window: SorcerySpeed,
             effect: Targeted(
                 targets: [Target(Exactly(1), And([Type(Land), ControlledBy(Ref(You))]))],
-                effect: Attach(what: This, to: It),
+                effect: Attach(what: This, to: Target(0)),
             ),
         )],
     ),

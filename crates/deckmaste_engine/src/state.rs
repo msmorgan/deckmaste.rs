@@ -162,12 +162,20 @@ pub enum ChoiceContinuation {
     /// being announced ([CR#601.2b,602.2b,700.2]). The answer is retained on
     /// the announce slot; later target and cost steps derive only from it.
     AnnounceModes,
-    /// A `ChooseObjects` answer ([CR#608.2d]): bind the picks into
-    /// `frame.anaphora.chosen`, then re-run `effect` (the action whose
-    /// `Choose`/`Random` selection produced the decision).
+    /// A `ChooseObjects` answer ([CR#608.2d]): write the picks to `dest`, then
+    /// continue with `if_none` when the choice produced no objects.
     BindChoice {
-        effect: Arc<deckmaste_core::OneShotEffect>,
+        dest: deckmaste_core::DefId,
         frame: crate::stack::Frame,
+        if_none: deckmaste_core::Block,
+    },
+    BindNumber {
+        dest: deckmaste_core::DefId,
+        activation: crate::ActivationId,
+    },
+    BindSymbol {
+        dest: deckmaste_core::DefId,
+        activation: crate::ActivationId,
     },
     /// A `YesNo` answer for `OneShotEffect::May` ([CR#118.12]): true → `effect`
     /// then `if_did`; false → `if_not` (or nothing).
@@ -278,7 +286,6 @@ pub struct ReplaceState {
 /// must not overwrite the containing resolution's registers.
 #[derive(Debug, Clone)]
 pub(crate) struct ResolutionScopeSnapshot {
-    that_much: Option<Uint>,
     moved_chain: Vec<(crate::object::ObjectId, crate::object::ObjectId)>,
     resolution_events: Vec<GameEvent>,
     resolution_contained_act_commits: std::collections::HashMap<deckmaste_core::VerbName, u64>,
@@ -330,7 +337,7 @@ pub struct GameImage {
     /// began resolving — the resolution-scoped window a reflexive triggered
     /// ability ("when you do") looks back over at the instant it is created.
     /// Cleared when a stack entry begins resolving (same lifecycle as
-    /// [`that_much`](Self::that_much) / [`moved_chain`](Self::moved_chain)),
+    /// the resolution-local move chain and event lookback state,
     /// appended to by the history recorder for every non-meta fact.
     pub resolution_events: Vec<GameEvent>,
     /// Successful contained keyword actions since the current stack entry
@@ -417,21 +424,13 @@ pub struct GameImage {
     /// losing loyalty to damage — the builtin
     /// `rules/damage/planeswalker-loyalty.ron` supplies it).
     pub damage_result_rules: Vec<deckmaste_core::DamageResultRule>,
-    /// The "that much"/"that many" anaphora register (`Count::ThatMuch` —
-    /// oracle-text magnitude anaphora; no single CR rule defines it): the
-    /// amount the most recently APPLIED amount-carrying event fixed (damage
-    /// dealt, life gained/lost — set by the `apply` funnel, so it reads what
-    /// actually happened, post-replacement). Cleared when a stack entry
-    /// begins resolving, so a read can only see an amount fixed by an
-    /// earlier instruction of the same resolution.
-    pub that_much: Option<Uint>,
     /// The resolution-scoped old→new move record ([CR#400.7j]): objects THIS
     /// resolution moved to a PUBLIC zone, as ordered `(pre-move, reminted)`
     /// pairs — recency IS the antecedent order (a product-sited `That(Sort)`
     /// reads the newest product; R1-nearest). Written by
     /// `apply_zone_will_change`, chased transitively by the bound-role reads
     /// (`It`, the `that` slot), cleared when a stack entry begins resolving —
-    /// same lifecycle as [`that_much`](Self::that_much). Hidden destinations
+    /// same lifecycle as the resolution activation. Hidden destinations
     /// are never recorded ([CR#400.7] — the object is lost).
     pub moved_chain: Vec<(crate::object::ObjectId, crate::object::ObjectId)>,
     /// Turn/game event history ([CR#608.2i]): the append-only log the
@@ -519,9 +518,8 @@ pub struct GameImage {
 }
 
 impl GameImage {
-    pub(crate) fn begin_mana_resolution_scope(&mut self, that_much: Option<Uint>) {
+    pub(crate) fn begin_mana_resolution_scope(&mut self) {
         self.resolution_scope_stack.push(ResolutionScopeSnapshot {
-            that_much: self.that_much.take(),
             moved_chain: std::mem::take(&mut self.moved_chain),
             resolution_events: std::mem::take(&mut self.resolution_events),
             resolution_contained_act_commits: std::mem::take(
@@ -535,7 +533,6 @@ impl GameImage {
             resolution_notes: std::mem::take(&mut self.resolution_notes),
             arrange_scope: self.arrange_scope.take(),
         });
-        self.that_much = that_much;
     }
 
     pub(crate) fn finish_mana_resolution_scope(&mut self) {
@@ -543,7 +540,6 @@ impl GameImage {
             .resolution_scope_stack
             .pop()
             .expect("a finishing mana action owns a resolution scope");
-        self.that_much = snapshot.that_much;
         self.moved_chain = snapshot.moved_chain;
         self.resolution_events = snapshot.resolution_events;
         self.resolution_contained_act_commits = snapshot.resolution_contained_act_commits;
@@ -725,7 +721,6 @@ impl GameState {
             sba_rules: config.sba_rules,
             conferral_rules: config.conferral_rules,
             damage_result_rules: config.damage_result_rules,
-            that_much: None,
             moved_chain: Vec::new(),
             history: crate::history::History::default(),
             replace_state: None,

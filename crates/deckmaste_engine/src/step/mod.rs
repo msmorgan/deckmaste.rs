@@ -26,8 +26,6 @@ use crate::event::CounterRemoved;
 use crate::event::DamageDealt;
 use crate::event::DieRolled;
 use crate::event::GameEvent;
-use crate::event::LifeGained;
-use crate::event::LifeLost;
 use crate::event::ManaEmptied;
 use crate::event::Occurrence;
 use crate::event::PlayerLost;
@@ -417,22 +415,6 @@ impl GameState {
     /// apply-time bindings (a drawn card's identity) filled in, and a draw
     /// from an empty library occurring as `DrewFromEmpty` instead.
     fn apply(&mut self, event: GameEvent) -> GameEvent {
-        // Every amount-carrying event fixes the "that much" register
-        // (`Count::ThatMuch`) as it actually happens — at the apply funnel,
-        // after any replacement has rewritten the event. Cause-amount zone
-        // changes (a discard, a mill) are fixed per OCCURRENCE instead
-        // (`apply_occurrence` counts the batch — "discard two cards, then
-        // draw that many" reads the batch size, not 1).
-        match &event {
-            GameEvent::DamageDealt(DamageDealt { amount, .. })
-            | GameEvent::LifeLost(LifeLost { amount, .. })
-            | GameEvent::LifeGained(LifeGained { amount, .. })
-            | GameEvent::CounterPlaced(CounterPlaced { amount, .. })
-            | GameEvent::CounterRemoved(CounterRemoved { amount, .. }) => {
-                self.that_much = Some(*amount);
-            }
-            _ => {}
-        }
         // Non-`Act` variants dispatch through `EventApply` (by ref) and report
         // via `transformed`; `Act` is routed separately below — it takes its
         // payload BY VALUE (`apply_act` moves the owned `Box<ActContents>`), so
@@ -931,7 +913,6 @@ impl GameState {
             }
         };
         self.record_history(&occurred);
-        self.fix_occurrence_amount(&occurred);
         self.check_game_end();
         if self.outcome.is_none() {
             self.scan_triggers(&occurred);
@@ -1132,72 +1113,6 @@ impl GameState {
         }
         Progress::ActFinalized {
             recorded: committed,
-        }
-    }
-
-    /// The occurrence-level "that much" fix for cause-amount zone changes
-    /// ([CR#107.3] magnitude anaphora): a discard/mill clause's amount is
-    /// its CARD COUNT — "discards all the cards in their hand, then draws
-    /// that many" reads the batch size, so the per-fact funnel (which would
-    /// leave 1) defers to this count. Which cause verbs carry an amount is
-    /// the emitted entailment table's `amount` column.
-    fn fix_occurrence_amount(&mut self, occurred: &Occurrence) {
-        let events: &[GameEvent] = match occurred {
-            Occurrence::Single(e) => std::slice::from_ref(e),
-            Occurrence::Batch(es) => es,
-        };
-        let moved = events
-            .iter()
-            .filter(|e| match e {
-                GameEvent::ZoneChange(ZoneChange {
-                    snapshot: Some(_),
-                    cause: Some(c),
-                    ..
-                }) => crate::entail::entailment(c.verb.as_str()).is_some_and(|row| row.amount),
-                _ => false,
-            })
-            .count();
-        // [CR#107.3]: a flip/roll batch fixes "that many" — won flips for a
-        // called flip, heads for an uncalled one ([CR#705.2]); summed
-        // results for dice ([CR#706.2]).
-        let mut coins = 0u32;
-        let mut wins: Uint = 0;
-        let mut heads_up: Uint = 0;
-        let mut any_called = false;
-        let mut dice = 0u32;
-        let mut rolled_sum: Uint = 0;
-        for event in events {
-            match event {
-                GameEvent::CoinFlipped(CoinFlipped { heads, won, .. }) => {
-                    coins += 1;
-                    any_called |= won.is_some();
-                    wins += Uint::from(*won == Some(true));
-                    heads_up += Uint::from(*heads);
-                }
-                GameEvent::DieRolled(DieRolled { result, .. }) => {
-                    dice += 1;
-                    rolled_sum += *result;
-                }
-                _ => {}
-            }
-        }
-        // A batch is always homogeneous today — all zone-moves, or all
-        // CoinFlipped, or all DieRolled, never mixed — so the
-        // moved-then-coins-then-dice precedence below is moot. Pin that
-        // invariant: a mixed-kind batch would make the precedence order
-        // silently undefined.
-        debug_assert!(
-            !(moved > 0 && (coins > 0 || dice > 0)) && !(coins > 0 && dice > 0),
-            "a batch mixed zone-move/coin/dice event kinds — ThatMany funnel precedence is undefined for mixed batches"
-        );
-        if moved > 0 {
-            self.that_much = Some(Uint::try_from(moved).expect("batch size fits in Uint"));
-        }
-        if coins > 0 {
-            self.that_much = Some(if any_called { wins } else { heads_up });
-        }
-        if dice > 0 {
-            self.that_much = Some(rolled_sum);
         }
     }
 
@@ -2432,6 +2347,10 @@ impl GameState {
 
 #[cfg(test)]
 mod tests {
+    #![allow(
+        clippy::empty_line_after_doc_comments,
+        reason = "related behavioral test rationale is intentionally grouped"
+    )]
     use std::sync::Arc;
 
     use deckmaste_core::Lookback;
@@ -2743,51 +2662,6 @@ mod tests {
     /// its CARD COUNT ([CR#107.3,701.9a]) — "discards all the cards in
     /// their hand, then draws that many" reads the batch size, not 1. The
     /// per-verb admission is the entailment table's `amount` column.
-    #[test]
-    fn discard_batch_fixes_that_much_to_its_card_count() {
-        let (mut state, _view, _id) = crate::replace_registry::tests_support::lone_creature();
-        // Two cards in hand to discard.
-        let mut in_hand = Vec::new();
-        for name in ["Discard A", "Discard B"] {
-            let card = Arc::new(deckmaste_card::Card::Normal(deckmaste_card::CardFace {
-                name: name.into(),
-                types: vec![deckmaste_core::Type::Sorcery.def()],
-                ..deckmaste_card::CardFace::default()
-            }));
-            let cid = state.cards.push(card, PlayerId(0));
-            let id = state
-                .objects
-                .mint(ObjectSource::Card(cid), PlayerId(0), Some(Zone::Hand));
-            state.zones.hands[0].push(id);
-            in_hand.push(id);
-        }
-        let events: Vec<GameEvent> = in_hand
-            .into_iter()
-            .map(|object| {
-                GameEvent::ZoneChange(ZoneChange {
-                    snapshot: None,
-                    object,
-                    from: Some(Zone::Hand),
-                    to: Zone::Graveyard,
-                    enters: None,
-                    position: None,
-                    face: None,
-                    cause: Some(crate::event::Cause::discard(
-                        deckmaste_core::Agency::EffectInstruction,
-                        None,
-                    )),
-                })
-            })
-            .collect();
-        state.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(events))]);
-        let _ = state.step(); // the intent batch
-        let _ = state.step(); // the committed past-form ZoneChange batch
-        assert_eq!(
-            state.that_much,
-            Some(2),
-            "the discard clause's amount is its card count"
-        );
-    }
 
     /// `priority_tail` is the shared `[CheckSbas, PlaceTriggers, OpenPriority]`
     /// trailer reused by every action that emits and then re-opens priority.

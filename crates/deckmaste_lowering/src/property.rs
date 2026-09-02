@@ -58,34 +58,4 @@ mod tests {
             )
         );
     }
-
-    #[test]
-    fn lowers_property_state_based() {
-        assert_matches!(
-            deckmaste_semantics::Property::StateBased {
-                condition: std::sync::Arc::new(minimal_condition()),
-                effect: std::sync::Arc::new(minimal_one_shot_effect())
-            }
-            .lower(),
-            deckmaste_core::Property::StateBased {
-                condition: _,
-                effect: _
-            }
-        );
-    }
-
-    #[test]
-    fn lowers_property_turn_based() {
-        assert_matches!(
-            deckmaste_semantics::Property::TurnBased {
-                at: minimal_phase_step(),
-                effect: std::sync::Arc::new(minimal_one_shot_effect())
-            }
-            .lower(),
-            deckmaste_core::Property::TurnBased {
-                at: deckmaste_core::PhaseStep::Beginning(deckmaste_core::BeginningStep::Untap),
-                effect: _
-            }
-        );
-    }
 }

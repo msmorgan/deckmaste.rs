@@ -7,13 +7,10 @@ use deckmaste_core::Action;
 use deckmaste_core::Count;
 use deckmaste_core::Deontic;
 use deckmaste_core::DeonticAction;
-use deckmaste_core::Destination;
 use deckmaste_core::Modification;
 use deckmaste_core::Normalize;
-use deckmaste_core::ObjectKind;
 use deckmaste_core::OneShotEffect;
 use deckmaste_core::Predicate;
-use deckmaste_core::Quantity;
 use deckmaste_core::Reference;
 use deckmaste_core::Selection;
 use deckmaste_core::StaticEffect;
@@ -24,7 +21,6 @@ use slotmap::Key;
 use super::action::composite_body_group;
 use super::action::composite_body_whose;
 use super::action::composite_move_src;
-use super::deref_quantity;
 use super::occurrence_of;
 use crate::agenda::WorkItem;
 use crate::event::Act;
@@ -67,7 +63,9 @@ impl GameState {
         // (`floating_watches` then matches on this frozen subject). An unbound /
         // vanished `That` (no `With`, degenerate reference) fizzles the mint —
         // never a shield with a null subject, never a panic ([CR#701.8a]).
-        let id = self.eval_reference(&Reference::That(deckmaste_core::Sort::Card), frame);
+        let id = self
+            .activation_latest_object(frame.activation)
+            .unwrap_or_else(ObjectId::null);
         if self.objects.get(id).is_none() {
             return;
         }
@@ -100,7 +98,7 @@ impl GameState {
         for slot in deontic_subject_slots(deontic_action_mut(&mut locked)) {
             if let Predicate::Ref(r) = slot {
                 ids.push(self.eval_reference(r, frame));
-                *slot = Predicate::Ref(Reference::It);
+                *slot = Predicate::Any;
             }
         }
         (ids, locked)
@@ -135,41 +133,37 @@ impl GameState {
         ids
     }
 
-    /// Resolve a [`Binder`](deckmaste_core::Binder) to its bound group of
-    /// element ids ([CR#608.2]) — the shared spine of `With`/`Each`/
-    /// `Distribute`. `TheRef` is a singleton, `Existing` evaluates its
+    /// Resolve a [`CostBinder`](deckmaste_core::CostBinder) to its bound group of
+    /// element ids ([CR#608.2]) for the transitional cost-side
+    /// `ChooseAndPay`. `TheRef` is a singleton, `Existing` evaluates its
     /// `Selection`, and a chooser (`ChooseOne`/`Choose`, and the search
     /// binders `SearchOne`/`Search` [CR#701.23] — a search surfaces its
     /// hidden-zone candidates the same `ChooseObjects` way) reads the picks
-    /// that a prior [`Self::binder_choice`] surfaced into
-    /// `frame.anaphora.chosen`; a search's picks may be empty (a failed
-    /// find).
+    /// that a prior [`Self::binder_choice`] stored on the activation; a
+    /// search's picks may be empty (a failed find).
     pub(crate) fn resolve_binder(
         &self,
-        binder: &deckmaste_core::Binder,
+        binder: &deckmaste_core::CostBinder,
         frame: &Frame,
     ) -> Vec<ObjectId> {
-        use deckmaste_core::Binder;
+        use deckmaste_core::CostBinder;
         match binder {
-            Binder::TheRef(reference) => vec![self.eval_reference(reference, frame)],
-            Binder::Existing(selection) => self.eval_selection_set(selection, frame),
-            Binder::ChooseOne { .. }
-            | Binder::Choose { .. }
-            | Binder::SearchOne { .. }
-            | Binder::Search { .. } => frame
-                .anaphora
-                .chosen
-                .clone()
+            CostBinder::TheRef(reference) => vec![self.eval_reference(reference, frame)],
+            CostBinder::Existing(selection) => self.eval_selection_set(selection, frame),
+            CostBinder::ChooseOne { .. }
+            | CostBinder::Choose { .. }
+            | CostBinder::SearchOne { .. }
+            | CostBinder::Search { .. } => self
+                .activation_chosen(frame.activation)
                 .expect("a chooser binder re-runs with its picks bound"),
-            // SEAM: `OneShotEffect::With` special-cases `Binder::Produce` directly
-            // (before this spine runs) — it needs a mutating run-action-and-
+            // A producing cost binder needs a mutating run-action-and-
             // capture step this read-only (`&self`) resolver can't provide.
             // Unreachable from `With`; still hit if `Each`/`Distribute` ever
             // took a `Produce` binder (they don't — `Produce`/`SearchOne` are
             // One-binders, not the many-binder those expect).
-            Binder::Produce(_) => unimplemented!(
-                "engine seam: Produce resolved outside OneShotEffect::With ([CR#400.7j]) — With is \
-                 the only consumer wired to run a producer's Action and capture its product; \
+            CostBinder::Produce(_) => unimplemented!(
+                "engine seam: cost-side Produce resolved outside ChooseAndPay ([CR#400.7j]) — \
+                 the payment path must run its Action and capture its product; \
                  owner: engine-produce-capture-binder"
             ),
             // Provenance is erased at `lower` (`deckmaste_lowering`), so no
@@ -178,240 +172,38 @@ impl GameState {
         }
     }
 
-    /// A many-binder's [`Cardinality`](crate::stack::Cardinality): `One` for a
-    /// one-binder (`TheRef`/`ChooseOne`), `Many` for a many-binder
-    /// (`Choose`/`Existing`). The bound-group kind comes from the resolved ids.
-    fn binder_cardinality(binder: &deckmaste_core::Binder) -> crate::stack::Cardinality {
-        use deckmaste_core::Binder;
-
-        use crate::stack::Cardinality;
-        match binder {
-            // `Produce`/`SearchOne` are One-binders (Idris `Bindable b One …`);
-            // `Search` is Many. This cardinality is a pure structural fact from
-            // the Idris constructors, valid independent of the resolution seam.
-            Binder::TheRef(_)
-            | Binder::ChooseOne { .. }
-            | Binder::Produce(_)
-            | Binder::SearchOne { .. } => Cardinality::One,
-            Binder::Choose { .. } | Binder::Existing(_) | Binder::Search { .. } => {
-                Cardinality::Many
-            } // Provenance is erased at `lower` (`deckmaste_lowering`), so no
-              // loaded value reaches here wrapped. The arm survives only because
-              // the variant does; `core-demacro` deletes both.
-        }
-    }
-
-    /// If `binder` is a chooser (`ChooseOne`/`Choose`, or a search binder
-    /// `SearchOne`/`Search` [CR#701.23]) whose pick has not yet been made,
-    /// the `(chooser, candidates, min, max)` to surface as a `ChooseObjects`
-    /// decision ([CR#601.2d]); else `None` (a `TheRef`/`Existing` binder, or
-    /// a chooser already resolved into `frame.anaphora.chosen`). The chooser
-    /// is the binder's `by` resolved to a player ([CR#608.2d] — default
-    /// `You` = the controller; "that player sacrifices a creature of their
-    /// choice" routes to the foreign actor). Shared by `With`/`Each`/
-    /// `Distribute` so all three iterate a player-chosen group identically.
-    fn binder_choice(
-        &self,
-        binder: &deckmaste_core::Binder,
+    /// instead of by the pure selection evaluator. The sample is returned
+    /// directly; each element is then written to its loop region parameter.
+    fn iteration_selection(
+        &mut self,
+        selection: &deckmaste_core::Selection,
         frame: &Frame,
-    ) -> Option<(crate::player::PlayerId, Vec<ObjectId>, Uint, Uint)> {
-        use deckmaste_core::Binder;
-        if frame.anaphora.chosen.is_some() {
-            return None;
-        }
-        // The carrier watcher anchors a `Ref(This)`/`Ref(You)` inside the
-        // binder's filter (e.g. `InHand(who)`'s `Owner(Ref(who))`,
-        // [CR#701.9b]) — the frameless `candidates()` shorthand panics on
-        // one ([`crate::target::matches_with`]'s frameless `Ref` arms), so a
-        // chooser's filter reads through the same framed
-        // `candidates_with`/`frame_watcher` pair `Selection::SelectAll`
-        // already uses.
-        let watcher = Some(self.frame_watcher(frame));
-        match binder {
-            Binder::ChooseOne { filter, by } => Some((
-                self.acting_player(by, frame),
-                crate::target::candidates_with_activation(self, filter, watcher, frame.activation),
-                1,
-                1,
-            )),
-            Binder::Choose {
-                quantity,
-                filter,
-                by,
-            } => {
-                let candidates = crate::target::candidates_with_activation(
-                    self,
-                    filter,
-                    watcher,
-                    frame.activation,
-                );
-                let (min, max) = self.choice_bounds(quantity, candidates.len(), frame);
-                Some((self.acting_player(by, frame), candidates, min, max))
-            }
-            // [CR#701.23a]: look at every card in `whose`'s `from` zone(s),
-            // even a hidden one — the server is omniscient, so surfacing the
-            // full candidate set to the searching player IS the "look". The
-            // fail-to-find floor is NOT `Choose`'s: a STATED quality
-            // ([CR#701.23b]) never compels a find even when matches exist
-            // (floor 0); only a BARE quantity (no quality at all —
-            // `search_is_bare_quantity`) is compulsory ([CR#701.23d]), and
-            // even that settles for "as many as possible" once
-            // `choice_bounds` clamps to availability. An UNDEFINED quality
-            // ([CR#701.23c]) needs no separate arm: it can never actually
-            // match a candidate, so it already floors to 0 through the same
-            // mechanism the optional case uses. `SearchOne` is exactly-one
-            // search — reuse `choice_bounds` with `Quantity::one()` so it
-            // clamps to availability the same way `Search`'s own quantity
-            // does.
-            Binder::SearchOne {
-                filter,
-                by,
-                whose,
-                from,
-                ..
-            } => {
-                let candidates = self.search_candidates(whose, from, filter, frame, watcher);
-                let (lo, hi) = self.choice_bounds(&Quantity::one(), candidates.len(), frame);
-                let min = if Self::search_is_bare_quantity(filter) { lo } else { 0 };
-                Some((self.acting_player(by, frame), candidates, min, hi))
-            }
-            Binder::Search {
-                quantity,
-                filter,
-                by,
-                whose,
-                from,
-                ..
-            } => {
-                let candidates = self.search_candidates(whose, from, filter, frame, watcher);
-                let (lo, hi) = self.choice_bounds(quantity, candidates.len(), frame);
-                let min = if Self::search_is_bare_quantity(filter) { lo } else { 0 };
-                Some((self.acting_player(by, frame), candidates, min, hi))
-            }
-            // [CR#607.2a,608.2d]: a CONSTRAINING `AmongNoted` inside `Existing`
-            // ("exile two of THEM") is a chooser over the noted group's LIVE
-            // members — surface the same `ChooseObjects` a `Choose` binder does,
-            // re-running the binder with the picks in `chosen`. The
-            // UNCONSTRAINED group (the whole set) is not a choice, so
-            // `among_noted_choice` returns `None` and it flows through
-            // `resolve_binder`→`eval_selection_set` unchanged. `AmongNoted`
-            // carries no `by`, so the controller chooses ([CR#608.2d] default).
-            Binder::Existing(selection) => {
-                let (label, quantity) = among_noted_choice(selection)?;
-                let live = self.live_noted_members(label);
-                let (min, max) = self.choice_bounds(quantity, live.len(), frame);
-                Some((frame.controller(self), live, min, max))
-            }
-            _ => None,
-        }
-    }
-
-    /// The candidates a search binder ([CR#701.23]) offers: every object
-    /// owned by `whose`, currently in one of the `from` zones, matching
-    /// `filter` — computed directly against the (possibly hidden) zone
-    /// rather than the whole-game `candidates_with` scan, since a search's
-    /// domain is a specific player's specific zone(s), not "anywhere".
-    fn search_candidates(
-        &self,
-        whose: &Reference,
-        from: &[Zone],
-        filter: &Predicate,
-        frame: &Frame,
-        watcher: Option<crate::object::ObjectSource>,
-    ) -> Vec<ObjectId> {
-        let whose_player = self.acting_player(whose, frame);
-        self.objects
-            .iter()
-            .filter(|o| o.zone.is_some_and(|z| from.contains(&z)))
-            .filter(|o| self.owner_of(o.id) == whose_player)
-            .filter(|o| {
-                crate::target::matches_with_activation(
-                    self,
-                    o.id,
-                    filter,
-                    watcher,
-                    frame.activation,
-                )
-            })
-            .map(|o| o.id)
-            .collect()
-    }
-
-    /// Whether `filter` states NO quality at all — "a card"/"N cards", the
-    /// bare-quantity search [CR#701.23d] compels finding that many (or as
-    /// many as exist); anything else is a STATED quality
-    /// ([CR#701.23b]), which never compels a find even when matches are
-    /// present. `Kind(Card)` is what the migrations parser emits for a bare
-    /// "a card"; `Any` is its match-everything twin.
-    fn search_is_bare_quantity(filter: &Predicate) -> bool {
-        matches!(filter, Predicate::Kind(ObjectKind::Card) | Predicate::Any)
-    }
-
-    /// [CR#701.9b] "at random": when `binder` is
-    /// `Existing(Selection::Random(quantity, filter))` and no pick is bound
-    /// yet, sample uniformly via the seeded rng right here — no decision is
-    /// surfaced (there is no choice, unlike `Choose`/`ChooseOne`) — and bind
-    /// the picks into `frame.anaphora.chosen`, exactly where a
-    /// `ChooseObjects` answer would leave them, so the shared
-    /// `Existing`→`eval_selection_set` read finds a bound group either way
-    /// (the retired `DiscardRandom` work item's `rand::seq::index::sample`
-    /// logic, relocated onto the general binder spine so any `Random`
-    /// selection — not just discard's — now actually samples). Any other
-    /// binder shape, or an already-bound `chosen`, returns `frame` cloned
-    /// as-is. Called by `Each`/`With`/`Distribute` before `resolve_binder`.
-    fn sample_random_binder(&mut self, binder: &deckmaste_core::Binder, frame: &Frame) -> Frame {
-        use deckmaste_core::Binder;
+    ) -> Vec<crate::object::ObjectId> {
         use deckmaste_core::Selection;
-        let mut next = frame.clone();
-        if next.anaphora.chosen.is_some() {
-            return next;
-        }
-        if let Binder::Existing(Selection::Random(quantity, filter)) = binder {
-            let selected =
-                if let Some((recorded, post_sample_rng)) = self.take_replay_random_outcome() {
-                    self.rng.set_stream(post_sample_rng.stream);
-                    self.rng.set_word_pos(post_sample_rng.word_pos);
-                    recorded
-                } else {
-                    let watcher = Some(self.frame_watcher(frame));
-                    let candidates = crate::target::candidates_with_activation(
-                        self,
-                        filter,
-                        watcher,
-                        frame.activation,
-                    );
-                    let (_, max) = self.choice_bounds(quantity, candidates.len(), frame);
-                    let n = usize::try_from(max).expect("sample count fits usize");
-                    let idx = rand::seq::index::sample(&mut self.rng, candidates.len(), n);
-                    idx.into_iter().map(|i| candidates[i]).collect()
-                };
-            self.record_payment_random_outcome(&selected);
-            next.anaphora.chosen = Some(selected);
-        }
-        next
-    }
 
-    /// The LIVE members of the fact-backed `noted` product group under `label`
-    /// ([CR#607.2a]): each read through its post-move identity, dropping any
-    /// that has since left play. Shared by `Selection::AmongNoted` and the
-    /// constrained-`AmongNoted` chooser in [`Self::binder_choice`].
-    pub(super) fn live_noted_members(&self, label: &deckmaste_core::Ident) -> Vec<ObjectId> {
-        self.noted
-            .get(label)
+        let Selection::Random(quantity, filter) = selection else {
+            return self.eval_selection_set(selection, frame);
+        };
+
+        if let Some((recorded, post_sample_rng)) = self.take_replay_random_outcome() {
+            self.rng.set_stream(post_sample_rng.stream);
+            self.rng.set_word_pos(post_sample_rng.word_pos);
+            self.record_payment_random_outcome(&recorded);
+            return recorded;
+        }
+
+        let watcher = Some(self.frame_watcher(frame));
+        let candidates =
+            crate::target::candidates_with_activation(self, filter, watcher, frame.activation);
+        let (_, max) = self.choice_bounds(quantity, candidates.len(), frame);
+        let n = usize::try_from(max).expect("sample count fits usize");
+        let indices = rand::seq::index::sample(&mut self.rng, candidates.len(), n);
+        let selected = indices
             .into_iter()
-            .flatten()
-            .filter_map(|m| m.now)
-            .filter(|&id| self.objects.get(id).is_some())
-            .collect()
-    }
-
-    /// The [`RefKind`](crate::stack::RefKind) of a resolved id — object vs.
-    /// player ([CR#120.3]).
-    fn ref_kind_of(&self, id: ObjectId) -> crate::stack::RefKind {
-        match self.objects.obj(id).source {
-            ObjectSource::Player(_) => crate::stack::RefKind::Player,
-            ObjectSource::Card(_) => crate::stack::RefKind::Object,
-        }
+            .map(|i| candidates[i])
+            .collect::<Vec<_>>();
+        self.record_payment_random_outcome(&selected);
+        selected
     }
 
     /// Interpret one `OneShotEffect` node ([CR#608.2]). `Act` becomes one or
@@ -437,7 +229,10 @@ impl GameState {
         Option<deckmaste_core::Cost>,
     )> {
         match &*may.effect {
-            OneShotEffect::Act(Action::Cast(actor, what, for_cost)) => Some((
+            OneShotEffect::Act {
+                action: Action::Cast(actor, what, for_cost),
+                ..
+            } => Some((
                 self.acting_player(actor, frame),
                 self.eval_reference(what, frame),
                 for_cost.clone(),
@@ -452,13 +247,32 @@ impl GameState {
     )]
     pub(crate) fn run_effect(&mut self, effect: OneShotEffect, frame: &Frame) {
         match effect {
-            OneShotEffect::Act(action) => {
+            OneShotEffect::Act { dest, action } => {
                 // A verb acts on an already-bound `Reference` — choosing is a
-                // separate preceding step (`OneShotEffect::With(ChooseOne/Choose, …)`),
+                // separate preceding instruction (`Choose`/`ChooseValue`/`Search`),
                 // never the verb's, so an `Act` never surfaces a choice itself.
                 // `CreateReplacement` directly mutates `state.shields` — it
                 // cannot go through `action_items` (which is `&self`). Handle
                 // it here, mirroring how `OneShotEffect::Continuously` works.
+                if let Some(dest) = dest {
+                    match &action {
+                        Action::Move(subject, _, _, _) => {
+                            let object = self.eval_reference(subject, frame);
+                            self.activation_write_object(frame.activation, dest, object);
+                        }
+                        Action::MoveGroup { group, .. } => {
+                            let objects = self.eval_selection_set(group, frame);
+                            self.activation_write_objects(frame.activation, dest, &objects);
+                        }
+                        Action::DrawCard(who) => {
+                            let player = self.acting_player(who, frame);
+                            if let Some(&object) = self.zones.libraries[player.index()].front() {
+                                self.activation_write_object(frame.activation, dest, object);
+                            }
+                        }
+                        _ => {}
+                    }
+                }
                 if let Action::CreateReplacement {
                     replacement,
                     duration,
@@ -474,6 +288,105 @@ impl GameState {
                 } else {
                     let items = self.action_items(&action, frame);
                     self.schedule_front(items);
+                }
+            }
+            OneShotEffect::Let(binding) => match binding.expr {
+                deckmaste_core::Expr::Object(reference) => {
+                    let object = self.eval_reference(&reference, frame);
+                    self.activation_write_object(frame.activation, binding.dest, object);
+                }
+                deckmaste_core::Expr::Objects(selection) => {
+                    let objects = self.eval_selection_set(&selection, frame);
+                    self.activation_write_objects(frame.activation, binding.dest, &objects);
+                }
+                deckmaste_core::Expr::Number(count) => {
+                    let number = self.eval_count(&count, frame);
+                    self.activation_write_number(frame.activation, binding.dest, number);
+                }
+            },
+            OneShotEffect::Choose(choice) => {
+                let candidates = crate::target::candidates_region_with_activation(
+                    self,
+                    &choice.filter,
+                    Some(self.frame_watcher(frame)),
+                    frame.activation,
+                );
+                let (min, max) = self.choice_bounds(&choice.quantity, candidates.len(), frame);
+                self.pending = Some(crate::decide::PendingDecision::ChooseObjects(
+                    crate::decide::pending::ChooseObjects {
+                        player: self.acting_player(&choice.by, frame),
+                        candidates,
+                        min,
+                        max,
+                    },
+                ));
+                self.choice = Some(crate::state::ChoiceContinuation::BindChoice {
+                    dest: choice.dest,
+                    frame: frame.clone(),
+                    if_none: deckmaste_core::Block::default(),
+                });
+            }
+            OneShotEffect::Search(search) => {
+                let owner = self.acting_player(&search.whose, frame);
+                let candidates: Vec<_> = self
+                    .objects
+                    .iter()
+                    .filter(|object| object.zone.is_some_and(|zone| search.from.contains(&zone)))
+                    .filter(|object| self.owner_of(object.id) == owner)
+                    .filter(|object| {
+                        crate::target::matches_region_with_activation(
+                            self,
+                            object.id,
+                            &search.filter,
+                            Some(self.frame_watcher(frame)),
+                            frame.activation,
+                        )
+                    })
+                    .map(|object| object.id)
+                    .collect();
+                let (_, max) = self.choice_bounds(&search.quantity, candidates.len(), frame);
+                self.pending = Some(crate::decide::PendingDecision::ChooseObjects(
+                    crate::decide::pending::ChooseObjects {
+                        player: self.acting_player(&search.by, frame),
+                        candidates,
+                        min: 0,
+                        max,
+                    },
+                ));
+                self.choice = Some(crate::state::ChoiceContinuation::BindChoice {
+                    dest: search.dest,
+                    frame: frame.clone(),
+                    if_none: search.if_none,
+                });
+            }
+            OneShotEffect::ChooseValue(choice) => {
+                let actor = self.acting_player(&choice.by, frame);
+                match choice.domain {
+                    deckmaste_core::ChosenValueKind::Number => {
+                        self.pending = Some(crate::decide::PendingDecision::ChooseNoteNumber(
+                            crate::decide::pending::ChooseNoteNumber {
+                                player: actor,
+                                key: "register".into(),
+                            },
+                        ));
+                        self.choice = Some(crate::state::ChoiceContinuation::BindNumber {
+                            dest: choice.dest,
+                            activation: frame.activation,
+                        });
+                    }
+                    deckmaste_core::ChosenValueKind::CardName => {
+                        self.pending = Some(crate::decide::PendingDecision::ChooseNoteCardName(
+                            crate::decide::pending::ChooseNoteCardName {
+                                player: actor,
+                                key: "register".into(),
+                            },
+                        ));
+                        self.choice = Some(crate::state::ChoiceContinuation::BindSymbol {
+                            dest: choice.dest,
+                            activation: frame.activation,
+                        });
+                    }
+                    deckmaste_core::ChosenValueKind::Color => {}
                 }
             }
             OneShotEffect::Sequentially(children) => {
@@ -548,7 +461,7 @@ impl GameState {
                 let mut void = false;
                 for child in children.iter() {
                     match child {
-                        OneShotEffect::Act(action) => {
+                        OneShotEffect::Act { action, .. } => {
                             let mut events = Vec::new();
                             for item in self.action_items(action, frame) {
                                 match item {
@@ -603,16 +516,13 @@ impl GameState {
                             // `frame.controller(self)` path untouched.
                             let (changes, controller) = match change {
                                 Modification::SetController(value)
-                                    if !matches!(
-                                        *value,
-                                        Reference::Reg(deckmaste_core::RefId(1))
-                                    ) =>
+                                    if *value != Reference::controller_parameter() =>
                                 {
                                     if let Some(p) = self.eval_player_ref(value, frame) {
                                         (
-                                            vec![Modification::SetController(Reference::Reg(
-                                                deckmaste_core::RefId(1),
-                                            ))],
+                                            vec![Modification::SetController(
+                                                Reference::controller_parameter(),
+                                            )],
                                             p,
                                         )
                                     } else {
@@ -735,12 +645,17 @@ impl GameState {
                     // it shares a color with get +1/+1", or a plain anthem)
                     // stays `Floating(f)`: the filter is NOT expanded to objects
                     // here.
-                    StaticEffect::Each(Selection::SelectAll(f), inner) => match inner.as_ref() {
-                        StaticEffect::Modify(Reference::It, change) => (
-                            ScopeResolved::Floating(f.clone()),
-                            Modification::flatten(std::slice::from_ref(change)),
-                            vec![],
-                        ),
+                    StaticEffect::Each(Selection::SelectAll(f), inner) => match &inner.body {
+                        StaticEffect::Modify(Reference::Reg(reference), change)
+                            if inner.provenance_of(*reference)
+                                == Some(&deckmaste_core::Provenance::Candidate) =>
+                        {
+                            (
+                                ScopeResolved::Floating(f.clone()),
+                                Modification::flatten(std::slice::from_ref(change)),
+                                vec![],
+                            )
+                        }
                         other => todo!(
                             "engine seam: Continuously(Each(SelectAll, {other:?})) — only a bare \
                              Modify(It, _) inner is wired; owner: engine-granted-static-rows"
@@ -842,37 +757,6 @@ impl GameState {
             }
             // A label names the clause's introductions (a compile-time
             // soundness concept); at runtime it is transparent.
-            OneShotEffect::Label(label) => {
-                self.run_effect(Arc::unwrap_or_clone(label.effect), frame);
-            }
-            // [CR#607.2a]: fact-backed product groups — run the inner
-            // effect between a BeginNote/EndNote pair; every past-form
-            // `ZoneChange` fact the clause ACTUALLY enacts (its whole apply cascade sits
-            // between the markers) joins `noted[key]`, never the gathered
-            // input set: a destroy-all's indestructible survivor is
-            // excluded by construction (its `Act(Destroy)` was canted and no
-            // move fact exists). Later clauses read the group via
-            // `Selection::AmongNoted` ("this way" anaphora).
-            OneShotEffect::Noting(noting) => {
-                self.schedule_front(vec![
-                    WorkItem::BeginNote { key: noting.key },
-                    WorkItem::RunEffect {
-                        effect: noting.effect,
-                        frame: frame.clone(),
-                    },
-                    WorkItem::EndNote,
-                ]);
-            }
-            // [CR#608.2c,608.2h]: a plain effect "if" has only its normal
-            // English meaning ([CR#603.4]) — NOT the intervening-"if" rule, which
-            // is only the clause directly after a triggered ability's condition.
-            // The controller follows the instructions in written order
-            // ([CR#608.2c]), so the condition is read when this node resolves
-            // (an earlier sibling's effect — e.g. gaining the city's blessing —
-            // is already applied) and the game-state read happens once at that
-            // moment ([CR#608.2h]); then the taken branch runs. Direct recursion
-            // schedules the branch's items at the front, ahead of any queued
-            // sibling, preserving resolution order.
             OneShotEffect::If(if_effect) => {
                 if self.condition_holds(&if_effect.condition, frame) {
                     self.run_effect(Arc::unwrap_or_clone(if_effect.then), frame);
@@ -882,306 +766,140 @@ impl GameState {
             }
             // [CR#608.2,700.1]: "[do] to each [over]" — a *simultaneous*
             // distributive. The matched set is fixed once when this node
-            // resolves ([CR#608.2h]); each element binds as the iteration anaphor
-            // `Reference::It` (so a body like `Destroy(It)` reads "it"), via
-            // `bind_it` which also CLEARS any inherited `Distribute` allotment so
-            // an outer share can't leak in. The many-binder is resolved through
-            // the shared binder spine: a `ChooseOne`/`Choose` first surfaces the
-            // controller's choice and re-runs this node with the picks in
-            // `frame.anaphora.chosen` (the Brainstorm shape `Each(Choose(2, …), …)` then
-            // iterates BOTH picks); `Existing` evaluates its `Selection`; `TheRef`
-            // is a singleton. Because a verb takes a single `Reference` and never
-            // pauses for a choice, a single-`Act` body resolves for EVERY element
-            // at once — one `Occurrence::Batch`, so death triggers / SBAs / the
-            // loss-is-a-draw check see them together (the simultaneity the old
-            // verb-over-`Predicate` carried). A body that can pause (Sequentially/With/If,
-            // or `CreateReplacement` which bypasses `action_items`) keeps
-            // per-element scheduling, where each element runs and pauses
-            // independently.
+            // resolves ([CR#608.2h]); each element enters the body region with
+            // its own `LoopElement` parameter. A single non-producing `Act`
+            // body resolves for every element as one `Occurrence::Batch`, so
+            // triggers and SBAs see the simultaneous instruction together. A
+            // body that can pause, define a product, or otherwise needs the
+            // ordinary effect interpreter keeps per-element scheduling.
             OneShotEffect::Each(each) => {
-                let sampled = self.sample_random_binder(&each.binder, frame);
-                let frame = &sampled;
-                if let Some((chooser, candidates, min, max)) =
-                    self.binder_choice(&each.binder, frame)
-                {
-                    self.pending = Some(crate::decide::PendingDecision::ChooseObjects(
-                        crate::decide::pending::ChooseObjects {
-                            player: chooser,
-                            candidates,
-                            min,
-                            max,
-                        },
-                    ));
-                    self.choice = Some(crate::state::ChoiceContinuation::BindChoice {
-                        effect: Arc::new(OneShotEffect::Each(each)),
-                        frame: frame.clone(),
-                    });
-                    return;
-                }
-                let matches = self.resolve_binder(&each.binder, frame);
-                // [CR#701.22a] look-visibility: the controller sees the cards a
-                // top-of-library PEEK binds (scry/surveil/fateseal look before
-                // they arrange), keyed by object identity (expires free on the
-                // next remint/shuffle).
-                if Self::is_top_of_library_peek(&each.binder) {
-                    for &obj in &matches {
-                        self.grant_payment_look(frame.controller(self), obj);
-                    }
-                }
-                // [CR#401.4]: if the body puts cards into ordered library
-                // positions (scry's top/bottom picks), arm the post-pick arrange
-                // collector and schedule the finalizer AFTER the elements so it
-                // orders each pile once every pick has landed. The arranger is
-                // the effect's controller (for fateseal, over the opponent's
-                // library).
-                let can_reposition = Self::body_repositions_ordered(&each.effect);
-                if can_reposition {
-                    self.arrange_scope = Some(crate::state::ArrangeScope {
-                        arranger: frame.controller(self),
-                        landings: Vec::new(),
-                    });
-                }
-                // `bind_it` per element: set `It`, clear the allotment, and open a
-                // fresh choice scope so a nested chooser doesn't read this node's
-                // picks.
-                let bind_it = |me: &Self, obj: ObjectId| {
-                    let mut next = frame.clone();
-                    next.anaphora.it = Some(me.it_binding(obj));
-                    next.anaphora.allotment = None;
-                    next.anaphora.chosen = None;
-                    next
-                };
-                match &*each.effect {
-                    OneShotEffect::Act(action)
-                        if !matches!(action, Action::CreateReplacement { .. }) =>
-                    {
-                        // Resolve every element's work items up front. A
-                        // pure keyword-action body — one whose items are all
-                        // `Emit` (the event windows) plus their `FinalizeAct`
-                        // watchers — collapses its windows into a single
-                        // simultaneous batch ([CR#700.1]), the watchers riding
-                        // AFTER so each still finalizes on its own patient. A
-                        // choice-bearing body (e.g. `By(player, Discard)`, whose
-                        // `action_items` yield `DiscardCards` /
-                        // `ChooseManaColor` / `OpenDistribute`) must NOT be
-                        // batched: those items pause per element, and keeping
-                        // only the `Emit`s would silently drop them (each player
-                        // would no-op). `action_items` is pure, so this probe is
-                        // free of side effects.
-                        let per_element: Vec<Vec<WorkItem>> = matches
-                            .into_iter()
-                            .map(|obj| self.action_items(action, &bind_it(self, obj)))
-                            .collect();
-                        let batchable = per_element.iter().flatten().all(|item| {
-                            matches!(item, WorkItem::Emit(_) | WorkItem::FinalizeAct { .. })
-                        });
-                        if batchable {
-                            let mut events: Vec<GameEvent> = Vec::new();
-                            let mut finalizers: Vec<WorkItem> = Vec::new();
-                            for item in per_element.into_iter().flatten() {
-                                match item {
-                                    WorkItem::Emit(crate::event::Occurrence::Single(e)) => {
-                                        events.push(e);
-                                    }
-                                    WorkItem::Emit(crate::event::Occurrence::Batch(v)) => {
-                                        events.extend(v);
-                                    }
-                                    other => finalizers.push(other),
+                let matches = self.iteration_selection(&each.over, frame);
+                let frames = matches
+                    .iter()
+                    .map(|&object| {
+                        let mut next = frame.clone();
+                        next.activation = self.enter_loop_region(&each.body, frame, object, None);
+                        next
+                    })
+                    .collect::<Vec<_>>();
+
+                let (setup, action) = each.body.body.split_last().map_or(
+                    (&[][..], None),
+                    |(last, setup)| match last {
+                        OneShotEffect::Act { dest: None, action }
+                            if setup
+                                .iter()
+                                .all(|item| matches!(item, OneShotEffect::Let(_))) =>
+                        {
+                            (setup, Some(action))
+                        }
+                        _ => (&[][..], None),
+                    },
+                );
+                if let Some(action) = action {
+                    let mut events = Vec::new();
+                    let mut finalizers = Vec::new();
+                    let mut batchable = true;
+                    for next in &frames {
+                        for item in setup {
+                            let OneShotEffect::Let(binding) = item else {
+                                unreachable!(
+                                    "the simultaneous Each fast path admits only Let setup"
+                                )
+                            };
+                            match &binding.expr {
+                                deckmaste_core::Expr::Object(reference) => {
+                                    let object = self.eval_reference(reference, next);
+                                    self.activation_write_object(
+                                        next.activation,
+                                        binding.dest,
+                                        object,
+                                    );
+                                }
+                                deckmaste_core::Expr::Objects(selection) => {
+                                    let objects = self.eval_selection_set(selection, next);
+                                    self.activation_write_objects(
+                                        next.activation,
+                                        binding.dest,
+                                        &objects,
+                                    );
+                                }
+                                deckmaste_core::Expr::Number(count) => {
+                                    let number = self.eval_count(count, next);
+                                    self.activation_write_number(
+                                        next.activation,
+                                        binding.dest,
+                                        number,
+                                    );
                                 }
                             }
-                            let mut items = Vec::new();
-                            if !events.is_empty() {
-                                items.push(WorkItem::Emit(occurrence_of(events)));
+                        }
+                        for item in self.action_items(action, next) {
+                            match item {
+                                WorkItem::Emit(Occurrence::Single(event)) => events.push(event),
+                                WorkItem::Emit(Occurrence::Batch(batch)) => events.extend(batch),
+                                item @ WorkItem::FinalizeAct { .. } => finalizers.push(item),
+                                _ => batchable = false,
                             }
-                            // The watchers finalize AFTER the batch commits.
-                            items.extend(finalizers);
-                            if can_reposition {
-                                items.push(WorkItem::ArrangePiles);
-                            }
-                            self.schedule_front(items);
-                        } else {
-                            // Not batchable — schedule each element's items in
-                            // order so the choice-bearing ones actually run.
-                            let mut items: Vec<WorkItem> =
-                                per_element.into_iter().flatten().collect();
-                            if can_reposition {
-                                items.push(WorkItem::ArrangePiles);
-                            }
-                            self.schedule_front(items);
                         }
                     }
-                    _ => {
-                        let mut items: Vec<WorkItem> = matches
-                            .into_iter()
-                            .map(|obj| WorkItem::RunEffect {
-                                effect: each.effect.clone(),
-                                frame: bind_it(self, obj),
-                            })
-                            .collect();
-                        if can_reposition {
-                            items.push(WorkItem::ArrangePiles);
+                    if batchable {
+                        if !events.is_empty() {
+                            finalizers.insert(0, WorkItem::Emit(occurrence_of(events)));
                         }
-                        self.schedule_front(items);
+                        self.schedule_front(finalizers);
+                        return;
                     }
                 }
-            }
-            // Bind the With anaphor BEFORE the body ([CR#608.2]) — choosing is a
-            // separate step, never part of the verb. A one-binder
-            // (`TheRef`/`ChooseOne`) binds a single object read as singular
-            // `Reference::That` (a `(One, k)` slot); a many-binder
-            // (`Choose`/`Existing`) binds a group read as `Selection::That` (a
-            // `(Many, k)` slot, order preserved, top→down for a library window).
-            // The cardinality rides the `that` slot so the singular and group
-            // reads resolve by slot — a `(Many, k)` binding has no singular read,
-            // making the first-of-many bug unrepresentable. A chooser binder
-            // (`ChooseOne`/`Choose`) first surfaces its `by`-player's choice
-            // ([CR#608.2d]) and re-runs this node with the picks in
-            // `frame.anaphora.chosen`.
-            OneShotEffect::With(with) => {
-                // [CR#400.7j]: a producer binder runs its action and binds the
-                // PRE-move id as a One `That`; the bound-role reads chase the
-                // move record, so after the action's zone change applies the
-                // body's `That` resolves to the product. Only `Move` produces
-                // in this cut — other actions stay a labeled seam.
-                if let deckmaste_core::Binder::Produce(action) = &with.binder {
-                    let deckmaste_core::Action::Move(subject, _, _, _) = action.as_ref() else {
-                        unimplemented!(
-                            "Binder::Produce over a non-Move action: only zone-moves \
-                             produce-and-capture in this cut ({action:?}); \
-                             owner: engine-find-moved-object"
-                        );
-                    };
-                    let id = self.eval_reference(subject, frame);
-                    let mut next = frame.clone();
-                    next.anaphora.that = Some(crate::stack::ThatBinding {
-                        cardinality: crate::stack::Cardinality::One,
-                        kind: crate::stack::RefKind::Object,
-                        group: vec![id],
-                    });
-                    next.anaphora.chosen = None;
-                    let mut items = self.action_items(action, frame);
-                    items.push(WorkItem::RunEffect {
-                        effect: with.body,
-                        frame: next,
-                    });
-                    self.schedule_front(items);
-                    return;
-                }
-                let sampled = self.sample_random_binder(&with.binder, frame);
-                let frame = &sampled;
-                if let Some((chooser, candidates, min, max)) =
-                    self.binder_choice(&with.binder, frame)
-                {
-                    self.pending = Some(crate::decide::PendingDecision::ChooseObjects(
-                        crate::decide::pending::ChooseObjects {
-                            player: chooser,
-                            candidates,
-                            min,
-                            max,
-                        },
-                    ));
-                    self.choice = Some(crate::state::ChoiceContinuation::BindChoice {
-                        effect: Arc::new(OneShotEffect::With(with)),
-                        frame: frame.clone(),
-                    });
-                    return;
-                }
-                let group = self.resolve_binder(&with.binder, frame);
-                // [CR#701.23b..701.23d]: a search binder's WHIFF branch — a failed
-                // find runs `if_none` INSTEAD of the body, on the frame
-                // UNCHANGED (no `That` binding; reading the search's `That`
-                // inside `if_none` is unsound, per the binder's own doc).
-                // Every other binder always binds and always runs body; only
-                // `SearchOne`/`Search` carry an `if_none`.
-                if group.is_empty()
-                    && let Some(otherwise) = search_if_none(&with.binder)
-                {
-                    self.schedule_front(vec![WorkItem::RunEffect {
-                        effect: otherwise,
-                        frame: frame.clone(),
-                    }]);
-                    return;
-                }
-                let cardinality = Self::binder_cardinality(&with.binder);
-                let kind = group
-                    .first()
-                    .map_or(crate::stack::RefKind::Object, |&id| self.ref_kind_of(id));
-                let mut next = frame.clone();
-                next.anaphora.that = Some(crate::stack::ThatBinding {
-                    cardinality,
-                    kind,
-                    group,
-                });
-                // The body opens a fresh choice scope: a nested `With` surfaces
-                // its own choice rather than reading this one's picks.
-                next.anaphora.chosen = None;
-                self.schedule_front(vec![WorkItem::RunEffect {
-                    effect: with.body,
-                    frame: next,
-                }]);
-            }
-            // [CR#601.2d]: divide `amount` among the many-binder's group "as you
-            // choose" — bind each element as the iteration anaphor `Reference::It`
-            // (like `Each`) with its `Count::Allotment` share in the `allotment`
-            // slot (the Idris `bindAllot`), then schedule one `RunEffect` per
-            // element (order preserved, each pausing independently if its body
-            // surfaces a choice). The binder is resolved through the shared spine,
-            // so a `ChooseOne`/`Choose` group surfaces its choice first. v1 splits
-            // the amount as evenly as possible; surfacing the "as you choose"
-            // division as a player decision is a seam.
-            OneShotEffect::Distribute(divide) => {
-                let sampled = self.sample_random_binder(&divide.binder, frame);
-                let frame = &sampled;
-                if let Some((chooser, candidates, min, max)) =
-                    self.binder_choice(&divide.binder, frame)
-                {
-                    self.pending = Some(crate::decide::PendingDecision::ChooseObjects(
-                        crate::decide::pending::ChooseObjects {
-                            player: chooser,
-                            candidates,
-                            min,
-                            max,
-                        },
-                    ));
-                    self.choice = Some(crate::state::ChoiceContinuation::BindChoice {
-                        effect: Arc::new(OneShotEffect::Distribute(divide)),
-                        frame: frame.clone(),
-                    });
-                    return;
-                }
-                let group = self.resolve_binder(&divide.binder, frame);
-                let total = self.eval_count(&divide.amount, frame);
-                let shares = split_evenly(total, group.len());
-                let items: Vec<WorkItem> = group
+
+                let items = frames
                     .into_iter()
-                    .zip(shares)
-                    .map(|(obj, share)| {
-                        let mut next = frame.clone();
-                        // `bindAllot`: bind `It` and put this element's share in
-                        // scope for `Count::Allotment`.
-                        next.anaphora.it = Some(self.it_binding(obj));
-                        next.anaphora.allotment = Some(share);
-                        // A fresh choice scope per element, like `Each`.
-                        next.anaphora.chosen = None;
-                        WorkItem::RunEffect {
-                            effect: divide.body.clone(),
-                            frame: next,
-                        }
+                    .flat_map(|next| {
+                        each.body
+                            .body
+                            .iter()
+                            .cloned()
+                            .map(move |effect| WorkItem::RunEffect {
+                                effect: Arc::new(effect),
+                                frame: next.clone(),
+                            })
                     })
                     .collect();
                 self.schedule_front(items);
             }
-            // [CR#118.12]: "[A player] may [do]. If they do/don't, …". Surface a
-            // yes/no to the controller; the chosen branch (effect + if_did on
-            // yes, if_not on no) runs when the answer comes back — the `May`
-            // continuation in `submit_decision`.
+            OneShotEffect::Distribute(divide) => {
+                let group = self.iteration_selection(&divide.over, frame);
+                let total = self.eval_count(&divide.amount, frame);
+                let shares = split_evenly(total, group.len());
+                let items =
+                    group
+                        .into_iter()
+                        .zip(shares)
+                        .flat_map(|(object, share)| {
+                            let mut next = frame.clone();
+                            next.activation =
+                                self.enter_loop_region(&divide.body, frame, object, Some(share));
+                            divide.body.body.iter().cloned().map(move |effect| {
+                                WorkItem::RunEffect {
+                                    effect: Arc::new(effect),
+                                    frame: next.clone(),
+                                }
+                            })
+                        })
+                        .collect();
+                self.schedule_front(items);
+            }
             OneShotEffect::May(may) => {
                 // [CR#118.12a,118.12]: `May(Pay(cost))` is a real optional
                 // payment transaction. No preliminary YesNo answer or
                 // affordability oracle can faithfully account for mana
                 // abilities activated during payment; submission means the
                 // payer chose to pay, while decline means they did not.
-                if let OneShotEffect::Act(Action::Pay(cost)) = &*may.effect {
+                if let OneShotEffect::Act {
+                    action: Action::Pay(cost),
+                    ..
+                } = &*may.effect
+                {
                     let payer = self.acting_player(&may.who, frame);
                     // Normalize at this boundary: read is faithful, so a
                     // macro-spliced cost arrives lumpy (a nested
@@ -1417,7 +1135,7 @@ impl GameState {
                                 frame: frame.clone(),
                             })),
                             batch: Some(n),
-                            inherited: frame.anaphora.inherited_replacements.clone(),
+                            inherited: self.activation_inherited_replacements(frame.activation),
                             // The aggregate itself is never "contained" —
                             // only the n futures ITS PASSED apply schedules
                             // are ([CR#616.1g]).
@@ -1511,7 +1229,7 @@ impl GameState {
                         // (its choice surfaced at payment), not a single action.
                         effect: Arc::new(crate::decide::unless_cost_effect(
                             c,
-                            &Reference::Reg(deckmaste_core::RefId(1)),
+                            &Reference::controller_parameter(),
                         )),
                         frame: payment_frame.clone(),
                     })
@@ -1733,11 +1451,7 @@ impl GameState {
     /// or the product has left play. Anchors a created trigger whose own source
     /// moved itself away (madness).
     fn produced_that_snapshot(&self, frame: &Frame) -> Option<crate::lki::LkiSnapshot> {
-        let that = frame.anaphora.that.as_ref()?;
-        if that.cardinality != crate::stack::Cardinality::One {
-            return None;
-        }
-        let &id = that.group.first()?;
+        let id = self.activation_latest_object(frame.activation)?;
         let product = self.chase_moved(id);
         self.objects
             .get(product)
@@ -1805,14 +1519,9 @@ impl GameState {
     /// the body's `EventObject` should read. Returns `None` for a cost that
     /// moves no object (mana/tap/life — nothing to bind).
     ///
-    /// A `That(Sort)` reference — bound by an ENCLOSING cost
-    /// `With(ChooseOne, …)` whose choice resolves before this cost's own
-    /// verb runs — resolves fine too: `frame.anaphora.that` is already the
-    /// choice's answer by the time we're called (`OneShotEffect::With` binds
-    /// `that` before running its body, [CR#608.2]), so `eval_reference`
-    /// reads a real value, not the unbound-`That` panic path. Only a
-    /// genuinely unbound `That` (no enclosing `With` at all — malformed
-    /// semantic input) is still skipped, matching the historical `None` return.
+    /// A register written by an enclosing `ChooseAndPay` resolves here too:
+    /// the choice is committed before the nested payment verb runs
+    /// ([CR#608.2]).
     pub(crate) fn cost_paid_object(
         &self,
         cost: &[deckmaste_core::CostComponent],
@@ -1832,10 +1541,8 @@ impl GameState {
                 _ => None,
             };
             let Some(reference) = reference else { continue };
-            let resolvable =
-                !matches!(reference, Reference::That(_)) || frame.anaphora.that.is_some();
-            if resolvable {
-                let object = self.eval_reference(reference, frame);
+            let object = self.eval_reference(reference, frame);
+            if self.objects.get(object).is_some() {
                 return Some(crate::lki::LkiSnapshot::capture(self, object));
             }
         }
@@ -1887,12 +1594,7 @@ impl GameState {
     /// `composite_items` instead.
     pub(crate) fn composite_body_would_act(&self, body: &OneShotEffect, frame: &Frame) -> bool {
         match body {
-            OneShotEffect::Each(each) => match &each.binder {
-                deckmaste_core::Binder::Existing(_) | deckmaste_core::Binder::TheRef(_) => {
-                    !self.resolve_binder(&each.binder, frame).is_empty()
-                }
-                _ => true,
-            },
+            OneShotEffect::Each(each) => !self.eval_selection_set(&each.over, frame).is_empty(),
             OneShotEffect::If(i) => {
                 if self.condition_holds(&i.condition, frame) {
                     self.composite_body_would_act(&i.then, frame)
@@ -1903,56 +1605,6 @@ impl GameState {
                 }
             }
             _ => true,
-        }
-    }
-
-    /// Whether `binder` peeks the top of a library ([CR#701.22a]) — the peek
-    /// whose cards the controller is granted visibility over.
-    fn is_top_of_library_peek(binder: &deckmaste_core::Binder) -> bool {
-        matches!(
-            binder,
-            deckmaste_core::Binder::Existing(Selection::TopOfLibrary { .. })
-        )
-    }
-
-    /// Whether an `Each`/distributor body puts cards into ORDERED library
-    /// positions ([CR#401.7]) — the signal to arm the post-pick arrange
-    /// collector ([CR#401.4]). True when any reachable move verb targets a
-    /// [`Destination::Library`] anchor (scry/surveil's top pick, fateseal);
-    /// false for a graveyard-only body (mill — the graveyard is unordered).
-    fn body_repositions_ordered(effect: &OneShotEffect) -> bool {
-        match effect {
-            OneShotEffect::Act(a) => Self::action_moves_to_library(a),
-            OneShotEffect::Sequentially(v) | OneShotEffect::Simultaneously(v) => {
-                v.iter().any(Self::body_repositions_ordered)
-            }
-            OneShotEffect::Modal(m) => m
-                .modes
-                .iter()
-                .any(|mode| mode.effect.body.iter().any(Self::body_repositions_ordered)),
-            OneShotEffect::With(w) => Self::body_repositions_ordered(&w.body),
-            OneShotEffect::Each(e) => Self::body_repositions_ordered(&e.effect),
-            OneShotEffect::Distribute(d) => Self::body_repositions_ordered(&d.body),
-            OneShotEffect::If(i) => {
-                Self::body_repositions_ordered(&i.then)
-                    || i.otherwise
-                        .as_ref()
-                        .is_some_and(|o| Self::body_repositions_ordered(o))
-            }
-            OneShotEffect::Label(l) => Self::body_repositions_ordered(&l.effect),
-            _ => false,
-        }
-    }
-
-    /// Whether a move verb relocates to an ordered [`Destination::Library`]
-    /// position (the former player-agent `Move` twin was DELETED — merged
-    /// into this one, agent-silent, verb); `Composite` looks through to its
-    /// body.
-    fn action_moves_to_library(a: &Action) -> bool {
-        match a {
-            Action::Move(_, Destination::Library(_), _, _) => true,
-            Action::Composite { body, .. } => Self::body_repositions_ordered(body),
-            _ => false,
         }
     }
 
@@ -1970,10 +1622,9 @@ impl GameState {
         use deckmaste_core::CostComponent;
         use deckmaste_core::ManaSymbol;
         use deckmaste_core::SimpleManaSymbol;
-        let Some(def) = &frame.anaphora.where_x else {
+        let Some(x) = self.activation_latest_number(frame.activation) else {
             return cost;
         };
-        let x = self.eval_count(def, frame);
         cost.into_iter()
             .map(|component| match component {
                 CostComponent::Mana(m) => {
@@ -2011,39 +1662,6 @@ fn split_evenly(total: Uint, n: usize) -> Vec<Uint> {
     (0..n_u).map(|i| base + Uint::from(i < rem)).collect()
 }
 
-/// A CONSTRAINING `AmongNoted` inside a selection ("exile TWO of them"): the
-/// `(label, quantity)` to surface as a chooser ([CR#608.2d]), or `None` for an
-/// UNCONSTRAINED `AmongNoted` (the whole group — not a choice) or any other
-/// selection. Peels `Selection::Expanded`.
-fn among_noted_choice(
-    selection: &Selection,
-) -> Option<(&deckmaste_core::Ident, &deckmaste_core::Quantity)> {
-    match selection {
-        Selection::AmongNoted(label, quantity)
-            if !matches!(
-                deref_quantity(quantity),
-                deckmaste_core::Quantity::Range(None, None)
-            ) =>
-        {
-            Some((label, quantity))
-        }
-        _ => None,
-    }
-}
-
-/// A search binder's ([CR#701.23]) `if_none` branch, if `binder` is
-/// `SearchOne`/`Search` and it has one — the WHIFF effect to run instead of
-/// the body on a failed find. `None` for every other binder shape, or a
-/// search binder with no `if_none` (the corpus-common bare tutor: the body
-/// runs regardless, gracefully fizzling its `That`-reading verbs).
-fn search_if_none(binder: &deckmaste_core::Binder) -> Option<Arc<OneShotEffect>> {
-    use deckmaste_core::Binder;
-    match binder {
-        Binder::SearchOne { if_none, .. } | Binder::Search { if_none, .. } => if_none.clone(),
-        _ => None,
-    }
-}
-
 /// If `effect` is a `ForThisEvent` rider clause — `Until(ForThisEvent, parts)`
 /// — return its `parts`: the instruction-scoped statics to
 /// fold onto the preceding sibling in `Sequentially` lowering ([CR#611.2a]).
@@ -2074,10 +1692,14 @@ enum BatchUnit<'a> {
 /// `None` keeps the plain sequential `Repeat`-style lane.
 fn batch_act_unit(unit: &OneShotEffect) -> Option<BatchUnit<'_>> {
     match unit {
-        OneShotEffect::Act(Action::Composite { name, body }) => {
-            Some(BatchUnit::Composite(name, body))
-        }
-        OneShotEffect::Act(Action::DrawCard(who)) => Some(BatchUnit::Draw(who)),
+        OneShotEffect::Act {
+            action: Action::Composite { name, body },
+            ..
+        } => Some(BatchUnit::Composite(name, body)),
+        OneShotEffect::Act {
+            action: Action::DrawCard(who),
+            ..
+        } => Some(BatchUnit::Draw(who)),
         _ => None,
     }
 }
@@ -2178,17 +1800,19 @@ fn coalesce_simultaneous_damage(events: Vec<GameEvent>) -> Vec<GameEvent> {
 
 #[cfg(test)]
 mod tests {
+    #![allow(
+        clippy::empty_line_after_doc_comments,
+        reason = "related behavioral test rationale is intentionally grouped"
+    )]
 
     use std::sync::Arc;
 
     use deckmaste_card::Card;
     use deckmaste_core::Action;
-    use deckmaste_core::Binder;
     use deckmaste_core::ChosenValueKind;
     use deckmaste_core::Count;
     use deckmaste_core::Countable;
     use deckmaste_core::LifeOp;
-    use deckmaste_core::ObjectKind;
     use deckmaste_core::OneShotEffect;
     use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
@@ -2210,12 +1834,9 @@ mod tests {
     use crate::object::ObjectSource;
     use crate::player::PlayerId;
     use crate::resolve::fixtures::*;
-    use crate::stack::Cardinality;
     use crate::stack::Frame;
-    use crate::stack::RefKind;
     use crate::stack::StackEntry;
     use crate::stack::StackObject;
-    use crate::stack::ThatBinding;
     use crate::state::GameState;
     use crate::step::Progress;
     use crate::step::StepOutcome;
@@ -2263,166 +1884,14 @@ mod tests {
             ]
             .into(),
         );
-        let mut got = state.eval_selection_set(&Selection::SelectAll(filter), &frame);
+        let mut got = state.eval_selection_set(
+            &Selection::SelectAll(Arc::new(deckmaste_core::Region::candidate(filter))),
+            &frame,
+        );
         got.sort();
         let mut want = vec![a, b];
         want.sort();
         assert_eq!(got, want);
-    }
-
-    /// `Each(Kind(Player), DealDamage(This, 20, It))` deals 20 damage to
-    /// each of the two players. A verb's patient is a single `Reference`, so
-    /// the spread over the player set is the enclosing `Each` — one
-    /// `DamageDealt` per element rather than the old single multi-target
-    /// `Batch` ([CR#608.2,120.1]).
-    #[test]
-    fn each_player_deal_damage_hits_both_players() {
-        let (mut state, src) = bear_on_field();
-        let frame = frame_src(&state, src);
-
-        let effect = OneShotEffect::Each(deckmaste_core::Each {
-            binder: Binder::Existing(Selection::SelectAll(Predicate::Kind(ObjectKind::Player))),
-            effect: Arc::new(OneShotEffect::Act(Action::deal_damage(
-                Reference::It,
-                Count::Literal(20),
-            ))),
-        });
-        state.run_effect(effect, &frame);
-
-        // Collect every DamageDealt across the per-element runs.
-        let p0_obj = state.players[0].object;
-        let p1_obj = state.players[1].object;
-        let mut got = collect_damage_dealt(&mut state, 40);
-        got.sort();
-        let mut want = vec![(p0_obj, 20u32), (p1_obj, 20u32)];
-        want.sort();
-        assert_eq!(got, want, "each player takes 20 damage, one event apiece");
-    }
-
-    /// `Each(And([InZone(Battlefield), Type(Creature)]), DealDamage(
-    /// It, 2))` deals 2 damage to each of the two battlefield creatures
-    /// — one `DamageDealt` per iterated element (the verb's patient is a single
-    /// `Reference`).
-    #[test]
-    fn each_creature_deal_damage_hits_both_creatures() {
-        let (mut state, a) = bear_on_field();
-        // Force a second creature onto the battlefield.
-        let b = *state.zones.hands[0]
-            .iter()
-            .find(|&&o| obj_matches(&state, o, &Predicate::r#type(Type::Creature)))
-            .expect("a second Grizzly Bears in the opening hand");
-        state.zones.hands[PlayerId(0).index()].retain(|&o| o != b);
-        state.objects.obj_mut(b).zone = Some(Zone::Battlefield);
-        state.zones.battlefield.push(b);
-
-        let frame = frame_src(&state, a);
-        let effect = OneShotEffect::Each(deckmaste_core::Each {
-            binder: Binder::Existing(Selection::SelectAll(Predicate::And(
-                vec![
-                    Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                    Predicate::creature(),
-                ]
-                .into(),
-            ))),
-            effect: Arc::new(OneShotEffect::Act(Action::deal_damage(
-                Reference::It,
-                Count::Literal(2),
-            ))),
-        });
-        state.run_effect(effect, &frame);
-
-        // Simultaneity ([CR#700.1]): a single-verb `Each` body resolves for
-        // every element at once — both `DamageDealt`s ride ONE `Occurrence::Batch`
-        // (not two sequential singles), so death triggers / SBAs see them
-        // together. This is the "to each" simultaneity the old verb-over-`Predicate`
-        // carried, restored after the verb→`Reference` split.
-        match state.agenda.front() {
-            Some(WorkItem::Emit(crate::event::Occurrence::Batch(evs))) => {
-                assert_eq!(evs.len(), 2, "both hits land in one simultaneous batch");
-            }
-            other => panic!("expected one simultaneous Emit(Batch), got {other:?}"),
-        }
-
-        // Both creatures took 2 damage — one DamageDealt per iterated element.
-        let mut got = collect_damage_dealt(&mut state, 40);
-        got.sort();
-        let mut want = vec![(a, 2u32), (b, 2u32)];
-        want.sort();
-        assert_eq!(got, want);
-    }
-
-    #[test]
-    fn each_over_choice_bearing_body_schedules_its_work_items() {
-        // Regression: the `Each` single-`Act` batch path must not silently
-        // drop a choice-bearing body. Discard's `With(Choose(..), ..)` body's
-        // carry future `Act` IS an ordinary `Emit` now (Task 8 — unlike the
-        // retired `WorkItem::DiscardCards`), so both creatures' carry-Acts DO
-        // collapse into one simultaneous `Emit(Batch)` — but each still
-        // recurses into its OWN choose-then-discard `RunEffect` once that
-        // batch passes, so TWO separate `ChooseObjects` decisions surface
-        // (one per creature-triggered discard) and neither is dropped.
-        // (Synthetic "for each creature, you discard a card" shape — chosen
-        // to exercise the choice-bearing-body seam without standing up a
-        // player-matching `over`.)
-        let (mut state, a) = bear_on_field();
-        let b = *state.zones.hands[0]
-            .iter()
-            .find(|&&o| obj_matches(&state, o, &Predicate::r#type(Type::Creature)))
-            .expect("a second Grizzly Bears in the opening hand");
-        state.zones.hands[PlayerId(0).index()].retain(|&o| o != b);
-        state.objects.obj_mut(b).zone = Some(Zone::Battlefield);
-        state.zones.battlefield.push(b);
-        let hand_before = state.zones.hands[0].len();
-
-        let frame = frame_src(&state, a);
-        let effect = OneShotEffect::Each(deckmaste_core::Each {
-            binder: Binder::Existing(Selection::SelectAll(Predicate::And(
-                vec![
-                    Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                    Predicate::creature(),
-                ]
-                .into(),
-            ))),
-            effect: Arc::new(OneShotEffect::Act(Action::discard(
-                Reference::Reg(deckmaste_core::RefId(1)),
-                Count::Literal(1),
-                false,
-            ))),
-        });
-        state.run_effect(effect, &frame);
-
-        let mut decisions = 0;
-        for _ in 0..60 {
-            if state.zones.hands[0].len() + 2 <= hand_before {
-                break;
-            }
-            if let crate::step::StepOutcome::NeedsDecision(
-                crate::decide::PendingDecision::ChooseObjects(
-                    crate::decide::pending::ChooseObjects {
-                        candidates,
-                        min,
-                        max,
-                        ..
-                    },
-                ),
-            ) = state.step()
-            {
-                decisions += 1;
-                assert_eq!((min, max), (1, 1), "one choice of one card each time");
-                state
-                    .submit_decision(crate::decide::Decision::Chosen(vec![candidates[0]]))
-                    .unwrap();
-            }
-        }
-        assert_eq!(
-            decisions, 2,
-            "each creature's discard surfaces its own choice — neither is dropped"
-        );
-        assert_eq!(
-            state.zones.hands[0].len(),
-            hand_before - 2,
-            "both discards actually happened"
-        );
     }
 
     /// [CR#608.2] "[body], [count] times": a plain (non-choice) body runs the
@@ -2590,7 +2059,7 @@ mod tests {
                 WorkItem::RunEffect { effect: second, .. },
             ) => {
                 assert!(
-                    matches!(**first, OneShotEffect::Act(_)),
+                    matches!(**first, OneShotEffect::Act { .. }),
                     "the front item is this iteration's own body, not another Repeat layer"
                 );
                 match &**second {
@@ -2724,90 +2193,6 @@ mod tests {
     /// ONE replacement decision made against ONE aggregate window (never
     /// three independently-doubled per-card windows), and that decision is
     /// made BEFORE any card physically moves.
-    #[test]
-    fn bruvac_shape_batch_doubles_the_aggregate_and_no_card_moves_early() {
-        let mut state = game();
-        let p0 = PlayerId(0);
-        for i in 0..8 {
-            mint_in_library(&mut state, p0, &format!("Card {i}"));
-        }
-
-        // "If a player would mill one or more cards, that player mills
-        // twice that many cards instead."
-        let bruvac = deckmaste_core::Replacement::Instead {
-            would: deckmaste_core::EventFilter::Act {
-                verb: deckmaste_core::VerbName::from("Mill"),
-                who: Predicate::Any,
-                on: Predicate::Any,
-                cause: None,
-            },
-            instead: OneShotEffect::Batch(
-                Count::Times(Arc::new(Count::Literal(2)), Arc::new(Count::ThatMany)),
-                Arc::new(OneShotEffect::Act(deckmaste_core::Action::mill_one(
-                    Reference::Reg(deckmaste_core::RefId(1)),
-                ))),
-            ),
-        };
-        mint_on_field(
-            &mut state,
-            Card::Normal(deckmaste_card::CardFace {
-                name: "Bruvac Stand-In".into(),
-                types: vec![Type::Enchantment.def()],
-                abilities: vec![deckmaste_core::Ability::r#static(
-                    deckmaste_core::StaticEffect::Replacement(Arc::new(bruvac)),
-                )],
-                ..deckmaste_card::CardFace::default()
-            }),
-        );
-
-        let frame = frame_for(&state, p0);
-        let mill_one = OneShotEffect::Act(deckmaste_core::Action::mill_one(Reference::Reg(
-            deckmaste_core::RefId(1),
-        )));
-        state.run_effect(
-            OneShotEffect::Batch(Count::Literal(3), Arc::new(mill_one)),
-            &frame,
-        );
-
-        // Pop exactly the aggregate's own `Emit` — `apply_occurrence` makes
-        // the ENTIRE replacement decision synchronously within this one
-        // `step()` (finding Bruvac, doubling 3 → 6, scheduling the
-        // doubled aggregate's `RunEffect`) — but no contained per-card
-        // future has run yet, so NO card has moved.
-        let _ = state.step();
-        assert_eq!(
-            state.zones.libraries[p0.index()].len(),
-            8,
-            "the replacement decision is made before any card physically moves"
-        );
-
-        let _ = drain_progress(&mut state, 60);
-
-        assert_eq!(
-            state.zones.graveyards[p0.index()].len(),
-            6,
-            "mill 3 doubled to mill 6 — one replacement decision on the aggregate"
-        );
-        assert_eq!(
-            state.zones.libraries[p0.index()].len(),
-            2,
-            "the other two cards stay in the library"
-        );
-
-        let mill_commits = state
-            .history
-            .scan(deckmaste_core::Lookback::ThisGame, state.turn.turn_number)
-            .filter(|e| {
-                matches!(e, GameEvent::Act(Act { verb, committed: true, .. }) if verb.as_str() == "Mill")
-            })
-            .count();
-        assert_eq!(
-            mill_commits, 1,
-            "exactly ONE committed Act(Mill) fact — the doubled aggregate's own; the \
-             replaced-away mill-3 never independently finalizes ([CR#614.1]), and \
-             none of the six contained per-card mills is independently trigger-visible"
-        );
-    }
 
     /// [CR#614.5] Archive shape: `Instead(would: Act(Draw(You)), instead:
     /// Batch(2, Act(Draw(You,1))))` — a plain draw-1 becomes draw 2, and the
@@ -2892,7 +2277,6 @@ mod tests {
                         from: None,
                         condition: None,
                         limits: Vec::new().into(),
-                        where_x: None,
                         event: deckmaste_core::EventFilter::Act {
                             verb: deckmaste_core::VerbName::from("Mill"),
                             who: Predicate::Any,
@@ -3105,38 +2489,6 @@ mod tests {
         );
     }
 
-    /// [CR#702.85,701.57] `RevealUntil` fizzles to a graceful no-op — the
-    /// Reveal seam (`Action::Reveal`/`GameEvent::Revealed`) is
-    /// genuinely unbuilt (see the doc comment on this arm in `run_effect`),
-    /// so `body` never runs and nothing is scheduled — never a panic,
-    /// matching the CRITICAL never-crash ruling.
-    #[test]
-    fn reveal_until_fizzles_to_a_no_op() {
-        let (mut state, a) = bear_on_field();
-        let frame = frame_src(&state, a);
-        let life0 = state.player(PlayerId(0)).life;
-        let agenda_before = state.agenda.len();
-
-        let effect = OneShotEffect::RevealUntil(deckmaste_core::RevealUntil {
-            whose: Reference::Reg(deckmaste_core::RefId(1)),
-            matches: Predicate::creature(),
-            body: Arc::new(OneShotEffect::Act(Action::ChangeLife(
-                Reference::Reg(deckmaste_core::RefId(1)),
-                LifeOp::Up(Count::Literal(99)),
-            ))),
-        });
-        state.run_effect(effect, &frame);
-
-        assert_eq!(
-            state.agenda.len(),
-            agenda_before,
-            "RevealUntil schedules no ADDITIONAL work — the absent-subsystem no-op (compares \
-             the delta, since a live game already has its own turn-structure agenda queued)"
-        );
-        let _ = drain_progress(&mut state, 5);
-        assert_eq!(state.player(PlayerId(0)).life, life0, "body never runs");
-    }
-
     /// [CR#608.2c,607.2] the resolution note store round-trips a NUMBER choice:
     /// `ChooseAndNote(Number)` surfaces a resolution-time number decision; the
     /// submitted value lands in `resolution_notes`; a LATER clause of the SAME
@@ -3264,70 +2616,6 @@ mod tests {
     /// members, honors the quantity's bounds, and binds the picks into the
     /// re-run body — exactly the chooser the unconstrained full-group read does
     /// not need.
-    #[test]
-    fn among_noted_constrained_quantity_surfaces_and_binds_chooser() {
-        use crate::decide::Decision;
-        use crate::decide::PendingDecision;
-
-        let (mut state, a, b) = two_permanents_on_field();
-        let key = deckmaste_core::Ident::from("grp");
-        // Seed the noted product group with both live permanents.
-        let ma = crate::state::NotedMember {
-            snapshot: crate::lki::LkiSnapshot::capture(&state, a),
-            now: Some(a),
-        };
-        let mb = crate::state::NotedMember {
-            snapshot: crate::lki::LkiSnapshot::capture(&state, b),
-            now: Some(b),
-        };
-        state.noted.insert(key, vec![ma, mb]);
-
-        // "Destroy exactly one of them" — a constraining AmongNoted quantity.
-        let effect = OneShotEffect::Each(deckmaste_core::Each {
-            binder: Binder::Existing(Selection::AmongNoted(
-                key,
-                deckmaste_core::Quantity::Range(Some(Count::Literal(1)), Some(Count::Literal(1))),
-            )),
-            effect: Arc::new(OneShotEffect::Act(Action::destroy(Reference::It))),
-        });
-        let frame = frame_src(&state, a);
-        state.run_effect(effect, &frame);
-
-        let Some(PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects {
-            player,
-            candidates,
-            min,
-            max,
-        })) = state.pending.clone()
-        else {
-            panic!("expected ChooseObjects, got {:?}", state.pending);
-        };
-        assert_eq!(
-            player,
-            PlayerId(0),
-            "the controller chooses (AmongNoted has no `by`)"
-        );
-        assert_eq!((min, max), (1, 1), "exactly one, from the quantity bounds");
-        let mut got = candidates.clone();
-        got.sort();
-        let mut want = vec![a, b];
-        want.sort();
-        assert_eq!(got, want, "candidates = the noted group's live members");
-
-        // Bind the pick and run the body: exactly `a` is destroyed.
-        state
-            .submit_decision(Decision::Chosen(vec![a]))
-            .expect("a is a live member");
-        run_injected(&mut state);
-        assert!(
-            !state.zones.battlefield.contains(&a),
-            "the chosen member was destroyed"
-        );
-        assert!(
-            state.zones.battlefield.contains(&b),
-            "the un-chosen member is untouched"
-        );
-    }
 
     /// [CR#607.2] `ChooseValue(Color)` has no reader grammar yet — it's
     /// grammar-spellable, so a card reaching it is a live path, and the
@@ -3421,9 +2709,9 @@ mod tests {
             .macros
             .read_str(r"ExchangeControl(Target(0), Target(1))")
             .unwrap();
-        let effect: OneShotEffect = deckmaste_lowering::Lower::lower(semantic);
         let frame = frame_src_targets(&state, mine, vec![mine, other]);
-        state.run_effect(effect, &frame);
+        schedule_lowered_effect(&mut state, semantic, 2, &frame);
+        let _ = state.step();
 
         // ONE batch of two ControlChanged facts.
         let front = state.agenda.front().cloned();
@@ -3468,9 +2756,9 @@ mod tests {
             .macros
             .read_str(r"ExchangeControl(Target(0), Target(1))")
             .unwrap();
-        let effect: OneShotEffect = deckmaste_lowering::Lower::lower(semantic);
         let frame = frame_src_targets(&state, mine, vec![mine, other]);
-        state.run_effect(effect, &frame);
+        schedule_lowered_effect(&mut state, semantic, 2, &frame);
+        let _ = state.step();
         assert!(
             !state.agenda.iter().any(|w| matches!(w, WorkItem::Emit(_))),
             "a same-controller exchange emits nothing ([CR#701.12b])"
@@ -3765,53 +3053,6 @@ mod tests {
     /// [CR#611.2]/[CR#611.2c]: `OneShotEffect::Continuously(Modify(Matching(...), ...),
     /// UntilEndOfTurn)` — the resolve arm pushes one `ContinuousEffect` with a
     /// `ScopeResolved::Floating` scope and the right duration/changes.
-    #[test]
-    fn continuously_matching_registers_floating_scope() {
-        use deckmaste_core::Continuously;
-        use deckmaste_core::Count;
-        use deckmaste_core::Duration;
-        use deckmaste_core::Modification;
-        use deckmaste_core::NumericOp;
-        use deckmaste_core::OneShotEffect;
-        use deckmaste_core::Predicate;
-        use deckmaste_core::Reference;
-        use deckmaste_core::Selection;
-        use deckmaste_core::StaticEffect;
-
-        let (mut state, src) = bear_on_field();
-        let frame = frame_src(&state, src);
-
-        assert!(state.continuous.is_empty(), "no effects before resolve");
-
-        let filter = Predicate::creature();
-        let effect = OneShotEffect::Continuously(Continuously {
-            effect: Arc::new(StaticEffect::Each(
-                Selection::SelectAll(filter.clone()),
-                Arc::new(StaticEffect::Modify(
-                    Reference::It,
-                    Modification::Power(NumericOp::Up(Count::Literal(1))),
-                )),
-            )),
-            duration: Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn),
-        });
-        state.run_effect(effect, &frame);
-
-        assert_eq!(state.continuous.len(), 1, "one effect registered");
-        let ce = &state.continuous[0];
-        assert!(
-            matches!(&ce.scope, crate::layer::ScopeResolved::Floating(f) if f == &filter),
-            "scope is Floating(creature filter)"
-        );
-        assert_eq!(
-            ce.duration,
-            Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn)
-        );
-        assert_eq!(
-            ce.changes,
-            vec![Modification::Power(NumericOp::Up(Count::Literal(1)))]
-        );
-        assert!(!ce.is_cda);
-    }
 
     /// [CR#611.2c]: `OneShotEffect::Continuously(Modify(Of(This), ...), ...)` locks
     /// the id at creation — `ScopeResolved::Locked(vec![src])`.
@@ -3853,51 +3094,6 @@ mod tests {
     /// [CR#611.2c]: a granted `Deontic` ("target creature can't block this
     /// turn") mints a static ROW, not a layer change — its subject `Target(0)`
     /// resolves to the locked object at mint and is rewritten to `Ref(It)`.
-    #[test]
-    fn continuously_deontic_mints_locked_row_rewriting_subject_to_it() {
-        use deckmaste_core::Continuously;
-        use deckmaste_core::Deontic;
-        use deckmaste_core::DeonticAction;
-        use deckmaste_core::Duration;
-        use deckmaste_core::OneShotEffect;
-        use deckmaste_core::Predicate;
-        use deckmaste_core::Reference;
-        use deckmaste_core::StaticEffect;
-        use deckmaste_core::TurnMarker;
-
-        let (mut state, src) = bear_on_field();
-        // The bear is the lone announced target — the restriction's subject.
-        let frame = frame_src_targets(&state, src, vec![src]);
-        let effect = OneShotEffect::Continuously(Continuously {
-            effect: Arc::new(StaticEffect::Deontic(Deontic::Cant(DeonticAction::Block {
-                by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(6))),
-                on: Predicate::Any,
-                count: None,
-            }))),
-            duration: Duration::FixedUntil(TurnMarker::EndOfTurn),
-        });
-        state.run_effect(effect, &frame);
-
-        assert_eq!(state.continuous.len(), 1);
-        let ce = &state.continuous[0];
-        assert!(
-            matches!(&ce.scope, crate::layer::ScopeResolved::Locked(ids) if ids == &vec![src]),
-            "subject Target(0) locked to the bear at mint"
-        );
-        assert!(
-            ce.changes.is_empty(),
-            "a Deontic grant carries no layer changes"
-        );
-        assert!(
-            matches!(
-                &ce.rows[..],
-                [StaticEffect::Deontic(Deontic::Cant(DeonticAction::Block { by, .. }))]
-                    if *by == Predicate::Ref(Reference::It)
-            ),
-            "subject rewritten to Ref(It), got {:?}",
-            ce.rows
-        );
-    }
 
     /// A granted `CostModifier` is self-filtered (empty lock) and lands as a
     /// row.
@@ -4350,181 +3546,23 @@ mod tests {
     /// [CR#601.2d]: `Distribute` splits the amount across the binder's group and
     /// binds each element's `Allotment` share in scope for its body — divided
     /// damage deals the split shares, summing to the total, ≥1 to each.
-    #[test]
-    fn divide_among_splits_amount_and_binds_allotment() {
-        use deckmaste_core::Distribute;
-        let (mut state, a, b) = two_permanents_on_field();
-        let frame = frame_src(&state, a);
-        let effect = OneShotEffect::Distribute(Distribute {
-            amount: Count::Literal(3),
-            binder: Binder::Existing(Selection::SelectAll(Predicate::And(
-                vec![
-                    Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                    Predicate::creature(),
-                ]
-                .into(),
-            ))),
-            body: Arc::new(OneShotEffect::Act(Action::deal_damage(
-                Reference::It,
-                Count::Allotment,
-            ))),
-        });
-        state.run_effect(effect, &frame);
-        run_injected(&mut state);
-        let da = state.objects.obj(a).total_damage();
-        let db = state.objects.obj(b).total_damage();
-        assert_eq!(
-            da + db,
-            3,
-            "the 3 damage was divided across the two creatures"
-        );
-        assert!(
-            da >= 1 && db >= 1,
-            "each creature got at least 1 ({da}, {db})"
-        );
-    }
 
     /// [CR#601.2d,120.3]: dividing damage among a MIXED group — a creature AND a
     /// player (Arc Lightning's `CreatureOrPlayer`) — must not panic. The player
     /// element is a zoneless proxy with no LKI snapshot, so its `It` binding is
     /// a player; the body's `It` reads it kind-poly: the creature takes its
     /// share as marked damage, the player loses life by its share.
-    #[test]
-    fn divide_among_handles_a_player_element_without_panicking() {
-        use deckmaste_core::Distribute;
-
-        let (mut state, creature) = bear_on_field();
-        let player = state.players[1].object;
-        let life0 = state.player(PlayerId(1)).life;
-        // The group is pre-bound as the many-binder `That` (Arc Lightning's
-        // chosen `CreatureOrPlayer` set, bound by an enclosing `With`);
-        // `split_evenly(3, 2)` is [2, 1], so the first-listed creature takes 2,
-        // the player takes 1.
-        let mut frame = frame_src(&state, creature);
-        frame.anaphora.that = Some(ThatBinding {
-            cardinality: Cardinality::Many,
-            kind: RefKind::Object,
-            group: vec![creature, player],
-        });
-        let effect = OneShotEffect::Distribute(Distribute {
-            amount: Count::Literal(3),
-            binder: Binder::Existing(Selection::They),
-            body: Arc::new(OneShotEffect::Act(Action::deal_damage(
-                Reference::It,
-                Count::Allotment,
-            ))),
-        });
-        state.run_effect(effect, &frame);
-        run_injected(&mut state);
-        assert_eq!(
-            state.objects.obj(creature).total_damage(),
-            2,
-            "the creature took its 2-damage share as marked damage"
-        );
-        assert_eq!(
-            state.player(PlayerId(1)).life,
-            life0 - 1,
-            "the player lost life equal to its 1-damage share"
-        );
-    }
 
     /// [CR#608.2,120.3]: `Each` over the players binds each zoneless player
     /// proxy as the iteration anaphor `It` — the body's `DealDamage(This, 1,
     /// It)` resolves to the player and each loses 1 life, with no panic on
     /// the snapshotless element.
-    #[test]
-    fn foreach_over_players_binds_each_player_as_it() {
-        use deckmaste_core::Each;
-
-        let (mut state, bear) = bear_on_field();
-        let life0 = [
-            state.player(PlayerId(0)).life,
-            state.player(PlayerId(1)).life,
-        ];
-        let frame = frame_src(&state, bear);
-        state.run_effect(
-            OneShotEffect::Each(Each {
-                binder: Binder::Existing(Selection::SelectAll(Predicate::Kind(ObjectKind::Player))),
-                effect: Arc::new(OneShotEffect::Act(Action::deal_damage(
-                    Reference::It,
-                    Count::Literal(1),
-                ))),
-            }),
-            &frame,
-        );
-        run_injected(&mut state);
-        assert_eq!(state.player(PlayerId(0)).life, life0[0] - 1);
-        assert_eq!(state.player(PlayerId(1)).life, life0[1] - 1);
-    }
 
     /// Ticket (the first-of-many fix): a many-binder iterated by `Each` acts on
     /// EVERY element. The Brainstorm shape `Each(Choose(2, …), Destroy(It))`
     /// chooses two creatures and destroys BOTH — the dropped-cardinality bug
     /// (which acted on only the first) is unrepresentable now that the binder
     /// surfaces its choice and `Each` iterates the whole group ([CR#608.2]).
-    #[test]
-    fn each_over_choose_many_acts_on_all_elements() {
-        use deckmaste_core::Quantity;
-
-        use crate::decide::Decision;
-        use crate::decide::PendingDecision;
-        use crate::step::StepOutcome;
-
-        let (mut state, bear) = bear_on_field();
-        let theirs = second_bear_to_player_1(&mut state);
-        let creatures = Predicate::And(
-            vec![
-                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                Predicate::creature(),
-            ]
-            .into(),
-        );
-        let frame = frame_src(&state, bear);
-        state.run_effect(
-            OneShotEffect::Each(deckmaste_core::Each {
-                binder: Binder::Choose {
-                    quantity: Quantity::Range(Some(Count::Literal(2)), Some(Count::Literal(2))),
-                    filter: creatures,
-                    by: Reference::Reg(deckmaste_core::RefId(1)),
-                },
-                effect: Arc::new(OneShotEffect::Act(Action::destroy(Reference::It))),
-            }),
-            &frame,
-        );
-        // The many-binder surfaces a choice for the WHOLE group before iterating.
-        let StepOutcome::NeedsDecision(PendingDecision::ChooseObjects(
-            crate::decide::pending::ChooseObjects {
-                min,
-                max,
-                candidates,
-                ..
-            },
-        )) = state.step()
-        else {
-            panic!("expected ChooseObjects, got {:?}", state.pending);
-        };
-        assert_eq!((min, max), (2, 2), "Choose(2) asks for exactly two");
-        assert_eq!(
-            candidates.len(),
-            2,
-            "both battlefield creatures are candidates"
-        );
-        state
-            .submit_decision(Decision::Chosen(vec![bear, theirs]))
-            .unwrap();
-        for _ in 0..30 {
-            if !state.zones.battlefield.contains(&bear)
-                && !state.zones.battlefield.contains(&theirs)
-            {
-                break;
-            }
-            let _ = state.step();
-        }
-        assert!(
-            !state.zones.battlefield.contains(&bear) && !state.zones.battlefield.contains(&theirs),
-            "BOTH chosen creatures are destroyed — every element acted on, not just the first"
-        );
-    }
 
     /// Ticket: a nested `Each` CLEARS the outer `Distribute` allotment (the
     /// Idris allotment-clearing `bindIt`), so an outer per-element share cannot
@@ -4532,35 +3570,6 @@ mod tests {
     /// `It`, the share is gone, and the inner body's `Count::Allotment` read
     /// has nothing in scope and is rejected — proving threading is
     /// add-AND-clear.
-    #[test]
-    #[should_panic(expected = "Allotment outside a Distribute body")]
-    fn nested_each_clears_outer_divide_among_allotment() {
-        let (mut state, a, _b) = two_permanents_on_field();
-        let frame = frame_src(&state, a);
-        let creatures = Predicate::And(
-            vec![
-                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                Predicate::creature(),
-            ]
-            .into(),
-        );
-        let effect = OneShotEffect::Distribute(deckmaste_core::Distribute {
-            amount: Count::Literal(2),
-            binder: Binder::Existing(Selection::SelectAll(creatures.clone())),
-            // The outer share is in scope here, but the inner `Each` rebinds `It`
-            // per inner element and clears it before the body runs.
-            body: Arc::new(OneShotEffect::Each(deckmaste_core::Each {
-                binder: Binder::Existing(Selection::SelectAll(creatures)),
-                effect: Arc::new(OneShotEffect::Act(Action::deal_damage(
-                    Reference::It,
-                    Count::Allotment,
-                ))),
-            })),
-        });
-        state.run_effect(effect, &frame);
-        // Driving the inner `Each` reads the (now-cleared) `Allotment` and panics.
-        run_injected(&mut state);
-    }
 
     /// [CR#608.2c]: `OneShotEffect::If` evaluates its condition WHEN it resolves and
     /// runs the taken branch — `then` on true, `otherwise` on false, and
@@ -4632,75 +3641,6 @@ mod tests {
             state.player(p0).life,
             life0,
             "false + no otherwise → no change"
-        );
-    }
-
-    /// [CR#608.2]: `OneShotEffect::Each` evaluates its binder once at resolution and
-    /// runs the inner effect once per matched object, binding each iterated
-    /// object as the anaphor `It` (a per-iteration `frame.anaphora.it`).
-    /// Proven via `Destroy(It)` over the battlefield creatures: every
-    /// creature dies, which can only happen if each iteration's `It`
-    /// resolves to that iteration's object.
-    #[test]
-    fn run_effect_foreach_binds_each_match_as_it() {
-        use deckmaste_core::Each;
-
-        let (mut state, bear) = bear_on_field();
-        let theirs = second_bear_to_player_1(&mut state);
-        let creatures = Predicate::And(
-            vec![
-                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                Predicate::creature(),
-            ]
-            .into(),
-        );
-        let frame = frame_src(&state, bear);
-        state.run_effect(
-            OneShotEffect::Each(Each {
-                binder: Binder::Existing(Selection::SelectAll(creatures)),
-                effect: Arc::new(OneShotEffect::Act(Action::destroy(Reference::It))),
-            }),
-            &frame,
-        );
-        let _ = drain_progress(&mut state, 80);
-        assert!(
-            !state.zones.battlefield.contains(&bear) && !state.zones.battlefield.contains(&theirs),
-            "every iterated creature is destroyed via its It binding"
-        );
-    }
-
-    /// [CR#608.2]: `OneShotEffect::Each` runs the inner effect once per match — a
-    /// non-binding body (gain 1 life) over two creatures gains 2 life.
-    #[test]
-    fn run_effect_foreach_runs_once_per_match() {
-        use deckmaste_core::Each;
-
-        let (mut state, bear) = bear_on_field();
-        let _theirs = second_bear_to_player_1(&mut state);
-        let creatures = Predicate::And(
-            vec![
-                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                Predicate::creature(),
-            ]
-            .into(),
-        );
-        let frame = frame_src(&state, bear);
-        let life0 = state.player(PlayerId(0)).life;
-        state.run_effect(
-            OneShotEffect::Each(Each {
-                binder: Binder::Existing(Selection::SelectAll(creatures)),
-                effect: Arc::new(OneShotEffect::Act(Action::ChangeLife(
-                    Reference::Reg(deckmaste_core::RefId(1)),
-                    LifeOp::Up(Count::Literal(1)),
-                ))),
-            }),
-            &frame,
-        );
-        let _ = drain_progress(&mut state, 80);
-        assert_eq!(
-            state.player(PlayerId(0)).life,
-            life0 + 2,
-            "two creatures → inner effect runs twice"
         );
     }
 
@@ -4935,7 +3875,11 @@ mod tests {
         // Resistance's "Destroy target artifact" / "target creature gains…"
         // modes. A harmless life-gain stands in for the verb.
         let destroy_target = |predicate: Predicate| Mode {
-            targets: vec![TargetSpec::Target(Quantity::one(), predicate)].into(),
+            targets: vec![TargetSpec::Target(
+                Quantity::one(),
+                Arc::new(deckmaste_core::Region::candidate(predicate)),
+            )]
+            .into(),
             effect: OneShotEffect::Act(Action::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(0)),
@@ -5315,7 +4259,7 @@ mod tests {
             matches!(
                 state.agenda.front(),
                 Some(WorkItem::RunEffect { effect, .. })
-                    if matches!(effect.as_ref(), OneShotEffect::Act(Action::ChangeLife(..)))
+                    if matches!(effect.as_ref(), OneShotEffect::Act { action: Action::ChangeLife(..), .. })
             ),
             "submission schedules if_did independently of payment events"
         );
@@ -5501,7 +4445,13 @@ mod tests {
             .iter()
             .find_map(|item| match item {
                 WorkItem::RunEffect { effect, frame }
-                    if matches!(effect.as_ref(), OneShotEffect::Act(Action::ChangeLife(..))) =>
+                    if matches!(
+                        effect.as_ref(),
+                        OneShotEffect::Act {
+                            action: Action::ChangeLife(..),
+                            ..
+                        }
+                    ) =>
                 {
                     Some(frame.clone())
                 }
@@ -5544,15 +4494,17 @@ mod tests {
         Condition::And(
             vec![
                 Condition::Compare(
-                    Count::CountOf(Countable::Objects(Arc::new(Predicate::And(
-                        vec![
-                            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
-                                Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
-                            ))),
-                        ]
-                        .into(),
-                    )))),
+                    Count::CountOf(Countable::Objects(Arc::new(
+                        deckmaste_core::Region::candidate(Predicate::And(
+                            vec![
+                                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                                Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
+                                    Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
+                                ))),
+                            ]
+                            .into(),
+                        )),
+                    ))),
                     Cmp::AtLeast,
                     Count::Literal(10),
                 ),
@@ -5691,6 +4643,10 @@ mod tests {
     /// `DamageDealt` events applied along the way — the per-element emissions a
     /// `Each(.., DealDamage(This, .., It))` produces (a verb deals to a
     /// single `Reference`, so the spread is the iterator).
+    #[allow(
+        dead_code,
+        reason = "shared fixture retained for neighboring effect cases"
+    )]
     fn collect_damage_dealt(state: &mut GameState, n: usize) -> Vec<(ObjectId, u32)> {
         let mut got = Vec::new();
         for p in drain_progress(state, n) {
@@ -5843,89 +4799,6 @@ mod tests {
     /// `TopOfLibrary` returns the top N cards in order (front of library =
     /// top); `OneShotEffect::With` binds them so `Selection::That` resolves to
     /// the same ordered vec inside the body frame.
-    #[test]
-    fn with_binds_those_and_top_of_library_is_ordered() {
-        use deckmaste_card::CardFace;
-        use deckmaste_core::With;
-
-        let mut state = game();
-        let p0 = PlayerId(0);
-
-        // Build three distinct library cards and mint them in order a→b→c
-        // (a at front = top).
-        let make_card = |name: &str| {
-            Card::Normal(CardFace {
-                name: name.into(),
-                ..CardFace::default()
-            })
-        };
-        let card_a = state.cards.push(Arc::new(make_card("Alpha")), p0);
-        let card_b = state.cards.push(Arc::new(make_card("Beta")), p0);
-        let card_c = state.cards.push(Arc::new(make_card("Gamma")), p0);
-
-        let a = state
-            .objects
-            .mint(ObjectSource::Card(card_a), p0, Some(Zone::Library));
-        let b = state
-            .objects
-            .mint(ObjectSource::Card(card_b), p0, Some(Zone::Library));
-        let c = state
-            .objects
-            .mint(ObjectSource::Card(card_c), p0, Some(Zone::Library));
-
-        // Push in top→bottom order: a at front (index 0) = top of library.
-        state.zones.libraries[p0.index()].push_back(a);
-        state.zones.libraries[p0.index()].push_back(b);
-        state.zones.libraries[p0.index()].push_back(c);
-
-        // A source object for the frame — use p0's proxy.
-        let source = state.player(p0).object;
-        let frame = Frame::bare(source, p0);
-
-        // TopOfLibrary(count:2, whose:You) → top two in order.
-        let top2 = state.eval_selection_set(
-            &Selection::TopOfLibrary {
-                count: Count::Literal(2),
-                whose: deckmaste_core::Reference::Reg(deckmaste_core::RefId(1)),
-            },
-            &frame,
-        );
-        assert_eq!(top2, vec![a, b], "top 2 are a then b, top→down");
-
-        // With binds them as the many-binder `That`; the body frame sees the same
-        // ordered group.
-        let mut bound = frame.clone();
-        bound.anaphora.that = Some(ThatBinding {
-            cardinality: Cardinality::Many,
-            kind: RefKind::Object,
-            group: top2.clone(),
-        });
-        assert_eq!(
-            state.eval_selection_set(&Selection::They, &bound),
-            vec![a, b],
-            "Selection::They inside a With frame returns the bound group in order"
-        );
-
-        // OneShotEffect::With end-to-end: run_effect schedules a body that reads
-        // Selection::That and verifies the binding survives round-trip through
-        // the agenda.
-        // We check indirectly by scheduling a no-op body and confirming no panic.
-        state.run_effect(
-            OneShotEffect::With(With {
-                binder: deckmaste_core::Binder::Existing(Selection::TopOfLibrary {
-                    count: Count::Literal(2),
-                    whose: deckmaste_core::Reference::Reg(deckmaste_core::RefId(1)),
-                }),
-                body: Arc::new(OneShotEffect::Sequentially(vec![].into())),
-            }),
-            &frame,
-        );
-        // Drain the agenda — the empty Sequentially body completes without a
-        // decision, proving With schedules correctly.
-        for _ in 0..10 {
-            state.step();
-        }
-    }
 
     /// [CR#701.23a,701.23b]: a stated-quality search (Rampant Growth: "search
     /// your library for a basic land card, put it onto the battlefield
@@ -5933,303 +4806,22 @@ mod tests {
     /// library as `ChooseObjects` candidates (a non-match never offered), the
     /// player finds the land, and the BODY (not the binder) moves/shuffles
     /// it. No reveal step in this shape, so no `Revealed` fact.
-    #[test]
-    fn search_one_semantic_land_tutor_finds_moves_and_shuffles() {
-        use deckmaste_core::Destination;
-        use deckmaste_core::EnterRider;
-        use deckmaste_core::Sort;
-        use deckmaste_core::With;
-
-        use crate::decide::Decision;
-        use crate::decide::PendingDecision;
-
-        let mut state = game();
-        let p0 = PlayerId(0);
-        let forest = mint_library_top(&mut state, p0, "Forest", Type::Land);
-        let bear = mint_library_top(&mut state, p0, "Bear", Type::Creature);
-        let frame = frame_for(&state, p0);
-
-        let effect = OneShotEffect::With(With {
-            binder: Binder::SearchOne {
-                filter: Predicate::r#type(Type::Land),
-                by: Reference::Reg(deckmaste_core::RefId(1)),
-                whose: Reference::Reg(deckmaste_core::RefId(1)),
-                from: vec![Zone::Library].into(),
-                if_none: None,
-            },
-            body: Arc::new(OneShotEffect::Sequentially(
-                vec![
-                    OneShotEffect::Act(Action::Move(
-                        Reference::That(Sort::Card),
-                        Destination::Zone(Zone::Battlefield),
-                        vec![EnterRider::Tapped].into(),
-                        None,
-                    )),
-                    OneShotEffect::Act(Action::Shuffle(Selection::LibraryOf(Reference::Reg(
-                        deckmaste_core::RefId(1),
-                    )))),
-                ]
-                .into(),
-            )),
-        });
-        state.run_effect(effect, &frame);
-
-        let Some(PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects {
-            player,
-            candidates,
-            min,
-            max,
-        })) = state.pending.clone()
-        else {
-            panic!("expected ChooseObjects, got {:?}", state.pending);
-        };
-        assert_eq!(player, p0);
-        assert_eq!(
-            candidates,
-            vec![forest],
-            "the bear doesn't match the land filter — only the land is offered"
-        );
-        assert_eq!(
-            (min, max),
-            (0, 1),
-            "a STATED quality never compels a find ([CR#701.23b])"
-        );
-
-        state
-            .submit_decision(Decision::Chosen(vec![forest]))
-            .expect("the land is a legal find");
-        run_injected(&mut state);
-
-        // A zone change remints a fresh id ([CR#400.7]) — chase the move.
-        let landed = state.chase_moved(forest);
-        assert!(
-            state.zones.battlefield.contains(&landed),
-            "the found land landed on the battlefield"
-        );
-        assert!(
-            state.objects.obj(landed).tapped,
-            "the body's own Tapped enter-rider applied"
-        );
-        assert!(
-            state.zones.libraries[p0.index()].contains(&bear),
-            "the non-match stayed in the library"
-        );
-        assert!(
-            logged(&state, |e| matches!(e, GameEvent::Shuffled(p) if *p == p0)),
-            "the body's own Shuffle step ran ([CR#701.24a])"
-        );
-        assert!(
-            !logged(&state, |e| matches!(e, GameEvent::Revealed(_))),
-            "no reveal step in the body ([CR#701.23e]) — nothing revealed"
-        );
-    }
 
     /// [CR#701.23e]: reveal happens ONLY when the effect says to — a body
     /// that opens with `Reveal(That)` produces a `Revealed` fact naming the
     /// found card.
-    #[test]
-    fn search_one_reveal_step_in_body_reveals_the_found_card() {
-        use deckmaste_core::Destination;
-        use deckmaste_core::Sort;
-        use deckmaste_core::With;
-
-        use crate::decide::Decision;
-        use crate::event::Revealed;
-
-        let mut state = game();
-        let p0 = PlayerId(0);
-        let forest = mint_library_top(&mut state, p0, "Forest", Type::Land);
-        let frame = frame_for(&state, p0);
-
-        let effect = OneShotEffect::With(With {
-            binder: Binder::SearchOne {
-                filter: Predicate::r#type(Type::Land),
-                by: Reference::Reg(deckmaste_core::RefId(1)),
-                whose: Reference::Reg(deckmaste_core::RefId(1)),
-                from: vec![Zone::Library].into(),
-                if_none: None,
-            },
-            body: Arc::new(OneShotEffect::Sequentially(
-                vec![
-                    OneShotEffect::Act(Action::Reveal {
-                        what: Reference::That(Sort::Card),
-                        to: None,
-                    }),
-                    OneShotEffect::Act(Action::Move(
-                        Reference::That(Sort::Card),
-                        Destination::Zone(Zone::Hand),
-                        vec![].into(),
-                        None,
-                    )),
-                    OneShotEffect::Act(Action::Shuffle(Selection::LibraryOf(Reference::Reg(
-                        deckmaste_core::RefId(1),
-                    )))),
-                ]
-                .into(),
-            )),
-        });
-        state.run_effect(effect, &frame);
-        state
-            .submit_decision(Decision::Chosen(vec![forest]))
-            .expect("the land is a legal find");
-        run_injected(&mut state);
-
-        assert!(
-            logged(&state, |e| matches!(
-                e,
-                GameEvent::Revealed(Revealed { objects, .. }) if objects == &vec![forest]
-            )),
-            "the body's Reveal step ran and named the found card"
-        );
-    }
 
     /// [CR#701.23d]: a BARE quantity ("search your library for a card") — no
     /// stated quality — compels the find whenever the zone has one, unlike
     /// the stated-quality floor the test above pins.
-    #[test]
-    fn search_one_bare_quantity_compels_a_find_when_present() {
-        use deckmaste_core::Destination;
-        use deckmaste_core::Sort;
-        use deckmaste_core::With;
-
-        use crate::decide::PendingDecision;
-
-        let mut state = game();
-        let p0 = PlayerId(0);
-        let card = mint_library_top(&mut state, p0, "Anything", Type::Creature);
-        let frame = frame_for(&state, p0);
-
-        state.run_effect(
-            OneShotEffect::With(With {
-                binder: Binder::SearchOne {
-                    filter: Predicate::Kind(ObjectKind::Card),
-                    by: Reference::Reg(deckmaste_core::RefId(1)),
-                    whose: Reference::Reg(deckmaste_core::RefId(1)),
-                    from: vec![Zone::Library].into(),
-                    if_none: None,
-                },
-                body: Arc::new(OneShotEffect::Act(Action::Move(
-                    Reference::That(Sort::Card),
-                    Destination::Zone(Zone::Hand),
-                    vec![].into(),
-                    None,
-                ))),
-            }),
-            &frame,
-        );
-
-        let Some(PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects {
-            candidates,
-            min,
-            max,
-            ..
-        })) = state.pending.clone()
-        else {
-            panic!("expected ChooseObjects, got {:?}", state.pending);
-        };
-        assert_eq!(candidates, vec![card]);
-        assert_eq!(
-            (min, max),
-            (1, 1),
-            "a bare quantity compels the find ([CR#701.23d])"
-        );
-    }
 
     /// [CR#701.23d]: "or as many as possible" — a bare-quantity search over
     /// an EMPTY zone degrades to a legal zero-find, never an impossible
     /// decision, and the body (which shuffles) still runs.
-    #[test]
-    fn search_one_bare_quantity_finds_none_from_an_empty_library() {
-        use deckmaste_core::With;
-
-        use crate::decide::Decision;
-        use crate::decide::PendingDecision;
-
-        let mut state = game();
-        let p0 = PlayerId(0);
-        let frame = frame_for(&state, p0);
-
-        state.run_effect(
-            OneShotEffect::With(With {
-                binder: Binder::SearchOne {
-                    filter: Predicate::Kind(ObjectKind::Card),
-                    by: Reference::Reg(deckmaste_core::RefId(1)),
-                    whose: Reference::Reg(deckmaste_core::RefId(1)),
-                    from: vec![Zone::Library].into(),
-                    if_none: None,
-                },
-                body: Arc::new(OneShotEffect::Act(Action::Shuffle(Selection::LibraryOf(
-                    Reference::Reg(deckmaste_core::RefId(1)),
-                )))),
-            }),
-            &frame,
-        );
-
-        let Some(PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects {
-            candidates,
-            min,
-            max,
-            ..
-        })) = state.pending.clone()
-        else {
-            panic!("expected ChooseObjects, got {:?}", state.pending);
-        };
-        assert!(candidates.is_empty());
-        assert_eq!((min, max), (0, 0), "an empty zone can't force a find");
-
-        state
-            .submit_decision(Decision::Chosen(vec![]))
-            .expect("zero is the only legal answer");
-        run_injected(&mut state);
-        assert!(
-            logged(&state, |e| matches!(e, GameEvent::Shuffled(p) if *p == p0)),
-            "the body still runs (and shuffles) on a failed find ([CR#608.2c])"
-        );
-    }
 
     /// [CR#701.23b]: a STATED quality never compels a find — the player may
     /// decline even with a match sitting right there; the body still runs
     /// (and shuffles) on the decline.
-    #[test]
-    fn search_one_stated_quality_may_decline_a_present_match() {
-        use deckmaste_core::With;
-
-        use crate::decide::Decision;
-
-        let mut state = game();
-        let p0 = PlayerId(0);
-        let forest = mint_library_top(&mut state, p0, "Forest", Type::Land);
-        let frame = frame_for(&state, p0);
-
-        state.run_effect(
-            OneShotEffect::With(With {
-                binder: Binder::SearchOne {
-                    filter: Predicate::r#type(Type::Land),
-                    by: Reference::Reg(deckmaste_core::RefId(1)),
-                    whose: Reference::Reg(deckmaste_core::RefId(1)),
-                    from: vec![Zone::Library].into(),
-                    if_none: None,
-                },
-                body: Arc::new(OneShotEffect::Act(Action::Shuffle(Selection::LibraryOf(
-                    Reference::Reg(deckmaste_core::RefId(1)),
-                )))),
-            }),
-            &frame,
-        );
-        state
-            .submit_decision(Decision::Chosen(vec![]))
-            .expect("declining is legal even though the land matches");
-        run_injected(&mut state);
-
-        assert!(
-            state.zones.libraries[p0.index()].contains(&forest),
-            "the declined land stays in the library"
-        );
-        assert!(
-            logged(&state, |e| matches!(e, GameEvent::Shuffled(p) if *p == p0)),
-            "the body still shuffles even on a decline"
-        );
-    }
 
     /// [CR#701.23b..701.23d]: `if_none` runs INSTEAD of the body on a failed
     /// find, with no `That` bound. The body's own Shuffle step never fires on
@@ -6238,143 +4830,11 @@ mod tests {
     /// printed text, not a rules guarantee, so this is an authoring
     /// constraint rather than an engine gap; the corpus never populates
     /// `if_none` today.
-    #[test]
-    fn search_if_none_runs_instead_of_body_on_a_failed_find() {
-        use deckmaste_core::With;
-
-        use crate::decide::Decision;
-
-        let mut state = game();
-        let p0 = PlayerId(0);
-        // No land in the library — the stated-quality filter can't match.
-        mint_library_top(&mut state, p0, "Bear", Type::Creature);
-        let frame = frame_for(&state, p0);
-        let life0 = state.player(p0).life;
-
-        state.run_effect(
-            OneShotEffect::With(With {
-                binder: Binder::SearchOne {
-                    filter: Predicate::r#type(Type::Land),
-                    by: Reference::Reg(deckmaste_core::RefId(1)),
-                    whose: Reference::Reg(deckmaste_core::RefId(1)),
-                    from: vec![Zone::Library].into(),
-                    if_none: Some(Arc::new(OneShotEffect::Act(Action::ChangeLife(
-                        Reference::Reg(deckmaste_core::RefId(1)),
-                        LifeOp::Down(Count::Literal(1)),
-                    )))),
-                },
-                body: Arc::new(OneShotEffect::Act(Action::Shuffle(Selection::LibraryOf(
-                    Reference::Reg(deckmaste_core::RefId(1)),
-                )))),
-            }),
-            &frame,
-        );
-        state
-            .submit_decision(Decision::Chosen(vec![]))
-            .expect("zero is the only legal answer — no land to find");
-        run_injected(&mut state);
-
-        assert_eq!(
-            state.player(p0).life,
-            life0 - 1,
-            "if_none ran on the failed find"
-        );
-        assert!(
-            !logged(&state, |e| matches!(e, GameEvent::Shuffled(p) if *p == p0)),
-            "if_none replaces the body outright — the body's Shuffle never ran"
-        );
-    }
 
     /// A plural `Search` ([CR#701.23]) binds the found set as a GROUP `That`
     /// — the body's `Each(Existing(They), …)` iterates every found card, not
     /// just one, proving the many-binder's group binding (not just
     /// `SearchOne`'s singular `That`) actually works.
-    #[test]
-    fn search_many_binds_the_found_group_as_they() {
-        use deckmaste_core::Destination;
-        use deckmaste_core::Quantity;
-        use deckmaste_core::Reference as R;
-        use deckmaste_core::With;
-
-        use crate::decide::Decision;
-        use crate::decide::PendingDecision;
-
-        let mut state = game();
-        let p0 = PlayerId(0);
-        let a = mint_library_top(&mut state, p0, "Forest A", Type::Land);
-        let b = mint_library_top(&mut state, p0, "Forest B", Type::Land);
-        let bear = mint_library_top(&mut state, p0, "Bear", Type::Creature);
-        let frame = frame_for(&state, p0);
-
-        state.run_effect(
-            OneShotEffect::With(With {
-                binder: Binder::Search {
-                    quantity: Quantity::Range(Some(Count::Literal(0)), Some(Count::Literal(2))),
-                    filter: Predicate::r#type(Type::Land),
-                    by: Reference::Reg(deckmaste_core::RefId(1)),
-                    whose: Reference::Reg(deckmaste_core::RefId(1)),
-                    from: vec![Zone::Library].into(),
-                    if_none: None,
-                },
-                body: Arc::new(OneShotEffect::Sequentially(
-                    vec![
-                        OneShotEffect::Each(deckmaste_core::Each {
-                            binder: Binder::Existing(Selection::They),
-                            effect: Arc::new(OneShotEffect::Act(Action::Move(
-                                R::It,
-                                Destination::Zone(Zone::Hand),
-                                vec![].into(),
-                                None,
-                            ))),
-                        }),
-                        OneShotEffect::Act(Action::Shuffle(Selection::LibraryOf(R::Reg(
-                            deckmaste_core::RefId(1),
-                        )))),
-                    ]
-                    .into(),
-                )),
-            }),
-            &frame,
-        );
-
-        let Some(PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects {
-            candidates,
-            min,
-            max,
-            ..
-        })) = state.pending.clone()
-        else {
-            panic!("expected ChooseObjects, got {:?}", state.pending);
-        };
-        let mut got = candidates.clone();
-        got.sort();
-        let mut want = vec![a, b];
-        want.sort();
-        assert_eq!(got, want, "the bear doesn't match; both lands do");
-        assert_eq!(
-            (min, max),
-            (0, 2),
-            "up to two, never compelled ([CR#701.23b])"
-        );
-
-        state
-            .submit_decision(Decision::Chosen(vec![a, b]))
-            .expect("both lands are legal finds");
-        run_injected(&mut state);
-        // A zone change remints a fresh id ([CR#400.7]), so the moved
-        // objects aren't `a`/`b` themselves anymore — check counts and the
-        // untouched non-match's identity instead.
-        assert_eq!(
-            state.zones.hands[p0.index()].len(),
-            2,
-            "the body's Each(They) iterated BOTH found cards — the group `That` bound both"
-        );
-        assert_eq!(
-            state.zones.libraries[p0.index()],
-            vec![bear],
-            "only the non-match is left in the library"
-        );
-    }
 
     /// Mint a single card of type `ty` onto the (empty) top of `owner`'s
     /// library and return it. `game()` starts with empty libraries, so the
@@ -6421,8 +4881,8 @@ mod tests {
         // `lower()`), the path production now takes.
         let semantic: deckmaste_semantics::OneShotEffect =
             builtin().macros.read_str("Explore").unwrap();
-        let effect: OneShotEffect = deckmaste_lowering::Lower::lower(semantic);
-        state.run_effect(effect, &frame_src(&state, source));
+        let frame = frame_src(&state, source);
+        schedule_lowered_effect(&mut state, semantic, 0, &frame);
         let _ = drain_progress(&mut state, 80);
 
         assert!(
@@ -6465,8 +4925,8 @@ mod tests {
         // `lower()`), the path production now takes.
         let semantic: deckmaste_semantics::OneShotEffect =
             builtin().macros.read_str("Explore").unwrap();
-        let effect: OneShotEffect = deckmaste_lowering::Lower::lower(semantic);
-        state.run_effect(effect, &frame_src(&state, source));
+        let frame = frame_src(&state, source);
+        schedule_lowered_effect(&mut state, semantic, 0, &frame);
         // Drains through the reveal + counter and STOPS at the may-to-graveyard
         // decision ([CR#701.44a]).
         let _ = drain_progress(&mut state, 80);

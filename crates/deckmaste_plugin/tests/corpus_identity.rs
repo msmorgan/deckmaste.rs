@@ -305,19 +305,15 @@ fn core_region_substrate_witness_cards_lower_with_valid_regions() {
 
         for ability in core_abilities(&loaded.core) {
             if let Some(ability) = ability.as_activated() {
-                deckmaste_core::validate_telescope(&ability.effect, &ability.targets, None)
+                deckmaste_core::validate_telescope(&ability.effect, &ability.targets)
                     .unwrap_or_else(|error| panic!("{name}: invalid activated region: {error}"));
                 regions += 1;
             } else if let Some(ability) = ability.as_triggered() {
-                deckmaste_core::validate_telescope(
-                    &ability.effect,
-                    &ability.targets,
-                    ability.where_x.as_ref(),
-                )
-                .unwrap_or_else(|error| panic!("{name}: invalid triggered region: {error}"));
+                deckmaste_core::validate_telescope(&ability.effect, &ability.targets)
+                    .unwrap_or_else(|error| panic!("{name}: invalid triggered region: {error}"));
                 regions += 1;
             } else if let deckmaste_core::Ability::Spell(ability) = ability {
-                deckmaste_core::validate_telescope(&ability.effect, &ability.targets, None)
+                deckmaste_core::validate_telescope(&ability.effect, &ability.targets)
                     .unwrap_or_else(|error| panic!("{name}: invalid spell region: {error}"));
                 regions += 1;
             }
@@ -341,31 +337,10 @@ fn semantic_faces(card: &deckmaste_semantics::Card) -> Vec<&deckmaste_semantics:
     }
 }
 
-/// Every `Ability` reachable from `ability`, at ANY depth, in pre-order —
-/// `ability` itself plus the full transitive closure of
-/// [`nested_abilities`](deckmaste_semantics::Ability::nested_abilities).
-/// This is the semantic-side walk
-/// [`ProvenanceIndex::insert_ability_owned`](deckmaste_plugin::provenance::ProvenanceIndex)
-/// does when indexing (`crates/deckmaste_plugin/src/provenance.rs`) — an
-/// ability granting an ability that itself grants an ability is indexed at
-/// every depth there, so this test has to visit every depth too, or a
-/// context-dependence bug two-or-more `Ability`-levels down would pass
-/// silently. Reuses `nested_abilities` (one level) recursively rather than
-/// re-implementing the walk.
-fn semantic_ability_subterms(
-    ability: &deckmaste_semantics::Ability,
-) -> Vec<&deckmaste_semantics::Ability> {
-    let mut out = vec![ability];
-    for child in ability.nested_abilities() {
-        out.extend(semantic_ability_subterms(child));
-    }
-    out
-}
-
 /// One semantic source file, loaded through the real plugin API, keeping the
 /// semantic/core pair intact — the pair [`load_card`] already reads, minus
 /// the write-back re-serialization
-/// [`every_semantic_ability_subterm_appears_in_its_lowered_card`] does not
+/// [`every_top_level_semantic_ability_appears_in_its_lowered_card`] does not
 /// need.
 fn load_card_pair(plugin: &Plugin, path: &Path) -> anyhow::Result<deckmaste_plugin::LoadedCard> {
     let source = fs::read_to_string(path)?;
@@ -429,9 +404,15 @@ impl CoreAbilitySubterms for deckmaste_core::Ability {
     }
 }
 
-impl CoreAbilitySubterms for deckmaste_core::Region {
+impl<T: CoreAbilitySubterms> CoreAbilitySubterms for deckmaste_core::Region<T> {
     fn push_abilities<'a>(&'a self, out: &mut Vec<&'a deckmaste_core::Ability>) {
         self.body.push_abilities(out);
+    }
+}
+
+impl CoreAbilitySubterms for deckmaste_core::Block {
+    fn push_abilities<'a>(&'a self, out: &mut Vec<&'a deckmaste_core::Ability>) {
+        self.0.push_abilities(out);
     }
 }
 
@@ -452,7 +433,8 @@ impl CoreAbilitySubterms for deckmaste_core::StaticEffect {
     fn push_abilities<'a>(&'a self, out: &mut Vec<&'a deckmaste_core::Ability>) {
         match self {
             Self::Modify(_, m) => m.push_abilities(out),
-            Self::Each(_, e) | Self::Conditionally(_, e) => e.push_abilities(out),
+            Self::Each(_, e) => e.push_abilities(out),
+            Self::Conditionally(_, e) => e.push_abilities(out),
             // A copy delivery site ([CR#707.4]); mirrors the semantics side.
             Self::BecomesCopy(_, spec) => spec.push_abilities(out),
             // No other `StaticEffect` shape carries an `Ability` — same
@@ -492,11 +474,12 @@ impl CoreAbilitySubterms for deckmaste_core::Modification {
 impl CoreAbilitySubterms for deckmaste_core::OneShotEffect {
     fn push_abilities<'a>(&'a self, out: &mut Vec<&'a deckmaste_core::Ability>) {
         match self {
-            Self::Act(a) => a.push_abilities(out),
+            Self::Act { action, .. } => action.push_abilities(out),
             Self::Sequentially(es) | Self::Simultaneously(es) => es.push_abilities(out),
             Self::Continuously(c) => c.effect.push_abilities(out),
             Self::Until(_, es) => es.push_abilities(out),
-            Self::Label(l) => l.effect.push_abilities(out),
+            Self::Choose(_) | Self::ChooseValue(_) | Self::Let(_) => {}
+            Self::Search(search) => search.if_none.push_abilities(out),
             Self::SeparatePiles(s) => s.then.push_abilities(out),
             Self::ChoosePile(c) => c.then.push_abilities(out),
             Self::May(m) => {
@@ -509,10 +492,8 @@ impl CoreAbilitySubterms for deckmaste_core::OneShotEffect {
                 i.otherwise.push_abilities(out);
             }
             Self::AdditionalCost(a) => a.body.push_abilities(out),
-            Self::Each(e) => e.effect.push_abilities(out),
-            Self::With(w) => w.body.push_abilities(out),
+            Self::Each(e) => e.body.push_abilities(out),
             Self::Distribute(d) => d.body.push_abilities(out),
-            Self::Noting(n) => n.effect.push_abilities(out),
             Self::Delayed(t) | Self::Reflexive(t) => t.effect.push_abilities(out),
             Self::Modal(m) => {
                 for mode in m.modes.iter() {
@@ -599,7 +580,7 @@ impl CoreAbilitySubterms for deckmaste_core::Action {
 fn core_nested_abilities(ability: &deckmaste_core::Ability) -> Vec<&deckmaste_core::Ability> {
     let mut out = Vec::new();
     match ability {
-        deckmaste_core::Ability::Static(e) => e.push_abilities(&mut out),
+        deckmaste_core::Ability::Static(e) => e.body.push_abilities(&mut out),
         deckmaste_core::Ability::Activated(a) => a.effect.push_abilities(&mut out),
         deckmaste_core::Ability::Triggered(a) => a.effect.push_abilities(&mut out),
         deckmaste_core::Ability::Mana(deckmaste_core::ManaAbility::Activated {
@@ -630,12 +611,13 @@ fn ability_contains(ability: &deckmaste_core::Ability, image: &deckmaste_core::A
         .any(|child| child == image || ability_contains(child, image))
 }
 
-/// Every semantic ability subterm remains represented verbatim at the same
-/// nesting depth after lowering. Each ability owns its region, so lowering at
-/// `Ability` granularity assigns the same parameter provenance and registers
-/// whether the ability is isolated or nested in a card.
+/// Every top-level semantic ability remains represented verbatim after
+/// lowering. Nested carried abilities capture registers from their enclosing
+/// region, so their correct image is context-dependent and is certified by
+/// loading and validating the whole card rather than by lowering the subterm
+/// in isolation.
 #[test]
-fn every_semantic_ability_subterm_appears_in_its_lowered_card() {
+fn every_top_level_semantic_ability_appears_in_its_lowered_card() {
     let canon = Plugin::load_with_sibling_prelude(plugin_dir("canon", "")).unwrap();
     let mut checked = 0;
     for source in ron_files(&plugin_dir("canon", CARDS_DIR)) {
@@ -643,18 +625,15 @@ fn every_semantic_ability_subterm_appears_in_its_lowered_card() {
         let lowered: Vec<&deckmaste_core::Ability> = core_abilities(&loaded.core).collect();
         for face in semantic_faces(&loaded.semantic) {
             for semantic in &face.abilities {
-                for subterm in semantic_ability_subterms(semantic) {
-                    let image = subterm.clone().lower();
-                    assert!(
-                        lowered.iter().any(|a| **a == image) || nested_in_any(&lowered, &image),
-                        "{}: a semantic ability subterm's lowering is absent from the \
-                         lowered card — lowering is context-dependent at Ability granularity",
-                        source.display(),
-                    );
-                    checked += 1;
-                }
+                let image = semantic.clone().lower();
+                assert!(
+                    lowered.iter().any(|a| **a == image) || nested_in_any(&lowered, &image),
+                    "{}: a top-level semantic ability's lowering is absent from the lowered card",
+                    source.display(),
+                );
+                checked += 1;
             }
         }
     }
-    assert!(checked > 0, "corpus produced no ability subterms");
+    assert!(checked > 0, "corpus produced no top-level abilities");
 }

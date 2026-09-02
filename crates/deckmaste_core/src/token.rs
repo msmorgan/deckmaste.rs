@@ -245,19 +245,19 @@ impl PredefinedToken {
                 Self::Treasure => (
                     [].into(),
                     vec![CostComponent::Tap, sac].into(),
-                    OneShotEffect::Act(add_any()),
+                    OneShotEffect::act(add_any()),
                 ),
                 // [CR#111.10b] "{2}, {T}, Sacrifice this token: You gain 3 life."
                 Self::Food => (
                     [].into(),
                     vec![mana(2), CostComponent::Tap, sac].into(),
-                    OneShotEffect::Act(Action::ChangeLife(
+                    OneShotEffect::act(Action::ChangeLife(
                         Reference::Reg(crate::RefId(1)),
                         LifeOp::Up(Count::Literal(3)),
                     )),
                 ),
                 // [CR#111.10c] "Sacrifice this token: Add one mana of any color."
-                Self::Gold => ([].into(), vec![sac].into(), OneShotEffect::Act(add_any())),
+                Self::Gold => ([].into(), vec![sac].into(), OneShotEffect::act(add_any())),
                 // [CR#111.10f] "{2}, Sacrifice this token: Draw a card."
                 Self::Clue => (
                     [].into(),
@@ -285,7 +285,7 @@ impl PredefinedToken {
                 Self::Vibranium => (
                     vec![indestructible()].into(),
                     vec![CostComponent::Tap].into(),
-                    OneShotEffect::Act(restricted_colorless()),
+                    OneShotEffect::act(restricted_colorless()),
                 ),
             };
 
@@ -298,7 +298,7 @@ impl PredefinedToken {
             condition: None,
             limits: [].into(),
             targets: [].into(),
-            effect: crate::Region::new([].into(), effect),
+            effect: crate::Region::new([].into(), effect.into()),
         }));
 
         Token {

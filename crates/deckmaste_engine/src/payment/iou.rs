@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use deckmaste_core::Binder;
 use deckmaste_core::Cmp;
 use deckmaste_core::Color;
 use deckmaste_core::Cost;
+use deckmaste_core::CostBinder;
 use deckmaste_core::PayAct;
 use deckmaste_core::PipClass;
 use deckmaste_core::Predicate;
@@ -52,7 +52,8 @@ pub enum IouKind {
     Untap,
     Act(RunnableCostAction),
     ChooseAndPay {
-        binder: Arc<Binder>,
+        dest: deckmaste_core::DefId,
+        binder: Arc<CostBinder>,
         body: Cost,
     },
     TapTotal {

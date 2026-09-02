@@ -217,7 +217,7 @@ pub enum Predicate {
     /// cycle. The one candidate-relative escape hatch: "shares a color with ~",
     /// "has the same name as ~", etc., expressed as
     /// `Where(SharesColor(It, This))` and kin.
-    Where(Arc<Condition>),
+    Where(Arc<crate::Region<Condition>>),
     /// Matches every object — the bare-Predicate default for event participant
     /// slots (an `EventFilter` master form's `who`/`what`).
     Any,

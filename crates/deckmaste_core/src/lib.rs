@@ -42,7 +42,7 @@ pub use action::discard_body_whose;
 pub use action::fight_body_fighters;
 
 mod binder;
-pub use binder::Binder;
+pub use binder::CostBinder;
 
 mod count;
 pub use count::AggregateOp;
@@ -138,21 +138,22 @@ pub use temporal::TurnMarker;
 
 mod effect;
 pub use effect::AdditionalCost;
+pub use effect::Choose;
 pub use effect::ChoosePile;
+pub use effect::ChooseValue;
 pub use effect::Continuously;
 pub use effect::Distribute;
 pub use effect::Each;
 pub use effect::If;
 pub use effect::Instr;
-pub use effect::Label;
+pub use effect::Let;
 pub use effect::May;
 pub use effect::Modal;
-pub use effect::Noting;
 pub use effect::OneShotEffect;
 pub use effect::PileSource;
 pub use effect::RevealUntil;
+pub use effect::Search;
 pub use effect::SeparatePiles;
-pub use effect::With;
 
 mod event;
 pub use event::Agency;
@@ -220,13 +221,17 @@ pub use quantity::Quantity;
 mod region;
 pub use region::Block;
 pub use region::DefId;
+pub use region::Expr;
 pub use region::Kind;
 pub use region::Param;
 pub use region::Provenance;
 pub use region::RefId;
 pub use region::Region;
 pub use region::ValidationError;
+pub use region::event_region_params;
 pub use region::validate;
+pub use region::validate_sba;
+pub use region::validate_static;
 pub use region::validate_telescope;
 
 mod reference;
@@ -269,6 +274,7 @@ pub use r#type::TypeDef;
 pub use r#type::TypeRef;
 
 mod sba_rule;
+pub use sba_rule::SbaBody;
 pub use sba_rule::SbaRule;
 
 mod zone;

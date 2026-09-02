@@ -27,7 +27,9 @@ impl Lower for deckmaste_semantics::Reference {
                     ))
                 },
             ),
-            Self::It => deckmaste_core::Reference::It,
+            Self::It => deckmaste_core::Reference::Reg(
+                crate::region::it().expect("unbound `It` during semantic lowering"),
+            ),
             Self::Target(index) => crate::region::target(index).map_or(
                 deckmaste_core::Reference::Reg(deckmaste_core::RefId(
                     6 + u32::try_from(index).expect("target index fits u32"),
@@ -50,8 +52,13 @@ impl Lower for deckmaste_semantics::Reference {
                 deckmaste_core::Reference::Reg(deckmaste_core::RefId(5)),
                 deckmaste_core::Reference::Reg,
             ),
-            Self::That(f0) => deckmaste_core::Reference::That(f0.lower()),
-            Self::Bound(f0) => deckmaste_core::Reference::Bound(f0.lower()),
+            Self::That(sort) => deckmaste_core::Reference::Reg(
+                crate::region::that(sort).expect("unbound sorted anaphor during semantic lowering"),
+            ),
+            Self::Bound(name) => crate::region::named(&name).map_or_else(
+                || deckmaste_core::Reference::Bound(name.lower()),
+                deckmaste_core::Reference::Reg,
+            ),
             Self::Linked(f0) => deckmaste_core::Reference::Linked(f0.lower()),
             Self::ControllerOf(f0) => deckmaste_core::Reference::ControllerOf(f0.lower()),
             Self::Coalesce(f0) => deckmaste_core::Reference::Coalesce(f0.lower()),
@@ -67,7 +74,6 @@ impl Lower for deckmaste_semantics::Reference {
         }
     }
 }
-
 #[cfg(test)]
 mod tests {
     #![allow(
@@ -115,14 +121,6 @@ mod tests {
     }
 
     #[test]
-    fn lowers_reference_it() {
-        assert_matches!(
-            deckmaste_semantics::Reference::It.lower(),
-            deckmaste_core::Reference::It
-        );
-    }
-
-    #[test]
     fn lowers_reference_target() {
         assert_matches!(
             deckmaste_semantics::Reference::Target(0).lower(),
@@ -159,14 +157,6 @@ mod tests {
         assert_matches!(
             deckmaste_semantics::Reference::DefendingPlayer.lower(),
             deckmaste_core::Reference::Reg(deckmaste_core::RefId(5))
-        );
-    }
-
-    #[test]
-    fn lowers_reference_that() {
-        assert_matches!(
-            deckmaste_semantics::Reference::That(minimal_sort()).lower(),
-            deckmaste_core::Reference::That(deckmaste_core::Sort::Player)
         );
     }
 

@@ -165,8 +165,7 @@ impl GameState {
             rebuilt
         } else {
             let mut repeat_frame = contents.frame;
-            repeat_frame.anaphora.inherited_replacements = a.inherited;
-            repeat_frame.anaphora.contained_in_batch = true;
+            self.frame_set_action_context(&mut repeat_frame, a.inherited, true);
             // `mark` is captured NOW, at apply — after cant/replace already
             // decided the aggregate PASSES — so it only covers what THESE `n`
             // contained futures do ([CR#614.1]: a REPLACED aggregate never
@@ -196,11 +195,10 @@ impl GameState {
     /// `Draw`, the `FactKind::Drawn` success fact) and schedule THIS draw's own
     /// `FinalizeAct` (a per-card `mark`, so it observes only its own move);
     /// empty → `DrewFromEmpty`, no draw fact ([CR#121.4,704.5b]). The empty
-    /// check runs BEFORE the move. `that_much = 1` — one card per draw.
+    /// check runs BEFORE the move.
     fn apply_act_draw(&mut self, a: &Act, player: PlayerId) -> GameEvent {
         if let Some(&top) = self.zones.libraries[player.index()].front() {
             let rebuilt = rebuilt_act(a);
-            self.that_much = Some(1);
             let mark = self.finalize_mark();
             // The emitting lane owns the attribution ([CR#703.4d]): the effect
             // lane tags `EffectInstruction` + its source; don't reconstruct a

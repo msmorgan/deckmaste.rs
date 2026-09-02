@@ -750,7 +750,7 @@ where
         G: FnMut(&deckmaste_core::Condition) -> bool,
     {
         match a {
-            Ability::Static(s) => in_static(s, enter, visit),
+            Ability::Static(s) => in_static(&s.body, enter, visit),
             Ability::Keyword(k) => in_keyword(k, enter, visit),
             // Peel `Innate` — its inner static is consumed normally
             // ([CR#113.12,604.1]).
@@ -784,7 +784,7 @@ where
             // (Cant/Sba/CostModifier row collectors) match on the effect KIND,
             // not the affected set, so the wrapping `Selection` is immaterial
             // here.
-            StaticEffect::Each(_, inner) => in_static(inner, enter, visit),
+            StaticEffect::Each(_, inner) => in_static(&inner.body, enter, visit),
             // [CR#611.3a]: a `Conditionally` wrapper contributes its inner
             // effect only when `enter` accepts the condition. Collectors gate on
             // the live condition; the presence-only walkers pass `|_| true` and
@@ -1587,8 +1587,8 @@ mod tests {
             static_ability(gate(CantLose)),
             // [0b] effect reached through an `Each` wrapper, as a sibling ability.
             static_ability(StaticEffect::Each(
-                Selection::SelectAll(Predicate::Any),
-                Arc::new(gate(CantWin)),
+                Selection::SelectAll(Arc::new(deckmaste_core::Region::candidate(Predicate::Any))),
+                Arc::new(deckmaste_core::Region::candidate(gate(CantWin))),
             )),
             // [1] effect reached through a keyword composite.
             Ability::Keyword(KeywordAbility::Composite {
@@ -3138,7 +3138,6 @@ mod tests {
                 event: EventFilter::OneOf(Vec::new().into()),
                 condition: None,
                 limits: Vec::new().into(),
-                where_x: None,
                 effect: OneShotEffect::Sequentially(Vec::new().into()).into(),
             })],
         );

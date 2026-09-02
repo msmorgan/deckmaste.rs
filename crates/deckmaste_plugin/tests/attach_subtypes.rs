@@ -58,7 +58,7 @@ fn sole_innate_ability(subtype: &Subtype) -> Ability {
 /// Every static effect directly carried by a lowered ability, or empty.
 fn static_effects(a: &Ability) -> Vec<StaticEffect> {
     match a {
-        Ability::Static(s) => vec![s.as_ref().clone()],
+        Ability::Static(s) => vec![s.body.clone()],
         _ => vec![],
     }
 }

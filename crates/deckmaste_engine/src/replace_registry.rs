@@ -35,7 +35,6 @@ use crate::lki::LkiSnapshot;
 use crate::object::ObjectId;
 use crate::object::ObjectSource;
 use crate::player::PlayerId;
-use crate::stack::Anaphora;
 use crate::state::GameState;
 use crate::trigger::EventPatient;
 
@@ -129,19 +128,46 @@ pub(crate) fn replacement_watches(
     this: ObjectId,
     e: &GameEvent,
 ) -> bool {
+    replacement_watches_with_bindings(
+        state,
+        would,
+        e,
+        crate::eval::Bindings::watcher(object_source_of(state, this)),
+    )
+}
+
+fn replacement_watches_with_frame(
+    state: &GameState,
+    would: &EventFilter,
+    this: ObjectId,
+    e: &GameEvent,
+    frame: &crate::stack::Frame,
+) -> bool {
+    replacement_watches_with_bindings(
+        state,
+        would,
+        e,
+        crate::eval::Bindings {
+            watcher: object_source_of(state, this),
+            frame: Some(frame),
+            shape_only: false,
+        },
+    )
+}
+
+fn replacement_watches_with_bindings(
+    state: &GameState,
+    would: &EventFilter,
+    e: &GameEvent,
+    bindings: crate::eval::Bindings<'_>,
+) -> bool {
     if !replaceable(e) {
         return false;
     }
     let Some(fact) = crate::eval::FactView::of(state, e) else {
         return false;
     };
-    let watcher = object_source_of(state, this);
-    state.eval(
-        would,
-        &fact,
-        crate::eval::Lane::Replacement,
-        &crate::eval::Bindings::watcher(watcher),
-    )
+    state.eval(would, &fact, crate::eval::Lane::Replacement, &bindings)
 }
 
 /// Look through a remembered `EventFilter` macro invocation (`Expanded`) to
@@ -246,6 +272,10 @@ pub(crate) struct Applicable {
     pub key: ReplacementKey,
     pub effect: ApplicableEffect,
     pub source: ObjectId,
+    /// The static ability region that declares every register read by the
+    /// replacement/prevention and its body. Floating instances are the
+    /// Stage-3 capture case and currently carry no declaration prefix.
+    pub params: Arc<[deckmaste_core::Param]>,
 }
 
 /// Collect every replacement effect watching intent `e` from:
@@ -275,8 +305,8 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
             // the effect index is always 0 — kept in `ReplacementKey::Static`
             // for shape stability (multi-effect abilities used to
             // disambiguate by index).
-            if let StaticEffect::Replacement(r) = s.as_ref()
-                && replacement_would(state, r, obj, e)
+            if let StaticEffect::Replacement(r) = &s.body
+                && replacement_would(state, r, obj, e, &s.params)
             {
                 out.push(Applicable {
                     key: ReplacementKey::Static {
@@ -286,6 +316,7 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
                     },
                     effect: ApplicableEffect::Replacement(r.clone()),
                     source: obj,
+                    params: s.params.clone(),
                 });
             }
         }
@@ -329,8 +360,8 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
             crate::derive::derived_abilities_of(state, Some(obj), state.objects.obj(obj).source);
         for (ai, ability) in abilities.iter().enumerate() {
             if let Ability::Static(s) = ability
-                && let StaticEffect::Replacement(r) = s.as_ref()
-                && replacement_would(state, r, obj, e)
+                && let StaticEffect::Replacement(r) = &s.body
+                && replacement_would(state, r, obj, e, &s.params)
             {
                 out.push(Applicable {
                     key: ReplacementKey::Static {
@@ -340,6 +371,7 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
                     },
                     effect: ApplicableEffect::Replacement(r.clone()),
                     source: obj,
+                    params: s.params.clone(),
                 });
             }
         }
@@ -366,6 +398,10 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
                 key: ReplacementKey::Floating(inst.id),
                 effect: ApplicableEffect::Replacement(Arc::new(inst.replacement.clone())),
                 source: inst.source,
+                // Stage 3 gives carried floating bodies explicit captures.
+                // Their Stage-2 bridge still has the fixed event-role prefix,
+                // matching the register ABI produced by lowering.
+                params: deckmaste_core::event_region_params(),
             });
         }
     }
@@ -389,7 +425,7 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
                 let Ability::Static(s) = ability else {
                     continue;
                 };
-                if let StaticEffect::Prevention(p) = s.as_ref()
+                if let StaticEffect::Prevention(p) = &s.body
                     && prevention_watches(state, p, obj, event_source, event_target)
                 {
                     out.push(Applicable {
@@ -400,6 +436,7 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
                         },
                         effect: ApplicableEffect::Prevention(p.clone()),
                         source: obj,
+                        params: s.params.clone(),
                     });
                 }
             }
@@ -428,16 +465,60 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
 /// Whether replacement `r` (with watcher `source`) watches intent `e` — its
 /// `would` (Instead/Also) matches per `replacement_watches`. Returns `false`
 /// for `Skip` (handled by the step-elision pass, Task 9) and `Expanded`.
-fn replacement_would(state: &GameState, r: &Replacement, source: ObjectId, e: &GameEvent) -> bool {
+fn replacement_would(
+    state: &GameState,
+    r: &Replacement,
+    source: ObjectId,
+    e: &GameEvent,
+    params: &Arc<[deckmaste_core::Param]>,
+) -> bool {
+    let frame = replacement_frame(state, source, e, params.clone());
     match r {
         Replacement::Instead { would, .. } | Replacement::Also { would, .. } => {
-            replacement_watches(state, would, source, e)
+            let matches = replacement_watches_with_frame(state, would, source, e, &frame);
+            state.remove_activation_family(frame.activation);
+            matches
         }
-        Replacement::Skip { .. } => false, // handled in begin_step, Task 9
-                                           // Provenance is erased at `lower` (`deckmaste_lowering`), so no
-                                           // loaded value reaches here wrapped. The arm survives only because
-                                           // the variant does; `core-demacro` deletes both.
+        Replacement::Skip { .. } => {
+            state.remove_activation_family(frame.activation);
+            false
+        } // handled in begin_step, Task 9
+          // Provenance is erased at `lower` (`deckmaste_lowering`), so no
+          // loaded value reaches here wrapped. The arm survives only because
+          // the variant does; `core-demacro` deletes both.
     }
+}
+
+fn replacement_frame(
+    state: &GameState,
+    source: ObjectId,
+    event: &GameEvent,
+    params: Arc<[deckmaste_core::Param]>,
+) -> crate::stack::Frame {
+    let controller = state.objects.obj(source).controller;
+    let roles = state
+        .event_roles(event)
+        .bindings_over(crate::trigger::TriggerBindings {
+            this: Some(LkiSnapshot::capture(state, source)),
+            ..crate::trigger::TriggerBindings::default()
+        });
+    let mut frame = crate::stack::Frame::bare(source, controller);
+    state.frame_set_source_lki(&mut frame, roles.this);
+    state.frame_set_defending_player(&mut frame, roles.defending_player);
+    state.frame_set_event_bindings(
+        &mut frame,
+        roles.that_object,
+        roles.that_player,
+        roles.that_patient,
+    );
+    state.frame_set_event_extras(
+        &mut frame,
+        roles.event_amount,
+        roles.produced_mana,
+        roles.crossed,
+    );
+    frame.activation = state.enter_region(&deckmaste_core::Region::new(params, ()), &frame);
+    frame
 }
 
 fn prevention_watches(
@@ -602,28 +683,6 @@ pub(crate) fn replace_event(state: &mut GameState, e: GameEvent) -> ReplaceOutco
     }
 }
 
-/// The magnitude an amount-carrying intent fixes for the `Count::ThatMuch`
-/// register ([CR#107.3], "that many"). An `Instead` replaces the intent away —
-/// it never reaches the `apply` funnel that normally fixes `that_much` — so a
-/// body that reads "that many" (infect's poison/-1/-1 counters,
-/// [CR#702.90b,702.90c]) must have it set HERE, off the replaced intent.
-/// Mirrors the `apply`-funnel set ([CR#120.3], damage/life amounts).
-fn intent_magnitude(e: &GameEvent) -> Option<deckmaste_core::Uint> {
-    match e {
-        GameEvent::DamageDealt(DamageDealt { amount, .. })
-        | GameEvent::LifeLost(LifeLost { amount, .. })
-        | GameEvent::LifeGained(LifeGained { amount, .. }) => Some(*amount),
-        // [CR#616.1g,121.2a]: the `Batch` aggregate window's own cardinality —
-        // a count-multiplying `Instead` (Bruvac-style "mill twice that many")
-        // reads it here, off the replaced AGGREGATE intent, before any
-        // contained per-entity future exists. An ordinary (non-aggregate)
-        // `Act` carries no batch magnitude of its own — `None`, like every
-        // other non-amount-carrying intent.
-        GameEvent::Act(Act { batch, .. }) => *batch,
-        _ => None,
-    }
-}
-
 /// Apply one replacement to `e`. Returns the modified event to continue
 /// looping on, or `None` when the event is replaced to nothing (Instead).
 /// Schedules body effects via `schedule_body`, threading `applied` — the
@@ -643,21 +702,13 @@ fn apply_one(
         Some(Affected::Object(id)) => Some(id),
         _ => None,
     };
-    // [CR#107.3]: fix the "that many" register off the replaced intent so the
-    // body's `Count::ThatMuch` reads the original magnitude. The `apply` funnel
-    // can't do it — an `Instead` body schedules BEFORE (and instead of) the
-    // intent's apply. Set before `schedule_body` so the scheduled `RunEffect`
-    // (front of agenda, runs next) sees it. No-op for amount-less intents.
-    if let Some(amount) = intent_magnitude(&e) {
-        state.that_much = Some(amount);
-    }
     match &a.effect {
         ApplicableEffect::Replacement(replacement) => {
             match (**replacement).clone() {
                 Replacement::Instead { instead, .. } => {
                     // [CR#614.1a,614.6]: the event is replaced — it does NOT happen.
                     // Schedule the `instead` body; consume a one-shot shield if present.
-                    schedule_body(state, instead, a.source, that, applied);
+                    schedule_body(state, instead, a.source, that, applied, a.params.clone());
                     // [CR#614.3]: only consume a floating instance when it is one-shot
                     // (e.g. a regeneration shield). Duration-only floating replacements
                     // (one_shot: false) persist until their duration expires and must
@@ -672,7 +723,7 @@ fn apply_one(
                 Replacement::Also { also, .. } => {
                     // [CR#614.1c]: the event still happens AND `also` happens.
                     // Schedule the body; the (unchanged) event continues.
-                    schedule_body(state, also, a.source, that, applied);
+                    schedule_body(state, also, a.source, that, applied, a.params.clone());
                     Some(e)
                 }
                 Replacement::Skip { .. } => {
@@ -697,11 +748,9 @@ fn apply_one(
                         None
                     }
                     Prevention::PreventNext { n, .. } => {
-                        let frame = crate::stack::Frame::bare(
-                            a.source,
-                            state.objects.obj(a.source).controller,
-                        );
+                        let frame = replacement_frame(state, a.source, &e, a.params.clone());
                         let n_val = state.eval_count(n, &frame);
+                        state.remove_activation_family(frame.activation);
                         if amount <= n_val {
                             None
                         } else {
@@ -750,6 +799,7 @@ fn schedule_body(
     source: ObjectId,
     that: Option<ObjectId>,
     applied: &std::collections::HashSet<ReplacementKey>,
+    params: Arc<[deckmaste_core::Param]>,
 ) {
     let controller = state.objects.obj(source).controller;
     // [CR#608.2,608.2k]: bind the affected recipient — the event PATIENT
@@ -767,15 +817,10 @@ fn schedule_body(
                 (Some(snapshot.clone()), Some(EventPatient::Object(snapshot)))
             }
         });
-    let anaphora = Anaphora {
-        inherited_replacements: applied.clone(),
-        ..Anaphora::empty()
-    };
-    let mut frame = crate::stack::Frame {
-        anaphora,
-        ..crate::stack::Frame::bare(source, controller)
-    };
+    let mut frame = crate::stack::Frame::bare(source, controller);
+    state.frame_set_action_context(&mut frame, applied.clone(), false);
     state.frame_set_event_bindings(&mut frame, event_object, None, event_patient);
+    frame.activation = state.enter_region(&deckmaste_core::Region::new(params, ()), &frame);
     state.schedule_front(vec![crate::agenda::WorkItem::RunEffect {
         effect: Arc::new(effect),
         frame,
@@ -1754,6 +1799,7 @@ mod tests {
                     instead: deckmaste_core::OneShotEffect::Sequentially(vec![].into()),
                 })),
                 source: id,
+                params: Arc::from([]),
             })
             .collect();
 

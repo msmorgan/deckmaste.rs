@@ -62,10 +62,7 @@ impl GameState {
                 // lethal-damage SBA's deathtouch clause is
                 // `Is(Source, Has(Deathtouch))`.
                 if let deckmaste_core::Reference::Source = reference {
-                    let this = self.eval_reference(
-                        &deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
-                        frame,
-                    );
+                    let this = frame.source(self);
                     return self.objects.get(this).is_some_and(|obj| {
                         obj.damage
                             .iter()
@@ -169,7 +166,7 @@ impl GameState {
             // ([CR#714.2c]) lists more than one threshold; the gate holds if
             // the fact carried the count across ANY of them.
             Condition::Crossed { thresholds, .. } => {
-                let Some((before, after)) = frame.anaphora.crossed else {
+                let Some((before, after)) = self.activation_crossed(frame.activation) else {
                     todo!(
                         "engine seam: Crossed evaluated with no before/after channel in the frame \
                          ([CR#714.2b]) — only the Chapter trigger gate threads one; \
@@ -295,6 +292,8 @@ mod tests {
     use crate::state::PlayerConfig;
     use crate::state::StartingPlayer;
     use crate::test_support::frame_for;
+    use crate::test_support::frame_src;
+    use crate::test_support::frame_src_targets;
 
     fn game() -> GameState {
         GameState::new(GameConfig {
@@ -447,9 +446,8 @@ mod tests {
             Some(Zone::Battlefield),
         );
         state.zones.battlefield.push(bear);
-        let mut frame = Frame::bare(bear, PlayerId(0));
+        let mut frame = frame_src_targets(&state, bear, vec![bear]);
         state.frame_set_source_lki(&mut frame, Some(LkiSnapshot::capture(&state, bear)));
-        state.frame_set_targets(&mut frame, &[vec![bear]]);
 
         let creature = Predicate::creature();
         let land = Predicate::r#type(Type::Land);
@@ -530,7 +528,6 @@ mod tests {
                 abilities: vec![Ability::triggered(TriggeredAbility {
                     ability_word: None,
                     targets: [].into(),
-                    where_x: None,
                     from: None,
                     event: EventFilter::OneOf(Vec::new().into()),
                     condition: Some(Condition::Exists(Predicate::r#type(Type::Creature))),
@@ -789,7 +786,9 @@ mod tests {
         let mut state = game();
         let cond = Condition::Compare(
             Count::CountOf(deckmaste_core::Countable::Objects(Arc::new(
-                Predicate::State(StatePredicate::InZone(Zone::Stack)),
+                deckmaste_core::Region::candidate(Predicate::State(StatePredicate::InZone(
+                    Zone::Stack,
+                ))),
             ))),
             Cmp::Eq,
             Count::Literal(0),
@@ -865,7 +864,7 @@ mod tests {
         state.zones.battlefield.push(bear);
 
         let creatures = Count::CountOf(deckmaste_core::Countable::Objects(Arc::new(
-            Predicate::r#type(Type::Creature),
+            deckmaste_core::Region::candidate(Predicate::r#type(Type::Creature)),
         )));
         assert!(
             state.condition_holds(
@@ -954,7 +953,7 @@ mod tests {
         // Build a trigger-style frame whose `This` is the carrier and whose
         // `EventObject` is the just-entered creature `entrant`.
         let frame_for_entrant = |state: &GameState, entrant| {
-            let mut frame = Frame::bare(carrier, PlayerId(0));
+            let mut frame = frame_src(state, carrier);
             state.frame_set_source_lki(&mut frame, Some(LkiSnapshot::capture(state, carrier)));
             state.frame_set_event_bindings(
                 &mut frame,

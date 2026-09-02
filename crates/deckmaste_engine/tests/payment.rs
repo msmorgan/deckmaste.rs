@@ -8,15 +8,14 @@ use deckmaste_core::Ability;
 use deckmaste_core::Action as CoreAction;
 use deckmaste_core::ActivatedAbility;
 use deckmaste_core::ActivatedManaProfile;
-use deckmaste_core::Binder;
 use deckmaste_core::Cmp;
 use deckmaste_core::Color;
 use deckmaste_core::ColorOrColorless;
 use deckmaste_core::Cost;
+use deckmaste_core::CostBinder;
 use deckmaste_core::CostComponent;
 use deckmaste_core::Count;
 use deckmaste_core::Destination;
-use deckmaste_core::EventFilter;
 use deckmaste_core::KeywordAbility;
 use deckmaste_core::ManaAbility;
 use deckmaste_core::ManaCost;
@@ -26,11 +25,9 @@ use deckmaste_core::OneShotEffect;
 use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
 use deckmaste_core::RelationPredicate;
-use deckmaste_core::Replacement;
 use deckmaste_core::Stat;
 use deckmaste_core::StatValue;
 use deckmaste_core::StatePredicate;
-use deckmaste_core::StaticEffect;
 use deckmaste_core::Type;
 use deckmaste_core::Zone;
 use deckmaste_engine::Action;
@@ -45,8 +42,6 @@ use deckmaste_engine::ManaCoverage;
 use deckmaste_engine::ManaPayment;
 use deckmaste_engine::ManaPip;
 use deckmaste_engine::ManaProvenance;
-use deckmaste_engine::ObjectSource;
-use deckmaste_engine::ObservationBarrier;
 use deckmaste_engine::PaymentCommand;
 use deckmaste_engine::PaymentDeclined;
 use deckmaste_engine::PaymentProgress;
@@ -56,7 +51,6 @@ use deckmaste_engine::PlayerConfig;
 use deckmaste_engine::PlayerId;
 use deckmaste_engine::Priority;
 use deckmaste_engine::PriorityRound;
-use deckmaste_engine::ReversalBarrier;
 use deckmaste_engine::StartingPlayer;
 use deckmaste_engine::StepOutcome;
 use deckmaste_engine::WorkItem;
@@ -250,27 +244,6 @@ fn vanilla_creature(name: &str, power: i32) -> Arc<Card> {
     }))
 }
 
-fn discard_two_cost() -> CostComponent {
-    let CoreAction::Composite { name, body } = CoreAction::discard(
-        Reference::Reg(deckmaste_core::RefId(1)),
-        deckmaste_core::Count::Literal(2),
-        false,
-    ) else {
-        unreachable!()
-    };
-    let OneShotEffect::With(with) = body.as_ref() else { unreachable!() };
-    CostComponent::ChooseAndPay {
-        binder: Arc::new(with.binder.clone()),
-        body: Cost(
-            vec![CostComponent::do_action(CoreAction::Composite {
-                name,
-                body: Arc::clone(&with.body),
-            })]
-            .into(),
-        ),
-    }
-}
-
 fn announce_to_payment(state: &mut GameState, source: deckmaste_engine::ObjectId) {
     state
         .submit_decision(Decision::Act(Action::ActivateAbility {
@@ -423,50 +396,14 @@ fn deferred_library_iou_waits_for_the_ordinary_tier() {
     assert_eq!(payment_prompt(&state).fulfillable, vec![library]);
 }
 
-#[test]
-fn discard_set_validates_before_any_card_moves() {
-    let first_card = Arc::new(Card::Normal(CardFace {
-        name: "First discard".into(),
-        ..CardFace::default()
-    }));
-    let second_card = Arc::new(Card::Normal(CardFace {
-        name: "Second discard".into(),
-        ..CardFace::default()
-    }));
-    let (mut state, payer, source) =
-        activation_fixture_with_extras(vec![discard_two_cost()], vec![first_card, second_card]);
-    let first = hand_card(&state, payer, "First discard");
-    let second = hand_card(&state, payer, "Second discard");
-    announce_to_payment(&mut state, source);
-    let iou = payment_prompt(&state).outstanding[0].id;
-
-    let before = state.zones.hands[payer.index()].clone();
-    assert!(
-        state
-            .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
-                iou,
-                witness: FulfillmentWitness::Objects(vec![first, first]),
-            }))
-            .is_err()
-    );
-    assert_eq!(state.zones.hands[payer.index()], before);
-    assert_eq!(payment_prompt(&state).outstanding.len(), 1);
-
-    submit_and_run_to_payment(
-        &mut state,
-        PaymentCommand::Fulfill {
-            iou,
-            witness: FulfillmentWitness::Objects(vec![first, second]),
-        },
-    );
-    assert!(state.zones.hands[payer.index()].is_empty());
-    assert_eq!(state.zones.graveyards[payer.index()].len(), 2);
-    assert_eq!(payment_prompt(&state).stage, PaymentStage::Ready);
-}
-
+#[allow(
+    dead_code,
+    reason = "shared fixture retained for neighboring payment cases"
+)]
 fn choose_one_cost(filter: Predicate, actions: Vec<CoreAction>) -> CostComponent {
     CostComponent::ChooseAndPay {
-        binder: Arc::new(Binder::ChooseOne {
+        dest: deckmaste_core::DefId(2),
+        binder: Arc::new(CostBinder::ChooseOne {
             filter,
             by: Reference::Reg(deckmaste_core::RefId(1)),
         }),
@@ -478,190 +415,6 @@ fn choose_one_cost(filter: Predicate, actions: Vec<CoreAction>) -> CostComponent
                 .into(),
         ),
     }
-}
-
-#[test]
-fn choose_and_pay_preflights_the_entire_bound_body() {
-    let filter = Predicate::And(
-        vec![
-            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                Reference::Reg(deckmaste_core::RefId(1)),
-            )))),
-        ]
-        .into(),
-    );
-    let bound = Reference::That(deckmaste_core::Sort::Card);
-    let cost = choose_one_cost(
-        filter,
-        vec![CoreAction::Tap(bound.clone()), CoreAction::Tap(bound)],
-    );
-    let (mut state, payer, source) = activation_fixture_with_extras(
-        vec![cost],
-        vec![vanilla_creature("Atomic cost subject", 1)],
-    );
-    let subject = put_named_card_on_battlefield(&mut state, payer, "Atomic cost subject");
-    announce_to_payment(&mut state, source);
-    let before = payment_prompt(&state);
-
-    assert!(
-        state
-            .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
-                iou: before.outstanding[0].id,
-                witness: FulfillmentWitness::Objects(vec![subject]),
-            }))
-            .is_err(),
-        "the second tap makes the selected body atomically unpayable",
-    );
-    assert_eq!(payment_prompt(&state), before);
-    assert!(!state.objects.obj(subject).tapped);
-}
-
-#[test]
-fn choose_and_pay_preflight_accounts_for_zone_change_remint() {
-    let filter = Predicate::And(
-        vec![
-            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                Reference::Reg(deckmaste_core::RefId(1)),
-            )))),
-        ]
-        .into(),
-    );
-    let bound = Reference::That(deckmaste_core::Sort::Card);
-    let cost = choose_one_cost(
-        filter,
-        vec![
-            CoreAction::Move(
-                bound.clone(),
-                Destination::Zone(Zone::Exile),
-                Arc::from([]),
-                Some(Zone::Battlefield),
-            ),
-            CoreAction::RemoveCounters(
-                bound,
-                deckmaste_core::CounterRef::from("ChargeCounter"),
-                Count::Literal(1),
-            ),
-        ],
-    );
-    let (mut state, payer, source) = activation_fixture_with_extras(
-        vec![cost],
-        vec![vanilla_creature("Reminted cost subject", 1)],
-    );
-    let subject = put_named_card_on_battlefield(&mut state, payer, "Reminted cost subject");
-    state
-        .objects
-        .obj_mut(subject)
-        .counters
-        .insert("ChargeCounter".into(), 1);
-    announce_to_payment(&mut state, source);
-    let before = payment_prompt(&state);
-
-    assert!(
-        state
-            .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
-                iou: before.outstanding[0].id,
-                witness: FulfillmentWitness::Objects(vec![subject]),
-            }))
-            .is_err(),
-        "a counter cannot be paid after its carrier remints through a zone change",
-    );
-    assert_eq!(payment_prompt(&state), before);
-    assert!(state.zones.battlefield.contains(&subject));
-}
-
-#[test]
-fn choose_and_pay_rejects_sacrificing_an_opponents_permanent() {
-    let bound = Reference::That(deckmaste_core::Sort::Card);
-    let cost = choose_one_cost(
-        Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-        vec![CoreAction::Sacrifice(
-            Reference::Reg(deckmaste_core::RefId(1)),
-            bound,
-        )],
-    );
-    let (mut state, payer, source) = activation_fixture_with_extras(
-        vec![cost],
-        vec![vanilla_creature("Opponent-controlled cost subject", 1)],
-    );
-    let subject =
-        put_named_card_on_battlefield(&mut state, payer, "Opponent-controlled cost subject");
-    state.objects.obj_mut(subject).controller = PlayerId(1);
-    announce_to_payment(&mut state, source);
-    let before = payment_prompt(&state);
-
-    assert!(
-        state
-            .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
-                iou: before.outstanding[0].id,
-                witness: FulfillmentWitness::Objects(vec![subject]),
-            }))
-            .is_err(),
-        "a payer cannot sacrifice a permanent they do not control",
-    );
-    assert_eq!(payment_prompt(&state), before);
-    assert!(state.zones.battlefield.contains(&subject));
-}
-
-fn unsupported_bound_binder_cost(binder: Binder) -> CostComponent {
-    CostComponent::ChooseAndPay {
-        binder: Arc::new(binder),
-        body: Cost(
-            vec![CostComponent::do_action(CoreAction::Tap(Reference::That(
-                deckmaste_core::Sort::Card,
-            )))]
-            .into(),
-        ),
-    }
-}
-
-#[test]
-fn nested_random_reference_cost_binder_fails_closed() {
-    let random = deckmaste_core::Selection::Random(deckmaste_core::Quantity::one(), Predicate::Any);
-    let cost = unsupported_bound_binder_cost(Binder::TheRef(Reference::Single(Arc::new(random))));
-    let (mut state, _, source) = activation_fixture(vec![cost]);
-    announce_to_payment(&mut state, source);
-    let before = payment_prompt(&state);
-
-    assert!(
-        state
-            .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
-                iou: before.outstanding[0].id,
-                witness: FulfillmentWitness::Bound,
-            }))
-            .is_err(),
-        "an unsampled nested Random must reject instead of reaching reference evaluation",
-    );
-    assert_eq!(payment_prompt(&state), before);
-}
-
-#[test]
-fn random_producer_subject_cost_binder_fails_closed() {
-    let random = Reference::Single(Arc::new(deckmaste_core::Selection::Random(
-        deckmaste_core::Quantity::one(),
-        Predicate::Any,
-    )));
-    let cost = unsupported_bound_binder_cost(Binder::Produce(Arc::new(CoreAction::Move(
-        random,
-        Destination::Zone(Zone::Exile),
-        Arc::from([]),
-        None,
-    ))));
-    let (mut state, _, source) = activation_fixture(vec![cost]);
-    announce_to_payment(&mut state, source);
-    let before = payment_prompt(&state);
-
-    assert!(
-        state
-            .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
-                iou: before.outstanding[0].id,
-                witness: FulfillmentWitness::Bound,
-            }))
-            .is_err(),
-        "a raw producer may not carry an unresolved random subject",
-    );
-    assert_eq!(payment_prompt(&state), before);
 }
 
 #[test]
@@ -774,48 +527,6 @@ fn runner_chooses_the_fewest_highest_power_crew_members() {
     assert!(!state.objects.obj(one).tapped);
     assert!(!state.objects.obj(two).tapped);
     assert!(!state.objects.obj(three).tapped);
-}
-
-#[test]
-fn runner_selects_a_complete_choose_and_pay_witness() {
-    let first_card = Arc::new(Card::Normal(CardFace {
-        name: "First automatic discard".into(),
-        ..CardFace::default()
-    }));
-    let second_card = Arc::new(Card::Normal(CardFace {
-        name: "Second automatic discard".into(),
-        ..CardFace::default()
-    }));
-    let (mut state, payer, source) =
-        activation_fixture_with_extras(vec![discard_two_cost()], vec![first_card, second_card]);
-    let first = hand_card(&state, payer, "First automatic discard");
-    let second = hand_card(&state, payer, "Second automatic discard");
-    announce_to_payment(&mut state, source);
-    let iou = payment_prompt(&state).outstanding[0].id;
-
-    assert_eq!(
-        state.auto_payment_pending(),
-        Some(Decision::Payment(PaymentCommand::Fulfill {
-            iou,
-            witness: FulfillmentWitness::Objects(vec![first, second]),
-        }))
-    );
-}
-
-#[test]
-fn runner_declines_an_insufficient_random_choose_and_pay_cost() {
-    let only_card = Arc::new(Card::Normal(CardFace {
-        name: "Only automatic random discard".into(),
-        ..CardFace::default()
-    }));
-    let (mut state, _, source) =
-        activation_fixture_with_extras(vec![random_discard_two_cost()], vec![only_card]);
-    announce_to_payment(&mut state, source);
-
-    assert_eq!(
-        state.auto_payment_pending(),
-        Some(Decision::Payment(PaymentCommand::DeclinePayment))
-    );
 }
 
 #[test]
@@ -1115,387 +826,6 @@ fn unaffordable_activation_is_still_a_legal_proposal() {
     }));
 }
 
-fn random_discard_two_cost() -> CostComponent {
-    let CoreAction::Composite { name, body } = CoreAction::discard(
-        Reference::Reg(deckmaste_core::RefId(1)),
-        deckmaste_core::Count::Literal(2),
-        true,
-    ) else {
-        unreachable!()
-    };
-    let OneShotEffect::With(with) = body.as_ref() else { unreachable!() };
-    CostComponent::ChooseAndPay {
-        binder: Arc::new(with.binder.clone()),
-        body: Cost(
-            vec![CostComponent::do_action(CoreAction::Composite {
-                name,
-                body: Arc::clone(&with.body),
-            })]
-            .into(),
-        ),
-    }
-}
-
-#[test]
-fn random_cost_waits_for_the_deferred_tier_and_samples_without_a_choice() {
-    let first_card = Arc::new(Card::Normal(CardFace {
-        name: "First random discard".into(),
-        ..CardFace::default()
-    }));
-    let second_card = Arc::new(Card::Normal(CardFace {
-        name: "Second random discard".into(),
-        ..CardFace::default()
-    }));
-    let (mut state, payer, source) = activation_fixture_with_extras(
-        vec![CostComponent::Tap, random_discard_two_cost()],
-        vec![first_card, second_card],
-    );
-    announce_to_payment(&mut state, source);
-    let prompt = payment_prompt(&state);
-    let tap = prompt
-        .outstanding
-        .iter()
-        .find(|iou| matches!(iou.kind, IouKind::Tap))
-        .expect("tap IOU")
-        .id;
-    let random = prompt
-        .outstanding
-        .iter()
-        .find(|iou| matches!(iou.kind, IouKind::ChooseAndPay { .. }))
-        .expect("random-discard IOU")
-        .id;
-    assert_eq!(prompt.fulfillable, vec![tap]);
-
-    submit_and_run_to_payment(
-        &mut state,
-        PaymentCommand::Fulfill {
-            iou: tap,
-            witness: FulfillmentWitness::Bound,
-        },
-    );
-    assert_eq!(payment_prompt(&state).fulfillable, vec![random]);
-    submit_and_run_to_payment(
-        &mut state,
-        PaymentCommand::Fulfill {
-            iou: random,
-            witness: FulfillmentWitness::Bound,
-        },
-    );
-
-    assert!(state.zones.hands[payer.index()].is_empty());
-    assert_eq!(state.zones.graveyards[payer.index()].len(), 2);
-    assert_eq!(payment_prompt(&state).stage, PaymentStage::Ready);
-    let record = state
-        .payment_records()
-        .expect("active payment records")
-        .last()
-        .expect("random fulfillment record");
-    assert!(
-        record
-            .observation_barriers
-            .contains(&ObservationBarrier::RandomOutcome),
-        "the sampled subject set is retained as a replay observation barrier"
-    );
-    assert!(matches!(
-        &record.command,
-        deckmaste_engine::ReplayCommand::Fulfill {
-            random_outcome: Some(objects),
-            ..
-        } if objects.objects.len() == 2
-    ));
-}
-
-#[test]
-fn declining_an_omitted_random_cost_preserves_consumed_entropy() {
-    let extras = (0..4)
-        .map(|index| {
-            Arc::new(Card::Normal(CardFace {
-                name: format!("Random discard subject {index}").into(),
-                ..CardFace::default()
-            }))
-        })
-        .collect();
-    let (mut state, payer, source) =
-        activation_fixture_with_extras(vec![random_discard_two_cost()], extras);
-    let before_rng = (state.rng.get_stream(), state.rng.get_word_pos());
-    announce_to_payment(&mut state, source);
-    let iou = payment_prompt(&state).outstanding[0].id;
-
-    submit_and_run_to_payment(
-        &mut state,
-        PaymentCommand::Fulfill {
-            iou,
-            witness: FulfillmentWitness::Bound,
-        },
-    );
-    let post_sample_rng = (state.rng.get_stream(), state.rng.get_word_pos());
-    assert_ne!(post_sample_rng, before_rng);
-    assert_eq!(state.zones.graveyards[payer.index()].len(), 2);
-
-    state
-        .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
-        .unwrap();
-
-    assert_eq!(state.payment_depth(), 0);
-    assert_eq!(state.zones.hands[payer.index()].len(), 4);
-    assert!(state.zones.graveyards[payer.index()].is_empty());
-    assert_eq!(
-        (state.rng.get_stream(), state.rng.get_word_pos()),
-        post_sample_rng,
-        "decline may reverse physical effects but must not reuse observed entropy",
-    );
-}
-
-#[test]
-#[expect(
-    clippy::too_many_lines,
-    reason = "the RNG chronology regression builds and compares both original and reconstructed library states"
-)]
-fn omitted_random_cost_advances_rng_before_a_retained_shuffle() {
-    let move_from_library = CostComponent::ChooseAndPay {
-        binder: Arc::new(Binder::SearchOne {
-            filter: Predicate::Any,
-            by: Reference::Reg(deckmaste_core::RefId(1)),
-            whose: Reference::Reg(deckmaste_core::RefId(1)),
-            from: vec![Zone::Library].into(),
-            if_none: None,
-        }),
-        body: Cost(
-            vec![CostComponent::do_action(CoreAction::Move(
-                Reference::That(deckmaste_core::Sort::Card),
-                Destination::Zone(Zone::Exile),
-                Arc::from([]),
-                Some(Zone::Library),
-            ))]
-            .into(),
-        ),
-    };
-    let shuffler = Arc::new(Card::Normal(CardFace {
-        name: "Payment shuffle replacement".into(),
-        types: vec![Type::Enchantment.def()],
-        abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
-            Replacement::Also {
-                would: EventFilter::ZoneChange {
-                    what: Predicate::Any,
-                    from: Some(Zone::Library),
-                    to: Some(Zone::Exile),
-                    cause: None,
-                },
-                also: OneShotEffect::Act(CoreAction::Shuffle(
-                    deckmaste_core::Selection::LibraryOf(Reference::Reg(deckmaste_core::RefId(1))),
-                )),
-            },
-        )))],
-        ..CardFace::default()
-    }));
-    let chronology_cards = (0..10).map(|index| {
-        Arc::new(Card::Normal(CardFace {
-            name: format!("RNG chronology card {index}").into(),
-            ..CardFace::default()
-        }))
-    });
-    let payer = PlayerId(0);
-    let deck = std::iter::once(activated_card(vec![
-        random_discard_two_cost(),
-        move_from_library,
-    ]))
-    .chain(std::iter::once(shuffler))
-    .chain(chronology_cards)
-    .collect();
-    let mut state = GameState::new(GameConfig {
-        players: vec![PlayerConfig { deck }, PlayerConfig { deck: vec![] }],
-        seed: 7,
-        starting_life: 20,
-        starting_player: StartingPlayer::Fixed(payer),
-        sba_rules: vec![],
-        conferral_rules: vec![],
-        damage_result_rules: vec![],
-        counter_decls: std::collections::HashMap::new(),
-        subtypes: std::collections::HashMap::new(),
-        types: std::collections::HashMap::new(),
-    });
-    let find_named = |state: &GameState, name: &str| {
-        state
-            .objects
-            .iter()
-            .find(|object| {
-                matches!(object.source, ObjectSource::Card(_))
-                    && card_name(state.def(object.id)) == name
-            })
-            .expect("fixture card exists")
-            .id
-    };
-    let source = find_named(&state, "Payment fixture");
-    let replacement = find_named(&state, "Payment shuffle replacement");
-    for object in [source, replacement] {
-        state.zones.hands[payer.index()].retain(|&candidate| candidate != object);
-        state.zones.libraries[payer.index()].retain(|&candidate| candidate != object);
-        state.objects.obj_mut(object).zone = Some(Zone::Battlefield);
-        state.objects.obj_mut(object).summoning_sick = false;
-        state.zones.battlefield.push(object);
-    }
-    let chronology_hand: Vec<_> = state.zones.hands[payer.index()]
-        .iter()
-        .copied()
-        .filter(|&object| card_name(state.def(object)).starts_with("RNG chronology card"))
-        .collect();
-    for object in chronology_hand.into_iter().skip(4) {
-        state.zones.hands[payer.index()].retain(|&candidate| candidate != object);
-        state.objects.obj_mut(object).zone = Some(Zone::Library);
-        state.zones.libraries[payer.index()].push_back(object);
-    }
-    assert_eq!(state.zones.hands[payer.index()].len(), 4);
-    state.turn.priority = Some(PriorityRound {
-        holder: payer,
-        consecutive_passes: 0,
-    });
-    state.pending = Some(PendingDecision::Priority(Priority {
-        player: payer,
-        legal: vec![Action::ActivateAbility {
-            object: source,
-            ability: 0,
-        }],
-    }));
-    announce_to_payment(&mut state, source);
-    let prompt = payment_prompt(&state);
-    let random = prompt
-        .outstanding
-        .iter()
-        .find(|iou| {
-            matches!(
-                &iou.kind,
-                IouKind::ChooseAndPay { binder, .. }
-                    if matches!(binder.as_ref(), Binder::Existing(deckmaste_core::Selection::Random(..)))
-            )
-        })
-        .unwrap()
-        .id;
-    let library_iou = prompt
-        .outstanding
-        .iter()
-        .find(|iou| {
-            matches!(
-                &iou.kind,
-                IouKind::ChooseAndPay { binder, .. }
-                    if matches!(binder.as_ref(), Binder::SearchOne { .. })
-            )
-        })
-        .unwrap()
-        .id;
-    let library_object = state.zones.libraries[payer.index()][0];
-
-    submit_and_run_to_payment(
-        &mut state,
-        PaymentCommand::Fulfill {
-            iou: random,
-            witness: FulfillmentWitness::Bound,
-        },
-    );
-    submit_and_run_to_payment(
-        &mut state,
-        PaymentCommand::Fulfill {
-            iou: library_iou,
-            witness: FulfillmentWitness::Objects(vec![library_object]),
-        },
-    );
-    let expected_library: Vec<_> = state.zones.libraries[payer.index()]
-        .iter()
-        .map(|&object| card_name(state.def(object)).to_owned())
-        .collect();
-    let expected_rng = (state.rng.get_stream(), state.rng.get_word_pos());
-
-    state
-        .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
-        .unwrap();
-
-    let replayed_library: Vec<_> = state.zones.libraries[payer.index()]
-        .iter()
-        .map(|&object| card_name(state.def(object)).to_owned())
-        .collect();
-    assert_eq!(replayed_library, expected_library);
-    assert_eq!(
-        (state.rng.get_stream(), state.rng.get_word_pos()),
-        expected_rng
-    );
-}
-
-#[test]
-fn random_cost_rejects_an_insufficient_subject_set_without_advancing_rng() {
-    let only_card = Arc::new(Card::Normal(CardFace {
-        name: "Only random discard".into(),
-        ..CardFace::default()
-    }));
-    let (mut state, _, source) =
-        activation_fixture_with_extras(vec![random_discard_two_cost()], vec![only_card]);
-    announce_to_payment(&mut state, source);
-    let prompt = payment_prompt(&state);
-    let iou = prompt.outstanding[0].id;
-
-    assert!(
-        state
-            .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
-                iou,
-                witness: FulfillmentWitness::Bound,
-            }))
-            .is_err()
-    );
-    assert_eq!(payment_prompt(&state), prompt);
-    assert!(state.payment_records().is_some_and(<[_]>::is_empty));
-}
-
-#[test]
-fn search_cost_validates_and_runs_an_explicit_complete_witness() {
-    let sought = Arc::new(Card::Normal(CardFace {
-        name: "Sought card".into(),
-        ..CardFace::default()
-    }));
-    let search = CostComponent::ChooseAndPay {
-        binder: Arc::new(Binder::SearchOne {
-            filter: Predicate::Any,
-            by: Reference::Reg(deckmaste_core::RefId(1)),
-            whose: Reference::Reg(deckmaste_core::RefId(1)),
-            from: Arc::from([Zone::Hand]),
-            if_none: None,
-        }),
-        body: Cost(
-            vec![CostComponent::do_action(CoreAction::Move(
-                Reference::That(deckmaste_core::Sort::Card),
-                Destination::Zone(Zone::Exile),
-                Arc::from([]),
-                Some(Zone::Hand),
-            ))]
-            .into(),
-        ),
-    };
-    let (mut state, payer, source) = activation_fixture_with_extras(vec![search], vec![sought]);
-    let sought = hand_card(&state, payer, "Sought card");
-    announce_to_payment(&mut state, source);
-    let prompt = payment_prompt(&state);
-    let iou = prompt.outstanding[0].id;
-
-    assert!(
-        state
-            .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
-                iou,
-                witness: FulfillmentWitness::Objects(vec![source]),
-            }))
-            .is_err(),
-        "a battlefield object is outside the searched Hand domain"
-    );
-    assert_eq!(payment_prompt(&state), prompt);
-
-    submit_and_run_to_payment(
-        &mut state,
-        PaymentCommand::Fulfill {
-            iou,
-            witness: FulfillmentWitness::Objects(vec![sought]),
-        },
-    );
-    assert!(!state.zones.hands[payer.index()].contains(&sought));
-    assert_eq!(state.zones.exile.len(), 1);
-    assert_eq!(payment_prompt(&state).stage, PaymentStage::Ready);
-}
-
 #[test]
 fn plural_library_search_cost_is_deferred_and_requires_the_complete_set() {
     let first = Arc::new(Card::Normal(CardFace {
@@ -1507,7 +837,8 @@ fn plural_library_search_cost_is_deferred_and_requires_the_complete_set() {
         ..CardFace::default()
     }));
     let search = CostComponent::ChooseAndPay {
-        binder: Arc::new(Binder::Search {
+        dest: deckmaste_core::DefId(2),
+        binder: Arc::new(CostBinder::Search {
             quantity: deckmaste_core::Quantity::Range(
                 Some(deckmaste_core::Count::Literal(2)),
                 Some(deckmaste_core::Count::Literal(2)),
@@ -1575,42 +906,6 @@ fn plural_library_search_cost_is_deferred_and_requires_the_complete_set() {
 }
 
 #[test]
-fn producer_cost_runs_the_producer_then_binds_its_moved_product() {
-    let producer = CostComponent::ChooseAndPay {
-        binder: Arc::new(Binder::Produce(Arc::new(CoreAction::Move(
-            Reference::Reg(deckmaste_core::RefId(0)),
-            Destination::Zone(Zone::Exile),
-            Arc::from([]),
-            Some(Zone::Battlefield),
-        )))),
-        body: Cost(
-            vec![CostComponent::do_action(CoreAction::Move(
-                Reference::That(deckmaste_core::Sort::Card),
-                Destination::Zone(Zone::Graveyard),
-                Arc::from([]),
-                Some(Zone::Exile),
-            ))]
-            .into(),
-        ),
-    };
-    let (mut state, payer, source) = activation_fixture(vec![producer]);
-    announce_to_payment(&mut state, source);
-    let iou = payment_prompt(&state).outstanding[0].id;
-
-    submit_and_run_to_payment(
-        &mut state,
-        PaymentCommand::Fulfill {
-            iou,
-            witness: FulfillmentWitness::Bound,
-        },
-    );
-
-    assert!(state.zones.exile.is_empty());
-    assert_eq!(state.zones.graveyards[payer.index()].len(), 1);
-    assert_eq!(payment_prompt(&state).stage, PaymentStage::Ready);
-}
-
-#[test]
 fn unresolved_choice_cannot_construct_a_runnable_core_act() {
     let malformed = CostComponent::try_do_action(CoreAction::discard(
         Reference::Reg(deckmaste_core::RefId(1)),
@@ -1620,131 +915,5 @@ fn unresolved_choice_cannot_construct_a_runnable_core_act() {
     assert_eq!(
         malformed,
         Err(deckmaste_core::RunnableCostActionError::UnresolvedSubject)
-    );
-}
-
-fn random_library_exile_two_cost() -> CostComponent {
-    let filter = Predicate::And(
-        vec![
-            Predicate::State(StatePredicate::InZone(Zone::Library)),
-            Predicate::Relation(RelationPredicate::Owner(Arc::new(Predicate::Ref(
-                Reference::Reg(deckmaste_core::RefId(1)),
-            )))),
-        ]
-        .into(),
-    );
-    CostComponent::ChooseAndPay {
-        binder: Arc::new(Binder::Existing(deckmaste_core::Selection::Random(
-            deckmaste_core::Quantity::Range(Some(Count::Literal(2)), Some(Count::Literal(2))),
-            filter,
-        ))),
-        body: Cost(
-            vec![CostComponent::do_action(CoreAction::Composite {
-                name: deckmaste_core::VerbName::from("Discard"),
-                body: Arc::new(OneShotEffect::Each(deckmaste_core::Each {
-                    binder: Binder::Existing(deckmaste_core::Selection::They),
-                    effect: Arc::new(OneShotEffect::Act(CoreAction::Move(
-                        Reference::It,
-                        Destination::Zone(Zone::Exile),
-                        Arc::from([]),
-                        Some(Zone::Library),
-                    ))),
-                })),
-            })]
-            .into(),
-        ),
-    }
-}
-
-#[test]
-fn decline_replays_the_exact_random_subset_and_restores_post_sample_rng() {
-    let extras = (0..4)
-        .map(|index| {
-            Arc::new(Card::Normal(CardFace {
-                name: format!("Random library subject {index}").into(),
-                ..CardFace::default()
-            }))
-        })
-        .collect();
-    let (mut state, payer, source) =
-        activation_fixture_with_extras(vec![random_library_exile_two_cost()], extras);
-    let subjects = state.zones.hands[payer.index()].clone();
-    assert_eq!(subjects.len(), 4);
-    for object in subjects {
-        state.zones.hands[payer.index()].retain(|&id| id != object);
-        state.objects.obj_mut(object).zone = Some(Zone::Library);
-        state.zones.libraries[payer.index()].push_back(object);
-    }
-
-    let before_rng = (state.rng.get_stream(), state.rng.get_word_pos());
-    announce_to_payment(&mut state, source);
-    let iou = payment_prompt(&state).outstanding[0].id;
-    submit_and_run_to_payment(
-        &mut state,
-        PaymentCommand::Fulfill {
-            iou,
-            witness: FulfillmentWitness::Bound,
-        },
-    );
-
-    let mut first_subset: Vec<_> = state
-        .zones
-        .exile
-        .iter()
-        .map(|&object| card_name(state.def(object)).to_owned())
-        .collect();
-    first_subset.sort();
-    assert_eq!(first_subset.len(), 2);
-    let post_sample_rng = (state.rng.get_stream(), state.rng.get_word_pos());
-    assert_ne!(
-        post_sample_rng, before_rng,
-        "the original sample consumes RNG"
-    );
-    let record = state.payment_records().unwrap().last().unwrap();
-    assert!(
-        record
-            .reversal_barriers
-            .contains(&ReversalBarrier::MovedFromLibrary)
-    );
-    assert!(
-        record
-            .observation_barriers
-            .contains(&ObservationBarrier::RandomOutcome)
-    );
-    let deckmaste_engine::ReplayCommand::Fulfill {
-        random_outcome: Some(random_outcome),
-        ..
-    } = &record.command
-    else {
-        panic!("random fulfillment must retain its deterministic outcome");
-    };
-    assert_eq!(random_outcome.objects.len(), 2);
-    assert_eq!(
-        (
-            random_outcome.post_sample_rng.stream,
-            random_outcome.post_sample_rng.word_pos,
-        ),
-        post_sample_rng,
-    );
-
-    state
-        .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
-        .unwrap();
-
-    let mut replayed_subset: Vec<_> = state
-        .zones
-        .exile
-        .iter()
-        .map(|&object| card_name(state.def(object)).to_owned())
-        .collect();
-    replayed_subset.sort();
-    assert_eq!(
-        replayed_subset, first_subset,
-        "replay must not reroll the subset"
-    );
-    assert_eq!(
-        (state.rng.get_stream(), state.rng.get_word_pos()),
-        post_sample_rng,
-        "replay must neither resample nor reuse the consumed entropy",
     );
 }

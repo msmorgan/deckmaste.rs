@@ -1,7 +1,7 @@
 use deckmaste_core::Action;
 use deckmaste_core::Agency;
-use deckmaste_core::Binder;
 use deckmaste_core::Cmp;
+use deckmaste_core::CostBinder;
 use deckmaste_core::CostComponent;
 use deckmaste_core::Destination;
 use deckmaste_core::LifeOp;
@@ -53,17 +53,17 @@ fn is_deferred(iou: &PaymentIou) -> bool {
     }
 }
 
-fn binder_is_deferred(binder: &Binder) -> bool {
+fn binder_is_deferred(binder: &CostBinder) -> bool {
     match binder {
-        Binder::SearchOne { from, .. } | Binder::Search { from, .. } => {
+        CostBinder::SearchOne { from, .. } | CostBinder::Search { from, .. } => {
             from.contains(&Zone::Library)
         }
-        Binder::Produce(action) => action_is_deferred(action),
-        Binder::Existing(Selection::Random(..)) => true,
-        Binder::TheRef(_)
-        | Binder::ChooseOne { .. }
-        | Binder::Choose { .. }
-        | Binder::Existing(_) => false,
+        CostBinder::Produce(action) => action_is_deferred(action),
+        CostBinder::Existing(Selection::Random(..)) => true,
+        CostBinder::TheRef(_)
+        | CostBinder::ChooseOne { .. }
+        | CostBinder::Choose { .. }
+        | CostBinder::Existing(_) => false,
     }
 }
 
@@ -91,7 +91,7 @@ fn effect_is_deferred(effect: &deckmaste_core::OneShotEffect) -> bool {
     use deckmaste_core::OneShotEffect;
 
     match effect {
-        OneShotEffect::Act(action) => action_is_deferred(action),
+        OneShotEffect::Act { action, .. } => action_is_deferred(action),
         OneShotEffect::Sequentially(effects) | OneShotEffect::Simultaneously(effects) => {
             effects.iter().any(effect_is_deferred)
         }
@@ -322,14 +322,14 @@ impl GameState {
                 FulfillmentPlan {
                     spend: None,
                     work: vec![WorkItem::RunEffect {
-                        effect: std::sync::Arc::new(deckmaste_core::OneShotEffect::Act(
+                        effect: std::sync::Arc::new(deckmaste_core::OneShotEffect::act(
                             action.as_action().clone(),
                         )),
                         frame,
                     }],
                 }
             }
-            IouKind::ChooseAndPay { binder, body } => {
+            IouKind::ChooseAndPay { dest, binder, body } => {
                 let mut frame = self
                     .payment
                     .as_ref()
@@ -340,18 +340,15 @@ impl GameState {
                     .locked
                     .frame
                     .clone();
-                frame.anaphora.chosen =
-                    self.validate_binder_witness(binder, &witness, payer, &frame)?;
-                self.validate_bound_cost_body(binder, body, payer, &frame)?;
+                let chosen = self.validate_binder_witness(binder, &witness, payer, &frame)?;
+                self.frame_set_chosen(&mut frame, chosen);
+                let group = self.validate_bound_cost_body(*dest, binder, body, payer, &frame)?;
+                self.activation_write_objects(frame.activation, *dest, &group);
+                self.frame_set_chosen(&mut frame, None);
                 FulfillmentPlan {
                     spend: None,
                     work: vec![WorkItem::RunEffect {
-                        effect: std::sync::Arc::new(deckmaste_core::OneShotEffect::With(
-                            deckmaste_core::With {
-                                binder: binder.as_ref().clone(),
-                                body: std::sync::Arc::new(runnable_cost_body_effect(body)?),
-                            },
-                        )),
+                        effect: std::sync::Arc::new(runnable_cost_body_effect(body)?),
                         frame,
                     }],
                 }
@@ -538,7 +535,7 @@ impl GameState {
 
     fn validate_binder_witness(
         &self,
-        binder: &Binder,
+        binder: &CostBinder,
         witness: &FulfillmentWitness,
         _payer: crate::player::PlayerId,
         frame: &Frame,
@@ -547,14 +544,14 @@ impl GameState {
             return illegal("the cost binder retains an unsupported unresolved operation");
         }
         match binder {
-            Binder::ChooseOne { filter, .. } => {
+            CostBinder::ChooseOne { filter, .. } => {
                 let FulfillmentWitness::Objects(objects) = witness else {
                     return illegal("ChooseOne requires one selected object");
                 };
                 self.validate_choice_objects(objects, 1, 1, filter, frame)?;
                 Ok(Some(objects.clone()))
             }
-            Binder::Choose {
+            CostBinder::Choose {
                 quantity, filter, ..
             } => {
                 let FulfillmentWitness::Objects(objects) = witness else {
@@ -566,7 +563,7 @@ impl GameState {
                 self.validate_choice_objects(objects, min, max, filter, frame)?;
                 Ok(Some(objects.clone()))
             }
-            Binder::Existing(Selection::Random(quantity, filter)) => {
+            CostBinder::Existing(Selection::Random(quantity, filter)) => {
                 if witness != &FulfillmentWitness::Bound {
                     return illegal("a random cost binder requires Bound");
                 }
@@ -579,11 +576,15 @@ impl GameState {
                 }
                 Ok(None)
             }
-            Binder::TheRef(_) | Binder::Existing(_) if witness == &FulfillmentWitness::Bound => {
+            CostBinder::TheRef(_) | CostBinder::Existing(_)
+                if witness == &FulfillmentWitness::Bound =>
+            {
                 Ok(None)
             }
-            Binder::TheRef(_) | Binder::Existing(_) => illegal("a nonchoice binder requires Bound"),
-            Binder::SearchOne {
+            CostBinder::TheRef(_) | CostBinder::Existing(_) => {
+                illegal("a nonchoice binder requires Bound")
+            }
+            CostBinder::SearchOne {
                 filter,
                 whose,
                 from,
@@ -599,7 +600,7 @@ impl GameState {
                 validate_search_witness(objects, &candidates, min, max)?;
                 Ok(Some(objects.clone()))
             }
-            Binder::Search {
+            CostBinder::Search {
                 quantity,
                 filter,
                 whose,
@@ -615,7 +616,7 @@ impl GameState {
                 validate_search_witness(objects, &candidates, min, hi)?;
                 Ok(Some(objects.clone()))
             }
-            Binder::Produce(action) => {
+            CostBinder::Produce(action) => {
                 if witness != &FulfillmentWitness::Bound {
                     return illegal("a producer cost binder requires Bound");
                 }
@@ -638,15 +639,16 @@ impl GameState {
 
     fn validate_bound_cost_body(
         &self,
-        binder: &Binder,
+        dest: deckmaste_core::DefId,
+        binder: &CostBinder,
         body: &deckmaste_core::Cost,
         payer: crate::player::PlayerId,
         frame: &Frame,
-    ) -> Result<(), DecisionError> {
+    ) -> Result<Vec<ObjectId>, DecisionError> {
         let mut projected = self.clone();
         let mut bound = frame.clone();
         let group = match binder {
-            Binder::Produce(action) => {
+            CostBinder::Produce(action) => {
                 let Action::Move(subject, ..) = action.as_ref() else {
                     return illegal("a producer cost binder currently requires a Move action");
                 };
@@ -658,18 +660,18 @@ impl GameState {
                 }
                 vec![object]
             }
-            Binder::Existing(Selection::Random(_, filter)) => {
+            CostBinder::Existing(Selection::Random(_, filter)) => {
                 let watcher = Some(projected.frame_watcher(&bound));
                 crate::target::candidates_with(&projected, filter, watcher)
             }
             _ => projected.resolve_binder(binder, &bound),
         };
         let cardinality = match binder {
-            Binder::TheRef(_)
-            | Binder::ChooseOne { .. }
-            | Binder::Produce(_)
-            | Binder::SearchOne { .. } => crate::stack::Cardinality::One,
-            Binder::Choose { .. } | Binder::Existing(_) | Binder::Search { .. } => {
+            CostBinder::TheRef(_)
+            | CostBinder::ChooseOne { .. }
+            | CostBinder::Produce(_)
+            | CostBinder::SearchOne { .. } => crate::stack::Cardinality::One,
+            CostBinder::Choose { .. } | CostBinder::Existing(_) | CostBinder::Search { .. } => {
                 crate::stack::Cardinality::Many
             }
         };
@@ -682,22 +684,10 @@ impl GameState {
         {
             return illegal("the bound cost subject no longer exists");
         }
-        let kind = group
-            .first()
-            .map_or(crate::stack::RefKind::Object, |&object| {
-                match projected.objects.obj(object).source {
-                    crate::object::ObjectSource::Player(_) => crate::stack::RefKind::Player,
-                    crate::object::ObjectSource::Card(_) => crate::stack::RefKind::Object,
-                }
-            });
-        bound.anaphora.that = Some(crate::stack::ThatBinding {
-            cardinality,
-            kind,
-            group,
-        });
-        bound.anaphora.chosen = None;
+        projected.frame_set_chosen(&mut bound, None);
+        projected.activation_write_objects(bound.activation, dest, &group);
         if projected.preflight_cost_components(body, payer, &bound) {
-            Ok(())
+            Ok(group)
         } else {
             illegal("the complete bound cost body cannot currently be paid")
         }
@@ -714,12 +704,12 @@ impl GameState {
                 self.preflight_cost_action(action.as_action(), payer, frame)
             }
             CostComponent::Tap => self.preflight_cost_action(
-                &Action::Tap(Reference::Reg(deckmaste_core::RefId(0))),
+                &Action::Tap(Reference::source_parameter()),
                 payer,
                 frame,
             ),
             CostComponent::Untap => self.preflight_cost_action(
-                &Action::Untap(Reference::Reg(deckmaste_core::RefId(0))),
+                &Action::Untap(Reference::source_parameter()),
                 payer,
                 frame,
             ),
@@ -913,7 +903,7 @@ impl GameState {
         frame: &Frame,
     ) -> bool {
         match effect {
-            deckmaste_core::OneShotEffect::Act(action) => {
+            deckmaste_core::OneShotEffect::Act { action, .. } => {
                 if let Action::Move(subject, _, _, Some(Zone::Hand)) = action {
                     let object = self.eval_reference(subject, frame);
                     if self.objects.get(object).is_none()
@@ -925,21 +915,20 @@ impl GameState {
                 }
                 self.preflight_cost_action(action, payer, frame)
             }
-            deckmaste_core::OneShotEffect::Each(each)
-                if matches!(
-                    &each.binder,
-                    Binder::Existing(Selection::They | Selection::Them(_))
-                ) =>
-            {
-                let objects = self.resolve_binder(&each.binder, frame);
+            deckmaste_core::OneShotEffect::Each(each) => {
+                let objects = self.eval_selection_set(&each.over, frame);
                 for object in objects {
                     if self.objects.get(object).is_none() {
                         return false;
                     }
                     let mut element = frame.clone();
-                    element.anaphora.it = Some(self.it_binding(object));
-                    element.anaphora.chosen = None;
-                    if !self.preflight_discard_effect(&each.effect, payer, &element) {
+                    element.activation = self.enter_loop_region(&each.body, frame, object, None);
+                    if !each
+                        .body
+                        .body
+                        .iter()
+                        .all(|effect| self.preflight_discard_effect(effect, payer, &element))
+                    {
                         return false;
                     }
                 }
@@ -1184,19 +1173,14 @@ fn runnable_cost_body_effect(
 
     fn component_effect(component: &CostComponent) -> Result<OneShotEffect, DecisionError> {
         match component {
-            CostComponent::Act(action) => Ok(OneShotEffect::Act(action.as_action().clone())),
-            CostComponent::Tap => Ok(OneShotEffect::Act(Action::Tap(
-                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
+            CostComponent::Act(action) => Ok(OneShotEffect::act(action.as_action().clone())),
+            CostComponent::Tap => Ok(OneShotEffect::act(Action::Tap(
+                deckmaste_core::Reference::source_parameter(),
             ))),
-            CostComponent::Untap => Ok(OneShotEffect::Act(Action::Untap(
-                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
+            CostComponent::Untap => Ok(OneShotEffect::act(Action::Untap(
+                deckmaste_core::Reference::source_parameter(),
             ))),
-            CostComponent::ChooseAndPay { binder, body } => {
-                Ok(OneShotEffect::With(deckmaste_core::With {
-                    binder: binder.as_ref().clone(),
-                    body: std::sync::Arc::new(runnable_cost_body_effect(body)?),
-                }))
-            }
+            CostComponent::ChooseAndPay { body, .. } => runnable_cost_body_effect(body),
             CostComponent::Cost(inner) => runnable_cost_body_effect(inner),
             CostComponent::Mana(_)
             | CostComponent::ManaCostOf(_)

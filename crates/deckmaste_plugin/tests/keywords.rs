@@ -23,6 +23,59 @@ fn read_keyword(plugin: &Plugin, invocation: &str) -> KeywordAbility {
     semantic.lower()
 }
 
+fn lower_activated_cost(cost: deckmaste_semantics::Cost) -> deckmaste_core::Cost {
+    deckmaste_semantics::ActivatedAbility {
+        ability_word: None,
+        cost,
+        from: None,
+        window: None,
+        condition: None,
+        limits: [].into(),
+        effect: deckmaste_semantics::OneShotEffect::Sequentially([].into()),
+    }
+    .lower()
+    .cost
+}
+
+fn assert_mana_then_discard_this(
+    actual: &deckmaste_core::Cost,
+    printed: deckmaste_semantics::Cost,
+) {
+    use deckmaste_core::Action;
+    use deckmaste_core::CostComponent;
+    use deckmaste_core::Destination;
+    use deckmaste_core::OneShotEffect;
+    use deckmaste_core::Reference;
+    use deckmaste_core::Zone;
+
+    let printed = lower_activated_cost(printed);
+    let [expected_mana] = printed.0.as_ref() else {
+        panic!("printed keyword cost lowers to one mana component");
+    };
+    let [actual_mana, CostComponent::Act(discard)] = actual.0.as_ref() else {
+        panic!("keyword cost is mana followed by discard-this; got {actual:?}");
+    };
+    assert_eq!(actual_mana, expected_mana, "printed mana cost is preserved");
+    let Action::Composite { body, .. } = discard.as_action() else {
+        panic!("discard-this cost is a composite action; got {discard:?}");
+    };
+    assert!(
+        matches!(
+            body.as_ref(),
+            OneShotEffect::Act {
+                action: Action::Move(
+                    Reference::Reg(deckmaste_core::RefId(0)),
+                    Destination::Zone(Zone::Graveyard),
+                    _,
+                    _,
+                ),
+                ..
+            }
+        ),
+        "keyword cost discards this card; got {discard:?}"
+    );
+}
+
 #[test]
 fn every_builtin_keyword_macro_expands() {
     // (invocation, expected carried name) — args chosen to satisfy each
@@ -165,7 +218,7 @@ fn convoke_delve_improvise_confer_pay_pips_statics() {
 
     fn statics(a: &Ability, out: &mut Vec<StaticEffect>) {
         if let Ability::Static(s) = a {
-            out.push(s.as_ref().clone());
+            out.push(s.body.clone());
         }
     }
     fn peel(e: &StaticEffect) -> &StaticEffect {
@@ -252,7 +305,7 @@ fn enchant_confers_spell_may_attach_and_as_enters() {
 
     fn statics(a: &Ability, out: &mut Vec<StaticEffect>) {
         if let Ability::Static(s) = a {
-            out.push(s.as_ref().clone());
+            out.push(s.body.clone());
         }
     }
     fn peel(e: &StaticEffect) -> &StaticEffect {
@@ -321,7 +374,10 @@ fn fortify_confers_sorcery_speed_attach_activated() {
     assert!(
         matches!(
             act.effect.body.as_ref(),
-            [OneShotEffect::Act(Action::Attach { .. })]
+            [OneShotEffect::Act {
+                action: Action::Attach { .. },
+                ..
+            }]
         ),
         "fortify's inner effect is Attach; got {:?}",
         act.effect.body
@@ -365,14 +421,20 @@ fn reconfigure_confers_attach_and_unattach_activated() {
         acts.iter().any(|a| !a.targets.is_empty()
             && matches!(
                 a.effect.body.as_ref(),
-                [OneShotEffect::Act(Action::Attach { .. })]
+                [OneShotEffect::Act {
+                    action: Action::Attach { .. },
+                    ..
+                }]
             )),
         "reconfigure has an Attach ability"
     );
     assert!(
         acts.iter().any(|a| matches!(
             a.effect.body.as_ref(),
-            [OneShotEffect::Act(Action::Unattach(_))]
+            [OneShotEffect::Act {
+                action: Action::Unattach(_),
+                ..
+            }]
         )),
         "reconfigure has an Unattach ability"
     );
@@ -426,7 +488,12 @@ fn outlast_confers_sorcery_speed_tap_put_counter() {
 
     // (3) OneShotEffect puts one +1/+1 counter on THIS creature ([CR#122.1a]).
     // PutCounters is agent-silent ([CR#122.1..122.6]).
-    let [OneShotEffect::Act(Action::PutCounters(_, counter, count))] = act.effect.body.as_ref()
+    let [
+        OneShotEffect::Act {
+            action: Action::PutCounters(_, counter, count),
+            ..
+        },
+    ] = act.effect.body.as_ref()
     else {
         panic!("outlast's effect is PutCounters; got {:?}", act.effect);
     };
@@ -445,21 +512,12 @@ fn outlast_confers_sorcery_speed_tap_put_counter() {
 #[test]
 fn ascend_macro_expands_to_static_sba() {
     use deckmaste_core::Ability;
-    use deckmaste_core::Cmp;
-    use deckmaste_core::Condition;
-    use deckmaste_core::Count;
-    use deckmaste_core::Countable;
-    use deckmaste_core::Predicate;
-    use deckmaste_core::Reference;
-    use deckmaste_core::RelationPredicate;
-    use deckmaste_core::StatePredicate;
     use deckmaste_core::StaticEffect;
-    use deckmaste_core::Zone;
 
     // Walk every Static effect (peel Expanded) and look for an Sba row.
     fn statics(a: &Ability, out: &mut Vec<StaticEffect>) {
         if let Ability::Static(s) = a {
-            out.push(s.as_ref().clone());
+            out.push(s.body.clone());
         }
     }
     fn peel(e: &StaticEffect) -> &StaticEffect {
@@ -490,31 +548,26 @@ fn ascend_macro_expands_to_static_sba() {
     // Drift guard: the macro's Sba `when` must equal the canonical Ascend gate
     // ([CR#702.131a,702.131b]) — the same typed `Condition` the spell-form
     // `ASCEND_GATE` and the engine helper use. A macro edit that diverges fails.
-    let canonical = Condition::And(
-        vec![
-            Condition::Compare(
-                Count::CountOf(Countable::Objects(Arc::new(Predicate::And(
-                    vec![
-                        Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                        Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
-                            Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
-                        ))),
-                    ]
-                    .into(),
-                )))),
-                Cmp::AtLeast,
-                Count::Literal(10),
-            ),
-            Condition::Not(Arc::new(Condition::Matches(
-                Reference::Reg(deckmaste_core::RefId(1)),
-                Predicate::State(StatePredicate::Designated("CitysBlessing".into())),
-            ))),
-        ]
-        .into(),
-    );
+    let canonical: deckmaste_semantics::Ability = plugin
+        .macros
+        .read_str(
+            "Static(Sba(when: And([Compare(CountOf(Objects(And([InZone(Battlefield), \
+             ControlledBy(Ref(You))]))), AtLeast, 10), Not(Matches(You, \
+             Designated(\"CitysBlessing\")))]), then: GetDesignation(You, \
+             \"CitysBlessing\")))",
+        )
+        .unwrap();
+    let Ability::Static(canonical) = canonical.lower() else {
+        panic!("canonical Ascend gate lowers as a Static ability");
+    };
+    let StaticEffect::Sba {
+        when: canonical, ..
+    } = &canonical.body
+    else {
+        panic!("canonical Ascend gate lowers as an Sba");
+    };
     assert_eq!(
-        when,
-        Arc::new(canonical),
+        &when, canonical,
         "Ascend macro's Sba gate drifted from the canonical Ascend gate"
     );
 }
@@ -528,7 +581,6 @@ fn ascend_macro_expands_to_static_sba() {
 #[test]
 fn cycling_confers_from_hand_discard_self_draw() {
     use deckmaste_core::Ability;
-    use deckmaste_core::Cost;
     use deckmaste_core::Zone;
 
     let plugin = builtin();
@@ -552,17 +604,12 @@ fn cycling_confers_from_hand_discard_self_draw() {
     // cost macro — the bound single-move discard composite, [CR#702.29a]).
     // `Splice(Param(0))` inlines the printed cost ahead of the fixed
     // discard-self at read time, so the cost is FLAT — no nested `Cost`
-    // wrapper. Read back through the semantic grammar and lower it so the
-    // expected core shape matches exactly.
-    let flat_cost: deckmaste_semantics::Cost = plugin
-        .macros
-        .read_str("[Mana([Generic(2)]), DiscardThis]")
-        .unwrap();
-    let flat_cost: Cost = flat_cost.lower();
-    assert_eq!(
-        act.cost, flat_cost,
-        "cycling cost is the printed cost + discard this card, spliced flat"
-    );
+    // wrapper. The produced action's destination register is allocated in
+    // the enclosing ability region, so compare the cost's semantic structure
+    // rather than an isolated lowering's register ordinal.
+    let printed_cost: deckmaste_semantics::Cost =
+        plugin.macros.read_str("[Mana([Generic(2)])]").unwrap();
+    assert_mana_then_discard_this(&act.cost, printed_cost);
 
     // (3) Effect = the independently expanded `Draw(1)` macro, lowered as an
     // activated-ability region so its controller reference receives the same
@@ -594,7 +641,6 @@ fn cycling_confers_from_hand_discard_self_draw() {
 fn reinforce_confers_from_hand_discard_self_put_counters() {
     use deckmaste_core::Ability;
     use deckmaste_core::Action;
-    use deckmaste_core::Cost;
     use deckmaste_core::Count;
     use deckmaste_core::CounterRef;
     use deckmaste_core::OneShotEffect;
@@ -625,16 +671,13 @@ fn reinforce_confers_from_hand_discard_self_put_counters() {
     // `DiscardThis` cost macro — the bound single-move discard composite,
     // [CR#702.29a]). `Splice(Param(1))` inlines the printed cost ahead of the
     // fixed discard-self at read time, so the cost is FLAT — no nested `Cost`
-    // wrapper. Read back through the semantic grammar and lower it.
-    let flat_cost: deckmaste_semantics::Cost = plugin
+    // wrapper. Compare the structure because produced-value register ordinals
+    // belong to the enclosing ability region.
+    let printed_cost: deckmaste_semantics::Cost = plugin
         .macros
-        .read_str("[Mana([Generic(1),Green]), DiscardThis]")
+        .read_str("[Mana([Generic(1),Green])]")
         .unwrap();
-    let flat_cost: Cost = flat_cost.lower();
-    assert_eq!(
-        act.cost, flat_cost,
-        "reinforce cost is the printed cost + discard this card, spliced flat"
-    );
+    assert_mana_then_discard_this(&act.cost, printed_cost);
 
     // (3) OneShotEffect = put N +1/+1 counters on target creature ([CR#702.77a]).
     assert_eq!(
@@ -646,13 +689,18 @@ fn reinforce_confers_from_hand_discard_self_put_counters() {
         panic!("expected a Target spec; got {:?}", act.targets[0]);
     };
     assert_eq!(
-        filter,
+        &filter.body,
         &Predicate::r#type(Type::Creature),
         "reinforce targets a creature; got {filter:?}"
     );
     // Inner effect places N (= Param(0) = 2) +1/+1 counters on the target.
     // PutCounters is agent-silent ([CR#122.1]).
-    let [OneShotEffect::Act(Action::PutCounters(sel, counter, count))] = act.effect.body.as_ref()
+    let [
+        OneShotEffect::Act {
+            action: Action::PutCounters(sel, counter, count),
+            ..
+        },
+    ] = act.effect.body.as_ref()
     else {
         panic!(
             "reinforce's inner effect is PutCounters; got {:?}",
@@ -661,7 +709,18 @@ fn reinforce_confers_from_hand_discard_self_put_counters() {
     };
     assert_eq!(
         *sel,
-        Reference::It,
+        Reference::Reg(
+            act.effect
+                .params
+                .iter()
+                .find(|param| matches!(
+                    param.provenance,
+                    deckmaste_core::Provenance::AnnouncedTarget(0)
+                ))
+                .expect("target parameter")
+                .def
+                .into(),
+        ),
         "reinforce puts counters on the announced target (the It anaphor)"
     );
     assert_eq!(
@@ -750,7 +809,12 @@ fn scavenge_confers_from_graveyard_exile_self_sorcery_counters() {
     let TargetSpec::Target(_, _) = &act.targets[0] else {
         panic!("expected a Target spec; got {:?}", act.targets[0]);
     };
-    let [OneShotEffect::Act(Action::PutCounters(sel, kind, count))] = act.effect.body.as_ref()
+    let [
+        OneShotEffect::Act {
+            action: Action::PutCounters(sel, kind, count),
+            ..
+        },
+    ] = act.effect.body.as_ref()
     else {
         panic!(
             "scavenge's inner effect puts counters on a player verb; got {:?}",
@@ -759,7 +823,18 @@ fn scavenge_confers_from_graveyard_exile_self_sorcery_counters() {
     };
     assert_eq!(
         sel,
-        &Reference::It,
+        &Reference::Reg(
+            act.effect
+                .params
+                .iter()
+                .find(|param| matches!(
+                    param.provenance,
+                    deckmaste_core::Provenance::AnnouncedTarget(0)
+                ))
+                .expect("target parameter")
+                .def
+                .into(),
+        ),
         "scavenge counters land on the announced target ([CR#702.97a])"
     );
     assert_eq!(
@@ -836,9 +911,16 @@ fn soulshift_confers_dies_may_return_spirit_from_graveyard() {
     let TargetSpec::Target(_, filter) = &trig.targets[0] else {
         panic!("expected a Target spec; got {:?}", trig.targets[0]);
     };
-    let Predicate::And(clauses) = filter else {
+    let Predicate::And(clauses) = &filter.body else {
         panic!("soulshift target is an And; got {filter:?}");
     };
+    let controller = filter
+        .params
+        .iter()
+        .find(|param| matches!(param.provenance, deckmaste_core::Provenance::Controller))
+        .expect("target predicate controller parameter")
+        .def
+        .into();
     assert!(
         clauses
             .iter()
@@ -854,7 +936,7 @@ fn soulshift_confers_dies_may_return_spirit_from_graveyard() {
     assert!(
         clauses.iter().any(
             |f| matches!(f, Predicate::Relation(RelationPredicate::Owner(o))
-                if matches!(&**o, Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1)))))
+                if matches!(&**o, Predicate::Ref(Reference::Reg(reference)) if *reference == controller))
         ),
         "soulshift target is owned by you (your graveyard); got {clauses:?}"
     );
@@ -873,12 +955,10 @@ fn soulshift_confers_dies_may_return_spirit_from_graveyard() {
     assert!(
         matches!(
             &*may.effect,
-            OneShotEffect::Act(Action::Move(
-                Reference::Reg(_),
-                Destination::Zone(Zone::Hand),
-                _,
-                _,
-            ))
+            OneShotEffect::Act {
+                action: Action::Move(Reference::Reg(_), Destination::Zone(Zone::Hand), _, _,),
+                ..
+            }
         ),
         "soulshift returns target to hand; got {:?}",
         may.effect
@@ -933,12 +1013,16 @@ fn afterlife_confers_dies_create_spirit_tokens_with_flying() {
     );
     // Create's agent is spelled ([CR#111.1]).
     let [
-        OneShotEffect::Act(Action::Create {
-            agent: Reference::Reg(deckmaste_core::RefId(1)),
-            count,
-            token: TokenSpec::Token(token),
+        OneShotEffect::Act {
+            action:
+                Action::Create {
+                    agent: Reference::Reg(deckmaste_core::RefId(1)),
+                    count,
+                    token: TokenSpec::Token(token),
+                    ..
+                },
             ..
-        }),
+        },
     ] = trig.effect.body.as_ref()
     else {
         panic!(

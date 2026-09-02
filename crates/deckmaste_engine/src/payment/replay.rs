@@ -2066,7 +2066,7 @@ fn trigger_bindings_equivalent(
     } && actual.that_player == expected.that_player
         && actual.produced_mana == expected.produced_mana
         && actual.defending_player == expected.defending_player
-        && actual.that_much == expected.that_much
+        && actual.event_amount == expected.event_amount
         && actual.crossed == expected.crossed
 }
 

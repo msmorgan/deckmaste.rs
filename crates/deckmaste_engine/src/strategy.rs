@@ -1,7 +1,7 @@
 //! Strategy evaluation context: the `Frame` a data-driven strategy's sensing
-//! (`Condition`/`Count`/`Reference`) is evaluated against. `Reference::Reg(deckmaste_core::RefId(1))`
-//! binds to the deciding seat; `Reference::Reg(deckmaste_core::RefId(0))`/`~` binds to the candidate
-//! option being scored. The engine's existing
+//! (`Condition`/`Count`/`Reference`) is evaluated against. The controller
+//! parameter binds to the deciding seat; the source parameter binds to the
+//! candidate option being scored. The engine's existing
 //! `eval_count`/`condition_holds`/`eval_reference` do the rest — there is no
 //! second evaluator. `strategy-evaluator-core` builds the `StrategyEvaluator`
 //! on top of this.
@@ -24,8 +24,8 @@ use crate::strategy_def::Selector;
 use crate::strategy_def::Strategy as StrategyDef;
 
 /// The evaluation frame for scoring a `candidate` option from `seat`'s
-/// perspective: `Reference::Reg(deckmaste_core::RefId(1))` resolves to `seat`, and `Reference::Reg(deckmaste_core::RefId(0))`/`~`
-/// resolves to `candidate` — or, when there is no candidate (player-only
+/// perspective: the controller parameter resolves to `seat`, and the source
+/// parameter resolves to `candidate` — or, when there is no candidate (player-only
 /// sensing), to `seat`'s own player proxy. Sensing only: no targets, trigger
 /// bindings, choice, or X. The engine's `eval_count`/`condition_holds`/
 /// `eval_reference` evaluate a strategy's `Count`/`Condition`/`Reference`
@@ -945,7 +945,9 @@ mod tests {
 
         let impossible_target = TargetSpec::Target(
             Quantity::one(),
-            Predicate::Characteristic(CharacteristicPredicate::Named("Missing target".into())),
+            Arc::new(deckmaste_core::Region::candidate(
+                Predicate::Characteristic(CharacteristicPredicate::Named("Missing target".into())),
+            )),
         );
         let card = Arc::new(Card::Normal(CardFace {
             name: "Modal strategy fixture".into(),
@@ -1051,7 +1053,9 @@ mod tests {
     fn one_creature_target() -> Vec<TargetSpec> {
         vec![TargetSpec::Target(
             Quantity::one(),
-            Predicate::r#type(Type::Creature),
+            Arc::new(deckmaste_core::Region::candidate(Predicate::r#type(
+                Type::Creature,
+            ))),
         )]
     }
 

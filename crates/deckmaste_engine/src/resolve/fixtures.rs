@@ -135,7 +135,7 @@ pub(super) fn two_permanents_on_field() -> (GameState, ObjectId, ObjectId) {
 /// priority (so the next `run_effect`'s front work isn't blocked) and never
 /// drains the turn loop dry.
 pub(super) fn run_injected(state: &mut GameState) {
-    for _ in 0..30 {
+    for _ in 0..100 {
         let injected = matches!(
             state.agenda.front(),
             Some(
@@ -175,6 +175,53 @@ pub(super) fn keyword(invocation: &str) -> Ability {
     let semantic: deckmaste_semantics::KeywordAbility =
         builtin().macros.read_str(invocation).unwrap();
     Ability::Keyword(semantic.lower())
+}
+
+/// Lower a semantic effect through a synthetic spell ability, then schedule
+/// its declared region against `frame`. `target_count` supplies the announce
+/// slots used by macro-level fixtures that name `Target(n)` directly.
+pub(super) fn schedule_lowered_effect(
+    state: &mut GameState,
+    effect: deckmaste_semantics::OneShotEffect,
+    target_count: usize,
+    frame: &crate::stack::Frame,
+) {
+    use deckmaste_lowering::Lower;
+
+    let effect = if target_count == 0 {
+        effect
+    } else {
+        deckmaste_semantics::OneShotEffect::Targeted(deckmaste_semantics::Targeted {
+            targets: (0..target_count)
+                .map(|_| {
+                    deckmaste_semantics::TargetSpec::Target(
+                        deckmaste_semantics::Quantity::one(),
+                        deckmaste_semantics::Predicate::Any,
+                    )
+                })
+                .collect::<Vec<_>>()
+                .into(),
+            effect: Arc::new(effect),
+        })
+    };
+    let region = deckmaste_semantics::SpellAbility {
+        ability_word: None,
+        effect,
+    }
+    .lower()
+    .effect;
+    let mut region_frame = frame.clone();
+    region_frame.activation = state.enter_region(&region, frame);
+    let items = region
+        .body
+        .iter()
+        .cloned()
+        .map(|effect| WorkItem::RunEffect {
+            effect: Arc::new(effect),
+            frame: region_frame.clone(),
+        })
+        .collect();
+    state.schedule_front(items);
 }
 
 /// A canon subtype value (with its `confers:` list) by printed name.

@@ -12,7 +12,7 @@ use crate::Reference;
 /// effect verbs no longer take a `Selection` patient (they take a single
 /// [`Reference`]); plurality and choice live in the
 /// [`Each`](crate::Each) / [`Distribute`](crate::Distribute)
-/// iterators and the [`With`](crate::With) [`Binder`](crate::Binder).
+/// iterators and explicit choice/search instructions.
 ///
 /// Targeting is NOT here — it lives in [`crate::TargetSpec`], the announce
 /// list — because a target has legality recheck and retargeting rules the
@@ -25,7 +25,7 @@ pub enum Selection {
     /// All matching objects as one set ("every creature you control") — the
     /// group a distributor ([`Each`](crate::Each) / `StaticEffect::Each`)
     /// iterates. Mirrors Idris `SelectAll : Predicate -> Selection`.
-    SelectAll(Predicate),
+    SelectAll(Arc<crate::Region<Predicate>>),
     /// Several selections combined as ONE group ("each X and each Y") — the
     /// Idris `Union`. Order-preserving concatenation of the member groups; an
     /// object in more than one member appears once (first position wins).
@@ -44,12 +44,6 @@ pub enum Selection {
     InChosenOrder(Arc<Selection>, Reference),
     /// A random selection of a quantity of matching objects.
     Random(Quantity, Predicate),
-    /// A choice from among a PREVIOUSLY COMPUTED set ("exile two of them",
-    /// "…from among them" — the among-restriction, queries.md §2): the
-    /// domain is whatever `OneShotEffect::Noting{key, …}` recorded under the
-    /// key, not a re-evaluated filter — re-evaluation would be wrong for
-    /// "this way" anaphora ([CR#607.2a] linkage).
-    AmongNoted(crate::Ident, Quantity),
     /// The top `count` cards of a library, top → down (an ORDERED set —
     /// position is the whole point). `whose` names the library's player; the
     /// default `You` writes bare. Feeds the scry `Each` over the peeked
@@ -101,23 +95,6 @@ pub enum Selection {
     /// `Each(InChosenOrder(ValidTargetsFor(s), You), CopySpell(You, s,
     /// TargetsThat(It)))`.
     ValidTargetsFor(Reference),
-    /// The PLURAL anaphor — "they"/"them": the nearest Many antecedent on
-    /// the antecedent stack, any sort (R1 nearest-compatible,
-    /// R2 uniqueness gate). Pushed by a many-binder
-    /// ([`OneShotEffect::With`](crate::With), [CR#608.2d]) or a
-    /// group-producing clause ("create two tokens — **they** gain haste",
-    /// [CR#111.2]); order preserved; iterated with [`Each`](crate::Each)
-    /// (per-element [`Reference::It`]).
-    ///
-    /// NOT pushed by a target slot: an announced slot is read positionally
-    /// through a region register. An anaphor names what a clause produced or
-    /// bound; a target is named by its index.
-    They,
-    /// The SORTED plural anaphor — "those tokens", "those cards": the
-    /// nearest Many antecedent of this [`Sort`](crate::Sort) (R1/R2, like
-    /// [`They`](Selection::They) with the sort constraint of
-    /// [`Reference::That`](crate::Reference::That)).
-    Them(crate::Sort),
     /// Piles noted earlier by a
     /// [`SeparatePiles`](crate::OneShotEffect::SeparatePiles) with a `note:
     /// ` key, keyed by their divider: `of` names the player whose piles

@@ -3,8 +3,8 @@ use std::sync::Arc;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::Binder;
 use crate::Cmp;
+use crate::CostBinder;
 use crate::Count;
 use crate::Normalize;
 use crate::Predicate;
@@ -139,16 +139,11 @@ fn runnable_action_subjects_are_bound(action: &crate::Action) -> bool {
 
 fn runnable_discard_effect_is_bound(effect: &crate::OneShotEffect) -> bool {
     match effect {
-        crate::OneShotEffect::Act(action) => {
+        crate::OneShotEffect::Act { action, .. } => {
             action.is_cost_eligible() && runnable_action_subjects_are_bound(action)
         }
-        crate::OneShotEffect::Each(each)
-            if matches!(
-                &each.binder,
-                crate::Binder::Existing(crate::Selection::They | crate::Selection::Them(_))
-            ) =>
-        {
-            runnable_discard_effect_is_bound(&each.effect)
+        crate::OneShotEffect::Each(each) => {
+            each.body.body.iter().all(runnable_discard_effect_is_bound)
         }
         _ => false,
     }
@@ -162,12 +157,7 @@ fn runnable_reference_is_bound(reference: &Reference) -> bool {
         | Reference::OwnerOf(reference)
         | Reference::AttachHostOf(reference) => runnable_reference_is_bound(reference),
         Reference::Coalesce(references) => references.iter().all(runnable_reference_is_bound),
-        Reference::Reg(_)
-        | Reference::It
-        | Reference::That(_)
-        | Reference::Bound(_)
-        | Reference::Linked(_)
-        | Reference::Source => true,
+        Reference::Reg(_) | Reference::Bound(_) | Reference::Linked(_) | Reference::Source => true,
     }
 }
 
@@ -292,27 +282,23 @@ fn runnable_count_is_bound(count: &crate::Count) -> bool {
         }
         Count::Half(_, count) => runnable_count_is_bound(count),
         Count::Aggregate(_, projection) => {
-            runnable_countable_is_bound(&projection.of) && runnable_count_is_bound(&projection.by)
+            runnable_countable_is_bound(&projection.of)
+                && runnable_count_is_bound(&projection.by.body)
         }
         // History predicates are an open recursive grammar. They are not a
         // supported runnable cost magnitude until that grammar has its own
         // checked representation.
         Count::EventCount(..) | Count::EventSum(..) => false,
-        Count::Reg(_)
-        | Count::X
-        | Count::ThatMany
-        | Count::ThatMuch
-        | Count::Allotment
-        | Count::Noted(_)
-        | Count::TimesPaid(_)
-        | Count::Literal(_) => true,
+        Count::Reg(_) | Count::X | Count::Noted(_) | Count::TimesPaid(_) | Count::Literal(_) => {
+            true
+        }
     }
 }
 
 fn runnable_countable_is_bound(countable: &crate::Countable) -> bool {
     match countable {
         crate::Countable::Objects(predicate) | crate::Countable::Players(predicate) => {
-            runnable_predicate_is_bound(predicate)
+            runnable_predicate_is_bound(&predicate.body)
         }
         crate::Countable::ManaSymbols(reference, _)
         | crate::Countable::Singleton(reference)
@@ -366,12 +352,11 @@ fn runnable_predicate_is_bound(predicate: &crate::Predicate) -> bool {
 
 fn runnable_selection_is_bound(selection: &crate::Selection) -> bool {
     match selection {
-        crate::Selection::Reg(_) | crate::Selection::They | crate::Selection::Them(_) => true,
+        crate::Selection::Reg(_) => true,
         crate::Selection::Union(selections) => selections.iter().all(runnable_selection_is_bound),
         crate::Selection::SelectAll(_)
         | crate::Selection::InChosenOrder(..)
         | crate::Selection::Random(..)
-        | crate::Selection::AmongNoted(..)
         | crate::Selection::TopOfLibrary { .. }
         | crate::Selection::BottomOfLibrary { .. }
         | crate::Selection::LibraryOf(_)
@@ -392,13 +377,13 @@ fn runnable_selection_is_bound(selection: &crate::Selection) -> bool {
 /// that the current payment runtime can capture. Search whiff branches are
 /// rejected until arbitrary effects have an equivalent checked boundary.
 #[must_use]
-pub fn cost_binder_is_runnable(binder: &Binder) -> bool {
+pub fn cost_binder_is_runnable(binder: &CostBinder) -> bool {
     match binder {
-        Binder::TheRef(reference) => cost_binder_reference_is_supported(reference),
-        Binder::ChooseOne { filter, by } => {
+        CostBinder::TheRef(reference) => cost_binder_reference_is_supported(reference),
+        CostBinder::ChooseOne { filter, by } => {
             runnable_predicate_is_bound(filter) && cost_binder_reference_is_supported(by)
         }
-        Binder::Choose {
+        CostBinder::Choose {
             quantity,
             filter,
             by,
@@ -407,8 +392,8 @@ pub fn cost_binder_is_runnable(binder: &Binder) -> bool {
                 && runnable_predicate_is_bound(filter)
                 && cost_binder_reference_is_supported(by)
         }
-        Binder::Produce(action) => cost_binder_producer_is_supported(action),
-        Binder::SearchOne {
+        CostBinder::Produce(action) => cost_binder_producer_is_supported(action),
+        CostBinder::SearchOne {
             filter,
             by,
             whose,
@@ -420,7 +405,7 @@ pub fn cost_binder_is_runnable(binder: &Binder) -> bool {
                 && cost_binder_reference_is_supported(by)
                 && cost_binder_reference_is_supported(whose)
         }
-        Binder::Search {
+        CostBinder::Search {
             quantity,
             filter,
             by,
@@ -434,10 +419,10 @@ pub fn cost_binder_is_runnable(binder: &Binder) -> bool {
                 && cost_binder_reference_is_supported(by)
                 && cost_binder_reference_is_supported(whose)
         }
-        Binder::Existing(crate::Selection::Random(quantity, filter)) => {
+        CostBinder::Existing(crate::Selection::Random(quantity, filter)) => {
             runnable_quantity_is_bound(quantity) && runnable_predicate_is_bound(filter)
         }
-        Binder::Existing(selection) => cost_binder_selection_is_supported(selection),
+        CostBinder::Existing(selection) => cost_binder_selection_is_supported(selection),
     }
 }
 
@@ -458,27 +443,21 @@ fn cost_binder_reference_is_supported(reference: &Reference) -> bool {
         Reference::Coalesce(references) => {
             references.iter().all(cost_binder_reference_is_supported)
         }
-        Reference::Reg(_)
-        | Reference::It
-        | Reference::That(_)
-        | Reference::Bound(_)
-        | Reference::Linked(_)
-        | Reference::Source => true,
+        Reference::Reg(_) | Reference::Bound(_) | Reference::Linked(_) | Reference::Source => true,
     }
 }
 
 fn cost_binder_selection_is_supported(selection: &crate::Selection) -> bool {
     match selection {
         crate::Selection::Random(..) => false,
-        crate::Selection::Reg(_) | crate::Selection::They | crate::Selection::Them(_) => true,
-        crate::Selection::SelectAll(filter) => runnable_predicate_is_bound(filter),
+        crate::Selection::Reg(_) => true,
+        crate::Selection::SelectAll(filter) => runnable_predicate_is_bound(&filter.body),
         crate::Selection::Union(selections) => {
             selections.iter().all(cost_binder_selection_is_supported)
         }
         crate::Selection::InChosenOrder(selection, by) => {
             cost_binder_selection_is_supported(selection) && cost_binder_reference_is_supported(by)
         }
-        crate::Selection::AmongNoted(_, quantity) => runnable_quantity_is_bound(quantity),
         crate::Selection::TopOfLibrary { count, whose }
         | crate::Selection::BottomOfLibrary { count, whose }
         | crate::Selection::TopOfGraveyard { count, of: whose } => {
@@ -488,7 +467,7 @@ fn cost_binder_selection_is_supported(selection: &crate::Selection) -> bool {
         | crate::Selection::ValidTargetsFor(whose)
         | crate::Selection::PilesOf { of: whose, .. } => cost_binder_reference_is_supported(whose),
         crate::Selection::Pick { proj, .. } => {
-            runnable_countable_is_bound(&proj.of) && runnable_count_is_bound(&proj.by)
+            runnable_countable_is_bound(&proj.of) && runnable_count_is_bound(&proj.by.body)
         }
     }
 }
@@ -551,17 +530,17 @@ pub enum CostComponent {
         filter: Arc<Predicate>,
     },
     /// A choice/bind step made BEFORE the cost actions it scopes
-    /// ([CR#601.2b]) — the cost-level twin of
-    /// [`OneShotEffect::With`](crate::OneShotEffect). The `binder` makes
-    /// the choice (e.g. `ChooseOne(Creature)`) and binds it
-    /// as [`Reference::That`](crate::Reference)/
-    /// [`Selection::That`](crate::Selection), then `body` (a nested cost)
-    /// pays using that binding: "sacrifice a creature" = `With(binder:
-    /// ChooseOne(Creature), body: [Do(Sacrifice(That))])`. Keeps choosing
+    /// ([CR#601.2b]). The `binder` makes the choice (e.g.
+    /// `ChooseOne(Creature)`), writes it to `dest`, and `body` pays through
+    /// that register. Keeps choosing
     /// OUT of the verb — the cost action receives an already-bound
-    /// reference. `binder` is boxed (an open `Binder` is large and
+    /// reference. `binder` is boxed (an open [`CostBinder`] is large and
     /// `CostComponent` rides in `Vec<CostComponent>` cost lists).
-    ChooseAndPay { binder: Arc<Binder>, body: Cost },
+    ChooseAndPay {
+        dest: crate::DefId,
+        binder: Arc<CostBinder>,
+        body: Cost,
+    },
 }
 
 impl CostComponent {
@@ -606,9 +585,10 @@ impl Normalize for CostComponent {
     fn normalize(self) -> Self {
         match self {
             CostComponent::Cost(inner) => CostComponent::Cost(inner.normalize()),
-            // Recurse into a `With` step's scoped body so a nested cost there
+            // Recurse into a choice step's scoped body so a nested cost there
             // still flattens.
-            CostComponent::ChooseAndPay { binder, body } => CostComponent::ChooseAndPay {
+            CostComponent::ChooseAndPay { dest, binder, body } => CostComponent::ChooseAndPay {
+                dest,
                 binder,
                 body: body.normalize(),
             },
@@ -759,30 +739,30 @@ mod tests {
         crate::ron::options().to_string(value).unwrap()
     }
 
-    /// The cost-level `With` step keeps choosing OUT of the verb — it binds the
-    /// choice as `Reference::That` BEFORE the action that pays. And exile,
+    /// The cost-level `ChooseAndPay` step keeps choosing OUT of the verb — it
+    /// writes the choice to a register BEFORE the action that pays. And exile,
     /// being a pure zone move, is paid as `Do(Move(This, Exile))`
     /// (Scavenge), not a dedicated verb. Both round-trip.
     #[test]
     fn with_choice_step_and_move_are_cost_forms() {
-        use crate::Binder;
         use crate::CharacteristicPredicate;
+        use crate::CostBinder;
         use crate::Predicate;
-        use crate::Type;
 
         // "sacrifice a creature": choose one creature, then Sacrifice(You,
         // That(Creature)).
         let creature =
             Predicate::Characteristic(CharacteristicPredicate::Supertype(crate::Supertype::Basic));
         let with = CostComponent::ChooseAndPay {
-            binder: Arc::new(Binder::ChooseOne {
+            dest: crate::DefId(2),
+            binder: Arc::new(CostBinder::ChooseOne {
                 filter: creature,
                 by: Reference::Reg(crate::RefId(1)),
             }),
             body: Cost(
                 vec![CostComponent::do_action(crate::Action::Sacrifice(
                     Reference::Reg(crate::RefId(1)),
-                    Reference::That(crate::Sort::OfType(Type::Creature)),
+                    Reference::Reg(crate::RefId(2)),
                 ))]
                 .into(),
             ),
@@ -935,7 +915,7 @@ mod tests {
 
         let spoofed_discard = crate::Action::Composite {
             name: crate::VerbName::from("Discard"),
-            body: Arc::new(crate::OneShotEffect::Act(crate::Action::DealDamage(
+            body: Arc::new(crate::OneShotEffect::act(crate::Action::DealDamage(
                 random(),
                 Count::Literal(1),
                 Reference::Reg(crate::RefId(1)),
@@ -949,23 +929,29 @@ mod tests {
 
     #[test]
     fn runnable_cost_binder_admits_supported_deterministic_and_exact_random_shapes() {
-        let selected_legend =
-            Reference::Single(Arc::new(crate::Selection::SelectAll(Predicate::And(
-                vec![
-                    Predicate::Characteristic(crate::CharacteristicPredicate::Supertype(
-                        crate::Supertype::Legendary,
-                    )),
-                    Predicate::Relation(crate::RelationPredicate::ControlledBy(Arc::new(
-                        Predicate::Ref(Reference::Reg(crate::RefId(1))),
-                    ))),
-                ]
-                .into(),
-            ))));
-        assert!(cost_binder_is_runnable(&Binder::TheRef(selected_legend)));
-        assert!(cost_binder_is_runnable(&Binder::Existing(
+        let selected_legend = Reference::Single(Arc::new(crate::Selection::SelectAll(Arc::new(
+            crate::Region::new(
+                Arc::from([]),
+                Predicate::And(
+                    vec![
+                        Predicate::Characteristic(crate::CharacteristicPredicate::Supertype(
+                            crate::Supertype::Legendary,
+                        )),
+                        Predicate::Relation(crate::RelationPredicate::ControlledBy(Arc::new(
+                            Predicate::Ref(Reference::Reg(crate::RefId(1))),
+                        ))),
+                    ]
+                    .into(),
+                ),
+            ),
+        ))));
+        assert!(cost_binder_is_runnable(&CostBinder::TheRef(
+            selected_legend
+        )));
+        assert!(cost_binder_is_runnable(&CostBinder::Existing(
             crate::Selection::Random(crate::Quantity::one(), Predicate::Any),
         )));
-        assert!(cost_binder_is_runnable(&Binder::Produce(Arc::new(
+        assert!(cost_binder_is_runnable(&CostBinder::Produce(Arc::new(
             crate::Action::Move(
                 Reference::Reg(crate::RefId(0)),
                 crate::Destination::Zone(crate::Zone::Exile),
@@ -983,24 +969,27 @@ mod tests {
                 Predicate::Any,
             )))
         };
-        assert!(!cost_binder_is_runnable(&Binder::TheRef(
+        assert!(!cost_binder_is_runnable(&CostBinder::TheRef(
             Reference::ControllerOf(Arc::new(random_reference())),
         )));
-        assert!(!cost_binder_is_runnable(&Binder::Existing(
+        assert!(!cost_binder_is_runnable(&CostBinder::Existing(
             crate::Selection::Union(vec![
-                crate::Selection::SelectAll(Predicate::Any),
+                crate::Selection::SelectAll(Arc::new(crate::Region::new(
+                    Arc::from([]),
+                    Predicate::Any
+                ))),
                 crate::Selection::Random(crate::Quantity::one(), Predicate::Any),
             ]),
         )));
 
         let random_count = Count::StatOf(random_reference(), crate::Stat::Power);
-        assert!(!cost_binder_is_runnable(&Binder::Existing(
+        assert!(!cost_binder_is_runnable(&CostBinder::Existing(
             crate::Selection::Random(
                 crate::Quantity::Range(Some(random_count.clone()), Some(random_count)),
                 Predicate::Any,
             ),
         )));
-        assert!(!cost_binder_is_runnable(&Binder::Produce(Arc::new(
+        assert!(!cost_binder_is_runnable(&CostBinder::Produce(Arc::new(
             crate::Action::Move(
                 random_reference(),
                 crate::Destination::Zone(crate::Zone::Exile),
@@ -1008,23 +997,27 @@ mod tests {
                 None,
             ),
         ))));
-        assert!(!cost_binder_is_runnable(&Binder::Produce(Arc::new(
+        assert!(!cost_binder_is_runnable(&CostBinder::Produce(Arc::new(
             crate::Action::Move(
-                Reference::Single(Arc::new(crate::Selection::SelectAll(Predicate::Any))),
+                Reference::Single(Arc::new(crate::Selection::SelectAll(Arc::new(
+                    crate::Region::new(Arc::from([]), Predicate::Any),
+                )))),
                 crate::Destination::Zone(crate::Zone::Exile),
                 Arc::from([]),
                 None,
             ),
         ))));
-        assert!(!cost_binder_is_runnable(&Binder::Produce(Arc::new(
+        assert!(!cost_binder_is_runnable(&CostBinder::Produce(Arc::new(
             crate::Action::DrawCard(Reference::Reg(crate::RefId(1))),
         ))));
 
-        let unchecked_whiff = crate::OneShotEffect::With(crate::With {
-            binder: Binder::TheRef(random_reference()),
-            body: Arc::new(crate::OneShotEffect::Sequentially(Arc::from([]))),
-        });
-        assert!(!cost_binder_is_runnable(&Binder::SearchOne {
+        let unchecked_whiff = crate::OneShotEffect::act(crate::Action::Move(
+            random_reference(),
+            crate::Destination::Zone(crate::Zone::Exile),
+            Arc::from([]),
+            None,
+        ));
+        assert!(!cost_binder_is_runnable(&CostBinder::SearchOne {
             filter: Predicate::Any,
             by: Reference::Reg(crate::RefId(1)),
             whose: Reference::Reg(crate::RefId(1)),

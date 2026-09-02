@@ -2,6 +2,11 @@
 //!
 //! Scaffolded once, then hand-owned. See the crate docs.
 
+#![allow(
+    clippy::items_after_test_module,
+    reason = "generated lowering tests remain adjacent to the constructor families they cover"
+)]
+
 use crate::Lower;
 
 impl Lower for deckmaste_semantics::Replacement {
@@ -26,37 +31,6 @@ impl Lower for deckmaste_semantics::Replacement {
         }
     }
 }
-
-impl Lower for deckmaste_semantics::Prevention {
-    type Target = deckmaste_core::Prevention;
-    fn lower(self) -> <Self as Lower>::Target {
-        match self {
-            Self::PreventNext {
-                n,
-                from,
-                to,
-                duration,
-            } => deckmaste_core::Prevention::PreventNext {
-                n: n.lower(),
-                from: from.lower(),
-                to: to.lower(),
-                duration: duration.lower(),
-            },
-            Self::PreventNextInstance { from, to } => {
-                deckmaste_core::Prevention::PreventNextInstance {
-                    from: from.lower(),
-                    to: to.lower(),
-                }
-            }
-            Self::PreventAll { from, to, duration } => deckmaste_core::Prevention::PreventAll {
-                from: from.lower(),
-                to: to.lower(),
-                duration: duration.lower(),
-            },
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     #![allow(
@@ -71,30 +45,6 @@ mod tests {
     use crate::minimal::*;
 
     #[test]
-    fn lowers_replacement_instead() {
-        assert_matches!(
-            deckmaste_semantics::Replacement::Instead {
-                would: minimal_event_filter(),
-                instead: minimal_one_shot_effect()
-            }
-            .lower(),
-            deckmaste_core::Replacement::Instead {
-                would: deckmaste_core::EventFilter::ZoneChange {
-                    what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                    from: None,
-                    to: None,
-                    cause: None
-                },
-                instead: deckmaste_core::OneShotEffect::Act(deckmaste_core::Action::DealDamage(
-                    deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
-                    deckmaste_core::Count::X,
-                    deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
-                ))
-            }
-        );
-    }
-
-    #[test]
     fn lowers_replacement_skip() {
         assert_matches!(
             deckmaste_semantics::Replacement::Skip {
@@ -103,56 +53,6 @@ mod tests {
             .lower(),
             deckmaste_core::Replacement::Skip {
                 what: deckmaste_core::PhaseStep::Beginning(deckmaste_core::BeginningStep::Untap)
-            }
-        );
-    }
-
-    #[test]
-    fn lowers_replacement_also() {
-        assert_matches!(
-            deckmaste_semantics::Replacement::Also {
-                would: minimal_event_filter(),
-                also: minimal_one_shot_effect()
-            }
-            .lower(),
-            deckmaste_core::Replacement::Also {
-                would: deckmaste_core::EventFilter::ZoneChange {
-                    what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                    from: None,
-                    to: None,
-                    cause: None
-                },
-                also: deckmaste_core::OneShotEffect::Act(deckmaste_core::Action::DealDamage(
-                    deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
-                    deckmaste_core::Count::X,
-                    deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
-                ))
-            }
-        );
-    }
-
-    #[test]
-    fn lowers_replacement_expanded() {
-        assert_matches!(
-            deckmaste_semantics::Replacement::Expanded(macro_ron::Expansion {
-                name: "X".into(),
-                args: macro_ron::ExpansionArgs::none(),
-                template: None,
-                value: Box::new(minimal_replacement())
-            })
-            .lower(),
-            deckmaste_core::Replacement::Instead {
-                would: deckmaste_core::EventFilter::ZoneChange {
-                    what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                    from: None,
-                    to: None,
-                    cause: None
-                },
-                instead: deckmaste_core::OneShotEffect::Act(deckmaste_core::Action::DealDamage(
-                    deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
-                    deckmaste_core::Count::X,
-                    deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
-                ))
             }
         );
     }
@@ -206,5 +106,35 @@ mod tests {
                 duration: None
             }
         );
+    }
+}
+
+impl Lower for deckmaste_semantics::Prevention {
+    type Target = deckmaste_core::Prevention;
+    fn lower(self) -> <Self as Lower>::Target {
+        match self {
+            Self::PreventNext {
+                n,
+                from,
+                to,
+                duration,
+            } => deckmaste_core::Prevention::PreventNext {
+                n: n.lower(),
+                from: from.lower(),
+                to: to.lower(),
+                duration: duration.lower(),
+            },
+            Self::PreventNextInstance { from, to } => {
+                deckmaste_core::Prevention::PreventNextInstance {
+                    from: from.lower(),
+                    to: to.lower(),
+                }
+            }
+            Self::PreventAll { from, to, duration } => deckmaste_core::Prevention::PreventAll {
+                from: from.lower(),
+                to: to.lower(),
+                duration: duration.lower(),
+            },
+        }
     }
 }

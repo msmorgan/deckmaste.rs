@@ -136,8 +136,8 @@ pub fn sweep(state: &GameState) -> Vec<GameEvent> {
                 .is_some_and(|o| o.zone != Some(Zone::Stack))
         {
             let frame = crate::stack::Frame::bare(entry.id, entry.controller);
-            let effect = deckmaste_core::OneShotEffect::Act(deckmaste_core::Action::Cease(
-                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
+            let effect = deckmaste_core::OneShotEffect::act(deckmaste_core::Action::Cease(
+                deckmaste_core::Reference::source_parameter(),
             ));
             for mut ev in run_sba_effect(state, &effect, &frame) {
                 stamp_sba_cause(&mut ev);
@@ -258,8 +258,11 @@ fn counter_state_based_sbas(state: &GameState) -> Vec<GameEvent> {
 fn global_sba_rules(state: &GameState) -> Vec<GameEvent> {
     let mut out = Vec::new();
     for &id in &state.zones.battlefield {
-        let frame = crate::stack::Frame::bare(id, state.objects.obj(id).controller);
+        let bare = crate::stack::Frame::bare(id, state.objects.obj(id).controller);
         for rule in &state.sba_rules {
+            let mut frame = bare.clone();
+            frame.activation = state.enter_region(&rule.region, &frame);
+            let rule = &rule.region.body;
             // `scope` binds `This`: only objects in the rule's domain reach
             // `when` (so a toughness read never runs on a non-creature).
             if !crate::matches(state, id, &rule.scope) {
@@ -341,7 +344,7 @@ fn run_sba_effect(
 
     let mut out = Vec::new();
     match effect {
-        OneShotEffect::Act(action) => {
+        OneShotEffect::Act { action, .. } => {
             for item in state.action_items(action, frame) {
                 if let WorkItem::Emit(occ) = item {
                     match occ {
@@ -1101,6 +1104,24 @@ mod tests {
         })
     }
 
+    fn controller_filter(body: Predicate) -> deckmaste_core::Region<Predicate> {
+        deckmaste_core::Region::new(
+            Arc::from([
+                deckmaste_core::Param {
+                    def: deckmaste_core::DefId(0),
+                    kind: deckmaste_core::Kind::Object,
+                    provenance: deckmaste_core::Provenance::Candidate,
+                },
+                deckmaste_core::Param {
+                    def: deckmaste_core::DefId(1),
+                    kind: deckmaste_core::Kind::Object,
+                    provenance: deckmaste_core::Provenance::Controller,
+                },
+            ]),
+            body,
+        )
+    }
+
     fn on_field(
         state: &mut GameState,
         name: &str,
@@ -1357,14 +1378,16 @@ mod tests {
         let gate = Condition::And(
             vec![
                 Condition::Compare(
-                    Count::CountOf(Countable::Objects(Arc::new(Predicate::And(
-                        vec![
-                            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
-                                Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
-                            ))),
-                        ]
-                        .into(),
+                    Count::CountOf(Countable::Objects(Arc::new(controller_filter(
+                        Predicate::And(
+                            vec![
+                                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                                Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
+                                    Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
+                                ))),
+                            ]
+                            .into(),
+                        ),
                     )))),
                     Cmp::AtLeast,
                     Count::Literal(10),
@@ -1454,14 +1477,18 @@ mod tests {
                 when: Arc::new(Condition::And(
                     vec![
                         Condition::Compare(
-                            Count::CountOf(Countable::Objects(Arc::new(Predicate::And(
-                                vec![
-                                    Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                                    Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
-                                        Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
-                                    ))),
-                                ]
-                                .into(),
+                            Count::CountOf(Countable::Objects(Arc::new(controller_filter(
+                                Predicate::And(
+                                    vec![
+                                        Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                                        Predicate::Relation(RelationPredicate::ControlledBy(
+                                            Arc::new(Predicate::Ref(Reference::Reg(
+                                                deckmaste_core::RefId(1),
+                                            ))),
+                                        )),
+                                    ]
+                                    .into(),
+                                ),
                             )))),
                             Cmp::AtLeast,
                             Count::Literal(10),
@@ -2109,7 +2136,7 @@ mod tests {
         let gates = crate::derive::face(&angel)
             .abilities
             .iter()
-            .filter(|a| matches!(a, Ability::Static(s) if matches!(s.as_ref(), StaticEffect::OutcomeGate { .. })))
+            .filter(|a| matches!(a, Ability::Static(s) if matches!(&s.body, StaticEffect::OutcomeGate { .. })))
             .count();
         assert_eq!(gates, 2, "Platinum Angel has two OutcomeGate statics");
     }

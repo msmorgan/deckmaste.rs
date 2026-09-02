@@ -2,6 +2,11 @@
 //!
 //! Scaffolded once, then hand-owned. See the crate docs.
 
+#![allow(
+    clippy::items_after_test_module,
+    reason = "generated lowering tests remain adjacent to the constructor families they cover"
+)]
+
 use crate::Lower;
 
 impl Lower for deckmaste_semantics::Stat {
@@ -16,129 +21,6 @@ impl Lower for deckmaste_semantics::Stat {
         }
     }
 }
-
-impl Lower for deckmaste_semantics::RoundMode {
-    type Target = deckmaste_core::RoundMode;
-    fn lower(self) -> <Self as Lower>::Target {
-        match self {
-            Self::RoundUp => deckmaste_core::RoundMode::RoundUp,
-            Self::RoundDown => deckmaste_core::RoundMode::RoundDown,
-        }
-    }
-}
-
-impl Lower for deckmaste_semantics::Characteristic {
-    type Target = deckmaste_core::Characteristic;
-    fn lower(self) -> <Self as Lower>::Target {
-        match self {
-            Self::Colors => deckmaste_core::Characteristic::Colors,
-            Self::Types => deckmaste_core::Characteristic::Types,
-            Self::Subtypes => deckmaste_core::Characteristic::Subtypes,
-            Self::BasicLandTypes => deckmaste_core::Characteristic::BasicLandTypes,
-            Self::Supertypes => deckmaste_core::Characteristic::Supertypes,
-            Self::Power => deckmaste_core::Characteristic::Power,
-            Self::Toughness => deckmaste_core::Characteristic::Toughness,
-            Self::Defense => deckmaste_core::Characteristic::Defense,
-            Self::ManaCost => deckmaste_core::Characteristic::ManaCost,
-            Self::Name => deckmaste_core::Characteristic::Name,
-        }
-    }
-}
-
-impl Lower for deckmaste_semantics::Countable {
-    type Target = deckmaste_core::Countable;
-    fn lower(self) -> <Self as Lower>::Target {
-        match self {
-            Self::Objects(f0) => deckmaste_core::Countable::Objects(f0.lower()),
-            Self::Players(f0) => deckmaste_core::Countable::Players(f0.lower()),
-            Self::ManaSymbols(f0, f1) => {
-                deckmaste_core::Countable::ManaSymbols(f0.lower(), f1.lower())
-            }
-            Self::Singleton(f0) => deckmaste_core::Countable::Singleton(f0.lower()),
-            Self::ManaSpentMatching(f0, f1) => {
-                deckmaste_core::Countable::ManaSpentMatching(f0.lower(), f1.lower())
-            }
-        }
-    }
-}
-
-impl Lower for deckmaste_semantics::AggregateOp {
-    type Target = deckmaste_core::AggregateOp;
-    fn lower(self) -> <Self as Lower>::Target {
-        match self {
-            Self::SumOf => deckmaste_core::AggregateOp::SumOf,
-            Self::MinOf => deckmaste_core::AggregateOp::MinOf,
-            Self::MaxOf => deckmaste_core::AggregateOp::MaxOf,
-            Self::AverageOf(f0) => deckmaste_core::AggregateOp::AverageOf(f0.lower()),
-        }
-    }
-}
-
-impl Lower for deckmaste_semantics::Projection {
-    type Target = deckmaste_core::Projection;
-    fn lower(self) -> <Self as Lower>::Target {
-        deckmaste_core::Projection {
-            of: self.of.lower(),
-            by: self.by.lower(),
-        }
-    }
-}
-
-impl Lower for deckmaste_semantics::Count {
-    type Target = deckmaste_core::Count;
-    fn lower(self) -> <Self as Lower>::Target {
-        match self {
-            Self::X => {
-                crate::region::x().map_or(deckmaste_core::Count::X, deckmaste_core::Count::Reg)
-            }
-            Self::CountOf(f0) => deckmaste_core::Count::CountOf(f0.lower()),
-            Self::CountDistinct(f0, f1) => {
-                deckmaste_core::Count::CountDistinct(f0.lower(), f1.lower())
-            }
-            Self::StatOf(f0, f1) => deckmaste_core::Count::StatOf(f0.lower(), f1.lower()),
-            Self::PlayerStatOf(f0, f1) => {
-                deckmaste_core::Count::PlayerStatOf(f0.lower(), f1.lower())
-            }
-            Self::Opponents(f0) => deckmaste_core::Count::Opponents(f0.lower()),
-            Self::CounterCount(f0, f1) => {
-                deckmaste_core::Count::CounterCount(f0.lower(), f1.lower())
-            }
-            Self::Min(f0, f1) => deckmaste_core::Count::Min(f0.lower(), f1.lower()),
-            Self::Max(f0, f1) => deckmaste_core::Count::Max(f0.lower(), f1.lower()),
-            Self::Plus(f0, f1) => deckmaste_core::Count::Plus(f0.lower(), f1.lower()),
-            Self::Minus(f0, f1) => deckmaste_core::Count::Minus(f0.lower(), f1.lower()),
-            Self::Times(f0, f1) => deckmaste_core::Count::Times(f0.lower(), f1.lower()),
-            Self::Half(f0, f1) => deckmaste_core::Count::Half(f0.lower(), f1.lower()),
-            Self::Divide(f0, f1, f2) => {
-                deckmaste_core::Count::Divide(f0.lower(), f1.lower(), f2.lower())
-            }
-            Self::Mod(f0, f1) => deckmaste_core::Count::Mod(f0.lower(), f1.lower()),
-            Self::Pow(f0, f1) => deckmaste_core::Count::Pow(f0.lower(), f1.lower()),
-            Self::TargetsOf(f0) => deckmaste_core::Count::TargetsOf(f0.lower()),
-            Self::ThatMany => deckmaste_core::Count::ThatMany,
-            Self::ThatMuch => deckmaste_core::Count::ThatMuch,
-            Self::Allotment => deckmaste_core::Count::Allotment,
-            Self::EventCount(f0, f1) => deckmaste_core::Count::EventCount(f0.lower(), f1.lower()),
-            Self::EventSum(f0, f1) => deckmaste_core::Count::EventSum(f0.lower(), f1.lower()),
-            Self::Noted(f0) => deckmaste_core::Count::Noted(f0.lower()),
-            Self::TimesPaid(f0) => deckmaste_core::Count::TimesPaid(f0.lower()),
-            Self::Damage(f0) => deckmaste_core::Count::Damage(f0.lower()),
-            Self::ManaAvailable(f0) => deckmaste_core::Count::ManaAvailable(f0.lower()),
-            Self::ManaAvailableKind(f0, f1) => {
-                deckmaste_core::Count::ManaAvailableKind(f0.lower(), f1.lower())
-            }
-            Self::Aggregate(f0, f1) => deckmaste_core::Count::Aggregate(f0.lower(), f1.lower()),
-            // Invocation provenance does not cross `lower`: the core grammar is
-            // a compiled artifact and carries no record of the semantic
-            // spelling (spec §12). Prose recovers the semantic term through the
-            // provenance index instead. This is the divergence ledger's first
-            // non-identity arm family.
-            Self::Expanded(f0) => *f0.value.lower(),
-            Self::Literal(f0) => deckmaste_core::Count::Literal(f0.lower()),
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     #![allow(
@@ -582,30 +464,6 @@ mod tests {
     }
 
     #[test]
-    fn lowers_count_that_many() {
-        assert_matches!(
-            deckmaste_semantics::Count::ThatMany.lower(),
-            deckmaste_core::Count::ThatMany
-        );
-    }
-
-    #[test]
-    fn lowers_count_that_much() {
-        assert_matches!(
-            deckmaste_semantics::Count::ThatMuch.lower(),
-            deckmaste_core::Count::ThatMuch
-        );
-    }
-
-    #[test]
-    fn lowers_count_allotment() {
-        assert_matches!(
-            deckmaste_semantics::Count::Allotment.lower(),
-            deckmaste_core::Count::Allotment
-        );
-    }
-
-    #[test]
     fn lowers_count_event_count() {
         assert_matches!(
             deckmaste_semantics::Count::EventCount(
@@ -713,5 +571,139 @@ mod tests {
             deckmaste_semantics::Count::Literal(0).lower(),
             deckmaste_core::Count::Literal(0)
         );
+    }
+}
+
+impl Lower for deckmaste_semantics::RoundMode {
+    type Target = deckmaste_core::RoundMode;
+    fn lower(self) -> <Self as Lower>::Target {
+        match self {
+            Self::RoundUp => deckmaste_core::RoundMode::RoundUp,
+            Self::RoundDown => deckmaste_core::RoundMode::RoundDown,
+        }
+    }
+}
+
+impl Lower for deckmaste_semantics::Characteristic {
+    type Target = deckmaste_core::Characteristic;
+    fn lower(self) -> <Self as Lower>::Target {
+        match self {
+            Self::Colors => deckmaste_core::Characteristic::Colors,
+            Self::Types => deckmaste_core::Characteristic::Types,
+            Self::Subtypes => deckmaste_core::Characteristic::Subtypes,
+            Self::BasicLandTypes => deckmaste_core::Characteristic::BasicLandTypes,
+            Self::Supertypes => deckmaste_core::Characteristic::Supertypes,
+            Self::Power => deckmaste_core::Characteristic::Power,
+            Self::Toughness => deckmaste_core::Characteristic::Toughness,
+            Self::Defense => deckmaste_core::Characteristic::Defense,
+            Self::ManaCost => deckmaste_core::Characteristic::ManaCost,
+            Self::Name => deckmaste_core::Characteristic::Name,
+        }
+    }
+}
+
+impl Lower for deckmaste_semantics::Countable {
+    type Target = deckmaste_core::Countable;
+    fn lower(self) -> <Self as Lower>::Target {
+        match self {
+            Self::Objects(f0) => deckmaste_core::Countable::Objects(std::sync::Arc::new(
+                crate::region::candidate_region(|| std::sync::Arc::unwrap_or_clone(f0).lower()),
+            )),
+            Self::Players(f0) => deckmaste_core::Countable::Players(std::sync::Arc::new(
+                crate::region::candidate_region(|| std::sync::Arc::unwrap_or_clone(f0).lower()),
+            )),
+            Self::ManaSymbols(f0, f1) => {
+                deckmaste_core::Countable::ManaSymbols(f0.lower(), f1.lower())
+            }
+            Self::Singleton(f0) => deckmaste_core::Countable::Singleton(f0.lower()),
+            Self::ManaSpentMatching(f0, f1) => {
+                deckmaste_core::Countable::ManaSpentMatching(f0.lower(), f1.lower())
+            }
+        }
+    }
+}
+
+impl Lower for deckmaste_semantics::AggregateOp {
+    type Target = deckmaste_core::AggregateOp;
+    fn lower(self) -> <Self as Lower>::Target {
+        match self {
+            Self::SumOf => deckmaste_core::AggregateOp::SumOf,
+            Self::MinOf => deckmaste_core::AggregateOp::MinOf,
+            Self::MaxOf => deckmaste_core::AggregateOp::MaxOf,
+            Self::AverageOf(f0) => deckmaste_core::AggregateOp::AverageOf(f0.lower()),
+        }
+    }
+}
+
+impl Lower for deckmaste_semantics::Projection {
+    type Target = deckmaste_core::Projection;
+    fn lower(self) -> <Self as Lower>::Target {
+        deckmaste_core::Projection {
+            of: self.of.lower(),
+            by: std::sync::Arc::new(crate::region::candidate_region(|| {
+                std::sync::Arc::unwrap_or_clone(self.by).lower()
+            })),
+        }
+    }
+}
+
+impl Lower for deckmaste_semantics::Count {
+    type Target = deckmaste_core::Count;
+    fn lower(self) -> <Self as Lower>::Target {
+        match self {
+            Self::X => {
+                crate::region::x().map_or(deckmaste_core::Count::X, deckmaste_core::Count::Reg)
+            }
+            Self::CountOf(f0) => deckmaste_core::Count::CountOf(f0.lower()),
+            Self::CountDistinct(f0, f1) => {
+                deckmaste_core::Count::CountDistinct(f0.lower(), f1.lower())
+            }
+            Self::StatOf(f0, f1) => deckmaste_core::Count::StatOf(f0.lower(), f1.lower()),
+            Self::PlayerStatOf(f0, f1) => {
+                deckmaste_core::Count::PlayerStatOf(f0.lower(), f1.lower())
+            }
+            Self::Opponents(f0) => deckmaste_core::Count::Opponents(f0.lower()),
+            Self::CounterCount(f0, f1) => {
+                deckmaste_core::Count::CounterCount(f0.lower(), f1.lower())
+            }
+            Self::Min(f0, f1) => deckmaste_core::Count::Min(f0.lower(), f1.lower()),
+            Self::Max(f0, f1) => deckmaste_core::Count::Max(f0.lower(), f1.lower()),
+            Self::Plus(f0, f1) => deckmaste_core::Count::Plus(f0.lower(), f1.lower()),
+            Self::Minus(f0, f1) => deckmaste_core::Count::Minus(f0.lower(), f1.lower()),
+            Self::Times(f0, f1) => deckmaste_core::Count::Times(f0.lower(), f1.lower()),
+            Self::Half(f0, f1) => deckmaste_core::Count::Half(f0.lower(), f1.lower()),
+            Self::Divide(f0, f1, f2) => {
+                deckmaste_core::Count::Divide(f0.lower(), f1.lower(), f2.lower())
+            }
+            Self::Mod(f0, f1) => deckmaste_core::Count::Mod(f0.lower(), f1.lower()),
+            Self::Pow(f0, f1) => deckmaste_core::Count::Pow(f0.lower(), f1.lower()),
+            Self::TargetsOf(f0) => deckmaste_core::Count::TargetsOf(f0.lower()),
+            Self::ThatMany | Self::ThatMuch => deckmaste_core::Count::Reg(
+                crate::region::amount().expect("unbound amount anaphor during lowering"),
+            ),
+            Self::Allotment => deckmaste_core::Count::Reg(
+                crate::region::allotment().expect("unbound distribution allotment during lowering"),
+            ),
+            Self::EventCount(f0, f1) => deckmaste_core::Count::EventCount(f0.lower(), f1.lower()),
+            Self::EventSum(f0, f1) => deckmaste_core::Count::EventSum(f0.lower(), f1.lower()),
+            Self::Noted(name) => crate::region::named(&name).map_or_else(
+                || deckmaste_core::Count::Noted(name.lower()),
+                deckmaste_core::Count::Reg,
+            ),
+            Self::TimesPaid(f0) => deckmaste_core::Count::TimesPaid(f0.lower()),
+            Self::Damage(f0) => deckmaste_core::Count::Damage(f0.lower()),
+            Self::ManaAvailable(f0) => deckmaste_core::Count::ManaAvailable(f0.lower()),
+            Self::ManaAvailableKind(f0, f1) => {
+                deckmaste_core::Count::ManaAvailableKind(f0.lower(), f1.lower())
+            }
+            Self::Aggregate(f0, f1) => deckmaste_core::Count::Aggregate(f0.lower(), f1.lower()),
+            // Invocation provenance does not cross `lower`: the core grammar is
+            // a compiled artifact and carries no record of the semantic
+            // spelling (spec §12). Prose recovers the semantic term through the
+            // provenance index instead. This is the divergence ledger's first
+            // non-identity arm family.
+            Self::Expanded(f0) => *f0.value.lower(),
+            Self::Literal(f0) => deckmaste_core::Count::Literal(f0.lower()),
+        }
     }
 }

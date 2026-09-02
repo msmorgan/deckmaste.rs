@@ -108,13 +108,6 @@ pub struct TriggeredAbility {
     /// Trigger-frequency limits ([CR#603.2h]).
     #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
     pub limits: Arc<[UseLimit]>,
-    /// The "where X is …" definition of an {X} in this ability's text —
-    /// ability metadata that survives to render and defines the X a ward
-    /// toll prices. Evaluated when the ability RESOLVES, never locked in as
-    /// it triggers ([CR#702.21b] — Minthara's "ward {X}, where X is the
-    /// number of experience counters you have").
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub where_x: Option<crate::Count>,
     #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
     pub targets: Arc<[TargetSpec]>,
     pub effect: Region,
@@ -222,7 +215,7 @@ pub enum Ability {
     /// [CR#611.3]); conditionality/other qualifiers compose as `StaticEffect`
     /// wrappers ([`Conditionally`](crate::StaticEffect::Conditionally)), never
     /// a struct field. Mirrors Idris `Static : StaticEffect -> Ability`.
-    Static(Arc<StaticEffect>),
+    Static(Arc<Region<StaticEffect>>),
     Activated(Arc<ActivatedAbility>),
     Triggered(Arc<TriggeredAbility>),
     /// A lowering-classified activated or triggered mana ability.
@@ -252,7 +245,7 @@ impl Ability {
     /// hand-write `Arc::new`. (Raw ident: `static` is a keyword.)
     #[must_use]
     pub fn r#static(effect: StaticEffect) -> Self {
-        Ability::Static(Arc::new(effect))
+        Ability::Static(Arc::new(Region::new(crate::event_region_params(), effect)))
     }
 
     /// Build [`Ability::Activated`], boxing the payload.
@@ -262,8 +255,38 @@ impl Ability {
     }
 
     /// Build [`Ability::Triggered`], boxing the payload.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the ability contains more than `u32::MAX` targets or inferred
+    /// region parameters.
     #[must_use]
-    pub fn triggered(ability: TriggeredAbility) -> Self {
+    pub fn triggered(mut ability: TriggeredAbility) -> Self {
+        if ability.effect.params.is_empty() {
+            let mut params = crate::event_region_params()
+                .iter()
+                .map(|param| (param.kind, param.provenance.clone()))
+                .collect::<Vec<_>>();
+            params.extend(ability.targets.iter().enumerate().map(|(index, _)| {
+                (
+                    crate::Kind::Objects,
+                    crate::Provenance::AnnouncedTarget(
+                        u32::try_from(index).expect("target index fits u32"),
+                    ),
+                )
+            }));
+            params.push((crate::Kind::Number, crate::Provenance::AnnouncedX));
+            ability.effect.params = params
+                .into_iter()
+                .enumerate()
+                .map(|(index, (kind, provenance))| crate::Param {
+                    def: crate::DefId(u32::try_from(index).expect("parameter index fits u32")),
+                    kind,
+                    provenance,
+                })
+                .collect::<Vec<_>>()
+                .into();
+        }
         Ability::Triggered(Arc::new(ability))
     }
 

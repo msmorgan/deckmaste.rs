@@ -5,22 +5,22 @@
 use crate::Lower;
 
 impl Lower for deckmaste_semantics::Binder {
-    type Target = deckmaste_core::Binder;
+    type Target = deckmaste_core::CostBinder;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
-            Self::TheRef(f0) => deckmaste_core::Binder::TheRef(f0.lower()),
-            Self::ChooseOne { filter, by } => deckmaste_core::Binder::ChooseOne {
+            Self::TheRef(f0) => deckmaste_core::CostBinder::TheRef(f0.lower()),
+            Self::ChooseOne { filter, by } => deckmaste_core::CostBinder::ChooseOne {
                 filter: filter.lower(),
                 by: by.lower(),
             },
-            Self::Produce(f0) => deckmaste_core::Binder::Produce(f0.lower()),
+            Self::Produce(f0) => deckmaste_core::CostBinder::Produce(f0.lower()),
             Self::SearchOne {
                 filter,
                 by,
                 whose,
                 from,
                 if_none,
-            } => deckmaste_core::Binder::SearchOne {
+            } => deckmaste_core::CostBinder::SearchOne {
                 filter: filter.lower(),
                 by: by.lower(),
                 whose: whose.lower(),
@@ -31,12 +31,12 @@ impl Lower for deckmaste_semantics::Binder {
                 quantity,
                 filter,
                 by,
-            } => deckmaste_core::Binder::Choose {
+            } => deckmaste_core::CostBinder::Choose {
                 quantity: quantity.lower(),
                 filter: filter.lower(),
                 by: by.lower(),
             },
-            Self::Existing(f0) => deckmaste_core::Binder::Existing(f0.lower()),
+            Self::Existing(f0) => deckmaste_core::CostBinder::Existing(f0.lower()),
             Self::Search {
                 quantity,
                 filter,
@@ -44,7 +44,7 @@ impl Lower for deckmaste_semantics::Binder {
                 whose,
                 from,
                 if_none,
-            } => deckmaste_core::Binder::Search {
+            } => deckmaste_core::CostBinder::Search {
                 quantity: quantity.lower(),
                 filter: filter.lower(),
                 by: by.lower(),
@@ -61,7 +61,6 @@ impl Lower for deckmaste_semantics::Binder {
         }
     }
 }
-
 #[cfg(test)]
 mod tests {
     #![allow(
@@ -79,9 +78,9 @@ mod tests {
     fn lowers_binder_the_ref() {
         assert_matches!(
             deckmaste_semantics::Binder::TheRef(minimal_reference()).lower(),
-            deckmaste_core::Binder::TheRef(deckmaste_core::Reference::Reg(deckmaste_core::RefId(
-                0
-            )))
+            deckmaste_core::CostBinder::TheRef(deckmaste_core::Reference::Reg(
+                deckmaste_core::RefId(0)
+            ))
         );
     }
 
@@ -93,7 +92,7 @@ mod tests {
                 by: minimal_reference()
             }
             .lower(),
-            deckmaste_core::Binder::ChooseOne {
+            deckmaste_core::CostBinder::ChooseOne {
                 filter: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
                 by: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
             }
@@ -104,7 +103,7 @@ mod tests {
     fn lowers_binder_produce() {
         assert_matches!(
             deckmaste_semantics::Binder::Produce(std::sync::Arc::new(minimal_action())).lower(),
-            deckmaste_core::Binder::Produce(_)
+            deckmaste_core::CostBinder::Produce(_)
         );
     }
 
@@ -119,7 +118,7 @@ mod tests {
                 if_none: None
             }
             .lower(),
-            deckmaste_core::Binder::SearchOne {
+            deckmaste_core::CostBinder::SearchOne {
                 filter: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
                 by: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 whose: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
@@ -138,7 +137,7 @@ mod tests {
                 by: minimal_reference()
             }
             .lower(),
-            deckmaste_core::Binder::Choose {
+            deckmaste_core::CostBinder::Choose {
                 quantity: deckmaste_core::Quantity::Range(None, None),
                 filter: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
                 by: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
@@ -150,9 +149,7 @@ mod tests {
     fn lowers_binder_existing() {
         assert_matches!(
             deckmaste_semantics::Binder::Existing(minimal_selection()).lower(),
-            deckmaste_core::Binder::Existing(deckmaste_core::Selection::SelectAll(
-                deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
-            ))
+            deckmaste_core::CostBinder::Existing(deckmaste_core::Selection::SelectAll(_))
         );
     }
 
@@ -168,7 +165,7 @@ mod tests {
                 if_none: None
             }
             .lower(),
-            deckmaste_core::Binder::Search {
+            deckmaste_core::CostBinder::Search {
                 quantity: deckmaste_core::Quantity::Range(None, None),
                 filter: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
                 by: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
@@ -189,9 +186,9 @@ mod tests {
                 value: Box::new(minimal_binder())
             })
             .lower(),
-            deckmaste_core::Binder::TheRef(deckmaste_core::Reference::Reg(deckmaste_core::RefId(
-                0
-            )))
+            deckmaste_core::CostBinder::TheRef(deckmaste_core::Reference::Reg(
+                deckmaste_core::RefId(0)
+            ))
         );
     }
 }

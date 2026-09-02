@@ -159,162 +159,13 @@ pub struct PendingStackEntry {
     pub alternative_cost: Option<deckmaste_core::Cost>,
 }
 
-/// Cardinality of a binder/anaphor slot ([CR#608.2]) — mirrors the Idris
-/// `Cardinality`. A one-binder (`TheRef`/`ChooseOne`) binds `One`, read as the
-/// singular [`Reference::That`](deckmaste_core::Reference::That); a many-binder
-/// (`Choose`/`Existing`) binds `Many`, read as the group
-/// [`Selection::That`](deckmaste_core::Selection::That). Keeping the
-/// cardinality on the binding makes the first-of-many read structurally
-/// impossible: a singular read of a `Many` slot is an error, never `.first()`.
+/// Cardinality of the transitional cost binder retained for Stage 3.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Cardinality {
     /// A single bound element.
     One,
     /// A bound group of elements.
     Many,
-}
-
-/// The element kind of a bound slot — object vs. player ([CR#120.3]). Mirrors
-/// the engine-relevant arms of the Idris `RefKind` (`AnObject`/`APlayer`); the
-/// engine needs only the object/player split (a player proxy is zoneless and
-/// carries no LKI snapshot).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RefKind {
-    /// A card/token element.
-    Object,
-    /// A player element (resolves via the player's proxy object).
-    Player,
-}
-
-/// A bound iteration/projection element — the [`Reference::It`] anaphor's value
-/// ([CR#608.2]). Kind-poly ([CR#120.3]): a card/token element carries its LKI
-/// snapshot so reads survive its removal (an `Each(creatures, Destroy(It))`
-/// element read after destruction), while a player element is zoneless and
-/// carries only its id.
-///
-/// [`Reference::It`]: deckmaste_core::Reference::It
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ItBinding {
-    /// A card/token element: its LKI snapshot (id + last-known counters/state).
-    Object(LkiSnapshot),
-    /// A player element: resolves via the player's proxy object.
-    Player(PlayerId),
-}
-
-impl ItBinding {
-    /// This element's [`RefKind`].
-    #[must_use]
-    pub fn kind(&self) -> RefKind {
-        match self {
-            ItBinding::Object(_) => RefKind::Object,
-            ItBinding::Player(_) => RefKind::Player,
-        }
-    }
-}
-
-/// The group bound by an enclosing
-/// [`OneShotEffect::With`](deckmaste_core::With) /
-/// [`Each`](deckmaste_core::Each) /
-/// [`Distribute`](deckmaste_core::Distribute) many-binder — the
-/// [`Reference::That`]/[`Selection::That`] anaphor's value, carrying per-slot
-/// **kind + cardinality** (the Idris `thatKind : Maybe (Cardinality,
-/// RefKind)`). The `group` holds the bound ids, order-preserved (top→down for a
-/// library window); a one-binder stores its single element as the sole member.
-/// Reads resolve by slot: [`Reference::That`] requires a `(One, k)` binding
-/// (returns the single id), [`Selection::That`] requires a `(Many, k)` binding
-/// (returns the group) — a singular read of a `Many` binding is an error,
-/// making the dropped-cardinality first-of-many bug unrepresentable.
-///
-/// [`Reference::That`]: deckmaste_core::Reference::That
-/// [`Selection::That`]: deckmaste_core::Selection::That
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ThatBinding {
-    /// One (a one-binder) vs. Many (a many-binder group).
-    pub cardinality: Cardinality,
-    /// The bound elements' kind ([CR#120.3]).
-    pub kind: RefKind,
-    /// The bound ids, order-preserved; a one-binder is a singleton.
-    pub group: Vec<ObjectId>,
-}
-
-/// The text-internal (**endophoric**) binding environment a resolving effect
-/// reads ([CR#608.2]) — every referent an OPERATOR introduces and binds for a
-/// sub-scope, in either direction (anaphora "choose a creature; destroy *it*"
-/// AND cataphora "deal 2 damage to *each creature*"). Mirrors the single Idris
-/// `Bindings` record. This retains only transient discourse introduced while
-/// an instruction runs. Source, controller, event roles, announced targets,
-/// and X are activation inputs represented by region parameters instead.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct Anaphora {
-    /// A `Choose`/`Random` selection resolved into this scope for a re-run
-    /// ([CR#608.2d]). Set only on the continuation the choice produces;
-    /// `eval_selection_set` reads it for the `Choose`/`Random` slot. `None`
-    /// on a fresh scope.
-    pub chosen: Option<Vec<ObjectId>>,
-    /// The resolving ability's "where X is …" definition
-    /// ([CR#702.21b] — a ward-{X} toll's X is determined as the ability
-    /// RESOLVES, never locked in at trigger time). Threaded from
-    /// `TriggeredAbility::where_x` when a trigger's frame is built; priced
-    /// into `Mana([Variable])` cost components by `price_variable_cost`.
-    pub where_x: Option<deckmaste_core::Count>,
-    /// The current iteration / projection element — the `It` anaphor
-    /// ([CR#608.2]). Bound per element by an enclosing `Each`/`Distribute`
-    /// loop, and by `Predicate::Where` / `Selection::Pick` while they test a
-    /// candidate (the role the old `Subject` named). `None` at every frameless
-    /// position. Mirrors the Idris `itKind` + its `It` value.
-    pub it: Option<ItBinding>,
-    /// The group bound by an enclosing `OneShotEffect::With`/cost `With`
-    /// many-binder, carrying cardinality + kind so the singular
-    /// `Reference::That` and the group `Selection::That` resolve by slot
-    /// (the Idris `thatKind`). `None` outside a `With`. Replaces the old
-    /// untyped `those` whose dropped cardinality caused the first-of-many
-    /// bug.
-    pub that: Option<ThatBinding>,
-    /// The per-element share in scope inside a `Distribute` body — read by
-    /// `Count::Allotment` ([CR#601.2d]). Set per element when `Distribute`
-    /// binds its loop element (the Idris `bindAllot`), and CLEARED whenever an
-    /// inner `Each`/`Distribute` rebinds `It` (the Idris allotment-clearing
-    /// `bindIt`), so an outer share can never leak into a nested loop. `None`
-    /// outside a `Distribute` body.
-    pub allotment: Option<deckmaste_core::Uint>,
-    /// Mana types carried by the causing production event. Triggered mana
-    /// effects read this for `ManaSpec::ProducedByEvent` ([CR#106.12a]).
-    pub produced_mana: Vec<deckmaste_core::ColorOrColorless>,
-    /// The firing counter event's `(before, after)` totals ([CR#714.2b]) —
-    /// read by `Condition::Crossed` at the trigger gate and the resolution
-    /// recheck ([CR#603.4]). `None` outside a counter-event body.
-    pub crossed: Option<(deckmaste_core::Uint, deckmaste_core::Uint)>,
-    /// [CR#614.5]: a replacement lineage inherited from whatever
-    /// `Instead`/`Also` application (or passed aggregate `Batch` window's
-    /// apply) scheduled this resolution — threaded so a keyword-action
-    /// window this frame resolves into starts its OWN `replace_event` loop
-    /// with these keys pre-excluded (see `GameEvent::Act::inherited`).
-    /// Empty for the overwhelming majority of resolutions.
-    pub inherited_replacements: std::collections::HashSet<crate::replace_registry::ReplacementKey>,
-    /// [CR#616.1g,121.2a]: `true` on the frame a PASSED aggregate `Batch`
-    /// window's apply builds for its `n` contained per-entity `RunEffect`s
-    /// — read by `composite_items` into the minted future `Act`'s own
-    /// `contained` marker (see `GameEvent::Act::contained`). `false`
-    /// everywhere else.
-    pub contained_in_batch: bool,
-}
-
-impl Anaphora {
-    /// An empty transient discourse environment.
-    #[must_use]
-    pub fn empty() -> Self {
-        Anaphora {
-            chosen: None,
-            where_x: None,
-            it: None,
-            that: None,
-            allotment: None,
-            produced_mana: Vec::new(),
-            crossed: None,
-            inherited_replacements: std::collections::HashSet::new(),
-            contained_in_batch: false,
-        }
-    }
 }
 
 /// A cost payment in progress ([CR#118.10]): stamped on every
@@ -347,22 +198,18 @@ pub struct Frame {
     /// [`Frame::bare`]) keeps every existing `Cause::*` construction exactly
     /// as `Agency::EffectInstruction`.
     pub payment: Option<Payment>,
-    /// The transient text-internal discourse (`It`/`That`, allotment, and
-    /// other operator-local state). See [`Anaphora`].
-    pub anaphora: Anaphora,
 }
 
 impl Frame {
     /// A bare resolution frame: the exophoric `source`/`controller`, no trigger
-    /// snapshot (a spell frame — `Reference::Reg(deckmaste_core::RefId(0))` reads the live `source`), no
-    /// combat defender, not a payment, and an empty [`Anaphora`]. The common
+    /// snapshot (a spell frame's source parameter reads the live `source`), no
+    /// combat defender, and not a payment. The common
     /// starting shape for gate/payability/instant frames.
     #[must_use]
     pub fn bare(source: ObjectId, controller: PlayerId) -> Self {
         Frame {
             activation: crate::activation::ActivationId::bare(source, controller),
             payment: None,
-            anaphora: Anaphora::empty(),
         }
     }
 

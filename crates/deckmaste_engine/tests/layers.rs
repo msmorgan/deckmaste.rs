@@ -869,7 +869,9 @@ fn dependency_orders_dependent_effect_after_its_dependency() {
     state.continuous.push(ContinuousEffect {
         timestamp: Timestamp(2_000),
         controller: PlayerId(0),
-        scope: ScopeResolved::Floating(Predicate::r#type(Type::Creature)),
+        scope: ScopeResolved::Floating(Arc::new(deckmaste_core::Region::candidate(
+            Predicate::r#type(Type::Creature),
+        ))),
         changes: vec![Modification::CardTypes(deckmaste_core::CollectionOp::Add(
             Type::Enchantment.name(),
         ))],
@@ -882,7 +884,9 @@ fn dependency_orders_dependent_effect_after_its_dependency() {
     state.continuous.push(ContinuousEffect {
         timestamp: Timestamp(1_000),
         controller: PlayerId(0),
-        scope: ScopeResolved::Floating(Predicate::r#type(Type::Enchantment)),
+        scope: ScopeResolved::Floating(Arc::new(deckmaste_core::Region::candidate(
+            Predicate::r#type(Type::Enchantment),
+        ))),
         changes: vec![Modification::CardTypes(deckmaste_core::CollectionOp::Add(
             Type::Artifact.name(),
         ))],
@@ -976,7 +980,9 @@ fn dependency_loop_falls_back_to_timestamp() {
     state.continuous.push(ContinuousEffect {
         timestamp: Timestamp(1_000),
         controller: PlayerId(0),
-        scope: ScopeResolved::Floating(Predicate::r#type(Type::Creature)),
+        scope: ScopeResolved::Floating(Arc::new(deckmaste_core::Region::candidate(
+            Predicate::r#type(Type::Creature),
+        ))),
         changes: vec![Modification::CardTypes(deckmaste_core::CollectionOp::Add(
             Type::Enchantment.name(),
         ))],
@@ -989,7 +995,9 @@ fn dependency_loop_falls_back_to_timestamp() {
     state.continuous.push(ContinuousEffect {
         timestamp: Timestamp(2_000),
         controller: PlayerId(0),
-        scope: ScopeResolved::Floating(Predicate::r#type(Type::Enchantment)),
+        scope: ScopeResolved::Floating(Arc::new(deckmaste_core::Region::candidate(
+            Predicate::r#type(Type::Enchantment),
+        ))),
         changes: vec![Modification::CardTypes(deckmaste_core::CollectionOp::Add(
             Type::Creature.name(),
         ))],

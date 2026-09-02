@@ -74,10 +74,6 @@ fn ability_region(effect: OneShotEffect) -> Region {
     let provenances = [
         (Kind::Object, Provenance::Source),
         (Kind::Object, Provenance::Controller),
-        (Kind::Object, Provenance::EventObject),
-        (Kind::Object, Provenance::EventPatient),
-        (Kind::Object, Provenance::EventActor),
-        (Kind::Object, Provenance::DefendingPlayer),
         (Kind::Number, Provenance::AnnouncedX),
     ];
     let params = provenances
@@ -89,7 +85,27 @@ fn ability_region(effect: OneShotEffect) -> Region {
             provenance,
         })
         .collect();
-    Region::new(params, effect)
+    Region::new(params, effect.into())
+}
+
+fn lower_activated(
+    cost: deckmaste_semantics::Cost,
+    effect: deckmaste_semantics::OneShotEffect,
+) -> ActivatedAbility {
+    deckmaste_semantics::ActivatedAbility {
+        ability_word: None,
+        cost,
+        from: None,
+        window: None,
+        condition: None,
+        limits: [].into(),
+        effect,
+    }
+    .lower()
+}
+
+fn lower_activated_effect(effect: deckmaste_semantics::OneShotEffect) -> Region {
+    lower_activated(deckmaste_semantics::Cost([].into()), effect).effect
 }
 
 // [CR#111.10a]
@@ -146,12 +162,11 @@ fn clue_token_parses() {
                 cost: Arc::<[CostComponent]>::from(vec![mana_2(), sacrifice_this()]).into(),
                 condition: None,
                 limits: vec![].into(),
-                effect: ability_region(
+                effect: lower_activated_effect(
                     builtin()
                         .macros
                         .read_str::<deckmaste_semantics::OneShotEffect>("Draw(1)")
-                        .unwrap()
-                        .lower(),
+                        .unwrap(),
                 ),
             })]
             .into(),
@@ -186,10 +201,26 @@ fn food_token_parses() {
                 .into(),
                 condition: None,
                 limits: vec![].into(),
-                effect: ability_region(OneShotEffect::Act(Action::ChangeLife(
-                    Reference::Reg(deckmaste_core::RefId(1)),
-                    LifeOp::Up(Count::Literal(3))
-                ))),
+                effect: Region::new(
+                    ability_region(OneShotEffect::Act(Action::ChangeLife(
+                        Reference::Reg(deckmaste_core::RefId(1)),
+                        LifeOp::Up(Count::Literal(3)),
+                    )))
+                    .params,
+                    deckmaste_core::Block(
+                        vec![
+                            OneShotEffect::Let(deckmaste_core::Let {
+                                dest: DefId(3),
+                                expr: deckmaste_core::Expr::Number(Count::Literal(3)),
+                            }),
+                            OneShotEffect::Act(Action::ChangeLife(
+                                Reference::Reg(deckmaste_core::RefId(1)),
+                                LifeOp::Up(Count::Reg(deckmaste_core::RefId(3))),
+                            )),
+                        ]
+                        .into()
+                    ),
+                ),
             })]
             .into(),
             power: None,
@@ -234,19 +265,22 @@ fn gold_token_parses() {
 // [CR#111.10g]
 #[test]
 fn blood_token_parses() {
-    let mana_1 = CostComponent::Mana(ManaCost::from(Arc::<[ManaSymbol]>::from(vec![
-        ManaSymbol::Simple(SimpleManaSymbol::Generic(1)),
-    ])));
-    // Read through the builtin macro set, then expand: `lower` erases the
-    // `DiscardCards(1)` cost macro's `Expanded` wrapper (spec §12), so the
-    // loaded token carries its body — matching a fresh read collapsed the
-    // same way keeps this robust to macro refactors.
-    let discard_one = builtin()
+    // Read the whole ability payload through the builtin macro set. Cost
+    // products and the Draw result share one region's destination sequence,
+    // so they must be lowered together rather than as isolated subterms.
+    let plugin = builtin();
+    let cost = plugin
         .macros
-        .read_str::<deckmaste_semantics::CostComponent>("DiscardCards(1)")
-        .unwrap()
-        .lower();
-    let token = builtin().token("Blood").unwrap().core;
+        .read_str::<deckmaste_semantics::Cost>(
+            "[Mana([Generic(1)]), Tap, DiscardCards(1), SacrificeThis]",
+        )
+        .unwrap();
+    let effect = plugin
+        .macros
+        .read_str::<deckmaste_semantics::OneShotEffect>("Draw(1)")
+        .unwrap();
+    let expected_ability = lower_activated(cost, effect);
+    let token = plugin.token("Blood").unwrap().core;
     assert_eq!(
         token,
         Token {
@@ -255,29 +289,7 @@ fn blood_token_parses() {
             supertypes: vec![].into(),
             types: vec![Type::Artifact.def()].into(),
             subtypes: vec![artifact_subtype("Blood")].into(),
-            abilities: vec![Ability::activated(ActivatedAbility {
-                ability_word: None,
-                targets: [].into(),
-                from: None,
-                window: None,
-                cost: Arc::<[CostComponent]>::from(vec![
-                    mana_1,
-                    CostComponent::Tap,
-                    discard_one,
-                    sacrifice_this()
-                ])
-                .into(),
-                condition: None,
-                limits: vec![].into(),
-                effect: ability_region(
-                    builtin()
-                        .macros
-                        .read_str::<deckmaste_semantics::OneShotEffect>("Draw(1)")
-                        .unwrap()
-                        .lower(),
-                ),
-            })]
-            .into(),
+            abilities: vec![Ability::activated(expected_ability)].into(),
             power: None,
             toughness: None,
         }

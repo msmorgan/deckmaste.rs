@@ -116,6 +116,7 @@ pub(crate) enum Lane {
 /// reads inside a resolution/condition), resolves bound references
 /// (`Used(of: …)` beyond the self-scoped `This` — object-scoped identity,
 /// [CR#400.7]).
+#[derive(Clone, Copy)]
 pub(crate) struct Bindings<'a> {
     pub watcher: ObjectSource,
     pub frame: Option<&'a Frame>,
@@ -1156,8 +1157,8 @@ impl GameState {
                 let used = object.id(self);
                 match bindings.frame {
                     Some(frame) => self.eval_reference(of, frame) == used,
-                    None => match *deref_reference(of) {
-                        Reference::Reg(deckmaste_core::RefId(0)) => self
+                    None => match deref_reference(of) {
+                        reference if reference == &Reference::source_parameter() => self
                             .objects
                             .iter()
                             .find(|ob| ob.source == bindings.watcher)
@@ -1379,21 +1380,35 @@ impl GameState {
         if bindings.shape_only {
             return true;
         }
+        let activation = bindings
+            .frame
+            .map_or(crate::ActivationId::NONE, |frame| frame.activation);
         match part {
             None => matches!(deref_filter(filter), Predicate::Any),
             Some(Part::Obj(id)) => {
                 if self.objects.get(*id).is_some() {
-                    self.filter_matches_live(filter, *id, bindings.watcher)
+                    self.filter_matches_live_with_activation(
+                        filter,
+                        *id,
+                        bindings.watcher,
+                        activation,
+                    )
                 } else {
                     matches!(deref_filter(filter), Predicate::Any)
                 }
             }
-            Some(Part::Player(p)) => {
-                self.filter_matches_live(filter, self.player(*p).object, bindings.watcher)
-            }
-            Some(Part::Gone(snapshot)) => {
-                self.filter_matches_snapshot(filter, snapshot, bindings.watcher)
-            }
+            Some(Part::Player(p)) => self.filter_matches_live_with_activation(
+                filter,
+                self.player(*p).object,
+                bindings.watcher,
+                activation,
+            ),
+            Some(Part::Gone(snapshot)) => self.filter_matches_snapshot_with_activation(
+                filter,
+                snapshot,
+                bindings.watcher,
+                activation,
+            ),
         }
     }
 

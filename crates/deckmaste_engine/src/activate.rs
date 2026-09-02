@@ -57,13 +57,12 @@ pub(crate) fn is_loyalty_ability(cost: &deckmaste_core::Cost) -> bool {
         return false;
     };
     let loyalty = deckmaste_core::CounterRef::from("LoyaltyCounter");
-    summary.verbs.iter().any(|v| {
-        matches!(
-            v,
-            Action::PutCounters(Reference::Reg(deckmaste_core::RefId(0)), counter, _)
-                | Action::RemoveCounters(Reference::Reg(deckmaste_core::RefId(0)), counter, _)
-                if *counter == loyalty
-        )
+    summary.verbs.iter().any(|v| match v {
+        Action::PutCounters(reference, counter, _)
+        | Action::RemoveCounters(reference, counter, _) => {
+            *reference == Reference::source_parameter() && *counter == loyalty
+        }
+        _ => false,
     })
 }
 
@@ -425,7 +424,7 @@ impl GameState {
         source: ObjectId,
         controller: PlayerId,
     ) -> bool {
-        use deckmaste_core::Binder;
+        use deckmaste_core::CostBinder;
         let CostComponent::ChooseAndPay { binder, .. } = with else {
             unreachable!("cost_summary collects only ChooseAndPay components into `withs`");
         };
@@ -441,16 +440,16 @@ impl GameState {
             // ([CR#701.23b]). Searching a zone — even an empty one — is
             // always a legal outcome, so a search-binder cost is always
             // payable too.
-            Binder::TheRef(_)
-            | Binder::Existing(_)
-            | Binder::Search { .. }
-            | Binder::SearchOne { .. } => true,
+            CostBinder::TheRef(_)
+            | CostBinder::Existing(_)
+            | CostBinder::Search { .. }
+            | CostBinder::SearchOne { .. } => true,
             // ≥ 1 candidate to choose ([CR#601.2b]).
-            Binder::ChooseOne { filter, .. } => {
+            CostBinder::ChooseOne { filter, .. } => {
                 !crate::target::candidates_with(self, filter, watcher).is_empty()
             }
             // ≥ the quantity's lower bound of candidates (no partial payment).
-            Binder::Choose {
+            CostBinder::Choose {
                 quantity, filter, ..
             } => {
                 let candidates = crate::target::candidates_with(self, filter, watcher);
@@ -464,7 +463,7 @@ impl GameState {
             // find, so this is a real hole, not a guard. No corpus card uses
             // one in a cost; an explicit labeled arm keeps a future use a loud
             // seam rather than a silent `true`/`false`.
-            Binder::Produce(_) => unimplemented!(
+            CostBinder::Produce(_) => unimplemented!(
                 "engine seam: Produce as a cost binder ([CR#601.2h,400.7j]) — no runtime \
                  produce-and-capture primitive, so payability can't be decided; \
                  owner: engine-produce-capture-binder"
@@ -910,12 +909,12 @@ mod tests {
                             if name.as_str() == "Discard"
                                 && matches!(
                                     body.as_ref(),
-                                    deckmaste_core::OneShotEffect::Act(Action::Move(
+                                    deckmaste_core::OneShotEffect::Act { action: Action::Move(
                                         Reference::Reg(deckmaste_core::RefId(0)),
                                         deckmaste_core::Destination::Zone(Zone::Graveyard),
                                         _,
                                         _,
-                                    ))
+                                    ), .. }
                                 )
                     )
             )),
@@ -1464,8 +1463,8 @@ mod tests {
     /// supply the source as watcher.
     #[test]
     fn choose_one_cost_filter_excludes_source_via_not_ref_this() {
-        use deckmaste_core::Binder;
         use deckmaste_core::Cost;
+        use deckmaste_core::CostBinder;
 
         let mut state = game();
         let player = PlayerId(0);
@@ -1483,7 +1482,8 @@ mod tests {
             )))),
         ]));
         let with = CostComponent::ChooseAndPay {
-            binder: Arc::new(Binder::ChooseOne {
+            dest: deckmaste_core::DefId(2),
+            binder: Arc::new(CostBinder::ChooseOne {
                 filter,
                 by: Reference::Reg(deckmaste_core::RefId(1)),
             }),
@@ -1518,8 +1518,8 @@ mod tests {
     /// doesn't block payment.
     #[test]
     fn search_cost_binder_is_always_payable_even_over_an_empty_library() {
-        use deckmaste_core::Binder;
         use deckmaste_core::Cost;
+        use deckmaste_core::CostBinder;
         use deckmaste_core::ObjectKind;
         use deckmaste_core::Quantity;
 
@@ -1528,7 +1528,8 @@ mod tests {
         let source = make_object_on_battlefield(&mut state, player);
 
         let search_one = CostComponent::ChooseAndPay {
-            binder: Arc::new(Binder::SearchOne {
+            dest: deckmaste_core::DefId(2),
+            binder: Arc::new(CostBinder::SearchOne {
                 filter: Predicate::Kind(ObjectKind::Card),
                 by: Reference::Reg(deckmaste_core::RefId(1)),
                 whose: Reference::Reg(deckmaste_core::RefId(1)),
@@ -1543,7 +1544,8 @@ mod tests {
         );
 
         let search = CostComponent::ChooseAndPay {
-            binder: Arc::new(Binder::Search {
+            dest: deckmaste_core::DefId(2),
+            binder: Arc::new(CostBinder::Search {
                 quantity: Quantity::one(),
                 filter: Predicate::Kind(ObjectKind::Card),
                 by: Reference::Reg(deckmaste_core::RefId(1)),

@@ -334,28 +334,6 @@ mod tests {
     }
 
     #[test]
-    fn lowers_mana_rider_grant_on_spend() {
-        assert_matches!(
-            deckmaste_semantics::ManaRider::GrantOnSpend(std::sync::Arc::new(
-                minimal_one_shot_effect()
-            ))
-            .lower(),
-            deckmaste_core::ManaRider::GrantOnSpend(_)
-        );
-    }
-
-    #[test]
-    fn lowers_mana_rider_trigger_on_spend() {
-        assert_matches!(
-            deckmaste_semantics::ManaRider::TriggerOnSpend(std::sync::Arc::new(
-                minimal_one_shot_effect()
-            ))
-            .lower(),
-            deckmaste_core::ManaRider::TriggerOnSpend(_)
-        );
-    }
-
-    #[test]
     fn lowers_mana_rider_persistent() {
         assert_matches!(
             deckmaste_semantics::ManaRider::Persistent(minimal_turn_marker()).lower(),

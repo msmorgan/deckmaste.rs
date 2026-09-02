@@ -9,9 +9,9 @@ use std::sync::Arc;
 pub use coverage::ManaCoverage;
 pub use coverage::ManaPayment;
 use deckmaste_core::Action;
-use deckmaste_core::Binder;
 use deckmaste_core::Cmp;
 use deckmaste_core::Cost;
+use deckmaste_core::CostBinder;
 use deckmaste_core::CostComponent;
 use deckmaste_core::LifeOp;
 use deckmaste_core::ManaCost;
@@ -505,26 +505,28 @@ pub(crate) fn automatic_activation_cost_usable(
 
 fn automatic_binder_witness(
     state: &GameState,
-    binder: &Binder,
+    binder: &CostBinder,
     frame: &Frame,
 ) -> Option<FulfillmentWitness> {
     let watcher = Some(state.frame_watcher(frame));
     match binder {
-        Binder::Existing(Selection::Random(quantity, filter)) => {
+        CostBinder::Existing(Selection::Random(quantity, filter)) => {
             let candidates = crate::target::candidates_with(state, filter, watcher);
             let (lo, _) = quantity.bounds();
             let count = lo.map_or(0, |count| state.eval_count(count, frame));
             let count = usize::try_from(count).ok()?;
             (candidates.len() >= count).then_some(FulfillmentWitness::Bound)
         }
-        Binder::TheRef(_) | Binder::Existing(_) | Binder::Produce(_) => {
+        CostBinder::TheRef(_) | CostBinder::Existing(_) | CostBinder::Produce(_) => {
             Some(FulfillmentWitness::Bound)
         }
-        Binder::ChooseOne { filter, .. } => crate::target::candidates_with(state, filter, watcher)
-            .into_iter()
-            .next()
-            .map(|object| FulfillmentWitness::Objects(vec![object])),
-        Binder::Choose {
+        CostBinder::ChooseOne { filter, .. } => {
+            crate::target::candidates_with(state, filter, watcher)
+                .into_iter()
+                .next()
+                .map(|object| FulfillmentWitness::Objects(vec![object]))
+        }
+        CostBinder::Choose {
             quantity, filter, ..
         } => {
             let mut candidates = crate::target::candidates_with(state, filter, watcher);
@@ -536,7 +538,7 @@ fn automatic_binder_witness(
                 FulfillmentWitness::Objects(candidates)
             })
         }
-        Binder::SearchOne {
+        CostBinder::SearchOne {
             filter,
             whose,
             from,
@@ -546,7 +548,7 @@ fn automatic_binder_witness(
             candidates.truncate(1);
             Some(FulfillmentWitness::Objects(candidates))
         }
-        Binder::Search {
+        CostBinder::Search {
             quantity,
             filter,
             whose,
@@ -2371,8 +2373,9 @@ impl LockBuilder<'_> {
                         Vec::new(),
                     );
                 }
-                CostComponent::ChooseAndPay { binder, body } => self.push(
+                CostComponent::ChooseAndPay { dest, binder, body } => self.push(
                     IouKind::ChooseAndPay {
+                        dest: *dest,
                         binder: Arc::clone(binder),
                         body: body.clone(),
                     },
@@ -2385,7 +2388,9 @@ impl LockBuilder<'_> {
 
     fn lock_action(&mut self, action: &RunnableCostAction) {
         let kind = match action.as_action() {
-            Action::ChangeLife(Reference::Reg(deckmaste_core::RefId(1)), LifeOp::Down(count)) => {
+            Action::ChangeLife(reference, LifeOp::Down(count))
+                if reference == &Reference::controller_parameter() =>
+            {
                 IouKind::PayLife(self.state.eval_count(count, self.frame))
             }
             _ => IouKind::Act(action.clone()),

@@ -60,7 +60,7 @@ pub(crate) fn frame_src_targets(
         })
         .collect::<Vec<_>>()
         .into();
-    let region = deckmaste_core::Region::new(params, std::sync::Arc::from([]));
+    let region = deckmaste_core::Region::new(params, ());
     frame.activation = state.enter_region(&region, &frame);
     frame
 }

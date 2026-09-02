@@ -89,7 +89,7 @@ impl GameState {
                 // A target that no longer exists (reminted on zone change) is
                 // trivially illegal — the filter can't be satisfied.
                 let legal = self.objects.get(chosen).is_some()
-                    && crate::target::matches_with_activation(
+                    && crate::target::matches_region_with_activation(
                         self,
                         chosen,
                         filter,
@@ -115,7 +115,9 @@ impl GameState {
 /// This is the single authoritative site for TargetSpec→Predicate extraction;
 /// both `cast::legal_targets` (announce time) and `targets_still_legal`
 /// (resolution time) funnel through here so they stay in sync.
-pub(crate) fn target_spec_filter(spec: &TargetSpec) -> &deckmaste_core::Predicate {
+pub(crate) fn target_spec_filter(
+    spec: &TargetSpec,
+) -> &deckmaste_core::Region<deckmaste_core::Predicate> {
     match spec {
         TargetSpec::Target(_quantity, f) => f,
         // Distinctness lives in the SET checks, not the filter: peel to the
@@ -377,13 +379,16 @@ mod target_set_tests {
     }
 
     fn t_one() -> TargetSpec {
-        TargetSpec::Target(Quantity::one(), creature())
+        TargetSpec::Target(
+            Quantity::one(),
+            Arc::new(deckmaste_core::Region::candidate(creature())),
+        )
     }
 
     fn t_range(lo: Option<u32>, hi: Option<u32>) -> TargetSpec {
         TargetSpec::Target(
             Quantity::Range(lo.map(Count::Literal), hi.map(Count::Literal)),
-            creature(),
+            Arc::new(deckmaste_core::Region::candidate(creature())),
         )
     }
 
@@ -400,7 +405,7 @@ mod target_set_tests {
     #[test]
     fn filter_peels_distinct_to_the_inner_predicate() {
         let spec = distinct(vec![0], t_one());
-        assert_eq!(target_spec_filter(&spec), &creature());
+        assert_eq!(&target_spec_filter(&spec).body, &creature());
         assert_eq!(distinct_siblings(&spec), &[0]);
         assert_eq!(distinct_siblings(&t_one()), &[] as &[usize]);
     }

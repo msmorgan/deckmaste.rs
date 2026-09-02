@@ -149,7 +149,7 @@ pub fn concretize(
                     // [CR#107.4f]: 2 life in place of the colored mana.
                     SymbolChoice::Life => {
                         verbs.push(CostComponent::do_action(Action::ChangeLife(
-                            Reference::Reg(deckmaste_core::RefId(1)),
+                            Reference::controller_parameter(),
                             LifeOp::Down(Count::Literal(2)),
                         )));
                     }

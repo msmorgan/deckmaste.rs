@@ -39,6 +39,8 @@ pub enum Kind {
     Objects,
     /// A non-negative game number.
     Number,
+    /// A chosen symbolic value (currently a color or card name).
+    Symbol,
 }
 
 /// Why a region parameter exists and how the engine supplies it.
@@ -49,6 +51,8 @@ pub enum Provenance {
     EventObject,
     EventPatient,
     EventActor,
+    /// The amount carried by the triggering event.
+    EventAmount,
     DefendingPlayer,
     AnnouncedTarget(u32),
     AnnouncedX,
@@ -71,6 +75,51 @@ pub struct Param {
     pub def: DefId,
     pub kind: Kind,
     pub provenance: Provenance,
+}
+
+/// The fixed event-role prefix shared by static, triggered, and transitional
+/// floating-replacement regions.
+///
+/// Announced targets and X, where applicable, follow this prefix.
+#[must_use]
+pub fn event_region_params() -> Arc<[Param]> {
+    Arc::from([
+        Param {
+            def: DefId(0),
+            kind: Kind::Object,
+            provenance: Provenance::Source,
+        },
+        Param {
+            def: DefId(1),
+            kind: Kind::Object,
+            provenance: Provenance::Controller,
+        },
+        Param {
+            def: DefId(2),
+            kind: Kind::Object,
+            provenance: Provenance::EventObject,
+        },
+        Param {
+            def: DefId(3),
+            kind: Kind::Object,
+            provenance: Provenance::EventPatient,
+        },
+        Param {
+            def: DefId(4),
+            kind: Kind::Object,
+            provenance: Provenance::EventActor,
+        },
+        Param {
+            def: DefId(5),
+            kind: Kind::Object,
+            provenance: Provenance::DefendingPlayer,
+        },
+        Param {
+            def: DefId(6),
+            kind: Kind::Number,
+            provenance: Provenance::EventAmount,
+        },
+    ])
 }
 
 /// A textual sequence of instructions.
@@ -109,25 +158,83 @@ impl From<Arc<[OneShotEffect]>> for Block {
 /// A closed executable scope. Every binding it may read is declared in
 /// `params`; instruction definitions extend the same ordinal sequence.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
-pub struct Region {
+pub struct Region<T = Block> {
     #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
     pub params: Arc<[Param]>,
-    pub body: Block,
+    pub body: T,
 }
 
-impl Region {
+impl<T> Region<T> {
     #[must_use]
-    pub fn new(params: Arc<[Param]>, body: impl Into<Block>) -> Self {
-        Self {
-            params,
-            body: body.into(),
-        }
+    pub fn new(params: Arc<[Param]>, body: T) -> Self {
+        Self { params, body }
+    }
+
+    /// Construct a region with no runtime parameters.
+    #[must_use]
+    pub fn closed(body: T) -> Self {
+        Self::new(Arc::<[Param]>::from([]), body)
+    }
+
+    /// Construct a region with one parameter at register zero.
+    #[must_use]
+    pub fn unary(kind: Kind, provenance: Provenance, body: T) -> Self {
+        Self::new(
+            Arc::from([Param {
+                def: DefId(0),
+                kind,
+                provenance,
+            }]),
+            body,
+        )
+    }
+
+    /// Construct a predicate-like region whose subject is register zero.
+    #[must_use]
+    pub fn candidate(body: T) -> Self {
+        Self::unary(Kind::Object, Provenance::Candidate, body)
+    }
+
+    /// Return the register declared for `provenance`, if this region has one.
+    #[must_use]
+    pub fn reference_for(&self, provenance: &Provenance) -> Option<RefId> {
+        self.params
+            .iter()
+            .find(|param| &param.provenance == provenance)
+            .map(|param| param.def.into())
+    }
+
+    /// Return the provenance declared for a register in this region.
+    #[must_use]
+    pub fn provenance_of(&self, reference: RefId) -> Option<&Provenance> {
+        self.params
+            .get(reference.0 as usize)
+            .map(|param| &param.provenance)
     }
 }
 
-impl From<OneShotEffect> for Region {
+impl From<OneShotEffect> for Region<Block> {
     fn from(effect: OneShotEffect) -> Self {
-        Self::new(Arc::from([]), effect)
+        Self::new(Arc::from([]), effect.into())
+    }
+}
+
+/// A pure expression whose value can be pinned by [`crate::Instr::Let`].
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub enum Expr {
+    Object(crate::Reference),
+    Objects(crate::Selection),
+    Number(crate::Count),
+}
+
+impl Expr {
+    #[must_use]
+    pub fn kind(&self) -> Kind {
+        match self {
+            Self::Object(_) => Kind::Object,
+            Self::Objects(_) => Kind::Objects,
+            Self::Number(_) => Kind::Number,
+        }
     }
 }
 
@@ -136,6 +243,8 @@ impl From<OneShotEffect> for Region {
 pub enum ValidationError {
     /// Parameters must define the prefix `0, 1, ...` in order.
     ParamSequence { expected: DefId, found: DefId },
+    /// Instruction definitions must continue the parameter prefix densely.
+    DefinitionSequence { expected: DefId, found: DefId },
     /// Announced-target parameters must be numbered `0, 1, ...` in order.
     TargetSequence { expected: u32, found: u32 },
     /// An ability's target list and target-provenance parameters must agree.
@@ -154,6 +263,8 @@ pub enum ValidationError {
         expected: Kind,
         found: Kind,
     },
+    /// Pure expressions cannot contain a player/random decision.
+    DecisionInExpression,
     /// Serialization failed while walking the core grammar.
     Walk(String),
 }
@@ -164,6 +275,11 @@ impl fmt::Display for ValidationError {
             Self::ParamSequence { expected, found } => write!(
                 f,
                 "region parameter sequence expected DefId({}), found DefId({})",
+                expected.0, found.0
+            ),
+            Self::DefinitionSequence { expected, found } => write!(
+                f,
+                "region instruction sequence expected DefId({}), found DefId({})",
                 expected.0, found.0
             ),
             Self::TargetSequence { expected, found } => write!(
@@ -201,6 +317,9 @@ impl fmt::Display for ValidationError {
                 "region read RefId({}) expects {expected:?}, but its definition is {found:?}",
                 reference.0
             ),
+            Self::DecisionInExpression => {
+                write!(f, "a decision-bearing selection cannot appear inside Let")
+            }
             Self::Walk(message) => write!(f, "could not validate region: {message}"),
         }
     }
@@ -229,7 +348,106 @@ impl serde::ser::Error for ValidationError {
 /// # Panics
 ///
 /// Panics only if the region declares more than `u32::MAX` parameters.
-pub fn validate(region: &Region) -> Result<(), ValidationError> {
+pub fn validate(region: &Region<Block>) -> Result<(), ValidationError> {
+    validate_region(region, None)
+}
+
+/// Validate a static-ability region and its nested per-subject regions.
+///
+/// # Errors
+///
+/// Returns [`ValidationError`] when a declaration or register read violates
+/// the region ABI.
+pub fn validate_static(region: &Region<crate::StaticEffect>) -> Result<(), ValidationError> {
+    validate_params(region, None)?;
+    let mut definitions = Definitions::new(&region.params);
+    validate_static_effect(&region.body, &mut definitions)
+}
+
+/// Validate a rules-defined state-based-action region.
+///
+/// # Errors
+///
+/// Returns [`ValidationError`] when the SBA's scope, condition, or instruction
+/// body violates the region ABI.
+pub fn validate_sba(region: &Region<crate::SbaBody>) -> Result<(), ValidationError> {
+    validate_params(region, None)?;
+    region.body.scope.serialize(RegisterWalker {
+        params: &region.params,
+        visible: None,
+    })?;
+    validate_predicate_regions(&region.body.scope, &region.params)?;
+    region.body.when.serialize(RegisterWalker {
+        params: &region.params,
+        visible: None,
+    })?;
+    validate_condition_regions(&region.body.when, &region.params)?;
+
+    let mut definitions = Definitions::new(&region.params);
+    let block = Block::from(region.body.then.clone());
+    validate_instructions(&block, &mut definitions)
+}
+
+fn validate_static_effect(
+    effect: &crate::StaticEffect,
+    definitions: &mut Definitions,
+) -> Result<(), ValidationError> {
+    match effect {
+        crate::StaticEffect::Each(over, body) => {
+            over.serialize(definitions.walker())?;
+            validate_selection_regions(over, &definitions.params)?;
+            validate_params(body, Some(&definitions.params))?;
+            let mut body_definitions = Definitions::new(&body.params);
+            validate_static_effect(&body.body, &mut body_definitions)
+        }
+        crate::StaticEffect::Conditionally(condition, body) => {
+            condition.serialize(definitions.walker())?;
+            validate_condition_regions(condition, &definitions.params)?;
+            validate_static_effect(body, definitions)
+        }
+        crate::StaticEffect::Deontic(deontic) => validate_deontic(deontic, definitions),
+        crate::StaticEffect::Sba { when, then } => {
+            when.serialize(definitions.walker())?;
+            validate_condition_regions(when, &definitions.params)?;
+            let outer = definitions.params.len();
+            validate_instructions(std::slice::from_ref(then.as_ref()), definitions)?;
+            definitions.hide_since(outer);
+            Ok(())
+        }
+        _ => effect.serialize(definitions.walker()),
+    }
+}
+
+fn validate_deontic(
+    deontic: &crate::Deontic,
+    definitions: &mut Definitions,
+) -> Result<(), ValidationError> {
+    let (action, gate) = match deontic {
+        crate::Deontic::May(action)
+        | crate::Deontic::Cant(action)
+        | crate::Deontic::Must(action) => (action, None),
+        crate::Deontic::Gate(action, cost) => (action, Some(cost)),
+    };
+    match action {
+        crate::DeonticAction::Cast { what, by, cost, .. } => {
+            what.serialize(definitions.walker())?;
+            by.serialize(definitions.walker())?;
+            validate_predicate_regions(what, &definitions.params)?;
+            validate_predicate_regions(by, &definitions.params)?;
+            if let Some(crate::AlternativeCost::Components(components)) = cost {
+                validate_cost(&crate::Cost(components.clone()), definitions)?;
+            }
+        }
+        _ => action.serialize(definitions.walker())?,
+    }
+    if let Some(cost) = gate {
+        validate_cost(&crate::Cost(cost.clone()), definitions)?;
+    }
+    Ok(())
+}
+
+fn validate_region(region: &Region<Block>, outer: Option<&[Param]>) -> Result<(), ValidationError> {
+    validate_params(region, outer)?;
     for (index, param) in region.params.iter().enumerate() {
         let expected = DefId(u32::try_from(index).expect("region parameter count fits in u32"));
         if param.def != expected {
@@ -256,12 +474,10 @@ pub fn validate(region: &Region) -> Result<(), ValidationError> {
             | Provenance::LoopElement
             | Provenance::Candidate => Some(Kind::Object),
             Provenance::AnnouncedTarget(_) => Some(Kind::Objects),
-            Provenance::AnnouncedX | Provenance::Allotment => Some(Kind::Number),
-            Provenance::Capture(reference) => region
-                .params
-                .get(reference.0 as usize)
-                .map(|captured| captured.kind),
-            Provenance::Linked(_) => None,
+            Provenance::AnnouncedX | Provenance::EventAmount | Provenance::Allotment => {
+                Some(Kind::Number)
+            }
+            Provenance::Capture(_) | Provenance::Linked(_) => None,
         };
         if let Some(expected) = expected_kind
             && param.kind != expected
@@ -289,18 +505,466 @@ pub fn validate(region: &Region) -> Result<(), ValidationError> {
                 next_target += 1;
             }
             Provenance::Capture(reference) => {
-                validate_read(region.params.as_ref(), reference, None)?;
+                let Some(outer) = outer else {
+                    return Err(ValidationError::UndefinedRead {
+                        reference,
+                        definitions: 0,
+                    });
+                };
+                validate_read(outer, reference, Some(param.kind))?;
             }
             _ => {}
         }
     }
 
-    region.body.serialize(RegisterWalker {
-        params: region.params.as_ref(),
-    })?;
-    for instruction in region.body.iter() {
-        validate_nested_regions(instruction)?;
+    let mut definitions = Definitions::new(&region.params);
+    validate_instructions(&region.body, &mut definitions)?;
+    Ok(())
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "the exhaustive instruction validator keeps definition sequencing visible in one dispatch"
+)]
+fn validate_instructions(
+    instructions: &[OneShotEffect],
+    definitions: &mut Definitions,
+) -> Result<(), ValidationError> {
+    use crate::OneShotEffect as E;
+    for instruction in instructions {
+        match instruction {
+            E::Act { dest, action } => {
+                validate_action(action, definitions)?;
+                if let Some(dest) = dest {
+                    let kind = match action {
+                        crate::Action::MoveGroup { .. } | crate::Action::Create { .. } => {
+                            Kind::Objects
+                        }
+                        _ => Kind::Object,
+                    };
+                    append_definition(definitions, *dest, kind)?;
+                }
+            }
+            E::Choose(choice) => {
+                choice.by.serialize(definitions.walker())?;
+                choice.quantity.serialize(definitions.walker())?;
+                validate_predicate_region(&choice.filter, &definitions.params)?;
+                append_definition(definitions, choice.dest, Kind::Objects)?;
+            }
+            E::ChooseValue(choice) => {
+                choice.by.serialize(definitions.walker())?;
+                let kind = match choice.domain {
+                    crate::ChosenValueKind::Number => Kind::Number,
+                    crate::ChosenValueKind::CardName | crate::ChosenValueKind::Color => {
+                        Kind::Symbol
+                    }
+                };
+                append_definition(definitions, choice.dest, kind)?;
+            }
+            E::ChoosePile(choice) => {
+                choice.from.serialize(definitions.walker())?;
+                choice.by.serialize(definitions.walker())?;
+                append_definition(definitions, choice.dest, Kind::Objects)?;
+                let outer = definitions.params.len();
+                validate_instructions(std::slice::from_ref(choice.then.as_ref()), definitions)?;
+                definitions.hide_since(outer);
+            }
+            E::SeparatePiles(separate) => {
+                separate.group.serialize(definitions.walker())?;
+                separate.by.serialize(definitions.walker())?;
+                validate_selection_regions(&separate.group, &definitions.params)?;
+                if let Some(then) = &separate.then {
+                    let outer = definitions.params.len();
+                    validate_instructions(std::slice::from_ref(then.as_ref()), definitions)?;
+                    definitions.hide_since(outer);
+                }
+            }
+            E::Search(search) => {
+                search.by.serialize(definitions.walker())?;
+                search.whose.serialize(definitions.walker())?;
+                search.quantity.serialize(definitions.walker())?;
+                validate_predicate_region(&search.filter, &definitions.params)?;
+                let outer = definitions.params.len();
+                validate_instructions(&search.if_none, definitions)?;
+                definitions.hide_since(outer);
+                append_definition(definitions, search.dest, Kind::Objects)?;
+            }
+            E::Let(binding) => {
+                if matches!(&binding.expr, Expr::Objects(selection)
+                    if selection_is_decision_bearing(selection))
+                {
+                    return Err(ValidationError::DecisionInExpression);
+                }
+                binding.expr.serialize(definitions.walker())?;
+                match &binding.expr {
+                    Expr::Objects(selection) => {
+                        validate_selection_regions(selection, &definitions.params)?;
+                    }
+                    Expr::Number(count) => validate_count_regions(count, &definitions.params)?,
+                    Expr::Object(_) => {}
+                }
+                append_definition(definitions, binding.dest, binding.expr.kind())?;
+            }
+            E::Sequentially(block) => validate_instructions(block, definitions)?,
+            E::Repeat(count, body) | E::Batch(count, body) => {
+                count.serialize(definitions.walker())?;
+                validate_count_regions(count, &definitions.params)?;
+                let outer = definitions.params.len();
+                validate_instructions(std::slice::from_ref(body.as_ref()), definitions)?;
+                definitions.hide_since(outer);
+            }
+            E::Simultaneously(parts) => {
+                for part in parts.iter() {
+                    let outer = definitions.params.len();
+                    validate_instructions(std::slice::from_ref(part), definitions)?;
+                    definitions.hide_since(outer);
+                }
+            }
+            E::AdditionalCost(additional) => {
+                validate_cost(&additional.pay, definitions)?;
+                validate_instructions(std::slice::from_ref(additional.body.as_ref()), definitions)?;
+            }
+            E::May(may) => {
+                may.who.serialize(definitions.walker())?;
+                for branch in [Some(&may.effect), may.if_did.as_ref(), may.if_not.as_ref()]
+                    .into_iter()
+                    .flatten()
+                {
+                    let outer = definitions.params.len();
+                    validate_instructions(std::slice::from_ref(branch.as_ref()), definitions)?;
+                    definitions.hide_since(outer);
+                }
+            }
+            E::Each(each) => {
+                each.over.serialize(definitions.walker())?;
+                validate_selection_regions(&each.over, &definitions.params)?;
+                validate_region(&each.body, Some(&definitions.params))?;
+            }
+            E::Distribute(distribute) => {
+                distribute.amount.serialize(definitions.walker())?;
+                distribute.over.serialize(definitions.walker())?;
+                validate_count_regions(&distribute.amount, &definitions.params)?;
+                validate_selection_regions(&distribute.over, &definitions.params)?;
+                validate_region(&distribute.body, Some(&definitions.params))?;
+            }
+            E::RevealUntil(reveal) => {
+                reveal.whose.serialize(definitions.walker())?;
+                validate_predicate_region(&reveal.matches, &definitions.params)?;
+                append_definition(definitions, reveal.found, Kind::Object)?;
+                append_definition(definitions, reveal.passed, Kind::Objects)?;
+                validate_region(&reveal.body, Some(&definitions.params))?;
+            }
+            E::Delayed(ability) | E::Reflexive(ability) => {
+                validate_telescope_with_outer(
+                    &ability.effect,
+                    &ability.targets,
+                    &definitions.params,
+                )?;
+            }
+            E::Modal(modal) => {
+                modal.choose.serialize(definitions.walker())?;
+                for mode in modal.modes.iter() {
+                    validate_telescope_with_outer(
+                        &mode.effect,
+                        &mode.targets,
+                        &definitions.params,
+                    )?;
+                }
+            }
+            E::If(branch) => {
+                branch.condition.serialize(definitions.walker())?;
+                validate_condition_regions(&branch.condition, &definitions.params)?;
+                let outer = definitions.params.len();
+                validate_instructions(std::slice::from_ref(branch.then.as_ref()), definitions)?;
+                definitions.hide_since(outer);
+                if let Some(otherwise) = &branch.otherwise {
+                    validate_instructions(std::slice::from_ref(otherwise.as_ref()), definitions)?;
+                    definitions.hide_since(outer);
+                }
+            }
+            other => other.serialize(definitions.walker())?,
+        }
     }
+    Ok(())
+}
+
+fn validate_cost(cost: &crate::Cost, definitions: &mut Definitions) -> Result<(), ValidationError> {
+    use crate::CostBinder;
+    use crate::CostComponent;
+
+    for component in cost.0.iter() {
+        match component {
+            CostComponent::ChooseAndPay { dest, binder, body } => {
+                binder.serialize(definitions.walker())?;
+                let kind = match binder.as_ref() {
+                    CostBinder::TheRef(_)
+                    | CostBinder::ChooseOne { .. }
+                    | CostBinder::SearchOne { .. } => Kind::Object,
+                    CostBinder::Choose { .. }
+                    | CostBinder::Search { .. }
+                    | CostBinder::Existing(_) => Kind::Objects,
+                    CostBinder::Produce(action) => match action.as_ref() {
+                        crate::Action::MoveGroup { .. } | crate::Action::Create { .. } => {
+                            Kind::Objects
+                        }
+                        _ => Kind::Object,
+                    },
+                };
+                let outer = definitions.params.len();
+                append_definition(definitions, *dest, kind)?;
+                validate_cost(body, definitions)?;
+                definitions.hide_since(outer);
+            }
+            CostComponent::Cost(nested) => validate_cost(nested, definitions)?,
+            CostComponent::Act(action) => validate_action(action.as_action(), definitions)?,
+            other => other.serialize(definitions.walker())?,
+        }
+    }
+    Ok(())
+}
+
+fn validate_action(
+    action: &crate::Action,
+    definitions: &mut Definitions,
+) -> Result<(), ValidationError> {
+    match action {
+        crate::Action::Composite { body, .. } => {
+            let outer = definitions.params.len();
+            validate_instructions(std::slice::from_ref(body.as_ref()), definitions)?;
+            definitions.hide_since(outer);
+            Ok(())
+        }
+        crate::Action::CreateReplacement { replacement, .. } => {
+            // Floating replacements become capture-declared regions in Stage 3.
+            // Until then, their carried template is closed over the same fixed
+            // event-role prefix used when the engine applies the instance.
+            let params = event_region_params();
+            let mut carried = Definitions::new(&params);
+            match replacement.as_ref() {
+                crate::Replacement::Instead { would, instead } => {
+                    would.serialize(carried.walker())?;
+                    validate_instructions(std::slice::from_ref(instead), &mut carried)
+                }
+                crate::Replacement::Also { would, also } => {
+                    would.serialize(carried.walker())?;
+                    validate_instructions(std::slice::from_ref(also), &mut carried)
+                }
+                crate::Replacement::Skip { .. } => Ok(()),
+            }
+        }
+        _ => action.serialize(definitions.walker()),
+    }
+}
+
+fn selection_is_decision_bearing(selection: &crate::Selection) -> bool {
+    match selection {
+        crate::Selection::Random(..) | crate::Selection::InChosenOrder(..) => true,
+        crate::Selection::Union(members) => members.iter().any(selection_is_decision_bearing),
+        crate::Selection::Reg(_)
+        | crate::Selection::SelectAll(_)
+        | crate::Selection::TopOfLibrary { .. }
+        | crate::Selection::BottomOfLibrary { .. }
+        | crate::Selection::LibraryOf(_)
+        | crate::Selection::TopOfGraveyard { .. }
+        | crate::Selection::ValidTargetsFor(_)
+        | crate::Selection::PilesOf { .. }
+        | crate::Selection::Pick { .. } => false,
+    }
+}
+
+fn validate_value_region<T: Serialize>(
+    region: &Region<T>,
+    outer: &[Param],
+) -> Result<(), ValidationError> {
+    validate_params(region, Some(outer))?;
+    region.body.serialize(RegisterWalker {
+        params: &region.params,
+        visible: None,
+    })
+}
+
+fn validate_predicate_region(
+    region: &Region<crate::Predicate>,
+    outer: &[Param],
+) -> Result<(), ValidationError> {
+    validate_value_region(region, outer)?;
+    validate_predicate_regions(&region.body, &region.params)
+}
+
+fn validate_predicate_regions(
+    predicate: &crate::Predicate,
+    definitions: &[Param],
+) -> Result<(), ValidationError> {
+    use crate::Predicate as P;
+    match predicate {
+        P::Where(region) => {
+            validate_value_region(region, definitions)?;
+            validate_condition_regions(&region.body, &region.params)
+        }
+        P::And(parts) | P::Or(parts) => {
+            for part in parts.iter() {
+                validate_predicate_regions(part, definitions)?;
+            }
+            Ok(())
+        }
+        P::Not(part)
+        | P::FromSource(part)
+        | P::State(
+            crate::StatePredicate::RelatedBy(_, part) | crate::StatePredicate::Targets(part),
+        ) => validate_predicate_regions(part, definitions),
+        P::Characteristic(crate::CharacteristicPredicate::Stat(_, _, count))
+        | P::PlayerStatCmp(_, _, count) => validate_count_regions(count, definitions),
+        P::Relation(relation) => {
+            let part = match relation {
+                crate::RelationPredicate::ControlledBy(part)
+                | crate::RelationPredicate::Controls(part)
+                | crate::RelationPredicate::Owner(part)
+                | crate::RelationPredicate::OpponentOf(part)
+                | crate::RelationPredicate::TeammateOf(part)
+                | crate::RelationPredicate::AttachedTo(part)
+                | crate::RelationPredicate::Attachment(part) => part,
+            };
+            validate_predicate_regions(part, definitions)
+        }
+        _ => Ok(()),
+    }
+}
+
+fn validate_condition_regions(
+    condition: &crate::Condition,
+    definitions: &[Param],
+) -> Result<(), ValidationError> {
+    use crate::Condition as C;
+    match condition {
+        C::Compare(left, _, right) => {
+            validate_count_regions(left, definitions)?;
+            validate_count_regions(right, definitions)
+        }
+        C::Exists(predicate) | C::Matches(_, predicate) | C::TurnOf(predicate) => {
+            validate_predicate_regions(predicate, definitions)
+        }
+        C::Crossed { value, thresholds } => {
+            validate_count_regions(value, definitions)?;
+            for threshold in thresholds.iter() {
+                validate_count_regions(threshold, definitions)?;
+            }
+            Ok(())
+        }
+        C::And(parts) | C::Or(parts) => {
+            for part in parts.iter() {
+                validate_condition_regions(part, definitions)?;
+            }
+            Ok(())
+        }
+        C::Not(part) => validate_condition_regions(part, definitions),
+        _ => Ok(()),
+    }
+}
+
+fn validate_selection_regions(
+    selection: &crate::Selection,
+    definitions: &[Param],
+) -> Result<(), ValidationError> {
+    use crate::Selection as S;
+    match selection {
+        S::SelectAll(region) => validate_predicate_region(region, definitions),
+        S::Union(parts) => {
+            for part in parts {
+                validate_selection_regions(part, definitions)?;
+            }
+            Ok(())
+        }
+        S::InChosenOrder(inner, _) => validate_selection_regions(inner, definitions),
+        S::Pick { proj, .. } => validate_projection_regions(proj, definitions),
+        _ => Ok(()),
+    }
+}
+
+fn validate_projection_regions(
+    projection: &crate::Projection,
+    definitions: &[Param],
+) -> Result<(), ValidationError> {
+    validate_countable_regions(&projection.of, definitions)?;
+    validate_value_region(&projection.by, definitions)?;
+    validate_count_regions(&projection.by.body, &projection.by.params)
+}
+
+fn validate_countable_regions(
+    countable: &crate::Countable,
+    definitions: &[Param],
+) -> Result<(), ValidationError> {
+    match countable {
+        crate::Countable::Objects(region) | crate::Countable::Players(region) => {
+            validate_predicate_region(region, definitions)
+        }
+        _ => Ok(()),
+    }
+}
+
+fn validate_count_regions(
+    count: &crate::Count,
+    definitions: &[Param],
+) -> Result<(), ValidationError> {
+    use crate::Count as C;
+    match count {
+        C::CountOf(countable) | C::CountDistinct(_, countable) => {
+            validate_countable_regions(countable, definitions)
+        }
+        C::Min(a, b)
+        | C::Max(a, b)
+        | C::Plus(a, b)
+        | C::Minus(a, b)
+        | C::Times(a, b)
+        | C::Divide(_, a, b)
+        | C::Mod(a, b)
+        | C::Pow(a, b) => {
+            validate_count_regions(a, definitions)?;
+            validate_count_regions(b, definitions)
+        }
+        C::Half(_, value) => validate_count_regions(value, definitions),
+        C::Aggregate(_, projection) => validate_projection_regions(projection, definitions),
+        _ => Ok(()),
+    }
+}
+
+fn validate_params<T>(region: &Region<T>, outer: Option<&[Param]>) -> Result<(), ValidationError> {
+    for (index, param) in region.params.iter().enumerate() {
+        let expected = DefId(u32::try_from(index).expect("region parameter count fits in u32"));
+        if param.def != expected {
+            return Err(ValidationError::ParamSequence {
+                expected,
+                found: param.def,
+            });
+        }
+        if let Provenance::Capture(reference) = param.provenance {
+            let Some(outer) = outer else {
+                return Err(ValidationError::UndefinedRead {
+                    reference,
+                    definitions: 0,
+                });
+            };
+            validate_read(outer, reference, Some(param.kind))?;
+        }
+    }
+    Ok(())
+}
+
+fn append_definition(
+    definitions: &mut Definitions,
+    found: DefId,
+    kind: Kind,
+) -> Result<(), ValidationError> {
+    let expected =
+        DefId(u32::try_from(definitions.params.len()).expect("definition count fits u32"));
+    if found != expected {
+        return Err(ValidationError::DefinitionSequence { expected, found });
+    }
+    definitions.params.push(Param {
+        def: found,
+        kind,
+        provenance: Provenance::Capture(found.into()),
+    });
+    definitions.visible.push(true);
     Ok(())
 }
 
@@ -320,9 +984,24 @@ pub fn validate(region: &Region) -> Result<(), ValidationError> {
 pub fn validate_telescope(
     region: &Region,
     targets: &[crate::TargetSpec],
-    where_x: Option<&crate::Count>,
 ) -> Result<(), ValidationError> {
-    validate(region)?;
+    validate_telescope_inner(region, targets, None)
+}
+
+fn validate_telescope_with_outer(
+    region: &Region,
+    targets: &[crate::TargetSpec],
+    outer: &[Param],
+) -> Result<(), ValidationError> {
+    validate_telescope_inner(region, targets, Some(outer))
+}
+
+fn validate_telescope_inner(
+    region: &Region,
+    targets: &[crate::TargetSpec],
+    outer: Option<&[Param]>,
+) -> Result<(), ValidationError> {
+    validate_region(region, outer)?;
     let target_parameters = region
         .params
         .iter()
@@ -346,14 +1025,21 @@ pub fn validate_telescope(
             .unwrap_or(region.params.len());
         target.serialize(RegisterWalker {
             params: &region.params[..limit],
+            visible: None,
         })?;
-    }
-    if let Some(where_x) = where_x {
-        where_x.serialize(RegisterWalker {
-            params: region.params.as_ref(),
-        })?;
+        validate_target_regions(target, &region.params[..limit])?;
     }
     Ok(())
+}
+
+fn validate_target_regions(
+    target: &crate::TargetSpec,
+    definitions: &[Param],
+) -> Result<(), ValidationError> {
+    match target {
+        crate::TargetSpec::Target(_, filter) => validate_predicate_region(filter, definitions),
+        crate::TargetSpec::Distinct(_, inner) => validate_target_regions(inner, definitions),
+    }
 }
 
 fn validate_distinct_indices(
@@ -399,48 +1085,36 @@ fn validate_read(
     Ok(())
 }
 
-fn validate_nested_regions(effect: &OneShotEffect) -> Result<(), ValidationError> {
-    use crate::OneShotEffect as E;
-    let children: Vec<&OneShotEffect> = match effect {
-        E::Sequentially(parts) | E::Simultaneously(parts) => parts.iter().collect(),
-        E::Label(value) => vec![&value.effect],
-        E::SeparatePiles(value) => value.then.iter().map(AsRef::as_ref).collect(),
-        E::ChoosePile(value) => vec![&value.then],
-        E::May(value) => std::iter::once(value.effect.as_ref())
-            .chain(value.if_did.iter().map(AsRef::as_ref))
-            .chain(value.if_not.iter().map(AsRef::as_ref))
-            .collect(),
-        E::If(value) => std::iter::once(value.then.as_ref())
-            .chain(value.otherwise.iter().map(AsRef::as_ref))
-            .collect(),
-        E::AdditionalCost(value) => vec![&value.body],
-        E::Each(value) => vec![&value.effect],
-        E::With(value) => vec![&value.body],
-        E::Distribute(value) => vec![&value.body],
-        E::Noting(value) => vec![&value.effect],
-        E::Repeat(_, body) | E::Batch(_, body) => vec![body],
-        E::RevealUntil(value) => vec![&value.body],
-        E::Delayed(ability) | E::Reflexive(ability) => {
-            validate_telescope(&ability.effect, &ability.targets, ability.where_x.as_ref())?;
-            Vec::new()
+#[derive(Clone)]
+struct Definitions {
+    params: Vec<Param>,
+    visible: Vec<bool>,
+}
+
+impl Definitions {
+    fn new(params: &[Param]) -> Self {
+        Self {
+            params: params.to_vec(),
+            visible: vec![true; params.len()],
         }
-        E::Modal(modal) => {
-            for mode in modal.modes.iter() {
-                validate_telescope(&mode.effect, &mode.targets, None)?;
-            }
-            Vec::new()
-        }
-        E::Act(_) | E::Continuously(_) | E::Until(_, _) => Vec::new(),
-    };
-    for child in children {
-        validate_nested_regions(child)?;
     }
-    Ok(())
+
+    fn walker(&self) -> RegisterWalker<'_> {
+        RegisterWalker {
+            params: &self.params,
+            visible: Some(&self.visible),
+        }
+    }
+
+    fn hide_since(&mut self, start: usize) {
+        self.visible[start..].fill(false);
+    }
 }
 
 #[derive(Clone, Copy)]
 struct RegisterWalker<'a> {
     params: &'a [Param],
+    visible: Option<&'a [bool]>,
 }
 
 struct Compound<'a> {
@@ -566,6 +1240,15 @@ impl<'a> serde::Serializer for RegisterWalker<'a> {
                 "Reference" => Some(Kind::Object),
                 _ => None,
             };
+            if self
+                .visible
+                .is_some_and(|visible| !visible.get(reference.0 as usize).copied().unwrap_or(false))
+            {
+                return Err(ValidationError::UndefinedRead {
+                    reference,
+                    definitions: self.params.len(),
+                });
+            }
             validate_read(self.params, reference, expected)
         } else {
             value.serialize(self)
@@ -848,7 +1531,7 @@ mod tests {
                 param(0, Provenance::Source),
                 param(1, Provenance::Controller),
             ]),
-            Arc::from([]),
+            Block::default(),
         );
         assert_eq!(validate(&valid), Ok(()));
 
@@ -857,7 +1540,7 @@ mod tests {
                 param(0, Provenance::Source),
                 param(2, Provenance::Controller),
             ]),
-            Arc::from([]),
+            Block::default(),
         );
         assert_eq!(
             validate(&invalid),
@@ -872,7 +1555,7 @@ mod tests {
     fn rejects_out_of_range_and_wrong_kind_reads() {
         let out_of_range = Region::new(
             Arc::from([param(0, Provenance::Source)]),
-            OneShotEffect::Act(crate::Action::Counter(crate::Reference::Reg(RefId(1)))),
+            OneShotEffect::act(crate::Action::Counter(crate::Reference::Reg(RefId(1)))).into(),
         );
         assert_eq!(
             validate(&out_of_range),
@@ -887,7 +1570,8 @@ mod tests {
             OneShotEffect::Repeat(
                 crate::Count::Reg(RefId(0)),
                 Arc::new(OneShotEffect::Sequentially(Arc::from([]))),
-            ),
+            )
+            .into(),
         );
         assert_eq!(
             validate(&wrong_kind),
@@ -899,11 +1583,72 @@ mod tests {
         );
     }
 
+    fn always() -> crate::Condition {
+        crate::Condition::Compare(
+            crate::Count::Literal(0),
+            crate::Cmp::Eq,
+            crate::Count::Literal(0),
+        )
+    }
+
+    fn object_let(dest: u32, source: u32) -> OneShotEffect {
+        OneShotEffect::Let(crate::Let {
+            dest: DefId(dest),
+            expr: Expr::Object(crate::Reference::Reg(RefId(source))),
+        })
+    }
+
+    #[test]
+    fn branch_definitions_are_textual_but_lexically_scoped() {
+        let branch = OneShotEffect::If(crate::If {
+            condition: always(),
+            then: Arc::new(OneShotEffect::Sequentially(Arc::from([
+                object_let(1, 0),
+                OneShotEffect::act(crate::Action::Counter(crate::Reference::Reg(RefId(1)))),
+            ]))),
+            otherwise: Some(Arc::new(OneShotEffect::Sequentially(Arc::from([
+                object_let(2, 0),
+                OneShotEffect::act(crate::Action::Counter(crate::Reference::Reg(RefId(2)))),
+            ])))),
+        });
+        let valid = Region::new(
+            Arc::from([param(0, Provenance::Source)]),
+            Block(Arc::from([
+                branch.clone(),
+                object_let(3, 0),
+                OneShotEffect::act(crate::Action::Counter(crate::Reference::Reg(RefId(3)))),
+            ])),
+        );
+        assert_eq!(validate(&valid), Ok(()));
+
+        let sibling_read = Region::new(
+            Arc::from([param(0, Provenance::Source)]),
+            OneShotEffect::If(crate::If {
+                condition: always(),
+                then: match branch {
+                    OneShotEffect::If(branch) => branch.then,
+                    _ => unreachable!(),
+                },
+                otherwise: Some(Arc::new(OneShotEffect::act(crate::Action::Counter(
+                    crate::Reference::Reg(RefId(1)),
+                )))),
+            })
+            .into(),
+        );
+        assert_eq!(
+            validate(&sibling_read),
+            Err(ValidationError::UndefinedRead {
+                reference: RefId(1),
+                definitions: 2,
+            })
+        );
+    }
+
     #[test]
     fn nested_regions_are_closed_against_their_own_params() {
         let nested = Region::new(
             Arc::from([]),
-            OneShotEffect::Act(crate::Action::Counter(crate::Reference::Reg(RefId(0)))),
+            OneShotEffect::act(crate::Action::Counter(crate::Reference::Reg(RefId(0)))).into(),
         );
         let ability = crate::TriggeredAbility {
             ability_word: None,
@@ -916,13 +1661,12 @@ mod tests {
             from: None,
             condition: None,
             limits: Arc::from([]),
-            where_x: None,
             targets: Arc::from([]),
             effect: nested,
         };
         let outer = Region::new(
             Arc::from([param(0, Provenance::Source)]),
-            OneShotEffect::Delayed(Arc::new(ability)),
+            OneShotEffect::Delayed(Arc::new(ability)).into(),
         );
         assert_eq!(
             validate(&outer),
@@ -948,7 +1692,7 @@ mod tests {
                     provenance: Provenance::AnnouncedTarget(0),
                 },
             ]),
-            Arc::from([]),
+            Block::default(),
         );
         assert_eq!(
             validate(&duplicate),
@@ -958,10 +1702,13 @@ mod tests {
             })
         );
 
-        let target = crate::TargetSpec::Target(crate::Quantity::one(), crate::Predicate::any());
-        let missing = Region::new(Arc::from([]), Arc::from([]));
+        let target = crate::TargetSpec::Target(
+            crate::Quantity::one(),
+            Arc::new(Region::new(Arc::from([]), crate::Predicate::any())),
+        );
+        let missing = Region::new(Arc::from([]), Block::default());
         assert_eq!(
-            validate_telescope(&missing, &[target], None),
+            validate_telescope(&missing, &[target]),
             Err(ValidationError::TargetCountMismatch {
                 targets: 1,
                 parameters: 0,

@@ -69,7 +69,7 @@ use crate::ObjectId;
 /// see `resolve/query.rs`, consumed throughout `resolve/player_action.rs`).
 /// `CopySource::SelfCard` reads "the card doing the copying... from its own
 /// zone" (its doc comment) — exactly `frame.source(self)`, the exophoric binding
-/// `Reference::Reg(deckmaste_core::RefId(0))` itself falls back to in a spell frame.
+/// that the region's source parameter itself reads in a spell frame.
 #[must_use]
 pub fn resolve_source(state: &GameState, frame: &Frame, source: &CopySource) -> Option<ObjectId> {
     let id = match source {
@@ -543,9 +543,11 @@ fn defines_pt(ability: &Ability, axis: PtAxis) -> bool {
     }
 }
 
-fn static_defines_pt(effect: &StaticEffect, axis: PtAxis) -> bool {
-    match effect {
-        StaticEffect::Modify(Reference::Reg(deckmaste_core::RefId(0)), modification) => {
+fn static_defines_pt(region: &deckmaste_core::Region<StaticEffect>, axis: PtAxis) -> bool {
+    match &region.body {
+        StaticEffect::Modify(Reference::Reg(reference), modification)
+            if region.provenance_of(*reference) == Some(&deckmaste_core::Provenance::Source) =>
+        {
             modification_defines_pt(modification, axis)
         }
         _ => false,
@@ -669,24 +671,29 @@ mod tests {
     /// try to re-derive a value it no longer supplies [CR#707.9d].
     #[test]
     fn modify_set_power_drops_pt_defining_cda() {
-        let cda = Ability::r#static(StaticEffect::Modify(
-            Reference::Reg(deckmaste_core::RefId(0)),
-            Modification::Several(
-                vec![
-                    Modification::Power(NumericOp::Set(StatValue::Count(Count::CountOf(
-                        deckmaste_core::Countable::Objects(Arc::new(
-                            deckmaste_core::Predicate::creature(),
-                        )),
-                    )))),
-                    Modification::Toughness(NumericOp::Set(StatValue::Count(Count::CountOf(
-                        deckmaste_core::Countable::Objects(Arc::new(
-                            deckmaste_core::Predicate::creature(),
-                        )),
-                    )))),
-                ]
-                .into(),
-            ),
-        ));
+        let cda =
+            Ability::r#static(StaticEffect::Modify(
+                Reference::Reg(deckmaste_core::RefId(0)),
+                Modification::Several(
+                    vec![
+                        Modification::Power(NumericOp::Set(StatValue::Count(Count::CountOf(
+                            deckmaste_core::Countable::Objects(Arc::new(
+                                deckmaste_core::Region::candidate(
+                                    deckmaste_core::Predicate::creature(),
+                                ),
+                            )),
+                        )))),
+                        Modification::Toughness(NumericOp::Set(StatValue::Count(Count::CountOf(
+                            deckmaste_core::Countable::Objects(Arc::new(
+                                deckmaste_core::Region::candidate(
+                                    deckmaste_core::Predicate::creature(),
+                                ),
+                            )),
+                        )))),
+                    ]
+                    .into(),
+                ),
+            ));
         let base = CopiableValues {
             name: "Tarmogoyf".into(),
             power: Some(StatValue::DefinedByAbility),
@@ -727,7 +734,7 @@ mod tests {
             ..CopiableValues::default()
         };
         let dynamic = Count::CountOf(deckmaste_core::Countable::Objects(Arc::new(
-            deckmaste_core::Predicate::creature(),
+            deckmaste_core::Region::candidate(deckmaste_core::Predicate::creature()),
         )));
         let out = apply_exceptions(
             base,

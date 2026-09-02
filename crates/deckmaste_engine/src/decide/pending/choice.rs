@@ -271,8 +271,14 @@ impl DecisionHandler for ChooseNoteNumber {
         // number — rather than mint a note-only twin.
         let key = self.key;
         g.pending = None;
-        g.resolution_notes
-            .insert(key, crate::state::NotedValue::Number(n));
+        if let Some(crate::state::ChoiceContinuation::BindNumber { dest, activation }) =
+            g.choice.take()
+        {
+            g.activation_write_number(activation, dest, n);
+        } else {
+            g.resolution_notes
+                .insert(key, crate::state::NotedValue::Number(n));
+        }
         Ok(())
     }
 }
@@ -296,8 +302,14 @@ impl DecisionHandler for ChooseNoteCardName {
         }
         let key = self.key;
         g.pending = None;
-        g.resolution_notes
-            .insert(key, crate::state::NotedValue::CardName(name));
+        if let Some(crate::state::ChoiceContinuation::BindSymbol { dest, activation }) =
+            g.choice.take()
+        {
+            g.activation_write_symbol(activation, dest, name);
+        } else {
+            g.resolution_notes
+                .insert(key, crate::state::NotedValue::CardName(name));
+        }
         Ok(())
     }
 }
@@ -413,9 +425,24 @@ impl DecisionHandler for ChooseObjects {
         {
             // [CR#608.2d]: the ordinary binder path — bind the picks
             // as `chosen` and re-run the choosing effect.
-            crate::state::ChoiceContinuation::BindChoice { effect, mut frame } => {
-                frame.anaphora.chosen = Some(chosen);
-                g.schedule_front(vec![WorkItem::RunEffect { effect, frame }]);
+            crate::state::ChoiceContinuation::BindChoice {
+                dest,
+                frame,
+                if_none,
+            } => {
+                g.activation_write_objects(frame.activation, dest, &chosen);
+                if chosen.is_empty() {
+                    g.schedule_front(
+                        if_none
+                            .iter()
+                            .cloned()
+                            .map(|effect| WorkItem::RunEffect {
+                                effect: std::sync::Arc::new(effect),
+                                frame: frame.clone(),
+                            })
+                            .collect(),
+                    );
+                }
             }
             other => {
                 unreachable!(

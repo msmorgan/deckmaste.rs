@@ -7,19 +7,12 @@ use crate::Reference;
 use crate::Selection;
 use crate::Zone;
 
-/// The binder feeding [`OneShotEffect::With`](crate::With),
-/// [`Each`](crate::Each), and [`Distribute`](crate::Distribute) — the Idris
-/// `Bindable`, collapsed (cardinality is encoded by the variant, not a type
-/// index). A one-binder (`TheRef`/`ChooseOne`) binds a single object read as
-/// [`Reference::That`](crate::Reference::That); a many-binder
-/// (`Choose`/`Existing`) binds a group read as
-/// [`Selection::That`](crate::Selection::That). `Each`/`Distribute` take a
-/// many-binder and expose each element in turn as
-/// [`Reference::It`](crate::Reference::It).
+/// Transitional binder used only by [`CostComponent::ChooseAndPay`](crate::CostComponent::ChooseAndPay).
+/// Effect-position binders lower to explicit instructions and region registers.
 ///
 /// The `Produce` binder is wired into engine resolution ([CR#400.7j]): a
-/// `With(Produce(action), body)` runs the action and binds its moved product as
-/// the singular `That`, chased through the same-resolution move record — the
+/// `ChooseAndPay { binder: Produce(action), .. }` runs the action and writes
+/// its moved product to the instruction's destination register — the
 /// "…this way" linkage madness's exile-and-cast rides. Only a `Move` action
 /// produces-and-captures in this cut; other producer actions stay a labeled
 /// seam. The search binders (`Search`/`SearchOne`) are wired into engine
@@ -31,7 +24,7 @@ use crate::Zone;
 /// `Reveal`/`Shuffle` steps, same as any other effect (see
 /// `resolve/effect.rs`). All (de)serialize and round-trip here.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
-pub enum Binder {
+pub enum CostBinder {
     /// Bind an existing single reference (a captured target, `This`) — One →
     /// `That`.
     TheRef(Reference),
@@ -49,8 +42,8 @@ pub enum Binder {
     /// Run an [`Action`] for effect and bind its product — the moved/created
     /// object — as the singular [`Reference::That`](crate::Reference::That) —
     /// One → `That`. The Idris `Produce : Action b -> Bindable b One AnObject`
-    /// (Cavern-of-Souls-style "exile it":
-    /// `With(Produce(Move(It, Exile)), …)`). Boxed: an open [`Action`] is the
+    /// (Cavern-of-Souls-style "exile it": a producing move followed by a
+    /// cost body reading the destination register). Boxed: an open [`Action`] is the
     /// largest leaf enum (`clippy::large_enum_variant`).
     Produce(Arc<Action>),
     /// Search `whose`'s `from`-zones (hidden libraries/graveyards) for exactly
@@ -109,7 +102,7 @@ pub enum Binder {
         #[serde(default = "from_library", skip_serializing_if = "is_from_library")]
         from: Arc<[Zone]>,
         /// The explicit whiff branch ([CR#701.23b]) — see
-        /// [`SearchOne::if_none`](Binder::SearchOne). Elaborates without the
+        /// [`SearchOne::if_none`](CostBinder::SearchOne). Elaborates without the
         /// searched group bound.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         if_none: Option<Arc<crate::OneShotEffect>>,

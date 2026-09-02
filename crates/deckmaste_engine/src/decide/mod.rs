@@ -1,11 +1,9 @@
-use std::collections::HashSet;
-use std::sync::Arc;
-
 use deckmaste_core::DeciderSpec;
 use deckmaste_core::KeywordAbility;
 use deckmaste_core::LockPoint;
 use deckmaste_core::Uint;
 use deckmaste_core::Visibility;
+use std::collections::HashSet;
 
 use crate::object::ObjectId;
 use crate::player::PlayerId;
@@ -393,8 +391,8 @@ pub(crate) fn unless_cost_action(
         },
         // {T}/{Q} tap/untap the source permanent the cost rides on — both
         // agent-silent ([CR#701.26a..701.26b]), so `who` has no slot to ride.
-        CostComponent::Tap => Action::Tap(Reference::Reg(deckmaste_core::RefId(0))),
-        CostComponent::Untap => Action::Untap(Reference::Reg(deckmaste_core::RefId(0))),
+        CostComponent::Tap => Action::Tap(Reference::source_parameter()),
+        CostComponent::Untap => Action::Untap(Reference::source_parameter()),
         // Provenance is erased at `lower` (`deckmaste_lowering`), so no
         // loaded value reaches here wrapped. The arm survives only because
         // the variant does; `core-demacro` deletes both.
@@ -455,11 +453,8 @@ pub(crate) fn unless_cost_effect(
         // [CR#601.2b]: the binder's choice binds `That`/`Those`; the body pays
         // against that binding. Recurse on the body (a nested `With` still
         // surfaces its own choice) and reuse the `OneShotEffect::With` interpreter.
-        CostComponent::ChooseAndPay { binder, body } => OneShotEffect::With(deckmaste_core::With {
-            binder: (**binder).clone(),
-            body: Arc::new(cost_body_effect(body, who)),
-        }),
-        other => OneShotEffect::Act(unless_cost_action(other, who)),
+        CostComponent::ChooseAndPay { body, .. } => cost_body_effect(body, who),
+        other => OneShotEffect::act(unless_cost_action(other, who)),
     }
 }
 

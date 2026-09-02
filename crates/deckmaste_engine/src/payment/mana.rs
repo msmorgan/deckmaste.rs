@@ -20,7 +20,6 @@ use crate::object::ObjectId;
 use crate::object::ObjectSource;
 use crate::player::ManaActionId;
 use crate::player::PlayerId;
-use crate::stack::Anaphora;
 use crate::stack::Frame;
 use crate::stack::StackObject;
 use crate::state::GameState;
@@ -321,7 +320,7 @@ impl GameState {
         let source_snapshot = LkiSnapshot::capture(self, source);
         let id = self.mint_mana_action();
         let record = self.mint_payment_record();
-        self.begin_mana_resolution_scope(None);
+        self.begin_mana_resolution_scope();
         let controller = self
             .payment
             .as_mut()
@@ -390,7 +389,7 @@ impl GameState {
         // suspended inside that clone while ordinary announcement machinery runs.
         let mut working = self.active().clone();
         working.suspend_control();
-        working.begin_mana_resolution_scope(None);
+        working.begin_mana_resolution_scope();
         let id = self.mint_mana_action();
         let record = self.mint_payment_record();
         let controller = self
@@ -468,14 +467,16 @@ impl GameState {
             "a nested payment activation must announce a lowering-classified mana mode"
         );
 
-        let frame = Frame {
+        let mut frame = Frame {
             activation: pending.activation,
             payment: None,
-            anaphora: Anaphora {
-                produced_mana: bindings.produced_mana,
-                ..Anaphora::empty()
-            },
         };
+        self.frame_set_event_extras(
+            &mut frame,
+            bindings.event_amount,
+            bindings.produced_mana,
+            bindings.crossed,
+        );
         self.objects.remove(pending.id);
         self.resolving_mana_actions.push(id);
         let mut items = vec![WorkItem::Emit(Occurrence::single(
@@ -716,7 +717,7 @@ impl GameState {
         {
             return (id, false);
         }
-        self.begin_mana_resolution_scope(bindings.that_much);
+        self.begin_mana_resolution_scope();
         self.resolving_mana_actions.push(id);
         self.record_history_fact(
             self.turn.turn_number,
@@ -736,15 +737,16 @@ impl GameState {
             bindings.that_patient.clone(),
         );
         let activation = self.enter_region(&triggered.effect, &seed);
-        let frame = Frame {
+        let mut frame = Frame {
             activation,
             payment: None,
-            anaphora: Anaphora {
-                produced_mana: bindings.produced_mana,
-                crossed: bindings.crossed,
-                ..Anaphora::empty()
-            },
         };
+        self.frame_set_event_extras(
+            &mut frame,
+            bindings.event_amount,
+            bindings.produced_mana,
+            bindings.crossed,
+        );
         let should_resolve = triggered
             .condition
             .as_ref()

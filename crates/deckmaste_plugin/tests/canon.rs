@@ -112,11 +112,17 @@ fn lightning_bolt_expands_target_macros() {
     assert_eq!(spell.targets.as_ref(), std::slice::from_ref(&any_target));
     assert_eq!(
         spell.effect.body.as_ref(),
-        [OneShotEffect::Act(Action::DealDamage(
-            Reference::Reg(deckmaste_core::RefId(0)),
-            Count::Literal(3),
-            Reference::Reg(deckmaste_core::RefId(6)),
-        ))]
+        [
+            OneShotEffect::Let(deckmaste_core::Let {
+                dest: deckmaste_core::DefId(4),
+                expr: deckmaste_core::Expr::Number(Count::Literal(3)),
+            }),
+            OneShotEffect::Act(Action::DealDamage(
+                Reference::Reg(deckmaste_core::RefId(0)),
+                Count::Reg(deckmaste_core::RefId(4)),
+                Reference::Reg(deckmaste_core::RefId(2)),
+            )),
+        ]
     );
 }
 
@@ -124,9 +130,10 @@ fn lightning_bolt_expands_target_macros() {
 /// Tribal Flames' damage amount is the BODY of a `Domain` invocation — the
 /// distinct-union count of the BASIC-land-type axis ([CR#205.3i]). `lower`
 /// erases invocation provenance (spec §12), so the loaded card no longer
-/// carries a remembered `Count::Expanded(Domain, …)` wrapper; comparing
-/// against a fresh, expanded read of the macro keeps this robust to macro
-/// refactors instead of pinning the shape by hand.
+/// carries a remembered `Count::Expanded(Domain, …)` wrapper. Predicate
+/// regions capture their enclosing ability ABI, so the witness checks the
+/// defining `CountDistinct(BasicLandTypes, …)` shape rather than comparing it
+/// with the same macro lowered outside that ability.
 #[test]
 fn tribal_flames_expands_the_domain_count() {
     let plugin = canon();
@@ -136,20 +143,31 @@ fn tribal_flames_expands_the_domain_count() {
     let Ability::Spell(ref spell) = face.abilities[0] else {
         panic!("expected a spell ability");
     };
-    let [OneShotEffect::Act(Action::DealDamage(_, count, _))] = spell.effect.body.as_ref() else {
+    let [
+        OneShotEffect::Let(deckmaste_core::Let {
+            dest,
+            expr: deckmaste_core::Expr::Number(count),
+        }),
+        OneShotEffect::Act {
+            action: Action::DealDamage(_, Count::Reg(amount), _),
+            ..
+        },
+    ] = spell.effect.body.as_ref()
+    else {
         panic!("expected DealDamage, got {:?}", spell.effect.body);
     };
-    let domain: Count = plugin
-        .macros
-        .read_str::<deckmaste_semantics::Count>("Domain")
-        .unwrap()
-        .expand_all()
-        .lower();
-    assert_eq!(count, &domain, "Tribal Flames' damage is Domain's body");
-    assert!(matches!(
-        count,
-        Count::CountDistinct(deckmaste_core::Characteristic::BasicLandTypes, _),
-    ));
+    assert!(
+        matches!(
+            count,
+            Count::CountDistinct(deckmaste_core::Characteristic::BasicLandTypes, _),
+        ),
+        "Tribal Flames' damage is Domain's body: {count:?}"
+    );
+    assert_eq!(
+        *amount,
+        (*dest).into(),
+        "damage reads the pinned Domain count"
+    );
 }
 
 /// `lower` erases invocation provenance (spec §12): `template:` from a macro
@@ -211,10 +229,14 @@ fn mana_leak_reads_to_a_must_pay_punisher() {
     };
     assert_eq!(
         m.who,
-        Reference::ControllerOf(Arc::new(Reference::Reg(deckmaste_core::RefId(6)))),
+        Reference::ControllerOf(Arc::new(Reference::Reg(deckmaste_core::RefId(2)))),
         "the payer is the targeted spell's controller"
     );
-    let OneShotEffect::Act(Action::Pay(ref cost)) = *m.effect else {
+    let OneShotEffect::Act {
+        action: Action::Pay(ref cost),
+        ..
+    } = *m.effect
+    else {
         panic!("expected Act(Pay(cost)), got {:?}", m.effect);
     };
     assert_eq!(
@@ -236,7 +258,7 @@ fn mana_leak_reads_to_a_must_pay_punisher() {
     };
     assert_eq!(
         **if_not,
-        OneShotEffect::Act(Action::Counter(Reference::Reg(deckmaste_core::RefId(6)))),
+        OneShotEffect::Act(Action::Counter(Reference::Reg(deckmaste_core::RefId(2)))),
         "unpaid → counter the spell"
     );
 }
@@ -324,7 +346,7 @@ fn arc_lightning_targets_any_target() {
         .expand_all()
         .lower();
     assert_eq!(
-        *filter, any_target,
+        filter.body, any_target,
         "Arc Lightning's target should be AnyTarget's body"
     );
 }

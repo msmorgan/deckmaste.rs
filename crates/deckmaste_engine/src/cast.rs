@@ -459,9 +459,9 @@ pub fn auto_pay_spendable(pool: &ManaPool, cost: &ManaCost, spendable: &[bool]) 
 
 /// [CR#601.2h]: one `RunEffect` per cost-eligible verb, each performed by the
 /// activating `player` against the ability's `source`, over a fresh
-/// resolution frame whose `controller` is the activator — so `Reference::Reg(deckmaste_core::RefId(1))`
-/// (the verb's own agent slot, spelled) resolves to that player and
-/// `Reference::Reg(deckmaste_core::RefId(0))` (a self-sacrifice) to the source — mirroring the frame
+/// resolution frame whose `controller` is the activator — so the controller
+/// parameter resolves to that player and the source parameter (a
+/// self-sacrifice) to the source — mirroring the frame
 /// any effect node resolves against (`targets`/`bindings`/`chosen` empty: a
 /// cost verb names no targets and carries no trigger context). A
 /// `With(ChooseOne/Choose)` binder inside a verb surfaces its own
@@ -489,10 +489,9 @@ fn verb_payment_items(
             let frame = Frame {
                 activation,
                 payment: Some(payment),
-                anaphora: crate::stack::Anaphora::empty(),
             };
             WorkItem::RunEffect {
-                effect: Arc::new(OneShotEffect::Act(verb.clone())),
+                effect: Arc::new(OneShotEffect::act(verb.clone())),
                 frame,
             }
         })
@@ -529,15 +528,15 @@ fn quantity_mentions_cost_x(quantity: &deckmaste_core::Quantity) -> bool {
 }
 
 /// Whether a cost-side binder's choice cardinality reads the announced X.
-fn binder_mentions_cost_x(binder: &deckmaste_core::Binder) -> bool {
+fn binder_mentions_cost_x(binder: &deckmaste_core::CostBinder) -> bool {
     match binder {
-        deckmaste_core::Binder::Choose { quantity, .. }
-        | deckmaste_core::Binder::Search { quantity, .. } => quantity_mentions_cost_x(quantity),
-        deckmaste_core::Binder::Produce(action) => verb_mentions_cost_x(action),
-        deckmaste_core::Binder::TheRef(_)
-        | deckmaste_core::Binder::ChooseOne { .. }
-        | deckmaste_core::Binder::SearchOne { .. }
-        | deckmaste_core::Binder::Existing(_) => false,
+        deckmaste_core::CostBinder::Choose { quantity, .. }
+        | deckmaste_core::CostBinder::Search { quantity, .. } => quantity_mentions_cost_x(quantity),
+        deckmaste_core::CostBinder::Produce(action) => verb_mentions_cost_x(action),
+        deckmaste_core::CostBinder::TheRef(_)
+        | deckmaste_core::CostBinder::ChooseOne { .. }
+        | deckmaste_core::CostBinder::SearchOne { .. }
+        | deckmaste_core::CostBinder::Existing(_) => false,
     }
 }
 
@@ -552,7 +551,7 @@ fn cost_component_mentions_x(component: &CostComponent) -> bool {
         CostComponent::Act(action) => verb_mentions_cost_x(action),
         CostComponent::Cost(nested) => nested.iter().any(cost_component_mentions_x),
         CostComponent::TapTotal { count, .. } => count.mentions_x(),
-        CostComponent::ChooseAndPay { binder, body } => {
+        CostComponent::ChooseAndPay { binder, body, .. } => {
             binder_mentions_cost_x(binder) || body.iter().any(cost_component_mentions_x)
         }
         CostComponent::ManaCostOf(_) | CostComponent::Tap | CostComponent::Untap => false,
@@ -1134,7 +1133,10 @@ impl GameState {
         // [CR#608.2g,601.2a]: the caster controls the spell it casts.
         obj.controller = controller;
         let region = self.spell_effect(object).unwrap_or_else(|| {
-            deckmaste_core::Region::new(Arc::from([]), OneShotEffect::Sequentially(Arc::from([])))
+            deckmaste_core::Region::new(
+                Arc::from([]),
+                OneShotEffect::Sequentially(Arc::from([])).into(),
+            )
         });
         let activation = self.enter_region(&region, &crate::stack::Frame::bare(object, controller));
         self.announcing = Some(PendingStackEntry {
@@ -1717,7 +1719,7 @@ impl GameState {
         crate::derive::abilities_of_source(self, self.objects.obj(object).source)
             .iter()
             .filter_map(|a| match a {
-                deckmaste_core::Ability::Static(s) => Some(s.as_ref()),
+                deckmaste_core::Ability::Static(s) => Some(&s.body),
                 _ => None,
             })
             .filter_map(|e| match e {
@@ -1994,7 +1996,7 @@ impl GameState {
                 for with in &summary.withs {
                     let effect = crate::decide::unless_cost_effect(
                         with,
-                        &deckmaste_core::Reference::Reg(deckmaste_core::RefId(1)),
+                        &deckmaste_core::Reference::controller_parameter(),
                     );
                     let mut frame = Frame::bare(source, controller);
                     frame.payment = Some(payment);
@@ -2323,7 +2325,7 @@ impl GameState {
         activation: crate::ActivationId,
     ) -> Vec<ObjectId> {
         let filter = crate::resolve::target_spec_filter(spec);
-        crate::target::candidates_with_activation(self, filter, carrier, activation)
+        crate::target::candidates_region_with_activation(self, filter, carrier, activation)
     }
 
     /// Auto-tap the in-flight `PayMana` decision ([CR#601.2g,106.6]), honoring
@@ -2739,7 +2741,12 @@ mod tests {
         use deckmaste_core::Quantity;
         use deckmaste_core::SpellAbility;
 
-        let target = TargetSpec::Target(Quantity::one(), Predicate::r#type(Type::Creature));
+        let target = TargetSpec::Target(
+            Quantity::one(),
+            Arc::new(deckmaste_core::Region::candidate(Predicate::r#type(
+                Type::Creature,
+            ))),
+        );
         let card = Card::Normal(CardFace {
             name: "Modal announcement fixture".into(),
             mana_cost: "{0}".parse().unwrap(),
@@ -2881,8 +2888,10 @@ mod tests {
         let impossible_mode = || Mode {
             targets: vec![TargetSpec::Target(
                 Quantity::one(),
-                deckmaste_core::Predicate::Characteristic(CharacteristicPredicate::Named(
-                    "Missing target".into(),
+                Arc::new(deckmaste_core::Region::candidate(
+                    deckmaste_core::Predicate::Characteristic(CharacteristicPredicate::Named(
+                        "Missing target".into(),
+                    )),
                 )),
             )]
             .into(),
@@ -2927,14 +2936,41 @@ mod tests {
         let life_mode = |amount| Mode {
             targets: vec![TargetSpec::Target(
                 Quantity::one(),
-                Predicate::Kind(deckmaste_core::ObjectKind::Player),
+                Arc::new(deckmaste_core::Region::candidate(Predicate::Kind(
+                    deckmaste_core::ObjectKind::Player,
+                ))),
             )]
             .into(),
-            effect: OneShotEffect::Act(CoreAction::ChangeLife(
-                Reference::Reg(deckmaste_core::RefId(6)),
-                deckmaste_core::LifeOp::Up(Count::Literal(amount)),
-            ))
-            .into(),
+            effect: deckmaste_core::Region::new(
+                vec![
+                    deckmaste_core::Param {
+                        def: deckmaste_core::DefId(0),
+                        kind: deckmaste_core::Kind::Object,
+                        provenance: deckmaste_core::Provenance::Source,
+                    },
+                    deckmaste_core::Param {
+                        def: deckmaste_core::DefId(1),
+                        kind: deckmaste_core::Kind::Object,
+                        provenance: deckmaste_core::Provenance::Controller,
+                    },
+                    deckmaste_core::Param {
+                        def: deckmaste_core::DefId(2),
+                        kind: deckmaste_core::Kind::Objects,
+                        provenance: deckmaste_core::Provenance::AnnouncedTarget(0),
+                    },
+                    deckmaste_core::Param {
+                        def: deckmaste_core::DefId(3),
+                        kind: deckmaste_core::Kind::Number,
+                        provenance: deckmaste_core::Provenance::AnnouncedX,
+                    },
+                ]
+                .into(),
+                OneShotEffect::Act(CoreAction::ChangeLife(
+                    Reference::Reg(deckmaste_core::RefId(2)),
+                    deckmaste_core::LifeOp::Up(Count::Literal(amount)),
+                ))
+                .into(),
+            ),
             cost: None,
         };
         let card = Card::Normal(CardFace {
@@ -3208,13 +3244,13 @@ mod tests {
                         vec![CostComponent::Mana("{1}".parse().unwrap())].into(),
                     )),
                     times: Count::CountOf(deckmaste_core::Countable::Objects(Arc::new(
-                        Predicate::And(
+                        deckmaste_core::Region::candidate(Predicate::And(
                             vec![
                                 Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
                                 Predicate::r#type(Type::Artifact),
                             ]
                             .into(),
-                        ),
+                        )),
                     ))),
                 },
             })],

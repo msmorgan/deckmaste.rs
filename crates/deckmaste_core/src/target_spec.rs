@@ -26,7 +26,7 @@ pub enum TargetSpec {
     /// Some(n))` for "up to N", and `Quantity::Range(None, None)` for "any
     /// number of targets" (or the `Exactly`/`AtMost`/`AnyNumber` macros at the
     /// RON surface).
-    Target(Quantity, Predicate),
+    Target(Quantity, Arc<crate::Region<Predicate>>),
     /// A co-target set-distinctness constraint ([CR#115.7e], Arc Trail's
     /// "any *other* target"): this spec's final picks must not overlap the
     /// sibling specs at the given indices. Evaluated on the FINAL target

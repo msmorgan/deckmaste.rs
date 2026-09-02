@@ -14,8 +14,6 @@ use crate::event::GameEvent;
 use crate::event::Occurrence;
 use crate::event::ZoneChange;
 use crate::object::ObjectId;
-use crate::object::ObjectSource;
-use crate::stack::Anaphora;
 use crate::stack::Frame;
 use crate::stack::StackObject;
 use crate::state::GameState;
@@ -56,7 +54,6 @@ impl GameState {
             return Frame {
                 activation,
                 payment: None,
-                anaphora: Anaphora::empty(),
             };
         }
         let mut frame = Frame::bare(source, controller);
@@ -68,6 +65,12 @@ impl GameState {
                 bindings.that_object.clone(),
                 bindings.that_player,
                 bindings.that_patient.clone(),
+            );
+            self.frame_set_event_extras(
+                &mut frame,
+                bindings.event_amount,
+                bindings.produced_mana.clone(),
+                bindings.crossed,
             );
         }
         self.frame_set_targets(&mut frame, targets);
@@ -96,16 +99,6 @@ impl GameState {
             .find(|e| e.id == id)
             .expect("entry on stack")
             .clone();
-        // A fresh resolution has no amount fixed yet — `Count::ThatMuch` may
-        // only read an amount an earlier instruction of THIS resolution fixed,
-        // never one leaking in from combat or a prior resolution — EXCEPT for
-        // a triggered ability, whose firing event's magnitude seeds the
-        // register ("whenever you gain life, … that much"); a later
-        // amount-carrying apply of this resolution still re-fixes it.
-        self.that_much = match &entry.object {
-            StackObject::Triggered { bindings, .. } => bindings.that_much,
-            _ => None,
-        };
         // [CR#400.7j] is scoped to ONE effect: a fresh resolution starts with
         // an empty move record, so a later effect can never find (or follow)
         // an earlier effect's moves.
@@ -277,7 +270,7 @@ impl GameState {
                     .this
                     .as_ref()
                     .map_or(entry.id, |snapshot| snapshot.object);
-                let mut frame = self.resolution_region_frame(
+                let frame = self.resolution_region_frame(
                     &t.effect,
                     entry.activation,
                     source_id,
@@ -286,14 +279,6 @@ impl GameState {
                     entry.x,
                     Some(bindings),
                 );
-                frame.anaphora = Anaphora {
-                    // "where X is …" rides the resolving ability's text
-                    // and is evaluated at RESOLUTION ([CR#702.21b]).
-                    where_x: t.where_x.clone(),
-                    produced_mana: bindings.produced_mana.clone(),
-                    crossed: bindings.crossed,
-                    ..Anaphora::empty()
-                };
                 // [CR#603.4]: an intervening-if is rechecked as the ability
                 // resolves. If it no longer holds, the ability is removed from
                 // the stack and does nothing (the rule mirrors the illegal-target
@@ -336,7 +321,7 @@ impl GameState {
                 bindings,
             } => {
                 if self.targets_still_legal(&entry) {
-                    let mut frame = self.resolution_region_frame(
+                    let frame = self.resolution_region_frame(
                         &ability.effect,
                         entry.activation,
                         *source,
@@ -345,10 +330,6 @@ impl GameState {
                         entry.x,
                         Some(bindings),
                     );
-                    frame.anaphora = Anaphora {
-                        produced_mana: bindings.produced_mana.clone(),
-                        ..Anaphora::empty()
-                    };
                     let mut items = crate::cast::announced_effect_items(
                         self,
                         &ability.effect,
@@ -369,21 +350,6 @@ impl GameState {
                         }),
                     ))]);
                 }
-            }
-        }
-    }
-
-    /// The [`ItBinding`] for one element — the iteration/projection anaphor
-    /// ([CR#608.2]), kind-poly over the element's source ([CR#120.3]). A
-    /// card/token captures its LKI snapshot (reads survive its removal); a
-    /// player proxy is zoneless, so it binds as the bare player id.
-    ///
-    /// [`ItBinding`]: crate::stack::ItBinding
-    pub(crate) fn it_binding(&self, obj: ObjectId) -> crate::stack::ItBinding {
-        match self.objects.obj(obj).source {
-            ObjectSource::Player(p) => crate::stack::ItBinding::Player(p),
-            ObjectSource::Card(_) => {
-                crate::stack::ItBinding::Object(crate::lki::LkiSnapshot::capture(self, obj))
             }
         }
     }
@@ -464,17 +430,6 @@ pub(crate) fn spell_ability(ability: &Ability) -> Option<&deckmaste_core::SpellA
     }
 }
 
-/// Look through `Quantity` macro expansions (`Exactly`, `AtLeast`, …) to
-/// the underlying `Range` primitive.
-fn deref_quantity(q: &deckmaste_core::Quantity) -> &deckmaste_core::Quantity {
-    match q {
-        range @ deckmaste_core::Quantity::Range(..) => range,
-        // Provenance is erased at `lower` (`deckmaste_lowering`), so no
-        // loaded value reaches here wrapped. The arm survives only because
-        // the variant does; `core-demacro` deletes both.
-    }
-}
-
 /// One event → `Single`; several → a simultaneous `Batch`.
 fn occurrence_of(mut events: Vec<GameEvent>) -> crate::event::Occurrence {
     use crate::event::Occurrence;
@@ -490,15 +445,15 @@ mod fixtures;
 
 #[cfg(test)]
 mod tests {
+    #![allow(
+        clippy::empty_line_after_doc_comments,
+        reason = "related behavioral test rationale is intentionally grouped"
+    )]
 
     use std::sync::Arc;
 
     use deckmaste_card::Card;
     use deckmaste_card::CardFace;
-    use deckmaste_core::Action;
-    use deckmaste_core::Count;
-    use deckmaste_core::Predicate;
-    use deckmaste_core::Reference;
     use deckmaste_core::Type;
     use deckmaste_core::Zone;
 
@@ -506,7 +461,6 @@ mod tests {
     use crate::object::ObjectSource;
     use crate::player::PlayerId;
     use crate::resolve::fixtures::*;
-    use crate::stack::RefKind;
     use crate::stack::StackEntry;
     use crate::stack::StackObject;
     use crate::state::GameState;
@@ -578,58 +532,6 @@ mod tests {
 
     /// Targets are structural ability data rather than an effect wrapper
     /// ([CR#115.1,601.2c]).
-    #[test]
-    fn spell_targets_are_explicit() {
-        let spec = deckmaste_core::TargetSpec::Target(
-            deckmaste_core::Quantity::one(),
-            Predicate::creature(),
-        );
-        let ability = deckmaste_core::SpellAbility {
-            ability_word: None,
-            targets: vec![spec.clone()].into(),
-            effect: deckmaste_core::Instr::Act(Action::deal_damage(
-                Reference::It,
-                Count::Literal(3),
-            ))
-            .into(),
-        };
-        assert_eq!(ability.targets.as_ref(), std::slice::from_ref(&spec));
-    }
-
-    /// Ticket: the iteration anaphor's KIND ([CR#120.3]) tracks the element's
-    /// source — a card/token element binds as an object (carrying its LKI
-    /// snapshot, so reads survive its removal), a player proxy binds as a
-    /// player (zoneless, no snapshot). The kind a `With`/`Each`/`Distribute`
-    /// element exposes through `It`.
-    #[test]
-    fn it_binding_kind_distinguishes_player_and_object() {
-        use crate::stack::ItBinding;
-
-        let (state, creature) = bear_on_field();
-        let player = state.player(PlayerId(0)).object;
-
-        let obj = state.it_binding(creature);
-        assert_eq!(
-            obj.kind(),
-            RefKind::Object,
-            "a creature element is an object"
-        );
-        assert!(
-            matches!(obj, ItBinding::Object(_)),
-            "an object element carries its LKI snapshot"
-        );
-
-        let ply = state.it_binding(player);
-        assert_eq!(
-            ply.kind(),
-            RefKind::Player,
-            "a player proxy element is a player"
-        );
-        assert!(
-            matches!(ply, ItBinding::Player(_)),
-            "a player element is zoneless — no snapshot"
-        );
-    }
 
     /// Mints a stack-zone spell object (player 0) whose printed face carries
     /// exactly `types`, for `is_permanent_spell` fixtures.

@@ -508,7 +508,11 @@ mod tests {
         use deckmaste_core::Condition;
         use deckmaste_core::Count;
         use deckmaste_core::Countable;
+        use deckmaste_core::DefId;
+        use deckmaste_core::Kind;
+        use deckmaste_core::Param;
         use deckmaste_core::Predicate;
+        use deckmaste_core::Provenance;
         use deckmaste_core::Reference;
         use deckmaste_core::RelationPredicate;
         use deckmaste_core::StatePredicate;
@@ -527,14 +531,33 @@ mod tests {
         let canonical = Condition::And(
             vec![
                 Condition::Compare(
-                    Count::CountOf(Countable::Objects(Arc::new(Predicate::And(
-                        vec![
-                            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
-                                Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
-                            ))),
-                        ]
-                        .into(),
+                    Count::CountOf(Countable::Objects(Arc::new(deckmaste_core::Region::new(
+                        Arc::from([
+                            Param {
+                                def: DefId(0),
+                                kind: Kind::Object,
+                                provenance: Provenance::Candidate,
+                            },
+                            Param {
+                                def: DefId(1),
+                                kind: Kind::Object,
+                                provenance: Provenance::Source,
+                            },
+                            Param {
+                                def: DefId(2),
+                                kind: Kind::Object,
+                                provenance: Provenance::Controller,
+                            },
+                        ]),
+                        Predicate::And(
+                            vec![
+                                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                                Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
+                                    Predicate::Ref(Reference::Reg(deckmaste_core::RefId(2))),
+                                ))),
+                            ]
+                            .into(),
+                        ),
                     )))),
                     Cmp::AtLeast,
                     Count::Literal(10),

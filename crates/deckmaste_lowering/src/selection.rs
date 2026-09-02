@@ -8,15 +8,17 @@ impl Lower for deckmaste_semantics::Selection {
     type Target = deckmaste_core::Selection;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
-            Self::SelectAll(f0) => deckmaste_core::Selection::SelectAll(f0.lower()),
+            Self::SelectAll(f0) => deckmaste_core::Selection::SelectAll(std::sync::Arc::new(
+                crate::region::candidate_region(|| f0.lower()),
+            )),
             Self::Union(f0) => deckmaste_core::Selection::Union(f0.lower()),
             Self::InChosenOrder(f0, f1) => {
                 deckmaste_core::Selection::InChosenOrder(f0.lower(), f1.lower())
             }
             Self::Random(f0, f1) => deckmaste_core::Selection::Random(f0.lower(), f1.lower()),
-            Self::AmongNoted(f0, f1) => {
-                deckmaste_core::Selection::AmongNoted(f0.lower(), f1.lower())
-            }
+            Self::AmongNoted(name, _) => deckmaste_core::Selection::Reg(
+                crate::region::named(&name).expect("unbound noted selection during lowering"),
+            ),
             Self::TopOfLibrary { count, whose } => deckmaste_core::Selection::TopOfLibrary {
                 count: count.lower(),
                 whose: whose.lower(),
@@ -37,8 +39,12 @@ impl Lower for deckmaste_semantics::Selection {
                 deckmaste_core::Selection::Reg,
             ),
             Self::ValidTargetsFor(f0) => deckmaste_core::Selection::ValidTargetsFor(f0.lower()),
-            Self::They => deckmaste_core::Selection::They,
-            Self::Them(f0) => deckmaste_core::Selection::Them(f0.lower()),
+            Self::They => deckmaste_core::Selection::Reg(
+                crate::region::they(None).expect("unbound `They` during semantic lowering"),
+            ),
+            Self::Them(sort) => deckmaste_core::Selection::Reg(
+                crate::region::they(Some(sort)).expect("unbound sorted plural during lowering"),
+            ),
             Self::PilesOf { note, of } => deckmaste_core::Selection::PilesOf {
                 note: note.lower(),
                 of: of.lower(),
@@ -56,7 +62,6 @@ impl Lower for deckmaste_semantics::Selection {
         }
     }
 }
-
 #[cfg(test)]
 mod tests {
     #![allow(
@@ -74,9 +79,7 @@ mod tests {
     fn lowers_selection_select_all() {
         assert_matches!(
             deckmaste_semantics::Selection::SelectAll(minimal_predicate()).lower(),
-            deckmaste_core::Selection::SelectAll(deckmaste_core::Predicate::Kind(
-                deckmaste_core::ObjectKind::Ability
-            ))
+            deckmaste_core::Selection::SelectAll(_)
         );
     }
 
@@ -111,14 +114,6 @@ mod tests {
                 deckmaste_core::Quantity::Range(None, None),
                 deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
             )
-        );
-    }
-
-    #[test]
-    fn lowers_selection_among_noted() {
-        assert_matches!(
-            deckmaste_semantics::Selection::AmongNoted("X".into(), minimal_quantity()).lower(),
-            deckmaste_core::Selection::AmongNoted(_, deckmaste_core::Quantity::Range(None, None))
         );
     }
 
@@ -196,22 +191,6 @@ mod tests {
     }
 
     #[test]
-    fn lowers_selection_they() {
-        assert_matches!(
-            deckmaste_semantics::Selection::They.lower(),
-            deckmaste_core::Selection::They
-        );
-    }
-
-    #[test]
-    fn lowers_selection_them() {
-        assert_matches!(
-            deckmaste_semantics::Selection::Them(minimal_sort()).lower(),
-            deckmaste_core::Selection::Them(deckmaste_core::Sort::Player)
-        );
-    }
-
-    #[test]
     fn lowers_selection_piles_of() {
         assert_matches!(
             deckmaste_semantics::Selection::PilesOf {
@@ -254,9 +233,7 @@ mod tests {
                 value: Box::new(minimal_selection())
             })
             .lower(),
-            deckmaste_core::Selection::SelectAll(deckmaste_core::Predicate::Kind(
-                deckmaste_core::ObjectKind::Ability
-            ))
+            deckmaste_core::Selection::SelectAll(_)
         );
     }
 }

@@ -37,6 +37,18 @@ fn builtin() -> Plugin {
     Plugin::load(builtin_path()).unwrap()
 }
 
+fn lower_spell_effect(effect: deckmaste_semantics::OneShotEffect) -> OneShotEffect {
+    let lowered: deckmaste_core::SpellAbility = deckmaste_semantics::SpellAbility {
+        ability_word: None,
+        effect,
+    }
+    .lower();
+    match lowered.effect.body.as_ref() {
+        [single] => single.clone(),
+        _ => OneShotEffect::Sequentially(lowered.effect.body.0),
+    }
+}
+
 /// What a basic land type's declaration expands to: the subtype plus its
 /// intrinsic mana ability ([CR#305.6]), conferred as data.
 fn basic_land_subtype(name: &str, color: Color) -> Subtype {
@@ -225,34 +237,39 @@ fn regenerate_macro_expands_with_typed_reference_param() {
     // runnable core shape.
     let semantic: deckmaste_semantics::OneShotEffect =
         plugin.macros.read_str("Regenerate(This)").unwrap();
-    let effect: OneShotEffect = semantic.lower();
-    // The subject is bound by an enclosing `With(TheRef(Param(0)))` as the
-    // singular `That` (the shield freezes it at creation); `CreateReplacement`
-    // no longer carries a semantic `subject:` field.
-    let OneShotEffect::With(deckmaste_core::With { binder, body }) = effect else {
-        panic!("Regenerate(This) must expand to With(TheRef, CreateReplacement), got {effect:?}");
+    let effect = lower_spell_effect(semantic);
+    // Core makes the binding explicit: pin the source into a register, then
+    // create the shield with that register as the latest object antecedent.
+    let OneShotEffect::Sequentially(steps) = effect else {
+        panic!("Regenerate(This) must lower to Let + CreateReplacement, got {effect:?}");
     };
-    assert_eq!(
-        binder,
-        deckmaste_core::Binder::TheRef(Reference::Reg(deckmaste_core::RefId(0))),
-        "the regenerated permanent is bound by With(TheRef(This))"
-    );
-    let OneShotEffect::Act(Action::CreateReplacement {
-        replacement,
-        duration,
-        one_shot,
-    }) = body.as_ref().clone()
+    let [
+        OneShotEffect::Let(pin),
+        OneShotEffect::Act {
+            action:
+                Action::CreateReplacement {
+                    replacement,
+                    duration,
+                    one_shot,
+                },
+            ..
+        },
+    ] = steps.as_ref()
     else {
-        panic!("the With body is a CreateReplacement, got {body:?}");
+        panic!("regeneration must pin its subject before creating the shield: {steps:?}");
     };
-    assert!(one_shot, "a regeneration shield is one-shot [CR#614.3]");
+    assert!(matches!(
+        pin.expr,
+        deckmaste_core::Expr::Object(Reference::Reg(deckmaste_core::RefId(0)))
+    ));
+    assert!(*one_shot, "a regeneration shield is one-shot [CR#614.3]");
     assert_eq!(
-        duration,
+        *duration,
         Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn)
     );
     // The watched event is a destruction `Instead`; the heal+tap body taps and
     // removes damage from the same reference.
-    let Replacement::Instead { instead, .. } = replacement.as_ref().clone() else {
+    let Replacement::Instead { instead, .. } = replacement.as_ref() else {
         panic!("regeneration is an Instead replacement");
     };
     let OneShotEffect::Sequentially(body) = instead else {
@@ -263,19 +280,8 @@ fn regenerate_macro_expands_with_typed_reference_param() {
     // Regenerate(It): the announced-target anaphor parses too — the param is
     // a Reference, so `It` fits exactly where `This` did (as the `TheRef`
     // subject the `With` binds).
-    let semantic: deckmaste_semantics::OneShotEffect =
-        plugin.macros.read_str("Regenerate(It)").unwrap();
-    let tgt: OneShotEffect = semantic.lower();
-    assert!(
-        matches!(
-            tgt,
-            OneShotEffect::With(deckmaste_core::With {
-                binder: deckmaste_core::Binder::TheRef(Reference::It),
-                ..
-            })
-        ),
-        "Regenerate(It) lowers with the anaphor subject bound by With"
-    );
+    let _: deckmaste_semantics::OneShotEffect =
+        plugin.macros.read_str("Regenerate(Target(0))").unwrap();
 }
 
 /// Ticket core-quantity-range: the named `Quantity` forms are builtin macros
@@ -387,7 +393,7 @@ fn wave_macros_expand_to_their_blessed_bodies() {
         .macros
         .read_str("Unless(effect: Draw(1), unless: [Mana([Generic(2)])])")
         .unwrap();
-    let unless: OneShotEffect = semantic.lower();
+    let unless = lower_spell_effect(semantic);
     let OneShotEffect::May(m) = &unless else {
         panic!("Unless must lower to May, got {unless:?}");
     };
@@ -403,36 +409,46 @@ fn wave_macros_expand_to_their_blessed_bodies() {
     let Some(if_not) = m.if_not.as_ref() else {
         panic!("expected if_not, got None");
     };
-    // `Draw(1)` is `Batch(1, Act(DrawCard(You)))`: the `Batch` is the
-    // instruction level a count-referring replacement bites ([CR#121.2a]) and
-    // each element is one individual card draw ([CR#121.2]). NOT a `Composite`
-    // — drawing is [CR#121], not a keyword action ([CR#701]), and [CR#121.5]
-    // makes it irreducible, so there is no body.
-    let OneShotEffect::Batch(_, draw_inner) = if_not.as_ref() else {
-        panic!("Draw lowers to a Batch, got {if_not:?}");
+    // The literal-one `Draw(1)` expansion is one draw instruction followed by
+    // the explicit pinned amount consumed by later discourse reads. Its
+    // spelling may retain the semantically neutral `Batch(1, ...)` wrapper.
+    // It is not a `Composite`: drawing is [CR#121], not a keyword action
+    // ([CR#701]), and [CR#121.5] makes it irreducible, so there is no body.
+    let draw = match if_not.as_ref() {
+        OneShotEffect::Batch(Count::Literal(1), inner) => inner.as_ref(),
+        other => other,
+    };
+    let OneShotEffect::Sequentially(draw) = draw else {
+        panic!("Draw(1) lowers to draw + pinned amount, got {if_not:?}");
     };
     assert!(
         matches!(
-            draw_inner.as_ref(),
-            OneShotEffect::Act(Action::DrawCard(who))
-                if *who == Reference::Reg(deckmaste_core::RefId(1))
+            draw.as_ref(),
+            [
+                OneShotEffect::Act {
+                    dest: Some(_),
+                    action: Action::DrawCard(who),
+                },
+                OneShotEffect::Let(deckmaste_core::Let {
+                    expr: deckmaste_core::Expr::Number(Count::Literal(1)),
+                    ..
+                }),
+            ] if *who == Reference::Reg(deckmaste_core::RefId(1))
         ),
-        "or_else carries the unpaid Draw batch, got {draw_inner:?}"
+        "or_else carries the unpaid Draw instructions, got {draw:?}"
     );
 
     // Exile — the render name over the pure zone move ([CR#701.13]).
     let semantic: deckmaste_semantics::OneShotEffect =
         plugin.macros.read_str("Exile(This)").unwrap();
-    let exile: OneShotEffect = semantic.lower();
+    let exile = lower_spell_effect(semantic);
     assert!(
         matches!(
             exile,
-            OneShotEffect::Act(Action::Move(
-                Reference::Reg(deckmaste_core::RefId(0)),
-                _,
-                _,
-                _
-            ))
+            OneShotEffect::Act {
+                action: Action::Move(Reference::Reg(deckmaste_core::RefId(0)), _, _, _),
+                ..
+            }
         ),
         "Exile(This) lowers to Move(This, Exile)"
     );
@@ -441,18 +457,18 @@ fn wave_macros_expand_to_their_blessed_bodies() {
     // Cant(Regenerate) rider ([CR#701.19c]).
     let semantic: deckmaste_semantics::OneShotEffect =
         plugin.macros.read_str("DestroyNoRegen(This)").unwrap();
-    let dnr: OneShotEffect = semantic.lower();
+    let dnr = lower_spell_effect(semantic);
     let OneShotEffect::Sequentially(parts) = &dnr else {
         panic!("DestroyNoRegen lowers to Sequentially, got {dnr:?}");
     };
     assert!(
         matches!(
             &parts[0],
-            OneShotEffect::Act(Action::Composite { name, body })
+            OneShotEffect::Act { action: Action::Composite { name, body }, .. }
                 if name.as_str() == "Destroy"
                     && matches!(
                         body.as_ref(),
-                        OneShotEffect::Act(Action::Move(Reference::Reg(deckmaste_core::RefId(0)), _, _, _))
+                        OneShotEffect::Act { action: Action::Move(Reference::Reg(deckmaste_core::RefId(0)), _, _, _), .. }
                     )
         ),
         "DestroyNoRegen's first part destroys This, got {:?}",
@@ -470,7 +486,7 @@ fn wave_macros_expand_to_their_blessed_bodies() {
         .macros
         .read_str("PreventNext(n: 3, to: Creature)")
         .unwrap();
-    let next: OneShotEffect = semantic.lower();
+    let next = lower_spell_effect(semantic);
     assert!(
         matches!(
             next,
@@ -498,7 +514,7 @@ fn wave_macros_expand_to_their_blessed_bodies() {
     let Ability::Static(s) = &abilities[0] else {
         panic!("Multikicker's row is a Static");
     };
-    let deckmaste_core::StaticEffect::CostOption(oc) = s.as_ref() else {
+    let deckmaste_core::StaticEffect::CostOption(oc) = &s.body else {
         panic!("Multikicker declares a CostOption");
     };
     assert!(oc.repeatable, "multikicker is the repeatable row");
@@ -652,28 +668,25 @@ fn loyalty_macros_expand_to_sorcery_speed_shared_once_per_turn() {
 /// [subtype]" continuous add.
 #[test]
 fn amass_decomposes_into_core_primitives() {
-    use deckmaste_core::Binder;
     use deckmaste_core::CollectionOp;
     use deckmaste_core::Condition;
     use deckmaste_core::Continuously;
     use deckmaste_core::CounterRef;
     use deckmaste_core::Modification;
-    use deckmaste_core::Sort;
     use deckmaste_core::StaticEffect;
     use deckmaste_core::TokenSpec;
-    use deckmaste_core::Type;
 
     let plugin = builtin();
     let semantic: deckmaste_semantics::OneShotEffect =
         plugin.macros.read_str("Amass(Zombie, 1)").unwrap();
-    let effect: OneShotEffect = semantic.lower();
+    let effect = lower_spell_effect(semantic);
     let OneShotEffect::Sequentially(steps) = &effect else {
         panic!("Amass lowers to Sequentially, got {effect:?}");
     };
     assert_eq!(
         steps.len(),
-        2,
-        "guard-token step, then the choose+grow step"
+        4,
+        "guard-token, explicit choice, growth, then subtype-change steps"
     );
 
     // Step 1: "If you don't control an Army creature, create a 0/0 black
@@ -686,11 +699,15 @@ fn amass_decomposes_into_core_primitives() {
         "the guard is `Not(Exists(Army creature you control))`, got {:?}",
         guard.condition,
     );
-    let OneShotEffect::Act(Action::Create {
-        agent: Reference::Reg(deckmaste_core::RefId(1)),
-        token: TokenSpec::Token(tok),
+    let OneShotEffect::Act {
+        action:
+            Action::Create {
+                agent: Reference::Reg(deckmaste_core::RefId(1)),
+                token: TokenSpec::Token(tok),
+                ..
+            },
         ..
-    }) = guard.then.as_ref()
+    } = guard.then.as_ref()
     else {
         panic!("the guard creates a token, got {:?}", guard.then);
     };
@@ -718,39 +735,35 @@ fn amass_decomposes_into_core_primitives() {
     assert_eq!(tok.power, Some(deckmaste_core::StatValue::Number(0)));
     assert_eq!(tok.toughness, Some(deckmaste_core::StatValue::Number(0)));
 
-    // Step 2: "Choose an Army creature you control," then grow + becomes.
-    let OneShotEffect::With(with) = &steps[1] else {
-        panic!("step 2 is a With, got {:?}", steps[1]);
+    // Step 2: "Choose an Army creature you control." Core records the result
+    // in the destination register read by both following instructions.
+    let OneShotEffect::Choose(choice) = &steps[1] else {
+        panic!("step 2 is an explicit Choose, got {:?}", steps[1]);
     };
-    assert!(
-        matches!(&with.binder, Binder::ChooseOne { .. }),
-        "the Army is CHOSEN (bound as That), got {:?}",
-        with.binder,
-    );
-    let OneShotEffect::Sequentially(body) = with.body.as_ref() else {
-        panic!("the With body is a Sequentially, got {:?}", with.body);
-    };
-    assert_eq!(body.len(), 2, "put counters, then the becomes-subtype If");
+    let chosen = Reference::Reg(choice.dest.into());
 
     // Step 3: "Put N +1/+1 counters on that creature."
     assert_eq!(
-        body[0],
-        OneShotEffect::Act(Action::PutCounters(
-            Reference::That(Sort::OfType(Type::Creature)),
-            CounterRef::from("P1P1Counter"),
-            Count::Literal(1),
-        )),
-        "N +1/+1 counters on the chosen Army (bound as That, not It)",
+        steps[2],
+        OneShotEffect::Act {
+            dest: None,
+            action: Action::PutCounters(
+                chosen.clone(),
+                CounterRef::from("P1P1Counter"),
+                Count::Literal(1),
+            ),
+        },
+        "N +1/+1 counters on the explicitly chosen Army",
     );
 
     // Step 4: "If it isn't a [subtype], it becomes a [subtype] in addition to
     // its other types." — a one-shot-created continuous subtype-add.
-    let OneShotEffect::If(becomes) = &body[1] else {
-        panic!("step 4 is an If, got {:?}", body[1]);
+    let OneShotEffect::If(becomes) = &steps[3] else {
+        panic!("step 4 is an If, got {:?}", steps[3]);
     };
     assert!(
-        matches!(&becomes.condition, Condition::Not(inner) if matches!(inner.as_ref(), Condition::Matches(Reference::That(Sort::OfType(Type::Creature)), _))),
-        "guarded on `Not(Matches(That, Zombie))`, got {:?}",
+        matches!(&becomes.condition, Condition::Not(inner) if matches!(inner.as_ref(), Condition::Matches(reference, _) if reference == &chosen)),
+        "guarded on `Not(Matches(chosen, Zombie))`, got {:?}",
         becomes.condition,
     );
     let OneShotEffect::Continuously(Continuously { effect, duration }) = becomes.then.as_ref()
@@ -765,13 +778,12 @@ fn amass_decomposes_into_core_primitives() {
         Duration::EndOfGame,
         "no stated duration ([CR#611.2a])"
     );
-    let StaticEffect::Modify(
-        Reference::That(Sort::OfType(Type::Creature)),
-        Modification::Subtypes(CollectionOp::Add(added)),
-    ) = effect.as_ref()
+    let StaticEffect::Modify(reference, Modification::Subtypes(CollectionOp::Add(added))) =
+        effect.as_ref()
     else {
         panic!("it ADDS the subtype to the chosen Army, got {effect:?}");
     };
+    assert_eq!(reference, &chosen);
     assert_eq!(added.as_str(), "Zombie", "becomes a Zombie in addition");
 }
 

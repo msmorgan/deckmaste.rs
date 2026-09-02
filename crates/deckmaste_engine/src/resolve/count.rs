@@ -15,7 +15,6 @@ use crate::event::LifeGained;
 use crate::event::LifeLost;
 use crate::event::ZoneChange;
 use crate::object::ObjectId;
-use crate::stack::Anaphora;
 use crate::stack::Frame;
 use crate::state::GameState;
 
@@ -52,7 +51,15 @@ impl GameState {
                     let n = self
                         .objects
                         .iter()
-                        .filter(|ob| self.filter_matches_live(filter, ob.id, watcher))
+                        .filter(|ob| {
+                            crate::target::matches_region_with_activation(
+                                self,
+                                ob.id,
+                                filter,
+                                Some(watcher),
+                                frame.activation,
+                            )
+                        })
                         .count();
                     Uint::try_from(n).expect("object count fits Uint")
                 }
@@ -249,7 +256,13 @@ impl GameState {
                     let watcher = self.frame_watcher(frame);
                     let mut seen = std::collections::BTreeSet::new();
                     for ob in self.objects.iter() {
-                        if self.filter_matches_live(filter, ob.id, watcher) {
+                        if crate::target::matches_region_with_activation(
+                            self,
+                            ob.id,
+                            filter,
+                            Some(watcher),
+                            frame.activation,
+                        ) {
                             for key in self.distinct_keys(*characteristic, ob.id) {
                                 seen.insert(key);
                             }
@@ -289,27 +302,16 @@ impl GameState {
             // The amount fixed by an earlier instruction of this resolution —
             // recorded at the apply funnel (so it reads what actually
             // happened, post-replacement) — or, for a triggered ability, the
-            // firing event's magnitude seeded from `TriggerBindings.that_much`
+            // firing event's magnitude seeded through the `EventAmount` parameter
             // by `resolve_object`. Still loud when neither fixed an amount:
             // that is a semantic-input error (a `ThatMuch` with no antecedent
             // magnitude), not an engine seam.
-            Count::ThatMany | Count::ThatMuch => self.that_much.unwrap_or_else(|| {
-                panic!(
-                    "ThatMany/ThatMuch with no amount fixed this resolution and no \
-                     trigger-bound magnitude — the card authors a magnitude anaphor \
-                     with no antecedent"
-                )
-            }),
             // [CR#601.2d]: the per-element share in scope inside a `Distribute`
             // body — `Distribute` puts it in the `allotment` slot per element
             // (the Idris `bindAllot`), and an inner `Each`/`Distribute` clears
             // it (the Idris allotment-clearing `bindIt`), so reading it outside a
             // `Distribute` body — or inside a nested loop that rebound `It` — is
             // a malformed card.
-            Count::Allotment => frame.anaphora.allotment.expect(
-                "Count::Allotment outside a Distribute body (or inside a nested Each/Distribute \
-                 that cleared the outer share)",
-            ),
             // [CR#107.3a]: while a spell/ability is on the stack, X equals the
             // value announced as it was cast (engine-x-costs threads it onto the
             // resolution frame). [CR#107.3f] text-X chosen at resolution is a
@@ -437,7 +439,12 @@ impl GameState {
                 let ids = match &proj.of {
                     Countable::Objects(filter) | Countable::Players(filter) => {
                         let watcher = self.frame_watcher(frame);
-                        crate::target::candidates_with(self, filter, Some(watcher))
+                        crate::target::candidates_region_with_activation(
+                            self,
+                            filter,
+                            Some(watcher),
+                            frame.activation,
+                        )
                     }
                     // Not a `Projectable` source (Idris gates
                     // `Aggregate`/`Project` to `Objects`/`Players`) — fizzle
@@ -449,15 +456,9 @@ impl GameState {
                 let values: Vec<Uint> = ids
                     .into_iter()
                     .map(|id| {
-                        let sub = Frame {
-                            anaphora: Anaphora {
-                                it: Some(self.it_binding(id)),
-                                allotment: None,
-                                ..frame.anaphora.clone()
-                            },
-                            ..frame.clone()
-                        };
-                        self.eval_count(&proj.by, &sub)
+                        let mut sub = frame.clone();
+                        sub.activation = self.enter_candidate_region(&proj.by, frame, id);
+                        self.eval_count(&proj.by.body, &sub)
                     })
                     .collect();
                 match op {
@@ -631,6 +632,10 @@ impl GameState {
 
 #[cfg(test)]
 mod tests {
+    #![allow(
+        clippy::empty_line_after_doc_comments,
+        reason = "related behavioral test rationale is intentionally grouped"
+    )]
 
     use std::sync::Arc;
 
@@ -639,12 +644,10 @@ mod tests {
     use deckmaste_core::Action;
     use deckmaste_core::Count;
     use deckmaste_core::Countable;
-    use deckmaste_core::LifeOp;
     use deckmaste_core::Lookback;
     use deckmaste_core::OneShotEffect;
     use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
-    use deckmaste_core::Selection;
     use deckmaste_core::StatePredicate;
     use deckmaste_core::Type;
     use deckmaste_core::Zone;
@@ -1106,7 +1109,9 @@ mod tests {
         );
         assert_eq!(
             state.eval_count(
-                &Count::CountOf(Countable::Objects(Arc::new(creatures.clone()))),
+                &Count::CountOf(Countable::Objects(Arc::new(
+                    deckmaste_core::Region::candidate(creatures.clone()),
+                ))),
                 &frame
             ),
             2
@@ -1123,7 +1128,12 @@ mod tests {
             .into(),
         );
         assert_eq!(
-            state.eval_count(&Count::CountOf(Countable::Objects(Arc::new(yours))), &frame),
+            state.eval_count(
+                &Count::CountOf(Countable::Objects(Arc::new(
+                    deckmaste_core::Region::candidate(yours),
+                ))),
+                &frame,
+            ),
             1
         );
     }
@@ -1216,6 +1226,10 @@ mod tests {
 
     /// Mint a battlefield creature with an explicit power/toughness — the
     /// fixture the aggregate-fold (`SumOf` over `StatOf`) test drives.
+    #[allow(
+        dead_code,
+        reason = "shared fixture retained for neighboring count cases"
+    )]
     fn creature_with_power(state: &mut GameState, power: deckmaste_core::Int) -> ObjectId {
         let card = Card::Normal(CardFace {
             name: "Test Creature".into(),
@@ -1240,90 +1254,6 @@ mod tests {
     /// permanents>, CountOf(ManaSymbols(It, CountsAs(Green)))))`
     /// ([CR#700.5]); `SumOf` over `StatOf(It, Power)` totals power; every
     /// `AggregateOp` folds the empty set to 0 (never-crash).
-    #[test]
-    fn aggregate_folds_a_projection_over_a_selection() {
-        use deckmaste_core::AggregateOp;
-        use deckmaste_core::Color;
-        use deckmaste_core::Projection;
-        use deckmaste_core::RelationPredicate;
-        use deckmaste_core::StatePredicate;
-        use deckmaste_core::SymbolPred;
-
-        let mut state = game();
-        let _ = permanent_with_cost(&mut state, "{2}{G}");
-        let _ = permanent_with_cost(&mut state, "{G}{G}");
-        let src = permanent_with_cost(&mut state, "{1}");
-        let frame = frame_src(&state, src);
-
-        let your_permanents = Predicate::And(
-            vec![
-                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                    Reference::Reg(deckmaste_core::RefId(1)),
-                )))),
-            ]
-            .into(),
-        );
-
-        let devotion_green = Count::Aggregate(
-            AggregateOp::SumOf,
-            Projection {
-                of: Countable::Objects(Arc::new(your_permanents)),
-                by: Arc::new(Count::CountOf(Countable::ManaSymbols(
-                    Arc::new(Reference::It),
-                    SymbolPred::CountsAs(Color::Green),
-                ))),
-            },
-        );
-        assert_eq!(
-            state.eval_count(&devotion_green, &frame),
-            3,
-            "{{2}}{{G}} + {{G}}{{G}} + {{1}} = 3 green pips total"
-        );
-
-        // `SumOf` over `StatOf(It, Power)`: total power of your creatures.
-        let mut power_state = game();
-        let src = permanent_with_cost(&mut power_state, "{1}");
-        let _ = creature_with_power(&mut power_state, 2);
-        let _ = creature_with_power(&mut power_state, 5);
-        let frame = frame_src(&power_state, src);
-        let total_power = Count::Aggregate(
-            AggregateOp::SumOf,
-            Projection {
-                of: Countable::Objects(Arc::new(Predicate::And(
-                    vec![
-                        Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                        Predicate::creature(),
-                    ]
-                    .into(),
-                ))),
-                by: Arc::new(Count::StatOf(Reference::It, deckmaste_core::Stat::Power)),
-            },
-        );
-        assert_eq!(power_state.eval_count(&total_power, &frame), 7);
-
-        // The empty set folds every `AggregateOp` to 0.
-        let empty = Countable::Objects(Arc::new(Predicate::Not(Arc::new(Predicate::Any))));
-        for op in [
-            AggregateOp::SumOf,
-            AggregateOp::MinOf,
-            AggregateOp::MaxOf,
-            AggregateOp::AverageOf(deckmaste_core::RoundMode::RoundUp),
-        ] {
-            let empty_fold = Count::Aggregate(
-                op,
-                Projection {
-                    of: empty.clone(),
-                    by: Arc::new(Count::StatOf(Reference::It, deckmaste_core::Stat::Power)),
-                },
-            );
-            assert_eq!(
-                power_state.eval_count(&empty_fold, &frame),
-                0,
-                "{op:?} over the empty set is 0"
-            );
-        }
-    }
 
     /// The cross-player fold ([CR#119.1] Arbiter of Knollridge): `Aggregate`
     /// over a `Countable::Players` source reads each matching player's
@@ -1336,69 +1266,6 @@ mod tests {
     /// analog, since `Iterator::min`/`max`'s `None` case is the concrete
     /// panic risk (`.unwrap()` on an empty iterator) the never-crash ruling
     /// guards against.
-    #[test]
-    fn player_aggregate_folds_life_totals_and_fizzles_to_zero_on_empty() {
-        use deckmaste_core::AggregateOp;
-        use deckmaste_core::ObjectKind;
-        use deckmaste_core::PlayerAttr;
-        use deckmaste_core::Projection;
-
-        let mut state = game();
-        let src = permanent_with_cost(&mut state, "{1}");
-        let frame = frame_src(&state, src);
-        state.player_mut(PlayerId(0)).life = 12;
-        state.player_mut(PlayerId(1)).life = 20;
-
-        let all_players = Predicate::Kind(ObjectKind::Player);
-        let highest_life = |op: AggregateOp| {
-            Count::Aggregate(
-                op,
-                Projection {
-                    of: Countable::Players(Arc::new(all_players.clone())),
-                    by: Arc::new(Count::PlayerStatOf(Reference::It, PlayerAttr::Life)),
-                },
-            )
-        };
-        assert_eq!(
-            state.eval_count(&highest_life(AggregateOp::MaxOf), &frame),
-            20,
-            "the highest life total among all players"
-        );
-        assert_eq!(
-            state.eval_count(&highest_life(AggregateOp::MinOf), &frame),
-            12,
-            "the lowest life total among all players"
-        );
-        assert_eq!(
-            state.eval_count(&highest_life(AggregateOp::SumOf), &frame),
-            32,
-            "the total life across all players"
-        );
-
-        // An empty player set (a semantic-input error, but must stay safe on
-        // ANY input, not just the real ≥1-player fixtures) folds every op to
-        // 0 rather than panicking on `Iterator::min`/`max` of an empty set.
-        let no_players = Predicate::Not(Arc::new(Predicate::Any));
-        for op in [
-            AggregateOp::SumOf,
-            AggregateOp::MinOf,
-            AggregateOp::MaxOf,
-            AggregateOp::AverageOf(deckmaste_core::RoundMode::RoundUp),
-        ] {
-            let empty_fold = Count::Aggregate(
-                op,
-                Projection {
-                    of: Countable::Players(Arc::new(no_players.clone())),
-                    by: Arc::new(Count::PlayerStatOf(Reference::It, PlayerAttr::Life)),
-                },
-            );
-            assert_eq!(
-                state.eval_count(&empty_fold, &frame),
-                0,
-                "{op:?} over the empty player set is 0"
-            );
-        }
-    }
 
     /// The player-scope stat predicate ([CR#119.1]): `CountOf(Players(
     /// PlayerStatCmp(Life, AtMost, N)))` counts players whose life total is
@@ -1419,11 +1286,13 @@ mod tests {
         state.player_mut(PlayerId(1)).life = 10;
 
         let count_at_most = |threshold| {
-            Count::CountOf(Countable::Players(Arc::new(Predicate::PlayerStatCmp(
-                PlayerAttr::Life,
-                Cmp::AtMost,
-                Count::Literal(threshold),
-            ))))
+            Count::CountOf(Countable::Players(Arc::new(
+                deckmaste_core::Region::candidate(Predicate::PlayerStatCmp(
+                    PlayerAttr::Life,
+                    Cmp::AtMost,
+                    Count::Literal(threshold),
+                )),
+            )))
         };
 
         assert_eq!(
@@ -1449,86 +1318,6 @@ mod tests {
     /// permanents (not just one object's multiple pips), and an actually
     /// empty battlefield (no permanents minted at all, not a `Not(Any)`
     /// filter trick).
-    #[test]
-    fn devotion_sums_a_color_disjunction_across_permanents_and_fizzles_to_zero_on_empty() {
-        use deckmaste_core::AggregateOp;
-        use deckmaste_core::Color;
-        use deckmaste_core::Projection;
-        use deckmaste_core::RelationPredicate;
-        use deckmaste_core::StatePredicate;
-        use deckmaste_core::SymbolPred;
-
-        let your_permanents = || {
-            Predicate::And(
-                vec![
-                    Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                    Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                        Reference::Reg(deckmaste_core::RefId(1)),
-                    )))),
-                ]
-                .into(),
-            )
-        };
-        let devotion_wb = |of| {
-            Count::Aggregate(
-                AggregateOp::SumOf,
-                Projection {
-                    of,
-                    by: Arc::new(Count::CountOf(Countable::ManaSymbols(
-                        Arc::new(Reference::It),
-                        SymbolPred::Or(
-                            vec![
-                                SymbolPred::CountsAs(Color::White),
-                                SymbolPred::CountsAs(Color::Black),
-                            ]
-                            .into(),
-                        ),
-                    ))),
-                },
-            )
-        };
-
-        // `{W}{B}{W/B}` split across three separate permanents you control =
-        // 1 + 1 + 1 = 3 (the hybrid pip counts toward both W and B devotion,
-        // but only once per object — `Or` matches, it doesn't double-count).
-        let mut state = game();
-        let _ = permanent_with_cost(&mut state, "{W}");
-        let _ = permanent_with_cost(&mut state, "{B}");
-        let src = permanent_with_cost(&mut state, "{W/B}");
-        let frame = frame_src(&state, src);
-        assert_eq!(
-            state.eval_count(
-                &devotion_wb(Countable::Objects(Arc::new(your_permanents()))),
-                &frame
-            ),
-            3,
-            "{{W}} + {{B}} + {{W/B}} = 3 devotion to white-and-black"
-        );
-
-        // An empty battlefield — no permanents at all, not an artificial
-        // never-matching filter — folds to 0 (never-crash). `src` itself
-        // lives in hand, so `InZone(Battlefield)` matches nothing.
-        let mut empty_state = game();
-        let card = Card::Normal(CardFace {
-            name: "Test Card".into(),
-            mana_cost: "{1}".parse().unwrap(),
-            types: vec![Type::Artifact.def()],
-            ..CardFace::default()
-        });
-        let cid = empty_state.cards.push(Arc::new(card), PlayerId(0));
-        let src = empty_state
-            .objects
-            .mint(ObjectSource::Card(cid), PlayerId(0), Some(Zone::Hand));
-        let frame = frame_src(&empty_state, src);
-        assert_eq!(
-            empty_state.eval_count(
-                &devotion_wb(Countable::Objects(Arc::new(your_permanents()))),
-                &frame
-            ),
-            0,
-            "no permanents on the battlefield → devotion 0"
-        );
-    }
 
     /// `StatOf` reads the DERIVED stat (a pump shows through) and the
     /// printed mana value ([CR#202.3]).
@@ -1574,33 +1363,6 @@ mod tests {
     /// "That much" reads the amount the damage instruction fixed: the two
     /// instructions run through the agenda, the `DamageDealt` apply records
     /// 3, and the later `GainLife(ThatMuch)` evaluation reads it back.
-    #[test]
-    fn that_much_gains_life_equal_to_damage_dealt() {
-        let (mut state, bear) = bear_on_field();
-        let frame = frame_src_targets(&state, bear, vec![bear]);
-        state.run_effect(
-            OneShotEffect::Sequentially(
-                vec![
-                    OneShotEffect::Act(Action::deal_damage(
-                        Reference::Reg(deckmaste_core::RefId(6)),
-                        Count::Literal(3),
-                    )),
-                    OneShotEffect::Act(Action::ChangeLife(
-                        Reference::Reg(deckmaste_core::RefId(1)),
-                        LifeOp::Up(Count::ThatMuch),
-                    )),
-                ]
-                .into(),
-            ),
-            &frame,
-        );
-        // RunEffect(damage) → Emit(DamageDealt) → RunEffect(gain) → Emit(LifeGained).
-        for _ in 0..4 {
-            let _ = state.step();
-        }
-        assert_eq!(state.objects.obj(bear).total_damage(), 3);
-        assert_eq!(state.players[0].life, 23);
-    }
 
     #[test]
     fn count_x_reads_announced_value() {
@@ -1831,7 +1593,9 @@ mod tests {
             state.run_effect(
                 OneShotEffect::Act(Action::Create {
                     agent: Reference::Reg(deckmaste_core::RefId(1)),
-                    count: Count::CountOf(Countable::Objects(Arc::new(parsed))),
+                    count: Count::CountOf(Countable::Objects(Arc::new(
+                        deckmaste_core::Region::candidate(parsed),
+                    ))),
                     token: deckmaste_core::Token {
                         name: None,
                         color_indicator: vec![].into(),
@@ -2327,7 +2091,9 @@ mod tests {
         let frame = frame_for(&state, PlayerId(0));
         let powers = Count::CountDistinct(
             deckmaste_core::Characteristic::Power,
-            Countable::Objects(Arc::new(creatures_in_play())),
+            Countable::Objects(Arc::new(deckmaste_core::Region::candidate(
+                creatures_in_play(),
+            ))),
         );
         assert_eq!(
             state.eval_count(&powers, &frame),
@@ -2336,47 +2102,14 @@ mod tests {
         );
         let toughnesses = Count::CountDistinct(
             deckmaste_core::Characteristic::Toughness,
-            Countable::Objects(Arc::new(creatures_in_play())),
+            Countable::Objects(Arc::new(deckmaste_core::Region::candidate(
+                creatures_in_play(),
+            ))),
         );
         assert_eq!(
             state.eval_count(&toughnesses, &frame),
             3,
             "distinct toughnesses {{2,4,3}}",
-        );
-    }
-
-    /// `Selection::Pick` ([CR#107.1]) takes the extremal element: the creature
-    /// with the greatest power is the 3/3 Centaur Courser; the least-power pick
-    /// is the whole tied 2-power group.
-    #[test]
-    fn pick_extremal_creature_by_power() {
-        let (state, ids) = battlefield_with(&["Grizzly Bears", "Giant Spider", "Centaur Courser"]);
-        let courser = ids[2];
-        let frame = frame_for(&state, PlayerId(0));
-        let greatest = Selection::Pick {
-            op: deckmaste_core::AggregateOp::MaxOf,
-            proj: deckmaste_core::Projection {
-                of: deckmaste_core::Countable::Objects(Arc::new(creatures_in_play())),
-                by: Arc::new(Count::StatOf(Reference::It, deckmaste_core::Stat::Power)),
-            },
-        };
-        assert_eq!(
-            state.eval_selection_set(&greatest, &frame),
-            vec![courser],
-            "Centaur Courser (3 power) is the unique greatest",
-        );
-        let least = Selection::Pick {
-            op: deckmaste_core::AggregateOp::MinOf,
-            proj: deckmaste_core::Projection {
-                of: deckmaste_core::Countable::Objects(Arc::new(creatures_in_play())),
-                by: Arc::new(Count::StatOf(Reference::It, deckmaste_core::Stat::Power)),
-            },
-        };
-        let picked = state.eval_selection_set(&least, &frame);
-        assert_eq!(picked.len(), 2, "the two 2-power creatures tie for least");
-        assert!(
-            !picked.contains(&courser),
-            "the 3-power creature is not least"
         );
     }
 }

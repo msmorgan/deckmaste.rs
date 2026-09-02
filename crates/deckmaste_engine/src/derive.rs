@@ -369,11 +369,15 @@ pub fn tap_mana_ability(ability: &Ability) -> Option<(ColorOrColorless, Uint)> {
                 // The produced-mana effect is a bare `AddMana` in RON; the
                 // agent is irrelevant for tap-for-mana derivation.
                 [
-                    OneShotEffect::Act(Action::AddMana(
-                        _,
-                        Count::Literal(n),
-                        deckmaste_core::ManaProduction::Bare(ManaSpec::Specific(m)),
-                    )),
+                    OneShotEffect::Act {
+                        action:
+                            Action::AddMana(
+                                _,
+                                Count::Literal(n),
+                                deckmaste_core::ManaProduction::Bare(ManaSpec::Specific(m)),
+                            ),
+                        ..
+                    },
                 ] => Some((*m, *n)),
                 _ => None,
             }
@@ -428,7 +432,6 @@ mod tests {
         let trigger = TriggeredAbility {
             ability_word: None,
             targets: [].into(),
-            where_x: None,
             from: None,
             event: EventFilter::ZoneChange {
                 what: deckmaste_core::Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
@@ -544,7 +547,6 @@ mod tests {
         let back_trigger = TriggeredAbility {
             ability_word: None,
             targets: [].into(),
-            where_x: None,
             from: None,
             event: EventFilter::ZoneChange {
                 what: deckmaste_core::Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),

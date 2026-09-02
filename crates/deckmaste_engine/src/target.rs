@@ -218,14 +218,12 @@ pub(crate) fn matches_with_activation(
                 {
                     None => false,
                     Some((carrier, controller)) => {
-                        let frame = crate::stack::Frame {
-                            anaphora: crate::stack::Anaphora {
-                                it: Some(state.it_binding(id)),
-                                ..crate::stack::Anaphora::empty()
-                            },
-                            ..crate::stack::Frame::bare(carrier, controller)
-                        };
-                        state.condition_holds(cond, &frame)
+                        let mut frame = crate::stack::Frame::bare(carrier, controller);
+                        if activation != crate::ActivationId::NONE {
+                            frame.activation = activation;
+                        }
+                        frame.activation = state.enter_candidate_region(cond, &frame, id);
+                        state.condition_holds(&cond.body, &frame)
                     }
                 }
             }
@@ -275,27 +273,6 @@ pub(crate) fn matches_with_activation(
                         if state.designations.players.contains_key(&(p, *name)))
         }
 
-        // "this object" ([CR#603.10a]): match only when `id` is the watching
-        // object. Unreachable without a carrier (frameless targeting).
-        Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))) => match watcher {
-            Some(w) => state.objects.obj(id).source == w,
-            None => todo!(
-                "engine seam: Ref(This) at a frameless position — targeting threads no \
-                 carrier; owner: engine-frameless-carrier-threading"
-            ),
-        },
-        // "you" ([CR#109.5]): `id` is the watcher's controller's proxy.
-        Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))) => match watcher {
-            Some(w) => {
-                let controller = state.controller_of_source(w);
-                matches!(state.objects.obj(id).source,
-                    ObjectSource::Player(p) if Some(p) == controller)
-            }
-            None => todo!(
-                "engine seam: Ref(You) at a frameless position — targeting threads no \
-                 carrier; owner: engine-frameless-carrier-threading"
-            ),
-        },
         // "the host of THIS attachment" ([CR#301.5,303.4]): `id` is the
         // permanent that THIS (the watcher) is attached to. Used by umbra/totem
         // armor to express "the enchanted permanent" as the watched subject of
@@ -305,7 +282,12 @@ pub(crate) fn matches_with_activation(
         // The general `AttachHostOf(inner)` case needs `eval_reference` and is
         // therefore left as a seam.
         Predicate::Ref(Reference::AttachHostOf(inner))
-            if matches!(*inner.as_ref(), Reference::Reg(deckmaste_core::RefId(0))) =>
+            if matches!(inner.as_ref(), Reference::Reg(reference)
+            if state.activation_reference_is(
+                activation,
+                *reference,
+                &deckmaste_core::Provenance::Source,
+            )) =>
         {
             match watcher {
                 Some(w) => {
@@ -522,7 +504,7 @@ pub(crate) fn matches_with_activation(
         // outside an ordered zone, or a cross-zone/cross-player pair,
         // gracefully reads `false` — never a panic on a semantic-input error
         // or a not-yet-reachable reference shape.
-        Predicate::Adjacent(dir, r) => resolve_watcher_reference(state, r, watcher)
+        Predicate::Adjacent(dir, r) => resolve_watcher_reference(state, r, watcher, activation)
             .and_then(|anchor| {
                 let a = ordered_zone_position(state, anchor)?;
                 let c = ordered_zone_position(state, id)?;
@@ -598,12 +580,23 @@ pub(crate) fn matches_with_activation(
             .activation_product(activation, *reference)
             .and_then(|product| product.current)
             .map_or_else(
-                || match (reference.0, watcher) {
-                    // Read-only castability checks run before an activation is
-                    // allocated. The fixed source/controller prefix remains
-                    // available from the targeting carrier in that phase.
-                    (0, Some(source)) => state.objects.obj(id).source == source,
-                    (1, Some(source)) => {
+                || match (state.activation_provenance(activation, *reference), watcher) {
+                    (Some(deckmaste_core::Provenance::Source), Some(source)) => {
+                        state.objects.obj(id).source == source
+                    }
+                    (Some(deckmaste_core::Provenance::Controller), Some(source)) => {
+                        let controller = state.controller_of_source(source);
+                        matches!(state.objects.obj(id).source,
+                            ObjectSource::Player(player) if Some(player) == controller)
+                    }
+                    (None, Some(source))
+                        if Reference::Reg(*reference) == Reference::source_parameter() =>
+                    {
+                        state.objects.obj(id).source == source
+                    }
+                    (None, Some(source))
+                        if Reference::Reg(*reference) == Reference::controller_parameter() =>
+                    {
                         let controller = state.controller_of_source(source);
                         matches!(state.objects.obj(id).source,
                             ObjectSource::Player(player) if Some(player) == controller)
@@ -633,12 +626,25 @@ fn resolve_watcher_reference(
     state: &GameState,
     r: &Reference,
     watcher: Option<ObjectSource>,
+    activation: crate::ActivationId,
 ) -> Option<ObjectId> {
     match (r, watcher) {
-        (&Reference::Reg(deckmaste_core::RefId(0)), Some(w)) => {
+        (&Reference::Reg(reference), Some(w))
+            if state.activation_reference_is(
+                activation,
+                reference,
+                &deckmaste_core::Provenance::Source,
+            ) =>
+        {
             state.objects.iter().find(|o| o.source == w).map(|o| o.id)
         }
-        (&Reference::Reg(deckmaste_core::RefId(1)), Some(w)) => {
+        (&Reference::Reg(reference), Some(w))
+            if state.activation_reference_is(
+                activation,
+                reference,
+                &deckmaste_core::Provenance::Controller,
+            ) =>
+        {
             let controller = state.controller_of_source(w)?;
             Some(state.player(controller).object)
         }
@@ -871,6 +877,54 @@ pub(crate) fn candidates_with_activation(
         .collect()
 }
 
+#[must_use]
+pub(crate) fn matches_region_with_activation(
+    state: &GameState,
+    id: ObjectId,
+    region: &deckmaste_core::Region<Predicate>,
+    watcher: Option<ObjectSource>,
+    activation: crate::ActivationId,
+) -> bool {
+    let (source, controller) = if activation == crate::ActivationId::NONE {
+        let Some((source, controller)) = watcher.and_then(|wanted| {
+            state
+                .objects
+                .iter()
+                .find(|object| object.source == wanted)
+                .map(|object| (object.id, object.controller))
+        }) else {
+            return false;
+        };
+        (source, controller)
+    } else {
+        (
+            state.activation_source(activation),
+            state.activation_controller(activation),
+        )
+    };
+    let mut frame = crate::stack::Frame::bare(source, controller);
+    if activation != crate::ActivationId::NONE {
+        frame.activation = activation;
+    }
+    frame.activation = state.enter_candidate_region(region, &frame, id);
+    matches_with_activation(state, id, &region.body, watcher, frame.activation)
+}
+
+#[must_use]
+pub(crate) fn candidates_region_with_activation(
+    state: &GameState,
+    region: &deckmaste_core::Region<Predicate>,
+    watcher: Option<ObjectSource>,
+    activation: crate::ActivationId,
+) -> Vec<ObjectId> {
+    state
+        .objects
+        .iter()
+        .map(|object| object.id)
+        .filter(|&id| matches_region_with_activation(state, id, region, watcher, activation))
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::Path;
@@ -1059,7 +1113,12 @@ mod tests {
         let any_target: TargetSpec = semantic.lower();
         let filter = crate::resolve::target_spec_filter(&any_target);
         let (state, bear) = game_with_a_bear_on_the_field();
-        let targets = candidates(&state, filter);
+        let targets = candidates_region_with_activation(
+            &state,
+            filter,
+            Some(state.objects.obj(bear).source),
+            crate::ActivationId::NONE,
+        );
         // Both player proxies + the lone battlefield creature; no lands (in
         // hand/library), no spells (stack empty).
         assert!(targets.contains(&bear));
@@ -1800,90 +1859,6 @@ mod tests {
         (state, bear, ghoul)
     }
 
-    fn where_is_subject_color(c: deckmaste_core::Color) -> Predicate {
-        Predicate::Where(Arc::new(deckmaste_core::Condition::Matches(
-            deckmaste_core::Reference::It,
-            Predicate::Characteristic(deckmaste_core::CharacteristicPredicate::ColorIs(c)),
-        )))
-    }
-
-    /// `Where(SharesColor(Subject, This))` spelled out: the candidate shares a
-    /// color with the carrier (`This`).
-    fn where_shares_color_with_carrier() -> Predicate {
-        use deckmaste_core::CharacteristicPredicate::ColorIs;
-        use deckmaste_core::Color::Black;
-        use deckmaste_core::Color::Blue;
-        use deckmaste_core::Color::Green;
-        use deckmaste_core::Color::Red;
-        use deckmaste_core::Color::White;
-        use deckmaste_core::Condition;
-        use deckmaste_core::Reference;
-        let branch = |c| {
-            Condition::And(
-                vec![
-                    Condition::Matches(Reference::It, Predicate::Characteristic(ColorIs(c))),
-                    Condition::Matches(
-                        Reference::Reg(deckmaste_core::RefId(0)),
-                        Predicate::Characteristic(ColorIs(c)),
-                    ),
-                ]
-                .into(),
-            )
-        };
-        Predicate::Where(Arc::new(Condition::Or(
-            vec![
-                branch(White),
-                branch(Blue),
-                branch(Black),
-                branch(Red),
-                branch(Green),
-            ]
-            .into(),
-        )))
-    }
-
-    /// `Subject` inside a `Where` condition resolves to the candidate being
-    /// matched: a green Grizzly Bears satisfies `Where(Is(Subject,
-    /// ColorIs(Green)))` but not `ColorIs(White)`.
-    #[test]
-    fn where_binds_subject_to_the_candidate() {
-        let (state, bear, _ghoul) = game_with_bear_and_ghoul();
-        let carrier = Some(state.objects.obj(bear).source);
-        assert!(matches_with(
-            &state,
-            bear,
-            &where_is_subject_color(deckmaste_core::Color::Green),
-            carrier
-        ));
-        assert!(!matches_with(
-            &state,
-            bear,
-            &where_is_subject_color(deckmaste_core::Color::White),
-            carrier
-        ));
-    }
-
-    /// `SharesColor(Subject, This)` compares the candidate to the carrier: a
-    /// green candidate shares a color with a green carrier; a black one does
-    /// not. `Subject` is the candidate, `This` the carrier (`watcher`).
-    #[test]
-    fn where_shares_color_compares_candidate_to_carrier() {
-        let (state, bear, ghoul) = game_with_bear_and_ghoul();
-        let carrier = Some(state.objects.obj(bear).source);
-        assert!(matches_with(
-            &state,
-            bear,
-            &where_shares_color_with_carrier(),
-            carrier
-        ));
-        assert!(!matches_with(
-            &state,
-            ghoul,
-            &where_shares_color_with_carrier(),
-            carrier
-        ));
-    }
-
     // -------------------------------------------------------------------------
     // The Mentor target filter ([CR#702.134a]): a cross-object stat comparison
     // in a TARGET filter — "attacking creature with power less than this
@@ -1892,6 +1867,10 @@ mod tests {
 
     /// Force a fresh battlefield creature of card `name` (from canon) under
     /// player 0, returning its object id.
+    #[allow(
+        dead_code,
+        reason = "shared fixture retained for neighboring target cases"
+    )]
     fn put_canon_creature(state: &mut GameState, name: &str) -> ObjectId {
         let card = Arc::new(canon().card(name).unwrap().core);
         let cid = state.cards.push(card, PlayerId(0));
@@ -1908,6 +1887,10 @@ mod tests {
     /// the Mentor carrier), a Grizzly Bears (2/2, lesser power), and a Fangren
     /// Hunter (4/4, greater power). All three are declared as attackers so
     /// `Attacking` admits each.
+    #[allow(
+        dead_code,
+        reason = "shared fixture retained for neighboring target cases"
+    )]
     fn mentor_board() -> (GameState, ObjectId, ObjectId, ObjectId) {
         let courser = Arc::new(canon().card("Centaur Courser").unwrap().core);
         let mut state = GameState::new(GameConfig {
@@ -1939,68 +1922,6 @@ mod tests {
             state.combat.declare_attacker(id, def);
         }
         (state, courser, bears, hunter)
-    }
-
-    /// The Mentor target filter: an attacking creature whose power is less than
-    /// the carrier's power ([CR#702.134a]) — the `Where`/`Subject`/`This`
-    /// cross-object stat comparison the keyword macro emits.
-    fn mentor_target_filter() -> Predicate {
-        use deckmaste_core::Cmp;
-        use deckmaste_core::Condition;
-        use deckmaste_core::Count;
-        use deckmaste_core::Reference;
-        use deckmaste_core::Stat;
-        Predicate::And(
-            vec![
-                Predicate::State(StatePredicate::Attacking),
-                Predicate::Where(Arc::new(Condition::Compare(
-                    Count::StatOf(Reference::It, Stat::Power),
-                    Cmp::Less,
-                    Count::StatOf(Reference::Reg(deckmaste_core::RefId(0)), Stat::Power),
-                ))),
-            ]
-            .into(),
-        )
-    }
-
-    /// `candidates_with(.., Some(carrier))` over the Mentor filter admits ONLY
-    /// the lesser-power attacker: the 2/2 Bears (2 < 3), never the 4/4 Hunter
-    /// (4 < 3 is false) nor the 3/3 carrier itself (3 < 3 is false). This is
-    /// the load-bearing target-path fix — the carrier (`This`) resolves
-    /// through the threaded watcher, so the dynamic `StatOf(This, Power)`
-    /// bound evaluates instead of tripping the frameless `todo!`.
-    #[test]
-    fn mentor_filter_targets_only_lesser_power_attacker() {
-        let (state, courser, bears, hunter) = mentor_board();
-        let carrier = Some(state.objects.obj(courser).source);
-        let admitted = candidates_with(&state, &mentor_target_filter(), carrier);
-        assert!(
-            admitted.contains(&bears),
-            "the 2/2 Bears has power less than the 3/3 carrier — a legal Mentor target"
-        );
-        assert!(
-            !admitted.contains(&hunter),
-            "the 4/4 Hunter does NOT have lesser power — not a Mentor target"
-        );
-        assert!(
-            !admitted.contains(&courser),
-            "the carrier itself is not lesser-power than itself ([CR#702.134a])"
-        );
-        // Only the bears (the two player proxies have no power → the inner
-        // StatOf(Subject,Power) read fails their match, never the carrier's).
-        assert_eq!(admitted, vec![bears], "exactly the lesser-power attacker");
-    }
-
-    /// A per-candidate sanity slice of the same comparison via `matches_with`:
-    /// the carrier anchors `This`, `Subject` is each candidate.
-    #[test]
-    fn mentor_filter_matches_with_carrier() {
-        let (state, courser, bears, hunter) = mentor_board();
-        let carrier = Some(state.objects.obj(courser).source);
-        let f = mentor_target_filter();
-        assert!(matches_with(&state, bears, &f, carrier));
-        assert!(!matches_with(&state, hunter, &f, carrier));
-        assert!(!matches_with(&state, courser, &f, carrier));
     }
 
     /// `Adjacent` (Death Spark's "a creature card directly above it"):

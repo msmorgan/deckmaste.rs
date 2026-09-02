@@ -51,6 +51,7 @@ enum Value {
     Object(ReferenceProduct),
     Objects(Vec<ReferenceProduct>),
     Number(Uint),
+    Symbol(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -72,8 +73,14 @@ struct ActivationContext {
     event_object: Option<LkiSnapshot>,
     event_patient: Option<EventPatient>,
     event_actor: Option<crate::player::PlayerId>,
+    event_amount: Option<Uint>,
     targets: Vec<Vec<ObjectId>>,
     x: Option<Uint>,
+    chosen: Option<Vec<ObjectId>>,
+    produced_mana: Vec<deckmaste_core::ColorOrColorless>,
+    crossed: Option<(Uint, Uint)>,
+    inherited_replacements: std::collections::HashSet<crate::replace_registry::ReplacementKey>,
+    contained_in_batch: bool,
 }
 
 impl ActivationContext {
@@ -86,8 +93,14 @@ impl ActivationContext {
             event_object: None,
             event_patient: None,
             event_actor: None,
+            event_amount: None,
             targets: Vec::new(),
             x: None,
+            chosen: None,
+            produced_mana: Vec::new(),
+            crossed: None,
+            inherited_replacements: std::collections::HashSet::new(),
+            contained_in_batch: false,
         }
     }
 }
@@ -102,7 +115,16 @@ impl crate::state::GameState {
 
     /// Enter `region`, populating its declared parameter prefix from the
     /// resolution inputs carried by `frame`.
-    pub(crate) fn enter_region(&self, region: &Region, frame: &Frame) -> ActivationId {
+    pub(crate) fn enter_region<T>(&self, region: &Region<T>, frame: &Frame) -> ActivationId {
+        self.enter_region_with(region, frame, &[])
+    }
+
+    fn enter_region_with<T>(
+        &self,
+        region: &Region<T>,
+        frame: &Frame,
+        supplied: &[(Provenance, Value)],
+    ) -> ActivationId {
         let context = self.activation_context(frame.activation);
         let values = region
             .params
@@ -142,6 +164,9 @@ impl crate::state::GameState {
                         })
                     })
                 }
+                Provenance::EventAmount => context
+                    .event_amount
+                    .map_or(Value::Unavailable, Value::Number),
                 Provenance::DefendingPlayer => {
                     context
                         .defending_player
@@ -159,11 +184,20 @@ impl crate::state::GameState {
                         Value::Objects(pack_objects(self, objects))
                     }),
                 Provenance::AnnouncedX => context.x.map_or(Value::Unavailable, Value::Number),
-                Provenance::Capture(_)
-                | Provenance::Linked(_)
+                Provenance::Capture(reference) => self
+                    .activations
+                    .borrow()
+                    .get(&frame.activation)
+                    .and_then(|parent| parent.values.get(reference.0 as usize))
+                    .cloned()
+                    .unwrap_or(Value::Unavailable),
+                provenance @ (Provenance::Linked(_)
                 | Provenance::LoopElement
                 | Provenance::Allotment
-                | Provenance::Candidate => Value::Unavailable,
+                | Provenance::Candidate) => supplied
+                    .iter()
+                    .find(|(candidate, _)| candidate == provenance)
+                    .map_or(Value::Unavailable, |(_, value)| value.clone()),
             })
             .collect();
         let id = self.mint_activation_id();
@@ -289,7 +323,8 @@ impl crate::state::GameState {
                     current: Some(object),
                     lki: None,
                 }),
-            Provenance::AnnouncedX
+            Provenance::EventAmount
+            | Provenance::AnnouncedX
             | Provenance::Capture(_)
             | Provenance::Linked(_)
             | Provenance::LoopElement
@@ -438,22 +473,26 @@ impl crate::state::GameState {
         activation: ActivationId,
         reference: RefId,
     ) -> Option<ReferenceProduct> {
-        let mut product = match self
-            .activations
-            .borrow()
-            .get(&activation)?
-            .values
-            .get(reference.0 as usize)?
-        {
+        let activations = self.activations.borrow();
+        let record = activations.get(&activation)?;
+        let is_instruction_product = record.params.get(reference.0 as usize).is_none();
+        let mut product = match record.values.get(reference.0 as usize)? {
             Value::Object(product) => Some(product.clone()),
             Value::Objects(objects) => objects.first().cloned(),
-            Value::Unavailable | Value::Number(_) => None,
+            Value::Unavailable | Value::Number(_) | Value::Symbol(_) => None,
         }?;
         if product
             .current
             .is_some_and(|object| self.objects.get(object).is_none())
         {
-            product.current = None;
+            product.current = if is_instruction_product {
+                product
+                    .current
+                    .map(|object| self.chase_moved(object))
+                    .filter(|object| self.objects.get(*object).is_some())
+            } else {
+                None
+            };
         }
         Some(product)
     }
@@ -463,23 +502,28 @@ impl crate::state::GameState {
         activation: ActivationId,
         reference: RefId,
     ) -> Vec<ObjectId> {
-        match self
-            .activations
-            .borrow()
-            .get(&activation)
-            .and_then(|record| record.values.get(reference.0 as usize))
-        {
+        let activations = self.activations.borrow();
+        let Some(record) = activations.get(&activation) else {
+            return Vec::new();
+        };
+        let is_instruction_product = record.params.get(reference.0 as usize).is_none();
+        let live = |object| {
+            if self.objects.get(object).is_some() {
+                Some(object)
+            } else if is_instruction_product {
+                let moved = self.chase_moved(object);
+                self.objects.get(moved).map(|_| moved)
+            } else {
+                None
+            }
+        };
+        match record.values.get(reference.0 as usize) {
             Some(Value::Objects(objects)) => objects
                 .iter()
-                .filter_map(|product| product.current)
-                .filter(|object| self.objects.get(*object).is_some())
+                .filter_map(|product| product.current.and_then(live))
                 .collect(),
-            Some(Value::Object(product)) => product
-                .current
-                .filter(|object| self.objects.get(*object).is_some())
-                .into_iter()
-                .collect(),
-            Some(Value::Unavailable | Value::Number(_)) | None => Vec::new(),
+            Some(Value::Object(product)) => product.current.and_then(live).into_iter().collect(),
+            Some(Value::Unavailable | Value::Number(_) | Value::Symbol(_)) | None => Vec::new(),
         }
     }
 
@@ -496,7 +540,7 @@ impl crate::state::GameState {
             .get(reference.0 as usize)?
         {
             Value::Number(number) => Some(*number),
-            Value::Unavailable | Value::Object(_) | Value::Objects(_) => None,
+            Value::Unavailable | Value::Object(_) | Value::Objects(_) | Value::Symbol(_) => None,
         }
     }
 
@@ -511,6 +555,27 @@ impl crate::state::GameState {
             .params
             .get(reference.0 as usize)
             .map(|param| param.provenance.clone())
+    }
+
+    pub(crate) fn activation_reference_is(
+        &self,
+        activation: ActivationId,
+        reference: RefId,
+        provenance: &Provenance,
+    ) -> bool {
+        self.activation_provenance(activation, reference).as_ref() == Some(provenance)
+            || (activation == ActivationId::NONE
+                && match provenance {
+                    Provenance::Source => {
+                        deckmaste_core::Reference::Reg(reference)
+                            == deckmaste_core::Reference::source_parameter()
+                    }
+                    Provenance::Controller => {
+                        deckmaste_core::Reference::Reg(reference)
+                            == deckmaste_core::Reference::controller_parameter()
+                    }
+                    _ => false,
+                })
     }
 
     /// Fill the announced-target parameters after target selection commits.
@@ -558,6 +623,196 @@ impl crate::state::GameState {
         }
     }
 
+    pub(crate) fn enter_candidate_region<T>(
+        &self,
+        region: &Region<T>,
+        frame: &Frame,
+        candidate: ObjectId,
+    ) -> ActivationId {
+        let value = Value::Object(
+            pack_objects(self, &[candidate])
+                .into_iter()
+                .next()
+                .expect("one candidate"),
+        );
+        self.enter_region_with(region, frame, &[(Provenance::Candidate, value)])
+    }
+
+    pub(crate) fn enter_loop_region(
+        &self,
+        region: &Region,
+        frame: &Frame,
+        element: ObjectId,
+        allotment: Option<Uint>,
+    ) -> ActivationId {
+        let object = Value::Object(
+            pack_objects(self, &[element])
+                .into_iter()
+                .next()
+                .expect("one element"),
+        );
+        let mut supplied = vec![(Provenance::LoopElement, object)];
+        if let Some(amount) = allotment {
+            supplied.push((Provenance::Allotment, Value::Number(amount)));
+        }
+        self.enter_region_with(region, frame, &supplied)
+    }
+
+    fn activation_write(&self, activation: ActivationId, def: deckmaste_core::DefId, value: Value) {
+        let mut activations = self.activations.borrow_mut();
+        let record = activations
+            .get_mut(&activation)
+            .expect("stored activation exists");
+        let index = def.0 as usize;
+        if record.values.len() <= index {
+            record.values.resize(index + 1, Value::Unavailable);
+        }
+        record.values[index] = value;
+    }
+
+    pub(crate) fn activation_write_object(
+        &self,
+        activation: ActivationId,
+        def: deckmaste_core::DefId,
+        object: ObjectId,
+    ) {
+        let product = pack_objects(self, &[object])
+            .into_iter()
+            .next()
+            .expect("one object");
+        self.activation_write(activation, def, Value::Object(product));
+    }
+
+    pub(crate) fn activation_write_objects(
+        &self,
+        activation: ActivationId,
+        def: deckmaste_core::DefId,
+        objects: &[ObjectId],
+    ) {
+        self.activation_write(activation, def, Value::Objects(pack_objects(self, objects)));
+    }
+
+    pub(crate) fn activation_write_number(
+        &self,
+        activation: ActivationId,
+        def: deckmaste_core::DefId,
+        number: Uint,
+    ) {
+        self.activation_write(activation, def, Value::Number(number));
+    }
+
+    pub(crate) fn activation_write_symbol(
+        &self,
+        activation: ActivationId,
+        def: deckmaste_core::DefId,
+        symbol: String,
+    ) {
+        self.activation_write(activation, def, Value::Symbol(symbol));
+    }
+
+    pub(crate) fn activation_latest_object(&self, activation: ActivationId) -> Option<ObjectId> {
+        self.activations
+            .borrow()
+            .get(&activation)?
+            .values
+            .iter()
+            .rev()
+            .find_map(|value| match value {
+                Value::Object(product) => product.current,
+                Value::Objects(products) => products.first().and_then(|product| product.current),
+                Value::Unavailable | Value::Number(_) | Value::Symbol(_) => None,
+            })
+    }
+
+    pub(crate) fn activation_latest_number(&self, activation: ActivationId) -> Option<Uint> {
+        self.activations
+            .borrow()
+            .get(&activation)?
+            .values
+            .iter()
+            .rev()
+            .find_map(|value| match value {
+                Value::Number(number) => Some(*number),
+                Value::Unavailable | Value::Object(_) | Value::Objects(_) | Value::Symbol(_) => {
+                    None
+                }
+            })
+    }
+
+    pub(crate) fn activation_chosen(&self, activation: ActivationId) -> Option<Vec<ObjectId>> {
+        self.activation_context(activation).chosen
+    }
+
+    pub(crate) fn activation_crossed(&self, activation: ActivationId) -> Option<(Uint, Uint)> {
+        self.activation_context(activation).crossed
+    }
+
+    pub(crate) fn activation_produced_mana(
+        &self,
+        activation: ActivationId,
+    ) -> Vec<deckmaste_core::ColorOrColorless> {
+        self.activation_context(activation).produced_mana
+    }
+
+    pub(crate) fn activation_inherited_replacements(
+        &self,
+        activation: ActivationId,
+    ) -> std::collections::HashSet<crate::replace_registry::ReplacementKey> {
+        self.activation_context(activation).inherited_replacements
+    }
+
+    pub(crate) fn activation_contained_in_batch(&self, activation: ActivationId) -> bool {
+        self.activation_context(activation).contained_in_batch
+    }
+
+    pub(crate) fn frame_set_chosen(&self, frame: &mut Frame, chosen: Option<Vec<ObjectId>>) {
+        self.materialize_frame(frame);
+        self.activations
+            .borrow_mut()
+            .get_mut(&frame.activation)
+            .expect("materialized frame exists")
+            .context
+            .chosen = chosen;
+    }
+
+    pub(crate) fn frame_set_event_extras(
+        &self,
+        frame: &mut Frame,
+        amount: Option<Uint>,
+        produced_mana: Vec<deckmaste_core::ColorOrColorless>,
+        crossed: Option<(Uint, Uint)>,
+    ) {
+        self.materialize_frame(frame);
+        let mut activations = self.activations.borrow_mut();
+        let record = activations
+            .get_mut(&frame.activation)
+            .expect("materialized frame exists");
+        record.context.event_amount = amount;
+        record.context.produced_mana = produced_mana;
+        record.context.crossed = crossed;
+        for (param, value) in record.params.iter().zip(&mut record.values) {
+            if matches!(param.provenance, Provenance::EventAmount) {
+                *value = amount.map_or(Value::Unavailable, Value::Number);
+            }
+        }
+    }
+
+    pub(crate) fn frame_set_action_context(
+        &self,
+        frame: &mut Frame,
+        inherited: std::collections::HashSet<crate::replace_registry::ReplacementKey>,
+        contained: bool,
+    ) {
+        self.materialize_frame(frame);
+        let mut activations = self.activations.borrow_mut();
+        let context = &mut activations
+            .get_mut(&frame.activation)
+            .expect("materialized frame exists")
+            .context;
+        context.inherited_replacements = inherited;
+        context.contained_in_batch = contained;
+    }
+
     /// Freeze last-known information for every active register product that
     /// names an object immediately before that object leaves its zone.
     pub(crate) fn activation_departed(&mut self, object: ObjectId, snapshot: &LkiSnapshot) {
@@ -565,18 +820,17 @@ impl crate::state::GameState {
             for value in &mut record.values {
                 match value {
                     Value::Object(product) if product.current == Some(object) => {
-                        product.current = None;
                         product.lki = Some(snapshot.clone());
                     }
                     Value::Objects(products) => {
                         for product in products {
                             if product.current == Some(object) {
-                                product.current = None;
                                 product.lki = Some(snapshot.clone());
                             }
                         }
                     }
-                    Value::Unavailable | Value::Object(_) | Value::Number(_) => {}
+                    Value::Unavailable | Value::Object(_) | Value::Number(_) | Value::Symbol(_) => {
+                    }
                 }
             }
         }
@@ -618,7 +872,7 @@ impl crate::state::GameState {
 
     /// Reclaim one completed/countered resolution's root activation and every
     /// nested region entered beneath it.
-    pub(crate) fn remove_activation_family(&mut self, activation: ActivationId) {
+    pub(crate) fn remove_activation_family(&self, activation: ActivationId) {
         let Some(root) = self
             .activations
             .borrow()
@@ -692,7 +946,7 @@ mod tests {
     fn completed_resolution_reclaims_nested_family_but_not_stack_copy() {
         let mut state = bare_game();
         let source = state.player(PlayerId(0)).object;
-        let region = Region::new(Arc::from([]), Arc::from([]));
+        let region = Region::closed(());
         let root = state.enter_region(&region, &Frame::bare(source, PlayerId(0)));
         let mut nested_frame = Frame::bare(source, PlayerId(0));
         nested_frame.activation = root;

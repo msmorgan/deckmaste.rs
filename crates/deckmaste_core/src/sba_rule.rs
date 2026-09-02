@@ -4,6 +4,7 @@ use serde::Serialize;
 use crate::Condition;
 use crate::OneShotEffect;
 use crate::Predicate;
+use crate::Region;
 
 /// A rules-defined state-based action ([CR#704]) authored as data under a
 /// plugin's `rules/sba/` directory. Read it as: *for every battlefield object
@@ -15,6 +16,11 @@ use crate::Predicate;
 /// set is swappable (variant Magic) without touching the engine.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct SbaRule {
+    pub region: Region<SbaBody>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub struct SbaBody {
     pub scope: Predicate,
     pub when: Condition,
     pub then: OneShotEffect,
@@ -33,12 +39,22 @@ mod tests {
     fn sba_rule_has_scope_when_then() {
         // Construct directly to pin the field names and types.
         let rule = SbaRule {
-            scope: Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.into())),
-            when: Condition::YourTurn,
-            then: OneShotEffect::Sequentially(vec![].into()),
+            region: Region::closed(SbaBody {
+                scope: Predicate::Characteristic(CharacteristicPredicate::Type(
+                    Type::Creature.into(),
+                )),
+                when: Condition::YourTurn,
+                then: OneShotEffect::Sequentially(vec![].into()),
+            }),
         };
-        assert!(matches!(rule.scope, Predicate::Characteristic(_)));
-        assert!(matches!(rule.when, Condition::YourTurn));
-        assert!(matches!(rule.then, OneShotEffect::Sequentially(_)));
+        assert!(matches!(
+            rule.region.body.scope,
+            Predicate::Characteristic(_)
+        ));
+        assert!(matches!(rule.region.body.when, Condition::YourTurn));
+        assert!(matches!(
+            rule.region.body.then,
+            OneShotEffect::Sequentially(_)
+        ));
     }
 }

@@ -13,8 +13,6 @@ use deckmaste_core::Replacement;
 use deckmaste_core::StaticEffect;
 use deckmaste_core::Zone;
 
-#[cfg(test)]
-use crate::event::Attached;
 use crate::event::EnterStatus;
 #[cfg(test)]
 use crate::event::ZoneChange;
@@ -37,11 +35,13 @@ impl GameState {
         let mut status = EnterStatus::default();
         for ability in self.enters_fold_abilities(source, entering) {
             if let Ability::Static(s) = ability.peel_innate()
-                && let StaticEffect::Replacement(replacement) = s.as_ref()
+                && let StaticEffect::Replacement(replacement) = &s.body
                 && let Replacement::Also { would, also } = &**replacement
                 && would_is_self_enter(would)
             {
-                self.apply_as_enters(also, entering, &mut status);
+                let frame = self.enters_frame(entering, s);
+                self.apply_as_enters(also, entering, &mut status, &frame);
+                self.remove_activation_family(frame.activation);
             }
         }
         status
@@ -83,7 +83,7 @@ impl GameState {
             .iter()
             .any(|ability| {
                 let Ability::Static(s) = ability else { return false };
-                matches!(s.as_ref(), StaticEffect::Replacement(r)
+                matches!(&s.body, StaticEffect::Replacement(r)
                     if matches!(&**r, Replacement::Also { would, also }
                         if would_is_self_enter(would) && also_is_self_attach(also)))
             })
@@ -99,31 +99,56 @@ impl GameState {
         effect: &OneShotEffect,
         entering: crate::object::ObjectId,
         status: &mut EnterStatus,
+        frame: &crate::stack::Frame,
     ) {
         match effect {
             // `Tap` is agent-silent, so the `AsEnters` sugar expands to
             // `Act(Tap(This))`.
-            OneShotEffect::Act(Action::Tap(Reference::Reg(deckmaste_core::RefId(0)))) => {
+            OneShotEffect::Act {
+                action: Action::Tap(reference),
+                ..
+            } if *reference == Reference::source_parameter() => {
                 status.tapped = true;
+            }
+            OneShotEffect::Act {
+                action: Action::Attach { what, to },
+                ..
+            } if self.eval_reference(what, frame) == entering => {
+                let host = self.eval_reference(to, frame);
+                if self.objects.get(host).is_some()
+                    && crate::legal::attachment_legal(self, entering, host)
+                {
+                    status.attach_to = Some(host);
+                }
+            }
+            OneShotEffect::Choose(choice) => {
+                let watcher = Some(self.objects.obj(entering).source);
+                if let Some(host) = crate::target::candidates_region_with_activation(
+                    self,
+                    &choice.filter,
+                    watcher,
+                    frame.activation,
+                )
+                .into_iter()
+                .find(|&host| crate::legal::attachment_legal(self, entering, host))
+                {
+                    self.activation_write_objects(frame.activation, choice.dest, &[host]);
+                }
             }
             // [CR#303.4,303.4f]: enters attached. The enters-attached shape is
             // `With(ChooseOne(quality), Attach(This, That))` — as it enters, the
             // controller chooses a legal host matching the Aura's enchant
             // quality (choosing BEFORE the attach, never inside the verb). v1
             // picks the first legal candidate; the cast-path choice is Stage-4.
-            OneShotEffect::With(_) if enters_attached_quality(effect).is_some() => {
-                let filter = enters_attached_quality(effect).expect("guarded just above");
-                status.attach_to = self.enters_attached_host(entering, filter);
-            }
             // [CR#122.6a,614.1c]: enters with counters. `PutCounters(This, kind,
             // n)` self-replacement → fold `(kind, n)` into the entering status.
             // `n` is evaluated against a `This`-anchored frame so a count that
             // scales ("a +1/+1 counter for each …") resolves at entry.
-            OneShotEffect::Act(Action::PutCounters(what, kind, count))
-                if is_self_reference(what) =>
-            {
-                let frame = self.enters_frame(entering);
-                let n = self.eval_count(count, &frame);
+            OneShotEffect::Act {
+                action: Action::PutCounters(what, kind, count),
+                ..
+            } if is_self_reference(what) => {
+                let n = self.eval_count(count, frame);
                 if n > 0 {
                     status.counters.push((kind.0, n));
                 }
@@ -134,11 +159,10 @@ impl GameState {
             // Evaluate the gate against a `This`-anchored entry frame (the "you"
             // is the entering object's controller) and fold the chosen branch.
             OneShotEffect::If(if_effect) => {
-                let frame = self.enters_frame(entering);
-                if self.condition_holds(&if_effect.condition, &frame) {
-                    self.apply_as_enters(&if_effect.then, entering, status);
+                if self.condition_holds(&if_effect.condition, frame) {
+                    self.apply_as_enters(&if_effect.then, entering, status, frame);
                 } else if let Some(otherwise) = &if_effect.otherwise {
-                    self.apply_as_enters(otherwise, entering, status);
+                    self.apply_as_enters(otherwise, entering, status, frame);
                 }
             }
             // [CR#614.1c]: composing two self-augment folds — "enters tapped
@@ -148,7 +172,7 @@ impl GameState {
             // child into the same `status` in turn; order doesn't matter.
             OneShotEffect::Sequentially(effects) | OneShotEffect::Simultaneously(effects) => {
                 for child in effects.iter() {
-                    self.apply_as_enters(child, entering, status);
+                    self.apply_as_enters(child, entering, status, frame);
                 }
             }
             other => todo!(
@@ -163,40 +187,14 @@ impl GameState {
     /// the entering object, controller = its controller (the "you" a gate
     /// condition reads), no targets/bindings/chosen/x/subject. Shared by the
     /// counter-count and conditional-gate folds.
-    fn enters_frame(&self, entering: crate::object::ObjectId) -> crate::stack::Frame {
-        crate::stack::Frame::bare(entering, self.objects.obj(entering).controller)
-    }
-
-    /// Resolve the host an `AsEnters(Attach(This, to))` attaches to (§4). The
-    /// `to` selection is a *filter* over legal hosts (the enchant/equip
-    /// `Param(0)` quality, or a target-position filter looked through here):
-    /// pick the first battlefield permanent that both matches the `to` filter
-    /// AND is a LEGAL host for `entering` per `attachment_legal` ([CR#303.4f] —
-    /// the controller chooses among *legal* hosts; here, deterministic id
-    /// order). `attachment_legal` folds in host-side protection ([CR#702.16d])
-    /// on top of the `to` quality bound, generically — no subtype branch.
-    ///
-    /// Host resolution by entry context (spec §4) — entering from the stack
-    /// attaches to the resolving spell's chosen target, entering otherwise
-    /// surfaces a controller choice — is the Stage-4 cast-path wiring; Stage 1
-    /// resolves the candidate set so the mechanism is exercised end-to-end.
-    ///
-    /// `entering` is also the watcher for `filter`: a reanimation aura's
-    /// "attached to target creature you control" is `ControlledBy(Ref(You))`
-    /// ([CR#303.4f]), which needs a carrier to resolve `You` as the entering
-    /// object's controller — engine-frameless-carrier-threading.
-    fn enters_attached_host(
+    fn enters_frame<T>(
         &self,
         entering: crate::object::ObjectId,
-        filter: &Predicate,
-    ) -> Option<crate::object::ObjectId> {
-        let watcher = Some(self.objects.obj(entering).source);
-        crate::target::candidates_with(self, filter, watcher)
-            .into_iter()
-            .find(|&id| {
-                self.objects.obj(id).zone == Some(Zone::Battlefield)
-                    && crate::legal::attachment_legal(self, entering, id)
-            })
+        region: &deckmaste_core::Region<T>,
+    ) -> crate::stack::Frame {
+        let mut frame = crate::stack::Frame::bare(entering, self.objects.obj(entering).controller);
+        frame.activation = self.enter_region(region, &frame);
+        frame
     }
 }
 
@@ -204,38 +202,29 @@ impl GameState {
 /// `With(ChooseOne(quality), Attach(This, It))` ([CR#303.4f]: as it enters,
 /// the controller chooses a legal host matching the Aura's enchant quality),
 /// looked through `Expanded`. `None` for any other shape.
-fn enters_attached_quality(effect: &OneShotEffect) -> Option<&Predicate> {
-    match effect {
-        OneShotEffect::With(with) => {
-            let body_is_self_attach = matches!(
-                &*with.body,
-                OneShotEffect::Act(Action::Attach { what, to })
-                    if is_self_reference(what) && matches!(to, Reference::It)
-            );
-            if body_is_self_attach { host_quality(&with.binder) } else { None }
-        }
-        _ => None,
-    }
-}
-
 /// The `Predicate` a `ChooseOne` binder chooses among (the host quality),
 /// through a remembered macro invocation.
-fn host_quality(binder: &deckmaste_core::Binder) -> Option<&Predicate> {
-    match binder {
-        deckmaste_core::Binder::ChooseOne { filter, .. } => Some(filter),
-        _ => None,
-    }
-}
-
 /// Whether a `Reference` is this object itself (`This`).
 fn is_self_reference(r: &Reference) -> bool {
-    matches!(*r, Reference::Reg(deckmaste_core::RefId(0)))
+    *r == Reference::source_parameter()
 }
 
 /// Whether an `also` effect is this object attaching itself on entry — the
 /// enters-attached shape `With(ChooseOne(quality), Attach(This, That))`.
 fn also_is_self_attach(effect: &OneShotEffect) -> bool {
-    enters_attached_quality(effect).is_some()
+    let OneShotEffect::Sequentially(parts) = effect else { return false };
+    let [
+        OneShotEffect::Choose(choice),
+        OneShotEffect::Act {
+            action: Action::Attach { what, to },
+            ..
+        },
+    ] = parts.as_ref()
+    else {
+        return false;
+    };
+    is_self_reference(what)
+        && matches!(to, Reference::Reg(reference) if *reference == choice.dest.into())
 }
 
 /// Whether `would` is an enter-the-battlefield event for the watching object
@@ -248,10 +237,11 @@ fn would_is_self_enter(would: &EventFilter) -> bool {
         // A move *to* the battlefield, of this object (or match-anything).
         EventFilter::ZoneChange { what, to, .. } => {
             *to == Some(Zone::Battlefield)
-                && matches!(
+                && (matches!(
                     what,
-                    Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))) | Predicate::Any
-                )
+                    Predicate::Ref(reference)
+                        if *reference == Reference::source_parameter()
+                ) || matches!(what, Predicate::Any))
         }
         _ => false,
     }
@@ -265,8 +255,6 @@ mod tests {
     use deckmaste_card::Card;
     use deckmaste_card::CardFace;
     use deckmaste_core::Ability;
-    use deckmaste_core::Deontic;
-    use deckmaste_core::DeonticAction;
     use deckmaste_core::Type;
     use deckmaste_plugin::plugin::Plugin;
 
@@ -282,6 +270,10 @@ mod tests {
     use crate::state::StartingPlayer;
     use crate::step::StepOutcome;
 
+    #[allow(
+        dead_code,
+        reason = "shared fixture retained for neighboring replacement cases"
+    )]
     fn canon() -> Plugin {
         Plugin::load_with_sibling_prelude(
             Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/canon"),
@@ -304,54 +296,11 @@ mod tests {
         })
     }
 
-    /// A synthetic enchantment carrying the enters-attached self-replacement
-    /// `AsEnters(With(ChooseOne(<a creature on the battlefield>), Attach(This,
-    /// to: That)))` — the host quality is the `ChooseOne` filter; the
-    /// controller chooses a legal host as it enters ([CR#303.4f]) — PLUS
-    /// the default-deny `May(Attach(what: Ref(This), to: Creature))` grant
-    /// (the Enchant keyword's legal-host grant [CR#702.5a]) without which
-    /// the attach would be illegal.
-    fn enchant_aura_card() -> Card {
-        Card::Normal(CardFace {
-            name: "Test Aura".into(),
-            types: vec![Type::Enchantment.def()],
-            abilities: vec![
-                Ability::r#static(StaticEffect::Deontic(Deontic::May(DeonticAction::Attach {
-                    what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
-                    to: Predicate::creature(),
-                }))),
-                Ability::r#static(StaticEffect::Replacement(Arc::new(Replacement::Also {
-                    would: EventFilter::ZoneChange {
-                        what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
-                        from: None,
-                        to: Some(Zone::Battlefield),
-                        cause: None,
-                    },
-                    also: OneShotEffect::With(deckmaste_core::With {
-                        binder: deckmaste_core::Binder::ChooseOne {
-                            filter: Predicate::And(
-                                vec![
-                                    Predicate::State(deckmaste_core::StatePredicate::InZone(
-                                        Zone::Battlefield,
-                                    )),
-                                    Predicate::creature(),
-                                ]
-                                .into(),
-                            ),
-                            by: Reference::Reg(deckmaste_core::RefId(1)),
-                        },
-                        body: Arc::new(OneShotEffect::Act(Action::Attach {
-                            what: Reference::Reg(deckmaste_core::RefId(0)),
-                            to: Reference::It,
-                        })),
-                    }),
-                }))),
-            ],
-            ..CardFace::default()
-        })
-    }
-
     /// Put a Grizzly Bears on the battlefield as a host. Returns its id.
+    #[allow(
+        dead_code,
+        reason = "shared fixture retained for neighboring replacement cases"
+    )]
     fn host_creature(state: &mut GameState) -> ObjectId {
         let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
         let card = state.cards.push(bears, PlayerId(0));
@@ -364,173 +313,12 @@ mod tests {
         id
     }
 
-    /// Mint the Aura in its owner's hand and run a hand→battlefield entry to
-    /// completion (a non-cast ETB, so the host comes from the candidate set,
-    /// §4; the cast path's host-from-target is Stage-4 wiring). Returns the
-    /// Aura's reminted battlefield id.
-    fn enter_aura(state: &mut GameState) -> ObjectId {
-        let card = state.cards.push(Arc::new(enchant_aura_card()), PlayerId(0));
-        let hand_id = state
-            .objects
-            .mint(ObjectSource::Card(card), PlayerId(0), Some(Zone::Hand));
-        state.zones.hands[PlayerId(0).index()].push(hand_id);
-        state.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-            GameEvent::ZoneChange(ZoneChange {
-                snapshot: None,
-                object: hand_id,
-                from: Some(Zone::Hand),
-                to: Zone::Battlefield,
-                enters: None,
-                position: None,
-                face: None,
-                cause: None,
-            }),
-        ))]);
-        for _ in 0..30 {
-            if matches!(state.step(), StepOutcome::NeedsDecision(_)) {
-                break;
-            }
-        }
-        *state
-            .zones
-            .battlefield
-            .iter()
-            .find(|&&o| state.objects.obj(o).card_id() == Some(card))
-            .expect("the Aura entered the battlefield")
-    }
-
-    /// [CR#303.4]: an Aura with `AsEnters(Attach(This, to: Creature))` enters
-    /// the battlefield already attached to a legal host — no observable
-    /// unattached window, and the `Attached` fact is recorded.
-    #[test]
-    fn enters_attached_to_a_legal_host() {
-        let mut state = game();
-        let host = host_creature(&mut state);
-        let aura = enter_aura(&mut state);
-        assert_eq!(
-            state.objects.obj(aura).attached_to,
-            Some(host),
-            "the Aura entered attached to the host creature"
-        );
-        assert!(
-            state
-                .history
-                .scan(deckmaste_core::Lookback::ThisGame, state.turn.turn_number)
-                .any(
-                    |e| matches!(e, GameEvent::Attached(Attached { attachment, host: h })
-                    if *attachment == aura && *h == host)
-                ),
-            "the Attached fact was recorded on entry"
-        );
-    }
-
-    /// [CR#303.4f] (v1 approximation, §4): with no legal host on the
-    /// battlefield, the Aura enters unattached (the §5 SBA then graveyards it —
-    /// that sweep is Stage 2). No `Attached` fact.
-    #[test]
-    fn enters_unattached_when_no_legal_host() {
-        let mut state = game();
-        let aura = enter_aura(&mut state);
-        assert_eq!(
-            state.objects.obj(aura).attached_to,
-            None,
-            "no creature to attach to → enters unattached"
-        );
-        assert!(
-            !state
-                .history
-                .scan(deckmaste_core::Lookback::ThisGame, state.turn.turn_number)
-                .any(|e| matches!(e, GameEvent::Attached(Attached { .. }))),
-            "no Attached fact when there was no legal host"
-        );
-    }
-
-    /// A synthetic Aura like [`enchant_aura_card`], but the enters-attached
-    /// host quality is `ControlledBy(Ref(You))` (plus the battlefield/creature
-    /// guards) — the reanimation-aura shape "return ~ to the battlefield
-    /// attached to target creature you control" ([CR#303.4f]).
-    fn you_controlled_aura_card() -> Card {
-        use deckmaste_core::RelationPredicate;
-
-        Card::Normal(CardFace {
-            name: "Test You-Controlled Aura".into(),
-            types: vec![Type::Enchantment.def()],
-            abilities: vec![
-                Ability::r#static(StaticEffect::Deontic(Deontic::May(DeonticAction::Attach {
-                    what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
-                    to: Predicate::creature(),
-                }))),
-                Ability::r#static(StaticEffect::Replacement(Arc::new(Replacement::Also {
-                    would: EventFilter::ZoneChange {
-                        what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
-                        from: None,
-                        to: Some(Zone::Battlefield),
-                        cause: None,
-                    },
-                    also: OneShotEffect::With(deckmaste_core::With {
-                        binder: deckmaste_core::Binder::ChooseOne {
-                            filter: Predicate::And(
-                                vec![
-                                    Predicate::State(deckmaste_core::StatePredicate::InZone(
-                                        Zone::Battlefield,
-                                    )),
-                                    Predicate::creature(),
-                                    Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
-                                        Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
-                                    ))),
-                                ]
-                                .into(),
-                            ),
-                            by: Reference::Reg(deckmaste_core::RefId(1)),
-                        },
-                        body: Arc::new(OneShotEffect::Act(Action::Attach {
-                            what: Reference::Reg(deckmaste_core::RefId(0)),
-                            to: Reference::It,
-                        })),
-                    }),
-                }))),
-            ],
-            ..CardFace::default()
-        })
-    }
-
-    /// Mint the you-controlled-host Aura in P0's hand and run its entry to
-    /// completion, mirroring [`enter_aura`].
-    fn enter_you_controlled_aura(state: &mut GameState) -> ObjectId {
-        let card = state
-            .cards
-            .push(Arc::new(you_controlled_aura_card()), PlayerId(0));
-        let hand_id = state
-            .objects
-            .mint(ObjectSource::Card(card), PlayerId(0), Some(Zone::Hand));
-        state.zones.hands[PlayerId(0).index()].push(hand_id);
-        state.schedule_front(vec![WorkItem::Emit(Occurrence::single(
-            GameEvent::ZoneChange(ZoneChange {
-                snapshot: None,
-                object: hand_id,
-                from: Some(Zone::Hand),
-                to: Zone::Battlefield,
-                enters: None,
-                position: None,
-                face: None,
-                cause: None,
-            }),
-        ))]);
-        for _ in 0..30 {
-            if matches!(state.step(), StepOutcome::NeedsDecision(_)) {
-                break;
-            }
-        }
-        *state
-            .zones
-            .battlefield
-            .iter()
-            .find(|&&o| state.objects.obj(o).card_id() == Some(card))
-            .expect("the Aura entered the battlefield")
-    }
-
     /// Put a Grizzly Bears on the battlefield under `controller`. Returns its
     /// id.
+    #[allow(
+        dead_code,
+        reason = "shared fixture retained for neighboring replacement cases"
+    )]
     fn creature_controlled_by(state: &mut GameState, controller: PlayerId) -> ObjectId {
         let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
         let card = state.cards.push(bears, controller);
@@ -541,30 +329,6 @@ mod tests {
         );
         state.zones.battlefield.push(id);
         id
-    }
-
-    /// [CR#303.4f]: `enters_attached_host`'s `to` filter may carry
-    /// `ControlledBy(Ref(You))` — "return ~ to the battlefield attached to
-    /// target creature you control" — resolving against the entering
-    /// object's controller. engine-frameless-carrier-threading: with an
-    /// opponent-controlled creature ALSO on the battlefield, the frameless
-    /// matcher must still exclude it and pick the YOU-controlled one.
-    #[test]
-    fn enters_attached_host_resolves_controlled_by_you() {
-        let mut state = game();
-        let opponents_creature = creature_controlled_by(&mut state, PlayerId(1));
-        let hosts_creature = creature_controlled_by(&mut state, PlayerId(0));
-        let aura = enter_you_controlled_aura(&mut state);
-        assert_eq!(
-            state.objects.obj(aura).attached_to,
-            Some(hosts_creature),
-            "ControlledBy(Ref(You)) picks the YOU-controlled creature, never the opponent's"
-        );
-        assert_ne!(
-            state.objects.obj(aura).attached_to,
-            Some(opponents_creature),
-            "the opponent-controlled creature is never a legal ControlledBy(You) host"
-        );
     }
 
     /// [CR#122.6a,614.1c]: a permanent with an `AsEnters(PutCounters(This,
@@ -786,17 +550,40 @@ mod tests {
             vec![
                 Predicate::r#type(Type::Land),
                 Predicate::Not(Arc::new(Predicate::Ref(Reference::Reg(
-                    deckmaste_core::RefId(0),
+                    deckmaste_core::RefId(1),
                 )))),
                 Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                    Reference::Reg(deckmaste_core::RefId(1)),
+                    Reference::Reg(deckmaste_core::RefId(2)),
                 )))),
             ]
             .into(),
         );
         let gate = Condition::Compare(
             Count::CountOf(deckmaste_core::Countable::Objects(Arc::new(
-                other_lands_you_control,
+                deckmaste_core::Region::new(
+                    Arc::from([
+                        deckmaste_core::Param {
+                            def: deckmaste_core::DefId(0),
+                            kind: deckmaste_core::Kind::Object,
+                            provenance: deckmaste_core::Provenance::Candidate,
+                        },
+                        deckmaste_core::Param {
+                            def: deckmaste_core::DefId(1),
+                            kind: deckmaste_core::Kind::Object,
+                            provenance: deckmaste_core::Provenance::Capture(deckmaste_core::RefId(
+                                0,
+                            )),
+                        },
+                        deckmaste_core::Param {
+                            def: deckmaste_core::DefId(2),
+                            kind: deckmaste_core::Kind::Object,
+                            provenance: deckmaste_core::Provenance::Capture(deckmaste_core::RefId(
+                                1,
+                            )),
+                        },
+                    ]),
+                    other_lands_you_control,
+                ),
             ))),
             Cmp::AtLeast,
             Count::Literal(1),

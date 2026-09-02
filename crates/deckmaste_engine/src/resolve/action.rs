@@ -682,10 +682,10 @@ impl GameState {
                 // ITS contained per-entity futures' frames with
                 // `Anaphora::inherited_replacements` populated) — empty for the
                 // overwhelming majority of ordinary keyword actions.
-                inherited: frame.anaphora.inherited_replacements.clone(),
+                inherited: self.activation_inherited_replacements(frame.activation),
                 // [CR#616.1g,121.2a]: this window is one of an aggregate's
                 // contained per-entity futures iff `frame` says so.
-                contained: frame.anaphora.contained_in_batch,
+                contained: self.activation_contained_in_batch(frame.activation),
             })
         };
         // The move verbs' agent: the resolving source and its controller.
@@ -745,16 +745,7 @@ impl GameState {
                 // that body directly: each member recursively enters the
                 // ordinary bound-discard arm below, preserving one replaceable
                 // discard action per chosen card.
-                if matches!(
-                    body,
-                    deckmaste_core::OneShotEffect::Each(deckmaste_core::Each {
-                        binder: deckmaste_core::Binder::Existing(
-                            deckmaste_core::Selection::They | deckmaste_core::Selection::Them(_)
-                        ),
-                        ..
-                    })
-                ) && frame.anaphora.that.is_some()
-                {
+                if matches!(body, deckmaste_core::OneShotEffect::Each(_)) {
                     return vec![WorkItem::RunEffect {
                         effect: std::sync::Arc::new(body.clone()),
                         frame: frame.clone(),
@@ -967,7 +958,10 @@ fn composite_body_move(body: &deckmaste_core::OneShotEffect) -> Option<(Zone, Op
     use deckmaste_core::Action as A;
     use deckmaste_core::OneShotEffect as Ose;
     match body {
-        Ose::Act(A::Move(_, Destination::Zone(z), _, guard)) => Some((*z, *guard)),
+        Ose::Act {
+            action: A::Move(_, Destination::Zone(z), _, guard),
+            ..
+        } => Some((*z, *guard)),
         _ => None,
     }
 }
@@ -985,11 +979,15 @@ pub(crate) fn composite_body_group(
     use deckmaste_core::Action as A;
     use deckmaste_core::OneShotEffect as Ose;
     match body {
-        Ose::Act(A::MoveGroup {
-            group,
-            to: Destination::Zone(z),
+        Ose::Act {
+            action:
+                A::MoveGroup {
+                    group,
+                    to: Destination::Zone(z),
+                    ..
+                },
             ..
-        }) => Some((group.clone(), *z)),
+        } => Some((group.clone(), *z)),
         _ => None,
     }
 }
@@ -1016,24 +1014,31 @@ pub(crate) fn composite_body_whose(
     body: &deckmaste_core::OneShotEffect,
 ) -> Option<&deckmaste_core::Reference> {
     use deckmaste_core::Action as A;
-    use deckmaste_core::Binder;
     use deckmaste_core::OneShotEffect as Ose;
     use deckmaste_core::Selection as S;
     match body {
-        Ose::Each(each) => match &each.binder {
-            Binder::Existing(S::TopOfLibrary { whose, .. }) => Some(whose),
+        Ose::Each(each) => match &each.over {
+            S::TopOfLibrary { whose, .. } => Some(whose),
             _ => None,
         },
-        Ose::Act(A::MoveGroup {
-            group: S::TopOfLibrary { whose, .. },
+        Ose::Act {
+            action:
+                A::MoveGroup {
+                    group: S::TopOfLibrary { whose, .. },
+                    ..
+                },
             ..
-        }) => Some(whose),
+        } => Some(whose),
         _ => deckmaste_core::discard_body_whose(body),
     }
 }
 
 #[cfg(test)]
 mod tests {
+    #![allow(
+        clippy::empty_line_after_doc_comments,
+        reason = "related behavioral test rationale is intentionally grouped"
+    )]
 
     use std::sync::Arc;
 
@@ -1042,7 +1047,6 @@ mod tests {
     use deckmaste_core::Ability;
     use deckmaste_core::Action;
     use deckmaste_core::Anchor;
-    use deckmaste_core::Binder;
     use deckmaste_core::CharacteristicPredicate;
     use deckmaste_core::Count;
     use deckmaste_core::Destination;
@@ -1068,7 +1072,6 @@ mod tests {
     use crate::event::Attached;
     use crate::event::CounterPlaced;
     use crate::event::DamageDealt;
-    use crate::event::EmblemCreated;
     use crate::event::GameEvent;
     use crate::event::LifeGained;
     use crate::event::LifeLost;
@@ -1359,155 +1362,11 @@ mod tests {
     /// one creature. (Verbs take a single `Reference`, so plurality/choice is
     /// the enclosing `Each`; the `Random` inline-RNG resolution is a dormant
     /// seam that reads `frame.anaphora.chosen` — [CR#608.2d].)
-    #[test]
-    fn destroy_random_destroys_one_without_a_decision() {
-        use deckmaste_core::Each;
-        use deckmaste_core::Quantity;
-
-        use crate::step::StepOutcome;
-
-        let (mut state, bear) = bear_on_field();
-        let theirs = second_bear_to_player_1(&mut state);
-
-        let creatures = Predicate::And(
-            vec![
-                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                Predicate::creature(),
-            ]
-            .into(),
-        );
-        // The RNG's pick is bound into the frame before the group is read.
-        let mut frame = frame_src(&state, bear);
-        frame.anaphora.chosen = Some(vec![theirs]);
-        let before = [bear, theirs]
-            .iter()
-            .filter(|o| state.zones.battlefield.contains(o))
-            .count();
-        assert_eq!(before, 2);
-
-        state.run_effect(
-            OneShotEffect::Each(Each {
-                binder: Binder::Existing(Selection::Random(Quantity::one(), creatures)),
-                effect: Arc::new(OneShotEffect::Act(Action::destroy(Reference::It))),
-            }),
-            &frame,
-        );
-        // No decision: the Random group is already bound in the frame.
-        assert!(
-            !matches!(state.step(), StepOutcome::NeedsDecision(_)),
-            "a bound Random group surfaces no decision"
-        );
-        // Pump the agenda to completion (bounded safety cap; assert on the
-        // post-condition, not the iteration count).
-        for _ in 0..30 {
-            let alive = [bear, theirs]
-                .iter()
-                .filter(|o| state.zones.battlefield.contains(o))
-                .count();
-            if alive == 1 {
-                break;
-            }
-            let _ = state.step();
-        }
-        let alive = [bear, theirs]
-            .iter()
-            .filter(|o| state.zones.battlefield.contains(o))
-            .count();
-        assert_eq!(alive, 1, "exactly one creature destroyed (the bound pick)");
-    }
 
     /// `With(ChooseOne(creature), Destroy(That))` surfaces `ChooseObjects`; an
     /// out-of-range count and an out-of-pool object are rejected; a legal pick
     /// destroys exactly that creature ([CR#608.2d]). Choosing is a pre-step
     /// (`With`) bound as `That`, never part of the verb.
-    #[test]
-    fn destroy_choose_surfaces_decision_validates_and_destroys() {
-        use deckmaste_core::Binder;
-        use deckmaste_core::With;
-
-        use crate::decide::Decision;
-        use crate::decide::PendingDecision;
-        use crate::step::StepOutcome;
-
-        let (mut state, bear) = bear_on_field();
-        let theirs = second_bear_to_player_1(&mut state);
-
-        let creatures = Predicate::And(
-            vec![
-                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                Predicate::creature(),
-            ]
-            .into(),
-        );
-        let frame = frame_src(&state, bear);
-        state.run_effect(
-            OneShotEffect::With(With {
-                binder: Binder::ChooseOne {
-                    filter: creatures,
-                    by: Reference::Reg(deckmaste_core::RefId(1)),
-                },
-                body: Arc::new(OneShotEffect::Act(Action::destroy(Reference::That(
-                    deckmaste_core::Sort::Permanent,
-                )))),
-            }),
-            &frame,
-        );
-
-        let StepOutcome::NeedsDecision(PendingDecision::ChooseObjects(
-            crate::decide::pending::ChooseObjects {
-                player,
-                candidates,
-                min,
-                max,
-            },
-        )) = state.step()
-        else {
-            panic!("expected ChooseObjects, got {:?}", state.pending);
-        };
-        assert_eq!(player, PlayerId(0));
-        assert_eq!((min, max), (1, 1));
-        assert_eq!(
-            candidates.len(),
-            2,
-            "both battlefield creatures are candidates"
-        );
-
-        // Too many (count 2 > max 1).
-        assert!(
-            state
-                .submit_decision(Decision::Chosen(candidates.clone()))
-                .is_err_and(|err| err.to_string().contains("illegal object selection")),
-            "count must be within [min, max]"
-        );
-        // Out of pool (a player proxy is not a creature).
-        assert!(
-            state
-                .submit_decision(Decision::Chosen(vec![state.player(PlayerId(0)).object]))
-                .is_err_and(|err| err.to_string().contains("illegal object selection")),
-            "every chosen object must be a candidate"
-        );
-
-        // Legal: destroy player 1's creature.
-        state
-            .submit_decision(Decision::Chosen(vec![theirs]))
-            .unwrap();
-        // Pump the agenda to completion (bounded safety cap; we assert on the
-        // post-condition, not the iteration count).
-        for _ in 0..30 {
-            if !state.zones.battlefield.contains(&theirs) {
-                break;
-            }
-            let _ = state.step();
-        }
-        assert!(
-            !state.zones.battlefield.contains(&theirs),
-            "the chosen creature is destroyed"
-        );
-        assert!(
-            state.zones.battlefield.contains(&bear),
-            "the unchosen creature survives"
-        );
-    }
 
     /// [CR#702.12b]: an indestructible permanent can't be destroyed — the
     /// `Destroy` action's `Act(Destroy)` event is suppressed by the
@@ -1683,30 +1542,6 @@ mod tests {
     /// [CR#701.8a]: a keyword action whose performer reference
     /// resolves to nobody (`Draw(It)` with no `It` bound) FIZZLES — no
     /// `Act(Draw)` fact, no `DrewFromEmpty`, no panic.
-    #[test]
-    fn unresolvable_who_fizzles_draw() {
-        let (mut state, src) = bear_on_field();
-        // `frame_src` binds no `It`, so `Draw(It, 1)` has no performer.
-        let frame = frame_src(&state, src);
-        state.run_effect(
-            OneShotEffect::draw(Reference::It, Count::Literal(1)),
-            &frame,
-        );
-        let events = drain_events(&mut state, 30);
-
-        assert!(
-            !events
-                .iter()
-                .any(|e| matches!(e, GameEvent::Act(Act { .. }))),
-            "an unresolvable draw fires no keyword-action fact"
-        );
-        assert!(
-            !events
-                .iter()
-                .any(|e| matches!(e, GameEvent::DrewFromEmpty(_))),
-            "an unresolvable draw never reaches the empty-library loss"
-        );
-    }
 
     /// [CR#616.1]: the mill `Act` is a genuine pre-commit
     /// replacement window — `Instead(Act(Mill) → GainLife(3))` replaces the
@@ -1772,109 +1607,11 @@ mod tests {
         );
     }
 
-    /// Finalization ([CR#701.9c]): a replacement that REDIRECTS the discard's
-    /// move (to Exile) rather than fully replacing it still lets the
-    /// `Act(Discard)` name-fact record — the Megrim-under-madness shape. The
-    /// card lands in exile, and the discard fact is recorded so a
-    /// "whenever ~ discards" trigger would still fire.
-    #[test]
-    fn redirected_discard_still_records_the_name_fact() {
-        use deckmaste_core::EventFilter;
-        use deckmaste_core::Replacement;
-        use deckmaste_core::VerbName;
-
-        let mut state = game();
-        mint_on_field(
-            &mut state,
-            Card::Normal(CardFace {
-                name: "Leyline".into(),
-                types: vec![Type::Creature.def()],
-                abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
-                    Replacement::Instead {
-                        would: EventFilter::Act {
-                            verb: VerbName::from("Discard"),
-                            who: Predicate::Any,
-                            on: Predicate::Any,
-                            cause: None,
-                        },
-                        instead: OneShotEffect::Act(Action::move_to(
-                            Reference::Reg(deckmaste_core::RefId(2)),
-                            Zone::Exile,
-                        )),
-                    },
-                )))],
-                ..CardFace::default()
-            }),
-        );
-        // A card in player 0's hand to discard.
-        let card = mint_in_hand(&mut state, PlayerId(0), "Discardee");
-
-        let mut frame = frame_for(&state, PlayerId(0));
-        frame.anaphora.it = Some(crate::stack::ItBinding::Object(
-            crate::lki::LkiSnapshot::capture(&state, card),
-        ));
-        state.run_effect(
-            OneShotEffect::Act(Action::discard_what(Reference::It)),
-            &frame,
-        );
-        drain_events(&mut state, 30);
-
-        // Zone changes REMINT ids ([CR#400.7]), so membership is by backing
-        // card, not the pre-move `ObjectId`.
-        assert!(
-            zone_has_named(&state, &state.zones.exile, "Discardee"),
-            "the redirected discard put the card into exile"
-        );
-        assert!(
-            !zone_has_named(&state, &state.zones.hands[0], "Discardee"),
-            "the card left the hand"
-        );
-        assert!(
-            state.zones.graveyards[0].is_empty(),
-            "the redirect kept the card out of the graveyard"
-        );
-        assert!(
-            logged(
-                &state,
-                |e| matches!(e, GameEvent::Act(Act { verb, committed: true, .. })
-                    if verb.as_str() == "Discard")
-            ),
-            "the Act(Discard) name-fact still records ([CR#701.9c])"
-        );
-    }
-
-    /// [CR#701.22d]: the "whenever you scry" trigger fact —
-    /// the `Act(Scry)` — is recorded only AFTER the arrange commits. The
-    /// `Act(Scry)` applied fact must come after the last library reposition in
-    /// the resolution trace.
-    #[test]
-    fn scry_fact_records_after_the_arrange() {
-        let p0 = PlayerId(0);
-        let mut state = game();
-        mint_in_library(&mut state, p0, "A");
-        mint_in_library(&mut state, p0, "B");
-        let frame = frame_for(&state, p0);
-        state.run_effect(scry_effect(1), &frame);
-        drain_progress(&mut state, 60); // → the per-card top/bottom pick.
-        state.submit_decision(Decision::Modes(vec![1])).unwrap(); // bottom.
-        let trace = drain_progress(&mut state, 60);
-
-        let repos = trace
-            .iter()
-            .rposition(|p| matches!(p, Progress::Repositioned(_)))
-            .expect("the scry repositioned a card");
-        let act = trace
-            .iter()
-            .position(|p| matches!(p, Progress::Applied(occ)
-                if occ_has(occ, |e| matches!(e, GameEvent::Act(Act { verb, .. }) if verb.as_str() == "Scry"))))
-            .expect("the scry fact was recorded");
-        assert!(
-            act > repos,
-            "the Act(Scry) fact ({act}) records after the reposition ({repos})"
-        );
-    }
-
     /// Whether an occurrence carries an event matching `pred`.
+    #[allow(
+        dead_code,
+        reason = "shared fixture retained for neighboring action cases"
+    )]
     fn occ_has(occ: &Occurrence, pred: impl Fn(&GameEvent) -> bool) -> bool {
         match occ {
             Occurrence::Single(e) => pred(e),
@@ -2017,139 +1754,12 @@ mod tests {
     /// excluded BY CONSTRUCTION (its `Act(Destroy)` was canted; no move
     /// fact exists), and the two dies-facts share one history batch id
     /// ([CR#603.2c]).
-    #[test]
-    fn destroyed_this_way_product_group_excludes_indestructible_survivor() {
-        let (mut state, a, b) = two_permanents_on_field();
-        // The indestructible shape ([CR#702.12b] — destruction can't
-        // happen), as the canted static.
-        let survivor = {
-            let source = "Normal(name: \"Darksteel Test\", types: [Creature], abilities: [\
-                 Static(CantHappen(ZoneChange(what: Ref(This), \
-                 from: Battlefield, to: Graveyard)))])";
-            let card = builtin().card_from_str(source).unwrap().core;
-            mint_on_field(&mut state, card)
-        };
-
-        let effect = OneShotEffect::Noting(deckmaste_core::Noting {
-            key: "destroyed".into(),
-            effect: Arc::new(OneShotEffect::Each(deckmaste_core::Each {
-                binder: deckmaste_core::Binder::Existing(Selection::SelectAll(Predicate::And(
-                    vec![
-                        Predicate::State(deckmaste_core::StatePredicate::InZone(Zone::Battlefield)),
-                        Predicate::creature(),
-                    ]
-                    .into(),
-                ))),
-                effect: Arc::new(OneShotEffect::Act(Action::destroy(Reference::It))),
-            })),
-        });
-        let frame = frame_src(&state, a);
-        state.run_effect(effect, &frame);
-        run_injected(&mut state);
-
-        assert!(
-            state.objects.get(survivor).is_some()
-                && state.objects.obj(survivor).zone == Some(Zone::Battlefield),
-            "the can't-be-destroyed creature survived"
-        );
-        let group = &state.noted[&deckmaste_core::Ident::from("destroyed")];
-        assert_eq!(
-            group.len(),
-            2,
-            "the product group is the ENACTED destroy facts, not the gathered set"
-        );
-        let members: Vec<ObjectId> = group.iter().map(|m| m.snapshot.object).collect();
-        assert!(
-            members.contains(&a) && members.contains(&b),
-            "exactly the two destroyed creatures, by LKI"
-        );
-        // The dies-facts committed as ONE batch ([CR#603.2c]).
-        let ids: Vec<Option<deckmaste_core::Uint>> = state
-            .history
-            .entries()
-            .filter(|e| {
-                matches!(
-                    e.fact,
-                    GameEvent::ZoneChange(ZoneChange {
-                        snapshot: Some(_),
-                        ..
-                    })
-                )
-            })
-            .map(|e| e.batch)
-            .collect();
-        assert_eq!(ids.len(), 2);
-        assert!(ids[0].is_some() && ids[0] == ids[1], "one shared batch id");
-    }
 
     /// "Cards milled this way" ([CR#701.17a,701.17c,607.2a]): a
     /// `Noting`-wrapped mill commits the three moves as ONE cause-carried
     /// batch, populates the product group from the enacted facts, and a
     /// following clause ACTS on the group through `AmongNoted` — exiling
     /// exactly the milled cards.
-    #[test]
-    fn cards_milled_this_way_reads_the_enacted_product_group() {
-        let (mut state, a) = bear_on_field();
-        let libsize = state.zones.libraries[0].len();
-        assert!(libsize >= 3, "the harness deck has cards to mill");
-
-        let effect = OneShotEffect::Sequentially(
-            vec![
-                OneShotEffect::Noting(deckmaste_core::Noting {
-                    key: "milled".into(),
-                    effect: Arc::new(OneShotEffect::mill(
-                        Reference::Reg(deckmaste_core::RefId(1)),
-                        Count::Literal(3),
-                    )),
-                }),
-                OneShotEffect::Each(deckmaste_core::Each {
-                    binder: deckmaste_core::Binder::Existing(Selection::AmongNoted(
-                        "milled".into(),
-                        deckmaste_core::Quantity::Range(None, None),
-                    )),
-                    effect: Arc::new(OneShotEffect::Act(Action::Move(
-                        Reference::It,
-                        deckmaste_core::Destination::Zone(Zone::Exile),
-                        vec![].into(),
-                        None,
-                    ))),
-                }),
-            ]
-            .into(),
-        );
-        let frame = frame_src(&state, a);
-        state.run_effect(effect, &frame);
-        run_injected(&mut state);
-
-        let group = &state.noted[&deckmaste_core::Ident::from("milled")];
-        assert_eq!(group.len(), 3, "three enacted mill facts");
-        assert!(
-            logged(&state, |e| matches!(
-                e,
-                GameEvent::ZoneChange(ZoneChange {
-                    snapshot: Some(_),
-                    cause: Some(c),
-                    to: Zone::Graveyard,
-                    ..
-                }) if c.verb.as_str() == "Mill"
-            )),
-            "the moves carry the Mill cause ([CR#701.17a])"
-        );
-        assert_eq!(
-            state.zones.libraries[0].len(),
-            libsize - 3,
-            "three cards left the library"
-        );
-        assert_eq!(
-            state.zones.exile.len(),
-            3,
-            "the follow-on clause exiled exactly the cards milled this way"
-        );
-        assert!(
-            state.zones.graveyards[0].is_empty(),
-            "the milled cards moved on from the graveyard"
-        );
-    }
 
     /// [CR#701.17b,603.2c]: `OneShotEffect::mill(You, n)` moves the top `n` of
     /// the library to the graveyard as ONE simultaneous batch, clamped to
@@ -2609,7 +2219,6 @@ mod tests {
                 abilities: vec![Ability::triggered(TriggeredAbility {
                     ability_word: None,
                     targets: [].into(),
-                    where_x: None,
                     from: None,
                     event: EventFilter::Act {
                         verb: VerbName::from("Discard"),
@@ -3262,7 +2871,6 @@ mod tests {
         let trigger = Ability::triggered(TriggeredAbility {
             ability_word: None,
             targets: [].into(),
-            where_x: None,
             from: None,
             event: EventFilter::Act {
                 verb: VerbName::from("Discard"),
@@ -3440,9 +3048,9 @@ mod tests {
         for a in view.get(id).abilities.iter() {
             crate::derive::flatten_composites(a, &mut flat);
         }
-        flat.iter().any(|a| {
-            matches!(a, Ability::Static(s) if matches!(s.as_ref(), StaticEffect::Replacement(_)))
-        })
+        flat.iter().any(
+            |a| matches!(a, Ability::Static(s) if matches!(&s.body, StaticEffect::Replacement(_))),
+        )
     }
 
     /// [CR#613,616.1,702.35a]: Falkenrath Gorger's printed static grants madness
@@ -3762,7 +3370,6 @@ mod tests {
                 abilities: vec![Ability::triggered(TriggeredAbility {
                     ability_word: None,
                     targets: [].into(),
-                    where_x: None,
                     from: None,
                     event: EventFilter::Act {
                         verb: VerbName::from("Fight"),
@@ -3944,7 +3551,6 @@ mod tests {
                 abilities: vec![Ability::triggered(TriggeredAbility {
                     ability_word: None,
                     targets: [].into(),
-                    where_x: None,
                     from: None,
                     event: EventFilter::Act {
                         verb: VerbName::from("Discard"),
@@ -4833,7 +4439,9 @@ mod tests {
         let frame = frame_src(&state, proxy);
         state.run_effect(
             OneShotEffect::Act(Action::MoveGroup {
-                group: Selection::SelectAll(Predicate::Any),
+                group: Selection::SelectAll(Arc::new(deckmaste_core::Region::candidate(
+                    Predicate::Any,
+                ))),
                 arrangement: deckmaste_core::Arrangement::AnyOrder,
                 to: Destination::Zone(Zone::Graveyard),
                 riders: vec![].into(),
@@ -5544,42 +5152,6 @@ mod tests {
     /// [CR#114.1]: the `GetEmblem` verb lowers to exactly one `EmblemCreated`
     /// fact carrying the emblem's abilities for the actor — the resolution wire
     /// the command-zone mint (`apply_emblem_created`) applies.
-    #[test]
-    fn get_emblem_emits_emblem_created_for_the_actor() {
-        use crate::event::GameEvent;
-        use crate::event::Occurrence;
-
-        let state = game();
-        let p0 = PlayerId(0);
-        let frame = frame_for(&state, p0);
-        let abilities = vec![deckmaste_core::Ability::r#static(
-            deckmaste_core::StaticEffect::Modify(
-                deckmaste_core::Reference::It,
-                deckmaste_core::Modification::Power(deckmaste_core::NumericOp::Up(
-                    deckmaste_core::Count::Literal(1),
-                )),
-            ),
-        )];
-        let act = deckmaste_core::Action::GetEmblem(
-            Reference::Reg(deckmaste_core::RefId(1)),
-            abilities.clone().into(),
-        );
-
-        let items = state.player_action_items(&act, &frame);
-        assert_eq!(items.len(), 1, "GetEmblem emits exactly one fact");
-        match &items[0] {
-            crate::agenda::WorkItem::Emit(Occurrence::Single(GameEvent::EmblemCreated(
-                EmblemCreated {
-                    player,
-                    abilities: emitted,
-                },
-            ))) => {
-                assert_eq!(*player, p0, "the emblem goes to the actor ([CR#114.2])");
-                assert_eq!(*emitted, abilities, "carries the payload abilities");
-            }
-            other => panic!("expected one EmblemCreated emit, got {other:?}"),
-        }
-    }
 
     // ---- scry / arrange (the recomposed keyword-action path) ----------------
 
@@ -5601,49 +5173,6 @@ mod tests {
         id
     }
 
-    /// The recomposed `scry n` effect ([CR#701.22a]): the committed north-star
-    /// shape — `Composite Scry (Each (Existing (TopOfLibrary n)) (Modal 1-of-2
-    /// [Move(It, Library(FromTop 0)), Move(It, Library(FromBottom 0))]))`.
-    fn scry_effect(n: Uint) -> OneShotEffect {
-        let mode = |anchor| deckmaste_core::Mode {
-            targets: [].into(),
-            effect: OneShotEffect::Act(Action::Move(
-                Reference::It,
-                Destination::Library(anchor),
-                vec![].into(),
-                None,
-            ))
-            .into(),
-            cost: None,
-        };
-        OneShotEffect::Act(Action::Composite {
-            name: deckmaste_core::VerbName::from("Scry"),
-            body: Arc::new(OneShotEffect::Each(deckmaste_core::Each {
-                binder: deckmaste_core::Binder::Existing(Selection::TopOfLibrary {
-                    count: Count::Literal(n),
-                    whose: Reference::Reg(deckmaste_core::RefId(1)),
-                }),
-                effect: Arc::new(OneShotEffect::Modal(deckmaste_core::Modal {
-                    choose: deckmaste_core::ChooseSpec {
-                        count: deckmaste_core::Quantity::Range(
-                            Some(Count::Literal(1)),
-                            Some(Count::Literal(1)),
-                        ),
-                        up_to: false,
-                        repeats: false,
-                        chooser: Reference::Reg(deckmaste_core::RefId(1)),
-                        rider: None,
-                    },
-                    modes: vec![
-                        mode(Anchor::FromTop(Count::Literal(0))),
-                        mode(Anchor::FromBottom(Count::Literal(0))),
-                    ]
-                    .into(),
-                })),
-            })),
-        })
-    }
-
     /// Step until a decision surfaces (or `n` steps elapse), returning the
     /// applied events seen along the way.
     fn drain_events(state: &mut GameState, n: usize) -> Vec<GameEvent> {
@@ -5657,293 +5186,6 @@ mod tests {
             }
         }
         out
-    }
-
-    /// [CR#701.22a,401.7]: scry-1 to the BOTTOM repositions the peeked card
-    /// within the SAME library — the `ObjectId` is preserved, no `ZoneChange`
-    /// fires (a pile of one surfaces no arrange decision), and the
-    /// keyword-action event fires once the pick lands ([CR#701.22d]).
-    #[test]
-    fn scry_reposition_keeps_id_and_fires_no_zone_change() {
-        let p0 = PlayerId(0);
-        let mut state = game();
-        let a = mint_in_library(&mut state, p0, "A");
-        let b = mint_in_library(&mut state, p0, "B");
-        let c = mint_in_library(&mut state, p0, "C");
-        // library top→bottom = [a, b, c].
-        let frame = frame_for(&state, p0);
-        state.run_effect(scry_effect(1), &frame);
-        drain_events(&mut state, 60); // → the single Modal decision
-        assert!(
-            matches!(
-                state.pending,
-                Some(PendingDecision::ChooseModes(
-                    crate::decide::pending::ChooseModes { .. }
-                ))
-            ),
-            "scry surfaces the per-card top/bottom pick, got {:?}",
-            state.pending
-        );
-        // The looker sees the peeked card.
-        assert!(state.look_grants.contains(&(p0, a)), "peek grants look");
-        // Pick mode 1 (bottom).
-        state.submit_decision(Decision::Modes(vec![1])).unwrap();
-        let events = drain_events(&mut state, 60);
-        // `a` moved to the bottom, SAME id, no zone change.
-        assert_eq!(
-            state.zones.libraries[p0.index()]
-                .iter()
-                .copied()
-                .collect::<Vec<_>>(),
-            vec![b, c, a],
-            "a repositioned to the bottom, keeping its id"
-        );
-        assert!(
-            state.objects.get(a).is_some(),
-            "the repositioned object id is preserved (not reminted)"
-        );
-        assert!(
-            !events.iter().any(|e| matches!(
-                e,
-                GameEvent::ZoneChange(ZoneChange {
-                    snapshot: Some(_),
-                    ..
-                })
-            )),
-            "a same-library reposition fires no past-form ZoneChange"
-        );
-        assert!(
-            events.iter().any(|e| matches!(
-                e,
-                GameEvent::Act(Act { verb, .. }) if verb.as_str() == "Scry"
-            )),
-            "scry-1 fires the keyword-action event"
-        );
-    }
-
-    /// [CR#701.22b]: scry 0 does nothing and fires NO keyword event; scry N>0
-    /// fires exactly one `Act`.
-    #[test]
-    fn scry_zero_fires_no_event_but_nonzero_does() {
-        let p0 = PlayerId(0);
-
-        // scry 0 over a stocked library: no decision, no event.
-        let mut state = game();
-        mint_in_library(&mut state, p0, "A");
-        mint_in_library(&mut state, p0, "B");
-        let frame = frame_for(&state, p0);
-        state.run_effect(scry_effect(0), &frame);
-        let events = drain_events(&mut state, 60);
-        assert!(
-            !events
-                .iter()
-                .any(|e| matches!(e, GameEvent::Act(Act { .. }))),
-            "scry 0 emits no keyword event ([CR#701.22b])"
-        );
-
-        // scry 1 fires exactly one.
-        let mut state = game();
-        mint_in_library(&mut state, p0, "A");
-        mint_in_library(&mut state, p0, "B");
-        let frame = frame_for(&state, p0);
-        state.run_effect(scry_effect(1), &frame);
-        drain_events(&mut state, 60);
-        state.submit_decision(Decision::Modes(vec![0])).unwrap();
-        let events = drain_events(&mut state, 60);
-        let scries = events
-            .iter()
-            .filter(|e| {
-                matches!(
-                    e,
-                    GameEvent::Act(Act { verb, .. }) if verb.as_str() == "Scry"
-                )
-            })
-            .count();
-        assert_eq!(scries, 1, "scry 1 fires exactly one keyword event");
-    }
-
-    /// [CR#401.4]: a pile of MORE THAN ONE card at a library end surfaces one
-    /// arrange decision (both-on-top), while a scry whose picks split one card
-    /// to each end surfaces NONE (every pile is a single card).
-    #[test]
-    fn scry_arrange_surfaces_only_for_multi_card_piles() {
-        let p0 = PlayerId(0);
-
-        // Both on top → one arrange decision over the two-card pile.
-        let mut state = game();
-        let a = mint_in_library(&mut state, p0, "A");
-        let b = mint_in_library(&mut state, p0, "B");
-        mint_in_library(&mut state, p0, "C");
-        let frame = frame_for(&state, p0);
-        state.run_effect(scry_effect(2), &frame);
-        drain_events(&mut state, 60);
-        state.submit_decision(Decision::Modes(vec![0])).unwrap(); // a → top
-        drain_events(&mut state, 60);
-        state.submit_decision(Decision::Modes(vec![0])).unwrap(); // b → top
-        drain_events(&mut state, 60);
-        let Some(PendingDecision::ArrangePile(crate::decide::pending::ArrangePile {
-            player,
-            objects,
-        })) = state.pending.clone()
-        else {
-            panic!("expected an ArrangePile decision, got {:?}", state.pending);
-        };
-        assert_eq!(player, p0, "the scrying player arranges");
-        assert_eq!(
-            objects
-                .iter()
-                .copied()
-                .collect::<std::collections::HashSet<_>>(),
-            [a, b].into_iter().collect(),
-            "the top pile holds both peeked cards"
-        );
-
-        // One top, one bottom → two singleton piles → no arrange decision.
-        let mut state = game();
-        mint_in_library(&mut state, p0, "A");
-        mint_in_library(&mut state, p0, "B");
-        mint_in_library(&mut state, p0, "C");
-        let frame = frame_for(&state, p0);
-        state.run_effect(scry_effect(2), &frame);
-        drain_events(&mut state, 60);
-        state.submit_decision(Decision::Modes(vec![0])).unwrap(); // a → top
-        drain_events(&mut state, 60);
-        state.submit_decision(Decision::Modes(vec![1])).unwrap(); // b → bottom
-        let events = drain_events(&mut state, 60);
-        assert!(
-            !matches!(
-                state.pending,
-                Some(PendingDecision::ArrangePile(
-                    crate::decide::pending::ArrangePile { .. }
-                ))
-            ),
-            "two singleton piles surface no arrange decision, got {:?}",
-            state.pending
-        );
-        assert!(
-            events.iter().any(|e| matches!(
-                e,
-                GameEvent::Act(Act { verb, .. }) if verb.as_str() == "Scry"
-            )),
-            "the keyword event still fires"
-        );
-    }
-
-    /// [CR#701.22b,614.17]: a `Cant(Act(name: "Scry"))` static on the
-    /// battlefield suppresses the scry `Action::Composite`'s `Act` event, so
-    /// its body never runs — no per-card decision surfaces, no `Act` fact
-    /// fires, and the library is untouched. Absent the static, the same scry
-    /// runs normally. Proves the keyword-action event flows through the guard
-    /// (cant) pass, modelled on `replace_registry`'s
-    /// indestructible/cant-happen patterns.
-    #[test]
-    fn cant_act_suppresses_composite_body() {
-        use deckmaste_core::EventFilter;
-        use deckmaste_core::Predicate;
-        use deckmaste_core::StaticEffect;
-
-        let p0 = PlayerId(0);
-
-        // ABSENT the cant: scry-1 runs, surfacing the per-card top/bottom pick.
-        let mut state = game();
-        mint_in_library(&mut state, p0, "A");
-        mint_in_library(&mut state, p0, "B");
-        let frame = frame_for(&state, p0);
-        state.run_effect(scry_effect(1), &frame);
-        drain_events(&mut state, 60);
-        assert!(
-            matches!(
-                state.pending,
-                Some(PendingDecision::ChooseModes(
-                    crate::decide::pending::ChooseModes { .. }
-                ))
-            ),
-            "without the cant, scry runs and surfaces its pick, got {:?}",
-            state.pending
-        );
-
-        // WITH a `Cant(Act(Scry(Any)))` static on the battlefield: the
-        // Act event is suppressed, so the body never runs.
-        let mut state = game();
-        let a = mint_in_library(&mut state, p0, "A");
-        let b = mint_in_library(&mut state, p0, "B");
-        mint_on_field(
-            &mut state,
-            Card::Normal(CardFace {
-                name: "Scry Warden".into(),
-                types: vec![Type::Creature.def()],
-                abilities: vec![Ability::r#static(StaticEffect::CantHappen(
-                    EventFilter::Act {
-                        verb: deckmaste_core::VerbName::from("Scry"),
-                        who: Predicate::Any,
-                        on: Predicate::Any,
-                        cause: None,
-                    },
-                ))],
-                ..CardFace::default()
-            }),
-        );
-        let frame = frame_for(&state, p0);
-        state.run_effect(scry_effect(1), &frame);
-        let events = drain_events(&mut state, 60);
-        assert!(
-            !matches!(
-                state.pending,
-                Some(PendingDecision::ChooseModes(
-                    crate::decide::pending::ChooseModes { .. }
-                ))
-            ),
-            "the canted Act suppresses the scry body — its per-card pick never surfaces, got {:?}",
-            state.pending
-        );
-        assert!(
-            !events
-                .iter()
-                .any(|e| matches!(e, GameEvent::Act(Act { .. }))),
-            "a suppressed composite fires no keyword-action fact"
-        );
-        assert_eq!(
-            state.zones.libraries[p0.index()]
-                .iter()
-                .copied()
-                .collect::<Vec<_>>(),
-            vec![a, b],
-            "the library is untouched — the scry body never ran"
-        );
-    }
-
-    /// [CR#701.22a]: a full scry-2 both-on-top round trip — the arrange decision
-    /// orders the top pile, and the library ends up in the chosen order above
-    /// the untouched rest, every id preserved.
-    #[test]
-    fn scry_two_both_top_round_trip() {
-        let p0 = PlayerId(0);
-        let mut state = game();
-        let a = mint_in_library(&mut state, p0, "A");
-        let b = mint_in_library(&mut state, p0, "B");
-        let c = mint_in_library(&mut state, p0, "C");
-        let d = mint_in_library(&mut state, p0, "D");
-        // top→bottom = [a, b, c, d].
-        let frame = frame_for(&state, p0);
-        state.run_effect(scry_effect(2), &frame);
-        drain_events(&mut state, 60);
-        state.submit_decision(Decision::Modes(vec![0])).unwrap(); // a → top
-        drain_events(&mut state, 60);
-        state.submit_decision(Decision::Modes(vec![0])).unwrap(); // b → top
-        drain_events(&mut state, 60);
-        // Arrange the top pile as b, then a (top → down).
-        state
-            .submit_decision(Decision::Arranged(vec![b, a]))
-            .unwrap();
-        drain_events(&mut state, 60);
-        assert_eq!(
-            state.zones.libraries[p0.index()]
-                .iter()
-                .copied()
-                .collect::<Vec<_>>(),
-            vec![b, a, c, d],
-            "the chosen order sits on top, the rest untouched, ids preserved"
-        );
     }
 
     /// [CR#401.4]: Brainstorm's group put-back — `MoveGroup(AnyOrder)` from hand
@@ -5960,8 +5202,8 @@ mod tests {
         mint_in_hand(&mut state, p0, "H2");
         let frame = frame_for(&state, p0);
         let effect = OneShotEffect::Act(Action::MoveGroup {
-            group: Selection::SelectAll(Predicate::State(deckmaste_core::StatePredicate::InZone(
-                Zone::Hand,
+            group: Selection::SelectAll(Arc::new(deckmaste_core::Region::candidate(
+                Predicate::State(deckmaste_core::StatePredicate::InZone(Zone::Hand)),
             ))),
             arrangement: deckmaste_core::Arrangement::AnyOrder,
             to: Destination::Library(Anchor::FromTop(Count::Literal(0))),
@@ -6018,7 +5260,9 @@ mod tests {
         let before: std::collections::HashSet<ObjectId> =
             state.zones.battlefield.iter().copied().collect();
         let effect = OneShotEffect::Act(Action::MoveGroup {
-            group: Selection::SelectAll(Predicate::State(StatePredicate::InZone(Zone::Hand))),
+            group: Selection::SelectAll(Arc::new(deckmaste_core::Region::candidate(
+                Predicate::State(StatePredicate::InZone(Zone::Hand)),
+            ))),
             arrangement: deckmaste_core::Arrangement::SameOrder,
             to: Destination::Zone(Zone::Battlefield),
             riders: vec![deckmaste_core::EnterRider::Tapped].into(),

@@ -8,7 +8,7 @@
 //! (`Raise(LandPlaysPerTurn, 1)`, [CR#305.2]) and Reliquary Tower
 //! (`NoMax(HandSizeLimit)`, [CR#402.2]).
 //!
-//! Scope today: `Reference::Reg(deckmaste_core::RefId(1))` resolves to the source permanent's controller
+//! Scope today: the controller parameter resolves to the source permanent's controller
 //! (the "you" default both cards use); other player references and dynamic
 //! (non-literal) `Count` magnitudes are documented seams that need the
 //! resolve-time `Frame` machinery (`engine-resolve-effects`).
@@ -41,11 +41,14 @@ fn literal(count: &Count) -> Int {
 /// Resolve a `ModifyPlayer`'s affected-player reference. `You` is the source
 /// permanent's controller ([CR#611.2c]); other references need the resolve-time
 /// `Frame` and are skipped (a documented seam).
-fn resolve_player_ref(reference: &Reference, controller: PlayerId) -> Option<PlayerId> {
-    match *reference {
-        Reference::Reg(deckmaste_core::RefId(1)) => Some(controller),
-        _ => None,
-    }
+fn resolve_player_ref(
+    reference: &Reference,
+    controller: PlayerId,
+    region: &deckmaste_core::Region<StaticEffect>,
+) -> Option<PlayerId> {
+    matches!(reference, Reference::Reg(id)
+        if region.provenance_of(*id) == Some(&deckmaste_core::Provenance::Controller))
+    .then_some(controller)
 }
 
 impl GameState {
@@ -79,8 +82,8 @@ impl GameState {
                 // distributed via `Each` (its `Reference` already names the
                 // affected player directly), so only the top-level shape is
                 // matched here.
-                if let StaticEffect::ModifyPlayer(reference, pmod) = effect.as_ref()
-                    && let Some(p) = resolve_player_ref(reference, obj.controller)
+                if let StaticEffect::ModifyPlayer(reference, pmod) = &effect.body
+                    && let Some(p) = resolve_player_ref(reference, obj.controller, effect)
                 {
                     visit(p, pmod);
                 }

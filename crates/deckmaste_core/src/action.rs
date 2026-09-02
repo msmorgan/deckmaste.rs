@@ -235,10 +235,9 @@ pub enum Action {
     MoveCounters(crate::CounterSpec, Reference, Reference),
     /// Register a floating replacement effect ([CR#614.3]) — "the next time …"
     /// shields (regeneration, one-shot prevention). The protected permanent is
-    /// the object bound as `That` by the enclosing `With` — the shield freezes
-    /// that resolved binding at creation (an LKI snapshot of identity), so a
-    /// shield has the semantic form `With(binder: TheRef(<subject>), body:
-    /// CreateReplacement(…))`; there is no semantic `subject:` field.
+    /// the object read from the enclosing region — the shield freezes that
+    /// resolved binding at creation (an LKI snapshot of identity). There is
+    /// no semantic `subject:` field.
     /// `one_shot` consumes the shield on first use ([CR#614.3]).
     /// [CR#701.19a,614.8]
     CreateReplacement {
@@ -349,8 +348,9 @@ pub enum Action {
     /// choice + [CR#607.2] slot): "choose a color" and kin. `kind` narrows to
     /// the CHOSEN-VALUE kinds ([`ChosenValueKind`]) — the persisted
     /// object-set kinds ([`crate::NotedKind`]) are set-notes written by
-    /// [`Noting`](crate::Noting)/[`SeparatePiles`](crate::SeparatePiles) and
-    /// stay store-side with their writers, not this choice node.
+    /// explicit [`crate::Let`] linkage or
+    /// [`SeparatePiles`](crate::SeparatePiles), and stay store-side with
+    /// their writers, not this choice node.
     ChooseValue(Reference, ChosenValueKind, crate::Ident),
     /// `controller` puts a copy of `spec` on the stack ([CR#707.10] — a copy
     /// on the stack, NOT casting one; [CR#707.12] casting is
@@ -428,7 +428,7 @@ pub enum Action {
     RollDice(Reference, Count, crate::Uint),
     /// `agent` rolls the (Planechase) planar die as a special action
     /// ([CR#901.9]). NO numeric result ([CR#901.9d]) — unlike `RollDice`/
-    /// `FlipCoins` this introduces nothing for a later `ThatMany` read.
+    /// `FlipCoins` this introduces no numeric result for a later pinned read.
     RollPlanarDie(Reference),
     /// Put counters of the named kind on the referenced object/player
     /// ([CR#122.1] — counters go on objects AND players). The kind is a bare
@@ -594,7 +594,7 @@ impl Action {
     pub fn destroy(what: Reference) -> Action {
         Action::Composite {
             name: crate::VerbName::from("Destroy"),
-            body: Arc::new(crate::OneShotEffect::Act(Action::move_to(
+            body: Arc::new(crate::OneShotEffect::act(Action::move_to(
                 what,
                 crate::Zone::Graveyard,
             ))),
@@ -616,7 +616,7 @@ impl Action {
     pub fn mill_one(who: Reference) -> Action {
         Action::Composite {
             name: crate::VerbName::from("Mill"),
-            body: Arc::new(crate::OneShotEffect::Act(Action::MoveGroup {
+            body: Arc::new(crate::OneShotEffect::act(Action::MoveGroup {
                 group: Selection::TopOfLibrary {
                     count: Count::Literal(1),
                     whose: who,
@@ -650,11 +650,10 @@ impl Action {
     /// "`who` discards `count`" ([CR#701.9a]) — the keyword action as data:
     /// a [`Composite`](Action::Composite) named `"Discard"` whose body IS
     /// the executor (unlike draw/mill's flat-coordinate bodies): a
-    /// [`With`](crate::With) choose-then-act step over `who`'s hand
-    /// ([CR#701.9b] — the affected player chooses by default), reusing the
-    /// GENERAL-purpose binder machinery every other card effect's choice
-    /// rides. `random: true` swaps the `Choose` binder for
-    /// [`Selection::Random`] over the same hand filter — no choice exists,
+    /// explicit choose-then-act instructions over `who`'s hand
+    /// ([CR#701.9b] — the affected player chooses by default).
+    /// `random: true` uses [`Selection::Random`] over the same hand filter —
+    /// no choice exists,
     /// so the engine samples the seeded rng instead of surfacing a
     /// decision. Either way the body's `Each` realizes the bound group as
     /// PER-CARD `Move`s, each recursively dispatched through THIS SAME
@@ -668,26 +667,36 @@ impl Action {
     pub fn discard(who: Reference, count: Count, random: bool) -> Action {
         let filter = discard_hand_filter(who.clone());
         let quantity = crate::Quantity::Range(Some(count.clone()), Some(count));
-        let binder = if random {
-            crate::Binder::Existing(Selection::Random(quantity, filter))
+        let dest = crate::DefId(0);
+        let over = if random {
+            Selection::Random(quantity.clone(), filter.clone())
         } else {
-            crate::Binder::Choose {
-                quantity,
-                filter,
-                by: who,
-            }
+            Selection::Reg(dest.into())
         };
+        let mut instructions = Vec::new();
+        if !random {
+            instructions.push(crate::OneShotEffect::Choose(crate::Choose {
+                dest,
+                by: who,
+                quantity,
+                filter: Arc::new(crate::Region::new(Arc::from([]), filter)),
+            }));
+        }
+        instructions.push(crate::OneShotEffect::Each(crate::Each {
+            over,
+            body: crate::Region::new(
+                Arc::from([crate::Param {
+                    def: crate::DefId(0),
+                    kind: crate::Kind::Object,
+                    provenance: crate::Provenance::LoopElement,
+                }]),
+                crate::OneShotEffect::act(Action::discard_what(Reference::Reg(crate::RefId(0))))
+                    .into(),
+            ),
+        }));
         Action::Composite {
             name: crate::VerbName::from("Discard"),
-            body: Arc::new(crate::OneShotEffect::With(crate::With {
-                binder,
-                body: Arc::new(crate::OneShotEffect::Each(crate::Each {
-                    binder: crate::Binder::Existing(Selection::They),
-                    effect: Arc::new(crate::OneShotEffect::Act(Action::discard_what(
-                        Reference::It,
-                    ))),
-                })),
-            })),
+            body: Arc::new(crate::OneShotEffect::Sequentially(instructions.into())),
         }
     }
 
@@ -705,7 +714,7 @@ impl Action {
     pub fn discard_what(what: Reference) -> Action {
         Action::Composite {
             name: crate::VerbName::from("Discard"),
-            body: Arc::new(crate::OneShotEffect::Act(Action::move_to(
+            body: Arc::new(crate::OneShotEffect::act(Action::move_to(
                 what,
                 crate::Zone::Graveyard,
             ))),
@@ -734,7 +743,7 @@ fn discard_hand_filter(who: Reference) -> crate::Predicate {
 /// The `who` an `InHand(who)`-shaped filter names — the hand-owning
 /// `Reference` under a discard binder's `Owner(Ref(who))` sub-predicate.
 /// Shared by [`discard_body_whose`]'s at-random arm, which has no separate
-/// `by` field to read (unlike [`Binder::Choose`](crate::Binder::Choose)).
+/// `by` field to read (unlike an explicit [`crate::Choose`] instruction).
 fn hand_owner_ref(filter: &crate::Predicate) -> Option<&Reference> {
     use crate::Predicate as P;
     match filter {
@@ -750,8 +759,9 @@ fn hand_owner_ref(filter: &crate::Predicate) -> Option<&Reference> {
 /// The BOUND-form patient of a discard composite's stored body
 /// ([CR#702.29a] "discard this card"): the reference its body's HEAD moves,
 /// when that head is a single relocation (`Move(This, Graveyard)` →
-/// `Some(This)`). The chosen/random form (a `With` choose-then-act step,
-/// [`Action::discard`]) → `None`. Read off the stored body ("matches the
+/// `Some(This)`). The chosen/random form (an explicit choose or random
+/// selection followed by an action, [`Action::discard`]) → `None`. Read off
+/// the stored body ("matches the
 /// expanded body") — shared by the engine's resolve lane, the renderer, and
 /// the Idris emitter, so the three can never disagree on which form a
 /// discard is.
@@ -759,30 +769,37 @@ fn hand_owner_ref(filter: &crate::Predicate) -> Option<&Reference> {
 pub fn discard_body_what(body: &crate::OneShotEffect) -> Option<&Reference> {
     use crate::OneShotEffect as Ose;
     match body {
-        Ose::Act(Action::Move(what, Destination::Zone(_), _, _)) => Some(what),
+        Ose::Act {
+            action: Action::Move(what, Destination::Zone(_), _, _),
+            ..
+        } => Some(what),
         _ => None,
     }
 }
 
 /// Whether a discard composite's stored body selects AT RANDOM
-/// ([CR#701.9b]): its `With` binder is [`Selection::Random`] over the hand
-/// filter, rather than a [`Binder::Choose`](crate::Binder::Choose). The
-/// at-random detail is the binder's, not the tag's — shared like
+/// ([CR#701.9b]): its iterator uses [`Selection::Random`] over the hand
+/// filter, rather than an explicit [`crate::Choose`]. The at-random detail
+/// belongs to the selection, not the tag — shared like
 /// [`discard_body_what`].
 #[must_use]
 pub fn discard_body_random(body: &crate::OneShotEffect) -> bool {
     use crate::OneShotEffect as Ose;
     match body {
-        Ose::With(with) => {
-            matches!(&with.binder, crate::Binder::Existing(Selection::Random(..)))
-        }
+        Ose::Sequentially(parts) => matches!(
+            parts.first(),
+            Some(Ose::Each(crate::Each {
+                over: Selection::Random(..),
+                ..
+            }))
+        ),
         _ => false,
     }
 }
 
 /// The `count` of a CHOSEN/RANDOM discard composite's stored body
-/// ([CR#701.9b]) — the upper bound of the `With` binder's `Quantity`
-/// (`Choose`'s or `Selection::Random`'s). `None` for a bound single-move body
+/// ([CR#701.9b]) — the upper bound of an explicit `Choose` instruction's or
+/// `Selection::Random`'s `Quantity`. `None` for a bound single-move body
 /// (`discard this card`, always one card). Read off the stored body, sharing
 /// the descent with [`discard_body_what`]/[`discard_body_random`] so
 /// re-agenting a discard cost ([CR#601.2h]) reads its count without a typed
@@ -791,18 +808,21 @@ pub fn discard_body_random(body: &crate::OneShotEffect) -> bool {
 pub fn discard_body_count(body: &crate::OneShotEffect) -> Option<&Count> {
     use crate::OneShotEffect as Ose;
     match body {
-        Ose::With(with) => match &with.binder {
-            crate::Binder::Choose { quantity, .. }
-            | crate::Binder::Existing(Selection::Random(quantity, _)) => quantity.bounds().1,
+        Ose::Sequentially(parts) => parts.iter().find_map(|part| match part {
+            Ose::Choose(choice) => choice.quantity.bounds().1,
+            Ose::Each(crate::Each {
+                over: Selection::Random(quantity, _),
+                ..
+            }) => quantity.bounds().1,
             _ => None,
-        },
+        }),
         _ => None,
     }
 }
 
 /// The discarding performer of a CHOSEN/RANDOM discard composite's stored
-/// body ([CR#701.9b]) — [`Binder::Choose`](crate::Binder::Choose)'s `by`
-/// (the chooser IS the discarding player by default), or, for the at-random
+/// body ([CR#701.9b]) — [`crate::Choose`]'s `by` (the chooser IS the
+/// discarding player by default), or, for the at-random
 /// form (which carries no `by`), the hand-owning `who` its
 /// [`Selection::Random`] filter names ([`hand_owner_ref`]). `None` for a
 /// bound single-move body (its performer rides the patient, not a separate
@@ -812,11 +832,14 @@ pub fn discard_body_count(body: &crate::OneShotEffect) -> Option<&Count> {
 pub fn discard_body_whose(body: &crate::OneShotEffect) -> Option<&Reference> {
     use crate::OneShotEffect as Ose;
     match body {
-        Ose::With(with) => match &with.binder {
-            crate::Binder::Choose { by, .. } => Some(by),
-            crate::Binder::Existing(Selection::Random(_, filter)) => hand_owner_ref(filter),
+        Ose::Sequentially(parts) => parts.iter().find_map(|part| match part {
+            Ose::Choose(choice) => Some(&choice.by),
+            Ose::Each(crate::Each {
+                over: Selection::Random(_, filter),
+                ..
+            }) => hand_owner_ref(filter),
             _ => None,
-        },
+        }),
         _ => None,
     }
 }
@@ -834,8 +857,14 @@ pub fn fight_body_fighters(body: &crate::OneShotEffect) -> Option<(&Reference, &
         Ose::If(iff) => fight_body_fighters(&iff.then),
         Ose::Simultaneously(parts) => match parts.as_ref() {
             [
-                Ose::Act(A::DealDamage(a, _, _)),
-                Ose::Act(A::DealDamage(b, _, _)),
+                Ose::Act {
+                    action: A::DealDamage(a, _, _),
+                    ..
+                },
+                Ose::Act {
+                    action: A::DealDamage(b, _, _),
+                    ..
+                },
                 ..,
             ] => Some((a, b)),
             _ => None,

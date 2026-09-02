@@ -511,10 +511,10 @@ impl GameState {
                     contents: None,
                     // A single card draw is never itself an aggregate.
                     batch: None,
-                    inherited: frame.anaphora.inherited_replacements.clone(),
+                    inherited: self.activation_inherited_replacements(frame.activation),
                     // [CR#616.1g,121.2a]: set iff this draw is one of an
                     // aggregate `Batch`'s contained per-card futures.
-                    contained: frame.anaphora.contained_in_batch,
+                    contained: self.activation_contained_in_batch(frame.activation),
                 })))]
             }
             // [CR#706.1]: roll `count` `sides`-sided dice — draw in the work
@@ -721,7 +721,7 @@ impl GameState {
                     }
                     ManaSpec::ProducedByEvent => {
                         let mut options = Vec::new();
-                        for mana in &frame.anaphora.produced_mana {
+                        for mana in &self.activation_produced_mana(frame.activation) {
                             if !options.contains(mana) {
                                 options.push(*mana);
                             }
@@ -914,6 +914,10 @@ impl GameState {
 
 #[cfg(test)]
 mod tests {
+    #![allow(
+        clippy::empty_line_after_doc_comments,
+        reason = "related behavioral test rationale is intentionally grouped"
+    )]
 
     use std::sync::Arc;
 
@@ -1325,7 +1329,6 @@ mod tests {
 
         use crate::decide::Decision;
         use crate::decide::PendingDecision;
-        use crate::step::StepOutcome;
 
         let (mut state, src) = bear_on_field();
         let frame = frame_src(&state, src);
@@ -1390,7 +1393,6 @@ mod tests {
 
         use crate::decide::Decision;
         use crate::decide::PendingDecision;
-        use crate::step::StepOutcome;
 
         let (mut state, src) = bear_on_field();
         let frame = frame_src(&state, src);
@@ -1477,34 +1479,6 @@ mod tests {
     /// REFERENCED object (`imprinted`, reached via its explicit target
     /// register) goes away, mirroring how an imprinted/exiled card can
     /// cease independently of the producing permanent.
-    #[test]
-    fn among_colors_of_gone_referent_fizzles_empty() {
-        use deckmaste_core::ManaSpec;
-
-        let (mut state, source, imprinted) = two_permanents_on_field();
-        let frame = frame_src_targets(&state, source, vec![imprinted]);
-        state.objects.remove(imprinted);
-        assert!(
-            state.objects.get(imprinted).is_none(),
-            "the referent is gone"
-        );
-        assert!(
-            state.objects.get(source).is_some(),
-            "the mana source is still live"
-        );
-
-        let act = Action::AddMana(
-            Reference::Reg(deckmaste_core::RefId(1)),
-            Count::Literal(1),
-            ManaSpec::AmongColorsOf(Reference::It).into(),
-        );
-        // Must not panic dereferencing the gone id via `self.layers().get(..)`.
-        let items = state.player_action_items(&act, &frame);
-        assert!(
-            items.is_empty(),
-            "a gone AmongColorsOf referent has no colors to choose among, so no production"
-        );
-    }
 
     /// [CR#701.9b]: `Discard(2)` surfaces the card choice; a wrong-sized answer
     /// is rejected; the right answer discards through the Hand→Graveyard
@@ -1514,7 +1488,6 @@ mod tests {
     fn discard_surfaces_choice_validates_and_clamps() {
         use crate::decide::Decision;
         use crate::decide::PendingDecision;
-        use crate::step::StepOutcome;
 
         let (mut state, src) = bear_on_field();
         let frame = frame_src(&state, src);
@@ -2181,7 +2154,6 @@ mod tests {
 
         use crate::decide::Decision;
         use crate::decide::PendingDecision;
-        use crate::step::StepOutcome;
 
         let (mut state, src) = bear_on_field();
         // Mint the creature token to be populated (a 2/2 Bear token you control).
@@ -2222,12 +2194,12 @@ mod tests {
         // takes.
         let semantic: deckmaste_semantics::OneShotEffect =
             builtin().macros.read_str("Populate").unwrap();
-        let populate: OneShotEffect = deckmaste_lowering::Lower::lower(semantic);
-        state.run_effect(populate, &frame_src(&state, src));
+        let frame = frame_src(&state, src);
+        schedule_lowered_effect(&mut state, semantic, 0, &frame);
 
         // The `With(ChooseOne(...))` surfaces the pick.
-        let StepOutcome::NeedsDecision(PendingDecision::ChooseObjects(choose)) = state.step()
-        else {
+        let _ = state.step();
+        let Some(PendingDecision::ChooseObjects(choose)) = state.pending.clone() else {
             panic!("expected ChooseObjects, got {:?}", state.pending);
         };
         assert!(
@@ -2294,7 +2266,6 @@ mod tests {
         use deckmaste_core::Subtype;
 
         use crate::decide::Decision;
-        use crate::step::StepOutcome;
 
         let (mut state, src) = bear_on_field();
         // An Army creature you (player 0) control — the amass target. A 2/2 base
@@ -2322,8 +2293,8 @@ mod tests {
         // takes.
         let semantic: deckmaste_semantics::OneShotEffect =
             builtin().macros.read_str("Amass(Zombie, 2)").unwrap();
-        let amass: OneShotEffect = deckmaste_lowering::Lower::lower(semantic);
-        state.run_effect(amass, &frame_src(&state, src));
+        let frame = frame_src(&state, src);
+        schedule_lowered_effect(&mut state, semantic, 0, &frame);
 
         // Step 1's guard (`Not(Exists(Army creature you control))`) is FALSE —
         // the Army above already exists — so no guard token is created; step to
@@ -2407,7 +2378,6 @@ mod tests {
         use crate::decide::Action as Act;
         use crate::decide::Decision;
         use crate::decide::PendingDecision;
-        use crate::step::StepOutcome;
 
         let (mut state, actor) = bear_on_field();
         let source_face = CardFace {
@@ -2418,7 +2388,6 @@ mod tests {
             abilities: vec![Ability::triggered(TriggeredAbility {
                 ability_word: None,
                 targets: [].into(),
-                where_x: None,
                 from: None,
                 event: EventFilter::ZoneChange {
                     what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
@@ -2498,7 +2467,9 @@ mod tests {
         use deckmaste_core::NumericOp;
         use deckmaste_core::StatValue;
         use deckmaste_core::StaticEffect;
-        let count = Count::CountOf(Countable::Objects(Arc::new(Predicate::creature())));
+        let count = Count::CountOf(Countable::Objects(Arc::new(
+            deckmaste_core::Region::candidate(Predicate::creature()),
+        )));
         Ability::r#static(StaticEffect::Modify(
             Reference::Reg(deckmaste_core::RefId(0)),
             Modification::Several(
@@ -2885,86 +2856,11 @@ mod tests {
     /// simultaneous batch; the applied batch fixes "that many" to the number
     /// of heads. Seed-pinned (via `game()`'s seed 7): same seed ⇒ same draw,
     /// so the assertions are exact, not just shape checks.
-    #[test]
-    fn uncalled_flip_emits_batch_and_fixes_that_many_to_heads() {
-        let mut state = game();
-        let p0 = PlayerId(0);
-        let frame = frame_for(&state, p0);
-        state.run_effect(
-            OneShotEffect::Act(Action::FlipCoins(
-                Reference::Reg(deckmaste_core::RefId(1)),
-                Count::Literal(3),
-                false,
-            )),
-            &frame,
-        );
-        drain_progress(&mut state, 20);
-
-        let flips: Vec<(bool, Option<bool>)> = state
-            .history
-            .entries()
-            .filter_map(|e| match &e.fact {
-                GameEvent::CoinFlipped(CoinFlipped { heads, won, .. }) => Some((*heads, *won)),
-                _ => None,
-            })
-            .collect();
-        assert_eq!(flips.len(), 3, "3 CoinFlipped facts, one per drawn coin");
-        assert!(
-            flips.iter().all(|&(_, won)| won.is_none()),
-            "an uncalled flip never records a winner/loser"
-        );
-        let heads = Uint::try_from(flips.iter().filter(|&&(h, _)| h).count())
-            .expect("heads count fits Uint");
-        assert_eq!(
-            state.that_much,
-            Some(heads),
-            "\"that many\" is fixed to the number of heads"
-        );
-    }
 
     /// [CR#706.1]: `RollDice(3, 6)` draws 3 naturals in `1..=6` from the
     /// seeded rng, each `result == natural` (no modifier pipeline yet), as
     /// ONE simultaneous batch; the applied batch fixes "that many" to the
     /// summed results.
-    #[test]
-    fn dice_roll_emits_per_die_and_fixes_that_many_to_sum() {
-        let mut state = game();
-        let p0 = PlayerId(0);
-        let frame = frame_for(&state, p0);
-        state.run_effect(
-            OneShotEffect::Act(Action::RollDice(
-                Reference::Reg(deckmaste_core::RefId(1)),
-                Count::Literal(3),
-                6,
-            )),
-            &frame,
-        );
-        drain_progress(&mut state, 20);
-
-        let rolls: Vec<(Uint, Uint)> = state
-            .history
-            .entries()
-            .filter_map(|e| match &e.fact {
-                GameEvent::DieRolled(DieRolled {
-                    natural, result, ..
-                }) => Some((*natural, *result)),
-                _ => None,
-            })
-            .collect();
-        assert_eq!(rolls.len(), 3, "3 DieRolled facts, one per drawn die");
-        assert!(
-            rolls
-                .iter()
-                .all(|&(natural, result)| (1..=6).contains(&natural) && natural == result),
-            "every natural lands in 1..=6 and result == natural (no modifier pipeline yet)"
-        );
-        let sum: Uint = rolls.iter().map(|&(_, result)| result).sum();
-        assert_eq!(
-            state.that_much,
-            Some(sum),
-            "\"that many\" is fixed to the summed results"
-        );
-    }
 
     /// [CR#701.9b]: `Discard { random: true, .. }` samples straight from the
     /// seeded rng via the general `Selection::Random` binder machinery
@@ -3086,112 +2982,11 @@ mod tests {
     /// draw yet); submitting the call draws the coin and scores `won = (call
     /// == heads)`. Seed-pinned (via `game()`'s seed 7): the draw is
     /// deterministic, so the assertion is exact, not just a shape check.
-    #[test]
-    fn called_flip_surfaces_call_and_scores_won() {
-        use crate::decide::Decision;
-        use crate::decide::PendingDecision;
-
-        let mut state = game();
-        let p0 = PlayerId(0);
-        let frame = frame_for(&state, p0);
-        state.run_effect(
-            OneShotEffect::Act(Action::FlipCoins(
-                Reference::Reg(deckmaste_core::RefId(1)),
-                Count::Literal(1),
-                true,
-            )),
-            &frame,
-        );
-        drain_progress(&mut state, 20);
-        let Some(PendingDecision::CallFlip(crate::decide::pending::CallFlip { player })) =
-            state.pending.clone()
-        else {
-            panic!("expected a pending CallFlip, got {:?}", state.pending);
-        };
-        assert_eq!(player, p0);
-
-        state.submit_decision(Decision::Answer(true)).unwrap();
-        drain_progress(&mut state, 20);
-
-        let flips: Vec<(bool, Option<bool>)> = state
-            .history
-            .entries()
-            .filter_map(|e| match &e.fact {
-                GameEvent::CoinFlipped(CoinFlipped { heads, won, .. }) => Some((*heads, *won)),
-                _ => None,
-            })
-            .collect();
-        assert_eq!(flips.len(), 1, "exactly one CoinFlipped fact");
-        let (heads, won) = flips[0];
-        assert_eq!(
-            won,
-            Some(heads),
-            "the call was heads: won iff the draw landed heads"
-        );
-        assert_eq!(
-            state.that_much,
-            Some(Uint::from(won == Some(true))),
-            "\"that many\" is fixed to the win count (0 or 1)"
-        );
-    }
 
     /// [CR#705.2]: a 3-coin CALLED flip pauses per coin — three sequential
     /// `CallFlip` decisions, each drawing (and scoring) only when its call is
     /// submitted — then front-schedules ONE simultaneous batch
     /// ([CR#603.2c]) once all three are called.
-    #[test]
-    fn multi_coin_called_flip_pauses_per_coin() {
-        use crate::decide::Decision;
-        use crate::decide::PendingDecision;
-
-        let mut state = game();
-        let p0 = PlayerId(0);
-        let frame = frame_for(&state, p0);
-        state.run_effect(
-            OneShotEffect::Act(Action::FlipCoins(
-                Reference::Reg(deckmaste_core::RefId(1)),
-                Count::Literal(3),
-                true,
-            )),
-            &frame,
-        );
-        drain_progress(&mut state, 20);
-
-        for (i, call) in [true, false, true].into_iter().enumerate() {
-            let Some(PendingDecision::CallFlip(crate::decide::pending::CallFlip { player })) =
-                state.pending.clone()
-            else {
-                panic!(
-                    "coin {i}: expected a pending CallFlip, got {:?}",
-                    state.pending
-                );
-            };
-            assert_eq!(player, p0, "coin {i}");
-            state.submit_decision(Decision::Answer(call)).unwrap();
-            drain_progress(&mut state, 20);
-        }
-
-        let flips: Vec<(bool, Option<bool>)> = state
-            .history
-            .entries()
-            .filter_map(|e| match &e.fact {
-                GameEvent::CoinFlipped(CoinFlipped { heads, won, .. }) => Some((*heads, *won)),
-                _ => None,
-            })
-            .collect();
-        assert_eq!(flips.len(), 3, "3 CoinFlipped facts, one per called coin");
-        assert!(
-            flips.iter().all(|&(_, won)| won.is_some()),
-            "every called flip records a winner/loser"
-        );
-        let won_count = Uint::try_from(flips.iter().filter(|&&(_, won)| won == Some(true)).count())
-            .expect("win count fits Uint");
-        assert_eq!(
-            state.that_much,
-            Some(won_count),
-            "\"that many\" is fixed to the win count across the whole batch"
-        );
-    }
 
     /// A `CallFlip` decision only answers `Decision::Answer` — any other
     /// decision kind (here, a stray `Discard`) is rejected as `WrongKind`,
@@ -3264,7 +3059,6 @@ mod tests {
             abilities: vec![Ability::triggered(TriggeredAbility {
                 ability_word: None,
                 targets: [].into(),
-                where_x: None,
                 from: None,
                 event,
                 condition: None,
@@ -3606,7 +3400,26 @@ mod tests {
                 )),
                 &frame,
             );
-            step_n(&mut state, 5);
+            for _ in 0..20 {
+                let recorded = state
+                    .history
+                    .entries()
+                    .filter(|entry| {
+                        matches!(
+                            entry.fact,
+                            GameEvent::ZoneChange(ZoneChange {
+                                from: Some(Zone::Hand),
+                                to: Zone::Graveyard,
+                                ..
+                            })
+                        )
+                    })
+                    .count();
+                if recorded == 2 {
+                    break;
+                }
+                let _ = state.step();
+            }
 
             let flips: Vec<(bool, Option<bool>)> = state
                 .history

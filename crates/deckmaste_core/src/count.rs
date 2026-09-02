@@ -82,7 +82,7 @@ pub const BASIC_LAND_TYPES: [&str; 5] = ["Plains", "Island", "Swamp", "Mountain"
 pub enum Countable {
     /// Objects matching a filter — the common count domain. Boxed `Predicate`
     /// to break the `Predicate` → `Count` size cycle.
-    Objects(Arc<Predicate>),
+    Objects(Arc<crate::Region<Predicate>>),
     /// Players matching a filter — the cross-player fold domain ([CR#119.1]):
     /// `Aggregate(MaxOf, Projection { of: Players(<all players>), by:
     /// PlayerStatOf(It, Life) })` reads "the highest life total among all
@@ -94,7 +94,7 @@ pub enum Countable {
     /// pinned to `Objects`/`Singleton`); the engine mirrors that by fizzling
     /// the ungated combinations rather than enforcing it at the Rust type
     /// level (never-crash on a semantic-input error).
-    Players(Arc<Predicate>),
+    Players(Arc<crate::Region<Predicate>>),
     /// The mana symbols in a referenced object's mana cost, filtered by a
     /// [`SymbolPred`](crate::SymbolPred) ([CR#700.5] devotion) —
     /// `CountOf(ManaSymbols(It, CountsAs(Green)))` counts that object's green
@@ -145,7 +145,7 @@ pub struct Projection {
     /// projectable today — Idris's `Projectable` proof.
     pub of: Countable,
     /// The per-element read, over `Reference::It`.
-    pub by: Arc<Count>,
+    pub by: Arc<crate::Region<Count>>,
 }
 
 /// A scalar magnitude an effect computes at resolution: an amount, never an
@@ -231,22 +231,6 @@ pub enum Count {
     /// first" reads `Minus(TargetsOf(This), 1)`. Unboxed, like its `Damage`/
     /// `Opponents`/`ManaAvailable` peers (a single `Reference` field).
     TargetsOf(Reference),
-    /// Magnitude anaphora, countable spelling: "that many" — the nearest
-    /// Amount antecedent on the antecedent stack, fixed by an
-    /// earlier instruction or the enclosing event ([CR#107.3]). The primary
-    /// spelling; [`ThatMuch`](Count::ThatMuch) is the uncountable alias
-    /// ("that much life"), identical in resolution.
-    ThatMany,
-    /// Magnitude anaphora, uncountable spelling: "that much" — the same
-    /// amount anaphor as [`ThatMany`](Count::ThatMany), rendered "that
-    /// much" ([CR#107.3]).
-    ThatMuch,
-    /// The amount allotted to the current element of a divided distribution
-    /// ([CR#601.2d] — "N damage/counters divided as you choose"): the
-    /// per-element anaphor read inside an
-    /// [`OneShotEffect::Distribute`](crate::OneShotEffect::Distribute) body,
-    /// where it stands for that element's share of the divided amount.
-    Allotment,
     /// How many times an event matching the pattern occurred within the
     /// [`Lookback`](crate::Lookback) ([CR#608.2i] history reads) — the
     /// count-valued twin of `Condition::Happened`. The window is a required

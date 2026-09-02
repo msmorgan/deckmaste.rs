@@ -25,6 +25,7 @@ use deckmaste_core::Modification;
 use deckmaste_core::NumericOp;
 use deckmaste_core::Predicate;
 use deckmaste_core::Property;
+use deckmaste_core::Reference;
 use deckmaste_core::Selection;
 use deckmaste_core::StatValue;
 use deckmaste_core::StaticEffect;
@@ -52,7 +53,7 @@ use crate::state::GameState;
 #[derive(Debug, Clone)]
 pub enum ScopeResolved {
     Locked(Vec<ObjectId>),
-    Floating(Predicate),
+    Floating(Arc<deckmaste_core::Region<Predicate>>),
 }
 
 /// A floating one-shot continuous effect ([CR#611.2]). Lives in
@@ -431,10 +432,7 @@ fn bake_counter_counts(
     let bake = |count: &Count| -> Count {
         match count {
             Count::CounterCount(reference, kind)
-                if matches!(
-                    **reference,
-                    deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
-                ) =>
+                if **reference == deckmaste_core::Reference::source_parameter() =>
             {
                 Count::Literal(holder.get(kind.as_str()).copied().unwrap_or(0))
             }
@@ -584,7 +582,7 @@ fn gather(
                 // not carry today), so this is always a locked, source-relative
                 // resolve — never `Floating`.
                 let scope =
-                    ScopeResolved::Locked(resolve_source_relative(state, obj.id, reference));
+                    ScopeResolved::Locked(resolve_source_relative(state, obj.id, reference, None));
                 let changes = vec![change.clone()];
                 effects.push(ActiveEffect {
                     timestamp: obj.timestamp,
@@ -651,20 +649,30 @@ fn gather(
 fn static_effect_scope(
     state: &GameState,
     obj: ObjectId,
-    effect: &StaticEffect,
+    region: &deckmaste_core::Region<StaticEffect>,
 ) -> Option<(Vec<Condition>, ScopeResolved, Vec<Modification>)> {
-    match effect {
+    match &region.body {
         StaticEffect::Modify(reference, change) => Some((
             Vec::new(),
-            ScopeResolved::Locked(resolve_source_relative(state, obj, reference)),
+            ScopeResolved::Locked(resolve_source_relative(
+                state,
+                obj,
+                reference,
+                Some(&region.params),
+            )),
             Modification::flatten(std::slice::from_ref(change)).to_vec(),
         )),
-        StaticEffect::Each(Selection::SelectAll(filter), inner) => match inner.as_ref() {
-            StaticEffect::Modify(deckmaste_core::Reference::It, change) => Some((
-                Vec::new(),
-                ScopeResolved::Floating(filter.clone()),
-                Modification::flatten(std::slice::from_ref(change)).to_vec(),
-            )),
+        StaticEffect::Each(Selection::SelectAll(filter), inner) => match &inner.body {
+            StaticEffect::Modify(deckmaste_core::Reference::Reg(reference), change)
+                if inner.provenance_of(*reference)
+                    == Some(&deckmaste_core::Provenance::Candidate) =>
+            {
+                Some((
+                    Vec::new(),
+                    ScopeResolved::Floating(filter.clone()),
+                    Modification::flatten(std::slice::from_ref(change)).to_vec(),
+                ))
+            }
             _ => None,
         },
         // [CR#611.3a]: keep the wrapper's predicate on the gathered effect.
@@ -673,7 +681,8 @@ fn static_effect_scope(
         // Nested wrappers form a conjunction: every enclosing condition must
         // still hold for the innermost modification to apply.
         StaticEffect::Conditionally(condition, inner) => {
-            let (mut conditions, scope, changes) = static_effect_scope(state, obj, inner.as_ref())?;
+            let nested = deckmaste_core::Region::new(region.params.clone(), inner.as_ref().clone());
+            let (mut conditions, scope, changes) = static_effect_scope(state, obj, &nested)?;
             conditions.insert(0, condition.clone());
             Some((conditions, scope, changes))
         }
@@ -698,15 +707,24 @@ fn resolve_source_relative(
     state: &GameState,
     source: ObjectId,
     reference: &deckmaste_core::Reference,
+    params: Option<&[deckmaste_core::Param]>,
 ) -> Vec<ObjectId> {
     use deckmaste_core::Reference;
     match reference {
         // The carrying object itself.
-        &Reference::Reg(deckmaste_core::RefId(0)) => vec![source],
+        &Reference::Reg(reference)
+            if params.is_none_or(|params| {
+                params
+                    .get(reference.0 as usize)
+                    .is_some_and(|param| param.provenance == deckmaste_core::Provenance::Source)
+            }) =>
+        {
+            vec![source]
+        }
         // The host an attachment is attached to ([CR#301.5,303.4]) — read the
         // attachment→host link off the resolved inner object. No host (an
         // unattached attachment) → empty, so nothing is buffed.
-        Reference::AttachHostOf(inner) => resolve_source_relative(state, source, inner)
+        Reference::AttachHostOf(inner) => resolve_source_relative(state, source, inner, params)
             .into_iter()
             .filter_map(|id| state.objects.get(id).and_then(|o| o.attached_to))
             .collect(),
@@ -748,6 +766,7 @@ fn matches_derived(
     id: ObjectId,
     filter: &deckmaste_core::Predicate,
     watcher: Option<ObjectSource>,
+    params: Option<&[deckmaste_core::Param]>,
 ) -> bool {
     use deckmaste_core::CharacteristicPredicate;
     use deckmaste_core::Predicate;
@@ -757,15 +776,15 @@ fn matches_derived(
         return true;
     }
     let Some(c) = working.get(&id).map(|d| &d.characteristics) else {
-        return false;
+        return static_reference_matches(state, id, filter, watcher, params);
     };
     // Combinators (`And`/`Or`/`Not`; `Any` handled above so it
     // matches even for ids absent from `working`) recurse through this same
     // derived matcher via the shared walker; characteristic leaves fall through
     // below and everything else delegates to the printed matcher.
-    if let Some(result) =
-        crate::target::walk_combinators(filter, |f| matches_derived(state, working, id, f, watcher))
-    {
+    if let Some(result) = crate::target::walk_combinators(filter, |f| {
+        matches_derived(state, working, id, f, watcher, params)
+    }) {
         return result;
     }
     match filter {
@@ -822,6 +841,25 @@ fn matches_derived(
             };
             crate::target::stat_satisfies(value, *cmp, count)
         }
+        Predicate::Ref(_) => static_reference_matches(state, id, filter, watcher, params),
+        Predicate::Relation(deckmaste_core::RelationPredicate::ControlledBy(inner)) => {
+            matches_derived(
+                state,
+                working,
+                state.player(state.objects.obj(id).controller).object,
+                inner,
+                watcher,
+                params,
+            )
+        }
+        Predicate::Relation(deckmaste_core::RelationPredicate::Owner(inner)) => matches_derived(
+            state,
+            working,
+            state.player(state.owner_of(id)).object,
+            inner,
+            watcher,
+            params,
+        ),
         // `Named` and everything non-characteristic (zone, status, kind,
         // combat, relations, refs …): delegate to the printed matcher, threading
         // the carrier `watcher` so a scope's `Ref(This)`/`Ref(You)` (and the
@@ -838,6 +876,33 @@ fn matches_derived(
         // state read stored fields — so the layers()-free guarantee is
         // independent of the id's zone. Characteristic leaves are handled above.
         _ => crate::target::matches_with(state, id, filter, watcher),
+    }
+}
+
+fn static_reference_matches(
+    state: &GameState,
+    id: ObjectId,
+    filter: &Predicate,
+    watcher: Option<ObjectSource>,
+    params: Option<&[deckmaste_core::Param]>,
+) -> bool {
+    let Predicate::Ref(Reference::Reg(reference)) = filter else {
+        return matches!(filter, Predicate::Any);
+    };
+    let provenance = params
+        .and_then(|params| params.get(reference.0 as usize))
+        .map(|param| &param.provenance);
+    match (provenance, watcher) {
+        (Some(deckmaste_core::Provenance::Candidate), _) => true,
+        (Some(deckmaste_core::Provenance::Source), Some(source)) => {
+            state.objects.obj(id).source == source
+        }
+        (Some(deckmaste_core::Provenance::Controller), Some(source)) => {
+            let controller = state.controller_of_source(source);
+            matches!(state.objects.obj(id).source,
+                ObjectSource::Player(player) if Some(player) == controller)
+        }
+        _ => false,
     }
 }
 
@@ -863,7 +928,16 @@ fn resolve_scope(
         ScopeResolved::Floating(filter) => working
             .keys()
             .copied()
-            .filter(|&id| matches_derived(state, working, id, filter, watcher))
+            .filter(|&id| {
+                matches_derived(
+                    state,
+                    working,
+                    id,
+                    &filter.body,
+                    watcher,
+                    Some(&filter.params),
+                )
+            })
             .collect(),
         ScopeResolved::Locked(ids) => ids.clone(),
     }
@@ -880,7 +954,7 @@ fn condition_predicate_matches(
     watcher: Option<ObjectSource>,
 ) -> bool {
     if working.contains_key(&id) {
-        matches_derived(state, working, id, filter, watcher)
+        matches_derived(state, working, id, filter, watcher, None)
     } else {
         crate::target::matches_with(state, id, filter, watcher)
     }
@@ -983,7 +1057,9 @@ fn resolve_count_ref(
 ) -> Option<ObjectId> {
     use deckmaste_core::Reference;
     match reference {
-        &Reference::Reg(deckmaste_core::RefId(1)) => Some(state.player(controller).object),
+        reference if reference == &Reference::controller_parameter() => {
+            Some(state.player(controller).object)
+        }
         Reference::ControllerOf(inner) => {
             let id = resolve_count_ref(state, working, inner, watcher, controller)?;
             let player = working.get(&id).map_or_else(
@@ -1002,7 +1078,7 @@ fn resolve_count_ref(
         }
         _ => {
             let source = state.objects.iter().find(|o| Some(o.source) == watcher)?.id;
-            resolve_source_relative(state, source, reference)
+            resolve_source_relative(state, source, reference, None)
                 .into_iter()
                 .next()
         }
@@ -1129,7 +1205,16 @@ fn eval_count(
                 let count = working
                     .keys()
                     .copied()
-                    .filter(|&id| matches_derived(state, working, id, filter, watcher))
+                    .filter(|&id| {
+                        matches_derived(
+                            state,
+                            working,
+                            id,
+                            &filter.body,
+                            watcher,
+                            Some(&filter.params),
+                        )
+                    })
                     .count();
                 Int::try_from(count).expect("object count fits Int")
             }
@@ -1314,7 +1399,14 @@ fn eval_count(
             Countable::Objects(filter) => {
                 let mut seen = std::collections::BTreeSet::new();
                 for id in working.keys().copied() {
-                    if matches_derived(state, working, id, filter, watcher) {
+                    if matches_derived(
+                        state,
+                        working,
+                        id,
+                        &filter.body,
+                        watcher,
+                        Some(&filter.params),
+                    ) {
                         for key in distinct_keys_derived(state, working, id, *characteristic) {
                             seen.insert(key);
                         }
@@ -1368,9 +1460,6 @@ fn eval_count(
         // (same seam as `TimesPaid`'s paid-cost record) — defaults to 0.
         Count::Reg(_)
         | Count::X
-        | Count::ThatMany
-        | Count::ThatMuch
-        | Count::Allotment
         | Count::EventCount(..)
         | Count::EventSum(..)
         | Count::TimesPaid(_)
@@ -1749,7 +1838,7 @@ fn apply_static(
 
 /// Resolve a control-change effect's new controller ([CR#613.1b]) to a concrete
 /// player. Per [CR#611.2c] the effect's references are locked when it is
-/// created, so `Reference::Reg(deckmaste_core::RefId(1))` resolves to the effect's controller (the happy
+/// created, so the controller parameter resolves to the effect's controller (the happy
 /// path: "you gain control of …"). General `Reference` resolution needs the
 /// resolve-time `Frame` machinery (`engine-resolve-effects`); any other
 /// reference is a documented seam that leaves the controller unchanged.
@@ -1757,12 +1846,12 @@ fn resolve_new_controller(
     reference: &deckmaste_core::Reference,
     effect_controller: PlayerId,
 ) -> Option<PlayerId> {
-    use deckmaste_core::Reference;
-    match *reference {
-        Reference::Reg(deckmaste_core::RefId(1)) => Some(effect_controller),
+    if reference == &deckmaste_core::Reference::controller_parameter() {
+        Some(effect_controller)
+    } else {
         // SEAM: opponent / each-player / bound references need a `Frame` to
         // resolve a specific player; not reachable by current control fixtures.
-        _ => None,
+        None
     }
 }
 
@@ -1890,7 +1979,7 @@ type EffectSignature = Vec<(
 #[derive(Clone, PartialEq, Eq)]
 enum ScopeSig {
     Locked(Vec<ObjectId>),
-    Floating(Predicate),
+    Floating(Arc<deckmaste_core::Region<Predicate>>),
 }
 
 fn effect_signature(effects: &[ActiveEffect]) -> EffectSignature {
@@ -2184,9 +2273,11 @@ mod tests {
     /// reference needed). Wrapped or not per `innate`.
     fn pump_static(innate: bool) -> Ability {
         let s = Ability::r#static(StaticEffect::Each(
-            Selection::SelectAll(Predicate::r#type(Type::Creature)),
-            Arc::new(StaticEffect::Modify(
-                Reference::It,
+            Selection::SelectAll(Arc::new(deckmaste_core::Region::candidate(
+                Predicate::r#type(Type::Creature),
+            ))),
+            Arc::new(deckmaste_core::Region::candidate(StaticEffect::Modify(
+                Reference::Reg(deckmaste_core::RefId(0)),
                 Modification::Several(
                     vec![
                         Modification::Power(NumericOp::Up(Count::Literal(2))),
@@ -2194,9 +2285,54 @@ mod tests {
                     ]
                     .into(),
                 ),
-            )),
+            ))),
         ));
         if innate { Ability::Innate(Arc::new(s)) } else { s }
+    }
+
+    fn static_candidate_filter(body: Predicate) -> deckmaste_core::Region<Predicate> {
+        use deckmaste_core::{DefId, Kind, Param, Provenance, Region};
+
+        Region::new(
+            Arc::from([
+                Param {
+                    def: DefId(0),
+                    kind: Kind::Object,
+                    provenance: Provenance::Candidate,
+                },
+                Param {
+                    def: DefId(1),
+                    kind: Kind::Object,
+                    provenance: Provenance::Source,
+                },
+                Param {
+                    def: DefId(2),
+                    kind: Kind::Object,
+                    provenance: Provenance::Controller,
+                },
+            ]),
+            body,
+        )
+    }
+
+    fn controller_candidate_filter(body: Predicate) -> deckmaste_core::Region<Predicate> {
+        use deckmaste_core::{DefId, Kind, Param, Provenance, Region};
+
+        Region::new(
+            Arc::from([
+                Param {
+                    def: DefId(0),
+                    kind: Kind::Object,
+                    provenance: Provenance::Candidate,
+                },
+                Param {
+                    def: DefId(1),
+                    kind: Kind::Object,
+                    provenance: Provenance::Controller,
+                },
+            ]),
+            body,
+        )
     }
 
     /// Mint a 2/2 creature carrying `abilities` onto the battlefield (player
@@ -2782,23 +2918,23 @@ mod tests {
         use deckmaste_core::Reference;
         use deckmaste_core::RelationPredicate;
         Ability::r#static(StaticEffect::Each(
-            Selection::SelectAll(Predicate::And(
+            Selection::SelectAll(Arc::new(static_candidate_filter(Predicate::And(
                 vec![
                     Predicate::creature(),
                     Predicate::Not(Arc::new(Predicate::Ref(Reference::Reg(
-                        deckmaste_core::RefId(0),
+                        deckmaste_core::RefId(1),
                     )))),
                     Predicate::Characteristic(CharacteristicPredicate::Subtype(
                         deckmaste_core::SubtypeRef::named("Goblin".into()),
                     )),
                     Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                        Reference::Reg(deckmaste_core::RefId(1)),
+                        Reference::Reg(deckmaste_core::RefId(2)),
                     )))),
                 ]
                 .into(),
-            )),
-            Arc::new(StaticEffect::Modify(
-                Reference::It,
+            )))),
+            Arc::new(deckmaste_core::Region::candidate(StaticEffect::Modify(
+                Reference::Reg(deckmaste_core::RefId(0)),
                 Modification::Several(
                     vec![
                         Modification::Power(NumericOp::Up(Count::Literal(1))),
@@ -2806,7 +2942,7 @@ mod tests {
                     ]
                     .into(),
                 ),
-            )),
+            ))),
         ))
     }
 
@@ -2919,7 +3055,7 @@ mod tests {
         state.continuous.push(ContinuousEffect {
             timestamp,
             controller: PlayerId(0),
-            scope: ScopeResolved::Floating(Predicate::And(
+            scope: ScopeResolved::Floating(Arc::new(controller_candidate_filter(Predicate::And(
                 vec![
                     Predicate::creature(),
                     Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
@@ -2927,7 +3063,7 @@ mod tests {
                     )))),
                 ]
                 .into(),
-            )),
+            )))),
             changes: vec![
                 Modification::Power(NumericOp::Up(Count::Literal(2))),
                 Modification::Toughness(NumericOp::Up(Count::Literal(2))),
@@ -2966,7 +3102,9 @@ mod tests {
     /// gather, not of the layer number.
     fn creature_count_cda() -> Ability {
         use deckmaste_core::Reference;
-        let count = Count::CountOf(Countable::Objects(Arc::new(Predicate::creature())));
+        let count = Count::CountOf(Countable::Objects(Arc::new(
+            deckmaste_core::Region::candidate(Predicate::creature()),
+        )));
         Ability::r#static(StaticEffect::Modify(
             Reference::Reg(deckmaste_core::RefId(0)),
             Modification::Several(
@@ -3011,7 +3149,9 @@ mod tests {
     /// `Of(This)`.
     fn creature_count_pump() -> Ability {
         use deckmaste_core::Reference;
-        let count = Count::CountOf(Countable::Objects(Arc::new(Predicate::creature())));
+        let count = Count::CountOf(Countable::Objects(Arc::new(
+            deckmaste_core::Region::candidate(Predicate::creature()),
+        )));
         Ability::r#static(StaticEffect::Modify(
             Reference::Reg(deckmaste_core::RefId(0)),
             Modification::Several(
@@ -3269,19 +3409,19 @@ mod tests {
     fn lord_granting_static(granted: Ability) -> Ability {
         use deckmaste_core::Reference;
         Ability::r#static(StaticEffect::Each(
-            Selection::SelectAll(Predicate::And(
+            Selection::SelectAll(Arc::new(static_candidate_filter(Predicate::And(
                 vec![
                     Predicate::creature(),
                     Predicate::Not(Arc::new(Predicate::Ref(Reference::Reg(
-                        deckmaste_core::RefId(0),
+                        deckmaste_core::RefId(1),
                     )))),
                 ]
                 .into(),
-            )),
-            Arc::new(StaticEffect::Modify(
-                Reference::It,
+            )))),
+            Arc::new(deckmaste_core::Region::candidate(StaticEffect::Modify(
+                Reference::Reg(deckmaste_core::RefId(0)),
                 Modification::GainAbility(Arc::new(granted)),
-            )),
+            ))),
         ))
     }
 

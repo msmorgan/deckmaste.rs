@@ -8,7 +8,10 @@ impl Lower for deckmaste_semantics::TargetSpec {
     type Target = deckmaste_core::TargetSpec;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
-            Self::Target(f0, f1) => deckmaste_core::TargetSpec::Target(f0.lower(), f1.lower()),
+            Self::Target(f0, f1) => deckmaste_core::TargetSpec::Target(
+                f0.lower(),
+                std::sync::Arc::new(crate::region::candidate_region(|| f1.lower())),
+            ),
             Self::Distinct(f0, f1) => deckmaste_core::TargetSpec::Distinct(f0.lower(), f1.lower()),
             // Invocation provenance does not cross `lower`: the core grammar is
             // a compiled artifact and carries no record of the semantic
@@ -19,7 +22,6 @@ impl Lower for deckmaste_semantics::TargetSpec {
         }
     }
 }
-
 #[cfg(test)]
 mod tests {
     #![allow(
@@ -38,10 +40,7 @@ mod tests {
         assert_matches!(
             deckmaste_semantics::TargetSpec::Target(minimal_quantity(), minimal_predicate())
                 .lower(),
-            deckmaste_core::TargetSpec::Target(
-                deckmaste_core::Quantity::Range(None, None),
-                deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
-            )
+            deckmaste_core::TargetSpec::Target(deckmaste_core::Quantity::Range(None, None), _)
         );
     }
 
@@ -67,10 +66,7 @@ mod tests {
                 value: Box::new(minimal_target_spec())
             })
             .lower(),
-            deckmaste_core::TargetSpec::Target(
-                deckmaste_core::Quantity::Range(None, None),
-                deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
-            )
+            deckmaste_core::TargetSpec::Target(deckmaste_core::Quantity::Range(None, None), _)
         );
     }
 }

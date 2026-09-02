@@ -287,7 +287,7 @@ pub enum StaticEffect {
     /// re-evaluated every layer pass, so the affected set tracks state changes
     /// live ([CR#613.6]). Mirrors Idris `Each : Bindable Many -> StaticEffect
     /// -> StaticEffect`; `Each(SelectAll(F), Modify(It, Δ))` is the anthem.
-    Each(crate::Selection, Arc<StaticEffect>),
+    Each(crate::Selection, Arc<crate::Region<StaticEffect>>),
     /// A conditional static ([CR#611.3a]) — "as long as [condition],
     /// [effect]." Wraps an inner static effect with a game-state predicate; the
     /// effect applies only while the condition holds (re-checked continuously,

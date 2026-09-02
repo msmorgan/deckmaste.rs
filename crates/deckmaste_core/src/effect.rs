@@ -20,7 +20,7 @@ use crate::reference::Reference;
 /// connective tissue interpreted by the engine. Semantic lowering preserves
 /// these forms and wraps authored action shorthand in `Act`.
 // No `large_enum_variant` suppression: the top variants cluster within clippy's
-// threshold (`Distribute` ~568 B, `Act`/`Each`/`With` ~488 B, `SeparatePiles`
+// threshold (`Distribute` ~568 B, `Act`/`Each` ~488 B, `SeparatePiles`
 // ~416 B — a spread under 200 B), so the lint does not fire. `Act(Action)` is
 // kept inline deliberately: `Action` is a big *balanced* leaf enum (no single fat
 // field to box), and `OneShotEffect` is the hot, recursively-matched node of the
@@ -31,7 +31,20 @@ use crate::reference::Reference;
 pub enum Instr {
     /// A single intrinsic instruction (the `Act` compartment, transparent in
     /// RON).
-    Act(Action),
+    Act {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        dest: Option<crate::DefId>,
+        action: Action,
+    },
+    /// A resolution-time object choice. The selected group is written to
+    /// `dest` before the next instruction runs.
+    Choose(Choose),
+    /// A resolution-time scalar/symbolic choice written directly to `dest`.
+    ChooseValue(ChooseValue),
+    /// A hidden-zone search whose found group is written directly to `dest`.
+    Search(Search),
+    /// Pin a pure expression at this program point.
+    Let(Let),
     /// Explicit "then" — ordered sub-effects ([CR#608.2c]).
     Sequentially(Arc<[OneShotEffect]>),
     /// Simultaneously sub-effects — the written spec. **One snapshot:** every
@@ -61,21 +74,14 @@ pub enum Instr {
     /// (`Continuously` is the single-part spelling; `Static` ability
     /// position stays live re-gathering, [CR#611.3a].)
     Until(Duration, Arc<[StaticEffect]>),
-    /// `Label { as, effect }` — names the antecedents the inner effect
-    /// introduces so later clauses can read them explicitly, rather than by
-    /// the positional/anaphoric defaults ([CR#608.2d]).
-    Label(Label),
     /// `SeparatePiles { group, into, by, note, then }` — `by` separates
-    /// `group` into labeled piles ([CR#700.3a]; piles may be empty). Each
-    /// label becomes a Many antecedent (read as the plural anaphor
-    /// [`Selection::They`](crate::Selection::They)); `note:`
-    /// persists the piles as noted groups keyed by (note, label, divider),
-    /// read back via [`Selection::PilesOf`](crate::Selection::PilesOf).
+    /// `group` into labeled piles ([CR#700.3a]; piles may be empty). `note:`
+    /// persists them keyed by (note, label, divider), read through
+    /// [`Selection::PilesOf`](crate::Selection::PilesOf).
     SeparatePiles(SeparatePiles),
     /// `ChoosePile { from, by, random, then }` — `by` picks one pile
-    /// ([CR#700.3b] — the Fact-or-Fiction shape); `then` runs with the
-    /// chosen pile bound as a Many antecedent
-    /// ([`Selection::Them`](crate::Selection::Them)`(Pile)`).
+    /// ([CR#700.3b] — the Fact-or-Fiction shape), writes it to `dest`, and
+    /// runs `then` with that register in scope.
     ChoosePile(ChoosePile),
     /// "You may [do]" ([CR#603,608]) — with "if you do"/"if you don't". The
     /// may-pay/must-pay family collapses into this node ([CR#118.12a]):
@@ -97,41 +103,23 @@ pub enum Instr {
     /// [CR#601.2f]); nested, it is an extra resolution-time cost. Mirrors
     /// the Idris `AdditionalCost (pay : Cost) body`.
     AdditionalCost(AdditionalCost),
-    /// "For each [element of `binder`], [do]" — iterates the many-binder
-    /// ([`Binder`](crate::Binder), cardinality Many), binding each element in
-    /// turn as the iteration anaphor [`Reference::It`](crate::Reference::It),
-    /// then runs the body once per element ([CR#608]). Mirrors the Idris
-    /// `Each : Bindable b Many k -> …`.
+    /// "For each [element of `over`], [do]" — enters `body` once per element,
+    /// supplying its `LoopElement` parameter ([CR#608]).
     Each(Each),
-    /// `With(binder, body)` — binds what `binder` yields into the frame as the
-    /// body's anaphor, then runs `body` once. A one-binder
-    /// ([`Binder::TheRef`](crate::Binder::TheRef) /
-    /// [`Binder::ChooseOne`](crate::Binder::ChooseOne)) binds a single object
-    /// read as [`Reference::That`](crate::Reference::That); a many-binder
-    /// ([`Binder::Choose`](crate::Binder::Choose) /
-    /// [`Binder::Existing`](crate::Binder::Existing)) binds a group read as
-    /// [`Selection::That`](crate::Selection::That). Never distributes (that
-    /// is `Each`, which exposes [`Reference::It`](crate::Reference::It) per
-    /// element); `This` never rebinds. Mirrors the Idris
-    /// `With : Bindable b card k -> …`.
-    With(With),
-    /// Divide an `amount` among the elements of a many-binder
-    /// ([`Binder`](crate::Binder)) "as you choose", binding each element in
-    /// turn as the iteration anaphor [`Reference::It`](crate::Reference::It)
-    /// with its [`Count::Allotment`](crate::Count::Allotment) share, then
-    /// running `body` once per element ([CR#601.2d]). The split is
+    /// Divide an `amount` among the elements of `over` "as you choose",
+    /// entering `body` with `LoopElement` and `Allotment` parameters for each
+    /// element ([CR#601.2d]). The split is
     /// resolution-time (≥1 each, summing to `amount`). "Divide" and
     /// "distribute" are ONE mechanic, not two — [CR#115.7f] quotes both words
     /// for the same effect — so one primitive subsumes divided damage
     /// (`body: DealDamage(This, Allotment, It)`) AND distributed counters
     /// (`body: PutCounters(It, <kind>, Allotment)`); the body reads the
-    /// allotment anaphor. Named for the Idris north-star `Distribute : Count b
+    /// allotment parameter. Named for the Idris north-star `Distribute : Count b
     /// -> Bindable b Many k -> …`, the general divide-or-distribute primitive.
     Distribute(Distribute),
     /// A delayed triggered ability created on resolution ([CR#603.7]).
     /// Note the object set the inner effect moves/touches under `key`
     /// ([CR#607.2a] exiled-with linkage).
-    Noting(Noting),
     Delayed(Arc<TriggeredAbility>),
     /// A reflexive triggered ability created on resolution ([CR#603.12]).
     Reflexive(Arc<TriggeredAbility>),
@@ -165,10 +153,8 @@ pub enum Instr {
     /// The variable-length DIG-UNTIL ([CR#702.85] cascade, [CR#701.57]
     /// discover): `whose` reveals cards off the top of their library one at a
     /// time until one matches `matches`; `body` then runs with the found card
-    /// bound as [`Reference::It`](crate::Reference::It) and the passed-over
-    /// prefix bound as the plural anaphor
-    /// ([`Selection::They`](crate::Selection::They)) — the Idris
-    /// `bindFound` binding. Reveal-nothing (no match in the
+    /// and passed-over prefix supplied through explicit body parameters — the
+    /// Idris `bindFound` binding. Reveal-nothing (no match in the
     /// library) degrades at runtime, never a compile-time gate. Mirrors the
     /// Idris `RevealUntil : (whose : Reference b APlayer) -> (match :
     /// Predicate b AnObject) -> OneShotEffect (bindFound match b) ->
@@ -177,6 +163,19 @@ pub enum Instr {
 }
 
 impl Instr {
+    /// Construct a destination-less intrinsic instruction.
+    ///
+    /// This preserves the compact `OneShotEffect::Act(action)` Rust spelling
+    /// while the core data model and serialized form use `Act { dest, action }`.
+    #[allow(
+        non_snake_case,
+        reason = "compatibility constructor mirrors the Act variant"
+    )]
+    #[must_use]
+    pub fn Act(action: Action) -> Self {
+        Self::Act { dest: None, action }
+    }
+
     /// "`who` mills `count`" ([CR#701.17a]) — a slice-family keyword action:
     /// [`Batch`](OneShotEffect::Batch) over the per-unit [`Action::mill_one`],
     /// so a count-doubling replacement (Bruvac, [CR#121.2a,616.1g]) bites the
@@ -185,7 +184,7 @@ impl Instr {
     /// [`Mill`](../plugins)/`Mills` macros expand to this.
     #[must_use]
     pub fn mill(who: crate::Reference, count: Count) -> OneShotEffect {
-        OneShotEffect::Batch(count, Arc::new(OneShotEffect::Act(Action::mill_one(who))))
+        OneShotEffect::Batch(count, Arc::new(OneShotEffect::act(Action::mill_one(who))))
     }
 
     /// "`who` draws `count`" ([CR#121.1]) — a slice-family keyword action:
@@ -195,7 +194,20 @@ impl Instr {
     /// expand to this.
     #[must_use]
     pub fn draw(who: crate::Reference, count: Count) -> OneShotEffect {
-        OneShotEffect::Batch(count, Arc::new(OneShotEffect::Act(Action::draw_one(who))))
+        OneShotEffect::Batch(count, Arc::new(OneShotEffect::act(Action::draw_one(who))))
+    }
+
+    #[must_use]
+    pub fn act(action: Action) -> Self {
+        Self::Act { dest: None, action }
+    }
+
+    #[must_use]
+    pub fn producing(dest: crate::DefId, action: Action) -> Self {
+        Self::Act {
+            dest: Some(dest),
+            action,
+        }
     }
 }
 
@@ -244,11 +256,37 @@ pub struct If {
     pub otherwise: Option<Arc<OneShotEffect>>,
 }
 
-/// `Noting { key, effect }` — see `OneShotEffect::Noting`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
-pub struct Noting {
-    pub key: crate::Ident,
-    pub effect: Arc<OneShotEffect>,
+pub struct Choose {
+    pub dest: crate::DefId,
+    pub by: Reference,
+    pub quantity: crate::Quantity,
+    pub filter: Arc<crate::Region<crate::Predicate>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub struct ChooseValue {
+    pub dest: crate::DefId,
+    pub by: Reference,
+    pub domain: crate::ChosenValueKind,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub struct Search {
+    pub dest: crate::DefId,
+    pub by: Reference,
+    pub whose: Reference,
+    pub from: Arc<[crate::Zone]>,
+    pub quantity: crate::Quantity,
+    pub filter: Arc<crate::Region<crate::Predicate>>,
+    #[serde(default)]
+    pub if_none: crate::Block,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub struct Let {
+    pub dest: crate::DefId,
+    pub expr: crate::Expr,
 }
 
 /// `AdditionalCost { pay, body }` — "As an additional cost, [pay]; then run
@@ -267,52 +305,33 @@ pub struct AdditionalCost {
     pub body: Arc<OneShotEffect>,
 }
 
-/// `Each { binder, do }` — `do` is a keyword, so the field is `effect`.
-/// `binder` is the many-cardinality [`Binder`](crate::Binder) iterated; each
-/// element binds in turn as [`Reference::It`](crate::Reference::It) for one run
-/// of `effect` ([CR#608]). Mirrors the Idris `Each : Bindable b Many k -> …`.
+/// `Each { over, body }` enters the body region once per selected element.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct Each {
-    pub binder: crate::Binder,
-    pub effect: Arc<OneShotEffect>,
+    pub over: crate::Selection,
+    pub body: crate::Region,
 }
 
-/// `With { binder, body }` — `body`/`do` is a keyword, so the field is `body`.
-/// `binder` is the [`Binder`](crate::Binder) whose one/many cardinality picks
-/// the body's anaphor: a one-binder binds
-/// [`Reference::That`](crate::Reference::That), a many-binder binds
-/// [`Selection::That`](crate::Selection::That).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
-pub struct With {
-    pub binder: crate::Binder,
-    pub body: Arc<OneShotEffect>,
-}
-
-/// `Distribute { amount, binder, body }` — see [`OneShotEffect::Distribute`].
-/// `amount` is the total to split, `binder` the many-cardinality
-/// [`Binder`](crate::Binder) of recipients (each bound as
-/// [`Reference::It`](crate::Reference::It) in turn), and `body` the per-element
-/// effect that reads [`Count::Allotment`](crate::Count::Allotment) for that
-/// element's share. `body` is boxed to break the `OneShotEffect` → `Distribute`
-/// → `OneShotEffect` size cycle.
+/// `Distribute { amount, over, body }` enters the body region with each
+/// recipient and its allotted share as parameters.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct Distribute {
     pub amount: crate::Count,
-    pub binder: crate::Binder,
-    pub body: Arc<OneShotEffect>,
+    pub over: crate::Selection,
+    pub body: crate::Region,
 }
 
 /// `RevealUntil { whose, matches, body }` — see
 /// [`OneShotEffect::RevealUntil`]. `whose`'s library is revealed from the top
-/// one card at a time until one satisfies `matches`; `body` then runs with
-/// the found card bound as `It` and the passed-over prefix bound as the
-/// plural anaphor. `body` is boxed to break the `OneShotEffect` ->
-/// `RevealUntil` -> `OneShotEffect` size cycle.
+/// one card at a time until one satisfies `matches`; `body` receives the
+/// found card and passed-over prefix through explicit parameters.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct RevealUntil {
+    pub found: crate::DefId,
+    pub passed: crate::DefId,
     pub whose: crate::Reference,
-    pub matches: crate::Predicate,
-    pub body: Arc<OneShotEffect>,
+    pub matches: Arc<crate::Region<crate::Predicate>>,
+    pub body: crate::Region,
 }
 
 /// `Modal { choose, modes }` ([CR#700.2]).
@@ -320,14 +339,6 @@ pub struct RevealUntil {
 pub struct Modal {
     pub choose: ChooseSpec,
     pub modes: Arc<[Mode]>,
-}
-
-/// `Label { as, effect }` — see [`OneShotEffect::Label`]. `as` is a Rust
-/// keyword, hence the raw identifier; the RON field is spelled `as`.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
-pub struct Label {
-    pub r#as: crate::Ident,
-    pub effect: Arc<OneShotEffect>,
 }
 
 /// `SeparatePiles { group, into, by, note, then }` — see
@@ -349,6 +360,8 @@ pub struct SeparatePiles {
 /// from RON at their defaults.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct ChoosePile {
+    /// The chosen pile, available to the nested body and later instructions.
+    pub dest: crate::DefId,
     pub from: PileSource,
     pub by: Reference,
     #[serde(default, skip_serializing_if = "core::ops::Not::not")]
