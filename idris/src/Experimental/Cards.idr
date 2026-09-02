@@ -6805,6 +6805,88 @@ foundingOfOmashu =
                         (Just Macros.untilEndOfTurn)) ]
        Nothing
 
+||| Burn, Burn, Tree and Fern, whole -- the FOURTH chapter, which had no
+||| witness. 38 supported chapter lines name IV (re-measured 2026-09-02),
+||| and this is the cheapest carrier: three lines, the last of them the
+||| paired III/IV.
+public export
+burnBurnTreeAndFern : Card
+burnBurnTreeAndFern =
+  Macros.card "Burn, Burn, Tree and Fern"
+       (Just [Macros.generic 3, Macros.pip Red]) []
+       (MkTypeLine [enchantmentType "Saga"] [Enchantment])
+       [ Macros.triggered When (ChapterMark [ChapterI])
+           (DealDamage This (Lit 6)
+              (Macros.target (And [Macros.creature,
+                                   ControlledBy (Macros.a Opponent)])))
+       , Macros.triggered When (ChapterMark [ChapterII])
+           (Macros.destroy (Macros.target (And [Macros.artifact,
+                                                ControlledBy (Macros.a Opponent)])))
+       , Macros.triggered When (ChapterMark [ChapterIII, ChapterIV])
+           (AddMana You (Lit 1) (Runs [[OfColor Red]]) []) ]
+       Nothing
+
+||| The Flux, whole -- the FIFTH and SIXTH chapters, and the only
+||| supported card that reaches VI in three lines. 4 supported chapter
+||| lines name V and 3 name VI (re-measured 2026-09-02); this one writes
+||| the II-V run and the VI singleton together, so one card buys both
+||| markers.
+public export
+theFlux : Card
+theFlux =
+  Macros.card "The Flux"
+       (Just [Macros.generic 2, Macros.pip Red, Macros.pip Red]) []
+       (MkTypeLine [enchantmentType "Saga"] [Enchantment])
+       [ Macros.triggered When (ChapterMark [ChapterI])
+           (DealDamage This (Lit 4)
+              (Macros.target (And [Macros.creature,
+                                   ControlledBy (Macros.a Opponent)])))
+       , Macros.triggered When
+           (ChapterMark [ChapterII, ChapterIII, ChapterIV, ChapterV])
+           (Sequentially
+              [ Macros.exile Macros.topCard
+              , Continuously (Macros.mayPlay You (That CardW))
+                             (Just Macros.thisTurn) ])
+       , Macros.triggered When (ChapterMark [ChapterVI])
+           (AddMana You (Lit 6) (Runs [[OfColor Red]]) []) ]
+       Nothing
+
+||| Akroan Sergeant, whole -- renown's expansion written out, which is
+||| what `RenownW` had no witness for. "Renown 1 (When this creature
+||| deals combat damage to a player, if it isn't renowned, put a +1/+1
+||| counter on it and it becomes renowned.)" [CR#702.112a]. 22 supported
+||| cards print the keyword (re-measured 2026-09-02, the audit's count
+||| confirmed); this is the cheapest of them, one other keyword and
+||| nothing else.
+public export
+akroanSergeant : Card
+akroanSergeant =
+  Macros.card "Akroan Sergeant" (Just [Macros.generic 2, Macros.pip Red]) []
+       (MkTypeLine [creatureType "Human", creatureType "Soldier"] [Creature])
+       [ Macros.keyword "FirstStrike"
+       , Macros.triggeredIf When
+           (DealsCombatDamage Macros.thisCreature (Macros.a AnyPlayer))
+           (notSo (Matches Macros.thisCreature (HasDesignation Renowned)))
+           (Macros.renown (Lit 1)) ]
+       (Just (2, 2))
+
+||| Storied's expansion body [CR#702.195a] -- "you have an enduring
+||| story for the rest of the game", which is what `StoriedW` had no
+||| witness for. 9 supported cards print the word (re-measured
+||| 2026-09-02; the audit carried 11, and the difference is Grub,
+||| Storied Matriarch, whose "Storied" is a card NAME and not the
+||| keyword, plus a second name-only match).
+||| A FRAGMENT, and the GATE is why: [CR#702.195a] counts "permanents
+||| that are artifacts, Sagas, and/or legendary", a disjunction mixing
+||| two head-bearing arms with an adjectival one, and
+||| `parallelDisjuncts` refuses a mixed `Or` (`hasHead (HasSupertype _)`
+||| is False against `HasType`'s and `HasSubtype`'s True). The
+||| threshold reads fine; the union it counts over is the blocker, and
+||| it is not this word's.
+public export
+storiedEnduringStory : Effect []
+storiedEnduringStory = Macros.getsEnduringStory
+
 public export
 vedalkenOrrery : Card
 vedalkenOrrery =

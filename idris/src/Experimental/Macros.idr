@@ -2621,6 +2621,28 @@ becomesSaddled : Effect bs
 becomesSaddled =
   GainsDesignation (AsType Artifact This Nothing) Saddled (InExpansionOf SaddleW) (Just untilEndOfTurn)
 
+||| Renown's expansion body [CR#702.112a]: "put N +1/+1 counters on it
+||| and it becomes renowned." The trigger the keyword names, and its
+||| intervening "if it isn't renowned", are written at the site --
+||| [CR#702.112a] puts the gate on the trigger and not in the body,
+||| which is where monstrosity's own gate differs from this one.
+public export
+renown : {bs : Bindings} -> (amt : Amount bs) -> Effect bs
+renown amt =
+  Sequentially [ PutCounters amt (PrintedKind plusOnePlusOne) thisCreature
+               , GainsDesignation thisCreature Renowned
+                                  (InExpansionOf RenownW) Nothing ]
+
+||| Storied's expansion body [CR#702.195a]: "you have an enduring story
+||| for the rest of the game." `getsCitysBlessing`'s twin -- the rule
+||| states both as one designation a player keeps once a threshold over
+||| the permanents they control is met, so the count and what it counts
+||| over are written at the site and only the gaining is here.
+public export
+getsEnduringStory : Effect bs
+getsEnduringStory =
+  GainsDesignation You EnduringStory (InExpansionOf StoriedW) (Just RestOfGame)
+
 ||| "your commander" [CR#903.3]: the card-scope designation read as a
 ||| possessed noun.
 public export
