@@ -1315,6 +1315,33 @@ verbFacts =
   -- "melded" at all.
   , MkVerbFacts "Meld"        Nothing            (Just Object)
                               Nothing            (Just Battlefield) False [] False
+  -- [CR#709.5f] states the act: "to unlock half of a permanent, a player
+  -- chooses a locked half of that permanent, and that permanent is given
+  -- the appropriate unlocked designation". NO PATIENT KIND, and the
+  -- reason is this field's own: what the rule performs the act on is a
+  -- HALF, which is no `Kind` here for [CR#709.5b]'s reason -- exactly as
+  -- the search and shuffle rows record `Nothing` because what their
+  -- printed lines write after the verb is a zone. The half is written
+  -- instead at the seats that take a `Door`.
+  -- The zone is [CR#709.5c]'s: the designations are ones "a permanent on
+  -- the battlefield can have". Nothing moves, so no destination; the
+  -- rule states the act as one change, so no steps; and no printed line
+  -- names an unlocked half by participle -- "the unlocked door" is 0
+  -- supported lines, the printed adjective being the noun's own
+  -- (`LockState`) and not a lookback.
+  , MkVerbFacts "Unlock"      Nothing            Nothing
+                              (Just Battlefield) Nothing False [] False
+  -- [CR#709.5i]'s act, whose patient IS an object: "some abilities
+  -- trigger when a player 'fully unlocks' a permanent with a shared type
+  -- line", and the rule states when -- "when that permanent has one of
+  -- the two unlocked designations and gets the other, or when it has
+  -- neither designation and gains both". So this row is not `Unlock`
+  -- twice: the half is what the one act names and the PERMANENT is what
+  -- the other does, which is why the fully-unlock header needs no door
+  -- at all. Battlefield again by [CR#709.5c], nothing moved, no
+  -- participle (0 supported lines write one).
+  , MkVerbFacts "Fully Unlock" Nothing           (Just Object)
+                              (Just Battlefield) Nothing False [] False
   ]
 public export
 factsIn : VerbLabel -> List VerbFacts -> Maybe VerbFacts
@@ -4830,8 +4857,10 @@ data ManaUnit : Type where
 ||| 2026-09-02; the count was 2) are [CR#709.5f]/[CR#709.5g] EFFECTS
 ||| rather than this special action -- two "unlock a locked door of ... a
 ||| Room you control" and two "Lock or unlock a door of target Room you
-||| control" -- and they wait on the door noun [CR#709.5j] the Room scope
-||| fence left out. Two further lines name the ACT inside a mana-spend
+||| control". The door noun [CR#709.5j] those waited on is landed
+||| (`Door`), and with it the `Unlock` effect: the two bare instructions
+||| are spellable and the two disjunctive ones wait on an effect-level
+||| disjunction instead. Two further lines name the ACT inside a mana-spend
 ||| restriction ("unlock a door", "unlock doors"), which is this row's
 ||| own reading and needs no noun.
 ||| -- spelling: "to turn permanents face up", "to foretell cards", "to
@@ -5204,8 +5233,12 @@ Eq Supertype where
 ||| you control", "the number of unlocked doors among Rooms you control".
 ||| 0 supported lines write either designation by name, measured
 ||| 2026-08-28 -- so `HasDesignation` and `GainsDesignation` can reach
-||| them and no printed sentence yet does, the door noun [CR#709.5j]
-||| being the spelling that stands between.
+||| them and no printed sentence does. The door noun [CR#709.5j] is now
+||| spelled (`Door`), and it does not reach these rows either: it names a
+||| permanent and a lock state, and `halfDesignation` is what turns the
+||| chosen half into the appropriate designation. That is the whole
+||| content of "the APPROPRIATE unlocked designation" -- the designation
+||| is derived from a half and never written.
 public export
 data Designation
   = -- PLAYER-held ([CR#725.1], [CR#726.1], [CR#702.131c], [CR#702.195b]).
@@ -5276,6 +5309,93 @@ Eq Designation where
   (==) Day _ = False
   (==) Night Night = True
   (==) Night _ = False
+
+||| The two halves a SHARED TYPE LINE names. [CR#709.5] states the pair of
+||| static abilities such a line represents as the object's "left half" and
+||| "right half", and [CR#709.5c] gives the permanent one unlocked
+||| designation per half.
+|||
+||| A SORT, and never a `Kind`. [CR#709.5b] makes "the existence of each
+||| half of an object with a shared type line" part of THAT OBJECT's
+||| copiable values, so a half is a named part of one object rather than a
+||| referent standing beside objects and players -- and a kind is what the
+||| anaphors, the payloads and the join lattice are written over. `PileP`
+||| is the contrast that settles it: a pile sits at the `Object` kind
+||| because its MEMBERS are objects, and a half has no member to be. What
+||| a half needs instead is a relation to the object whose half it is,
+||| which is `Door`'s second slot.
+public export
+data RoomHalf = LeftHalf | RightHalf
+
+public export
+Eq RoomHalf where
+  (==) LeftHalf LeftHalf = True
+  (==) LeftHalf RightHalf = False
+  (==) RightHalf LeftHalf = False
+  (==) RightHalf RightHalf = True
+
+||| THE HALF-KEYED DESIGNATION READ. [CR#709.5c] gives the two unlocked
+||| designations to the PERMANENT and names the half inside each one --
+||| "a particular half of a permanent is said to be 'unlocked' if it has
+||| the appropriate unlocked designation" -- so which designation answers
+||| "is this door unlocked?" is a function of the half, not a predicate
+||| the half carries. This is that function, and it is why a door's lock
+||| adjective is no `HasDesignation` on one referent: the read takes the
+||| PAIR, a permanent and a half of it.
+public export
+halfDesignation : RoomHalf -> Designation
+halfDesignation LeftHalf = LeftHalfUnlocked
+halfDesignation RightHalf = RightHalfUnlocked
+
+||| The same read backwards: which half a designation is the appropriate
+||| one for, where it is one of [CR#709.5c]'s pair at all. Total over
+||| `Designation` because every other row is some other rule's and names
+||| no half.
+public export
+designationHalf : Designation -> Maybe RoomHalf
+designationHalf LeftHalfUnlocked = Just LeftHalf
+designationHalf RightHalfUnlocked = Just RightHalf
+designationHalf _ = Nothing
+
+||| The read is INJECTIVE, which is what makes [CR#709.5c]'s "the
+||| APPROPRIATE unlocked designation" a definite description: each half has
+||| one designation and no two halves share one. Without this the door's
+||| lock adjective would not determine which designation it asks about, and
+||| [CR#709.5h]'s header would not know which one it watches.
+public export
+halfDesignationInjective : (a, b : RoomHalf) ->
+                           halfDesignation a = halfDesignation b -> a = b
+halfDesignationInjective LeftHalf LeftHalf _ = Refl
+halfDesignationInjective LeftHalf RightHalf Refl impossible
+halfDesignationInjective RightHalf LeftHalf Refl impossible
+halfDesignationInjective RightHalf RightHalf _ = Refl
+
+||| And the two reads are inverse on the halves, so nothing about which
+||| half is meant is lost by going through the designation -- the step
+||| [CR#709.5f] takes when it gives a chosen half's designation and
+||| [CR#709.5h] takes back when it watches for one.
+public export
+designationHalfInverse : (h : RoomHalf) ->
+                         designationHalf (halfDesignation h) = Just h
+designationHalfInverse LeftHalf = Refl
+designationHalfInverse RightHalf = Refl
+
+||| [CR#709.5c]'s two words for a half, in that rule's own sentence: a
+||| half with the appropriate unlocked designation is "unlocked", and
+||| "otherwise, that half is said to be 'locked.'" The adjective a printed
+||| door phrase writes ("a LOCKED door of a Room you control", "UNLOCKED
+||| doors among Rooms you control"), and the reason it is a slot rather
+||| than two door rows: the same noun is written bare as well ("a door of
+||| target Room you control").
+public export
+data LockState = Locked | Unlocked
+
+public export
+Eq LockState where
+  (==) Locked Locked = True
+  (==) Locked Unlocked = False
+  (==) Unlocked Locked = False
+  (==) Unlocked Unlocked = True
 
 public export
 designationChecked : Designation -> Bool
