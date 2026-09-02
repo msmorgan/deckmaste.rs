@@ -1380,7 +1380,16 @@ data Payload : Kind -> Type where
   GapP : Payload Gap
   LetterP : Payload (LetterK l)
   TurnRefP : Payload TurnRef
-  AbilityP : Payload Ability
+  ||| An ability on the stack [CR#113.3b,113.3c], and its ORIGIN, for
+  ||| `ObjectP`'s reason at the other kind the stack holds: [CR#707.10]
+  ||| copies "a spell, activated ability, or triggered ability" alike, so
+  ||| a copy clause can put an ability mention into the discourse beside
+  ||| the ability it copied, and "the copy" has to be able to tell them
+  ||| apart. `TokenOrigin` never appears here -- [CR#111.1] makes only
+  ||| permanents -- so the field's live values are `Just CopyOrigin` and
+  ||| `Nothing`; it is `Maybe Origin` and not a flag because the reading
+  ||| words ask `isCopyOrigin`, one question for both kinds.
+  AbilityP : (orig : Maybe Origin) -> Payload Ability
   ||| A union mention carries what it knows about EACH half -- "target
   ||| creature or player" is `JoinP (ObjectP (Just Creature) ...) PlayerP`
   ||| -- and that pair is what the demonstrative echo reads back.
@@ -1412,7 +1421,7 @@ payloadZone (OutcomeP _) = Nothing
 payloadZone GapP = Nothing
 payloadZone LetterP = Nothing
 payloadZone TurnRefP = Nothing
-payloadZone AbilityP = Nothing
+payloadZone (AbilityP _) = Nothing
 payloadZone (JoinP l r) = maybe (payloadZone r) Just (payloadZone l)
 
 ||| One head type for a two-half phrase: the type its halves agree on, and
@@ -1440,7 +1449,7 @@ payloadTy (OutcomeP _) = Nothing
 payloadTy GapP = Nothing
 payloadTy LetterP = Nothing
 payloadTy TurnRefP = Nothing
-payloadTy AbilityP = Nothing
+payloadTy (AbilityP _) = Nothing
 payloadTy (JoinP l r) = joinSeed (payloadTy l) (payloadTy r)
 
 public export
@@ -1465,7 +1474,7 @@ payloadSize (OutcomeP _) = Nothing
 payloadSize GapP = Nothing
 payloadSize LetterP = Nothing
 payloadSize TurnRefP = Nothing
-payloadSize AbilityP = Nothing
+payloadSize (AbilityP _) = Nothing
 payloadSize (JoinP l r) = maybe (payloadSize r) Just (payloadSize l)
 
 public export
@@ -2043,8 +2052,8 @@ samePayload LetterP LetterP = True
 samePayload LetterP _ = False
 samePayload TurnRefP TurnRefP = True
 samePayload TurnRefP _ = False
-samePayload AbilityP AbilityP = True
-samePayload AbilityP _ = False
+samePayload (AbilityP og) (AbilityP og') = sameMaybeBy sameOrigin og og'
+samePayload (AbilityP _) _ = False
 samePayload (JoinP l r) (JoinP l' r') = samePayload l l' && samePayload r r'
 samePayload (JoinP _ _) _ = False
 
@@ -2127,7 +2136,7 @@ pubB (MkBinding _ _ _ (OutcomeP _)) = True  -- what happened is a public fact
 pubB (MkBinding _ _ _ GapP) = True          -- so is a comparison's margin
 pubB (MkBinding _ _ _ LetterP) = True       -- and so is a value the text defines
 pubB (MkBinding _ _ _ TurnRefP) = True       -- and so is a value the text defines
-pubB (MkBinding _ _ _ AbilityP) = True       -- an ability class is public too
+pubB (MkBinding _ _ _ (AbilityP _)) = True       -- an ability class is public too
 pubB (MkBinding _ _ _ (JoinP _ _)) = True         -- a target is public whichever half it is
 
 public export
@@ -2196,7 +2205,7 @@ payloadProv (OutcomeP _) = Nothing
 payloadProv GapP = Nothing
 payloadProv LetterP = Nothing
 payloadProv TurnRefP = Nothing
-payloadProv AbilityP = Nothing
+payloadProv (AbilityP _) = Nothing
 payloadProv (JoinP l r) = maybe (payloadProv r) Just (payloadProv l)
 
 ||| The ORIGIN a payload records -- what made the referent -- read like
@@ -2214,7 +2223,7 @@ payloadOrig (OutcomeP _) = Nothing
 payloadOrig GapP = Nothing
 payloadOrig LetterP = Nothing
 payloadOrig TurnRefP = Nothing
-payloadOrig AbilityP = Nothing
+payloadOrig (AbilityP og) = og
 payloadOrig (JoinP l r) = maybe (payloadOrig r) Just (payloadOrig l)
 
 ||| An `It`/`Them` anaphor is of kind `Object`, and `kindLte` is what
@@ -2248,15 +2257,66 @@ zoneOfThem [] = Nothing
 zoneOfThem (b :: bs) =
   if itReaches ManyOf b then bindingZone b else zoneOfThem bs
 
-||| The head words a demonstrative carries. Two of them read a UNION
+||| The head words a demonstrative carries. Three of them read a UNION
 ||| mention back WHOLE where the rest name one referent: `JoinW` where
 ||| the antecedent reached a player ("that creature or player"),
 ||| `AbilityJoinW` where it reached an ability ("that spell or ability",
-||| [CR#115.2]'s own pair). Each asks the antecedent's own kind, so
-||| neither word reads the other's mention.
+||| [CR#115.2]'s own pair), and `CopyJoinW` where the antecedent is a
+||| union the COPY clause made. Each asks the antecedent's own kind, so
+||| no two of them read one another's mentions.
+|||
+||| The copy words come in a pair for the same reason the union words
+||| do, and part on kind the same way. [CR#707.10] copies "a spell,
+||| activated ability, or triggered ability" alike, so a copy clause can
+||| put an ability on the stack beside the ability it copied, and both
+||| are `AbilityP`: `CopyW` names an object copy and `AbilityCopyW` an
+||| ability copy. Both spell the same English word, exactly as `JoinW`
+||| and `AbilityJoinW` both spell "that [x] or [y]" -- the word is one
+||| and the kind is what a card's own text has already fixed.
 public export
 data NounWord = TypeW CardType | CardW | SpellW | PlayerW
               | PermanentW | TokenW | CopyW | JoinW | AbilityJoinW
+              | ||| "Whenever you activate an ability, ... copy THAT
+                ||| ABILITY": the plain ability demonstrative, and
+                ||| `SpellW`'s row at the other kind the stack holds --
+                ||| it reaches an `AbilityP` the copy clause did NOT make,
+                ||| exactly as `SpellW` reaches a stack object that is no
+                ||| copy. 15 supported lines write "copy that ability"
+                ||| (re-measured 2026-09-02: Rings of Brighthearth,
+                ||| Illusionist's Bracers, Lithoform Engine's kin), each
+                ||| reading a header that announced one.
+                ||| No zone is asked, for `AbilityCopyW`'s reason: the
+                ||| ability kind places nothing [CR#113.3b,113.3c] and it
+                ||| is the head's class that says the ability reached the
+                ||| stack.
+                ||| -- spelling: "that ability", "those abilities".
+                AbilityW
+              | ||| "Copy target triggered ability you control. You may
+                ||| choose new targets for THE COPY": the copy mention at
+                ||| the other kind the stack holds. 29 supported lines
+                ||| write a copy of an ability (re-measured 2026-09-02:
+                ||| 14 at "copy target [class] ability", 15 at "copy that
+                ||| ability"), and every one of them reads the copy back
+                ||| in the next sentence.
+                ||| It asks `isCopyOrigin` of an `AbilityP`, where
+                ||| `CopyW` asks it of an `ObjectP` on the stack: the
+                ||| ability kind places nothing [CR#113.3b,113.3c], so
+                ||| the origin is the whole question here and no zone is
+                ||| asked.
+                ||| -- spelling: "the copy" / "the copies".
+                AbilityCopyW
+              | ||| "When you next cast an instant spell, cast a sorcery
+                ||| spell, or activate a loyalty ability this turn, copy
+                ||| that spell or ability twice. You may choose new
+                ||| targets for THE COPIES" (Repeated Reverberation): the
+                ||| copy mention over a union antecedent. What the copy
+                ||| clause copied was itself a union of alternatives, so
+                ||| what it made is one too -- copies of whichever arm
+                ||| fired -- and the mention names the pair.
+                ||| `AbilityJoinW`'s question with the origin asked, as
+                ||| `CopyW` is `SpellW`'s.
+                ||| -- spelling: "the copy" / "the copies".
+                CopyJoinW
               | ||| "the exiled creature card", "that land card": the type
                 ||| word and the card word written TOGETHER. [CR#109.2]
                 ||| makes the two readings different questions -- a
@@ -2430,7 +2490,7 @@ joinedPayload (OutcomeP _) = False
 joinedPayload GapP = False
 joinedPayload LetterP = False
 joinedPayload TurnRefP = False
-joinedPayload AbilityP = False
+joinedPayload (AbilityP _) = False
 joinedPayload (JoinP _ _) = True
 
 public export
@@ -2443,7 +2503,7 @@ wordReaches (TypeW t) (MkBinding _ _ _ (OutcomeP _)) = False
 wordReaches (TypeW t) (MkBinding _ _ _ GapP) = False
 wordReaches (TypeW t) (MkBinding _ _ _ LetterP) = False
 wordReaches (TypeW t) (MkBinding _ _ _ TurnRefP) = False
-wordReaches (TypeW t) (MkBinding _ _ _ AbilityP) = False
+wordReaches (TypeW t) (MkBinding _ _ _ (AbilityP _)) = False
 wordReaches (TypeW t) (MkBinding _ _ _ pl@(JoinP _ _)) = halfReaches (TypeW t) pl
 wordReaches CardW (MkBinding _ _ _ (ObjectP _ zn _ _ _)) = isCardZone zn
 wordReaches CardW (MkBinding _ _ _ PlayerP) = False
@@ -2453,7 +2513,7 @@ wordReaches CardW (MkBinding _ _ _ (OutcomeP _)) = False
 wordReaches CardW (MkBinding _ _ _ GapP) = False
 wordReaches CardW (MkBinding _ _ _ LetterP) = False
 wordReaches CardW (MkBinding _ _ _ TurnRefP) = False
-wordReaches CardW (MkBinding _ _ _ AbilityP) = False
+wordReaches CardW (MkBinding _ _ _ (AbilityP _)) = False
 wordReaches CardW (MkBinding _ _ _ (JoinP _ _)) = False
 wordReaches (TypedCardW t) (MkBinding _ _ _ (ObjectP ty zn _ _ _)) =
   isCardZone zn && tyIs t ty
@@ -2464,7 +2524,7 @@ wordReaches (TypedCardW t) (MkBinding _ _ _ (OutcomeP _)) = False
 wordReaches (TypedCardW t) (MkBinding _ _ _ GapP) = False
 wordReaches (TypedCardW t) (MkBinding _ _ _ LetterP) = False
 wordReaches (TypedCardW t) (MkBinding _ _ _ TurnRefP) = False
-wordReaches (TypedCardW t) (MkBinding _ _ _ AbilityP) = False
+wordReaches (TypedCardW t) (MkBinding _ _ _ (AbilityP _)) = False
 wordReaches (TypedCardW t) (MkBinding _ _ _ (JoinP _ _)) = False
 wordReaches SpellW (MkBinding _ _ _ (ObjectP _ zn _ og _)) =
   onStackZone zn && not (isCopyOrigin og)
@@ -2475,7 +2535,7 @@ wordReaches SpellW (MkBinding _ _ _ (OutcomeP _)) = False
 wordReaches SpellW (MkBinding _ _ _ GapP) = False
 wordReaches SpellW (MkBinding _ _ _ LetterP) = False
 wordReaches SpellW (MkBinding _ _ _ TurnRefP) = False
-wordReaches SpellW (MkBinding _ _ _ AbilityP) = False
+wordReaches SpellW (MkBinding _ _ _ (AbilityP _)) = False
 wordReaches SpellW (MkBinding _ _ _ (JoinP _ _)) = False
 wordReaches PlayerW (MkBinding _ _ _ (ObjectP _ _ _ _ _)) = False
 wordReaches PlayerW (MkBinding _ _ _ PlayerP) = True
@@ -2485,7 +2545,7 @@ wordReaches PlayerW (MkBinding _ _ _ (OutcomeP _)) = False
 wordReaches PlayerW (MkBinding _ _ _ GapP) = False
 wordReaches PlayerW (MkBinding _ _ _ LetterP) = False
 wordReaches PlayerW (MkBinding _ _ _ TurnRefP) = False
-wordReaches PlayerW (MkBinding _ _ _ AbilityP) = False
+wordReaches PlayerW (MkBinding _ _ _ (AbilityP _)) = False
 wordReaches PlayerW (MkBinding _ _ _ pl@(JoinP _ _)) = halfReaches PlayerW pl
 -- on the battlefield now, or where a labeled action took it off the
 -- battlefield: [CR#608.2h] reads a departed referent by its last known
@@ -2500,7 +2560,7 @@ wordReaches PermanentW (MkBinding _ _ _ (OutcomeP _)) = False
 wordReaches PermanentW (MkBinding _ _ _ GapP) = False
 wordReaches PermanentW (MkBinding _ _ _ LetterP) = False
 wordReaches PermanentW (MkBinding _ _ _ TurnRefP) = False
-wordReaches PermanentW (MkBinding _ _ _ AbilityP) = False
+wordReaches PermanentW (MkBinding _ _ _ (AbilityP _)) = False
 wordReaches PermanentW (MkBinding _ _ _ pl@(JoinP _ _)) = halfReaches PermanentW pl
 wordReaches TokenW (MkBinding _ _ _ (ObjectP _ zn _ og _)) =
   onFieldZone zn && isTokenOrigin og
@@ -2511,7 +2571,7 @@ wordReaches TokenW (MkBinding _ _ _ (OutcomeP _)) = False
 wordReaches TokenW (MkBinding _ _ _ GapP) = False
 wordReaches TokenW (MkBinding _ _ _ LetterP) = False
 wordReaches TokenW (MkBinding _ _ _ TurnRefP) = False
-wordReaches TokenW (MkBinding _ _ _ AbilityP) = False
+wordReaches TokenW (MkBinding _ _ _ (AbilityP _)) = False
 wordReaches TokenW (MkBinding _ _ _ (JoinP _ _)) = False
 wordReaches CopyW (MkBinding _ _ _ (ObjectP _ zn _ og _)) =
   onStackZone zn && isCopyOrigin og
@@ -2522,16 +2582,46 @@ wordReaches CopyW (MkBinding _ _ _ (OutcomeP _)) = False
 wordReaches CopyW (MkBinding _ _ _ GapP) = False
 wordReaches CopyW (MkBinding _ _ _ LetterP) = False
 wordReaches CopyW (MkBinding _ _ _ TurnRefP) = False
-wordReaches CopyW (MkBinding _ _ _ AbilityP) = False
+wordReaches CopyW (MkBinding _ _ _ (AbilityP _)) = False
 wordReaches CopyW (MkBinding _ _ _ (JoinP _ _)) = False
--- The two union words ask the same question of the payload -- was the
+-- The two ability words ask the origin alone: `AbilityP` places nothing,
+-- so there is no stack to re-ask, and the copy clause is the only thing
+-- that writes an origin at this kind. They part on it as `SpellW` and
+-- `CopyW` part at `Object`.
+wordReaches AbilityW (MkBinding _ _ _ (AbilityP og)) = not (isCopyOrigin og)
+wordReaches AbilityW (MkBinding _ _ _ (ObjectP _ _ _ _ _)) = False
+wordReaches AbilityW (MkBinding _ _ _ PlayerP) = False
+wordReaches AbilityW (MkBinding _ _ _ ChosenPlayerP) = False
+wordReaches AbilityW (MkBinding _ _ _ QualityP) = False
+wordReaches AbilityW (MkBinding _ _ _ (OutcomeP _)) = False
+wordReaches AbilityW (MkBinding _ _ _ GapP) = False
+wordReaches AbilityW (MkBinding _ _ _ LetterP) = False
+wordReaches AbilityW (MkBinding _ _ _ TurnRefP) = False
+wordReaches AbilityW (MkBinding _ _ _ (JoinP _ _)) = False
+wordReaches AbilityCopyW (MkBinding _ _ _ (AbilityP og)) = isCopyOrigin og
+wordReaches AbilityCopyW (MkBinding _ _ _ (ObjectP _ _ _ _ _)) = False
+wordReaches AbilityCopyW (MkBinding _ _ _ PlayerP) = False
+wordReaches AbilityCopyW (MkBinding _ _ _ ChosenPlayerP) = False
+wordReaches AbilityCopyW (MkBinding _ _ _ QualityP) = False
+wordReaches AbilityCopyW (MkBinding _ _ _ (OutcomeP _)) = False
+wordReaches AbilityCopyW (MkBinding _ _ _ GapP) = False
+wordReaches AbilityCopyW (MkBinding _ _ _ LetterP) = False
+wordReaches AbilityCopyW (MkBinding _ _ _ TurnRefP) = False
+wordReaches AbilityCopyW (MkBinding _ _ _ (JoinP _ _)) = False
+-- The three union words ask the same question of the payload -- was the
 -- mention a pair? -- and part on the antecedent's KIND, which is the
 -- only thing telling "that creature or player" from "that spell or
--- ability". A bare ability mention is no pair, so neither word reaches
+-- ability". A bare ability mention is no pair, so none of them reaches
 -- it.
+-- The ORIGIN parts the last two: `AbilityJoinW` reads the union a card
+-- named and `CopyJoinW` the union a copy clause made, exactly as
+-- `SpellW` and `CopyW` part at `Object`. `payloadOrig` reports a join by
+-- its object half, which is the half a copy clause stamps.
 wordReaches JoinW (MkBinding _ kd _ pl) = joinedPayload pl && kindLte Player kd
 wordReaches AbilityJoinW (MkBinding _ kd _ pl) =
-  joinedPayload pl && kindLte Ability kd
+  joinedPayload pl && kindLte Ability kd && not (isCopyOrigin (payloadOrig pl))
+wordReaches CopyJoinW (MkBinding _ kd _ pl) =
+  joinedPayload pl && kindLte Ability kd && isCopyOrigin (payloadOrig pl)
 
 public export
 wordNow : NounWord -> Binding -> Bool
@@ -2554,6 +2644,9 @@ kindOfW TokenW = Object
 kindOfW CopyW = Object
 kindOfW JoinW = Object \/ Player
 kindOfW AbilityJoinW = Object \/ Ability
+kindOfW AbilityW = Ability
+kindOfW AbilityCopyW = Ability
+kindOfW CopyJoinW = Object \/ Ability
 
 public export
 stampedBy : VerbLabel -> Stamp -> Bool
@@ -2574,6 +2667,9 @@ verbedWordOk TokenW st ty zn = False
 verbedWordOk CopyW st ty zn = False
 verbedWordOk JoinW st ty zn = False
 verbedWordOk AbilityJoinW st ty zn = False
+verbedWordOk AbilityW st ty zn = False
+verbedWordOk AbilityCopyW st ty zn = False
+verbedWordOk CopyJoinW st ty zn = False
 
 ||| Whether a mention carries the stamp ONE named label left. A mention
 ||| with no stamp is one no labeled action in this text acted on, which
@@ -2793,7 +2889,7 @@ verbedMatch v w (MkBinding _ _ _ (OutcomeP _)) = False
 verbedMatch v w (MkBinding _ _ _ GapP) = False
 verbedMatch v w (MkBinding _ _ _ LetterP) = False
 verbedMatch v w (MkBinding _ _ _ TurnRefP) = False
-verbedMatch v w (MkBinding _ _ _ AbilityP) = False
+verbedMatch v w (MkBinding _ _ _ (AbilityP _)) = False
 verbedMatch v w (MkBinding _ _ _ (JoinP _ _)) = False
 
 public export
@@ -2808,7 +2904,7 @@ verbedMatchMany v w (MkBinding _ _ _ (OutcomeP _)) = False
 verbedMatchMany v w (MkBinding _ _ _ GapP) = False
 verbedMatchMany v w (MkBinding _ _ _ LetterP) = False
 verbedMatchMany v w (MkBinding _ _ _ TurnRefP) = False
-verbedMatchMany v w (MkBinding _ _ _ AbilityP) = False
+verbedMatchMany v w (MkBinding _ _ _ (AbilityP _)) = False
 verbedMatchMany v w (MkBinding _ _ _ (JoinP _ _)) = False
 
 public export
@@ -3229,6 +3325,25 @@ targetablePhrasal PlayerTgt = PhPlayer
 targetablePhrasal AbilityTgt = PhAbility
 targetablePhrasal (JoinTgt l r) =
   PhJoin (targetablePhrasal l) (targetablePhrasal r)
+
+||| What a copy clause announces, shaped by the kind it copied.
+||| [CR#707.10] puts the copy on the stack whatever it copied, so the
+||| object arm records the stack; the ability arm records no zone because
+||| the ability kind places nothing, and the ORIGIN is what both arms
+||| carry and what the copy words read. A union is copied half by half,
+||| since a copy of "that spell or ability" is a copy of whichever arm
+||| fired and the mention has to keep saying so.
+||| The type is the copied phrase's own -- [CR#707.2] gives the copy the
+||| original's copiable values, so a copy of a creature spell is one too.
+||| The `PhPlayer` and `PhQuality` rows are unreachable under `Copiable`
+||| and are filled rather than left to a catch-all.
+public export
+copyPayload : {k : Kind} -> Phrasal k -> Maybe CardType -> Payload k
+copyPayload PhObject ty = ObjectP ty (Just Stack) Nothing (Just CopyOrigin) Nothing
+copyPayload PhAbility _ = AbilityP (Just CopyOrigin)
+copyPayload (PhJoin l r) ty = JoinP (copyPayload l ty) (copyPayload r ty)
+copyPayload PhPlayer _ = PlayerP
+copyPayload {k = Quality q} PhQuality _ = QualityP
 
 
 ||| The NAME a card prints where an ability's whole text would otherwise
@@ -4805,6 +4920,9 @@ attachHeadOk Equipped TokenW = False
 attachHeadOk Equipped CopyW = False
 attachHeadOk Equipped JoinW = False
 attachHeadOk Equipped AbilityJoinW = False
+attachHeadOk Equipped AbilityW = False
+attachHeadOk Equipped AbilityCopyW = False
+attachHeadOk Equipped CopyJoinW = False
 attachHeadOk Fortified (TypeW Creature) = False
 attachHeadOk Fortified (TypeW Artifact) = False
 attachHeadOk Fortified (TypeW Land) = True
@@ -4829,6 +4947,9 @@ attachHeadOk Fortified TokenW = False
 attachHeadOk Fortified CopyW = False
 attachHeadOk Fortified JoinW = False
 attachHeadOk Fortified AbilityJoinW = False
+attachHeadOk Fortified AbilityW = False
+attachHeadOk Fortified AbilityCopyW = False
+attachHeadOk Fortified CopyJoinW = False
 
 public export
 attachedCheckOk : AttachWord -> Bool
@@ -4852,6 +4973,9 @@ attachHostZone TokenW = Just Battlefield
 attachHostZone CopyW = Just Stack
 attachHostZone JoinW = Nothing
 attachHostZone AbilityJoinW = Nothing
+attachHostZone AbilityW = Nothing
+attachHostZone AbilityCopyW = Nothing
+attachHostZone CopyJoinW = Nothing
 
 public export
 attachHostTy : NounWord -> Maybe CardType
@@ -4865,6 +4989,9 @@ attachHostTy TokenW = Nothing
 attachHostTy CopyW = Nothing
 attachHostTy JoinW = Nothing
 attachHostTy AbilityJoinW = Nothing
+attachHostTy AbilityW = Nothing
+attachHostTy AbilityCopyW = Nothing
+attachHostTy CopyJoinW = Nothing
 
 public export
 data OutcomeVerb = WinGame | LoseGame

@@ -2657,14 +2657,27 @@ mutual
     ||| no zone for an ability the kind places nowhere.
     CounterSpell : {k : Kind} -> (what : Noun bs k) ->
                    {auto 0 ct : Counterable what} -> Effect bs
-    CopyStack : (agent : Noun bs Player) ->
-                (what : Noun (nomIntro agent) Object) ->
+    ||| "Copy target instant or sorcery spell", "Copy target triggered
+    ||| ability you control", "copy that spell or ability twice":
+    ||| [CR#707.10] copies a spell, an activated ability and a triggered
+    ||| ability alike, so the complement is kind-indexed on
+    ||| `CounterSpell`'s model and `Copiable` carries the per-kind demand.
+    ||| The `Phrasal` is not a second gate but the payload's shape: what
+    ||| the clause ANNOUNCES differs by kind -- an object copy is on the
+    ||| stack, an ability copy is placeless -- and `copyPayload` is that
+    ||| one difference written once.
+    CopyStack : {k : Kind} -> (agent : Noun bs Player) ->
+                (what : Noun (nomIntro agent) k) ->
                 (times : Amount (nomIntro what)) ->
                 (exc : List (CopyExcept (amtIntro times))) ->
-                {auto 0 zn : OnStack (nounZone what)} ->
+                {auto ph : Phrasal k} ->
+                {auto 0 cp : Copiable what} ->
                 Effect bs
-    ChooseNewTargets : (what : Noun bs Object) ->
-                       {auto 0 zn : OnStack (nounZone what)} -> Effect bs
+    ||| "You may choose new targets for the copy": [CR#707.10c]'s
+    ||| permission, kind-indexed for `CopyStack`'s reason and under the
+    ||| same gate -- what may be retargeted is what may be copied.
+    ChooseNewTargets : {k : Kind} -> (what : Noun bs k) ->
+                       {auto 0 cp : Copiable what} -> Effect bs
     ChangeLife : (who : Noun bs Player) -> (op : LifeOp (nomIntro who)) -> Effect bs
     ||| "Exchange life totals with target opponent" (Magus of the Mirror,
     ||| Mirror Universe, Mister Negative), "Two target players exchange
@@ -3916,10 +3929,10 @@ mutual
   effEq RestartsGame RestartsGame = True
   effEq RestartsGame _ = False
   -- kind-indexed, so two subjects need not share a kind to compare;
-  -- `Choose`'s row gives up on the same ground.
+  -- `Choose`'s row gives up on the same ground, and the retarget row
+  -- joined them when the copy verb's complement opened past `Object`.
   effEq (CounterSpell _) _ = False
   effEq (CopyStack _ _ _ _) _ = False
-  effEq (ChooseNewTargets a) (ChooseNewTargets b) = nounEqRef a b
   effEq (ChooseNewTargets _) _ = False
   effEq (Choose _ _) _ = False
   effEq (Move a s _) (Move b t _) = nounEqRef a b && zoneSort s == zoneSort t
@@ -4045,9 +4058,9 @@ mutual
   effIntro GameDrawn = bs
   effIntro RestartsGame = bs
   effIntro (CounterSpell what) = nomIntro what
-  effIntro (CopyStack agent what times exc) =
-    MkBinding TheD Object (outputPlur (nounPlur what) (amtPlur times))
-              (ObjectP (nounTy what) (Just Stack) Nothing (Just CopyOrigin) Nothing)
+  effIntro (CopyStack {k} {ph} agent what times exc) =
+    MkBinding TheD k (outputPlur (nounPlur what) (amtPlur times))
+              (copyPayload ph (nounTy what))
       :: amtIntro times
   effIntro (ChooseNewTargets what) = nomIntro what
   effIntro (Choose n Nothing) = chosenIntro n
@@ -4482,9 +4495,9 @@ mutual
   deedDelta GameDrawn = []
   deedDelta RestartsGame = []
   deedDelta (CounterSpell _) = []
-  deedDelta (CopyStack agent what times exc) =
-    [MkBinding TheD Object (outputPlur (nounPlur what) (amtPlur times))
-               (ObjectP (nounTy what) (Just Stack) Nothing (Just CopyOrigin) Nothing)]
+  deedDelta (CopyStack {k} {ph} agent what times exc) =
+    [MkBinding TheD k (outputPlur (nounPlur what) (amtPlur times))
+               (copyPayload ph (nounTy what))]
   deedDelta (ChooseNewTargets _) = []
   deedDelta (Choose n _) = []
   deedDelta (Move what to _) = []

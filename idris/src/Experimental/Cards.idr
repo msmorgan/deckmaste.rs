@@ -3977,6 +3977,72 @@ echoMagesFourthLevel =
                    (Lit 2) []
                , Macros.may You (ChooseNewTargets (Those CopyW)) ])
 
+||| Strionic Resonator, whole card -- "{2}, {T}: Copy target triggered
+||| ability you control. You may choose new targets for the copy."
+||| The copy verb at the OTHER kind the stack holds. [CR#707.10] copies
+||| "a spell, activated ability, or triggered ability" alike, so the
+||| complement is kind-indexed under `Copiable` exactly as
+||| `CounterSpell`'s is under `Counterable`; the head is `AbilityHead`'s
+||| class word, which [CR#115.1d] gives the word "target"; "you control"
+||| is `ControlledBy` at `Ability`, admitted by [CR#109.4] over an object
+||| on the stack [CR#109.1]; and "the copy" is `AbilityCopyW`, the copy
+||| mention at that kind.
+||| 14 supported lines write "copy target [class] ability you control"
+||| (re-measured 2026-09-02), every one of them with [CR#707.10c]'s
+||| retarget permission after it.
+public export
+strionicResonator : Card
+strionicResonator =
+  Macros.card "Strionic Resonator" (Just [Macros.generic 2]) []
+       (MkTypeLine [] [Artifact])
+       [ Macros.activated (Compound [Mana [Macros.generic 2], TapSymbol])
+           (Sequentially
+              [ CopyStack You
+                  (Macros.target (And [AbilityHead AnyTriggered, ControlledBy You]))
+                  (Lit 1) []
+              , Macros.may You (ChooseNewTargets (That AbilityCopyW)) ]) ]
+       Nothing
+
+||| Mister Fantastic's activated ability -- "{R}{G}{W}{U}, {T}: Copy
+||| target triggered ability you control twice. You may choose new
+||| targets for the copies." The ability copy with a COUNT, whose plural
+||| mention is the same word: `Those AbilityCopyW` after `Lit 2`, as
+||| `Those CopyW` stands after Echo Mage's. Nothing new is bought here;
+||| it is the plural witness that the ability copy's mention agrees like
+||| the object copy's.
+public export
+misterFantasticCopy : Ability
+misterFantasticCopy =
+  Macros.activated (Compound [ Mana [ Macros.pip Red, Macros.pip Green
+                                    , Macros.pip White, Macros.pip Blue ]
+                             , TapSymbol ])
+    (Sequentially
+       [ CopyStack You
+           (Macros.target (And [AbilityHead AnyTriggered, ControlledBy You]))
+           (Lit 2) []
+       , Macros.may You (ChooseNewTargets (Those AbilityCopyW)) ])
+
+||| Rowan's Talent's third line -- "Whenever you activate a loyalty
+||| ability of enchanted planeswalker, copy that ability. You may choose
+||| new targets for the copy." The ANAPHORIC ability copy: the header
+||| announces the activated ability [CR#603.6] and the body reads it back
+||| with the plain ability demonstrative, then reads the copy back with
+||| the copy one. Both mentions are `AbilityP` and the ORIGIN is all that
+||| tells them apart, which is `SpellW`/`CopyW`'s arrangement at the
+||| other kind the stack holds.
+||| 15 supported lines write "copy that ability" (re-measured
+||| 2026-09-02); this is the shape with no intervening clause on it.
+public export
+rowansTalentCopy : Ability
+rowansTalentCopy =
+  Macros.triggered Whenever
+    (Activates You
+       (Macros.a (And [ AbilityHead LoyaltyClass
+                      , AbilityOf (AttachHost Enchanted (TypeW Planeswalker)) ])))
+    (Sequentially
+       [ CopyStack You (That AbilityW) (Lit 1) []
+       , Macros.may You (ChooseNewTargets (That AbilityCopyW)) ])
+
 public export
 tawnosTheToymaker : Card
 tawnosTheToymaker =
@@ -17438,16 +17504,25 @@ alluringSuitorPump =
 -- restriction, and `Counterable`'s ability row is what lets the counter
 -- verb take it.
 --
--- The COPY verb does not, and the ledger's "both verbs' complement
--- slots are already the ordinary stack noun" is wrong about it:
--- `CopyStack` takes a `Noun bs Object` under `OnStack`, where
--- `CounterSpell` is kind-indexed under `Counterable`. Widening it wants
--- `Counterable`'s twin AND a second move at the rider -- every one of
--- the 15 lines goes on to say "you may choose new targets for the
--- copy", and `ChooseNewTargets` is Object-kinded too, with
--- `wordReaches CopyW AbilityP = False` behind it. Two widenings in the
--- COPY verb's own family; recorded here at its count rather than taken
--- by this round.
+-- The COPY verb now does too, and this is what it took (2026-09-02).
+-- `CopyStack` and `ChooseNewTargets` are kind-indexed under `Copiable`,
+-- `Counterable`'s twin at [CR#707.10]; `ControlledBy` is kind-indexed
+-- under [CR#109.4], which is what "target triggered ability you
+-- control" needed; and the ability copy's MENTION is two new words,
+-- `AbilityW` and `AbilityCopyW`, parting on the origin `AbilityP` now
+-- carries. Strionic Resonator, Mister Fantastic's plural and Rowan's
+-- Talent's anaphor bench it.
+-- Re-measured 2026-09-02: 14 lines write "copy target [class] ability
+-- you control" and 15 write "copy that ability", which is the 15 the
+-- ledger carried plus the targeted half it had merged with them.
+--
+-- WHAT IS STILL OWED at this kind, and it is not the copy verb's: the
+-- ability PRONOUN. `It` is `Noun bs Object` and `itReaches` asks
+-- `kindLte Object`, so "…, if IT isn't a mana ability" (Rings of
+-- Brighthearth, Illusionist's Bracers and 3 more of the 15) has no
+-- carrier. That is the noun vocabulary's row, not this family's, and it
+-- is why the anaphoric bench above is one of the lines with no
+-- intervening clause on it.
 
 -- ---------------------------------------------------------------------------
 -- Measured, and deliberately not built.

@@ -1205,7 +1205,7 @@ markTyKeepsOnes j ty (MkBinding det Outcome plur (OutcomeP s)) = Refl
 markTyKeepsOnes j ty (MkBinding det Gap plur GapP) = Refl
 markTyKeepsOnes j ty (MkBinding det (LetterK l) plur LetterP) = Refl
 markTyKeepsOnes j ty (MkBinding det TurnRef plur TurnRefP) = Refl
-markTyKeepsOnes j ty (MkBinding det Ability plur AbilityP) = Refl
+markTyKeepsOnes j ty (MkBinding det Ability plur (AbilityP og)) = Refl
 markTyKeepsOnes j ty (MkBinding det (a \/ b) plur (JoinP l r)) = Refl
 
 ||| ...and the SCOPED gate likewise: a slot's carrier is read off the
@@ -1222,7 +1222,7 @@ markTyKeepsAt sl ty (MkBinding det Outcome plur (OutcomeP s)) = Refl
 markTyKeepsAt sl ty (MkBinding det Gap plur GapP) = Refl
 markTyKeepsAt sl ty (MkBinding det (LetterK l) plur LetterP) = Refl
 markTyKeepsAt sl ty (MkBinding det TurnRef plur TurnRefP) = Refl
-markTyKeepsAt sl ty (MkBinding det Ability plur AbilityP) = Refl
+markTyKeepsAt sl ty (MkBinding det Ability plur (AbilityP og)) = Refl
 markTyKeepsAt sl ty (MkBinding det (a \/ b) plur (JoinP l r)) = Refl
 
 ||| The re-mark drops nothing and inserts nothing: it is the list it was

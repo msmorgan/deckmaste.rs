@@ -447,7 +447,18 @@ mutual
     ||| could not.
     HasKeyword : (k : KeywordTerm) -> {auto 0 kn : KnownKeywordTerm k} ->
                  Predicate bs Object
-    ControlledBy : (n : Noun bs Player) -> {auto 0 ps : SoleHolder n} -> Predicate bs Object
+    ||| "creatures you control", "target triggered ability you control":
+    ||| kind-indexed, because [CR#109.4] states ONE control relation over
+    ||| everything on the stack or the battlefield, and [CR#109.1] puts
+    ||| an ability on the stack among those objects. 38 supported lines
+    ||| write "abilit[y|ies] you control" (re-measured 2026-09-02), 14 of
+    ||| them the copy verb's own complement.
+    ||| The zone answer is unchanged and stated once for both kinds:
+    ||| `zoneAdmit` is the rule's own pair, which is why nothing here is
+    ||| said twice.
+    ControlledBy : {k : Kind} -> (n : Noun bs Player) ->
+                   {auto 0 ps : SoleHolder n} ->
+                   {auto 0 ck : So (controlKind k)} -> Predicate bs k
     ||| "cards your opponents own", "target permanent you both own and
     ||| control": ownership as a relation that DESCRIBES an object, beside
     ||| `ControlledBy` and gated exactly as it is.
@@ -2112,7 +2123,7 @@ mutual
   joinHalfPayload PhObject (SoleTy ty) = ObjectP ty Nothing Nothing Nothing Nothing
   joinHalfPayload PhPlayer _ = PlayerP
   joinHalfPayload {k = Quality q} PhQuality _ = QualityP
-  joinHalfPayload PhAbility _ = AbilityP
+  joinHalfPayload PhAbility _ = AbilityP Nothing
   joinHalfPayload (PhJoin l r) (JoinTy a b) =
     JoinP (joinHalfPayload l a) (joinHalfPayload r b)
   joinHalfPayload (PhJoin l r) (SoleTy ty) =
@@ -2129,7 +2140,7 @@ mutual
                        Nothing)
   bindFor det plur PhPlayer p = MkBinding det Player plur PlayerP
   bindFor det plur {k = Quality q} PhQuality p = MkBinding det (Quality q) plur QualityP
-  bindFor det plur PhAbility p = MkBinding det Ability plur AbilityP
+  bindFor det plur PhAbility p = MkBinding det Ability plur (AbilityP Nothing)
   -- the branch that used to CHOOSE a payload: it now fills one in, since
   -- the kind fixes the shape and each half's own description fixes its
   -- type [CR#205.2a] — a class word naming no card type leaves none.
@@ -4136,6 +4147,58 @@ mutual
                     {0 n : Noun bs (ka \/ kb)} ->
                     {auto 0 ck : So (counterKind (ka \/ kb))} -> Counterable n
 
+  ||| Which kinds have a CONTROLLER to be described by. [CR#109.4] gives
+  ||| one only to objects on the stack or the battlefield, and [CR#109.1]
+  ||| lists an ability on the stack among the objects; a player has none,
+  ||| which is what keeps "target creature or player you control" out.
+  ||| The extension coincides with `counterKind` and `copyKind` and the
+  ||| rule does not: those two ask what the STACK holds and this one asks
+  ||| what has a possessor at all, which is why a permanent passes here
+  ||| and is countered by nothing.
+  public export
+  controlKind : Kind -> Bool
+  controlKind Object = True
+  controlKind Ability = True
+  controlKind (a \/ b) = controlKind a && controlKind b
+  controlKind _ = False
+
+  ||| Which kinds a copy instruction can name, and it is `counterKind`'s
+  ||| set said again rather than reused: [CR#707.10] copies "a spell,
+  ||| activated ability, or triggered ability", which is [CR#701.6a]'s
+  ||| list of what may be countered, and both lists are what the stack
+  ||| holds [CR#109.1]. Two rules stating one set is not one rule, so the
+  ||| predicate is written twice; nothing here may drift toward the
+  ||| counter row without its own rule.
+  public export
+  copyKind : Kind -> Bool
+  copyKind Object = True
+  copyKind Ability = True
+  copyKind (a \/ b) = copyKind a && copyKind b
+  copyKind _ = False
+
+  ||| What a copy instruction, and the retarget instruction that follows
+  ||| it, may name -- `Counterable`'s rows at `Copiable`'s rule. The
+  ||| object row asks for the stack [CR#112.1], the ability row asks no
+  ||| zone because the `Ability` kind places nothing, and the joined row
+  ||| asks the kind alone because the union family is placeless.
+  |||
+  ||| ONE gate for both verbs, where the counter verb has its own,
+  ||| because [CR#707.10c] states the retarget as a thing "some effects"
+  ||| do to a copy they made: the copy is on the stack whatever was
+  ||| copied [CR#707.10], so what may be retargeted is exactly what may
+  ||| be copied, and a second identical predicate would say the same
+  ||| thing twice from one rule. Re-measured 2026-09-02: all 29 supported
+  ||| ability-copy lines write both verbs, and 214 lines write "choose
+  ||| new targets for the cop[y|ies]" in all.
+  public export
+  data Copiable : {0 k : Kind} -> Noun bs k -> Type where
+    SpellCopied : {0 n : Noun bs Object} ->
+                  {auto 0 zn : OnStack (nounZone n)} -> Copiable n
+    AbilityCopied : {0 n : Noun bs Ability} -> Copiable n
+    JoinCopied : {0 ka : Kind} -> {0 kb : Kind} ->
+                 {0 n : Noun bs (ka \/ kb)} ->
+                 {auto 0 ck : So (copyKind (ka \/ kb))} -> Copiable n
+
   public export
   selfDefinedOk : {bs : Bindings} -> Noun bs Object -> Bool
   selfDefinedOk This = True
@@ -5050,7 +5113,8 @@ mutual
   setZone p z (MkBinding det Gap plur GapP) = MkBinding det Gap plur GapP
   setZone p z (MkBinding det (LetterK l) plur LetterP) = MkBinding det (LetterK l) plur LetterP
   setZone p z (MkBinding det TurnRef plur TurnRefP) = MkBinding det TurnRef plur TurnRefP
-  setZone p z (MkBinding det Ability plur AbilityP) = MkBinding det Ability plur AbilityP
+  setZone p z (MkBinding det Ability plur (AbilityP og)) =
+    MkBinding det Ability plur (AbilityP og)
   setZone p z (MkBinding det (a \/ b) plur (JoinP l r)) = MkBinding det (a \/ b) plur (JoinP l r)
 
   public export
