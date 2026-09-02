@@ -4989,8 +4989,8 @@ mutual
     AlsoForKeywords : (ab : AbilityAt bs) -> (ks : List KeywordTerm) ->
                       {auto 0 ex : KeywordExtendable ab} ->
                       {auto 0 lk : KeywordListOk ab ks} -> AbilityAt bs
-    ||| [CR#207.2c]: an ability word prefixes an ability of any kind and has
-    ||| no special rules meaning, so it wraps `AbilityAt` — the type
+    ||| [CR#207.2]: an italicized word prefixes an ability of any kind and
+    ||| has no special rules meaning, so it wraps `AbilityAt` — the type
     ||| enclosing every ability kind — rather than any one of them, and the
     ||| rules-facing functions below read straight through it. Homed in this
     ||| grammar by user ruling: with no rules meaning there is nothing for
@@ -4999,22 +4999,33 @@ mutual
     ||| The rule puts the word at the *beginning* of the ability, so it is
     ||| the outermost wrapper: `lineKeyword` reads no keyword through it,
     ||| which keeps `AlsoForKeywords` inside the word rather than outside.
-    AbilityWord : (word : AbilityWordName) -> (ab : AbilityAt bs) ->
-                  {auto 0 nw : NotAbilityWorded ab} -> AbilityAt bs
+    |||
+    ||| ONE row for both italicized-word rules. [CR#207.2c]'s ability word
+    ||| and [CR#207.2d]'s flavor word take the same position, carry the same
+    ||| absent rules meaning, and nest no further; the only difference the
+    ||| rules state is which vocabulary the word is drawn from, and
+    ||| `ItalicWord` carries that. A second constructor would name the two
+    ||| surfaces after their phrases and duplicate this one's wrapper,
+    ||| no-nesting gate and eight read-through clauses to say nothing new.
+    ||| The card language keeps the phrase names: `Macros.abilityWord` and
+    ||| `Macros.flavorWord`.
+    ||| -- spelling: "[word] — [ab]", the word italicized.
+    ItalicHead : (word : ItalicWord) -> (ab : AbilityAt bs) ->
+                 {auto 0 nw : NotWordHeaded ab} -> AbilityAt bs
 
 
-  ||| One word per ability: [CR#207.2c] gives the word the beginning of an
+  ||| One word per ability: [CR#207.2] gives the word the beginning of an
   ||| ability, and a word wrapping a worded ability spells no second
   ||| beginning — the inner ability is the same ability. Mirrors the
   ||| no-nesting gate `AlsoForKeywords` gets from `lineKeyword`.
   public export
-  notAbilityWorded : {0 bs : Bindings} -> AbilityAt bs -> Bool
-  notAbilityWorded (AbilityWord _ _) = False
-  notAbilityWorded _ = True
+  notWordHeaded : {0 bs : Bindings} -> AbilityAt bs -> Bool
+  notWordHeaded (ItalicHead _ _) = False
+  notWordHeaded _ = True
 
   public export
-  NotAbilityWorded : AbilityAt bs -> Type
-  NotAbilityWorded {bs} ab = So (notAbilityWorded ab)
+  NotWordHeaded : AbilityAt bs -> Type
+  NotWordHeaded {bs} ab = So (notWordHeaded ab)
 
   public export
   Untargeting : {bs : Bindings} -> StaticEffect bs -> Type
@@ -5105,7 +5116,7 @@ mutual
   -- which nothing on the battlefield can be granted into.
   grantableAb MayBeginOnBattlefield = False
   grantableAb (AlsoForKeywords _ _) = False
-  grantableAb (AbilityWord _ ab) = grantableAb ab
+  grantableAb (ItalicHead _ ab) = grantableAb ab
 
   public export
   Grantable : AbilityAt bs -> Type
@@ -5118,7 +5129,7 @@ mutual
   emblemAbilityOk (Triggered _ _ _ _ _ _ _ _ _) = True
   emblemAbilityOk (Static _) = True
   emblemAbilityOk (AlsoForKeywords _ _) = False
-  emblemAbilityOk (AbilityWord _ ab) = emblemAbilityOk ab
+  emblemAbilityOk (ItalicHead _ ab) = emblemAbilityOk ab
   emblemAbilityOk (Spell _) = False
   emblemAbilityOk MayBeginOnBattlefield = False
 
@@ -5194,7 +5205,7 @@ mutual
   abRegime (Triggered _ _ _ _ _ _ _ _ _) = Nothing
   abRegime (Static _) = Nothing
   abRegime (AlsoForKeywords ab _) = abRegime ab
-  abRegime (AbilityWord _ ab) = abRegime ab
+  abRegime (ItalicHead _ ab) = abRegime ab
   abRegime (Spell _) = Nothing
   abRegime MayBeginOnBattlefield = Nothing
 
@@ -5276,7 +5287,7 @@ mutual
   abIntro (Triggered _ _ _ _ _ _ _ _ eff) = effChoiceDelta eff ++ bs
   abIntro (Static se) = staticChoiceIntro se
   abIntro (AlsoForKeywords ab _) = abIntro ab
-  abIntro (AbilityWord _ ab) = abIntro ab
+  abIntro (ItalicHead _ ab) = abIntro ab
   abIntro (Spell eff) = effChoiceDelta eff ++ bs
   abIntro MayBeginOnBattlefield = bs
 

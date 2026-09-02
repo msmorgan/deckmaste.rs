@@ -2560,7 +2560,7 @@ phyrexianIngester =
   Macros.card "Phyrexian Ingester"
        (Just [Macros.generic 6, Macros.pip Blue]) []
        (MkTypeLine [creatureType "Phyrexian", creatureType "Beast"] [Creature])
-       [ AbilityWord Imprint
+       [ Macros.abilityWord Imprint
            (Macros.triggered When (Enters Macros.thisCreature Nothing)
                              (Macros.may You
                                 (Macros.exile
@@ -10136,7 +10136,7 @@ nezumiRonin = Macros.keywordNumber "Bushido" (Lit 1)
 public export
 steppeLynx : Ability
 steppeLynx =
-  AbilityWord Landfall
+  Macros.abilityWord Landfall
     (Macros.triggered Whenever (Enters (Macros.a (And [Macros.land, ControlledBy You])) Nothing)
                       (Macros.gets Macros.thisCreature (PtUp (Lit 2)) (PtUp (Lit 2))
                             (Just Macros.untilEndOfTurn)))
@@ -10147,7 +10147,7 @@ steppeLynx =
 public export
 nimbleMongoose : Ability
 nimbleMongoose =
-  AbilityWord Threshold
+  Macros.abilityWord Threshold
     (Static (Macros.onlyWhile (Gets Macros.thisCreature (PtUp (Lit 2)) (PtUp (Lit 2)))
                               (CompareAmt (CountOf (InZone (Macros.graveyardOf You)))
                                           AtLeast (Lit 7))))
@@ -10158,7 +10158,7 @@ nimbleMongoose =
 public export
 ghorClanRampager : Ability
 ghorClanRampager =
-  AbilityWord Bloodrush
+  Macros.abilityWord Bloodrush
     (Macros.activated (Compound [Mana [Macros.pip Red, Macros.pip Green],
                           Do (Macros.discards You This)])
                       -- the second verb phrase's subject is ELIDED, not
@@ -10174,6 +10174,36 @@ ghorClanRampager =
                          [ VPGets (PtUp (Lit 4)) (PtUp (Lit 4)) Nothing
                          , VPGains (Macros.keyword "Trample") Nothing ]
                          (Just Macros.untilEndOfTurn)))
+
+||| Owlbear: "Keen Senses — When this creature enters, draw a card." A
+||| FLAVOR word [CR#207.2d] over a triggered ability -- `steppeLynx`'s
+||| shape at the other vocabulary, on the one node. 446 supported lines
+||| over 398 supported cards write a flavor word (measured 2026-09-02),
+||| and 441 distinct words do it, which is why the word is a label and
+||| not an enum.
+public export
+owlbear : Ability
+owlbear =
+  Macros.flavorWord "Keen Senses"
+    (Macros.triggered When (Enters Macros.thisCreature Nothing) Macros.drawACard)
+
+||| Canoptek Wraith: "Wraith Form — This creature can't be blocked." The
+||| flavor word over a STATIC ability, `nimbleMongoose`'s cell.
+public export
+canoptekWraith : Ability
+canoptekWraith =
+  Macros.flavorWord "Wraith Form"
+    (Static (Deontic Macros.thisCreature Forbid ["Block"] Patient
+                     NoDeonticPatient Nothing))
+
+||| Tymora's Invoker: "Sleight of Hand — {8}: Draw two cards." The flavor
+||| word over an ACTIVATED ability, `ghorClanRampager`'s cell. Three
+||| kinds, one wrapper, no per-vocabulary row.
+public export
+tymorasInvoker : Ability
+tymorasInvoker =
+  Macros.flavorWord "Sleight of Hand"
+    (Macros.activated (Mana [Macros.generic 8]) (Macros.drawCards 2))
 
 
 ||| Twinshot Sniper, whole card -- "Reach / When this creature enters, it
@@ -10191,7 +10221,7 @@ twinshotSniper =
        [ Macros.keyword "Reach"
        , Macros.triggered When (Enters Macros.thisCreature Nothing)
            (DealDamage It (Lit 2) (Macros.target Macros.anyTarget))
-       , AbilityWord Channel
+       , Macros.abilityWord Channel
            (Macros.activated (Compound [Mana [Macros.generic 1, Macros.pip Red],
                                         Do (Macros.discards You This)])
                              (DealDamage It (Lit 2) (Macros.target Macros.anyTarget))) ]
@@ -11410,7 +11440,7 @@ quenchableFire =
 public export
 searingBlaze : Ability
 searingBlaze =
-  AbilityWord Landfall
+  Macros.abilityWord Landfall
     (Spell
       (Macros.insteadOf
         (Simultaneously
@@ -12171,7 +12201,7 @@ tribalFlames : Card
 tribalFlames =
   Macros.card "Tribal Flames" (Just [Macros.generic 1, Macros.pip Red]) []
        (MkTypeLine [] [Sorcery])
-       [ AbilityWord Domain
+       [ Macros.abilityWord Domain
            (Spell (Sequentially
                      [ DealDamage This (LetterVal X)
                                   (Macros.target Macros.anyTarget)
@@ -12187,7 +12217,7 @@ tribalFlames =
 public export
 explosiveProdigyTrigger : Ability
 explosiveProdigyTrigger =
-  AbilityWord Vivid
+  Macros.abilityWord Vivid
     (Macros.triggered When (Enters Macros.thisCreature Nothing)
        (Sequentially
           [ DealDamage It (LetterVal X)
@@ -12239,7 +12269,7 @@ generalTazriPump =
 public export
 bloomTenderMana : Ability
 bloomTenderMana =
-  AbilityWord Vivid
+  Macros.abilityWord Vivid
     (Macros.activated TapSymbol
        (ForEachKindOf ColorAxis
           (Just (AllOf (And [Permanent, ControlledBy You]))) Color
@@ -15990,7 +16020,7 @@ deathMaskDuplicant : Card
 deathMaskDuplicant =
   Macros.card "Death-Mask Duplicant" (Just [Macros.generic 7]) []
        (MkTypeLine [creatureType "Shapeshifter"] [Artifact, Creature])
-       [ AbilityWord Imprint
+       [ Macros.abilityWord Imprint
            (Macros.activated (Mana [Macros.generic 1])
                              (Macros.exile
                                 (Macros.target

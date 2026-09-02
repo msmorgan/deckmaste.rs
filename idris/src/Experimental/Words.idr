@@ -4166,6 +4166,31 @@ data AbilityWordName = Adamant | Addendum | Alliance | Battalion | Bloodrush
                      | Survival | Sweep | TemptingOffer | Threshold
                      | Undergrowth | Valiant | Vivid | Void | WillOfTheCouncil
 
+||| [CR#207.2d]: a flavor word appears in italics at the beginning of some
+||| abilities, exactly where an ability word does, and likewise has no
+||| special rules meaning. The rule states the one difference that matters
+||| to the vocabulary: "while an ability word ties together several
+||| abilities with similar functionality, each flavor word is tailored to
+||| the specific ability it appears with". So [CR#207.2c]'s list is closed
+||| and enumerable and this one cannot be: 441 distinct words head 446
+||| supported lines over 398 supported cards (measured 2026-09-02), one
+||| word per line in all but a handful. It is an OPEN LABEL for the same
+||| reason a subtype is.
+public export
+FlavorWordLabel : Type
+FlavorWordLabel = String
+
+||| The italicized word a printed ability may begin with [CR#207.2]. ONE
+||| vocabulary and not two rows: [CR#207.2c] and [CR#207.2d] give the two
+||| kinds the same position and the same (absent) rules meaning, and no
+||| reader in this grammar asks which kind it got — the word is carried so
+||| that the spelling layer can write it back, and read by nothing else.
+||| The difference the two rules do state is which vocabulary the word
+||| comes from, and that is exactly what these two arms carry.
+public export
+data ItalicWord = AnAbilityWord AbilityWordName
+                | AFlavorWord FlavorWordLabel
+
 
 namespace Chroma
   public export

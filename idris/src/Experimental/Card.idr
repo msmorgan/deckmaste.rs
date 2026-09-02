@@ -122,7 +122,7 @@ classAbilityOk PermanentCard (Triggered _ _ _ _ _ _ _ _ _) = True
 classAbilityOk PermanentCard (Static _) = True
 classAbilityOk PermanentCard (AlsoForKeywords ab _) = classAbilityOk PermanentCard ab
 classAbilityOk PermanentCard (Spell _) = False
-classAbilityOk PermanentCard (AbilityWord _ ab) = classAbilityOk PermanentCard ab
+classAbilityOk PermanentCard (ItalicHead _ ab) = classAbilityOk PermanentCard ab
 -- [CR#103.6a] puts the card ONTO THE BATTLEFIELD, so only a permanent
 -- card can take the action.
 classAbilityOk PermanentCard MayBeginOnBattlefield = True
@@ -132,7 +132,7 @@ classAbilityOk SpellCard (Triggered _ _ _ _ _ _ _ _ _) = True
 classAbilityOk SpellCard (Static se) = staticOnSpellCardOk se
 classAbilityOk SpellCard (AlsoForKeywords ab _) = classAbilityOk SpellCard ab
 classAbilityOk SpellCard (Spell _) = True
-classAbilityOk SpellCard (AbilityWord _ ab) = classAbilityOk SpellCard ab
+classAbilityOk SpellCard (ItalicHead _ ab) = classAbilityOk SpellCard ab
 classAbilityOk SpellCard MayBeginOnBattlefield = False
 -- A command-zone card is never a permanent and is never cast
 -- [CR#309.2c,311.2,312.2,313.2,314.2,315.3], so it prints no spell
@@ -148,7 +148,7 @@ classAbilityOk CommandZoneCard (Triggered _ _ _ _ _ _ _ _ _) = True
 classAbilityOk CommandZoneCard (Static _) = True
 classAbilityOk CommandZoneCard (AlsoForKeywords ab _) = classAbilityOk CommandZoneCard ab
 classAbilityOk CommandZoneCard (Spell _) = False
-classAbilityOk CommandZoneCard (AbilityWord _ ab) = classAbilityOk CommandZoneCard ab
+classAbilityOk CommandZoneCard (ItalicHead _ ab) = classAbilityOk CommandZoneCard ab
 -- a command-zone card is never in a hand [CR#309.2c,311.2,313.2,314.2,315.3],
 -- so it has no opening hand to act from.
 classAbilityOk CommandZoneCard MayBeginOnBattlefield = False
@@ -187,7 +187,7 @@ classAbilityOk CommandZoneCard MayBeginOnBattlefield = False
 public export
 commandZoneTypeAbilityOk : {0 bs : Bindings} -> CardType -> AbilityAt bs -> Bool
 commandZoneTypeAbilityOk t (AlsoForKeywords ab _) = commandZoneTypeAbilityOk t ab
-commandZoneTypeAbilityOk t (AbilityWord _ ab) = commandZoneTypeAbilityOk t ab
+commandZoneTypeAbilityOk t (ItalicHead _ ab) = commandZoneTypeAbilityOk t ab
 commandZoneTypeAbilityOk Conspiracy (Activated _ _ _ _ _ _) = False
 commandZoneTypeAbilityOk Dungeon (KeywordAbility _ _) = False
 commandZoneTypeAbilityOk Dungeon (Activated _ _ _ _ _ _) = False
@@ -217,7 +217,7 @@ cardTextOk tys (a :: as) = cardAbilityOk tys a && cardTextOk tys as
 public export
 chapterLineOk : {0 bs : Bindings} -> List Subtype -> AbilityAt bs -> Bool
 chapterLineOk subs (Triggered _ (ChapterMark _) _ _ _ _ _ _ _) = elem (enchantmentType "Saga") subs
-chapterLineOk subs (AbilityWord _ ab) = chapterLineOk subs ab
+chapterLineOk subs (ItalicHead _ ab) = chapterLineOk subs ab
 chapterLineOk subs (AlsoForKeywords ab _) = chapterLineOk subs ab
 chapterLineOk _ _ = True
 
@@ -269,7 +269,7 @@ staticDefinesPt _ = Nothing
 public export
 abDefinesPt : {0 bs : Bindings} -> AbilityAt bs -> Maybe DefinedSlots
 abDefinesPt (Static se) = staticDefinesPt se
-abDefinesPt (AbilityWord _ ab) = abDefinesPt ab
+abDefinesPt (ItalicHead _ ab) = abDefinesPt ab
 abDefinesPt _ = Nothing
 
 public export

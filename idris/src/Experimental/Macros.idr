@@ -1812,6 +1812,23 @@ keywordNumber : {0 bs : Bindings} -> (kw : KeywordLabel) -> (amt : Amount []) ->
                 AbilityAt bs
 keywordNumber kw amt = KeywordAbility kw (Just (ParamNumber amt)) {pf}
 
+||| "[word] — [ab]" where the word is one of [CR#207.2c]'s enumerated
+||| ability words. The phrase name over `ItalicHead`.
+public export
+abilityWord : {0 bs : Bindings} -> (word : AbilityWordName) ->
+              (ab : AbilityAt bs) ->
+              {auto 0 nw : NotWordHeaded ab} -> AbilityAt bs
+abilityWord word ab = ItalicHead (AnAbilityWord word) ab {nw}
+
+||| "[word] — [ab]" where the word is a flavor word [CR#207.2d] — one
+||| tailored to this ability and named by no rule. The phrase name over
+||| `ItalicHead`.
+public export
+flavorWord : {0 bs : Bindings} -> (word : FlavorWordLabel) ->
+             (ab : AbilityAt bs) ->
+             {auto 0 nw : NotWordHeaded ab} -> AbilityAt bs
+flavorWord word ab = ItalicHead (AFlavorWord word) ab {nw}
+
 ||| "Whenever <event>, <effect>": the bare trigger — no alternative event,
 ||| window, limit or intervening-if clause written.
 public export
