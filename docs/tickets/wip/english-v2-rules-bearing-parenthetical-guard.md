@@ -18,3 +18,21 @@ leading space (zero corpus instances), and assert on nested parens
 currently-selected unit's normalized text — identity stability probe
 required.
 Standard constraints apply.
+
+Completion (2026-09-02):
+- Replaced the regex-only strip with a structural single-line scanner. Five
+  authored rules-bearing parentheticals survive byte-exactly, nested groups
+  assert, and a leading reminder no longer leaves a fossil space.
+- The authoritative Vintage-filtered snapshot contains 17 guarded units, not
+  the ticket's original 20-unit review figure. A production-data test pins the
+  five per-spelling counts at 2, 1, 11, 2, and 1.
+- The stability probe caught two identities that had begun selecting only
+  after their `(front face up)` clause was deleted: The Great Synthesis and
+  Galian Beast. Both corrected texts are parse failures, so the authenticated
+  coverage migration retired exactly those two invalid identities; every
+  other selected identity is unchanged.
+- Final coverage is 32,641 total / 15,932 selected and covered, with zero
+  selected-uncovered units, ties, internal failures, exceptions, round-trip
+  mismatches, ownership failures, gaps, overlaps, synthetic claims, or
+  provenance mismatches. Unfiltered xtask tests and strict all-target xtask
+  Clippy pass.

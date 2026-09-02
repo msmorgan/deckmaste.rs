@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::fs;
 use std::path::Path;
-use std::sync::LazyLock;
 
 use anyhow::Context;
 use anyhow::ensure;
@@ -10,12 +9,18 @@ use deckmaste_data::mtgjson::AtomicCards;
 use deckmaste_english_v2::context::ParseContext;
 use macro_ron::v2::Onset;
 use rayon::prelude::*;
-use regex::Regex;
 use sha2::Digest;
 use sha2::Sha256;
 
 const ID_DOMAIN: &[u8] = b"deckmaste:english-v2:corpus-unit:v1";
 const MAX_CORPUS_UNIT_JOBS: usize = 4;
+const RULES_BEARING_PARENTHETICALS: &[&str] = &[
+    "(as long as this creature is on the battlefield)",
+    "(even if this card isn't on the battlefield)",
+    "(front face up)",
+    "(if it's still on the battlefield)",
+    "(or {1})",
+];
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub(super) struct CorpusUnit {
@@ -298,19 +303,67 @@ fn normalize_oracle_text(text: &str) -> String {
     strip_reminder_text(&typography)
 }
 
-/// Removes nonempty, single-line parentheticals while retaining at most one
-/// surrounding space. A line containing only reminder text disappears.
+/// Removes nonempty, single-line reminder parentheticals while retaining at
+/// most one surrounding space. A line containing only reminder text
+/// disappears. Authored rules-bearing parentheticals survive byte-exactly.
 fn strip_reminder_text(text: &str) -> String {
-    static PARENTHETICAL: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r" ?\([^)\n]+\)( ?)").unwrap());
-
     text.split('\n')
         .filter_map(|line| {
-            let stripped = PARENTHETICAL.replace_all(line, "$1");
-            (!stripped.trim().is_empty() || line.is_empty()).then(|| stripped.into_owned())
+            let stripped = strip_reminder_text_line(line);
+            (!stripped.trim().is_empty() || line.is_empty()).then_some(stripped)
         })
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+fn strip_reminder_text_line(line: &str) -> String {
+    assert_no_nested_parentheses(line);
+
+    let mut stripped = String::with_capacity(line.len());
+    let mut remainder = line;
+    while let Some(open) = remainder.find('(') {
+        stripped.push_str(&remainder[..open]);
+        let Some(relative_close) = remainder[open + 1..].find(')') else {
+            stripped.push_str(&remainder[open..]);
+            return stripped;
+        };
+        let close = open + 1 + relative_close;
+        let parenthetical = &remainder[open..=close];
+        let after = &remainder[close + 1..];
+
+        if relative_close == 0 || RULES_BEARING_PARENTHETICALS.contains(&parenthetical) {
+            stripped.push_str(parenthetical);
+            remainder = after;
+            continue;
+        }
+
+        if stripped.ends_with(' ') {
+            stripped.pop();
+        }
+        let (after, had_space_after) = after
+            .strip_prefix(' ')
+            .map_or((after, false), |after| (after, true));
+        if !stripped.is_empty() && !after.is_empty() && had_space_after {
+            stripped.push(' ');
+        }
+        remainder = after;
+    }
+    stripped.push_str(remainder);
+    stripped
+}
+
+fn assert_no_nested_parentheses(line: &str) {
+    let mut open = false;
+    for character in line.chars() {
+        match character {
+            '(' => {
+                assert!(!open, "nested parenthetical in Oracle text line {line:?}");
+                open = true;
+            }
+            ')' => open = false,
+            _ => {}
+        }
+    }
 }
 
 fn normalize_roll_row_dashes(text: &str) -> String {
@@ -577,14 +630,58 @@ mod tests {
             strip_reminder_text("Flying (This creature can't be blocked except by...)"),
             "Flying"
         );
-        assert_eq!(strip_reminder_text("(Reminder) Foo"), " Foo");
+        assert_eq!(strip_reminder_text("(Reminder) Foo"), "Foo");
         assert_eq!(strip_reminder_text("A (b) c"), "A c");
+        assert_eq!(strip_reminder_text("A (b) (c) d"), "A d");
+        assert_eq!(strip_reminder_text("A () c"), "A () c");
         assert_eq!(strip_reminder_text("Choose (perhaps"), "Choose (perhaps");
         assert_eq!(
             strip_reminder_text("({R/P} can be paid with {R} or 2 life.)\nGain control."),
             "Gain control."
         );
         assert_eq!(strip_reminder_text("(Reminder only.) "), "");
+    }
+
+    #[test]
+    fn rules_bearing_parentheticals_survive_byte_exactly() {
+        for parenthetical in RULES_BEARING_PARENTHETICALS {
+            let input = format!("Before {parenthetical} after");
+            assert_eq!(strip_reminder_text(&input), input);
+        }
+    }
+
+    #[test]
+    fn rules_bearing_parenthetical_inventory_matches_the_vintage_snapshot() {
+        const EXPECTED_USES: [usize; 5] = [2, 1, 11, 2, 1];
+
+        let bytes =
+            deckmaste_data::mtgjson::atomic_cards_bytes().expect("reading AtomicCards snapshot");
+        let cards = AtomicCards::parse(&bytes).expect("parsing AtomicCards snapshot");
+        let counts = RULES_BEARING_PARENTHETICALS
+            .iter()
+            .map(|parenthetical| {
+                cards
+                    .data
+                    .values()
+                    .flatten()
+                    .filter(|card| card.vintage_playable())
+                    .filter(|card| {
+                        card.text
+                            .as_deref()
+                            .is_some_and(|text| text.contains(*parenthetical))
+                    })
+                    .count()
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(counts, EXPECTED_USES);
+        assert_eq!(counts.iter().sum::<usize>(), 17);
+    }
+
+    #[test]
+    #[should_panic(expected = "nested parenthetical")]
+    fn nested_parentheticals_are_rejected() {
+        let _ = strip_reminder_text("Choose (an outer (nested) phrase).");
     }
 
     #[test]
