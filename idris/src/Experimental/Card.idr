@@ -1,5 +1,3 @@
-||| The card and face layer: the printed record built over the ability
-||| and effect vocabulary.
 module Experimental.Card
 
 import public Experimental.Effect
@@ -10,17 +8,9 @@ public export
 CardSupers : List Supertype -> Type
 CardSupers ss = So (supersDistinct ss)
 
-||| The three card frames the rules distinguish: a card that can be put
-||| onto the battlefield [CR#110.4a], one that is cast and resolves off the
-||| stack [CR#112.1], and one that stays in the command zone and is neither
-||| [CR#309.2c,311.2,312.2,313.2,314.2,315.3].
 public export
 data CardClass = PermanentCard | SpellCard | CommandZoneCard
 
-||| `typesCombinable` refuses a permanent type beside a spell type but
-||| admits a command-zone type beside either, no rule refusing that, so the
-||| order here decides a mixed line: the command-zone type's rule is the one
-||| that says where the card stays, and it wins.
 public export
 cardClassOf : List CardType -> CardClass
 cardClassOf [] = PermanentCard
@@ -49,34 +39,12 @@ hasNonKindredType : List CardType -> Bool
 hasNonKindredType [] = False
 hasNonKindredType (t :: ts) = not (t == Kindred) || hasNonKindredType ts
 
-||| Overgenerated at its zero: a command-zone type beside any other type
-||| passes, because no rule refuses it. [CR#300.2] admits more than one card
-||| type without excluding these six, and each per-type rule prohibits the
-||| card's movement rather than its type line, which [CR#101.2] already
-||| resolves. No printed card writes such a line.
 public export
 typesCombinable : List CardType -> Bool
 typesCombinable tys =
   not (anyPermanentType tys && anySpellType tys)
     && (not (elem Kindred tys) || hasNonKindredType tys)
 
-||| Which card class may print a keyword on itself. This is not
-||| `keywordStackRegime`'s question re-asked: that field says from which
-||| zone a keyword's ability functions, this pair says whether the word
-||| can sit on the card at all, and the two would disagree even if every
-||| row agreed today. Flash is the case that used to look like a
-||| disagreement: [CR#702.8a] says only that flash functions in any zone
-||| the card could be played from, and restricts the word to no card
-||| type, so an instant or sorcery may carry it. On an instant the word
-||| grants what the card already has — redundant, which is not the same
-||| as meaningless — and a sorcery carrying it is not redundant at all.
-||| The words a card class may not print are each some rule's:
-||| [CR#702.84a] and [CR#702.49a] put the card onto the battlefield,
-||| which [CR#110.4] denies an instant or sorcery card, so unearth and
-||| ninjutsu sit on no spell card, and echo is the same shape --
-||| [CR#702.30a] speaks of “this permanent”. [CR#702.34a] permits the
-||| flashback cast only if the resulting spell is an instant or sorcery,
-||| so flashback is the one word no permanent card prints.
 public export
 keywordCardOk : CardClass -> KeywordLabel -> Bool
 keywordCardOk PermanentCard k = maybe False onPermanentCard (keywordFactsFor k)
@@ -85,34 +53,11 @@ keywordCardOk CommandZoneCard k = maybe False onCommandZoneCard (keywordFactsFor
 
 public export
 staticOnSpellCardOk : {0 bs : Bindings} -> StaticEffect bs -> Bool
--- [CR#113.6g] licenses a "can't be countered" static on any object and
--- says nothing about how broadly its subject may be described.
 staticOnSpellCardOk (Deontic _ Forbid ["Counter"] Patient _ _ _) = True
 staticOnSpellCardOk (Deontic _ Forbid ["Copy"] Patient _ _ _) = True
 staticOnSpellCardOk (AltCost This _) = True
--- [CR#113.6e] again, and the reason the SUBJECT is asked here where the
--- alternative cost's is asked one line up: the rule functions off the
--- battlefield only for "an object's ability that restricts or modifies
--- how THAT PARTICULAR OBJECT can be played or cast". A reduction stated
--- of this spell is that ability; one stated of a class of other spells
--- is a battlefield static and belongs on a permanent card.
--- 12 supported lines pair an any-number additional cost with a
--- self-reduction counting it, and 6 of them are instants or sorceries
--- (Explosive Singularity and the five Marches).
 staticOnSpellCardOk (CostsToCast This _) = True
--- [CR#113.6e] again: an additional cost is an ability of the object that
--- modifies how that object can be cast, so it functions in the zone the
--- spell is cast from and on the stack. 308 of the 315 supported "as an
--- additional cost" lines are this row, most of them on an instant or a
--- sorcery.
 staticOnSpellCardOk (AddedCost _ _) = True
--- [CR#113.6e]: "An object's ability that restricts or modifies how that
--- particular object can be played or cast functions in any zone from
--- which it could be played or cast and also on the stack." The cast
--- WINDOW is that ability -- 47 supported lines print "Cast this spell
--- only during ..." -- and it is the windowed permission and not a bare
--- one, since what the line restricts is when the only permission there
--- is holds.
 staticOnSpellCardOk (OnlyDuring _ _ (Deontic _ Permit ["Cast"] Patient _ _ _)) = True
 staticOnSpellCardOk (OnlyDuring _ _ se) = staticOnSpellCardOk se
 staticOnSpellCardOk (Conditionally _ se _) = staticOnSpellCardOk se
@@ -128,8 +73,6 @@ classAbilityOk PermanentCard (Static _) = True
 classAbilityOk PermanentCard (AlsoForKeywords ab _) = classAbilityOk PermanentCard ab
 classAbilityOk PermanentCard (Spell _) = False
 classAbilityOk PermanentCard (ItalicHead _ ab) = classAbilityOk PermanentCard ab
--- [CR#103.6a] puts the card ONTO THE BATTLEFIELD, so only a permanent
--- card can take the action.
 classAbilityOk PermanentCard MayBeginOnBattlefield = True
 classAbilityOk SpellCard (KeywordAbility k _) = keywordCardOk SpellCard k
 classAbilityOk SpellCard (Activated c _ _ _ _ _) = costOffBattlefield c
@@ -139,14 +82,6 @@ classAbilityOk SpellCard (AlsoForKeywords ab _) = classAbilityOk SpellCard ab
 classAbilityOk SpellCard (Spell _) = True
 classAbilityOk SpellCard (ItalicHead _ ab) = classAbilityOk SpellCard ab
 classAbilityOk SpellCard MayBeginOnBattlefield = False
--- A command-zone card is never a permanent and is never cast
--- [CR#309.2c,311.2,312.2,313.2,314.2,315.3], so it prints no spell
--- ability [CR#113.3a] and its activated ability's cost is read off the
--- battlefield for the same reason a spell card's is [CR#113.6j].
--- [CR#311.4,313.4,314.4] give these cards static, triggered and activated
--- abilities from the command zone. That is the SHARED frame; where one
--- type's own rule reads a narrower list, `commandZoneTypeAbilityOk` below
--- says so, and `cardAbilityOk` asks both.
 classAbilityOk CommandZoneCard (KeywordAbility k _) = keywordCardOk CommandZoneCard k
 classAbilityOk CommandZoneCard (Activated c _ _ _ _ _) = costOffBattlefield c
 classAbilityOk CommandZoneCard (Triggered _ _ _ _ _ _ _ _ _) = True
@@ -154,41 +89,8 @@ classAbilityOk CommandZoneCard (Static _) = True
 classAbilityOk CommandZoneCard (AlsoForKeywords ab _) = classAbilityOk CommandZoneCard ab
 classAbilityOk CommandZoneCard (Spell _) = False
 classAbilityOk CommandZoneCard (ItalicHead _ ab) = classAbilityOk CommandZoneCard ab
--- a command-zone card is never in a hand [CR#309.2c,311.2,313.2,314.2,315.3],
--- so it has no opening hand to act from.
 classAbilityOk CommandZoneCard MayBeginOnBattlefield = False
 
-||| What ONE command-zone type's own rule licenses, where that rule reads
-||| a narrower list than the shared frame. Three of the six read the frame
-||| exactly -- [CR#311.4], [CR#313.4] and [CR#314.4] each give a plane, a
-||| vanguard and a scheme card "any number of static, triggered, and/or
-||| activated abilities" -- so those three have nothing to say here and
-||| fall to the catch-all, as does every type that is not a command-zone
-||| type at all.
-|||
-||| Two read narrower. [CR#315.5] gives a conspiracy card static or
-||| triggered abilities and stops: no activated ability is licensed from
-||| the command zone, where the plane, vanguard and scheme rules each name
-||| one. [CR#309.4c] is narrower still -- a dungeon card's abilities are
-||| its ROOMS' triggered abilities, whose full text the rule writes out,
-||| and it licenses their triggering and nothing else.
-|||
-||| Phenomena are left OPEN, and deliberately: [CR#312.5] states that each
-||| phenomenon card has the encounter trigger, which is a fact about what
-||| such cards carry and not a list of what they may carry. It is the only
-||| rule about a phenomenon's abilities, and it neither licenses nor
-||| refuses a static or an activated one -- and stating no licence is not
-||| refusing one, so this cell stands open rather than shut on a rule that
-||| does not say it.
-|||
-||| Measured at ZERO throughout: of the 443 cards in the corpus carrying
-||| one of these six types (29 conspiracies, 21 phenomena, 184 planes, 102
-||| schemes, 107 vanguards; no dungeon is a card there at all), not one is
-||| supported. So both refusals refuse a line no vintage-playable card
-||| writes. They are taken anyway because a rule REFUSES them, which is
-||| the line the tolerated-overgeneration doctrine draws: an overgeneration
-||| no rule refuses is recorded at its zero, and one a rule refuses is
-||| closed whatever the count.
 public export
 commandZoneTypeAbilityOk : {0 bs : Bindings} -> CardType -> AbilityAt bs -> Bool
 commandZoneTypeAbilityOk t (AlsoForKeywords ab _) = commandZoneTypeAbilityOk t ab
@@ -199,17 +101,12 @@ commandZoneTypeAbilityOk Dungeon (Activated _ _ _ _ _ _) = False
 commandZoneTypeAbilityOk Dungeon (Static _) = False
 commandZoneTypeAbilityOk _ _ = True
 
-||| ...over the whole printed line, because [CR#300.2] lets a card name
-||| more than one type and each named type's own rule binds the card.
 public export
 commandZoneTypesAbilityOk : {0 bs : Bindings} -> List CardType -> AbilityAt bs -> Bool
 commandZoneTypesAbilityOk [] a = True
 commandZoneTypesAbilityOk (t :: ts) a =
   commandZoneTypeAbilityOk t a && commandZoneTypesAbilityOk ts a
 
-||| An ability a card may print: its FRAME's licence and its own TYPES'.
-||| The frame is the shared one three of the command-zone rules state
-||| verbatim; the types are where the other two narrow it.
 public export
 cardAbilityOk : {0 bs : Bindings} -> List CardType -> AbilityAt bs -> Bool
 cardAbilityOk tys a = classAbilityOk (cardClassOf tys) a && commandZoneTypesAbilityOk tys a
@@ -231,20 +128,6 @@ chapterFrameOk : {0 bs : Bindings} -> List Subtype -> AbilitySeq bs -> Bool
 chapterFrameOk subs [] = True
 chapterFrameOk subs (a :: as) = chapterLineOk subs a && chapterFrameOk subs as
 
-||| THE DOOR FRAME LAW [CR#709.5j]. "A door is a half of that permanent",
-||| and the permanents whose halves can be locked or unlocked are
-||| [CR#709.5]'s: [CR#709.5c] gives the unlocked designations to a
-||| permanent with a shared type line and to nothing else. So "this door"
-||| -- the deixis on the half the ability is printed on -- names nothing
-||| on a face that is not such a half, whether because its layout's halves
-||| are the ordinary [CR#709.4] kind or because it has no half at all, and
-||| this is the law that says so.
-|||
-||| A FRAME law and not a text law, on `chapterLineOk`'s model: it is a
-||| demand the line makes on the CARD it sits on, which is why it lives
-||| here and is restated at every face rather than inside the ability
-||| vocabulary. The shared-line half's own laws omit it, that being the
-||| one face with a half to point at.
 public export
 doorFrameOk : {0 bs : Bindings} -> AbilitySeq bs -> Bool
 doorFrameOk [] = True
@@ -265,20 +148,12 @@ starred PrintedStar = True
 starred (PrintedStarPlus _) = True
 starred (PrintedMinusStar _) = True
 
-||| The one box in a face's lower right corner. [CR#208.1] prints a creature
-||| card's power and toughness there, [CR#209.1] a planeswalker card's
-||| starting loyalty, and [CR#210.1] a battle card's defense. [CR#200.1]
-||| lists the three as separate parts of a card and all three rules name the
-||| same corner, so a face prints at most one of them and its type line
-||| decides which.
 public export
 data PrintedBox : Type where
   PtBox : (pow : PrintedStat) -> (tou : PrintedStat) -> PrintedBox
   LoyaltyBox : (start : PrintedStat) -> PrintedBox
   DefenseBox : (def : PrintedStat) -> PrintedBox
 
-||| The power/toughness pair a corner box writes, if that is what it writes.
-||| Only [CR#208.1]'s box has slots a characteristic-defining line can star.
 public export
 boxPt : Maybe PrintedBox -> Maybe (PrintedStat, PrintedStat)
 boxPt (Just (PtBox p t)) = Just (p, t)
@@ -291,9 +166,6 @@ staticDefinesPt (Conditionally _ se _) = staticDefinesPt se
 staticDefinesPt (OnlyWhile se _ _) = staticDefinesPt se
 staticDefinesPt _ = Nothing
 
-||| [CR#207.2c] gives the ability word no rules meaning, so a characteristic-
-||| defining line is still one when a word prefixes it: the starred-print gate
-||| reads through the wrapper.
 public export
 abDefinesPt : {0 bs : Bindings} -> AbilityAt bs -> Maybe DefinedSlots
 abDefinesPt (Static se) = staticDefinesPt se
@@ -314,12 +186,6 @@ definedSlotsStarred Nothing dp dt = not dp && not dt
 definedSlotsStarred (Just (p, t)) dp dt =
   (not dp || starred p) && (not dt || starred t)
 
-||| Which corner box a card type demands. [CR#208.1] has a creature card
-||| write its two numbers, [CR#209.1] a planeswalker card its loyalty number,
-||| and [CR#210.1] a battle card its defense number; a type that writes no
-||| number in that corner leaves the box to the rest of the line. A line that
-||| names two of the three demands two numbers in one corner and so has no
-||| box that fits it.
 public export
 boxSuitsType : CardType -> Maybe PrintedBox -> Bool
 boxSuitsType Creature (Just (PtBox _ _)) = True
@@ -356,18 +222,6 @@ data CardLine : TypeLine -> Type where
                {auto 0 cmb : So (typesCombinable l.tys)} ->
                {auto 0 sf : So (subsFitLine l.subs l.tys)} -> CardLine l
 
-||| Which words their own rule confines to a MODAL spell [CR#700.2].
-||| Two, and both say so in their first sentence: [CR#702.42a] makes
-||| entwine "a static ability of modal spells" whose meaning is "You may
-||| choose all modes of this spell instead of just the number
-||| specified", and [CR#702.120a] makes escalate the same for "each mode
-||| you choose beyond the first". A card printing either with no modes
-||| would carry an ability whose own text names something the card never
-||| wrote.
-||| Written here rather than as a `keywordFacts` column, for
-||| `chapterLineOk`'s reason: this is a FRAME law -- a demand one line
-||| makes on the rest of the card -- and the catalog's rows say what a
-||| word is, not what must stand beside it.
 public export
 keywordWantsModes : {0 bs : Bindings} -> AbilityAt bs -> Bool
 keywordWantsModes (KeywordAbility k _) = k == "Entwine" || k == "Escalate"
@@ -375,9 +229,6 @@ keywordWantsModes (ItalicHead _ ab) = keywordWantsModes ab
 keywordWantsModes (AlsoForKeywords ab _) = keywordWantsModes ab
 keywordWantsModes _ = False
 
-||| [CR#700.2] makes a spell modal when its text "contains two or more
-||| instructions preceded by bullet points" that a mode instruction
-||| chooses among, which is exactly what `Modal` is.
 public export
 abilityWritesModes : {0 bs : Bindings} -> AbilityAt bs -> Bool
 abilityWritesModes (Spell (Modal _ _)) = True
@@ -395,10 +246,6 @@ anyWritesModes : {0 bs : Bindings} -> AbilitySeq bs -> Bool
 anyWritesModes [] = False
 anyWritesModes (a :: as) = abilityWritesModes a || anyWritesModes as
 
-||| The modal linkage the entwine and escalate rows were landed without.
-||| 30 supported entwine keyword lines and 7 escalate ones (re-measured
-||| 2026-09-02, reminders stripped), and every one of them stands on a
-||| card that also writes its modes.
 public export
 modalFrameOk : {0 bs : Bindings} -> AbilitySeq bs -> Bool
 modalFrameOk as = not (anyWantsModes as) || anyWritesModes as
@@ -417,14 +264,6 @@ data CardBox : {0 bs : Bindings} -> TypeLine -> AbilitySeq bs ->
   MkCardBox : {0 box : Maybe PrintedBox} ->
               {auto 0 ok : So (cardBoxOk l.tys as box)} -> CardBox l as box
 
-||| Which corner box a card type demands at a face that is not a card of its
-||| own. The creature demand stands: [CR#710.1b] lists power and toughness
-||| among what a flip card's alternative half prints, and a nonmodal creature
-||| back face prints them too. The loyalty demand does not: [CR#209.1] puts the
-||| number on each planeswalker *card*, and [CR#712.8a] reads a double-faced
-||| card's characteristics off its front face in every zone but the battlefield
-||| and the stack, so a planeswalker back face has a loyalty to read without
-||| printing one. Both spellings are printed, so the box stays optional there.
 public export
 altBoxSuitsType : CardType -> Maybe PrintedBox -> Bool
 altBoxSuitsType Creature (Just (PtBox _ _)) = True
@@ -458,24 +297,6 @@ public export
 CardCost : TypeLine -> Maybe ManaCost -> Type
 CardCost l c = So (cardCostOk l.tys c)
 
-||| A printed face whose mana cost, where it prints one, is its own rather
-||| than another face's. Four layouts print such a face: the single face of a
-||| one-faced card, either face of a modal double-faced card [CR#712.3],
-||| either half of a split card [CR#709.4b], and both parts of an adventurer
-||| card's frame [CR#715.2]. The cost stays a `Maybe` because a land face
-||| writes none; what separates these faces from `AltFace` is having a cost
-||| slot at all.
-|||
-||| Its text is typed at ITS OWN cost's letters and nothing else, so no
-||| face's words read a binding another face introduced. That is not a
-||| convenience: a face's characteristics exist only while that face is
-||| the one in play [CR#712.8f,709.3b,715.3b], so there is no moment at
-||| which one face's clause could resolve against the other's antecedent.
-||| The telescope is `costLetters cost` rather than `[]` because
-||| [CR#107.3i] makes every instance of X on the object one value, and the
-||| value the caster announced [CR#107.3a] lives in the cost -- so
-||| Prosperity's printed "{X}" and its text's "X" are one binding rather
-||| than two spellings, which is what the empty telescope could not say.
 public export
 record CardFace where
   constructor MkFace
@@ -486,14 +307,6 @@ record CardFace where
   text : AbilitySeq (costLetters cost)
   box : Maybe PrintedBox
 
-||| A printed face that writes no mana cost at all. Two layouts print one:
-||| the back face of a nonmodal double-faced card, whose mana value is read
-||| off the front face precisely because the back has no cost of its own
-||| [CR#202.3a,202.3b], and a flip card's upside-down half, which shares the
-||| card's single printed cost [CR#710.1c]. [CR#710.1b] lists what such a half
-||| does print — a name, a text box, a type line, and its power and toughness
-||| — and a mana cost is not among them, so this record has no field for one
-||| rather than a law refusing one.
 public export
 record AltFace where
   constructor MkAltFace
@@ -503,12 +316,6 @@ record AltFace where
   text : AbilitySeq []
   box : Maybe PrintedBox
 
-||| Every card-level law, re-stated at one full printed face. [CR#712.8] gives
-||| each face of a double-faced card its own set of characteristics, [CR#709.4c]
-||| reads each split half's types and text on its own, and [CR#715.2] does the
-||| same for an adventurer card's two frames: the line, supertype, text,
-||| chapter, corner-box and cost laws are all face laws, and not one of them is
-||| a whole-card law that a second face could escape.
 public export
 data FaceLaws : CardFace -> Type where
   MkFaceLaws : {0 f : CardFace} ->
@@ -521,11 +328,6 @@ data FaceLaws : CardFace -> Type where
                {auto 0 dr : DoorFrame f.text} ->
                FaceLaws f
 
-||| The same laws at a costless face, with two of them restated for it.
-||| `CardCost` is the one card-level law with nothing left to say: [CR#202.3a]
-||| and [CR#710.1c] leave the face without a mana cost, so the land-cost gate
-||| has no cost to read. The corner-box law is `AltCardBox`, not `CardBox`,
-||| because a face is not a card and [CR#209.1] speaks of cards.
 public export
 data AltFaceLaws : AltFace -> Type where
   MkAltFaceLaws : {0 f : AltFace} ->
@@ -537,25 +339,6 @@ data AltFaceLaws : AltFace -> Type where
                   {auto 0 dr : DoorFrame f.text} ->
                   AltFaceLaws f
 
-||| Half of a SHARED-TYPE-LINE split card [CR#709.5]: "some split cards are
-||| permanent cards with a single shared type line."
-|||
-||| What the half prints of its OWN is a name [CR#709.4a], a mana cost
-||| [CR#709.4b] and a text box [CR#709.4c] -- and not a type line, which is
-||| the whole of what [CR#709.5a] takes away: "each half of a split card
-||| with a shared type line shares the types and subtypes listed on that
-||| card's shared type line." So this record has no `line` field rather than
-||| a law equating two of them, which is what makes the sharing a fact of
-||| the shape instead of a coincidence two faces must be checked into.
-||| That is also why it is not `CardFace`: a uniform face record would give
-||| each half a line of its own and state the sharing away, exactly as the
-||| layout constructors' own note says of the boxes.
-|||
-||| NO CORNER BOX field either, and for the same reason: [CR#200.1] puts the
-||| box in the lower right of the CARD, and the type line that decides which
-||| box the card needs [CR#208.1,209.1,210.1] is the shared one. The box
-||| therefore sits beside the shared line at `SharedLineSplit`, and each
-||| half's own laws are restated against that one box.
 public export
 record SharedLineHalf where
   constructor MkSharedHalf
@@ -563,16 +346,6 @@ record SharedLineHalf where
   cost : Maybe ManaCost
   text : AbilitySeq (costLetters cost)
 
-||| Every card-level law restated at one shared-line half, on `FaceLaws`'
-||| model and with the same reading: [CR#709.4c] gives each half its own
-||| text box, so the text, chapter and cost laws are each half's -- while
-||| the LINE and the BOX are arguments here rather than fields, because
-||| [CR#709.5a] makes them the card's and not the half's.
-|||
-||| `DoorFrame` is the law this one drops. [CR#709.5j]'s door is a half of
-||| a permanent with a shared type line, and this IS that half: it is the
-||| one face in the vocabulary that has a door to point at, which is what
-||| makes the frame law elsewhere a refusal rather than a blanket ban.
 public export
 data SharedLineHalfLaws : (l : TypeLine) -> Maybe PrintedBox ->
                           SharedLineHalf -> Type where
@@ -584,27 +357,6 @@ data SharedLineHalfLaws : (l : TypeLine) -> Maybe PrintedBox ->
                          {auto 0 mc : CardCost l h.cost} ->
                          SharedLineHalfLaws l box h
 
-||| An adventurer card's inset frame [CR#715.1]. A player chooses to play the
-||| card "as an Adventure" [CR#715.3], and Adventure is a spell type
-||| [CR#205.3k], so the inset names that spell type. That its line is then an
-||| instant or a sorcery is not restated here: `CardLine`'s `subsFitLine`
-||| already fits a spell type to no other card type, and a second conjunct
-||| saying so would be unreachable.
-|||
-||| THE EXILE-AND-RECAST RIDER HAS NO ROW, and the corpus settles it
-||| rather than taste. [CR#715.3d] states the whole of it as a rule --
-||| "Instead of putting a spell that was cast as an Adventure into its
-||| owner's graveyard as it resolves, its controller exiles it. For as
-||| long as that card remains exiled, that player may play it" -- and
-||| every printed occurrence of the words is REMINDER TEXT: 108 supported
-||| adventure faces write "(Then exile this card. You may cast the
-||| [type] later from exile.)" and all 108 are parenthesized, with no
-||| unparenthesized occurrence anywhere in the supported corpus
-||| (measured 2026-08-28). So the inset frame is what a card prints and
-||| the rider is what the rule supplies, exactly as [CR#310.12b]'s
-||| intrinsic Siege ability is supplied rather than written. This is the
-||| verdict the card round left unstated; it is not a measured zero
-||| waiting on a carrier.
 public export
 adventureInsetOk : TypeLine -> Bool
 adventureInsetOk l = elem (spellType "Adventure") l.subs
@@ -613,12 +365,6 @@ public export
 AdventureInset : TypeLine -> Type
 AdventureInset l = So (adventureInsetOk l)
 
-||| Either half of a flip card [CR#710.1]. [CR#710.2] applies the alternative
-||| characteristics only once the permanent is flipped, and only on the
-||| battlefield, so each half names a permanent type — the six [CR#110.4]
-||| lists, which is what `anyPermanentType` reads. Excluding spell types is
-||| not restated here: `CardLine`'s `typesCombinable` already refuses a line
-||| mixing the two.
 public export
 flipHalfOk : TypeLine -> Bool
 flipHalfOk l = anyPermanentType l.tys
@@ -627,101 +373,23 @@ public export
 FlipHalf : TypeLine -> Type
 FlipHalf l = So (flipHalfOk l)
 
-||| One card: its faces, and the rule its layout answers.
-|||
-||| Six layouts, six constructors — not one record with a layout tag. The
-||| layouts disagree about which parts a face prints, and a uniform face record
-||| would state that disagreement away: it would let a flip card's upside-down
-||| half [CR#710.1c] or a nonmodal back face [CR#202.3a] carry a mana cost
-||| neither prints, would give a costed face to a layout that has none to
-||| give, and would give a shared-type-line half [CR#709.5a] a type line the
-||| rule takes off it. What the layouts do share — a full face with a cost of
-||| its own — is `CardFace`; a costless half is `AltFace`; a lineless half is
-||| `SharedLineHalf`; and every card-level law is re-stated at each face by
-||| `FaceLaws`, `AltFaceLaws` and `SharedLineHalfLaws`, so no law silently
-||| applies to one face of two.
-|||
-||| MELD [CR#712.4] adds no sixth constructor, and this is the ruling
-||| (user, 2026-08-27) rather than a reading of the rules. Each of the two
-||| cards in a meld pair is written as a `Transforming` card whose back is the
-||| combined face, so THE SAME back face is duplicated on both -- the shape a
-||| JSON printing of the pair takes, and the one the corpus this bench reads
-||| hands over. What the duplication throws away is [CR#712.4b]'s own point,
-||| that the combined face belongs to the two cards at once and determines
-||| the characteristics of one permanent represented by both: no cross-card
-||| reference is written, so nothing here states that the two copies are the
-||| same face. That is acknowledged debt, and `Cards.idr`'s meld bench carries
-||| the identity lint that holds it in place -- a `Refl` between the two
-||| cards' backs, which fails the build the moment they drift apart.
-||| Two further differences are recorded and not modelled: [CR#712.4c] refuses
-||| to transform or convert a meld card, where `Transforming`'s other members
-||| are the [CR#712.2] cards whose abilities do exactly that; and [CR#712.21]
-||| puts two cards into the new zone when the one melded permanent leaves it.
-||| Both are facts about the permanent in play, which no card-shape term
-||| states -- but neither is stated here EITHER, and a reader should not take
-||| the constructor to be claiming them.
 public export
 data Card : Type where
-  ||| A card with a single face; the other side is the normal Magic card back.
   SingleFaced : (face : CardFace) ->
                 {auto 0 fl : FaceLaws face} -> Card
 
-  ||| A nonmodal double-faced card [CR#712.2]: abilities on one or both faces
-  ||| turn it over. [CR#712.8] gives each face its own characteristics, and
-  ||| [CR#202.3a,202.3b] leave the back face costless, reading its mana value
-  ||| off the front — so the back is an `AltFace`.
   Transforming : (front : CardFace) -> (back : AltFace) ->
                  {auto 0 ff : FaceLaws front} ->
                  {auto 0 bf : AltFaceLaws back} -> Card
 
-  ||| A modal double-faced card [CR#712.3]: two Magic card faces whose
-  ||| characteristics are usually independent of one another. Each is a full
-  ||| face — [CR#712.11b] has the caster choose which of them they are casting
-  ||| and [CR#712.12] which land face enters — so each face's cost is its own,
-  ||| never read off the other the way a nonmodal back face's is [CR#202.3b].
-  ||| Two land faces write no cost at all.
   ModalDfc : (front : CardFace) -> (back : CardFace) ->
              {auto 0 ff : FaceLaws front} ->
              {auto 0 bf : FaceLaws back} -> Card
 
-  ||| A split card [CR#709.1]: two faces on one card whose other side is the
-  ||| normal card back. [CR#709.4b] gives each half its own mana cost and
-  ||| [CR#709.4c] its own card types and text box. The half that writes no
-  ||| type line of its own is [CR#709.5]'s shared-line card, below.
   SplitCard : (left : CardFace) -> (right : CardFace) ->
               {auto 0 lf : FaceLaws left} ->
               {auto 0 rf : FaceLaws right} -> Card
 
-  ||| A split card with a SHARED TYPE LINE [CR#709.5]: "some split cards are
-  ||| permanent cards with a single shared type line."
-  |||
-  ||| A SIXTH constructor and not a flag on `SplitCard`, on the same ground
-  ||| the five stand on: the two layouts disagree about which parts a half
-  ||| prints, and a shared flag would state that disagreement away.
-  ||| [CR#709.5a] gives both halves the card's types and subtypes, so a
-  ||| shared-line half prints no line of its own -- while [CR#709.4c] gives
-  ||| an ordinary split half "each card type specified on either of its
-  ||| halves", each half writing its own. One record cannot say both.
-  |||
-  ||| It is named for the rule and not for the Room. [CR#709.5] describes a
-  ||| permanent card with a shared type line and never says Room; Room is a
-  ||| subtype the printed examples all happen to carry, and [CR#709.5j] is
-  ||| the one sentence in the section that names it. The same reading left
-  ||| `designationSeedType` at `Nothing` for the unlocked pair.
-  |||
-  ||| PERMANENT because [CR#709.5] says so in its first sentence -- these
-  ||| are permanent cards -- and the two static abilities that same sentence
-  ||| gives the shared line "function on the battlefield".
-  |||
-  ||| WHAT IS NOT MODELLED, and stated so a reader does not take the
-  ||| constructor to claim it: the two static abilities [CR#709.5] has the
-  ||| shared line represent are supplied by the rule and written on no card,
-  ||| exactly as [CR#310.12b]'s intrinsic Siege ability is; [CR#709.5b]'s
-  ||| copiable half existence and [CR#709.5d]'s entry designations are facts
-  ||| about the permanent in play, which no card-shape term states. The
-  ||| printed reminder text ("You may cast either half. That door unlocks on
-  ||| the battlefield. ...", 56 supported lines, all parenthesized) is
-  ||| reminder for the same reason the adventure rider is.
   SharedLineSplit : (line : TypeLine) -> (supers : List Supertype) ->
                     (box : Maybe PrintedBox) ->
                     (left : SharedLineHalf) -> (right : SharedLineHalf) ->
@@ -731,20 +399,11 @@ data Card : Type where
                     {auto 0 lh : SharedLineHalfLaws line box left} ->
                     {auto 0 rh : SharedLineHalfLaws line box right} -> Card
 
-  ||| An adventurer card [CR#715.1]: the normal face, printed as usual, and the
-  ||| inset frame whose alternative characteristics the object has while it is
-  ||| a spell [CR#715.2].
   Adventurer : (normal : CardFace) -> (inset : CardFace) ->
                {auto 0 nf : FaceLaws normal} ->
                {auto 0 sf : FaceLaws inset} ->
                {auto 0 ai : AdventureInset inset.line} -> Card
 
-  ||| A flip card [CR#710.1]: the right-side-up half writes the card's normal
-  ||| characteristics and the upside-down half the alternative ones. [CR#710.1c]
-  ||| leaves the one printed mana cost with the card however it is turned, so
-  ||| the alternative half is an `AltFace`. The transition itself is the landed
-  ||| `Flipped` status, one-way by [CR#710.4]; this constructor adds no second
-  ||| verb for it.
   FlipCard : (normal : CardFace) -> (alternative : AltFace) ->
              {auto 0 nf : FaceLaws normal} ->
              {auto 0 af : AltFaceLaws alternative} ->

@@ -1,17 +1,3 @@
-||| The workbench's evidence bench: typechecking positives and pinned negatives over real cards.
-|||
-||| Selection principle: an entry is added when a construction, keyword, or
-||| interaction needs a witness for some round's work. The bench is not a
-||| random sample of the corpus, not a curated-for-coverage set, and not a
-||| representative one; it grows by proof, card by card, as rounds need
-||| evidence.
-|||
-||| A card's absence from this file is therefore not a claim about that card.
-||| It says only that no round has yet needed it as a witness. Absence is a
-||| normal, un-alarming state, and the fraction of the corpus present here is
-||| not a quantity this workbench tracks: the bench exists to show that the
-||| rules text is self-consistent and that every card *can* be represented,
-||| not to census what has been printed.
 module Experimental.Cards
 
 import Experimental
@@ -78,14 +64,9 @@ innocentBlood = Macros.sacrifice (Each AnyPlayer) (Macros.aTheirChoice Macros.cr
 cryOfContrition : Effect []
 cryOfContrition = Macros.discardsACard (Macros.target AnyPlayer)
 
--- "Draw two cards, then discard two cards." (Careful Study) -- the
--- counted discard in its canonical iterated-singular expansion.
 carefulStudy : Effect []
 carefulStudy = Sequentially [Macros.drawCards 2, Macros.discardN (Lit 2)]
 
--- "Discard two cards: Create a 2/2 black Zombie creature token."
--- (Zombie Infestation) -- the same counted discard as a printed COST: a
--- repetition spells one instruction, not a coordination.
 zombieInfestation : Ability
 zombieInfestation =
   Macros.activated (Do (Macros.discardN (Lit 2)))
@@ -119,11 +100,7 @@ gabrielAngelfire : Effect []
 gabrielAngelfire =
   Macros.gains Macros.thisCreature (Macros.keyword "Flying") (Just Macros.untilYourNextUpkeep)
 
-||| Bond of Revival -- "Return target creature card from your graveyard to
-||| the battlefield. It gains haste until your next turn." The move is
-||| LABELED, so the pronoun the second sentence writes is read at the
-||| clause that produced its referent rather than across every singular
-||| object mention.
+||| Bond of Revival
 bondOfRevival : Effect []
 bondOfRevival = Sequentially [Macros.returnToBattlefield (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])),
                               Macros.gainsHaste (ItVerbed "Return") (Just Macros.untilYourNextTurn)]
@@ -149,7 +126,6 @@ fulgentDistraction : Effect []
 fulgentDistraction = Sequentially [Macros.choose (TargetGroup (Macros.exactly 2) Macros.creature),
                                    SetStatus Tapped (Those (TypeW Creature))]
 
-||| Continue?
 continueSpell : Effect []
 continueSpell = Sequentially [Macros.choose (TargetGroup (Macros.upTo 4) (And [Macros.creature, InZone (Macros.graveyardOf You)])),
                               Macros.move Them Macros.battlefieldZ]
@@ -214,19 +190,11 @@ disenchant = Macros.destroy (Macros.target (Or [Macros.artifact, Macros.enchantm
 icyManipulator : Effect []
 icyManipulator = SetStatus Tapped (Macros.target (Or [Macros.artifact, Macros.creature, Macros.land]))
 
--- "{W}, {T}: Tap target creature." (Master Decoy) -- the same body
--- `icyManipulator` writes bare, here NAMED as the keyword action
--- [CR#701.26a]. Tap joined the vocabulary as a macro and a label row and
--- nothing else: no constructor, no table, no coverage re-decide.
 masterDecoy : Ability
 masterDecoy =
   Macros.activated (Compound [Mana [Macros.pip White], TapSymbol])
                    (Macros.tap (Macros.target Macros.creature))
 
--- "Tap any number of untapped creatures you control. You gain 4 life for
--- each creature tapped this way." (Harmony of Nature) -- the participle
--- read a labeled STATUS change leaves behind, exactly as `martyrsCry`
--- reads an exile's.
 harmonyOfNature : Effect []
 harmonyOfNature =
   Sequentially [ Macros.tap (CountedGroup Macros.anyNumber Nothing
@@ -417,9 +385,6 @@ divination = Macros.drawCards 2
 ancestralRecall : Effect []
 ancestralRecall = Draw (Macros.target AnyPlayer) (Lit 3)
 
-||| Cheering Fanatic
-||| "Whenever this creature attacks, choose a card name. Spells with the
-||| chosen name cost {1} less to cast this turn."
 public export
 cheeringFanatic : Card
 cheeringFanatic =
@@ -835,7 +800,6 @@ corneredCrook =
     (Macros.mayWhen You (Macros.sacrifice You (Macros.a Macros.artifact))
                  (DealDamage This (Lit 3) (Macros.target Macros.anyTarget)))
 
-||| The Last Ronin
 theLastRoninII : Effect []
 theLastRoninII =
   Reflexively (Macros.mills You (Lit 4) You)
@@ -903,13 +867,7 @@ skaabRuinator : Ability
 skaabRuinator =
   Static (Macros.mayCastFrom You This (Macros.graveyardOf You))
 
-||| Raffine's Guidance, whole -- the play rider's WRITTEN alternative
-||| cost [CR#118.9] at its plainest. "Enchant creature / Enchanted
-||| creature gets +1/+1. / You may cast this card from your graveyard by
-||| paying {2}{W} rather than paying its mana cost." `mayCastFrom` with
-||| `PlayPayment.PayingInstead` in the rider's payment slot; the licence
-||| and the price are one sentence, which is what makes the cost a rider
-||| rather than a statement beside it.
+||| Raffine's Guidance
 public export
 raffinesGuidance : Card
 raffinesGuidance =
@@ -922,10 +880,7 @@ raffinesGuidance =
                    (Mana [Macros.generic 2, Macros.pip White])) ]
        Nothing
 
-||| Scourge of Nel Toth, whole -- the same rider with a COMPOUND
-||| alternative cost, mana plus an action [CR#118.1]. "Flying / You may
-||| cast this creature from your graveyard by paying {B}{B} and
-||| sacrificing two creatures rather than paying its mana cost."
+||| Scourge of Nel Toth
 public export
 scourgeOfNelToth : Card
 scourgeOfNelToth =
@@ -1166,8 +1121,7 @@ teferisImpPhasesIn =
   Macros.triggered Whenever (StatusEvent Macros.thisCreature PhasedIn)
                    Macros.drawACard
 
-||| Oubliette — [CR#610.4]'s "until" rider on a permanent phasing out,
-||| the second one-shot that takes the rider.
+||| Oubliette
 oubliette : Ability
 oubliette =
   Macros.triggered When (Enters Macros.thisEnchantment Nothing)
@@ -1245,12 +1199,7 @@ staticOrb =
   Static (Macros.asLongAs (Matches Macros.thisArtifact Macros.untapped)
                           (CantMoreThan (PlayerGroup AllPlayers) "Untap" 2 Permanent))
 
-||| Rule of Law, whole -- "Each player can't cast more than one spell
-||| each turn." The count cap at a SECOND deed, which is what generalised
-||| the untap cap into one row: 12 supported lines cap casting, 9 cap
-||| untapping and 3 cap drawing, and the three differ only in the label.
-||| The period is not written here: [CR#500.1] gives the turn to a deed
-||| with no step of its own, and the printed "each turn" spells that.
+||| Rule of Law
 public export
 ruleOfLaw : Card
 ruleOfLaw =
@@ -1259,12 +1208,7 @@ ruleOfLaw =
        [ Static (CantMoreThan (PlayerGroup AllPlayers) "Cast" 1 Macros.spell) ]
        Nothing
 
-||| Spirit of the Labyrinth, whole -- "Each player can't draw more than
-||| one card each turn." The count cap's third deed, and the reason
-||| `deedFacts "DrawCard"` gained a patient: [CR#121.1] has the drawn
-||| card come off the top of a library, so the thing counted has a role
-||| and a zone even though no printed line writes the object voice.
-||| `IsCard` is the bare word and seeds no zone [CR#109.2].
+||| Spirit of the Labyrinth
 public export
 spiritOfTheLabyrinth : Card
 spiritOfTheLabyrinth =
@@ -1288,8 +1232,7 @@ merenOfClanNelToth =
   Macros.triggered Whenever (Dies (Macros.a (Macros.otherCreatureYouControl Macros.thisCreature)))
                    (GetsCounters You (Lit 1) Experience)
 
-||| Bumi, King of Three Trials — "Target player scries 3": the looker is
-||| a player other than you [CR#701.22a].
+||| Bumi, King of Three Trials
 bumiScryMode : Effect []
 bumiScryMode = Macros.playerScries (Macros.target AnyPlayer) (Lit 3)
 
@@ -1396,7 +1339,7 @@ herosDemise : Effect []
 herosDemise =
   Macros.destroy (Macros.target (And [Macros.creature, HasSupertype Legendary]))
 
-||| Concordant Crossroads — [CR#205.4a]'s World supertype, printed.
+||| Concordant Crossroads
 concordantCrossroads : Card
 concordantCrossroads =
   Macros.card "Concordant Crossroads" (Just [Macros.pip Green]) [World]
@@ -1477,13 +1420,7 @@ goadTargetCreature =
   Macros.activated (Compound [Mana [Macros.generic 3], TapSymbol])
                    (Macros.gainsDesignation (Macros.target Macros.creature) Goaded Instructed)
 
-||| Frenzied Gorespawn's entry trigger -- "for each opponent, goad target
-||| creature that player controls." The routed blocker was that
-||| `ForEachOf` took an object group only; the turn round's kind index
-||| made the player group free, and the member reads back as `That
-||| PlayerW` exactly as Blatant Thievery's does. A FRAGMENT: the card's
-||| second line triggers on "one or more creatures attack one of your
-||| opponents", which is not this item's.
+||| Frenzied Gorespawn
 public export
 frenziedGorespawnGoad : Effect []
 frenziedGorespawnGoad =
@@ -1541,14 +1478,7 @@ bloodshedFever =
                          Require ["Attack"] Agent NoDeonticPatient) ]
        Nothing
 
-||| Bristlepack Sentry, whole card -- "Defender / As long as you control
-||| a creature with power 4 or greater, this creature can attack as
-||| though it didn't have defender." The permission's largest cell: 52
-||| supported lines write "can attack as though it didn't have defender"
-||| (measured 2026-08-28), 45 of them this bare form under a condition or
-||| an activated cost. `Permit` is what makes the line writable and the
-||| [CR#609.4] premise rides it; before the row existed the sentence was
-||| unwritable before any counterfactual was reached.
+||| Bristlepack Sentry
 public export
 bristlepackSentry : Card
 bristlepackSentry =
@@ -1562,11 +1492,7 @@ bristlepackSentry =
                                          (Not (HasKeyword (TheKeyword "Defender"))))) ]
        (Just (3, 3))
 
-||| Pacifism, whole card -- "Enchant creature / Enchanted creature can't
-||| attack or block." ONE subject, ONE modality, TWO deeds: the carrier's
-||| deed list, which is the coordination designed once rather than per
-||| family. 109 supported lines write "can't attack or block" (measured
-||| 2026-08-28).
+||| Pacifism
 public export
 pacifism : Card
 pacifism =
@@ -1577,13 +1503,7 @@ pacifism =
                                 Forbid ["Attack", "Block"] Agent NoDeonticPatient) ]
        Nothing
 
-||| Everybody Lives!'s third conjunct -- "players can't lose the game or
-||| win the game this turn". TWO gate kinds under ONE subject, which the
-||| one-clause-one-gate row deliberately could not say; it elaborates
-||| through the SAME coordination Pacifism's two deeds do, because the
-||| outcome gates are deed labels of the one carrier. 1 supported card
-||| writes it (measured 2026-08-28; Abyssal Persecutor, Platinum Angel
-||| and their family write two SUBJECTS and are plain conjunctions).
+||| Everybody Lives!
 public export
 everybodyLivesGateLine : Effect []
 everybodyLivesGateLine =
@@ -1591,18 +1511,7 @@ everybodyLivesGateLine =
                                Agent NoDeonticPatient)
                (Just Macros.thisTurn)
 
-||| Gaea's Revenge, whole card -- "This spell can't be countered. / Haste
-||| / This creature can't be the target of nongreen spells or abilities
-||| from nongreen sources." The targeting deed's canonical carrier: 30
-||| supported sentences write the prohibition (measured 2026-08-28; a
-||| naive sweep returns 216, of which 186 sit inside the reminder text
-||| printed under hexproof and shroud and are no card's own line).
-||| The by-spell/by-source distinction needs no slot: [CR#115.1a]
-||| describes a targeting spell by the stack object itself, while
-||| [CR#115.1c,115.1d] reach an ability through the object it came from,
-||| so the colour is written twice because the rules make it two
-||| descriptions of two different objects, and `AbilityOf` is already the
-||| predicate that names the second.
+||| Gaea's Revenge
 public export
 gaeasRevenge : Card
 gaeasRevenge =
@@ -1617,12 +1526,7 @@ gaeasRevenge =
                                                           Not (ColorIs Green)])))))) ]
        (Just (8, 5))
 
-||| Nowhere to Run's first line -- "Creatures your opponents control can
-||| be the targets of spells and abilities as though they didn't have
-||| hexproof." The targeting deed's PERMISSION, with [CR#609.4]'s premise
-||| riding it: one of the five supported lines that let an object be
-||| targeted despite hexproof or shroud, and the cell that composes the
-||| permission row, the premise slot and the targeting deed at once.
+||| Nowhere to Run
 public export
 nowhereToRunTargetLine : StaticEffect []
 nowhereToRunTargetLine =
@@ -1630,20 +1534,7 @@ nowhereToRunTargetLine =
     (AllOf (Joined Macros.spell (AbilityHead AnyOnStack)))
     (Not (HasKeyword (TheKeyword "Hexproof")))
 
-||| Nowhere to Run's second sentence -- "Ward abilities of those
-||| creatures don't trigger." The TRIGGERED-ABILITY subject, and the deed
-||| is `"Trigger"` rather than a reading of "Activate": [CR#603.2a] says
-||| outright that triggered abilities "aren't cast or activated" and that
-||| "effects that preclude abilities from being activated don't affect
-||| them", so the activation prohibition reaches this sentence at no
-||| point. [CR#603.2] gives the deed its one participant -- the ability
-||| triggers, and nothing is done to a second thing -- so the ability is
-||| the deed's AGENT and the carrier refuses it at the patient, which is
-||| the gate saying what the rule says.
-||| One real supported line: a naive sweep for "don't trigger" returns
-||| 13, of which 11 are the reminder text printed under read ahead
-||| [CR#702.155a] and one is a different construction (measured
-||| 2026-08-28).
+||| Nowhere to Run
 public export
 nowhereToRunWardLine : StaticEffect []
 nowhereToRunWardLine =
@@ -1652,44 +1543,23 @@ nowhereToRunWardLine =
                 , AbilityOf (AllOf Macros.creatureYourOpponentsControl) ]))
     Forbid ["Trigger"] Agent NoDeonticPatient
 
-||| Hithlain Rope's first line -- "This artifact can't be sacrificed."
-||| The sacrifice deed's one standalone sentence: [CR#701.21a] moves the
-||| permanent from the battlefield to its owner's graveyard, so the row
-||| is that sentence and nothing else. Seven of the eight remaining
-||| "can't be sacrificed" lines are conjuncts of a wider coordination or
-||| sit inside a quoted token ability (measured 2026-08-28).
+||| Hithlain Rope
 public export
 hithlainRopeSacrificeLock : StaticEffect []
 hithlainRopeSacrificeLock = Macros.objectCant "Sacrifice" This
 
-||| Display of Power's first line -- "This spell can't be copied", which
-||| [CR#113.6g] functions on the stack beside the can't-be-countered
-||| sentence it is printed next to. Three supported lines write it.
+||| Display of Power
 public export
 displayOfPowerCopyLock : StaticEffect []
 displayOfPowerCopyLock = Macros.objectCant "Copy" This
 
-||| Mornsong Aria -- "Players can't draw cards or gain life." The
-||| carrier's deed LIST at a third pair, after "can't attack or block"
-||| and "can't lose the game or win the game": one subject, one
-||| modality, two labels, and no coordination machinery of its own.
+||| Mornsong Aria
 public export
 mornsongAriaLock : StaticEffect []
 mornsongAriaLock =
   Macros.deontic (PlayerGroup AllPlayers) Forbid ["DrawCard", "GainLife"]
                  Agent NoDeonticPatient
 
-||| "Your opponents can't gain life" -- the 9-line subfamily of the
-||| life-gain suppression mass, at the carrier's other player subject.
-||| Recorded as a witness because the measurement that scheduled a
-||| suppression ROW is what retired it: all 23 supported can't-gain-life
-||| sentences (10 "Players can't", 9 "Your opponents can't", 3 singular
-||| subjects, and Mornsong Aria's conjoined line; re-measured 2026-08-28)
-||| are the deontic carrier at the "GainLife" label, and the carrier's
-||| deed LIST is the shared suppressed-event row the ticket asked whether
-||| to mint. The sibling "can't" statics ride it already -- "DrawCard"
-||| (6 lines), "SearchLibrary" (4), "WinGame"/"LoseGame" (8) -- so no
-||| suppression subsystem is minted here.
 public export
 opponentsCantGainLife : StaticEffect []
 opponentsCantGainLife = Macros.playerCant "GainLife" (PlayerGroup YourOpponents)
@@ -1722,7 +1592,6 @@ extraArms =
 lichsMasteryGate : Ability
 lichsMasteryGate = Static (Macros.playerCant "LoseGame" You)
 
-||| When Lich's Mastery
 lichsMasteryLoss : Ability
 lichsMasteryLoss =
   Macros.triggered When (Macros.leavesBattlefield Macros.thisEnchantment) (Concludes LoseGame You)
@@ -2110,18 +1979,7 @@ emeraldMedallion =
                              (CostLess (Lit 1) Nothing)) ]
        Nothing
 
-||| Highspire Bell-Ringer, whole -- the ORDINAL cast read. "The second
-||| spell you cast each turn costs {1} less to cast." A definite
-||| singular rather than `AllOf`: the rank picks one spell out of the
-||| turn's sequence where the medallions describe a class.
-||| The period is `RankEach Turn` and not a `Lookback`: "each turn" says
-||| the count resets, not that a stretch has passed. [CR#611.3]'s
-||| regime throughout -- a static ability's effect applies to whatever
-||| its text indicates at the moment [CR#611.3a], which is what makes
-||| the rank readable live; the "next spell you cast" grants are
-||| [CR#611.2f] one-shots and are not this.
-||| The four kin are Alisaie Leveilleur, Monk Class, Raging Battle
-||| Mouse and Uthros Psionicist (measured 2026-09-02).
+||| Highspire Bell-Ringer
 public export
 highspireBellRinger : Card
 highspireBellRinger =
@@ -2135,10 +1993,7 @@ highspireBellRinger =
                    (CostLess (Lit 1) Nothing)) ]
        (Just (1, 4))
 
-||| Once Upon a Time's alternative-cost condition -- the same ordinal
-||| read at the GAME period, where `RankWithin ThisGame` is a stretch
-||| already named and no reset is written. A FRAGMENT: the card's second
-||| line is the look-and-reveal, which is not this item's.
+||| Once Upon a Time
 public export
 onceUponATimeFirstCast : Predicate [] Object
 onceUponATimeFirstCast = NthCastBy (Nth 1) You (RankWithin Lookback.ThisGame)
@@ -2322,10 +2177,6 @@ diminish =
                              (Just Macros.untilEndOfTurn)) ]
        Nothing
 
-||| Cycle of Life
-||| "Target creature you cast this turn has base power and toughness 0/1
-||| until your next upkeep." — the subject is a battlefield permanent, so
-||| `CastBy` reads as history rather than as a stack seed.
 cycleOfLife : Effect []
 cycleOfLife =
   Continuously (HasBasePt (Macros.target (And [Macros.creature, CastBy You]))
@@ -2365,14 +2216,7 @@ cullingScales =
                                            (And [Permanent, Not Macros.land])]))) ]
        Nothing
 
-||| Purging Scythe, whole -- "At the beginning of your upkeep, this
-||| artifact deals 2 damage to the creature with the least toughness. If
-||| two or more creatures are tied for least toughness, you choose one of
-||| them." The TIE SENTENCE, and the condition-first conditional it needs:
-||| the count is taken over a uniquifying description, so the condition
-||| announces the set it counted, and the consequent partitions it. Drop
-||| of Honey, Porphyry Nodes and Topple print the same sentence; seven
-||| supported lines read "one of them" back off a tie.
+||| Purging Scythe
 public export
 purgingScythe : Ability
 purgingScythe =
@@ -2623,11 +2467,7 @@ chainsaw =
        , Macros.keywordCosting "Equip" (Mana [Macros.generic 3]) ]
        Nothing
 
-||| Phyrexian Ingester's second ability: "This creature gets +X/+Y, where
-||| X is the exiled creature card's power and Y is its toughness." Two
-||| letters in one statement, each with its own definition [CR#107.3p];
-||| the "its" is written `That CardW`, the exiled card the first
-||| definition named.
+||| Phyrexian Ingester
 phyrexianIngesterPump : Ability
 phyrexianIngesterPump =
   Static (AndAlso [ Gets Macros.thisCreature (PtUp (LetterVal X)) (PtUp (LetterVal Y))
@@ -2637,12 +2477,7 @@ phyrexianIngesterPump =
                                          ExiledWith Macros.thisCreature])))
                   , Define Y (StatOf Toughness (That CardW)) ])
 
-||| Phyrexian Ingester, whole. The imprint trigger exiles and the static
-||| line reads the card it exiled: [CR#607.2a]'s exile linkage, not
-||| [CR#607.2d]'s chosen-value linkage. The read needs no cross-ability
-||| mention because [CR#607.2a] equates "the exiled cards" with cards
-||| "exiled with [this object]" -- the same linked pair under either
-||| spelling -- so `ExiledWith This` writes it deictically.
+||| Phyrexian Ingester
 phyrexianIngester : Card
 phyrexianIngester =
   Macros.card "Phyrexian Ingester"
@@ -2657,13 +2492,6 @@ phyrexianIngester =
        , phyrexianIngesterPump ]
        (Just (3, 3))
 
-||| Drach'Nyen, the same shape on an Equipment: the enters trigger exiles
-||| up to one creature and the equipment's static line reads "the exiled
-||| card's power" ([CR#607.2a] again). The card prints no linkage word at
-||| all, so the self-word is the bench's to pick, and it picks the one
-||| this card's own enters trigger already writes -- "this Equipment".
-||| The card-type spelling stood in only while the subtype linkage cell
-||| was shut.
 drachNyen : Card
 drachNyen =
   Macros.card "Drach'Nyen"
@@ -2681,9 +2509,7 @@ drachNyen =
        , Macros.keywordCosting "Equip" (Mana [Macros.generic 2]) ]
        Nothing
 
-||| Soul's Might: "Put X +1/+1 counters on target creature, where X is
-||| that creature's power." The definition reads the mention its own
-||| clause introduced, which is why it must be written after it.
+||| Soul's Might
 soulsMight : Card
 soulsMight =
   Macros.card "Soul's Might" (Just [Macros.generic 4, Macros.pip Green]) []
@@ -2941,10 +2767,7 @@ colossalGraveReaver =
                           (Macros.putOntoBattlefield (Macros.oneOf Them)) ]
        (Just (7, 6))
 
-||| Chub Toad — the coordinated header whose two arms announce the same
-||| thing. Both bare-partner arms announce the self (`selfSubjIntro`), so
-||| `headerCtx` hands that common announcement on and the tail's "it"
-||| finds its referent.
+||| Chub Toad
 chubToad : Card
 chubToad =
   Macros.card "Chub Toad"
@@ -2957,11 +2780,7 @@ chubToad =
                                          (Just Macros.untilEndOfTurn)) ]
        (Just (1, 1))
 
-||| Inferno Elemental — the coordinated header's common announcement in
-||| its partner-phrase form. Both arms announce the one creature the
-||| block pairs this creature with, so `headerCtx` hands that common
-||| announcement on and the tail's "that creature" reads it back. The
-||| whole card: its printed text is this trigger and nothing else.
+||| Inferno Elemental
 infernoElemental : Card
 infernoElemental =
   Macros.card "Inferno Elemental"
@@ -2975,15 +2794,7 @@ infernoElemental =
                                         (That (TypeW Creature))) ]
        (Just (4, 4))
 
-||| Giggling Skitterspike's header -- "Whenever this creature attacks,
-||| blocks, or becomes the target of a spell, …": the three-armed
-||| coordination the n-ary seat is for, gated arm by arm. Its BODY does
-||| not write: "it deals damage equal to its power to each opponent"
-||| reads back a mention the header never makes. Every arm announces the
-||| self, but the targeting arm announces its targeter beside it, so
-||| whole agreement fails and the tail is handed the outer discourse
-||| bare. Pinned as `badThreeArmHeaderReadback`. The card's blocker, not
-||| the seat's.
+||| Giggling Skitterspike
 public export
 gigglingSkitterspikeArms : AltEvent {bs = []} Whenever
                              [ Blocks Macros.thisCreature Nothing
@@ -3016,10 +2827,7 @@ branchingEvolution =
                    Repeatedly Nothing) ]
        Nothing
 
-||| Corpsejack Menace — "If one or more +1/+1 counters would be put on a
-||| creature you control, twice that many +1/+1 counters are put on it
-||| instead." The family's second named whole; the card itself waits on a
-||| `Fungus` creature-subtype row, so the ability alone is benched.
+||| Corpsejack Menace
 corpsejackMenace : Ability
 corpsejackMenace =
   Static (Intercepts
@@ -3028,11 +2836,7 @@ corpsejackMenace =
             (PutCounters (Times 2 ThatMuch) (PrintedKind Macros.plusOnePlusOne) It)
             Repeatedly Nothing)
 
-||| Doubling Season, whole: "If an effect would create one or more tokens
-||| under your control, it creates twice that many of those tokens
-||| instead." and "If an effect would put one or more counters on a
-||| permanent you control, it puts twice that many of those counters on
-||| that permanent instead."
+||| Doubling Season
 doublingSeason : Card
 doublingSeason =
   Macros.card "Doubling Season" (Just [Macros.generic 4, Macros.pip Green]) []
@@ -3049,13 +2853,7 @@ doublingSeason =
                    Repeatedly Nothing) ]
        Nothing
 
-||| Katara, the Fearless, whole -- "If a triggered ability of an Ally you
-||| control triggers, that ability triggers an additional time."
-||| [CR#603.2d]'s trigger multiplier at its BARE triggering, the form 15
-||| of the family's 35 lines write. The whole printed text is this one
-||| sentence, and the row is the whole sentence: "that ability triggers
-||| an additional time" states no content of its own, because the rule
-||| fixes what happens once the count is known.
+||| Katara, the Fearless
 public export
 kataraTheFearless : Card
 kataraTheFearless =
@@ -3072,15 +2870,7 @@ kataraTheFearless =
                    (Macros.exactly 1)) ]
        (Just (3, 3))
 
-||| Naban, Dean of Iteration, whole -- "If a Wizard you control entering
-||| causes a triggered ability of a permanent you control to trigger,
-||| that ability triggers an additional time."
-||| The PERIPHRASTIC CAUSATION at the seat that motivated it: 20 of the
-||| family's 35 lines write a causing EVENT in front of the triggering,
-||| and the wrapper is transparent to `eventName`, so `triggerCountOk`
-||| sees the same `AbilityTrigger` it sees at Katara's bare form.
-||| [CR#603.2] is why the causer may be an event at all -- a game event
-||| matching a trigger condition is what makes an ability trigger.
+||| Naban, Dean of Iteration
 public export
 nabanDeanOfIteration : Card
 nabanDeanOfIteration =
@@ -3099,15 +2889,7 @@ nabanDeanOfIteration =
                    (Macros.exactly 1)) ]
        (Just (2, 1))
 
-||| Psychic Purge, whole -- "Psychic Purge deals 1 damage to any target."
-||| and "When a spell or ability an opponent controls causes you to
-||| discard this card, that player loses 5 life."
-||| The causation at a TRIGGER HEADER with a DESCRIBED SOURCE, which is
-||| the second of its two causer sorts and the shape 23 supported lines
-||| over 22 cards write. It witnesses the threading: the cause is named
-||| before the caused event and stays in the discourse afterwards, so
-||| "that player" reaches the opponent inside the causer's own
-||| description -- a mention the caused discard never makes.
+||| Psychic Purge
 public export
 psychicPurge : Card
 psychicPurge =
@@ -3123,16 +2905,7 @@ psychicPurge =
            (Macros.losesLife (That PlayerW) (Lit 5)) ]
        Nothing
 
-||| Rain of Gore, whole -- "If a spell or ability would cause its
-||| controller to gain life, that player loses that much life instead."
-||| The causation at the REPLACEMENT seat, and the reason `eventName`
-||| lifts through the wrapper rather than naming the causation itself:
-||| what [CR#614.1] replaces here is the LIFE GAIN, so `interceptOk` must
-||| see `LifeGain` through the "would cause". The other two supported
-||| "would cause" lines are Silhouette's and Unpredictable Cyclone's.
-||| It also witnesses the causer's threading at the prospective reader:
-||| "its controller" is the causer's possessor, and `eventIntro` reaches
-||| it because the cause is named before the event it causes.
+||| Rain of Gore
 public export
 rainOfGore : Card
 rainOfGore =
@@ -3148,51 +2921,8 @@ rainOfGore =
                    Repeatedly Nothing) ]
        Nothing
 
--- THE PERIPHRASTIC CAUSATION'S RESIDUES, measured 2026-09-02 over
--- `jq 'select(.supported)'` with reminder text stripped, and not built.
---
--- The family the round DID land is 61 lines: the trigger multiplier's 35,
--- the causation trigger header's 23 over 22 cards ("a spell or ability an
--- opponent controls causes you to discard this card" and its kin), and the
--- 3 "would CAUSE" replacements. What is left:
---
--- NEGATED CAUSATION, 17 lines over 17 cards. Three shapes, and only the
--- first is one construction with the landed row: the entry-trigger denial
--- (Torpor Orb, Tocatli Honor Guard, Hushwing Gryff, Hushbringer, Doorkeeper
--- Thrull, Elesh Norn -- 6), the source-side prohibition ("Spells and
--- abilities your opponents control can't cause you to sacrifice
--- permanents", Sigarda, Tajuru Preserver, Tamiyo, Ashiok, The Master -- 5),
--- and the Clockwork cycle's CEILING ("this ability can't cause the total
--- number of +1/+0 counters on this creature to be greater than four" -- 4),
--- which causes a STATE and not an event and is not this family at all.
--- Johan's and Archon of Coronation's are one apiece. `Causes` is a
--- `GameEvent` and these are deontics: what they want is the causation at a
--- DEED, on `nowhereToRunWardLine`'s model, which needs the caused event in
--- a deontic patient position.
---
--- THE COORDINATED CAUSER, 2 lines. Veyran, Voice of Duality's "you casting
--- or copying an instant or sorcery spell" and Gandalf the White's "a
--- legendary permanent or an artifact entering or leaving the battlefield"
--- coordinate the causing EVENT itself. `Causing` takes one, and the arm
--- list `AltEvent` carries is the header seat's, not this slot's.
---
--- THE CAUSER-AS-NOUN WIDENING is NOT the same question and did not land
--- with the core; see the ticket's remainder list. `Words.Causer` is still
--- the nullary `AnEffect` at `CreationVoice`, `CausedBy`, `TokensCreated`
--- and `CounterEvent`, and `Causing` above is `Causes`' own slot rather
--- than a widening of it: the two vocabularies answer different questions
--- (what a creation or a counter placement was DONE BY, against what a
--- described causation names as its subject), and nothing in the 61 landed
--- lines reaches the four rows.
 
-||| Doc Samson, Super Psychiatrist — "If you would put one or more counters
-||| on a permanent you control, put that many plus one of each of those
-||| kinds of counters on that permanent instead": the per-kind spelling
-||| with its agent voiced. Pir, Imaginative Rascal writes the same clause
-||| over "a permanent your team controls"; the team form landed
-||| ([CR#102.4], `PlayerGroup YourTeam`) and Pir's own clause is benched
-||| at `pirDistributive`, and the card is whole at `pirImaginativeRascal`
-||| now that [CR#702.124j]'s "Partner with [name]" has a row.
+||| Doc Samson, Super Psychiatrist
 docSamsonDistributive : Ability
 docSamsonDistributive =
   Static (Intercepts
@@ -3201,11 +2931,7 @@ docSamsonDistributive =
             (PutCountersOfThoseKinds (Plus ThatMuch (Lit 1)) (That PermanentW))
             Repeatedly Nothing)
 
-||| Winding Constrictor, whole: the object-side distributive over a
-||| disjoined holder, and its player-side twin — "If you would get one or
-||| more counters, you get that many plus one of each of those kinds of
-||| counters instead." [CR#122.1]'s second holder, written with the
-||| player's own verb.
+||| Winding Constrictor
 windingConstrictor : Card
 windingConstrictor =
   Macros.card "Winding Constrictor" (Just [Macros.pip Black, Macros.pip Green]) []
@@ -3223,12 +2949,7 @@ windingConstrictor =
                    Repeatedly Nothing) ]
        (Just (2, 3))
 
-||| Aragorn, Company Leader (second line) — "Whenever you put one or more
-||| counters on Aragorn, put one of each of those kinds of counters on up
-||| to one other target creature": the distributive kind anaphor in a
-||| trigger body rather than under an interception -- the header's own
-||| batch is what it ranges over either way. The card waits on the
-||| Ring-tempts header its first line writes.
+||| Aragorn, Company Leader
 aragornDistributive : Ability
 aragornDistributive =
   Macros.triggered Whenever
@@ -3237,12 +2958,7 @@ aragornDistributive =
        (TargetGroup (Macros.upTo 1)
           (Macros.otherCreature Macros.thisCreature)))
 
-||| Captain Marvel, Apex Avenger (trigger) — "Whenever you put one or more
-||| counters on another creature, … you may put the same number and kind
-||| of counters on Captain Marvel": "the same number and kind" is the
-||| distributive anaphor at the batch's own size. The card's intervening
-||| "if it's not a Kree" has no row. Bold Plagiarist writes the same body
-||| over an opponent's put.
+||| Captain Marvel, Apex Avenger
 captainMarvelSameKinds : Ability
 captainMarvelSameKinds =
   Macros.triggered Whenever
@@ -3250,16 +2966,7 @@ captainMarvelSameKinds =
        (Macros.a (Macros.otherCreature Macros.thisCreature)))
     (Macros.may You (PutCountersOfThoseKinds ThatMuch Macros.thisCreature))
 
-||| Denry Klin, Editor in Chief (trigger) — "Whenever a nontoken creature
-||| you control enters, if Denry Klin has counters on it, put the same
-||| number of each kind of counter on that creature": the copy-read whose
-||| source the effect clause leaves unwritten. [CR#201.5] fixes a
-||| self-name to the object the text is on, so the source is a referent
-||| the spelling elides rather than an anaphor over the intervening "if",
-||| whose own job [CR#603.4] gives it: a condition checked at trigger and
-||| again at resolution. The card's entry line, "your choice of a +1/+1, first
-||| strike, or vigilance counter", has no row: no entry mark chooses its
-||| kind.
+||| Denry Klin, Editor in Chief
 denryKlinSameKinds : Ability
 denryKlinSameKinds =
   Macros.triggeredIf Whenever
@@ -3267,10 +2974,7 @@ denryKlinSameKinds =
     (Matches Macros.thisCreature (HasCounters Nothing))
     (PutSameCounters Macros.thisCreature (That (TypeW Creature)))
 
-||| Denry Klin, Editor in Chief -- whole. The entry line fills the kind
-||| slot with a printed menu, the choice made before it enters
-||| [CR#614.12a] by the "you" [CR#109.5] its own text names; the trigger
-||| is `denryKlinSameKinds`.
+||| Denry Klin, Editor in Chief
 denryKlin : Card
 denryKlin =
   Macros.card "Denry Klin, Editor in Chief"
@@ -3285,10 +2989,7 @@ denryKlin =
        , denryKlinSameKinds ]
        (Just (2, 2))
 
-||| Helica Glider -- whole, and the menu's other determiner spelling:
-||| "a flying counter or a first strike counter", one determiner per arm
-||| against Denry Klin's one over the list. Same node, since each picks
-||| one counter of one kind from a written range.
+||| Helica Glider
 helicaGlider : Card
 helicaGlider =
   Macros.card "Helica Glider"
@@ -3300,10 +3001,7 @@ helicaGlider =
                    Fresh) ]
        (Just (2, 2))
 
-||| Grimdancer -- whole: "This creature enters with your choice of two
-||| different counters on it from among menace, deathtouch, and lifelink."
-||| The menu picked TWICE with distinctness written, against Denry Klin's
-||| and Helica Glider's single pick from the same slot.
+||| Grimdancer
 public export
 grimdancer : Card
 grimdancer =
@@ -3317,9 +3015,7 @@ grimdancer =
                    Fresh) ]
        (Just (3, 3))
 
-||| Me, the Immortal's combat trigger -- "put your choice of a +1/+1,
-||| first strike, vigilance, or menace counter on Me": the menu at the
-||| put seat, four arms, and the same slot as the entry side.
+||| Me, the Immortal
 meTheImmortalCounterMenu : Ability
 meTheImmortalCounterMenu =
   Macros.triggered At (BeginningOf Combat (ByWord Yours))
@@ -3330,10 +3026,7 @@ meTheImmortalCounterMenu =
                    , KeywordCounter "Menace" ])
        Macros.thisCreature)
 
-||| Star Pupil — "When this creature dies, put its counters on target
-||| creature you control": the same row with its source written out, and
-||| the family's dominant spelling. `It` names a creature that has left
-||| the battlefield, the case [CR#122.8] is written for.
+||| Star Pupil
 starPupil : Card
 starPupil =
   Macros.card "Star Pupil" (Just [Macros.pip White]) []
@@ -3345,10 +3038,7 @@ starPupil =
                              (Macros.target Macros.creatureYouControl)) ]
        (Just (0, 0))
 
-||| Bloom Hulk — whole. "When this creature enters, proliferate." The
-||| cheapest whole-card carrier the proliferate corpus offers: a vanilla
-||| body and one entry trigger, so the card pays for the label and the
-||| self-reading counter row and for nothing else.
+||| Bloom Hulk
 bloomHulk : Card
 bloomHulk =
   Macros.card "Bloom Hulk" (Just [Macros.generic 3, Macros.pip Green]) []
@@ -3356,11 +3046,7 @@ bloomHulk =
        [ Macros.triggered When (Enters Macros.thisCreature Nothing) Macros.proliferate ]
        (Just (4, 4))
 
-||| Tromell, Seymour's Butler — whole. The entry rider is the additional
-||| counter mark; the activated line is a counted iteration of the whole
-||| keyword action -- [CR#701.34a] fixes the per-kind amount at one, so
-||| a written count can only iterate the whole action -- over a letter
-||| the same clause defines.
+||| Tromell, Seymour's Butler
 tromell : Card
 tromell =
   Macros.card "Tromell, Seymour's Butler"
@@ -3378,16 +3064,12 @@ tromell =
                                         HappenedTo Entry Lookback.ThisTurn Nothing])) ]) ]
        (Just (2, 3))
 
-||| Stalwart Successor's header — "Whenever one or more counters are put on
-||| a creature you control": the kind-blind batch on the trigger side,
-||| benched at the event level; the
-||| intervening-if clause the line goes on to write has no row.
+||| Stalwart Successor
 stalwartSuccessorHeader : GameEvent []
 stalwartSuccessorHeader =
   Macros.manyBareCounterEvent CounterPut (Macros.a Macros.creatureYouControl)
 
-||| Runadi, Behemoth Caller — "Creatures you control with three or more
-||| +1/+1 counters on them have haste": the Object-scope bound read.
+||| Runadi, Behemoth Caller
 runadiBehemothCaller : Ability
 runadiBehemothCaller =
   Static (Gains (AllOf (And [Macros.creature, ControlledBy You,
@@ -3395,38 +3077,27 @@ runadiBehemothCaller =
                                             AtLeast (Lit 3)]))
                 (Macros.keyword "Haste"))
 
-||| The corrupted keyword's reading — "each opponent who has three or more
-||| poison counters" (Feed the Infection, Geth's Summons, Ixhel, Phyrexian
-||| Atlas; Glissa's Retriever and Wurmquake write the same bound as
-||| "opponents who have" and "opponent with"): the player-scope bound read
-||| at the kind index [CR#122.1f].
 corruptedOpponents : Noun [] Player
 corruptedOpponents =
   Each (And [Opponent, CounterCompare (Just Poison) AtLeast (Lit 3)])
 
-||| Boon of Safety — "Put a shield counter on target creature." The line
-||| that pays for the `Shield` row.
+||| Boon of Safety
 boonOfSafetyPut : Effect []
 boonOfSafetyPut = PutCounters (Lit 1) (PrintedKind Shield) (Macros.target Macros.creature)
 
-||| Vivien's Talent and Teferi's Talent — "put a loyalty counter on
-||| enchanted planeswalker": the loyalty kind's one-shot put, both cards
-||| writing the phrase identically.
+||| Vivien's Talent and Teferi's Talent
 talentLoyaltyPut : Effect []
 talentLoyaltyPut =
   PutCounters (Lit 1) (PrintedKind LoyaltyCounter)
               (AttachHost Enchanted (TypeW Planeswalker))
 
-||| Simic Fluxmage — "Move a +1/+1 counter from this creature onto target
-||| creature": the transfer verb with its kind named [CR#122.5].
+||| Simic Fluxmage
 simicFluxmageMove : Effect []
 simicFluxmageMove =
   MoveCounters (Lit 1) (Just Macros.plusOnePlusOne) Macros.thisCreature
                (Macros.target Macros.creature)
 
-||| Rikku, Resourceful Guardian — "Move a counter from target creature an
-||| opponent controls onto target creature you control": the same verb
-||| kind-blind.
+||| Rikku, Resourceful Guardian
 rikkuStealMove : Effect []
 rikkuStealMove =
   MoveCounters (Lit 1) Nothing
@@ -3434,9 +3105,7 @@ rikkuStealMove =
                                     ControlledBy Macros.anOpponent]))
                (Macros.target Macros.creatureYouControl)
 
-||| Littjara Mirrorlake — "Create a token that's a copy of target creature
-||| you control, except it enters with an additional +1/+1 counter on it":
-||| the entry-counter clause on the copy's own carrier.
+||| Littjara Mirrorlake
 littjaraMirrorlakeCopy : Effect []
 littjaraMirrorlakeCopy =
   Create You (Lit 1)
@@ -3445,26 +3114,17 @@ littjaraMirrorlakeCopy =
                                                 Additional])
          []
 
-||| Master Chef's granted quotation — "This creature enters with an
-||| additional +1/+1 counter on it", the entry-counter clause carried by a
-||| grant rather than printed on the entering object.
+||| Master Chef
 masterChefGrantedAbility : Ability
 masterChefGrantedAbility =
   Static (Macros.entersWithAdditionalCounters Macros.thisCreature (Lit 1)
                                               Macros.plusOnePlusOne)
 
-||| …and the grant carrier takes it over a described class, which is what
-||| `GrantSubject` has to agree to. The subject is a stand-in: Master
-||| Chef's own "Commander creatures you own" has no row, so the card stays
-||| ledgered while the shape it needs is shown to compose.
 grantedEntryCounterShape : StaticEffect []
 grantedEntryCounterShape =
   Gains (AllOf Macros.creatureYouControl) masterChefGrantedAbility
 
-||| Hollowmurk Siege's Sultai mode — "Whenever a counter is put on a
-||| creature you control, draw a card": the kind-blind SINGLE counter on
-||| the trigger side. The mode's "This ability triggers only once each
-||| turn" rider has no row yet.
+||| Hollowmurk Siege
 hollowmurkSiegeSultai : Ability
 hollowmurkSiegeSultai =
   Macros.triggered Whenever
@@ -3575,18 +3235,7 @@ mishrasFactory =
                                 (PtUp (Lit 1)) (PtUp (Lit 1)) (Just Macros.untilEndOfTurn)) ]
        Nothing
 
-||| Mutavault, whole card. Mishra's Factory's sentence with the printed
-||| SUBTYPE QUANTIFIER in the bundle -- "becomes a 2/2 creature with all
-||| creature types until end of turn. It's still a land" -- which is the
-||| `TokenChars` quality cell's carrier at the setting seat. The
-||| with-clause is a post-modifier of the one noun phrase the bundle is,
-||| so it rides `quals` rather than an `AndAlso` beside the setting; the
-||| quantifier's own row `AddsEveryType` writes the sentence spelling
-||| ("gains all creature types"), which no line of this card prints.
-||| Faceless Haven and Soulstone Sanctuary write the same cell with a
-||| keyword beside it ("with vigilance and all creature types") and
-||| Mutable Explorer's reminder-text token writes this one exactly;
-||| 4 supported lines, measured 2026-09-02.
+||| Mutavault
 public export
 mutavault : Card
 mutavault =
@@ -3603,10 +3252,7 @@ mutavault =
                       (Just Macros.untilEndOfTurn)) ]
        Nothing
 
-||| Soulstone Sanctuary, whole card -- the same cell with a KEYWORD
-||| riding the bundle beside the quantifier ("becomes a 3/3 creature with
-||| vigilance and all creature types"), and with no duration, the setting
-||| standing. Faceless Haven writes this shape too and wants `{S}`.
+||| Soulstone Sanctuary
 public export
 soulstoneSanctuary : Card
 soulstoneSanctuary =
@@ -3783,11 +3429,6 @@ lignify =
                          , LosesAllAbilities It Nothing ]) ]
        Nothing
 
-||| Invasion of Dominaria // Serra Faithkeeper, a nonmodal double-faced card
-||| [CR#712.2]. Nothing here spells the turning over: [CR#310.12b] gives every
-||| Siege the intrinsic ability that exiles it and casts it transformed, so the
-||| printed text is only what each face says for itself. The back face writes
-||| no mana cost of its own [CR#202.3a].
 invasionOfDominaria : Card
 invasionOfDominaria =
   Transforming
@@ -3936,14 +3577,7 @@ nefariousImp =
                           (Macros.scryOne) ]
        (Just (2, 1))
 
-||| Eager Construct, WHOLE -- "When this creature enters, each player may
-||| scry 1." The distributive offer's own witness, and it needs both
-||| halves of the each-player binder: `mayCtx` seats the body at
-||| `agentIntro`, so the offer binds the one player it is decided by
-||| [CR#101.4], and `playerScriesOne` writes [CR#701.22a]'s one-card look
-||| over that member's library rather than over the reader's. Written at
-||| `You`, the keyword action would have made the controller look at their
-||| own library once per opponent.
+||| Eager Construct
 public export
 eagerConstruct : Card
 eagerConstruct =
@@ -4027,10 +3661,7 @@ boommobile =
                    (AddMana You (Lit 4) (AnyColor SameColor)
                      [SpendOnly [ToActivate Nothing]])
 
-||| Rosheen Meanderer, whole card -- "{T}: Add {C}{C}{C}{C}. Spend this
-||| mana only on costs that contain {X}." The spend purpose that names a
-||| COST by a symbol its text writes, where the two older cells name an
-||| object.
+||| Rosheen Meanderer
 public export
 rosheenMeanderer : Card
 rosheenMeanderer =
@@ -4043,11 +3674,7 @@ rosheenMeanderer =
                             [SpendOnly [ToPay (Containing Variable)]]) ]
        (Just (4, 4))
 
-||| Adarkar Unicorn, whole card -- "{T}: Add {U} or {C}{U}. Spend this
-||| mana only to pay cumulative upkeep costs." The keyword-named cost,
-||| and the card the landed `Keyword.CumulativeUpkeep` row did NOT
-||| unblock: that row is what a permanent prints, this names the cost it
-||| charges.
+||| Adarkar Unicorn
 public export
 adarkarUnicorn : Card
 adarkarUnicorn =
@@ -4060,10 +3687,7 @@ adarkarUnicorn =
                             [SpendOnly [ToPay (OfKeyword "CumulativeUpkeep")]]) ]
        (Just (2, 2))
 
-||| Overgrown Zealot, whole card -- its second ability is "Spend this
-||| mana only to turn permanents face up", the purpose that names a
-||| SPECIAL ACTION [CR#116.2b] rather than a cost's contents or a
-||| keyword.
+||| Overgrown Zealot
 public export
 overgrownZealot : Card
 overgrownZealot =
@@ -4076,10 +3700,7 @@ overgrownZealot =
                             [SpendOnly [ToPay (OfSpecialAction TurnFaceUp)]]) ]
        (Just (0, 4))
 
-||| Unblinking Observer, whole -- "{T}: Add {U}. Spend this mana only to
-||| pay a disturb cost or cast an instant or sorcery spell." The
-||| keyword-named cost arm beside the cast arm in ONE list, which is all
-||| the disjunction ever needed, over the Disturb row [CR#702.146a].
+||| Unblinking Observer
 public export
 unblinkingObserver : Card
 unblinkingObserver =
@@ -4092,11 +3713,7 @@ unblinkingObserver =
                                        , ToCast Macros.instantOrSorcery ]]) ]
        (Just (2, 1))
 
-||| Ainok Tracker, whole -- the Morph row's keyword line [CR#702.37a],
-||| "First strike / Morph {4}{R}". The word's own line is what the row
-||| buys first; Qarsi Deceiver's spend restriction, which names a morph
-||| COST, waits on a description this grammar does not have -- see
-||| `qarsiDeceiverMorphSpend` below.
+||| Ainok Tracker
 public export
 ainokTracker : Card
 ainokTracker =
@@ -4108,21 +3725,7 @@ ainokTracker =
                                (Mana [Macros.generic 4, Macros.pip Red]) ]
        (Just (3, 3))
 
-||| Qarsi Deceiver's spend restriction, MINUS its first purpose --
-||| "Spend this mana only to ... pay a mana cost to turn a manifested
-||| creature face up, or pay a morph cost." The two arms that write:
-||| the special action [CR#116.2b] and the Morph row [CR#702.37a] (the
-||| card's parenthetical "a megamorph cost is a morph cost" is
-||| [CR#702.37b] itself and needs no second word).
-||| WHAT THE THIRD ARM WAITS ON, recorded rather than worked around:
-||| "cast a face-down creature spell" describes a SPELL as face down,
-||| and [CR#110.5d] says only permanents have status -- "cards not on
-||| the battlefield do not" -- so `HasStatus FaceDown`, whose seed zone
-||| is the battlefield for exactly that reason, can never describe one.
-||| What the line means is [CR#708.4]'s face-down CAST, a fact about how
-||| the spell got onto the stack rather than a status on it. 3 supported
-||| lines write "face-down creature spell"; the description is its own
-||| gap and no part of the keyword catalog's.
+||| Qarsi Deceiver
 public export
 qarsiDeceiverMorphSpend : Ability
 qarsiDeceiverMorphSpend =
@@ -4131,13 +3734,7 @@ qarsiDeceiverMorphSpend =
                      [SpendOnly [ ToPay (OfSpecialAction TurnFaceUp)
                                 , ToPay (OfKeyword "Morph") ]])
 
-||| Mercadian Bazaar, whole -- the storage land, and `CounterKind`'s
-||| `Storage` row. "This land enters tapped. / {T}: Put a storage counter
-||| on this land. / {T}, Remove any number of storage counters from this
-||| land: Add {R} for each storage counter removed this way." Black Mana
-||| Battery's shape at the other word: the any-number removal in the
-||| activation cost announces `CountersRemoved` and the production reads
-||| it back.
+||| Mercadian Bazaar
 public export
 mercadianBazaar : Card
 mercadianBazaar =
@@ -4151,13 +3748,7 @@ mercadianBazaar =
                           (AddMana You RemovedThisWay (Runs [[OfColor Red]]) []) ]
        Nothing
 
-||| Rootcoil Creeper's second ability -- "{T}: Add two mana of any one
-||| color. Spend this mana only to cast spells from your graveyard."
-||| The ZONE-QUALIFIED spend purpose, which needed no cell of its own:
-||| the landed cast-provenance predicate describes the spell, and
-||| [CR#601.2a] has the card on the stack before [CR#601.2h] takes the
-||| payment. Its two negative kin (Karolina Dean, Vhal) write the same
-||| cell under `Not`.
+||| Rootcoil Creeper
 public export
 rootcoilCreeperGraveyardMana : Ability
 rootcoilCreeperGraveyardMana =
@@ -4166,14 +3757,7 @@ rootcoilCreeperGraveyardMana =
                      [SpendOnly [ToCast (And [Macros.spell,
                                               CastFrom (Macros.graveyardOf You)])]])
 
-||| Black Mana Battery, whole card -- the storage-counter family's shape
-||| written twice over. Its second ability is the round's two purchases
-||| at once: an ANY-NUMBER removal in the activation cost, and the
-||| production reading how many that removal took.
-||| "An additional" gets no cell of its own: all 16 supported lines that
-||| write it (measured 2026-08-28) are the second add of a chain or a
-||| production off another one, so the word marks discourse and the
-||| structure is the sequence.
+||| Black Mana Battery
 public export
 blackManaBattery : Card
 blackManaBattery =
@@ -4189,12 +3773,7 @@ blackManaBattery =
                              , AddMana You RemovedThisWay (Runs [[OfColor Black]]) [] ]) ]
        Nothing
 
-||| Galloping Lizrog, whole -- the counter PARTITIVE at the EFFECT seat.
-||| "You may remove any number of +1/+1 counters from among creatures
-||| you control. If you do, put twice that many +1/+1 counters on this
-||| creature." The removal announces its size and the did-branch reads
-||| it back, which is why the count sits on the COUNTERS and the group
-||| only says where they come from.
+||| Galloping Lizrog
 public export
 gallopingLizrog : Card
 gallopingLizrog =
@@ -4211,11 +3790,7 @@ gallopingLizrog =
                            Macros.thisCreature)) ]
        (Just (3, 3))
 
-||| Vampire Hexmage, whole -- the UNIVERSAL removal. "Sacrifice this
-||| creature: Remove all counters from target permanent." Kind-blind
-||| and countless, so both of the row's `Maybe`s stand at their
-||| silence, and the card is the family's cheapest whole carrier: one
-||| keyword and one ability, nothing else to pay for.
+||| Vampire Hexmage
 public export
 vampireHexmage : Card
 vampireHexmage =
@@ -4227,10 +3802,7 @@ vampireHexmage =
                              (Macros.target Permanent)) ]
        (Just (2, 1))
 
-||| Novijen Sages' draw ability -- the same partitive at the COST seat,
-||| where 11 of the family's 17 removal lines write it: "{1}, Remove two
-||| +1/+1 counters from among creatures you control: Draw a card."
-||| A FRAGMENT: graft is not in the keyword catalog.
+||| Novijen Sages
 public export
 novijenSagesDraw : Ability
 novijenSagesDraw =
@@ -4240,11 +3812,7 @@ novijenSagesDraw =
                              (AllOf Macros.creatureYouControl))])
                    (Macros.drawCards 1)
 
-||| Cyclone's upkeep trigger, first sentence -- "put a wind counter on
-||| this enchantment, then sacrifice this enchantment unless you pay {G}
-||| for each wind counter on it". The COLOURED scaled payment: the count
-||| composed before, the unit did not. Its second sentence reads the
-||| payment back and is not this witness.
+||| Cyclone
 public export
 cycloneUpkeepPayment : Ability
 cycloneUpkeepPayment =
@@ -4257,23 +3825,14 @@ cycloneUpkeepPayment =
                 PaidOnce)
            (Macros.sacrifice You Macros.thisEnchantment) ])
 
-||| War Tax's payment -- "pays {X} for each attacking creature". The
-||| product whose PER-UNIT is read rather than printed, announced by the
-||| ability's own {X} [CR#107.3a]. The fragment and not the card: all
-||| four lines writing this product are attack/block gates, and the
-||| payer noun those gates derive is a separate gap.
+||| War Tax
 public export
 warTaxScaledPayment : Cost [letterB X]
 warTaxScaledPayment =
   ScaledMana GenericUnit
              (TimesOf (LetterVal X) (CountOf (And [Macros.creature, Attacking])))
 
-||| Rune Snag, whole card -- "Counter target spell unless its controller
-||| pays {2} plus an additional {2} for each card named Rune Snag in each
-||| graveyard." A fixed base beside a scaled one needs no new cost cell:
-||| the compound already joins them, and "plus an additional" is the
-||| coordinator's spelling. Spell Stutter and Concerted Defense are the
-||| other two lines.
+||| Rune Snag
 public export
 runeSnag : Card
 runeSnag =
@@ -4289,9 +3848,7 @@ runeSnag =
                   (Macros.counterSpell It)) ]
        Nothing
 
-||| Elemental Resonance, whole card -- "add mana equal to enchanted
-||| permanent's mana cost". The production a card names by a PRINTED
-||| COST, leaving [CR#106.8..106.11] to say what each symbol adds.
+||| Elemental Resonance
 public export
 elementalResonance : Card
 elementalResonance =
@@ -4356,16 +3913,7 @@ saheelisCopy =
                , Macros.gainsHaste (That TokenW) Nothing
                , Macros.delayed (BeginningOf EndStep NoPossessor) (Macros.exile It) ]
 
-||| Clone, whole card -- "You may have this creature enter as a copy of
-||| any creature on the battlefield." The copy-on-entry row's BARE
-||| sentence, [CR#707.5]'s own: the permanent "becomes a copy AS it
-||| enters" rather than entering and then becoming one. Chapter 92 fenced
-||| this family on a probe rather than on a missing carrier; the carrier
-||| is `EntersAsCopy` and this is the line with nothing riding on it.
-||| 60 supported lines over 60 cards write the sentence (re-measured
-||| 2026-09-02) and the would-enter-instead form writes ZERO.
-||| -- spelling note: the printed determiner is "any", which is `a`'s
-||| word here -- the phrase restricts nothing and names no target.
+||| Clone
 public export
 clone : Card
 clone =
@@ -4375,13 +3923,7 @@ clone =
                               (Macros.a Macros.creature) []) ]
        (Just (0, 0))
 
-||| Quicksilver Gargantuan, whole card -- "You may have this creature
-||| enter as a copy of any creature on the battlefield, except it's 7/7."
-||| [CR#707.9d]'s own worked example, and `ExceptPt`'s WITNESS: that arm
-||| landed with finding 481's bar declared unmet, its bare-P/T lines all
-||| multi-clause or behind this row's fence. The fence is down and the
-||| debt is paid here -- the stack copy was checked for a payer and found
-||| none, so this row owed it.
+||| Quicksilver Gargantuan
 public export
 quicksilverGargantuan : Card
 quicksilverGargantuan =
@@ -4393,10 +3935,7 @@ quicksilverGargantuan =
                               [ExceptPt (Lit 7) (Lit 7)]) ]
        (Just (7, 7))
 
-||| Sculpting Steel, whole card -- "You may have this artifact enter as a
-||| copy of any artifact on the battlefield." The row at a subject that
-||| is not a creature, and the witness that the subject is the printed
-||| permanent word rather than a fixed self-creature.
+||| Sculpting Steel
 public export
 sculptingSteel : Card
 sculptingSteel =
@@ -4406,15 +3945,7 @@ sculptingSteel =
                               (Macros.a Macros.artifact) []) ]
        Nothing
 
-||| Sakashima's Student's copy line -- "You may have this creature enter
-||| as a copy of any creature on the battlefield, except it's a Ninja in
-||| addition to its other creature types." The TYPE-ADDING rider on the
-||| entry row, and the "except IT" pronoun with the one antecedent the
-||| row's law leaves it: 38 of the 60 lines write that pronoun, and every
-||| one means the entering permanent. The source is a constructor
-||| argument and announces nothing, so the count is 1.
-||| A FRAGMENT: the card's other line is ninjutsu, whose keyword row this
-||| round did not mint.
+||| Sakashima's Student
 public export
 sakashimasStudentCopy : Ability
 sakashimasStudentCopy =
@@ -4422,13 +3953,7 @@ sakashimasStudentCopy =
                        (Macros.a Macros.creature)
                        [ExceptTypes (MkTypeLine [creatureType "Ninja"] [])])
 
-||| Croaking Counterpart's first line -- "Create a token that's a copy of
-||| target non-Frog creature, except it's a 1/1 green Frog." The
-||| CHARACTERISTICS BUNDLE, benched at the token seat where its three
-||| characteristics ride one noun phrase. `[ExceptPt, ExceptColor,
-||| ExceptTypes]` would spell three sentences; this is one.
-||| A FRAGMENT: the card's other line is flashback, a keyword row this
-||| round did not mint.
+||| Croaking Counterpart
 public export
 croakingCounterpartCopy : Effect []
 croakingCounterpartCopy =
@@ -4441,16 +3966,7 @@ croakingCounterpartCopy =
                               False])
     []
 
-||| Chameleon, Master of Disguise's copy line -- "You may have Chameleon
-||| enter as a copy of a creature you control, except his name is
-||| Chameleon, Master of Disguise." The NAME exception, [CR#707.9d]'s
-||| "specific set of values for a certain characteristic" over the
-||| characteristic [CR#109.3] calls a name.
-||| The pin beside it still holds: `badNamedAddition` refuses a name
-||| inside an addition bundle, and this row is a setting at a different
-||| seat, so the two say different things about different operations.
-||| A FRAGMENT: the card's other line is mayhem, a keyword row this round
-||| did not mint.
+||| Chameleon, Master of Disguise
 public export
 chameleonCopy : Ability
 chameleonCopy =
@@ -4458,27 +3974,7 @@ chameleonCopy =
                        (Macros.a (And [Macros.creature, ControlledBy You]))
                        [ExceptName "Chameleon, Master of Disguise"])
 
-||| Repeated Reverberation, whole card -- "When you next cast an instant
-||| spell, cast a sorcery spell, or activate a loyalty ability this turn,
-||| copy that spell or ability twice. You may choose new targets for the
-||| copies."
-||| THE UNION OF ALTERNATIVES, and its own mechanism rather than a join
-||| of phrases. The join was refused here and stays refused: a `Joined`
-||| head is ONE phrase, and [CR#115.1] is what it names -- the objects
-||| and/or players one spell or ability declares as its targets. This
-||| card's arms are three separate events with three separate verbs, and
-||| [CR#603.7b] fires the delayed ability the next time ANY of them
-||| occurs -- so "that spell" has to be able to name nothing when the
-||| ability arm was the one that fired.
-||| What answers it is at the DISCOURSE: `sharedCtx` unions what the arms
-||| announce instead of refusing them, pairing the spell and the ability
-||| into the payload [CR#115.2]'s "spell or ability" already had, and
-||| forgetting the instant/sorcery difference the two cast arms disagree
-||| on -- which is exactly what the card's own next word calls it.
-||| `AbilityJoinW` reads that union back; the copy of it is a union too,
-||| and `CopyJoinW` reads that.
-||| 5 supported lines write the construction and all 5 are copy lines
-||| (re-measured 2026-09-02).
+||| Repeated Reverberation
 public export
 repeatedReverberation : Card
 repeatedReverberation =
@@ -4495,19 +3991,7 @@ repeatedReverberation =
                      , Macros.may You (ChooseNewTargets (Those CopyJoinW)) ])) ]
        Nothing
 
-||| Frontline Heroism's second line -- "Whenever you cast a spell that
-||| targets only a single creature you control, create a 1/1 red Soldier
-||| creature token with haste, then copy that spell. The copy targets
-||| that token." [CR#707.10e]'s own worked example, and the SPECIFIED
-||| target's witness: a statement whose subject is the copy mention and
-||| whose predicate sets what the copy targets, which `AnyTarget` and the
-||| target quantities cannot say -- they describe a phrase's own printed
-||| targeting, never one object's targets being set after the fact.
-||| The copy mention and the token mention stand side by side here, each
-||| read by its own word, which is the discourse this row needs to work.
-||| 6 supported lines write it (re-measured 2026-09-02).
-||| A FRAGMENT: the card's first line is an ordinary entry trigger over
-||| the same token and buys nothing this one does not.
+||| Frontline Heroism
 public export
 frontlineHeroismCopy : Ability
 frontlineHeroismCopy =
@@ -4525,18 +4009,7 @@ frontlineHeroismCopy =
        , CopyStack You (That SpellW) (Lit 1) []
        , CopyTargets (That CopyW) (That TokenW) ])
 
-||| Flawless Forgery's spell line -- "Exile target instant or sorcery
-||| card from an opponent's graveyard. Copy that card. You may cast the
-||| copy without paying its mana cost." [CR#707.12]'s verb, kept a
-||| distinct row from [CR#707.10]'s: the copy is created in the zone the
-||| CARD is in -- exile, here -- and cast from there, where the stack
-||| copy's is put on the stack. The mention word is shared and the rest
-||| is not, which is why `CopyW` asks the origin and no zone.
-||| The cast permission is `MayPlay`'s, whose `WithoutPaying` payment was
-||| already the rider: measured before designing, and no second one
-||| minted.
-||| A FRAGMENT: the card's other line is casualty, a keyword row this
-||| round did not mint.
+||| Flawless Forgery
 public export
 flawlessForgeryLine : Effect []
 flawlessForgeryLine =
@@ -4598,19 +4071,7 @@ echoMagesFourthLevel =
                    (Lit 2) []
                , Macros.may You (ChooseNewTargets (Those CopyW)) ])
 
-||| Strionic Resonator, whole card -- "{2}, {T}: Copy target triggered
-||| ability you control. You may choose new targets for the copy."
-||| The copy verb at the OTHER kind the stack holds. [CR#707.10] copies
-||| "a spell, activated ability, or triggered ability" alike, so the
-||| complement is kind-indexed under `Copiable` exactly as
-||| `CounterSpell`'s is under `Counterable`; the head is `AbilityHead`'s
-||| class word, which [CR#115.1d] gives the word "target"; "you control"
-||| is `ControlledBy` at `Ability`, admitted by [CR#109.4] over an object
-||| on the stack [CR#109.1]; and "the copy" is `AbilityCopyW`, the copy
-||| mention at that kind.
-||| 14 supported lines write "copy target [class] ability you control"
-||| (re-measured 2026-09-02), every one of them with [CR#707.10c]'s
-||| retarget permission after it.
+||| Strionic Resonator
 public export
 strionicResonator : Card
 strionicResonator =
@@ -4624,13 +4085,7 @@ strionicResonator =
               , Macros.may You (ChooseNewTargets (That AbilityCopyW)) ]) ]
        Nothing
 
-||| Mister Fantastic's activated ability -- "{R}{G}{W}{U}, {T}: Copy
-||| target triggered ability you control twice. You may choose new
-||| targets for the copies." The ability copy with a COUNT, whose plural
-||| mention is the same word: `Those AbilityCopyW` after `Lit 2`, as
-||| `Those CopyW` stands after Echo Mage's. Nothing new is bought here;
-||| it is the plural witness that the ability copy's mention agrees like
-||| the object copy's.
+||| Mister Fantastic
 public export
 misterFantasticCopy : Ability
 misterFantasticCopy =
@@ -4643,16 +4098,7 @@ misterFantasticCopy =
            (Lit 2) []
        , Macros.may You (ChooseNewTargets (Those AbilityCopyW)) ])
 
-||| Rowan's Talent's third line -- "Whenever you activate a loyalty
-||| ability of enchanted planeswalker, copy that ability. You may choose
-||| new targets for the copy." The ANAPHORIC ability copy: the header
-||| announces the activated ability and the body reads it back
-||| with the plain ability demonstrative, then reads the copy back with
-||| the copy one. Both mentions are `AbilityP` and the ORIGIN is all that
-||| tells them apart, which is `SpellW`/`CopyW`'s arrangement at the
-||| other kind the stack holds.
-||| 15 supported lines write "copy that ability" (re-measured
-||| 2026-09-02); this is the shape with no intervening clause on it.
+||| Rowan's Talent
 public export
 rowansTalentCopy : Ability
 rowansTalentCopy =
@@ -4664,23 +4110,7 @@ rowansTalentCopy =
        [ CopyStack You (That AbilityW) (Lit 1) []
        , Macros.may You (ChooseNewTargets (That AbilityCopyW)) ])
 
-||| Rings of Brighthearth, whole -- "Whenever you activate an ability, if
-||| it isn't a mana ability, you may pay {2}. If you do, copy that
-||| ability. You may choose new targets for the copy." The ABILITY
-||| PRONOUN, which is what the copy round left owed here.
-||| [CR#109.1] makes an ability on the stack an object, so the printed
-||| "it" is `It`'s own word; this grammar indexes `Ability` apart from
-||| `Object` so the ability predicates can be typed, and `ItAbility` is
-||| the pronoun at that index. The header announces one ability and one
-||| player, so the candidate set has exactly one member.
-||| 5 of the 15 "copy that ability" lines carry this intervening clause
-||| (Battlemage's Bracers, Harsh Mentor, Illusionist's Bracers, Kurkesh,
-||| Onakke Ancient and this card; re-measured 2026-09-02), and
-||| `rowansTalentCopy` above is the shape without one.
-||| The clause is INTERVENING and not concurrent: it is comma-marked
-||| after the trigger condition, which is [CR#603.4]'s own shape, and
-||| [CR#605.1a]'s mana-ability test is a fact about the ability rather
-||| than an act it is partway through.
+||| Rings of Brighthearth
 public export
 ringsOfBrighthearth : Card
 ringsOfBrighthearth =
@@ -4696,19 +4126,7 @@ ringsOfBrighthearth =
                  , Macros.may You (ChooseNewTargets (That AbilityCopyW)) ])) ]
        Nothing
 
-||| Iron Man, Bleeding Edge, whole -- "Flying / Whenever you cast an
-||| artifact spell, you may copy it, except the copy isn't legendary. DO
-||| THIS ONLY ONCE EACH TURN."
-|||
-||| [CR#603.2h]'s rider, which is a different limit from the one the
-||| header already had: "this ability triggers only if its source's
-||| controller has not yet taken the indicated action that turn", so what
-||| is capped is the DEED the may-clause offered and a turn in which the
-||| controller declined it leaves the ability free to trigger again.
-||| `UsageLimit.ActionOncePerTurn` is that reading, in the slot
-||| `OncePerTurn` already sits in, and `untriggeredLimitOk` keeps it off
-||| an activated ability and a replacement -- [CR#603.2h] states it of a
-||| triggered ability in as many words. 32 supported lines write it.
+||| Iron Man, Bleeding Edge
 public export
 ironManBleedingEdge : Card
 ironManBleedingEdge =
@@ -4723,12 +4141,7 @@ ironManBleedingEdge =
            (Macros.may You (CopyStack You It (Lit 1) [ExceptNonlegendary])) ]
        (Just (3, 5))
 
-||| Donal, Herald of Wings, whole -- "Whenever you cast a nonlegendary
-||| creature spell with flying, you may copy it, except the copy is a 1/1
-||| Spirit in addition to its other types. Do this only once each turn."
-||| The same rider over a bundle exception rather than a bare one, and
-||| the second of the two cards the trigger round named as blocked on
-||| nothing else.
+||| Donal, Herald of Wings
 public export
 donalHeraldOfWings : Card
 donalHeraldOfWings =
@@ -4865,11 +4278,6 @@ gideonAllyOfZendikar =
                                                  (PtUp (Lit 1)) (PtUp (Lit 1)))]) ]
        (Macros.loyaltyBox 4)
 
-||| Gideon Jura. The [+2] is the fronted span: "During target opponent's
-||| next turn" announces the target and "creatures that player controls"
-||| reads it back, which is why the span leads the statement rather than
-||| trailing it. Its patient is the source named by its own type -- an
-||| attack aimed at a named permanent [CR#506.3].
 public export
 gideonJura : Card
 gideonJura =
@@ -5136,11 +4544,6 @@ deflectingPalm =
                   (Just Macros.thisTurn)) ]
        Nothing
 
-||| "Pinpoint Avalanche deals 4 damage to target creature. The damage
-||| can't be prevented." -- [CR#615.12]'s rider with an ANAPHORIC subject:
-||| "the damage" names the damage event this card's own previous clause
-||| described, which neither a recipient scope nor a by-phrase says. 9
-||| supported sentences write it (measured 2026-08-28).
 public export
 pinpointAvalanche : Card
 pinpointAvalanche =
@@ -5153,15 +4556,6 @@ pinpointAvalanche =
                       (CantPrevent AnyDamage ThatDamage NoPreventionOnly) Nothing ]) ]
        Nothing
 
-||| "Damage that would be dealt to that creature this turn can't be
-||| prevented or dealt instead to another permanent or player" --
-||| Whippoorwill's middle statement, the CONJOINED ban over [CR#615.12]'s
-||| prevention and [CR#614.9]'s redirection. Benched as a fragment because
-||| the ability's other two statements (a regeneration prohibition and a
-||| delayed exile) are not this round's; the subject is written as a
-||| description rather than the printed anaphor for the same reason.
-||| Lava Burst writes the same ban under an if-would antecedent, which no
-||| statement row takes -- recorded as the family's remaining spelling gap.
 public export
 whippoorwillImmunity : Effect []
 whippoorwillImmunity =
@@ -5171,14 +4565,6 @@ whippoorwillImmunity =
                  NoRedirectEither)
     (Just Macros.thisTurn)
 
-||| "If damage would be dealt to this creature, put that many +1/+1
-||| counters on it instead." The replacement side of the recipient's
-||| damage event, whose body reads the MAGNITUDE of the damage that would
-||| have been dealt: [CR#614.6] keeps the event from happening, but
-||| [CR#614.1] has the replacement watch an event that WOULD happen and
-||| [CR#120.8] makes that event one of a stated size, so `eventIntro`
-||| leaves the amount for "that many" -- `RollsDice`' announcement at the
-||| damage seat. 10 supported bodies read it (measured 2026-08-28).
 public export
 phytohydra : Card
 phytohydra =
@@ -5192,22 +4578,12 @@ phytohydra =
                             Repeatedly Nothing) ]
        (Just (1, 1))
 
-||| "If you would gain life, draw that many cards instead" -- Nefarious
-||| Lich's middle statement. The life change as a REPLACEABLE event, whose
-||| announced amount the body reads: [CR#119.9] makes a 0-life gain no
-||| life gain event at all, so the event a replacement reaches is one of a
-||| stated size. Benched as a fragment; the card's other two statements
-||| are not this round's.
 public export
 nefariousLichGain : AbilityAt []
 nefariousLichGain =
   Static (Intercepts (LifeChanges You LifeGoesUp) [] Nothing
                      (Draw You ThatMuch) Repeatedly Nothing)
 
-||| "Whenever this creature is dealt combat damage, you gain that much
-||| life." The damage KIND written at an event position: `IsDealtDamage`'s
-||| new adjective, the same vocabulary the shield rows spell. 9 supported
-||| sentences carry it (measured 2026-08-28).
 public export
 piousWarrior : Card
 piousWarrior =
@@ -5220,8 +4596,6 @@ piousWarrior =
                           (Macros.gainsLife You ThatMuch) ]
        (Just (2, 3))
 
-||| "Whenever an opponent is dealt noncombat damage, this creature gets
-||| +3/+0 until end of turn." The other pole of the same adjective.
 public export
 chandrasSpitfire : Card
 chandrasSpitfire =
@@ -5235,10 +4609,6 @@ chandrasSpitfire =
                                        (Just Macros.untilEndOfTurn)) ]
        (Just (1, 3))
 
-||| "Whenever you gain life, target opponent loses that much life."
-||| [CR#119.9] writes this header in the rules' own words; the row
-||| announces the amount [CR#119.3] moved the total by, which "that much
-||| life" reads.
 public export
 sanguineBond : Card
 sanguineBond =
@@ -5249,8 +4619,6 @@ sanguineBond =
                           (ChangeLife (Macros.target Opponent) (Down ThatMuch)) ]
        Nothing
 
-||| "Whenever an opponent loses life, you gain that much life." The other
-||| direction of the same row.
 public export
 exquisiteBlood : Card
 exquisiteBlood =
@@ -5261,8 +4629,6 @@ exquisiteBlood =
                           (Macros.gainsLife You ThatMuch) ]
        Nothing
 
-||| "Whenever you gain life, put that many +1/+1 counters on this
-||| creature."
 public export
 agelessEntity : Card
 agelessEntity =
@@ -5274,10 +4640,6 @@ agelessEntity =
                                        Macros.thisCreature) ]
        (Just (4, 4))
 
-||| "If a source would deal damage to another Dinosaur you control,
-||| prevent all but 1 of that damage." [CR#615.10]'s per-event cut written
-||| as the damage it LEAVES. All 4 supported "prevent all but" sentences
-||| sit at this seat; the shield determiner's twin is a measured zero.
 public export
 templeAltisaur : Card
 templeAltisaur =
@@ -5291,11 +4653,6 @@ templeAltisaur =
                               (CutAllBut (Lit 1)) Repeatedly Nothing) ]
        (Just (3, 4))
 
-||| "{T}, Sacrifice this artifact: The next time a source of your choice
-||| would deal damage to you this turn, prevent half that damage, rounded
-||| down." The cut written as a FRACTION; [CR#107.1a] is why the rounding
-||| word is obligatory. Gisela, Blade of Goldnight writes the same arm at
-||| `RoundUp`, and the two cards are the whole of the family.
 public export
 darkSphere : Card
 darkSphere =
@@ -5311,23 +4668,6 @@ darkSphere =
                              (Just Macros.thisTurn)) ]
        Nothing
 
-||| "The next time a source of your choice would deal damage to any target
-||| this turn, prevent that damage. If damage from a red source is
-||| prevented this way, Honorable Passage deals that much damage to the
-||| source's controller." [CR#615.5]'s consequence rider with its
-||| container clause narrowed by the damage's SOURCE -- 6 supported
-||| sentences over 5 cards write that narrowing (measured 2026-08-28).
-||| The source read is the generic pronoun's, as Deflecting Palm's is.
-||| "The next time a source of your choice would deal damage to you
-||| and/or creatures you control this turn, prevent that damage. If damage
-||| from a black source is prevented this way, you gain that much life."
-||| [CR#615.5]'s consequence rider with its container clause narrowed by
-||| the damage's SOURCE -- [CR#615.2] is why a prevention narrows there at
-||| all, and [CR#120.1] is what a source is. 6 supported sentences over 5
-||| cards write the narrowing (measured 2026-08-28).
-||| The recipient is written with "and": the printed "and/or" is a
-||| coordination surface this grammar does not spell, recorded as a
-||| spelling gap rather than paid here.
 public export
 shadowbane : Card
 shadowbane =
@@ -5346,16 +4686,7 @@ shadowbane =
                   (Just Macros.thisTurn)) ]
        Nothing
 
-||| Honorable Passage's rider is the one member of the family this round
-||| does NOT bench, and its blocker is recorded rather than paid: "If
-||| damage from a red source is prevented this way, Honorable Passage
-||| deals that much damage to THE SOURCE'S CONTROLLER" over a shield whose
-||| recipient is "any target". The generic pronoun the other source reads
-||| use (Deflecting Palm's `ControllerOf It`) needs exactly one object
-||| mention to resolve against, and this card leaves two -- the chosen
-||| source and the joined-kind target. So Honorable Passage is a card that
-||| needs the demonstrative re-sort the "source" word would buy, which
-||| corrects the ledger entry saying none of the 13 source reads does.
+||| Honorable Passage
 
 public export
 sphereOfLaw : Card
@@ -5399,12 +4730,7 @@ onakkeJavelineerBolt =
                    (DealDamage Macros.thisCreature (Lit 2)
                         (Macros.target (Macros.kindJoin AnyPlayer (HasType Battle))))
 
-||| Firesong and Sunspeaker's joined head -- "deals 3 damage to target
-||| creature or player", the one current-oracle black-border phrasing that
-||| still writes the pair out instead of "any target" -- with the echo that
-||| reads it back. No printed card spells that echo, so the second clause is
-||| the workbench's; it is what makes the pair `JoinP` carries observable,
-||| since the joined head's creature half is the Object half's card type.
+||| Firesong and Sunspeaker
 public export
 firesongJoinEcho : Effect []
 firesongJoinEcho =
@@ -5412,30 +4738,18 @@ firesongJoinEcho =
                    (Macros.target (Macros.kindJoin AnyPlayer Macros.creature))
                , DealDamage This (Lit 1) (Macros.thatJoin) ]
 
-||| Sorrow's Path's could-block test -- "if each of those creatures could
-||| block all creatures that the other is blocking". [CR#509.1a] and
-||| [CR#509.1b] are the whole of the reading: untapped, and no blocking
-||| restriction disobeyed. "The other" has no shape, so the relatum is
-||| written as the attacking creatures at large.
+||| Sorrow's Path
 public export
 sorrowsPathCouldBlock : Predicate [] Object
 sorrowsPathCouldBlock = CouldBlock (AllOf (And [Macros.creature, Attacking]))
 
-||| General Jarkeld's -- "if each of those creatures could be blocked by
-||| all creatures that the other is blocked by": the same test in the other
-||| voice, as `BlockedBy` is to `BlockerOf`. Same relatum drop.
+||| General Jarkeld's
 public export
 generalJarkeldCouldBeBlocked : Predicate [] Object
 generalJarkeldCouldBeBlocked =
   CouldBeBlockedBy (AllOf (And [Macros.creature, Blocking]))
 
-||| Sorrow's Path's reassignment -- "remove both of them from combat. Each
-||| one then blocks all creatures the other was blocking." The removal and
-||| the write back in, which [CR#509.3a] distinguishes from the reading
-||| below: the creature was not a blocking creature between the two
-||| clauses, so a "whenever [it] blocks" ability triggers again. The card's
-||| own subject ("two target blocking creatures controlled by the same
-||| opponent") is written as one, and "the other" is dropped.
+||| Sorrow's Path
 public export
 sorrowsPathReassign : Effect []
 sorrowsPathReassign =
@@ -5444,14 +4758,7 @@ sorrowsPathReassign =
     , BecomesBlocking (That (TypeW Creature))
                       (Macros.a (And [Macros.creature, Attacking])) ]
 
-||| General Jarkeld's -- "each creature that's blocking exactly one of
-||| those attacking creatures stops blocking it and is blocking the other
-||| attacking creature." The same reassignment written the other way: no
-||| removal, so [CR#506.4] leaves the creature a blocking creature
-||| throughout and [CR#509.3a] fires nothing. That the two terms differ at
-||| all is the point; collapsing them would lose the card's ruling. Its
-||| subject is written as the source for want of "each creature that's
-||| blocking exactly one of those attacking creatures".
+||| General Jarkeld's
 public export
 generalJarkeldReassign : Effect []
 generalJarkeldReassign =
@@ -5461,35 +4768,18 @@ generalJarkeldReassign =
     , BecomesBlocking Macros.thisCreature
                       (Macros.a (And [Macros.creature, Attacking])) ]
 
-||| Tahngarth, First Mate's last two clauses -- "choose a player or
-||| planeswalker that opponent is attacking. Tahngarth is attacking that
-||| player or planeswalker." The choose mints the joined binding; the
-||| attack declaration below reads it back in the DEFENDER slot, which is
-||| what the joined slot buys: the card never says which half it names.
-||| The restriction "that opponent is attacking" is dropped -- no predicate
-||| describes a player by what is attacking it.
+||| Tahngarth
 public export
 tahngarthChoosesDefender : Effect []
 tahngarthChoosesDefender =
   Choose (Macros.a (Macros.kindJoin AnyPlayer (HasType Planeswalker))) Nothing Openly
 
-||| "Tahngarth is attacking that player or planeswalker", in the context
-||| the choose above leaves behind. [CR#506.3] closes what the slot may
-||| name and the joined head is inside that set; the same slot refuses a
-||| creature (`badCreatureAttackDefender`). The clause asserts the
-||| assignment rather than declaring it, so it is `BecomesAttacking` and
-||| not the declaration event: nothing is declared as an attacker by a
-||| resolving effect [CR#508.3a].
 public export
 tahngarthAttacksThatJoin : Effect (effIntro Cards.tahngarthChoosesDefender)
 tahngarthAttacksThatJoin =
   BecomesAttacking Macros.thisCreature (OneDefender Macros.thatJoin)
 
-||| Smite, whole -- "Destroy target blocked creature." The bare combat
-||| ROLE at its plainest: an attributive `Blocked` naming no blocker, in
-||| a sentence with no second reading to anchor one. Benalish Missionary
-||| prints the same description under a prevention shield and Roar of
-||| Jukai its plural ("each blocked creature gets +2/+2").
+||| Smite
 public export
 smite : Card
 smite =
@@ -5498,12 +4788,7 @@ smite =
        [ Spell (Macros.destroy (Macros.target (And [Macros.creature, Blocked]))) ]
        Nothing
 
-||| Forcefield, whole -- "{1}: The next time an unblocked creature of your
-||| choice would deal combat damage to you this turn, prevent all but 1 of
-||| that damage." `Unblocked`'s witness, and the card damage-prevention
-||| routed to this family on exactly that one word. Everything else it
-||| needs already stood: `NextTimeOnly`'s shield determiner, `CombatOnly`,
-||| `CutAllBut`'s per-event cut, and the your-choice damage agent.
+||| Forcefield
 public export
 forcefield : Card
 forcefield =
@@ -5519,13 +4804,7 @@ forcefield =
               (Just Macros.thisTurn)) ]
        Nothing
 
-||| Agate-Blade Assassin, whole -- "Whenever this creature attacks,
-||| defending player loses 1 life and you gain 1 life." `TheDefendingPlayer`
-||| at the SUBJECT position, the second-largest of the word's three (65 of
-||| the 303 supported lines). The header writes `NoDefender` and the word
-||| still resolves, which is [CR#508.5] doing its own work: this is an
-||| ability of an attacking creature, so the rule supplies the player that
-||| creature is attacking without the line naming one.
+||| Agate-Blade Assassin
 public export
 agateBladeAssassin : Card
 agateBladeAssassin =
@@ -5537,12 +4816,7 @@ agateBladeAssassin =
                          , ChangeLife You (Up (Lit 1)) ]) ]
        (Just (1, 3))
 
-||| Fiend Binder, whole -- "Whenever this creature attacks, tap target
-||| creature defending player controls." The word at its LARGEST position,
-||| naming another permanent's controller: 173 of the 303 supported lines
-||| write it that way, and no row was needed for them beyond this noun --
-||| `ControlledBy` already takes any sole-holder player and asks
-||| `nounPlur` the only question it has.
+||| Fiend Binder
 public export
 fiendBinder : Card
 fiendBinder =
@@ -5555,48 +4829,14 @@ fiendBinder =
                                    ControlledBy TheDefendingPlayer]))) ]
        (Just (3, 2))
 
-||| Souls of the Faultless's second half -- "Whenever this creature is
-||| dealt combat damage, ... attacking player loses that much life."
-||| `TheAttackingPlayer`'s witness, and the one carrier that shows the
-||| word is not the defending player's mirror image at the same seat: the
-||| subject here is a BLOCKING creature, so [CR#508.5]'s per-attacker
-||| resolution has nothing to resolve and [CR#506.2]'s active player is
-||| the whole of the reference.
-||| A FRAGMENT, and the word is not why. The printed line reads the
-||| damage twice -- "you gain that much life AND attacking player loses
-||| that much life" -- and `ThatMuch` asks `countQuantOutcomes ... = 1`
-||| of the context it stands in, which the life change ahead of it has
-||| already added to. The second read is the two-reads-of-one-amount cell
-||| and is this card's own remainder.
-||| The other 8 bare lines do not land either, and none is held up by
-||| this word. Goblin Goon, Mogg Toady and Monstrous Hound write it
-||| inside "can't block unless you control more creatures than attacking
-||| player", a deontic gated on a CONDITION where `Compulsion` offers
-||| `GatedBy`'s cost and nothing else; Defensive Formation and Invasion
-||| Plans hand the combat-damage or block ASSIGNMENT to a player, which
-||| no row writes; Contested Game Ball, Karazikar and Norn's Decree need
-||| headers this vocabulary has not reached.
+||| Souls of the Faultless
 public export
 soulsOfTheFaultlessDrain : Ability
 soulsOfTheFaultlessDrain =
   Macros.triggered Whenever (IsDealtDamage CombatOnly Macros.thisCreature)
                    (ChangeLife TheAttackingPlayer (Down ThatMuch))
 
-||| Blessed Reversal, whole -- "You gain 3 life for each creature
-||| attacking you." The ATTACKER-voice predicate written as a bare
-||| participle rather than a relative clause, which is the spelling the
-||| corpus prefers: of the 82 supported lines that describe one side of
-||| an attack by the other, 18 write "creature[s] attacking [m]" and 21
-||| "that's attacking [m]". One row spells both -- a reduced relative
-||| states no fact its full form does not -- so `AttackerOf` needed
-||| nothing here beyond a carrier outside a gate's cost, where the seven
-||| lines that first bought it all sat.
-||| This is where the attacker-voice item routed from description-2
-||| lands. Namor, Atlantean King, whose four kin (Martial Impetus, Oviya,
-||| Scriv, Seifer) were counted with it, still does not bench: its body
-||| is "OTHER creatures you control attacking that player", and `Other`
-||| asks `anyTargeted` of its context, which an untargeted attack trigger
-||| does not answer.
+||| Blessed Reversal
 public export
 blessedReversal : Card
 blessedReversal =
@@ -5926,13 +5166,6 @@ livingHive =
                                   (Macros.creatureTok 1 1 [Green] [creatureType "Insect"])) ]
        (Just (6, 6))
 
-||| "Whenever this creature is dealt damage, it deals that much damage to
-||| any other target. If a player is dealt damage this way, they can't gain
-||| life for the rest of the game." -- the union-narrowing container. The
-||| damage went to a joined-kind phrase; `DealtThisWay` picks out the player
-||| case, and "they" reads the joined mention back at its player half
-||| ([CR#115.1] makes both readings real), which the condition has just
-||| established was the one that happened.
 public export
 screamingNemesis : Card
 screamingNemesis =
@@ -5953,11 +5186,6 @@ screamingNemesis =
        (Just (3, 3))
 
 
-||| "When this creature enters, it deals 2 damage to any target and you gain
-||| 2 life. If a player is dealt damage this way, they discard a card." --
-||| the second union-narrowing witness, and the one that shows the licence
-||| has to be loose: the life-gain clause stands between the damage and the
-||| conditional, so "this way" reads past it.
 public export
 sonicShrieker : Card
 sonicShrieker =
@@ -6367,75 +5595,28 @@ chromaticArmor =
                           Nothing) ]
        Nothing
 
-||| Sanctuary Blade -- "As this Equipment becomes attached to a creature,
-||| choose a color. / Equipped creature gets +2/+0 and has protection from
-||| the last chosen color. / Equip {3}". The ATTACH-triggered chooser's
-||| witness: a replacement effect watching [CR#701.3a]'s attachment rather
-||| than [CR#614.1c]'s entering, and the marked read it feeds
-||| [CR#607.2d] -- marked because re-equipping re-fires the chooser.
-||| Beckoning Will-o'-Wisp's chooser -- "At the beginning of combat on
-||| your turn, choose an opponent." The COMBAT-trigger chooser position;
-||| Triarch Stalker writes the same ability. Neither card lands and the
-||| chooser is not why. Two further blockers apiece: the flavor word
-||| ("Lure the Unwary", "Targeting Relay") is not one of [CR#207.2c]'s
-||| ability words and no row spells it; and both spend the read inside
-||| "creatures attacking the last chosen player".
-||| The second of those is CORRECTED (2026-09-02): the attacking-defender
-||| phrase is written, and by `AttackerOf`, which landed the day after
-||| this note was made. Re-measured, the family is 82 supported lines,
-||| not 94 -- 21 relative clauses and 18 bare participles, both of which
-||| that row spells (`blessedReversal`), 27 the entry rider's own
-||| defender slot, and the rest other shapes. What still blocks these two
-||| cards is "the LAST CHOSEN player": the marked read at the player
-||| sort, where `OfLastChosen` is a quality-sorted description of an
-||| OBJECT and `That PlayerW` is the plain demonstrative. That read is
-||| the chooser family's cell, not the combat roles'.
+||| Sanctuary Blade
 public export
 beckoningWillOWispChooser : Ability
 beckoningWillOWispChooser =
   Macros.triggered At (BeginningOf Combat (ByWord Yours))
                    (Macros.choose (Macros.a Opponent))
 
-||| Koh, the Face Stealer's third line -- "Pay 1 life: Choose a creature
-||| card exiled with Koh." The chooser at an ACTIVATED ability and at an
-||| OBJECT: the exile linkage [CR#607.2a] narrows the choice and the clause
-||| leaves a mention, not a chosen value. The card's fourth line, "Koh has
-||| all activated and triggered abilities of the last chosen card", wanted
-||| two things: a grant of ANOTHER object's described ability set, which
-||| `GainsAbilitiesOf` now writes at exactly this pair of classes, and the
-||| object-sorted marked read, which is still the line's blocker. Idris,
-||| Soul of the TARDIS writes the same class pair and is blocked the same
-||| way -- its source is "the exiled card", a participle definite its own
-||| earlier ability stamped, and no static line reads across an ability
-||| boundary. So the class slot's LIST arm has no bench entry: both
-||| supported lines that write two classes are held up by their SOURCE.
+||| Koh, the Face Stealer
 public export
 kohChooser : Ability
 kohChooser =
   Macros.activated (Macros.payLife You 1)
     (Macros.choose (Macros.a (And [Macros.creature, ExiledWith This])))
 
-||| Volrath's Laboratory's first line -- "As this artifact enters, choose a
-||| color and a creature type." The COMPOUND chooser at the as-enters
-||| position: two choices in ONE sentence, spelled as the coordination it
-||| is, which is all the family was missing -- the two choosers already
-||| composed and both reads already elaborated. Riptide Replicator writes
-||| the same line.
+||| Volrath's Laboratory
 public export
 volrathsLaboratoryChoice : StaticEffect []
 volrathsLaboratoryChoice =
   AndAlso [ Macros.entersChoosing Macros.thisArtifact Color
           , Macros.entersChoosing Macros.thisArtifact (SubtypeQ Creature) ]
 
-||| Volrath's Laboratory, whole card: the compound chooser above and the
-||| activated line that spends BOTH reads inside one token bundle,
-||| "Create a 2/2 creature token of the chosen color and type". The
-||| postmodifier is one noun phrase's, so both reads ride the bundle's
-||| `quals` -- the colour read where a literal `List Color` cannot go,
-||| the creature-type read hosted by the bundle's own `Creature` word
-||| [CR#205.3d]. Two of the family's 3 supported lines are this card's;
-||| Riptide Replicator writes the third and is blocked elsewhere, its X
-||| standing in a body whose cost writes none.
+||| Volrath's Laboratory
 public export
 volrathsLaboratory : Card
 volrathsLaboratory =
@@ -6450,11 +5631,7 @@ volrathsLaboratory =
                             , WithQuality (OfChosen (SubtypeQ Creature)) ])) ]
        Nothing
 
-||| Call to Arms' first line -- "As this enchantment enters, choose a color
-||| and an opponent." The same coordination ACROSS SORTS, a quality beside
-||| a player, which the container needed no extra row for. The card's
-||| second and third lines read both choices inside a most-common-colour
-||| comparison and are not taken here.
+||| Call to Arms
 public export
 callToArmsChoice : StaticEffect []
 callToArmsChoice =
@@ -6462,14 +5639,7 @@ callToArmsChoice =
           , Macros.entersChoosingPlayer Macros.thisEnchantment
                                         (Just OpponentsOnly) ]
 
-||| Forgotten Lore's first sentence -- "Target opponent chooses a card in
-||| your graveyard." The chooser at an OBJECT, with the chooser written:
-||| what it leaves is a MENTION, which the ordinary anaphora reads, and no
-||| chosen VALUE for a linked ability to name [CR#607.2d]. Shrouded Lore
-||| writes the same sentence. Neither card lands: the tail repeats the
-||| process with an exclusion memory ("that opponent can't choose a card
-||| already chosen for Forgotten Lore") and then reads "the last chosen
-||| card", the object-sorted marked read no row writes.
+||| Forgotten Lore
 public export
 forgottenLoreChoice : Effect []
 forgottenLoreChoice =
@@ -6490,15 +5660,7 @@ sanctuaryBlade =
        , Macros.keywordCosting "Equip" (Mana [Macros.generic 3]) ]
        Nothing
 
-||| Psychic Paper minus its three-way coordination -- "As this Equipment
-||| becomes attached to a creature, choose a creature card name and a
-||| creature type." with the setting half of "its name and creature type
-||| are the last chosen name and creature type". Two witnesses in one
-||| fragment: the COMPOUND chooser (two choices in one sentence, spelled
-||| as the coordination it is) at the attach position, and the marked
-||| read at the two sorts colour is not. The ward and can't-be-blocked
-||| conjuncts of the printed second line are the coordination cell's,
-||| not this one's.
+||| Psychic Paper minus its three-way coordination
 public export
 psychicPaperChoiceAndReads : AbilitySeq []
 psychicPaperChoiceAndReads =
@@ -6521,12 +5683,7 @@ xenograft =
                                 (OfChosen (SubtypeQ Creature))) ]
        Nothing
 
-||| Convincing Mirage -- "Enchant land / As this Aura enters, choose a
-||| basic land type. / Enchanted land is the chosen type." The chosen
-||| basic land type SET rather than added, on the attach host, and it
-||| needed nothing the chosen-quality setting row did not already have
-||| once the land host carried the sort. Phantasmal Terrain is the same
-||| two rows at a different cost.
+||| Convincing Mirage
 public export
 convincingMirage : Card
 convincingMirage =
@@ -6539,11 +5696,7 @@ convincingMirage =
                                    (OfChosen (SubtypeQ Land))) ]
        Nothing
 
-||| Realmwright -- "As this creature enters, choose a basic land type.
-||| Lands you control are the chosen type in addition to their other
-||| types." Xenograft's sentence at the land host, which is the whole of
-||| what the subtype sort's host parameter buys: the same two rows, with
-||| [CR#305.6]'s basic-only narrowing written as the choice's domain.
+||| Realmwright
 public export
 realmwright : Card
 realmwright =
@@ -6617,11 +5770,7 @@ encroachingMycosynth =
                                 (MkToken Nothing [] (MkTypeLine [] [Artifact]) [] Nothing))) ]
        Nothing
 
-||| Aisling Leprechaun -- "Whenever this creature blocks or becomes blocked
-||| by a creature, that creature becomes green." The literal colour change
-||| at the plainest read subject there is: Inferno Elemental's coordinated
-||| header, whose two arms announce the one creature the block pairs this
-||| creature with, and the tail sets that creature's colour [CR#613.1e].
+||| Aisling Leprechaun
 public export
 aislingLeprechaun : Card
 aislingLeprechaun =
@@ -6634,8 +5783,7 @@ aislingLeprechaun =
                             (Macros.becomesColor (That (TypeW Creature)) (SomeColors [Green]) Nothing) ]
        (Just (1, 1))
 
-||| Darkest Hour -- "All creatures are black." The whole family in one
-||| sentence: a universal subject, one colour, no duration.
+||| Darkest Hour
 public export
 darkestHour : Card
 darkestHour =
@@ -6644,8 +5792,7 @@ darkestHour =
        [ Static (SetsColor (AllOf Macros.creature) (SomeColors [Black])) ]
        Nothing
 
-||| Thran Lens -- "All permanents are colorless." The empty colour list is
-||| the word "colorless" [CR#105.2c], exactly as it is on a written token.
+||| Thran Lens
 public export
 thranLens : Card
 thranLens =
@@ -6654,8 +5801,7 @@ thranLens =
        [ Static (SetsColor (AllOf Permanent) (SomeColors [])) ]
        Nothing
 
-||| Ghostflame Sliver -- "All Slivers are colorless." The same setting at a
-||| subtype-named subject.
+||| Ghostflame Sliver
 public export
 ghostflameSliver : Card
 ghostflameSliver =
@@ -6664,9 +5810,7 @@ ghostflameSliver =
        [ Static (SetsColor (AllOf (HasSubtype (creatureType "Sliver"))) (SomeColors [])) ]
        (Just (2, 2))
 
-||| Sinister Strength -- "Enchanted creature gets +3/+1 and is black." The
-||| copular spelling of the same statement, coordinated with a pump on the
-||| attach host.
+||| Sinister Strength
 public export
 sinisterStrength : Card
 sinisterStrength =
@@ -6678,9 +5822,7 @@ sinisterStrength =
                          , SetsColor It (SomeColors [Black]) ]) ]
        Nothing
 
-||| Crimson Wisps -- "Target creature becomes red and gains haste until end
-||| of turn. / Draw a card." The inchoative spelling with a duration, and
-||| the coordination with a keyword grant on one target.
+||| Crimson Wisps
 public export
 crimsonWisps : Card
 crimsonWisps =
@@ -6694,11 +5836,7 @@ crimsonWisps =
                   , Macros.drawACard ]) ]
        Nothing
 
-||| Nightcreep -- "Until end of turn, all creatures become black and all
-||| lands become Swamps." The colour setting coordinated with a type
-||| setting under one duration: two layers [CR#613.1d,613.1e] in one
-||| sentence, which is why the colour is its own row and not an empty type
-||| line on the second.
+||| Nightcreep
 public export
 nightcreep : Card
 nightcreep =
@@ -6714,13 +5852,7 @@ nightcreep =
                   (Just Macros.untilEndOfTurn)) ]
        Nothing
 
-||| Celestial Dawn's two ascription lines -- "Lands you control are Plains.
-||| / Nonland permanents you control are white. The same is true for spells
-||| you control and nonland cards you own that aren't on the battlefield."
-||| The literal colour setting under the off-battlefield extension, which
-||| is what the extension was waiting for. The whole card additionally
-||| wants the two mana-spending permissions, which `PlayAsThough` does not
-||| carry.
+||| Celestial Dawn
 public export
 celestialDawnAscriptions : AbilitySeq []
 celestialDawnAscriptions =
@@ -6732,10 +5864,7 @@ celestialDawnAscriptions =
               (SetsColor (AllOf (And [Permanent, Not (HasType Land), ControlledBy You]))
                          (SomeColors [White]))) ]
 
-||| Ghoulflesh -- "Enchant creature / Enchanted creature gets -1/-1 and is
-||| a black Zombie in addition to its other colors and types." The whole
-||| card, and the plainest of the 19 lines that coordinate a P/T statement
-||| with the addition in one sentence.
+||| Ghoulflesh
 public export
 ghoulflesh : Card
 ghoulflesh =
@@ -6750,13 +5879,7 @@ ghoulflesh =
                                                 [] Nothing) ]) ]
        Nothing
 
-||| Blade of the Oni's static line -- "Equipped creature has base power and
-||| toughness 5/5, has menace, and is a black Demon in addition to its
-||| other colors and types." The BASE P/T rider coordinated with the
-||| addition in one sentence, which the ledger carried as unspelled and
-||| which `AndAlso` already writes: the same shape Darksteel Mutation
-||| writes at the setting. No new construction. The whole card wants
-||| reconfigure.
+||| Blade of the Oni
 public export
 bladeOfTheOniStatic : StaticEffect []
 bladeOfTheOniStatic =
@@ -6766,10 +5889,7 @@ bladeOfTheOniStatic =
                         (MkToken Nothing [Black]
                                  (MkTypeLine [creatureType "Demon"] []) [] Nothing) ]
 
-||| Ersatz Gnomes -- "{T}: Target spell becomes colorless. / {T}: Target
-||| permanent becomes colorless until end of turn." The whole card, and
-||| the reason the colour row carries no subject-zone demand: its first
-||| ability sets the colour of an object on the STACK.
+||| Ersatz Gnomes
 public export
 ersatzGnomes : Card
 ersatzGnomes =
@@ -6783,13 +5903,7 @@ ersatzGnomes =
                                 (Just Macros.untilEndOfTurn)) ]
        (Just (1, 1))
 
-||| Missy's first trigger -- "Whenever another nonartifact creature dies,
-||| return it to the battlefield under your control face down and tapped.
-||| It's a 2/2 Cyberman artifact creature." TWO arrival riders in one
-||| sentence, one of them the face-down word, which is the whole of what
-||| indexing the rider vocabulary over `StatusVal` buys. The `Cyberman`
-||| word costs nothing: subtypes are labels. The whole card wants the
-||| villainous choice.
+||| Missy
 public export
 missyFaceDownReturn : Ability
 missyFaceDownReturn =
@@ -6807,10 +5921,7 @@ missyFaceDownReturn =
                      Nothing)
            Nothing ])
 
-||| Transguild Courier -- "Transguild Courier is all colors." The colour
-||| SPACE's quantifier at the same position the enumerated list sits, and
-||| the whole card. The word is not a five-way list for `AddsEveryType`'s
-||| own reason: "all colors" is one printed quantifier [CR#105.1].
+||| Transguild Courier
 public export
 transguildCourier : Card
 transguildCourier =
@@ -6819,8 +5930,7 @@ transguildCourier =
        [ Static (SetsColor Macros.thisCreature EveryColor) ]
        (Just (3, 3))
 
-||| Scrapbasket -- "{1}: This creature becomes all colors until end of
-||| turn." The same quantifier with a duration, and the whole card.
+||| Scrapbasket
 public export
 scrapbasket : Card
 scrapbasket =
@@ -6831,12 +5941,7 @@ scrapbasket =
                                                (Just Macros.untilEndOfTurn)) ]
        (Just (3, 2))
 
-||| Indigo Faerie -- "{U}: Target permanent becomes blue in addition to its
-||| other colors until end of turn." The colour-only ADDITION, which is one
-||| printed line and so buys no row of its own: `BecomesAlso`'s bundle
-||| carries the colour and the bundle-level gate is what lets its type line
-||| be absent. The other line of the shape is Painter's Servant's chosen
-||| colour, which `AddsChosenQuality` already writes.
+||| Indigo Faerie
 public export
 indigoFaerie : Card
 indigoFaerie =
@@ -6998,12 +6103,7 @@ meddlingMage =
                    (AllOf (And [Macros.spell, Named ChosenName]))) ]
        (Just (2, 2))
 
-||| Sanctum Prelate -- "As this creature enters, choose a number. /
-||| Noncreature spells with mana value equal to the chosen number can't
-||| be cast." The chosen-number amount's witness: the number sort had a
-||| chooser and no read at all until the amount seat opened, and this is
-||| the read at its plainest -- one chooser, one comparison bound, no
-||| domain written.
+||| Sanctum Prelate
 public export
 sanctumPrelate : Card
 sanctumPrelate =
@@ -7016,11 +6116,7 @@ sanctumPrelate =
                                 Compare [CharAxis ManaValue] Eq ChosenNumber]))) ]
        (Just (2, 2))
 
-||| Nyxathid -- "As this creature enters, choose an opponent. / This
-||| creature gets -1/-1 for each card in the chosen player's hand."
-||| The player sort's chooser and read in one card: the as-enters row
-||| carried the choice all along, and what was missing was a sort that
-||| reached the player kind and a phrase to read it back with.
+||| Nyxathid
 public export
 nyxathid : Card
 nyxathid =
@@ -7036,9 +6132,7 @@ nyxathid =
                                  (Definite ChosenPlayer)))))) ]
        (Just (7, 7))
 
-||| Stuffy Doll -- the bare "choose a player" beside Nyxathid's narrowed
-||| "choose an opponent", with Spitemare's damage-back trigger aimed at
-||| the chosen player instead of at a target.
+||| Stuffy Doll
 public export
 stuffyDoll : Card
 stuffyDoll =
@@ -7054,10 +6148,7 @@ stuffyDoll =
                                       Macros.thisCreature) ]
        (Just (0, 1))
 
-||| Expel the Interlopers -- "Choose a number between 0 and 10. Destroy
-||| all creatures with power greater than or equal to the chosen
-||| number." The chosen number read as a comparison BOUND, and the
-||| printed range at the number sort's second domain, in one spell.
+||| Expel the Interlopers
 public export
 expelTheInterlopers : Card
 expelTheInterlopers =
@@ -7084,15 +6175,7 @@ nevermore =
                    (AllOf (And [Macros.spell, Named ChosenName]))) ]
        Nothing
 
-||| Council of the Absolute, whole -- "As this creature enters, choose a
-||| noncreature, nonland card name. / Your opponents can't cast spells
-||| with the chosen name. / Spells with the chosen name you cast cost {2}
-||| less to cast." The QUALIFIED cast prohibition in the PLAYER voice, one
-||| card away from Meddling Mage's object voice of the same sentence. The
-||| complement is `DeonticCounterpart`, read through `counterRole` --
-||| [CR#601.2] seats a cast spell on the stack, which is where the deed's
-||| own row already puts a `Cast` patient, so the description the printed
-||| line carries needed no slot of its own.
+||| Council of the Absolute
 public export
 councilOfTheAbsolute : Card
 councilOfTheAbsolute =
@@ -7110,11 +6193,7 @@ councilOfTheAbsolute =
                              (CostLess (Lit 2) Nothing)) ]
        (Just (2, 3))
 
-||| Failure // Comply's second face -- "Choose a card name. Until your
-||| next turn, your opponents can't cast spells with the chosen name."
-||| Conjurer's Ban's sentence in the other voice, and the pair is the
-||| argument for one deed at two roles: the choice announces the name
-||| once and each voice reads it from the same binding.
+||| Failure // Comply
 public export
 complyNameLock : Effect []
 complyNameLock =
@@ -7125,11 +6204,7 @@ complyNameLock =
            (AllOf (And [Macros.spell, Named ChosenName])))
         (Just Macros.untilYourNextTurn) ]
 
-||| Gideon's Intervention, whole -- the qualified cast prohibition with
-||| the chosen name read a second time by a damage prevention, which is
-||| what makes the card one card and not two lines that happen to share a
-||| word: [CR#109.2c] reads "sources with the chosen name" as the objects
-||| themselves, so both readers take the same binding.
+||| Gideon's Intervention
 public export
 gideonsIntervention : Card
 gideonsIntervention =
@@ -7146,9 +6221,7 @@ gideonsIntervention =
                    Nothing) ]
        Nothing
 
-||| Academic Probation's first mode -- "Choose a nonland card name.
-||| Opponents can't cast spells with the chosen name until your next
-||| turn." The same sentence as Comply's with the domain written out.
+||| Academic Probation
 public export
 academicProbationNameMode : Effect []
 academicProbationNameMode =
@@ -7160,18 +6233,13 @@ academicProbationNameMode =
            (AllOf (And [Macros.spell, Named ChosenName])))
         (Just Macros.untilYourNextTurn) ]
 
-||| "Choose a card name other than a basic land card name." The postnominal
-||| exception, written as the negated conjunction the phrase states.
 public export
 necromentiaChoice : Effect []
 necromentiaChoice =
   Macros.choose (Macros.a (Macros.qualityFrom CardName
                    (NameOfCard (Not (And [HasSupertype Basic, HasType Land])))))
 
-||| Booby Trap's name half: "As this artifact enters, choose … a card name
-||| other than a basic land card name." The same exception in the as-enters
-||| slot; the opponent chosen alongside it wants a second choice inside one
-||| clause, which the as-enters chooser does not carry.
+||| Booby Trap
 public export
 boobyTrapNameChoice : StaticEffect []
 boobyTrapNameChoice =
@@ -7180,8 +6248,6 @@ boobyTrapNameChoice =
                             (NameOfCard (Not (And [HasSupertype Basic,
                                                    HasType Land])))
 
-||| "Return any number of permanent cards with different names from your
-||| graveyard to the battlefield."
 public export
 eerieUltimatum : Card
 eerieUltimatum =
@@ -7198,8 +6264,6 @@ eerieUltimatum =
                   Macros.battlefieldZ) ]
        Nothing
 
-||| "Flying / Discard two nonland cards with the same name: Draw four cards."
-||| The positive pole with no relatum written, in a cost.
 public export
 sphinxOfTheChimes : Card
 sphinxOfTheChimes =
@@ -7216,9 +6280,6 @@ sphinxOfTheChimes =
            (Macros.drawCards 4) ]
        (Just (5, 6))
 
-||| "When this creature enters, if you control two or more nonland, nontoken
-||| permanents with the same name as one another, create a 4/4 colorless
-||| Construct artifact creature token."
 public export
 chromeReplicator : Card
 chromeReplicator =
@@ -7235,8 +6296,6 @@ chromeReplicator =
                        [] Nothing)) ]
        (Just (4, 4))
 
-||| "{2}, {T}: Draw a card. Activate only if you control three or more lands
-||| with the same name." The elliptical positive pole in a guard.
 public export
 endlessAtlas : Card
 endlessAtlas =
@@ -7250,9 +6309,6 @@ endlessAtlas =
                                                        ControlledBy You])))) ]
        Nothing
 
-||| Saheeli Rai's +1. The -2 is `saheelisCopy`; the card stays off the
-||| bench for its last one, whose counted search has no mention to carry a
-||| count.
 public export
 saheeliRaiPlusOne : Effect []
 saheeliRaiPlusOne =
@@ -7354,10 +6410,7 @@ foundingOfOmashu =
                         (Just Macros.untilEndOfTurn)) ]
        Nothing
 
-||| Burn, Burn, Tree and Fern, whole -- the FOURTH chapter, which had no
-||| witness. 38 supported chapter lines name IV (re-measured 2026-09-02),
-||| and this is the cheapest carrier: three lines, the last of them the
-||| paired III/IV.
+||| Burn, Burn, Tree and Fern
 public export
 burnBurnTreeAndFern : Card
 burnBurnTreeAndFern =
@@ -7375,11 +6428,6 @@ burnBurnTreeAndFern =
            (AddMana You (Lit 1) (Runs [[OfColor Red]]) []) ]
        Nothing
 
-||| The Flux, whole -- the FIFTH and SIXTH chapters, and the only
-||| supported card that reaches VI in three lines. 4 supported chapter
-||| lines name V and 3 name VI (re-measured 2026-09-02); this one writes
-||| the II-V run and the VI singleton together, so one card buys both
-||| markers.
 public export
 theFlux : Card
 theFlux =
@@ -7400,13 +6448,7 @@ theFlux =
            (AddMana You (Lit 6) (Runs [[OfColor Red]]) []) ]
        Nothing
 
-||| Akroan Sergeant, whole -- renown's expansion written out, which is
-||| what `RenownW` had no witness for. "Renown 1 (When this creature
-||| deals combat damage to a player, if it isn't renowned, put a +1/+1
-||| counter on it and it becomes renowned.)" [CR#702.112a]. 22 supported
-||| cards print the keyword (re-measured 2026-09-02, the audit's count
-||| confirmed); this is the cheapest of them, one other keyword and
-||| nothing else.
+||| Akroan Sergeant
 public export
 akroanSergeant : Card
 akroanSergeant =
@@ -7419,22 +6461,6 @@ akroanSergeant =
            (Macros.renown (Lit 1)) ]
        (Just (2, 2))
 
-||| Storied's expansion, WHOLE [CR#702.195a] -- "Any time you control
-||| three or more permanents that are artifacts, Sagas, and/or legendary
-||| and you don't have an enduring story, you have an enduring story for
-||| the rest of the game." 9 supported cards print the word (re-measured
-||| 2026-09-02; the audit carried 11, and the difference is Grub,
-||| Storied Matriarch, whose "Storied" is a card NAME and not the
-||| keyword, plus a second name-only match).
-||| It was a fragment for its GATE, and the mixed-arm reading is what
-||| paid for it: the union counted over puts an adjectival arm beside
-||| two head-bearing ones, which `parallelDisjuncts` refused on
-||| headedness alone until `armPresupposes` made the demand a
-||| presuppositional one. The head "legendary" borrows is the enclosing
-||| "permanents", not a sibling's -- see `armPresupposes` for the two
-||| rules that settle it. `getsCitysBlessing`'s twin still writes the
-||| body, and the count and its absence check are written here, where
-||| [CR#702.195a] states them.
 public export
 storiedEnduringStory : Effect []
 storiedEnduringStory =
@@ -7827,12 +6853,7 @@ volatileClaws =
        Nothing
 
 
-||| Amoeboid Changeling's two type abilities -- "{T}: Target creature gains
-||| all creature types until end of turn. / {T}: Target creature loses all
-||| creature types until end of turn." The quantifier's two poles printed
-||| on one card, which is the minimal pair `LosesEveryType` is paid for by.
-||| The whole card wants the Changeling keyword, which the catalog does not
-||| carry.
+||| Amoeboid Changeling
 public export
 amoeboidChangelingTypeAbilities : AbilitySeq []
 amoeboidChangelingTypeAbilities =
@@ -7843,9 +6864,7 @@ amoeboidChangelingTypeAbilities =
       (Continuously (LosesEveryType (Macros.target Macros.creature) CreatureSpace)
                     (Just Macros.untilEndOfTurn)) ]
 
-||| Nameless Inversion's body -- "Target creature gets +3/-3 and loses all
-||| creature types until end of turn." The loss coordinated with a pump on
-||| one target. Its whole card wants the Changeling keyword.
+||| Nameless Inversion
 public export
 namelessInversionBody : Effect []
 namelessInversionBody =
@@ -7854,9 +6873,7 @@ namelessInversionBody =
                         , LosesEveryType It CreatureSpace ])
                (Just Macros.untilEndOfTurn)
 
-||| Ego Erasure's body -- "Creatures target player controls get -2/-0 and
-||| lose all creature types until end of turn." The same coordination at a
-||| controlled group. Its whole card wants the Changeling keyword.
+||| Ego Erasure
 public export
 egoErasureBody : Effect []
 egoErasureBody =
@@ -7866,10 +6883,7 @@ egoErasureBody =
                         , LosesEveryType Them CreatureSpace ])
                (Just Macros.untilEndOfTurn)
 
-||| Curse of Conformity -- "Enchant player / Nonlegendary creatures
-||| enchanted player controls have base power and toughness 3/3 and lose
-||| all creature types." The standing (undurated) loss, at the enchanted
-||| player's creatures.
+||| Curse of Conformity
 public export
 curseOfConformity : Card
 curseOfConformity =
@@ -7883,23 +6897,14 @@ curseOfConformity =
            , LosesEveryType Them CreatureSpace ]) ]
        Nothing
 
-||| Lithoform Blight's third line, in part -- "Enchanted land loses all land
-||| types and abilities …". The type-loss/ability-loss coordination decided
-||| ONE way: two statements under `AndAlso`, not one row with an ability
-||| rider, because [CR#613.1d] applies the type loss at layer 4 and
-||| [CR#613.1f] the ability loss at layer 6. All three printed land-type
-||| loss lines coordinate this way; none writes the type loss alone. The
-||| rest of the line grants two mana abilities and is not this cell's.
+||| Lithoform Blight
 public export
 lithoformBlightLoss : StaticEffect []
 lithoformBlightLoss =
   AndAlso [ LosesEveryType (AttachHost Enchanted (TypeW Land)) LandSpace
           , LosesAllAbilities It Nothing ]
 
-||| Energybending -- "Lands you control gain all basic land types until end
-||| of turn. / Draw a card." The basic-land grant cell, which needed only
-||| the Lesson spell type [CR#205.3k]; subtypes are labels, so the word cost
-||| nothing to write.
+||| Energybending
 public export
 energybending : Card
 energybending =
@@ -7913,12 +6918,7 @@ energybending =
                   , Macros.drawACard ]) ]
        Nothing
 
-||| Ashes of the Fallen -- "As this artifact enters, choose a creature type.
-||| / Each creature card in your graveyard has the chosen creature type in
-||| addition to its other types." The chosen-quality ascription at a
-||| GRAVEYARD subject, which is why the two chosen-quality rows carry no
-||| subject-zone demand: the layers apply to an object's characteristics
-||| [CR#613.1] and a card in a graveyard is an object [CR#109.1].
+||| Ashes of the Fallen
 public export
 ashesOfTheFallen : Card
 ashesOfTheFallen =
@@ -7930,14 +6930,7 @@ ashesOfTheFallen =
                    (OfChosen (SubtypeQ Creature))) ]
        Nothing
 
-||| Yedora, Grave Gardener -- "Whenever another nontoken creature you
-||| control dies, you may return it to the battlefield face down under its
-||| owner's control. It's a Forest land." The face-down ARRIVAL rider, the
-||| cheapest of the seven lines that place their object face down before
-||| ascribing to it. [CR#708.3] turns the object face down before it
-||| enters, so the word is a rider on the arrival; [CR#708.2a]'s "unless
-||| otherwise specified" is what licenses the type line the next sentence
-||| writes.
+||| Yedora, Grave Gardener
 public export
 yedoraGraveGardener : Card
 yedoraGraveGardener =
@@ -8153,8 +7146,7 @@ public export
 yshtolaAdditionalEndStep : Effect []
 yshtolaAdditionalEndStep = Macros.additionalPart EndStep Nothing (Lit 1)
 
-||| Sphinx of the Second Sun, whole card -- the added BEGINNING PHASE,
-||| the one part the corpus adds that `TurnPart` had no row for.
+||| Sphinx of the Second Sun
 public export
 sphinxOfTheSecondSun : Card
 sphinxOfTheSecondSun =
@@ -8166,8 +7158,7 @@ sphinxOfTheSecondSun =
            (Macros.additionalPart BeginningPhase (Just PostcombatMain) (Lit 1)) ]
        (Just (6, 6))
 
-||| Obeka, Splitter of Seconds, whole card -- the "you get" frame with a
-||| variable count reading the damage its own header announced.
+||| Obeka, Splitter of Seconds
 public export
 obekaSplitterOfSeconds : Card
 obekaSplitterOfSeconds =
@@ -8181,8 +7172,7 @@ obekaSplitterOfSeconds =
            (GetsAdditionalPart You Upkeep ThatMuch) ]
        (Just (2, 5))
 
-||| Paradox Haze, whole card -- the "you get" frame said of a player the
-||| header named, which is the difference [CR#500.10a] makes.
+||| Paradox Haze
 public export
 paradoxHaze : Card
 paradoxHaze =
@@ -8195,14 +7185,11 @@ paradoxHaze =
            (GetsAdditionalPart (That PlayerW) Upkeep (Lit 1)) ]
        Nothing
 
-||| The Ninth Doctor's chapter clause. Its italicized head ("Into the
-||| TARDIS") is a flavor word and is now writable (`Macros.flavorWord`);
-||| the card is still blocked on the untap-of-self header.
 public export
 ninthDoctorAdditionalUpkeep : Effect []
 ninthDoctorAdditionalUpkeep = GetsAdditionalPart You Upkeep (Lit 1)
 
-||| Empty City Ruse, whole card -- the QUANTIFIED part.
+||| Empty City Ruse
 public export
 emptyCityRuse : Card
 emptyCityRuse =
@@ -8210,8 +7197,7 @@ emptyCityRuse =
        (MkTypeLine [] [Sorcery])
        [Spell (SkipsAllOf (Macros.target Opponent) Combat)] Nothing
 
-||| False Peace, whole card -- Empty City Ruse's line at the wider
-||| subject.
+||| False Peace
 public export
 falsePeace : Card
 falsePeace =
@@ -8219,8 +7205,7 @@ falsePeace =
        (MkTypeLine [] [Sorcery])
        [Spell (SkipsAllOf (Macros.target AnyPlayer) Combat)] Nothing
 
-||| Seedborn Muse, whole card -- the recurring untap GRANT under the
-||| other-marked quantifier possessor, the window `OnlyDuring`'s own.
+||| Seedborn Muse
 public export
 seedbornMuse : Card
 seedbornMuse =
@@ -8231,7 +7216,7 @@ seedbornMuse =
                    (UntapsDuringStep (AllOf (ControlledBy You)))) ]
        (Just (2, 4))
 
-||| Unwinding Clock, whole card -- the same grant over a described set.
+||| Unwinding Clock
 public export
 unwindingClock : Card
 unwindingClock =
@@ -8242,7 +7227,7 @@ unwindingClock =
                       (AllOf (And [Macros.artifact, ControlledBy You])))) ]
        Nothing
 
-||| Drumbellower, whole card.
+||| Drumbellower
 public export
 drumbellower : Card
 drumbellower =
@@ -8254,8 +7239,7 @@ drumbellower =
                       (AllOf (And [Macros.creature, ControlledBy You])))) ]
        (Just (2, 1))
 
-||| Thousand Moons Infantry, whole card -- the grant at its narrowest
-||| set, the subject itself.
+||| Thousand Moons Infantry
 public export
 thousandMoonsInfantry : Card
 thousandMoonsInfantry =
@@ -8266,8 +7250,7 @@ thousandMoonsInfantry =
                    (UntapsDuringStep Macros.thisCreature)) ]
        (Just (2, 4))
 
-||| Foriysian Brigade, whole card -- the block allowance at its
-||| commonest subject, the sentence's own.
+||| Foriysian Brigade
 public export
 foriysianBrigade : Card
 foriysianBrigade =
@@ -8276,7 +7259,7 @@ foriysianBrigade =
        [Static (MayBlockAdditional Macros.thisCreature (Macros.exactly 1))]
        (Just (2, 4))
 
-||| Two-Headed Giant of Foriys, whole card.
+||| Two-Headed Giant of Foriys
 public export
 twoHeadedGiantOfForiys : Card
 twoHeadedGiantOfForiys =
@@ -8287,7 +7270,6 @@ twoHeadedGiantOfForiys =
        , Static (MayBlockAdditional Macros.thisCreature (Macros.exactly 1)) ]
        (Just (4, 4))
 
-||| High Ground, whole card -- the allowance said of a described set.
 public export
 highGround : Card
 highGround =
@@ -8297,8 +7279,7 @@ highGround =
                                    (Macros.exactly 1))]
        Nothing
 
-||| Watcher in the Web, whole card -- the quantity axis at its largest
-||| printed literal.
+||| Watcher in the Web
 public export
 watcherInTheWeb : Card
 watcherInTheWeb =
@@ -8308,11 +7289,7 @@ watcherInTheWeb =
        , Static (MayBlockAdditional Macros.thisCreature (Macros.exactly 7)) ]
        (Just (2, 5))
 
-||| Rites of Flourishing, whole card. The ADDITIONAL CARD needed no row:
-||| the word is an adverbial on the draw the draw step already performs
-||| [CR#504.1], so the trigger's own header supplies it and the sentence
-||| is `Draw` with the count it prints. Its other line is the each-player
-||| land allowance that already landed.
+||| Rites of Flourishing
 public export
 ritesOfFlourishing : Card
 ritesOfFlourishing =
@@ -8324,19 +7301,12 @@ ritesOfFlourishing =
        , Static (MayPlayAdditionalLands (Each AnyPlayer) (Macros.exactly 1)) ]
        Nothing
 
-||| Karn Liberated's restart clause. The whole loyalty ability is one
-||| gap from written: [CR#727.5]'s exemption rider ("leaving in exile all
-||| non-Aura permanent cards exiled with Karn") has no row, and the
-||| following sentence reads "those cards" off it.
+||| Karn Liberated
 public export
 karnRestart : Effect []
 karnRestart = RestartsGame
 
-||| Forgotten Lore's first two sentences -- the repeat with MEMORY of the
-||| earlier passes' picks. The card's third sentence, "then put the LAST
-||| CHOSEN card into your hand", is the remaining gap: the marked chosen
-||| read exists at the amount sort (`ChosenNumber`) and not at the object
-||| one. Shrouded Lore writes the same two sentences with {B}.
+||| Forgotten Lore
 public export
 forgottenLoreRepeat : Effect []
 forgottenLoreRepeat =
@@ -8346,8 +7316,7 @@ forgottenLoreRepeat =
     , Macros.mayThen You (Pay You (Mana [Macros.pip Green]) PaidOnce)
                      (Repeat AgainExcludingChosen) ]
 
-||| Leyline of the Meek, whole card -- the pregame OPENING-HAND action
-||| [CR#103.6] beside a plain power/toughness static.
+||| Leyline of the Meek
 public export
 leylineOfTheMeek : Card
 leylineOfTheMeek =
@@ -8359,8 +7328,7 @@ leylineOfTheMeek =
                       (PtUp (Lit 1)) (PtUp (Lit 1))) ]
        Nothing
 
-||| Leyline of Vitality, whole card -- the same action beside a static
-||| and a trigger, so the row is exercised on a three-line card too.
+||| Leyline of Vitality
 public export
 leylineOfVitality : Card
 leylineOfVitality =
@@ -8375,9 +7343,7 @@ leylineOfVitality =
            (Macros.may You (Macros.gainsLife You (Lit 1))) ]
        Nothing
 
-||| Blatant Thievery, whole card -- the PLAYER element, [CR#608.2f]'s
-||| first worked example, reached by `ForEachOf`'s kind index rather than
-||| by a second row.
+||| Blatant Thievery
 public export
 blatantThievery : Card
 blatantThievery =
@@ -8391,10 +7357,7 @@ blatantThievery =
                      Nothing)) ]
        Nothing
 
-||| Ral Zarek, Guest Lecturer's ultimate -- the VARIABLE skip count.
-||| `SkipsNext` takes an `Amount`, so `LetterVal` carries it and no
-||| closed count table stands in the way; what the card still wants
-||| whole is its other three loyalty abilities.
+||| Ral Zarek, Guest Lecturer's ultimate
 public export
 ralZarekGuestLecturerUltimate : Effect []
 ralZarekGuestLecturerUltimate =
@@ -8590,12 +7553,7 @@ dampingMatrix =
                                , Not IsManaAbility ]))) ]
        Nothing
 
-||| Fluctuator, whole -- "Cycling abilities you activate cost {2} less to
-||| activate." The ability-CLASS subject named by a KEYWORD, which is the
-||| cell the five catalog rows were owed for: `KeywordClass` reads the
-||| word and the row is what makes the word known. [CR#702.29a] makes
-||| cycling an activated ability, so the class word names a class of
-||| abilities and not a class of objects.
+||| Fluctuator
 public export
 fluctuator : Card
 fluctuator =
@@ -8607,11 +7565,7 @@ fluctuator =
                    (CostLess (Lit 2) Nothing)) ]
        Nothing
 
-||| Boom Scholar's first line -- "Exhaust abilities of other permanents
-||| you control cost {2} less to activate." The same cell at a word whose
-||| row this round added: [CR#702.177a] makes exhaust a keyword adding
-||| rules to the activated ability that follows it, so what the line
-||| narrows is that ability's class and the possessor rides `AbilityOf`.
+||| Boom Scholar
 public export
 boomScholarExhaustDiscount : Ability
 boomScholarExhaustDiscount =
@@ -8622,8 +7576,7 @@ boomScholarExhaustDiscount =
                                                  ControlledBy You])) ]))
             (CostLess (Lit 2) Nothing))
 
-||| Hulk, Gamma Goliath's first line -- "Power-up abilities of other
-||| creatures you control cost {3} less to activate" [CR#702.193a].
+||| Hulk, Gamma Goliath
 public export
 hulkPowerUpDiscount : Ability
 hulkPowerUpDiscount =
@@ -8634,24 +7587,14 @@ hulkPowerUpDiscount =
                                                  ControlledBy You])) ]))
             (CostLess (Lit 3) Nothing))
 
-||| Kang the Conqueror's power-up rider -- "power-up abilities can't be
-||| activated." The ability-class PROHIBITION at a keyword-named class,
-||| which is the same row Pithing Needle writes at `AnyActivated`.
+||| Kang the Conqueror
 public export
 kangPowerUpLock : StaticEffect []
 kangPowerUpLock =
   Macros.objectCant "Activate"
     (AllOf (AbilityHead (KeywordClass "PowerUp")))
 
-||| Grand Abolisher, whole -- "During your turn, your opponents can't
-||| cast spells or activate abilities of artifacts, creatures, or
-||| enchantments." The WINDOW and the qualified complement in one line,
-||| and the reason the complement is kind-general: casting takes an
-||| object [CR#601.2] and activating takes an ability [CR#602.2,109.1],
-||| so a coordination of the two names participants at two kinds and the
-||| slot cannot be `Object`-only. Two statements under one window rather
-||| than one statement over two labels, because each deed carries its own
-||| complement and the carrier holds one.
+||| Grand Abolisher
 public export
 grandAbolisher : Card
 grandAbolisher =
@@ -8668,13 +7611,7 @@ grandAbolisher =
                                                               HasType Enchantment])) ])) ])) ]
        (Just (2, 2))
 
-||| Festival, whole -- "Cast this spell only during an opponent's upkeep.
-||| / Creatures can't attack this turn." The CAST WINDOW on a spell card,
-||| which [CR#113.6e] functions from the zones the spell could be cast
-||| from and from the stack; 47 supported lines write one. The routed
-||| gap read it as a missing `Timing` seat, and the answer was the
-||| window a static statement is confined to rather than a second
-||| activation restriction.
+||| Festival
 public export
 festival : Card
 festival =
@@ -8686,14 +7623,7 @@ festival =
                                   (Just Macros.thisTurn)) ]
        Nothing
 
-||| Kopala, Warden of Waves, whole -- "Spells your opponents cast that
-||| target a Merfolk you control cost {2} more to cast. / Abilities your
-||| opponents activate that target a Merfolk you control cost {2} more to
-||| activate." The "that target ..." RESTRICTOR on an ability class, and
-||| the second line is the first one's shape at the other kind:
-||| [CR#115.9b] states the relation in the rules' own words for a spell
-||| and an ability alike, so one predicate answers both and the class
-||| word is what changes.
+||| Kopala, Warden of Waves
 public export
 kopalaWardenOfWaves : Card
 kopalaWardenOfWaves =
@@ -8719,12 +7649,7 @@ kopalaWardenOfWaves =
                    (CostMore (Lit 2))) ]
        (Just (2, 2))
 
-||| Tithe Taker, whole -- "During your turn, spells your opponents cast
-||| cost {1} more to cast and abilities your opponents activate cost {1}
-||| more to activate unless they're mana abilities. / Afterlife 1." The
-||| WINDOW over a coordination of two cost statements at two sorts, which
-||| is the card's own difficulty: the window is not a duration and not a
-||| condition, and each conjunct describes a different kind of object.
+||| Tithe Taker
 public export
 titheTaker : Card
 titheTaker =
@@ -8744,13 +7669,7 @@ titheTaker =
        , Macros.keywordNumber "Afterlife" (Lit 1) ]
        (Just (2, 1))
 
-||| Gaddock Teeg, whole -- "Noncreature spells with mana value 4 or
-||| greater can't be cast. / Noncreature spells with {X} in their mana
-||| costs can't be cast." Two qualified cast prohibitions in the object
-||| voice whose complements differ in KIND of question: the first reads a
-||| derived characteristic [CR#202.3] and the second reads a printed
-||| symbol [CR#202.1], which is why the second wanted a predicate of its
-||| own rather than another comparison.
+||| Gaddock Teeg
 public export
 gaddockTeeg : Card
 gaddockTeeg =
@@ -8765,13 +7684,7 @@ gaddockTeeg =
                                 ManaCostHasX]))) ]
        (Just (2, 2))
 
-||| Vexing Shusher, whole -- "This spell can't be countered. / {R/G}:
-||| Target spell can't be countered." The SPANLESS prohibition, and the
-||| finding is that nothing refuses it: `SpanOk` admits an unstated
-||| duration at every `StaticKind` ([CR#611.2a] gives an unstated
-||| duration the end of the game), so the second line wanted only the
-||| targeted spell's own noun. The first line elaborated already; the
-||| pair is one card because [CR#113.6g] functions both on the stack.
+||| Vexing Shusher
 public export
 vexingShusher : Card
 vexingShusher =
@@ -8785,13 +7698,6 @@ vexingShusher =
               Nothing) ]
        (Just (2, 2))
 
-||| Training Grounds, whole -- "Activated abilities of creatures you
-||| control cost {2} less to activate. This effect can't reduce the mana
-||| in that cost to less than one mana." The cost reduction's printed
-||| FLOOR, a slot on the reduction rather than a prohibition: the second
-||| sentence forbids no agent anything, it bounds the first sentence's
-||| own amount, and it states a bound [CR#601.2f] does not -- the rules
-||| stop a total cost at {0} and this line stops it at one mana.
 public export
 trainingGrounds : Card
 trainingGrounds =
@@ -8803,7 +7709,7 @@ trainingGrounds =
                    (CostLess (Lit 2) (Just (Lit 1)))) ]
        Nothing
 
-||| Power Artifact, whole -- the same floor over the Aura's host.
+||| Power Artifact
 public export
 powerArtifact : Card
 powerArtifact =
@@ -8816,14 +7722,7 @@ powerArtifact =
                    (CostLess (Lit 2) (Just (Lit 1)))) ]
        Nothing
 
-||| Fervent Champion's third line -- "Equip abilities you activate that
-||| target this creature cost {3} less to activate." The "that target
-||| ..." RESTRICTOR at a keyword-named ability class, which is where five
-||| of the seven supported lines write it (Bladegraft Aspirant, Cloud,
-||| Dwarven Mauler, Helitrooper, Strong Back are the others; Kopala's is
-||| the sixth and seventh at the bare class). [CR#702.6a] makes equip an
-||| activated ability that targets, so the class word and the restrictor
-||| answer to the same rule.
+||| Fervent Champion
 public export
 ferventChampionEquipDiscount : Ability
 ferventChampionEquipDiscount =
@@ -9144,8 +8043,7 @@ disruptingShoal =
                        (CompareAmt (Macros.manaValueOf It) Eq (LetterVal X)) Nothing) ]
        Nothing
 
-||| Mana Leak: "Counter target spell unless its controller pays {3}."
-||| The unless-arm reads the spell the clause just named [CR#118.12a].
+||| Mana Leak
 public export
 manaLeak : Card
 manaLeak =
@@ -9156,8 +8054,7 @@ manaLeak =
                        (Mana [Macros.generic 3])) ]
        Nothing
 
-||| Rhystic Study: "Whenever an opponent casts a spell, you may draw a card
-||| unless that player pays {1}." [CR#118.12a] over an offered body.
+||| Rhystic Study
 public export
 rhysticStudy : Card
 rhysticStudy =
@@ -9299,11 +8196,7 @@ sarkhansUnsealingLine =
                                    Compare [CharAxis Power] Eq (Lit 6)]])) Nothing)
     (DealDamage Macros.thisEnchantment (Lit 4) (Macros.target Macros.anyTarget))
 
-||| Savage Swipe, both sentences -- "Target creature you control gets
-||| +2/+2 until end of turn if its power is 2. Then it fights target
-||| creature you don't control." The conditioned clause announces its own
-||| target [CR#601.2c] whether or not the condition holds, so the second
-||| sentence names it. Five supported lines write this shape.
+||| Savage Swipe, both sentences
 public export
 savageSwipeLine : Effect []
 savageSwipeLine =
@@ -9338,10 +8231,6 @@ deathWard =
        [ Spell (Regenerate (Macros.target Macros.creature)) ]
        Nothing
 
-||| "{1}: Regenerate this creature. When it regenerates this way, put a
-||| -1/-1 counter on it." — "this way" binds the trigger to the shield
-||| this resolution created [CR#701.19a], so it waits for that shield to
-||| apply rather than being checked at once [CR#603.7,603.12].
 public export
 matopiGolem : Card
 matopiGolem =
@@ -9353,10 +8242,6 @@ matopiGolem =
                             (PutCounters (Lit 1) (PrintedKind Macros.minusOneMinusOne) It)) ]
        (Just (3, 3))
 
-||| "{R}: This creature gets +1/+0 until end of turn. When its power
-||| becomes 20 this way, it deals 20 damage to any target." — the
-||| enclosure is a continuous effect with no agent to inflect, so only
-||| [CR#603.12]'s outcome-bound template reaches it.
 public export
 infernoOfTheStarMounts : Card
 infernoOfTheStarMounts =
@@ -9418,10 +8303,6 @@ damnation =
                        "Regenerate" Them) ]
        Nothing
 
-||| "Destroy all creatures, then create an X/X colorless Phyrexian Horror
-||| artifact creature token, where X is the number of creatures destroyed
-||| this way." The letter reads the group the destruction left, through
-||| `CountOfGroup`.
 public export
 phyrexianRebirth : Card
 phyrexianRebirth =
@@ -9442,9 +8323,6 @@ phyrexianRebirth =
                                                            (TypeW Creature))) ]) ]
        Nothing
 
-||| "Incinerate deals 3 damage to any target. A creature dealt damage this
-||| way can't be regenerated this turn." The bare participle is the
-||| lookback reader with `ThisWay` in the window's place.
 public export
 incinerate : Card
 incinerate =
@@ -10286,18 +9164,7 @@ martyrsCry =
                 ForEachOf (Macros.thoseVerbed "Exile" (TypeW Creature))
                           (Draw (ControllerOf It) (Lit 1))]
 
-||| Hate Mirage's middle two sentences -- "For each of those creatures,
-||| create a token that's a copy of that creature. Those tokens gain
-||| haste." The loop's union export at work: `ForEachOf` summarises what
-||| its body introduced ONE pass at a time into one plural mention, so
-||| the sentence after the loop names the whole batch of tokens. Twinflame
-||| ("Exile those tokens at the beginning of the next end step") and Smoke
-||| Spirits' Aid ("Those tokens have enchant creature and ...") read the
-||| same export at the same seam.
-||| The printed FOURTH sentence, "Exile them", is not written here and
-||| cannot be: the targeted creatures the loop ran over are still a plural
-||| object mention, so the bare plural pronoun has two candidates where
-||| "those tokens" has one.
+||| Hate Mirage's middle two sentences
 public export
 hateMirageTokens : Effect []
 hateMirageTokens =
@@ -10403,7 +9270,6 @@ anotherRound =
                , Macros.putOntoBattlefield Them
                , Repeat (MoreTimes (LetterVal X)) ]
 
-||| "{T}: You gain 1 life. Activate only during your turn, before attackers are declared."
 public export
 shuFarmer : Card
 shuFarmer =
@@ -10414,8 +9280,6 @@ shuFarmer =
                                     (BeforePoint AttackersDeclared (Just Yours)) ]
        (Just (1, 1))
 
-||| The loyalty ability a player activates, as the event's complement:
-||| "a loyalty ability of enchanted planeswalker".
 public export
 loyaltyAbilityOfEnchanted : Noun bs Ability
 loyaltyAbilityOfEnchanted =
@@ -10442,7 +9306,6 @@ elspethsTalent =
                       (Just Macros.untilEndOfTurn)) ]
        Nothing
 
-||| The Chain Veil's first line: the activation read back as a negative lookback.
 public export
 chainVeilEndStep : Ability
 chainVeilEndStep =
@@ -10478,8 +9341,6 @@ shriekingAffliction =
                             (Macros.losesLife They (Lit 3)) ]
        Nothing
 
-||| Galvanic Blast's replacement clause. English elides the recipient
-||| ("deals 4 damage instead"); the clause reads the announced target back.
 public export
 galvanicBlastLine : Effect []
 galvanicBlastLine =
@@ -10503,17 +9364,13 @@ cryptLurker =
               Macros.drawACard) ]
        (Just (3, 4))
 
-||| Peacekeeper's second line: the bare generic plural as a deontic subject.
+||| Peacekeeper
 public export
 peacekeeperCant : Ability
 peacekeeperCant = Static (Macros.deontic (AllOf Macros.creature) Forbid ["Attack"] Agent NoDeonticPatient)
 
 
-||| Memoricide's search clause: "Search target player's graveyard, hand,
-||| and library for … cards with that name. Then that player shuffles."
-||| The name choice heads the card; the sweep is what was missing.
-||| ("… and exile them" wants a plural search result, which is not the
-||| sweep's gap.)
+||| Memoricide
 public export
 memoricideSearch : Effect []
 memoricideSearch =
@@ -10522,13 +9379,7 @@ memoricideSearch =
                , Macros.searchZonesOf (Macros.target AnyPlayer) (Named ChosenName)
                , Shuffle (That PlayerW) ]
 
-||| Eradicate's search clause: "Exile target nonblack creature. Search its
-||| controller's graveyard, hand, and library for all cards with the same
-||| name as that creature. Then that player shuffles." The same sweep,
-||| anchored on a co-referential possessor instead of a target. The card
-||| writes "that creature"; the exile has already rebound it as a card in
-||| exile [CR#400.7], so the type word finds no antecedent and `CardW` is
-||| what the binding offers.
+||| Eradicate
 public export
 eradicateSearch : Effect []
 eradicateSearch =
@@ -10538,9 +9389,7 @@ eradicateSearch =
                                       (Named (SameNameAs (That CardW)))
                , Shuffle (That PlayerW) ]
 
-||| Deem Inferior: "The owner of target nonland permanent puts it into
-||| their library second from the top or on the bottom." The agentive
-||| placement clause carrying the offset spelling of the disjunction.
+||| Deem Inferior
 public export
 deemInferior : Effect []
 deemInferior =
@@ -10548,8 +9397,7 @@ deemInferior =
               It
               (Macros.nthFromTopOrBottomZ (Nth 2))
 
-||| Lost Hours' third line: "That player puts that card into their library
-||| third from the top." The agentive clause over a plain ordinal.
+||| Lost Hours
 public export
 lostHoursPlacement : Effect []
 lostHoursPlacement =
@@ -10558,26 +9406,20 @@ lostHoursPlacement =
                                         InZone (Macros.handOf They)]))
                , Macros.puts (That PlayerW) It (Macros.nthFromTop (Nth 3)) ]
 
-||| Aether Gust's second line: "Its owner puts it on their choice of the
-||| top or bottom of their library." The agentive clause with the chooser
-||| slot filled by the subject.
+||| Aether Gust
 public export
 aetherGustPlacement : Effect []
 aetherGustPlacement =
   Sequentially [ Macros.choose (Macros.target (And [Permanent, ColorIs Red]))
                , Macros.puts (OwnerOf It) It (Macros.choiceOfTopOrBottom They) ]
 
-||| Not Forgotten's first line: "Put target card from a graveyard on your
-||| choice of the top or bottom of its owner's library." The same
-||| disjunction under an imperative, with the chooser slot spelling "your".
+||| Not Forgotten
 public export
 notForgottenPlacement : Effect []
 notForgottenPlacement =
   Macros.move (Macros.target (InZone Macros.graveyardZ)) (Macros.choiceOfTopOrBottom You)
 
-||| Write into Being's placement half: "put the other on the top or bottom
-||| of your library" — the bare disjunction, no chooser named. (Manifest is
-||| not in the vocabulary; the exile stands in for the card it consumes.)
+||| Write into Being
 public export
 writeIntoBeingPlacement : Effect []
 writeIntoBeingPlacement =
@@ -10585,8 +9427,7 @@ writeIntoBeingPlacement =
                , Macros.exile (Macros.oneOf Them)
                , Macros.move TheRest Macros.topOrBottomZ ]
 
-||| Culling Mark: "Target creature blocks this turn if able." The block
-||| requirement with its patient left out.
+||| Culling Mark
 public export
 cullingMark : Card
 cullingMark =
@@ -10597,21 +9438,13 @@ cullingMark =
                              (Just Macros.thisTurn)) ]
        Nothing
 
-||| Blazing Archon's second line: "Creatures can't attack you." The
-||| restriction naming the player the attack is aimed at [CR#506.3].
+||| Blazing Archon
 public export
 blazingArchonCant : Ability
 blazingArchonCant =
   Static (Macros.deontic (AllOf Macros.creature) Forbid ["Attack"] Agent (DefendingPlayer You))
 
-||| Clergy of the Holy Nimbus: "If this creature would be destroyed,
-||| regenerate it." A replacement effect over a destruction, written as
-||| the verbed event's passive [CR#701.8a] now that `IsDestroyed` has
-||| retired into it. [CR#701.8b] destroys with no destroyer named -- the
-||| lethal-damage state-based action [CR#704.5g] -- which is exactly what
-||| the actorless voice says. The replacement arm writes the PRINTED
-||| "it": `eventIntro` announces the replaced event's own subject, and a
-||| deictic subject announces itself, so the pronoun has its antecedent.
+||| Clergy of the Holy Nimbus
 public export
 clergyOfTheHolyNimbus : Ability
 clergyOfTheHolyNimbus =
@@ -10620,8 +9453,7 @@ clergyOfTheHolyNimbus =
                      [] Nothing
                      (Regenerate It) Repeatedly Nothing)
 
-||| Rampant Frogantua's second line: "This creature gets +10/+10 for each
-||| player who has lost the game." The game-loss look-back [CR#603.10f].
+||| Rampant Frogantua
 public export
 rampantFrogantuaPump : Ability
 rampantFrogantuaPump =
@@ -10629,9 +9461,7 @@ rampantFrogantuaPump =
                (PtUp (Macros.nForEach 10 (And [AnyPlayer, Macros.happenedTo GameLoss ThisGame])))
                (PtUp (Macros.nForEach 10 (And [AnyPlayer, Macros.happenedTo GameLoss ThisGame]))))
 
-||| Goad's own reminder text, on the creature the goad names: "Until your
-||| next turn, that creature … attacks a player other than you if able."
-||| [CR#701.15b] The attack requirement naming its defender.
+||| Goad's own reminder text, on the creature the goad names
 public export
 goadedAttacksOther : Effect []
 goadedAttacksOther =
@@ -10640,35 +9470,25 @@ goadedAttacksOther =
                (Just Macros.untilYourNextTurn)
 
 
-||| Fastbond's land line: "You may play any number of lands on each of your
-||| turns." [CR#305.2] lets a continuous effect raise the number a player may
-||| play, and this one takes the ceiling off. Its damage trigger needs an
-||| ordinal read of the lands already played this turn.
+||| Fastbond
 public export
 fastbondLands : Ability
 fastbondLands = Static (MayPlayAdditionalLands You Macros.anyNumber)
 
-||| Furious Reprisal: "Furious Reprisal deals 2 damage to each of two
-||| targets." The counted group over the class word, a form [CR#115.4]
-||| names itself. Pinnacle of Rage writes the same line at 3 damage.
+||| Furious Reprisal
 public export
 furiousReprisal : Effect []
 furiousReprisal =
   DealDamage This (Lit 2) (EachOf (TargetGroup (Macros.exactly 2) Macros.anyTarget))
 
-||| Maskwood Nexus's first line: "Creatures you control are every creature
-||| type. The same is true for creature spells you control and creature
-||| cards you own that aren't on the battlefield." The off-battlefield
-||| extension over a type addition, [CR#205.3m]'s shared subtype list.
+||| Maskwood Nexus
 public export
 maskwoodNexusTypes : Ability
 maskwoodNexusTypes =
   Static (AlsoOffBattlefield
             (AddsEveryType (AllOf Macros.creatureYouControl) CreatureSpace))
 
-||| Mystical Tutor: "Search your library for an instant or sorcery card,
-||| reveal it, then shuffle and put that card on top." [CR#701.24b] keeps
-||| the found card out of the shuffle, so the discourse still holds it.
+||| Mystical Tutor
 public export
 mysticalTutor : Effect []
 mysticalTutor =
@@ -10677,8 +9497,7 @@ mysticalTutor =
                , Macros.shuffle
                , Macros.move It Macros.onTopZ ]
 
-||| Demonic Tutor: "Search your library for a card, put that card into your
-||| hand, then shuffle." The bare description a single-zone search names.
+||| Demonic Tutor
 public export
 demonicTutor : Effect []
 demonicTutor =
@@ -10686,11 +9505,7 @@ demonicTutor =
                , Macros.move It Macros.handZ
                , Macros.shuffle ]
 
-||| Thalia's Lancers' search line: "search your library for a legendary
-||| card, reveal it, put it into your hand, then shuffle." A supertype word
-||| heads nothing and still describes a set. Its printed trigger frame
-||| ("When this creature enters, you may …") is left off: the entering
-||| permanent is a second Object mention, and "it" then has two antecedents.
+||| Thalia's Lancers
 public export
 thaliasLancersSearch : Effect []
 thaliasLancersSearch =
@@ -10699,10 +9514,7 @@ thaliasLancersSearch =
                , Macros.move It Macros.handZ
                , Macros.shuffle ]
 
-||| Brimaz, King of Oreskos' attack trigger: "Whenever Brimaz attacks,
-||| create a 1/1 white Cat Soldier creature token with vigilance that's
-||| attacking." [CR#508.4] designates the token attacking and taps
-||| nothing, so the attacking rider stands alone.
+||| Brimaz, King of Oreskos
 public export
 brimazAttackToken : Ability
 brimazAttackToken =
@@ -10713,42 +9525,27 @@ brimazAttackToken =
                                    [Macros.keyword "Vigilance"] Nothing))
                    [EntersAttacking NoDefender])
 
-||| Luxior, Giada's Gift's second line: "Equipped permanent … is a
-||| creature in addition to its other types." [CR#301.5f] lets the word
-||| "equipped" name whatever the permanent is attached to, so the host
-||| word is the host's own.
+||| Luxior, Giada's Gift
 public export
 luxiorEquippedPermanent : Ability
 luxiorEquippedPermanent =
   Static (BecomesAlso (AttachHost Equipped PermanentW)
                       (MkToken Nothing [] (MkTypeLine [] [Creature]) [] Nothing))
 
-||| Nahiri, the Unforgiving's [0] read: "creature card with mana value
-||| less than Nahiri's loyalty from your graveyard". [CR#109.3] lists
-||| loyalty among an object's characteristics and [CR#306.5] gives it to
-||| planeswalkers alone. The printed head is "creature or Equipment
-||| card"; the disjunction is trimmed here and waits on the union
-||| redesign.
 public export
 nahiriLoyaltyRead : Predicate [] Object
 nahiriLoyaltyRead =
   And [ Macros.creature, InZone (Macros.graveyardOf You)
       , Compare [CharAxis ManaValue] Less (StatOf Loyalty This) ]
 
-||| Nahiri, the Unforgiving's compleated reminder -- "this planeswalker
-||| enters with two fewer loyalty counters": the entry mark's subtracting
-||| arm, over [CR#306.5b]'s printed loyalty count. The reminder's leading
-||| "If life was paid" reads back a payment made while casting and has no
-||| condition row.
+||| Nahiri, the Unforgiving's compleated reminder
 public export
 nahiriCompleatedEntry : Ability
 nahiriCompleatedEntry =
   Static (Macros.entersWithFewerCounters Macros.thisPlaneswalker (Lit 2)
                                          LoyaltyCounter)
 
-||| Vivien's Talent: "Whenever a nontoken creature you control enters, put
-||| a loyalty counter on enchanted planeswalker." [CR#122.1] makes a
-||| loyalty counter a marker like any other.
+||| Vivien's Talent
 public export
 viviensTalentTrigger : Ability
 viviensTalentTrigger =
@@ -10757,9 +9554,6 @@ viviensTalentTrigger =
     (PutCounters (Lit 1) (PrintedKind LoyaltyCounter)
                  (AttachHost Enchanted (TypeW Planeswalker)))
 
-||| "Put a +1/+1 counter on target creature card in your graveyard."
-||| [CR#122.1a] counts a +X/+Y counter on a creature card in a zone other
-||| than the battlefield.
 public export
 counterOnGraveyardCard : Effect []
 counterOnGraveyardCard =
@@ -10767,22 +9561,17 @@ counterOnGraveyardCard =
               (Macros.target (And [Macros.creature,
                                    InZone (Macros.graveyardOf You)]))
 
-||| Ascend's own reminder text: "you get the city's blessing for the rest
-||| of the game" [CR#702.131a].
+||| Ascend's own reminder text
 public export
 ascendConferral : Effect []
 ascendConferral = Macros.getsCitysBlessing
 
-||| Saddle's expansion body: "This permanent becomes saddled until end of
-||| turn" [CR#702.171a].
+||| Saddle's expansion body
 public export
 saddleConferral : Effect []
 saddleConferral = Macros.becomesSaddled
 
-||| Bioessence Hydra's second line: "Whenever one or more loyalty counters
-||| are put on planeswalkers you control, put that many +1/+1 counters on
-||| this creature." The loyalty counter read as the marker [CR#122.1] it
-||| is, on the plural subject the line names.
+||| Bioessence Hydra
 public export
 bioessenceHydraTrigger : Ability
 bioessenceHydraTrigger =
@@ -10791,9 +9580,7 @@ bioessenceHydraTrigger =
                              (AllOf (And [HasType Planeswalker, ControlledBy You])))
     (PutCounters ThatMuch (PrintedKind Macros.plusOnePlusOne) Macros.thisCreature)
 
-||| Void Maw's activated ability: "Put a card exiled with this creature
-||| into its owner's graveyard: This creature gets +2/+2 until end of
-||| turn." A placement paid as a cost [CR#118.1].
+||| Void Maw
 public export
 voidMawPutCost : Ability
 voidMawPutCost =
@@ -10802,9 +9589,7 @@ voidMawPutCost =
                    (Macros.gets Macros.thisCreature (PtUp (Lit 2)) (PtUp (Lit 2))
                          (Just Macros.untilEndOfTurn))
 
-||| Bullseye, Death Dealer's activated ability: "{3}, {T}, Sacrifice an
-||| artifact or discard a nonland card: Bullseye deals 2 damage to any
-||| target." The cost the player chooses between [CR#118.1].
+||| Bullseye, Death Dealer
 public export
 bullseyeModalCost : Ability
 bullseyeModalCost =
@@ -10816,9 +9601,7 @@ bullseyeModalCost =
                                                 InZone Macros.handZ]))])])
                    (DealDamage This (Lit 2) (Macros.target Macros.anyTarget))
 
-||| Sedris, the Traitor King: "Each creature card in your graveyard has
-||| unearth {2}{B}." The grant reaches a subject in a graveyard because
-||| unearth's own ability functions there [CR#702.84a].
+||| Sedris, the Traitor King
 public export
 sedrisTheTraitorKing : Ability
 sedrisTheTraitorKing =
@@ -10826,9 +9609,7 @@ sedrisTheTraitorKing =
                 (Macros.keywordCosting "Unearth"
                    (Mana [Macros.generic 2, Macros.pip Black])))
 
-||| Grixis: "Blue, black, and/or red creature cards in your graveyard have
-||| unearth. The unearth cost is equal to the card's mana cost." The
-||| second sentence fixes the parameter [CR#202.1a].
+||| Grixis
 public export
 grixis : Ability
 grixis =
@@ -10837,9 +9618,7 @@ grixis =
                              InZone (Macros.graveyardOf You)]))
                 (Macros.keywordCosting "Unearth" ItsManaCost))
 
-||| Dralnu, Lich Lord: "Target instant or sorcery card in your graveyard
-||| gains flashback until end of turn. The flashback cost is equal to its
-||| mana cost." Flashback's graveyard static is named by [CR#702.34a].
+||| Dralnu, Lich Lord
 public export
 dralnuLichLord : Effect []
 dralnuLichLord =
@@ -10848,59 +9627,54 @@ dralnuLichLord =
                (Macros.keywordCosting "Flashback" ItsManaCost)
                (Just Macros.untilEndOfTurn)
 
-||| Dregscape Zombie: "Unearth {B}" [CR#702.84a].
+||| Dregscape Zombie
 public export
 dregscapeZombie : Ability
 dregscapeZombie = Macros.keywordCosting "Unearth" (Mana [Macros.pip Black])
 
-||| Think Twice: "Flashback {2}{U}" [CR#702.34a].
+||| Think Twice
 public export
 thinkTwice : Ability
 thinkTwice =
   Macros.keywordCosting "Flashback" (Mana [Macros.generic 2, Macros.pip Blue])
 
-||| Greater Mossdog: "Dredge 3" [CR#702.52a].
+||| Greater Mossdog
 public export
 greaterMossdog : Ability
 greaterMossdog = Macros.keywordNumber "Dredge" (Lit 3)
 
-||| Raven's Crime: "Retrace" [CR#702.81a].
+||| Raven's Crime
 public export
 ravensCrime : Ability
 ravensCrime = Macros.keyword "Retrace"
 
-||| Barkhide Mauler: "Cycling {2}" [CR#702.29a].
+||| Barkhide Mauler
 public export
 barkhideMauler : Ability
 barkhideMauler = Macros.keywordCosting "Cycling" (Mana [Macros.generic 2])
 
-||| Ninja of the New Moon: "Ninjutsu {3}{B}" [CR#702.49a].
+||| Ninja of the New Moon
 public export
 ninjaOfTheNewMoon : Ability
 ninjaOfTheNewMoon =
   Macros.keywordCosting "Ninjutsu" (Mana [Macros.generic 3, Macros.pip Black])
 
-||| Thunderous Wrath: "Miracle {R}" [CR#702.94a].
+||| Thunderous Wrath
 public export
 thunderousWrath : Ability
 thunderousWrath = Macros.keywordCosting "Miracle" (Mana [Macros.pip Red])
 
-||| Bygone Colossus: "Warp {3}" [CR#702.185a].
+||| Bygone Colossus
 public export
 bygoneColossus : Ability
 bygoneColossus = Macros.keywordCosting "Warp" (Mana [Macros.generic 3])
 
-||| Nezumi Ronin: "Bushido 1" [CR#702.45a]. The openness witness: bushido
-||| joined the vocabulary as one `keywordFacts` row and nothing else -- no
-||| constructor, no total-table clause, and no macro either, since
-||| `keywordNumber` already writes any word whose rule takes a number.
+||| Nezumi Ronin
 public export
 nezumiRonin : Ability
 nezumiRonin = Macros.keywordNumber "Bushido" (Lit 1)
 
-||| Steppe Lynx: "Landfall — Whenever a land you control enters, this
-||| creature gets +2/+2 until end of turn." An ability word over a triggered
-||| ability [CR#207.2c].
+||| Steppe Lynx
 public export
 steppeLynx : Ability
 steppeLynx =
@@ -10909,9 +9683,7 @@ steppeLynx =
                       (Macros.gets Macros.thisCreature (PtUp (Lit 2)) (PtUp (Lit 2))
                             (Just Macros.untilEndOfTurn)))
 
-||| Nimble Mongoose: "Threshold — This creature gets +2/+2 as long as there
-||| are seven or more cards in your graveyard." An ability word over a
-||| static ability [CR#207.2c].
+||| Nimble Mongoose
 public export
 nimbleMongoose : Ability
 nimbleMongoose =
@@ -10920,43 +9692,27 @@ nimbleMongoose =
                               (CompareAmt (CountOf (InZone (Macros.graveyardOf You)))
                                           AtLeast (Lit 7))))
 
-||| Ghor-Clan Rampager: "Bloodrush — {R}{G}, Discard this card: Target
-||| attacking creature gets +4/+4 and gains trample until end of turn." An
-||| ability word over an activated ability [CR#207.2c].
+||| Ghor-Clan Rampager
 public export
 ghorClanRampager : Ability
 ghorClanRampager =
   Macros.abilityWord Bloodrush
     (Macros.activated (Compound [Mana [Macros.pip Red, Macros.pip Green],
                           Do (Macros.discards You This)])
-                      -- the second verb phrase's subject is ELIDED, not
-                      -- pronominalised: "gets +4/+4 and gains trample" is one
-                      -- statement of one subject, so the coordination writes
-                      -- that subject once and nothing here reads anything.
-                      -- The carrier-scoped pronoun this line used to write
-                      -- (`itAsPermanent`, to keep the card the discard cost
-                      -- put in the graveyard out of the count) was working
-                      -- around the missing form.
                       (Macros.sharedSubject
                          (Macros.target (And [Macros.creature, Attacking]))
                          [ VPGets (PtUp (Lit 4)) (PtUp (Lit 4)) Nothing
                          , VPGains (Macros.keyword "Trample") Nothing ]
                          (Just Macros.untilEndOfTurn)))
 
-||| Owlbear: "Keen Senses — When this creature enters, draw a card." A
-||| FLAVOR word [CR#207.2d] over a triggered ability -- `steppeLynx`'s
-||| shape at the other vocabulary, on the one node. 446 supported lines
-||| over 398 supported cards write a flavor word (measured 2026-09-02),
-||| and 441 distinct words do it, which is why the word is a label and
-||| not an enum.
+||| Owlbear
 public export
 owlbear : Ability
 owlbear =
   Macros.flavorWord "Keen Senses"
     (Macros.triggered When (Enters Macros.thisCreature Nothing) Macros.drawACard)
 
-||| Canoptek Wraith: "Wraith Form — This creature can't be blocked." The
-||| flavor word over a STATIC ability, `nimbleMongoose`'s cell.
+||| Canoptek Wraith
 public export
 canoptekWraith : Ability
 canoptekWraith =
@@ -10964,9 +9720,7 @@ canoptekWraith =
     (Static (Deontic Macros.thisCreature Forbid ["Block"] Patient
                      NoDeonticPatient Nothing NoDeonticRider))
 
-||| Tymora's Invoker: "Sleight of Hand — {8}: Draw two cards." The flavor
-||| word over an ACTIVATED ability, `ghorClanRampager`'s cell. Three
-||| kinds, one wrapper, no per-vocabulary row.
+||| Tymora's Invoker
 public export
 tymorasInvoker : Ability
 tymorasInvoker =
@@ -10974,12 +9728,7 @@ tymorasInvoker =
     (Macros.activated (Mana [Macros.generic 8]) (Macros.drawCards 2))
 
 
-||| Twinshot Sniper, whole card -- "Reach / When this creature enters, it
-||| deals 2 damage to any target. / Channel — {1}{R}, Discard this card:
-||| It deals 2 damage to any target." The Channel line's pronoun reads
-||| what the COST announced: a bare `This` moved to a zone now mints its
-||| own mention, on the ascribed self's model, so the discarded card is in
-||| the discourse the ability body reads.
+||| Twinshot Sniper
 public export
 twinshotSniper : Card
 twinshotSniper =
@@ -10995,10 +9744,7 @@ twinshotSniper =
                              (DealDamage It (Lit 2) (Macros.target Macros.anyTarget))) ]
        (Just (2, 3))
 
-||| Balance of Power: "If target opponent has more cards in hand than you,
-||| draw cards equal to the difference." The leading condition hands its
-||| consequent the margin; the target written inside the condition is
-||| announced at casting like any other [CR#601.2c].
+||| Balance of Power
 public export
 balanceOfPower : Effect []
 balanceOfPower =
@@ -11008,10 +9754,7 @@ balanceOfPower =
      (Draw You TheDifference)
      Nothing
 
-||| Vraska, Betrayal's Sting: "[-9]: If target player has fewer than nine
-||| poison counters, they get a number of poison counters equal to the
-||| difference." The second leading-condition margin read, with the target
-||| inside the condition.
+||| Vraska, Betrayal's Sting
 public export
 vraskaBetrayalsStingUltimate : Effect []
 vraskaBetrayalsStingUltimate =
@@ -11019,22 +9762,14 @@ vraskaBetrayalsStingUltimate =
      (GetsCounters They TheDifference Poison)
      Nothing
 
-||| Dragonlord Ojutai's static: "Dragonlord Ojutai has hexproof as long as
-||| it's untapped." The postposed orientation: the condition is written
-||| after the statement and pronominalises the statement's own subject,
-||| which only that orientation can read. Iymrith, Desert Doom writes the
-||| same shape with a PARAMETER ("has ward {4} as long as it's untapped")
-||| and is now benched whole at `iymrithDesertDoom`, its draw line with it.
+||| Dragonlord Ojutai
 public export
 dragonlordOjutaiHexproof : Ability
 dragonlordOjutaiHexproof =
   Static (Macros.onlyWhile (Gains Macros.thisCreature (Macros.keyword "Hexproof"))
                            (Matches It (HasStatus Untapped)))
 
-||| Caustic Bronco's loss line: "You lose life equal to that card's mana
-||| value if this creature isn't saddled. Otherwise, each opponent loses that
-||| much life." The arm reads the quantity the then-branch wrote, not a deed
-||| that happened.
+||| Caustic Bronco
 public export
 causticBroncoLoss : Effect []
 causticBroncoLoss =
@@ -11044,8 +9779,7 @@ causticBroncoLoss =
                         (NotCond (Matches Macros.thisCreature (HasDesignation Saddled)))
                         (Just (Macros.losesLife (Each Opponent) ThatMuch)) ]
 
-||| Gadrak, the Crown-Scourge: "Gadrak can't attack unless you control four
-||| or more artifacts." The counted "unless" on the postposed static.
+||| Gadrak, the Crown-Scourge
 public export
 gadrakCantAttack : Ability
 gadrakCantAttack =
@@ -11054,22 +9788,14 @@ gadrakCantAttack =
                             (CompareAmt (CountOf (And [Macros.artifact, ControlledBy You]))
                                         AtLeast (Lit 4)))
 
-||| Panglacial Wurm: "While you're searching your library, you may cast this
-||| card from your library." A static permission that functions from the
-||| library [CR#113.6b], confined to the search action [CR#701.23a].
+||| Panglacial Wurm
 public export
 panglacialWurmCast : Ability
 panglacialWurmCast =
   Static (Macros.mayCastFromWhileSearching You This Macros.yourLibrary)
 
 
-||| Quakebringer's damage trigger: "At the beginning of your upkeep,
-||| Quakebringer deals 2 damage to each opponent. This ability triggers
-||| only if Quakebringer is on the battlefield or if Quakebringer is in
-||| your graveyard and you control a Giant." The condition disjunction
-||| whole, with a conjunction inside its second arm: the reduplicated "if"
-||| is what scopes the "and", so the conjunction binds inside the disjunct
-||| its own "if" opened.
+||| Quakebringer
 public export
 quakebringerDamage : Ability
 quakebringerDamage =
@@ -11081,11 +9807,7 @@ quakebringerDamage =
                                      ControlledBy You]) ] ])
     (DealDamage This (Lit 2) (Each Opponent))
 
-||| Dark Fortress's mana ability: "{T}: Add {B} or {R}. Activate only if
-||| this land entered this turn or if you control a basic land." The
-||| doubly-marked disjunction on the ACTIVATION GUARD, which is this
-||| family's biggest carrier; Gathering Place, Gleaming Bastion, Hidden
-||| Lair and Training Compound are the same line.
+||| Dark Fortress
 public export
 darkFortressMana : Ability
 darkFortressMana =
@@ -11094,12 +9816,7 @@ darkFortressMana =
     (OrCond [ Macros.happened Entry Macros.thisLand Lookback.ThisTurn
             , Exists (And [Macros.land, HasSupertype Basic, ControlledBy You]) ])
 
-||| Sand Strangler's trigger: "When this creature enters, if you control a
-||| Desert or there is a Desert card in your graveyard, you may have this
-||| creature deal 3 damage to target creature." The SINGLY marked
-||| disjunction, whose two arms are independent clauses; Desert's Hold,
-||| Gilded Cerodon, Unquenchable Thirst, Wall of Forgotten Pharaohs and
-||| Wretched Camel write the same condition.
+||| Sand Strangler
 public export
 sandStranglerDamage : Ability
 sandStranglerDamage =
@@ -11110,12 +9827,7 @@ sandStranglerDamage =
                            InZone (Macros.graveyardOf You)]) ])
     (Macros.may You (DealDamage This (Lit 3) (Macros.target Macros.creature)))
 
-||| Skyblade's Boon's return ability: "{2}{W}: Return Skyblade's Boon to
-||| its owner's hand. Activate only if Skyblade's Boon is on the
-||| battlefield or in your graveyard." The singly-marked ZONE disjunction
-||| on an activation guard -- one subject, two zones, no reduplicated
-||| marking -- which Arahbo, Edgar Markov, Firemane Angel, Inalla and
-||| Sidar Jabari of Zhalfir all write.
+||| Skyblade's Boon
 public export
 skybladesBoonReturn : Ability
 skybladesBoonReturn =
@@ -11125,9 +9837,6 @@ skybladesBoonReturn =
             , Matches This (InZone (Macros.graveyardOf You)) ])
 
 
-||| Goblin Archaeologist
-||| "{R}, {T}: Flip a coin. If you win the flip, destroy target artifact and
-||| untap this creature. If you lose the flip, sacrifice this creature."
 goblinArchaeologist : Ability
 goblinArchaeologist =
   Macros.activated (Compound [Mana [Macros.pip Red], TapSymbol])
@@ -11139,11 +9848,6 @@ goblinArchaeologist =
         Macros.ifThen Macros.youLoseTheFlip
           (Macros.sacrifice You Macros.thisCreature)])
 
-||| Contraband Livestock
-||| "Exile target creature, then roll a d20.
-|||  1—9 | Its controller creates a 4/4 green Ox creature token.
-|||  10—19 | Its controller creates a 2/2 green Boar creature token.
-|||  20 | Its controller creates a 0/1 white Goat creature token."
 contrabandLivestock : Effect []
 contrabandLivestock =
   Sequentially
@@ -11160,19 +9864,11 @@ contrabandLivestock =
           (Create (ControllerOf It) (Lit 1)
                   (TokenWritten (Macros.creatureTok 0 1 [White] [creatureType "Goat"])) [])]]
 
-||| Hypnotic Specter, second line's body: "…, that player discards a card
-||| at random." The header is NOT written: "this creature deals damage to
-||| an opponent" is a source-side, non-combat damage event, and `GameEvent`
-||| carries only the recipient-side `IsDealtDamage` and the combat-only
-||| `DealsCombatDamage`. The at-random half is what this round owed.
+||| Hypnotic Specter
 hypnoticSpecterDiscard : Effect [MkBinding TheD Player OneOf PlayerP]
 hypnoticSpecterDiscard = Macros.discardsACardAtRandom They
 
 
-||| Chance Encounter
-||| "Whenever you win a coin flip, put a luck counter on this enchantment.
-|||  At the beginning of your upkeep, if this enchantment has ten or more
-|||  luck counters on it, you win the game."
 public export
 chanceEncounter : Card
 chanceEncounter =
@@ -11188,11 +9884,7 @@ chanceEncounter =
                             (Concludes WinGame You) ]
        Nothing
 
-||| Karplusan Minotaur's win arm: "Whenever you win a coin flip, this
-||| creature deals 1 damage to any target." Its lose arm writes "any target
-||| of an opponent's choice", which no mention shape carries -- the same
-||| chooser gap the at-random round ledgered, and outside the event row.
-||| Its cumulative upkeep belongs to the cost-and-payment ticket.
+||| Karplusan Minotaur's win arm
 public export
 karplusanMinotaurWinFlip : Ability
 karplusanMinotaurWinFlip =
@@ -11200,9 +9892,6 @@ karplusanMinotaurWinFlip =
                    (DealDamage Macros.thisCreature (Lit 1)
                                (Macros.target Macros.anyTarget))
 
-||| Brazen Dwarf
-||| "Whenever you roll one or more dice, this creature deals 1 damage to
-||| each opponent."
 public export
 brazenDwarf : Card
 brazenDwarf =
@@ -11214,18 +9903,13 @@ brazenDwarf =
                                       (Each Opponent)) ]
        (Just (1, 3))
 
-||| Vexing Puzzlebox, first line: "Whenever you roll one or more dice, put a
-||| number of charge counters on this artifact equal to the result." The
-||| body reads the number the event announced [CR#706.2].
+||| Vexing Puzzlebox
 public export
 vexingPuzzleboxCounters : Ability
 vexingPuzzleboxCounters =
   Macros.triggered Whenever Macros.youRollDice
                    (PutCounters Macros.theResult (PrintedKind Charge) Macros.thisArtifact)
 
-||| The Space Family Goblinson, first line: "Whenever you roll a die, put
-||| a +1/+1 counter on The Space Family Goblinson." The singular
-||| determiner beside Brazen Dwarf's plural one.
 public export
 spaceFamilyGoblinsonRoll : Ability
 spaceFamilyGoblinsonRoll =
@@ -11233,19 +9917,14 @@ spaceFamilyGoblinsonRoll =
                    (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
                                 Macros.thisCreature)
 
-||| Ral Zarek's ultimate: "Flip five coins. Take an extra turn after this
-||| one for each coin that comes up heads." The count over the flipped
-||| coins, read off the flip the clause before it wrote.
+||| Ral Zarek's ultimate
 public export
 ralZarekUltimate : Effect []
 ralZarekUltimate =
   Sequentially [Macros.flipCoins 5,
                 ExtraTurn You (Macros.coinsThatCameUp Heads)]
 
-||| Spark Fiend's upkeep roll: "roll two six-sided dice. If you rolled 7,
-||| sacrifice this creature." The total of the two dice, which no per-roll
-||| result gives [CR#706.2]. The line's remaining clauses read a total the
-||| card NOTED on itself, which is not written.
+||| Spark Fiend
 public export
 sparkFiendUpkeepRoll : Effect []
 sparkFiendUpkeepRoll =
@@ -11254,42 +9933,23 @@ sparkFiendUpkeepRoll =
                               (Macros.sacrifice You Macros.thisCreature)]
 
 
-||| Berserker's Frenzy's roll: "Roll two d20 and ignore the lower roll."
-||| The ignore instruction written as an instruction [CR#706.6], beside
-||| the replacement lines that write the same word under a "would".
-||| "The lower roll" is the two-die spelling of the lowest.
+||| Berserker's Frenzy's roll
 public export
 berserkersFrenzyRoll : Effect []
 berserkersFrenzyRoll =
   Sequentially [Macros.rollDice 2 20, IgnoreOutcomes (IgnoreExtreme LowestRoll)]
 
-||| Iron Mastiff's ignore, benched over a bare roll: "…and ignore all but
-||| the highest roll." The card rolls "a d20 for each player being
-||| attacked", a count over the players an attack names, which no player
-||| description carries.
 public export
 ironMastiffIgnore : Effect []
 ironMastiffIgnore =
   Sequentially [Macros.rollADie 20, IgnoreOutcomes (IgnoreAllBut HighestRoll)]
 
-||| Xenosquirrels' modifier, benched over a roll of its own: "…increase
-||| or decrease the result by 1." [CR#706.2]'s modifier "from other
-||| sources". The card writes it under an "After you roll a die" header,
-||| and [CR#603.1] writes a triggered ability's word as
-||| "[When/Whenever/At]", which is the whole of `TriggerWord`.
 public export
 xenosquirrelsShift : Effect []
 xenosquirrelsShift =
   Sequentially [Macros.rollADie 6, ShiftResult (Lit 1)]
 
-||| Wyll, Blade of Frontiers, first line -- "If you would roll one or more
-||| dice, instead roll that many dice plus one and ignore the lowest
-||| roll." Barbarian Class's level-1 line is the same sentence, and Pixie
-||| Guide's is it under an ability word. The replacement side of the
-||| ignore instruction: the would-event announces the dice it called for
-||| [CR#706.1], never a result, since [CR#614.6] keeps the replaced roll
-||| from happening; "that many" reads that count and the bare "dice"
-||| reads its kind.
+||| Wyll, Blade of Frontiers
 public export
 wyllExtraDie : Effect []
 wyllExtraDie =
@@ -11298,9 +9958,7 @@ wyllExtraDie =
                   , IgnoreOutcomes (IgnoreExtreme LowestRoll) ])
     Nothing
 
-||| Atomwheel Acrobats, first line: "Whenever you roll a 1 or 2, put that
-||| many +1/+1 counters on this creature." The two-ended result test
-||| [CR#706.3a], and the body reading the result back as "that many".
+||| Atomwheel Acrobats
 public export
 atomwheelAcrobatsRoll : Ability
 atomwheelAcrobatsRoll =
@@ -11308,11 +9966,7 @@ atomwheelAcrobatsRoll =
                    (PutCounters ThatMuch (PrintedKind Macros.plusOnePlusOne)
                                 Macros.thisCreature)
 
-||| Monoxa, Midway Manager, first line: "Whenever you roll a 3 or higher,
-||| Monoxa gains first strike until end of turn. If the roll was 4 or
-||| higher, it gains menace until end of turn. If the roll was 5 or
-||| higher, it gains lifelink until end of turn." The one-ended test on
-||| the header, and "the roll" read back off it as the result [CR#706.2].
+||| Monoxa, Midway Manager
 public export
 monoxaRollTrigger : Ability
 monoxaRollTrigger =
@@ -11329,24 +9983,13 @@ monoxaRollTrigger =
                                     (KeywordAbility "Lifelink" Nothing)
                                     (Just Macros.untilEndOfTurn)) ])
 
-||| Netherese Puzzle-Ward, second line: "Perfect Illumination — Whenever
-||| you roll a die's highest natural result, draw a card." The test no
-||| literal range spells: [CR#706.2] takes the natural result before any
-||| modifier and [CR#706.1a] numbers each die to its own N, so the
-||| header's number depends on the die it watches. The ability word is
-||| not written.
+||| Netherese Puzzle-Ward
 public export
 netheresePuzzleWardIllumination : Ability
 netheresePuzzleWardIllumination =
   Macros.triggered Whenever Macros.youRollHighestNatural Macros.drawACard
 
-||| Resolute Veggiesaur, second line: "Whenever you roll your third die
-||| each turn, put a +1/+1 counter on this creature." No vocabulary of its
-||| own: the ordinal occurrence word over the roll event, with the period
-||| that resets its count. It was benched as an every-player WINDOW, which
-||| said the wrong thing: a window restricts when the header may trigger,
-||| and this header may trigger on any turn -- what "each turn" bounds is
-||| how many rolls have to have happened first.
+||| Resolute Veggiesaur
 public export
 resoluteVeggiesaurThirdDie : Ability
 resoluteVeggiesaurThirdDie =
@@ -11355,21 +9998,13 @@ resoluteVeggiesaurThirdDie =
     (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
                  Macros.thisCreature)
 
-||| Fractured Powerstone, second line: "{T}: Roll the planar die.
-||| Activate only as a sorcery." The planar die's instruction row
-||| [CR#901.3a]; it announces no number, since [CR#706.7] has every
-||| numerical read ignore the planar roll.
+||| Fractured Powerstone
 public export
 fracturedPowerstonePlanarRoll : Ability
 fracturedPowerstonePlanarRoll =
   Macros.activatedOnlyDuring TapSymbol Macros.rollThePlanarDie AsSorcery
 
-||| Ichor Elixir, first line: "If you would roll one or more planar dice,
-||| instead roll that many planar dice plus one and ignore one." The roll
-||| header narrowed to the planar die, the planar instruction taking a
-||| count, and the chosen ignore, in one sentence. The replaced event
-||| announces the DICE it called for and no result [CR#706.7], which is
-||| exactly what "that many planar dice" reads.
+||| Ichor Elixir
 public export
 ichorElixirPlanarDice : Effect []
 ichorElixirPlanarDice =
@@ -11378,13 +10013,7 @@ ichorElixirPlanarDice =
                   , IgnoreOutcomes (IgnoreChosen Nothing (Lit 1)) ])
     Nothing
 
-||| Vedalken Squirrel-Whacker, second line, benched to the clause the
-||| exchange blocks: "If you would roll one or more six-sided dice,
-||| instead roll them." The numbered die named on the header [CR#706.1],
-||| and the wholly anaphoric body -- "them" is `ThatMuch` over
-||| `ThoseDice`, both read off the roll the replacement announced. The
-||| line's remaining clause exchanges a result with a base characteristic,
-||| which is not written.
+||| Vedalken Squirrel-Whacker
 public export
 vedalkenSquirrelWhackerReroll : Effect []
 vedalkenSquirrelWhackerReroll =
@@ -11392,11 +10021,7 @@ vedalkenSquirrelWhackerReroll =
     (RollDice You ThatMuch ThoseDice)
     Nothing
 
-||| Krark's Thumb: "If you would flip a coin, instead flip two coins and
-||| ignore one." The flipping ACT as the replaced event [CR#705.1] --
-||| which neither arm of the call names [CR#705.2] -- and the ignore
-||| instruction over coins. The body writes its own count, since
-||| [CR#614.6] leaves no flip to read back.
+||| Krark's Thumb
 public export
 krarksThumbExtraFlip : Effect []
 krarksThumbExtraFlip =
@@ -11405,12 +10030,7 @@ krarksThumbExtraFlip =
                   , IgnoreOutcomes (IgnoreChosen Nothing (Lit 1)) ])
     Nothing
 
-||| Bamboozling Beeble, second line: "{1}, {T}: The next time target
-||| player would roll one or more dice this turn, instead they roll that
-||| many dice plus one and you choose one of those rolls to ignore." The
-||| one printed line that WRITES the ignore's chooser, and it writes a
-||| different player from the roller -- which is why the chooser is a
-||| slot and not [CR#706.6]'s tie-break rule.
+||| Bamboozling Beeble
 public export
 bamboozlingBeebleIgnore : Ability
 bamboozlingBeebleIgnore =
@@ -11421,21 +10041,11 @@ bamboozlingBeebleIgnore =
                      , IgnoreOutcomes (IgnoreChosen (Just You) (Lit 1)) ])
        (Just Macros.thisTurn))
 
-||| Missy's end-step line, benched as the branch it writes: "you draw a
-||| card and chaos ensues." [CR#311.7] admits the instruction beside the
-||| die face — a chaos ability triggers "if a resolving spell or ability
-||| says that chaos ensues" — so the sentence needs no planar roll. The
-||| villainous choice that frames the two branches is its own family and
-||| is not written.
 public export
 missyChaosBranch : Effect []
 missyChaosBranch = Sequentially [Macros.drawACard, ChaosEnsues]
 
-||| Farideh, Devil's Chosen, her roll trigger's second sentence: "If any
-||| of those results was 10 or higher, draw a card." The existential over
-||| one clause's rolls [CR#706.2]. The line's first sentence grants two
-||| keywords at once, which is a coordination of grants and not this
-||| ticket's.
+||| Farideh, Devil's Chosen
 public export
 faridehResultRead : Ability
 faridehResultRead =
@@ -11443,9 +10053,7 @@ faridehResultRead =
                    (Macros.ifThen (AnyResultIs AtLeast (Lit 10))
                                   (Draw You (Lit 1)))
 
-||| Celebr-8000's doubles clause: "roll two six-sided dice. … If you
-||| rolled doubles, it also gains double strike until end of turn."
-||| [CR#706.5] defines the phrase for this card by name.
+||| Celebr-8000
 public export
 celebr8000Doubles : Effect []
 celebr8000Doubles =
@@ -11455,13 +10063,7 @@ celebr8000Doubles =
                                  (KeywordAbility "DoubleStrike" Nothing)
                                  (Just Macros.untilEndOfTurn)) ]
 
-||| Goblin Assassin's second sentence: "each player flips a coin. Each
-||| player whose coin comes up tails sacrifices a creature." The uncalled
-||| face read [CR#705.2] narrowing a described set, where `FlipFace`
-||| reads the one coin a clause flipped. The card's "of their choice"
-||| is not written here: the sentence mentions players twice -- once
-||| flipping, once narrowed by the face -- and `TheirChoice` presupposes
-||| a single chooser mention, the pre-existing chooser-mention gap.
+||| Goblin Assassin
 public export
 goblinAssassinCoinTails : Effect []
 goblinAssassinCoinTails =
@@ -11469,12 +10071,7 @@ goblinAssassinCoinTails =
                , Macros.sacrifice (Each (And [AnyPlayer, CoinCameUp Tails]))
                                   (Macros.a Macros.creature) ]
 
-||| Rakdos, the Showstopper's trigger body: "flip a coin for each creature
-||| that isn't a Demon, Devil, or Imp. Destroy each creature whose coin
-||| comes up tails." The per-member flip: [CR#705.1] leaves the coin owned
-||| by no referent and [CR#705.2] gives the flip to whoever flips it, so
-||| the described set is a second slot on the instruction and the subject
-||| stays the flipper.
+||| Rakdos, the Showstopper
 public export
 rakdosShowstopperFlips : Effect []
 rakdosShowstopperFlips =
@@ -11486,24 +10083,11 @@ rakdosShowstopperFlips =
                              , HasSubtype (creatureType "Imp") ]) ]))
     , Macros.destroy (Each (And [Macros.creature, CoinCameUp Tails])) ]
 
-||| Warp Vortex's first sentence, benched alone: "flip a coin for each
-||| opponent you have." The per-member flip over the player kind beside
-||| Rakdos's over the object kind [CR#705.1]. The line's remaining
-||| sentences count the flips you WON and the ones you lost;
-||| `CoinsShowing` counts coins by the face they came up, which is
-||| [CR#705.2]'s other reading, and the called one has no count word.
+||| Warp Vortex
 public export
 warpVortexFlips : Effect []
 warpVortexFlips = Macros.flipACoinFor (Each Opponent)
 
-||| Centaur of Attention
-||| "When this creature enters, roll five six-sided dice and store those
-|||  results on it.
-|||  At the beginning of combat on your turn, you may reroll any number of
-|||  this creature's stored results.
-|||  This creature gets +X/+X, where X is the greatest number of stored
-|||  results on it of the same value."
-||| The card [CR#706.8] is written for, whole.
 public export
 centaurOfAttention : Card
 centaurOfAttention =
@@ -11524,8 +10108,6 @@ centaurOfAttention =
        (Just (0, 0))
 
 
-||| Wax // Wane, a split card [CR#709.1]: two faces on one card, each with its
-||| own mana cost [CR#709.4b] and its own type line and text box [CR#709.4c].
 waxWane : Card
 waxWane =
   SplitCard
@@ -11538,9 +10120,6 @@ waxWane =
             [ Spell (Macros.destroy (Macros.target Macros.enchantment)) ]
             Nothing)
 
-||| Branchloft Pathway // Boulderloft Pathway, a modal double-faced card
-||| [CR#712.3]: the two faces are independent, and a player playing it as a
-||| land chooses which of them enters [CR#712.12].
 branchloftPathway : Card
 branchloftPathway =
   ModalDfc
@@ -11553,9 +10132,6 @@ branchloftPathway =
                                (AddMana You (Lit 1) (Runs [[OfColor White]]) []) ]
             Nothing)
 
-||| Merfolk Secretkeeper // Venture Deeper, an adventurer card [CR#715.1]: the
-||| normal face, and the inset frame whose alternative characteristics the
-||| object has while it's a spell [CR#715.2].
 merfolkSecretkeeper : Card
 merfolkSecretkeeper =
   Adventurer
@@ -11567,10 +10143,6 @@ merfolkSecretkeeper =
             [ Spell (Macros.mills (Macros.target AnyPlayer) (Lit 4) They) ]
             Nothing)
 
-||| Orochi Eggwatcher // Shidako, Broodmistress, a flip card [CR#710.1]. The
-||| activated ability's own words turn it over, spelled with the landed
-||| `Flipped` status; the alternative half writes no mana cost of its own
-||| [CR#710.1c].
 orochiEggwatcher : Card
 orochiEggwatcher =
   FlipCard
@@ -11595,16 +10167,6 @@ orochiEggwatcher =
                (Macros.printedBox (Just (3, 3))))
 
 
-||| A planeswalker back face with no loyalty number, probed at the law rather
-||| than benched as a card. Arlinn, Embraced by the Moon and Garruk, the
-||| Veil-Cursed both print a legendary planeswalker back with the box empty,
-||| while Jace, Telepath Unbound prints one on the same kind of face: [CR#209.1]
-||| puts the number on each planeswalker *card*, and [CR#712.8a] reads a
-||| double-faced card's characteristics off its front face off the battlefield,
-||| so the back's box is optional and `AltCardBox` — not `CardBox` — is what a
-||| costless face answers. The probe stands on its own terms; the Arlinn card
-||| it stood in for is benched whole as `arlinnKord`, and Garruk Relentless
-||| waits on a state trigger rather than on the verb (see `predatoryWurm`).
 public export
 planeswalkerBackWithoutLoyalty : AltFace
 planeswalkerBackWithoutLoyalty =
@@ -11615,16 +10177,8 @@ planeswalkerBackWithoutLoyaltyOk : AltFaceLaws Cards.planeswalkerBackWithoutLoya
 planeswalkerBackWithoutLoyaltyOk = MkAltFaceLaws
 
 
--- ---------------------------------------------------------------------------
--- The amount reads, the open comparison left side, and the two folds.
--- ---------------------------------------------------------------------------
 
-||| Nykthos, Shrine to Nyx -- "{T}: Add {C}. / {2}, {T}: Choose a color.
-||| Add an amount of mana of that color equal to your devotion to that
-||| color." The devotion read at a CHOSEN colour rather than a printed
-||| one: the produced-mana side already had its chosen-colour arm, and
-||| the count's own colour slot is what had none. Nyx Lotus writes the
-||| same ability without the {2}.
+||| Nykthos, Shrine to Nyx
 public export
 nykthosShrineToNyx : Card
 nykthosShrineToNyx =
@@ -11638,40 +10192,32 @@ nykthosShrineToNyx =
                         (OfChosenColor Nothing) [] ]) ]
        Nothing
 
-||| Karametra's Acolyte -- "{T}: Add an amount of {G} equal to your devotion
-||| to green."
+||| Karametra's Acolyte
 public export
 karametrasAcolyte : Ability
 karametrasAcolyte =
   Macros.activated TapSymbol
     (AddMana You (Devotion You (LitColor Green) Nothing) (Runs [[OfColor Green]]) [])
 
-||| Anax, Hardened in the Forge -- "Anax's power is equal to your devotion
-||| to red." The devotion read at the definition frame; the box is */3.
+||| Anax, Hardened in the Forge
 public export
 anaxPowerDefinition : Ability
 anaxPowerDefinition =
   Static (DefinesPt Macros.thisCreature PowerAlone (Devotion You (LitColor Red) Nothing))
 
-||| Gray Merchant of Asphodel, first clause -- "each opponent loses X life,
-||| where X is your devotion to black." (The second sentence, "You gain life
-||| equal to the life lost this way.", is not taken here.)
+||| Gray Merchant of Asphodel
 public export
 grayMerchantDrain : Effect []
 grayMerchantDrain =
   Sequentially [ Macros.losesLife (Each Opponent) (LetterVal X)
                , Define X (Devotion You (LitColor Black) Nothing) ]
 
-||| Erebos, God of the Dead -- "As long as your devotion to black is less
-||| than five, Erebos isn't a creature." The devotion read at the comparison
-||| frame.
+||| Erebos, God of the Dead
 public export
 devotionCondition : Condition []
 devotionCondition = CompareAmt (Devotion You (LitColor Black) Nothing) Less (Lit 5)
 
-||| Aspect of Wolf -- "Enchanted creature gets +X/+Y, where X is half the
-||| number of Forests you control, rounded down, and Y is half the number of
-||| Forests you control, rounded up."
+||| Aspect of Wolf
 public export
 aspectOfWolf : Ability
 aspectOfWolf =
@@ -11683,10 +10229,7 @@ aspectOfWolf =
     , Define Y (Half RoundUp
                  (CountOf (And [HasSubtype (landType "Forest"), ControlledBy You]))) ])
 
-||| Jaws of Defeat -- "Whenever a creature you control enters, target
-||| opponent loses life equal to the difference between that creature's
-||| power and its toughness." The symmetric margin beside the directional
-||| `Minus`.
+||| Jaws of Defeat
 public export
 jawsOfDefeat : Ability
 jawsOfDefeat =
@@ -11695,23 +10238,13 @@ jawsOfDefeat =
        (DifferenceBetween (Macros.powerOf (That (TypeW Creature)))
                           (Macros.toughnessOf (That (TypeW Creature)))))
 
-||| Defiling Daemogoth -- "At the beginning of your end step, each opponent
-||| loses X life, where X is the amount of life you gained this turn." The
-||| summed lookback, `EventCount`'s numeric twin.
+||| Defiling Daemogoth
 public export
 defilingDaemogothDrain : Effect []
 defilingDaemogothDrain =
   Sequentially [ Macros.losesLife (Each Opponent) (LetterVal X)
                , Define X (EventSum LifeGain You Lookback.ThisTurn Nothing) ]
 
-||| The Skullspore Nexus -- "Whenever one or more nontoken creatures you
-||| control die, create a green Fungus Dinosaur creature token with base
-||| power and toughness each equal to the total power of those creatures."
-||| The fold whose complement is a group MENTION.
-||| -- spelling: the card writes "those creatures"; `eventAfter (Dies …)`
-||| moves the mention to the graveyard, so the mention this term reads back
-||| is the graveyard-side `Those CardW`. The card-side spelling of a death's
-||| own mention is a standing gap, not this row's.
 public export
 skullsporeNexusTrigger : Ability
 skullsporeNexusTrigger =
@@ -11724,17 +10257,14 @@ skullsporeNexusTrigger =
           (AggregateOf SumOf (CharAxis Power) (Those CardW))
           [Green] [creatureType "Fungus", creatureType "Dinosaur"]))
 
-||| Investigator's Journal's count -- "the greatest number of creatures a
-||| player controls". The element-binder fold's measured phrase; the whole
-||| card waits on a suspect counter-kind row.
+||| Investigator's Journal's count
 public export
 greatestCreaturesAPlayerControls : Amount []
 greatestCreaturesAPlayerControls =
   AggregateOver MaxOf AnyPlayer
     (CountOf (And [Macros.creature, ControlledBy They]))
 
-||| Investigator's Journal, whole -- the element-binder fold as an entry
-||| count, with the suspect counters it stores.
+||| Investigator's Journal
 investigatorsJournal : Card
 investigatorsJournal =
   Macros.card "Investigator's Journal" (Just [Macros.generic 2]) []
@@ -11753,21 +10283,14 @@ investigatorsJournal =
                         Compare [CharAxis ManaValue] AtMost (Lit 2)]) ]) ]
        Nothing
 
-||| Cavern-Hoard Dragon's cost rider -- "This spell costs {X} less to cast,
-||| where X is the greatest number of artifacts an opponent controls." The
-||| same binder over a narrowed domain.
+||| Cavern-Hoard Dragon
 public export
 greatestArtifactsAnOpponentControls : Amount []
 greatestArtifactsAnOpponentControls =
   AggregateOver MaxOf Opponent
     (CountOf (And [Macros.artifact, ControlledBy They]))
 
-||| Lhurgoyf -- "Lhurgoyf's power is equal to the number of creature cards in
-||| all graveyards and its toughness is equal to that number plus 1." The
-||| asymmetric definition as a telescope: the first slot names a number and
-||| the second reads it back.
-||| -- spelling: the bare graveyard zone prints "in all graveyards" here; the
-||| box is */1+*.
+||| Lhurgoyf
 public export
 lhurgoyfDefinition : Ability
 lhurgoyfDefinition =
@@ -11777,21 +10300,12 @@ lhurgoyfDefinition =
     , DefinesPt Macros.thisCreature ToughnessAlone
         (Plus ThatMuch (Lit 1)) ])
 
-||| Shapeshifter's printed box -- "*/7-*", the subtracted star at the
-||| toughness slot.
+||| Shapeshifter's printed box
 public export
 shapeshifterBox : PrintedBox
 shapeshifterBox = PtBox PrintedStar (PrintedMinusStar 7)
 
-||| Shapeshifter -- "As this creature enters, choose a number between 0 and
-||| 7. / At the beginning of your upkeep, you may choose a number between 0
-||| and 7. / Shapeshifter's power is equal to the last chosen number and its
-||| toughness is equal to 7 minus that number." The NON-ENTRY chooser's
-||| whole-card witness: the second chooser sits in an UPKEEP TRIGGER and the
-||| static two lines later reads it, so what the card wanted was the
-||| container carrying a choice across the ability boundary, not a second
-||| choice clause. The read is marked for the reason [CR#607.2d] marks it --
-||| two choosers of one sort stand, so no unmarked read could name either.
+||| Shapeshifter
 public export
 shapeshifter : Card
 shapeshifter =
@@ -11809,8 +10323,7 @@ shapeshifter =
                (Minus (Lit 7) ChosenNumber) ]) ]
        (Just shapeshifterBox)
 
-||| Multiple Choice, first arm -- "If X is 1, scry 1, then draw a card." The
-||| announced letter on a comparison's left, at the equality.
+||| Multiple Choice
 public export
 multipleChoiceFirstArm : Effect []
 multipleChoiceFirstArm =
@@ -11819,15 +10332,12 @@ multipleChoiceFirstArm =
                    , Macros.drawACard ])
      Nothing
 
-||| Multiple Choice, fourth arm -- "If X is 4 or more, do all of the above."
-||| The same left side at the ranged relation.
+||| Multiple Choice, fourth arm
 public export
 multipleChoiceFourthGate : Condition []
 multipleChoiceFourthGate = CompareAmt (LetterVal X) AtLeast (Lit 4)
 
-||| Fell the Mighty -- "Destroy all creatures with power greater than target
-||| creature's power." The announcing bound in the postnominal frame,
-||| threaded by `predDelta`.
+||| Fell the Mighty
 public export
 fellTheMighty : Effect []
 fellTheMighty =
@@ -11836,9 +10346,7 @@ fellTheMighty =
                  Compare [CharAxis Power] Greater
                          (Macros.powerOf (Macros.target Macros.creature))]))
 
-||| Birthing Pod -- "{1}{G/P}, {T}, Sacrifice a creature: Search your library
-||| for a creature card with mana value equal to 1 plus the sacrificed
-||| creature's mana value, …" The summed bound at the open bound column.
+||| Birthing Pod
 public export
 birthingPodSearch : Ability
 birthingPodSearch =
@@ -11855,13 +10363,8 @@ birthingPodSearch =
                                                 (TypeW Creature))))]))
 
 
--- ---------------------------------------------------------------------------
--- The ordinal occurrence word and the amount-ceilinged quantity.
--- ---------------------------------------------------------------------------
 
-||| Wavebreak Hippocamp -- "Whenever you cast your first spell during each
-||| opponent's turn, draw a card." The ordinal at the cast restriction,
-||| under the window that landed without it.
+||| Wavebreak Hippocamp
 public export
 wavebreakHippocamp : Ability
 wavebreakHippocamp =
@@ -11870,36 +10373,28 @@ wavebreakHippocamp =
     (DuringWindow Turn (Just EachOpponents))
     Macros.drawACard
 
-||| Midnight Clock's header -- "When the twelfth hour counter is put on this
-||| artifact, …" (the body shuffles hand and graveyard into the library, which
-||| is unbuilt, so the header is the witness).
+||| Midnight Clock
 public export
 midnightClockHeader : GameEvent []
 midnightClockHeader =
   NthOccurrence (Nth 12) Nothing
     (Macros.singleCounterEvent CounterPut Hour Macros.thisArtifact)
 
-||| Political Triumph -- "When the fourth plan counter is put on this
-||| enchantment, sacrifice it, draw a card, and put a +1/+1 counter on each
-||| creature you control." The plan-counter Saga family's header.
+||| Political Triumph
 public export
 politicalTriumphHeader : GameEvent []
 politicalTriumphHeader =
   NthOccurrence (Nth 4) Nothing
     (Macros.singleCounterEvent CounterPut Plan Macros.thisEnchantment)
 
-||| Run the Play (Striding Shotcaller's other half), first clause -- "Put a
-||| +1/+1 counter on each of up to X target creatures." The amount ceiling on
-||| a target group's quantity.
+||| Run the Play (Striding Shotcaller's other half)
 public export
 runThePlayCounters : Effect []
 runThePlayCounters =
   PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
               (EachOf (TargetGroup (UpToOf (LetterVal X)) Macros.creature))
 
-||| Berserker's Frenzy, the 1—14 striation -- "Choose any number of creatures.
-||| They block this turn if able." The counted choice the ticket lists as
-||| over-refused; `choosable (CountedGroup _ _ _)` already admits it.
+||| Berserker's Frenzy, the 1—14 striation
 public export
 berserkersFrenzyLowRoll : Effect []
 berserkersFrenzyLowRoll =
@@ -11908,26 +10403,17 @@ berserkersFrenzyLowRoll =
     , Continuously (Macros.deontic Them Require ["Block"] Agent NoDeonticPatient)
                    (Just Macros.thisTurn) ]
 
--- The split-determiner union read. A union mention is read back either
--- whole, by `thatJoin`, or one half at a time by the split read below; the
--- two spellings share one antecedent, and Searing Blaze writes both.
 
-||| "target player or planeswalker": the union head the split read is
-||| written over, and the context its noun witnesses are read in.
 public export
 targetPlayerOrPlaneswalker : Noun bs (Object \/ Player)
 targetPlayerOrPlaneswalker =
   Macros.target (Macros.kindJoin AnyPlayer (HasType Planeswalker))
 
-||| "target opponent or planeswalker": the same head with the player half
-||| described, which the split read's player arm does not echo.
 public export
 targetOpponentOrPlaneswalker : Noun bs (Object \/ Player)
 targetOpponentOrPlaneswalker =
   Macros.target (Macros.kindJoin Opponent (HasType Planeswalker))
 
-||| "each creature that player or that planeswalker's controller controls":
-||| the split read in the possessor slot of a description.
 public export
 eachCreatureThatSplitControls :
   {bs : Bindings} ->
@@ -11937,8 +10423,7 @@ eachCreatureThatSplitControls :
 eachCreatureThatSplitControls =
   Each (And [Macros.creature, ControlledBy (Macros.splitOverPlaneswalker {ck} {pk})])
 
-||| Lavalanche -- "deals X damage to target player or planeswalker and each
-||| creature that player or that planeswalker's controller controls."
+||| Lavalanche
 public export
 lavalanche : Effect []
 lavalanche =
@@ -11946,8 +10431,7 @@ lavalanche =
     [ DealDamage This (LetterVal X) Cards.targetPlayerOrPlaneswalker
     , DealDamage This (LetterVal X) Cards.eachCreatureThatSplitControls ]
 
-||| Flame Wave -- "deals 4 damage to target player or planeswalker and each
-||| creature that player or that planeswalker's controller controls."
+||| Flame Wave
 public export
 flameWave : Effect []
 flameWave =
@@ -11955,9 +10439,7 @@ flameWave =
     [ DealDamage This (Lit 4) Cards.targetPlayerOrPlaneswalker
     , DealDamage This (Lit 4) Cards.eachCreatureThatSplitControls ]
 
-||| Chandra Nalaar's ultimate -- "deals 10 damage to target player or
-||| planeswalker and each creature that player or that planeswalker's
-||| controller controls."
+||| Chandra Nalaar's ultimate
 public export
 chandraNalaarUltimate : Effect []
 chandraNalaarUltimate =
@@ -11965,9 +10447,7 @@ chandraNalaarUltimate =
     [ DealDamage This (Lit 10) Cards.targetPlayerOrPlaneswalker
     , DealDamage This (Lit 10) Cards.eachCreatureThatSplitControls ]
 
-||| Chandra, Pyrogenius's ultimate -- "deals 6 damage to target player or
-||| planeswalker and each creature that player or that planeswalker's
-||| controller controls."
+||| Chandra, Pyrogenius's ultimate
 public export
 chandraPyrogeniusUltimate : Effect []
 chandraPyrogeniusUltimate =
@@ -11975,9 +10455,7 @@ chandraPyrogeniusUltimate =
     [ DealDamage This (Lit 6) Cards.targetPlayerOrPlaneswalker
     , DealDamage This (Lit 6) Cards.eachCreatureThatSplitControls ]
 
-||| Bonfire of the Damned -- "deals X damage to target player or
-||| planeswalker and each creature that player or that planeswalker's
-||| controller controls." The miracle cost is the card's, not this clause's.
+||| Bonfire of the Damned
 public export
 bonfireOfTheDamned : Effect []
 bonfireOfTheDamned =
@@ -11985,9 +10463,7 @@ bonfireOfTheDamned =
     [ DealDamage This (LetterVal X) Cards.targetPlayerOrPlaneswalker
     , DealDamage This (LetterVal X) Cards.eachCreatureThatSplitControls ]
 
-||| Chandra's Fury -- "deals 4 damage to target player or planeswalker and 1
-||| damage to each creature that player or that planeswalker's controller
-||| controls." The two halves of the union take different amounts.
+||| Chandra's Fury
 public export
 chandrasFury : Effect []
 chandrasFury =
@@ -11995,10 +10471,7 @@ chandrasFury =
     [ DealDamage This (Lit 4) Cards.targetPlayerOrPlaneswalker
     , DealDamage This (Lit 1) Cards.eachCreatureThatSplitControls ]
 
-||| Heart of Bogardan's cumulative-upkeep trigger body -- "deals X damage to
-||| target player or planeswalker and each creature that player or that
-||| planeswalker's controller controls, where X is twice the number of age
-||| counters on this enchantment minus 2."
+||| Heart of Bogardan
 public export
 heartOfBogardanBody : Effect []
 heartOfBogardanBody =
@@ -12008,10 +10481,7 @@ heartOfBogardanBody =
         , DealDamage This (LetterVal X) Cards.eachCreatureThatSplitControls ]
     , Define X (Minus (Times 2 (CountersOn Age Macros.thisEnchantment)) (Lit 2)) ]
 
-||| Angrath, Minotaur Pirate's plus -- "Angrath deals 1 damage to target
-||| opponent or planeswalker and each creature that player or that
-||| planeswalker's controller controls." The player arm writes "player" over
-||| an antecedent that described the half as an opponent.
+||| Angrath, Minotaur Pirate's plus
 public export
 angrathMinotaurPirateBolt : Effect []
 angrathMinotaurPirateBolt =
@@ -12019,10 +10489,6 @@ angrathMinotaurPirateBolt =
     [ DealDamage This (Lit 1) Cards.targetOpponentOrPlaneswalker
     , DealDamage This (Lit 1) Cards.eachCreatureThatSplitControls ]
 
-||| Which of You Burns Brightest?'s body -- "this scheme deals X damage to
-||| target opponent or planeswalker and each creature that player or that
-||| planeswalker's controller controls." The {X} offer is the scheme
-||| trigger's, not this clause's.
 public export
 whichOfYouBurnsBrightestBody : Effect []
 whichOfYouBurnsBrightestBody =
@@ -12030,10 +10496,7 @@ whichOfYouBurnsBrightestBody =
     [ DealDamage This (LetterVal X) Cards.targetOpponentOrPlaneswalker
     , DealDamage This (LetterVal X) Cards.eachCreatureThatSplitControls ]
 
-||| Chandra, Pyromaster's plus -- "deals 1 damage to target player or
-||| planeswalker and 1 damage to up to one target creature that player or
-||| that planeswalker's controller controls." The split read describes a
-||| SECOND target rather than a group.
+||| Chandra, Pyromaster's plus
 public export
 chandraPyromasterBolt : Effect []
 chandraPyromasterBolt =
@@ -12044,9 +10507,7 @@ chandraPyromasterBolt =
                      (And [Macros.creature,
                            ControlledBy Macros.splitOverPlaneswalker])) ]
 
-||| Ravager of the Fells's transform trigger -- "deals 2 damage to target
-||| opponent or planeswalker and 2 damage to up to one target creature that
-||| player or that planeswalker's controller controls."
+||| Ravager of the Fells
 public export
 ravagerOfTheFellsBolt : Effect []
 ravagerOfTheFellsBolt =
@@ -12057,9 +10518,7 @@ ravagerOfTheFellsBolt =
                      (And [Macros.creature,
                            ControlledBy Macros.splitOverPlaneswalker])) ]
 
-||| Soul of Shandalar's battlefield activation -- "deals 3 damage to target
-||| player or planeswalker and 3 damage to up to one target creature that
-||| player or that planeswalker's controller controls."
+||| Soul of Shandalar's battlefield activation
 public export
 soulOfShandalarBolt : Effect []
 soulOfShandalarBolt =
@@ -12070,9 +10529,7 @@ soulOfShandalarBolt =
                      (And [Macros.creature,
                            ControlledBy Macros.splitOverPlaneswalker])) ]
 
-||| Soul of Shandalar's graveyard activation -- the same clause a second
-||| time, over the same union head; the card's two occurrences differ only
-||| in the ability's cost and source.
+||| Soul of Shandalar's graveyard activation
 public export
 soulOfShandalarGraveyardBolt : Effect []
 soulOfShandalarGraveyardBolt =
@@ -12083,10 +10540,7 @@ soulOfShandalarGraveyardBolt =
                      (And [Macros.creature,
                            ControlledBy Macros.splitOverPlaneswalker])) ]
 
-||| Blightning -- "deals 3 damage to target player or planeswalker. That
-||| player or that planeswalker's controller discards two cards." The split
-||| read in a clause's SUBJECT, where the group-A cards put it in a
-||| possessor.
+||| Blightning
 public export
 blightning : Effect []
 blightning =
@@ -12094,9 +10548,7 @@ blightning =
     [ DealDamage This (Lit 3) Cards.targetPlayerOrPlaneswalker
     , Repeated (Lit 2) (Macros.discardsACard Macros.splitOverPlaneswalker) ]
 
-||| Rakdos's Return -- "deals X damage to target opponent or planeswalker.
-||| That player or that planeswalker's controller discards X cards." The
-||| player arm writes "player" over an antecedent that said "opponent".
+||| Rakdos's Return
 public export
 rakdossReturn : Effect []
 rakdossReturn =
@@ -12104,9 +10556,7 @@ rakdossReturn =
     [ DealDamage This (LetterVal X) Cards.targetOpponentOrPlaneswalker
     , Repeated (LetterVal X) (Macros.discardsACard Macros.splitOverPlaneswalker) ]
 
-||| Nicol Bolas, Planeswalker's ultimate -- "deals 7 damage to target player
-||| or planeswalker. That player or that planeswalker's controller discards
-||| seven cards, then sacrifices seven permanents of their choice."
+||| Nicol Bolas, Planeswalker's ultimate
 public export
 nicolBolasUltimate : Effect []
 nicolBolasUltimate =
@@ -12116,10 +10566,7 @@ nicolBolasUltimate =
     , Repeated (Lit 7) (Macros.sacrifice Macros.splitOverPlaneswalker
                                          (Macros.a Permanent)) ]
 
-||| Pulse of the Forge -- "deals 4 damage to target player or planeswalker.
-||| Then if that player or that planeswalker's controller has more life than
-||| you, return Pulse of the Forge to its owner's hand." The split read as a
-||| comparison's subject.
+||| Pulse of the Forge
 public export
 pulseOfTheForge : Effect []
 pulseOfTheForge =
@@ -12130,10 +10577,7 @@ pulseOfTheForge =
          (Macros.move This Macros.handZ)
          Nothing ]
 
-||| Goblin Lyre's losing arm -- "this artifact deals damage to you equal to
-||| the number of creatures that opponent or that planeswalker's controller
-||| controls." The split read inside an amount, and the one occurrence whose
-||| player arm writes "opponent" rather than "player".
+||| Goblin Lyre's losing arm
 public export
 goblinLyreLoseFlip : Effect []
 goblinLyreLoseFlip =
@@ -12145,50 +10589,29 @@ goblinLyreLoseFlip =
                                 ControlledBy Macros.splitOverPlaneswalker]))
                  You ]
 
-||| Chain of Plasma's second sentence, subject only -- "Then that player or
-||| that permanent's controller may discard a card." The class arm over the
-||| class word [CR#115.4], which records no card type, so it writes the
-||| generic "permanent" instead of an echo. A `May` body cannot name its own
-||| decider once the decider is not `you`, so the offer is unwritten and the
-||| noun is witnessed in the context the first sentence leaves.
+||| Chain of Plasma
 public export
 chainOfPlasmaOfferee : Noun (nomIntro {bs = []} (Macros.target Macros.anyTarget)) Player
 chainOfPlasmaOfferee = Macros.splitOverPermanent
 
-||| Chain Lightning's second sentence, subject only -- "Then that player or
-||| that permanent's controller may pay {R}{R}." No effect row offers a bare
-||| cost payment, so the clause is unwritten; the noun is the same term over
-||| the same head as Chain of Plasma's.
+||| Chain Lightning
 public export
 chainLightningPayer : Noun (nomIntro {bs = []} (Macros.target Macros.anyTarget)) Player
 chainLightningPayer = Macros.splitOverPermanent
 
-||| Flames of the Blood Hand's third sentence, subject only -- "If that
-||| player or that planeswalker's controller would gain life this turn, that
-||| player gains no life instead." No row replaces a life gain over a span,
-||| so the clause is unwritten and the noun is witnessed in the context the
-||| card's first sentence leaves.
+||| Flames of the Blood Hand
 public export
 flamesOfTheBloodHandSubject :
   Noun (nomIntro {bs = []} Cards.targetPlayerOrPlaneswalker) Player
 flamesOfTheBloodHandSubject = Macros.splitOverPlaneswalker
 
-||| Flaming Gambit's second sentence, subject only -- "That player or that
-||| planeswalker's controller may choose a creature they control and have
-||| Flaming Gambit deal that damage to it instead." Neither the redirection
-||| nor an offer naming its own decider is written, so the noun is witnessed
-||| in the context the first sentence leaves.
+||| Flaming Gambit
 public export
 flamingGambitOfferee :
   Noun (nomIntro {bs = []} Cards.targetPlayerOrPlaneswalker) Player
 flamingGambitOfferee = Macros.splitOverPlaneswalker
 
-||| Quenchable Fire -- "deals 3 damage to target player or planeswalker. It
-||| deals an additional 3 damage to that player or planeswalker at the
-||| beginning of your next upkeep step unless that player or that
-||| planeswalker's controller pays {U} before that step." One union mention
-||| read BOTH ways in one sentence: `thatJoin` echoes it whole in the
-||| recipient slot and the split read names its halves in the payer slot.
+||| Quenchable Fire
 public export
 quenchableFire : Effect []
 quenchableFire =
@@ -12199,15 +10622,7 @@ quenchableFire =
                 Macros.splitOverPlaneswalker
                 (Mana [Macros.pip Blue])) ]
 
-||| Searing Blaze, both sentences -- "deals 1 damage to target player or
-||| planeswalker and 1 damage to target creature that player or that
-||| planeswalker's controller controls. Landfall — If you had a land enter
-||| the battlefield under your control this turn, … deals 3 damage to that
-||| player or planeswalker and 3 damage to that creature instead." The whole
-||| echo and the split read over ONE antecedent, which is what says the two
-||| spellings are one construction. The landfall CONDITION is unwritten: a
-||| replacement that applies only when a condition holds has no shape here,
-||| since an `If` around the replacement drops the clause it replaces.
+||| Searing Blaze, both sentences
 public export
 searingBlaze : Ability
 searingBlaze =
@@ -12223,10 +10638,7 @@ searingBlaze =
            [ DealDamage This (Lit 3) Macros.thatJoin
            , DealDamage This (Lit 3) (That (TypeW Creature)) ])))
 
-||| Thought Lash's trigger -- "When a player doesn't pay this enchantment's
-||| cumulative upkeep, that player exiles all cards from their library."
-||| The declined arm of `PaysCost`, whose announced payer the tail reads
-||| back.
+||| Thought Lash
 public export
 thoughtLashTrigger : Ability
 thoughtLashTrigger =
@@ -12235,24 +10647,13 @@ thoughtLashTrigger =
               "CumulativeUpkeep")
     (Macros.exiles (That PlayerW) (Each (InZone (Macros.libraryOf They))))
 
-||| Heart of Bogardan's header -- "When a player doesn't pay this
-||| enchantment's cumulative upkeep, …", the second carrier of the declined
-||| arm and the same event term Thought Lash writes. Its BODY is what does
-||| not write: "deals X damage to target player or planeswalker and each
-||| creature that player or that planeswalker's controller controls" needs
-||| the split read `splitOverPlaneswalker`, whose demonstrative may find
-||| only one singular player mention, and the header has already announced
-||| the non-payer. The card's blocker, not the row's.
+||| Heart of Bogardan
 public export
 heartOfBogardanHeader : GameEvent []
 heartOfBogardanHeader =
   PaysCost (Just (Macros.a AnyPlayer)) Unpaid Macros.thisEnchantment "CumulativeUpkeep"
 
-||| Heart of Bogardan, whole card. Its body writes now that the split
-||| read is gated on the union mention its two arms share rather than on
-||| each arm's word being unique in the whole prefix -- the header
-||| announces the non-payer, so "that player" had two singular player
-||| mentions to choose between and exactly one union to name a half of.
+||| Heart of Bogardan
 public export
 heartOfBogardan : Card
 heartOfBogardan =
@@ -12268,25 +10669,13 @@ heartOfBogardan =
               , Define X (Minus (Times 2 (CountersOn Age Macros.thisEnchantment)) (Lit 2)) ]) ]
        Nothing
 
-||| Balduvian Fallen's header -- "Whenever this creature's cumulative
-||| upkeep is paid, …", the passive voice: the cost is the surface subject
-||| and no payer is written, though [CR#702.24a] fixes one. Its BODY does
-||| not write: "it gets +1/+0 until end of turn for each {B} or {R} spent
-||| this way" counts the mana that paid the cost, and no phrase names mana
-||| by what it was spent on. The card's blocker, not the row's.
+||| Balduvian Fallen
 public export
 balduvianFallenHeader : GameEvent []
 balduvianFallenHeader =
   PaysCost Nothing Paid Macros.thisCreature "CumulativeUpkeep"
 
-||| Shah of Naar Isle -- "Trample / Echo {0} / When this creature's echo
-||| cost is paid, each opponent may draw up to three cards." The passive
-||| payment header over the second keyword whose parameter is a cost
-||| [CR#702.30a], and the ceiling draw: the `may` offers the action, the
-||| `UpTo` offers the number, and both belong to the opponent.
-||| The draw's subject is the MEMBER the offer is decided on, not the
-||| group: [CR#101.4] has each opponent choose separately and take their
-||| own ceiling, which is what `mayCtx`'s `agentIntro` seat binds.
+||| Shah of Naar Isle
 public export
 shahOfNaarIsle : Card
 shahOfNaarIsle =
@@ -12300,20 +10689,14 @@ shahOfNaarIsle =
                                       (Draw They (UpTo (Lit 3)))) ]
        (Just (6, 6))
 
-||| Font of Agonies -- "Whenever you pay life, put that many blood
-||| counters on this enchantment." The paid thing is a resource and not a
-||| named cost, and the payment carries the number [CR#119.4] that "that
-||| many" reads back.
+||| Font of Agonies
 public export
 fontOfAgoniesTrigger : Ability
 fontOfAgoniesTrigger =
   Macros.triggered Whenever (PaysLife You)
     (PutCounters ThatMuch (PrintedKind Blood) Macros.thisEnchantment)
 
-||| Hibernation's End's trigger -- "Whenever you pay this enchantment's
-||| cumulative upkeep, you may search your library for a creature card with
-||| mana value equal to the number of age counters on this enchantment, put
-||| it onto the battlefield, then shuffle." The paid arm.
+||| Hibernation's End
 public export
 hibernationsEndTrigger : Ability
 hibernationsEndTrigger =
@@ -12327,15 +10710,8 @@ hibernationsEndTrigger =
           , Macros.putOntoBattlefield (That CardW)
           , Macros.shuffle ]))
 
--- A paid optional cost read back later: the payment is state the object
--- carries [CR#707.2], the reading ability is linked to the offering one
--- [CR#607.2i], and the read names WHICH cost -- never a tag some clause
--- minted.
 
-||| Krosan Druid -- "Kicker {4}{G} / When this creature enters, if it was
-||| kicked, you gain 10 life." The cheapest whole card in the family: the
-||| keyword offers the cost [CR#702.33a] and the intervening-if reads
-||| back the declaration that made the spell kicked [CR#702.33d].
+||| Krosan Druid
 public export
 krosanDruid : Card
 krosanDruid =
@@ -12349,11 +10725,7 @@ krosanDruid =
            (Macros.gainsLife You (Lit 10)) ]
        (Just (2, 3))
 
-||| Lightkeeper of Emeria -- "Multikicker {W} / Flying / When this
-||| creature enters, you gain 2 life for each time it was kicked." The
-||| count read: [CR#702.33c] makes a multikicker cost a kicker cost, so
-||| the declaration writes the printed word and the read names the cost
-||| that was paid.
+||| Lightkeeper of Emeria
 public export
 lightkeeperOfEmeria : Card
 lightkeeperOfEmeria =
@@ -12367,10 +10739,7 @@ lightkeeperOfEmeria =
               (Times 2 (TimesPaid (ByKeyword "Kicker") Macros.thisCreature))) ]
        (Just (2, 4))
 
-||| Merfolk Falconer -- "Flying / Whenever you cast a kicked spell, scry
-||| 2." The same read inside a DESCRIPTION rather than on the source:
-||| "kicked" describes the spell that was cast, and nothing about the
-||| read changes when the object it is anchored to is someone else's.
+||| Merfolk Falconer
 public export
 merfolkFalconer : Card
 merfolkFalconer =
@@ -12384,10 +10753,7 @@ merfolkFalconer =
            (Macros.scry (Lit 2)) ]
        (Just (4, 4))
 
-||| Ertai's Trickery -- "Counter target spell if it was kicked." The
-||| whole card in one clause, and the read at its plainest: the object it
-||| describes is the spell the clause just targeted, not the source, so
-||| nothing about the read is tied to the text that carries it.
+||| Ertai's Trickery
 public export
 ertaisTrickery : Card
 ertaisTrickery =
@@ -12397,27 +10763,14 @@ ertaisTrickery =
                        (Matches It (PaidCost (ByKeyword "Kicker") Nothing)) Nothing) ]
        Nothing
 
-||| Baleful Mastery's paid read -- "If the {1}{B} cost was paid, an
-||| opponent draws a card." The unnamed arm: the card writes its
-||| alternative cost out [CR#118.9] instead of naming a keyword, so the
-||| read has nothing but "the card's own alternative cost" to sort by and
-||| the printed symbols are spelling. The rest of the card does not
-||| write -- "Exile target creature or planeswalker" needs a joined
-||| target the round did not open.
+||| Baleful Mastery's paid read
 public export
 balefulMasteryPaidRead : Ability
 balefulMasteryPaidRead =
   Spell (If (Matches This (PaidCost TheAlternative Nothing))
             (Draw (Macros.a Opponent) (Lit 1)) Nothing)
 
-||| Stormscape Battlemage's first kicker trigger -- "When this creature
-||| enters, if it was kicked with its {W} kicker, you gain 3 life."
-||| [CR#607.2i]'s own worked example, and the ordinal arm: the card
-||| declares "Kicker {W} and/or {2}{B}", which is two kicker abilities
-||| [CR#702.33b], and [CR#702.33f] fixes the printed cost in the read as
-||| naming the FIRST one listed. The rest of the card does not write --
-||| its second trigger destroys a creature that "can't be regenerated",
-||| whose regeneration ban is not this round's.
+||| Stormscape Battlemage
 public export
 stormscapeBattlemageFirstKicker : Ability
 stormscapeBattlemageFirstKicker =
@@ -12425,52 +10778,14 @@ stormscapeBattlemageFirstKicker =
     (Matches Macros.thisCreature (PaidCost (ByNthKeyword (Nth 1) "Kicker") Nothing))
     (Macros.gainsLife You (Lit 3))
 
-||| Karai, Future of the Foot's payment window -- "if her sneak cost was
-||| paid this turn". The corpus's ONE turn-scoped payment read, and the
-||| whole reason `PaidCost` has a window slot: every other read is
-||| timeless because the payment is casting state the object keeps
-||| [CR#707.2], and this one asks whether the casting was this turn.
-||| The rest of the card is not this row's -- its trigger returns a
-||| creature card from a graveyard to hand and this line replaces the
-||| destination.
+||| Karai, Future of the Foot
 public export
 karaiSneakPaidThisTurn : Predicate [] Object
 karaiSneakPaidThisTurn = PaidCost (ByKeyword "Sneak") (Just ThisTurn)
 
--- TWO PAYMENT READS THAT STILL DO NOT WRITE, with their exact blockers,
--- so no later round re-derives them:
---
--- * VERRAK, WARPED SENGIR -- "Whenever you activate an ability that
---   isn't a mana ability, IF LIFE WAS PAID to activate it, you may pay
---   that much life again." The corpus's one true life-payment readback.
---   Three things are wrong for `PaidCost`, not one: the read sorts by no
---   cost NAME (there is no keyword and no written alternative, so no
---   `PaidCostName` arm fits), it is anchored to an ABILITY where
---   `PaidCost` is a `Predicate bs Object`, and it reads back an AMOUNT
---   ("that much life") where `TimesPaid` reads a count of payments.
---   `PaysLife` is an event header and not a state read, so it does not
---   reach either.
---
--- * YIDARO, WANDERING MONSTER -- "If you've cycled a card named Yidaro,
---   Wandering Monster four or more times this game". Cycling is not a
---   keyword ACTION: [CR#702.29c] defines "when you cycle this card" as
---   discarding it "to pay an activation cost of a cycling ability", so
---   the count is a count of cost PAYMENTS. What refuses it is that the
---   count runs over payment EVENTS across every copy of a named card in
---   the game, where `TimesPaid` reads the state of ONE object as it was
---   cast [CR#118.10] and `EventCount`'s complement has no way to name a
---   keyword's cost. Adding a window to `TimesPaid` would not close it.
 
--- THE MODAL COST WORDS. Entwine [CR#702.42a] and escalate [CR#702.120a]
--- are additional costs a modal spell declares; both write ZERO readbacks
--- in the corpus, so the keyword line itself is the whole surface.
 
-||| Borrowed Malevolence, whole -- "Escalate {2} / Choose one or both —
-||| • Target creature gets +1/+1 until end of turn. • Target creature
-||| gets -1/-1 until end of turn." The escalate line beside the modal
-||| clause it prices; the LINKAGE between them -- and the per-mode
-||| multiplier [CR#702.120a] writes -- is still unspelled, and no card
-||| reads the payment back.
+||| Borrowed Malevolence
 public export
 borrowedMalevolence : Card
 borrowedMalevolence =
@@ -12488,14 +10803,7 @@ borrowedMalevolence =
                       (Just Macros.untilEndOfTurn) ]) ]
        Nothing
 
-||| Korlash's grandeur ability -- "Grandeur — Discard another card named
-||| Korlash, Heir to Blackblade: Search your library for up to two Swamp
-||| cards, put them onto the battlefield tapped, then shuffle." The
-||| grandeur discard cost's shape, 7 supported lines: the cost names a
-||| card by its own PRINTED NAME [CR#201.1] and excludes the object
-||| itself, which is `Named (PrintedName ...)` beside `Other` and needs
-||| nothing minted. Benched as the cost alone -- the body's
-||| search-and-put is not this row's.
+||| Korlash
 public export
 grandeurDiscardCost : Cost []
 grandeurDiscardCost =
@@ -12503,13 +10811,7 @@ grandeurDiscardCost =
         (Macros.a (And [Named (PrintedName "Korlash, Heir to Blackblade"),
                         OtherThan This, InZone Macros.handZ])))
 
-||| Invigorate, whole -- "If you control a Forest, rather than pay this
-||| spell's mana cost, you may have an opponent gain 3 life. / Target
-||| creature gets +4/+4 until end of turn." The one card whose declined
-||| cost is a life GAIN. It was recorded as blocked on `costActionOk`
-||| admitting only the loss; re-probed 2026-08-28, the cell reads
-||| `costActionOk (ChangeLife _ _) = True` and the card writes with
-||| nothing minted, so that record was stale.
+||| Invigorate
 public export
 invigorate : Card
 invigorate =
@@ -12527,15 +10829,7 @@ invigorate =
                   (Just Macros.untilEndOfTurn)) ]
        Nothing
 
-||| Deflecting Swat's first line -- "If you control a commander, you may
-||| cast this spell without paying its mana cost." One of the five
-||| commander-gated free spells the alternative-cost round left refused
-||| (with Fierce Guardianship, Deadly Rollick, Flawless Maneuver and
-||| Obscuring Haze). The blocker was never this row: it was that
-||| `CommanderD`'s scope is `HeldByCard` and no predicate read that
-||| scope. `HasCardDesignation` [CR#903.3] is that predicate, and with it
-||| the five write with nothing minted here. Their SECOND lines are
-||| separate business apiece.
+||| Deflecting Swat
 public export
 deflectingSwatCommanderAltCost : Ability
 deflectingSwatCommanderAltCost =
@@ -12543,11 +10837,7 @@ deflectingSwatCommanderAltCost =
             (Exists (And [HasCardDesignation CommanderD, ControlledBy You]))
             (AltCost This Nothing))
 
-||| Fist of Suns, whole -- `AltCost`'s SUBJECT slot, and the generic
-||| grant at its plainest: "You may pay {W}{U}{B}{R}{G} rather than pay
-||| the mana cost for spells you cast." The statement prices a described
-||| CLASS of spells rather than the object it is printed on, which is
-||| the one thing the row could not say before the slot landed.
+||| Fist of Suns
 public export
 fistOfSuns : Card
 fistOfSuns =
@@ -12559,10 +10849,7 @@ fistOfSuns =
                                 Macros.pip Green]))) ]
        Nothing
 
-||| Rooftop Storm, whole -- the same slot with the class NARROWED, "You
-||| may pay {0} rather than pay the mana cost for Zombie creature spells
-||| you cast." The subject is an ordinary description; nothing about the
-||| row changes when it gets one.
+||| Rooftop Storm
 public export
 rooftopStorm : Card
 rooftopStorm =
@@ -12575,13 +10862,7 @@ rooftopStorm =
                    (Just (Mana [Macros.generic 0]))) ]
        Nothing
 
-||| Heart of Kiran's third line -- the SAME slot at the ABILITY arm, and
-||| the non-mana declined cost with it. "You may remove a loyalty counter
-||| from a planeswalker you control rather than pay Heart of Kiran's crew
-||| cost." [CR#602.2b] extends the cost machinery to activation costs in
-||| one sentence, so an alternative cost may be offered for one; what the
-||| line declines is the crew ability's own cost [CR#702.122a], named the
-||| way `CostsToCast`'s equip discounts name theirs.
+||| Heart of Kiran
 public export
 heartOfKiranCrewAltCost : Ability
 heartOfKiranCrewAltCost =
@@ -12592,23 +10873,14 @@ heartOfKiranCrewAltCost =
                                       (Macros.a (And [HasType Planeswalker,
                                                       ControlledBy You]))))))
 
-||| New Perspectives' second line, the declined cost at a BARE keyword
-||| class -- "you may pay {0} rather than pay cycling costs". No
-||| restrictor at all, where Heart of Kiran's names one ability and the
-||| equip discounts name a targeted class; [CR#702.29a] makes cycling an
-||| activated ability, so the plural names every one of them.
+||| New Perspectives
 public export
 newPerspectivesCyclingAltCost : Ability
 newPerspectivesCyclingAltCost =
   Static (AltCost (AllOf (AbilityHead (KeywordClass "Cycling")))
             (Just (Mana [Macros.generic 0])))
 
-||| Thick-Skinned Goblin's first line -- the declined cost at a
-||| TRIGGERED keyword ability, "you may pay {0} rather than pay the echo
-||| cost for permanents you control". [CR#702.30a] makes echo an upkeep
-||| trigger whose sacrifice is averted by paying, so the cost the line
-||| declines is that trigger's and the subject is Training Grounds'
-||| shape at a different head.
+||| Thick-Skinned Goblin
 public export
 thickSkinnedGoblinEchoAltCost : Ability
 thickSkinnedGoblinEchoAltCost =
@@ -12617,15 +10889,8 @@ thickSkinnedGoblinEchoAltCost =
                                                        ControlledBy You])) ]))
             (Just (Mana [Macros.generic 0])))
 
--- THE FREE CAST OF ANOTHER CARD, 296 supported lines. [CR#118.9] lets an
--- effect license a cast "without paying its mana cost"; where the 16
--- self lines say it of the object the line is printed on -- which is
--- `AltCost This Nothing`, landed -- these say it of a card the clause has
--- picked out, so the licence and the spell being cast are two different
--- objects and the rider belongs on the permission.
 
-||| Memory Plunder, whole -- "You may cast target instant or sorcery card
-||| from an opponent's graveyard without paying its mana cost."
+||| Memory Plunder
 public export
 memoryPlunder : Card
 memoryPlunder =
@@ -12639,9 +10904,7 @@ memoryPlunder =
                   Nothing) ]
        Nothing
 
-||| Omniscience, whole -- "You may cast spells from your hand without
-||| paying their mana costs." The same rider on a STANDING permission
-||| rather than a resolving one, at the plural the card writes.
+||| Omniscience
 public export
 omniscience : Card
 omniscience =
@@ -12652,27 +10915,14 @@ omniscience =
                                         (Macros.handOf You)) ]
        Nothing
 
-||| Tranquil Frillback's offer -- "you may pay {G} up to three times."
-||| The capped half of `PayTimes`, and the family's one card that writes
-||| a bound; the reflexive trigger it seats chooses up to that many modes
-||| and is not this row's.
+||| Tranquil Frillback
 public export
 tranquilFrillbackOffer : Effect []
 tranquilFrillbackOffer =
   Macros.may You (Pay You (Mana [Macros.pip Green]) (UpToTimes 3))
 
--- THE WHERE-CLAUSE ON A KEYWORD'S NUMBER PARAMETER: the grant opens the
--- letter, the where-clause closes it. 4 supported lines write one, and
--- monstrosity's "{X}{X}{G}: Monstrosity X" is NOT among them --
--- [CR#701.37c] makes the value X had as the permanent became monstrous
--- a LINKED value the other abilities read, so nothing there is defined
--- afresh and no card writes "where X is" beside it.
 
-||| Fumiko the Lowblood's first line -- "Fumiko has bushido X, where X is
-||| the number of attacking creatures." [CR#702.45a] writes "Bushido N";
-||| the card puts a variable in the slot and defines it in the same
-||| statement, which is [CR#107.3f]'s "X appears in the text ... and the
-||| value is defined by the text".
+||| Fumiko the Lowblood
 public export
 fumikoBushidoX : Ability
 fumikoBushidoX =
@@ -12681,19 +10931,8 @@ fumikoBushidoX =
                              (Just (ParamNumber (LetterVal X))))
                   , Define X (CountOf Attacking) ])
 
--- THE REPEATED-PAYMENT OFFER: one payment offered a number of times
--- inside one resolution [CR#702.56a], and the reflexive trigger it seats
--- [CR#603.12a]. 6 supported cards -- the five Adversaries at "any number
--- of times" and Tranquil Frillback at "up to three times".
 
-||| Tainted Adversary's offer and its reflexive trigger -- "When this
-||| creature enters, you may pay {2}{B} any number of times. When you pay
-||| this cost one or more times, put that many +1/+1 counters on this
-||| creature." The count the repeated payment leaves is what "that many"
-||| reads, and [CR#603.12a] is why the trigger fires ONCE however many
-||| payments were made: the reflexive seat restates the offer rather than
-||| naming an iteration. (The card's second clause creates twice that
-||| many Zombie tokens with decayed and is not this row's.)
+||| Tainted Adversary
 public export
 taintedAdversaryOffer : Ability
 taintedAdversaryOffer =
@@ -12704,43 +10943,21 @@ taintedAdversaryOffer =
        (PutCounters ThatMuch (PrintedKind Macros.plusOnePlusOne)
                     Macros.thisCreature))
 
--- THE UN-KEYWORDED ADDITIONAL COST [CR#118.8], the row the 12 measured
--- "if this spell's additional cost was paid" lines were waiting on. 315
--- supported lines write the frame; 308 write it of THIS spell (260
--- mandatory, 48 under "you may"), and the other 7 name a class of
--- spells, which is the subject slot this row has none of.
 
-||| Voltage Surge's declaration -- "As an additional cost to cast this
-||| spell, you may sacrifice an artifact." The OFFERED half of the row
-||| [CR#118.8b], and the plainest cost in the family: 260 of the 308 self
-||| lines are mandatory and this is one of the 48 written with "you may".
+||| Voltage Surge's declaration
 public export
 voltageSurgeAddedCost : Ability
 voltageSurgeAddedCost =
   Static (AddedCost (Do (Macros.sacrifice You (Macros.a Macros.artifact))) True)
 
-||| Requiting Hex's read -- "If this spell's additional cost was paid,
-||| you gain 2 life." The fourth `PaidCostName` arm's witness: the read
-||| has no word to name, so it sorts by "the additional cost" exactly as
-||| Baleful Mastery's sorts by "the alternative" one. 12 supported lines
-||| write it. (The card's own additional cost is "you may blight 1", a
-||| keyword action this grammar has no word for; the two halves are
-||| benched apart for that reason and Voltage Surge above supplies the
-||| declaration.)
+||| Requiting Hex's read
 public export
 requitingHexAdditionalRead : Ability
 requitingHexAdditionalRead =
   Spell (If (Matches This (PaidCost TheAdditional Nothing))
             (Macros.gainsLife You (Lit 2)) Nothing)
 
-||| Burn at the Stake, WHOLE -- the cost-action stamp across the ability
-||| boundary. "As an additional cost to cast this spell, tap any number
-||| of untapped creatures you control. / Burn at the Stake deals damage
-||| to any target equal to three times the number of creatures tapped
-||| this way." The cost is an ACTION [CR#118.1], the action is a labelled
-||| keyword action that stamps what it tapped, and the spell ability
-||| re-mentions that group -- which it can now do because the additional
-||| cost exports its whole delta and not merely a chooser.
+||| Burn at the Stake
 public export
 burnAtTheStake : Card
 burnAtTheStake =
@@ -12755,14 +10972,7 @@ burnAtTheStake =
                            (Macros.target Macros.anyTarget)) ]
        Nothing
 
-||| Explosive Singularity, whole -- the SECOND reader of the same stamp,
-||| and the shape 12 supported lines share. "As an additional cost to
-||| cast this spell, you may tap any number of untapped creatures you
-||| control. This spell costs {1} less to cast for each creature tapped
-||| this way. / Explosive Singularity deals 10 damage to any target."
-||| The offered additional cost [CR#118.8b] and the reduction that counts
-||| what it did are two statements, and the second reads the first the
-||| way Burn at the Stake's damage line does.
+||| Explosive Singularity
 public export
 explosiveSingularity : Card
 explosiveSingularity =
@@ -12777,12 +10987,7 @@ explosiveSingularity =
        , Spell (DealDamage This (Lit 10) (Macros.target Macros.anyTarget)) ]
        Nothing
 
-||| Caller of the Hunt, whole -- "As an additional cost to cast this
-||| spell, choose a creature type. / Caller of the Hunt's power and
-||| toughness are each equal to the number of creatures of the chosen
-||| type on the battlefield." THE additional-cost chooser position: the
-||| choice is announced as the cost is paid [CR#118.8a,601.2b] and the
-||| defining ability reads it as [CR#607.2d]'s linked ability.
+||| Caller of the Hunt
 public export
 callerOfTheHunt : Card
 callerOfTheHunt =
@@ -12797,19 +11002,8 @@ callerOfTheHunt =
                                   OfChosen (SubtypeQ Creature)]))) ]
        (Just (PtBox PrintedStar PrintedStar))
 
--- The ALTERNATIVE-cost words read back the same way the additional-cost
--- ones do: [CR#607.2i] links the offering ability to the reading one and
--- the read names WHICH cost, so nothing about `PaidCost` changes when
--- the word offers a cost instead of adding one. What the four cards
--- below buy is the catalog rows -- prowl [CR#702.76a], surge
--- [CR#702.117a], spectacle [CR#702.137a] -- each a static ability on the
--- stack reading "You may pay [cost] rather than pay this spell's mana
--- cost if [something happened this turn]".
 
-||| Latchkey Faerie -- "Flying / Prowl {2}{U} / When this creature
-||| enters, if its prowl cost was paid, draw a card." The whole card, and
-||| the plainest alternative-cost readback there is: the keyword line
-||| offers the cost and the intervening-if reads back the declaration.
+||| Latchkey Faerie
 public export
 latchkeyFaerie : Card
 latchkeyFaerie =
@@ -12827,9 +11021,7 @@ latchkeyFaerie =
                         Compare [CharAxis ManaValue] AtMost (Lit 2)]) ]) ]
        (Just (3, 1))
 
-||| Tyrant of Valakut -- "Surge {3}{R}{R} / Flying / When this creature
-||| enters, if its surge cost was paid, it deals 3 damage to any target."
-||| One of Fall of the Titans' ten surge siblings, whole.
+||| Tyrant of Valakut
 public export
 tyrantOfValakut : Card
 tyrantOfValakut =
@@ -12845,8 +11037,7 @@ tyrantOfValakut =
                        (Macros.target Macros.anyTarget)) ]
        (Just (5, 4))
 
-||| Rafter Demon -- "Spectacle {3}{B}{R} / When this creature enters, if
-||| its spectacle cost was paid, each opponent discards a card." Whole.
+||| Rafter Demon
 public export
 rafterDemon : Card
 rafterDemon =
@@ -12860,17 +11051,7 @@ rafterDemon =
            (Macros.discardsACard (Each Opponent)) ]
        (Just (4, 2))
 
-||| Fall of the Titans -- "Surge {X}{R} / Fall of the Titans deals X
-||| damage to each of up to two targets." The payment test the round was
-||| scoped against, whole. Its X is the CARD's: the printed mana cost is
-||| {X}{X}{R}, so `costLetters` opens the letter before any line is read,
-||| and [CR#107.3a] gives the surge cost's X and the mana cost's X the
-||| one announced value ([CR#107.3i]: all instances of X on an object
-||| have the same value). So the keyword line's cost parameter reads a
-||| letter it does not have to bind, and no letter flows out of a keyword
-||| line -- `abIntro (KeywordAbility _ _) = bs` stands.
-||| The damage clause alone was already benched as `fallOfTheTitans`
-||| above; this is the whole card the surge row completes.
+||| Fall of the Titans
 public export
 fallOfTheTitansCard : Card
 fallOfTheTitansCard =
@@ -12882,14 +11063,8 @@ fallOfTheTitansCard =
                   (EachOf (TargetGroup (Macros.upTo 2) Macros.anyTarget))) ]
        Nothing
 
--- The choice frame that licenses a later read: a choice announced as the
--- effect applies [CR#608.2d] partitions the described set, and what it
--- leaves behind -- the unchosen members, the margin of a comparison it
--- carried -- is what the next clause names.
 
-||| Duneblast -- "Choose up to one creature. Destroy the rest." The choice
-||| is the partition: the creatures it did not pick are what "the rest"
-||| names, and no group mention stands between them and the phrase.
+||| Duneblast
 public export
 duneblast : Effect []
 duneblast =
@@ -12904,14 +11079,7 @@ duneblastCard =
               Macros.pip Green])
        [] (MkTypeLine [] [Sorcery]) [Spell Cards.duneblast] Nothing
 
-||| Celebrate the Harvest, whole -- "Search your library for up to X
-||| basic land cards, where X is the number of different powers among
-||| creatures you control. Put those cards onto the battlefield tapped,
-||| then shuffle." The COUNTED search: the count is the search clause's
-||| own slot, and what it announces is plural, so the destination
-||| sentence names the batch as "those cards". [CR#701.23e] keeps that
-||| sentence separate, which is why the search row carries no destination
-||| of its own.
+||| Celebrate the Harvest
 public export
 celebrateTheHarvest : Card
 celebrateTheHarvest =
@@ -12927,10 +11095,7 @@ celebrateTheHarvest =
                   , Macros.shuffle ]) ]
        Nothing
 
-||| Boreas Charger's description -- "an opponent who controls more lands
-||| than you". The member-relative comparison: the count on the left is
-||| taken on the opponent the phrase picks, the one on the right on the
-||| reader.
+||| Boreas Charger's description
 public export
 opponentWithMoreLands : Predicate [] Player
 opponentWithMoreLands =
@@ -12939,29 +11104,16 @@ opponentWithMoreLands =
     Greater
     (CountOf (And [Macros.land, ControlledBy You]))
 
-||| Boreas Charger's first clause -- "choose an opponent who controls more
-||| lands than you".
+||| Boreas Charger
 public export
 boreasChargerChoice : Effect []
 boreasChargerChoice = Macros.choose (Macros.a Cards.opponentWithMoreLands)
 
-||| ...and the margin that choice leaves readable, which is what the
-||| search clause spends as its count.
 public export
 boreasChargerDifference : Amount (effIntro Cards.boreasChargerChoice)
 boreasChargerDifference = TheDifference
 
-||| Boreas Charger's spell text, whole -- "choose an opponent who
-||| controls more lands than you. Search your library for a number of
-||| Plains cards equal to the difference, reveal those cards, put one of
-||| them onto the battlefield tapped and the rest into your hand, then
-||| shuffle." The counted search at its hardest: the count is an AMOUNT
-||| the earlier clause left readable, and the plural mention the search
-||| announces is what the three sentences after it partition -- "those
-||| cards", "one of them", "the rest".
-||| The printed trigger frame ("When this creature leaves the
-||| battlefield, …") is elided: `opponentWithMoreLands` reads its own
-||| domain member back as "they", which pins it to the empty prefix.
+||| Boreas Charger's spell text
 public export
 boreasChargerSpell : Effect []
 boreasChargerSpell =
@@ -12973,10 +11125,7 @@ boreasChargerSpell =
     , Macros.putOntoBattlefieldTapped (Macros.oneOf (Those CardW))
     , Macros.move TheRest Macros.handZ ]
 
-||| Sandstone Oracle, whole -- "When this creature enters, choose an
-||| opponent. If that player has more cards in hand than you, draw cards
-||| equal to the difference." Here the comparison is the condition's, and
-||| the choice's part is only what "that player" reads back.
+||| Sandstone Oracle
 public export
 sandstoneOracle : Card
 sandstoneOracle =
@@ -12993,8 +11142,7 @@ sandstoneOracle =
                    Nothing ]) ]
        (Just (4, 4))
 
-||| Slithermuse's trigger -- the same sentence off a leave-the-battlefield
-||| header. The whole card waits on evoke, which no keyword row writes.
+||| Slithermuse
 public export
 slithermuseTrigger : Ability
 slithermuseTrigger =
@@ -13007,17 +11155,8 @@ slithermuseTrigger =
             (Draw You TheDifference)
             Nothing ])
 
--- ---------------------------------------------------------------------------
--- The distinct-kind count
--- ---------------------------------------------------------------------------
 
-||| Tarmogoyf, whole definition line -- "Tarmogoyf's power is equal to the
-||| number of card types among cards in all graveyards and its toughness
-||| is equal to that number plus 1." The distinct-kind count at the
-||| definition's first slot; "all graveyards" is every player's own
-||| [CR#404.1], so the possessor is `AllPlayers` and not the bare zone.
-||| Barrowgoyf, Polygoyf, Pyrogoyf and Tarmogoyf Nest's token write the
-||| same line.
+||| Tarmogoyf
 public export
 tarmogoyfDefinition : Ability
 tarmogoyfDefinition =
@@ -13028,15 +11167,12 @@ tarmogoyfDefinition =
     , DefinesPt Macros.thisCreature ToughnessAlone
         (Plus ThatMuch (Lit 1)) ])
 
-||| Tarmogoyf's printed box -- "*/1+*".
+||| Tarmogoyf's printed box
 public export
 tarmogoyfBox : PrintedBox
 tarmogoyfBox = PtBox PrintedStar (PrintedStarPlus 1)
 
-||| Consuming Blob's definition -- "Consuming Blob's power is equal to the
-||| number of card types among cards in your graveyard and its toughness is
-||| equal to that number plus 1." The same line over ONE graveyard;
-||| Nethergoyf writes it too.
+||| Consuming Blob's definition
 public export
 consumingBlobDefinition : Ability
 consumingBlobDefinition =
@@ -13047,10 +11183,7 @@ consumingBlobDefinition =
     , DefinesPt Macros.thisCreature ToughnessAlone
         (Plus ThatMuch (Lit 1)) ])
 
-||| Nighthawk Scavenger's definition -- "Nighthawk Scavenger's power is
-||| equal to 1 plus the number of card types among cards in your
-||| opponents' graveyards." One slot, an offset count, and the possessor
-||| written on the zone.
+||| Nighthawk Scavenger's definition
 public export
 nighthawkScavengerDefinition : Ability
 nighthawkScavengerDefinition =
@@ -13059,8 +11192,7 @@ nighthawkScavengerDefinition =
           (DistinctCount CardTypeAxis
              (AllOf (InZone (Macros.graveyardOf (PlayerGroup YourOpponents)))))))
 
-||| Lucid Dreams, whole -- "Draw X cards, where X is the number of card
-||| types among cards in your graveyard."
+||| Lucid Dreams
 public export
 lucidDreams : Card
 lucidDreams =
@@ -13073,9 +11205,7 @@ lucidDreams =
                                 (AllOf (InZone (Macros.graveyardOf You)))) ]) ]
        Nothing
 
-||| Tribal Flames, whole -- "Domain — Tribal Flames deals X damage to any
-||| target, where X is the number of basic land types among lands you
-||| control." The subtype axis under its basic-only scope [CR#305.6].
+||| Tribal Flames
 public export
 tribalFlames : Card
 tribalFlames =
@@ -13090,10 +11220,7 @@ tribalFlames =
                                                 ControlledBy You]))) ])) ]
        Nothing
 
-||| Explosive Prodigy's trigger -- "Vivid — When this creature enters, it
-||| deals X damage to target creature an opponent controls, where X is the
-||| number of colors among permanents you control." The colour axis
-||| [CR#105.1].
+||| Explosive Prodigy
 public export
 explosiveProdigyTrigger : Ability
 explosiveProdigyTrigger =
@@ -13106,11 +11233,7 @@ explosiveProdigyTrigger =
           , Define X (DistinctCount ColorAxis
                         (AllOf (And [Permanent, ControlledBy You]))) ]))
 
-||| Korvold, Gleeful Glutton's combat trigger -- "Whenever Korvold deals
-||| combat damage to a player, put X +1/+1 counters on Korvold and draw X
-||| cards, where X is the number of permanent types among cards in your
-||| graveyard." The permanent-type axis [CR#110.4], a named six of
-||| [CR#205.2a]'s fifteen.
+||| Korvold, Gleeful Glutton
 public export
 korvoldCombatTrigger : Ability
 korvoldCombatTrigger =
@@ -13122,10 +11245,7 @@ korvoldCombatTrigger =
        , Define X (DistinctCount PermanentTypeAxis
                      (AllOf (InZone (Macros.graveyardOf You)))) ])
 
-||| General Tazri's pump -- "{W}{U}{B}{R}{G}: Ally creatures you control
-||| get +X/+X until end of turn, where X is the number of colors among
-||| those creatures." The domain is a MENTION here, which the one `Noun`
-||| slot takes as it takes a description.
+||| General Tazri's pump
 public export
 generalTazriPump : Ability
 generalTazriPump =
@@ -13140,12 +11260,7 @@ generalTazriPump =
                      (Just Macros.untilEndOfTurn)
        , Define X (DistinctCount ColorAxis (Those (TypeW Creature))) ])
 
-||| Bloom Tender's mana ability -- "Vivid — {T}: For each color among
-||| permanents you control, add one mana of that color." The distributive
-||| pass at the colour axis, and the reason it is not a counted
-||| iteration: "of that color" reads the value the pass bound, which a
-||| count discards. Faeburrow Elder's second line is the same ability
-||| without the ability word.
+||| Bloom Tender
 public export
 bloomTenderMana : Ability
 bloomTenderMana =
@@ -13155,10 +11270,7 @@ bloomTenderMana =
           (Just (AllOf (And [Permanent, ControlledBy You]))) Color
           (AddMana You (Lit 1) (OfChosenColor Nothing) [])))
 
-||| Faeburrow Elder's pump -- "This creature gets +1/+1 for each color
-||| among permanents you control." The SCALING reading of the same words
-||| as `bloomTenderMana`, on the same card: no pass and no bound value,
-||| the distinct count under `Times`.
+||| Faeburrow Elder's pump
 public export
 faeburrowElderPump : Ability
 faeburrowElderPump =
@@ -13168,10 +11280,7 @@ faeburrowElderPump =
                (PtUp (Times 1 (DistinctCount ColorAxis
                                  (AllOf (And [Permanent, ControlledBy You]))))))
 
-||| Tarnation Vista's second mana ability -- "{1}, {T}: For each color
-||| among monocolored permanents you control, add one mana of that
-||| color." The pass's domain narrowed by a predicate [CR#105.2a], which
-||| is where every restriction on these lines lives.
+||| Tarnation Vista
 public export
 tarnationVistaMana : Ability
 tarnationVistaMana =
@@ -13181,11 +11290,7 @@ tarnationVistaMana =
        (Just (AllOf (And [Permanent, Monocolored, ControlledBy You]))) Color
        (AddMana You (Lit 1) (OfChosenColor Nothing) []))
 
-||| Rogues' Gallery -- "For each color, return up to one target creature
-||| card of that color from your graveyard to your hand." The DOMAINLESS
-||| pass, whole: no group supplies the values, so it runs over
-||| [CR#105.1]'s five colours themselves. All Suns' Dawn writes the same
-||| sentence over cards rather than creature cards.
+||| Rogues' Gallery
 public export
 roguesGallery : Card
 roguesGallery =
@@ -13198,14 +11303,7 @@ roguesGallery =
                                Macros.handZ)) ]
        Nothing
 
-||| Celestial Judgment's pass -- "For each different power among creatures
-||| on the battlefield, choose a creature with that power." The value axis
-||| binding a NUMBER and the body reading it back: "with that power" is a
-||| comparison against the bound value, which is the amount seat, not
-||| [CR#109.3]'s object-side match `chosenQualityReadOk Number = False`
-||| still refuses. The sentence that follows it -- "Destroy each creature
-||| not chosen this way" -- wants a negated verb-stamped read and is not
-||| this cell.
+||| Celestial Judgment's pass
 public export
 celestialJudgmentPass : Effect []
 celestialJudgmentPass =
@@ -13213,10 +11311,7 @@ celestialJudgmentPass =
     (Macros.choose (Macros.a (And [Macros.creature,
                                    Compare [CharAxis Power] Eq ChosenNumber])))
 
-||| World Queller's upkeep trigger -- "you may choose a card type. If you
-||| do, each player sacrifices a permanent of their choice of that type."
-||| The card-type sort's read: "of that type" is [CR#109.3]'s
-||| characteristic on the permanent, which is why `OfChosen` takes it.
+||| World Queller
 public export
 worldQuellerChoice : Effect []
 worldQuellerChoice =
@@ -13224,12 +11319,7 @@ worldQuellerChoice =
               (Macros.sacrifice (Each AnyPlayer)
                  (Macros.aTheirChoice (And [Permanent, OfChosen CardTypeQ])))
 
-||| Niv-Mizzet, Guildpact's combat trigger -- "Whenever Niv-Mizzet deals
-||| combat damage to a player, it deals X damage to any target, target
-||| player draws X cards, and you gain X life, where X is the number of
-||| different color pairs among permanents you control that are exactly
-||| two colors." The pair axis [CR#105.5] with the restriction the card
-||| writes on its own domain.
+||| Niv-Mizzet, Guildpact
 public export
 nivMizzetGuildpactTrigger : Ability
 nivMizzetGuildpactTrigger =
@@ -13244,10 +11334,7 @@ nivMizzetGuildpactTrigger =
                      (AllOf (And [Permanent, ControlledBy You,
                                   ExactlyColors 2]))) ])
 
-||| Tourach, Dread Cantor's discard trigger -- "Whenever an opponent
-||| discards a card, put a +1/+1 counter on Tourach." The verbed event's
-||| active voice, and the family's cheapest whole line: the act is named
-||| by the verb [CR#701.9a] and the header announces its actor.
+||| Tourach, Dread Cantor
 public export
 tourachDiscardTrigger : Ability
 tourachDiscardTrigger =
@@ -13256,23 +11343,14 @@ tourachDiscardTrigger =
                  (Just (Macros.a (InZone Macros.handZ))) Nothing False)
     (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) Macros.thisCreature)
 
-||| All-Seeing Arbiter's header -- "Whenever you discard a card, …", the
-||| routed line that motivated the row. Its BODY does not write: "target
-||| creature an opponent controls gets -X/-0 until your next turn, where X
-||| is the number of different mana values among cards in your graveyard"
-||| needs the distinct-kind count over mana values, which is ledgered on
-||| `workbench-distinct-kind-count`. The card's blocker, not the row's.
+||| All-Seeing Arbiter
 public export
 allSeeingArbiterHeader : GameEvent []
 allSeeingArbiterHeader =
   VerbedEvent (Just You) "Discard" (Just (Macros.a (InZone Macros.handZ)))
               Nothing False
 
-||| Mirelurk Queen's mill trigger -- "Whenever one or more nonland cards
-||| are milled, draw a card, then put a +1/+1 counter on this creature.
-||| This ability triggers only once each turn." The verbed event's passive
-||| voice: [CR#701.17a] makes milling a player's act, and the printed line
-||| names no actor at all, so the patient is the surface subject.
+||| Mirelurk Queen
 public export
 mirelurkQueenTrigger : Ability
 mirelurkQueenTrigger =
@@ -13287,9 +11365,7 @@ mirelurkQueenTrigger =
                   , PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
                                 Macros.thisCreature ])
 
-||| Liliana's Caress -- "Whenever an opponent discards a card, that player
-||| loses 2 life." The round's whole card: the header is the verbed event
-||| entire and the body reads back the actor it announced.
+||| Liliana's Caress
 public export
 lilianasCaress : Card
 lilianasCaress =
@@ -13302,11 +11378,7 @@ lilianasCaress =
            (ChangeLife They (Down (Lit 2))) ]
        Nothing
 
-||| Scheming Aspirant -- "Whenever you proliferate, each opponent loses 2
-||| life and you gain 2 life." The verbed event over a PATIENTLESS act,
-||| and a whole card: [CR#701.34a] has proliferating choose its own
-||| permanents and players rather than take a patient from the clause
-||| that instructed it, so the header is the actor alone.
+||| Scheming Aspirant
 public export
 schemingAspirant : Card
 schemingAspirant =
@@ -13320,10 +11392,7 @@ schemingAspirant =
                          , Macros.gainsLife You (Lit 2) ]) ]
        (Just (1, 3))
 
-||| Reciprocate -- "Exile target creature that dealt damage to you this
-||| turn." The dealer-side damage read at its plainest, and the whole
-||| card: the described creature is what dealt the damage, "you" is what
-||| took it, and [CR#120.1] gives the dealing to the object alone.
+||| Reciprocate
 public export
 reciprocate : Card
 reciprocate =
@@ -13337,13 +11406,7 @@ reciprocate =
                                                       You]))) ]
        Nothing
 
-||| Whirling Dervish -- "Protection from black / At the beginning of each
-||| end step, if this creature dealt damage to an opponent this turn, put
-||| a +1/+1 counter on it." The same event in the CONDITION frame, and
-||| the other complement kind. The body writes the PRINTED "it": the
-||| intervening condition announces its own subject [CR#603.4], and the
-||| opponent it names is a player, so the pronoun has one object
-||| candidate. Dunerider Outlaw prints the same line word for word.
+||| Whirling Dervish
 public export
 whirlingDervish : Card
 whirlingDervish =
@@ -13357,10 +11420,7 @@ whirlingDervish =
            (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) It) ]
        (Just (1, 1))
 
-||| Military Intelligence -- "Whenever you attack with two or more
-||| creatures, draw a card." The player-subject attack's whole card, and
-||| the family's plainest member: the subject is the attacking player and
-||| the attackers are the complement [CR#508.3c].
+||| Military Intelligence
 public export
 militaryIntelligence : Card
 militaryIntelligence =
@@ -13376,12 +11436,7 @@ militaryIntelligence =
                         Compare [CharAxis ManaValue] AtMost (Lit 2)]) ]) ]
        Nothing
 
-||| Aurelia, the Law Above -- "Flying, vigilance, haste / Whenever a
-||| player attacks with three or more creatures, you draw a card. /
-||| Whenever a player attacks with five or more creatures, Aurelia deals
-||| 3 damage to each of your opponents and you gain 3 life." The subject
-||| written as a described player rather than "you", which is what makes
-||| the seat a player one and not a second spelling of `Attacks`.
+||| Aurelia, the Law Above
 public export
 aureliaTheLawAbove : Card
 aureliaTheLawAbove =
@@ -13402,30 +11457,14 @@ aureliaTheLawAbove =
                          , Macros.gainsLife You (Lit 3) ]) ]
        (Just (4, 4))
 
-||| Tahngarth, First Mate's header alone -- "Whenever an opponent attacks
-||| with one or more creatures". The routed line that motivated the row.
-||| Its TAIL does not write: "choose a player or planeswalker that
-||| opponent is attacking" needs a description of a defender by what
-||| attacks it, and "Tahngarth is attacking that player or planeswalker"
-||| an assignment of an attacker to one, both of which stayed on
-||| `workbench-combat-assignment-and-forced-attack`. The card's blockers,
-||| not the row's.
+||| Tahngarth
 public export
 tahngarthHeader : GameEvent []
 tahngarthHeader =
   AttacksWith Macros.anOpponent NoDefender
               (CountedGroup (Macros.atLeast 1) Nothing Macros.creature)
 
-||| Myth Unbound's header -- "Whenever your commander is put into the
-||| command zone from anywhere, draw a card." The command-zone row's
-||| witness: [CR#903.9a] and [CR#903.9b] both write the move as putting
-||| the card INTO the command zone, so `placementDestOk` has a value to
-||| admit where before it had none. The card's OTHER line, "your commander
-||| costs {1} less to cast for each time it's been cast from the command
-||| zone this game", does not write: it needs a cost-reduction static
-||| effect, of which the tree has none, and its passive names no caster
-||| where `EventCount` requires a subject noun. Commander's Insignia is
-||| the same family's active voice and does write.
+||| Myth Unbound
 public export
 mythUnboundTrigger : Ability
 mythUnboundTrigger =
@@ -13433,11 +11472,7 @@ mythUnboundTrigger =
     (Macros.putIntoFrom Macros.yourCommander Macros.commandZ FromAnywhere)
     Macros.drawACard
 
-||| Commander's Insignia -- "Creatures you control get +1/+1 for each time
-||| you've cast your commander from the command zone this game." The
-||| origin rider's whole card, and the largest family that reads one back:
-||| [CR#903.8]'s commander tax counts casts "from the command zone that
-||| game", and 21 supported lines write the count.
+||| Commander's Insignia
 public export
 commandersInsignia : Card
 commandersInsignia =
@@ -13453,11 +11488,7 @@ commandersInsignia =
                                (FromZone [Macros.commandZ])))) ]
        Nothing
 
-||| Jem Lightfoote, Sky Explorer -- "Flying, vigilance. At the beginning of
-||| your end step, if you haven't cast a spell from your hand this turn,
-||| draw a card." The origin rider away from the command zone: the same
-||| payload with the hand in it, and the cheapest of the seven supported
-||| lines that read a cast's origin without needing the new zone row.
+||| Jem Lightfoote, Sky Explorer
 public export
 jemLightfooteSkyExplorer : Card
 jemLightfooteSkyExplorer =
@@ -13476,18 +11507,8 @@ jemLightfooteSkyExplorer =
                         Compare [CharAxis ManaValue] AtMost (Lit 2)]) ]) ]
        (Just (3, 3))
 
--- ---------------------------------------------------------------------------
--- The placement's zone complement, and the negated origin
--- ---------------------------------------------------------------------------
 
-||| Faith's Reward, whole card -- "Return to the battlefield all permanent
-||| cards in your graveyard that were put there from the battlefield this
-||| turn." The placement complement's RELATIVE-CLAUSE reading, the
-||| family's largest: of the 50 supported instances of a placement read
-||| back over a window, 28 write the arrival zone as "there" and name it
-||| by the described noun's own zone. A complement that writes the origin
-||| alone is that reading, so the zone the clause does write is the one
-||| the row carries.
+||| Faith's Reward
 public export
 faithsReward : Card
 faithsReward =
@@ -13504,11 +11525,7 @@ faithsReward =
                   Macros.battlefieldZ) ]
        Nothing
 
-||| Ichor Shade, whole card -- "At the beginning of your end step, if an
-||| artifact or creature was put into a graveyard from the battlefield
-||| this turn, put a +1/+1 counter on this creature." The CONDITION
-||| reading, with both ends of the move written: the arrival zone outside
-||| and the origin nested in it, which is the order English writes them.
+||| Ichor Shade
 public export
 ichorShade : Card
 ichorShade =
@@ -13527,10 +11544,7 @@ ichorShade =
                         Macros.thisCreature) ]
        (Just (2, 3))
 
-||| Asmira, Holy Avenger, whole card -- "Flying. At the beginning of each
-||| end step, put a +1/+1 counter on Asmira for each creature put into
-||| your graveyard from the battlefield this turn." The COUNT reading of
-||| the same complement.
+||| Asmira, Holy Avenger
 public export
 asmiraHolyAvenger : Card
 asmiraHolyAvenger =
@@ -13549,17 +11563,7 @@ asmiraHolyAvenger =
                         Macros.thisCreature) ]
        (Just (2, 3))
 
-||| Syr Konrad, the Grim, whole card -- "Whenever another creature dies,
-||| or a creature card is put into a graveyard from anywhere other than
-||| the battlefield, or a creature card leaves your graveyard, Syr Konrad
-||| deals 1 damage to each opponent. {1}{B}: Each player mills a card."
-||| The corpus's only three-armed header whose tail reads nothing back,
-||| and the negated origin's whole-card witness: arm 2 is the phrase that
-||| names every zone but one, which the same `EventSource` carries at this
-||| prospective seat and at the retrospective one.
-||| The head of arm 2 is the type word where the printing writes "creature
-||| card": the vocabulary has no bare card word, and a head with no zone
-||| predicate is battlefield-sorted, which the unfixed origin lets pass.
+||| Syr Konrad, the Grim
 public export
 syrKonradTheGrim : Card
 syrKonradTheGrim =
@@ -13579,11 +11583,7 @@ syrKonradTheGrim =
            (Macros.mills (Each AnyPlayer) (Lit 1) (Each AnyPlayer)) ]
        (Just (5, 4))
 
-||| Oscorp Industries' second line -- "When this land enters from a
-||| graveyard, you lose 2 life." The entry origin's prospective seat: the
-||| "enters from" family is 13 supported lines, and this is its cheapest.
-||| The card is not whole -- its mana ability and its Mayhem keyword are
-||| both unbuilt -- so the line alone benches.
+||| Oscorp Industries
 public export
 oscorpIndustriesReturn : Ability
 oscorpIndustriesReturn =
@@ -13591,25 +11591,14 @@ oscorpIndustriesReturn =
     (Enters Macros.thisLand (Just (FromZone [Macros.graveyardZ])))
     (Macros.losesLife You (Lit 2))
 
-||| The Lost and the Damned's first header arm -- "Whenever a land you
-||| control enters from anywhere other than your hand". The negated origin
-||| at the ENTRY seat, the same `EventSource` Syr Konrad writes at the
-||| placement seat. The card is not whole: its second arm coordinates a
-||| cast with an entry, and its body creates a token.
 public export
 theLostAndTheDamnedEntryArm : GameEvent []
 theLostAndTheDamnedEntryArm =
   Enters (Macros.a (And [Macros.land, ControlledBy You]))
          (Just (FromAnywhereBut [Macros.handOf You]))
 
--- ---------------------------------------------------------------------------
--- The targeting relation, in both voices
--- ---------------------------------------------------------------------------
 
-||| Gnarlback Rhino, whole card -- "Whenever you cast a spell that targets
-||| this creature, draw a card." The targeting relative clause described
-||| side is the spell, and the card writes no ability word to get in the
-||| way of it.
+||| Gnarlback Rhino
 public export
 gnarlbackRhino : Card
 gnarlbackRhino =
@@ -13626,9 +11615,7 @@ gnarlbackRhino =
                         Compare [CharAxis ManaValue] AtMost (Lit 2)]) ]) ]
        (Just (4, 4))
 
-||| Forsaken Wastes's third ability -- "Whenever this enchantment becomes
-||| the target of a spell, that spell's controller loses 5 life." The
-||| event voice, with the targeter read back by its demonstrative.
+||| Forsaken Wastes
 public export
 forsakenWastesTargeted : Ability
 forsakenWastesTargeted =
@@ -13636,21 +11623,7 @@ forsakenWastesTargeted =
     (BecomesTarget Macros.thisEnchantment (Macros.a Macros.spell))
     (Macros.losesLife (ControllerOf (That SpellW)) (Lit 5))
 
-||| Fblthp, the Lost, whole -- "When Fblthp enters, draw a card. If it
-||| entered from your library or was cast from your library, draw two
-||| cards instead. / When Fblthp becomes the target of a spell, shuffle
-||| Fblthp into its owner's library."
-||| The two disjuncts are two different readings of one arrival and
-||| neither needs a new word now: "it entered from your library" is the
-||| windowless lookback `Triggering` [CR#603.2c], scoped to the entry the
-||| ability triggered on, and "was cast from your library" is the
-||| object's own casting history, agentless -- which `CastFrom` has
-||| always been, since [CR#601.2a] names the zone the card left without
-||| naming who moved it.
-||| The tail is a move whose destination names no position because the
-||| act that puts the card there randomizes the pile
-||| [CR#701.24a,701.24c]; the library is owner-rooted [CR#400.3], so the
-||| bare scope IS "its owner's".
+||| Fblthp, the Lost
 public export
 fblthp : Card
 fblthp =
@@ -13669,13 +11642,7 @@ fblthp =
            (Macros.shuffleInto This) ]
        (Just (1, 1))
 
-||| Squelch, whole card -- "Counter target activated ability. Draw a
-||| card." The ability TARGET: [CR#115.2] admits an object that can't
-||| exist on the battlefield, "such as a spell or ability", and the head
-||| picks WHICH abilities, since [CR#115.1c] gives the word "target" to
-||| an activated ability. The reminder "(Mana abilities can't be
-||| targeted.)" restates [CR#605.3b] -- a mana ability never reaches the
-||| stack -- and is not text the card writes.
+||| Squelch
 public export
 squelch : Card
 squelch =
@@ -13687,13 +11654,7 @@ squelch =
                   , Macros.drawACard ]) ]
        Nothing
 
-||| Diplomatic Escort's line -- "{U}, {T}, Discard a card: Counter target
-||| spell or ability that targets a creature." The joined targeter head
-||| with both halves: the object half is the spell [CR#112.1], the
-||| ability half the bare word [CR#115.2], and the relative clause
-||| describes the pair by what it targets -- [CR#115.9b]'s own "[spell or
-||| ability] that targets [something]", whose `Targeter` gate the join
-||| passes on [CR#115.1a] and [CR#115.1c,115.1d] together.
+||| Diplomatic Escort
 public export
 diplomaticEscortLine : Ability
 diplomaticEscortLine =
@@ -13705,13 +11666,7 @@ diplomaticEscortLine =
           (And [ Joined Macros.spell (AbilityHead AnyOnStack)
                , Targets (Macros.a Macros.creature) SomeTarget ])))
 
-||| Shimmering Glasskite, whole card -- "Whenever this creature becomes
-||| the target of a spell or ability for the first time each turn,
-||| counter that spell or ability." The coordinated anaphor: the header
-||| announces its targeter as ONE union mention [CR#115.1], and the body
-||| reads that mention back whole with the joined demonstrative rather
-||| than naming a half. Countering the read is [CR#701.6a] over both of
-||| the stack's inhabitants at once.
+||| Shimmering Glasskite
 public export
 shimmeringGlasskite : Card
 shimmeringGlasskite =
@@ -13726,14 +11681,7 @@ shimmeringGlasskite =
            (Macros.counterSpell (That AbilityJoinW)) ]
        (Just (2, 3))
 
-||| Frost Walker, whole card -- "When this creature becomes the target
-||| of a spell or ability, sacrifice it." The bare pronoun read at the
-||| carrier its verb demands: the header announces the targeting spell as
-||| well as the creature [CR#115.1], and [CR#701.21a] lets a player
-||| sacrifice only a permanent, so one of the two candidates is in the
-||| slot's carrier and the count is 1. 19 supported lines write this
-||| sentence; the other 18 differ only in the permanent word and in what
-||| rides beside it.
+||| Frost Walker
 public export
 frostWalker : Card
 frostWalker =
@@ -13746,12 +11694,7 @@ frostWalker =
            (Macros.sacrificeIt You) ]
        (Just (4, 1))
 
-||| Destructive Revelry, whole card -- "Destroy target artifact or
-||| enchantment. Destructive Revelry deals 2 damage to that permanent's
-||| controller." The permanent word after the zone change its own clause
-||| caused: [CR#110.1] stops the object being a permanent as it leaves the
-||| battlefield, and [CR#608.2h] is why the later clause still reads it --
-||| by last known information. 15 supported lines write this shape.
+||| Destructive Revelry
 public export
 destructiveRevelry : Card
 destructiveRevelry =
@@ -13762,18 +11705,13 @@ destructiveRevelry =
                   , DealDamage This (Lit 2) (ControllerOf (That PermanentW)) ]) ]
        Nothing
 
-||| Bioplasm's prefix at its second sentence -- "Whenever this creature
-||| attacks, exile the top card of your library. If it's a creature card,
-||| …". Two singular object mentions stand there.
+||| Bioplasm
 public export
 bioplasmAfterExile : Bindings
 bioplasmAfterExile =
   effIntro {bs = eventAfter {bs = []} (Attacks Macros.thisCreature NoDefender)}
            (Macros.exile Macros.topCard)
 
-||| ...which is why the bare pronoun is refused there and the card-carrier
-||| read is not: [CR#109.2] takes a description including the word "card"
-||| off the battlefield, and the attacking creature is on the battlefield.
 public export
 bioplasmTwoCandidates : countOnes Object Cards.bioplasmAfterExile = 2
 bioplasmTwoCandidates = Refl
@@ -13782,10 +11720,7 @@ public export
 bioplasmCardTest : Condition Cards.bioplasmAfterExile
 bioplasmCardTest = Macros.itsACard Macros.creature
 
-||| Fuming Effigy, whole card -- "Whenever one or more cards leave your
-||| graveyard, this creature deals 1 damage to each opponent." The
-||| leave-event off the battlefield, which [CR#603.10a] names beside the
-||| leaves-the-battlefield ability.
+||| Fuming Effigy
 public export
 fumingEffigy : Card
 fumingEffigy =
@@ -13799,11 +11734,6 @@ fumingEffigy =
            (DealDamage This (Lit 1) (Each Opponent)) ]
        (Just (4, 3))
 
-||| The Fallen's whole line -- "At the beginning of your upkeep, this
-||| creature deals 1 damage to each opponent and planeswalker it has
-||| dealt damage to this game." The victim-side lookback described at a
-||| JOINED kind: [CR#120.1] gives the damage to a player or a
-||| planeswalker alike, and one clause names both halves at once.
 public export
 theFallenUpkeep : Ability
 theFallenUpkeep =
@@ -13813,16 +11743,8 @@ theFallenUpkeep =
                   , HappenedTo DamageTaken ThisGame (Just (Involving This)) ])))
 
 
--- ---------------------------------------------------------------------------
--- The shuffle-into-library move
--- ---------------------------------------------------------------------------
 
-||| Loaming Shaman, whole card -- "When this creature enters, target
-||| player shuffles any number of target cards from their graveyard into
-||| their library." [CR#701.24d]'s own example: the set may turn out
-||| empty and the library is shuffled anyway, which is the rule's
-||| business and not the clause's, so the clause is the move and nothing
-||| more.
+||| Loaming Shaman
 public export
 loamingShaman : Card
 loamingShaman =
@@ -13835,11 +11757,7 @@ loamingShaman =
                  (InZone (Macros.graveyardOf They)))) ]
        (Just (3, 2))
 
-||| Blessed Respite's first line -- "Target player shuffles their
-||| graveyard into their library." The MASS form: [CR#400.12] reads an
-||| instruction given to a zone as the same instruction given to all the
-||| cards in it, so the zone word is spelling and the moved thing is the
-||| cards.
+||| Blessed Respite
 public export
 blessedRespiteShuffle : Effect []
 blessedRespiteShuffle =
@@ -13847,19 +11765,8 @@ blessedRespiteShuffle =
     (AllOf (InZone (Macros.graveyardOf They)))
 
 
--- ---------------------------------------------------------------------------
--- The replacement side of a create clause
--- ---------------------------------------------------------------------------
 
-||| Conqueror's Pledge, whole -- "Kicker {6} / Create six 1/1 white Kor
-||| Soldier creature tokens. If this spell was kicked, create twelve of
-||| those tokens instead." The DEFINITION CHANNEL at its plainest:
-||| [CR#614.6] makes the replaced creation never happen, so the tokens
-||| the first clause would have made are not objects the second clause
-||| can name -- but the characteristics it wrote are still written, and
-||| that definition [CR#111.3] is what "those tokens" reads. `replacedCtx`
-||| threads it: `deedDelta (Create ...)` mints the token-origin binding
-||| `countTokenSpecs` counts.
+||| Conqueror's Pledge
 public export
 conquerorsPledge : Card
 conquerorsPledge =
@@ -13876,15 +11783,7 @@ conquerorsPledge =
                       Nothing)) ]
        Nothing
 
-||| Prismari Pianist, whole -- "Whenever you cast an instant or sorcery
-||| spell, create a 1/1 blue and red Elemental creature token. If that
-||| spell's mana value is 5 or greater, create three of those tokens
-||| instead." The SINGULAR antecedent: one token was written, and one
-||| token defines characteristics exactly as a batch does, so the anaphor
-||| finds its definition. `countTokenSpecs` used to demand a plural
-||| antecedent and refused this line; Mr. House writes the other half of
-||| the same fact, the singular ANAPHOR ("instead create that token"),
-||| and waits on the coordination of two specifications.
+||| Prismari Pianist
 public export
 prismariPianist : Card
 prismariPianist =
@@ -13902,16 +11801,7 @@ prismariPianist =
                   Nothing)) ]
        (Just (2, 1))
 
-||| Moonlit Meditation, whole -- "Enchant artifact or creature you control
-||| / The first time you would create one or more tokens each turn, you
-||| may instead create that many tokens that are copies of enchanted
-||| permanent." The CAP on a standing replacement: [CR#614.3] says how
-||| long the effect lasts -- here as long as the Aura is on the
-||| battlefield -- and the rider says how OFTEN it may apply while it
-||| stands, which is the trigger rider's own word (`UsageLimit`) rather
-||| than a third `ReplUse` ending. Esix, Fractal Bloom and Mirrormind
-||| Crown write the same clause behind a chooser and an attachment
-||| condition.
+||| Moonlit Meditation
 public export
 moonlitMeditation : Card
 moonlitMeditation =
@@ -13929,22 +11819,14 @@ moonlitMeditation =
                    Repeatedly (Just OncePerTurn)) ]
        Nothing
 
-||| Damn's first line -- "Destroy target creature. A creature destroyed
-||| this way can't be regenerated." The PARTICIPLE subject of the rider,
-||| which needs the destruction's own stamp where the rider's subject is
-||| read: [CR#608.2c] reads the two sentences as one statement and takes
-||| this very shape as its worked example, so `riderIntro` writes the
-||| clause's label in place and the participle finds it. The rest of the
-||| card is elided: its overload cost has no word in this vocabulary.
+||| Damn
 public export
 damnDestroyLine : Effect []
 damnDestroyLine =
   CantBe (Macros.destroy (Macros.target Macros.creature))
          "Regenerate" (Macros.theVerbedThisWay "Destroy" (TypeW Creature))
 
-||| Nekrataal's trigger body reads its rider's subject here -- "When this
-||| creature enters, destroy target nonartifact, nonblack creature. That
-||| creature can't be regenerated."
+||| Nekrataal
 public export
 nekrataalRider : Bindings
 nekrataalRider =
@@ -13952,13 +11834,7 @@ nekrataalRider =
     (Macros.destroy (Macros.target
        (And [Macros.creature, Not Macros.artifact, Not (ColorIs Black)])))
 
-||| Two battlefield creatures stand there -- the one that entered and the
-||| one the trigger destroyed -- but only ONE of them is a creature the
-||| demonstrative can name: the entering creature is announced as the
-||| SOURCE, under `SelfD`, and the demonstrative noun words do not read a
-||| self-mention. So Nekrataal's printed "that creature" resolves, while
-||| the bare pronoun below still has two candidates -- which is why the
-||| printed rider spells the demonstrative and not "it".
+||| Two battlefield creatures stand there
 public export
 nekrataalOneCreatureWord : countWord (TypeW Creature) Cards.nekrataalRider = 1
 nekrataalOneCreatureWord = Refl
@@ -13967,15 +11843,10 @@ public export
 nekrataalTwoObjects : countOnes Object Cards.nekrataalRider = 2
 nekrataalTwoObjects = Refl
 
-||| ...and exactly one of them was DESTROYED, which is what the rider
-||| means and what neither of the other two reads can ask.
 public export
 nekrataalOneDestroyed : countVerbedIt "Destroy" Cards.nekrataalRider = 1
 nekrataalOneDestroyed = Refl
 
-||| ...so Nekrataal's printed rider writes as printed -- "When this
-||| creature enters, destroy target nonartifact, nonblack creature. That
-||| creature can't be regenerated."
 public export
 nekrataalWhole : Card
 nekrataalWhole =
@@ -13989,12 +11860,6 @@ nekrataalWhole =
                    "Regenerate" (That (TypeW Creature))) ]
        (Just (2, 1))
 
-||| "Sacrifice this artifact: Exile target creature. At the beginning of
-||| the next end step, return that card to the battlefield." The line
-||| `Proofs.badBareCardRead` refuses once the sacrificed half is a
-||| DESCRIBED creature: written with the source, the sacrificed card is
-||| announced under `SelfD`, which no demonstrative noun word reads, so
-||| "that card" has the exiled creature and nothing else.
 public export
 selfSacrificeThenExile : Ability
 selfSacrificeThenExile =
@@ -14005,13 +11870,6 @@ selfSacrificeThenExile =
                  (Move (That CardW) Macros.battlefieldZ
                        (MkMoveRiders [] Nothing Nothing)) ])
 
-||| The wrapper seam a rider is read at, in the smallest shape the
-||| printed family shares: a sentence of two clauses, the rider naming
-||| what the LAST one did. Harsh Mercy ("Each player chooses a creature
-||| type. Destroy all creatures that aren't of a type chosen this way.
-||| They can't be regenerated.") and Tsabo's Decree write it out;
-||| `riderIntro` recurses into the sequence rather than falling through
-||| to `preIntro`, which dropped the label at every wrapper.
 public export
 sequencedRider : Bindings
 sequencedRider =
@@ -14019,8 +11877,7 @@ sequencedRider =
     (Sequentially [ Macros.exile (Macros.target Macros.artifact)
                   , Macros.destroy (Macros.target Macros.creature) ])
 
-||| Exactly one mention carries the destroying label -- the sequence's
-||| last clause -- and the exiled artifact carries its own.
+||| Exactly one mention carries the destroying label
 public export
 sequencedRiderOneDestroyed : countVerbedIt "Destroy" Cards.sequencedRider = 1
 sequencedRiderOneDestroyed = Refl
@@ -14029,12 +11886,7 @@ public export
 sequencedRiderOneExiled : countVerbedIt "Exile" Cards.sequencedRider = 1
 sequencedRiderOneExiled = Refl
 
-||| Bonds of Faith's pump line -- "Enchanted creature gets +2/+2 as long
-||| as it's a Human." The POSTPOSED static conditional reading its own
-||| statement's subject: `staticIntro` announces the attachment's host, so
-||| the trailing condition says "it". The card's second sentence
-||| ("Otherwise, it can't attack or block.") is a second statement and is
-||| not this row's.
+||| Bonds of Faith
 public export
 bondsOfFaithPump : Ability
 bondsOfFaithPump =
@@ -14042,43 +11894,20 @@ bondsOfFaithPump =
             (Gets (AttachHost Enchanted (TypeW Creature)) (PtUp (Lit 2)) (PtUp (Lit 2)))
             (Matches It (HasSubtype (creatureType "Human"))))
 
-||| "Discard up to two cards, then draw that many cards" -- 21 supported
-||| occurrences, the commonest shape of the announced-magnitude family.
-||| The iterated-singular discard exports its passes' batch, and the draw
-||| reads that batch's size; the ceiling stays on the `UpTo` amount, where
-||| a bare-number ceiling belongs.
 public export
 discardUpToTwoThenDrawThatMany : Effect []
 discardUpToTwoThenDrawThatMany =
   Sequentially [ Macros.discardN (UpTo (Lit 2))
                , Draw You GroupSize ]
 
-||| Truce and Temporary Truce, WHOLE -- "Each player may draw up to two
-||| cards. For each card less than two a player draws this way, that
-||| player gains 2 life." 2 supported cards write it and they write it
-||| identically (re-measured 2026-09-02).
-||| The ceiling announces under [CR#608.2d] and `ShortOfCeiling` reads the
-||| half the announcer declined; the `may` offers the action and the
-||| `UpTo` the number, as on Shah of Naar Isle.
-||| The printed "that player" is the offer's MEMBER, and it stands in the
-||| sentence after the offer because `mayCtx` seats the body at
-||| `agentIntro`: the shortfall is one player's declined half and the life
-||| is paid to that same player, which is [CR#101.4]'s per-player choice
-||| read back. The earlier verdict here -- gain written over the group as
-||| "those players" -- was the seat's, not the card's, and both sentences
-||| now name the one member the printed text names.
+||| Truce and Temporary Truce
 public export
 drawUpToTwoThenGainPerShortfall : Effect []
 drawUpToTwoThenGainPerShortfall =
   Sequentially [ Macros.may (Each AnyPlayer) (Draw They (UpTo (Lit 2)))
                , Macros.gainsLife They (Times 2 ShortOfCeiling) ]
 
-||| Soul of Emancipation, whole -- "When this creature enters, destroy up
-||| to three other target nonland permanents. For each of those
-||| permanents, its controller creates a 3/3 white Angel creature token
-||| with flying." The loop MEMBER carries the group's stamp, so the body
-||| names it by the label that destroyed it; the trigger's own subject is
-||| announced under `SelfD` and is no candidate for that read.
+||| Soul of Emancipation
 public export
 soulOfEmancipation : Ability
 soulOfEmancipation =
@@ -14094,39 +11923,22 @@ soulOfEmancipation =
                                        [Macros.keyword "Flying"] Nothing))
                            []) ])
 
-||| Engulfing Flames' rider reads here -- "Engulfing Flames deals 1
-||| damage to target creature. It can't be regenerated this turn."
+||| Engulfing Flames
 public export
 engulfingFlamesRider : Bindings
 engulfingFlamesRider =
   riderIntro {bs = []} (DealDamage This (Lit 1) (Macros.target Macros.creature))
 
-||| A damage clause destroys nothing itself -- [CR#704.5g] destroys the
-||| lethally damaged creature as a state-based action, and regeneration
-||| replaces THAT event -- so no destroy stamp stands where the rider is
-||| read and the verb-scoped pronoun finds nothing.
 public export
 engulfingFlamesNoDestroyStamp :
   countVerbedIt "Destroy" Cards.engulfingFlamesRider = 0
 engulfingFlamesNoDestroyStamp = Refl
 
-||| The bare pronoun still resolves there, which is the overgeneration
-||| recorded at chapter 125 and re-measured here at 9 occurrences over 9
-||| cards, all of them carrying "this turn". It is NOT pinned:
-||| [CR#704.5g] says regeneration can replace the destruction lethal
-||| damage causes, and [CR#701.19c] makes the denial a shield-application
-||| denial, so a rider after a damage clause is rules-meaningful. What
-||| the round buys is that the distinction is now WRITABLE -- the 138
-||| attached riders name their own destroying label -- not that the
-||| unnamed form is refused.
 public export
 engulfingFlamesBareReadStands :
   countOnes Object Cards.engulfingFlamesRider = 1
 engulfingFlamesBareReadStands = Refl
 
-||| Bioplasm's exiled card, read back by the verb that exiled it. The
-||| CARD word resolves and so does the verb-scoped pronoun; what does not
-||| is the card's own spelling, "the exiled creature card".
 public export
 bioplasmExiledCard : Noun Cards.bioplasmAfterExile Object
 bioplasmExiledCard = Macros.theVerbed "Exile" CardW
@@ -14135,13 +11947,6 @@ public export
 bioplasmExiledPronoun : Noun Cards.bioplasmAfterExile Object
 bioplasmExiledPronoun = Macros.itVerbed "Exile"
 
-||| ...and the type word finds nothing, for TWO reasons and not the one
-||| sub-round A's close named. `verbedWordOk (TypeW t)` asks the stamp
-||| for `wasField`, which a card taken off a library never carries; and
-||| the mention records NO card type at all, because "the top card of
-||| your library" names none and the "if it's a creature card" test that
-||| follows does not re-mark the binding it tested. The second is an
-||| announcement question, not a provenance one.
 public export
 bioplasmNoTypedRead : countVerbed "Exile" (TypeW Creature) Cards.bioplasmAfterExile = 0
 bioplasmNoTypedRead = Refl
@@ -14150,10 +11955,6 @@ public export
 bioplasmExiledCardHasNoType : tyOfVerbedIt "Exile" Cards.bioplasmAfterExile = Nothing
 bioplasmExiledCardHasNoType = Refl
 
-||| ...until the test itself is read. "If it's a creature card" is a fact
-||| about the mention the clause before it exiled, and the consequent is
-||| typed at the prefix the test left MARKED, so the type the card had no
-||| word for stands there [CR#608.2c].
 public export
 bioplasmAfterTest : Bindings
 bioplasmAfterTest = condIntro Cards.bioplasmCardTest
@@ -14163,8 +11964,6 @@ bioplasmTestRemarksType :
   tyOfVerbedIt "Exile" Cards.bioplasmAfterTest = Just Creature
 bioplasmTestRemarksType = Refl
 
-||| ...and it re-marks and does not announce: the count the test's own
-||| subject read is the count the consequent reads.
 public export
 bioplasmTestMintsNothing : countOnes Object Cards.bioplasmAfterTest = 2
 bioplasmTestMintsNothing = Refl
@@ -14173,53 +11972,33 @@ public export
 bioplasmTestKeepsCardSlot : countOnesAt CardSlot Cards.bioplasmAfterTest = 1
 bioplasmTestKeepsCardSlot = Refl
 
-||| The participle read at a TYPE word is still refused, and the re-mark
-||| is not what refuses it: `verbedWordOk (TypeW t)` asks the stamp for
-||| `wasField`, and a card taken off a library carries none. That gate is
-||| RIGHT -- [CR#109.2] gives a bare type description the battlefield --
-||| so what was missing was never a looser `TypeW` but the other rule's
-||| word.
 public export
 bioplasmTypedReadStillRefused :
   countVerbed "Exile" (TypeW Creature) Cards.bioplasmAfterTest = 0
 bioplasmTypedReadStillRefused = Refl
 
-||| ...and "the exiled creature card" is that word: [CR#109.2a] reads a
-||| description carrying a card type AND the word "card" as a card
-||| matching it, which is what the exiled mention is. The re-mark is what
-||| supplies the type; the zone was always the exile the clause named.
 public export
 bioplasmTypedCardReadWrites :
   countVerbed "Exile" (TypedCardW Creature) Cards.bioplasmAfterTest = 1
 bioplasmTypedCardReadWrites = Refl
 
-||| Scapeshift's prefix after its first sentence -- "Sacrifice any number
-||| of lands." One group mention stands there, which is what lets the
-||| next sentence write "that many".
+||| Scapeshift
 public export
 scapeshiftSacrificed : Bindings
 scapeshiftSacrificed =
   effIntro {bs = []}
            (Macros.sacrifice You (CountedGroup Macros.anyNumber Nothing Macros.land))
 
-||| ...and after the search clause, where the pronoun is written. TWO
-||| group mentions stand: the lands the first sentence sacrificed and the
-||| cards the search found.
 public export
 scapeshiftAfterSearch : Bindings
 scapeshiftAfterSearch =
   effIntro {bs = Cards.scapeshiftSacrificed}
            (Macros.searchLibraryForCount (UpToOf GroupSize) Macros.land)
 
-||| ...so the bare plural pronoun is refused there.
 public export
 scapeshiftTwoGroups : countManys Object Cards.scapeshiftAfterSearch = 2
 scapeshiftTwoGroups = Refl
 
-||| ...and the label the search left is what picks one of them: the found
-||| cards carry the "Search" stamp [CR#701.23a] and the sacrificed lands
-||| carry "Sacrifice", so the verb-scoped group pronoun resolves where
-||| the bare one cannot.
 public export
 scapeshiftOneSearchedGroup : countVerbedThem "Search" Cards.scapeshiftAfterSearch = 1
 scapeshiftOneSearchedGroup = Refl
@@ -14229,12 +12008,7 @@ scapeshiftOneSacrificedGroup :
   countVerbedThem "Sacrifice" Cards.scapeshiftAfterSearch = 1
 scapeshiftOneSacrificedGroup = Refl
 
-||| Scapeshift, whole -- "Sacrifice any number of lands. Search your
-||| library for up to that many land cards, put them onto the battlefield
-||| tapped, then shuffle." The plural twin of the verb-scoped pronoun,
-||| written where `Them` counts two groups. The search's own stamp is
-||| also what keeps the found cards readable across the shuffle that
-||| follows [CR#701.24b].
+||| Scapeshift
 public export
 scapeshift : Card
 scapeshift =
@@ -14249,18 +12023,8 @@ scapeshift =
                   , Macros.shuffle ]) ]
        Nothing
 
---------------------------------------------------------------------------------
--- The partitive's second surface, the plural at-random determiner, and the
--- slice over a distributive possessor.
---------------------------------------------------------------------------------
 
-||| Collected Company -- "Look at the top six cards of your library. Put
-||| up to two creature cards with mana value 3 or less from among them
-||| onto the battlefield. Put the rest on the bottom of your library in
-||| any order." The described partitive whole: a count, a description of
-||| the SLICE, and the group an earlier clause named. The preposition is
-||| the only thing the description changes -- "of them" bare, "from among
-||| them" once a head noun stands between the count and the pronoun.
+||| Collected Company
 public export
 collectedCompany : Card
 collectedCompany =
@@ -14276,10 +12040,7 @@ collectedCompany =
            , Macros.move TheRest (Macros.onBottomIn AnyOrder) ]) ]
        Nothing
 
-||| Commune with the Gods -- "Reveal the top five cards of your library.
-||| You may put a creature or enchantment card from among them into your
-||| hand. Put the rest into your graveyard." The reveal arm of the same
-||| family, with a disjunctive description on the slice.
+||| Commune with the Gods
 public export
 communeWithTheGods : Card
 communeWithTheGods =
@@ -14294,16 +12055,7 @@ communeWithTheGods =
            , Macros.move TheRest Macros.graveyardZ ]) ]
        Nothing
 
-||| Tezzeret's Gatebreaker, whole -- "When this artifact enters, look at
-||| the top five cards of your library. You may reveal a blue or artifact
-||| card from among them and put it into your hand. Put the rest on the
-||| bottom of your library in a random order. / {5}{U}, {T}, Sacrifice
-||| this artifact: Creatures you control can't be blocked this turn."
-||| `communeWithTheGods`' partitive at the MIXED disjunction: a colour
-||| word standing beside a card-type one, both said of the "card" the
-||| slice already heads. The colour arm writes no head and presupposes
-||| no type, so it borrows the slice's -- `armPresupposes` is where that
-||| reading and its two rules are recorded.
+||| Tezzeret's Gatebreaker
 public export
 tezzeretsGatebreaker : Card
 tezzeretsGatebreaker =
@@ -14325,12 +12077,7 @@ tezzeretsGatebreaker =
                                  (Just Macros.thisTurn)) ]
        Nothing
 
-||| Soldevi Adnate, whole -- "{T}, Sacrifice a black or artifact
-||| creature: Add an amount of {B} equal to the sacrificed creature's
-||| mana value." The mixed disjunction at a COST's description, where
-||| `tezzeretsGatebreaker` writes it on a partitive slice: a colour word
-||| beside a card-type one, both said of the "creature" the phrase heads
-||| and neither of them heading it.
+||| Soldevi Adnate
 public export
 soldeviAdnate : Card
 soldeviAdnate =
@@ -14345,11 +12092,7 @@ soldeviAdnate =
                     (Runs [[OfColor Black]]) []) ]
        (Just (1, 1))
 
-||| Bind to Life, Vastlands Scavenger's adventure -- "Mill seven cards.
-||| Then put a creature card from among them onto the battlefield." The
-||| mill arm: the batch is the keyword action's own, and the bare group
-||| pronoun reads it. Benched as the line, not the card: the whole is an
-||| adventure face pair.
+||| Bind to Life, Vastlands Scavenger's adventure
 public export
 bindToLife : Effect []
 bindToLife =
@@ -14357,11 +12100,7 @@ bindToLife =
                , Macros.move (Macros.oneFromAmong Macros.creature Them)
                              Macros.battlefieldZ ]
 
-||| Glamdring, Foe-hammer's Gleam of Death -- "Mill six cards, then put
-||| all instant and sorcery cards from among them into your hand."
-||| `bindToLife`'s line at the UNIVERSAL count: the same partitive over
-||| the same bare group pronoun, with "all" where that one writes "a".
-||| 10 supported lines write this count position (measured 2026-09-02).
+||| Glamdring, Foe-hammer's Gleam of Death
 public export
 gleamOfDeath : Effect []
 gleamOfDeath =
@@ -14370,9 +12109,7 @@ gleamOfDeath =
                                 (Or [Macros.instant, Macros.sorcery]) Them)
                              Macros.handZ ]
 
-||| Tezzeret, Master of the Bridge -- "Put all artifact cards from among
-||| them onto the battlefield." The universal count with a bare
-||| single-type description, and a destination that is not the hand.
+||| Tezzeret, Master of the Bridge
 public export
 tezzeretAllArtifacts : Effect []
 tezzeretAllArtifacts =
@@ -14380,10 +12117,6 @@ tezzeretAllArtifacts =
                , Macros.move (Macros.allFromAmong Macros.artifact Them)
                              Macros.battlefieldZ ]
 
-||| The universal slice is written PLURAL and states no count, where the
-||| counted slice states both. Both facts are cells of `slicePlur` and
-||| `sliceExact`, and this is the pair that separates them: the same
-||| partitive, the same base, one count position apart.
 public export
 wholeSliceIsPluralAndUncounted :
   (nounPlur (SomeOf {bs = []} WholeSlice (Just Macros.artifact)
@@ -14391,10 +12124,6 @@ wholeSliceIsPluralAndUncounted :
    sliceExact (WholeSlice {bs = []})) = (ManyOf, Nothing)
 wholeSliceIsPluralAndUncounted = Refl
 
-||| The same partitive over the PARTICIPLE spelling of the same batch --
-||| "You may put an artifact card from among the cards milled this way
-||| into your hand" (Tomakul Scrapsmith). One group mention, three
-||| spellings: "them", "the milled cards", "the cards milled this way".
 public export
 millThenPutFromAmongMilled : Effect []
 millThenPutFromAmongMilled =
@@ -14404,13 +12133,7 @@ millThenPutFromAmongMilled =
                                    (Macros.thoseVerbedThisWay "Mill" CardW))
                                 Macros.handZ) ]
 
-||| Hymn to Tourach -- "Target player discards two cards at random."
-||| The plural at-random determiner: the count is the counted mention's
-||| and the mode rides beside it [CR#701.9b]. A plural `Indefinite` is
-||| not the alternative -- that constructor is singular by definition.
-||| Sort-only in the same way every discard line on this bench is: an
-||| owned-hand expansion needs a subject-read noun the vocabulary does
-||| not have yet.
+||| Hymn to Tourach
 public export
 hymnToTourach : Card
 hymnToTourach =
@@ -14421,11 +12144,7 @@ hymnToTourach =
                                                         (InZone Macros.handZ))) ]
        Nothing
 
-||| Tourach, Dread Cantor, whole -- "Kicker {B}{B} / Protection from
-||| white / Whenever an opponent discards a card, put a +1/+1 counter on
-||| Tourach. / When Tourach enters, if it was kicked, target opponent
-||| discards two cards at random." The card the plural at-random
-||| determiner was blocking: every other row it needs was already here.
+||| Tourach, Dread Cantor
 public export
 tourachDreadCantor : Card
 tourachDreadCantor =
@@ -14442,40 +12161,25 @@ tourachDreadCantor =
                                                     (InZone Macros.handZ))) ]
        (Just (2, 1))
 
-||| The slice over a distributive group possessor: [CR#400.1] gives each
-||| player their own library, so the phrase names one card in each and
-||| the ZONE word is what pluralises.
-||| It is NOT what Field of Dreams, Lantern of Insight and Wizened
-||| Snitches write, which this note used to say: "play with the top card
-||| of their libraries revealed" is the visibility RIDER, whose
-||| complement names the position and takes whose from the subject, and
-||| all three cards bench that way (`fieldOfDreams` below). The slice is
-||| the phrase an instruction names when it MOVES those cards.
 public export
 playersTopCardSlice : Noun [] Object
 playersTopCardSlice = LibrarySlice OnTop (Lit 1) (PlayerGroup AllPlayers)
 
-||| ...and the mention it writes is PLURAL, which is the whole of what
-||| the singular-possessor spelling could not say.
 public export
 playersTopCardIsPlural : nounPlur Cards.playersTopCardSlice = ManyOf
 playersTopCardIsPlural = Refl
 
-||| Breeches, Brazen Plunderer's slice -- "exile the top card of each of
-||| those opponents' libraries", the distributive partitive possessor
-||| over a group the header named.
+||| Breeches, Brazen Plunderer's slice
 public export
 eachOfThoseOpponentsTopCard : Effect []
 eachOfThoseOpponentsTopCard =
   Sequentially [ DealDamage This (Lit 1) (Each Opponent)
                , Macros.exile (LibrarySlice OnTop (Lit 1) (EachOf (Those PlayerW))) ]
 
-||| The context Collected Company's second clause reads.
 public export
 companyContext : Bindings
 companyContext = Macros.lookedTop [] (Lit 6)
 
-||| The described slice, and the bare one beside it.
 public export
 companyDescribedSlice : Noun Cards.companyContext Object
 companyDescribedSlice =
@@ -14487,11 +12191,6 @@ public export
 companyBareSlice : Noun Cards.companyContext Object
 companyBareSlice = Macros.someOf 2 Them
 
-||| What the description buys: the slice reads back as a CREATURE card.
-||| "The top six cards of your library" names no card type -- a library
-||| is hidden and a slice projects none -- so the bare partitive over it
-||| carries none either, and every later mention of the chosen cards
-||| would find an untyped batch.
 public export
 describedSliceReadsAsCreature : nounTy Cards.companyDescribedSlice = Just Creature
 describedSliceReadsAsCreature = Refl
@@ -14500,38 +12199,24 @@ public export
 bareSliceReadsUntyped : nounTy Cards.companyBareSlice = Nothing
 bareSliceReadsUntyped = Refl
 
-||| The slice stays where the GROUP is, whatever the description says:
-||| "from among them" fills the slot where [CR#109.2a] would otherwise
-||| read a zone name, and the description only tests the members.
 public export
 describedSliceKeepsGroupZone :
   nounZone Cards.companyDescribedSlice = nounZone Cards.companyBareSlice
 describedSliceKeepsGroupZone = Refl
 
-||| The at-random mode is orthogonal to the announcement: the counted
-||| mention binds the same way with the mode written and without, which
-||| is why the slot rides `CountedGroup` rather than replacing its
-||| determiner.
 public export
 atRandomModeIsAnnouncementNeutral :
   nounDelta (Macros.countedAtRandom {bs = []} (Macros.exactly 2) (InZone Macros.handZ))
     = nounDelta (CountedGroup {bs = []} (Macros.exactly 2) Nothing (InZone Macros.handZ))
 atRandomModeIsAnnouncementNeutral = Refl
 
-||| ...and it stays plural, which is what a mode-carrying `Indefinite`
-||| could not be.
 public export
 countedAtRandomIsPlural :
   nounPlur (Macros.countedAtRandom {bs = []} (Macros.exactly 2) (InZone Macros.handZ))
     = ManyOf
 countedAtRandomIsPlural = Refl
 
-||| Lord of the Void's body -- "exile the top seven cards of that
-||| player's library, then put a creature card from among them onto the
-||| battlefield under your control". The exile arm of the same family.
-||| Written here over your own library: the card's possessor read and its
-||| "under your control" rider are separate asks, and neither is what the
-||| partitive was blocking.
+||| Lord of the Void
 public export
 exileTopThenPutFromAmong : Effect []
 exileTopThenPutFromAmong =
@@ -14539,15 +12224,8 @@ exileTopThenPutFromAmong =
                , Macros.move (Macros.oneFromAmong Macros.creature Them)
                              Macros.battlefieldZ ]
 
---------------------------------------------------------------------------------
--- The self-reading counter row's multiplicative twin.
---------------------------------------------------------------------------------
 
-||| Vorel of the Hull Clade, whole -- "{G}{U}, {T}: Double the number of
-||| each kind of counter on target artifact, creature, or land." The
-||| MULTIPLICATIVE self-reading distributive at a single recipient: the
-||| permanent's own counters are both the kinds and the counts, and the
-||| clause names neither.
+||| Vorel of the Hull Clade
 public export
 vorelOfTheHullClade : Card
 vorelOfTheHullClade =
@@ -14560,48 +12238,25 @@ vorelOfTheHullClade =
               (Macros.target (Or [Macros.artifact, Macros.creature, Macros.land]))) ]
        (Just (1, 4))
 
-||| Deepglow Skate's recipient -- "any number of target permanents" --
-||| is refused here, and not by anything this row decided: `PerMember` is
-||| every counter row's gate, and a bare plural target group fails it
-||| exactly as it fails `PutCounters`'. The printed lines that distribute
-||| a counter operation over a group write the word ("on each of up to
-||| four target creatures"), and this one distributes without it. The
-||| measurement, recorded rather than worked around: of the eleven
-||| supported doubling lines, ten name a single recipient and this is
-||| the one that does not.
+||| Deepglow Skate's recipient
 public export
 deepglowSkateRecipientRefused :
   perMemberOk (TargetGroup {bs = []} Macros.anyNumber Permanent) = False
 deepglowSkateRecipientRefused = Refl
 
-||| Aetheric Amplifier's second mode -- "Double the number of each kind of
-||| counter you have". The player seat of the same row: [CR#122.1] places
-||| a counter on an object OR a player, so the doubling has kinds to
-||| range over at either seat and the union index is not a courtesy.
+||| Aetheric Amplifier
 public export
 doubleYourOwnCounters : Effect []
 doubleYourOwnCounters = DoubleCountersOfOwnKinds You
 
---------------------------------------------------------------------------------
--- The per-member event count inside `AggregateOver`'s binder body.
---------------------------------------------------------------------------------
 
-||| Thought Sponge's entry count -- "the greatest number of cards an
-||| opponent has drawn this turn". The element binder over a described
-||| domain, with an EVENT read in the body: the domain binds one opponent
-||| (`TheD`, `OneOf`) and the body names that member as `They`, which is
-||| exactly what `EventCount`'s subject slot takes. [CR#121.2] makes each
-||| draw its own event, so the number of cards a player drew is the
-||| number of drawing events with that player as subject.
+||| Thought Sponge
 public export
 greatestCardsAnOpponentDrew : Amount []
 greatestCardsAnOpponentDrew =
   AggregateOver MaxOf Opponent (Macros.eventCount CardDrawn They ThisTurn)
 
-||| Thought Sponge, whole -- "Flash / This creature enters with a number
-||| of +1/+1 counters on it equal to the greatest number of cards an
-||| opponent has drawn this turn. / When this creature dies, draw cards
-||| equal to its power."
+||| Thought Sponge
 public export
 thoughtSponge : Card
 thoughtSponge =
@@ -14614,12 +12269,6 @@ thoughtSponge =
                           (Draw You (StatOf Power Macros.thisCreature)) ]
        (Just (1, 1))
 
-||| The Windfall / Jace's Archivist cycle's read -- "the greatest number of
-||| cards a player discarded this way". The same binder body at a
-||| VERBED-ACT event and the "this way" window: what a labelled act did in
-||| this very resolution, per member. [CR#603.2c] makes a multi-card
-||| discard one event with several occurrences, which is why the count is
-||| written over the cards the act named rather than over the acts.
 public export
 greatestCardsAPlayerDiscardedThisWay : Amount []
 greatestCardsAPlayerDiscardedThisWay =
@@ -14627,13 +12276,7 @@ greatestCardsAPlayerDiscardedThisWay =
     (Macros.eventCountInvolving (VerbedAct "Discard") They ThisWay
        (AllOf {k = Object} (And [])))
 
---------------------------------------------------------------------------------
--- The plural read-back mention, measured.
---------------------------------------------------------------------------------
 
-||| The GROUP mention `Each` mints, unchanged: a plural set at `EachD
-||| ManyOf` and no singular member, which is what "those players" reads
-||| and what every clause naming the group as a patient still gets.
 public export
 eachPlayerBindsNoSingular : countOnes Player (nomIntro (Each {bs = []} AnyPlayer)) = 0
 eachPlayerBindsNoSingular = Refl
@@ -14642,16 +12285,6 @@ public export
 eachPlayerBindsAGroup : countManys Player (nomIntro (Each {bs = []} AnyPlayer)) = 1
 eachPlayerBindsAGroup = Refl
 
-||| ...and what a distributive OFFER hands its body instead. "Each player
-||| may scry 1" (Eager Construct) used to be unwritable because `mayCtx`
-||| took `nomIntro`, so the prefix a distributed body read held no
-||| singular player mention while every keyword action whose rule reads
-||| one player's own library gates on exactly that count ([CR#701.22a]'s
-||| scry, [CR#701.25a]'s surveil). `mayCtx` now takes the agent seat, as
-||| `Does` does, and the two counts swap: one member, no group. Both
-||| halves are pinned, because the second is what the choice COSTS -- a
-||| clause after a distributive offer can no longer say "those players",
-||| and 0 supported cards ask it to.
 public export
 eachPlayerOfferBindsOneMember :
   countOnes Player (mayCtx (Each {bs = []} AnyPlayer)) = 1
@@ -14662,58 +12295,36 @@ eachPlayerOfferDropsTheGroup :
   countManys Player (mayCtx (Each {bs = []} AnyPlayer)) = 0
 eachPlayerOfferDropsTheGroup = Refl
 
---------------------------------------------------------------------------------
--- The card's own cost letters, in the telescope its text elaborates against.
---------------------------------------------------------------------------------
 
-||| Prosperity -- "{X}{U} Sorcery: Each player draws X cards." The printed
-||| cost writes the variable symbol, so the face hands its text one letter
-||| already bound.
+||| Prosperity
 public export
 prosperityCostLetters :
   costLetters (Just [Variable, Macros.pip Blue]) = [letterB X]
 prosperityCostLetters = Refl
 
-||| ...and the text's "X" mints nothing of its own there: it READS the
-||| cost's letter, which is the whole content of [CR#107.3i] at this seat.
 public export
 prosperityTextReadsCostLetter :
   amtDelta (LetterVal X {bs = costLetters (Just [Variable, Macros.pip Blue])}) = []
 prosperityTextReadsCostLetter = Refl
 
-||| ...where the same "X" against the empty telescope the face used to hand
-||| it minted its OWN binding. Two letters where the card prints one; that
-||| is the gap the index closes.
 public export
 textAloneOnceMintedItsOwnLetter :
   amtDelta (LetterVal X {bs = []}) = [letterB X]
 textAloneOnceMintedItsOwnLetter = Refl
 
-||| A cost that writes no variable symbol hands its text the empty
-||| telescope, so every card that was writable before is writable
-||| unchanged.
 public export
 noVariableSymbolNoLetter :
   costLetters (Just [Macros.generic 1, Macros.pip Blue]) = []
 noVariableSymbolNoLetter = Refl
 
-||| ...and so does a face with no printed cost at all [CR#202.3a].
 public export
 noCostNoLetter : costLetters Nothing = []
 noCostNoLetter = Refl
 
 
 
---------------------------------------------------------------------------------
--- The ascription's last five subtype words, its self-antecedent pronoun,
--- and the linkage read written under a subtype word.
---------------------------------------------------------------------------------
 
-||| Debris Beetle's enters trigger -- "When this Vehicle enters, each
-||| opponent loses 3 life and you gain 3 life." The `Vehicle` word's
-||| witness: [CR#205.3c] hangs the word on its own card type and
-||| `ascriptionOk` reads it back, so naming it is writing it. The whole
-||| card waits on crew.
+||| Debris Beetle
 public export
 debrisBeetleTrigger : Ability
 debrisBeetleTrigger =
@@ -14721,12 +12332,7 @@ debrisBeetleTrigger =
     (Sequentially [ Macros.losesLife (Each Opponent) (Lit 3)
                   , Macros.gainsLife You (Lit 3) ])
 
-||| Nautiloid Ship's damage trigger -- "Whenever this Vehicle deals combat
-||| damage to a player, you may put a creature card exiled with this
-||| Vehicle onto the battlefield under your control." The linkage note
-||| [CR#406.6] read at a SUBTYPE word: the note hangs on the object, and
-||| which of its own type words named it is spelling. The whole card waits
-||| on crew.
+||| Nautiloid Ship
 public export
 nautiloidShipTrigger : Ability
 nautiloidShipTrigger =
@@ -14736,15 +12342,7 @@ nautiloidShipTrigger =
        (Macros.putOntoBattlefieldUnderYourControl
           (Macros.a (And [Macros.creature, ExiledWith Macros.thisVehicle]))))
 
-||| Summon: Esper Valigarmanda's II/III/IV body, in part -- "You may cast
-||| an instant or sorcery card exiled with this Saga, and mana of any
-||| type can be spent to cast that spell." The Saga word was already
-||| rowed; only the linkage cell was shut, and this is the first of the
-||| six supported lines it was shutting. The clause beside it now writes
-||| too, at the SPEND deed: [CR#118.14] makes "mana of any type can be
-||| spent" the same permission as "you may spend mana as though it were",
-||| so the passive is spelling and this is the same row Rogue Class
-||| writes actively.
+||| Summon: Esper Valigarmanda's II/III/IV body, in part
 public export
 summonEsperValigarmandaCast : StaticEffect []
 summonEsperValigarmandaCast =
@@ -14756,15 +12354,7 @@ summonEsperValigarmandaCast =
               (Just (ToCast (And [Macros.instantOrSorcery,
                                   ExiledWith Macros.thisSaga]))) ]
 
-||| Roads Go Ever, Ever On's chapters II and III -- "Put a card exiled
-||| with this Saga into its owner's hand." The linkage read at the move's
-||| SUBJECT, and the POSSESSED-ZONE destination's witness.
-||| -- spelling: the destination is the BARE hand zone. "Its owner's
-||| hand" needs no possessor on the zone: [CR#400.3] routes a moved card
-||| to its owner's corresponding zone regardless of what the sentence
-||| says, so the bare zone IS the owner-rooted destination -- the same
-||| ruling Blight Herder's plural "their owners' graveyards" and Obelisk
-||| of Undoing's singular "its owner's hand" already write.
+||| Roads Go Ever, Ever On's chapters II and III
 public export
 roadsGoEverEverOnChapters : Ability
 roadsGoEverEverOnChapters =
@@ -14772,17 +12362,7 @@ roadsGoEverEverOnChapters =
     (Macros.move (Macros.a (And [IsCard, ExiledWith Macros.thisSaga]))
                  Macros.handZ)
 
-||| Rogue Class's level-3 body -- "You may play cards exiled with this
-||| Class, and you may spend mana as though it were mana of any color to
-||| cast those spells." Both conjuncts now: the play permission and
-||| [CR#609.4b]'s payment permission beside it. The level machinery is
-||| what the whole card still waits on.
-|||
-||| The purpose is written as the description rather than as "those
-||| spells": `SpendPurpose.ToCast` takes a `Predicate`, which describes
-||| and points at nothing, so an anaphoric purpose has no spelling here.
-||| It names the same set, and the anaphor is this round's recorded gap
-||| on the slot -- most of the 83 sentences write one.
+||| Rogue Class's level-3 body
 public export
 rogueClassLevelThree : StaticEffect []
 rogueClassLevelThree =
@@ -14790,26 +12370,20 @@ rogueClassLevelThree =
           , Macros.maySpendAsThough You Nothing MatchAnyColor
               (Just (ToCast (ExiledWith Macros.thisClass))) ]
 
-||| Wurmwall Sweeper's enters trigger -- "When this Spacecraft enters,
-||| surveil 2." The `Spacecraft` word's witness; the whole card waits on
-||| station.
+||| Wurmwall Sweeper
 public export
 wurmwallSweeperTrigger : Ability
 wurmwallSweeperTrigger =
   Macros.triggered When (Enters Macros.thisSpacecraft Nothing) (Macros.surveil (Lit 2))
 
-||| Case of the Crimson Pulse's enters trigger -- "When this Case enters,
-||| discard a card, then draw two cards." The `Case` word's witness; the
-||| whole card waits on the to-solve/solved clauses.
+||| Case of the Crimson Pulse
 public export
 caseOfTheCrimsonPulseTrigger : Ability
 caseOfTheCrimsonPulseTrigger =
   Macros.triggered When (Enters Macros.thisCase Nothing)
     (Sequentially [Macros.discardsACard You, Macros.drawCards 2])
 
-||| Ferocious Pup, whole -- "When this creature enters, create a 2/2 green
-||| Wolf creature token." The `Wolf` word, on the type line and on the
-||| token, for the row Arlinn, Voice of the Pack asked for.
+||| Ferocious Pup
 public export
 ferociousPup : Card
 ferociousPup =
@@ -14819,8 +12393,7 @@ ferociousPup =
            (Macros.create (Lit 1) (Macros.creatureTok 2 2 [Green] [creatureType "Wolf"])) ]
        (Just (0, 1))
 
-||| Talrand's Invocation -- "Create two 2/2 blue Drake creature tokens
-||| with flying." The `Drake` word, for the row Flailing Drake asked for.
+||| Talrand's Invocation
 public export
 talrandsInvocation : Effect []
 talrandsInvocation =
@@ -14828,13 +12401,7 @@ talrandsInvocation =
     (MkToken (Just (Lit 2 ** Lit 2)) [Blue] (MkTypeLine [creatureType "Drake"] [Creature])
              [Macros.keyword "Flying"] Nothing)
 
-||| Predatory Wurm, whole -- "Vigilance / This creature gets +2/+2 as long
-||| as you control a Garruk planeswalker." The `Garruk` word, read as a
-||| DESCRIPTION rather than off a type line: [CR#109.2] reads a
-||| description naming a card type or subtype onto the battlefield, so a
-||| card may name the planeswalker set without being in it. Garruk
-||| Relentless's own front-face state trigger is `garrukRelentlessFlip`
-||| below; the state-trigger machinery it waited on is landed.
+||| Predatory Wurm
 public export
 predatoryWurm : Card
 predatoryWurm =
@@ -14846,17 +12413,7 @@ predatoryWurm =
                    (Gets Macros.thisCreature (PtUp (Lit 2)) (PtUp (Lit 2)))) ]
        (Just (4, 4))
 
-||| Skeleton Ship, whole -- "When you control no Islands, sacrifice
-||| Skeleton Ship. / {T}: Put a -1/-1 counter on target creature." The
-||| STATE TRIGGER [CR#603.8] at its commonest carrier: the landhome
-||| sacrifice, 13 of the 35 supported state-trigger lines. The header
-||| names no event and no moment -- [CR#603.8] has the ability trigger
-||| "as soon as the game state matches the condition" -- so what sits
-||| before the comma is a `Condition` and the row that carries it is
-||| `StateHolds`.
-||| The condition is the negated existence the printed words spell:
-||| "no Islands" is not a counter word here but the absence of a
-||| description, which `NotCond` over `Exists` is.
+||| Skeleton Ship
 public export
 skeletonShip : Card
 skeletonShip =
@@ -14874,15 +12431,7 @@ skeletonShip =
                         (Macros.target Macros.creature)) ]
        (Just (0, 3))
 
-||| Garruk Relentless's front-face flip trigger -- "When Garruk has two
-||| or fewer loyalty counters on him, transform him." The state trigger
-||| over a COUNTER COUNT, which is the one supported line reading a
-||| loyalty state that way and the reason this card was the transform
-||| round's last blocker. The whole card is `garrukRelentless` once the
-||| back face's "reveal it" has a carrier.
-||| The header announces nothing -- a condition names no referent -- so
-||| "him" is the source's own deixis and not a mention threaded out of
-||| the clause before it.
+||| Garruk Relentless
 public export
 garrukRelentlessFlip : Ability
 garrukRelentlessFlip =
@@ -14892,30 +12441,14 @@ garrukRelentlessFlip =
                 (CounterCompare (Just LoyaltyCounter) AtMost (Lit 2))))
     (Macros.transform Macros.thisPlaneswalker)
 
-||| Soul Ransom's ransom clause -- "This Aura's controller sacrifices it,
-||| then draws two cards." The SELF-ANTECEDENT pronoun. A possessive
-||| already announces whatever its base announces, so "target creature's
-||| controller … it" has always written; a deictic base announced nothing
-||| only because deixis has no `nounDelta`. The possessive now threads
-||| `selfSubjDelta`, which mints at `SelfD` -- the determiner "it" reads
-||| and the demonstrative words do not -- so the ascription is the
-||| sacrifice slot's one candidate at the permanent carrier
-||| [CR#109.2,701.21a] and the clause writes. The whole card is
-||| `soulRansom` below, since the activation restriction it waited on
-||| now has its seat.
+||| Soul Ransom
 public export
 soulRansomRansom : Effect []
 soulRansomRansom =
   Sequentially [ Macros.sacrificeIt (ControllerOf Macros.thisAura)
                , Draw They (Lit 2) ]
 
-||| Soul Ransom, whole -- the ransom clause with the activation
-||| restriction that was holding it. "Only your opponents may activate
-||| this ability" is [CR#602.2]'s own exception written out: the rule
-||| gives an activated ability to its object's controller alone "unless
-||| the object specifically says otherwise", so the restriction is a slot
-||| on the ability beside its window and its usage limit, and not a
-||| second statement about it.
+||| Soul Ransom
 public export
 soulRansom : Card
 soulRansom =
@@ -14930,37 +12463,23 @@ soulRansom =
            (PlayerGroup YourOpponents) ]
        Nothing
 
-||| ...and the announcement it rests on, measured. The ascription under
-||| the possessive is one candidate at the sacrifice slot's carrier.
 public export
 possessiveDeicticIsReadableByIt :
   countOnesAt PermanentSlot (nomIntro (ControllerOf (Macros.thisAura {bs = []}))) = 1
 possessiveDeicticIsReadableByIt = Refl
 
-||| ...while the demonstrative noun words still find nothing there:
-||| `SelfD` is what "it" reads and what "that enchantment" does not, so
-||| opening the possessive costs no demonstrative its resolution.
 public export
 possessiveDeicticIsNotADemonstrative :
   countWord (TypeW Enchantment) (nomIntro (ControllerOf (Macros.thisAura {bs = []}))) = 0
 possessiveDeicticIsNotADemonstrative = Refl
 
-||| ...and a DESCRIBED base is unchanged: it announced its referent
-||| before this round and announces exactly one now.
 public export
 possessiveDescribedBaseUnchanged :
   countOnesAt PermanentSlot
     (nomIntro (ControllerOf (Macros.target Macros.creature {bs = []}))) = 1
 possessiveDescribedBaseUnchanged = Refl
 
-||| Contractual Safeguard's second paragraph -- "Choose a kind of counter on
-||| a creature you control. Put a counter of that kind on each other creature
-||| you control." The BOARD-READ counter-kind chooser and the first benched
-||| carrier of `BoundKind`, which landed with a measured zero of them. The
-||| chooser's description is what makes the second sentence's "other"
-||| readable: it names the creature the kind came off, and "each OTHER
-||| creature you control" is other than that one. The card's Addendum
-||| paragraph is a cast-timing rider and is not taken here.
+||| Contractual Safeguard
 public export
 contractualSafeguardPass : Effect []
 contractualSafeguardPass =
@@ -14969,18 +12488,8 @@ contractualSafeguardPass =
     , PutCounters (Lit 1) BoundKind
         (Each (Macros.otherCreatureYouControl It)) ]
 
--- ---------------------------------------------------------------------------
--- The noun coordinations
--- ---------------------------------------------------------------------------
 
-||| Bile Blight, whole card -- "Target creature and all other creatures with
-||| the same name as that creature get -3/-3 until end of turn." The
-||| COORDINATED SUBJECT: one statement over two mentions at one kind, which
-||| `Both` could not write because a join of a kind with itself is not that
-||| kind. The co-referential name half was already spelled; the pair is what
-||| the cycle waited on. Echoing Decay writes the same sentence at -2/-2, and
-||| Echoing Truth, Echoing Calm, Echoing Return, Declaration in Stone,
-||| Deputy of Detention and Banishment write it under other verbs.
+||| Bile Blight
 public export
 bileBlight : Card
 bileBlight =
@@ -14995,10 +12504,7 @@ bileBlight =
                   (Just Macros.untilEndOfTurn)) ]
        Nothing
 
-||| Echoing Ruin, whole card -- "Destroy target artifact and all other
-||| artifacts with the same name as that artifact." The same coordination
-||| under a second verb, which is what makes it the phrase's row and not the
-||| statement's.
+||| Echoing Ruin
 public export
 echoingRuin : Card
 echoingRuin =
@@ -15011,14 +12517,7 @@ echoingRuin =
                                       , OtherThan (That (TypeW Artifact)) ])))) ]
        Nothing
 
-||| Stomp and Howl, whole card -- "Destroy target artifact and target
-||| enchantment." The HETEROGENEOUS DOUBLE TARGET, and the reason it is the
-||| noun coordination rather than a union head or a coordinating
-||| description: [CR#601.2c] lets a spell choose the same object once for
-||| each instance of the word "target", and gives "Destroy target artifact
-||| and target land" as its own example of a spell that may target one
-||| artifact land twice. The right arm is read in the left arm's discourse,
-||| so each writes the word once and the pair writes it twice.
+||| Stomp and Howl
 public export
 stompAndHowl : Card
 stompAndHowl =
@@ -15028,9 +12527,7 @@ stompAndHowl =
                                        (Macros.target Macros.enchantment))) ]
        Nothing
 
-||| Churning Eddy, whole card -- "Return target creature and target land to
-||| their owners' hands." The double target under a MOVE, where the two
-||| mentions share one destination.
+||| Churning Eddy
 public export
 churningEddy : Card
 churningEddy =
@@ -15041,11 +12538,7 @@ churningEddy =
                             Macros.handZ) ]
        Nothing
 
-||| Secret Rendezvous, whole card -- "You and target opponent each draw
-||| three cards." The PLAYER-PLUS-PLAYER DISTRIBUTIVE: the trailing "each"
-||| is the construction, not decoration, and every one of the family's
-||| printed lines writes it (the unmarked joint pair is a measured zero).
-||| Three cards apiece, never three between them.
+||| Secret Rendezvous
 public export
 secretRendezvous : Card
 secretRendezvous =
@@ -15055,23 +12548,13 @@ secretRendezvous =
        [ Spell (Draw (EachOfBoth (BothOf You (Macros.target Opponent))) (Lit 3)) ]
        Nothing
 
-||| Mana Clash's first sentence -- "You and target opponent each flip a
-||| coin." The same distributive with a per-referent verb: the "each" is
-||| what makes it two coins rather than one, since [CR#705.2] gives a flip
-||| to the player who flipped it and each arm flips its own. The card's
-||| repeat-until clause is not taken here.
+||| Mana Clash
 public export
 manaClashFlip : Effect []
 manaClashFlip =
   FlipCoins (EachOfBoth (BothOf You (Macros.target Opponent))) (FlipCount (Lit 1))
 
-||| Weftwalking's body -- "shuffle your hand and graveyard into your library,
-||| then draw seven cards." The COORDINATED MASS OBJECT: two whole-zone
-||| mentions under one move. The pair's own zone is neither arm's, so it
-||| projects none [CR#109.2a] and the destination is what places it.
-||| Midnight Clock and Trenzalore Clocktower write the same clause; the
-||| dominant surface of the family ("each player shuffles THEIR hand and
-||| graveyard") waits on a distributive possessive and not on this.
+||| Weftwalking
 public export
 weftwalkingShuffle : Effect []
 weftwalkingShuffle =
@@ -15080,14 +12563,7 @@ weftwalkingShuffle =
                                  (AllOf (InZone (Macros.graveyardOf You))))
     , Macros.drawCards 7 ]
 
-||| Sugar Coat, WHOLE CARD -- the kind-crossing disjunction, "Enchant
-||| creature or Food". One card TYPE crossed with an artifact SUBTYPE at one
-||| kind, which is a noun coordination and no union head: [CR#205.3c]
-||| correlates a subtype to its own card type, so a disjunct writing its own
-||| head presupposes that head and nothing shared. The rest of the card was
-||| already writable -- the flash line is a keyword row, the quoted payload
-||| rides `TokenChars`' abilities, and "loses all other card types and
-||| abilities" is the retention slot plus `LosesAllAbilities`.
+||| Sugar Coat
 public export
 sugarCoat : Card
 sugarCoat =
@@ -15110,14 +12586,7 @@ sugarCoat =
            , LosesAllAbilities It Nothing ]) ]
        Nothing
 
-||| Doc Aurlock, Grizzled Genius's first line -- "Spells you cast from your
-||| graveyard or from exile cost {2} less to cast." The CAST-ORIGIN
-||| disjunction, which needed nothing: [CR#601.2a] moves the card OUT of the
-||| zone it was in as it is cast, so an origin is history rather than a place
-||| the object is, `CastFrom` seeds no zone, and the arms are parallel
-||| already. The cross-zone refusal is `InZone`'s alone, where the two arms
-||| would project two places for one phrase. The card's plot line is not
-||| taken.
+||| Doc Aurlock, Grizzled Genius
 public export
 docAurlockCost : StaticEffect []
 docAurlockCost =
@@ -15126,18 +12595,8 @@ docAurlockCost =
                               , CastFrom Macros.exileZ ]]))
               (CostLess (Lit 2) Nothing)
 
--- ---------------------------------------------------------------------------
--- "and/or": the zone coordination it earns, and the description it does not
--- ---------------------------------------------------------------------------
 
-||| Agency Outfitter's search -- "search your graveyard, hand and/or library
-||| for a card named Magnifying Glass and/or a card named Thinking Cap". The
-||| word twice in one clause, at its two positions, and the round's verdict
-||| in one line: over ZONES it is the coordination `SomeZones` writes, and
-||| over the DESCRIPTION it is `Or`, which the grammar already had.
-||| The tail now writes too: "If you search your library this way,
-||| shuffle" is the LOCUS complement, the zone [CR#701.23a] has the act
-||| look in, read back in the `ThisWay` window.
+||| Agency Outfitter's search
 public export
 agencyOutfitterSearch : Effect []
 agencyOutfitterSearch =
@@ -15149,26 +12608,7 @@ agencyOutfitterSearch =
                             Macros.yourLibrary)
          Macros.shuffle Nothing ]
 
-||| Delivery Moogle, whole -- "Flying / When this creature enters, search
-||| your library and/or graveyard for an artifact card with mana value 2
-||| or less, reveal it, and put it into your hand. If you search your
-||| library this way, shuffle."
-||| The search is the and/or family's commonest arity; Ajani's Aid,
-||| Finale of Devastation and the whole planeswalker-fetch cycle write
-||| the same two zones and the same tail.
-||| The search sits inside an ENTERS trigger, so the header announced the
-||| entering permanent beside the card the search found and the bare "it"
-||| had two candidates. The carrier is the SEARCH's own stamp
-||| (`Macros.foundCard`), which [CR#701.23e] names in as many words --
-||| "instructions to reveal the found card(s)" -- and no recency ranking
-||| was minted, which `ItPrior`'s docstring refuses on purpose.
-||| The whole and/or-search creature cycle writes this shape: Ashiok's
-||| Forerunner, Chandra's Firemaw, Domri's Nodorog, Elspeth's Devotee,
-||| Ethereal Elk, Fang-Druid Summoner, Garruk's Warsteed, Goldmane
-||| Griffin, Niambi Faithful Healer, Rowan's Stalwarts, Sorin's Guide,
-||| Teferi's Wavecaster, Tower Winder, Yanling's Harbinger -- 14 beside
-||| this one, all but Tower Winder and this card writing the search under
-||| a "you may" (re-measured 2026-09-02).
+||| Delivery Moogle
 public export
 deliveryMoogle : Card
 deliveryMoogle =
@@ -15188,10 +12628,7 @@ deliveryMoogle =
                    Macros.shuffle Nothing ]) ]
        (Just (3, 2))
 
-||| Tower Winder, whole -- the same three clauses over a printed NAME
-||| rather than a described card, and the cycle's other non-optional
-||| member. Twelve of the fifteen write "you MAY search"; this card and
-||| Delivery Moogle write the search flat.
+||| Tower Winder
 public export
 towerWinder : Card
 towerWinder =
@@ -15210,16 +12647,7 @@ towerWinder =
                    Macros.shuffle Nothing ]) ]
        (Just (1, 1))
 
-||| Vraska's Scorn, whole -- "Target opponent loses 4 life. You may search
-||| your library and/or graveyard for a card named Vraska, Scheming Gorgon,
-||| reveal it, and put it into your hand. If you search your library this
-||| way, shuffle." The which-zone reader's whole-card witness, and the
-||| shape 62 supported lines write: a multi-zone search whose tail asks
-||| which of the coordinated zones the act was performed in.
-||| The conditional stands OUTSIDE the "you may", where the printed line
-||| puts it: the shuffle is owed whether or not the optional search found
-||| anything, and it is owed only if the library was among the zones looked
-||| in [CR#701.23a].
+||| Vraska's Scorn
 public export
 vraskasScorn : Card
 vraskasScorn =
@@ -15239,19 +12667,7 @@ vraskasScorn =
                 Macros.shuffle Nothing ]) ]
        Nothing
 
-||| Old-Growth Dryads, WHOLE -- "When this creature enters, each opponent
-||| may search their library for a basic land card, put it onto the
-||| battlefield tapped, then shuffle." The distributive offer's SEARCH
-||| witness: every word after "may" is the member's, and all three reach
-||| the member because `mayCtx` seats the body at `agentIntro`. The
-||| searcher and the searched zone are written off the same member:
-||| [CR#701.23a]'s search names a ZONE and no possessor for it, and
-||| [CR#400.1] gives each player a library of their own, so the printed
-||| possessive is the deciding member's and so is the shuffle after it.
-||| 9 supported cards write "each player/opponent may search their
-||| library" (re-measured 2026-09-02); the five that go on to say "then
-||| each player who searched a/their library this way shuffles" are still
-||| fragments, on the description-layer gap this round did not close.
+||| Old-Growth Dryads
 public export
 oldGrowthDryads : Card
 oldGrowthDryads =
@@ -15266,13 +12682,7 @@ oldGrowthDryads =
                  , Shuffle They ])) ]
        (Just (3, 3))
 
-||| Concussive Bolt, both paragraphs -- "deals 4 damage to target player or
-||| planeswalker. / Metalcraft — If you control three or more artifacts,
-||| creatures controlled by that player or by that planeswalker's controller
-||| can't block this turn." The repeated preposition is SPELLING and nothing
-||| more: "by X or by Y" and "X or Y" denote the same pair, so the split read
-||| the union round landed writes this line unchanged. The ability word is
-||| not taken here.
+||| Concussive Bolt, both paragraphs
 public export
 concussiveBolt : Effect []
 concussiveBolt =
@@ -15287,21 +12697,7 @@ concussiveBolt =
             (Just Macros.thisTurn))
          Nothing ]
 
-||| Trouble in Pairs' whole header -- "Whenever an opponent attacks you
-||| with two or more creatures, draws their second card each turn, or casts
-||| their second spell each turn, you draw a card." All three arms now: the
-||| first wanted the defender the attacking player's header may name
-||| [CR#508.1b], and the other two wanted the period their ordinals are
-||| counted over. The arms SHARE a subject in print and write their own in
-||| the semantics: English elides the repeated noun, and the elision is the
-||| spelling, not a mechanism. Nothing is lost here because the body reads
-||| no arm ("you draw a card"); a body naming "that player" would be reading
-||| one of three existentials and is what the seat's own whole-agreement
-||| rule already refuses.
-||| The card's OTHER line -- "If an opponent would begin an extra turn,
-||| that player skips that turn instead" -- is a replacement over a turn's
-||| beginning, which no event row spells, so the header is the witness and
-||| the card is not whole.
+||| Trouble in Pairs'
 public export
 troubleInPairsArms : AbilityAt []
 troubleInPairsArms =
@@ -15314,19 +12710,7 @@ troubleInPairsArms =
     Nothing [] Nothing Nothing Nothing
     (Draw You (Lit 1))
 
-||| Gaea's Revenge's protection-shaped phrase -- "nongreen spells or
-||| abilities from nongreen sources", the described side alone. The colour
-||| is NOT one modifier distributed over two conjuncts: the spell arm tests
-||| the SPELL's own colour and the ability arm tests its SOURCE's, because
-||| an ability on the stack has no colour of its own and [CR#113.7] gives it
-||| a source instead. The card's own ruling states the pair in exactly those
-||| words. So the phrase is the landed cross-kind head with a different
-||| description per arm, and it writes today.
-||| What the eight printed sentences wait on is the TARGETING RESTRICTION
-||| and nothing else: no act row anywhere says "can't be the target of"
-||| ([CR#115.1] is where the relation lives, and the grammar's act
-||| vocabularies cover countering, casting, playing, copying, activating,
-||| regenerating, attacking and blocking).
+||| Gaea's Revenge's protection-shaped phrase
 public export
 nongreenSpellsOrAbilities : Predicate [] (Object \/ Ability)
 nongreenSpellsOrAbilities =
@@ -15335,17 +12719,8 @@ nongreenSpellsOrAbilities =
               , AbilityOf (Macros.a (And [Macros.source, Not (ColorIs Green)])) ])
 
 
--- ---------------------------------------------------------------------
--- Counted anaphora narrowings, round 1: the de-pronominalization
--- templates and the producer-label extensions.
--- ---------------------------------------------------------------------
 
-||| Aim High, whole card -- "Untap target creature. It gets +2/+2 and gains
-||| reach until end of turn." Two of the round's rows on one card: the
-||| untap is a LABELED action, so the pronoun that follows it is read at
-||| the label rather than across every singular object mention
-||| [CR#701.26b], and the sentence it heads is a shared-subject
-||| coordination whose second verb phrase writes no subject at all.
+||| Aim High
 public export
 aimHigh : Card
 aimHigh =
@@ -15359,12 +12734,7 @@ aimHigh =
                       (Just Macros.untilEndOfTurn) ]) ]
        Nothing
 
-||| Hijack, whole card -- "Gain control of target artifact or creature
-||| until end of turn. Untap it. It gains haste until end of turn." The
-||| control change stamps its own patient, so "untap it" is read at the
-||| clause that gained control of it; the untap then re-stamps the same
-||| mention, and the third sentence reads it at THAT label. 19 supported
-||| faces write the pair (re-measured 2026-08-27).
+||| Hijack
 public export
 hijack : Card
 hijack =
@@ -15377,12 +12747,7 @@ hijack =
                   , Macros.gainsHaste (ItVerbed "Untap") (Just Macros.untilEndOfTurn) ]) ]
        Nothing
 
-||| Aggressive Instinct, whole card -- "Target creature you control deals
-||| damage equal to its power to target creature you don't control." The
-||| "its" is the DAMAGE SOURCE [CR#120.1], which is the clause's own
-||| subject, so the row supplies it from its own earlier argument and no
-||| pronoun is read. 275 supported faces write the family, all of them
-||| source-bound.
+||| Aggressive Instinct
 public export
 aggressiveInstinct : Card
 aggressiveInstinct =
@@ -15392,24 +12757,13 @@ aggressiveInstinct =
                               (Macros.target Macros.creatureYouDontControl)) ]
        Nothing
 
-||| Arcum Dagsson's sacrifice sentence -- "Target artifact creature's
-||| controller sacrifices it." The possessive subject and the pronoun are
-||| ONE referent by [CR#701.21a]'s own definition of the act, so the
-||| template writes the permanent once and neither is a read. The
-||| ability's second sentence ("That player may search their library for a
-||| noncreature artifact card, put it onto the battlefield, then shuffle")
-||| wants a library search whose searcher is a mention rather than "you",
-||| which `searchLibraryFor` does not spell.
+||| Arcum Dagsson
 public export
 arcumDagssonSacrifice : Effect []
 arcumDagssonSacrifice =
   ControllerSacrifices (Macros.target (And [Macros.artifact, Macros.creature]))
 
-||| Harried Dronesmith's token line -- "create a 1/1 colorless Thopter
-||| artifact creature token with flying. It gains haste until end of
-||| turn." The pronoun is read at the ORIGIN the create clause wrote onto
-||| its own mention [CR#111.1], not across every singular object. The
-||| card's third sentence schedules a sacrifice at a named future step.
+||| Harried Dronesmith
 public export
 harriedDronesmithToken : Effect []
 harriedDronesmithToken =
@@ -15419,15 +12773,7 @@ harriedDronesmithToken =
                             [Macros.keyword "Flying"] Nothing)
                , Macros.gainsHaste Macros.itAsToken (Just Macros.untilEndOfTurn) ]
 
-||| Feral Contest, whole card -- "Put a +1/+1 counter on target creature
-||| you control. Another target creature blocks IT this turn if able."
-||| The pronoun is read over the prefix the BLOCKER did not announce:
-||| [CR#509.1a] and [CR#508.1a] put the blocker and the creature it is
-||| made to block under different players' control, so the second
-||| sentence's own subject is not among the candidates for its object.
-||| The bare `It` here counts two battlefield creatures and refuses --
-||| correctly, since one of the two is the blocker itself. 6 supported
-||| faces write the forced block with a pronoun (re-measured 2026-08-27).
+||| Feral Contest
 public export
 feralContest : Card
 feralContest =
@@ -15441,15 +12787,7 @@ feralContest =
                       (Just Macros.thisTurn) ]) ]
        Nothing
 
-||| Thranduil's Company, whole card -- "Whenever a land you control
-||| enters, put two +1/+1 counters on target creature you control. It
-||| gains vigilance until end of turn."
-||| Both candidates are on the battlefield, so neither the bare `It` nor
-||| the carrier narrowing resolves this, and the counter clause leaves no
-||| label and no origin for the producer narrowings to read. What names
-||| the referent is the coordination itself: the third clause reads the
-||| mentions its immediate neighbour made [CR#608.2c], and that segment
-||| holds exactly one singular object.
+||| Thranduil's Company
 public export
 thranduilsCompany : Card
 thranduilsCompany =
@@ -15468,16 +12806,7 @@ thranduilsCompany =
                   (Macros.keyword "Vigilance") (Just Macros.untilEndOfTurn) ]) ]
        (Just (3, 4))
 
-||| Inquisitor's Flail, whole card -- "If equipped creature would deal
-||| combat damage, it deals double that damage instead. / If another
-||| creature would deal combat damage to equipped creature, it deals
-||| double that damage to equipped creature instead. / Equip {2}"
-||| The damage-replacement family's "it" is CONSTRUCTOR SPELLING and not
-||| a read at all: `Scales` writes the source once and the replacement
-||| restates it, exactly as [CR#614.6] restates the replaced event
-||| ("A modified event occurs instead"). Both of this card's rows are the
-||| family at its two shapes -- an unattributed recipient and a named one
-||| -- and neither writes a pronoun the grammar has to resolve.
+||| Inquisitor's Flail
 public export
 inquisitorsFlail : Card
 inquisitorsFlail =
@@ -15493,16 +12822,7 @@ inquisitorsFlail =
        , Macros.keywordCosting "Equip" (Mana [Macros.generic 2]) ]
        Nothing
 
-||| Stunning Shot, whole card -- "Put two +1/+1 counters on up to one
-||| target creature you control. Tap up to one target creature an
-||| opponent controls and put a stun counter on IT."
-||| The ticket's named witness for the previous-sibling read, and the
-||| within-sentence shape of it: the two conjuncts of one "and" [CR#608.2c],
-||| where the first sentence has already announced a second battlefield
-||| creature and the bare `It` therefore counts two. 38 supported faces
-||| write the tap-then-stun pair (re-measured 2026-08-27). The label
-||| narrowing `ItVerbed "Tap"` admits this line too -- what the segment
-||| read adds is the LABEL-FREE case, which Thranduil's Company benches.
+||| Stunning Shot
 public export
 stunningShot : Card
 stunningShot =
@@ -15520,11 +12840,7 @@ stunningShot =
                                             ControlledBy Macros.anOpponent])))) ]) ]
        Nothing
 
-||| Stonebinder's Familiar, whole -- "Whenever one or more cards are put
-||| into exile during your turn, put a +1/+1 counter on this creature.
-||| This ability triggers only once each turn." The subject is the bare
-||| card head: the line writes the word with no zone beside it, and the
-||| exile it names is the move's DESTINATION, not the phrase's zone.
+||| Stonebinder's Familiar
 public export
 stonebindersFamiliar : Card
 stonebindersFamiliar =
@@ -15544,12 +12860,7 @@ stonebindersFamiliar =
                                 Macros.thisCreature) ]
        (Just (1, 1))
 
-||| Bioplasm, whole -- "Whenever this creature attacks, exile the top card
-||| of your library. If it's a creature card, this creature gets +X/+Y
-||| until end of turn, where X is the exiled creature card's power and Y
-||| is its toughness." The typed CARD word is what the last clause wanted:
-||| the type comes from the test's re-mark and the zone from the exile the
-||| clause named, which is [CR#109.2a]'s reading and never [CR#109.2]'s.
+||| Bioplasm
 public export
 bioplasm : Card
 bioplasm =
@@ -15569,15 +12880,7 @@ bioplasm =
                    Nothing ]) ]
        (Just (4, 4))
 
-||| Oath of Kaya, whole -- "When Oath of Kaya enters, it deals 3 damage to
-||| any target and you gain 3 life. / Whenever an opponent attacks a
-||| planeswalker you control with one or more creatures, Oath of Kaya
-||| deals 2 damage to that player and you gain 2 life." The corpus's one
-||| PLANESWALKER defender, and it is the player-side header that writes
-||| it: [CR#508.1b] has the attacking player announce which player,
-||| planeswalker or battle each creature attacks, so the defender is
-||| nameable from that side and the deed table already admits the type.
-||| The body reads the attacking player back as "that player".
+||| Oath of Kaya
 public export
 oathOfKaya : Card
 oathOfKaya =
@@ -15597,12 +12900,7 @@ oathOfKaya =
                          , Macros.gainsLife You (Lit 2) ]) ]
        Nothing
 
-||| Stifle, whole -- "Counter target activated or triggered ability."
-||| The TRIGGERED half of the pair on the stack, named beside the
-||| activated one: [CR#113.3c] puts it there, [CR#113.9] lets an
-||| ability-countering effect counter it, and [CR#115.1d] gives it the
-||| word "target". Its reminder text ("Mana abilities can't be targeted")
-||| is [CR#605.3b]'s rule restated and is not part of the ability.
+||| Stifle
 public export
 stifle : Card
 stifle =
@@ -15613,9 +12911,7 @@ stifle =
                                       AbilityHead AnyTriggered]))) ]
        Nothing
 
-||| Disallow, whole -- "Counter target spell, activated ability, or
-||| triggered ability." The same pair with the spell arm beside it, which
-||| is the cross-kind head over an ability disjunction.
+||| Disallow
 public export
 disallow : Card
 disallow =
@@ -15629,15 +12925,7 @@ disallow =
                                   AbilityHead AnyTriggered])))) ]
        Nothing
 
-||| Nazgûl's third line -- "Whenever the Ring tempts you, put a +1/+1
-||| counter on each Wraith you control." The Ring's temptation as a thing
-||| that happens: [CR#701.54] makes it a keyword action and [CR#701.54d]
-||| states the trigger on it in the rules' own words, so it needs no event
-||| row of its own -- the labelled act reading is what the vocabulary
-||| already has for a watched keyword action.
-||| The card is not whole: its second line INSTRUCTS the temptation, whose
-||| body is [CR#701.54a]'s Ring-bearer choice and [CR#701.54c]'s emblem,
-||| and its last line is a deck-construction rule with no seat here.
+||| Nazgûl
 public export
 nazgulRingTrigger : Ability
 nazgulRingTrigger =
@@ -15647,16 +12935,7 @@ nazgulRingTrigger =
                  (Each (And [HasSubtype (creatureType "Wraith"),
                              ControlledBy You])))
 
-||| Captain Marvel, Apex Avenger, whole -- "Flying, double strike,
-||| indestructible / Whenever you put one or more counters on another
-||| creature, if it's not a Kree, you may put the same number and kind of
-||| counters on Captain Marvel." The negated-SUBTYPE intervening "if" was
-||| routed here as having no writable form; it writes, and always did.
-||| [CR#603.4] gives the intervening slot a condition and puts no shape on
-||| it, and the description side negates a subtype like any other
-||| predicate, so the clause is `Matches` over `Not (HasSubtype …)` and
-||| wants nothing new. The body's "same number and kind" is the landed
-||| kind-blind distributive over the batch the header announced.
+||| Captain Marvel, Apex Avenger
 public export
 captainMarvelApexAvenger : Card
 captainMarvelApexAvenger =
@@ -15675,12 +12954,7 @@ captainMarvelApexAvenger =
            (Macros.may You (PutCountersOfThoseKinds ThatMuch This)) ]
        (Just (4, 4))
 
-||| Verity Circle, whole -- "Whenever a creature an opponent controls
-||| becomes tapped, if it isn't being declared as an attacker, you may
-||| draw a card. / {4}{U}: Tap target creature without flying." The
-||| attack declaration IN PROGRESS as an intervening condition: the tap
-||| [CR#508.1f] performs during the declaration is the one the card
-||| excludes, and [CR#508.1k] is why "isn't attacking" would not say it.
+||| Verity Circle
 public export
 verityCircle : Card
 verityCircle =
@@ -15697,15 +12971,7 @@ verityCircle =
                           (And [Macros.creature, Not (HasKeyword (TheKeyword "Flying"))]))) ]
        Nothing
 
-||| Archfiend's Vessel, whole -- "Lifelink / When this creature enters, if
-||| it entered from your graveyard or you cast it from your graveyard,
-||| exile it. If you do, create a 5/5 black Demon creature token with
-||| flying." The WINDOWLESS lookback: "it entered from your graveyard"
-||| scopes to the entry this ability triggered on and writes no window
-||| word, which is `Triggering` [CR#603.2,603.2c]. Its other disjunct
-||| needs no window at all -- "you cast it from your graveyard" is the
-||| object's own casting history, which the description side already
-||| reads [CR#601.2a].
+||| Archfiend's Vessel
 public export
 archfiendsVessel : Card
 archfiendsVessel =
@@ -15725,14 +12991,7 @@ archfiendsVessel =
                           [Macros.keyword "Flying"] Nothing))) ]
        (Just (1, 1))
 
-||| Hostile Investigator's header -- "Whenever one or more players discard
-||| one or more cards, …". Two counted groups in one event, the first a
-||| PLAYER: the act row's subject and patient are kind-general and each
-||| takes its own determiner, so the composition needs nothing. The
-||| patient is the bare card head, which the line writes with no zone
-||| beside it; [CR#701.9a] supplies the hand the act finds it in.
-||| The card's block is its BODY, `investigate` -- a keyword action that
-||| creates a named token, whose label is unwritten here.
+||| Hostile Investigator
 public export
 hostileInvestigatorHeader : GameEvent []
 hostileInvestigatorHeader =
@@ -15741,12 +13000,7 @@ hostileInvestigatorHeader =
               (Just (CountedGroup (Macros.atLeast 1) Nothing IsCard)) Nothing
               False
 
-||| Hallowed Moonlight, whole -- "Until end of turn, if a creature would
-||| enter and it wasn't cast, exile it instead. / Draw a card." The
-||| agentless cast history: the conjunct denies that ANY casting
-||| happened, which `CastBy` cannot say (it denies one named player's)
-||| and `CastFrom` cannot say (it denies one origin's), so `WasCast`
-||| under `Not` is the whole of it [CR#601.2,111.1].
+||| Hallowed Moonlight
 public export
 hallowedMoonlight : Card
 hallowedMoonlight =
@@ -15761,9 +13015,7 @@ hallowedMoonlight =
                   , Macros.drawACard ]) ]
        Nothing
 
-||| Containment Priest, whole -- "Flash / If a nontoken creature would
-||| enter and it wasn't cast, exile it instead." The same conjunct with
-||| no duration: a permanent's own standing replacement.
+||| Containment Priest
 public export
 containmentPriest : Card
 containmentPriest =
@@ -15785,22 +13037,7 @@ testMox1 =
                           (AddMana You (Lit 1) (AnyColor SameColor) []) ]
        Nothing
 
-||| Heart of Yavimaya, whole -- "If this land would enter, sacrifice a
-||| Forest instead. If you do, put this land onto the battlefield. If you
-||| don't, put it into its owner's graveyard. / {T}: Add {G}. / {T}:
-||| Target creature gets +1/+1 until end of turn."
-||| The replacement's body is ONE instruction with two conditional
-||| continuations over the same antecedent, and that pair is `IfDone`'s
-||| two arms: [CR#608.2c] reads the sentences in the order written, and
-||| the second arm is reachable without an offer because [CR#609.3] does
-||| only as much as possible -- a player who controls no Forest leaves
-||| the instructed sacrifice undone, and the third sentence says what
-||| happens then. So the mandatory row carries this card and Mox Diamond
-||| writes the offered one; nothing else separates the cycle's members.
-||| The third sentence's printed pronoun is written as the self: the
-||| replacement's body is PROSPECTIVE, so the entry it intercepts has
-||| introduced no mention to read, and the sentence's "it" is the same
-||| permanent its neighbour calls "this land".
+||| Heart of Yavimaya
 public export
 heartOfYavimaya : Card
 heartOfYavimaya =
@@ -15821,13 +13058,7 @@ heartOfYavimaya =
                              (Just Macros.untilEndOfTurn)) ]
        Nothing
 
-||| Mox Diamond, whole -- "If this artifact would enter, you may discard a
-||| land card instead. If you do, put this artifact onto the battlefield.
-||| If you don't, put it into its owner's graveyard. / {T}: Add one mana
-||| of any color." The same pair with the offer WRITTEN, which is what
-||| `May`'s first slot spells. The discarded card's hand is unwritten on
-||| the card and supplied by [CR#701.9a], as it is wherever this
-||| vocabulary writes a discard.
+||| Mox Diamond
 public export
 moxDiamond : Card
 moxDiamond =
@@ -15843,13 +13074,7 @@ moxDiamond =
                           (AddMana You (Lit 1) (AnyColor SameColor) []) ]
        Nothing
 
-||| Gather Specimens, whole -- "If a creature would enter the battlefield
-||| under an opponent's control this turn, it enters under your control
-||| instead." The entry as a replacement BODY, which is a fixed-body row
-||| and not an instruction: `EntersUnderInstead` changes one parameter of
-||| the entry [CR#614.1d,614.12] where an `Effect` in `Intercepts`' body
-||| would instruct a second act. The antecedent's "under an opponent's
-||| control" rides the subject, where [CR#614.12] checks it.
+||| Gather Specimens
 public export
 gatherSpecimens : Card
 gatherSpecimens =
@@ -15864,19 +13089,7 @@ gatherSpecimens =
                   (Just Macros.thisTurn)) ]
        Nothing
 
-||| Don't Blink's replacement, without its written agent -- "Until end of
-||| turn, if one or more creatures would enter from exile or after being
-||| cast from exile, their owners shuffle them into their libraries
-||| instead."
-||| Both halves the entry originally recorded as missing are seated: the
-||| entry event carries the zone it arrived FROM, and the disjunction
-||| over that origin is `Intercepts`' own arm list -- the second arm
-||| reads the origin off the casting instead ([CR#601.2a] moves the card
-||| to the stack, so a permanent spell cast from exile enters from there).
-||| What the whole line still wants is the PLURAL possessor: "their
-||| owners" distributes over the counted group, and `OwnerOf` is gated to
-||| a singular subject, so the agent is dropped here and the act is
-||| written agentless ([CR#701.24a] shuffles the library either way).
+||| Don't Blink's replacement, without its written agent
 public export
 dontBlinkReplacement : StaticEffect []
 dontBlinkReplacement =
@@ -15888,12 +13101,7 @@ dontBlinkReplacement =
              (Macros.shuffleInto Them)
              Repeatedly Nothing
 
-||| Seasoned Warrenguard, whole -- "Whenever this creature attacks while
-||| you control a token, this creature gets +2/+0 until end of turn."
-||| The header's concurrent clause in its commonest shape: a state named
-||| INSIDE the trigger condition [CR#603.1,603.2], with no comma marking
-||| it off, so it is what triggered rather than [CR#603.4]'s intervening
-||| "if" -- which is checked a second time on resolution and this is not.
+||| Seasoned Warrenguard
 public export
 seasonedWarrenguard : Card
 seasonedWarrenguard =
@@ -15906,11 +13114,7 @@ seasonedWarrenguard =
                         (Just Macros.untilEndOfTurn)) ]
        (Just (1, 2))
 
-||| Brazen Blademaster, whole -- "Whenever this creature attacks while you
-||| control two or more artifacts, it gets +2/+1 until end of turn." The
-||| same slot over a counted condition, and the tail's "it" reads the
-||| header's own subject: the concurrent clause announces nothing, so what
-||| the effect sees is what the event left.
+||| Brazen Blademaster
 public export
 brazenBlademaster : Card
 brazenBlademaster =
@@ -15926,10 +13130,7 @@ brazenBlademaster =
                         (Just Macros.untilEndOfTurn)) ]
        (Just (2, 3))
 
-||| Up the Beanstalk, whole -- "When this enchantment enters and whenever
-||| you cast a spell with mana value 5 or greater, draw a card." The
-||| two-header join: two trigger WORDS over one effect, told apart from
-||| the coordination by that second word.
+||| Up the Beanstalk
 public export
 upTheBeanstalk : Card
 upTheBeanstalk =
@@ -15946,14 +13147,7 @@ upTheBeanstalk =
                         Compare [CharAxis ManaValue] AtMost (Lit 2)]) ]) ]
        Nothing
 
-||| Autarch Mammoth's printed line -- "When this creature enters and
-||| whenever it attacks while saddled, create a 3/3 green Elephant
-||| creature token." The join and the concurrent clause in one header:
-||| the "while saddled" qualifies the ATTACK alone, which is why the
-||| joined half is a whole header and not one more `AltEvent` arm.
-||| The card is whole at `autarchMammoth` now that [CR#702.171a]'s
-||| "Saddle N" has a row; this name stays because the header is what the
-||| trigger round bought.
+||| Autarch Mammoth
 public export
 autarchMammothLine : Ability
 autarchMammothLine =
@@ -15966,18 +13160,7 @@ autarchMammothLine =
     (Macros.create (Lit 1)
        (Macros.creatureTok 3 3 [Green] [creatureType "Elephant"]))
 
-||| Veiling Oddity's second line -- "When the last time counter is removed
-||| from this card while it's exiled, creatures can't be blocked this
-||| turn." The last-removal event's first reachable bench line, and what
-||| reached it is the concurrent clause: the zone is named INSIDE the
-||| trigger condition, unmarked by a comma, so it is part of what
-||| triggered [CR#603.1,603.2] rather than [CR#603.4]'s intervening "if".
-||| The card is WHOLE at `veilingOddity` now that the compound parameter
-||| has a shape and "Suspend" a row; this name stays because the
-||| concurrent clause is what the trigger round bought. Craft is still
-||| not that shape and never was: [CR#702.167a]'s two printed slots are
-||| two components of the one activation cost [CR#118.1] describes,
-||| where [CR#702.62a] writes a counter count BESIDE a cost.
+||| Veiling Oddity
 public export
 veilingOddityLine : Ability
 veilingOddityLine =
@@ -15988,32 +13171,10 @@ veilingOddityLine =
                            NoDeonticPatient)
                   (Just Macros.thisTurn))
 
-||| The concurrent clause's ACT arm, at the one printed shape the event
-||| vocabulary already names: "while scrying" (The Temporal Anchor).
-||| [CR#701.22a] looks at the top N cards and THEN puts them, so the act
-||| has a moment inside it, which is what `eventUnderwayOk` reads off
-||| `actStepwise`. The other two printed act shapes have landed
-||| with the keyword rows they wanted: "while casting a spell with
-||| emerge" (Foul Emissary, `foulEmissaryLine`) reads an "Emerge" row
-||| through `HasKeyword`, and "while you're activating a craft ability"
-||| (Market Gnome, whole) reads a "Craft" row through `AbilityClass`'
-||| `KeywordClass`, which already spelled an ability described by a
-||| keyword.
-||| The Temporal Anchor is not on the bench for its own reason: its
-||| trigger event is "you choose to put one or more cards on the bottom
-||| of your library", a step inside the scry that no event row names.
 public export
 whileScrying : Concurrent []
 whileScrying = WhileDoing (VerbedEvent (Just You) "Scry" Nothing Nothing False)
 
-||| Akki Lavarunner // Tok-Tok, Volcano Born, a flip card [CR#710.1],
-||| whole -- "Haste / Whenever this creature deals damage to an opponent,
-||| flip it." // "Protection from red / If a red source would deal damage
-||| to a player, it deals that much damage plus 1 to that player instead."
-||| The flip verb's SOURCE-SIDE event: the header watches damage this
-||| creature deals outside combat as well as in it, which `IsDealtDamage`
-||| reads from the wrong end and `DealsCombatDamage` narrows to
-||| [CR#510.1]'s assignment.
 public export
 akkiLavarunner : Card
 akkiLavarunner =
@@ -16034,13 +13195,6 @@ akkiLavarunner =
                            (Shifted ShiftUp (Lit 1)) Repeatedly) ]
                (Macros.printedBox (Just (2, 2))))
 
-||| Bushi Tenderfoot // Kenzo the Hardhearted, a flip card [CR#710.1],
-||| whole -- "When a creature dealt damage by this creature this turn
-||| dies, flip this creature." // "Double strike; bushido 2."
-||| The flip verb's BY-SOURCE lookback: the header's subject is described
-||| by what happened TO it and by whom, which is the participial lookback
-||| with its agent in the complement -- the umbrella recorded this as a
-||| blocker and it writes as it stands.
 public export
 bushiTenderfoot : Card
 bushiTenderfoot =
@@ -16059,11 +13213,7 @@ bushiTenderfoot =
                , Macros.keywordNumber "Bushido" (Lit 2) ]
                (Macros.printedBox (Just (3, 4))))
 
-||| Frostwielder, whole -- "If a creature dealt damage by this creature
-||| this turn would die, exile it instead. / {T}: This creature deals 1
-||| damage to any target." The same participial subject on the
-||| INTERCEPTION side, which is why it rides here: one phrase, both
-||| frames.
+||| Frostwielder
 public export
 frostwielder : Card
 frostwielder =
@@ -16079,16 +13229,7 @@ frostwielder =
            (DealDamage Macros.thisCreature (Lit 1) (Macros.target Macros.anyTarget)) ]
        (Just (1, 2))
 
-||| Kitsune Mystic's flip trigger -- "At the beginning of the end step, if
-||| this creature is enchanted by two or more Auras, flip it." The COUNTED
-||| attachment: `IsAttached` asks only whether the permanent is attached,
-||| and this line asks by how many, which `AttachedBy` puts to the
-||| attachers' own determiner.
-||| The card is not whole: its alternative half is "{1}: Attach target
-||| Aura attached to a creature to another creature", whose target is
-||| described by what it is attached TO -- the reverse of every
-||| attachment phrase this vocabulary writes, which reads from the
-||| attachment's own side (`AttachHost`, `IsAttached`, `AttachedBy`).
+||| Kitsune Mystic
 public export
 kitsuneMysticFlip : Ability
 kitsuneMysticFlip =
@@ -16101,17 +13242,7 @@ kitsuneMysticFlip =
     (SetStatus Flipped Macros.thisCreature)
 
 
-||| Blood Spatter Analysis, whole -- "When this enchantment enters, it
-||| deals 3 damage to target creature an opponent controls. / Whenever one
-||| or more creatures die, mill a card and put a bloodstain counter on
-||| this enchantment. Then sacrifice it if it has five or more bloodstain
-||| counters on it. When you do, return target creature card from your
-||| graveyard to your hand."
-||| Two things: the bloodstain counter is a FLAT kind -- [CR#122.1]'s
-||| ordinary marker, whose whole meaning is the ability that counts it,
-||| exactly as Font of Agonies' blood counter is -- and the reflexive
-||| trigger hangs off a conditioned sacrifice, which is still one action
-||| for [CR#603.12]'s pro-verb to abbreviate.
+||| Blood Spatter Analysis
 public export
 bloodSpatterAnalysis : Card
 bloodSpatterAnalysis =
@@ -16138,17 +13269,7 @@ bloodSpatterAnalysis =
                      Macros.handZ) ]) ]
        Nothing
 
-||| Bewitching Leechcraft, whole -- "Enchant creature / When this Aura
-||| enters, tap enchanted creature. / Enchanted creature has 'If this
-||| creature would untap during your untap step, remove a +1/+1 counter
-||| from it instead. If you do, untap it.'"
-||| The granted QUOTED replacement, and the two things it wanted: the
-||| status change is admitted as a replacement's antecedent -- [CR#614.1]
-||| replaces an event that would happen and [CR#701.26b] makes untapping
-||| one, so nothing about the cell was trigger-only -- and "during your
-||| untap step" sits in `Intercepts`' own window slot rather than in a
-||| second copy of the header's window words. The reminder "(Otherwise, it
-||| doesn't untap.)" restates [CR#614.1a] and is not carried.
+||| Bewitching Leechcraft
 public export
 bewitchingLeechcraft : Card
 bewitchingLeechcraft =
@@ -16170,15 +13291,6 @@ bewitchingLeechcraft =
                               Repeatedly Nothing))) ]
        Nothing
 
-||| Bonus Round, whole -- "Until end of turn, whenever a player casts an
-||| instant or sorcery spell, that player copies it and may choose new
-||| targets for the copy."
-||| The STANDING triggered ability: [CR#603.7b] fires a delayed trigger
-||| once "unless it has a stated duration", so the duration slot the
-||| delayed clause already carries is what makes the ability stand and
-||| fire repeatedly while it lasts. No second ability shape is needed;
-||| the re-measurement is 29 supported lines and this is the shape all of
-||| them write.
 public export
 bonusRound : Card
 bonusRound =
@@ -16195,19 +13307,7 @@ bonusRound =
                                (ChooseNewTargets (That CopyW)) ])) ]
        Nothing
 
-||| Sheltered Valley, whole -- "If this land would enter, instead
-||| sacrifice each other permanent named Sheltered Valley you control,
-||| then put this land onto the battlefield. / At the beginning of your
-||| upkeep, if you control three or fewer lands, you gain 1 life. / {T}:
-||| Add {C}." The cycle's exception, with no conditional pair at all.
-||| Both blockers the umbrella recorded are gone: the sacrifice is
-||| `Does`' labelled act [CR#701.21a], which this vocabulary has always
-||| written, and the name match is `Named` over a printed name, which
-||| [CR#201.2a] is what makes true. What the printed "each other" needed
-||| was an ANCHOR: the
-||| replacement's body is prospective, so nothing has been announced for
-||| a bare "other" to be other than, and the phrase names the land
-||| itself.
+||| Sheltered Valley
 public export
 shelteredValley : Card
 shelteredValley =
@@ -16229,17 +13329,8 @@ shelteredValley =
        Nothing
 
 
--- ==== The play permission's remaining subjects, riders and complements,
--- ==== and the game-outcome gates (prohibition-3)
 
-||| Field of Dreams -- "Players play with the top card of their libraries
-||| revealed." The GROUP possessor the family owed, and it is answered by
-||| the rider's own complement rather than by a slice: [CR#400.1] gives
-||| each player their own library, and `VisibleThing.TopOfLibrary` names
-||| the position while the subject supplies whose, so a plural subject
-||| pluralises the zone word with nothing added. The positioned SLICE
-||| (`playersTopCardSlice` below) is a different phrase that no line of
-||| this family writes.
+||| Field of Dreams
 public export
 fieldOfDreams : Card
 fieldOfDreams =
@@ -16248,7 +13339,7 @@ fieldOfDreams =
        [ Static (Visibility Reveal (PlayerGroup AllPlayers) TopOfLibrary) ]
        Nothing
 
-||| Lantern of Insight's first line, the same sentence at an artifact.
+||| Lantern of Insight
 public export
 lanternOfInsightRider : Ability
 lanternOfInsightRider =
@@ -16264,8 +13355,7 @@ wizenedSnitches =
        , Static (Visibility Reveal (PlayerGroup AllPlayers) TopOfLibrary) ]
        (Just (1, 3))
 
-||| Revelation -- the same group subject at the hand surface, and the
-||| second World enchantment.
+||| Revelation
 public export
 revelation : Card
 revelation =
@@ -16274,12 +13364,7 @@ revelation =
        [ Static (Visibility Reveal (PlayerGroup AllPlayers) WholeHand) ]
        Nothing
 
-||| Keeper of the Lens, whole -- the face-down look-at rider.
-||| [CR#708.5] hides a face-down permanent by what it IS rather than by
-||| where it is ("you can't look at ... face-down spells or permanents
-||| controlled by another player"), so the complement is an object
-||| DESCRIPTION and the predicate is the status the grammar already
-||| carries.
+||| Keeper of the Lens
 public export
 keeperOfTheLens : Card
 keeperOfTheLens =
@@ -16291,8 +13376,7 @@ keeperOfTheLens =
                                    Not (ControlledBy You)])))) ]
        (Just (1, 2))
 
-||| Lens of Clarity, whole -- the two surfaces of one rider coordinated
-||| in one sentence, which is what the shared row makes writable.
+||| Lens of Clarity
 public export
 lensOfClarity : Card
 lensOfClarity =
@@ -16306,14 +13390,7 @@ lensOfClarity =
                                Not (ControlledBy You)]))) ]) ]
        Nothing
 
-||| Danitha, New Benalia's Light, whole -- the subtype-narrowed spell
-||| complement. `And [spell, Or [Aura, Equipment]]` is coherent: a
-||| subtype word presupposes a card TYPE and no zone (`seedZone` is
-||| silent for it), so the permanent-only reading never reached the
-||| conjunction's zone question at all and `ZoneCoherent` has nothing to
-||| refuse. The permission's own `complementLocates` answered the same
-||| question one level up for the same reason -- a word for what playing
-||| the object will MAKE it locates nothing.
+||| Danitha, New Benalia's Light
 public export
 danithaNewBenaliasLight : Card
 danithaNewBenaliasLight =
@@ -16330,36 +13407,23 @@ danithaNewBenaliasLight =
                    (Macros.graveyardOf You) OnceEachYourTurn) ]
        (Just (2, 2))
 
-||| Muldrotha, the Gravetide's window, first conjunct: "During each of
-||| your turns, you may play a land ... from your graveyard." The BARE
-||| window, permitting repeatedly inside a stretch of time where
-||| `PlayLimit` permits once. Its second conjunct wants "a permanent
-||| spell of each permanent type", a distributive over card types.
+||| Muldrotha, the Gravetide
 public export
 muldrothaLandWindow : StaticEffect []
 muldrothaLandWindow =
   Macros.mayPlayFromEachYourTurn You (Macros.a Macros.land) (Macros.graveyardOf You)
 
-||| Nahiri's Lithoforming's third sentence, "you may play X additional
-||| lands this turn" -- the one printed land allowance the literal bound
-||| refused. The letter is READ from the cost [CR#107.3i], so the
-||| quantity announces nothing and the widened gate admits it.
+||| Nahiri's Lithoforming
 public export
 nahiriExtraLands : StaticEffect (costLetters (Just [Variable]))
 nahiriExtraLands = MayPlayAdditionalLands You (ExactlyOf (LetterVal X))
 
-||| Phyrexian Unlife's first line -- the partial-cause outcome immunity.
-||| It carves out [CR#104.3b] and leaves [CR#104.3e] standing, which is
-||| what keeps it off the deontic carrier.
+||| Phyrexian Unlife
 public export
 phyrexianUnlifeImmunity : Ability
 phyrexianUnlifeImmunity = Static (NoLossFrom You ZeroOrLessLife)
 
-||| Haakon, Stromgald Scourge, whole -- the self-permission's EXCLUSION
-||| clause, "but not from anywhere else", which nothing else in the
-||| corpus writes. [CR#601.3] makes casting depend on a rule or effect
-||| allowing it, so the line grants one permission and revokes the
-||| default in one sentence.
+||| Haakon, Stromgald Scourge
 public export
 haakonStromgaldScourge : Card
 haakonStromgaldScourge =
@@ -16377,11 +13441,7 @@ haakonStromgaldScourge =
            (Macros.losesLife You (Lit 2)) ]
        (Just (3, 3))
 
-||| Melek, Izzet Paragon, whole -- the cast watch's SOURCE phrase.
-||| "Whenever you cast an instant or sorcery spell FROM YOUR LIBRARY" was
-||| the card's only blocker; the phrase is a fact about the casting, not
-||| about the spell, which is on the stack [CR#112.1] however it got
-||| there.
+||| Melek, Izzet Paragon
 public export
 melekIzzetParagon : Card
 melekIzzetParagon =
@@ -16400,27 +13460,14 @@ melekIzzetParagon =
               , Macros.may You (ChooseNewTargets (That CopyW)) ]) ]
        (Just (2, 4))
 
-||| Hot Pursuit's intervening "if two or more players have lost the
-||| game" -- the player-set COUNT. The reader it wants was already
-||| there: `HappenedTo GameLoss ThisGame` at the player kind, which
-||| Rampant Frogantua's `+10/+10 for each player who has lost the game`
-||| already benches. The cell wanted no new predicate, only a witness
-||| that the second line reads the same one through `CountOf`.
+||| Hot Pursuit's intervening "if two or more players have lost the game"
 public export
 twoOrMorePlayersHaveLost : Condition []
 twoOrMorePlayersHaveLost =
   CompareAmt (CountOf (And [AnyPlayer, Macros.happenedTo GameLoss ThisGame]))
              AtLeast (Lit 2)
 
-||| Apex of Power's first line -- "Exile the top seven cards of your
-||| library. Until end of turn, you may cast spells from among them."
-||| The play permission's "from among" SOURCE, and the measurement's
-||| correction: the phrase is the COMPLEMENT's own partitive `SomeOf`,
-||| not a source-zone phrase at all. [CR#109.2a] locates a card-worded
-||| description by the zone the phrase states, and a partitive states a
-||| GROUP in that slot -- so "spells from among them" carries the
-||| exiled cards' zone on the mention and `MayPlay`'s `from` stays
-||| unwritten. The permission needed no mention-valued source slot.
+||| Apex of Power
 public export
 apexOfPowerCast : Effect []
 apexOfPowerCast =
@@ -16432,11 +13479,7 @@ apexOfPowerCast =
              (PlayRider Nothing Nothing Nothing False ItsOwnCost))
         (Just ThisTurn) ]
 
-||| Umbris, Fear Manifest's first line -- "Umbris gets +1/+1 for each card
-||| your opponents own in exile." The ownership PREDICATE's description
-||| witness, and the reason the axis is not `ControlledBy`'s: [CR#109.4]
-||| leaves an exiled card controlled by nobody, so the owner [CR#108.3] is
-||| the only possessor the phrase can describe it by.
+||| Umbris, Fear Manifest
 public export
 umbrisPump : Ability
 umbrisPump =
@@ -16448,23 +13491,7 @@ umbrisPump =
                         (And [IsCard, OwnedBy (PlayerGroup YourOpponents),
                               InZone Macros.exileZ]))))
 
-||| Obelisk of Undoing -- "{6}, {T}: Return target permanent you both own
-||| and control to your hand." The non-melding carrier of "you both own
-||| and control": the conjunction row reaches the phrase as two
-||| descriptions the moment ownership has one. The seven cards writing
-||| the same words as a CONDITION still do not land, and the meld
-||| vocabulary is no longer why -- `meldInto` and its `Meld` label are
-||| landed. What is left is the CONDITION's own shape: each of the seven
-||| writes "you both own and control [X] and [a Y named Z]", one clause
-||| over TWO named objects, and then reads them back as a single "them".
-||| `AndCond` writes the two existence claims, and `Them` admits one
-||| `ManyOf` mention where they leave two `OneOf`s -- so the plural
-||| anaphor over two singular antecedents is the whole of the remaining
-||| blocker, shared by all seven.
-||| -- spelling: the destination is the BARE hand zone, as every other
-||| benched return writes it. The printed "your hand" adds nothing the
-||| description has not already said: the returned permanent is one YOU
-||| own [CR#108.3], and a return puts a card into its owner's hand.
+||| Obelisk of Undoing
 public export
 obeliskOfUndoing : Ability
 obeliskOfUndoing =
@@ -16473,29 +13500,14 @@ obeliskOfUndoing =
                       (Macros.target (And [Permanent, OwnedBy You, ControlledBy You]))
                       Macros.handZ)
 
-||| Flickering Ward's activated ability -- "{W}: Return this Aura to its
-||| owner's hand." The self-returning Aura, and the possessed-hand
-||| destination read at a SELF mention where Roads Go Ever, Ever On reads
-||| it at a described card. Same ruling on the destination: [CR#400.3]
-||| makes the bare zone the owner-rooted one, so the possessive is
-||| spelling. The whole card additionally wants the as-enters colour
-||| choice and the protection grant that reads it back.
+||| Flickering Ward
 public export
 flickeringWardBounce : Ability
 flickeringWardBounce =
   Macros.activated (Mana [Macros.pip White])
                    (Macros.returnTo Macros.thisAura Macros.handZ)
 
-||| Blight Herder's cast trigger -- "you may put two cards your opponents
-||| own from exile into their owners' graveyards." The ownership
-||| PREDICATE over cards in exile, where [CR#109.4] leaves no controller
-||| to describe them by. Ulamog's Despoiler and Ulamog's Nullifier write
-||| the same sentence.
-||| -- spelling: the destination is the BARE graveyard zone. "Their
-||| owners' graveyards" needs no possessor here: `DestOk` already rules
-||| that a moved card is routed to its owner's zone regardless of the
-||| sentence [CR#400.3], so the bare zone IS the owner-rooted
-||| destination, plural possessor and all.
+||| Blight Herder
 public export
 blightHerderCast : Effect []
 blightHerderCast =
@@ -16505,18 +13517,7 @@ blightHerderCast =
                           InZone Macros.exileZ]))
                  Macros.graveyardZ)
 
-||| Open the Vaults -- "Return all artifact and enchantment cards from all
-||| graveyards to the battlefield under their owners' control." Two
-||| routed questions in one line.
-||| The ALL-GRAVEYARDS possessor wanted no new row: the possessive-zone
-||| reader already takes a plural player noun, so "all graveyards" is
-||| `PossessedBy (PlayerGroup AllPlayers)` and the bare zone is a
-||| separate spelling rather than the only one.
-||| The controller rider is the member-wise possessor's witness. Each
-||| returned card gets the one controller [CR#110.2] demands; the phrase
-||| is plural because the GROUP is, which is exactly what
-||| `PerMemberController` admits and what the singular-controller
-||| refusal never meant to catch.
+||| Open the Vaults
 public export
 openTheVaults : Effect []
 openTheVaults =
@@ -16528,13 +13529,7 @@ openTheVaults =
           Macros.battlefieldZ
           (MkMoveRiders [] (Just (PossessorsOf OwnerAx Them)) Nothing))
 
-||| Crackling Doom, whole -- "Crackling Doom deals 2 damage to each
-||| opponent. Each opponent sacrifices a creature with the greatest power
-||| among creatures that player controls." The demonstrative reading a
-||| DISTRIBUTED mention: the pass's member is what `agentIntro` binds, so
-||| "that player" names the opponent the pass is on. Consume's singular
-||| twin (`consume` above) writes the same superlative under a targeted
-||| player and is unchanged.
+||| Crackling Doom
 public export
 cracklingDoom : Effect []
 cracklingDoom =
@@ -16546,12 +13541,7 @@ cracklingDoom =
                           (And [Macros.creature,
                                 ControlledBy (That PlayerW)])])) ]
 
-||| Altar of the Brood's trigger -- "Whenever another permanent you
-||| control enters, each opponent mills a card." The DISTRIBUTIVE MILL,
-||| counted before it was written: 62 supported lines write "each
-||| opponent/player mills [n]" (measured 2026-08-28), all of them wanting
-||| the same thing -- a library the pass's own member owns. `They` finds
-||| it now that the agent seat binds one.
+||| Altar of the Brood
 public export
 altarOfTheBrood : Ability
 altarOfTheBrood =
@@ -16559,10 +13549,7 @@ altarOfTheBrood =
     (Enters (Macros.a (And [Permanent, ControlledBy You, OtherThan This])) Nothing)
     (Macros.mills (Each Opponent) (Lit 1) They)
 
-||| Soul Shatter -- "Each opponent sacrifices a creature or planeswalker
-||| with the greatest mana value among creatures and planeswalkers they
-||| control." The same distributed subject read back by the PRONOUN
-||| rather than the demonstrative; one binder answers both spellings.
+||| Soul Shatter
 public export
 soulShatter : Effect []
 soulShatter =
@@ -16572,20 +13559,7 @@ soulShatter =
                       (And [Or [Macros.creature, HasType Planeswalker],
                             ControlledBy They])]))
 
-||| Padeem, Consul of Innovation's upkeep trigger -- "At the beginning of
-||| your upkeep, if you control the artifact with the greatest mana value
-||| or tied for the greatest mana value, draw a card." A control test over
-||| a DEFINITE description: the phrase names THE artifact with the
-||| greatest mana value and then asks who controls it, which is not what
-||| `Exists` says. The definite's mention is announced into the governed
-||| clause rather than dropped at the condition's door.
-||| Six supported lines write this (re-measured 2026-08-28): Abzan
-||| Beastmaster and Thickest in the Thicket on toughness and power, this
-||| card on mana value, Summon: Fenrir, Triumph of Cruelty and Triumph of
-||| Ferocity on power.
-||| -- spelling: "or tied for the greatest [axis]" is the superlative's own
-||| bound said twice; the extremal fold admits every referent that reaches
-||| the maximum, so the printed disjunct adds no second test.
+||| Padeem, Consul of Innovation
 public export
 padeemConsulOfInnovation : Ability
 padeemConsulOfInnovation =
@@ -16597,16 +13571,7 @@ padeemConsulOfInnovation =
              (ControlledBy You))
     Macros.drawACard
 
-||| Turbulent Fen -- "This land enters tapped unless your opponents
-||| control eight or more lands." The counted threshold over a POSSESSOR
-||| SET, written as the umbrella asked: an independent counted clause over
-||| a described set, never a possessor relation on a mention. The other
-||| four Turbulent lands print the same sentence and Lashwhip Predator
-||| writes the same clause at three creatures -- six supported lines,
-||| re-measured 2026-08-28 against 259 lines writing "your opponents
-||| control" at all.
-||| No row was needed: `CountOf` already takes a description and
-||| `ControlledBy (PlayerGroup YourOpponents)` already describes one.
+||| Turbulent Fen
 public export
 turbulentFen : Ability
 turbulentFen =
@@ -16617,22 +13582,7 @@ turbulentFen =
                                 AtLeast (Lit 8)))
                     Unless)
 
-||| Darkblade Agent's first grant -- "As long as you've surveilled this
-||| turn, this creature has deathtouch". The KEYWORD-ACTION event name,
-||| and the round's answer to the pair the umbrella routed together: the
-||| name already exists. `VerbedAct` carries the label [CR#701.1] leaves
-||| open, so the per-turn state read is `Happened (VerbedAct "Surveil")`
-||| and wanted nothing new -- `bareLookbackOk` already admits a
-||| subjectless act ([CR#701.25a]'s surveil names no patient), and Eye of
-||| Duskmantle's "cards in your graveyard you've surveilled this turn"
-||| reads the same event.
-||| Yidaro's cycling count is the SAME answer arriving negative, and that
-||| is why the two are one item: [CR#702.29c] defines "when you cycle this
-||| card" as "when you discard this card to pay an activation cost of a
-||| cycling ability", so cycling is no keyword action and a `VerbedAct
-||| "Cycle"` label would be a fiction. What Yidaro counts is a labelled
-||| COST PAYMENT, which is `PaysCost`'s neighbourhood; the card stays
-||| blocked there and not here.
+||| Darkblade Agent
 public export
 darkbladeAgentDeathtouch : Ability
 darkbladeAgentDeathtouch =
@@ -16640,23 +13590,6 @@ darkbladeAgentDeathtouch =
                         (Gains Macros.thisCreature (Macros.keyword "Deathtouch"))
                         AsLongAs)
 
-||| The Fallen, whole -- "At the beginning of your upkeep, this creature
-||| deals 1 damage to each opponent and planeswalker it has dealt damage
-||| to this game." The umbrella priced this as a THIRD reader shape --
-||| a relative clause with both an overt subject and its head in the
-||| complement position, being neither `Happened` nor `HappenedTo`. The
-||| re-derivation says otherwise and the round takes the smaller answer:
-||| `HappenedTo` at the VICTIM's voice already puts the dealer in the
-||| complement. [CR#120.1]'s two sides are two event names here, and
-||| reading the same clause as `DamageTaken` rather than `DamageDealing`
-||| moves the head to the subject seat and "it" to the complement, which
-||| is the shape the row has always had.
-||| The head is a JOINED kind and is read as one head over it, per
-||| [The kind index joins; union marking is spelling]: `lookbackSubjectOk`
-||| and `lookbackComplementOk` both distribute `DamageTaken` over the
-||| join, so the join costs nothing here either.
-||| No row was minted. The per-game lookback keeps its first benched
-||| carrier past Approach of the Second Sun.
 public export
 theFallen : Ability
 theFallen =
@@ -16666,17 +13599,7 @@ theFallen =
                    Macros.happenedToInvolving DamageTaken ThisGame
                      Macros.thisCreature])))
 
-||| Codecracker Hound's second line -- "Look at the top two cards of your
-||| library. Put one into your hand and the other into your graveyard."
-||| The SUBSET COMPLEMENT, and the cardinality that makes it writable: the
-||| library slice records that it is two cards, the partitive records that
-||| it took one, and "the other" is the row that can ask. `TheRest` would
-||| have written the same partition in the plural and mis-spelled the
-||| sentence.
-||| A Little Chat, Akal Pakal, Chrome Courier, Ashiok, Wicked Manipulator
-||| and Atris, Oracle of Half-Truths write the same shape into different
-||| destinations; 104 occurrences over 102 supported cards write the word
-||| at all (re-measured 2026-08-28).
+||| Codecracker Hound
 public export
 codecrackerHoundLook : Effect []
 codecrackerHoundLook =
@@ -16685,12 +13608,6 @@ codecrackerHoundLook =
     , Macros.move (Macros.oneOf Them) Macros.handZ
     , Macros.move TheOther Macros.graveyardZ ]
 
-||| The subset complement's gate, measured from both sides. A group the
-||| text COUNTED leaves a singleton once all but one member is taken, and
-||| "the other" names it; a group whose size is read at resolution leaves
-||| a remainder of unknown size, and the sentence writes "the rest".
-||| This is what the cardinality on `ObjectP` buys, and the only thing it
-||| buys: nothing else reads a mention's size.
 public export
 theOtherAfterATwoCardLook :
   theOtherOk (nomIntro (SomeOf {bs = []}
@@ -16718,13 +13635,6 @@ theRestStandsWhereTheOtherRefuses :
                               {gm = Oh})) = True
 theRestStandsWhereTheOtherRefuses = Refl
 
-||| The COUNTED / UNIVERSAL distinction at the same seam. A universal
-||| slice states no count either -- it takes whatever answers the
-||| description -- so "the other" refuses it for exactly the reason it
-||| refuses a slice off an unstated-size group, while "the rest" stands.
-||| This is what the printed lines write: 6 of the 10 supported "all …
-||| from among them" lines continue "and the rest …" and none of them
-||| writes "the other".
 public export
 theOtherRefusesTheUniversalSlice :
   (theOtherOk (nomIntro (SomeOf {bs = []} WholeSlice (Just Macros.artifact)
@@ -16734,13 +13644,7 @@ theOtherRefusesTheUniversalSlice :
     = (False, True)
 theOtherRefusesTheUniversalSlice = Refl
 
-||| Talion, the Kindly Lord's trigger -- "Whenever an opponent casts a
-||| spell with mana value, power, or toughness equal to the chosen
-||| number, that player loses 2 life and you draw a card." The
-||| CHARACTERISTIC LIST on `Compare`, and why the list rather than an
-||| `Or`: `seedsUniform`'s refusal of three arms presupposing different
-||| card types was correct, so the fix is to stop writing three arms.
-||| One referent, one bound, three places to look.
+||| Talion, the Kindly Lord
 public export
 talionTheKindlyLord : Card
 talionTheKindlyLord =
@@ -16759,13 +13663,7 @@ talionTheKindlyLord =
                          , Macros.drawACard ]) ]
        (Just (3, 4))
 
-||| Cavalcade of Calamity -- "Whenever a creature you control with power 1
-||| or less attacks, this enchantment deals 1 damage to the player or
-||| planeswalker that creature is attacking." The ATTACKED-BY predicate,
-||| routed here from the combat round: no `Predicate` described a player
-||| or planeswalker by what was attacking it, and this one does it at the
-||| joined kind [CR#506.3] rather than as two marked rows.
-||| Raid Bombardment prints the same sentence at power 2 or less.
+||| Cavalcade of Calamity
 public export
 cavalcadeOfCalamity : Ability
 cavalcadeOfCalamity =
@@ -16776,10 +13674,7 @@ cavalcadeOfCalamity =
        (Definite (And [Joined AnyPlayer (HasType Planeswalker),
                        AttackedBy (That (TypeW Creature))])))
 
-||| Bastion Protector's first clause -- "Commander creatures you control
-||| get +2/+2". The COMMANDER description, routed here with the ownership
-||| row it shares a phrase with. 37 supported lines head a phrase with the
-||| word (measured 2026-08-28), split between "you control" and "you own".
+||| Bastion Protector
 public export
 bastionProtectorPump : Ability
 bastionProtectorPump =
@@ -16787,70 +13682,28 @@ bastionProtectorPump =
                             ControlledBy You]))
                (PtUp (Lit 2)) (PtUp (Lit 2)))
 
-||| "Commander creatures you own" -- the owned half of the same phrase,
-||| which needed BOTH of this round's description rows: the card-scoped
-||| designation [CR#903.3] and the ownership predicate [CR#108.3]. Master
-||| Chef, Acolyte of Bahamut, Candlekeep Sage and their kin head their
-||| granted abilities with it; what those cards still wait on is the
-||| QUOTED ability they grant, not the description.
 public export
 commanderCreaturesYouOwn : Predicate [] Object
 commanderCreaturesYouOwn =
   And [Macros.creature, HasCardDesignation CommanderD, OwnedBy You]
 
-||| "a creature spell from among cards exiled with this artifact" (Idol
-||| of Endurance) -- the OBJECT PARTITIVE over a DESCRIBED group, and the
-||| decision this round owed. The base of a partitive is not the base of
-||| "each of", so the two stopped sharing a gate: "each of" fills a
-||| determiner position and its base must leave one open, while "from
-||| among" names the set the pick comes out of. 86 supported lines write
-||| "from among [a description]" (measured 2026-08-28) -- exiled-with
-||| sets, "the nonland permanents they control", "creatures you control".
-||| The three pins that refuse an indefinite base, a counted untargeted
-||| group and a partitive of a partitive are untouched, "each of all
-||| creatures" still refuses, and `groupMention (PlayerGroup _)` is
-||| unchanged.
+||| Idol of Endurance
 public export
 creatureSpellFromAmongExiled : Noun [] Object
 creatureSpellFromAmongExiled =
   Macros.oneFromAmong (And [Macros.creature, Macros.spell])
                       (AllOf (And [IsCard, Macros.exiledWithThisArtifact]))
 
-||| "the Ring has tempted you two or more times this game" (Frodo,
-||| Adventurous Hobbit; Frodo, Sauron's Bane writes four). The umbrella
-||| recorded these as out of reach for want of Ring machinery; the
-||| trigger round's `verbFacts` row for the temptation put the COUNT in
-||| reach, and this is the check on that. [CR#701.54d] makes the tempted
-||| player the act's own subject, which is why the count takes `You` and
-||| writes no complement.
-||| What the two cards still wait on is the Ring-BEARER possessive ("if
-||| Frodo is your Ring-bearer"): the designation is checked and
-||| object-scoped, so `HasDesignation RingBearer` says "is a
-||| Ring-bearer", and the possessive that names WHOSE has no row.
 public export
 ringHasTemptedYouTwiceThisGame : Condition []
 ringHasTemptedYouTwiceThisGame =
   CompareAmt (Macros.eventCount (VerbedAct "The Ring Tempts You") You ThisGame)
              AtLeast (Lit 2)
 
-||| "a creature card" with no zone written -- the bare CARD word routed
-||| here from the placement round. It needed no row either: `IsCard` is
-||| the head [CR#109.2] names among the four words that take a
-||| description out of the battlefield default, and conjoining it with a
-||| type word is what spells the printed phrase. Syr Konrad's second arm,
-||| Disa the Restless and the two Ultrons spell "a creature" today and
-||| can spell the card word now.
 public export
 creatureCardAnywhere : Predicate [] Object
 creatureCardAnywhere = And [Macros.creature, IsCard]
 
-||| "a permanent card" -- the class the anaphora round measured at 4
-||| blocked cards, and the second thing the bare CARD word closes. The
-||| card word takes the head OUT of the battlefield default [CR#109.2]
-||| and `headIsPlaceless` reads it, so the conjunction is placeless: "a
-||| card of a permanent type, wherever it is", which is the printed
-||| class. Measured beside the phrase, because the whole question was
-||| where the phrase lands.
 public export
 permanentCardAnywhere : Predicate [] Object
 permanentCardAnywhere = And [Permanent, IsCard]
@@ -16860,66 +13713,20 @@ permanentCardIsPlaceless :
   phraseZone (And {bs = []} [Permanent, IsCard]) = Nothing
 permanentCardIsPlaceless = Refl
 
-||| "target opponent who has more life than you do" (Keeper of the Flame,
-||| Keeper of the Light) -- the player-headed comparison, and the PLAYER
-||| CELL of `Compare`. The row was not duplicated to reach it: the axis
-||| slot is a `ProjAxis`, so the same constructor that reads an object's
-||| power reads a player's life total, and `AxesAt` scopes the list to
-||| the kind. What the condition frame already said with `CompareAmt`
-||| over `PlayerStatOf` the description frame now says of a referent it
-||| does not have to name.
-||| 18 supported lines write "has more life than" (measured 2026-08-28);
-||| 4 of them put the comparison on a DESCRIPTION -- the two Keepers,
-||| Oath of Mages and Namor, Atlantean King.
-||| Neither Keeper benches whole: both restrict the choice to the moment
-||| the ability is activated ("as you activate this ability"), for which
-||| this vocabulary has nothing.
+||| Keeper of the Flame, Keeper of the Light
 public export
 opponentWithMoreLifeThanYou : Predicate [] Player
 opponentWithMoreLifeThanYou =
   And [Opponent, Compare [PlayerStatAxis LifeTotal] Greater
                          (PlayerStatOf LifeTotal You)]
 
-||| Namor, Atlantean King's trigger head -- "a player who has more life
-||| than you". The same cell over the unnarrowed player noun, which is
-||| what says the narrowing rides the head and not the comparison.
-||| Namor does not bench whole, and the reason has MOVED (2026-09-02).
-||| Its body describes creatures by the defender they are attacking
-||| ("other creatures you control attacking that player") -- the
-||| ATTACKER's voice of the row sub-round 1 built at the defender's
-||| (`AttackedBy`) -- and `AttackerOf` now writes exactly that, in the
-||| bare-participle spelling this line uses (`blessedReversal`). What
-||| holds the card up instead is "OTHER": `Other` asks `anyTargeted` of
-||| the context it stands in, and an attack trigger targets nothing. The
-||| four kin counted with it (Martial Impetus, Oviya, Scriv, Seifer;
-||| measured 2026-08-28) write "one of your opponents", a partitive at
-||| the PLAYER kind where `SomeOf` is object-kinded.
+||| Namor, Atlantean King
 public export
 playerWithMoreLifeThanYou : Predicate [] Player
 playerWithMoreLifeThanYou =
   And [AnyPlayer, Compare [PlayerStatAxis LifeTotal] Greater
                           (PlayerStatOf LifeTotal You)]
 
-||| The ability the Commander-grant family quotes -- "Whenever this
-||| creature attacks a player, if no opponent has more life than that
-||| player, put a +1/+1 counter on this creature" (Agent of the Shadow
-||| Thieves). The NEGATED EXISTENTIAL over players, 5 supported lines
-||| (Agent of the Shadow Thieves, Guild Artisan, Hardy Outlander, Sword
-||| Coast Sailor, Veteran Soldier -- re-measured 2026-08-28).
-||| The umbrella's premise is corrected rather than built on: the shape
-||| IS `NotCond`'s negation of a whole condition, because the existential
-||| is the whole condition. "No opponent has more life than that player"
-||| denies that any opponent answers the description, and `Exists` is
-||| what asks that question; putting `NotCond` outside it scopes the
-||| negation over exactly the quantifier.
-||| It needed the player cell of `Compare` and could not have used
-||| `CompareOver`: that row binds a member of its domain and reads it
-||| back as `They`, and this clause has a second singular player in scope
-||| (the attacked one), so the pronoun would resolve to neither.
-||| A FRAGMENT: all five carriers grant the ability with "Commander
-||| creatures you own have [...]", and the quoted grant has no
-||| vocabulary. The description they head is benched at
-||| `commanderCreaturesYouOwn`.
 public export
 agentOfTheShadowThievesGrantedTrigger : AbilityAt []
 agentOfTheShadowThievesGrantedTrigger =
@@ -16932,21 +13739,12 @@ agentOfTheShadowThievesGrantedTrigger =
     (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
                  Macros.thisCreature)
 
-||| The three-way distinction the negated existential has to keep,
-||| measured at the bare context so the shapes stand side by side. This
-||| one is the negated existential itself: "no opponent has more life
-||| than you".
 public export
 noOpponentHasMoreLifeThanYou : Condition []
 noOpponentHasMoreLifeThanYou =
   NotCond (Exists (And [Opponent, Compare [PlayerStatAxis LifeTotal] Greater
                                           (PlayerStatOf LifeTotal You)]))
 
-||| ...beside `Exists (Not ...)`, which negates the DESCRIPTION and not
-||| the quantifier: "an opponent doesn't have more life than you" is true
-||| whenever any one opponent is at or below you and says nothing about
-||| the rest. A different condition, and the grammar keeps them apart by
-||| where the negation sits.
 public export
 someOpponentLacksMoreLifeThanYou : Condition []
 someOpponentLacksMoreLifeThanYou =
@@ -16954,10 +13752,6 @@ someOpponentLacksMoreLifeThanYou =
                Not (Compare [PlayerStatAxis LifeTotal] Greater
                             (PlayerStatOf LifeTotal You))])
 
-||| ...and beside the PLURAL player read, which tests the group rather
-||| than quantifying over its members: "your opponents have more life
-||| than you". `groupMention (PlayerGroup _)` is still False, so nothing
-||| partitive is reachable through this mention.
 public export
 yourOpponentsHaveMoreLifeThanYou : Condition []
 yourOpponentsHaveMoreLifeThanYou =
@@ -16965,12 +13759,7 @@ yourOpponentsHaveMoreLifeThanYou =
           (Compare [PlayerStatAxis LifeTotal] Greater
                    (PlayerStatOf LifeTotal You))
 
-||| Mirror Universe, WHOLE CARD -- "{T}, Sacrifice this artifact:
-||| Exchange life totals with target opponent. Activate only during your
-||| upkeep." The life exchange's first witness, and the coordination
-||| spelling of the parties: the printed clause writes only the second
-||| party, and the first is the unwritten "you".
-||| Magus of the Mirror prints the same ability on a creature.
+||| Mirror Universe
 public export
 mirrorUniverse : Card
 mirrorUniverse =
@@ -16982,28 +13771,14 @@ mirrorUniverse =
            (DuringPart Upkeep (Just Yours)) ]
        Nothing
 
-||| Soul Conduit's ability -- "{6}, {T}: Two target players exchange life
-||| totals." The exchange's OTHER spelling: one mention counted at two,
-||| where Mirror Universe coordinates two mentions. Both fill the one
-||| party slot, which is what says the row asks for two players and not
-||| for a way of naming them. Axis of Mortality and Profane Transfusion
-||| write the same counted mention.
+||| Soul Conduit
 public export
 soulConduitExchange : Ability
 soulConduitExchange =
   Macros.activated (Compound [Mana [Macros.generic 6], TapSymbol])
                    (ExchangeLife (TargetGroup (Macros.exactly 2) AnyPlayer))
 
-||| Frenzied Gorespawn's second line -- "Whenever one or more creatures
-||| attack one of your opponents, those creatures gain menace until end
-||| of turn." The witness for "one of your opponents": the phrase is the
-||| ordinary indefinite over the opponent head, and the spelling is the
-||| renderer's (`Macros.anOpponent`). Menace needed no data row -- its
-||| `keywordFacts` entry already stands.
-||| A FRAGMENT, and the umbrella's "one gap from whole" is corrected: the
-||| card's FIRST line is "for each opponent, goad target creature that
-||| player controls", and `ForEachOf` takes an OBJECT group, so a loop
-||| over a player group has no row here.
+||| Frenzied Gorespawn
 public export
 frenziedGorespawnMenaceTrigger : AbilityAt []
 frenziedGorespawnMenaceTrigger =
@@ -17014,18 +13789,6 @@ frenziedGorespawnMenaceTrigger =
     (Macros.gains (Those (TypeW Creature)) (Macros.keyword "Menace")
                   (Just Macros.untilEndOfTurn))
 
-||| "Each player shuffles their hand and graveyard into their library" --
-||| the DISTRIBUTIVE POSSESSIVE, routed here from the coordination round
-||| as the dominant surface of Weftwalking's family. Re-measured
-||| 2026-08-28: 38 supported lines write a distributive possessive under
-||| "each player", 29 of them the shuffle family ("each player shuffles
-||| their hand and graveyard into their library", Commit // Memory,
-||| Day's Undoing, Diminishing Returns, Echo of Eons and their kin).
-||| It needed NO row: sub-round 1's `agentIntro` lift binds one member of
-||| an `Each` agent in place of the group mention, so the possessive
-||| inside the clause is the ordinary `They` reading that member, and the
-||| coordinated mass object is the one `weftwalkingShuffle` already
-||| wrote. The "your" spelling stays exactly as it was.
 public export
 eachPlayerShufflesTheirHandAndGraveyard : Effect []
 eachPlayerShufflesTheirHandAndGraveyard =
@@ -17033,11 +13796,6 @@ eachPlayerShufflesTheirHandAndGraveyard =
     (BothOf (AllOf (InZone (Macros.handOf They)))
             (AllOf (InZone (Macros.graveyardOf They))))
 
-||| ...and the OFFERED twin of the line above -- "Each player may shuffle
-||| their hand and graveyard into their library" (2 supported lines). The
-||| possessive is the same `They` reading the same member; what changed is
-||| that `mayCtx` now seats an offer's body where `Does` already seated a
-||| pass's, so the two spellings differ by the offer alone.
 public export
 eachPlayerMayShuffleTheirHandAndGraveyard : Effect []
 eachPlayerMayShuffleTheirHandAndGraveyard =
@@ -17046,14 +13804,6 @@ eachPlayerMayShuffleTheirHandAndGraveyard =
        (BothOf (AllOf (InZone (Macros.handOf They)))
                (AllOf (InZone (Macros.graveyardOf They)))))
 
-||| "Each player may discard their hand and draw seven cards" -- the
-||| largest member-reading offer family, 6 supported cards (Imposing
-||| Grandeur, Raphael's Technique, Ruin Grinder, Sail into the West,
-||| Snort, Will of the Jeskai; re-measured 2026-09-02, two of them at
-||| five cards drawn rather than seven). Both clauses
-||| are the member's and both read it back, which is the whole of what
-||| the offered agent seat buys: the hand discarded is the decider's own
-||| [CR#400.1], and the cards drawn are theirs.
 public export
 eachPlayerMayDiscardTheirHandAndDrawSeven : Effect []
 eachPlayerMayDiscardTheirHandAndDrawSeven =
@@ -17061,19 +13811,7 @@ eachPlayerMayDiscardTheirHandAndDrawSeven =
     (Sequentially [ Macros.discards They (AllOf (InZone (Macros.handOf They)))
                   , Draw They (Lit 7) ])
 
-||| Pir, Imaginative Rascal's replacement -- "If one or more counters
-||| would be put on a permanent your team controls, that many plus one of
-||| each of those kinds of counters are put on that permanent instead."
-||| The TEAM form, decided on [CR#102.4]: "your team" is a player-group
-||| VALUE and not a spelling of `You`, because the rule makes it
-||| shorthand for "you and/or your teammates" -- more than one player
-||| wherever the game has teams [CR#102.3] -- and collapses it to "you"
-||| only in a game that is not between teams. 15 supported lines write
-||| the phrase (measured 2026-08-28).
-||| Doc Samson's note that Pir waited on the team form ALONE was
-||| corrected here; the second blocker was "Partner with Toothy,
-||| Imaginary Friend", and with [CR#702.124j]'s row the card is whole at
-||| `pirImaginativeRascal`.
+||| Pir, Imaginative Rascal's replacement
 public export
 pirDistributive : Ability
 pirDistributive =
@@ -17085,16 +13823,8 @@ pirDistributive =
             Repeatedly Nothing)
 
 
--- ===================================================================
--- The keyword row's parameters, its class term and the catalog rows
--- ===================================================================
 
-||| Frogmite, whole -- "Affinity for artifacts". AFFINITY's witness: the
-||| parameter is a described CLASS [CR#702.41a] ("this spell costs {1}
-||| less to cast for each [text] you control"), which is the quality
-||| payload and not a number, so the row needed no new shape.
-||| 30 distinct printed spellings over 74 supported cards write the line;
-||| Frogmite is the shortest of them.
+||| Frogmite
 public export
 frogmite : Card
 frogmite =
@@ -17103,11 +13833,7 @@ frogmite =
        [ Macros.keywordQuality "Affinity" Macros.artifact ]
        (Just (2, 2))
 
-||| Ulamog's Crusher, whole -- "Annihilator 2" and "This creature attacks
-||| each combat if able." ANNIHILATOR's cheapest consumer: 21 supported
-||| lines write the word, 13 of them as a printed keyword line, and this
-||| is the only one whose other line was already written
-||| (`berserkersOfBloodRidge`'s deontic, verbatim).
+||| Ulamog's Crusher
 public export
 ulamogsCrusher : Card
 ulamogsCrusher =
@@ -17118,11 +13844,7 @@ ulamogsCrusher =
                                 NoDeonticPatient) ]
        (Just (8, 8))
 
-||| Iymrith, Desert Doom, whole -- the PARAMETERISED ward line the row
-||| was minted for and had no witness at: "Iymrith has ward {4} as long
-||| as it's untapped" [CR#702.21a]. Benched at Dragonlord Ojutai's
-||| cost-free spelling of the same postposed static, whose fragment
-||| `dragonlordOjutaiHexproof` is this one with the parameter dropped.
+||| Iymrith, Desert Doom
 public export
 iymrithDesertDoom : Card
 iymrithDesertDoom =
@@ -17144,16 +13866,7 @@ iymrithDesertDoom =
                                   Nothing ]) ]
        (Just (5, 5))
 
-||| True-Name Nemesis, whole -- "As this creature enters, choose a
-||| player." and "This creature has protection from the chosen player."
-||| The PLAYER payload: [CR#702.16k] makes "protection from [a player]"
-||| a variant of the ability whose slot names a player outright, and
-||| [CR#109.3] makes a player no characteristic of anything, so the
-||| phrase names its referent instead of matching one -- `ChosenPlayer`,
-||| the head-noun read, at the quality payload's kind-indexed slot.
-||| Two supported cards write the phrase; Guardian Archon is the other
-||| and stays off the bench on its own line ("You and target permanent
-||| you control each gain ...", a mixed-group subject).
+||| True-Name Nemesis
 public export
 trueNameNemesis : Card
 trueNameNemesis =
@@ -17164,12 +13877,6 @@ trueNameNemesis =
        , Macros.keywordQuality "Protection" ChosenPlayer ]
        (Just (3, 1))
 
-||| The two keyword CLASSES the seven blocked extension lists name, as
-||| terms: [CR#702.16a] writes every protection ability as "Protection
-||| from [quality]", so "protection" with nothing after it is that word
-||| with its quality left open; [CR#702.14a] makes landwalk "a generic
-||| term that appears within an object's rules text as '[type]walk'",
-||| which is that word with its land type left open.
 public export
 protectionAbilities : KeywordTerm
 protectionAbilities = AnyKeywordIn (MkKeywordFamily "Protection" Nothing)
@@ -17178,40 +13885,21 @@ public export
 landwalkAbilities : KeywordTerm
 landwalkAbilities = AnyKeywordIn (MkKeywordFamily "Landwalk" Nothing)
 
-||| "ward" written where the ability LOSS coordinates it with bare words
-||| (Shay Cormac). [CR#702.21a] writes "Ward [cost]", so the word alone
-||| names every ward ability and not one written cost's -- the same
-||| quantification `protectionAbilities` makes over a quality.
+||| Shay Cormac
 public export
 wardAbilities : KeywordTerm
 wardAbilities = AnyKeywordIn (MkKeywordFamily "Ward" Nothing)
 
-||| "all 'bands with other' abilities" (Tolaria, Shelkin Brownie).
-||| [CR#702.22c] writes the word as "bands with other [quality]", and
-||| these two lines take away every one of them; the phrase's "all ...
-||| abilities" is the quantifier the class term already is.
+||| Tolaria, Shelkin Brownie
 public export
 bandsWithOtherAbilities : KeywordTerm
 bandsWithOtherAbilities = AnyKeywordIn (MkKeywordFamily "BandsWithOther" Nothing)
 
-||| "protection from any color": the same word with its quality NARROWED
-||| to a sort rather than left open -- [CR#105.1]'s five colors, not
-||| [CR#702.16a]'s whole "any characteristic value or information".
-||| Escaped Shapeshifter is its only supported carrier.
 public export
 protectionFromAnyColor : KeywordTerm
 protectionFromAnyColor = AnyKeywordIn (MkKeywordFamily "Protection" (Just Color))
 
-||| Cairn Wanderer, whole -- "Changeling" and "As long as a creature card
-||| with flying is in a graveyard, this creature has flying. The same is
-||| true for fear, first strike, double strike, deathtouch, haste,
-||| landwalk, lifelink, protection, reach, trample, shroud, and
-||| vigilance."
-||| The keyword-list extension's longest list and the one that buys the
-||| most: both class terms, both paramless words whose only carriers were
-||| the class-blocked seven (`fear`, 3 lines; `shroud`, 1), and the
-||| changeling row. Seven of the family's fifteen lists name a class;
-||| this is the first of them to write.
+||| Cairn Wanderer
 public export
 cairnWanderer : Card
 cairnWanderer =
@@ -17230,11 +13918,7 @@ cairnWanderer =
            , TheKeyword "Shroud", TheKeyword "Vigilance" ] ]
        (Just (4, 4))
 
-||| Concerted Effort, whole -- "At the beginning of each upkeep,
-||| creatures you control gain flying until end of turn if a creature you
-||| control has flying. The same is true for fear, first strike, double
-||| strike, landwalk, protection, trample, and vigilance." Odric's
-||| triggered shape at the upkeep, with two class terms in the list.
+||| Concerted Effort
 public export
 concertedEffort : Card
 concertedEffort =
@@ -17255,12 +13939,7 @@ concertedEffort =
            , TheKeyword "Trample", TheKeyword "Vigilance" ] ]
        Nothing
 
-||| Death-Mask Duplicant, whole -- "Imprint — {1}: Exile target creature
-||| card from your graveyard." and "As long as a card exiled with this
-||| creature has flying, this creature has flying. The same is true for
-||| fear, first strike, double strike, haste, landwalk, protection, and
-||| trample." Urborg Scavengers' base sentence under an ability word,
-||| with the two class terms in the trailer.
+||| Death-Mask Duplicant
 public export
 deathMaskDuplicant : Card
 deathMaskDuplicant =
@@ -17282,10 +13961,7 @@ deathMaskDuplicant =
            , landwalkAbilities, protectionAbilities, TheKeyword "Trample" ] ]
        (Just (5, 5))
 
-||| Autarch Mammoth, whole -- its header line plus "Saddle 5". The
-||| DESIGNATION half was already there (`Saddled`, `Macros.becomesSaddled`);
-||| what was missing was the word, and [CR#702.171a]'s "Saddle N" writes a
-||| number after it exactly as [CR#702.122a]'s "Crew N" does.
+||| Autarch Mammoth
 public export
 autarchMammoth : Card
 autarchMammoth =
@@ -17296,11 +13972,7 @@ autarchMammoth =
        , Macros.keywordNumber "Saddle" (Lit 5) ]
        (Just (5, 5))
 
-||| Debris Beetle, whole -- "Trample", the enters drain, and "Crew 2".
-||| CREW-THE-WORD, which is all this round buys of crew: [CR#702.122a]
-||| writes "Crew N" with a number after the word, and the crewing itself
-||| -- the tap-a-set-of-creatures-by-total-power cost -- is the keyword's
-||| own expansion and not a construction this grammar writes.
+||| Debris Beetle
 public export
 debrisBeetle : Card
 debrisBeetle =
@@ -17314,13 +13986,7 @@ debrisBeetle =
        , Macros.keywordNumber "Crew" (Lit 2) ]
        (Just (6, 6))
 
-||| Pir, Imaginative Rascal, whole -- "Partner with Toothy, Imaginary
-||| Friend" and the team distributive `pirDistributive` already carried.
-||| [CR#702.124j]'s slot is a card NAME; [CR#109.3] lists name among an
-||| object's characteristics and [CR#702.16a] takes a quality to be "any
-||| characteristic value or information", so the payload is `Named`'s
-||| printed-name predicate at the quality slot. The reminder text is the
-||| second ability [CR#702.124j] gives the word and not a printed line.
+||| Pir, Imaginative Rascal
 public export
 pirImaginativeRascal : Card
 pirImaginativeRascal =
@@ -17332,11 +13998,7 @@ pirImaginativeRascal =
        , pirDistributive ]
        (Just (1, 1))
 
-||| Bloodline Pretender, whole -- "Changeling", "As this creature enters,
-||| choose a creature type." and "Whenever another creature you control of
-||| the chosen type enters, put a +1/+1 counter on this creature." Prism
-||| Ring's chooser-then-reader shape on a creature, with the changeling
-||| row as its last blocker.
+||| Bloodline Pretender
 public export
 bloodlinePretender : Card
 bloodlinePretender =
@@ -17353,14 +14015,7 @@ bloodlinePretender =
                         Macros.thisCreature) ]
        (Just (2, 2))
 
-||| Foul Emissary's second line -- "When you sacrifice this creature
-||| while casting a spell with emerge, create a 3/2 colorless Eldrazi
-||| Horror creature token." The concurrent clause's ACT arm at its
-||| second printed shape, and what it wanted was the keyword: [CR#702.119a]
-||| writes "Emerge [cost]" as an alternative cost, so the row is a cost
-||| row, and `HasKeyword` reads it off the spell being cast.
-||| The card is not whole: its other line looks at the top four cards,
-||| reveals one from among them and bottoms the rest.
+||| Foul Emissary
 public export
 foulEmissaryLine : Ability
 foulEmissaryLine =
@@ -17374,15 +14029,7 @@ foulEmissaryLine =
        (Macros.creatureTok 3 2 []
           [creatureType "Eldrazi", creatureType "Horror"]))
 
-||| Market Gnome, whole -- "When this creature dies, you gain 1 life and
-||| draw a card." and "When this creature is exiled from the battlefield
-||| while you're activating a craft ability, you gain 1 life and draw a
-||| card." The concurrent clause's ACT arm at its third and last printed
-||| shape. It needed a "Craft" row and an ability DESCRIBED by a keyword;
-||| the description was already there (`AbilityClass`' `KeywordClass`),
-||| and [CR#702.167a]'s "Craft with [materials] [cost]" is one activation
-||| cost written in two printed pieces, so the row needed no compound
-||| parameter shape.
+||| Market Gnome
 public export
 marketGnome : Card
 marketGnome =
@@ -17397,12 +14044,7 @@ marketGnome =
            (Sequentially [ Macros.gainsLife You (Lit 1), Macros.drawACard ]) ]
        (Just (0, 3))
 
-||| Escaped Shapeshifter, whole -- "As long as an opponent controls a
-||| creature with flying not named Escaped Shapeshifter, this creature
-||| has flying. The same is true for first strike, trample, and
-||| protection from any color." The NARROWED class term's only supported
-||| carrier: [CR#105.1]'s five colors, not [CR#702.16a]'s whole quality
-||| range.
+||| Escaped Shapeshifter
 public export
 escapedShapeshifter : Card
 escapedShapeshifter =
@@ -17420,12 +14062,7 @@ escapedShapeshifter =
            , protectionFromAnyColor ] ]
        (Just (3, 4))
 
-||| Ancestral Blade, whole -- "When this Equipment enters, create a 1/1
-||| white Soldier creature token, then attach this Equipment to it. /
-||| Equipped creature gets +1/+1. / Equip {1}". THE ATTACH EFFECT's first
-||| witness, and the one that spends `ItToken`: the host pronoun names the
-||| token the same clause minted [CR#111.1], which is the origin narrowing
-||| and not a count over the whole prefix.
+||| Ancestral Blade
 public export
 ancestralBlade : Card
 ancestralBlade =
@@ -17443,11 +14080,7 @@ ancestralBlade =
        , Macros.keywordCosting "Equip" (Mana [Macros.generic 1]) ]
        Nothing
 
-||| Disarm, whole -- "Unattach all Equipment from target creature."
-||| [CR#701.3d]'s act with its "from" phrase, which is the described
-||| object's own predicate rather than a second slot: what the phrase
-||| does here is pick out WHICH Equipment, against every Equipment on the
-||| battlefield, and `AttachedTo` is the phrase that says so.
+||| Disarm
 public export
 disarm : Card
 disarm =
@@ -17457,13 +14090,7 @@ disarm =
                               , AttachedTo (Macros.target Macros.creature) ]))) ]
        Nothing
 
-||| Embercleave, whole -- "Flash / This spell costs {1} less to cast for
-||| each attacking creature you control. / When Embercleave enters, attach
-||| it to target creature you control. / Equipped creature gets +1/+1 and
-||| has double strike and trample. / Equip {3}". The attach clause at its
-||| commonest shape (29 of the 233 supported faces write exactly this
-||| sentence), with the ATTACHED object as the pronoun and the host
-||| described.
+||| Embercleave
 public export
 embercleave : Card
 embercleave =
@@ -17486,12 +14113,7 @@ embercleave =
        , Macros.keywordCosting "Equip" (Mana [Macros.generic 3]) ]
        Nothing
 
-||| Steelclaw Lance, whole -- "Equipped creature gets +2/+2. / Equip
-||| Knight {1} / Equip {3}". THE COMPOUND KEYWORD PARAMETER's first
-||| witness, and the one that shows why the head is optional rather than
-||| a second word: [CR#702.6c]'s restriction and [CR#702.6a]'s bare cost
-||| are printed on ONE card, one under the other, and `paramShapeFits`
-||| is what admits both against the single "Equip" row.
+||| Steelclaw Lance
 public export
 steelclawLance : Card
 steelclawLance =
@@ -17504,16 +14126,7 @@ steelclawLance =
        , Macros.keywordCosting "Equip" (Mana [Macros.generic 3]) ]
        Nothing
 
-||| Commander's Plate's equip lines -- "Equip commander {3} / Equip
-||| {5}". The compound head at the one printed spelling that is no
-||| creature type: [CR#903.3] makes the commander designation "an
-||| attribute of the card itself", which `HasCardDesignation` reads and
-||| [CR#702.6c] admits as the quality the ability's target must have.
-||| The card is not whole for its other line -- "protection from each
-||| color that's not in your commander's color identity" quantifies
-||| protection over a colour set read off another object, which is the
-||| keyword CLASS term's parameter left open per member rather than
-||| narrowed by a sort, and no seat spells that.
+||| Commander's Plate's equip lines
 public export
 commandersPlateEquip : List Ability
 commandersPlateEquip =
@@ -17521,16 +14134,7 @@ commandersPlateEquip =
       (HasCardDesignation CommanderD) (Mana [Macros.generic 3])
   , Macros.keywordCosting "Equip" (Mana [Macros.generic 5]) ]
 
-||| Luxior, Giada's Gift's equip lines -- "Equip planeswalker {1} /
-||| Equip {3}". [CR#702.6e]'s VARIANT at the same printed shape:
-||| "'Equip planeswalker [cost]' means '[Cost]: Attach this permanent to
-||| target planeswalker you control as though that planeswalker were a
-||| creature'", which is a different ability from [CR#702.6c]'s target
-||| restriction and not a narrowing of it. It is written with the same
-||| parameter anyway, on the catalog's founding principle: a row records
-||| what the card PRINTS after the word, and which rule reads the head
-||| is the word's own business. The card's remaining line
-||| (`luxiorTypeSetting`) is benched on its own.
+||| Luxior, Giada's Gift's equip lines
 public export
 luxiorEquipLines : List Ability
 luxiorEquipLines =
@@ -17538,11 +14142,7 @@ luxiorEquipLines =
       (HasType Planeswalker) (Mana [Macros.generic 1])
   , Macros.keywordCosting "Equip" (Mana [Macros.generic 3]) ]
 
-||| Veiling Oddity, WHOLE -- "Suspend 4--{1}{U} / When the last time
-||| counter is removed from this card while it's exiled, creatures can't
-||| be blocked this turn." The compound's second payer, and the card
-||| whose last blocker it was: [CR#702.62a]'s count and cost, written as
-||| the two things they are.
+||| Veiling Oddity
 public export
 veilingOddity : Card
 veilingOddity =
@@ -17554,11 +14154,7 @@ veilingOddity =
        , veilingOddityLine ]
        (Just (2, 3))
 
-||| Enormous Energy Blade, whole -- "Equipped creature gets +4/+0. /
-||| Whenever this Equipment becomes attached to a creature, tap that
-||| creature. / Equip {2}". THE ATTACHMENT EVENT's first witness, and the
-||| shortest one: [CR#701.3a]'s act watched for rather than instructed,
-||| with the host read straight back by the body.
+||| Enormous Energy Blade
 public export
 enormousEnergyBlade : Card
 enormousEnergyBlade =
@@ -17573,13 +14169,7 @@ enormousEnergyBlade =
        , Macros.keywordCosting "Equip" (Mana [Macros.generic 2]) ]
        Nothing
 
-||| Bramble Elemental, whole -- "Whenever an Aura becomes attached to
-||| this creature, create two 1/1 green Saproling creature tokens." The
-||| same event read from the HOST's side: what becomes attached is
-||| described and the host is this creature, which is the reverse of the
-||| Equipment lines' arrangement and the same row. [CR#303.4] is why an
-||| Aura stands at the subject seat that [CR#701.3a] opens to "an Aura,
-||| Equipment, or Fortification".
+||| Bramble Elemental
 public export
 brambleElemental : Card
 brambleElemental =
@@ -17593,13 +14183,7 @@ brambleElemental =
               (Macros.creatureTok 1 1 [Green] [creatureType "Saproling"])) ]
        (Just (4, 4))
 
-||| Grafted Wargear, whole -- "Equipped creature gets +3/+2. / Whenever
-||| this Equipment becomes unattached from a permanent, sacrifice that
-||| permanent. / Equip {0}". THE UNATTACHMENT EVENT's witness.
-||| [CR#701.3d] names the act and its last sentence is the event this
-||| header watches; the host is a slot here because "that permanent" is
-||| what the body then destroys, where `Unattach`'s printed "from"
-||| phrase describes which attachment to move and announces nothing.
+||| Grafted Wargear
 public export
 graftedWargear : Card
 graftedWargear =
@@ -17613,20 +14197,7 @@ graftedWargear =
        , Macros.keywordCosting "Equip" (Mana [Macros.generic 0]) ]
        Nothing
 
-||| Stone Haven Outfitter, whole -- "Equipped creatures you control get
-||| +1/+1. / Whenever an equipped creature you control dies, draw a card."
-||| THE PRENOMINAL PARTICIPLE, and it needed no row. Finding 369 recorded
-||| that the corpus writes the attachment participle "predicatively after
-||| the copula and never prenominally"; the second half of that is wrong
-||| and is corrected here and at `IsAttached`. Both writings are
-||| `IsAttached` inside a described noun, and the position is spelling:
-||| "creatures you control that are equipped" (12 supported faces) and
-||| "equipped creatures you control" (29 occurrences over 28 faces,
-||| re-measured 2026-08-28) take the same word with the same absent
-||| slots, so nothing covaries with the position.
-||| What the participle is NOT here is `AttachHost`: that names the ONE
-||| host of this permanent's own attachment [CR#301.5f], where these
-||| lines describe every equipped creature their controller has.
+||| Stone Haven Outfitter
 public export
 stoneHavenOutfitter : Card
 stoneHavenOutfitter =
@@ -17640,17 +14211,7 @@ stoneHavenOutfitter =
            (Macros.drawsACard You) ]
        (Just (2, 2))
 
-||| Cloud, Ex-SOLDIER's entry trigger -- "When Cloud enters, attach up to
-||| one target Equipment you control to it." THE CO-ARGUMENT NARROWING's
-||| witness on the family it was built for: the host pronoun is read over
-||| the prefix the ATTACHED object did not mint, and the bare `It` here
-||| counts the target Equipment as well as Cloud and refuses. The
-||| exclusion is the act's own rule -- [CR#301.5c] says an Equipment
-||| "can't equip itself" -- and not a preference among candidates.
-||| A FRAGMENT: the card's second line reads "draw a card for each
-||| equipped attacking creature you control", whose amount is a count
-||| over a described class rather than the per-member `forEach` this
-||| grammar spells at a draw.
+||| Cloud, Ex-SOLDIER
 public export
 cloudExSoldierAttach : Ability
 cloudExSoldierAttach =
@@ -17659,16 +14220,6 @@ cloudExSoldierAttach =
        (TargetGroup (Macros.upTo 1)
           (And [HasSubtype (artifactType "Equipment"), ControlledBy You])))
 
-||| Kitsune Mystic // Autumn-Tail, Kitsune Sage, a flip card [CR#710.1],
-||| WHOLE -- "At the beginning of the end step, if this creature is
-||| enchanted by two or more Auras, flip it." // "{1}: Attach target Aura
-||| attached to a creature to another creature."
-||| The reverse attachment phrase's witness. The alternative face's target
-||| is described by what it is attached TO, which is the relation read
-||| from the attachment's own side [CR#303.4b] -- the direction the
-||| umbrella recorded as this card's last blocker -- and the ability's
-||| body is [CR#701.3a]'s act with a written host.
-||| `kitsuneMysticFlip` above stays as the normal face's own witness.
 public export
 kitsuneMystic : Card
 kitsuneMystic =
@@ -17687,21 +14238,7 @@ kitsuneMystic =
                       (Macros.a (And [Macros.creature, OtherThan This]))) ]
                (Macros.printedBox (Just (4, 5))))
 
-||| Akiri, Fearless Voyager's two lines -- "Whenever you attack a player
-||| with one or more equipped creatures, draw a card. / {W}: You may
-||| unattach an Equipment from a creature you control. If you do, tap that
-||| creature and it gains indestructible until end of turn."
-||| [CR#701.3d]'s act at its offered form, with the "from" phrase carried
-||| by the object's own `AttachedTo` description -- and the readback that
-||| description leaves is what "that creature" then reads. The header
-||| beside it is the prenominal participle inside an attack event.
-||| A FRAGMENT by one pronoun: the printed line ends "and it gains
-||| indestructible until end of turn", whose "it" names the creature the
-||| TAP clause just spoke of. `ItPrior` is the reading for that, and its
-||| segment is the preceding member's own delta -- which here is empty,
-||| the tap clause's subject being itself a readback rather than a fresh
-||| mention. A residue of the anaphora family and not of the attachment;
-||| nothing in this round's rows moves it.
+||| Akiri, Fearless Voyager
 public export
 akiriEquippedAttackers : Ability
 akiriEquippedAttackers =
@@ -17721,12 +14258,7 @@ akiriUnattachOffer =
                          , AttachedTo (Macros.a Macros.creatureYouControl) ])))
        (SetStatus Tapped (That (TypeW Creature))))
 
-||| Black Ward, whole -- "Enchant creature / Enchanted creature has
-||| protection from black. This effect doesn't remove this Aura."
-||| THE AURA CARVE-OUT, at the simplest of its four spellings. What the
-||| rider suspends is a state-based action: [CR#702.16c] puts an Aura of
-||| the stated quality attached to a protected permanent into its owner's
-||| graveyard, which is [CR#704.5m], and this Aura is black.
+||| Black Ward
 public export
 blackWard : Card
 blackWard =
@@ -17739,11 +14271,7 @@ blackWard =
                    Macros.thisAura) ]
        Nothing
 
-||| Cho-Manno's Blessing, whole -- "Flash / Enchant creature / As this
-||| Aura enters, choose a color. / Enchanted creature has protection from
-||| the chosen color. This effect doesn't remove this Aura."
-||| The carve-out over a CHOSEN quality [CR#607.2d], which is what eleven
-||| of its twelve siblings write.
+||| Cho-Manno's Blessing
 public export
 choMannosBlessing : Card
 choMannosBlessing =
@@ -17758,13 +14286,7 @@ choMannosBlessing =
                    Macros.thisAura) ]
        Nothing
 
-||| Tattoo Ward, whole -- "Enchant creature / Enchanted creature gets
-||| +1/+1 and has protection from enchantments. This effect doesn't remove
-||| this Aura. / Sacrifice this Aura: Destroy target enchantment."
-||| The carve-out over a CARD-TYPE quality, which [CR#702.16a] admits
-||| outright ("can be any characteristic value"), and over a coordinated
-||| verb phrase rather than a bare grant -- the rider names the whole
-||| statement either way.
+||| Tattoo Ward
 public export
 tattooWard : Card
 tattooWard =
@@ -17781,8 +14303,7 @@ tattooWard =
            (Macros.destroy (Macros.target Macros.enchantment)) ]
        Nothing
 
-||| Pentarch Ward, whole -- the same carve-out with an entry trigger
-||| beside the entry choice.
+||| Pentarch Ward
 public export
 pentarchWard : Card
 pentarchWard =
@@ -17797,16 +14318,7 @@ pentarchWard =
                    Macros.thisAura) ]
        Nothing
 
-||| Benevolent Blessing, whole -- "Flash / Enchant creature / As this Aura
-||| enters, choose a color. / Enchanted creature has protection from the
-||| chosen color. This effect doesn't remove Auras and Equipment you
-||| control that are already attached to it."
-||| The carve-out with its object DESCRIBED rather than named, which is
-||| what the other three spellings do -- and the description is the
-||| reverse attachment phrase, reading back the host the statement itself
-||| announced. "Already" is spelling: [CR#702.16c] and [CR#702.16d] act
-||| on attachments that are there when the protection applies, and the
-||| word says no more.
+||| Benevolent Blessing
 public export
 benevolentBlessing : Card
 benevolentBlessing =
@@ -17824,11 +14336,7 @@ benevolentBlessing =
                                , AttachedTo It ]))) ]
        Nothing
 
-||| Floating Shield, whole -- the chosen-colour carve-out plus "Sacrifice
-||| this Aura: Target creature gains protection from the chosen color
-||| until end of turn." The second ability reads the SAME chosen value the
-||| entry choice wrote [CR#607.2d], which is what makes this card the
-||| family's sixth whole one rather than a fifth twin.
+||| Floating Shield
 public export
 floatingShield : Card
 floatingShield =
@@ -17846,14 +14354,7 @@ floatingShield =
                          (Just Macros.untilEndOfTurn)) ]
        Nothing
 
-||| Summoning Materia's second line -- "As long as this Equipment is
-||| attached to a creature, you may cast creature spells from the top of
-||| your library." THE ATTACHMENT'S OWN DIRECTION in its printed
-||| position: the same `AttachedTo` Kitsune Mystic writes attributively,
-||| after a copula this time, which is the position finding 275's test
-||| calls spelling.
-||| A FRAGMENT: the card's third line grants the equipped creature a
-||| quoted mana ability, which the umbrella records as an unbuilt hole.
+||| Summoning Materia
 public export
 summoningMateriaTopCast : Ability
 summoningMateriaTopCast =
@@ -17862,22 +14363,7 @@ summoningMateriaTopCast =
             (Macros.mayCastFrom You
                (AllOf (And [Macros.spell, HasType Creature])) Macros.onTopZ))
 
-||| Ghostfire Blade, whole -- "Equipped creature gets +2/+2. / Equip {3} /
-||| This Equipment's equip ability costs {2} less to activate if it
-||| targets a colorless creature."
-||| THE EQUIP COST REDUCTION, which is the cost-modification axis and not
-||| a variant of the equip row: [CR#702.6a] makes equip an activated
-||| ability, [CR#115.9b] gives the reading that describes one by what it
-||| targets, and `CostsToCast`'s ability seat was already open
-||| (`AbilityCostSubject`). Re-measured 2026-08-28: 10 supported lines
-||| write "equip abilities you activate … cost {N} less to activate", 6
-||| of them with a target restrictor; 5 more append the general
-||| activated-ability reduction to a bare equip line, which is a family of
-||| 46 faces and no part of the equip row either.
-||| The printed "if it targets a colorless creature" is written here as
-||| the described ability's own predicate, which is the same statement:
-||| the condition decides WHICH equip abilities the reduction applies to,
-||| and that is what a description of the subject says.
+||| Ghostfire Blade
 public export
 ghostfireBlade : Card
 ghostfireBlade =
@@ -17894,20 +14380,7 @@ ghostfireBlade =
                    (CostLess (Lit 2) Nothing)) ]
        Nothing
 
-||| Luxior, Giada's Gift's second line -- "Equipped permanent isn't a
-||| planeswalker and is a creature in addition to its other types."
-||| THE NEGATED TYPE SETTING, and the line that spends
-||| `attachHeadOk Equipped PermanentW`. The two halves are why the card
-||| writes "permanent" and not "creature": [CR#301.5a] names the equipped
-||| CREATURE and [CR#702.6e]'s "equip planeswalker" attaches an Equipment
-||| to a planeswalker "as though that planeswalker were a creature", so
-||| the host word has to reach further than [CR#301.5] otherwise lets it.
-||| Written as two coordinated statements with the second reading the
-||| host back, on Darksteel Mutation's ground: `SubjectVPs` spells a
-||| shared subject only for a P/T shift and a grant, and neither half
-||| here is either.
-||| A FRAGMENT: the card's "Equip planeswalker {1}" wants the compound
-||| equip parameter, which this round did not mint.
+||| Luxior, Giada's Gift
 public export
 luxiorTypeSetting : Ability
 luxiorTypeSetting =
@@ -17916,22 +14389,7 @@ luxiorTypeSetting =
             , BecomesAlso It (MkToken Nothing []
                                       (MkTypeLine [] [Creature]) [] Nothing) ])
 
-||| Vesuvan Shapeshifter's copy clause -- "until this creature is turned
-||| face down, it becomes a copy of that creature, except it has 'At the
-||| beginning of your upkeep, you may turn this creature face down.'"
-||| THE STATUS EVENT'S SECOND READER. This is the only supported line
-||| anywhere that names a face-down transition, and it names it as a
-||| DURATION ENDPOINT. `statusEventOk` answers it -- the transition
-||| exists -- while `statusHeaderOk` keeps the trigger header at its
-||| measured zero (`badTurnedFaceDownHeader`). Two tables, one cell of
-||| disagreement, and neither reader widened.
-||| `spanEventOk`'s `StatusChange` cell is answered by the same line: it
-||| was admitted by the catch-all and is now attested, at one line, by
-||| this one.
-||| A FRAGMENT: the sentence before it is an as-clause over two
-||| alternative events ("As this creature enters or is turned face up")
-||| whose body is an optional choice, and morph's own line waits on the
-||| keyword row.
+||| Vesuvan Shapeshifter
 public export
 vesuvanShapeshifterCopySpan :
   Effect [MkBinding AD Object OneOf
@@ -17944,16 +14402,7 @@ vesuvanShapeshifterCopySpan =
              (Macros.may You (SetStatus FaceDown Macros.thisCreature)))])
     (Just (UntilEvent (StatusEvent Macros.thisCreature FaceDown)))
 
-||| Academy Journeymage, whole -- "This spell costs {1} less to cast if
-||| you control a Wizard. / When this creature enters, return target
-||| creature an opponent controls to its owner's hand."
-||| THE CONDITIONAL COST STATEMENT at the "if" marking, `CondMarking`'s
-||| third word. It is the same construction the closed pair was, settled
-||| on [CR#601.2f] and [CR#611.3a] at `CondMarking`'s own declaration:
-||| the lock-in [CR#601.2f] describes belongs to the TOTAL COST, and
-||| [CR#611.3a] denies this static's continuous effect any of its own, so
-||| the condition is read once at the determination step whichever word
-||| marks it. 145 supported lines write it over a cost modification.
+||| Academy Journeymage
 public export
 academyJourneymage : Card
 academyJourneymage =
@@ -17967,11 +14416,7 @@ academyJourneymage =
                         Macros.handZ) ]
        (Just (3, 2))
 
-||| Alabaster Leech, whole -- "White spells you cast cost {W} more to
-||| cast." THE COLOURED PAYLOAD, `CostShiftRun` beside the `Amount` arms
-||| rather than in place of them: Ghalta and Cavern-Hoard Dragon still
-||| write a letter at the same slot. Derelor and Jade Leech print the
-||| same line at {B} and {G}.
+||| Alabaster Leech
 public export
 alabasterLeech : Card
 alabasterLeech =
@@ -17981,11 +14426,7 @@ alabasterLeech =
                              (CostShiftRun [Macros.pip White] True False)) ]
        (Just (1, 3))
 
-||| Edgewalker, whole -- the coloured payload at a REDUCTION, with the
-||| coloured-only rider. "Cleric spells you cast cost {W}{B} less to
-||| cast. This effect reduces only the amount of colored mana you pay."
-||| Bard Class, Morophon and Ragemonger write the same pair; the
-||| parenthetical worked example is reminder text.
+||| Edgewalker
 public export
 edgewalker : Card
 edgewalker =
@@ -17998,13 +14439,7 @@ edgewalker =
                                            False True)) ]
        (Just (2, 2))
 
-||| Cavern-Hoard Dragon's cost rider, written -- "This spell costs {X}
-||| less to cast, where X is the greatest number of artifacts an opponent
-||| controls." Ghalta's telescope over the narrowed domain the amount
-||| beside it already spelled.
-||| A FRAGMENT: the card's combat-damage trigger creates a Treasure for
-||| each artifact the damaged player controls, which is the for-each over
-||| a damaged player's permanents.
+||| Cavern-Hoard Dragon
 public export
 cavernHoardDragonRider : Ability
 cavernHoardDragonRider =
@@ -18012,13 +14447,7 @@ cavernHoardDragonRider =
                   , Define X (AggregateOver MaxOf Opponent
                                 (CountOf (And [Macros.artifact, ControlledBy They]))) ])
 
-||| Propaganda, whole -- "Creatures can't attack you unless their
-||| controller pays {2} for each creature they control that's attacking
-||| you." THE GATE READING ITS OWN SUBJECT AND ITS DERIVED PAYER: the
-||| carrier types a `Compulsion` at `selfSubjIntro n` and `GatedBy` adds
-||| the payer [CR#508.1h] derives, so "they control" is a read rather
-||| than an unwritable pronoun, and `AttackerOf` spells "that's
-||| attacking you". Ghostly Prison prints the same sentence.
+||| Propaganda
 public export
 propaganda : Card
 propaganda =
@@ -18031,11 +14460,7 @@ propaganda =
                    ["Attack"] Agent (DefendingPlayer You)) ]
        Nothing
 
-||| Ghostly Prison, whole -- Propaganda's sentence at the other colour.
-||| Windborn Muse and Koskun Falls print it too; Elephant Grass narrows
-||| the subject to nonblack creatures and Onakke Oathkeeper reads the
-||| defender at a planeswalker, which is the kind index `AttackerOf`
-||| carries.
+||| Ghostly Prison
 public export
 ghostlyPrisonWhole : Card
 ghostlyPrisonWhole =
@@ -18048,15 +14473,7 @@ ghostlyPrisonWhole =
                    ["Attack"] Agent (DefendingPlayer You)) ]
        Nothing
 
-||| Archangel of Tithes' block line -- "As long as this creature is
-||| attacking, creatures can't block unless their controller pays {1} for
-||| each of those creatures." THE ANAPHORIC COUNT: "those creatures" is
-||| the subject's own plural mention and `GroupSize` is the read of it,
-||| which the gate's cost could not reach while the cost sat before the
-||| subject. 9 supported lines write the phrase; the other eight name
-||| "you or planeswalkers you control" as the defender, which is a
-||| DISJOINED patient this line does not need and no noun in the grammar
-||| yet spells.
+||| Archangel of Tithes
 public export
 archangelOfTithesBlockToll : Ability
 archangelOfTithesBlockToll =
@@ -18065,13 +14482,7 @@ archangelOfTithesBlockToll =
                (GatedBy (ScaledMana GenericUnit (Times 1 GroupSize)))
                ["Block"] Agent NoDeonticPatient))
 
-||| Archangel of Tithes' ATTACK line -- the DISJOINED defender, and the
-||| line the gate round recorded as the one thing its cost work could not
-||| reach. "As long as this creature is untapped, creatures can't attack
-||| you or planeswalkers you control unless their controller pays {1} for
-||| each of those creatures." `EitherJoined` is the whole of what was
-||| missing: the seat took a joined kind already, and no noun spelled one
-||| out of two mentions.
+||| Archangel of Tithes
 public export
 archangelOfTithesAttackToll : Ability
 archangelOfTithesAttackToll =
@@ -18083,12 +14494,7 @@ archangelOfTithesAttackToll =
                                    (AllOf (And [HasType Planeswalker,
                                                 ControlledBy You]))))))
 
-||| Archon of Absolution, whole -- the same defender with no condition
-||| over it. "Flying / Protection from white / Creatures can't attack you
-||| or planeswalkers you control unless their controller pays {1} for
-||| each of those creatures." Baird, Forbidding Spirit and Nils write the
-||| same sentence; Sphere of Safety and Norn's Annex write it with the
-||| scaled payments sub-round 3 landed.
+||| Archon of Absolution
 public export
 archonOfAbsolution : Card
 archonOfAbsolution =
@@ -18105,13 +14511,7 @@ archonOfAbsolution =
                                                     ControlledBy You]))))) ]
        (Just (3, 2))
 
-||| Myr Prototype, whole -- "At the beginning of your upkeep, put a
-||| +1/+1 counter on this creature. / This creature can't attack or block
-||| unless you pay {1} for each +1/+1 counter on it."
-||| THE COORDINATED DEED under a gate, which the carrier's deed LIST
-||| already was, plus the gate cost reading the subject's own counters.
-||| Cowed by Wisdom and Whipgrass Entangler are the family's other two.
-||| Phyrexian Marauder writes the same counter-scaled toll at one deed.
+||| Myr Prototype
 public export
 myrPrototype : Card
 myrPrototype =
@@ -18125,14 +14525,7 @@ myrPrototype =
                    ["Attack", "Block"] Agent NoDeonticPatient) ]
        (Just (3, 3))
 
-||| Heat Wave, whole -- "Cumulative upkeep {R} / Blue creatures can't
-||| block creatures you control. / Nonblue creatures can't block
-||| creatures you control unless their controller pays 1 life for each
-||| blocking creature they control."
-||| THE PAYER NOUN INSIDE AN ACTION COST: a life payment is a clause that
-||| writes its own payer, and the payer the gate derives [CR#509.1d] is
-||| the noun it writes. Sivitri, Dragon Master's "pays 2 life for each of
-||| those creatures" is the family's other line.
+||| Heat Wave
 public export
 heatWave : Card
 heatWave =
@@ -18150,12 +14543,7 @@ heatWave =
                    (DeonticCounterpart (AllOf Macros.creatureYouControl))) ]
        Nothing
 
-||| Braid of Fire, whole -- "Cumulative upkeep-Add {R}."
-||| The first of the four cumulative upkeeps whose cost ACTION the
-||| keyword's cell was recorded as disagreeing with. It needed nothing
-||| minted: [CR#118.1] makes a cost an action a player carries out and
-||| `costActionOk` already admits the mana ability, the draw, the token
-||| creation and the life gain.
+||| Braid of Fire
 public export
 braidOfFire : Card
 braidOfFire =
@@ -18165,20 +14553,13 @@ braidOfFire =
            (Do (AddMana You (Lit 1) (Runs [[OfColor Red]]) [])) ]
        Nothing
 
-||| Psychic Vortex's upkeep line -- "Cumulative upkeep-Draw a card."
-||| A FRAGMENT: the card's end-step trigger discards a whole hand, which
-||| no clause spells.
+||| Psychic Vortex
 public export
 psychicVortexUpkeep : Ability
 psychicVortexUpkeep =
   Macros.keywordCosting "CumulativeUpkeep" (Do Macros.drawACard)
 
-||| Varchild's War-Riders' upkeep line -- "Cumulative upkeep-Have an
-||| opponent create a 1/1 red Survivor creature token."
-||| -- spelling: the causative "have [who] [verb]" is this row's own
-||| agent slot, as Grismold's "each player creates" is.
-||| A FRAGMENT: the card's second line is "Trample; rampage 1", and
-||| rampage is not a catalog row.
+||| Varchild's War-Riders
 public export
 varchildsWarRidersUpkeep : Ability
 varchildsWarRidersUpkeep =
@@ -18186,8 +14567,7 @@ varchildsWarRidersUpkeep =
     (Do (Create Macros.anOpponent (Lit 1)
            (TokenWritten (Macros.creatureTok 1 1 [Red] [creatureType "Survivor"])) []))
 
-||| Wall of Shards, whole -- "Defender, flying / Cumulative upkeep-An
-||| opponent gains 1 life."
+||| Wall of Shards
 public export
 wallOfShards : Card
 wallOfShards =
@@ -18199,13 +14579,7 @@ wallOfShards =
            (Do (Macros.gainsLife Macros.anOpponent (Lit 1))) ]
        (Just (3, 6))
 
-||| Earthen Goo, whole -- "Trample / Cumulative upkeep {R} or {G} / This
-||| creature gets +1/+1 for each age counter on it."
-||| THE MANA-OR-MANA COST, `EitherCost` on `Cost` and not a widened
-||| `ManaCost`. Arctic Nishoba ({G} or {W}), Jotun Owl Keeper ({W} or
-||| {U}) and Krovikan Whispers ({U} or {B}) are the other three, and
-||| [CR#702.24a] is what says the choice is answered once per age
-||| counter.
+||| Earthen Goo
 public export
 earthenGoo : Card
 earthenGoo =
@@ -18219,16 +14593,7 @@ earthenGoo =
                    (PtUp (Times 1 (CountersOn Age It)))) ]
        (Just (2, 2))
 
-||| Chamber Sentry's damage ability -- "{X}, {T}, Remove X +1/+1 counters
-||| from this creature: It deals X damage to any target."
-||| THE [CR#107.3k] BOUNDARY, benched: the card's printed cost is {X} and
-||| this ability's is another, so the ability's telescope drops the
-||| object's letter and its own cost opens the one the body reads.
-||| Defenders of Humanity is the other supported card writing both at
-||| once; Riptide Replicator writes an X in a body whose cost has none
-||| and defines it with a where-clause of its own.
-||| A FRAGMENT: the card's entry rider counts the colours of mana spent
-||| to cast it, which no phrase reads.
+||| Chamber Sentry
 public export
 chamberSentryDamage : Ability
 chamberSentryDamage =
@@ -18237,14 +14602,7 @@ chamberSentryDamage =
                              (Just Macros.plusOnePlusOne) Macros.thisCreature)])
                    (DealDamage This (LetterVal X) (Macros.target Macros.anyTarget))
 
-||| Awesome Presence, whole -- "Enchant creature / Enchanted creature
-||| can't be blocked unless defending player pays {3} for each creature
-||| they control that's blocking it."
-||| THE AURA CARRIER of the gate family, and the printed "defending
-||| player" read at the BLOCK role: the payer [CR#509.1d] derives is the
-||| one the cost writes, and "that's blocking it" is `BlockerOf` over
-||| the enchanted creature the statement's own subject named. Brainwash,
-||| Oppressive Rays and Cowed by Wisdom are the family's other three.
+||| Awesome Presence
 public export
 awesomePresence : Card
 awesomePresence =
@@ -18258,11 +14616,7 @@ awesomePresence =
                    ["Block"] Patient NoDeonticPatient) ]
        Nothing
 
-||| Oppressive Rays, whole -- "Enchant creature / Enchanted creature
-||| can't attack or block unless its controller pays {3}. / Activated
-||| abilities of enchanted creature cost {3} more to activate."
-||| The coordinated deed under a flat gate beside the activation
-||| variant, on one card.
+||| Oppressive Rays
 public export
 oppressiveRays : Card
 oppressiveRays =
@@ -18278,14 +14632,8 @@ oppressiveRays =
                    (CostMore (Lit 3))) ]
        Nothing
 
--- ==== The mana region: the mention, the riders, the productions ====
 
-||| Delighted Halfling's second ability -- "{T}: Add one mana of any
-||| color. Spend this mana only to cast a legendary spell, and that spell
-||| can't be countered." The ONE-SENTENCE form, where [CR#106.6]'s
-||| restriction and its additional effect share a single mention of the
-||| spell. Cavern of Souls is its twin and writes the chosen creature
-||| type where this writes a supertype.
+||| Delighted Halfling
 public export
 delightedHalflingMana : Ability
 delightedHalflingMana =
@@ -18295,22 +14643,7 @@ delightedHalflingMana =
                 (Macros.a (And [HasSupertype Legendary, Macros.spell]))
                 (Continuously (Macros.objectCant "Counter" (That SpellW)) Nothing) ])
 
-||| Boseiju, Who Shelters All's mana ability -- "{T}, Pay 2 life: Add
-||| {C}. If that mana is spent on an instant or sorcery spell, that spell
-||| can't be countered." [CR#106.6]'s ADDITIONAL EFFECT in the
-||| CONDITIONAL spelling, against Delighted Halfling's restrictive one.
-||| The paid-for spell is bound by the rider's own mention and read back
-||| as "that spell".
-|||
-||| It is the cell whose body speaks of the SPELL. The other 9 of the 11
-||| speak of the permanent the spell becomes -- "it gains haste until end
-||| of turn" (Arena of Glory, Generator Servant, Hall of the Bandit Lord),
-||| "that creature enters with an additional +1/+1 counter on it" (Animal
-||| Attendant, Biophagus, Guildmages' Forum) -- which `ResolvedPermanent`
-||| now writes, Generator Servant and Animal Attendant benching the two
-||| spellings. `OnSpent` carried all 11 either way; the step the 9 waited
-||| on was from the stack mention [CR#601.2a] to what it resolves into
-||| [CR#110.4b,608.3a].
+||| Boseiju, Who Shelters All
 public export
 boseijuMana : Ability
 boseijuMana =
@@ -18321,15 +14654,7 @@ boseijuMana =
                 (Continuously (Macros.objectCant "Counter" (That SpellW))
                               Nothing) ])
 
-||| Generator Servant, whole -- "{T}, Sacrifice this creature: Add
-||| {C}{C}. If that mana is spent on a creature spell, it gains haste
-||| until end of turn." The SPELL-TO-PERMANENT read's witness, and the
-||| cell Boseiju's comment named as the remaining gap: the mention
-||| `OnSpent` binds is a spell on the stack [CR#601.2a], the grant lands
-||| on the permanent it becomes [CR#110.4b,608.3a], and
-||| `ResolvedPermanent` is
-||| the one step between them. Nine of the eleven paid-for-object cells
-||| were waiting on it.
+||| Generator Servant
 public export
 generatorServant : Card
 generatorServant =
@@ -18345,13 +14670,7 @@ generatorServant =
                                           (Just Macros.untilEndOfTurn)) ]) ]
        (Just (2, 1))
 
-||| Animal Attendant, whole -- "{T}: Add one mana of any color. If that
-||| mana is spent to cast a non-Human creature spell, that creature
-||| enters with an additional +1/+1 counter on it." The same read in its
-||| OTHER printed spelling, "that creature" where Generator Servant
-||| writes "it", and at the other body the nine cells split between: an
-||| entry rider rather than a keyword grant. One row serves both, since
-||| the choice of pronoun or type word states no fact about the referent.
+||| Animal Attendant
 public export
 animalAttendant : Card
 animalAttendant =
@@ -18371,11 +14690,7 @@ animalAttendant =
                           Nothing) ]) ]
        (Just (2, 2))
 
-||| Pyromancer's Goggles' mana ability -- "{T}: Add {R}. When that mana
-||| is spent to cast a red instant or sorcery spell, copy that spell and
-||| you may choose new targets for the copy." [CR#106.6]'s third rider,
-||| the DELAYED TRIGGER [CR#603.7a]. One of three; Path of Ancestry and
-||| Primal Amulet are the others.
+||| Pyromancer's Goggles
 public export
 pyromancersGogglesMana : Ability
 pyromancersGogglesMana =
@@ -18385,22 +14700,14 @@ pyromancersGogglesMana =
                 (Macros.a (And [ColorIs Red, Macros.instantOrSorcery, Macros.spell]))
                 (CopyStack You (That SpellW) (Lit 1) []) ])
 
-||| Thran Turbine's upkeep trigger -- "At the beginning of your upkeep,
-||| you may add {C}{C}. This mana can't be spent to cast spells." The
-||| restriction stated by what it EXCLUDES, 1 of 9 real lines. The other
-||| 31 that a naive sweep returns are the Powerstone token's reminder
-||| text on cards that make one.
+||| Thran Turbine
 public export
 thranTurbineMana : Effect []
 thranTurbineMana =
   AddMana You (Lit 1) (Runs [[Colorless, Colorless]])
           [SpendNotOn [ToCast Macros.spell]]
 
-||| Su-Chi Cave Guard's death trigger -- "When this creature dies, add
-||| eight {C}. Until end of turn, you don't lose this mana as steps and
-||| phases end." The MENTION at work: the add leaves a `ManaAdded`
-||| outcome and the next sentence reads it as "this mana". 25 supported
-||| lines write this shape.
+||| Su-Chi Cave Guard
 public export
 suChiCaveGuardDies : Ability
 suChiCaveGuardDies =
@@ -18412,19 +14719,13 @@ suChiCaveGuardDies =
        , Continuously (KeepsUnspentMana You ThisMana)
                       (Just Macros.untilEndOfTurn) ])
 
-||| Omnath, Locus of Mana's first line -- "You don't lose unspent green
-||| mana as steps and phases end." The persistence sentence with no add
-||| anywhere on the card and no span written, which is why the family is
-||| not a rider on the production: 6 of the 7 description lines are
-||| static abilities of permanents that add no mana at all.
+||| Omnath, Locus of Mana
 public export
 omnathLocusOfManaPersistence : StaticEffect []
 omnathLocusOfManaPersistence =
   KeepsUnspentMana You (UnspentMana (Just (OfColor Green)))
 
-||| Upwelling, whole card -- "Players don't lose unspent mana as steps
-||| and phases end." The same row with an untyped read and a plural
-||| subject.
+||| Upwelling
 public export
 upwelling : Card
 upwelling =
@@ -18433,11 +14734,7 @@ upwelling =
        [ Static (KeepsUnspentMana (Each AnyPlayer) (UnspentMana Nothing)) ]
        Nothing
 
-||| Mana Flare, whole card -- "Whenever a player taps a land for mana,
-||| that player adds one mana of any type that land produced." The
-||| tapped-for-mana header in the ACTIVE voice, and `ProducedByEvent`
-||| under it. All 17 sentences that read a production sit inside one of
-||| these headers.
+||| Mana Flare
 public export
 manaFlare : Card
 manaFlare =
@@ -18450,14 +14747,7 @@ manaFlare =
                     (ProducedByEvent (That (TypeW Land))) []) ]
        Nothing
 
-||| Shimmerwilds Growth, whole card -- "Enchant land / As this Aura
-||| enters, choose a color. / Enchanted land is the chosen color. /
-||| Whenever enchanted land is tapped for mana, its controller adds an
-||| additional one mana of the chosen color." The tapped-for-mana header
-||| in the PASSIVE voice, against Mana Flare's active -- one row and one
-||| header, with `VerbedVoice` making the voice a spelling. It is also
-||| one of the four OTHER-OBJECT readers of the chosen colour: the adder
-||| is the host's controller, not the ability's own "you".
+||| Shimmerwilds Growth
 public export
 shimmerwildsGrowth : Card
 shimmerwildsGrowth =
@@ -18474,10 +14764,7 @@ shimmerwildsGrowth =
                     (OfChosenColor Nothing) []) ]
        Nothing
 
-||| Chrome Mox's mana ability -- "{T}: Add one mana of any of the exiled
-||| card's colors." The colour SET read off a mentioned object. Pit of
-||| Offerings writes it plural and Omnath, Locus of All writes it as a
-||| combination over the same set.
+||| Chrome Mox
 public export
 chromeMoxMana : Ability
 chromeMoxMana =
@@ -18485,11 +14772,7 @@ chromeMoxMana =
     (AddMana You (Lit 1)
              (AmongColorsOf (Macros.a (ExiledWith Macros.thisArtifact))) [])
 
-||| Fellwar Stone, whole card -- "{T}: Add one mana of any color that a
-||| land an opponent controls could produce." [CR#106.7]'s HYPOTHETICAL
-||| read, measured apart from `ProducedByEvent`: 18 lines over 18 cards,
-||| 15 of them add payloads. Exotic Orchard writes the same sentence and
-||| Reflecting Pool writes it of a land its own controller has.
+||| Fellwar Stone
 public export
 fellwarStone : Card
 fellwarStone =
@@ -18502,14 +14785,7 @@ fellwarStone =
                     []) ]
        Nothing
 
-||| Ice Cauldron's second ability -- "{T}, Remove a charge counter from
-||| this artifact: Add this artifact's last noted type and amount of
-||| mana. Spend this mana only to cast the last card exiled with this
-||| artifact." The NOTE read, anchored to its holder and ungated, on
-||| `GreatestStoredMatch`'s model. Its first ability -- which does the
-||| noting -- is the remaining gap: no effect here records state on a
-||| permanent, and [CR#607.2e] is the link that would make the pair one
-||| statement once one exists.
+||| Ice Cauldron
 public export
 iceCauldronNotedMana : Ability
 iceCauldronNotedMana =
@@ -18520,20 +14796,14 @@ iceCauldronNotedMana =
     (AddMana You (Lit 1) (LastNotedMana Macros.thisArtifact)
              [SpendOnly [ToCast (ExiledWith Macros.thisArtifact)]])
 
-||| Firemind Vessel's mana ability -- "{T}: Add two mana of different
-||| colors." The third value on the colour-freedom axis: each unit free
-||| of the rest, as `EachColor` has it, but no repeat. 4 supported lines
-||| (Component Pouch, Guild Globe, Interplanar Beacon are the others).
+||| Firemind Vessel
 public export
 firemindVesselMana : Ability
 firemindVesselMana =
   Macros.activated TapSymbol
     (AddMana You (Lit 2) (AnyColor DistinctColors) [])
 
-||| Goblin Clearcutter's mana ability -- "{T}, Sacrifice a Forest: Add
-||| three mana in any combination of {R} and/or {G}." The combination
-||| over a WRITTEN colour set, 12 supported sentences, against the 34
-||| that leave the set at all five.
+||| Goblin Clearcutter
 public export
 goblinClearcutterMana : Ability
 goblinClearcutterMana =
@@ -18542,22 +14812,14 @@ goblinClearcutterMana =
                Do (Macros.sacrifice You (Macros.a (HasSubtype (landType "Forest"))))])
     (AddMana You (Lit 3) (AmongWritten [Red, Green]) [])
 
-||| Vizier of the Menagerie's third line -- "You can spend mana of any
-||| type to cast creature spells." [CR#118.14]'s permission with the
-||| matcher in SUBJECT position, which is the third way the corpus writes
-||| one sentence: the rule glosses all of them as spending mana as though
-||| it were mana of any type. Its first two lines already wrote.
+||| Vizier of the Menagerie
 public export
 vizierOfTheMenagerieSpend : StaticEffect []
 vizierOfTheMenagerieSpend =
   Macros.maySpendAsThough You Nothing MatchAnyType
     (Just (ToCast (And [Macros.creature, Macros.spell])))
 
-||| Vexing Bauble's second ability -- "Whenever a player casts a spell,
-||| if no mana was spent to cast it, counter that spell." The
-||| MANA-SPENT-TO-CAST test, negated by the ordinary `NotCond`. Boromir,
-||| Lavinia and Roiling Vortex write the same intervening condition;
-||| Nix writes it as a trailing one.
+||| Vexing Bauble
 public export
 vexingBaubleTrigger : Ability
 vexingBaubleTrigger =
@@ -18566,10 +14828,7 @@ vexingBaubleTrigger =
     (NotCond (ManaSpentToCast It Nothing))
     (CounterSpell (That SpellW))
 
-||| Void Mirror, whole card -- "Whenever a player casts a spell, if no
-||| colored mana was spent to cast it, counter that spell." The one line
-||| that narrows which mana counts, at [CR#106.1a]'s five colours against
-||| [CR#106.1b]'s six types.
+||| Void Mirror
 public export
 voidMirror : Card
 voidMirror =
@@ -18582,17 +14841,8 @@ voidMirror =
        Nothing
 
 
--- ---------------------------------------------------------------------------
--- The transform verb, the transformed arrival, the meld pair and fuse.
--- ---------------------------------------------------------------------------
 
-||| Arlinn Kord // Arlinn, Embraced by the Moon, whole -- the transform
-||| verb's named carrier, and a nonmodal double-faced card [CR#712.2]
-||| whose back writes no mana cost [CR#202.3a] and no loyalty number
-||| [CR#209.1,712.8a]. `planeswalkerBackWithoutLoyaltyOk` probed that box
-||| law on this very face; the card it was standing in for is now here.
-||| Both faces write the verb, at the [0] and the [-1], which is what a
-||| nonmodal double-faced card's abilities are for [CR#712.2].
+||| Arlinn Kord // Arlinn, Embraced by the Moon
 public export
 arlinnKord : Card
 arlinnKord =
@@ -18632,21 +14882,7 @@ arlinnKord =
                               (DealDamageOwn Macros.thisCreature Power (Macros.target Macros.anyTarget))) ]) ]) ]
                Nothing)
 
-||| Neglected Heirloom // Ashmouth Blade, whole -- the transform verb and
-||| the TRIGGER on the act in one card. "When equipped creature
-||| transforms, transform this Equipment" writes the bare act as a header
-||| ([CR#701.27e] names the family; 39 supported faces write a trigger on
-||| transforming and 37 of them narrow it with "into [what it became]",
-||| which this one does not -- Corruption of Towashi's first arm is the
-||| other bare one; re-measured 2026-09-02).
-||| The event is `VerbedEvent` under the `Transform` label in the
-||| INTRANSITIVE voice: [CR#701.27a] turns the permanent over, and
-||| [CR#701.27e] puts that permanent before the verb with no actor named.
-||| It is not the passive it was first written as -- a passive spells
-||| "[what] is [participle]" and this label records no participle,
-||| [CR#701.27g] having given those words to a state -- so `VerbedVoice`
-||| now holds the passive to a participle and this header takes
-||| `IntransitiveAct` instead.
+||| Neglected Heirloom // Ashmouth Blade
 public export
 neglectedHeirloom : Card
 neglectedHeirloom =
@@ -18668,10 +14904,7 @@ neglectedHeirloom =
                , Macros.keywordCosting "Equip" (Mana [Macros.generic 3]) ]
                Nothing)
 
-||| Harvest Hand // Scrounged Scythe, whole -- the TRANSFORMED ARRIVAL,
-||| which is a different thing from the verb: [CR#712.14a] has the card
-||| enter with its back face up, and nothing is turned over. The rider
-||| carries the controller override the printed line writes beside it.
+||| Harvest Hand // Scrounged Scythe
 public export
 harvestHand : Card
 harvestHand =
@@ -18692,18 +14925,7 @@ harvestHand =
                , Macros.keywordCosting "Equip" (Mana [Macros.generic 2]) ]
                Nothing)
 
-||| Cult of the Waxing Moon, whole -- "Whenever a permanent you control
-||| transforms into a non-Human creature, create a 2/2 green Wolf
-||| creature token." [CR#701.27e]'s complement written, and written over
-||| a CHARACTERISTIC rather than a name, which is the reading the rule
-||| states and the reason the slot is a predicate. Norn's Inquisitor
-||| writes the other characteristic-voiced one ("into a Phyrexian") and
-||| the remaining 35 write printed names, which the same slot spells
-||| through `Named` -- [CR#109.3] puts a name among an object's
-||| characteristics.
-||| The header announces its subject and nothing else: the complement
-||| says what that permanent became and names no second thing, so a body
-||| reading "it" would read the subject, as Norn's Inquisitor's does.
+||| Cult of the Waxing Moon
 public export
 cultOfTheWaxingMoon : Card
 cultOfTheWaxingMoon =
@@ -18719,17 +14941,7 @@ cultOfTheWaxingMoon =
               (Macros.creatureTok 2 2 [Green] [creatureType "Wolf"])) ]
        (Just (5, 4))
 
-||| Mutagen Connoisseur, whole -- "Flying, vigilance / This creature gets
-||| +1/+0 for each transformed permanent you control." The STATE
-||| [CR#701.27g] names, counted. It is the reason `Transform`'s row
-||| records no participle: these words describe what a permanent IS, and
-||| a participial lookback would name what the act was performed on --
-||| two different sets, since a permanent this act left front face up is
-||| never a transformed permanent and a transformed ARRIVAL
-||| [CR#712.14a] is one without the act ever happening.
-||| 3 supported lines write the description; Oculus Whelp reads it as a
-||| bare existence and Invasion of Pyrulea // Gargantuan Slabhorn as a
-||| static subject.
+||| Mutagen Connoisseur
 public export
 mutagenConnoisseur : Card
 mutagenConnoisseur =
@@ -18744,14 +14956,7 @@ mutagenConnoisseur =
                       (PtUp (Lit 0))) ]
        (Just (0, 5))
 
--- --- The meld pair, and the identity lint the ruling asks for --------------
 
-||| Chittering Host as the MIDNIGHT SCAVENGERS card carries it: the
-||| combined back face of the Graf Rats / Midnight Scavengers meld pair
-||| [CR#712.4]. Under the 2026-08-27 ruling the reverse face is
-||| DUPLICATED on each card of the pair rather than shared by reference,
-||| so this is one of two copies and `chitteringHostOnGrafRats` is the
-||| other. See `Card`'s docstring for what the duplication throws away.
 public export
 chitteringHostOnScavengers : AltFace
 chitteringHostOnScavengers =
@@ -18767,15 +14972,7 @@ chitteringHostOnScavengers =
                    (Just Macros.untilEndOfTurn)) ]
             (Macros.printedBox (Just (5, 6)))
 
-||| Chittering Host as the GRAF RATS card carries it -- the second copy,
-||| written out rather than aliased so that the lint below has two terms
-||| to compare. Graf Rats' own card is not benched: its whole printed
-||| text is the meld trigger, whose "you both own and control this
-||| creature and a creature named Midnight Scavengers" wants a single
-||| clause over two named objects and a plural "them" reading them both
-||| back, and `Them` admits one `ManyOf` mention where that condition
-||| leaves two `OneOf`s. That is the blocker all 7 supported melders
-||| share, and it is not the verb.
+||| Chittering Host as the GRAF RATS card carries it
 public export
 chitteringHostOnGrafRats : AltFace
 chitteringHostOnGrafRats =
@@ -18791,27 +14988,11 @@ chitteringHostOnGrafRats =
                    (Just Macros.untilEndOfTurn)) ]
             (Macros.printedBox (Just (5, 6)))
 
-||| THE MELD IDENTITY LINT, and the whole of what holds the 2026-08-27
-||| ruling's acknowledged debt in place. [CR#712.4b] makes the two back
-||| faces of a meld pair ONE face, used together to determine the
-||| characteristics of one permanent; the duplication writes it twice and
-||| states no relation between the copies. This law is that relation,
-||| kept by the typechecker: the two copies reduce to the same `AltFace`
-||| or the build fails. Cheap on purpose -- the ruling names the lint as
-||| the cheap option beside a real cross-card reference, and this costs
-||| one `Refl`.
 public export
 meldBackFacesAgree : Cards.chitteringHostOnScavengers = Cards.chitteringHostOnGrafRats
 meldBackFacesAgree = Refl
 
-||| Midnight Scavengers // Chittering Host, whole -- the benchable half of
-||| a meld pair, and the first meld card in this bench. `Transforming` is
-||| the shape by the ruling and not by [CR#712.2]: a meld card is no
-||| nonmodal double-faced card and [CR#712.4c] refuses to transform it.
-||| The front's own text says nothing about melding -- "(Melds with Graf
-||| Rats.)" is reminder text -- so this face writes exactly what the
-||| grammar already had, and the pair's meld ability sits on the other
-||| card.
+||| Midnight Scavengers // Chittering Host
 public export
 midnightScavengers : Card
 midnightScavengers =
@@ -18828,16 +15009,6 @@ midnightScavengers =
             (Macros.printedBox (Just (3, 3))))
     Cards.chitteringHostOnScavengers
 
-||| The meld EFFECT vocabulary's own witness, written at the effect
-||| rather than at a card: "exile them, then meld them into Chittering
-||| Host", the second half of every one of the 7 supported meld lines.
-||| [CR#701.42a]'s act is the meld alone -- the exile is the instructing
-||| clause's own step, which is why the two are `Sequentially` and not one
-||| row -- and the meld reads the exiled pair back through the stamp the
-||| exile left. The clause that would introduce that pair is the
-||| ownership condition named above; this term supplies it as a plain
-||| plural description so that the verb's own shape is on the bench while
-||| the condition is not.
 public export
 meldThemInto : Effect []
 meldThemInto =
@@ -18845,14 +15016,7 @@ meldThemInto =
     [ Macros.exile (AllOf (And [Macros.creature, ControlledBy You]))
     , Macros.meldInto (Macros.themVerbed "Exile") "Chittering Host" ]
 
-||| Profit // Loss, whole -- the FUSE witness, and what the ticket's
-||| earlier round avoided by choosing Wax // Wane over Wear // Tear.
-||| [CR#702.102a] makes fuse a static ability of the split CARD that
-||| applies in its owner's hand, so the word is printed once per half and
-||| written here as a keyword line on each: 17 supported cards carry it,
-||| all 34 halves instants or sorceries (measured 2026-08-28).
-||| What the row does not buy is the fused spell [CR#702.102b,702.102d];
-||| see `keywordFacts`.
+||| Profit // Loss
 public export
 profitLoss : Card
 profitLoss =
@@ -18873,14 +15037,7 @@ profitLoss =
             , Macros.keyword "Fuse" ]
             Nothing)
 
-||| Kasmina, Enigma Sage's first line -- "Each other planeswalker you
-||| control has the loyalty abilities of Kasmina." The DESCRIBED ability
-||| payload at the loyalty class, with the source named by self-name --
-||| [CR#201.5]'s reference, which `This` already spells: text on a card
-||| that names that card means that particular object. The other half of
-||| the ledgered pair is Nicol Bolas,
-||| Dragon-God below; neither was writable while `Gains` was the only
-||| grant, since neither card quotes an ability.
+||| Kasmina, Enigma Sage
 public export
 kasminaLoyaltySharing : StaticEffect []
 kasminaLoyaltySharing =
@@ -18888,10 +15045,7 @@ kasminaLoyaltySharing =
                                 OtherThan This]))
                    [LoyaltyClass] This Nothing
 
-||| Nicol Bolas, Dragon-God's first line -- "Nicol Bolas has all loyalty
-||| abilities of all other planeswalkers on the battlefield." The same
-||| row read from the other side: the source is the described GROUP and
-||| the subject is the card itself.
+||| Nicol Bolas, Dragon-God
 public export
 nicolBolasDragonGodSharing : StaticEffect []
 nicolBolasDragonGodSharing =
@@ -18900,25 +15054,14 @@ nicolBolasDragonGodSharing =
                                 InZone Macros.battlefieldZ]))
                    Nothing
 
-||| Myr Welder's second line -- "This creature has all activated
-||| abilities of all cards exiled with it." The commonest spelling of the
-||| described payload (26 of the 29 supported lines write "all activated
-||| abilities of"), over the exile linkage [CR#607.2a] its own first line
-||| makes. Dark Impostor, Patchwork Crawler and Rex, Cyber-Hound write
-||| the same sentence.
+||| Myr Welder
 public export
 myrWelderBorrowedAbilities : StaticEffect []
 myrWelderBorrowedAbilities =
   GainsAbilitiesOf Macros.thisCreature [AnyActivated]
                    (AllOf (ExiledWith This)) Nothing
 
-||| Sharkey, Tyrant of the Shire's third line -- "Sharkey has all
-||| activated abilities of lands your opponents control except mana
-||| abilities." The EXCEPTION slot at [CR#605.1a]'s derived property,
-||| which `IsManaAbility` already spelled for the ability-on-the-stack
-||| noun. Scheming Fence writes the other supported exception ("except
-||| for loyalty abilities") and does not bench: its source is "the chosen
-||| permanent", the object-sorted marked read.
+||| Sharkey, Tyrant of the Shire
 public export
 sharkeyBorrowedLandAbilities : StaticEffect []
 sharkeyBorrowedLandAbilities =
@@ -18928,13 +15071,7 @@ sharkeyBorrowedLandAbilities =
                    (Just IsManaAbility)
 
 
-||| Conspicuous Snoop, whole card -- "Play with the top card of your
-||| library revealed. / You may cast Goblin spells from the top of your
-||| library. / As long as the top card of your library is a Goblin card,
-||| this creature has all activated abilities of that card." The first
-||| two lines were the visibility rider and the top-of-library
-||| permission; the third was the ability-borrowing gap, and it is the
-||| described payload over a condition's own mention.
+||| Conspicuous Snoop
 public export
 conspicuousSnoop : Card
 conspicuousSnoop =
@@ -18951,11 +15088,7 @@ conspicuousSnoop =
                                      (That CardW) Nothing)) ]
        (Just (2, 2))
 
-||| Skill Borrower, whole card -- the same two lines at an artifact
-||| creature, the condition widened to "an artifact or creature card".
-||| Its reminder text ("If any of the abilities use that card's name,
-||| use this creature's name instead") is [CR#201.5b] restated and is not
-||| part of the ability.
+||| Skill Borrower
 public export
 skillBorrower : Card
 skillBorrower =
@@ -18970,11 +15103,7 @@ skillBorrower =
                                      (That CardW) Nothing)) ]
        (Just (1, 3))
 
-||| Blind Fury, whole card -- "All creatures lose trample until end of
-||| turn. / If a creature would deal combat damage to a creature this
-||| turn, it deals double that damage to that creature instead." The
-||| named-ability loss was the card's last blocker; its second sentence
-||| is the ordinary combat-damage doubling.
+||| Blind Fury
 public export
 blindFury : Card
 blindFury =
@@ -18993,11 +15122,7 @@ blindFury =
                       (Just Macros.thisTurn) ]) ]
        Nothing
 
-||| Shadowspear's second line -- "{1}: Permanents your opponents control
-||| lose hexproof and indestructible until end of turn." The payload's
-||| LIST arm: one subject, one loss, two abilities. Bonds of Mortality
-||| and The Fire Nation Drill write the same sentence, and Shay Cormac
-||| writes it at five words.
+||| Shadowspear
 public export
 shadowspearStrip : Ability
 shadowspearStrip =
@@ -19009,20 +15134,7 @@ shadowspearStrip =
           , LostWritten (KeywordAbility "Indestructible" Nothing) ])
        (Just Macros.untilEndOfTurn))
 
-||| Shay Cormac's first line -- "{1}: Permanents your opponents control
-||| lose hexproof, indestructible, protection, shroud, and ward until end
-||| of turn." Shadowspear's sentence at five words, and THE KEYWORD TERM
-||| AT THE LOSS: three of the five are bare words, and "protection"
-||| [CR#702.16a] and "ward" [CR#702.21a] are words whose rules write a
-||| parameter the line does not. Each is the class term -- every
-||| protection ability, every ward ability -- coordinated in printed
-||| order with the bare three, which is why the list is one list.
-||| The card is not whole for its other two lines: both watch a bounty
-||| counter, and the second's header ("Whenever a creature with a bounty
-||| counter on it dies") is a death read off a counter this grammar
-||| spells, while the first's is a targeting header whose SUBJECT is a
-||| creature an opponent controls and whose targeter is a spell or
-||| ability the loser controls -- one round's work, not this one's.
+||| Shay Cormac
 public export
 shayCormacStrip : Ability
 shayCormacStrip =
@@ -19037,12 +15149,7 @@ shayCormacStrip =
           , LostTerm wardAbilities ])
        (Just Macros.untilEndOfTurn))
 
-||| Shelkin Brownie, whole -- "{T}: Target creature loses all 'bands with
-||| other' abilities until end of turn." The class term ALONE at the
-||| loss, and the shortest carrier of it. [CR#702.22c] writes the word
-||| with a slot -- "bands with other [quality]" -- and the line quantifies
-||| over that slot rather than filling it, which is `AnyKeywordIn`'s
-||| whole content.
+||| Shelkin Brownie
 public export
 shelkinBrownie : Card
 shelkinBrownie =
@@ -19056,13 +15163,7 @@ shelkinBrownie =
               (Just Macros.untilEndOfTurn)) ]
        (Just (1, 1))
 
-||| Tolaria, whole -- "{T}: Add {U}. / {T}: Target creature loses banding
-||| and all 'bands with other' abilities until end of turn. Activate only
-||| during any upkeep step." The loss list's two sorts side by side: a
-||| bare word and a class term, in the printed order, which is
-||| [CR#702.22b] written out on a card -- "if an effect causes a
-||| permanent to lose banding, the permanent loses all 'bands with
-||| other' abilities as well".
+||| Tolaria
 public export
 tolaria : Card
 tolaria =
@@ -19077,9 +15178,7 @@ tolaria =
            (Just (DuringPart Upkeep Nothing)) Nothing Nothing Nothing ]
        Nothing
 
-||| Blood Sun, whole card -- "When this enchantment enters, draw a card. /
-||| All lands lose all abilities except mana abilities." The exception on
-||| the ability LOSS, and the corpus's only line that writes one there.
+||| Blood Sun
 public export
 bloodSun : Card
 bloodSun =
@@ -19090,25 +15189,8 @@ bloodSun =
        , Static (LosesAllAbilities (AllOf Macros.land) (Just IsManaAbility)) ]
        Nothing
 
--- ---------------------------------------------------------------------------
--- The static statement's TURN WINDOW, re-measured.
--- ---------------------------------------------------------------------------
 
-||| Ahn-Crop Invader, whole card -- "During your turn, this creature has
-||| first strike. / {1}, Sacrifice another creature: This creature gets
-||| +2/+0 until end of turn."
-|||
-||| The window is `OnlyDuring`, which landed with the prohibition round
-||| and is the THIRD reader of the timing vocabulary the statement frame
-||| was said to lack: `windowOk` gates it exactly as it gates an
-||| activation restriction's `Timing` and a trigger's `TriggerWindow`,
-||| and nothing here is a copy of either grid. 96 supported lines over 94
-||| cards write a window-confined static statement (measured 2026-09-02),
-||| 91 of them "during your turn"; the ledger that called this cell two
-||| lines predates the carrier. Restless Spire writes this same sentence
-||| inside a quoted payload and At Knifepoint at a described group --
-||| that one is blocked on "outlaws", the cover word for five creature
-||| types, and not on the window.
+||| Ahn-Crop Invader
 public export
 ahnCropInvader : Card
 ahnCropInvader =
@@ -19126,9 +15208,7 @@ ahnCropInvader =
                         (Just Macros.untilEndOfTurn)) ]
        (Just (2, 2))
 
-||| Bedrock Tortoise's second line -- "During your turn, creatures you
-||| control have hexproof." The same window over a DESCRIBED GROUP rather
-||| than the source, which is how most of the 96 write it.
+||| Bedrock Tortoise
 public export
 bedrockTortoiseWindow : StaticEffect []
 bedrockTortoiseWindow =
@@ -19136,24 +15216,8 @@ bedrockTortoiseWindow =
     (Gains (AllOf Macros.creatureYouControl)
            (KeywordAbility "Hexproof" Nothing))
 
--- ---------------------------------------------------------------------------
--- The marker object's self-ascription and the grantor named from inside
--- the quotation.
--- ---------------------------------------------------------------------------
 
-||| Nesting Dragon's inner token payload -- "{R}: This token gets +1/+0
-||| until end of turn." The marker word at the seat that wanted it: 102
-||| of the 206 distinct quoted token-creation payloads name their bearer
-||| "this token" (measured 2026-09-02), and `TokenChars.abilities`
-||| already held whole abilities.
-|||
-||| The word ascribes NO type, which is the point of the third axis --
-||| and the cell that was recorded as blocked by it is now open at the
-||| deed table's end rather than at this word's: "This token can't
-||| block" (Harried Spearguard, Anax, Hardened in the Forge) writes,
-||| because [CR#506.3] restricts which objects can block rather than how
-||| a sentence may name the one it is said of, and the blocking agent's
-||| row admits an untyped head. See `harriedSpearguard`.
+||| Nesting Dragon
 public export
 nestingDragonInnerToken : AbilityAt []
 nestingDragonInnerToken =
@@ -19161,12 +15225,7 @@ nestingDragonInnerToken =
     (Macros.gets (AsMarker TokenMarker This) (PtUp (Lit 1)) (PtUp (Lit 0))
                  (Just Macros.untilEndOfTurn))
 
-||| Chandra, Awakened Inferno's emblem -- "You get an emblem with 'At the
-||| beginning of your upkeep, this emblem deals 1 damage to you.'" The
-||| same word at the OTHER marker object, 9 of the 90 distinct emblem
-||| payloads. [CR#114.3] leaves an emblem no types, so the word is the
-||| only self-reference such a payload has, and [CR#114.2] is what puts
-||| it in the command zone.
+||| Chandra, Awakened Inferno's emblem
 public export
 chandraAwakenedInfernoEmblem : Effect []
 chandraAwakenedInfernoEmblem =
@@ -19174,12 +15233,7 @@ chandraAwakenedInfernoEmblem =
     [ Macros.triggered At (BeginningOf Upkeep (ByWord Yours))
         (DealDamage (AsMarker EmblemMarker This) (Lit 1) You) ]
 
-||| Leonin Bola, whole card -- "Equipped creature has '{T}, Unattach
-||| Leonin Bola: Tap target creature.' / Equip {1}". [CR#201.5a]'s
-||| reference: the granted ability names the Equipment, and the name
-||| denotes THAT object rather than a class of objects with the name.
-||| Heartseeker, Blazing Torch, Razor Boomerang and Shuriken all write
-||| their own name at the same seat.
+||| Leonin Bola
 public export
 leoninBola : Card
 leoninBola =
@@ -19192,24 +15246,8 @@ leoninBola =
        , Macros.keywordCosting "Equip" (Mana [Macros.generic 1]) ]
        Nothing
 
--- ---------------------------------------------------------------------------
--- The PER-PART span on the shared-subject coordination.
--- ---------------------------------------------------------------------------
 
-||| Distortion Strike, whole card -- "Target creature gets +1/+0 until
-||| end of turn and can't be blocked this turn. / Rebound". One subject,
-||| two verb phrases, and TWO SPANS: the grant is written "until end of
-||| turn" and the restriction "this turn", which are different `Duration`
-||| values, so the single envelope `Continuously` puts over the whole
-||| coordination could not write the line. The envelope stays as the
-||| ELIDED form -- "gets +2/+2 and gains trample until end of turn" still
-||| writes one span at the end and no arm span at all.
-||| Taigam's Strike writes the same line at +2/+0; Teleportal, Marchesa's
-||| Smuggler, Veil of Secrecy and Cephalid Inkshrouder are the same
-||| family at other verbs.
-||| The card does not bench whole: its second line is the keyword
-||| Rebound, which the keyword catalog does not carry -- that word's
-||| cell, not this span's.
+||| Distortion Strike
 public export
 distortionStrikeLine : Effect []
 distortionStrikeLine =
@@ -19219,23 +15257,7 @@ distortionStrikeLine =
     , VPDeontic Forbid ["Block"] Patient (Just Macros.thisTurn) ]
     Nothing
 
-||| Battlegate Mimic, whole card -- "Whenever you cast a spell that's
-||| both red and white, this creature has base power and toughness 4/2
-||| until end of turn and gains first strike until end of turn."
-|||
-||| THE SAME-WORD-TWICE VERDICT, and it is a spelling variant of the
-||| shared envelope. Re-measured 2026-09-02: four lines write the
-||| identical current-turn word twice on one shared-subject coordination
-||| (the Mimic cycle's flying, first strike, trample and wither members;
-||| the fifth, Riverfall Mimic, writes the can't-be-blocked variant and
-||| belongs to the DISAGREEING family), plus Sylvan Awakening's
-||| land-copy line. Because both written spans are the same `Duration`
-||| value, the envelope already says what the line says, and the family
-||| that actually needed a per-part span shrinks to the 51 grant-plus-
-||| restriction lines `VPDeontic` buys. This card benches on the
-||| envelope, unchanged -- `HasBasePt` has no verb-phrase arm, so the
-||| coordination is `AndAlso`'s and the second statement writes the
-||| deictic again rather than reading it back.
+||| Battlegate Mimic
 public export
 battlegateMimic : Card
 battlegateMimic =
@@ -19253,38 +15275,8 @@ battlegateMimic =
        (Just (2, 1))
 
 
--- ---------------------------------------------------------------------------
--- The MULTI-SENTENCE static line, and why it wanted no carrier.
--- ---------------------------------------------------------------------------
 
-||| Retro-Mutation, whole card -- "Enchant creature / Enchanted creature
-||| is a Turtle with base power and toughness 0/1. It can't attack and
-||| loses all abilities."
-|||
-||| The line prints TWO SENTENCES and the second reads the first's
-||| subject back, which was ledgered as a carrier gap: `Static` holds one
-||| `StaticEffect`, so the second sentence was said to have nowhere to
-||| stand. It does not need one. `AndAlso` coordinates whole STATEMENTS,
-||| each naming its own subject and the later ones free to read an
-||| earlier one back -- which is exactly what this line does -- so the
-||| full stop is SPELLING and carries no rules content the "and" does
-||| not. Lithoform Blight's bench entry decided the same question the
-||| same way one round earlier.
-|||
-||| Re-measured 2026-09-02: 11 supported static ability lines write two
-||| sentences with the second reading the first's subject back. They are
-||| NOT one class, and the split is what a second carrier would have
-||| hidden: 6 are a plain further statement (this card, Spider-Man No
-||| More, Heliod's Punishment, Intercessor's Arrest, Bride's Gown,
-||| Groom's Finery), 3 write a REPLACING second statement (Mind Carver,
-||| Precipitous Drop and So Tiny's "It gets +3/+1 INSTEAD as long as …")
-||| and 2 give the subject's controller leave to ignore the effect (Lost
-||| in Thought, Volrath's Curse). The plain six write today; the other
-||| five want the "instead"/"additional" marking and the
-||| ignore-this-effect permission, which are their own cells and are
-||| recorded rather than minted -- 3 lines and 2 lines respectively.
-||| The 12 Zendikon-style "It's still a land" lines are not in this
-||| count: `SetsType`'s retention slot already spells them.
+||| Retro-Mutation
 public export
 retroMutation : Card
 retroMutation =
@@ -19302,16 +15294,7 @@ retroMutation =
            , LosesAllAbilities It Nothing ]) ]
        Nothing
 
-||| Alluring Suitor's activated ability -- "{R}{R}: This creature and
-||| another target creature each get +1/+0 until end of turn." The
-||| COMPOUND SUBJECT, recorded on the static-frame ledger as a noun
-||| question and answered by the noun vocabulary that already holds it:
-||| the "and" is inside the phrase and the distributive "each" is
-||| `EachOfBoth` over `BothOf`'s pair. Re-measured 2026-09-02 at 14
-||| supported lines, not the three the ledger carried -- Alandra, Sky
-||| Dreamer; Eidolon of Countless Battles; Fated Clash; Nighthowler;
-||| Razorgrass Invoker; Gogo, Mysterious Mime and the rest. Nothing was
-||| owed here; the entry is the witness that says so at a STATIC subject.
+||| Alluring Suitor
 public export
 alluringSuitorPump : Ability
 alluringSuitorPump =
@@ -19322,259 +15305,10 @@ alluringSuitorPump =
                   (Macros.target (And [Macros.creature, OtherThan This]))))
        (PtUp (Lit 1)) (PtUp (Lit 0)) (Just Macros.untilEndOfTurn))
 
--- THE ABILITY ON THE STACK, re-measured 2026-09-02: 40 supported lines
--- name a TARGETED ability there, not the 60 the ledger carried -- 23 at
--- "counter" (Squelch, Stifle, Disallow and Counterspell's kin, all
--- benched above) and 15 at "copy" (Strionic Resonator, Rings of
--- Brighthearth, Lithoform Engine, Illusionist's Bracers), plus two
--- oblique mentions. The NOUN is landed: `AbilityHead`'s class word with
--- `AbilityOf`/`ActivatedBy` for the possessor and the source
--- restriction, and `Counterable`'s ability row is what lets the counter
--- verb take it.
---
--- The COPY verb now does too, and this is what it took (2026-09-02).
--- `CopyStack` and `ChooseNewTargets` are kind-indexed under `Copiable`,
--- `Counterable`'s twin at [CR#707.10]; `ControlledBy` is kind-indexed
--- under [CR#109.4], which is what "target triggered ability you
--- control" needed; and the ability copy's MENTION is two new words,
--- `AbilityW` and `AbilityCopyW`, parting on the origin `AbilityP` now
--- carries. Strionic Resonator, Mister Fantastic's plural and Rowan's
--- Talent's anaphor bench it.
--- Re-measured 2026-09-02: 14 lines write "copy target [class] ability
--- you control" and 15 write "copy that ability", which is the 15 the
--- ledger carried plus the targeted half it had merged with them.
---
--- The ability PRONOUN, which that round left owed at this kind, is now
--- landed as `ItAbility` -- see `ringsOfBrighthearth` below. It is the
--- noun vocabulary's row and not this family's, exactly as the note here
--- said.
-
--- ---------------------------------------------------------------------------
--- Measured, and deliberately not built.
--- ---------------------------------------------------------------------------
---
--- THE COPY FAMILY'S REMAINDER after the close-out round (2026-09-02).
--- Every count here is re-measured against the supported corpus, and
--- several of them are smaller than the ledger that queued them said.
---
--- THE COULD-TARGET MULTIPLICATION [CR#707.10d], and it is two
--- constructions, not one. The AMOUNT counting what a named spell "could
--- target" is FIVE supported lines, not the nineteen the ticket carried
--- (Radiate, Zada, Precursor Golem, Ink-Treader Nephilim, Mirrorwing
--- Dragon and Agrus Kos's ability-side twin write the family; five of
--- them write "for each … could target"). The DISTRIBUTION sentence,
--- "Each copy targets a different one of those creatures", is SEVEN. The
--- verb for the second is landed -- `CopyTargets` writes the copy's
--- specified target and its subject is the copy mention -- and what is
--- missing is NOUN vocabulary at both ends: a distributive read of a
--- plural copy mention ("each copy") and a partitive with distinctness
--- ("a different one of those creatures"). Neither is copy machinery, so
--- neither was minted here; the amount wants a counting phrase over
--- [CR#115.9b]'s targeting relation, which is the same relation
--- `Targets` and `CopyTargets` already state at their own two seats.
---
--- THE ONCE-EACH-TURN RIDER, 32 supported lines and not a copy question
--- at all: [CR#603.2h] makes "Do this only once each turn" a restriction
--- on the ACTION, which `Triggered`'s `limit` (a restriction on
--- TRIGGERING) explicitly is not. It sits in the trigger vocabulary and
--- a sibling round holds that lane, so this round left it where it was
--- rather than edit the same rows from two sides. Iron Man, Bleeding
--- Edge and Donal, Herald of Wings are blocked on nothing else.
---
--- THE SMALL COPY RESIDUES, re-measured: "the copy they control" (2, a
--- possessive on the mention -- Curse of Echoes, Tempt with Mayhem);
--- "copy that spell an additional time" (4, an increment on a count some
--- other clause set); the CONDITIONAL exception (1, Double Major's
--- "except it isn't legendary if the spell is legendary", which
--- [CR#707.9f] is the rule for); the starting-loyalty readback (1).
---
--- THE SMALL EXCEPTION KINDS: the enters-with exception is 4 lines and
--- `ExceptEntersWithCounters` already writes it; the type SETTING
--- exception ("and it loses all other card types") is 4; the RETAIN
--- exception [CR#707.9c] is 1 (Vesuvan Doppelganger). Inside the bundle
--- arm, 12 of the 35 tails end "with no mana cost" -- a mana-cost
--- setting `TokenChars` has no slot for, since a written token names no
--- cost -- so those 12 write everything but that phrase.
---
--- THE ENTRY ROW'S TAPPED RIDER: 3 lines write "enter tapped as a copy"
--- (Polymorphine's clue, a land and a creature), one entry event
--- carrying two modifications. `EntersRider n EntersTapped` beside
--- `EntersAsCopy` in an `AndAlso` spells two sentences where the card
--- writes one; a rider slot on the copy row would spell it, and 3 lines
--- is under this round's bar.
---
--- THE GRANTED ABILITY'S SUBJECT IN A NON-BATTLEFIELD ZONE: FOUR supported
--- spans, re-measured 2026-09-02 and unchanged. Case of the Uneaten Feast,
--- Kethis, the Hidden Hand and The Grim Captain's Locker grant to cards in a
--- GRAVEYARD; Lukka, Coppercoat Outcast to cards EXILED this way. Hand and
--- library are ZERO. Three of the four payloads are play permissions
--- `MayPlay` already spells -- it is the SUBJECT that refuses -- and
--- [CR#113.6b] is what those payloads say about themselves. Under the bar;
--- no row minted.
---
--- THE ONE-TIME BOON: 27 cards write "you get a one-time boon with '…'" and
--- NONE of them is supported (re-measured 2026-09-02). Every one is Alchemy,
--- which is the supported flag doing its job. Its shapes, for whoever
--- inherits a changed flag: one-time, two-time, three-time and bare (Merfolk
--- Tunnel-Guide, Tasteful Offering, Swiftspear's Teachings, Flaming Fist
--- Duskguard).
---
--- THE ATTACHMENT HEAD `Equipped` × `PermanentW`: the ledger called this a
--- live False discrepancy; it is neither. `attachHeadOk Equipped PermanentW`
--- is True and the table's own docstring names Luxior, Giada's Gift as the
--- printing that opened it. Re-measured 2026-09-02: "equipped permanent" 1
--- line, "equipped planeswalker" 0, "enchanted permanent" 105.
---
--- ---------------------------------------------------------------------------
--- The turn schedule's residues, re-measured 2026-09-02 and not built.
--- ---------------------------------------------------------------------------
---
--- THE ORDINAL ANCHOR, 1: World at War's "After the second main phase this
--- turn". `AdditionalPart`'s anchor is a `TurnPart` and an ordinal over a
--- turn's parts is a second surface; the sentence additionally reads the
--- ADDED combat back ("at the beginning of that combat"), a deixis asked at
--- a PART where `TurnRef`/`ThatTurns` is asked at a turn. Both halves are
--- one round's work and neither is bought by one card.
---
--- THE TURN MENTION'S SECOND INTRODUCER, 7 supported cards -- Azor the
--- Lawbringer, Emrakul the Promised End, Mindslaver, Oracle en-Vec, Sorin
--- Markov, Sphinx's Decree, Worst Fears. The ticket's inventory said 2; the
--- adverbial "during that player's next turn" is written by seven, five of
--- them control-granting lines that want no extra turn at all. So the
--- introducer is not one prepend away from the built reader: what those five
--- want is a NEXT-TURN window on a control grant, which is `Duration`'s
--- question and not `ExtraTurn`'s. Recorded as the corrected count.
---
--- "DURING THAT TURN", 2: Alchemist's Gambit, Kang the Conqueror. A
--- demonstrative on the PART rather than a possessive determiner before it,
--- so `Owner` is the wrong slot and the cell is `Timing`/`Duration`'s.
---
--- SAVOR THE MOMENT's "the untap step of that turn", 1. `SkipsNext` derives
--- its possessive from the SUBJECT by design; a turn slot here is a second
--- surface, not a cell.
---
--- EMRAKUL'S FRONTED ANCHOR, 1: "After that turn, that player takes an extra
--- turn" -- the one sentence that does not write "after this one".
---
--- THE FOR-EACH MULTIPLIER, 3: Ral Zarek, Expropriate, Sage of Hours. A
--- scaling adverbial over a count of one, NOT a third count cell on
--- `ExtraTurn`; all three are additionally blocked on their own clause (a
--- coin count, a vote count, a per-five counter count).
---
--- THE EXTRA TURN AS A CLASS OF TURNS, 1: Medomai the Ageless's "Medomai
--- can't attack during extra turns". It READS extra turns rather than
--- creating one, and is a `TriggerWindow`/restriction question; folding it
--- into `ExtraTurn` would put a description in a creation row.
---
--- THE WOULD-WORDED SKIP, 6 supported cards -- Fasting, Time Vault,
--- Gerrard's Hourglass Pendant, Stranglehold, Trouble in Pairs, Ugin's
--- Nexus. The ticket's inventory said 4; the extra-turn form is written by
--- four cards, not two. All six want a BEGINS-A-STEP/TURN event for
--- `Intercepts` to watch, which no `GameEvent` row supplies, and the four
--- extra-turn ones additionally want the extra turn as a DESCRIPTION rather
--- than as a creation ([CR#500.7] is the rule that knows one).
---
--- THE WINDOWED SCHEDULED SKIP, 3: Elfhame Sanctuary ("your draw step this
--- turn"), Moment of Silence ("their next combat phase this turn", window
--- AND "next"), Fatespinner ("each instance of the chosen step or phase this
--- turn"). `SkipsNext` and `Skips` take no window; Fatespinner additionally
--- wants a chosen turn part, which `QualitySort` has no sort for.
---
--- THE DRAW-EVENT SKIP, 6 (Island Sanctuary, Living Conundrum, Notion Thief,
--- Obstinate Familiar, Plagiarize, Possessed Portal): an EVENT skip and not
--- a turn part's, ledgered with the interception. The landed skip rows take
--- a `TurnPart` and reach none of the six.
---
--- THE ADDITIONAL TIME is LANDED (2026-09-02) as `TriggersAdditionally`,
--- and the premise recorded here was wrong twice. Re-measured: 35 supported
--- lines over 35 cards write "that ability triggers an additional time",
--- and none of them is a replacement. [CR#603.2d] gives the trigger
--- multiplier its own procedure -- "determine how many times it should
--- trigger, then that ability triggers that many times" -- and says it
--- "doesn't apply to other effects that affect how many times an ability
--- triggers", which is the opposite of the reach [CR#614.5] gives a
--- replacement over modified events. So the cell is neither `Intercepts`
--- nor a fourth allowance: `interceptOk AbilityTrigger` is False and
--- `badTriggeringReplaced` pins it. 20 of the 35 write the periphrastic
--- cause in front of the triggering (`Causes`) and 15 the bare triggering
--- (`Triggers`). Benched at `kataraTheFearless` and `nabanDeanOfIteration`.
--- The vote arm ("while voting, you may vote an additional time", 3) was
--- never this family and still waits on the voting bundle.
---
--- THE ADDITIONAL CARD needed NO row and is landed as spelling: 23 supported
--- cards over 15 lines write "draws an additional card", and the word is an
--- adverbial on the draw the draw step already performs [CR#504.1]. Rites of
--- Flourishing benches whole on `Draw` plus the landed land allowance.
---
--- FASTBOND's "you may play any number of lands on each of your turns", 1:
--- the UNBOUNDED allowance, which drops the word "additional" and states the
--- whole number rather than increasing it. `badAnyNumberOfAdditionalLands`
--- still refuses it and this round did not touch that pin. Nahiri's
--- Lithoforming's "you may play X additional lands this turn" is admitted
--- and has been since the land row's quantity gate became a delta test.
---
--- THE JOINED ELEMENT, 2: Kaboom! and Soulfire Eruption. `ForEachOf`'s kind
--- index now admits a joined group -- `elemPayload`'s `PhJoin` row mints
--- each half its own payload -- so there is nothing left to pin here. Both
--- cards stay blocked on their PAYLOADS: Kaboom! on "choose a number greater
--- than 0" read back by an unless-reveal comparison, Soulfire Eruption on
--- its damage-and-exile body.
---
--- THE REPEATED SCHEMA, 4 supported cards with a FILLED slot -- Equipoise,
--- Firemind's Foresight, Invoke Despair, Kathril -- plus Protection Racket's
--- forward-announced one. (The ticket's inventory said 6 and named Linessa;
--- no supported card of that name writes it.) Nothing abstracts a slot out
--- of a written process and refills it, and PROTECTION RACKET STILL DOES NOT
--- COMPOSE WITH `ForEachOf`, re-checked after this round's kind index: the
--- iteration is ORDERED ("in turn order"), which no `ForEachOf` says, and
--- the process is stated forward across the four sentences that follow.
---
--- THE LOOP'S FORWARD ANNOUNCEMENT, 2: Torment of Hailfire and Protection
--- Racket. `Repeat` stays a LEAF and not a container, and the 20-of-44
--- conditional-consequent count is unanswered by these two: a body-carrying
--- loop would have to restate the gate as a termination phrase on every one
--- of those 20. Torment of Hailfire is additionally blocked on a disjunctive
--- alternative payment ("unless that player sacrifices a nonland permanent
--- of their choice OR discards a card").
---
--- THE PILE-PARTITION BUNDLE, 41 supported cards write "pile" -- NOT taken
--- this round, and not sliced. The naming ruling has opened it (piles are
--- never named; every read is positional or by the chooser), and the design
--- it lands on is already here: `theRestOk`/`partsTaken`/`countedGroupSize`
--- are a worked partition machinery, `SomeOf` is "one of those piles", and
--- `TheOther` is "return the other to the battlefield" verbatim. What it
--- costs is a `PileP` payload and a `PileW` word so that "that card" cannot
--- read a pile -- roughly a hundred mechanical clauses across `wordReaches`,
--- `payload*` and `samePayload` -- plus the partition row itself. Death or
--- Glory ([CR#700.3c] keeps its piles in the GRAVEYARD, so this is not the
--- library search gap) and Fact or Fiction are the two-sentence whole cards
--- waiting on it.
---
--- THE SECRET-CHOICE AND VOTING PAIR, 17 supported cards write "secretly"
--- and 39 write a vote -- NOT taken this round. Menacing Ogre wants a
--- secrecy marking on `Choose`, the reveal of what was chosen, and "each
--- player with the highest number", an aggregate predicate over a chosen
--- quality; the vote arm wants a ballot, the per-option vote counts, and
--- "the voter". Both are whole procedures and neither is a row.
---
--- GAME RESTART is minted regardless of its one-line count: `RestartsGame`,
--- with Karn Liberated's [CR#727.5] exemption rider as the one gap.
---
--- THE OPENING-HAND RESIDUES, 2: Gemstone Caverns (a second condition, an
--- entry rider and a follow-up) and Quicksilver, Brash Blur (its own name
--- and "him" for "this card" and "it"). Both sit beside the 17 Leylines the
--- landed row spells and neither is a slot on it.
 
 
-||| Hotshot Mechanic, whole card -- "This creature crews Vehicles as
-||| though its power were 2 greater." The counterfactual-VALUE premise's
-||| witness, and the smallest of the 18 supported lines that write one:
-||| this card is the sentence and nothing else.
-||| [CR#702.122b] gives the deed its two ends -- a creature crews a
-||| Vehicle when it's tapped to pay the crew cost -- and [CR#702.122a]
-||| makes that cost a total POWER, which is why the premise shifts a
-||| characteristic instead of describing the creature. `AsThoughOf`
-||| could not have said it: a `Predicate` states what an object is.
+
+||| Hotshot Mechanic
 public export
 hotshotMechanic : Card
 hotshotMechanic =
@@ -19586,16 +15320,7 @@ hotshotMechanic =
                    NoDeonticRider) ]
        (Just (2, 1))
 
-||| Cloudspire Captain's second line -- "This creature saddles Mounts and
-||| crews Vehicles as though its power were 2 greater." The PER-DEED
-||| complement's other witness, and the shape 13 of the 18 lines write:
-||| one subject, one premise and two deeds, each with its own object.
-||| A shared complement could not say it -- [CR#702.171b] leaves saddling
-||| every permanent type where [CR#702.122a] gives crewing an artifact,
-||| so one noun checked against both deeds fails at whichever it was not
-||| written for.
-||| The card's first line ("Mounts and Vehicles you control get +1/+1")
-||| waits on a coordinated subtype subject.
+||| Cloudspire Captain
 public export
 cloudspireCaptainCrewLine : StaticEffect []
 cloudspireCaptainCrewLine =
@@ -19606,17 +15331,7 @@ cloudspireCaptainCrewLine =
           (Just (AsThoughGreater Power (Lit 2)))
           NoDeonticRider
 
-||| Revoke Privileges, whole card -- "Enchant creature / Enchanted
-||| creature can't attack, block, or crew Vehicles." The PER-DEED
-||| complement's own sentence, 3 supported lines over 3 cards (this,
-||| Bound in Gold, Intercessor's Arrest; the last two write "enchanted
-||| permanent" and a second clause about activated abilities).
-||| [CR#506.3] admits only a planeswalker or a battle at an attack's
-||| patient, so "Vehicles" checked against every coordinated deed fails
-||| for two of the three; the printed line gives the object to "crew"
-||| alone, and [CR#702.122d] states that conjunct's meaning outright --
-||| "if an effect states that a creature 'can't crew Vehicles,' that
-||| creature can't be tapped to pay the crew cost of a Vehicle".
+||| Revoke Privileges
 public export
 revokePrivileges : Card
 revokePrivileges =
@@ -19631,14 +15346,7 @@ revokePrivileges =
                    Nothing NoDeonticRider) ]
        Nothing
 
-||| Harried Spearguard, whole card -- "Haste / When this creature dies,
-||| create a 1/1 black Rat creature token with 'This token can't
-||| block.'" The SELF-BLOCK token cell, and the witness the marker word
-||| was minted short of: the payload's subject is `AsMarker TokenMarker`,
-||| which ascribes no card type, and the deed table now admits an untyped
-||| head at the blocking agent. [CR#506.3] restricts which objects can
-||| block, not how a sentence may name the one it is said of, and the
-||| token the same clause creates is a creature.
+||| Harried Spearguard
 public export
 harriedSpearguard : Card
 harriedSpearguard =
@@ -19655,90 +15363,8 @@ harriedSpearguard =
                        Nothing)) ]
        (Just (1, 1))
 
--- ---------------------------------------------------------------------------
--- The Room half-referent programme, and the keyword umbrella's
--- fence-deferred sub-machinery.
--- ---------------------------------------------------------------------------
---
--- THE DOOR NOUN, [CR#709.5j], IS BUILT (2026-09-02), and on the shape the
--- decline of 2026-09-02 had already derived: a half-level referent, its
--- relation to the permanent whose half it is, and a designation read keyed
--- by that half. `Door` is the referent and the relation -- `ThisDoor`, the
--- deixis on the half an ability is printed on, and `DoorOf`, an indefinite
--- half of a described permanent with [CR#709.5c]'s lock adjective; the read
--- is `halfDesignation`, over the `RoomHalf` sort. The two declines the old
--- record made both stand: a `NounWord` at kind `Object` would contradict
--- [CR#709.5b], and the lock adjective is no `HasDesignation` on one
--- referent, which is exactly why it sits on `Door` beside the permanent
--- rather than inside it.
---
--- THE UNLOCK TRIGGER HEADER, [CR#709.5h], IS BUILT: `UnlocksDoor`, 28
--- supported lines, all 28 the identical string "When you unlock this
--- door,". Its carrier is built with it -- `SharedLineSplit`, [CR#709.5]'s
--- permanent card with a single shared type line, which the card layer had
--- not modelled and whose absence was half the old decline. 56 supported
--- faces carry the Room subtype and all 56 print the layout's reminder text
--- ("You may cast either half. That door unlocks on the battlefield. ..."),
--- which is reminder for [CR#715.3d]'s reason and not a line.
--- Glassworks // Shattered Yard is the whole card (`glassworksShatteredYard`);
--- the `Room` word's witness moved there from the retired part-bench.
---
--- THE FULLY-UNLOCK HEADER, [CR#709.5i], IS BUILT and needed no door at all.
--- 16 supported lines, every one of them an Eerie ability word and every one
--- of them "and whenever you fully unlock A ROOM" -- a PERMANENT, not a
--- half, because [CR#709.5i] triggers on the permanent's second unlocked
--- designation rather than on either one of them. So it is `VerbedEvent` at
--- the "Fully Unlock" label, one `verbFacts` row and no event constructor;
--- the second trigger word makes it a `JoinedHeader` and not an `AltEvent`
--- arm, on that type's own surface test. Balemurk Leech is the carrier
--- (`balemurkLeech`).
---
--- THE INSTRUCTION, [CR#709.5f], IS BUILT: `Unlock`, over a door that names
--- its permanent. 2 of the 4 supported unlock/lock instruction lines are
--- this row bare -- Ghostly Keybearer's "unlock a locked door of up to one
--- target Room you control" (`ghostlyKeybearer`, whole) and Ghostly Dancers'
--- half of a disjunction.
---
--- WHAT STILL WAITS, re-measured 2026-09-02, and none of it on the half
--- referent:
---   * 2 "Lock or unlock a door of target Room you control" (Keys to the
---     House, Marina Vendrell) want an EFFECT-LEVEL DISJUNCTION of two acts
---     over one door -- and Ghostly Dancers' "return an enchantment card
---     from your graveyard to your hand or unlock a locked door of a Room
---     you control" wants the same shape over two unlike acts. [CR#709.5g]'s
---     lock is the second act and would be one more `verbFacts`-shaped row;
---     what neither has is a seat, `Modal` being [CR#700.2]'s bulleted
---     spell and these being one unbulleted sentence.
---   * 3 counting reads ("the number of unlocked doors among Rooms you
---     control", "two or more unlocked doors among Rooms you control",
---     "eight or more different names among unlocked doors of Rooms you
---     control") want a PLURAL door -- halves of a described GROUP of
---     permanents, counted -- where `Door` names one half of one permanent.
---     That is a real widening and not a slot: the count ranges over pairs,
---     and the third line counts distinct NAMES among them, which
---     [CR#709.5] puts in the halves ("it doesn't have the name ... of this
---     object's left half").
---   * 2 mana-spend restrictions naming the act ("unlock a door", "unlock
---     doors"), which `SpecialAction`'s `UnlockDoor` row already spells.
---
--- Landed earlier and not re-litigated: the two designations [CR#709.5c] and
--- `SpecialAction`'s `UnlockDoor` [CR#116.2m,709.5e]; `Macros.thisRoom`.
 
-||| Glassworks // Shattered Yard, whole -- a permanent card with a single
-||| shared type line [CR#709.5], "Enchantment -- Room" over both halves
-||| [CR#709.5a]. Glassworks {2}{R}: "When you unlock this door, this Room
-||| deals 4 damage to target creature an opponent controls." Shattered Yard
-||| {4}{R}: "At the beginning of your end step, this Room deals 1 damage to
-||| each opponent."
-|||
-||| The marquee of [CR#709.5h]'s 28-line template and the carrier that
-||| template had none of. "This door" is the DEIXIS: [CR#709.5h] triggers
-||| the ability when the permanent "is given the appropriate unlocked
-||| designation", and what makes one appropriate is which half the ability
-||| is printed on -- which is why the left half's header names no half and
-||| why `doorFrameOk` refuses the same header on every other layout's face.
-||| The reminder text both halves print is not written, for the reason
-||| [CR#715.3d]'s adventure rider is not.
+||| Glassworks // Shattered Yard
 public export
 glassworksShatteredYard : Card
 glassworksShatteredYard =
@@ -19752,22 +15378,7 @@ glassworksShatteredYard =
        [ Macros.triggered At (BeginningOf EndStep (ByWord Yours))
            (DealDamage Macros.thisRoom (Lit 1) (Each Opponent)) ])
 
-||| Balemurk Leech, whole -- "Eerie -- Whenever an enchantment you control
-||| enters and whenever you fully unlock a Room, each opponent loses 1
-||| life." [CR#709.5i]'s carrier, and the whole of that header's 16
-||| supported lines is this shape: an Eerie ability word over two joined
-||| headers whose second is the fully-unlock.
-|||
-||| It needs no door, which is the finding. [CR#709.5i] triggers "when that
-||| permanent has one of the two unlocked designations and gets the other,
-||| or when it has neither designation and gains both" -- a fact about the
-||| PERMANENT, which is why the printed phrase is "a Room" and not "a door"
-||| and why the label's `actPatient` is `Just Object` where the unlock's is
-||| absent.
-||| Two whole headers and not a coordination: the second writes its own
-||| trigger word, which is `JoinedHeader`'s own test. The two announce
-||| different referents -- an enchantment and a Room -- so `joinedCtx`
-||| hands the body nothing, and the body reads nothing back.
+||| Balemurk Leech
 public export
 balemurkLeech : Card
 balemurkLeech =
@@ -19784,14 +15395,7 @@ balemurkLeech =
               (Macros.losesLife (Each Opponent) (Lit 1))) ]
        (Just (2, 2))
 
-||| Ghostly Keybearer, whole -- "Flying / Whenever this creature deals
-||| combat damage to a player, unlock a locked door of up to one target
-||| Room you control." [CR#709.5f]'s instruction, and `DoorOf`'s witness:
-||| the door names the permanent whose half is chosen, because the act
-||| chooses "a locked half of THAT PERMANENT" and the deixis names none.
-||| The printed "locked" is the rule's own restriction restated, which is
-||| redundant rather than meaningless -- the sibling lines write the door
-||| bare.
+||| Ghostly Keybearer
 public export
 ghostlyKeybearer : Card
 ghostlyKeybearer =
@@ -19806,46 +15410,9 @@ ghostlyKeybearer =
                                ControlledBy You])))) ]
        (Just (3, 3))
 
---
--- THE FENCE-DEFERRED FOUR, re-recorded with fresh counts and no design:
---
--- CREW's full crewing, 180 "Crew N" lines. [CR#702.122a] expands the word
--- into an activated ability whose cost is "Tap any number of other untapped
--- creatures you control with total power N or greater" -- a chosen-set
--- payment sized by an aggregate over the set it chooses, which is a cost
--- shape and not a keyword row.
---
--- STATION's symbols, 31 "Station" lines and 46 symbol rows ("N+", from "1+"
--- to "20+"). [CR#702.184b] makes each symbol its own keyword ability on a
--- nonstandard layout, so no station card comes whole with the word alone --
--- which is why `keywordFacts` still has no "Station" row. This grammar's
--- `ChapterMark` question asked again, one ladder up.
---
--- THE CLASS LEVEL LADDER, 68 "{cost}: Level N" bars. [CR#716.2] makes the
--- level bar a keyword ability stated outside [CR#702] -- the same standing
--- the `KeywordLabel` docstring cites for `ChapterMark` -- and what it needs
--- is the level counter's ladder, not a catalog row.
---
--- THE CASE PAIR, 13 "To solve --" lines and 13 "Solved --". [CR#719.3] gives
--- a Case card "two special keyword abilities that appear before a long dash
--- and represent a triggered ability and an ability that may be static,
--- triggered, or activated", and [CR#702.169a] makes "Solved" the second of
--- them. Two ability seats on one card's own layout, not one word.
 
 
-||| Arrest, whole card -- "Enchant creature / Enchanted creature can't
-||| attack or block, and its activated abilities can't be activated."
-||| THE AURA COORDINATION's anaphoric subject, and the routed item's
-||| answer: nothing was owed. The second conjunct's subject is not an
-||| elided one -- it is the host's abilities, read back with a
-||| possessive -- so `SubjectVP` was never the shape, and `AbilityOf It`
-||| over the mention the first conjunct announced is what the English
-||| writes. [CR#602.2] is the deed and [CR#109.1] leaves an ability no
-||| card type, which is why the second conjunct's subject is bare at the
-||| `Ability` kind.
-||| The `AndAlso` writes the coordination because the two conjuncts share
-||| no verb phrase: one is a restriction on the creature, the other on a
-||| set of abilities it holds.
+||| Arrest
 public export
 arrest : Card
 arrest =
@@ -19860,17 +15427,7 @@ arrest =
                        Forbid ["Activate"] Patient NoDeonticPatient ]) ]
        Nothing
 
-||| Conqueror's Flail's second line -- "As long as this Equipment is
-||| attached to a creature, your opponents can't cast spells during your
-||| turn." The routed TEMPORAL WINDOW, probed before any edit and
-||| MEASURED ZERO: `OnlyDuring Turn (Just Yours)` already carried it, as
-||| Grand Abolisher's identical prohibition shows, and the routing note
-||| that sent it here was right to say so. What the line still needed was
-||| the leading attachment condition, which `Conditionally` and
-||| `AttachedTo` both already spelled.
-||| The card's first line ("gets +1/+1 for each color among permanents
-||| you control") waits on a count over a COLOUR axis and is no part of
-||| this region.
+||| Conqueror's Flail
 public export
 conquerorsFlailProhibition : StaticEffect []
 conquerorsFlailProhibition =
@@ -19879,23 +15436,7 @@ conquerorsFlailProhibition =
        (Macros.cantDoTo "Cast" (PlayerGroup YourOpponents) (AllOf Macros.spell)))
 
 
-||| Keeper of the Flame, whole card -- "{R}, {T}: Choose target opponent
-||| who has more life than you do as you activate this ability. This
-||| creature deals 2 damage to that player."
-||| THE AS-YOU-ACTIVATE targeting restriction, routed here from the
-||| description round and MEASURED ZERO: nothing is minted. The
-||| restriction is the target noun's OWN predicate -- a comparison of the
-||| opponent's life total against yours, which `Compare` already spells
-||| over the player axis -- and the adverbial is spelling of the step the
-||| rules already put the choice in. [CR#602.2b] hands activating the
-||| whole of [CR#601.2b..601.2i], whose [CR#601.2c] is "the player
-||| announces their choice of an appropriate object or player for each
-||| target", so "as you activate this ability" names that announcement
-||| rather than scoping the restriction to it; [CR#608.2b] rechecks every
-||| target's legality on resolution whatever the line says, so no
-||| activation-only scope could be what the phrase means.
-||| Keeper of the Light is the second of the two, at a life gain whose
-||| clause never reads the target it announced.
+||| Keeper of the Flame
 public export
 keeperOfTheFlame : Card
 keeperOfTheFlame =
@@ -19911,29 +15452,8 @@ keeperOfTheFlame =
               , DealDamage Macros.thisCreature (Lit 2) (That PlayerW) ]) ]
        (Just (1, 1))
 
--- --------------------------------------------------------------------
--- The secret-choice and voting bundle (round of 2026-09-02)
--- --------------------------------------------------------------------
 
-||| Menacing Ogre, whole card -- "Trample, haste / When this creature
-||| enters, each player secretly chooses a number. Then those numbers are
-||| revealed. Each player with the highest number loses that much life.
-||| If you are one of those players, put two +1/+1 counters on this
-||| creature."
-|||
-||| The hidden protocol's marquee, and the whole of it in four sentences:
-||| the `Secretly` marking that turns [CR#101.4b] off, the reveal that
-||| puts the information back, the extremal read across the choosers, and
-||| the number that read named.
-||| `ThatMuch` reaches the third sentence's amount because `ChoseExtreme`
-||| introduces `NamedNumber` -- the phrase NAMES the highest number and
-||| [CR#608.2c] lets the rest of the sentence read it.
-||| ONE SURFACE IS NOT REPRODUCED: the fourth sentence spells its
-||| predicate anaphorically ("one of those players") where this writes it
-||| out. That is the previous sentence's own predicate said a second
-||| time, so it is a spelling question and not a cell, and exactly one
-||| supported card writes the membership condition at all ("if you are
-||| one of", measured 2026-09-02) -- a cell no witness pays for.
+||| Menacing Ogre
 public export
 menacingOgre : Card
 menacingOgre =
@@ -19955,16 +15475,7 @@ menacingOgre =
                                            Macros.thisCreature) ]) ]
        (Just (3, 3))
 
-||| Tyrant's Choice, whole card -- "Will of the council — Starting with
-||| you, each player votes for death or torture. If death gets more
-||| votes, each opponent sacrifices a creature of their choice. If
-||| torture gets more votes or the vote is tied, each opponent loses 4
-||| life."
-|||
-||| The vote's marquee: [CR#701.38a]'s procedure, a two-word ballot
-||| [CR#701.38b], and the tally read that 14 supported cards write, with
-||| the tie on the second arm where every card that writes two arms puts
-||| it. The ability word is [CR#207.2c]'s and carries no rules meaning.
+||| Tyrant's Choice
 public export
 tyrantsChoice : Card
 tyrantsChoice =
@@ -19981,9 +15492,7 @@ tyrantsChoice =
                   (Macros.losesLife (Each Opponent) (Lit 4)) ])) ]
        Nothing
 
-||| Ballot Broker, whole card -- "While voting, you may vote an
-||| additional time." [CR#701.38d]'s allowance and the whole of the
-||| card's text; the parenthesis after it is reminder text [CR#207.2a].
+||| Ballot Broker
 public export
 ballotBroker : Card
 ballotBroker =
@@ -19993,15 +15502,7 @@ ballotBroker =
        [ Static (MayVoteAdditional You (Macros.exactly 1)) ]
        (Just (2, 3))
 
-||| Council's Judgment, whole card -- "Will of the council — Starting
-||| with you, each player votes for a nonland permanent you don't
-||| control. Exile each permanent with the most votes or tied for most
-||| votes."
-|||
-||| The CANDIDATE ballot and its winners. The second sentence describes
-||| the winners afresh rather than reading a mention back, which is what
-||| the card's own ruling requires -- "None of the candidate permanents
-||| are targeted" -- and why `Vote` announces nothing.
+||| Council's Judgment
 public export
 councilsJudgment : Card
 councilsJudgment =
@@ -20017,14 +15518,7 @@ councilsJudgment =
               , Macros.exile (AllOf (And [Permanent, WithMostVotes])) ])) ]
        Nothing
 
-||| Orchard Elemental, whole card -- "Council's dilemma — When this
-||| creature enters, starting with you, each player votes for sprout or
-||| harvest. Put two +1/+1 counters on this creature for each sprout
-||| vote. You gain 3 life for each harvest vote."
-|||
-||| The per-option TALLY as a multiplier, which is the other half of the
-||| vote's reads: where `VoteLead` compares two options, `VotesFor` reads
-||| one option's count as a number. 12 supported cards write it.
+||| Orchard Elemental
 public export
 orchardElemental : Card
 orchardElemental =
@@ -20041,11 +15535,7 @@ orchardElemental =
                  , Macros.gainsLife You (Times 3 (VotesFor "harvest")) ])) ]
        (Just (2, 2))
 
-||| Plea for Power, whole card -- "Will of the council — Starting with
-||| you, each player votes for time or knowledge. If time gets more
-||| votes, take an extra turn after this one. If knowledge gets more
-||| votes or the vote is tied, draw three cards."
-||| The extra turn the turn-schedule round landed, under a vote.
+||| Plea for Power
 public export
 pleaForPower : Card
 pleaForPower =
@@ -20060,13 +15550,7 @@ pleaForPower =
                               (Draw You (Lit 3)) ])) ]
        Nothing
 
-||| Coercive Portal, whole card -- "Will of the council — At the
-||| beginning of your upkeep, starting with you, each player votes for
-||| carnage or homage. If carnage gets more votes, sacrifice this
-||| artifact and destroy all nonland permanents. If homage gets more
-||| votes or the vote is tied, draw a card."
-||| The `VoteLead` pair's second witness, at a recurring upkeep trigger
-||| where Tyrant's Choice writes a one-shot spell.
+||| Coercive Portal
 public export
 coercivePortal : Card
 coercivePortal =
@@ -20085,16 +15569,7 @@ coercivePortal =
                                  (Draw You (Lit 1)) ])) ]
        Nothing
 
-||| Custodi Squire, whole card -- "Flying / Will of the council — When
-||| this creature enters, starting with you, each player votes for an
-||| artifact, creature, or enchantment card in your graveyard. Return
-||| each card with the most votes or tied for most votes to your hand."
-||| The candidate ballot at a described GRAVEYARD card, where Council's
-||| Judgment runs its over the battlefield.
-||| The destination is the BARE hand and not a possessed one: every
-||| candidate is a card in your graveyard, which [CR#404.1] makes a
-||| card you own, so [CR#400.3] sends it to your hand without the
-||| clause having to say whose.
+||| Custodi Squire
 public export
 custodiSquire : Card
 custodiSquire =
@@ -20115,14 +15590,7 @@ custodiSquire =
                                    Macros.handZ ])) ]
        (Just (3, 3))
 
-||| Lieutenants of the Guard, whole card -- "Council's dilemma — When
-||| this creature enters, starting with you, each player votes for
-||| strength or numbers. Put a +1/+1 counter on this creature for each
-||| strength vote and create a 1/1 white Soldier creature token for each
-||| numbers vote."
-||| Both of the ballot's options read in one sentence, which is the
-||| council's-dilemma frame at its plainest: no comparison, one count per
-||| option.
+||| Lieutenants of the Guard
 public export
 lieutenantsOfTheGuard : Card
 lieutenantsOfTheGuard =
@@ -20142,17 +15610,7 @@ lieutenantsOfTheGuard =
                                                      [creatureType "Soldier"]) ])) ]
        (Just (2, 2))
 
-||| Truth or Consequences' first two sentences -- "Secret council — Each
-||| player secretly votes for truth or consequences, then those votes are
-||| revealed. You draw cards equal to the number of truth votes."
-|||
-||| The SECRET vote's witness. The reveal is spelled off the row's own
-||| `Secretly` and is no second sentence, because all six supported
-||| secret-vote cards comma-join it exactly here; and no starting player
-||| is written, because a simultaneous ballot has no order to start
-||| [CR#701.38a]. `VotesFor` appears in its bare read.
-||| The card's other two sentences want "choose an opponent at random",
-||| which is fenced off to the randomness ticket.
+||| Truth or Consequences
 public export
 truthOrConsequencesVote : Ability
 truthOrConsequencesVote =
@@ -20161,35 +15619,13 @@ truthOrConsequencesVote =
        [ Vote (Each AnyPlayer) Secretly (ByLabel ["truth", "consequences"])
        , Draw You (VotesFor "truth") ]))
 
-||| Emissary of Grudges' entry line -- "As this creature enters, secretly
-||| choose an opponent." The `EntersChoice` marking, whose reveal is an
-||| activation cost on the card's second ability rather than a sentence.
-||| Guardian Archon writes the same line; Stalking Leonin writes it at a
-||| triggered chooser instead.
+||| Emissary of Grudges
 public export
 emissaryOfGrudgesEntry : StaticEffect []
 emissaryOfGrudgesEntry =
   Macros.entersChoosingPlayerSecretly Macros.thisCreature (Just OpponentsOnly)
 
-||| Emissary of Grudges' second ability, in the context its entry line
-||| leaves -- "Reveal the player you chose: Choose new targets for target
-||| spell or ability if it's controlled by the chosen player … Activate
-||| only once."
-|||
-||| THE REVEAL AS A COST: the hidden protocol's other half, where
-||| Menacing Ogre's reveal is a sentence. The chooser fired at entry and
-||| the value it hid is spent here, which is why the cost is an `Expose`
-||| over `ExposedChoice` and the payload reads the same value back as
-||| `ChosenPlayer` [CR#607.2d]. `OnlyIf` carries the trailing "if".
-|||
-||| NOT WHOLE, and the gap is named: the printed line's second clause
-||| ("and if it targets you or a permanent you control") coordinates a
-||| specific player with an object description across kinds, which
-||| `EitherOf` cannot take -- its two arms share one kind -- and which no
-||| joined HEAD supplies either, since a join is a description and "you"
-||| is not one. Guardian Archon's and Stalking Leonin's own payloads are
-||| blocked elsewhere (a mixed-group subject, and an attacker read under
-||| a trailing if), so this is the reveal cost's one witness.
+||| Emissary of Grudges
 public export
 emissaryOfGrudgesReveal : AbilityAt [choiceB PlayerC]
 emissaryOfGrudgesReveal =
@@ -20201,131 +15637,9 @@ emissaryOfGrudgesReveal =
             Nothing)
     OncePerGame
 
--- The secret-choice and voting bundle's residues, measured 2026-09-02 over
--- `jq 'select(.supported)'` and NOT built. The bundle does not collapse on
--- the supported filter: 40 supported cards write a vote against 3
--- unsupported ones (a Plane, an Alchemy split card and a land), and 17
--- write "secretly". 33 of the 40 cast a vote -- 27 openly and 6 secretly --
--- and 26 of those 33 write a two-word ballot.
---
--- THE FINISH-VOTING TRIGGER AND THE AGREEMENT READS, 3 cards -- Erestor of
--- the Council, Grudge Keeper, Model of Unity. "Whenever players finish
--- voting, each opponent who voted for a choice you voted for …". Two things
--- at once: a trigger on the COMPLETION of [CR#701.38a]'s pass, which no
--- `GameEvent` row names, and a predicate comparing one player's ballot
--- against another's, which needs the per-voter choice the row does not
--- record. Grudge Keeper is a one-line card behind them both.
---
--- "THE VOTER", 2 cards -- Elrond of the White Council, Expropriate. "For
--- each money vote, choose a permanent owned by the voter": a distributive
--- over one option's votes whose agent is the player who cast each of them.
--- `VotesFor` reads the option's COUNT and leaves no per-vote mention for an
--- agent to be read off.
---
--- VOTES RECEIVED BY A PLAYER, 2 cards -- Círdan the Shipwright, Mob Verdict.
--- "each vote they received", "for each vote an opponent received", "each
--- player who received no votes". The candidate-side tally at the player
--- sort, where `VotesFor` reads a printed label and `WithMostVotes` reads
--- only the extreme.
---
--- THE PER-CANDIDATE COUNT, 1 card -- Trap the Trespassers' "For each
--- creature with one or more votes, put that many stun counters on it". A
--- non-extremal candidate tally beside `WithMostVotes`, plus the count read
--- back as "that many".
---
--- VOTE CONTROL, 1 card -- Illusion of Choice's "You choose how each player
--- votes this turn". A continuous effect that takes [CR#701.38a]'s choice
--- away from its player, which is the control-grant machinery over a
--- procedure rather than over a permanent.
---
--- THE COLOUR BALLOT, 1 card -- Council Guardian's "votes for blue, black,
--- red, or green", with "protection from each color with the most votes or
--- tied for most votes" reading it back. [CR#701.38b]'s third possibility --
--- "other variables relevant to the resolution" -- as a printed list of
--- values from a closed vocabulary, which is neither `ByLabel` (words with
--- no rules meaning) nor `ByCandidate` (a description). One card, so the arm
--- was not minted; `WithMostVotes` is already kind-indexed and would read it.
---
--- THE OPTIONAL BALLOT, 1 card -- Vault 11: Voter's Dilemma' "votes for up to
--- one creature", with "If no creature got votes" beside it. Council's
--- Judgment's ruling states the default this breaks ("Each player must vote
--- for one of the candidate permanents. They can't abstain"), and the card is
--- a Saga besides.
---
--- "YOU GET AN ADDITIONAL VOTE", 1 card -- Brago's Representative. The extra
--- vote's second surface, one meaning: [CR#701.38d] states one rule for every
--- effect that "gives a player multiple votes". Recorded, not carried, and
--- not benched; Ballot Broker prints the other surface and is the witness.
---
--- THE CHOOSER THAT BINDS ITS OWN NOUN, 2 cards -- Call to the Void ("each
--- player secretly chooses a creature they control and a creature they don't
--- control") and Malik, Grim Manipulator ("you and target opponent each
--- secretly choose a creature that player controls"). `Choose` types its noun
--- and its agent both at the OUTER context, so the chooser is no binder and
--- "they" has nothing to read. A `Choose` structural gap and not the hidden
--- protocol's: both cards' remaining sentences are ordinary, and Call to the
--- Void's third one ("Destroy each creature chosen this way") already writes.
---
--- THE PRINTED VALUE LIST AT A CHOOSER, 2 cards -- Expert-Level Safe ("each
--- secretly choose 1, 2, or 3") and A Killer Among Us ("secretly choose
--- Human, Merfolk, or Goblin"). A `ChoiceDomain` NARROWS a sort ([CR#607.2d]
--- ranges over values, and `NumberBetween`/`TypeOtherThan` cut the range);
--- neither of these narrows, they enumerate. Expert-Level Safe additionally
--- wants "If they match", a cross-chooser equality.
---
--- THE LABEL CHOOSER, 1 card -- Prisoner's Dilemma's "Each opponent secretly
--- chooses silence or snitch, then the choices are revealed. If each opponent
--- chose silence, …". A ballot's exact shape at a chooser, and the card that
--- proves [CR#701.38c]'s line is worth keeping: no vote read may touch it.
---
--- WHEEL OF MISFORTUNE, 1 card -- "then all players reveal those numbers
--- simultaneously and determine the highest and lowest numbers revealed this
--- way", then "each player who chose that number" and "each player who didn't
--- choose the lowest number". A DETERMINE step that names two numbers at
--- once, where `ChoseExtreme` describes the players holding one of them.
---
--- THE TOYMAKER'S TRAP, 1 card -- "secretly choose a number between 1 and 5
--- that hasn't been chosen" (an exclusion over the choices this permanent
--- already made, the Lores' `AgainExcludingChosen` at a value sort) plus "an
--- opponent guesses which number you chose".
---
--- THE MEMBERSHIP CONDITION, 1 card -- Menacing Ogre's "If you are one of
--- those players", which this bench writes out as the predicate the previous
--- sentence stated. Exactly one supported card writes the condition, so no
--- witness pays for a cell.
---
--- THE REVEAL-COST PAIR'S OTHER PAYLOADS, 2 cards -- Guardian Archon ("You
--- and target permanent you control each gain protection from the chosen
--- player", a mixed-kind coordinated subject; the protection itself already
--- writes, on True-Name Nemesis' line) and Stalking Leonin ("Exile target
--- creature that's attacking you if it's controlled by the chosen player").
---
--- THE OPEN VOTES BLOCKED ON THEIR CONSEQUENTS, 18 of the 27 -- among them
--- the five Path of the … cards (planeswalk and chaos ensues, Planechase
--- actions no supported row names), Bite of the Black Rose (an agent-
--- distributive counted discard), Magister of Worth, Sail into the West,
--- Selvala's Stampede, Fateful Tempest, Messenger Jays, Emissary Green,
--- Travel Through Caradhras, Capital Punishment, Expropriate, Split
--- Decision, Trial of a Time Lord, Galadriel, Elven-Queen and Tivit, Seller
--- of Secrets. Every one of them writes its vote sentence with the rows this
--- round landed; what each is missing is its own payload.
 
 
-||| Fact or Fiction, whole card -- "Reveal the top five cards of your
-||| library. An opponent separates those cards into two piles. Put one
-||| pile into your hand and the other into your graveyard."
-||| The partition's marquee bench, and [CR#700.3c]'s own worked example:
-||| the rule quotes this card to say the revealed cards stay in the
-||| library until a pile is put somewhere, which is why the mention the
-||| separation leaves denotes the CARDS and sits at the object kind while
-||| `PileP` keeps the card words off it.
-||| Three things the sentence needs and the round supplies: a separator
-||| that is not the clause's own agent, a partitive over the piles rather
-||| than over the revealed cards ("one pile", not "one of them"), and the
-||| subset complement counted in PILES -- `TheOther` is unchanged and
-||| reads a partition of two exactly as it reads a two-card look.
-||| The group it partitions is SPENT [CR#700.3a], which is what leaves the
-||| piles as the one group mention standing and lets "the other" ask.
+||| Fact or Fiction
 public export
 factOrFiction : Card
 factOrFiction =
@@ -20338,19 +15652,7 @@ factOrFiction =
                   , Macros.move TheOther Macros.graveyardZ ]) ]
        Nothing
 
-||| Death or Glory, whole card -- "Separate all creature cards in your
-||| graveyard into two piles. Exile the pile of an opponent's choice and
-||| return the other to the battlefield."
-||| The partition's other marquee bench, and the one that fixes two
-||| things Fact or Fiction leaves open. Its piles are in the GRAVEYARD,
-||| which [CR#700.3c] says they never leave until a disposal moves them,
-||| so this is not the library-search gap; and its chooser is written
-||| INSIDE the phrase rather than in a clause of its own, which is the
-||| `by` slot on `PileOf` -- 6 supported lines spell a pile that way
-||| against 11 that spell the choice as its own sentence.
-||| The separator here is the clause's own agent and the chooser is an
-||| opponent; Fact or Fiction has them the other way round. That is the
-||| divide-and-choose pair, and it is why the separator is a slot.
+||| Death or Glory
 public export
 deathOrGlory : Card
 deathOrGlory =
@@ -20365,22 +15667,7 @@ deathOrGlory =
                   , Macros.move TheOther Macros.battlefieldZ ]) ]
        Nothing
 
-||| Steam Augury, whole card -- "Reveal the top five cards of your
-||| library and separate them into two piles. An opponent chooses one of
-||| those piles. Put that pile into your hand and the other into your
-||| graveyard."
-||| The THIRD spelling of the same procedure and the commonest: the
-||| choice as its own sentence, read back by the pile demonstrative. 11
-||| supported lines write "chooses one of those piles" and 7 read the
-||| result as "that pile"; Epiphany at the Drownyard, Intrude on the
-||| Mind, Riddles in the Dark, Split the Spoils and Truth or Tale write
-||| the same two sentences.
-||| Nothing new is minted for it. `Choose`'s agent slot takes the
-||| partitive because `agentChoosable` admits `PileOf` where `choosable`
-||| refuses it -- no printed line writes the bare "choose one of those
-||| piles" -- and `chosenDelta` falls through to `nounDelta`, so the
-||| choice leaves the `PartD` pile mention that `That PileW` reads and
-||| that "the other" counts against.
+||| Steam Augury
 public export
 steamAugury : Card
 steamAugury =
@@ -20395,17 +15682,7 @@ steamAugury =
                   , Macros.move TheOther Macros.graveyardZ ]) ]
        Nothing
 
-||| Sphinx of Uthuun, whole card -- "Flying / When this creature enters,
-||| reveal the top five cards of your library. An opponent separates those
-||| cards into two piles. Put one pile into your hand and the other into
-||| your graveyard."
-||| Fact or Fiction's three sentences on a CREATURE, inside a trigger.
-||| The row is not spell-only and asks nothing of its carrier: the
-||| separation reads the prefix its own reveal left and leaves the piles
-||| for the two disposals, the same whether a spell or a triggered
-||| ability is resolving. Unesh, Criosphinx Sovereign and Sphinx of Clear
-||| Skies write the same trigger and are blocked on their other lines
-||| (a cost reduction; a domain-counted X).
+||| Sphinx of Uthuun
 public export
 sphinxOfUthuun : Card
 sphinxOfUthuun =
@@ -20422,18 +15699,7 @@ sphinxOfUthuun =
        (Just (5, 6))
 
 
-||| Riddles in the Dark, whole card -- "Look at the top four cards of
-||| your library and separate them into a face-down pile and a face-up
-||| pile. An opponent chooses one of the piles. Put that pile into your
-||| hand and the other into your graveyard."
-||| Steam Augury's three sentences with the piles' FACES stated, and the
-||| plainest carrier of the pair. The two faces are what make the card a
-||| different game from Steam Augury: the separator sees four cards and
-||| shows the chooser only half of them, so the chooser picks between a
-||| known pile and an unknown one. [CR#110.5d] is why that is not a
-||| status -- the cards are in the LIBRARY, where [CR#700.3c] leaves
-||| them, and the rule denies any correlation between a face-down card
-||| off the battlefield and a face-down permanent.
+||| Riddles in the Dark
 public export
 riddlesInTheDark : Card
 riddlesInTheDark =
@@ -20448,14 +15714,7 @@ riddlesInTheDark =
                   , Macros.move TheOther Macros.graveyardZ ]) ]
        Nothing
 
-||| Fortune's Favor, whole card -- "Target opponent looks at the top four
-||| cards of your library and separates them into a face-down pile and a
-||| face-up pile. Put one pile into your hand and the other into your
-||| graveyard."
-||| The same pair with the roles swapped and the choice left out: the
-||| OPPONENT looks and separates, and no one chooses -- you take a pile
-||| blind. It is the face pair's cleanest witness for that reason, since
-||| the faces are the only thing standing between the two piles.
+||| Fortune's Favor
 public export
 fortunesFavor : Card
 fortunesFavor =
@@ -20470,15 +15729,7 @@ fortunesFavor =
                   , Macros.move TheOther Macros.graveyardZ ]) ]
        Nothing
 
-||| Curator of Destinies, whole card -- "This spell can't be countered. /
-||| Flying / When this creature enters, look at the top five cards of
-||| your library and separate them into a face-down pile and a face-up
-||| pile. An opponent chooses one of those piles. Put that pile into your
-||| hand and the other into your graveyard."
-||| Riddles in the Dark's body inside a trigger, which is what the face
-||| slot has to survive to be a slot and not a spell-only rider: the
-||| partition states its piles' faces the same whether a spell or a
-||| triggered ability is resolving.
+||| Curator of Destinies
 public export
 curatorOfDestinies : Card
 curatorOfDestinies =
@@ -20496,12 +15747,7 @@ curatorOfDestinies =
               , Macros.move TheOther Macros.graveyardZ ]) ]
        (Just (5, 5))
 
-||| Atris, Oracle of Half-Truths, whole card -- "Menace / When Atris
-||| enters, target opponent looks at the top three cards of your library
-||| and separates them into a face-down pile and a face-up pile. Put one
-||| pile into your hand and the other into your graveyard."
-||| Fortune's Favor on a creature, and the face pair's fourth spelling:
-||| a TARGETED separator inside a trigger.
+||| Atris, Oracle of Half-Truths
 public export
 atrisOracleOfHalfTruths : Card
 atrisOracleOfHalfTruths =
@@ -20518,19 +15764,7 @@ atrisOracleOfHalfTruths =
               , Macros.move TheOther Macros.graveyardZ ]) ]
        (Macros.printedBox (Just (3, 2)))
 
-||| Do or Die, whole card -- "Separate all creatures target player
-||| controls into two piles. Destroy all creatures in the pile of that
-||| player's choice. They can't be regenerated."
-||| The pile-CONTENTS read's marquee bench, and the shortest card that
-||| needs it: everything before the second sentence was landed by the
-||| partition round, and the sentence itself asks the one question the
-||| predicate vocabulary had no term for. Neither `InZone` nor
-||| `ExiledWith` can stand here -- [CR#700.3c] leaves both piles on the
-||| BATTLEFIELD, where a zone clause narrows nothing, and [CR#700.3b]
-||| leaves the pile no object for a link to hold.
-||| The chooser is the partitioned player and not the spell's caster,
-||| which is the divide-and-choose pair the other way round from Death
-||| or Glory: you separate, they choose, and the pile they choose dies.
+||| Do or Die
 public export
 doOrDie : Card
 doOrDie =
@@ -20546,17 +15780,7 @@ doOrDie =
                            "Regenerate" (ThemVerbed "Destroy") ]) ]
        Nothing
 
-||| Liliana of the Veil, whole card -- "[+1]: Each player discards a
-||| card. / [-2]: Target player sacrifices a creature. / [-6]: Separate
-||| all permanents target player controls into two piles. That player
-||| sacrifices all permanents in the pile of their choice."
-||| The pile-contents read on a PLANESWALKER, and the ultimate's two
-||| sentences are Do or Die's two with the disposal changed: the same
-||| separation and the same membership read, at permanents rather than
-||| creatures and with the partitioned player carrying it out. The
-||| chooser inside the phrase and the sacrificing agent are one player,
-||| which is what "the pile of THEIR choice" says and what the row's
-||| `by` slot spells.
+||| Liliana of the Veil
 public export
 lilianaOfTheVeil : Card
 lilianaOfTheVeil =
@@ -20578,154 +15802,9 @@ lilianaOfTheVeil =
                                InPile (Macros.pileOfChoice They)])) ]) ]
        (Macros.loyaltyBox 3)
 
--- THE PILE FAMILY'S RESIDUES, re-measured 2026-09-02 after the CONTENTS
--- read and the pile FACE landed. 38 supported cards write the word
--- "pile". The partition, the pile partitive, the pile demonstrative and
--- the subset complement landed with the partition round; the membership
--- predicate and the partition's face slot landed with this one. What
--- follows is what did not, each with the count and the blocker.
---
--- THE SINGLE PILE MADE BY AN EXILE, 10 cards over 10 sentences --
--- Abstract Performance, Become Anonymous, Expose the Culprit, Ghastly
--- Conscription, Hostile Negotiations, Jeskai Infiltrator, Mangara's
--- Tome, Parallel Thoughts, The Celestial Toymaker, Triumph of Saint
--- Katherine. "Exile the top four cards of your library in a face-down
--- pile", "exile any number of them in a face-down pile and the rest in
--- a face-up pile". The FACE these want is the one `SeparateIntoPiles`
--- now states; what is missing is the pile itself, made by the move
--- rather than by a partition. `MoveRiders` cannot carry it -- its field
--- riders are battlefield-gated and no rider contributes a binding --
--- and a partition row cannot say it either, because five of the ten
--- make their two piles with two SEPARATE exiles and one splits a group
--- the text does not count ("any number of them ... and the rest").
--- NOT BUILT BECAUSE NO WITNESS PAYS: every one of the ten is blocked
--- elsewhere too. Seven want `cloak` or `manifest`, neither of which is
--- a verb or a keyword this vocabulary knows; Mangara's Tome and
--- Parallel Thoughts want a TOP-OF read over a pile besides (below);
--- The Celestial Toymaker wants a chooser its row refuses
--- (`choosable TheDefendingPlayer` is False) and a second ability that
--- counts pile-making spells; Abstract Performance and Hostile
--- Negotiations want the two below.
---
--- SHUFFLING A PILE, 7 lines over 7 cards (the same seven, less Abstract
--- Performance, The Celestial Toymaker and Hostile Negotiations, plus
--- Phyrexian Portal's remainder shuffle). The rule is on the cards'
--- side: [CR#701.24a] shuffles "a library or a FACE-DOWN PILE of cards"
--- in one sentence, [CR#406.3] names the same act ("part of a pile of
--- cards that are shuffled"), and this grammar's `Shuffle` takes a
--- PLAYER and so is typed at the library alone. The arm is small and is
--- not built, because it has NO CARRIER: all 7 lines shuffle a pile the
--- exile above made, so the arm cannot be reached until that pile can be
--- written. Phyrexian Portal's eighth line, "shuffle the rest of that
--- pile into your library", is a `Move` to a shuffled library and not
--- this act at all; it is blocked with its card.
---
--- THE FACE CHANGE ON A PILE, 1 line (Hostile Negotiations, "turn a pile
--- of your choice face up"). `SetStatus` is battlefield-gated and must
--- stay so -- [CR#110.5d] gives status to permanents alone, which is what
--- `badPileFaceAsAStatus` pins -- so this wants a face-setting effect
--- over a `PileP` beside the partition's stated faces. One line, on a
--- card blocked on the exile-made pile twice over.
---
--- THE TOP OF A PILE, 2 lines over 2 cards (Mangara's Tome, Parallel
--- Thoughts): "put the top card of the exiled pile into its owner's
--- hand". A POSITION within a pile, where `PileOf` takes a count and
--- `LibrarySlice`'s `OnTop` is typed at a library. [CR#400.5] is what
--- makes the position meaningful -- the order of "objects arranged in
--- face-down piles in other zones" can't be changed either -- so the
--- read is not rules-impossible; it is unwritten and unwitnessed, both
--- cards being blocked on the exile-made pile and its shuffle besides.
---
--- THE COMPLEMENT AFTER A MEMBERSHIP READ, 1 card (Boneyard Parley,
--- "Put all cards from the pile of your choice onto the battlefield
--- under your control and the rest into their owners' graveyards").
--- Everything but the last clause writes. Naming a pile's members mints
--- a GROUP mention beside the piles, and `theRestOk` measures at most
--- one group, so "the rest" is refused with two standing -- and the
--- refusal is honest, because the two plural mentions denote the same
--- cards under two descriptions. `TheOther` is refused by the same
--- measure. The question is `theRestOk`'s and not the pile
--- vocabulary's; it is the one card this round left one clause short.
---
--- ONLY X CAN ATTACK / CAN BLOCK, 2 lines over 2 cards (Fight or Flight,
--- Stand or Fall). Both write their partition and their membership read
--- with the rows now landed and are blocked on the EXCLUSIVE permission:
--- `Compulsion`'s `Permit` spells "[n] can [deed]" and there is no arm
--- for "ONLY [n] can", which is a permission plus the closure of its
--- complement. Stand or Fall wants the per-player partition besides.
---
--- THE PER-PLAYER PARTITION, 6 lines over 5 cards -- Bend or Break, Make
--- an Example, Raging River, Stand or Fall, Whims of the Fates. "Each
--- player separates all permanents they control into three piles. Then
--- each player chooses one of their piles at random and sacrifices those
--- permanents." The membership read this round landed is what these
--- write in their second sentence; the partition has to run once per
--- player, and the piles one pass made have to be readable inside that
--- pass alone ("their chosen pile"), where `SeparateIntoPiles` mints ONE
--- piles mention for the clause. `ForEachOf` at the player kind is
--- landed and is where this goes, but the piles mention would have to be
--- scoped to the body rather than to the effect -- the element-scoping
--- question, and not a slot on this row. Whims of the Fates wants "at
--- random" on the pick besides, and Bend or Break "one of their
--- opponents of their choice" as the chooser.
---
--- THE LABELED AND VARIABLE PARTITION, 4 lines over 2 cards -- Camouflage
--- and Raging River. "Divides all creatures without flying they control
--- into a 'left' pile and a 'right' pile", then "for each attacking
--- creature you control, choose 'left' or 'right'"; and Camouflage's
--- pile count read off the number of attacking creatures, with the piles
--- assigned to attackers at random. Three separate widenings: a pile
--- LABEL (the naming ruling refuses a pile named across abilities, and
--- these name one within a single ability), a variable pile count where
--- the row takes a `Nat`, and an assignment of piles to objects. Both
--- cards are blocked on their combat lines independently.
---
--- SEARCHING A PILE, 1 line (Phyrexian Portal, "Search the other pile
--- for a card"). `SearchScope` takes zones and a pile is no zone
--- [CR#700.3c], so the locus has no group-valued form. The card is
--- blocked on the pile shuffle besides.
---
--- THE EMPTY-PILE REMINDER, 5 lines (Camouflage, Make an Example, Sphinx
--- of Clear Skies, Split the Spoils, Whims of the Fates). Reminder text
--- restating [CR#700.3d], which the row already admits by writing no
--- lower bound on a pile's contents. Nothing to build.
---
--- THE CHOOSER IN THE PHRASE, now at three witnesses of the six lines.
--- `PileOf`'s `by` slot landed on Death or Glory and this round added Do
--- or Die and Liliana of the Veil, both writing it over the membership
--- read. The other three write it over the face change ("turn a pile of
--- your choice face up") or inside a per-player pass, so they are
--- blocked above and not here.
 
--- ---------------------------------------------------------------------------
--- The mandatory "if you do" (round of 2026-09-02)
--- ---------------------------------------------------------------------------
---
--- `IfDone`'s carriers. What the arms test here is whether the
--- instruction's action HAPPENED: [CR#608.2c] follows the instructions in
--- the order written and reads the whole text as English, and [CR#609.3]
--- lets an impossible one do only as much as possible, so a mandatory
--- sentence can leave its action undone and the sentence after it says
--- what follows in each case. Measured 2026-09-02 over the supported
--- corpus, clause-bounded with a may/unless-free antecedent: 94 lines
--- over 93 cards write "if you do" this way -- 84 with the did-arm alone,
--- 8 with an "if you don't" arm beside it, 2 with "Otherwise". The
--- reflexive TRIGGER over the same mandatory antecedent ("when you do")
--- is a further 64 lines over 63 cards, and needs nothing new:
--- [CR#603.12] already writes over a clause that "allow[s] OR
--- INSTRUCT[s] a player to take an action".
 
-||| Charnel Troll, whole -- "Trample / At the beginning of your upkeep,
-||| exile a creature card from your graveyard. If you do, put a +1/+1
-||| counter on this creature. Otherwise, sacrifice it. / {B}{G}, Discard
-||| a creature card: Put a +1/+1 counter on this creature."
-||| The mandatory pair at its plainest, and the card whose official
-||| ruling states the reading in as many words: "You can't choose not to
-||| exile a creature card from your graveyard if you have one to exile."
-||| There is no offer to decline, so the only way the second sentence
-||| fails is [CR#609.3]'s -- an empty graveyard leaves the instruction
-||| nothing to do -- and "Otherwise" is what the text writes for that
-||| case, the same arm "If you don't" fills on the land cycle.
+||| Charnel Troll
 public export
 charnelTroll : Card
 charnelTroll =
@@ -20749,10 +15828,7 @@ charnelTroll =
                         Macros.thisCreature) ]
        (Just (4, 4))
 
-||| Promise of Bunrei, whole -- "When a creature you control dies,
-||| sacrifice this enchantment. If you do, create four 1/1 colorless
-||| Spirit creature tokens." The did-arm alone, which is what 84 of the
-||| 94 lines write.
+||| Promise of Bunrei
 public export
 promiseOfBunrei : Card
 promiseOfBunrei =
@@ -20766,13 +15842,7 @@ promiseOfBunrei =
                  (Macros.creatureTok 1 1 [] [creatureType "Spirit"]))) ]
        Nothing
 
-||| Grave Peril, whole -- "When a nonblack creature enters, sacrifice
-||| this enchantment. If you do, destroy that creature." The did-arm
-||| reading past its own antecedent: "that creature" is the HEADER's
-||| entering permanent, not the enchantment the instruction sacrificed,
-||| and the type word is what separates them. The arm is typed at
-||| `effIntro` of the instruction, so both mentions stand in it and the
-||| ordinary demonstrative resolution picks the creature.
+||| Grave Peril
 public export
 gravePeril : Card
 gravePeril =
@@ -20785,14 +15855,7 @@ gravePeril =
               (Macros.destroy (That (TypeW Creature)))) ]
        Nothing
 
-||| Mistbreath Elder, whole -- "At the beginning of your upkeep, return
-||| another creature you control to its owner's hand. If you do, put a
-||| +1/+1 counter on this creature. Otherwise, you may return this
-||| creature to its owner's hand." Both arms with an OFFER inside the
-||| second: the mandatory row and the offered one nest, which is what
-||| keeping them apart buys. The didn't-arm is typed at the clause's own
-||| context and reads nothing the bounce would have announced, which is
-||| right here -- it runs precisely because no creature was returned.
+||| Mistbreath Elder
 public export
 mistbreathElder : Card
 mistbreathElder =
@@ -20808,13 +15871,7 @@ mistbreathElder =
               (Macros.may You (Macros.returnTo Macros.thisCreature Macros.handZ))) ]
        (Just (2, 2))
 
-||| Woeleecher, whole -- the ability above with its card. The
-||| counter-removal antecedent, which 7 of the 94 lines write: taking a
-||| counter off is a player's own act -- [CR#608.2c] has the controller
-||| of the resolving ability follow the instruction, and what it takes
-||| off is [CR#122.1]'s marker on an object -- so the pro-verb inflects
-||| for it exactly as a sacrifice does, and a creature with no -1/-1
-||| counter on it leaves the instruction undone by [CR#609.3].
+||| Woeleecher
 public export
 woeleecherWhole : Card
 woeleecherWhole =
@@ -20823,19 +15880,7 @@ woeleecherWhole =
        [ Cards.woeleecher ]
        (Just (3, 5))
 
-||| Garruk Relentless // Garruk, the Veil-Cursed, whole -- the round's
-||| marquee, and the card the transform round left one line short. The
-||| front face's state trigger was `garrukRelentlessFlip`; the back
-||| face's "[−1]: Sacrifice a creature. If you do, search your library
-||| for a creature card, reveal it, put it into your hand, then shuffle"
-||| was the last blocker, and it is this round's row.
-||| Its official ruling is the mandatory reading stated from the other
-||| side -- "when that ability resolves, you must sacrifice a creature if
-||| you control one" -- so what "if you do" tests is [CR#609.3]'s
-||| shortfall and not a declined offer.
-||| A nonmodal double-faced card [CR#712.2] whose back writes no mana
-||| cost [CR#202.3a] and no loyalty number [CR#209.1,712.8a], which
-||| `planeswalkerBackWithoutLoyaltyOk` probed on Arlinn's face.
+||| Garruk Relentless // Garruk, the Veil-Cursed
 public export
 garrukRelentless : Card
 garrukRelentless =
@@ -20880,30 +15925,8 @@ garrukRelentless =
                                                 InZone (Macros.graveyardOf You)])) ]) ]
                Nothing)
 
--- ---------------------------------------------------------------------------
--- The token SUPERTYPE cell (closing sweep, 2026-09-02)
--- ---------------------------------------------------------------------------
---
--- [CR#111.9] is the cell's own rule -- "some effects instruct a player
--- to create a legendary token. These may be written 'create [name],
--- a . . .' and list characteristics for the token" -- and [CR#111.3]'s
--- example is what made it missing visible: a bare "1/1 green Saproling
--- creature token" has "no mana cost, supertypes, rules text, or
--- abilities", so the supertype is a DEFINED characteristic the bundle
--- either states or lacks.
--- 47 supported lines over 46 cards write one (measured 2026-09-02): 45
--- legendary, every one of them [CR#111.9]'s named frame without
--- exception, and 2 snow, which write the word in an ordinary bundle and
--- name their tokens with a trailing "named [name]" instead.
--- The cell sits BESIDE the type line, where the card seat puts it, and
--- not inside `TypeLine`: [CR#205.4b] keeps a supertype independent of
--- the card types and subtypes it is printed in front of, `cardOf` takes
--- the two as separate arguments and `SharedLineSplit` splits them apart
--- again.
 
-||| Marit Lage herself -- "a legendary 20/20 black Avatar creature token
-||| with flying and indestructible", [CR#111.9]'s named frame at its
-||| largest. Two cards create her and both write the bundle verbatim.
+||| Marit Lage
 public export
 maritLage : TokenChars bs
 maritLage =
@@ -20912,16 +15935,7 @@ maritLage =
     [Macros.keyword "Flying", Macros.keyword "Indestructible"]
     (Just "Marit Lage")
 
-||| Dark Depths, whole -- and the last blocker of the mandatory-if-you-do
-||| round, which landed everything else this card needs. "Dark Depths
-||| enters with ten ice counters on it. / {3}: Remove an ice counter from
-||| Dark Depths. / When Dark Depths has no ice counters on it, sacrifice
-||| it. If you do, create Marit Lage, a legendary 20/20 black Avatar
-||| creature token with flying and indestructible."
-||| Three cells meet here: the state trigger over an emptied counter
-||| store, `IfDone` over the MANDATORY sacrifice ([CR#609.3] is what can
-||| leave it undone -- the permanent may already be gone), and the
-||| supertype on the created token.
+||| Dark Depths
 public export
 darkDepths : Card
 darkDepths =
@@ -20938,13 +15952,7 @@ darkDepths =
               (Macros.create (Lit 1) Cards.maritLage)) ]
        Nothing
 
-||| Tuktuk the Explorer, whole -- the supertyped token at a death
-||| trigger, and the shortest carrier the cell has. "Haste / When Tuktuk
-||| the Explorer dies, create Tuktuk the Returned, a legendary 5/5
-||| colorless Goblin Golem artifact creature token."
-||| The COLOURLESS bundle is the empty colour list, which [CR#105.2c]
-||| already made the reading here -- "a colorless object has no color" --
-||| and the token names two card types and two creature types.
+||| Tuktuk the Explorer
 public export
 tuktukTheExplorer : Card
 tuktukTheExplorer =
@@ -20960,42 +15968,8 @@ tuktukTheExplorer =
                  [] (Just "Tuktuk the Returned"))) ]
        (Just (1, 1))
 
--- ---------------------------------------------------------------------------
--- Two ROUTED items that were already writable (closing sweep, 2026-09-02)
--- ---------------------------------------------------------------------------
---
--- Both were routed into this bucket with a named blocker, and neither
--- blocker survives re-measurement. They are benched rather than merely
--- recorded, because a bench is the only proof that a construction
--- writes.
---
--- THE CROSS-KIND "you or [description]" JOIN, routed as "no joined head
--- takes 'you'" and re-measured at 45 lines over 43 cards. `EitherJoined`
--- is that head and has been since the attacking-defender round: it takes
--- two arms of different kinds and puts no agreement gate between them,
--- which is exactly what "you or a planeswalker you control" needs. The
--- routed count was measuring a family that had already landed.
---
--- THE PLAYER-SIDE COUNT COMPARISON, routed as "`PlayerStat` is
--- life-only" and re-measured at 59 lines over 54 cards. `PlayerStat`
--- needs no count arm and never did: the comparison is not a stat READ
--- but `CompareOver`'s member-relative measurement, whose docstring names
--- "an opponent who controls more lands than you" as its own worked
--- example and which `opponentWithMoreLands` has benched since the
--- counted-search round. What was missing was only a carrier at the
--- CONDITION frame, and `Exists` over the same description is it.
 
-||| Blood Reckoning, whole -- "Whenever a creature attacks you or a
-||| planeswalker you control, that creature's controller loses 1 life."
-||| The joined defender at the TRIGGER seat, where the prior witnesses
-||| put it at a deontic's `DefendingPlayer`. `OneDefender`'s singular
-||| gate is what picks this line out of the family's other half: the 25
-||| lines writing the plural right arm ("you or planeswalkers you
-||| control") give `EitherJoined` two arms disagreeing in number, so the
-||| phrase is `ManyOf` and [CR#508.1b]'s one-defender-per-attacker
-||| reading refuses it here. That half writes at the deontic seat, which
-||| states a restriction over a whole declaration rather than naming one
-||| attack's defender.
+||| Blood Reckoning
 public export
 bloodReckoning : Card
 bloodReckoning =
@@ -21009,15 +15983,7 @@ bloodReckoning =
            (Macros.losesLife (ControllerOf (That (TypeW Creature))) (Lit 1)) ]
        Nothing
 
-||| Land Tax, whole -- "At the beginning of your upkeep, if an opponent
-||| controls more lands than you, you may search your library for up to
-||| three basic land cards, reveal them, put them into your hand, then
-||| shuffle."
-||| The member-relative comparison at the CONDITION frame, which is the
-||| one seat the routed bullet was right that nothing had written. It
-||| needs no row: [CR#608.2h] settles both counts once when the ability
-||| checks, and an intervening-if that asks whether ANY opponent answers
-||| a description is `Exists` over that description.
+||| Land Tax
 public export
 landTax : Card
 landTax =
@@ -21034,23 +16000,8 @@ landTax =
                  , Macros.shuffle ])) ]
        Nothing
 
--- ---------------------------------------------------------------------------
--- The `historic` PREDICATE (closing sweep, 2026-09-02)
--- ---------------------------------------------------------------------------
---
--- [CR#700.6] defines the term: "the term historic refers to an object
--- that has the legendary supertype, the artifact card type, or the Saga
--- subtype". 59 supported lines over 55 cards write it, measured
--- 2026-09-02 with reminder text stripped, and the heads they supply are
--- the whole spread of object words -- 23 "historic spell", 13 "historic
--- card", 12 permanent(s), 3 creature(s), 3 land(s).
--- The row is the printed WORD and not its definition, which is now a
--- deliberate choice rather than a forced one: the mixed head/adjective
--- disjunction landed, so the three-armed union is buildable, and no
--- printed line writes it -- the union appears only in reminder text.
 
-||| Artificer's Assistant, whole -- the term at its commonest head.
-||| "Flying / Whenever you cast a historic spell, scry 1."
+||| Artificer's Assistant
 public export
 artificersAssistant : Card
 artificersAssistant =
@@ -21062,15 +16013,7 @@ artificersAssistant =
            Macros.scryOne ]
        (Just (1, 1))
 
-||| Aya of Alexandria, whole -- the term at the BATTLEFIELD, where the
-||| same adjective reaches a permanent rather than a spell. "Menace,
-||| lifelink / Whenever a historic creature you control deals combat
-||| damage to a player, create a 1/1 black Assassin creature token with
-||| menace."
-||| One word, three zones: [CR#700.6] describes an object and [CR#109.1]
-||| makes a card in any zone one, so nothing about the row changes
-||| between this line and Artificer's Assistant's -- only the head beside
-||| it, which is what places the phrase.
+||| Aya of Alexandria
 public export
 ayaOfAlexandria : Card
 ayaOfAlexandria =
@@ -21089,31 +16032,8 @@ ayaOfAlexandria =
                        [Macros.keyword "Menace"] Nothing)) ]
        (Just (4, 3))
 
--- ---------------------------------------------------------------------------
--- The ATTACHMENT-HOST word with no card type (closing sweep, 2026-09-02)
--- ---------------------------------------------------------------------------
---
--- Routed as the bucket's largest item at 105 lines / 80 cards, and
--- already writable. `attachHeadOk` admits every noun word under
--- `Enchanted` and admits `PermanentW` under `Equipped` as well, on
--- [CR#303.4] (an Aura attaches to an object or a player) and
--- [CR#303.4m], which lets "enchanted [object or player]" name whatever
--- the permanent is attached to; `AttachHost Enchanted PermanentW` is the
--- phrase, and nothing but a bench was missing.
--- Re-measured 2026-09-02 and SPLIT, because the routed figure conflated
--- two readings of the same two words: 93 lines over 71 cards write the
--- HOST word (an Aura's own text naming what it is attached to, which is
--- this phrase), and 12 lines over 12 cards write the ADJECTIVE ("destroy
--- target enchanted permanent", "defending player controls an enchanted
--- permanent"), which is `IsAttached` and a different row. Only one line
--- of the 93 writes "equipped permanent" (Luxior, Giada's Gift).
 
-||| Indestructibility, whole -- the host word at its plainest. "Enchant
-||| permanent / Enchanted permanent has indestructible."
-||| The Aura that made the type-free host word necessary: its enchant
-||| ability takes any permanent [CR#303.4], so no card-type word could
-||| name what it is attached to, and [CR#301.5f] and [CR#303.4m] both let
-||| the participle name whatever the permanent is.
+||| Indestructibility
 public export
 indestructibility : Card
 indestructibility =
@@ -21124,28 +16044,8 @@ indestructibility =
                        (Macros.keyword "Indestructible")) ]
        Nothing
 
--- ---------------------------------------------------------------------------
--- The marked PLAYER-sort read (closing sweep, 2026-09-02)
--- ---------------------------------------------------------------------------
---
--- Routed as "`OfLastChosen` covers the quality sorts; the PLAYER sort is
--- left", with a second blocker named beside it ("both also need
--- 'creatures attacking [player]'"). Neither half survives.
--- `ChosenPlayer`'s own docstring already spells the marked read -- "the
--- chosen player" behind a single chooser, "the last chosen player"
--- behind a repeatable one -- on `ChoiceStands`' existence gate, which is
--- the same gate `OfLastChosen` carries; and `AttackerOf` writes
--- "creatures attacking [player]" in exactly the reduced participle these
--- two cards print. The sort was never missing at the READ.
 
-||| Beckoning Will-o'-Wisp, whole -- "Flying / Lure the Unwary -- At the
-||| beginning of combat on your turn, choose an opponent. / Creatures
-||| attacking the last chosen player get +1/+0."
-||| The marked read across abilities, which `abIntro` already threads: a
-||| triggered ability exports its choice delta to the abilities printed
-||| after it, so the static's "the last chosen player" reads a choice the
-||| trigger makes each combat. That repetition is what earns the marked
-||| spelling over the plain one [CR#607.2d].
+||| Beckoning Will-o'-Wisp
 public export
 beckoningWillOWisp : Card
 beckoningWillOWisp =
@@ -21161,11 +16061,7 @@ beckoningWillOWisp =
                       (PtUp (Lit 1)) (PtUp (Lit 0))) ]
        (Just (1, 3))
 
-||| Triarch Stalker, whole -- the same two sentences over an artifact
-||| creature. "Targeting Relay -- At the beginning of combat on your
-||| turn, choose an opponent. / Creatures attacking the last chosen
-||| player have menace." The pair is the marked read's whole player-sort
-||| corpus, and both cards land on machinery that was already there.
+||| Triarch Stalker
 public export
 triarchStalker : Card
 triarchStalker =
@@ -21180,35 +16076,8 @@ triarchStalker =
                        (Macros.keyword "Menace")) ]
        (Just (4, 5))
 
--- ---------------------------------------------------------------------------
--- The ENTRY-RIDER defender (closing sweep, 2026-09-02)
--- ---------------------------------------------------------------------------
---
--- [CR#508.4] gives the rider its content and its default in one
--- sentence: the controller of a permanent put onto the battlefield
--- attacking "chooses which defending player, planeswalker a defending
--- player controls, or battle a defending player protects it's attacking
--- ... unless the effect that put it onto the battlefield specifies what
--- it's attacking". `EntersAttacking` carried no slot for the specifying
--- half, and what blocked the slot was LAYERING and never the rules:
--- `TokenRider` was declared in `Words.idr`, four modules above `Noun`
--- and `AttackDefender`.
--- The move is made: `TokenRider` now sits in `Triggers.idr` directly
--- below `AttackDefender`, is `Bindings`-indexed like every other
--- phrase-carrying vocabulary, and `EntersAttacking` takes the same
--- `AttackDefender` the declaration event and `BecomesAttacking` take.
--- 121 supported lines write an attacking entry or creation; 15 over 15
--- cards specify the defender (measured 2026-09-02).
 
-||| Seraphic Greatsword, whole -- "Equipped creature gets +2/+2. /
-||| Whenever equipped creature attacks the player with the most life or
-||| tied for most life, create a 4/4 white Angel creature token with
-||| flying that's tapped and attacking that player. / Equip {4}"
-||| The defender specified on a CREATION, reading back the defender the
-||| trigger header named. The two `AttackDefender` seats meet in one
-||| sentence -- the header's, which [CR#508.1b] fixes when the attack is
-||| declared, and the rider's, which [CR#508.4] would otherwise leave to
-||| the token's controller.
+||| Seraphic Greatsword
 public export
 seraphicGreatsword : Card
 seraphicGreatsword =
@@ -21230,54 +16099,9 @@ seraphicGreatsword =
        , Macros.keywordCosting "Equip" (Mana [Macros.generic 4]) ]
        Nothing
 
-||| Sphinx of Clear Skies, whole -- the stale-note bench the closing
-||| sweep was asked to attempt, and it lands with nothing new. "Flying,
-||| ward {2} / Domain -- Whenever this creature deals combat damage to a
-||| player, reveal the top X cards of your library, where X is the number
-||| of basic land types among lands you control. An opponent separates
-||| those cards into two piles. Put one pile into your hand and the other
-||| into your graveyard."
-||| Sphinx of Uthuun's note recorded this card as blocked on "a
-||| domain-counted X". It was not: `tribalFlames` writes the domain count
-||| as `DistinctCount (SubtypeAxis Land BasicOnly)` and the piles round
-||| landed the rest, so the two halves only ever needed to be put in one
-||| card. The reveal takes the letter as its slice size, which is the
-||| same amount seat `Macros.topSlice` already had.
--- ---------------------------------------------------------------------------
--- The flagged STALE NOTE, run (closing sweep, 2026-09-02)
--- ---------------------------------------------------------------------------
---
--- `sphinxOfUthuun`'s trailer recorded Unesh, Criosphinx Sovereign and
--- Sphinx of Clear Skies as "blocked on their other lines (a cost
--- reduction; a domain-counted X)". Both halves were already written --
--- `daruWarchief` writes the subtype-scoped cost reduction and
--- `tribalFlames` writes the domain count -- so the note was stale, and
--- the sweep ran the bench it asked for.
---
--- UNESH LANDS WHOLE, and its trigger header turned out to need nothing
--- either: "Unesh or another Sphinx you control" is `EitherOf` over the
--- self and an `OtherThan`-anchored description, the same two rows the
--- other-permanent vocabulary already had.
---
--- SPHINX OF CLEAR SKIES DOES NOT, and its real blocker is neither of the
--- two the note named. It is `LibrarySlice`'s SIZE SLOT: the row takes
--- its amount at `bs` and returns a noun at `bs`, so an amount written
--- there contributes no bindings, and a LETTER written there is never
--- opened -- `Define X` after it fails at `anyOpenLetter X`, because
--- `openLetter` needs an indefinite singular letter mention and the slice
--- introduced none. Every other letter seat threads its amount
--- (`DealDamage`, `Create`, `Search`), which is why Tribal Flames and
--- Krenko write the same "where X is" and this card cannot. Recorded, not
--- built: whether the slice should thread `amtIntro` is a question about
--- that row and not about the domain count.
+||| Sphinx of Clear Skies
 
-||| Unesh, Criosphinx Sovereign, whole -- "Flying / Sphinx spells you
-||| cast cost {2} less to cast. / Whenever Unesh or another Sphinx you
-||| control enters, reveal the top four cards of your library. An
-||| opponent separates those cards into two piles. Put one pile into your
-||| hand and the other into your graveyard."
-||| Sphinx of Uthuun's three sentences with a self-or-other subject in
-||| front of them, and Daru Warchief's cost reduction beside them.
+||| Unesh, Criosphinx Sovereign
 public export
 uneshCriosphinxSovereign : Card
 uneshCriosphinxSovereign =

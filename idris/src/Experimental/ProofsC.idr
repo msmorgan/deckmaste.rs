@@ -272,8 +272,7 @@ badForeignSacrificeCost : Unspellable Ability (\ok =>
 badForeignSacrificeCost Oh impossible
 
 
-||| "you pay" over a component naming an opponent
-||| The pay clause spells its subject ONCE, so the component under the verb names the same player.
+||| "you pay"
 public export
 badMismatchedPayer : Unspellable (Effect []) (\ok =>
   Macros.mayElse You (Pay You (Macros.payLife Macros.anOpponent 1) PaidOnce {ag = ok}) Macros.drawACard)
@@ -288,8 +287,7 @@ badPayTapSymbol : Unspellable (Effect []) (\ok =>
 badPayTapSymbol Oh impossible
 
 
-||| "Creatures you control get +1/+1 until end of turn:" written as a cost
-||| [CR#118.1] makes a cost an action a PLAYER carries out; a continuous effect is no such action.
+||| "Creatures you control get +1/+1 until end of turn:"
 public export
 badContinuousAsCost : Unspellable Ability (\ok =>
   Activated (Do (Macros.gets (AllOf Macros.creatureYouControl) (PtUp (Lit 1)) (PtUp (Lit 1))
@@ -336,24 +334,21 @@ badReflexiveAsCost : Unspellable Ability (\ok =>
 badReflexiveAsCost Oh impossible
 
 
-||| "You skip your next turn:" written as a cost
-||| [CR#614.10] makes a skip a replacement effect — "instead of doing [something], do nothing" — not an action the payer carries out [CR#118.1].
+||| "You skip your next turn:"
 public export
 badSkipAsCost : Unspellable Ability (\ok =>
   Activated (Do (SkipsNext You Turn (Lit 1)) {ok}) Macros.drawACard Nothing Nothing Nothing Nothing)
 badSkipAsCost Oh impossible
 
 
-||| "You pay 2 life:" written as a cost over a cost
-||| [CR#602.1a] makes the activation cost everything before the colon and fixes its payer, so a cost that re-announces payer and payment states what the slot already holds; the telescope is `Compound`.
+||| "You pay 2 life:"
 public export
 badPayAsCost : Unspellable Ability (\ok =>
   Activated (Do (Pay You (Macros.payLife You 2) PaidOnce) {ok}) Macros.drawACard Nothing Nothing Nothing Nothing)
 badPayAsCost Oh impossible
 
 
-||| "Discard a card, then sacrifice a creature:" written as one cost
-||| [CR#601.2h] pays a total cost's parts in any order, so no cost orders its own parts; `Compound` is the cost-side telescope.
+||| "Discard a card, then sacrifice a creature:"
 public export
 badSequentialCost : Unspellable Ability (\ok =>
   Activated (Do (Sequentially [Macros.discardsACard You,
@@ -362,8 +357,7 @@ badSequentialCost : Unspellable Ability (\ok =>
 badSequentialCost Oh impossible
 
 
-||| "Discard a card and sacrifice a creature simultaneously:" written as one cost
-||| [CR#601.2h] pays a cost's parts one at a time in any order, so a cost claims no simultaneity.
+||| "Discard a card and sacrifice a creature simultaneously:"
 public export
 badSimultaneousCost : Unspellable Ability (\ok =>
   Activated (Do (Simultaneously [Macros.discardsACard You,
@@ -372,8 +366,7 @@ badSimultaneousCost : Unspellable Ability (\ok =>
 badSimultaneousCost Oh impossible
 
 
-||| "Repeat this process:" written as a cost
-||| [CR#118.1] wants an action or payment; "repeat" names one only by anaphora, and [CR#601.2h] pays a cost's parts in any order, so no part precedes another for the anaphor to reach.
+||| "Repeat this process:"
 public export
 badRepeatAsCost : Unspellable Ability (\ok =>
   Activated (Do (Repeat Again) {ok}) Macros.drawACard Nothing Nothing Nothing Nothing)
@@ -405,8 +398,7 @@ badDoubleTapCost : Unspellable Ability (\ok =>
 badDoubleTapCost Oh impossible
 
 
-||| ": Draw a card." opening on an empty symbol run
-||| A component's symbol run is written; the payment of nothing before a colon is "{0}" [CR#118.5].
+||| ": Draw a card."
 public export
 badEmptyManaCost : Unspellable Ability (\ok =>
   Activated (Mana [] {wr = ok}) Macros.drawACard Nothing Nothing Nothing Nothing)
@@ -438,8 +430,6 @@ badIfNotReadsMandatoryBody Refl impossible
 
 
 ||| "Counter target spell unless its controller taps."
-||| [CR#118.12a] makes the unless-arm a cost its player may pay; the tap
-||| symbol is a cost only before a colon [CR#107.5], never a verb phrase.
 public export
 badUnlessTapSymbol : Unspellable (Effect []) (\ok =>
   Unless (Macros.counterSpell (Macros.target Macros.spell)) (ControllerOf It) TapSymbol {pb = ok})
@@ -478,16 +468,14 @@ badLeavesThenTap : Unspellable Ability (\ok =>
 badLeavesThenTap OnField impossible
 
 
-||| "Target creature can't attack." as a static ability line
-||| A static ability does not target [CR#115.1a..115.1e].
+||| "Target creature can't attack."
 public export
 badStaticTargets : Unspellable Ability (\ok =>
   Static (Macros.deontic (Macros.target Macros.creature) Forbid ["Attack"] Agent NoDeonticPatient) {ut = ok})
 badStaticTargets Oh impossible
 
 
-||| "You may play a creature this turn." of a battlefield permanent
-||| A battlefield permanent has already been played [CR#604.6].
+||| "You may play a creature this turn."
 public export
 badPlayFromBattlefield : Unspellable (Effect []) (\ok =>
   Continuously (Deontic You Permit ["Play"] Agent
@@ -497,8 +485,7 @@ badPlayFromBattlefield : Unspellable (Effect []) (\ok =>
 badPlayFromBattlefield Oh impossible
 
 
-||| "Target creature gets +3/+3 until the beginning of your next upkeep." on the event axis
-||| One phrase, one slot: the duration adverbial already spells this endpoint.
+||| "Target creature gets +3/+3 until the beginning of your next upkeep."
 public export
 badUntilBeginningOfUpkeep : Unspellable (Effect []) (\ok =>
   Macros.gets (Macros.target Macros.creature) (PtUp (Lit 3)) (PtUp (Lit 3)) (Just (UntilEvent (BeginningOf Upkeep (ByWord Yours)))) {sp = ok})

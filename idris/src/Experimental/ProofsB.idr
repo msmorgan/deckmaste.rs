@@ -24,8 +24,7 @@ badDoubleOther Oh impossible
 
 
 
-||| "You discard it." of a referent nothing has placed
-||| An antecedent recording no zone is no hand card, and [CR#701.9a] discards FROM a hand.
+||| "You discard it."
 public export
 badDiscardIt : Unspellable
   (Effect [MkBinding AD Object OneOf (ObjectP Nothing Nothing Nothing Nothing Nothing)])
@@ -89,13 +88,6 @@ badRepeatedDisjunct Oh impossible
 
 
 ||| "artifact or attacking"
-||| Alternatives are parallel — each must stand where the others do. A
-||| combat word writes no head, so it presupposes one and demands a
-||| creature of it, where the other arm wrote its head and it is an
-||| artifact. The demand that survived the mixed-arm reading: an
-||| adjectival arm may borrow the enclosing head ("artifacts, Sagas,
-||| and/or legendary" [CR#702.195a]) precisely because it presupposes
-||| nothing, and this one does not.
 public export
 badHeadlessDisjunct : Unspellable (Predicate [] Object) (\ok =>
   Or [Macros.artifact, Attacking] {pd = ok})
@@ -103,24 +95,6 @@ badHeadlessDisjunct Oh impossible
 
 
 ||| "in your hand or in your graveyard"
-||| The parallel demand about place: this projection names one zone for both
-||| alternatives. It stands after the type half of the same demand was
-||| relaxed, and the two halves part for a reason. A head word carries the
-||| type it presupposes ([CR#205.3c] correlates a subtype to its own card
-||| type), so alternatives that each write a head may name different types
-||| and the phrase presupposes none. A head word does NOT carry a place:
-||| [CR#109.2a] locates a card-worded description by the zone the phrase
-||| states, and
-||| `phraseZone` defaults an unstated one to the battlefield -- so a pair of
-||| arms naming two zones would project none and be read onto the
-||| battlefield, which is a mis-placement and not a widening. Retiring it
-||| needs a union-valued `seedZone`, not a deleted gate.
-||| The same refusal answers "target spell or permanent" (the Lace cycle,
-||| Blind Seer, Aether Gust and kin): a spell is on the stack [CR#109.2b]
-||| and a permanent on the battlefield, so that phrase is this one wearing
-||| a different head. It does NOT answer "from your graveyard or from
-||| exile" (Doc Aurlock): casting is history rather than a location, so
-||| `CastFrom` seeds no zone and those arms are parallel already.
 public export
 badCrossZoneDisjunction : Unspellable (Predicate [] Object) (\ok =>
   Or [InZone Macros.handZ, InZone Macros.graveyardZ] {pd = ok})
@@ -128,11 +102,6 @@ badCrossZoneDisjunction Oh impossible
 
 
 ||| "spell or permanent"
-||| The cross-zone refusal at the union subject the Lace cycle wants: a
-||| spell is on the stack [CR#109.2b], a permanent on the battlefield, and
-||| one phrase names one place [CR#109.2a]. Not a kind question -- both arms
-||| are objects -- and not a headedness one; the projection is the whole of
-||| what refuses it.
 public export
 badSpellOrPermanentSubject : Unspellable (Predicate [] Object) (\ok =>
   Or [Macros.spell, Permanent] {pd = ok})
@@ -184,10 +153,6 @@ badWrappedStatusLaunder Oh impossible
 
 
 ||| "blocked creature that's unblocked"
-||| [CR#509.1h] hands the two blocking roles out as alternatives on one
-||| attacking creature -- blockers declared for it makes it blocked, none
-||| makes it unblocked -- and an effect that changes one changes it TO
-||| the other, so a conjunction naming both describes nothing.
 public export
 badBlockedAndUnblocked : Unspellable (Predicate [] Object) (\ok =>
   And [Macros.creature, Blocked, Unblocked] {cf = ok})
@@ -281,8 +246,6 @@ badMixedCharacteristicDisjunct Oh impossible
 
 
 ||| "if target creature is an artifact"
-||| The condition's subject is a read or a definite description, never a mention the
-||| condition merely supposes, so "if target …" is unrepresentable here.
 public export
 badMatchesTargetSubject : Unspellable (Condition []) (\ok =>
   Matches (Macros.target Macros.creature) Macros.artifact {bl = ok})
@@ -342,8 +305,7 @@ badZombieArtifactToken : Unspellable (Effect []) (\ok =>
 badZombieArtifactToken Oh impossible
 
 
-||| "Create a white Soldier creature token." with no power or toughness
-||| A token has only the characteristics its effect defines [CR#111.3]; a creature needs P/T [CR#208.1].
+||| "Create a white Soldier creature token."
 public export
 badCreatureTokenNoPt : Unspellable (Effect []) (\ok =>
   Macros.create (Lit 1) (MkToken Nothing [White] (MkTypeLine [creatureType "Soldier"] [Creature]) [] Nothing) {tp = ok})
@@ -368,8 +330,6 @@ badRemoveCountersDead Oh impossible
 
 
 ||| "Move a counter from target creature onto it."
-||| [CR#122.5] names the same-object case among the ones that make a move impossible:
-||| the counter would have to be removed from and put onto one object.
 public export
 badMoveCountersSelf : Unspellable (Effect []) (\ok =>
   MoveCounters (Lit 1) Nothing (Macros.target Macros.creature) It {md = ok})
@@ -402,11 +362,6 @@ badBecomesZombieLand Oh impossible
 
 
 ||| "Target creature becomes in addition to its other types."
-||| The clause has to say WHAT: an empty type line adds nothing and spells no phrase.
-||| One gate now where two stood, and the refusal is unchanged: the
-||| bundle-level `AdditionSaysSomething` admits an absent type line only
-||| where the bundle writes a colour instead (Indigo Faerie), and this
-||| bundle writes nothing at all.
 public export
 badBecomesNothing : Unspellable (Effect []) (\ok =>
   Macros.becomes (Macros.target Macros.creature) (MkTypeLine [] []) Nothing {sw = ok})
@@ -571,8 +526,7 @@ badEmptySimultaneous : Unspellable (Effect []) (\ok =>
 badEmptySimultaneous ItIsSucc impossible
 
 
-||| "Exile target creature and destroy that card." as one instruction
-||| A batch's elements share one pre-state [CR#608.2f], so an element reads no sibling's deed.
+||| "Exile target creature and destroy that card."
 public export
 badSimultaneousReadsRetag : Unspellable (Effect []) (\ok =>
   Simultaneously [Macros.exile (Macros.target Macros.creature),
@@ -580,8 +534,7 @@ badSimultaneousReadsRetag : Unspellable (Effect []) (\ok =>
 badSimultaneousReadsRetag (_, OnField) impossible
 
 
-||| "This deals 2 damage to target creature and you gain that much life." as one instruction
-||| The same pre-state holds for magnitudes: no damage is dealt when a sibling is typed [CR#608.2f].
+||| "This deals 2 damage to target creature and you gain that much life."
 public export
 badSimultaneousReadsOutcome : Unspellable (Effect []) (\ok =>
   Simultaneously [DealDamage This (Lit 2) (Macros.target Macros.creature),
@@ -589,8 +542,7 @@ badSimultaneousReadsOutcome : Unspellable (Effect []) (\ok =>
 badSimultaneousReadsOutcome Refl impossible
 
 
-||| "You may create a token and put a +1/+1 counter on it." as one instruction
-||| The offer turns on the choice to pay [CR#118.12], and a batch acts at once [CR#608.2f].
+||| "You may create a token and put a +1/+1 counter on it."
 public export
 badSimultaneousReadsMayDeed : Unspellable (Effect []) (\ok =>
   Simultaneously [Macros.may You (Macros.create (Lit 1) (Macros.creatureTok 1 1 [Green] [creatureType "Plant"])),
@@ -598,8 +550,7 @@ badSimultaneousReadsMayDeed : Unspellable (Effect []) (\ok =>
 badSimultaneousReadsMayDeed Refl impossible
 
 
-||| "You may have this deal 2 damage and you gain that much life." as one instruction
-||| The magnitude twin, reached through the same optional wrapper.
+||| "You may have this deal 2 damage and you gain that much life."
 public export
 badSimultaneousReadsMayOutcome : Unspellable (Effect []) (\ok =>
   Simultaneously [Macros.may You (DealDamage This (Lit 2) (Macros.target Macros.creature)),

@@ -62,8 +62,7 @@ badBareCumulativeUpkeep : Unspellable Ability (\ok =>
 badBareCumulativeUpkeep Oh impossible
 
 
-||| "Cumulative upkeep {2}" printed on a sorcery.
-||| [CR#702.24a] expands the keyword into clauses about a permanent on the battlefield.
+||| "Cumulative upkeep {2}"
 public export
 badCumulativeUpkeepOnSpell : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Sorcery])
@@ -116,9 +115,6 @@ badKeywordListRepeatingBase Oh impossible
 
 
 ||| "This creature has flying as long as a card exiled with it has flying. The same is true for ward."
-||| Every element of the trailer is written BARE, and ward is not: [CR#702.21a]
-||| writes a cost after the word. The class term did not relax this -- a WORD
-||| arm still faces `keywordParamless`, exactly as before.
 public export
 badParameterisedKeywordInList : Unspellable Ability (\ok =>
   AlsoForKeywords (Static (Conditionally
@@ -130,10 +126,6 @@ badParameterisedKeywordInList Oh impossible
 
 
 ||| "a creature with flyings"
-||| A keyword CLASS quantifies over its word's parameter, and [CR#702.9a]
-||| writes no parameter after flying, so there is nothing for the term to
-||| quantify: the class of flying abilities is the one ability, which the
-||| word already names.
 public export
 badClassOfParamlessKeyword : Unspellable (Predicate [] Object) (\ok =>
   HasKeyword (AnyKeywordIn (MkKeywordFamily "Flying" Nothing)) {kn = ok})
@@ -141,8 +133,6 @@ badClassOfParamlessKeyword Oh impossible
 
 
 ||| "a creature with renown of any color"
-||| The class term's SORT narrows a quality [CR#105.1]; [CR#702.112a] writes a
-||| number after renown, and a number has no sorts to range over.
 public export
 badSortedClassOnNumberKeyword : Unspellable (Predicate [] Object) (\ok =>
   HasKeyword (AnyKeywordIn (MkKeywordFamily "Renown" (Just Color))) {kn = ok})
@@ -256,7 +246,6 @@ badNestedDestination Oh impossible
 
 
 ||| "if a creature died in your graveyard this way"
-||| A locus is where an act was PERFORMED, and a death is no act performed in a place: [CR#700.4] makes it a move from the battlefield to a graveyard, whose two ends are an origin and a destination and neither of them a place the act happened in.
 public export
 badLocusOnDeath : Unspellable (Condition []) (\ok =>
   Happened Death (Macros.a Macros.creature) Lookback.ThisWay
@@ -282,7 +271,6 @@ badShuffleLocusAtGraveyard Oh impossible
 
 
 ||| "If that mana is spent on an instant spell, it gains haste until end of turn."
-||| [CR#110.4b] lists the five spell types that become permanents and an instant is not among them; [CR#608.2n] puts it into its owner's graveyard as the last part of resolving, so there is no permanent for the clause to name.
 public export
 badResolvedInstant : Unspellable (Noun [] Object) (\ok =>
   ResolvedPermanent (Macros.a (And [HasType Instant, Macros.spell])) {pm = ok})
@@ -361,9 +349,6 @@ badNamedAddition Oh impossible
 
 
 ||| "Target creature becomes a black black Zombie in addition to its other colors and types."
-||| A colour list is a set [CR#105.2], so no phrase writes a colour twice.
-||| Refused by `TokenCanonical`, which stands at the addition where
-||| `ColorsDistinct` did and asks the setting row's whole distinctness.
 public export
 badRepeatedAdditionColor : Unspellable (Effect []) (\ok =>
   Macros.becomesAs (Macros.target Macros.creature)
@@ -373,10 +358,6 @@ badRepeatedAdditionColor Oh impossible
 
 
 ||| "Target creature becomes an artifact artifact in addition to its other types."
-||| The distinctness half of the same gate, which the addition row did not
-||| ask before: [CR#205.1b] retains the prior types and this line names
-||| what is added, so a card type named twice adds nothing the first
-||| mention did not.
 public export
 badRepeatedAdditionType : Unspellable (Effect []) (\ok =>
   Macros.becomesAs (Macros.target Macros.creature)
@@ -410,8 +391,6 @@ badNounPossessorYou AttachedPossessor impossible
 
 
 ||| "Put those cards on the top or bottom of your library in any order."
-||| [CR#401.4] arranges cards sharing one position; a disjunction names two
-||| ends, so there is no single pile to order.
 public export
 badDisjunctionOrdered : Unspellable (ZoneExpr []) (\ok =>
   LibraryAt (EitherEnd Nothing) (Just AnyOrder) Nothing {af = ok} Bare)
@@ -419,18 +398,12 @@ badDisjunctionOrdered Oh impossible
 
 
 ||| "zeroth from the top"
-||| [CR#401.7] counts library positions from the top card, which is the
-||| first, so a library has no zeroth position to put a card into.
 public export
 badZerothFromTop : Unspellable LibOrdinal (\ok => Nth 0 {nz = ok})
 badZerothFromTop ItIsSucc impossible
 
 
 ||| "Shuffle those cards into your library in any order."
-||| [CR#401.4] gives the owner an order for cards put "in a specific
-||| position". A shuffle randomizes the whole pile [CR#701.24a] and puts
-||| them in no position at all, so there is nothing for an arrangement to
-||| order.
 public export
 badShuffledArranged : Unspellable (ZoneExpr []) (\ok =>
   LibraryAt Shuffled (Just AnyOrder) Nothing {af = ok} Bare)
@@ -438,11 +411,6 @@ badShuffledArranged Oh impossible
 
 
 ||| "Shuffle it into its owner's library third from the top."
-||| [CR#401.7] counts the offset down from the top card; a shuffle names
-||| no position for it to count from [CR#701.24a]. The reading this
-||| leaves standing is Gravebane Zombie's beside Darksteel Colossus
-||| [CR#701.24g] -- a SEPARATE clause states the position, and the two
-||| destinations are two moves.
 public export
 badShuffledOrdinal : Unspellable (ZoneExpr []) (\ok =>
   LibraryAt Shuffled Nothing (Just (Nth 3)) {nf = ok} Bare)
@@ -450,8 +418,6 @@ badShuffledOrdinal Oh impossible
 
 
 ||| "if there is no monstrous creature"
-||| The absence check reads a player-held designation [CR#725.1]; an
-||| object-held marker is described on the object that holds it.
 public export
 badNoHolderOnObject : Unspellable (Condition []) (\ok =>
   NoHolder Monstrous {sc = ok})
@@ -459,8 +425,6 @@ badNoHolderOnObject Refl impossible
 
 
 ||| "your monarch"
-||| Only the card-scope designation is a possessed noun [CR#903.3]; the
-||| monarch is held by a player and read as a description.
 public export
 badPossessedMonarch : Unspellable (Noun [] Object) (\ok =>
   Designated Monarch You {sc = ok})
@@ -485,8 +449,7 @@ badCostedRetrace : Unspellable Ability (\ok =>
 badCostedRetrace Oh impossible
 
 
-||| "Unearth {B}" printed on an instant.
-||| [CR#702.84a] returns the card to the battlefield, which [CR#110.4] denies an instant card.
+||| "Unearth {B}"
 public export
 badUnearthOnSpellCard : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Black]) [] (MkTypeLine [] [Instant])
@@ -494,8 +457,7 @@ badUnearthOnSpellCard : Unspellable Card (\ok =>
 badUnearthOnSpellCard Oh impossible
 
 
-||| "Flashback {2}{U}" printed on an artifact.
-||| [CR#702.34a] permits the graveyard cast only if the resulting spell is an instant or sorcery.
+||| "Flashback {2}{U}"
 public export
 badFlashbackOnPermanentCard : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.generic 2, Macros.pip Blue]) []
@@ -515,45 +477,21 @@ badWarpGrantInGraveyard : Unspellable Ability (\ok =>
 badWarpGrantInGraveyard Oh impossible
 
 
--- A WITNESS, not a pin: with the join a plain constructor, no cross-kind
--- pair is refused any more, so the pairs the old join gate would not
--- admit are simply written.
 
-||| THE COPY PARTICIPLE'S MEASURED ZERO, held explicitly so that a
-||| widening cannot pass it silently. "The copied spell" and "copied this
-||| way" are ZERO supported lines apiece (re-measured 2026-09-02), and
-||| two things keep them unwritable: "Copy" is not among the verb labels
-||| at all, so `participleOf` finds no word to spell, and the copy verbs
-||| mint no `VerbName` stamp for a participial read to count. This proof
-||| holds the first, which is the one a new verb-facts row could undo.
-||| Its sibling is the table: `verbedWordOk` answers `False` for the copy
-||| words themselves, at all three kinds.
 public export
 copyParticipleUnwritten : verbedMarkingOk "Copy" Attributive = False
 copyParticipleUnwritten = Refl
 
 ||| "Change the target of target spell or ability with a single target."
-||| (Bolt Bend.) `Object \/ Ability` is writable, and its payload carries
-||| each half separately: the spell half is a card on the stack [CR#112.1],
-||| while `AbilityP` carries no zone field to place the ability half with.
-||| `Joined Macros.spell (AbilityHead AnyOnStack)` now spells the head
-||| itself (Diplomatic Escort, Shimmering Glasskite); this stays as the
-||| payload's own witness, one half at a time.
 public export
 spellOrAbilityJoin : Payload (Object \/ Ability)
 spellOrAbilityJoin = JoinP (ObjectP Nothing (Just Stack) Nothing Nothing Nothing)
                              (AbilityP Nothing)
 
-||| ...and the order reads either half back: "counter that ability" after
-||| "target spell or ability" resolves `Ability` against the join.
 public export
 abilityUnderSpellOrAbility : So (kindLte Ability (Object \/ Ability))
 abilityUnderSpellOrAbility = kindLteJoinR Object Ability
 
-||| ...and the joined head's class reaches the binding it mints: "target
-||| creature or player" leaves an Object half typed `Creature`, which is
-||| what the demonstrative echo reads back off `JoinP`. A join that forgot
-||| its own head would read `Nothing` here.
 public export
 joinedCreatureTy :
   tyOfThat JoinW (effIntro {bs = []}
@@ -563,49 +501,29 @@ joinedCreatureTy :
 joinedCreatureTy = Refl
 
 ||| The six-verb refusal's own fact. A joined phrase places nothing —
-||| [CR#400.1] makes a zone a place where objects can be and [CR#109.1]
-||| lists what an object is — so destroy, exile, tap, untap, return and
-||| sacrifice each refuse it at their `Noun bs Object` slot, with no rule
-||| written for the purpose, while the damage clause admits it because
-||| damage asks for no zone [CR#120.1]. Counter left the family when
-||| [CR#701.6a]'s "spell or ability" gave it a joined subject of its own:
-||| it now asks `counterKind`, which refuses this union on [CR#109.1]
-||| directly rather than through the missing zone.
 public export
 anyTargetIsPlaceless :
   nounZone {bs = []} (Macros.target Macros.anyTarget) = Nothing
 anyTargetIsPlaceless = Refl
 
-||| ...and the damage half of the same fact: the joined phrase IS a damage
-||| recipient, by the one row that replaced three.
 public export
 anyTargetTakesDamage : DamageRecipient (Macros.target {bs = []} Macros.anyTarget)
 anyTargetTakesDamage = JoinTakes
 
 ||| The mixed group binds nothing jointly [CR#109.5]: "you" is deixis and
-||| mints nothing, and a coordination of two phrases mints each arm's
-||| bindings and no third one. Structural, not stipulated — no constructor
-||| writes the joint binding, which is why nothing reads the pair back.
 public export
 youAndBindsNothing :
   nounDelta {bs = []} (Macros.youAnd Macros.thisCreature) = []
 youAndBindsNothing = Refl
 
 ||| "You draw a card. If a player is dealt damage this way, you draw a card."
-||| "This way" reads an instruction the text has already written
-||| [CR#608.2c], and a draw dealt no damage anywhere in scope for it to
-||| read back. The licence is loose about WHICH damage; it still needs one.
 public export
 badDealtThisWayNoDamage : Unspellable (Effect []) (\ok =>
   Sequentially [ Draw You (Lit 1)
                , If (DealtThisWay AnyPlayer {wy = ok}) (Draw You (Lit 1)) Nothing ])
 badDealtThisWayNoDamage Oh impossible
 
-||| "This deals 2 damage to any target. If a mana ability is dealt damage
-||| this way, you draw a card."
-||| Damage is dealt to battles, creatures, planeswalkers and players
-||| [CR#120.1]; an ability is none of them, so the refinement narrows to a
-||| kind no damage could have reached.
+||| "This deals 2 damage to any target. If a mana ability is dealt damage this way, you draw a card."
 public export
 badDealtThisWayAbility : Unspellable (Effect []) (\ok =>
   Sequentially [ DealDamage This (Lit 2) (Macros.target Macros.anyTarget)
@@ -614,38 +532,24 @@ badDealtThisWayAbility : Unspellable (Effect []) (\ok =>
 badDealtThisWayAbility Oh impossible
 
 ||| "Flip a coin. Draw that many cards."
-||| [CR#705.2] gives a flip a face and, when the flipper called it, a
-||| winner, and the rules give it nothing else — no number — so a
-||| quantity read after one has no value to name. [CR#706.2] is where a
-||| randomiser does leave a number, and "the result" is that read.
 public export
 badThatMuchAfterFlip : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.flipACoin, Draw You (ThatMuch {ok})])
 badThatMuchAfterFlip Refl impossible
 
-||| "If you win the flip, draw a card." with no coin flipped.
-||| [CR#705.2] has the flipper call heads or tails and win the flip when
-||| the call matches the result, so the arm reads a flip the text made;
-||| with none written there is nothing to have been won.
+||| "If you win the flip, draw a card."
 public export
 badFlipArmWithoutFlip : Unspellable (Effect []) (\ok =>
   If (FlipCalled You WinsFlip {fl = ok}) (Draw You (Lit 1)) Nothing)
 badFlipArmWithoutFlip Oh impossible
 
-||| "1—9 | Draw a card." with no roll before it.
-||| [CR#706.3a] makes each striation mean "If the result was in this
-||| range, [effect]", and [CR#706.2] makes the result the number the die
-||| came up; with no roll written there is no result to range over.
+||| "1—9 | Draw a card."
 public export
 badTableWithoutRoll : Unspellable (Effect []) (\ok =>
   ResultsTable [Macros.rollRow (Macros.fromTo 1 9) (Draw You (Lit 1))] {ok})
 badTableWithoutRoll Refl impossible
 
 ||| "Roll a d0."
-||| [CR#706.1a] has an N-sided die carry N equally likely outcomes
-||| numbered from 1 to N, N a positive integer, so a nought-sided die has
-||| no face to come up and the instruction specifies no kind of die
-||| [CR#706.1].
 public export
 badNoughtSidedDie : Unspellable (Effect []) (\ok =>
   RollDice You (Lit 1) (SidesOf 0 {nz = ok}))
@@ -676,8 +580,6 @@ badBattleNoDefense : Unspellable Card (\ok =>
 badBattleNoDefense MkCardBox impossible
 
 ||| an adventurer card whose inset frame is a plain instant, naming no Adventure
-||| A player plays the card "as an Adventure" [CR#715.3], and [CR#205.3k] makes
-||| Adventure the spell type that names it; without it the frame is nothing to play as.
 public export
 badUnnamedAdventure : Unspellable Card (\ok =>
   Adventurer (MkFace "" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Creature]) []
@@ -687,8 +589,6 @@ badUnnamedAdventure : Unspellable Card (\ok =>
 badUnnamedAdventure Oh impossible
 
 ||| a flip card whose upside-down half is an instant
-||| [CR#710.2] reads the alternative characteristics only on the battlefield, and
-||| [CR#110.4] keeps an instant off it.
 public export
 badSpellFlipHalf : Unspellable Card (\ok =>
   FlipCard (MkFace "" (Just [Macros.pip Green]) [] (MkTypeLine [] [Creature]) []
@@ -698,10 +598,6 @@ badSpellFlipHalf : Unspellable Card (\ok =>
 badSpellFlipHalf Oh impossible
 
 ||| an activated ability printed on a conspiracy card
-||| [CR#315.5] gives a conspiracy card "any number of static or triggered
-||| abilities" and licenses only those from the command zone, where
-||| [CR#311.4], [CR#313.4] and [CR#314.4] each name an activated one too. The
-||| shared command-zone frame admits it; the type's own rule does not.
 public export
 badConspiracyActivated : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Conspiracy])
@@ -709,9 +605,6 @@ badConspiracyActivated : Unspellable Card (\ok =>
 badConspiracyActivated Oh impossible
 
 ||| a static ability printed on a dungeon card
-||| [CR#309.4c] writes out the full text of every ability a dungeon card has --
-||| one triggered room ability per room -- and licenses their triggering and
-||| nothing else, so no static ability sits on the card.
 public export
 badDungeonStatic : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Dungeon])
@@ -721,16 +614,12 @@ badDungeonStatic Oh impossible
 
 
 ||| "your opponents' devotion to black"
-||| [CR#700.5] defines devotion per player -- a count among the mana costs of
-||| permanents ONE player controls -- so a plural possessor reads no total.
 public export
 badPluralDevotion : Unspellable (Amount []) (\ok =>
   Devotion (PlayerGroup YourOpponents) (LitColor Black) Nothing {one = ok})
 badPluralDevotion Refl impossible
 
 ||| "the amount of creatures that died this turn"
-||| A death is a zone change [CR#700.4], not a quantity, so there is no
-||| amount to sum; how MANY died is `EventCount`'s reading.
 public export
 badDeathSum : Unspellable (Amount []) (\ok =>
   EventSum Death (Macros.a Macros.creature) Lookback.ThisTurn Nothing
@@ -738,8 +627,6 @@ badDeathSum : Unspellable (Amount []) (\ok =>
 badDeathSum Oh impossible
 
 ||| "the total power of target creature"
-||| The mention fold reads a GROUP; one referent's power is `StatOf`'s, and
-||| [CR#208.1] gives each creature its own single number.
 public export
 badSingularAggregateOf : Unspellable (Amount []) (\ok =>
   AggregateOf SumOf (CharAxis Power) (Macros.target Macros.creature)
@@ -747,8 +634,6 @@ badSingularAggregateOf : Unspellable (Amount []) (\ok =>
 badSingularAggregateOf Refl impossible
 
 ||| "the greatest life total among all creatures"
-||| The fold's axis and complement agree in sort here as everywhere: a life
-||| total is a player's [CR#119.1].
 public export
 badAggregateOfWrongSort : Unspellable (Amount []) (\ok =>
   AggregateOf MaxOf (PlayerStatAxis LifeTotal) (AllOf Macros.creature)
@@ -756,9 +641,6 @@ badAggregateOfWrongSort : Unspellable (Amount []) (\ok =>
 badAggregateOfWrongSort Refl impossible
 
 ||| "up to X | Draw a card."
-||| [CR#706.3a] gives the results column three forms — a single number,
-||| "N1—N2", "N+" — all numbers, so an amount-bounded row is outside the
-||| rule's own list.
 public export
 badAmountRollRow : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.rollADie 20,
@@ -778,10 +660,6 @@ badCreatureHalfRead : Unspellable (Effect []) (\ok =>
 badCreatureHalfRead Refl impossible
 
 ||| "Whenever a creature attacks a planeswalker or a creature"
-||| [CR#506.3] closes the set an attack may name, and a joined defender is
-||| attacked on EACH half's own account, so each half is asked about its
-||| own head type. The planeswalker half passes and the creature half does
-||| not; writing the halves the other way round changes nothing.
 public export
 badMixedAttackDefenderHalves : Unspellable (GameEvent []) (\ok =>
   Attacks (Macros.a Macros.creature)
@@ -790,12 +668,6 @@ badMixedAttackDefenderHalves : Unspellable (GameEvent []) (\ok =>
 badMixedAttackDefenderHalves Oh impossible
 
 ||| "This deals 3 damage to a land or a land."
-||| [CR#120.1] states the whole recipient set — battles, creatures,
-||| planeswalkers and players — and a joined phrase is dealt damage on each
-||| half's own account, so a half that names a card type must name one on
-||| the list. The repetition is not what refuses it: "a land or an
-||| enchantment" falls the same way, and a half naming NO type still passes:
-||| it names nothing off the set, which [CR#120.1a] bounds.
 public export
 badSameKindJoinDamage : Unspellable (Effect []) (\ok =>
   DealDamage This (Lit 3)
@@ -804,9 +676,6 @@ badSameKindJoinDamage JoinTakes impossible
 
 
 ||| "creature that could block target creature card in your graveyard"
-||| The hypothetical block is asked of a block that could be declared, and
-||| [CR#509.1g] holds the relation between creatures in combat, so the
-||| relatum names no other zone. `BlockerOf`'s relatum falls the same way.
 public export
 badCouldBlockGraveyardRelatum : Unspellable (Predicate [] Object) (\ok =>
   CouldBlock (Macros.target (And [Macros.creature,
@@ -815,9 +684,6 @@ badCouldBlockGraveyardRelatum Oh impossible
 
 
 ||| "Target land blocks an attacking creature."
-||| [CR#506.3]: "Only a creature can attack or block." The write puts a
-||| permanent into a blocking assignment, so it takes the block's agent
-||| type, and no land is one.
 public export
 badLandBecomesBlocking : Unspellable (Effect []) (\ok =>
   BecomesBlocking (Macros.target Macros.land)
@@ -826,9 +692,6 @@ badLandBecomesBlocking Participant impossible
 
 
 ||| "This creature blocks target planeswalker."
-||| What a blocker is assigned to is an attacking creature [CR#509.1a], and
-||| [CR#506.3] puts a planeswalker on the attacked side of combat, never
-||| the attacking one, so it is never a thing blocked.
 public export
 badBecomesBlockingPlaneswalker : Unspellable (Effect []) (\ok =>
   BecomesBlocking Macros.thisCreature
@@ -837,27 +700,19 @@ badBecomesBlockingPlaneswalker Participant impossible
 
 
 ||| "During each opponent's next turn, ..."
-||| [CR#102.1] makes the active player the player whose turn it is, so a
-||| turn has one possessor and a span naming several names no turn.
 public export
 badPluralNextTurnSpan : Unspellable (Duration []) (\ok =>
   DuringNextTurnOf (Each Opponent) {one = ok})
 badPluralNextTurnSpan Refl impossible
 
 
-||| "Take an extra turn for each coin that comes up heads." with no coin
-||| flipped.
-||| [CR#705.2] gives the face to a coin some effect instructed a player to
-||| flip; with no flip written there is no coin to have come up either way.
+||| "Take an extra turn for each coin that comes up heads."
 public export
 badCoinsShowingWithoutFlip : Unspellable (Effect []) (\ok =>
   ExtraTurn You (CoinsShowing Heads {fl = ok}))
 badCoinsShowingWithoutFlip Oh impossible
 
-||| "If you rolled 7, sacrifice this creature." with no roll before it.
-||| [CR#706.2] makes a result the number a die the text rolled came up on,
-||| so a total over those results presupposes the roll, exactly as the
-||| singular result does.
+||| "If you rolled 7, sacrifice this creature."
 public export
 badTotalWithoutRoll : Unspellable (Effect []) (\ok =>
   Macros.ifThen (CompareAmt (TheTotal {ok}) Eq (Lit 7))
@@ -865,26 +720,18 @@ badTotalWithoutRoll : Unspellable (Effect []) (\ok =>
 badTotalWithoutRoll Refl impossible
 
 ||| "creature that won a coin flip this turn"
-||| [CR#705.2] has the player who flips the coin win or lose the flip and
-||| says no other player is involved, so what won one is a player and a
-||| creature never is.
 public export
 badCreatureWonFlip : Unspellable (Predicate [] Object) (\ok =>
   HappenedTo FlipWin Lookback.ThisTurn Nothing {sb = ok})
 badCreatureWonFlip MkLookbackSubject impossible
 
 ||| "the amount of dice you rolled this turn"
-||| [CR#706.2] makes the result a number the roll PRODUCED, read back off
-||| the roll, not an amount the rolling happened in; how many dice were
-||| rolled is a count and not a magnitude.
 public export
 badRollAsMagnitude : Unspellable (Amount []) (\ok =>
   EventSum DiceRoll You Lookback.ThisTurn Nothing {qm = ok})
 badRollAsMagnitude Oh impossible
 
 ||| The readings those pins leave standing, so none passes for want of a
-||| positive: a player's own won flip and rolled die are both looked back
-||| on ("if you rolled a die this turn").
 public export
 youWonAFlipThisTurn : Condition []
 youWonAFlipThisTurn = Happened FlipWin You Lookback.ThisTurn Nothing
@@ -893,37 +740,25 @@ public export
 youRolledADieThisTurn : Condition []
 youRolledADieThisTurn = Happened DiceRoll You Lookback.ThisTurn Nothing
 
-||| "Ignore the lowest roll." with no roll before it.
-||| [CR#706.6] makes an ignored roll one that "is considered to have never
-||| happened", which presupposes a roll that did; with nothing rolled
-||| there is no roll to set aside.
+||| "Ignore the lowest roll."
 public export
 badIgnoreWithoutRoll : Unspellable (Effect []) (\ok =>
   IgnoreOutcomes (IgnoreExtreme LowestRoll) {ok})
 badIgnoreWithoutRoll Oh impossible
 
-||| "Store those results on this creature." with no roll before it.
-||| [CR#706.8a] stores "both the kind of die rolled and the result of that
-||| roll", so the storing names a roll the text has already made.
+||| "Store those results on this creature."
 public export
 badStoreResultsWithoutRoll : Unspellable (Effect []) (\ok =>
   StoreResults Macros.thisCreature {ok})
 badStoreResultsWithoutRoll Refl impossible
 
-||| "Roll that many dice." with no roll announced before it.
-||| [CR#706.1] has a rolling instruction specify what kind of die to roll;
-||| the anaphoric arm specifies none of its own, taking the kind an
-||| announced roll already carried, so with nothing announced it names no
-||| die. `wyllExtraDie` is the same word written where the announcement
-||| stands.
+||| "Roll that many dice."
 public export
 badAnaphoricSidesWithoutRoll : Unspellable (Effect []) (\ok =>
   RollDice You (Lit 1) (ThoseDice {ok}))
 badAnaphoricSidesWithoutRoll Refl impossible
 
-||| "If you rolled doubles, sacrifice this creature." with no roll.
-||| [CR#706.5] defines the phrase over "each of those rolls", which is the
-||| roll the clause made; with none made the phrase compares nothing.
+||| "If you rolled doubles, sacrifice this creature."
 public export
 badRolledDoublesWithoutRoll : Unspellable (Condition []) (\ok =>
   RolledDoubles {ok})
@@ -935,10 +770,6 @@ afterACoinFlip : Bindings
 afterACoinFlip = effIntro (the (Effect []) Macros.flipACoin)
 
 ||| "an ability whose coin comes up tails"
-||| [CR#705.1] makes a coin flip a randomisation with two faces and
-||| [CR#705.2] gives the face to the coin some effect had flipped for a
-||| player or for an object; an ability is neither, so no coin is ever
-||| flipped for one.
 public export
 badCoinCameUpOnAbility :
   Unspellable (Predicate ProofsG.afterACoinFlip Ability) (\ok =>
@@ -946,9 +777,6 @@ badCoinCameUpOnAbility :
 badCoinCameUpOnAbility Oh impossible
 
 ||| "Whenever you roll a 0, …"
-||| [CR#706.1a] numbers a die "from 1 to N", so a result test whose
-||| ceiling is zero covers no result the roll can produce -- the same
-||| ground on which a results-table row of zero is refused.
 public export
 badZeroRollTest : Unspellable (GameEvent []) (\ok =>
   RollsDice You OneDie AnyDie (ResultIn (Range Nothing (Just 0))
@@ -956,13 +784,6 @@ badZeroRollTest : Unspellable (GameEvent []) (\ok =>
 badZeroRollTest MaxAtLeastOne impossible
 
 ||| "Whenever you roll a 4 or higher on the planar die, …"
-||| [CR#706.7] has any effect that refers to a numerical result of a die
-||| roll -- naming the comparison of that result to a given number
-||| outright -- ignore the rolling of the planar die, and [CR#901.9d]
-||| repeats it; [CR#901.3a] numbers none of that die's six faces. So the
-||| test names no result the roll can produce. `ichorElixirPlanarDice`
-||| is the same narrowing written where no test stands, and
-||| `atomwheelAcrobatsRoll` the same test written over a numbered die.
 public export
 badPlanarResultTest : Unspellable (GameEvent []) (\ok =>
   RollsDice You ManyDice PlanarDie
@@ -971,14 +792,7 @@ badPlanarResultTest : Unspellable (GameEvent []) (\ok =>
             {dw = ok})
 badPlanarResultTest Oh impossible
 
-||| "If you would flip a coin, instead flip two coins and ignore the
-||| lower one."
-||| [CR#706.6] writes the superlative over rolls, whose results are
-||| numbers [CR#706.2], so the ends `RollExtreme` names are the ends of
-||| an order. [CR#705.1] gives a coin two faces and ranks neither, so a
-||| flipped coin has no lowest. `krarksThumbExtraFlip` is the ignore that
-||| IS printed over flips, and `berserkersFrenzyRoll` the superlative
-||| written where results stand.
+||| "If you would flip a coin, instead flip two coins and ignore the lower one."
 public export
 badExtremeOverFlips :
   Unspellable (Effect ProofsG.afterACoinFlip) (\ok =>
@@ -987,37 +801,24 @@ badExtremeOverFlips Oh impossible
 
 
 ||| "When a player doesn't pay this creature's flying, …"
-||| [CR#118.1] makes a cost an action or payment necessary to take another
-||| action; [CR#702.9a] states flying whole as an evasion ability and names
-||| no cost, so the phrase names nothing to pay.
 public export
 badPayCostlessKeyword : Unspellable (GameEvent []) (\ok =>
   PaysCost (Just (Macros.a AnyPlayer)) Unpaid Macros.thisCreature "Flying" {kc = ok})
 badPayCostlessKeyword Oh impossible
 
 ||| "if you paid a cost this turn"
-||| A payment is a payment OF a stated cost [CR#118.1], and the participial
-||| lookback carries only a kind-to-kind complement, which cannot name the
-||| keyword and the bearer that say which cost was paid. Bare, the clause
-||| names no event.
 public export
 badBarePaymentLookback : Unspellable (Condition []) (\ok =>
   Happened CostPayment You Lookback.ThisTurn Nothing {sb = ok})
 badBarePaymentLookback MkLookbackSubject impossible
 
-||| "Destroy the rest." with nothing chosen and no group assembled.
-||| Reading a choice's own partition as the licence [CR#608.2d] does not
-||| make the phrase free: what "the rest" is the rest OF must still have
-||| had something taken out of it.
+||| "Destroy the rest."
 public export
 badRestWithoutAPartition : Unspellable (Noun [] Object) (\ok =>
   TheRest {ok})
 badRestWithoutAPartition Oh impossible
 
 ||| "Choose any number of target creatures. Destroy the rest."
-||| A target is chosen as the spell is cast [CR#601.2c], not while the
-||| effect is applied, so the clause naming one announces no
-||| resolution-time choice [CR#608.2d] and partitions nothing.
 public export
 badRestAfterTargetChoice : Unspellable (Effect []) (\ok =>
   Sequentially [ Macros.choose (TargetGroup Macros.anyNumber Macros.creature)
@@ -1033,19 +834,12 @@ afterChoiceRestDisposed =
                   , Macros.destroy TheRest ]))
 
 ||| "Choose up to one creature. Destroy the rest. Destroy the rest."
-||| One disposition per remainder in the choice's shape too: the first
-||| disposal spends the partition, and the second phrase finds nothing
-||| outstanding to be the rest of.
 public export
 badChoiceRestDisposedTwice :
   Unspellable (Noun ProofsG.afterChoiceRestDisposed Object) (\ok => TheRest {ok})
 badChoiceRestDisposedTwice Oh impossible
 
 ||| "an opponent who controls more lands than they control"
-||| The member-relative comparison binds its member for the MEASURED side
-||| alone; the bound is read in the outer context, where no member of the
-||| description stands. A comparison whose two sides were both the
-||| member's would state nothing about which member the phrase picks.
 public export
 badMemberInComparisonBound : Unspellable (Predicate [] Player) (\ok =>
   CompareOver Opponent (CountOf (And [Macros.land, ControlledBy You]))
@@ -1053,9 +847,6 @@ badMemberInComparisonBound : Unspellable (Predicate [] Player) (\ok =>
 badMemberInComparisonBound Refl impossible
 
 ||| "the number of basic creature types among creatures you control"
-||| [CR#305.6] gives "basic land type" its only reading -- five of the land
-||| types -- and no other card type's subtypes are divided that way, so the
-||| scope has nothing to mean off the land type.
 public export
 badBasicCreatureTypeAxis : Unspellable (Amount []) (\ok =>
   DistinctCount (SubtypeAxis Creature BasicOnly {sc = ok})
@@ -1063,9 +854,6 @@ badBasicCreatureTypeAxis : Unspellable (Amount []) (\ok =>
 badBasicCreatureTypeAxis Oh impossible
 
 ||| "Echo"
-||| [CR#702.30a] states the keyword as "Echo [cost]", so the parameter is
-||| never absent -- cumulative upkeep's ground [CR#702.24a], at the second
-||| keyword whose parameter is a cost.
 public export
 badBareEcho : Unspellable Ability (\ok =>
   KeywordAbility "Echo" Nothing {pf = ok})
@@ -1080,11 +868,6 @@ afterPassivePayment =
     (PaysCost Nothing Paid Macros.thisCreature "CumulativeUpkeep"))
 
 ||| "Whenever this creature's cumulative upkeep is paid, that player …"
-||| [CR#702.24a] fixes WHO pays a cumulative upkeep, so the passive omits
-||| nothing the rules leave open -- but it MENTIONS no one, and a
-||| demonstrative here reads a mention. That is the whole difference the
-||| voice slot carries: the active header hands Thought Lash its "that
-||| player", the passive hands Balduvian Fallen only the bearer.
 public export
 badPassivePayerReadback :
   Unspellable (Noun ProofsG.afterPassivePayment Player) (\ok => That PlayerW {ok})
@@ -1098,21 +881,13 @@ afterKeywordCostPayment =
   eventAfter (the (GameEvent [])
     (PaysCost (Just You) Paid Macros.thisEnchantment "CumulativeUpkeep"))
 
-||| "Whenever you pay this enchantment's cumulative upkeep, put that many
-||| counters on it."
-||| The size of a keyword-named cost is the cost's own, and [CR#702.24a]
-||| refuses a partial payment outright, so paying one writes no number for
-||| the tail to name. Font of Agonies' life payment is the contrast:
-||| [CR#118.3b] subtracts an indicated amount, so that payment does.
+||| "Whenever you pay this enchantment's cumulative upkeep, put that many counters on it."
 public export
 badKeywordCostPaymentThatMuch :
   Unspellable (Amount ProofsG.afterKeywordCostPayment) (\ok => ThatMuch {ok})
 badKeywordCostPaymentThatMuch Refl impossible
 
 ||| The reading those pins leave standing, so none passes for want of a
-||| positive: a life payment names its own paid thing, so it is looked
-||| back on bare ("if you paid life this turn") where a cost payment
-||| cannot be.
 public export
 youPaidLifeThisTurn : Condition []
 youPaidLifeThisTurn = Happened LifePayment You Lookback.ThisTurn Nothing
@@ -1124,14 +899,7 @@ afterShuffledLook =
   effIntro (the (Effect [])
     (Sequentially [ Macros.lookAt Macros.topCard, Macros.shuffle ]))
 
-||| "Look at the top card of your library. Shuffle. Put that card into
-||| your hand."
-||| [CR#701.24b] keeps out of a shuffle only the cards a SEARCH found.
-||| Every other card in the pile is randomized where no player knows its
-||| order [CR#701.24a] -- and a revealed one becomes a new object outright
-||| [CR#701.20d] -- so the mention a bare look left does not survive. The
-||| reading this leaves standing is Mystical Tutor's, where the search's
-||| own stamp is what carries the found card across the shuffle.
+||| "Look at the top card of your library. Shuffle. Put that card into your hand."
 public export
 badReadsShuffledLibraryCard :
   Unspellable (Noun ProofsG.afterShuffledLook Object) (\ok => That CardW {ok})
@@ -1145,80 +913,46 @@ afterShuffledIntoLook =
   effIntro (the (Effect [])
     (Sequentially [ Macros.lookAt Macros.topCard, Macros.shuffleInto This ]))
 
-||| "Look at the top card of your library. Shuffle this card into its
-||| owner's library. Put that card into your hand."
-||| The shuffle-into randomizes the library it lands in [CR#701.24c], so
-||| it takes the discourse with it exactly as the bare shuffle does: the
-||| mention the look left does not survive [CR#701.24a]. What pins the
-||| move and not just the keyword action is that the destination alone
-||| says so -- no `Shuffle` clause is written here.
+||| "Look at the top card of your library. Shuffle this card into its owner's library. Put that card into your hand."
 public export
 badReadsShuffledIntoLibraryCard :
   Unspellable (Noun ProofsG.afterShuffledIntoLook Object) (\ok => That CardW {ok})
 badReadsShuffledIntoLibraryCard Refl impossible
 
 ||| "if up to three is 4 or greater"
-||| A ceiling is a number the acting player announces as the effect
-||| applies [CR#608.2d], not one standing in the game state, so nothing
-||| is there for a comparison to measure. `badCompareLiteralSubject` pins
-||| the numeral for the neighbouring reason -- it states arithmetic --
-||| and the two together leave the subject slot to the reads.
 public export
 badCompareCeilingSubject : Unspellable (Condition []) (\ok =>
   CompareAmt (UpTo (Lit 3)) AtLeast (Lit 4) {rd = ok})
 badCompareCeilingSubject Oh impossible
 
 ||| "This creature enters with your choice of a counter on it."
-||| A menu is the range the clause's "you" picks an arm from, and at zero
-||| arms there is nothing to pick: [CR#122.1] places a counter of some
-||| name, and an empty list names none.
 public export
 badEmptyCounterMenu : Unspellable (StaticEffect []) (\ok =>
   EntersWithCounters Macros.thisCreature (Lit 1) (ChosenKind [] {ne = ok}) Fresh)
 badEmptyCounterMenu IsNonEmpty impossible
 
-||| "Put your choice of a +1/+1 counter or a poison counter on target
-||| creature."
-||| The menu case of `badPutPoisonOnCreature`: [CR#122.1] places a
-||| counter on an object OR a player and poison is a player's
-||| [CR#122.1f], so an arm at the other scope is an arm no one could
-||| pick. The kind slot widens to a menu; what may hold the counter does
-||| not.
+||| "Put your choice of a +1/+1 counter or a poison counter on target creature."
 public export
 badMixedScopeCounterMenu : Unspellable (Effect []) (\ok =>
   PutCounters (Lit 1) (ChosenKind [Macros.plusOnePlusOne, Poison])
               (Macros.target Macros.creature) {sc = ok})
 badMixedScopeCounterMenu Oh impossible
 
-||| "For each color among permanents you control, add one mana of that
-||| color", bridged through the count.
-||| A counted iteration leaves its body the amount's own mentions and a
-||| number; [CR#105.1]'s five colours are what the axis ranges over and
-||| the count discards them, so "of that color" finds nothing to read.
-||| This is why the distributive pass binds the value itself.
+||| "For each color among permanents you control, add one mana of that color"
 public export
 badRepeatedCarriesNoColor : Unspellable (Effect []) (\ok =>
   Repeated (DistinctCount ColorAxis (AllOf (And [Permanent, ControlledBy You])))
            (AddMana You (Lit 1) (OfChosenColor Nothing {cq = ok}) []))
 badRepeatedCarriesNoColor Refl impossible
 
-||| "For each color among permanents you control, … of that creature
-||| type."
-||| The pass binds a value ON its axis: [CR#105.1]'s colours are what
-||| `ColorAxis` ranges over and [CR#205.3e]'s subtypes are not among them,
-||| so the crossing names a value the pass never had.
+||| "For each color among permanents you control, … of that creature type."
 public export
 badAxisValueCrossing : Unspellable (Effect []) (\ok =>
   ForEachKindOf ColorAxis (Just (AllOf (And [Permanent, ControlledBy You])))
                 (SubtypeQ Creature) (Draw You (Lit 1)) {sc = ok})
 badAxisValueCrossing Refl impossible
 
-||| "For each creature type, …" -- the domainless pass at an UNCLOSED
-||| axis. No rule closes the creature types; [CR#205.3m]'s list is a
-||| printed one amended set by set, where [CR#105.1]'s five colours and
-||| [CR#205.2a]'s card types are the game's own vocabulary. A pass with
-||| no group to draw its values from and no rule to enumerate them names
-||| a range that does not exist.
+||| "For each creature type, …"
 public export
 badDomainlessOpenAxis : Unspellable (Effect []) (\ok =>
   ForEachKindOf (SubtypeAxis Creature AnySubtype) Nothing
@@ -1226,35 +960,24 @@ badDomainlessOpenAxis : Unspellable (Effect []) (\ok =>
 badDomainlessOpenAxis Oh impossible
 
 ||| "target permanent that's exactly one color"
-||| [CR#105.2a] gives exactly one of the five colours its own printed
-||| word, "monocolored", and [CR#105.2c] does the same at none, so the
-||| counted spelling has nothing left to say below two.
 public export
 badExactlyOneColor : Unspellable (Predicate [] Object) (\ok =>
   ExactlyColors 1 {ok = ok})
 badExactlyOneColor Oh impossible
 
 ||| "target permanent that's exactly six colors"
-||| [CR#105.1] closes the colours at five, so a sixth is a colour no
-||| object could be.
 public export
 badExactlySixColors : Unspellable (Predicate [] Object) (\ok =>
   ExactlyColors 6 {ok = ok})
 badExactlySixColors Oh impossible
 
 ||| "if this creature's flying cost was paid"
-||| [CR#607.2i] links a paid-cost read to an ability that OFFERS a cost,
-||| and [CR#702.9a] writes flying with no parameter at all, so the word
-||| names nothing that could have been paid.
 public export
 badPaidCostOnCostlessKeyword : Unspellable (Predicate [] Object) (\ok =>
   PaidCost (ByKeyword "Flying") Nothing {nc = ok})
 badPaidCostOnCostlessKeyword Oh impossible
 
 ||| "for each time it was kickre'd"
-||| The count read carries the same gate as the boolean one, and it is
-||| fail-closed through the catalog: a word with no row of its own names
-||| no ability [CR#702.1], so a misspelling names no cost either.
 public export
 badTimesPaidUnknownKeyword : Unspellable (Amount []) (\ok =>
   TimesPaid (ByKeyword "Kickre") Macros.thisCreature {nc = ok})
@@ -1282,7 +1005,6 @@ badVoicelessAct IntransitiveAct impossible
 
 
 ||| "Whenever a card is put, …"
-||| The actorless voice spells "[what] is [participle]", and [CR#701.1] leaves "Put" its standard English meaning with no keyword action and no participle behind it -- so there is nothing for the passive to write. [CR#701.27e]'s intransitive is the other actorless voice, and it belongs to the acts whose own rule puts the patient before the verb.
 public export
 badPassiveWithoutParticiple : Unspellable (GameEvent []) (\ok =>
   VerbedEvent Nothing "Put" (Just (Macros.a IsCard)) Nothing False {vc = ok})
@@ -1291,7 +1013,6 @@ badPassiveWithoutParticiple IntransitiveAct impossible
 
 
 ||| "Whenever a card is milled into a Phyrexian, …"
-||| [CR#701.17a] mills by putting cards from the top of a library into a graveyard and states no characteristic the milled card comes to have, so there is nothing for "into [x]" to name. [CR#701.27e] states that reading for one act and [CR#701.28a] routes a second through it; every other label answers `BecomesNothing`.
 public export
 badBecomesWithoutIntransitive : Unspellable (GameEvent []) (\ok =>
   VerbedEvent Nothing "Mill" (Just (Macros.a (InZone (ZoneAt Library Bare))))
@@ -1345,8 +1066,7 @@ badPlayerTargetingEvent AbilityTargets impossible
 badPlayerTargetingEvent (EitherTargets _ _) impossible
 
 
-||| "Exchange life totals with target opponent" written with the opponent alone
-||| [CR#701.12c] settles an exchange by having each player equal "the other player's previous life total", so the clause needs two parties; one mention names no other, and [CR#701.12a] refuses an exchange that cannot be completed in full.
+||| "Exchange life totals with target opponent"
 public export
 badExchangeOneParty : Unspellable (Effect []) (\ok =>
   ExchangeLife (Macros.target Opponent) {tp = ok})
@@ -1362,15 +1082,13 @@ badExchangePluralParty Oh impossible
 
 
 ||| "a creature with power or life total 3 or greater"
-||| [CR#109.3] makes a characteristic a property of an OBJECT and lists no life total among them, while [CR#119.1] gives the life total to each PLAYER, so one referent never has both; the comparison's axis list is scoped to one kind and a crossing list describes nothing.
 public export
 badMixedAxisComparison : Unspellable (Predicate [] Object) (\ok =>
   Compare [CharAxis Power, PlayerStatAxis LifeTotal] Greater (Lit 1) {at = ok})
 badMixedAxisComparison (NextAxis _ (LastAxis _)) impossible
 
 
-||| "{T}: … , where X is 3" printed on a card whose own mana cost is {X}.
-||| [CR#107.3k] makes an activated ability's activation-cost X independent of every other X on the object, an explicit exception to [CR#107.3i], so the letter the printed cost announced [CR#107.3a] is not the ability's to read or to close.
+||| "{T}: … , where X is 3"
 public export
 badActivatedClosesCardLetter :
   Unspellable (AbilityAt (costLetters (Just [Variable]))) (\ok =>
@@ -1379,7 +1097,6 @@ badActivatedClosesCardLetter Oh impossible
 
 
 ||| "This creature can attack as though it were mana of any color."
-||| [CR#609.4b] gives the mana matcher to spending and to nothing else -- it says what already-made mana may count as while a cost is paid -- so a premise of that sort under any other deed states a condition the rules cannot read.
 public export
 badManaPremiseAtAttack : Unspellable (StaticEffect []) (\ok =>
   Deontic Macros.thisCreature Permit ["Attack"] Agent NoDeonticPatient
@@ -1406,16 +1123,14 @@ badForManaOnNontap : Unspellable (GameEvent []) (\ok =>
 badForManaOnNontap Oh impossible
 
 
-||| "Add one mana of any type that land produced", with no production in scope.
-||| [CR#106.12a] gives the trigger its mana by having a mana ability "resolve[] and produce[] mana", so outside such a header there is no production whose type the phrase could name.
+||| "Add one mana of any type that land produced"
 public export
 badProducedByEventWithoutEvent : Unspellable (ProducedMana []) (\ok =>
   ProducedByEvent (Macros.a Macros.land) {pm = ok})
 badProducedByEventWithoutEvent Refl impossible
 
 
-||| "You don't lose this mana as steps and phases end", with no add before it.
-||| [CR#106.4] puts mana in a pool only when an effect adds it, so "this mana" with nothing added points at nothing; the sentence names no mana at all.
+||| "You don't lose this mana as steps and phases end"
 public export
 badThisManaWithoutAdd : Unspellable (StaticEffect []) (\ok =>
   KeepsUnspentMana You (ThisMana {ok = ok}))
@@ -1432,7 +1147,6 @@ badTurnOverOffField OnField impossible
 
 
 ||| "Return target creature card from your graveyard to your hand transformed."
-||| [CR#712.14a] states the transformed arrival for one destination -- a spell or ability that "puts a double-faced card onto the battlefield 'transformed' ... it enters the battlefield with its back face up" -- and a card in a hand has no face up at all [CR#712.14], so the rider names a way of arriving somewhere it cannot arrive.
 public export
 badTransformedArrivalOffField : Unspellable (Effect []) (\ok =>
   Move (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)]))
@@ -1441,7 +1155,6 @@ badTransformedArrivalOffField Oh impossible
 
 
 ||| "Reveal the top five cards of your library. An opponent separates those cards into two piles. Put those cards into your hand."
-||| [CR#700.3b] makes the pile no object, so the group mention the separation left is not a group of cards for the card word to reach; and [CR#700.3a] put each of the revealed cards into exactly one pile, so the undivided group the reveal named is gone. Nothing in the prefix answers "those cards".
 public export
 badCardWordReadsPiles : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Instant])
@@ -1454,7 +1167,6 @@ badCardWordReadsPiles Refl impossible
 
 
 ||| "Reveal the top five cards of your library. Put those piles into your hand."
-||| The converse of the same sentence: [CR#700.3b] leaves each object in a pile an individual object, so a group of objects is not a pile, and a reveal that grouped nothing left no pile for the word to name. Only a clause that groups them [CR#700.3] does.
 public export
 badPileWordWithoutAPartition : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Instant])
@@ -1474,7 +1186,6 @@ badPilePartitiveWithoutAPartition Refl impossible
 
 
 ||| "Reveal the top five cards of your library. Put all cards in those cards into your hand."
-||| The membership read's own reading of [CR#700.3b]: a pile is not an object, and its converse -- a group of objects is not a pile -- is what leaves the phrase nothing to be in. Only a clause that GROUPS objects into piles [CR#700.3] makes a thing membership can be asked of, and a reveal groups nothing; "those cards" is a group of cards standing in a zone, which every card in that zone is equally in.
 public export
 badMembershipInANonPile : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Instant])
@@ -1489,7 +1200,6 @@ badMembershipInANonPile ThosePiles impossible
 
 
 ||| "Reveal the top five cards of your library. An opponent separates those cards into two piles. Turn those piles face down."
-||| A pile's face is not a STATUS, and [CR#110.5d] says so in three sentences: "only permanents have status. Cards not on the battlefield do not. Although an exiled card may be face down, this has no correlation to the face-down status of a permanent." [CR#700.3c] leaves these cards in the LIBRARY while they are grouped, so `SetStatus`' battlefield gate refuses the sentence -- which is why the face the partition states is a `PileFace` on the pile and not a status on its members.
 public export
 badPileFaceAsAStatus : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Instant])
@@ -1502,7 +1212,6 @@ badPileFaceAsAStatus OnField impossible
 
 
 ||| "If a triggered ability of a permanent you control would trigger, draw a card instead."
-||| [CR#603.2] makes an ability's triggering automatic on the match and gives the moment no content a replacement could take over, and [CR#603.2d] is the rules' own device for changing it -- one that "doesn't apply to other effects that affect how many times an ability triggers", the opposite of the reach [CR#614.5] gives a replacement. So `interceptOk` answers the triggering negatively.
 public export
 badTriggeringReplaced : Unspellable (StaticEffect []) (\ok =>
   Intercepts (Triggers (Macros.a (And [ AbilityHead AnyTriggered
@@ -1512,7 +1221,6 @@ badTriggeringReplaced Oh impossible
 
 
 ||| "If a creature you control dies, that ability triggers an additional time."
-||| [CR#603.2d] states the multiplier of one thing only -- how many times a TRIGGERED ABILITY triggers -- and a death is not a triggering, so the sentence counts occurrences of an event the rule says nothing about and names no ability to count them for.
 public export
 badMultipliedNonTrigger : Unspellable (StaticEffect []) (\ok =>
   TriggersAdditionally (Dies (Macros.a Macros.creatureYouControl))
@@ -1520,16 +1228,14 @@ badMultipliedNonTrigger : Unspellable (StaticEffect []) (\ok =>
 badMultipliedNonTrigger Oh impossible
 
 
-||| "unlock this door" as an INSTRUCTION.
-||| [CR#709.5f] states the act as a choice made among the halves of a named permanent -- "to unlock half of a permanent, a player chooses a locked half of THAT PERMANENT" -- and the deixis names no permanent for the choice to range over. Its 28 printed occurrences are all [CR#709.5h] headers, where the ability's own position fixes the half instead; 0 supported lines write it after an instruction.
+||| "unlock this door"
 public export
 badUnlockThisDoor : Unspellable (Effect []) (\ok =>
   Unlock ThisDoor {nh = ok})
 badUnlockThisDoor Oh impossible
 
 
-||| "When you unlock this door, this Room deals 1 damage to each opponent." -- on an ordinary one-faced card.
-||| [CR#709.5j] makes a door "a half of that permanent", and a one-faced card has no half at all. Nor would the Room subtype supply one: [CR#709.5a] has the halves of a shared-line card SHARE that line's subtypes, so the subtype is read off the halves and is not what creates them, and [CR#709.5c] gives the unlocked designations the deixis asks about only to a permanent with such a line [CR#709.5].
+||| "When you unlock this door, this Room deals 1 damage to each opponent."
 public export
 badDoorHeaderOffSharedLine : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Red]) []

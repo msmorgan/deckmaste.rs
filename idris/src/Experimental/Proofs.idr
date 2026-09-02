@@ -11,8 +11,6 @@ import public Experimental.Unspellable
 
 
 ||| "of the chosen number"
-||| [CR#109.3] lists an object's characteristics and no bare number is among them,
-||| so the read has no characteristic to match the chosen value against.
 public export
 badChosenNumberRead :
   Unspellable
@@ -40,9 +38,6 @@ badGroupOwner Refl impossible
 
 
 ||| "Two target creatures fight target creature."
-||| This node is [CR#701.14a]'s directed form, one creature against another, so a
-||| group in its subject slot names no such pair. The rule's other form — two
-||| creatures fighting each other — is a frame the grammar does not yet write.
 public export
 badFightGroup : Unspellable (Effect []) (\ok =>
   Fights (TargetGroup (Macros.exactly 2) Macros.creature) {pa = ok}
@@ -67,13 +62,6 @@ badEachOfSingular Refl impossible
 
 
 ||| "Look at the top card of two target players' library."
-||| [CR#400.1] gives each player their OWN library, so a possessive over
-||| several players names one library apiece and the phrase pluralises the
-||| zone word -- which is why the distributive group possessor ("the top
-||| card of their libraries") is no longer refused. A COUNTED plural does
-||| not distribute: it names the single library a chosen two have between
-||| them, and no player has that. The rule's ground survives the plural
-||| surface; only its carrier moved.
 public export
 badSliceOfCountedPossessor : Unspellable (Effect []) (\ok =>
   Macros.lookAt (LibrarySlice OnTop (Lit 1)
@@ -82,8 +70,6 @@ badSliceOfCountedPossessor Oh impossible
 
 
 ||| "Whenever you cast all spells, draw a card."
-||| [CR#601.2a] moves ONE card to the stack per casting, so the process the watch
-||| names has a single spell and a plural complement names no casting.
 public export
 badCastsPluralComplement : Unspellable (Ability) (\ok =>
   Triggered Whenever (Casts You (AllOf Macros.spell) Nothing {one = ok}) [] Nothing [] Nothing Nothing Nothing
@@ -180,8 +166,6 @@ badStaleCarrier Refl impossible
 
 
 ||| "Return a creature to its owner's hand: Tap it."
-||| [CR#400.7] makes the moved card a new object with no relation to the old one,
-||| and [CR#400.7j] lets a cost's effects find it only in a PUBLIC zone.
 public export
 badHiddenCost : Unspellable Ability (\ok =>
   Activated (Do (Move (Macros.a Macros.creature) Macros.handZ (MkMoveRiders [] Nothing Nothing)))
@@ -217,19 +201,14 @@ badDeadCreatureRead : Unspellable (Effect []) (\ok =>
 badDeadCreatureRead Refl impossible
 
 
-||| "of the chosen creature type", with only a color chosen
-||| The quality read is sort-filtered, so there is no witness.
+||| "of the chosen creature type"
 public export
 badChosenWrongSort : Unspellable
   (Predicate [MkBinding AD (Quality Color) OneOf QualityP] Object)
   (\ok => OfChosen (SubtypeQ Creature) {ok})
 badChosenWrongSort Refl impossible
 
-||| "a counter of that kind", with a kind of counter chosen
-||| [CR#122.1] makes a counter a marker ON an object, and the object's own
-||| characteristics [CR#109.3] do not include the markers it carries, so
-||| the object-side read matches against nothing. "Of that kind" is the
-||| counter slot's read, and that node is unminted.
+||| "a counter of that kind"
 public export
 badChosenCounterKindRead : Unspellable
   (Predicate [MkBinding AD (Quality CounterKindQ) OneOf QualityP] Object)
@@ -286,11 +265,6 @@ badVerbedAmbig Refl impossible
 
 
 ||| "Sacrifice a creature: Exile target creature. At the beginning of the end step, return that card to the battlefield."
-||| Two card mentions make "that card" ambiguous. The sacrificed half is
-||| written as a DESCRIBED creature and not as the source: a moved self is
-||| announced under `SelfD`, which the demonstrative noun words do not
-||| read, so the source would leave one candidate rather than two --
-||| `Cards.selfSacrificeThenExile` is that line written.
 public export
 badBareCardRead : Unspellable Ability (\ok =>
   Activated (Do (Macros.sacrifice You (Macros.a Macros.creature)))
@@ -340,12 +314,6 @@ badPermanentInstant : Unspellable (Effect []) (\ok =>
 badPermanentInstant Oh impossible
 
 
-||| "Destroy target permanent. Tap that permanent."
-||| The word REACHES the departed referent -- [CR#608.2h] reads an object
-||| the effect has moved by its last known information, and 15 supported
-||| lines write it ("… deals 2 damage to that permanent's controller").
-||| What refuses is the status change: [CR#110.1] stops the object being a
-||| permanent as it leaves, so there is nothing on the battlefield to tap.
 public export
 badThatPermanentDeparted : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.destroy (Macros.target Permanent),
@@ -438,8 +406,6 @@ badDamageArtifact ObjectTakes impossible
 
 
 ||| "noncolor"
-||| [CR#105.1] closes the colour sort at five, and the quality noun names
-||| all five, so at kind `Quality Color` its complement is empty.
 public export
 badNegatedQualityHead : Unspellable (Predicate [] (Quality Color)) (\ok =>
   Not (QualityNoun Color Nothing) {ng = ok})
@@ -464,8 +430,6 @@ badNegatedAntecedent Refl impossible
 
 
 ||| "Destroy target creature on the battlefield in a graveyard."
-||| [CR#400.1] makes the zones distinct places and [CR#400.7] makes a move between
-||| them a new object, so no object is in both; the conjuncts refuse in either order.
 public export
 badConflictingZones : Unspellable (Effect []) (\ok =>
   Macros.destroy (Macros.target (And [Macros.creature, InZone Macros.battlefieldZ, InZone Macros.graveyardZ] {zc = ok})))
@@ -481,8 +445,6 @@ badTargetColor ObjectTgt impossible
 
 
 ||| "Destroy target creature. It gets +3/+3 until end of turn."
-||| [CR#110.1] stops the destroyed card being a permanent as it leaves, and
-||| [CR#109.2] reads the bare type word onto the battlefield, so the pump has no subject.
 public export
 badGetsGraveyard : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.destroy (Macros.target Macros.creature),
@@ -515,8 +477,6 @@ badDiscardBattlefield DiscardTracked impossible
 
 
 ||| "Destroy target creature card in a graveyard."
-||| Destroying moves a permanent OFF the battlefield [CR#701.8a], and only a
-||| card there is one [CR#110.1]; the demand now rides the macro that expands it.
 public export
 badDestroyGraveyardCard : Unspellable (Effect []) (\ok =>
   Macros.destroy (Macros.target (And [Macros.creature, InZone Macros.graveyardZ])) {ok})
@@ -524,9 +484,6 @@ badDestroyGraveyardCard OnField impossible
 
 
 ||| A move labeled with a word outside the label catalog
-||| A SPELLING pin, not a rules one: [CR#701.1] gives an unkeyworded verb its
-||| standard English meaning, so "Descry" over this body is rules-meaningful and
-||| the gate refuses it only as a mis-spelling of a catalogued label.
 public export
 badUnknownVerbLabel : Unspellable (Effect []) (\ok =>
   Enact "Descry" (Move (Macros.a Macros.creature) Macros.graveyardZ (MkMoveRiders [] Nothing Nothing)) {kn = ok})
@@ -611,8 +568,7 @@ badQualityContradiction : Unspellable
 badQualityContradiction Oh impossible
 
 
-||| "creature that is a noncreature", the clash one level down
-||| The member scan flattens conjunctions, so nesting is no laundering.
+||| "creature that is a noncreature"
 public export
 badNestedContradiction : Unspellable (Predicate [] Object) (\ok =>
   And [Macros.creature, And [Not Macros.creature]] {cf = ok})
@@ -635,7 +591,7 @@ badDiscardThisCreature : Unspellable (Effect []) (\ok =>
 badDiscardThisCreature DiscardTracked impossible
 
 
-||| "this creature" spelled over "target creature"
+||| "this creature"
 ||| The ascription is the SOURCE's and only the source's; re-sorting a target spells nothing new.
 public export
 badAscribedTarget : Unspellable (Noun [] Object) (\ok =>
@@ -659,11 +615,7 @@ badAttackingNoncreature : Unspellable (Predicate [] Object) (\ok =>
 badAttackingNoncreature Oh impossible
 
 
-||| "Whenever this creature blocks or becomes blocked by a creature, that
-||| creature gets -1/-1 until end of turn."
-||| The two arms announce different things — the self against the partner
-||| — so the sentence cannot say which arm happened; the demonstrative's
-||| uniqueness rule then finds no referent, as for badIt.
+||| "Whenever this creature blocks or becomes blocked by a creature, that creature gets -1/-1 until end of turn."
 public export
 badAltHeaderMixedReadback : Unspellable Ability (\ok =>
   Triggered Whenever (Blocks Macros.thisCreature Nothing)
@@ -676,14 +628,6 @@ badAltHeaderMixedReadback Refl impossible
 
 
 ||| Giggling Skitterspike — "Whenever this creature attacks, blocks, or
-||| becomes the target of a spell, it deals damage equal to its power to
-||| each opponent."
-||| The three-armed header writes (`Cards.gigglingSkitterspikeArms`); the
-||| tail does not. Every arm announces the self, but the targeting arm
-||| announces its targeter beside it, so whole agreement fails and the
-||| coordination hands the tail the outer discourse bare. Both "it" and
-||| "its" then look for a mention the header never made; pinned at the
-||| second, with the source written out.
 public export
 badThreeArmHeaderReadback : Unspellable Ability (\ok =>
   Triggered Whenever (Macros.attacks Macros.thisCreature)
@@ -695,15 +639,7 @@ badThreeArmHeaderReadback : Unspellable Ability (\ok =>
 badThreeArmHeaderReadback Refl impossible
 
 
-||| "When this creature enters and whenever a creature you control dies,
-||| put a +1/+1 counter on it."
-||| The two-header join's readback, on `badAltHeaderMixedReadback`'s
-||| ground and for the same reason: the ability fires on ONE of its
-||| headers, the entry leaves this creature on the battlefield and the
-||| death leaves another creature in a graveyard, so the two headers
-||| announce different things and the sentence cannot say which fired.
-||| `joinedCtx` hands the tail the outer discourse bare and "it" looks for
-||| a mention neither header agreed to make.
+||| "When this creature enters and whenever a creature you control dies, put a +1/+1 counter on it."
 public export
 badJoinedHeaderReadback : Unspellable Ability (\ok =>
   Triggered When (Enters Macros.thisCreature Nothing) [] Nothing
@@ -715,15 +651,7 @@ badJoinedHeaderReadback : Unspellable Ability (\ok =>
 badJoinedHeaderReadback Refl impossible
 
 
-||| "Whenever this creature attacks while a creature is dying, draw a
-||| card."
-||| The concurrent clause's ACT arm names a moment INSIDE an event, and
-||| only two rules put ordered steps inside one: [CR#601.2] has a player
-||| cast a spell by following "the steps listed below, in order", and
-||| [CR#602.2] says the same of activating an ability. A death is a zone
-||| change -- [CR#700.4] makes it "is put into a graveyard from the
-||| battlefield" -- so the object is in the graveyard or it is not, and
-||| there is no step between for "while" to name.
+||| "Whenever this creature attacks while a creature is dying, draw a card."
 public export
 badWhileDoingMoment : Unspellable Ability (\ok =>
   Triggered Whenever (Macros.attacks Macros.thisCreature) []

@@ -45,10 +45,7 @@ badRedirectToPlural : Unspellable (StaticEffect []) (\ok =>
 badRedirectToPlural Oh impossible
 
 
-||| "The damage can't be prevented." -- as a card's whole printed line.
-||| [CR#608.2c] licenses later text to read the instruction it FOLLOWS --
-||| its own worked example is "Destroy target creature. It can't be
-||| regenerated" -- and here there is no earlier instruction to read.
+||| "The damage can't be prevented."
 public export
 badTheDamageUnannounced : Unspellable (StaticEffect []) (\ok =>
   CantPrevent AnyDamage (ThatDamage {ok}) NoPreventionOnly)
@@ -66,9 +63,6 @@ badTheDamageAfterLifeGain Oh impossible
 
 
 ||| "If damage from a red source is prevented this way, you gain 3 life."
-||| -- with no prevention before it. [CR#615.5] makes the additional
-||| effect part of the prevention, so the container's outcome never stands
-||| outside the rider it qualifies.
 public export
 badPreventedFromSourceUnannounced : Unspellable (Effect []) (\ok =>
   If (PreventedFromSource (And [Macros.source, ColorIs Red]) {ok})
@@ -192,8 +186,7 @@ badThatCreatureIsDamagedSelf : Unspellable Ability (\ok =>
 badThatCreatureIsDamagedSelf Refl impossible
 
 
-||| "Target player can't gain life." — as a permanent's printed line.
-||| A static ability does not target [CR#115.1a..115.1e].
+||| "Target player can't gain life."
 public export
 badStaticPlayerCantTargets : Unspellable Ability (\ok =>
   Static (Macros.playerCant "GainLife" (Macros.target AnyPlayer)) {ut = ok})
@@ -368,8 +361,7 @@ badChapterOnNonSaga : Unspellable Card (\ok =>
 badChapterOnNonSaga Oh impossible
 
 
-||| "— Draw a card." — a chapter line with no numeral before the dash.
-||| A chapter symbol is its numeral [CR#107.15], so a marker with none is no marker.
+||| "— Draw a card."
 public export
 badEmptyChapterMark : Unspellable Ability (\ok =>
   Triggered When (ChapterMark [] {cm = ok}) [] Nothing [] Nothing Nothing Nothing Macros.drawACard)
@@ -403,7 +395,6 @@ badChapterIntervening Oh impossible
 
 
 ||| "{T}: Draw a card. Do this only once each turn."
-||| [CR#603.2h] states the rider of a TRIGGERED ability and states it as a rule about triggering -- "this ability triggers only if its source's controller has not yet taken the indicated action that turn" -- so it says nothing an activated ability could obey. [CR#602.2] puts an activated ability on the stack when its controller pays its cost, which no such rule gates; the cap an activated ability writes is "Activate only once each turn", which is `OncePerTurn`.
 public export
 badActionLimitOnActivated : Unspellable Ability (\ok =>
   Activated TapSymbol Macros.drawACard Nothing (Just ActionOncePerTurn) Nothing
@@ -412,9 +403,6 @@ badActionLimitOnActivated Oh impossible
 
 
 ||| "I — while you control a creature, draw a card."
-||| [CR#714.2b] writes the chapter header whole -- "When one or more lore
-||| counters are put onto this Saga, if …" -- so the printed line has
-||| nowhere to hang a concurrent clause either.
 public export
 badChapterWhile : Unspellable Ability (\ok =>
   Triggered When (ChapterMark [ChapterI]) []
@@ -425,8 +413,6 @@ badChapterWhile Oh impossible
 
 
 ||| "I — and whenever you draw a card, draw a card."
-||| The same rule at the join: [CR#714.2b]'s expansion is the whole
-||| header, so a chapter cannot be one half of a two-headed one.
 public export
 badChapterJoin : Unspellable Ability (\ok =>
   Triggered When (ChapterMark [ChapterI]) [] Nothing
@@ -437,8 +423,6 @@ badChapterJoin Oh impossible
 
 
 ||| "If I — would happen, draw a card instead."
-||| The chapter symbol stands for a trigger [CR#107.15]; the event a replacement names is
-||| the lore counter's placement [CR#714.2b].
 public export
 badChapterReplacement : Unspellable (StaticEffect []) (\ok =>
   Intercepts (ChapterMark [ChapterI]) [] Nothing Macros.drawACard Repeatedly Nothing {ok})
@@ -528,8 +512,7 @@ badAltCostLoyaltySymbol NoAltPayment impossible
 badAltCostLoyaltySymbol AltPaymentWritten impossible
 
 
-||| "Escalate {2}" printed on a spell that writes no modes.
-||| [CR#702.120a] makes escalate "a static ability of modal spells" meaning "for each mode you choose beyond the first ... pay an additional [cost]", and [CR#700.2] gives a spell modes only where its text writes them.
+||| "Escalate {2}"
 public export
 badEscalateWithoutModes : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Black]) [] (MkTypeLine [] [Instant])
@@ -537,8 +520,7 @@ badEscalateWithoutModes : Unspellable Card (\ok =>
 badEscalateWithoutModes Oh impossible
 
 
-||| "Entwine {2}" printed on a spell that writes no modes.
-||| [CR#702.42a] makes entwine "a static ability of modal spells" meaning "You may choose all modes of this spell instead of just the number specified"; a spell with no modes has none to choose.
+||| "Entwine {2}"
 public export
 badEntwineWithoutModes : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Green]) [] (MkTypeLine [] [Sorcery])
@@ -570,8 +552,7 @@ badAddedCostLoyaltySymbol : Unspellable (StaticEffect []) (\ok =>
 badAddedCostLoyaltySymbol AddedPaymentWritten impossible
 
 
-||| "You may sacrifice a Mountain rather than pay this spell's mana cost" written as a resolving clause
-||| [CR#113.6d] prices one object, and the node names none: the clause has no spell to price.
+||| "You may sacrifice a Mountain rather than pay this spell's mana cost"
 public export
 badAltCostClause : Unspellable (Effect []) (\ok =>
   Continuously (AltCost This (Just (Do (Macros.sacrifice You
@@ -599,8 +580,7 @@ badRegeneratedInGraveyard : Unspellable (StaticEffect []) (\ok =>
 badRegeneratedInGraveyard Oh impossible
 
 
-||| "{T}: Add one mana of the chosen color." (on a card that chooses nothing)
-||| The production reads a binding, and a card that made no choice has none to read [CR#607.2d].
+||| "{T}: Add one mana of the chosen color."
 public export
 badChosenColorNoChooser : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Land])
@@ -610,8 +590,7 @@ badChosenColorNoChooser : Unspellable Card (\ok =>
 badChosenColorNoChooser Refl impossible
 
 
-||| "sources of the last chosen color" (on a card that chooses nothing)
-||| The marked read demands that a choice stand at all, and zero is not one or more [CR#607.2d].
+||| "sources of the last chosen color"
 public export
 badLastChosenColorNoChooser : Unspellable (Predicate [] Object) (\ok =>
   OfLastChosen Color {ok = ok})
@@ -649,10 +628,6 @@ badLastChosenWrongSort ChoiceMade impossible
 
 
 ||| "Starting with you, each player votes for death or death."
-||| [CR#701.38b] connects each of a ballot's words to A DIFFERENT effect, so
-||| one word listed twice is one option twice over and the reads that name an
-||| option ("if death gets more votes", "for each death vote") have nothing to
-||| tell apart.
 public export
 badRepeatedBallotOption : Unspellable (Ballot []) (\ok =>
   ByLabel ["death", "death"] {ok})
@@ -660,8 +635,6 @@ badRepeatedBallotOption Oh impossible
 
 
 ||| "Starting with you, each player votes for death."
-||| [CR#701.38a] has each player vote "for one choice from A LIST OF OPTIONS";
-||| a list of one leaves no choice to make and no tally to compare.
 public export
 badSingletonBallot : Unspellable (Ballot []) (\ok =>
   ByLabel ["death"] {ok})

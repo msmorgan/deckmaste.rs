@@ -18,8 +18,7 @@ badExiledWithAttacking : Unspellable (Predicate [] Object) (\ok =>
 badExiledWithAttacking Oh impossible
 
 
-||| "Draw a card." printed as a spell ability on a creature card
-||| [CR#113.3a] defines the category by resolving as an instant or sorcery spell.
+||| "Draw a card."
 public export
 badSpellAbilityOnPermanent : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Creature])
@@ -27,8 +26,7 @@ badSpellAbilityOnPermanent : Unspellable Card (\ok =>
 badSpellAbilityOnPermanent Oh impossible
 
 
-||| "Creatures you control get +1/+1." printed as a static ability on a sorcery
-||| [CR#113.3a] admits one only if it fits [CR#113.6]; this row needs a battlefield continuous effect.
+||| "Creatures you control get +1/+1."
 public export
 badStaticOnSorcery : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Green]) [] (MkTypeLine [] [Sorcery])
@@ -36,8 +34,7 @@ badStaticOnSorcery : Unspellable Card (\ok =>
 badStaticOnSorcery Oh impossible
 
 
-||| "Flying" printed as a bare line on an instant card
-||| These keywords are [CR#702] abilities of a permanent in combat, which no spell card is.
+||| "Flying"
 public export
 badKeywordOnInstant : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Red]) [] (MkTypeLine [] [Instant])
@@ -45,8 +42,7 @@ badKeywordOnInstant : Unspellable Card (\ok =>
 badKeywordOnInstant Oh impossible
 
 
-||| "{T}: Draw a card." printed on a sorcery card
-||| [CR#113.6j] needs a cost payable off the battlefield, and "{T}" taps a permanent [CR#107.5,110.4].
+||| "{T}: Draw a card."
 public export
 badTapSorcery : Unspellable Card (\ok =>
   Macros.card "Impossible Tap Sorcery" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Sorcery])
@@ -128,8 +124,7 @@ badCounterJoinedPlayer : Unspellable (Effect []) (\ok =>
 badCounterJoinedPlayer JoinCountered impossible
 
 
-||| "You may play a spell this turn." of an object on the stack
-||| [CR#112.1] makes an object on the stack a spell, and a spell has already been cast.
+||| "You may play a spell this turn."
 public export
 badPlayFromStack : Unspellable (Effect []) (\ok =>
   Continuously (Deontic You Permit ["Play"] Agent
@@ -183,8 +178,7 @@ badInstantOntoBattlefield : Unspellable (Effect []) (\ok =>
 badInstantOntoBattlefield Oh impossible
 
 
-||| "unless" written over a positive condition
-||| "Unless" is the negation, so a positive condition under the word negates twice.
+||| "unless"
 public export
 badUnlessOnPositive : Unspellable Ability (\ok =>
   Static (Conditionally (Exists (And [Macros.artifact, ControlledBy You]))
@@ -200,13 +194,6 @@ badUnflipEvent : Unspellable Ability (\ok =>
 badUnflipEvent Oh impossible
 
 
-||| a trigger header watching a permanent be turned face down
-||| The header's own table refuses it. "Turned face up" heads 132
-||| supported occurrences; "turned face down" occurs once in the whole
-||| supported corpus and that once is a DURATION ENDPOINT (Vesuvan
-||| Shapeshifter), which reads the same transition through
-||| `statusEventOk` and is unaffected by this refusal. The split is what
-||| lets the endpoint write while the header stays at its measured zero.
 public export
 badTurnedFaceDownHeader : Unspellable Ability (\ok =>
   Triggered Whenever (StatusEvent (Macros.a Permanent) FaceDown) [] Nothing [] Nothing Nothing Nothing Macros.drawACard {hs = ok})
@@ -429,10 +416,7 @@ badThatCreatureIsSelf : Unspellable Ability (\ok =>
 badThatCreatureIsSelf Refl impossible
 
 
-||| "This creature can't attack target creature this turn." — and its
-||| requiring twin, "this creature attacks target creature each combat
-||| if able": one cell, since only a player, a planeswalker or a battle
-||| is attacked [CR#506.3].
+||| "This creature can't attack target creature this turn."
 public export
 badForbidAttackWithPatient : Unspellable (Effect []) (\ok =>
   Continuously (Macros.deontic Macros.thisCreature Forbid ["Attack"] Agent
@@ -441,18 +425,7 @@ badForbidAttackWithPatient : Unspellable (Effect []) (\ok =>
 badForbidAttackWithPatient Oh impossible
 
 
-||| "Target creature blocks it this turn" -- with the pronoun resolving
-||| to the very creature the statement made block.
-||| A creature never blocks itself: [CR#509.1a] has the defending player
-||| choose the blockers from among the creatures they control and, for
-||| each, "one creature for it to block that's attacking that player",
-||| while [CR#508.1a] has the active player choose the attackers from
-||| among the creatures THEY control. The two participants are always
-||| under different controllers, so no game state satisfies the
-||| statement. A bare `It` is exactly that statement here: the
-||| counterpart is typed at the subject's output and the subject made the
-||| only Object announcement the pronoun could read. `ItOtherThan` is the
-||| positive path and is what `mustBlockIt` writes.
+||| "Target creature blocks it this turn"
 public export
 badBlocksItself : Unspellable (Effect []) (\ok =>
   Continuously (Macros.deontic (Macros.target Macros.creature) Require ["Block"] Agent
@@ -536,8 +509,6 @@ badNonComparisonDifference Refl impossible
 
 
 ||| "Draw X cards, where X is the number of creatures you control, where X is the number of creatures on the battlefield."
-||| One statement settles every instance of X [CR#107.3i]; the second
-||| definition finds none open to define.
 public export
 badDoubleXRider : Unspellable (Effect []) (\ok =>
   Sequentially [ Draw You (LetterVal X)
@@ -592,8 +563,6 @@ badCostSubjectOnBattlefield MkCostSubject impossible
 
 
 ||| "until the beginning of each player's next upkeep"
-||| A duration ends at one moment, and [CR#500.1] runs every phase and step
-||| on every turn, so a quantifier possessor names several ends and no end.
 public export
 badDurationEndEachPlayers : Unspellable DurationEnd (\ok =>
   StartOf Upkeep (Just EachPlayers) {dp = ok})

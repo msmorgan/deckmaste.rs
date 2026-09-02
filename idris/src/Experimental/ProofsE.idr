@@ -37,8 +37,7 @@ badStarlessDefinedPt : Unspellable Card (\ok =>
 badStarlessDefinedPt MkCardBox impossible
 
 
-||| "This creature's power and toughness are each equal to the number of creatures you control" established as a clause by a resolving spell.
-||| A characteristic-defining ability is printed on its own card [CR#604.3,604.3a], so no resolution establishes one.
+||| "This creature's power and toughness are each equal to the number of creatures you control"
 public export
 badPtDefinitionClause : Unspellable (Effect []) (\ok =>
   Continuously (DefinesPt Macros.thisCreature BothEach
@@ -164,8 +163,7 @@ badUnflipInstruction : Unspellable (Effect []) (\ok =>
 badUnflipInstruction Oh impossible
 
 
-||| "Ward" printed as a bare keyword line
-||| A parameterized keyword may not shed its parameter: [CR#702.21a] writes the ability as "Ward [cost]".
+||| "Ward"
 public export
 badBareWardLine : Unspellable Ability (\ok => KeywordAbility "Ward" Nothing {pf = ok})
 badBareWardLine Oh impossible
@@ -188,9 +186,6 @@ badParamOnNullaryKeyword Oh impossible
 
 
 ||| "Flyign"
-||| A word outside the catalog. A SPELLING pin, not a rules one:
-||| [CR#702.1] has an object list "only the name of the ability as a
-||| keyword", and a word with no row of its own names no ability at all.
 public export
 badUnknownKeywordLabel : Unspellable Ability (\ok =>
   KeywordAbility "Flyign" Nothing {pf = ok})
@@ -198,16 +193,13 @@ badUnknownKeywordLabel Oh impossible
 
 
 ||| "each creature with flyign"
-||| The same refusal at the predicate's own gate, which reads knownness
-||| directly instead of through a parameter fit.
 public export
 badUnknownKeywordPredicate : Unspellable (Predicate [] Object) (\ok =>
   HasKeyword (TheKeyword "Flyign") {kn = ok})
 badUnknownKeywordPredicate Oh impossible
 
 
-||| "Protection from red" printed as a line on an instant card
-||| [CR#702.16b] gives protection to a permanent or player, which an instant card's line never is.
+||| "Protection from red"
 public export
 badProtectionOnInstant : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip White]) [] (MkTypeLine [] [Instant])
@@ -223,8 +215,7 @@ badProtectionFromPlayerRestriction : Unspellable Ability (\ok =>
 badProtectionFromPlayerRestriction Oh impossible
 
 
-||| "Equip {2}" printed as a line on a sorcery card
-||| [CR#702.6a] makes equip an activated ability of Equipment cards, which a sorcery is not.
+||| "Equip {2}"
 public export
 badEquipOnSorcery : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.generic 1]) [] (MkTypeLine [] [Sorcery])
@@ -510,8 +501,7 @@ badPayLoyalty : Unspellable (Effect []) (\ok =>
 badPayLoyalty Oh impossible
 
 
-||| "[+1]: Draw a card." printed on a sorcery card
-||| A loyalty cost cannot be paid off the battlefield [CR#606.3,606.4], which [CR#113.6j] requires.
+||| "[+1]: Draw a card."
 public export
 badLoyaltySorcery : Unspellable Card (\ok =>
   Macros.card "Impossible Loyalty Sorcery" (Just [Macros.pip Blue]) []
@@ -520,15 +510,13 @@ badLoyaltySorcery : Unspellable Card (\ok =>
 badLoyaltySorcery Oh impossible
 
 
-||| "Add." — a production that names no mana at all.
-||| A producing effect instructs a player to add that mana [CR#106.3], so there is always mana to name.
+||| "Add."
 public export
 badEmptyProduction : Unspellable (Effect []) (\ok =>
   AddMana You (Lit 1) (Runs [] {ok}) [])
 badEmptyProduction Oh impossible
 
-||| "Add {R} or ." — one alternative producing nothing beside one that does.
-||| [CR#106.3]'s refusal one level in: an alternative that produces nothing names no mana.
+||| "Add {R} or ."
 public export
 badEmptyAlternative : Unspellable (Effect []) (\ok =>
   AddMana You (Lit 1) (Runs [[OfColor Red], []] {ok}) [])
@@ -553,11 +541,6 @@ badEmptyCopyTypeException : Unspellable (Effect []) (\ok =>
 badEmptyCopyTypeException Oh impossible
 
 ||| "Copy target creature."
-||| The stack verbs act on an object on the stack [CR#707.10,112.1], which a permanent is not.
-||| The gate moved when the verb opened past `Object` -- it is `Copiable`
-||| now, whose object row asks the same stack -- and the refusal is
-||| unchanged: `SpellCopied` is the only row a creature phrase could take
-||| and it demands the zone this one does not have.
 public export
 badCopyPermanent : Unspellable (Effect []) (\ok =>
   CopyStack You (Macros.target Macros.creature) (Lit 1) [] {cp = ok})
@@ -565,9 +548,6 @@ badCopyPermanent SpellCopied impossible
 
 
 ||| "Choose new targets for target creature."
-||| [CR#707.10c] gives the retarget a spell or ability, and a permanent is no longer on the stack [CR#112.1].
-||| Under `Copiable` for `badCopyPermanent`'s reason: what may be
-||| retargeted is what may be copied.
 public export
 badRetargetPermanent : Unspellable (Effect []) (\ok =>
   ChooseNewTargets (Macros.target Macros.creature) {cp = ok})
