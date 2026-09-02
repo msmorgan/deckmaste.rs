@@ -73,3 +73,13 @@ Two remainders from trigger-2 (done 2026-08-27) whose named owner
   row, 1 line) and the SUBTYPE retention payload ("It's still a
   Shapeshifter/Cave land", 2 lines — `SetsType.ret` is `Maybe CardType`).
   Both wait for a second carrier or ride a future rider round.
+
+- **Routed from the attacking-defender round (close, 2026-09-02):** the
+  ENTRY-RIDER defender slot ([CR#508.4] gives it `BecomesAttacking`'s
+  content; 14 non-reminder lines; needs a `TokenRider` module move above
+  `Noun`/`AttackDefender`); the MARKED player-sort read ("the last chosen
+  player" — Beckoning Will-o'-Wisp / Triarch Stalker's real last blocker);
+  and the round's small residues (`Other` outside a targeted context, the
+  player-kind partitive, the condition-gated deontic, two reads of one
+  amount, the combat-damage/block assignment decision) — counts in
+  done/workbench-attacking-defender-attributive.md.
