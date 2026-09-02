@@ -7,11 +7,6 @@ import public Experimental.Effect
 %default total
 
 public export
-supersDistinct : List Supertype -> Bool
-supersDistinct [] = True
-supersDistinct (s :: ss) = not (elem s ss) && supersDistinct ss
-
-public export
 CardSupers : List Supertype -> Type
 CardSupers ss = So (supersDistinct ss)
 

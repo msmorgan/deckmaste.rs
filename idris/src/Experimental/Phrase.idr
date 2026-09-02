@@ -874,6 +874,41 @@ mutual
     ||| -- spelling: "card", "cards".
     IsCard : Predicate bs Object
     IsToken : Predicate bs Object
+    ||| "a historic spell", "historic permanents you control", "target
+    ||| historic card", "a historic creature you control": [CR#700.6]'s
+    ||| defined term, "an object that has the legendary supertype, the
+    ||| artifact card type, or the Saga subtype".
+    |||
+    ||| A ROW AND NOT THE UNION IT ABBREVIATES, and the choice is now a
+    ||| real one rather than a forced one: the mixed head/adjective
+    ||| disjunction landed, so `Or [HasSupertype Legendary, HasType
+    ||| Artifact, HasSubtype (kindredType "Saga")]` is a phrase this
+    ||| grammar can build. What decides it is what the CARD writes. All
+    ||| 59 supported lines print the single adjective and none prints the
+    ||| union; the union is the REMINDER ("Artifacts, legendaries, and
+    ||| Sagas are historic"), which is parenthesised text this workbench
+    ||| strips before it measures anything. Spelling the word as its
+    ||| definition would put a three-armed coordination where the English
+    ||| has one modifier, and would tie the description's identity to the
+    ||| rule's current membership rather than to the printed word --
+    ||| [CR#700.6] is free to add a fourth characteristic without any
+    ||| card's text changing.
+    |||
+    ||| It is an ADJECTIVE and heads nothing (`hasHead` False), which is
+    ||| what the printed heads say: 23 lines write "historic spell", 13
+    ||| "historic card", 12 a historic permanent or permanents, 3 a
+    ||| historic creature, 3 a historic land. Every one of them supplies
+    ||| its own head word, exactly as `IsTransformed` and `OfLastChosen`
+    ||| do.
+    |||
+    ||| It seeds NO ZONE, unlike `IsTransformed`. [CR#700.6] describes an
+    ||| OBJECT and [CR#109.1] makes a card in any zone one, which is why
+    ||| the same word reaches a spell on the stack, a card in a graveyard
+    ||| and a permanent on the battlefield in the one vocabulary; the
+    ||| head beside it is what places the phrase.
+    ||| 59 supported lines over 55 cards write it (measured 2026-09-02).
+    ||| -- spelling: "historic" before the head.
+    IsHistoric : Predicate bs Object
     ||| "a transformed permanent", "other transformed permanents you
     ||| control", "for each transformed permanent you control": the STATE
     ||| [CR#701.27g] gives those words, which is a different thing from
@@ -1506,6 +1541,10 @@ mutual
   hasHead Permanent = True
   hasHead IsCard = True
   hasHead IsToken = True
+  -- [CR#700.6]'s term is an ADJECTIVE: every printed line supplies its
+  -- own head beside it ("historic spell", "historic card", "historic
+  -- permanents you control").
+  hasHead IsHistoric = False
   hasHead IsTransformed = False
   hasHead (HasStatus _) = False
   hasHead (HasCounters _) = False
@@ -1759,6 +1798,8 @@ mutual
   predEq IsCard _ = False
   predEq IsToken IsToken = True
   predEq IsToken _ = False
+  predEq IsHistoric IsHistoric = True
+  predEq IsHistoric _ = False
   predEq IsTransformed IsTransformed = True
   predEq IsTransformed _ = False
   predEq (HasStatus v) (HasStatus w) = sameStatusVal v w
@@ -2337,6 +2378,7 @@ mutual
   predSays Permanent = True
   predSays IsCard = True
   predSays IsToken = True
+  predSays IsHistoric = True
   predSays IsTransformed = True
   predSays (HasStatus _) = True
   predSays (HasCounters _) = True
@@ -2420,6 +2462,7 @@ mutual
   predNegFree Permanent = True
   predNegFree IsCard = True
   predNegFree IsToken = True
+  predNegFree IsHistoric = True
   predNegFree IsTransformed = True
   predNegFree (HasStatus _) = True
   predNegFree (HasCounters _) = True

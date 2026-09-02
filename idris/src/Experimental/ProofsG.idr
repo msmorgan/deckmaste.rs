@@ -1573,3 +1573,14 @@ public export
 badIfDoneOverScheduledBody : Unspellable (Effect []) (\ok =>
   IfDone (ExtraTurn You (Lit 1)) (Just Macros.drawACard) Nothing {en = ok})
 badIfDoneOverScheduledBody Oh impossible
+
+
+||| "create a legendary legendary 20/20 black Avatar creature token"
+||| A supertype is a property an object has or lacks [CR#205.4b], so the word twice on a token is one fact twice, exactly as it is on a card.
+public export
+badTokenDuplicateSupertype : Unspellable (Effect []) (\ok =>
+  Macros.create (Lit 1)
+    (MkSupertypedToken (Just (Lit 20 ** Lit 20)) [Black] [Legendary, Legendary]
+       (MkTypeLine [creatureType "Avatar"] [Creature]) [] (Just "Marit Lage"))
+    {tc = ok})
+badTokenDuplicateSupertype Oh impossible

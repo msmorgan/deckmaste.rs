@@ -3595,7 +3595,7 @@ mutavault =
        , Macros.activated (Mana [Macros.generic 1])
                           (Continuously
                       (SetsType Macros.thisLand
-                                (MkTokenChars (Just (Lit 2 ** Lit 2)) []
+                                (MkTokenChars (Just (Lit 2 ** Lit 2)) [] []
                                               (MkTypeLine [] [Creature])
                                               [] Nothing
                                               [WithEveryType CreatureSpace])
@@ -3615,7 +3615,7 @@ soulstoneSanctuary =
        , Macros.activated (Mana [Macros.generic 4])
                           (Continuously
                       (SetsType Macros.thisLand
-                                (MkTokenChars (Just (Lit 3 ** Lit 3)) []
+                                (MkTokenChars (Just (Lit 3 ** Lit 3)) [] []
                                               (MkTypeLine [] [Creature])
                                               [Macros.keyword "Vigilance"] Nothing
                                               [WithEveryType CreatureSpace])
@@ -6444,7 +6444,7 @@ volrathsLaboratory =
        [ Static volrathsLaboratoryChoice
        , Macros.activated (Compound [Mana [Macros.generic 5], TapSymbol])
            (Macros.create (Lit 1)
-              (MkTokenChars (Just (Lit 2 ** Lit 2)) []
+              (MkTokenChars (Just (Lit 2 ** Lit 2)) [] []
                             (MkTypeLine [] [Creature]) [] Nothing
                             [ WithQuality (OfChosen Color)
                             , WithQuality (OfChosen (SubtypeQ Creature)) ])) ]
@@ -10711,7 +10711,7 @@ brimazAttackToken =
                    (TokenWritten (MkToken (Just (Lit 1 ** Lit 1)) [White]
                                    (MkTypeLine [creatureType "Cat", creatureType "Soldier"] [Creature])
                                    [Macros.keyword "Vigilance"] Nothing))
-                   [EntersAttacking])
+                   [EntersAttacking NoDefender])
 
 ||| Luxior, Giada's Gift's second line: "Equipped permanent … is a
 ||| creature in addition to its other types." [CR#301.5f] lets the word
@@ -20879,3 +20879,425 @@ garrukRelentless =
                       , Define X (CountOf (And [Macros.creature,
                                                 InZone (Macros.graveyardOf You)])) ]) ]
                Nothing)
+
+-- ---------------------------------------------------------------------------
+-- The token SUPERTYPE cell (closing sweep, 2026-09-02)
+-- ---------------------------------------------------------------------------
+--
+-- [CR#111.9] is the cell's own rule -- "some effects instruct a player
+-- to create a legendary token. These may be written 'create [name],
+-- a . . .' and list characteristics for the token" -- and [CR#111.3]'s
+-- example is what made it missing visible: a bare "1/1 green Saproling
+-- creature token" has "no mana cost, supertypes, rules text, or
+-- abilities", so the supertype is a DEFINED characteristic the bundle
+-- either states or lacks.
+-- 47 supported lines over 46 cards write one (measured 2026-09-02): 45
+-- legendary, every one of them [CR#111.9]'s named frame without
+-- exception, and 2 snow, which write the word in an ordinary bundle and
+-- name their tokens with a trailing "named [name]" instead.
+-- The cell sits BESIDE the type line, where the card seat puts it, and
+-- not inside `TypeLine`: [CR#205.4b] keeps a supertype independent of
+-- the card types and subtypes it is printed in front of, `cardOf` takes
+-- the two as separate arguments and `SharedLineSplit` splits them apart
+-- again.
+
+||| Marit Lage herself -- "a legendary 20/20 black Avatar creature token
+||| with flying and indestructible", [CR#111.9]'s named frame at its
+||| largest. Two cards create her and both write the bundle verbatim.
+public export
+maritLage : TokenChars bs
+maritLage =
+  MkSupertypedToken (Just (Lit 20 ** Lit 20)) [Black] [Legendary]
+    (MkTypeLine [creatureType "Avatar"] [Creature])
+    [Macros.keyword "Flying", Macros.keyword "Indestructible"]
+    (Just "Marit Lage")
+
+||| Dark Depths, whole -- and the last blocker of the mandatory-if-you-do
+||| round, which landed everything else this card needs. "Dark Depths
+||| enters with ten ice counters on it. / {3}: Remove an ice counter from
+||| Dark Depths. / When Dark Depths has no ice counters on it, sacrifice
+||| it. If you do, create Marit Lage, a legendary 20/20 black Avatar
+||| creature token with flying and indestructible."
+||| Three cells meet here: the state trigger over an emptied counter
+||| store, `IfDone` over the MANDATORY sacrifice ([CR#609.3] is what can
+||| leave it undone -- the permanent may already be gone), and the
+||| supertype on the created token.
+public export
+darkDepths : Card
+darkDepths =
+  Macros.card "Dark Depths" Nothing [Legendary, Snow]
+       (MkTypeLine [] [Land])
+       [ Static (Macros.entersWithCounters Macros.thisLand (Lit 10) Ice)
+       , Macros.activated (Mana [Macros.generic 3])
+           (Macros.removeCounters (Macros.exactly 1) (Just Ice) Macros.thisLand)
+       , Macros.triggered When
+           (Macros.whenState
+              (Macros.notSo (Matches Macros.thisLand (HasCounters (Just Ice)))))
+           (Macros.doThen
+              (Macros.sacrifice You Macros.thisLand)
+              (Macros.create (Lit 1) Cards.maritLage)) ]
+       Nothing
+
+||| Tuktuk the Explorer, whole -- the supertyped token at a death
+||| trigger, and the shortest carrier the cell has. "Haste / When Tuktuk
+||| the Explorer dies, create Tuktuk the Returned, a legendary 5/5
+||| colorless Goblin Golem artifact creature token."
+||| The COLOURLESS bundle is the empty colour list, which [CR#105.2c]
+||| already made the reading here -- "a colorless object has no color" --
+||| and the token names two card types and two creature types.
+public export
+tuktukTheExplorer : Card
+tuktukTheExplorer =
+  Macros.card "Tuktuk the Explorer"
+       (Just [Macros.generic 2, Macros.pip Red]) [Legendary]
+       (MkTypeLine [creatureType "Goblin"] [Creature])
+       [ Macros.keyword "Haste"
+       , Macros.triggered When (Dies Macros.thisCreature)
+           (Macros.create (Lit 1)
+              (MkSupertypedToken (Just (Lit 5 ** Lit 5)) [] [Legendary]
+                 (MkTypeLine [creatureType "Goblin", creatureType "Golem"]
+                             [Artifact, Creature])
+                 [] (Just "Tuktuk the Returned"))) ]
+       (Just (1, 1))
+
+-- ---------------------------------------------------------------------------
+-- Two ROUTED items that were already writable (closing sweep, 2026-09-02)
+-- ---------------------------------------------------------------------------
+--
+-- Both were routed into this bucket with a named blocker, and neither
+-- blocker survives re-measurement. They are benched rather than merely
+-- recorded, because a bench is the only proof that a construction
+-- writes.
+--
+-- THE CROSS-KIND "you or [description]" JOIN, routed as "no joined head
+-- takes 'you'" and re-measured at 45 lines over 43 cards. `EitherJoined`
+-- is that head and has been since the attacking-defender round: it takes
+-- two arms of different kinds and puts no agreement gate between them,
+-- which is exactly what "you or a planeswalker you control" needs. The
+-- routed count was measuring a family that had already landed.
+--
+-- THE PLAYER-SIDE COUNT COMPARISON, routed as "`PlayerStat` is
+-- life-only" and re-measured at 59 lines over 54 cards. `PlayerStat`
+-- needs no count arm and never did: the comparison is not a stat READ
+-- but `CompareOver`'s member-relative measurement, whose docstring names
+-- "an opponent who controls more lands than you" as its own worked
+-- example and which `opponentWithMoreLands` has benched since the
+-- counted-search round. What was missing was only a carrier at the
+-- CONDITION frame, and `Exists` over the same description is it.
+
+||| Blood Reckoning, whole -- "Whenever a creature attacks you or a
+||| planeswalker you control, that creature's controller loses 1 life."
+||| The joined defender at the TRIGGER seat, where the prior witnesses
+||| put it at a deontic's `DefendingPlayer`. `OneDefender`'s singular
+||| gate is what picks this line out of the family's other half: the 25
+||| lines writing the plural right arm ("you or planeswalkers you
+||| control") give `EitherJoined` two arms disagreeing in number, so the
+||| phrase is `ManyOf` and [CR#508.1b]'s one-defender-per-attacker
+||| reading refuses it here. That half writes at the deontic seat, which
+||| states a restriction over a whole declaration rather than naming one
+||| attack's defender.
+public export
+bloodReckoning : Card
+bloodReckoning =
+  Macros.card "Blood Reckoning"
+       (Just [Macros.generic 3, Macros.pip Black]) []
+       (MkTypeLine [] [Enchantment])
+       [ Macros.triggered Whenever
+           (Macros.attacksPlayer (Macros.a Macros.creature)
+              (EitherJoined You
+                 (Macros.a (And [HasType Planeswalker, ControlledBy You]))))
+           (Macros.losesLife (ControllerOf (That (TypeW Creature))) (Lit 1)) ]
+       Nothing
+
+||| Land Tax, whole -- "At the beginning of your upkeep, if an opponent
+||| controls more lands than you, you may search your library for up to
+||| three basic land cards, reveal them, put them into your hand, then
+||| shuffle."
+||| The member-relative comparison at the CONDITION frame, which is the
+||| one seat the routed bullet was right that nothing had written. It
+||| needs no row: [CR#608.2h] settles both counts once when the ability
+||| checks, and an intervening-if that asks whether ANY opponent answers
+||| a description is `Exists` over that description.
+public export
+landTax : Card
+landTax =
+  Macros.card "Land Tax" (Just [Macros.pip White]) []
+       (MkTypeLine [] [Enchantment])
+       [ Macros.triggeredIf At (BeginningOf Upkeep (ByWord Yours))
+           (Exists Cards.opponentWithMoreLands)
+           (Macros.may You
+              (Sequentially
+                 [ Macros.searchLibraryForCount (Macros.upTo 3)
+                     (And [Macros.land, HasSupertype Basic])
+                 , Macros.revealCards (Those CardW)
+                 , Macros.move (Those CardW) Macros.handZ
+                 , Macros.shuffle ])) ]
+       Nothing
+
+-- ---------------------------------------------------------------------------
+-- The `historic` PREDICATE (closing sweep, 2026-09-02)
+-- ---------------------------------------------------------------------------
+--
+-- [CR#700.6] defines the term: "the term historic refers to an object
+-- that has the legendary supertype, the artifact card type, or the Saga
+-- subtype". 59 supported lines over 55 cards write it, measured
+-- 2026-09-02 with reminder text stripped, and the heads they supply are
+-- the whole spread of object words -- 23 "historic spell", 13 "historic
+-- card", 12 permanent(s), 3 creature(s), 3 land(s).
+-- The row is the printed WORD and not its definition, which is now a
+-- deliberate choice rather than a forced one: the mixed head/adjective
+-- disjunction landed, so the three-armed union is buildable, and no
+-- printed line writes it -- the union appears only in reminder text.
+
+||| Artificer's Assistant, whole -- the term at its commonest head.
+||| "Flying / Whenever you cast a historic spell, scry 1."
+public export
+artificersAssistant : Card
+artificersAssistant =
+  Macros.card "Artificer's Assistant" (Just [Macros.pip Blue]) []
+       (MkTypeLine [creatureType "Bird"] [Creature])
+       [ Macros.keyword "Flying"
+       , Macros.triggered Whenever
+           (Casts You (Macros.a (And [IsHistoric, Macros.spell])) Nothing)
+           Macros.scryOne ]
+       (Just (1, 1))
+
+||| Aya of Alexandria, whole -- the term at the BATTLEFIELD, where the
+||| same adjective reaches a permanent rather than a spell. "Menace,
+||| lifelink / Whenever a historic creature you control deals combat
+||| damage to a player, create a 1/1 black Assassin creature token with
+||| menace."
+||| One word, three zones: [CR#700.6] describes an object and [CR#109.1]
+||| makes a card in any zone one, so nothing about the row changes
+||| between this line and Artificer's Assistant's -- only the head beside
+||| it, which is what places the phrase.
+public export
+ayaOfAlexandria : Card
+ayaOfAlexandria =
+  Macros.card "Aya of Alexandria"
+       (Just [Macros.generic 2, Macros.pip Red, Macros.pip White]) [Legendary]
+       (MkTypeLine [creatureType "Human", creatureType "Assassin"] [Creature])
+       [ Macros.keyword "Menace"
+       , Macros.keyword "Lifelink"
+       , Macros.triggered Whenever
+           (DealsCombatDamage
+              (Macros.a (And [IsHistoric, Macros.creature, ControlledBy You]))
+              (Macros.a AnyPlayer))
+           (Macros.create (Lit 1)
+              (MkToken (Just (Lit 1 ** Lit 1)) [Black]
+                       (MkTypeLine [creatureType "Assassin"] [Creature])
+                       [Macros.keyword "Menace"] Nothing)) ]
+       (Just (4, 3))
+
+-- ---------------------------------------------------------------------------
+-- The ATTACHMENT-HOST word with no card type (closing sweep, 2026-09-02)
+-- ---------------------------------------------------------------------------
+--
+-- Routed as the bucket's largest item at 105 lines / 80 cards, and
+-- already writable. `attachHeadOk` admits every noun word under
+-- `Enchanted` and admits `PermanentW` under `Equipped` as well, on
+-- [CR#303.4] (an Aura attaches to an object or a player) and
+-- [CR#303.4m], which lets "enchanted [object or player]" name whatever
+-- the permanent is attached to; `AttachHost Enchanted PermanentW` is the
+-- phrase, and nothing but a bench was missing.
+-- Re-measured 2026-09-02 and SPLIT, because the routed figure conflated
+-- two readings of the same two words: 93 lines over 71 cards write the
+-- HOST word (an Aura's own text naming what it is attached to, which is
+-- this phrase), and 12 lines over 12 cards write the ADJECTIVE ("destroy
+-- target enchanted permanent", "defending player controls an enchanted
+-- permanent"), which is `IsAttached` and a different row. Only one line
+-- of the 93 writes "equipped permanent" (Luxior, Giada's Gift).
+
+||| Indestructibility, whole -- the host word at its plainest. "Enchant
+||| permanent / Enchanted permanent has indestructible."
+||| The Aura that made the type-free host word necessary: its enchant
+||| ability takes any permanent [CR#303.4], so no card-type word could
+||| name what it is attached to, and [CR#301.5f] and [CR#303.4m] both let
+||| the participle name whatever the permanent is.
+public export
+indestructibility : Card
+indestructibility =
+  Macros.card "Indestructibility" (Just [Macros.generic 3]) []
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
+       [ Macros.keywordSubject "Enchant" Permanent
+       , Static (Gains (AttachHost Enchanted PermanentW)
+                       (Macros.keyword "Indestructible")) ]
+       Nothing
+
+-- ---------------------------------------------------------------------------
+-- The marked PLAYER-sort read (closing sweep, 2026-09-02)
+-- ---------------------------------------------------------------------------
+--
+-- Routed as "`OfLastChosen` covers the quality sorts; the PLAYER sort is
+-- left", with a second blocker named beside it ("both also need
+-- 'creatures attacking [player]'"). Neither half survives.
+-- `ChosenPlayer`'s own docstring already spells the marked read -- "the
+-- chosen player" behind a single chooser, "the last chosen player"
+-- behind a repeatable one -- on `ChoiceStands`' existence gate, which is
+-- the same gate `OfLastChosen` carries; and `AttackerOf` writes
+-- "creatures attacking [player]" in exactly the reduced participle these
+-- two cards print. The sort was never missing at the READ.
+
+||| Beckoning Will-o'-Wisp, whole -- "Flying / Lure the Unwary -- At the
+||| beginning of combat on your turn, choose an opponent. / Creatures
+||| attacking the last chosen player get +1/+0."
+||| The marked read across abilities, which `abIntro` already threads: a
+||| triggered ability exports its choice delta to the abilities printed
+||| after it, so the static's "the last chosen player" reads a choice the
+||| trigger makes each combat. That repetition is what earns the marked
+||| spelling over the plain one [CR#607.2d].
+public export
+beckoningWillOWisp : Card
+beckoningWillOWisp =
+  Macros.card "Beckoning Will-o'-Wisp"
+       (Just [Macros.generic 2, Macros.pip White]) []
+       (MkTypeLine [creatureType "Spirit"] [Creature])
+       [ Macros.keyword "Flying"
+       , Macros.flavorWord "Lure the Unwary"
+           (Macros.triggered At (BeginningOf Combat (ByWord Yours))
+              (Macros.choose (Macros.a Opponent)))
+       , Static (Gets (AllOf (And [Macros.creature,
+                                   AttackerOf (Definite ChosenPlayer)]))
+                      (PtUp (Lit 1)) (PtUp (Lit 0))) ]
+       (Just (1, 3))
+
+||| Triarch Stalker, whole -- the same two sentences over an artifact
+||| creature. "Targeting Relay -- At the beginning of combat on your
+||| turn, choose an opponent. / Creatures attacking the last chosen
+||| player have menace." The pair is the marked read's whole player-sort
+||| corpus, and both cards land on machinery that was already there.
+public export
+triarchStalker : Card
+triarchStalker =
+  Macros.card "Triarch Stalker"
+       (Just [Macros.generic 3, Macros.pip Black, Macros.pip Black]) []
+       (MkTypeLine [creatureType "Necron"] [Artifact, Creature])
+       [ Macros.flavorWord "Targeting Relay"
+           (Macros.triggered At (BeginningOf Combat (ByWord Yours))
+              (Macros.choose (Macros.a Opponent)))
+       , Static (Gains (AllOf (And [Macros.creature,
+                                    AttackerOf (Definite ChosenPlayer)]))
+                       (Macros.keyword "Menace")) ]
+       (Just (4, 5))
+
+-- ---------------------------------------------------------------------------
+-- The ENTRY-RIDER defender (closing sweep, 2026-09-02)
+-- ---------------------------------------------------------------------------
+--
+-- [CR#508.4] gives the rider its content and its default in one
+-- sentence: the controller of a permanent put onto the battlefield
+-- attacking "chooses which defending player, planeswalker a defending
+-- player controls, or battle a defending player protects it's attacking
+-- ... unless the effect that put it onto the battlefield specifies what
+-- it's attacking". `EntersAttacking` carried no slot for the specifying
+-- half, and what blocked the slot was LAYERING and never the rules:
+-- `TokenRider` was declared in `Words.idr`, four modules above `Noun`
+-- and `AttackDefender`.
+-- The move is made: `TokenRider` now sits in `Triggers.idr` directly
+-- below `AttackDefender`, is `Bindings`-indexed like every other
+-- phrase-carrying vocabulary, and `EntersAttacking` takes the same
+-- `AttackDefender` the declaration event and `BecomesAttacking` take.
+-- 121 supported lines write an attacking entry or creation; 15 over 15
+-- cards specify the defender (measured 2026-09-02).
+
+||| Seraphic Greatsword, whole -- "Equipped creature gets +2/+2. /
+||| Whenever equipped creature attacks the player with the most life or
+||| tied for most life, create a 4/4 white Angel creature token with
+||| flying that's tapped and attacking that player. / Equip {4}"
+||| The defender specified on a CREATION, reading back the defender the
+||| trigger header named. The two `AttackDefender` seats meet in one
+||| sentence -- the header's, which [CR#508.1b] fixes when the attack is
+||| declared, and the rider's, which [CR#508.4] would otherwise leave to
+||| the token's controller.
+public export
+seraphicGreatsword : Card
+seraphicGreatsword =
+  Macros.card "Seraphic Greatsword"
+       (Just [Macros.generic 1, Macros.pip White]) []
+       (MkTypeLine [artifactType "Equipment"] [Artifact])
+       [ Static (Gets (AttachHost Equipped (TypeW Creature))
+                      (PtUp (Lit 2)) (PtUp (Lit 2)))
+       , Macros.triggered Whenever
+           (Macros.attacksPlayer (AttachHost Equipped (TypeW Creature))
+              (Definite (And [AnyPlayer,
+                              Superlative MaxOf (PlayerStatAxis LifeTotal)
+                                          AnyPlayer])))
+           (Create You (Lit 1)
+              (TokenWritten (MkToken (Just (Lit 4 ** Lit 4)) [White]
+                               (MkTypeLine [creatureType "Angel"] [Creature])
+                               [Macros.keyword "Flying"] Nothing))
+              [EntersTapped, EntersAttacking (OneDefender (That PlayerW))])
+       , Macros.keywordCosting "Equip" (Mana [Macros.generic 4]) ]
+       Nothing
+
+||| Sphinx of Clear Skies, whole -- the stale-note bench the closing
+||| sweep was asked to attempt, and it lands with nothing new. "Flying,
+||| ward {2} / Domain -- Whenever this creature deals combat damage to a
+||| player, reveal the top X cards of your library, where X is the number
+||| of basic land types among lands you control. An opponent separates
+||| those cards into two piles. Put one pile into your hand and the other
+||| into your graveyard."
+||| Sphinx of Uthuun's note recorded this card as blocked on "a
+||| domain-counted X". It was not: `tribalFlames` writes the domain count
+||| as `DistinctCount (SubtypeAxis Land BasicOnly)` and the piles round
+||| landed the rest, so the two halves only ever needed to be put in one
+||| card. The reveal takes the letter as its slice size, which is the
+||| same amount seat `Macros.topSlice` already had.
+-- ---------------------------------------------------------------------------
+-- The flagged STALE NOTE, run (closing sweep, 2026-09-02)
+-- ---------------------------------------------------------------------------
+--
+-- `sphinxOfUthuun`'s trailer recorded Unesh, Criosphinx Sovereign and
+-- Sphinx of Clear Skies as "blocked on their other lines (a cost
+-- reduction; a domain-counted X)". Both halves were already written --
+-- `daruWarchief` writes the subtype-scoped cost reduction and
+-- `tribalFlames` writes the domain count -- so the note was stale, and
+-- the sweep ran the bench it asked for.
+--
+-- UNESH LANDS WHOLE, and its trigger header turned out to need nothing
+-- either: "Unesh or another Sphinx you control" is `EitherOf` over the
+-- self and an `OtherThan`-anchored description, the same two rows the
+-- other-permanent vocabulary already had.
+--
+-- SPHINX OF CLEAR SKIES DOES NOT, and its real blocker is neither of the
+-- two the note named. It is `LibrarySlice`'s SIZE SLOT: the row takes
+-- its amount at `bs` and returns a noun at `bs`, so an amount written
+-- there contributes no bindings, and a LETTER written there is never
+-- opened -- `Define X` after it fails at `anyOpenLetter X`, because
+-- `openLetter` needs an indefinite singular letter mention and the slice
+-- introduced none. Every other letter seat threads its amount
+-- (`DealDamage`, `Create`, `Search`), which is why Tribal Flames and
+-- Krenko write the same "where X is" and this card cannot. Recorded, not
+-- built: whether the slice should thread `amtIntro` is a question about
+-- that row and not about the domain count.
+
+||| Unesh, Criosphinx Sovereign, whole -- "Flying / Sphinx spells you
+||| cast cost {2} less to cast. / Whenever Unesh or another Sphinx you
+||| control enters, reveal the top four cards of your library. An
+||| opponent separates those cards into two piles. Put one pile into your
+||| hand and the other into your graveyard."
+||| Sphinx of Uthuun's three sentences with a self-or-other subject in
+||| front of them, and Daru Warchief's cost reduction beside them.
+public export
+uneshCriosphinxSovereign : Card
+uneshCriosphinxSovereign =
+  Macros.card "Unesh, Criosphinx Sovereign"
+       (Just [Macros.generic 4, Macros.pip Blue, Macros.pip Blue]) [Legendary]
+       (MkTypeLine [creatureType "Sphinx"] [Creature])
+       [ Macros.keyword "Flying"
+       , Static (CostsToCast
+                   (AllOf (And [HasSubtype (creatureType "Sphinx"),
+                                Macros.spell, CastBy You]))
+                   (CostLess (Lit 2) Nothing))
+       , Macros.triggered Whenever
+           (Enters (EitherOf Macros.thisCreature
+                      (Macros.a (And [HasSubtype (creatureType "Sphinx"),
+                                      ControlledBy You,
+                                      OtherThan Macros.thisCreature])))
+                   Nothing)
+           (Sequentially
+              [ Macros.revealCards (Macros.topSlice (Lit 4))
+              , SeparateIntoPiles Macros.anOpponent Them 2 []
+              , Macros.move Macros.onePile Macros.handZ
+              , Macros.move TheOther Macros.graveyardZ ]) ]
+       (Just (4, 4))

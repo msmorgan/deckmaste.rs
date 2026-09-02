@@ -44,6 +44,101 @@ mutual
                   {auto 0 sg : nounPlur m = OneOf} ->
                   {auto 0 at : Attackable m} -> AttackDefender bs
 
+  ||| An arrival rider: what a permanent's entry says about it beyond its
+  ||| characteristics. `EntersAs` is indexed over `StatusVal` and carries
+  ||| `SetStatus`' own gate, so the status vocabulary the flip verb writes
+  ||| ("turn it face down", "tap it") is the vocabulary an arrival writes
+  ||| too: [CR#708.3] turns an object face down BEFORE it enters, which is
+  ||| what makes "return it to the battlefield face down" (Yedora, Grave
+  ||| Gardener) a rider on the arrival and not a second instruction.
+  ||| Attacking is not a status -- [CR#506.3a] and [CR#508.4d] speak of a
+  ||| permanent that "enters the battlefield attacking", a combat position
+  ||| no `StatusVal` denotes -- so it stays its own row.
+  |||
+  ||| The type is DECLARED HERE, below `Noun` and `AttackDefender`, and
+  ||| that placement is the whole of what the defender slot cost. It sat
+  ||| in `Words.idr` for as long as no rider named a phrase; the moment
+  ||| one does, the rider list becomes `Bindings`-indexed like every
+  ||| other phrase-carrying vocabulary, and the declaration has to follow
+  ||| the types it names.
+  ||| -- spelling: "tapped", "face down", "attacking [whom]" after the
+  ||| destination.
+  public export
+  data TokenRider : Bindings -> Type where
+    EntersAs : {0 c : StatusCat} -> (v : StatusVal c) ->
+               {auto 0 at : StatusEffectVal v} -> TokenRider bs
+    ||| "enters the battlefield attacking", and -- the slot this row was
+    ||| minted without -- "enters tapped and attacking that player", "put
+    ||| it onto the battlefield tapped and attacking a planeswalker they
+    ||| control".
+    ||| [CR#508.4] is the slot's own content and states the default beside
+    ||| it: the permanent's controller "chooses which defending player,
+    ||| planeswalker a defending player controls, or battle a defending
+    ||| player protects it's attacking ... unless the effect that put it
+    ||| onto the battlefield specifies what it's attacking". So an
+    ||| unwritten defender is not an omission the grammar has to fill --
+    ||| the rule fills it -- and `NoDefender` is a real reading rather than
+    ||| a missing one.
+    ||| It is the SAME `AttackDefender` the declaration event and
+    ||| `BecomesAttacking` take, so [CR#506.3]'s closed set of defenders
+    ||| and [CR#508.1b]'s one-defender rule ride it here unchanged. This is
+    ||| an assignment and not a declaration, exactly as `BecomesAttacking`
+    ||| is: [CR#508.3a] keys attack triggers on a creature being "declared
+    ||| as an attacker", which an arrival never is -- [CR#508.4] says of
+  ||| such creatures that "for the purposes of trigger events and
+  ||| effects, they never 'attacked'".
+    ||| 121 supported lines write an entry or creation that attacks; 15
+    ||| over 15 cards specify the defender (measured 2026-09-02) -- Adeline,
+    ||| Ainok Strike Leader, Combat Calligrapher, Echoing Assault, Ellie
+    ||| Brick Master, Endless Foot Assault, Kaalia of the Vast, Owlbear
+    ||| Cub, Seraphic Greatsword, Shark Shredder Killer Clone, Shredder
+    ||| Shadow Master, Soaring Lightbringer, Stampede Surfer, Veteran
+    ||| Soldier, Zara Renegade Recruiter.
+    EntersAttacking : (whom : AttackDefender bs) -> TokenRider bs
+    ||| "Return this card to the battlefield transformed", "put it onto
+    ||| the battlefield transformed under its owner's control": the back
+    ||| face arrives face up. [CR#712.14a] makes it an arrival property
+    ||| and not a second instruction -- "If a spell or ability puts a
+    ||| double-faced card onto the battlefield 'transformed' or
+    ||| 'converted,' it enters the battlefield with its back face up" --
+    ||| which is the same sentence shape [CR#708.3] writes for the face-down
+    ||| rider `EntersAs` already carries.
+    ||| NOT an `EntersAs` value. [CR#110.5] closes a permanent's status at
+    ||| four categories of two values each and back-face-up is none of them,
+    ||| and [CR#701.27b] says in as many words that transforming a permanent
+    ||| and turning one face up "are different game actions" even though
+    ||| they share the physical
+    ||| motion. So the vocabulary a `StatusVal` indexes cannot reach it and
+    ||| a row of its own is what the rules leave.
+    ||| 94 supported faces write it (measured 2026-08-28): 67 "to the
+    ||| battlefield transformed", 92 occurrences of the "transformed under
+    ||| [possessor]'s control" tail, and Corruption of Towashi's "a permanent
+    ||| you control enters transformed".
+    ||| -- spelling: "transformed" after the destination, before the
+    ||| controller override.
+    EntersTransformed : TokenRider bs
+    ||| "exile them, then meld them into Brisela, Voice of Nightmares":
+    ||| [CR#701.42a]'s own arrival, "put them onto the battlefield with
+    ||| their back faces up and combined". Beside `EntersTransformed` and
+    ||| not a use of it, because "combined" is the whole of what melding
+    ||| adds -- [CR#712.4a] leaves "a single object represented by two
+    ||| cards" where a transformed arrival leaves one card back face up.
+    ||| The name is the clause's own slot: all 7 supported meld lines write
+    ||| it, and it names the melded permanent rather than either component
+    ||| [CR#712.4b].
+    ||| It states no pairing gate. [CR#701.42b] admits only two cards of
+    ||| the same meld pair and [CR#701.42c] leaves anything else in its
+    ||| current zone, which is a fact about the CARDS named and not about
+    ||| the clause naming them; nothing a card face writes could be
+    ||| refused here for it.
+    ||| -- spelling: "into [name]" after the verb.
+    EntersMelded : (into : String) -> TokenRider bs
+
+  ||| The commonest arrival rider, spelled as the status word it is.
+  public export
+  EntersTapped : TokenRider bs
+  EntersTapped = EntersAs Tapped
+
   ||| Whom a damage-DEALING event names, if it names anyone. The header
   ||| may stop at the dealing ("Whenever a creature deals damage") or go
   ||| on to say what took it ("... to an opponent", "... to a creature").

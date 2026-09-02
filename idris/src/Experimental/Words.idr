@@ -5314,6 +5314,18 @@ Eq Supertype where
   (==) World World = True
   (==) World _ = False
 
+||| One supertype, written once. [CR#205.4b] makes an object's supertypes
+||| independent of one another and lets it hold several at once, so a
+||| repeated word says nothing the single one did not.
+||| Declared HERE, beside `Supertype` itself, rather than at the card
+||| layer that first needed it: the token bundle carries a supertype list
+||| too ([CR#111.9] and [CR#111.3]'s example), and it is declared four
+||| modules earlier.
+public export
+supersDistinct : List Supertype -> Bool
+supersDistinct [] = True
+supersDistinct (s :: ss) = not (elem s ss) && supersDistinct ss
+
 ||| A designation a player, an object, a card or the game can hold.
 |||
 ||| The UNLOCKED PAIR is the one entry no printed line names. [CR#709.5c]
@@ -5825,6 +5837,13 @@ data CounterKind : Type where
   ||| Cyclone's escalating tally: the same ordinary marker [CR#122.1],
   ||| counted by the payment that reads it.
   Wind : CounterKind
+  ||| The ice age's marker: the same ordinary counter [CR#122.1], put and
+  ||| removed by the abilities that read it. 17 supported lines over 7
+  ||| cards name the kind (measured 2026-09-02) -- Dark Depths' countdown
+  ||| and Iceberg's stored mana put and remove it, Rimefeather Owl and
+  ||| Rimescale Dragon describe the permanents carrying it, and Draugr
+  ||| Necromancer exiles a card with one on it.
+  Ice : CounterKind
   ||| The storage lands' stored mana: the same ordinary marker
   ||| [CR#122.1], put by one activation and removed by another to pay for
   ||| the mana it produces. Re-measured 2026-09-02: 18 supported LANDS
@@ -5863,6 +5882,7 @@ counterScope Luck = Object
 counterScope Blood = Object
 counterScope Bloodstain = Object
 counterScope Wind = Object
+counterScope Ice = Object
 counterScope Storage = Object
 
 public export
@@ -5914,6 +5934,8 @@ Eq CounterKind where
   (==) Bloodstain _ = False
   (==) Wind Wind = True
   (==) Wind _ = False
+  (==) Ice Ice = True
+  (==) Ice _ = False
   (==) Storage Storage = True
   (==) Storage _ = False
 
@@ -6418,66 +6440,6 @@ retentionOk (MkTypeLine _ (u :: us)) (Just t) = retainable t
 public export
 RetentionOk : TypeLine -> Maybe CardType -> Type
 RetentionOk tl ret = So (retentionOk tl ret)
-
-||| An arrival rider: what a permanent's entry says about it beyond its
-||| characteristics. `EntersAs` is indexed over `StatusVal` and carries
-||| `SetStatus`' own gate, so the status vocabulary the flip verb writes
-||| ("turn it face down", "tap it") is the vocabulary an arrival writes
-||| too: [CR#708.3] turns an object face down BEFORE it enters, which is
-||| what makes "return it to the battlefield face down" (Yedora, Grave
-||| Gardener) a rider on the arrival and not a second instruction.
-||| Attacking is not a status -- [CR#506.3a] and [CR#508.4d] speak of a
-||| permanent that "enters the battlefield attacking", a combat position
-||| no `StatusVal` denotes -- so it stays its own row.
-||| -- spelling: "tapped", "face down", "attacking" after the destination.
-public export
-data TokenRider : Type where
-  EntersAs : {0 c : StatusCat} -> (v : StatusVal c) ->
-             {auto 0 at : StatusEffectVal v} -> TokenRider
-  EntersAttacking : TokenRider
-  ||| "Return this card to the battlefield transformed", "put it onto
-  ||| the battlefield transformed under its owner's control": the back
-  ||| face arrives face up. [CR#712.14a] makes it an arrival property
-  ||| and not a second instruction -- "If a spell or ability puts a
-  ||| double-faced card onto the battlefield 'transformed' or
-  ||| 'converted,' it enters the battlefield with its back face up" --
-  ||| which is the same sentence shape [CR#708.3] writes for the face-down
-  ||| rider `EntersAs` already carries.
-  ||| NOT an `EntersAs` value. [CR#110.5] closes a permanent's status at
-  ||| four categories of two values each and back-face-up is none of them,
-  ||| and [CR#701.27b] says in as many words that transforming a permanent
-  ||| and turning one face up "are different game actions" even though
-  ||| they share the physical
-  ||| motion. So the vocabulary a `StatusVal` indexes cannot reach it and
-  ||| a row of its own is what the rules leave.
-  ||| 94 supported faces write it (measured 2026-08-28): 67 "to the
-  ||| battlefield transformed", 92 occurrences of the "transformed under
-  ||| [possessor]'s control" tail, and Corruption of Towashi's "a permanent
-  ||| you control enters transformed".
-  ||| -- spelling: "transformed" after the destination, before the
-  ||| controller override.
-  EntersTransformed : TokenRider
-  ||| "exile them, then meld them into Brisela, Voice of Nightmares":
-  ||| [CR#701.42a]'s own arrival, "put them onto the battlefield with
-  ||| their back faces up and combined". Beside `EntersTransformed` and
-  ||| not a use of it, because "combined" is the whole of what melding
-  ||| adds -- [CR#712.4a] leaves "a single object represented by two
-  ||| cards" where a transformed arrival leaves one card back face up.
-  ||| The name is the clause's own slot: all 7 supported meld lines write
-  ||| it, and it names the melded permanent rather than either component
-  ||| [CR#712.4b].
-  ||| It states no pairing gate. [CR#701.42b] admits only two cards of
-  ||| the same meld pair and [CR#701.42c] leaves anything else in its
-  ||| current zone, which is a fact about the CARDS named and not about
-  ||| the clause naming them; nothing a card face writes could be
-  ||| refused here for it.
-  ||| -- spelling: "into [name]" after the verb.
-  EntersMelded : (into : String) -> TokenRider
-
-||| The commonest arrival rider, spelled as the status word it is.
-public export
-EntersTapped : TokenRider
-EntersTapped = EntersAs Tapped
 
 public export
 lastType : List CardType -> Maybe CardType

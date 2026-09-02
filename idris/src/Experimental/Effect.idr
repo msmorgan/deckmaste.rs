@@ -261,11 +261,43 @@ mutual
   ||| admitted though no line prints one. Nothing in the rules refuses
   ||| an object that is both white and the chosen colour, so there is
   ||| no gate to write here -- only the record.
+  ||| The SUPERTYPE cell sits BESIDE the type line and not inside it, on
+  ||| the card seat's own arrangement: `cardOf` takes `supers` and `line`
+  ||| as two arguments and `SharedLineSplit` splits them apart again,
+  ||| because [CR#205.4b] makes a supertype independent of the card types
+  ||| and subtypes it is printed in front of -- "changing an object's
+  ||| card types or subtypes won't change its supertypes".
+  |||
+  ||| It is a DEFINED characteristic like every other cell here.
+  ||| [CR#111.3] says a token "doesn't have any characteristics not
+  ||| defined by the spell or ability that created it" and its example
+  ||| names supertypes among what a bare "1/1 green Saproling creature
+  ||| token" therefore lacks; [CR#111.9] is the cell's own rule, "some
+  ||| effects instruct a player to create a legendary token ... written
+  ||| 'create [name], a . . .'".
+  ||| 47 supported lines over 46 cards write one (measured 2026-09-02):
+  ||| 45 legendary and 2 snow. Every one of the 45 is [CR#111.9]'s named
+  ||| frame -- "create [name], a legendary ..." without exception (Dark
+  ||| Depths, Marit Lage's Slumber, Minsc & Boo, Stangg, Tolsimir, Tuktuk
+  ||| the Explorer and kin) -- which is the rule describing its whole
+  ||| corpus. The 2 snow lines (Replicating Ring, Svella, Ice Shaper)
+  ||| write the word in an ordinary bundle and name their tokens with a
+  ||| trailing "named [name]" instead.
+  |||
+  ||| NO CLOSED SET, and the refusal is deliberately only the card
+  ||| seat's. `CardSupers` gates distinctness alone and nothing more is
+  ||| written here: [CR#205.4a] enumerates five supertypes and no rule
+  ||| refuses any of them to a token. "Ongoing" is inert on one --
+  ||| [CR#205.4h] exempts an ongoing SCHEME card from a state-based
+  ||| action and [CR#111.6] says a token isn't a card -- but inert is not
+  ||| impossible, and a refusal by what the corpus prints is what this
+  ||| workbench does not write.
   public export
   record TokenChars (bs : Bindings) where
     constructor MkTokenChars
     pt : Maybe (p : Amount bs ** Amount (amtIntro p))
     colors : List Color
+    supers : List Supertype
     line : TypeLine
     abilities : List (AbilityAt [])
     name : Maybe String
@@ -304,9 +336,15 @@ mutual
   SubtypesFit : TokenChars bs -> Type
   SubtypesFit {bs} t = So (subsFitLine t.line.subs t.line.tys)
 
+  ||| The bundle's no-word-twice gate, now over three lists. The
+  ||| supertype cell joins the two that were here for one reason:
+  ||| [CR#205.4b] lets an object hold several supertypes at once and
+  ||| keeps each independent of the others, so a repeated word adds
+  ||| nothing, exactly as a repeated colour or card type does.
   public export
   tokenCanonical : {0 bs : Bindings} -> TokenChars bs -> Bool
   tokenCanonical t = colorsDistinct t.colors && typesDistinct t.line.tys
+                       && supersDistinct t.supers
 
   public export
   TokenCanonical : TokenChars bs -> Type
@@ -1373,7 +1411,7 @@ mutual
                              StaticEffect bs
       ||| [CR#506.3a] and [CR#508.4d] both say what happens when a
       ||| permanent enters attacking, so either rider is a real entry.
-      EntersRider : (n : Noun bs Object) -> (rider : TokenRider) ->
+      EntersRider : (n : Noun bs Object) -> (rider : TokenRider (selfSubjIntro n)) ->
                     {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                     StaticEffect bs
       ||| "[n] enters with [amt] [kind] counter(s) on it". The kind slot
@@ -2398,7 +2436,7 @@ mutual
 
   public export
   data MoveRiders : Bindings -> Type where
-    MkMoveRiders : (entry : List TokenRider) ->
+    MkMoveRiders : (entry : List (TokenRider bs)) ->
                    (ctrl : Maybe (Noun bs Player)) ->
                    (counters : Maybe (CounterRider bs)) ->
                    {auto 0 one : CtrlOverrideOk ctrl} -> MoveRiders bs
@@ -3728,7 +3766,8 @@ mutual
                  {auto 0 sp : SpanOk (staticKind se) (Just span)} ->
                  {auto 0 cl : ClauseStatic se} -> Effect bs
     Create : (agent : Noun bs Player) -> (count : Amount (nomIntro agent)) ->
-             (spec : TokenSpec (amtIntro count)) -> (riders : List TokenRider) ->
+             (spec : TokenSpec (amtIntro count)) ->
+             (riders : List (TokenRider (amtIntro count))) ->
              Effect bs
     GetsEmblem : (who : Noun bs Player) -> (abl : List (AbilityAt [])) ->
                  {auto 0 ea : EmblemAbilities abl} -> Effect bs
@@ -6601,12 +6640,27 @@ Ability : Type
 Ability = AbilityAt []
 
 ||| The bundle as all but seven printed lines write it: five literal
-||| cells and no quality. A wrapping macro rather than a defaulted field,
-||| on the house rule that core constructors stay positional -- and it is
-||| what makes the quality cell cost nothing at the 74 construction sites
-||| that do not use it.
+||| cells, no supertype and no quality. A wrapping macro rather than a
+||| defaulted field, on the house rule that core constructors stay
+||| positional -- and it is what makes the quality cell cost nothing at
+||| the 74 construction sites that do not use it. [CR#111.3]'s example
+||| is this shape exactly: a bare "1/1 green Saproling creature token"
+||| has "no mana cost, supertypes, rules text, or abilities".
 public export
 MkToken : {0 bs : Bindings} ->
           Maybe (p : Amount bs ** Amount (amtIntro p)) -> List Color ->
           TypeLine -> List Ability -> Maybe String -> TokenChars bs
-MkToken {bs} pt cs l abs nm = MkTokenChars {bs} pt cs l abs nm []
+MkToken {bs} pt cs l abs nm = MkTokenChars {bs} pt cs [] l abs nm []
+
+||| The same bundle with [CR#111.9]'s supertype written -- "create Marit
+||| Lage, a legendary 20/20 black Avatar creature token with flying and
+||| indestructible", "create eight colorless snow artifact tokens named
+||| Replicated Ring". The supertype list goes where the card seat puts
+||| it, before the type line and after the colours, which is also the
+||| order English prints.
+public export
+MkSupertypedToken : {0 bs : Bindings} ->
+                    Maybe (p : Amount bs ** Amount (amtIntro p)) ->
+                    List Color -> List Supertype ->
+                    TypeLine -> List Ability -> Maybe String -> TokenChars bs
+MkSupertypedToken {bs} pt cs sups l abs nm = MkTokenChars {bs} pt cs sups l abs nm []

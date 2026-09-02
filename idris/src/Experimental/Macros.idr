@@ -515,7 +515,7 @@ putOntoBattlefieldTappedAttacking :
   {auto 0 pl : Placeable (nounTy n) Battlefield} ->
   Effect bs
 putOntoBattlefieldTappedAttacking n =
-  Move n battlefieldZ (MkMoveRiders [EntersTapped, EntersAttacking] Nothing Nothing) {pl}
+  Move n battlefieldZ (MkMoveRiders [EntersTapped, EntersAttacking NoDefender] Nothing Nothing) {pl}
 
 public export
 putOntoBattlefieldUnderYourControl :
@@ -1178,7 +1178,7 @@ createTappedAttacking : (count : Amount bs) -> (tok : TokenChars (amtIntro count
                         Effect bs
 createTappedAttacking count tok =
   Create You count (TokenWritten tok {tt} {tp} {sf} {ta} {tc} {qf})
-         [EntersTapped, EntersAttacking]
+         [EntersTapped, EntersAttacking NoDefender]
 
 public export
 becomesAs : (n : Noun bs Object) -> (added : TokenChars bs) ->
