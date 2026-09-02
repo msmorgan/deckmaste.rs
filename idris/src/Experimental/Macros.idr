@@ -1777,6 +1777,24 @@ losesAllCounters : (who : Noun bs Player) -> (kind : Maybe CounterKind) ->
                    {auto 0 pk : CounterKindNamed Player kind} -> Effect bs
 losesAllCounters who kind = LosesCounters who kind Nothing {pk}
 
+||| "Remove [q] [kind] counter(s) from [from]": the counted removal,
+||| where the count is written.
+public export
+removeCounters : (q : Quantity bs) -> (kind : Maybe CounterKind) ->
+                 (from : Noun (quantIntro q) Object) ->
+                 {auto 0 wf : WellFormedQ q} ->
+                 {auto 0 kn : CounterKindNamed Object kind} ->
+                 {auto 0 cm : CounterMemory from} -> Effect bs
+removeCounters q kind from = RemoveCounters (Just q) kind from {wf} {kn} {cm}
+
+||| "Remove all [kind] counters from [from]": the object seat's twin of
+||| `losesAllCounters`, spelled by the same unwritten count.
+public export
+removeAllCounters : (kind : Maybe CounterKind) -> (from : Noun bs Object) ->
+                    {auto 0 kn : CounterKindNamed Object kind} ->
+                    {auto 0 cm : CounterMemory from} -> Effect bs
+removeAllCounters kind from = RemoveCounters Nothing kind from {kn} {cm}
+
 ||| "Flying", "Trample": a keyword written with no parameter.
 public export
 keyword : {0 bs : Bindings} -> (kw : KeywordLabel) ->

@@ -3692,6 +3692,18 @@ mutual
   WellFormedQ : Quantity bs -> Type
   WellFormedQ q = So (quantWellFormed q)
 
+  ||| A count position that spells the UNIVERSAL as its silence is
+  ||| well-formed wherever a written count would be, and vacuously so
+  ||| where nothing is written: there is no floor to compare.
+  public export
+  optQuantWellFormed : {0 bs : Bindings} -> Maybe (Quantity bs) -> Bool
+  optQuantWellFormed Nothing = True
+  optQuantWellFormed (Just q) = quantWellFormed q
+
+  public export
+  OptWellFormedQ : Maybe (Quantity bs) -> Type
+  OptWellFormedQ q = So (optQuantWellFormed q)
+
   ||| What fills a PARTITIVE's count position. The same two forms the
   ||| count position at the top of a phrase already has -- `CountedGroup`
   ||| takes a `Quantity`, `AllOf` takes every member the description
@@ -3816,6 +3828,14 @@ mutual
   quantIntro (Range _ _) = bs
   quantIntro (UpToOf a) = amtIntro a
   quantIntro (ExactlyOf a) = amtIntro a
+
+  ||| What an OPTIONAL count introduces. The universal introduces
+  ||| nothing: "all" reads no letter and opens no slot, exactly as
+  ||| `optAmtIntro`'s silence does at the player seat.
+  public export
+  optQuantIntro : {bs : Bindings} -> Maybe (Quantity bs) -> Bindings
+  optQuantIntro Nothing = bs
+  optQuantIntro (Just q) = quantIntro q
 
   public export
   Bindingless : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type

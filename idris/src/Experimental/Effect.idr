@@ -3147,16 +3147,29 @@ mutual
     ||| supported lines write "any number of" and 6 write "up to"
     ||| (measured 2026-08-28), and neither is a value read off the game.
     ||| A `Range` says both and says "a counter" too; no put line asks
-    ||| for either, so `PutCounters` keeps its amount. "Remove ALL
-    ||| counters" (25 lines) is neither and stays refused: a range names
-    ||| a number and "all" names whatever is there.
+    ||| for either, so `PutCounters` keeps its amount.
+    |||
+    ||| The count is OPTIONAL, and the silence spells "remove ALL
+    ||| counters" (Vampire Hexmage) -- 50 supported lines, 12 of them
+    ||| kind-blind (re-measured 2026-09-02; the routing ticket carried
+    ||| 25). "All" is not a `Quantity` arm and could not become one:
+    ||| `SliceCount`'s note says why -- a `Quantity` states a count the
+    ||| text wrote, and `quantExact`/`quantWellFormed`/`NonZeroQ` are all
+    ||| built on that, at every other `Quantity` position too. The split
+    ||| is made HERE instead, in the shape this row's own player cell
+    ||| already uses: `LosesCounters` takes a `Maybe Amount` where the
+    ||| silence spells "all", and this takes a `Maybe Quantity` for the
+    ||| same reason. `SliceCount`'s named-arm split is the alternative
+    ||| and buys nothing at a position with one universal and no
+    ||| `NonZeroQ` demand to carry.
     |||
     ||| It announces how many it took, which is what the storage
     ||| counters read back (`RemovedThisWay`).
-    ||| -- spelling: "remove [q] [kind] counter(s) from [from]".
-    RemoveCounters : (q : Quantity bs) -> (kind : Maybe CounterKind) ->
-                     (from : Noun (quantIntro q) Object) ->
-                     {auto 0 wf : WellFormedQ q} ->
+    ||| -- spelling: "remove [q] [kind] counter(s) from [from]";
+    ||| "remove all [kind] counters from [from]" at the silence.
+    RemoveCounters : (q : Maybe (Quantity bs)) -> (kind : Maybe CounterKind) ->
+                     (from : Noun (optQuantIntro q) Object) ->
+                     {auto 0 wf : OptWellFormedQ q} ->
                      {auto 0 kn : CounterKindNamed Object kind} ->
                      {auto 0 cm : CounterMemory from} -> Effect bs
     ||| "Remove three counters from among creatures you control"

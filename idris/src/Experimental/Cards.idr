@@ -315,7 +315,7 @@ crovaxTheCursed : Effect []
 crovaxTheCursed =
   Macros.mayThenElse You (Macros.sacrifice You (Macros.a Macros.creature))
                   (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) Macros.thisCreature)
-                  (RemoveCounters (Macros.exactly 1) (Just Macros.plusOnePlusOne) Macros.thisCreature)
+                  (RemoveCounters (Just (Macros.exactly 1)) (Just Macros.plusOnePlusOne) Macros.thisCreature)
 
 yawgmothDemon : Effect []
 yawgmothDemon =
@@ -356,7 +356,7 @@ battlegrowth : Effect []
 battlegrowth = PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) (Macros.target Macros.creature)
 
 chainbreaker : Effect []
-chainbreaker = RemoveCounters (Macros.exactly 1) (Just Macros.minusOneMinusOne) (Macros.target Macros.creature)
+chainbreaker = RemoveCounters (Just (Macros.exactly 1)) (Just Macros.minusOneMinusOne) (Macros.target Macros.creature)
 
 kaitoBaneOfNightmares : Effect []
 kaitoBaneOfNightmares = Sequentially [SetStatus Tapped (Macros.target Macros.creature),
@@ -369,7 +369,7 @@ jhoiraOfTheGhitu =
                    (PutCounters (Lit 4) (PrintedKind Time) (Macros.theVerbed "Exile" CardW))
 
 alaundoTheSeer : Effect []
-alaundoTheSeer = RemoveCounters (Macros.exactly 1) (Just Time) (Each (InZone Macros.exileZ))
+alaundoTheSeer = RemoveCounters (Just (Macros.exactly 1)) (Just Time) (Each (InZone Macros.exileZ))
 
 arcBlade : Effect []
 arcBlade = Sequentially [DealDamage This (Lit 2) (Macros.target Macros.anyTarget),
@@ -718,7 +718,7 @@ bondersEnclave =
 woeleecher : Ability
 woeleecher =
   Macros.activated (Compound [Mana [Macros.pip White], TapSymbol])
-                   (Macros.doThen (RemoveCounters (Macros.exactly 1) (Just Macros.minusOneMinusOne) (Macros.target Macros.creature))
+                   (Macros.doThen (RemoveCounters (Just (Macros.exactly 1)) (Just Macros.minusOneMinusOne) (Macros.target Macros.creature))
                     (Macros.gainsLife You (Lit 2)))
 
 moltingHarpy : Effect []
@@ -887,7 +887,7 @@ workhorse =
   Macros.card "Workhorse" (Just [Macros.generic 6]) []
        (MkTypeLine [creatureType "Horse"] [Artifact, Creature])
        [ Static (Macros.entersWithCounters Macros.thisCreature (Lit 4) Macros.plusOnePlusOne)
-       , Macros.activated (Do (RemoveCounters (Macros.exactly 1) (Just Macros.plusOnePlusOne) Macros.thisCreature))
+       , Macros.activated (Do (RemoveCounters (Just (Macros.exactly 1)) (Just Macros.plusOnePlusOne) Macros.thisCreature))
                           (AddMana You (Lit 1) (Runs [[Colorless]]) []) ]
        (Just (0, 0))
 
@@ -2356,7 +2356,7 @@ divineIntervention =
        (MkTypeLine [] [Enchantment])
        [ Static (Macros.entersWithCounters Macros.thisEnchantment (Lit 2) Intervention)
        , Macros.triggered At (BeginningOf Upkeep (ByWord Yours))
-                          (RemoveCounters (Macros.exactly 1) (Just Intervention) Macros.thisEnchantment)
+                          (RemoveCounters (Just (Macros.exactly 1)) (Just Intervention) Macros.thisEnchantment)
        , Macros.triggered When (Macros.lastCounterRemovedBy Intervention Macros.thisEnchantment You)
                           GameDrawn ]
        Nothing
@@ -2369,7 +2369,7 @@ celestialConvergence =
        [ Static (Macros.entersWithCounters Macros.thisEnchantment (Lit 7) Omen)
        , Macros.triggered At (BeginningOf Upkeep (ByWord Yours))
            (Sequentially
-              [ RemoveCounters (Macros.exactly 1) (Just Omen) Macros.thisEnchantment
+              [ RemoveCounters (Just (Macros.exactly 1)) (Just Omen) Macros.thisEnchantment
               , If (CompareAmt (CountersOn Omen Macros.thisEnchantment)
                                AtMost (Lit 0))
                           (Concludes WinGame
@@ -3820,7 +3820,7 @@ blackManaBattery =
        [ Macros.activated (Compound [Mana [Macros.generic 2], TapSymbol])
                           (PutCounters (Lit 1) (PrintedKind Charge) Macros.thisArtifact)
        , Macros.activated (Compound [TapSymbol,
-                                     Do (RemoveCounters Macros.anyNumber (Just Charge)
+                                     Do (RemoveCounters (Just Macros.anyNumber) (Just Charge)
                                                         Macros.thisArtifact)])
                           (Sequentially
                              [ AddMana You (Lit 1) (Runs [[OfColor Black]]) []
@@ -3848,6 +3848,22 @@ gallopingLizrog =
                            (PrintedKind Macros.plusOnePlusOne)
                            Macros.thisCreature)) ]
        (Just (3, 3))
+
+||| Vampire Hexmage, whole -- the UNIVERSAL removal. "Sacrifice this
+||| creature: Remove all counters from target permanent." Kind-blind
+||| and countless, so both of the row's `Maybe`s stand at their
+||| silence, and the card is the family's cheapest whole carrier: one
+||| keyword and one ability, nothing else to pay for.
+public export
+vampireHexmage : Card
+vampireHexmage =
+  Macros.card "Vampire Hexmage" (Just [Macros.pip Black, Macros.pip Black]) []
+       (MkTypeLine [creatureType "Vampire", creatureType "Shaman"] [Creature])
+       [ Macros.keyword "FirstStrike"
+       , Macros.activated (Do (Macros.sacrifice You Macros.thisCreature))
+                          (Macros.removeAllCounters Nothing
+                             (Macros.target Permanent)) ]
+       (Just (2, 1))
 
 ||| Novijen Sages' draw ability -- the same partitive at the COST seat,
 ||| where 11 of the family's 17 removal lines write it: "{1}, Remove two
@@ -7285,7 +7301,7 @@ magistratesScepter =
        [ Macros.activated (Compound [Mana [Macros.generic 4], TapSymbol])
                           (PutCounters (Lit 1) (PrintedKind Charge) Macros.thisArtifact)
        , Macros.activated (Compound [TapSymbol,
-                              Do (RemoveCounters (Macros.exactly 3) (Just Charge) Macros.thisArtifact)])
+                              Do (RemoveCounters (Just (Macros.exactly 3)) (Just Charge) Macros.thisArtifact)])
                           (ExtraTurn You (Lit 1)) ] Nothing
 
 public export
@@ -7730,7 +7746,7 @@ sageOfFables =
                                                      (Lit 1)
                                                      Macros.plusOnePlusOne)
        , Macros.activated (Compound [Mana [Macros.generic 2],
-                              Do (RemoveCounters (Macros.exactly 1) (Just Macros.plusOnePlusOne)
+                              Do (RemoveCounters (Just (Macros.exactly 1)) (Just Macros.plusOnePlusOne)
                                    (Macros.a (And [Macros.creature, ControlledBy You])))])
                           (Sequentially
               [ Macros.searchLibraryOrGraveyard
@@ -11033,7 +11049,7 @@ investigatorsJournal =
        [ Static (Macros.entersWithCounters Macros.thisArtifact
                    greatestCreaturesAPlayerControls Suspect)
        , Macros.activated (Compound [Mana [Macros.generic 2], TapSymbol,
-                              Do (RemoveCounters (Macros.exactly 1) (Just Suspect)
+                              Do (RemoveCounters (Just (Macros.exactly 1)) (Just Suspect)
                                     Macros.thisArtifact)])
                           Macros.drawACard
        , Macros.activated (Compound [Mana [Macros.generic 2],
@@ -15168,7 +15184,7 @@ bewitchingLeechcraft =
                               (StatusEvent Macros.thisCreature Untapped) []
                               (Just (DuringWindow UntapStep (Just Yours)))
                               (Macros.doThen
-                                 (RemoveCounters (Macros.exactly 1)
+                                 (RemoveCounters (Just (Macros.exactly 1))
                                     (Just Macros.plusOnePlusOne)
                                     Macros.thisCreature)
                                  (Macros.untap Macros.thisCreature))
@@ -17005,7 +17021,7 @@ public export
 chamberSentryDamage : Ability
 chamberSentryDamage =
   Macros.activated (Compound [Mana [Variable], TapSymbol,
-                       Do (RemoveCounters (ExactlyOf (LetterVal X))
+                       Do (RemoveCounters (Just (ExactlyOf (LetterVal X)))
                              (Just Macros.plusOnePlusOne) Macros.thisCreature)])
                    (DealDamage This (LetterVal X) (Macros.target Macros.anyTarget))
 
@@ -17287,7 +17303,7 @@ iceCauldronNotedMana : Ability
 iceCauldronNotedMana =
   Macros.activated
     (Compound [TapSymbol,
-               Do (RemoveCounters (Macros.exactly 1) (Just Charge)
+               Do (RemoveCounters (Just (Macros.exactly 1)) (Just Charge)
                                   Macros.thisArtifact)])
     (AddMana You (Lit 1) (LastNotedMana Macros.thisArtifact)
              [SpendOnly [ToCast (ExiledWith Macros.thisArtifact)]])
