@@ -1852,17 +1852,26 @@ impl SemanticPlan {
 
     pub(crate) fn terminal_has_feature(&self, name: &str, feature: Feature) -> bool {
         self.terminals.iter().any(|terminal| match terminal {
-            TerminalPlan::Vocab(vocab) if vocab.name() == name => {
-                vocab.feature_members(feature).is_some()
+            TerminalPlan::Vocab(vocab) => {
+                vocab.name() == name && vocab.feature_members(feature).is_some()
             }
-            TerminalPlan::Lexeme(lexeme) if lexeme.name() == name => {
-                lexeme.feature_members(feature).is_some()
+            TerminalPlan::Lexeme(lexeme) => {
+                lexeme.name() == name && lexeme.feature_members(feature).is_some()
             }
-            TerminalPlan::DeclarationNoun(codec) if codec.codec_name() == name => codec
-                .closed_lexeme()
-                .and_then(|closed| self.lexeme(&closed.to_string()))
-                .is_some_and(|closed| closed.feature_members(feature).is_some()),
-            _ => false,
+            TerminalPlan::DeclarationNoun(codec) => {
+                codec.codec_name() == name
+                    && codec
+                        .closed_lexeme()
+                        .and_then(|closed| self.lexeme(&closed.to_string()))
+                        .is_some_and(|closed| closed.feature_members(feature).is_some())
+            }
+            TerminalPlan::Binding(_)
+            | TerminalPlan::ContextIdentity(_)
+            | TerminalPlan::CatalogIdentity(_)
+            | TerminalPlan::SignedDecimal(_)
+            | TerminalPlan::UnsignedNumber(_)
+            | TerminalPlan::DeclarationDeterminative(_)
+            | TerminalPlan::DeclarationTerm(_) => false,
         })
     }
 

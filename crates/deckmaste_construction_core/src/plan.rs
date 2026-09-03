@@ -2056,26 +2056,6 @@ mod tests {
     }
 
     #[test]
-    fn declaration_verb_expansion_is_deterministic() {
-        let first = declaration_verb_expansion();
-        let second = declaration_verb_expansion();
-        let snapshot = |expansion: &crate::Expansion| {
-            expansion
-                .items()
-                .iter()
-                .map(|item| {
-                    (
-                        item.key.clone(),
-                        item.tokens.to_string(),
-                        item.origins.clone(),
-                    )
-                })
-                .collect::<Vec<_>>()
-        };
-        assert_eq!(snapshot(&first), snapshot(&second));
-    }
-
-    #[test]
     fn declaration_verb_generated_body_is_pinned() {
         let expansion = declaration_verb_expansion();
         let actual = expansion

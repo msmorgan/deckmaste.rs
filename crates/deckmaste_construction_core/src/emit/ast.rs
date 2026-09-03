@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 
 use proc_macro2::Span;
@@ -94,7 +95,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
             .into_iter()
             .flat_map(|(_, emitted)| emitted),
     );
-    let mut zeroable_types = HashMap::<String, (&syn::Path, &str, Vec<DeclarationKey>)>::new();
+    let mut zeroable_types = BTreeMap::<String, (&syn::Path, &str, Vec<DeclarationKey>)>::new();
     for construction in plan.constructions() {
         for field in construction
             .fields()

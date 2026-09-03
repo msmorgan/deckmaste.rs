@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
@@ -100,7 +101,7 @@ struct Lowering {
     field_values: HashMap<String, TokenStream>,
     vocab_values: HashMap<String, syn::Ident>,
     role_features: HashMap<(String, Feature), LocalFeatureValue>,
-    role_following_onsets: HashMap<String, syn::Ident>,
+    role_following_onsets: BTreeMap<String, syn::Ident>,
     output_following_onset: TokenStream,
     guards: Vec<TokenStream>,
     dynamic_numbers: Vec<syn::Ident>,
@@ -119,7 +120,7 @@ impl Default for Lowering {
             field_values: HashMap::new(),
             vocab_values: HashMap::new(),
             role_features: HashMap::new(),
-            role_following_onsets: HashMap::new(),
+            role_following_onsets: BTreeMap::new(),
             output_following_onset: quote! { FeatureConstraint::<Onset>::Any },
             guards: Vec::new(),
             dynamic_numbers: Vec::new(),
