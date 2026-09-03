@@ -367,7 +367,7 @@ cowardKiller = Sequentially [Macros.cantBlock (Macros.target Macros.creature) (J
 auriokSiegeSledDenial : Ability
 auriokSiegeSledDenial =
   Macros.activated (Mana [Macros.generic 1])
-                   (Continuously (Macros.cantDoTo "Block"
+                   (Continuously {ts = StaticFirstDone} (Macros.cantDoTo "Block"
                                     (Macros.target (And [Macros.artifact, Macros.creature]))
                                     Macros.thisCreature)
                                  (Just Macros.thisTurn))
