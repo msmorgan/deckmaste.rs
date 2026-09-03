@@ -62,3 +62,14 @@ libraries" select. Zero net loss, lock current. Metric rule: `literal_lexicon_co
   the zero-loss requirement while admitting the 63 attested determined
   possessors. No construction was added or removed.
 - STOPs: none.
+
+
+## Erratum (genitive landing review, 2026-09-03)
+
+Selection census shift unquantified in the record: unique 10,487 -> 10,731,
+specificity-resolved 5,687 -> 5,506 — 205 already-covered units changed
+their winning analysis when the demonstrative-possessive candidate stopped
+competing. Residue: bare SUBTYPE possessors still select ("Destroy
+Goblin's controller.") — the narrowing reads the proper-classified
+vocabulary only; `possessive_singular_nominal` and
+`demonstrative_possessive_reference` are now corpus-inert.
