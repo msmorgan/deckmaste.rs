@@ -5,8 +5,6 @@ use std::path::Path;
 use deckmaste_construction_core::macro_def::DeclarationKind;
 use deckmaste_construction_core::macro_def::GrammarRecipe;
 use deckmaste_construction_core::macro_def::NormalizedDeclaration;
-use deckmaste_construction_core::macro_def::NounLocativeTemporalLicense;
-use deckmaste_construction_core::macro_def::NounRelationality;
 use deckmaste_construction_core::macro_def::SpellingPart;
 use deckmaste_construction_core::macro_def::SurfaceFeature;
 use deckmaste_construction_core::macro_def::ValidationError;
@@ -206,7 +204,7 @@ fn builtin_v2_types_load_with_exact_semantics_and_noun_surfaces() {
         let grammar = declaration
             .grammar()
             .unwrap_or_else(|| panic!("{} must contribute noun grammar", expected.name));
-        assert_eq!(grammar.recipe(), &default_noun_recipe());
+        assert_eq!(grammar.recipe(), &GrammarRecipe::Noun);
         let mut expected_surfaces = vec![(SurfaceFeature::Singular, expected.singular)];
         if let Some(plural) = expected.plural {
             expected_surfaces.push((SurfaceFeature::Plural, plural));
@@ -267,7 +265,7 @@ fn an_open_type_noun_normalizes_without_closed_membership() {
     assert_eq!(declaration.identity().name(), "Chronicle");
     assert_eq!(
         declaration.grammar().unwrap().recipe(),
-        &default_noun_recipe()
+        &GrammarRecipe::Noun
     );
     assert_eq!(
         declaration
@@ -280,13 +278,6 @@ fn an_open_type_noun_normalizes_without_closed_membership() {
         [(SurfaceFeature::Singular, "chronicle")]
     );
     assert!(!declaration.is_graduated());
-}
-
-fn default_noun_recipe() -> GrammarRecipe {
-    GrammarRecipe::Noun {
-        locative_temporal_license: NounLocativeTemporalLicense::Unlicensed,
-        relationality: NounRelationality::NonRelational,
-    }
 }
 
 #[test]

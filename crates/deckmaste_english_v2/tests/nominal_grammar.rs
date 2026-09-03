@@ -2679,7 +2679,7 @@ fn authentic_nominal_and_selector_sentences_parse() {
             card_name: "Context Card",
             text: "Destroy any number of target creatures.",
             path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDeterminedNominal/DeterminativeAnyNumberQuantifyingDeterminer/SingularHeadNounSingularHead/NominalPluralNominalValue/PluralNominalModifiedPluralNominal/NominalModifierAttributiveAdjectiveModifier/PluralHeadNounPluralHead",
-            specificity: "NNNNTNNNNNNNNLNTTNNNTT",
+            specificity: "NNNNTNNNNNNNNLNLTNNNTT",
             candidates: 2,
         },
         Witness {

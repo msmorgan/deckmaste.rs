@@ -287,7 +287,7 @@ impl DeclarationRecord {
         match self.recipe.as_ref() {
             Some(GrammarRecipe::Verb { valence }) => Some(valence),
             Some(
-                GrammarRecipe::Noun { .. }
+                GrammarRecipe::Noun
                 | GrammarRecipe::FixedTerm
                 | GrammarRecipe::FixedClause
                 | GrammarRecipe::FixedKeyword,
@@ -695,23 +695,6 @@ impl ParserEnvironment {
 
     pub(crate) fn grammar_recipe(&self, id: &DeclarationId) -> Option<&GrammarRecipe> {
         self.declaration(id.kind(), id.name())?.recipe()
-    }
-
-    pub(crate) fn declaration_noun_features(
-        &self,
-        id: &DeclarationId,
-    ) -> Option<(
-        deckmaste_construction_core::macro_def::NounLocativeTemporalLicense,
-        deckmaste_construction_core::macro_def::NounRelationality,
-    )> {
-        let GrammarRecipe::Noun {
-            locative_temporal_license,
-            relationality,
-        } = self.grammar_recipe(id)?
-        else {
-            return None;
-        };
-        Some((*locative_temporal_license, *relationality))
     }
 
     /// Returns every exact reading for a surface in deterministic identity

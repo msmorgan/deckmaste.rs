@@ -1,7 +1,6 @@
 #![allow(
     dead_code,
-    unexpected_cfgs,
-    reason = "the minimal consumer executes generated catalog-identity boundaries and macro feature gates"
+    reason = "the minimal consumer supplies and executes every generated catalog-identity boundary"
 )]
 
 mod catalog_fixture {

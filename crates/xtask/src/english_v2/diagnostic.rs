@@ -905,7 +905,6 @@ enum NonterminalKind {
     ControlPhrase,
     PrepositionalPhrase,
     PrepositionalComplement,
-    ExistentialDomain,
     PrepositionalAdjunctPredicate,
     PreposedPrepositionalAdjunct,
     PreposedPrepositionalAdjunctPredicate,
@@ -1576,7 +1575,6 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::ControlPhrase => NonterminalKind::ControlPhrase,
         NonterminalCategory::PrepositionalPhrase => NonterminalKind::PrepositionalPhrase,
         NonterminalCategory::PrepositionalComplement => NonterminalKind::PrepositionalComplement,
-        NonterminalCategory::ExistentialDomain => NonterminalKind::ExistentialDomain,
         NonterminalCategory::PrepositionalAdjunctPredicate => {
             NonterminalKind::PrepositionalAdjunctPredicate
         }

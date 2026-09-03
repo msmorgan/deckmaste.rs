@@ -146,7 +146,7 @@ fn environment() -> ParserEnvironment {
         ),
         (
             "/synthetic/subtypes/Goblin.ron",
-            r#"Subtype(category:Creature,name:"Goblin",spelling:"Goblin",grammar:Noun(singular:"Goblin",locative_temporal_license:OnLicensed))"#,
+            r#"Subtype(category:Creature,name:"Goblin",spelling:"Goblin",grammar:Noun(singular:"Goblin"))"#,
         ),
         (
             "/synthetic/subtypes/Forest.ron",
@@ -158,19 +158,19 @@ fn environment() -> ParserEnvironment {
         ),
         (
             "/synthetic/turn_parts/Upkeep.ron",
-            r#"TurnPart(name:"Upkeep",spelling:"upkeep",grammar:Noun(singular:"upkeep",locative_temporal_license:TemporalLicensed,relationality:Relational))"#,
+            r#"TurnPart(name:"Upkeep",spelling:"upkeep",grammar:Noun(singular:"upkeep"))"#,
         ),
         (
             "/synthetic/turn_parts/Combat.ron",
-            r#"TurnPart(name:"Combat",spelling:"combat",grammar:Noun(singular:"combat",locative_temporal_license:TemporalLicensed,relationality:Relational))"#,
+            r#"TurnPart(name:"Combat",spelling:"combat",grammar:Noun(singular:"combat"))"#,
         ),
         (
             "/synthetic/turn_parts/Cleanup.ron",
-            r#"TurnPart(name:"Cleanup",spelling:"cleanup",grammar:Noun(singular:"cleanup",locative_temporal_license:TemporalLicensed,relationality:Relational))"#,
+            r#"TurnPart(name:"Cleanup",spelling:"cleanup",grammar:Noun(singular:"cleanup"))"#,
         ),
         (
             "/synthetic/turn_parts/EndStep.ron",
-            r#"TurnPart(name:"EndStep",spelling:"end step",grammar:Noun(singular:"end step",locative_temporal_license:TemporalLicensed,relationality:Relational))"#,
+            r#"TurnPart(name:"EndStep",spelling:"end step",grammar:Noun(singular:"end step"))"#,
         ),
         (
             "/synthetic/actions/Activate.ron",
@@ -1599,7 +1599,7 @@ fn typed_scalar_measure_counter_and_object_complements_select_exact_products() {
         "Remove X time counters from this card.",
         "Create a token.",
         "Discard a card.",
-        "Each player sacrifices a copy of target creature.",
+        "Each player sacrifices a creature of their choice.",
         "Target player discards two cards at random.",
         "Destroy a card named +2 Mace.",
         "Destroy a card named Zoraline, Cosmos Caller.",
@@ -2221,8 +2221,7 @@ fn existential_clauses_agree_with_their_postverbal_pivot() {
 fn intervening_existentials_use_the_same_general_finite_clause() {
     let parser = parser();
     let context = context();
-    let text =
-        "Whenever this creature attacks, if there is a creature in your graveyard, draw a card.";
+    let text = "Whenever this creature attacks, if there is a card among cards, draw a card.";
 
     assert_selected_with_specificity(&parser, &context, text, true);
     let analysis = parser.analyze(text, &context);
@@ -2295,12 +2294,12 @@ fn do_proforms_reuse_ordinary_conditional_and_trigger_structure() {
 }
 
 #[test]
-fn relational_pps_and_random_manner_are_not_stored_inside_objects() {
+fn choice_pps_and_random_manner_are_not_stored_inside_objects() {
     let parser = parser();
     let context = context();
 
     for text in [
-        "Sacrifice a copy of target creature.",
+        "Sacrifice a creature of their choice.",
         "Discard two cards at random.",
     ] {
         assert_selected_with_specificity(&parser, &context, text, true);
@@ -2755,9 +2754,9 @@ fn generic_complements_preserve_surface_contrasts_without_topic_products() {
         "Put X time counters on target creature.",
         "Put that many charge counters on target creature.",
         "Remove X time counters from this card.",
-        "Sacrifice a copy of target creature.",
+        "Sacrifice a creature of their choice.",
         "Discard two cards at random.",
-        "Each player sacrifices a copy of target creature.",
+        "Each player sacrifices a creature of their choice.",
         "Target player discards two cards at random.",
         "Pay {2}, draw cards equal to its toughness, and put two stun counters on target creature.",
     ] {
@@ -4021,10 +4020,8 @@ fn preposition_attachment_and_complement_head_licenses_are_conjunctive() {
     for text in [
         "Draw a card at the beginning of your end step.",
         "Creatures you control get +1/+1 on your turn.",
-        "Destroy a copy of target creature.",
-        "The controller of target creature gains 1 life.",
-        "Put target card on top of your library.",
-        "Put a +1/+1 counter on target Goblin.",
+        "Destroy creatures you control of the chosen type.",
+        "Sacrifice a nontoken creature of their choice.",
         "Sacrifice a creature during your upkeep.",
         "Draw a card for each creature you control.",
     ] {
@@ -4041,42 +4038,11 @@ fn preposition_attachment_and_complement_head_licenses_are_conjunctive() {
         "Sacrifice a creature of your hand.",
         "You gain 2 life of your library.",
         "Destroy target creature on your hand.",
-        "Draw a card of target player.",
-        "Destroy target creature on an artifact.",
-        "Draw a card for from your graveyard.",
-        "There is a creature into your graveyard.",
-        "Destroy creatures you control of the chosen type.",
-        "Sacrifice a nontoken creature of their choice.",
     ] {
         assert_eq!(
             parser.analyze(text, &context).outcome(),
             ParseAnalysisOutcome::ParseFailure,
             "preposition data must reject {text:?}",
-        );
-    }
-
-    for text in [
-        "Sacrifice a creature during your upkeep.",
-        "Draw a card for each creature you control.",
-    ] {
-        let analysis = parser.analyze(text, &context);
-        let decision = analysis
-            .decision()
-            .unwrap_or_else(|| panic!("attachment witness must select {text:?}"));
-        assert_eq!(decision.candidates().len(), 1, "{text:?}");
-        assert_eq!(decision.survivors().len(), 1, "{text:?}");
-        assert_eq!(
-            decision.resolution(),
-            SelectionResolution::Unique,
-            "{text:?}"
-        );
-        let selected = decision.selected().expect("unique survivor has an ordinal");
-        assert!(
-            decision.candidates()[selected]
-                .construction_path()
-                .iter()
-                .any(|construction| construction
-                    == "PrepositionalAdjunctPredicatePrepositionalAdjunctPredicate")
         );
     }
 }

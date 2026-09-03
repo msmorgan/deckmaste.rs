@@ -1,10 +1,6 @@
 TurnPart(
     name: "DrawStep",
     spelling: "draw step",
-    grammar: Noun(
-        singular: "draw step",
-        locative_temporal_license: TemporalLicensed,
-        relationality: Relational,
-    ),
+    grammar: Noun(singular: "draw step"),
     params: [],
 )

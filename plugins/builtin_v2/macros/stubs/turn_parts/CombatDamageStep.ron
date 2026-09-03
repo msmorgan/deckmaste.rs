@@ -1,10 +1,6 @@
 TurnPart(
     name: "CombatDamageStep",
     spelling: "combat damage step",
-    grammar: Noun(
-        singular: "combat damage step",
-        locative_temporal_license: TemporalLicensed,
-        relationality: Relational,
-    ),
+    grammar: Noun(singular: "combat damage step"),
     params: [],
 )

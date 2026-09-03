@@ -6,8 +6,6 @@ use std::path::Path;
 use deckmaste_construction_core::macro_def::DeclarationKind;
 use deckmaste_construction_core::macro_def::GrammarRecipe;
 use deckmaste_construction_core::macro_def::NormalizedDeclaration;
-use deckmaste_construction_core::macro_def::NounLocativeTemporalLicense;
-use deckmaste_construction_core::macro_def::NounRelationality;
 use deckmaste_construction_core::macro_def::SpellingPart;
 use deckmaste_construction_core::macro_def::SubtypeCategory;
 use deckmaste_construction_core::macro_def::SurfaceFeature;
@@ -109,19 +107,11 @@ fn builtin_v2_creature_type_nursery_matches_catalog_and_attested_morphology() {
             declaration.spelling(),
             [SpellingPart::Literal(spelling.clone())]
         );
-        let locative_temporal_license = if declaration.identity().name() == "Goblin" {
-            NounLocativeTemporalLicense::OnLicensed
-        } else {
-            NounLocativeTemporalLicense::Unlicensed
-        };
         assert_eq!(
             declaration
                 .grammar()
                 .map(deckmaste_construction_core::macro_def::GrammarRow::recipe),
-            Some(&GrammarRecipe::Noun {
-                locative_temporal_license,
-                relationality: NounRelationality::NonRelational,
-            })
+            Some(&GrammarRecipe::Noun)
         );
         assert!(
             !declaration.is_graduated(),

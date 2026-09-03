@@ -5295,34 +5295,6 @@ fn feature_roles(
                     .find(|equation| {
                         matches!(equation.target(), FeaturePlace::Role { field, feature } if identifier_key(field) == identifier_key(role) && feature == source_feature)
                     });
-                if matches!(source_feature, Feature::Onset | Feature::PossessiveEnding)
-                    && let Some(field) = field
-                    && field.kind() == ConstructionFieldKind::Lex
-                    && matches!(
-                        validated.atom_terminal(field.terminal())?,
-                        AtomTerminal::Lexeme(_) | AtomTerminal::DeclarationNoun { .. }
-                    )
-                    && let Some(number_writer) = validated
-                        .feature_equations(construction.construction_id())
-                        .iter()
-                        .find(|equation| {
-                            matches!(
-                                equation.target(),
-                                FeaturePlace::Role {
-                                    field,
-                                    feature: Feature::Number,
-                                } if identifier_key(field) == identifier_key(role)
-                            )
-                        })
-                {
-                    collect(
-                        validated,
-                        construction,
-                        number_writer.value(),
-                        roles,
-                        visiting,
-                    )?;
-                }
                 let derived_role = if let Some(field) = field {
                     field.kind() == ConstructionFieldKind::Category
                         || terminal_is_declaration_noun(validated, field.terminal())?
@@ -5562,7 +5534,6 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::Common => quote! { Properness::Common },
         FeatureValue::Proper => quote! { Properness::Proper },
         FeatureValue::NonRelational => quote! { Relationality::NonRelational },
-        FeatureValue::QualifiedRelational => quote! { Relationality::QualifiedRelational },
         FeatureValue::Relational => quote! { Relationality::Relational },
     }
 }

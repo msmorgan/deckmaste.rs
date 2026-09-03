@@ -3898,7 +3898,6 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::Common => quote! { Properness::Common },
         FeatureValue::Proper => quote! { Properness::Proper },
         FeatureValue::NonRelational => quote! { Relationality::NonRelational },
-        FeatureValue::QualifiedRelational => quote! { Relationality::QualifiedRelational },
         FeatureValue::Relational => quote! { Relationality::Relational },
     }
 }

@@ -482,7 +482,7 @@ fn indefinite_coordination_articles_follow_the_realized_head_onset() {
 fn existential_there_preserves_its_pivot_before_the_predicate_boundary() {
     let parser = parser();
     let context = context("Mask of Intolerance", false);
-    let controlled = "At the beginning of each player's upkeep, if there are four or more basic land types in graveyards that player controls, you gain 1 life.";
+    let controlled = "At the beginning of each player's upkeep, if there are four or more basic land types among lands that player controls, you gain 1 life.";
 
     let parsed = parser
         .parse(controlled, &context)
@@ -556,7 +556,7 @@ fn existential_there_preserves_its_pivot_before_the_predicate_boundary() {
             "form:existential_finite_clause/existential_finite_clause/0",
         ),
         (TextSpan { start: 50, end: 54 }, "vocab:FiniteCopula/Are"),
-        (TextSpan { start: 84, end: 87 }, "vocab:Preposition/In"),
+        (TextSpan { start: 84, end: 90 }, "vocab:Preposition/Among"),
         (TextSpan { start: 67, end: 73 }, "vocab:Supertype/Basic"),
         (TextSpan { start: 73, end: 78 }, "lexeme:type/Land/singular"),
         (
@@ -565,22 +565,22 @@ fn existential_there_preserves_its_pivot_before_the_predicate_boundary() {
         ),
         (
             TextSpan {
-                start: 98,
-                end: 103,
+                start: 96,
+                end: 101,
             },
             "determinative:DeterminativeHead/DistalDemonstrative",
         ),
         (
             TextSpan {
-                start: 110,
-                end: 119,
+                start: 108,
+                end: 117,
             },
             "core-verb:Control",
         ),
         (
             TextSpan {
-                start: 119,
-                end: 120,
+                start: 117,
+                end: 118,
             },
             "form:finite_condition/finite_condition/2",
         ),
@@ -595,9 +595,25 @@ fn existential_there_preserves_its_pivot_before_the_predicate_boundary() {
     let original_analysis = parser.analyze(original, &context);
     assert_eq!(
         original_analysis.outcome(),
-        deckmaste_english_v2::parser::ParseAnalysisOutcome::ParseFailure,
-        "an existential domain must use an adjunct-capable preposition",
+        deckmaste_english_v2::parser::ParseAnalysisOutcome::Selected,
+        "the already-supported consequence keeps the repaired condition row selected",
     );
+    assert!(matches!(
+        original_analysis.decision().unwrap().resolution(),
+        SelectionResolution::Unique | SelectionResolution::Specificity
+    ));
+    let original_ownership = original_analysis
+        .ownership()
+        .expect("the authentic Mask row owns every byte");
+    assert!(
+        original_ownership.failures().is_empty(),
+        "{original_ownership:?}"
+    );
+    assert!(
+        original_ownership.summary().covered(),
+        "{original_ownership:?}"
+    );
+    assert_eq!(original_ownership.rendered_text(), original);
 }
 
 #[derive(Default)]
@@ -711,7 +727,7 @@ fn existential_there_derives_be_agreement_and_visits_the_complete_structure() {
         );
     }
 
-    let full = "At the beginning of each player's upkeep, if there are four or more basic land types in graveyards that player controls, you gain 1 life.";
+    let full = "At the beginning of each player's upkeep, if there are four or more basic land types among lands that player controls, you gain 1 life.";
     let parsed = parser
         .parse(full, &context)
         .expect("full existential visitor witness parses");

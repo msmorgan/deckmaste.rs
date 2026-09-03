@@ -1,10 +1,6 @@
 TurnPart(
     name: "CleanupStep",
     spelling: "cleanup step",
-    grammar: Noun(
-        singular: "cleanup step",
-        locative_temporal_license: TemporalLicensed,
-        relationality: Relational,
-    ),
+    grammar: Noun(singular: "cleanup step"),
     params: [],
 )

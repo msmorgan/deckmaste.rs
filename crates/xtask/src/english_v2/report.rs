@@ -212,7 +212,7 @@ fn builtin_noun_morphology(root: &Path) -> anyhow::Result<BuiltinNounMorphology>
             normalized
                 .grammar()
                 .map(deckmaste_construction_core::macro_def::GrammarRow::recipe),
-            Some(GrammarRecipe::Noun { .. })
+            Some(GrammarRecipe::Noun)
         ) {
             bail!(
                 "raw noun grammar in {} disappeared during production normalization",

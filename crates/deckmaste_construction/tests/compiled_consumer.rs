@@ -1,7 +1,6 @@
 #![allow(
     dead_code,
-    unexpected_cfgs,
-    reason = "the consumer compiles every generated phase, including the English parser's feature-gated metrics, while executing build, render, and visitor boundaries"
+    reason = "the consumer compiles every generated phase while executing build, render, and visitor boundaries"
 )]
 
 use deckmaste_construction::constructions;
@@ -87,23 +86,6 @@ pub mod environment {
                 .map(deckmaste_construction_core::macro_def::GrammarRow::recipe)
         }
 
-        pub(crate) fn declaration_noun_features(
-            &self,
-            id: &DeclarationIdentity,
-        ) -> Option<(
-            deckmaste_construction_core::macro_def::NounLocativeTemporalLicense,
-            deckmaste_construction_core::macro_def::NounRelationality,
-        )> {
-            let GrammarRecipe::Noun {
-                locative_temporal_license,
-                relationality,
-            } = self.grammar_recipe(id)?
-            else {
-                return None;
-            };
-            Some((*locative_temporal_license, *relationality))
-        }
-
         pub(crate) fn declarations(&self) -> &[NormalizedDeclaration] {
             &self.declarations
         }
@@ -167,7 +149,7 @@ pub mod environment {
                 .iter()
                 .filter_map(|declaration| {
                     let grammar = declaration.grammar()?;
-                    matches!(grammar.recipe(), GrammarRecipe::Noun { .. })
+                    matches!(grammar.recipe(), GrammarRecipe::Noun)
                         .then_some((declaration.identity(), grammar))
                 })
                 .flat_map(|(id, grammar)| {

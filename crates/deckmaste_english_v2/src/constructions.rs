@@ -272,41 +272,36 @@ constructions! {
         feature BareLocativeLicense = QualifiedOnly;
         feature Compoundability = Compoundable;
         feature Countability = Count;
-        feature LocativeTemporalLicense = Unlicensed;
+        feature LocativeTemporalLicense = OfAndOnLicensed;
         feature Properness = Common;
         feature Relationality = NonRelational;
         Ability = "ability" {
             Plural = "abilities",
-            feature Relationality = QualifiedRelational;
         },
         Attacker = "attacker",
         Battlefield = "battlefield" { feature LocativeTemporalLicense = OnLicensed; },
         Beginning = "beginning" {
-            feature LocativeTemporalLicense = TemporalLicensed;
+            feature LocativeTemporalLicense = OfAndTemporalLicensed;
             feature Relationality = Relational;
         },
         Blocker = "blocker",
-        Card = "card" { feature LocativeTemporalLicense = InLicensed; },
-        Choice = "choice" { feature Relationality = QualifiedRelational; },
+        Card = "card",
+        Choice = "choice" { feature LocativeTemporalLicense = OfLicensed; },
         Coin = "coin",
-        Color = "color" { feature Relationality = QualifiedRelational; },
+        Color = "color" { feature LocativeTemporalLicense = OfLicensed; },
         CommandZone = "command zone" { feature LocativeTemporalLicense = InLicensed; },
-        Control = "control" {
-            feature Countability = Mass;
-            feature Relationality = QualifiedRelational;
-        },
+        Control = "control" { feature Countability = Mass; },
         Copy = "copy" {
             Plural = "copies",
-            feature Relationality = QualifiedRelational;
         },
-        Cost = "cost" { feature Relationality = QualifiedRelational; },
-        Counter = "counter" { feature LocativeTemporalLicense = OnLicensed; },
+        Cost = "cost",
+        Counter = "counter",
         Damage = "damage" { feature Countability = Mass; },
         Death = "death",
         Draw = "draw",
         End = "end" {
             feature Compoundability = NonCompoundable;
-            feature LocativeTemporalLicense = TemporalLicensed;
+            feature LocativeTemporalLicense = OfAndTemporalLicensed;
             feature Relationality = Relational;
         },
         Exile = "exile" {
@@ -323,35 +318,31 @@ constructions! {
             feature LocativeTemporalLicense = InOrOnEdgeLicensed;
         },
         Life = "life" { feature Countability = Mass; },
-        Mana = "mana" {
-            feature Countability = Mass;
-            feature Relationality = QualifiedRelational;
-        },
+        Mana = "mana" { feature Countability = Mass; },
         Mode = "mode",
-        Name = "name" { feature Relationality = QualifiedRelational; },
-        Number = "number" { feature Relationality = QualifiedRelational; },
-        Controller = "controller" { feature Relationality = QualifiedRelational; },
+        Name = "name",
+        Number = "number",
+        Controller = "controller",
         Opponent = "opponent",
-        Owner = "owner" { feature Relationality = QualifiedRelational; },
+        Owner = "owner",
         Permanent = "permanent",
         Phase = "phase" {
-            feature LocativeTemporalLicense = TemporalLicensed;
+            feature LocativeTemporalLicense = OfAndTemporalLicensed;
             feature Relationality = Relational;
         },
         Player = "player",
-        Power = "power" { feature Relationality = QualifiedRelational; },
-        Rest = "rest" { feature Relationality = QualifiedRelational; },
-        Source = "source" { feature Relationality = QualifiedRelational; },
-        Size = "size" { feature Relationality = QualifiedRelational; },
-        Spell = "spell" { feature LocativeTemporalLicense = InLicensed; },
+        Power = "power",
+        Rest = "rest",
+        Source = "source",
+        Size = "size",
+        Spell = "spell",
         Stack = "stack" { feature LocativeTemporalLicense = OnLicensed; },
         Step = "step" {
-            feature LocativeTemporalLicense = TemporalLicensed;
+            feature LocativeTemporalLicense = OfAndTemporalLicensed;
             feature Relationality = Relational;
         },
         Target = "target" {
             feature Compoundability = NonCompoundable;
-            feature Relationality = QualifiedRelational;
         },
         Tax = "tax" {
             Plural = "taxes",
@@ -359,14 +350,13 @@ constructions! {
         Token = "token",
         Toughness = "toughness" {
             Plural = "toughnesses",
-            feature Relationality = QualifiedRelational;
         },
         Turn = "turn" {
-            feature LocativeTemporalLicense = TemporalLicensed;
+            feature LocativeTemporalLicense = OfAndTemporalLicensed;
             feature Relationality = Relational;
         },
-        Type = "type" { feature Relationality = QualifiedRelational; },
-        Value = "value" { feature Relationality = QualifiedRelational; },
+        Type = "type" { feature LocativeTemporalLicense = OfLicensed; },
+        Value = "value",
         Way = "way",
         Die = "die" {
             Plural = "dice",
@@ -963,6 +953,7 @@ constructions! {
     abstract sum PrepositionalComplement {
         Object: Object,
         Edge: EdgeOfPhrase,
+        Phrase: PrepositionalPhrase,
     }
     // A frame names its own preposition, so its complement also admits the
     // determiner-less locative that the free phrase licenses by class.
@@ -1780,13 +1771,11 @@ constructions! {
             object: Object,
             source: opt SourcePhrase,
             destination: FrameComplement,
-            order_relation: lex Preposition,
             order: lex ObjectOrder,
         }
-        require order_relation is In;
         derive agreement = head.agreement;
         form ordered_predicate =
-            verb(head) object source "on" destination lex(order_relation) lex(order) "order";
+            verb(head) object source "on" destination "in" lex(order) "order";
     }
     construction irrealis_copular_clause: IrrealisCopularClause {
         element IrrealisCopularClauseValue {
@@ -1919,12 +1908,8 @@ constructions! {
         form only_if_restriction = "only" "if" condition;
     }
     construction only_during_restriction: CastingRestriction {
-        element OnlyDuringRestriction {
-            relation: lex Preposition,
-            timing: RestrictionTurn,
-        }
-        require relation is During;
-        form only_during_restriction = "only" lex(relation) timing;
+        element OnlyDuringRestriction { timing: RestrictionTurn, }
+        form only_during_restriction = "only" "during" timing;
     }
     construction only_temporal_clause_restriction: CastingRestriction {
         element OnlyTemporalClauseRestriction {
@@ -2024,16 +2009,11 @@ constructions! {
         }
         form contracted_perfect_passive_clause = lex(subject) "been" predicate duration;
     }
-    construction existential_domain: ExistentialDomain {
-        element ExistentialDomainValue { phrase: PrepositionalPhrase, }
-        require phrase.preposition_attachment is AdjunctCapable;
-        form existential_domain = phrase;
-    }
     construction existential_finite_clause: FiniteClause {
         element ExistentialFiniteClause {
             copula: lex FiniteCopula,
             pivot: NounPhrase,
-            domain: opt ExistentialDomain,
+            domain: opt PrepositionalPhrase,
         }
         derive copula.agreement = match copula {
             Is => Values::ThirdPersonSingular,
@@ -2995,18 +2975,14 @@ constructions! {
         form up_to_quantifying_determiner = "up" "to" count;
     }
     construction any_number_quantifying_determiner: Determinative {
-        element AnyNumberQuantifyingDeterminer {
-            unit: SingularHead,
-            relation: lex Preposition,
-        }
-        require relation is Of;
+        element AnyNumberQuantifyingDeterminer { unit: SingularHead, }
         derive agreement = Values::Bare;
         derive number = Values::Plural;
         derive determiner_number = Values::PluralOnly;
         derive nominal_license = Values::CountNominal;
         derive fused_head_license = Values::NominalOnly;
         derive onset = Values::Vowel;
-        form any_number_quantifying_determiner = "any" unit lex(relation);
+        form any_number_quantifying_determiner = "any" unit "of";
     }
     construction no_more_quantifying_determiner: Determinative {
         element NoMoreQuantifyingDeterminer {}
@@ -3447,9 +3423,8 @@ constructions! {
         }
         derive bare_locative_complement = preposition.bare_locative_complement;
         derive preposition_attachment = preposition.preposition_attachment;
-        derive preposition_complement_kind = preposition.preposition_complement_kind;
-        derive relationality = complement.relationality;
-        derive locative_temporal_license = complement.locative_temporal_license;
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::Unlicensed;
         form prepositional_phrase = lex(preposition) complement;
     }
     // A determiner-less locative is licensed by the preposition class as well
@@ -3464,7 +3439,6 @@ constructions! {
         require preposition.bare_locative_complement is Yes;
         derive bare_locative_complement = preposition.bare_locative_complement;
         derive preposition_attachment = preposition.preposition_attachment;
-        derive preposition_complement_kind = preposition.preposition_complement_kind;
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::Unlicensed;
         form bare_locative_prepositional_phrase = lex(preposition) complement;
@@ -3476,24 +3450,18 @@ constructions! {
         form source_phrase = "from" complement;
     }
     construction control_phrase: ControlPhrase {
-        element ControlPhraseValue {
-            relation: lex Preposition,
-            complement: Object,
-        }
-        require relation is Under;
-        form control_phrase = lex(relation) complement;
+        element ControlPhraseValue { complement: Object, }
+        form control_phrase = "under" complement;
     }
     construction edge_of_phrase: EdgeOfPhrase {
         element EdgeOfPhraseValue {
             position: lex EdgePosition,
-            relation: lex Preposition,
             whole: Object,
         }
-        require relation is Of;
         derive relationality = whole.relationality;
         derive locative_temporal_license = whole.locative_temporal_license;
-        form top when position is Top = lex(position) lex(relation) whole;
-        form bottom otherwise = "the" lex(position) lex(relation) whole;
+        form top when position is Top = lex(position) "of" whole;
+        form bottom otherwise = "the" lex(position) "of" whole;
     }
     construction fixed_scalar_threshold: ScalarThreshold {
         element FixedScalarThreshold { value: lex ScalarNumber, }
@@ -3580,13 +3548,8 @@ constructions! {
         form genitive_scalar_value = "the" possessor measure;
     }
     construction number_of_scalar_value: ScalarValue {
-        element NumberOfScalarValue {
-            measure: SingularHead,
-            relation: lex Preposition,
-            counted: Object,
-        }
-        require relation is Of;
-        form number_of_scalar_value = "the" measure lex(relation) counted;
+        element NumberOfScalarValue { measure: SingularHead, counted: Object, }
+        form number_of_scalar_value = "the" measure "of" counted;
     }
     construction twice_scalar_value: ScalarValue {
         element TwiceScalarValue { value: ScalarValue, }
@@ -3602,11 +3565,9 @@ constructions! {
     construction greatest_scalar_value: ScalarValue {
         element GreatestScalarValue {
             measure: ScalarMeasure,
-            relation: lex Preposition,
             domain: Object,
         }
-        require relation is Among;
-        form greatest_scalar_value = "the" "greatest" measure lex(relation) domain;
+        form greatest_scalar_value = "the" "greatest" measure "among" domain;
     }
     construction scalar_equality: ScalarEquality {
         element ScalarEqualityValue { value: ScalarValue, }
@@ -3653,11 +3614,9 @@ constructions! {
         element ContractedCopularRelativeReference {
             reference: UnqualifiedReference,
             nominal: SingularNominal,
-            relation: lex Preposition,
             complement: Object,
         }
         require reference.number is Singular;
-        require relation is Of;
         derive agreement = reference.agreement;
         derive number = reference.number;
         derive onset = reference.onset;
@@ -3665,7 +3624,7 @@ constructions! {
         derive relationality = reference.relationality;
         derive locative_temporal_license = reference.locative_temporal_license;
         form contracted_copular_relative_reference =
-            reference "that's" "a" nominal lex(relation) complement;
+            reference "that's" "a" nominal "of" complement;
     }
     construction reduced_passive_qualified_reference: ControllerStage {
         element ReducedPassiveQualifiedReference {
@@ -3707,12 +3666,7 @@ constructions! {
     construction prepositional_qualified_reference: LocativeStage {
         element PrepositionalQualifiedReference {
             reference: ControllerStage,
-            modifier: PrepositionalPhrase checked by nominal_preposition_is_licensed(
-                reference.relationality,
-                reference.locative_temporal_license,
-                modifier.preposition_attachment,
-                modifier.preposition_complement_kind
-            ),
+            modifier: PrepositionalPhrase,
         }
         require modifier.preposition_attachment in [AdjunctCapable, PostmodifierOnly];
         derive agreement = reference.agreement;
@@ -3800,36 +3754,32 @@ constructions! {
             head: Determinative checked by determinative_is_fused(
                 head.fused_head_license
             ),
-            relation: lex Preposition,
             whole: Object checked by partitive_whole_is_licensed(
                 head.determiner_number,
                 head.number,
                 whole.number
             ),
         }
-        require relation is Of;
         derive agreement = head.agreement;
         derive number = head.number;
         derive onset = head.onset;
         derive possessive_ending = Values::Other;
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = whole.locative_temporal_license;
-        form determinative_partitive = head lex(relation) whole;
+        form determinative_partitive = head "of" whole;
     }
     construction positional_partitive: NounPhrase {
         element PositionalPartitive {
             position: lex EdgePosition,
             selection: PartitiveSelection,
-            relation: lex Preposition,
             whole: Object,
         }
-        require relation is Of;
         derive agreement = selection.agreement;
         derive number = selection.number;
         derive onset = Values::Consonant;
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::OfInAndOnLicensed;
-        form positional_partitive = "the" lex(position) selection lex(relation) whole;
+        form positional_partitive = "the" lex(position) selection "of" whole;
     }
     construction singular_common_noun_choice: CommonNounChoice {
         element SingularCommonNounChoice { noun: lex Noun, }
@@ -4048,22 +3998,16 @@ constructions! {
     construction chosen_distribution_phrase: DistributionPhrase {
         element ChosenDistributionPhrase {
             head: lex AmongObjectVerb,
-            relation: lex Preposition,
             recipient: Object,
         }
         derive head.agreement = Values::Bare;
-        require relation is Among;
         form chosen_distribution_phrase =
-            "divided" "as" "you" verb(head) lex(relation) recipient;
+            "divided" "as" "you" verb(head) "among" recipient;
     }
     construction even_distribution_phrase: DistributionPhrase {
-        element EvenDistributionPhrase {
-            relation: lex Preposition,
-            recipient: DistributionRecipient,
-        }
-        require relation is Among;
+        element EvenDistributionPhrase { recipient: DistributionRecipient, }
         form even_distribution_phrase =
-            "divided" "evenly" "," "rounded" "down" "," lex(relation) recipient;
+            "divided" "evenly" "," "rounded" "down" "," "among" recipient;
     }
     construction modal_passive_subject_gap_relative_clause: ModalPassiveSubjectGapRelativeClause {
         element ModalPassiveSubjectGapRelativeClauseValue {
@@ -4230,14 +4174,9 @@ constructions! {
         form enter_location = verb(head) location result control;
     }
     construction enter_control: VerbPhrase {
-        element EnterControl {
-            head: lex EnterControlVerb,
-            relation: lex Preposition,
-            control: Object,
-        }
-        require relation is Under;
+        element EnterControl { head: lex EnterControlVerb, control: Object, }
         derive agreement = head.agreement;
-        form enter_control = verb(head) lex(relation) control;
+        form enter_control = verb(head) "under" control;
     }
     construction look_at: VerbPhrase {
         element LookAt { head: lex LookAtVerb, object: Object, }
@@ -4614,8 +4553,14 @@ fn preposition_complement_is_licensed(
 ) -> bool {
     let edge = matches!(complement, PrepositionalComplement::Edge(_));
     match kind {
-        PrepositionComplementKind::UnrestrictedComplement
-        | PrepositionComplementKind::RelationalComplement => true,
+        PrepositionComplementKind::UnrestrictedComplement => true,
+        PrepositionComplementKind::RelationalComplement => matches!(
+            license,
+            LocativeTemporalLicense::OfLicensed
+                | LocativeTemporalLicense::OfAndOnLicensed
+                | LocativeTemporalLicense::OfInAndOnLicensed
+                | LocativeTemporalLicense::OfAndTemporalLicensed
+        ),
         PrepositionComplementKind::InComplement => {
             !edge
                 && matches!(
@@ -4643,49 +4588,6 @@ fn preposition_complement_is_licensed(
                     LocativeTemporalLicense::TemporalLicensed
                         | LocativeTemporalLicense::OfAndTemporalLicensed
                 )
-        }
-    }
-}
-
-fn nominal_preposition_is_licensed(
-    _modifier: &PrepositionalPhrase,
-    relationality: Relationality,
-    license: LocativeTemporalLicense,
-    attachment: PrepositionAttachment,
-    kind: PrepositionComplementKind,
-) -> bool {
-    let accepts_interior = matches!(
-        license,
-        LocativeTemporalLicense::InLicensed
-            | LocativeTemporalLicense::InOrOnEdgeLicensed
-            | LocativeTemporalLicense::OfInAndOnLicensed
-    );
-    let accepts_surface = matches!(
-        license,
-        LocativeTemporalLicense::OnLicensed
-            | LocativeTemporalLicense::InOrOnEdgeLicensed
-            | LocativeTemporalLicense::OfAndOnLicensed
-            | LocativeTemporalLicense::OfInAndOnLicensed
-            | LocativeTemporalLicense::TemporalLicensed
-            | LocativeTemporalLicense::OfAndTemporalLicensed
-    );
-    let accepts_temporal = matches!(
-        license,
-        LocativeTemporalLicense::TemporalLicensed | LocativeTemporalLicense::OfAndTemporalLicensed
-    );
-
-    match kind {
-        PrepositionComplementKind::RelationalComplement => matches!(
-            relationality,
-            Relationality::QualifiedRelational | Relationality::Relational
-        ),
-        PrepositionComplementKind::InComplement => accepts_interior,
-        PrepositionComplementKind::OnComplement => accepts_surface,
-        PrepositionComplementKind::AtComplement | PrepositionComplementKind::DuringComplement => {
-            accepts_temporal
-        }
-        PrepositionComplementKind::UnrestrictedComplement => {
-            attachment == PrepositionAttachment::PostmodifierOnly && accepts_interior
         }
     }
 }

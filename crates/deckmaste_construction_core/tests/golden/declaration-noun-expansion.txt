@@ -1,8 +1,6 @@
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeclarationNoun {
     id: ::deckmaste_construction_core::macro_def::DeclarationIdentity,
-    locative_temporal_license: ::deckmaste_construction_core::macro_def::NounLocativeTemporalLicense,
-    relationality: ::deckmaste_construction_core::macro_def::NounRelationality,
 }
 impl DeclarationNoun {
     pub fn new(
@@ -22,40 +20,20 @@ impl DeclarationNoun {
                     )
             })
             .is_some();
-        let (locative_temporal_license, relationality) = environment
-            .declaration_noun_features(&id)?;
-        has_surface
-            .then(|| Self::from_reading(id, locative_temporal_license, relationality))
-            .flatten()
+        has_surface.then(|| Self::from_reading(id)).flatten()
     }
     pub(crate) fn from_reading(
         id: ::deckmaste_construction_core::macro_def::DeclarationIdentity,
-        locative_temporal_license: ::deckmaste_construction_core::macro_def::NounLocativeTemporalLicense,
-        relationality: ::deckmaste_construction_core::macro_def::NounRelationality,
     ) -> Option<Self> {
         matches!(
             id.kind(), ::deckmaste_construction_core::macro_def::DeclarationKind::Type |
             ::deckmaste_construction_core::macro_def::DeclarationKind::Subtype(_) |
             ::deckmaste_construction_core::macro_def::DeclarationKind::TurnPart
         )
-            .then_some(Self {
-                id,
-                locative_temporal_license,
-                relationality,
-            })
+            .then_some(Self { id })
     }
     pub fn id(&self) -> &::deckmaste_construction_core::macro_def::DeclarationIdentity {
         &self.id
-    }
-    pub(crate) fn locative_temporal_license(
-        &self,
-    ) -> ::deckmaste_construction_core::macro_def::NounLocativeTemporalLicense {
-        self.locative_temporal_license
-    }
-    pub(crate) fn relationality(
-        &self,
-    ) -> ::deckmaste_construction_core::macro_def::NounRelationality {
-        self.relationality
     }
 }
 #[derive(Debug, Clone, PartialEq, Eq)]

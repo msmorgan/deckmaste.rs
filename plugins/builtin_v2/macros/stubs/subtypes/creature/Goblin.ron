@@ -2,5 +2,6 @@ Subtype(
     category: Creature,
     name: "Goblin",
     spelling: "Goblin",
-    grammar: Noun(singular: "Goblin", locative_temporal_license: OnLicensed),
+    grammar: Noun(singular: "Goblin"),
 )
+

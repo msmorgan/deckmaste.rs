@@ -3,8 +3,6 @@ use std::path::Path;
 
 use deckmaste_construction_core::macro_def::DeclarationKind;
 use deckmaste_construction_core::macro_def::GrammarRecipe;
-use deckmaste_construction_core::macro_def::NounLocativeTemporalLicense;
-use deckmaste_construction_core::macro_def::NounRelationality;
 use deckmaste_construction_core::macro_def::SurfaceFeature;
 use deckmaste_construction_core::macro_def::read_builtin_v2;
 
@@ -74,13 +72,7 @@ fn turn_parts_contribute_to_the_noun_inventory_with_derived_plurals() {
         let grammar = row
             .grammar()
             .unwrap_or_else(|| panic!("{name} noun grammar"));
-        assert_eq!(
-            grammar.recipe(),
-            &GrammarRecipe::Noun {
-                locative_temporal_license: NounLocativeTemporalLicense::TemporalLicensed,
-                relationality: NounRelationality::Relational,
-            }
-        );
+        assert_eq!(grammar.recipe(), &GrammarRecipe::Noun);
         assert_eq!(
             grammar
                 .surfaces()

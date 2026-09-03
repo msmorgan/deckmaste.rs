@@ -493,8 +493,6 @@ pub(crate) fn emit(
                         #[derive(Debug, Clone, PartialEq, Eq)]
                         pub struct #declaration {
                             id: ::deckmaste_construction_core::macro_def::DeclarationIdentity,
-                            locative_temporal_license: ::deckmaste_construction_core::macro_def::NounLocativeTemporalLicense,
-                            relationality: ::deckmaste_construction_core::macro_def::NounRelationality,
                         }
                     },
                     vec![origin.clone()],
@@ -517,42 +515,18 @@ pub(crate) fn emit(
                                         ::deckmaste_construction_core::macro_def::SurfaceFeature::Plural,
                                     ))
                                     .is_some();
-                                let (locative_temporal_license, relationality) =
-                                    environment.declaration_noun_features(&id)?;
-                                has_surface.then(|| Self::from_reading(
-                                    id,
-                                    locative_temporal_license,
-                                    relationality,
-                                )).flatten()
+                                has_surface.then(|| Self::from_reading(id)).flatten()
                             }
 
                             pub(crate) fn from_reading(
                                 id: ::deckmaste_construction_core::macro_def::DeclarationIdentity,
-                                locative_temporal_license: ::deckmaste_construction_core::macro_def::NounLocativeTemporalLicense,
-                                relationality: ::deckmaste_construction_core::macro_def::NounRelationality,
                             ) -> Option<Self> {
                                 matches!(id.kind(), #(#allowed)|*)
-                                    .then_some(Self {
-                                        id,
-                                        locative_temporal_license,
-                                        relationality,
-                                    })
+                                    .then_some(Self { id })
                             }
 
                             pub fn id(&self) -> &::deckmaste_construction_core::macro_def::DeclarationIdentity {
                                 &self.id
-                            }
-
-                            pub(crate) fn locative_temporal_license(
-                                &self,
-                            ) -> ::deckmaste_construction_core::macro_def::NounLocativeTemporalLicense {
-                                self.locative_temporal_license
-                            }
-
-                            pub(crate) fn relationality(
-                                &self,
-                            ) -> ::deckmaste_construction_core::macro_def::NounRelationality {
-                                self.relationality
                             }
                         }
                     },
@@ -1079,9 +1053,6 @@ fn emit_lexeme_relationality_helper(
                 crate::feature::FeatureValue::NonRelational => {
                     quote! { Relationality::NonRelational }
                 }
-                crate::feature::FeatureValue::QualifiedRelational => {
-                    quote! { Relationality::QualifiedRelational }
-                }
                 crate::feature::FeatureValue::Relational => {
                     quote! { Relationality::Relational }
                 }
@@ -1303,12 +1274,15 @@ fn emit_aggregate_noun_feature_helpers(
                 ) -> LocativeTemporalLicense {
                     match ::std::borrow::Borrow::borrow(&value) {
                         #ty::Lexeme(value) => #closed_locative_temporal_license(*value),
-                        #ty::Declaration(value) => match value.locative_temporal_license() {
-                            ::deckmaste_construction_core::macro_def::NounLocativeTemporalLicense::Unlicensed => LocativeTemporalLicense::Unlicensed,
-                            ::deckmaste_construction_core::macro_def::NounLocativeTemporalLicense::InLicensed => LocativeTemporalLicense::InLicensed,
-                            ::deckmaste_construction_core::macro_def::NounLocativeTemporalLicense::OnLicensed => LocativeTemporalLicense::OnLicensed,
-                            ::deckmaste_construction_core::macro_def::NounLocativeTemporalLicense::InOrOnEdgeLicensed => LocativeTemporalLicense::InOrOnEdgeLicensed,
-                            ::deckmaste_construction_core::macro_def::NounLocativeTemporalLicense::TemporalLicensed => LocativeTemporalLicense::TemporalLicensed,
+                        #ty::Declaration(value) => match value.id().kind() {
+                            ::deckmaste_construction_core::macro_def::DeclarationKind::Type
+                            | ::deckmaste_construction_core::macro_def::DeclarationKind::Subtype(_) => {
+                                LocativeTemporalLicense::OfAndOnLicensed
+                            }
+                            ::deckmaste_construction_core::macro_def::DeclarationKind::TurnPart => {
+                                LocativeTemporalLicense::OfAndTemporalLicensed
+                            }
+                            _ => LocativeTemporalLicense::Unlicensed,
                         },
                     }
                 }
@@ -1329,10 +1303,11 @@ fn emit_aggregate_noun_feature_helpers(
                 fn #relationality(value: impl ::std::borrow::Borrow<#ty>) -> Relationality {
                     match ::std::borrow::Borrow::borrow(&value) {
                         #ty::Lexeme(value) => #closed_relationality(*value),
-                        #ty::Declaration(value) => match value.relationality() {
-                            ::deckmaste_construction_core::macro_def::NounRelationality::NonRelational => Relationality::NonRelational,
-                            ::deckmaste_construction_core::macro_def::NounRelationality::QualifiedRelational => Relationality::QualifiedRelational,
-                            ::deckmaste_construction_core::macro_def::NounRelationality::Relational => Relationality::Relational,
+                        #ty::Declaration(value) => match value.id().kind() {
+                            ::deckmaste_construction_core::macro_def::DeclarationKind::TurnPart => {
+                                Relationality::Relational
+                            }
+                            _ => Relationality::NonRelational,
                         },
                     }
                 }
@@ -1623,10 +1598,11 @@ mod tests {
                 ) -> Relationality {
                     match ::std::borrow::Borrow::borrow(&value) {
                         Noun::Lexeme(value) => relationality_for_core_noun(*value),
-                        Noun::Declaration(value) => match value.relationality() {
-                            ::deckmaste_construction_core::macro_def::NounRelationality::NonRelational => Relationality::NonRelational,
-                            ::deckmaste_construction_core::macro_def::NounRelationality::QualifiedRelational => Relationality::QualifiedRelational,
-                            ::deckmaste_construction_core::macro_def::NounRelationality::Relational => Relationality::Relational,
+                        Noun::Declaration(value) => match value.id().kind() {
+                            ::deckmaste_construction_core::macro_def::DeclarationKind::TurnPart => {
+                                Relationality::Relational
+                            }
+                            _ => Relationality::NonRelational,
                         },
                     }
                 }
