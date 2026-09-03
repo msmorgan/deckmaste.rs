@@ -1682,14 +1682,14 @@ theGoldenThrone : Ability
 theGoldenThrone =
   Static (Intercepts (LosesGame You) [] Nothing
                      (Sequentially [Macros.exile You Macros.thisArtifact,
-                                    ChangeLife You (Set (Lit 1))])
+                                    Macros.lifeTotalBecomes You (Lit 1)])
                      Repeatedly Nothing)
 
 stunningReversal : Ability
 stunningReversal =
   Spell (Continuously {ts = StaticFirstDone} (Intercepts (LosesGame You) [] Nothing
                                   (Sequentially [Draw You (Lit 7),
-                                                 ChangeLife You (Set (Lit 1))])
+                                                 Macros.lifeTotalBecomes You (Lit 1)])
                                   NextTimeOnly Nothing)
                       (Just ThisTurn))
 
@@ -1716,7 +1716,7 @@ exquisiteArchangel =
        [ Macros.keyword "Flying"
        , Static (Intercepts (LosesGame You) [] Nothing
                             (Sequentially [Macros.exile You Macros.thisCreature,
-                                           ChangeLife You (Set (PlayerStatOf StartingLifeTotal You))])
+                                           Macros.lifeTotalBecomes You (PlayerStatOf StartingLifeTotal You)])
                             Repeatedly Nothing) ]
        (Just (5, 5))
 
@@ -1775,7 +1775,7 @@ elderscaleWurm =
   Macros.triggeredIf When
                      (Enters Macros.thisCreature Nothing)
                      (CompareAmt (PlayerStatOf LifeTotal You) Less (Lit 7))
-                     (ChangeLife You (Set (Lit 7)))
+                     (Macros.lifeTotalBecomes You (Lit 7))
 
 gloriousEnforcer : Card
 gloriousEnforcer =
@@ -11229,7 +11229,7 @@ mirelurkQueenTrigger =
     (VerbedEvent Nothing "Mill"
                  (Just (Macros.counted (Macros.atLeast 1)
                                      (And [Not Macros.land,
-                                           InZone (ZoneAt Library Bare)])))
+                                           InZone Macros.libraryZ])))
                  Nothing False)
     OncePerTurn
     (Sequentially [ (Draw You (Lit 1))
@@ -13349,14 +13349,14 @@ obeliskOfUndoing =
   Macros.activated (Compound [Mana [Macros.generic 6], TapSymbol])
                    (Macros.returnTo
                       (Macros.target (And [Permanent, HasPossessor OwnerAx You, HasPossessor ControllerAx You]))
-                      Macros.handZ)
+                      Macros.handZ [])
 
 ||| Flickering Ward
 public export
 flickeringWardBounce : Ability
 flickeringWardBounce =
   Macros.activated (Mana [Macros.pip White])
-                   (Macros.returnTo Macros.thisAura Macros.handZ)
+                   (Macros.returnTo Macros.thisAura Macros.handZ [])
 
 ||| Blight Herder
 public export
@@ -13372,12 +13372,11 @@ blightHerderCast =
 public export
 openTheVaults : Effect []
 openTheVaults =
-  Enact Nothing "Return"
-    (Move (Macros.allOf (And [IsCard,
+  Macros.returnTo (Macros.allOf (And [IsCard,
                        Or [Macros.artifact, Macros.enchantment],
                        InZone (Macros.graveyardOf (PlayerGroup AllPlayers))]))
-          Macros.battlefieldZ
-          [Under (PossessorsOf OwnerAx ((Macros.It ManyOf)))])
+                  Macros.battlefieldZ
+                  [Under (PossessorsOf OwnerAx ((Macros.It ManyOf)))]
 
 ||| Crackling Doom
 public export
@@ -14854,7 +14853,7 @@ midnightScavengers =
                       (Macros.target (And [ Macros.creature
                                           , InZone (Macros.graveyardOf You)
                                           , Compare [CharAxis ManaValue] AtMost (Lit 3) ]))
-                      Macros.handZ)) ]
+                      Macros.handZ [])) ]
             (Macros.printedBox (Just (3, 3))))
     Cards.chitteringHostOnScavengers
 
@@ -15430,7 +15429,7 @@ custodiSquire =
                                                , Macros.enchantment ]
                                           , InZone (Macros.graveyardOf You) ])))
                  , Macros.returnTo (Macros.allOf (And [IsCard, WithMostVotes]))
-                                   Macros.handZ ])) ]
+                                   Macros.handZ [] ])) ]
        (Just (3, 3))
 
 ||| Lieutenants of the Guard
@@ -15700,8 +15699,8 @@ mistbreathElder =
        [ Macros.triggered At (BeginningOf ThePart Upkeep (ByPlayer You))
            ((IfDone (Macros.returnTo
                  (Macros.a (Macros.otherCreatureYouControl Macros.thisCreature))
-                 Macros.handZ) (Just (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
-                           Macros.thisCreature)) (Just (Macros.may You (Macros.returnTo Macros.thisCreature Macros.handZ))))) ]
+                 Macros.handZ []) (Just (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
+                           Macros.thisCreature)) (Just (Macros.may You (Macros.returnTo Macros.thisCreature Macros.handZ []))))) ]
        (Just (2, 2))
 
 ||| Woeleecher

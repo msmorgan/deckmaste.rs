@@ -184,6 +184,10 @@ handZ : ZoneExpr bs
 handZ = ZoneAt Hand Bare
 
 public export
+libraryZ : ZoneExpr bs
+libraryZ = ZoneAt Library Bare
+
+public export
 commandZ : ZoneExpr bs
 commandZ = ZoneAt Command Bare
 
@@ -608,11 +612,13 @@ meldInto n into =
 
 public export
 returnTo : (n : Noun bs Object) -> (to : ZoneExpr (nomIntro n)) ->
+           (riders : List (TokenRider (nomIntro n))) ->
            {auto 0 ok : DestOk to} ->
            {auto 0 arr : ArrangementOk (nounPlur n) to} ->
            {auto 0 pl : Placeable (nounTy n) (zoneSort to)} ->
+           {auto 0 rf : RidersFit riders (zoneSort to)} ->
            Effect bs
-returnTo n to = Enact Nothing "Return" (Move n to [] {ok} {arr} {pl})
+returnTo n to riders = Enact Nothing "Return" (Move n to riders {ok} {arr} {pl} {rf})
 
 public export
 returnToBattlefieldTransformed :
@@ -630,7 +636,7 @@ returnToBattlefield : (n : Noun bs Object) ->
                       {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
                       {auto 0 pl : Placeable (nounTy n) Battlefield} ->
                       Effect bs
-returnToBattlefield n = returnTo n battlefieldZ {arr} {pl}
+returnToBattlefield n = returnTo n battlefieldZ [] {arr} {pl}
 
 public export
 itAsToken : {auto 0 ok : countReach TokenBorn OneOf bs = 1} -> Noun bs Object
