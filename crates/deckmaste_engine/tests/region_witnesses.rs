@@ -1589,9 +1589,21 @@ fn predator_ooze_counts_only_creatures_it_damaged_this_turn() {
 /// is the damage recipient, a history read, [CR#608.2i]). Two near misses are
 /// the controls: the same mana value under an undamaged controller, and a
 /// different mana value under the damaged one.
+///
+/// Run for both faithful spellings of "whose controller": the
+/// relation-predicate detour and the DERIVED reference `Ref(ControllerOf(It))`
+/// — the natural one, which `engine-derived-reference-in-filters` taught the
+/// frameless matcher to resolve.
 #[test]
 fn steel_hellkite_destroys_by_announced_x_and_who_it_damaged() {
-    const HELLKITE: &str = r#"Normal(
+    for damaged in ["Controls(Ref(It))", "Ref(ControllerOf(It))"] {
+        steel_hellkite_case(damaged);
+    }
+}
+
+fn steel_hellkite_case(damaged: &str) {
+    let hellkite = format!(
+        r#"Normal(
         name: "Steel Hellkite",
         mana_cost: [Generic(0)],
         types: [Artifact, Creature],
@@ -1608,16 +1620,17 @@ fn steel_hellkite_destroys_by_announced_x_and_who_it_damaged() {
                         Where(Happened(
                             event: Damage(
                                 source: Ref(This),
-                                to: Controls(Ref(It)),
+                                to: {damaged},
                                 combat: true),
                             within: ThisTurn)),
                     ]))),
                     effect: Destroy(It))),
         ],
         power: 5,
-        toughness: 5)"#;
+        toughness: 5)"#
+    );
 
-    let hellkite = fixture(HELLKITE);
+    let hellkite = fixture(&hellkite);
     let relic2 = fixture(RELIC2);
     let relic3 = fixture(RELIC3);
     let bear = fixture(BEAR);
@@ -1703,9 +1716,25 @@ fn steel_hellkite_destroys_by_announced_x_and_who_it_damaged() {
 /// The first slot is announced before the second is enumerated, so the second
 /// offers only creatures under another controller and the same-controller pair
 /// is refused as an illegal announcement.
+///
+/// Both faithful spellings of "controlled by a different player" are exercised:
+/// the relation-predicate detour, and the DERIVED reference
+/// `Ref(ControllerOf(Target(0)))` — the natural spelling of "the controller of
+/// the first target", which `engine-derived-reference-in-filters` taught the
+/// frameless matcher to resolve. Same card, same refusal, either way.
 #[test]
 fn run_away_together_refuses_two_targets_under_one_controller() {
-    const RUN_AWAY: &str = r#"Normal(
+    for other_controller in [
+        "ControlledBy(Controls(Ref(Target(0))))",
+        "ControlledBy(Ref(ControllerOf(Target(0))))",
+    ] {
+        run_away_together_case(other_controller);
+    }
+}
+
+fn run_away_together_case(other_controller: &str) {
+    let run_away = format!(
+        r#"Normal(
         name: "Run Away Together",
         mana_cost: [Generic(0)],
         types: [Instant],
@@ -1715,13 +1744,14 @@ fn run_away_together_refuses_two_targets_under_one_controller() {
                     TargetOne(Creature),
                     TargetOne(And([
                         Creature,
-                        Not(ControlledBy(Controls(Ref(Target(0))))),
+                        Not({other_controller}),
                     ])),
                 ],
                 effect: Sequentially([Move(Target(0), Hand), Move(Target(1), Hand)]))),
-        ])"#;
+        ])"#
+    );
 
-    let run_away = fixture(RUN_AWAY);
+    let run_away = fixture(&run_away);
     let bear = fixture(BEAR);
     let mut p0 = deck(&run_away, 2);
     p0.extend(deck(&bear, 22));

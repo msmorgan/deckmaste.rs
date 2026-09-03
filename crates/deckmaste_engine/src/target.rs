@@ -624,7 +624,7 @@ pub(crate) fn matches_with_activation(
 /// controller read below is the same one the sibling
 /// `Predicate::Relation(ControlledBy)` arm uses, so the two spellings of
 /// "controlled by the same player as X" agree; both share the narrowness that a
-/// layer-2 control-changing effect [CR#613.1b] is not seen.
+/// control-changing effect, which applies in layer 2 [CR#613.1b], is not seen.
 fn resolve_frameless_reference(
     state: &GameState,
     r: &Reference,
@@ -639,9 +639,10 @@ fn resolve_frameless_reference(
             .activation_product(activation, reference)
             .and_then(|product| product.current)
             .or_else(|| resolve_carrier_register(state, reference, watcher, activation)),
-        // [CR#109.5]: the controller of a referenced object. Only an object on
-        // the stack or the battlefield has one [CR#109.4]; a player proxy has
-        // no controller, so it fizzles rather than answering with itself.
+        // [CR#110.2]: every permanent has a controller, so this derives the
+        // player under whose control the referenced object is. Only an object
+        // on the stack or the battlefield has one at all [CR#109.4]; a player
+        // proxy has none, so it fizzles rather than answering with itself.
         Reference::ControllerOf(inner) => {
             let object = state.objects.get(resolve_frameless_reference(
                 state, inner, watcher, activation,
@@ -662,10 +663,11 @@ fn resolve_frameless_reference(
             let id = resolve_frameless_reference(state, inner, watcher, activation)?;
             state.objects.get(id)?.attached_to
         }
-        // [CR#102.2]: an opponent of the referenced player — the SAME single
-        // product `resolve::query`'s evaluator picks, so the framed and
-        // frameless readings of one card agree. The existential "is any
-        // opponent of" reading is `Predicate::Relation(OpponentOf)`, a
+        // An opponent of the referenced player — in two-player the only one
+        // [CR#102.2], and in multiplayer one of several [CR#102.3], picked here
+        // as the SAME single product `resolve::query`'s evaluator picks so the
+        // framed and frameless readings of one card agree. The existential "is
+        // ANY opponent of" reading is `Predicate::Relation(OpponentOf)`, a
         // different form.
         Reference::OpponentOf(inner) => {
             let id = resolve_frameless_reference(state, inner, watcher, activation)?;
@@ -687,8 +689,8 @@ fn resolve_frameless_reference(
 
 /// The carrier-anchored reading of a register with no live product in the
 /// activation record: the intrinsic source/controller parameters resolve
-/// against `watcher` ([CR#611.2c] — the ability's own source), everything else
-/// yields `None`.
+/// against `watcher` — the carrier of the ability doing the matching —
+/// and everything else yields `None`.
 fn resolve_carrier_register(
     state: &GameState,
     reference: deckmaste_core::RefId,
