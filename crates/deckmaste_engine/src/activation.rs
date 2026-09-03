@@ -818,6 +818,31 @@ impl crate::state::GameState {
         self.enter_region_with(region, frame, &[(Provenance::Candidate, value)], &[])
     }
 
+    /// A GONE candidate's region entry: the candidate binds as the snapshot
+    /// the caller already holds, not as its stale id.
+    ///
+    /// [CR#608.2i]: a look-back read does not require its subjects to still be
+    /// in the zone they were in. The candidate of a leaves-the-battlefield
+    /// trigger's per-candidate predicate is exactly that subject, so the
+    /// register it fills must keep an identity a history participant filter
+    /// can compare against — and after the object left the store, a stale id
+    /// packs to a product with neither `current` nor `lki`, which names
+    /// nothing. Mirrors `event_patient_value`'s snapshot-backed product; a
+    /// candidate that IS still live keeps its live identity too, so an
+    /// action-side read is unaffected.
+    pub(crate) fn enter_candidate_region_snapshot<T>(
+        &self,
+        region: &Region<T>,
+        frame: &Frame,
+        candidate: &LkiSnapshot,
+    ) -> ActivationId {
+        let value = Value::Object(ReferenceProduct {
+            current: self.objects.get(candidate.object).map(|_| candidate.object),
+            lki: Some(candidate.clone()),
+        });
+        self.enter_region_with(region, frame, &[(Provenance::Candidate, value)], &[])
+    }
+
     pub(crate) fn enter_loop_region(
         &self,
         region: &Region,
@@ -1081,6 +1106,7 @@ pub(crate) type ActivationTable = HashMap<ActivationId, Activation>;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::object::ObjectSource;
     use crate::player::PlayerId;
     use crate::stack::Frame;
     use crate::state::GameConfig;
@@ -1120,5 +1146,47 @@ mod tests {
         assert!(state.activation_product(cloned, RefId(0)).is_none());
         state.remove_activation_family(cloned);
         assert!(state.activations.borrow().is_empty());
+    }
+
+    /// [CR#608.2i]: a look-back read's subjects need not still be in the zone
+    /// they were in. So the candidate register of a departed candidate's
+    /// predicate region has to keep an identity a history participant filter
+    /// can compare against — and the stale id alone does not: it packs to a
+    /// product with neither a live object nor a snapshot, which names nothing.
+    #[test]
+    fn a_departed_candidate_binds_its_snapshot_where_its_stale_id_names_nothing() {
+        let mut state = bare_game();
+        let source = state.player(PlayerId(0)).object;
+        let candidate = state.objects.mint(
+            ObjectSource::Player(PlayerId(0)),
+            PlayerId(0),
+            Some(deckmaste_core::Zone::Battlefield),
+        );
+        let snapshot = LkiSnapshot::capture(&state, candidate);
+        state.objects.remove(candidate);
+
+        let region = Region::unary(deckmaste_core::Kind::Object, Provenance::Candidate, ());
+        let frame = Frame::bare(source, PlayerId(0));
+
+        let by_id = state.enter_candidate_region(&region, &frame, candidate);
+        assert_eq!(
+            state.activation_product(by_id, RefId(0)),
+            Some(ReferenceProduct {
+                current: None,
+                lki: None,
+            }),
+            "the stale id packs to a product that names nothing"
+        );
+
+        let by_snapshot = state.enter_candidate_region_snapshot(&region, &frame, &snapshot);
+        let product = state
+            .activation_product(by_snapshot, RefId(0))
+            .expect("the candidate register is bound");
+        assert_eq!(product.current, None, "the candidate is gone");
+        assert_eq!(
+            product.lki.map(|lki| lki.object),
+            Some(candidate),
+            "…and still names itself through its last-known information"
+        );
     }
 }

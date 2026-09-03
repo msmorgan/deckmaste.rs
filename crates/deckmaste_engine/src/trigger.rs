@@ -557,7 +557,7 @@ impl GameState {
                     if activation != crate::ActivationId::NONE {
                         frame.activation = activation;
                     }
-                    frame.activation = self.enter_candidate_region(cond, &frame, snapshot.object);
+                    frame.activation = self.enter_candidate_region_snapshot(cond, &frame, snapshot);
                     self.condition_holds(&cond.body, &frame)
                 }
             },

@@ -1455,19 +1455,14 @@ fn trygon_predator_targets_only_the_damaged_players_permanents() {
 /// source. A creature the Ooze killed in combat fires it; a creature that dies
 /// the same turn without having been damaged by the Ooze does not.
 ///
-/// BLOCKED in the engine, not the grammar: the fixture reads and lowers, and
-/// the `Where`/`Happened` machinery works (a source-only history read on the
-/// same shape fires). What fails is the RECIPIENT read. `FactView::of` records
-/// a `DamageDealt` fact's participants as bare ids (`Part::Obj`) with no LKI
-/// snapshot, and `GameState::part_matches` matches a stale id against
-/// `Predicate::Any` only — so `Damage(to: Ref(It))` can never match once the
-/// damaged creature has left the battlefield, which is exactly when this
-/// trigger fires. Owner: the damage fact needs the snapshot participant a
-/// past-form `ZoneChange` already carries.
+/// The RECIPIENT half is the load-bearing read, and both its sides are
+/// last-known information: the recorded damage fact's patient is the snapshot
+/// taken when the fact was logged, and the candidate the `Where` region binds
+/// is the snapshot of a creature that has already left the battlefield —
+/// exactly when this trigger fires. [CR#608.2i] is what makes that legible:
+/// the damaged creature need not still be in the zone it was in, as long as it
+/// was there when the damage was dealt.
 #[test]
-#[ignore = "engine: a damage fact's recipient is a bare id with no LKI \
-            snapshot, so a candidate-relative `Damage(to: Ref(It))` history \
-            read cannot match a creature that has since died"]
 fn predator_ooze_counts_only_creatures_it_damaged_this_turn() {
     const OOZE: &str = r#"Normal(
         name: "Predator Ooze",
@@ -1509,7 +1504,11 @@ fn predator_ooze_counts_only_creatures_it_damaged_this_turn() {
     state.objects.obj_mut(slime).summoning_sick = false;
     let victim = onto_battlefield(&mut state, PlayerId(1), "Witness Bear");
     let bystander = onto_battlefield(&mut state, PlayerId(1), "Witness Bear");
-    into_hand(&mut state, PlayerId(0), "Witness Doom");
+    // Seeded BEFORE the run to combat, so the control's cast is offered by the
+    // priority window the fixture stops on: `Priority::legal` is snapshotted
+    // when the window opens, and `into_hand` moves a card behind the engine's
+    // back.
+    let doom_spell = into_hand(&mut state, PlayerId(0), "Witness Doom");
 
     let mut declared = false;
     let mut blocked = false;
@@ -1556,7 +1555,6 @@ fn predator_ooze_counts_only_creatures_it_damaged_this_turn() {
 
     // The control: a creature that dies this same turn WITHOUT the Ooze having
     // damaged it leaves the count alone.
-    let doom_spell = into_hand(&mut state, PlayerId(0), "Witness Doom");
     let mut targeting = Targeting::new(vec![vec![bystander]]);
     {
         let mut answer = |s: &GameState, p: &PendingDecision| targeting.answer(s, p);
