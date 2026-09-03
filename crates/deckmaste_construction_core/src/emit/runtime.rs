@@ -245,7 +245,11 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             "Relationality",
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
-                pub(crate) enum Relationality { NonRelational, Relational }
+                pub(crate) enum Relationality {
+                    NonRelational,
+                    QualifiedRelational,
+                    Relational,
+                }
             },
         ),
         named_type(

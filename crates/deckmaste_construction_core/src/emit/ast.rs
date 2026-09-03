@@ -1124,6 +1124,9 @@ fn feature_value(value: crate::feature::FeatureValue) -> TokenStream {
         crate::feature::FeatureValue::NonRelational => {
             quote! { Relationality::NonRelational }
         }
+        crate::feature::FeatureValue::QualifiedRelational => {
+            quote! { Relationality::QualifiedRelational }
+        }
         crate::feature::FeatureValue::Relational => quote! { Relationality::Relational },
     }
 }

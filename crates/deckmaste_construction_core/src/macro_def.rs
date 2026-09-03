@@ -182,6 +182,13 @@ pub enum Grammar {
         plural: DerivedSurface,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         plural_onset: Option<Onset>,
+        #[serde(
+            default,
+            skip_serializing_if = "NounLocativeTemporalLicense::is_unlicensed"
+        )]
+        locative_temporal_license: NounLocativeTemporalLicense,
+        #[serde(default, skip_serializing_if = "NounRelationality::is_non_relational")]
+        relationality: NounRelationality,
     },
     FixedTerm {
         surface: String,
@@ -474,8 +481,13 @@ impl GrammarRow {
 /// Closed recipe information retained after surface sealing.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GrammarRecipe {
-    Verb { valence: VerbValence },
-    Noun,
+    Verb {
+        valence: VerbValence,
+    },
+    Noun {
+        locative_temporal_license: NounLocativeTemporalLicense,
+        relationality: NounRelationality,
+    },
     FixedTerm,
     FixedClause,
     FixedKeyword,
@@ -487,11 +499,51 @@ impl GrammarRecipe {
     pub const fn position(&self) -> GrammarPosition {
         match self {
             Self::Verb { .. } => GrammarPosition::Verb,
-            Self::Noun => GrammarPosition::Noun,
+            Self::Noun { .. } => GrammarPosition::Noun,
             Self::FixedTerm => GrammarPosition::FixedTerm,
             Self::FixedClause => GrammarPosition::FixedClause,
             Self::FixedKeyword => GrammarPosition::FixedKeyword,
         }
+    }
+}
+
+/// The locative or temporal preposition family licensed by a declaration noun.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub enum NounLocativeTemporalLicense {
+    #[default]
+    Unlicensed,
+    InLicensed,
+    OnLicensed,
+    InOrOnEdgeLicensed,
+    TemporalLicensed,
+}
+
+impl NounLocativeTemporalLicense {
+    #[allow(
+        clippy::trivially_copy_pass_by_ref,
+        reason = "serde skip_serializing_if predicates receive references"
+    )]
+    fn is_unlicensed(&self) -> bool {
+        *self == Self::Unlicensed
+    }
+}
+
+/// Whether a declaration noun selects an `of` complement.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub enum NounRelationality {
+    #[default]
+    NonRelational,
+    QualifiedRelational,
+    Relational,
+}
+
+impl NounRelationality {
+    #[allow(
+        clippy::trivially_copy_pass_by_ref,
+        reason = "serde skip_serializing_if predicates receive references"
+    )]
+    fn is_non_relational(&self) -> bool {
+        *self == Self::NonRelational
     }
 }
 
@@ -665,6 +717,10 @@ struct DiagnosticFieldValues<'a> {
     body: Option<&'a RawValue>,
 }
 
+#[allow(
+    dead_code,
+    reason = "diagnostic grammar fields are deserialized solely to authenticate source positions"
+)]
 #[derive(Deserialize)]
 enum DiagnosticGrammar<'a> {
     Verb {
@@ -682,6 +738,10 @@ enum DiagnosticGrammar<'a> {
         singular: &'a RawValue,
         #[serde(default, borrow)]
         plural: Option<&'a RawValue>,
+        #[serde(default, borrow)]
+        locative_temporal_license: Option<&'a RawValue>,
+        #[serde(default, borrow)]
+        relationality: Option<&'a RawValue>,
     },
     FixedTerm {
         #[serde(borrow)]
@@ -974,7 +1034,12 @@ impl GrammarSourceMap {
                     .transpose()?,
                 valence: raw_position(path, source, valence, declaration)?,
             }),
-            DiagnosticGrammar::Noun { singular, plural } => Ok(Self::Noun {
+            DiagnosticGrammar::Noun {
+                singular,
+                plural,
+                locative_temporal_license: _,
+                relationality: _,
+            } => Ok(Self::Noun {
                 singular: raw_position(path, source, singular, declaration)?,
                 plural: plural
                     .map(|value| raw_position(path, source, value, declaration))
@@ -1451,6 +1516,25 @@ struct FixedGrammarPositions {
     block_label: Option<SourcePosition>,
 }
 
+struct VerbGrammarData {
+    bare: String,
+    bare_onset: Option<Onset>,
+    third_person: DerivedSurface,
+    third_person_onset: Option<Onset>,
+    participle: DerivedSurface,
+    participle_onset: Option<Onset>,
+    valence: VerbValence,
+}
+
+struct NounGrammarData {
+    singular: String,
+    singular_onset: Option<Onset>,
+    plural: DerivedSurface,
+    plural_onset: Option<Onset>,
+    locative_temporal_license: NounLocativeTemporalLicense,
+    relationality: NounRelationality,
+}
+
 fn normalize_grammar(
     path: &Path,
     source_map: &GrammarSourceMap,
@@ -1476,57 +1560,30 @@ fn normalize_grammar(
                     participle: participle_position,
                     valence: valence_position,
                 },
-            ) => {
-                validate_surface(path, *bare_position, "bare", &bare)?;
-                validate_valence(path, *valence_position, &valence)?;
-                let third_person = realize_derived_surface(
-                    path,
-                    *bare_position,
-                    *third_person_position,
-                    "third_person",
-                    english_verb(&bare),
+            ) => normalize_verb_grammar(
+                path,
+                *bare_position,
+                *third_person_position,
+                *participle_position,
+                *valence_position,
+                VerbGrammarData {
+                    bare,
+                    bare_onset,
                     third_person,
-                )?;
-                let participle = realize_derived_surface(
-                    path,
-                    *bare_position,
-                    *participle_position,
-                    "participle",
-                    english_participle(&bare),
+                    third_person_onset,
                     participle,
-                )?;
-                let mut surfaces = vec![RealizedSurface {
-                    feature: SurfaceFeature::Bare,
-                    onset: normalized_onset(path, *bare_position, &bare, bare_onset)?,
-                    onset_override: bare_onset,
-                    text: bare.clone(),
-                }];
-                if let Some(text) = third_person {
-                    let position = third_person_position.unwrap_or(*bare_position);
-                    surfaces.push(RealizedSurface {
-                        feature: SurfaceFeature::ThirdPersonSingular,
-                        onset: normalized_onset(path, position, &text, third_person_onset)?,
-                        onset_override: third_person_onset,
-                        text,
-                    });
-                }
-                if let Some(text) = participle {
-                    let position = participle_position.unwrap_or(*bare_position);
-                    surfaces.push(RealizedSurface {
-                        feature: SurfaceFeature::Participle,
-                        onset: normalized_onset(path, position, &text, participle_onset)?,
-                        onset_override: participle_onset,
-                        text,
-                    });
-                }
-                (bare, GrammarRecipe::Verb { valence }, surfaces, None, None)
-            }
+                    participle_onset,
+                    valence,
+                },
+            )?,
             (
                 Grammar::Noun {
                     singular,
                     singular_onset,
                     plural,
                     plural_onset,
+                    locative_temporal_license,
+                    relationality,
                 },
                 GrammarSourceMap::Noun {
                     singular: singular_position,
@@ -1536,10 +1593,14 @@ fn normalize_grammar(
                 path,
                 *singular_position,
                 *plural_position,
-                singular,
-                singular_onset,
-                plural,
-                plural_onset,
+                NounGrammarData {
+                    singular,
+                    singular_onset,
+                    plural,
+                    plural_onset,
+                    locative_temporal_license,
+                    relationality,
+                },
             )?,
             (
                 Grammar::FixedTerm { surface, onset },
@@ -1608,40 +1669,107 @@ fn normalize_grammar(
     )
 }
 
+fn normalize_verb_grammar(
+    path: &Path,
+    bare_position: SourcePosition,
+    third_person_position: Option<SourcePosition>,
+    participle_position: Option<SourcePosition>,
+    valence_position: SourcePosition,
+    data: VerbGrammarData,
+) -> Result<NormalizedGrammarParts, ReadError> {
+    validate_surface(path, bare_position, "bare", &data.bare)?;
+    validate_valence(path, valence_position, &data.valence)?;
+    let third_person = realize_derived_surface(
+        path,
+        bare_position,
+        third_person_position,
+        "third_person",
+        english_verb(&data.bare),
+        data.third_person,
+    )?;
+    let participle = realize_derived_surface(
+        path,
+        bare_position,
+        participle_position,
+        "participle",
+        english_participle(&data.bare),
+        data.participle,
+    )?;
+    let mut surfaces = vec![RealizedSurface {
+        feature: SurfaceFeature::Bare,
+        onset: normalized_onset(path, bare_position, &data.bare, data.bare_onset)?,
+        onset_override: data.bare_onset,
+        text: data.bare.clone(),
+    }];
+    if let Some(text) = third_person {
+        let position = third_person_position.unwrap_or(bare_position);
+        surfaces.push(RealizedSurface {
+            feature: SurfaceFeature::ThirdPersonSingular,
+            onset: normalized_onset(path, position, &text, data.third_person_onset)?,
+            onset_override: data.third_person_onset,
+            text,
+        });
+    }
+    if let Some(text) = participle {
+        let position = participle_position.unwrap_or(bare_position);
+        surfaces.push(RealizedSurface {
+            feature: SurfaceFeature::Participle,
+            onset: normalized_onset(path, position, &text, data.participle_onset)?,
+            onset_override: data.participle_onset,
+            text,
+        });
+    }
+    Ok((
+        data.bare,
+        GrammarRecipe::Verb {
+            valence: data.valence,
+        },
+        surfaces,
+        None,
+        None,
+    ))
+}
+
 fn normalize_noun_grammar(
     path: &Path,
     singular_position: SourcePosition,
     plural_position: Option<SourcePosition>,
-    singular: String,
-    singular_onset: Option<Onset>,
-    plural: DerivedSurface,
-    plural_onset: Option<Onset>,
+    data: NounGrammarData,
 ) -> Result<NormalizedGrammarParts, ReadError> {
-    validate_surface(path, singular_position, "singular", &singular)?;
+    validate_surface(path, singular_position, "singular", &data.singular)?;
     let plural = realize_derived_surface(
         path,
         singular_position,
         plural_position,
         "plural",
-        english_noun(&singular),
-        plural,
+        english_noun(&data.singular),
+        data.plural,
     )?;
     let mut surfaces = vec![RealizedSurface {
         feature: SurfaceFeature::Singular,
-        onset: normalized_onset(path, singular_position, &singular, singular_onset)?,
-        onset_override: singular_onset,
-        text: singular.clone(),
+        onset: normalized_onset(path, singular_position, &data.singular, data.singular_onset)?,
+        onset_override: data.singular_onset,
+        text: data.singular.clone(),
     }];
     if let Some(text) = plural {
         let position = plural_position.unwrap_or(singular_position);
         surfaces.push(RealizedSurface {
             feature: SurfaceFeature::Plural,
-            onset: normalized_onset(path, position, &text, plural_onset)?,
-            onset_override: plural_onset,
+            onset: normalized_onset(path, position, &text, data.plural_onset)?,
+            onset_override: data.plural_onset,
             text,
         });
     }
-    Ok((singular, GrammarRecipe::Noun, surfaces, None, None))
+    Ok((
+        data.singular,
+        GrammarRecipe::Noun {
+            locative_temporal_license: data.locative_temporal_license,
+            relationality: data.relationality,
+        },
+        surfaces,
+        None,
+        None,
+    ))
 }
 
 fn normalize_fixed_grammar(

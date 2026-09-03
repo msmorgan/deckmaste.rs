@@ -1,6 +1,10 @@
 TurnPart(
     name: "MainPhase",
     spelling: "main phase",
-    grammar: Noun(singular: "main phase"),
+    grammar: Noun(
+        singular: "main phase",
+        locative_temporal_license: TemporalLicensed,
+        relationality: Relational,
+    ),
     params: [],
 )

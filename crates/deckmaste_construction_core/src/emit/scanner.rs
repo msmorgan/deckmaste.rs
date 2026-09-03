@@ -605,7 +605,16 @@ fn declaration_noun_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                             ::deckmaste_construction_core::macro_def::SurfaceFeature::Plural => Number::Plural,
                             _ => continue,
                         };
-                        let Some(declaration) = #declaration::from_reading(id) else {
+                        let Some((locative_temporal_license, relationality)) =
+                            input.environment.declaration_noun_features(&id)
+                        else {
+                            continue;
+                        };
+                        let Some(declaration) = #declaration::from_reading(
+                            id,
+                            locative_temporal_license,
+                            relationality,
+                        ) else {
                             continue;
                         };
                         matches.push(LexicalMatch {

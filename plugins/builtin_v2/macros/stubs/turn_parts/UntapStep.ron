@@ -1,6 +1,10 @@
 TurnPart(
     name: "UntapStep",
     spelling: "untap step",
-    grammar: Noun(singular: "untap step"),
+    grammar: Noun(
+        singular: "untap step",
+        locative_temporal_license: TemporalLicensed,
+        relationality: Relational,
+    ),
     params: [],
 )

@@ -6,6 +6,8 @@ use std::path::Path;
 use deckmaste_construction_core::macro_def::DeclarationKind;
 use deckmaste_construction_core::macro_def::GrammarRecipe;
 use deckmaste_construction_core::macro_def::NormalizedDeclaration;
+use deckmaste_construction_core::macro_def::NounLocativeTemporalLicense;
+use deckmaste_construction_core::macro_def::NounRelationality;
 use deckmaste_construction_core::macro_def::SpellingPart;
 use deckmaste_construction_core::macro_def::SubtypeCategory;
 use deckmaste_construction_core::macro_def::SurfaceFeature;
@@ -224,7 +226,10 @@ fn builtin_v2_noncreature_subtypes_match_each_supported_catalog_and_category() {
                 declaration
                     .grammar()
                     .map(deckmaste_construction_core::macro_def::GrammarRow::recipe),
-                Some(&GrammarRecipe::Noun)
+                Some(&GrammarRecipe::Noun {
+                    locative_temporal_license: NounLocativeTemporalLicense::Unlicensed,
+                    relationality: NounRelationality::NonRelational,
+                })
             );
             let expected_surfaces =
                 match attested_plural(spec.category, declaration.identity().name()) {

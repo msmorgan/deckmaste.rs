@@ -1,7 +1,8 @@
 #![allow(
     dead_code,
     unused_imports,
-    reason = "the compile-fail fixture supplies the complete generated-code environment"
+    unexpected_cfgs,
+    reason = "the compile-fail fixture supplies the complete generated-code environment and feature gates"
 )]
 
 use deckmaste_construction::constructions;

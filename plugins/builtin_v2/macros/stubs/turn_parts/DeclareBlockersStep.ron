@@ -1,6 +1,10 @@
 TurnPart(
     name: "DeclareBlockersStep",
     spelling: "declare blockers step",
-    grammar: Noun(singular: "declare blockers step"),
+    grammar: Noun(
+        singular: "declare blockers step",
+        locative_temporal_license: TemporalLicensed,
+        relationality: Relational,
+    ),
     params: [],
 )

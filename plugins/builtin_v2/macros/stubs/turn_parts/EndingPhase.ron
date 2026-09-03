@@ -1,6 +1,10 @@
 TurnPart(
     name: "EndingPhase",
     spelling: "ending phase",
-    grammar: Noun(singular: "ending phase"),
+    grammar: Noun(
+        singular: "ending phase",
+        locative_temporal_license: TemporalLicensed,
+        relationality: Relational,
+    ),
     params: [],
 )

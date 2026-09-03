@@ -2278,7 +2278,7 @@ mod tests {
             .unwrap(),
             read_str(
                 "/synthetic/turn_parts/Upkeep.ron",
-                r#"TurnPart(name:"Upkeep",spelling:"upkeep",grammar:Noun(singular:"upkeep"))"#,
+                r#"TurnPart(name:"Upkeep",spelling:"upkeep",grammar:Noun(singular:"upkeep",locative_temporal_license:TemporalLicensed,relationality:Relational))"#,
             )
             .unwrap(),
             read_str(
@@ -3124,8 +3124,12 @@ mod tests {
             environment.surface(&id, SurfaceFeature::Plural),
             Some("creatures")
         );
-        let identity =
-            DeclarationNoun::from_reading(id).expect("Type is an allowed declaration noun kind");
+        let identity = DeclarationNoun::from_reading(
+            id,
+            deckmaste_construction_core::macro_def::NounLocativeTemporalLicense::Unlicensed,
+            deckmaste_construction_core::macro_def::NounRelationality::NonRelational,
+        )
+        .expect("Type is an allowed declaration noun kind");
         let value = Leaf::Noun {
             noun: Noun::Declaration(identity),
             number: super::Number::Plural,
@@ -3134,7 +3138,7 @@ mod tests {
         };
         assert_eq!(
             value_label_v1(&value),
-            "Noun { noun: Declaration(DeclarationNoun { id: DeclarationIdentity { kind: Type, name: \"Creature\" } }), number: Plural, onset: Consonant, possessive_ending: EndsInS }"
+            "Noun { noun: Declaration(DeclarationNoun { id: DeclarationIdentity { kind: Type, name: \"Creature\" }, locative_temporal_license: Unlicensed, relationality: NonRelational }), number: Plural, onset: Consonant, possessive_ending: EndsInS }"
         );
     }
 

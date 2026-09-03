@@ -1,6 +1,10 @@
 TurnPart(
     name: "EndStep",
     spelling: "end step",
-    grammar: Noun(singular: "end step"),
+    grammar: Noun(
+        singular: "end step",
+        locative_temporal_license: TemporalLicensed,
+        relationality: Relational,
+    ),
     params: [],
 )

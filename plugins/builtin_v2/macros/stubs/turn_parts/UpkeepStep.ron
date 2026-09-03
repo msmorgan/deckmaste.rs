@@ -1,6 +1,10 @@
 TurnPart(
     name: "UpkeepStep",
     spelling: "upkeep step",
-    grammar: Noun(singular: "upkeep step"),
+    grammar: Noun(
+        singular: "upkeep step",
+        locative_temporal_license: TemporalLicensed,
+        relationality: Relational,
+    ),
     params: [],
 )
