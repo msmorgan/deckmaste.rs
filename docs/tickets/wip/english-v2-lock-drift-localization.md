@@ -45,14 +45,17 @@ moved only for the schema and digest-recipe migration, from
 `aeba28e9d9309c147bda971e35365589e1e6cee8a726cd8bab5cf02bb323ff54`
 to `cdd3c0ae4096c6bd538f7453ad46ef3679a38ee7a36d1ffe74f7fe0a634ffe04`.
 
-Positive gates: 412 xtask library tests passed with one documented ignore, all
-11 xtask CLI tests and the determinism test passed, strict all-target xtask
-Clippy passed, `cargo xtask english_v2 coverage --check` passed, and the full
-workspace test suite passed. The coverage check reports zero
-selected-uncovered units, unresolved ties, internal failures, exception uses,
-round-trip mismatches, ownership failures, gaps, overlaps, synthetic claims,
-or provenance-plan mismatches; its two pre-existing literal/lexicon collisions
-are unchanged.
+Post-refresh positive gates: 413 xtask library tests passed with one documented
+ignore, all 11 xtask CLI tests and the determinism test passed, and strict
+all-target xtask Clippy passed. `cargo xtask english_v2 coverage --check`
+passed against the current schema-4 lock with 32,641 total units, 16,174
+selected and covered identities, and 16,467 ordinary parse failures. It
+reported zero selected-uncovered units, unresolved ties, internal failures,
+exception uses, round-trip mismatches, ownership failures, gaps, overlaps,
+synthetic claims, or provenance-plan mismatches; its two pre-existing
+literal/lexicon collisions are unchanged. The refreshed parser-performance
+instrumentation remained wired and emitted its `PERFORMANCE` line plus the
+expected advisory ceiling warning (18.583712101 seconds against 16.260).
 
 ### Deviations and additions
 
