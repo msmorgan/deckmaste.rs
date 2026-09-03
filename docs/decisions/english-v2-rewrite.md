@@ -1180,3 +1180,24 @@ carve-out in the checker. Adjectives are content words: their long-term
 home is an adjective inventory (core seed + declaration contributions,
 mirroring nouns and verbs); the attributive-adjective vocab is a
 transitional home, not a permanent one.
+
+
+## Amendment: preposition classes are corpus-measured; complements license locatives (2026-09-02)
+
+The earlier amendment's adjunct-capable list (in, on, under, at, during)
+was written from general English, not Oracle distribution; it is
+superseded by measurement. Each Preposition member's attachment class is
+declared from its corpus behaviour — `under` occurs only selected
+("enters under your control") and is selected-only; `on`/`at`/`during`
+are adjunct-capable where the corpus shows free adjuncts ("on your
+turn", "at the beginning of…"). Second, admissibility of a locative or
+temporal PP is a conjunction: the preposition's attachment class AND the
+complement head noun's declared licence for that preposition — zone
+nouns declare their locative preposition (`hand`→in, `battlefield`→on,
+`graveyard`→in, `library`→in/on-top-of), turn-part nouns declare their
+temporal ones — relayed from the head up the NP stages to the attachment
+site, the same mechanism that licenses `of`. "Destroy target creature on
+your hand" therefore rejects on the noun's licence while "on your turn"
+attaches freely; "Under your control, draw a card" rejects because
+`under` is selected-only. No preposition or noun is named in any
+construction; all of it is declared data.
