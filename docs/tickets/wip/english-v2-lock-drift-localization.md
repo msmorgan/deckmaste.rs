@@ -55,7 +55,7 @@ exception uses, round-trip mismatches, ownership failures, gaps, overlaps,
 synthetic claims, or provenance-plan mismatches; its two pre-existing
 literal/lexicon collisions are unchanged. The refreshed parser-performance
 instrumentation remained wired and emitted its `PERFORMANCE` line plus the
-expected advisory ceiling warning (18.583712101 seconds against 16.260).
+advisory ceiling warning for all 16,174 accepted units.
 
 ### Deviations and additions
 
