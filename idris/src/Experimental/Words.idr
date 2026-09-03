@@ -648,6 +648,7 @@ public export
 data Determiner = TargetD | AD | EachD | AllD | TheD | PartD
                 | CountD
                 | SelfD
+                | BareD
 
 public export
 data PossessorAxis = OwnerAx | ControllerAx
@@ -1359,6 +1360,7 @@ openLetter l (MkBinding TheD _ _ _) = False
 openLetter l (MkBinding PartD _ _ _) = False
 openLetter l (MkBinding CountD _ _ _) = False
 openLetter l (MkBinding SelfD _ _ _) = False
+openLetter l (MkBinding BareD _ _ _) = False
 
 public export
 anyOpenLetter : Letter -> Bindings -> Bool
@@ -1397,6 +1399,7 @@ public export
 countGroups : Bindings -> Nat
 countGroups [] = Z
 countGroups (MkBinding PartD _ _ _ :: bs) = countGroups bs
+countGroups (MkBinding BareD _ _ _ :: bs) = countGroups bs
 countGroups (b :: bs) =
   if objGroup b then S (countGroups bs) else countGroups bs
 
@@ -1426,6 +1429,7 @@ public export
 countedGroupSize : Bindings -> Maybe Nat
 countedGroupSize [] = Nothing
 countedGroupSize (MkBinding PartD _ _ _ :: bs) = countedGroupSize bs
+countedGroupSize (MkBinding BareD _ _ _ :: bs) = countedGroupSize bs
 countedGroupSize (b :: bs) =
   if objGroup b then bindingSize b else countedGroupSize bs
 
@@ -1509,6 +1513,8 @@ sameDet CountD CountD = True
 sameDet CountD _ = False
 sameDet SelfD SelfD = True
 sameDet SelfD _ = False
+sameDet BareD BareD = True
+sameDet BareD _ = False
 
 public export
 Eq Determiner where
@@ -1690,6 +1696,7 @@ pluralizeBinding (MkBinding AllD k pl p) = MkBinding AllD k ManyOf p
 pluralizeBinding (MkBinding TheD k pl p) = MkBinding TheD k ManyOf p
 pluralizeBinding (MkBinding PartD k pl p) = MkBinding PartD k ManyOf p
 pluralizeBinding (MkBinding CountD k pl p) = MkBinding CountD k ManyOf p
+pluralizeBinding (MkBinding BareD k pl p) = MkBinding BareD k ManyOf p
 
 public export
 pluralizeDelta : Bindings -> Bindings

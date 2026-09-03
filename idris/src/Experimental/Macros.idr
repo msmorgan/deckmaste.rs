@@ -112,6 +112,27 @@ allOf : (p : Predicate bs k) -> {auto ph : Phrasal k} -> Noun bs k
 allOf p = Described AllDet p {ph} {ok = ()}
 
 public export
+bare : (p : Predicate bs k) -> {auto ph : Phrasal k} -> Noun bs k
+bare p = Described BareDet p {ph} {ok = ()}
+
+public export
+countOf : {bs : Bindings} -> {k : Kind} -> (p : Predicate bs k) ->
+          {auto ph : Phrasal k} ->
+          {auto 0 pl : nounPlur (bare p {ph}) = ManyOf} -> Amount bs
+countOf p = CountOf (bare p {ph}) {pl} {cg = Oh}
+
+public export
+aggregate : {bs : Bindings} -> {k : Kind} -> (op : AggregateOp) -> (ax : ProjAxis) ->
+            (p : Predicate bs k) ->
+            {auto ph : Phrasal k} -> {auto 0 sc : projScope ax = k} ->
+            {auto 0 pl : nounPlur (bare p {ph}) = ManyOf} -> Amount bs
+aggregate op ax p = Aggregate op ax (bare p {ph}) {sc} {pl}
+
+public export
+exists : {k : Kind} -> (p : Predicate bs k) -> {auto ph : Phrasal k} -> Condition bs
+exists p = Exists (bare p {ph}) {ex = Oh}
+
+public export
 the : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
       {auto 0 ok : detOk TheDet p} -> Noun bs k
 the p = Described TheDet p {ph} {ok}
@@ -499,15 +520,19 @@ manaValueOf n = StatOf ManaValue n {one}
 
 
 public export
-nForEach : {k : Kind} -> (n : Nat) -> (p : Predicate bs k) ->
+nForEach : {bs : Bindings} -> {k : Kind} -> (n : Nat) -> (p : Predicate bs k) ->
+           {auto ph : Phrasal k} ->
+           {auto 0 pl : nounPlur (bare p {ph}) = ManyOf} ->
            {auto 0 nz : IsSucc n} ->
            Amount bs
-nForEach n p = Times n (CountOf p) {nz}
+nForEach n p = Times n (countOf p {ph} {pl}) {nz}
 
 public export
-forEach : {k : Kind} -> (p : Predicate bs k) ->
+forEach : {bs : Bindings} -> {k : Kind} -> (p : Predicate bs k) ->
+          {auto ph : Phrasal k} ->
+          {auto 0 pl : nounPlur (bare p {ph}) = ManyOf} ->
           Amount bs
-forEach p = nForEach 1 p
+forEach p = nForEach 1 p {ph} {pl}
 
 public export
 move : (what : Noun bs Object) -> (to : ZoneExpr (nomIntro what)) ->

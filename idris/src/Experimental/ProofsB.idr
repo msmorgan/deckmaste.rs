@@ -256,7 +256,7 @@ badCompareLiteralSubject Oh impossible
 ||| "You gain 2 life if you control a creature. Tap it."
 public export
 badConditionAntecedent : Unspellable (Effect []) (\ok =>
-  Sequentially [OnlyIf (Macros.gainsLife You (Lit 2)) (Exists Macros.creatureYouControl) Nothing,
+  Sequentially [OnlyIf (Macros.gainsLife You (Lit 2)) (Macros.exists Macros.creatureYouControl) Nothing,
                 SetStatus Tapped (It {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badConditionAntecedent (Refl, _) impossible
 
@@ -344,7 +344,7 @@ badBecomesOwnType Oh impossible
 public export
 badOtherwiseReadsIfArm : Unspellable (Effect []) (\ok =>
   OnlyIf (Macros.create (Lit 1) (Macros.creatureTok 1 1 [Black] [creatureType "Zombie"]))
-     (Exists Macros.creatureYouControl)
+     (Macros.exists Macros.creatureYouControl)
      (Just (SetStatus Tapped (It {ok = Builtin.fst ok}) {ok = Builtin.snd ok})))
 badOtherwiseReadsIfArm (Refl, _) impossible
 
@@ -403,7 +403,7 @@ badChooseYou BareChoice impossible
 public export
 badConditionalArmAntecedent : Unspellable (Effect []) (\ok =>
   Sequentially [OnlyIf (Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [creatureType "Soldier"]))
-                   (Exists Macros.creatureYouControl)
+                   (Macros.exists Macros.creatureYouControl)
                    Nothing,
                 PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) (It {ok})])
 badConditionalArmAntecedent Refl impossible

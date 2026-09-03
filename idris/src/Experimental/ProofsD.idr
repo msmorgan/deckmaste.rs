@@ -166,7 +166,7 @@ badInstantOntoBattlefield Oh impossible
 ||| "unless"
 public export
 badUnlessOnPositive : Unspellable Ability (\ok =>
-  Static (Conditionally (Exists (And [Macros.artifact, HasPossessor ControllerAx You]))
+  Static (Conditionally (Macros.exists (And [Macros.artifact, HasPossessor ControllerAx You]))
                         (Macros.deontic Macros.thisCreature Forbid ["Attack"] Agent NoDeonticPatient)
                         Unless {st = Static.CondFirstDone} {mk = ok}))
 badUnlessOnPositive MkMarkingOk impossible
@@ -448,7 +448,7 @@ badUnlicensedDifference Refl impossible
 
 public export
 badNonComparisonDifference : Unspellable Ability (\ok =>
-  Triggered When (Enters Macros.thisCreature Nothing) [] Nothing [] Nothing Nothing (Just (Exists Macros.creatureYouControl))
+  Triggered When (Enters Macros.thisCreature Nothing) [] Nothing [] Nothing Nothing (Just (Macros.exists Macros.creatureYouControl))
             (Draw You (TheDifference {ok})))
 badNonComparisonDifference Refl impossible
 
@@ -456,8 +456,8 @@ badNonComparisonDifference Refl impossible
 public export
 badDoubleXRider : Unspellable (Effect []) (\ok =>
   Sequentially [ Draw You (LetterVal X)
-               , Define X (CountOf Macros.creatureYouControl)
-               , Define X (CountOf Macros.creature) {ok} ])
+               , Define X (Macros.countOf Macros.creatureYouControl)
+               , Define X (Macros.countOf Macros.creature) {ok} ])
 badDoubleXRider Oh impossible
 
 
@@ -465,29 +465,29 @@ badDoubleXRider Oh impossible
 public export
 badUnlicensedY : Unspellable (Effect []) (\ok =>
   Sequentially [ Draw You (LetterVal Y)
-               , Define X (CountOf Macros.creatureYouControl) {ok} ])
+               , Define X (Macros.countOf Macros.creatureYouControl) {ok} ])
 badUnlicensedY Oh impossible
 
 
 public export
 badDoubleStaticRider : Unspellable (StaticEffect []) (\ok =>
   AndAlso [ Gets Macros.thisCreature (PtUp (LetterVal X)) (PtUp (Lit 0))
-          , Define X (CountOf Macros.creatureYouControl)
-          , Define X (CountOf Macros.creature) {ok} ])
+          , Define X (Macros.countOf Macros.creatureYouControl)
+          , Define X (Macros.countOf Macros.creature) {ok} ])
 badDoubleStaticRider Oh impossible
 
 
 ||| "the greatest power among players"
 public export
 badPowerAmongPlayers : Unspellable (Amount []) (\ok =>
-  Aggregate MaxOf (CharAxis Power) AnyPlayer {sc = ok})
+  Macros.aggregate MaxOf (CharAxis Power) AnyPlayer {sc = ok})
 badPowerAmongPlayers Refl impossible
 
 
 ||| "the highest life total among creatures you control"
 public export
 badLifeTotalAmongObjects : Unspellable (Amount []) (\ok =>
-  Aggregate MaxOf (PlayerStatAxis LifeTotal) Macros.creatureYouControl {sc = ok})
+  Macros.aggregate MaxOf (PlayerStatAxis LifeTotal) Macros.creatureYouControl {sc = ok})
 badLifeTotalAmongObjects Refl impossible
 
 

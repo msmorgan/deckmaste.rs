@@ -1417,6 +1417,7 @@ mutual
     AllDet : DetPhrase bs
     TheDet : DetPhrase bs
     CountDet : (q : Quantity bs) -> (mode : Maybe (ChoiceMode bs)) -> DetPhrase bs
+    BareDet : DetPhrase bs   -- the bare plural: a description, no determiner [CR#109.2]
 
   public export
   detOf : {0 bs : Bindings} -> DetPhrase bs -> Determiner
@@ -1426,6 +1427,7 @@ mutual
   detOf AllDet = AllD
   detOf TheDet = TheD
   detOf (CountDet _ _) = CountD
+  detOf BareDet = BareD
 
   public export
   detPlur : {0 bs : Bindings} -> DetPhrase bs -> Plurality
@@ -1435,6 +1437,7 @@ mutual
   detPlur TheDet = OneOf
   detPlur EachDet = ManyOf
   detPlur AllDet = ManyOf
+  detPlur BareDet = ManyOf
 
   public export
   detOk : {bs : Bindings} -> {k : Kind} -> DetPhrase bs -> Predicate bs k -> Type
@@ -1816,11 +1819,14 @@ mutual
                    {auto 0 one : nounPlur n = OneOf} -> Amount bs
     StatOf : (c : Characteristic) -> (n : Noun bs Object) ->
              {auto 0 one : nounPlur n = OneOf} -> Amount bs
-    CountOf : {k : Kind} -> (p : Predicate bs k) ->
+    CountOf : {k : Kind} -> (grp : Noun bs k) ->
+              {auto 0 pl : nounPlur grp = ManyOf} ->
+              {auto 0 cg : CountableGroup grp} ->
               Amount bs
     Aggregate : {k : Kind} -> (op : AggregateOp) -> (ax : ProjAxis) ->
-                (p : Predicate bs k) ->
+                (grp : Noun bs k) ->
                 {auto 0 sc : projScope ax = k} ->
+                {auto 0 pl : nounPlur grp = ManyOf} ->
                 Amount bs
     CountersOn : {k : Kind} -> (kind : CounterKind) -> (holder : Noun bs k) ->
                  {auto 0 sc : counterScope kind = k} ->
@@ -1871,18 +1877,11 @@ mutual
                {auto 0 cw : ComplementWritten what} ->
                {auto 0 sb : LookbackSubject ev k} ->
                {auto 0 qm : So (eventHasMagnitude ev)} -> Amount bs
-    AggregateOf : (op : AggregateOp) -> (ax : ProjAxis) ->
-                  {k : Kind} -> (grp : Noun bs k) ->
-                  {auto 0 sc : projScope ax = k} ->
-                  {auto 0 pl : nounPlur grp = ManyOf} -> Amount bs
     AggregateOver : {k : Kind} -> (op : AggregateOp) ->
                     (dom : Predicate bs k) -> {auto ph : Phrasal k} ->
                     (body : Amount (bindFor TheD OneOf ph dom
                                       :: (predDelta dom ++ bs))) ->
                     Amount bs
-    CountOfGroup : {k : Kind} -> (grp : Noun bs k) ->
-                   {auto 0 pl : nounPlur grp = ManyOf} ->
-                   {auto 0 gm : GroupMention grp} -> Amount bs
     DistinctCount : (ax : KindAxis) -> (dom : Noun bs Object) -> Amount bs
     UpTo : (bound : Amount bs) -> Amount bs
     ShortOfCeiling : {auto 0 ok : countOutcomes CeilingShortfall bs = 1} ->
@@ -1896,8 +1895,8 @@ mutual
   amtDelta (CountersOn _ holder) = nounDelta holder
   amtDelta (TimesPaid _ whose) = nounDelta whose
   amtDelta (EventCount _ who _ what) = nounDelta who ++ complementDelta what
-  amtDelta (CountOf p) = predDelta p
-  amtDelta (Aggregate _ _ p) = predDelta p
+  amtDelta (CountOf grp) = nounDelta grp
+  amtDelta (Aggregate _ _ grp) = nounDelta grp
   amtDelta (Times _ a) = amtDelta a
   amtDelta (TimesOf per a) = amtDelta per ++ amtDelta a
   amtDelta ThatMuch = []
@@ -1919,9 +1918,7 @@ mutual
   amtDelta (Half _ a) = amtDelta a
   amtDelta (DifferenceBetween a b) = amtDelta a ++ amtDelta b
   amtDelta (EventSum _ who _ what) = nounDelta who ++ complementDelta what
-  amtDelta (AggregateOf _ _ grp) = nounDelta grp
   amtDelta (AggregateOver _ dom _) = predDelta dom
-  amtDelta (CountOfGroup grp) = nounDelta grp
   amtDelta (DistinctCount _ dom) = nounDelta dom
   amtDelta (UpTo b) = outcomeB CeilingShortfall :: amtDelta b
   amtDelta ShortOfCeiling = []
@@ -1934,8 +1931,8 @@ mutual
   amtIntro (CountersOn _ holder) = nomIntro holder
   amtIntro (TimesPaid _ whose) = nomIntro whose
   amtIntro (EventCount _ who _ what) = complementDelta what ++ nomIntro who
-  amtIntro (CountOf p) = predDelta p ++ bs
-  amtIntro (Aggregate _ _ p) = predDelta p ++ bs
+  amtIntro (CountOf grp) = nomIntro grp
+  amtIntro (Aggregate _ _ grp) = nomIntro grp
   amtIntro (Times per a) = amtIntro a
   amtIntro (TimesOf per a) = amtIntro a
   amtIntro ThatMuch = bs
@@ -1957,9 +1954,7 @@ mutual
   amtIntro (Half _ a) = amtIntro a
   amtIntro (DifferenceBetween a b) = amtIntro b
   amtIntro (EventSum _ who _ what) = complementDelta what ++ nomIntro who
-  amtIntro (AggregateOf _ _ grp) = nomIntro grp
   amtIntro (AggregateOver _ dom _) = predDelta dom ++ bs
-  amtIntro (CountOfGroup grp) = nomIntro grp
   amtIntro (DistinctCount _ dom) = nomIntro dom
   amtIntro (UpTo b) = outcomeB CeilingShortfall :: amtIntro b
   amtIntro ShortOfCeiling = bs
@@ -2001,9 +1996,7 @@ mutual
   amtPlur (Half _ _) = ManyOf
   amtPlur (DifferenceBetween _ _) = ManyOf
   amtPlur (EventSum _ _ _ _) = ManyOf
-  amtPlur (AggregateOf _ _ _) = ManyOf
   amtPlur (AggregateOver _ _ _) = ManyOf
-  amtPlur (CountOfGroup _) = ManyOf
   amtPlur (DistinctCount _ _) = ManyOf
   amtPlur (UpTo b) = amtPlur b
   amtPlur ShortOfCeiling = ManyOf
@@ -2088,9 +2081,7 @@ mutual
   readAmount (Half _ _) = False
   readAmount (DifferenceBetween _ _) = False
   readAmount (EventSum _ _ _ _) = True
-  readAmount (AggregateOf _ _ _) = True
   readAmount (AggregateOver _ _ _) = True
-  readAmount (CountOfGroup _) = True
   readAmount (DistinctCount _ _) = True
   readAmount (UpTo _) = False
   readAmount ShortOfCeiling = False
@@ -2325,6 +2316,14 @@ mutual
   PartitiveBase {bs} {k} n = So (partitiveBase n)
 
   public export
+  countableGroup : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
+  countableGroup n = nounDet n == Just BareD || groupMention n
+
+  public export
+  CountableGroup : Noun bs k -> Type
+  CountableGroup {bs} {k} n = So (countableGroup n)
+
+  public export
   countedMention : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
   countedMention (NamesAgree _ _) = False
   countedMention n = elem (nounDet n) [Just CountD, Just TargetD]
@@ -2341,6 +2340,14 @@ mutual
   public export
   CountedExistential : Noun bs k -> Type
   CountedExistential {bs} {k} n = So (countedExistential n)
+
+  public export
+  existentialMention : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
+  existentialMention n = nounDet n == Just BareD || countedExistential n
+
+  public export
+  ExistentialMention : Noun bs k -> Type
+  ExistentialMention {bs} {k} n = So (existentialMention n)
 
   public export
   perMemberOk : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bool
@@ -2451,10 +2458,8 @@ mutual
 
   public export
   data Condition : Bindings -> Type where
-    Exists : {k : Kind} -> (p : Predicate bs k) ->
-             Condition bs
-    ExistsGroup : {k : Kind} -> (n : Noun bs k) ->
-                  {auto 0 ce : CountedExistential n} -> Condition bs
+    Exists : {k : Kind} -> (n : Noun bs k) ->
+             {auto 0 ex : ExistentialMention n} -> Condition bs
     Happened : {k : Kind} -> (ev : EventName) -> (who : Noun bs k) ->
                (w : Lookback) ->
                (what :
@@ -2545,7 +2550,6 @@ mutual
   public export
   condNegated : {0 bs : Bindings} -> Condition bs -> Bool
   condNegated (Exists _) = False
-  condNegated (ExistsGroup _) = False
   condNegated (Happened _ _ _ _) = False
   condNegated (GameIs _) = False
   condNegated (NoHolder _) = False
@@ -2577,14 +2581,13 @@ mutual
   public export
   condDelta : {bs : Bindings} -> Condition bs -> List Binding
   condDelta (Exists _) = []
-  condDelta (ExistsGroup _) = []
   condDelta (Happened _ who _ _) = selfSubjDelta who
   condDelta (GameIs _) = []
   condDelta (NoHolder _) = []
   condDelta (ManaSpentToCast what _) = nounDelta what
   condDelta (Matches n _) = nounDelta n ++ selfSubjDelta n
   condDelta (CompareAmt subj _ bound) =
-    gapB :: (tiedDelta subj ++ amtDelta bound ++ amtDelta subj)
+    gapB :: (amtDelta bound ++ amtDelta subj)
   condDelta (DealtThisWay _) = []
   condDelta (PreventedFromSource _) = []
   condDelta (FlipCalled _ _) = []
@@ -2596,14 +2599,6 @@ mutual
   condDelta (NotCond c) = dropGaps (condDelta c)
   condDelta (AndCond cs) = condDeltaAll cs
   condDelta (OrCond _) = []
-
-  public export
-  tiedDelta : {bs : Bindings} -> Amount bs -> List Binding
-  tiedDelta (CountOf {k = Object} p) =
-    if uniquifies p then [bindFor TheD ManyOf PhObject p] else []
-  tiedDelta (CountOf {k = Player} p) =
-    if uniquifies p then [bindFor TheD ManyOf PhPlayer p] else []
-  tiedDelta _ = []
 
   public export
   condDeltaAll : {bs : Bindings} -> List (Condition bs) -> List Binding

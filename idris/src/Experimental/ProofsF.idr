@@ -335,7 +335,7 @@ badChapterLimit Oh impossible
 ||| "I — , if you control a creature, draw a card."
 public export
 badChapterIntervening : Unspellable Ability (\ok =>
-  Triggered When (ChapterMark [ChapterI]) [] Nothing [] Nothing Nothing (Just (Exists (And [Macros.creature, HasPossessor ControllerAx You])))
+  Triggered When (ChapterMark [ChapterI]) [] Nothing [] Nothing Nothing (Just (Macros.exists (And [Macros.creature, HasPossessor ControllerAx You])))
     (Macros.draw You (Lit 1)) {cd = ok})
 badChapterIntervening Oh impossible
 
@@ -352,7 +352,7 @@ badActionLimitOnActivated Oh impossible
 public export
 badChapterWhile : Unspellable Ability (\ok =>
   Triggered When (ChapterMark [ChapterI]) []
-    (Just (Macros.whileState (Exists (And [Macros.creature, HasPossessor ControllerAx You]))))
+    (Just (Macros.whileState (Macros.exists (And [Macros.creature, HasPossessor ControllerAx You]))))
     [] Nothing Nothing Nothing
     (Macros.draw You (Lit 1)) {cd = ok})
 badChapterWhile Oh impossible

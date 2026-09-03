@@ -26,7 +26,7 @@ public export
 badStarlessDefinedPt : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Green]) [] (MkTypeLine [] [Creature])
        [Static (DefinesPt Macros.thisCreature BothEach
-                          (CountOf Macros.creatureYouControl))]
+                          (Macros.countOf Macros.creatureYouControl))]
        (Just (2, 2)) {bx = ok})
 badStarlessDefinedPt MkCardBox impossible
 
@@ -34,7 +34,7 @@ badStarlessDefinedPt MkCardBox impossible
 public export
 badPtDefinitionClause : Unspellable (Effect []) (\ok =>
   Continuously {ts = StaticFirstDone} (DefinesPt Macros.thisCreature BothEach
-                          (CountOf Macros.creatureYouControl))
+                          (Macros.countOf Macros.creatureYouControl))
                Nothing {cl = ok})
 badPtDefinitionClause Oh impossible
 
@@ -506,7 +506,7 @@ badTokenCopyAsCopyMention (Refl, _) impossible
 
 public export
 badOtherwiseReadsLeadingArm : Unspellable (Effect []) (\ok =>
-  If (Exists Macros.creatureYouControl)
+  If (Macros.exists Macros.creatureYouControl)
      (Macros.create (Lit 1) (Macros.creatureTok 1 1 [Black] [creatureType "Zombie"]))
      (Just (SetStatus Tapped (It {ok = Builtin.fst ok}) {ok = Builtin.snd ok})))
 badOtherwiseReadsLeadingArm (Refl, _) impossible

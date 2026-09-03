@@ -243,6 +243,7 @@ countManyVerbedIsFold v w bs =
 public export
 groupOne : Binding -> Bool
 groupOne (MkBinding PartD _ _ _) = False
+groupOne (MkBinding BareD _ _ _) = False
 groupOne b = objGroup b
 
 public export
@@ -274,6 +275,7 @@ countGroupsIsFold (MkBinding SelfD j p pay :: bs)
     with (objGroup (MkBinding SelfD j p pay))
   _ | True = cong S (countGroupsIsFold bs)
   _ | False = countGroupsIsFold bs
+countGroupsIsFold (MkBinding BareD j p pay :: bs) = countGroupsIsFold bs
 
 public export
 partOne : Binding -> Bool
@@ -293,6 +295,7 @@ countPartsIsFold (MkBinding AllD j p pay :: bs) = countPartsIsFold bs
 countPartsIsFold (MkBinding TheD j p pay :: bs) = countPartsIsFold bs
 countPartsIsFold (MkBinding CountD j p pay :: bs) = countPartsIsFold bs
 countPartsIsFold (MkBinding SelfD j p pay :: bs) = countPartsIsFold bs
+countPartsIsFold (MkBinding BareD j p pay :: bs) = countPartsIsFold bs
 
 public export
 targetOfKind : Kind -> Binding -> Bool
@@ -313,6 +316,7 @@ anyTargetedIsAny k (MkBinding TheD j p pay :: bs) = anyTargetedIsAny k bs
 anyTargetedIsAny k (MkBinding PartD j p pay :: bs) = anyTargetedIsAny k bs
 anyTargetedIsAny k (MkBinding CountD j p pay :: bs) = anyTargetedIsAny k bs
 anyTargetedIsAny k (MkBinding SelfD j p pay :: bs) = anyTargetedIsAny k bs
+anyTargetedIsAny k (MkBinding BareD j p pay :: bs) = anyTargetedIsAny k bs
 
 
 
@@ -935,6 +939,15 @@ badItAcrossOwnSlot : Unspellable (Effect []) (\ok =>
                 DealDamage (Macros.target Macros.creature) (StatOf Power (It {ok}))
                            (Macros.target Macros.anyTarget)])
 badItAcrossOwnSlot Refl impossible
+
+||| "Creatures you control get +1/+1 until end of turn. Draw cards equal to
+||| its power."
+public export
+badSingularReadOfBarePlural : Unspellable (Effect []) (\ok =>
+  Sequentially [Macros.gets (Macros.bare Macros.creatureYouControl)
+                            (PtUp (Lit 1)) (PtUp (Lit 1)) (Just Macros.untilEndOfTurn),
+                Macros.draw You (StatOf Power (It {ok}))])
+badSingularReadOfBarePlural Refl impossible
 
 public export
 badOwnEmptyDelta : Unspellable (Effect []) (\ok =>

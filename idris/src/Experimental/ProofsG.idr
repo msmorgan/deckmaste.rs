@@ -98,7 +98,7 @@ badKeywordListOnPlainLine (Oh, _) impossible
 public export
 badEmptyKeywordList : Unspellable Ability (\ok =>
   AlsoForKeywords (Static (Conditionally
-                             (Exists (And [ExiledWith Macros.thisCreature,
+                             (Macros.exists (And [ExiledWith Macros.thisCreature,
                                            HasKeyword (TheKeyword "Flying")]))
                              (Gains Macros.thisCreature (KeywordAbility "Flying" Nothing Nothing)) AsLongAs
                              {st = Static.CondFirstDone}))
@@ -109,7 +109,7 @@ badEmptyKeywordList Oh impossible
 public export
 badKeywordListRepeatingBase : Unspellable Ability (\ok =>
   AlsoForKeywords (Static (Conditionally
-                             (Exists (And [ExiledWith Macros.thisCreature,
+                             (Macros.exists (And [ExiledWith Macros.thisCreature,
                                            HasKeyword (TheKeyword "Flying")]))
                              (Gains Macros.thisCreature (KeywordAbility "Flying" Nothing Nothing)) AsLongAs
                              {st = Static.CondFirstDone}))
@@ -121,7 +121,7 @@ badKeywordListRepeatingBase Oh impossible
 public export
 badParameterisedKeywordInList : Unspellable Ability (\ok =>
   AlsoForKeywords (Static (Conditionally
-                             (Exists (And [ExiledWith Macros.thisCreature,
+                             (Macros.exists (And [ExiledWith Macros.thisCreature,
                                            HasKeyword (TheKeyword "Flying")]))
                              (Gains Macros.thisCreature (KeywordAbility "Flying" Nothing Nothing)) AsLongAs
                              {st = Static.CondFirstDone}))
@@ -283,23 +283,23 @@ badEntryOriginBattlefield Oh impossible
 ||| "If you control an artifact, create a token."
 public export
 badSingletonConjunction : Unspellable (Condition []) (\ok =>
-  AndCond [Exists (And [Macros.artifact, HasPossessor ControllerAx You])] {tw = ok})
+  AndCond [Macros.exists (And [Macros.artifact, HasPossessor ControllerAx You])] {tw = ok})
 badSingletonConjunction Oh impossible
 
 
 ||| "If you control an artifact and an enchantment, and you control a land, …"
 public export
 badNestedConjunction : Unspellable (Condition []) (\ok =>
-  AndCond [ AndCond [ Exists (And [Macros.artifact, HasPossessor ControllerAx You])
-                    , Exists (And [Macros.enchantment, HasPossessor ControllerAx You]) ]
-          , Exists (And [Macros.land, HasPossessor ControllerAx You]) ] {fl = ok})
+  AndCond [ AndCond [ Macros.exists (And [Macros.artifact, HasPossessor ControllerAx You])
+                    , Macros.exists (And [Macros.enchantment, HasPossessor ControllerAx You]) ]
+          , Macros.exists (And [Macros.land, HasPossessor ControllerAx You]) ] {fl = ok})
 badNestedConjunction Oh impossible
 
 
 public export
 badUnlessConjunction : Unspellable (StaticEffect []) (\ok =>
-  Conditionally (AndCond [ Exists (And [Macros.artifact, HasPossessor ControllerAx You])
-                         , Exists (And [Macros.enchantment, HasPossessor ControllerAx You]) ])
+  Conditionally (AndCond [ Macros.exists (And [Macros.artifact, HasPossessor ControllerAx You])
+                         , Macros.exists (And [Macros.enchantment, HasPossessor ControllerAx You]) ])
                 (AltCost This Nothing) Unless {st = Static.CondFirstDone} {mk = ok})
 badUnlessConjunction MkMarkingOk impossible
 
@@ -313,7 +313,7 @@ badLiteralScaledMana Oh impossible
 
 public export
 badBareCountScaledMana : Unspellable (Cost []) (\ok =>
-  ScaledMana GenericUnit (CountOf (And [Macros.artifact, HasPossessor ControllerAx You])) {fe = ok})
+  ScaledMana GenericUnit (Macros.countOf (And [Macros.artifact, HasPossessor ControllerAx You])) {fe = ok})
 badBareCountScaledMana Oh impossible
 
 
@@ -606,17 +606,17 @@ badDeathSum Oh impossible
 
 ||| "the total power of target creature"
 public export
-badSingularAggregateOf : Unspellable (Amount []) (\ok =>
-  AggregateOf SumOf (CharAxis Power) (Macros.target Macros.creature)
+badSingularAggregate : Unspellable (Amount []) (\ok =>
+  Aggregate SumOf (CharAxis Power) (Macros.target Macros.creature)
               {pl = ok})
-badSingularAggregateOf Refl impossible
+badSingularAggregate Refl impossible
 
 ||| "the greatest life total among all creatures"
 public export
-badAggregateOfWrongSort : Unspellable (Amount []) (\ok =>
-  AggregateOf MaxOf (PlayerStatAxis LifeTotal) (Macros.allOf Macros.creature)
+badAggregateWrongSort : Unspellable (Amount []) (\ok =>
+  Aggregate MaxOf (PlayerStatAxis LifeTotal) (Macros.allOf Macros.creature)
               {sc = ok})
-badAggregateOfWrongSort Refl impossible
+badAggregateWrongSort Refl impossible
 
 ||| "up to X | Draw a card."
 public export
@@ -814,8 +814,8 @@ badChoiceRestDisposedTwice Oh impossible
 ||| "an opponent who controls more lands than they control"
 public export
 badMemberInComparisonBound : Unspellable (Predicate [] Player) (\ok =>
-  CompareOver Opponent (CountOf (And [Macros.land, HasPossessor ControllerAx You]))
-              Greater (CountOf (And [Macros.land, HasPossessor ControllerAx (They {ok})])))
+  CompareOver Opponent (Macros.countOf (And [Macros.land, HasPossessor ControllerAx You]))
+              Greater (Macros.countOf (And [Macros.land, HasPossessor ControllerAx (They {ok})])))
 badMemberInComparisonBound Refl impossible
 
 ||| "the number of basic creature types among creatures you control"
@@ -1285,8 +1285,8 @@ manaRunReductionFloor =
 public export
 nestedStaticConditionals : StaticEffect []
 nestedStaticConditionals =
-  Macros.ifSo (Exists AnyPlayer)
-    (Macros.ifSo (Exists AnyPlayer) (KeepsUnspentMana You (UnspentMana Nothing)))
+  Macros.ifSo (Macros.exists AnyPlayer)
+    (Macros.ifSo (Macros.exists AnyPlayer) (KeepsUnspentMana You (UnspentMana Nothing)))
 
 public export
 nestedTurnPartWindows : StaticEffect []
@@ -1296,7 +1296,7 @@ nestedTurnPartWindows =
 
 public export
 repeatWithIndependentException : Repetition []
-repeatWithIndependentException = AgainExcept (Exists AnyPlayer)
+repeatWithIndependentException = AgainExcept (Macros.exists AnyPlayer)
 
 public export
 voteStartingWithSpecifiedPlayer : Effect []
