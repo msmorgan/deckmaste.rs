@@ -6,16 +6,16 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use macro_ron::v2::CustomTailAtom;
-pub use macro_ron::v2::DeclarationIdentity as DeclarationId;
-use macro_ron::v2::DeclarationKind;
-pub use macro_ron::v2::GrammarPosition;
-use macro_ron::v2::GrammarRecipe;
-use macro_ron::v2::NormalizedDeclaration;
-use macro_ron::v2::Onset;
-use macro_ron::v2::SurfaceFeature;
-use macro_ron::v2::VerbValence;
-use macro_ron::v2::normalize_surface_onset;
+use deckmaste_construction_core::macro_def::CustomTailAtom;
+pub use deckmaste_construction_core::macro_def::DeclarationIdentity as DeclarationId;
+use deckmaste_construction_core::macro_def::DeclarationKind;
+pub use deckmaste_construction_core::macro_def::GrammarPosition;
+use deckmaste_construction_core::macro_def::GrammarRecipe;
+use deckmaste_construction_core::macro_def::NormalizedDeclaration;
+use deckmaste_construction_core::macro_def::Onset;
+use deckmaste_construction_core::macro_def::SurfaceFeature;
+use deckmaste_construction_core::macro_def::VerbValence;
+use deckmaste_construction_core::macro_def::normalize_surface_onset;
 use serde::Deserialize;
 
 use crate::constructions::CatalogProvider;
@@ -1323,7 +1323,7 @@ pub(crate) fn reset_reading_lookup_count() {
 
 #[cfg(test)]
 pub(crate) fn canonical_test_environment() -> ParserEnvironment {
-    let declarations = macro_ron::v2::read_builtin_v2(
+    let declarations = deckmaste_construction_core::macro_def::read_builtin_v2(
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"),
     )
     .expect("integrated builtin-v2 declarations load");
@@ -1500,7 +1500,7 @@ mod tests {
 
     #[test]
     fn normalized_verb_inventory_uses_one_frame_lookup_for_core_and_plugin_rows() {
-        let declaration = macro_ron::v2::read_str(
+        let declaration = deckmaste_construction_core::macro_def::read_str(
             "/synthetic/Act.ron",
             r#"KeywordAction(name:"Act",spelling:"act",grammar:Verb(bare:"act",valence:Transitive))"#,
         )
@@ -1546,7 +1546,7 @@ mod tests {
 
     #[test]
     fn literal_lexicon_tripwire_rejects_form_and_tail_collisions_exactly() {
-        let noun = macro_ron::v2::read_str(
+        let noun = deckmaste_construction_core::macro_def::read_str(
             "/synthetic/Additional.ron",
             r#"Type(name:"Additional",spelling:"additional",grammar:Noun(singular:"additional"))"#,
         )
@@ -1562,7 +1562,7 @@ mod tests {
                 && lexical_owner.contains("Noun declaration")
         ));
 
-        let colliding_tail = macro_ron::v2::read_str(
+        let colliding_tail = deckmaste_construction_core::macro_def::read_str(
             "/synthetic/Act.ron",
             r#"KeywordAction(name:"Act",spelling:"act",grammar:Verb(bare:"act",valence:Custom(shapes:[[Literal("act")]])))"#,
         )
@@ -1578,7 +1578,7 @@ mod tests {
                 && lexical_owner.contains("Verb declaration")
         ));
 
-        let case_distinct_tail = macro_ron::v2::read_str(
+        let case_distinct_tail = deckmaste_construction_core::macro_def::read_str(
             "/synthetic/Act.ron",
             r#"KeywordAction(name:"Act",spelling:"act",grammar:Verb(bare:"act",valence:Custom(shapes:[[Literal("Act")]])))"#,
         )

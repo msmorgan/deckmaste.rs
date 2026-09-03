@@ -1,7 +1,7 @@
+use deckmaste_construction_core::macro_def::DeclarationKind;
+use deckmaste_construction_core::macro_def::GrammarPosition;
+use deckmaste_construction_core::macro_def::SurfaceFeature;
 use engine::ChartFailure;
-use macro_ron::v2::DeclarationKind;
-use macro_ron::v2::GrammarPosition;
-use macro_ron::v2::SurfaceFeature;
 use materialize::materialize_checked;
 use materialize::materialize_observed_checked;
 use ownership::validate_ownership;
@@ -798,7 +798,10 @@ mod structural_trace_tests {
         struct Recorder {
             self_references: Vec<crate::constructions::SelfReferenceSpelling>,
             nouns: Vec<crate::constructions::CommonNoun>,
-            declarations: Vec<(macro_ron::v2::DeclarationKind, String)>,
+            declarations: Vec<(
+                deckmaste_construction_core::macro_def::DeclarationKind,
+                String,
+            )>,
         }
 
         impl Visitor for Recorder {
@@ -813,7 +816,10 @@ mod structural_trace_tests {
                 self.nouns.push(noun);
             }
 
-            fn visit_declaration(&mut self, noun: &macro_ron::v2::DeclarationIdentity) {
+            fn visit_declaration(
+                &mut self,
+                noun: &deckmaste_construction_core::macro_def::DeclarationIdentity,
+            ) {
                 self.declarations
                     .push((noun.kind(), noun.name().to_owned()));
             }
@@ -830,7 +836,7 @@ mod structural_trace_tests {
             let context = ParseContext::new(
                 card_name,
                 card_name == "Daxos, Blessed by the Sun",
-                macro_ron::v2::Onset::Consonant,
+                deckmaste_construction_core::macro_def::Onset::Consonant,
             )
             .unwrap();
             let analysis = parser.analyze_root::<Possessive>(text, &context);
@@ -885,8 +891,8 @@ mod structural_trace_tests {
                 "Merfolk's" => assert_eq!(
                     visitor.declarations,
                     [(
-                        macro_ron::v2::DeclarationKind::Subtype(
-                            macro_ron::v2::SubtypeCategory::Creature,
+                        deckmaste_construction_core::macro_def::DeclarationKind::Subtype(
+                            deckmaste_construction_core::macro_def::SubtypeCategory::Creature,
                         ),
                         "Merfolk".to_owned(),
                     )],
@@ -894,8 +900,8 @@ mod structural_trace_tests {
                 "Equipment's" => assert_eq!(
                     visitor.declarations,
                     [(
-                        macro_ron::v2::DeclarationKind::Subtype(
-                            macro_ron::v2::SubtypeCategory::Artifact,
+                        deckmaste_construction_core::macro_def::DeclarationKind::Subtype(
+                            deckmaste_construction_core::macro_def::SubtypeCategory::Artifact,
                         ),
                         "Equipment".to_owned(),
                     )],
@@ -908,8 +914,12 @@ mod structural_trace_tests {
     #[test]
     fn ability_and_sentence_public_calls_each_use_one_pipeline() {
         let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
-        let context =
-            ParseContext::new("Context Card", false, macro_ron::v2::Onset::Consonant).unwrap();
+        let context = ParseContext::new(
+            "Context Card",
+            false,
+            deckmaste_construction_core::macro_def::Onset::Consonant,
+        )
+        .unwrap();
         let text = "Destroy target creature.";
 
         assert_pipeline_once(|| {
@@ -941,8 +951,12 @@ mod structural_trace_tests {
         use crate::constructions::OracleText;
 
         let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
-        let context =
-            ParseContext::new("Context Card", false, macro_ron::v2::Onset::Consonant).unwrap();
+        let context = ParseContext::new(
+            "Context Card",
+            false,
+            deckmaste_construction_core::macro_def::Onset::Consonant,
+        )
+        .unwrap();
         let text = "Destroy target creature. You gain 2 life.";
 
         assert_pipeline_once(|| {
@@ -963,8 +977,12 @@ mod structural_trace_tests {
     #[test]
     fn oracle_text_internal_failure_names_its_generated_root() {
         let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
-        let context =
-            ParseContext::new("Context Card", false, macro_ron::v2::Onset::Consonant).unwrap();
+        let context = ParseContext::new(
+            "Context Card",
+            false,
+            deckmaste_construction_core::macro_def::Onset::Consonant,
+        )
+        .unwrap();
         super::ownership::force_inspection_corruption(true);
 
         let trace = parser.trace_oracle_text(
@@ -988,8 +1006,12 @@ mod structural_trace_tests {
         use crate::constructions::Sentence;
 
         let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
-        let context =
-            ParseContext::new("Context Card", false, macro_ron::v2::Onset::Consonant).unwrap();
+        let context = ParseContext::new(
+            "Context Card",
+            false,
+            deckmaste_construction_core::macro_def::Onset::Consonant,
+        )
+        .unwrap();
         let ability = parser
             .parse("Destroy target creature.", &context)
             .expect("fixture parses as an Ability");
@@ -1006,8 +1028,12 @@ mod structural_trace_tests {
     #[test]
     fn sentence_internal_failure_names_its_generated_root() {
         let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
-        let context =
-            ParseContext::new("Context Card", false, macro_ron::v2::Onset::Consonant).unwrap();
+        let context = ParseContext::new(
+            "Context Card",
+            false,
+            deckmaste_construction_core::macro_def::Onset::Consonant,
+        )
+        .unwrap();
         super::ownership::force_inspection_corruption(true);
 
         let trace = parser.trace_sentence(
@@ -1027,8 +1053,12 @@ mod structural_trace_tests {
     #[test]
     fn selected_ownership_pipeline_runs_each_semantic_pass_once() {
         let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
-        let context =
-            ParseContext::new("Context Card", false, macro_ron::v2::Onset::Consonant).unwrap();
+        let context = ParseContext::new(
+            "Context Card",
+            false,
+            deckmaste_construction_core::macro_def::Onset::Consonant,
+        )
+        .unwrap();
         PIPELINE_COUNTS.with(|counts| counts.set([0; 5]));
         super::materialize::set_materialized_candidate_copies(3);
         super::materialize::reset_specificity_candidate_evaluations();
@@ -1057,8 +1087,12 @@ mod structural_trace_tests {
     #[test]
     fn parser_trace_lexical_ownership_projection_is_lazy_at_zero_and_one() {
         let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
-        let context =
-            ParseContext::new("Context Card", false, macro_ron::v2::Onset::Consonant).unwrap();
+        let context = ParseContext::new(
+            "Context Card",
+            false,
+            deckmaste_construction_core::macro_def::Onset::Consonant,
+        )
+        .unwrap();
         for (limit, expected_constructions) in [(0, 0), (1, 1)] {
             super::diagnostic::reset_selected_claim_projection_constructions();
 
@@ -1085,8 +1119,12 @@ mod structural_trace_tests {
         fn scanner_match_type_is_public(_: &super::ScannerMatch) {}
 
         let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
-        let context =
-            ParseContext::new("Context Card", false, macro_ron::v2::Onset::Consonant).unwrap();
+        let context = ParseContext::new(
+            "Context Card",
+            false,
+            deckmaste_construction_core::macro_def::Onset::Consonant,
+        )
+        .unwrap();
         let text = "Destroy target Spirit.";
         let complete = parser.analyze(text, &context);
         let complete = complete.ownership().expect("selected ownership");
@@ -1137,8 +1175,12 @@ mod structural_trace_tests {
         }
 
         let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
-        let context =
-            ParseContext::new("Context Card", false, macro_ron::v2::Onset::Consonant).unwrap();
+        let context = ParseContext::new(
+            "Context Card",
+            false,
+            deckmaste_construction_core::macro_def::Onset::Consonant,
+        )
+        .unwrap();
         let text = "Destroy target Spirit.";
         let expected_failures = vec![super::OwnershipFailure::Synthetic {
             span: super::TextSpan {
@@ -1170,8 +1212,12 @@ mod structural_trace_tests {
     #[test]
     fn parser_trace_lexical_ownership_keeps_matches_from_losing_derivations() {
         let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
-        let context =
-            ParseContext::new("Context Card", false, macro_ron::v2::Onset::Consonant).unwrap();
+        let context = ParseContext::new(
+            "Context Card",
+            false,
+            deckmaste_construction_core::macro_def::Onset::Consonant,
+        )
+        .unwrap();
 
         let trace = parser.trace(
             "Destroy target Spirit",
@@ -1237,8 +1283,12 @@ mod structural_trace_tests {
     #[test]
     fn impossible_selected_ownership_corruption_maps_to_internal_failure() {
         let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
-        let context =
-            ParseContext::new("Context Card", false, macro_ron::v2::Onset::Consonant).unwrap();
+        let context = ParseContext::new(
+            "Context Card",
+            false,
+            deckmaste_construction_core::macro_def::Onset::Consonant,
+        )
+        .unwrap();
         super::ownership::force_inspection_corruption(true);
 
         let analysis = parser.analyze("Destroy target creature.", &context);
@@ -1268,8 +1318,12 @@ mod structural_trace_tests {
     #[test]
     fn structural_trace_observation_is_repeatable_and_inert() {
         let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
-        let context = ParseContext::new("Trace Card", false, macro_ron::v2::Onset::Consonant)
-            .expect("valid context");
+        let context = ParseContext::new(
+            "Trace Card",
+            false,
+            deckmaste_construction_core::macro_def::Onset::Consonant,
+        )
+        .expect("valid context");
         let text = "Whenever a player connives, you gain X life.";
         let (analysis, first) = parser.observe_structural(text, &context, TraceLimits::new(1));
         let (_, second) = parser.observe_structural(text, &context, TraceLimits::new(1));
@@ -1285,8 +1339,12 @@ mod structural_trace_tests {
     #[test]
     fn public_trace_rejects_a_finite_clause_in_the_typed_where_slot_before_materialization() {
         let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
-        let context = ParseContext::new("Trace Card", false, macro_ron::v2::Onset::Consonant)
-            .expect("valid context");
+        let context = ParseContext::new(
+            "Trace Card",
+            false,
+            deckmaste_construction_core::macro_def::Onset::Consonant,
+        )
+        .expect("valid context");
         let text = "You gain X life, a player connives.";
         let (analysis, trace) = parser.analyze_root_with_trace::<crate::ast::Sentence>(
             text,
@@ -1316,8 +1374,12 @@ mod structural_trace_tests {
         let environment = environment();
         let parser =
             Parser::new(environment.clone()).expect("canonical environment satisfies grammar");
-        let context = ParseContext::new("Trace Card", false, macro_ron::v2::Onset::Consonant)
-            .expect("valid context");
+        let context = ParseContext::new(
+            "Trace Card",
+            false,
+            deckmaste_construction_core::macro_def::Onset::Consonant,
+        )
+        .expect("valid context");
         let text =
             "You gain X life, where X is the number of creatures you control with power 2 or less.";
         let scan_first = crate::constructions::BuildRejection::new(
@@ -1360,8 +1422,12 @@ mod structural_trace_tests {
             assert!(value.shown() <= limit);
         }
         let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
-        let context = ParseContext::new("Trace Card", false, macro_ron::v2::Onset::Consonant)
-            .expect("valid context");
+        let context = ParseContext::new(
+            "Trace Card",
+            false,
+            deckmaste_construction_core::macro_def::Onset::Consonant,
+        )
+        .expect("valid context");
         let text = "Whenever a player connives, you gain X life.";
         for limit in [0, 1, usize::MAX] {
             let (_, trace) = parser.observe_structural(text, &context, TraceLimits::new(limit));
@@ -1398,8 +1464,12 @@ mod structural_trace_tests {
             assert!(value.shown() <= limit);
         }
         let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
-        let context = ParseContext::new("Trace Card", false, macro_ron::v2::Onset::Consonant)
-            .expect("context");
+        let context = ParseContext::new(
+            "Trace Card",
+            false,
+            deckmaste_construction_core::macro_def::Onset::Consonant,
+        )
+        .expect("context");
         let text = "Whenever a player connives, you gain X life";
         for limit in [0, 1, usize::MAX] {
             let (analysis, trace) =
@@ -1429,8 +1499,12 @@ mod structural_trace_tests {
         let environment = environment();
         let parser =
             Parser::new(environment.clone()).expect("canonical environment satisfies grammar");
-        let context = ParseContext::new("Trace Card", false, macro_ron::v2::Onset::Consonant)
-            .expect("context");
+        let context = ParseContext::new(
+            "Trace Card",
+            false,
+            deckmaste_construction_core::macro_def::Onset::Consonant,
+        )
+        .expect("context");
         for text in [
             "Whenever a player connives, you gain X life.",
             "Whenever a player connives, you gain X life",

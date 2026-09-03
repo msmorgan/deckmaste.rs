@@ -31,7 +31,6 @@ mod support;
 #[cfg(test)]
 mod tests;
 mod traverse;
-pub mod v2;
 
 pub use dpsi::Ident;
 pub use dpsi::IdentSeed;

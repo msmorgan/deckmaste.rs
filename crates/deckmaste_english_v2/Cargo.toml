@@ -13,7 +13,7 @@ test-support = []
 [dependencies]
 anyhow = "1.0.102"
 deckmaste_construction = { version = "0.1.0", path = "../deckmaste_construction" }
-macro_ron = { version = "0.1.0", path = "../macro_ron" }
+deckmaste_construction_core = { version = "0.1.0", path = "../deckmaste_construction_core" }
 ron = "0.12.1"
 serde = { version = "1.0.228", features = ["derive"] }
 thiserror = { workspace = true }

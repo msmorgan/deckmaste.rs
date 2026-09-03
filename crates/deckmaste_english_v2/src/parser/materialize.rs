@@ -888,7 +888,7 @@ fn push_unique<T: PartialEq>(values: &mut Vec<T>, value: T) -> bool {
 #[cfg(test)]
 mod tests {
 
-    use macro_ron::v2::DeclarationKind;
+    use deckmaste_construction_core::macro_def::DeclarationKind;
 
     use super::BuildValue;
     use super::Category;
@@ -1037,7 +1037,7 @@ mod tests {
         let onset = environment
             .onset(
                 &DeclarationId::new(DeclarationKind::KeywordAction, "Connive"),
-                ::macro_ron::v2::SurfaceFeature::Bare,
+                ::deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
             )
             .expect("the canonical Connive row carries onset");
         Leaf::IntransitiveVerb {
@@ -1066,9 +1066,9 @@ mod tests {
             card_name,
             card_name == "Zacama, Primal Calamity",
             if card_name == "Artifact Avatar" {
-                macro_ron::v2::Onset::Vowel
+                deckmaste_construction_core::macro_def::Onset::Vowel
             } else {
-                macro_ron::v2::Onset::Consonant
+                deckmaste_construction_core::macro_def::Onset::Consonant
             },
         )
         .expect("test card names are valid parse contexts")

@@ -6,11 +6,11 @@
 use deckmaste_construction::constructions;
 
 pub mod environment {
-    use macro_ron::v2::DeclarationIdentity;
-    use macro_ron::v2::GrammarRecipe;
-    use macro_ron::v2::NormalizedDeclaration;
-    use macro_ron::v2::Onset;
-    use macro_ron::v2::SurfaceFeature;
+    use deckmaste_construction_core::macro_def::DeclarationIdentity;
+    use deckmaste_construction_core::macro_def::GrammarRecipe;
+    use deckmaste_construction_core::macro_def::NormalizedDeclaration;
+    use deckmaste_construction_core::macro_def::Onset;
+    use deckmaste_construction_core::macro_def::SurfaceFeature;
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
     pub(crate) struct CoreVerbIdentity;
@@ -75,7 +75,7 @@ pub mod environment {
                         .iter()
                         .find(|surface| surface.feature() == feature)
                 })
-                .map(macro_ron::v2::RealizedSurface::text)
+                .map(deckmaste_construction_core::macro_def::RealizedSurface::text)
         }
 
         pub(crate) fn grammar_recipe(&self, id: &DeclarationIdentity) -> Option<&GrammarRecipe> {
@@ -83,7 +83,7 @@ pub mod environment {
                 .iter()
                 .find(|declaration| declaration.identity() == id)
                 .and_then(NormalizedDeclaration::grammar)
-                .map(macro_ron::v2::GrammarRow::recipe)
+                .map(deckmaste_construction_core::macro_def::GrammarRow::recipe)
         }
 
         pub(crate) fn declarations(&self) -> &[NormalizedDeclaration] {
@@ -105,7 +105,7 @@ pub mod environment {
                         .iter()
                         .find(|surface| surface.feature() == feature)
                 })
-                .map(macro_ron::v2::RealizedSurface::onset)
+                .map(deckmaste_construction_core::macro_def::RealizedSurface::onset)
         }
 
         pub(crate) fn verb_inventory_surface(
@@ -355,23 +355,26 @@ mod declaration_noun_fixture {
 
         fn declaration_noun_readings(
             &self,
-            position: macro_ron::v2::GrammarPosition,
+            position: deckmaste_construction_core::macro_def::GrammarPosition,
             wanted: FeatureConstraint<Number>,
             right_boundary: LexicalBoundary,
         ) -> Vec<(
             usize,
-            macro_ron::v2::DeclarationIdentity,
-            macro_ron::v2::SurfaceFeature,
-            macro_ron::v2::Onset,
+            deckmaste_construction_core::macro_def::DeclarationIdentity,
+            deckmaste_construction_core::macro_def::SurfaceFeature,
+            deckmaste_construction_core::macro_def::Onset,
         )> {
-            assert_eq!(position, macro_ron::v2::GrammarPosition::Noun);
+            assert_eq!(
+                position,
+                deckmaste_construction_core::macro_def::GrammarPosition::Noun
+            );
             self.environment
                 .noun_rows()
                 .into_iter()
                 .filter_map(|(id, feature, onset, surface)| {
                     let number = match feature {
-                        macro_ron::v2::SurfaceFeature::Singular => Number::Singular,
-                        macro_ron::v2::SurfaceFeature::Plural => Number::Plural,
+                        deckmaste_construction_core::macro_def::SurfaceFeature::Singular => Number::Singular,
+                        deckmaste_construction_core::macro_def::SurfaceFeature::Plural => Number::Plural,
                         _ => return None,
                     };
                     (matches!(wanted, FeatureConstraint::Any)
@@ -391,9 +394,9 @@ mod declaration_noun_fixture {
             _right_boundary: LexicalBoundary,
         ) -> Vec<(
             usize,
-            macro_ron::v2::DeclarationIdentity,
-            macro_ron::v2::SurfaceFeature,
-            macro_ron::v2::Onset,
+            deckmaste_construction_core::macro_def::DeclarationIdentity,
+            deckmaste_construction_core::macro_def::SurfaceFeature,
+            deckmaste_construction_core::macro_def::Onset,
         )> {
             debug_assert_eq!(self.context.marker, std::marker::PhantomData);
             Vec::new()
@@ -476,12 +479,15 @@ mod declaration_noun_fixture {
         root InflectedArticle { punctuation = "."; eoi = true; standalone_render = true; }
     }
 
-    fn declaration(path: &str, source: &str) -> macro_ron::v2::DeclarationSource {
-        macro_ron::v2::DeclarationSource::new(path, source)
+    fn declaration(
+        path: &str,
+        source: &str,
+    ) -> deckmaste_construction_core::macro_def::DeclarationSource {
+        deckmaste_construction_core::macro_def::DeclarationSource::new(path, source)
     }
 
     fn environment() -> crate::environment::ParserEnvironment {
-        let declarations = macro_ron::v2::read_sources(vec![
+        let declarations = deckmaste_construction_core::macro_def::read_sources(vec![
             declaration(
                 "/synthetic/types/Relic.ron",
                 r#"Type(name:"Relic",spelling:"relic",grammar:Noun(singular:"relic"))"#,
@@ -526,7 +532,10 @@ mod declaration_noun_fixture {
     struct Recorder(Vec<String>);
 
     impl Visitor for Recorder {
-        fn visit_declaration(&mut self, declaration: &macro_ron::v2::DeclarationIdentity) {
+        fn visit_declaration(
+            &mut self,
+            declaration: &deckmaste_construction_core::macro_def::DeclarationIdentity,
+        ) {
             self.0.push(declaration.to_string());
         }
     }
@@ -630,21 +639,42 @@ mod declaration_noun_fixture {
 
     fn assert_aggregate_noun_domain(
         environment: &crate::environment::ParserEnvironment,
-    ) -> macro_ron::v2::DeclarationIdentity {
+    ) -> deckmaste_construction_core::macro_def::DeclarationIdentity {
         let subtype = |category, name| {
-            macro_ron::v2::DeclarationIdentity::new(
-                macro_ron::v2::DeclarationKind::Subtype(category),
+            deckmaste_construction_core::macro_def::DeclarationIdentity::new(
+                deckmaste_construction_core::macro_def::DeclarationKind::Subtype(category),
                 name,
             )
         };
         let declarations = [
-            subtype(macro_ron::v2::SubtypeCategory::Artifact, "Clue"),
-            subtype(macro_ron::v2::SubtypeCategory::Battle, "Siege"),
-            subtype(macro_ron::v2::SubtypeCategory::Creature, "Elf"),
-            subtype(macro_ron::v2::SubtypeCategory::Enchantment, "Aura"),
-            subtype(macro_ron::v2::SubtypeCategory::Land, "Forest"),
-            subtype(macro_ron::v2::SubtypeCategory::Planeswalker, "Jace"),
-            subtype(macro_ron::v2::SubtypeCategory::Spell, "Arcane"),
+            subtype(
+                deckmaste_construction_core::macro_def::SubtypeCategory::Artifact,
+                "Clue",
+            ),
+            subtype(
+                deckmaste_construction_core::macro_def::SubtypeCategory::Battle,
+                "Siege",
+            ),
+            subtype(
+                deckmaste_construction_core::macro_def::SubtypeCategory::Creature,
+                "Elf",
+            ),
+            subtype(
+                deckmaste_construction_core::macro_def::SubtypeCategory::Enchantment,
+                "Aura",
+            ),
+            subtype(
+                deckmaste_construction_core::macro_def::SubtypeCategory::Land,
+                "Forest",
+            ),
+            subtype(
+                deckmaste_construction_core::macro_def::SubtypeCategory::Planeswalker,
+                "Jace",
+            ),
+            subtype(
+                deckmaste_construction_core::macro_def::SubtypeCategory::Spell,
+                "Arcane",
+            ),
         ];
         for declaration in &declarations {
             assert!(
@@ -655,8 +685,8 @@ mod declaration_noun_fixture {
         assert!(
             DeclarationNoun::new(
                 environment,
-                macro_ron::v2::DeclarationIdentity::new(
-                    macro_ron::v2::DeclarationKind::KeywordAbility,
+                deckmaste_construction_core::macro_def::DeclarationIdentity::new(
+                    deckmaste_construction_core::macro_def::DeclarationKind::KeywordAbility,
                     "Fraud",
                 ),
             )
@@ -668,8 +698,10 @@ mod declaration_noun_fixture {
     pub(crate) fn run() {
         let environment = environment();
         let context = ParseContext::default();
-        let relic =
-            macro_ron::v2::DeclarationIdentity::new(macro_ron::v2::DeclarationKind::Type, "Relic");
+        let relic = deckmaste_construction_core::macro_def::DeclarationIdentity::new(
+            deckmaste_construction_core::macro_def::DeclarationKind::Type,
+            "Relic",
+        );
         let elf = assert_aggregate_noun_domain(&environment);
 
         let public_type = DeclarationNoun::new(&environment, relic.clone())
@@ -711,7 +743,7 @@ mod declaration_noun_fixture {
                 value: Leaf::Noun {
                     noun: Noun::Declaration(noun),
                     number: Number::Singular,
-                    onset: macro_ron::v2::Onset::Consonant,
+                    onset: deckmaste_construction_core::macro_def::Onset::Consonant,
                     ..
                 },
                 ..
@@ -723,7 +755,7 @@ mod declaration_noun_fixture {
                 value: Leaf::Noun {
                     noun: Noun::Declaration(noun),
                     number: Number::Singular,
-                    onset: macro_ron::v2::Onset::Vowel,
+                    onset: deckmaste_construction_core::macro_def::Onset::Vowel,
                     ..
                 },
                 ..
@@ -751,7 +783,7 @@ mod declaration_noun_fixture {
         let mismatched = Leaf::Noun {
             noun: noun.clone(),
             number: Number::Plural,
-            onset: macro_ron::v2::Onset::Vowel,
+            onset: deckmaste_construction_core::macro_def::Onset::Vowel,
             possessive_ending: PossessiveEnding::Other,
         };
         assert!(
@@ -885,14 +917,14 @@ mod declaration_noun_fixture {
             (
                 "Artifact",
                 Number::Singular,
-                macro_ron::v2::Onset::Vowel,
+                deckmaste_construction_core::macro_def::Onset::Vowel,
                 RuleId::InflectedArticleArticleNounAn,
                 "An singular artifact.",
             ),
             (
                 "Units",
                 Number::Plural,
-                macro_ron::v2::Onset::Consonant,
+                deckmaste_construction_core::macro_def::Onset::Consonant,
                 RuleId::InflectedArticleArticleNounA,
                 "A plural units.",
             ),
@@ -911,7 +943,12 @@ mod declaration_noun_fixture {
                     ..
                 }] if *actual_number == number && *onset == expected_onset
             ));
-            let literal = if expected_onset == macro_ron::v2::Onset::Vowel { "an" } else { "a" };
+            let literal = if expected_onset == deckmaste_construction_core::macro_def::Onset::Vowel
+            {
+                "an"
+            } else {
+                "a"
+            };
             let built = build(
                 rule_id,
                 &[
@@ -930,7 +967,8 @@ mod declaration_noun_fixture {
                 Render::render(&article, &context, &environment),
                 expected_render
             );
-            let inverse = if expected_onset == macro_ron::v2::Onset::Vowel {
+            let inverse = if expected_onset == deckmaste_construction_core::macro_def::Onset::Vowel
+            {
                 RuleId::InflectedArticleArticleNounA
             } else {
                 RuleId::InflectedArticleArticleNounAn
@@ -1165,7 +1203,7 @@ pub mod declaration_verb_fixture {
             &self,
             start: usize,
             frame: &VerbFrameKey,
-            feature: macro_ron::v2::SurfaceFeature,
+            feature: deckmaste_construction_core::macro_def::SurfaceFeature,
         ) -> Vec<(usize, crate::environment::VerbInventoryReading)> {
             assert_eq!(start, self.position.byte_offset);
             self.environment
@@ -1173,12 +1211,16 @@ pub mod declaration_verb_fixture {
                 .iter()
                 .filter_map(|declaration| {
                     let grammar = declaration.grammar()?;
-                    (declaration.identity().kind() == macro_ron::v2::DeclarationKind::KeywordAction
-                        && grammar.recipe().position() == macro_ron::v2::GrammarPosition::Verb)
+                    (declaration.identity().kind()
+                        == deckmaste_construction_core::macro_def::DeclarationKind::KeywordAction
+                        && grammar.recipe().position()
+                            == deckmaste_construction_core::macro_def::GrammarPosition::Verb)
                         .then_some((declaration, grammar))
                 })
                 .filter(|(declaration, grammar)| {
-                    let macro_ron::v2::GrammarRecipe::Verb { valence } = grammar.recipe() else {
+                    let deckmaste_construction_core::macro_def::GrammarRecipe::Verb { valence } =
+                        grammar.recipe()
+                    else {
                         return false;
                     };
                     fixture_frames_for(declaration.identity().name(), valence)
@@ -1213,9 +1255,9 @@ pub mod declaration_verb_fixture {
             _right_boundary: LexicalBoundary,
         ) -> Vec<(
             usize,
-            macro_ron::v2::DeclarationIdentity,
-            macro_ron::v2::SurfaceFeature,
-            macro_ron::v2::Onset,
+            deckmaste_construction_core::macro_def::DeclarationIdentity,
+            deckmaste_construction_core::macro_def::SurfaceFeature,
+            deckmaste_construction_core::macro_def::Onset,
         )> {
             debug_assert_eq!(self.context.marker, std::marker::PhantomData);
             Vec::new()
@@ -1224,10 +1266,10 @@ pub mod declaration_verb_fixture {
 
     fn fixture_frames_for(
         name: &str,
-        valence: &macro_ron::v2::VerbValence,
+        valence: &deckmaste_construction_core::macro_def::VerbValence,
     ) -> &'static [&'static [VerbFrameAtom]] {
-        use macro_ron::v2::CustomTailAtom;
-        use macro_ron::v2::VerbValence;
+        use deckmaste_construction_core::macro_def::CustomTailAtom;
+        use deckmaste_construction_core::macro_def::VerbValence;
 
         const EMPTY: &[VerbFrameAtom] = &[];
         const OBJECT: &[VerbFrameAtom] = &[VerbFrameAtom::ObjectNounPhrase];
@@ -1359,10 +1401,11 @@ pub mod declaration_verb_fixture {
             let crate::environment::VerbInventoryRef::Declaration(id) = reference else {
                 return false;
             };
-            if id.kind() != macro_ron::v2::DeclarationKind::KeywordAction {
+            if id.kind() != deckmaste_construction_core::macro_def::DeclarationKind::KeywordAction {
                 return false;
             }
-            let Some(macro_ron::v2::GrammarRecipe::Verb { valence }) = self.grammar_recipe(id)
+            let Some(deckmaste_construction_core::macro_def::GrammarRecipe::Verb { valence }) =
+                self.grammar_recipe(id)
             else {
                 return false;
             };
@@ -1372,18 +1415,21 @@ pub mod declaration_verb_fixture {
 
     fn declaration_id(
         reference: &crate::environment::VerbInventoryRef,
-    ) -> &macro_ron::v2::DeclarationIdentity {
+    ) -> &deckmaste_construction_core::macro_def::DeclarationIdentity {
         let crate::environment::VerbInventoryRef::Declaration(id) = reference else {
             panic!("the fixture stores a declaration-backed verb")
         };
         id
     }
 
-    fn declaration(path: &str, source: &str) -> macro_ron::v2::DeclarationSource {
-        macro_ron::v2::DeclarationSource::new(path, source)
+    fn declaration(
+        path: &str,
+        source: &str,
+    ) -> deckmaste_construction_core::macro_def::DeclarationSource {
+        deckmaste_construction_core::macro_def::DeclarationSource::new(path, source)
     }
 
-    fn sources() -> Vec<macro_ron::v2::DeclarationSource> {
+    fn sources() -> Vec<deckmaste_construction_core::macro_def::DeclarationSource> {
         vec![
             declaration(
                 "/synthetic/actions/FirstAct.ron",
@@ -1433,10 +1479,10 @@ pub mod declaration_verb_fixture {
     }
 
     fn environment_from_sources(
-        sources: Vec<macro_ron::v2::DeclarationSource>,
+        sources: Vec<deckmaste_construction_core::macro_def::DeclarationSource>,
     ) -> crate::environment::ParserEnvironment {
-        let declarations =
-            macro_ron::v2::read_sources(sources).expect("synthetic declaration verbs normalize");
+        let declarations = deckmaste_construction_core::macro_def::read_sources(sources)
+            .expect("synthetic declaration verbs normalize");
         crate::environment::ParserEnvironment::new(declarations)
     }
 
@@ -1528,7 +1574,10 @@ pub mod declaration_verb_fixture {
     struct Recorder(Vec<String>);
 
     impl Visitor for Recorder {
-        fn visit_declaration(&mut self, declaration: &macro_ron::v2::DeclarationIdentity) {
+        fn visit_declaration(
+            &mut self,
+            declaration: &deckmaste_construction_core::macro_def::DeclarationIdentity,
+        ) {
             self.0.push(format!("head:{declaration}"));
         }
 
@@ -1569,7 +1618,7 @@ pub mod declaration_verb_fixture {
             Leaf::TransitiveVerb {
                 verb: TransitiveVerb::Lexeme(CoreVerb::Act),
                 agreement: Agreement::Bare,
-                onset: macro_ron::v2::Onset::Vowel,
+                onset: deckmaste_construction_core::macro_def::Onset::Vowel,
             }
         ));
         let open_ids = verbs[1..]
@@ -1578,7 +1627,7 @@ pub mod declaration_verb_fixture {
                 Leaf::TransitiveVerb {
                     verb: TransitiveVerb::Declaration(declaration),
                     agreement: Agreement::Bare,
-                    onset: macro_ron::v2::Onset::Vowel,
+                    onset: deckmaste_construction_core::macro_def::Onset::Vowel,
                 } => declaration_id(declaration.reference()).name(),
                 other => panic!("unexpected declaration verb candidate: {other:?}"),
             })
@@ -1676,7 +1725,7 @@ pub mod declaration_verb_fixture {
         };
         let Leaf::TransitiveParticiple {
             verb: identity,
-            onset: macro_ron::v2::Onset::Consonant,
+            onset: deckmaste_construction_core::macro_def::Onset::Consonant,
         } = &verb.value
         else {
             panic!("the participle leaf stores only its checked declaration identity")
@@ -1806,7 +1855,7 @@ pub mod declaration_verb_fixture {
             assert!(DeclarationTransitiveVerb::new(&environment, declaration).is_none());
         }
 
-        let unsupported = macro_ron::v2::read_sources(vec![declaration(
+        let unsupported = deckmaste_construction_core::macro_def::read_sources(vec![declaration(
             "/disposable/Unsupported.ron",
             r#"KeywordAction(name:"Unsupported",spelling:"unsupported",grammar:Verb(bare:"unsupported",valence:Custom(shapes:[[Clause]])))"#,
         )]);
@@ -1833,7 +1882,7 @@ pub mod declaration_verb_fixture {
             .declaration_verb_readings(
                 0,
                 &VerbFrameKey::new(atoms),
-                macro_ron::v2::SurfaceFeature::Bare,
+                deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
             )
             .into_iter()
             .map(|(_, reading)| declaration_id(reading.reference()).name().to_owned())
@@ -1862,7 +1911,7 @@ pub mod declaration_verb_fixture {
         let Leaf::NumerativeVerb {
             verb: identity,
             agreement: Agreement::Bare,
-            onset: macro_ron::v2::Onset::Consonant,
+            onset: deckmaste_construction_core::macro_def::Onset::Consonant,
         } = &verb.value
         else {
             panic!("the open-only leaf stores its checked category-safe identity")
@@ -2021,8 +2070,8 @@ pub mod fixture {
         sentinel: u8,
         card_name: &'a str,
         abbreviated_card_name: &'a str,
-        card_name_onset: macro_ron::v2::Onset,
-        abbreviated_card_name_onset: macro_ron::v2::Onset,
+        card_name_onset: deckmaste_construction_core::macro_def::Onset,
+        abbreviated_card_name_onset: deckmaste_construction_core::macro_def::Onset,
     }
 
     impl Default for ParseContext<'_> {
@@ -2031,8 +2080,9 @@ pub mod fixture {
                 sentinel: 0,
                 card_name: "",
                 abbreviated_card_name: "",
-                card_name_onset: macro_ron::v2::Onset::Consonant,
-                abbreviated_card_name_onset: macro_ron::v2::Onset::Consonant,
+                card_name_onset: deckmaste_construction_core::macro_def::Onset::Consonant,
+                abbreviated_card_name_onset:
+                    deckmaste_construction_core::macro_def::Onset::Consonant,
             }
         }
     }
@@ -2168,12 +2218,12 @@ pub mod fixture {
             self.abbreviated_card_name
         }
 
-        fn card_name_onset(&self) -> macro_ron::v2::Onset {
+        fn card_name_onset(&self) -> deckmaste_construction_core::macro_def::Onset {
             debug_assert_ne!(self.sentinel, 0);
             self.card_name_onset
         }
 
-        fn abbreviated_card_name_onset(&self) -> macro_ron::v2::Onset {
+        fn abbreviated_card_name_onset(&self) -> deckmaste_construction_core::macro_def::Onset {
             debug_assert_ne!(self.sentinel, 0);
             self.abbreviated_card_name_onset
         }
@@ -2314,9 +2364,9 @@ pub mod fixture {
             _right_boundary: LexicalBoundary,
         ) -> Vec<(
             usize,
-            macro_ron::v2::DeclarationIdentity,
-            macro_ron::v2::SurfaceFeature,
-            macro_ron::v2::Onset,
+            deckmaste_construction_core::macro_def::DeclarationIdentity,
+            deckmaste_construction_core::macro_def::SurfaceFeature,
+            deckmaste_construction_core::macro_def::Onset,
         )> {
             debug_assert!(self.position.byte_offset <= self.text.len());
             Vec::new()
@@ -3131,6 +3181,10 @@ pub mod fixture {
         }
     }
 
+    #[allow(
+        clippy::too_many_lines,
+        reason = "this ABI assertion deliberately authenticates the complete generated owner table"
+    )]
     fn assert_generated_lexical_owner_abi() {
         let owner = |template: LexicalOwnerTemplate, leaf: &Leaf| {
             template
@@ -3165,7 +3219,7 @@ pub mod fixture {
                 Leaf::Verb {
                     lexeme: VerbLexeme::Act,
                     agreement: Agreement::Bare,
-                    onset: macro_ron::v2::Onset::Vowel,
+                    onset: deckmaste_construction_core::macro_def::Onset::Vowel,
                 },
                 LexicalProvenanceKind::Lexeme,
                 "lexeme:VerbLexeme/Act/bare",
@@ -3198,16 +3252,18 @@ pub mod fixture {
             None
         );
 
-        let kind = macro_ron::v2::DeclarationKind::KeywordAction;
+        let kind = deckmaste_construction_core::macro_def::DeclarationKind::KeywordAction;
         let declaration = owner(
             LexicalOwnerTemplate::Declaration {
                 kind,
                 name: "Destroy",
             },
             &Leaf::Declaration(DeclarationLeaf {
-                id: macro_ron::v2::DeclarationIdentity::new(kind, "Destroy"),
-                feature: macro_ron::v2::SurfaceFeature::Bare,
-                onset: macro_ron::v2::Onset::Consonant,
+                id: deckmaste_construction_core::macro_def::DeclarationIdentity::new(
+                    kind, "Destroy",
+                ),
+                feature: deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
+                onset: deckmaste_construction_core::macro_def::Onset::Consonant,
             }),
         );
         assert_eq!(declaration.kind(), LexicalProvenanceKind::Lexeme);
@@ -3232,9 +3288,11 @@ pub mod fixture {
                 name: "Destroy",
             },
             &Leaf::Declaration(DeclarationLeaf {
-                id: macro_ron::v2::DeclarationIdentity::new(kind, "Destroy"),
-                feature: macro_ron::v2::SurfaceFeature::Bare,
-                onset: macro_ron::v2::Onset::Consonant,
+                id: deckmaste_construction_core::macro_def::DeclarationIdentity::new(
+                    kind, "Destroy",
+                ),
+                feature: deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
+                onset: deckmaste_construction_core::macro_def::Onset::Consonant,
             }),
         );
         let shared_clone = shared_declaration.clone();
@@ -3262,9 +3320,11 @@ pub mod fixture {
                 name: "Destroy",
             },
             &Leaf::Declaration(DeclarationLeaf {
-                id: macro_ron::v2::DeclarationIdentity::new(kind, "Destroy"),
-                feature: macro_ron::v2::SurfaceFeature::Bare,
-                onset: macro_ron::v2::Onset::Consonant,
+                id: deckmaste_construction_core::macro_def::DeclarationIdentity::new(
+                    kind, "Destroy",
+                ),
+                feature: deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
+                onset: deckmaste_construction_core::macro_def::Onset::Consonant,
             }),
         );
         assert_eq!(shared_declaration, shared_clone);
@@ -3295,15 +3355,17 @@ pub mod fixture {
             Agreement::ThirdPersonSingular
         );
 
-        let kind = macro_ron::v2::DeclarationKind::KeywordAction;
-        let position = macro_ron::v2::GrammarPosition::Verb;
+        let kind = deckmaste_construction_core::macro_def::DeclarationKind::KeywordAction;
+        let position = deckmaste_construction_core::macro_def::GrammarPosition::Verb;
 
         let terminal = LexicalTerminal {
             matcher: Lexical::Declaration(DeclarationMatcher {
                 kind,
                 name: "Destroy",
                 position,
-                feature: FeatureConstraint::Exact(macro_ron::v2::SurfaceFeature::Bare),
+                feature: FeatureConstraint::Exact(
+                    deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
+                ),
             }),
             owner: LexicalOwnerTemplate::Declaration {
                 kind,
@@ -3407,7 +3469,7 @@ pub mod fixture {
                     value: Leaf::Verb {
                         lexeme: VerbLexeme::Act,
                         agreement: actual,
-                        onset: macro_ron::v2::Onset::Vowel,
+                        onset: deckmaste_construction_core::macro_def::Onset::Vowel,
                     },
                     owner: Some(_),
                     ..
@@ -3488,7 +3550,7 @@ pub mod fixture {
                 value: Leaf::Verb {
                     lexeme: VerbLexeme::Other,
                     agreement: Agreement::Bare,
-                    onset: macro_ron::v2::Onset::Consonant,
+                    onset: deckmaste_construction_core::macro_def::Onset::Consonant,
                 },
                 owner: Some(_),
                 ..
@@ -3635,8 +3697,8 @@ pub mod fixture {
             sentinel: 99,
             card_name: "card",
             abbreviated_card_name: "card",
-            card_name_onset: macro_ron::v2::Onset::Consonant,
-            abbreviated_card_name_onset: macro_ron::v2::Onset::Consonant,
+            card_name_onset: deckmaste_construction_core::macro_def::Onset::Consonant,
+            abbreviated_card_name_onset: deckmaste_construction_core::macro_def::Onset::Consonant,
         };
         let guarded = GuardedChild::new(Mode::One, Box::new(Child::Bare(BareChild)))
             .expect("valid finite-domain values construct the recursive product");
@@ -3718,8 +3780,8 @@ pub mod fixture {
             sentinel: 99,
             card_name: "card",
             abbreviated_card_name: "card",
-            card_name_onset: macro_ron::v2::Onset::Consonant,
-            abbreviated_card_name_onset: macro_ron::v2::Onset::Consonant,
+            card_name_onset: deckmaste_construction_core::macro_def::Onset::Consonant,
+            abbreviated_card_name_onset: deckmaste_construction_core::macro_def::Onset::Consonant,
         };
         let rules = [
             RuleId::PartitionRootPartitionedFirst,
@@ -3762,8 +3824,8 @@ pub mod fixture {
             sentinel: 99,
             card_name: "card",
             abbreviated_card_name: "card",
-            card_name_onset: macro_ron::v2::Onset::Consonant,
-            abbreviated_card_name_onset: macro_ron::v2::Onset::Consonant,
+            card_name_onset: deckmaste_construction_core::macro_def::Onset::Consonant,
+            abbreviated_card_name_onset: deckmaste_construction_core::macro_def::Onset::Consonant,
         };
         let absent =
             OptionalGuarded::new(None, Mode::One).expect("the explicit absent branch constructs");
@@ -3826,8 +3888,8 @@ pub mod fixture {
             sentinel: 99,
             card_name: "card",
             abbreviated_card_name: "card",
-            card_name_onset: macro_ron::v2::Onset::Consonant,
-            abbreviated_card_name_onset: macro_ron::v2::Onset::Consonant,
+            card_name_onset: deckmaste_construction_core::macro_def::Onset::Consonant,
+            abbreviated_card_name_onset: deckmaste_construction_core::macro_def::Onset::Consonant,
         };
         for (root, rendered, expected) in [
             (
@@ -3876,8 +3938,8 @@ pub mod fixture {
             sentinel: 99,
             card_name: "card",
             abbreviated_card_name: "card",
-            card_name_onset: macro_ron::v2::Onset::Consonant,
-            abbreviated_card_name_onset: macro_ron::v2::Onset::Consonant,
+            card_name_onset: deckmaste_construction_core::macro_def::Onset::Consonant,
+            abbreviated_card_name_onset: deckmaste_construction_core::macro_def::Onset::Consonant,
         };
         let inline_member = StructuralAtom::StructuralAtom(StructuralAtomValue {
             marker: StructuralWord::Alpha,
@@ -4051,8 +4113,8 @@ pub mod fixture {
             sentinel: 99,
             card_name: "card",
             abbreviated_card_name: "card",
-            card_name_onset: macro_ron::v2::Onset::Consonant,
-            abbreviated_card_name_onset: macro_ron::v2::Onset::Consonant,
+            card_name_onset: deckmaste_construction_core::macro_def::Onset::Consonant,
+            abbreviated_card_name_onset: deckmaste_construction_core::macro_def::Onset::Consonant,
         };
         for text in texts {
             let forest = parse_structural(category, text, &context);
@@ -4479,8 +4541,8 @@ pub mod fixture {
             sentinel: 99,
             card_name: "card",
             abbreviated_card_name: "card",
-            card_name_onset: macro_ron::v2::Onset::Consonant,
-            abbreviated_card_name_onset: macro_ron::v2::Onset::Consonant,
+            card_name_onset: deckmaste_construction_core::macro_def::Onset::Consonant,
+            abbreviated_card_name_onset: deckmaste_construction_core::macro_def::Onset::Consonant,
         };
         let atom = |marker| StructuralAtom::StructuralAtom(StructuralAtomValue { marker });
         let alpha = atom(StructuralWord::Alpha);
@@ -4612,8 +4674,8 @@ pub mod fixture {
             sentinel: 99,
             card_name: "card",
             abbreviated_card_name: "card",
-            card_name_onset: macro_ron::v2::Onset::Consonant,
-            abbreviated_card_name_onset: macro_ron::v2::Onset::Consonant,
+            card_name_onset: deckmaste_construction_core::macro_def::Onset::Consonant,
+            abbreviated_card_name_onset: deckmaste_construction_core::macro_def::Onset::Consonant,
         };
         let scan_verb = |text, lexeme, member| {
             scan_lexical(
@@ -4642,7 +4704,7 @@ pub mod fixture {
                 "Act",
                 VerbLexeme::Act,
                 "Act",
-                macro_ron::v2::Onset::Vowel,
+                deckmaste_construction_core::macro_def::Onset::Vowel,
                 RuleId::VerbHeadActOnset,
                 RuleId::VerbArticleIndefiniteVerbAn,
                 "An act.",
@@ -4651,7 +4713,7 @@ pub mod fixture {
                 "Same",
                 VerbLexeme::Other,
                 "Other",
-                macro_ron::v2::Onset::Consonant,
+                deckmaste_construction_core::macro_def::Onset::Consonant,
                 RuleId::VerbHeadOtherOnset,
                 RuleId::VerbArticleIndefiniteVerbA,
                 "A same.",
@@ -4676,7 +4738,11 @@ pub mod fixture {
             )
             .expect("a normalized verb row builds its onset-carrying head");
             assert!(matches!(head, BuildValue::VerbHead(_, actual, _) if actual == onset));
-            let literal = if onset == macro_ron::v2::Onset::Vowel { "an" } else { "a" };
+            let literal = if onset == deckmaste_construction_core::macro_def::Onset::Vowel {
+                "an"
+            } else {
+                "a"
+            };
             let article = build(
                 article_rule,
                 &[BuildValue::Leaf(Leaf::Literal(literal)), head],
@@ -4696,7 +4762,7 @@ pub mod fixture {
                 &[BuildValue::Leaf(Leaf::Verb {
                     lexeme: VerbLexeme::Act,
                     agreement: Agreement::Bare,
-                    onset: macro_ron::v2::Onset::Consonant,
+                    onset: deckmaste_construction_core::macro_def::Onset::Consonant,
                 })],
                 &context,
             )
@@ -4710,8 +4776,8 @@ pub mod fixture {
             sentinel: 99,
             card_name: "card",
             abbreviated_card_name: "card",
-            card_name_onset: macro_ron::v2::Onset::Consonant,
-            abbreviated_card_name_onset: macro_ron::v2::Onset::Consonant,
+            card_name_onset: deckmaste_construction_core::macro_def::Onset::Consonant,
+            abbreviated_card_name_onset: deckmaste_construction_core::macro_def::Onset::Consonant,
         };
         let cases = [
             (
@@ -4794,8 +4860,8 @@ pub mod fixture {
             sentinel: 99,
             card_name: "card",
             abbreviated_card_name: "card",
-            card_name_onset: macro_ron::v2::Onset::Consonant,
-            abbreviated_card_name_onset: macro_ron::v2::Onset::Consonant,
+            card_name_onset: deckmaste_construction_core::macro_def::Onset::Consonant,
+            abbreviated_card_name_onset: deckmaste_construction_core::macro_def::Onset::Consonant,
         };
         let value = |value| CircumfixValue::CircumfixWordValue(CircumfixValueNode { value });
         let singular = CircumfixSingularRoot::BracketedValue(BracketedValue {
@@ -5101,8 +5167,8 @@ pub mod fixture {
             sentinel: 99,
             card_name: "card",
             abbreviated_card_name: "card",
-            card_name_onset: macro_ron::v2::Onset::Consonant,
-            abbreviated_card_name_onset: macro_ron::v2::Onset::Consonant,
+            card_name_onset: deckmaste_construction_core::macro_def::Onset::Consonant,
+            abbreviated_card_name_onset: deckmaste_construction_core::macro_def::Onset::Consonant,
         };
 
         for surface in ["Target black tail", "Target black's"] {
@@ -5126,8 +5192,8 @@ pub mod fixture {
             sentinel: 99,
             card_name: "card",
             abbreviated_card_name: "card",
-            card_name_onset: macro_ron::v2::Onset::Consonant,
-            abbreviated_card_name_onset: macro_ron::v2::Onset::Consonant,
+            card_name_onset: deckmaste_construction_core::macro_def::Onset::Consonant,
+            abbreviated_card_name_onset: deckmaste_construction_core::macro_def::Onset::Consonant,
         };
         let head = build(
             RuleId::PrefixHeadPrefixedOnsetLexical,
@@ -5141,7 +5207,11 @@ pub mod fixture {
         .expect("the fixed prefix overrides the vowel-initial value onset");
         assert!(matches!(
             head,
-            BuildValue::PrefixHead(_, macro_ron::v2::Onset::Consonant, _)
+            BuildValue::PrefixHead(
+                _,
+                deckmaste_construction_core::macro_def::Onset::Consonant,
+                _
+            )
         ));
         assert!(
             build(
@@ -5161,7 +5231,10 @@ pub mod fixture {
         let BuildValue::PrefixArticle(article, actual_onset, _) = article else {
             panic!("the prefixed article builds its declared category")
         };
-        assert_eq!(actual_onset, macro_ron::v2::Onset::Consonant);
+        assert_eq!(
+            actual_onset,
+            deckmaste_construction_core::macro_def::Onset::Consonant
+        );
         assert_eq!(Render::render(&article, &context), "A one nonartifact.");
 
         let forest = parse_structural(Category::PrefixArticle, "A one nonartifact", &context);
@@ -5172,14 +5245,14 @@ pub mod fixture {
                 BoundWord::Elf,
                 RuleId::PrefixArticlePrefixedArticleAn,
                 "an",
-                macro_ron::v2::Onset::Vowel,
+                deckmaste_construction_core::macro_def::Onset::Vowel,
                 "An many 2/Elf.",
             ),
             (
                 BoundWord::Black,
                 RuleId::PrefixArticlePrefixedArticleA,
                 "a",
-                macro_ron::v2::Onset::Consonant,
+                deckmaste_construction_core::macro_def::Onset::Consonant,
                 "A many 2/black.",
             ),
         ] {
@@ -5266,8 +5339,8 @@ pub mod fixture {
             sentinel: 99,
             card_name: "card",
             abbreviated_card_name: "card",
-            card_name_onset: macro_ron::v2::Onset::Consonant,
-            abbreviated_card_name_onset: macro_ron::v2::Onset::Consonant,
+            card_name_onset: deckmaste_construction_core::macro_def::Onset::Consonant,
+            abbreviated_card_name_onset: deckmaste_construction_core::macro_def::Onset::Consonant,
         };
         let cases = [
             (
@@ -5387,8 +5460,16 @@ pub mod fixture {
 
     pub(super) fn assert_exact_name_render_uses_frozen_onset() {
         for (surface, frozen_onset, expected) in [
-            ("artifact", macro_ron::v2::Onset::Consonant, "A artifact."),
-            ("card", macro_ron::v2::Onset::Vowel, "An card."),
+            (
+                "artifact",
+                deckmaste_construction_core::macro_def::Onset::Consonant,
+                "A artifact.",
+            ),
+            (
+                "card",
+                deckmaste_construction_core::macro_def::Onset::Vowel,
+                "An card.",
+            ),
         ] {
             let context = ParseContext {
                 sentinel: 99,
@@ -5414,8 +5495,8 @@ pub mod fixture {
             sentinel: 99,
             card_name: "card",
             abbreviated_card_name: "card",
-            card_name_onset: macro_ron::v2::Onset::Consonant,
-            abbreviated_card_name_onset: macro_ron::v2::Onset::Consonant,
+            card_name_onset: deckmaste_construction_core::macro_def::Onset::Consonant,
+            abbreviated_card_name_onset: deckmaste_construction_core::macro_def::Onset::Consonant,
         };
         assert_generated_runtime_abi(&context);
         assert!(SelfRef::Full.valid_in(&context));
@@ -5425,8 +5506,8 @@ pub mod fixture {
             sentinel: 99,
             card_name: "full card",
             abbreviated_card_name: "short",
-            card_name_onset: macro_ron::v2::Onset::Consonant,
-            abbreviated_card_name_onset: macro_ron::v2::Onset::Consonant,
+            card_name_onset: deckmaste_construction_core::macro_def::Onset::Consonant,
+            abbreviated_card_name_onset: deckmaste_construction_core::macro_def::Onset::Consonant,
         };
         assert!(SelfRef::Abbreviated.valid_in(&abbreviated_context));
         assert_eq!(SelfRef::Abbreviated.surface(&abbreviated_context), "short");
@@ -5476,7 +5557,7 @@ pub mod fixture {
                 BuildValue::Leaf(Leaf::Noun {
                     noun: Head(1),
                     number,
-                    onset: macro_ron::v2::Onset::Consonant,
+                    onset: deckmaste_construction_core::macro_def::Onset::Consonant,
                     possessive_ending: PossessiveEnding::Other,
                 }),
             ]
@@ -5490,13 +5571,13 @@ pub mod fixture {
                 BuildValue::Leaf(Leaf::Noun {
                     noun: Head(2),
                     number: left,
-                    onset: macro_ron::v2::Onset::Consonant,
+                    onset: deckmaste_construction_core::macro_def::Onset::Consonant,
                     possessive_ending: PossessiveEnding::Other,
                 }),
                 BuildValue::Leaf(Leaf::Noun {
                     noun: Head(3),
                     number: right,
-                    onset: macro_ron::v2::Onset::Consonant,
+                    onset: deckmaste_construction_core::macro_def::Onset::Consonant,
                     possessive_ending: PossessiveEnding::Other,
                 }),
             ]
@@ -5577,7 +5658,7 @@ pub mod fixture {
             &[BuildValue::Leaf(Leaf::Verb {
                 lexeme: VerbLexeme::Act,
                 agreement: Agreement::Bare,
-                onset: macro_ron::v2::Onset::Vowel,
+                onset: deckmaste_construction_core::macro_def::Onset::Vowel,
             })],
             &context,
         )
@@ -5589,7 +5670,7 @@ pub mod fixture {
                 &[BuildValue::Leaf(Leaf::Verb {
                     lexeme: VerbLexeme::Act,
                     agreement: Agreement::ThirdPersonSingular,
-                    onset: macro_ron::v2::Onset::Vowel,
+                    onset: deckmaste_construction_core::macro_def::Onset::Vowel,
                 })],
                 &context,
             )
@@ -5682,7 +5763,7 @@ pub mod fixture {
                 BuildValue::Leaf(Leaf::Verb {
                     lexeme: VerbLexeme::Act,
                     agreement: Agreement::ThirdPersonSingular,
-                    onset: macro_ron::v2::Onset::Vowel,
+                    onset: deckmaste_construction_core::macro_def::Onset::Vowel,
                 }),
             ],
             &context,
@@ -5699,13 +5780,13 @@ pub mod fixture {
                 BuildValue::Leaf(Leaf::Noun {
                     noun: Head(4),
                     number: Number::Singular,
-                    onset: macro_ron::v2::Onset::Consonant,
+                    onset: deckmaste_construction_core::macro_def::Onset::Consonant,
                     possessive_ending: PossessiveEnding::Other,
                 }),
                 BuildValue::Leaf(Leaf::Noun {
                     noun: Head(5),
                     number: Number::Singular,
-                    onset: macro_ron::v2::Onset::Consonant,
+                    onset: deckmaste_construction_core::macro_def::Onset::Consonant,
                     possessive_ending: PossessiveEnding::Other,
                 }),
                 BuildValue::Leaf(Leaf::Mode(Mode::One)),

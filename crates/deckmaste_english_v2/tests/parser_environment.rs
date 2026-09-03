@@ -1,6 +1,14 @@
 use std::path::Path;
 use std::sync::Arc;
 
+use deckmaste_construction_core::macro_def::DeclarationKind;
+use deckmaste_construction_core::macro_def::GrammarRecipe;
+use deckmaste_construction_core::macro_def::NormalizedDeclaration;
+use deckmaste_construction_core::macro_def::Onset;
+use deckmaste_construction_core::macro_def::SubtypeCategory;
+use deckmaste_construction_core::macro_def::SurfaceFeature;
+use deckmaste_construction_core::macro_def::VerbValence;
+use deckmaste_construction_core::macro_def::read_str;
 use deckmaste_english_v2::ast::CatalogProvider;
 use deckmaste_english_v2::context::ParseContext;
 use deckmaste_english_v2::environment::CatalogProviderRow;
@@ -11,14 +19,6 @@ use deckmaste_english_v2::environment::ParserEnvironment;
 use deckmaste_english_v2::environment::ParserEnvironmentError;
 use deckmaste_english_v2::parser::Parser;
 use deckmaste_english_v2::parser::ParserBuildError;
-use macro_ron::v2::DeclarationKind;
-use macro_ron::v2::GrammarRecipe;
-use macro_ron::v2::NormalizedDeclaration;
-use macro_ron::v2::Onset;
-use macro_ron::v2::SubtypeCategory;
-use macro_ron::v2::SurfaceFeature;
-use macro_ron::v2::VerbValence;
-use macro_ron::v2::read_str;
 
 fn declaration(path: &str, source: &str) -> NormalizedDeclaration {
     read_str(path, source).expect("synthetic v2 declaration is valid")
@@ -398,7 +398,7 @@ fn parser_environment_rejects_duplicate_catalog_provider() {
 
 #[test]
 fn parser_constructor_rejects_missing_generated_catalog_provider() {
-    let declarations = macro_ron::v2::read_builtin_v2(
+    let declarations = deckmaste_construction_core::macro_def::read_builtin_v2(
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"),
     )
     .expect("integrated builtin-v2 declarations load");
@@ -440,7 +440,7 @@ fn parser_environment_rejects_duplicate_category_safe_identity() {
 
 #[test]
 fn parser_constructor_owns_and_clones_one_immutable_environment() {
-    let declarations = macro_ron::v2::read_builtin_v2(
+    let declarations = deckmaste_construction_core::macro_def::read_builtin_v2(
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"),
     )
     .expect("integrated builtin-v2 declarations load");
@@ -455,8 +455,12 @@ fn parser_constructor_owns_and_clones_one_immutable_environment() {
     .expect("builtin-v2 declarations and provider compile");
     let parser = Parser::new(environment).expect("required declarations are present");
     let cloned = parser.clone();
-    let context = ParseContext::new("Context Card", false, macro_ron::v2::Onset::Consonant)
-        .expect("nonempty context");
+    let context = ParseContext::new(
+        "Context Card",
+        false,
+        deckmaste_construction_core::macro_def::Onset::Consonant,
+    )
+    .expect("nonempty context");
 
     assert_eq!(
         parser.parse("You gain 3 life.", &context),

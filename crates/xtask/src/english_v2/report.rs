@@ -167,12 +167,12 @@ fn build_report(
 }
 
 fn builtin_noun_morphology(root: &Path) -> anyhow::Result<BuiltinNounMorphology> {
-    use macro_ron::v2::Declaration;
-    use macro_ron::v2::DerivedSurface;
-    use macro_ron::v2::Grammar;
-    use macro_ron::v2::GrammarRecipe;
+    use deckmaste_construction_core::macro_def::DerivedSurface;
+    use deckmaste_construction_core::macro_def::Grammar;
+    use deckmaste_construction_core::macro_def::GrammarRecipe;
+    use deckmaste_construction_core::macro_def::Metadata;
 
-    let declarations = macro_ron::v2::read_builtin_v2(root)
+    let declarations = deckmaste_construction_core::macro_def::read_builtin_v2(root)
         .map_err(anyhow::Error::new)
         .with_context(|| format!("authenticating builtin-v2 sources below {}", root.display()))?;
     let mut census = NounMorphologyCensus {
@@ -182,39 +182,36 @@ fn builtin_noun_morphology(root: &Path) -> anyhow::Result<BuiltinNounMorphology>
         unavailable_plural: 0,
     };
     let mut irregulars = Vec::new();
+    let reader = deckmaste_construction_core::macro_def::declaration_macro_set()
+        .map_err(anyhow::Error::msg)?;
 
     for normalized in declarations {
         let path = normalized.provenance().path();
         let source = fs::read_to_string(path)
             .with_context(|| format!("reading authenticated noun source {}", path.display()))?;
-        let raw = macro_ron::v2::ron_options()
-            .from_str::<Declaration>(&source)
+        let raw = reader
+            .read_str::<macro_ron::MacroDef<Metadata>>(&source)
             .map_err(anyhow::Error::new)
             .with_context(|| format!("reparsing authenticated noun source {}", path.display()))?;
-        let (name, grammar) = match &raw {
-            Declaration::Type(fields) | Declaration::TurnPart(fields) => {
-                (&fields.name, fields.grammar.as_ref())
-            }
-            Declaration::Subtype(fields) => (&fields.name, fields.grammar.as_ref()),
-            Declaration::KeywordAction(_)
-            | Declaration::KeywordAbility(_)
-            | Declaration::AbilityWord(_)
-            | Declaration::CounterKind(_)
-            | Declaration::Designation(_) => continue,
-        };
+        let kind = normalized.identity().kind();
+        if !matches!(
+            kind,
+            deckmaste_construction_core::macro_def::DeclarationKind::Type
+                | deckmaste_construction_core::macro_def::DeclarationKind::TurnPart
+                | deckmaste_construction_core::macro_def::DeclarationKind::Subtype(_)
+        ) {
+            continue;
+        }
+        let name = normalized.identity().name();
+        let grammar = raw.metadata().grammar.as_ref();
         let Some(Grammar::Noun { plural, .. }) = grammar else {
             continue;
         };
 
-        if normalized.identity().kind() != raw.kind() || normalized.identity().name() != name {
-            bail!(
-                "raw noun identity in {} diverged from authenticated normalized identity {}",
-                path.display(),
-                normalized.identity(),
-            );
-        }
         if !matches!(
-            normalized.grammar().map(macro_ron::v2::GrammarRow::recipe),
+            normalized
+                .grammar()
+                .map(deckmaste_construction_core::macro_def::GrammarRow::recipe),
             Some(GrammarRecipe::Noun)
         ) {
             bail!(
@@ -229,7 +226,7 @@ fn builtin_noun_morphology(root: &Path) -> anyhow::Result<BuiltinNounMorphology>
             DerivedSurface::Override(surface) => {
                 census.explicit_plural += 1;
                 irregulars.push(MorphologyIrregular {
-                    identity: format!("lexeme:{}/{}", declaration_kind_key(raw.kind()), name),
+                    identity: format!("lexeme:{}/{}", declaration_kind_key(kind), name),
                     overrides: vec![MorphologyOverride {
                         feature: "plural".to_owned(),
                         surface: surface.clone(),
@@ -249,24 +246,38 @@ fn builtin_noun_morphology_census(root: &Path) -> anyhow::Result<NounMorphologyC
     builtin_noun_morphology(root).map(|morphology| morphology.census)
 }
 
-fn declaration_kind_key(kind: macro_ron::v2::DeclarationKind) -> &'static str {
+fn declaration_kind_key(
+    kind: deckmaste_construction_core::macro_def::DeclarationKind,
+) -> &'static str {
     match kind {
-        macro_ron::v2::DeclarationKind::KeywordAction => "keyword_action",
-        macro_ron::v2::DeclarationKind::KeywordAbility => "keyword_ability",
-        macro_ron::v2::DeclarationKind::AbilityWord => "ability_word",
-        macro_ron::v2::DeclarationKind::Subtype(category) => match category {
-            macro_ron::v2::SubtypeCategory::Artifact => "artifact_subtype",
-            macro_ron::v2::SubtypeCategory::Battle => "battle_subtype",
-            macro_ron::v2::SubtypeCategory::Creature => "creature_subtype",
-            macro_ron::v2::SubtypeCategory::Enchantment => "enchantment_subtype",
-            macro_ron::v2::SubtypeCategory::Land => "land_subtype",
-            macro_ron::v2::SubtypeCategory::Planeswalker => "planeswalker_subtype",
-            macro_ron::v2::SubtypeCategory::Spell => "spell_subtype",
-        },
-        macro_ron::v2::DeclarationKind::Type => "type",
-        macro_ron::v2::DeclarationKind::TurnPart => "turn_part",
-        macro_ron::v2::DeclarationKind::CounterKind => "counter_kind",
-        macro_ron::v2::DeclarationKind::Designation => "designation",
+        deckmaste_construction_core::macro_def::DeclarationKind::KeywordAction => "keyword_action",
+        deckmaste_construction_core::macro_def::DeclarationKind::KeywordAbility => {
+            "keyword_ability"
+        }
+        deckmaste_construction_core::macro_def::DeclarationKind::AbilityWord => "ability_word",
+        deckmaste_construction_core::macro_def::DeclarationKind::Subtype(category) => {
+            match category {
+                deckmaste_construction_core::macro_def::SubtypeCategory::Artifact => {
+                    "artifact_subtype"
+                }
+                deckmaste_construction_core::macro_def::SubtypeCategory::Battle => "battle_subtype",
+                deckmaste_construction_core::macro_def::SubtypeCategory::Creature => {
+                    "creature_subtype"
+                }
+                deckmaste_construction_core::macro_def::SubtypeCategory::Enchantment => {
+                    "enchantment_subtype"
+                }
+                deckmaste_construction_core::macro_def::SubtypeCategory::Land => "land_subtype",
+                deckmaste_construction_core::macro_def::SubtypeCategory::Planeswalker => {
+                    "planeswalker_subtype"
+                }
+                deckmaste_construction_core::macro_def::SubtypeCategory::Spell => "spell_subtype",
+            }
+        }
+        deckmaste_construction_core::macro_def::DeclarationKind::Type => "type",
+        deckmaste_construction_core::macro_def::DeclarationKind::TurnPart => "turn_part",
+        deckmaste_construction_core::macro_def::DeclarationKind::CounterKind => "counter_kind",
+        deckmaste_construction_core::macro_def::DeclarationKind::Designation => "designation",
     }
 }
 
@@ -862,42 +873,55 @@ mod tests {
     }
     #[test]
     fn authenticated_raw_noun_overrides_match_literal_evidence_one_for_one() {
-        use macro_ron::v2::Declaration;
-        use macro_ron::v2::DerivedSurface;
-        use macro_ron::v2::Grammar;
+        use deckmaste_construction_core::macro_def::DerivedSurface;
+        use deckmaste_construction_core::macro_def::Grammar;
+        use deckmaste_construction_core::macro_def::Metadata;
 
         let root =
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2");
-        let declarations = macro_ron::v2::read_builtin_v2(&root)
+        let declarations = deckmaste_construction_core::macro_def::read_builtin_v2(&root)
             .expect("builtin-v2 sources authenticate independently");
+        let reader = deckmaste_construction_core::macro_def::declaration_macro_set()
+            .expect("declaration meta-macros are valid");
         let mut actual = Vec::new();
         for normalized in declarations {
             let source = std::fs::read_to_string(normalized.provenance().path())
                 .expect("authenticated source remains readable");
-            let raw = macro_ron::v2::ron_options()
-                .from_str::<Declaration>(&source)
+            let raw = reader
+                .read_str::<macro_ron::MacroDef<Metadata>>(&source)
                 .expect("authenticated source reparses independently");
-            let (name, kind_key, grammar) = match raw {
-                Declaration::Type(fields) => (fields.name, "type", fields.grammar),
-                Declaration::TurnPart(fields) => (fields.name, "turn_part", fields.grammar),
-                Declaration::Subtype(fields) => {
-                    let kind_key = match fields.category {
-                        macro_ron::v2::SubtypeCategory::Artifact => "artifact_subtype",
-                        macro_ron::v2::SubtypeCategory::Battle => "battle_subtype",
-                        macro_ron::v2::SubtypeCategory::Creature => "creature_subtype",
-                        macro_ron::v2::SubtypeCategory::Enchantment => "enchantment_subtype",
-                        macro_ron::v2::SubtypeCategory::Land => "land_subtype",
-                        macro_ron::v2::SubtypeCategory::Planeswalker => "planeswalker_subtype",
-                        macro_ron::v2::SubtypeCategory::Spell => "spell_subtype",
-                    };
-                    (fields.name, kind_key, fields.grammar)
+            let name = normalized.identity().name();
+            let kind_key = match normalized.identity().kind() {
+                deckmaste_construction_core::macro_def::DeclarationKind::Type => "type",
+                deckmaste_construction_core::macro_def::DeclarationKind::TurnPart => "turn_part",
+                deckmaste_construction_core::macro_def::DeclarationKind::Subtype(category) => {
+                    match category {
+                        deckmaste_construction_core::macro_def::SubtypeCategory::Artifact => {
+                            "artifact_subtype"
+                        }
+                        deckmaste_construction_core::macro_def::SubtypeCategory::Battle => {
+                            "battle_subtype"
+                        }
+                        deckmaste_construction_core::macro_def::SubtypeCategory::Creature => {
+                            "creature_subtype"
+                        }
+                        deckmaste_construction_core::macro_def::SubtypeCategory::Enchantment => {
+                            "enchantment_subtype"
+                        }
+                        deckmaste_construction_core::macro_def::SubtypeCategory::Land => {
+                            "land_subtype"
+                        }
+                        deckmaste_construction_core::macro_def::SubtypeCategory::Planeswalker => {
+                            "planeswalker_subtype"
+                        }
+                        deckmaste_construction_core::macro_def::SubtypeCategory::Spell => {
+                            "spell_subtype"
+                        }
+                    }
                 }
-                Declaration::KeywordAction(_)
-                | Declaration::KeywordAbility(_)
-                | Declaration::AbilityWord(_)
-                | Declaration::CounterKind(_)
-                | Declaration::Designation(_) => continue,
+                _ => continue,
             };
+            let grammar = raw.metadata().grammar.as_ref();
             let Some(Grammar::Noun {
                 plural: DerivedSurface::Override(surface),
                 ..
@@ -905,7 +929,7 @@ mod tests {
             else {
                 continue;
             };
-            actual.push((format!("lexeme:{kind_key}/{name}"), surface));
+            actual.push((format!("lexeme:{kind_key}/{name}"), surface.clone()));
         }
 
         assert_eq!(

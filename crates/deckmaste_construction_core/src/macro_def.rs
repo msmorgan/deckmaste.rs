@@ -1,10 +1,9 @@
-//! Neutral source and normalized-row types for v2 plugin declarations.
+//! Consumer-owned metadata and normalized rows for semantic macro definitions.
 //!
-//! This module is deliberately separate from [`crate::MacroDef`]. V2 source
-//! has one category-safe declaration kind, positional parameters, a semantic
-//! spelling frame, and optional closed grammar data. It is data for later
-//! providers and parser environments; it is not expanded through the legacy
-//! macro reader.
+//! Source files are ordinary [`macro_ron::MacroDef`] values. Declaration
+//! shorthands such as `KeywordAction(...)` are meta-macros expanded by the
+//! same reader; this module owns only the English-v2 metadata and the
+//! normalized parser boundary built from it.
 
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -12,7 +11,6 @@ use std::fmt;
 use std::path::Path;
 use std::path::PathBuf;
 
-use ron::extensions::Extensions;
 use ron::value::RawValue;
 use serde::Deserialize;
 use serde::Serialize;
@@ -24,107 +22,61 @@ use serde::de::Visitor;
 use serde::ser::Error as _;
 use serde::ser::Serializer;
 
-/// The RON dialect used by every v2 declaration read and write.
-///
-/// `implicit_some` keeps optional source fields flat. Unwrapped newtype
-/// variants make `KeywordAction(name: ..., ...)` the spelling of an enum arm
-/// carrying [`DeclarationFields`], rather than adding a second pair of
-/// parentheses around the fields.
-#[must_use]
-pub fn ron_options() -> ron::Options {
-    ron::Options::default()
-        .with_default_extension(Extensions::IMPLICIT_SOME | Extensions::UNWRAP_VARIANT_NEWTYPES)
+fn macro_options() -> ron::Options {
+    ron::Options::default().with_default_extension(
+        ron::extensions::Extensions::IMPLICIT_SOME
+            | ron::extensions::Extensions::UNWRAP_VARIANT_NEWTYPES,
+    )
 }
 
-/// A complete v2 declaration source value.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-pub enum Declaration {
-    KeywordAction(DeclarationFields),
-    KeywordAbility(DeclarationFields),
-    AbilityWord(DeclarationFields),
-    Subtype(SubtypeDeclaration),
-    Type(DeclarationFields),
-    TurnPart(DeclarationFields),
-    CounterKind(DeclarationFields),
-    Designation(DeclarationFields),
-}
+const DECLARATION_META_MACROS: &[&str] = &[
+    include_str!("../../../plugins/builtin_v2/macros/meta/AbilityWord.ron"),
+    include_str!("../../../plugins/builtin_v2/macros/meta/CounterKind.ron"),
+    include_str!("../../../plugins/builtin_v2/macros/meta/Designation.ron"),
+    include_str!("../../../plugins/builtin_v2/macros/meta/KeywordAbility.ron"),
+    include_str!("../../../plugins/builtin_v2/macros/meta/KeywordAction.ron"),
+    include_str!("../../../plugins/builtin_v2/macros/meta/Subtype.ron"),
+    include_str!("../../../plugins/builtin_v2/macros/meta/TurnPart.ron"),
+    include_str!("../../../plugins/builtin_v2/macros/meta/Type.ron"),
+];
 
-impl Declaration {
-    /// The declaration's category-safe identity kind.
-    #[must_use]
-    pub fn kind(&self) -> DeclarationKind {
-        match self {
-            Declaration::KeywordAction(_) => DeclarationKind::KeywordAction,
-            Declaration::KeywordAbility(_) => DeclarationKind::KeywordAbility,
-            Declaration::AbilityWord(_) => DeclarationKind::AbilityWord,
-            Declaration::Subtype(declaration) => DeclarationKind::Subtype(declaration.category),
-            Declaration::Type(_) => DeclarationKind::Type,
-            Declaration::TurnPart(_) => DeclarationKind::TurnPart,
-            Declaration::CounterKind(_) => DeclarationKind::CounterKind,
-            Declaration::Designation(_) => DeclarationKind::Designation,
-        }
+fn declaration_reader() -> Result<macro_ron::MacroSet, String> {
+    let mut kinds = macro_ron::KindSet::new();
+    kinds.add(macro_ron::Kind::new("Macro"));
+    let mut reader = macro_ron::MacroSet::new(kinds).with_options(macro_options());
+    for source in DECLARATION_META_MACROS {
+        let definition: macro_ron::MacroDef = reader
+            .read_str(source)
+            .map_err(|error| format!("invalid builtin declaration meta-macro: {error}"))?;
+        reader
+            .insert(&definition)
+            .map_err(|error| format!("invalid builtin declaration meta-macro: {error}"))?;
     }
-
-    fn into_parts(self) -> (DeclarationKind, DeclarationFields) {
-        match self {
-            Declaration::KeywordAction(fields) => (DeclarationKind::KeywordAction, fields),
-            Declaration::KeywordAbility(fields) => (DeclarationKind::KeywordAbility, fields),
-            Declaration::AbilityWord(fields) => (DeclarationKind::AbilityWord, fields),
-            Declaration::Subtype(declaration) => (
-                DeclarationKind::Subtype(declaration.category),
-                declaration.into_fields(),
-            ),
-            Declaration::Type(fields) => (DeclarationKind::Type, fields),
-            Declaration::TurnPart(fields) => (DeclarationKind::TurnPart, fields),
-            Declaration::CounterKind(fields) => (DeclarationKind::CounterKind, fields),
-            Declaration::Designation(fields) => (DeclarationKind::Designation, fields),
-        }
-    }
+    Ok(reader)
 }
 
-/// Fields shared by each externally tagged declaration kind.
+/// Builds the ordinary macro reader with the declaration meta-macros in
+/// scope. Providers that need authored metadata in addition to normalized
+/// rows use this same reader rather than a parallel source schema.
 ///
-/// `params: None` means an untyped nursery record. `params: Some([])` is a
-/// graduated nullary signature; the distinction is intentional.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+/// # Errors
+///
+/// Returns an error if an embedded declaration meta-macro is invalid.
+pub fn declaration_macro_set() -> Result<macro_ron::MacroSet, String> {
+    declaration_reader()
+}
+
+/// English-v2 metadata attached to an ordinary macro definition.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct DeclarationFields {
-    pub name: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub params: Option<Vec<ParameterType>>,
+pub struct Metadata {
     pub spelling: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub grammar: Option<Grammar>,
+    /// Only subtype declarations carry a category; it forms part of their
+    /// category-safe identity after normalization.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub body: Option<Box<RawValue>>,
-}
-
-/// A subtype declaration has the same source fields plus one semantic
-/// subtype category. The category is part of its identity domain.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
-pub struct SubtypeDeclaration {
-    pub category: SubtypeCategory,
-    pub name: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub params: Option<Vec<ParameterType>>,
-    pub spelling: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub grammar: Option<Grammar>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub body: Option<Box<RawValue>>,
-}
-
-impl SubtypeDeclaration {
-    fn into_fields(self) -> DeclarationFields {
-        DeclarationFields {
-            name: self.name,
-            params: self.params,
-            spelling: self.spelling,
-            grammar: self.grammar,
-            body: self.body,
-        }
-    }
+    pub category: Option<SubtypeCategory>,
 }
 
 /// The open registry family in which a declaration name is unique.
@@ -181,8 +133,7 @@ impl fmt::Display for SubtypeCategory {
     }
 }
 
-/// One positional semantic parameter type, serialized as a bare RON
-/// identifier (`Amount`, not `"Amount"`).
+/// One normalized positional semantic parameter type.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub struct ParameterType(String);
 
@@ -202,21 +153,6 @@ impl ParameterType {
     #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
-    }
-}
-
-impl<'de> Deserialize<'de> for ParameterType {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let raw = Box::<RawValue>::deserialize(deserializer)?;
-        Self::new(raw.get_ron().trim()).map_err(D::Error::custom)
-    }
-}
-
-impl Serialize for ParameterType {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        RawValue::from_ron(&self.0)
-            .map_err(S::Error::custom)?
-            .serialize(serializer)
     }
 }
 
@@ -358,7 +294,7 @@ impl<'de> Deserialize<'de> for DerivedSurface {
         if source == "Unavailable" {
             return Ok(Self::Unavailable);
         }
-        ron_options()
+        macro_options()
             .from_str::<String>(source)
             .map(Self::Override)
             .map_err(D::Error::custom)
@@ -652,6 +588,7 @@ struct ValidationSourceMap {
     declaration: SourcePosition,
     category: Option<SourcePosition>,
     name: SourcePosition,
+    params: Option<SourcePosition>,
     spelling: SourcePosition,
     grammar: Option<GrammarSourceMap>,
     body: Option<SourcePosition>,
@@ -676,7 +613,7 @@ enum GrammarSourceMap {
 }
 
 #[derive(Deserialize)]
-enum DiagnosticDeclaration<'a> {
+enum DiagnosticInvocation<'a> {
     KeywordAction(#[serde(borrow)] DiagnosticFields<'a>),
     KeywordAbility(#[serde(borrow)] DiagnosticFields<'a>),
     AbilityWord(#[serde(borrow)] DiagnosticFields<'a>),
@@ -691,6 +628,8 @@ enum DiagnosticDeclaration<'a> {
 struct DiagnosticFields<'a> {
     #[serde(borrow)]
     name: &'a RawValue,
+    #[serde(default, borrow)]
+    params: Option<&'a RawValue>,
     #[serde(borrow)]
     spelling: &'a RawValue,
     #[serde(default, borrow)]
@@ -705,6 +644,8 @@ struct DiagnosticSubtype<'a> {
     category: &'a RawValue,
     #[serde(borrow)]
     name: &'a RawValue,
+    #[serde(default, borrow)]
+    params: Option<&'a RawValue>,
     #[serde(borrow)]
     spelling: &'a RawValue,
     #[serde(default, borrow)]
@@ -716,6 +657,7 @@ struct DiagnosticSubtype<'a> {
 struct DiagnosticFieldValues<'a> {
     category: Option<&'a RawValue>,
     name: &'a RawValue,
+    params: Option<&'a RawValue>,
     spelling: &'a RawValue,
     grammar: Option<DiagnosticGrammar<'a>>,
     body: Option<&'a RawValue>,
@@ -772,7 +714,7 @@ struct DiagnosticBlockLabelGrammar<'a> {
 struct LeadingVariant;
 
 impl<'de> DeserializeSeed<'de> for LeadingVariant {
-    type Value = crate::Ident;
+    type Value = macro_ron::Ident;
 
     fn deserialize<D: Deserializer<'de>>(self, de: D) -> Result<Self::Value, D::Error> {
         de.deserialize_enum("", &[], self)
@@ -780,14 +722,14 @@ impl<'de> DeserializeSeed<'de> for LeadingVariant {
 }
 
 impl<'de> Visitor<'de> for LeadingVariant {
-    type Value = crate::Ident;
+    type Value = macro_ron::Ident;
 
     fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str("a declaration variant")
     }
 
     fn visit_enum<A: EnumAccess<'de>>(self, data: A) -> Result<Self::Value, A::Error> {
-        let (ident, _variant) = data.variant_seed(crate::IdentSeed)?;
+        let (ident, _variant) = data.variant_seed(macro_ron::IdentSeed)?;
         Ok(ident)
     }
 }
@@ -801,6 +743,16 @@ pub enum ValidationError {
         "semantic body requires an explicit positional parameter signature; use `params: []` for a nullary declaration"
     )]
     BodyWithoutSignature,
+    #[error("a semantic declaration must name exactly one supported declaration kind")]
+    InvalidDeclarationKind,
+    #[error("only subtype declarations may carry a subtype category")]
+    UnexpectedSubtypeCategory,
+    #[error("a subtype declaration requires a subtype category")]
+    MissingSubtypeCategory,
+    #[error("v2 semantic declarations require positional parameter signatures")]
+    NamedParameters,
+    #[error("v2 semantic declaration parameters must be plain type names")]
+    DecoratedParameter,
     #[error("invalid spelling: {reason}")]
     InvalidSpelling { reason: String },
     #[error("{location} references Param({index}), but the positional signature has length {len}")]
@@ -913,39 +865,41 @@ impl ReadError {
 impl ValidationSourceMap {
     fn read(path: &Path, source: &str) -> Result<Self, ReadError> {
         let declaration = leading_variant_position(path, source)?;
-        let diagnostic = ron_options()
-            .from_str::<DiagnosticDeclaration<'_>>(source)
+        let diagnostic = macro_options()
+            .from_str::<DiagnosticInvocation<'_>>(source)
             .map_err(|source| ReadError::Parse {
                 path: path.to_owned(),
                 source: Box::new(source),
             })?;
 
         match diagnostic {
-            DiagnosticDeclaration::KeywordAction(fields)
-            | DiagnosticDeclaration::KeywordAbility(fields)
-            | DiagnosticDeclaration::AbilityWord(fields)
-            | DiagnosticDeclaration::Type(fields)
-            | DiagnosticDeclaration::TurnPart(fields)
-            | DiagnosticDeclaration::CounterKind(fields)
-            | DiagnosticDeclaration::Designation(fields) => Self::from_fields(
+            DiagnosticInvocation::KeywordAction(fields)
+            | DiagnosticInvocation::KeywordAbility(fields)
+            | DiagnosticInvocation::AbilityWord(fields)
+            | DiagnosticInvocation::Type(fields)
+            | DiagnosticInvocation::TurnPart(fields)
+            | DiagnosticInvocation::CounterKind(fields)
+            | DiagnosticInvocation::Designation(fields) => Self::from_fields(
                 path,
                 source,
                 declaration,
                 DiagnosticFieldValues {
                     category: None,
                     name: fields.name,
+                    params: fields.params,
                     spelling: fields.spelling,
                     grammar: fields.grammar,
                     body: fields.body,
                 },
             ),
-            DiagnosticDeclaration::Subtype(subtype) => Self::from_fields(
+            DiagnosticInvocation::Subtype(subtype) => Self::from_fields(
                 path,
                 source,
                 declaration,
                 DiagnosticFieldValues {
                     category: Some(subtype.category),
                     name: subtype.name,
+                    params: subtype.params,
                     spelling: subtype.spelling,
                     grammar: subtype.grammar,
                     body: subtype.body,
@@ -967,6 +921,10 @@ impl ValidationSourceMap {
                 .map(|category| raw_position(path, source, category, declaration))
                 .transpose()?,
             name: raw_position(path, source, fields.name, declaration)?,
+            params: fields
+                .params
+                .map(|params| raw_position(path, source, params, declaration))
+                .transpose()?,
             spelling: raw_position(path, source, fields.spelling, declaration)?,
             grammar: fields
                 .grammar
@@ -1047,7 +1005,7 @@ impl GrammarSourceMap {
 }
 
 fn leading_variant_position(path: &Path, source: &str) -> Result<SourcePosition, ReadError> {
-    let options = ron_options();
+    let options = macro_options();
     let mut deserializer =
         ron::Deserializer::from_str_with_options(source, &options).map_err(|source| {
             ReadError::Parse {
@@ -1150,7 +1108,11 @@ pub fn read_str(
     path: impl Into<PathBuf>,
     source: &str,
 ) -> Result<NormalizedDeclaration, ReadError> {
-    read_mapped(path.into(), source).map(|mapped| mapped.declaration)
+    let path = path.into();
+    let reader = declaration_reader().map_err(|reason| {
+        source_map_parse_error(&path, SourcePosition { line: 1, column: 1 }, &reason)
+    })?;
+    read_mapped(&reader, path, source).map(|mapped| mapped.declaration)
 }
 
 struct MappedDeclaration {
@@ -1158,15 +1120,19 @@ struct MappedDeclaration {
     source_map: ValidationSourceMap,
 }
 
-fn read_mapped(path: PathBuf, source: &str) -> Result<MappedDeclaration, ReadError> {
-    let declaration = ron_options()
-        .from_str::<Declaration>(source)
+fn read_mapped(
+    reader: &macro_ron::MacroSet,
+    path: PathBuf,
+    source: &str,
+) -> Result<MappedDeclaration, ReadError> {
+    let definition = reader
+        .read_str::<macro_ron::MacroDef<Metadata>>(source)
         .map_err(|source| ReadError::Parse {
             path: path.clone(),
             source: Box::new(source),
         })?;
     let source_map = ValidationSourceMap::read(&path, source)?;
-    let declaration = normalize(path, declaration, &source_map)?;
+    let declaration = normalize(path, &definition, &source_map, reader)?;
     Ok(MappedDeclaration {
         declaration,
         source_map,
@@ -1193,11 +1159,18 @@ pub fn read_sources(
 fn read_sources_mapped(
     mut sources: Vec<DeclarationSource>,
 ) -> Result<Vec<MappedDeclaration>, ReadError> {
+    let reader = declaration_reader().map_err(|reason| {
+        let path = sources.first().map_or_else(
+            || PathBuf::from("<declarations>"),
+            |source| source.path.clone(),
+        );
+        source_map_parse_error(&path, SourcePosition { line: 1, column: 1 }, &reason)
+    })?;
     sources.sort_by(|left, right| left.path.cmp(&right.path));
     let mut first_by_identity: HashMap<DeclarationIdentity, PathBuf> = HashMap::new();
     let mut declarations = Vec::with_capacity(sources.len());
     for source in sources {
-        let declaration = read_mapped(source.path.clone(), &source.source)?;
+        let declaration = read_mapped(&reader, source.path.clone(), &source.source)?;
         if let Some(first_path) = first_by_identity.get(&declaration.declaration.identity) {
             return Err(validation_error_at(
                 &source.path,
@@ -1214,7 +1187,7 @@ fn read_sources_mapped(
     Ok(declarations)
 }
 
-/// Reads the committed builtin-v2 nursery through the ordinary v2 reader.
+/// Reads the committed builtin-v2 nursery through the ordinary macro reader.
 ///
 /// This is intentionally narrow: `root` must itself be an existing directory
 /// named `builtin_v2`, and only `.ron` files below `macros/stubs` are read.
@@ -1286,17 +1259,34 @@ pub fn read_builtin_v2(root: impl AsRef<Path>) -> Result<Vec<NormalizedDeclarati
 
 fn normalize(
     path: PathBuf,
-    declaration: Declaration,
+    definition: &macro_ron::MacroDef<Metadata>,
     source_map: &ValidationSourceMap,
+    reader: &macro_ron::MacroSet,
 ) -> Result<NormalizedDeclaration, ReadError> {
-    let (kind, fields) = declaration.into_parts();
-    let DeclarationFields {
-        name,
-        params,
+    let name = definition.name.as_str().to_owned();
+    let kind = normalized_kind(&path, source_map, definition)?;
+    let params = normalized_params(&path, source_map, definition)?;
+    let Metadata {
         spelling,
         grammar,
-        body,
-    } = fields;
+        category: _,
+    } = definition.metadata.clone();
+    let body = source_map
+        .body
+        .map(|_| {
+            macro_options()
+                .from_str::<Box<RawValue>>(definition.body())
+                .map_err(|error| {
+                    validation_error_at(
+                        &path,
+                        source_map.body.unwrap_or(source_map.declaration),
+                        ValidationError::InvalidBody {
+                            reason: error.to_string(),
+                        },
+                    )
+                })
+        })
+        .transpose()?;
 
     if !is_bare_ident(&name) {
         return Err(validation_error_at(
@@ -1330,7 +1320,8 @@ fn normalize(
         &path,
         source_map.declaration,
         source_map.body,
-        body.as_deref(),
+        definition,
+        reader,
         params.as_deref(),
     )?;
 
@@ -1362,6 +1353,85 @@ fn normalize(
         body,
         provenance: SourceProvenance { path },
     })
+}
+
+fn normalized_kind(
+    path: &Path,
+    source_map: &ValidationSourceMap,
+    definition: &macro_ron::MacroDef<Metadata>,
+) -> Result<DeclarationKind, ReadError> {
+    let [kind] = definition.kinds.as_slice() else {
+        return Err(validation_error_at(
+            path,
+            source_map.declaration,
+            ValidationError::InvalidDeclarationKind,
+        ));
+    };
+    let category = definition.metadata.category;
+    let kind = match kind.as_str() {
+        "KeywordAction" => DeclarationKind::KeywordAction,
+        "KeywordAbility" => DeclarationKind::KeywordAbility,
+        "AbilityWord" => DeclarationKind::AbilityWord,
+        "Subtype" => DeclarationKind::Subtype(category.ok_or_else(|| {
+            validation_error_at(
+                path,
+                source_map.declaration,
+                ValidationError::MissingSubtypeCategory,
+            )
+        })?),
+        "Type" => DeclarationKind::Type,
+        "TurnPart" => DeclarationKind::TurnPart,
+        "CounterKind" => DeclarationKind::CounterKind,
+        "Designation" => DeclarationKind::Designation,
+        _ => {
+            return Err(validation_error_at(
+                path,
+                source_map.declaration,
+                ValidationError::InvalidDeclarationKind,
+            ));
+        }
+    };
+    if !matches!(kind, DeclarationKind::Subtype(_)) && category.is_some() {
+        return Err(validation_error_at(
+            path,
+            source_map.declaration,
+            ValidationError::UnexpectedSubtypeCategory,
+        ));
+    }
+    Ok(kind)
+}
+
+fn normalized_params(
+    path: &Path,
+    source_map: &ValidationSourceMap,
+    definition: &macro_ron::MacroDef<Metadata>,
+) -> Result<Option<Vec<ParameterType>>, ReadError> {
+    let Some(position) = source_map.params else {
+        return Ok(None);
+    };
+    let macro_ron::Params::Positional(params) = &definition.params else {
+        return Err(validation_error_at(
+            path,
+            position,
+            ValidationError::NamedParameters,
+        ));
+    };
+    params
+        .iter()
+        .map(|param| {
+            if param.default.is_some() || param.elidable || !param.binds.is_empty() {
+                return Err(validation_error_at(
+                    path,
+                    position,
+                    ValidationError::DecoratedParameter,
+                ));
+            }
+            ParameterType::new(param.name.as_str()).map_err(|reason| {
+                validation_error_at(path, position, ValidationError::InvalidBody { reason })
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()
+        .map(Some)
 }
 
 type NormalizedGrammarParts = (
@@ -1984,22 +2054,22 @@ fn validate_body_params(
     path: &Path,
     fallback: SourcePosition,
     position: Option<SourcePosition>,
-    body: Option<&RawValue>,
+    definition: &macro_ron::MacroDef<Metadata>,
+    reader: &macro_ron::MacroSet,
     params: Option<&[ParameterType]>,
 ) -> Result<(), ReadError> {
-    let Some(body) = body else {
+    if position.is_none() {
         return Ok(());
-    };
+    }
     let position = required_map_position(path, fallback, position, "body")?;
-    let mut keys = Vec::new();
-    crate::expand::collect_param_keys(body.get_ron(), &ron_options(), &mut keys).map_err(
-        |reason| validation_error_at(path, position, ValidationError::InvalidBody { reason }),
-    )?;
+    let keys = definition.body_param_keys(reader).map_err(|reason| {
+        validation_error_at(path, position, ValidationError::InvalidBody { reason })
+    })?;
     let len = params.map_or(0, <[ParameterType]>::len);
     for key in keys {
-        match key {
-            crate::expand::ParamKey::Index(index) if index < len => {}
-            crate::expand::ParamKey::Index(index) => {
+        match key.parse::<usize>() {
+            Ok(index) if index < len => {}
+            Ok(index) => {
                 return Err(validation_error_at(
                     path,
                     position,
@@ -2010,14 +2080,12 @@ fn validate_body_params(
                     },
                 ));
             }
-            crate::expand::ParamKey::Name(name) => {
+            Err(_) => {
                 return Err(validation_error_at(
                     path,
                     position,
                     ValidationError::InvalidBody {
-                        reason: format!(
-                            "holes `Param({name})`, but v2 declarations are positional"
-                        ),
+                        reason: format!("holes `Param({key})`, but v2 declarations are positional"),
                     },
                 ));
             }

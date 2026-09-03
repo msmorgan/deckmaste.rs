@@ -11,8 +11,11 @@ workspace = true
 macro_ron = { version = "0.1.0", path = "../macro_ron" }
 proc-macro2 = "1.0.106"
 quote = "1.0.45"
+ron = "0.12.1"
+serde = { version = "1.0.228", features = ["derive"] }
 syn = { version = "2.0.117", features = ["extra-traits", "full", "visit"] }
 prettyplease = "0.2"
+thiserror = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3.27.0"

@@ -1,12 +1,12 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use macro_ron::v2::DeclarationKind;
-use macro_ron::v2::GrammarRecipe;
-use macro_ron::v2::NormalizedDeclaration;
-use macro_ron::v2::SpellingPart;
-use macro_ron::v2::SurfaceFeature;
-use macro_ron::v2::read_builtin_v2;
+use deckmaste_construction_core::macro_def::DeclarationKind;
+use deckmaste_construction_core::macro_def::GrammarRecipe;
+use deckmaste_construction_core::macro_def::NormalizedDeclaration;
+use deckmaste_construction_core::macro_def::SpellingPart;
+use deckmaste_construction_core::macro_def::SurfaceFeature;
+use deckmaste_construction_core::macro_def::read_builtin_v2;
 
 fn declaration_name(head: &str) -> String {
     if head == "∞" {
@@ -203,7 +203,7 @@ fn builtin_v2_keyword_ability_nursery_is_complete_and_normalized() {
             assert_eq!(
                 params
                     .iter()
-                    .map(macro_ron::v2::ParameterType::as_str)
+                    .map(deckmaste_construction_core::macro_def::ParameterType::as_str)
                     .collect::<Vec<_>>(),
                 *expected_params,
                 "{name}",

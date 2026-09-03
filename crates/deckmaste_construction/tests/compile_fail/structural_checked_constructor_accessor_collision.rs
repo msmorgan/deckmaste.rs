@@ -194,8 +194,8 @@ mod fixture {
             _matcher: DeclarationMatcher,
         ) -> Vec<(
             usize,
-            macro_ron::v2::DeclarationIdentity,
-            macro_ron::v2::SurfaceFeature,
+            deckmaste_construction_core::macro_def::DeclarationIdentity,
+            deckmaste_construction_core::macro_def::SurfaceFeature,
         )> {
             debug_assert_eq!(self.context.marker, std::marker::PhantomData);
             Vec::new()

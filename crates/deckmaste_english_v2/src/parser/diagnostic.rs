@@ -1669,8 +1669,12 @@ mod tests {
 
     #[test]
     fn parser_trace_lexical_ownership_nonselected_outcomes_are_empty() {
-        let context = ParseContext::new("Trace Card", false, macro_ron::v2::Onset::Consonant)
-            .expect("context");
+        let context = ParseContext::new(
+            "Trace Card",
+            false,
+            deckmaste_construction_core::macro_def::Onset::Consonant,
+        )
+        .expect("context");
         let environment = canonical_test_environment();
         let unresolved = SelectionDecision::new(
             Vec::new(),
@@ -1741,8 +1745,12 @@ mod tests {
     fn parser_trace_lexical_ownership_debug_and_equality_ignore_private_omissions() {
         let environment = canonical_test_environment();
         let parser = Parser::new(environment).expect("canonical environment satisfies grammar");
-        let context = ParseContext::new("Trace Card", false, macro_ron::v2::Onset::Consonant)
-            .expect("context");
+        let context = ParseContext::new(
+            "Trace Card",
+            false,
+            deckmaste_construction_core::macro_def::Onset::Consonant,
+        )
+        .expect("context");
         let left = parser.trace("Destroy target creature.", &context, TraceLimits::new(1));
         let mut right = left.clone();
         right.analysis = parser.analyze("Destroy target Spirit.", &context);
@@ -1773,8 +1781,12 @@ mod tests {
     fn parser_trace_debug_redacts_private_analysis_and_raw_error() {
         const PRIVATE_SENTINEL: &str = "PRIVATE_TRACE_DEBUG_SENTINEL";
 
-        let context = ParseContext::new("Trace Card", false, macro_ron::v2::Onset::Consonant)
-            .expect("context");
+        let context = ParseContext::new(
+            "Trace Card",
+            false,
+            deckmaste_construction_core::macro_def::Onset::Consonant,
+        )
+        .expect("context");
         let environment = canonical_test_environment();
         let trace = ParserTrace::from_parts(
             ParseAnalysis::<crate::ast::Ability>::from_result(
@@ -1807,8 +1819,12 @@ mod tests {
         const LEFT_SENTINEL: &str = "PRIVATE_TRACE_EQUALITY_SENTINEL_LEFT";
         const RIGHT_SENTINEL: &str = "PRIVATE_TRACE_EQUALITY_SENTINEL_RIGHT";
 
-        let context = ParseContext::new("Trace Card", false, macro_ron::v2::Onset::Consonant)
-            .expect("context");
+        let context = ParseContext::new(
+            "Trace Card",
+            false,
+            deckmaste_construction_core::macro_def::Onset::Consonant,
+        )
+        .expect("context");
         let environment = canonical_test_environment();
         let make_trace = |sentinel| {
             ParserTrace::from_parts(

@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
 use std::path::Path;
 
+use deckmaste_construction_core::macro_def::Onset;
 use deckmaste_english_v2::ast::CardName;
 use deckmaste_english_v2::ast::CardinalNumber;
 use deckmaste_english_v2::ast::CatalogProvider;
@@ -39,10 +40,9 @@ use deckmaste_english_v2::parser::SelectionResolution;
 use deckmaste_english_v2::parser::SpecificityTier;
 use deckmaste_english_v2::render::Render;
 use deckmaste_english_v2::visit::Visitor;
-use macro_ron::v2::Onset;
 
 fn parser() -> Parser {
-    let declarations = macro_ron::v2::read_builtin_v2(
+    let declarations = deckmaste_construction_core::macro_def::read_builtin_v2(
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"),
     )
     .expect("integrated builtin-v2 declarations load");
@@ -508,7 +508,10 @@ impl Visitor for NominalVisitor {
             .push(format!("ScalarNumber:{}", value.magnitude));
     }
 
-    fn visit_declaration(&mut self, value: &macro_ron::v2::DeclarationIdentity) {
+    fn visit_declaration(
+        &mut self,
+        value: &deckmaste_construction_core::macro_def::DeclarationIdentity,
+    ) {
         self.events
             .push(format!("Declaration:{:?}:{}", value.kind(), value.name()));
     }
@@ -4848,9 +4851,9 @@ fn personal_pronoun_case_and_chosen_quality_references_are_typed() {
 
 #[test]
 fn aggregate_noun_inventory_accepts_every_contributing_subtype_family() {
-    use macro_ron::v2::DeclarationIdentity;
-    use macro_ron::v2::DeclarationKind;
-    use macro_ron::v2::SubtypeCategory;
+    use deckmaste_construction_core::macro_def::DeclarationIdentity;
+    use deckmaste_construction_core::macro_def::DeclarationKind;
+    use deckmaste_construction_core::macro_def::SubtypeCategory;
 
     let parser = parser();
     let environment = parser.environment();
@@ -5948,9 +5951,9 @@ fn malformed_coordination_punctuation_and_scoping_are_rejected() {
 
 #[test]
 fn coordination_minimum_arity_and_agreement_are_unconstructible_when_inconsistent() {
+    use deckmaste_construction_core::macro_def::DeclarationIdentity;
+    use deckmaste_construction_core::macro_def::DeclarationKind;
     use deckmaste_english_v2::ast::*;
-    use macro_ron::v2::DeclarationIdentity;
-    use macro_ron::v2::DeclarationKind;
 
     let parser = parser();
     let environment = parser.environment();

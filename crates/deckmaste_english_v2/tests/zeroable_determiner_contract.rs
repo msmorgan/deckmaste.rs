@@ -1,15 +1,15 @@
 use std::path::Path;
 
+use deckmaste_construction_core::macro_def::Onset;
 use deckmaste_english_v2::ast::CatalogProvider;
 use deckmaste_english_v2::context::ParseContext;
 use deckmaste_english_v2::environment::CatalogProviderRow;
 use deckmaste_english_v2::environment::CatalogProviderRows;
 use deckmaste_english_v2::environment::ParserEnvironment;
 use deckmaste_english_v2::parser::Parser;
-use macro_ron::v2::Onset;
 
 fn parser() -> Parser {
-    let declarations = macro_ron::v2::read_builtin_v2(
+    let declarations = deckmaste_construction_core::macro_def::read_builtin_v2(
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"),
     )
     .expect("builtin declarations load");

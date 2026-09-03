@@ -168,7 +168,8 @@ fn source_schema_rejects_legacy_and_unknown_fields() {
 }
 
 #[test]
-fn nursery_and_graduated_sources_round_trip_without_legacy_translation() {
+fn nursery_and_graduated_sources_use_the_ordinary_macro_reader() {
+    let reader = declaration_reader().unwrap();
     for source in [
         r#"KeywordAbility(name:"Flying",spelling:"flying",grammar:FixedKeyword(surface:"flying"))"#,
         r#"Subtype(category:Creature,name:"Merfolk",spelling:"Merfolk",grammar:Noun(singular:"Merfolk",plural:"Merfolk"))"#,
@@ -178,21 +179,14 @@ fn nursery_and_graduated_sources_round_trip_without_legacy_translation() {
         r#"KeywordAction(name:"Ping",params:[],spelling:"ping",body:Ping)"#,
         SCRY,
     ] {
-        let parsed: Declaration = ron_options().from_str(source).unwrap();
-        let written = ron_options().to_string(&parsed).unwrap();
-        let reparsed: Declaration = ron_options().from_str(&written).unwrap();
-        assert_eq!(reparsed, parsed, "{source}");
-        assert!(!written.contains("template:"), "{written}");
-        assert!(!written.contains("frames:"), "{written}");
-        assert!(!written.contains("kinds:"), "{written}");
-        if source.contains("params:[]") {
-            assert!(written.contains("params:[]"), "{written}");
-            assert_eq!(
-                reparsed.into_parts().1.params,
-                Some(Vec::new()),
-                "{written}"
-            );
-        }
+        let definition: macro_ron::MacroDef<Metadata> = reader.read_str(source).unwrap();
+        assert_eq!(definition.kinds.len(), 1, "{source}");
+        assert!(!definition.metadata().spelling.is_empty(), "{source}");
+        assert_eq!(
+            matches!(&definition.params, macro_ron::Params::Positional(params) if params.is_empty()),
+            !source.contains("params:") || source.contains("params:[]"),
+            "{source}"
+        );
     }
 }
 
@@ -258,13 +252,14 @@ fn verb_participles_use_one_regular_surface_and_explicit_whole_surface_overrides
 }
 
 #[test]
-fn graduated_declaration_round_trips_and_normalizes() {
-    let parsed: Declaration = ron_options().from_str(SCRY).unwrap();
-    let written = ron_options().to_string(&parsed).unwrap();
-    let reparsed: Declaration = ron_options().from_str(&written).unwrap();
-    assert_eq!(reparsed, parsed);
-    assert!(written.starts_with("KeywordAction("), "{written}");
-    assert!(written.contains("params:[Amount]"), "{written}");
+fn graduated_declaration_expands_and_normalizes() {
+    let reader = declaration_reader().unwrap();
+    let definition: macro_ron::MacroDef<Metadata> = reader.read_str(SCRY).unwrap();
+    assert_eq!(definition.kinds, [macro_ron::Ident::from("KeywordAction")]);
+    assert!(matches!(
+        &definition.params,
+        macro_ron::Params::Positional(params) if params.len() == 1
+    ));
 
     let declaration = read_str(source_path("Scry.ron"), SCRY).unwrap();
     assert!(declaration.is_graduated());

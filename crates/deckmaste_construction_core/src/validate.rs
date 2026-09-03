@@ -131,7 +131,7 @@ pub(crate) enum AtomContribution {
         terminal: String,
     },
     OpenDeclaration {
-        kind: macro_ron::v2::DeclarationKind,
+        kind: deckmaste_construction_core::macro_def::DeclarationKind,
         name: String,
     },
 }
@@ -2674,8 +2674,11 @@ fn validate_determinative_member(
                     && row.phrase_number_slots.len() <= 1
                     && row.following_onset_slots.len() <= 1
                 {
-                    if ::macro_ron::v2::normalize_surface_onset(&row.surface_slots[0].value(), None)
-                        .is_none()
+                    if ::deckmaste_construction_core::macro_def::normalize_surface_onset(
+                        &row.surface_slots[0].value(),
+                        None,
+                    )
+                    .is_none()
                     {
                         combine(
                             errors,
@@ -6461,8 +6464,10 @@ fn validate_form_guard_expr(
     }
 }
 
-fn open_declaration_kind(kind: &syn::Ident) -> Option<macro_ron::v2::DeclarationKind> {
-    use macro_ron::v2::DeclarationKind;
+fn open_declaration_kind(
+    kind: &syn::Ident,
+) -> Option<deckmaste_construction_core::macro_def::DeclarationKind> {
+    use deckmaste_construction_core::macro_def::DeclarationKind;
 
     match kind.to_string().as_str() {
         "KeywordAction" => Some(DeclarationKind::KeywordAction),
@@ -11390,16 +11395,24 @@ pub(crate) mod tests {
                 .map(|row| (row.member(), row.feature(), row.surface()))
                 .collect::<Vec<_>>(),
             [
-                ("Deal", macro_ron::v2::SurfaceFeature::Bare, "deal"),
                 (
                     "Deal",
-                    macro_ron::v2::SurfaceFeature::ThirdPersonSingular,
+                    deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
+                    "deal"
+                ),
+                (
+                    "Deal",
+                    deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular,
                     "deals",
                 ),
-                ("Be", macro_ron::v2::SurfaceFeature::Bare, "are"),
                 (
                     "Be",
-                    macro_ron::v2::SurfaceFeature::ThirdPersonSingular,
+                    deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
+                    "are"
+                ),
+                (
+                    "Be",
+                    deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular,
                     "is",
                 ),
             ]
@@ -11493,8 +11506,14 @@ pub(crate) mod tests {
                 .map(|row| (row.feature(), row.surface()))
                 .collect::<Vec<_>>(),
             [
-                (macro_ron::v2::SurfaceFeature::ThirdPersonSingular, "is",),
-                (macro_ron::v2::SurfaceFeature::Bare, "are"),
+                (
+                    deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular,
+                    "is",
+                ),
+                (
+                    deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
+                    "are"
+                ),
             ]
         );
     }

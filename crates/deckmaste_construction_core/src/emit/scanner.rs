@@ -381,17 +381,17 @@ fn declaration_determinative_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
         let lemma = codec.lemma_ident();
         let closed = codec.closed().iter().flat_map(|member| member.realizations().iter().map(move |realization| {
             let surface = syn::LitStr::new(realization.surface(), Span::call_site());
-            let onset = ::macro_ron::v2::normalize_surface_onset(realization.surface(), None)
+            let onset = ::deckmaste_construction_core::macro_def::normalize_surface_onset(realization.surface(), None)
                 .expect("validated declaration_determinative realization has an onset");
             let onset = crate::emit::onset(onset);
             let member_name = member.lemma();
             let number = match realization.phrase_number() {
-                Some(::macro_ron::v2::DeterminativePhraseNumber::Singular) => quote! { DeterminerNumber::SingularOnly },
-                Some(::macro_ron::v2::DeterminativePhraseNumber::Plural) => quote! { DeterminerNumber::PluralOnly },
+                Some(::deckmaste_construction_core::macro_def::DeterminativePhraseNumber::Singular) => quote! { DeterminerNumber::SingularOnly },
+                Some(::deckmaste_construction_core::macro_def::DeterminativePhraseNumber::Plural) => quote! { DeterminerNumber::PluralOnly },
                 None => match member.number_license() {
-                    ::macro_ron::v2::DeterminativeNumberLicense::SingularOnly => quote! { DeterminerNumber::SingularOnly },
-                    ::macro_ron::v2::DeterminativeNumberLicense::PluralOnly => quote! { DeterminerNumber::PluralOnly },
-                    ::macro_ron::v2::DeterminativeNumberLicense::Both => quote! { DeterminerNumber::Both },
+                    ::deckmaste_construction_core::macro_def::DeterminativeNumberLicense::SingularOnly => quote! { DeterminerNumber::SingularOnly },
+                    ::deckmaste_construction_core::macro_def::DeterminativeNumberLicense::PluralOnly => quote! { DeterminerNumber::PluralOnly },
+                    ::deckmaste_construction_core::macro_def::DeterminativeNumberLicense::Both => quote! { DeterminerNumber::Both },
                 },
             };
             let following_onset = realization.following_onset().map_or_else(
@@ -402,14 +402,14 @@ fn declaration_determinative_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                 },
             );
             let nominal = match member.nominal_license() {
-                ::macro_ron::v2::DeterminativeNominalLicense::AnyNominal => quote! { NominalLicense::AnyNominal },
-                ::macro_ron::v2::DeterminativeNominalLicense::CountNominal => quote! { NominalLicense::CountNominal },
-                ::macro_ron::v2::DeterminativeNominalLicense::BareSingularNoun => quote! { NominalLicense::BareSingularNoun },
-                ::macro_ron::v2::DeterminativeNominalLicense::MassOrPluralCount => quote! { NominalLicense::MassOrPluralCount },
+                ::deckmaste_construction_core::macro_def::DeterminativeNominalLicense::AnyNominal => quote! { NominalLicense::AnyNominal },
+                ::deckmaste_construction_core::macro_def::DeterminativeNominalLicense::CountNominal => quote! { NominalLicense::CountNominal },
+                ::deckmaste_construction_core::macro_def::DeterminativeNominalLicense::BareSingularNoun => quote! { NominalLicense::BareSingularNoun },
+                ::deckmaste_construction_core::macro_def::DeterminativeNominalLicense::MassOrPluralCount => quote! { NominalLicense::MassOrPluralCount },
             };
             let fused_head = match member.fused_head_license() {
-                ::macro_ron::v2::DeterminativeFusedHeadLicense::NominalOnly => quote! { FusedHeadLicense::NominalOnly },
-                ::macro_ron::v2::DeterminativeFusedHeadLicense::FusedHead => quote! { FusedHeadLicense::FusedHead },
+                ::deckmaste_construction_core::macro_def::DeterminativeFusedHeadLicense::NominalOnly => quote! { FusedHeadLicense::NominalOnly },
+                ::deckmaste_construction_core::macro_def::DeterminativeFusedHeadLicense::FusedHead => quote! { FusedHeadLicense::FusedHead },
             };
             quote! { if let Some(end) = input.word_end(#surface, terminal.right_boundary) { matches.push(LexicalMatch { end, value: Leaf::#ty { value: #ty::Closed(#lemma::#member_name), onset: #onset, following_onset: #following_onset, number_license: #number, fused_head_license: #fused_head, nominal_license: #nominal }, owner: None }); } }
         }));
@@ -425,15 +425,15 @@ fn verb_lexeme_arm(plan: &SemanticPlan) -> Option<TokenStream> {
         let candidates = lexeme.surfaces().iter().map(|row| {
             let member = emitted_ident(row.member(), Span::call_site());
             let agreement = match row.feature() {
-                macro_ron::v2::SurfaceFeature::Bare => quote! { Agreement::Bare },
-                macro_ron::v2::SurfaceFeature::ThirdPersonSingular => {
+                deckmaste_construction_core::macro_def::SurfaceFeature::Bare => quote! { Agreement::Bare },
+                deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular => {
                     quote! { Agreement::ThirdPersonSingular }
                 }
-                macro_ron::v2::SurfaceFeature::Singular
-                | macro_ron::v2::SurfaceFeature::Plural
-                | macro_ron::v2::SurfaceFeature::Participle
-                | macro_ron::v2::SurfaceFeature::Fixed
-                | macro_ron::v2::SurfaceFeature::BlockLabel => {
+                deckmaste_construction_core::macro_def::SurfaceFeature::Singular
+                | deckmaste_construction_core::macro_def::SurfaceFeature::Plural
+                | deckmaste_construction_core::macro_def::SurfaceFeature::Participle
+                | deckmaste_construction_core::macro_def::SurfaceFeature::Fixed
+                | deckmaste_construction_core::macro_def::SurfaceFeature::BlockLabel => {
                     unreachable!("validated verb lexeme has the Agreement feature axis")
                 }
             };
@@ -498,13 +498,17 @@ fn noun_surface_candidates(
     lexeme.surfaces().iter().map(move |row| {
         let member = emitted_ident(row.member(), Span::call_site());
         let number = match row.feature() {
-            macro_ron::v2::SurfaceFeature::Singular => quote! { Number::Singular },
-            macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
-            macro_ron::v2::SurfaceFeature::Bare
-            | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
-            | macro_ron::v2::SurfaceFeature::Participle
-            | macro_ron::v2::SurfaceFeature::Fixed
-            | macro_ron::v2::SurfaceFeature::BlockLabel => {
+            deckmaste_construction_core::macro_def::SurfaceFeature::Singular => {
+                quote! { Number::Singular }
+            }
+            deckmaste_construction_core::macro_def::SurfaceFeature::Plural => {
+                quote! { Number::Plural }
+            }
+            deckmaste_construction_core::macro_def::SurfaceFeature::Bare
+            | deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular
+            | deckmaste_construction_core::macro_def::SurfaceFeature::Participle
+            | deckmaste_construction_core::macro_def::SurfaceFeature::Fixed
+            | deckmaste_construction_core::macro_def::SurfaceFeature::BlockLabel => {
                 unreachable!("validated noun lexeme has the Number feature axis")
             }
         };
@@ -547,17 +551,17 @@ fn declaration_noun_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
             });
         let allowed = codec.kinds().iter().map(|kind| match kind {
             crate::semantic::DeclarationKindFamily::Type => {
-                quote! { ::macro_ron::v2::DeclarationKind::Type }
+                quote! { ::deckmaste_construction_core::macro_def::DeclarationKind::Type }
             }
             crate::semantic::DeclarationKindFamily::TurnPart => {
-                quote! { ::macro_ron::v2::DeclarationKind::TurnPart }
+                quote! { ::deckmaste_construction_core::macro_def::DeclarationKind::TurnPart }
             }
             crate::semantic::DeclarationKindFamily::Subtype => {
-                quote! { ::macro_ron::v2::DeclarationKind::Subtype(_) }
+                quote! { ::deckmaste_construction_core::macro_def::DeclarationKind::Subtype(_) }
             }
             crate::semantic::DeclarationKindFamily::SubtypeFamily(family) => {
                 let family = crate::emit::subtype_category(*family);
-                quote! { ::macro_ron::v2::DeclarationKind::Subtype(#family) }
+                quote! { ::deckmaste_construction_core::macro_def::DeclarationKind::Subtype(#family) }
             }
         });
         let position = crate::emit::grammar_position(codec.position());
@@ -592,8 +596,8 @@ fn declaration_noun_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                 ) {
                     if matches!(id.kind(), #(#allowed)|*) {
                         let number = match feature {
-                            ::macro_ron::v2::SurfaceFeature::Singular => Number::Singular,
-                            ::macro_ron::v2::SurfaceFeature::Plural => Number::Plural,
+                            ::deckmaste_construction_core::macro_def::SurfaceFeature::Singular => Number::Singular,
+                            ::deckmaste_construction_core::macro_def::SurfaceFeature::Plural => Number::Plural,
                             _ => continue,
                         };
                         let Some(declaration) = #declaration::from_reading(id) else {
@@ -717,8 +721,8 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                         let candidates = closed_plan.surfaces().iter().map(|row| {
                             let member = emitted_ident(row.member(), Span::call_site());
                             let agreement = match row.feature() {
-                                macro_ron::v2::SurfaceFeature::Bare => quote! { Agreement::Bare },
-                                macro_ron::v2::SurfaceFeature::ThirdPersonSingular => quote! { Agreement::ThirdPersonSingular },
+                                deckmaste_construction_core::macro_def::SurfaceFeature::Bare => quote! { Agreement::Bare },
+                                deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular => quote! { Agreement::ThirdPersonSingular },
                                 _ => unreachable!("validated Agreement declaration verb has Agreement rows"),
                             };
                             let surface = syn::LitStr::new(row.surface(), Span::call_site());
@@ -740,7 +744,7 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                     }
                     crate::feature::Feature::Participle => {
                         let candidates = closed_plan.surfaces().iter().map(|row| {
-                            debug_assert_eq!(row.feature(), macro_ron::v2::SurfaceFeature::Participle);
+                            debug_assert_eq!(row.feature(), deckmaste_construction_core::macro_def::SurfaceFeature::Participle);
                             let member = emitted_ident(row.member(), Span::call_site());
                             let surface = syn::LitStr::new(row.surface(), Span::call_site());
                             let onset = crate::emit::onset(row.onset());
@@ -783,15 +787,15 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                             input.position.byte_offset,
                             &frame,
                             match agreement {
-                                Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
-                                Agreement::ThirdPersonSingular => ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular,
+                                Agreement::Bare => ::deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
+                                Agreement::ThirdPersonSingular => ::deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular,
                             },
                         ) {
                             let reference = reading.reference().clone();
                             let feature = match agreement {
-                                Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
+                                Agreement::Bare => ::deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
                                 Agreement::ThirdPersonSingular => {
-                                    ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                                    ::deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular
                                 }
                             };
                             let onset = reading.onset();
@@ -823,7 +827,7 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                     for (end, reading) in input.declaration_verb_readings(
                         input.position.byte_offset,
                         &frame,
-                            ::macro_ron::v2::SurfaceFeature::Participle,
+                            ::deckmaste_construction_core::macro_def::SurfaceFeature::Participle,
                         ) {
                             let onset = reading.onset();
                             let Some(declaration) = #declaration::new(input.environment, reading.reference().clone()) else { continue; };

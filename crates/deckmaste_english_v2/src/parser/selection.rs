@@ -638,8 +638,12 @@ mod tests {
     #[test]
     fn selected_candidate_ownership_returns_the_exact_candidate() {
         let environment = canonical_test_environment();
-        let context =
-            ParseContext::new("Context Card", false, macro_ron::v2::Onset::Consonant).unwrap();
+        let context = ParseContext::new(
+            "Context Card",
+            false,
+            deckmaste_construction_core::macro_def::Onset::Consonant,
+        )
+        .unwrap();
         let ability = crate::parser::Parser::new(environment)
             .unwrap()
             .parse("Destroy target creature.", &context)
@@ -1843,8 +1847,12 @@ mod tests {
             test_tied_candidates(TestConstruction::TestLeft, TestConstruction::TestRight),
             &[],
         );
-        let context = ParseContext::new("Trace Card", false, macro_ron::v2::Onset::Consonant)
-            .expect("context");
+        let context = ParseContext::new(
+            "Trace Card",
+            false,
+            deckmaste_construction_core::macro_def::Onset::Consonant,
+        )
+        .expect("context");
         let environment = canonical_test_environment();
         let trace = ParserTrace::from_parts(
             ParseAnalysis::<crate::ast::Ability>::from_result(

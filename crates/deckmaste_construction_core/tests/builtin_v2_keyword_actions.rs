@@ -1,13 +1,13 @@
 use std::path::Path;
 
-use macro_ron::v2::CustomTailAtom;
-use macro_ron::v2::DeclarationKind;
-use macro_ron::v2::GrammarRecipe;
-use macro_ron::v2::NormalizedDeclaration;
-use macro_ron::v2::SpellingPart;
-use macro_ron::v2::SurfaceFeature;
-use macro_ron::v2::VerbValence;
-use macro_ron::v2::read_builtin_v2;
+use deckmaste_construction_core::macro_def::CustomTailAtom;
+use deckmaste_construction_core::macro_def::DeclarationKind;
+use deckmaste_construction_core::macro_def::GrammarRecipe;
+use deckmaste_construction_core::macro_def::NormalizedDeclaration;
+use deckmaste_construction_core::macro_def::SpellingPart;
+use deckmaste_construction_core::macro_def::SurfaceFeature;
+use deckmaste_construction_core::macro_def::VerbValence;
+use deckmaste_construction_core::macro_def::read_builtin_v2;
 
 const EXPECTED_NAMES: &[&str] = &[
     "Abandon",

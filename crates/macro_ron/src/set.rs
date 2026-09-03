@@ -131,12 +131,13 @@ impl<'de> Deserialize<'de> for Params {
 /// sees, so meta-macros declare `kinds: [Macro]`. Definition files read as
 /// anonymous structs, so the rename is otherwise invisible.
 ///
-/// Definition files may carry extra metadata fields (e.g. `template:`,
-/// the rules text a use of the macro renders as); serde ignores them
-/// here, so don't add `deny_unknown_fields`.
+/// Consumers may attach their own typed metadata through `Metadata`. The
+/// default unit payload keeps existing definition readers unchanged; a
+/// consumer-specific reader can instead request `MacroDef<ItsMetadata>`.
+/// The metadata is deliberately opaque to `macro_ron`.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename = "Macro")]
-pub struct MacroDef {
+pub struct MacroDef<Metadata = ()> {
     pub name: Ident,
     /// The kinds this macro can expand to, by position name; written as
     /// bare identifiers in definition files (`kinds: [Subtype]`).
@@ -167,6 +168,9 @@ pub struct MacroDef {
     /// sugar, so no special handling is needed here.
     #[serde(default)]
     pub frames: Vec<FrameSpec>,
+    /// Consumer-owned declaration metadata.
+    #[serde(default)]
+    pub metadata: Metadata,
     /// Raw RON source with `Param(...)` holes.
     #[serde(deserialize_with = "raw_body")]
     pub(crate) body: Box<str>,
@@ -239,10 +243,16 @@ fn kind_names<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<Ident>, 
     deserializer.deserialize_seq(KindNames)
 }
 
-impl MacroDef {
+impl<Metadata> MacroDef<Metadata> {
     #[must_use]
     pub fn body(&self) -> &str {
         &self.body
+    }
+
+    /// The consumer-owned metadata payload.
+    #[must_use]
+    pub fn metadata(&self) -> &Metadata {
+        &self.metadata
     }
 
     #[must_use]
@@ -266,7 +276,7 @@ impl MacroDef {
     /// [`leading_invoked_name`](crate::expand::leading_invoked_name).
     #[must_use]
     pub fn body_head(&self, macros: &MacroSet) -> Option<Ident> {
-        crate::expand::leading_invoked_name(&self.body, macros.options())
+        crate::expand::leading_invoked_name(self.body(), macros.options())
     }
 
     /// Every `Param(...)` hole in the body, each rendered the way it is
@@ -277,7 +287,7 @@ impl MacroDef {
     /// If the body is not readable as RON.
     pub fn body_param_keys(&self, macros: &MacroSet) -> Result<Vec<String>, String> {
         let mut keys = Vec::new();
-        crate::expand::collect_param_keys(&self.body, macros.options(), &mut keys)?;
+        crate::expand::collect_param_keys(self.body(), macros.options(), &mut keys)?;
         Ok(keys.iter().map(ToString::to_string).collect())
     }
 }
@@ -390,6 +400,7 @@ fn decl_def(kind: &str, name: Ident, declaration: &str) -> MacroDef {
         template: None,
         plural: None,
         frames: Vec::new(),
+        metadata: (),
         body: declaration.trim().into(),
     }
 }

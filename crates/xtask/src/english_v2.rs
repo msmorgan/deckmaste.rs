@@ -38,19 +38,43 @@ use deckmaste_english_v2::parser::Parser;
 
 const REQUIRE_COMPLETE_OUTCOME_ENV: &str = "DECKMASTE_ENGLISH_V2_REQUIRE_COMPLETE_OUTCOME";
 
-const CARD_NAME_ONSET_OVERRIDES: [(&str, macro_ron::v2::Onset); 8] = [
-    ("+2 Mace", macro_ron::v2::Onset::Consonant),
-    ("Éomer of the Riddermark", macro_ron::v2::Onset::Vowel),
-    ("Éomer, King of Rohan", macro_ron::v2::Onset::Vowel),
-    ("Éomer, Marshal of Rohan", macro_ron::v2::Onset::Vowel),
-    ("Éowyn, Fearless Knight", macro_ron::v2::Onset::Vowel),
-    ("Éowyn, Lady of Rohan", macro_ron::v2::Onset::Vowel),
-    ("Éowyn, Shieldmaiden", macro_ron::v2::Onset::Vowel),
-    ("Óin the Brave", macro_ron::v2::Onset::Vowel),
+const CARD_NAME_ONSET_OVERRIDES: [(&str, deckmaste_construction_core::macro_def::Onset); 8] = [
+    (
+        "+2 Mace",
+        deckmaste_construction_core::macro_def::Onset::Consonant,
+    ),
+    (
+        "Éomer of the Riddermark",
+        deckmaste_construction_core::macro_def::Onset::Vowel,
+    ),
+    (
+        "Éomer, King of Rohan",
+        deckmaste_construction_core::macro_def::Onset::Vowel,
+    ),
+    (
+        "Éomer, Marshal of Rohan",
+        deckmaste_construction_core::macro_def::Onset::Vowel,
+    ),
+    (
+        "Éowyn, Fearless Knight",
+        deckmaste_construction_core::macro_def::Onset::Vowel,
+    ),
+    (
+        "Éowyn, Lady of Rohan",
+        deckmaste_construction_core::macro_def::Onset::Vowel,
+    ),
+    (
+        "Éowyn, Shieldmaiden",
+        deckmaste_construction_core::macro_def::Onset::Vowel,
+    ),
+    (
+        "Óin the Brave",
+        deckmaste_construction_core::macro_def::Onset::Vowel,
+    ),
 ];
 
-fn catalog_surface_onset(surface: &str) -> Option<macro_ron::v2::Onset> {
-    macro_ron::v2::normalize_surface_onset(surface, None).or_else(|| {
+fn catalog_surface_onset(surface: &str) -> Option<deckmaste_construction_core::macro_def::Onset> {
+    deckmaste_construction_core::macro_def::normalize_surface_onset(surface, None).or_else(|| {
         CARD_NAME_ONSET_OVERRIDES
             .iter()
             .find_map(|(name, onset)| (*name == surface).then_some(*onset))
@@ -59,11 +83,13 @@ fn catalog_surface_onset(surface: &str) -> Option<macro_ron::v2::Onset> {
 
 fn ensure_card_name_onset_override_inventory<'a>(
     names: impl IntoIterator<Item = &'a str>,
-    overrides: &[(&str, macro_ron::v2::Onset)],
+    overrides: &[(&str, deckmaste_construction_core::macro_def::Onset)],
 ) -> anyhow::Result<()> {
     let derived_exceptional = names
         .into_iter()
-        .filter(|name| macro_ron::v2::normalize_surface_onset(name, None).is_none())
+        .filter(|name| {
+            deckmaste_construction_core::macro_def::normalize_surface_onset(name, None).is_none()
+        })
         .collect::<BTreeSet<_>>();
     let reviewed_exceptional = overrides
         .iter()
@@ -83,7 +109,7 @@ fn ensure_card_name_onset_override_inventory<'a>(
 #[derive(Debug)]
 struct AdaptedCardNameCatalog {
     provider: CatalogProviderRows,
-    context_onsets: BTreeMap<String, macro_ron::v2::Onset>,
+    context_onsets: BTreeMap<String, deckmaste_construction_core::macro_def::Onset>,
 }
 
 fn adapt_card_name_catalog_provider(catalog_root: &Path) -> anyhow::Result<AdaptedCardNameCatalog> {
@@ -117,7 +143,7 @@ fn adapt_card_name_catalog_provider(catalog_root: &Path) -> anyhow::Result<Adapt
 }
 
 fn parser_from_builtin_v2() -> anyhow::Result<Parser> {
-    let declarations = macro_ron::v2::read_builtin_v2(
+    let declarations = deckmaste_construction_core::macro_def::read_builtin_v2(
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"),
     )
     .context("loading integrated builtin-v2 declarations")?;
@@ -133,15 +159,39 @@ fn parser_from_builtin_v2() -> anyhow::Result<Parser> {
 mod catalog_adapter_tests {
     use super::*;
 
-    const EXPECTED_EXCEPTIONAL_ONSETS: [(&str, macro_ron::v2::Onset); 8] = [
-        ("+2 Mace", macro_ron::v2::Onset::Consonant),
-        ("Éomer of the Riddermark", macro_ron::v2::Onset::Vowel),
-        ("Éomer, King of Rohan", macro_ron::v2::Onset::Vowel),
-        ("Éomer, Marshal of Rohan", macro_ron::v2::Onset::Vowel),
-        ("Éowyn, Fearless Knight", macro_ron::v2::Onset::Vowel),
-        ("Éowyn, Lady of Rohan", macro_ron::v2::Onset::Vowel),
-        ("Éowyn, Shieldmaiden", macro_ron::v2::Onset::Vowel),
-        ("Óin the Brave", macro_ron::v2::Onset::Vowel),
+    const EXPECTED_EXCEPTIONAL_ONSETS: [(&str, deckmaste_construction_core::macro_def::Onset); 8] = [
+        (
+            "+2 Mace",
+            deckmaste_construction_core::macro_def::Onset::Consonant,
+        ),
+        (
+            "Éomer of the Riddermark",
+            deckmaste_construction_core::macro_def::Onset::Vowel,
+        ),
+        (
+            "Éomer, King of Rohan",
+            deckmaste_construction_core::macro_def::Onset::Vowel,
+        ),
+        (
+            "Éomer, Marshal of Rohan",
+            deckmaste_construction_core::macro_def::Onset::Vowel,
+        ),
+        (
+            "Éowyn, Fearless Knight",
+            deckmaste_construction_core::macro_def::Onset::Vowel,
+        ),
+        (
+            "Éowyn, Lady of Rohan",
+            deckmaste_construction_core::macro_def::Onset::Vowel,
+        ),
+        (
+            "Éowyn, Shieldmaiden",
+            deckmaste_construction_core::macro_def::Onset::Vowel,
+        ),
+        (
+            "Óin the Brave",
+            deckmaste_construction_core::macro_def::Onset::Vowel,
+        ),
     ];
 
     #[test]
@@ -164,7 +214,7 @@ mod catalog_adapter_tests {
                 deckmaste_english_v2::ast::CatalogProvider::CardNames,
                 "Seven Dwarves",
             ),
-            Some(macro_ron::v2::Onset::Consonant)
+            Some(deckmaste_construction_core::macro_def::Onset::Consonant)
         );
     }
 
@@ -185,7 +235,10 @@ mod catalog_adapter_tests {
         let actual_exceptional = names
             .iter()
             .copied()
-            .filter(|name| macro_ron::v2::normalize_surface_onset(name, None).is_none())
+            .filter(|name| {
+                deckmaste_construction_core::macro_def::normalize_surface_onset(name, None)
+                    .is_none()
+            })
             .collect::<std::collections::BTreeSet<_>>();
 
         assert_eq!(names.len(), 32_548, "every raw generated row is counted");
@@ -207,7 +260,10 @@ mod catalog_adapter_tests {
     fn production_inventory_guard_rejects_unreviewed_and_stale_exceptional_surfaces() {
         let unreviewed = ensure_card_name_onset_override_inventory(
             ["+2 Mace", "Éomer's Cousin"],
-            &[("+2 Mace", macro_ron::v2::Onset::Consonant)],
+            &[(
+                "+2 Mace",
+                deckmaste_construction_core::macro_def::Onset::Consonant,
+            )],
         )
         .expect_err("an unreviewed exceptional surface must fail the production guard");
         assert!(format!("{unreviewed:#}").contains("Éomer's Cousin"));
@@ -215,8 +271,14 @@ mod catalog_adapter_tests {
         let stale = ensure_card_name_onset_override_inventory(
             ["+2 Mace"],
             &[
-                ("+2 Mace", macro_ron::v2::Onset::Consonant),
-                ("Óin the Brave", macro_ron::v2::Onset::Vowel),
+                (
+                    "+2 Mace",
+                    deckmaste_construction_core::macro_def::Onset::Consonant,
+                ),
+                (
+                    "Óin the Brave",
+                    deckmaste_construction_core::macro_def::Onset::Vowel,
+                ),
             ],
         )
         .expect_err("a stale exceptional override must fail the production guard");
@@ -365,7 +427,7 @@ enum ProbeOnset {
     Vowel,
 }
 
-impl From<ProbeOnset> for macro_ron::v2::Onset {
+impl From<ProbeOnset> for deckmaste_construction_core::macro_def::Onset {
     fn from(onset: ProbeOnset) -> Self {
         match onset {
             ProbeOnset::Consonant => Self::Consonant,
@@ -374,11 +436,11 @@ impl From<ProbeOnset> for macro_ron::v2::Onset {
     }
 }
 
-impl From<macro_ron::v2::Onset> for ProbeOnset {
-    fn from(onset: macro_ron::v2::Onset) -> Self {
+impl From<deckmaste_construction_core::macro_def::Onset> for ProbeOnset {
+    fn from(onset: deckmaste_construction_core::macro_def::Onset) -> Self {
         match onset {
-            macro_ron::v2::Onset::Consonant => Self::Consonant,
-            macro_ron::v2::Onset::Vowel => Self::Vowel,
+            deckmaste_construction_core::macro_def::Onset::Consonant => Self::Consonant,
+            deckmaste_construction_core::macro_def::Onset::Vowel => Self::Vowel,
         }
     }
 }

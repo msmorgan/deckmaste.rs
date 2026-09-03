@@ -3,15 +3,15 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
-use macro_ron::v2::DeclarationKind;
-use macro_ron::v2::GrammarRecipe;
-use macro_ron::v2::NormalizedDeclaration;
-use macro_ron::v2::SpellingPart;
-use macro_ron::v2::SubtypeCategory;
-use macro_ron::v2::SurfaceFeature;
-use macro_ron::v2::ValidationError;
-use macro_ron::v2::read_builtin_v2;
-use macro_ron::v2::read_str;
+use deckmaste_construction_core::macro_def::DeclarationKind;
+use deckmaste_construction_core::macro_def::GrammarRecipe;
+use deckmaste_construction_core::macro_def::NormalizedDeclaration;
+use deckmaste_construction_core::macro_def::SpellingPart;
+use deckmaste_construction_core::macro_def::SubtypeCategory;
+use deckmaste_construction_core::macro_def::SurfaceFeature;
+use deckmaste_construction_core::macro_def::ValidationError;
+use deckmaste_construction_core::macro_def::read_builtin_v2;
+use deckmaste_construction_core::macro_def::read_str;
 
 #[derive(Clone, Copy)]
 struct CategorySpec {
@@ -221,7 +221,9 @@ fn builtin_v2_noncreature_subtypes_match_each_supported_catalog_and_category() {
                 [SpellingPart::Literal(spelling.clone())]
             );
             assert_eq!(
-                declaration.grammar().map(macro_ron::v2::GrammarRow::recipe),
+                declaration
+                    .grammar()
+                    .map(deckmaste_construction_core::macro_def::GrammarRow::recipe),
                 Some(&GrammarRecipe::Noun)
             );
             let expected_surfaces =

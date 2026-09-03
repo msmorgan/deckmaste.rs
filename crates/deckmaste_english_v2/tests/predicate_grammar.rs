@@ -1,3 +1,6 @@
+use deckmaste_construction_core::macro_def::DeclarationIdentity;
+use deckmaste_construction_core::macro_def::Onset;
+use deckmaste_construction_core::macro_def::read_str;
 use deckmaste_english_v2::ast::*;
 use deckmaste_english_v2::context::ParseContext;
 use deckmaste_english_v2::environment::CatalogProviderRow;
@@ -10,9 +13,6 @@ use deckmaste_english_v2::parser::Parser;
 use deckmaste_english_v2::parser::SelectionResolution;
 use deckmaste_english_v2::render::Render;
 use deckmaste_english_v2::visit::Visitor;
-use macro_ron::v2::DeclarationIdentity;
-use macro_ron::v2::Onset;
-use macro_ron::v2::read_str;
 
 #[expect(
     clippy::too_many_lines,

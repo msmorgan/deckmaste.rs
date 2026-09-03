@@ -1390,6 +1390,7 @@ mod tests {
     use std::path::Path;
     use std::rc::Rc;
 
+    use deckmaste_construction_core::macro_def::Onset;
     use deckmaste_english_v2::parser::ByteMismatchScope;
     use deckmaste_english_v2::parser::InternalFailureKind;
     use deckmaste_english_v2::parser::InvalidSpanKind;
@@ -1397,7 +1398,6 @@ mod tests {
     use deckmaste_english_v2::parser::ParseAnalysisOutcome;
     use deckmaste_english_v2::parser::TextSpan;
     use deckmaste_english_v2::parser::with_forced_ownership_inspection_failure_for_test;
-    use macro_ron::v2::Onset;
 
     use super::CoverageByteMismatchScope;
     use super::CoverageInternalFailureKind;

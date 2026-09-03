@@ -522,15 +522,19 @@ pub(crate) fn escape_hatch_report(plan: &SemanticPlan) -> syn::Result<EscapeHatc
     })
 }
 
-fn surface_feature_key(feature: macro_ron::v2::SurfaceFeature) -> &'static str {
+fn surface_feature_key(
+    feature: deckmaste_construction_core::macro_def::SurfaceFeature,
+) -> &'static str {
     match feature {
-        macro_ron::v2::SurfaceFeature::Bare => "bare",
-        macro_ron::v2::SurfaceFeature::ThirdPersonSingular => "third_person_singular",
-        macro_ron::v2::SurfaceFeature::Singular => "singular",
-        macro_ron::v2::SurfaceFeature::Plural => "plural",
-        macro_ron::v2::SurfaceFeature::Participle => "participle",
-        macro_ron::v2::SurfaceFeature::Fixed => "fixed",
-        macro_ron::v2::SurfaceFeature::BlockLabel => "block_label",
+        deckmaste_construction_core::macro_def::SurfaceFeature::Bare => "bare",
+        deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular => {
+            "third_person_singular"
+        }
+        deckmaste_construction_core::macro_def::SurfaceFeature::Singular => "singular",
+        deckmaste_construction_core::macro_def::SurfaceFeature::Plural => "plural",
+        deckmaste_construction_core::macro_def::SurfaceFeature::Participle => "participle",
+        deckmaste_construction_core::macro_def::SurfaceFeature::Fixed => "fixed",
+        deckmaste_construction_core::macro_def::SurfaceFeature::BlockLabel => "block_label",
     }
 }
 

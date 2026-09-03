@@ -329,8 +329,8 @@ mod tests {
             }
         );
         assert_eq!(Type::Land.name(), Ident::from("Land"));
-        // Every permanent type flags true; the two spell types + Kindred + Dungeon
-        // false.
+        // Every permanent type flags true; the two spell types + Kindred +
+        // Dungeon false.
         for t in [
             Type::Artifact,
             Type::Battle,
@@ -391,20 +391,8 @@ mod tests {
             ]
         );
 
-        let open = macro_ron::v2::read_str(
-            "Chronicle.ron",
-            r#"Type(
-                name: "Chronicle",
-                spelling: "chronicle",
-                grammar: Noun(singular: "chronicle", plural: Unavailable),
-            )"#,
-        )
-        .unwrap();
-        assert_eq!(open.identity().name(), "Chronicle");
         assert!(
-            crate::ron::options()
-                .from_str::<Type>(open.identity().name())
-                .is_err(),
+            crate::ron::options().from_str::<Type>("Chronicle").is_err(),
             "an open parser-facing Type declaration must not extend the closed type-line enum"
         );
 

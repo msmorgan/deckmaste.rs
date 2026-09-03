@@ -1,4 +1,4 @@
-use macro_ron::v2::Onset;
+use deckmaste_construction_core::macro_def::Onset;
 
 const ROMAN_PARTS: [(u32, &str); 13] = [
     (1_000, "M"),

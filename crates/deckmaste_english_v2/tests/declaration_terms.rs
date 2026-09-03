@@ -1,5 +1,12 @@
 use std::path::Path;
 
+use deckmaste_construction_core::macro_def::DeclarationIdentity;
+use deckmaste_construction_core::macro_def::DeclarationKind;
+use deckmaste_construction_core::macro_def::GrammarPosition;
+use deckmaste_construction_core::macro_def::NormalizedDeclaration;
+use deckmaste_construction_core::macro_def::Onset;
+use deckmaste_construction_core::macro_def::read_builtin_v2;
+use deckmaste_construction_core::macro_def::read_str;
 use deckmaste_english_v2::ast::CatalogProvider;
 use deckmaste_english_v2::ast::CounterKind;
 use deckmaste_english_v2::ast::DeclaredCounterKind;
@@ -12,13 +19,6 @@ use deckmaste_english_v2::environment::ParserEnvironment;
 use deckmaste_english_v2::parser::Parser;
 use deckmaste_english_v2::render::Render;
 use deckmaste_english_v2::visit::Visitor;
-use macro_ron::v2::DeclarationIdentity;
-use macro_ron::v2::DeclarationKind;
-use macro_ron::v2::GrammarPosition;
-use macro_ron::v2::NormalizedDeclaration;
-use macro_ron::v2::Onset;
-use macro_ron::v2::read_builtin_v2;
-use macro_ron::v2::read_str;
 
 fn declaration(path: &str, source: &str) -> NormalizedDeclaration {
     read_str(path, source).expect("synthetic declaration is valid")

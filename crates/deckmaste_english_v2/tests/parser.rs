@@ -1,6 +1,8 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
+use deckmaste_construction_core::macro_def::DeclarationKind;
+use deckmaste_construction_core::macro_def::Onset;
 use deckmaste_english_v2::ast::*;
 use deckmaste_english_v2::context::ParseContext;
 use deckmaste_english_v2::environment::CatalogProviderRow;
@@ -21,8 +23,6 @@ use deckmaste_english_v2::parser::TerminalClass;
 use deckmaste_english_v2::parser::TextSpan;
 use deckmaste_english_v2::parser::TraceLimits;
 use deckmaste_english_v2::render::Render;
-use macro_ron::v2::DeclarationKind;
-use macro_ron::v2::Onset;
 
 fn card_name_provider() -> CatalogProviderRows {
     CatalogProviderRows::new(
@@ -37,7 +37,7 @@ fn card_name_provider() -> CatalogProviderRows {
 }
 
 fn environment() -> ParserEnvironment {
-    let declarations = macro_ron::v2::read_builtin_v2(
+    let declarations = deckmaste_construction_core::macro_def::read_builtin_v2(
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"),
     )
     .expect("integrated builtin-v2 declarations load");
@@ -150,12 +150,12 @@ fn indefinite_articles_are_guarded_by_frozen_onset_without_ast_article_state() {
         );
     }
 
-    let mut declarations = macro_ron::v2::read_builtin_v2(
+    let mut declarations = deckmaste_construction_core::macro_def::read_builtin_v2(
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"),
     )
     .expect("integrated builtin-v2 declarations load");
     declarations.push(
-        macro_ron::v2::read_str(
+        deckmaste_construction_core::macro_def::read_str(
             "/synthetic/types/Herb.ron",
             r#"Type(
                 name:"Herb",

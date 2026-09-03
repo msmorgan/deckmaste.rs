@@ -3235,15 +3235,15 @@ fn render_owner(
                 .filter(|row| row.member() == variant)
                 .map(|row| {
                     let feature = match row.feature() {
-                        macro_ron::v2::SurfaceFeature::Bare => quote! { Agreement::Bare },
-                        macro_ron::v2::SurfaceFeature::ThirdPersonSingular => {
+                        deckmaste_construction_core::macro_def::SurfaceFeature::Bare => quote! { Agreement::Bare },
+                        deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular => {
                             quote! { Agreement::ThirdPersonSingular }
                         }
-                        macro_ron::v2::SurfaceFeature::Singular
-                        | macro_ron::v2::SurfaceFeature::Plural
-                        | macro_ron::v2::SurfaceFeature::Participle
-                        | macro_ron::v2::SurfaceFeature::Fixed
-                        | macro_ron::v2::SurfaceFeature::BlockLabel => {
+                        deckmaste_construction_core::macro_def::SurfaceFeature::Singular
+                        | deckmaste_construction_core::macro_def::SurfaceFeature::Plural
+                        | deckmaste_construction_core::macro_def::SurfaceFeature::Participle
+                        | deckmaste_construction_core::macro_def::SurfaceFeature::Fixed
+                        | deckmaste_construction_core::macro_def::SurfaceFeature::BlockLabel => {
                             unreachable!("validated verb lexeme has the Agreement feature axis")
                         }
                     };
@@ -3262,16 +3262,16 @@ fn render_owner(
             let agreement = verb_agreement(validated, construction, locals)?;
             let feature = quote! {
                 match #agreement {
-                    Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
+                    Agreement::Bare => ::deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
                     Agreement::ThirdPersonSingular => {
-                        ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                        ::deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular
                     }
                 }
             };
             let kind = crate::emit::declaration_kind(open.kind());
             let name = syn::LitStr::new(open.name(), Span::call_site());
             Ok(quote! {{
-                let id = ::macro_ron::v2::DeclarationIdentity::new(#kind, #name);
+                let id = ::deckmaste_construction_core::macro_def::DeclarationIdentity::new(#kind, #name);
                 LexicalOwner::declaration_owner(id, #feature)
             }})
         }
@@ -3285,13 +3285,13 @@ fn render_owner(
                     let arms = lexeme.surfaces().iter().map(|row| {
                         let member = emitted_ident(row.member(), Span::call_site());
                         let feature = match row.feature() {
-                            macro_ron::v2::SurfaceFeature::Singular => quote! { Number::Singular },
-                            macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
-                            macro_ron::v2::SurfaceFeature::Bare
-                            | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
-                            | macro_ron::v2::SurfaceFeature::Participle
-                            | macro_ron::v2::SurfaceFeature::Fixed
-                            | macro_ron::v2::SurfaceFeature::BlockLabel => {
+                            deckmaste_construction_core::macro_def::SurfaceFeature::Singular => quote! { Number::Singular },
+                            deckmaste_construction_core::macro_def::SurfaceFeature::Plural => quote! { Number::Plural },
+                            deckmaste_construction_core::macro_def::SurfaceFeature::Bare
+                            | deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular
+                            | deckmaste_construction_core::macro_def::SurfaceFeature::Participle
+                            | deckmaste_construction_core::macro_def::SurfaceFeature::Fixed
+                            | deckmaste_construction_core::macro_def::SurfaceFeature::BlockLabel => {
                                 unreachable!("validated noun lexeme has the Number feature axis")
                             }
                         };
@@ -3320,13 +3320,13 @@ fn render_owner(
                             .map(|row| {
                             let member = emitted_ident(row.member(), Span::call_site());
                             let feature = match row.feature() {
-                                macro_ron::v2::SurfaceFeature::Singular => quote! { Number::Singular },
-                                macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
-                                macro_ron::v2::SurfaceFeature::Bare
-                                | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
-                                | macro_ron::v2::SurfaceFeature::Participle
-                                | macro_ron::v2::SurfaceFeature::Fixed
-                                | macro_ron::v2::SurfaceFeature::BlockLabel => {
+                                deckmaste_construction_core::macro_def::SurfaceFeature::Singular => quote! { Number::Singular },
+                                deckmaste_construction_core::macro_def::SurfaceFeature::Plural => quote! { Number::Plural },
+                                deckmaste_construction_core::macro_def::SurfaceFeature::Bare
+                                | deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular
+                                | deckmaste_construction_core::macro_def::SurfaceFeature::Participle
+                                | deckmaste_construction_core::macro_def::SurfaceFeature::Fixed
+                                | deckmaste_construction_core::macro_def::SurfaceFeature::BlockLabel => {
                                     unreachable!("validated noun lexeme has the Number feature axis")
                                 }
                             };
@@ -3352,8 +3352,8 @@ fn render_owner(
                             (#noun::Declaration(declaration), _) => LexicalOwner::declaration_owner(
                                 declaration.id().clone(),
                                 match #number {
-                                    Number::Singular => ::macro_ron::v2::SurfaceFeature::Singular,
-                                    Number::Plural => ::macro_ron::v2::SurfaceFeature::Plural,
+                                    Number::Singular => ::deckmaste_construction_core::macro_def::SurfaceFeature::Singular,
+                                    Number::Plural => ::deckmaste_construction_core::macro_def::SurfaceFeature::Plural,
                                 },
                             ),
                         }
@@ -3435,8 +3435,8 @@ fn render_noun_atom(
                             .surface(
                                 declaration.id(),
                                 match #number {
-                                    Number::Singular => ::macro_ron::v2::SurfaceFeature::Singular,
-                                    Number::Plural => ::macro_ron::v2::SurfaceFeature::Plural,
+                                    Number::Singular => ::deckmaste_construction_core::macro_def::SurfaceFeature::Singular,
+                                    Number::Plural => ::deckmaste_construction_core::macro_def::SurfaceFeature::Plural,
                                 },
                             )
                             .expect("stored declaration noun remains in its parser environment");
@@ -3471,14 +3471,14 @@ fn render_declaration_verb_atom(
         Feature::Agreement => {
             let agreement = projected_verb_agreement(validated, construction, role, locals)?;
             let feature = quote! { match #agreement {
-                Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
-                Agreement::ThirdPersonSingular => ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular,
+                Agreement::Bare => ::deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
+                Agreement::ThirdPersonSingular => ::deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular,
             }};
             (agreement, feature)
         }
         Feature::Participle => (
             quote! { Participle::Participle },
-            quote! { ::macro_ron::v2::SurfaceFeature::Participle },
+            quote! { ::deckmaste_construction_core::macro_def::SurfaceFeature::Participle },
         ),
         _ => unreachable!("validated declaration verb feature axis is closed"),
     };
@@ -3527,14 +3527,14 @@ fn declaration_verb_owner(
         Feature::Agreement => {
             let agreement = projected_verb_agreement(validated, construction, role, locals)?;
             let feature = quote! { match #agreement {
-                Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
-                Agreement::ThirdPersonSingular => ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular,
+                Agreement::Bare => ::deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
+                Agreement::ThirdPersonSingular => ::deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular,
             }};
             (agreement, feature)
         }
         Feature::Participle => (
             quote! { Participle::Participle },
-            quote! { ::macro_ron::v2::SurfaceFeature::Participle },
+            quote! { ::deckmaste_construction_core::macro_def::SurfaceFeature::Participle },
         ),
         _ => unreachable!("validated declaration verb feature axis is closed"),
     };
@@ -3545,14 +3545,19 @@ fn declaration_verb_owner(
             let member = emitted_ident(row.member(), Span::call_site());
             let axis = match codec.feature_axis() {
                 Feature::Agreement => match row.feature() {
-                    macro_ron::v2::SurfaceFeature::Bare => quote! { Agreement::Bare },
-                    macro_ron::v2::SurfaceFeature::ThirdPersonSingular => {
+                    deckmaste_construction_core::macro_def::SurfaceFeature::Bare => {
+                        quote! { Agreement::Bare }
+                    }
+                    deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular => {
                         quote! { Agreement::ThirdPersonSingular }
                     }
                     _ => unreachable!("validated Agreement declaration verb has Agreement rows"),
                 },
                 Feature::Participle => {
-                    debug_assert_eq!(row.feature(), macro_ron::v2::SurfaceFeature::Participle);
+                    debug_assert_eq!(
+                        row.feature(),
+                        deckmaste_construction_core::macro_def::SurfaceFeature::Participle
+                    );
                     quote! { Participle::Participle }
                 }
                 _ => unreachable!("validated declaration verb feature axis is closed"),
@@ -3636,9 +3641,9 @@ fn render_open_declaration(
     let agreement = verb_agreement(validated, construction, locals)?;
     let feature = quote! {
         match #agreement {
-            Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
+            Agreement::Bare => ::deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
             Agreement::ThirdPersonSingular => {
-                ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                ::deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular
             }
         }
     };
@@ -3648,7 +3653,7 @@ fn render_open_declaration(
         #method_writer.word(
             environment
                 .surface(
-                    &::macro_ron::v2::DeclarationIdentity::new(#kind, #name),
+                    &::deckmaste_construction_core::macro_def::DeclarationIdentity::new(#kind, #name),
                     #feature,
                 )
                 .expect("parser validated the required declaration surface"),
@@ -4057,15 +4062,15 @@ fn implicit_verb_onset(
                 .filter(|row| row.member() == variant)
                 .map(|row| {
                     let agreement = match row.feature() {
-                        macro_ron::v2::SurfaceFeature::Bare => quote! { Agreement::Bare },
-                        macro_ron::v2::SurfaceFeature::ThirdPersonSingular => {
+                        deckmaste_construction_core::macro_def::SurfaceFeature::Bare => quote! { Agreement::Bare },
+                        deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular => {
                             quote! { Agreement::ThirdPersonSingular }
                         }
-                        macro_ron::v2::SurfaceFeature::Singular
-                        | macro_ron::v2::SurfaceFeature::Plural
-                        | macro_ron::v2::SurfaceFeature::Participle
-                        | macro_ron::v2::SurfaceFeature::Fixed
-                        | macro_ron::v2::SurfaceFeature::BlockLabel => {
+                        deckmaste_construction_core::macro_def::SurfaceFeature::Singular
+                        | deckmaste_construction_core::macro_def::SurfaceFeature::Plural
+                        | deckmaste_construction_core::macro_def::SurfaceFeature::Participle
+                        | deckmaste_construction_core::macro_def::SurfaceFeature::Fixed
+                        | deckmaste_construction_core::macro_def::SurfaceFeature::BlockLabel => {
                             unreachable!("validated verb lexeme has the Agreement feature axis")
                         }
                     };
@@ -4080,11 +4085,11 @@ fn implicit_verb_onset(
             Ok(quote! {
                 environment
                     .onset(
-                        &::macro_ron::v2::DeclarationIdentity::new(#kind, #name),
+                        &::deckmaste_construction_core::macro_def::DeclarationIdentity::new(#kind, #name),
                         match #agreement {
-                            Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
+                            Agreement::Bare => ::deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
                             Agreement::ThirdPersonSingular => {
-                                ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                                ::deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular
                             }
                         },
                     )
@@ -4174,8 +4179,8 @@ fn declaration_determinative_surface_expr(
     };
     let phrase_number = quote! {
         match #number {
-            Number::Singular => ::macro_ron::v2::DeterminativePhraseNumber::Singular,
-            Number::Plural => ::macro_ron::v2::DeterminativePhraseNumber::Plural,
+            Number::Singular => ::deckmaste_construction_core::macro_def::DeterminativePhraseNumber::Singular,
+            Number::Plural => ::deckmaste_construction_core::macro_def::DeterminativePhraseNumber::Plural,
         }
     };
     let following_onset = following_onset.map_or_else(
@@ -4195,11 +4200,11 @@ fn declaration_determinative_surface_expr(
             let number = realization.phrase_number().map_or_else(
                 || quote! { _ },
                 |number| match number {
-                    ::macro_ron::v2::DeterminativePhraseNumber::Singular => quote! {
-                        ::macro_ron::v2::DeterminativePhraseNumber::Singular
+                    ::deckmaste_construction_core::macro_def::DeterminativePhraseNumber::Singular => quote! {
+                        ::deckmaste_construction_core::macro_def::DeterminativePhraseNumber::Singular
                     },
-                    ::macro_ron::v2::DeterminativePhraseNumber::Plural => quote! {
-                        ::macro_ron::v2::DeterminativePhraseNumber::Plural
+                    ::deckmaste_construction_core::macro_def::DeterminativePhraseNumber::Plural => quote! {
+                        ::deckmaste_construction_core::macro_def::DeterminativePhraseNumber::Plural
                     },
                 },
             );
@@ -4267,7 +4272,8 @@ fn bound_prefix_onset(
         });
         has_bound_prefix |= affix.is_some();
         form_onsets.push(affix.and_then(|surface| {
-            ::macro_ron::v2::normalize_surface_onset(surface, None).map(super::onset)
+            ::deckmaste_construction_core::macro_def::normalize_surface_onset(surface, None)
+                .map(super::onset)
         }));
     }
     if !has_bound_prefix {
@@ -4339,13 +4345,17 @@ fn lexical_onset_expr(
             let arms = lexeme.surfaces().iter().map(|row| {
                 let member = ident(row.member());
                 let feature = match row.feature() {
-                    macro_ron::v2::SurfaceFeature::Singular => quote! { Number::Singular },
-                    macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
-                    macro_ron::v2::SurfaceFeature::Bare
-                    | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
-                    | macro_ron::v2::SurfaceFeature::Participle
-                    | macro_ron::v2::SurfaceFeature::Fixed
-                    | macro_ron::v2::SurfaceFeature::BlockLabel => {
+                    deckmaste_construction_core::macro_def::SurfaceFeature::Singular => {
+                        quote! { Number::Singular }
+                    }
+                    deckmaste_construction_core::macro_def::SurfaceFeature::Plural => {
+                        quote! { Number::Plural }
+                    }
+                    deckmaste_construction_core::macro_def::SurfaceFeature::Bare
+                    | deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular
+                    | deckmaste_construction_core::macro_def::SurfaceFeature::Participle
+                    | deckmaste_construction_core::macro_def::SurfaceFeature::Fixed
+                    | deckmaste_construction_core::macro_def::SurfaceFeature::BlockLabel => {
                         unreachable!("validated noun lexeme has the Number feature axis")
                     }
                 };
@@ -4380,7 +4390,7 @@ fn lexical_onset_expr(
                 None,
             )?;
             Ok(quote! {
-                ::macro_ron::v2::normalize_surface_onset(#surface, None)
+                ::deckmaste_construction_core::macro_def::normalize_surface_onset(#surface, None)
                     .expect("validated determinative realization has an onset")
             })
         }
@@ -4425,13 +4435,17 @@ fn declaration_noun_onset_expr(
             .map(|row| {
                 let member = ident(row.member());
                 let number = match row.feature() {
-                    macro_ron::v2::SurfaceFeature::Singular => quote! { Number::Singular },
-                    macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
-                    macro_ron::v2::SurfaceFeature::Bare
-                    | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
-                    | macro_ron::v2::SurfaceFeature::Participle
-                    | macro_ron::v2::SurfaceFeature::Fixed
-                    | macro_ron::v2::SurfaceFeature::BlockLabel => {
+                    deckmaste_construction_core::macro_def::SurfaceFeature::Singular => {
+                        quote! { Number::Singular }
+                    }
+                    deckmaste_construction_core::macro_def::SurfaceFeature::Plural => {
+                        quote! { Number::Plural }
+                    }
+                    deckmaste_construction_core::macro_def::SurfaceFeature::Bare
+                    | deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular
+                    | deckmaste_construction_core::macro_def::SurfaceFeature::Participle
+                    | deckmaste_construction_core::macro_def::SurfaceFeature::Fixed
+                    | deckmaste_construction_core::macro_def::SurfaceFeature::BlockLabel => {
                         unreachable!("validated noun lexeme has the Number feature axis")
                     }
                 };
@@ -4449,8 +4463,8 @@ fn declaration_noun_onset_expr(
                 .onset(
                     declaration.id(),
                     match number {
-                        Number::Singular => ::macro_ron::v2::SurfaceFeature::Singular,
-                        Number::Plural => ::macro_ron::v2::SurfaceFeature::Plural,
+                        Number::Singular => ::deckmaste_construction_core::macro_def::SurfaceFeature::Singular,
+                        Number::Plural => ::deckmaste_construction_core::macro_def::SurfaceFeature::Plural,
                     },
                 )
                 .expect("stored declaration noun remains in its normalized parser environment"),
@@ -4475,8 +4489,8 @@ fn declaration_verb_onset_expr(
                 let closed_arms = lexeme.surfaces().iter().map(|row| {
                     let member = ident(row.member());
                     let agreement = match row.feature() {
-                        macro_ron::v2::SurfaceFeature::Bare => quote! { Agreement::Bare },
-                        macro_ron::v2::SurfaceFeature::ThirdPersonSingular => {
+                        deckmaste_construction_core::macro_def::SurfaceFeature::Bare => quote! { Agreement::Bare },
+                        deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular => {
                             quote! { Agreement::ThirdPersonSingular }
                         }
                         _ => {
@@ -4493,9 +4507,9 @@ fn declaration_verb_onset_expr(
                             .verb_inventory_onset(
                                 declaration.reference(),
                                 match agreement {
-                                    Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
+                                    Agreement::Bare => ::deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
                                     Agreement::ThirdPersonSingular => {
-                                        ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                                        ::deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular
                                     }
                                 },
                             )
@@ -4515,7 +4529,7 @@ fn declaration_verb_onset_expr(
                         #verb::Declaration(declaration) => environment
                             .verb_inventory_onset(
                                 declaration.reference(),
-                                ::macro_ron::v2::SurfaceFeature::Participle,
+                                ::deckmaste_construction_core::macro_def::SurfaceFeature::Participle,
                             )
                             .expect("stored declaration verb remains in its normalized parser environment"),
                     }
@@ -4529,14 +4543,16 @@ fn declaration_verb_onset_expr(
             let agreement = projected_verb_agreement(validated, construction, role, locals)?;
             quote! {
                 match #agreement {
-                    Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
+                    Agreement::Bare => ::deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
                     Agreement::ThirdPersonSingular => {
-                        ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                        ::deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular
                     }
                 }
             }
         }
-        Feature::Participle => quote! { ::macro_ron::v2::SurfaceFeature::Participle },
+        Feature::Participle => {
+            quote! { ::deckmaste_construction_core::macro_def::SurfaceFeature::Participle }
+        }
         _ => unreachable!("validated declaration verb feature axis is closed"),
     };
     Ok(quote! {
@@ -4587,13 +4603,17 @@ fn lexical_possessive_ending_expr(
             let arms = lexeme.surfaces().iter().map(|row| {
                 let member = ident(row.member());
                 let feature = match row.feature() {
-                    macro_ron::v2::SurfaceFeature::Singular => quote! { Number::Singular },
-                    macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
-                    macro_ron::v2::SurfaceFeature::Bare
-                    | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
-                    | macro_ron::v2::SurfaceFeature::Participle
-                    | macro_ron::v2::SurfaceFeature::Fixed
-                    | macro_ron::v2::SurfaceFeature::BlockLabel => {
+                    deckmaste_construction_core::macro_def::SurfaceFeature::Singular => {
+                        quote! { Number::Singular }
+                    }
+                    deckmaste_construction_core::macro_def::SurfaceFeature::Plural => {
+                        quote! { Number::Plural }
+                    }
+                    deckmaste_construction_core::macro_def::SurfaceFeature::Bare
+                    | deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular
+                    | deckmaste_construction_core::macro_def::SurfaceFeature::Participle
+                    | deckmaste_construction_core::macro_def::SurfaceFeature::Fixed
+                    | deckmaste_construction_core::macro_def::SurfaceFeature::BlockLabel => {
                         unreachable!("validated noun lexeme has the Number feature axis")
                     }
                 };
@@ -4614,13 +4634,13 @@ fn lexical_possessive_ending_expr(
                     .map(|row| {
                         let member = ident(row.member());
                         let number = match row.feature() {
-                            macro_ron::v2::SurfaceFeature::Singular => quote! { Number::Singular },
-                            macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
-                            macro_ron::v2::SurfaceFeature::Bare
-                            | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
-                            | macro_ron::v2::SurfaceFeature::Participle
-                            | macro_ron::v2::SurfaceFeature::Fixed
-                            | macro_ron::v2::SurfaceFeature::BlockLabel => {
+                            deckmaste_construction_core::macro_def::SurfaceFeature::Singular => quote! { Number::Singular },
+                            deckmaste_construction_core::macro_def::SurfaceFeature::Plural => quote! { Number::Plural },
+                            deckmaste_construction_core::macro_def::SurfaceFeature::Bare
+                            | deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular
+                            | deckmaste_construction_core::macro_def::SurfaceFeature::Participle
+                            | deckmaste_construction_core::macro_def::SurfaceFeature::Fixed
+                            | deckmaste_construction_core::macro_def::SurfaceFeature::BlockLabel => {
                                 unreachable!("validated noun lexeme has the Number feature axis")
                             }
                         };
@@ -4636,8 +4656,8 @@ fn lexical_possessive_ending_expr(
                     .surface(
                         declaration.id(),
                         match number {
-                            Number::Singular => ::macro_ron::v2::SurfaceFeature::Singular,
-                            Number::Plural => ::macro_ron::v2::SurfaceFeature::Plural,
+                            Number::Singular => ::deckmaste_construction_core::macro_def::SurfaceFeature::Singular,
+                            Number::Plural => ::deckmaste_construction_core::macro_def::SurfaceFeature::Plural,
                         },
                     )
                     .expect("stored declaration noun remains in its normalized parser environment")

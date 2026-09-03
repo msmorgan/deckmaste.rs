@@ -239,8 +239,8 @@ pub(crate) fn emit(
                                     return None;
                                 }
                                 [
-                                    ::macro_ron::v2::SurfaceFeature::Bare,
-                                    ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular,
+                                    ::deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
+                                    ::deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular,
                                 ]
                                 .into_iter()
                                 .all(|feature| environment.verb_inventory_surface(&reference, feature).is_some())
@@ -438,17 +438,17 @@ pub(crate) fn emit(
                     .map(|closed| quote! { Lexeme(#closed), });
                 let allowed = row.kinds().iter().map(|kind| match kind {
                     crate::semantic::DeclarationKindFamily::Type => {
-                        quote! { ::macro_ron::v2::DeclarationKind::Type }
+                        quote! { ::deckmaste_construction_core::macro_def::DeclarationKind::Type }
                     }
                     crate::semantic::DeclarationKindFamily::TurnPart => {
-                        quote! { ::macro_ron::v2::DeclarationKind::TurnPart }
+                        quote! { ::deckmaste_construction_core::macro_def::DeclarationKind::TurnPart }
                     }
                     crate::semantic::DeclarationKindFamily::Subtype => {
-                        quote! { ::macro_ron::v2::DeclarationKind::Subtype(_) }
+                        quote! { ::deckmaste_construction_core::macro_def::DeclarationKind::Subtype(_) }
                     }
                     crate::semantic::DeclarationKindFamily::SubtypeFamily(family) => {
                         let family = crate::emit::subtype_category(*family);
-                        quote! { ::macro_ron::v2::DeclarationKind::Subtype(#family) }
+                        quote! { ::deckmaste_construction_core::macro_def::DeclarationKind::Subtype(#family) }
                     }
                 });
                 items.push(GeneratedItem::new(
@@ -456,7 +456,7 @@ pub(crate) fn emit(
                     quote! {
                         #[derive(Debug, Clone, PartialEq, Eq)]
                         pub struct #declaration {
-                            id: ::macro_ron::v2::DeclarationIdentity,
+                            id: ::deckmaste_construction_core::macro_def::DeclarationIdentity,
                         }
                     },
                     vec![origin.clone()],
@@ -470,26 +470,26 @@ pub(crate) fn emit(
                         impl #declaration {
                             pub fn new(
                                 environment: &crate::environment::ParserEnvironment,
-                                id: ::macro_ron::v2::DeclarationIdentity,
+                                id: ::deckmaste_construction_core::macro_def::DeclarationIdentity,
                             ) -> Option<Self> {
                                 let has_surface = environment
-                                    .surface(&id, ::macro_ron::v2::SurfaceFeature::Singular)
+                                    .surface(&id, ::deckmaste_construction_core::macro_def::SurfaceFeature::Singular)
                                     .or_else(|| environment.surface(
                                         &id,
-                                        ::macro_ron::v2::SurfaceFeature::Plural,
+                                        ::deckmaste_construction_core::macro_def::SurfaceFeature::Plural,
                                     ))
                                     .is_some();
                                 has_surface.then(|| Self::from_reading(id)).flatten()
                             }
 
                             pub(crate) fn from_reading(
-                                id: ::macro_ron::v2::DeclarationIdentity,
+                                id: ::deckmaste_construction_core::macro_def::DeclarationIdentity,
                             ) -> Option<Self> {
                                 matches!(id.kind(), #(#allowed)|*)
                                     .then_some(Self { id })
                             }
 
-                            pub fn id(&self) -> &::macro_ron::v2::DeclarationIdentity {
+                            pub fn id(&self) -> &::deckmaste_construction_core::macro_def::DeclarationIdentity {
                                 &self.id
                             }
                         }
@@ -548,7 +548,7 @@ pub(crate) fn emit(
                     quote! {
                         #[derive(Debug, Clone, PartialEq, Eq)]
                         pub struct #term {
-                            id: ::macro_ron::v2::DeclarationIdentity,
+                            id: ::deckmaste_construction_core::macro_def::DeclarationIdentity,
                         }
                     },
                     vec![origin.clone()],
@@ -562,7 +562,7 @@ pub(crate) fn emit(
                         impl #term {
                             pub fn new(
                                 environment: &crate::environment::ParserEnvironment,
-                                id: ::macro_ron::v2::DeclarationIdentity,
+                                id: ::deckmaste_construction_core::macro_def::DeclarationIdentity,
                             ) -> Option<Self> {
                                 let recipe = environment.grammar_recipe(&id)?;
                                 (recipe.position() == #position)
@@ -575,13 +575,13 @@ pub(crate) fn emit(
                             }
 
                             pub(crate) fn from_reading(
-                                id: ::macro_ron::v2::DeclarationIdentity,
+                                id: ::deckmaste_construction_core::macro_def::DeclarationIdentity,
                             ) -> Option<Self> {
                                 matches!(id.kind(), #(#allowed)|*)
                                     .then_some(Self { id })
                             }
 
-                            pub fn id(&self) -> &::macro_ron::v2::DeclarationIdentity {
+                            pub fn id(&self) -> &::deckmaste_construction_core::macro_def::DeclarationIdentity {
                                 &self.id
                             }
                         }
@@ -713,17 +713,23 @@ fn emit_lexeme_surface_helper(
         .map(|row| {
             let member = emitted_ident(row.member(), Span::call_site());
             let feature = match row.feature() {
-                macro_ron::v2::SurfaceFeature::Bare => quote! { Agreement::Bare },
-                macro_ron::v2::SurfaceFeature::ThirdPersonSingular => {
+                deckmaste_construction_core::macro_def::SurfaceFeature::Bare => {
+                    quote! { Agreement::Bare }
+                }
+                deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular => {
                     quote! { Agreement::ThirdPersonSingular }
                 }
-                macro_ron::v2::SurfaceFeature::Singular => quote! { Number::Singular },
-                macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
-                macro_ron::v2::SurfaceFeature::Participle => {
+                deckmaste_construction_core::macro_def::SurfaceFeature::Singular => {
+                    quote! { Number::Singular }
+                }
+                deckmaste_construction_core::macro_def::SurfaceFeature::Plural => {
+                    quote! { Number::Plural }
+                }
+                deckmaste_construction_core::macro_def::SurfaceFeature::Participle => {
                     quote! { Participle::Participle }
                 }
-                macro_ron::v2::SurfaceFeature::Fixed
-                | macro_ron::v2::SurfaceFeature::BlockLabel => {
+                deckmaste_construction_core::macro_def::SurfaceFeature::Fixed
+                | deckmaste_construction_core::macro_def::SurfaceFeature::BlockLabel => {
                     return Err(syn::Error::new(
                         Span::call_site(),
                         "sealed lexeme surface has an unsupported fixed feature",
@@ -1024,7 +1030,7 @@ fn emit_aggregate_noun_feature_helpers(
                     match ::std::borrow::Borrow::borrow(&value) {
                         #ty::Lexeme(value) => #closed_properness(*value),
                         #ty::Declaration(value) => match value.id().kind() {
-                            ::macro_ron::v2::DeclarationKind::Subtype(_) => Properness::Proper,
+                            ::deckmaste_construction_core::macro_def::DeclarationKind::Subtype(_) => Properness::Proper,
                             _ => Properness::Common,
                         },
                     }
@@ -1047,7 +1053,7 @@ fn emit_aggregate_noun_feature_helpers(
                     match ::std::borrow::Borrow::borrow(&value) {
                         #ty::Lexeme(value) => #closed_relationality(*value),
                         #ty::Declaration(value) => match value.id().kind() {
-                            ::macro_ron::v2::DeclarationKind::TurnPart => {
+                            ::deckmaste_construction_core::macro_def::DeclarationKind::TurnPart => {
                                 Relationality::Relational
                             }
                             _ => Relationality::NonRelational,
@@ -1342,7 +1348,7 @@ mod tests {
                     match ::std::borrow::Borrow::borrow(&value) {
                         Noun::Lexeme(value) => relationality_for_core_noun(*value),
                         Noun::Declaration(value) => match value.id().kind() {
-                            ::macro_ron::v2::DeclarationKind::TurnPart => {
+                            ::deckmaste_construction_core::macro_def::DeclarationKind::TurnPart => {
                                 Relationality::Relational
                             }
                             _ => Relationality::NonRelational,

@@ -150,7 +150,7 @@ mod catalog_fixture {
     pub mod environment {
         use std::sync::Arc;
 
-        use macro_ron::v2::Onset;
+        use deckmaste_construction_core::macro_def::Onset;
 
         use super::CatalogProvider;
 
@@ -302,7 +302,11 @@ mod catalog_fixture {
             &self,
             provider: CatalogProvider,
             right_boundary: LexicalBoundary,
-        ) -> Option<(usize, Arc<str>, macro_ron::v2::Onset)> {
+        ) -> Option<(
+            usize,
+            Arc<str>,
+            deckmaste_construction_core::macro_def::Onset,
+        )> {
             let prefix = usize::from(self.position.prefix == PrefixPosition::WordOwnedSpace);
             let remainder = self.text.get(self.position.byte_offset..)?;
             let surface_text = (prefix == 0)
@@ -341,9 +345,9 @@ mod catalog_fixture {
             _right_boundary: LexicalBoundary,
         ) -> Vec<(
             usize,
-            macro_ron::v2::DeclarationIdentity,
-            macro_ron::v2::SurfaceFeature,
-            macro_ron::v2::Onset,
+            deckmaste_construction_core::macro_def::DeclarationIdentity,
+            deckmaste_construction_core::macro_def::SurfaceFeature,
+            deckmaste_construction_core::macro_def::Onset,
         )> {
             debug_assert_eq!(self.context.marker, std::marker::PhantomData);
             Vec::new()
@@ -384,7 +388,7 @@ mod catalog_fixture {
     }
 
     fn environment() -> environment::ParserEnvironment {
-        use macro_ron::v2::Onset;
+        use deckmaste_construction_core::macro_def::Onset;
 
         let vowel_spelling = String::from("Apple");
         let vowel_identity: Arc<str> = Arc::from("heuristic-vowel");
@@ -527,7 +531,7 @@ mod catalog_fixture {
 
     #[test]
     fn catalog_only_generated_consumer_executes_frozen_onset_and_environment_abi() {
-        use macro_ron::v2::Onset;
+        use deckmaste_construction_core::macro_def::Onset;
 
         let environment = environment();
         let context = ParseContext::default();
@@ -667,7 +671,7 @@ mod catalog_fixture {
     }
 
     fn assert_catalog_possessive_ending_transport() {
-        use macro_ron::v2::Onset;
+        use deckmaste_construction_core::macro_def::Onset;
 
         let environment = environment();
         let context = ParseContext::default();

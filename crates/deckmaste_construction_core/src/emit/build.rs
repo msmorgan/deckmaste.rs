@@ -1967,16 +1967,16 @@ fn lower_atom(
             lowering.guards.push(quote! {
                 matches!(
                     #surface_feature,
-                    ::macro_ron::v2::SurfaceFeature::Bare
-                        | ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                    ::deckmaste_construction_core::macro_def::SurfaceFeature::Bare
+                        | ::deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular
                 )
             });
             lowering.role_features.insert(
                 ("verb".to_owned(), Feature::Agreement),
                 LocalFeatureValue::Computed(quote! {
                     match #surface_feature {
-                        ::macro_ron::v2::SurfaceFeature::Bare => Agreement::Bare,
-                        ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular => {
+                        ::deckmaste_construction_core::macro_def::SurfaceFeature::Bare => Agreement::Bare,
+                        ::deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular => {
                             Agreement::ThirdPersonSingular
                         }
                         _ => unreachable!("open verb matcher admitted a non-verb feature"),
@@ -2019,11 +2019,17 @@ fn lower_bound_atom(
             push_affix(lowering);
             lower_atom(validated, row, form, value, lowering)?;
             if let Some(role) = atom_role(value)
-                && let Some(onset) = ::macro_ron::v2::normalize_surface_onset(affix_surface, None)
+                && let Some(onset) =
+                    ::deckmaste_construction_core::macro_def::normalize_surface_onset(
+                        affix_surface,
+                        None,
+                    )
             {
                 let onset = match onset {
-                    ::macro_ron::v2::Onset::Consonant => FeatureValue::Consonant,
-                    ::macro_ron::v2::Onset::Vowel => FeatureValue::Vowel,
+                    ::deckmaste_construction_core::macro_def::Onset::Consonant => {
+                        FeatureValue::Consonant
+                    }
+                    ::deckmaste_construction_core::macro_def::Onset::Vowel => FeatureValue::Vowel,
                 };
                 lowering.role_features.insert(
                     (role.to_owned(), Feature::Onset),
@@ -2899,8 +2905,10 @@ fn verb_onset_pattern(
         validated.feature_resolution(row.construction_id(), &target)
     {
         let feature = match agreement {
-            FeatureValue::Bare => macro_ron::v2::SurfaceFeature::Bare,
-            FeatureValue::ThirdPersonSingular => macro_ron::v2::SurfaceFeature::ThirdPersonSingular,
+            FeatureValue::Bare => deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
+            FeatureValue::ThirdPersonSingular => {
+                deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular
+            }
             FeatureValue::Singular
             | FeatureValue::Plural
             | FeatureValue::Consonant
@@ -2919,8 +2927,8 @@ fn verb_onset_pattern(
             .iter()
             .find(|surface| surface.feature() == feature)
             .map(|surface| match surface.onset() {
-                macro_ron::v2::Onset::Consonant => FeatureValue::Consonant,
-                macro_ron::v2::Onset::Vowel => FeatureValue::Vowel,
+                deckmaste_construction_core::macro_def::Onset::Consonant => FeatureValue::Consonant,
+                deckmaste_construction_core::macro_def::Onset::Vowel => FeatureValue::Vowel,
             })
             .ok_or_else(|| internal("fixed verb has no exact realized onset row"))?;
         lowering.role_features.insert(
@@ -2937,21 +2945,23 @@ fn verb_onset_pattern(
     );
     let correlations = rows.iter().map(|surface| {
         let agreement = match surface.feature() {
-            macro_ron::v2::SurfaceFeature::Bare => quote! { Agreement::Bare },
-            macro_ron::v2::SurfaceFeature::ThirdPersonSingular => {
+            deckmaste_construction_core::macro_def::SurfaceFeature::Bare => {
+                quote! { Agreement::Bare }
+            }
+            deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular => {
                 quote! { Agreement::ThirdPersonSingular }
             }
-            macro_ron::v2::SurfaceFeature::Singular
-            | macro_ron::v2::SurfaceFeature::Plural
-            | macro_ron::v2::SurfaceFeature::Participle
-            | macro_ron::v2::SurfaceFeature::Fixed
-            | macro_ron::v2::SurfaceFeature::BlockLabel => {
+            deckmaste_construction_core::macro_def::SurfaceFeature::Singular
+            | deckmaste_construction_core::macro_def::SurfaceFeature::Plural
+            | deckmaste_construction_core::macro_def::SurfaceFeature::Participle
+            | deckmaste_construction_core::macro_def::SurfaceFeature::Fixed
+            | deckmaste_construction_core::macro_def::SurfaceFeature::BlockLabel => {
                 unreachable!("validated verb lexeme has Agreement rows")
             }
         };
         let expected_onset = match surface.onset() {
-            macro_ron::v2::Onset::Consonant => quote! { Onset::Consonant },
-            macro_ron::v2::Onset::Vowel => quote! { Onset::Vowel },
+            deckmaste_construction_core::macro_def::Onset::Consonant => quote! { Onset::Consonant },
+            deckmaste_construction_core::macro_def::Onset::Vowel => quote! { Onset::Vowel },
         };
         quote! { (*#agreement_pattern == #agreement && *#onset == #expected_onset) }
     });

@@ -133,14 +133,14 @@ pub struct TerminalVariantContribution {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TerminalSurfaceContribution {
     member: String,
-    feature: macro_ron::v2::SurfaceFeature,
+    feature: deckmaste_construction_core::macro_def::SurfaceFeature,
     surface: String,
 }
 
 impl TerminalSurfaceContribution {
     fn new(
         member: impl Into<String>,
-        feature: macro_ron::v2::SurfaceFeature,
+        feature: deckmaste_construction_core::macro_def::SurfaceFeature,
         surface: impl Into<String>,
     ) -> Self {
         Self {
@@ -156,7 +156,7 @@ impl TerminalSurfaceContribution {
     }
 
     #[must_use]
-    pub fn feature(&self) -> macro_ron::v2::SurfaceFeature {
+    pub fn feature(&self) -> deckmaste_construction_core::macro_def::SurfaceFeature {
         self.feature
     }
 
@@ -809,16 +809,24 @@ mod tests {
                 .map(|row| (row.member(), row.feature(), row.surface()))
                 .collect::<Vec<_>>(),
             [
-                ("Deal", macro_ron::v2::SurfaceFeature::Bare, "deal"),
                 (
                     "Deal",
-                    macro_ron::v2::SurfaceFeature::ThirdPersonSingular,
+                    deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
+                    "deal"
+                ),
+                (
+                    "Deal",
+                    deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular,
                     "deals",
                 ),
-                ("Be", macro_ron::v2::SurfaceFeature::Bare, "are"),
                 (
                     "Be",
-                    macro_ron::v2::SurfaceFeature::ThirdPersonSingular,
+                    deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
+                    "are"
+                ),
+                (
+                    "Be",
+                    deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular,
                     "is",
                 ),
             ]
@@ -1003,8 +1011,8 @@ mod tests {
 
     #[test]
     fn declaration_verb_tail_is_a_normalized_semantic_frame_key() {
-        use macro_ron::v2::CustomTailAtom;
-        use macro_ron::v2::VerbValence;
+        use deckmaste_construction_core::macro_def::CustomTailAtom;
+        use deckmaste_construction_core::macro_def::VerbValence;
 
         let object_plan = declaration_verb_plan_for(&quote::quote! { ObjectNounPhrase });
         let (terminal_index, object) = sole_declaration_verb(&object_plan);
@@ -1018,7 +1026,7 @@ mod tests {
         assert_eq!(object.closed_lexeme().expect("closed branch"), "CoreVerb");
         assert_eq!(
             crate::semantic::DeclarationVerbPlan::position(),
-            macro_ron::v2::GrammarPosition::Verb
+            deckmaste_construction_core::macro_def::GrammarPosition::Verb
         );
         assert_eq!(object.feature_axis(), crate::feature::Feature::Agreement);
         assert_eq!(
@@ -1151,7 +1159,7 @@ mod tests {
 
     #[test]
     fn declaration_verb_frame_classes_are_sealed_and_semantic() {
-        use macro_ron::v2::VerbValence;
+        use deckmaste_construction_core::macro_def::VerbValence;
 
         let plan = crate::validate_declarations(
             crate::parse_declarations(quote::quote! {

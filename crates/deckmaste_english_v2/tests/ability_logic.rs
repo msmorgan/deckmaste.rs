@@ -3,6 +3,8 @@ use std::num::NonZeroU32;
 use std::path::Path;
 use std::process::Command;
 
+use deckmaste_construction_core::macro_def::DeclarationKind;
+use deckmaste_construction_core::macro_def::Onset;
 use deckmaste_english_v2::ast::*;
 use deckmaste_english_v2::context::ParseContext;
 use deckmaste_english_v2::environment::CatalogProviderRow;
@@ -18,11 +20,9 @@ use deckmaste_english_v2::parser::SelectionResolution;
 use deckmaste_english_v2::parser::TextSpan;
 use deckmaste_english_v2::render::Render as _;
 use deckmaste_english_v2::visit::Visitor;
-use macro_ron::v2::DeclarationKind;
-use macro_ron::v2::Onset;
 
 fn environment() -> ParserEnvironment {
-    let declarations = macro_ron::v2::read_builtin_v2(
+    let declarations = deckmaste_construction_core::macro_def::read_builtin_v2(
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"),
     )
     .expect("integrated builtin-v2 declarations load");
@@ -4582,12 +4582,12 @@ fn english_v2_direct_dependency_set_stays_independent_of_core_features_and_v1() 
         BTreeSet::from([
             "anyhow".to_owned(),
             "deckmaste_construction".to_owned(),
+            "deckmaste_construction_core".to_owned(),
             "deckmaste_english_v2".to_owned(),
-            "macro_ron".to_owned(),
             "ron".to_owned(),
             "serde".to_owned(),
             "thiserror".to_owned(),
         ]),
-        "the complete direct normal-dependency set remains unchanged and excludes deckmaste_core, deckmaste_features, and deckmaste_english",
+        "the complete direct normal-dependency set remains bounded and excludes deckmaste_core, deckmaste_features, deckmaste_english, and macro_ron",
     );
 }

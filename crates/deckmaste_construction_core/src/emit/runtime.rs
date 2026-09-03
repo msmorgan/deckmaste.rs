@@ -217,7 +217,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
         named_type(
             ONSET_TYPE,
             quote! {
-                pub(crate) use ::macro_ron::v2::Onset;
+                pub(crate) use ::deckmaste_construction_core::macro_def::Onset;
             },
         ),
         named_type(
@@ -290,8 +290,8 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
                 pub struct DeclarationClass {
-                    kind: ::macro_ron::v2::DeclarationKind,
-                    position: ::macro_ron::v2::GrammarPosition,
+                    kind: ::deckmaste_construction_core::macro_def::DeclarationKind,
+                    position: ::deckmaste_construction_core::macro_def::GrammarPosition,
                 }
             },
         ),
@@ -300,10 +300,10 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
                 pub(crate) struct DeclarationMatcher {
-                    pub(crate) kind: ::macro_ron::v2::DeclarationKind,
+                    pub(crate) kind: ::deckmaste_construction_core::macro_def::DeclarationKind,
                     pub(crate) name: &'static str,
-                    pub(crate) position: ::macro_ron::v2::GrammarPosition,
-                    pub(crate) feature: FeatureConstraint<::macro_ron::v2::SurfaceFeature>,
+                    pub(crate) position: ::deckmaste_construction_core::macro_def::GrammarPosition,
+                    pub(crate) feature: FeatureConstraint<::deckmaste_construction_core::macro_def::SurfaceFeature>,
                 }
             },
         ),
@@ -312,8 +312,8 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             quote! {
                 #[derive(Debug, Clone, PartialEq, Eq)]
                 pub(crate) struct DeclarationLeaf {
-                    pub(crate) id: ::macro_ron::v2::DeclarationIdentity,
-                    pub(crate) feature: ::macro_ron::v2::SurfaceFeature,
+                    pub(crate) id: ::deckmaste_construction_core::macro_def::DeclarationIdentity,
+                    pub(crate) feature: ::deckmaste_construction_core::macro_def::SurfaceFeature,
                     pub(crate) onset: Onset,
                 }
             },
@@ -338,7 +338,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                     pub(crate) surface: &'static str,
                     pub(crate) terminal: &'static str,
                     pub(crate) member: &'static str,
-                    pub(crate) position: ::macro_ron::v2::GrammarPosition,
+                    pub(crate) position: ::deckmaste_construction_core::macro_def::GrammarPosition,
                 }
             },
         ),
@@ -417,11 +417,11 @@ fn emit_lexicon_surfaces(plan: &SemanticPlan) -> GeneratedItem {
     let rows = [
         (
             plan.runtime_noun_lexeme(),
-            macro_ron::v2::GrammarPosition::Noun,
+            deckmaste_construction_core::macro_def::GrammarPosition::Noun,
         ),
         (
             plan.runtime_verb_lexeme(),
-            macro_ron::v2::GrammarPosition::Verb,
+            deckmaste_construction_core::macro_def::GrammarPosition::Verb,
         ),
     ]
     .into_iter()
@@ -573,10 +573,10 @@ fn emit_declaration_verb_frame_types() -> Vec<GeneratedItem> {
 
                     pub(crate) fn matches_valence(
                         self,
-                        valence: &::macro_ron::v2::VerbValence,
+                        valence: &::deckmaste_construction_core::macro_def::VerbValence,
                     ) -> bool {
-                        use ::macro_ron::v2::CustomTailAtom;
-                        use ::macro_ron::v2::VerbValence;
+                        use ::deckmaste_construction_core::macro_def::CustomTailAtom;
+                        use ::deckmaste_construction_core::macro_def::VerbValence;
 
                         if self.class != VerbFrameClass::Predicate {
                             return false;
@@ -1236,7 +1236,7 @@ fn declaration_term_lexical_variants(
             quote! {
                 DeclarationTerm {
                     terminal_index: usize,
-                    id: ::macro_ron::v2::DeclarationIdentity,
+                    id: ::deckmaste_construction_core::macro_def::DeclarationIdentity,
                     onset: Onset,
                     possessive_ending: PossessiveEnding,
                 },
@@ -1493,7 +1493,7 @@ fn emit_owner_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     #declaration_term
                     #declaration_verb
                     Declaration {
-                        kind: ::macro_ron::v2::DeclarationKind,
+                        kind: ::deckmaste_construction_core::macro_def::DeclarationKind,
                         name: &'static str,
                     },
                 }
@@ -1509,8 +1509,8 @@ fn emit_owner_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                         stable_id: &'static str,
                     },
                     Declaration(std::sync::Arc<(
-                        ::macro_ron::v2::DeclarationIdentity,
-                        ::macro_ron::v2::SurfaceFeature,
+                        ::deckmaste_construction_core::macro_def::DeclarationIdentity,
+                        ::deckmaste_construction_core::macro_def::SurfaceFeature,
                         std::sync::OnceLock<String>,
                     )>),
                     #catalog_owner_identity
@@ -1832,11 +1832,11 @@ fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
             "DeclarationClass",
             quote! {
                 impl DeclarationClass {
-                    pub const fn kind(self) -> ::macro_ron::v2::DeclarationKind {
+                    pub const fn kind(self) -> ::deckmaste_construction_core::macro_def::DeclarationKind {
                         self.kind
                     }
 
-                    pub const fn position(self) -> ::macro_ron::v2::GrammarPosition {
+                    pub const fn position(self) -> ::deckmaste_construction_core::macro_def::GrammarPosition {
                         self.position
                     }
                 }
@@ -1986,15 +1986,17 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
             let member_ident = emitted_ident(row.member(), Span::call_site());
             let member = syn::LitStr::new(row.member(), Span::call_site());
             let agreement = match row.feature() {
-                macro_ron::v2::SurfaceFeature::Bare => quote! { Agreement::Bare },
-                macro_ron::v2::SurfaceFeature::ThirdPersonSingular => {
+                deckmaste_construction_core::macro_def::SurfaceFeature::Bare => {
+                    quote! { Agreement::Bare }
+                }
+                deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular => {
                     quote! { Agreement::ThirdPersonSingular }
                 }
-                macro_ron::v2::SurfaceFeature::Singular
-                | macro_ron::v2::SurfaceFeature::Plural
-                | macro_ron::v2::SurfaceFeature::Participle
-                | macro_ron::v2::SurfaceFeature::Fixed
-                | macro_ron::v2::SurfaceFeature::BlockLabel => {
+                deckmaste_construction_core::macro_def::SurfaceFeature::Singular
+                | deckmaste_construction_core::macro_def::SurfaceFeature::Plural
+                | deckmaste_construction_core::macro_def::SurfaceFeature::Participle
+                | deckmaste_construction_core::macro_def::SurfaceFeature::Fixed
+                | deckmaste_construction_core::macro_def::SurfaceFeature::BlockLabel => {
                     unreachable!("validated verb lexeme has the Agreement feature axis")
                 }
             };
@@ -2027,13 +2029,17 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
             lexeme.surfaces().iter().map(move |row| {
                 let member = emitted_ident(row.member(), Span::call_site());
                 let number = match row.feature() {
-                    macro_ron::v2::SurfaceFeature::Singular => quote! { Number::Singular },
-                    macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
-                    macro_ron::v2::SurfaceFeature::Bare
-                    | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
-                    | macro_ron::v2::SurfaceFeature::Participle
-                    | macro_ron::v2::SurfaceFeature::Fixed
-                    | macro_ron::v2::SurfaceFeature::BlockLabel => {
+                    deckmaste_construction_core::macro_def::SurfaceFeature::Singular => {
+                        quote! { Number::Singular }
+                    }
+                    deckmaste_construction_core::macro_def::SurfaceFeature::Plural => {
+                        quote! { Number::Plural }
+                    }
+                    deckmaste_construction_core::macro_def::SurfaceFeature::Bare
+                    | deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular
+                    | deckmaste_construction_core::macro_def::SurfaceFeature::Participle
+                    | deckmaste_construction_core::macro_def::SurfaceFeature::Fixed
+                    | deckmaste_construction_core::macro_def::SurfaceFeature::BlockLabel => {
                         unreachable!("validated noun lexeme has the Number feature axis")
                     }
                 };
@@ -2069,15 +2075,15 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                         .map(|row| {
                             let member = emitted_ident(row.member(), Span::call_site());
                             let number = match row.feature() {
-                                macro_ron::v2::SurfaceFeature::Singular => {
+                                deckmaste_construction_core::macro_def::SurfaceFeature::Singular => {
                                     quote! { Number::Singular }
                                 }
-                                macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
-                                macro_ron::v2::SurfaceFeature::Bare
-                                | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
-                                | macro_ron::v2::SurfaceFeature::Participle
-                                | macro_ron::v2::SurfaceFeature::Fixed
-                                | macro_ron::v2::SurfaceFeature::BlockLabel => {
+                                deckmaste_construction_core::macro_def::SurfaceFeature::Plural => quote! { Number::Plural },
+                                deckmaste_construction_core::macro_def::SurfaceFeature::Bare
+                                | deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular
+                                | deckmaste_construction_core::macro_def::SurfaceFeature::Participle
+                                | deckmaste_construction_core::macro_def::SurfaceFeature::Fixed
+                                | deckmaste_construction_core::macro_def::SurfaceFeature::BlockLabel => {
                                     unreachable!(
                                         "validated noun lexeme has the Number feature axis"
                                     )
@@ -2118,8 +2124,8 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     ) => Some(LexicalOwner::declaration_owner(
                         declaration.id().clone(),
                         match number {
-                            Number::Singular => ::macro_ron::v2::SurfaceFeature::Singular,
-                            Number::Plural => ::macro_ron::v2::SurfaceFeature::Plural,
+                            Number::Singular => ::deckmaste_construction_core::macro_def::SurfaceFeature::Singular,
+                            Number::Plural => ::deckmaste_construction_core::macro_def::SurfaceFeature::Plural,
                         },
                     )),
                 }
@@ -2169,8 +2175,8 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                             match codec.feature_axis() {
                                 crate::feature::Feature::Agreement => {
                                     let agreement = match row.feature() {
-                                        macro_ron::v2::SurfaceFeature::Bare => quote! { Agreement::Bare },
-                                        macro_ron::v2::SurfaceFeature::ThirdPersonSingular => quote! { Agreement::ThirdPersonSingular },
+                                        deckmaste_construction_core::macro_def::SurfaceFeature::Bare => quote! { Agreement::Bare },
+                                        deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular => quote! { Agreement::ThirdPersonSingular },
                                         _ => unreachable!("validated Agreement declaration verb has Agreement rows"),
                                     };
                                     quote! {
@@ -2180,7 +2186,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                                     }
                                 }
                                 crate::feature::Feature::Participle => {
-                                    debug_assert_eq!(row.feature(), macro_ron::v2::SurfaceFeature::Participle);
+                                    debug_assert_eq!(row.feature(), deckmaste_construction_core::macro_def::SurfaceFeature::Participle);
                                     quote! {
                                         (LexicalOwnerTemplate::DeclarationVerb(#terminal_index), Leaf::#verb {
                                             verb: #verb::Lexeme(#closed::#member),
@@ -2208,8 +2214,8 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                                 identity.owner_id(),
                             ),
                             crate::environment::VerbInventoryRef::Declaration(id) => LexicalOwner::declaration_owner(id.clone(), match agreement {
-                                Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
-                                Agreement::ThirdPersonSingular => ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular,
+                                Agreement::Bare => ::deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
+                                Agreement::ThirdPersonSingular => ::deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular,
                             }),
                         }),
                     },
@@ -2222,7 +2228,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                                 LexicalProvenanceKind::Lexeme,
                                 identity.owner_id(),
                             ),
-                            crate::environment::VerbInventoryRef::Declaration(id) => LexicalOwner::declaration_owner(id.clone(), ::macro_ron::v2::SurfaceFeature::Participle),
+                            crate::environment::VerbInventoryRef::Declaration(id) => LexicalOwner::declaration_owner(id.clone(), ::deckmaste_construction_core::macro_def::SurfaceFeature::Participle),
                         }),
                     },
                     _ => unreachable!("validated declaration verb feature axis is closed"),
@@ -2257,37 +2263,37 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
             },
             quote! {
                 pub(crate) fn declaration_lexeme_owner_id(
-                    id: &::macro_ron::v2::DeclarationIdentity,
-                    feature: ::macro_ron::v2::SurfaceFeature,
+                    id: &::deckmaste_construction_core::macro_def::DeclarationIdentity,
+                    feature: ::deckmaste_construction_core::macro_def::SurfaceFeature,
                 ) -> String {
                     let kind = match id.kind() {
-                        ::macro_ron::v2::DeclarationKind::KeywordAction => "keyword_action",
-                        ::macro_ron::v2::DeclarationKind::KeywordAbility => "keyword_ability",
-                        ::macro_ron::v2::DeclarationKind::AbilityWord => "ability_word",
-                        ::macro_ron::v2::DeclarationKind::Subtype(category) => match category {
-                            ::macro_ron::v2::SubtypeCategory::Artifact => "artifact_subtype",
-                            ::macro_ron::v2::SubtypeCategory::Battle => "battle_subtype",
-                            ::macro_ron::v2::SubtypeCategory::Creature => "creature_subtype",
-                            ::macro_ron::v2::SubtypeCategory::Enchantment => "enchantment_subtype",
-                            ::macro_ron::v2::SubtypeCategory::Land => "land_subtype",
-                            ::macro_ron::v2::SubtypeCategory::Planeswalker => "planeswalker_subtype",
-                            ::macro_ron::v2::SubtypeCategory::Spell => "spell_subtype",
+                        ::deckmaste_construction_core::macro_def::DeclarationKind::KeywordAction => "keyword_action",
+                        ::deckmaste_construction_core::macro_def::DeclarationKind::KeywordAbility => "keyword_ability",
+                        ::deckmaste_construction_core::macro_def::DeclarationKind::AbilityWord => "ability_word",
+                        ::deckmaste_construction_core::macro_def::DeclarationKind::Subtype(category) => match category {
+                            ::deckmaste_construction_core::macro_def::SubtypeCategory::Artifact => "artifact_subtype",
+                            ::deckmaste_construction_core::macro_def::SubtypeCategory::Battle => "battle_subtype",
+                            ::deckmaste_construction_core::macro_def::SubtypeCategory::Creature => "creature_subtype",
+                            ::deckmaste_construction_core::macro_def::SubtypeCategory::Enchantment => "enchantment_subtype",
+                            ::deckmaste_construction_core::macro_def::SubtypeCategory::Land => "land_subtype",
+                            ::deckmaste_construction_core::macro_def::SubtypeCategory::Planeswalker => "planeswalker_subtype",
+                            ::deckmaste_construction_core::macro_def::SubtypeCategory::Spell => "spell_subtype",
                         },
-                        ::macro_ron::v2::DeclarationKind::Type => "type",
-                        ::macro_ron::v2::DeclarationKind::TurnPart => "turn_part",
-                        ::macro_ron::v2::DeclarationKind::CounterKind => "counter_kind",
-                        ::macro_ron::v2::DeclarationKind::Designation => "designation",
+                        ::deckmaste_construction_core::macro_def::DeclarationKind::Type => "type",
+                        ::deckmaste_construction_core::macro_def::DeclarationKind::TurnPart => "turn_part",
+                        ::deckmaste_construction_core::macro_def::DeclarationKind::CounterKind => "counter_kind",
+                        ::deckmaste_construction_core::macro_def::DeclarationKind::Designation => "designation",
                     };
                     let feature = match feature {
-                        ::macro_ron::v2::SurfaceFeature::Bare => "bare",
-                        ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular => {
+                        ::deckmaste_construction_core::macro_def::SurfaceFeature::Bare => "bare",
+                        ::deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular => {
                             "third_person_singular"
                         }
-                        ::macro_ron::v2::SurfaceFeature::Singular => "singular",
-                        ::macro_ron::v2::SurfaceFeature::Plural => "plural",
-                        ::macro_ron::v2::SurfaceFeature::Participle => "participle",
-                        ::macro_ron::v2::SurfaceFeature::Fixed => "fixed",
-                        ::macro_ron::v2::SurfaceFeature::BlockLabel => "block_label",
+                        ::deckmaste_construction_core::macro_def::SurfaceFeature::Singular => "singular",
+                        ::deckmaste_construction_core::macro_def::SurfaceFeature::Plural => "plural",
+                        ::deckmaste_construction_core::macro_def::SurfaceFeature::Participle => "participle",
+                        ::deckmaste_construction_core::macro_def::SurfaceFeature::Fixed => "fixed",
+                        ::deckmaste_construction_core::macro_def::SurfaceFeature::BlockLabel => "block_label",
                     };
                     LexicalOwner::construct_label(|| {
                         format!("lexeme:{kind}/{}/{feature}", id.name())
@@ -2345,8 +2351,8 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     }
 
                     pub(crate) fn declaration_owner(
-                        id: ::macro_ron::v2::DeclarationIdentity,
-                        feature: ::macro_ron::v2::SurfaceFeature,
+                        id: ::deckmaste_construction_core::macro_def::DeclarationIdentity,
+                        feature: ::deckmaste_construction_core::macro_def::SurfaceFeature,
                     ) -> Self {
                         Self {
                             identity: LexicalOwnerIdentity::Declaration(std::sync::Arc::new((

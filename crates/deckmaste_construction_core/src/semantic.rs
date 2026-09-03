@@ -694,9 +694,9 @@ pub(crate) enum BoundDirectionPlan {
 
 #[derive(Debug, Clone)]
 pub(crate) struct OpenDeclarationAtomPlan {
-    kind: macro_ron::v2::DeclarationKind,
+    kind: deckmaste_construction_core::macro_def::DeclarationKind,
     name: String,
-    position: macro_ron::v2::GrammarPosition,
+    position: deckmaste_construction_core::macro_def::GrammarPosition,
 }
 
 #[derive(Debug)]
@@ -757,7 +757,7 @@ pub(crate) enum DeclarationKindFamily {
     Type,
     TurnPart,
     Subtype,
-    SubtypeFamily(macro_ron::v2::SubtypeCategory),
+    SubtypeFamily(deckmaste_construction_core::macro_def::SubtypeCategory),
 }
 
 #[derive(Debug)]
@@ -767,7 +767,7 @@ pub(crate) struct DeclarationNounPlan {
     codec_ident: syn::Ident,
     declaration_value_ident: syn::Ident,
     closed_lexeme: Option<syn::Ident>,
-    position: macro_ron::v2::GrammarPosition,
+    position: deckmaste_construction_core::macro_def::GrammarPosition,
     kinds: Vec<DeclarationKindFamily>,
     feature_axis: Feature,
 }
@@ -784,17 +784,17 @@ pub(crate) struct DeclarationDeterminativePlan {
 #[derive(Debug)]
 pub(crate) struct ClosedDeterminativePlan {
     lemma: syn::Ident,
-    number_license: macro_ron::v2::DeterminativeNumberLicense,
-    fused_head_license: macro_ron::v2::DeterminativeFusedHeadLicense,
-    nominal_license: macro_ron::v2::DeterminativeNominalLicense,
+    number_license: deckmaste_construction_core::macro_def::DeterminativeNumberLicense,
+    fused_head_license: deckmaste_construction_core::macro_def::DeterminativeFusedHeadLicense,
+    nominal_license: deckmaste_construction_core::macro_def::DeterminativeNominalLicense,
     realizations: Vec<DeterminativeRealizationPlan>,
 }
 
 #[derive(Debug)]
 pub(crate) struct DeterminativeRealizationPlan {
     surface: String,
-    phrase_number: Option<macro_ron::v2::DeterminativePhraseNumber>,
-    following_onset: Option<macro_ron::v2::Onset>,
+    phrase_number: Option<deckmaste_construction_core::macro_def::DeterminativePhraseNumber>,
+    following_onset: Option<deckmaste_construction_core::macro_def::Onset>,
 }
 
 #[derive(Debug)]
@@ -802,10 +802,10 @@ pub(crate) struct DeclarationTermPlan {
     source_index: usize,
     origin: DeclarationKey,
     codec_ident: syn::Ident,
-    position: macro_ron::v2::GrammarPosition,
-    kinds: Vec<macro_ron::v2::DeclarationKind>,
+    position: deckmaste_construction_core::macro_def::GrammarPosition,
+    kinds: Vec<deckmaste_construction_core::macro_def::DeclarationKind>,
     params: Option<Vec<String>>,
-    feature: macro_ron::v2::SurfaceFeature,
+    feature: deckmaste_construction_core::macro_def::SurfaceFeature,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -841,8 +841,11 @@ impl VerbFrameKey {
     }
 
     #[cfg(test)]
-    pub(crate) fn matches_valence(&self, valence: &macro_ron::v2::VerbValence) -> bool {
-        use macro_ron::v2::VerbValence;
+    pub(crate) fn matches_valence(
+        &self,
+        valence: &deckmaste_construction_core::macro_def::VerbValence,
+    ) -> bool {
+        use deckmaste_construction_core::macro_def::VerbValence;
 
         if self.class != VerbFrameClass::Predicate {
             return false;
@@ -856,16 +859,16 @@ impl VerbFrameKey {
                     && shape.iter().zip(&self.atoms).all(|(source, planned)| {
                         match (source, planned) {
                             (
-                                macro_ron::v2::CustomTailAtom::Literal(source),
+                                deckmaste_construction_core::macro_def::CustomTailAtom::Literal(source),
                                 VerbFrameAtom::Literal(planned),
                             ) => source == planned,
-                            (macro_ron::v2::CustomTailAtom::Amount, VerbFrameAtom::Amount)
+                            (deckmaste_construction_core::macro_def::CustomTailAtom::Amount, VerbFrameAtom::Amount)
                             | (
-                                macro_ron::v2::CustomTailAtom::ObjectNounPhrase,
+                                deckmaste_construction_core::macro_def::CustomTailAtom::ObjectNounPhrase,
                                 VerbFrameAtom::ObjectNounPhrase,
                             )
                             | (
-                                macro_ron::v2::CustomTailAtom::PredicativeComplement,
+                                deckmaste_construction_core::macro_def::CustomTailAtom::PredicativeComplement,
                                 VerbFrameAtom::PredicativeComplement,
                             ) => true,
                             // Rich construction roles are core-inventory
@@ -1183,7 +1186,7 @@ pub(crate) struct VocabPlan {
 pub(crate) struct VocabVariantPlan {
     name: syn::Ident,
     word: syn::LitStr,
-    onset: macro_ron::v2::Onset,
+    onset: deckmaste_construction_core::macro_def::Onset,
 }
 
 #[derive(Debug, Clone)]
@@ -1221,9 +1224,9 @@ pub(crate) struct LexemeFeaturePlan {
 pub(crate) struct LexemeSurfacePlan {
     span: Span,
     member: String,
-    feature: macro_ron::v2::SurfaceFeature,
+    feature: deckmaste_construction_core::macro_def::SurfaceFeature,
     surface: String,
-    onset: macro_ron::v2::Onset,
+    onset: deckmaste_construction_core::macro_def::Onset,
 }
 
 #[derive(Debug)]
@@ -1242,7 +1245,7 @@ pub(crate) struct LexemeIrregularPlan {
     reason = "sealed irregular rows are consumed by later generation phases"
 )]
 pub(crate) struct LexemeOverridePlan {
-    feature: macro_ron::v2::SurfaceFeature,
+    feature: deckmaste_construction_core::macro_def::SurfaceFeature,
     surface: String,
 }
 
@@ -4735,7 +4738,7 @@ impl AtomPlan {
                 Ok(Self::OpenDeclaration(OpenDeclarationAtomPlan {
                     kind: *kind,
                     name: name.clone(),
-                    position: macro_ron::v2::GrammarPosition::Verb,
+                    position: deckmaste_construction_core::macro_def::GrammarPosition::Verb,
                 }))
             }
             (FormAtom::Bound(authored), resolved) => {
@@ -4798,7 +4801,7 @@ impl AtomPlan {
 }
 
 impl OpenDeclarationAtomPlan {
-    pub(crate) fn kind(&self) -> macro_ron::v2::DeclarationKind {
+    pub(crate) fn kind(&self) -> deckmaste_construction_core::macro_def::DeclarationKind {
         self.kind
     }
 
@@ -4806,7 +4809,7 @@ impl OpenDeclarationAtomPlan {
         &self.name
     }
 
-    pub(crate) fn position(&self) -> macro_ron::v2::GrammarPosition {
+    pub(crate) fn position(&self) -> deckmaste_construction_core::macro_def::GrammarPosition {
         self.position
     }
 }
@@ -5420,13 +5423,16 @@ impl VocabPlan {
                 .variants
                 .iter()
                 .map(|variant| {
-                    let onset = macro_ron::v2::normalize_surface_onset(&variant.word.value(), None)
-                        .ok_or_else(|| {
-                            syn::Error::new(
-                                variant.word.span(),
-                                "vocab spelling has no bounded onset and no authored override",
-                            )
-                        })?;
+                    let onset = deckmaste_construction_core::macro_def::normalize_surface_onset(
+                        &variant.word.value(),
+                        None,
+                    )
+                    .ok_or_else(|| {
+                        syn::Error::new(
+                            variant.word.span(),
+                            "vocab spelling has no bounded onset and no authored override",
+                        )
+                    })?;
                     Ok(VocabVariantPlan {
                         name: variant.name.clone(),
                         word: variant.word.clone(),
@@ -5562,9 +5568,10 @@ impl LexemePlan {
                         Ok,
                     )?;
                 let onset =
-                    macro_ron::v2::normalize_surface_onset(&surface, None).ok_or_else(|| {
-                        syn::Error::new(member.name.span(), "lexeme surface has unknown onset")
-                    })?;
+                    deckmaste_construction_core::macro_def::normalize_surface_onset(&surface, None)
+                        .ok_or_else(|| {
+                            syn::Error::new(member.name.span(), "lexeme surface has unknown onset")
+                        })?;
                 surfaces.push(LexemeSurfacePlan {
                     span: member.name.span(),
                     member: identifier_key(&member.name),
@@ -5679,8 +5686,17 @@ impl LexemePlan {
 }
 
 fn validate_complete_surface_rows(
-    expected_members: &[(&str, Span, &[macro_ron::v2::SurfaceFeature])],
-    rows: &[(Span, &str, macro_ron::v2::SurfaceFeature, &str)],
+    expected_members: &[(
+        &str,
+        Span,
+        &[deckmaste_construction_core::macro_def::SurfaceFeature],
+    )],
+    rows: &[(
+        Span,
+        &str,
+        deckmaste_construction_core::macro_def::SurfaceFeature,
+        &str,
+    )],
 ) -> syn::Result<()> {
     let mut errors: Option<syn::Error> = None;
     let mut exact_rows = HashSet::new();
@@ -5722,7 +5738,7 @@ impl LexemeSurfacePlan {
         &self.member
     }
 
-    pub(crate) fn feature(&self) -> macro_ron::v2::SurfaceFeature {
+    pub(crate) fn feature(&self) -> deckmaste_construction_core::macro_def::SurfaceFeature {
         self.feature
     }
 
@@ -5730,7 +5746,7 @@ impl LexemeSurfacePlan {
         &self.surface
     }
 
-    pub(crate) fn onset(&self) -> macro_ron::v2::Onset {
+    pub(crate) fn onset(&self) -> deckmaste_construction_core::macro_def::Onset {
         self.onset
     }
 }
@@ -5754,7 +5770,7 @@ impl LexemeIrregularPlan {
     reason = "sealed irregular rows are consumed by later generation phases"
 )]
 impl LexemeOverridePlan {
-    pub(crate) fn feature(&self) -> macro_ron::v2::SurfaceFeature {
+    pub(crate) fn feature(&self) -> deckmaste_construction_core::macro_def::SurfaceFeature {
         self.feature
     }
 
@@ -6040,13 +6056,21 @@ impl DeclarationNounPlan {
                     ("Subtype", Some(family)) => DeclarationKindFamily::SubtypeFamily(match family
                         .as_str()
                     {
-                        "Artifact" => macro_ron::v2::SubtypeCategory::Artifact,
-                        "Battle" => macro_ron::v2::SubtypeCategory::Battle,
-                        "Creature" => macro_ron::v2::SubtypeCategory::Creature,
-                        "Enchantment" => macro_ron::v2::SubtypeCategory::Enchantment,
-                        "Land" => macro_ron::v2::SubtypeCategory::Land,
-                        "Planeswalker" => macro_ron::v2::SubtypeCategory::Planeswalker,
-                        "Spell" => macro_ron::v2::SubtypeCategory::Spell,
+                        "Artifact" => {
+                            deckmaste_construction_core::macro_def::SubtypeCategory::Artifact
+                        }
+                        "Battle" => deckmaste_construction_core::macro_def::SubtypeCategory::Battle,
+                        "Creature" => {
+                            deckmaste_construction_core::macro_def::SubtypeCategory::Creature
+                        }
+                        "Enchantment" => {
+                            deckmaste_construction_core::macro_def::SubtypeCategory::Enchantment
+                        }
+                        "Land" => deckmaste_construction_core::macro_def::SubtypeCategory::Land,
+                        "Planeswalker" => {
+                            deckmaste_construction_core::macro_def::SubtypeCategory::Planeswalker
+                        }
+                        "Spell" => deckmaste_construction_core::macro_def::SubtypeCategory::Spell,
                         _ => unreachable!("validated declaration_noun subtype family is closed"),
                     }),
                     _ => unreachable!("validated declaration_noun kind is closed"),
@@ -6062,7 +6086,7 @@ impl DeclarationNounPlan {
                 source.name.span(),
             ),
             closed_lexeme,
-            position: macro_ron::v2::GrammarPosition::Noun,
+            position: deckmaste_construction_core::macro_def::GrammarPosition::Noun,
             kinds,
             feature_axis: Feature::Number,
         }
@@ -6092,7 +6116,7 @@ impl DeclarationNounPlan {
         self.closed_lexeme.as_ref()
     }
 
-    pub(crate) fn position(&self) -> macro_ron::v2::GrammarPosition {
+    pub(crate) fn position(&self) -> deckmaste_construction_core::macro_def::GrammarPosition {
         self.position
     }
 
@@ -6120,27 +6144,27 @@ impl DeclarationDeterminativePlan {
             .map(|member| {
                 let number_license =
                     match identifier_key(&member.number_license_slots[0].value).as_str() {
-                        "SingularOnly" => macro_ron::v2::DeterminativeNumberLicense::SingularOnly,
-                        "PluralOnly" => macro_ron::v2::DeterminativeNumberLicense::PluralOnly,
-                        "Both" => macro_ron::v2::DeterminativeNumberLicense::Both,
+                        "SingularOnly" => deckmaste_construction_core::macro_def::DeterminativeNumberLicense::SingularOnly,
+                        "PluralOnly" => deckmaste_construction_core::macro_def::DeterminativeNumberLicense::PluralOnly,
+                        "Both" => deckmaste_construction_core::macro_def::DeterminativeNumberLicense::Both,
                         _ => unreachable!("validated determiner number license is closed"),
                     };
                 let nominal_license =
                     match identifier_key(&member.nominal_license_slots[0].value).as_str() {
-                        "CountNominal" => macro_ron::v2::DeterminativeNominalLicense::CountNominal,
+                        "CountNominal" => deckmaste_construction_core::macro_def::DeterminativeNominalLicense::CountNominal,
                         "BareSingularNoun" => {
-                            macro_ron::v2::DeterminativeNominalLicense::BareSingularNoun
+                            deckmaste_construction_core::macro_def::DeterminativeNominalLicense::BareSingularNoun
                         }
-                        "AnyNominal" => macro_ron::v2::DeterminativeNominalLicense::AnyNominal,
+                        "AnyNominal" => deckmaste_construction_core::macro_def::DeterminativeNominalLicense::AnyNominal,
                         "MassOrPluralCount" => {
-                            macro_ron::v2::DeterminativeNominalLicense::MassOrPluralCount
+                            deckmaste_construction_core::macro_def::DeterminativeNominalLicense::MassOrPluralCount
                         }
                         _ => unreachable!("validated nominal license is closed"),
                     };
                 let fused_head_license =
                     match identifier_key(&member.fused_head_license_slots[0].value).as_str() {
-                        "NominalOnly" => macro_ron::v2::DeterminativeFusedHeadLicense::NominalOnly,
-                        "FusedHead" => macro_ron::v2::DeterminativeFusedHeadLicense::FusedHead,
+                        "NominalOnly" => deckmaste_construction_core::macro_def::DeterminativeFusedHeadLicense::NominalOnly,
+                        "FusedHead" => deckmaste_construction_core::macro_def::DeterminativeFusedHeadLicense::FusedHead,
                         _ => unreachable!("validated fused-head license is closed"),
                     };
                 let realizations = member.realization_slots[0]
@@ -6149,8 +6173,8 @@ impl DeclarationDeterminativePlan {
                     .map(|row| {
                         let phrase_number = row.phrase_number_slots.first().map(|slot| {
                             match identifier_key(&slot.value).as_str() {
-                                "Singular" => macro_ron::v2::DeterminativePhraseNumber::Singular,
-                                "Plural" => macro_ron::v2::DeterminativePhraseNumber::Plural,
+                                "Singular" => deckmaste_construction_core::macro_def::DeterminativePhraseNumber::Singular,
+                                "Plural" => deckmaste_construction_core::macro_def::DeterminativePhraseNumber::Plural,
                                 _ => {
                                     unreachable!("validated determinative phrase number is closed")
                                 }
@@ -6158,8 +6182,8 @@ impl DeclarationDeterminativePlan {
                         });
                         let following_onset = row.following_onset_slots.first().map(|slot| {
                             match identifier_key(&slot.value).as_str() {
-                                "Consonant" => macro_ron::v2::Onset::Consonant,
-                                "Vowel" => macro_ron::v2::Onset::Vowel,
+                                "Consonant" => deckmaste_construction_core::macro_def::Onset::Consonant,
+                                "Vowel" => deckmaste_construction_core::macro_def::Onset::Vowel,
                                 _ => unreachable!(
                                     "validated determinative following onset is closed"
                                 ),
@@ -6217,13 +6241,19 @@ impl ClosedDeterminativePlan {
     pub(crate) fn lemma(&self) -> &syn::Ident {
         &self.lemma
     }
-    pub(crate) fn number_license(&self) -> macro_ron::v2::DeterminativeNumberLicense {
+    pub(crate) fn number_license(
+        &self,
+    ) -> deckmaste_construction_core::macro_def::DeterminativeNumberLicense {
         self.number_license
     }
-    pub(crate) fn fused_head_license(&self) -> macro_ron::v2::DeterminativeFusedHeadLicense {
+    pub(crate) fn fused_head_license(
+        &self,
+    ) -> deckmaste_construction_core::macro_def::DeterminativeFusedHeadLicense {
         self.fused_head_license
     }
-    pub(crate) fn nominal_license(&self) -> macro_ron::v2::DeterminativeNominalLicense {
+    pub(crate) fn nominal_license(
+        &self,
+    ) -> deckmaste_construction_core::macro_def::DeterminativeNominalLicense {
         self.nominal_license
     }
     pub(crate) fn realizations(&self) -> &[DeterminativeRealizationPlan] {
@@ -6235,10 +6265,12 @@ impl DeterminativeRealizationPlan {
     pub(crate) fn surface(&self) -> &str {
         &self.surface
     }
-    pub(crate) fn phrase_number(&self) -> Option<macro_ron::v2::DeterminativePhraseNumber> {
+    pub(crate) fn phrase_number(
+        &self,
+    ) -> Option<deckmaste_construction_core::macro_def::DeterminativePhraseNumber> {
         self.phrase_number
     }
-    pub(crate) fn following_onset(&self) -> Option<macro_ron::v2::Onset> {
+    pub(crate) fn following_onset(&self) -> Option<deckmaste_construction_core::macro_def::Onset> {
         self.following_onset
     }
 }
@@ -6258,8 +6290,8 @@ impl DeclarationTermPlan {
         )
         .as_str()
         {
-            "FixedTerm" => macro_ron::v2::GrammarPosition::FixedTerm,
-            "FixedKeyword" => macro_ron::v2::GrammarPosition::FixedKeyword,
+            "FixedTerm" => deckmaste_construction_core::macro_def::GrammarPosition::FixedTerm,
+            "FixedKeyword" => deckmaste_construction_core::macro_def::GrammarPosition::FixedKeyword,
             _ => unreachable!("validated declaration_term position is closed"),
         };
         let kinds = recipe
@@ -6269,10 +6301,18 @@ impl DeclarationTermPlan {
             .kinds
             .iter()
             .map(|kind| match identifier_key(kind).as_str() {
-                "KeywordAbility" => macro_ron::v2::DeclarationKind::KeywordAbility,
-                "AbilityWord" => macro_ron::v2::DeclarationKind::AbilityWord,
-                "CounterKind" => macro_ron::v2::DeclarationKind::CounterKind,
-                "Designation" => macro_ron::v2::DeclarationKind::Designation,
+                "KeywordAbility" => {
+                    deckmaste_construction_core::macro_def::DeclarationKind::KeywordAbility
+                }
+                "AbilityWord" => {
+                    deckmaste_construction_core::macro_def::DeclarationKind::AbilityWord
+                }
+                "CounterKind" => {
+                    deckmaste_construction_core::macro_def::DeclarationKind::CounterKind
+                }
+                "Designation" => {
+                    deckmaste_construction_core::macro_def::DeclarationKind::Designation
+                }
                 _ => unreachable!("validated declaration_term kind is closed"),
             })
             .collect();
@@ -6287,19 +6327,15 @@ impl DeclarationTermPlan {
         } else {
             None
         };
-        let feature =
-            recipe
-                .feature_slots
-                .first()
-                .map_or(
-                    macro_ron::v2::SurfaceFeature::Fixed,
-                    |slot| match identifier_key(&slot.value).as_str() {
-                        "Fixed" => macro_ron::v2::SurfaceFeature::Fixed,
-                        "Participle" => macro_ron::v2::SurfaceFeature::Participle,
-                        "BlockLabel" => macro_ron::v2::SurfaceFeature::BlockLabel,
-                        _ => unreachable!("validated declaration_term feature is closed"),
-                    },
-                );
+        let feature = recipe.feature_slots.first().map_or(
+            deckmaste_construction_core::macro_def::SurfaceFeature::Fixed,
+            |slot| match identifier_key(&slot.value).as_str() {
+                "Fixed" => deckmaste_construction_core::macro_def::SurfaceFeature::Fixed,
+                "Participle" => deckmaste_construction_core::macro_def::SurfaceFeature::Participle,
+                "BlockLabel" => deckmaste_construction_core::macro_def::SurfaceFeature::BlockLabel,
+                _ => unreachable!("validated declaration_term feature is closed"),
+            },
+        );
         Self {
             source_index,
             origin: DeclarationKey::new(DeclarationKind::Codec, identifier_key(&source.name)),
@@ -6327,11 +6363,11 @@ impl DeclarationTermPlan {
         &self.codec_ident
     }
 
-    pub(crate) fn position(&self) -> macro_ron::v2::GrammarPosition {
+    pub(crate) fn position(&self) -> deckmaste_construction_core::macro_def::GrammarPosition {
         self.position
     }
 
-    pub(crate) fn kinds(&self) -> &[macro_ron::v2::DeclarationKind] {
+    pub(crate) fn kinds(&self) -> &[deckmaste_construction_core::macro_def::DeclarationKind] {
         &self.kinds
     }
 
@@ -6339,7 +6375,7 @@ impl DeclarationTermPlan {
         self.params.as_deref()
     }
 
-    pub(crate) fn feature(&self) -> macro_ron::v2::SurfaceFeature {
+    pub(crate) fn feature(&self) -> deckmaste_construction_core::macro_def::SurfaceFeature {
         self.feature
     }
 }
@@ -6456,8 +6492,8 @@ impl DeclarationVerbPlan {
     }
 
     #[cfg(test)]
-    pub(crate) const fn position() -> macro_ron::v2::GrammarPosition {
-        macro_ron::v2::GrammarPosition::Verb
+    pub(crate) const fn position() -> deckmaste_construction_core::macro_def::GrammarPosition {
+        deckmaste_construction_core::macro_def::GrammarPosition::Verb
     }
 
     pub(crate) fn frame_key(&self) -> &VerbFrameKey {
@@ -6659,7 +6695,7 @@ impl VocabVariantPlan {
         &self.word
     }
 
-    pub(crate) const fn onset(&self) -> macro_ron::v2::Onset {
+    pub(crate) const fn onset(&self) -> deckmaste_construction_core::macro_def::Onset {
         self.onset
     }
 }
@@ -7751,7 +7787,7 @@ mod tests {
 
 #[cfg(test)]
 mod morphology_tests {
-    use macro_ron::v2::SurfaceFeature;
+    use deckmaste_construction_core::macro_def::SurfaceFeature;
     use proc_macro2::Span;
 
     #[test]

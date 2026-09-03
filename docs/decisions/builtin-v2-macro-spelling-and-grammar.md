@@ -4,6 +4,13 @@ Amended 2026-08-18: verb grammar declarations carry grammatical valence, and
 the parser consumes declaration-backed vocabulary through one normalized open
 inventory during both bootstrap and final plugin loading.
 
+Packaging superseded 2026-09-02: these declarations are ordinary
+`macro_ron::MacroDef<Metadata>` values read through the shared `MacroSet`;
+`KeywordAction`, `Subtype`, and the other category forms are meta-macros in
+that reader. The `spelling`/`grammar` payload and normalized rows are owned by
+`deckmaste_construction_core`. There is no separate v2 source schema, source
+kind enum, reader, or RON dialect. All field semantics below remain unchanged.
+
 ## Decision
 
 Plugin macros keep semantic spelling and English-parser bootstrap data in two
@@ -235,11 +242,11 @@ rendering but is not selectable as a semantic spelling frame.
 The Stage 5 parser may be brought up corpus-first with handwritten
 definitions, but this does not create a second authority or a closed official
 vocabulary. Bootstrap records live at their final
-`plugins/builtin_v2/macros/stubs/...` addresses and use the neutral v2
-declaration schema. A narrow builtin-only reader normalizes those records into
-the same immutable inventory used by the parser. There is no generated stub
-manifest and no later content migration. These handwritten records, not a
-catalog-derived fallback, own the bootstrap grammatical facts.
+`plugins/builtin_v2/macros/stubs/...` addresses and use consumer-owned
+macro-definition metadata. A narrow builtin-only provider normalizes those
+records into the same immutable inventory used by the parser. There is no
+generated stub manifest and no later content migration. These handwritten
+records, not a catalog-derived fallback, own the bootstrap grammatical facts.
 
 The final provider resolves the complete plugin dependency closure and feeds
 the same normalization boundary. It replaces the narrow bootstrap reader as a

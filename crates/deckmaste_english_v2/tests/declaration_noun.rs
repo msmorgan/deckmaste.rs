@@ -1,5 +1,7 @@
 use std::path::Path;
 
+use deckmaste_construction_core::macro_def::NormalizedDeclaration;
+use deckmaste_construction_core::macro_def::Onset;
 use deckmaste_english_v2::ast::CatalogProvider;
 use deckmaste_english_v2::context::ParseContext;
 use deckmaste_english_v2::environment::CatalogProviderRow;
@@ -8,15 +10,14 @@ use deckmaste_english_v2::environment::ParserEnvironment;
 use deckmaste_english_v2::parser::Parser;
 use deckmaste_english_v2::parser::TraceLimits;
 use deckmaste_english_v2::render::Render;
-use macro_ron::v2::NormalizedDeclaration;
-use macro_ron::v2::Onset;
 
 fn declaration(path: &str, source: &str) -> NormalizedDeclaration {
-    macro_ron::v2::read_str(path, source).expect("synthetic declaration is valid")
+    deckmaste_construction_core::macro_def::read_str(path, source)
+        .expect("synthetic declaration is valid")
 }
 
 fn parser_with(extra: impl IntoIterator<Item = NormalizedDeclaration>) -> Parser {
-    let mut declarations = macro_ron::v2::read_builtin_v2(
+    let mut declarations = deckmaste_construction_core::macro_def::read_builtin_v2(
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"),
     )
     .expect("builtin-v2 declarations load");
@@ -48,8 +49,12 @@ fn declaration_noun_admits_dynamic_type_and_subtype_rows_without_catalogs() {
             r#"Subtype(category:Creature,name:"Wug",spelling:"Wug",grammar:Noun(singular:"Wug"))"#,
         ),
     ]);
-    let context = ParseContext::new("Context Card", false, macro_ron::v2::Onset::Consonant)
-        .expect("valid context");
+    let context = ParseContext::new(
+        "Context Card",
+        false,
+        deckmaste_construction_core::macro_def::Onset::Consonant,
+    )
+    .expect("valid context");
     for text in [
         "Destroy target relic.",
         "Destroy target Wug.",
@@ -83,8 +88,12 @@ fn declaration_noun_admits_dynamic_type_and_subtype_rows_without_catalogs() {
 #[test]
 fn rend_spirit_is_the_reviewed_declaration_noun_corpus_delta() {
     let parser = parser_with([]);
-    let context = ParseContext::new("Rend Spirit", false, macro_ron::v2::Onset::Consonant)
-        .expect("valid card context");
+    let context = ParseContext::new(
+        "Rend Spirit",
+        false,
+        deckmaste_construction_core::macro_def::Onset::Consonant,
+    )
+    .expect("valid card context");
     let text = "Destroy target Spirit.";
 
     let parsed = parser.parse(text, &context).expect("Rend Spirit parses");

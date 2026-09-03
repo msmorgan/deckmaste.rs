@@ -1,0 +1,21 @@
+(
+    name: "Designation",
+    kinds: [Macro],
+    params: {
+        "name": String,
+        "params": Elidable(Any),
+        "spelling": String,
+        "grammar": Elidable(Any),
+        "body": Default(Any, ()),
+    },
+    body: (
+        name: Param(name),
+        kinds: [Designation],
+        params: Param(params),
+        metadata: (
+            spelling: Param(spelling),
+            grammar: Param(grammar),
+        ),
+        body: Param(body),
+    ),
+)

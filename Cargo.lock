@@ -491,8 +491,11 @@ dependencies = [
  "prettyplease",
  "proc-macro2",
  "quote",
+ "ron",
+ "serde",
  "syn 2.0.117",
  "tempfile",
+ "thiserror",
 ]
 
 [[package]]
@@ -569,7 +572,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "deckmaste_construction",
- "macro_ron",
+ "deckmaste_construction_core",
  "ron",
  "serde",
  "syn 2.0.117",

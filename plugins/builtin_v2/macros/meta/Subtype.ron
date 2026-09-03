@@ -1,0 +1,23 @@
+(
+    name: "Subtype",
+    kinds: [Macro],
+    params: {
+        "category": Any,
+        "name": String,
+        "params": Elidable(Any),
+        "spelling": String,
+        "grammar": Elidable(Any),
+        "body": Default(Any, ()),
+    },
+    body: (
+        name: Param(name),
+        kinds: [Subtype],
+        params: Param(params),
+        metadata: (
+            category: Param(category),
+            spelling: Param(spelling),
+            grammar: Param(grammar),
+        ),
+        body: Param(body),
+    ),
+)

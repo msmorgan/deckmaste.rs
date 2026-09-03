@@ -1,5 +1,9 @@
 use std::path::Path;
 
+use deckmaste_construction_core::macro_def::DeclarationKind;
+use deckmaste_construction_core::macro_def::Onset;
+use deckmaste_construction_core::macro_def::SubtypeCategory;
+use deckmaste_construction_core::macro_def::SurfaceFeature;
 use deckmaste_english_v2::ast::*;
 use deckmaste_english_v2::context::ParseContext;
 use deckmaste_english_v2::environment::CatalogProviderRow;
@@ -16,10 +20,6 @@ use deckmaste_english_v2::visit::Visitor;
 use deckmaste_english_v2::visit::walk_amount;
 use deckmaste_english_v2::visit::walk_cardinal_quantity;
 use deckmaste_english_v2::visit::walk_scalar_number;
-use macro_ron::v2::DeclarationKind;
-use macro_ron::v2::Onset;
-use macro_ron::v2::SubtypeCategory;
-use macro_ron::v2::SurfaceFeature;
 
 #[derive(Default)]
 struct RecordingVisitor {
@@ -32,7 +32,10 @@ struct RecordingVisitor {
     nouns: Vec<CommonNoun>,
     verbs: Vec<VerbInventoryRef>,
     finite_copulas: Vec<FiniteCopula>,
-    declarations: Vec<(macro_ron::v2::DeclarationKind, String)>,
+    declarations: Vec<(
+        deckmaste_construction_core::macro_def::DeclarationKind,
+        String,
+    )>,
     catalog_providers: Vec<CatalogProvider>,
     card_names: Vec<String>,
 }
@@ -71,7 +74,10 @@ impl Visitor for RecordingVisitor {
         self.finite_copulas.push(copula);
     }
 
-    fn visit_declaration(&mut self, declaration: &macro_ron::v2::DeclarationIdentity) {
+    fn visit_declaration(
+        &mut self,
+        declaration: &deckmaste_construction_core::macro_def::DeclarationIdentity,
+    ) {
         match declaration.kind() {
             DeclarationKind::Type | DeclarationKind::Subtype(_) => self
                 .declaration_nouns
@@ -94,7 +100,7 @@ impl Visitor for RecordingVisitor {
 }
 
 fn environment() -> ParserEnvironment {
-    let declarations = macro_ron::v2::read_builtin_v2(
+    let declarations = deckmaste_construction_core::macro_def::read_builtin_v2(
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"),
     )
     .expect("integrated builtin-v2 declarations load");
@@ -151,13 +157,21 @@ fn equipment() -> Noun {
 }
 
 fn context(card_name: &str) -> ParseContext<'_> {
-    ParseContext::new(card_name, false, macro_ron::v2::Onset::Consonant)
-        .expect("test card name is a valid parse context")
+    ParseContext::new(
+        card_name,
+        false,
+        deckmaste_construction_core::macro_def::Onset::Consonant,
+    )
+    .expect("test card name is a valid parse context")
 }
 
 fn legendary_context(card_name: &str) -> ParseContext<'_> {
-    ParseContext::new(card_name, true, macro_ron::v2::Onset::Consonant)
-        .expect("test legendary card name is a valid parse context")
+    ParseContext::new(
+        card_name,
+        true,
+        deckmaste_construction_core::macro_def::Onset::Consonant,
+    )
+    .expect("test legendary card name is a valid parse context")
 }
 
 fn self_reference(spelling: SelfReferenceSpelling, card_name: &str) -> SourceSelfReference {
@@ -1125,11 +1139,11 @@ fn visitor_reaches_every_vertical_slice_leaf() {
         visitor.declarations,
         vec![
             (
-                macro_ron::v2::DeclarationKind::KeywordAction,
+                deckmaste_construction_core::macro_def::DeclarationKind::KeywordAction,
                 "Destroy".to_owned()
             ),
             (
-                macro_ron::v2::DeclarationKind::KeywordAction,
+                deckmaste_construction_core::macro_def::DeclarationKind::KeywordAction,
                 "Connive".to_owned()
             ),
         ]

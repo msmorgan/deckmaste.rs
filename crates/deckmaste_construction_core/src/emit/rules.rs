@@ -2101,10 +2101,10 @@ pub(crate) fn open_verb_feature(
     match plan.feature_resolution(construction.construction_id(), &target) {
         Some(crate::feature::FeatureResolution::Known(value)) => match value {
             FeatureValue::Bare => Ok(quote! {
-                FeatureConstraint::Exact(::macro_ron::v2::SurfaceFeature::Bare)
+                FeatureConstraint::Exact(::deckmaste_construction_core::macro_def::SurfaceFeature::Bare)
             }),
             FeatureValue::ThirdPersonSingular => Ok(quote! {
-                FeatureConstraint::Exact(::macro_ron::v2::SurfaceFeature::ThirdPersonSingular)
+                FeatureConstraint::Exact(::deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular)
             }),
             FeatureValue::Singular
             | FeatureValue::Plural
@@ -2184,7 +2184,10 @@ fn owner_template(plan: &SemanticPlan, terminal: &str) -> syn::Result<TokenStrea
             terminal_index,
             plan,
         } => {
-            debug_assert_eq!(plan.position(), ::macro_ron::v2::GrammarPosition::Noun);
+            debug_assert_eq!(
+                plan.position(),
+                ::deckmaste_construction_core::macro_def::GrammarPosition::Noun
+            );
             Ok(quote! { LexicalOwnerTemplate::DeclarationNoun(#terminal_index) })
         }
         AtomTerminal::DeclarationDeterminative { terminal_index, .. } => {

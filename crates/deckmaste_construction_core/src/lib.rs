@@ -1,7 +1,10 @@
+extern crate self as deckmaste_construction_core;
+
 mod emit;
 mod feature;
 mod format;
 mod identifier;
+pub mod macro_def;
 mod model;
 mod morphology;
 mod parse;

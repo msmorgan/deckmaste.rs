@@ -23,7 +23,7 @@ pub(crate) struct Writer<'a> {
     output: String,
     case: CasePosition,
     prefix: PrefixPosition,
-    following_onset: Option<macro_ron::v2::Onset>,
+    following_onset: Option<deckmaste_construction_core::macro_def::Onset>,
     claims: ClaimSink<'a>,
 }
 
@@ -50,7 +50,7 @@ impl Writer<'_> {
 
     pub(crate) fn with_following_onset(
         &mut self,
-        onset: Option<macro_ron::v2::Onset>,
+        onset: Option<deckmaste_construction_core::macro_def::Onset>,
         render: impl FnOnce(&mut Self),
     ) {
         let previous = std::mem::replace(&mut self.following_onset, onset);
@@ -58,7 +58,9 @@ impl Writer<'_> {
         self.following_onset = previous;
     }
 
-    pub(crate) const fn following_onset(&self) -> Option<macro_ron::v2::Onset> {
+    pub(crate) const fn following_onset(
+        &self,
+    ) -> Option<deckmaste_construction_core::macro_def::Onset> {
         self.following_onset
     }
 
@@ -164,8 +166,12 @@ mod tests {
     fn render_provenance_claims_spaces_punctuation_and_structured_terminals() {
         let environment = canonical_test_environment();
         let parser = Parser::new(environment.clone()).unwrap();
-        let context =
-            ParseContext::new("Context Card", false, macro_ron::v2::Onset::Consonant).unwrap();
+        let context = ParseContext::new(
+            "Context Card",
+            false,
+            deckmaste_construction_core::macro_def::Onset::Consonant,
+        )
+        .unwrap();
         let ability = parser.parse("Destroy target creature.", &context).unwrap();
         let (rendered, claims) =
             crate::constructions::render_ability_with_claims(&ability, &context, &environment);

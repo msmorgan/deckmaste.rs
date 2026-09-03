@@ -1,5 +1,11 @@
 use std::path::Path;
 
+use deckmaste_construction_core::macro_def::DeclarationIdentity;
+use deckmaste_construction_core::macro_def::DeclarationKind;
+use deckmaste_construction_core::macro_def::Onset;
+use deckmaste_construction_core::macro_def::SubtypeCategory;
+use deckmaste_construction_core::macro_def::read_builtin_v2;
+use deckmaste_construction_core::macro_def::read_str;
 use deckmaste_english_v2::ast::CatalogProvider;
 use deckmaste_english_v2::ast::OracleText;
 use deckmaste_english_v2::context::ParseContext;
@@ -10,14 +16,8 @@ use deckmaste_english_v2::parser::ParseAnalysis;
 use deckmaste_english_v2::parser::Parser;
 use deckmaste_english_v2::render::Render;
 use deckmaste_english_v2::visit::Visitor;
-use macro_ron::v2::DeclarationIdentity;
-use macro_ron::v2::DeclarationKind;
-use macro_ron::v2::Onset;
-use macro_ron::v2::SubtypeCategory;
-use macro_ron::v2::read_builtin_v2;
-use macro_ron::v2::read_str;
 
-fn declarations() -> Vec<macro_ron::v2::NormalizedDeclaration> {
+fn declarations() -> Vec<deckmaste_construction_core::macro_def::NormalizedDeclaration> {
     read_builtin_v2(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"))
         .expect("builtin-v2 declarations load")
 }
@@ -26,7 +26,9 @@ fn context() -> ParseContext<'static> {
     ParseContext::new("Context Card", false, Onset::Consonant).expect("context is valid")
 }
 
-fn environment(declarations: Vec<macro_ron::v2::NormalizedDeclaration>) -> ParserEnvironment {
+fn environment(
+    declarations: Vec<deckmaste_construction_core::macro_def::NormalizedDeclaration>,
+) -> ParserEnvironment {
     ParserEnvironment::try_from_parts(
         declarations,
         [CatalogProviderRows::new(

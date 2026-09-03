@@ -15,8 +15,8 @@ impl DeclarationTransitiveVerb {
             return None;
         }
         [
-            ::macro_ron::v2::SurfaceFeature::Bare,
-            ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular,
+            ::deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
+            ::deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular,
         ]
             .into_iter()
             .all(|feature| {

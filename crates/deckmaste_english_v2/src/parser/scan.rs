@@ -1,9 +1,9 @@
 use std::cmp::Ordering;
 
-use macro_ron::v2::DeclarationKind;
-use macro_ron::v2::GrammarPosition;
-use macro_ron::v2::Onset;
-use macro_ron::v2::SurfaceFeature;
+use deckmaste_construction_core::macro_def::DeclarationKind;
+use deckmaste_construction_core::macro_def::GrammarPosition;
+use deckmaste_construction_core::macro_def::Onset;
+use deckmaste_construction_core::macro_def::SurfaceFeature;
 
 use super::diagnostic::Bounded;
 use super::diagnostic::ChartItem;
@@ -1201,12 +1201,12 @@ fn matches_feature(constraint: FeatureConstraint<SurfaceFeature>, feature: Surfa
 mod tests {
     use std::collections::BTreeSet;
 
-    use macro_ron::v2::DeclarationKind;
-    use macro_ron::v2::GrammarPosition;
-    use macro_ron::v2::SubtypeCategory;
-    use macro_ron::v2::SurfaceFeature;
-    use macro_ron::v2::read_builtin_v2;
-    use macro_ron::v2::read_str;
+    use deckmaste_construction_core::macro_def::DeclarationKind;
+    use deckmaste_construction_core::macro_def::GrammarPosition;
+    use deckmaste_construction_core::macro_def::SubtypeCategory;
+    use deckmaste_construction_core::macro_def::SurfaceFeature;
+    use deckmaste_construction_core::macro_def::read_builtin_v2;
+    use deckmaste_construction_core::macro_def::read_str;
 
     use super::super::engine::Child;
     use super::super::engine::CompletionDisposition;
@@ -1292,7 +1292,7 @@ mod tests {
         ParseContext::new(
             card_name,
             card_name == "Zacama, Primal Calamity",
-            macro_ron::v2::Onset::Consonant,
+            deckmaste_construction_core::macro_def::Onset::Consonant,
         )
         .expect("test card names are valid parse contexts")
     }

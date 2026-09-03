@@ -82,7 +82,8 @@ fn empty() -> MacroSet {
     // `Count` and `NumericOp` back the nested-macro param-forwarding fixture
     // (`Modification`/`NumericOp` above): a plain numeric literal and the
     // `NumericOp` enum itself, both real registered param types like any
-    // domain type an embedder injects (mirrors `injected_param_types_validate`).
+    // domain type an embedder injects (mirrors
+    // `injected_param_types_validate`).
     let mut param_types = ParamTypeSet::default();
     param_types.add_typed::<u32>("Count");
     param_types.add_typed::<NumericOp>("NumericOp");
@@ -94,6 +95,29 @@ fn empty() -> MacroSet {
 /// Parses a definition from file-shaped source, as plugin loading does.
 fn def(source: &str) -> MacroDef {
     options().from_str(source).unwrap()
+}
+
+#[derive(Debug, Default, PartialEq, Eq, Deserialize)]
+struct ConsumerMetadata {
+    spelling: String,
+}
+
+#[test]
+fn definition_metadata_is_consumer_typed_and_defaults_to_unit() {
+    let ordinary = def(r#"(name:"Plain",kinds:[Subtype],body:Type(Land))"#);
+    assert_eq!(ordinary.metadata(), &());
+
+    let typed: MacroDef<ConsumerMetadata> = options()
+        .from_str(
+            r#"(
+                name: "Typed",
+                kinds: [Subtype],
+                metadata: (spelling: "typed"),
+                body: Type(Land),
+            )"#,
+        )
+        .unwrap();
+    assert_eq!(typed.metadata().spelling, "typed");
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
@@ -289,6 +313,7 @@ fn subtype_macro(name: &str, params: Vec<ParamType>, body: &str) -> MacroDef {
         template: None,
         plural: None,
         frames: Vec::new(),
+        metadata: (),
         body: body.trim().into(),
     }
 }
@@ -392,6 +417,7 @@ fn unknown_kinds_are_an_error() {
             template: None,
             plural: None,
             frames: Vec::new(),
+            metadata: (),
             body: "()".into(),
         })
         .unwrap_err();
@@ -421,6 +447,7 @@ fn enum_positions_expand_unknown_variants() {
             template: None,
             plural: None,
             frames: Vec::new(),
+            metadata: (),
             body: "Static(effects: [CantAttack])".into(),
         })
         .unwrap();
@@ -501,6 +528,7 @@ fn macros_are_namespaced_by_kind() {
             template: None,
             plural: None,
             frames: Vec::new(),
+            metadata: (),
             body: "Param(0)".into(),
         })
         .unwrap();
@@ -539,6 +567,7 @@ fn macros_expand_inside_expansion_bodies() {
             template: None,
             plural: None,
             frames: Vec::new(),
+            metadata: (),
             body: "AllOf([Type(Creature)])".into(),
         })
         .unwrap();
@@ -550,6 +579,7 @@ fn macros_expand_inside_expansion_bodies() {
             template: None,
             plural: None,
             frames: Vec::new(),
+            metadata: (),
             body: "OneOf([Any, Inner])".into(),
         })
         .unwrap();
@@ -723,6 +753,7 @@ fn effect_positions_expand_macros() {
             template: None,
             plural: None,
             frames: Vec::new(),
+            metadata: (),
             body: "DrawCards(1)".into(),
         })
         .unwrap();
@@ -749,6 +780,7 @@ fn remembering_chains_nest_expanded() {
             template: None,
             plural: None,
             frames: Vec::new(),
+            metadata: (),
             body: "Static(effects: [CantAttack])".into(),
         })
         .unwrap();
@@ -760,6 +792,7 @@ fn remembering_chains_nest_expanded() {
             template: None,
             plural: None,
             frames: Vec::new(),
+            metadata: (),
             body: "Inner".into(),
         })
         .unwrap();
@@ -795,6 +828,7 @@ fn remembered_invocations_round_trip_as_invocations() {
             template: None,
             plural: None,
             frames: Vec::new(),
+            metadata: (),
             body: "Static(effects: [CantAttack])".into(),
         })
         .unwrap();
@@ -806,6 +840,7 @@ fn remembered_invocations_round_trip_as_invocations() {
             template: None,
             plural: None,
             frames: Vec::new(),
+            metadata: (),
             body: "Type(Param(0))".into(),
         })
         .unwrap();
@@ -830,6 +865,7 @@ fn argument_source_survives_verbatim() {
             template: None,
             plural: None,
             frames: Vec::new(),
+            metadata: (),
             body: "Named(Param(0))".into(),
         })
         .unwrap();
@@ -893,6 +929,7 @@ fn named_parameters_invoke_struct_shaped() {
             template: None,
             plural: None,
             frames: Vec::new(),
+            metadata: (),
             body: r"CardFace(
                 name: Param(name),
                 mana_cost: [Generic(Param(cost))],
@@ -935,6 +972,7 @@ fn named_parameters_at_enum_positions() {
             template: None,
             plural: None,
             frames: Vec::new(),
+            metadata: (),
             body: "Static(effects: [CantAttack])".into(),
         })
         .unwrap();
@@ -1008,6 +1046,7 @@ fn params_resolve_as_enum_variant_contents() {
             template: None,
             plural: None,
             frames: Vec::new(),
+            metadata: (),
             body: r"CardFace(
                 name: Param(0),
                 mana_cost: [Hybrid(Generic(Param(1)), White), Green],
@@ -1076,6 +1115,7 @@ fn filter_macros_expand_under_quantity() {
             template: None,
             plural: None,
             frames: Vec::new(),
+            metadata: (),
             body: "OneOf([Any, Type(Creature)])".into(),
         })
         .unwrap();
@@ -1107,6 +1147,7 @@ fn quantity_macros_expand_and_are_remembered() {
             template: None,
             plural: None,
             frames: Vec::new(),
+            metadata: (),
             body: "CountOf(Type(Creature))".into(),
         })
         .unwrap();
@@ -1135,6 +1176,7 @@ fn newtype_variant_struct_content_in_a_body() {
             template: None,
             plural: None,
             frames: Vec::new(),
+            metadata: (),
             body: "Power(min: 2)".into(),
         })
         .unwrap();
@@ -1182,6 +1224,7 @@ fn param_holes_resolve_at_quantity_positions() {
             template: None,
             plural: None,
             frames: Vec::new(),
+            metadata: (),
             body: "DealDamage(Target(0), Param(0))".into(),
         })
         .unwrap();
@@ -1231,6 +1274,7 @@ fn any_accepts_every_shape() {
             template: None,
             plural: None,
             frames: Vec::new(),
+            metadata: (),
             body: "Param(0)".into(),
         })
         .unwrap();
@@ -1273,6 +1317,7 @@ fn injected_param_types_validate() {
             template: None,
             plural: None,
             frames: Vec::new(),
+            metadata: (),
             body: "DrawCards(Param(0))".into(),
         })
         .unwrap();
@@ -1358,6 +1403,7 @@ fn frames_field_bare_string_is_unguarded() {
 fn frames_field_full_form_carries_guard() {
     let d = def(r#"(name: "Draw", kinds: [OneShotEffect], params: [Count],
             frames: [(text: "draw <Param(1)> cards", when: [(0, "You")], position: Main)],
+            metadata: (),
             body: Batch(Param(0), By(You, DrawCard)))"#);
     let frame = &d.frames()[0];
     assert_eq!(frame.text, "draw <Param(1)> cards");
@@ -1763,6 +1809,7 @@ fn embed_host_ref_macro_routes_to_embedded_expanded() {
             template: None,
             plural: None,
             frames: Vec::new(),
+            metadata: (),
             body: "Bare".into(),
         })
         .unwrap();
@@ -1788,6 +1835,7 @@ fn embed_host_own_macro_remembered_as_host_expanded() {
             template: None,
             plural: None,
             frames: Vec::new(),
+            metadata: (),
             body: "Own(1)".into(),
         })
         .unwrap();
@@ -1809,6 +1857,7 @@ fn identity_def(kind: &str, name: &str, body: &str) -> MacroDef {
         template: None,
         plural: None,
         frames: Vec::new(),
+        metadata: (),
         body: body.into(),
     }
 }
@@ -1923,6 +1972,7 @@ mod derived {
             template: None,
             plural: None,
             frames: Vec::new(),
+            metadata: (),
             body: "Twice(Param(0))".into(),
         })
         .unwrap();
@@ -1941,7 +1991,8 @@ mod derived {
         let unit_back: Amount = super::options().from_str(&unit_text).unwrap();
         assert_eq!(unit_back, Amount::X);
 
-        // newtype-with-Box variant: "Twice(X)" ↔ Amount::Twice(Box::new(Amount::X))
+        // newtype-with-Box variant: "Twice(X)" ↔
+        // Amount::Twice(Box::new(Amount::X))
         let newtype = Amount::Twice(Box::new(Amount::X));
         let newtype_text = super::options().to_string(&newtype).unwrap();
         assert_eq!(newtype_text, "Twice(X)");
@@ -2116,6 +2167,7 @@ mod derived {
             template: None,
             plural: None,
             frames: Vec::new(),
+            metadata: (),
             body: "Me".into(),
         })
         .unwrap();
@@ -2282,6 +2334,7 @@ mod derived {
             template: None,
             plural: None,
             frames: Vec::new(),
+            metadata: (),
             body: "Me".into(),
         })
         .unwrap();
@@ -2320,6 +2373,7 @@ mod derived {
             template: None,
             plural: None,
             frames: Vec::new(),
+            metadata: (),
             body: "Me".into(),
         })
         .unwrap();

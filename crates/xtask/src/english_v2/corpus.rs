@@ -5,9 +5,9 @@ use std::path::Path;
 
 use anyhow::Context;
 use anyhow::ensure;
+use deckmaste_construction_core::macro_def::Onset;
 use deckmaste_data::mtgjson::AtomicCards;
 use deckmaste_english_v2::context::ParseContext;
-use macro_ron::v2::Onset;
 use rayon::prelude::*;
 use sha2::Digest;
 use sha2::Sha256;

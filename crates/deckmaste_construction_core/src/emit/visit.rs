@@ -441,7 +441,7 @@ fn visitor_methods(
         methods.push(quote! {
             fn visit_declaration(
                 &mut self,
-                _declaration: &::macro_ron::v2::DeclarationIdentity,
+                _declaration: &::deckmaste_construction_core::macro_def::DeclarationIdentity,
             ) {}
         });
     }
@@ -1188,7 +1188,7 @@ fn emit_construction_form_walker_calls(
                 let name = syn::LitStr::new(open.name(), Span::call_site());
                 Some(quote! {
                     visitor.visit_declaration(
-                        &::macro_ron::v2::DeclarationIdentity::new(#kind, #name),
+                        &::deckmaste_construction_core::macro_def::DeclarationIdentity::new(#kind, #name),
                     );
                 })
             }
@@ -1669,9 +1669,9 @@ mod tests {
         let visitors = visitors.iter().map(|item| &item.tokens);
         let source = quote::quote! {
             #![allow(dead_code)]
-            extern crate self as macro_ron;
+            extern crate self as deckmaste_construction_core;
 
-            pub mod v2 {
+            pub mod macro_def {
                 #[derive(Debug, Clone, PartialEq, Eq)]
                 pub enum DeclarationKind { KeywordAction }
 
@@ -1724,7 +1724,7 @@ mod tests {
                     self.0.push(format!("verb:{value:?}"));
                 }
 
-                fn visit_declaration(&mut self, value: &v2::DeclarationIdentity) {
+                fn visit_declaration(&mut self, value: &macro_def::DeclarationIdentity) {
                     self.0.push(format!("declaration:{}", value.name()));
                 }
             }

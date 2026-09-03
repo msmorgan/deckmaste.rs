@@ -1,10 +1,10 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use macro_ron::v2::DeclarationKind;
-use macro_ron::v2::GrammarRecipe;
-use macro_ron::v2::SurfaceFeature;
-use macro_ron::v2::read_builtin_v2;
+use deckmaste_construction_core::macro_def::DeclarationKind;
+use deckmaste_construction_core::macro_def::GrammarRecipe;
+use deckmaste_construction_core::macro_def::SurfaceFeature;
+use deckmaste_construction_core::macro_def::read_builtin_v2;
 
 #[test]
 fn turn_parts_contribute_to_the_noun_inventory_with_derived_plurals() {

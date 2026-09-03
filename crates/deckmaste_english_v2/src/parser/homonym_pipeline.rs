@@ -3,9 +3,9 @@ use std::collections::BTreeSet;
 use RulePosition::Lexical as L;
 use RulePosition::Nonterminal as N;
 use deckmaste_construction::constructions;
-use macro_ron::v2::DeclarationIdentity;
-use macro_ron::v2::DeclarationKind;
-use macro_ron::v2::SurfaceFeature;
+use deckmaste_construction_core::macro_def::DeclarationIdentity;
+use deckmaste_construction_core::macro_def::DeclarationKind;
+use deckmaste_construction_core::macro_def::SurfaceFeature;
 
 use super::diagnostic::SemanticScannerMatchInventory;
 use super::engine::Child;
@@ -272,12 +272,12 @@ constructions! {
 
 fn environment() -> ParserEnvironment {
     ParserEnvironment::try_from_declarations([
-        macro_ron::v2::read_str(
+        deckmaste_construction_core::macro_def::read_str(
             "/synthetic/actions/Destroy.ron",
             r#"KeywordAction(name:"Destroy",spelling:"same",grammar:Verb(bare:"same",valence:Intransitive))"#,
         )
         .unwrap(),
-        macro_ron::v2::read_str(
+        deckmaste_construction_core::macro_def::read_str(
             "/synthetic/abilities/Destroy.ron",
             r#"KeywordAbility(name:"Destroy",spelling:"same",grammar:Verb(bare:"same",valence:Intransitive))"#,
         )
@@ -807,12 +807,12 @@ fn generated_homonyms_survive_scan_build_and_trace_with_category_safe_identity()
             (
                 DeclarationKind::KeywordAction,
                 "Destroy",
-                macro_ron::v2::GrammarPosition::Verb,
+                deckmaste_construction_core::macro_def::GrammarPosition::Verb,
             ),
             (
                 DeclarationKind::KeywordAbility,
                 "Destroy",
-                macro_ron::v2::GrammarPosition::Verb,
+                deckmaste_construction_core::macro_def::GrammarPosition::Verb,
             ),
         ])
     );

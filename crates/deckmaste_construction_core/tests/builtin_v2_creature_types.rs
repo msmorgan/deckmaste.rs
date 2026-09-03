@@ -3,10 +3,15 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
-use macro_ron::v2::{
-    DeclarationKind, GrammarRecipe, NormalizedDeclaration, SpellingPart, SubtypeCategory,
-    SurfaceFeature, ValidationError, read_builtin_v2, read_str,
-};
+use deckmaste_construction_core::macro_def::DeclarationKind;
+use deckmaste_construction_core::macro_def::GrammarRecipe;
+use deckmaste_construction_core::macro_def::NormalizedDeclaration;
+use deckmaste_construction_core::macro_def::SpellingPart;
+use deckmaste_construction_core::macro_def::SubtypeCategory;
+use deckmaste_construction_core::macro_def::SurfaceFeature;
+use deckmaste_construction_core::macro_def::ValidationError;
+use deckmaste_construction_core::macro_def::read_builtin_v2;
+use deckmaste_construction_core::macro_def::read_str;
 
 fn creature_type<'a>(
     declarations: &'a [NormalizedDeclaration],
@@ -103,7 +108,9 @@ fn builtin_v2_creature_type_nursery_matches_catalog_and_attested_morphology() {
             [SpellingPart::Literal(spelling.clone())]
         );
         assert_eq!(
-            declaration.grammar().map(macro_ron::v2::GrammarRow::recipe),
+            declaration
+                .grammar()
+                .map(deckmaste_construction_core::macro_def::GrammarRow::recipe),
             Some(&GrammarRecipe::Noun)
         );
         assert!(
