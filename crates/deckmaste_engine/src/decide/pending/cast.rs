@@ -50,6 +50,24 @@ impl DecisionHandler for ChooseTargets {
         if let Err(reason) = crate::resolve::validate_target_set(&spec, &chosen) {
             return Err(DecisionError::Illegal { reason });
         }
+        // [CR#601.2c]: a slot whose filter reads an EARLIER slot's announced
+        // register is judged against what this proposal announced there, not
+        // against the union menu it was offered — Fiery Annihilation's
+        // Equipment must be attached to the creature just announced, Run Away
+        // Together's second creature must be under a different controller
+        // from the first.
+        let (targeting_id, activation) = if let Some(staged) = &g.placing_trigger {
+            (staged.id, staged.activation)
+        } else {
+            let announce = g.announcing.as_ref().expect("an announce in flight");
+            (announce.id, announce.activation)
+        };
+        if !g.cross_target_choice_legal(&spec, &chosen, targeting_id, activation) {
+            return Err(DecisionError::Illegal {
+                reason: "a target slot reading an earlier slot's announcement rejects this set"
+                    .into(),
+            });
+        }
         // Targeting requirements (Must(Target) rows — the
         // Flagbearer class, "must choose at least one … if able"):
         // for each row whose `by` matches the targeting object,

@@ -51,7 +51,8 @@ impl GameState {
                 ..
             } => {
                 if let Some(t) = created {
-                    // The delayed/reflexive body is authoritative ([CR#603.7,603.12]).
+                    // The delayed/reflexive body is authoritative
+                    // ([CR#603.7,603.12]).
                     t.targets.to_vec()
                 } else {
                     let abilities = crate::derive::abilities_of_source(self, *source);
@@ -189,6 +190,34 @@ fn const_target_count(count: &Count) -> Uint {
 pub(crate) fn slot_count_bounds(spec: &TargetSpec) -> (Uint, Option<Uint>) {
     let (lo, hi) = target_spec_quantity(spec).bounds();
     (lo.map_or(0, const_target_count), hi.map(const_target_count))
+}
+
+/// How many leading target slots must already be ANNOUNCED before every slot
+/// can be enumerated ([CR#601.2c]) — 0 when no slot's filter reads another's
+/// announced register, which is every card in the corpus today.
+///
+/// Core's telescope law (`deckmaste_core`'s `validate_telescope`) lets slot
+/// `k`'s filter region declare `Provenance::AnnouncedTarget(0..k)` parameters
+/// and nothing later, and a region declares exactly what it reads, so the
+/// count of those parameters IS the number of earlier slots that slot reads.
+/// The answer is the largest such count over all slots.
+pub(crate) fn announced_prefix_len(specs: &[TargetSpec]) -> usize {
+    specs
+        .iter()
+        .map(|spec| {
+            target_spec_filter(spec)
+                .params
+                .iter()
+                .filter(|param| {
+                    matches!(
+                        param.provenance,
+                        deckmaste_core::Provenance::AnnouncedTarget(_)
+                    )
+                })
+                .count()
+        })
+        .max()
+        .unwrap_or(0)
 }
 
 /// The cross-slot distinctness portion of the set check ([CR#115.7e]): every

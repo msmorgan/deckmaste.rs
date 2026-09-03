@@ -1507,10 +1507,12 @@ impl GameState {
         let view = self.layers();
         let rows = crate::legal::cant_target_rows(self, &view);
         let carrier = Some(self.objects.obj(targeting_id).source);
+        let announced = self.announced_targets(activation);
         specs
             .iter()
-            .map(|s| {
-                self.legal_targets(s, carrier, activation)
+            .enumerate()
+            .map(|(index, _)| {
+                self.slot_candidates(specs, index, carrier, activation, &announced)
                     .into_iter()
                     .filter(|&t| {
                         // Forbidden by a Cant(Target) row ([CR#702.11b]
@@ -2325,6 +2327,99 @@ impl GameState {
             // The other phase's changes.
             _ => {}
         }
+    }
+
+    /// The candidates one announce slot offers ([CR#601.2c]) —
+    /// [`Self::legal_targets`] for an ordinary slot, and the union over the
+    /// earlier slot's own candidates for a slot whose filter READS that
+    /// earlier slot's announced register while nothing has been announced yet.
+    ///
+    /// Announcement fixes the slots in declaration order (core's telescope law
+    /// lets slot `k`'s filter read `AnnouncedTarget(0..k)` and nothing later),
+    /// so once a real announcement is in the register file this is the plain
+    /// enumeration against it. Before then — the menu the player picks from —
+    /// the honest offer is every object SOME legal earlier choice would admit;
+    /// which of them the announcement actually admits is settled by
+    /// [`Self::cross_target_choice_legal`] when the set comes back. Reading an
+    /// empty register instead packs to nothing, which decided the slot the
+    /// wrong way in both directions: a positive cross-reference (Fiery
+    /// Annihilation's "Equipment attached to that creature") offered an empty
+    /// menu, a negated one (Run Away Together's second creature) offered
+    /// every candidate.
+    ///
+    /// `announced` is what the register file already holds. A slot reading TWO
+    /// earlier slots would need the product of their candidates; no semantic
+    /// input has one, so it keeps the plain enumeration.
+    #[must_use]
+    fn slot_candidates(
+        &self,
+        specs: &[TargetSpec],
+        index: usize,
+        carrier: Option<crate::object::ObjectSource>,
+        activation: crate::ActivationId,
+        announced: &[Vec<ObjectId>],
+    ) -> Vec<ObjectId> {
+        let spec = &specs[index];
+        let reads = crate::resolve::announced_prefix_len(std::slice::from_ref(spec));
+        if reads != 1 || !announced.is_empty() || activation == crate::ActivationId::NONE {
+            return self.legal_targets(spec, carrier, activation);
+        }
+        // One announced-target parameter is slot 0, the only shape the
+        // telescope admits for a single such parameter.
+        let mut admitted: std::collections::HashSet<ObjectId> = std::collections::HashSet::new();
+        for candidate in self.legal_targets(&specs[0], carrier, activation) {
+            self.activation_set_targets(activation, &[vec![candidate]]);
+            admitted.extend(self.legal_targets(spec, carrier, activation));
+        }
+        self.activation_set_targets(activation, announced);
+        self.objects
+            .iter()
+            .map(|object| object.id)
+            .filter(|id| admitted.contains(id))
+            .collect()
+    }
+
+    /// [CR#601.2c]: is a PROPOSED target set legal once each slot's own
+    /// announcement is visible to the slots that read it?
+    ///
+    /// The menu a cross-referencing slot was offered is a union over the
+    /// earlier slot's candidates ([`Self::slot_candidates`]); the
+    /// cross-reference itself is enforced here, by walking the slots in
+    /// declaration order, writing each announced slot into the register file,
+    /// and re-enumerating the next one against it. Core's telescope law makes
+    /// the walk total: slot `k` reads only slots before it, so every register
+    /// a slot reads is written before that slot is judged.
+    ///
+    /// The register file is restored to what it held on entry; the caller
+    /// writes the whole announced set on success.
+    #[must_use]
+    pub(crate) fn cross_target_choice_legal(
+        &self,
+        specs: &[TargetSpec],
+        chosen: &[Vec<ObjectId>],
+        targeting_id: ObjectId,
+        activation: crate::ActivationId,
+    ) -> bool {
+        if activation == crate::ActivationId::NONE
+            || specs.len() != chosen.len()
+            || crate::resolve::announced_prefix_len(specs) == 0
+        {
+            return true;
+        }
+        let restore = self.announced_targets(activation);
+        let mut prefix: Vec<Vec<ObjectId>> = Vec::new();
+        let mut legal = true;
+        for (index, picks) in chosen.iter().enumerate() {
+            self.activation_set_targets(activation, &prefix);
+            let refreshed = self.legal_targets_for_specs(specs, targeting_id, activation);
+            if picks.iter().any(|pick| !refreshed[index].contains(pick)) {
+                legal = false;
+                break;
+            }
+            prefix.push(picks.clone());
+        }
+        self.activation_set_targets(activation, &restore);
+        legal
     }
 
     /// [CR#115]: the legal candidates for a single `TargetSpec` (its filter's

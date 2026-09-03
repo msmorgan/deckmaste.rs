@@ -31,6 +31,7 @@ pub(crate) use action::composite_body_group;
 // Target-set machinery moved to `targets`; external callers keep the old
 // `crate::resolve::…` paths.
 pub(crate) use targets::announce_satisfiable;
+pub(crate) use targets::announced_prefix_len;
 pub(crate) use targets::distinct_siblings;
 pub(crate) use targets::slot_count_bounds;
 pub(crate) use targets::target_spec_filter;

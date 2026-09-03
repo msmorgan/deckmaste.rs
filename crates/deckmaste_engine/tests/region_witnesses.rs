@@ -1700,17 +1700,10 @@ fn steel_hellkite_destroys_by_announced_x_and_who_it_damaged() {
 /// register, so a second creature under the first target's controller is not a
 /// legal announcement ([CR#601.2c]).
 ///
-/// BLOCKED in the engine, not the grammar: `GameState::legal_targets_for_specs`
-/// computes EVERY slot's candidate set before ANY slot is announced (the
-/// announce activation's target registers are written only by
-/// `ChooseTargets::resolve`), so the second slot's filter reads an unavailable
-/// register. Under null packing the inner `ControlledBy(...)` is then false and
-/// the enclosing `Not(...)` true, so every creature is offered and the illegal
-/// same-controller pair is accepted.
+/// The first slot is announced before the second is enumerated, so the second
+/// offers only creatures under another controller and the same-controller pair
+/// is refused as an illegal announcement.
 #[test]
-#[ignore = "engine: target slots are enumerated before any slot is announced, \
-            so a slot whose filter reads an earlier slot's register is not \
-            constrained by it"]
 fn run_away_together_refuses_two_targets_under_one_controller() {
     const RUN_AWAY: &str = r#"Normal(
         name: "Run Away Together",
@@ -1786,14 +1779,19 @@ fn run_away_together_refuses_two_targets_under_one_controller() {
 /// announced creature, so an Equipment attached to a DIFFERENT creature is not
 /// offered for it.
 ///
-/// BLOCKED in the engine, not the grammar, by the same seam as Run Away
-/// Together: every target slot is enumerated before any slot is announced, so
-/// `AttachedTo(Ref(Target(0)))` reads an unavailable register. Here the filter
-/// is positive rather than negated, so the slot is offered an EMPTY candidate
-/// set and the Equipment can never be chosen at all.
+/// The same announcement order as Run Away Together, with a positive filter
+/// rather than a negated one: `AttachedTo(Ref(Target(0)))` reads the creature
+/// slot's register, so an Equipment on a DIFFERENT creature is not a legal
+/// announcement.
+///
+/// Re-spelled from the offered-menu form the `core-regions-witness-fixtures`
+/// round wrote (`targeting.slot(1) == vec![worn]`), which no engine can
+/// satisfy: the menu is computed before the player announces anything, so the
+/// creature the Equipment must be attached to is not yet chosen when it is
+/// built. What the menu can honestly offer is the union over the creature
+/// slot's own candidates; the cross-reference is a REFUSAL at announcement,
+/// spelled here exactly as Run Away Together spells its own.
 #[test]
-#[ignore = "engine: target slots are enumerated before any slot is announced, \
-            so this Equipment slot is offered an empty candidate set"]
 fn fiery_annihilation_exiles_only_equipment_on_the_damaged_creature() {
     const FIERY: &str = r#"Normal(
         name: "Fiery Annihilation",
@@ -1839,18 +1837,21 @@ fn fiery_annihilation_exiles_only_equipment_on_the_damaged_creature() {
         PhaseStep::PrecombatMain,
         &mut plain,
     );
-    let mut targeting = Targeting::new(vec![vec![equipped], vec![worn]]);
-    {
-        let mut answer = |s: &GameState, p: &PendingDecision| targeting.answer(s, p);
-        cast(&mut state, spell, &mut answer);
-    }
-
-    assert_eq!(
-        targeting.slot(1),
-        vec![worn],
-        "only the Equipment attached to the announced creature is offered — \
-         {elsewhere:?}, on another creature, is not"
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: spell }))
+        .expect("castable");
+    let _prompt = to_target_prompt(&mut state);
+    let refused = state
+        .submit_decision(Decision::Targets(vec![vec![equipped], vec![elsewhere]]))
+        .expect_err("an Equipment on another creature is not attached to the damaged one");
+    assert!(
+        matches!(refused, deckmaste_engine::DecisionError::Illegal { .. }),
+        "the refusal is an illegality, not a shape error: {refused:?}"
     );
+    state
+        .submit_decision(Decision::Targets(vec![vec![equipped], vec![worn]]))
+        .expect("the Equipment attached to the announced creature is legal");
+    settle(&mut state, &mut plain);
     assert!(
         !state.zones.battlefield.contains(&equipped),
         "five damage killed the 2/2 it targeted"

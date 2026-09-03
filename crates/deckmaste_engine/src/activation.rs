@@ -788,6 +788,18 @@ impl crate::state::GameState {
                 })
     }
 
+    /// The announced-target slots the register file currently holds
+    /// ([CR#601.2c]) — empty before the announcement writes any, and empty for
+    /// a bare `ActivationId::NONE` probe.
+    #[must_use]
+    pub(crate) fn announced_targets(&self, activation: ActivationId) -> Vec<Vec<ObjectId>> {
+        self.activations
+            .borrow()
+            .get(&activation)
+            .map(|record| record.context.targets.clone())
+            .unwrap_or_default()
+    }
+
     /// Fill the announced-target parameters after target selection commits.
     pub(crate) fn activation_set_targets(
         &self,
