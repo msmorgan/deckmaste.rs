@@ -3,6 +3,7 @@ module Experimental.ProofsAnaphora
 
 import Experimental
 import Experimental.Macros
+import Experimental.Unspellable
 
 import Data.List.Elem
 
@@ -473,6 +474,19 @@ itPriorResolvesInPrefix : (made, before : Bindings) ->
 itPriorResolvesInPrefix made before ok =
   let (b ** (el, k)) = resolveOnes Object made ok in
       (b ** (elemInPrefix before el, k))
+
+public export
+ownReadsOnlyPrefix : (own, outer : Bindings) ->
+                     countReach Bare OneOf own = 1 -> Noun (own ++ outer) Object
+ownReadsOnlyPrefix own outer ok = Own own outer {sp = Refl} {ok}
+
+public export
+ownResolvesInPrefix : (own, outer : Bindings) -> countReach Bare OneOf own = 1 ->
+                      (b : Binding ** (Elem b (own ++ outer), So (reaches Bare OneOf b)))
+ownResolvesInPrefix own outer ok =
+  let (b ** (el, k)) = countByWitness (reaches Bare OneOf) own Z
+                         (trans (sym (countReachIsFold Bare OneOf own)) ok) in
+      (b ** (elemInPrefix outer el, k))
 
 
 
@@ -947,13 +961,34 @@ controllerSacrificesReadsNoPrefix : (bs : Bindings) -> (n : Noun bs Object) ->
                                     OnBattlefield (nounZone n) -> Effect bs
 controllerSacrificesReadsNoPrefix bs n one zn = ControllerSacrifices n {one} {zn}
 
-||| "[src] deals damage equal to its [c] to [to]"
+||| "Exile target artifact. Target creature deals damage equal to its power to any target."
 public export
-dealDamageOwnReadsNoPrefix : (bs : Bindings) -> (k : Kind) ->
-                             (src : Noun bs Object) -> (c : Characteristic) ->
-                             (to : Noun (nomIntro src) k) ->
-                             PerMember to -> DamageRecipient to -> Effect bs
-dealDamageOwnReadsNoPrefix bs k src c to pm rk = DealDamageOwn src c to {pm} {rk}
+ownSurvivesSecondSingular : Effect []
+ownSurvivesSecondSingular =
+  Sequentially [Macros.exile (Macros.target Macros.artifact),
+                Macros.dealsDamageOwnPower (Macros.target Macros.creature)
+                                           (Macros.target Macros.anyTarget)]
+
+||| The same sentence through `It`: the exiled artifact is a second singular object.
+public export
+badItAcrossOwnSlot : Unspellable (Effect []) (\ok =>
+  Sequentially [Macros.exile (Macros.target Macros.artifact),
+                DealDamage (Macros.target Macros.creature) (StatOf Power (It {ok}))
+                           (Macros.target Macros.anyTarget)])
+badItAcrossOwnSlot Refl impossible
+
+||| "This creature deals damage equal to its power to any target": `This` mints nothing.
+public export
+badOwnEmptyDelta : Unspellable (Effect []) (\ok =>
+  Macros.dealsDamageOwnPower Macros.thisCreature (Macros.target Macros.anyTarget) {ok})
+badOwnEmptyDelta Refl impossible
+
+||| "Target creature and target artifact deal damage equal to its power to any target."
+public export
+badOwnTwoInDelta : Unspellable (Effect []) (\ok =>
+  Macros.dealsDamageOwnPower (BothOf (Macros.target Macros.creature) (Macros.target Macros.artifact))
+                             (Macros.target Macros.anyTarget) {ok})
+badOwnTwoInDelta Refl impossible
 
 ||| "[n] [vp1] and [vp2]"
 public export

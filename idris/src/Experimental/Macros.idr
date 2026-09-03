@@ -2229,6 +2229,15 @@ itPrior : {bs : Bindings} -> (prev : Effect bs) ->
 itPrior prev = ItPrior (effDelta prev) bs {sp} {ok}
 
 public export
+dealsDamageOwnPower : {bs : Bindings} -> {k : Kind} -> (src : Noun bs Object) ->
+                      {auto 0 ok : countReach Bare OneOf (nounDelta src) = 1} ->
+                      (to : Noun (nounDelta src ++ bs) k) ->
+                      {auto 0 pm : PerMember to} ->
+                      {auto 0 rk : DamageRecipient to} -> Effect bs
+dealsDamageOwnPower src to =
+  DealDamage src (StatOf Power (Own (nounDelta src) bs {sp = Refl} {ok})) to {pm} {rk}
+
+public export
 theVerbed : (v : VerbLabel) -> (w : NounWord) ->
             {auto 0 ok : countReach (Verbed v w Attributive) OneOf bs = 1} ->
             {auto 0 mk : VerbedMarkingOk v Attributive} -> Noun bs (kindOfW w)

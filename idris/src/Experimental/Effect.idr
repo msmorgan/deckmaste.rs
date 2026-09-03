@@ -1072,10 +1072,6 @@ mutual
                  (to : Noun (amtIntro amt) k) ->
                  {auto 0 pm : PerMember to} ->
                  {auto 0 rk : DamageRecipient to} -> Effect bs
-    DealDamageOwn : {k : Kind} -> (src : Noun bs Object) -> (c : Characteristic) ->
-                    (to : Noun (nomIntro src) k) ->
-                    {auto 0 pm : PerMember to} ->
-                    {auto 0 rk : DamageRecipient to} -> Effect bs
     Fights : (a : Noun bs Object) ->
              {auto 0 za : OnBattlefield (nounZone a)} ->
              {auto 0 ta : FightParticipant (nounTy a)} ->
@@ -1387,7 +1383,6 @@ mutual
   public export
   heldUntilOk : {0 bs : Bindings} -> Effect bs -> Bool
   heldUntilOk (DealDamage _ _ _) = False
-  heldUntilOk (DealDamageOwn _ _ _) = False
   heldUntilOk (ControllerSacrifices _) = False
   heldUntilOk (DoesntUntapNext _ _) = False
   heldUntilOk (SkipsNext _ _ _) = False
@@ -1499,7 +1494,6 @@ mutual
   public export
   reflexEncloseUse : {0 bs : Bindings} -> Effect bs -> EncloseUse
   reflexEncloseUse (DealDamage _ _ _) = EncAgentless
-  reflexEncloseUse (DealDamageOwn _ _ _) = EncAgentless
   reflexEncloseUse (ControllerSacrifices _) = EncReflexive
   reflexEncloseUse (DoesntUntapNext _ _) = EncAgentless
   reflexEncloseUse (SkipsNext _ _ _) = EncNotYetTaken
@@ -1630,7 +1624,6 @@ mutual
   thisWayOutcomeOk (Fights _ _) = True
   thisWayOutcomeOk (TurnOver _) = True
   thisWayOutcomeOk (SetStatus _ _) = True
-  thisWayOutcomeOk (DealDamageOwn _ _ _) = True
   thisWayOutcomeOk (ControllerSacrifices _) = True
   thisWayOutcomeOk (GetsCounters _ _ _) = True
   thisWayOutcomeOk (GetsCountersOfThoseKinds _ _) = True
@@ -1734,7 +1727,6 @@ mutual
   public export
   costActionOk : {0 bs : Bindings} -> Effect bs -> Bool
   costActionOk (DealDamage src _ _) = costNounOk src
-  costActionOk (DealDamageOwn src _ _) = costNounOk src
   costActionOk (ControllerSacrifices n) = costNounOk n
   costActionOk (DoesntUntapNext n _) = costNounOk n
   costActionOk (SkipsNext _ _ _) = False
@@ -1868,7 +1860,6 @@ mutual
   public export
   effEq : {0 bs : Bindings} -> Effect bs -> Effect bs -> Bool
   effEq (DealDamage _ _ _) _ = False
-  effEq (DealDamageOwn _ _ _) _ = False
   effEq (ControllerSacrifices _) _ = False
   effEq (DoesntUntapNext n s) (DoesntUntapNext m t) = nounEqRef n m && boundEq s t
   effEq (DoesntUntapNext _ _) _ = False
@@ -2022,7 +2013,6 @@ mutual
   public export
   effIntro : {bs : Bindings} -> Effect bs -> Bindings
   effIntro (DealDamage src amt to) = outcomeB DamageDealt :: nomIntro to
-  effIntro (DealDamageOwn src c to) = outcomeB DamageDealt :: nomIntro to
   effIntro (ControllerSacrifices n) =
     MkBinding TheD Player OneOf PlayerP
       :: moveIntro (Just "Sacrifice") n (Just Graveyard)
@@ -2155,7 +2145,6 @@ mutual
   public export
   preIntro : {bs : Bindings} -> Effect bs -> Bindings
   preIntro (DealDamage src amt to) = nomIntro to
-  preIntro (DealDamageOwn src c to) = nomIntro to
   preIntro (ControllerSacrifices n) = MkBinding TheD Player OneOf PlayerP :: selfSubjIntro n
   preIntro (Distribute v amt among) = nomIntro among
   preIntro (Fights a b) = nomIntro b
@@ -2278,7 +2267,6 @@ mutual
   public export
   annIntro : {bs : Bindings} -> Effect bs -> Bindings
   annIntro (DealDamage src amt to) = nomIntro to
-  annIntro (DealDamageOwn src c to) = nomIntro to
   annIntro (ControllerSacrifices n) = MkBinding TheD Player OneOf PlayerP :: selfSubjIntro n
   annIntro (Distribute v amt among) = nomIntro among
   annIntro (Fights a b) = nomIntro b
@@ -2410,7 +2398,6 @@ mutual
   public export
   deedDelta : {bs : Bindings} -> Effect bs -> List Binding
   deedDelta (DealDamage src amt to) = [outcomeB DamageDealt]
-  deedDelta (DealDamageOwn src c to) = [outcomeB DamageDealt]
   deedDelta (ControllerSacrifices _) = []
   deedDelta (Distribute (DividedDamage _) amt among) = [outcomeB DamageDealt]
   deedDelta (Distribute (DistributedCounters _) amt among) = []

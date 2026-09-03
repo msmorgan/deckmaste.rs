@@ -12762,8 +12762,8 @@ aggressiveInstinct : Card
 aggressiveInstinct =
   Macros.card "Aggressive Instinct" (Just [Macros.generic 1, Macros.pip Green]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (DealDamageOwn (Macros.target Macros.creatureYouControl) Power
-                              (Macros.target Macros.creatureYouDontControl)) ]
+       [ Spell (Macros.dealsDamageOwnPower (Macros.target Macros.creatureYouControl)
+                                           (Macros.target Macros.creatureYouDontControl)) ]
        Nothing
 
 ||| Arcum Dagsson
@@ -14888,7 +14888,8 @@ arlinnKord =
                       [ Static (AndAlso
                           [ Gains (AllOf Macros.creatureYouControl) (Macros.keyword "Haste")
                           , Gains Them (Macros.activated TapSymbol
-                              (DealDamageOwn Macros.thisCreature Power (Macros.target Macros.anyTarget))) ]) ]) ]
+                              (DealDamage Macros.thisCreature (StatOf Power Macros.thisCreature)
+                                          (Macros.target Macros.anyTarget))) ]) ]) ]
                Nothing)
 
 ||| Neglected Heirloom // Ashmouth Blade
@@ -15901,8 +15902,8 @@ garrukRelentless =
                 (Sequentially
                    [ DealDamage Macros.thisPlaneswalker (Lit 3)
                                 (Macros.target Macros.creature)
-                   , DealDamageOwn (That (TypeW Creature)) Power
-                                   Macros.thisPlaneswalker ])
+                   , DealDamage (That (TypeW Creature)) (StatOf Power (That (TypeW Creature)))
+                                Macros.thisPlaneswalker ])
             , Macros.activated (LoyaltySymbol LoyaltyZero)
                 (Macros.create (Lit 1)
                    (Macros.creatureTok 2 2 [Green] [creatureType "Wolf"])) ]
