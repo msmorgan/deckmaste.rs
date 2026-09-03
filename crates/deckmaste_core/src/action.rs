@@ -233,10 +233,11 @@ pub enum Action {
     /// case single-kind remove+put can't reach atomically); `from`/`to` are
     /// the source and destination objects.
     MoveCounters(crate::CounterSpec, Reference, Reference),
-    /// Register a floating replacement effect ([CR#614.3]) — "the next time …"
-    /// shields (regeneration, one-shot prevention). `subject` names the
-    /// protected permanent as a register read; the shield freezes that
-    /// resolved identity at creation. Semantics has no `subject:` field —
+    /// Register a floating replacement effect ([CR#614.1] — a replacement
+    /// effect acts "like a shield around whatever [it's] affecting") — "the
+    /// next time …" shields (regeneration, one-shot prevention). `subject`
+    /// names the affected permanent as a register read; the shield freezes
+    /// that resolved identity at creation. Semantics has no `subject:` field —
     /// English leaves the protected permanent to the discourse — so lowering
     /// resolves the anaphor and declares the register here, rather than the
     /// engine searching its register file at resolution (ADR law 4).

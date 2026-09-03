@@ -247,7 +247,6 @@ pub struct PaymentFrame {
 pub(crate) struct FulfillmentContinuation {
     agenda: std::collections::VecDeque<crate::agenda::WorkItem>,
     control: crate::control::ControlSnapshot,
-    noting: Vec<deckmaste_core::Ident>,
     arrange_scope: Option<crate::state::ArrangeScope>,
 }
 
@@ -262,7 +261,6 @@ impl FulfillmentContinuation {
                 placing_trigger: image.placing_trigger.clone(),
                 replace_state: image.replace_state.clone(),
             },
-            noting: image.noting.clone(),
             arrange_scope: image.arrange_scope.clone(),
         }
     }
@@ -274,7 +272,6 @@ impl FulfillmentContinuation {
         image.choice = self.control.choice;
         image.placing_trigger = self.control.placing_trigger;
         image.replace_state = self.control.replace_state;
-        image.noting = self.noting;
         image.arrange_scope = self.arrange_scope;
     }
 }

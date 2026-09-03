@@ -171,9 +171,6 @@ pub enum Progress {
     /// installed for the destroy running next; `subjects` is how many objects
     /// it covers.
     RidersInstalled { subjects: Uint },
-    /// A `Noting` collection window opened (`true`) or closed (`false`)
-    /// ([CR#607.2a] — fact-backed product groups).
-    NoteScoped { open: bool },
     /// [CR#608.2c,608.2d]: a resolving `ChooseAndNote` surfaced its choice —
     /// a `ChooseNoteNumber` (number kind) or a `ChooseObjects` (objects kind)
     /// decision is now pending.
@@ -378,19 +375,6 @@ impl GameState {
                 let subjects = Uint::try_from(no_regen.len()).unwrap_or(Uint::MAX);
                 self.no_regen_subjects = no_regen;
                 Progress::RidersInstalled { subjects }
-            }
-            WorkItem::BeginNote { key } => {
-                // [CR#607.2a]: a fresh window — the key holds THIS noting
-                // run's product, never an earlier clause's leftovers.
-                self.noted.insert(key, Vec::new());
-                self.noting.push(key);
-                Progress::NoteScoped { open: true }
-            }
-            WorkItem::EndNote => {
-                self.noting
-                    .pop()
-                    .expect("EndNote pairs with a BeginNote (scheduled together)");
-                Progress::NoteScoped { open: false }
             }
             WorkItem::RepositionLibrary {
                 object,
@@ -1156,7 +1140,6 @@ impl GameState {
                 // would double-count every keyword-action query.
                 | GameEvent::Act(Act { committed: false, .. }) => {}
                 _ => {
-                    self.note_enacted(event);
                     // [CR#603.12]: the resolution-scoped window a reflexive
                     // triggered ability looks back over. Reset per resolution
                     // (`resolve_object`); the same non-meta facts history keeps.
@@ -1235,43 +1218,6 @@ impl GameState {
             recording.facts.push(event.clone());
             recording.reversal_barriers.extend(reversal_barriers);
             recording.observation_barriers.extend(observation_barriers);
-        }
-    }
-
-    /// Feeds one enacted fact to every OPEN `Noting` collection
-    /// ([CR#607.2a]): a past-form `ZoneChange` fact contributes its moved
-    /// object — the fact's snapshot plus the post-move (reminted,
-    /// [CR#400.7]) identity when the object still exists. Suppressed and
-    /// replaced-to-nothing members never get here, so an indestructible
-    /// survivor of a destroy-all is excluded from "destroyed this way" BY
-    /// CONSTRUCTION.
-    fn note_enacted(&mut self, event: &GameEvent) {
-        if self.noting.is_empty() {
-            return;
-        }
-        let GameEvent::ZoneChange(ZoneChange {
-            snapshot: Some(snapshot),
-            ..
-        }) = event
-        else {
-            return;
-        };
-        // The post-move object: the freshly minted id with the same backing
-        // source (a card backs at most one live object).
-        let now = self
-            .objects
-            .iter()
-            .find(|o| o.source == snapshot.source)
-            .map(|o| o.id);
-        let noting = self.noting.clone();
-        for key in noting {
-            self.noted
-                .entry(key)
-                .or_default()
-                .push(crate::state::NotedMember {
-                    snapshot: snapshot.as_ref().clone(),
-                    now,
-                });
         }
     }
 

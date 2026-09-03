@@ -683,7 +683,7 @@ impl GameState {
                 // [CR#614.5]: carry forward whatever lineage `frame` itself
                 // inherited (a passed aggregate `Batch` window's apply builds
                 // ITS contained per-entity futures' frames with
-                // `Anaphora::inherited_replacements` populated) — empty for the
+                // `inherited_replacements` populated) — empty for the
                 // overwhelming majority of ordinary keyword actions.
                 inherited: self.activation_inherited_replacements(frame.activation),
                 // [CR#616.1g,121.2a]: this window is one of an aggregate's
@@ -1360,11 +1360,11 @@ mod tests {
     }
 
     /// A `Random` group bound into the frame drives a verb with NO surfaced
-    /// decision: `Each(Random(Exactly 1, creature), Destroy(It))`
-    /// over a frame whose `chosen` holds the RNG's pick destroys exactly that
-    /// one creature. (Verbs take a single `Reference`, so plurality/choice is
-    /// the enclosing `Each`; the `Random` inline-RNG resolution is a dormant
-    /// seam that reads `frame.anaphora.chosen` — [CR#608.2d].)
+    /// decision: `Each(Random(Exactly 1, creature), Destroy(<element>))`
+    /// destroys exactly the one creature the RNG picked. (Verbs take a single
+    /// `Reference`, so plurality/choice is the enclosing `Each`; the `Random`
+    /// pick is written to the deciding instruction's own dest register —
+    /// [CR#608.2d].)
 
     /// `With(ChooseOne(creature), Destroy(That))` surfaces `ChooseObjects`; an
     /// out-of-range count and an out-of-pool object are rejected; a legal pick
@@ -5588,25 +5588,52 @@ mod tests {
         })
     }
 
-    /// Run `effect` inside an explicit note window ([CR#607.2a]): the runtime
-    /// product-group store collects every enacted move fact between
-    /// `BeginNote` and `EndNote`.
-    fn run_effect_noting(
+    /// Run `effect` and let its enacted facts land in history.
+    ///
+    /// Re-spelled from the `BeginNote`/`EndNote` window: the runtime product
+    /// group was a CACHE of exactly the enacted past-form `ZoneChange` facts
+    /// history already keeps, and it had no reader left, so
+    /// `core-regions-discourse-closeout` deleted it. The group is read back by
+    /// [`enacted_moves`] instead — same facts, same "this way" reading
+    /// ([CR#608.2c]: read the whole text and apply the rules of English — the
+    /// clause's OWN enacted moves), one authority.
+    fn run_effect_scheduled(
         state: &mut GameState,
-        key: &str,
         effect: OneShotEffect,
         frame: &crate::stack::Frame,
     ) {
-        state.schedule_front(vec![
-            WorkItem::BeginNote {
-                key: deckmaste_core::Ident::from(key),
-            },
-            WorkItem::RunEffect {
-                effect: Arc::new(effect),
-                frame: frame.clone(),
-            },
-            WorkItem::EndNote,
-        ]);
+        state.schedule_front(vec![WorkItem::RunEffect {
+            effect: Arc::new(effect),
+            frame: frame.clone(),
+        }]);
+    }
+
+    /// The enacted product group ("…destroyed/milled this way" — [CR#608.2c]
+    /// reads it against the clause that caused the moves): every past-form
+    /// `ZoneChange` fact in history, as (last-known snapshot, post-move
+    /// identity) pairs. Suppressed and replaced-to-nothing moves never record
+    /// a fact, so an indestructible survivor of a destroy-all is excluded BY
+    /// CONSTRUCTION — the property the deleted store also had, held here by
+    /// the facts themselves rather than by a second copy of them.
+    fn enacted_moves(state: &GameState) -> Vec<(crate::lki::LkiSnapshot, Option<ObjectId>)> {
+        state
+            .history
+            .entries()
+            .filter_map(|entry| match &entry.fact {
+                GameEvent::ZoneChange(ZoneChange {
+                    snapshot: Some(snapshot),
+                    ..
+                }) => {
+                    let now = state
+                        .objects
+                        .iter()
+                        .find(|o| o.source == snapshot.source)
+                        .map(|o| o.id);
+                    Some(((**snapshot).clone(), now))
+                }
+                _ => None,
+            })
+            .collect()
     }
 
     /// [CR#701.22b,614.17]: a `Cant(Act(name: "Scry"))` static on the
@@ -5925,12 +5952,13 @@ mod tests {
         assert_eq!(scries, 1, "scry 1 fires exactly one keyword event");
     }
 
-    /// "Cards milled this way" ([CR#701.17a,701.17c,607.2a]): a mill inside a
-    /// note window commits the three moves as ONE cause-carried batch and
-    /// populates the product group from the enacted facts. Re-spelled from
-    /// `cards_milled_this_way_reads_the_enacted_product_group` — core deletes
-    /// the `Noting` node, so the window is scheduled directly; the follow-on
-    /// clause that ACTED on the group has no core spelling left and rides
+    /// "Cards milled this way" ([CR#701.17a,701.17c,608.2c]): a mill commits
+    /// the three moves as ONE cause-carried batch, and the product group those
+    /// moves define is exactly their enacted facts. Re-spelled twice: core
+    /// deleted the `Noting` node, and this round deleted the reader-less
+    /// runtime cache, so the group is read from history — the same facts the
+    /// cache was built from. The follow-on clause that ACTED on the group has
+    /// no core spelling left and rides
     /// `a_noted_product_group_can_be_acted_on` below.
     #[test]
     fn cards_milled_this_way_reads_the_enacted_product_group() {
@@ -5939,15 +5967,14 @@ mod tests {
         assert!(libsize >= 3, "the harness deck has cards to mill");
 
         let frame = frame_src(&state, a);
-        run_effect_noting(
+        run_effect_scheduled(
             &mut state,
-            "milled",
             OneShotEffect::mill(Reference::controller_parameter(), Count::Literal(3)),
             &frame,
         );
         run_injected(&mut state);
 
-        let group = &state.noted[&deckmaste_core::Ident::from("milled")];
+        let group = enacted_moves(&state);
         assert_eq!(group.len(), 3, "three enacted mill facts");
         assert!(
             logged(&state, |e| matches!(
@@ -5979,25 +6006,27 @@ mod tests {
     #[test]
     #[ignore = "blocker: a noted product group has no core spelling. `core: \
                 complete discourse regions` deleted Noting and \
-                Selection::AmongNoted, and the runtime store they drove \
-                (GameState.noted, WorkItem::BeginNote/EndNote) now has no \
-                producer — nothing in the engine schedules a note window and \
-                no register reads one back. Unblocked by giving the linked \
-                memory stage ([CR#607], ADR law 8) a Remember instruction \
-                whose cell a later region takes as a Linked parameter."]
+                Selection::AmongNoted, and `core-regions-discourse-closeout` \
+                deleted the reader-less runtime store they drove \
+                (GameState.noted/noting, WorkItem::BeginNote/EndNote); \
+                Selection::PilesOf below is still an engine seam. The GROUP \
+                itself survives as a history query (`enacted_moves`) — what is \
+                missing is a core term that NAMES it. Unblocked by giving the \
+                linked memory stage ([CR#607], ADR law 8) a Remember \
+                instruction whose cell a later region takes as a Linked \
+                parameter."]
     fn a_noted_product_group_can_be_acted_on() {
         let (mut state, a) = bear_on_field();
         let frame = frame_src(&state, a);
-        run_effect_noting(
+        run_effect_scheduled(
             &mut state,
-            "milled",
             OneShotEffect::mill(Reference::controller_parameter(), Count::Literal(3)),
             &frame,
         );
         run_injected(&mut state);
-        let milled: Vec<ObjectId> = state.noted[&deckmaste_core::Ident::from("milled")]
-            .iter()
-            .filter_map(|member| member.now)
+        let milled: Vec<ObjectId> = enacted_moves(&state)
+            .into_iter()
+            .filter_map(|(_, now)| now)
             .collect();
         assert_eq!(milled.len(), 3, "three enacted mill facts");
 
@@ -6111,13 +6140,16 @@ mod tests {
         );
     }
 
-    /// The Blood-Money shape ([CR#607.2a] fact-backed product groups): a
-    /// destroy-all over three creatures inside a note window, one of which
-    /// can't be destroyed — "destroyed this way" is exactly the clause's
-    /// enacted destroy-caused past-form `ZoneChange` facts, so the survivor is
-    /// excluded BY CONSTRUCTION (its `Act(Destroy)` was canted; no move
-    /// fact exists), and the two dies-facts share one history batch id
-    /// ([CR#603.2c]).
+    /// The Blood-Money shape (fact-backed product groups): a destroy-all over
+    /// three creatures, one of which can't be destroyed —
+    /// "destroyed this way" is exactly the clause's enacted destroy-caused
+    /// past-form `ZoneChange` facts, so the survivor is excluded BY
+    /// CONSTRUCTION (its `Act(Destroy)` was canted; no move fact exists), and
+    /// the two dies-facts share one history batch id ([CR#603.2c]).
+    ///
+    /// Re-spelled off the deleted runtime cache onto the facts themselves: the
+    /// exclusion property is a property of WHICH FACTS EXIST, so reading them
+    /// directly proves it at least as strongly as reading a copy did.
     #[test]
     fn destroyed_this_way_product_group_excludes_indestructible_survivor() {
         let (mut state, a, b) = two_permanents_on_field();
@@ -6132,9 +6164,8 @@ mod tests {
         };
 
         let frame = frame_src(&state, a);
-        run_effect_noting(
+        run_effect_scheduled(
             &mut state,
-            "destroyed",
             OneShotEffect::Each(deckmaste_core::Each {
                 over: Selection::SelectAll(candidate_region(creatures_on_the_battlefield())),
                 body: loop_region(OneShotEffect::Act(Action::destroy(Reference::Reg(ELEMENT)))),
@@ -6148,16 +6179,21 @@ mod tests {
                 && state.objects.obj(survivor).zone == Some(Zone::Battlefield),
             "the can't-be-destroyed creature survived"
         );
-        let group = &state.noted[&deckmaste_core::Ident::from("destroyed")];
+        let group = enacted_moves(&state);
         assert_eq!(
             group.len(),
             2,
             "the product group is the ENACTED destroy facts, not the gathered set"
         );
-        let members: Vec<ObjectId> = group.iter().map(|m| m.snapshot.object).collect();
+        let members: Vec<ObjectId> = group.iter().map(|(snapshot, _)| snapshot.object).collect();
         assert!(
             members.contains(&a) && members.contains(&b),
             "exactly the two destroyed creatures, by LKI"
+        );
+        assert!(
+            !members.contains(&survivor),
+            "the survivor is excluded BY CONSTRUCTION — its destroy was canted, \
+             so no move fact exists to join the group"
         );
         // The dies-facts committed as ONE batch ([CR#603.2c]).
         let ids: Vec<Option<deckmaste_core::Uint>> = state

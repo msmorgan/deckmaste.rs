@@ -880,7 +880,8 @@ impl Lower for deckmaste_semantics::Action {
                 duration,
                 one_shot,
             } => deckmaste_core::Action::CreateReplacement {
-                // [CR#614.3]: English names the protected permanent by
+                // [CR#614.1]: a replacement effect acts like a shield around
+                // WHATEVER IT AFFECTS. English names the affected permanent by
                 // discourse ("the next time IT would be destroyed"), so the
                 // shield's subject is the region's nearest permanent-sorted
                 // antecedent, resolved HERE (ADR law 12) and declared as a

@@ -811,7 +811,7 @@ fn apply_one(
 ///
 /// `applied` is the [CR#614.5] lineage already spent against the event this
 /// body replaces (including the very key that just fired) — threaded into
-/// the scheduled frame's [`Anaphora::inherited_replacements`] so a
+/// the scheduled frame's activation context (`inherited_replacements`) so a
 /// keyword-action window `effect` resolves into starts its OWN
 /// `replace_event` loop pre-excluding it ([`inherited_seed`]), rather than
 /// being caught by the SAME replacement all over again.

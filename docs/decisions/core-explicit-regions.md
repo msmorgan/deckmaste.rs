@@ -88,10 +88,25 @@ engine tickets its stages absorb (listed in each stage ticket).
     param N times, sequentially.
 12. **Resolution happens once, in lowering.** Lowering is the compiler:
     scope elaboration, param declaration, lambda lifting for predicates,
-    closure conversion for captures, R1/R2 as per-card diagnostics. The
-    Idris mirror stays the certifier of semantic input, and the two
-    derivations are gate-compared (§17's certifier/resolver split,
-    unchanged).
+    closure conversion for captures, R1/R2 as per-card diagnostics
+    (`deckmaste_lowering::lower_card` returns the refusal as a `Diagnostic`
+    naming the card and the antecedents that collided). The Idris mirror
+    stays the certifier of semantic input, and the two derivations are
+    gate-compared (§17's certifier/resolver split, unchanged) by
+    `cargo xtask idris-check <plugin> --differential`, which pairs the two
+    verdicts card for card and fails on any disagreement. Emitter gaps carry
+    no certifier verdict and are skipped.
+
+    R1/R2 refuse WITHIN a discourse tier, and region-local antecedents form a
+    tier above ones captured from an enclosing region: a loop body's
+    per-element magnitude is what "that much" means inside it, while two
+    magnitudes pinned by the SAME region stay a compile-time refusal. The
+    rules supply no proximity tiebreak to break that tie with — [CR#608.2c]
+    rejects a step-by-step positional reading outright ("read the whole text
+    and apply the rules of English"), and the CR's own mechanism for pinning
+    which earlier value a later clause reads is linkage [CR#607.1], which is
+    identity and never position. Naming the magnitude is therefore the
+    card-side escape.
 13. **Numeric ids, typed riders, a printer.** §14's rejection of stored
     binder names stands. Core is generated, so verbosity is free; a
     pretty-printer that shows riders is the debugging affordance.

@@ -142,8 +142,6 @@ pub(super) fn run_injected(state: &mut GameState) {
                 WorkItem::Emit(_)
                     | WorkItem::RunEffect { .. }
                     | WorkItem::Resolve(_)
-                    | WorkItem::BeginNote { .. }
-                    | WorkItem::EndNote
                     | WorkItem::ChooseNoteNumber { .. }
                     | WorkItem::ChooseNoteCardName { .. }
                     // A keyword action's finalization watcher is injected

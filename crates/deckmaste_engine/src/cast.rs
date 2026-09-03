@@ -462,10 +462,9 @@ pub fn auto_pay_spendable(pool: &ManaPool, cost: &ManaCost, spendable: &[bool]) 
 /// resolution frame whose `controller` is the activator — so the controller
 /// parameter resolves to that player and the source parameter (a
 /// self-sacrifice) to the source — mirroring the frame
-/// any effect node resolves against (`targets`/`bindings`/`chosen` empty: a
-/// cost verb names no targets and carries no trigger context). A
-/// `With(ChooseOne/Choose)` binder inside a verb surfaces its own
-/// `ChooseObjects` decision via `run_effect`'s `chosen.is_none()` path.
+/// any effect node resolves against (no targets, no trigger context: a cost
+/// verb names neither). A chooser inside a verb surfaces its own
+/// `ChooseObjects` decision and writes its own dest register.
 ///
 /// `x` is the value announced for this activation ([CR#601.2b]) — threaded onto
 /// each cost-verb frame so a `Count::X` operand (a loyalty `−X`'s

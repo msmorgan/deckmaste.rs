@@ -282,16 +282,14 @@ pub struct ReplaceState {
 
 /// Resolution-local registers suspended while a stackless mana ability runs.
 /// A mana ability has its own resolution under [CR#605.3b,605.4a] even when it
-/// interrupts another resolving effect, so its anaphora and lookback state
-/// must not overwrite the containing resolution's registers.
+/// interrupts another resolving effect, so its note and lookback state must
+/// not overwrite the containing resolution's.
 #[derive(Debug, Clone)]
 pub(crate) struct ResolutionScopeSnapshot {
     moved_chain: Vec<(crate::object::ObjectId, crate::object::ObjectId)>,
     resolution_events: Vec<GameEvent>,
     resolution_contained_act_commits: std::collections::HashMap<deckmaste_core::VerbName, u64>,
     resolution_contained_act_serial: u64,
-    noted: std::collections::HashMap<deckmaste_core::Ident, Vec<NotedMember>>,
-    noting: Vec<deckmaste_core::Ident>,
     resolution_notes: std::collections::HashMap<deckmaste_core::Ident, NotedValue>,
     arrange_scope: Option<ArrangeScope>,
 }
@@ -473,22 +471,14 @@ pub struct GameImage {
     /// every evolution stage ([CR#603.2c]; a destroy-all's
     /// dies-facts are one occurrence).
     pub(crate) evolving_batch: Option<Vec<GameEvent>>,
-    /// Fact-backed product groups ([CR#607.2a] linkage; the "this way"
-    /// anaphora mechanism): `OneShotEffect::Noting { key, .. }` records the
-    /// object set its inner effect ACTUALLY moved — each enacted past-form
-    /// `ZoneChange` fact's snapshot plus the moved object's post-move
-    /// identity — never the gathered input set. Read by
-    /// `Selection::AmongNoted`.
-    pub noted: std::collections::HashMap<deckmaste_core::Ident, Vec<crate::state::NotedMember>>,
-    /// The keys currently COLLECTING ([CR#607.2a]) — a stack: `BeginNote`
-    /// pushes, `EndNote` pops; while non-empty, every enacted past-form
-    /// `ZoneChange` fact appends to each open key's group.
-    pub(crate) noting: Vec<deckmaste_core::Ident>,
     /// [CR#608.2c] resolution-scoped scalar note slots: a mid-resolution
     /// choice ("choose a number") stored under a note key and read back
-    /// LATER IN THE SAME resolution ([CR#607.2] slot values). Distinct from
-    /// the fact-backed `noted` product group above (object SETS a noting
-    /// clause moved) — this map holds scalar choice anaphora ("that number").
+    /// LATER IN THE SAME resolution ([CR#607.2] slot values). This map holds
+    /// scalar choice anaphora ("that number"); an object-SET product group
+    /// ("destroyed this way" — [CR#608.2c] reads it against the clause that
+    /// caused the moves) is not stored at all: it is a query over the
+    /// resolution's enacted `ZoneChange` facts in `GameState.history`, and its
+    /// core spelling arrives with linked memory (ADR law 8).
     /// A flat map suffices because resolution is stack-disciplined (one entry
     /// resolves at a time); `resolve_object` clears it as each fresh
     /// resolution begins, so a note never leaks into the next resolution
@@ -528,8 +518,6 @@ impl GameImage {
             resolution_contained_act_serial: std::mem::take(
                 &mut self.resolution_contained_act_serial,
             ),
-            noted: std::mem::take(&mut self.noted),
-            noting: std::mem::take(&mut self.noting),
             resolution_notes: std::mem::take(&mut self.resolution_notes),
             arrange_scope: self.arrange_scope.take(),
         });
@@ -544,8 +532,6 @@ impl GameImage {
         self.resolution_events = snapshot.resolution_events;
         self.resolution_contained_act_commits = snapshot.resolution_contained_act_commits;
         self.resolution_contained_act_serial = snapshot.resolution_contained_act_serial;
-        self.noted = snapshot.noted;
-        self.noting = snapshot.noting;
         self.resolution_notes = snapshot.resolution_notes;
         self.arrange_scope = snapshot.arrange_scope;
     }
@@ -612,19 +598,6 @@ pub enum NotedValue {
     Number(Uint),
     /// A chosen card name, read by `Named(key)` during this resolution.
     CardName(String),
-}
-
-/// One member of a noted product group ([CR#607.2a]): the enacted past-form
-/// `ZoneChange` fact's snapshot (the group survives its members' departure
-/// — a destroyed member is read through LKI), plus the moved object's
-/// POST-move identity when it still exists (a milled card is live in the
-/// graveyard; "exile them" acts through this id).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NotedMember {
-    /// The moved object's last-known state, from the enacted fact.
-    pub snapshot: crate::lki::LkiSnapshot,
-    /// The reminted post-move object, if it still exists at collection time.
-    pub now: Option<crate::object::ObjectId>,
 }
 
 impl GameState {
@@ -729,8 +702,6 @@ impl GameState {
             next_batch: 0,
             next_payment: 0,
             evolving_batch: None,
-            noted: std::collections::HashMap::new(),
-            noting: Vec::new(),
             resolution_notes: std::collections::HashMap::new(),
             arrange_scope: None,
             control_stack: Vec::new(),

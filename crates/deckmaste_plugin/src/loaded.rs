@@ -30,3 +30,17 @@ pub struct LoadedToken {
     pub semantic: deckmaste_semantics::Token,
     pub core: deckmaste_core::Token,
 }
+
+/// One card's RESOLVER verdict, from [`Plugin::card_resolution_from_str`](
+/// crate::plugin::Plugin::card_resolution_from_str).
+///
+/// The resolver half of the certifier/resolver differential
+/// (`semantics-spelling-lowering.md` §17): lowering's refusal travels as data,
+/// paired with the card's printed name so the gate can report it.
+#[derive(Debug, Clone)]
+pub struct CardResolution {
+    /// The card's printed name — its identity in a gate report.
+    pub name: String,
+    /// Lowering's verdict: the engine image, or the refusal.
+    pub lowered: Result<deckmaste_card::Card, deckmaste_lowering::Diagnostic>,
+}

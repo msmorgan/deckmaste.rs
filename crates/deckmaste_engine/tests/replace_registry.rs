@@ -640,9 +640,10 @@ fn regenerate_effect(subject_ref: Reference) -> OneShotEffect {
         ]
         .into(),
     );
-    // [CR#614.3]: the shield's subject is the region product the preceding
-    // `Let` pinned; `create_shield` freezes that resolved identity (there is no
-    // semantic `subject:` field).
+    // [CR#614.1]: the shield's subject — whatever it is a shield AROUND — is
+    // the region product the preceding `Let` pinned, named on the instruction;
+    // `create_shield` freezes that resolved identity. Semantics has no
+    // `subject:` field, so lowering resolves the anaphor and declares it.
     OneShotEffect::Sequentially(
         vec![
             OneShotEffect::Let(deckmaste_core::Let {
@@ -652,7 +653,7 @@ fn regenerate_effect(subject_ref: Reference) -> OneShotEffect {
             OneShotEffect::Act(Action::CreateReplacement {
                 // The shield reads the register the preceding `Let` pinned —
                 // the declared subject lowering resolves the anaphor to
-                // ([CR#614.3]), not a search of the register file.
+                // ([CR#614.1]), not a search of the register file.
                 subject: Reference::Reg(REGEN_SUBJECT.into()),
                 replacement: Arc::new(Replacement::Instead { would, instead }),
                 duration: Duration::FixedUntil(TurnMarker::EndOfTurn),

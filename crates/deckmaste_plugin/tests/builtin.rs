@@ -240,7 +240,8 @@ fn regenerate_macro_expands_with_typed_reference_param() {
         plugin.macros.read_str("Regenerate(This)").unwrap();
     let effect = lower_spell_effect(semantic);
     // Core makes the binding explicit: pin the source into a register, then
-    // create the shield NAMING that register as its subject ([CR#614.3]).
+    // create the shield NAMING that register as its subject ([CR#614.1] — a
+    // replacement effect is a shield around whatever it affects).
     let OneShotEffect::Sequentially(steps) = effect else {
         panic!("Regenerate(This) must lower to Let + CreateReplacement, got {effect:?}");
     };

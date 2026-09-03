@@ -2142,8 +2142,8 @@ mod tests {
     /// Copy(Object(That))))` — end to end. Mints a real creature token,
     /// answers the surfaced `ChooseObjects` with it, and asserts the minted
     /// copy matches. This proves the macro RESOLVES: a `With` one-binder
-    /// binds its pick as `Reference::That` (the engine sets only
-    /// `anaphora.that` for a `With`), so the copy source
+    /// binds its pick as `Reference::That`, which lowering resolves to the
+    /// deciding instruction's own dest register, so the copy source
     /// reads `Object(That)` — `Object(It)` would fizzle unbound. Also proves
     /// the token-source copy path (`copiable_values` over a `push_token`
     /// face, [CR#111.4]) and the "you control"/"a token" candidate filter.
@@ -2254,12 +2254,11 @@ mod tests {
     /// This proves the macro RESOLVES, catching a bug the expansion-only test
     /// (`deckmaste_plugin::builtin::amass_decomposes_into_core_primitives`)
     /// can't see: a `With` one-binder binds its pick as `Reference::That`,
-    /// never `It` (the engine sets only `anaphora.that` for a `With` — see
-    /// `run_effect`'s `With` arm), so all three body clauses must read
-    /// `That`; `It` would fizzle unbound, placing no counters and adding no
-    /// subtype. It also proves the one-shot `Continuously(Modify(That,
-    /// ...))` captures the resolved object id at CREATION (a `Locked` scope
-    /// stamped by `eval_reference`), so the subtype lands through the layer
+    /// never `It`, so all three body clauses must read `That`; `It` would
+    /// fizzle unbound, placing no counters and adding no subtype. It also
+    /// proves the one-shot `Continuously(Modify(That, ...))` captures the
+    /// resolved object id at CREATION (a `Locked` scope stamped by
+    /// `eval_reference`), so the subtype lands through the layer
     /// pass even though the creating effect is long gone.
     #[test]
     fn amass_grows_and_subtypes_the_chosen_army() {

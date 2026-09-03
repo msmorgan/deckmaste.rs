@@ -214,14 +214,14 @@ fn run_differential(
     idris_dir: &Path,
     batch_size: usize,
 ) -> anyhow::Result<()> {
-    let certifier = collect_batch_report(plugin, plugin_dir, idris_dir, batch_size)?;
-    let certified: HashSet<&str> = certifier.passes.iter().map(String::as_str).collect();
-    let refuted: HashSet<&str> = certifier
+    let mirror = collect_batch_report(plugin, plugin_dir, idris_dir, batch_size)?;
+    let certified: HashSet<&str> = mirror.passes.iter().map(String::as_str).collect();
+    let refuted: HashSet<&str> = mirror
         .proof_failures
         .iter()
         .map(|failure| failure.card.as_str())
         .collect();
-    let gaps: HashSet<&str> = certifier.gaps.iter().map(|gap| gap.card.as_str()).collect();
+    let gaps: HashSet<&str> = mirror.gaps.iter().map(|gap| gap.card.as_str()).collect();
 
     let mut report = DifferentialReport::default();
     for path in crate::idris_check::card_sources(plugin_dir)? {
@@ -230,17 +230,15 @@ fn run_differential(
         if deckmaste_core::plugin::is_todo_source(&source) {
             continue;
         }
+        // The verdict arrives with the card's printed name, so the two halves
+        // key on one identity rather than on a file stem that may differ.
         let resolution = plugin
             .card_resolution_from_str(&source)
             .with_context(|| format!("parsing {}", path.display()))?;
-        // Name the card the way the certifier does, so the two verdicts key on
-        // one identity rather than on a file stem that may differ.
-        let semantic = plugin
-            .rendering_card_from_str(&source)
-            .with_context(|| format!("parsing {}", path.display()))?;
-        let name = idris_emit::card_display_name(&semantic).to_string();
+        let name = resolution.name;
+        let resolution = resolution.lowered;
 
-        let certifier = if certified.contains(name.as_str()) {
+        let verdict = if certified.contains(name.as_str()) {
             CertifierVerdict::Sound
         } else if refuted.contains(name.as_str()) {
             CertifierVerdict::Unsound
@@ -257,7 +255,7 @@ fn run_differential(
             );
             CertifierVerdict::NoVerdict
         };
-        match pair_verdicts(certifier, resolution.is_ok()) {
+        match pair_verdicts(verdict, resolution.is_ok()) {
             Pairing::AgreedSound => report.agreed_sound += 1,
             Pairing::AgreedUnsound => report.agreed_unsound += 1,
             Pairing::Skipped => report.skipped_gaps += 1,

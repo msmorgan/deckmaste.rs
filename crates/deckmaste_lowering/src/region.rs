@@ -92,7 +92,7 @@ fn card_context() -> String {
     CARD.with(|slot| {
         slot.borrow()
             .as_ref()
-            .map_or_else(|| "<unknown card>".to_owned(), |name| name.to_string())
+            .map_or_else(|| "<unknown card>".to_owned(), ToString::to_string)
     })
 }
 

@@ -682,10 +682,11 @@ mod tests {
         );
     }
 
-    /// `eval_selection_set` returns the bound set for a `Random` slot (the
-    /// value the RNG wrote into `frame.anaphora.chosen`), instead of
-    /// surfacing. (Player choice now rides `With(ChooseOne/Choose, …)`,
-    /// bound as `Those`.)
+    /// `eval_selection_set` returns the bound set for a `Random` slot — the
+    /// value the RNG wrote into the deciding instruction's OWN dest register.
+    /// There is no shared choice slot and no presence flag to test: a chooser
+    /// nested under another chooser writes a different register, so neither
+    /// can read the other's pick by accident.
 
     /// A foreign chooser routes the `ChooseObjects` decision to the binder's
     /// resolved `by` player, not the spell's controller ([CR#608.2d] — "that

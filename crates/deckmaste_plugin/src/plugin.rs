@@ -23,6 +23,7 @@ use deckmaste_core::plugin::card_path;
 use deckmaste_core::plugin::token_path;
 use deckmaste_lowering::Lower;
 
+use crate::loaded::CardResolution;
 use crate::loaded::LoadedCard;
 use crate::loaded::LoadedToken;
 use crate::macros::InsertError;
@@ -408,11 +409,12 @@ impl Plugin {
     /// restricted entry as [`Plugin::card_from_str`], but hand back lowering's
     /// VERDICT as data instead of propagating a refusal.
     ///
-    /// `Ok(Err(diagnostic))` is a card whose text the resolver refuses (an
+    /// A `lowered` of `Err` is a card whose text the resolver refuses (an
     /// ambiguous or unbound anaphor); the differential gate pairs that verdict
     /// against the Idris mirror's certification of the same card. A plain
-    /// `Err` is still a read failure — a card that does not parse has no
-    /// resolver verdict to compare.
+    /// `Err` return is still a read failure — a card that does not parse has
+    /// no resolver verdict to compare. The card's printed name comes back with
+    /// the verdict so a caller never needs a second read to identify it.
     ///
     /// This is not a second read path: it runs the identical restricted read
     /// and the identical `lower_card`, and differs only in whether a refusal
@@ -420,12 +422,13 @@ impl Plugin {
     ///
     /// # Errors
     /// If the source doesn't expand to a card.
-    pub fn card_resolution_from_str(
-        &self,
-        source: &str,
-    ) -> anyhow::Result<Result<deckmaste_card::Card, deckmaste_lowering::Diagnostic>> {
+    pub fn card_resolution_from_str(&self, source: &str) -> anyhow::Result<CardResolution> {
         let semantic: deckmaste_semantics::Card = self.macros.read_str_restricted(source)?;
-        Ok(deckmaste_lowering::lower_card(semantic))
+        let name = crate::idris_emit::card_display_name(&semantic).to_owned();
+        Ok(CardResolution {
+            name,
+            lowered: deckmaste_lowering::lower_card(semantic),
+        })
     }
 
     /// A semantic card WITHOUT identity-macro invocation provenance: the value

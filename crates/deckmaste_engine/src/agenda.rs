@@ -296,14 +296,6 @@ pub enum WorkItem {
     InstallRiders {
         no_regen: Vec<crate::object::ObjectId>,
     },
-    /// Opens a `Noting` collection window ([CR#607.2a] linkage — the
-    /// fact-backed product group): resets `key`'s group and pushes it onto
-    /// the noting stack, so every enacted past-form `ZoneChange` fact until the
-    /// matching `EndNote` joins the group. Scheduled around the noted
-    /// effect's `RunEffect` by `OneShotEffect::Noting`.
-    BeginNote { key: deckmaste_core::Ident },
-    /// Closes the innermost `Noting` collection window ([CR#607.2a]).
-    EndNote,
     /// [CR#401.7]: reposition a card ALREADY in its owner's library to an
     /// anchored end of that same library — a same-zone move that is NOT a zone
     /// change ([CR#400.7]): the `ObjectId` is preserved, no `ZoneChange` fires

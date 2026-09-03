@@ -38,7 +38,7 @@ use crate::stack::Frame;
 use crate::state::GameState;
 
 impl GameState {
-    /// [CR#614.3]: register a floating replacement shield (regeneration, "the
+    /// [CR#614.1]: register a floating replacement shield (regeneration, "the
     /// next time …") on `state.shields`. Mutates `&mut self`, so it can't ride
     /// `action_items` (`&self`); the `Action::CreateReplacement` arm of
     /// `run_effect` routes here.
@@ -60,11 +60,12 @@ impl GameState {
             "create_shield: non-sweepable duration {duration:?} — a ForThisEvent \
              shield would last forever (rider durations never mint instances)"
         );
-        // [CR#614.3]: the protected permanent is the register lowering declared
-        // for it — the shield freezes THAT resolved identity at creation
-        // (`floating_watches` then matches on this frozen subject). A vanished
-        // subject (a bound-but-departed register) fizzles the mint — never a
-        // shield with a null subject, never a panic ([CR#701.8a]).
+        // [CR#614.1]: the protected permanent — whatever this is a shield
+        // AROUND — is the register lowering declared for it. The shield freezes
+        // THAT resolved identity at creation (`floating_watches` then matches
+        // on this frozen subject). A vanished subject (a bound-but-departed
+        // register) fizzles the mint — never a shield with a null subject,
+        // never a panic ([CR#701.8a]).
         let id = self.eval_reference(subject, frame);
         if self.objects.get(id).is_none() {
             return;
@@ -6456,28 +6457,26 @@ mod tests {
     /// full-group read does not need.
     #[test]
     #[ignore = "blocker: a noted product group has no core spelling. `core: \
-                complete discourse regions` deleted Selection::AmongNoted (and \
-                the Noting node that filled the runtime store), so a \
-                constraining read over 'them' has no term to lower to and \
-                GameState.noted has no producer. Unblocked by the linked \
-                memory stage ([CR#607], ADR law 8): Remember writes a cell and \
-                a reading region takes it as a Linked parameter."]
+                complete discourse regions` deleted Selection::AmongNoted and \
+                the Noting node, and `core-regions-discourse-closeout` deleted \
+                the reader-less runtime store they drove (GameState.noted/\
+                noting, WorkItem::BeginNote/EndNote), so a constraining read \
+                over 'them' has neither a term to lower to nor a group to read. \
+                Unblocked by the linked memory stage ([CR#607], ADR law 8): \
+                Remember writes a cell and a reading region takes it as a \
+                Linked parameter."]
     fn among_noted_constrained_quantity_surfaces_and_binds_chooser() {
         use crate::decide::Decision;
         use crate::decide::PendingDecision;
 
         let (mut state, a, b) = two_permanents_on_field();
-        let key = deckmaste_core::Ident::from("grp");
-        // Seed the noted product group with both live permanents.
-        let member = |state: &GameState, id| crate::state::NotedMember {
-            snapshot: crate::lki::LkiSnapshot::capture(state, id),
-            now: Some(id),
-        };
-        let members = vec![member(&state, a), member(&state, b)];
-        state.noted.insert(key, members);
-
+        // The group this reads is "them" — the members a preceding clause
+        // moved. It has no core spelling to seed (see the blocker above), so
+        // the body below stands in the successor's shape: a register holding
+        // the group, read by the constraining chooser.
+        //
         // "Destroy exactly one of them" — a constraining quantity over the
-        // noted group.
+        // group.
         let frame = frame_src(&state, a);
         state.run_effect(
             OneShotEffect::Sequentially(
