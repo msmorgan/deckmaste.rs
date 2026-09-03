@@ -188,7 +188,7 @@ badRepeatedStructuredDisjunct Oh impossible
 public export
 badCantAttackLand : Unspellable (Effect []) (\ok =>
   Macros.cantAttack (Macros.target Macros.land) (Just Macros.thisTurn) {dp = ok})
-badCantAttackLand Participant impossible
+badCantAttackLand Oh impossible
 
 
 ||| "Target creature or land can't block this turn."
@@ -196,7 +196,7 @@ badCantAttackLand Participant impossible
 public export
 badCantDisjunctSubject : Unspellable (Effect []) (\ok =>
   Macros.cantBlock (Macros.target (Or [Macros.creature, Macros.land])) (Just Macros.thisTurn) {dp = ok})
-badCantDisjunctSubject Participant impossible
+badCantDisjunctSubject Oh impossible
 
 
 ||| "Target creature can't be attacked this turn."
@@ -204,14 +204,14 @@ badCantDisjunctSubject Participant impossible
 public export
 badCantBeAttacked : Unspellable (Effect []) (\ok =>
   Continuously (Macros.deontic (Macros.target Macros.creature) Forbid ["Attack"] Patient NoDeonticPatient {dp = ok}) (Just Macros.thisTurn))
-badCantBeAttacked Participant impossible
+badCantBeAttacked Oh impossible
 
 
 ||| "Target creature card in a graveyard can't block this turn."
 ||| A permanent leaving the battlefield is removed from combat [CR#506.4]; a graveyard card has no deed.
 public export
 badCantInGraveyard : Unspellable (Effect []) (\ok =>
-  Macros.cantBlock (Macros.target (And [Macros.creature, InZone Macros.graveyardZ])) (Just Macros.thisTurn) {zn = ok})
+  Macros.cantBlock (Macros.target (And [Macros.creature, InZone Macros.graveyardZ])) (Just Macros.thisTurn) {dp = ok})
 badCantInGraveyard Oh impossible
 
 

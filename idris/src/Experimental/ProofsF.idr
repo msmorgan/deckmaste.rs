@@ -341,7 +341,7 @@ badSingularNameAgreement Refl impossible
 public export
 badCounteredInGraveyard : Unspellable (StaticEffect []) (\ok =>
   Macros.objectCant "Counter"
-    (AllOf (And [Macros.creature, InZone Macros.graveyardZ])) {zn = ok})
+    (AllOf (And [Macros.creature, InZone Macros.graveyardZ])) {dp = ok})
 badCounteredInGraveyard Oh impossible
 
 
@@ -536,7 +536,7 @@ badActivatedSpellClass : Unspellable
   (StaticEffect [MkBinding AD (Quality CardName) OneOf QualityP]) (\ok =>
   Macros.objectCant "Activate"
     (AllOf (And [Macros.spell, Named ChosenName])) {dp = ok})
-badActivatedSpellClass Participant impossible
+badActivatedSpellClass Oh impossible
 
 
 ||| "Activated abilities of artifacts can't be Nothing cast."
@@ -546,7 +546,7 @@ badCastAbilityClass : Unspellable (StaticEffect []) (\ok =>
   Macros.objectCant "Cast"
     (AllOf (And [AbilityHead AnyActivated, AbilityOf (AllOf Macros.artifact)]))
     {dp = ok})
-badCastAbilityClass Participant impossible
+badCastAbilityClass Oh impossible
 
 
 ||| "You may {T} rather than pay this spell's mana cost."
@@ -638,7 +638,7 @@ public export
 badRegeneratedInGraveyard : Unspellable (StaticEffect []) (\ok =>
   Macros.objectCant "Regenerate"
                     (Macros.a (And [Macros.creature, InZone Macros.graveyardZ]))
-                    {zn = ok})
+                    {dp = ok})
 badRegeneratedInGraveyard Oh impossible
 
 

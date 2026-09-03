@@ -95,28 +95,6 @@ sameCardTypeEq a b ok =
     sameJust Refl = Refl
 
 public export
-combatant : CardType -> Bool
-combatant Creature = True
-combatant Planeswalker = False
-combatant Battle = False
-combatant Kindred = False
-combatant Artifact = False
-combatant Land = False
-combatant Enchantment = False
-combatant Instant = False
-combatant Sorcery = False
-combatant Conspiracy = False
-combatant Dungeon = False
-combatant Phenomenon = False
-combatant Plane = False
-combatant Scheme = False
-combatant Vanguard = False
-
-public export
-data FightParticipant : Maybe CardType -> Type where
-  Fighter : {auto 0 ok : So (combatant t)} -> FightParticipant (Just t)
-
-public export
 data Characteristic = Power | Toughness | ManaValue | Loyalty
 
 public export
@@ -1578,6 +1556,10 @@ sameDet SelfD SelfD = True
 sameDet SelfD _ = False
 
 public export
+Eq Determiner where
+  (==) = sameDet
+
+public export
 samePlur : Plurality -> Plurality -> Bool
 samePlur OneOf OneOf = True
 samePlur OneOf ManyOf = False
@@ -2304,18 +2286,15 @@ public export
 data TargetExtent = SomeTarget | SoleTarget
 
 public export
-data DamageableTy : Maybe CardType -> Type where
-  DamCreature : DamageableTy (Just Creature)
-  DamPlaneswalker : DamageableTy (Just Planeswalker)
-  DamBattle : DamageableTy (Just Battle)
+damageableType : CardType -> Bool
+damageableType Creature = True
+damageableType Planeswalker = True
+damageableType Battle = True
+damageableType _ = False
 
 public export
-damageableHalfTy : Maybe CardType -> Bool
-damageableHalfTy Nothing = True
-damageableHalfTy (Just Creature) = True
-damageableHalfTy (Just Planeswalker) = True
-damageableHalfTy (Just Battle) = True
-damageableHalfTy (Just _) = False
+DamageableTy : Maybe CardType -> Type
+DamageableTy ty = So (maybe False damageableType ty)
 
 public export
 data Phrasal : Kind -> Type where

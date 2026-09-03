@@ -369,7 +369,7 @@ badFightGraveyard OnField impossible
 public export
 badFightLand : Unspellable (Effect []) (\ok =>
   Fights (Macros.target (HasType Land)) {ta = ok} (Macros.target Macros.creatureYouDontControl))
-badFightLand Fighter impossible
+badFightLand Oh impossible
 
 
 ||| "When target creature card in your graveyard dies this turn, return that card to the battlefield."

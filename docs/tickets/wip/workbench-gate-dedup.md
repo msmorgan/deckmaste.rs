@@ -67,3 +67,23 @@ head-type predicates are gone; `nounDet` exists and the eleven listed
 predicates read projections rather than matching `Noun`; `flattenPs` is called
 once per gate; `Experimental.Phrase` and `Experimental.Cards` elaboration times
 are recorded before and after. Standard constraints apply.
+
+## As landed
+
+- F6: `Events.deedFits ds r k ts z` / `DeedFits` (kind, head types, zone against `deedsZone`) replaces `DeedParticipant`; `Deontic`'s `zn`+`dp`, `CantBe`'s `kk`/`sub`/`zn` and `CantMoreThan`'s `pk`/`zn` are each one gate (`CantMoreThan` now also reads `headTys p` against the patient row); `counterpartFits` is one call with the `moved` escape as a `Nothing` zone; the 26 `Macros` deontic wrappers carry one `dp`. Written against the current `deedFacts` shape — `workbench-facts-tables` re-homes it.
+- F17: `combatant`, `FightParticipant`, `attackableTy`, `damageableHalfTy` and the `DamageableTy` data are gone. `Fights`, `BecomesBlocking`, `StopsBlocking`, `BecomesAttacking` read `So (deedHeadTysOk "Attack"/"Block" role (nounHeadTys n))` beside their `OnBattlefield` gate (a `DeedFits` there restates the zone a second way and pre-empts `badFightGraveyard`'s `za` refusal); `Attackable` reads `deedHeadTysOk "Attack" Patient`; damage is one `Words.damageableType` with `DamageableTy` a `So` synonym over it. `Fights` now admits a head-type-less noun the way the Attack row's `roleBare` does, where `FightParticipant (Just t)` refused it; no pin covered that.
+- F13: `Phrase.nounDet : Noun bs k -> Maybe Determiner` (Each/EachOf → EachD, Indefinite → AD, Definite/LibrarySlice/TheRest/TheOther → TheD, TargetGroup → TargetD, CountedGroup → CountD, AllOf → AllD, SomeOf/PileOf → PartD, NamesAgree → its group's, else Nothing) plus `Eq Determiner` over `sameDet`. Clauses: `anchorPhrase` 37→6, `choosable` 37→1, `groupMention` 37→3, `partitiveBase` 3→1, `countedMention` 3→2, `perMemberOk` 4→1, `costNounOk` 38→13, `nounIsYou` 37→2, `nounTargeted` 37→11; every predicate's value per constructor is unchanged. `coordinatedPair` and `soleHolderOk` were already two structural clauses and are not determiner facts — untouched.
+- F18: `contradictionFree`, `zonesOk` and `otherAnchorOk` bind `flattenPs ps` once.
+- Pins re-spelled, none added or removed, no witness touched: ten `Participant impossible` → `Oh impossible` (`badCantAttackLand`, `badCantDisjunctSubject`, `badCantBeAttacked`, `badMustAttackLand`, `badCoordinatedLandHostBlocks`, `badPlaneswalkerAttacks`, `badActivatedSpellClass`, `badCastAbilityClass`, `badLandBecomesBlocking`, `badBecomesBlockingPlaneswalker`); `badFightLand` `Fighter` → `Oh`; `{zn = ok}` → `{dp = ok}` on `badCantInGraveyard`, `badUntapCapGraveyardSet`, `badCounteredInGraveyard`, `badRegeneratedInGraveyard`.
+- Probed non-vacuous by mis-stating once (each refused as "not a valid impossible case"): `badCantInGraveyard`, `badFightLand`, `badUntapCapGraveyardSet`, `badBecomesBlockingPlaneswalker`, `badComplementAnchorAnnounces`, `badEachOfDistributive`, `badPartitiveOfDescription`, `badCreatureAttackDefender`, `badDamageArtifact`.
+- Build timings (load average 9–63 from sibling builds throughout; parity within noise). Clean build user CPU: before 104.6s / 88.1s / 65.2s, after 92.5s. Single-module check, alternating before/after at load 9–20: `Phrase` 19.6s→22.6s then 12.7s→12.1s; `Experimental.Cards` 18.4s→20.1s then 13.6s→12.9s. `--timing 1` in clean builds: `Phrase` before 20.6/21.6/14.8s, after 13.2/14.7s; `Experimental.Cards` before 25.2/27.7s, after 34.6/26.9s.
+- Undone: nothing. `nounDet` is the interim projection `workbench-determiner-slot` turns into a field read.
+
+## Landing record
+
+- Construction count: `Noun` unchanged; `DeedParticipant`, `FightParticipant`, `DamageableTy` data types replaced by `So` synonyms; `Eq Determiner` added.
+- Coverage and lock state: printed-card bench coverage unchanged, no witnesses removed, `cr-citations.lock` unchanged.
+- Assurance: restored 0; re-spelled 15 pins; ignored 0; added 0; removed 0.
+- Positive artifacts: 23/23 Idris build; `cite check --list-noncompliant` 0; `cite check` 0 stale of 17887; diff audit selected 0 sites.
+- Deviations and additions: `CantMoreThan` gains the head-type conjunct; `Fights` bare-noun admission per the Attack row; the four `OnBattlefield` rows read head types only rather than `DeedFits` (the `workbench-battlefield-gate-defect` ruling keeps their zone gate).
+- STOPs: none.

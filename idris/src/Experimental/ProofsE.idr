@@ -390,7 +390,7 @@ badCoordinatedLandHostBlocks : Unspellable Ability (\ok =>
   Static (AndAlso [ Gets (AttachHost Enchanted (TypeW Land))
                          (PtUp (Lit 1)) (PtUp (Lit 1))
                   , Macros.deontic It Forbid ["Block"] Agent NoDeonticPatient {dp = ok} ]))
-badCoordinatedLandHostBlocks Participant impossible
+badCoordinatedLandHostBlocks Oh impossible
 
 
 ||| "equipped player"
@@ -451,7 +451,7 @@ public export
 badPlaneswalkerAttacks : Unspellable Ability (\ok =>
   Static (Macros.deontic (AttachHost Enchanted (TypeW Planeswalker))
                   Forbid ["Attack"] Agent NoDeonticPatient {dp = ok}))
-badPlaneswalkerAttacks Participant impossible
+badPlaneswalkerAttacks Oh impossible
 
 
 ||| "Create a 1/1 white Soldier creature token with 'Draw two cards.'"

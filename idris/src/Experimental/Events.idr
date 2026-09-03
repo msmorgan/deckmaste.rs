@@ -423,10 +423,14 @@ deedsZone (d :: ds) r =
     Just z => if deedZoneOf d r == Just z then Just z else Nothing
 
 public export
-data DeedParticipant : Deeds -> Role -> Kind -> List CardType -> Type where
-  Participant : {auto 0 kk : So (all (\d => deedKindOk d r k) ds)} ->
-                {auto 0 ok : So (all (\d => deedHeadTysOk d r ts) ds)} ->
-                DeedParticipant ds r k ts
+deedFits : Deeds -> Role -> Kind -> List CardType -> Maybe Zone -> Bool
+deedFits ds r k ts z =
+  all (\d => deedKindOk d r k && deedHeadTysOk d r ts) ds &&
+  zoneFits z (deedsZone ds r)
+
+public export
+DeedFits : Deeds -> Role -> Kind -> List CardType -> Maybe Zone -> Type
+DeedFits ds r k ts z = So (deedFits ds r k ts z)
 
 public export
 data StaticKind = PtDelta | KeywordGrant | DeedRestriction | TypeAddition

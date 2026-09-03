@@ -372,8 +372,7 @@ mutual
                 {auto 0 ne : NonEmpty deeds} ->
                 {auto 0 dd : So (distinctDeeds deeds)} ->
                 {auto 0 kd : KnownActs deeds} ->
-                {auto 0 zn : ZoneFits (nounZone n) (deedsZone deeds role)} ->
-                {auto 0 dp : DeedParticipant deeds role k (nounHeadTys n)} ->
+                {auto 0 dp : DeedFits deeds role k (nounHeadTys n) (nounZone n)} ->
                 {auto 0 bd : So (deonticBoundOk deeds bound)} ->
                 {auto 0 pt : So (deonticPatientOk n deeds role patient rider)} ->
                 {auto 0 at : So (asThoughOk c deeds asThough)} ->
@@ -563,9 +562,7 @@ mutual
   counterpartFits : {bs : Bindings} -> {k : Kind} -> Deeds -> Role ->
                     Noun bs k -> Bool -> Bool
   counterpartFits {k} ds r m moved =
-    all (\d => deedKindOk d r k) ds &&
-    all (\d => deedHeadTysOk d r (nounHeadTys m)) ds &&
-    (moved || zoneFits (nounZone m) (deedsZone ds r))
+    deedFits ds r k (nounHeadTys m) (if moved then Nothing else nounZone m)
 
   public export
   counterpartNotSelf : {bs : Bindings} -> {k : Kind} -> {ka : Kind} ->
@@ -1049,11 +1046,11 @@ mutual
                  {auto 0 rk : DamageRecipient to} -> Effect bs
     Fights : (a : Noun bs Object) ->
              {auto 0 za : OnBattlefield (nounZone a)} ->
-             {auto 0 ta : FightParticipant (nounTy a)} ->
+             {auto 0 ta : So (deedHeadTysOk "Attack" Agent (nounHeadTys a))} ->
              {auto 0 pa : nounPlur a = OneOf} ->
              (b : Noun (nomIntro a) Object) ->
              {auto 0 zb : OnBattlefield (nounZone b)} ->
-             {auto 0 tb : FightParticipant (nounTy b)} ->
+             {auto 0 tb : So (deedHeadTysOk "Attack" Agent (nounHeadTys b))} ->
              {auto 0 pb : nounPlur b = OneOf} -> Effect bs
     SetStatus : {c : StatusCat} -> (v : StatusVal c) -> (n : Noun bs Object) ->
                 {auto 0 ok : OnBattlefield (nounZone n)} ->
@@ -1070,21 +1067,21 @@ mutual
                {auto 0 zw : OnBattlefield (nounZone what)} -> Effect bs
     BecomesBlocking : (n : Noun bs Object) ->
                       {auto 0 zn : OnBattlefield (nounZone n)} ->
-                      {auto 0 dn : DeedParticipant ["Block"] Agent Object (nounHeadTys n)} ->
+                      {auto 0 dn : So (deedHeadTysOk "Block" Agent (nounHeadTys n))} ->
                       (what : Noun (nomIntro n) Object) ->
                       {auto 0 zw : OnBattlefield (nounZone what)} ->
-                      {auto 0 dw : DeedParticipant ["Block"] Patient Object (nounHeadTys what)} ->
+                      {auto 0 dw : So (deedHeadTysOk "Block" Patient (nounHeadTys what))} ->
                       Effect bs
     StopsBlocking : (n : Noun bs Object) ->
                     {auto 0 zn : OnBattlefield (nounZone n)} ->
-                    {auto 0 dn : DeedParticipant ["Block"] Agent Object (nounHeadTys n)} ->
+                    {auto 0 dn : So (deedHeadTysOk "Block" Agent (nounHeadTys n))} ->
                     (what : Noun (nomIntro n) Object) ->
                     {auto 0 zw : OnBattlefield (nounZone what)} ->
-                    {auto 0 dw : DeedParticipant ["Block"] Patient Object (nounHeadTys what)} ->
+                    {auto 0 dw : So (deedHeadTysOk "Block" Patient (nounHeadTys what))} ->
                     Effect bs
     BecomesAttacking : (n : Noun bs Object) ->
                        {auto 0 zn : OnBattlefield (nounZone n)} ->
-                       {auto 0 dn : DeedParticipant ["Attack"] Agent Object (nounHeadTys n)} ->
+                       {auto 0 dn : So (deedHeadTysOk "Attack" Agent (nounHeadTys n))} ->
                        (whom : AttackDefender (nomIntro n)) -> Effect bs
     Regenerate : (n : Noun bs Object) ->
                  {auto 0 zn : OnBattlefield (nounZone n)} ->
@@ -1093,9 +1090,7 @@ mutual
              (what : Noun (riderIntro e) k) ->
              {auto 0 kd : KnownAct deed} ->
              {auto 0 rd : So (deedRidesOk deed)} ->
-             {auto 0 kk : So (deedKindOk deed Patient k)} ->
-             {auto 0 sub : DeedParticipant [deed] Patient k (nounHeadTys what)} ->
-             {auto 0 zn : ZoneFits (nounZone what) (deedZoneOf deed Patient)} ->
+             {auto 0 sub : DeedFits [deed] Patient k (nounHeadTys what) (nounZone what)} ->
              Effect bs
     GainsDesignation : {k : Kind} -> (n : Noun bs k) -> (d : Designation) ->
                        (w : GivingWarrant d) ->

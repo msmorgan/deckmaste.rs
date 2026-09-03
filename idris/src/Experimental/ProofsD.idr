@@ -396,7 +396,7 @@ public export
 badMustAttackLand : Unspellable (Effect []) (\ok =>
   Continuously (Macros.deontic (Macros.target Macros.land) Require ["Attack"] Agent NoDeonticPatient {dp = ok})
                (Just Macros.thisTurn))
-badMustAttackLand Participant impossible
+badMustAttackLand Oh impossible
 
 
 ||| "target creature card in your graveyard that is your Ring-bearer"

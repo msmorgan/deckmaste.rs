@@ -715,19 +715,17 @@ deontic : {k : Kind} -> (n : Noun bs k) -> (c : Compulsion (selfSubjIntro n)) ->
           {auto 0 ne : NonEmpty deeds} ->
           {auto 0 dd : So (distinctDeeds deeds)} ->
           {auto 0 kd : KnownActs deeds} ->
-          {auto 0 zn : ZoneFits (nounZone n) (deedsZone deeds role)} ->
-          {auto 0 dp : DeedParticipant deeds role k (nounHeadTys n)} ->
+          {auto 0 dp : DeedFits deeds role k (nounHeadTys n) (nounZone n)} ->
           {auto 0 pt : So (deonticPatientOk n deeds role patient NoDeonticRider)} ->
           StaticEffect bs
 deontic n c deeds role patient =
-  Deontic n c deeds role Nothing patient Nothing NoDeonticRider {ne} {dd} {kd} {zn} {dp} {pt}
+  Deontic n c deeds role Nothing patient Nothing NoDeonticRider {ne} {dd} {kd} {dp} {pt}
 
 public export
 cantMoreThan : (who : Noun bs Player) -> (deed : VerbLabel) -> (k : Nat) ->
                (p : Predicate (nomIntro who) Object) ->
                {auto 0 kd : KnownActs [deed]} ->
-               {auto 0 zn : ZoneFits (nounZone who) (deedsZone [deed] Agent)} ->
-               {auto 0 dp : DeedParticipant [deed] Agent Player (nounHeadTys who)} ->
+               {auto 0 dp : DeedFits [deed] Agent Player (nounHeadTys who) (nounZone who)} ->
                {auto 0 bd : So (deonticBoundOk {bs = nomIntro who} [deed]
                                                 (Just (MoreThan (Lit k))))} ->
                {auto 0 pt : So (deonticPatientOk who [deed] Agent
@@ -735,13 +733,12 @@ cantMoreThan : (who : Noun bs Player) -> (deed : VerbLabel) -> (k : Nat) ->
                StaticEffect bs
 cantMoreThan who deed k p =
   Deontic who Forbid [deed] Agent (Just (MoreThan (Lit k))) (DeonticCounterpart (AllOf p))
-          Nothing NoDeonticRider {kd} {zn} {dp} {bd} {pt}
+          Nothing NoDeonticRider {kd} {dp} {bd} {pt}
 
 public export
 mayPlayAdditionalLands : (who : Noun bs Player) -> (q : Quantity (nomIntro who)) ->
                          {auto 0 nz : NonZeroQ q} -> {auto 0 wf : WellFormedQ q} ->
-                         {auto 0 zn : ZoneFits (nounZone who) (deedsZone ["Play"] Agent)} ->
-                         {auto 0 dp : DeedParticipant ["Play"] Agent Player (nounHeadTys who)} ->
+                         {auto 0 dp : DeedFits ["Play"] Agent Player (nounHeadTys who) (nounZone who)} ->
                          {auto 0 bd : So (deonticBoundOk ["Play"] (Just (Additional q)))} ->
                          {auto 0 pt : So (deonticPatientOk who ["Play"] Agent
                                             (DeonticCounterpart (AllOf Macros.land))
@@ -749,13 +746,12 @@ mayPlayAdditionalLands : (who : Noun bs Player) -> (q : Quantity (nomIntro who))
                          StaticEffect bs
 mayPlayAdditionalLands who q =
   Deontic who Permit ["Play"] Agent (Just (Additional q)) (DeonticCounterpart (AllOf Macros.land))
-          Nothing NoDeonticRider {zn} {dp} {bd} {pt}
+          Nothing NoDeonticRider {dp} {bd} {pt}
 
 public export
 mayBlockAdditional : (n : Noun bs Object) -> (q : Quantity (nomIntro n)) ->
                      {auto 0 nz : NonZeroQ q} -> {auto 0 wf : WellFormedQ q} ->
-                     {auto 0 zn : ZoneFits (nounZone n) (deedsZone ["Block"] Agent)} ->
-                     {auto 0 dp : DeedParticipant ["Block"] Agent Object (nounHeadTys n)} ->
+                     {auto 0 dp : DeedFits ["Block"] Agent Object (nounHeadTys n) (nounZone n)} ->
                      {auto 0 bd : So (deonticBoundOk ["Block"] (Just (Additional q)))} ->
                      {auto 0 pt : So (deonticPatientOk n ["Block"] Agent
                                         (DeonticCounterpart (AllOf Macros.creature))
@@ -763,162 +759,147 @@ mayBlockAdditional : (n : Noun bs Object) -> (q : Quantity (nomIntro n)) ->
                      StaticEffect bs
 mayBlockAdditional n q =
   Deontic n Permit ["Block"] Agent (Just (Additional q)) (DeonticCounterpart (AllOf Macros.creature))
-          Nothing NoDeonticRider {zn} {dp} {bd} {pt}
+          Nothing NoDeonticRider {dp} {bd} {pt}
 
 public export
 mayVoteAdditional : (who : Noun bs Player) -> (q : Quantity (nomIntro who)) ->
                     {auto 0 nz : NonZeroQ q} -> {auto 0 wf : WellFormedQ q} ->
-                    {auto 0 zn : ZoneFits (nounZone who) (deedsZone ["Vote"] Agent)} ->
-                    {auto 0 dp : DeedParticipant ["Vote"] Agent Player (nounHeadTys who)} ->
+                    {auto 0 dp : DeedFits ["Vote"] Agent Player (nounHeadTys who) (nounZone who)} ->
                     {auto 0 bd : So (deonticBoundOk ["Vote"] (Just (Additional q)))} ->
                     StaticEffect bs
 mayVoteAdditional who q =
   Deontic who Permit ["Vote"] Agent (Just (Additional q)) NoDeonticPatient
-          Nothing NoDeonticRider {zn} {dp} {bd}
+          Nothing NoDeonticRider {dp} {bd}
 
 public export
 doesntUntap : (n : Noun bs Object) -> (w : Maybe Owner) ->
               {auto 0 wk : WindowOk UntapStep w} ->
-              {auto 0 zn : ZoneFits (nounZone n) (deedsZone ["Untap"] Patient)} ->
-              {auto 0 dp : DeedParticipant ["Untap"] Patient Object (nounHeadTys n)} ->
+              {auto 0 dp : DeedFits ["Untap"] Patient Object (nounHeadTys n) (nounZone n)} ->
               StaticEffect bs
 doesntUntap n w =
   OnlyDuring UntapStep w
-    (Deontic n Forbid ["Untap"] Patient Nothing NoDeonticPatient Nothing NoDeonticRider {zn} {dp})
+    (Deontic n Forbid ["Untap"] Patient Nothing NoDeonticPatient Nothing NoDeonticRider {dp})
     {wk}
 
 public export
 mayDeclineUntap : (n : Noun bs Object) -> (w : Maybe Owner) ->
                   {auto 0 wk : WindowOk UntapStep w} ->
-                  {auto 0 zn : ZoneFits (nounZone n) (deedsZone ["Untap"] Patient)} ->
-                  {auto 0 dp : DeedParticipant ["Untap"] Patient Object (nounHeadTys n)} ->
+                  {auto 0 dp : DeedFits ["Untap"] Patient Object (nounHeadTys n) (nounZone n)} ->
                   StaticEffect bs
 mayDeclineUntap n w =
   OnlyDuring UntapStep w
-    (Deontic n Permit ["Untap"] Patient Nothing NoDeonticPatient Nothing NoDeonticRider {zn} {dp})
+    (Deontic n Permit ["Untap"] Patient Nothing NoDeonticPatient Nothing NoDeonticRider {dp})
     {wk}
 
 public export
 untapsDuring : (n : Noun bs Object) -> (w : Maybe Owner) ->
                {auto 0 wk : WindowOk UntapStep w} ->
-               {auto 0 zn : ZoneFits (nounZone n) (deedsZone ["Untap"] Patient)} ->
-               {auto 0 dp : DeedParticipant ["Untap"] Patient Object (nounHeadTys n)} ->
+               {auto 0 dp : DeedFits ["Untap"] Patient Object (nounHeadTys n) (nounZone n)} ->
                StaticEffect bs
 untapsDuring n w =
   OnlyDuring UntapStep w
-    (Deontic n Require ["Untap"] Patient Nothing NoDeonticPatient Nothing NoDeonticRider {zn} {dp})
+    (Deontic n Require ["Untap"] Patient Nothing NoDeonticPatient Nothing NoDeonticRider {dp})
     {wk}
 
 public export
 cantAttack : (n : Noun bs Object) -> (span : Maybe (Duration (selfSubjIntro n))) ->
-             {auto 0 zn : ZoneFits (nounZone n) (deedsZone ["Attack"] Agent)} ->
-             {auto 0 dp : DeedParticipant ["Attack"] Agent Object (nounHeadTys n)} ->
+             {auto 0 dp : DeedFits ["Attack"] Agent Object (nounHeadTys n) (nounZone n)} ->
              {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
 cantAttack n span =
-  Continuously (Deontic n Forbid ["Attack"] Agent Nothing NoDeonticPatient Nothing NoDeonticRider {zn} {dp}) span {sp}
+  Continuously (Deontic n Forbid ["Attack"] Agent Nothing NoDeonticPatient Nothing NoDeonticRider {dp}) span {sp}
 
 public export
 cantBlock : (n : Noun bs Object) -> (span : Maybe (Duration (selfSubjIntro n))) ->
-            {auto 0 zn : ZoneFits (nounZone n) (deedsZone ["Block"] Agent)} ->
-            {auto 0 dp : DeedParticipant ["Block"] Agent Object (nounHeadTys n)} ->
+            {auto 0 dp : DeedFits ["Block"] Agent Object (nounHeadTys n) (nounZone n)} ->
             {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
 cantBlock n span =
-  Continuously (Deontic n Forbid ["Block"] Agent Nothing NoDeonticPatient Nothing NoDeonticRider {zn} {dp}) span {sp}
+  Continuously (Deontic n Forbid ["Block"] Agent Nothing NoDeonticPatient Nothing NoDeonticRider {dp}) span {sp}
 
 public export
 canDoAsThough : {k : Kind} -> (n : Noun bs k) -> (deed : VerbLabel) ->
                 (p : Predicate (nomIntro n) Object) ->
                 {auto 0 kd : KnownActs [deed]} ->
-                {auto 0 zn : ZoneFits (nounZone n) (deedsZone [deed] Agent)} ->
-                {auto 0 dp : DeedParticipant [deed] Agent k (nounHeadTys n)} ->
+                {auto 0 dp : DeedFits [deed] Agent k (nounHeadTys n) (nounZone n)} ->
                 {auto 0 at : So (asThoughOk (Permit {bs = selfSubjIntro n}) [deed] (Just (AsThoughOf p)))} ->
                 StaticEffect bs
 canDoAsThough n deed p =
   Deontic n Permit [deed] Agent Nothing NoDeonticPatient (Just (AsThoughOf p)) NoDeonticRider
-          {kd} {zn} {dp} {at}
+          {kd} {dp} {at}
 
 public export
 maySpendAsThough : (who : Noun bs Player) ->
                    (what : Maybe ColorOrColorless) -> (as : ManaMatch) ->
                    (purpose : Maybe (SpendPurpose (nomIntro who))) ->
                    {auto 0 kd : KnownActs ["Spend"]} ->
-                   {auto 0 zn : ZoneFits (nounZone who) (deedsZone ["Spend"] Agent)} ->
-                   {auto 0 dp : DeedParticipant ["Spend"] Agent Player (nounHeadTys who)} ->
+                   {auto 0 dp : DeedFits ["Spend"] Agent Player (nounHeadTys who) (nounZone who)} ->
                    {auto 0 at : So (asThoughOk (Permit {bs = selfSubjIntro who}) ["Spend"]
                                                (Just (AsThoughMana what as purpose)))} ->
                    StaticEffect bs
 maySpendAsThough who what as purpose =
   Deontic who Permit ["Spend"] Agent Nothing NoDeonticPatient
           (Just (AsThoughMana what as purpose)) NoDeonticRider
-          {kd = Oh} {dd = Oh} {zn} {dp} {bd = Oh} {at} {pt = Oh} {rd = Oh}
+          {kd = Oh} {dd = Oh} {dp} {bd = Oh} {at} {pt = Oh} {rd = Oh}
 
 public export
 playerCant : (deed : VerbLabel) -> (who : Noun bs Player) ->
              {auto 0 kd : KnownActs [deed]} ->
-             {auto 0 zn : ZoneFits (nounZone who) (deedsZone [deed] Agent)} ->
-             {auto 0 dp : DeedParticipant [deed] Agent Player (nounHeadTys who)} ->
+             {auto 0 dp : DeedFits [deed] Agent Player (nounHeadTys who) (nounZone who)} ->
              StaticEffect bs
 playerCant deed who = Deontic who Forbid [deed] Agent Nothing NoDeonticPatient Nothing NoDeonticRider
-                              {kd} {zn} {dp}
+                              {kd} {dp}
 
 public export
 objectCant : {k : Kind} -> (deed : VerbLabel) -> (what : Noun bs k) ->
              {auto 0 kd : KnownActs [deed]} ->
-             {auto 0 zn : ZoneFits (nounZone what) (deedsZone [deed] Patient)} ->
-             {auto 0 dp : DeedParticipant [deed] Patient k (nounHeadTys what)} ->
+             {auto 0 dp : DeedFits [deed] Patient k (nounHeadTys what) (nounZone what)} ->
              StaticEffect bs
 objectCant deed what =
-  Deontic what Forbid [deed] Patient Nothing NoDeonticPatient Nothing NoDeonticRider {kd} {zn} {dp}
+  Deontic what Forbid [deed] Patient Nothing NoDeonticPatient Nothing NoDeonticRider {kd} {dp}
 
 public export
 cantDoTo : {k : Kind} -> {kw : Kind} -> (deed : VerbLabel) ->
            (who : Noun bs k) -> (what : Noun (nomIntro who) kw) ->
            {auto 0 kd : KnownActs [deed]} ->
-           {auto 0 zn : ZoneFits (nounZone who) (deedsZone [deed] Agent)} ->
-           {auto 0 dp : DeedParticipant [deed] Agent k (nounHeadTys who)} ->
+           {auto 0 dp : DeedFits [deed] Agent k (nounHeadTys who) (nounZone who)} ->
            {auto 0 pt : So (deonticPatientOk who [deed] Agent
                               (DeonticCounterpart what)
                               NoDeonticRider)} ->
            StaticEffect bs
 cantDoTo deed who what =
   Deontic who Forbid [deed] Agent Nothing (DeonticCounterpart what) Nothing NoDeonticRider
-          {kd} {zn} {dp} {pt}
+          {kd} {dp} {pt}
 
 public export
 cantBeTargetedBy : {k : Kind} -> {ka : Kind} -> (what : Noun bs k) ->
                    (by : Noun (nomIntro what) ka) ->
                    {auto 0 tr : Targeter ka} ->
-                   {auto 0 zn : ZoneFits (nounZone what) (deedsZone ["Target"] Patient)} ->
-                   {auto 0 dp : DeedParticipant ["Target"] Patient k (nounHeadTys what)} ->
+                   {auto 0 dp : DeedFits ["Target"] Patient k (nounHeadTys what) (nounZone what)} ->
                    StaticEffect bs
 cantBeTargetedBy what by =
-  Deontic what Forbid ["Target"] Patient Nothing (TargetedBy by {tr}) Nothing NoDeonticRider {zn} {dp}
+  Deontic what Forbid ["Target"] Patient Nothing (TargetedBy by {tr}) Nothing NoDeonticRider {dp}
 
 public export
 canBeTargetedAsThough : {k : Kind} -> {ka : Kind} -> (what : Noun bs k) ->
                         (by : Noun (nomIntro what) ka) ->
                         (p : Predicate (nomIntro what) Object) ->
                         {auto 0 tr : Targeter ka} ->
-                        {auto 0 zn : ZoneFits (nounZone what) (deedsZone ["Target"] Patient)} ->
-                        {auto 0 dp : DeedParticipant ["Target"] Patient k (nounHeadTys what)} ->
+                        {auto 0 dp : DeedFits ["Target"] Patient k (nounHeadTys what) (nounZone what)} ->
                         StaticEffect bs
 canBeTargetedAsThough what by p =
   Deontic what Permit ["Target"] Patient Nothing (TargetedBy by {tr}) (Just (AsThoughOf p))
-          NoDeonticRider {zn} {dp}
+          NoDeonticRider {dp}
 
 public export
 cantBeBlocked : (n : Noun bs Object) -> (span : Maybe (Duration (selfSubjIntro n))) ->
-                {auto 0 zn : ZoneFits (nounZone n) (deedsZone ["Block"] Patient)} ->
-                {auto 0 dp : DeedParticipant ["Block"] Patient Object (nounHeadTys n)} ->
+                {auto 0 dp : DeedFits ["Block"] Patient Object (nounHeadTys n) (nounZone n)} ->
                 {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
 cantBeBlocked n span =
-  Continuously (Deontic n Forbid ["Block"] Patient Nothing NoDeonticPatient Nothing NoDeonticRider {zn} {dp}) span {sp}
+  Continuously (Deontic n Forbid ["Block"] Patient Nothing NoDeonticPatient Nothing NoDeonticRider {dp}) span {sp}
 
 public export
 mustBlockIt : {bs : Bindings} -> (n : Noun bs Object) ->
               (span : Maybe (Duration (selfSubjIntro n))) ->
-              {auto 0 zn : ZoneFits (nounZone n) (deedsZone ["Block"] Agent)} ->
-              {auto 0 dp : DeedParticipant ["Block"] Agent Object (nounHeadTys n)} ->
+              {auto 0 dp : DeedFits ["Block"] Agent Object (nounHeadTys n) (nounZone n)} ->
               {auto 0 ok : countOnes Object bs = 1} ->
               {auto 0 pt : So (deonticPatientOk n ["Block"] Agent
                                  (DeonticCounterpart (ItOtherThan (nounDelta n) bs {ok}))
@@ -927,7 +908,7 @@ mustBlockIt : {bs : Bindings} -> (n : Noun bs Object) ->
 mustBlockIt n span =
   Continuously (Deontic n Require ["Block"] Agent Nothing
                   (DeonticCounterpart (ItOtherThan (nounDelta n) bs {ok}))
-                  Nothing NoDeonticRider {zn} {dp} {pt})
+                  Nothing NoDeonticRider {dp} {pt})
                span {sp}
 
 
@@ -1960,8 +1941,7 @@ mayPlayDeed : (deed : VerbLabel) -> (who : Noun bs Player) ->
               (rider : DeonticRider (nomIntro what)) ->
               {auto 0 kd : KnownActs [deed]} ->
               {auto 0 dd : So (distinctDeeds [deed])} ->
-              {auto 0 zn : ZoneFits (nounZone who) (deedsZone [deed] Agent)} ->
-              {auto 0 dp : DeedParticipant [deed] Agent Player (nounHeadTys who)} ->
+              {auto 0 dp : DeedFits [deed] Agent Player (nounHeadTys who) (nounZone who)} ->
               {auto 0 pt : So (deonticPatientOk who [deed] Agent
                                                 (DeonticCounterpart what)
                                                 rider)} ->
@@ -1972,7 +1952,7 @@ mayPlayDeed : (deed : VerbLabel) -> (who : Noun bs Player) ->
               StaticEffect bs
 mayPlayDeed deed who what rider =
   Deontic who Permit [deed] Agent Nothing (DeonticCounterpart what) Nothing rider
-          {kd} {dd} {zn} {dp} {pt} {rd}
+          {kd} {dd} {dp} {pt} {rd}
 
 public export
 leavesBattlefield : {0 bs : Bindings} -> (n : Noun bs Object) ->

@@ -687,7 +687,7 @@ public export
 badLandBecomesBlocking : Unspellable (Effect []) (\ok =>
   BecomesBlocking (Macros.target Macros.land)
                   (Macros.a (And [Macros.creature, Attacking])) {dn = ok})
-badLandBecomesBlocking Participant impossible
+badLandBecomesBlocking Oh impossible
 
 
 ||| "This creature blocks target planeswalker."
@@ -695,7 +695,7 @@ public export
 badBecomesBlockingPlaneswalker : Unspellable (Effect []) (\ok =>
   BecomesBlocking Macros.thisCreature
                   (Macros.target (HasType Planeswalker)) {dw = ok})
-badBecomesBlockingPlaneswalker Participant impossible
+badBecomesBlockingPlaneswalker Oh impossible
 
 
 ||| "During each opponent's next turn, ..."

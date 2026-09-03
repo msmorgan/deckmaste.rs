@@ -748,11 +748,10 @@ mutual
 
   public export
   zonesOk : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
-  zonesOk ps = zonesAgree Nothing (flattenPs ps) &&
-               not (elem (zoneOr Battlefield (seedZoneAll (flattenPs ps)))
-                         (negZones (flattenPs ps))) &&
-               zoneAdmitsAll (zoneOr Battlefield (seedZoneAll (flattenPs ps)))
-                             (flattenPs ps)
+  zonesOk ps =
+    let fs = flattenPs ps
+        z = zoneOr Battlefield (seedZoneAll fs) in
+    zonesAgree Nothing fs && not (elem z (negZones fs)) && zoneAdmitsAll z fs
 
   public export
   ZoneCoherent : List (Predicate bs k) -> Type
@@ -1058,15 +1057,15 @@ mutual
 
   public export
   contradictionFree : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
-  contradictionFree ps = noNegatedPair (flattenPs ps) &&
-                         not (anySeedEmptied (negTypes (flattenPs ps))
-                                             (flattenPs ps)) &&
-                         noStatusClash (flattenPs ps) &&
-                         noCombatRoleClash (flattenPs ps) &&
-                         noColorClash (flattenPs ps) &&
-                         noCardTokenClash (flattenPs ps) &&
-                         not (anyPermanentHead (flattenPs ps) &&
-                              anyNonPermanentTy (flattenPs ps))
+  contradictionFree ps =
+    let fs = flattenPs ps in
+    noNegatedPair fs &&
+    not (anySeedEmptied (negTypes fs) fs) &&
+    noStatusClash fs &&
+    noCombatRoleClash fs &&
+    noColorClash fs &&
+    noCardTokenClash fs &&
+    not (anyPermanentHead fs && anyNonPermanentTy fs)
 
   public export
   ContradictionFree : List (Predicate bs k) -> Type
@@ -1089,10 +1088,11 @@ mutual
   otherAnchorOk : {bs : Bindings} -> (k : Kind) -> List CardType ->
                   List (Predicate bs k) -> Bool
   otherAnchorOk k ts ps =
-    if atMostOne (countOthers (flattenPs ps))
+    let fs = flattenPs ps in
+    if atMostOne (countOthers fs)
       then (if hasBareOtherAny ps
               then anyTargeted k bs
-              else complementAnchorsOk ts (flattenPs ps))
+              else complementAnchorsOk ts fs)
       else False
 
   public export
@@ -2294,44 +2294,30 @@ mutual
   TestSubject {bs} {k} n = So (testSubjectOk n)
 
   public export
+  nounDet : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Maybe Determiner
+  nounDet (Each _) = Just EachD
+  nounDet (Indefinite _ _) = Just AD
+  nounDet (Definite _) = Just TheD
+  nounDet (TargetGroup _ _) = Just TargetD
+  nounDet (CountedGroup _ _ _) = Just CountD
+  nounDet (AllOf _) = Just AllD
+  nounDet (EachOf _) = Just EachD
+  nounDet (LibrarySlice _ _ _) = Just TheD
+  nounDet (SomeOf _ _ _) = Just PartD
+  nounDet (NamesAgree _ grp) = nounDet grp
+  nounDet TheRest = Just TheD
+  nounDet TheOther = Just TheD
+  nounDet (PileOf _ _) = Just PartD
+  nounDet _ = Nothing
+
+  public export
   anchorPhrase : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
-  anchorPhrase This = True
-  anchorPhrase (AsType t n _) = anchorPhrase n
-  anchorPhrase (ResolvedPermanent n) = anchorPhrase n
-  anchorPhrase (AsMarker _ n) = anchorPhrase n
-  anchorPhrase TheGrantor = True
-  anchorPhrase TheEmblemGrantor = True
-  anchorPhrase TheDefendingPlayer = True
-  anchorPhrase TheAttackingPlayer = True
-  anchorPhrase You = True
-  anchorPhrase (PlayerGroup _) = True
-  anchorPhrase (Each _) = False
-  anchorPhrase (Indefinite _ _) = False
-  anchorPhrase (Definite _) = False
-  anchorPhrase (TargetGroup _ _) = True
-  anchorPhrase (CountedGroup _ _ _) = False
-  anchorPhrase (AllOf _) = False
-  anchorPhrase (EachOf _) = False
-  anchorPhrase (Both _ _) = False
   anchorPhrase (EitherOf l r) = anchorPhrase l && anchorPhrase r
   anchorPhrase (EitherJoined l r) = anchorPhrase l && anchorPhrase r
+  anchorPhrase (Both _ _) = False
   anchorPhrase (BothOf _ _) = False
   anchorPhrase (EachOfBoth _) = False
-  anchorPhrase (LibrarySlice _ _ _) = False
-  anchorPhrase (SomeOf _ _ _) = False
-  anchorPhrase (NamesAgree _ grp) = anchorPhrase grp
-  anchorPhrase TheRest = False
-  anchorPhrase TheOther = False
-  anchorPhrase (PileOf _ _) = False
-  anchorPhrase (Pro _ _) = True
-  anchorPhrase (ItOtherThan _ _) = True
-  anchorPhrase (ItPrior _ _) = True
-  anchorPhrase (Own _ _ _) = True
-  anchorPhrase (AttachHost _ _) = True
-  anchorPhrase (ControllerOf _) = True
-  anchorPhrase (OwnerOf _) = True
-  anchorPhrase (PossessorsOf _ _) = True
-  anchorPhrase (Designated _ _) = True
+  anchorPhrase n = maybe True (== TargetD) (nounDet n)
 
   public export
   data ComplementAnchor : Noun bs k -> Type where
@@ -2360,43 +2346,7 @@ mutual
 
   public export
   choosable : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
-  choosable This = False
-  choosable (AsType _ _ _) = False
-  choosable (ResolvedPermanent _) = False
-  choosable (AsMarker _ _) = False
-  choosable TheGrantor = False
-  choosable TheEmblemGrantor = False
-  choosable TheDefendingPlayer = False
-  choosable TheAttackingPlayer = False
-  choosable You = False
-  choosable (PlayerGroup _) = False
-  choosable (Each _) = False
-  choosable (Indefinite _ _) = True
-  choosable (Definite _) = False
-  choosable (TargetGroup _ _) = True
-  choosable (CountedGroup _ _ _) = True
-  choosable (AllOf _) = False
-  choosable (EachOf _) = False
-  choosable (Both _ _) = False
-  choosable (EitherOf _ _) = False
-  choosable (EitherJoined _ _) = False
-  choosable (BothOf _ _) = False
-  choosable (EachOfBoth _) = False
-  choosable (LibrarySlice _ _ _) = False
-  choosable (SomeOf _ _ _) = False
-  choosable (NamesAgree _ grp) = choosable grp
-  choosable TheRest = False
-  choosable TheOther = False
-  choosable (PileOf _ _) = False
-  choosable (Pro _ _) = False
-  choosable (ItOtherThan _ _) = False
-  choosable (ItPrior _ _) = False
-  choosable (Own _ _ _) = False
-  choosable (AttachHost _ _) = False
-  choosable (ControllerOf _) = False
-  choosable (OwnerOf _) = False
-  choosable (PossessorsOf _ _) = False
-  choosable (Designated _ _) = False
+  choosable n = elem (nounDet n) [Just AD, Just TargetD, Just CountD]
 
   public export
   Choosable : Noun bs k -> Type
@@ -2426,43 +2376,9 @@ mutual
 
   public export
   groupMention : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
-  groupMention (TargetGroup _ _) = True
-  groupMention (Pro _ pl) = not (isOne pl)
-  groupMention This = False
-  groupMention (AsType _ _ _) = False
-  groupMention (ResolvedPermanent _) = False
-  groupMention (AsMarker _ _) = False
-  groupMention TheGrantor = False
-  groupMention TheEmblemGrantor = False
-  groupMention TheDefendingPlayer = False
-  groupMention TheAttackingPlayer = False
-  groupMention You = False
-  groupMention (PlayerGroup _) = False
-  groupMention (Each _) = False
-  groupMention (Indefinite _ _) = False
-  groupMention (Definite _) = False
-  groupMention (CountedGroup _ _ _) = False
-  groupMention (AllOf _) = False
-  groupMention (EachOf _) = False
-  groupMention (Both _ _) = False
-  groupMention (EitherOf _ _) = False
-  groupMention (EitherJoined _ _) = False
-  groupMention (BothOf _ _) = False
-  groupMention (EachOfBoth _) = False
   groupMention (LibrarySlice _ _ _) = True
-  groupMention (SomeOf _ _ _) = False
-  groupMention (NamesAgree _ grp) = groupMention grp
-  groupMention TheRest = False
-  groupMention TheOther = False
-  groupMention (PileOf _ _) = False
-  groupMention (ItOtherThan _ _) = False
-  groupMention (ItPrior _ _) = False
-  groupMention (Own _ _ _) = False
-  groupMention (AttachHost _ _) = False
-  groupMention (ControllerOf _) = False
-  groupMention (OwnerOf _) = False
-  groupMention (PossessorsOf _ _) = False
-  groupMention (Designated _ _) = False
+  groupMention (Pro _ pl) = not (isOne pl)
+  groupMention n = nounDet n == Just TargetD
 
   public export
   GroupMention : Noun bs k -> Type
@@ -2470,9 +2386,7 @@ mutual
 
   public export
   partitiveBase : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
-  partitiveBase (AllOf _) = True
-  partitiveBase (NamesAgree _ grp) = partitiveBase grp
-  partitiveBase n = groupMention n
+  partitiveBase n = nounDet n == Just AllD || groupMention n
 
   public export
   PartitiveBase : Noun bs k -> Type
@@ -2489,9 +2403,8 @@ mutual
 
   public export
   countedMention : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
-  countedMention (CountedGroup _ _ _) = True
-  countedMention (TargetGroup _ _) = True
-  countedMention _ = False
+  countedMention (NamesAgree _ _) = False
+  countedMention n = elem (nounDet n) [Just CountD, Just TargetD]
 
   public export
   CountedMention : Noun bs k -> Type
@@ -2508,10 +2421,7 @@ mutual
 
   public export
   perMemberOk : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bool
-  perMemberOk (Each _) = True
-  perMemberOk (EachOf _) = True
-  perMemberOk (AllOf _) = True
-  perMemberOk n = isOne (nounPlur n)
+  perMemberOk n = elem (nounDet n) [Just EachD, Just AllD] || isOne (nounPlur n)
 
   public export
   PerMember : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type
@@ -2779,15 +2689,9 @@ mutual
   dropGaps (b :: bs) = b :: dropGaps bs
 
   public export
-  attackableTy : Maybe CardType -> Bool
-  attackableTy (Just Planeswalker) = True
-  attackableTy (Just Battle) = True
-  attackableTy _ = False
-
-  public export
   attackableKind : (k : Kind) -> HeadTy k -> Bool
   attackableKind Player _ = True
-  attackableKind Object (SoleTy t) = attackableTy t
+  attackableKind Object (SoleTy t) = deedHeadTysOk "Attack" Patient (optCT t)
   attackableKind (a \/ b) (JoinTy l r) = attackableKind a l && attackableKind b r
   attackableKind (a \/ b) (SoleTy t) =
     attackableKind a (SoleTy t) && attackableKind b (SoleTy t)
@@ -2918,124 +2822,38 @@ mutual
 
   public export
   costNounOk : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
-  costNounOk This = True
-  costNounOk (AsType t n _) = costNounOk n
+  costNounOk (AsType _ n _) = costNounOk n
   costNounOk (ResolvedPermanent n) = costNounOk n
   costNounOk (AsMarker _ n) = costNounOk n
-  costNounOk TheGrantor = True
-  costNounOk TheEmblemGrantor = True
-  costNounOk TheDefendingPlayer = True
-  costNounOk TheAttackingPlayer = True
-  costNounOk You = True
-  costNounOk (PlayerGroup _) = True
-  costNounOk (Each _) = True
-  costNounOk (Indefinite _ _) = True
-  costNounOk (Definite _) = True
-  costNounOk (TargetGroup _ _) = True
-  costNounOk (CountedGroup _ _ _) = True
-  costNounOk (AllOf _) = True
   costNounOk (EachOf grp) = costNounOk grp
   costNounOk (NamesAgree _ grp) = costNounOk grp
-  costNounOk (Both _ _) = False
+  costNounOk (SomeOf _ _ grp) = costNounOk grp
   costNounOk (EitherOf l r) = costNounOk l && costNounOk r
   costNounOk (EitherJoined l r) = costNounOk l && costNounOk r
+  costNounOk (Both _ _) = False
   costNounOk (BothOf _ _) = False
   costNounOk (EachOfBoth _) = False
-  costNounOk (LibrarySlice _ _ _) = True
-  costNounOk (SomeOf _ _ grp) = costNounOk grp
-  costNounOk TheRest = True
-  costNounOk TheOther = True
-  costNounOk (PileOf _ _) = True
   costNounOk (Pro (Verbed _ _ _) _) = False
-  costNounOk (Pro _ _) = True
-  costNounOk (ItOtherThan _ _) = True
-  costNounOk (ItPrior _ _) = True
-  costNounOk (Own _ _ _) = True
-  costNounOk (AttachHost _ _) = True
-  costNounOk (ControllerOf _) = True
-  costNounOk (OwnerOf _) = True
-  costNounOk (PossessorsOf _ _) = True
-  costNounOk (Designated _ _) = True
+  costNounOk _ = True
 
   public export
   nounIsYou : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
-  nounIsYou TheDefendingPlayer = False
-  nounIsYou TheAttackingPlayer = False
   nounIsYou You = True
-  nounIsYou (PlayerGroup _) = False
-  nounIsYou This = False
-  nounIsYou (AsType _ _ _) = False
-  nounIsYou (ResolvedPermanent _) = False
-  nounIsYou (AsMarker _ _) = False
-  nounIsYou TheGrantor = False
-  nounIsYou TheEmblemGrantor = False
-  nounIsYou (Each _) = False
-  nounIsYou (Indefinite _ _) = False
-  nounIsYou (Definite _) = False
-  nounIsYou (TargetGroup _ _) = False
-  nounIsYou (CountedGroup _ _ _) = False
-  nounIsYou (AllOf _) = False
-  nounIsYou (EachOf _) = False
-  nounIsYou (NamesAgree _ _) = False
-  nounIsYou (Both _ _) = False
-  nounIsYou (EitherOf _ _) = False
-  nounIsYou (EitherJoined _ _) = False
-  nounIsYou (BothOf _ _) = False
-  nounIsYou (EachOfBoth _) = False
-  nounIsYou (LibrarySlice _ _ _) = False
-  nounIsYou (SomeOf _ _ _) = False
-  nounIsYou TheRest = False
-  nounIsYou TheOther = False
-  nounIsYou (PileOf _ _) = False
-  nounIsYou (Pro _ _) = False
-  nounIsYou (ItOtherThan _ _) = False
-  nounIsYou (ItPrior _ _) = False
-  nounIsYou (Own _ _ _) = False
-  nounIsYou (AttachHost _ _) = False
-  nounIsYou (ControllerOf _) = False
-  nounIsYou (OwnerOf _) = False
-  nounIsYou (PossessorsOf _ _) = False
-  nounIsYou (Designated _ _) = False
+  nounIsYou _ = False
 
   public export
   nounTargeted : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
-  nounTargeted (TargetGroup _ _) = True
-  nounTargeted (CountedGroup _ _ _) = False
-  nounTargeted This = False
   nounTargeted (AsType _ n _) = nounTargeted n
   nounTargeted (ResolvedPermanent n) = nounTargeted n
   nounTargeted (AsMarker _ n) = nounTargeted n
-  nounTargeted TheGrantor = False
-  nounTargeted TheEmblemGrantor = False
-  nounTargeted TheDefendingPlayer = False
-  nounTargeted TheAttackingPlayer = False
-  nounTargeted You = False
-  nounTargeted (PlayerGroup _) = False
-  nounTargeted (Each _) = False
-  nounTargeted (Indefinite _ _) = False
-  nounTargeted (Definite _) = False
-  nounTargeted (AllOf _) = False
   nounTargeted (EachOf grp) = nounTargeted grp
-  nounTargeted (NamesAgree _ grp) = nounTargeted grp
+  nounTargeted (SomeOf _ _ grp) = nounTargeted grp
   nounTargeted (Both l r) = nounTargeted l || nounTargeted r
   nounTargeted (EitherOf l r) = nounTargeted l || nounTargeted r
   nounTargeted (EitherJoined l r) = nounTargeted l || nounTargeted r
   nounTargeted (BothOf l r) = nounTargeted l || nounTargeted r
   nounTargeted (EachOfBoth p) = nounTargeted p
-  nounTargeted (LibrarySlice _ _ _) = False
-  nounTargeted (SomeOf _ _ grp) = nounTargeted grp
-  nounTargeted TheRest = False
-  nounTargeted TheOther = False
-  nounTargeted (PileOf _ _) = False
-  nounTargeted (Pro _ _) = False
-  nounTargeted (ItOtherThan _ _) = False
-  nounTargeted (ItPrior _ _) = False
-  nounTargeted (Own _ _ _) = False
-  nounTargeted (AttachHost _ _) = False
-  nounTargeted (ControllerOf _) = False
-  nounTargeted (OwnerOf _) = False
-  nounTargeted (PossessorsOf _ _) = False
-  nounTargeted (Designated _ _) = False
+  nounTargeted n = nounDet n == Just TargetD
 
   public export
   Nontarget : Noun bs k -> Type
@@ -3083,7 +2901,7 @@ mutual
   public export
   damageableKind : (k : Kind) -> HeadTy k -> Bool
   damageableKind Player _ = True
-  damageableKind Object (SoleTy t) = damageableHalfTy t
+  damageableKind Object (SoleTy t) = maybe True damageableType t
   damageableKind (a \/ b) (JoinTy l r) = damageableKind a l && damageableKind b r
   damageableKind (a \/ b) (SoleTy t) =
     damageableKind a (SoleTy t) && damageableKind b (SoleTy t)
