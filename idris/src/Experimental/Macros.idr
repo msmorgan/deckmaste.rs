@@ -19,7 +19,7 @@ ItAt : (sl : SlotCarrier) -> {auto 0 ok : countReach (AtSlot sl) OneOf bs = 1} -
 ItAt sl = Pro (AtSlot sl) OneOf
 
 public export
-ItVerbed : (v : VerbLabel) -> {auto 0 kn : KnownVerb v} ->
+ItVerbed : (v : VerbLabel) -> {auto 0 kn : KnownAct v} ->
            {auto 0 ok : countReach (Stamped v) OneOf bs = 1} -> Noun bs Object
 ItVerbed v = Pro (Stamped v) OneOf
 
@@ -36,7 +36,7 @@ Them : {auto 0 ok : countReach Bare ManyOf bs = 1} -> Noun bs Object
 Them = Pro Bare ManyOf
 
 public export
-ThemVerbed : (v : VerbLabel) -> {auto 0 kn : KnownVerb v} ->
+ThemVerbed : (v : VerbLabel) -> {auto 0 kn : KnownAct v} ->
              {auto 0 ok : countReach (Stamped v) ManyOf bs = 1} -> Noun bs Object
 ThemVerbed v = Pro (Stamped v) ManyOf
 
@@ -714,7 +714,7 @@ deontic : {k : Kind} -> (n : Noun bs k) -> (c : Compulsion (selfSubjIntro n)) ->
           (patient : DeonticPatient {bs = nomIntro n} deeds role) ->
           {auto 0 ne : NonEmpty deeds} ->
           {auto 0 dd : So (distinctDeeds deeds)} ->
-          {auto 0 kd : KnownDeeds deeds} ->
+          {auto 0 kd : KnownActs deeds} ->
           {auto 0 zn : ZoneFits (nounZone n) (deedsZone deeds role)} ->
           {auto 0 dp : DeedParticipant deeds role k (nounHeadTys n)} ->
           {auto 0 pt : So (deonticPatientOk n deeds role patient NoDeonticRider)} ->
@@ -741,7 +741,7 @@ cantBlock n span =
 public export
 canDoAsThough : {k : Kind} -> (n : Noun bs k) -> (deed : VerbLabel) ->
                 (p : Predicate (nomIntro n) Object) ->
-                {auto 0 kd : KnownDeeds [deed]} ->
+                {auto 0 kd : KnownActs [deed]} ->
                 {auto 0 zn : ZoneFits (nounZone n) (deedsZone [deed] Agent)} ->
                 {auto 0 dp : DeedParticipant [deed] Agent k (nounHeadTys n)} ->
                 {auto 0 at : So (asThoughOk (Permit {bs = selfSubjIntro n}) [deed] (Just (AsThoughOf p)))} ->
@@ -754,7 +754,7 @@ public export
 maySpendAsThough : (who : Noun bs Player) ->
                    (what : Maybe ColorOrColorless) -> (as : ManaMatch) ->
                    (purpose : Maybe (SpendPurpose (nomIntro who))) ->
-                   {auto 0 kd : KnownDeeds ["Spend"]} ->
+                   {auto 0 kd : KnownActs ["Spend"]} ->
                    {auto 0 zn : ZoneFits (nounZone who) (deedsZone ["Spend"] Agent)} ->
                    {auto 0 dp : DeedParticipant ["Spend"] Agent Player (nounHeadTys who)} ->
                    {auto 0 at : So (asThoughOk (Permit {bs = selfSubjIntro who}) ["Spend"]
@@ -767,7 +767,7 @@ maySpendAsThough who what as purpose =
 
 public export
 playerCant : (deed : VerbLabel) -> (who : Noun bs Player) ->
-             {auto 0 kd : KnownDeeds [deed]} ->
+             {auto 0 kd : KnownActs [deed]} ->
              {auto 0 zn : ZoneFits (nounZone who) (deedsZone [deed] Agent)} ->
              {auto 0 dp : DeedParticipant [deed] Agent Player (nounHeadTys who)} ->
              StaticEffect bs
@@ -776,7 +776,7 @@ playerCant deed who = Deontic who Forbid [deed] Agent NoDeonticPatient Nothing N
 
 public export
 objectCant : {k : Kind} -> (deed : VerbLabel) -> (what : Noun bs k) ->
-             {auto 0 kd : KnownDeeds [deed]} ->
+             {auto 0 kd : KnownActs [deed]} ->
              {auto 0 zn : ZoneFits (nounZone what) (deedsZone [deed] Patient)} ->
              {auto 0 dp : DeedParticipant [deed] Patient k (nounHeadTys what)} ->
              StaticEffect bs
@@ -786,7 +786,7 @@ objectCant deed what =
 public export
 cantDoTo : {k : Kind} -> {kw : Kind} -> (deed : VerbLabel) ->
            (who : Noun bs k) -> (what : Noun (nomIntro who) kw) ->
-           {auto 0 kd : KnownDeeds [deed]} ->
+           {auto 0 kd : KnownActs [deed]} ->
            {auto 0 zn : ZoneFits (nounZone who) (deedsZone [deed] Agent)} ->
            {auto 0 dp : DeedParticipant [deed] Agent k (nounHeadTys who)} ->
            {auto 0 pt : So (deonticPatientOk who [deed] Agent
@@ -1879,7 +1879,7 @@ public export
 mayPlayDeed : (deed : VerbLabel) -> (who : Noun bs Player) ->
               (what : Noun (nomIntro who) Object) ->
               (rider : DeonticRider (nomIntro what)) ->
-              {auto 0 kd : KnownDeeds [deed]} ->
+              {auto 0 kd : KnownActs [deed]} ->
               {auto 0 dd : So (distinctDeeds [deed])} ->
               {auto 0 zn : ZoneFits (nounZone who) (deedsZone [deed] Agent)} ->
               {auto 0 dp : DeedParticipant [deed] Agent Player (nounHeadTys who)} ->
@@ -2024,12 +2024,12 @@ secretlyChooses : {k : Kind} -> (who : Noun bs Player) -> (n : Noun bs k) ->
 secretlyChooses who n = Choose n (Just who) Secretly {ch}
 
 public export
-itVerbed : (v : VerbLabel) -> {auto 0 kn : KnownVerb v} ->
+itVerbed : (v : VerbLabel) -> {auto 0 kn : KnownAct v} ->
            {auto 0 ok : countReach (Stamped v) OneOf bs = 1} -> Noun bs Object
 itVerbed v = ItVerbed v {kn} {ok}
 
 public export
-themVerbed : (v : VerbLabel) -> {auto 0 kn : KnownVerb v} ->
+themVerbed : (v : VerbLabel) -> {auto 0 kn : KnownAct v} ->
              {auto 0 ok : countReach (Stamped v) ManyOf bs = 1} -> Noun bs Object
 themVerbed v = ThemVerbed v {kn} {ok}
 

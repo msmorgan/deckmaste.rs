@@ -390,7 +390,7 @@ itAtResolvesInPrefix sl bs ok =
 ||| The verb-scoped pronoun asks the prefix ONE question -- how many of
 public export
 itVerbedReadsOnlyPrefix : (bs : Bindings) -> (v : VerbLabel) ->
-                          KnownVerb v -> countReach (Stamped v) OneOf bs = 1 ->
+                          KnownAct v -> countReach (Stamped v) OneOf bs = 1 ->
                           Noun bs Object
 itVerbedReadsOnlyPrefix bs v kn ok = Pro (Stamped v) OneOf {bs} {ok}
 
@@ -522,7 +522,7 @@ themResolvesInPrefix bs ok =
 ||| The verb-scoped GROUP pronoun asks the prefix the singular row's
 public export
 themVerbedReadsOnlyPrefix : (bs : Bindings) -> (v : VerbLabel) ->
-                            KnownVerb v -> countReach (Stamped v) ManyOf bs = 1 ->
+                            KnownAct v -> countReach (Stamped v) ManyOf bs = 1 ->
                             Noun bs Object
 themVerbedReadsOnlyPrefix bs v kn ok = Pro (Stamped v) ManyOf {bs} {ok}
 

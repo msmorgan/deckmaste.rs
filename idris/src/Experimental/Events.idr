@@ -93,88 +93,54 @@ KeywordCost : KeywordLabel -> Type
 KeywordCost k = So (keywordCosts k)
 
 public export
+eventIx : EventName -> Nat
+eventIx Death = 0
+eventIx Departure = 1
+eventIx DamageTaken = 2
+eventIx CardDrawn = 3
+eventIx Entry = 4
+eventIx AttackDeclaration = 5
+eventIx BlockDeclaration = 6
+eventIx CombatDamage = 7
+eventIx PartBeginning = 8
+eventIx SpellCast = 9
+eventIx StatusChange = 10
+eventIx TurnedFaceUp = 11
+eventIx PhasingChange = 12
+eventIx BlockedDeclaration = 13
+eventIx Attachment = 14
+eventIx Unattachment = 15
+eventIx LastCounterRemoval = 16
+eventIx LifeGain = 17
+eventIx LifeLoss = 18
+eventIx TimeShift = 19
+eventIx Placement = 20
+eventIx CounterPlacement = 21
+eventIx CounterRemoval = 22
+eventIx GameLoss = 23
+eventIx TokenCreation = 24
+eventIx ChapterArrival = 25
+eventIx AbilityActivation = 26
+eventIx StatValueChange = 27
+eventIx Regeneration = 28
+eventIx FlipWin = 29
+eventIx FlipLoss = 30
+eventIx CoinFlip = 31
+eventIx DiceRoll = 32
+eventIx CostPayment = 33
+eventIx CostNonpayment = 34
+eventIx LifePayment = 35
+eventIx BecomesTarget = 36
+eventIx DamageDealing = 37
+eventIx (VerbedAct _) = 38
+eventIx StateMatch = 39
+eventIx AbilityTrigger = 40
+
+public export
 sameEventName : EventName -> EventName -> Bool
-sameEventName Death Death = True
-sameEventName Death _ = False
-sameEventName Departure Departure = True
-sameEventName Departure _ = False
-sameEventName DamageTaken DamageTaken = True
-sameEventName DamageTaken _ = False
-sameEventName CardDrawn CardDrawn = True
-sameEventName CardDrawn _ = False
-sameEventName GameLoss GameLoss = True
-sameEventName GameLoss _ = False
-sameEventName Entry Entry = True
-sameEventName Entry _ = False
-sameEventName AttackDeclaration AttackDeclaration = True
-sameEventName AttackDeclaration _ = False
-sameEventName BlockDeclaration BlockDeclaration = True
-sameEventName BlockDeclaration _ = False
-sameEventName CombatDamage CombatDamage = True
-sameEventName CombatDamage _ = False
-sameEventName DamageDealing DamageDealing = True
-sameEventName DamageDealing _ = False
-sameEventName PartBeginning PartBeginning = True
-sameEventName PartBeginning _ = False
-sameEventName SpellCast SpellCast = True
-sameEventName SpellCast _ = False
-sameEventName StatusChange StatusChange = True
-sameEventName StatusChange _ = False
-sameEventName TurnedFaceUp TurnedFaceUp = True
-sameEventName TurnedFaceUp _ = False
-sameEventName PhasingChange PhasingChange = True
-sameEventName PhasingChange _ = False
-sameEventName BlockedDeclaration BlockedDeclaration = True
-sameEventName BlockedDeclaration _ = False
-sameEventName Attachment Attachment = True
-sameEventName Attachment _ = False
-sameEventName Unattachment Unattachment = True
-sameEventName Unattachment _ = False
-sameEventName LastCounterRemoval LastCounterRemoval = True
-sameEventName LastCounterRemoval _ = False
-sameEventName Placement Placement = True
-sameEventName Placement _ = False
-sameEventName CounterPlacement CounterPlacement = True
-sameEventName CounterPlacement _ = False
-sameEventName CounterRemoval CounterRemoval = True
-sameEventName CounterRemoval _ = False
-sameEventName LifeGain LifeGain = True
-sameEventName LifeGain _ = False
-sameEventName LifeLoss LifeLoss = True
-sameEventName LifeLoss _ = False
-sameEventName TimeShift TimeShift = True
-sameEventName TimeShift _ = False
-sameEventName TokenCreation TokenCreation = True
-sameEventName TokenCreation _ = False
-sameEventName ChapterArrival ChapterArrival = True
-sameEventName ChapterArrival _ = False
-sameEventName AbilityActivation AbilityActivation = True
-sameEventName AbilityActivation _ = False
-sameEventName StatValueChange StatValueChange = True
-sameEventName StatValueChange _ = False
-sameEventName Regeneration Regeneration = True
-sameEventName Regeneration _ = False
-sameEventName FlipWin FlipWin = True
-sameEventName FlipWin _ = False
-sameEventName FlipLoss FlipLoss = True
-sameEventName FlipLoss _ = False
-sameEventName CoinFlip CoinFlip = True
-sameEventName CoinFlip _ = False
-sameEventName DiceRoll DiceRoll = True
-sameEventName DiceRoll _ = False
-sameEventName CostPayment CostPayment = True
-sameEventName CostPayment _ = False
-sameEventName CostNonpayment CostNonpayment = True
-sameEventName CostNonpayment _ = False
-sameEventName LifePayment LifePayment = True
-sameEventName LifePayment _ = False
-sameEventName BecomesTarget BecomesTarget = True
-sameEventName BecomesTarget _ = False
 sameEventName (VerbedAct a) (VerbedAct b) = a == b
-sameEventName (VerbedAct _) _ = False
 sameEventName StateMatch _ = False
-sameEventName AbilityTrigger AbilityTrigger = True
-sameEventName AbilityTrigger _ = False
+sameEventName a b = eventIx a == eventIx b
 
 public export
 sameLookback : Lookback -> Lookback -> Bool
@@ -192,77 +158,127 @@ sameLookback Triggering Triggering = True
 sameLookback Triggering _ = False
 
 public export
+record EventFacts where
+  constructor MkEventFacts
+  subjectKinds : List Kind
+  complementKinds : List (Kind, Kind)
+  bareRefused : List Kind
+  hasMagnitude : Bool
+  interceptable : Bool
+  countable : Bool
+  spannable : Bool
+  underway : Bool
+
+public export
+eventFactsOf : EventName -> EventFacts
+eventFactsOf Death = MkEventFacts [Object] [] [] False True False True False
+eventFactsOf Departure = MkEventFacts [Object] [] [] False True False True False
+eventFactsOf DamageTaken =
+  MkEventFacts [Object, Player] [(Object, Object), (Player, Object)]
+               [] True True False True False
+eventFactsOf CardDrawn = MkEventFacts [Player] [] [] False True False True False
+eventFactsOf Entry = MkEventFacts [Object] [] [] False True False True False
+eventFactsOf AttackDeclaration =
+  MkEventFacts [Object, Player]
+               [(Player, Object), (Player, Player), (Object, Player)]
+               [] False True False True False
+eventFactsOf BlockDeclaration =
+  MkEventFacts [Object] [(Object, Object)] [] False True False True False
+eventFactsOf CombatDamage =
+  MkEventFacts [Object] [(Object, Player)] [] True True False True False
+eventFactsOf PartBeginning =
+  MkEventFacts [Object, Player] [] [] False True False False False
+eventFactsOf SpellCast =
+  MkEventFacts [Player] [(Player, Object)] [] False True False True True
+eventFactsOf StatusChange = MkEventFacts [] [] [] False True False True False
+eventFactsOf TurnedFaceUp = MkEventFacts [] [] [] False True False True False
+eventFactsOf PhasingChange = MkEventFacts [] [] [] False True False True False
+eventFactsOf BlockedDeclaration =
+  MkEventFacts [Object] [(Object, Object)] [] False True False True False
+eventFactsOf Attachment =
+  MkEventFacts [Object] [] [] False True False True False
+eventFactsOf Unattachment =
+  MkEventFacts [Object] [] [] False True False True False
+eventFactsOf LastCounterRemoval =
+  MkEventFacts [] [] [] False True False True False
+eventFactsOf LifeGain = MkEventFacts [Player] [] [] True True False True False
+eventFactsOf LifeLoss = MkEventFacts [Player] [] [] True True False True False
+eventFactsOf TimeShift = MkEventFacts [] [] [] False True False True False
+eventFactsOf Placement =
+  MkEventFacts [Object] [] [Object] False True False True False
+eventFactsOf CounterPlacement =
+  MkEventFacts [] [] [] False True False True False
+eventFactsOf CounterRemoval = MkEventFacts [] [] [] False True False True False
+eventFactsOf GameLoss = MkEventFacts [Player] [] [] False True False True False
+eventFactsOf TokenCreation =
+  MkEventFacts [Player] [(Player, Object)] [Player] False True False True False
+eventFactsOf ChapterArrival = MkEventFacts [] [] [] False False False True False
+eventFactsOf AbilityActivation =
+  MkEventFacts [Player] [(Player, Ability)] [Player] False True False True True
+eventFactsOf StatValueChange = MkEventFacts [] [] [] False True False True False
+eventFactsOf Regeneration =
+  MkEventFacts [Object] [] [] False True False True False
+eventFactsOf FlipWin = MkEventFacts [Player] [] [] False True False True False
+eventFactsOf FlipLoss = MkEventFacts [Player] [] [] False True False True False
+eventFactsOf CoinFlip = MkEventFacts [Player] [] [] False True False True False
+eventFactsOf DiceRoll = MkEventFacts [Player] [] [] False True False True False
+eventFactsOf CostPayment = MkEventFacts [] [] [] False True False True False
+eventFactsOf CostNonpayment = MkEventFacts [] [] [] False True False True False
+eventFactsOf LifePayment =
+  MkEventFacts [Player] [] [] True True False True False
+eventFactsOf BecomesTarget =
+  MkEventFacts [Object, Player]
+               [(Object, Object), (Object, Ability),
+                (Player, Object), (Player, Ability)]
+               [] False True False True False
+eventFactsOf DamageDealing =
+  MkEventFacts [Object] [(Object, Object), (Object, Player)]
+               [] True True False True False
+eventFactsOf (VerbedAct v) =
+  MkEventFacts (Player ::
+                  (if actPatientOf v == Just Object then [Object] else []))
+               (maybe [] (\k => [(Player, k)]) (actPatientOf v))
+               (if actNamesPatient v || actNamesLocus v then [Player] else [])
+               False True False True (actStepwiseOf v)
+eventFactsOf StateMatch = MkEventFacts [] [] [] False True False True False
+eventFactsOf AbilityTrigger =
+  MkEventFacts [Object] [] [] False False True True False
+
+public export
+kindIn : Kind -> List Kind -> Bool
+kindIn (a \/ b) ks = kindIn a ks && kindIn b ks
+kindIn k ks = elem k ks
+
+public export
+kindAny : Kind -> List Kind -> Bool
+kindAny (a \/ b) ks = kindAny a ks || kindAny b ks
+kindAny k ks = elem k ks
+
+public export
+kindPairIn : Kind -> Kind -> List (Kind, Kind) -> Bool
+kindPairIn (a \/ b) kc ps = kindPairIn a kc ps && kindPairIn b kc ps
+kindPairIn ks (a \/ b) ps = kindPairIn ks a ps && kindPairIn ks b ps
+kindPairIn ks kc ps = elem (ks, kc) ps
+
+public export
 interceptOk : EventName -> Bool
-interceptOk ChapterArrival = False
-interceptOk (VerbedAct _) = True
-interceptOk DamageDealing = True
-interceptOk BecomesTarget = True
-interceptOk AbilityTrigger = False
-interceptOk _ = True
+interceptOk ev = interceptable (eventFactsOf ev)
 
 public export
 triggerCountOk : EventName -> Bool
-triggerCountOk AbilityTrigger = True
-triggerCountOk _ = False
+triggerCountOk ev = countable (eventFactsOf ev)
 
 public export
 spanEventOk : EventName -> Bool
-spanEventOk PartBeginning = False
-spanEventOk (VerbedAct _) = True
-spanEventOk DamageDealing = True
-spanEventOk BecomesTarget = True
-spanEventOk _ = True
+spanEventOk ev = spannable (eventFactsOf ev)
 
 public export
 eventUnderwayOk : EventName -> Bool
-eventUnderwayOk SpellCast = True
-eventUnderwayOk AbilityActivation = True
-eventUnderwayOk (VerbedAct v) = actStepwiseOf v
-eventUnderwayOk _ = False
+eventUnderwayOk ev = underway (eventFactsOf ev)
 
 public export
 eventHasMagnitude : EventName -> Bool
-eventHasMagnitude DamageTaken = True
-eventHasMagnitude CombatDamage = True
-eventHasMagnitude DamageDealing = True
-eventHasMagnitude LifeGain = True
-eventHasMagnitude LifeLoss = True
-eventHasMagnitude Death = False
-eventHasMagnitude Departure = False
-eventHasMagnitude CardDrawn = False
-eventHasMagnitude Entry = False
-eventHasMagnitude AttackDeclaration = False
-eventHasMagnitude BlockDeclaration = False
-eventHasMagnitude PartBeginning = False
-eventHasMagnitude SpellCast = False
-eventHasMagnitude StatusChange = False
-eventHasMagnitude TurnedFaceUp = False
-eventHasMagnitude PhasingChange = False
-eventHasMagnitude BlockedDeclaration = False
-eventHasMagnitude Attachment = False
-eventHasMagnitude Unattachment = False
-eventHasMagnitude LastCounterRemoval = False
-eventHasMagnitude TimeShift = False
-eventHasMagnitude Placement = False
-eventHasMagnitude CounterPlacement = False
-eventHasMagnitude CounterRemoval = False
-eventHasMagnitude GameLoss = False
-eventHasMagnitude TokenCreation = False
-eventHasMagnitude ChapterArrival = False
-eventHasMagnitude AbilityActivation = False
-eventHasMagnitude StatValueChange = False
-eventHasMagnitude Regeneration = False
-eventHasMagnitude FlipWin = False
-eventHasMagnitude FlipLoss = False
-eventHasMagnitude CoinFlip = False
-eventHasMagnitude DiceRoll = False
-eventHasMagnitude CostPayment = False
-eventHasMagnitude CostNonpayment = False
-eventHasMagnitude LifePayment = True
-eventHasMagnitude BecomesTarget = False
-eventHasMagnitude (VerbedAct _) = False
-eventHasMagnitude StateMatch = False
-eventHasMagnitude AbilityTrigger = False
+eventHasMagnitude ev = hasMagnitude (eventFactsOf ev)
 
 public export
 data ReplUse = Repeatedly | NextTimeOnly
@@ -272,95 +288,7 @@ data TriggerWord = When | Whenever | At
 
 public export
 lookbackSubjectOk : EventName -> Kind -> Bool
-lookbackSubjectOk Death Object = True
-lookbackSubjectOk Death Player = False
-lookbackSubjectOk Departure Object = True
-lookbackSubjectOk Departure Player = False
-lookbackSubjectOk DamageTaken Object = True
-lookbackSubjectOk DamageTaken Player = True
-lookbackSubjectOk CardDrawn Object = False
-lookbackSubjectOk CardDrawn Player = True
-lookbackSubjectOk GameLoss Object = False
-lookbackSubjectOk GameLoss Player = True
-lookbackSubjectOk Entry Object = True
-lookbackSubjectOk Entry Player = False
-lookbackSubjectOk AttackDeclaration Object = True
-lookbackSubjectOk AttackDeclaration Player = True
-lookbackSubjectOk BlockDeclaration Object = True
-lookbackSubjectOk BlockDeclaration Player = False
-lookbackSubjectOk CombatDamage Object = True
-lookbackSubjectOk CombatDamage Player = False
-lookbackSubjectOk DamageDealing Object = True
-lookbackSubjectOk DamageDealing Player = False
-lookbackSubjectOk PartBeginning Object = True
-lookbackSubjectOk PartBeginning Player = True
-lookbackSubjectOk SpellCast Object = False
-lookbackSubjectOk SpellCast Player = True
-lookbackSubjectOk StatusChange Object = False
-lookbackSubjectOk StatusChange Player = False
-lookbackSubjectOk TurnedFaceUp Object = False
-lookbackSubjectOk TurnedFaceUp Player = False
-lookbackSubjectOk PhasingChange Object = False
-lookbackSubjectOk PhasingChange Player = False
-lookbackSubjectOk BlockedDeclaration Object = True
-lookbackSubjectOk BlockedDeclaration Player = False
-lookbackSubjectOk Attachment Object = True
-lookbackSubjectOk Attachment Player = False
-lookbackSubjectOk Unattachment Object = True
-lookbackSubjectOk Unattachment Player = False
-lookbackSubjectOk LastCounterRemoval Object = False
-lookbackSubjectOk LastCounterRemoval Player = False
-lookbackSubjectOk Placement Object = True
-lookbackSubjectOk Placement Player = False
-lookbackSubjectOk CounterPlacement Object = False
-lookbackSubjectOk CounterPlacement Player = False
-lookbackSubjectOk CounterRemoval Object = False
-lookbackSubjectOk CounterRemoval Player = False
-lookbackSubjectOk LifeGain Object = False
-lookbackSubjectOk LifeGain Player = True
-lookbackSubjectOk LifeLoss Object = False
-lookbackSubjectOk LifeLoss Player = True
-lookbackSubjectOk TimeShift Object = False
-lookbackSubjectOk TimeShift Player = False
-lookbackSubjectOk TokenCreation Object = False
-lookbackSubjectOk TokenCreation Player = True
-lookbackSubjectOk ChapterArrival Object = False
-lookbackSubjectOk ChapterArrival Player = False
-lookbackSubjectOk AbilityActivation Object = False
-lookbackSubjectOk AbilityActivation Player = True
-lookbackSubjectOk StatValueChange Object = False
-lookbackSubjectOk StatValueChange Player = False
-lookbackSubjectOk Regeneration Object = True
-lookbackSubjectOk Regeneration Player = False
-lookbackSubjectOk FlipWin Object = False
-lookbackSubjectOk FlipWin Player = True
-lookbackSubjectOk FlipLoss Object = False
-lookbackSubjectOk FlipLoss Player = True
-lookbackSubjectOk CoinFlip Object = False
-lookbackSubjectOk CoinFlip Player = True
-lookbackSubjectOk DiceRoll Object = False
-lookbackSubjectOk DiceRoll Player = True
-lookbackSubjectOk CostPayment Object = False
-lookbackSubjectOk CostPayment Player = False
-lookbackSubjectOk CostNonpayment Object = False
-lookbackSubjectOk CostNonpayment Player = False
-lookbackSubjectOk LifePayment Object = False
-lookbackSubjectOk LifePayment Player = True
-lookbackSubjectOk BecomesTarget Object = True
-lookbackSubjectOk BecomesTarget Player = True
-lookbackSubjectOk (VerbedAct v) Object = actPatientOf v == Just Object
-lookbackSubjectOk (VerbedAct _) Player = True
-lookbackSubjectOk StateMatch Object = False
-lookbackSubjectOk StateMatch Player = False
-lookbackSubjectOk AbilityTrigger Object = True
-lookbackSubjectOk AbilityTrigger Player = False
-lookbackSubjectOk _ (Quality _) = False
-lookbackSubjectOk _ Outcome = False
-lookbackSubjectOk _ Gap = False
-lookbackSubjectOk _ TurnRef = False
-lookbackSubjectOk _ Ability = False
-lookbackSubjectOk _ (LetterK _) = False
-lookbackSubjectOk ev (a \/ b) = lookbackSubjectOk ev a && lookbackSubjectOk ev b
+lookbackSubjectOk ev k = kindIn k (subjectKinds (eventFactsOf ev))
 
 public export
 data LookbackSubject : EventName -> Kind -> Type where
@@ -369,71 +297,12 @@ data LookbackSubject : EventName -> Kind -> Type where
 
 public export
 lookbackComplementOk : EventName -> Kind -> Kind -> Bool
-lookbackComplementOk SpellCast Player Object = True
-lookbackComplementOk SpellCast _ _ = False
-lookbackComplementOk DamageTaken Object Object = True
-lookbackComplementOk DamageTaken Player Object = True
-lookbackComplementOk DamageTaken (a \/ b) kc =
-  lookbackComplementOk DamageTaken a kc && lookbackComplementOk DamageTaken b kc
-lookbackComplementOk DamageTaken _ _ = False
-lookbackComplementOk CombatDamage Object Player = True
-lookbackComplementOk CombatDamage _ _ = False
-lookbackComplementOk DamageDealing Object Object = True
-lookbackComplementOk DamageDealing Object Player = True
-lookbackComplementOk DamageDealing Object (a \/ b) =
-  lookbackComplementOk DamageDealing Object a &&
-    lookbackComplementOk DamageDealing Object b
-lookbackComplementOk DamageDealing _ _ = False
-lookbackComplementOk AttackDeclaration Player Object = True
-lookbackComplementOk AttackDeclaration Player Player = True
-lookbackComplementOk AttackDeclaration Object Player = True
-lookbackComplementOk AttackDeclaration Object Object = False
-lookbackComplementOk AttackDeclaration _ _ = False
-lookbackComplementOk BlockDeclaration Object Object = True
-lookbackComplementOk BlockDeclaration _ _ = False
-lookbackComplementOk BlockedDeclaration Object Object = True
-lookbackComplementOk BlockedDeclaration _ _ = False
-lookbackComplementOk TokenCreation Player Object = True
-lookbackComplementOk TokenCreation _ _ = False
-lookbackComplementOk Death _ _ = False
-lookbackComplementOk Departure _ _ = False
-lookbackComplementOk Entry _ _ = False
-lookbackComplementOk CardDrawn _ _ = False
-lookbackComplementOk LifeGain _ _ = False
-lookbackComplementOk LifeLoss _ _ = False
-lookbackComplementOk Placement _ _ = False
-lookbackComplementOk CounterPlacement _ _ = False
-lookbackComplementOk CounterRemoval _ _ = False
-lookbackComplementOk AbilityActivation Player Ability = True
-lookbackComplementOk AbilityActivation _ _ = False
-lookbackComplementOk FlipWin _ _ = False
-lookbackComplementOk FlipLoss _ _ = False
-lookbackComplementOk CoinFlip _ _ = False
-lookbackComplementOk DiceRoll _ _ = False
-lookbackComplementOk LifePayment _ _ = False
-lookbackComplementOk BecomesTarget Object Object = True
-lookbackComplementOk BecomesTarget Object Ability = True
-lookbackComplementOk BecomesTarget Player Object = True
-lookbackComplementOk BecomesTarget Player Ability = True
-lookbackComplementOk BecomesTarget ks (a \/ b) =
-  lookbackComplementOk BecomesTarget ks a && lookbackComplementOk BecomesTarget ks b
-lookbackComplementOk BecomesTarget _ _ = False
-lookbackComplementOk (VerbedAct v) Player kc = actPatientOf v == Just kc
-lookbackComplementOk (VerbedAct _) _ _ = False
-lookbackComplementOk _ _ _ = False
+lookbackComplementOk ev ks kc =
+  kindPairIn ks kc (complementKinds (eventFactsOf ev))
 
 public export
 bareLookbackOk : EventName -> Kind -> Bool
-bareLookbackOk TokenCreation Player = False
-bareLookbackOk AbilityActivation Player = False
-bareLookbackOk (VerbedAct v) Player =
-  not (actNamesPatient v) && not (actNamesLocus v)
-bareLookbackOk (VerbedAct _) Object = True
-bareLookbackOk DamageDealing Object = True
-bareLookbackOk BecomesTarget Object = True
-bareLookbackOk BecomesTarget Player = True
-bareLookbackOk Placement Object = False
-bareLookbackOk _ _ = True
+bareLookbackOk ev k = not (kindAny k (bareRefused (eventFactsOf ev)))
 
 public export
 data LookbackComplement : EventName -> Kind -> Kind -> Type where
@@ -471,150 +340,9 @@ verbForManaOk : VerbLabel -> Bool
 verbForManaOk v = v == "Tap"
 
 public export
-data PremiseSort = ObjectPremise | ManaPremise | ValuePremise
-
-public export
-Eq PremiseSort where
-  (==) ObjectPremise ObjectPremise = True
-  (==) ObjectPremise _ = False
-  (==) ManaPremise ManaPremise = True
-  (==) ManaPremise _ = False
-  (==) ValuePremise ValuePremise = True
-  (==) ValuePremise _ = False
-
-public export
-record DeedRole where
-  constructor MkDeedRole
-  roleKinds : List Kind
-  roleTypes : List CardType
-  roleBare : Bool
-  roleZone : Maybe Zone
-
-public export
-noRole : DeedRole
-noRole = MkDeedRole [] [] False Nothing
-
-public export
-record DeedFacts where
-  constructor MkDeedFacts
-  deed : VerbLabel
-  deedAgent : DeedRole
-  deedPatient : DeedRole
-  deedDefends : Bool
-  deedTargeted : Bool
-  deedCounterfactual : Maybe PremiseSort
-  deedRides : Bool
-  deedPlays : Bool
-
-public export
-deedFacts : List DeedFacts
-deedFacts =
-  [ MkDeedFacts "Attack"
-      (MkDeedRole [Object] [Creature] True (Just Battlefield))
-      (MkDeedRole [Object] [Planeswalker, Battle] False (Just Battlefield))
-      True False (Just ObjectPremise) False False
-  , MkDeedFacts "Block"
-      (MkDeedRole [Object] [Creature] True (Just Battlefield))
-      (MkDeedRole [Object] [Creature] False (Just Battlefield))
-      False False (Just ObjectPremise) False False
-  , MkDeedFacts "Target"
-      (MkDeedRole [] [] True (Just Stack))
-      (MkDeedRole [Object, Player] [Creature, Artifact, Land, Enchantment, Instant, Sorcery,
-                   Planeswalker, Battle, Kindred] True Nothing)
-      False True (Just ObjectPremise) False False
-  , MkDeedFacts "Cast"
-      (MkDeedRole [Player] [] True Nothing)
-      (MkDeedRole [Object] [Creature, Artifact, Enchantment, Instant, Sorcery,
-                   Planeswalker, Battle, Kindred] True (Just Stack))
-      False False (Just ObjectPremise) True True
-  , MkDeedFacts "Play"
-      (MkDeedRole [Player] [] True Nothing)
-      (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment, Instant, Sorcery,
-                   Planeswalker, Battle, Kindred] True Nothing)
-      False False (Just ObjectPremise) True True
-  , MkDeedFacts "Counter"
-      (MkDeedRole [] [] True (Just Stack))
-      (MkDeedRole [Object] [Creature, Artifact, Enchantment, Instant, Sorcery,
-                   Planeswalker, Battle, Kindred] True (Just Stack))
-      False False Nothing True False
-  , MkDeedFacts "Copy"
-      (MkDeedRole [] [] True (Just Stack))
-      (MkDeedRole [Object] [Creature, Artifact, Enchantment, Instant, Sorcery,
-                   Planeswalker, Battle, Kindred] True (Just Stack))
-      False False Nothing False False
-  , MkDeedFacts "Activate"
-      (MkDeedRole [Player] [] True Nothing)
-      (MkDeedRole [Ability] [] True Nothing)
-      False False Nothing False False
-  , MkDeedFacts "Regenerate"
-      (MkDeedRole [] [] True Nothing)
-      (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment,
-                            Planeswalker, Battle] True (Just Battlefield))
-      False False Nothing True False
-  , MkDeedFacts "GainLife"
-      (MkDeedRole [Player] [] True Nothing) noRole
-      False False Nothing False False
-  , MkDeedFacts "DrawCard"
-      (MkDeedRole [Player] [] True Nothing)
-      (MkDeedRole [Object] [] True (Just Library))
-      False False Nothing False False
-  , MkDeedFacts "Sacrifice"
-      (MkDeedRole [Player] [] True Nothing)
-      (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment,
-                            Planeswalker, Battle] True (Just Battlefield))
-      False False Nothing False False
-  , MkDeedFacts "Trigger"
-      (MkDeedRole [Ability] [] True Nothing) noRole
-      False False Nothing False False
-  , MkDeedFacts "Untap"
-      (MkDeedRole [Player] [] True Nothing)
-      (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment,
-                            Planeswalker, Battle] True (Just Battlefield))
-      False False Nothing False False
-  , MkDeedFacts "SearchLibrary"
-      (MkDeedRole [Player] [] True Nothing) noRole
-      False False Nothing False False
-  , MkDeedFacts "LoseGame"
-      (MkDeedRole [Player] [] True Nothing) noRole
-      False False Nothing False False
-  , MkDeedFacts "WinGame"
-      (MkDeedRole [Player] [] True Nothing) noRole
-      False False Nothing False False
-  , MkDeedFacts "Spend"
-      (MkDeedRole [Player] [] True Nothing) noRole
-      False False (Just ManaPremise) False False
-  , MkDeedFacts "Crew"
-      (MkDeedRole [Object] [Creature] True (Just Battlefield))
-      (MkDeedRole [Object] [Artifact] True (Just Battlefield))
-      False False (Just ValuePremise) False False
-  , MkDeedFacts "Saddle"
-      (MkDeedRole [Object] [Creature] True (Just Battlefield))
-      (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment,
-                            Planeswalker, Battle] True (Just Battlefield))
-      False False (Just ValuePremise) False False
-  ]
-
-public export
-deedIn : VerbLabel -> List DeedFacts -> Maybe DeedFacts
-deedIn v [] = Nothing
-deedIn v (f :: fs) = if deed f == v then Just f else deedIn v fs
-
-public export
-deedFactsFor : VerbLabel -> Maybe DeedFacts
-deedFactsFor v = deedIn v deedFacts
-
-public export
-knownDeed : VerbLabel -> Bool
-knownDeed v = isJust (deedFactsFor v)
-
-public export
-KnownDeed : VerbLabel -> Type
-KnownDeed v = So (knownDeed v)
-
-public export
 deedRoleOf : VerbLabel -> Role -> DeedRole
-deedRoleOf v Agent = maybe noRole deedAgent (deedFactsFor v)
-deedRoleOf v Patient = maybe noRole deedPatient (deedFactsFor v)
+deedRoleOf v Agent = maybe noRole agent (actFactsFor v)
+deedRoleOf v Patient = maybe noRole patient (actFactsFor v)
 
 public export
 deedKindOk : VerbLabel -> Role -> Kind -> Bool
@@ -639,15 +367,15 @@ deedZoneOf v r = roleZone (deedRoleOf v r)
 
 public export
 deedDefendsOk : VerbLabel -> Bool
-deedDefendsOk v = maybe False deedDefends (deedFactsFor v)
+deedDefendsOk v = maybe False actDefends (actFactsFor v)
 
 public export
 deedTargetedOk : VerbLabel -> Bool
-deedTargetedOk v = maybe False deedTargeted (deedFactsFor v)
+deedTargetedOk v = maybe False actTargeted (actFactsFor v)
 
 public export
 deedPremiseSort : VerbLabel -> Maybe PremiseSort
-deedPremiseSort v = deedFactsFor v >>= deedCounterfactual
+deedPremiseSort v = actFactsFor v >>= actCounterfactual
 
 public export
 deedCounterfactualOk : VerbLabel -> Bool
@@ -659,23 +387,23 @@ deedPremiseOk s v = deedPremiseSort v == Just s
 
 public export
 deedRidesOk : VerbLabel -> Bool
-deedRidesOk v = maybe False deedRides (deedFactsFor v)
+deedRidesOk v = maybe False actRides (actFactsFor v)
 
 public export
 deedPlaysOk : VerbLabel -> Bool
-deedPlaysOk v = maybe False deedPlays (deedFactsFor v)
+deedPlaysOk v = maybe False actPlays (actFactsFor v)
 
 public export
 Deeds : Type
 Deeds = List VerbLabel
 
 public export
-knownDeeds : Deeds -> Bool
-knownDeeds ds = all knownDeed ds
+knownActs : Deeds -> Bool
+knownActs ds = all knownAct ds
 
 public export
-KnownDeeds : Deeds -> Type
-KnownDeeds ds = So (knownDeeds ds)
+KnownActs : Deeds -> Type
+KnownActs ds = So (knownActs ds)
 
 public export
 distinctDeeds : Deeds -> Bool

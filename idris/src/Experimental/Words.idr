@@ -779,89 +779,229 @@ VerbLabel : Type
 VerbLabel = String
 
 public export
-record VerbFacts where
-  constructor MkVerbFacts
+data PremiseSort = ObjectPremise | ManaPremise | ValuePremise
+
+public export
+Eq PremiseSort where
+  (==) ObjectPremise ObjectPremise = True
+  (==) ObjectPremise _ = False
+  (==) ManaPremise ManaPremise = True
+  (==) ManaPremise _ = False
+  (==) ValuePremise ValuePremise = True
+  (==) ValuePremise _ = False
+
+public export
+record DeedRole where
+  constructor MkDeedRole
+  roleKinds : List Kind
+  roleTypes : List CardType
+  roleBare : Bool
+  roleZone : Maybe Zone
+
+public export
+noRole : DeedRole
+noRole = MkDeedRole [] [] False Nothing
+
+public export
+record ActFacts where
+  constructor MkActFacts
   label : VerbLabel
   participle : Maybe String
   actPatient : Maybe Kind
-  actZone : Maybe Zone
   actDest : Maybe Zone
   actStepwise : Bool
   actLoci : List Zone
   actIntransitive : Bool
+  agent : DeedRole
+  patient : DeedRole
+  actDefends : Bool
+  actTargeted : Bool
+  actCounterfactual : Maybe PremiseSort
+  actRides : Bool
+  actPlays : Bool
 
 public export
-verbFacts : List VerbFacts
-verbFacts =
-  [ MkVerbFacts "Destroy"     (Just "destroyed") (Just Object)
-                              (Just Battlefield) (Just Graveyard) False [] False
-  , MkVerbFacts "Sacrifice"   (Just "sacrificed") (Just Object)
-                              (Just Battlefield) (Just Graveyard) False [] False
-  , MkVerbFacts "Exile"       (Just "exiled")    (Just Object)
-                              Nothing            (Just Exile) False [] False
-  , MkVerbFacts "Discard"     (Just "discarded") (Just Object)
-                              (Just Hand)        (Just Graveyard) False [] False
-  , MkVerbFacts "Mill"        (Just "milled")    (Just Object)
-                              (Just Library)     (Just Graveyard) False [] False
-  , MkVerbFacts "Scry"        Nothing            Nothing
-                              Nothing            Nothing True [] False
-  , MkVerbFacts "Surveil"     Nothing            Nothing
-                              Nothing            Nothing True [] False
-  , MkVerbFacts "Tap"         (Just "tapped")    (Just Object)
-                              (Just Battlefield) Nothing False [] False
-  , MkVerbFacts "Untap"       (Just "untapped")  (Just Object)
-                              (Just Battlefield) Nothing False [] False
-  , MkVerbFacts "Return"      Nothing            (Just Object)
-                              Nothing            Nothing False [] False
-  , MkVerbFacts "GainControl" Nothing            (Just Object)
-                              (Just Battlefield) Nothing False [] False
-  , MkVerbFacts "Put"         Nothing            (Just Object)
-                              Nothing            Nothing False [] False
-  , MkVerbFacts "Search"      Nothing            Nothing
-                              Nothing            Nothing False
-                              [Battlefield, Graveyard, Exile, Hand,
-                               Library, Stack, Command] False
-  , MkVerbFacts "Shuffle"     Nothing            Nothing
-                              Nothing            Nothing False [Library] False
-  , MkVerbFacts "Proliferate" Nothing            Nothing
-                              Nothing            Nothing False [] False
-  , MkVerbFacts "The Ring Tempts You" Nothing    Nothing
-                              Nothing            Nothing False [] False
-  , MkVerbFacts "Transform"   Nothing            (Just Object)
-                              (Just Battlefield) Nothing False [] True
-  , MkVerbFacts "Convert"     Nothing            (Just Object)
-                              (Just Battlefield) Nothing False [] True
-  , MkVerbFacts "Meld"        Nothing            (Just Object)
-                              Nothing            (Just Battlefield) False [] False
-  , MkVerbFacts "Unlock"      Nothing            Nothing
-                              (Just Battlefield) Nothing False [] False
-  , MkVerbFacts "Fully Unlock" Nothing           (Just Object)
-                              (Just Battlefield) Nothing False [] False
+actFacts : List ActFacts
+actFacts =
+  [ MkActFacts "Destroy"     (Just "destroyed") (Just Object)
+      (Just Graveyard) False [] False
+      noRole (MkDeedRole [] [] False (Just Battlefield))
+      False False Nothing False False
+  , MkActFacts "Sacrifice"   (Just "sacrificed") (Just Object)
+      (Just Graveyard) False [] False
+      (MkDeedRole [Player] [] True Nothing)
+      (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment,
+                            Planeswalker, Battle] True (Just Battlefield))
+      False False Nothing False False
+  , MkActFacts "Exile"       (Just "exiled")    (Just Object)
+      (Just Exile) False [] False
+      noRole noRole
+      False False Nothing False False
+  , MkActFacts "Discard"     (Just "discarded") (Just Object)
+      (Just Graveyard) False [] False
+      noRole (MkDeedRole [] [] False (Just Hand))
+      False False Nothing False False
+  , MkActFacts "Mill"        (Just "milled")    (Just Object)
+      (Just Graveyard) False [] False
+      noRole (MkDeedRole [] [] False (Just Library))
+      False False Nothing False False
+  , MkActFacts "Scry"        Nothing Nothing Nothing True [] False
+      noRole noRole
+      False False Nothing False False
+  , MkActFacts "Surveil"     Nothing Nothing Nothing True [] False
+      noRole noRole
+      False False Nothing False False
+  , MkActFacts "Tap"         (Just "tapped")    (Just Object) Nothing False [] False
+      noRole (MkDeedRole [] [] False (Just Battlefield))
+      False False Nothing False False
+  , MkActFacts "Untap"       (Just "untapped")  (Just Object) Nothing False [] False
+      (MkDeedRole [Player] [] True Nothing)
+      (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment,
+                            Planeswalker, Battle] True (Just Battlefield))
+      False False Nothing False False
+  , MkActFacts "Return"      Nothing (Just Object) Nothing False [] False
+      noRole noRole
+      False False Nothing False False
+  , MkActFacts "GainControl" Nothing (Just Object) Nothing False [] False
+      noRole (MkDeedRole [] [] False (Just Battlefield))
+      False False Nothing False False
+  , MkActFacts "Put"         Nothing (Just Object) Nothing False [] False
+      noRole noRole
+      False False Nothing False False
+  , MkActFacts "Search"      Nothing Nothing Nothing False
+      [Battlefield, Graveyard, Exile, Hand, Library, Stack, Command] False
+      (MkDeedRole [Player] [] True Nothing) noRole
+      False False Nothing False False
+  , MkActFacts "Shuffle"     Nothing Nothing Nothing False [Library] False
+      noRole noRole
+      False False Nothing False False
+  , MkActFacts "Proliferate" Nothing Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False
+  , MkActFacts "The Ring Tempts You" Nothing Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False
+  , MkActFacts "Transform"   Nothing (Just Object) Nothing False [] True
+      noRole (MkDeedRole [] [] False (Just Battlefield))
+      False False Nothing False False
+  , MkActFacts "Convert"     Nothing (Just Object) Nothing False [] True
+      noRole (MkDeedRole [] [] False (Just Battlefield))
+      False False Nothing False False
+  , MkActFacts "Meld"        Nothing (Just Object) (Just Battlefield) False [] False
+      noRole noRole
+      False False Nothing False False
+  , MkActFacts "Unlock"      Nothing Nothing Nothing False [] False
+      noRole (MkDeedRole [] [] False (Just Battlefield))
+      False False Nothing False False
+  , MkActFacts "Fully Unlock" Nothing (Just Object) Nothing False [] False
+      noRole (MkDeedRole [] [] False (Just Battlefield))
+      False False Nothing False False
+  , MkActFacts "Attack"      Nothing Nothing Nothing False [] False
+      (MkDeedRole [Object] [Creature] True (Just Battlefield))
+      (MkDeedRole [Object] [Planeswalker, Battle] False (Just Battlefield))
+      True False (Just ObjectPremise) False False
+  , MkActFacts "Block"       Nothing Nothing Nothing False [] False
+      (MkDeedRole [Object] [Creature] True (Just Battlefield))
+      (MkDeedRole [Object] [Creature] False (Just Battlefield))
+      False False (Just ObjectPremise) False False
+  , MkActFacts "Target"      Nothing Nothing Nothing False [] False
+      (MkDeedRole [] [] True (Just Stack))
+      (MkDeedRole [Object, Player] [Creature, Artifact, Land, Enchantment, Instant, Sorcery,
+                   Planeswalker, Battle, Kindred] True Nothing)
+      False True (Just ObjectPremise) False False
+  , MkActFacts "Cast"        Nothing Nothing Nothing False [] False
+      (MkDeedRole [Player] [] True Nothing)
+      (MkDeedRole [Object] [Creature, Artifact, Enchantment, Instant, Sorcery,
+                   Planeswalker, Battle, Kindred] True (Just Stack))
+      False False (Just ObjectPremise) True True
+  , MkActFacts "Play"        Nothing Nothing Nothing False [] False
+      (MkDeedRole [Player] [] True Nothing)
+      (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment, Instant, Sorcery,
+                   Planeswalker, Battle, Kindred] True Nothing)
+      False False (Just ObjectPremise) True True
+  , MkActFacts "Counter"     Nothing Nothing Nothing False [] False
+      (MkDeedRole [] [] True (Just Stack))
+      (MkDeedRole [Object] [Creature, Artifact, Enchantment, Instant, Sorcery,
+                   Planeswalker, Battle, Kindred] True (Just Stack))
+      False False Nothing True False
+  , MkActFacts "Copy"        Nothing Nothing Nothing False [] False
+      (MkDeedRole [] [] True (Just Stack))
+      (MkDeedRole [Object] [Creature, Artifact, Enchantment, Instant, Sorcery,
+                   Planeswalker, Battle, Kindred] True (Just Stack))
+      False False Nothing False False
+  , MkActFacts "Activate"    Nothing Nothing Nothing False [] False
+      (MkDeedRole [Player] [] True Nothing)
+      (MkDeedRole [Ability] [] True Nothing)
+      False False Nothing False False
+  , MkActFacts "Regenerate"  Nothing Nothing Nothing False [] False
+      (MkDeedRole [] [] True Nothing)
+      (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment,
+                            Planeswalker, Battle] True (Just Battlefield))
+      False False Nothing True False
+  , MkActFacts "GainLife"    Nothing Nothing Nothing False [] False
+      (MkDeedRole [Player] [] True Nothing) noRole
+      False False Nothing False False
+  , MkActFacts "DrawCard"    Nothing Nothing Nothing False [] False
+      (MkDeedRole [Player] [] True Nothing)
+      (MkDeedRole [Object] [] True (Just Library))
+      False False Nothing False False
+  , MkActFacts "Trigger"     Nothing Nothing Nothing False [] False
+      (MkDeedRole [Ability] [] True Nothing) noRole
+      False False Nothing False False
+  , MkActFacts "LoseGame"    Nothing Nothing Nothing False [] False
+      (MkDeedRole [Player] [] True Nothing) noRole
+      False False Nothing False False
+  , MkActFacts "WinGame"     Nothing Nothing Nothing False [] False
+      (MkDeedRole [Player] [] True Nothing) noRole
+      False False Nothing False False
+  , MkActFacts "Spend"       Nothing Nothing Nothing False [] False
+      (MkDeedRole [Player] [] True Nothing) noRole
+      False False (Just ManaPremise) False False
+  , MkActFacts "Crew"        Nothing Nothing Nothing False [] False
+      (MkDeedRole [Object] [Creature] True (Just Battlefield))
+      (MkDeedRole [Object] [Artifact] True (Just Battlefield))
+      False False (Just ValuePremise) False False
+  , MkActFacts "Saddle"      Nothing Nothing Nothing False [] False
+      (MkDeedRole [Object] [Creature] True (Just Battlefield))
+      (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment,
+                            Planeswalker, Battle] True (Just Battlefield))
+      False False (Just ValuePremise) False False
   ]
+
 public export
-factsIn : VerbLabel -> List VerbFacts -> Maybe VerbFacts
+distinctActLabels : List ActFacts -> Bool
+distinctActLabels [] = True
+distinctActLabels (f :: fs) =
+  not (elem (label f) (map label fs)) && distinctActLabels fs
+
+export
+actLabelsDistinct : So (distinctActLabels Experimental.Words.actFacts)
+actLabelsDistinct = Oh
+
+public export
+factsIn : VerbLabel -> List ActFacts -> Maybe ActFacts
 factsIn v [] = Nothing
 factsIn v (f :: fs) = if label f == v then Just f else factsIn v fs
 
 public export
-verbFactsFor : VerbLabel -> Maybe VerbFacts
-verbFactsFor v = factsIn v verbFacts
+actFactsFor : VerbLabel -> Maybe ActFacts
+actFactsFor v = factsIn v actFacts
 
 public export
-knownVerb : VerbLabel -> Bool
-knownVerb v = isJust (verbFactsFor v)
+knownAct : VerbLabel -> Bool
+knownAct v = isJust (actFactsFor v)
 
 public export
-KnownVerb : VerbLabel -> Type
-KnownVerb v = So (knownVerb v)
+KnownAct : VerbLabel -> Type
+KnownAct v = So (knownAct v)
 
 public export
 participleOf : VerbLabel -> Maybe String
-participleOf v = verbFactsFor v >>= participle
+participleOf v = actFactsFor v >>= participle
 
 public export
 actPatientOf : VerbLabel -> Maybe Kind
-actPatientOf v = verbFactsFor v >>= actPatient
+actPatientOf v = actFactsFor v >>= actPatient
 
 public export
 actNamesPatient : VerbLabel -> Bool
@@ -869,15 +1009,15 @@ actNamesPatient v = isJust (actPatientOf v)
 
 public export
 actZoneOf : VerbLabel -> Maybe Zone
-actZoneOf v = verbFactsFor v >>= actZone
+actZoneOf v = actFactsFor v >>= roleZone . patient
 
 public export
 actDestOf : VerbLabel -> Maybe Zone
-actDestOf v = verbFactsFor v >>= actDest
+actDestOf v = actFactsFor v >>= actDest
 
 public export
 actLociOf : VerbLabel -> List Zone
-actLociOf v = maybe [] actLoci (verbFactsFor v)
+actLociOf v = maybe [] actLoci (actFactsFor v)
 
 public export
 actNamesLocus : VerbLabel -> Bool
@@ -887,11 +1027,11 @@ actNamesLocus v = case actLociOf v of
 
 public export
 actStepwiseOf : VerbLabel -> Bool
-actStepwiseOf v = maybe False actStepwise (verbFactsFor v)
+actStepwiseOf v = maybe False actStepwise (actFactsFor v)
 
 public export
 actIntransitiveOf : VerbLabel -> Bool
-actIntransitiveOf v = maybe False actIntransitive (verbFactsFor v)
+actIntransitiveOf v = maybe False actIntransitive (actFactsFor v)
 
 public export
 actNamesParticiple : VerbLabel -> Bool

@@ -5220,7 +5220,7 @@ mindlockOrb : Card
 mindlockOrb =
   Macros.card "Mindlock Orb" (Just [Macros.generic 3, Macros.pip Blue]) []
        (MkTypeLine [] [Artifact])
-       [ Static (Macros.playerCant "SearchLibrary" (PlayerGroup AllPlayers)) ]
+       [ Static (Macros.playerCant "Search" (PlayerGroup AllPlayers)) ]
        Nothing
 
 public export
@@ -5241,7 +5241,7 @@ shadowOfDoubt =
        (MkTypeLine [] [Instant])
        [ Spell (Sequentially
                   [ Continuously
-                      (Macros.playerCant "SearchLibrary" (PlayerGroup AllPlayers))
+                      (Macros.playerCant "Search" (PlayerGroup AllPlayers))
                       (Just Macros.thisTurn)
                   , (Macros.draw You (Lit 1)) ]) ]
        Nothing

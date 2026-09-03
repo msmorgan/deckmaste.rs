@@ -291,7 +291,7 @@ mutual
                   (what : Maybe (Noun (agentIntro who) Object)) ->
                   (becomes : Maybe (Predicate (agentIntro who) Object)) ->
                   (forMana : Bool) ->
-                  {auto 0 kv : KnownVerb v} ->
+                  {auto 0 kv : KnownAct v} ->
                   {auto 0 pt : VerbPatient v what} ->
                   {auto 0 zn : ZoneFits (patientZone what) (actZoneOf v)} ->
                   {auto 0 vc : VerbedVoice v who what} ->

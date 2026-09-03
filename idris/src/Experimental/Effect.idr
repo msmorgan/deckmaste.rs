@@ -324,7 +324,7 @@ mutual
                 (rider : DeonticRider (deonticPatientIntro patient)) ->
                 {auto 0 ne : NonEmpty deeds} ->
                 {auto 0 dd : So (distinctDeeds deeds)} ->
-                {auto 0 kd : KnownDeeds deeds} ->
+                {auto 0 kd : KnownActs deeds} ->
                 {auto 0 zn : ZoneFits (nounZone n) (deedsZone deeds role)} ->
                 {auto 0 dp : DeedParticipant deeds role k (nounHeadTys n)} ->
                 {auto 0 pt : So (deonticPatientOk n deeds role patient rider)} ->
@@ -345,7 +345,7 @@ mutual
                          StaticEffect bs
       CantMoreThan : (who : Noun bs Player) -> (deed : VerbLabel) ->
                      (k : Nat) -> (p : Predicate bs Object) ->
-                     {auto 0 kd : KnownDeed deed} ->
+                     {auto 0 kd : KnownAct deed} ->
                      {auto 0 pk : So (deedKindOk deed Patient Object)} ->
                      {auto 0 zn : ZoneFits (seedZone p) (deedZoneOf deed Patient)} ->
                      StaticEffect bs
@@ -1120,7 +1120,7 @@ mutual
                  Effect bs
     CantBe : {k : Kind} -> (e : Effect bs) -> (deed : VerbLabel) ->
              (what : Noun (riderIntro e) k) ->
-             {auto 0 kd : KnownDeed deed} ->
+             {auto 0 kd : KnownAct deed} ->
              {auto 0 rd : So (deedRidesOk deed)} ->
              {auto 0 kk : So (deedKindOk deed Patient k)} ->
              {auto 0 sub : DeedParticipant [deed] Patient k (nounHeadTys what)} ->
@@ -1271,14 +1271,14 @@ mutual
                     (amt : Maybe (Amount (nomIntro who))) ->
                     {auto 0 pk : CounterKindNamed Player kind} -> Effect bs
     Enact : (v : VerbLabel) -> (e : Effect bs) ->
-            {auto 0 kn : KnownVerb v} -> Effect bs
+            {auto 0 kn : KnownAct v} -> Effect bs
     Does : (subj : Noun bs Player) -> (v : VerbLabel) ->
            (e : Effect (agentIntro subj)) ->
-           {auto 0 kn : KnownVerb v} -> Effect bs
+           {auto 0 kn : KnownAct v} -> Effect bs
     DoesGroup : (subj : Noun bs Player) -> (v : VerbLabel) ->
                 (e : Effect (agentIntro subj)) ->
                 {auto 0 pl : nounPlur subj = ManyOf} ->
-                {auto 0 kn : KnownVerb v} -> Effect bs
+                {auto 0 kn : KnownAct v} -> Effect bs
     ControllerSacrifices : (n : Noun bs Object) ->
                            {auto 0 one : nounPlur n = OneOf} ->
                            {auto 0 zn : OnBattlefield (nounZone n)} -> Effect bs
