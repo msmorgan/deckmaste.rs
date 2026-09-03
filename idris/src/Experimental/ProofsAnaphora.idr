@@ -3,7 +3,6 @@ module Experimental.ProofsAnaphora
 import Experimental
 import Experimental.Macros
 import Experimental.Unspellable
-
 import Data.List.Elem
 
 %default total
@@ -11,6 +10,704 @@ import Data.List.Elem
 %unbound_implicits off
 
 
+||| "Choose two — Draw a card; draw a card." [CR#700.2d]
+public export
+identicalModesAllowed : Effect []
+identicalModesAllowed =
+  Macros.chooseModes (Macros.exactly 2) [(Draw You (Lit 1)), (Draw You (Lit 1))]
+
+||| "Choose a player or planeswalker."
+public export
+okChoosePlayerOrPlaneswalker : Effect []
+okChoosePlayerOrPlaneswalker =
+  Choose (Macros.a (Macros.kindJoin AnyPlayer (HasType Planeswalker))) Nothing
+         Openly
+
+||| "Choose you."
+public export
+badChooseYou : Unspellable (Effect []) (\ok =>
+  Choose You Nothing Openly {ch = ok})
+badChooseYou BareChoice impossible
+
+public export
+badConditionalArmAntecedent : Unspellable (Effect []) (\ok =>
+  Sequentially [OnlyIf (Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [creatureType "Soldier"]))
+                   (Macros.exists Macros.creatureYouControl)
+                   Nothing,
+                PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) ((Macros.It OneOf) {ok})])
+badConditionalArmAntecedent Refl impossible
+
+public export
+badBothArmsAntecedent : Unspellable (Effect []) (\ok =>
+  Sequentially [May You (Macros.gainsLife You (Lit 1))
+                     (Just (Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [creatureType "Soldier"])))
+                     (Just (Macros.create (Lit 2) (Macros.creatureTok 1 1 [White] [creatureType "Soldier"]))),
+                PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) ((Macros.It OneOf) {ok})])
+badBothArmsAntecedent Refl impossible
+
+||| "Put target creature onto the battlefield."
+public export
+okMoveToBattlefield : Effect []
+okMoveToBattlefield =
+  Move (Macros.target Macros.creature) (ZoneAt Battlefield Bare) []
+
+||| "Put target creature into your library."
+public export
+badMoveToBareLibrary : Unspellable (Effect []) (\ok =>
+  Move (Macros.target Macros.creature) (ZoneAt Library Bare) [] {ok})
+badMoveToBareLibrary BattlefieldOk impossible
+
+||| "Look at the top four cards of your library. You choose one of them."
+public export
+okAgentChoiceOfSome : Effect []
+okAgentChoiceOfSome =
+  Sequentially [Macros.lookAt (Macros.topSlice (Lit 4)),
+                Choose (Macros.someOf (Macros.exactly 1) (Macros.It ManyOf)) (Just You) Openly]
+
+||| "Look at the top four cards of your library. Choose one of them."
+public export
+badChooseSomeOf : Unspellable (Effect []) (\ok =>
+  Sequentially [Macros.lookAt ((Macros.topSlice (Lit 4))), Choose (Macros.someOf (Macros.exactly 1) ((Macros.It ManyOf))) Nothing Openly {ch = ok}])
+badChooseSomeOf BareChoice impossible
+
+||| "Exile target creature."
+public export
+okMoveToExile : Effect []
+okMoveToExile = Move (Macros.target Macros.creature) Macros.exileZ []
+
+||| "Put target creature onto the stack."
+public export
+badMoveToStack : Unspellable (Effect []) (\ok =>
+  Move (Macros.target Macros.creature) (ZoneAt Stack Bare) [] {ok})
+badMoveToStack BattlefieldOk impossible
+
+||| "When this creature enters, if a creature died this turn, draw a card."
+public export
+okLookbackObjectDied : Ability
+okLookbackObjectDied =
+  Triggered When (Enters Macros.thisCreature Nothing) [] Nothing []
+            Nothing Nothing
+            (Just (Happened Death (Macros.a Macros.creature) Lookback.ThisTurn
+                            Nothing))
+            (Draw You (Lit 1))
+
+||| "When this creature enters, if you died this turn, draw a card."
+public export
+badLookbackPlayerDied : Unspellable Ability (\ok =>
+  Triggered When (Enters Macros.thisCreature Nothing) [] Nothing [] Nothing Nothing (Just (Happened Death You Lookback.ThisTurn Nothing {sb = ok})) (Draw You (Lit 1)))
+badLookbackPlayerDied MkLookbackSubject impossible
+
+public export
+badLookbackObjectCast : Unspellable Ability (\ok =>
+  Triggered When (Enters Macros.thisCreature Nothing) [] Nothing [] Nothing Nothing (Just (Happened SpellCast (Macros.a Macros.creature)
+                                          Lookback.ThisTurn Nothing {sb = ok})) (Draw You (Lit 1)))
+badLookbackObjectCast MkLookbackSubject impossible
+
+||| "target creature that entered this turn"
+public export
+okHappenedToObjectEntry : Noun [] Object
+okHappenedToObjectEntry =
+  Macros.target (And [Macros.creature,
+                      HappenedTo Entry Lookback.ThisTurn Nothing])
+
+||| "target creature who cast a spell this turn"
+public export
+badHappenedToObjectCast : Unspellable (Noun [] Object) (\ok =>
+  Macros.target (And [Macros.creature, HappenedTo SpellCast Lookback.ThisTurn Nothing {sb = ok}]))
+badHappenedToObjectCast MkLookbackSubject impossible
+
+||| "each opponent who died this turn"
+public export
+badHappenedToPlayerDied : Unspellable (Noun [] Player) (\ok =>
+  Macros.each (And [Opponent, HappenedTo Death Lookback.ThisTurn Nothing {sb = ok}]))
+badHappenedToPlayerDied MkLookbackSubject impossible
+
+||| "each opponent who a state matched this turn"
+public export
+badStateMatchLookback : Unspellable (Noun [] Player) (\ok =>
+  Macros.each (And [Opponent, HappenedTo StateMatch Lookback.ThisTurn Nothing {sb = ok}]))
+badStateMatchLookback MkLookbackSubject impossible
+
+||| "Choose a creature you control."
+public export
+okChooseIndefinite : Effect []
+okChooseIndefinite = Choose (Macros.a Macros.creatureYouControl) Nothing Openly
+
+||| "Choose the creature with the least toughness among creatures you control."
+public export
+badChooseDefinite : Unspellable (Effect []) (\ok =>
+  Choose (Macros.the (And [Macros.creature,
+                         Superlative MinOf (CharAxis Toughness)
+                                     Macros.creatureYouControl])) Nothing Openly {ch = ok})
+badChooseDefinite BareChoice impossible
+
+||| "This deals 3 damage to any target. This deals 1 damage to that permanent
+||| or player."
+public export
+okUnionAnaphorAfterJoin : Effect []
+okUnionAnaphorAfterJoin =
+  Sequentially [ DealDamage This (Lit 3)
+                   (Macros.target (Macros.kindJoin AnyPlayer Macros.creature))
+               , DealDamage This (Lit 1) (Macros.That JoinW OneOf) ]
+
+||| "This deals 3 damage to that permanent or player."
+public export
+badUnionAnaphorNoAntecedent : Unspellable (Effect []) (\ok =>
+  DealDamage This (Lit 3) (Macros.That JoinW OneOf {ok = ok}))
+badUnionAnaphorNoAntecedent Refl impossible
+
+||| "Destroy target creature. This deals 3 damage to that permanent or player."
+public export
+badUnionAnaphorOnObject : Unspellable (Effect []) (\ok =>
+  Sequentially [ Macros.destroy (Macros.target Macros.creature)
+               , DealDamage This (Lit 3) (Macros.That JoinW OneOf {ok = ok}) ])
+badUnionAnaphorOnObject Refl impossible
+
+||| "This deals 3 damage to any target. Counter that spell or ability."
+public export
+badAbilityJoinAnaphorOnPlayerUnion : Unspellable (Effect []) (\ok =>
+  Sequentially [ DealDamage This (Lit 3) (Macros.target Macros.anyTarget)
+               , CounterSpell (Macros.That AbilityJoinW OneOf {ok = ok}) ])
+badAbilityJoinAnaphorOnPlayerUnion Refl impossible
+
+||| "Counter target activated ability. Counter that spell or ability."
+public export
+badAbilityJoinAnaphorOnAbility : Unspellable (Effect []) (\ok =>
+  Sequentially [ CounterSpell (Macros.target (AbilityHead AnyActivated))
+               , CounterSpell (Macros.That AbilityJoinW OneOf {ok = ok}) ])
+badAbilityJoinAnaphorOnAbility Refl impossible
+
+||| "a creature with protection from a color"
+public export
+okKeywordClassWithSort : Predicate [] Object
+okKeywordClassWithSort =
+  HasKeyword (AnyKeywordIn (MkKeywordFamily "Protection" (Just Color)))
+
+||| "a creature with flyings"
+public export
+badClassOfParamlessKeyword : Unspellable (Predicate [] Object) (\ok =>
+  HasKeyword (AnyKeywordIn (MkKeywordFamily "Flying" Nothing)) {kn = ok})
+badClassOfParamlessKeyword Oh impossible
+
+||| "a creature with renown of any color"
+public export
+badSortedClassOnNumberKeyword : Unspellable (Predicate [] Object) (\ok =>
+  HasKeyword (AnyKeywordIn (MkKeywordFamily "Renown" (Just Color))) {kn = ok})
+badSortedClassOnNumberKeyword Oh impossible
+
+||| "{T}: Draw a card. Activate only if you created this turn."
+public export
+badBareTokenCreationLookback : Unspellable (Condition []) (\ok =>
+  Happened TokenCreation You Lookback.ThisTurn Nothing {cw = LeftBare {ok = ok}})
+badBareTokenCreationLookback Oh impossible
+
+||| "creature that was dealt damage by this creature this turn"
+public export
+okDamageTakenComplement : Predicate [] Object
+okDamageTakenComplement =
+  HappenedTo DamageTaken Lookback.ThisTurn
+             (Just (Involving Macros.thisCreature))
+
+||| "Destroy target creature that attacked with this creature this turn."
+public export
+badAttackerComplementOnObject : Unspellable (Predicate [] Object) (\ok =>
+  HappenedTo AttackDeclaration Lookback.ThisTurn (Just (Involving Macros.thisCreature {cp = ok})))
+badAttackerComplementOnObject MkLookbackComplement impossible
+
+public export
+badPlayerCastComplement : Unspellable (Condition []) (\ok =>
+  Happened SpellCast You Lookback.ThisTurn (Just (Involving Macros.anOpponent {cp = ok})))
+badPlayerCastComplement MkLookbackComplement impossible
+
+||| "target spell cast from your graveyard"
+public export
+okCastFromGraveyard : Predicate [] Object
+okCastFromGraveyard = CastFrom (Macros.graveyardOf You)
+
+||| "Counter target spell cast from the stack."
+public export
+badCastFromStack : Unspellable (Predicate [] Object) (\ok =>
+  CastFrom (ZoneAt Stack Bare) {pf = ok})
+badCastFromStack Oh impossible
+
+||| "… that was put somewhere from the battlefield this turn."
+public export
+okPlacementOriginBattlefield : Predicate [] Object
+okPlacementOriginBattlefield =
+  HappenedTo Placement Lookback.ThisTurn
+             (Just (FromZones (FromZone [Macros.battlefieldZ]) Nothing))
+
+||| "… that died from the battlefield this turn."
+public export
+badDeathOriginZone : Unspellable (Predicate [] Object) (\ok =>
+  HappenedTo Death Lookback.ThisTurn
+             (Just (FromZones (FromZone [Macros.battlefieldZ]) Nothing {ok = ok})))
+badDeathOriginZone Oh impossible
+
+||| "if you've cast a spell from the stack this turn"
+public export
+badCastOriginFromStack : Unspellable (Condition []) (\ok =>
+  Happened SpellCast You Lookback.ThisTurn
+           (Just (FromZones (FromZone [ZoneAt Stack Bare]) Nothing {ok = ok})))
+badCastOriginFromStack Oh impossible
+
+||| "if you've cast a spell from this turn"
+public export
+badEmptyOriginCoordination : Unspellable (Condition []) (\ok =>
+  Happened SpellCast You Lookback.ThisTurn
+           (Just (FromZones (FromZone []) Nothing {ok = ok})))
+badEmptyOriginCoordination Oh impossible
+
+||| "if you've cast a creature spell from your hand this turn"
+public export
+okOriginPayloadInvolving : Condition []
+okOriginPayloadInvolving =
+  Happened SpellCast You Lookback.ThisTurn
+           (Just (FromZones (FromZone [Macros.handZ])
+                    (Just (Involving (Macros.a Macros.creature)))))
+
+||| "if you've cast a spell from your hand from the command zone this turn"
+public export
+badNestedOriginPayload : Unspellable (Condition []) (\ok =>
+  Happened SpellCast You Lookback.ThisTurn
+           (Just (FromZones (FromZone [Macros.handZ])
+                    (Just (FromZones (FromZone [Macros.commandZ]) Nothing)) {pl = ok})))
+badNestedOriginPayload Oh impossible
+
+||| "if you've cast a spell from anywhere other than this turn"
+public export
+badEmptyOriginExclusion : Unspellable (Condition []) (\ok =>
+  Happened SpellCast You Lookback.ThisTurn
+           (Just (FromZones (FromAnywhereBut []) Nothing {ok = ok})))
+badEmptyOriginExclusion Oh impossible
+
+||| "… that died from anywhere this turn."
+public export
+badDeathOriginAnywhere : Unspellable (Predicate [] Object) (\ok =>
+  HappenedTo Death Lookback.ThisTurn
+             (Just (FromZones FromAnywhere Nothing {ok = ok})))
+badDeathOriginAnywhere Oh impossible
+
+||| "… that was put into a graveyard from the battlefield this turn."
+public export
+okPlacementIntoGraveyard : Predicate [] Object
+okPlacementIntoGraveyard =
+  HappenedTo Placement Lookback.ThisTurn
+             (Just (IntoZone Macros.graveyardZ
+                      (Just (FromZones (FromZone [Macros.battlefieldZ])
+                                       Nothing))))
+
+||| "… that was put into the battlefield this turn."
+public export
+badPlacementIntoBattlefield : Unspellable (Predicate [] Object) (\ok =>
+  HappenedTo Placement Lookback.ThisTurn
+             (Just (IntoZone Macros.battlefieldZ Nothing {ok = ok})))
+badPlacementIntoBattlefield Oh impossible
+
+||| "… that was put into your graveyard into exile this turn."
+public export
+badNestedDestination : Unspellable (Predicate [] Object) (\ok =>
+  HappenedTo Placement Lookback.ThisTurn
+             (Just (IntoZone (Macros.graveyardOf You)
+                      (Just (IntoZone Macros.exileZ Nothing)) {pl = ok})))
+badNestedDestination Oh impossible
+
+||| "if you shuffled your library this way"
+public export
+okShuffleLocusAtLibrary : Condition []
+okShuffleLocusAtLibrary =
+  Happened (VerbedAct "Shuffle") You Lookback.ThisWay
+           (Just (AtZone Macros.yourLibrary))
+
+||| "if a creature died in your graveyard this way"
+public export
+badLocusOnDeath : Unspellable (Condition []) (\ok =>
+  Happened Death (Macros.a Macros.creature) Lookback.ThisWay
+           (Just (AtZone (Macros.graveyardOf You) {ok = ok})))
+badLocusOnDeath Oh impossible
+
+||| "if you searched this way, shuffle"
+public export
+badBareSearchLookback : Unspellable (Condition []) (\ok =>
+  Happened (VerbedAct "Search") You Lookback.ThisWay Nothing {cw = LeftBare {ok}})
+badBareSearchLookback Oh impossible
+
+||| "if you shuffled your graveyard this way"
+public export
+badShuffleLocusAtGraveyard : Unspellable (Condition []) (\ok =>
+  Happened (VerbedAct "Shuffle") You Lookback.ThisWay
+           (Just (AtZone (Macros.graveyardOf You) {ok = ok})))
+badShuffleLocusAtGraveyard Oh impossible
+
+||| "target creature spell, once it resolves"
+public export
+okResolvedCreatureSpell : Noun [] Object
+okResolvedCreatureSpell =
+  ResolvedPermanent (Macros.a (And [HasType Creature, Macros.spell]))
+
+public export
+badResolvedInstant : Unspellable (Noun [] Object) (\ok =>
+  ResolvedPermanent (Macros.a (And [HasType Instant, Macros.spell])) {pm = ok})
+badResolvedInstant Oh impossible
+
+||| "this creature, once it resolves"
+public export
+badResolvedOnBattlefield : Unspellable (Noun [] Object) (\ok =>
+  ResolvedPermanent Macros.thisCreature {zn = ok})
+badResolvedOnBattlefield Oh impossible
+
+||| "if it entered from the battlefield"
+public export
+badEntryOriginBattlefield : Unspellable (Predicate [] Object) (\ok =>
+  HappenedTo Entry Lookback.ThisTurn
+             (Just (FromZones (FromZone [Macros.battlefieldZ]) Nothing {ok = ok})))
+badEntryOriginBattlefield Oh impossible
+
+||| "For each opponent, you draw a card."
+public export
+okPluralForEach : Effect []
+okPluralForEach = ForEachOf (Macros.each Opponent) (Draw You (Lit 1))
+
+||| "For each of target creature, its controller draws a card."
+public export
+badSingletonForEach : Unspellable (Effect []) (\ok =>
+  ForEachOf (Macros.target Macros.creature) (Draw You (Lit 1)) {pl = ok})
+badSingletonForEach Refl impossible
+
+||| "if you activated a loyalty ability this turn"
+public export
+badBareActivationLookback : Unspellable (Condition []) (\ok =>
+  Happened AbilityActivation You Lookback.ThisTurn Nothing {cw = LeftBare {ok = ok}})
+badBareActivationLookback Oh impossible
+
+||| "on top of your library in any order, third from the top"
+public export
+okOneEndArrangedOrdinal : ZoneExpr []
+okOneEndArrangedOrdinal =
+  LibraryAt (OneEnd OnTop) (Just AnyOrder) (Just (Nth 3)) Bare
+
+||| "Put those cards on the top or bottom of your library in any order."
+public export
+badDisjunctionOrdered : Unspellable (ZoneExpr []) (\ok =>
+  LibraryAt (EitherEnd Nothing) (Just AnyOrder) Nothing {af = ok} Bare)
+badDisjunctionOrdered Oh impossible
+
+||| "third from the top"
+public export
+okThirdFromTop : LibOrdinal
+okThirdFromTop = Nth 3
+
+||| "zeroth from the top"
+public export
+badZerothFromTop : Unspellable LibOrdinal (\ok => Nth 0 {nz = ok})
+badZerothFromTop ItIsSucc impossible
+
+||| "Shuffle those cards into your library in any order."
+public export
+badShuffledArranged : Unspellable (ZoneExpr []) (\ok =>
+  LibraryAt Shuffled (Just AnyOrder) Nothing {af = ok} Bare)
+badShuffledArranged Oh impossible
+
+||| "Shuffle it into its owner's library third from the top."
+public export
+badShuffledOrdinal : Unspellable (ZoneExpr []) (\ok =>
+  LibraryAt Shuffled Nothing (Just (Nth 3)) {nf = ok} Bare)
+badShuffledOrdinal Oh impossible
+
+public export
+copyParticipleUnwritten : actNamesParticiple "Copy" = False
+copyParticipleUnwritten = Refl
+
+||| "Change the target of target spell or ability with a single target."
+public export
+spellOrAbilityJoin : Payload (Object \/ Ability)
+spellOrAbilityJoin = JoinP (ObjectP Nothing (Just Stack) Nothing Nothing Nothing)
+                             (AbilityP Nothing)
+
+public export
+abilityUnderSpellOrAbility : So (kindLte Ability (Object \/ Ability))
+abilityUnderSpellOrAbility = kindLteJoinR Object Ability
+
+public export
+joinedCreatureTy :
+  tyOfReach (Word JoinW) OneOf (effIntro {bs = []}
+    (DealDamage This (Lit 3)
+       (Macros.target (Macros.kindJoin AnyPlayer Macros.creature))))
+  = Just Creature
+joinedCreatureTy = Refl
+
+public export
+anyTargetIsPlaceless :
+  nounZone {bs = []} (Macros.target Macros.anyTarget) = Nothing
+anyTargetIsPlaceless = Refl
+
+public export
+anyTargetTakesDamage : DamageRecipient (Macros.target {bs = []} Macros.anyTarget)
+anyTargetTakesDamage = JoinTakes
+
+public export
+youAndBindsNothing :
+  nounDelta {bs = []} (Macros.youAnd Macros.thisCreature) = []
+youAndBindsNothing = Refl
+
+||| "This deals 3 damage to any target. If a player is dealt damage this way,
+||| you draw a card."
+public export
+okDealtThisWayAfterDamage : Effect []
+okDealtThisWayAfterDamage =
+  Sequentially [ DealDamage This (Lit 3) (Macros.target Macros.anyTarget)
+               , If (DealtThisWay AnyPlayer) (Draw You (Lit 1)) Nothing ]
+
+||| "You draw a card. If a player is dealt damage this way, you draw a card."
+public export
+badDealtThisWayNoDamage : Unspellable (Effect []) (\ok =>
+  Sequentially [ Draw You (Lit 1)
+               , If (DealtThisWay AnyPlayer {wy = ok}) (Draw You (Lit 1)) Nothing ])
+badDealtThisWayNoDamage Oh impossible
+
+public export
+badDealtThisWayAbility : Unspellable (Effect []) (\ok =>
+  Sequentially [ DealDamage This (Lit 2) (Macros.target Macros.anyTarget)
+               , If (DealtThisWay IsManaAbility {rk = ok}) (Draw You (Lit 1))
+                    Nothing ])
+badDealtThisWayAbility Oh impossible
+
+||| "the number of creatures that died this turn"
+public export
+okDeathTally : Amount []
+okDeathTally =
+  EventTally TallyCount Death (Macros.a Macros.creature) Lookback.ThisTurn
+             Nothing
+
+||| "the amount of creatures that died this turn"
+public export
+badDeathSum : Unspellable (Amount []) (\ok =>
+  EventTally TallySum Death (Macros.a Macros.creature) Lookback.ThisTurn Nothing
+           {qm = ok})
+badDeathSum Oh impossible
+
+||| "creature that died this turn"
+public export
+okObjectDeathLookbackSubject : Predicate [] Object
+okObjectDeathLookbackSubject = HappenedTo Death Lookback.ThisTurn Nothing
+
+||| "creature that won a coin flip this turn"
+public export
+badCreatureWonFlip : Unspellable (Predicate [] Object) (\ok =>
+  HappenedTo FlipWin Lookback.ThisTurn Nothing {sb = ok})
+badCreatureWonFlip MkLookbackSubject impossible
+
+||| "the amount of dice you rolled this turn"
+public export
+badRollAsMagnitude : Unspellable (Amount []) (\ok =>
+  EventTally TallySum DiceRoll You Lookback.ThisTurn Nothing {qm = ok})
+badRollAsMagnitude Oh impossible
+
+public export
+youWonAFlipThisTurn : Condition []
+youWonAFlipThisTurn = Happened FlipWin You Lookback.ThisTurn Nothing
+
+public export
+youRolledADieThisTurn : Condition []
+youRolledADieThisTurn = Happened DiceRoll You Lookback.ThisTurn Nothing
+
+||| "Roll two d20. Ignore the lowest roll."
+public export
+okIgnoreAfterRoll : Effect []
+okIgnoreAfterRoll =
+  Sequentially [ (Macros.rollDice You 2 20)
+               , IgnoreOutcomes (IgnoreExtreme LowestRoll) ]
+
+||| "Ignore the lowest roll."
+public export
+badIgnoreWithoutRoll : Unspellable (Effect []) (\ok =>
+  IgnoreOutcomes (IgnoreExtreme LowestRoll) {ok})
+badIgnoreWithoutRoll Oh impossible
+
+public export
+afterATwoDieRoll : Bindings
+afterATwoDieRoll = effIntro (the (Effect []) (Macros.rollDice You 2 6))
+
+||| "if you rolled doubles"
+public export
+okRolledDoublesAfterRoll : Condition ProofsAnaphora.afterATwoDieRoll
+okRolledDoublesAfterRoll = RolledDoubles
+
+||| "If you rolled doubles, sacrifice this creature."
+public export
+badRolledDoublesWithoutRoll : Unspellable (Condition []) (\ok =>
+  RolledDoubles {ok})
+badRolledDoublesWithoutRoll Refl impossible
+
+public export
+afterACoinFlip : Bindings
+afterACoinFlip = effIntro (the (Effect []) (Macros.flipCoins You 1))
+
+||| "a player whose coin comes up tails"
+public export
+okCoinCameUpOnPlayer : Predicate ProofsAnaphora.afterACoinFlip Player
+okCoinCameUpOnPlayer = CoinCameUp Tails
+
+||| "an ability whose coin comes up tails"
+public export
+badCoinCameUpOnAbility :
+  Unspellable (Predicate ProofsAnaphora.afterACoinFlip Ability) (\ok =>
+    CoinCameUp Tails {rk = ok})
+badCoinCameUpOnAbility Oh impossible
+
+||| "Whenever you roll a 4 or higher, …"
+public export
+okBoundedRollTest : GameEvent []
+okBoundedRollTest =
+  RollsDice You OneDie AnyDie (ResultIn (Range (Just 4) Nothing))
+
+||| "Whenever you roll a 0, …"
+public export
+badZeroRollTest : Unspellable (GameEvent []) (\ok =>
+  RollsDice You OneDie AnyDie (ResultIn (Range Nothing (Just 0))
+                                 {nz = ok} {wf = Oh} {lt = Oh}))
+badZeroRollTest MaxAtLeastOne impossible
+
+||| "Whenever you roll a 4 or higher on the planar die, …"
+public export
+badPlanarResultTest : Unspellable (GameEvent []) (\ok =>
+  RollsDice You ManyDice PlanarDie
+            (ResultIn (Range (Just 4) Nothing) {nz = UnboundedAbove}
+                      {wf = Oh} {lt = Oh})
+            {dw = ok})
+badPlanarResultTest Oh impossible
+
+||| "If you would flip a coin, instead flip two coins and ignore the lower one."
+public export
+badExtremeOverFlips :
+  Unspellable (Effect ProofsAnaphora.afterACoinFlip) (\ok =>
+    IgnoreOutcomes (IgnoreExtreme LowestRoll) {ok})
+badExtremeOverFlips Oh impossible
+
+||| "When a player doesn't pay this creature's flying, …"
+public export
+badPayCostlessKeyword : Unspellable (GameEvent []) (\ok =>
+  PaysCost (Just (Macros.a AnyPlayer)) Unpaid Macros.thisCreature "Flying" {kc = ok})
+badPayCostlessKeyword Oh impossible
+
+||| "if you paid a cost this turn"
+public export
+badBarePaymentLookback : Unspellable (Condition []) (\ok =>
+  Happened CostPayment You Lookback.ThisTurn Nothing {sb = ok})
+badBarePaymentLookback MkLookbackSubject impossible
+
+||| "Destroy the rest."
+public export
+badRestWithoutAPartition : Unspellable (Noun [] Object) (\ok =>
+  Macros.theRest {ok})
+badRestWithoutAPartition Oh impossible
+
+||| "Choose any number of target creatures. Destroy the rest."
+public export
+badRestAfterTargetChoice : Unspellable (Effect []) (\ok =>
+  Sequentially [ Macros.choose (Described (TargetDet Macros.anyNumber) Macros.creature)
+               , Macros.destroy (Macros.theRest {ok}) ])
+badRestAfterTargetChoice Oh impossible
+
+public export
+youPaidLifeThisTurn : Condition []
+youPaidLifeThisTurn = Happened LifePayment You Lookback.ThisTurn Nothing
+
+public export
+afterShuffledLook : Bindings
+afterShuffledLook =
+  effIntro (the (Effect [])
+    (Sequentially [ Macros.lookAt (Macros.topSlice (Lit 1)), Macros.shuffle ]))
+
+public export
+badReadsShuffledLibraryCard :
+  Unspellable (Noun ProofsAnaphora.afterShuffledLook Object) (\ok => Macros.That CardW OneOf {ok})
+badReadsShuffledLibraryCard Refl impossible
+
+||| "Whenever you scry, …"
+public export
+okPatientlessScry : GameEvent []
+okPatientlessScry = VerbedEvent (Just You) "Scry" Nothing Nothing False
+
+||| "Whenever you scry a card, …"
+public export
+badScryPatient : Unspellable (GameEvent []) (\ok =>
+  VerbedEvent (Just You) "Scry"
+              (Just (Macros.a (InZone (ZoneAt Library Bare)))) Nothing False
+              {pt = ok})
+badScryPatient Oh impossible
+
+||| "Whenever discards a card, …"
+public export
+badVoicelessAct : Unspellable (GameEvent []) (\ok =>
+  VerbedEvent Nothing "Scry" Nothing Nothing False {vc = ok})
+badVoicelessAct Oh impossible
+
+||| "Whenever a card is put, …"
+public export
+badPassiveWithoutParticiple : Unspellable (GameEvent []) (\ok =>
+  VerbedEvent Nothing "Put" (Just (Macros.a IsCard)) Nothing False {vc = ok})
+badPassiveWithoutParticiple Oh impossible
+
+||| "Whenever a creature transforms into a Phyrexian, …"
+public export
+okIntransitiveBecomes : GameEvent []
+okIntransitiveBecomes =
+  VerbedEvent Nothing "Transform" (Just (Macros.a Macros.creature))
+              (Just (HasSubtype (creatureType "Phyrexian"))) False
+
+||| "Whenever a card is milled into a Phyrexian, …"
+public export
+badBecomesWithoutIntransitive : Unspellable (GameEvent []) (\ok =>
+  VerbedEvent Nothing "Mill" (Just (Macros.a (InZone (ZoneAt Library Bare))))
+              (Just (HasSubtype (creatureType "Phyrexian"))) False {bc = ok})
+badBecomesWithoutIntransitive Oh impossible
+
+||| "Whenever you discard a card, …"
+public export
+okDiscardFromHand : GameEvent []
+okDiscardFromHand =
+  VerbedEvent (Just You) "Discard" (Just (Macros.a (InZone Macros.handZ)))
+              Nothing False
+
+||| "Whenever a card in a graveyard is destroyed, …"
+public export
+badDestroyInGraveyard : Unspellable (GameEvent []) (\ok =>
+  VerbedEvent Nothing "Destroy"
+              (Just (Macros.a (InZone Macros.graveyardZ))) Nothing False {zn = ok})
+badDestroyInGraveyard Oh impossible
+
+||| "Whenever you discard a permanent you control, …"
+public export
+badDiscardFromBattlefield : Unspellable (GameEvent []) (\ok =>
+  VerbedEvent (Just You) "Discard"
+              (Just (Macros.a (InZone Macros.battlefieldZ))) Nothing False {zn = ok})
+badDiscardFromBattlefield Oh impossible
+
+||| "if you dealt damage to an opponent this turn"
+public export
+badPlayerDamageDealer : Unspellable (Condition []) (\ok =>
+  Happened DamageDealing You Lookback.ThisTurn Nothing {sb = ok})
+badPlayerDamageDealer MkLookbackSubject impossible
+
+public export
+joinedDealerDamageComplement :
+  LookbackComplement DamageDealing Object (Object \/ Player)
+joinedDealerDamageComplement = MkLookbackComplement
+
+public export
+lastChosenPlayerRead :
+  Predicate [choiceB PlayerC, choiceB PlayerC] Player
+lastChosenPlayerRead = TheLastChosenPlayer
+
+||| "This deals 3 damage to a chosen player. This deals 3 damage to that
+||| player." Only a definite description refers to the choice [CR#607.2d];
+||| the indefinite binds a second player, so the read is ambiguous.
+public export
+badIndefiniteChosenPlayerRead : Unspellable (Effect [choiceB PlayerC]) (\ok =>
+  Sequentially [ DealDamage This (Lit 3) (Macros.a ChosenPlayer)
+               , DealDamage This (Lit 3) (They {ok = ok}) ])
+badIndefiniteChosenPlayerRead Refl impossible
 
 public export
 countBy : (Binding -> Bool) -> Bindings -> Nat
@@ -61,8 +758,6 @@ anyByWitness p (b :: bs) ok with (p b) proof eq
 public export
 countByEmpty : (p : Binding -> Bool) -> countBy p [] = Z
 countByEmpty p = Refl
-
-
 
 public export
 oneOfKind : Kind -> Binding -> Bool
@@ -318,8 +1013,6 @@ anyTargetedIsAny k (MkBinding CountD j p pay :: bs) = anyTargetedIsAny k bs
 anyTargetedIsAny k (MkBinding SelfD j p pay :: bs) = anyTargetedIsAny k bs
 anyTargetedIsAny k (MkBinding BareD j p pay :: bs) = anyTargetedIsAny k bs
 
-
-
 public export
 resolveOnes : (k : Kind) -> (bs : Bindings) -> countOnes k bs = 1 ->
               (b : Binding ** (Elem b bs, So (oneOfKind k b)))
@@ -332,8 +1025,6 @@ resolveManys : (k : Kind) -> (bs : Bindings) -> countManys k bs = 1 ->
 resolveManys k bs ok =
   countByWitness (manyOfKind k) bs Z (trans (sym (countManysIsFold k bs)) ok)
 
-
-
 public export
 itReadsOnlyPrefix : (bs : Bindings) -> countReach Bare OneOf bs = 1 -> Noun bs Object
 itReadsOnlyPrefix bs ok = (Macros.It OneOf) {bs} {ok}
@@ -344,8 +1035,6 @@ itResolvesInPrefix : (bs : Bindings) -> countReach Bare OneOf bs = 1 ->
 itResolvesInPrefix bs ok =
   countByWitness (reaches Bare OneOf) bs Z
     (trans (sym (countReachIsFold Bare OneOf bs)) ok)
-
-
 
 public export
 itAtReadsOnlyPrefix : (sl : SlotCarrier) -> (bs : Bindings) ->
@@ -359,8 +1048,6 @@ itAtResolvesInPrefix : (sl : SlotCarrier) -> (bs : Bindings) ->
 itAtResolvesInPrefix sl bs ok =
   countByWitness (reaches (AtSlot sl) OneOf) bs Z
     (trans (sym (countReachIsFold (AtSlot sl) OneOf bs)) ok)
-
-
 
 public export
 itVerbedReadsOnlyPrefix : (bs : Bindings) -> (v : VerbLabel) ->
@@ -376,8 +1063,6 @@ itVerbedResolvesInPrefix bs v ok =
   countByWitness (reaches (Stamped v) OneOf) bs Z
     (trans (sym (countReachIsFold (Stamped v) OneOf bs)) ok)
 
-
-
 public export
 itTokenReadsOnlyPrefix : (bs : Bindings) -> countReach TokenBorn OneOf bs = 1 ->
                          Noun bs Object
@@ -389,8 +1074,6 @@ itTokenResolvesInPrefix : (bs : Bindings) -> countReach TokenBorn OneOf bs = 1 -
 itTokenResolvesInPrefix bs ok =
   countByWitness (reaches TokenBorn OneOf) bs Z
     (trans (sym (countReachIsFold TokenBorn OneOf bs)) ok)
-
-
 
 public export
 elemInSuffix : {0 b : Binding} -> {0 rest : Bindings} -> (co : Bindings) ->
@@ -460,8 +1143,6 @@ ownResolvesInPrefix pl own outer ok =
                          (trans (sym (countReachIsFold Bare pl own)) ok) in
       (b ** (elemInPrefix outer el, k))
 
-
-
 public export
 theyReadsOnlyPrefix : (bs : Bindings) -> countReach (Word PlayerW) OneOf bs = 1 ->
                       Noun bs Player
@@ -475,8 +1156,6 @@ theyResolvesInPrefix bs ok =
   countByWitness (reaches (Word PlayerW) OneOf) bs Z
     (trans (sym (countReachIsFold (Word PlayerW) OneOf bs)) ok)
 
-
-
 public export
 themReadsOnlyPrefix : (bs : Bindings) -> countReach Bare ManyOf bs = 1 -> Noun bs Object
 themReadsOnlyPrefix bs ok = (Macros.It ManyOf) {bs} {ok}
@@ -487,8 +1166,6 @@ themResolvesInPrefix : (bs : Bindings) -> countReach Bare ManyOf bs = 1 ->
 themResolvesInPrefix bs ok =
   countByWitness (reaches Bare ManyOf) bs Z
     (trans (sym (countReachIsFold Bare ManyOf bs)) ok)
-
-
 
 public export
 themVerbedReadsOnlyPrefix : (bs : Bindings) -> (v : VerbLabel) ->
@@ -505,8 +1182,6 @@ themVerbedResolvesInPrefix bs v ok =
   countByWitness (reaches (Stamped v) ManyOf) bs Z
     (trans (sym (countReachIsFold (Stamped v) ManyOf bs)) ok)
 
-
-
 public export
 thatReadsOnlyPrefix : (bs : Bindings) -> (w : NounWord) ->
                       countReach (Word w) OneOf bs = 1 -> Noun bs (kindOfW w)
@@ -519,8 +1194,6 @@ thatResolvesInPrefix : (bs : Bindings) -> (w : NounWord) ->
 thatResolvesInPrefix bs w ok =
   countByWitness (reaches (Word w) OneOf) bs Z
     (trans (sym (countReachIsFold (Word w) OneOf bs)) ok)
-
-
 
 public export
 thatHalfReadsOnlyPrefix : (bs : Bindings) -> (w : NounWord) ->
@@ -537,8 +1210,6 @@ thatHalfResolvesInPrefix bs w ok =
   countByWitness (reaches (UnionHalf w) OneOf) bs Z
     (trans (sym (countReachIsFold (UnionHalf w) OneOf bs)) ok)
 
-
-
 public export
 thoseReadsOnlyPrefix : (bs : Bindings) -> (w : NounWord) ->
                        countReach (Word w) ManyOf bs = 1 -> Noun bs (kindOfW w)
@@ -551,8 +1222,6 @@ thoseResolvesInPrefix : (bs : Bindings) -> (w : NounWord) ->
 thoseResolvesInPrefix bs w ok =
   countByWitness (reaches (Word w) ManyOf) bs Z
     (trans (sym (countReachIsFold (Word w) ManyOf bs)) ok)
-
-
 
 public export
 theVerbedReadsOnlyPrefix : (bs : Bindings) -> (v : VerbLabel) -> (w : NounWord) ->
@@ -571,8 +1240,6 @@ theVerbedResolvesInPrefix bs v w m ok =
   countByWitness (reaches (Verbed v w m) OneOf) bs Z
     (trans (sym (countReachIsFold (Verbed v w m) OneOf bs)) ok)
 
-
-
 public export
 thoseVerbedReadsOnlyPrefix : (bs : Bindings) -> (v : VerbLabel) -> (w : NounWord) ->
                              (m : VerbedMarking) ->
@@ -590,8 +1257,6 @@ thoseVerbedResolvesInPrefix : (bs : Bindings) -> (v : VerbLabel) -> (w : NounWor
 thoseVerbedResolvesInPrefix bs v w m ok =
   countByWitness (reaches (Verbed v w m) ManyOf) bs Z
     (trans (sym (countReachIsFold (Verbed v w m) ManyOf bs)) ok)
-
-
 
 public export
 notZeroSucc : (n : Nat) -> So (not (n == Z)) -> (k : Nat ** n = S k)
@@ -617,8 +1282,6 @@ theRestGroupResolvesInPrefix : (bs : Bindings) -> countGroups bs = 1 ->
 theRestGroupResolvesInPrefix bs gEq =
   countByWitness groupOne bs Z (trans (sym (countGroupsIsFold bs)) gEq)
 
-
-
 public export
 thatMuchReadsOnlyPrefix : (bs : Bindings) -> countQuantOutcomes bs = 1 -> Amount bs
 thatMuchReadsOnlyPrefix bs ok = ThatMuch {bs} {ok}
@@ -629,8 +1292,6 @@ thatMuchResolvesInPrefix : (bs : Bindings) -> countQuantOutcomes bs = 1 ->
 thatMuchResolvesInPrefix bs ok =
   countByWitness quantOutcome bs Z
                  (trans (sym (countQuantOutcomesIsFold bs)) ok)
-
-
 
 public export
 preventedThisWayReadsOnlyPrefix : (bs : Bindings) ->
@@ -645,8 +1306,6 @@ preventedThisWayResolvesInPrefix bs ok =
   countByWitness (outcomeIs DamagePrevented) bs Z
                  (trans (sym (countOutcomesIsFold DamagePrevented bs)) ok)
 
-
-
 public export
 theResultReadsOnlyPrefix : (bs : Bindings) ->
                            countOutcomes RollResult bs = 1 -> Amount bs
@@ -660,8 +1319,6 @@ theResultResolvesInPrefix bs ok =
   countByWitness (outcomeIs RollResult) bs Z
                  (trans (sym (countOutcomesIsFold RollResult bs)) ok)
 
-
-
 public export
 groupSizeReadsOnlyPrefix : (bs : Bindings) -> countManysAny bs = 1 -> Amount bs
 groupSizeReadsOnlyPrefix bs ok = GroupSize {bs} {ok}
@@ -672,8 +1329,6 @@ groupSizeResolvesInPrefix : (bs : Bindings) -> countManysAny bs = 1 ->
 groupSizeResolvesInPrefix bs ok =
   countByWitness anyMany bs Z (trans (sym (countManysAnyIsFold bs)) ok)
 
-
-
 public export
 theDifferenceReadsOnlyPrefix : (bs : Bindings) -> countOnes Gap bs = 1 -> Amount bs
 theDifferenceReadsOnlyPrefix bs ok = TheDifference {bs} {ok}
@@ -682,8 +1337,6 @@ public export
 theDifferenceResolvesInPrefix : (bs : Bindings) -> countOnes Gap bs = 1 ->
                                 (b : Binding ** (Elem b bs, So (oneOfKind Gap b)))
 theDifferenceResolvesInPrefix bs ok = resolveOnes Gap bs ok
-
-
 
 public export
 openLetterIsAny : (l : Letter) -> (bs : Bindings) ->
@@ -727,8 +1380,6 @@ public export
 costXStaysOpen : So (anyOpenLetter X (costIntro (LoyaltySymbol {bs = []} LoyaltyDownX)))
 costXStaysOpen = Oh
 
-
-
 public export
 ofChosenReadsOnlyPrefix : (bs : Bindings) -> (q : QualitySort) ->
                           countChoice (QSort q) bs = 1 -> ChosenQualityRead q ->
@@ -743,8 +1394,6 @@ ofChosenResolvesInPrefix : (bs : Bindings) -> (q : QualitySort) ->
 ofChosenResolvesInPrefix bs q ok =
   countByWitness (oneOfKind (Quality q)) bs Z
                  (trans (sym (countQualityIsFold q bs)) ok)
-
-
 
 public export
 choiceStandsSucc : (n : Nat) -> ChoiceStands n -> (k : Nat ** n = S k)
@@ -766,8 +1415,6 @@ ofLastChosenColorResolvesInPrefix bs ok =
    in countByWitness (oneOfKind (Quality Color)) bs k
                      (trans (sym (countQualityIsFold Color bs)) eq)
 
-
-
 public export
 chosenNameReadsOnlyPrefix : (bs : Bindings) -> countChoice (QSort CardName) bs = 1 ->
                             NameSource bs
@@ -778,8 +1425,6 @@ chosenNameResolvesInPrefix : (bs : Bindings) -> countChoice (QSort CardName) bs 
                              (b : Binding ** (Elem b bs,
                                               So (oneOfKind (Quality CardName) b)))
 chosenNameResolvesInPrefix bs ok = ofChosenResolvesInPrefix bs CardName ok
-
-
 
 public export
 ofChosenColorReadsOnlyPrefix : (bs : Bindings) -> (alt : Maybe ProducedRun) ->
@@ -794,8 +1439,6 @@ ofChosenColorResolvesInPrefix : (bs : Bindings) -> countChoice (QSort Color) bs 
                                                  So (oneOfKind (Quality Color) b)))
 ofChosenColorResolvesInPrefix bs ok = ofChosenResolvesInPrefix bs Color ok
 
-
-
 ||| "Any other target"
 public export
 otherReadsOnlyPrefix : (bs : Bindings) -> (k : Kind) ->
@@ -807,8 +1450,6 @@ otherResolvesInPrefix : (bs : Bindings) -> (k : Kind) -> So (anyTargeted k bs) -
                         (b : Binding ** (Elem b bs, So (targetOfKind k b)))
 otherResolvesInPrefix bs k ok =
   anyByWitness (targetOfKind k) bs (replace {p = So} (anyTargetedIsAny k bs) ok)
-
-
 
 public export
 turnInScopeReadsOnlyPrefix : (bs : Bindings) -> countReach ThatTurn OneOf bs = 1 ->
@@ -834,18 +1475,6 @@ public export
 badThatTurnWithoutTurn : Unspellable (Noun [] TurnRef) (\ok =>
   Macros.thatTurn {bs = []} {ok})
 badThatTurnWithoutTurn Refl impossible
-
-public export
-twoExtraTurns : Bindings
-twoExtraTurns =
-  effIntro {bs = effIntro {bs = []} (ExtraTurn You (Lit 1))} (ExtraTurn You (Lit 1))
-
-public export
-badThatTurnAfterTwoTurns : Unspellable (Noun twoExtraTurns TurnRef) (\ok =>
-  Macros.thatTurn {bs = twoExtraTurns} {ok})
-badThatTurnAfterTwoTurns Refl impossible
-
-
 
 public export
 tokenAsThoseReadsOnlyPrefix : (bs : Bindings) -> countTokenSpecs bs = 1 ->
@@ -878,8 +1507,6 @@ oneNonTokenIsNoSpec :
                                       Nothing Nothing Nothing)] = 0
 oneNonTokenIsNoSpec = Refl
 
-
-
 public export
 sumIsOne : (m, n : Nat) -> m + n = 1 -> Either (m = 1) (n = 1)
 sumIsOne Z n prf = Right prf
@@ -901,8 +1528,6 @@ theirChoiceResolvesInPrefix bs ok =
   case sumIsOne (countOnes Player bs) (countManys Player bs) ok of
     Left one => Left (resolveOnes Player bs one)
     Right many => Right (resolveManys Player bs many)
-
-
 
 public export
 thisNeedsNoAntecedent : Noun [] Object
@@ -926,8 +1551,6 @@ attachHostNeedsNoAntecedent w h ok = AttachHost w h {ok}
 public export
 letterValIntroducesAtEmptyPrefix : (l : Letter) -> Amount []
 letterValIntroducesAtEmptyPrefix l = LetterVal l
-
-
 
 ||| "[n]'s controller sacrifices it"
 public export
@@ -971,22 +1594,6 @@ badOwnEmptyDelta : Unspellable (Effect []) (\ok =>
   Macros.dealsDamageOwnPower Macros.thisCreature (Macros.target Macros.anyTarget) {ok})
 badOwnEmptyDelta Refl impossible
 
-public export
-sharedSubjectSurvivesSecondSingular : Effect []
-sharedSubjectSurvivesSecondSingular =
-  Sequentially [Macros.exile You (Macros.target Macros.artifact),
-                Macros.sharedSubject (Macros.target Macros.creature)
-                  [ Gets Adds (Macros.ownSubject (Macros.target Macros.creature))
-                         (PtUp (Lit 1)) (PtUp (Lit 1))
-                  , Gains (Macros.ownSubject (Macros.target Macros.creature))
-                          (Macros.keyword "Flying") ]
-                  (Just Macros.untilEndOfTurn)]
-
-public export
-badSharedSubjectEmptyDelta : Unspellable (Noun [] Object) (\ok =>
-  Macros.ownSubject {bs = []} (Macros.ItVerbed "Untap" OneOf) {ok})
-badSharedSubjectEmptyDelta Refl impossible
-
 ||| "Target creature gets +1/+1"
 public export
 okOwnReadsOneInDelta : Effect []
@@ -1027,8 +1634,6 @@ sharedSubjectReadsNoPrefix : (bs : Bindings) -> (k : Nat) -> (n : Noun bs Object
                              (parts : StaticParts k (selfSubjIntro n)) -> IsSucc k ->
                              StaticEffect bs
 sharedSubjectReadsNoPrefix bs k n parts ne = AndAlso (Just n) parts {ne}
-
-
 
 ||| A noun hands the next clause its own mints in front of the prefix it
 public export
@@ -1298,44 +1903,50 @@ badDistributedDiscardSingular : Unspellable (Effect []) (\ok =>
                , Macros.exile You (Macros.TheVerbed "Discard" CardW Attributive OneOf {ok}) ])
 badDistributedDiscardSingular Refl impossible
 
-||| "Each opponent discards a card. Simultaneously, exile those cards."
+||| "Tap target creature."
 public export
-distributedDeedReadsBackPluralUnderAnnouncement : Effect []
-distributedDeedReadsBackPluralUnderAnnouncement =
-  Simultaneously [ Macros.discard (Macros.each Opponent) (Macros.a (InZone Macros.handZ))
-                 , Macros.exile You (Macros.That CardW ManyOf) ]
+okTapBattlefieldPermanent : Effect []
+okTapBattlefieldPermanent = SetStatus Tapped (Macros.target Macros.creature)
 
-||| "Discard a card. Simultaneously, exile that card."
+||| "Tap the top card of your library."
 public export
-okThatAfterSingularDiscard : Effect []
-okThatAfterSingularDiscard =
-  Simultaneously [ Macros.discard You (Macros.a (InZone Macros.handZ))
-                 , Macros.exile You (Macros.That CardW OneOf) ]
+badTapLibraryTop : Unspellable (Effect []) (\ok =>
+  SetStatus Tapped (Macros.topSlice (Lit 1)) {ok})
+badTapLibraryTop Oh impossible
 
-||| "Each opponent discards a card. Simultaneously, exile that card."
+||| "if there is no monarch"
 public export
-badDistributedAnnouncedDiscardSingular : Unspellable (Effect []) (\ok =>
-  Simultaneously [ Macros.discard (Macros.each Opponent) (Macros.a (InZone Macros.handZ))
-                 , Macros.exile You (Macros.That CardW OneOf {ok}) ])
-badDistributedAnnouncedDiscardSingular Refl impossible
+okNoHolderOnPlayer : Condition []
+okNoHolderOnPlayer = NoHolder Monarch
 
-||| "Each opponent discards a card, if those cards are creature cards."
+||| "if there is no monstrous creature"
 public export
-distributedDeedReadsBackPluralUnderCondition : Effect []
-distributedDeedReadsBackPluralUnderCondition =
-  OnlyIf (Macros.discard (Macros.each Opponent) (Macros.a (InZone Macros.handZ)))
-         (Matches (Macros.That CardW ManyOf) Macros.creature) Nothing
+badNoHolderOnObject : Unspellable (Condition []) (\ok =>
+  NoHolder Monstrous {sc = ok})
+badNoHolderOnObject Refl impossible
 
-||| "Each opponent sacrifices a creature. Those sacrificed permanents can't be regenerated."
+||| "Roll five d6. Store those results on this creature."
 public export
-distributedDeedRiderReadsBackPlural : Effect []
-distributedDeedRiderReadsBackPlural =
-  CantBe (Macros.sacrifice (Macros.each Opponent) (Macros.a Macros.creature))
-         "Regenerate" (Macros.TheVerbed "Sacrifice" PermanentW Attributive ManyOf)
+okStoreResultsAfterRoll : Effect []
+okStoreResultsAfterRoll =
+  Sequentially [ (Macros.rollDice You 5 6)
+               , StoreResults Macros.thisCreature ]
 
-||| "Whenever enchanted player is dealt damage, they lose half their life, rounded up."
+||| "Store those results on this creature."
 public export
-enchantedPlayerDamageReadsBackAsThey : Ability
-enchantedPlayerDamageReadsBackAsThey =
-  Macros.triggered Whenever (IsDealtDamage AnyDamage (AttachHost Enchanted PlayerW))
-                   (Macros.losesLife They (Half RoundUp (PlayerStatOf LifeTotal They)))
+badStoreResultsWithoutRoll : Unspellable (Effect []) (\ok =>
+  StoreResults Macros.thisCreature {ok})
+badStoreResultsWithoutRoll Refl impossible
+
+||| "If you would roll one or more d6, instead roll that many of those dice."
+public export
+okThoseDiceAfterRollEvent : Effect []
+okThoseDiceAfterRollEvent =
+  Macros.ifWouldInstead (RollsDice You ManyDice (SidedDie 6) AnyResult)
+    (RollDice You ThatMuch ThoseDice) Nothing
+
+||| "Roll that many dice."
+public export
+badAnaphoricSidesWithoutRoll : Unspellable (Effect []) (\ok =>
+  RollDice You (Lit 1) (ThoseDice {ok}))
+badAnaphoricSidesWithoutRoll Refl impossible

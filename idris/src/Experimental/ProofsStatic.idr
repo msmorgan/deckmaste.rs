@@ -1,0 +1,237 @@
+module Experimental.ProofsStatic
+
+import Experimental
+import Experimental.Macros
+import Experimental.Unspellable
+
+%default total
+
+%unbound_implicits off
+
+
+||| "As long as this creature is attacking, this creature gets +2/+0."
+public export
+okGetsBattlefieldSubject : Ability
+okGetsBattlefieldSubject =
+  Static (Macros.asLongAs (Matches Macros.thisCreature Attacking)
+                          (Gets Adds Macros.thisCreature (PtUp (Lit 2))
+                                (PtUp (Lit 0))))
+
+||| "As long as this creature is attacking, that creature gets +2/+0."
+public export
+badThatCreatureIsCondSubject : Unspellable Ability (\ok =>
+  Static (Macros.asLongAs (Matches Macros.thisCreature Attacking)
+                          (Gets Adds (Macros.That (TypeW Creature) OneOf {ok = Builtin.fst ok}) (PtUp (Lit 2)) (PtUp (Lit 0))
+                                {ok = Builtin.snd ok})))
+badThatCreatureIsCondSubject (Refl, _) impossible
+
+||| "Equipped creature gets +1/+1."
+public export
+okEquippedCreature : Ability
+okEquippedCreature =
+  Static (Gets Adds (AttachHost Equipped (TypeW Creature)) (PtUp (Lit 1))
+               (PtUp (Lit 1)))
+
+||| "Equipped land gets +1/+1."
+public export
+badEquippedLand : Unspellable Ability (\ok =>
+  Static (Gets Adds (AttachHost Equipped (TypeW Land) {ok = ok}) (PtUp (Lit 1)) (PtUp (Lit 1))))
+badEquippedLand Oh impossible
+
+||| "Fortified creature gets +1/+1."
+public export
+badFortifiedCreature : Unspellable Ability (\ok =>
+  Static (Gets Adds (AttachHost Fortified (TypeW Creature) {ok = ok}) (PtUp (Lit 1)) (PtUp (Lit 1))))
+badFortifiedCreature Oh impossible
+
+||| "You can't lose the game."
+public export
+okUntargetedOutcomeGate : Ability
+okUntargetedOutcomeGate = Static (Macros.playerCant "LoseGame" You)
+
+||| "Target player can't lose the game."
+||| Refused as a Static; Continuously (playerCant …) spells the sentence.
+public export
+badTargetedOutcomeGate : Unspellable Ability (\ok =>
+  Static (Macros.playerCant "LoseGame" (Macros.target AnyPlayer)) {ut = ok})
+badTargetedOutcomeGate Oh impossible
+
+||| "This creature gets +X/+0, where X is the number of creatures you
+||| control."
+public export
+okSingleStaticXRider : StaticEffect []
+okSingleStaticXRider =
+  AndAlso Nothing [ Gets Adds Macros.thisCreature (PtUp (LetterVal X))
+                         (PtUp (Lit 0))
+                  , Define X (Macros.countOf Macros.creatureYouControl) ]
+
+public export
+badDoubleStaticRider : Unspellable (StaticEffect []) (\ok =>
+  AndAlso Nothing [ Gets Adds Macros.thisCreature (PtUp (LetterVal X)) (PtUp (Lit 0))
+          , Define X (Macros.countOf Macros.creatureYouControl)
+          , Define X (Macros.countOf Macros.creature) {ok} ])
+badDoubleStaticRider Oh impossible
+
+||| "power and toughness are each equal to the number of creatures you control"
+public export
+okSelfDefinedPt : StaticEffect []
+okSelfDefinedPt =
+  DefinesPt Macros.thisCreature BothEach
+            (Macros.countOf Macros.creatureYouControl)
+
+public export
+badGrantedPtDefinition : Unspellable (StaticEffect []) (\ok =>
+  DefinesPt (AttachHost Enchanted (TypeW Creature)) BothEach
+            (PlayerStatOf LifeTotal You) {sd = ok})
+badGrantedPtDefinition Oh impossible
+
+||| "Creatures you control get +1/+1 until end of turn."
+public export
+okContinuousClause : Effect []
+okContinuousClause =
+  Continuously {ts = StaticFirstDone}
+               (Gets Adds (Macros.allOf Macros.creatureYouControl)
+                     (PtUp (Lit 1)) (PtUp (Lit 1)))
+               (Just Macros.untilEndOfTurn)
+
+public export
+badPtDefinitionClause : Unspellable (Effect []) (\ok =>
+  Continuously {ts = StaticFirstDone} (DefinesPt Macros.thisCreature BothEach
+                          (Macros.countOf Macros.creatureYouControl))
+               Nothing {cl = ok})
+badPtDefinitionClause Oh impossible
+
+||| "You become the monarch."
+public export
+okBecomesMonarch : Effect []
+okBecomesMonarch = GainsDesignation You Monarch Instructed Nothing
+
+||| "You become goaded."
+public export
+badGoadedPlayer : Unspellable (Effect []) (\ok =>
+  GainsDesignation You Goaded Instructed Nothing {sc = ok})
+badGoadedPlayer Refl impossible
+
+||| "Each land you control becomes a 2/2 creature. It's still a land."
+public export
+okStillALand : StaticEffect []
+okStillALand =
+  Becomes (Macros.allOf Macros.land) Sets
+          (Bundle (MkToken (Just (Lit 2 ** Lit 2)) []
+                           (MkTypeLine [] [Creature]) [] Nothing) (Just Land))
+
+||| "Target creature becomes a Coward until end of turn. It's still a land."
+public export
+badStillOnSubtypeSet : Unspellable (StaticEffect []) (\ok =>
+  Becomes (Macros.target Macros.creature) Sets (Bundle (MkToken Nothing [] (MkTypeLine [creatureType "Coward"] []) [] Nothing) (Just Land)) {ok = ok})
+badStillOnSubtypeSet Oh impossible
+
+public export
+badStillAnInstant : Unspellable (StaticEffect []) (\ok =>
+  Becomes (Macros.target Macros.creature) Sets (Bundle (MkToken Nothing [] (MkTypeLine [] [Artifact]) [] Nothing) (Just Instant)) {ok = ok})
+badStillAnInstant Oh impossible
+
+||| "Target creature gets +1/+1."
+public export
+okSingletonCoordination : StaticEffect []
+okSingletonCoordination =
+  AndAlso Nothing [ Gets Adds (Macros.target Macros.creature)
+                         (PtUp (Lit 1)) (PtUp (Lit 1)) ]
+
+||| a coordination of no statements
+public export
+badEmptyCoordination : Unspellable (StaticEffect []) (\ok =>
+  AndAlso Nothing [] {ne = ok})
+badEmptyCoordination ItIsSucc impossible
+
+||| "Creatures you control are every creature type."
+public export
+okSingleExtension : StaticEffect []
+okSingleExtension =
+  AlsoOffBattlefield
+    (Becomes (Macros.allOf Macros.creatureYouControl) Adds
+             (EveryTypeOf CreatureSpace))
+
+public export
+badDoubleExtension : Unspellable (StaticEffect []) (\ok =>
+  AlsoOffBattlefield
+    (AlsoOffBattlefield
+       (Becomes (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You])) Adds (Bundle (MkToken Nothing [] (MkTypeLine [] [Artifact]) [] Nothing) Nothing))) {nx = ok})
+badDoubleExtension Oh impossible
+
+||| "If you would draw a card, draw two cards instead."
+public export
+okDrawReplacement : StaticEffect []
+okDrawReplacement =
+  Intercepts (Draws You) [] Nothing (Draw You (Lit 2)) Repeatedly Nothing
+
+||| "If I — would happen, draw a card instead."
+public export
+badChapterReplacement : Unspellable (StaticEffect []) (\ok =>
+  Intercepts (ChapterMark [ChapterI]) [] Nothing (Draw You (Lit 1)) Repeatedly Nothing {ok})
+badChapterReplacement Oh impossible
+
+||| "unless you control an artifact"
+public export
+okUnlessOverNegatedCondition : StaticEffect []
+okUnlessOverNegatedCondition =
+  Conditionally (NotCond (Macros.exists (And [Macros.artifact,
+                                              HasPossessor ControllerAx You])))
+                (AltCost This Nothing) Unless {st = Static.CondFirstDone}
+
+public export
+badUnlessConjunction : Unspellable (StaticEffect []) (\ok =>
+  Conditionally (AndCond [ Macros.exists (And [Macros.artifact, HasPossessor ControllerAx You])
+                         , Macros.exists (And [Macros.enchantment, HasPossessor ControllerAx You]) ])
+                (AltCost This Nothing) Unless {st = Static.CondFirstDone} {mk = ok})
+badUnlessConjunction MkMarkingOk impossible
+
+||| "This creature blocks an attacking creature."
+public export
+okCreatureBecomesBlocking : Effect []
+okCreatureBecomesBlocking =
+  BecomesBlocking Macros.thisCreature
+                  (Macros.a (And [Macros.creature, Attacking]))
+
+||| "Target land blocks an attacking creature."
+public export
+badLandBecomesBlocking : Unspellable (Effect []) (\ok =>
+  BecomesBlocking (Macros.target Macros.land)
+                  (Macros.a (And [Macros.creature, Attacking])) {dn = ok})
+badLandBecomesBlocking Oh impossible
+
+||| "This creature blocks target planeswalker."
+public export
+badBecomesBlockingPlaneswalker : Unspellable (Effect []) (\ok =>
+  BecomesBlocking Macros.thisCreature
+                  (Macros.target (HasType Planeswalker)) {dw = ok})
+badBecomesBlockingPlaneswalker Oh impossible
+
+||| "this creature gets +1/+1"
+public export
+okAddPtUpward : StaticEffect []
+okAddPtUpward =
+  Gets Adds Macros.thisCreature (PtUp (Lit 1)) (PtUp (Lit 1))
+
+||| "this creature has base power and toughness -1/-1"
+public export
+badSetBasePtDownward : Unspellable (StaticEffect []) (\ok =>
+  Gets Sets Macros.thisCreature (PtDown (Lit 1)) (PtDown (Lit 1)) {lo = ok})
+badSetBasePtDownward Oh impossible
+
+||| "this creature loses 1/1"
+public export
+badLosePtOp : Unspellable (StaticEffect []) (\ok =>
+  Gets Loses Macros.thisCreature (PtUp (Lit 1)) (PtUp (Lit 1)) {lo = ok})
+badLosePtOp Oh impossible
+
+||| "During target opponent's next turn, …"
+public export
+okSingularNextTurnSpan : Duration []
+okSingularNextTurnSpan = DuringNextTurnOf (Macros.target Opponent)
+
+||| "During each opponent's next turn, ..."
+public export
+badPluralNextTurnSpan : Unspellable (Duration []) (\ok =>
+  DuringNextTurnOf (Macros.each Opponent) {one = ok})
+badPluralNextTurnSpan Refl impossible

@@ -30,6 +30,21 @@ modules = Semantics
         , Experimental
         , Experimental.Macros
         , Experimental.Cards
+        , Experimental.Cards.Description
+        , Experimental.Cards.Anaphora
+        , Experimental.Cards.Trigger
+        , Experimental.Cards.Damage
+        , Experimental.Cards.Keyword
+        , Experimental.Cards.Counters
+        , Experimental.Cards.Mana
+        , Experimental.Cards.Deontic
+        , Experimental.Cards.Choice
+        , Experimental.Cards.Static
+        , Experimental.Cards.Cost
+        , Experimental.Cards.Faces
+        , Experimental.Cards.Turn
+        , Experimental.Cards.Copy
+        , Experimental.Cards.Piles
         , Experimental.Unspellable
         , EmitTables
 

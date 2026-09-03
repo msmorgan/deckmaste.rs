@@ -44,6 +44,19 @@ module is `%default total`; a card term typechecks only if every
 `{auto 0 ok : …}` obligation on its constructors is met, so a type error is a
 refused sentence.
 
+The bench and the pins are split by grammar family. `Experimental.Cards` is an
+`import public` shim over `Experimental/Cards/<Family>.idr` — `Description`,
+`Anaphora`, `Trigger`, `Damage`, `Keyword`, `Counters`, `Mana`, `Deontic`,
+`Choice`, `Static`, `Cost`, `Faces`, `Turn`, `Copy`, `Piles`, in that
+dependency order; a family module imports only families earlier in the list,
+and each ends with the witnesses that carry no family signal. The pins live in
+`Experimental.Proofs<Family>` over the same vocabulary plus `Zone`
+(`ProofsAnaphora`, `ProofsDescription`, `ProofsZone`, `ProofsDamage`,
+`ProofsTrigger`, `ProofsStatic`, `ProofsCounters`, `ProofsMana`,
+`ProofsKeyword`, `ProofsDeontic`, `ProofsChoice`, `ProofsTurn`, `ProofsFaces`,
+`ProofsPiles`), so a pin is found from the constructor it refutes. No pin
+module imports another.
+
 A **pin** is a compiler-checked refusal: `Unspellable T (\ok => term)` states
 that the term's open obligation has no proof, and its body (`Oh impossible`,
 `Refl impossible`) makes the compiler confirm it. Table assertions are

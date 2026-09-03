@@ -15,15 +15,36 @@ modules = Semantics
         , Experimental
         , Experimental.Macros
         , Experimental.Cards
+        , Experimental.Cards.Description
+        , Experimental.Cards.Anaphora
+        , Experimental.Cards.Trigger
+        , Experimental.Cards.Damage
+        , Experimental.Cards.Keyword
+        , Experimental.Cards.Counters
+        , Experimental.Cards.Mana
+        , Experimental.Cards.Deontic
+        , Experimental.Cards.Choice
+        , Experimental.Cards.Static
+        , Experimental.Cards.Cost
+        , Experimental.Cards.Faces
+        , Experimental.Cards.Turn
+        , Experimental.Cards.Copy
+        , Experimental.Cards.Piles
         , Experimental.Unspellable
-        , Experimental.Proofs
-        , Experimental.ProofsB
-        , Experimental.ProofsC
-        , Experimental.ProofsD
-        , Experimental.ProofsE
-        , Experimental.ProofsF
-        , Experimental.ProofsG
         , Experimental.ProofsAnaphora
+        , Experimental.ProofsDescription
+        , Experimental.ProofsZone
+        , Experimental.ProofsDamage
+        , Experimental.ProofsTrigger
+        , Experimental.ProofsStatic
+        , Experimental.ProofsCounters
+        , Experimental.ProofsMana
+        , Experimental.ProofsKeyword
+        , Experimental.ProofsDeontic
+        , Experimental.ProofsChoice
+        , Experimental.ProofsTurn
+        , Experimental.ProofsFaces
+        , Experimental.ProofsPiles
         , EmitTables
 
 sourcedir = "src"

@@ -1,0 +1,187 @@
+module Experimental.ProofsPiles
+
+import Experimental
+import Experimental.Macros
+import Experimental.Unspellable
+
+%default total
+
+%unbound_implicits off
+
+
+||| "Starting with you, each player votes for death or torture."
+public export
+okDistinctBallotOptions : Ballot []
+okDistinctBallotOptions = ByLabel ["death", "torture"]
+
+||| "Starting with you, each player votes for death or death."
+public export
+badRepeatedBallotOption : Unspellable (Ballot []) (\ok =>
+  ByLabel ["death", "death"] {ok})
+badRepeatedBallotOption Oh impossible
+
+||| "Starting with you, each player votes for death."
+public export
+badSingletonBallot : Unspellable (Ballot []) (\ok =>
+  ByLabel ["death"] {ok})
+badSingletonBallot Oh impossible
+
+||| "Put target creature card from your graveyard onto the battlefield
+||| transformed."
+public export
+okTransformedArrivalOnField : Effect []
+okTransformedArrivalOnField =
+  Move (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)]))
+       Macros.battlefieldZ [EntersTransformed]
+
+||| "Return target creature card from your graveyard to your hand transformed."
+public export
+badTransformedArrivalOffField : Unspellable (Effect []) (\ok =>
+  Move (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)]))
+       Macros.handZ [EntersTransformed] {rf = ok})
+badTransformedArrivalOffField Oh impossible
+
+public export
+badCardWordReadsPiles : Unspellable Card (\ok =>
+  Macros.card "" Nothing [] (MkTypeLine [] [Instant])
+       [ Spell (Sequentially
+                  [ Macros.revealCards (Macros.topSlice (Lit 5))
+                  , SeparateIntoPiles Macros.anOpponent ((Macros.It ManyOf)) 2 []
+                  , Macros.move (Macros.That CardW ManyOf {ok = ok}) Macros.handZ ]) ]
+       Nothing)
+badCardWordReadsPiles Refl impossible
+
+||| "Reveal the top five cards of your library. Put those piles into your hand."
+public export
+badPileWordWithoutAPartition : Unspellable Card (\ok =>
+  Macros.card "" Nothing [] (MkTypeLine [] [Instant])
+       [ Spell (Sequentially
+                  [ Macros.revealCards (Macros.topSlice (Lit 5))
+                  , Macros.move (Macros.That PileW ManyOf {ok = ok}) Macros.handZ ]) ]
+       Nothing)
+badPileWordWithoutAPartition Refl impossible
+
+||| "Reveal the top five cards of your library. An opponent separates them
+||| into two piles. Put one pile into your hand."
+public export
+okOnePileAfterPartition : Effect []
+okOnePileAfterPartition =
+  Sequentially [ Macros.revealCards (Macros.topSlice (Lit 5))
+               , SeparateIntoPiles Macros.anOpponent (Macros.It ManyOf) 2 []
+               , Macros.move Macros.onePile Macros.handZ ]
+
+||| "Put one pile into your hand."
+public export
+badPilePartitiveWithoutAPartition : Unspellable (Effect []) (\ok =>
+  Macros.move (Macros.onePile {ok = ok}) Macros.handZ)
+badPilePartitiveWithoutAPartition Refl impossible
+
+||| "Put each card in the pile of your choice into your hand."
+public export
+okMembershipInAPile : Card
+okMembershipInAPile =
+  Macros.card "" Nothing [] (MkTypeLine [] [Instant])
+       [ Spell (Sequentially
+                  [ Macros.revealCards (Macros.topSlice (Lit 5))
+                  , SeparateIntoPiles Macros.anOpponent (Macros.It ManyOf) 2 []
+                  , Macros.move (Macros.allOf (And [IsCard,
+                                    InPile (Macros.pileOfChoice You)]))
+                                Macros.handZ ]) ]
+       Nothing
+
+public export
+badMembershipInANonPile : Unspellable Card (\ok =>
+  Macros.card "" Nothing [] (MkTypeLine [] [Instant])
+       [ Spell (Sequentially
+                  [ Macros.revealCards (Macros.topSlice (Lit 5))
+                  , Macros.move (Macros.allOf (And [IsCard, InPile ((Macros.It ManyOf)) {pm = ok}]))
+                                Macros.handZ ]) ]
+       Nothing)
+badMembershipInANonPile PilePartitive impossible
+badMembershipInANonPile ThatPile impossible
+badMembershipInANonPile ThosePiles impossible
+
+||| "Turn target creature face down."
+public export
+okStatusOnBattlefieldNoun : Effect []
+okStatusOnBattlefieldNoun =
+  SetStatus FaceDown (Macros.target Macros.creature)
+
+public export
+badPileFaceAsAStatus : Unspellable Card (\ok =>
+  Macros.card "" Nothing [] (MkTypeLine [] [Instant])
+       [ Spell (Sequentially
+                  [ Macros.revealCards (Macros.topSlice (Lit 5))
+                  , SeparateIntoPiles Macros.anOpponent ((Macros.It ManyOf)) 2 []
+                  , SetStatus FaceDown (Macros.That PileW ManyOf) {ok = ok} ]) ]
+       Nothing)
+badPileFaceAsAStatus Oh impossible
+
+public export
+lessAsThoughCondition : AsThough []
+lessAsThoughCondition = AsThoughLess Power (Lit 1)
+
+public export
+manaRunReductionFloor : CostShift []
+manaRunReductionFloor =
+  CostShiftRunWithFloor [Macros.pip White] (Lit 1) False
+
+public export
+nestedStaticConditionals : StaticEffect []
+nestedStaticConditionals =
+  Conditionally {bs = []} {condBase = []}
+    {staticBase = condIntro (Macros.exists {bs = []} AnyPlayer)}
+    (Macros.exists {bs = []} AnyPlayer)
+    (Conditionally {bs = condIntro (Macros.exists {bs = []} AnyPlayer)}
+      {condBase = condIntro (Macros.exists {bs = []} AnyPlayer)}
+      {staticBase = condIntro
+        (Macros.exists {bs = condIntro (Macros.exists {bs = []} AnyPlayer)} AnyPlayer)}
+      (Macros.exists {bs = condIntro (Macros.exists {bs = []} AnyPlayer)} AnyPlayer)
+      (KeepsUnspentMana You (UnspentMana Nothing)) IfSo) IfSo
+
+public export
+nestedTurnPartWindows : StaticEffect []
+nestedTurnPartWindows =
+  OnlyDuring Combat Nothing
+    (OnlyDuring MainPhase Nothing (KeepsUnspentMana You (UnspentMana Nothing)))
+
+public export
+repeatWithIndependentException : Repetition []
+repeatWithIndependentException = AgainExcept (Macros.exists AnyPlayer)
+
+public export
+voteStartingWithSpecifiedPlayer : Effect []
+voteStartingWithSpecifiedPlayer =
+  Vote (Just Macros.anOpponent) (Macros.each AnyPlayer) Openly
+       (ByLabel ["alpha", "beta"])
+
+public export
+oneWayResultShift : Effect []
+oneWayResultShift =
+  Sequentially [(Macros.rollDice You 1 6), ShiftResult (Just ShiftUp) (Lit 1)]
+
+public export
+objectScopedChaos : Effect []
+objectScopedChaos = ChaosEnsues (Just Macros.thisRoom)
+
+public export
+abilityCounterRecipient : Effect []
+abilityCounterRecipient =
+  PutCounters (Lit 1) OwnKinds (Macros.a (AbilityHead AnyOnStack))
+
+public export
+removeOwnCounterKinds : Effect []
+removeOwnCounterKinds = RemoveCounters (Just (Macros.exactly 1)) (Just OwnKinds) You
+
+public export
+namedAdditionalPartAnchor : Effect []
+namedAdditionalPartAnchor =
+  AdditionalPart (Just You) Upkeep (Just MainPhase) (Lit 1) Nothing
+
+public export
+badDelayedDoorDeixis : Unspellable Card (\ok =>
+  Macros.card "" Nothing [] (MkTypeLine [] [Instant])
+    [Spell (Delayed (UnlocksDoor You ThisDoor) [] Nothing (Draw You (Lit 1))
+                    {so = Absent})]
+    Nothing {fl = ok})
+badDelayedDoorDeixis MkFaceLaws impossible
