@@ -1,5 +1,3 @@
-extern crate self as deckmaste_construction_core;
-
 mod emit;
 mod feature;
 mod format;
@@ -19,11 +17,11 @@ mod test_support;
 
 pub use crate::model::*;
 pub use crate::plan::DeclarationKey;
-pub use crate::plan::DeclarationKind;
 pub use crate::plan::EmissionPlan;
 pub use crate::plan::GeneratedItem;
 pub use crate::plan::ItemKey;
 pub use crate::plan::NamedKind;
+pub use crate::plan::SourceDeclarationKind;
 pub use crate::plan::TerminalContribution;
 pub use crate::plan::TerminalKind;
 pub use crate::plan::TerminalSurfaceContribution;

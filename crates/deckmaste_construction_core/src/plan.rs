@@ -35,7 +35,7 @@ impl ItemKey {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum DeclarationKind {
+pub enum SourceDeclarationKind {
     Construction,
     AbstractProduct,
     AbstractSum,
@@ -49,12 +49,12 @@ pub enum DeclarationKind {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DeclarationKey {
-    kind: DeclarationKind,
+    kind: SourceDeclarationKind,
     name: String,
 }
 
 impl DeclarationKey {
-    pub(crate) fn new(kind: DeclarationKind, name: impl Into<String>) -> Self {
+    pub(crate) fn new(kind: SourceDeclarationKind, name: impl Into<String>) -> Self {
         Self {
             kind,
             name: name.into(),
@@ -62,7 +62,7 @@ impl DeclarationKey {
     }
 
     #[must_use]
-    pub fn kind(&self) -> DeclarationKind {
+    pub fn kind(&self) -> SourceDeclarationKind {
         self.kind
     }
 
@@ -74,27 +74,32 @@ impl DeclarationKey {
     pub(crate) fn from_source(declaration: &Declaration) -> Self {
         match declaration {
             Declaration::Construction(value) => {
-                Self::new(DeclarationKind::Construction, value.name.to_string())
+                Self::new(SourceDeclarationKind::Construction, value.name.to_string())
             }
-            Declaration::AbstractProduct(value) => {
-                Self::new(DeclarationKind::AbstractProduct, value.name.to_string())
-            }
+            Declaration::AbstractProduct(value) => Self::new(
+                SourceDeclarationKind::AbstractProduct,
+                value.name.to_string(),
+            ),
             Declaration::AbstractSum(value) => {
-                Self::new(DeclarationKind::AbstractSum, value.name.to_string())
+                Self::new(SourceDeclarationKind::AbstractSum, value.name.to_string())
             }
-            Declaration::Vocab(value) => Self::new(DeclarationKind::Vocab, value.name.to_string()),
+            Declaration::Vocab(value) => {
+                Self::new(SourceDeclarationKind::Vocab, value.name.to_string())
+            }
             Declaration::Morphology(value) => {
-                Self::new(DeclarationKind::Morphology, value.name.to_string())
+                Self::new(SourceDeclarationKind::Morphology, value.name.to_string())
             }
             Declaration::Lexeme(value) => {
-                Self::new(DeclarationKind::Lexeme, value.name.to_string())
+                Self::new(SourceDeclarationKind::Lexeme, value.name.to_string())
             }
-            Declaration::Codec(value) => Self::new(DeclarationKind::Codec, value.name.to_string()),
+            Declaration::Codec(value) => {
+                Self::new(SourceDeclarationKind::Codec, value.name.to_string())
+            }
             Declaration::Identity(value) => {
-                Self::new(DeclarationKind::Identity, value.name.to_string())
+                Self::new(SourceDeclarationKind::Identity, value.name.to_string())
             }
             Declaration::Root(value) => Self::new(
-                DeclarationKind::Root,
+                SourceDeclarationKind::Root,
                 crate::identifier::path_key(&value.category),
             ),
         }
@@ -133,14 +138,14 @@ pub struct TerminalVariantContribution {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TerminalSurfaceContribution {
     member: String,
-    feature: deckmaste_construction_core::macro_def::SurfaceFeature,
+    feature: crate::macro_def::SurfaceFeature,
     surface: String,
 }
 
 impl TerminalSurfaceContribution {
     fn new(
         member: impl Into<String>,
-        feature: deckmaste_construction_core::macro_def::SurfaceFeature,
+        feature: crate::macro_def::SurfaceFeature,
         surface: impl Into<String>,
     ) -> Self {
         Self {
@@ -156,7 +161,7 @@ impl TerminalSurfaceContribution {
     }
 
     #[must_use]
-    pub fn feature(&self) -> deckmaste_construction_core::macro_def::SurfaceFeature {
+    pub fn feature(&self) -> crate::macro_def::SurfaceFeature {
         self.feature
     }
 
@@ -377,10 +382,10 @@ fn seal_terminal_contribution_projection(
 mod tests {
     use std::collections::HashSet;
 
-    use crate::DeclarationKind;
     use crate::GeneratedItem;
     use crate::ItemKey;
     use crate::NamedKind;
+    use crate::SourceDeclarationKind;
     use crate::semantic::SemanticPlan;
     use crate::test_support::representative_expansion;
 
@@ -809,24 +814,16 @@ mod tests {
                 .map(|row| (row.member(), row.feature(), row.surface()))
                 .collect::<Vec<_>>(),
             [
+                ("Deal", crate::macro_def::SurfaceFeature::Bare, "deal"),
                 (
                     "Deal",
-                    deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
-                    "deal"
-                ),
-                (
-                    "Deal",
-                    deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular,
+                    crate::macro_def::SurfaceFeature::ThirdPersonSingular,
                     "deals",
                 ),
+                ("Be", crate::macro_def::SurfaceFeature::Bare, "are"),
                 (
                     "Be",
-                    deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
-                    "are"
-                ),
-                (
-                    "Be",
-                    deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular,
+                    crate::macro_def::SurfaceFeature::ThirdPersonSingular,
                     "is",
                 ),
             ]
@@ -901,7 +898,7 @@ mod tests {
         .expect("mismatch fixture validates")
         .into_semantic();
         let mut contributions = vec![crate::TerminalContribution::new(
-            crate::DeclarationKey::new(crate::DeclarationKind::Lexeme, "MissingLexeme"),
+            crate::DeclarationKey::new(crate::SourceDeclarationKind::Lexeme, "MissingLexeme"),
             crate::TerminalKind::Lexeme,
             "MissingLexeme",
             None,
@@ -1011,8 +1008,8 @@ mod tests {
 
     #[test]
     fn declaration_verb_tail_is_a_normalized_semantic_frame_key() {
-        use deckmaste_construction_core::macro_def::CustomTailAtom;
-        use deckmaste_construction_core::macro_def::VerbValence;
+        use crate::macro_def::CustomTailAtom;
+        use crate::macro_def::VerbValence;
 
         let object_plan = declaration_verb_plan_for(&quote::quote! { ObjectNounPhrase });
         let (terminal_index, object) = sole_declaration_verb(&object_plan);
@@ -1026,7 +1023,7 @@ mod tests {
         assert_eq!(object.closed_lexeme().expect("closed branch"), "CoreVerb");
         assert_eq!(
             crate::semantic::DeclarationVerbPlan::position(),
-            deckmaste_construction_core::macro_def::GrammarPosition::Verb
+            crate::macro_def::GrammarPosition::Verb
         );
         assert_eq!(object.feature_axis(), crate::feature::Feature::Agreement);
         assert_eq!(
@@ -1159,7 +1156,7 @@ mod tests {
 
     #[test]
     fn declaration_verb_frame_classes_are_sealed_and_semantic() {
-        use deckmaste_construction_core::macro_def::VerbValence;
+        use crate::macro_def::VerbValence;
 
         let plan = crate::validate_declarations(
             crate::parse_declarations(quote::quote! {
@@ -1672,11 +1669,11 @@ mod tests {
                 .map(|origin| (origin.kind(), origin.name()))
                 .collect::<Vec<_>>(),
             [
-                (DeclarationKind::Vocab, "Words"),
-                (DeclarationKind::Lexeme, "Nouns"),
-                (DeclarationKind::Lexeme, "Verbs"),
-                (DeclarationKind::Codec, "SignedNumber"),
-                (DeclarationKind::Root, "Action"),
+                (SourceDeclarationKind::Vocab, "Words"),
+                (SourceDeclarationKind::Lexeme, "Nouns"),
+                (SourceDeclarationKind::Lexeme, "Verbs"),
+                (SourceDeclarationKind::Codec, "SignedNumber"),
+                (SourceDeclarationKind::Root, "Action"),
             ],
             "the generated scanner exposes exactly its sealed semantic authorities"
         );
@@ -1716,26 +1713,26 @@ mod tests {
         assert_eq!(
             scanner_origins(&expansion),
             [
-                (DeclarationKind::Vocab, "Words"),
-                (DeclarationKind::Lexeme, "Nouns"),
-                (DeclarationKind::Lexeme, "Verbs"),
-                (DeclarationKind::Codec, "SignedNumber"),
-                (DeclarationKind::Root, "Action"),
-                (DeclarationKind::Construction, "separator"),
+                (SourceDeclarationKind::Vocab, "Words"),
+                (SourceDeclarationKind::Lexeme, "Nouns"),
+                (SourceDeclarationKind::Lexeme, "Verbs"),
+                (SourceDeclarationKind::Codec, "SignedNumber"),
+                (SourceDeclarationKind::Root, "Action"),
+                (SourceDeclarationKind::Construction, "separator"),
             ]
             .map(|(kind, name)| (kind, name.to_owned()))
         );
         assert_eq!(
             scanner_origins(&crate::test_support::synthetic_projection_expansion()),
             [
-                (DeclarationKind::Vocab, "Mode"),
-                (DeclarationKind::Lexeme, "ObjectStem"),
-                (DeclarationKind::Lexeme, "ActionStem"),
-                (DeclarationKind::Codec, "Resource"),
-                (DeclarationKind::Codec, "Marker"),
-                (DeclarationKind::Identity, "Handle"),
-                (DeclarationKind::Codec, "Pair"),
-                (DeclarationKind::Root, "Document"),
+                (SourceDeclarationKind::Vocab, "Mode"),
+                (SourceDeclarationKind::Lexeme, "ObjectStem"),
+                (SourceDeclarationKind::Lexeme, "ActionStem"),
+                (SourceDeclarationKind::Codec, "Resource"),
+                (SourceDeclarationKind::Codec, "Marker"),
+                (SourceDeclarationKind::Identity, "Handle"),
+                (SourceDeclarationKind::Codec, "Pair"),
+                (SourceDeclarationKind::Root, "Document"),
             ]
             .map(|(kind, name)| (kind, name.to_owned())),
             "every scanner-owned binding contributes its source authority, while nonlexical Record does not"
@@ -2282,16 +2279,16 @@ mod tests {
                 .map(|origin| (origin.kind(), origin.name()))
                 .collect::<Vec<_>>(),
             [
-                (DeclarationKind::Vocab, "Words"),
-                (DeclarationKind::Lexeme, "Nouns"),
-                (DeclarationKind::Lexeme, "Verbs"),
-                (DeclarationKind::Codec, "SignedNumber"),
-                (DeclarationKind::Morphology, "EnglishNoun"),
-                (DeclarationKind::Morphology, "EnglishVerb"),
-                (DeclarationKind::Construction, "leaf"),
-                (DeclarationKind::Construction, "chain"),
-                (DeclarationKind::Construction, "action"),
-                (DeclarationKind::Root, "Action"),
+                (SourceDeclarationKind::Vocab, "Words"),
+                (SourceDeclarationKind::Lexeme, "Nouns"),
+                (SourceDeclarationKind::Lexeme, "Verbs"),
+                (SourceDeclarationKind::Codec, "SignedNumber"),
+                (SourceDeclarationKind::Morphology, "EnglishNoun"),
+                (SourceDeclarationKind::Morphology, "EnglishVerb"),
+                (SourceDeclarationKind::Construction, "leaf"),
+                (SourceDeclarationKind::Construction, "chain"),
+                (SourceDeclarationKind::Construction, "action"),
+                (SourceDeclarationKind::Root, "Action"),
             ]
         );
     }
@@ -2645,7 +2642,7 @@ mod tests {
                 .iter()
                 .map(|origin| (origin.kind(), origin.name()))
                 .collect::<Vec<_>>(),
-            [(DeclarationKind::Construction, "action")],
+            [(SourceDeclarationKind::Construction, "action")],
         );
     }
 
@@ -2778,7 +2775,7 @@ mod tests {
         assert!(first.items()[..5].iter().all(|item| {
             item.origins
                 .iter()
-                .all(|origin| origin.kind() == DeclarationKind::Construction)
+                .all(|origin| origin.kind() == SourceDeclarationKind::Construction)
         }));
 
         let formatted = crate::format_expansion(&first).expect("each planned item formats");

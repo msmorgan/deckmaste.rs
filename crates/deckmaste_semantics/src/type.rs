@@ -391,8 +391,21 @@ mod tests {
             ]
         );
 
+        let mut macros =
+            macro_ron::MacroSet::new(crate::ron::kinds()).with_options(crate::ron::raw_options());
+        macros
+            .declare(
+                "TypeDef",
+                "Chronicle".into(),
+                r#"TypeDef(name: "Chronicle", permanent: false)"#,
+            )
+            .unwrap();
+        let open = macros.read_str::<TypeDef>("Chronicle").unwrap();
+        assert_eq!(open.name, Ident::from("Chronicle"));
         assert!(
-            crate::ron::options().from_str::<Type>("Chronicle").is_err(),
+            crate::ron::options()
+                .from_str::<Type>(open.name.as_str())
+                .is_err(),
             "an open parser-facing Type declaration must not extend the closed type-line enum"
         );
 

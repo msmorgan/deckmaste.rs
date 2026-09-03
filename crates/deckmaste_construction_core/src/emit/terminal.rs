@@ -7,10 +7,10 @@ use crate::identifier::key as identifier_key;
 use crate::identifier::lexeme_surface_helper;
 use crate::identifier::snake_case;
 use crate::plan::DeclarationKey;
-use crate::plan::DeclarationKind;
 use crate::plan::GeneratedItem;
 use crate::plan::ItemKey;
 use crate::plan::NamedKind;
+use crate::plan::SourceDeclarationKind;
 use crate::plan::TerminalContribution;
 use crate::plan::TerminalKind;
 use crate::plan::TerminalVariantContribution;
@@ -32,7 +32,7 @@ pub(crate) fn emit(
         match terminal {
             TerminalPlan::Vocab(row) => {
                 let name = row.name().to_owned();
-                let origin = DeclarationKey::new(DeclarationKind::Vocab, &name);
+                let origin = DeclarationKey::new(SourceDeclarationKind::Vocab, &name);
                 let variants = row
                     .variants()
                     .iter()
@@ -86,7 +86,7 @@ pub(crate) fn emit(
             TerminalPlan::Lexeme(row) => {
                 let name = row.name().to_owned();
                 let verb_provider = row.is_verb_provider();
-                let origin = DeclarationKey::new(DeclarationKind::Lexeme, &name);
+                let origin = DeclarationKey::new(SourceDeclarationKind::Lexeme, &name);
                 let variants = row
                     .variants()
                     .iter()
@@ -767,23 +767,23 @@ fn emit_lexeme_surface_helper(
         .map(|row| {
             let member = emitted_ident(row.member(), Span::call_site());
             let feature = match row.feature() {
-                deckmaste_construction_core::macro_def::SurfaceFeature::Bare => {
+                crate::macro_def::SurfaceFeature::Bare => {
                     quote! { Agreement::Bare }
                 }
-                deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular => {
+                crate::macro_def::SurfaceFeature::ThirdPersonSingular => {
                     quote! { Agreement::ThirdPersonSingular }
                 }
-                deckmaste_construction_core::macro_def::SurfaceFeature::Singular => {
+                crate::macro_def::SurfaceFeature::Singular => {
                     quote! { Number::Singular }
                 }
-                deckmaste_construction_core::macro_def::SurfaceFeature::Plural => {
+                crate::macro_def::SurfaceFeature::Plural => {
                     quote! { Number::Plural }
                 }
-                deckmaste_construction_core::macro_def::SurfaceFeature::Participle => {
+                crate::macro_def::SurfaceFeature::Participle => {
                     quote! { Participle::Participle }
                 }
-                deckmaste_construction_core::macro_def::SurfaceFeature::Fixed
-                | deckmaste_construction_core::macro_def::SurfaceFeature::BlockLabel => {
+                crate::macro_def::SurfaceFeature::Fixed
+                | crate::macro_def::SurfaceFeature::BlockLabel => {
                     return Err(syn::Error::new(
                         Span::call_site(),
                         "sealed lexeme surface has an unsupported fixed feature",
@@ -1350,14 +1350,14 @@ mod tests {
         assert_eq!(
             selected[1].origins,
             [crate::DeclarationKey::new(
-                crate::DeclarationKind::Lexeme,
+                crate::SourceDeclarationKind::Lexeme,
                 "VerbLexeme",
             )]
         );
         assert_eq!(
             selected[3].origins,
             [crate::DeclarationKey::new(
-                crate::DeclarationKind::Lexeme,
+                crate::SourceDeclarationKind::Lexeme,
                 "NounLexeme",
             )]
         );

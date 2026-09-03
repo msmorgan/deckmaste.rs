@@ -27,36 +27,34 @@ pub(crate) mod scanner;
 pub(crate) mod terminal;
 pub(crate) mod visit;
 
-pub(super) fn onset(value: deckmaste_construction_core::macro_def::Onset) -> TokenStream {
+pub(super) fn onset(value: crate::macro_def::Onset) -> TokenStream {
     match value {
-        deckmaste_construction_core::macro_def::Onset::Consonant => quote! { Onset::Consonant },
-        deckmaste_construction_core::macro_def::Onset::Vowel => quote! { Onset::Vowel },
+        crate::macro_def::Onset::Consonant => quote! { Onset::Consonant },
+        crate::macro_def::Onset::Vowel => quote! { Onset::Vowel },
     }
 }
 
-pub(super) fn surface_feature(
-    value: deckmaste_construction_core::macro_def::SurfaceFeature,
-) -> TokenStream {
+pub(super) fn surface_feature(value: crate::macro_def::SurfaceFeature) -> TokenStream {
     match value {
-        deckmaste_construction_core::macro_def::SurfaceFeature::Bare => {
+        crate::macro_def::SurfaceFeature::Bare => {
             quote! { ::deckmaste_construction_core::macro_def::SurfaceFeature::Bare }
         }
-        deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular => {
+        crate::macro_def::SurfaceFeature::ThirdPersonSingular => {
             quote! { ::deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular }
         }
-        deckmaste_construction_core::macro_def::SurfaceFeature::Participle => {
+        crate::macro_def::SurfaceFeature::Participle => {
             quote! { ::deckmaste_construction_core::macro_def::SurfaceFeature::Participle }
         }
-        deckmaste_construction_core::macro_def::SurfaceFeature::Singular => {
+        crate::macro_def::SurfaceFeature::Singular => {
             quote! { ::deckmaste_construction_core::macro_def::SurfaceFeature::Singular }
         }
-        deckmaste_construction_core::macro_def::SurfaceFeature::Plural => {
+        crate::macro_def::SurfaceFeature::Plural => {
             quote! { ::deckmaste_construction_core::macro_def::SurfaceFeature::Plural }
         }
-        deckmaste_construction_core::macro_def::SurfaceFeature::Fixed => {
+        crate::macro_def::SurfaceFeature::Fixed => {
             quote! { ::deckmaste_construction_core::macro_def::SurfaceFeature::Fixed }
         }
-        deckmaste_construction_core::macro_def::SurfaceFeature::BlockLabel => {
+        crate::macro_def::SurfaceFeature::BlockLabel => {
             quote! { ::deckmaste_construction_core::macro_def::SurfaceFeature::BlockLabel }
         }
     }
@@ -589,10 +587,8 @@ fn compact_rust_width(tokens: &TokenStream) -> usize {
         .count()
 }
 
-pub(super) fn declaration_kind(
-    kind: deckmaste_construction_core::macro_def::DeclarationKind,
-) -> TokenStream {
-    use deckmaste_construction_core::macro_def::DeclarationKind;
+pub(super) fn declaration_kind(kind: crate::macro_def::DeclarationKind) -> TokenStream {
+    use crate::macro_def::DeclarationKind;
 
     match kind {
         DeclarationKind::KeywordAction => {
@@ -620,10 +616,8 @@ pub(super) fn declaration_kind(
     }
 }
 
-pub(super) fn subtype_category(
-    category: deckmaste_construction_core::macro_def::SubtypeCategory,
-) -> TokenStream {
-    use deckmaste_construction_core::macro_def::SubtypeCategory;
+pub(super) fn subtype_category(category: crate::macro_def::SubtypeCategory) -> TokenStream {
+    use crate::macro_def::SubtypeCategory;
 
     match category {
         SubtypeCategory::Artifact => {
@@ -650,10 +644,8 @@ pub(super) fn subtype_category(
     }
 }
 
-pub(super) fn grammar_position(
-    position: deckmaste_construction_core::macro_def::GrammarPosition,
-) -> TokenStream {
-    use deckmaste_construction_core::macro_def::GrammarPosition;
+pub(super) fn grammar_position(position: crate::macro_def::GrammarPosition) -> TokenStream {
+    use crate::macro_def::GrammarPosition;
 
     match position {
         GrammarPosition::Verb => {
@@ -677,18 +669,15 @@ pub(super) fn grammar_position(
 pub(super) fn closed_lexeme_owner_id(
     declaration: &str,
     member: &str,
-    feature: deckmaste_construction_core::macro_def::SurfaceFeature,
+    feature: crate::macro_def::SurfaceFeature,
 ) -> syn::LitStr {
     let feature = match feature {
-        deckmaste_construction_core::macro_def::SurfaceFeature::Bare => "bare",
-        deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular => {
-            "third_person_singular"
-        }
-        deckmaste_construction_core::macro_def::SurfaceFeature::Singular => "singular",
-        deckmaste_construction_core::macro_def::SurfaceFeature::Plural => "plural",
-        deckmaste_construction_core::macro_def::SurfaceFeature::Participle => "participle",
-        deckmaste_construction_core::macro_def::SurfaceFeature::Fixed
-        | deckmaste_construction_core::macro_def::SurfaceFeature::BlockLabel => {
+        crate::macro_def::SurfaceFeature::Bare => "bare",
+        crate::macro_def::SurfaceFeature::ThirdPersonSingular => "third_person_singular",
+        crate::macro_def::SurfaceFeature::Singular => "singular",
+        crate::macro_def::SurfaceFeature::Plural => "plural",
+        crate::macro_def::SurfaceFeature::Participle => "participle",
+        crate::macro_def::SurfaceFeature::Fixed | crate::macro_def::SurfaceFeature::BlockLabel => {
             unreachable!("closed lexemes use only Agreement or Number features")
         }
     };

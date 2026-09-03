@@ -441,15 +441,15 @@ fn synthetic_projection_fixture_generates() {
             (
                 "agreement_matches_for_expr",
                 vec![
-                    (crate::DeclarationKind::Construction, "leaf"),
-                    (crate::DeclarationKind::Construction, "nested"),
+                    (crate::SourceDeclarationKind::Construction, "leaf"),
+                    (crate::SourceDeclarationKind::Construction, "nested"),
                 ],
             ),
             (
                 "agreement_matches_for_predicate",
                 vec![
-                    (crate::DeclarationKind::Construction, "action"),
-                    (crate::DeclarationKind::Construction, "idle"),
+                    (crate::SourceDeclarationKind::Construction, "action"),
+                    (crate::SourceDeclarationKind::Construction, "idle"),
                 ],
             ),
         ],

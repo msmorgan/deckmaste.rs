@@ -9,9 +9,9 @@ use crate::identifier::emitted_ident;
 use crate::identifier::feature_helper;
 use crate::identifier::key as identifier_key;
 use crate::plan::DeclarationKey;
-use crate::plan::DeclarationKind;
 use crate::plan::GeneratedItem;
 use crate::plan::ItemKey;
+use crate::plan::SourceDeclarationKind;
 use crate::semantic::AccessorMode;
 use crate::semantic::ConstructionFieldKind;
 use crate::semantic::ConstructionPlan;
@@ -42,7 +42,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
             construction.origin_span(),
         ));
         categories[index].origins.push(DeclarationKey::new(
-            DeclarationKind::Construction,
+            SourceDeclarationKind::Construction,
             construction.construction_id(),
         ));
     }
@@ -55,7 +55,8 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
         .products()
         .iter()
         .map(|product| {
-            let origin = DeclarationKey::new(DeclarationKind::AbstractProduct, product.name());
+            let origin =
+                DeclarationKey::new(SourceDeclarationKind::AbstractProduct, product.name());
             let ident = emitted_ident(product.name(), Span::call_site());
             let mut emitted = vec![GeneratedItem::new(
                 ItemKey::named_type(product.name()),
@@ -82,7 +83,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
                     ItemKey::named_type(sum.name()),
                     emit_structural_sum(sum, &ident),
                     vec![DeclarationKey::new(
-                        DeclarationKind::AbstractSum,
+                        SourceDeclarationKind::AbstractSum,
                         sum.name(),
                     )],
                 )],
@@ -107,7 +108,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
                 .entry(quote! { #value_type }.to_string())
                 .and_modify(|(_, _, origins)| {
                     origins.push(DeclarationKey::new(
-                        DeclarationKind::Construction,
+                        SourceDeclarationKind::Construction,
                         construction.construction_id(),
                     ));
                 })
@@ -116,7 +117,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
                         field.value_type(),
                         field.terminal(),
                         vec![DeclarationKey::new(
-                            DeclarationKind::Construction,
+                            SourceDeclarationKind::Construction,
                             construction.construction_id(),
                         )],
                     )
@@ -140,7 +141,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
     for construction in plan.constructions() {
         let ident = emitted_ident(construction.element_type(), construction.origin_span());
         let origins = vec![DeclarationKey::new(
-            DeclarationKind::Construction,
+            SourceDeclarationKind::Construction,
             construction.construction_id(),
         )];
         let tokens = emit_product(plan, construction, &ident)?;
@@ -1161,8 +1162,8 @@ mod tests {
     use syn::Visibility;
     use syn::parse::Parser;
 
-    use crate::DeclarationKind;
     use crate::ItemKey;
+    use crate::SourceDeclarationKind;
     use crate::test_support::representative_expansion;
 
     #[test]
@@ -1849,8 +1850,8 @@ mod tests {
                 .map(|origin| (origin.kind(), origin.name()))
                 .collect::<Vec<_>>(),
             [
-                (DeclarationKind::Construction, "leaf"),
-                (DeclarationKind::Construction, "chain"),
+                (SourceDeclarationKind::Construction, "leaf"),
+                (SourceDeclarationKind::Construction, "chain"),
             ]
         );
 

@@ -13,10 +13,10 @@ use crate::identifier::snake_case;
 use crate::identifier::structural_sequence_walker;
 use crate::model::VisitMode;
 use crate::plan::DeclarationKey;
-use crate::plan::DeclarationKind;
 use crate::plan::GeneratedItem;
 use crate::plan::ItemKey;
 use crate::plan::NamedKind;
+use crate::plan::SourceDeclarationKind as DeclarationKind;
 use crate::semantic::AccessorMode;
 use crate::semantic::AtomPlan;
 use crate::semantic::BindingPlan;
@@ -2125,7 +2125,10 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(
             runtime_origins,
-            [crate::DeclarationKind::Codec, crate::DeclarationKind::Codec],
+            [
+                crate::SourceDeclarationKind::Codec,
+                crate::SourceDeclarationKind::Codec
+            ],
             "both the codec callback and its leaf callback retain codec provenance",
         );
     }

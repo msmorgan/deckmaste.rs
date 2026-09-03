@@ -481,11 +481,11 @@ fn emit_lexicon_surfaces(plan: &SemanticPlan) -> GeneratedItem {
     let rows = [
         (
             plan.runtime_noun_lexeme(),
-            deckmaste_construction_core::macro_def::GrammarPosition::Noun,
+            crate::macro_def::GrammarPosition::Noun,
         ),
         (
             plan.runtime_verb_lexeme(),
-            deckmaste_construction_core::macro_def::GrammarPosition::Verb,
+            crate::macro_def::GrammarPosition::Verb,
         ),
     ]
     .into_iter()
@@ -687,7 +687,10 @@ fn emit_generated_roots(plan: &SemanticPlan) -> Vec<GeneratedItem> {
         .roots()
         .iter()
         .map(|root| {
-            crate::plan::DeclarationKey::new(crate::plan::DeclarationKind::Root, root.category())
+            crate::plan::DeclarationKey::new(
+                crate::plan::SourceDeclarationKind::Root,
+                root.category(),
+            )
         })
         .collect::<Vec<_>>();
     let mut items = vec![
@@ -778,7 +781,7 @@ fn emit_generated_roots(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 }
             },
             vec![crate::plan::DeclarationKey::new(
-                crate::plan::DeclarationKind::Root,
+                crate::plan::SourceDeclarationKind::Root,
                 root.category(),
             )],
         )
@@ -815,7 +818,7 @@ fn emit_generated_roots(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                         }
                     },
                     vec![crate::plan::DeclarationKey::new(
-                        crate::plan::DeclarationKind::Root,
+                        crate::plan::SourceDeclarationKind::Root,
                         root.category(),
                     )],
                 )
@@ -2050,17 +2053,17 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
             let member_ident = emitted_ident(row.member(), Span::call_site());
             let member = syn::LitStr::new(row.member(), Span::call_site());
             let agreement = match row.feature() {
-                deckmaste_construction_core::macro_def::SurfaceFeature::Bare => {
+                crate::macro_def::SurfaceFeature::Bare => {
                     quote! { Agreement::Bare }
                 }
-                deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular => {
+                crate::macro_def::SurfaceFeature::ThirdPersonSingular => {
                     quote! { Agreement::ThirdPersonSingular }
                 }
-                deckmaste_construction_core::macro_def::SurfaceFeature::Singular
-                | deckmaste_construction_core::macro_def::SurfaceFeature::Plural
-                | deckmaste_construction_core::macro_def::SurfaceFeature::Participle
-                | deckmaste_construction_core::macro_def::SurfaceFeature::Fixed
-                | deckmaste_construction_core::macro_def::SurfaceFeature::BlockLabel => {
+                crate::macro_def::SurfaceFeature::Singular
+                | crate::macro_def::SurfaceFeature::Plural
+                | crate::macro_def::SurfaceFeature::Participle
+                | crate::macro_def::SurfaceFeature::Fixed
+                | crate::macro_def::SurfaceFeature::BlockLabel => {
                     unreachable!("validated verb lexeme has the Agreement feature axis")
                 }
             };
@@ -2093,17 +2096,17 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
             lexeme.surfaces().iter().map(move |row| {
                 let member = emitted_ident(row.member(), Span::call_site());
                 let number = match row.feature() {
-                    deckmaste_construction_core::macro_def::SurfaceFeature::Singular => {
+                    crate::macro_def::SurfaceFeature::Singular => {
                         quote! { Number::Singular }
                     }
-                    deckmaste_construction_core::macro_def::SurfaceFeature::Plural => {
+                    crate::macro_def::SurfaceFeature::Plural => {
                         quote! { Number::Plural }
                     }
-                    deckmaste_construction_core::macro_def::SurfaceFeature::Bare
-                    | deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular
-                    | deckmaste_construction_core::macro_def::SurfaceFeature::Participle
-                    | deckmaste_construction_core::macro_def::SurfaceFeature::Fixed
-                    | deckmaste_construction_core::macro_def::SurfaceFeature::BlockLabel => {
+                    crate::macro_def::SurfaceFeature::Bare
+                    | crate::macro_def::SurfaceFeature::ThirdPersonSingular
+                    | crate::macro_def::SurfaceFeature::Participle
+                    | crate::macro_def::SurfaceFeature::Fixed
+                    | crate::macro_def::SurfaceFeature::BlockLabel => {
                         unreachable!("validated noun lexeme has the Number feature axis")
                     }
                 };
@@ -2139,15 +2142,15 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                         .map(|row| {
                             let member = emitted_ident(row.member(), Span::call_site());
                             let number = match row.feature() {
-                                deckmaste_construction_core::macro_def::SurfaceFeature::Singular => {
+                                crate::macro_def::SurfaceFeature::Singular => {
                                     quote! { Number::Singular }
                                 }
-                                deckmaste_construction_core::macro_def::SurfaceFeature::Plural => quote! { Number::Plural },
-                                deckmaste_construction_core::macro_def::SurfaceFeature::Bare
-                                | deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular
-                                | deckmaste_construction_core::macro_def::SurfaceFeature::Participle
-                                | deckmaste_construction_core::macro_def::SurfaceFeature::Fixed
-                                | deckmaste_construction_core::macro_def::SurfaceFeature::BlockLabel => {
+                                crate::macro_def::SurfaceFeature::Plural => quote! { Number::Plural },
+                                crate::macro_def::SurfaceFeature::Bare
+                                | crate::macro_def::SurfaceFeature::ThirdPersonSingular
+                                | crate::macro_def::SurfaceFeature::Participle
+                                | crate::macro_def::SurfaceFeature::Fixed
+                                | crate::macro_def::SurfaceFeature::BlockLabel => {
                                     unreachable!(
                                         "validated noun lexeme has the Number feature axis"
                                     )
@@ -2239,8 +2242,8 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                             match codec.feature_axis() {
                                 crate::feature::Feature::Agreement => {
                                     let agreement = match row.feature() {
-                                        deckmaste_construction_core::macro_def::SurfaceFeature::Bare => quote! { Agreement::Bare },
-                                        deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular => quote! { Agreement::ThirdPersonSingular },
+                                        crate::macro_def::SurfaceFeature::Bare => quote! { Agreement::Bare },
+                                        crate::macro_def::SurfaceFeature::ThirdPersonSingular => quote! { Agreement::ThirdPersonSingular },
                                         _ => unreachable!("validated Agreement declaration verb has Agreement rows"),
                                     };
                                     quote! {
@@ -2250,7 +2253,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                                     }
                                 }
                                 crate::feature::Feature::Participle => {
-                                    debug_assert_eq!(row.feature(), deckmaste_construction_core::macro_def::SurfaceFeature::Participle);
+                                    debug_assert_eq!(row.feature(), crate::macro_def::SurfaceFeature::Participle);
                                     quote! {
                                         (LexicalOwnerTemplate::DeclarationVerb(#terminal_index), Leaf::#verb {
                                             verb: #verb::Lexeme(#closed::#member),

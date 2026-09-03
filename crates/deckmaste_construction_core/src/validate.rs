@@ -131,7 +131,7 @@ pub(crate) enum AtomContribution {
         terminal: String,
     },
     OpenDeclaration {
-        kind: deckmaste_construction_core::macro_def::DeclarationKind,
+        kind: crate::macro_def::DeclarationKind,
         name: String,
     },
 }
@@ -2682,7 +2682,7 @@ fn validate_determinative_member(
                     && row.phrase_number_slots.len() <= 1
                     && row.following_onset_slots.len() <= 1
                 {
-                    if ::deckmaste_construction_core::macro_def::normalize_surface_onset(
+                    if crate::macro_def::normalize_surface_onset(
                         &row.surface_slots[0].value(),
                         None,
                     )
@@ -6482,10 +6482,8 @@ fn validate_form_guard_expr(
     }
 }
 
-fn open_declaration_kind(
-    kind: &syn::Ident,
-) -> Option<deckmaste_construction_core::macro_def::DeclarationKind> {
-    use deckmaste_construction_core::macro_def::DeclarationKind;
+fn open_declaration_kind(kind: &syn::Ident) -> Option<crate::macro_def::DeclarationKind> {
+    use crate::macro_def::DeclarationKind;
 
     match kind.to_string().as_str() {
         "KeywordAction" => Some(DeclarationKind::KeywordAction),
@@ -11423,24 +11421,16 @@ pub(crate) mod tests {
                 .map(|row| (row.member(), row.feature(), row.surface()))
                 .collect::<Vec<_>>(),
             [
+                ("Deal", crate::macro_def::SurfaceFeature::Bare, "deal"),
                 (
                     "Deal",
-                    deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
-                    "deal"
-                ),
-                (
-                    "Deal",
-                    deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular,
+                    crate::macro_def::SurfaceFeature::ThirdPersonSingular,
                     "deals",
                 ),
+                ("Be", crate::macro_def::SurfaceFeature::Bare, "are"),
                 (
                     "Be",
-                    deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
-                    "are"
-                ),
-                (
-                    "Be",
-                    deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular,
+                    crate::macro_def::SurfaceFeature::ThirdPersonSingular,
                     "is",
                 ),
             ]
@@ -11534,14 +11524,8 @@ pub(crate) mod tests {
                 .map(|row| (row.feature(), row.surface()))
                 .collect::<Vec<_>>(),
             [
-                (
-                    deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular,
-                    "is",
-                ),
-                (
-                    deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
-                    "are"
-                ),
+                (crate::macro_def::SurfaceFeature::ThirdPersonSingular, "is",),
+                (crate::macro_def::SurfaceFeature::Bare, "are"),
             ]
         );
     }
@@ -16763,16 +16747,34 @@ pub(crate) mod tests {
 
         let expected = crate::semantic::SemanticSnapshot {
             declaration_keys: vec![
-                (crate::DeclarationKind::Vocab, "Words".to_owned()),
-                (crate::DeclarationKind::Lexeme, "Nouns".to_owned()),
-                (crate::DeclarationKind::Lexeme, "Verbs".to_owned()),
-                (crate::DeclarationKind::Codec, "SignedNumber".to_owned()),
-                (crate::DeclarationKind::Morphology, "EnglishNoun".to_owned()),
-                (crate::DeclarationKind::Morphology, "EnglishVerb".to_owned()),
-                (crate::DeclarationKind::Construction, "leaf".to_owned()),
-                (crate::DeclarationKind::Construction, "chain".to_owned()),
-                (crate::DeclarationKind::Construction, "action".to_owned()),
-                (crate::DeclarationKind::Root, "Action".to_owned()),
+                (crate::SourceDeclarationKind::Vocab, "Words".to_owned()),
+                (crate::SourceDeclarationKind::Lexeme, "Nouns".to_owned()),
+                (crate::SourceDeclarationKind::Lexeme, "Verbs".to_owned()),
+                (
+                    crate::SourceDeclarationKind::Codec,
+                    "SignedNumber".to_owned(),
+                ),
+                (
+                    crate::SourceDeclarationKind::Morphology,
+                    "EnglishNoun".to_owned(),
+                ),
+                (
+                    crate::SourceDeclarationKind::Morphology,
+                    "EnglishVerb".to_owned(),
+                ),
+                (
+                    crate::SourceDeclarationKind::Construction,
+                    "leaf".to_owned(),
+                ),
+                (
+                    crate::SourceDeclarationKind::Construction,
+                    "chain".to_owned(),
+                ),
+                (
+                    crate::SourceDeclarationKind::Construction,
+                    "action".to_owned(),
+                ),
+                (crate::SourceDeclarationKind::Root, "Action".to_owned()),
             ],
             constructions: vec![
                 (

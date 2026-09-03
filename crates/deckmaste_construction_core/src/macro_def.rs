@@ -625,6 +625,7 @@ enum DiagnosticInvocation<'a> {
 }
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct DiagnosticFields<'a> {
     #[serde(borrow)]
     name: &'a RawValue,
@@ -639,6 +640,7 @@ struct DiagnosticFields<'a> {
 }
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct DiagnosticSubtype<'a> {
     #[serde(borrow)]
     category: &'a RawValue,

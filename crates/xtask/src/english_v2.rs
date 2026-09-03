@@ -25,10 +25,10 @@ use anyhow::ensure;
 use clap::Args;
 use clap::Subcommand;
 use clap::ValueEnum;
-use deckmaste_construction_core::DeclarationKind;
 use deckmaste_construction_core::Expansion;
 use deckmaste_construction_core::ItemKey;
 use deckmaste_construction_core::NamedKind;
+use deckmaste_construction_core::SourceDeclarationKind;
 use deckmaste_construction_core::TerminalBindingDeclarationKind;
 use deckmaste_english_v2::ast::CatalogProvider;
 use deckmaste_english_v2::environment::CatalogProviderRow;
@@ -610,17 +610,17 @@ fn item_key_name(key: &ItemKey) -> String {
     }
 }
 
-fn declaration_kind_name(kind: DeclarationKind) -> &'static str {
+fn declaration_kind_name(kind: SourceDeclarationKind) -> &'static str {
     match kind {
-        DeclarationKind::Construction => "construction",
-        DeclarationKind::AbstractProduct => "abstract product",
-        DeclarationKind::AbstractSum => "abstract sum",
-        DeclarationKind::Vocab => "vocab",
-        DeclarationKind::Morphology => "morphology",
-        DeclarationKind::Lexeme => "lexeme",
-        DeclarationKind::Codec => "codec",
-        DeclarationKind::Identity => "identity",
-        DeclarationKind::Root => "root",
+        SourceDeclarationKind::Construction => "construction",
+        SourceDeclarationKind::AbstractProduct => "abstract product",
+        SourceDeclarationKind::AbstractSum => "abstract sum",
+        SourceDeclarationKind::Vocab => "vocab",
+        SourceDeclarationKind::Morphology => "morphology",
+        SourceDeclarationKind::Lexeme => "lexeme",
+        SourceDeclarationKind::Codec => "codec",
+        SourceDeclarationKind::Identity => "identity",
+        SourceDeclarationKind::Root => "root",
     }
 }
 

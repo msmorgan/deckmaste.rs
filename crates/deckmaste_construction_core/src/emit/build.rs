@@ -19,10 +19,10 @@ use crate::identifier::key as identifier_key;
 use crate::identifier::snake_case;
 use crate::model::TerminalBindingKind;
 use crate::plan::DeclarationKey;
-use crate::plan::DeclarationKind;
 use crate::plan::GeneratedItem;
 use crate::plan::ItemKey;
 use crate::plan::NamedKind;
+use crate::plan::SourceDeclarationKind;
 use crate::semantic::AgreementAuthorityPlan;
 use crate::semantic::AtomPlan;
 use crate::semantic::AtomTerminal;
@@ -49,7 +49,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
         .iter()
         .map(|construction| {
             DeclarationKey::new(
-                DeclarationKind::Construction,
+                SourceDeclarationKind::Construction,
                 construction.construction_id(),
             )
         })
@@ -2019,17 +2019,11 @@ fn lower_bound_atom(
             push_affix(lowering);
             lower_atom(validated, row, form, value, lowering)?;
             if let Some(role) = atom_role(value)
-                && let Some(onset) =
-                    ::deckmaste_construction_core::macro_def::normalize_surface_onset(
-                        affix_surface,
-                        None,
-                    )
+                && let Some(onset) = crate::macro_def::normalize_surface_onset(affix_surface, None)
             {
                 let onset = match onset {
-                    ::deckmaste_construction_core::macro_def::Onset::Consonant => {
-                        FeatureValue::Consonant
-                    }
-                    ::deckmaste_construction_core::macro_def::Onset::Vowel => FeatureValue::Vowel,
+                    crate::macro_def::Onset::Consonant => FeatureValue::Consonant,
+                    crate::macro_def::Onset::Vowel => FeatureValue::Vowel,
                 };
                 lowering.role_features.insert(
                     (role.to_owned(), Feature::Onset),
@@ -2905,9 +2899,9 @@ fn verb_onset_pattern(
         validated.feature_resolution(row.construction_id(), &target)
     {
         let feature = match agreement {
-            FeatureValue::Bare => deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
+            FeatureValue::Bare => crate::macro_def::SurfaceFeature::Bare,
             FeatureValue::ThirdPersonSingular => {
-                deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular
+                crate::macro_def::SurfaceFeature::ThirdPersonSingular
             }
             FeatureValue::Singular
             | FeatureValue::Plural
@@ -2927,8 +2921,8 @@ fn verb_onset_pattern(
             .iter()
             .find(|surface| surface.feature() == feature)
             .map(|surface| match surface.onset() {
-                deckmaste_construction_core::macro_def::Onset::Consonant => FeatureValue::Consonant,
-                deckmaste_construction_core::macro_def::Onset::Vowel => FeatureValue::Vowel,
+                crate::macro_def::Onset::Consonant => FeatureValue::Consonant,
+                crate::macro_def::Onset::Vowel => FeatureValue::Vowel,
             })
             .ok_or_else(|| internal("fixed verb has no exact realized onset row"))?;
         lowering.role_features.insert(
@@ -2945,23 +2939,23 @@ fn verb_onset_pattern(
     );
     let correlations = rows.iter().map(|surface| {
         let agreement = match surface.feature() {
-            deckmaste_construction_core::macro_def::SurfaceFeature::Bare => {
+            crate::macro_def::SurfaceFeature::Bare => {
                 quote! { Agreement::Bare }
             }
-            deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular => {
+            crate::macro_def::SurfaceFeature::ThirdPersonSingular => {
                 quote! { Agreement::ThirdPersonSingular }
             }
-            deckmaste_construction_core::macro_def::SurfaceFeature::Singular
-            | deckmaste_construction_core::macro_def::SurfaceFeature::Plural
-            | deckmaste_construction_core::macro_def::SurfaceFeature::Participle
-            | deckmaste_construction_core::macro_def::SurfaceFeature::Fixed
-            | deckmaste_construction_core::macro_def::SurfaceFeature::BlockLabel => {
+            crate::macro_def::SurfaceFeature::Singular
+            | crate::macro_def::SurfaceFeature::Plural
+            | crate::macro_def::SurfaceFeature::Participle
+            | crate::macro_def::SurfaceFeature::Fixed
+            | crate::macro_def::SurfaceFeature::BlockLabel => {
                 unreachable!("validated verb lexeme has Agreement rows")
             }
         };
         let expected_onset = match surface.onset() {
-            deckmaste_construction_core::macro_def::Onset::Consonant => quote! { Onset::Consonant },
-            deckmaste_construction_core::macro_def::Onset::Vowel => quote! { Onset::Vowel },
+            crate::macro_def::Onset::Consonant => quote! { Onset::Consonant },
+            crate::macro_def::Onset::Vowel => quote! { Onset::Vowel },
         };
         quote! { (*#agreement_pattern == #agreement && *#onset == #expected_onset) }
     });
@@ -5277,12 +5271,12 @@ mod tests {
                 .map(|origin| (origin.kind(), origin.name()))
                 .collect::<Vec<_>>(),
             [
-                (crate::DeclarationKind::Construction, "leaf"),
-                (crate::DeclarationKind::Construction, "nested"),
-                (crate::DeclarationKind::Construction, "action"),
-                (crate::DeclarationKind::Construction, "idle"),
-                (crate::DeclarationKind::Construction, "solo"),
-                (crate::DeclarationKind::Construction, "document"),
+                (crate::SourceDeclarationKind::Construction, "leaf"),
+                (crate::SourceDeclarationKind::Construction, "nested"),
+                (crate::SourceDeclarationKind::Construction, "action"),
+                (crate::SourceDeclarationKind::Construction, "idle"),
+                (crate::SourceDeclarationKind::Construction, "solo"),
+                (crate::SourceDeclarationKind::Construction, "document"),
             ],
         );
 

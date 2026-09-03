@@ -281,6 +281,28 @@ fn an_open_type_noun_normalizes_without_closed_membership() {
 }
 
 #[test]
+fn type_declarations_reject_legacy_template_fields_by_name() {
+    let error = read_str(
+        "Chronicle.ron",
+        r#"Type(
+            name: "Chronicle",
+            spelling: "chronicle",
+            template: "chronicle",
+            grammar: Noun(singular: "chronicle", plural: Unavailable),
+        )"#,
+    )
+    .unwrap_err();
+
+    let message = error.to_string();
+    assert!(
+        message.contains("`template`")
+            && (message.contains("unknown field")
+                || message.contains("not one of this macro's parameters")),
+        "legacy field must be named in the diagnostic: {message}"
+    );
+}
+
+#[test]
 fn type_nouns_reject_redundant_default_plural_overrides() {
     let error = read_str(
         "Artifact.ron",

@@ -1,4 +1,4 @@
-use deckmaste_construction_core::macro_def::SurfaceFeature;
+use crate::macro_def::SurfaceFeature;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[expect(

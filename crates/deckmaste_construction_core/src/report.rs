@@ -442,7 +442,7 @@ pub(crate) fn escape_hatch_report(plan: &SemanticPlan) -> syn::Result<EscapeHatc
             continue;
         }
         if let TerminalPlan::ContextIdentity(identity) = terminal {
-            if identity.origin().kind() != crate::DeclarationKind::Identity
+            if identity.origin().kind() != crate::SourceDeclarationKind::Identity
                 || identity.origin().name() != identity.name()
             {
                 return Err(syn::Error::new(
@@ -461,8 +461,8 @@ pub(crate) fn escape_hatch_report(plan: &SemanticPlan) -> syn::Result<EscapeHatc
         };
         let name = binding.name().to_owned();
         let expected_origin_kind = match binding.kind() {
-            TerminalBindingKind::Codec => crate::DeclarationKind::Codec,
-            TerminalBindingKind::Identity => crate::DeclarationKind::Identity,
+            TerminalBindingKind::Codec => crate::SourceDeclarationKind::Codec,
+            TerminalBindingKind::Identity => crate::SourceDeclarationKind::Identity,
         };
         if binding.origin().kind() != expected_origin_kind {
             return Err(syn::Error::new(
@@ -522,19 +522,15 @@ pub(crate) fn escape_hatch_report(plan: &SemanticPlan) -> syn::Result<EscapeHatc
     })
 }
 
-fn surface_feature_key(
-    feature: deckmaste_construction_core::macro_def::SurfaceFeature,
-) -> &'static str {
+fn surface_feature_key(feature: crate::macro_def::SurfaceFeature) -> &'static str {
     match feature {
-        deckmaste_construction_core::macro_def::SurfaceFeature::Bare => "bare",
-        deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular => {
-            "third_person_singular"
-        }
-        deckmaste_construction_core::macro_def::SurfaceFeature::Singular => "singular",
-        deckmaste_construction_core::macro_def::SurfaceFeature::Plural => "plural",
-        deckmaste_construction_core::macro_def::SurfaceFeature::Participle => "participle",
-        deckmaste_construction_core::macro_def::SurfaceFeature::Fixed => "fixed",
-        deckmaste_construction_core::macro_def::SurfaceFeature::BlockLabel => "block_label",
+        crate::macro_def::SurfaceFeature::Bare => "bare",
+        crate::macro_def::SurfaceFeature::ThirdPersonSingular => "third_person_singular",
+        crate::macro_def::SurfaceFeature::Singular => "singular",
+        crate::macro_def::SurfaceFeature::Plural => "plural",
+        crate::macro_def::SurfaceFeature::Participle => "participle",
+        crate::macro_def::SurfaceFeature::Fixed => "fixed",
+        crate::macro_def::SurfaceFeature::BlockLabel => "block_label",
     }
 }
 

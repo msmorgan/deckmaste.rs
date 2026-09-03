@@ -17,10 +17,10 @@ use crate::identifier::RULES_CONSTANT;
 use crate::identifier::emitted_ident;
 use crate::model::TerminalBindingKind;
 use crate::plan::DeclarationKey;
-use crate::plan::DeclarationKind;
 use crate::plan::GeneratedItem;
 use crate::plan::ItemKey;
 use crate::plan::NamedKind;
+use crate::plan::SourceDeclarationKind;
 use crate::semantic::AtomPlan;
 use crate::semantic::AtomTerminal;
 use crate::semantic::ConstructionPlan;
@@ -322,7 +322,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
         plan.roots()
             .iter()
             .filter(|root| root.is_parse_entry())
-            .map(|root| DeclarationKey::new(DeclarationKind::Root, root.category())),
+            .map(|root| DeclarationKey::new(SourceDeclarationKind::Root, root.category())),
     );
     Ok(vec![
         GeneratedItem::new(
@@ -495,7 +495,7 @@ fn emit_root_adapter(plan: &SemanticPlan) -> GeneratedItem {
         },
         plan.roots()
             .iter()
-            .map(|root| DeclarationKey::new(DeclarationKind::Root, root.category()))
+            .map(|root| DeclarationKey::new(SourceDeclarationKind::Root, root.category()))
             .collect(),
     )
 }
@@ -2184,10 +2184,7 @@ fn owner_template(plan: &SemanticPlan, terminal: &str) -> syn::Result<TokenStrea
             terminal_index,
             plan,
         } => {
-            debug_assert_eq!(
-                plan.position(),
-                ::deckmaste_construction_core::macro_def::GrammarPosition::Noun
-            );
+            debug_assert_eq!(plan.position(), crate::macro_def::GrammarPosition::Noun);
             Ok(quote! { LexicalOwnerTemplate::DeclarationNoun(#terminal_index) })
         }
         AtomTerminal::DeclarationDeterminative { terminal_index, .. } => {
@@ -2287,7 +2284,7 @@ fn construction_origins(constructions: &[ConstructionPlan]) -> Vec<DeclarationKe
         .iter()
         .map(|construction| {
             DeclarationKey::new(
-                DeclarationKind::Construction,
+                SourceDeclarationKind::Construction,
                 construction.construction_id(),
             )
         })
@@ -2312,9 +2309,9 @@ fn category_origins(plan: &SemanticPlan) -> Vec<DeclarationKey> {
         .filter(|origin| {
             matches!(
                 origin.kind(),
-                DeclarationKind::Construction
-                    | DeclarationKind::AbstractProduct
-                    | DeclarationKind::AbstractSum
+                SourceDeclarationKind::Construction
+                    | SourceDeclarationKind::AbstractProduct
+                    | SourceDeclarationKind::AbstractSum
             )
         })
         .cloned()
@@ -3394,7 +3391,7 @@ mod tests {
         );
 
         let construction_origins = ["leaf", "nested", "action", "idle", "solo", "document"]
-            .map(|name| (crate::DeclarationKind::Construction, name));
+            .map(|name| (crate::SourceDeclarationKind::Construction, name));
         for &index in &[0, 1, 2, 4, 5] {
             assert_eq!(
                 generated[index]
@@ -3411,7 +3408,7 @@ mod tests {
                 .iter()
                 .map(|origin| (origin.kind(), origin.name()))
                 .collect::<Vec<_>>(),
-            [(crate::DeclarationKind::Root, "Document")],
+            [(crate::SourceDeclarationKind::Root, "Document")],
         );
         assert_eq!(
             generated[6]
@@ -3421,7 +3418,7 @@ mod tests {
                 .collect::<Vec<_>>(),
             construction_origins
                 .into_iter()
-                .chain([(crate::DeclarationKind::Root, "Document")])
+                .chain([(crate::SourceDeclarationKind::Root, "Document")])
                 .collect::<Vec<_>>(),
         );
     }
