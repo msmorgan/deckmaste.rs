@@ -641,8 +641,13 @@ data NameAgreement : Type where
   SameName : NameAgreement
 
 public export
-data AtLeastTwo : Nat -> Type where
-  TwoUp : AtLeastTwo (S (S n))
+atLeastTwo : Nat -> Bool
+atLeastTwo (S (S _)) = True
+atLeastTwo _ = False
+
+public export
+AtLeastTwo : Nat -> Type
+AtLeastTwo n = So (atLeastTwo n)
 
 public export
 data Determiner = TargetD | AD | EachD | AllD | TheD | PartD
@@ -1296,8 +1301,8 @@ countChoice s (MkBinding _ k OneOf p :: bs) =
 countChoice s (_ :: bs) = countChoice s bs
 
 public export
-data ChoiceStands : Nat -> Type where
-  ChoiceMade : ChoiceStands (S n)
+ChoiceStands : Nat -> Type
+ChoiceStands n = So (isSucc n)
 
 public export
 data Disclosure = Openly | Secretly
@@ -1784,26 +1789,21 @@ isCardZone (Just Stack) = False
 isCardZone (Just Command) = True
 
 public export
+zoneIsB : Maybe Zone -> Zone -> Bool
+zoneIsB Nothing _ = False
+zoneIsB (Just a) b = a == b
+
+public export
+ZoneIs : Maybe Zone -> Zone -> Type
+ZoneIs subj z = So (zoneIsB subj z)
+
+public export
 onFieldZone : Maybe Zone -> Bool
-onFieldZone Nothing = False
-onFieldZone (Just Battlefield) = True
-onFieldZone (Just Graveyard) = False
-onFieldZone (Just Exile) = False
-onFieldZone (Just Hand) = False
-onFieldZone (Just Library) = False
-onFieldZone (Just Stack) = False
-onFieldZone (Just Command) = False
+onFieldZone z = zoneIsB z Battlefield
 
 public export
 onStackZone : Maybe Zone -> Bool
-onStackZone Nothing = False
-onStackZone (Just Battlefield) = False
-onStackZone (Just Graveyard) = False
-onStackZone (Just Exile) = False
-onStackZone (Just Hand) = False
-onStackZone (Just Library) = False
-onStackZone (Just Stack) = True
-onStackZone (Just Command) = False
+onStackZone z = zoneIsB z Stack
 
 public export
 data SlotCarrier = PermanentSlot | CardSlot | SpellSlot
@@ -2146,10 +2146,6 @@ countChoosers : Bindings -> Nat
 countChoosers bs = countOnes Player bs + countManys Player bs
 
 public export
-data OnBattlefield : Maybe Zone -> Type where
-  OnField : OnBattlefield (Just Battlefield)
-
-public export
 data EntryCounterMark = Fresh | Additional | Fewer
 
 public export
@@ -2221,14 +2217,10 @@ namespace Lookback
   sameWindow _ _ = False
 
 public export
-data OnStack : Maybe Zone -> Type where
-  OnTheStack : OnStack (Just Stack)
-
-public export
 zoneFits : Maybe Zone -> Maybe Zone -> Bool
-zoneFits Nothing _ = True
-zoneFits (Just _) Nothing = True
-zoneFits (Just a) (Just b) = a == b
+zoneFits _ Nothing = True
+zoneFits Nothing (Just _) = True
+zoneFits subj (Just b) = zoneIsB subj b
 
 public export
 ZoneFits : Maybe Zone -> Maybe Zone -> Type
@@ -3179,7 +3171,7 @@ data DesignationHolder : Designation -> Maybe Zone -> Type where
   HolderUnzoned : {auto 0 sc : designationScope d = HeldBy Player} ->
                   DesignationHolder d z
   HolderOnField : {auto 0 sc : designationScope d = HeldBy Object} ->
-                  {auto 0 ok : OnBattlefield z} -> DesignationHolder d z
+                  {auto 0 ok : ZoneIs z Battlefield} -> DesignationHolder d z
 
 public export
 data AttachWord = Enchanted | Equipped | Fortified

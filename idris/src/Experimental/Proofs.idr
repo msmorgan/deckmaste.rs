@@ -137,7 +137,7 @@ public export
 badStale : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.destroy (Macros.target Macros.creature),
                Delayed (BeginningOf EndStep NoPossessor) [] Nothing (Macros.sacrifice You It {ok})])
-badStale OnField impossible
+badStale Oh impossible
 
 
 public export
@@ -176,7 +176,7 @@ public export
 badSacrificeExiled : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.exile You (Macros.target Macros.creature),
                Macros.sacrifice You It {ok}])
-badSacrificeExiled OnField impossible
+badSacrificeExiled Oh impossible
 
 
 public export
@@ -254,7 +254,7 @@ badBareCardRead Refl impossible
 public export
 badTapGraveyard : Unspellable (Effect []) (\ok =>
   SetStatus Tapped (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {ok})
-badTapGraveyard OnField impossible
+badTapGraveyard Oh impossible
 
 
 ||| "Destroy target tapped creature card in your graveyard."
@@ -276,7 +276,7 @@ badTappedUntapped Oh impossible
 public export
 badUntapGraveyard : Unspellable (Effect []) (\ok =>
   SetStatus Untapped (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {ok})
-badUntapGraveyard OnField impossible
+badUntapGraveyard Oh impossible
 
 
 ||| "Destroy target permanent instant."
@@ -327,7 +327,7 @@ public export
 badFightGraveyard : Unspellable (Effect []) (\ok =>
   Fights (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {za = ok}
          (Macros.target Macros.creature))
-badFightGraveyard OnField impossible
+badFightGraveyard Oh impossible
 
 
 ||| "Target land fights target creature you don't control."
@@ -335,6 +335,13 @@ public export
 badFightLand : Unspellable (Effect []) (\ok =>
   Fights (Macros.target (HasType Land)) {ta = ok} (Macros.target Macros.creatureYouDontControl))
 badFightLand Oh impossible
+
+
+||| "Target permanent fights target creature." [CR#701.14a]
+public export
+badFightPermanent : Unspellable (Effect []) (\ok =>
+  Fights (Macros.target Permanent) {ta = ok} (Macros.target Macros.creature))
+badFightPermanent Oh impossible
 
 
 public export
@@ -421,7 +428,7 @@ badMoveToTargetsHand HandOkBare impossible
 public export
 badDestroyGraveyard : Unspellable (Effect []) (\ok =>
   Macros.destroy (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {ok})
-badDestroyGraveyard OnField impossible
+badDestroyGraveyard Oh impossible
 
 
 ||| "You discard a creature."
@@ -435,7 +442,7 @@ badDiscardBattlefield DiscardTracked impossible
 public export
 badDestroyGraveyardCard : Unspellable (Effect []) (\ok =>
   Macros.destroy (Macros.target (And [Macros.creature, InZone Macros.graveyardZ])) {ok})
-badDestroyGraveyardCard OnField impossible
+badDestroyGraveyardCard Oh impossible
 
 
 ||| A move labeled with a word outside the label catalog
@@ -537,7 +544,7 @@ badDiscardThisCreature DiscardTracked impossible
 public export
 badAscribedTarget : Unspellable (Noun [] Object) (\ok =>
   AsType Creature (Macros.target Macros.creature) Nothing {asc = ok})
-badAscribedTarget AscribeThis impossible
+badAscribedTarget Oh impossible
 
 
 ||| "creature you control that you don't control"
@@ -560,9 +567,9 @@ badAltHeaderMixedReadback : Unspellable Ability (\ok =>
             [BecomesBlocked Macros.thisCreature
                             (Just (Macros.a Macros.creature))]
             Nothing [] Nothing Nothing Nothing
-            (Macros.gets (That (TypeW Creature) {ok = ok}) (PtDown (Lit 1))
-                         (PtDown (Lit 1)) (Just Macros.untilEndOfTurn)))
-badAltHeaderMixedReadback Refl impossible
+            (Macros.gets (That (TypeW Creature) {ok = Builtin.fst ok}) (PtDown (Lit 1))
+                         (PtDown (Lit 1)) {ok = Builtin.snd ok} (Just Macros.untilEndOfTurn)))
+badAltHeaderMixedReadback (Refl, _) impossible
 
 
 public export

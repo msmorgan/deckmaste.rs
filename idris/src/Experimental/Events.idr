@@ -357,9 +357,14 @@ deedBareOk : VerbLabel -> Role -> Bool
 deedBareOk v r = roleBare (deedRoleOf v r)
 
 public export
-deedHeadTysOk : VerbLabel -> Role -> List CardType -> Bool
+deedAltOk : VerbLabel -> Role -> List CardType -> Bool
+deedAltOk v r [] = deedBareOk v r
+deedAltOk v r ts = any (deedTypeOk v r) ts
+
+public export
+deedHeadTysOk : VerbLabel -> Role -> List (List CardType) -> Bool
 deedHeadTysOk v r [] = deedBareOk v r
-deedHeadTysOk v r ts = all (deedTypeOk v r) ts
+deedHeadTysOk v r alts = all (deedAltOk v r) alts
 
 public export
 deedZoneOf : VerbLabel -> Role -> Maybe Zone
@@ -419,13 +424,13 @@ deedsZone (d :: ds) r =
     Just z => if deedZoneOf d r == Just z then Just z else Nothing
 
 public export
-deedFits : Deeds -> Role -> Kind -> List CardType -> Maybe Zone -> Bool
+deedFits : Deeds -> Role -> Kind -> List (List CardType) -> Maybe Zone -> Bool
 deedFits ds r k ts z =
   all (\d => deedKindOk d r k && deedHeadTysOk d r ts) ds &&
   zoneFits z (deedsZone ds r)
 
 public export
-DeedFits : Deeds -> Role -> Kind -> List CardType -> Maybe Zone -> Type
+DeedFits : Deeds -> Role -> Kind -> List (List CardType) -> Maybe Zone -> Type
 DeedFits ds r k ts z = So (deedFits ds r k ts z)
 
 public export

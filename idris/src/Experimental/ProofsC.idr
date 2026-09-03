@@ -123,7 +123,7 @@ badChooseSomeOf BareChoice impossible
 public export
 badTapLibraryTop : Unspellable (Effect []) (\ok =>
   SetStatus Tapped Macros.topCard {ok})
-badTapLibraryTop OnField impossible
+badTapLibraryTop Oh impossible
 
 
 public export
@@ -402,14 +402,14 @@ badTriggerAtYourTurn Oh impossible
 public export
 badTriggerTapsDeadCreature : Unspellable Ability (\ok =>
   Triggered Whenever (Dies (Macros.a Macros.creature)) [] Nothing [] Nothing Nothing Nothing (SetStatus Tapped It {ok}))
-badTriggerTapsDeadCreature OnField impossible
+badTriggerTapsDeadCreature Oh impossible
 
 
 ||| "Whenever a creature leaves the battlefield, tap it."
 public export
 badLeavesThenTap : Unspellable Ability (\ok =>
   Triggered Whenever (Macros.leavesBattlefield (Macros.a Macros.creature)) [] Nothing [] Nothing Nothing Nothing (SetStatus Tapped It {ok}))
-badLeavesThenTap OnField impossible
+badLeavesThenTap Oh impossible
 
 
 ||| "Target creature can't attack."
@@ -490,7 +490,7 @@ badAfterReflexiveReadsTrigger (Refl, _) impossible
 public export
 badReflexiveTapsSacrificed : Unspellable (Effect []) (\ok =>
   Reflexively (Macros.sacrifice You (Macros.a Macros.creature)) (SetStatus Tapped It {ok}))
-badReflexiveTapsSacrificed OnField impossible
+badReflexiveTapsSacrificed Oh impossible
 
 
 ||| "Put target creature into its owner's graveyard tapped."

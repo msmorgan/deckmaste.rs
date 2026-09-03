@@ -363,6 +363,15 @@ cowardKiller = Sequentially [Macros.cantBlock (Macros.target Macros.creature) (J
                              Macros.becomes (That (TypeW Creature)) (Macros.subtypesOnly [creatureType "Coward"])
                                      (Just Macros.untilEndOfTurn)]
 
+||| Auriok Siege Sled
+auriokSiegeSledDenial : Ability
+auriokSiegeSledDenial =
+  Macros.activated (Mana [Macros.generic 1])
+                   (Continuously (Macros.cantDoTo "Block"
+                                    (Macros.target (And [Macros.artifact, Macros.creature]))
+                                    Macros.thisCreature)
+                                 (Just Macros.thisTurn))
+
 clavilenoPhrase : Predicate [] Object
 clavilenoPhrase = And [Macros.creature, Attacking, Not (HasSubtype (creatureType "Demon"))]
 

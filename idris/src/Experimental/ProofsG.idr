@@ -269,7 +269,7 @@ badResolvedInstant Oh impossible
 public export
 badResolvedOnBattlefield : Unspellable (Noun [] Object) (\ok =>
   ResolvedPermanent Macros.thisCreature {zn = ok})
-badResolvedOnBattlefield OnTheStack impossible
+badResolvedOnBattlefield Oh impossible
 
 
 ||| "if it entered from the battlefield"
@@ -1142,7 +1142,7 @@ public export
 badTurnOverOffField : Unspellable (Effect []) (\ok =>
   TurnOver (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)]))
            {ok})
-badTurnOverOffField OnField impossible
+badTurnOverOffField Oh impossible
 
 
 ||| "Return target creature card from your graveyard to your hand transformed."
@@ -1203,7 +1203,7 @@ badPileFaceAsAStatus : Unspellable Card (\ok =>
                   , SeparateIntoPiles Macros.anOpponent Them 2 []
                   , SetStatus FaceDown (Those PileW) {ok = ok} ]) ]
        Nothing)
-badPileFaceAsAStatus OnField impossible
+badPileFaceAsAStatus Oh impossible
 
 
 public export
@@ -1246,13 +1246,13 @@ badUnlockDoorOffBattlefield : Unspellable (Effect []) (\ok =>
   Unlock (DoorOf (Just Locked)
             (Macros.a (And [HasSubtype (enchantmentType "Room"),
                             InZone Macros.graveyardZ])) {zn = ok}))
-badUnlockDoorOffBattlefield OnField impossible
+badUnlockDoorOffBattlefield Oh impossible
 
 
 public export
 badDoorOfBareThis : Unspellable (Effect []) (\ok =>
   Unlock (DoorOf (Just Locked) This {zn = ok}))
-badDoorOfBareThis OnField impossible
+badDoorOfBareThis Oh impossible
 
 
 ||| "Sacrifice a creature."

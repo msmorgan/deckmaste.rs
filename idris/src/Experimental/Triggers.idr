@@ -32,7 +32,7 @@ mutual
   data Door : Bindings -> Type where
     ThisDoor : Door bs
     DoorOf : (state : Maybe LockState) -> (room : Noun bs Object) ->
-             {auto 0 zn : OnBattlefield (nounZone room)} ->
+             {auto 0 zn : ZoneIs (nounZone room) Battlefield} ->
              Door bs
 
   public export
@@ -128,6 +128,15 @@ mutual
   patientZone (Just n) = nounZone n
 
   public export
+  patientZoneIsB : {bs : Bindings} -> Maybe (Noun bs Object) -> Zone -> Bool
+  patientZoneIsB Nothing _ = True
+  patientZoneIsB (Just n) z = zoneIsB (nounZone n) z
+
+  public export
+  PatientZoneIs : {bs : Bindings} -> Maybe (Noun bs Object) -> Zone -> Type
+  PatientZoneIs what z = So (patientZoneIsB what z)
+
+  public export
   verbPatientOk : {0 bs : Bindings} -> (v : VerbLabel) ->
                   Maybe (Noun bs Object) -> Bool
   verbPatientOk v Nothing = isNothing (actPatientOf v)
@@ -155,7 +164,7 @@ mutual
   public export
   data GameEvent : Bindings -> Type where
     Dies : (n : Noun bs Object) ->
-           {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} -> GameEvent bs
+           {auto 0 zn : ZoneIs (nounZone n) Battlefield} -> GameEvent bs
     Leaves : (n : Noun bs Object) -> (from : Maybe (EventSource bs)) ->
              {auto 0 zn : ZoneFits (nounZone n) (sourceZone from)} -> GameEvent bs
     IsDealtDamage : {k : Kind} -> (kind : DamageKind) -> (to : Noun bs k) ->
@@ -167,31 +176,31 @@ mutual
              {auto 0 sk : EntrySource from} -> GameEvent bs
     Attacks : (n : Noun bs Object) ->
               (whom : AttackDefender (nomIntro n)) ->
-              {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+              {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
               GameEvent bs
     AttacksWith : (who : Noun bs Player) ->
                   (whom : AttackDefender (nomIntro who)) ->
                   (attackers : Noun (defenderIntro whom) Object) ->
-                  {auto 0 zn : ZoneFits (nounZone attackers) (Just Battlefield)} ->
+                  {auto 0 zn : ZoneIs (nounZone attackers) Battlefield} ->
                   GameEvent bs
     Blocks : (n : Noun bs Object) ->
              (what : Maybe (Noun (nomIntro n) Object)) ->
-             {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-             {auto 0 bp : ZoneFits (patientZone what) (Just Battlefield)} ->
+             {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
+             {auto 0 bp : PatientZoneIs what Battlefield} ->
              GameEvent bs
     BecomesBlocked : (n : Noun bs Object) ->
                      (by : Maybe (Noun (nomIntro n) Object)) ->
-                     {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                     {auto 0 bp : ZoneFits (patientZone by) (Just Battlefield)} ->
+                     {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
+                     {auto 0 bp : PatientZoneIs by Battlefield} ->
                      GameEvent bs
     BecomesAttached : {k : Kind} -> (n : Noun bs Object) ->
                       (host : Noun (nomIntro n) k) ->
-                      {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                      {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
                       {auto 0 hk : So (kindLte k (Object \/ Player))} ->
                       GameEvent bs
     BecomesUnattached : (n : Noun bs Object) ->
                         (host : Noun (nomIntro n) Object) ->
-                        {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                        {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
                         GameEvent bs
     DealsDamage : (kind : DamageKind) -> (n : Noun bs Object) ->
                   (to : DamagePatient (nomIntro n)) ->
@@ -201,7 +210,7 @@ mutual
                   {auto 0 pu : PartTriggerable part whose} -> GameEvent bs
     Casts : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
             (from : Maybe (ZoneExpr (nomIntro what))) ->
-            {auto 0 zn : OnStack (nounZone what)} ->
+            {auto 0 zn : ZoneIs (nounZone what) Stack} ->
             {auto 0 one : nounPlur what = OneOf} ->
             {auto 0 nt : Nontarget what} ->
             {auto 0 pf : PlayableFrom (map Phrase.zoneSort from)} -> GameEvent bs
@@ -211,7 +220,7 @@ mutual
                     {auto 0 tr : Targeter kb} -> GameEvent bs
     StatusEvent : {c : StatusCat} -> (n : Noun bs Object) ->
                   (v : StatusVal c) ->
-                  {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                  {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
                   {auto 0 at : StatusEventVal v} -> GameEvent bs
     DayNightShift : GameEvent bs
     StateHolds : (c : Condition bs) -> GameEvent bs
@@ -248,10 +257,10 @@ mutual
                 {auto 0 nt : Nontarget what} -> GameEvent bs
     StatBecomes : (n : Noun bs Object) -> (c : Characteristic) ->
                   (v : Amount (nomIntro n)) ->
-                  {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                  {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
                   GameEvent bs
     Regenerates : (n : Noun bs Object) ->
-                  {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                  {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
                   GameEvent bs
     FlipsCoin : (who : Noun bs Player) -> (call : Maybe FlipCall) -> GameEvent bs
     RollsDice : (who : Noun bs Player) -> (many : DiceBatch) ->

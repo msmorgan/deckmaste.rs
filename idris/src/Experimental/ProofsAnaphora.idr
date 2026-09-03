@@ -748,7 +748,8 @@ ofChosenResolvesInPrefix bs q ok =
 
 public export
 choiceStandsSucc : (n : Nat) -> ChoiceStands n -> (k : Nat ** n = S k)
-choiceStandsSucc (S k) ChoiceMade = (k ** Refl)
+choiceStandsSucc Z Oh impossible
+choiceStandsSucc (S k) Oh = (k ** Refl)
 
 public export
 ofLastChosenColorReadsOnlyPrefix : (bs : Bindings) ->
@@ -925,7 +926,7 @@ letterValIntroducesAtEmptyPrefix l = LetterVal l
 public export
 controllerSacrificesReadsNoPrefix : (bs : Bindings) -> (n : Noun bs Object) ->
                                     nounPlur n = OneOf ->
-                                    OnBattlefield (nounZone n) -> Effect bs
+                                    ZoneIs (nounZone n) Battlefield -> Effect bs
 controllerSacrificesReadsNoPrefix bs n one zn = ControllerSacrifices n {one} {zn}
 
 public export
@@ -968,12 +969,8 @@ sharedSubjectSurvivesSecondSingular =
                   (Just Macros.untilEndOfTurn)]
 
 public export
-badSharedSubjectEmptyDelta : Unspellable (Effect []) (\ok =>
-  Sequentially [ Macros.untap (Macros.target Macros.creature)
-               , Macros.sharedSubject (ItVerbed "Untap")
-                   [ Gets (Macros.ownSubject (ItVerbed "Untap") {ok}) (PtUp (Lit 2)) (PtUp (Lit 2))
-                   , Gains (Macros.ownSubject (ItVerbed "Untap") {ok}) (Macros.keyword "Reach") ]
-                   (Just Macros.untilEndOfTurn) ])
+badSharedSubjectEmptyDelta : Unspellable (Noun [] Object) (\ok =>
+  Macros.ownSubject {bs = []} (ItVerbed "Untap") {ok})
 badSharedSubjectEmptyDelta Refl impossible
 
 public export

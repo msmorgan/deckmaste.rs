@@ -235,7 +235,7 @@ mutual
                   (dom : Maybe (ChoiceDomain (QSort q))) ->
                   Predicate bs (Quality q)
     CounterKindOn : (n : Noun bs Object) ->
-                    {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                    {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
                     Predicate bs (Quality CounterKindQ)
     OfChosen : (q : QualitySort) -> {auto 0 ok : countChoice (QSort q) bs = 1} ->
                {auto 0 read : ChosenQualityRead q} -> Predicate bs Object
@@ -407,6 +407,25 @@ mutual
                 List (Predicate bs k) -> List CardType
   headTysJoin [] = []
   headTysJoin (p :: ps) = headTys p ++ headTysJoin ps
+
+  public export
+  soleAlt : List CardType -> List (List CardType)
+  soleAlt [] = []
+  soleAlt ts = [ts]
+
+  public export
+  headTyAlts : {0 bs : Bindings} -> {0 k : Kind} ->
+               Predicate bs k -> List (List CardType)
+  headTyAlts (And ps) = soleAlt (headTysJoin ps)
+  headTyAlts (Or ps) = headTyAltsJoin ps
+  headTyAlts (Joined l r) = headTyAlts l ++ headTyAlts r
+  headTyAlts p = soleAlt (optCT (seedTy p))
+
+  public export
+  headTyAltsJoin : {0 bs : Bindings} -> {0 k : Kind} ->
+                   List (Predicate bs k) -> List (List CardType)
+  headTyAltsJoin [] = []
+  headTyAltsJoin (p :: ps) = headTyAlts p ++ headTyAltsJoin ps
 
   public export
   headTysAll : {0 bs : Bindings} -> {0 k : Kind} ->
@@ -1456,7 +1475,7 @@ mutual
     AsMarker : (m : MarkerWord) -> (n : Noun bs Object) ->
                {auto 0 asc : Ascribable n} -> Noun bs Object
     ResolvedPermanent : (spell : Noun bs Object) ->
-                        {auto 0 zn : OnStack (nounZone spell)} ->
+                        {auto 0 zn : ZoneIs (nounZone spell) Stack} ->
                         {auto 0 pm : So (permanentSpellType (nounTy spell))} ->
                         Noun bs Object
     TheGrantor : Noun bs Object
@@ -1505,6 +1524,15 @@ mutual
                    {auto 0 pl : nounPlur grp = ManyOf} -> Noun bs Player
     Designated : (d : Designation) -> (whose : Noun bs Player) ->
                  {auto 0 sc : designationScope d = HeldByCard} -> Noun bs Object
+
+  public export
+  ascribable : {0 bs : Bindings} -> Noun bs Object -> Bool
+  ascribable This = True
+  ascribable _ = False
+
+  public export
+  Ascribable : {0 bs : Bindings} -> Noun bs Object -> Type
+  Ascribable n = So (ascribable n)
 
   public export
   nounEqRef : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Noun bs k -> Bool
@@ -2251,9 +2279,8 @@ mutual
   data LinkSource : Noun bs k -> Type where
     SelfLinked : LinkSource This
     SortedSelfLinked : {0 t : CardType} -> {0 sub : Maybe Subtype} ->
-                       {0 asc : Ascribable This} ->
                        {0 way : So (ascriptionOk t sub)} ->
-                       LinkSource (AsType t This sub {asc} {way})
+                       LinkSource (AsType t This sub {asc = Oh} {way})
 
   public export
   data PileMention : Noun bs Object -> Type where
@@ -2412,7 +2439,7 @@ mutual
   public export
   data Counterable : {0 k : Kind} -> Noun bs k -> Type where
     SpellCountered : {0 n : Noun bs Object} ->
-                     {auto 0 zn : OnStack (nounZone n)} -> Counterable n
+                     {auto 0 zn : ZoneIs (nounZone n) Stack} -> Counterable n
     AbilityCountered : {0 n : Noun bs Ability} -> Counterable n
     JoinCountered : {0 ka : Kind} -> {0 kb : Kind} ->
                     {0 n : Noun bs (ka \/ kb)} ->
@@ -2440,7 +2467,7 @@ mutual
   public export
   data Copiable : {0 k : Kind} -> Noun bs k -> Type where
     SpellCopied : {0 n : Noun bs Object} ->
-                  {auto 0 zn : OnStack (nounZone n)} -> Copiable n
+                  {auto 0 zn : ZoneIs (nounZone n) Stack} -> Copiable n
     AbilityCopied : {0 n : Noun bs Ability} -> Copiable n
     JoinCopied : {0 ka : Kind} -> {0 kb : Kind} ->
                  {0 n : Noun bs (ka \/ kb)} ->
@@ -2499,7 +2526,7 @@ mutual
     RolledDoubles : {auto 0 ok : countOutcomes RollResult bs = 1} ->
                     Condition bs
     ManaSpentToCast : (what : Noun bs Object) -> (of_ : Maybe ManaMatch) ->
-                      {auto 0 zn : ZoneFits (nounZone what) (Just Stack)} ->
+                      {auto 0 zn : ZoneIs (nounZone what) Stack} ->
                       Condition bs
     NotCond : (c : Condition bs) -> Condition bs
     AndCond : (cs : List (Condition bs)) ->
@@ -2614,7 +2641,7 @@ mutual
   public export
   attackableKind : (k : Kind) -> HeadTy k -> Bool
   attackableKind Player _ = True
-  attackableKind Object (SoleTy t) = deedHeadTysOk "Attack" Patient (optCT t)
+  attackableKind Object (SoleTy t) = deedAltOk "Attack" Patient (optCT t)
   attackableKind (a \/ b) (JoinTy l r) = attackableKind a l && attackableKind b r
   attackableKind (a \/ b) (SoleTy t) =
     attackableKind a (SoleTy t) && attackableKind b (SoleTy t)
@@ -2628,9 +2655,9 @@ mutual
   combatRelOk : CombatRelation -> (k : Kind) -> (km : Kind) ->
                 Maybe Zone -> HeadTy km -> Bool
   combatRelOk AttackerOf k km _ tys = k == Object && attackableKind km tys
-  combatRelOk AttackedBy _ km z _ = km == Object && zoneFits z (Just Battlefield)
+  combatRelOk AttackedBy _ km z _ = km == Object && zoneIsB z Battlefield
   combatRelOk _ k km z _ =
-    k == Object && km == Object && zoneFits z (Just Battlefield)
+    k == Object && km == Object && zoneIsB z Battlefield
 
   public export
   data EventAgent : {0 bs : Bindings} -> Maybe (Noun bs Player) -> Type where
@@ -2832,7 +2859,7 @@ mutual
     PlayerTakes : DamageRecipient {k = Player} n
     JoinTakes : {auto 0 dm : So (damageableKind (ka \/ kb) (nounTys n))} ->
                 DamageRecipient {k = ka \/ kb} n
-    ObjectTakes : {auto 0 field : OnBattlefield (nounZone n)} ->
+    ObjectTakes : {auto 0 field : ZoneIs (nounZone n) Battlefield} ->
                   {auto 0 dm : DamageableTy (nounTy n)} ->
                   DamageRecipient {k = Object} n
 
@@ -2844,10 +2871,6 @@ mutual
   data DiscardOk : Noun bs Object -> Type where
     DiscardThis : DiscardOk This
     DiscardTracked : {auto 0 z : nounZone n = Just Hand} -> DiscardOk n
-
-  public export
-  data Ascribable : Noun bs Object -> Type where
-    AscribeThis : Ascribable This
 
   public export
   setZone : Maybe VerbLabel -> Maybe Zone -> Binding -> Binding
@@ -3025,15 +3048,22 @@ mutual
   nounTy (Designated _ _) = Nothing
 
   public export
-  nounHeadTys : {bs : Bindings} -> {k : Kind} -> Noun bs k -> List CardType
-  nounHeadTys (Described _ p) = headTys p
+  nounHeadTys : {bs : Bindings} -> {k : Kind} -> Noun bs k -> List (List CardType)
+  nounHeadTys (Described _ p) = headTyAlts p
   nounHeadTys (EachOf grp) = nounHeadTys grp
   nounHeadTys (NamesAgree _ grp) = nounHeadTys grp
   nounHeadTys (ResolvedPermanent n) = nounHeadTys n
   nounHeadTys (AsMarker _ n) = nounHeadTys n
   nounHeadTys (Both l r) = nounHeadTys l ++ nounHeadTys r
   nounHeadTys (EitherOf l r) = nounHeadTys l ++ nounHeadTys r
-  nounHeadTys n = optCT (nounTy n)
+  nounHeadTys n = soleAlt (optCT (nounTy n))
+
+  public export
+  deedNounOk : {bs : Bindings} -> {k : Kind} ->
+               VerbLabel -> Role -> Noun bs k -> Bool
+  deedNounOk v r n = case nounHeadTys n of
+    [] => isNothing (nounDet n) && deedBareOk v r
+    ts => deedHeadTysOk v r ts
 
   public export
   nounTys : {bs : Bindings} -> {k : Kind} -> Noun bs k -> HeadTy k

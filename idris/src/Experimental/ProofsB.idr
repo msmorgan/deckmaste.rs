@@ -53,7 +53,7 @@ public export
 badDestroyAnyTargetRemention : Unspellable (Effect []) (\ok =>
   Sequentially [DealDamage This (Lit 3) (Macros.target Macros.anyTarget),
                Macros.destroy It {ok}])
-badDestroyAnyTargetRemention OnField impossible
+badDestroyAnyTargetRemention Oh impossible
 
 
 
@@ -353,7 +353,7 @@ badOtherwiseReadsIfArm (Refl, _) impossible
 public export
 badModalOneMode : Unspellable (Effect []) (\ok =>
   Modal (Macros.upTo 1) [Macros.destroy (Macros.target Macros.artifact)] {tw = ok})
-badModalOneMode TwoUp impossible
+badModalOneMode Oh impossible
 
 
 ||| "Choose three — Destroy target artifact; or destroy target enchantment."
@@ -369,14 +369,14 @@ public export
 badModalReadsAcrossModes : Unspellable (Effect []) (\ok =>
   Macros.chooseOne [Macros.destroy (Macros.target Macros.artifact),
                     SetStatus Tapped (It {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
-badModalReadsAcrossModes (_, OnField) impossible
+badModalReadsAcrossModes (_, Oh) impossible
 
 
 public export
 badReadsAfterModal : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.chooseOne [Macros.destroy (Macros.target Macros.artifact), Macros.destroy (Macros.target Macros.enchantment)],
                 SetStatus Tapped (It {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
-badReadsAfterModal (_, OnField) impossible
+badReadsAfterModal (_, Oh) impossible
 
 
 ||| "Draw a card. Exile that card."
@@ -475,7 +475,7 @@ public export
 badSimultaneousReadsRetag : Unspellable (Effect []) (\ok =>
   Simultaneously [Macros.exile You (Macros.target Macros.creature),
                   Macros.destroy (That CardW {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
-badSimultaneousReadsRetag (_, OnField) impossible
+badSimultaneousReadsRetag (_, Oh) impossible
 
 
 ||| "This deals 2 damage to target creature and you gain that much life."

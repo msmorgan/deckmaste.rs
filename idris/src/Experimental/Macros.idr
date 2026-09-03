@@ -542,7 +542,7 @@ move : (what : Noun bs Object) -> (to : ZoneExpr (nomIntro what)) ->
 move what to = Move what to [] {ok} {arr} {pl}
 
 public export
-destroy : (n : Noun bs Object) -> {auto 0 ok : OnBattlefield (nounZone n)} ->
+destroy : (n : Noun bs Object) -> {auto 0 ok : ZoneIs (nounZone n) Battlefield} ->
           Effect bs
 destroy n = Enact "Destroy" (Move n graveyardZ [])
 
@@ -605,14 +605,14 @@ putOntoBattlefieldUnderYourControl n =
 
 public export
 sacrifice : (agent : Noun bs Player) -> (n : Noun (agentIntro agent) Object) ->
-            {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
+            {auto 0 ok : ZoneIs (nounZone n) Battlefield} -> Effect bs
 sacrifice agent n =
   Does agent "Sacrifice" (Move n graveyardZ [])
 
 public export
 sacrificeIt : (agent : Noun bs Player) ->
               {auto 0 ok : countReach (AtSlot PermanentSlot) OneOf (agentIntro agent) = 1} ->
-              {auto 0 zn : OnBattlefield (zoneOfReach (AtSlot PermanentSlot) OneOf (agentIntro agent))} ->
+              {auto 0 zn : ZoneIs (zoneOfReach (AtSlot PermanentSlot) OneOf (agentIntro agent)) Battlefield} ->
               Effect bs
 sacrificeIt agent = sacrifice agent (ItAt PermanentSlot {ok}) {ok = zn}
 
@@ -623,18 +623,18 @@ discard agent n =
   Does agent "Discard" (Move n graveyardZ [])
 
 public export
-tap : (n : Noun bs Object) -> {auto 0 ok : OnBattlefield (nounZone n)} ->
+tap : (n : Noun bs Object) -> {auto 0 ok : ZoneIs (nounZone n) Battlefield} ->
       Effect bs
 tap n = Enact "Tap" (SetStatus Tapped n)
 
 public export
-untap : (n : Noun bs Object) -> {auto 0 ok : OnBattlefield (nounZone n)} ->
+untap : (n : Noun bs Object) -> {auto 0 ok : ZoneIs (nounZone n) Battlefield} ->
         Effect bs
 untap n = Enact "Untap" (SetStatus Untapped n)
 
 public export
 transform : (n : Noun bs Object) ->
-            {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
+            {auto 0 ok : ZoneIs (nounZone n) Battlefield} -> Effect bs
 transform n = Enact "Transform" (TurnOver n)
 
 public export
@@ -750,14 +750,14 @@ ifSo {bs} c se = Conditionally {bs} c se IfSo
 
 public export
 entersTapped : (n : Noun bs Object) ->
-               {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+               {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
                StaticEffect bs
 entersTapped n = EntersRider n EntersTapped {zn}
 
 public export
 entersWithCounters : (n : Noun bs Object) -> (amt : Amount (nomIntro n)) ->
                      (kind : CounterKind) ->
-                     {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                     {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
                      StaticEffect bs
 entersWithCounters n amt kind =
   EntersRider n (WithCounters amt (PrintedKind kind) Fresh) {zn}
@@ -765,7 +765,7 @@ entersWithCounters n amt kind =
 public export
 gets : {bs : Bindings} -> (n : Noun bs Object) -> (pow : PtShift (selfSubjIntro n)) ->
        (tou : PtShift (shiftIntro pow)) ->
-       {auto 0 ok : ZoneFits (nounZone n) (Just Battlefield)} ->
+       {auto 0 ok : ZoneIs (nounZone n) Battlefield} ->
        (d : Maybe (Duration (staticIntro (Gets n pow tou {ok})))) ->
        {auto 0 sp : SpanOk PtDelta d} -> Effect bs
 gets {bs} n pow tou d = Continuously {bs} (Gets n pow tou {ok}) d {sp}
@@ -1003,14 +1003,14 @@ mustBlockIt n span =
 
 public export
 attachToIt : {bs : Bindings} -> (what : Noun bs Object) ->
-             {auto 0 zw : OnBattlefield (nounZone what)} ->
+             {auto 0 zw : ZoneIs (nounZone what) Battlefield} ->
              {auto 0 ok : countOnes Object bs = 1} -> Effect bs
 attachToIt what = AttachTo what (ItOtherThan (nounDelta what) bs {ok}) {zw}
 
 
 public export
 gainControl : {bs : Bindings} -> (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
-              {auto 0 zn : ZoneFits (nounZone what) (Just Battlefield)} ->
+              {auto 0 zn : ZoneIs (nounZone what) Battlefield} ->
               (d : Maybe (Duration (staticIntro (GainsControl who what {zn})))) ->
               {auto 0 sp : SpanOk ControlGrant d} -> Effect bs
 gainControl {bs} who what d = Continuously {bs} (GainsControl who what {zn}) d {sp}
@@ -1409,7 +1409,7 @@ exileUntil n ev =
 
 public export
 phasesOutUntil : (n : Noun bs Object) ->
-                 {auto 0 zn : OnBattlefield (nounZone n)} ->
+                 {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
                  {auto 0 at : StatusEffectVal PhasedOut} ->
                  (ev : GameEvent (annIntro (SetStatus PhasedOut n {ok = zn} {at}))) ->
                  Effect bs
@@ -2062,7 +2062,7 @@ putIntoFrom n to src = PutInto n to (Just src) {dk} {sk} {zn}
 public export
 entersWithAdditionalCounters : (n : Noun bs Object) -> (amt : Amount (nomIntro n)) ->
                                (kind : CounterKind) ->
-                               {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                               {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
                                StaticEffect bs
 entersWithAdditionalCounters n amt kind =
   EntersRider n (WithCounters amt (PrintedKind kind) Additional) {zn}
@@ -2070,19 +2070,19 @@ entersWithAdditionalCounters n amt kind =
 public export
 entersWithFewerCounters : (n : Noun bs Object) -> (amt : Amount (nomIntro n)) ->
                           (kind : CounterKind) ->
-                          {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                          {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
                           StaticEffect bs
 entersWithFewerCounters n amt kind =
   EntersRider n (WithCounters amt (PrintedKind kind) Fewer) {zn}
 
 public export
 attacks : (n : Noun bs Object) ->
-          {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} -> GameEvent bs
+          {auto 0 zn : ZoneIs (nounZone n) Battlefield} -> GameEvent bs
 attacks n = Attacks n NoDefender {zn}
 
 public export
 attacksPlayer : {k : Kind} -> (n : Noun bs Object) -> (whom : Noun (nomIntro n) k) ->
-                {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
                 {auto 0 sg : nounPlur whom = OneOf} ->
                 {auto 0 at : Attackable whom} -> GameEvent bs
 attacksPlayer n whom = Attacks n (OneDefender whom {sg} {at}) {zn}
@@ -2297,34 +2297,34 @@ qualityFrom q d = QualityNoun q (Just d)
 
 public export
 entersChoosing : (n : Noun bs Object) -> (q : QualitySort) ->
-                 {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                 {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
                  StaticEffect bs
 entersChoosing n q = EntersChoice n (QSort q) Nothing Openly {zn}
 
 public export
 entersChoosingFrom : (n : Noun bs Object) -> (q : QualitySort) ->
                      (d : ChoiceDomain (QSort q)) ->
-                     {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                     {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
                      StaticEffect bs
 entersChoosingFrom n q d = EntersChoice n (QSort q) (Just d) Openly {zn}
 
 public export
 entersChoosingPlayer : (n : Noun bs Object) ->
                        (d : Maybe (ChoiceDomain PlayerC)) ->
-                       {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                       {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
                        StaticEffect bs
 entersChoosingPlayer n d = EntersChoice n PlayerC d Openly {zn}
 
 public export
 entersChoosingPlayerSecretly : (n : Noun bs Object) ->
                                (d : Maybe (ChoiceDomain PlayerC)) ->
-                               {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                               {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
                                StaticEffect bs
 entersChoosingPlayerSecretly n d = EntersChoice n PlayerC d Secretly {zn}
 
 public export
 attachChoosing : (n : Noun bs Object) -> (q : QualitySort) ->
-                 {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                 {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
                  StaticEffect bs
 attachChoosing n q = AttachChoice n (QSort q) Nothing {zn}
 

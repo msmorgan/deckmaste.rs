@@ -191,7 +191,7 @@ turnedFaceDownHeader =
 public export
 badUntapNextGraveyard : Unspellable (Effect []) (\ok =>
   DoesntUntapNext (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) (Lit 1) {ok = ok})
-badUntapNextGraveyard OnField impossible
+badUntapNextGraveyard Oh impossible
 
 
 public export
@@ -216,21 +216,21 @@ badExileTapped Oh impossible
 public export
 badTurnFaceDownGraveyard : Unspellable (Effect []) (\ok =>
   SetStatus FaceDown (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {ok = ok})
-badTurnFaceDownGraveyard OnField impossible
+badTurnFaceDownGraveyard Oh impossible
 
 
 ||| "Target creature card in your hand phases out."
 public export
 badPhasesOutInHand : Unspellable (Effect []) (\ok =>
   SetStatus PhasedOut (Macros.target (And [Macros.creature, InZone (Macros.handOf You)])) {ok = ok})
-badPhasesOutInHand OnField impossible
+badPhasesOutInHand Oh impossible
 
 
 ||| "Remove target creature card in your graveyard from combat."
 public export
 badRemoveFromCombatGraveyard : Unspellable (Effect []) (\ok =>
   RemoveFromCombat (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {ok = ok})
-badRemoveFromCombatGraveyard OnField impossible
+badRemoveFromCombatGraveyard Oh impossible
 
 
 ||| "target creature blocking target creature card in your graveyard"
@@ -367,8 +367,9 @@ badRingBearerInGraveyard Oh impossible
 public export
 badThatCreatureIsSelf : Unspellable Ability (\ok =>
   Triggered Whenever (Attacks Macros.thisCreature NoDefender) [] Nothing [] Nothing Nothing Nothing
-            (Macros.gets (That (TypeW Creature) {ok = ok}) (PtUp (Lit 2)) (PtUp (Lit 0)) (Just Macros.untilEndOfTurn)))
-badThatCreatureIsSelf Refl impossible
+            (Macros.gets (That (TypeW Creature) {ok = Builtin.fst ok}) (PtUp (Lit 2)) (PtUp (Lit 0))
+                         {ok = Builtin.snd ok} (Just Macros.untilEndOfTurn)))
+badThatCreatureIsSelf (Refl, _) impossible
 
 
 ||| "This creature can't attack target creature this turn."
@@ -393,8 +394,9 @@ badBlocksItself Oh impossible
 public export
 badThatCreatureIsCondSubject : Unspellable Ability (\ok =>
   Static (Macros.asLongAs (Matches Macros.thisCreature Attacking)
-                          (Gets (That (TypeW Creature) {ok = ok}) (PtUp (Lit 2)) (PtUp (Lit 0)))))
-badThatCreatureIsCondSubject Refl impossible
+                          (Gets (That (TypeW Creature) {ok = Builtin.fst ok}) (PtUp (Lit 2)) (PtUp (Lit 0))
+                                {ok = Builtin.snd ok})))
+badThatCreatureIsCondSubject (Refl, _) impossible
 
 
 ||| "Equipped land gets +1/+1."

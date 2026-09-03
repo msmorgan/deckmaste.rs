@@ -102,7 +102,15 @@ badShieldNextTimeOnly Oh impossible
 public export
 badDestroySource : Unspellable (Effect []) (\ok =>
   Macros.destroy (Macros.target Macros.source) {ok})
-badDestroySource OnField impossible
+badDestroySource Oh impossible
+
+
+||| "Target source gets +1/+1 until end of turn." [CR#609.7a]
+public export
+badGetsSource : Unspellable (Effect []) (\ok =>
+  Macros.gets (Macros.target Macros.source) (PtUp (Lit 1)) (PtUp (Lit 1)) {ok}
+              (Just Macros.untilEndOfTurn))
+badGetsSource Oh impossible
 
 
 ||| "This creature deals 3 damage to target source."
@@ -553,13 +561,13 @@ public export
 badRegenerateInGraveyard : Unspellable (Effect []) (\ok =>
   Regenerate (Macros.a (And [Macros.creature, InZone Macros.graveyardZ]))
              {zn = ok})
-badRegenerateInGraveyard OnField impossible
+badRegenerateInGraveyard Oh impossible
 
 
 public export
 badRegenerateBareThis : Unspellable (Effect []) (\ok =>
   Regenerate This {zn = ok})
-badRegenerateBareThis OnField impossible
+badRegenerateBareThis Oh impossible
 
 
 ||| "Creature cards in your graveyard can't be regenerated."
@@ -585,7 +593,7 @@ badChosenColorNoChooser Refl impossible
 public export
 badLastChosenColorNoChooser : Unspellable (Predicate [] Object) (\ok =>
   OfTheLastChosen Color {ok = ok})
-badLastChosenColorNoChooser ChoiceMade impossible
+badLastChosenColorNoChooser Oh impossible
 
 
 public export
@@ -597,7 +605,7 @@ badLastChosenBeforeChooser : Unspellable Card (\ok =>
                           (Macros.shieldingIt You) CutAll Repeatedly Nothing)
        , Static (EntersChoice Macros.thisEnchantment (QSort Color) Nothing Openly) ]
        Nothing)
-badLastChosenBeforeChooser ChoiceMade impossible
+badLastChosenBeforeChooser Oh impossible
 
 
 public export
@@ -609,7 +617,7 @@ badLastChosenWrongSort : Unspellable Card (\ok =>
                                                 OfTheLastChosen Color {ok = ok}])))
                           (Macros.shieldingIt You) CutAll Repeatedly Nothing) ]
        Nothing)
-badLastChosenWrongSort ChoiceMade impossible
+badLastChosenWrongSort Oh impossible
 
 
 ||| "Starting with you, each player votes for death or death."

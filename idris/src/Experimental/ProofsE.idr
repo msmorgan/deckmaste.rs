@@ -131,7 +131,7 @@ badGoadInGraveyard : Unspellable (Effect []) (\ok =>
   GainsDesignation (Macros.target (And [Macros.creature,
                                         InZone (Macros.graveyardOf You)]))
                    Goaded Instructed Nothing {zn = ok})
-badGoadInGraveyard (HolderOnField {ok = OnField}) impossible
+badGoadInGraveyard (HolderOnField {ok = Oh}) impossible
 
 
 ||| "Unflip target creature."

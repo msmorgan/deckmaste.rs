@@ -201,11 +201,11 @@ mutual
       && tokenCanonical t && tokenAbilitiesOk t && tokenQualsFit t
       && additionUnnamed t && isNothing ret
   bundleOk Sets ty z t ret =
-    zoneFits z (Just Battlefield) && lineNonEmpty t.line && addedFits ty t.line
+    zoneIsB z Battlefield && lineNonEmpty t.line && addedFits ty t.line
       && tokenAbilitiesOk t && tokenCanonical t && tokenQualsFit t
       && retentionOk t.line ret
   bundleOk Loses ty z t ret =
-    zoneFits z (Just Battlefield) && lossWritesTypes t && tokenCanonical t
+    zoneIsB z Battlefield && lossWritesTypes t && tokenCanonical t
       && isNothing ret
 
   public export
@@ -218,7 +218,7 @@ mutual
   becomesOk : {bs : Bindings} -> CharOp -> Noun bs Object -> QualityPayload bs -> Bool
   becomesOk op n (Bundle t ret) = bundleOk op (nounTy n) (nounZone n) t ret
   becomesOk op n (EveryTypeOf space) =
-    zoneFits (nounZone n) (Just Battlefield) && spaceHosted space (nounTy n)
+    zoneIsB (nounZone n) Battlefield && spaceHosted space (nounTy n)
   becomesOk op n (ChosenQuality q) = qualityReadOk q && hostedRead q n
   becomesOk op n (Colored cs) = colorSpecOk cs && colorOpOk op cs
 
@@ -335,7 +335,7 @@ mutual
     data StaticEffect : Bindings -> Type where
       Gets : (n : Noun bs Object) -> (pow : PtShift (selfSubjIntro n)) ->
              (tou : PtShift (shiftIntro pow)) ->
-             {auto 0 ok : ZoneFits (nounZone n) (Just Battlefield)} ->
+             {auto 0 ok : ZoneIs (nounZone n) Battlefield} ->
              StaticEffect bs
       DefinesPt : (n : Noun bs Object) -> (sl : DefinedSlots) ->
                   (amt : Amount (selfSubjIntro n)) ->
@@ -344,7 +344,7 @@ mutual
       HasBasePt : (n : Noun bs Object) -> (pow : Amount bs) ->
                   (tou : Amount (amtIntro pow)) -> StaticEffect bs
       SwitchesPt : (n : Noun bs Object) ->
-                   {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                   {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
                    StaticEffect bs
       CostsToCast : {k : Kind} -> (n : Noun bs k) -> (sh : CostShift bs) ->
                     {auto 0 cs : CostSubject n} ->
@@ -399,14 +399,14 @@ mutual
                     {auto 0 pm : PerMember src} -> StaticEffect bs
       LosesAllAbilities : (n : Noun bs Object) ->
                           (except : Maybe (Predicate (selfSubjIntro n) Ability)) ->
-                          {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                          {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
                           StaticEffect bs
       LosesAbilities : (n : Noun bs Object) -> (abl : List (AbilityLost bs)) ->
-                       {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                       {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
                        {auto 0 ne : NonEmpty abl} ->
                        StaticEffect bs
       GainsControl : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
-                     {auto 0 zn : ZoneFits (nounZone what) (Just Battlefield)} -> StaticEffect bs
+                     {auto 0 zn : ZoneIs (nounZone what) Battlefield} -> StaticEffect bs
       Intercepts : (ev : GameEvent bs) -> (alts : List (GameEvent bs)) ->
                    (window : Maybe (TriggerWindow bs)) ->
                    (repl : Effect (interceptCtx alts ev)) ->
@@ -462,15 +462,15 @@ mutual
                              {auto 0 ok : So (triggerCountOk (eventName ev))} ->
                              StaticEffect bs
       EntersRider : (n : Noun bs Object) -> (rider : TokenRider (nomIntro n)) ->
-                    {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                    {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
                     StaticEffect bs
       EntersChoice : (n : Noun bs Object) -> (q : ChoiceSort) ->
                      (dom : Maybe (ChoiceDomain q)) -> (disc : Disclosure) ->
-                     {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                     {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
                      StaticEffect bs
       AttachChoice : (n : Noun bs Object) -> (q : ChoiceSort) ->
                      (dom : Maybe (ChoiceDomain q)) ->
-                     {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                     {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
                      StaticEffect bs
       AndAlso : {0 n : Nat} -> StaticParts n bs ->
                 {auto 0 ne : IsSucc n} -> StaticEffect bs
@@ -997,7 +997,7 @@ mutual
     OnSpent : (mode : SpentMode) -> (only : Bool) ->
               (what : Noun bs Object) ->
               (says : Effect (nomIntro what)) ->
-              {auto 0 zn : OnStack (nounZone what)} -> ManaRider bs
+              {auto 0 zn : ZoneIs (nounZone what) Stack} -> ManaRider bs
 
   public export
   data SpendPurposes : {0 bs : Bindings} -> List (SpendPurpose bs) -> Type where
@@ -1078,46 +1078,46 @@ mutual
                  {auto 0 pm : PerMember to} ->
                  {auto 0 rk : DamageRecipient to} -> Effect bs
     Fights : (a : Noun bs Object) ->
-             {auto 0 za : OnBattlefield (nounZone a)} ->
-             {auto 0 ta : So (deedHeadTysOk "Attack" Agent (nounHeadTys a))} ->
+             {auto 0 za : ZoneIs (nounZone a) Battlefield} ->
+             {auto 0 ta : So (deedNounOk "Attack" Agent a)} ->
              {auto 0 pa : nounPlur a = OneOf} ->
              (b : Noun (nomIntro a) Object) ->
-             {auto 0 zb : OnBattlefield (nounZone b)} ->
-             {auto 0 tb : So (deedHeadTysOk "Attack" Agent (nounHeadTys b))} ->
+             {auto 0 zb : ZoneIs (nounZone b) Battlefield} ->
+             {auto 0 tb : So (deedNounOk "Attack" Agent b)} ->
              {auto 0 pb : nounPlur b = OneOf} -> Effect bs
     SetStatus : {c : StatusCat} -> (v : StatusVal c) -> (n : Noun bs Object) ->
-                {auto 0 ok : OnBattlefield (nounZone n)} ->
+                {auto 0 ok : ZoneIs (nounZone n) Battlefield} ->
                 {auto 0 at : StatusEffectVal v} -> Effect bs
     TurnOver : (what : Noun bs Object) ->
-               {auto 0 ok : OnBattlefield (nounZone what)} -> Effect bs
+               {auto 0 ok : ZoneIs (nounZone what) Battlefield} -> Effect bs
     RemoveFromCombat : (n : Noun bs Object) ->
-                       {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
+                       {auto 0 ok : ZoneIs (nounZone n) Battlefield} -> Effect bs
     AttachTo : {k : Kind} -> (what : Noun bs Object) ->
-               {auto 0 zw : OnBattlefield (nounZone what)} ->
+               {auto 0 zw : ZoneIs (nounZone what) Battlefield} ->
                (host : Noun (nomIntro what) k) ->
                {auto 0 hk : So (kindLte k (Object \/ Player))} -> Effect bs
     Unattach : (what : Noun bs Object) ->
-               {auto 0 zw : OnBattlefield (nounZone what)} -> Effect bs
+               {auto 0 zw : ZoneIs (nounZone what) Battlefield} -> Effect bs
     BecomesBlocking : (n : Noun bs Object) ->
-                      {auto 0 zn : OnBattlefield (nounZone n)} ->
-                      {auto 0 dn : So (deedHeadTysOk "Block" Agent (nounHeadTys n))} ->
+                      {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
+                      {auto 0 dn : So (deedNounOk "Block" Agent n)} ->
                       (what : Noun (nomIntro n) Object) ->
-                      {auto 0 zw : OnBattlefield (nounZone what)} ->
-                      {auto 0 dw : So (deedHeadTysOk "Block" Patient (nounHeadTys what))} ->
+                      {auto 0 zw : ZoneIs (nounZone what) Battlefield} ->
+                      {auto 0 dw : So (deedNounOk "Block" Patient what)} ->
                       Effect bs
     StopsBlocking : (n : Noun bs Object) ->
-                    {auto 0 zn : OnBattlefield (nounZone n)} ->
-                    {auto 0 dn : So (deedHeadTysOk "Block" Agent (nounHeadTys n))} ->
+                    {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
+                    {auto 0 dn : So (deedNounOk "Block" Agent n)} ->
                     (what : Noun (nomIntro n) Object) ->
-                    {auto 0 zw : OnBattlefield (nounZone what)} ->
-                    {auto 0 dw : So (deedHeadTysOk "Block" Patient (nounHeadTys what))} ->
+                    {auto 0 zw : ZoneIs (nounZone what) Battlefield} ->
+                    {auto 0 dw : So (deedNounOk "Block" Patient what)} ->
                     Effect bs
     BecomesAttacking : (n : Noun bs Object) ->
-                       {auto 0 zn : OnBattlefield (nounZone n)} ->
-                       {auto 0 dn : So (deedHeadTysOk "Attack" Agent (nounHeadTys n))} ->
+                       {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
+                       {auto 0 dn : So (deedNounOk "Attack" Agent n)} ->
                        (whom : AttackDefender (nomIntro n)) -> Effect bs
     Regenerate : (n : Noun bs Object) ->
-                 {auto 0 zn : OnBattlefield (nounZone n)} ->
+                 {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
                  Effect bs
     CantBe : {k : Kind} -> (e : Effect bs) -> (deed : VerbLabel) ->
              (what : Noun (riderIntro e) k) ->
@@ -1276,7 +1276,7 @@ mutual
            {auto 0 kn : KnownAct v} -> Effect bs
     ControllerSacrifices : (n : Noun bs Object) ->
                            {auto 0 one : nounPlur n = OneOf} ->
-                           {auto 0 zn : OnBattlefield (nounZone n)} -> Effect bs
+                           {auto 0 zn : ZoneIs (nounZone n) Battlefield} -> Effect bs
     Pay : (who : Noun bs Player) -> (c : Cost (nomIntro who)) ->
           (times : PayTimes) ->
           {auto 0 pb : Payable c} ->
@@ -1339,7 +1339,7 @@ mutual
               {auto 0 oc : ThisWayOutcome body} -> Effect bs
 
     DoesntUntapNext : (n : Noun bs Object) -> (steps : Amount bs) ->
-                      {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
+                      {auto 0 ok : ZoneIs (nounZone n) Battlefield} -> Effect bs
     SkipsNext : (who : Noun bs Player) -> (part : TurnPart) ->
                 (count : Amount bs) -> Effect bs
     SkipsAllOf : (who : Noun bs Player) -> (part : TurnPart) ->
