@@ -320,6 +320,15 @@ fn write_v3_coverage_drift(
         )
         .context("writing English-v2 coverage lock diagnostic")?;
     }
+    if !newly_covered.is_empty() {
+        writeln!(
+            diagnostics,
+            "newly covered {} corpus identit{}",
+            newly_covered.len(),
+            if newly_covered.len() == 1 { "y" } else { "ies" },
+        )
+        .context("writing English-v2 coverage lock diagnostic")?;
+    }
     for identity in newly_covered {
         writeln!(diagnostics, "newly covered\t{identity}")
             .context("writing English-v2 coverage lock diagnostic")?;
@@ -575,6 +584,7 @@ fn authenticate_retirement(path: &Path, retired: &[String]) -> anyhow::Result<()
 fn run_jj(arguments: &[&str]) -> anyhow::Result<String> {
     let output = Command::new("jj")
         .arg("--no-pager")
+        .arg("--ignore-working-copy")
         .args(arguments)
         .output()
         .with_context(|| format!("running jj {}", arguments.join(" ")))?;
@@ -661,16 +671,21 @@ fn validate_retirement_obligation(
                 .strip_prefix("- ")
                 .unwrap_or(trimmed)
                 .to_ascii_lowercase();
-            let names_obligation = obligation.starts_with("retirement/re-coverage obligation:")
-                || obligation.starts_with("re-coverage/retirement obligation:")
-                || obligation.starts_with("re-coverage or retirement obligation:");
+            let names_obligation = [
+                "retirement/re-coverage obligation:",
+                "re-coverage/retirement obligation:",
+                "re-coverage or retirement obligation:",
+                "re-coverage obligation:",
+            ]
+            .iter()
+            .any(|label| obligation.starts_with(label));
             if names_obligation && retired.iter().all(|identity| line.contains(identity)) {
                 return Ok(());
             }
         }
     }
     bail!(
-        "claimed ticket {} must have a ## Landing record containing one retirement/re-coverage obligation line that names every retired identity",
+        "claimed ticket {} must have a ## Landing record containing one obligation line that names every retired identity; accepted labels are `retirement/re-coverage obligation:`, `re-coverage/retirement obligation:`, `re-coverage or retirement obligation:`, and `re-coverage obligation:`",
         ticket.display(),
     )
 }
@@ -801,10 +816,13 @@ impl LoadedCoverageLock {
 mod tests {
     use std::fs;
     use std::path::Path;
+    use std::path::PathBuf;
+    use std::process::Command;
 
     use super::CoverageLockV3;
     use super::FailureStage;
     use super::LoadedCoverageLock;
+    use super::apply_with_retirement;
     use super::apply_with_test_retirement;
     use super::apply_with_writer;
     use super::apply_with_writer_and_retirement;
@@ -858,6 +876,183 @@ mod tests {
             unresolved,
             internal,
         )
+    }
+
+    const AUTHENTICATOR_CHILD_SCENARIO: &str = "DECKMASTE_TEST_RETIREMENT_AUTHENTICATOR_SCENARIO";
+
+    fn run_jj_in(directory: &Path, arguments: &[&str]) -> String {
+        let output = Command::new("jj")
+            .arg("--no-pager")
+            .args(arguments)
+            .current_dir(directory)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "jj {} failed:\n{}",
+            arguments.join(" "),
+            String::from_utf8_lossy(&output.stderr),
+        );
+        String::from_utf8(output.stdout).unwrap()
+    }
+
+    fn scratch_jj_workspace(
+        workspace_name: &str,
+        ticket_source: &str,
+        manifest_is_tracked: bool,
+    ) -> (tempfile::TempDir, PathBuf) {
+        let directory = tempfile::tempdir().unwrap();
+        let workspace = directory.path().join(workspace_name);
+        let init = Command::new("jj")
+            .arg("--no-pager")
+            .args(["git", "init", "--no-colocate"])
+            .arg(&workspace)
+            .output()
+            .unwrap();
+        assert!(
+            init.status.success(),
+            "jj git init failed:\n{}",
+            String::from_utf8_lossy(&init.stderr),
+        );
+
+        if !manifest_is_tracked {
+            fs::write(workspace.join(".gitignore"), "retired.ids\n").unwrap();
+        }
+        let ticket = workspace
+            .join("docs/tickets/wip")
+            .join(format!("{workspace_name}.md"));
+        fs::create_dir_all(ticket.parent().unwrap()).unwrap();
+        fs::write(ticket, ticket_source).unwrap();
+        let current = report(&id('1'), vec![id('b'), id('c')], 0, 0, 0, 0);
+        fs::write(
+            workspace.join("coverage.lock"),
+            json_v3(
+                &id('1'),
+                &current.normalization_digest(),
+                &[id('a'), id('b')],
+            ),
+        )
+        .unwrap();
+        fs::write(workspace.join("retired.ids"), format!("{}\n", id('a'))).unwrap();
+        run_jj_in(&workspace, &["st"]);
+        (directory, workspace)
+    }
+
+    fn run_authenticator_child(workspace: &Path, scenario: &str) {
+        let output = Command::new(std::env::current_exe().unwrap())
+            .arg("production_retirement_authenticator_uses_scratch_jj_workspaces")
+            .arg("--nocapture")
+            .env(AUTHENTICATOR_CHILD_SCENARIO, scenario)
+            .current_dir(workspace)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "authenticator child {scenario:?} failed:\nstdout:\n{}\nstderr:\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr),
+        );
+        assert!(
+            String::from_utf8_lossy(&output.stdout).contains("1 passed"),
+            "authenticator child filter did not run exactly one test:\n{}",
+            String::from_utf8_lossy(&output.stdout),
+        );
+    }
+
+    #[test]
+    fn production_retirement_authenticator_uses_scratch_jj_workspaces() {
+        if let Ok(scenario) = std::env::var(AUTHENTICATOR_CHILD_SCENARIO) {
+            let current = report(&id('1'), vec![id('b'), id('c')], 0, 0, 0, 0);
+            let mut diagnostics = Vec::new();
+            let result = apply_with_retirement(
+                &current,
+                Path::new("coverage.lock"),
+                CoverageLockMode::Bless,
+                Some(Path::new("retired.ids")),
+                &mut diagnostics,
+            );
+            match scenario.as_str() {
+                "success" => {
+                    result.unwrap();
+                    let diagnostics = String::from_utf8(diagnostics).unwrap();
+                    assert!(
+                        diagnostics.contains("newly covered 1 corpus identity"),
+                        "{diagnostics}",
+                    );
+                    assert!(diagnostics.contains(&format!("newly covered\t{}", id('c'))));
+                }
+                "tracked" => {
+                    let error = result.unwrap_err().to_string();
+                    assert!(error.contains("must be untracked"), "{error}");
+                    assert!(
+                        error.contains("jj file list reports it as tracked"),
+                        "{error}"
+                    );
+                }
+                "default" => {
+                    let error = result.unwrap_err().to_string();
+                    assert!(error.contains("current workspace is default"), "{error}");
+                }
+                "obligation" => {
+                    let error = result.unwrap_err().to_string();
+                    for label in [
+                        "`retirement/re-coverage obligation:`",
+                        "`re-coverage/retirement obligation:`",
+                        "`re-coverage or retirement obligation:`",
+                        "`re-coverage obligation:`",
+                    ] {
+                        assert!(error.contains(label), "missing {label:?} from {error:?}");
+                    }
+                }
+                other => panic!("unknown authenticator child scenario {other:?}"),
+            }
+            return;
+        }
+
+        let valid_ticket = format!(
+            "## Landing record\n\n- Re-coverage obligation: {}\n",
+            id('a'),
+        );
+        let (_success_directory, success_workspace) =
+            scratch_jj_workspace("derived-retirement-ticket", &valid_ticket, false);
+        run_authenticator_child(&success_workspace, "success");
+        assert_eq!(
+            read_lock(&success_workspace.join("coverage.lock"))
+                .unwrap()
+                .covered_for_test(),
+            &[id('b'), id('c')],
+        );
+
+        let (_tracked_directory, tracked_workspace) =
+            scratch_jj_workspace("tracked-retirement", &valid_ticket, true);
+        let tracked_baseline = fs::read(tracked_workspace.join("coverage.lock")).unwrap();
+        run_authenticator_child(&tracked_workspace, "tracked");
+        assert_eq!(
+            fs::read(tracked_workspace.join("coverage.lock")).unwrap(),
+            tracked_baseline,
+        );
+
+        let (_default_directory, default_workspace) =
+            scratch_jj_workspace("default", &valid_ticket, false);
+        fs::write(
+            default_workspace.join("pending.txt"),
+            "must remain unsnapshotted\n",
+        )
+        .unwrap();
+        run_authenticator_child(&default_workspace, "default");
+        let tracked = run_jj_in(
+            &default_workspace,
+            &["--ignore-working-copy", "file", "list"],
+        );
+        assert!(
+            !tracked.lines().any(|path| path == "pending.txt"),
+            "{tracked}"
+        );
+
+        let invalid_ticket = "## Landing record\n\n- no retirement authority here\n";
+        let (_obligation_directory, obligation_workspace) =
+            scratch_jj_workspace("missing-obligation", invalid_ticket, false);
+        run_authenticator_child(&obligation_workspace, "obligation");
     }
 
     #[test]
@@ -1276,7 +1471,8 @@ mod tests {
         );
         assert_eq!(
             String::from_utf8(diagnostics).unwrap(),
-            "newly covered\tcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\n\
+            "newly covered 1 corpus identity\n\
+newly covered\tcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\n\
 retired 1 previously covered corpus identity\n\
 WARNING: coverage retirement is a coordinator ruling; a ticket-vs-purpose contradiction requires a STOP, and the landing record must contain a re-coverage or retirement obligation line\n"
         );
