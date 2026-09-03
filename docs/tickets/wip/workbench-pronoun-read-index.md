@@ -53,3 +53,21 @@ are gone from `Phrase.Noun`; the eleven `setZone*` variants and the per-read
 used a deleted read still typechecks through its macro spelling; the anaphora
 pins in `ProofsAnaphora` are re-spelled against `Pro` and remain non-vacuous.
 Standard constraints apply.
+
+## As landed
+
+- Deleted `ItPlayer` first and re-spelled `playerItRead` and `distributiveGroupSurvives` through `They`.
+- Replaced the remaining fifteen ordinary reads with `Pro Reach Plurality` while keeping their surface spellings in `Experimental.Macros`.
+- Consolidated the read predicate and count/provenance/zone/type projections as `reaches`, `countReach`, `provOfReach`, `zoneOfReach`, and `tyOfReach`.
+- Replaced the eleven read-specific zone writers with `setZoneReach`; `ItOtherThan` and `ItPrior` retain their segment split.
+- Re-spelled the card-bench facts and `ProofsAnaphora` pins against `Pro`; `itReadsOnlyPrefix` was checked non-vacuous by a rejected `OneOf`/`ManyOf` misstatement.
+- Left no ticket work undone; the printed-card witness is `nekrataalOneDestroyed`, and the shared/new pin is `countReachIsFold` with the re-spelled `*ReadsOnlyPrefix` and `*ResolvesInPrefix` families.
+
+## Landing record
+
+- Construction count: `Noun` 49 → 34 constructors; ordinary anaphora 16 → 1 constructor, with seven `Reach` cases.
+- Coverage and lock state: printed-card bench coverage unchanged, no witnesses removed, and `cr-citations.lock` unchanged.
+- Assurance: restored 0; re-spelled 60 proof/witness definitions; ignored 0; added 1 (`countReachIsFold`); removed 0.
+- Positive artifacts: 23/23 Idris build, citation compliance/staleness checks, and diff citation audit.
+- Deviations and additions: added `faceOfReach` to preserve pile-face projection while retiring `faceOfThose`; no other deviations.
+- STOPs: none.

@@ -1655,38 +1655,6 @@ payloadOrig (PileP _ _ _) = Nothing
 payloadOrig (JoinP l r) = maybe (payloadOrig r) Just (payloadOrig l)
 
 public export
-itReaches : Plurality -> Binding -> Bool
-itReaches pl b = kindLte Object b.kind && isOne pl == isOne b.plur
-
-public export
-itAbilityReaches : Plurality -> Binding -> Bool
-itAbilityReaches pl b = kindLte Ability b.kind && isOne pl == isOne b.plur
-
-public export
-provOfIt : Bindings -> Maybe Stamp
-provOfIt [] = Nothing
-provOfIt (b :: bs) =
-  if itReaches OneOf b then payloadProv b.payload else provOfIt bs
-
-public export
-provOfThem : Bindings -> Maybe Stamp
-provOfThem [] = Nothing
-provOfThem (b :: bs) =
-  if itReaches ManyOf b then payloadProv b.payload else provOfThem bs
-
-public export
-zoneOfIt : Bindings -> Maybe Zone
-zoneOfIt [] = Nothing
-zoneOfIt (b :: bs) =
-  if itReaches OneOf b then bindingZone b else zoneOfIt bs
-
-public export
-zoneOfThem : Bindings -> Maybe Zone
-zoneOfThem [] = Nothing
-zoneOfThem (b :: bs) =
-  if itReaches ManyOf b then bindingZone b else zoneOfThem bs
-
-public export
 data NounWord = TypeW CardType | CardW | SpellW | PlayerW
               | PermanentW | TokenW | CopyW | JoinW | AbilityJoinW
               | ||| "Whenever you activate an ability, ... copy THAT
@@ -1753,38 +1721,15 @@ public export
 data SlotCarrier = PermanentSlot | CardSlot | SpellSlot
 
 public export
+data Reach = Bare | AtSlot SlotCarrier | Stamped VerbLabel | TokenBorn
+           | Word NounWord | UnionHalf NounWord
+           | Verbed VerbLabel NounWord VerbedMarking
+
+public export
 slotZoneOk : SlotCarrier -> Maybe Zone -> Bool
 slotZoneOk PermanentSlot zn = onFieldZone zn
 slotZoneOk CardSlot zn = isCardZone zn
 slotZoneOk SpellSlot zn = onStackZone zn
-
-public export
-itAtReaches : SlotCarrier -> Binding -> Bool
-itAtReaches sl b = itReaches OneOf b && slotZoneOk sl (bindingZone b)
-
-public export
-countOnesAt : SlotCarrier -> Bindings -> Nat
-countOnesAt sl [] = Z
-countOnesAt sl (b :: bs) =
-  if itAtReaches sl b then S (countOnesAt sl bs) else countOnesAt sl bs
-
-public export
-provOfItAt : SlotCarrier -> Bindings -> Maybe Stamp
-provOfItAt sl [] = Nothing
-provOfItAt sl (b :: bs) =
-  if itAtReaches sl b then payloadProv b.payload else provOfItAt sl bs
-
-public export
-zoneOfItAt : SlotCarrier -> Bindings -> Maybe Zone
-zoneOfItAt sl [] = Nothing
-zoneOfItAt sl (b :: bs) =
-  if itAtReaches sl b then bindingZone b else zoneOfItAt sl bs
-
-public export
-tyOfItAt : SlotCarrier -> Bindings -> Maybe CardType
-tyOfItAt sl [] = Nothing
-tyOfItAt sl (b :: bs) =
-  if itAtReaches sl b then bindingTy b else tyOfItAt sl bs
 
 public export
 mkStamp : Maybe VerbLabel -> (oldZn : Maybe Zone) -> (moved : Bool) -> Maybe Stamp
@@ -1977,6 +1922,16 @@ kindOfW PileW = Object
 kindOfW CopyJoinW = Object \/ Ability
 
 public export
+reachKind : Reach -> Kind
+reachKind Bare = Object
+reachKind (AtSlot _) = Object
+reachKind (Stamped _) = Object
+reachKind TokenBorn = Object
+reachKind (Word w) = kindOfW w
+reachKind (UnionHalf w) = kindOfW w
+reachKind (Verbed _ w _) = kindOfW w
+
+public export
 stampedBy : VerbLabel -> Stamp -> Bool
 stampedBy v (MkStamp v' _ _) = v == v'
 
@@ -2001,90 +1956,6 @@ public export
 stampIs : VerbLabel -> Maybe Stamp -> Bool
 stampIs v Nothing = False
 stampIs v (Just st) = stampedBy v st
-
-public export
-itVerbedReaches : VerbLabel -> Binding -> Bool
-itVerbedReaches v b = itReaches OneOf b && stampIs v (payloadProv b.payload)
-
-public export
-countVerbedIt : VerbLabel -> Bindings -> Nat
-countVerbedIt v [] = Z
-countVerbedIt v (b :: bs) =
-  if itVerbedReaches v b then S (countVerbedIt v bs) else countVerbedIt v bs
-
-public export
-provOfVerbedIt : VerbLabel -> Bindings -> Maybe Stamp
-provOfVerbedIt v [] = Nothing
-provOfVerbedIt v (b :: bs) =
-  if itVerbedReaches v b then payloadProv b.payload else provOfVerbedIt v bs
-
-public export
-zoneOfVerbedIt : VerbLabel -> Bindings -> Maybe Zone
-zoneOfVerbedIt v [] = Nothing
-zoneOfVerbedIt v (b :: bs) =
-  if itVerbedReaches v b then bindingZone b else zoneOfVerbedIt v bs
-
-public export
-tyOfVerbedIt : VerbLabel -> Bindings -> Maybe CardType
-tyOfVerbedIt v [] = Nothing
-tyOfVerbedIt v (b :: bs) =
-  if itVerbedReaches v b then bindingTy b else tyOfVerbedIt v bs
-
-public export
-themVerbedReaches : VerbLabel -> Binding -> Bool
-themVerbedReaches v b = itReaches ManyOf b && stampIs v (payloadProv b.payload)
-
-public export
-countVerbedThem : VerbLabel -> Bindings -> Nat
-countVerbedThem v [] = Z
-countVerbedThem v (b :: bs) =
-  if themVerbedReaches v b then S (countVerbedThem v bs) else countVerbedThem v bs
-
-public export
-provOfVerbedThem : VerbLabel -> Bindings -> Maybe Stamp
-provOfVerbedThem v [] = Nothing
-provOfVerbedThem v (b :: bs) =
-  if themVerbedReaches v b then payloadProv b.payload else provOfVerbedThem v bs
-
-public export
-zoneOfVerbedThem : VerbLabel -> Bindings -> Maybe Zone
-zoneOfVerbedThem v [] = Nothing
-zoneOfVerbedThem v (b :: bs) =
-  if themVerbedReaches v b then bindingZone b else zoneOfVerbedThem v bs
-
-public export
-tyOfVerbedThem : VerbLabel -> Bindings -> Maybe CardType
-tyOfVerbedThem v [] = Nothing
-tyOfVerbedThem v (b :: bs) =
-  if themVerbedReaches v b then bindingTy b else tyOfVerbedThem v bs
-
-public export
-itTokenReaches : Binding -> Bool
-itTokenReaches b = itReaches OneOf b && isTokenOrigin (payloadOrig b.payload)
-
-public export
-countItToken : Bindings -> Nat
-countItToken [] = Z
-countItToken (b :: bs) =
-  if itTokenReaches b then S (countItToken bs) else countItToken bs
-
-public export
-provOfItToken : Bindings -> Maybe Stamp
-provOfItToken [] = Nothing
-provOfItToken (b :: bs) =
-  if itTokenReaches b then payloadProv b.payload else provOfItToken bs
-
-public export
-zoneOfItToken : Bindings -> Maybe Zone
-zoneOfItToken [] = Nothing
-zoneOfItToken (b :: bs) =
-  if itTokenReaches b then bindingZone b else zoneOfItToken bs
-
-public export
-tyOfItToken : Bindings -> Maybe CardType
-tyOfItToken [] = Nothing
-tyOfItToken (b :: bs) =
-  if itTokenReaches b then bindingTy b else tyOfItToken bs
 
 public export
 markTy : Maybe CardType -> Binding -> Binding
@@ -2116,98 +1987,50 @@ stampWordOk : VerbLabel -> NounWord -> Stamp -> Maybe CardType -> Maybe Zone -> 
 stampWordOk v w st ty zn = stampedBy v st && verbedWordOk w st ty zn
 
 public export
-verbedMatch : VerbLabel -> NounWord -> Binding -> Bool
-verbedMatch v w (MkBinding _ _ _ (PileP _ _ _)) = False
-verbedMatch v w (MkBinding _ _ OneOf (ObjectP ty zn (Just st) _ _)) = stampWordOk v w st ty zn
-verbedMatch v w (MkBinding _ _ OneOf (ObjectP _ _ Nothing _ _)) = False
-verbedMatch v w (MkBinding _ _ ManyOf (ObjectP _ _ _ _ _)) = False
-verbedMatch v w (MkBinding _ _ _ PlayerP) = False
-verbedMatch v w (MkBinding _ _ _ ChosenPlayerP) = False
-verbedMatch v w (MkBinding _ _ _ QualityP) = False
-verbedMatch v w (MkBinding _ _ _ (OutcomeP _)) = False
-verbedMatch v w (MkBinding _ _ _ GapP) = False
-verbedMatch v w (MkBinding _ _ _ LetterP) = False
-verbedMatch v w (MkBinding _ _ _ TurnRefP) = False
-verbedMatch v w (MkBinding _ _ _ (AbilityP _)) = False
-verbedMatch v w (MkBinding _ _ _ (JoinP _ _)) = False
+reaches : Reach -> Plurality -> Binding -> Bool
+reaches Bare pl b = kindLte Object b.kind && isOne pl == isOne b.plur
+reaches (AtSlot sl) pl b =
+  kindLte Object b.kind && isOne pl == isOne b.plur && slotZoneOk sl (bindingZone b)
+reaches (Stamped v) pl b =
+  kindLte Object b.kind && isOne pl == isOne b.plur && stampIs v (payloadProv b.payload)
+reaches TokenBorn pl b =
+  kindLte Object b.kind && isOne pl == isOne b.plur && isTokenOrigin (payloadOrig b.payload)
+reaches (Word w) pl b = isOne pl == isOne b.plur && wordNow w b
+reaches (UnionHalf w) pl b =
+  isOne pl == isOne b.plur && joinedPayload b.payload && halfReaches w b.payload
+reaches (Verbed v w _) pl (MkBinding _ _ bpl (ObjectP ty zn (Just st) _ _)) =
+  isOne pl == isOne bpl && stampWordOk v w st ty zn
+reaches (Verbed _ _ _) _ _ = False
 
 public export
-verbedMatchMany : VerbLabel -> NounWord -> Binding -> Bool
-verbedMatchMany v w (MkBinding _ _ _ (PileP _ _ _)) = False
-verbedMatchMany v w (MkBinding _ _ ManyOf (ObjectP ty zn (Just st) _ _)) = stampWordOk v w st ty zn
-verbedMatchMany v w (MkBinding _ _ ManyOf (ObjectP _ _ Nothing _ _)) = False
-verbedMatchMany v w (MkBinding _ _ OneOf (ObjectP _ _ _ _ _)) = False
-verbedMatchMany v w (MkBinding _ _ _ PlayerP) = False
-verbedMatchMany v w (MkBinding _ _ _ ChosenPlayerP) = False
-verbedMatchMany v w (MkBinding _ _ _ QualityP) = False
-verbedMatchMany v w (MkBinding _ _ _ (OutcomeP _)) = False
-verbedMatchMany v w (MkBinding _ _ _ GapP) = False
-verbedMatchMany v w (MkBinding _ _ _ LetterP) = False
-verbedMatchMany v w (MkBinding _ _ _ TurnRefP) = False
-verbedMatchMany v w (MkBinding _ _ _ (AbilityP _)) = False
-verbedMatchMany v w (MkBinding _ _ _ (JoinP _ _)) = False
+countReach : Reach -> Plurality -> Bindings -> Nat
+countReach r pl [] = Z
+countReach r pl (b :: bs) =
+  if reaches r pl b then S (countReach r pl bs) else countReach r pl bs
 
 public export
-countVerbed : VerbLabel -> NounWord -> Bindings -> Nat
-countVerbed v w [] = Z
-countVerbed v w (b :: bs) =
-  if verbedMatch v w b then S (countVerbed v w bs) else countVerbed v w bs
+provOfReach : Reach -> Plurality -> Bindings -> Maybe Stamp
+provOfReach r pl [] = Nothing
+provOfReach r pl (b :: bs) =
+  if reaches r pl b then payloadProv b.payload else provOfReach r pl bs
 
 public export
-countManyVerbed : VerbLabel -> NounWord -> Bindings -> Nat
-countManyVerbed v w [] = Z
-countManyVerbed v w (b :: bs) =
-  if verbedMatchMany v w b then S (countManyVerbed v w bs) else countManyVerbed v w bs
+zoneOfReach : Reach -> Plurality -> Bindings -> Maybe Zone
+zoneOfReach r pl [] = Nothing
+zoneOfReach r pl (b :: bs) =
+  if reaches r pl b then bindingZone b else zoneOfReach r pl bs
 
 public export
-zoneOfManyVerbed : VerbLabel -> NounWord -> Bindings -> Maybe Zone
-zoneOfManyVerbed v w [] = Nothing
-zoneOfManyVerbed v w (b :: bs) =
-  if verbedMatchMany v w b then bindingZone b else zoneOfManyVerbed v w bs
+tyOfReach : Reach -> Plurality -> Bindings -> Maybe CardType
+tyOfReach r pl [] = Nothing
+tyOfReach r pl (b :: bs) =
+  if reaches r pl b then bindingTy b else tyOfReach r pl bs
 
 public export
-tyOfManyVerbed : VerbLabel -> NounWord -> Bindings -> Maybe CardType
-tyOfManyVerbed v w [] = Nothing
-tyOfManyVerbed v w (b :: bs) =
-  if verbedMatchMany v w b then bindingTy b else tyOfManyVerbed v w bs
-
-public export
-zoneOfVerbed : VerbLabel -> NounWord -> Bindings -> Maybe Zone
-zoneOfVerbed v w [] = Nothing
-zoneOfVerbed v w (b :: bs) =
-  if verbedMatch v w b then bindingZone b else zoneOfVerbed v w bs
-
-public export
-countWord : NounWord -> Bindings -> Nat
-countWord w [] = Z
-countWord w (b :: bs) =
-  case (b.plur, wordNow w b) of
-    (OneOf, True) => S (countWord w bs)
-    _ => countWord w bs
-
-public export
-countUnionHalf : NounWord -> Bindings -> Nat
-countUnionHalf w [] = Z
-countUnionHalf w (b :: bs) =
-  if isOne b.plur && joinedPayload b.payload && halfReaches w b.payload
-    then S (countUnionHalf w bs)
-    else countUnionHalf w bs
-
-public export
-zoneOfUnionHalf : NounWord -> Bindings -> Maybe Zone
-zoneOfUnionHalf w [] = Nothing
-zoneOfUnionHalf w (b :: bs) =
-  if isOne b.plur && joinedPayload b.payload && halfReaches w b.payload
-    then bindingZone b
-    else zoneOfUnionHalf w bs
-
-public export
-tyOfUnionHalf : NounWord -> Bindings -> Maybe CardType
-tyOfUnionHalf w [] = Nothing
-tyOfUnionHalf w (b :: bs) =
-  if isOne b.plur && joinedPayload b.payload && halfReaches w b.payload
-    then bindingTy b
-    else tyOfUnionHalf w bs
+faceOfReach : Reach -> Plurality -> Bindings -> Maybe PileFace
+faceOfReach r pl [] = Nothing
+faceOfReach r pl (b :: bs) =
+  if reaches r pl b then bindingFace b else faceOfReach r pl bs
 
 public export
 countTokenSpecs : Bindings -> Nat
@@ -2218,116 +2041,14 @@ countTokenSpecs (MkBinding _ _ _ (ObjectP _ _ _ og _) :: bs) =
 countTokenSpecs (_ :: bs) = countTokenSpecs bs
 
 public export
-countManyWord : NounWord -> Bindings -> Nat
-countManyWord w [] = Z
-countManyWord w (b :: bs) =
-  case (b.plur, wordNow w b) of
-    (ManyOf, True) => S (countManyWord w bs)
-    _ => countManyWord w bs
-
-public export
-zoneOfThat : NounWord -> Bindings -> Maybe Zone
-zoneOfThat w [] = Nothing
-zoneOfThat w (b :: bs) =
-  case (b.plur, wordNow w b) of
-    (OneOf, True) => bindingZone b
-    _ => zoneOfThat w bs
-
-public export
-zoneOfThose : NounWord -> Bindings -> Maybe Zone
-zoneOfThose w [] = Nothing
-zoneOfThose w (b :: bs) =
-  case (b.plur, wordNow w b) of
-    (ManyOf, True) => bindingZone b
-    _ => zoneOfThose w bs
-
-public export
-faceOfThose : NounWord -> Bindings -> Maybe PileFace
-faceOfThose w [] = Nothing
-faceOfThose w (b :: bs) =
-  case (b.plur, wordNow w b) of
-    (ManyOf, True) => bindingFace b
-    _ => faceOfThose w bs
-
-public export
 provOfGroup : Bindings -> Maybe Stamp
 provOfGroup bs = restSource bs >>= (\b => payloadProv b.payload)
-
-public export
-provOfThat : NounWord -> Bindings -> Maybe Stamp
-provOfThat w [] = Nothing
-provOfThat w (b :: bs) =
-  case (b.plur, wordNow w b) of
-    (OneOf, True) => payloadProv b.payload
-    _ => provOfThat w bs
-
-public export
-provOfThose : NounWord -> Bindings -> Maybe Stamp
-provOfThose w [] = Nothing
-provOfThose w (b :: bs) =
-  case (b.plur, wordNow w b) of
-    (ManyOf, True) => payloadProv b.payload
-    _ => provOfThose w bs
-
-public export
-provOfVerbed : VerbLabel -> NounWord -> Bindings -> Maybe Stamp
-provOfVerbed v w [] = Nothing
-provOfVerbed v w (b :: bs) =
-  if verbedMatch v w b then payloadProv b.payload else provOfVerbed v w bs
-
-public export
-provOfManyVerbed : VerbLabel -> NounWord -> Bindings -> Maybe Stamp
-provOfManyVerbed v w [] = Nothing
-provOfManyVerbed v w (b :: bs) =
-  if verbedMatchMany v w b then payloadProv b.payload else provOfManyVerbed v w bs
-
-public export
-provOfUnionHalf : NounWord -> Bindings -> Maybe Stamp
-provOfUnionHalf w [] = Nothing
-provOfUnionHalf w (b :: bs) =
-  if isOne b.plur && joinedPayload b.payload && halfReaches w b.payload
-    then payloadProv b.payload
-    else provOfUnionHalf w bs
-
-public export
-tyOfIt : Bindings -> Maybe CardType
-tyOfIt [] = Nothing
-tyOfIt (b :: bs) =
-  if itReaches OneOf b then bindingTy b else tyOfIt bs
-
-public export
-tyOfThem : Bindings -> Maybe CardType
-tyOfThem [] = Nothing
-tyOfThem (b :: bs) =
-  if itReaches ManyOf b then bindingTy b else tyOfThem bs
-
-public export
-tyOfThat : NounWord -> Bindings -> Maybe CardType
-tyOfThat w [] = Nothing
-tyOfThat w (b :: bs) =
-  case (b.plur, wordNow w b) of
-    (OneOf, True) => bindingTy b
-    _ => tyOfThat w bs
-
-public export
-tyOfThose : NounWord -> Bindings -> Maybe CardType
-tyOfThose w [] = Nothing
-tyOfThose w (b :: bs) =
-  case (b.plur, wordNow w b) of
-    (ManyOf, True) => bindingTy b
-    _ => tyOfThose w bs
 
 public export
 tyOfThoseAny : NounWord -> Bindings -> Maybe CardType
 tyOfThoseAny w [] = Nothing
 tyOfThoseAny w (b :: bs) =
   if wordNow w b then bindingTy b else tyOfThoseAny w bs
-
-public export
-tyOfVerbed : VerbLabel -> NounWord -> Bindings -> Maybe CardType
-tyOfVerbed v w [] = Nothing
-tyOfVerbed v w (b :: bs) =
-  if verbedMatch v w b then bindingTy b else tyOfVerbed v w bs
 
 public export
 countChoosers : Bindings -> Nat
@@ -4065,4 +3786,3 @@ data DurationEnd : Type where
             {auto 0 dp : DurationPossessor w} -> DurationEnd
   EndOf : TurnPart -> (w : Maybe Owner) ->
           {auto 0 dp : DurationPossessor w} -> DurationEnd
-

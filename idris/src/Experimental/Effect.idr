@@ -546,7 +546,7 @@ mutual
   public export
   counterpartNotSelf : {bs : Bindings} -> {k : Kind} -> {ka : Kind} ->
                        (n : Noun bs k) -> Noun (nomIntro n) ka -> Bool
-  counterpartNotSelf n It = countOnes Object (nounDelta n) == 0
+  counterpartNotSelf n (Pro Bare OneOf) = countReach Bare OneOf (nounDelta n) == 0
   counterpartNotSelf n _ = True
 
   public export

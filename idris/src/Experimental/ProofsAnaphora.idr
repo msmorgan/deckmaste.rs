@@ -198,102 +198,66 @@ countLetterIsFold : (l : Letter) -> (bs : Bindings) ->
 countLetterIsFold l bs =
   trans (countLetterIsCountOnes l bs) (countOnesIsFold (LetterK l) bs)
 
-||| What `countWord` folds: a singular mention the demonstrative's noun
+||| Every indexed pronoun read is the fold at its structural reach test.
 public export
-wordOne : NounWord -> Binding -> Bool
-wordOne w b = isOne b.plur && wordNow w b
+countReachIsFold : (r : Reach) -> (pl : Plurality) -> (bs : Bindings) ->
+                   countReach r pl bs = countBy (reaches r pl) bs
+countReachIsFold r pl [] = Refl
+countReachIsFold r pl (b :: bs) with (reaches r pl b)
+  _ | True = cong S (countReachIsFold r pl bs)
+  _ | False = countReachIsFold r pl bs
 
 public export
 countWordIsFold : (w : NounWord) -> (bs : Bindings) ->
-                  countWord w bs = countBy (wordOne w) bs
-countWordIsFold w [] = Refl
-countWordIsFold w (MkBinding d j OneOf p :: bs)
-    with (wordNow w (MkBinding d j OneOf p))
-  _ | True = cong S (countWordIsFold w bs)
-  _ | False = countWordIsFold w bs
-countWordIsFold w (MkBinding d j ManyOf p :: bs) = countWordIsFold w bs
-
-||| What `countManyWord` folds: the plural demonstrative's filter.
-public export
-wordMany : NounWord -> Binding -> Bool
-wordMany w b = not (isOne b.plur) && wordNow w b
+                  countReach (Word w) OneOf bs = countBy (reaches (Word w) OneOf) bs
+countWordIsFold w bs = countReachIsFold (Word w) OneOf bs
 
 public export
 countManyWordIsFold : (w : NounWord) -> (bs : Bindings) ->
-                      countManyWord w bs = countBy (wordMany w) bs
-countManyWordIsFold w [] = Refl
-countManyWordIsFold w (MkBinding d j ManyOf p :: bs)
-    with (wordNow w (MkBinding d j ManyOf p))
-  _ | True = cong S (countManyWordIsFold w bs)
-  _ | False = countManyWordIsFold w bs
-countManyWordIsFold w (MkBinding d j OneOf p :: bs) = countManyWordIsFold w bs
+                      countReach (Word w) ManyOf bs = countBy (reaches (Word w) ManyOf) bs
+countManyWordIsFold w bs = countReachIsFold (Word w) ManyOf bs
 
-||| What `countOnesAt` folds: `countOnes Object`'s own test narrowed to
 public export
 countOnesAtIsFold : (sl : SlotCarrier) -> (bs : Bindings) ->
-                    countOnesAt sl bs = countBy (itAtReaches sl) bs
-countOnesAtIsFold sl [] = Refl
-countOnesAtIsFold sl (b :: bs) with (itAtReaches sl b)
-  _ | True = cong S (countOnesAtIsFold sl bs)
-  _ | False = countOnesAtIsFold sl bs
+                    countReach (AtSlot sl) OneOf bs =
+                      countBy (reaches (AtSlot sl) OneOf) bs
+countOnesAtIsFold sl bs = countReachIsFold (AtSlot sl) OneOf bs
 
-||| What `countVerbedIt` folds: `countOnes Object`'s own test narrowed
 public export
 countVerbedItIsFold : (v : VerbLabel) -> (bs : Bindings) ->
-                      countVerbedIt v bs = countBy (itVerbedReaches v) bs
-countVerbedItIsFold v [] = Refl
-countVerbedItIsFold v (b :: bs) with (itVerbedReaches v b)
-  _ | True = cong S (countVerbedItIsFold v bs)
-  _ | False = countVerbedItIsFold v bs
+                      countReach (Stamped v) OneOf bs =
+                        countBy (reaches (Stamped v) OneOf) bs
+countVerbedItIsFold v bs = countReachIsFold (Stamped v) OneOf bs
 
 public export
 countVerbedThemIsFold : (v : VerbLabel) -> (bs : Bindings) ->
-                        countVerbedThem v bs = countBy (themVerbedReaches v) bs
-countVerbedThemIsFold v [] = Refl
-countVerbedThemIsFold v (b :: bs) with (themVerbedReaches v b)
-  _ | True = cong S (countVerbedThemIsFold v bs)
-  _ | False = countVerbedThemIsFold v bs
+                        countReach (Stamped v) ManyOf bs =
+                          countBy (reaches (Stamped v) ManyOf) bs
+countVerbedThemIsFold v bs = countReachIsFold (Stamped v) ManyOf bs
 
-||| What `countItToken` folds: `countOnes Object`'s own test narrowed a
 public export
 countItTokenIsFold : (bs : Bindings) ->
-                     countItToken bs = countBy itTokenReaches bs
-countItTokenIsFold [] = Refl
-countItTokenIsFold (b :: bs) with (itTokenReaches b)
-  _ | True = cong S (countItTokenIsFold bs)
-  _ | False = countItTokenIsFold bs
-
-||| What `countUnionHalf` folds: a singular UNION mention one half of
-||| which the split arm's word names.
-public export
-unionHalf : NounWord -> Binding -> Bool
-unionHalf w b = isOne b.plur && joinedPayload b.payload && halfReaches w b.payload
+                     countReach TokenBorn OneOf bs = countBy (reaches TokenBorn OneOf) bs
+countItTokenIsFold bs = countReachIsFold TokenBorn OneOf bs
 
 public export
 countUnionHalfIsFold : (w : NounWord) -> (bs : Bindings) ->
-                       countUnionHalf w bs = countBy (unionHalf w) bs
-countUnionHalfIsFold w [] = Refl
-countUnionHalfIsFold w (b :: bs) with (unionHalf w b)
-  _ | True = cong S (countUnionHalfIsFold w bs)
-  _ | False = countUnionHalfIsFold w bs
+                       countReach (UnionHalf w) OneOf bs =
+                         countBy (reaches (UnionHalf w) OneOf) bs
+countUnionHalfIsFold w bs = countReachIsFold (UnionHalf w) OneOf bs
 
-||| The definite participle read ("the exiled card") already folds a
-||| per-binding test, so its identity is the fold at that very test.
 public export
 countVerbedIsFold : (v : VerbLabel) -> (w : NounWord) -> (bs : Bindings) ->
-                    countVerbed v w bs = countBy (verbedMatch v w) bs
-countVerbedIsFold v w [] = Refl
-countVerbedIsFold v w (b :: bs) with (verbedMatch v w b)
-  _ | True = cong S (countVerbedIsFold v w bs)
-  _ | False = countVerbedIsFold v w bs
+                    countReach (Verbed v w Attributive) OneOf bs =
+                      countBy (reaches (Verbed v w Attributive) OneOf) bs
+countVerbedIsFold v w bs = countReachIsFold (Verbed v w Attributive) OneOf bs
 
 public export
 countManyVerbedIsFold : (v : VerbLabel) -> (w : NounWord) -> (bs : Bindings) ->
-                        countManyVerbed v w bs = countBy (verbedMatchMany v w) bs
-countManyVerbedIsFold v w [] = Refl
-countManyVerbedIsFold v w (b :: bs) with (verbedMatchMany v w b)
-  _ | True = cong S (countManyVerbedIsFold v w bs)
-  _ | False = countManyVerbedIsFold v w bs
+                        countReach (Verbed v w Attributive) ManyOf bs =
+                          countBy (reaches (Verbed v w Attributive) ManyOf) bs
+countManyVerbedIsFold v w bs =
+  countReachIsFold (Verbed v w Attributive) ManyOf bs
 
 ||| What `countGroups` folds for "the rest": an assembled group of
 ||| objects, with the parts already taken out of it excluded.
@@ -394,56 +358,63 @@ resolveManys k bs ok =
 
 ||| The pronoun asks its context one question and no other: given a
 public export
-itReadsOnlyPrefix : (bs : Bindings) -> countOnes Object bs = 1 -> Noun bs Object
-itReadsOnlyPrefix bs ok = It {bs} {ok}
+itReadsOnlyPrefix : (bs : Bindings) -> countReach Bare OneOf bs = 1 -> Noun bs Object
+itReadsOnlyPrefix bs ok = Pro Bare OneOf {bs} {ok}
 
 public export
-itResolvesInPrefix : (bs : Bindings) -> countOnes Object bs = 1 ->
-                     (b : Binding ** (Elem b bs, So (oneOfKind Object b)))
-itResolvesInPrefix bs ok = resolveOnes Object bs ok
+itResolvesInPrefix : (bs : Bindings) -> countReach Bare OneOf bs = 1 ->
+                     (b : Binding ** (Elem b bs, So (reaches Bare OneOf b)))
+itResolvesInPrefix bs ok =
+  countByWitness (reaches Bare OneOf) bs Z
+    (trans (sym (countReachIsFold Bare OneOf bs)) ok)
 
 
 
 ||| The scoped pronoun asks its context ONE question too, and the same
 public export
 itAtReadsOnlyPrefix : (sl : SlotCarrier) -> (bs : Bindings) ->
-                      countOnesAt sl bs = 1 -> Noun bs Object
-itAtReadsOnlyPrefix sl bs ok = ItAt sl {bs} {ok}
+                      countReach (AtSlot sl) OneOf bs = 1 -> Noun bs Object
+itAtReadsOnlyPrefix sl bs ok = Pro (AtSlot sl) OneOf {bs} {ok}
 
 public export
 itAtResolvesInPrefix : (sl : SlotCarrier) -> (bs : Bindings) ->
-                       countOnesAt sl bs = 1 ->
-                       (b : Binding ** (Elem b bs, So (itAtReaches sl b)))
+                       countReach (AtSlot sl) OneOf bs = 1 ->
+                       (b : Binding ** (Elem b bs, So (reaches (AtSlot sl) OneOf b)))
 itAtResolvesInPrefix sl bs ok =
-  countByWitness (itAtReaches sl) bs Z (trans (sym (countOnesAtIsFold sl bs)) ok)
+  countByWitness (reaches (AtSlot sl) OneOf) bs Z
+    (trans (sym (countReachIsFold (AtSlot sl) OneOf bs)) ok)
 
 
 
 ||| The verb-scoped pronoun asks the prefix ONE question -- how many of
 public export
 itVerbedReadsOnlyPrefix : (bs : Bindings) -> (v : VerbLabel) ->
-                          KnownVerb v -> countVerbedIt v bs = 1 -> Noun bs Object
-itVerbedReadsOnlyPrefix bs v kn ok = ItVerbed v {bs} {kn} {ok}
+                          KnownVerb v -> countReach (Stamped v) OneOf bs = 1 ->
+                          Noun bs Object
+itVerbedReadsOnlyPrefix bs v kn ok = Pro (Stamped v) OneOf {bs} {ok}
 
 public export
 itVerbedResolvesInPrefix : (bs : Bindings) -> (v : VerbLabel) ->
-                           countVerbedIt v bs = 1 ->
-                           (b : Binding ** (Elem b bs, So (itVerbedReaches v b)))
+                           countReach (Stamped v) OneOf bs = 1 ->
+                           (b : Binding ** (Elem b bs, So (reaches (Stamped v) OneOf b)))
 itVerbedResolvesInPrefix bs v ok =
-  countByWitness (itVerbedReaches v) bs Z (trans (sym (countVerbedItIsFold v bs)) ok)
+  countByWitness (reaches (Stamped v) OneOf) bs Z
+    (trans (sym (countReachIsFold (Stamped v) OneOf bs)) ok)
 
 
 
 ||| The origin-scoped pronoun asks the prefix ONE question -- how many of
 public export
-itTokenReadsOnlyPrefix : (bs : Bindings) -> countItToken bs = 1 -> Noun bs Object
-itTokenReadsOnlyPrefix bs ok = ItToken {bs} {ok}
+itTokenReadsOnlyPrefix : (bs : Bindings) -> countReach TokenBorn OneOf bs = 1 ->
+                         Noun bs Object
+itTokenReadsOnlyPrefix bs ok = Pro TokenBorn OneOf {bs} {ok}
 
 public export
-itTokenResolvesInPrefix : (bs : Bindings) -> countItToken bs = 1 ->
-                          (b : Binding ** (Elem b bs, So (itTokenReaches b)))
+itTokenResolvesInPrefix : (bs : Bindings) -> countReach TokenBorn OneOf bs = 1 ->
+                          (b : Binding ** (Elem b bs, So (reaches TokenBorn OneOf b)))
 itTokenResolvesInPrefix bs ok =
-  countByWitness itTokenReaches bs Z (trans (sym (countItTokenIsFold bs)) ok)
+  countByWitness (reaches TokenBorn OneOf) bs Z
+    (trans (sym (countReachIsFold TokenBorn OneOf bs)) ok)
 
 
 
@@ -506,118 +477,138 @@ itPriorResolvesInPrefix made before ok =
 
 
 public export
-theyReadsOnlyPrefix : (bs : Bindings) -> countOnes Player bs = 1 -> Noun bs Player
-theyReadsOnlyPrefix bs ok = They {bs} {ok}
+theyReadsOnlyPrefix : (bs : Bindings) -> countReach (Word PlayerW) OneOf bs = 1 ->
+                      Noun bs Player
+theyReadsOnlyPrefix bs ok = Pro (Word PlayerW) OneOf {bs} {ok}
 
 public export
-theyResolvesInPrefix : (bs : Bindings) -> countOnes Player bs = 1 ->
-                       (b : Binding ** (Elem b bs, So (oneOfKind Player b)))
-theyResolvesInPrefix bs ok = resolveOnes Player bs ok
+theyResolvesInPrefix : (bs : Bindings) -> countReach (Word PlayerW) OneOf bs = 1 ->
+                       (b : Binding ** (Elem b bs,
+                                                So (reaches (Word PlayerW) OneOf b)))
+theyResolvesInPrefix bs ok =
+  countByWitness (reaches (Word PlayerW) OneOf) bs Z
+    (trans (sym (countReachIsFold (Word PlayerW) OneOf bs)) ok)
 
 
 
 public export
-themReadsOnlyPrefix : (bs : Bindings) -> countManys Object bs = 1 -> Noun bs Object
-themReadsOnlyPrefix bs ok = Them {bs} {ok}
+themReadsOnlyPrefix : (bs : Bindings) -> countReach Bare ManyOf bs = 1 -> Noun bs Object
+themReadsOnlyPrefix bs ok = Pro Bare ManyOf {bs} {ok}
 
 public export
-themResolvesInPrefix : (bs : Bindings) -> countManys Object bs = 1 ->
-                       (b : Binding ** (Elem b bs, So (manyOfKind Object b)))
-themResolvesInPrefix bs ok = resolveManys Object bs ok
+themResolvesInPrefix : (bs : Bindings) -> countReach Bare ManyOf bs = 1 ->
+                       (b : Binding ** (Elem b bs, So (reaches Bare ManyOf b)))
+themResolvesInPrefix bs ok =
+  countByWitness (reaches Bare ManyOf) bs Z
+    (trans (sym (countReachIsFold Bare ManyOf bs)) ok)
 
 
 
 ||| The verb-scoped GROUP pronoun asks the prefix the singular row's
 public export
 themVerbedReadsOnlyPrefix : (bs : Bindings) -> (v : VerbLabel) ->
-                            KnownVerb v -> countVerbedThem v bs = 1 ->
+                            KnownVerb v -> countReach (Stamped v) ManyOf bs = 1 ->
                             Noun bs Object
-themVerbedReadsOnlyPrefix bs v kn ok = ThemVerbed v {bs} {kn} {ok}
+themVerbedReadsOnlyPrefix bs v kn ok = Pro (Stamped v) ManyOf {bs} {ok}
 
 public export
 themVerbedResolvesInPrefix : (bs : Bindings) -> (v : VerbLabel) ->
-                             countVerbedThem v bs = 1 ->
-                             (b : Binding ** (Elem b bs, So (themVerbedReaches v b)))
+                             countReach (Stamped v) ManyOf bs = 1 ->
+                             (b : Binding ** (Elem b bs,
+                                                      So (reaches (Stamped v) ManyOf b)))
 themVerbedResolvesInPrefix bs v ok =
-  countByWitness (themVerbedReaches v) bs Z
-                 (trans (sym (countVerbedThemIsFold v bs)) ok)
+  countByWitness (reaches (Stamped v) ManyOf) bs Z
+    (trans (sym (countReachIsFold (Stamped v) ManyOf bs)) ok)
 
 
 
 ||| The word filter is extra content on the read, not a second context:
-||| the gate is still `countWord w bs`, a fact about the prefix alone.
+||| the gate is still one `countReach`, a fact about the prefix alone.
 public export
 thatReadsOnlyPrefix : (bs : Bindings) -> (w : NounWord) ->
-                      countWord w bs = 1 -> Noun bs (kindOfW w)
-thatReadsOnlyPrefix bs w ok = That w {bs} {ok}
+                      countReach (Word w) OneOf bs = 1 -> Noun bs (kindOfW w)
+thatReadsOnlyPrefix bs w ok = Pro (Word w) OneOf {bs} {ok}
 
 public export
-thatResolvesInPrefix : (bs : Bindings) -> (w : NounWord) -> countWord w bs = 1 ->
-                       (b : Binding ** (Elem b bs, So (wordOne w b)))
+thatResolvesInPrefix : (bs : Bindings) -> (w : NounWord) ->
+                       countReach (Word w) OneOf bs = 1 ->
+                       (b : Binding ** (Elem b bs, So (reaches (Word w) OneOf b)))
 thatResolvesInPrefix bs w ok =
-  countByWitness (wordOne w) bs Z (trans (sym (countWordIsFold w bs)) ok)
+  countByWitness (reaches (Word w) OneOf) bs Z
+    (trans (sym (countReachIsFold (Word w) OneOf bs)) ok)
 
 
 
 ||| The split arm's gate counts the UNION mentions its word names a half
 public export
 thatHalfReadsOnlyPrefix : (bs : Bindings) -> (w : NounWord) ->
-                          countUnionHalf w bs = 1 -> Noun bs (kindOfW w)
-thatHalfReadsOnlyPrefix bs w ok = ThatHalf w {bs} {ok}
+                          countReach (UnionHalf w) OneOf bs = 1 ->
+                          Noun bs (kindOfW w)
+thatHalfReadsOnlyPrefix bs w ok = Pro (UnionHalf w) OneOf {bs} {ok}
 
 public export
 thatHalfResolvesInPrefix : (bs : Bindings) -> (w : NounWord) ->
-                           countUnionHalf w bs = 1 ->
-                           (b : Binding ** (Elem b bs, So (unionHalf w b)))
+                           countReach (UnionHalf w) OneOf bs = 1 ->
+                           (b : Binding ** (Elem b bs,
+                                                    So (reaches (UnionHalf w) OneOf b)))
 thatHalfResolvesInPrefix bs w ok =
-  countByWitness (unionHalf w) bs Z (trans (sym (countUnionHalfIsFold w bs)) ok)
+  countByWitness (reaches (UnionHalf w) OneOf) bs Z
+    (trans (sym (countReachIsFold (UnionHalf w) OneOf bs)) ok)
 
 
 
 public export
 thoseReadsOnlyPrefix : (bs : Bindings) -> (w : NounWord) ->
-                       countManyWord w bs = 1 -> Noun bs (kindOfW w)
-thoseReadsOnlyPrefix bs w ok = Those w {bs} {ok}
+                       countReach (Word w) ManyOf bs = 1 -> Noun bs (kindOfW w)
+thoseReadsOnlyPrefix bs w ok = Pro (Word w) ManyOf {bs} {ok}
 
 public export
 thoseResolvesInPrefix : (bs : Bindings) -> (w : NounWord) ->
-                        countManyWord w bs = 1 ->
-                        (b : Binding ** (Elem b bs, So (wordMany w b)))
+                        countReach (Word w) ManyOf bs = 1 ->
+                        (b : Binding ** (Elem b bs, So (reaches (Word w) ManyOf b)))
 thoseResolvesInPrefix bs w ok =
-  countByWitness (wordMany w) bs Z (trans (sym (countManyWordIsFold w bs)) ok)
+  countByWitness (reaches (Word w) ManyOf) bs Z
+    (trans (sym (countReachIsFold (Word w) ManyOf bs)) ok)
 
 
 
 ||| The participle read carries a second obligation — that the verb takes
 public export
 theVerbedReadsOnlyPrefix : (bs : Bindings) -> (v : VerbLabel) -> (w : NounWord) ->
-                           (m : VerbedMarking) -> countVerbed v w bs = 1 ->
+                           (m : VerbedMarking) ->
+                           countReach (Verbed v w m) OneOf bs = 1 ->
                            VerbedMarkingOk v m -> Noun bs (kindOfW w)
-theVerbedReadsOnlyPrefix bs v w m ok mk = TheVerbed v w m {bs} {ok} {mk}
+theVerbedReadsOnlyPrefix bs v w m ok mk = Pro (Verbed v w m) OneOf {bs} {ok}
 
 public export
 theVerbedResolvesInPrefix : (bs : Bindings) -> (v : VerbLabel) -> (w : NounWord) ->
-                            countVerbed v w bs = 1 ->
-                            (b : Binding ** (Elem b bs, So (verbedMatch v w b)))
-theVerbedResolvesInPrefix bs v w ok =
-  countByWitness (verbedMatch v w) bs Z (trans (sym (countVerbedIsFold v w bs)) ok)
+                            (m : VerbedMarking) ->
+                            countReach (Verbed v w m) OneOf bs = 1 ->
+                            (b : Binding ** (Elem b bs,
+                                                     So (reaches (Verbed v w m) OneOf b)))
+theVerbedResolvesInPrefix bs v w m ok =
+  countByWitness (reaches (Verbed v w m) OneOf) bs Z
+    (trans (sym (countReachIsFold (Verbed v w m) OneOf bs)) ok)
 
 
 
 public export
 thoseVerbedReadsOnlyPrefix : (bs : Bindings) -> (v : VerbLabel) -> (w : NounWord) ->
-                             (m : VerbedMarking) -> countManyVerbed v w bs = 1 ->
+                             (m : VerbedMarking) ->
+                             countReach (Verbed v w m) ManyOf bs = 1 ->
                              VerbedMarkingOk v m -> Noun bs (kindOfW w)
 thoseVerbedReadsOnlyPrefix bs v w m ok mk =
-  ThoseVerbed v w m {bs} {ok} {mk}
+  Pro (Verbed v w m) ManyOf {bs} {ok}
 
 public export
 thoseVerbedResolvesInPrefix : (bs : Bindings) -> (v : VerbLabel) -> (w : NounWord) ->
-                              countManyVerbed v w bs = 1 ->
-                              (b : Binding ** (Elem b bs, So (verbedMatchMany v w b)))
-thoseVerbedResolvesInPrefix bs v w ok =
-  countByWitness (verbedMatchMany v w) bs Z
-                 (trans (sym (countManyVerbedIsFold v w bs)) ok)
+                              (m : VerbedMarking) ->
+                              countReach (Verbed v w m) ManyOf bs = 1 ->
+                              (b : Binding ** (Elem b bs,
+                                                       So (reaches (Verbed v w m) ManyOf b)))
+thoseVerbedResolvesInPrefix bs v w m ok =
+  countByWitness (reaches (Verbed v w m) ManyOf) bs Z
+    (trans (sym (countReachIsFold (Verbed v w m) ManyOf bs)) ok)
 
 
 
@@ -1000,7 +991,7 @@ markTyKeepsOnes j ty (MkBinding det (a \/ b) plur (JoinP l r)) = Refl
 
 public export
 markTyKeepsAt : (sl : SlotCarrier) -> (ty : Maybe CardType) -> (b : Binding) ->
-                itAtReaches sl (markTy ty b) = itAtReaches sl b
+                reaches (AtSlot sl) OneOf (markTy ty b) = reaches (AtSlot sl) OneOf b
 markTyKeepsAt sl ty (MkBinding det Object plur (ObjectP Nothing zn st og _)) = Refl
 markTyKeepsAt sl ty (MkBinding det Object plur (ObjectP (Just t) zn st og _)) = Refl
 markTyKeepsAt sl ty (MkBinding det Object plur (PileP zn sz fc)) = Refl
@@ -1069,13 +1060,15 @@ condRemarkKeepsOnes bs c j with (condRemarkAt c)
 
 public export
 condRemarkKeepsAt : (bs : Bindings) -> (c : Condition bs) -> (sl : SlotCarrier) ->
-                    countOnesAt sl (condRemark c) = countOnesAt sl bs
+                    countReach (AtSlot sl) OneOf (condRemark c) =
+                      countReach (AtSlot sl) OneOf bs
 condRemarkKeepsAt bs c sl with (condRemarkAt c)
   _ | Nothing = Refl
   _ | Just (q, ty) =
-    trans (countOnesAtIsFold sl (markFirst q ty bs))
-          (trans (markFirstKeeps (itAtReaches sl) q ty (markTyKeepsAt sl ty) bs)
-                 (sym (countOnesAtIsFold sl bs)))
+    trans (countReachIsFold (AtSlot sl) OneOf (markFirst q ty bs))
+          (trans (markFirstKeeps (reaches (AtSlot sl) OneOf) q ty
+                                 (markTyKeepsAt sl ty) bs)
+                 (sym (countReachIsFold (AtSlot sl) OneOf bs)))
 
 ||| The same for a condition, which is what `If`'s consequent is typed
 public export
@@ -1116,37 +1109,41 @@ gateSplitsAtCondIntro bs c j =
 public export
 slotGateSplitsAtNomIntro : (bs : Bindings) -> (k : Kind) -> (n : Noun bs k) ->
                            (sl : SlotCarrier) ->
-                           countOnesAt sl (nomIntro n) =
-                             countOnesAt sl (nounDelta n) + countOnesAt sl bs
+                           countReach (AtSlot sl) OneOf (nomIntro n) =
+                             countReach (AtSlot sl) OneOf (nounDelta n) +
+                             countReach (AtSlot sl) OneOf bs
 slotGateSplitsAtNomIntro bs k n sl =
-  trans (countOnesAtIsFold sl (nounDelta n ++ bs))
-        (trans (countBySplit (itAtReaches sl) (nounDelta n) bs)
-               (cong2 (+) (sym (countOnesAtIsFold sl (nounDelta n)))
-                          (sym (countOnesAtIsFold sl bs))))
+  trans (countReachIsFold (AtSlot sl) OneOf (nounDelta n ++ bs))
+        (trans (countBySplit (reaches (AtSlot sl) OneOf) (nounDelta n) bs)
+               (cong2 (+) (sym (countReachIsFold (AtSlot sl) OneOf (nounDelta n)))
+                          (sym (countReachIsFold (AtSlot sl) OneOf bs))))
 
 public export
 slotGateSplitsAtCondIntro : (bs : Bindings) -> (c : Condition bs) ->
                             (sl : SlotCarrier) ->
-                            countOnesAt sl (condIntro c) =
-                              countOnesAt sl (condDelta c) + countOnesAt sl bs
+                            countReach (AtSlot sl) OneOf (condIntro c) =
+                              countReach (AtSlot sl) OneOf (condDelta c) +
+                              countReach (AtSlot sl) OneOf bs
 slotGateSplitsAtCondIntro bs c sl =
-  trans (countOnesAtIsFold sl (condDelta c ++ condRemark c))
-        (trans (countBySplit (itAtReaches sl) (condDelta c) (condRemark c))
-               (cong2 (+) (sym (countOnesAtIsFold sl (condDelta c)))
-                          (trans (sym (countOnesAtIsFold sl (condRemark c)))
+  trans (countReachIsFold (AtSlot sl) OneOf (condDelta c ++ condRemark c))
+        (trans (countBySplit (reaches (AtSlot sl) OneOf)
+                             (condDelta c) (condRemark c))
+               (cong2 (+) (sym (countReachIsFold (AtSlot sl) OneOf (condDelta c)))
+                          (trans (sym (countReachIsFold (AtSlot sl) OneOf (condRemark c)))
                                  (condRemarkKeepsAt bs c sl))))
 
 ||| The split arm's gate, likewise.
 public export
 unionHalfGateSplitsAtNomIntro : (bs : Bindings) -> (k : Kind) -> (n : Noun bs k) ->
                                 (w : NounWord) ->
-                                countUnionHalf w (nomIntro n) =
-                                  countUnionHalf w (nounDelta n) + countUnionHalf w bs
+                                countReach (UnionHalf w) OneOf (nomIntro n) =
+                                  countReach (UnionHalf w) OneOf (nounDelta n) +
+                                  countReach (UnionHalf w) OneOf bs
 unionHalfGateSplitsAtNomIntro bs k n w =
-  trans (countUnionHalfIsFold w (nounDelta n ++ bs))
-        (trans (countBySplit (unionHalf w) (nounDelta n) bs)
-               (cong2 (+) (sym (countUnionHalfIsFold w (nounDelta n)))
-                          (sym (countUnionHalfIsFold w bs))))
+  trans (countReachIsFold (UnionHalf w) OneOf (nounDelta n ++ bs))
+        (trans (countBySplit (reaches (UnionHalf w) OneOf) (nounDelta n) bs)
+               (cong2 (+) (sym (countReachIsFold (UnionHalf w) OneOf (nounDelta n)))
+                          (sym (countReachIsFold (UnionHalf w) OneOf bs))))
 
 ||| The sequential telescope hands each member exactly its predecessors'
 ||| output. A member typed anywhere else would not fit here.

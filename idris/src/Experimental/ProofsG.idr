@@ -494,7 +494,7 @@ abilityUnderSpellOrAbility = kindLteJoinR Object Ability
 
 public export
 joinedCreatureTy :
-  tyOfThat JoinW (effIntro {bs = []}
+  tyOfReach (Word JoinW) OneOf (effIntro {bs = []}
     (DealDamage This (Lit 3)
        (Macros.target (Macros.kindJoin AnyPlayer Macros.creature))))
   = Just Creature
@@ -1377,7 +1377,7 @@ generalManaSymbolMatcher = ManaCostHas (Simple (Specific (OfColor Red)))
 
 public export
 playerItRead : Noun [MkBinding AD Player OneOf PlayerP] Player
-playerItRead = ItPlayer
+playerItRead = They
 
 public export
 delayedDoorTraversal :
@@ -1390,7 +1390,7 @@ public export
 distributiveGroupSurvives : Effect []
 distributiveGroupSurvives =
   Sequentially
-    [ DoesGroup (Each Opponent) "Shuffle" (Shuffle ItPlayer)
+    [ DoesGroup (Each Opponent) "Shuffle" (Shuffle They)
     , ChangeLife (Those PlayerW) (Down (Lit 1))
     ]
 

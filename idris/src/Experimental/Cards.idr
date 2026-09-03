@@ -10417,8 +10417,8 @@ targetOpponentOrPlaneswalker =
 public export
 eachCreatureThatSplitControls :
   {bs : Bindings} ->
-  {auto 0 ck : countUnionHalf (TypeW Planeswalker) bs = 1} ->
-  {auto 0 pk : countUnionHalf PlayerW bs = 1} ->
+  {auto 0 ck : countReach (UnionHalf (TypeW Planeswalker)) OneOf bs = 1} ->
+  {auto 0 pk : countReach (UnionHalf PlayerW) OneOf bs = 1} ->
   Noun bs Object
 eachCreatureThatSplitControls =
   Each (And [Macros.creature, ControlledBy (Macros.splitOverPlaneswalker {ck} {pk})])
@@ -11836,7 +11836,7 @@ nekrataalRider =
 
 ||| Two battlefield creatures stand there
 public export
-nekrataalOneCreatureWord : countWord (TypeW Creature) Cards.nekrataalRider = 1
+nekrataalOneCreatureWord : countReach (Word (TypeW Creature)) OneOf Cards.nekrataalRider = 1
 nekrataalOneCreatureWord = Refl
 
 public export
@@ -11844,7 +11844,7 @@ nekrataalTwoObjects : countOnes Object Cards.nekrataalRider = 2
 nekrataalTwoObjects = Refl
 
 public export
-nekrataalOneDestroyed : countVerbedIt "Destroy" Cards.nekrataalRider = 1
+nekrataalOneDestroyed : countReach (Stamped "Destroy") OneOf Cards.nekrataalRider = 1
 nekrataalOneDestroyed = Refl
 
 public export
@@ -11879,11 +11879,11 @@ sequencedRider =
 
 ||| Exactly one mention carries the destroying label
 public export
-sequencedRiderOneDestroyed : countVerbedIt "Destroy" Cards.sequencedRider = 1
+sequencedRiderOneDestroyed : countReach (Stamped "Destroy") OneOf Cards.sequencedRider = 1
 sequencedRiderOneDestroyed = Refl
 
 public export
-sequencedRiderOneExiled : countVerbedIt "Exile" Cards.sequencedRider = 1
+sequencedRiderOneExiled : countReach (Stamped "Exile") OneOf Cards.sequencedRider = 1
 sequencedRiderOneExiled = Refl
 
 ||| Bonds of Faith
@@ -11931,12 +11931,12 @@ engulfingFlamesRider =
 
 public export
 engulfingFlamesNoDestroyStamp :
-  countVerbedIt "Destroy" Cards.engulfingFlamesRider = 0
+  countReach (Stamped "Destroy") OneOf Cards.engulfingFlamesRider = 0
 engulfingFlamesNoDestroyStamp = Refl
 
 public export
 engulfingFlamesBareReadStands :
-  countOnes Object Cards.engulfingFlamesRider = 1
+  countReach Bare OneOf Cards.engulfingFlamesRider = 1
 engulfingFlamesBareReadStands = Refl
 
 public export
@@ -11948,11 +11948,14 @@ bioplasmExiledPronoun : Noun Cards.bioplasmAfterExile Object
 bioplasmExiledPronoun = Macros.itVerbed "Exile"
 
 public export
-bioplasmNoTypedRead : countVerbed "Exile" (TypeW Creature) Cards.bioplasmAfterExile = 0
+bioplasmNoTypedRead :
+  countReach (Verbed "Exile" (TypeW Creature) Attributive) OneOf
+    Cards.bioplasmAfterExile = 0
 bioplasmNoTypedRead = Refl
 
 public export
-bioplasmExiledCardHasNoType : tyOfVerbedIt "Exile" Cards.bioplasmAfterExile = Nothing
+bioplasmExiledCardHasNoType :
+  tyOfReach (Stamped "Exile") OneOf Cards.bioplasmAfterExile = Nothing
 bioplasmExiledCardHasNoType = Refl
 
 public export
@@ -11961,7 +11964,7 @@ bioplasmAfterTest = condIntro Cards.bioplasmCardTest
 
 public export
 bioplasmTestRemarksType :
-  tyOfVerbedIt "Exile" Cards.bioplasmAfterTest = Just Creature
+  tyOfReach (Stamped "Exile") OneOf Cards.bioplasmAfterTest = Just Creature
 bioplasmTestRemarksType = Refl
 
 public export
@@ -11969,17 +11972,20 @@ bioplasmTestMintsNothing : countOnes Object Cards.bioplasmAfterTest = 2
 bioplasmTestMintsNothing = Refl
 
 public export
-bioplasmTestKeepsCardSlot : countOnesAt CardSlot Cards.bioplasmAfterTest = 1
+bioplasmTestKeepsCardSlot :
+  countReach (AtSlot CardSlot) OneOf Cards.bioplasmAfterTest = 1
 bioplasmTestKeepsCardSlot = Refl
 
 public export
 bioplasmTypedReadStillRefused :
-  countVerbed "Exile" (TypeW Creature) Cards.bioplasmAfterTest = 0
+  countReach (Verbed "Exile" (TypeW Creature) Attributive) OneOf
+    Cards.bioplasmAfterTest = 0
 bioplasmTypedReadStillRefused = Refl
 
 public export
 bioplasmTypedCardReadWrites :
-  countVerbed "Exile" (TypedCardW Creature) Cards.bioplasmAfterTest = 1
+  countReach (Verbed "Exile" (TypedCardW Creature) Attributive) OneOf
+    Cards.bioplasmAfterTest = 1
 bioplasmTypedCardReadWrites = Refl
 
 ||| Scapeshift
@@ -11996,16 +12002,17 @@ scapeshiftAfterSearch =
            (Macros.searchLibraryForCount (UpToOf GroupSize) Macros.land)
 
 public export
-scapeshiftTwoGroups : countManys Object Cards.scapeshiftAfterSearch = 2
+scapeshiftTwoGroups : countReach Bare ManyOf Cards.scapeshiftAfterSearch = 2
 scapeshiftTwoGroups = Refl
 
 public export
-scapeshiftOneSearchedGroup : countVerbedThem "Search" Cards.scapeshiftAfterSearch = 1
+scapeshiftOneSearchedGroup :
+  countReach (Stamped "Search") ManyOf Cards.scapeshiftAfterSearch = 1
 scapeshiftOneSearchedGroup = Refl
 
 public export
 scapeshiftOneSacrificedGroup :
-  countVerbedThem "Sacrifice" Cards.scapeshiftAfterSearch = 1
+  countReach (Stamped "Sacrifice") ManyOf Cards.scapeshiftAfterSearch = 1
 scapeshiftOneSacrificedGroup = Refl
 
 ||| Scapeshift
@@ -12465,17 +12472,19 @@ soulRansom =
 
 public export
 possessiveDeicticIsReadableByIt :
-  countOnesAt PermanentSlot (nomIntro (ControllerOf (Macros.thisAura {bs = []}))) = 1
+  countReach (AtSlot PermanentSlot) OneOf
+    (nomIntro (ControllerOf (Macros.thisAura {bs = []}))) = 1
 possessiveDeicticIsReadableByIt = Refl
 
 public export
 possessiveDeicticIsNotADemonstrative :
-  countWord (TypeW Enchantment) (nomIntro (ControllerOf (Macros.thisAura {bs = []}))) = 0
+  countReach (Word (TypeW Enchantment)) OneOf
+    (nomIntro (ControllerOf (Macros.thisAura {bs = []}))) = 0
 possessiveDeicticIsNotADemonstrative = Refl
 
 public export
 possessiveDescribedBaseUnchanged :
-  countOnesAt PermanentSlot
+  countReach (AtSlot PermanentSlot) OneOf
     (nomIntro (ControllerOf (Macros.target Macros.creature {bs = []}))) = 1
 possessiveDescribedBaseUnchanged = Refl
 

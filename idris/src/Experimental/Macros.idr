@@ -4,6 +4,69 @@ import public Experimental
 
 %default total
 
+public export
+It : {auto 0 ok : countReach Bare OneOf bs = 1} -> Noun bs Object
+It = Pro Bare OneOf
+
+public export
+ItAbility : {auto 0 ok : countReach (Word AbilityW) OneOf bs = 1} -> Noun bs Ability
+ItAbility = Pro (Word AbilityW) OneOf
+
+public export
+ItAt : (sl : SlotCarrier) -> {auto 0 ok : countReach (AtSlot sl) OneOf bs = 1} ->
+       Noun bs Object
+ItAt sl = Pro (AtSlot sl) OneOf
+
+public export
+ItVerbed : (v : VerbLabel) -> {auto 0 kn : KnownVerb v} ->
+           {auto 0 ok : countReach (Stamped v) OneOf bs = 1} -> Noun bs Object
+ItVerbed v = Pro (Stamped v) OneOf
+
+public export
+ItToken : {auto 0 ok : countReach TokenBorn OneOf bs = 1} -> Noun bs Object
+ItToken = Pro TokenBorn OneOf
+
+public export
+They : {auto 0 ok : countReach (Word PlayerW) OneOf bs = 1} -> Noun bs Player
+They = Pro (Word PlayerW) OneOf
+
+public export
+Them : {auto 0 ok : countReach Bare ManyOf bs = 1} -> Noun bs Object
+Them = Pro Bare ManyOf
+
+public export
+ThemVerbed : (v : VerbLabel) -> {auto 0 kn : KnownVerb v} ->
+             {auto 0 ok : countReach (Stamped v) ManyOf bs = 1} -> Noun bs Object
+ThemVerbed v = Pro (Stamped v) ManyOf
+
+public export
+Those : (w : NounWord) -> {auto 0 ok : countReach (Word w) ManyOf bs = 1} ->
+        Noun bs (kindOfW w)
+Those w = Pro (Word w) ManyOf
+
+public export
+That : (w : NounWord) -> {auto 0 ok : countReach (Word w) OneOf bs = 1} ->
+       Noun bs (kindOfW w)
+That w = Pro (Word w) OneOf
+
+public export
+ThatHalf : (w : NounWord) ->
+           {auto 0 ok : countReach (UnionHalf w) OneOf bs = 1} ->
+           Noun bs (kindOfW w)
+ThatHalf w = Pro (UnionHalf w) OneOf
+
+public export
+TheVerbed : (v : VerbLabel) -> (w : NounWord) -> (marking : VerbedMarking) ->
+            {auto 0 ok : countReach (Verbed v w marking) OneOf bs = 1} ->
+            {auto 0 mk : VerbedMarkingOk v marking} -> Noun bs (kindOfW w)
+TheVerbed v w marking = Pro (Verbed v w marking) OneOf
+
+public export
+ThoseVerbed : (v : VerbLabel) -> (w : NounWord) -> (marking : VerbedMarking) ->
+              {auto 0 ok : countReach (Verbed v w marking) ManyOf bs = 1} ->
+              {auto 0 mk : VerbedMarkingOk v marking} -> Noun bs (kindOfW w)
+ThoseVerbed v w marking = Pro (Verbed v w marking) ManyOf
+
 
 public export
 exactly : Nat -> Quantity bs
@@ -48,27 +111,27 @@ youAnd : (n : Noun bs Object) -> Noun bs (Player \/ Object)
 youAnd n = Both You n
 
 public export
-thatJoin : {auto 0 ok : countWord JoinW bs = 1} -> Noun bs (Object \/ Player)
+thatJoin : {auto 0 ok : countReach (Word JoinW) OneOf bs = 1} -> Noun bs (Object \/ Player)
 thatJoin = That JoinW {ok}
 
 public export
 thatSplitController : (cls : Noun bs Object) ->
                       {auto 0 one : nounPlur cls = OneOf} ->
-                      {auto 0 pk : countUnionHalf PlayerW bs = 1} ->
+                      {auto 0 pk : countReach (UnionHalf PlayerW) OneOf bs = 1} ->
                       Noun bs Player
 thatSplitController cls = EitherOf (ThatHalf PlayerW {ok = pk}) (ControllerOf cls {one})
 
 public export
 splitOverPlaneswalker : {bs : Bindings} ->
-                        {auto 0 ck : countUnionHalf (TypeW Planeswalker) bs = 1} ->
-                        {auto 0 pk : countUnionHalf PlayerW bs = 1} ->
+                        {auto 0 ck : countReach (UnionHalf (TypeW Planeswalker)) OneOf bs = 1} ->
+                        {auto 0 pk : countReach (UnionHalf PlayerW) OneOf bs = 1} ->
                         Noun bs Player
 splitOverPlaneswalker = thatSplitController (ThatHalf (TypeW Planeswalker) {ok = ck}) {pk}
 
 public export
 splitOverPermanent : {bs : Bindings} ->
-                     {auto 0 ck : countUnionHalf PermanentW bs = 1} ->
-                     {auto 0 pk : countUnionHalf PlayerW bs = 1} ->
+                     {auto 0 ck : countReach (UnionHalf PermanentW) OneOf bs = 1} ->
+                     {auto 0 pk : countReach (UnionHalf PlayerW) OneOf bs = 1} ->
                      Noun bs Player
 splitOverPermanent = thatSplitController (ThatHalf PermanentW {ok = ck}) {pk}
 
@@ -468,17 +531,17 @@ sacrifice agent n =
   Does agent "Sacrifice" (Move n graveyardZ noRiders)
 
 public export
-itAsPermanent : {auto 0 ok : countOnesAt PermanentSlot bs = 1} -> Noun bs Object
+itAsPermanent : {auto 0 ok : countReach (AtSlot PermanentSlot) OneOf bs = 1} -> Noun bs Object
 itAsPermanent = ItAt PermanentSlot {ok}
 
 public export
-itAsCard : {auto 0 ok : countOnesAt CardSlot bs = 1} -> Noun bs Object
+itAsCard : {auto 0 ok : countReach (AtSlot CardSlot) OneOf bs = 1} -> Noun bs Object
 itAsCard = ItAt CardSlot {ok}
 
 public export
 sacrificeIt : (agent : Noun bs Player) ->
-              {auto 0 ok : countOnesAt PermanentSlot (agentIntro agent) = 1} ->
-              {auto 0 zn : OnBattlefield (zoneOfItAt PermanentSlot (agentIntro agent))} ->
+              {auto 0 ok : countReach (AtSlot PermanentSlot) OneOf (agentIntro agent) = 1} ->
+              {auto 0 zn : OnBattlefield (zoneOfReach (AtSlot PermanentSlot) OneOf (agentIntro agent))} ->
               Effect bs
 sacrificeIt agent = sacrifice agent (itAsPermanent {ok}) {ok = zn}
 
@@ -571,7 +634,7 @@ returnToBattlefield : (n : Noun bs Object) ->
 returnToBattlefield n = returnTo n battlefieldZ {arr} {pl}
 
 public export
-itAsToken : {auto 0 ok : countItToken bs = 1} -> Noun bs Object
+itAsToken : {auto 0 ok : countReach TokenBorn OneOf bs = 1} -> Noun bs Object
 itAsToken = ItToken {ok}
 
 public export
@@ -1017,42 +1080,44 @@ notSo : (c : Condition bs) -> Condition bs
 notSo c = NotCond c
 
 public export
-itsA : (p : Predicate bs Object) -> {auto 0 ok : countOnes Object bs = 1} ->
+itsA : (p : Predicate bs Object) -> {auto 0 ok : countReach Bare OneOf bs = 1} ->
        {auto 0 sy : PredSays p} ->
-       {auto 0 zc : ZoneFits (zoneOfIt bs) (seedZone p)} ->
+       {auto 0 zc : ZoneFits (zoneOfReach Bare OneOf bs) (seedZone p)} ->
        Condition bs
 itsA p = Matches (It {ok}) p {sy} {zc}
 
 public export
-itIsntA : (p : Predicate bs Object) -> {auto 0 ok : countOnes Object bs = 1} ->
+itIsntA : (p : Predicate bs Object) -> {auto 0 ok : countReach Bare OneOf bs = 1} ->
           {auto 0 sy : PredSays p} ->
-          {auto 0 zc : ZoneFits (zoneOfIt bs) (seedZone p)} ->
+          {auto 0 zc : ZoneFits (zoneOfReach Bare OneOf bs) (seedZone p)} ->
           {auto 0 nf : predNegFree p = True} -> Condition bs
 itIsntA p = NotCond (itsA p {ok} {sy} {zc})
 
 public export
 itsACard : (p : Predicate bs Object) ->
-           {auto 0 ok : countOnesAt CardSlot bs = 1} ->
+           {auto 0 ok : countReach (AtSlot CardSlot) OneOf bs = 1} ->
            {auto 0 sy : PredSays p} ->
-           {auto 0 zc : ZoneFits (zoneOfItAt CardSlot bs) (seedZone p)} ->
+           {auto 0 zc : ZoneFits (zoneOfReach (AtSlot CardSlot) OneOf bs) (seedZone p)} ->
            Condition bs
 itsACard p = Matches (itAsCard {ok}) p {sy} {zc}
 
 public export
 itsAnAbility : (p : Predicate bs Ability) ->
-               {auto 0 ok : countOnes Ability bs = 1} ->
+               {auto 0 ok : countReach (Word AbilityW) OneOf bs = 1} ->
                {auto 0 sy : PredSays p} ->
                {auto 0 bl : TestSubject (ItAbility {bs} {ok})} ->
-               {auto 0 zc : ZoneFits (the (Maybe Zone) Nothing) (seedZone p)} ->
+               {auto 0 zc : ZoneFits (zoneOfReach (Word AbilityW) OneOf bs)
+                                           (seedZone p)} ->
                Condition bs
 itsAnAbility p = Matches (ItAbility {ok}) p {sy} {bl} {zc}
 
 public export
 itIsntAnAbility : (p : Predicate bs Ability) ->
-                  {auto 0 ok : countOnes Ability bs = 1} ->
+                  {auto 0 ok : countReach (Word AbilityW) OneOf bs = 1} ->
                   {auto 0 sy : PredSays p} ->
                   {auto 0 bl : TestSubject (ItAbility {bs} {ok})} ->
-                  {auto 0 zc : ZoneFits (the (Maybe Zone) Nothing) (seedZone p)} ->
+                  {auto 0 zc : ZoneFits (zoneOfReach (Word AbilityW) OneOf bs)
+                                              (seedZone p)} ->
                   Condition bs
 itIsntAnAbility p = NotCond (itsAnAbility p {ok} {sy} {bl} {zc})
 
@@ -1137,12 +1202,12 @@ oneOf : (grp : Noun bs Object) -> {auto 0 gm : PartitiveBase grp} -> Noun bs Obj
 oneOf grp = SomeOf (CountedSlice (exactly 1)) Nothing grp {gm}
 
 public export
-onePile : {auto 0 ok : countManyWord PileW bs = 1} -> Noun bs Object
+onePile : {auto 0 ok : countReach (Word PileW) ManyOf bs = 1} -> Noun bs Object
 onePile = PileOf (CountedSlice (exactly 1)) Nothing {ok}
 
 public export
 pileOfChoice : (by : Noun bs Player) ->
-               {auto 0 ok : countManyWord PileW bs = 1} -> Noun bs Object
+               {auto 0 ok : countReach (Word PileW) ManyOf bs = 1} -> Noun bs Object
 pileOfChoice by = PileOf (CountedSlice (exactly 1)) (Just by) {ok}
 
 public export
@@ -1183,16 +1248,16 @@ lookAtHandOf : (n : Noun bs Player) -> Effect bs
 lookAtHandOf n = Expose LookAt You (ExposedZone (handOf n))
 
 public export
-foundCard : {auto 0 ok : countVerbedIt "Search" bs = 1} -> Noun bs Object
+foundCard : {auto 0 ok : countReach (Stamped "Search") OneOf bs = 1} -> Noun bs Object
 foundCard = ItVerbed "Search" {ok}
 
 public export
-revealsIt : {auto 0 ok : countVerbedIt "Search" bs = 1} -> Effect bs
+revealsIt : {auto 0 ok : countReach (Stamped "Search") OneOf bs = 1} -> Effect bs
 revealsIt = revealCards (foundCard {ok})
 
 public export
 revealsTheirHand : (who : Noun bs Player) ->
-                   {auto 0 ok : countOnes Player (nomIntro who) = 1} -> Effect bs
+                   {auto 0 ok : countReach (Word PlayerW) OneOf (nomIntro who) = 1} -> Effect bs
 revealsTheirHand who = Expose Reveal who (ExposedZone (handOf (They {ok})))
 
 
@@ -1378,21 +1443,21 @@ lookedTop : (bs : Bindings) -> (amt : Amount bs) -> Bindings
 lookedTop bs amt = nomIntro (topSlice {bs} amt)
 
 public export
-lookedRest : (bs : Bindings) -> (0 mn : countManys Object bs = 1) ->
+lookedRest : (bs : Bindings) -> (0 mn : countReach Bare ManyOf bs = 1) ->
              (z : Zone) -> Bindings
 lookedRest bs mn z = moveIntro {bs} Nothing (SomeOf (CountedSlice anyNumber {wf = Oh}) Nothing (Them {ok = mn}) {gm = Oh}) (Just z)
 
 public export
 theyLookAtTop : {bs : Bindings} -> (amt : Amount bs) ->
-                {auto 0 an : countOnes Player bs = 1} -> Effect bs
+                {auto 0 an : countReach (Word PlayerW) OneOf bs = 1} -> Effect bs
 theyLookAtTop amt =
   Expose LookAt (They {ok = an})
          (ExposedCards (LibrarySlice OnTop amt (They {ok = an})))
 
 public export
 scry : {bs : Bindings} -> (amt : Amount bs) ->
-       {auto 0 mn : countManys Object (lookedTop bs amt) = 1} ->
-       {auto 0 ps : Placeable (tyOfThem (lookedTop bs amt)) Library} ->
+       {auto 0 mn : countReach Bare ManyOf (lookedTop bs amt) = 1} ->
+       {auto 0 ps : Placeable (tyOfReach Bare ManyOf (lookedTop bs amt)) Library} ->
        {auto 0 tr : So (theRestOk (lookedRest (lookedTop bs amt) mn Library))} ->
        {auto 0 pr : Placeable (tyOfGroup (lookedRest (lookedTop bs amt) mn Library)) Library} ->
        Effect bs
@@ -1406,8 +1471,8 @@ scry amt =
 
 public export
 surveil : {bs : Bindings} -> (amt : Amount bs) ->
-          {auto 0 mn : countManys Object (lookedTop bs amt) = 1} ->
-          {auto 0 ps : Placeable (tyOfThem (lookedTop bs amt)) Graveyard} ->
+          {auto 0 mn : countReach Bare ManyOf (lookedTop bs amt) = 1} ->
+          {auto 0 ps : Placeable (tyOfReach Bare ManyOf (lookedTop bs amt)) Graveyard} ->
           {auto 0 tr : So (theRestOk (lookedRest (lookedTop bs amt) mn Graveyard))} ->
           {auto 0 pr : Placeable (tyOfGroup (lookedRest (lookedTop bs amt) mn Graveyard)) Library} ->
           Effect bs
@@ -1421,8 +1486,8 @@ surveil amt =
 
 public export
 scryOne : {bs : Bindings} ->
-          {auto 0 iw : countWord CardW (lookedTop bs (Lit 1)) = 1} ->
-          {auto 0 pi : Placeable (tyOfThat CardW (lookedTop bs (Lit 1))) Library} ->
+          {auto 0 iw : countReach (Word CardW) OneOf (lookedTop bs (Lit 1)) = 1} ->
+          {auto 0 pi : Placeable (tyOfReach (Word CardW) OneOf (lookedTop bs (Lit 1))) Library} ->
           Effect bs
 scryOne =
   Does You "Scry" {kn = Oh}
@@ -1431,8 +1496,8 @@ scryOne =
 
 public export
 surveilOne : {bs : Bindings} ->
-             {auto 0 iw : countWord CardW (lookedTop bs (Lit 1)) = 1} ->
-             {auto 0 pi : Placeable (tyOfThat CardW (lookedTop bs (Lit 1))) Graveyard} ->
+             {auto 0 iw : countReach (Word CardW) OneOf (lookedTop bs (Lit 1)) = 1} ->
+             {auto 0 pi : Placeable (tyOfReach (Word CardW) OneOf (lookedTop bs (Lit 1))) Graveyard} ->
              Effect bs
 surveilOne =
   Does You "Surveil" {kn = Oh}
@@ -1442,9 +1507,9 @@ surveilOne =
 public export
 playerScries : {bs : Bindings} -> (agent : Noun bs Player) ->
                (amt : Amount (agentIntro agent)) ->
-               {auto 0 an : countOnes Player (agentIntro agent) = 1} ->
-               {auto 0 mn : countManys Object (nomIntro (LibrarySlice OnTop amt (They {ok = an}))) = 1} ->
-               {auto 0 ps : Placeable (tyOfThem (nomIntro (LibrarySlice OnTop amt (They {ok = an})))) Library} ->
+               {auto 0 an : countReach (Word PlayerW) OneOf (agentIntro agent) = 1} ->
+               {auto 0 mn : countReach Bare ManyOf (nomIntro (LibrarySlice OnTop amt (They {ok = an}))) = 1} ->
+               {auto 0 ps : Placeable (tyOfReach Bare ManyOf (nomIntro (LibrarySlice OnTop amt (They {ok = an})))) Library} ->
                {auto 0 tr : So (theRestOk (lookedRest (nomIntro (LibrarySlice OnTop amt (They {ok = an}))) mn Library))} ->
                {auto 0 pr : Placeable (tyOfGroup (lookedRest (nomIntro (LibrarySlice OnTop amt (They {ok = an}))) mn Library)) Library} ->
                Effect bs
@@ -1459,9 +1524,9 @@ playerScries agent amt =
 public export
 playerSurveils : {bs : Bindings} -> (agent : Noun bs Player) ->
                  (amt : Amount (agentIntro agent)) ->
-                 {auto 0 an : countOnes Player (agentIntro agent) = 1} ->
-                 {auto 0 mn : countManys Object (nomIntro (LibrarySlice OnTop amt (They {ok = an}))) = 1} ->
-                 {auto 0 ps : Placeable (tyOfThem (nomIntro (LibrarySlice OnTop amt (They {ok = an})))) Graveyard} ->
+                 {auto 0 an : countReach (Word PlayerW) OneOf (agentIntro agent) = 1} ->
+                 {auto 0 mn : countReach Bare ManyOf (nomIntro (LibrarySlice OnTop amt (They {ok = an}))) = 1} ->
+                 {auto 0 ps : Placeable (tyOfReach Bare ManyOf (nomIntro (LibrarySlice OnTop amt (They {ok = an})))) Graveyard} ->
                  {auto 0 tr : So (theRestOk (lookedRest (nomIntro (LibrarySlice OnTop amt (They {ok = an}))) mn Graveyard))} ->
                  {auto 0 pr : Placeable (tyOfGroup (lookedRest (nomIntro (LibrarySlice OnTop amt (They {ok = an}))) mn Graveyard)) Library} ->
                  Effect bs
@@ -1474,15 +1539,15 @@ playerSurveils agent amt =
                             (onTopIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
 
 public export
-theirTopCard : (bs : Bindings) -> (0 an : countOnes Player bs = 1) -> Bindings
+theirTopCard : (bs : Bindings) -> (0 an : countReach (Word PlayerW) OneOf bs = 1) -> Bindings
 theirTopCard bs an = nomIntro (LibrarySlice {bs} OnTop (Lit 1) (They {ok = an}))
 
 public export
 playerScriesOne : {bs : Bindings} -> (agent : Noun bs Player) ->
-                  {auto 0 an : countOnes Player (agentIntro agent) = 1} ->
-                  {auto 0 ap : countOnes Player (Macros.theirTopCard (agentIntro agent) an) = 1} ->
-                  {auto 0 iw : countWord CardW (Macros.theirTopCard (agentIntro agent) an) = 1} ->
-                  {auto 0 pi : Placeable (tyOfThat CardW (Macros.theirTopCard (agentIntro agent) an)) Library} ->
+                  {auto 0 an : countReach (Word PlayerW) OneOf (agentIntro agent) = 1} ->
+                  {auto 0 ap : countReach (Word PlayerW) OneOf (Macros.theirTopCard (agentIntro agent) an) = 1} ->
+                  {auto 0 iw : countReach (Word CardW) OneOf (Macros.theirTopCard (agentIntro agent) an) = 1} ->
+                  {auto 0 pi : Placeable (tyOfReach (Word CardW) OneOf (Macros.theirTopCard (agentIntro agent) an)) Library} ->
                   Effect bs
 playerScriesOne agent =
   Does agent "Scry" {kn = Oh}
@@ -1493,10 +1558,10 @@ playerScriesOne agent =
 
 public export
 playerSurveilsOne : {bs : Bindings} -> (agent : Noun bs Player) ->
-                    {auto 0 an : countOnes Player (agentIntro agent) = 1} ->
-                    {auto 0 ap : countOnes Player (Macros.theirTopCard (agentIntro agent) an) = 1} ->
-                    {auto 0 iw : countWord CardW (Macros.theirTopCard (agentIntro agent) an) = 1} ->
-                    {auto 0 pi : Placeable (tyOfThat CardW (Macros.theirTopCard (agentIntro agent) an)) Graveyard} ->
+                    {auto 0 an : countReach (Word PlayerW) OneOf (agentIntro agent) = 1} ->
+                    {auto 0 ap : countReach (Word PlayerW) OneOf (Macros.theirTopCard (agentIntro agent) an) = 1} ->
+                    {auto 0 iw : countReach (Word CardW) OneOf (Macros.theirTopCard (agentIntro agent) an) = 1} ->
+                    {auto 0 pi : Placeable (tyOfReach (Word CardW) OneOf (Macros.theirTopCard (agentIntro agent) an)) Graveyard} ->
                     Effect bs
 playerSurveilsOne agent =
   Does agent "Surveil" {kn = Oh}
@@ -1507,7 +1572,7 @@ playerSurveilsOne agent =
 
 public export
 playerSearchesTheirLibraryFor : (who : Noun bs Player) ->
-                                {auto 0 an : countOnes Player (nomIntro who) = 1} ->
+                                {auto 0 an : countReach (Word PlayerW) OneOf (nomIntro who) = 1} ->
                                 (p : Predicate (nomIntro who) Object) ->
                                 {auto 0 zf : ZoneFree p} -> Effect bs
 playerSearchesTheirLibraryFor who p =
@@ -1524,7 +1589,7 @@ proliferated bs = chosenIntro {bs} (CountedGroup Macros.anyNumber Nothing Macros
 
 public export
 proliferate : {bs : Bindings} ->
-              {auto 0 mj : countManyWord JoinW (Macros.proliferated bs) = 1} ->
+              {auto 0 mj : countReach (Word JoinW) ManyOf (Macros.proliferated bs) = 1} ->
               Effect bs
 proliferate =
   Enact "Proliferate" {kn = Oh}
@@ -2138,8 +2203,8 @@ handPick bs = nomIntro {bs} (aCardInHand {bs})
 
 public export
 discardN : (amt : Amount bs) ->
-           {auto 0 pk : countWord CardW (handPick (amtIntro amt)) = 1} ->
-           {auto 0 dz : zoneOfThat CardW (handPick (amtIntro amt)) = Just Hand} ->
+           {auto 0 pk : countReach (Word CardW) OneOf (handPick (amtIntro amt)) = 1} ->
+           {auto 0 dz : zoneOfReach (Word CardW) OneOf (handPick (amtIntro amt)) = Just Hand} ->
            Effect bs
 discardN amt =
   Repeated amt (Sequentially [ choose (aCardInHand)
@@ -2148,12 +2213,12 @@ discardN amt =
 
 public export
 itVerbed : (v : VerbLabel) -> {auto 0 kn : KnownVerb v} ->
-           {auto 0 ok : countVerbedIt v bs = 1} -> Noun bs Object
+           {auto 0 ok : countReach (Stamped v) OneOf bs = 1} -> Noun bs Object
 itVerbed v = ItVerbed v {kn} {ok}
 
 public export
 themVerbed : (v : VerbLabel) -> {auto 0 kn : KnownVerb v} ->
-             {auto 0 ok : countVerbedThem v bs = 1} -> Noun bs Object
+             {auto 0 ok : countReach (Stamped v) ManyOf bs = 1} -> Noun bs Object
 themVerbed v = ThemVerbed v {kn} {ok}
 
 public export
@@ -2165,25 +2230,25 @@ itPrior prev = ItPrior (effDelta prev) bs {sp} {ok}
 
 public export
 theVerbed : (v : VerbLabel) -> (w : NounWord) ->
-            {auto 0 ok : countVerbed v w bs = 1} ->
+            {auto 0 ok : countReach (Verbed v w Attributive) OneOf bs = 1} ->
             {auto 0 mk : VerbedMarkingOk v Attributive} -> Noun bs (kindOfW w)
 theVerbed v w = TheVerbed v w Attributive {ok} {mk}
 
 public export
 theVerbedThisWay : (v : VerbLabel) -> (w : NounWord) ->
-                   {auto 0 ok : countVerbed v w bs = 1} ->
+                   {auto 0 ok : countReach (Verbed v w ThisWay) OneOf bs = 1} ->
                    {auto 0 mk : VerbedMarkingOk v ThisWay} -> Noun bs (kindOfW w)
 theVerbedThisWay v w = TheVerbed v w ThisWay {ok} {mk}
 
 public export
 thoseVerbed : (v : VerbLabel) -> (w : NounWord) ->
-              {auto 0 ok : countManyVerbed v w bs = 1} ->
+              {auto 0 ok : countReach (Verbed v w Attributive) ManyOf bs = 1} ->
               {auto 0 mk : VerbedMarkingOk v Attributive} -> Noun bs (kindOfW w)
 thoseVerbed v w = ThoseVerbed v w Attributive {ok} {mk}
 
 public export
 thoseVerbedThisWay : (v : VerbLabel) -> (w : NounWord) ->
-                     {auto 0 ok : countManyVerbed v w bs = 1} ->
+                     {auto 0 ok : countReach (Verbed v w ThisWay) ManyOf bs = 1} ->
                      {auto 0 mk : VerbedMarkingOk v ThisWay} -> Noun bs (kindOfW w)
 thoseVerbedThisWay v w = ThoseVerbed v w ThisWay {ok} {mk}
 

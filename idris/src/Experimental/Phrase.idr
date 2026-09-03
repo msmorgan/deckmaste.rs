@@ -1532,39 +1532,17 @@ mutual
     TheRest : {auto 0 ok : So (theRestOk bs)} -> Noun bs Object
     TheOther : {auto 0 ok : So (theOtherOk bs)} -> Noun bs Object
     PileOf : (q : SliceCount bs) -> (by : Maybe (Noun bs Player)) ->
-             {auto 0 ok : countManyWord PileW bs = 1} -> Noun bs Object
-    It : {auto 0 ok : countOnes Object bs = 1} -> Noun bs Object
-    ItAbility : {auto 0 ok : countOnes Ability bs = 1} -> Noun bs Ability
-    ItPlayer : {auto 0 ok : countOnes Player bs = 1} -> Noun bs Player
-    ItAt : (sl : SlotCarrier) -> {auto 0 ok : countOnesAt sl bs = 1} ->
-           Noun bs Object
-    ItVerbed : (v : VerbLabel) -> {auto 0 kn : KnownVerb v} ->
-               {auto 0 ok : countVerbedIt v bs = 1} -> Noun bs Object
-    ItToken : {auto 0 ok : countItToken bs = 1} -> Noun bs Object
+             {auto 0 ok : countReach (Word PileW) ManyOf bs = 1} -> Noun bs Object
+    Pro : (r : Reach) -> (pl : Plurality) ->
+          {auto 0 ok : countReach r pl bs = 1} -> Noun bs (reachKind r)
     ItOtherThan : (co : Bindings) -> (rest : Bindings) ->
                   {auto 0 sp : bs = co ++ rest} ->
                   {auto 0 ok : countOnes Object rest = 1} -> Noun bs Object
     ItPrior : (made : Bindings) -> (before : Bindings) ->
               {auto 0 sp : bs = made ++ before} ->
               {auto 0 ok : countOnes Object made = 1} -> Noun bs Object
-    They : {auto 0 ok : countOnes Player bs = 1} -> Noun bs Player
-    Them : {auto 0 ok : countManys Object bs = 1} -> Noun bs Object
-    ThemVerbed : (v : VerbLabel) -> {auto 0 kn : KnownVerb v} ->
-                 {auto 0 ok : countVerbedThem v bs = 1} -> Noun bs Object
-    Those : (w : NounWord) -> {auto 0 ok : countManyWord w bs = 1} -> Noun bs (kindOfW w)
-    That : (w : NounWord) -> {auto 0 ok : countWord w bs = 1} -> Noun bs (kindOfW w)
-    ThatHalf : (w : NounWord) -> {auto 0 ok : countUnionHalf w bs = 1} ->
-               Noun bs (kindOfW w)
     AttachHost : (w : AttachWord) -> (h : NounWord) ->
                  {auto 0 ok : AttachHeadOk w h} -> Noun bs (kindOfW h)
-    TheVerbed : (v : VerbLabel) -> (w : NounWord) ->
-                (marking : VerbedMarking) ->
-                {auto 0 ok : countVerbed v w bs = 1} ->
-                {auto 0 mk : VerbedMarkingOk v marking} -> Noun bs (kindOfW w)
-    ThoseVerbed : (v : VerbLabel) -> (w : NounWord) ->
-                  (marking : VerbedMarking) ->
-                  {auto 0 ok : countManyVerbed v w bs = 1} ->
-                  {auto 0 mk : VerbedMarkingOk v marking} -> Noun bs (kindOfW w)
     ControllerOf : {k : Kind} -> (n : Noun bs k) ->
                    {auto 0 one : nounPlur n = OneOf} ->
                    {auto 0 ck : So (controlKind k)} -> Noun bs Player
@@ -1611,27 +1589,13 @@ mutual
   nounEqRef TheRest _ = False
   nounEqRef TheOther _ = False
   nounEqRef (PileOf _ _) _ = False
-  nounEqRef It It = True
-  nounEqRef It _ = False
-  nounEqRef ItAbility ItAbility = True
-  nounEqRef ItAbility _ = False
-  nounEqRef ItPlayer ItPlayer = True
-  nounEqRef ItPlayer _ = False
-  nounEqRef (ItAt _) _ = False
-  nounEqRef (ItVerbed _) _ = False
-  nounEqRef (ItToken) _ = False
+  nounEqRef (Pro Bare OneOf) (Pro Bare OneOf) = True
+  nounEqRef (Pro (Word AbilityW) OneOf) (Pro (Word AbilityW) OneOf) = True
+  nounEqRef (Pro (Word PlayerW) OneOf) (Pro (Word PlayerW) OneOf) = True
+  nounEqRef (Pro _ _) _ = False
   nounEqRef (ItOtherThan _ _) _ = False
   nounEqRef (ItPrior _ _) _ = False
-  nounEqRef They They = True
-  nounEqRef They _ = False
-  nounEqRef Them _ = False
-  nounEqRef (ThemVerbed _) _ = False
-  nounEqRef (Those _) _ = False
-  nounEqRef (That _) _ = False
-  nounEqRef (ThatHalf _) _ = False
   nounEqRef (AttachHost _ _) _ = False
-  nounEqRef (TheVerbed _ _ _) _ = False
-  nounEqRef (ThoseVerbed _ _ _) _ = False
   nounEqRef (ControllerOf _) _ = False
   nounEqRef (OwnerOf _) _ = False
   nounEqRef (PossessorsOf _ _) _ = False
@@ -1711,31 +1675,18 @@ mutual
   nounDelta TheOther = []
   nounDelta (PileOf q Nothing) =
     MkBinding PartD Object (slicePlur q)
-              (PileP (zoneOfThose PileW bs) (sliceExact q)
-                     (faceOfThose PileW bs))
+              (PileP (zoneOfReach (Word PileW) ManyOf bs) (sliceExact q)
+                     (faceOfReach (Word PileW) ManyOf bs))
       :: sliceCountDelta q
   nounDelta (PileOf q (Just by)) =
     MkBinding PartD Object (slicePlur q)
-              (PileP (zoneOfThose PileW bs) (sliceExact q)
-                     (faceOfThose PileW bs))
+              (PileP (zoneOfReach (Word PileW) ManyOf bs) (sliceExact q)
+                     (faceOfReach (Word PileW) ManyOf bs))
       :: (sliceCountDelta q ++ nounDelta by)
-  nounDelta It = []
-  nounDelta ItAbility = []
-  nounDelta ItPlayer = []
-  nounDelta (ItAt _) = []
-  nounDelta (ItVerbed _) = []
-  nounDelta ItToken = []
+  nounDelta (Pro _ _) = []
   nounDelta (ItOtherThan _ _) = []
   nounDelta (ItPrior _ _) = []
-  nounDelta They = []
-  nounDelta Them = []
-  nounDelta (ThemVerbed _) = []
-  nounDelta (That w) = []
-  nounDelta (ThatHalf w) = []
   nounDelta (AttachHost _ _) = []
-  nounDelta (Those w) = []
-  nounDelta (TheVerbed v w _) = []
-  nounDelta (ThoseVerbed v w _) = []
   nounDelta (ControllerOf n) =
     MkBinding TheD Player OneOf PlayerP :: (selfSubjDelta n ++ nounDelta n)
   nounDelta (OwnerOf n) =
@@ -2366,23 +2317,10 @@ mutual
   anchorPhrase TheRest = False
   anchorPhrase TheOther = False
   anchorPhrase (PileOf _ _) = False
-  anchorPhrase It = True
-  anchorPhrase ItAbility = True
-  anchorPhrase ItPlayer = True
-  anchorPhrase (ItAt _) = True
-  anchorPhrase (ItVerbed _) = True
-  anchorPhrase ItToken = True
+  anchorPhrase (Pro _ _) = True
   anchorPhrase (ItOtherThan _ _) = True
   anchorPhrase (ItPrior _ _) = True
-  anchorPhrase They = True
-  anchorPhrase Them = True
-  anchorPhrase (ThemVerbed _) = True
-  anchorPhrase (Those _) = True
-  anchorPhrase (That _) = True
-  anchorPhrase (ThatHalf _) = True
   anchorPhrase (AttachHost _ _) = True
-  anchorPhrase (TheVerbed _ _ _) = True
-  anchorPhrase (ThoseVerbed _ _ _) = True
   anchorPhrase (ControllerOf _) = True
   anchorPhrase (OwnerOf _) = True
   anchorPhrase (PossessorsOf _ _) = True
@@ -2406,12 +2344,12 @@ mutual
   data PileMention : Noun bs Object -> Type where
     PilePartitive : {0 q : SliceCount bs} ->
                     {0 by : Maybe (Noun bs Player)} ->
-                    {0 ok : countManyWord PileW bs = 1} ->
+                    {0 ok : countReach (Word PileW) ManyOf bs = 1} ->
                     PileMention (PileOf q by {ok})
-    ThatPile : {0 ok : countWord PileW bs = 1} ->
-               PileMention {bs} (That PileW {ok})
-    ThosePiles : {0 ok : countManyWord PileW bs = 1} ->
-                 PileMention {bs} (Those PileW {ok})
+    ThatPile : {0 ok : countReach (Word PileW) OneOf bs = 1} ->
+               PileMention {bs} (Pro (Word PileW) OneOf {ok})
+    ThosePiles : {0 ok : countReach (Word PileW) ManyOf bs = 1} ->
+                 PileMention {bs} (Pro (Word PileW) ManyOf {ok})
 
   public export
   choosable : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
@@ -2443,23 +2381,10 @@ mutual
   choosable TheRest = False
   choosable TheOther = False
   choosable (PileOf _ _) = False
-  choosable It = False
-  choosable ItAbility = False
-  choosable ItPlayer = False
-  choosable (ItAt _) = False
-  choosable (ItVerbed _) = False
-  choosable ItToken = False
+  choosable (Pro _ _) = False
   choosable (ItOtherThan _ _) = False
   choosable (ItPrior _ _) = False
-  choosable They = False
-  choosable Them = False
-  choosable (ThemVerbed _) = False
-  choosable (Those _) = False
-  choosable (That _) = False
-  choosable (ThatHalf _) = False
   choosable (AttachHost _ _) = False
-  choosable (TheVerbed _ _ _) = False
-  choosable (ThoseVerbed _ _ _) = False
   choosable (ControllerOf _) = False
   choosable (OwnerOf _) = False
   choosable (PossessorsOf _ _) = False
@@ -2494,9 +2419,7 @@ mutual
   public export
   groupMention : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
   groupMention (TargetGroup _ _) = True
-  groupMention Them = True
-  groupMention (ThemVerbed _) = True
-  groupMention (Those _) = True
+  groupMention (Pro _ pl) = not (isOne pl)
   groupMention This = False
   groupMention (AsType _ _ _) = False
   groupMention (ResolvedPermanent _) = False
@@ -2524,20 +2447,9 @@ mutual
   groupMention TheRest = False
   groupMention TheOther = False
   groupMention (PileOf _ _) = False
-  groupMention It = False
-  groupMention ItAbility = False
-  groupMention ItPlayer = False
-  groupMention (ItAt _) = False
-  groupMention (ItVerbed _) = False
-  groupMention ItToken = False
   groupMention (ItOtherThan _ _) = False
   groupMention (ItPrior _ _) = False
-  groupMention They = False
-  groupMention (That _) = False
-  groupMention (ThatHalf _) = False
   groupMention (AttachHost _ _) = False
-  groupMention (TheVerbed _ _ _) = False
-  groupMention (ThoseVerbed _ _ _) = True
   groupMention (ControllerOf _) = False
   groupMention (OwnerOf _) = False
   groupMention (PossessorsOf _ _) = False
@@ -2913,11 +2825,12 @@ mutual
   public export
   remarkTest : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k ->
                Maybe (Binding -> Bool)
-  remarkTest It = Just (itReaches OneOf)
-  remarkTest ItAbility = Just (itAbilityReaches OneOf)
-  remarkTest (ItAt sl) = Just (itAtReaches sl)
-  remarkTest (ItVerbed v) = Just (itVerbedReaches v)
-  remarkTest ItToken = Just itTokenReaches
+  remarkTest (Pro Bare pl) = Just (reaches Bare pl)
+  remarkTest (Pro (AtSlot sl) pl) = Just (reaches (AtSlot sl) pl)
+  remarkTest (Pro (Stamped v) pl) = Just (reaches (Stamped v) pl)
+  remarkTest (Pro TokenBorn pl) = Just (reaches TokenBorn pl)
+  remarkTest (Pro (Word AbilityW) OneOf) = Just (reaches (Word AbilityW) OneOf)
+  remarkTest (Pro _ _) = Nothing
   remarkTest (ItOtherThan _ _) = Nothing
   remarkTest (ItPrior _ _) = Nothing
   remarkTest _ = Nothing
@@ -3023,23 +2936,11 @@ mutual
   costNounOk TheRest = True
   costNounOk TheOther = True
   costNounOk (PileOf _ _) = True
-  costNounOk It = True
-  costNounOk ItAbility = True
-  costNounOk ItPlayer = True
-  costNounOk (ItAt _) = True
-  costNounOk (ItVerbed _) = True
-  costNounOk ItToken = True
+  costNounOk (Pro (Verbed _ _ _) _) = False
+  costNounOk (Pro _ _) = True
   costNounOk (ItOtherThan _ _) = True
   costNounOk (ItPrior _ _) = True
-  costNounOk They = True
-  costNounOk Them = True
-  costNounOk (ThemVerbed _) = True
-  costNounOk (Those _) = True
-  costNounOk (That _) = True
-  costNounOk (ThatHalf _) = True
   costNounOk (AttachHost _ _) = True
-  costNounOk (TheVerbed _ _ _) = False
-  costNounOk (ThoseVerbed _ _ _) = False
   costNounOk (ControllerOf _) = True
   costNounOk (OwnerOf _) = True
   costNounOk (PossessorsOf _ _) = True
@@ -3075,23 +2976,10 @@ mutual
   nounIsYou TheRest = False
   nounIsYou TheOther = False
   nounIsYou (PileOf _ _) = False
-  nounIsYou It = False
-  nounIsYou ItAbility = False
-  nounIsYou ItPlayer = False
-  nounIsYou (ItAt _) = False
-  nounIsYou (ItVerbed _) = False
-  nounIsYou ItToken = False
+  nounIsYou (Pro _ _) = False
   nounIsYou (ItOtherThan _ _) = False
   nounIsYou (ItPrior _ _) = False
-  nounIsYou They = False
-  nounIsYou Them = False
-  nounIsYou (ThemVerbed _) = False
-  nounIsYou (Those _) = False
-  nounIsYou (That _) = False
-  nounIsYou (ThatHalf _) = False
   nounIsYou (AttachHost _ _) = False
-  nounIsYou (TheVerbed _ _ _) = False
-  nounIsYou (ThoseVerbed _ _ _) = False
   nounIsYou (ControllerOf _) = False
   nounIsYou (OwnerOf _) = False
   nounIsYou (PossessorsOf _ _) = False
@@ -3127,23 +3015,10 @@ mutual
   nounTargeted TheRest = False
   nounTargeted TheOther = False
   nounTargeted (PileOf _ _) = False
-  nounTargeted It = False
-  nounTargeted ItAbility = False
-  nounTargeted ItPlayer = False
-  nounTargeted (ItAt _) = False
-  nounTargeted (ItVerbed _) = False
-  nounTargeted ItToken = False
+  nounTargeted (Pro _ _) = False
   nounTargeted (ItOtherThan _ _) = False
   nounTargeted (ItPrior _ _) = False
-  nounTargeted They = False
-  nounTargeted Them = False
-  nounTargeted (ThemVerbed _) = False
-  nounTargeted (Those _) = False
-  nounTargeted (That _) = False
-  nounTargeted (ThatHalf _) = False
   nounTargeted (AttachHost _ _) = False
-  nounTargeted (TheVerbed _ _ _) = False
-  nounTargeted (ThoseVerbed _ _ _) = False
   nounTargeted (ControllerOf _) = False
   nounTargeted (OwnerOf _) = False
   nounTargeted (PossessorsOf _ _) = False
@@ -3155,17 +3030,19 @@ mutual
 
   public export
   counterMemoryOk : {bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
-  counterMemoryOk It = not (stampMoves (provOfIt bs))
-  counterMemoryOk ItAbility = True
-  counterMemoryOk (ItAt sl) = not (stampMoves (provOfItAt sl bs))
-  counterMemoryOk (ItVerbed v) = not (stampMoves (provOfVerbedIt v bs))
-  counterMemoryOk ItToken = not (stampMoves (provOfItToken bs))
-  counterMemoryOk (ItOtherThan _ rest) = not (stampMoves (provOfIt rest))
-  counterMemoryOk (ItPrior made _) = not (stampMoves (provOfIt made))
-  counterMemoryOk Them = not (stampMoves (provOfThem bs))
-  counterMemoryOk (ThemVerbed v) = not (stampMoves (provOfVerbedThem v bs))
-  counterMemoryOk (TheVerbed _ _ _) = False
-  counterMemoryOk (ThoseVerbed _ _ _) = False
+  counterMemoryOk (Pro (Verbed _ _ _) _) = False
+  counterMemoryOk (Pro Bare pl) = not (stampMoves (provOfReach Bare pl bs))
+  counterMemoryOk (Pro (AtSlot sl) pl) =
+    not (stampMoves (provOfReach (AtSlot sl) pl bs))
+  counterMemoryOk (Pro (Stamped v) pl) =
+    not (stampMoves (provOfReach (Stamped v) pl bs))
+  counterMemoryOk (Pro TokenBorn pl) =
+    not (stampMoves (provOfReach TokenBorn pl bs))
+  counterMemoryOk (Pro _ _) = True
+  counterMemoryOk (ItOtherThan _ rest) =
+    not (stampMoves (provOfReach Bare OneOf rest))
+  counterMemoryOk (ItPrior made _) =
+    not (stampMoves (provOfReach Bare OneOf made))
   counterMemoryOk _ = True
 
   public export
@@ -3174,15 +3051,13 @@ mutual
 
   public export
   moveDestOk : {bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
-  moveDestOk It = False
-  moveDestOk ItAbility = False
-  moveDestOk (ItAt _) = False
-  moveDestOk (ItVerbed _) = False
-  moveDestOk ItToken = False
+  moveDestOk (Pro Bare _) = False
+  moveDestOk (Pro (AtSlot _) _) = False
+  moveDestOk (Pro (Stamped _) _) = False
+  moveDestOk (Pro TokenBorn _) = False
+  moveDestOk (Pro _ _) = True
   moveDestOk (ItOtherThan _ _) = False
   moveDestOk (ItPrior _ _) = False
-  moveDestOk Them = False
-  moveDestOk (ThemVerbed _) = False
   moveDestOk _ = True
 
   public export
@@ -3246,80 +3121,12 @@ mutual
   setZoneHead p z (b :: bs) = setZone p z b :: bs
 
   public export
-  setZoneIt : Maybe VerbLabel -> Maybe Zone -> Bindings -> Bindings
-  setZoneIt p z [] = []
-  setZoneIt p z (b :: bs) =
-    if itReaches OneOf b then setZone p z b :: bs else b :: setZoneIt p z bs
-
-  public export
-  setZoneItAt : SlotCarrier -> Maybe VerbLabel -> Maybe Zone -> Bindings -> Bindings
-  setZoneItAt sl p z [] = []
-  setZoneItAt sl p z (b :: bs) =
-    if itAtReaches sl b then setZone p z b :: bs else b :: setZoneItAt sl p z bs
-
-  public export
-  setZoneVerbedIt : VerbLabel -> Maybe VerbLabel -> Maybe Zone -> Bindings -> Bindings
-  setZoneVerbedIt v p z [] = []
-  setZoneVerbedIt v p z (b :: bs) =
-    if itVerbedReaches v b then setZone p z b :: bs
-                           else b :: setZoneVerbedIt v p z bs
-
-  public export
-  setZoneItToken : Maybe VerbLabel -> Maybe Zone -> Bindings -> Bindings
-  setZoneItToken p z [] = []
-  setZoneItToken p z (b :: bs) =
-    if itTokenReaches b then setZone p z b :: bs
-                        else b :: setZoneItToken p z bs
-
-  public export
-  setZoneUnionHalf : Maybe VerbLabel -> NounWord -> Maybe Zone -> Bindings -> Bindings
-  setZoneUnionHalf p w z [] = []
-  setZoneUnionHalf p w z (b :: bs) =
-    if isOne b.plur && joinedPayload b.payload && halfReaches w b.payload
-      then setZone p z b :: bs
-      else b :: setZoneUnionHalf p w z bs
-
-  public export
-  setZoneThem : Maybe VerbLabel -> Maybe Zone -> Bindings -> Bindings
-  setZoneThem p z [] = []
-  setZoneThem p z (b :: bs) =
-    if itReaches ManyOf b then setZone p z b :: bs else b :: setZoneThem p z bs
-
-  public export
-  setZoneVerbedThem : VerbLabel -> Maybe VerbLabel -> Maybe Zone -> Bindings -> Bindings
-  setZoneVerbedThem v p z [] = []
-  setZoneVerbedThem v p z (b :: bs) =
-    if themVerbedReaches v b then setZone p z b :: bs
-                             else b :: setZoneVerbedThem v p z bs
-
-  public export
-  setZoneThose : Maybe VerbLabel -> NounWord -> Maybe Zone -> Bindings -> Bindings
-  setZoneThose p w z [] = []
-  setZoneThose p w z (b :: bs) =
-    case (b.plur, wordNow w b) of
-      (ManyOf, True) => setZone p z b :: bs
-      _ => b :: setZoneThose p w z bs
-
-  public export
-  setZoneThat : Maybe VerbLabel -> NounWord -> Maybe Zone -> Bindings -> Bindings
-  setZoneThat p w z [] = []
-  setZoneThat p w z (b :: bs) =
-    case (b.plur, wordNow w b) of
-      (OneOf, True) => setZone p z b :: bs
-      _ => b :: setZoneThat p w z bs
-
-  public export
-  setZoneVerbed : Maybe VerbLabel -> VerbLabel -> NounWord -> Maybe Zone -> Bindings -> Bindings
-  setZoneVerbed p v w z [] = []
-  setZoneVerbed p v w z (b :: bs) =
-    if verbedMatch v w b then setZone p z b :: bs else b :: setZoneVerbed p v w z bs
-
-  public export
-  setZoneManyVerbed : Maybe VerbLabel -> VerbLabel -> NounWord -> Maybe Zone -> Bindings -> Bindings
-  setZoneManyVerbed p v w z [] = []
-  setZoneManyVerbed p v w z (b :: bs) =
-    if verbedMatchMany v w b then setZone p z b :: bs
-                             else b :: setZoneManyVerbed p v w z bs
+  setZoneReach : Reach -> Plurality -> Maybe VerbLabel -> Maybe Zone ->
+                 Bindings -> Bindings
+  setZoneReach r pl p z [] = []
+  setZoneReach r pl p z (b :: bs) =
+    if reaches r pl b then setZone p z b :: bs
+                       else b :: setZoneReach r pl p z bs
 
   public export
   stampIntro : {bs : Bindings} -> {k : Kind} -> Maybe VerbLabel -> Noun bs k -> Bindings
@@ -3345,20 +3152,9 @@ mutual
   moveIntro p TheRest z = groupSpent bs
   moveIntro p TheOther z = groupSpent bs
   moveIntro p nn@(PileOf _ _) z = setZoneHead p z (nomIntro nn)
-  moveIntro p It z = setZoneIt p z bs
-  moveIntro p ItAbility z = bs
-  moveIntro p (ItAt sl) z = setZoneItAt sl p z bs
-  moveIntro p (ItVerbed v) z = setZoneVerbedIt v p z bs
-  moveIntro p ItToken z = setZoneItToken p z bs
-  moveIntro p (ItOtherThan co rest) z = co ++ setZoneIt p z rest
-  moveIntro p (ItPrior made before) z = setZoneIt p z made ++ before
-  moveIntro p Them z = setZoneThem p z bs
-  moveIntro p (ThemVerbed v) z = setZoneVerbedThem v p z bs
-  moveIntro p (That w) z = setZoneThat p w z bs
-  moveIntro p (ThatHalf w) z = setZoneUnionHalf p w z bs
-  moveIntro p (Those w) z = setZoneThose p w z bs
-  moveIntro p (TheVerbed v w _) z = setZoneVerbed p v w z bs
-  moveIntro p (ThoseVerbed v w _) z = setZoneManyVerbed p v w z bs
+  moveIntro p (Pro r pl) z = setZoneReach r pl p z bs
+  moveIntro p (ItOtherThan co rest) z = co ++ setZoneReach Bare OneOf p z rest
+  moveIntro p (ItPrior made before) z = setZoneReach Bare OneOf p z made ++ before
   moveIntro p This z =
     MkBinding SelfD Object OneOf (ObjectP Nothing z (mkStamp p Nothing (isJust z)) Nothing Nothing) :: bs
   moveIntro p (AttachHost _ (TypeW t)) z =
@@ -3404,11 +3200,9 @@ mutual
               (ObjectP Nothing z (mkStamp p (Just Command) (not (z == Just Command))) Nothing Nothing)
       :: bs
   moveIntro p You z = bs
-  moveIntro p ItPlayer z = bs
   moveIntro p TheDefendingPlayer z = bs
   moveIntro p TheAttackingPlayer z = bs
   moveIntro p (PlayerGroup _) z = bs
-  moveIntro p They z = bs
   moveIntro p (ControllerOf n) z = nomIntro (ControllerOf n)
   moveIntro p (OwnerOf n) z = nomIntro (OwnerOf n)
   moveIntro p (PossessorsOf ax n) z = nomIntro (PossessorsOf ax n)
@@ -3417,20 +3211,9 @@ mutual
   public export
   nounProv : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Maybe Stamp
   nounProv TheRest = provOfGroup bs
-  nounProv It = provOfIt bs
-  nounProv ItAbility = Nothing
-  nounProv (ItAt sl) = provOfItAt sl bs
-  nounProv (ItVerbed v) = provOfVerbedIt v bs
-  nounProv ItToken = provOfItToken bs
-  nounProv (ItOtherThan _ rest) = provOfIt rest
-  nounProv (ItPrior made _) = provOfIt made
-  nounProv Them = provOfThem bs
-  nounProv (ThemVerbed v) = provOfVerbedThem v bs
-  nounProv (That w) = provOfThat w bs
-  nounProv (ThatHalf w) = provOfUnionHalf w bs
-  nounProv (Those w) = provOfThose w bs
-  nounProv (TheVerbed v w _) = provOfVerbed v w bs
-  nounProv (ThoseVerbed v w _) = provOfManyVerbed v w bs
+  nounProv (Pro r pl) = provOfReach r pl bs
+  nounProv (ItOtherThan _ rest) = provOfReach Bare OneOf rest
+  nounProv (ItPrior made _) = provOfReach Bare OneOf made
   nounProv (EachOf grp) = nounProv grp
   nounProv (NamesAgree _ grp) = nounProv grp
   nounProv (SomeOf _ _ grp) = nounProv grp
@@ -3465,24 +3248,11 @@ mutual
   nounZone (SomeOf _ _ grp) = nounZone grp
   nounZone TheRest = zoneOfGroup bs
   nounZone TheOther = zoneOfGroup bs
-  nounZone (PileOf _ _) = zoneOfThose PileW bs
-  nounZone It = zoneOfIt bs
-  nounZone ItAbility = Nothing
-  nounZone ItPlayer = Nothing
-  nounZone (ItAt sl) = zoneOfItAt sl bs
-  nounZone (ItVerbed v) = zoneOfVerbedIt v bs
-  nounZone ItToken = zoneOfItToken bs
-  nounZone (ItOtherThan _ rest) = zoneOfIt rest
-  nounZone (ItPrior made _) = zoneOfIt made
-  nounZone They = Nothing
-  nounZone Them = zoneOfThem bs
-  nounZone (ThemVerbed v) = zoneOfVerbedThem v bs
-  nounZone (That w) = zoneOfThat w bs
-  nounZone (ThatHalf w) = zoneOfUnionHalf w bs
+  nounZone (PileOf _ _) = zoneOfReach (Word PileW) ManyOf bs
+  nounZone (Pro r pl) = zoneOfReach r pl bs
+  nounZone (ItOtherThan _ rest) = zoneOfReach Bare OneOf rest
+  nounZone (ItPrior made _) = zoneOfReach Bare OneOf made
   nounZone (AttachHost _ h) = attachHostZone h
-  nounZone (Those w) = zoneOfThose w bs
-  nounZone (TheVerbed v w _) = zoneOfVerbed v w bs
-  nounZone (ThoseVerbed v w _) = zoneOfManyVerbed v w bs
   nounZone (ControllerOf n) = Nothing
   nounZone (OwnerOf n) = Nothing
   nounZone (PossessorsOf _ n) = Nothing
@@ -3518,23 +3288,10 @@ mutual
   nounTy TheRest = tyOfGroup bs
   nounTy TheOther = tyOfGroup bs
   nounTy (PileOf _ _) = Nothing
-  nounTy It = tyOfIt bs
-  nounTy ItAbility = Nothing
-  nounTy ItPlayer = Nothing
-  nounTy (ItAt sl) = tyOfItAt sl bs
-  nounTy (ItVerbed v) = tyOfVerbedIt v bs
-  nounTy ItToken = tyOfItToken bs
-  nounTy (ItOtherThan _ rest) = tyOfIt rest
-  nounTy (ItPrior made _) = tyOfIt made
-  nounTy They = Nothing
-  nounTy Them = tyOfThem bs
-  nounTy (ThemVerbed v) = tyOfVerbedThem v bs
-  nounTy (That w) = tyOfThat w bs
-  nounTy (ThatHalf w) = tyOfUnionHalf w bs
+  nounTy (Pro r pl) = tyOfReach r pl bs
+  nounTy (ItOtherThan _ rest) = tyOfReach Bare OneOf rest
+  nounTy (ItPrior made _) = tyOfReach Bare OneOf made
   nounTy (AttachHost _ h) = attachHostTy h
-  nounTy (Those w) = tyOfThose w bs
-  nounTy (TheVerbed v w _) = tyOfVerbed v w bs
-  nounTy (ThoseVerbed v w _) = tyOfManyVerbed v w bs
   nounTy (ControllerOf n) = Nothing
   nounTy (OwnerOf n) = Nothing
   nounTy (PossessorsOf _ n) = Nothing
@@ -3607,23 +3364,10 @@ mutual
   nounPlur TheRest = ManyOf
   nounPlur TheOther = OneOf
   nounPlur (PileOf q _) = slicePlur q
-  nounPlur It = OneOf
-  nounPlur ItAbility = OneOf
-  nounPlur ItPlayer = OneOf
-  nounPlur (ItAt _) = OneOf
-  nounPlur (ItVerbed _) = OneOf
-  nounPlur ItToken = OneOf
+  nounPlur (Pro _ pl) = pl
   nounPlur (ItOtherThan _ _) = OneOf
   nounPlur (ItPrior _ _) = OneOf
-  nounPlur They = OneOf
-  nounPlur Them = ManyOf
-  nounPlur (ThemVerbed _) = ManyOf
-  nounPlur (That w) = OneOf
-  nounPlur (ThatHalf w) = OneOf
   nounPlur (AttachHost _ _) = OneOf
-  nounPlur (Those w) = ManyOf
-  nounPlur (TheVerbed v w _) = OneOf
-  nounPlur (ThoseVerbed v w _) = ManyOf
   nounPlur (ControllerOf n) = OneOf
   nounPlur (OwnerOf n) = OneOf
   nounPlur (PossessorsOf _ _) = ManyOf
