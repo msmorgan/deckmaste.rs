@@ -356,7 +356,7 @@ badCounteredInGraveyard Oh impossible
 public export
 badChapterOnNonSaga : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip White]) [] (MkTypeLine [] [Enchantment])
-       [ Triggered When (ChapterMark [ChapterI]) [] Nothing [] Nothing Nothing Nothing Macros.drawACard ]
+       [ Triggered When (ChapterMark [ChapterI]) [] Nothing [] Nothing Nothing Nothing (Macros.draw You (Lit 1)) ]
        Nothing {ch = ok})
 badChapterOnNonSaga Oh impossible
 
@@ -364,7 +364,7 @@ badChapterOnNonSaga Oh impossible
 ||| "— Draw a card."
 public export
 badEmptyChapterMark : Unspellable Ability (\ok =>
-  Triggered When (ChapterMark [] {cm = ok}) [] Nothing [] Nothing Nothing Nothing Macros.drawACard)
+  Triggered When (ChapterMark [] {cm = ok}) [] Nothing [] Nothing Nothing Nothing (Macros.draw You (Lit 1)))
 badEmptyChapterMark Oh impossible
 
 
@@ -372,7 +372,7 @@ badEmptyChapterMark Oh impossible
 ||| [CR#107.15b] expands the joined marker into one ability per numeral, so a repeat prints one twice.
 public export
 badRepeatedChapterMark : Unspellable Ability (\ok =>
-  Triggered When (ChapterMark [ChapterII, ChapterII] {cm = ok}) [] Nothing [] Nothing Nothing Nothing Macros.drawACard)
+  Triggered When (ChapterMark [ChapterII, ChapterII] {cm = ok}) [] Nothing [] Nothing Nothing Nothing (Macros.draw You (Lit 1)))
 badRepeatedChapterMark Oh impossible
 
 
@@ -381,7 +381,7 @@ badRepeatedChapterMark Oh impossible
 public export
 badChapterLimit : Unspellable Ability (\ok =>
   Triggered When (ChapterMark [ChapterI]) [] Nothing [] Nothing (Just OncePerTurn) Nothing
-    Macros.drawACard {cd = ok})
+    (Macros.draw You (Lit 1)) {cd = ok})
 badChapterLimit Oh impossible
 
 
@@ -390,14 +390,14 @@ badChapterLimit Oh impossible
 public export
 badChapterIntervening : Unspellable Ability (\ok =>
   Triggered When (ChapterMark [ChapterI]) [] Nothing [] Nothing Nothing (Just (Exists (And [Macros.creature, ControlledBy You])))
-    Macros.drawACard {cd = ok})
+    (Macros.draw You (Lit 1)) {cd = ok})
 badChapterIntervening Oh impossible
 
 
 ||| "{T}: Draw a card. Do this only once each turn."
 public export
 badActionLimitOnActivated : Unspellable Ability (\ok =>
-  Activated TapSymbol Macros.drawACard Nothing (Just ActionOncePerTurn) Nothing
+  Activated TapSymbol (Macros.draw You (Lit 1)) Nothing (Just ActionOncePerTurn) Nothing
             Nothing {ul = ok})
 badActionLimitOnActivated Oh impossible
 
@@ -408,7 +408,7 @@ badChapterWhile : Unspellable Ability (\ok =>
   Triggered When (ChapterMark [ChapterI]) []
     (Just (Macros.whileState (Exists (And [Macros.creature, ControlledBy You]))))
     [] Nothing Nothing Nothing
-    Macros.drawACard {cd = ok})
+    (Macros.draw You (Lit 1)) {cd = ok})
 badChapterWhile Oh impossible
 
 
@@ -418,14 +418,14 @@ badChapterJoin : Unspellable Ability (\ok =>
   Triggered When (ChapterMark [ChapterI]) [] Nothing
     [ Macros.joinedHead Whenever (Draws You) ]
     Nothing Nothing Nothing
-    Macros.drawACard {cd = ok})
+    (Macros.draw You (Lit 1)) {cd = ok})
 badChapterJoin Oh impossible
 
 
 ||| "If I — would happen, draw a card instead."
 public export
 badChapterReplacement : Unspellable (StaticEffect []) (\ok =>
-  Intercepts (ChapterMark [ChapterI]) [] Nothing Macros.drawACard Repeatedly Nothing {ok})
+  Intercepts (ChapterMark [ChapterI]) [] Nothing (Macros.draw You (Lit 1)) Repeatedly Nothing {ok})
 badChapterReplacement Oh impossible
 
 

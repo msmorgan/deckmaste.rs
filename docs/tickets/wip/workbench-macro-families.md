@@ -53,3 +53,11 @@ surviving lemma spelling; `itPrior` takes no caller-supplied proof; no macro re-
 than once (`grep -c deonticRiderOk Macros.idr` = 1); every bench witness that
 used a deleted macro is re-spelled against the survivor and still typechecks.
 Standard constraints apply.
+
+## As landed
+
+- Agreement and arity families collapsed to the explicit-agent `draw`, `scry`, `surveil`, `exile`, `discard`, `gainControl`, `shuffleInto`, `flipCoins`, and `rollDice` spellings; `may` and `IfDone` branches use their core constructors directly.
+- The play-permission family collapsed to `mayPlayDeed deed who what rider`, with `fromZ`, `free`, `paying`, `onceEachYourTurn`, `duringEachYourTurn`, and `whileSearching` rider values and one `deonticRiderOk` preamble.
+- All 26 dead macros were deleted and every use under `idris/src/Experimental/` was re-spelled through a surviving macro or core constructor; no part was left undone.
+- `itPrior` now splits `effIntro prev` with its internal `takeDropAppend` proof; the re-spelled printed witnesses are `thranduilsCompany` and `stunningShot`.
+- Other re-spelled printed witnesses include `opt`, `serumVisions`, `consider`, `bumiScryMode`, `carefulStudy`, `chanceEncounter`, `panglacialWurmCast`, and `castSmallCreatureFromTopOnceEachTurn`; representative re-spelled `Unspellable` pins are `badCastsPluralComplement`, `badStaleCarrier`, `badDiscardIt`, `badDrawnCardRemention`, `badGainControlGraveyard`, `badNestedInstead`, `badIfNotReadsMandatoryBody`, `badThatMuchAfterFlip`, `badAmountRollRow`, and `badIfDoneOverScheduledBody`, with no new or re-spelled `failing` block.

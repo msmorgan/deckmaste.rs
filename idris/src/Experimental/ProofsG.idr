@@ -386,7 +386,7 @@ badBareActivationLookback Oh impossible
 ||| The possessive slot takes the attachment anaphor; every other possessor is a word.
 public export
 badNounPossessorYou : Unspellable Ability (\ok =>
-  Triggered At (BeginningOf Upkeep (ByNoun You {pn = ok})) [] Nothing [] Nothing Nothing Nothing Macros.drawACard)
+  Triggered At (BeginningOf Upkeep (ByNoun You {pn = ok})) [] Nothing [] Nothing Nothing Nothing (Macros.draw You (Lit 1)))
 badNounPossessorYou AttachedPossessor impossible
 
 
@@ -534,7 +534,7 @@ badDealtThisWayAbility Oh impossible
 ||| "Flip a coin. Draw that many cards."
 public export
 badThatMuchAfterFlip : Unspellable (Effect []) (\ok =>
-  Sequentially [Macros.flipACoin, Draw You (ThatMuch {ok})])
+  Sequentially [(Macros.flipCoins You 1), Draw You (ThatMuch {ok})])
 badThatMuchAfterFlip Refl impossible
 
 ||| "If you win the flip, draw a card."
@@ -601,7 +601,7 @@ badSpellFlipHalf Oh impossible
 public export
 badConspiracyActivated : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Conspiracy])
-       [ Macros.activated (Mana [Macros.generic 1]) Macros.drawACard ] Nothing {tx = ok})
+       [ Macros.activated (Mana [Macros.generic 1]) (Macros.draw You (Lit 1)) ] Nothing {tx = ok})
 badConspiracyActivated Oh impossible
 
 ||| a static ability printed on a dungeon card
@@ -643,9 +643,9 @@ badAggregateOfWrongSort Refl impossible
 ||| "up to X | Draw a card."
 public export
 badAmountRollRow : Unspellable (Effect []) (\ok =>
-  Sequentially [Macros.rollADie 20,
+  Sequentially [(Macros.rollDice You 1 20),
                 ResultsTable [MkRollRow (UpToOf (LetterVal X))
-                                        Macros.drawACard {lt = ok}]])
+                                        (Macros.draw You (Lit 1)) {lt = ok}]])
 badAmountRollRow Oh impossible
 
 ||| "This deals 3 damage to target player or planeswalker. That player or that creature's controller discards a card."
@@ -655,8 +655,7 @@ badCreatureHalfRead : Unspellable (Effect []) (\ok =>
   Sequentially
     [ DealDamage This (Lit 3)
         (Macros.target (Macros.kindJoin AnyPlayer (HasType Planeswalker)))
-    , Macros.discardsACard
-        (Macros.thatSplitController (That (TypeW Creature) {ok = ok})) ])
+    , (Macros.discard (Macros.thatSplitController (That (TypeW Creature) {ok = ok})) (Macros.a (InZone Macros.handZ))) ])
 badCreatureHalfRead Refl impossible
 
 ||| "Whenever a creature attacks a planeswalker or a creature"
@@ -767,7 +766,7 @@ badRolledDoublesWithoutRoll Refl impossible
 ||| The discourse after "Flip a coin."
 public export
 afterACoinFlip : Bindings
-afterACoinFlip = effIntro (the (Effect []) Macros.flipACoin)
+afterACoinFlip = effIntro (the (Effect []) (Macros.flipCoins You 1))
 
 ||| "an ability whose coin comes up tails"
 public export
@@ -911,7 +910,7 @@ public export
 afterShuffledIntoLook : Bindings
 afterShuffledIntoLook =
   effIntro (the (Effect [])
-    (Sequentially [ Macros.lookAt Macros.topCard, Macros.shuffleInto This ]))
+    (Sequentially [ Macros.lookAt Macros.topCard, Macros.shuffleInto You This ]))
 
 ||| "Look at the top card of your library. Shuffle this card into its owner's library. Put that card into your hand."
 public export
@@ -1283,7 +1282,7 @@ badIfDoneWithNeitherArm Oh impossible
 public export
 badIfDoneOverAgentlessBody : Unspellable (Effect []) (\ok =>
   IfDone (DealDamage Macros.thisCreature (Lit 3) (Macros.target Macros.anyTarget))
-         (Just Macros.drawACard) Nothing {en = ok})
+         (Just (Macros.draw You (Lit 1))) Nothing {en = ok})
 badIfDoneOverAgentlessBody Oh impossible
 
 
@@ -1291,7 +1290,7 @@ badIfDoneOverAgentlessBody Oh impossible
 ||| The clause schedules its action rather than taking it, so nothing has "occurred earlier during the resolution" [CR#603.12] for the arm to test.
 public export
 badIfDoneOverScheduledBody : Unspellable (Effect []) (\ok =>
-  IfDone (ExtraTurn You (Lit 1)) (Just Macros.drawACard) Nothing {en = ok})
+  IfDone (ExtraTurn You (Lit 1)) (Just (Macros.draw You (Lit 1))) Nothing {en = ok})
 badIfDoneOverScheduledBody Oh impossible
 
 
@@ -1339,7 +1338,7 @@ voteStartingWithSpecifiedPlayer =
 public export
 oneWayResultShift : Effect []
 oneWayResultShift =
-  Sequentially [Macros.rollADie 6, ShiftResultOneWay True (Lit 1)]
+  Sequentially [(Macros.rollDice You 1 6), ShiftResultOneWay True (Lit 1)]
 
 public export
 objectScopedChaos : Effect []
@@ -1363,7 +1362,7 @@ namedAdditionalPartAnchor =
 public export
 badDelayedDoorDeixis : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Instant])
-    [Spell (Delayed (UnlocksDoor You ThisDoor) [] Nothing Macros.drawACard
+    [Spell (Delayed (UnlocksDoor You ThisDoor) [] Nothing (Macros.draw You (Lit 1))
                     {so = DelayOnce})]
     Nothing {dr = ok})
 badDelayedDoorDeixis Oh impossible
@@ -1389,7 +1388,7 @@ playerItRead = They
 public export
 delayedDoorTraversal :
   effectNamesThisDoor
-    (Delayed (UnlocksDoor You ThisDoor) [] Nothing Macros.drawACard
+    (Delayed (UnlocksDoor You ThisDoor) [] Nothing (Macros.draw You (Lit 1))
              {so = DelayOnce}) = True
 delayedDoorTraversal = Refl
 

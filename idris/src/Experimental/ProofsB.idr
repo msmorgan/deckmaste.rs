@@ -28,7 +28,7 @@ badDoubleOther Oh impossible
 public export
 badDiscardIt : Unspellable
   (Effect [MkBinding AD Object OneOf (ObjectP Nothing Nothing Nothing Nothing Nothing)])
-  (\ok => Macros.discards You It {dk = ok})
+  (\ok => Macros.discard You It {dk = ok})
 badDiscardIt DiscardTracked impossible
 
 
@@ -292,7 +292,7 @@ badConditionAntecedent (Refl, _) impossible
 ||| The if-you-don't arm runs exactly when the body did not, so the body's phrase named nothing.
 public export
 badIfNotReadsMayBody : Unspellable (Effect []) (\ok =>
-  Macros.mayElse You (Macros.sacrifice You (Macros.a Macros.creature)) (Macros.exile (It {ok})))
+  (May You (Macros.sacrifice You (Macros.a Macros.creature)) Nothing (Just (Macros.exile You (It {ok})))))
 badIfNotReadsMayBody Refl impossible
 
 
@@ -425,7 +425,7 @@ badReadsAfterModal (_, OnField) impossible
 ||| A drawn card is not a mention, so nothing later can read it.
 public export
 badDrawnCardRemention : Unspellable (Effect []) (\ok =>
-  Sequentially [Macros.drawACard, Macros.exile (That CardW {ok})])
+  Sequentially [(Macros.draw You (Lit 1)), Macros.exile You (That CardW {ok})])
 badDrawnCardRemention Refl impossible
 
 
@@ -433,7 +433,7 @@ badDrawnCardRemention Refl impossible
 ||| A player normally cannot choose the same mode more than once [CR#700.2,700.2d].
 public export
 badDuplicateModes : Unspellable (Effect []) (\ok =>
-  Macros.chooseOne [Macros.drawACard, Macros.drawACard] {dm = ok})
+  Macros.chooseOne [(Macros.draw You (Lit 1)), (Macros.draw You (Lit 1))] {dm = ok})
 badDuplicateModes Refl impossible
 
 
@@ -529,7 +529,7 @@ badEmptySimultaneous ItIsSucc impossible
 ||| "Exile target creature and destroy that card."
 public export
 badSimultaneousReadsRetag : Unspellable (Effect []) (\ok =>
-  Simultaneously [Macros.exile (Macros.target Macros.creature),
+  Simultaneously [Macros.exile You (Macros.target Macros.creature),
                   Macros.destroy (That CardW {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badSimultaneousReadsRetag (_, OnField) impossible
 
@@ -582,5 +582,5 @@ badBatchTwoOutcomesThenThatMuch Refl impossible
 ||| An object neither on the stack nor on the battlefield has no controller [CR#109.4].
 public export
 badGainControlGraveyard : Unspellable (Effect []) (\ok =>
-  Macros.gainControl (Macros.target (And [Macros.creature, InZone Macros.graveyardZ])) Nothing {zn = ok})
+  Macros.gainControl You (Macros.target (And [Macros.creature, InZone Macros.graveyardZ])) Nothing {zn = ok})
 badGainControlGraveyard Oh impossible

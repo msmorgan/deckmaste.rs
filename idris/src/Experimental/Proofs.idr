@@ -73,7 +73,7 @@ badSliceOfCountedPossessor Oh impossible
 public export
 badCastsPluralComplement : Unspellable (Ability) (\ok =>
   Triggered Whenever (Casts You (AllOf Macros.spell) Nothing {one = ok}) [] Nothing [] Nothing Nothing Nothing
-            Macros.drawACard)
+            (Macros.draw You (Lit 1)))
 badCastsPluralComplement Refl impossible
 
 
@@ -160,7 +160,7 @@ badDelayedOther Refl impossible
 ||| Exile retags the carrier [CR#110.1], so the typed demonstrative has no antecedent.
 public export
 badStaleCarrier : Unspellable (Effect []) (\ok =>
-  Sequentially [Macros.exile (Macros.target Macros.creatureYouControl),
+  Sequentially [Macros.exile You (Macros.target Macros.creatureYouControl),
                Move (That (TypeW Creature) {ok}) Macros.battlefieldZ []])
 badStaleCarrier Refl impossible
 
@@ -177,9 +177,9 @@ badHiddenCost (Refl, _) impossible
 ||| Two cost moves leave a bare "It" past the colon ambiguous.
 public export
 badTwoCostMentions : Unspellable Ability (\ok =>
-  Activated (Compound [Do (Macros.discardsACard You),
+  Activated (Compound [Do ((Macros.discard You (Macros.a (InZone Macros.handZ)))),
                        Do (Macros.sacrifice You (Macros.a Macros.creature))])
-            (Macros.exile (It {ok})) Nothing Nothing Nothing Nothing)
+            (Macros.exile You (It {ok})) Nothing Nothing Nothing Nothing)
 badTwoCostMentions Refl impossible
 
 
@@ -187,7 +187,7 @@ badTwoCostMentions Refl impossible
 ||| An exiled referent is not sacrificeable [CR#701.21a].
 public export
 badSacrificeExiled : Unspellable (Effect []) (\ok =>
-  Sequentially [Macros.exile (Macros.target Macros.creature),
+  Sequentially [Macros.exile You (Macros.target Macros.creature),
                Macros.sacrifice You It {ok}])
 badSacrificeExiled OnField impossible
 
@@ -240,7 +240,7 @@ badInnerAmbig Refl impossible
 ||| The participle's verb filter has no witness: nothing was sacrificed.
 public export
 badVerbedWrongVerb : Unspellable Ability (\ok =>
-  Activated (Do (Macros.discardsACard You))
+  Activated (Do ((Macros.discard You (Macros.a (InZone Macros.handZ)))))
             (Move (TheVerbed "Sacrifice" CardW Attributive {ok}) Macros.battlefieldZ []) Nothing Nothing Nothing Nothing)
 badVerbedWrongVerb Refl impossible
 
@@ -268,7 +268,7 @@ badVerbedAmbig Refl impossible
 public export
 badBareCardRead : Unspellable Ability (\ok =>
   Activated (Do (Macros.sacrifice You (Macros.a Macros.creature)))
-            (Sequentially [Macros.exile (Macros.target Macros.creature),
+            (Sequentially [Macros.exile You (Macros.target Macros.creature),
                            Delayed (BeginningOf EndStep NoPossessor) [] Nothing (Move (That CardW {ok}) Macros.battlefieldZ [])]) Nothing Nothing Nothing Nothing)
 badBareCardRead Refl impossible
 
@@ -472,7 +472,7 @@ badDestroyGraveyard OnField impossible
 ||| Discarding moves a card from a HAND [CR#701.9a].
 public export
 badDiscardBattlefield : Unspellable (Effect []) (\ok =>
-  Macros.discards You (Macros.a Macros.creature) {dk = ok})
+  Macros.discard You (Macros.a Macros.creature) {dk = ok})
 badDiscardBattlefield DiscardTracked impossible
 
 
@@ -510,7 +510,7 @@ badOwnedBattlefield HandIsOwned impossible
 ||| A bare type word denotes a permanent [CR#109.2]; what was discarded left a hand [CR#701.9a].
 public export
 badDiscardedCreatureWord : Unspellable Ability (\ok =>
-  Activated (Do (Macros.discards You (Macros.aAtRandom (And [Macros.creature, InZone Macros.handZ]))))
+  Activated (Do (Macros.discard You (Macros.aAtRandom (And [Macros.creature, InZone Macros.handZ]))))
             (DealDamage This
                           (Macros.manaValueOf (TheVerbed "Discard" (TypeW Creature) Attributive {ok}))
                           (Macros.target Macros.anyTarget)) Nothing Nothing Nothing Nothing)
@@ -587,7 +587,7 @@ badAttackingInHand Oh impossible
 ||| A type-worded self-reference denotes the permanent [CR#109.2], not a hand card [CR#701.9a].
 public export
 badDiscardThisCreature : Unspellable (Effect []) (\ok =>
-  Macros.discards You Macros.thisCreature {dk = ok})
+  Macros.discard You Macros.thisCreature {dk = ok})
 badDiscardThisCreature DiscardTracked impossible
 
 
@@ -657,5 +657,5 @@ badWhileDoingMoment : Unspellable Ability (\ok =>
   Triggered Whenever (Macros.attacks Macros.thisCreature) []
             (Just (WhileDoing (Dies (Macros.a Macros.creature)) {up = ok}))
             [] Nothing Nothing Nothing
-            Macros.drawACard)
+            (Macros.draw You (Lit 1)))
 badWhileDoingMoment Oh impossible

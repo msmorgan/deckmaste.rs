@@ -86,10 +86,6 @@ atLeast : Nat -> Quantity bs
 atLeast n = Range (Just n) Nothing
 
 public export
-oneOrBoth : Quantity bs
-oneOrBoth = Range (Just 1) (Just 2)
-
-public export
 oneThrough : Nat -> Quantity bs
 oneThrough n = Range (Just 1) (Just n)
 
@@ -450,29 +446,21 @@ forEach : {k : Kind} -> (p : Predicate bs k) ->
 forEach p = nForEach 1 p
 
 public export
-noRiders : List (TokenRider bs)
-noRiders = []
-
-public export
 move : (what : Noun bs Object) -> (to : ZoneExpr (nomIntro what)) ->
        {auto 0 ok : DestOk to} ->
        {auto 0 arr : ArrangementOk (nounPlur what) to} ->
        {auto 0 pl : Placeable (nounTy what) (zoneSort to)} -> Effect bs
-move what to = Move what to noRiders {ok} {arr} {pl}
+move what to = Move what to [] {ok} {arr} {pl}
 
 public export
 destroy : (n : Noun bs Object) -> {auto 0 ok : OnBattlefield (nounZone n)} ->
           Effect bs
-destroy n = Enact "Destroy" (Move n graveyardZ noRiders)
+destroy n = Enact "Destroy" (Move n graveyardZ [])
 
 public export
-exile : (n : Noun bs Object) -> Effect bs
-exile n = Enact "Exile" (Move n exileZ noRiders)
-
-public export
-exiles : (agent : Noun bs Player) -> (n : Noun (agentIntro agent) Object) ->
-         Effect bs
-exiles agent n = Does agent "Exile" (Move n exileZ noRiders)
+exile : (agent : Noun bs Player) -> (n : Noun (agentIntro agent) Object) ->
+        Effect bs
+exile agent n = Does agent "Exile" (Move n exileZ [])
 
 public export
 exileWithCounters : (n : Noun bs Object) -> (amt : Amount (nomIntro n)) ->
@@ -498,7 +486,7 @@ putOntoBattlefield : (n : Noun bs Object) ->
                      {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
                      {auto 0 pl : Placeable (nounTy n) Battlefield} ->
                      Effect bs
-putOntoBattlefield n = Move n battlefieldZ noRiders {pl}
+putOntoBattlefield n = Move n battlefieldZ [] {pl}
 
 public export
 putOntoBattlefieldTapped : (n : Noun bs Object) ->
@@ -530,40 +518,20 @@ public export
 sacrifice : (agent : Noun bs Player) -> (n : Noun (agentIntro agent) Object) ->
             {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
 sacrifice agent n =
-  Does agent "Sacrifice" (Move n graveyardZ noRiders)
-
-public export
-itAsPermanent : {auto 0 ok : countReach (AtSlot PermanentSlot) OneOf bs = 1} -> Noun bs Object
-itAsPermanent = ItAt PermanentSlot {ok}
-
-public export
-itAsCard : {auto 0 ok : countReach (AtSlot CardSlot) OneOf bs = 1} -> Noun bs Object
-itAsCard = ItAt CardSlot {ok}
+  Does agent "Sacrifice" (Move n graveyardZ [])
 
 public export
 sacrificeIt : (agent : Noun bs Player) ->
               {auto 0 ok : countReach (AtSlot PermanentSlot) OneOf (agentIntro agent) = 1} ->
               {auto 0 zn : OnBattlefield (zoneOfReach (AtSlot PermanentSlot) OneOf (agentIntro agent))} ->
               Effect bs
-sacrificeIt agent = sacrifice agent (itAsPermanent {ok}) {ok = zn}
+sacrificeIt agent = sacrifice agent (ItAt PermanentSlot {ok}) {ok = zn}
 
 public export
-discards : (agent : Noun bs Player) -> (n : Noun (agentIntro agent) Object) ->
-           {auto 0 dk : DiscardOk n} -> Effect bs
-discards agent n =
-  Does agent "Discard" (Move n graveyardZ noRiders)
-
-public export
-discardsACard : (agent : Noun bs Player) -> Effect bs
-discardsACard agent = discards agent (a (InZone handZ))
-
-public export
-discardsACardAtRandom : (agent : Noun bs Player) -> Effect bs
-discardsACardAtRandom agent = discards agent (aAtRandom (InZone handZ))
-
-public export
-discard : (n : Noun bs Object) -> {auto 0 dk : DiscardOk n} -> Effect bs
-discard n = Enact "Discard" (Move n graveyardZ noRiders)
+discard : (agent : Noun bs Player) -> (n : Noun (agentIntro agent) Object) ->
+          {auto 0 dk : DiscardOk n} -> Effect bs
+discard agent n =
+  Does agent "Discard" (Move n graveyardZ [])
 
 public export
 tap : (n : Noun bs Object) -> {auto 0 ok : OnBattlefield (nounZone n)} ->
@@ -581,25 +549,6 @@ transform : (n : Noun bs Object) ->
 transform n = Enact "Transform" (TurnOver n)
 
 public export
-convert : (n : Noun bs Object) ->
-          {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
-convert n = Enact "Convert" (TurnOver n)
-
-public export
-transforms : (n : Noun bs Object) ->
-             {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-             GameEvent bs
-transforms n = VerbedEvent Nothing "Transform" (Just n) Nothing False {zn}
-
-public export
-transformsInto : (n : Noun bs Object) -> (into : Predicate bs Object) ->
-                 {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                 {auto 0 sy : PredSays into} ->
-                 GameEvent bs
-transformsInto n into =
-  VerbedEvent Nothing "Transform" (Just n) (Just into) False {zn}
-
-public export
 meldInto : (n : Noun bs Object) -> (into : String) ->
            {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
            {auto 0 pl : Placeable (nounTy n) Battlefield} ->
@@ -614,7 +563,7 @@ returnTo : (n : Noun bs Object) -> (to : ZoneExpr (nomIntro n)) ->
            {auto 0 arr : ArrangementOk (nounPlur n) to} ->
            {auto 0 pl : Placeable (nounTy n) (zoneSort to)} ->
            Effect bs
-returnTo n to = Enact "Return" (Move n to noRiders {ok} {arr} {pl})
+returnTo n to = Enact "Return" (Move n to [] {ok} {arr} {pl})
 
 public export
 returnToBattlefieldTransformed :
@@ -790,24 +739,6 @@ cantBlock n span =
   Continuously (Deontic n Forbid ["Block"] Agent NoDeonticPatient Nothing NoDeonticRider {zn} {dp}) span {sp}
 
 public export
-cantAttackOrBlock : (n : Noun bs Object) ->
-                    (span : Maybe (Duration (selfSubjIntro n))) ->
-                    {auto 0 zn : ZoneFits (nounZone n) (deedsZone ["Attack", "Block"] Agent)} ->
-                    {auto 0 dp : DeedParticipant ["Attack", "Block"] Agent Object (nounHeadTys n)} ->
-                    {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
-cantAttackOrBlock n span =
-  Continuously (Deontic n Forbid ["Attack", "Block"] Agent NoDeonticPatient Nothing
-                  NoDeonticRider {zn} {dp}) span {sp}
-
-public export
-canDo : {k : Kind} -> (n : Noun bs k) -> (deed : VerbLabel) ->
-        {auto 0 kd : KnownDeeds [deed]} ->
-        {auto 0 zn : ZoneFits (nounZone n) (deedsZone [deed] Agent)} ->
-        {auto 0 dp : DeedParticipant [deed] Agent k (nounHeadTys n)} ->
-        StaticEffect bs
-canDo n deed = Deontic n Permit [deed] Agent NoDeonticPatient Nothing NoDeonticRider {kd} {zn} {dp}
-
-public export
 canDoAsThough : {k : Kind} -> (n : Noun bs k) -> (deed : VerbLabel) ->
                 (p : Predicate (nomIntro n) Object) ->
                 {auto 0 kd : KnownDeeds [deed]} ->
@@ -921,18 +852,11 @@ attachToIt what = AttachTo what (ItOtherThan (nounDelta what) bs {ok}) {zw}
 
 
 public export
-gainControl : (n : Noun bs Object) ->
-              {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-              (d : Maybe (Duration (staticIntro (GainsControl You n {zn})))) ->
+gainControl : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
+              {auto 0 zn : ZoneFits (nounZone what) (Just Battlefield)} ->
+              (d : Maybe (Duration (staticIntro (GainsControl who what {zn})))) ->
               {auto 0 sp : SpanOk ControlGrant d} -> Effect bs
-gainControl n d = Continuously (GainsControl You n {zn}) d {sp}
-
-public export
-gainsControl : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
-               {auto 0 zn : ZoneFits (nounZone what) (Just Battlefield)} ->
-               (d : Maybe (Duration (staticIntro (GainsControl who what {zn})))) ->
-               {auto 0 sp : SpanOk ControlGrant d} -> Effect bs
-gainsControl who what d = Continuously (GainsControl who what {zn}) d {sp}
+gainControl who what d = Continuously (GainsControl who what {zn}) d {sp}
 
 public export
 losesLife : (who : Noun bs Player) -> Amount (nomIntro who) -> Effect bs
@@ -945,23 +869,7 @@ gainsLife who amt = ChangeLife who (Up amt)
 
 public export
 may : (decider : Noun bs Player) -> Effect (agentIntro decider) -> Effect bs
-may d body = May d body Nothing Nothing
-
-public export
-mayThen : (decider : Noun bs Player) -> (body : Effect (agentIntro decider)) ->
-          Effect (effIntro body) -> Effect bs
-mayThen d body did = May d body (Just did) Nothing
-
-public export
-mayElse : (decider : Noun bs Player) -> (body : Effect (agentIntro decider)) ->
-          Effect (agentIntro decider) -> Effect bs
-mayElse d body notd = May d body Nothing (Just notd)
-
-public export
-mayThenElse : (decider : Noun bs Player) ->
-              (body : Effect (agentIntro decider)) ->
-              Effect (effIntro body) -> Effect (agentIntro decider) -> Effect bs
-mayThenElse d body did notd = May d body (Just did) (Just notd)
+may decider body = May decider body Nothing Nothing
 
 
 public export
@@ -1040,16 +948,8 @@ basicLandLine ss = MkTypeLine ss []
 
 
 public export
-drawACard : Effect bs
-drawACard = Draw You (Lit 1)
-
-public export
-drawCards : (n : Nat) -> Effect bs
-drawCards n = Draw You (Lit n)
-
-public export
-drawsACard : (who : Noun bs Player) -> Effect bs
-drawsACard who = Draw who (Lit 1)
+draw : (who : Noun bs Player) -> (amt : Amount (nomIntro who)) -> Effect bs
+draw who amt = Draw who amt
 
 
 public export
@@ -1069,9 +969,10 @@ chooseTwo modes = Modal (exactly 2) modes {tw} {mf} {dm = eqToSo dm}
 public export
 chooseOneOrBoth : (modes : List (Effect bs)) ->
                   {auto 0 tw : AtLeastTwo (modeCount modes)} ->
-                  {auto 0 mf : ModesFit (Macros.oneOrBoth {bs}) (modeCount modes)} ->
+                  {auto 0 mf : ModesFit (Range (Just 1) (Just 2) {bs}) (modeCount modes)} ->
                   {auto 0 dm : distinctModes modes = True} -> Effect bs
-chooseOneOrBoth modes = Modal Macros.oneOrBoth modes {tw} {mf} {dm = eqToSo dm}
+chooseOneOrBoth modes =
+  Modal (Range (Just 1) (Just 2)) modes {tw} {mf} {dm = eqToSo dm}
 
 public export
 chooseOneOrMore : (modes : List (Effect bs)) ->
@@ -1111,17 +1012,7 @@ itsACard : (p : Predicate bs Object) ->
            {auto 0 sy : PredSays p} ->
            {auto 0 zc : ZoneFits (zoneOfReach (AtSlot CardSlot) OneOf bs) (seedZone p)} ->
            Condition bs
-itsACard p = Matches (itAsCard {ok}) p {sy} {zc}
-
-public export
-itsAnAbility : (p : Predicate bs Ability) ->
-               {auto 0 ok : countReach (Word AbilityW) OneOf bs = 1} ->
-               {auto 0 sy : PredSays p} ->
-               {auto 0 bl : TestSubject (ItAbility {bs} {ok})} ->
-               {auto 0 zc : ZoneFits (zoneOfReach (Word AbilityW) OneOf bs)
-                                           (seedZone p)} ->
-               Condition bs
-itsAnAbility p = Matches (ItAbility {ok}) p {sy} {bl} {zc}
+itsACard p = Matches (ItAt CardSlot {ok}) p {sy} {zc}
 
 public export
 itIsntAnAbility : (p : Predicate bs Ability) ->
@@ -1131,7 +1022,8 @@ itIsntAnAbility : (p : Predicate bs Ability) ->
                   {auto 0 zc : ZoneFits (zoneOfReach (Word AbilityW) OneOf bs)
                                               (seedZone p)} ->
                   Condition bs
-itIsntAnAbility p = NotCond (itsAnAbility p {ok} {sy} {bl} {zc})
+itIsntAnAbility p =
+  NotCond (Matches (ItAbility {ok}) p {sy} {bl} {zc})
 
 
 public export
@@ -1180,18 +1072,12 @@ nthFromTopOrBottomZ : (n : LibOrdinal) -> ZoneExpr bs
 nthFromTopOrBottomZ n = LibraryAt (EitherEnd Nothing) Nothing (Just n) Bare
 
 public export
-shuffledIntoZ : ZoneExpr bs
-shuffledIntoZ = LibraryAt Shuffled Nothing Nothing Bare
-
-public export
-shuffleInto : (n : Noun bs Object) ->
+shuffleInto : (agent : Noun bs Player) -> (n : Noun (agentIntro agent) Object) ->
               {auto 0 pl : Placeable (nounTy n) Library} -> Effect bs
-shuffleInto n = Enact "Shuffle" (Move n shuffledIntoZ noRiders {pl})
-
-public export
-shufflesInto : (agent : Noun bs Player) -> (n : Noun (agentIntro agent) Object) ->
-               {auto 0 pl : Placeable (nounTy n) Library} -> Effect bs
-shufflesInto agent n = Does agent "Shuffle" (Move n shuffledIntoZ noRiders {pl})
+shuffleInto agent n =
+  Does agent "Shuffle"
+    (Move n (LibraryAt Shuffled Nothing Nothing Bare)
+            [] {pl})
 
 public export
 topSlice : (amt : Amount bs) -> Noun bs Object
@@ -1305,7 +1191,8 @@ puts : (agent : Noun bs Player) -> (n : Noun (agentIntro agent) Object) ->
        {auto 0 arr : ArrangementOk (nounPlur n) to} ->
        {auto 0 pl : Placeable (nounTy n) (zoneSort to)} ->
        Effect bs
-puts agent n to = Does agent "Put" (Move n to noRiders {ok} {arr} {pl})
+puts agent n to =
+  Does agent "Put" (Move n to [] {ok} {arr} {pl})
 
 public export
 shuffle : Effect bs
@@ -1355,23 +1242,26 @@ preventAllBy kind src scope d =
   Continuously (Prevents kind (DealtBy src) scope CutAll Repeatedly Nothing) d {sp}
 
 public export
-preventNextBy : (kind : DamageKind) -> (src : Noun bs Object) ->
-                (scope : DamageScope (nomIntro src)) ->
-                (amt : Amount (scopeIntro scope)) ->
-                (d : Maybe (Duration (amtIntro amt))) ->
-                {auto 0 sp : SpanOk Prevention d} -> Effect bs
-preventNextBy kind src scope amt d =
-  Continuously (Prevents kind (DealtBy src) scope (CutSome amt) Repeatedly Nothing) d {sp}
-
-public export
 shieldingIt : {k : Kind} -> (n : Noun bs k) ->
               {auto 0 rk : DamageRecipient n} -> DamageScope bs
 shieldingIt n = ToRecipient n {rk}
 
 public export
-exileUntil : (n : Noun bs Object) -> (ev : GameEvent (preIntro (exile n))) ->
+exileUntil : (n : Noun bs Object) ->
+             (ev : GameEvent
+                     (preIntro
+                       (Enact "Exile"
+                         (Move n (Macros.exileZ {bs = nomIntro n})
+                               []
+                               {ok = ExileOk} {arr = Oh} {pl = Oh} {rf = Oh})))) ->
              Effect bs
-exileUntil n ev = HeldUntil (exile n) ev {ok = Oh}
+exileUntil n ev =
+  HeldUntil
+    (Enact "Exile"
+      (Move n (Macros.exileZ {bs = nomIntro n})
+            []
+            {ok = ExileOk} {arr = Oh} {pl = Oh} {rf = Oh}))
+            ev {ok = Oh}
 
 public export
 phasesOutUntil : (n : Noun bs Object) ->
@@ -1406,31 +1296,12 @@ hybridPip : (a : Color) -> (b : Color) ->
 hybridPip a b = Hybrid (Specific (OfColor a)) b {ds}
 
 public export
-monoHybridPip : Nat -> Color -> ManaSymbol
-monoHybridPip n c = Hybrid (Generic n) c
-
-public export
 phyrexianPip : Color -> ManaSymbol
 phyrexianPip c = Phyrexian c Nothing
 
 public export
 payLife : (who : Noun bs Player) -> (n : Nat) -> Cost bs
 payLife who n = Do (ChangeLife who (Down (Lit n)))
-
-public export
-doThen : (body : Effect bs) -> Effect (effIntro body) ->
-         {auto 0 en : ReflexEnclosure body} -> Effect bs
-doThen body did = IfDone body (Just did) Nothing {en}
-
-public export
-doElse : (body : Effect bs) -> Effect bs ->
-         {auto 0 en : ReflexEnclosure body} -> Effect bs
-doElse body notd = IfDone body Nothing (Just notd) {en}
-
-public export
-doThenElse : (body : Effect bs) -> Effect (effIntro body) -> Effect bs ->
-             {auto 0 en : ReflexEnclosure body} -> Effect bs
-doThenElse body did notd = IfDone body (Just did) (Just notd) {en}
 
 public export
 mayWhen : (decider : Noun bs Player) -> (body : Effect (agentIntro decider)) ->
@@ -1449,139 +1320,248 @@ mills : (agent : Noun bs Player) -> (amt : Amount (agentIntro agent)) ->
         Effect bs
 mills agent amt whose =
   Does agent "Mill"
-       (Move (LibrarySlice OnTop amt whose {sp}) graveyardZ noRiders)
+       (Move (LibrarySlice OnTop amt whose {sp}) graveyardZ
+             [])
 
 public export
 lookedTop : (bs : Bindings) -> (amt : Amount bs) -> Bindings
 lookedTop bs amt = nomIntro (topSlice {bs} amt)
 
-public export
-lookedRest : (bs : Bindings) -> (0 mn : countReach Bare ManyOf bs = 1) ->
-             (z : Zone) -> Bindings
-lookedRest bs mn z = moveIntro {bs} Nothing (SomeOf (CountedSlice anyNumber {wf = Oh}) Nothing (Them {ok = mn}) {gm = Oh}) (Just z)
+public export %inline
+agentLookedTop : (bs : Bindings) -> (0 an : countReach (Word PlayerW) OneOf bs = 1) ->
+                 (amt : Amount bs) -> Bindings
+agentLookedTop bs an amt =
+  nomIntro (LibrarySlice OnTop amt (They {ok = an}) {sp = Oh})
 
-public export
-theyLookAtTop : {bs : Bindings} -> (amt : Amount bs) ->
-                {auto 0 an : countReach (Word PlayerW) OneOf bs = 1} -> Effect bs
-theyLookAtTop amt =
+public export %inline
+agentMovedRest : (bs : Bindings) -> (0 mn : countReach Bare ManyOf bs = 1) ->
+                 (z : Zone) -> Bindings
+agentMovedRest bs mn z =
+  moveIntro {bs} Nothing
+    (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
+            (Them {ok = mn}) {gm = Oh})
+    (Just z)
+
+public export %inline
+lookAtAgentsTop : {bs : Bindings} -> (amt : Amount bs) ->
+                  {auto 0 an : countReach (Word PlayerW) OneOf bs = 1} -> Effect bs
+lookAtAgentsTop amt =
   Expose LookAt (They {ok = an})
-         (ExposedCards (LibrarySlice OnTop amt (They {ok = an})))
+    (ExposedCards (LibrarySlice OnTop amt (They {ok = an}) {sp = Oh}))
+
+public export %inline
+oneCardAmount : Amount bs -> Bool
+oneCardAmount (Lit 1) = True
+oneCardAmount _ = False
 
 public export
-scry : {bs : Bindings} -> (amt : Amount bs) ->
-       {auto 0 mn : countReach Bare ManyOf (lookedTop bs amt) = 1} ->
-       {auto 0 ps : Placeable (tyOfReach Bare ManyOf (lookedTop bs amt)) Library} ->
-       {auto 0 tr : So (theRestOk (lookedRest (lookedTop bs amt) mn Library))} ->
-       {auto 0 pr : Placeable (tyOfGroup (lookedRest (lookedTop bs amt) mn Library)) Library} ->
-       Effect bs
-scry amt =
-  Does You "Scry" {kn = Oh}
-       (Sequentially [ lookAt (topSlice amt)
-                     , move (SomeOf (CountedSlice anyNumber {wf = Oh}) Nothing (Them {ok = mn}) {gm = Oh})
-                            (onBottomIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = ps}
-                     , move (TheRest {ok = tr})
-                            (onTopIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
+data LookReq : {bs : Bindings} -> (agent : Noun bs Player) ->
+               Amount (Experimental.Phrase.agentIntro agent) -> Zone -> Type where
+  YourOneLookReq :
+    {auto 0 ay : agent = You} ->
+    {auto 0 am : amt = Lit 1} ->
+    {auto 0 iw : countReach (Word CardW) OneOf
+                    (lookedTop (Experimental.Phrase.agentIntro agent) (Lit 1)) = 1} ->
+    {auto 0 pi : Placeable
+                    (tyOfReach (Word CardW) OneOf
+                      (lookedTop (Experimental.Phrase.agentIntro agent) (Lit 1))) z} ->
+    LookReq agent amt z
+  YourManyLookReq :
+    {auto 0 ay : agent = You} ->
+    {auto 0 no : So (not (oneCardAmount amt))} ->
+    {auto 0 mn : countReach Bare ManyOf
+                    (lookedTop (Experimental.Phrase.agentIntro agent) amt) = 1} ->
+    {auto 0 ps : Placeable
+                    (tyOfReach Bare ManyOf (lookedTop (Experimental.Phrase.agentIntro agent) amt)) z} ->
+    {auto 0 tr : So (theRestOk
+                      (agentMovedRest
+                        (lookedTop (Experimental.Phrase.agentIntro agent) amt) mn z))} ->
+    {auto 0 pr : Placeable
+                    (tyOfGroup
+                      (agentMovedRest
+                        (lookedTop (Experimental.Phrase.agentIntro agent) amt) mn z)) Library} ->
+    LookReq agent amt z
+  TheirOneLookReq :
+    {auto 0 ny : So (not (nounIsYou agent))} ->
+    {auto 0 am : amt = Lit 1} ->
+    {auto 0 an : countReach (Word PlayerW) OneOf
+                    (Experimental.Phrase.agentIntro agent) = 1} ->
+    {auto 0 ap : countReach (Word PlayerW) OneOf
+                    (agentLookedTop (Experimental.Phrase.agentIntro agent) an (Lit 1)) = 1} ->
+    {auto 0 iw : countReach (Word CardW) OneOf
+                    (agentLookedTop (Experimental.Phrase.agentIntro agent) an (Lit 1)) = 1} ->
+    {auto 0 pi : Placeable
+                    (tyOfReach (Word CardW) OneOf
+                      (agentLookedTop (Experimental.Phrase.agentIntro agent) an (Lit 1))) z} ->
+    LookReq agent amt z
+  TheirManyLookReq :
+    {auto 0 ny : So (not (nounIsYou agent))} ->
+    {auto 0 no : So (not (oneCardAmount amt))} ->
+    {auto 0 an : countReach (Word PlayerW) OneOf
+                    (Experimental.Phrase.agentIntro agent) = 1} ->
+    {auto 0 mn : countReach Bare ManyOf
+                    (agentLookedTop (Experimental.Phrase.agentIntro agent) an amt) = 1} ->
+    {auto 0 ps : Placeable
+                    (tyOfReach Bare ManyOf (agentLookedTop (Experimental.Phrase.agentIntro agent) an amt)) z} ->
+    {auto 0 tr : So (theRestOk
+                      (agentMovedRest
+                        (agentLookedTop (Experimental.Phrase.agentIntro agent) an amt) mn z))} ->
+    {auto 0 pr : Placeable
+                    (tyOfGroup
+                      (agentMovedRest
+                        (agentLookedTop (Experimental.Phrase.agentIntro agent) an amt) mn z))
+                    Library} ->
+    LookReq agent amt z
 
-public export
-surveil : {bs : Bindings} -> (amt : Amount bs) ->
-          {auto 0 mn : countReach Bare ManyOf (lookedTop bs amt) = 1} ->
-          {auto 0 ps : Placeable (tyOfReach Bare ManyOf (lookedTop bs amt)) Graveyard} ->
-          {auto 0 tr : So (theRestOk (lookedRest (lookedTop bs amt) mn Graveyard))} ->
-          {auto 0 pr : Placeable (tyOfGroup (lookedRest (lookedTop bs amt) mn Graveyard)) Library} ->
-          Effect bs
-surveil amt =
-  Does You "Surveil" {kn = Oh}
-       (Sequentially [ lookAt (topSlice amt)
-                     , move (SomeOf (CountedSlice anyNumber {wf = Oh}) Nothing (Them {ok = mn}) {gm = Oh})
-                            graveyardZ {ok = GraveyardOkBare} {arr = Oh} {pl = ps}
-                     , move (TheRest {ok = tr})
-                            (onTopIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
-
-public export
-scryOne : {bs : Bindings} ->
-          {auto 0 iw : countReach (Word CardW) OneOf (lookedTop bs (Lit 1)) = 1} ->
-          {auto 0 pi : Placeable (tyOfReach (Word CardW) OneOf (lookedTop bs (Lit 1))) Library} ->
-          Effect bs
-scryOne =
-  Does You "Scry" {kn = Oh}
-       (Sequentially [ lookAt topCard
-                     , may You (move (That CardW {ok = iw}) onBottomZ {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pi}) ])
-
-public export
-surveilOne : {bs : Bindings} ->
-             {auto 0 iw : countReach (Word CardW) OneOf (lookedTop bs (Lit 1)) = 1} ->
-             {auto 0 pi : Placeable (tyOfReach (Word CardW) OneOf (lookedTop bs (Lit 1))) Graveyard} ->
-             Effect bs
-surveilOne =
-  Does You "Surveil" {kn = Oh}
-       (Sequentially [ lookAt topCard
-                     , may You (move (That CardW {ok = iw}) graveyardZ {ok = GraveyardOkBare} {arr = Oh} {pl = pi}) ])
-
-public export
-playerScries : {bs : Bindings} -> (agent : Noun bs Player) ->
-               (amt : Amount (agentIntro agent)) ->
-               {auto 0 an : countReach (Word PlayerW) OneOf (agentIntro agent) = 1} ->
-               {auto 0 mn : countReach Bare ManyOf (nomIntro (LibrarySlice OnTop amt (They {ok = an}))) = 1} ->
-               {auto 0 ps : Placeable (tyOfReach Bare ManyOf (nomIntro (LibrarySlice OnTop amt (They {ok = an})))) Library} ->
-               {auto 0 tr : So (theRestOk (lookedRest (nomIntro (LibrarySlice OnTop amt (They {ok = an}))) mn Library))} ->
-               {auto 0 pr : Placeable (tyOfGroup (lookedRest (nomIntro (LibrarySlice OnTop amt (They {ok = an}))) mn Library)) Library} ->
+scryTheirOne : {bs : Bindings} -> (agent : Noun bs Player) ->
+               {0 an : countReach (Word PlayerW) OneOf (Experimental.Phrase.agentIntro agent) = 1} ->
+               {0 ap : countReach (Word PlayerW) OneOf
+                         (agentLookedTop (Experimental.Phrase.agentIntro agent) an (Lit 1)) = 1} ->
+               {0 iw : countReach (Word CardW) OneOf
+                         (agentLookedTop (Experimental.Phrase.agentIntro agent) an (Lit 1)) = 1} ->
+               {0 pi : Placeable
+                         (tyOfReach (Word CardW) OneOf
+                           (agentLookedTop
+                             (Experimental.Phrase.agentIntro agent) an (Lit 1))) Library} ->
                Effect bs
-playerScries agent amt =
+scryTheirOne {bs} agent {an} {ap} {iw} {pi} =
   Does agent "Scry" {kn = Oh}
-       (Sequentially [ theyLookAtTop amt {an}
-                     , move (SomeOf (CountedSlice anyNumber {wf = Oh}) Nothing (Them {ok = mn}) {gm = Oh})
-                            (onBottomIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = ps}
+       (Sequentially
+          [ lookAtAgentsTop (Lit 1) {an}
+          , may (They {ok = ap})
+                (move (That CardW {ok = iw}) onBottomZ
+                      {ok = LibraryPosOk {af = Oh} {nf = Oh}}
+                      {arr = Oh} {pl = pi}) ])
+
+scryTheirMany : {bs : Bindings} -> (agent : Noun bs Player) ->
+                (amt : Amount (Experimental.Phrase.agentIntro agent)) ->
+                {0 an : countReach (Word PlayerW) OneOf (Experimental.Phrase.agentIntro agent) = 1} ->
+                {0 mn : countReach Bare ManyOf
+                          (agentLookedTop (Experimental.Phrase.agentIntro agent) an amt) = 1} ->
+                {0 ps : Placeable
+                          (tyOfReach Bare ManyOf
+                            (agentLookedTop
+                              (Experimental.Phrase.agentIntro agent) an amt)) Library} ->
+                {0 tr : So (theRestOk
+                             (agentMovedRest
+                               (agentLookedTop
+                                 (Experimental.Phrase.agentIntro agent) an amt) mn Library))} ->
+                {0 pr : Placeable
+                          (tyOfGroup
+                            (agentMovedRest
+                              (agentLookedTop
+                                (Experimental.Phrase.agentIntro agent) an amt) mn Library)) Library} ->
+                Effect bs
+scryTheirMany {bs} agent amt {an} {mn} {ps} {tr} {pr} =
+  Does agent "Scry" {kn = Oh}
+       (Sequentially [ lookAtAgentsTop amt {an}
+                     , move (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
+                                    (Them {ok = mn}) {gm = Oh})
+                            (onBottomIn AnyOrder {af = Oh})
+                            {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = ps}
                      , move (TheRest {ok = tr})
-                            (onTopIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
+                            (onTopIn AnyOrder {af = Oh})
+                            {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
 
 public export
-playerSurveils : {bs : Bindings} -> (agent : Noun bs Player) ->
-                 (amt : Amount (agentIntro agent)) ->
-                 {auto 0 an : countReach (Word PlayerW) OneOf (agentIntro agent) = 1} ->
-                 {auto 0 mn : countReach Bare ManyOf (nomIntro (LibrarySlice OnTop amt (They {ok = an}))) = 1} ->
-                 {auto 0 ps : Placeable (tyOfReach Bare ManyOf (nomIntro (LibrarySlice OnTop amt (They {ok = an})))) Graveyard} ->
-                 {auto 0 tr : So (theRestOk (lookedRest (nomIntro (LibrarySlice OnTop amt (They {ok = an}))) mn Graveyard))} ->
-                 {auto 0 pr : Placeable (tyOfGroup (lookedRest (nomIntro (LibrarySlice OnTop amt (They {ok = an}))) mn Graveyard)) Library} ->
-                 Effect bs
-playerSurveils agent amt =
+scry : {bs : Bindings} -> (agent : Noun bs Player) ->
+       (amt : Amount (Experimental.Phrase.agentIntro agent)) ->
+       {auto req : LookReq agent amt Library} -> Effect bs
+scry {bs} _ _ {req = YourOneLookReq {ay = Refl} {iw} {pi}} =
+  Does You "Scry" {kn = Oh}
+       (Sequentially
+          [ lookAt topCard
+          , may You
+                (move (That CardW {ok = iw}) onBottomZ
+                      {ok = LibraryPosOk {af = Oh} {nf = Oh}}
+                      {arr = Oh} {pl = pi}) ])
+scry {bs} _ amt {req = YourManyLookReq {ay = Refl} {mn} {ps} {tr} {pr}} =
+  Does You "Scry" {kn = Oh}
+       (Sequentially [ lookAt (topSlice amt)
+                     , move (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
+                                    (Them {ok = mn}) {gm = Oh})
+                            (onBottomIn AnyOrder {af = Oh})
+                            {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = ps}
+                     , move (TheRest {ok = tr})
+                            (onTopIn AnyOrder {af = Oh})
+                            {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
+scry agent _ {req = TheirOneLookReq {an} {ap} {iw} {pi}} =
+  scryTheirOne agent {an} {ap} {iw} {pi}
+scry agent amt {req = TheirManyLookReq {an} {mn} {ps} {tr} {pr}} =
+  scryTheirMany agent amt {an} {mn} {ps} {tr} {pr}
+
+surveilTheirOne : {bs : Bindings} -> (agent : Noun bs Player) ->
+                  {0 an : countReach (Word PlayerW) OneOf (Experimental.Phrase.agentIntro agent) = 1} ->
+                  {0 ap : countReach (Word PlayerW) OneOf
+                            (agentLookedTop (Experimental.Phrase.agentIntro agent) an (Lit 1)) = 1} ->
+                  {0 iw : countReach (Word CardW) OneOf
+                            (agentLookedTop (Experimental.Phrase.agentIntro agent) an (Lit 1)) = 1} ->
+                  {0 pi : Placeable
+                            (tyOfReach (Word CardW) OneOf
+                              (agentLookedTop
+                                (Experimental.Phrase.agentIntro agent) an (Lit 1))) Graveyard} ->
+                  Effect bs
+surveilTheirOne {bs} agent {an} {ap} {iw} {pi} =
   Does agent "Surveil" {kn = Oh}
-       (Sequentially [ theyLookAtTop amt {an}
-                     , move (SomeOf (CountedSlice anyNumber {wf = Oh}) Nothing (Them {ok = mn}) {gm = Oh})
+       (Sequentially
+          [ lookAtAgentsTop (Lit 1) {an}
+          , may (They {ok = ap})
+                (move (That CardW {ok = iw}) graveyardZ
+                      {ok = GraveyardOkBare} {arr = Oh} {pl = pi}) ])
+
+surveilTheirMany : {bs : Bindings} -> (agent : Noun bs Player) ->
+                   (amt : Amount (Experimental.Phrase.agentIntro agent)) ->
+                   {0 an : countReach (Word PlayerW) OneOf (Experimental.Phrase.agentIntro agent) = 1} ->
+                   {0 mn : countReach Bare ManyOf
+                             (agentLookedTop (Experimental.Phrase.agentIntro agent) an amt) = 1} ->
+                   {0 ps : Placeable
+                             (tyOfReach Bare ManyOf
+                               (agentLookedTop
+                                 (Experimental.Phrase.agentIntro agent) an amt)) Graveyard} ->
+                   {0 tr : So (theRestOk
+                                (agentMovedRest
+                                  (agentLookedTop
+                                    (Experimental.Phrase.agentIntro agent) an amt) mn Graveyard))} ->
+                   {0 pr : Placeable
+                             (tyOfGroup
+                               (agentMovedRest
+                                 (agentLookedTop
+                                   (Experimental.Phrase.agentIntro agent) an amt) mn Graveyard)) Library} ->
+                   Effect bs
+surveilTheirMany {bs} agent amt {an} {mn} {ps} {tr} {pr} =
+  Does agent "Surveil" {kn = Oh}
+       (Sequentially [ lookAtAgentsTop amt {an}
+                     , move (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
+                                    (Them {ok = mn}) {gm = Oh})
                             graveyardZ {ok = GraveyardOkBare} {arr = Oh} {pl = ps}
                      , move (TheRest {ok = tr})
-                            (onTopIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
+                            (onTopIn AnyOrder {af = Oh})
+                            {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
 
 public export
-theirTopCard : (bs : Bindings) -> (0 an : countReach (Word PlayerW) OneOf bs = 1) -> Bindings
-theirTopCard bs an = nomIntro (LibrarySlice {bs} OnTop (Lit 1) (They {ok = an}))
-
-public export
-playerScriesOne : {bs : Bindings} -> (agent : Noun bs Player) ->
-                  {auto 0 an : countReach (Word PlayerW) OneOf (agentIntro agent) = 1} ->
-                  {auto 0 ap : countReach (Word PlayerW) OneOf (Macros.theirTopCard (agentIntro agent) an) = 1} ->
-                  {auto 0 iw : countReach (Word CardW) OneOf (Macros.theirTopCard (agentIntro agent) an) = 1} ->
-                  {auto 0 pi : Placeable (tyOfReach (Word CardW) OneOf (Macros.theirTopCard (agentIntro agent) an)) Library} ->
-                  Effect bs
-playerScriesOne agent =
-  Does agent "Scry" {kn = Oh}
-       (Sequentially [ theyLookAtTop (Lit 1) {an}
-                     , may (They {ok = ap})
-                           (move (That CardW {ok = iw}) onBottomZ
-                                 {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pi}) ])
-
-public export
-playerSurveilsOne : {bs : Bindings} -> (agent : Noun bs Player) ->
-                    {auto 0 an : countReach (Word PlayerW) OneOf (agentIntro agent) = 1} ->
-                    {auto 0 ap : countReach (Word PlayerW) OneOf (Macros.theirTopCard (agentIntro agent) an) = 1} ->
-                    {auto 0 iw : countReach (Word CardW) OneOf (Macros.theirTopCard (agentIntro agent) an) = 1} ->
-                    {auto 0 pi : Placeable (tyOfReach (Word CardW) OneOf (Macros.theirTopCard (agentIntro agent) an)) Graveyard} ->
-                    Effect bs
-playerSurveilsOne agent =
-  Does agent "Surveil" {kn = Oh}
-       (Sequentially [ theyLookAtTop (Lit 1) {an}
-                     , may (They {ok = ap})
-                           (move (That CardW {ok = iw}) graveyardZ
-                                 {ok = GraveyardOkBare} {arr = Oh} {pl = pi}) ])
+surveil : {bs : Bindings} -> (agent : Noun bs Player) ->
+          (amt : Amount (Experimental.Phrase.agentIntro agent)) ->
+          {auto req : LookReq agent amt Graveyard} -> Effect bs
+surveil {bs} _ _ {req = YourOneLookReq {ay = Refl} {iw} {pi}} =
+  Does You "Surveil" {kn = Oh}
+       (Sequentially
+          [ lookAt topCard
+          , may You
+                (move (That CardW {ok = iw}) graveyardZ
+                      {ok = GraveyardOkBare} {arr = Oh} {pl = pi}) ])
+surveil {bs} _ amt {req = YourManyLookReq {ay = Refl} {mn} {ps} {tr} {pr}} =
+  Does You "Surveil" {kn = Oh}
+       (Sequentially [ lookAt (topSlice amt)
+                     , move (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
+                                    (Them {ok = mn}) {gm = Oh})
+                            graveyardZ {ok = GraveyardOkBare} {arr = Oh} {pl = ps}
+                     , move (TheRest {ok = tr})
+                            (onTopIn AnyOrder {af = Oh})
+                            {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
+surveil agent _ {req = TheirOneLookReq {an} {ap} {iw} {pi}} =
+  surveilTheirOne agent {an} {ap} {iw} {pi}
+surveil agent amt {req = TheirManyLookReq {an} {mn} {ps} {tr} {pr}} =
+  surveilTheirMany agent amt {an} {mn} {ps} {tr} {pr}
 
 public export
 playerSearchesTheirLibraryFor : (who : Noun bs Player) ->
@@ -1592,28 +1572,21 @@ playerSearchesTheirLibraryFor who p =
   Search who (OneZone (libraryOf (They {ok = an}))) (exactly 1) p {zf}
 
 public export
-proliferable : Predicate bs (Object \/ Player)
-proliferable = kindJoin (CounterCompare Nothing AtLeast (Lit 1))
-                        (And [Permanent, HasCounters Nothing])
-
-public export
-proliferated : (bs : Bindings) -> Bindings
-proliferated bs = chosenIntro {bs} (CountedGroup Macros.anyNumber Nothing Macros.proliferable)
-
-public export
 proliferate : {bs : Bindings} ->
-              {auto 0 mj : countReach (Word JoinW) ManyOf (Macros.proliferated bs) = 1} ->
+              {auto 0 mj : countReach (Word JoinW) ManyOf
+                              (chosenIntro {bs}
+                                (CountedGroup Macros.anyNumber Nothing
+                                  (kindJoin (CounterCompare Nothing AtLeast (Lit 1))
+                                            (And [Permanent, HasCounters Nothing])))) = 1} ->
               Effect bs
 proliferate =
   Enact "Proliferate" {kn = Oh}
-        (Sequentially [ Choose (CountedGroup Macros.anyNumber Nothing Macros.proliferable) Nothing Openly
+        (Sequentially [ Choose
+                          (CountedGroup Macros.anyNumber Nothing
+                            (kindJoin (CounterCompare Nothing AtLeast (Lit 1))
+                                      (And [Permanent, HasCounters Nothing])))
+                          Nothing Openly
                       , PutCounters (Lit 1) OwnKinds (EachOf (Those JoinW {ok = mj})) ])
-
-public export
-losesCounters : (who : Noun bs Player) -> (amt : Amount (nomIntro who)) ->
-                (kind : Maybe CounterKind) ->
-                {auto 0 pk : CounterKindNamed Player kind} -> Effect bs
-losesCounters who amt kind = LosesCounters who kind (Just amt) {pk}
 
 public export
 losesAllCounters : (who : Noun bs Player) -> (kind : Maybe CounterKind) ->
@@ -1863,6 +1836,30 @@ activatedOnlyOnceIf cost eff lim g =
   Activated cost eff Nothing (Just lim) (Just g) Nothing {tp} {py} {ul}
 
 public export
+fromZ : ZoneExpr bs -> Maybe (ZoneExpr bs)
+fromZ = Just
+
+public export
+free : PlayPayment bs
+free = WithoutPaying
+
+public export
+paying : (c : Cost bs) -> {auto 0 ok : So (costOffBattlefield c)} -> PlayPayment bs
+paying c = PayingInstead c {ok}
+
+public export
+onceEachYourTurn : Maybe PlayLimit
+onceEachYourTurn = Just OnceEachYourTurn
+
+public export
+duringEachYourTurn : Maybe PlayWindow
+duringEachYourTurn = Just DuringEachOfYourTurns
+
+public export
+whileSearching : Maybe PlayWindow
+whileSearching = Just WhileSearchingLibrary
+
+public export
 mayPlayDeed : (deed : VerbLabel) -> (who : Noun bs Player) ->
               (what : Noun (nomIntro who) Object) ->
               (rider : DeonticRider (nomIntro what)) ->
@@ -1881,201 +1878,6 @@ mayPlayDeed : (deed : VerbLabel) -> (who : Noun bs Player) ->
 mayPlayDeed deed who what rider =
   Deontic who Permit [deed] Agent (DeonticCounterpart what) Nothing rider
           {kd} {dd} {zn} {dp} {pt} {rd}
-
-public export
-mayPlay : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
-          {auto 0 zn : ZoneFits (nounZone who) (deedsZone ["Play"] Agent)} ->
-          {auto 0 dp : DeedParticipant ["Play"] Agent Player (nounHeadTys who)} ->
-          {auto 0 pt : So (deonticPatientOk who ["Play"] Agent
-                                            (DeonticCounterpart what)
-                                            (PlayRider Nothing Nothing Nothing False ItsOwnCost))} ->
-          {auto 0 rd : So (deonticRiderOk ["Play"] Agent
-                                          (Permit {bs = selfSubjIntro who})
-                                          (DeonticCounterpart what) False
-                                          (PlayRider Nothing Nothing Nothing
-                                                     False ItsOwnCost))} ->
-          StaticEffect bs
-mayPlay who what =
-  mayPlayDeed "Play" who what (PlayRider Nothing Nothing Nothing False ItsOwnCost)
-              {zn} {dp} {pt} {rd}
-
-public export
-mayCastFrom : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
-              (from : ZoneExpr (nomIntro what)) ->
-              {auto 0 zn : ZoneFits (nounZone who) (deedsZone ["Cast"] Agent)} ->
-              {auto 0 dp : DeedParticipant ["Cast"] Agent Player (nounHeadTys who)} ->
-              {auto 0 pt : So (deonticPatientOk who ["Cast"] Agent
-                                                (DeonticCounterpart what)
-                                                (PlayRider (Just from) Nothing Nothing False ItsOwnCost))} ->
-              {auto 0 rd : So (deonticRiderOk ["Cast"] Agent
-                                              (Permit {bs = selfSubjIntro who})
-                                              (DeonticCounterpart what) False
-                                              (PlayRider (Just from) Nothing Nothing
-                                                         False ItsOwnCost))} ->
-              StaticEffect bs
-mayCastFrom who what from =
-  mayPlayDeed "Cast" who what
-              (PlayRider (Just from) Nothing Nothing False ItsOwnCost)
-              {zn} {dp} {pt} {rd}
-
-public export
-mayCastFromPaying : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
-                    (from : ZoneExpr (nomIntro what)) ->
-                    (c : Cost (nomIntro what)) ->
-                    {auto 0 cf : So (costOffBattlefield c)} ->
-                    {auto 0 zn : ZoneFits (nounZone who) (deedsZone ["Cast"] Agent)} ->
-                    {auto 0 dp : DeedParticipant ["Cast"] Agent Player (nounHeadTys who)} ->
-                    {auto 0 pt : So (deonticPatientOk who ["Cast"] Agent
-                                                      (DeonticCounterpart what)
-                                                      (PlayRider (Just from) Nothing Nothing False
-                                                                 (PayingInstead c {ok = cf})))} ->
-                    {auto 0 rd : So (deonticRiderOk ["Cast"] Agent
-                                                    (Permit {bs = selfSubjIntro who})
-                                                    (DeonticCounterpart what) False
-                                                    (PlayRider (Just from) Nothing Nothing False
-                                                               (PayingInstead c {ok = cf})))} ->
-                    StaticEffect bs
-mayCastFromPaying who what from c =
-  mayPlayDeed "Cast" who what
-              (PlayRider (Just from) Nothing Nothing False (PayingInstead c {ok = cf}))
-              {zn} {dp} {pt} {rd}
-
-public export
-mayPlayFrom : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
-              (from : ZoneExpr (nomIntro what)) ->
-              {auto 0 zn : ZoneFits (nounZone who) (deedsZone ["Play"] Agent)} ->
-              {auto 0 dp : DeedParticipant ["Play"] Agent Player (nounHeadTys who)} ->
-              {auto 0 pt : So (deonticPatientOk who ["Play"] Agent
-                                                (DeonticCounterpart what)
-                                                (PlayRider (Just from) Nothing Nothing False ItsOwnCost))} ->
-              {auto 0 rd : So (deonticRiderOk ["Play"] Agent
-                                              (Permit {bs = selfSubjIntro who})
-                                              (DeonticCounterpart what) False
-                                              (PlayRider (Just from) Nothing Nothing
-                                                         False ItsOwnCost))} ->
-              StaticEffect bs
-mayPlayFrom who what from =
-  mayPlayDeed "Play" who what
-              (PlayRider (Just from) Nothing Nothing False ItsOwnCost)
-              {zn} {dp} {pt} {rd}
-
-public export
-mayCastFromLimited : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
-                     (from : ZoneExpr (nomIntro what)) -> (lim : PlayLimit) ->
-                     {auto 0 zn : ZoneFits (nounZone who) (deedsZone ["Cast"] Agent)} ->
-                     {auto 0 dp : DeedParticipant ["Cast"] Agent Player (nounHeadTys who)} ->
-                     {auto 0 pt : So (deonticPatientOk who ["Cast"] Agent
-                                                       (DeonticCounterpart what)
-                                                       (PlayRider (Just from) (Just lim) Nothing False ItsOwnCost))} ->
-                     {auto 0 rd : So (deonticRiderOk ["Cast"] Agent
-                                                     (Permit {bs = selfSubjIntro who})
-                                                     (DeonticCounterpart what) False
-                                                     (PlayRider (Just from) (Just lim)
-                                                                Nothing False ItsOwnCost))} ->
-                     StaticEffect bs
-mayCastFromLimited who what from lim =
-  mayPlayDeed "Cast" who what
-              (PlayRider (Just from) (Just lim) Nothing False ItsOwnCost)
-              {zn} {dp} {pt} {rd}
-
-public export
-mayCastFromOnly : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
-                  (from : ZoneExpr (nomIntro what)) ->
-                  {auto 0 zn : ZoneFits (nounZone who) (deedsZone ["Cast"] Agent)} ->
-                  {auto 0 dp : DeedParticipant ["Cast"] Agent Player (nounHeadTys who)} ->
-                  {auto 0 pt : So (deonticPatientOk who ["Cast"] Agent
-                                                    (DeonticCounterpart what)
-                                                    (PlayRider (Just from) Nothing Nothing True ItsOwnCost))} ->
-                  {auto 0 rd : So (deonticRiderOk ["Cast"] Agent
-                                                  (Permit {bs = selfSubjIntro who})
-                                                  (DeonticCounterpart what) False
-                                                  (PlayRider (Just from) Nothing Nothing
-                                                             True ItsOwnCost))} ->
-                  StaticEffect bs
-mayCastFromOnly who what from =
-  mayPlayDeed "Cast" who what
-              (PlayRider (Just from) Nothing Nothing True ItsOwnCost)
-              {zn} {dp} {pt} {rd}
-
-public export
-mayPlayFromEachYourTurn : (who : Noun bs Player) ->
-                          (what : Noun (nomIntro who) Object) ->
-                          (from : ZoneExpr (nomIntro what)) ->
-                          {auto 0 zn : ZoneFits (nounZone who) (deedsZone ["Play"] Agent)} ->
-                          {auto 0 dp : DeedParticipant ["Play"] Agent Player (nounHeadTys who)} ->
-                          {auto 0 pt : So (deonticPatientOk who ["Play"] Agent
-                                                            (DeonticCounterpart what)
-                                                            (PlayRider (Just from) Nothing (Just DuringEachOfYourTurns) False ItsOwnCost))} ->
-                          {auto 0 rd : So (deonticRiderOk ["Play"] Agent
-                                                          (Permit {bs = selfSubjIntro who})
-                                                          (DeonticCounterpart what) False
-                                                          (PlayRider (Just from) Nothing
-                                                                     (Just DuringEachOfYourTurns)
-                                                                     False ItsOwnCost))} ->
-                          StaticEffect bs
-mayPlayFromEachYourTurn who what from =
-  mayPlayDeed "Play" who what
-              (PlayRider (Just from) Nothing (Just DuringEachOfYourTurns) False ItsOwnCost)
-              {zn} {dp} {pt} {rd}
-
-public export
-mayCastFromFree : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
-                  (from : ZoneExpr (nomIntro what)) ->
-                  {auto 0 zn : ZoneFits (nounZone who) (deedsZone ["Cast"] Agent)} ->
-                  {auto 0 dp : DeedParticipant ["Cast"] Agent Player (nounHeadTys who)} ->
-                  {auto 0 pt : So (deonticPatientOk who ["Cast"] Agent
-                                                    (DeonticCounterpart what)
-                                                    (PlayRider (Just from) Nothing Nothing False WithoutPaying))} ->
-                  {auto 0 rd : So (deonticRiderOk ["Cast"] Agent
-                                                  (Permit {bs = selfSubjIntro who})
-                                                  (DeonticCounterpart what) False
-                                                  (PlayRider (Just from) Nothing Nothing
-                                                             False WithoutPaying))} ->
-                  StaticEffect bs
-mayCastFromFree who what from =
-  mayPlayDeed "Cast" who what
-              (PlayRider (Just from) Nothing Nothing False WithoutPaying)
-              {zn} {dp} {pt} {rd}
-
-public export
-mayCastFromEachYourTurn : (who : Noun bs Player) ->
-                          (what : Noun (nomIntro who) Object) ->
-                          (from : ZoneExpr (nomIntro what)) ->
-                          {auto 0 zn : ZoneFits (nounZone who) (deedsZone ["Cast"] Agent)} ->
-                          {auto 0 dp : DeedParticipant ["Cast"] Agent Player (nounHeadTys who)} ->
-                          {auto 0 pt : So (deonticPatientOk who ["Cast"] Agent
-                                                            (DeonticCounterpart what)
-                                                            (PlayRider (Just from) Nothing (Just DuringEachOfYourTurns) False ItsOwnCost))} ->
-                          {auto 0 rd : So (deonticRiderOk ["Cast"] Agent
-                                                          (Permit {bs = selfSubjIntro who})
-                                                          (DeonticCounterpart what) False
-                                                          (PlayRider (Just from) Nothing
-                                                                     (Just DuringEachOfYourTurns)
-                                                                     False ItsOwnCost))} ->
-                          StaticEffect bs
-mayCastFromEachYourTurn who what from =
-  mayPlayDeed "Cast" who what
-              (PlayRider (Just from) Nothing (Just DuringEachOfYourTurns) False ItsOwnCost)
-              {zn} {dp} {pt} {rd}
-
-public export
-mayCastAsThough : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
-                  {auto 0 zn : ZoneFits (nounZone who) (deedsZone ["Cast"] Agent)} ->
-                  {auto 0 dp : DeedParticipant ["Cast"] Agent Player (nounHeadTys who)} ->
-                  {auto 0 pt : So (deonticPatientOk who ["Cast"] Agent
-                                                    (DeonticCounterpart what)
-                                                    (PlayRider Nothing Nothing Nothing False ItsOwnCost))} ->
-                  {auto 0 rd : So (deonticRiderOk ["Cast"] Agent
-                                                  (Permit {bs = selfSubjIntro who})
-                                                  (DeonticCounterpart what) True
-                                                  (PlayRider Nothing Nothing Nothing
-                                                             False ItsOwnCost))} ->
-                  StaticEffect bs
-mayCastAsThough who what =
-  Deontic who Permit ["Cast"] Agent (DeonticCounterpart what)
-          (Just (AsThoughOf (HasKeyword (TheKeyword "Flash"))))
-          (PlayRider Nothing Nothing Nothing False ItsOwnCost)
-          {zn} {dp} {pt} {rd}
 
 public export
 leavesBattlefield : {0 bs : Bindings} -> (n : Noun bs Object) ->
@@ -2206,30 +2008,6 @@ secretlyChooses : {k : Kind} -> (who : Noun bs Player) -> (n : Noun bs k) ->
 secretlyChooses who n = Choose n (Just who) Secretly {ch}
 
 public export
-secretlyChoose : {k : Kind} -> (n : Noun bs k) ->
-                 {auto 0 ch : ChoiceClause (the (Maybe (Noun bs Player)) Nothing) n} ->
-                 Effect bs
-secretlyChoose n = Choose n Nothing Secretly {ch}
-
-public export
-aCardInHand : Noun bs Object
-aCardInHand = a (InZone handZ)
-
-public export
-handPick : (bs : Bindings) -> Bindings
-handPick bs = nomIntro {bs} (aCardInHand {bs})
-
-public export
-discardN : (amt : Amount bs) ->
-           {auto 0 pk : countReach (Word CardW) OneOf (handPick (amtIntro amt)) = 1} ->
-           {auto 0 dz : zoneOfReach (Word CardW) OneOf (handPick (amtIntro amt)) = Just Hand} ->
-           Effect bs
-discardN amt =
-  Repeated amt (Sequentially [ choose (aCardInHand)
-                             , discard (That CardW {ok = pk})
-                                       {dk = DiscardTracked {z = dz}} ])
-
-public export
 itVerbed : (v : VerbLabel) -> {auto 0 kn : KnownVerb v} ->
            {auto 0 ok : countReach (Stamped v) OneOf bs = 1} -> Noun bs Object
 itVerbed v = ItVerbed v {kn} {ok}
@@ -2239,12 +2017,22 @@ themVerbed : (v : VerbLabel) -> {auto 0 kn : KnownVerb v} ->
              {auto 0 ok : countReach (Stamped v) ManyOf bs = 1} -> Noun bs Object
 themVerbed v = ThemVerbed v {kn} {ok}
 
+takeDropAppend : {0 elem : Type} -> (n : Nat) -> (xs : List elem) ->
+                 xs = take n xs ++ drop n xs
+takeDropAppend Z xs = Refl
+takeDropAppend (S n) [] = Refl
+takeDropAppend (S n) (x :: xs) = cong (x ::) (takeDropAppend n xs)
+
 public export
 itPrior : {bs : Bindings} -> (prev : Effect bs) ->
-          {auto 0 sp : effIntro prev = effDelta prev ++ bs} ->
           {auto 0 ok : countOnes Object (effDelta prev) = 1} ->
           Noun (effIntro prev) Object
-itPrior prev = ItPrior (effDelta prev) bs {sp} {ok}
+itPrior {bs} prev =
+  ItPrior (effDelta prev)
+    (drop (length (effIntro prev) `minus` length bs) (effIntro prev))
+    {sp = takeDropAppend (length (effIntro prev) `minus` length bs)
+                         (effIntro prev)}
+    {ok}
 
 public export
 dealsDamageOwnPower : {bs : Bindings} -> {k : Kind} -> (src : Noun bs Object) ->
@@ -2449,15 +2237,6 @@ happenedAt : {k : Kind} -> (ev : EventName) -> (who : Noun bs k) ->
 happenedAt ev who w z = Happened ev who w (Just (AtZone z {ok = zo})) {cw} {sb}
 
 public export
-happenedToAt : {k : Kind} -> (ev : EventName) -> (w : Lookback) ->
-               (z : ZoneExpr bs) ->
-               {auto 0 zo : So (lookbackLocusOk ev (zoneSort z))} ->
-               {auto 0 cw : ComplementWritten
-                              (Just (AtZone {bs} {ev} {ks = k} z {ok = zo}))} ->
-               {auto 0 sb : LookbackSubject ev k} -> Predicate bs k
-happenedToAt ev w z = HappenedTo ev w (Just (AtZone z {ok = zo})) {cw} {sb}
-
-public export
 beginningOfPossessed : (part : TurnPart) -> (poss : Noun bs Player) ->
                        {auto 0 pn : PossessorNoun poss} ->
                        {auto 0 pu : PartTriggerable part (ByNoun poss {pn})} ->
@@ -2530,58 +2309,17 @@ onlyIfSo : (se : StaticEffect bs) -> (c : Condition (staticIntro se)) -> StaticE
 onlyIfSo se c = OnlyWhile se c IfSo
 
 public export
-mayCastFromWhileSearching : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
-                            (from : ZoneExpr (nomIntro what)) ->
-                            {auto 0 zn : ZoneFits (nounZone who) (deedsZone ["Cast"] Agent)} ->
-                            {auto 0 dp : DeedParticipant ["Cast"] Agent Player (nounHeadTys who)} ->
-                            {auto 0 pt : So (deonticPatientOk who ["Cast"] Agent
-                                                              (DeonticCounterpart what)
-                                                              (PlayRider (Just from) Nothing (Just WhileSearchingLibrary) False ItsOwnCost))} ->
-                            {auto 0 rd : So (deonticRiderOk ["Cast"] Agent
-                                                            (Permit {bs = selfSubjIntro who})
-                                                            (DeonticCounterpart what) False
-                                                            (PlayRider (Just from) Nothing
-                                                                       (Just WhileSearchingLibrary)
-                                                                       False ItsOwnCost))} ->
-                            StaticEffect bs
-mayCastFromWhileSearching who what from =
-  mayPlayDeed "Cast" who what
-              (PlayRider (Just from) Nothing (Just WhileSearchingLibrary) False ItsOwnCost)
-              {zn} {dp} {pt} {rd}
-
-public export
 fromTo : Nat -> Nat -> Quantity bs
 fromTo lo hi = Range (Just lo) (Just hi)
 
 public export
-flipACoin : Effect bs
-flipACoin = FlipCoins You (FlipCount (Lit 1))
+flipCoins : (who : Noun bs Player) -> (count : Nat) -> Effect bs
+flipCoins who count = FlipCoins who (FlipCount (Lit count))
 
 public export
-flipCoins : (n : Nat) -> Effect bs
-flipCoins n = FlipCoins You (FlipCount (Lit n))
-
-public export
-youWinTheFlip : {auto 0 fl : So (coinFlipInScope bs)} -> Condition bs
-youWinTheFlip = FlipCalled You WinsFlip {fl}
-
-public export
-youLoseTheFlip : {auto 0 fl : So (coinFlipInScope bs)} -> Condition bs
-youLoseTheFlip = FlipCalled You LosesFlip {fl}
-
-public export
-comesUp : (face : CoinFace) -> {auto 0 fl : So (coinFlipInScope bs)} ->
-          Condition bs
-comesUp face = FlipFace face {fl}
-
-public export
-rollADie : (sides : Nat) -> {auto 0 nz : IsSucc sides} -> Effect bs
-rollADie sides = RollDice You (Lit 1) (SidesOf sides {nz})
-
-public export
-rollDice : (count : Nat) -> (sides : Nat) -> {auto 0 nz : IsSucc sides} ->
-           Effect bs
-rollDice count sides = RollDice You (Lit count) (SidesOf sides {nz})
+rollDice : (who : Noun bs Player) -> (count : Nat) -> (sides : Nat) ->
+           {auto 0 nz : IsSucc sides} -> Effect bs
+rollDice who count sides = RollDice who (Lit count) (SidesOf sides {nz})
 
 public export
 theResult : {auto 0 ok : countOutcomes RollResult bs = 1} -> Amount bs
@@ -2601,22 +2339,6 @@ resultsTable : (rows : List (RollRow bs)) ->
 resultsTable rows = ResultsTable rows {ne} {ok}
 
 public export
-youWinACoinFlip : GameEvent bs
-youWinACoinFlip = FlipEvent You WinsFlip
-
-public export
-youLoseACoinFlip : GameEvent bs
-youLoseACoinFlip = FlipEvent You LosesFlip
-
-public export
-youRollDice : GameEvent bs
-youRollDice = RollsDice You ManyDice AnyDie AnyResult
-
-public export
-youRollADie : GameEvent bs
-youRollADie = RollsDice You OneDie AnyDie AnyResult
-
-public export
 youRollResultIn : (q : Quantity bs) ->
                   {auto 0 nz : NonZeroQ q} ->
                   {auto 0 wf : WellFormedQ q} ->
@@ -2632,18 +2354,8 @@ youRollPlanarDice : GameEvent bs
 youRollPlanarDice = RollsDice You ManyDice PlanarDie AnyResult
 
 public export
-youFlipACoin : GameEvent bs
-youFlipACoin = FlipsCoin You
-
-public export
 rollThePlanarDie : Effect bs
 rollThePlanarDie = RollPlanarDie You (Lit 1)
-
-public export
-flipACoinFor : {k : Kind} -> (each : Noun bs k) ->
-               {auto 0 pl : nounPlur each = ManyOf} ->
-               {auto 0 rk : So (kindLte k (Object \/ Player))} -> Effect bs
-flipACoinFor each = FlipCoins You (FlipPer each {pl} {rk})
 
 public export
 orHigher : Nat -> Quantity bs

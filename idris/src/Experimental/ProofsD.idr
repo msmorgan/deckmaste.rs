@@ -22,7 +22,7 @@ badExiledWithAttacking Oh impossible
 public export
 badSpellAbilityOnPermanent : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Creature])
-       [Spell Macros.drawACard] (Just (1, 1)) {tx = ok})
+       [Spell (Macros.draw You (Lit 1))] (Just (1, 1)) {tx = ok})
 badSpellAbilityOnPermanent Oh impossible
 
 
@@ -46,7 +46,7 @@ badKeywordOnInstant Oh impossible
 public export
 badTapSorcery : Unspellable Card (\ok =>
   Macros.card "Impossible Tap Sorcery" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Sorcery])
-       [Activated TapSymbol Macros.drawACard Nothing Nothing Nothing Nothing] Nothing {tx = ok})
+       [Activated TapSymbol (Macros.draw You (Lit 1)) Nothing Nothing Nothing Nothing] Nothing {tx = ok})
 badTapSorcery Oh impossible
 
 
@@ -104,7 +104,7 @@ badCardDuplicateType MkCardLine impossible
 ||| A category error: this clause grants to a permanent, and a spell ability is a resolving spell's [CR#113.3a].
 public export
 badGainsSpellAbility : Unspellable (Effect []) (\ok =>
-  Macros.gains (Macros.target Macros.creature) (Spell Macros.drawACard) Nothing {gr = ok})
+  Macros.gains (Macros.target Macros.creature) (Spell (Macros.draw You (Lit 1))) Nothing {gr = ok})
 badGainsSpellAbility Oh impossible
 
 
@@ -190,7 +190,7 @@ badUnlessOnPositive MkMarkingOk impossible
 ||| Flipping is one-way [CR#710.4], so there is no transition to observe.
 public export
 badUnflipEvent : Unspellable Ability (\ok =>
-  Triggered Whenever (StatusEvent (Macros.a Permanent) Unflipped {at = ok}) [] Nothing [] Nothing Nothing Nothing Macros.drawACard)
+  Triggered Whenever (StatusEvent (Macros.a Permanent) Unflipped {at = ok}) [] Nothing [] Nothing Nothing Nothing (Macros.draw You (Lit 1)))
 badUnflipEvent Oh impossible
 
 
@@ -198,7 +198,7 @@ public export
 turnedFaceDownHeader : Ability
 turnedFaceDownHeader =
   Triggered Whenever (StatusEvent (Macros.a Permanent) FaceDown)
-            [] Nothing [] Nothing Nothing Nothing Macros.drawACard
+            [] Nothing [] Nothing Nothing Nothing (Macros.draw You (Lit 1))
 
 
 
@@ -312,7 +312,7 @@ badCountersHeldByPlayer Refl impossible
 ||| The last-removal event watches an object's holding, and poison is a player's kind [CR#122.1].
 public export
 badLastPoisonCounterRemoved : Unspellable Ability (\ok =>
-  Triggered When (LastCounterRemoved Poison Macros.thisCreature Nothing {sc = ok}) [] Nothing [] Nothing Nothing Nothing Macros.drawACard)
+  Triggered When (LastCounterRemoved Poison Macros.thisCreature Nothing {sc = ok}) [] Nothing [] Nothing Nothing Nothing (Macros.draw You (Lit 1)))
 badLastPoisonCounterRemoved Refl impossible
 
 
@@ -321,7 +321,7 @@ badLastPoisonCounterRemoved Refl impossible
 public export
 badExileCheckOnSortedSelf : Unspellable Ability (\ok =>
   Triggered When (LastCounterRemoved Time Macros.thisCreature Nothing) [] Nothing [] Nothing Nothing (Just (Matches Macros.thisCreature (InZone Macros.exileZ)
-                                         {zc = ok})) Macros.drawACard)
+                                         {zc = ok})) (Macros.draw You (Lit 1)))
 badExileCheckOnSortedSelf Oh impossible
 
 
@@ -329,7 +329,7 @@ badExileCheckOnSortedSelf Oh impossible
 ||| Each event names the sort its history subject takes, and dying is an object's.
 public export
 badLookbackPlayerDied : Unspellable Ability (\ok =>
-  Triggered When (Enters Macros.thisCreature Nothing) [] Nothing [] Nothing Nothing (Just (Happened Death You Lookback.ThisTurn Nothing {sb = ok})) Macros.drawACard)
+  Triggered When (Enters Macros.thisCreature Nothing) [] Nothing [] Nothing Nothing (Just (Happened Death You Lookback.ThisTurn Nothing {sb = ok})) (Macros.draw You (Lit 1)))
 badLookbackPlayerDied MkLookbackSubject impossible
 
 
@@ -338,7 +338,7 @@ badLookbackPlayerDied MkLookbackSubject impossible
 public export
 badLookbackObjectCast : Unspellable Ability (\ok =>
   Triggered When (Enters Macros.thisCreature Nothing) [] Nothing [] Nothing Nothing (Just (Happened SpellCast (Macros.a Macros.creature)
-                                          Lookback.ThisTurn Nothing {sb = ok})) Macros.drawACard)
+                                          Lookback.ThisTurn Nothing {sb = ok})) (Macros.draw You (Lit 1)))
 badLookbackObjectCast MkLookbackSubject impossible
 
 
@@ -378,7 +378,7 @@ badColorlessWhite Oh impossible
 ||| An activation restriction introduces no turn, so the deictic possessor reaches no antecedent.
 public export
 badThatTurnsPartWindow : Unspellable Ability (\ok =>
-  Activated (Mana [Macros.generic 2]) Macros.drawACard (Just (DuringPart EndStep (Just ThatTurns) {wk = ok})) Nothing Nothing Nothing)
+  Activated (Mana [Macros.generic 2]) (Macros.draw You (Lit 1)) (Just (DuringPart EndStep (Just ThatTurns) {wk = ok})) Nothing Nothing Nothing)
 badThatTurnsPartWindow Oh impossible
 
 
@@ -386,7 +386,7 @@ badThatTurnsPartWindow Oh impossible
 ||| An activation restriction introduces no turn, so the deictic possessor reaches no antecedent.
 public export
 badThatTurnsAttackWindow : Unspellable Ability (\ok =>
-  Activated (Mana [Macros.generic 2]) Macros.drawACard (Just (BeforePoint AttackersDeclared (Just ThatTurns) {pk = ok})) Nothing Nothing Nothing)
+  Activated (Mana [Macros.generic 2]) (Macros.draw You (Lit 1)) (Just (BeforePoint AttackersDeclared (Just ThatTurns) {pk = ok})) Nothing Nothing Nothing)
 badThatTurnsAttackWindow Oh impossible
 
 

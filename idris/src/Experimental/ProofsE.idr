@@ -284,7 +284,7 @@ badPlacementLookback Oh impossible
 public export
 badHeaderBareTurnWindow : Unspellable Ability (\ok =>
   Triggered Whenever (Enters (Macros.a Macros.creature) Nothing) [] Nothing [] (Just (DuringWindow Turn Nothing {hw = ok})) Nothing Nothing
-            Macros.drawACard)
+            (Macros.draw You (Lit 1)))
 badHeaderBareTurnWindow Oh impossible
 
 
@@ -464,7 +464,7 @@ public export
 badTokenSpellAbility : Unspellable (Effect []) (\ok =>
   Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [White]
                                  (MkTypeLine [creatureType "Soldier"] [Creature])
-                                 [Spell Macros.drawACard] Nothing) {ta = ok})
+                                 [Spell (Macros.draw You (Lit 1))] Nothing) {ta = ok})
 badTokenSpellAbility Oh impossible
 
 
@@ -473,7 +473,7 @@ badTokenSpellAbility Oh impossible
 public export
 badQuotedGrantOnSpell : Unspellable (StaticEffect []) (\ok =>
   Gains (AllOf (And [Macros.instantOrSorcery, Macros.spell, CastBy You]))
-        (Activated TapSymbol Macros.drawACard Nothing Nothing Nothing Nothing) {ok})
+        (Activated TapSymbol (Macros.draw You (Lit 1)) Nothing Nothing Nothing Nothing) {ok})
 badQuotedGrantOnSpell Oh impossible
 
 
@@ -506,7 +506,7 @@ public export
 badLoyaltySorcery : Unspellable Card (\ok =>
   Macros.card "Impossible Loyalty Sorcery" (Just [Macros.pip Blue]) []
        (MkTypeLine [] [Sorcery])
-       [Activated (LoyaltySymbol (LoyaltyUp 1)) Macros.drawACard Nothing Nothing Nothing Nothing] Nothing {tx = ok})
+       [Activated (LoyaltySymbol (LoyaltyUp 1)) (Macros.draw You (Lit 1)) Nothing Nothing Nothing Nothing] Nothing {tx = ok})
 badLoyaltySorcery Oh impossible
 
 
