@@ -378,10 +378,6 @@ deedPremiseSort : VerbLabel -> Maybe PremiseSort
 deedPremiseSort v = actFactsFor v >>= actCounterfactual
 
 public export
-deedCounterfactualOk : VerbLabel -> Bool
-deedCounterfactualOk v = isJust (deedPremiseSort v)
-
-public export
 deedPremiseOk : PremiseSort -> VerbLabel -> Bool
 deedPremiseOk s v = deedPremiseSort v == Just s
 

@@ -34,6 +34,41 @@ Rust engine still loads independently — `deckmaste_engine::entail`; the twelve
 other tables the old elaborator consumed, and the per-card resolution
 fixtures, were deleted with it.)
 
+## The `Experimental.*` workbench
+
+`src/Experimental/` is the semantics-v2 grammar workbench: `Words`, `Events`,
+`Phrase`, `Triggers`, `Effect` and `Card` (re-exported together as
+`Experimental`), `Macros` (spellings over the core constructors), `Cards` (the
+printed-card bench), `Unspellable`, and the `Proofs*` pin modules. Every
+module is `%default total`; a card term typechecks only if every
+`{auto 0 ok : …}` obligation on its constructors is met, so a type error is a
+refused sentence.
+
+A **pin** is a compiler-checked refusal: `Unspellable T (\ok => term)` states
+that the term's open obligation has no proof, and its body (`Oh impossible`,
+`Refl impossible`) makes the compiler confirm it. Table assertions are
+checked proofs of the same kind, `So (…)` over a facts table with body `Oh`
+(e.g. `Words.actLabelsDistinct`). A pin is evidence only once it is
+**non-vacuous**: before landing one, put its positive twin — the same
+sentence with the obligation met — in a scratch module and check that it
+typechecks as a term (delete the scratch module afterwards); a pin whose
+positive twin also fails is refusing nothing. A table assertion is probed
+the same way, by making the table wrong and watching the proof fail.
+
+The gates, from `idris/`:
+
+    idris2 --build mtg-dev.ipkg    # inner loop: everything but Proofs*
+    ./scripts/build                # full gate: mtg.ipkg, every module,
+                                   # no Error and no Warning lines
+
+Both share `build/`, so the full gate after a dev build re-elaborates only
+the `Proofs*` modules and what you touched. From the workspace root, the
+citation gates then cover everything in the diff that cites the
+Comprehensive Rules: `cargo xtask cite check --list-noncompliant` (empty),
+`cargo xtask cite check` (0 stale), `cargo xtask cite bless` for newly cited
+rules, and `jj --no-pager diff --git | cargo xtask cite audit --diff`, reading
+each rule's text against the claim that cites it.
+
 ## Check the whole corpus (the automated gate)
 
 `cargo xtask idris-check <plugin>` (e.g. `plugins/canon`) re-emits every

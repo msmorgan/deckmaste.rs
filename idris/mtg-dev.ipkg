@@ -1,22 +1,17 @@
 -- mtg-dev.ipkg: fast inner loop for iterating on Experimental.* modules.
 --
--- Same module set as mtg.ipkg (same sourcedir, same options), minus the five
--- Experimental.Proofs* pin/regression modules. Those five are deliberately-
--- failing-elaboration proofs (~4,500 lines) that dominate build time: they
--- measured ~296s of a ~331s incremental per-module rebuild, versus the rest
--- of the package at ~35s. Editing Experimental.idr / Words.idr / Events.idr /
--- Macros.idr / Cards.idr and rebuilding against mtg.ipkg pays that cost every
--- iteration even though the pins only need checking once per round.
+-- Same module set as mtg.ipkg (same sourcedir, same options), minus the
+-- Experimental.Proofs* pin modules: deliberately-failing elaborations that
+-- dominate build time and only need checking once per round.
 --
 -- Iterate on dev, gate on full:
 --   idris2 --build mtg-dev.ipkg      -- fast inner loop (no Proofs* checked)
---   idris2 --build mtg.ipkg          -- full gate; must be 16/16, 0 errors,
---                                        0 warnings before landing
+--   ./scripts/build                  -- full gate (mtg.ipkg): every module
+--                                        built, 0 errors, 0 warnings
 --
 -- Both ipkgs share this directory's build/ (same sourcedir "src", no
--- package-name-sensitive options), so a full build run after a dev build
--- only re-elaborates the five Proofs* modules (plus anything else you
--- touched), not the whole package from scratch.
+-- package-name-sensitive options), so a full build after a dev build only
+-- re-elaborates the Proofs* modules plus whatever else you touched.
 
 package mtg-dev
 

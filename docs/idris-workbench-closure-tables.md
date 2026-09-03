@@ -890,7 +890,7 @@ value records a measurement *and* a bet that the axis will stay closed.
 
 ### `Experimental/Words.idr`
 
-- **`Causer = AnEffect`** (:643) — fixed to the single word "an effect" because
+- **`Causer = AnEffect`** (`Words.Causer`) — fixed to the single word "an effect" because
   [CR#614.16] defines exactly that phrase and the corpus contains only 4 bare
   uses of it (3 creation, 1 counter-placement); the nearby similar-shaped phrases
   ("a source would…", "a spell would…", described abilities) are measured as NOT
@@ -899,26 +899,26 @@ value records a measurement *and* a bet that the axis will stay closed.
   (2026-08-27) and left singular deliberately: the union would buy zero writable
   lines, because each of the three described-ability lines is blocked below the
   slot's arity (see the `Causer` row above).
-- **`outcomeB`, `gapB`, `turnRefB`, `letterB`** (:1298–1327) — all four
+- **`outcomeB`, `gapB`, `turnRefB`, `letterB`** (`Words.outcomeB`, `gapB`, `turnRefB`, `letterB`) — all four
   mention-builders hard-fix `Determiner = TheD` (definite), because each is
   prepended by a sentence that has just said which value it means; `turnRefB`'s
   TheD specifically backed by "that turn's"(5)/"during that turn"(2)/"the untap
   step of that turn"(1)/"after that turn"(1) against "the turn's"(0).
-- **`qualityB`** (:1341) — fixes `Determiner = AD` (indefinite) rather than TheD,
+- **`qualityB`** (`Words.qualityB`) — fixes `Determiner = AD` (indefinite) rather than TheD,
   the one place this family parts ways with the other four: the chooser writes
   "choose A creature type" and the definite article arrives one clause later on
   the READER side ("the chosen type"), so the introducing mention records the
   indefinite article it was actually written with.
-- **`OutcomeSort.DamagePrevented`'s scoping** (:606) — not a one-row slot itself,
+- **`OutcomeSort.DamagePrevented`'s scoping** (`Words.OutcomeSort`) — not a one-row slot itself,
   but its scoping is: [CR#615.5]'s "additional effect" rider is the only place a
   prevention announcement fires, so no "that much" outside a prevention rider
   ever means this row.
-- **`OnBattlefield`** (:2303) — fixes the zone parameter to literally
+- **`OnBattlefield`** (`Words.OnBattlefield`) — fixes the zone parameter to literally
   `Battlefield` rather than a general `Maybe Zone`, because [CR#701.21a]'s
   obligation and self-reference's own zone projection ([CR#109.2]) both resolve
   to that one zone; the formerly-permissive untracked row was retired once
   self-reference could project its own zone.
-- **`EntryCounterMark`** (:2393) — kept as a SLOT (not folded into a
+- **`EntryCounterMark`** (`Words.EntryCounterMark`) — kept as a SLOT (not folded into a
   spelling function) even though the CR treats the plain and "additional"
   wordings identically (rules-inert per [CR#614.1c,614.12,616.1]), because
   finding 275's crossing test fails when the words are treated as freely
@@ -926,234 +926,234 @@ value records a measurement *and* a bet that the axis will stay closed.
   lines) is what forces the axis to stay open. `Fewer` joined the two as a
   third arm: compleated's "enters with two fewer loyalty counters" subtracts
   from [CR#306.5b]'s printed count, so it is not rules-inert against them.
-- **`RoundMode`** (:2548) — the only vocabulary in the file the *rules* make
+- **`RoundMode`** (`Words.RoundMode`) — the only vocabulary in the file the *rules* make
   MANDATORY rather than corpus-attested: [CR#107.1a] requires any
   fractional-generating spell to state its rounding direction, so a halving
   construction cannot be spelled without this parameter; Banshee attests both
   cells on one card, closing off any "always rounds one way" simplification.
-- **`ShiftDir`** (:2597) — fixes the direction of a flat modifier as one indexed
+- **`ShiftDir`** (`Words.ShiftDir`) — fixes the direction of a flat modifier as one indexed
   row rather than two constructor families, following `PlayerGroupWord`'s
   pattern: no table in the grammar asks which direction, so separate constructor
   families would be unused structure.
-- **`DesignationScope.HeldByCard`** (:4673, 4704) — a whole enum branch minted
+- **`DesignationScope.HeldByCard`** (`Words.DesignationScope`, `Words.designationScope`) — a whole enum branch minted
   for exactly one occupant, `CommanderD`. The docstring says the scope exists
   *because of* that single occupant: [CR#903.3]'s point that the commander
   designation "is not a characteristic of the object represented by the card;
   rather, it is an attribute of the card itself."
-- **`Owner.ThatTurns`** (:6366) — attested at exactly one turn part per its own
-  note ("the corpus writes it at ONE part"), the measurement site (`partUse`)
-  living in `Events.idr`.
+- **`Owner.ThatTurns`** (`Words.Owner`) — attested at exactly one turn part per its own
+  note ("the corpus writes it at ONE part"), its former measurement site
+  (`partUse`) retired.
 
 ### `Experimental/Events.idr`
 
-- **`PlayAsThough = HadFlash`** (:2087) — fixes the whole "as though"
+- **`PlayAsThough = HadFlash`** (`Effect.AsThough`; since opened to four rows) — fixes the whole "as though"
   counterfactual construction to the flash-timing reading. 87 of the 88 supported
   sentences write flash; the lone exception (Shaman's Trance's zone
   counterfactual) is deliberately routed elsewhere rather than given a second
   row, on the stated principle that minting a general slot to spell one unwritten
   sentence repeats a prior refusal (finding 246). **Risk rank 2.**
 - **`CounterMove` as a value-indexed row rather than two `EventName` rows**
-  (:185) — fixed because the vocabulary that reads `EventName`
+  (`Events.CounterMove`) — fixed because the vocabulary that reads `EventName`
   (interception/trigger/hold/delay) is keyed on the event name, and CounterMove's
   only other job — the spelling frame — is a construction-owned detail those
   readers need no second row to see.
-- **`Role` collapsed to a 2-valued voice axis** (:1740) — fixed because a
+- **`Role` collapsed to a 2-valued voice axis** (`Events.Role`) — fixed because a
   one-subject deontic clause ("can't block") has no second noun slot the way a
   two-slot core `DeonticAction` does; English marks the missing participant in
   the verb's voice, so the grammar spends one axis rather than mirroring core's
   two fields.
-- **`complementLocates z = playableFrom z`** (:2793) — the "does a complement's
+- **`complementLocates z = playableFrom z`** (`Events.complementLocates`) — the "does a complement's
   zone count as locating its object" question is fixed to be literally identical
   to "could that zone have been the play source", derived by argument rather than
   measured as an independent table.
 
-### `Experimental.idr`
+### The modules split from `Experimental.idr` (`Phrase`, `Triggers`, `Effect`, `Card`, `Macros`)
 
-- **`OfLastChosenColor`** (:503) — fixes the sort to COLOR alone at this
+- **`OfLastChosenColor`** (`Phrase.OfLastChosen`; since opened to a `QualitySort` slot — `Phrase.LastChosenColor` keeps the colour-only read) — fixes the sort to COLOR alone at this
   syntactic position, because the marked ("last chosen") read is attested for
   color twice (Chromatic Armor, Sanctuary Blade) and zero times for creature type
   here, while the other five sorts are written only in carriers this row does not
   cover; a `QualitySort` slot here would spell three unwritten phrases to reach
   one written cell (finding 246).
-- **`ExiledWith`'s source** (:1186) — fixed to `LinkSource` (the object whose OWN
+- **`ExiledWith`'s source** (`Phrase.ExiledWith`) — fixed to `LinkSource` (the object whose OWN
   abilities are linked, [CR#607.1] "printed on it") and not any noun, because the
   corpus writes only the self-word or the card's own printed name as the
   source — one referent, three spellings, never a different object.
-- **`AnyTarget`** (:1327) — fixed as a single lexical head with no de-macro onto
+- **`AnyTarget`** (row retired; `ProofsB.badDestroyAnyTargetRemention` is the surviving pin) — fixed as a single lexical head with no de-macro onto
   `KindJoin`, decided by three independent measurements (no cross-Kind-to-player
   join exists as this word; the rules name it as one lexical item; the two obey
   different modifier disciplines — Zevlor's "the chosen player or permanent" is
   attested against KindJoin but would have to be refused to preserve
   `AnyTargetLone`'s discipline).
-- **`IsSource`** (:1429) — zone-free and type-free by [CR#120.7]'s own text (a
+- **`IsSource`** (`Phrase.IsSource`) — zone-free and type-free by [CR#120.7]'s own text (a
   source is explicitly not required to be "currently in the zone it used to be
   in"); every battlefield-demanding verb is refused against it with a measured
   zero rather than a bespoke rule.
-- **`IsManaAbility`** (:1511) — a description-side word rather than a tag on the
+- **`IsManaAbility`** (`Phrase.IsManaAbility`) — a description-side word rather than a tag on the
   ability's own type, because chapter 91 (finding 679) ruled that mana-ability
   status is derived from an ability's SHAPE per [CR#605.1a] and must never be
   authored as a flag; the row is always negated in the corpus (14/14).
-- **`PlayerGroup`** (:3318) — fixed as EXOPHORIC (introduces no readable mention)
+- **`PlayerGroup`** (`Phrase.PlayerGroup`) — fixed as EXOPHORIC (introduces no readable mention)
   because across all 140 measured corpus segments with this subject, no later
   clause ever pronominalises it back; the docstring likens it to `You`'s answer.
-- **`YouAnd`'s player half** (:3532) — the player argument is not a `Noun`
+- **`YouAnd`'s player half** (`Macros.youAnd`; the row is now a macro over `Both`) — the player argument is not a `Noun`
   parameter at all but hard-fixed to `You`, because every one of the 35 supported
   sentences writes second person and none writes a third-person player. The row
   takes only the object-side argument and spells the player word itself.
   **Risk rank 8.**
-- **`LibrarySlice`'s type projection** (:3564) — deliberately projects NO card
+- **`LibrarySlice`'s type projection** (`Phrase.LibrarySlice`) — deliberately projects NO card
   type, because the library is a hidden zone whose contents no player may inspect
   ([CR#400.2,401.2]); every type-demanding verb is refused "for free" rather than
   through a bespoke rule.
-- **`TheRest`** (:3600) — gated by `theRestOk`, demanding exactly one prior GROUP
+- **`TheRest`** (`Phrase.TheRest`, `Words.theRestOk`) — gated by `theRestOk`, demanding exactly one prior GROUP
   mention and at least one part already taken, because findings 111/127
   established that two "target" instances are two separate mentions while a slice
   phrase names one group a partitive can divide.
-- **`ControllerOf`/`OwnerOf`** (:3691, 3693) — both fixed to demand
+- **`ControllerOf`/`OwnerOf`** (`Phrase.ControllerOf`, `Phrase.OwnerOf`; `Proofs.badGroupOwner`) — both fixed to demand
   `nounPlur n = OneOf` because [CR#108.3,109.4] give a card/object exactly one
   owner/controller; a group's plural relational ("their owners' hands") is
   recorded as future, unbuilt vocabulary (`badGroupOwner`).
-- **`Amount.GroupSize`** (:4324) — fixes the counted-group cardinality anaphor's
+- **`Amount.GroupSize`** (`Phrase.GroupSize`) — fixes the counted-group cardinality anaphor's
   sort to `Object` only (`countManys Object bs = 1`), because zero of the five
   player-subject counted-group headers ever write the anaphor back.
-- **`Amount.TheDifference`** (:4340) — fixes the value to POSITIVE only (never
+- **`Amount.TheDifference`** (`Phrase.TheDifference`) — fixes the value to POSITIVE only (never
   the raw signed subtraction), because the comparison licensing "the difference"
   was already true, so [CR#107.1b]'s floor is never reached from this anaphor.
-- **`LinkSource.SelfLinked`** (:4833) — fixes the exiled-with linkage's source to
+- **`LinkSource.SelfLinked`** (`Phrase.SelfLinked`) — fixes the exiled-with linkage's source to
   the SELF word only, refusing any other or target object, because
   [CR#607.1,406.6] build the whole relation out of "two abilities printed on IT";
   a worked example (Quicksilver Elemental) shows naming any other object would be
   wrong.
-- **`capSubjectOk`** (:5068) — fixes the untap-cap's subject to exactly
+- **`capSubjectOk`** (`Effect.CantMoreThan`'s `who`; the `capSubjectOk` gate is retired) — fixes the untap-cap's subject to exactly
   `You`/`PlayerGroup`, replacing a retired three-cell enum whose third cell "was
   `You` all along".
-- **`selfDefinedOk`/`SelfDefined`** (:5338) — fixes a characteristic-defining
+- **`selfDefinedOk`/`SelfDefined`** (`Phrase.selfDefinedOk`, `Phrase.SelfDefined`) — fixes a characteristic-defining
   ability's definable subject to the self (`This`/`AsType _ This`) alone, because
   [CR#604.3a] makes an ability a CDA only if it does not affect any OTHER
   object's characteristics; 142/142 supported lines confirm no exception.
-- **`GameEvent.Attacks`' defender** (:6177) — fixes the optional defender to a
+- **`GameEvent.Attacks`' defender** (`Triggers.Attacks`) — fixes the optional defender to a
   PLAYER noun only, narrower than [CR#506.3] (which also allows
   planeswalker/battle), because the one coordinated planeswalker line (Oath of
   Kaya) and zero battle lines cannot be written as a single term.
-- **`GameEvent.BeginningOf`/`TriggerWordOk`** (:6253, 7115) — the only event
+- **`GameEvent.BeginningOf`/`TriggerWordOk`** (`Triggers.BeginningOf`, `Triggers.AltEvent`) — the only event
   whose trigger header word is fixed (to `At`) rather than chosen from the
   three-way `TriggerWord` catalog every other event reads from.
-- **`GameEvent.DayNightShift`** (:6359) — takes no direction argument, fixing the
+- **`GameEvent.DayNightShift`** (`Triggers.DayNightShift`) — takes no direction argument, fixing the
   phrase to the full lexicalized disjunction rather than parameterizing over a
   `Designation` direction, because 10/11 headers write both halves joined by "or"
   and the corpus never separates them; named as the "standing check's first
   recorded refusal".
-- **`selfSubjIntro (AttachHost …)`** (:6750) — fixes the attachment host's minted
+- **`selfSubjIntro (AttachHost …)`** (`Phrase.selfSubjIntro`) — fixes the attachment host's minted
   determinant to `TheD` (demonstrative-visible) where the bare self mints `SelfD`
   (only "it"-visible), because 5 corpus lines demonstrate back to an attachment
   host and 0 to a trigger's own subject.
-- **`DefinesPt` (SelfDefined)** (:7855) — the subject is fixed to the self object
+- **`DefinesPt` (SelfDefined)** (`Effect.DefinesPt`) — the subject is fixed to the self object
   per [CR#604.3a]; measured 142/142.
-- **`DefinesPt` (DefiningValue)** (:7855) — the computed value is never written
+- **`DefinesPt` (DefiningValue)** (`Effect.DefinesPt`) — the computed value is never written
   in the sentence — the printed star stands where a number would go.
-- **`HasBasePt`'s amounts** (:7908) — unlike Gets/DefinesPt, no corpus line reads
+- **`HasBasePt`'s amounts** (`Effect.HasBasePt`) — unlike Gets/DefinesPt, no corpus line reads
   the subject back into a base-P/T value, so the amounts are NOT
   subject-contextual — the pump's answer inverted.
-- **`AltCost` (no subject slot)** (:8050) — the declined mana cost is fixed to
+- **`AltCost` (no subject slot)** (`Effect.AltCost`) — the declined mana cost is fixed to
   "this spell's mana cost", 107/107 lines being about the card printing the
   ability itself, never a class of future spells (those 14 lines route to
   `CostsToCast`).
-- **`AltCost` (Maybe = spelling, not two rows)** (:8050) — whether the offered
+- **`AltCost` (Maybe = spelling, not two rows)** (`Effect.AltCost`) — whether the offered
   payment is written picks between "rather than pay" (107) and "without paying"
   (16), a perfect 123/123 covariance.
-- **`CostsToCast` (infinitive = subject's sort)** (:7986) — the
+- **`CostsToCast` (infinitive = subject's sort)** (`Effect.CostsToCast`) — the
   "to cast"/"to activate" choice is fixed by whether the subject is an Object or
   an Ability per [CR#602.2b], not a written slot.
-- **`Deontic` (payer derived)** (:8190) — the cost-payer in the GatedBy cell is
+- **`Deontic` (payer derived)** (`Effect.Deontic`) — the cost-payer in the GatedBy cell is
   fixed to the gated subject's own controller, except the one Block/Patient cell
   where it is fixed to the defending player instead.
-- **`MayDeclineUntap` (possessive derived)** (:8212) — "your untap step" is fixed
+- **`MayDeclineUntap` (possessive derived)** (`Effect.MayDeclineUntap`) — "your untap step" is fixed
   to the untapping player, finding 254's derivation pattern.
-- **`DoesntUntap` (possessor derived)** (:8347) — "its controller's untap step"
+- **`DoesntUntap` (possessor derived)** (`Effect.DoesntUntap`) — "its controller's untap step"
   is fixed by agreement with the subject, never a free slot.
-- **`CantUntapMoreThan` (possessor dissolved)** (:8397) — started as a private
+- **`CantUntapMoreThan` (possessor dissolved)** (`Effect.CantMoreThan`) — started as a private
   CapDomain enum, found 7/7 to always agree with the subject, and retired into a
   derivation; `PlayerGroup` absorbed its three cells.
-- **`CantUntapMoreThan`/`CapBound`** (:8397) — the numeric bound is a closed
+- **`CantUntapMoreThan`/`CapBound`** (`Effect.CantMoreThan`) — the numeric bound is a closed
   two-row table over the written number rather than an open Nat, because only
   "one" and "two" are attested.
-- **`Skips` (possessor derived)** (:8448) — 26/27 lines agree the possessive with
+- **`Skips` (possessor derived)** (`Effect.Skips`) — 26/27 lines agree the possessive with
   the subject; only Savor the Moment's deictic "that turn" breaks the pattern and
   is left unmodelled.
-- **`Skips` (part = full noun, not bare)** (:8448) — a skip always writes the
+- **`Skips` (part = full noun, not bare)** (`Effect.Skips`) — a skip always writes the
   full noun ("draw step") rather than the bare word an endpoint uses ("upkeep") —
   a spelling-reader distinction, not a second enum.
-- **`SetsChosenBasicType` (chooser fixed at YourChoice)** (:8741) — all 12 lines
+- **`SetsChosenBasicType` (chooser fixed at YourChoice)** (`Effect.ChosenQuality` under `Effect.Becomes`; the chooser is `Phrase.OfYourChoice`) — all 12 lines
   write "of your choice"; the other three `ChoiceMode` cells are unwritten, so
   the chooser is fixed rather than a slot (finding 246).
-- **`Scales` (agent always named)** (:9285) — unlike its siblings
+- **`Scales` (agent always named)** (`Effect.Scales`) — unlike its siblings
   PreventsFrom/RedirectsFrom, this row's body reads the agent back as its own
   subject, so an agentless clause would leave that subject with no antecedent —
   0/62 write the passive.
-- **`Scales` (destination phrase = spelling, not slot)** (:9285) — the closing
+- **`Scales` (destination phrase = spelling, not slot)** (`Effect.Scales`) — the closing
   "to that permanent or player" is a spelling of the scope's own recipient, in
   total covariance with the event clause's own recipient presence/absence.
-- **`ProducedMana.OfChosenColor` (sort fixed at Color)** (:10863) — takes no
+- **`ProducedMana.OfChosenColor` (sort fixed at Color)** (`Effect.OfChosenColor`) — takes no
   `QualitySort` parameter; the other three sorts measure zero at this container,
   so a parameter would be a slot with one legal value (finding 1016).
-- **`staticChoiceIntro` (only EntersChoice binds outward)** (:10318) — every
+- **`staticChoiceIntro` (only EntersChoice binds outward)** (`Effect.staticChoiceIntro`, `Effect.EntersChoice`) — every
   other StaticEffect row answers `bs` unchanged; EntersChoice is the sole
   exception, binding the chosen quality forward per [CR#607.2d].
-- **`GetsEmblem` (exactly two slots, no TokenChars analogue)** (:11979) —
+- **`GetsEmblem` (exactly two slots, no TokenChars analogue)** (`Effect.GetsEmblem`) —
   [CR#114.3] fixes an emblem as having no characteristics but its ability list,
   so there is no name/type/color slot to mint at all — a rule-forced absence, and
   the corpus's 0/90 named emblems closes off a name slot too.
-- **`GetsEmblem` (write-only)** (:11979) — no noun/description/zone reader exists
+- **`GetsEmblem` (write-only)** (`Effect.GetsEmblem`) — no noun/description/zone reader exists
   for the created emblem because only 1 of 90 supported lines (The Masamune) ever
   reads an emblem back, and that read is nested two levels down inside a quoted
   granted ability.
-- **`AddMana` (no mana-ability tag)** (:11750) — the constructor carries no tag
+- **`AddMana` (no mana-ability tag)** (`Effect.AddMana`) — the constructor carries no tag
   marking the ability as a mana ability; per [CR#605.1a,605.5b] that status is
   *derived* from ability shape, so tagging it would duplicate a rule-computed
   fact — an explicit frame decision, not an omission.
-- **`ChooseNewTargets` (no agent slot)** (:11701) — the row omits an agent
+- **`ChooseNewTargets` (no agent slot)** (`Effect.ChooseNewTargets`) — the row omits an agent
   parameter entirely because the corpus never writes "[agent] chooses new
   targets" (0 occurrences); every instance is either under `May`'s decider or a
   bare unpronounced imperative.
-- **`CopyStack`'s agent (contrast case)** (:11660) — recorded as the *opposite*
+- **`CopyStack`'s agent (contrast case)** (`Effect.CopyStack`) — recorded as the *opposite*
   of ChooseNewTargets: the agent IS a real slot because [CR#707.10] makes
   controller-of-copy meaningful and the corpus writes 6 non-You subjects.
-- **`ForEachOf`'s element determiner fixed at TheD** (:12351) — every element
+- **`ForEachOf`'s element determiner fixed at TheD** (`Effect.ForEachOf`) — every element
   mention is introduced definite regardless of how the domain was phrased,
   because the corpus reads it back with "it" (19) or a demonstrative (14) and
   never an indefinite.
 - **`DoesntUntapNext` / `SkipsNext` / `ExtraTurn` possessors are derived**
-  (:12688, 12723, 12763) — none of the three takes a possessor parameter;
+  (`Effect.DoesntUntapNext`, `Effect.SkipsNext`, `Effect.ExtraTurn`) — none of the three takes a possessor parameter;
   [CR#109.5] fixes "you"/"your"/"its controller('s)" mechanically from the
   subject, so the field would be redundant with the subject noun already carried.
-- **`ExtraTurn`'s anchor fixed at "after this one"** (:12763) — 33 of 34
+- **`ExtraTurn`'s anchor fixed at "after this one"** (`Effect.ExtraTurn`) — 33 of 34
   sentences write exactly that phrase with no parameter; the anchor is hardcoded
   into the spelling, the lone exception (Emrakul, the Promised End) carried as an
   unfixed ledger gap.
-- **`AdditionalPart`'s existential frame carries no subject slot** (:12812) —
+- **`AdditionalPart`'s existential frame carries no subject slot** (`Effect.AdditionalPart`) —
   deliberately omits a subject parameter because [CR#500.10a]'s "you get an
   additional step" lines are a DIFFERENT meaning; the three "you get" lines are
   excluded by name (Obeka, Paradox Haze, The Ninth Doctor).
-- **`AdditionalPart`'s anchor word is derived, not written** (:12812) — the
+- **`AdditionalPart`'s anchor word is derived, not written** (`Effect.AdditionalPart`) — the
   anchor's sort word ("phase"/"step") is computed from the added part, verified
   by finding 275 agreeing 48/48.
-- **`TagBody` `ScryB`/`SurveilB` possessor fixed at You** (:13885) — both rows
+- **`TagBody` `ScryB`/`SurveilB` possessor fixed at You** (`Macros.scry`, `Macros.surveil`, `Macros.mills`; the `TagBody` rows are retired) — both rows
   hardcode the looker as `You` rather than taking a Noun parameter, because only
   2 of 440 scry lines and 0 surveil lines name a different possessor; contrast
   `MillB`, whose possessor is a free parameter because mill is regularly written
   of other players. **Risk rank 10.**
-- **`TagBody` `MillB` patient fixed at OnTop** (:13885) — the slice position
-  parameter is pinned to `OnTop`; `OnBottom` is refused (`badBottomMill`) because
+- **`TagBody` `MillB` patient fixed at OnTop** (`Macros.scry`, `Macros.surveil`, `Macros.mills`; the `TagBody` rows are retired) — the slice position
+  parameter is pinned to `OnTop`; `OnBottom` is refused (`badBottomMill`, since retired) because
   [CR#701.17a] names only the top and 0 corpus lines mill from the bottom.
-- **`CopyStack`'s copy-mention determiner fixed definite** (:14320, in effIntro)
+- **`CopyStack`'s copy-mention determiner fixed definite** (`Effect.effIntro`)
   — unlike Create's token (indefinite), the copy mention is minted definite
   because no noun phrase in the sentence names it before the mention exists.
-- **`keywordCardOk`'s Ascend both-True cell** (:16698) — the only keyword row
+- **`keywordCardOk`'s Ascend both-True cell** (`Card.keywordCardOk`) — the only keyword row
   where BOTH PermanentCard and SpellCard cells are True, fixed that way because
   [CR#702.131a] states outright that ascend on a spell represents a distinct
   spell ability — a rule-stated dual meaning, corroborated 5-spell/22-permanent
   of 27 cards.
-- **`staticOnSpellCardOk`'s AltCost row admitted flatly** (:16789) — unlike the
+- **`staticOnSpellCardOk`'s AltCost row admitted flatly** (`Card.staticOnSpellCardOk`) — unlike the
   ObjectCant(Countered/Copied) rows, which require the bare self as subject,
   AltCost has no subject slot to check at all because [CR#113.6d] makes it "about
   the card printing it and nothing else" — a structural asymmetry between the two
