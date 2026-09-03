@@ -412,6 +412,11 @@ impl GameState {
                 let min = lo.map_or(0, |count| self.eval_count(count, &frame));
                 let max = hi.map_or(Uint::MAX, |count| self.eval_count(count, &frame));
                 self.validate_choice_region_objects(objects, min, max, &choice.filter, &frame)?;
+                let mut projected = self.clone();
+                projected.activation_write_objects(frame.activation, choice.dest, objects);
+                if !projected.preflight_decision_body(&outstanding, id, payer, &frame) {
+                    return illegal("the complete chosen cost body cannot currently be paid");
+                }
                 self.activation_write_objects(frame.activation, choice.dest, objects);
                 FulfillmentPlan {
                     spend: None,
@@ -447,6 +452,22 @@ impl GameState {
                 }
                 let (_, count) = self.choice_bounds(&sample.quantity, candidates.len(), &frame);
                 let count = usize::try_from(count).expect("sample count fits usize");
+                let mut projected = self.clone();
+                let selected = if let Some((recorded, post_sample_rng)) =
+                    projected.take_replay_random_outcome()
+                {
+                    projected.rng.set_stream(post_sample_rng.stream);
+                    projected.rng.set_word_pos(post_sample_rng.word_pos);
+                    recorded
+                } else {
+                    let indices =
+                        rand::seq::index::sample(&mut projected.rng, candidates.len(), count);
+                    indices.into_iter().map(|index| candidates[index]).collect()
+                };
+                projected.activation_write_objects(frame.activation, sample.dest, &selected);
+                if !projected.preflight_decision_body(&outstanding, id, payer, &frame) {
+                    return illegal("the complete sampled cost body cannot currently be paid");
+                }
                 FulfillmentPlan {
                     spend: None,
                     sample: Some(PaymentSample {
@@ -488,6 +509,11 @@ impl GameState {
                     0
                 };
                 validate_search_witness(objects, &candidates, min, hi)?;
+                let mut projected = self.clone();
+                projected.activation_write_objects(frame.activation, search.dest, objects);
+                if !projected.preflight_decision_body(&outstanding, id, payer, &frame) {
+                    return illegal("the complete searched cost body cannot currently be paid");
+                }
                 self.activation_write_objects(frame.activation, search.dest, objects);
                 FulfillmentPlan {
                     spend: None,
@@ -509,6 +535,11 @@ impl GameState {
                     .locked
                     .frame
                     .clone();
+                let mut projected = self.clone();
+                projected.write_let(binding, &frame);
+                if !projected.preflight_decision_body(&outstanding, id, payer, &frame) {
+                    return illegal("the complete pinned cost body cannot currently be paid");
+                }
                 self.write_let(binding, &frame);
                 FulfillmentPlan {
                     spend: None,
@@ -771,6 +802,248 @@ impl GameState {
             return illegal("the chosen cost subjects must be distinct live legal candidates");
         }
         Ok(())
+    }
+
+    /// Check the action instructions immediately following a payment-time
+    /// subject writer as one atomic body. Lowering places the lifted
+    /// `Choose`/`Sample`/`Search`/`Let` directly before the action IOUs that
+    /// spend its register; the next non-action IOU begins another payment
+    /// block. The projection is discarded whether the check succeeds or
+    /// fails, so no cost mutation or random observation escapes preflight
+    /// ([CR#601.2h,733.1]).
+    fn preflight_decision_body(
+        &mut self,
+        outstanding: &[PaymentIou],
+        writer: IouId,
+        payer: crate::player::PlayerId,
+        frame: &Frame,
+    ) -> bool {
+        outstanding
+            .iter()
+            .skip_while(|iou| iou.id != writer)
+            .skip(1)
+            .map_while(|iou| match &iou.kind {
+                IouKind::Act { action, .. } => Some(action.as_action()),
+                _ => None,
+            })
+            .all(|action| self.preflight_cost_action(action, payer, frame))
+    }
+
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the projected cost-action set is intentionally reviewed in one exhaustive match"
+    )]
+    fn preflight_cost_action(
+        &mut self,
+        action: &Action,
+        payer: crate::player::PlayerId,
+        frame: &Frame,
+    ) -> bool {
+        match action {
+            Action::Sacrifice(agent, subject) => {
+                let Some(actor) = self.eval_player_ref(agent, frame) else {
+                    return false;
+                };
+                let object = self.eval_reference(subject, frame);
+                let Some(candidate) = self.objects.get(object) else {
+                    return false;
+                };
+                if actor != payer
+                    || candidate.zone != Some(Zone::Battlefield)
+                    || candidate.controller != actor
+                {
+                    return false;
+                }
+                let candidate = self.objects.obj_mut(object);
+                candidate.zone = Some(Zone::Graveyard);
+                candidate.tapped = false;
+                candidate.counters.clear();
+                candidate.damage.clear();
+                candidate.attached_to = None;
+                candidate.summoning_sick = false;
+                candidate.skip_next_untap = false;
+                candidate.side = crate::object::Side::Front;
+                true
+            }
+            Action::Move(subject, destination, riders, from) => {
+                let object = self.eval_reference(subject, frame);
+                let Some(candidate) = self.objects.get(object) else {
+                    return false;
+                };
+                if from.is_some_and(|required| candidate.zone != Some(required)) {
+                    return false;
+                }
+                let owner = match candidate.source {
+                    crate::object::ObjectSource::Card(_) => Some(self.owner_of(object)),
+                    crate::object::ObjectSource::Player(_) => None,
+                };
+                let mut controller = candidate.controller;
+                for rider in riders.iter() {
+                    match rider {
+                        deckmaste_core::EnterRider::UnderControlOf(who) => {
+                            let Some(new_controller) = self.eval_player_ref(who, frame) else {
+                                return false;
+                            };
+                            controller = new_controller;
+                        }
+                        deckmaste_core::EnterRider::UnderOwnersControl => {
+                            let Some(owner) = owner else {
+                                return false;
+                            };
+                            controller = owner;
+                        }
+                        _ => {}
+                    }
+                }
+                let zone = match destination {
+                    Destination::Zone(zone) => *zone,
+                    Destination::Library(_) => Zone::Library,
+                };
+                let counter_additions = riders
+                    .iter()
+                    .filter_map(|rider| match rider {
+                        deckmaste_core::EnterRider::WithCounters(kind, count) => {
+                            Some((kind.0, self.eval_count(count, frame)))
+                        }
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>();
+                let candidate = self.objects.obj_mut(object);
+                candidate.zone = Some(zone);
+                candidate.controller = controller;
+                candidate.tapped = zone == Zone::Battlefield
+                    && riders
+                        .iter()
+                        .any(|rider| matches!(rider, deckmaste_core::EnterRider::Tapped));
+                candidate.counters.clear();
+                candidate.damage.clear();
+                candidate.attached_to = None;
+                candidate.summoning_sick = zone == Zone::Battlefield;
+                candidate.skip_next_untap = false;
+                candidate.side = crate::object::Side::Front;
+                for (kind, amount) in counter_additions {
+                    let counter = candidate.counters.entry(kind).or_default();
+                    *counter = counter.saturating_add(amount);
+                }
+                true
+            }
+            Action::Tap(subject) | Action::Untap(subject) => {
+                let tap = matches!(action, Action::Tap(_));
+                let object = self.eval_reference(subject, frame);
+                let Some(candidate) = self.objects.get(object) else {
+                    return false;
+                };
+                if candidate.zone != Some(Zone::Battlefield)
+                    || candidate.controller != payer
+                    || candidate.tapped == tap
+                {
+                    return false;
+                }
+                self.objects.obj_mut(object).tapped = tap;
+                true
+            }
+            Action::ChangeLife(subject, operation) => {
+                let Some(recipient) = self.eval_player_ref(subject, frame) else {
+                    return false;
+                };
+                let (count, direction) = match operation {
+                    deckmaste_core::LifeOp::Down(count) => (count, -1),
+                    deckmaste_core::LifeOp::Up(count) => (count, 1),
+                    deckmaste_core::LifeOp::Set(count) => (count, 0),
+                };
+                let Ok(amount) = i32::try_from(self.eval_count(count, frame)) else {
+                    return false;
+                };
+                let life = self.player(recipient).life;
+                let next = match direction {
+                    -1 if life >= amount => life.checked_sub(amount),
+                    1 => life.checked_add(amount),
+                    0 => Some(amount),
+                    _ => None,
+                };
+                let Some(next) = next else { return false };
+                self.player_mut(recipient).life = next;
+                true
+            }
+            Action::PutCounters(subject, kind, count)
+            | Action::RemoveCounters(subject, kind, count) => {
+                let remove = matches!(action, Action::RemoveCounters(..));
+                let object = self.eval_reference(subject, frame);
+                let amount = self.eval_count(count, frame);
+                let Some(candidate) = self.objects.get(object) else {
+                    return false;
+                };
+                let current = candidate.counters.get(kind.as_str()).copied().unwrap_or(0);
+                if remove && current < amount {
+                    return false;
+                }
+                let counter = self
+                    .objects
+                    .obj_mut(object)
+                    .counters
+                    .entry(kind.0)
+                    .or_default();
+                *counter = if remove {
+                    counter.saturating_sub(amount)
+                } else {
+                    counter.saturating_add(amount)
+                };
+                true
+            }
+            Action::Reveal { what, to } => {
+                let object = self.eval_reference(what, frame);
+                self.objects.get(object).is_some()
+                    && to
+                        .as_ref()
+                        .is_none_or(|who| self.eval_player_ref(who, frame).is_some())
+            }
+            Action::Composite { name, body } if name.as_str() == "Discard" => {
+                self.preflight_discard_effect(body, payer, frame)
+            }
+            _ => false,
+        }
+    }
+
+    fn preflight_discard_effect(
+        &mut self,
+        effect: &deckmaste_core::OneShotEffect,
+        payer: crate::player::PlayerId,
+        frame: &Frame,
+    ) -> bool {
+        match effect {
+            deckmaste_core::OneShotEffect::Act { action, .. } => {
+                if let Action::Move(subject, _, _, Some(Zone::Hand)) = action {
+                    let object = self.eval_reference(subject, frame);
+                    if self.objects.get(object).is_none()
+                        || self.owner_of(object) != payer
+                        || self.objects.obj(object).zone != Some(Zone::Hand)
+                    {
+                        return false;
+                    }
+                }
+                self.preflight_cost_action(action, payer, frame)
+            }
+            deckmaste_core::OneShotEffect::Each(each) => {
+                let objects = self.eval_selection_set(&each.over, frame);
+                for object in objects {
+                    if self.objects.get(object).is_none() {
+                        return false;
+                    }
+                    let mut element = frame.clone();
+                    element.activation = self.enter_loop_region(&each.body, frame, object, None);
+                    if !each
+                        .body
+                        .body
+                        .iter()
+                        .all(|effect| self.preflight_discard_effect(effect, payer, &element))
+                    {
+                        return false;
+                    }
+                }
+                true
+            }
+            _ => false,
+        }
     }
 
     /// Write a pinned payment subject's register ([CR#608.2h]).

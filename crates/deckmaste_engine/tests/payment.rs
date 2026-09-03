@@ -1061,15 +1061,6 @@ fn random_library_exile_two_cost() -> Vec<CostComponent> {
 }
 
 #[test]
-#[ignore = "blocker: a cost block has no whole-body preflight. Replacing \
-            CostComponent::ChooseAndPay with per-instruction obligations \
-            deleted payment::fulfill::preflight_cost_components and \
-            preflight_cost_action, so a payment-time Choose validates only \
-            that its witness is a live legal candidate, and the verbs after \
-            it are checked one at a time as each is fulfilled. \
-            Unblocked by preflighting the remaining instructions of a \
-            decision IOU block against a projected state when its witness is \
-            submitted, in deckmaste_engine::payment::fulfill."]
 fn choose_and_pay_preflight_accounts_for_zone_change_remint() {
     let filter = Predicate::And(
         vec![
@@ -1122,15 +1113,6 @@ fn choose_and_pay_preflight_accounts_for_zone_change_remint() {
 }
 
 #[test]
-#[ignore = "blocker: a cost block has no whole-body preflight. Replacing \
-            CostComponent::ChooseAndPay with per-instruction obligations \
-            deleted payment::fulfill::preflight_cost_components and \
-            preflight_cost_action, so a payment-time Choose validates only \
-            that its witness is a live legal candidate, and the verbs after \
-            it are checked one at a time as each is fulfilled. \
-            Unblocked by preflighting the remaining instructions of a \
-            decision IOU block against a projected state when its witness is \
-            submitted, in deckmaste_engine::payment::fulfill."]
 fn choose_and_pay_preflights_the_entire_bound_body() {
     let filter = Predicate::And(
         vec![
@@ -1165,18 +1147,65 @@ fn choose_and_pay_preflights_the_entire_bound_body() {
     assert!(!state.objects.obj(subject).tapped);
 }
 
+#[test]
+fn sampled_cost_preflights_before_consuming_rng_or_mutating_state() {
+    let filter = Predicate::And(
+        vec![
+            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
+                Reference::Reg(deckmaste_core::RefId(1)),
+            )))),
+        ]
+        .into(),
+    );
+    let bound = Reference::Reg(PAID_REF);
+    let cost = vec![
+        CostComponent::Sample(deckmaste_core::Sample {
+            dest: PAID,
+            quantity: deckmaste_core::Quantity::one(),
+            filter: random_sample_filter(filter),
+        }),
+        CostComponent::do_action(CoreAction::Tap(bound.clone())),
+        CostComponent::do_action(CoreAction::Tap(bound)),
+    ];
+    let (mut state, payer, source) =
+        activation_fixture_with_extras(cost, vec![vanilla_creature("Sampled cost subject", 1)]);
+    let subject = put_named_card_on_battlefield(&mut state, payer, "Sampled cost subject");
+    announce_to_payment(&mut state, source);
+    let before = payment_prompt(&state);
+    let before_rng = (state.rng.get_stream(), state.rng.get_word_pos());
+
+    assert!(
+        state
+            .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
+                iou: before.outstanding[0].id,
+                witness: FulfillmentWitness::Bound,
+            }))
+            .is_err(),
+        "the sampled subject cannot pay two tap actions atomically",
+    );
+    assert_eq!(payment_prompt(&state), before);
+    assert_eq!(
+        (state.rng.get_stream(), state.rng.get_word_pos()),
+        before_rng,
+        "a rejected random cost must not consume entropy",
+    );
+    assert!(!state.objects.obj(source).tapped);
+    assert!(!state.objects.obj(subject).tapped);
+    assert!(state.payment_records().is_some_and(<[_]>::is_empty));
+}
+
 /// [CR#701.21a]: "a player can't sacrifice something that isn't a permanent, or
 /// something that's a permanent they don't control." The cost's own `Choose`
-/// filter here does not restrict control, so the verb enforces the rule: the
-/// sacrifice obligation refuses a witness naming an opponent's permanent, and
-/// the permanent survives ([CR#601.2h] — partial payment is forbidden).
+/// filter here does not restrict control, so whole-body preflight applies the
+/// verb's rule before accepting the choice: the payment refuses a witness
+/// naming an opponent's permanent, and the permanent survives ([CR#601.2h] —
+/// partial payment is forbidden).
 ///
 /// Re-spelled from `choose_and_pay_rejects_sacrificing_an_opponents_permanent`:
 /// the fused `ChooseAndPay` obligation became a `Choose` instruction followed
-/// by the verb that spends its register, so the refusal lands on the VERB
-/// rather than on the single combined witness. Refusing the CHOICE itself — the
-/// atomicity reading of [CR#601.2b] — needs the whole-body preflight the
-/// `choose_and_pay_preflight*` tests above record as lost.
+/// by the verb that spends its register. The restored instruction-block
+/// preflight preserves the fused obligation's atomic refusal at the choice.
 #[test]
 fn choose_and_pay_rejects_sacrificing_an_opponents_permanent() {
     let cost = choose_one_cost(
@@ -1195,23 +1224,16 @@ fn choose_and_pay_rejects_sacrificing_an_opponents_permanent() {
     state.objects.obj_mut(subject).controller = PlayerId(1);
     announce_to_payment(&mut state, source);
 
-    // The choice writes the register; the filter admits the opponent's
-    // permanent because it does not restrict control.
-    let choice = payment_prompt(&state).outstanding[0].id;
-    submit_and_run_to_payment(
-        &mut state,
-        PaymentCommand::Fulfill {
-            iou: choice,
-            witness: FulfillmentWitness::Objects(vec![subject]),
-        },
-    );
-
     let before = payment_prompt(&state);
+    // The candidate filter admits the opponent's permanent because it does
+    // not restrict control, but projected payment of the bound sacrifice
+    // rejects the complete block before the register or battlefield changes.
+    let choice = payment_prompt(&state).outstanding[0].id;
     assert!(
         state
             .submit_decision(Decision::Payment(PaymentCommand::Fulfill {
-                iou: before.outstanding[0].id,
-                witness: FulfillmentWitness::Bound,
+                iou: choice,
+                witness: FulfillmentWitness::Objects(vec![subject]),
             }))
             .is_err(),
         "a payer cannot sacrifice a permanent they do not control",
