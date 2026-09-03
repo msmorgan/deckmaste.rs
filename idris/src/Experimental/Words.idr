@@ -342,6 +342,11 @@ sameKindRefl Ability = Oh
 sameKindRefl (a \/ b) = andSo (sameKindRefl a, sameKindRefl b)
 
 public export
+data Joins : Kind -> Kind -> Kind -> Type where
+  JoinSame : Joins k k k
+  JoinDiff : {auto 0 ne : So (not (a == b))} -> Joins a b (a \/ b)
+
+public export
 kindLte : Kind -> Kind -> Bool
 kindLte (a \/ b) y = kindLte a y && kindLte b y
 kindLte x (a \/ b) = kindLte x a || kindLte x b

@@ -1528,15 +1528,9 @@ mutual
              {auto 0 pl : nounPlur grp = ManyOf} ->
              {auto 0 gm : GroupMention grp} -> Noun bs k
     Both : {ka : Kind} -> {kb : Kind} -> (l : Noun bs ka) ->
-           (r : Noun (nomIntro l) kb) -> Noun bs (ka \/ kb)
-    EitherOf : (l : Noun bs k) -> (r : Noun bs k) ->
-               {auto 0 ag : nounPlur l = nounPlur r} -> Noun bs k
-    EitherJoined : {ka : Kind} -> {kb : Kind} ->
-                   (l : Noun bs ka) -> (r : Noun bs kb) ->
-                   Noun bs (ka \/ kb)
-    BothOf : (l : Noun bs k) -> (r : Noun (nomIntro l) k) -> Noun bs k
-    EachOfBoth : (pair : Noun bs k) ->
-                 {auto 0 pr : CoordinatedPair pair} -> Noun bs k
+           (r : Noun (nomIntro l) kb) -> {auto jk : Joins ka kb k} -> Noun bs k
+    EitherOf : {ka : Kind} -> {kb : Kind} -> (l : Noun bs ka) ->
+               (r : Noun bs kb) -> {auto jk : Joins ka kb k} -> Noun bs k
     LibrarySlice : (pos : LibPos) -> (amt : Amount bs) ->
                    (whose : Noun bs Player) ->
                    {auto 0 sp : SlicePossessor whose} ->
@@ -1597,9 +1591,6 @@ mutual
   nounEqRef (EachOf _) _ = False
   nounEqRef (Both _ _) _ = False
   nounEqRef (EitherOf _ _) _ = False
-  nounEqRef (EitherJoined _ _) _ = False
-  nounEqRef (BothOf _ _) _ = False
-  nounEqRef (EachOfBoth _) _ = False
   nounEqRef (LibrarySlice _ _ _) _ = False
   nounEqRef (SomeOf _ _ _) _ = False
   nounEqRef (NamesAgree _ _) _ = False
@@ -1679,9 +1670,6 @@ mutual
   nounDelta (EachOf grp) = nounDelta grp
   nounDelta (Both l r) = nounDelta r ++ nounDelta l
   nounDelta (EitherOf l r) = nounDelta l ++ nounDelta r
-  nounDelta (EitherJoined l r) = nounDelta l ++ nounDelta r
-  nounDelta (BothOf l r) = nounDelta r ++ nounDelta l
-  nounDelta (EachOfBoth p) = nounDelta p
   nounDelta (LibrarySlice pos amt whose) =
     MkBinding TheD Object (outputPlur (nounPlur whose) (amtPlur amt))
               (ObjectP Nothing (Just Library) Nothing Nothing (amtExact amt))
@@ -2329,10 +2317,7 @@ mutual
   public export
   anchorPhrase : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
   anchorPhrase (EitherOf l r) = anchorPhrase l && anchorPhrase r
-  anchorPhrase (EitherJoined l r) = anchorPhrase l && anchorPhrase r
   anchorPhrase (Both _ _) = False
-  anchorPhrase (BothOf _ _) = False
-  anchorPhrase (EachOfBoth _) = False
   anchorPhrase n = maybe True (== TargetD) (nounDet n)
 
   public export
@@ -2394,6 +2379,7 @@ mutual
   groupMention : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
   groupMention (LibrarySlice _ _ _) = True
   groupMention (Pro _ pl) = not (isOne pl)
+  groupMention (Both _ _) = True
   groupMention n = nounDet n == Just TargetD
 
   public export
@@ -2407,15 +2393,6 @@ mutual
   public export
   PartitiveBase : Noun bs k -> Type
   PartitiveBase {bs} {k} n = So (partitiveBase n)
-
-  public export
-  coordinatedPair : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
-  coordinatedPair (BothOf _ _) = True
-  coordinatedPair _ = False
-
-  public export
-  CoordinatedPair : Noun bs k -> Type
-  CoordinatedPair {bs} {k} n = So (coordinatedPair n)
 
   public export
   countedMention : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
@@ -2844,10 +2821,7 @@ mutual
   costNounOk (NamesAgree _ grp) = costNounOk grp
   costNounOk (SomeOf _ _ grp) = costNounOk grp
   costNounOk (EitherOf l r) = costNounOk l && costNounOk r
-  costNounOk (EitherJoined l r) = costNounOk l && costNounOk r
   costNounOk (Both _ _) = False
-  costNounOk (BothOf _ _) = False
-  costNounOk (EachOfBoth _) = False
   costNounOk (Pro (Verbed _ _ _) _) = False
   costNounOk _ = True
 
@@ -2865,9 +2839,6 @@ mutual
   nounTargeted (SomeOf _ _ grp) = nounTargeted grp
   nounTargeted (Both l r) = nounTargeted l || nounTargeted r
   nounTargeted (EitherOf l r) = nounTargeted l || nounTargeted r
-  nounTargeted (EitherJoined l r) = nounTargeted l || nounTargeted r
-  nounTargeted (BothOf l r) = nounTargeted l || nounTargeted r
-  nounTargeted (EachOfBoth p) = nounTargeted p
   nounTargeted n = nounDet n == Just TargetD
 
   public export
@@ -2988,9 +2959,6 @@ mutual
   moveIntro p (NamesAgree _ grp) z = moveIntro p grp z
   moveIntro p nn@(Both _ _) z = nomIntro nn
   moveIntro p nn@(EitherOf _ _) z = nomIntro nn
-  moveIntro p nn@(EitherJoined _ _) z = nomIntro nn
-  moveIntro p nn@(BothOf _ _) z = nomIntro nn
-  moveIntro p nn@(EachOfBoth _) z = nomIntro nn
   moveIntro p nn@(LibrarySlice _ _ _) z = setZoneHead p z (nomIntro nn)
   moveIntro p nn@(SomeOf _ _ _) z = setZoneHead p z (nomIntro nn)
   moveIntro p TheRest z = groupSpent bs
@@ -3080,11 +3048,8 @@ mutual
   nounZone (Described _ p) = phraseZone p
   nounZone (EachOf grp) = nounZone grp
   nounZone (NamesAgree _ grp) = nounZone grp
-  nounZone (Both _ _) = Nothing
+  nounZone (Both l r) = if nounZone l == nounZone r then nounZone l else Nothing
   nounZone (EitherOf _ _) = Nothing
-  nounZone (EitherJoined _ _) = Nothing
-  nounZone (BothOf l r) = if nounZone l == nounZone r then nounZone l else Nothing
-  nounZone (EachOfBoth p) = nounZone p
   nounZone (LibrarySlice _ _ _) = Just Library
   nounZone (SomeOf _ _ grp) = nounZone grp
   nounZone TheRest = zoneOfGroup bs
@@ -3115,11 +3080,8 @@ mutual
   nounTy (Described _ p) = seedTy p
   nounTy (EachOf grp) = nounTy grp
   nounTy (NamesAgree _ grp) = nounTy grp
-  nounTy (Both _ _) = Nothing
+  nounTy (Both l r) = if nounTy l == nounTy r then nounTy l else Nothing
   nounTy (EitherOf _ _) = Nothing
-  nounTy (EitherJoined _ _) = Nothing
-  nounTy (BothOf l r) = if nounTy l == nounTy r then nounTy l else Nothing
-  nounTy (EachOfBoth p) = nounTy p
   nounTy (LibrarySlice _ _ _) = Nothing
   nounTy (SomeOf _ d grp) = sliceTy d grp
   nounTy TheRest = tyOfGroup bs
@@ -3142,11 +3104,8 @@ mutual
   nounHeadTys (NamesAgree _ grp) = nounHeadTys grp
   nounHeadTys (ResolvedPermanent n) = nounHeadTys n
   nounHeadTys (AsMarker _ n) = nounHeadTys n
-  nounHeadTys (EachOfBoth p) = nounHeadTys p
   nounHeadTys (Both l r) = nounHeadTys l ++ nounHeadTys r
-  nounHeadTys (BothOf l r) = nounHeadTys l ++ nounHeadTys r
   nounHeadTys (EitherOf l r) = nounHeadTys l ++ nounHeadTys r
-  nounHeadTys (EitherJoined l r) = nounHeadTys l ++ nounHeadTys r
   nounHeadTys n = optCT (nounTy n)
 
   public export
@@ -3155,10 +3114,10 @@ mutual
   nounTys (EachOf grp) = nounTys grp
   nounTys (NamesAgree _ grp) = nounTys grp
   nounTys (SomeOf _ d grp) = SoleTy (sliceTy d grp)
-  nounTys (Both l r) = JoinTy (nounTys l) (nounTys r)
-  nounTys (EitherJoined l r) = JoinTy (nounTys l) (nounTys r)
-  nounTys (BothOf l r) = SoleTy (if nounTy l == nounTy r then nounTy l else Nothing)
-  nounTys (EachOfBoth p) = nounTys p
+  nounTys n@(Both l r {jk = JoinSame}) = SoleTy (nounTy n)
+  nounTys (Both l r {jk = JoinDiff}) = JoinTy (nounTys l) (nounTys r)
+  nounTys n@(EitherOf l r {jk = JoinSame}) = SoleTy (nounTy n)
+  nounTys (EitherOf l r {jk = JoinDiff}) = JoinTy (nounTys l) (nounTys r)
   nounTys n = SoleTy (nounTy n)
 
   public export
@@ -3177,10 +3136,7 @@ mutual
   nounPlur (EachOf grp) = ManyOf
   nounPlur (NamesAgree _ grp) = nounPlur grp
   nounPlur (Both _ _) = ManyOf
-  nounPlur (BothOf _ _) = ManyOf
-  nounPlur (EachOfBoth _) = ManyOf
-  nounPlur (EitherOf l r) = nounPlur l
-  nounPlur (EitherJoined l r) =
+  nounPlur (EitherOf l r) =
     if samePlur (nounPlur l) (nounPlur r) then nounPlur l else ManyOf
   nounPlur (LibrarySlice _ amt whose) = outputPlur (nounPlur whose) (amtPlur amt)
   nounPlur (SomeOf q _ _) = slicePlur q

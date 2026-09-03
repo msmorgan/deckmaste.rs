@@ -12417,7 +12417,7 @@ bileBlight =
   Macros.card "Bile Blight" (Just [Macros.pip Black, Macros.pip Black]) []
        (MkTypeLine [] [Instant])
        [ Spell (Macros.gets
-                  (BothOf (Macros.target Macros.creature)
+                  (Both (Macros.target Macros.creature)
                           (Macros.allOf (And [ Macros.creature
                                       , Named (SameNameAs (That (TypeW Creature)))
                                       , OtherThan (That (TypeW Creature)) ])))
@@ -12432,7 +12432,7 @@ echoingRuin =
   Macros.card "Echoing Ruin" (Just [Macros.generic 1, Macros.pip Red]) []
        (MkTypeLine [] [Sorcery])
        [ Spell (Macros.destroy
-                  (BothOf (Macros.target Macros.artifact)
+                  (Both (Macros.target Macros.artifact)
                           (Macros.allOf (And [ Macros.artifact
                                       , Named (SameNameAs (That (TypeW Artifact)))
                                       , OtherThan (That (TypeW Artifact)) ])))) ]
@@ -12444,7 +12444,7 @@ stompAndHowl : Card
 stompAndHowl =
   Macros.card "Stomp and Howl" (Just [Macros.generic 2, Macros.pip Green]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Macros.destroy (BothOf (Macros.target Macros.artifact)
+       [ Spell (Macros.destroy (Both (Macros.target Macros.artifact)
                                        (Macros.target Macros.enchantment))) ]
        Nothing
 
@@ -12454,7 +12454,7 @@ churningEddy : Card
 churningEddy =
   Macros.card "Churning Eddy" (Just [Macros.generic 4, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Macros.move (BothOf (Macros.target Macros.creature)
+       [ Spell (Macros.move (Both (Macros.target Macros.creature)
                                     (Macros.target Macros.land))
                             Macros.handZ) ]
        Nothing
@@ -12466,21 +12466,21 @@ secretRendezvous =
   Macros.card "Secret Rendezvous"
        (Just [Macros.generic 1, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Draw (EachOfBoth (BothOf You (Macros.target Opponent))) (Lit 3)) ]
+       [ Spell (Draw (EachOf (Both You (Macros.target Opponent))) (Lit 3)) ]
        Nothing
 
 ||| Mana Clash
 public export
 manaClashFlip : Effect []
 manaClashFlip =
-  FlipCoins (EachOfBoth (BothOf You (Macros.target Opponent))) (FlipCount (Lit 1))
+  FlipCoins (EachOf (Both You (Macros.target Opponent))) (FlipCount (Lit 1))
 
 ||| Weftwalking
 public export
 weftwalkingShuffle : Effect []
 weftwalkingShuffle =
   Sequentially
-    [ Macros.shuffleInto You (BothOf (Macros.allOf (InZone (Macros.handOf You)))
+    [ Macros.shuffleInto You (Both (Macros.allOf (InZone (Macros.handOf You)))
                                  (Macros.allOf (InZone (Macros.graveyardOf You))))
     , (Macros.draw You (Lit 7)) ]
 
@@ -13672,7 +13672,7 @@ mirrorUniverse =
        (MkTypeLine [] [Artifact])
        [ Macros.activatedOnlyDuring
            (Compound [TapSymbol, Do (Macros.sacrifice You Macros.thisArtifact)])
-           (ExchangeLife (BothOf You (Macros.target Opponent)))
+           (ExchangeLife (Both You (Macros.target Opponent)))
            (DuringPart Upkeep (Just Yours)) ]
        Nothing
 
@@ -13698,7 +13698,7 @@ public export
 eachPlayerShufflesTheirHandAndGraveyard : Effect []
 eachPlayerShufflesTheirHandAndGraveyard =
   Macros.shuffleInto (Macros.each AnyPlayer)
-    (BothOf (Macros.allOf (InZone (Macros.handOf They)))
+    (Both (Macros.allOf (InZone (Macros.handOf They)))
             (Macros.allOf (InZone (Macros.graveyardOf They))))
 
 public export
@@ -13706,7 +13706,7 @@ eachPlayerMayShuffleTheirHandAndGraveyard : Effect []
 eachPlayerMayShuffleTheirHandAndGraveyard =
   Macros.may (Macros.each AnyPlayer)
     (Macros.shuffleInto They
-       (BothOf (Macros.allOf (InZone (Macros.handOf They)))
+       (Both (Macros.allOf (InZone (Macros.handOf They)))
                (Macros.allOf (InZone (Macros.graveyardOf They)))))
 
 public export
@@ -14396,7 +14396,7 @@ archangelOfTithesAttackToll =
             (Macros.deontic (Macros.allOf Macros.creature)
                (GatedBy (ScaledMana GenericUnit (Times 1 GroupSize)))
                ["Attack"] Agent
-               (DefendingPlayer (EitherJoined You
+               (DefendingPlayer (Macros.youOr
                                    (Macros.allOf (And [HasType Planeswalker,
                                                 ControlledBy You]))))))
 
@@ -14412,7 +14412,7 @@ archonOfAbsolution =
        , Static (Macros.deontic (Macros.allOf Macros.creature)
                    (GatedBy (ScaledMana GenericUnit (Times 1 GroupSize)))
                    ["Attack"] Agent
-                   (DefendingPlayer (EitherJoined You
+                   (DefendingPlayer (Macros.youOr
                                        (Macros.allOf (And [HasType Planeswalker,
                                                     ControlledBy You]))))) ]
        (Just (3, 2))
@@ -15203,8 +15203,8 @@ alluringSuitorPump : Ability
 alluringSuitorPump =
   Macros.activated (Mana [Macros.pip Red, Macros.pip Red])
     (Macros.gets
-       (EachOfBoth
-          (BothOf Macros.thisCreature
+       (EachOf
+          (Both Macros.thisCreature
                   (Macros.target (And [Macros.creature, OtherThan This]))))
        (PtUp (Lit 1)) (PtUp (Lit 0)) (Just Macros.untilEndOfTurn))
 
@@ -15867,7 +15867,7 @@ bloodReckoning =
        (MkTypeLine [] [Enchantment])
        [ Macros.triggered Whenever
            (Macros.attacksPlayer (Macros.a Macros.creature)
-              (EitherJoined You
+              (Macros.youOr
                  (Macros.a (And [HasType Planeswalker, ControlledBy You]))))
            (Macros.losesLife (ControllerOf (That (TypeW Creature))) (Lit 1)) ]
        Nothing

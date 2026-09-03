@@ -1009,8 +1009,8 @@ badSharedSubjectEmptyDelta Refl impossible
 ||| "Target creature and target artifact: it gets +1/+1 and gains flying": the list's delta holds two.
 public export
 badSharedSubjectTwoInDelta : Unspellable (Effect []) (\ok =>
-  Macros.sharedSubject (BothOf (Macros.target Macros.creature) (Macros.target Macros.artifact))
-    [ Gets (Own OneOf (nounDelta (BothOf (Macros.target Macros.creature)
+  Macros.sharedSubject (Both (Macros.target Macros.creature) (Macros.target Macros.artifact))
+    [ Gets (Own OneOf (nounDelta {k = Object} (Both (Macros.target Macros.creature)
                                           (Macros.target Macros.artifact))) []
                 {sp = Refl} {ok})
            (PtUp (Lit 1)) (PtUp (Lit 1)) ]
@@ -1020,7 +1020,7 @@ badSharedSubjectTwoInDelta Refl impossible
 ||| "Target creature and target artifact deal damage equal to its power to any target."
 public export
 badOwnTwoInDelta : Unspellable (Effect []) (\ok =>
-  Macros.dealsDamageOwnPower (BothOf (Macros.target Macros.creature) (Macros.target Macros.artifact))
+  Macros.dealsDamageOwnPower (Both (Macros.target Macros.creature) (Macros.target Macros.artifact))
                              (Macros.target Macros.anyTarget) {ok})
 badOwnTwoInDelta Refl impossible
 

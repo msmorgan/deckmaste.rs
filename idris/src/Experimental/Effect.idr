@@ -41,7 +41,7 @@ asThoughSort (AsThoughLess _ _) = ValuePremise
 
 public export
 twoPartiesOk : {bs : Bindings} -> Noun bs Player -> Bool
-twoPartiesOk (BothOf l r) = case (nounPlur l, nounPlur {bs = nomIntro l} r) of
+twoPartiesOk (Both l r) = case (nounPlur l, nounPlur {bs = nomIntro l} r) of
   (OneOf, OneOf) => True
   _ => False
 twoPartiesOk (Described d _) = (detQuant d >>= quantExact) == Just 2

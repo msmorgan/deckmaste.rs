@@ -132,6 +132,10 @@ youAnd : (n : Noun bs Object) -> Noun bs (Player \/ Object)
 youAnd n = Both You n
 
 public export
+youOr : (n : Noun bs Object) -> Noun bs (Player \/ Object)
+youOr n = EitherOf You n
+
+public export
 thatJoin : {auto 0 ok : countReach (Word JoinW) OneOf bs = 1} -> Noun bs (Object \/ Player)
 thatJoin = That JoinW {ok}
 

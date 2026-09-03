@@ -1083,7 +1083,7 @@ badExchangeOneParty Oh impossible
 ||| [CR#701.12c]'s "the other player" is one player, so an exchange runs between two; a plural arm puts a whole group on one side and leaves that phrase with no other to equal.
 public export
 badExchangePluralParty : Unspellable (Effect []) (\ok =>
-  ExchangeLife (BothOf You (PlayerGroup YourOpponents)) {tp = ok})
+  ExchangeLife (Both You (PlayerGroup YourOpponents)) {tp = ok})
 badExchangePluralParty Oh impossible
 
 
