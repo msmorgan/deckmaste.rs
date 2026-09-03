@@ -1542,9 +1542,9 @@ mutual
               {auto 0 sp : bs = made ++ before} ->
               {auto 0 ok : countOnes Object made = 1} -> Noun bs Object
     ||| "Exile target artifact. Target creature deals damage equal to ITS power": `It` there counts two.
-    Own : (own : Bindings) -> (outer : Bindings) ->
+    Own : (pl : Plurality) -> (own : Bindings) -> (outer : Bindings) ->
           {auto 0 sp : bs = own ++ outer} ->
-          {auto 0 ok : countReach Bare OneOf own = 1} -> Noun bs Object
+          {auto 0 ok : countReach Bare pl own = 1} -> Noun bs Object
     AttachHost : (w : AttachWord) -> (h : NounWord) ->
                  {auto 0 ok : AttachHeadOk w h} -> Noun bs (kindOfW h)
     ControllerOf : {k : Kind} -> (n : Noun bs k) ->
@@ -1599,7 +1599,7 @@ mutual
   nounEqRef (Pro _ _) _ = False
   nounEqRef (ItOtherThan _ _) _ = False
   nounEqRef (ItPrior _ _) _ = False
-  nounEqRef (Own _ _) _ = False
+  nounEqRef (Own _ _ _) _ = False
   nounEqRef (AttachHost _ _) _ = False
   nounEqRef (ControllerOf _) _ = False
   nounEqRef (OwnerOf _) _ = False
@@ -1691,7 +1691,7 @@ mutual
   nounDelta (Pro _ _) = []
   nounDelta (ItOtherThan _ _) = []
   nounDelta (ItPrior _ _) = []
-  nounDelta (Own _ _) = []
+  nounDelta (Own _ _ _) = []
   nounDelta (AttachHost _ _) = []
   nounDelta (ControllerOf n) =
     MkBinding TheD Player OneOf PlayerP :: (selfSubjDelta n ++ nounDelta n)
@@ -2326,7 +2326,7 @@ mutual
   anchorPhrase (Pro _ _) = True
   anchorPhrase (ItOtherThan _ _) = True
   anchorPhrase (ItPrior _ _) = True
-  anchorPhrase (Own _ _) = True
+  anchorPhrase (Own _ _ _) = True
   anchorPhrase (AttachHost _ _) = True
   anchorPhrase (ControllerOf _) = True
   anchorPhrase (OwnerOf _) = True
@@ -2391,7 +2391,7 @@ mutual
   choosable (Pro _ _) = False
   choosable (ItOtherThan _ _) = False
   choosable (ItPrior _ _) = False
-  choosable (Own _ _) = False
+  choosable (Own _ _ _) = False
   choosable (AttachHost _ _) = False
   choosable (ControllerOf _) = False
   choosable (OwnerOf _) = False
@@ -2457,7 +2457,7 @@ mutual
   groupMention (PileOf _ _) = False
   groupMention (ItOtherThan _ _) = False
   groupMention (ItPrior _ _) = False
-  groupMention (Own _ _) = False
+  groupMention (Own _ _ _) = False
   groupMention (AttachHost _ _) = False
   groupMention (ControllerOf _) = False
   groupMention (OwnerOf _) = False
@@ -2842,7 +2842,7 @@ mutual
   remarkTest (Pro _ _) = Nothing
   remarkTest (ItOtherThan _ _) = Nothing
   remarkTest (ItPrior _ _) = Nothing
-  remarkTest (Own _ _) = Nothing
+  remarkTest (Own _ _ _) = Nothing
   remarkTest _ = Nothing
 
   public export
@@ -2950,7 +2950,7 @@ mutual
   costNounOk (Pro _ _) = True
   costNounOk (ItOtherThan _ _) = True
   costNounOk (ItPrior _ _) = True
-  costNounOk (Own _ _) = True
+  costNounOk (Own _ _ _) = True
   costNounOk (AttachHost _ _) = True
   costNounOk (ControllerOf _) = True
   costNounOk (OwnerOf _) = True
@@ -2990,7 +2990,7 @@ mutual
   nounIsYou (Pro _ _) = False
   nounIsYou (ItOtherThan _ _) = False
   nounIsYou (ItPrior _ _) = False
-  nounIsYou (Own _ _) = False
+  nounIsYou (Own _ _ _) = False
   nounIsYou (AttachHost _ _) = False
   nounIsYou (ControllerOf _) = False
   nounIsYou (OwnerOf _) = False
@@ -3030,7 +3030,7 @@ mutual
   nounTargeted (Pro _ _) = False
   nounTargeted (ItOtherThan _ _) = False
   nounTargeted (ItPrior _ _) = False
-  nounTargeted (Own _ _) = False
+  nounTargeted (Own _ _ _) = False
   nounTargeted (AttachHost _ _) = False
   nounTargeted (ControllerOf _) = False
   nounTargeted (OwnerOf _) = False
@@ -3056,8 +3056,8 @@ mutual
     not (stampMoves (provOfReach Bare OneOf rest))
   counterMemoryOk (ItPrior made _) =
     not (stampMoves (provOfReach Bare OneOf made))
-  counterMemoryOk (Own own _) =
-    not (stampMoves (provOfReach Bare OneOf own))
+  counterMemoryOk (Own pl own _) =
+    not (stampMoves (provOfReach Bare pl own))
   counterMemoryOk _ = True
 
   public export
@@ -3073,7 +3073,7 @@ mutual
   moveDestOk (Pro _ _) = True
   moveDestOk (ItOtherThan _ _) = False
   moveDestOk (ItPrior _ _) = False
-  moveDestOk (Own _ _) = False
+  moveDestOk (Own _ _ _) = False
   moveDestOk _ = True
 
   public export
@@ -3171,7 +3171,7 @@ mutual
   moveIntro p (Pro r pl) z = setZoneReach r pl p z bs
   moveIntro p (ItOtherThan co rest) z = co ++ setZoneReach Bare OneOf p z rest
   moveIntro p (ItPrior made before) z = setZoneReach Bare OneOf p z made ++ before
-  moveIntro p (Own own outer) z = setZoneReach Bare OneOf p z own ++ outer
+  moveIntro p (Own pl own outer) z = setZoneReach Bare pl p z own ++ outer
   moveIntro p This z =
     MkBinding SelfD Object OneOf (ObjectP Nothing z (mkStamp p Nothing (isJust z)) Nothing Nothing) :: bs
   moveIntro p (AttachHost _ (TypeW t)) z =
@@ -3231,7 +3231,7 @@ mutual
   nounProv (Pro r pl) = provOfReach r pl bs
   nounProv (ItOtherThan _ rest) = provOfReach Bare OneOf rest
   nounProv (ItPrior made _) = provOfReach Bare OneOf made
-  nounProv (Own own _) = provOfReach Bare OneOf own
+  nounProv (Own pl own _) = provOfReach Bare pl own
   nounProv (EachOf grp) = nounProv grp
   nounProv (NamesAgree _ grp) = nounProv grp
   nounProv (SomeOf _ _ grp) = nounProv grp
@@ -3270,7 +3270,7 @@ mutual
   nounZone (Pro r pl) = zoneOfReach r pl bs
   nounZone (ItOtherThan _ rest) = zoneOfReach Bare OneOf rest
   nounZone (ItPrior made _) = zoneOfReach Bare OneOf made
-  nounZone (Own own _) = zoneOfReach Bare OneOf own
+  nounZone (Own pl own _) = zoneOfReach Bare pl own
   nounZone (AttachHost _ h) = attachHostZone h
   nounZone (ControllerOf n) = Nothing
   nounZone (OwnerOf n) = Nothing
@@ -3310,7 +3310,7 @@ mutual
   nounTy (Pro r pl) = tyOfReach r pl bs
   nounTy (ItOtherThan _ rest) = tyOfReach Bare OneOf rest
   nounTy (ItPrior made _) = tyOfReach Bare OneOf made
-  nounTy (Own own _) = tyOfReach Bare OneOf own
+  nounTy (Own pl own _) = tyOfReach Bare pl own
   nounTy (AttachHost _ h) = attachHostTy h
   nounTy (ControllerOf n) = Nothing
   nounTy (OwnerOf n) = Nothing
@@ -3387,7 +3387,7 @@ mutual
   nounPlur (Pro _ pl) = pl
   nounPlur (ItOtherThan _ _) = OneOf
   nounPlur (ItPrior _ _) = OneOf
-  nounPlur (Own _ _) = OneOf
+  nounPlur (Own pl _ _) = pl
   nounPlur (AttachHost _ _) = OneOf
   nounPlur (ControllerOf n) = OneOf
   nounPlur (OwnerOf n) = OneOf

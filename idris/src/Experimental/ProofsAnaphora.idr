@@ -476,16 +476,17 @@ itPriorResolvesInPrefix made before ok =
       (b ** (elemInPrefix before el, k))
 
 public export
-ownReadsOnlyPrefix : (own, outer : Bindings) ->
-                     countReach Bare OneOf own = 1 -> Noun (own ++ outer) Object
-ownReadsOnlyPrefix own outer ok = Own own outer {sp = Refl} {ok}
+ownReadsOnlyPrefix : (pl : Plurality) -> (own, outer : Bindings) ->
+                     countReach Bare pl own = 1 -> Noun (own ++ outer) Object
+ownReadsOnlyPrefix pl own outer ok = Own pl own outer {sp = Refl} {ok}
 
 public export
-ownResolvesInPrefix : (own, outer : Bindings) -> countReach Bare OneOf own = 1 ->
-                      (b : Binding ** (Elem b (own ++ outer), So (reaches Bare OneOf b)))
-ownResolvesInPrefix own outer ok =
-  let (b ** (el, k)) = countByWitness (reaches Bare OneOf) own Z
-                         (trans (sym (countReachIsFold Bare OneOf own)) ok) in
+ownResolvesInPrefix : (pl : Plurality) -> (own, outer : Bindings) ->
+                      countReach Bare pl own = 1 ->
+                      (b : Binding ** (Elem b (own ++ outer), So (reaches Bare pl b)))
+ownResolvesInPrefix pl own outer ok =
+  let (b ** (el, k)) = countByWitness (reaches Bare pl) own Z
+                         (trans (sym (countReachIsFold Bare pl own)) ok) in
       (b ** (elemInPrefix outer el, k))
 
 
@@ -983,6 +984,39 @@ badOwnEmptyDelta : Unspellable (Effect []) (\ok =>
   Macros.dealsDamageOwnPower Macros.thisCreature (Macros.target Macros.anyTarget) {ok})
 badOwnEmptyDelta Refl impossible
 
+||| "Exile target artifact. Target creature gets +1/+1 and gains flying until end of turn."
+public export
+sharedSubjectSurvivesSecondSingular : Effect []
+sharedSubjectSurvivesSecondSingular =
+  Sequentially [Macros.exile (Macros.target Macros.artifact),
+                Macros.sharedSubject (Macros.target Macros.creature)
+                  [ Gets (Macros.ownSubject (Macros.target Macros.creature))
+                         (PtUp (Lit 1)) (PtUp (Lit 1))
+                  , Gains (Macros.ownSubject (Macros.target Macros.creature))
+                          (Macros.keyword "Flying") ]
+                  (Just Macros.untilEndOfTurn)]
+
+||| "Untap target creature. It gets +2/+2 and gains reach until end of turn": a pronoun mints nothing for the list to share.
+public export
+badSharedSubjectEmptyDelta : Unspellable (Effect []) (\ok =>
+  Sequentially [ Macros.untap (Macros.target Macros.creature)
+               , Macros.sharedSubject (ItVerbed "Untap")
+                   [ Gets (Macros.ownSubject (ItVerbed "Untap") {ok}) (PtUp (Lit 2)) (PtUp (Lit 2))
+                   , Gains (Macros.ownSubject (ItVerbed "Untap") {ok}) (Macros.keyword "Reach") ]
+                   (Just Macros.untilEndOfTurn) ])
+badSharedSubjectEmptyDelta Refl impossible
+
+||| "Target creature and target artifact: it gets +1/+1 and gains flying": the list's delta holds two.
+public export
+badSharedSubjectTwoInDelta : Unspellable (Effect []) (\ok =>
+  Macros.sharedSubject (BothOf (Macros.target Macros.creature) (Macros.target Macros.artifact))
+    [ Gets (Own OneOf (nounDelta (BothOf (Macros.target Macros.creature)
+                                          (Macros.target Macros.artifact))) []
+                {sp = Refl} {ok})
+           (PtUp (Lit 1)) (PtUp (Lit 1)) ]
+    Nothing)
+badSharedSubjectTwoInDelta Refl impossible
+
 ||| "Target creature and target artifact deal damage equal to its power to any target."
 public export
 badOwnTwoInDelta : Unspellable (Effect []) (\ok =>
@@ -990,13 +1024,12 @@ badOwnTwoInDelta : Unspellable (Effect []) (\ok =>
                              (Macros.target Macros.anyTarget) {ok})
 badOwnTwoInDelta Refl impossible
 
-||| "[n] [vp1] and [vp2]"
+||| "[n] [static1] and [static2]"
 public export
-ofSubjectReadsNoPrefix : (bs : Bindings) -> (k : Nat) -> (n : Noun bs Object) ->
-                         (vps : SubjectVPs k (selfSubjIntro n)) -> IsSucc k ->
-                         So (vpsOk (nounZone n) (nounRegime n) (nounHeadTys n) vps) ->
-                         StaticEffect bs
-ofSubjectReadsNoPrefix bs k n vps ne ok = OfSubject n vps {ne} {ok}
+sharedSubjectReadsNoPrefix : (bs : Bindings) -> (k : Nat) -> (n : Noun bs Object) ->
+                             (parts : StaticParts k (selfSubjIntro n)) -> IsSucc k ->
+                             StaticEffect bs
+sharedSubjectReadsNoPrefix bs k n parts ne = SharedSubject n parts {ne}
 
 
 
@@ -1205,26 +1238,6 @@ staticPartsThreadPrefix : (bs : Bindings) -> (n : Nat) -> (se : StaticEffect bs)
                           NotCoord se -> StaticParts n (staticIntro se) ->
                           StaticParts (S n) bs
 staticPartsThreadPrefix bs n se nc rest = (::) se {nc} rest
-
-||| The SHARED-SUBJECT coordination telescope, at `vpIntro`. Same shape
-public export
-subjectVPsThreadPrefix : (bs : Bindings) -> (n : Nat) -> (vp : SubjectVP bs) ->
-                         SubjectVPs n (vpIntro vp) -> SubjectVPs (S n) bs
-subjectVPsThreadPrefix bs n vp rest = (::) vp rest
-
-public export
-vpIntroIsDeltaThenPrefix : (bs : Bindings) -> (pow : PtShift bs) ->
-                           (tou : PtShift (shiftIntro pow)) ->
-                           (sp : Maybe (Duration (shiftIntro tou))) ->
-                           vpIntro (VPGets pow tou sp)
-                             = shiftDelta tou ++ shiftDelta pow ++ bs
-vpIntroIsDeltaThenPrefix bs pow tou sp = Refl
-
-public export
-vpGainsMintsNothing : (bs : Bindings) -> (ab : AbilityAt bs) ->
-                      (sp : Maybe (Duration bs)) ->
-                      vpIntro (VPGains ab sp) = bs
-vpGainsMintsNothing bs ab sp = Refl
 
 ||| An arithmetic amount reads its left operand's output, not the other
 ||| way round: "X plus Y" types Y in X's context.

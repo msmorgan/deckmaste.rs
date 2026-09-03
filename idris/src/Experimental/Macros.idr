@@ -1,5 +1,6 @@
 module Experimental.Macros
 
+import Data.List
 import public Experimental
 
 %default total
@@ -638,13 +639,21 @@ itAsToken : {auto 0 ok : countReach TokenBorn OneOf bs = 1} -> Noun bs Object
 itAsToken = ItToken {ok}
 
 public export
+ownSubject : {bs : Bindings} -> (n : Noun bs Object) ->
+             {auto 0 ok : countReach Bare (nounPlur n) (selfSubjDelta n ++ nounDelta n) = 1} ->
+             Noun (selfSubjIntro n) Object
+ownSubject n =
+  Own (nounPlur n) (selfSubjDelta n ++ nounDelta n) bs
+      {sp = appendAssociative (selfSubjDelta n) (nounDelta n) bs} {ok}
+
+public export
 sharedSubject : {0 k : Nat} -> (n : Noun bs Object) ->
-                (vps : SubjectVPs k (selfSubjIntro n)) ->
+                (parts : StaticParts k (selfSubjIntro n)) ->
                 {auto 0 ne : IsSucc k} ->
-                {auto 0 ok : So (vpsOk (nounZone n) (nounRegime n) (nounHeadTys n) vps)} ->
-                (d : Maybe (Duration (vpsIntro vps))) ->
-                {auto 0 sp : SpanOk Coordination d} -> Effect bs
-sharedSubject n vps d = Continuously (OfSubject n vps {ne} {ok}) d {sp}
+                (d : Maybe (Duration (partsIntro parts))) ->
+                {auto 0 sp : SpanOk Coordination d} ->
+                {auto 0 cl : ClauseStatic (SharedSubject n parts {ne})} -> Effect bs
+sharedSubject n parts d = Continuously (SharedSubject n parts {ne}) d {sp} {cl}
 
 
 public export
@@ -2244,7 +2253,7 @@ dealsDamageOwnPower : {bs : Bindings} -> {k : Kind} -> (src : Noun bs Object) ->
                       {auto 0 pm : PerMember to} ->
                       {auto 0 rk : DamageRecipient to} -> Effect bs
 dealsDamageOwnPower src to =
-  DealDamage src (StatOf Power (Own (nounDelta src) bs {sp = Refl} {ok})) to {pm} {rk}
+  DealDamage src (StatOf Power (Own OneOf (nounDelta src) bs {sp = Refl} {ok})) to {pm} {rk}
 
 public export
 theVerbed : (v : VerbLabel) -> (w : NounWord) ->

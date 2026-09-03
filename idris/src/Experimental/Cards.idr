@@ -9701,9 +9701,32 @@ ghorClanRampager =
                           Do (Macros.discards You This)])
                       (Macros.sharedSubject
                          (Macros.target (And [Macros.creature, Attacking]))
-                         [ VPGets (PtUp (Lit 4)) (PtUp (Lit 4)) Nothing
-                         , VPGains (Macros.keyword "Trample") Nothing ]
+                         [ Gets (Macros.ownSubject (Macros.target (And [Macros.creature, Attacking])))
+                                (PtUp (Lit 4)) (PtUp (Lit 4))
+                         , Gains (Macros.ownSubject (Macros.target (And [Macros.creature, Attacking])))
+                                 (Macros.keyword "Trample") ]
                          (Just Macros.untilEndOfTurn)))
+
+||| Glaring Spotlight
+public export
+glaringSpotlight : Card
+glaringSpotlight =
+  Macros.card "Glaring Spotlight" (Just [Macros.generic 1]) []
+       (MkTypeLine [] [Artifact])
+       [ Static (Macros.canBeTargetedAsThough
+                   (AllOf (And [Macros.creature, ControlledBy (PlayerGroup YourOpponents),
+                                HasKeyword (TheKeyword "Hexproof")]))
+                   (AllOf (And [Joined Macros.spell (AbilityHead AnyOnStack), ControlledBy You]))
+                   (Not (HasKeyword (TheKeyword "Hexproof"))))
+       , Macros.activated
+           (Compound [Mana [Macros.generic 3], Do (Macros.sacrifice You Macros.thisArtifact)])
+           (Macros.sharedSubject (AllOf Macros.creatureYouControl)
+              [ Gains (Macros.ownSubject (AllOf Macros.creatureYouControl))
+                      (Macros.keyword "Hexproof")
+              , Deontic (Macros.ownSubject (AllOf Macros.creatureYouControl)) Forbid ["Block"]
+                        Patient NoDeonticPatient Nothing NoDeonticRider ]
+              (Just Macros.untilEndOfTurn)) ]
+       Nothing
 
 ||| Owlbear
 public export
@@ -12737,9 +12760,9 @@ aimHigh =
        (MkTypeLine [] [Instant])
        [ Spell (Sequentially
                   [ Macros.untap (Macros.target Macros.creature)
-                  , Macros.sharedSubject (ItVerbed "Untap")
-                      [ VPGets (PtUp (Lit 2)) (PtUp (Lit 2)) Nothing
-                      , VPGains (Macros.keyword "Reach") Nothing ]
+                  , Continuously
+                      (AndAlso [ Gets (ItVerbed "Untap") (PtUp (Lit 2)) (PtUp (Lit 2))
+                               , Gains (ItVerbed "Untap") (Macros.keyword "Reach") ])
                       (Just Macros.untilEndOfTurn) ]) ]
        Nothing
 
@@ -14303,10 +14326,11 @@ tattooWard =
        (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject "Enchant" Macros.creature
        , Static (DoesntRemove
-                   (OfSubject (AttachHost Enchanted (TypeW Creature))
-                      [ VPGets (PtUp (Lit 1)) (PtUp (Lit 1)) Nothing
-                      , VPGains (Macros.keywordQuality "Protection"
-                                   (HasType Enchantment)) Nothing ])
+                   (SharedSubject (AttachHost Enchanted (TypeW Creature))
+                      [ Gets (Macros.ownSubject (AttachHost Enchanted (TypeW Creature)))
+                             (PtUp (Lit 1)) (PtUp (Lit 1))
+                      , Gains (Macros.ownSubject (AttachHost Enchanted (TypeW Creature)))
+                              (Macros.keywordQuality "Protection" (HasType Enchantment)) ])
                    Macros.thisAura)
        , Macros.activated (Do (Macros.sacrifice You Macros.thisAura))
            (Macros.destroy (Macros.target Macros.enchantment)) ]
@@ -15261,11 +15285,11 @@ leoninBola =
 public export
 distortionStrikeLine : Effect []
 distortionStrikeLine =
-  Macros.sharedSubject
-    (Macros.target Macros.creature)
-    [ VPGets (PtUp (Lit 1)) (PtUp (Lit 0)) (Just Macros.untilEndOfTurn)
-    , VPDeontic Forbid ["Block"] Patient (Just Macros.thisTurn) ]
-    Nothing
+  Macros.sharedSubject (Macros.target Macros.creature)
+    [ Gets (Macros.ownSubject (Macros.target Macros.creature)) (PtUp (Lit 1)) (PtUp (Lit 0))
+    , Deontic (Macros.ownSubject (Macros.target Macros.creature)) Forbid ["Block"] Patient
+              NoDeonticPatient Nothing NoDeonticRider ]
+    (Just Macros.untilEndOfTurn)
 
 ||| Battlegate Mimic
 public export

@@ -485,12 +485,9 @@ mutual
                      StaticEffect bs
       AndAlso : {0 n : Nat} -> StaticParts n bs ->
                 {auto 0 ne : IsSucc n} -> StaticEffect bs
-      OfSubject : {0 k : Nat} -> (n : Noun bs Object) ->
-                  (vps : SubjectVPs k (selfSubjIntro n)) ->
-                  {auto 0 ne : IsSucc k} ->
-                  {auto 0 ok :
-                     So (vpsOk (nounZone n) (nounRegime n) (nounHeadTys n) vps)} ->
-                  StaticEffect bs
+      SharedSubject : {0 k : Nat} -> (n : Noun bs Object) ->
+                      (parts : StaticParts k (selfSubjIntro n)) ->
+                      {auto 0 ne : IsSucc k} -> StaticEffect bs
 
   public export
   gatePayer : Binding
@@ -706,7 +703,7 @@ mutual
   public export
   isCoord : {0 bs : Bindings} -> StaticEffect bs -> Bool
   isCoord (AndAlso _) = True
-  isCoord (OfSubject _ _) = True
+  isCoord (SharedSubject _ _) = True
   isCoord _ = False
 
   public export
@@ -782,7 +779,7 @@ mutual
   staticKind (EntersChoice _ _ _ _) = EntryRider
   staticKind (AttachChoice _ _ _) = Replacement
   staticKind (AndAlso _) = Coordination
-  staticKind (OfSubject _ _) = Coordination
+  staticKind (SharedSubject _ _) = Coordination
 
 
   public export
@@ -837,13 +834,14 @@ mutual
   staticIntro (EntersChoice n _ _ _) = selfSubjIntro n
   staticIntro (AttachChoice n _ _) = selfSubjIntro n
   staticIntro (AndAlso parts) = partsIntro parts
-  staticIntro (OfSubject n vps) = vpsIntro vps
+  staticIntro (SharedSubject _ parts) = partsIntro parts
 
   public export
   staticChoiceDelta : {bs : Bindings} -> StaticEffect bs -> List Binding
   staticChoiceDelta (EntersChoice _ q _ _) = [choiceB q]
   staticChoiceDelta (AttachChoice _ q _) = [choiceB q]
   staticChoiceDelta (AndAlso parts) = partsChoiceDelta parts
+  staticChoiceDelta (SharedSubject _ parts) = partsChoiceDelta parts
   staticChoiceDelta (AddedCost c _) = costDelta c
   staticChoiceDelta _ = []
 
@@ -2827,60 +2825,6 @@ mutual
       (::) : (se : StaticEffect bs) -> {auto 0 nc : NotCoord se} ->
              StaticParts n (staticIntro se) -> StaticParts (S n) bs
 
-  namespace Shared
-    public export
-    data SubjectVP : Bindings -> Type where
-      VPGets : (pow : PtShift bs) -> (tou : PtShift (shiftIntro pow)) ->
-               (span : Maybe (Duration (shiftIntro tou))) -> SubjectVP bs
-      VPGains : (ab : AbilityAt bs) -> (span : Maybe (Duration bs)) ->
-                SubjectVP bs
-      VPDeontic : (c : Compulsion bs) -> (deeds : Deeds) -> (role : Role) ->
-                  (span : Maybe (Duration bs)) -> SubjectVP bs
-
-    public export
-    data SubjectVPs : Nat -> Bindings -> Type where
-      Nil : SubjectVPs Z bs
-      (::) : (vp : SubjectVP bs) -> SubjectVPs n (vpIntro vp) ->
-             SubjectVPs (S n) bs
-
-  public export
-  vpIntro : {bs : Bindings} -> SubjectVP bs -> Bindings
-  vpIntro (VPGets pow tou _) = shiftDelta tou ++ shiftDelta pow ++ bs
-  vpIntro (VPGains _ _) = bs
-  vpIntro (VPDeontic _ _ _ _) = bs
-
-  public export
-  vpsIntro : {0 k : Nat} -> {bs : Bindings} -> SubjectVPs k bs -> Bindings
-  vpsIntro [] = bs
-  vpsIntro (vp :: rest) = vpsIntro rest
-
-  public export
-  deedSubjectFits : Maybe Zone -> List CardType -> Deeds -> Role -> Bool
-  deedSubjectFits zn tys ds r =
-    all (\d => deedKindOk d r Object) ds &&
-    all (\d => deedHeadTysOk d r tys) ds &&
-    zoneFits zn (deedsZone ds r)
-
-  public export
-  vpSpanOk : {0 bs : Bindings} -> Maybe (Duration bs) -> Bool
-  vpSpanOk Nothing = True
-  vpSpanOk (Just d) = durationOk d
-
-  public export
-  vpOk : {0 bs : Bindings} -> Maybe Zone -> Maybe StackRegime ->
-         List CardType -> SubjectVP bs -> Bool
-  vpOk zn reg tys (VPGets _ _ sp) = zoneFits zn (Just Battlefield) && vpSpanOk sp
-  vpOk zn reg tys (VPGains ab sp) =
-    grantSubjectFits zn reg ab && grantableAb ab && vpSpanOk sp
-  vpOk zn reg tys (VPDeontic _ ds r sp) =
-    not (isNil ds) && knownDeeds ds && deedSubjectFits zn tys ds r && vpSpanOk sp
-
-  public export
-  vpsOk : {0 k : Nat} -> {0 bs : Bindings} -> Maybe Zone ->
-          Maybe StackRegime -> List CardType -> SubjectVPs k bs -> Bool
-  vpsOk zn reg tys [] = True
-  vpsOk zn reg tys (vp :: rest) = vpOk zn reg tys vp && vpsOk zn reg tys rest
-
   namespace Paid
     public export
     data CostSeq : Nat -> Bindings -> Type where
@@ -2937,6 +2881,7 @@ mutual
   clauseStaticOk (DefinesPt _ _ _) = False
   clauseStaticOk (AltCost _ _) = False
   clauseStaticOk (AndAlso parts) = partsClauseOk parts
+  clauseStaticOk (SharedSubject _ parts) = partsClauseOk parts
   clauseStaticOk _ = True
 
   public export
