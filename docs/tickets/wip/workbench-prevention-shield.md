@@ -42,3 +42,23 @@ typechecks, with any left on `CutSome` named and justified; a pin refutes a
 `Shield` with a non-`Repeatedly` `use`, and it is non-vacuous; the [CR#615.7]
 citation is registered (`cargo xtask cite bless`) and read against its claim.
 Standard constraints apply.
+
+## As landed
+
+- `PreventCut.Shield amt` restores the running-total cut; `ShieldUse` gates `Shield` to `Repeatedly` on both `Prevents` and `Redirects`, with the [CR#615.7] rule cited at the gate.
+- `Macros.preventNext` expands through `Shield`; Shieldmate's Blessing plus Ward of Piety, Carom, Daughter of Autumn, Test of Faith, Temper, Candles' Glow, Healing Grace, Harm's Way, Divine Deflection, and Shining Shoal are the eleven running-total witnesses.
+- The fifteen direct `CutSome` card sites were audited: ten moved to `Shield`; Sphere of Purity, Thunderstaff, Urza's Armor, Sphere of Law, and Plated Pegasus remain `CutSome` because each Oracle text cuts an amount from every matching damage event rather than creating a running-total shield.
+- `badShieldSizedByItsOwnPrevention` is re-spelled through `Shield`; new pin `badShieldNextTimeOnly` refutes a shield with `NextTimeOnly`. Its `Repeatedly` positive twin typechecked, and deliberately changing the pin to `Repeatedly` produced `badShieldNextTimeOnly Oh is not a valid impossible case`.
+- Undone: nothing.
+
+## Landing record
+
+Measured on change `qmvykktxvrqm` with 16,337 covered lock identities.
+
+- Construction count: `PreventCut` 4 -> 5 constructors; direct card uses `CutSome` 15 -> 5 and `Shield` 0 -> 10, with the `preventNext` macro supplying the eleventh shield witness. The printed-card bench remains 783 card definitions.
+- Coverage and lock state: selected and covered English-v2 units remain 16,337 -> 16,337, parse failures remain 16,304, and construction declarations remain 384 -> 384. `english-v2-coverage.lock` is unchanged at 48,987 lines, SHA-256 `c73055d0af4c46077cc580bbc0185baaba1188184b3391806dfe22be5cc9069b`; `cr-citations.lock` remains 1,571 rules after `cite bless`.
+- Selection census: 10,843 unique and 5,494 specificity-resolved selections, unchanged by this Idris-only edit; unresolved ties, internal failures, exception resolutions, and exception uses remain zero.
+- Assurance: restored 0; re-spelled 11 card witnesses and 1 existing pin; ignored with blockers 0; added 1 pin; removed 0. All sixteen named printed cards are Vintage-supported in `data/derived/cards.jsonl`.
+- Positive artifacts: 23/23 Idris build with no warnings; `cite check --list-noncompliant` 0; `cite check` 0 stale; `cite bless` 1,571 rules; diff citation audit read [CR#615.7] against the new gate claim.
+- Deviations and additions: five genuine per-event cuts remain on `CutSome`, named above; no ambiguity remained. No construction, witness, test, or lock was removed, and no scratch file remains.
+- STOPs: none.

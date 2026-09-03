@@ -4310,7 +4310,7 @@ wardOfPiety =
                           (Continuously
                       (Redirects AnyDamage Unattributed
                                  (Macros.shieldingIt (AttachHost Enchanted (TypeW Creature)))
-                                 (CutSome (Lit 1)) (Macros.target Macros.anyTarget) Repeatedly)
+                                 (Shield (Lit 1)) (Macros.target Macros.anyTarget) Repeatedly)
                       (Just Macros.thisTurn)) ]
        Nothing
 
@@ -4350,7 +4350,7 @@ carom =
                   [ Continuously
                       (Redirects AnyDamage Unattributed
                                  (Macros.shieldingIt (Macros.target Macros.creature))
-                                 (CutSome (Lit 1))
+                                 (Shield (Lit 1))
                                  (Macros.target (And [Macros.creature, Other])) Repeatedly)
                       (Just Macros.thisTurn)
                   , (Macros.draw You (Lit 1)) ]) ]
@@ -4367,7 +4367,7 @@ daughterOfAutumn =
                       (Redirects AnyDamage Unattributed
                                  (Macros.shieldingIt
                                     (Macros.target (And [Macros.creature, ColorIs White])))
-                                 (CutSome (Lit 1)) Macros.thisCreature Repeatedly)
+                                 (Shield (Lit 1)) Macros.thisCreature Repeatedly)
                       (Just Macros.thisTurn)) ]
        (Just (2, 4))
 
@@ -4393,7 +4393,7 @@ testOfFaith =
        [ Spell (Continuously
                   (Prevents AnyDamage Unattributed
                             (Macros.shieldingIt (Macros.target Macros.creature))
-                            (CutSome (Lit 3)) Repeatedly
+                            (Shield (Lit 3)) Repeatedly
                             (Just (PutCounters PreventedThisWay
                                                (PrintedKind Macros.plusOnePlusOne)
                                                (That (TypeW Creature)))))
@@ -4408,7 +4408,7 @@ temper =
        [ Spell (Continuously
                   (Prevents AnyDamage Unattributed
                             (Macros.shieldingIt (Macros.target Macros.creature))
-                            (CutSome (LetterVal X)) Repeatedly
+                            (Shield (LetterVal X)) Repeatedly
                             (Just (PutCounters PreventedThisWay
                                                (PrintedKind Macros.plusOnePlusOne)
                                                (That (TypeW Creature)))))
@@ -4423,7 +4423,7 @@ candlesGlow =
        [ Spell (Continuously
                   (Prevents AnyDamage Unattributed
                             (Macros.shieldingIt (Macros.target Macros.anyTarget))
-                            (CutSome (Lit 3)) Repeatedly
+                            (Shield (Lit 3)) Repeatedly
                             (Just (ChangeLife You (Up PreventedThisWay))))
                   (Just Macros.thisTurn)) ]
        Nothing
@@ -4472,7 +4472,7 @@ healingGrace =
                   [ Continuously
                       (Prevents AnyDamage (DealtBy (Macros.aYourChoice Macros.source))
                                 (Macros.shieldingIt (Macros.target Macros.anyTarget))
-                                (CutSome (Lit 3)) Repeatedly Nothing)
+                                (Shield (Lit 3)) Repeatedly Nothing)
                       (Just Macros.thisTurn)
                   , ChangeLife You (Up (Lit 3)) ]) ]
        Nothing
@@ -4830,7 +4830,7 @@ harmsWay =
                              (Macros.shieldingIt
                                 (Macros.youAnd (Macros.allOf (And [Permanent,
                                                      HasPossessor ControllerAx You]))))
-                             (CutSome (Lit 2))
+                             (Shield (Lit 2))
                              (Macros.target Macros.anyTarget) Repeatedly)
                   (Just Macros.thisTurn)) ]
        Nothing
@@ -4845,7 +4845,7 @@ divineDeflection =
                             (Macros.shieldingIt
                                (Macros.youAnd (Macros.allOf (And [Permanent,
                                                     HasPossessor ControllerAx You]))))
-                            (CutSome (LetterVal X)) Repeatedly
+                            (Shield (LetterVal X)) Repeatedly
                             (Just (DealDamage This ThatMuch
                                               (Macros.target Macros.anyTarget))))
                   (Just Macros.thisTurn)) ]
@@ -7940,7 +7940,7 @@ shiningShoal =
                              (Macros.shieldingIt
                                 (Macros.youAnd (Macros.allOf (And [HasType Creature,
                                                      HasPossessor ControllerAx You]))))
-                             (CutSome (LetterVal X))
+                             (Shield (LetterVal X))
                              (Macros.target Macros.anyTarget) Repeatedly)
                   (Just Macros.thisTurn)) ]
        Nothing

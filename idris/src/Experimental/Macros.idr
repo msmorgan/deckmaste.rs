@@ -1338,7 +1338,7 @@ preventNext : (kind : DamageKind) -> (scope : DamageScope bs) ->
               (d : Maybe (Duration (amtIntro amt))) ->
               {auto 0 sp : SpanOk Prevention d} -> Effect bs
 preventNext kind scope amt d =
-  Continuously (Prevents kind Unattributed scope (CutSome amt) Repeatedly Nothing) d {sp}
+  Continuously (Prevents kind Unattributed scope (Shield amt) Repeatedly Nothing) d {sp}
 
 public export
 preventAllBy : (kind : DamageKind) -> (src : Noun bs Object) ->

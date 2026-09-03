@@ -87,8 +87,15 @@ badShortOfCeilingUnannounced Refl impossible
 public export
 badShieldSizedByItsOwnPrevention : Unspellable (StaticEffect []) (\ok =>
   Prevents AnyDamage Unattributed (Macros.shieldingIt You)
-           (CutSome (PreventedThisWay {ok})) Repeatedly Nothing)
+           (Shield (PreventedThisWay {ok})) Repeatedly Nothing)
 badShieldSizedByItsOwnPrevention Refl impossible
+
+
+public export
+badShieldNextTimeOnly : Unspellable (StaticEffect []) (\ok =>
+  Prevents AnyDamage Unattributed (Macros.shieldingIt You)
+           (Shield (Lit 3)) NextTimeOnly Nothing {su = ok})
+badShieldNextTimeOnly Oh impossible
 
 
 ||| "Destroy target source."

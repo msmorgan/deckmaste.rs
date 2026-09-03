@@ -415,6 +415,7 @@ mutual
                  (cut : PreventCut (scopeIntro scope)) ->
                  (use : ReplUse) ->
                  (also : Maybe (Effect (outcomeB DamagePrevented :: cutIntro cut))) ->
+                 {auto 0 su : ShieldUse cut use} ->
                  StaticEffect bs
       Redirects : {k : Kind} -> (kind : DamageKind) ->
                   (src : DamageAgent bs) ->
@@ -423,7 +424,8 @@ mutual
                   (to : Noun (cutIntro cut) k) ->
                   (use : ReplUse) ->
                   {auto 0 rk : DamageRecipient to} ->
-                  {auto 0 one : SingleRecipient to} -> StaticEffect bs
+                  {auto 0 one : SingleRecipient to} ->
+                  {auto 0 su : ShieldUse cut use} -> StaticEffect bs
       Scales : (kind : DamageKind) -> (src : Noun bs Object) ->
                (scope : DamageScope (nomIntro src)) ->
                (op : DamageScale (scopeIntro scope)) ->
@@ -671,6 +673,7 @@ mutual
   data PreventCut : Bindings -> Type where
     CutAll : PreventCut bs
     CutSome : (amt : Amount bs) -> PreventCut bs
+    Shield : (amt : Amount bs) -> PreventCut bs
     CutAllBut : (amt : Amount bs) -> PreventCut bs
     CutHalf : (r : RoundMode) -> PreventCut bs
 
@@ -678,8 +681,20 @@ mutual
   cutIntro : {bs : Bindings} -> PreventCut bs -> Bindings
   cutIntro CutAll = bs
   cutIntro (CutSome amt) = amtIntro amt
+  cutIntro (Shield amt) = amtIntro amt
   cutIntro (CutAllBut amt) = amtIntro amt
   cutIntro (CutHalf _) = bs
+
+  -- [CR#615.7] A shield counts damage across events until its amount is spent.
+  public export
+  shieldUseOk : {0 bs : Bindings} -> PreventCut bs -> ReplUse -> Bool
+  shieldUseOk (Shield _) Repeatedly = True
+  shieldUseOk (Shield _) NextTimeOnly = False
+  shieldUseOk _ _ = True
+
+  public export
+  ShieldUse : {0 bs : Bindings} -> PreventCut bs -> ReplUse -> Type
+  ShieldUse cut use = So (shieldUseOk cut use)
 
   public export
   data DamageScale : Bindings -> Type where
