@@ -6993,6 +6993,10 @@ finalFortune =
                                             (Concludes LoseGame You)])] Nothing
 
 public export
+finalFortuneThatTurn : Noun (effIntro {bs = []} (ExtraTurn You (Lit 1))) TurnRef
+finalFortuneThatTurn = Macros.thatTurn
+
+public export
 lastChance : Card
 lastChance =
   Macros.card "Last Chance" (Just [Macros.pip Red, Macros.pip Red]) []

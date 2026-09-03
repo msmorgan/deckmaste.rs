@@ -1805,6 +1805,7 @@ public export
 data Reach = Bare | AtSlot SlotCarrier | Stamped VerbLabel | TokenBorn
            | Word NounWord | UnionHalf NounWord
            | Verbed VerbLabel NounWord VerbedMarking
+           | ThatTurn
 
 public export
 slotZoneOk : SlotCarrier -> Maybe Zone -> Bool
@@ -2011,6 +2012,7 @@ reachKind TokenBorn = Object
 reachKind (Word w) = kindOfW w
 reachKind (UnionHalf w) = kindOfW w
 reachKind (Verbed _ w _) = kindOfW w
+reachKind ThatTurn = TurnRef
 
 public export
 stampedBy : VerbLabel -> Stamp -> Bool
@@ -2082,6 +2084,7 @@ reaches (UnionHalf w) pl b =
 reaches (Verbed v w _) pl (MkBinding _ _ bpl (ObjectP ty zn (Just st) _ _)) =
   isOne pl == isOne bpl && stampWordOk v w st ty zn
 reaches (Verbed _ _ _) _ _ = False
+reaches ThatTurn pl b = kindLte TurnRef b.kind && isOne pl == isOne b.plur
 
 public export
 countReach : Reach -> Plurality -> Bindings -> Nat

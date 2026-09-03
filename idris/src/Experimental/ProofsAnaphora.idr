@@ -816,6 +816,21 @@ turnInScopeResolvesInPrefix : (bs : Bindings) -> countOnes TurnRef bs = 1 ->
                                                So (oneOfKind TurnRef b)))
 turnInScopeResolvesInPrefix bs ok = resolveOnes TurnRef bs ok
 
+public export
+badThatTurnWithoutTurn : Unspellable (Noun [] TurnRef) (\ok =>
+  Macros.thatTurn {bs = []} {ok})
+badThatTurnWithoutTurn Refl impossible
+
+public export
+twoExtraTurns : Bindings
+twoExtraTurns =
+  effIntro {bs = effIntro {bs = []} (ExtraTurn You (Lit 1))} (ExtraTurn You (Lit 1))
+
+public export
+badThatTurnAfterTwoTurns : Unspellable (Noun twoExtraTurns TurnRef) (\ok =>
+  Macros.thatTurn {bs = twoExtraTurns} {ok})
+badThatTurnAfterTwoTurns Refl impossible
+
 
 
 public export

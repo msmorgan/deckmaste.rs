@@ -51,6 +51,10 @@ That : (w : NounWord) -> {auto 0 ok : countReach (Word w) OneOf bs = 1} ->
 That w = Pro (Word w) OneOf
 
 public export
+thatTurn : {auto 0 ok : countReach ThatTurn OneOf bs = 1} -> Noun bs TurnRef
+thatTurn = Pro ThatTurn OneOf
+
+public export
 ThatHalf : (w : NounWord) ->
            {auto 0 ok : countReach (UnionHalf w) OneOf bs = 1} ->
            Noun bs (kindOfW w)
