@@ -505,7 +505,7 @@ pub(crate) fn matches_with_activation(
         // outside an ordered zone, or a cross-zone/cross-player pair,
         // gracefully reads `false` — never a panic on a semantic-input error
         // or a not-yet-reachable reference shape.
-        Predicate::Adjacent(dir, r) => resolve_watcher_reference(state, r, watcher, activation)
+        Predicate::Adjacent(dir, r) => resolve_frameless_reference(state, r, watcher, activation)
             .and_then(|anchor| {
                 let a = ordered_zone_position(state, anchor)?;
                 let c = ordered_zone_position(state, id)?;
@@ -558,25 +558,12 @@ pub(crate) fn matches_with_activation(
             "engine seam: RelatedBy ([CR#607.1]) — no linked-ability relation registry; \
              owner: engine-filter-breadth"
         ),
-        // Frame-needing references: the matcher carries only a `watcher`, not a
-        // `Frame` with announced targets / trigger bindings. `This`/`You` are
-        // handled above; the rest resolve only where a Frame exists
-        // (`resolve::eval_reference`).
-        //
-        // AUDITED invariant (engine-candidate-frame-context), not a guess: no
-        // live call path reaches this arm with a non-This/You/AttachHostOf(This)
-        // `Reference` today. The two corpus shapes that look like they would —
-        // `Do or Die`'s `SelectAll(ControlledBy(Ref(Target(0))))` group filter,
-        // and the whole "target creature can't be blocked" `Continuously(Cant(
-        // Block(on/by: Ref(Target(0)))))` family — both dead-end elsewhere
-        // first: `SeparatePiles` has no resolution yet (`engine-piles`), and a
-        // resolved one-shot's granted `Deontic` row (`ContinuousEffect.rows`)
-        // is never read back by `legal.rs` (a separate, already-unbuilt gap).
-        // A future card/wiring that reaches here with a live Frame available
-        // should thread it instead of leaning on this fallback — see
-        // `resolve_count` just below for the pattern. `debug_assert!` (not
-        // `todo!`) so a corpus regression trips loudly in tests while a
-        // release build degrades to "no match" instead of crashing a game.
+        // A bare register read: the candidate IS the object the register holds.
+        // The register file is addressed by `activation`; with none (a
+        // structural caller) the intrinsic source/controller parameters still
+        // answer from the carrier, and anything else reads `false` rather than
+        // guessing. The fallback compares by `ObjectSource` rather than by id so
+        // a reminted carrier still matches its own register.
         Predicate::Ref(Reference::Reg(reference)) => state
             .activation_product(activation, *reference)
             .and_then(|product| product.current)
@@ -606,50 +593,119 @@ pub(crate) fn matches_with_activation(
                 },
                 |bound| bound == id,
             ),
-        Predicate::Ref(r) => {
-            debug_assert!(
-                false,
-                "engine invariant violated: Ref({r:?}) reached the frameless matcher — no \
-                 corpus filter does this today; the matcher holds only a watcher, not a \
-                 resolving Frame"
-            );
-            false
-        }
+        // A DERIVED reference (`ControllerOf`, `OwnerOf`, `AttachHostOf`,
+        // `OpponentOf`, `Coalesce`) is a pure expression over a register
+        // (core-explicit-regions law 4), so a filter may name one wherever it
+        // may name the register it derives from: resolve it against the same
+        // activation record + carrier the `Reg` arm above reads, and match iff
+        // it lands on THIS candidate. Unresolvable (a gone register, no
+        // carrier, or a shape needing the selection evaluator's `Frame` —
+        // `Single`/`Source`) reads `false`, the same never-crash fizzle
+        // `Predicate::Adjacent` takes.
+        Predicate::Ref(r) => resolve_frameless_reference(state, r, watcher, activation)
+            .is_some_and(|resolved| resolved == id),
     }
 }
 
-/// Resolve `r` to a live [`ObjectId`] using ONLY the frameless matcher's
-/// `watcher` — the shapes [`Predicate::Adjacent`] can reach without a
-/// [`crate::stack::Frame`] (`This`/`You`, mirroring the `Ref(This)`/`Ref(You)`
-/// arms above). `None` for anything else, or a gone/no-watcher carrier —
-/// never a panic.
-fn resolve_watcher_reference(
+/// Resolve `r` to a live [`ObjectId`] using ONLY what the frameless matcher
+/// holds: the register file addressed by `activation` plus the carrier
+/// `watcher`. `None` — never a panic — for a register with no live product, a
+/// derivation over one, or a shape that genuinely needs a
+/// [`crate::stack::Frame`].
+///
+/// Derived references are pure expressions over a register
+/// (`docs/decisions/core-explicit-regions.md` law 4), introducing no binding,
+/// so every one of them is resolvable exactly where its innermost register is.
+/// That is why this walks the derivation itself rather than deferring to
+/// [`crate::state::GameState::eval_reference`]: that evaluator reads the
+/// DERIVED controller through `state.layers()`, and this matcher is reachable
+/// from inside a layer rebuild (`layer::condition_predicate_matches` delegates
+/// player proxies here), where re-entering `layers()` would recurse. The stored
+/// controller read below is the same one the sibling
+/// `Predicate::Relation(ControlledBy)` arm uses, so the two spellings of
+/// "controlled by the same player as X" agree; both share the narrowness that a
+/// layer-2 control-changing effect [CR#613.1b] is not seen.
+fn resolve_frameless_reference(
     state: &GameState,
     r: &Reference,
     watcher: Option<ObjectSource>,
     activation: crate::ActivationId,
 ) -> Option<ObjectId> {
-    match (r, watcher) {
-        (&Reference::Reg(reference), Some(w))
-            if state.activation_reference_is(
-                activation,
-                reference,
-                &deckmaste_core::Provenance::Source,
-            ) =>
-        {
-            state.objects.iter().find(|o| o.source == w).map(|o| o.id)
+    match r {
+        // The register's own product first (a resolution-time caller passed a
+        // real activation), then the carrier fallbacks the `Predicate::Ref(Reg)`
+        // arm takes for a structural caller with no activation record.
+        &Reference::Reg(reference) => state
+            .activation_product(activation, reference)
+            .and_then(|product| product.current)
+            .or_else(|| resolve_carrier_register(state, reference, watcher, activation)),
+        // [CR#109.5]: the controller of a referenced object. Only an object on
+        // the stack or the battlefield has one [CR#109.4]; a player proxy has
+        // no controller, so it fizzles rather than answering with itself.
+        Reference::ControllerOf(inner) => {
+            let object = state.objects.get(resolve_frameless_reference(
+                state, inner, watcher, activation,
+            )?)?;
+            object.card_id()?;
+            Some(state.player(object.controller).object)
         }
-        (&Reference::Reg(reference), Some(w))
-            if state.activation_reference_is(
-                activation,
-                reference,
-                &deckmaste_core::Provenance::Controller,
-            ) =>
-        {
-            let controller = state.controller_of_source(w)?;
-            Some(state.player(controller).object)
+        // [CR#108.3]: the owner of a referenced card-backed object; a player
+        // proxy has no owner.
+        Reference::OwnerOf(inner) => {
+            let id = resolve_frameless_reference(state, inner, watcher, activation)?;
+            state.objects.get(id)?.card_id()?;
+            Some(state.player(state.owner_of(id)).object)
         }
-        _ => None,
+        // [CR#301.5,303.4]: the permanent an attachment is attached to. An
+        // unattached attachment resolves to nothing.
+        Reference::AttachHostOf(inner) => {
+            let id = resolve_frameless_reference(state, inner, watcher, activation)?;
+            state.objects.get(id)?.attached_to
+        }
+        // [CR#102.2]: an opponent of the referenced player — the SAME single
+        // product `resolve::query`'s evaluator picks, so the framed and
+        // frameless readings of one card agree. The existential "is any
+        // opponent of" reading is `Predicate::Relation(OpponentOf)`, a
+        // different form.
+        Reference::OpponentOf(inner) => {
+            let id = resolve_frameless_reference(state, inner, watcher, activation)?;
+            let player = state.players.iter().find(|p| p.object == id)?;
+            Some(state.player(state.next_live_after(player.id)).object)
+        }
+        // First reference in order that resolves, per the variant's contract.
+        Reference::Coalesce(references) => references
+            .iter()
+            .find_map(|inner| resolve_frameless_reference(state, inner, watcher, activation)),
+        // `Single` demotes a SELECTION, which only `resolve::eval_selection_set`
+        // evaluates and only from a `Frame`; `Source` is the set-valued
+        // deal-time damage binding, meaningful only inside
+        // `Condition::Matches(Source, …)`, which reads it before any matcher
+        // sees it. Neither is a register derivation, so neither resolves here.
+        Reference::Single(_) | Reference::Source => None,
+    }
+}
+
+/// The carrier-anchored reading of a register with no live product in the
+/// activation record: the intrinsic source/controller parameters resolve
+/// against `watcher` ([CR#611.2c] — the ability's own source), everything else
+/// yields `None`.
+fn resolve_carrier_register(
+    state: &GameState,
+    reference: deckmaste_core::RefId,
+    watcher: Option<ObjectSource>,
+    activation: crate::ActivationId,
+) -> Option<ObjectId> {
+    let w = watcher?;
+    if state.activation_reference_is(activation, reference, &deckmaste_core::Provenance::Source) {
+        state.objects.iter().find(|o| o.source == w).map(|o| o.id)
+    } else if state.activation_reference_is(
+        activation,
+        reference,
+        &deckmaste_core::Provenance::Controller,
+    ) {
+        Some(state.player(state.controller_of_source(w)?).object)
+    } else {
+        None
     }
 }
 
@@ -2257,6 +2313,182 @@ mod tests {
             assert!(
                 admitted.contains(&id),
                 "every creature has another creature besides itself"
+            );
+        }
+    }
+
+    /// Regression (`engine-derived-reference-in-filters`): a DERIVED reference
+    /// in a filter — the shape that reads the controller of something rather
+    /// than the thing itself — resolves against the same carrier the bare
+    /// register read uses ([CR#109.5]). Before the fix every derived
+    /// `Reference` fell through to a `debug_assert!(false)`, so the natural
+    /// spelling of "controlled by the same player as X" aborted a test build.
+    #[test]
+    fn derived_controller_ref_in_filter_resolves_against_the_carrier() {
+        let (state, bear) = game_with_a_bear_on_the_field();
+        let watcher = Some(state.objects.obj(bear).source);
+        let controller_of_source = Predicate::Ref(deckmaste_core::Reference::ControllerOf(
+            Arc::new(deckmaste_core::Reference::source_parameter()),
+        ));
+
+        assert!(
+            matches_with(
+                &state,
+                state.player(PlayerId(0)).object,
+                &controller_of_source,
+                watcher
+            ),
+            "the Bear's controller is player 0, so player 0's proxy IS the derived reference"
+        );
+        assert!(
+            !matches_with(
+                &state,
+                state.player(PlayerId(1)).object,
+                &controller_of_source,
+                watcher
+            ),
+            "the other player is not the Bear's controller"
+        );
+        assert!(
+            !matches_with(&state, bear, &controller_of_source, watcher),
+            "the object itself is not its own controller — the derivation is a player read"
+        );
+    }
+
+    /// The two faithful spellings of "controlled by the same player as the
+    /// carrier" — the derived reference and the relation-predicate detour the
+    /// witness fixtures used while the derived one aborted — must agree on
+    /// every candidate.
+    #[test]
+    fn derived_controller_ref_agrees_with_the_relation_spelling() {
+        let (state, bear) = game_with_a_bear_on_the_field();
+        let watcher = Some(state.objects.obj(bear).source);
+        let derived = Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
+            Predicate::Ref(deckmaste_core::Reference::ControllerOf(Arc::new(
+                deckmaste_core::Reference::source_parameter(),
+            ))),
+        )));
+        let relational = Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
+            Predicate::Relation(RelationPredicate::Controls(Arc::new(Predicate::Ref(
+                deckmaste_core::Reference::source_parameter(),
+            )))),
+        )));
+
+        let ids: Vec<ObjectId> = state.objects.iter().map(|o| o.id).collect();
+        assert!(ids.len() > 2, "sanity: the fixture has objects to compare");
+        for id in ids {
+            assert_eq!(
+                matches_with(&state, id, &derived, watcher),
+                matches_with(&state, id, &relational, watcher),
+                "the two spellings disagree on {id:?}"
+            );
+        }
+        assert!(
+            matches_with(&state, bear, &derived, watcher),
+            "sanity: the carrier is controlled by its own controller, so both spellings hold"
+        );
+    }
+
+    /// [CR#108.3]: `OwnerOf` derives the owner, which for a card that never
+    /// changed hands is the same player as its controller — but reads a
+    /// different field, and a player proxy has no owner at all.
+    #[test]
+    fn derived_owner_ref_in_filter_resolves() {
+        let (state, bear) = game_with_a_bear_on_the_field();
+        let watcher = Some(state.objects.obj(bear).source);
+        let owner_of_source = Predicate::Ref(deckmaste_core::Reference::OwnerOf(Arc::new(
+            deckmaste_core::Reference::source_parameter(),
+        )));
+
+        assert!(
+            matches_with(
+                &state,
+                state.player(PlayerId(0)).object,
+                &owner_of_source,
+                watcher
+            ),
+            "player 0 started the game with the Bear, so player 0 owns it"
+        );
+        assert!(
+            !matches_with(
+                &state,
+                state.player(PlayerId(1)).object,
+                &owner_of_source,
+                watcher
+            ),
+            "player 1 does not own the Bear"
+        );
+    }
+
+    /// A derivation nested over a PLAYER-valued one fizzles rather than
+    /// answering with the player itself: only an object on the stack or the
+    /// battlefield has a controller ([CR#109.4]).
+    #[test]
+    fn derived_ref_over_a_player_proxy_fizzles() {
+        let (state, bear) = game_with_a_bear_on_the_field();
+        let watcher = Some(state.objects.obj(bear).source);
+        let controller_of_controller = Predicate::Ref(deckmaste_core::Reference::ControllerOf(
+            Arc::new(deckmaste_core::Reference::ControllerOf(Arc::new(
+                deckmaste_core::Reference::source_parameter(),
+            ))),
+        ));
+
+        for id in state.objects.iter().map(|o| o.id).collect::<Vec<_>>() {
+            assert!(
+                !matches_with(&state, id, &controller_of_controller, watcher),
+                "a player proxy has no controller, so nothing matches: {id:?}"
+            );
+        }
+    }
+
+    /// `Coalesce` takes the first reference in order that resolves — here an
+    /// out-of-range register (nothing declares it, and no carrier reading
+    /// answers for it) followed by the source parameter.
+    #[test]
+    fn coalesce_ref_in_filter_takes_the_first_resolvable() {
+        let (state, bear) = game_with_a_bear_on_the_field();
+        let watcher = Some(state.objects.obj(bear).source);
+        let filter = Predicate::Ref(deckmaste_core::Reference::Coalesce(Arc::from(vec![
+            deckmaste_core::Reference::Reg(deckmaste_core::RefId(97)),
+            deckmaste_core::Reference::source_parameter(),
+        ])));
+
+        assert!(
+            matches_with(&state, bear, &filter, watcher),
+            "the unresolvable register is skipped and the carrier answers"
+        );
+        assert!(
+            !matches_with(&state, state.player(PlayerId(1)).object, &filter, watcher),
+            "and it resolves to exactly one object, not to everything"
+        );
+    }
+
+    /// The never-crash floor that replaced the `debug_assert!(false)`: a
+    /// reference the matcher genuinely cannot resolve reads "no match" instead
+    /// of aborting the process ([Invalid semantic input
+    /// fizzles](../../../docs/decisions/invalid-semantic-input-fizzles.md)).
+    /// `Single` needs the selection evaluator's `Frame`; `Source` is the
+    /// set-valued deal-time damage binding, read only inside
+    /// `Matches(Source, …)`.
+    #[test]
+    fn unresolvable_ref_in_filter_fizzles_instead_of_asserting() {
+        let (state, bear) = game_with_a_bear_on_the_field();
+        let watcher = Some(state.objects.obj(bear).source);
+        let unresolvable = [
+            Predicate::Ref(deckmaste_core::Reference::Single(Arc::new(
+                deckmaste_core::Selection::SelectAll(Arc::new(deckmaste_core::Region::candidate(
+                    Predicate::Any,
+                ))),
+            ))),
+            Predicate::Ref(deckmaste_core::Reference::Source),
+            Predicate::Ref(deckmaste_core::Reference::AttachHostOf(Arc::new(
+                deckmaste_core::Reference::source_parameter(),
+            ))),
+        ];
+        for filter in &unresolvable {
+            assert!(
+                !matches_with(&state, bear, filter, watcher),
+                "{filter:?} reads no match rather than aborting"
             );
         }
     }
