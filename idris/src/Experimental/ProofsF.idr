@@ -457,10 +457,9 @@ badStillOnAddition Oh impossible
 public export
 badDeicticTurnWithoutIntroducer : Unspellable (Effect []) (\ok =>
   Sequentially [Draw You (Lit 1),
-                Delayed (BeginningOf EndStep (ByWord ThatTurns) {td = ok}) [] Nothing
+                Delayed (BeginningOf EndStep (Macros.thatTurns {ok})) [] Nothing
                         (Concludes LoseGame You)])
-badDeicticTurnWithoutIntroducer (NoTurnDeixis) impossible
-badDeicticTurnWithoutIntroducer (TurnInScope) impossible
+badDeicticTurnWithoutIntroducer Refl impossible
 
 
 ||| "After this combat phase, there is an additional turn."

@@ -3078,21 +3078,45 @@ mutual
   nounPlur (PossessorsOf _ _) = ManyOf
   nounPlur (Designated _ _) = OneOf
 
+  ||| A turn part has one active player [CR#102.1], so a plural possessor
+  ||| names no part unless it distributes over the players.
   public export
-  windowOk : TurnPart -> Maybe Owner -> Bool
-  windowOk Turn Nothing = False
-  windowOk _ (Just ThatTurns) = False
-  windowOk _ _ = True
+  partPossessorOk : {bs : Bindings} -> Maybe (Noun bs Player) -> Bool
+  partPossessorOk Nothing = True
+  partPossessorOk (Just n) = isOne (nounPlur n) || nounDet n == Just EachD
 
   public export
-  WindowOk : TurnPart -> Maybe Owner -> Type
+  windowOk : {bs : Bindings} -> TurnPart -> Maybe (Noun bs Player) -> Bool
+  windowOk Turn Nothing = False
+  windowOk _ w = partPossessorOk w
+
+  public export
+  WindowOk : {bs : Bindings} -> TurnPart -> Maybe (Noun bs Player) -> Type
   WindowOk p w = So (windowOk p w)
 
   public export
-  pointWindowOk : TurnPoint -> Maybe Owner -> Bool
-  pointWindowOk _ (Just ThatTurns) = False
-  pointWindowOk _ _ = True
+  pointWindowOk : {bs : Bindings} -> TurnPoint -> Maybe (Noun bs Player) -> Bool
+  pointWindowOk _ w = partPossessorOk w
 
   public export
-  PointWindowOk : TurnPoint -> Maybe Owner -> Type
+  PointWindowOk : {bs : Bindings} -> TurnPoint -> Maybe (Noun bs Player) -> Type
   PointWindowOk pt w = So (pointWindowOk pt w)
+
+  ||| A duration ends at one named point, so its possessor must be a single
+  ||| definite player.
+  public export
+  durationPossessorOk : {bs : Bindings} -> Maybe (Noun bs Player) -> Bool
+  durationPossessorOk Nothing = True
+  durationPossessorOk (Just n) =
+    isOne (nounPlur n) && maybe True (== TheD) (nounDet n)
+
+  public export
+  DurationPossessor : {bs : Bindings} -> Maybe (Noun bs Player) -> Type
+  DurationPossessor w = So (durationPossessorOk w)
+
+  public export
+  data DurationEnd : Bindings -> Type where
+    StartOf : TurnPart -> (w : Maybe (Noun bs Player)) ->
+              {auto 0 dp : DurationPossessor w} -> DurationEnd bs
+    EndOf : TurnPart -> (w : Maybe (Noun bs Player)) ->
+            {auto 0 dp : DurationPossessor w} -> DurationEnd bs

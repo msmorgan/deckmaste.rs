@@ -394,7 +394,7 @@ badTargetedDeathHeader Oh impossible
 ||| "At the beginning of your turn, draw a card."
 public export
 badTriggerAtYourTurn : Unspellable Ability (\ok =>
-  Triggered At (BeginningOf Turn (ByWord Yours) {pu = ok}) [] Nothing [] Nothing Nothing Nothing (Macros.draw You (Lit 1)))
+  Triggered At (BeginningOf Turn (Macros.yours) {pu = ok}) [] Nothing [] Nothing Nothing Nothing (Macros.draw You (Lit 1)))
 badTriggerAtYourTurn Oh impossible
 
 
@@ -432,7 +432,7 @@ badPlayFromBattlefield Oh impossible
 ||| "Target creature gets +3/+3 until the beginning of your next upkeep."
 public export
 badUntilBeginningOfUpkeep : Unspellable (Effect []) (\ok =>
-  Macros.gets (Macros.target Macros.creature) (PtUp (Lit 3)) (PtUp (Lit 3)) (Just (UntilEvent (BeginningOf Upkeep (ByWord Yours)))) {sp = ok})
+  Macros.gets (Macros.target Macros.creature) (PtUp (Lit 3)) (PtUp (Lit 3)) (Just (UntilEvent (BeginningOf Upkeep (Macros.yours)))) {sp = ok})
 badUntilBeginningOfUpkeep (SpanStated {ok = Oh}) impossible
 
 
@@ -459,13 +459,13 @@ badReflexiveOnSequence Oh impossible
 
 public export
 badReflexiveOnDelayed : Unspellable (Effect []) (\ok =>
-  Reflexively (Delayed (BeginningOf EndStep (ByWord Yours)) [] Nothing (Macros.draw You (Lit 1))) (Macros.draw You (Lit 1)) {en = ok})
+  Reflexively (Delayed (BeginningOf EndStep (Macros.yours)) [] Nothing (Macros.draw You (Lit 1))) (Macros.draw You (Lit 1)) {en = ok})
 badReflexiveOnDelayed Oh impossible
 
 
 public export
 badThisWayOnDelayed : Unspellable (Effect []) (\ok =>
-  ThisWay (Delayed (BeginningOf EndStep (ByWord Yours)) [] Nothing (Macros.draw You (Lit 1)))
+  ThisWay (Delayed (BeginningOf EndStep (Macros.yours)) [] Nothing (Macros.draw You (Lit 1)))
           (Draws You) (Macros.draw You (Lit 1)) {oc = ok})
 badThisWayOnDelayed Oh impossible
 

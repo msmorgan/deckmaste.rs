@@ -356,11 +356,11 @@ badBareActivationLookback : Unspellable (Condition []) (\ok =>
 badBareActivationLookback Oh impossible
 
 
-||| "At the beginning of you's upkeep, draw a card."
+||| "At the beginning of all players' upkeep, draw a card." [CR#102.1]
 public export
-badNounPossessorYou : Unspellable Ability (\ok =>
-  Triggered At (BeginningOf Upkeep (ByNoun You {pn = ok})) [] Nothing [] Nothing Nothing Nothing (Macros.draw You (Lit 1)))
-badNounPossessorYou AttachedPossessor impossible
+badPluralPartPossessor : Unspellable Ability (\ok =>
+  Triggered At (BeginningOf Upkeep (ByPlayer (Macros.allOf AnyPlayer)) {pu = ok}) [] Nothing [] Nothing Nothing Nothing (Macros.draw You (Lit 1)))
+badPluralPartPossessor Oh impossible
 
 
 ||| "Put those cards on the top or bottom of your library in any order."

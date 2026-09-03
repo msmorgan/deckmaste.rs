@@ -810,15 +810,17 @@ otherResolvesInPrefix bs k ok =
 
 
 public export
-turnInScopeReadsOnlyPrefix : (bs : Bindings) -> countOnes TurnRef bs = 1 ->
-                             TurnDeixis (Just ThatTurns) bs
-turnInScopeReadsOnlyPrefix bs ok = TurnInScope {bs} {ok}
+turnInScopeReadsOnlyPrefix : (bs : Bindings) -> countReach ThatTurn OneOf bs = 1 ->
+                             Noun bs TurnRef
+turnInScopeReadsOnlyPrefix bs ok = Pro ThatTurn OneOf {bs} {ok}
 
 public export
-turnInScopeResolvesInPrefix : (bs : Bindings) -> countOnes TurnRef bs = 1 ->
+turnInScopeResolvesInPrefix : (bs : Bindings) -> countReach ThatTurn OneOf bs = 1 ->
                               (b : Binding ** (Elem b bs,
-                                               So (oneOfKind TurnRef b)))
-turnInScopeResolvesInPrefix bs ok = resolveOnes TurnRef bs ok
+                                               So (reaches ThatTurn OneOf b)))
+turnInScopeResolvesInPrefix bs ok =
+  countByWitness (reaches ThatTurn OneOf) bs Z
+    (trans (sym (countReachIsFold ThatTurn OneOf bs)) ok)
 
 public export
 badThatTurnWithoutTurn : Unspellable (Noun [] TurnRef) (\ok =>

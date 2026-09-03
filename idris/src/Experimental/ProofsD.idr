@@ -334,18 +334,18 @@ badColorlessWhite : Unspellable (Noun [] Object) (\ok =>
 badColorlessWhite Oh impossible
 
 
-||| "{2}: Draw a card. Activate only during that turn's end step."
+||| "{2}: Draw a card. Activate only during all players' end step." [CR#102.1]
 public export
-badThatTurnsPartWindow : Unspellable Ability (\ok =>
-  Activated (Mana [Macros.generic 2]) (Macros.draw You (Lit 1)) (Just (DuringPart EndStep (Just ThatTurns) {wk = ok})) Nothing Nothing Nothing)
-badThatTurnsPartWindow Oh impossible
+badPluralPartWindow : Unspellable Ability (\ok =>
+  Activated (Mana [Macros.generic 2]) (Macros.draw You (Lit 1)) (Just (DuringPart EndStep (Just (Macros.allOf AnyPlayer)) {wk = ok})) Nothing Nothing Nothing)
+badPluralPartWindow Oh impossible
 
 
-||| "{2}: Draw a card. Activate only before that turn's attackers are declared."
+||| "{2}: Draw a card. Activate only before all players' attackers are declared." [CR#102.1]
 public export
-badThatTurnsAttackWindow : Unspellable Ability (\ok =>
-  Activated (Mana [Macros.generic 2]) (Macros.draw You (Lit 1)) (Just (BeforePoint AttackersDeclared (Just ThatTurns) {pk = ok})) Nothing Nothing Nothing)
-badThatTurnsAttackWindow Oh impossible
+badPluralAttackWindow : Unspellable Ability (\ok =>
+  Activated (Mana [Macros.generic 2]) (Macros.draw You (Lit 1)) (Just (BeforePoint AttackersDeclared (Just (Macros.allOf AnyPlayer)) {pk = ok})) Nothing Nothing Nothing)
+badPluralAttackWindow Oh impossible
 
 
 ||| "Target land attacks each combat if able."
@@ -502,13 +502,13 @@ badCostSubjectOnBattlefield MkCostSubject impossible
 
 ||| "until the beginning of each player's next upkeep"
 public export
-badDurationEndEachPlayers : Unspellable DurationEnd (\ok =>
-  StartOf Upkeep (Just EachPlayers) {dp = ok})
+badDurationEndEachPlayers : Unspellable (DurationEnd []) (\ok =>
+  StartOf Upkeep (Just (Macros.each AnyPlayer)) {dp = ok})
 badDurationEndEachPlayers Oh impossible
 
 
-||| "until the end of that turn's combat"
+||| "until the end of an opponent's combat"
 public export
-badDurationEndThatTurns : Unspellable DurationEnd (\ok =>
-  EndOf Combat (Just ThatTurns) {dp = ok})
-badDurationEndThatTurns Oh impossible
+badDurationEndAnOpponent : Unspellable (DurationEnd []) (\ok =>
+  EndOf Combat (Just Macros.anOpponent) {dp = ok})
+badDurationEndAnOpponent Oh impossible

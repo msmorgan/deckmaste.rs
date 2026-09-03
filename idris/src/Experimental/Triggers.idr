@@ -9,7 +9,7 @@ mutual
   data Duration : Bindings -> Type where
     ThisTurn : Duration bs
     RestOfGame : Duration bs
-    Until : DurationEnd -> Duration bs
+    Until : DurationEnd bs -> Duration bs
     ForAsLongAs : Condition bs -> Duration bs
     UntilEvent : GameEvent bs -> Duration bs
     DuringNextTurnOf : (who : Noun bs Player) ->
@@ -198,8 +198,7 @@ mutual
                   {auto 0 zn : ZoneFits (nounZone n) (damageSourceZone kind)} ->
                   GameEvent bs
     BeginningOf : (part : TurnPart) -> (whose : HeaderPossessor bs) ->
-                  {auto 0 pu : PartTriggerable part whose} ->
-                  {auto 0 td : TurnDeixis (possessorWord whose) bs} -> GameEvent bs
+                  {auto 0 pu : PartTriggerable part whose} -> GameEvent bs
     Casts : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
             (from : Maybe (ZoneExpr (nomIntro what))) ->
             {auto 0 zn : OnStack (nounZone what)} ->
@@ -544,33 +543,26 @@ mutual
   InterceptableArms as = So (interceptArmsOk as)
 
   public export
-  data PossessorNoun : {0 bs : Bindings} -> Noun bs Player -> Type where
-    AttachedPossessor : {0 bs : Bindings} -> {0 w : AttachWord} ->
-                        {auto 0 ok : AttachHeadOk w PlayerW} ->
-                        PossessorNoun (AttachHost w PlayerW {ok})
-
-  public export
   data HeaderPossessor : Bindings -> Type where
     NoPossessor : HeaderPossessor bs
-    ByWord : (w : Owner) -> HeaderPossessor bs
-    ByNoun : (n : Noun bs Player) ->
-             {auto 0 pn : PossessorNoun n} -> HeaderPossessor bs
-
-  public export
-  possessorWord : {0 bs : Bindings} -> HeaderPossessor bs -> Maybe Owner
-  possessorWord NoPossessor = Nothing
-  possessorWord (ByWord w) = Just w
-  possessorWord (ByNoun _) = Nothing
+    ByPlayer : (n : Noun bs Player) -> HeaderPossessor bs
+    ByTurn : (n : Noun bs TurnRef) -> HeaderPossessor bs
 
   public export
   possessorIntro : {bs : Bindings} -> HeaderPossessor bs -> Bindings
   possessorIntro NoPossessor = bs
-  possessorIntro (ByWord w) = possessorB (Just w) ++ bs
-  possessorIntro (ByNoun n) = MkBinding TheD Player OneOf PlayerP :: nomIntro n
+  possessorIntro (ByPlayer n) = selfSubjDelta n ++ Phrase.agentIntro n
+  possessorIntro (ByTurn _) = bs
 
   public export
-  PartTriggerable : {0 bs : Bindings} -> TurnPart -> HeaderPossessor bs -> Type
-  PartTriggerable {bs} p h = So (partTriggerOk p)
+  headerPossessorOk : {bs : Bindings} -> HeaderPossessor bs -> Bool
+  headerPossessorOk NoPossessor = True
+  headerPossessorOk (ByPlayer n) = partPossessorOk (Just n)
+  headerPossessorOk (ByTurn _) = True
+
+  public export
+  PartTriggerable : {bs : Bindings} -> TurnPart -> HeaderPossessor bs -> Type
+  PartTriggerable {bs} p h = So (partTriggerOk p && headerPossessorOk h)
 
   public export
   AddedPart : TurnPart -> Type
@@ -581,24 +573,6 @@ mutual
     NoPartWritten : AddedPartWritten Nothing
     PartWritten : {auto 0 ok : So (partAddable p)} ->
                   AddedPartWritten (Just p)
-
-  public export
-  data TurnDeixis : Maybe Owner -> Bindings -> Type where
-    NoTurnDeixis : {auto 0 ok : So (not (isTurnDeictic w))} -> TurnDeixis w bs
-    TurnInScope : {auto 0 ok : countOnes TurnRef bs = 1} ->
-                  TurnDeixis (Just ThatTurns) bs
-
-  public export
-  isTurnDeictic : Maybe Owner -> Bool
-  isTurnDeictic Nothing = False
-  isTurnDeictic (Just Yours) = False
-  isTurnDeictic (Just ThatPlayers) = False
-  isTurnDeictic (Just EachPlayers) = False
-  isTurnDeictic (Just EachOpponents) = False
-  isTurnDeictic (Just EachYours) = False
-  isTurnDeictic (Just AnOpponents) = False
-  isTurnDeictic (Just EachOthers) = False
-  isTurnDeictic (Just ThatTurns) = True
 
   public export
   durationOk : {0 bs : Bindings} -> Duration bs -> Bool
@@ -625,18 +599,18 @@ mutual
     DelayFor : {auto 0 ok : So (durationOk d)} -> DelaySpanOk (Just d)
 
   public export
-  data TriggerWindow : Type where
-    DuringWindow : (p : TurnPart) -> (w : Maybe Owner) ->
-                   {auto 0 hw : WindowOk p w} -> TriggerWindow
+  data TriggerWindow : Bindings -> Type where
+    DuringWindow : (p : TurnPart) -> (w : Maybe (Noun bs Player)) ->
+                   {auto 0 hw : WindowOk p w} -> TriggerWindow bs
 
   public export
-  data Timing : Type where
-    AsSorcery : Timing
-    AsInstant : Timing
-    DuringPart : (p : TurnPart) -> (w : Maybe Owner) ->
-                 {auto 0 wk : WindowOk p w} -> Timing
-    BeforePoint : (pt : TurnPoint) -> (w : Maybe Owner) ->
-                  {auto 0 pk : PointWindowOk pt w} -> Timing
+  data Timing : Bindings -> Type where
+    AsSorcery : Timing bs
+    AsInstant : Timing bs
+    DuringPart : (p : TurnPart) -> (w : Maybe (Noun bs Player)) ->
+                 {auto 0 wk : WindowOk p w} -> Timing bs
+    BeforePoint : (pt : TurnPoint) -> (w : Maybe (Noun bs Player)) ->
+                  {auto 0 pk : PointWindowOk pt w} -> Timing bs
 
   public export
   data UsageLimit = OncePerTurn | OncePerGame | ActionOncePerTurn
@@ -672,7 +646,7 @@ mutual
     MkJoinedHeader : (word : TriggerWord) -> (ev : GameEvent bs) ->
                      (alts : List (GameEvent bs)) ->
                      (while : Maybe (Concurrent (headerCtx alts ev))) ->
-                     (window : Maybe TriggerWindow) ->
+                     (window : Maybe (TriggerWindow bs)) ->
                      {auto 0 hn : HeaderNontarget ev} ->
                      {auto 0 hs : HeaderStatus ev} ->
                      {auto 0 ae : AltEvent word alts} ->
@@ -710,14 +684,14 @@ mutual
                       (ev : GameEvent bs) -> (alts : List (GameEvent bs)) ->
                       Maybe (Concurrent (headerCtx alts ev)) ->
                       (joins : List (JoinedHeader bs)) ->
-                      Maybe TriggerWindow -> Maybe UsageLimit ->
+                      Maybe (TriggerWindow bs) -> Maybe UsageLimit ->
                       Maybe (Condition (joinedCtx joins (headerCtx alts ev))) -> Bool
   chapterDefaultsOk (ChapterMark _) [] Nothing [] Nothing Nothing Nothing = True
   chapterDefaultsOk (ChapterMark _) _ _ _ _ _ _ = False
   chapterDefaultsOk _ _ _ _ _ _ _ = True
 
   public export
-  ChapterDefaults : {bs : Bindings} -> (ev : GameEvent bs) -> (alts : List (GameEvent bs)) -> Maybe (Concurrent (headerCtx alts ev)) -> (joins : List (JoinedHeader bs)) -> Maybe TriggerWindow -> Maybe UsageLimit -> Maybe (Condition (joinedCtx joins (headerCtx alts ev))) -> Type
+  ChapterDefaults : {bs : Bindings} -> (ev : GameEvent bs) -> (alts : List (GameEvent bs)) -> Maybe (Concurrent (headerCtx alts ev)) -> (joins : List (JoinedHeader bs)) -> Maybe (TriggerWindow bs) -> Maybe UsageLimit -> Maybe (Condition (joinedCtx joins (headerCtx alts ev))) -> Type
   ChapterDefaults {bs} ev alts wh js w l i = So (chapterDefaultsOk ev alts wh js w l i)
 
   public export

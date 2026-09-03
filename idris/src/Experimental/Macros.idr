@@ -722,7 +722,7 @@ untilEndOfTurn = Until (EndOf Turn Nothing)
 
 public export
 untilYourNextTurn : Duration bs
-untilYourNextTurn = Until (StartOf Turn (Just Yours))
+untilYourNextTurn = Until (StartOf Turn (Just You))
 
 public export
 untilEndOfCombat : Duration bs
@@ -730,11 +730,11 @@ untilEndOfCombat = Until (EndOf Combat Nothing)
 
 public export
 untilYourNextUpkeep : Duration bs
-untilYourNextUpkeep = Until (StartOf Upkeep (Just Yours))
+untilYourNextUpkeep = Until (StartOf Upkeep (Just You))
 
 public export
 untilYourNextEndStep : Duration bs
-untilYourNextEndStep = Until (StartOf EndStep (Just Yours))
+untilYourNextEndStep = Until (StartOf EndStep (Just You))
 
 public export
 asLongAs : {bs : Bindings} -> (c : Condition bs) -> (se : StaticEffect (condIntro c)) -> StaticEffect bs
@@ -861,7 +861,7 @@ mayVoteAdditional who q =
           Nothing NoDeonticRider {dp} {bd}
 
 public export
-doesntUntap : (n : Noun bs Object) -> (w : Maybe Owner) ->
+doesntUntap : (n : Noun bs Object) -> (w : Maybe (Noun bs Player)) ->
               {auto 0 wk : WindowOk UntapStep w} ->
               {auto 0 dp : DeedFits ["Untap"] Patient Object (nounHeadTys n) (nounZone n)} ->
               StaticEffect bs
@@ -871,7 +871,7 @@ doesntUntap n w =
     {wk}
 
 public export
-mayDeclineUntap : (n : Noun bs Object) -> (w : Maybe Owner) ->
+mayDeclineUntap : (n : Noun bs Object) -> (w : Maybe (Noun bs Player)) ->
                   {auto 0 wk : WindowOk UntapStep w} ->
                   {auto 0 dp : DeedFits ["Untap"] Patient Object (nounHeadTys n) (nounZone n)} ->
                   StaticEffect bs
@@ -881,7 +881,7 @@ mayDeclineUntap n w =
     {wk}
 
 public export
-untapsDuring : (n : Noun bs Object) -> (w : Maybe Owner) ->
+untapsDuring : (n : Noun bs Object) -> (w : Maybe (Noun bs Player)) ->
                {auto 0 wk : WindowOk UntapStep w} ->
                {auto 0 dp : DeedFits ["Untap"] Patient Object (nounHeadTys n) (nounZone n)} ->
                StaticEffect bs
@@ -1868,7 +1868,7 @@ triggeredOr word ev alts eff =
 
 public export
 triggeredOnlyDuring : {bs : Bindings} -> (word : TriggerWord) ->
-                      (ev : GameEvent bs) -> (w : TriggerWindow) ->
+                      (ev : GameEvent bs) -> (w : TriggerWindow bs) ->
                       (eff : Effect (eventAfter ev)) ->
                       {auto 0 hn : HeaderNontarget ev} ->
                       {auto 0 hs : HeaderStatus ev} ->
@@ -1958,7 +1958,7 @@ activatedBy cost eff who =
 public export
 activatedOnlyDuring : (cost : Cost (dropLetter X bs)) ->
                       (eff : Effect (publicOnly (costIntro cost))) ->
-                      (w : Timing) ->
+                      (w : Timing bs) ->
                       {auto 0 tp : CostTapOnce cost} ->
                       {auto 0 py : CostPaidByYou cost} ->
                       AbilityAt bs
@@ -2429,11 +2429,26 @@ happenedAt : {k : Kind} -> (ev : EventName) -> (who : Noun bs k) ->
 happenedAt ev who w z = Happened ev who w (Just (AtZone z {ok = zo})) {cw} {sb}
 
 public export
+yours : HeaderPossessor bs
+yours = ByPlayer You
+
+public export
+eachPlayers : HeaderPossessor bs
+eachPlayers = ByPlayer (each AnyPlayer)
+
+public export
+eachOpponents : HeaderPossessor bs
+eachOpponents = ByPlayer (each Opponent)
+
+public export
+thatTurns : {auto 0 ok : countReach ThatTurn OneOf bs = 1} -> HeaderPossessor bs
+thatTurns = ByTurn (thatTurn {ok})
+
+public export
 beginningOfPossessed : (part : TurnPart) -> (poss : Noun bs Player) ->
-                       {auto 0 pn : PossessorNoun poss} ->
-                       {auto 0 pu : PartTriggerable part (ByNoun poss {pn})} ->
+                       {auto 0 pu : PartTriggerable part (ByPlayer poss)} ->
                        GameEvent bs
-beginningOfPossessed part poss = BeginningOf part (ByNoun poss {pn}) {pu}
+beginningOfPossessed part poss = BeginningOf part (ByPlayer poss) {pu}
 
 public export
 gainsDesignation : {k : Kind} -> (n : Noun bs k) -> (d : Designation) ->

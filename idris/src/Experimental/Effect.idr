@@ -413,7 +413,7 @@ mutual
       GainsControl : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
                      {auto 0 zn : ZoneFits (nounZone what) (Just Battlefield)} -> StaticEffect bs
       Intercepts : (ev : GameEvent bs) -> (alts : List (GameEvent bs)) ->
-                   (window : Maybe TriggerWindow) ->
+                   (window : Maybe (TriggerWindow bs)) ->
                    (repl : Effect (interceptCtx alts ev)) ->
                    (use : ReplUse) ->
                    (limit : Maybe UsageLimit) ->
@@ -451,7 +451,7 @@ mutual
                                                    staticBase (staticIntro se)} ->
                       (marking : CondMarking) ->
                       {auto 0 mk : MarkingOk marking c} -> StaticEffect bs
-      OnlyDuring : (p : TurnPart) -> (w : Maybe Owner) ->
+      OnlyDuring : (p : TurnPart) -> (w : Maybe (Noun bs Player)) ->
                    (se : StaticEffect bs) ->
                    {auto 0 wk : WindowOk p w} ->
                    StaticEffect bs
@@ -2384,7 +2384,7 @@ mutual
                 (eff : Effect (publicOnly (costIntro cost))) ->
                 {auto 0 tp : CostTapOnce cost} ->
                 {auto 0 py : CostPaidByYou cost} ->
-                (window : Maybe Timing) ->
+                (window : Maybe (Timing bs)) ->
                 (limit : Maybe UsageLimit) ->
                 {auto 0 ul : So (untriggeredLimitOk limit)} ->
                 (guard : Maybe (Condition bs)) ->
@@ -2394,7 +2394,7 @@ mutual
                 (alts : List (GameEvent bs)) ->
                 (while : Maybe (Concurrent (headerCtx alts ev))) ->
                 (joins : List (JoinedHeader bs)) ->
-                (window : Maybe TriggerWindow) ->
+                (window : Maybe (TriggerWindow bs)) ->
                 (limit : Maybe UsageLimit) ->
                 (intervening :
                    Maybe (Condition (joinedCtx joins (headerCtx alts ev)))) ->

@@ -318,7 +318,7 @@ badThatTokenOfCard (Refl, _) impossible
 public export
 badUntapLockGraveyard : Unspellable Ability (\ok =>
   Static (Macros.doesntUntap (Macros.a (And [Macros.creature, InZone (Macros.graveyardOf You)]))
-                             (Just Yours) {dp = ok}))
+                             (Just You) {dp = ok}))
 badUntapLockGraveyard Oh impossible
 
 
