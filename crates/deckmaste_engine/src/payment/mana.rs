@@ -386,7 +386,8 @@ impl GameState {
 
         // Validation above is read-only. The child starts from a full clone of
         // the parent's current working image; the parent's controller slots are
-        // suspended inside that clone while ordinary announcement machinery runs.
+        // suspended inside that clone while ordinary announcement machinery
+        // runs.
         let mut working = self.active().clone();
         working.suspend_control();
         working.begin_mana_resolution_scope();
@@ -747,6 +748,12 @@ impl GameState {
             bindings.produced_mana,
             bindings.crossed,
         );
+        // [CR#702.21b]: the toll's X is priced now, after the event roles are
+        // in place, into the region's declared announced-X parameter.
+        if let Some(where_x) = &triggered.where_x {
+            let x = self.eval_count(where_x, &frame);
+            self.activation_set_x(activation, x);
+        }
         let should_resolve = triggered
             .condition
             .as_ref()

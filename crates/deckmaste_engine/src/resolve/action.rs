@@ -2224,6 +2224,7 @@ mod tests {
                 types: vec![Type::Enchantment.def()],
                 abilities: vec![Ability::triggered(TriggeredAbility {
                     ability_word: None,
+                    where_x: None,
                     targets: [].into(),
                     from: None,
                     event: EventFilter::Act {
@@ -2882,6 +2883,7 @@ mod tests {
         let (mut state, _a) = bear_on_field();
         let trigger = Ability::triggered(TriggeredAbility {
             ability_word: None,
+            where_x: None,
             targets: [].into(),
             from: None,
             event: EventFilter::Act {
@@ -3385,6 +3387,7 @@ mod tests {
                 types: vec![Type::Enchantment.def()],
                 abilities: vec![Ability::triggered(TriggeredAbility {
                     ability_word: None,
+                    where_x: None,
                     targets: [].into(),
                     from: None,
                     event: EventFilter::Act {
@@ -3566,6 +3569,7 @@ mod tests {
                 types: vec![Type::Enchantment.def()],
                 abilities: vec![Ability::triggered(TriggeredAbility {
                     ability_word: None,
+                    where_x: None,
                     targets: [].into(),
                     from: None,
                     event: EventFilter::Act {

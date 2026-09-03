@@ -650,6 +650,10 @@ fn regenerate_effect(subject_ref: Reference) -> OneShotEffect {
                 expr: deckmaste_core::Expr::Object(subject_ref),
             }),
             OneShotEffect::Act(Action::CreateReplacement {
+                // The shield reads the register the preceding `Let` pinned —
+                // the declared subject lowering resolves the anaphor to
+                // ([CR#614.3]), not a search of the register file.
+                subject: Reference::Reg(REGEN_SUBJECT.into()),
                 replacement: Arc::new(Replacement::Instead { would, instead }),
                 duration: Duration::FixedUntil(TurnMarker::EndOfTurn),
                 one_shot: true,

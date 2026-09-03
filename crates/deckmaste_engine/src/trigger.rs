@@ -3701,6 +3701,7 @@ mod tests {
 
         let watch = Ability::triggered(TriggeredAbility {
             ability_word: None,
+            where_x: None,
             targets: [].into(),
             from: None,
             event: EventFilter::StateBecame {
@@ -4224,6 +4225,7 @@ mod tests {
             types: vec![Type::Creature.def()],
             abilities: vec![Ability::triggered(TriggeredAbility {
                 ability_word: None,
+                where_x: None,
                 targets: [].into(),
                 from: None,
                 event: EventFilter::StepBegins {
@@ -4379,6 +4381,7 @@ mod tests {
 
         deckmaste_core::TriggeredAbility {
             ability_word: None,
+            where_x: None,
             targets: [].into(),
             from: None,
             event,
@@ -4630,6 +4633,7 @@ mod tests {
             types: vec![Type::Creature.def()],
             abilities: vec![Ability::triggered(TriggeredAbility {
                 ability_word: None,
+                where_x: None,
                 targets: [].into(),
                 from,
                 event: EventFilter::StepBegins {
@@ -4918,6 +4922,7 @@ mod tests {
 
         let back_trigger = TriggeredAbility {
             ability_word: None,
+            where_x: None,
             targets: [].into(),
             from: None,
             event: EventFilter::StepBegins {
@@ -5668,6 +5673,7 @@ mod tests {
             types: vec![Type::Creature.def()],
             abilities: vec![Ability::triggered(TriggeredAbility {
                 ability_word: None,
+                where_x: None,
                 targets: [].into(),
                 from: None,
                 event: EventFilter::ZoneChange {
@@ -6507,6 +6513,7 @@ mod tests {
             types: vec![Type::Creature.def()],
             abilities: vec![Ability::triggered(TriggeredAbility {
                 ability_word: None,
+                where_x: None,
                 targets: [].into(),
                 from: None,
                 event: EventFilter::Damage {

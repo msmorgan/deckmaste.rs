@@ -1717,6 +1717,7 @@ mod tests {
             from: None,
             condition: None,
             limits: Arc::from([]),
+            where_x: None,
             targets: Arc::from([]),
             effect: nested,
         };

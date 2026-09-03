@@ -393,20 +393,12 @@ impl Plugin {
     /// If the source doesn't expand to a card.
     pub fn card_from_str(&self, source: &str) -> anyhow::Result<LoadedCard> {
         let semantic: deckmaste_semantics::Card = self.macros.read_str_restricted(source)?;
-        let card_name = match &semantic {
-            deckmaste_semantics::Card::Normal(face) => face.name.to_string(),
-            deckmaste_semantics::Card::TwoFaced { front, .. } => front.name.to_string(),
-        };
-        let core =
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| semantic.clone().lower()))
-                .map_err(|payload| {
-                    let message = payload
-                        .downcast_ref::<String>()
-                        .map(String::as_str)
-                        .or_else(|| payload.downcast_ref::<&str>().copied())
-                        .unwrap_or("lowering failed");
-                    anyhow::anyhow!("lowering {card_name}: {message}")
-                })?;
+        // Lowering owns the per-card diagnostic (ADR law 12): `lower_card`
+        // installs the card as the resolver's diagnostic context, so an R1/R2
+        // refusal comes back naming this card and the antecedents that
+        // collided, instead of an anonymous panic from inside the tree walk.
+        let core = deckmaste_lowering::lower_card(semantic.clone())
+            .map_err(|diagnostic| anyhow::anyhow!("lowering {diagnostic}"))?;
         validate_card_regions(&core)?;
         Ok(LoadedCard { semantic, core })
     }

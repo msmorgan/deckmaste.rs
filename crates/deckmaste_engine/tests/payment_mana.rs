@@ -545,6 +545,7 @@ fn triggered_mana_fixture() -> (
         abilities: vec![Ability::Mana(ManaAbility::Triggered(Arc::new(
             TriggeredAbility {
                 ability_word: None,
+                where_x: None,
                 targets: [].into(),
                 from: None,
                 event: EventFilter::TapForMana {
@@ -652,6 +653,7 @@ fn nested_resolution_cast_trigger_fixture() -> (
         abilities: vec![Ability::Mana(ManaAbility::Triggered(Arc::new(
             TriggeredAbility {
                 ability_word: None,
+                where_x: None,
                 targets: [].into(),
                 from: None,
                 event: EventFilter::ManaAdded {
@@ -821,6 +823,7 @@ fn causal_trigger_fixture_with_effect_limits_and_trigger(
         abilities: vec![Ability::Mana(ManaAbility::Triggered(Arc::new(
             TriggeredAbility {
                 ability_word: None,
+                where_x: None,
                 targets: [].into(),
                 from: None,
                 event,
@@ -885,6 +888,7 @@ fn bare_nonmana_mana_added_fixture() -> (GameState, PlayerId, deckmaste_engine::
         abilities: vec![Ability::Mana(ManaAbility::Triggered(Arc::new(
             TriggeredAbility {
                 ability_word: None,
+                where_x: None,
                 targets: [].into(),
                 from: None,
                 event: EventFilter::ManaAdded {

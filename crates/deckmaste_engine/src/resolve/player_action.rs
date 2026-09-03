@@ -2389,6 +2389,7 @@ mod tests {
             toughness: Some(StatValue::Number(4)),
             abilities: vec![Ability::triggered(TriggeredAbility {
                 ability_word: None,
+                where_x: None,
                 targets: [].into(),
                 from: None,
                 event: EventFilter::ZoneChange {
@@ -3060,6 +3061,7 @@ mod tests {
             types: vec![Type::Creature.def()],
             abilities: vec![Ability::triggered(TriggeredAbility {
                 ability_word: None,
+                where_x: None,
                 targets: [].into(),
                 from: None,
                 event,

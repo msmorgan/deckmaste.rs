@@ -845,25 +845,22 @@ impl Lower for deckmaste_semantics::TriggeredAbility {
                 .map(|(index, target)| crate::region::with_target_prefix(index, || target.lower()))
                 .collect::<Vec<_>>()
                 .into();
-            let mut instructions = Vec::new();
-            if let Some(where_x) = where_x {
-                let expression = where_x.lower();
-                let dest = crate::region::define(deckmaste_core::Kind::Number);
-                instructions.push(deckmaste_core::OneShotEffect::Let(deckmaste_core::Let {
-                    dest,
-                    expr: deckmaste_core::Expr::Number(expression),
-                }));
-                crate::region::set_x(dest.into());
-            }
-            instructions.extend(crate::effect::lower_block(body).iter().cloned());
+            // [CR#702.21b]: the "where X is …" definition rides the ability,
+            // not the body. It fills the region's declared announced-X
+            // parameter at entry, so the toll's `{X}` and every `Count::X` in
+            // the body are the same indexed read — never a magnitude the body
+            // happened to pin most recently.
+            let where_x = where_x.map(Lower::lower);
+            let instructions = crate::effect::lower_block(body);
             (
                 event.lower(),
                 condition.lower(),
                 targets,
-                deckmaste_core::Block(instructions.into()),
+                where_x,
+                instructions,
             )
         };
-        let (params, (event, condition, targets, body)) = if crate::region::is_active() {
+        let (params, (event, condition, targets, where_x, body)) = if crate::region::is_active() {
             crate::region::in_carried_region(
                 crate::region::RegionKind::Triggered,
                 target_count,
@@ -878,6 +875,7 @@ impl Lower for deckmaste_semantics::TriggeredAbility {
             from: from.lower(),
             condition,
             limits: limits.lower(),
+            where_x,
             targets,
             effect: deckmaste_core::Region::new(params, body),
         }

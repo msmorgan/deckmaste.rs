@@ -114,6 +114,77 @@ where
     );
 }
 
+/// A card whose text could not be compiled.
+///
+/// The ADR makes an unresolvable anaphor a COMPILATION error with provenance
+/// (law 12: "resolution happens once, in lowering … R1/R2 as per-card
+/// diagnostics"), never an eval-time refusal — so the resolver's R1/R2 verdict
+/// reaches a corpus compiler as data naming the offending card, not as a bare
+/// panic from somewhere inside the tree walk.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Diagnostic {
+    /// The card that failed to compile — its front face's name.
+    pub card: Arc<str>,
+    /// The refusal, already prefixed with the card name.
+    pub message: String,
+}
+
+impl std::fmt::Display for Diagnostic {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
+impl std::error::Error for Diagnostic {}
+
+/// The front face's name — the card's diagnostic identity.
+fn card_name(card: &deckmaste_semantics::Card) -> Arc<str> {
+    match card {
+        deckmaste_semantics::Card::Normal(face) => Arc::clone(&face.name),
+        deckmaste_semantics::Card::TwoFaced { front, .. } => Arc::clone(&front.name),
+    }
+}
+
+/// Compile one card, returning its refusal as a [`Diagnostic`] instead of
+/// unwinding.
+///
+/// This is the entry a corpus compiler uses: a card whose text names an
+/// antecedent the resolver cannot pin (R2) is reported against that card and
+/// the rest of the corpus still compiles. `Lower` itself stays a total map —
+/// every arm is an identity or a documented divergence — so the refusal
+/// travels as an unwind from the resolver and is converted here.
+///
+/// # Errors
+///
+/// Returns a [`Diagnostic`] when the card's text cannot be lowered: an
+/// ambiguous or unbound discourse anaphor, or an unbound role.
+pub fn lower_card(card: deckmaste_semantics::Card) -> Result<deckmaste_card::Card, Diagnostic> {
+    let name = card_name(&card);
+    // The resolver's refusal is an unwind (see `region::refuse`). Silence the
+    // default hook for the duration so a REPORTED diagnostic does not also
+    // spray a panic message and backtrace over the compile log.
+    let hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(|_| {}));
+    let lowered = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        region::in_card(&name, || card.lower())
+    }));
+    std::panic::set_hook(hook);
+    lowered.map_err(|payload| Diagnostic {
+        card: Arc::clone(&name),
+        message: panic_message(&payload)
+            .unwrap_or_else(|| format!("{name}: lowering failed with a non-string panic")),
+    })
+}
+
+/// The text of an unwind payload, when it carries one.
+fn panic_message(payload: &Box<dyn std::any::Any + Send>) -> Option<String> {
+    payload.downcast_ref::<String>().cloned().or_else(|| {
+        payload
+            .downcast_ref::<&'static str>()
+            .map(|s| (*s).to_owned())
+    })
+}
+
 #[cfg(test)]
 mod minimal;
 

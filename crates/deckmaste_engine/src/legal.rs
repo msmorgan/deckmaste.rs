@@ -464,9 +464,9 @@ pub fn legal_blockers(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
         .copied()
         .filter(|&id| {
             let obj = state.objects.obj(id);
-            // Derived controller ([CR#613.1b]): a stolen creature blocks for its
-            // new controller. `blockable` reads the `May(Block)` grant
-            // (default-deny combat capability).
+            // Derived controller ([CR#613.1b]): a stolen creature blocks for
+            // its new controller. `blockable` reads the
+            // `May(Block)` grant (default-deny combat capability).
             view.controller(id) == player && !obj.tapped && blockable(state, &view, id)
         })
         .filter(|&id| {
@@ -1283,16 +1283,17 @@ impl Drop for AttachLegalDepthGuard {
 pub(crate) fn attachment_legal(state: &GameState, attachment: ObjectId, host: ObjectId) -> bool {
     // Re-entrancy guard (the Invalid semantic input fizzles decision,
     // `docs/decisions/invalid-semantic-input-fizzles.md`): if the
-    // deontic collector has already re-entered `attachment_legal` (only reachable
-    // via a `Conditionally(LegallyAttached(…), …)` static — see
-    // `ATTACH_LEGAL_DEPTH`), return the conservative default `false` ("not legally
-    // attached") WITHOUT recursing or touching the counter. This bounds the
-    // otherwise-unbounded cycle so a semantic-input error fizzles instead of
-    // crashing. `false` is sound in both polarities, so this is a true no-op for
-    // every non-pathological call: a `Conditionally(LegallyAttached(This),
-    // May(Attach))` bootstrap drops its own grant (can't attach → never legally
-    // attached — a consistent fixpoint), and a `Sba(Not(LegallyAttached(This)),
-    // Move→Graveyard)` aura instead reads `Not(false)` = true and dies unattached.
+    // deontic collector has already re-entered `attachment_legal` (only
+    // reachable via a `Conditionally(LegallyAttached(…), …)` static — see
+    // `ATTACH_LEGAL_DEPTH`), return the conservative default `false` ("not
+    // legally attached") WITHOUT recursing or touching the counter. This
+    // bounds the otherwise-unbounded cycle so a semantic-input error
+    // fizzles instead of crashing. `false` is sound in both polarities, so
+    // this is a true no-op for every non-pathological call: a
+    // `Conditionally(LegallyAttached(This), May(Attach))` bootstrap drops
+    // its own grant (can't attach → never legally attached — a consistent
+    // fixpoint), and a `Sba(Not(LegallyAttached(This)), Move→Graveyard)`
+    // aura instead reads `Not(false)` = true and dies unattached.
     if ATTACH_LEGAL_DEPTH.with(Cell::get) >= ATTACH_LEGAL_DEPTH_CAP {
         #[cfg(test)]
         ATTACH_LEGAL_REENTRY_DENIALS.with(|c| c.set(c.get() + 1));
@@ -1364,7 +1365,8 @@ fn cant_counter_rows(
 ) -> Vec<(crate::object::ObjectSource, Predicate, Predicate)> {
     let mut rows = Vec::new();
     // The target's own row is only visible if it is a card-backed object (in
-    // the derived view); a bare stack ability isn't, and `view.get` would panic.
+    // the derived view); a bare stack ability isn't, and `view.get` would
+    // panic.
     let self_row = state.objects.obj(target).card_id().is_some();
     let ids = state
         .zones
@@ -1776,7 +1778,8 @@ mod tests {
     fn attachment_legal_false_on_self_and_missing_host() {
         let mut state = game();
         // Under default-deny the attachment needs a `May(Attach)` grant to be
-        // legal on any host at all; carry one so the bracketing legal case holds.
+        // legal on any host at all; carry one so the bracketing legal case
+        // holds.
         let a = obj_on_field(
             &mut state,
             "Aura",
@@ -1805,9 +1808,9 @@ mod tests {
     #[test]
     fn attachment_legal_honors_host_side_cant() {
         let mut state = game();
-        // Under default-deny the attachment carries a `May(Attach to: Creature)`
-        // grant, so it's legal on a plain creature; the protected host's `Cant`
-        // subtracts from that grant.
+        // Under default-deny the attachment carries a `May(Attach to:
+        // Creature)` grant, so it's legal on a plain creature; the
+        // protected host's `Cant` subtracts from that grant.
         let attachment = obj_on_field(
             &mut state,
             "Aura",
@@ -1876,17 +1879,19 @@ mod tests {
         );
         let host = obj_on_field(&mut state, "Bear", vec![Type::Creature], vec![]);
         // Attach it so `condition_holds(LegallyAttached)` reaches
-        // `attachment_legal` (the re-entry door) rather than short-circuiting on
-        // `attached_to == None`.
+        // `attachment_legal` (the re-entry door) rather than short-circuiting
+        // on `attached_to == None`.
         state.objects.obj_mut(aura).attached_to = Some(host);
 
         // Prove the fixture EXERCISES the cycle (the collector really re-enters
-        // `attachment_legal` and is bounded), not merely that it returns `false`
-        // for a mundane reason: reset the re-entry-denial counter first.
+        // `attachment_legal` and is bounded), not merely that it returns
+        // `false` for a mundane reason: reset the re-entry-denial
+        // counter first.
         super::ATTACH_LEGAL_REENTRY_DENIALS.with(|c| c.set(0));
 
-        // (a) `attachment_legal` on the pathological pair TERMINATES and returns
-        // the conservative `false` — the self-gated grant drops.
+        // (a) `attachment_legal` on the pathological pair TERMINATES and
+        // returns the conservative `false` — the self-gated grant
+        // drops.
         assert!(
             !attachment_legal(&state, aura, host),
             "the self-referential Conditionally(LegallyAttached, May(Attach)) grant \
@@ -1911,8 +1916,8 @@ mod tests {
              and terminates"
         );
 
-        // (c) The RAII depth guard restored the counter to 0 after every call, so
-        // the guard is inert for the next (normal) query.
+        // (c) The RAII depth guard restored the counter to 0 after every call,
+        // so the guard is inert for the next (normal) query.
         assert_eq!(
             super::ATTACH_LEGAL_DEPTH.with(std::cell::Cell::get),
             0,
@@ -2008,8 +2013,9 @@ mod tests {
     #[test]
     fn innate_before_activated_does_not_desync_the_index() {
         let mut state = game();
-        // Abilities printed in this order: [Innate(Static), Activated(tap mana)].
-        // An artifact so the mana-ability path's `tap_forbidden` guard is false.
+        // Abilities printed in this order: [Innate(Static), Activated(tap
+        // mana)]. An artifact so the mana-ability path's
+        // `tap_forbidden` guard is false.
         let object = obj_on_field(
             &mut state,
             "Manarock",
@@ -2056,7 +2062,8 @@ mod tests {
         );
     }
 
-    // --- PREREQUISITE: composite-keyword flattening for static reads ----------
+    // --- PREREQUISITE: composite-keyword flattening for static reads
+    // ----------
 
     /// [CR#702.5a]: the **Enchant** keyword confers its `May(Attach)` grant
     /// nested inside a `Keyword(Composite { abilities: [Static(...)] })` (the
@@ -2070,7 +2077,8 @@ mod tests {
         use deckmaste_core::KeywordAbility;
         let mut state = game();
         // An attachment whose ONLY `May(Attach)` grant lives inside a composite
-        // keyword (the Enchant macro shape: a `Keyword(Composite{[Static(..)]})`).
+        // keyword (the Enchant macro shape: a
+        // `Keyword(Composite{[Static(..)]})`).
         let enchant_composite = Ability::Keyword(KeywordAbility::Composite {
             name: "Enchant".into(),
             abilities: vec![Ability::r#static(StaticEffect::Deontic(Deontic::May(
@@ -2695,9 +2703,10 @@ mod tests {
         let mut state = game();
         let bear = conferred_creature_on_field(&mut state, "Bear", false);
         let rock = obj_on_field(&mut state, "Rock", vec![Type::Artifact], vec![]);
-        // [CR#509.1b] surfacing prunes a blocker no attacker point-wise permits,
-        // so a legal blocker is only surfaced against a declared attacker; a
-        // plain attacker (no evasion) permits every ground blocker.
+        // [CR#509.1b] surfacing prunes a blocker no attacker point-wise
+        // permits, so a legal blocker is only surfaced against a
+        // declared attacker; a plain attacker (no evasion) permits
+        // every ground blocker.
         let foe = conferred_creature_on_field(&mut state, "Foe", false);
         let target = state.player(PlayerId(1)).object;
         state.combat.declare_attacker(foe, target);
@@ -2731,8 +2740,9 @@ mod tests {
     fn sick_creature_no_attack_yes_block_haste_lifts_it() {
         let mut state = game();
         let sick = conferred_creature_on_field(&mut state, "Sick Bear", true);
-        // [CR#509.1b] surfacing needs a declared attacker to permit the blocker;
-        // a plain attacker (no evasion) permits every ground blocker.
+        // [CR#509.1b] surfacing needs a declared attacker to permit the
+        // blocker; a plain attacker (no evasion) permits every ground
+        // blocker.
         let foe = conferred_creature_on_field(&mut state, "Foe", false);
         let target = state.player(PlayerId(1)).object;
         state.combat.declare_attacker(foe, target);
@@ -2847,8 +2857,8 @@ mod tests {
         );
     }
 
-    // --- cant_activate (split-second-style stack lockout, blanket-vs-cost-scoped)
-    // ---
+    // --- cant_activate (split-second-style stack lockout,
+    // blanket-vs-cost-scoped) ---
 
     /// A non-mana activated ability with the given `cost` and a plain
     /// gain-life effect — deliberately NOT `AddMana`, so
@@ -3133,6 +3143,7 @@ mod tests {
             vec![Type::Artifact],
             vec![Ability::triggered(TriggeredAbility {
                 ability_word: None,
+                where_x: None,
                 targets: [].into(),
                 from: None,
                 event: EventFilter::OneOf(Vec::new().into()),

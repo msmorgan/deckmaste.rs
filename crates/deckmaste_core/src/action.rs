@@ -234,13 +234,16 @@ pub enum Action {
     /// the source and destination objects.
     MoveCounters(crate::CounterSpec, Reference, Reference),
     /// Register a floating replacement effect ([CR#614.3]) — "the next time …"
-    /// shields (regeneration, one-shot prevention). The protected permanent is
-    /// the object read from the enclosing region — the shield freezes that
-    /// resolved binding at creation (an LKI snapshot of identity). There is
-    /// no semantic `subject:` field.
+    /// shields (regeneration, one-shot prevention). `subject` names the
+    /// protected permanent as a register read; the shield freezes that
+    /// resolved identity at creation. Semantics has no `subject:` field —
+    /// English leaves the protected permanent to the discourse — so lowering
+    /// resolves the anaphor and declares the register here, rather than the
+    /// engine searching its register file at resolution (ADR law 4).
     /// `one_shot` consumes the shield on first use ([CR#614.3]).
     /// [CR#701.19a,614.8]
     CreateReplacement {
+        subject: Reference,
         replacement: Arc<crate::replacement::Replacement>,
         duration: crate::continuous::Duration,
         one_shot: bool,

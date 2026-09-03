@@ -158,7 +158,8 @@ pub fn abilities(state: &GameState, id: ObjectId) -> Arc<Vec<Ability>> {
     let derived = &view.get(id).abilities;
     let conferred = conferred_rule_abilities(state, id);
     if conferred.is_empty() && !derived.iter().any(Ability::is_innate) {
-        // No Innate present — return the shared Arc unchanged (the common case).
+        // No Innate present — return the shared Arc unchanged (the common
+        // case).
         return Arc::clone(derived);
     }
     Arc::new(
@@ -193,9 +194,10 @@ pub fn abilities_of_source(state: &GameState, source: ObjectSource) -> Vec<Abili
             // battlefield object — a DFC has only its front characteristics
             // ([CR#712.8a]). Resolve the source to its live battlefield object
             // (the canonical `ob.source == source` lookup) to read the CURRENT
-            // face; else front. Reading the same face on BOTH the placement scan
-            // (via [`derived_abilities_of`]) and the resolution-time re-read keeps
-            // the fired trigger/replacement `(source, index)` self-consistent.
+            // face; else front. Reading the same face on BOTH the placement
+            // scan (via [`derived_abilities_of`]) and the
+            // resolution-time re-read keeps the fired trigger/
+            // replacement `(source, index)` self-consistent.
             let live = state
                 .objects
                 .iter()
@@ -280,11 +282,12 @@ pub(crate) fn derived_abilities_of(
         // view seeds from `instance.printed` (it is already section 1 in `out`,
         // via `abilities_of_source`) and fold only the appended layer additions
         // — Gorger-style `GainAbility` grants (and any layer-4 type/subtype
-        // conferrals). The skip count is the UNFLATTENED printed length, matching
-        // the view's unflattened prefix; a shorter derived list (an ability-
-        // stripping layer op) simply yields no tail (never-crash). Calling
-        // `layers()` here is not a cycle: `derived_abilities_of` is invoked only
-        // by the replacement gather and trigger scan, never from inside the
+        // conferrals). The skip count is the UNFLATTENED printed length,
+        // matching the view's unflattened prefix; a shorter derived
+        // list (an ability- stripping layer op) simply yields no tail
+        // (never-crash). Calling `layers()` here is not a cycle:
+        // `derived_abilities_of` is invoked only by the replacement
+        // gather and trigger scan, never from inside the
         // layer pipeline, and the pipeline's own matcher (`matches_derived`)
         // never re-enters `layers()`.
         if let Some(chars) = state.layers().try_get(id) {
@@ -431,6 +434,7 @@ mod tests {
         let mut state = game();
         let trigger = TriggeredAbility {
             ability_word: None,
+            where_x: None,
             targets: [].into(),
             from: None,
             event: EventFilter::ZoneChange {
@@ -546,6 +550,7 @@ mod tests {
 
         let back_trigger = TriggeredAbility {
             ability_word: None,
+            where_x: None,
             targets: [].into(),
             from: None,
             event: EventFilter::ZoneChange {
@@ -563,7 +568,8 @@ mod tests {
             .into(),
         };
         // Front: vanilla 1/1, ZERO printed abilities. Back: 3/2 with ONE
-        // triggered ability the front lacks — distinct printed lengths (0 vs 1).
+        // triggered ability the front lacks — distinct printed lengths (0 vs
+        // 1).
         let front = CardFace {
             name: "Front Vanilla".into(),
             types: vec![Type::Creature.def()],
@@ -592,7 +598,8 @@ mod tests {
             .mint(source, PlayerId(0), Some(Zone::Battlefield));
         state.zones.battlefield.push(id);
 
-        // Front-up: the trigger scan sees the front face — no triggered ability.
+        // Front-up: the trigger scan sees the front face — no triggered
+        // ability.
         assert!(
             !super::abilities_of_source(&state, source)
                 .iter()
@@ -605,7 +612,8 @@ mod tests {
         // directly here, mirroring the layer-view test harness).
         state.objects.obj_mut(id).side = Side::Back;
 
-        // Back-up: the trigger scan sources the back face's trigger [CR#712.8e].
+        // Back-up: the trigger scan sources the back face's trigger
+        // [CR#712.8e].
         let triggers: Vec<_> = super::abilities_of_source(&state, source)
             .into_iter()
             .filter(|a| a.as_triggered().is_some())
@@ -617,11 +625,12 @@ mod tests {
              [CR#712.8e]"
         );
 
-        // Skip-count regression: `derived_abilities_of` is the exact enumeration
-        // the trigger scan reads. Section 1 (the index-stable printed prefix)
-        // must be the BACK face's (`printed_len == 1`), and the back trigger must
-        // appear EXACTLY once — a front-length skip (0) would duplicate the layer
-        // view's back trigger into section 3.
+        // Skip-count regression: `derived_abilities_of` is the exact
+        // enumeration the trigger scan reads. Section 1 (the
+        // index-stable printed prefix) must be the BACK face's
+        // (`printed_len == 1`), and the back trigger must
+        // appear EXACTLY once — a front-length skip (0) would duplicate the
+        // layer view's back trigger into section 3.
         let (derived, printed_len) = super::derived_abilities_of(&state, Some(id), source);
         assert_eq!(
             printed_len, 1,

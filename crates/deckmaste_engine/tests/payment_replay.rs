@@ -1203,6 +1203,7 @@ fn replay_restores_ordinary_triggers_caused_by_a_retained_fulfillment() {
         types: vec![Type::Enchantment.def()],
         abilities: vec![Ability::triggered(TriggeredAbility {
             ability_word: None,
+            where_x: None,
             targets: [].into(),
             event: EventFilter::LifeLost {
                 who: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),

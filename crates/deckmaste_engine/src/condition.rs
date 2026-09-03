@@ -87,14 +87,17 @@ impl GameState {
                     )
                 } else {
                     // A gone object with no bound LKI snapshot matches no
-                    // CURRENT-state filter — it is not on the battlefield, has no
-                    // characteristics to test — so the sound answer is `false`
-                    // (never a panic; semantic-input errors fizzle, [CR#608.2b]).
-                    // First consumer: fight's both-or-neither guard
-                    // `Is(Target(n), Creature)` when a fighter has left the
+                    // CURRENT-state filter — it is not on the battlefield, has
+                    // no characteristics to test — so the
+                    // sound answer is `false`
+                    // (never a panic; semantic-input errors fizzle,
+                    // [CR#608.2b]). First consumer: fight's
+                    // both-or-neither guard `Is(Target(n),
+                    // Creature)` when a fighter has left the
                     // battlefield ([CR#701.14b]) — the whole fight then no-ops.
-                    // A gone reference that WANTS its last-known state reads via
-                    // the snapshot path above (trigger roles), not here.
+                    // A gone reference that WANTS its last-known state reads
+                    // via the snapshot path above (trigger
+                    // roles), not here.
                     false
                 }
             }
@@ -527,6 +530,7 @@ mod tests {
                 types: vec![Type::Artifact.def()],
                 abilities: vec![Ability::triggered(TriggeredAbility {
                     ability_word: None,
+                    where_x: None,
                     targets: [].into(),
                     from: None,
                     event: EventFilter::OneOf(Vec::new().into()),
@@ -615,9 +619,10 @@ mod tests {
     fn is_this_over_dying_object_reads_snapshot_counters() {
         use deckmaste_core::CounterRef;
 
-        // Build a frame whose `This` is the snapshot of a since-removed creature
-        // carrying `counters`, and ask whether `Is(This, HasCounter(kind))`
-        // holds. The live object is removed so only the snapshot path can answer.
+        // Build a frame whose `This` is the snapshot of a since-removed
+        // creature carrying `counters`, and ask whether `Is(This,
+        // HasCounter(kind))` holds. The live object is removed so only
+        // the snapshot path can answer.
         let holds = |counters: &[(&str, Uint)], kind: &str| -> bool {
             let bears = Arc::new(canon().card("Grizzly Bears").unwrap().core);
             let mut state = GameState::new(GameConfig {

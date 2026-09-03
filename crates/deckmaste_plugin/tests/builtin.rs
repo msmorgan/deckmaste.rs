@@ -240,7 +240,7 @@ fn regenerate_macro_expands_with_typed_reference_param() {
         plugin.macros.read_str("Regenerate(This)").unwrap();
     let effect = lower_spell_effect(semantic);
     // Core makes the binding explicit: pin the source into a register, then
-    // create the shield with that register as the latest object antecedent.
+    // create the shield NAMING that register as its subject ([CR#614.3]).
     let OneShotEffect::Sequentially(steps) = effect else {
         panic!("Regenerate(This) must lower to Let + CreateReplacement, got {effect:?}");
     };
@@ -249,6 +249,7 @@ fn regenerate_macro_expands_with_typed_reference_param() {
         OneShotEffect::Act {
             action:
                 Action::CreateReplacement {
+                    subject,
                     replacement,
                     duration,
                     one_shot,
@@ -263,6 +264,13 @@ fn regenerate_macro_expands_with_typed_reference_param() {
         pin.expr,
         deckmaste_core::Expr::Object(Reference::Reg(deckmaste_core::RefId(0)))
     ));
+    // The shield's subject is a DECLARED register read of the pinned
+    // definition — the engine never searches its register file for it.
+    assert_eq!(
+        *subject,
+        Reference::Reg(pin.dest.into()),
+        "the shield names the register the preceding Let defined"
+    );
     assert!(*one_shot, "a regeneration shield is one-shot [CR#614.3]");
     assert_eq!(
         *duration,

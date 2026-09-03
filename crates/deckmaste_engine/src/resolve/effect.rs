@@ -44,6 +44,7 @@ impl GameState {
     /// `run_effect` routes here.
     fn create_shield(
         &mut self,
+        subject: &deckmaste_core::Reference,
         replacement: deckmaste_core::Replacement,
         duration: deckmaste_core::Duration,
         one_shot: bool,
@@ -59,15 +60,12 @@ impl GameState {
             "create_shield: non-sweepable duration {duration:?} — a ForThisEvent \
              shield would last forever (rider durations never mint instances)"
         );
-        // [CR#614.3]: the protected permanent is the `That` the enclosing `With`
-        // bound — the shield freezes THAT resolved identity at creation
-        // (`floating_watches` then matches on this frozen subject). An unbound
-        // / vanished `That` (no `With`, degenerate reference) fizzles
-        // the mint — never a shield with a null subject, never a panic
-        // ([CR#701.8a]).
-        let id = self
-            .activation_latest_object(frame.activation)
-            .unwrap_or_else(ObjectId::null);
+        // [CR#614.3]: the protected permanent is the register lowering declared
+        // for it — the shield freezes THAT resolved identity at creation
+        // (`floating_watches` then matches on this frozen subject). A vanished
+        // subject (a bound-but-departed register) fizzles the mint — never a
+        // shield with a null subject, never a panic ([CR#701.8a]).
+        let id = self.eval_reference(subject, frame);
         if self.objects.get(id).is_none() {
             return;
         }
@@ -245,12 +243,14 @@ impl GameState {
                     }
                 }
                 if let Action::CreateReplacement {
+                    subject,
                     replacement,
                     duration,
                     one_shot,
                 } = action
                 {
                     self.create_shield(
+                        &subject,
                         Arc::unwrap_or_clone(replacement),
                         duration,
                         one_shot,
@@ -1389,11 +1389,11 @@ impl GameState {
     ///
     /// [CR#400.7j]: when the creating source itself MOVED during the same
     /// resolution (madness exiles the very card whose ability is discarding
-    /// it — `frame.source(self)` is reminted and gone), `~`/`This` falls back
-    /// to the `With(Produce(...))` product bound as `That`, so the delayed
-    /// body's filter still anchors `Ref(This)` on the just-produced object
-    /// and its watcher-source is that live card rather than a bare player
-    /// proxy.
+    /// it — `frame.source(self)` is reminted and gone), `~`/`This` follows the
+    /// source register through the move record to the object's new
+    /// incarnation, so the delayed body's filter still anchors `Ref(This)` on
+    /// that card and its watcher-source is a live card rather than a bare
+    /// player proxy.
     fn created_trigger_context(
         &self,
         frame: &Frame,
@@ -1405,7 +1405,7 @@ impl GameState {
                     .get(frame.source(self))
                     .map(|_| crate::lki::LkiSnapshot::capture(self, frame.source(self)))
             })
-            .or_else(|| self.produced_that_snapshot(frame));
+            .or_else(|| self.moved_source_snapshot(frame));
         let source = this.as_ref().map_or_else(
             || ObjectSource::Player(frame.controller(self)),
             |s| s.source,
@@ -1418,14 +1418,16 @@ impl GameState {
         (source, bindings)
     }
 
-    /// [CR#400.7j]: the live snapshot of the `With(Produce(...))` product bound
-    /// as a One `That` in `frame` — chased through the same-resolution move
-    /// record to its current incarnation. `None` when there is no such binding
-    /// or the product has left play. Anchors a created trigger whose own source
-    /// moved itself away (madness).
-    fn produced_that_snapshot(&self, frame: &Frame) -> Option<crate::lki::LkiSnapshot> {
-        let id = self.activation_latest_object(frame.activation)?;
-        let product = self.chase_moved(id);
+    /// [CR#400.7j]: the live snapshot of the frame's own SOURCE register,
+    /// chased through the same-resolution move record to its current
+    /// incarnation. `None` when the source has left play for good. Anchors a
+    /// created trigger whose own source moved ITSELF away during this
+    /// resolution (madness exiles the very card whose ability is discarding
+    /// it, so the source id was reminted). The declared source register is the
+    /// binding to chase — never the newest object in the register file, which
+    /// would just as happily hand back an unrelated token the body created.
+    fn moved_source_snapshot(&self, frame: &Frame) -> Option<crate::lki::LkiSnapshot> {
+        let product = self.chase_moved(frame.source(self));
         self.objects
             .get(product)
             .map(|_| crate::lki::LkiSnapshot::capture(self, product))
@@ -1545,10 +1547,10 @@ impl GameState {
 
     /// Price the `{X}` symbols of a resolution-time cost ([CR#702.21b] — a
     /// ward-{X} toll's X "is determined at the time the ability resolves,
-    /// not locked in as the ability triggers"): with a `where_x` definition
-    /// on the resolving frame, every `Variable` mana symbol becomes
-    /// `Generic(X)` evaluated NOW; without one, the cost passes through
-    /// unchanged.
+    /// not locked in as the ability triggers"): every `Variable` mana symbol
+    /// becomes `Generic(X)` read from the region's DECLARED announced-X
+    /// parameter, which `enter_triggered_region` filled from the ability's
+    /// `where_x`. A region with no X leaves the cost unchanged.
     fn price_variable_cost(
         &self,
         cost: Vec<deckmaste_core::CostComponent>,
@@ -1557,7 +1559,7 @@ impl GameState {
         use deckmaste_core::CostComponent;
         use deckmaste_core::ManaSymbol;
         use deckmaste_core::SimpleManaSymbol;
-        let Some(x) = self.activation_latest_number(frame.activation) else {
+        let Some(x) = self.activation_x(frame.activation) else {
             return cost;
         };
         cost.into_iter()
@@ -2278,6 +2280,7 @@ mod tests {
                 abilities: vec![deckmaste_core::Ability::triggered(
                     deckmaste_core::TriggeredAbility {
                         ability_word: None,
+                        where_x: None,
                         targets: [].into(),
                         from: None,
                         condition: None,
@@ -3416,8 +3419,10 @@ mod tests {
 
         let (mut state, src) = bear_on_field();
         let frame = frame_src(&state, src);
-        // The sweepable-duration guard is LOUD before the `That` subject read.
+        // The sweepable-duration guard is LOUD before the subject register
+        // read.
         state.create_shield(
+            &deckmaste_core::Reference::source_parameter(),
             Replacement::Skip {
                 what: PhaseStep::Beginning(BeginningStep::Untap),
             },

@@ -4,6 +4,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::Condition;
+use crate::Count;
 use crate::EventFilter;
 use crate::KeywordAbility;
 use crate::Region;
@@ -118,6 +119,14 @@ pub struct TriggeredAbility {
     /// Trigger-frequency limits ([CR#603.2h]).
     #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
     pub limits: Arc<[UseLimit]>,
+    /// The "where X is …" definition of this ability's `{X}` ([CR#702.21b] —
+    /// a ward-{X} toll's X "is determined at the time the ability resolves,
+    /// not locked in as the ability triggers"). Evaluated ONCE at region
+    /// entry into the region's announced-X parameter, so every `{X}` in the
+    /// ability's costs and body is one declared register read
+    /// (`Provenance::AnnouncedX`) rather than a search of the register file.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub where_x: Option<Count>,
     #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
     pub targets: Arc<[TargetSpec]>,
     pub effect: Region,

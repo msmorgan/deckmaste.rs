@@ -42,6 +42,10 @@ struct Antecedent {
     cardinality: Cardinality,
     sort: Option<Sort>,
     site: Site,
+    /// True once the antecedent has crossed a region boundary and survives
+    /// only as a declared capture (ADR law 7). A region's own antecedents
+    /// outrank captured ones on the general search ([CR#608.2h]).
+    inherited: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -63,6 +67,43 @@ struct Context {
 
 thread_local! {
     static CONTEXTS: RefCell<Vec<Context>> = const { RefCell::new(Vec::new()) };
+    /// The card whose text is being compiled, so an R1/R2 refusal names it.
+    /// The ADR makes ambiguity a compilation error with provenance (law 12),
+    /// and provenance starts with which card failed to compile.
+    static CARD: RefCell<Option<Arc<str>>> = const { RefCell::new(None) };
+}
+
+/// Compile `f` with `card` as the diagnostic context. Nests: text lowered
+/// inside another card's text (a created token's granted ability) restores the
+/// outer name when it finishes.
+pub(crate) fn in_card<T>(card: &str, f: impl FnOnce() -> T) -> T {
+    let previous = CARD.with(|slot| slot.replace(Some(Arc::from(card))));
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f));
+    CARD.with(|slot| *slot.borrow_mut() = previous);
+    match result {
+        Ok(value) => value,
+        Err(payload) => std::panic::resume_unwind(payload),
+    }
+}
+
+/// The card being compiled, or a placeholder when lowering runs outside one (a
+/// unit test, a bare macro expansion).
+fn card_context() -> String {
+    CARD.with(|slot| {
+        slot.borrow()
+            .as_ref()
+            .map_or_else(|| "<unknown card>".to_owned(), |name| name.to_string())
+    })
+}
+
+/// Refuse to compile the card's text, naming the card and the reason.
+///
+/// The ADR routes R1/R2 refusals here (law 12: resolution happens once, in
+/// lowering, "as per-card diagnostics"). [`crate::lower_card`] turns the
+/// refusal into a [`crate::Diagnostic`] for callers compiling a corpus; a
+/// refusal that escapes it is a card-authoring bug and stays LOUD.
+pub(crate) fn refuse(reason: &str) -> ! {
+    panic!("{}: {reason}", card_context())
 }
 
 fn with_pushed_context<T>(context: Context, f: impl FnOnce() -> T) -> (Context, T) {
@@ -158,6 +199,7 @@ fn context(kind: RegionKind, target_count: usize) -> Context {
             cardinality: Cardinality::One,
             sort: None,
             site: Site::Frame,
+            inherited: false,
         });
     }
     if matches!(kind, RegionKind::StaticEvent | RegionKind::Triggered)
@@ -169,6 +211,7 @@ fn context(kind: RegionKind, target_count: usize) -> Context {
             cardinality: Cardinality::One,
             sort: Some(Sort::Amount),
             site: Site::Product,
+            inherited: false,
         });
     }
     Context {
@@ -233,6 +276,7 @@ pub(crate) fn in_carried_region<T>(
         .into_iter()
         .filter_map(|mut antecedent| {
             antecedent.reference = remap(antecedent.reference, &captures)?;
+            antecedent.inherited = true;
             Some(antecedent)
         })
         .collect::<Vec<_>>();
@@ -303,6 +347,7 @@ pub(crate) fn in_child<T>(
         .into_iter()
         .filter_map(|mut antecedent| {
             antecedent.reference = remap(antecedent.reference, &captures)?;
+            antecedent.inherited = true;
             Some(antecedent)
         })
         .collect();
@@ -375,15 +420,6 @@ pub(crate) fn set_event_object(reference: RefId) {
     });
 }
 
-pub(crate) fn set_x(reference: RefId) {
-    CONTEXTS.with(|contexts| {
-        contexts
-            .borrow_mut()
-            .last_mut()
-            .expect("X binding outside core region")
-            .x = Some(reference);
-    });
-}
 pub(crate) fn target(index: usize) -> Option<RefId> {
     read(|context| context.targets.get(index).copied())
 }
@@ -479,6 +515,7 @@ pub(crate) fn push_antecedent(
                     cardinality,
                     sort,
                     site,
+                    inherited: false,
                 },
             );
     });
@@ -590,6 +627,50 @@ fn kind_compatible(want: Sort, have: Kind) -> bool {
     }
 }
 
+/// Whether `antecedent` can answer a mention of `cardinality`/`want`.
+fn reachable(antecedent: &Antecedent, cardinality: Cardinality, want: Option<Sort>) -> bool {
+    antecedent.cardinality == cardinality
+        && want.map_or(
+            matches!(antecedent.kind, Kind::Object | Kind::Objects),
+            |wanted| {
+                antecedent.sort.map_or_else(
+                    || kind_compatible(wanted, antecedent.kind),
+                    |have| compatible(wanted, have),
+                )
+            },
+        )
+}
+
+/// R1/R2 over one discourse tier, nearest first. `None` when the tier holds no
+/// compatible antecedent; a panic when it holds two that the exact-then-widened
+/// carve-out does not separate.
+fn resolve_tier<'a>(
+    antecedents: impl Iterator<Item = &'a Antecedent>,
+    cardinality: Cardinality,
+    want: Option<Sort>,
+) -> Option<RefId> {
+    let mut candidates = antecedents.filter(|a| reachable(a, cardinality, want));
+    let first = candidates.next()?;
+    if let Some(second) = candidates.next() {
+        let exact_then_widened = want.is_some_and(|wanted| {
+            first.sort == Some(wanted)
+                && second
+                    .sort
+                    .is_none_or(|have| have != wanted && compatible(wanted, have))
+        });
+        if !exact_then_widened {
+            refuse(&format!(
+                "ambiguous discourse anaphor during lowering — two compatible \
+                 antecedents are in scope, {:?} ({:?}) and {:?} ({:?}); the rules \
+                 supply no proximity tiebreak ([CR#608.2c]), so the card must name \
+                 the one it means",
+                first.reference, first.sort, second.reference, second.sort,
+            ));
+        }
+    }
+    Some(first.reference)
+}
+
 fn resolve(cardinality: Cardinality, want: Option<Sort>, prefer: Option<Site>) -> Option<RefId> {
     CONTEXTS.with(|contexts| {
         let contexts = contexts.borrow();
@@ -600,45 +681,29 @@ fn resolve(cardinality: Cardinality, want: Option<Sort>, prefer: Option<Site>) -
                 .iter()
                 .find(|antecedent| antecedent.site == site)
                 .and_then(|antecedent| {
-                    let reachable = want.map_or(
-                        matches!(antecedent.kind, Kind::Object | Kind::Objects),
-                        |wanted| {
-                            antecedent.sort.map_or_else(
-                                || kind_compatible(wanted, antecedent.kind),
-                                |have| compatible(wanted, have),
-                            )
-                        },
-                    );
-                    (antecedent.cardinality == cardinality && reachable)
-                        .then_some(antecedent.reference)
+                    reachable(antecedent, cardinality, want).then_some(antecedent.reference)
                 });
         }
-        let mut candidates = context.antecedents.iter().filter(|antecedent| {
-            antecedent.cardinality == cardinality
-                && want.map_or(
-                    matches!(antecedent.kind, Kind::Object | Kind::Objects),
-                    |wanted| {
-                        antecedent.sort.map_or_else(
-                            || kind_compatible(wanted, antecedent.kind),
-                            |have| compatible(wanted, have),
-                        )
-                    },
-                )
-        });
-        let first = candidates.next()?;
-        if let Some(second) = candidates.next() {
-            let exact_then_widened = want.is_some_and(|wanted| {
-                first.sort == Some(wanted)
-                    && second
-                        .sort
-                        .is_none_or(|have| have != wanted && compatible(wanted, have))
-            });
-            assert!(
-                exact_then_widened,
-                "ambiguous discourse anaphor during lowering"
-            );
-        }
-        Some(first.reference)
+        // Two discourse tiers, region-local before captured. A region is
+        // applied once per entry ([CR#608.2h] determines its information
+        // then), so a magnitude or product pinned inside a loop body is a
+        // different value from the enclosing region's and outranks it; the
+        // outer one survives only as a declared capture (ADR law 7). R2 still
+        // refuses WITHIN a tier: two magnitudes pinned by the same region have
+        // no proximity tiebreak in the rules ([CR#608.2c] — read the whole
+        // text; [CR#607.1] pins a reference by linkage, never by position).
+        resolve_tier(
+            context.antecedents.iter().filter(|a| !a.inherited),
+            cardinality,
+            want,
+        )
+        .or_else(|| {
+            resolve_tier(
+                context.antecedents.iter().filter(|a| a.inherited),
+                cardinality,
+                want,
+            )
+        })
     })
 }
 
@@ -714,6 +779,7 @@ pub(crate) fn candidate_region<T>(f: impl FnOnce() -> T) -> deckmaste_core::Regi
                     cardinality: Cardinality::One,
                     sort: None,
                     site: Site::Candidate,
+                    inherited: false,
                 }],
                 named: HashMap::new(),
             },

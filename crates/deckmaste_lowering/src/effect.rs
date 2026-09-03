@@ -903,13 +903,116 @@ mod tests {
     }
 
     /// FIXTURE — a two-magnitude card, half two. A bare "that much" after TWO
-    /// pinned magnitudes is refused at lowering (R2): the resolver never
-    /// guesses which one the card meant, so the ambiguity is a compile-time
-    /// error rather than a wrong amount at resolution.
+    /// magnitudes pinned by the SAME region is refused at lowering (R2): the
+    /// resolver never guesses which one the card meant, so the ambiguity is a
+    /// compile-time error rather than a wrong amount at resolution.
+    ///
+    /// The rules carry no proximity tiebreak to appeal to. [CR#608.2c] is the
+    /// only rule governing how a later clause reads an earlier one, and it
+    /// refuses a positional scan outright — "Don't just apply effects step by
+    /// step without thinking in these cases—read the whole text and apply the
+    /// rules of English to the text." What the CR does supply is linkage,
+    /// [CR#607.1]: the second ability "refers only to actions that were taken
+    /// or objects or players that were affected by the first, and not by any
+    /// other ability" — identity, never position. Naming the magnitude is
+    /// therefore the escape, exercised by
+    /// `a_named_magnitude_reads_the_clause_that_bound_it` below; scope is the
+    /// other, exercised by
+    /// `that_much_in_a_loop_body_reads_the_bodys_own_magnitude`.
     #[test]
     #[should_panic(expected = "ambiguous discourse anaphor")]
     fn a_bare_that_much_after_two_magnitudes_is_refused() {
         let _ = two_magnitudes_then(sem::Count::ThatMuch, None).lower();
+    }
+
+    /// FIXTURE — a two-magnitude card, half four: the loop body's own
+    /// magnitude. A region is applied once per entry and determines its
+    /// information then ([CR#608.2h]), and each affected player is processed
+    /// individually ([CR#608.2f]), so the per-element amount a loop body pins
+    /// is a DIFFERENT value from the enclosing region's — not a competing
+    /// antecedent at the same discourse level. The outer magnitude survives
+    /// inside the body only as a declared capture (ADR law 7), so "that much"
+    /// in the body reads the body's own amount instead of being refused.
+    ///
+    /// This is the second clause of the absorbed
+    /// `engine-that-much-frame-scoped` ticket ("an `Each` over players
+    /// followed by 'that much' reads the per-element amount"); before the
+    /// discourse tier it panicked as R2.
+    #[test]
+    fn that_much_in_a_loop_body_reads_the_bodys_own_magnitude() {
+        let lowered = sem::SpellAbility {
+            ability_word: None,
+            effect: sem::OneShotEffect::Sequentially(
+                [
+                    // The enclosing region pins a magnitude of its own.
+                    sem::OneShotEffect::Act(sem::Action::DealDamage(
+                        sem::Reference::This,
+                        sem::Count::Literal(2),
+                        sem::Reference::Opponent,
+                    )),
+                    sem::OneShotEffect::Each(sem::Each {
+                        binder: sem::Binder::Existing(sem::Selection::SelectAll(
+                            sem::Predicate::Kind(sem::ObjectKind::Player),
+                        )),
+                        effect: std::sync::Arc::new(sem::OneShotEffect::Sequentially(
+                            [
+                                sem::OneShotEffect::Act(sem::Action::ChangeLife(
+                                    sem::Reference::That(sem::Sort::Player),
+                                    sem::LifeOp::Down(sem::Count::Literal(3)),
+                                )),
+                                sem::OneShotEffect::Act(sem::Action::ChangeLife(
+                                    sem::Reference::You,
+                                    sem::LifeOp::Up(sem::Count::ThatMuch),
+                                )),
+                            ]
+                            .into(),
+                        )),
+                    }),
+                ]
+                .into(),
+            ),
+        }
+        .lower();
+        let Some(deckmaste_core::OneShotEffect::Each(each)) = lowered
+            .effect
+            .body
+            .iter()
+            .find(|instruction| matches!(instruction, deckmaste_core::OneShotEffect::Each(_)))
+        else {
+            panic!("the loop lowers to an Each, got {:?}", lowered.effect.body);
+        };
+        // The body pins its own loss amount, then gains exactly that register.
+        let pins: Vec<deckmaste_core::DefId> = each
+            .body
+            .body
+            .iter()
+            .filter_map(|instruction| match instruction {
+                deckmaste_core::OneShotEffect::Let(deckmaste_core::Let {
+                    dest,
+                    expr: deckmaste_core::Expr::Number(_),
+                }) => Some(*dest),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(pins.len(), 2, "the loss and the gain each pin an amount");
+        let gain = each
+            .body
+            .body
+            .iter()
+            .find_map(|instruction| match instruction {
+                deckmaste_core::OneShotEffect::Let(deckmaste_core::Let {
+                    dest,
+                    expr: deckmaste_core::Expr::Number(count),
+                }) if *dest == pins[1] => Some(count),
+                _ => None,
+            })
+            .expect("the gain pins its amount");
+        assert_eq!(
+            *gain,
+            deckmaste_core::Count::Reg(pins[0].into()),
+            "\"that much\" reads the loop body's own per-element amount, not the \
+             captured magnitude the enclosing region pinned"
+        );
     }
 
     /// FIXTURE — a two-magnitude card, half three. A card that NAMES the

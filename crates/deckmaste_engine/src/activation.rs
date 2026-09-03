@@ -708,35 +708,6 @@ impl crate::state::GameState {
         self.activation_write(activation, def, Value::Symbol(symbol));
     }
 
-    pub(crate) fn activation_latest_object(&self, activation: ActivationId) -> Option<ObjectId> {
-        self.activations
-            .borrow()
-            .get(&activation)?
-            .values
-            .iter()
-            .rev()
-            .find_map(|value| match value {
-                Value::Object(product) => product.current,
-                Value::Objects(products) => products.first().and_then(|product| product.current),
-                Value::Unavailable | Value::Number(_) | Value::Symbol(_) => None,
-            })
-    }
-
-    pub(crate) fn activation_latest_number(&self, activation: ActivationId) -> Option<Uint> {
-        self.activations
-            .borrow()
-            .get(&activation)?
-            .values
-            .iter()
-            .rev()
-            .find_map(|value| match value {
-                Value::Number(number) => Some(*number),
-                Value::Unavailable | Value::Object(_) | Value::Objects(_) | Value::Symbol(_) => {
-                    None
-                }
-            })
-    }
-
     pub(crate) fn activation_crossed(&self, activation: ActivationId) -> Option<(Uint, Uint)> {
         self.activation_context(activation).crossed
     }
@@ -820,8 +791,10 @@ impl crate::state::GameState {
         }
     }
 
-    /// Fill the announced-X parameter after the value is chosen.
-    pub(crate) fn activation_set_x(&mut self, activation: ActivationId, x: Uint) {
+    /// Fill the announced-X parameter: with the value chosen at announcement
+    /// ([CR#601.2b]), or with a triggered ability's `where_x` at region entry
+    /// ([CR#702.21b]).
+    pub(crate) fn activation_set_x(&self, activation: ActivationId, x: Uint) {
         let mut activations = self.activations.borrow_mut();
         let Some(record) = activations.get_mut(&activation) else {
             return;

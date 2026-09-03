@@ -787,6 +787,7 @@ mod tests {
             }
             .lower()),
             deckmaste_core::Action::CreateReplacement {
+                subject: deckmaste_core::Reference::Reg(_),
                 replacement: _,
                 duration: deckmaste_core::Duration::FixedUntil(
                     deckmaste_core::TurnMarker::EndOfTurn
@@ -879,6 +880,23 @@ impl Lower for deckmaste_semantics::Action {
                 duration,
                 one_shot,
             } => deckmaste_core::Action::CreateReplacement {
+                // [CR#614.3]: English names the protected permanent by
+                // discourse ("the next time IT would be destroyed"), so the
+                // shield's subject is the region's nearest permanent-sorted
+                // antecedent, resolved HERE (ADR law 12) and declared as a
+                // register the engine reads by index. R1/R2 refuse an
+                // ambiguous one at compile time; a shield with no antecedent
+                // at all falls back to the source parameter, which is what a
+                // self-regenerating permanent means.
+                subject: deckmaste_core::Reference::Reg(
+                    crate::region::that(deckmaste_semantics::Sort::Permanent)
+                        .or_else(crate::region::it)
+                        .unwrap_or_else(|| {
+                            crate::region::source().expect(
+                                "a replacement shield is created inside a region with a source",
+                            )
+                        }),
+                ),
                 replacement: replacement.lower(),
                 duration: duration.lower(),
                 one_shot: one_shot.lower(),

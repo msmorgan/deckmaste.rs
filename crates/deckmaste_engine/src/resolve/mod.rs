@@ -286,6 +286,17 @@ impl GameState {
                     entry.x,
                     Some(bindings),
                 );
+                // [CR#702.21b]: a ward-{X} toll's X "is determined at the time
+                // the ability resolves, not locked in as the ability triggers".
+                // The region was entered when the trigger was PLACED, so the
+                // stored activation's announced-X parameter is filled here, at
+                // resolution — the one moment [CR#608.2h] allows the
+                // information to be determined. The toll's `{X}` and every
+                // `Count::X` in the body are then the same indexed read.
+                if let Some(where_x) = &t.where_x {
+                    let x = self.eval_count(where_x, &frame);
+                    self.activation_set_x(frame.activation, x);
+                }
                 // [CR#603.4]: an intervening-if is rechecked as the ability
                 // resolves. If it no longer holds, the ability is removed from
                 // the stack and does nothing (the rule mirrors the
