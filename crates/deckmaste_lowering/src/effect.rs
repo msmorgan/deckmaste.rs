@@ -220,6 +220,80 @@ mod tests {
         assert!(is_minimal_lowered_effect(&lowered));
     }
 
+    /// Runtime-produced amounts are declarations in the same region as their
+    /// later anaphoric read. The flip writes register 3; the following life
+    /// change snapshots that register into its own amount definition.
+    #[test]
+    fn a_coin_tally_defines_the_register_that_many_reads() {
+        let lowered = sem::SpellAbility {
+            ability_word: None,
+            effect: sem::OneShotEffect::Sequentially(
+                [
+                    sem::OneShotEffect::Act(sem::Action::FlipCoins(
+                        sem::Reference::You,
+                        sem::Count::Literal(3),
+                        false,
+                    )),
+                    sem::OneShotEffect::Act(sem::Action::ChangeLife(
+                        sem::Reference::You,
+                        sem::LifeOp::Up(sem::Count::ThatMany),
+                    )),
+                ]
+                .into(),
+            ),
+        }
+        .lower();
+
+        let [
+            deckmaste_core::OneShotEffect::Act {
+                dest: Some(tally),
+                action: deckmaste_core::Action::FlipCoins(..),
+            },
+            deckmaste_core::OneShotEffect::Let(deckmaste_core::Let {
+                expr: deckmaste_core::Expr::Number(deckmaste_core::Count::Reg(read)),
+                ..
+            }),
+            deckmaste_core::OneShotEffect::Act {
+                action: deckmaste_core::Action::ChangeLife(..),
+                ..
+            },
+        ] = lowered.effect.body.as_ref()
+        else {
+            panic!("flip then life gain lowers through a numeric register")
+        };
+        assert_eq!(*tally, deckmaste_core::DefId(3));
+        assert_eq!(*read, (*tally).into());
+        deckmaste_core::validate(&lowered.effect).expect("runtime magnitude is well typed");
+    }
+
+    #[test]
+    fn dice_and_discard_tallies_lower_as_number_producers() {
+        let actions = [
+            sem::Action::RollDice(sem::Reference::You, sem::Count::Literal(2), 6),
+            sem::Action::discard(sem::Reference::You, sem::Count::Literal(2), true),
+        ];
+        for action in actions {
+            let lowered = sem::SpellAbility {
+                ability_word: None,
+                effect: sem::OneShotEffect::Act(action),
+            }
+            .lower();
+            assert!(
+                matches!(
+                    lowered.effect.body.as_ref(),
+                    [deckmaste_core::OneShotEffect::Act {
+                        dest: Some(deckmaste_core::DefId(3)),
+                        ..
+                    }]
+                ),
+                "runtime action did not lower as one number producer: {:?}",
+                lowered.effect.body
+            );
+            deckmaste_core::validate(&lowered.effect)
+                .expect("runtime magnitude destination is a number definition");
+        }
+    }
+
     #[test]
     fn lowers_one_shot_effect_batch() {
         let lowered = in_spell_region(|| {
@@ -1252,6 +1326,17 @@ fn lower_action(action: deckmaste_semantics::Action) -> Vec<Instr> {
                     rebuild(deckmaste_core::Count::Reg(dest.into())),
                 )),
             ]
+        }
+        _ if action.produces_runtime_magnitude() => {
+            let dest = crate::region::define(deckmaste_core::Kind::Number);
+            crate::region::push_antecedent(
+                dest.into(),
+                deckmaste_core::Kind::Number,
+                crate::region::Cardinality::One,
+                Some(deckmaste_semantics::Sort::Amount),
+                crate::region::Site::Product,
+            );
+            vec![Instr::producing(dest, action)]
         }
         _ => vec![Instr::act(action)],
     }

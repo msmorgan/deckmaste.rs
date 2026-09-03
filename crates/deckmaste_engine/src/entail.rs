@@ -29,6 +29,7 @@ pub(crate) struct EntailmentRow {
     pub kind: String,
     pub from: Option<Zone>,
     pub to: Option<Zone>,
+    pub amount: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -68,6 +69,10 @@ mod tests {
         assert_eq!(destroy.kind, "ZoneChange");
         assert_eq!(destroy.from, Some(Zone::Battlefield));
         assert_eq!(destroy.to, Some(Zone::Graveyard));
+        assert!(!destroy.amount);
+
+        let discard = entailment("Discard").expect("Discard row");
+        assert!(discard.amount, "discard carries its moved-card count");
 
         assert!(entailment("Tap").is_none(), "open fact verbs have no row");
     }

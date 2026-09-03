@@ -589,11 +589,15 @@ fn validate_instructions(
             E::Act { dest, action } => {
                 validate_action(action, definitions)?;
                 if let Some(dest) = dest {
-                    let kind = match action {
-                        crate::Action::MoveGroup { .. } | crate::Action::Create { .. } => {
-                            Kind::Objects
+                    let kind = if action.produces_runtime_magnitude() {
+                        Kind::Number
+                    } else {
+                        match action {
+                            crate::Action::MoveGroup { .. } | crate::Action::Create { .. } => {
+                                Kind::Objects
+                            }
+                            _ => Kind::Object,
                         }
-                        _ => Kind::Object,
                     };
                     append_definition(definitions, *dest, kind)?;
                 }

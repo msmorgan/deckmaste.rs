@@ -72,6 +72,15 @@ pub struct FinalizeMark {
     pub(crate) contained_act_serial: u64,
 }
 
+/// The runtime result a producing instruction writes after its action and all
+/// immediately-caused work have drained.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MagnitudeSource {
+    CoinFlips { called: bool },
+    DiceRolls,
+    ZoneChanges(deckmaste_core::VerbName),
+}
+
 /// One unit of engine work. `step()` pops exactly one; handlers schedule
 /// follow-ups at the agenda *front*, ahead of previously queued work.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -338,5 +347,15 @@ pub enum WorkItem {
         act: GameEvent,
         watch: FinalizeWatch,
         mark: FinalizeMark,
+    },
+    /// Publish one runtime-produced number into the instruction's own region
+    /// register. `mark` bounds the read to facts caused after this instruction
+    /// began, so nested and sibling instructions cannot share or overwrite a
+    /// global magnitude slot.
+    WriteMagnitude {
+        activation: crate::activation::ActivationId,
+        dest: deckmaste_core::DefId,
+        source: MagnitudeSource,
+        mark: usize,
     },
 }

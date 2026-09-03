@@ -3703,21 +3703,17 @@ mod tests {
     /// `dice_roll_emits_per_die_results` used to make against
     /// `GameState.that_much`.
     #[test]
-    #[ignore = "blocker: a flip/roll tally has no register. `core: complete \
-                discourse regions` deleted GameState.that_much and \
-                step::fix_occurrence_amount, and lowering defines a magnitude \
-                only for the statically-known amounts (DealDamage, \
-                ChangeLife, DrawCard) — Action::FlipCoins and Action::RollDice \
-                get no Let and no dest, so a runtime tally reaches no \
-                DefId. Unblocked by giving those actions a magnitude \
-                definition in deckmaste_lowering::effect::lower_action."]
     fn flip_and_roll_batches_fix_the_magnitude_anaphor() {
         const TALLY: deckmaste_core::RefId = deckmaste_core::RefId(8);
 
         let tally_after = |action: Action| {
             let mut state = game();
-            let frame = frame_for(&state, PlayerId(0));
-            state.run_effect(OneShotEffect::Act(action), &frame);
+            let source = state.player(PlayerId(0)).object;
+            let frame = frame_src(&state, source);
+            state.run_effect(
+                OneShotEffect::producing(deckmaste_core::DefId(TALLY.0), action),
+                &frame,
+            );
             drain_progress(&mut state, 20);
             while let Some(crate::decide::PendingDecision::CallFlip(_)) = state.pending.clone() {
                 state
@@ -3759,5 +3755,99 @@ mod tests {
         ));
         let sum: Uint = die_rolls(&state).iter().map(|&(_, result)| result).sum();
         assert_eq!(tally, Some(sum), "a dice roll tallies the summed results");
+    }
+
+    /// A complete lowered card-shaped effect reads the runtime flip result
+    /// through the register its first instruction defined, then gains that
+    /// much life. This exercises semantic lowering, instruction scheduling,
+    /// the runtime writer, and the ordinary `Count::Reg` reader together.
+    #[test]
+    fn a_lowered_coin_card_reads_its_number_of_heads() {
+        let mut state = game();
+        let player = PlayerId(0);
+        let frame = frame_for(&state, player);
+        schedule_lowered_effect(
+            &mut state,
+            deckmaste_semantics::OneShotEffect::Sequentially(
+                [
+                    deckmaste_semantics::OneShotEffect::Act(
+                        deckmaste_semantics::Action::FlipCoins(
+                            deckmaste_semantics::Reference::You,
+                            deckmaste_semantics::Count::Literal(50),
+                            false,
+                        ),
+                    ),
+                    deckmaste_semantics::OneShotEffect::Act(
+                        deckmaste_semantics::Action::ChangeLife(
+                            deckmaste_semantics::Reference::You,
+                            deckmaste_semantics::LifeOp::Up(deckmaste_semantics::Count::ThatMany),
+                        ),
+                    ),
+                ]
+                .into(),
+            ),
+            0,
+            &frame,
+        );
+        drain_progress(&mut state, 30);
+
+        let heads = deckmaste_core::Int::try_from(
+            coin_flips(&state)
+                .iter()
+                .filter(|&&(heads, _)| heads)
+                .count(),
+        )
+        .expect("fifty heads fit Int");
+        assert!(
+            heads > 0,
+            "seed 7 makes the register-read assertion nonvacuous"
+        );
+        assert_eq!(
+            state.player(player).life,
+            20 + heads,
+            "the later life-gain instruction read the flip instruction's register"
+        );
+    }
+
+    /// A lowered random-discard effect records the number of cards that
+    /// actually moved, then exposes that batch magnitude to the following
+    /// instruction through `ThatMany`.
+    #[test]
+    fn a_lowered_discard_card_reads_cards_actually_discarded() {
+        let mut state = game();
+        let player = PlayerId(0);
+        for i in 0..5 {
+            mint_in_hand(&mut state, player, &format!("Magnitude Card {i}"));
+        }
+        let frame = frame_for(&state, player);
+        schedule_lowered_effect(
+            &mut state,
+            deckmaste_semantics::OneShotEffect::Sequentially(
+                [
+                    deckmaste_semantics::OneShotEffect::Act(deckmaste_semantics::Action::discard(
+                        deckmaste_semantics::Reference::You,
+                        deckmaste_semantics::Count::Literal(2),
+                        true,
+                    )),
+                    deckmaste_semantics::OneShotEffect::Act(
+                        deckmaste_semantics::Action::ChangeLife(
+                            deckmaste_semantics::Reference::You,
+                            deckmaste_semantics::LifeOp::Up(deckmaste_semantics::Count::ThatMany),
+                        ),
+                    ),
+                ]
+                .into(),
+            ),
+            0,
+            &frame,
+        );
+        drain_progress(&mut state, 50);
+
+        assert_eq!(state.zones.graveyards[player.index()].len(), 2);
+        assert_eq!(
+            state.player(player).life,
+            22,
+            "the later life-gain instruction read the discard batch's card count"
+        );
     }
 }

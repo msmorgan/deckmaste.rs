@@ -16,6 +16,7 @@ use rand::RngExt;
 
 use crate::agenda::FinalizeMark;
 use crate::agenda::FinalizeWatch;
+use crate::agenda::MagnitudeSource;
 use crate::agenda::WorkItem;
 use crate::decide::PendingDecision;
 use crate::event::Act;
@@ -187,6 +188,9 @@ pub enum Progress {
     /// the PAST name-fact was scheduled; false when nothing committed (replaced
     /// away / regenerated / empty) and the fact died silently.
     ActFinalized { recorded: bool },
+    /// A runtime-produced numeric instruction result was written to its
+    /// region-local destination register.
+    MagnitudeWritten { amount: Uint },
 }
 
 impl GameState {
@@ -390,6 +394,12 @@ impl GameState {
                 count,
             } => self.arrange_group_landing(arranger, &arrangement, library_owner, end, count),
             WorkItem::FinalizeAct { act, watch, mark } => self.finalize_act(act, &watch, mark),
+            WorkItem::WriteMagnitude {
+                activation,
+                dest,
+                source,
+                mark,
+            } => self.write_magnitude(activation, dest, source, mark),
         };
         StepOutcome::Progress(progress)
     }
@@ -1124,6 +1134,52 @@ impl GameState {
         Progress::ActFinalized {
             recorded: committed,
         }
+    }
+
+    fn write_magnitude(
+        &self,
+        activation: crate::activation::ActivationId,
+        dest: deckmaste_core::DefId,
+        source: MagnitudeSource,
+        mark: usize,
+    ) -> Progress {
+        let facts = &self.resolution_events[mark..];
+        let amount = match source {
+            MagnitudeSource::CoinFlips { called } => facts
+                .iter()
+                .filter_map(|event| match event {
+                    GameEvent::CoinFlipped(CoinFlipped { heads, won, .. }) => {
+                        Some(Uint::from(if called { *won == Some(true) } else { *heads }))
+                    }
+                    _ => None,
+                })
+                .sum(),
+            MagnitudeSource::DiceRolls => facts
+                .iter()
+                .filter_map(|event| match event {
+                    GameEvent::DieRolled(DieRolled { result, .. }) => Some(*result),
+                    _ => None,
+                })
+                .sum(),
+            MagnitudeSource::ZoneChanges(verb) => Uint::try_from(
+                facts
+                    .iter()
+                    .filter(|event| {
+                        matches!(
+                            event,
+                            GameEvent::ZoneChange(ZoneChange {
+                                snapshot: Some(_),
+                                cause: Some(cause),
+                                ..
+                            }) if cause.verb.as_str() == verb.as_str()
+                        )
+                    })
+                    .count(),
+            )
+            .expect("one instruction's moved-card count fits Uint"),
+        };
+        self.activation_write_number(activation, dest, amount);
+        Progress::MagnitudeWritten { amount }
     }
 
     /// Appends the substantive facts of `occurred` to the history log, tagged
@@ -3292,23 +3348,12 @@ mod tests {
     /// anaphor to its CARD COUNT ([CR#107.3,701.9a]) — "discards all the cards
     /// in their hand, then draws that many" reads the batch size, not 1.
     #[test]
-    #[ignore = "blocker: a zone-change batch's card count has no register. \
-                `core: complete discourse regions` deleted \
-                GameState.that_much, step::fix_occurrence_amount and the \
-                entailment table's `amount` column together, and lowering \
-                pins a magnitude only where the amount is known before the \
-                instruction runs (DealDamage, ChangeLife, DrawCard) — a \
-                discard/mill batch's size is a resolution-time tally with no \
-                DefId to land in. Unblocked by giving the batching \
-                instructions a magnitude definition in \
-                deckmaste_lowering::effect::lower_action."]
     fn discard_batch_fixes_the_magnitude_anaphor_to_its_card_count() {
         const TALLY: deckmaste_core::RefId = deckmaste_core::RefId(8);
 
         let (mut state, _view, source) = crate::replace_registry::tests_support::lone_creature();
         let frame = crate::test_support::frame_src(&state, source);
         // Two cards in hand to discard.
-        let mut in_hand = Vec::new();
         for name in ["Discard A", "Discard B"] {
             let card = Arc::new(deckmaste_card::Card::Normal(deckmaste_card::CardFace {
                 name: name.into(),
@@ -3320,33 +3365,37 @@ mod tests {
                 .objects
                 .mint(ObjectSource::Card(cid), PlayerId(0), Some(Zone::Hand));
             state.zones.hands[0].push(id);
-            in_hand.push(id);
         }
-        let events: Vec<GameEvent> = in_hand
-            .into_iter()
-            .map(|object| {
-                GameEvent::ZoneChange(ZoneChange {
-                    snapshot: None,
-                    object,
-                    from: Some(Zone::Hand),
-                    to: Zone::Graveyard,
-                    enters: None,
-                    position: None,
-                    face: None,
-                    cause: Some(crate::event::Cause::discard(
-                        deckmaste_core::Agency::EffectInstruction,
-                        None,
-                    )),
-                })
-            })
-            .collect();
-        state.schedule_front(vec![WorkItem::Emit(Occurrence::Batch(events))]);
-        let _ = state.step(); // the intent batch
-        let _ = state.step(); // the committed past-form ZoneChange batch
+        let initial_hand = state.zones.hands[0].len();
+        state.run_effect(
+            deckmaste_core::OneShotEffect::producing(
+                deckmaste_core::DefId(TALLY.0),
+                deckmaste_core::Action::discard(
+                    deckmaste_core::Reference::controller_parameter(),
+                    deckmaste_core::Count::Literal(2),
+                    true,
+                ),
+            ),
+            &frame,
+        );
+        for _ in 0..30 {
+            if state.activation_number(frame.activation, TALLY).is_some() {
+                break;
+            }
+            assert!(
+                matches!(state.step(), crate::step::StepOutcome::Progress(_)),
+                "the random discard needs no player decision"
+            );
+        }
         assert_eq!(
             state.activation_number(frame.activation, TALLY),
             Some(2),
             "the discard clause's amount is its card count"
+        );
+        assert_eq!(
+            state.zones.hands[0].len(),
+            initial_hand - 2,
+            "exactly two cards moved"
         );
     }
 }

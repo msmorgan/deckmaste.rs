@@ -219,7 +219,28 @@ impl GameState {
                 // `CreateReplacement` directly mutates `state.shields` — it
                 // cannot go through `action_items` (which is `&self`). Handle
                 // it here, mirroring how `OneShotEffect::Continuously` works.
-                if let Some(dest) = dest {
+                let magnitude = match &action {
+                    Action::FlipCoins(_, _, called) => {
+                        Some(crate::agenda::MagnitudeSource::CoinFlips { called: *called })
+                    }
+                    Action::RollDice(..) => Some(crate::agenda::MagnitudeSource::DiceRolls),
+                    Action::Composite { name, .. }
+                        if action.produces_runtime_magnitude()
+                            && crate::entail::entailment(name.as_str())
+                                .is_some_and(|row| row.kind == "ZoneChange" && row.amount) =>
+                    {
+                        Some(crate::agenda::MagnitudeSource::ZoneChanges(*name))
+                    }
+                    _ => None,
+                };
+                debug_assert_eq!(
+                    action.produces_runtime_magnitude(),
+                    magnitude.is_some(),
+                    "core and engine runtime-magnitude classifications agree"
+                );
+                if let Some(dest) = dest
+                    && magnitude.is_none()
+                {
                     match &action {
                         // [CR#701.21a]: a sacrifice moves the permanent to its
                         // owner's graveyard, so — like any move — its product
@@ -258,7 +279,15 @@ impl GameState {
                         frame,
                     );
                 } else {
-                    let items = self.action_items(&action, frame);
+                    let mut items = self.action_items(&action, frame);
+                    if let (Some(dest), Some(source)) = (dest, magnitude) {
+                        items.push(WorkItem::WriteMagnitude {
+                            activation: frame.activation,
+                            dest,
+                            source,
+                            mark: self.resolution_events.len(),
+                        });
+                    }
                     self.schedule_front(items);
                 }
             }

@@ -790,6 +790,10 @@ pub fn discard_body_what(body: &crate::OneShotEffect) -> Option<&Reference> {
 pub fn discard_body_random(body: &crate::OneShotEffect) -> bool {
     use crate::OneShotEffect as Ose;
     match body {
+        Ose::Each(crate::Each {
+            over: Selection::Random(..),
+            ..
+        }) => true,
         Ose::Sequentially(parts) => matches!(
             parts.first(),
             Some(Ose::Each(crate::Each {
@@ -812,6 +816,10 @@ pub fn discard_body_random(body: &crate::OneShotEffect) -> bool {
 pub fn discard_body_count(body: &crate::OneShotEffect) -> Option<&Count> {
     use crate::OneShotEffect as Ose;
     match body {
+        Ose::Each(crate::Each {
+            over: Selection::Random(quantity, _),
+            ..
+        }) => quantity.bounds().1,
         Ose::Sequentially(parts) => parts.iter().find_map(|part| match part {
             Ose::Choose(choice) => choice.quantity.bounds().1,
             Ose::Each(crate::Each {
@@ -836,6 +844,10 @@ pub fn discard_body_count(body: &crate::OneShotEffect) -> Option<&Count> {
 pub fn discard_body_whose(body: &crate::OneShotEffect) -> Option<&Reference> {
     use crate::OneShotEffect as Ose;
     match body {
+        Ose::Each(crate::Each {
+            over: Selection::Random(_, filter),
+            ..
+        }) => hand_owner_ref(filter),
         Ose::Sequentially(parts) => parts.iter().find_map(|part| match part {
             Ose::Choose(choice) => Some(&choice.by),
             Ose::Each(crate::Each {
@@ -913,6 +925,21 @@ impl Action {
             // The ONE cost-eligible composite ([CR#701.9,702.29a]): the
             // payer performs it, nothing targets ([CR#601.2b..601.2c]).
             Action::Composite { name, .. } => name.as_str() == "Discard",
+            _ => false,
+        }
+    }
+
+    /// Whether this instruction produces a numeric result that is known only
+    /// after it runs. The result is written to an `Act` destination register:
+    /// heads/wins for coin flips, the sum of die results, or the number of
+    /// cards a multi-card discard actually moved.
+    #[must_use]
+    pub fn produces_runtime_magnitude(&self) -> bool {
+        match self {
+            Self::FlipCoins(..) | Self::RollDice(..) => true,
+            Self::Composite { name, body } => {
+                name.as_str() == "Discard" && discard_body_count(body).is_some()
+            }
             _ => false,
         }
     }
