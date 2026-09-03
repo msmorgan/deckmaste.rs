@@ -536,6 +536,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
                     | Feature::ModifierLicense
                     | Feature::NominalForm
                     | Feature::NominalLicense
+                    | Feature::Onset
                     | Feature::PrepositionAttachment
                     | Feature::Relationality
             ) && validated.carries_feature(category, feature);
@@ -5744,6 +5745,121 @@ mod tests {
         reason = "literal full-surface structural oracles retain detailed mismatch output"
     )]
     use quote::ToTokens;
+
+    #[test]
+    fn onset_for_measure_unit_is_emitted_for_following_onset_reads() {
+        let expansion = crate::generate(quote::quote! {
+            codec Determinative {
+                generate declaration_determinative {
+                    closed = [
+                        Amount {
+                            number_license = SingularOnly;
+                            fused_head_license = NominalOnly;
+                            nominal_license = CountNominal;
+                            realizations = [
+                                { surface = "an"; following_onset = Vowel; },
+                                { surface = "a"; following_onset = Consonant; },
+                            ];
+                        },
+                    ];
+                }
+            }
+            construction symbol_run: MeasureUnit {
+                element SymbolRun {}
+                derive number = Values::Singular;
+                derive onset = Values::Consonant;
+                form symbol_run = "{P}";
+            }
+            construction measured: Root {
+                element Measured {
+                    count: lex Determinative,
+                    unit: MeasureUnit,
+                }
+                form measured = lex(count) unit "worth";
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("a measure unit may follow a cardinal number");
+
+        let helper = expansion
+            .items()
+            .iter()
+            .find(|item| {
+                matches!(
+                    &item.key,
+                    crate::ItemKey::Named {
+                        kind: crate::NamedKind::Function,
+                        name,
+                    } if name == "onset_for_measure_unit"
+                )
+            })
+            .expect("the following-onset read emits its category helper")
+            .tokens
+            .to_string();
+        assert!(helper.contains("context : & ParseContext"), "{helper}");
+
+        let renderer = expansion
+            .items()
+            .iter()
+            .find(|item| {
+                matches!(
+                    &item.key,
+                    crate::ItemKey::Impl {
+                        self_ty,
+                        trait_name: None,
+                    } if self_ty == "Root"
+                )
+            })
+            .expect("the root renderer is generated")
+            .tokens
+            .to_string();
+        assert!(renderer.contains("onset_for_measure_unit"), "{renderer}");
+    }
+
+    #[test]
+    fn nested_standalone_structural_root_threads_context_through_category_renderer() {
+        let expansion = crate::generate(quote::quote! {
+            construction line: DocumentBlock {
+                element Line {}
+                form line = "line";
+            }
+            abstract product OracleText {
+                blocks: seq DocumentBlock separated by "\n",
+            }
+            construction quoted: QuotedBlock {
+                element QuotedBlockValue { block: OracleText, }
+                form quoted = "\"" block "\"";
+            }
+            construction envelope: Root {
+                element Envelope { quoted: QuotedBlock, }
+                form envelope = quoted;
+            }
+            root Root { eoi = true; standalone_render = true; }
+            root OracleText { eoi = true; standalone_render = true; }
+        })
+        .expect("a standalone document root may also be nested");
+
+        let renderer = expansion
+            .items()
+            .iter()
+            .find(|item| {
+                matches!(
+                    &item.key,
+                    crate::ItemKey::Named {
+                        kind: crate::NamedKind::Function,
+                        name,
+                    } if name == "render_quoted_block"
+                )
+            })
+            .expect("the nested quoted-block renderer is generated")
+            .tokens
+            .to_string();
+        assert!(renderer.contains("context : & ParseContext"), "{renderer}");
+        assert!(
+            renderer.contains("render_oracle_text (writer"),
+            "{renderer}",
+        );
+    }
 
     #[test]
     fn sequence_onset_rendering_uses_the_first_member_without_a_shared_parameter() {

@@ -4743,6 +4743,7 @@ fn generated_name_inventory(
 ) -> GeneratedNameInventory {
     let mut names = GeneratedNameInventory::default();
     let explicit_sum_owned = explicit_sum_owned_category_names(raw);
+    let feature_providers = feature_providers(raw);
     let fixed_span = proc_macro2::Span::call_site();
     for (name, role) in [
         (VISITOR_TRAIT, "fixed generated visitor trait"),
@@ -4948,8 +4949,13 @@ fn generated_name_inventory(
                         (Feature::NominalForm, "nominal_form", "NominalForm"),
                         (Feature::NominalLicense, "nominal_license", "NominalLicense"),
                         (Feature::Number, "number", "Number"),
+                        (Feature::Onset, "onset", "Onset"),
                     ] {
-                        if raw_category_reads_feature(raw, &category, feature) {
+                        if raw_category_reads_feature(raw, &category, feature)
+                            || (feature == Feature::Onset
+                                && feature_providers
+                                    .contains(&(category.clone(), ParsedFeature::Onset)))
+                        {
                             names.register_value(
                                 &feature_helper(spelling, &category),
                                 &format!("generated {display} helper for category `{category}`"),
@@ -9237,13 +9243,13 @@ fn seal_category_render_capabilities(
     }
 
     let mut context_required = HashSet::new();
-    let sum_names = raw
+    let structural_names = raw
         .declarations
         .iter()
         .filter_map(|declaration| match declaration {
+            Declaration::AbstractProduct(product) => Some(identifier_key(&product.name)),
             Declaration::AbstractSum(sum) => Some(identifier_key(&sum.name)),
             Declaration::Construction(_)
-            | Declaration::AbstractProduct(_)
             | Declaration::Vocab(_)
             | Declaration::Morphology(_)
             | Declaration::Lexeme(_)
@@ -9272,7 +9278,7 @@ fn seal_category_render_capabilities(
                                 FieldKind::Category(path) => {
                                     let category = path_name(path);
                                     context_required.contains(&category)
-                                        || sum_names.contains(&category)
+                                        || structural_names.contains(&category)
                                 }
                                 FieldKind::Lex(_)
                                 | FieldKind::Identity(_)
@@ -13668,6 +13674,28 @@ pub(crate) mod tests {
             "{feature_helper}"
         );
         assert!(!feature_helper.contains("internal"), "{feature_helper}");
+
+        let provider_helper = crate::generate(quote! {
+            construction source: Source {
+                element SourceNode {}
+                derive onset = Values::Consonant;
+                form source = "source";
+            }
+            construction collision: Collision {
+                element onset_for_source {}
+                form collision = "collision";
+            }
+            root Source { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect_err("a latent onset provider helper participates in the value namespace")
+        .to_string();
+        assert!(
+            provider_helper.contains("semantic identity `onset_for_source`")
+                && provider_helper.contains("generated Onset helper for category `Source`")
+                && provider_helper.contains("generated unit element constructor"),
+            "{provider_helper}"
+        );
+        assert!(!provider_helper.contains("internal"), "{provider_helper}");
     }
 
     #[test]

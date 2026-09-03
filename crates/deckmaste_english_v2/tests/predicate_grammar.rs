@@ -832,8 +832,8 @@ fn quote_boundary_recurses_only_through_an_ordinary_ability() {
     ));
     let QuotedAbility::QuotedAbility(quoted) = &predicate.ability;
     let QuotedBlock::QuotedBlock(quoted_block) = &quoted.block;
-    let DocumentBlock::Ability(quoted_ability) = quoted_block.block.as_ref() else {
-        panic!("quoted complement stores an ability document block")
+    let [DocumentBlock::Ability(quoted_ability)] = quoted_block.block.blocks.as_slice() else {
+        panic!("quoted complement stores a one-block ability document")
     };
     let Ability::Triggered(_) = quoted_ability.as_ref() else {
         panic!("quoted complement stores the ordinary triggered ability AST")

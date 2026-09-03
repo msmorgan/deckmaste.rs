@@ -4204,7 +4204,7 @@ constructions! {
     // parses with the same grammar as printed rules text (oracle convention,
     // style guide "Quotation marks"; the CR does not describe the quoting).
     construction quoted_block: QuotedBlock {
-        element QuotedBlockValue { block: DocumentBlock, }
+        element QuotedBlockValue { block: OracleText, }
         form quoted_block = block;
     }
     construction quoted_ability: QuotedAbility {
@@ -4252,6 +4252,7 @@ constructions! {
     construction mana_amount: ManaAmount {
         element ManaAmountValue { run: ActivationCostComponent, }
         require run is SymbolRun;
+        derive onset = Values::Consonant;
         form mana_amount = run;
     }
     construction and_mana_coordination: ManaCoordination {

@@ -203,7 +203,9 @@ fn empty_oracle_text_is_a_totally_owned_zero_block_document() {
     let parser = parser();
     let environment = environment();
     let context = context("Grizzly Bears");
-    let expected = OracleText { blocks: vec![] };
+    let expected = OracleText {
+        blocks: Box::default(),
+    };
 
     let analysis = parser.analyze_oracle_text("", &context);
     assert_eq!(analysis.selected(), Some(&expected));

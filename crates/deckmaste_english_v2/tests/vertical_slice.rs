@@ -785,7 +785,9 @@ fn paragraph_and_oracle_text_constructors_and_traversal_preserve_structural_orde
     };
     assert_eq!(triggered_body.sentences(), triggered_effects.as_slice());
 
-    let empty_oracle_text = OracleText { blocks: vec![] };
+    let empty_oracle_text = OracleText {
+        blocks: Box::default(),
+    };
     assert_eq!(
         empty_oracle_text.render(&context("Grizzly Bears"), &environment()),
         ""
@@ -803,9 +805,9 @@ fn paragraph_and_oracle_text_constructors_and_traversal_preserve_structural_orde
         DocumentBlock::Ability(Box::new(Ability::Triggered(triggered))),
     ];
     let oracle_text = OracleText {
-        blocks: blocks.clone(),
+        blocks: Box::new(blocks.clone()),
     };
-    assert_eq!(oracle_text.blocks, blocks);
+    assert_eq!(oracle_text.blocks.as_ref(), &blocks);
 
     let mut visitor = StructuralVisitor::default();
     deckmaste_english_v2::visit::walk_oracle_text(&mut visitor, &oracle_text);
