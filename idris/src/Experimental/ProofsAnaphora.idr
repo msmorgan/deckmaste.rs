@@ -988,7 +988,7 @@ badOwnEmptyDelta Refl impossible
 public export
 sharedSubjectSurvivesSecondSingular : Effect []
 sharedSubjectSurvivesSecondSingular =
-  Sequentially [Macros.exile (Macros.target Macros.artifact),
+  Sequentially [Macros.exile You (Macros.target Macros.artifact),
                 Macros.sharedSubject (Macros.target Macros.creature)
                   [ Gets (Macros.ownSubject (Macros.target Macros.creature))
                          (PtUp (Lit 1)) (PtUp (Lit 1))
