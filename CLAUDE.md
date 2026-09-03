@@ -112,7 +112,7 @@ Authority: `docs/decisions/english-v2-rewrite.md` (cutover plan). Until cutover:
   `cargo xtask map idris` (Idris constructor map) regenerate on demand — prefer these
   over re-reading source or trusting prose in old plans/specs, which goes stale.
 - Plans/specs: never restate standard constraints (jj, fmt, clippy, CR citations,
-  wizards regen — they live here); write "standard constraints apply" plus deltas
+  wizards regen, assurance — they live here); write "standard constraints apply" plus deltas
   only. Context sections cite prior docs and describe deltas; re-derived subsystem
   prose is a review flag.
 - Dispatching agents: explore once, pass the brief — paste it as a byte-identical
