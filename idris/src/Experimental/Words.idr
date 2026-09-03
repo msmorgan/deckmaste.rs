@@ -545,53 +545,6 @@ Eq AggregateOp where
   (==) MaxOf _ = False
 
 public export
-data ProjAxis = CharAxis Characteristic | PlayerStatAxis PlayerStat
-
-public export
-projScope : ProjAxis -> Kind
-projScope (CharAxis _) = Object
-projScope (PlayerStatAxis _) = Player
-
-public export
-Eq ProjAxis where
-  (==) (CharAxis a) (CharAxis b) = a == b
-  (==) (CharAxis _) _ = False
-  (==) (PlayerStatAxis a) (PlayerStatAxis b) = a == b
-  (==) (PlayerStatAxis _) _ = False
-
-
-public export
-axisType : ProjAxis -> Maybe CardType
-axisType (CharAxis c) = comparedType c
-axisType (PlayerStatAxis _) = Nothing
-
-public export
-allAxisType : CardType -> List ProjAxis -> Bool
-allAxisType t [] = True
-allAxisType t (a :: as) = case axisType a of
-  Nothing => False
-  Just u => t == u && allAxisType t as
-
-public export
-axisTypes : List ProjAxis -> Maybe CardType
-axisTypes [] = Nothing
-axisTypes (a :: as) = case axisType a of
-  Nothing => Nothing
-  Just t => if allAxisType t as then Just t else Nothing
-
-public export
-sameAxes : List ProjAxis -> List ProjAxis -> Bool
-sameAxes [] [] = True
-sameAxes (a :: as) (b :: bs) = a == b && sameAxes as bs
-sameAxes _ _ = False
-
-public export
-data AxesAt : Kind -> List ProjAxis -> Type where
-  LastAxis : (0 a : ProjAxis) -> AxesAt (projScope a) [a]
-  NextAxis : (0 a : ProjAxis) -> AxesAt (projScope a) (b :: as) ->
-             AxesAt (projScope a) (a :: b :: as)
-
-public export
 data SubtypeScope = AnySubtype | BasicOnly | NonbasicOnly
 
 public export
@@ -698,6 +651,26 @@ data Determiner = TargetD | AD | EachD | AllD | TheD | PartD
 
 public export
 data PossessorAxis = OwnerAx | ControllerAx
+
+public export
+Eq PossessorAxis where
+  (==) OwnerAx OwnerAx = True
+  (==) ControllerAx ControllerAx = True
+  (==) _ _ = False
+
+public export
+data CombatRelation = BlockerOf | BlockedBy | AttackedBy | AttackerOf
+                    | CouldBlock | CouldBeBlockedBy
+
+public export
+Eq CombatRelation where
+  (==) BlockerOf BlockerOf = True
+  (==) BlockedBy BlockedBy = True
+  (==) AttackedBy AttackedBy = True
+  (==) AttackerOf AttackerOf = True
+  (==) CouldBlock CouldBlock = True
+  (==) CouldBeBlockedBy CouldBeBlockedBy = True
+  (==) _ _ = False
 
 public export
 data Zone = Battlefield | Graveyard | Exile | Hand | Library | Stack
@@ -3417,6 +3390,62 @@ Eq CounterKind where
   (==) (BoostCounter ap at) (BoostCounter bp bt) = ap == bp && at == bt
   (==) (KeywordCounter a) (KeywordCounter b) = a == b
   (==) a b = counterIx a == counterIx b
+
+public export
+data ProjAxis = CharAxis Characteristic | PlayerStatAxis PlayerStat
+             | CounterAxis CounterKind | AnyCounterAxis Kind
+
+public export
+projScope : ProjAxis -> Kind
+projScope (CharAxis _) = Object
+projScope (PlayerStatAxis _) = Player
+projScope (CounterAxis c) = counterScope c
+projScope (AnyCounterAxis k) = k
+
+public export
+Eq ProjAxis where
+  (==) (CharAxis a) (CharAxis b) = a == b
+  (==) (CharAxis _) _ = False
+  (==) (PlayerStatAxis a) (PlayerStatAxis b) = a == b
+  (==) (PlayerStatAxis _) _ = False
+  (==) (CounterAxis a) (CounterAxis b) = a == b
+  (==) (CounterAxis _) _ = False
+  (==) (AnyCounterAxis a) (AnyCounterAxis b) = a == b
+  (==) (AnyCounterAxis _) _ = False
+
+
+public export
+axisType : ProjAxis -> Maybe CardType
+axisType (CharAxis c) = comparedType c
+axisType (PlayerStatAxis _) = Nothing
+axisType (CounterAxis _) = Nothing
+axisType (AnyCounterAxis _) = Nothing
+
+public export
+allAxisType : CardType -> List ProjAxis -> Bool
+allAxisType t [] = True
+allAxisType t (a :: as) = case axisType a of
+  Nothing => False
+  Just u => t == u && allAxisType t as
+
+public export
+axisTypes : List ProjAxis -> Maybe CardType
+axisTypes [] = Nothing
+axisTypes (a :: as) = case axisType a of
+  Nothing => Nothing
+  Just t => if allAxisType t as then Just t else Nothing
+
+public export
+sameAxes : List ProjAxis -> List ProjAxis -> Bool
+sameAxes [] [] = True
+sameAxes (a :: as) (b :: bs) = a == b && sameAxes as bs
+sameAxes _ _ = False
+
+public export
+data AxesAt : Kind -> List ProjAxis -> Type where
+  LastAxis : (0 a : ProjAxis) -> AxesAt (projScope a) [a]
+  NextAxis : (0 a : ProjAxis) -> AxesAt (projScope a) (b :: as) ->
+             AxesAt (projScope a) (a :: b :: as)
 
 public export
 data CounterKindNamed : Kind -> Maybe CounterKind -> Type where

@@ -463,16 +463,17 @@ itOtherThanResolvesInPrefix co rest ok =
 ||| The previous-sibling read is the same shape at the other end of the
 public export
 itPriorReadsOnlyPrefix : (made, before : Bindings) ->
-                         countOnes Object made = 1 -> Noun (made ++ before) Object
-itPriorReadsOnlyPrefix made before ok = ItPrior made before {sp = Refl} {ok}
+                         countReach Bare OneOf made = 1 -> Noun (made ++ before) Object
+itPriorReadsOnlyPrefix made before ok = Own OneOf made before {sp = Refl} {ok}
 
 public export
 itPriorResolvesInPrefix : (made, before : Bindings) ->
-                          countOnes Object made = 1 ->
+                          countReach Bare OneOf made = 1 ->
                           (b : Binding ** (Elem b (made ++ before),
-                                           So (oneOfKind Object b)))
+                                           So (reaches Bare OneOf b)))
 itPriorResolvesInPrefix made before ok =
-  let (b ** (el, k)) = resolveOnes Object made ok in
+  let (b ** (el, k)) = countByWitness (reaches Bare OneOf) made Z
+                         (trans (sym (countReachIsFold Bare OneOf made)) ok) in
       (b ** (elemInPrefix before el, k))
 
 public export

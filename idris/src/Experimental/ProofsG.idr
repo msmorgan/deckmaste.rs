@@ -298,7 +298,7 @@ badEntryOriginBattlefield Oh impossible
 ||| A coordination offers two clauses or more; at one it spells what the bare condition spells.
 public export
 badSingletonConjunction : Unspellable (Condition []) (\ok =>
-  AndCond [Exists (And [Macros.artifact, ControlledBy You])] {tw = ok})
+  AndCond [Exists (And [Macros.artifact, HasPossessor ControllerAx You])] {tw = ok})
 badSingletonConjunction Oh impossible
 
 
@@ -306,9 +306,9 @@ badSingletonConjunction Oh impossible
 ||| English writes the flat serial list, so a nested coordination is the same clause written twice.
 public export
 badNestedConjunction : Unspellable (Condition []) (\ok =>
-  AndCond [ AndCond [ Exists (And [Macros.artifact, ControlledBy You])
-                    , Exists (And [Macros.enchantment, ControlledBy You]) ]
-          , Exists (And [Macros.land, ControlledBy You]) ] {fl = ok})
+  AndCond [ AndCond [ Exists (And [Macros.artifact, HasPossessor ControllerAx You])
+                    , Exists (And [Macros.enchantment, HasPossessor ControllerAx You]) ]
+          , Exists (And [Macros.land, HasPossessor ControllerAx You]) ] {fl = ok})
 badNestedConjunction Oh impossible
 
 
@@ -316,8 +316,8 @@ badNestedConjunction Oh impossible
 ||| "Unless" reads a negated condition, and a coordination is not negated at its own frame.
 public export
 badUnlessConjunction : Unspellable (StaticEffect []) (\ok =>
-  Conditionally (AndCond [ Exists (And [Macros.artifact, ControlledBy You])
-                         , Exists (And [Macros.enchantment, ControlledBy You]) ])
+  Conditionally (AndCond [ Exists (And [Macros.artifact, HasPossessor ControllerAx You])
+                         , Exists (And [Macros.enchantment, HasPossessor ControllerAx You]) ])
                 (AltCost This Nothing) Unless {mk = ok})
 badUnlessConjunction MkMarkingOk impossible
 
@@ -334,7 +334,7 @@ badLiteralScaledMana Oh impossible
 ||| The scaled payment scales a per-unit: a numeral in braces with the counted phrase after "for each".
 public export
 badBareCountScaledMana : Unspellable (Cost []) (\ok =>
-  ScaledMana GenericUnit (CountOf (And [Macros.artifact, ControlledBy You])) {fe = ok})
+  ScaledMana GenericUnit (CountOf (And [Macros.artifact, HasPossessor ControllerAx You])) {fe = ok})
 badBareCountScaledMana Oh impossible
 
 
@@ -582,20 +582,35 @@ badBattleNoDefense MkCardBox impossible
 ||| an adventurer card whose inset frame is a plain instant, naming no Adventure
 public export
 badUnnamedAdventure : Unspellable Card (\ok =>
-  Adventurer (MkFace "" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Creature]) []
-                     (Macros.printedBox (Just (1, 1))))
-             (MkFace "" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Instant]) [] Nothing)
+  Adventurer (Macros.frontFace "" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Creature]) []
+                               (Macros.printedBox (Just (1, 1))))
+             (Macros.frontFace "" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Instant]) []
+                               Nothing)
              {ai = ok})
 badUnnamedAdventure Oh impossible
 
 ||| a flip card whose upside-down half is an instant
 public export
 badSpellFlipHalf : Unspellable Card (\ok =>
-  FlipCard (MkFace "" (Just [Macros.pip Green]) [] (MkTypeLine [] [Creature]) []
-                   (Macros.printedBox (Just (1, 1))))
-           (MkAltFace "" [] (MkTypeLine [] [Instant]) [] Nothing)
+  FlipCard (Macros.frontFace "" (Just [Macros.pip Green]) [] (MkTypeLine [] [Creature]) []
+                             (Macros.printedBox (Just (1, 1))))
+           (Macros.backFace "" [] (MkTypeLine [] [Instant]) [] Nothing)
            {ah = ok})
 badSpellFlipHalf Oh impossible
+
+
+||| a transforming card whose back face prints a mana cost of its own
+||| [CR#202.3a,202.3b] read the back face of a nonmodal double-faced card as an object with no mana cost, whose mana value comes from its front face's mana cost instead.
+public export
+badTransformingBackWithCost : Unspellable Card (\ok =>
+  Transforming (Macros.frontFace "" (Just [Macros.pip Green]) []
+                                 (MkTypeLine [] [Creature]) []
+                                 (Macros.printedBox (Just (1, 1))))
+               (MkFace "" (Just [Macros.pip Green]) [] []
+                       (MkTypeLine [] [Creature]) []
+                       (Macros.printedBox (Just (1, 1))))
+               {bf = ok})
+badTransformingBackWithCost MkFaceLaws impossible
 
 ||| an activated ability printed on a conspiracy card
 public export
@@ -677,8 +692,8 @@ badSameKindJoinDamage JoinTakes impossible
 ||| "creature that could block target creature card in your graveyard"
 public export
 badCouldBlockGraveyardRelatum : Unspellable (Predicate [] Object) (\ok =>
-  CouldBlock (Macros.target (And [Macros.creature,
-                                  InZone (Macros.graveyardOf You)])) {zn = ok})
+  CombatRel CouldBlock (Macros.target (And [Macros.creature,
+                                            InZone (Macros.graveyardOf You)])) {ok = ok})
 badCouldBlockGraveyardRelatum Oh impossible
 
 
@@ -841,8 +856,8 @@ badChoiceRestDisposedTwice Oh impossible
 ||| "an opponent who controls more lands than they control"
 public export
 badMemberInComparisonBound : Unspellable (Predicate [] Player) (\ok =>
-  CompareOver Opponent (CountOf (And [Macros.land, ControlledBy You]))
-              Greater (CountOf (And [Macros.land, ControlledBy (They {ok})])))
+  CompareOver Opponent (CountOf (And [Macros.land, HasPossessor ControllerAx You]))
+              Greater (CountOf (And [Macros.land, HasPossessor ControllerAx (They {ok})])))
 badMemberInComparisonBound Refl impossible
 
 ||| "the number of basic creature types among creatures you control"
@@ -947,14 +962,14 @@ badThoseKindsUnannounced Refl impossible
 ||| "For each color among permanents you control, add one mana of that color"
 public export
 badRepeatedCarriesNoColor : Unspellable (Effect []) (\ok =>
-  Repeated (DistinctCount ColorAxis (Macros.allOf (And [Permanent, ControlledBy You])))
+  Repeated (DistinctCount ColorAxis (Macros.allOf (And [Permanent, HasPossessor ControllerAx You])))
            (AddMana You (Lit 1) (OfChosenColor Nothing {cq = ok}) []))
 badRepeatedCarriesNoColor Refl impossible
 
 ||| "For each color among permanents you control, … of that creature type."
 public export
 badAxisValueCrossing : Unspellable (Effect []) (\ok =>
-  ForEachKindOf ColorAxis (Just (Macros.allOf (And [Permanent, ControlledBy You])))
+  ForEachKindOf ColorAxis (Just (Macros.allOf (And [Permanent, HasPossessor ControllerAx You])))
                 (SubtypeQ Creature) (Draw You (Lit 1)) {sc = ok})
 badAxisValueCrossing Refl impossible
 
@@ -997,7 +1012,7 @@ badScryPatient : Unspellable (GameEvent []) (\ok =>
   VerbedEvent (Just You) "Scry"
               (Just (Macros.a (InZone (ZoneAt Library Bare)))) Nothing False
               {pt = ok})
-badScryPatient ActOn impossible
+badScryPatient Oh impossible
 
 
 ||| "Whenever discards a card, …"
@@ -1005,17 +1020,14 @@ badScryPatient ActOn impossible
 public export
 badVoicelessAct : Unspellable (GameEvent []) (\ok =>
   VerbedEvent Nothing "Scry" Nothing Nothing False {vc = ok})
-badVoicelessAct ActiveAct impossible
-badVoicelessAct PassiveAct impossible
-badVoicelessAct IntransitiveAct impossible
+badVoicelessAct Oh impossible
 
 
 ||| "Whenever a card is put, …"
 public export
 badPassiveWithoutParticiple : Unspellable (GameEvent []) (\ok =>
   VerbedEvent Nothing "Put" (Just (Macros.a IsCard)) Nothing False {vc = ok})
-badPassiveWithoutParticiple PassiveAct impossible
-badPassiveWithoutParticiple IntransitiveAct impossible
+badPassiveWithoutParticiple Oh impossible
 
 
 ||| "Whenever a card is milled into a Phyrexian, …"
@@ -1023,7 +1035,34 @@ public export
 badBecomesWithoutIntransitive : Unspellable (GameEvent []) (\ok =>
   VerbedEvent Nothing "Mill" (Just (Macros.a (InZone (ZoneAt Library Bare))))
               (Just (HasSubtype (creatureType "Phyrexian"))) False {bc = ok})
-badBecomesWithoutIntransitive BecomesInto impossible
+badBecomesWithoutIntransitive Oh impossible
+
+
+||| "Whenever an effect and you would create one or more tokens, …"
+||| One clause names one creator: the causer stands where the player agent would and excludes it.
+public export
+badTokensCreatedByCauserAndPlayer : Unspellable (GameEvent []) (\ok =>
+  TokensCreated (CountedGroup (Macros.atLeast 1) Nothing IsToken)
+                (Just AnEffect) (Just You) Nothing {vo = ok})
+badTokensCreatedByCauserAndPlayer Oh impossible
+
+
+||| "Whenever one or more tokens are created under your opponents' control, …"
+||| A token enters under the control of the one player who created it [CR#111.2], so the slot reads a single controller.
+public export
+badTokensCreatedUnderPlural : Unspellable (GameEvent []) (\ok =>
+  TokensCreated (CountedGroup (Macros.atLeast 1) Nothing IsToken)
+                Nothing Nothing (Just (PlayerGroup YourOpponents)) {vo = ok})
+badTokensCreatedUnderPlural Oh impossible
+
+
+||| "Whenever an opponent creates one or more tokens, …"
+||| The creator is read back, not introduced; an article would mint a mention the event has no place to bind.
+public export
+badTokensCreatedByMintingNoun : Unspellable (GameEvent []) (\ok =>
+  TokensCreated (CountedGroup (Macros.atLeast 1) Nothing IsToken)
+                Nothing (Just Macros.anOpponent) Nothing {vo = ok})
+badTokensCreatedByMintingNoun Oh impossible
 
 
 ||| "Whenever a card in a graveyard is destroyed, …"
@@ -1230,7 +1269,7 @@ badPileFaceAsAStatus OnField impossible
 public export
 badTriggeringReplaced : Unspellable (StaticEffect []) (\ok =>
   Intercepts (Triggers (Macros.a (And [ AbilityHead AnyTriggered
-                                      , AbilityOf (Macros.a (And [Permanent, ControlledBy You])) ])))
+                                      , AbilityOf (Macros.a (And [Permanent, HasPossessor ControllerAx You])) ])))
              [] Nothing (Draw You (Lit 1)) Repeatedly Nothing {ok})
 badTriggeringReplaced Oh impossible
 
@@ -1342,16 +1381,17 @@ repeatWithIndependentException = AgainExcept (Exists AnyPlayer)
 public export
 voteStartingWithSpecifiedPlayer : Effect []
 voteStartingWithSpecifiedPlayer =
-  VoteStarting Macros.anOpponent (Macros.each AnyPlayer) (ByLabel ["alpha", "beta"])
+  Vote (Just Macros.anOpponent) (Macros.each AnyPlayer) Openly
+       (ByLabel ["alpha", "beta"])
 
 public export
 oneWayResultShift : Effect []
 oneWayResultShift =
-  Sequentially [(Macros.rollDice You 1 6), ShiftResultOneWay True (Lit 1)]
+  Sequentially [(Macros.rollDice You 1 6), ShiftResult (Just ShiftUp) (Lit 1)]
 
 public export
 objectScopedChaos : Effect []
-objectScopedChaos = ChaosEnsuesFor Macros.thisRoom
+objectScopedChaos = ChaosEnsues (Just Macros.thisRoom)
 
 public export
 abilityCounterRecipient : Effect []
@@ -1365,7 +1405,7 @@ removeOwnCounterKinds = RemoveCounters (Just (Macros.exactly 1)) (Just OwnKinds)
 public export
 namedAdditionalPartAnchor : Effect []
 namedAdditionalPartAnchor =
-  GetsAdditionalPartAfter You Upkeep (Lit 1) MainPhase
+  AdditionalPart (Just You) Upkeep (Just MainPhase) (Lit 1) Nothing
 
 ||| [CR#709.5j] “This door” requires a door of this permanent.
 public export
@@ -1405,7 +1445,7 @@ public export
 distributiveGroupSurvives : Effect []
 distributiveGroupSurvives =
   Sequentially
-    [ DoesGroup (Macros.each Opponent) "Shuffle" (Shuffle They)
+    [ Does (Macros.each Opponent) "Shuffle" (Shuffle They)
     , ChangeLife (Those PlayerW) (Down (Lit 1))
     ]
 

@@ -33,7 +33,7 @@ badGroupPower Refl impossible
 public export
 badGroupOwner : Unspellable (Effect []) (\ok =>
   Sequentially [Choose (Macros.targets (Macros.exactly 2) Macros.creature) Nothing Openly,
-                Macros.losesLife (OwnerOf Them {one = ok}) (Lit 1)])
+                Macros.losesLife (Macros.ownerOf Them {one = ok}) (Lit 1)])
 badGroupOwner Refl impossible
 
 
@@ -49,7 +49,7 @@ badFightGroup Refl impossible
 ||| [CR#110.2] gives a permanent one controller, so a counted plural names no object.
 public export
 badControlledByGroup : Unspellable (Predicate [] Object) (\ok =>
-  ControlledBy (Macros.targets (Macros.exactly 2) Opponent) {ps = ok})
+  HasPossessor ControllerAx (Macros.targets (Macros.exactly 2) Opponent) {ps = ok})
 badControlledByGroup Oh impossible
 
 
@@ -81,8 +81,8 @@ badCastsPluralComplement Refl impossible
 ||| Unspellable because its disjunction binds no coherent singular player antecedent.
 public export
 badDisjunctAntecedent : Unspellable (Effect []) (\ok =>
-  Sequentially [SetStatus Tapped (Macros.target (Or [And [Macros.creature, ControlledBy Macros.anOpponent],
-                                        And [Macros.land, ControlledBy You]])),
+  Sequentially [SetStatus Tapped (Macros.target (Or [And [Macros.creature, HasPossessor ControllerAx Macros.anOpponent],
+                                        And [Macros.land, HasPossessor ControllerAx You]])),
                 Macros.losesLife (That PlayerW {ok}) (Lit 1)])
 badDisjunctAntecedent Refl impossible
 
@@ -230,8 +230,8 @@ badThemAmbig Refl impossible
 ||| Uniqueness reaches inside relative clauses: two opponents leave "that player" ambiguous.
 public export
 badInnerAmbig : Unspellable (Effect []) (\ok =>
-  Sequentially [Fights (Macros.target (And [Macros.creature, ControlledBy Macros.anOpponent]))
-                       (Macros.target (And [Macros.creature, ControlledBy Macros.anOpponent])),
+  Sequentially [Fights (Macros.target (And [Macros.creature, HasPossessor ControllerAx Macros.anOpponent]))
+                       (Macros.target (And [Macros.creature, HasPossessor ControllerAx Macros.anOpponent])),
                Macros.losesLife (That PlayerW {ok}) (Lit 1)])
 badInnerAmbig Refl impossible
 
@@ -425,7 +425,7 @@ badNegatedPlayerHead Oh impossible
 ||| Negation binds nothing, so no opponent is named for "that player".
 public export
 badNegatedAntecedent : Unspellable (Effect []) (\ok =>
-  Sequentially [SetStatus Tapped (Macros.target (And [Macros.creature, Not (ControlledBy Macros.anOpponent)])),
+  Sequentially [SetStatus Tapped (Macros.target (And [Macros.creature, Not (HasPossessor ControllerAx Macros.anOpponent)])),
                 Macros.losesLife (That PlayerW {ok}) (Lit 1)])
 badNegatedAntecedent Refl impossible
 
@@ -604,7 +604,7 @@ badAscribedTarget AscribeThis impossible
 ||| "You" denotes one player at both mentions, so the phrase asserts and denies one fact.
 public export
 badControlContradiction : Unspellable (Predicate [] Object) (\ok =>
-  And [ControlledBy You, Not (ControlledBy You)] {cf = ok})
+  And [HasPossessor ControllerAx You, Not (HasPossessor ControllerAx You)] {cf = ok})
 badControlContradiction Oh impossible
 
 

@@ -430,7 +430,7 @@ badIfNotReadsMandatoryBody Refl impossible
 ||| "Counter target spell unless its controller taps."
 public export
 badUnlessTapSymbol : Unspellable (Effect []) (\ok =>
-  Unless (Macros.counterSpell (Macros.target Macros.spell)) (ControllerOf It) TapSymbol {pb = ok})
+  Unless (Macros.counterSpell (Macros.target Macros.spell)) (Macros.controllerOf It) TapSymbol {pb = ok})
 badUnlessTapSymbol Oh impossible
 
 
@@ -603,5 +603,5 @@ badExiledWithDescribedSource SelfLinked impossible
 ||| The linked cards are in exile [CR#607.2a], and such an object has no controller [CR#109.4].
 public export
 badExiledWithControlled : Unspellable (Predicate [] Object) (\ok =>
-  And [ControlledBy You, Macros.exiledWithThisArtifact] {zc = ok})
+  And [HasPossessor ControllerAx You, Macros.exiledWithThisArtifact] {zc = ok})
 badExiledWithControlled Oh impossible

@@ -187,33 +187,38 @@ definedSlotsStarred (Just (p, t)) dp dt =
   (not dp || starred p) && (not dt || starred t)
 
 public export
-boxSuitsType : CardType -> Maybe PrintedBox -> Bool
-boxSuitsType Creature (Just (PtBox _ _)) = True
-boxSuitsType Creature _ = False
-boxSuitsType Planeswalker (Just (LoyaltyBox _)) = True
-boxSuitsType Planeswalker _ = False
-boxSuitsType Battle (Just (DefenseBox _)) = True
-boxSuitsType Battle _ = False
-boxSuitsType _ _ = True
+data FaceSide = Front | Back
 
 public export
-boxFitsLine : List CardType -> Maybe PrintedBox -> Bool
-boxFitsLine [] box = True
-boxFitsLine (t :: ts) box = boxSuitsType t box && boxFitsLine ts box
+boxSuitsType : FaceSide -> CardType -> Maybe PrintedBox -> Bool
+boxSuitsType _ Creature (Just (PtBox _ _)) = True
+boxSuitsType _ Creature _ = False
+boxSuitsType _ Planeswalker (Just (LoyaltyBox _)) = True
+boxSuitsType Back Planeswalker Nothing = True
+boxSuitsType _ Planeswalker _ = False
+boxSuitsType _ Battle (Just (DefenseBox _)) = True
+boxSuitsType _ Battle _ = False
+boxSuitsType _ _ _ = True
 
 public export
-cardBoxOk : {0 bs : Bindings} -> List CardType -> AbilitySeq bs ->
+boxFitsLine : FaceSide -> List CardType -> Maybe PrintedBox -> Bool
+boxFitsLine side [] box = True
+boxFitsLine side (t :: ts) box =
+  boxSuitsType side t box && boxFitsLine side ts box
+
+public export
+cardBoxOk : {0 bs : Bindings} -> FaceSide -> List CardType -> AbilitySeq bs ->
             Maybe PrintedBox -> Bool
-cardBoxOk tys text box =
-  boxFitsLine tys box &&
+cardBoxOk side tys text box =
+  boxFitsLine side tys box &&
   definedSlotsStarred (boxPt box) (textDefines definesPower text)
                                   (textDefines definesToughness text)
 
 public export
-cardCostOk : List CardType -> Maybe ManaCost -> Bool
-cardCostOk tys cost = case (elem Land tys, cost) of
-  (True, Just _) => False
-  _ => True
+cardCostOk : FaceSide -> List CardType -> Maybe ManaCost -> Bool
+cardCostOk _ _ Nothing = True
+cardCostOk Back _ (Just _) = False
+cardCostOk Front tys (Just _) = not (elem Land tys)
 
 public export
 data CardLine : TypeLine -> Type where
@@ -259,67 +264,31 @@ CardChapters : {0 bs : Bindings} -> TypeLine -> AbilitySeq bs -> Type
 CardChapters l as = So (chapterFrameOk l.subs as)
 
 public export
-data CardBox : {0 bs : Bindings} -> TypeLine -> AbilitySeq bs ->
+data CardBox : {0 bs : Bindings} -> FaceSide -> TypeLine -> AbilitySeq bs ->
                Maybe PrintedBox -> Type where
   MkCardBox : {0 box : Maybe PrintedBox} ->
-              {auto 0 ok : So (cardBoxOk l.tys as box)} -> CardBox l as box
+              {auto 0 ok : So (cardBoxOk side l.tys as box)} ->
+              CardBox side l as box
 
 public export
-altBoxSuitsType : CardType -> Maybe PrintedBox -> Bool
-altBoxSuitsType Creature (Just (PtBox _ _)) = True
-altBoxSuitsType Creature _ = False
-altBoxSuitsType Planeswalker (Just (LoyaltyBox _)) = True
-altBoxSuitsType Planeswalker Nothing = True
-altBoxSuitsType Planeswalker _ = False
-altBoxSuitsType Battle (Just (DefenseBox _)) = True
-altBoxSuitsType Battle _ = False
-altBoxSuitsType _ _ = True
+CardCost : FaceSide -> TypeLine -> Maybe ManaCost -> Type
+CardCost side l c = So (cardCostOk side l.tys c)
 
 public export
-altBoxFitsLine : List CardType -> Maybe PrintedBox -> Bool
-altBoxFitsLine [] box = True
-altBoxFitsLine (t :: ts) box = altBoxSuitsType t box && altBoxFitsLine ts box
-
-public export
-altBoxOk : {0 bs : Bindings} -> List CardType -> AbilitySeq bs ->
-           Maybe PrintedBox -> Bool
-altBoxOk tys text box =
-  altBoxFitsLine tys box &&
-  definedSlotsStarred (boxPt box) (textDefines definesPower text)
-                                  (textDefines definesToughness text)
-
-public export
-data AltCardBox : TypeLine -> AbilitySeq [] -> Maybe PrintedBox -> Type where
-  MkAltCardBox : {0 box : Maybe PrintedBox} ->
-                 {auto 0 ok : So (altBoxOk l.tys as box)} -> AltCardBox l as box
-
-public export
-CardCost : TypeLine -> Maybe ManaCost -> Type
-CardCost l c = So (cardCostOk l.tys c)
+jointBindings : List QualitySort -> Bindings -> Bindings
+jointBindings [] bs = bs
+jointBindings (q :: qs) bs = qualityB q :: jointBindings qs bs
 
 public export
 record CardFace where
   constructor MkFace
   name : String
   cost : Maybe ManaCost
+  choices : List QualitySort
   supers : List Supertype
   line : TypeLine
-  text : AbilitySeq (costLetters cost)
+  text : AbilitySeq (jointBindings choices (costLetters cost))
   box : Maybe PrintedBox
-
-public export
-record AltFace where
-  constructor MkAltFace
-  name : String
-  supers : List Supertype
-  line : TypeLine
-  text : AbilitySeq []
-  box : Maybe PrintedBox
-
-public export
-jointBindings : List QualitySort -> Bindings -> Bindings
-jointBindings [] bs = bs
-jointBindings (q :: qs) bs = qualityB q :: jointBindings qs bs
 
 public export
 abilityChoiceDelta : {bs : Bindings} -> AbilityAt bs -> List Binding
@@ -347,51 +316,17 @@ JointChoices : {bs : Bindings} -> List QualitySort -> AbilitySeq bs -> Type
 JointChoices qs text = So (jointChoicesOk qs (textChoiceDelta text))
 
 public export
-record JointFace where
-  constructor MkJointFace
-  choices : List QualitySort
-  name : String
-  cost : Maybe ManaCost
-  supers : List Supertype
-  line : TypeLine
-  text : AbilitySeq (jointBindings choices (costLetters cost))
-  box : Maybe PrintedBox
-
-public export
-data FaceLaws : CardFace -> Type where
-  MkFaceLaws : {0 f : CardFace} ->
+data FaceLaws : FaceSide -> CardFace -> Type where
+  MkFaceLaws : {0 side : FaceSide} -> {0 f : CardFace} ->
                {auto 0 ln : CardLine f.line} ->
                {auto 0 sp : CardSupers f.supers} ->
                {auto 0 tx : CardText f.line f.text} ->
                {auto 0 ch : CardChapters f.line f.text} ->
-               {auto 0 bx : CardBox f.line f.text f.box} ->
-               {auto 0 mc : CardCost f.line f.cost} ->
+               {auto 0 bx : CardBox side f.line f.text f.box} ->
+               {auto 0 mc : CardCost side f.line f.cost} ->
                {auto 0 dr : DoorFrame f.text} ->
-               FaceLaws f
-
-public export
-data AltFaceLaws : AltFace -> Type where
-  MkAltFaceLaws : {0 f : AltFace} ->
-                  {auto 0 ln : CardLine f.line} ->
-                  {auto 0 sp : CardSupers f.supers} ->
-                  {auto 0 tx : CardText f.line f.text} ->
-                  {auto 0 ch : CardChapters f.line f.text} ->
-                  {auto 0 bx : AltCardBox f.line f.text f.box} ->
-                  {auto 0 dr : DoorFrame f.text} ->
-                  AltFaceLaws f
-
-public export
-data JointFaceLaws : JointFace -> Type where
-  MkJointFaceLaws : {0 f : JointFace} ->
-                    {auto 0 ln : CardLine f.line} ->
-                    {auto 0 sp : CardSupers f.supers} ->
-                    {auto 0 tx : CardText f.line f.text} ->
-                    {auto 0 ch : CardChapters f.line f.text} ->
-                    {auto 0 bx : CardBox f.line f.text f.box} ->
-                    {auto 0 mc : CardCost f.line f.cost} ->
-                    {auto 0 dr : DoorFrame f.text} ->
-                    {auto 0 jc : JointChoices f.choices f.text} ->
-                    JointFaceLaws f
+               {auto 0 jc : JointChoices f.choices f.text} ->
+               FaceLaws side f
 
 public export
 record SharedLineHalf where
@@ -407,8 +342,8 @@ data SharedLineHalfLaws : (l : TypeLine) -> Maybe PrintedBox ->
                          {0 h : SharedLineHalf} ->
                          {auto 0 tx : CardText l h.text} ->
                          {auto 0 ch : CardChapters l h.text} ->
-                         {auto 0 bx : CardBox l h.text box} ->
-                         {auto 0 mc : CardCost l h.cost} ->
+                         {auto 0 bx : CardBox Front l h.text box} ->
+                         {auto 0 mc : CardCost Front l h.cost} ->
                          SharedLineHalfLaws l box h
 
 public export
@@ -430,22 +365,19 @@ FlipHalf l = So (flipHalfOk l)
 public export
 data Card : Type where
   SingleFaced : (face : CardFace) ->
-                {auto 0 fl : FaceLaws face} -> Card
+                {auto 0 fl : FaceLaws Front face} -> Card
 
-  JointSingleFaced : (face : JointFace) ->
-                     {auto 0 fl : JointFaceLaws face} -> Card
-
-  Transforming : (front : CardFace) -> (back : AltFace) ->
-                 {auto 0 ff : FaceLaws front} ->
-                 {auto 0 bf : AltFaceLaws back} -> Card
+  Transforming : (front : CardFace) -> (back : CardFace) ->
+                 {auto 0 ff : FaceLaws Front front} ->
+                 {auto 0 bf : FaceLaws Back back} -> Card
 
   ModalDfc : (front : CardFace) -> (back : CardFace) ->
-             {auto 0 ff : FaceLaws front} ->
-             {auto 0 bf : FaceLaws back} -> Card
+             {auto 0 ff : FaceLaws Front front} ->
+             {auto 0 bf : FaceLaws Front back} -> Card
 
   SplitCard : (left : CardFace) -> (right : CardFace) ->
-              {auto 0 lf : FaceLaws left} ->
-              {auto 0 rf : FaceLaws right} -> Card
+              {auto 0 lf : FaceLaws Front left} ->
+              {auto 0 rf : FaceLaws Front right} -> Card
 
   SharedLineSplit : (line : TypeLine) -> (supers : List Supertype) ->
                     (box : Maybe PrintedBox) ->
@@ -457,12 +389,12 @@ data Card : Type where
                     {auto 0 rh : SharedLineHalfLaws line box right} -> Card
 
   Adventurer : (normal : CardFace) -> (inset : CardFace) ->
-               {auto 0 nf : FaceLaws normal} ->
-               {auto 0 sf : FaceLaws inset} ->
+               {auto 0 nf : FaceLaws Front normal} ->
+               {auto 0 sf : FaceLaws Front inset} ->
                {auto 0 ai : AdventureInset inset.line} -> Card
 
-  FlipCard : (normal : CardFace) -> (alternative : AltFace) ->
-             {auto 0 nf : FaceLaws normal} ->
-             {auto 0 af : AltFaceLaws alternative} ->
+  FlipCard : (normal : CardFace) -> (alternative : CardFace) ->
+             {auto 0 nf : FaceLaws Front normal} ->
+             {auto 0 af : FaceLaws Back alternative} ->
              {auto 0 nh : FlipHalf normal.line} ->
              {auto 0 ah : FlipHalf alternative.line} -> Card

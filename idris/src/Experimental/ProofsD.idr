@@ -181,7 +181,7 @@ badInstantOntoBattlefield Oh impossible
 ||| "unless"
 public export
 badUnlessOnPositive : Unspellable Ability (\ok =>
-  Static (Conditionally (Exists (And [Macros.artifact, ControlledBy You]))
+  Static (Conditionally (Exists (And [Macros.artifact, HasPossessor ControllerAx You]))
                         (Macros.deontic Macros.thisCreature Forbid ["Attack"] Agent NoDeonticPatient) Unless {mk = ok}))
 badUnlessOnPositive MkMarkingOk impossible
 
@@ -261,8 +261,8 @@ badRemoveFromCombatGraveyard OnField impossible
 public export
 badBlockingGraveyardRelatum : Unspellable (Noun [] Object) (\ok =>
   Macros.target (And [Macros.creature,
-                      BlockerOf (Macros.target (And [Macros.creature,
-                                                     InZone (Macros.graveyardOf You)])) {zn = ok}]))
+                      CombatRel BlockerOf (Macros.target (And [Macros.creature,
+                                                              InZone (Macros.graveyardOf You)])) {ok = ok}]))
 badBlockingGraveyardRelatum Oh impossible
 
 

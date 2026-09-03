@@ -133,7 +133,7 @@ badNonsource Oh impossible
 public export
 badRedirectToGroup : Unspellable (StaticEffect []) (\ok =>
   Redirects AnyDamage Unattributed (Macros.shieldingIt You) CutAll
-            (Macros.youAnd (Macros.allOf (And [Permanent, ControlledBy You]))) Repeatedly {one = ok})
+            (Macros.youAnd (Macros.allOf (And [Permanent, HasPossessor ControllerAx You]))) Repeatedly {one = ok})
 badRedirectToGroup Oh impossible
 
 
@@ -276,7 +276,7 @@ badChosenProtectionBeforeChoice Refl impossible
 public export
 badAscribedQualityBeforeChoice : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
-       [ Static (Becomes (Macros.allOf (And [Macros.creature, ControlledBy You])) Adds (ChosenQuality (OfChosen (SubtypeQ Creature) {ok = ok})))
+       [ Static (Becomes (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You])) Adds (ChosenQuality (OfChosen (SubtypeQ Creature) {ok = ok})))
        , Static (EntersChoice Macros.thisEnchantment (QSort (SubtypeQ Creature)) Nothing Openly) ]
        Nothing)
 badAscribedQualityBeforeChoice Refl impossible
@@ -288,7 +288,7 @@ public export
 badDoubleExtension : Unspellable (StaticEffect []) (\ok =>
   AlsoOffBattlefield
     (AlsoOffBattlefield
-       (Becomes (Macros.allOf (And [Macros.creature, ControlledBy You])) Adds (Bundle (MkToken Nothing [] (MkTypeLine [] [Artifact]) [] Nothing) Nothing))) {nx = ok})
+       (Becomes (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You])) Adds (Bundle (MkToken Nothing [] (MkTypeLine [] [Artifact]) [] Nothing) Nothing))) {nx = ok})
 badDoubleExtension Oh impossible
 
 
@@ -383,7 +383,7 @@ badChapterLimit Oh impossible
 ||| [CR#714.2b]'s expansion already carries the intervening "if" over the lore tally.
 public export
 badChapterIntervening : Unspellable Ability (\ok =>
-  Triggered When (ChapterMark [ChapterI]) [] Nothing [] Nothing Nothing (Just (Exists (And [Macros.creature, ControlledBy You])))
+  Triggered When (ChapterMark [ChapterI]) [] Nothing [] Nothing Nothing (Just (Exists (And [Macros.creature, HasPossessor ControllerAx You])))
     (Macros.draw You (Lit 1)) {cd = ok})
 badChapterIntervening Oh impossible
 
@@ -400,7 +400,7 @@ badActionLimitOnActivated Oh impossible
 public export
 badChapterWhile : Unspellable Ability (\ok =>
   Triggered When (ChapterMark [ChapterI]) []
-    (Just (Macros.whileState (Exists (And [Macros.creature, ControlledBy You]))))
+    (Just (Macros.whileState (Exists (And [Macros.creature, HasPossessor ControllerAx You]))))
     [] Nothing Nothing Nothing
     (Macros.draw You (Lit 1)) {cd = ok})
 badChapterWhile Oh impossible
@@ -435,7 +435,7 @@ badLookAtHandRider Oh impossible
 ||| [CR#205.3m] gives the creature types to creatures and kindreds, so the space demands its own host.
 public export
 badEveryCreatureTypeOnLand : Unspellable (StaticEffect []) (\ok =>
-  Becomes (Macros.allOf (And [Macros.land, ControlledBy You])) Adds (EveryTypeOf CreatureSpace)
+  Becomes (Macros.allOf (And [Macros.land, HasPossessor ControllerAx You])) Adds (EveryTypeOf CreatureSpace)
                 {ok = ok})
 badEveryCreatureTypeOnLand Oh impossible
 
@@ -444,7 +444,7 @@ badEveryCreatureTypeOnLand Oh impossible
 ||| The other direction of the same host gate: nothing here adds the land card type for the subtype to sit on.
 public export
 badEveryBasicLandTypeOnCreature : Unspellable (StaticEffect []) (\ok =>
-  Becomes (Macros.allOf (And [Macros.creature, ControlledBy You])) Adds (EveryTypeOf BasicLandSpace)
+  Becomes (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You])) Adds (EveryTypeOf BasicLandSpace)
                 {ok = ok})
 badEveryBasicLandTypeOnCreature Oh impossible
 
@@ -525,7 +525,7 @@ badDeicticTurnWithoutIntroducer (TurnInScope) impossible
 ||| [CR#500.8] adds a phase to a turn and [CR#500.9] a step to a phase; a turn is neither [CR#500.1].
 public export
 badAdditionalTurn : Unspellable (Effect []) (\ok =>
-  AdditionalPart Turn (Just Combat) (Lit 1) Nothing {ad = ok})
+  AdditionalPart Nothing Turn (Just Combat) (Lit 1) Nothing {ad = ok})
 badAdditionalTurn Oh impossible
 
 

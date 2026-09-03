@@ -29,12 +29,6 @@ mutual
                  {auto 0 rk : DamageRecipient m} -> DamagePatient bs
 
   public export
-  data BlockPartner : {0 bs : Bindings} -> Maybe (Noun bs Object) -> Type where
-    NoPartner : BlockPartner Nothing
-    OnePartner : {0 m : Noun bs Object} ->
-                 {auto 0 zn : ZoneFits (nounZone m) (Just Battlefield)} -> BlockPartner (Just m)
-
-  public export
   data Door : Bindings -> Type where
     ThisDoor : Door bs
     DoorOf : (state : Maybe LockState) -> (room : Noun bs Object) ->
@@ -56,31 +50,21 @@ mutual
   DoorNamesHost {bs} d = So (doorNamesHost d)
 
   public export
-  data CreationVoice : {0 bs : Bindings} -> Maybe Causer ->
-                       Maybe (Noun bs Player) -> Maybe (Noun bs Player) -> Type where
-    CreatedPlain : CreationVoice Nothing Nothing Nothing
-    CreatedBy : {0 w : Noun bs Player} ->
-                {auto 0 bl : Bindingless w} -> CreationVoice Nothing (Just w) Nothing
-    CreatedUnder : {0 u : Noun bs Player} ->
-                   {auto 0 one : nounPlur u = OneOf} ->
-                   {auto 0 bl : Bindingless u} -> CreationVoice Nothing Nothing (Just u)
-    CreatedByUnder : {0 w, u : Noun bs Player} ->
-                     {auto 0 one : nounPlur u = OneOf} ->
-                     {auto 0 bw : Bindingless w} ->
-                     {auto 0 bu : Bindingless u} ->
-                     CreationVoice Nothing (Just w) (Just u)
-    CreatedByCauser : {0 c : Causer} -> {0 u : Noun bs Player} ->
-                      {auto 0 one : nounPlur u = OneOf} ->
-                      {auto 0 bl : Bindingless u} ->
-                      CreationVoice (Just c) Nothing (Just u)
-    CreatedByCauserPlain : {0 c : Causer} ->
-                           CreationVoice (Just c) Nothing Nothing
+  creationVoiceOk : {bs : Bindings} -> Maybe Causer ->
+                    Maybe (Noun bs Player) -> Maybe (Noun bs Player) -> Bool
+  creationVoiceOk cause by under =
+    (case by of
+       Nothing => True
+       Just w => isNil (nounDelta w)) &&
+    (case under of
+       Nothing => True
+       Just u => isOne (nounPlur u) && isNil (nounDelta u)) &&
+    not (isJust cause && isJust by)
 
   public export
-  data CausedBy : {0 bs : Bindings} ->
-                  Maybe Causer -> Maybe (Noun bs Player) -> Type where
-    NotCaused : {0 w : Maybe (Noun bs Player)} -> CausedBy Nothing w
-    CausedByEffect : {0 c : Causer} -> CausedBy (Just c) Nothing
+  causedByOk : {0 bs : Bindings} ->
+               Maybe Causer -> Maybe (Noun bs Player) -> Bool
+  causedByOk cause by = not (isJust cause && isJust by)
 
   public export
   putDestOk : {0 bs : Bindings} -> ZoneExpr bs -> Bool
@@ -144,36 +128,29 @@ mutual
   patientZone (Just n) = nounZone n
 
   public export
-  data VerbPatient : {0 bs : Bindings} -> (v : VerbLabel) ->
-                     Maybe (Noun bs Object) -> Type where
-    ActOnNothing : {auto 0 np : actPatientOf v = Nothing} ->
-                   VerbPatient {bs} v Nothing
-    ActOn : {0 n : Noun bs Object} ->
-            {auto 0 pk : actPatientOf v = Just Object} ->
-            VerbPatient v (Just n)
+  verbPatientOk : {0 bs : Bindings} -> (v : VerbLabel) ->
+                  Maybe (Noun bs Object) -> Bool
+  verbPatientOk v Nothing = isNothing (actPatientOf v)
+  verbPatientOk v (Just _) = actPatientOf v == Just Object
 
   public export
-  data VerbBecomes : {0 bs : Bindings} -> (v : VerbLabel) ->
-                     Maybe (Predicate bs Object) -> Type where
-    BecomesNothing : VerbBecomes {bs} v Nothing
-    BecomesInto : {0 p : Predicate bs Object} ->
-                  {auto 0 iv : So (actIntransitiveOf v)} ->
-                  {auto 0 sy : PredSays p} ->
-                  VerbBecomes v (Just p)
+  verbBecomesOk : {0 bs : Bindings} -> (v : VerbLabel) ->
+                  Maybe (Predicate bs Object) -> Bool
+  verbBecomesOk v Nothing = True
+  verbBecomesOk v (Just p) = actIntransitiveOf v && predSays p
 
   public export
-  data VerbedVoice : {0 bs : Bindings} -> {0 cs : Bindings} ->
-                     (v : VerbLabel) ->
-                     Maybe (Noun bs Player) -> Maybe (Noun cs Object) ->
-                     Type where
-    ActiveAct : {0 w : Noun bs Player} -> {0 p : Maybe (Noun cs Object)} ->
-                VerbedVoice v (Just w) p
-    PassiveAct : {0 p : Noun cs Object} ->
-                 {auto 0 pp : So (actNamesParticiple v)} ->
-                 VerbedVoice v Nothing (Just p)
-    IntransitiveAct : {0 p : Noun cs Object} ->
-                      {auto 0 iv : So (actIntransitiveOf v)} ->
-                      VerbedVoice v Nothing (Just p)
+  verbedVoiceOk : {0 bs : Bindings} -> {0 cs : Bindings} -> (v : VerbLabel) ->
+                  Maybe (Noun bs Player) -> Maybe (Noun cs Object) -> Bool
+  verbedVoiceOk v (Just _) _ = True
+  verbedVoiceOk v Nothing what =
+    isJust what && (actNamesParticiple v || actIntransitiveOf v)
+
+  public export
+  damageSourceZone : DamageKind -> Maybe Zone
+  damageSourceZone AnyDamage = Nothing
+  damageSourceZone CombatOnly = Just Battlefield
+  damageSourceZone NoncombatOnly = Nothing
 
   public export
   data GameEvent : Bindings -> Type where
@@ -200,11 +177,13 @@ mutual
     Blocks : (n : Noun bs Object) ->
              (what : Maybe (Noun (nomIntro n) Object)) ->
              {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-             {auto 0 bp : BlockPartner what} -> GameEvent bs
+             {auto 0 bp : ZoneFits (patientZone what) (Just Battlefield)} ->
+             GameEvent bs
     BecomesBlocked : (n : Noun bs Object) ->
                      (by : Maybe (Noun (nomIntro n) Object)) ->
                      {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                     {auto 0 bp : BlockPartner by} -> GameEvent bs
+                     {auto 0 bp : ZoneFits (patientZone by) (Just Battlefield)} ->
+                     GameEvent bs
     BecomesAttached : {k : Kind} -> (n : Noun bs Object) ->
                       (host : Noun (nomIntro n) k) ->
                       {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
@@ -214,12 +193,10 @@ mutual
                         (host : Noun (nomIntro n) Object) ->
                         {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                         GameEvent bs
-    DealsCombatDamage : {k : Kind} -> (n : Noun bs Object) ->
-                        (to : Noun (nomIntro n) k) ->
-                        {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                        {auto 0 rk : DamageRecipient to} -> GameEvent bs
-    DealsDamage : (n : Noun bs Object) ->
-                  (to : DamagePatient (nomIntro n)) -> GameEvent bs
+    DealsDamage : (kind : DamageKind) -> (n : Noun bs Object) ->
+                  (to : DamagePatient (nomIntro n)) ->
+                  {auto 0 zn : ZoneFits (nounZone n) (damageSourceZone kind)} ->
+                  GameEvent bs
     BeginningOf : (part : TurnPart) -> (whose : HeaderPossessor bs) ->
                   {auto 0 pu : PartTriggerable part whose} ->
                   {auto 0 td : TurnDeixis (possessorWord whose) bs} -> GameEvent bs
@@ -256,13 +233,14 @@ mutual
                    (cause : Maybe Causer) ->
                    {auto 0 kn : CounterKindNamed k kind} ->
                    {auto 0 ag : EventAgent by} ->
-                   {auto 0 cz : CausedBy cause by} -> GameEvent bs
+                   {auto 0 cz : So (causedByOk cause by)} -> GameEvent bs
     TokensCreated : (n : Noun bs Object) ->
                     (cause : Maybe Causer) ->
                     (by : Maybe (Noun bs Player)) ->
                     (under : Maybe (Noun bs Player)) ->
                     {auto 0 tk : TokenPhrase n} ->
-                    {auto 0 vo : CreationVoice cause by under} -> GameEvent bs
+                    {auto 0 vo : So (creationVoiceOk cause by under)} ->
+                    GameEvent bs
     ChapterMark : (ns : List ChapterNumber) ->
                   {auto 0 cm : ChapterMarks ns} -> GameEvent bs
     Activates : (who : Noun bs Player) ->
@@ -276,8 +254,7 @@ mutual
     Regenerates : (n : Noun bs Object) ->
                   {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                   GameEvent bs
-    FlipsCoin : (who : Noun bs Player) -> GameEvent bs
-    FlipEvent : (who : Noun bs Player) -> (call : FlipCall) -> GameEvent bs
+    FlipsCoin : (who : Noun bs Player) -> (call : Maybe FlipCall) -> GameEvent bs
     RollsDice : (who : Noun bs Player) -> (many : DiceBatch) ->
                 (die : RolledDie) -> (res : RollWatch bs) ->
                 {auto 0 dw : So (watchFitsDie die res)} -> GameEvent bs
@@ -292,10 +269,10 @@ mutual
                   (becomes : Maybe (Predicate (agentIntro who) Object)) ->
                   (forMana : Bool) ->
                   {auto 0 kv : KnownAct v} ->
-                  {auto 0 pt : VerbPatient v what} ->
+                  {auto 0 pt : So (verbPatientOk v what)} ->
                   {auto 0 zn : ZoneFits (patientZone what) (actZoneOf v)} ->
-                  {auto 0 vc : VerbedVoice v who what} ->
-                  {auto 0 bc : VerbBecomes v becomes} ->
+                  {auto 0 vc : So (verbedVoiceOk v who what)} ->
+                  {auto 0 bc : So (verbBecomesOk v becomes)} ->
                   {auto 0 fm : So (not forMana || verbForManaOk v)} ->
                   GameEvent bs
     UnlocksDoor : (who : Noun bs Player) -> (door : Door (nomIntro who)) ->
@@ -334,8 +311,8 @@ mutual
   eventName (BecomesBlocked _ _) = BlockedDeclaration
   eventName (BecomesAttached _ _) = Attachment
   eventName (BecomesUnattached _ _) = Unattachment
-  eventName (DealsCombatDamage _ _) = CombatDamage
-  eventName (DealsDamage _ _) = DamageDealing
+  eventName (DealsDamage CombatOnly _ _) = CombatDamage
+  eventName (DealsDamage _ _ _) = DamageDealing
   eventName (BeginningOf _ _) = PartBeginning
   eventName (Casts _ _ _) = SpellCast
   eventName (BecomesTarget _ _) = BecomesTarget
@@ -350,8 +327,8 @@ mutual
   eventName (Activates _ _) = AbilityActivation
   eventName (StatBecomes _ _ _) = StatValueChange
   eventName (Regenerates _) = Regeneration
-  eventName (FlipsCoin _) = CoinFlip
-  eventName (FlipEvent _ call) = flipEventName call
+  eventName (FlipsCoin _ Nothing) = CoinFlip
+  eventName (FlipsCoin _ (Just call)) = flipEventName call
   eventName (RollsDice _ _ _ _) = DiceRoll
   eventName (PaysCost _ out _ _) = paymentEventName out
   eventName (PaysLife _) = LifePayment
@@ -379,9 +356,9 @@ mutual
   eventIntro (BecomesBlocked _ (Just by)) = selfSubjIntro by
   eventIntro (BecomesAttached _ host) = selfSubjIntro host
   eventIntro (BecomesUnattached _ host) = selfSubjIntro host
-  eventIntro (DealsCombatDamage n to) = outcomeB DamageDealt :: selfSubjIntro to
-  eventIntro (DealsDamage n NoPatient) = outcomeB DamageDealt :: selfSubjIntro n
-  eventIntro (DealsDamage _ (OnePatient m)) = outcomeB DamageDealt :: selfSubjIntro m
+  eventIntro (DealsDamage _ n NoPatient) = outcomeB DamageDealt :: selfSubjIntro n
+  eventIntro (DealsDamage _ _ (OnePatient m)) =
+    outcomeB DamageDealt :: selfSubjIntro m
   eventIntro (BeginningOf _ _) = bs
   eventIntro (Casts _ what _) = selfSubjIntro what
   eventIntro (BecomesTarget _ by) = selfSubjIntro by
@@ -398,8 +375,7 @@ mutual
   eventIntro (Activates _ what) = selfSubjIntro what
   eventIntro (StatBecomes _ _ v) = amtIntro v
   eventIntro (Regenerates n) = selfSubjIntro n
-  eventIntro (FlipsCoin who) = selfSubjIntro who
-  eventIntro (FlipEvent who _) = selfSubjIntro who
+  eventIntro (FlipsCoin who _) = selfSubjIntro who
   eventIntro (RollsDice who OneDie _ _) = selfSubjIntro who
   eventIntro (RollsDice who ManyDice _ _) = outcomeB DiceRolled :: selfSubjIntro who
   eventIntro (PaysCost _ _ whose _) = selfSubjIntro whose
@@ -432,9 +408,8 @@ mutual
   eventAfter (BecomesBlocked _ (Just by)) = nomIntro by
   eventAfter (BecomesAttached _ host) = nomIntro host
   eventAfter (BecomesUnattached _ host) = nomIntro host
-  eventAfter (DealsCombatDamage n to) = outcomeB DamageDealt :: nomIntro to
-  eventAfter (DealsDamage n NoPatient) = outcomeB DamageDealt :: selfSubjIntro n
-  eventAfter (DealsDamage _ (OnePatient m)) = outcomeB DamageDealt :: nomIntro m
+  eventAfter (DealsDamage _ n NoPatient) = outcomeB DamageDealt :: selfSubjIntro n
+  eventAfter (DealsDamage _ _ (OnePatient m)) = outcomeB DamageDealt :: nomIntro m
   eventAfter (Casts _ what _) = nomIntro what
   eventAfter (BecomesTarget n by) = nounDelta by ++ selfSubjIntro n
   eventAfter (BeginningOf _ whose) = possessorIntro whose
@@ -451,8 +426,8 @@ mutual
   eventAfter (Activates _ what) = nomIntro what
   eventAfter (StatBecomes n _ v) = amtDelta v ++ selfSubjIntro n
   eventAfter (Regenerates n) = selfSubjIntro n
-  eventAfter (FlipsCoin who) = outcomeB CoinFlipped :: nomIntro who
-  eventAfter (FlipEvent who _) = nomIntro who
+  eventAfter (FlipsCoin who Nothing) = outcomeB CoinFlipped :: nomIntro who
+  eventAfter (FlipsCoin who (Just _)) = nomIntro who
   eventAfter (RollsDice who _ PlanarDie _) = outcomeB PlanarRolled :: nomIntro who
   eventAfter (RollsDice who _ _ _) = outcomeB RollResult :: nomIntro who
   eventAfter (PaysCost _ _ whose _) = nomIntro whose
@@ -483,8 +458,7 @@ mutual
   eventSubjectPlur (BecomesBlocked n _) = nounPlur n
   eventSubjectPlur (BecomesAttached n _) = nounPlur n
   eventSubjectPlur (BecomesUnattached n _) = nounPlur n
-  eventSubjectPlur (DealsCombatDamage n _) = nounPlur n
-  eventSubjectPlur (DealsDamage n _) = nounPlur n
+  eventSubjectPlur (DealsDamage _ n _) = nounPlur n
   eventSubjectPlur (BeginningOf _ _) = OneOf
   eventSubjectPlur (Casts _ what _) = nounPlur what
   eventSubjectPlur (BecomesTarget n _) = nounPlur n
@@ -499,8 +473,7 @@ mutual
   eventSubjectPlur (Activates who _) = nounPlur who
   eventSubjectPlur (StatBecomes n _ _) = nounPlur n
   eventSubjectPlur (Regenerates n) = nounPlur n
-  eventSubjectPlur (FlipsCoin who) = nounPlur who
-  eventSubjectPlur (FlipEvent who _) = nounPlur who
+  eventSubjectPlur (FlipsCoin who _) = nounPlur who
   eventSubjectPlur (RollsDice who _ _ _) = nounPlur who
   eventSubjectPlur (PaysCost (Just who) _ _ _) = nounPlur who
   eventSubjectPlur (PaysCost Nothing _ _ _) = OneOf

@@ -315,8 +315,7 @@ public export
 badCausedCounterWithAgent : Unspellable (GameEvent []) (\ok =>
   CounterEvent CounterPut (Just Macros.plusOnePlusOne)
                (Macros.a Macros.creatureYouControl) ManyCounters (Just You) (Just AnEffect) {cz = ok})
-badCausedCounterWithAgent NotCaused impossible
-badCausedCounterWithAgent CausedByEffect impossible
+badCausedCounterWithAgent Oh impossible
 
 
 ||| "Destroy target creature. Create two of those tokens."

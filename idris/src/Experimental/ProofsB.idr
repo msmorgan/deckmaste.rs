@@ -38,7 +38,7 @@ badDiscardIt DiscardTracked impossible
 ||| A controller relation admits only the battlefield and the stack [CR#109.4], not a graveyard.
 public export
 badControlledInGraveyard : Unspellable (Predicate [] Object) (\ok =>
-  And [Macros.creature, ControlledBy You, InZone Macros.graveyardZ] {zc = ok})
+  And [Macros.creature, HasPossessor ControllerAx You, InZone Macros.graveyardZ] {zc = ok})
 badControlledInGraveyard Oh impossible
 
 
@@ -179,7 +179,7 @@ badPartialZoneJoin Oh impossible
 ||| The same repetition spelled with a modifier: member equality looks inside the conjunction too.
 public export
 badRepeatedStructuredDisjunct : Unspellable (Predicate [] Object) (\ok =>
-  Or [And [Macros.creature, ControlledBy You], And [Macros.creature, ControlledBy You]] {dd = ok})
+  Or [And [Macros.creature, HasPossessor ControllerAx You], And [Macros.creature, HasPossessor ControllerAx You]] {dd = ok})
 badRepeatedStructuredDisjunct Oh impossible
 
 

@@ -1113,11 +1113,10 @@ mutual
              (by : Maybe (Noun bs Player)) -> (disc : Disclosure) ->
              {auto 0 ch : ChoiceClause by n} -> Effect bs
     ChoicesRevealed : (s : HiddenSort) -> Effect bs
-    Vote : (voters : Noun bs Player) -> (disc : Disclosure) ->
+    Vote : (first : Maybe (Noun bs Player)) ->
+           (voters : Noun (agentIntro first) Player) ->
+           (disc : Disclosure) ->
            (ballot : Ballot (nomIntro voters)) -> Effect bs
-    VoteStarting : (first : Noun bs Player) ->
-                   (voters : Noun (nomIntro first) Player) ->
-                   (ballot : Ballot (nomIntro voters)) -> Effect bs
     Move : (what : Noun bs Object) -> (to : ZoneExpr (nomIntro what)) ->
            (riders : List (TokenRider (nomIntro what))) ->
            {auto 0 ok : DestOk to} ->
@@ -1171,14 +1170,11 @@ mutual
                    {auto 0 ok : countOutcomes RollResult bs = 1} -> Effect bs
     IgnoreOutcomes : (which : IgnoredOutcomes bs) ->
                      {auto 0 ok : So (ignorableFor which)} -> Effect bs
-    ShiftResult : (amt : Amount bs) ->
+    ShiftResult : (dir : Maybe ShiftDir) -> (amt : Amount bs) ->
                   {auto 0 ok : countOutcomes RollResult bs = 1} -> Effect bs
-    ShiftResultOneWay : (rises : Bool) -> (amt : Amount bs) ->
-                        {auto 0 ok : countOutcomes RollResult bs = 1} -> Effect bs
     RollPlanarDie : (who : Noun bs Player) ->
                     (count : Amount (nomIntro who)) -> Effect bs
-    ChaosEnsues : Effect bs
-    ChaosEnsuesFor : (what : Noun bs Object) -> Effect bs
+    ChaosEnsues : (what : Maybe (Noun bs Object)) -> Effect bs
     StoreResults : (on : Noun bs Object) ->
                    {auto 0 one : nounPlur on = OneOf} ->
                    {auto 0 ok : countOutcomes RollResult bs = 1} -> Effect bs
@@ -1240,10 +1236,6 @@ mutual
     Does : (subj : Noun bs Player) -> (v : VerbLabel) ->
            (e : Effect (agentIntro subj)) ->
            {auto 0 kn : KnownAct v} -> Effect bs
-    DoesGroup : (subj : Noun bs Player) -> (v : VerbLabel) ->
-                (e : Effect (agentIntro subj)) ->
-                {auto 0 pl : nounPlur subj = ManyOf} ->
-                {auto 0 kn : KnownAct v} -> Effect bs
     ControllerSacrifices : (n : Noun bs Object) ->
                            {auto 0 one : nounPlur n = OneOf} ->
                            {auto 0 zn : OnBattlefield (nounZone n)} -> Effect bs
@@ -1316,18 +1308,13 @@ mutual
     SkipsAllOf : (who : Noun bs Player) -> (part : TurnPart) ->
                  {auto 0 ad : AddedPart part} -> Effect bs
     ExtraTurn : (who : Noun bs Player) -> (count : Amount bs) -> Effect bs
-    AdditionalPart : (part : TurnPart) -> (anchor : Maybe TurnPart) ->
+    AdditionalPart : (who : Maybe (Noun bs Player)) -> (part : TurnPart) ->
+                     (anchor : Maybe TurnPart) ->
                      (count : Amount bs) ->
                      (followedBy : Maybe TurnPart) ->
                      {auto 0 ad : AddedPart part} ->
                      {auto 0 an : AddedPartWritten anchor} ->
                      {auto 0 fb : AddedPartWritten followedBy} -> Effect bs
-    GetsAdditionalPart : (who : Noun bs Player) -> (part : TurnPart) ->
-                         (count : Amount bs) ->
-                         {auto 0 ad : AddedPart part} -> Effect bs
-    GetsAdditionalPartAfter : (who : Noun bs Player) -> (part : TurnPart) ->
-                              (count : Amount bs) -> (anchor : TurnPart) ->
-                              {auto 0 ad : AddedPart part} -> Effect bs
 
   public export
   heldUntilOk : {0 bs : Bindings} -> Effect bs -> Bool
@@ -1336,9 +1323,7 @@ mutual
   heldUntilOk (DoesntUntapNext _ _) = False
   heldUntilOk (SkipsNext _ _ _) = False
   heldUntilOk (ExtraTurn _ _) = False
-  heldUntilOk (AdditionalPart _ _ _ _) = False
-  heldUntilOk (GetsAdditionalPart _ _ _) = False
-  heldUntilOk (GetsAdditionalPartAfter _ _ _ _) = False
+  heldUntilOk (AdditionalPart _ _ _ _ _) = False
   heldUntilOk (SkipsAllOf _ _) = False
   heldUntilOk (Distribute _ _ _) = False
   heldUntilOk (Fights _ _) = False
@@ -1368,8 +1353,7 @@ mutual
   heldUntilOk (CopyCard _ _ _) = False
   heldUntilOk (Choose _ _ _) = False
   heldUntilOk (ChoicesRevealed _) = False
-  heldUntilOk (Vote _ _ _) = False
-  heldUntilOk (VoteStarting _ _ _) = False
+  heldUntilOk (Vote _ _ _ _) = False
   heldUntilOk (Move _ _ _) = True
   heldUntilOk (ExchangeLife _) = False
   heldUntilOk (ChangeLife _ _) = False
@@ -1382,11 +1366,9 @@ mutual
   heldUntilOk (RollDice _ _ _) = False
   heldUntilOk (ResultsTable _) = False
   heldUntilOk (IgnoreOutcomes _) = False
-  heldUntilOk (ShiftResult _) = False
-  heldUntilOk (ShiftResultOneWay _ _) = False
+  heldUntilOk (ShiftResult _ _) = False
   heldUntilOk (RollPlanarDie _ _) = False
-  heldUntilOk ChaosEnsues = False
-  heldUntilOk (ChaosEnsuesFor _) = False
+  heldUntilOk (ChaosEnsues _) = False
   heldUntilOk (StoreResults _) = False
   heldUntilOk (RerollStored _ _ _) = False
   heldUntilOk (Continuously _ _) = False
@@ -1401,7 +1383,6 @@ mutual
   heldUntilOk (Enact _ (Move _ _ _)) = True
   heldUntilOk (Enact _ _) = False
   heldUntilOk (Does _ _ _) = False
-  heldUntilOk (DoesGroup _ _ _) = False
   heldUntilOk (Pay _ _ _) = False
   heldUntilOk (May _ _ _ _) = False
   heldUntilOk (IfDone _ _ _) = False
@@ -1440,9 +1421,8 @@ mutual
   reflexEncloseUse (DoesntUntapNext _ _) = EncAgentless
   reflexEncloseUse (SkipsNext _ _ _) = EncNotYetTaken
   reflexEncloseUse (ExtraTurn _ _) = EncNotYetTaken
-  reflexEncloseUse (AdditionalPart _ _ _ _) = EncAgentless
-  reflexEncloseUse (GetsAdditionalPart _ _ _) = EncNotYetTaken
-  reflexEncloseUse (GetsAdditionalPartAfter _ _ _ _) = EncNotYetTaken
+  reflexEncloseUse (AdditionalPart Nothing _ _ _ _) = EncAgentless
+  reflexEncloseUse (AdditionalPart (Just _) _ _ _ _) = EncNotYetTaken
   reflexEncloseUse (SkipsAllOf _ _) = EncNotYetTaken
   reflexEncloseUse (Distribute _ _ _) = EncAgentless
   reflexEncloseUse (Fights _ _) = EncAgentless
@@ -1453,7 +1433,6 @@ mutual
   reflexEncloseUse (Throughout _ (GainsControl _ _)) = EncReflexive
   reflexEncloseUse (Throughout _ _) = EncAgentless
   reflexEncloseUse (Does _ _ _) = EncReflexive
-  reflexEncloseUse (DoesGroup _ _ _) = EncReflexive
   reflexEncloseUse (Pay _ _ _) = EncReflexive      -- 66, all of them offered
   reflexEncloseUse (Enact _ _) = EncReflexive
   reflexEncloseUse (TurnOver _) = EncAgentless
@@ -1492,19 +1471,16 @@ mutual
   reflexEncloseUse (Draw _ _) = EncReflexive       -- 1 ([CR#121.1]: a PLAYER draws)
   reflexEncloseUse (Choose _ _ _) = EncReflexive       -- 1
   reflexEncloseUse (ChoicesRevealed _) = EncAgentless
-  reflexEncloseUse (Vote _ _ _) = EncReflexive
-  reflexEncloseUse (VoteStarting _ _ _) = EncReflexive
+  reflexEncloseUse (Vote _ _ _ _) = EncReflexive
   reflexEncloseUse (Search _ _ _ _) = EncReflexive
   reflexEncloseUse (Shuffle _) = EncReflexive
   reflexEncloseUse (FlipCoins _ _) = EncReflexive
   reflexEncloseUse (RollDice _ _ _) = EncReflexive
   reflexEncloseUse (ResultsTable _) = EncNotOneAction
   reflexEncloseUse (IgnoreOutcomes _) = EncAgentless
-  reflexEncloseUse (ShiftResult _) = EncAgentless
-  reflexEncloseUse (ShiftResultOneWay _ _) = EncAgentless
+  reflexEncloseUse (ShiftResult _ _) = EncAgentless
   reflexEncloseUse (RollPlanarDie _ _) = EncReflexive
-  reflexEncloseUse ChaosEnsues = EncAgentless
-  reflexEncloseUse (ChaosEnsuesFor _) = EncAgentless
+  reflexEncloseUse (ChaosEnsues _) = EncAgentless
   reflexEncloseUse (StoreResults _) = EncAgentless
   reflexEncloseUse (RerollStored _ _ _) = EncReflexive
   reflexEncloseUse (May _ body Nothing _) = reflexEncloseUse body
@@ -1549,9 +1525,7 @@ mutual
   thisWayOutcomeOk (DoesntUntapNext _ _) = True
   thisWayOutcomeOk (SkipsNext _ _ _) = True
   thisWayOutcomeOk (ExtraTurn _ _) = True
-  thisWayOutcomeOk (AdditionalPart _ _ _ _) = True
-  thisWayOutcomeOk (GetsAdditionalPart _ _ _) = True
-  thisWayOutcomeOk (GetsAdditionalPartAfter _ _ _ _) = True
+  thisWayOutcomeOk (AdditionalPart _ _ _ _ _) = True
   thisWayOutcomeOk (SkipsAllOf _ _) = True
   thisWayOutcomeOk (HeldUntil _ _) = True
   thisWayOutcomeOk (DealDamage _ _ _) = True
@@ -1583,8 +1557,7 @@ mutual
   thisWayOutcomeOk (CopyCard _ _ _) = True
   thisWayOutcomeOk (Choose _ _ _) = True
   thisWayOutcomeOk (ChoicesRevealed _) = True
-  thisWayOutcomeOk (Vote _ _ _) = True
-  thisWayOutcomeOk (VoteStarting _ _ _) = True
+  thisWayOutcomeOk (Vote _ _ _ _) = True
   thisWayOutcomeOk (Move _ _ _) = True
   thisWayOutcomeOk (ExchangeLife _) = True
   thisWayOutcomeOk (ChangeLife _ _) = True
@@ -1597,11 +1570,9 @@ mutual
   thisWayOutcomeOk (RollDice _ _ _) = True
   thisWayOutcomeOk (ResultsTable _) = True
   thisWayOutcomeOk (IgnoreOutcomes _) = True
-  thisWayOutcomeOk (ShiftResult _) = True
-  thisWayOutcomeOk (ShiftResultOneWay _ _) = True
+  thisWayOutcomeOk (ShiftResult _ _) = True
   thisWayOutcomeOk (RollPlanarDie _ _) = True
-  thisWayOutcomeOk ChaosEnsues = True
-  thisWayOutcomeOk (ChaosEnsuesFor _) = True
+  thisWayOutcomeOk (ChaosEnsues _) = True
   thisWayOutcomeOk (StoreResults _) = True
   thisWayOutcomeOk (RerollStored _ _ _) = True
   thisWayOutcomeOk (Continuously _ _) = True
@@ -1615,7 +1586,6 @@ mutual
   thisWayOutcomeOk (DoubleCounters _) = True
   thisWayOutcomeOk (Enact _ _) = True
   thisWayOutcomeOk (Does _ _ _) = True
-  thisWayOutcomeOk (DoesGroup _ _ _) = True
   thisWayOutcomeOk (Pay _ _ _) = True
   thisWayOutcomeOk (OnlyIf _ _ _) = True
   thisWayOutcomeOk (If _ _ _) = True
@@ -1659,9 +1629,8 @@ mutual
   costActionOk (DoesntUntapNext n _) = costNounOk n
   costActionOk (SkipsNext _ _ _) = False
   costActionOk (ExtraTurn who _) = costNounOk who
-  costActionOk (AdditionalPart _ _ _ _) = True
-  costActionOk (GetsAdditionalPart who _ _) = costNounOk who
-  costActionOk (GetsAdditionalPartAfter who _ _ _) = costNounOk who
+  costActionOk (AdditionalPart Nothing _ _ _ _) = True
+  costActionOk (AdditionalPart (Just who) _ _ _ _) = costNounOk who
   costActionOk (SkipsAllOf _ _) = False
   costActionOk (Distribute _ _ among) = costNounOk among
   costActionOk (Fights a _) = costNounOk a
@@ -1691,8 +1660,7 @@ mutual
   costActionOk (CopyCard _ what _) = costNounOk what
   costActionOk (Choose n _ _) = costNounOk n
   costActionOk (ChoicesRevealed _) = False
-  costActionOk (Vote _ _ _) = False
-  costActionOk (VoteStarting _ _ _) = False
+  costActionOk (Vote _ _ _ _) = False
   costActionOk (Move what _ _) = costNounOk what
   costActionOk (ExchangeLife parties) = costNounOk parties
   costActionOk (ChangeLife _ _) = True
@@ -1705,12 +1673,10 @@ mutual
   costActionOk (RollDice who _ _) = costNounOk who
   costActionOk (ResultsTable _) = False
   costActionOk (IgnoreOutcomes _) = False
-  costActionOk (ShiftResult _) = False
-  costActionOk (ShiftResultOneWay _ _) = False
+  costActionOk (ShiftResult _ _) = False
   costActionOk (StoreResults _) = False
   costActionOk (RollPlanarDie who _) = costNounOk who
-  costActionOk ChaosEnsues = False
-  costActionOk (ChaosEnsuesFor _) = False
+  costActionOk (ChaosEnsues _) = False
   costActionOk (RerollStored who _ _) = costNounOk who
   costActionOk (Continuously _ _) = False
   costActionOk (Throughout _ _) = False
@@ -1723,7 +1689,6 @@ mutual
   costActionOk (DoubleCounters on) = costNounOk on
   costActionOk (Enact _ e) = costActionOk e
   costActionOk (Does _ _ e) = costActionOk e
-  costActionOk (DoesGroup _ _ e) = costActionOk e
   costActionOk (Pay _ _ _) = False
   costActionOk (May _ body ifDid ifNot) =
     costActionOk body && costActionOkOpt ifDid && costActionOkOpt ifNot
@@ -1789,13 +1754,11 @@ mutual
   effEq (SkipsNext _ _ _) _ = False
   effEq (ExtraTurn w c) (ExtraTurn x d) = nounEqRef w x && boundEq c d
   effEq (ExtraTurn _ _) _ = False
-  effEq (AdditionalPart p a c _) (AdditionalPart q b d _) =
+  effEq (AdditionalPart Nothing p a c _) (AdditionalPart Nothing q b d _) =
     p == q && a == b && boundEq c d
-  effEq (AdditionalPart _ _ _ _) _ = False
-  effEq (GetsAdditionalPart w p c) (GetsAdditionalPart x q d) =
-    nounEqRef w x && p == q && boundEq c d
-  effEq (GetsAdditionalPart _ _ _) _ = False
-  effEq (GetsAdditionalPartAfter _ _ _ _) _ = False
+  effEq (AdditionalPart (Just w) p a c _) (AdditionalPart (Just x) q b d _) =
+    nounEqRef w x && p == q && a == b && boundEq c d
+  effEq (AdditionalPart _ _ _ _ _) _ = False
   effEq (SkipsAllOf w p) (SkipsAllOf x q) = nounEqRef w x && p == q
   effEq (SkipsAllOf _ _) _ = False
   effEq (Distribute _ _ _) _ = False
@@ -1839,8 +1802,7 @@ mutual
   effEq (Choose _ _ _) _ = False
   effEq (ChoicesRevealed a) (ChoicesRevealed b) = a == b
   effEq (ChoicesRevealed _) _ = False
-  effEq (Vote _ _ _) _ = False
-  effEq (VoteStarting _ _ _) _ = False
+  effEq (Vote _ _ _ _) _ = False
   effEq (Move a s _) (Move b t _) = nounEqRef a b && zoneSort s == zoneSort t
   effEq (Move _ _ _) _ = False
   effEq (ExchangeLife a) (ExchangeLife b) = nounEqRef a b
@@ -1856,11 +1818,9 @@ mutual
   effEq (RollDice _ _ _) _ = False
   effEq (ResultsTable _) _ = False
   effEq (IgnoreOutcomes _) _ = False
-  effEq (ShiftResult _) _ = False
-  effEq (ShiftResultOneWay _ _) _ = False
+  effEq (ShiftResult _ _) _ = False
   effEq (RollPlanarDie _ _) _ = False
-  effEq ChaosEnsues _ = False
-  effEq (ChaosEnsuesFor _) _ = False
+  effEq (ChaosEnsues _) _ = False
   effEq (StoreResults _) _ = False
   effEq (RerollStored _ _ _) _ = False
   effEq (Continuously _ _) _ = False
@@ -1877,7 +1837,6 @@ mutual
   effEq (Enact v e) (Enact w f) = v == w && effEq e f
   effEq (Enact _ _) _ = False
   effEq (Does _ _ _) _ = False
-  effEq (DoesGroup _ _ _) _ = False
   effEq (Pay _ _ _) _ = False
   effEq (May _ _ _ _) _ = False
   effEq (IfDone _ _ _) _ = False
@@ -1937,9 +1896,7 @@ mutual
   effIntro (DoesntUntapNext n steps) = amtDelta steps ++ nomIntro n
   effIntro (SkipsNext w _ count) = amtDelta count ++ nomIntro w
   effIntro (ExtraTurn w count) = turnRefB :: (amtDelta count ++ nomIntro w)
-  effIntro (AdditionalPart _ _ count _) = amtDelta count ++ bs
-  effIntro (GetsAdditionalPart w _ count) = amtDelta count ++ nomIntro w
-  effIntro (GetsAdditionalPartAfter w _ count _) = amtDelta count ++ nomIntro w
+  effIntro (AdditionalPart who _ _ count _) = amtDelta count ++ agentIntro who
   effIntro (SkipsAllOf w _) = nomIntro w
   effIntro (LosesCounters who _ amt) = optAmtIntro amt
   effIntro (RemoveFromCombat n) = nomIntro n
@@ -1975,8 +1932,7 @@ mutual
   effIntro (Choose n Nothing _) = chosenIntro n
   effIntro (Choose n (Just b) _) = nounDelta b ++ chosenIntro n
   effIntro (ChoicesRevealed _) = bs
-  effIntro (Vote _ _ _) = bs
-  effIntro (VoteStarting _ _ _) = bs
+  effIntro (Vote _ _ _ _) = bs
   effIntro (Move what to _) =
     afterMoveTo to (moveIntro Nothing what (Just (zoneSort to)))
   effIntro (ExchangeLife parties) =
@@ -1997,11 +1953,10 @@ mutual
   effIntro (RollDice who count _) = outcomeB RollResult :: amtIntro count
   effIntro (ResultsTable rows) = bs
   effIntro (IgnoreOutcomes which) = ignoredOutcomesIntro which
-  effIntro (ShiftResult amt) = amtIntro amt
-  effIntro (ShiftResultOneWay _ amt) = amtIntro amt
+  effIntro (ShiftResult _ amt) = amtIntro amt
   effIntro (RollPlanarDie who count) = outcomeB PlanarRolled :: amtIntro count
-  effIntro ChaosEnsues = bs
-  effIntro (ChaosEnsuesFor what) = nomIntro what
+  effIntro (ChaosEnsues Nothing) = bs
+  effIntro (ChaosEnsues (Just what)) = nomIntro what
   effIntro (StoreResults on) = nomIntro on
   effIntro (RerollStored _ _ whose) = nomIntro whose
   effIntro (Continuously se _) = staticIntro se
@@ -2022,11 +1977,7 @@ mutual
     afterMoveTo to (moveIntro (Just v) what (Just (zoneSort to)))
   effIntro (Enact v (SetStatus _ n)) = stampIntro (Just v) n
   effIntro (Enact _ e) = effIntro e
-  effIntro (Does s v (Move what to _)) =
-    afterMoveTo to (moveIntro (Just v) what (Just (zoneSort to)))
-  effIntro (Does s v (SetStatus _ n)) = stampIntro (Just v) n
-  effIntro (Does s v e) = effIntro e
-  effIntro (DoesGroup s v e) = deedDelta e ++ nomIntro s
+  effIntro (Does s v e) = doesEffIntro (nounPlur s) s v e
   effIntro (Pay who c PaidOnce) = costIntro c
   effIntro (Pay who c AnyNumberOfTimes) = outcomeB RepeatCount :: costIntro c
   effIntro (Pay who c (UpToTimes _)) = outcomeB RepeatCount :: costIntro c
@@ -2051,6 +2002,15 @@ mutual
   effIntro (HeldUntil e ev) = annIntro e
 
   public export
+  doesEffIntro : {bs : Bindings} -> Plurality -> (s : Noun bs Player) ->
+                 (v : VerbLabel) -> Effect (agentIntro s) -> Bindings
+  doesEffIntro ManyOf s v e = deedDelta e ++ nomIntro s
+  doesEffIntro OneOf s v (Move what to _) =
+    afterMoveTo to (moveIntro (Just v) what (Just (zoneSort to)))
+  doesEffIntro OneOf s v (SetStatus _ n) = stampIntro (Just v) n
+  doesEffIntro OneOf s v e = effIntro e
+
+  public export
   preIntro : {bs : Bindings} -> Effect bs -> Bindings
   preIntro (DealDamage src amt to) = nomIntro to
   preIntro (ControllerSacrifices n) = MkBinding TheD Player OneOf PlayerP :: selfSubjIntro n
@@ -2061,9 +2021,7 @@ mutual
   preIntro (DoesntUntapNext n steps) = amtDelta steps ++ nomIntro n
   preIntro (SkipsNext w _ count) = amtDelta count ++ nomIntro w
   preIntro (ExtraTurn w count) = amtDelta count ++ nomIntro w
-  preIntro (AdditionalPart _ _ count _) = amtDelta count ++ bs
-  preIntro (GetsAdditionalPart w _ count) = amtDelta count ++ nomIntro w
-  preIntro (GetsAdditionalPartAfter w _ count _) = amtDelta count ++ nomIntro w
+  preIntro (AdditionalPart who _ _ count _) = amtDelta count ++ agentIntro who
   preIntro (SkipsAllOf w _) = nomIntro w
   preIntro (LosesCounters who _ amt) = optAmtIntro amt
   preIntro (RemoveFromCombat n) = nomIntro n
@@ -2089,8 +2047,7 @@ mutual
   preIntro (CopyCard who what times) = amtIntro times
   preIntro (Choose n _ _) = chosenIntro n
   preIntro (ChoicesRevealed _) = bs
-  preIntro (Vote _ _ _) = bs
-  preIntro (VoteStarting _ _ _) = bs
+  preIntro (Vote _ _ _ _) = bs
   preIntro (Move what to _) = nomIntro what
   preIntro (ExchangeLife parties) = nomIntro parties
   preIntro (ChangeLife who (Up a)) = lifeIntro (Up a)
@@ -2106,11 +2063,10 @@ mutual
   preIntro (RollDice who count _) = amtIntro count
   preIntro (ResultsTable rows) = bs
   preIntro (IgnoreOutcomes which) = ignoredOutcomesIntro which
-  preIntro (ShiftResult amt) = amtIntro amt
-  preIntro (ShiftResultOneWay _ amt) = amtIntro amt
+  preIntro (ShiftResult _ amt) = amtIntro amt
   preIntro (RollPlanarDie who count) = amtIntro count
-  preIntro ChaosEnsues = bs
-  preIntro (ChaosEnsuesFor what) = nomIntro what
+  preIntro (ChaosEnsues Nothing) = bs
+  preIntro (ChaosEnsues (Just what)) = nomIntro what
   preIntro (StoreResults on) = nomIntro on
   preIntro (RerollStored _ _ whose) = nomIntro whose
   preIntro (Continuously se _) = staticIntro se
@@ -2124,9 +2080,7 @@ mutual
   preIntro (DoubleCounters on) = nomIntro on
   preIntro (Enact v (Move what to _)) = nomIntro what
   preIntro (Enact _ e) = preIntro e
-  preIntro (Does s v (Move what to _)) = nomIntro what
-  preIntro (Does s v e) = preIntro e
-  preIntro (DoesGroup s v e) = nomIntro s
+  preIntro (Does s v e) = doesPreIntro (nounPlur s) s v e
   preIntro (Pay who c _) = nomIntro who
   preIntro (May d body did notd) = mayIntro body did notd
   preIntro (IfDone body did notd) = mayIntro body did notd
@@ -2148,11 +2102,17 @@ mutual
   preIntro (HeldUntil e ev) = annIntro e
 
   public export
+  doesPreIntro : {bs : Bindings} -> Plurality -> (s : Noun bs Player) ->
+                 (v : VerbLabel) -> Effect (agentIntro s) -> Bindings
+  doesPreIntro ManyOf s v e = nomIntro s
+  doesPreIntro OneOf s v (Move what to _) = nomIntro what
+  doesPreIntro OneOf s v e = preIntro e
+
+  public export
   riderIntro : {bs : Bindings} -> Effect bs -> Bindings
   riderIntro (Enact v (Move what to _)) = stampIntro (Just v) what
-  riderIntro (Does s v (Move what to _)) = stampIntro (Just v) what
   riderIntro (Enact _ e) = riderIntro e
-  riderIntro (Does _ _ e) = riderIntro e
+  riderIntro (Does s v e) = doesRiderIntro (nounPlur s) s v e
   riderIntro (CantBe e _ _) = riderIntro e
   riderIntro (Reflexively body _) = riderIntro body
   riderIntro (ThisWay body _ _) = riderIntro body
@@ -2166,6 +2126,13 @@ mutual
   riderIntros (e :: es) = riderIntros es
 
   public export
+  doesRiderIntro : {bs : Bindings} -> Plurality -> (s : Noun bs Player) ->
+                   (v : VerbLabel) -> Effect (agentIntro s) -> Bindings
+  doesRiderIntro ManyOf s v e = nomIntro s
+  doesRiderIntro OneOf s v (Move what to _) = stampIntro (Just v) what
+  doesRiderIntro OneOf s v e = riderIntro e
+
+  public export
   annIntro : {bs : Bindings} -> Effect bs -> Bindings
   annIntro (DealDamage src amt to) = nomIntro to
   annIntro (ControllerSacrifices n) = MkBinding TheD Player OneOf PlayerP :: selfSubjIntro n
@@ -2176,9 +2143,7 @@ mutual
   annIntro (DoesntUntapNext n steps) = amtDelta steps ++ nomIntro n
   annIntro (SkipsNext w _ count) = amtDelta count ++ nomIntro w
   annIntro (ExtraTurn w count) = turnRefB :: (amtDelta count ++ nomIntro w)
-  annIntro (AdditionalPart _ _ count _) = amtDelta count ++ bs
-  annIntro (GetsAdditionalPart w _ count) = amtDelta count ++ nomIntro w
-  annIntro (GetsAdditionalPartAfter w _ count _) = amtDelta count ++ nomIntro w
+  annIntro (AdditionalPart who _ _ count _) = amtDelta count ++ agentIntro who
   annIntro (SkipsAllOf w _) = nomIntro w
   annIntro (LosesCounters who _ amt) = optAmtIntro amt
   annIntro (RemoveFromCombat n) = nomIntro n
@@ -2207,8 +2172,7 @@ mutual
   annIntro (CopyCard who what times) = amtIntro times
   annIntro (Choose n _ _) = chosenIntro n
   annIntro (ChoicesRevealed _) = bs
-  annIntro (Vote _ _ _) = bs
-  annIntro (VoteStarting _ _ _) = bs
+  annIntro (Vote _ _ _ _) = bs
   annIntro (Move what to _) = nomIntro what
   annIntro (ExchangeLife parties) = nomIntro parties
   annIntro (ChangeLife who (Up a)) = lifeIntro (Up a)
@@ -2224,11 +2188,10 @@ mutual
   annIntro (RollDice who count _) = amtIntro count
   annIntro (ResultsTable rows) = bs
   annIntro (IgnoreOutcomes which) = ignoredOutcomesIntro which
-  annIntro (ShiftResult amt) = amtIntro amt
-  annIntro (ShiftResultOneWay _ amt) = amtIntro amt
+  annIntro (ShiftResult _ amt) = amtIntro amt
   annIntro (RollPlanarDie who count) = amtIntro count
-  annIntro ChaosEnsues = bs
-  annIntro (ChaosEnsuesFor what) = nomIntro what
+  annIntro (ChaosEnsues Nothing) = bs
+  annIntro (ChaosEnsues (Just what)) = nomIntro what
   annIntro (StoreResults on) = nomIntro on
   annIntro (RerollStored _ _ whose) = nomIntro whose
   annIntro (Continuously se _) = staticIntro se
@@ -2242,9 +2205,7 @@ mutual
   annIntro (DoubleCounters on) = nomIntro on
   annIntro (Enact v (Move what to _)) = nomIntro what
   annIntro (Enact _ e) = annIntro e
-  annIntro (Does s v (Move what to _)) = nomIntro what
-  annIntro (Does s v e) = annIntro e
-  annIntro (DoesGroup s v e) = deedDelta e ++ nomIntro s
+  annIntro (Does s v e) = doesAnnIntro (nounPlur s) s v e
   annIntro (Pay who c _) = nomIntro who
   annIntro (May d body did notd) = annIntro body
   annIntro (IfDone body did notd) = annIntro body
@@ -2264,6 +2225,13 @@ mutual
   annIntro (ThisWay body ev trig) = annIntro body
   annIntro (InsteadOf replaced repl) = annIntro replaced
   annIntro (HeldUntil e ev) = annIntro e
+
+  public export
+  doesAnnIntro : {bs : Bindings} -> Plurality -> (s : Noun bs Player) ->
+                 (v : VerbLabel) -> Effect (agentIntro s) -> Bindings
+  doesAnnIntro ManyOf s v e = deedDelta e ++ nomIntro s
+  doesAnnIntro OneOf s v (Move what to _) = nomIntro what
+  doesAnnIntro OneOf s v e = annIntro e
 
   public export
   annSims : {bs : Bindings} -> {0 n : Nat} -> SimEffects n bs -> Bindings
@@ -2301,9 +2269,7 @@ mutual
   deedDelta (DoesntUntapNext _ _) = []
   deedDelta (SkipsNext _ _ _) = []
   deedDelta (ExtraTurn _ _) = []
-  deedDelta (AdditionalPart _ _ _ _) = []
-  deedDelta (GetsAdditionalPart _ _ _) = []
-  deedDelta (GetsAdditionalPartAfter _ _ _ _) = []
+  deedDelta (AdditionalPart _ _ _ _ _) = []
   deedDelta (SkipsAllOf _ _) = []
   deedDelta (LosesCounters _ _ _) = []
   deedDelta (RemoveFromCombat _) = []
@@ -2334,8 +2300,7 @@ mutual
                (ObjectP (nounTy what) (nounZone what) Nothing (Just CopyOrigin) Nothing)]
   deedDelta (Choose n _ _) = []
   deedDelta (ChoicesRevealed _) = []
-  deedDelta (Vote _ _ _) = []
-  deedDelta (VoteStarting _ _ _) = []
+  deedDelta (Vote _ _ _ _) = []
   deedDelta (Move what to _) = []
   deedDelta (ExchangeLife _) = [outcomeB LifeGained, outcomeB LifeLost]
   deedDelta (ChangeLife who (Up a)) = [outcomeB LifeGained]
@@ -2352,11 +2317,9 @@ mutual
   deedDelta (RollDice _ _ _) = [outcomeB RollResult]
   deedDelta (ResultsTable _) = []
   deedDelta (IgnoreOutcomes _) = []
-  deedDelta (ShiftResult _) = []
-  deedDelta (ShiftResultOneWay _ _) = []
+  deedDelta (ShiftResult _ _) = []
   deedDelta (RollPlanarDie _ _) = [outcomeB PlanarRolled]
-  deedDelta ChaosEnsues = []
-  deedDelta (ChaosEnsuesFor _) = []
+  deedDelta (ChaosEnsues _) = []
   deedDelta (StoreResults _) = []
   deedDelta (RerollStored _ _ _) = []
   deedDelta (Continuously se _) = []
@@ -2374,7 +2337,6 @@ mutual
   deedDelta (Enact _ e) = deedDelta e
   deedDelta (Does s v (Move what to _)) = []
   deedDelta (Does s v e) = deedDelta e
-  deedDelta (DoesGroup s v e) = deedDelta e
   deedDelta (Pay who c _) = []
   deedDelta (May d body did notd) = []
   deedDelta (IfDone body did notd) = []
@@ -2690,7 +2652,7 @@ mutual
   predRegime (NthCastBy _ _ _) = Just AtCasting
   predRegime (CastFrom _) = Just AtCasting
   predRegime WasCast = Just AtCasting
-  predRegime (ControlledBy _) = Just AtResolution
+  predRegime (HasPossessor ControllerAx _) = Just AtResolution
   predRegime (And ps) = predRegimeAll ps
   predRegime (Or ps) = predRegimeAll ps
   predRegime _ = Nothing

@@ -246,10 +246,9 @@ mutual
                    {auto 0 read : ChosenQualityRead q} -> Predicate bs Object
     HasKeyword : (k : KeywordTerm) -> {auto 0 kn : KnownKeywordTerm k} ->
                  Predicate bs Object
-    ControlledBy : {k : Kind} -> (n : Noun bs Player) ->
+    HasPossessor : {k : Kind} -> (ax : PossessorAxis) -> (n : Noun bs Player) ->
                    {auto 0 ps : SoleHolder n} ->
-                   {auto 0 ck : So (controlKind k)} -> Predicate bs k
-    OwnedBy : (n : Noun bs Player) -> {auto 0 ps : SoleHolder n} -> Predicate bs Object
+                   {auto 0 ck : So (possessorKind ax k)} -> Predicate bs k
     CastBy : (n : Noun bs Player) -> {auto 0 ps : SoleHolder n} -> Predicate bs Object
     NthCastBy : (ord : Ordinal) -> (n : Noun bs Player) -> (per : RankPeriod) ->
                 {auto 0 ps : SoleHolder n} -> Predicate bs Object
@@ -260,26 +259,12 @@ mutual
     Attacking : Predicate bs Object
     BeingDeclaredAttacker : Predicate bs Object
     Blocking : Predicate bs Object
-    BlockerOf : (m : Noun bs Object) ->
-                {auto 0 zn : ZoneFits (nounZone m) (Just Battlefield)} ->
-                Predicate bs Object
-    BlockedBy : (m : Noun bs Object) ->
-                {auto 0 zn : ZoneFits (nounZone m) (Just Battlefield)} ->
-                Predicate bs Object
     Blocked : Predicate bs Object
     Unblocked : Predicate bs Object
-    AttackedBy : {k : Kind} -> (m : Noun bs Object) ->
-                 {auto 0 zn : ZoneFits (nounZone m) (Just Battlefield)} ->
-                 Predicate bs k
-    AttackerOf : {k : Kind} -> (m : Noun bs k) ->
-                 {auto 0 at : Attackable m} ->
-                 Predicate bs Object
-    CouldBlock : (m : Noun bs Object) ->
-                 {auto 0 zn : ZoneFits (nounZone m) (Just Battlefield)} ->
-                 Predicate bs Object
-    CouldBeBlockedBy : (m : Noun bs Object) ->
-                       {auto 0 zn : ZoneFits (nounZone m) (Just Battlefield)} ->
-                       Predicate bs Object
+    CombatRel : {k : Kind} -> {km : Kind} -> (r : CombatRelation) ->
+                (m : Noun bs km) ->
+                {auto 0 ok : So (combatRelOk r k km (nounZone m) (nounTys m))} ->
+                Predicate bs k
     HappenedTo : {k : Kind} -> (ev : EventName) -> (w : Lookback) ->
                  (what : Maybe (EventComplement bs ev k)) ->
                  {auto 0 cw : ComplementWritten what} ->
@@ -320,10 +305,6 @@ mutual
     Compare : {k : Kind} -> (axes : List ProjAxis) -> (r : Comparator) ->
               (bound : Amount bs) ->
               {auto 0 at : AxesAt k axes} -> Predicate bs k
-    CounterCompare : (kind : Maybe CounterKind) -> (r : Comparator) ->
-                     (bound : Amount bs) ->
-                     {auto 0 kn : CounterKindNamed k kind} ->
-                     Predicate bs k
     Superlative : {k : Kind} -> (op : AggregateOp) -> (ax : ProjAxis) ->
                   (dom : Predicate bs k) ->
                   {auto 0 ex : IsExtremal op} ->
@@ -440,13 +421,10 @@ mutual
   seedZone Attacking = Just Battlefield
   seedZone BeingDeclaredAttacker = Just Battlefield
   seedZone Blocking = Just Battlefield
-  seedZone (AttackerOf _) = Just Battlefield
-  seedZone (BlockerOf _) = Just Battlefield
-  seedZone (BlockedBy _) = Just Battlefield
+  seedZone (CombatRel AttackedBy _) = Nothing
+  seedZone (CombatRel _ _) = Just Battlefield
   seedZone Blocked = Just Battlefield
   seedZone Unblocked = Just Battlefield
-  seedZone (CouldBlock _) = Just Battlefield
-  seedZone (CouldBeBlockedBy _) = Just Battlefield
   seedZone (HappenedTo _ _ _) = Nothing
   seedZone (ColorIs _) = Nothing
   seedZone IsColorless = Nothing
@@ -465,7 +443,7 @@ mutual
   seedZone (HasStatus _) = Just Battlefield
   seedZone (HasCounters _) = Nothing
   seedZone (PaidCost _ _) = Nothing
-  seedZone (ControlledBy _) = Nothing
+  seedZone (HasPossessor _ _) = Nothing
   seedZone (CastBy _) = Nothing
   seedZone (NthCastBy _ _ _) = Nothing
   seedZone (Targets _ _) = Just Stack
@@ -519,7 +497,7 @@ mutual
 
   public export
   zoneAdmit : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> List Zone
-  zoneAdmit (ControlledBy _) = [Battlefield, Stack]
+  zoneAdmit (HasPossessor ControllerAx _) = [Battlefield, Stack]
   zoneAdmit _ = []
 
   public export
@@ -527,13 +505,10 @@ mutual
   seedType Attacking = Just Creature
   seedType BeingDeclaredAttacker = Just Creature
   seedType Blocking = Just Creature
-  seedType (AttackerOf _) = Just Creature
-  seedType (BlockerOf _) = Just Creature
-  seedType (BlockedBy _) = Just Creature
+  seedType (CombatRel AttackedBy _) = Nothing
+  seedType (CombatRel _ _) = Just Creature
   seedType Blocked = Just Creature
   seedType Unblocked = Just Creature
-  seedType (CouldBlock _) = Just Creature
-  seedType (CouldBeBlockedBy _) = Just Creature
   seedType (HappenedTo _ _ _) = Nothing
   seedType (ColorIs _) = Nothing
   seedType IsColorless = Nothing
@@ -603,21 +578,15 @@ mutual
   hasHead IsSource = True
   hasHead (ManaCostHas _) = False
   hasHead (HasKeyword _) = False
-  hasHead (ControlledBy _) = False
-  hasHead (OwnedBy _) = False
+  hasHead (HasPossessor _ _) = False
   hasHead (CastBy _) = False
   hasHead (NthCastBy _ _ _) = False
   hasHead Attacking = False
   hasHead BeingDeclaredAttacker = False
   hasHead Blocking = False
-  hasHead (AttackerOf _) = False
-  hasHead (BlockerOf _) = False
-  hasHead (BlockedBy _) = False
+  hasHead (CombatRel _ _) = False
   hasHead Blocked = False
   hasHead Unblocked = False
-  hasHead (AttackedBy _) = False
-  hasHead (CouldBlock _) = False
-  hasHead (CouldBeBlockedBy _) = False
   hasHead (HappenedTo _ _ _) = False
   hasHead (CastFrom _) = False
   hasHead WasCast = False
@@ -643,7 +612,6 @@ mutual
   hasHead (HasCounters _) = False
   hasHead (PaidCost _ _) = False
   hasHead (Compare _ _ _) = False
-  hasHead (CounterCompare _ _ _) = False
   hasHead (Superlative _ _ _) = False
   hasHead WithMostVotes = False
   hasHead (ChoseExtreme _) = False
@@ -700,7 +668,7 @@ mutual
   uniquifies (Superlative _ _ _) = True
   uniquifies WithMostVotes = False
   uniquifies (ChoseExtreme _) = False
-  uniquifies (AttackedBy _) = True
+  uniquifies (CombatRel AttackedBy _) = True
   uniquifies (NthCastBy _ _ _) = True
   uniquifies (And ps) = uniquifiesAny ps
   uniquifies _ = False
@@ -795,10 +763,8 @@ mutual
   predEq (ManaCostHas _) _ = False
   predEq (HasKeyword a) (HasKeyword b) = a == b
   predEq (HasKeyword _) _ = False
-  predEq (ControlledBy a) (ControlledBy b) = nounEqRef a b
-  predEq (ControlledBy _) _ = False
-  predEq (OwnedBy a) (OwnedBy b) = nounEqRef a b
-  predEq (OwnedBy _) _ = False
+  predEq (HasPossessor ax a) (HasPossessor bx b) = ax == bx && nounEqRef a b
+  predEq (HasPossessor _ _) _ = False
   predEq (CastBy a) (CastBy b) = nounEqRef a b
   predEq (CastBy _) _ = False
   predEq (NthCastBy _ _ _) _ = False
@@ -812,21 +778,14 @@ mutual
   predEq BeingDeclaredAttacker _ = False
   predEq Blocking Blocking = True
   predEq Blocking _ = False
-  predEq (AttackerOf _) _ = False
-  predEq (BlockerOf a) (BlockerOf b) = nounEqRef a b
-  predEq (BlockerOf _) _ = False
-  predEq (BlockedBy a) (BlockedBy b) = nounEqRef a b
+  predEq (CombatRel AttackerOf _) _ = False
   predEq Blocked Blocked = True
   predEq Blocked _ = False
   predEq Unblocked Unblocked = True
   predEq Unblocked _ = False
-  predEq (BlockedBy _) _ = False
-  predEq (AttackedBy a) (AttackedBy b) = nounEqRef a b
-  predEq (AttackedBy _) _ = False
-  predEq (CouldBlock a) (CouldBlock b) = nounEqRef a b
-  predEq (CouldBlock _) _ = False
-  predEq (CouldBeBlockedBy a) (CouldBeBlockedBy b) = nounEqRef a b
-  predEq (CouldBeBlockedBy _) _ = False
+  predEq (CombatRel {km = Object} r a) (CombatRel {km = Object} s b) =
+    r == s && nounEqRef a b
+  predEq (CombatRel _ _) _ = False
   predEq (HappenedTo a v Nothing) (HappenedTo b w Nothing) =
     sameEventName a b && sameLookback v w
   predEq (HappenedTo _ _ _) _ = False
@@ -876,11 +835,6 @@ mutual
   predEq (Compare cs r b) (Compare ds s e) = sameAxes cs ds && r == s &&
                                            boundEq b e
   predEq (Compare _ _ _) _ = False
-  predEq (CounterCompare Nothing r b) (CounterCompare Nothing s e) =
-    r == s && boundEq b e
-  predEq (CounterCompare (Just a) r b) (CounterCompare (Just c) s e) =
-    a == c && r == s && boundEq b e
-  predEq (CounterCompare _ _ _) _ = False
   predEq (Superlative o a d) (Superlative p b e) =
     o == p && a == b && predEq d e
   predEq (Superlative _ _ _) _ = False
@@ -1178,7 +1132,6 @@ mutual
   isComparison (Superlative _ _ _) = True
   isComparison WithMostVotes = True
   isComparison (ChoseExtreme _) = True
-  isComparison (CounterCompare _ _ _) = True
   isComparison (CompareOver _ _ _ _) = True
   isComparison _ = False
 
@@ -1288,8 +1241,7 @@ mutual
   predSays IsSource = True
   predSays (ManaCostHas _) = True
   predSays (HasKeyword _) = True
-  predSays (ControlledBy _) = True
-  predSays (OwnedBy _) = True
+  predSays (HasPossessor _ _) = True
   predSays (CastBy _) = True
   predSays (NthCastBy _ _ _) = True
   predSays (ExiledWith _) = True
@@ -1297,14 +1249,9 @@ mutual
   predSays Attacking = True
   predSays BeingDeclaredAttacker = True
   predSays Blocking = True
-  predSays (AttackerOf _) = True
-  predSays (BlockerOf _) = True
-  predSays (BlockedBy _) = True
+  predSays (CombatRel _ _) = True
   predSays Blocked = True
   predSays Unblocked = True
-  predSays (AttackedBy _) = True
-  predSays (CouldBlock _) = True
-  predSays (CouldBeBlockedBy _) = True
   predSays (HappenedTo _ _ _) = True
   predSays (CastFrom _) = True
   predSays WasCast = True
@@ -1330,7 +1277,6 @@ mutual
   predSays (HasCounters _) = True
   predSays (PaidCost _ _) = True
   predSays (Compare _ _ _) = True
-  predSays (CounterCompare _ _ _) = True
   predSays (Superlative _ _ _) = True
   predSays WithMostVotes = True
   predSays (ChoseExtreme _) = True
@@ -1373,8 +1319,7 @@ mutual
   predNegFree IsSource = True
   predNegFree (ManaCostHas _) = True
   predNegFree (HasKeyword _) = True
-  predNegFree (ControlledBy _) = True
-  predNegFree (OwnedBy _) = True
+  predNegFree (HasPossessor _ _) = True
   predNegFree (CastBy _) = True
   predNegFree (NthCastBy _ _ _) = True
   predNegFree (ExiledWith _) = True
@@ -1382,14 +1327,9 @@ mutual
   predNegFree Attacking = True
   predNegFree BeingDeclaredAttacker = True
   predNegFree Blocking = True
-  predNegFree (AttackerOf _) = True
-  predNegFree (BlockerOf _) = True
-  predNegFree (BlockedBy _) = True
+  predNegFree (CombatRel _ _) = True
   predNegFree Blocked = True
   predNegFree Unblocked = True
-  predNegFree (AttackedBy _) = True
-  predNegFree (CouldBlock _) = True
-  predNegFree (CouldBeBlockedBy _) = True
   predNegFree (HappenedTo _ _ _) = True
   predNegFree (CastFrom _) = True
   predNegFree WasCast = True
@@ -1415,7 +1355,6 @@ mutual
   predNegFree (HasCounters _) = True
   predNegFree (PaidCost _ _) = True
   predNegFree (Compare _ _ _) = True
-  predNegFree (CounterCompare _ _ _) = True
   predNegFree (Superlative _ _ _) = True
   predNegFree WithMostVotes = True
   predNegFree (ChoseExtreme _) = True
@@ -1550,19 +1489,15 @@ mutual
     ItOtherThan : (co : Bindings) -> (rest : Bindings) ->
                   {auto 0 sp : bs = co ++ rest} ->
                   {auto 0 ok : countOnes Object rest = 1} -> Noun bs Object
-    ItPrior : (made : Bindings) -> (before : Bindings) ->
-              {auto 0 sp : bs = made ++ before} ->
-              {auto 0 ok : countOnes Object made = 1} -> Noun bs Object
     ||| "Exile target artifact. Target creature deals damage equal to ITS power": `It` there counts two.
     Own : (pl : Plurality) -> (own : Bindings) -> (outer : Bindings) ->
           {auto 0 sp : bs = own ++ outer} ->
           {auto 0 ok : countReach Bare pl own = 1} -> Noun bs Object
     AttachHost : (w : AttachWord) -> (h : NounWord) ->
                  {auto 0 ok : AttachHeadOk w h} -> Noun bs (kindOfW h)
-    ControllerOf : {k : Kind} -> (n : Noun bs k) ->
-                   {auto 0 one : nounPlur n = OneOf} ->
-                   {auto 0 ck : So (controlKind k)} -> Noun bs Player
-    OwnerOf : (n : Noun bs Object) -> {auto 0 one : nounPlur n = OneOf} -> Noun bs Player
+    PossessorOf : {k : Kind} -> (ax : PossessorAxis) -> (n : Noun bs k) ->
+                  {auto 0 one : nounPlur n = OneOf} ->
+                  {auto 0 ck : So (possessorKind ax k)} -> Noun bs Player
     PossessorsOf : (ax : PossessorAxis) -> (grp : Noun bs Object) ->
                    {auto 0 pl : nounPlur grp = ManyOf} -> Noun bs Player
     Designated : (d : Designation) -> (whose : Noun bs Player) ->
@@ -1602,11 +1537,9 @@ mutual
   nounEqRef (Pro (Word PlayerW) OneOf) (Pro (Word PlayerW) OneOf) = True
   nounEqRef (Pro _ _) _ = False
   nounEqRef (ItOtherThan _ _) _ = False
-  nounEqRef (ItPrior _ _) _ = False
   nounEqRef (Own _ _ _) _ = False
   nounEqRef (AttachHost _ _) _ = False
-  nounEqRef (ControllerOf _) _ = False
-  nounEqRef (OwnerOf _) _ = False
+  nounEqRef (PossessorOf _ _) _ = False
   nounEqRef (PossessorsOf _ _) _ = False
   nounEqRef (Designated _ _) _ = False
 
@@ -1693,12 +1626,9 @@ mutual
       :: (sliceCountDelta q ++ nounDelta by)
   nounDelta (Pro _ _) = []
   nounDelta (ItOtherThan _ _) = []
-  nounDelta (ItPrior _ _) = []
   nounDelta (Own _ _ _) = []
   nounDelta (AttachHost _ _) = []
-  nounDelta (ControllerOf n) =
-    MkBinding TheD Player OneOf PlayerP :: (selfSubjDelta n ++ nounDelta n)
-  nounDelta (OwnerOf n) =
+  nounDelta (PossessorOf _ n) =
     MkBinding TheD Player OneOf PlayerP :: (selfSubjDelta n ++ nounDelta n)
   nounDelta (PossessorsOf _ n) =
     MkBinding TheD Player ManyOf PlayerP :: (selfSubjDelta n ++ nounDelta n)
@@ -1742,17 +1672,11 @@ mutual
   predDelta (AbilityOf n) = nounDelta n
   predDelta (ActivatedBy n) = nounDelta n
   predDelta (Targets m _) = nounDelta m
-  predDelta (ControlledBy n) = nounDelta n
-  predDelta (OwnedBy n) = nounDelta n
+  predDelta (HasPossessor _ n) = nounDelta n
   predDelta (CastBy n) = nounDelta n
   predDelta (NthCastBy _ n _) = nounDelta n
-  predDelta (AttackerOf m) = nounDelta m
-  predDelta (BlockerOf m) = nounDelta m
+  predDelta (CombatRel _ m) = nounDelta m
   predDelta (CounterKindOn n) = nounDelta n
-  predDelta (BlockedBy m) = nounDelta m
-  predDelta (AttackedBy m) = nounDelta m
-  predDelta (CouldBlock m) = nounDelta m
-  predDelta (CouldBeBlockedBy m) = nounDelta m
   predDelta (HappenedTo _ _ what) = complementDelta what
   predDelta (CastFrom z) = zoneDelta z
   predDelta (ColorIs _) = []
@@ -1780,7 +1704,6 @@ mutual
   predDelta (ChoseExtreme _) = [outcomeB NamedNumber]
   predDelta (CompareOver dom _ _ bound) = gapB :: (predDelta dom ++ amtDelta bound)
   predDelta (Joined l r) = predDelta l ++ predDelta r
-  predDelta (CounterCompare _ _ b) = amtDelta b
   predDelta _ = []
 
   public export
@@ -2489,6 +2412,11 @@ mutual
   controlKind _ = False
 
   public export
+  possessorKind : PossessorAxis -> Kind -> Bool
+  possessorKind ControllerAx k = controlKind k
+  possessorKind OwnerAx k = kindLte k Object
+
+  public export
   copyKind : Kind -> Bool
   copyKind Object = True
   copyKind Ability = True
@@ -2695,6 +2623,14 @@ mutual
   Attackable {k} n = So (attackableKind k (nounTys n))
 
   public export
+  combatRelOk : CombatRelation -> (k : Kind) -> (km : Kind) ->
+                Maybe Zone -> HeadTy km -> Bool
+  combatRelOk AttackerOf k km _ tys = k == Object && attackableKind km tys
+  combatRelOk AttackedBy _ km z _ = km == Object && zoneFits z (Just Battlefield)
+  combatRelOk _ k km z _ =
+    k == Object && km == Object && zoneFits z (Just Battlefield)
+
+  public export
   data EventAgent : {0 bs : Bindings} -> Maybe (Noun bs Player) -> Type where
     AgentUnvoiced : EventAgent Nothing
     AgentVoiced : {0 w : Noun bs Player} ->
@@ -2737,7 +2673,6 @@ mutual
   remarkTest (Pro (Word AbilityW) OneOf) = Just (reaches (Word AbilityW) OneOf)
   remarkTest (Pro _ _) = Nothing
   remarkTest (ItOtherThan _ _) = Nothing
-  remarkTest (ItPrior _ _) = Nothing
   remarkTest (Own _ _ _) = Nothing
   remarkTest _ = Nothing
 
@@ -2858,8 +2793,6 @@ mutual
   counterMemoryOk (Pro _ _) = True
   counterMemoryOk (ItOtherThan _ rest) =
     not (stampMoves (provOfReach Bare OneOf rest))
-  counterMemoryOk (ItPrior made _) =
-    not (stampMoves (provOfReach Bare OneOf made))
   counterMemoryOk (Own pl own _) =
     not (stampMoves (provOfReach Bare pl own))
   counterMemoryOk _ = True
@@ -2876,7 +2809,6 @@ mutual
   moveDestOk (Pro TokenBorn _) = False
   moveDestOk (Pro _ _) = True
   moveDestOk (ItOtherThan _ _) = False
-  moveDestOk (ItPrior _ _) = False
   moveDestOk (Own _ _ _) = False
   moveDestOk _ = True
 
@@ -2966,7 +2898,6 @@ mutual
   moveIntro p nn@(PileOf _ _) z = setZoneHead p z (nomIntro nn)
   moveIntro p (Pro r pl) z = setZoneReach r pl p z bs
   moveIntro p (ItOtherThan co rest) z = co ++ setZoneReach Bare OneOf p z rest
-  moveIntro p (ItPrior made before) z = setZoneReach Bare OneOf p z made ++ before
   moveIntro p (Own pl own outer) z = setZoneReach Bare pl p z own ++ outer
   moveIntro p This z =
     MkBinding SelfD Object OneOf (ObjectP Nothing z (mkStamp p Nothing (isJust z)) Nothing Nothing) :: bs
@@ -3016,8 +2947,7 @@ mutual
   moveIntro p TheDefendingPlayer z = bs
   moveIntro p TheAttackingPlayer z = bs
   moveIntro p (PlayerGroup _) z = bs
-  moveIntro p (ControllerOf n) z = nomIntro (ControllerOf n)
-  moveIntro p (OwnerOf n) z = nomIntro (OwnerOf n)
+  moveIntro p (PossessorOf ax n) z = nomIntro (PossessorOf ax n)
   moveIntro p (PossessorsOf ax n) z = nomIntro (PossessorsOf ax n)
   moveIntro p (Designated d n) z = bs
 
@@ -3026,7 +2956,6 @@ mutual
   nounProv TheRest = provOfGroup bs
   nounProv (Pro r pl) = provOfReach r pl bs
   nounProv (ItOtherThan _ rest) = provOfReach Bare OneOf rest
-  nounProv (ItPrior made _) = provOfReach Bare OneOf made
   nounProv (Own pl own _) = provOfReach Bare pl own
   nounProv (EachOf grp) = nounProv grp
   nounProv (NamesAgree _ grp) = nounProv grp
@@ -3057,11 +2986,9 @@ mutual
   nounZone (PileOf _ _) = zoneOfReach (Word PileW) ManyOf bs
   nounZone (Pro r pl) = zoneOfReach r pl bs
   nounZone (ItOtherThan _ rest) = zoneOfReach Bare OneOf rest
-  nounZone (ItPrior made _) = zoneOfReach Bare OneOf made
   nounZone (Own pl own _) = zoneOfReach Bare pl own
   nounZone (AttachHost _ h) = attachHostZone h
-  nounZone (ControllerOf n) = Nothing
-  nounZone (OwnerOf n) = Nothing
+  nounZone (PossessorOf _ n) = Nothing
   nounZone (PossessorsOf _ n) = Nothing
   nounZone (Designated _ _) = Nothing
 
@@ -3089,11 +3016,9 @@ mutual
   nounTy (PileOf _ _) = Nothing
   nounTy (Pro r pl) = tyOfReach r pl bs
   nounTy (ItOtherThan _ rest) = tyOfReach Bare OneOf rest
-  nounTy (ItPrior made _) = tyOfReach Bare OneOf made
   nounTy (Own pl own _) = tyOfReach Bare pl own
   nounTy (AttachHost _ h) = attachHostTy h
-  nounTy (ControllerOf n) = Nothing
-  nounTy (OwnerOf n) = Nothing
+  nounTy (PossessorOf _ n) = Nothing
   nounTy (PossessorsOf _ n) = Nothing
   nounTy (Designated _ _) = Nothing
 
@@ -3145,11 +3070,9 @@ mutual
   nounPlur (PileOf q _) = slicePlur q
   nounPlur (Pro _ pl) = pl
   nounPlur (ItOtherThan _ _) = OneOf
-  nounPlur (ItPrior _ _) = OneOf
   nounPlur (Own pl _ _) = pl
   nounPlur (AttachHost _ _) = OneOf
-  nounPlur (ControllerOf n) = OneOf
-  nounPlur (OwnerOf n) = OneOf
+  nounPlur (PossessorOf _ n) = OneOf
   nounPlur (PossessorsOf _ _) = ManyOf
   nounPlur (Designated _ _) = OneOf
 

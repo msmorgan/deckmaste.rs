@@ -140,11 +140,23 @@ thatJoin : {auto 0 ok : countReach (Word JoinW) OneOf bs = 1} -> Noun bs (Object
 thatJoin = That JoinW {ok}
 
 public export
+controllerOf : {k : Kind} -> (n : Noun bs k) ->
+               {auto 0 one : nounPlur n = OneOf} ->
+               {auto 0 ck : So (possessorKind ControllerAx k)} -> Noun bs Player
+controllerOf n = PossessorOf ControllerAx n {one} {ck}
+
+public export
+ownerOf : {k : Kind} -> (n : Noun bs k) ->
+          {auto 0 one : nounPlur n = OneOf} ->
+          {auto 0 ck : So (possessorKind OwnerAx k)} -> Noun bs Player
+ownerOf n = PossessorOf OwnerAx n {one} {ck}
+
+public export
 thatSplitController : (cls : Noun bs Object) ->
                       {auto 0 one : nounPlur cls = OneOf} ->
                       {auto 0 pk : countReach (UnionHalf PlayerW) OneOf bs = 1} ->
                       Noun bs Player
-thatSplitController cls = EitherOf (ThatHalf PlayerW {ok = pk}) (ControllerOf cls {one})
+thatSplitController cls = EitherOf (ThatHalf PlayerW {ok = pk}) (Macros.controllerOf cls {one})
 
 public export
 splitOverPlaneswalker : {bs : Bindings} ->
@@ -186,6 +198,18 @@ spell : Predicate bs Object
 spell = InZone stackZ
 
 public export
+frontFace : (name : String) -> (cost : Maybe ManaCost) ->
+            (supers : List Supertype) -> (line : TypeLine) ->
+            (text : AbilitySeq (costLetters cost)) -> (box : Maybe PrintedBox) ->
+            CardFace
+frontFace name cost supers line text box = MkFace name cost [] supers line text box
+
+public export
+backFace : (name : String) -> (supers : List Supertype) -> (line : TypeLine) ->
+           (text : AbilitySeq []) -> (box : Maybe PrintedBox) -> CardFace
+backFace name supers line text box = MkFace name Nothing [] supers line text box
+
+public export
 cardOf : (name : String) -> (cost : Maybe ManaCost) -> (supers : List Supertype) ->
          (line : TypeLine) -> (text : AbilitySeq (costLetters cost)) ->
          (box : Maybe PrintedBox) ->
@@ -193,12 +217,12 @@ cardOf : (name : String) -> (cost : Maybe ManaCost) -> (supers : List Supertype)
          {auto 0 sp : CardSupers supers} ->
          {auto 0 tx : CardText line text} ->
          {auto 0 ch : CardChapters line text} ->
-         {auto 0 bx : CardBox line text box} ->
-         {auto 0 mc : CardCost line cost} ->
+         {auto 0 bx : CardBox Front line text box} ->
+         {auto 0 mc : CardCost Front line cost} ->
          {auto 0 dr : DoorFrame text} ->
          Card
 cardOf name cost supers line text box =
-  SingleFaced (MkFace name cost supers line text box)
+  SingleFaced (MkFace name cost [] supers line text box)
               {fl = MkFaceLaws {ln} {sp} {tx} {ch} {bx} {mc} {dr}}
 
 public export
@@ -222,8 +246,8 @@ card : (name : String) -> (cost : Maybe ManaCost) -> (supers : List Supertype) -
        {auto 0 sp : CardSupers supers} ->
        {auto 0 tx : CardText line text} ->
        {auto 0 ch : CardChapters line text} ->
-       {auto 0 bx : CardBox line text (printedBox stats)} ->
-       {auto 0 mc : CardCost line cost} ->
+       {auto 0 bx : CardBox Front line text (printedBox stats)} ->
+       {auto 0 mc : CardCost Front line cost} ->
        {auto 0 dr : DoorFrame text} ->
        Card
 card name cost supers line text stats =
@@ -239,14 +263,14 @@ jointCard : (choices : List QualitySort) ->
             {auto 0 sp : CardSupers supers} ->
             {auto 0 tx : CardText line text} ->
             {auto 0 ch : CardChapters line text} ->
-            {auto 0 bx : CardBox line text (printedBox stats)} ->
-            {auto 0 mc : CardCost line cost} ->
+            {auto 0 bx : CardBox Front line text (printedBox stats)} ->
+            {auto 0 mc : CardCost Front line cost} ->
             {auto 0 dr : DoorFrame text} ->
             {auto 0 jc : JointChoices choices text} -> Card
 jointCard choices name cost supers line text stats =
-  JointSingleFaced
-    (MkJointFace choices name cost supers line text (printedBox stats))
-    {fl = MkJointFaceLaws {ln} {sp} {tx} {ch} {bx} {mc} {dr} {jc}}
+  SingleFaced
+    (MkFace name cost choices supers line text (printedBox stats))
+    {fl = MkFaceLaws {ln} {sp} {tx} {ch} {bx} {mc} {dr} {jc}}
 
 public export
 counterSpell : {k : Kind} -> (n : Noun bs k) ->
@@ -356,15 +380,15 @@ instantOrSorcery = Or [instant, sorcery]
 
 public export
 creatureYouControl : Predicate bs Object
-creatureYouControl = And [creature, ControlledBy You]
+creatureYouControl = And [creature, HasPossessor ControllerAx You]
 
 public export
 creatureYouDontControl : Predicate bs Object
-creatureYouDontControl = And [creature, Not (ControlledBy You)]
+creatureYouDontControl = And [creature, Not (HasPossessor ControllerAx You)]
 
 public export
 creatureYourOpponentsControl : Predicate bs Object
-creatureYourOpponentsControl = And [creature, ControlledBy (PlayerGroup YourOpponents)]
+creatureYourOpponentsControl = And [creature, HasPossessor ControllerAx (PlayerGroup YourOpponents)]
 
 public export
 tapped : Predicate bs Object
@@ -442,7 +466,7 @@ public export
 otherCreatureYouControl : (n : Noun bs Object) -> {auto 0 ca : ComplementAnchor n} ->
                           {auto 0 ty : anchorTyFits [Creature] (nounTy n) = True} ->
                           Predicate bs Object
-otherCreatureYouControl n = And [creature, ControlledBy You, OtherThan n {ca}] {oa = eqToSo ty}
+otherCreatureYouControl n = And [creature, HasPossessor ControllerAx You, OtherThan n {ca}] {oa = eqToSo ty}
 
 public export
 otherPlayer : Predicate bs Player
@@ -1680,14 +1704,14 @@ proliferate : {bs : Bindings} ->
               {auto 0 mj : countReach (Word JoinW) ManyOf
                               (chosenIntro {bs}
                                 (counted Macros.anyNumber
-                                  (kindJoin (CounterCompare Nothing AtLeast (Lit 1))
+                                  (kindJoin (Compare [AnyCounterAxis Player] AtLeast (Lit 1))
                                             (And [Permanent, HasCounters Nothing])))) = 1} ->
               Effect bs
 proliferate =
   Enact "Proliferate" {kn = Oh}
         (Sequentially [ Choose
                           (counted Macros.anyNumber
-                            (kindJoin (CounterCompare Nothing AtLeast (Lit 1))
+                            (kindJoin (Compare [AnyCounterAxis Player] AtLeast (Lit 1))
                                       (And [Permanent, HasCounters Nothing])))
                           Nothing Openly
                       , PutCounters (Lit 1) OwnKinds (EachOf (Those JoinW {ok = mj})) ])
@@ -2030,6 +2054,17 @@ attacksPlayer : {k : Kind} -> (n : Noun bs Object) -> (whom : Noun (nomIntro n) 
 attacksPlayer n whom = Attacks n (OneDefender whom {sg} {at}) {zn}
 
 public export
+dealsCombatDamage : {k : Kind} -> (n : Noun bs Object) ->
+                    (to : Noun (nomIntro n) k) ->
+                    {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                    {auto 0 rk : DamageRecipient to} -> GameEvent bs
+dealsCombatDamage n to = DealsDamage CombatOnly n (OnePatient to {rk}) {zn}
+
+public export
+flipsCoin : (who : Noun bs Player) -> GameEvent bs
+flipsCoin who = FlipsCoin who Nothing
+
+public export
 tokensCreated : (n : Noun bs Object) ->
                 {auto 0 tk : TokenPhrase n} -> GameEvent bs
 tokensCreated n = TokensCreated n Nothing Nothing Nothing {tk}
@@ -2037,15 +2072,15 @@ tokensCreated n = TokensCreated n Nothing Nothing Nothing {tk}
 public export
 tokensCreatedUnder : (n : Noun bs Object) -> (under : Noun bs Player) ->
                      {auto 0 tk : TokenPhrase n} ->
-                     {auto 0 vo : CreationVoice Nothing Nothing (Just under)} ->
+                     {auto 0 vo : So (creationVoiceOk Nothing Nothing (Just under))} ->
                      GameEvent bs
 tokensCreatedUnder n under = TokensCreated n Nothing Nothing (Just under) {tk} {vo}
 
 public export
 tokensCreatedByEffectUnder : (n : Noun bs Object) -> (under : Noun bs Player) ->
                              {auto 0 tk : TokenPhrase n} ->
-                             {auto 0 vo : CreationVoice (Just AnEffect) Nothing
-                                                        (Just under)} ->
+                             {auto 0 vo : So (creationVoiceOk (Just AnEffect) Nothing
+                                                              (Just under))} ->
                              GameEvent bs
 tokensCreatedByEffectUnder n under =
   TokensCreated n (Just AnEffect) Nothing (Just under) {tk} {vo}
@@ -2128,10 +2163,10 @@ takeDropAppend (S n) (x :: xs) = cong (x ::) (takeDropAppend n xs)
 
 public export
 itPrior : {bs : Bindings} -> (prev : Effect bs) ->
-          {auto 0 ok : countOnes Object (effDelta prev) = 1} ->
+          {auto 0 ok : countReach Bare OneOf (effDelta prev) = 1} ->
           Noun (effIntro prev) Object
 itPrior {bs} prev =
-  ItPrior (effDelta prev)
+  Own OneOf (effDelta prev)
     (drop (length (effIntro prev) `minus` length bs) (effIntro prev))
     {sp = takeDropAppend (length (effIntro prev) `minus` length bs)
                          (effIntro prev)}
@@ -2175,7 +2210,15 @@ additionalPart : (part : TurnPart) -> (anchor : Maybe TurnPart) ->
                  (count : Amount bs) ->
                  {auto 0 ad : AddedPart part} ->
                  {auto 0 an : AddedPartWritten anchor} -> Effect bs
-additionalPart part anchor count = AdditionalPart part anchor count Nothing {ad} {an}
+additionalPart part anchor count =
+  AdditionalPart Nothing part anchor count Nothing {ad} {an}
+
+public export
+getsAdditionalPart : (who : Noun bs Player) -> (part : TurnPart) ->
+                     (count : Amount bs) ->
+                     {auto 0 ad : AddedPart part} -> Effect bs
+getsAdditionalPart who part count =
+  AdditionalPart (Just who) part Nothing count Nothing {ad}
 
 public export
 additionalPartThen : (part : TurnPart) -> (anchor : Maybe TurnPart) ->
@@ -2184,7 +2227,21 @@ additionalPartThen : (part : TurnPart) -> (anchor : Maybe TurnPart) ->
                      {auto 0 an : AddedPartWritten anchor} ->
                      {auto 0 fb : AddedPartWritten (Just next)} -> Effect bs
 additionalPartThen part anchor count next =
-  AdditionalPart part anchor count (Just next) {ad} {an} {fb}
+  AdditionalPart Nothing part anchor count (Just next) {ad} {an} {fb}
+
+public export
+vote : (voters : Noun bs Player) -> (disc : Disclosure) ->
+       (ballot : Ballot (nomIntro voters)) -> Effect bs
+vote voters disc ballot = Vote Nothing voters disc ballot
+
+public export
+shiftResult : (amt : Amount bs) ->
+              {auto 0 ok : countOutcomes RollResult bs = 1} -> Effect bs
+shiftResult amt = ShiftResult Nothing amt {ok}
+
+public export
+chaosEnsues : Effect bs
+chaosEnsues = ChaosEnsues Nothing
 
 public export
 delayed : (ev : GameEvent bs) -> (eff : Effect (delayedCtx [] ev)) -> Effect bs
