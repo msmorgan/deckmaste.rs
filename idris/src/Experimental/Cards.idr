@@ -1835,7 +1835,7 @@ blackVise =
            (Macros.beginningOfPossessed Upkeep (Macros.the ChosenPlayer))
            (Sequentially
               [ DealDamage Macros.thisArtifact (LetterVal X) (Macros.the ChosenPlayer)
-              , Define X (Minus (CountOf (InZone (Macros.handOf (Macros.the ChosenPlayer))))
+              , Define X (Minus (Macros.countOf (InZone (Macros.handOf (Macros.the ChosenPlayer))))
                           (Lit 4)) ]) ]
        Nothing
 

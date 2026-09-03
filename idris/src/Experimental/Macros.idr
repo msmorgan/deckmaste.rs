@@ -2525,7 +2525,7 @@ cumulativeUpkeepExpansion : (c : Cost []) ->
                             {auto 0 pb : Payable c} ->
                             {auto 0 py : CostPaidByYou c} -> AbilityAt []
 cumulativeUpkeepExpansion c =
-  triggeredIf At (BeginningOf Upkeep (ByWord Yours))
+  triggeredIf At (BeginningOf Upkeep yours)
     (Matches thisPermanent (InZone battlefieldZ))
     (Sequentially
        [ PutCounters (Lit 1) (PrintedKind Age) thisPermanent
