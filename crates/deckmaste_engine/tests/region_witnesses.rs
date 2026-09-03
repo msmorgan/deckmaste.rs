@@ -41,6 +41,8 @@ use deckmaste_engine::GameConfig;
 use deckmaste_engine::GameState;
 use deckmaste_engine::ManaProvenance;
 use deckmaste_engine::ObjectId;
+use deckmaste_engine::PaymentCommand;
+use deckmaste_engine::PaymentSubject;
 use deckmaste_engine::PendingDecision;
 use deckmaste_engine::PlayerConfig;
 use deckmaste_engine::PlayerId;
@@ -1873,17 +1875,10 @@ fn fiery_annihilation_exiles_only_equipment_on_the_damaged_creature() {
 /// the ability's controller. Both branches of the punisher ([CR#118.12a]) run
 /// in one test.
 ///
-/// BLOCKED at load: `Unless` builds `May { effect: Pay(cost) }`, and a discard
-/// cost is the `Composite(Discard)` whose body makes a `Choose` DECISION.
-/// Lowering does not declare that decision's register in the enclosing region,
-/// so `deckmaste_core::validate` refuses the card — "region read RefId(8) is
-/// not dominated by one of its 8 definitions". The same `DiscardCards(1)` in an
-/// ability's `cost:` FIELD loads fine, as do a mana or sacrifice cost inside
-/// `Pay`; only a decision-bearing cost inside a body's `Pay` is undeclared.
+/// `Unless` builds `May { effect: Pay(cost) }`; the discard cost's chooser
+/// declares its register in that enclosing effect region, just as a chooser in
+/// an ability's announced `cost:` field does.
 #[test]
-#[ignore = "lowering: a decision-bearing cost inside a body's `Pay` (the \
-            discard `Composite`) declares no register in the enclosing region, \
-            so `deckmaste_core::validate` refuses the card"]
 fn painful_quandary_punishes_the_caster_it_triggered_on() {
     const QUANDARY: &str = r#"Normal(
         name: "Painful Quandary",
@@ -1928,7 +1923,11 @@ fn painful_quandary_punishes_the_caster_it_triggered_on() {
     let held = refused.zones.hands[1].len();
     {
         let mut answer = |_: &GameState, p: &PendingDecision| match p {
-            PendingDecision::YesNo(_) => Some(Decision::Answer(false)),
+            PendingDecision::Payment(prompt)
+                if matches!(prompt.subject, PaymentSubject::Effect { .. }) =>
+            {
+                Some(Decision::Payment(PaymentCommand::DeclinePayment))
+            }
             _ => None,
         };
         cast(&mut refused, spell, &mut answer);
@@ -1951,13 +1950,7 @@ fn painful_quandary_punishes_the_caster_it_triggered_on() {
     let (mut paid, spell) = setup();
     to_phase(&mut paid, PlayerId(1), PhaseStep::PrecombatMain, &mut plain);
     let held = paid.zones.hands[1].len();
-    {
-        let mut answer = |_: &GameState, p: &PendingDecision| match p {
-            PendingDecision::YesNo(_) => Some(Decision::Answer(true)),
-            _ => None,
-        };
-        cast(&mut paid, spell, &mut answer);
-    }
+    cast(&mut paid, spell, &mut plain);
     assert_eq!(paid.players[1].life, 20, "paying the cost avoids the loss");
     assert_eq!(
         paid.zones.hands[1].len(),

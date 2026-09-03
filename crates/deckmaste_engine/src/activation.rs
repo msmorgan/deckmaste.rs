@@ -605,6 +605,27 @@ impl crate::state::GameState {
         }
     }
 
+    /// Rebind the controller parameter for a cost-local frame. In a
+    /// resolution-time optional payment, semantic `You` inside the cost names
+    /// the payer, while the consequence resumes with the containing effect's
+    /// original controller.
+    pub(crate) fn frame_set_controller(&self, frame: &mut Frame, player: crate::player::PlayerId) {
+        self.materialize_frame(frame);
+        let mut activations = self.activations.borrow_mut();
+        let record = activations
+            .get_mut(&frame.activation)
+            .expect("materialized frame exists");
+        record.context.controller = player;
+        for (param, value) in record.params.iter().zip(&mut record.values) {
+            if matches!(param.provenance, Provenance::Controller) {
+                *value = Value::Object(ReferenceProduct {
+                    current: Some(self.player(player).object),
+                    lki: None,
+                });
+            }
+        }
+    }
+
     pub(crate) fn frame_set_event_bindings(
         &self,
         frame: &mut Frame,

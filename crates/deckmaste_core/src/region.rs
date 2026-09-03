@@ -818,6 +818,17 @@ fn validate_action(
     definitions: &mut Definitions,
 ) -> Result<(), ValidationError> {
     match action {
+        crate::Action::Pay(cost) => {
+            // [CR#118.12a,608.2d]: a resolution-time payment may make
+            // decisions inside the enclosing effect's register file. Those
+            // definitions dominate the remaining cost components, then leave
+            // scope with the payment rather than leaking into the effect that
+            // follows.
+            let outer = definitions.params.len();
+            validate_cost(cost, definitions)?;
+            definitions.hide_since(outer);
+            Ok(())
+        }
         crate::Action::Composite { body, .. } => {
             let outer = definitions.params.len();
             validate_instructions(std::slice::from_ref(body.as_ref()), definitions)?;
@@ -1757,6 +1768,45 @@ mod tests {
                 definitions: 2,
             })
         );
+    }
+
+    /// [CR#118.12a,608.2d]: a decision-bearing resolution cost declares its
+    /// chooser in the enclosing region long enough for the paying verb to read
+    /// it, while the next effect instruction continues after that definition.
+    #[test]
+    fn pay_cost_decisions_extend_the_enclosing_definition_sequence() {
+        let chosen = DefId(1);
+        let cost = crate::Cost(
+            vec![
+                crate::CostComponent::Choose(crate::Choose {
+                    dest: chosen,
+                    by: crate::Reference::Reg(RefId(0)),
+                    quantity: crate::Quantity::one(),
+                    filter: Arc::new(Region::candidate(crate::Predicate::Any)),
+                }),
+                crate::CostComponent::Act {
+                    dest: None,
+                    action: crate::RunnableCostAction::try_new(crate::Action::Sacrifice(
+                        crate::Reference::Reg(RefId(0)),
+                        crate::Reference::Reg(chosen.into()),
+                    ))
+                    .expect("a bound sacrifice is a runnable cost action"),
+                },
+            ]
+            .into(),
+        );
+        let region = Region::new(
+            Arc::from([param(0, Provenance::Source)]),
+            Block(
+                vec![
+                    OneShotEffect::act(crate::Action::Pay(cost)),
+                    object_let(2, 0),
+                ]
+                .into(),
+            ),
+        );
+
+        assert_eq!(validate(&region), Ok(()));
     }
 
     #[test]

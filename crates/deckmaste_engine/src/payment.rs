@@ -1112,6 +1112,14 @@ impl GameState {
         if_not: Option<Arc<deckmaste_core::OneShotEffect>>,
         frame: Frame,
     ) {
+        // A cost's `You` is its payer. Fork the containing effect activation
+        // so payment decisions and their registers are isolated from sibling
+        // branches, then rebind only its controller channel; the original
+        // frame remains the continuation for `if_did`/`if_not`.
+        let mut payment_frame = self.fork_frame(&frame);
+        self.frame_set_controller(&mut payment_frame, payer);
+        payment_frame.payment = Some(self.mint_payment());
+
         // Install the isolated image first so the payment id and all later
         // mutations belong only to this optional transaction.
         let working = self.active().clone();
@@ -1129,8 +1137,6 @@ impl GameState {
             .frames
             .push(proposal);
 
-        let mut payment_frame = frame.clone();
-        payment_frame.payment = Some(self.mint_payment());
         let subject = PaymentSubject::Effect {
             source: frame.source(self),
         };

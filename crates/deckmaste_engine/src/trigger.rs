@@ -828,6 +828,13 @@ impl GameState {
                     .map_or((None, None), |source| self.event_agent(source));
                 (agent, Some(*player), None)
             }
+            // [CR#601.2i]: once a spell becomes cast, its controller is the
+            // responsible player carried by "that player" in the triggered
+            // ability, and the spell itself is the event object.
+            GameEvent::SpellCast(object) => {
+                let (agent, actor) = self.event_agent(*object);
+                (agent, actor, None)
+            }
             // [CR#701]: a committed keyword-action fact — its object SUBJECT
             // (a per-subject fact carries at most one) binds as the agent
             // ("it": Foe-Razer's counters land on THAT fighting creature),
@@ -3147,6 +3154,18 @@ mod tests {
                 watcher_source
             ),
             "a creature spell fails the on-filter"
+        );
+
+        let roles = state.event_roles(&GameEvent::SpellCast(opp_bolt));
+        assert_eq!(
+            roles.that_object.as_ref().map(|snapshot| snapshot.object),
+            Some(opp_bolt),
+            "the cast spell is the event object"
+        );
+        assert_eq!(
+            roles.that_player,
+            Some(PlayerId(1)),
+            "the spell's controller is the cast event actor"
         );
     }
 

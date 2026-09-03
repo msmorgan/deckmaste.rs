@@ -32,3 +32,35 @@ decision-bearing cost reached through `Action::Pay` is undeclared.
 `painful_quandary_punishes_the_caster_it_triggered_on` loses its `#[ignore]`
 and passes unchanged — both branches: refusing the cost loses the caster 5
 life, paying it discards from the caster's hand instead.
+
+## Landing record
+
+- Construction count: decision-bearing `Action::Pay` regions validated 0 → 1;
+  no construction inputs, generated artifacts, or action variants changed.
+- Coverage and lock state: this ticket restores the Painful Quandary witness,
+  moving `region_witnesses` from 13 passing / 6 ignored to 14 passing / 5
+  ignored. After refresh incorporated another restoration from the default
+  line, the merged suite is 15 passing / 4 ignored. `cr-citations.lock` and
+  other lock files are unchanged.
+- Assurance: restored 1
+  (`painful_quandary_punishes_the_caster_it_triggered_on`); re-spelled 1
+  (the witness's decision driver now declines the resolution-effect
+  `Payment` prompt instead of the retired `YesNo` prompt, while its outcome
+  assertions are unchanged); ignored blockers added 0; added 1
+  (`pay_cost_decisions_extend_the_enclosing_definition_sequence`), plus cast
+  event-object/controller assertions in an existing trigger test; removed 0.
+- Positive artifacts: `cargo test -q -p deckmaste_core -p deckmaste_engine`
+  passes (51 core unit tests; 738/739 engine unit tests with one pre-existing
+  ignore; all integration suites green, including `region_witnesses` at
+  15/19 with four pre-existing ignores); clippy passes for both crates and all
+  targets with warnings denied; formatting is clean. Citation audit reads all
+  three changed code sites against their inline rules references; citation
+  checks report 0 non-compliant strings and 17,988 current citations with 0
+  stale.
+- Deviations and additions: once load validation passed, the unchanged card
+  assertions exposed two runtime prerequisites: `SpellCast` now reports the
+  spell controller as event actor, and a resolution-payment fork binds
+  semantic `You` to the payer while preserving the original consequence
+  frame. Both are required for Painful Quandary to punish and discard from
+  the caster rather than the trigger controller.
+- STOPs: none.
