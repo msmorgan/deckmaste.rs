@@ -5583,11 +5583,7 @@ wardSliver =
                        (Macros.keywordQuality "Protection" (OfChosen Color))) ]
        (Just (2, 2))
 
-||| Chromatic Armor. Two printed sentences are omitted: "This Aura enters
-||| with a sleight counter on it." and "{X}: Put a sleight counter on this Aura
-||| and choose a color. X is the number of sleight counters on this Aura." No
-||| sleight counter kind exists in `CounterKind`, so neither term can be
-||| written; blocked on `workbench-counter-kind-open`.
+||| Chromatic Armor
 public export
 chromaticArmor : Card
 chromaticArmor =
