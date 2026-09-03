@@ -218,6 +218,19 @@ mod fixture {
         require len(Holder.try_new) >= 1;
         root Holder { eoi = true; standalone_render = true; }
     }
+
+    #[cfg(feature = "parser-metrics")]
+    mod metrics {
+        pub(crate) enum MetricEvent {
+            Prediction,
+            Completion,
+            CloneHeavy,
+        }
+
+        pub(crate) fn record(_rule_index: usize, _event: MetricEvent) {}
+
+        pub(crate) fn record_work(_chart_columns_visited: u64, _scan_attempts: u64) {}
+    }
 }
 
 fn main() {}
