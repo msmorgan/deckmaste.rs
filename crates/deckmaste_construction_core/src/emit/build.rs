@@ -3857,6 +3857,10 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::RelationalComplement => {
             quote! { PrepositionComplementKind::RelationalComplement }
         }
+        FeatureValue::SelectionComplement => {
+            quote! { PrepositionComplementKind::SelectionComplement }
+        }
+        FeatureValue::SourceComplement => quote! { PrepositionComplementKind::SourceComplement },
         FeatureValue::InComplement => quote! { PrepositionComplementKind::InComplement },
         FeatureValue::OnComplement => quote! { PrepositionComplementKind::OnComplement },
         FeatureValue::AtComplement => quote! { PrepositionComplementKind::AtComplement },
@@ -3902,6 +3906,7 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::Proper => quote! { Properness::Proper },
         FeatureValue::NonRelational => quote! { Relationality::NonRelational },
         FeatureValue::QualifiedRelational => quote! { Relationality::QualifiedRelational },
+        FeatureValue::DeterminedRelational => quote! { Relationality::DeterminedRelational },
         FeatureValue::Relational => quote! { Relationality::Relational },
     }
 }

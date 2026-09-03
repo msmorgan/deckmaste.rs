@@ -1313,7 +1313,7 @@ mod structural_trace_tests {
                 (
                     14,
                     21,
-                    "Noun { noun: Declaration(DeclarationNoun { id: DeclarationIdentity { kind: Subtype(Creature), name: \"Spirit\" } }), number: Singular, onset: Consonant, possessive_ending: Other }",
+                    "Noun { noun: Declaration(DeclarationNoun { id: DeclarationIdentity { kind: Subtype(Creature), name: \"Spirit\" }, locative_temporal_license: ObjectAttachmentLicensed, relationality: QualifiedRelational, number_invariant: false }), number: Singular, onset: Consonant, possessive_ending: Other }",
                 ),
             ])
         );

@@ -2679,7 +2679,7 @@ fn authentic_nominal_and_selector_sentences_parse() {
             card_name: "Context Card",
             text: "Destroy any number of target creatures.",
             path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDeterminedNominal/DeterminativeAnyNumberQuantifyingDeterminer/SingularHeadNounSingularHead/NominalPluralNominalValue/PluralNominalModifiedPluralNominal/NominalModifierAttributiveAdjectiveModifier/PluralHeadNounPluralHead",
-            specificity: "NNNNTNNNNNNNNLNLTNNNTT",
+            specificity: "NNNNTNNNNNNNNLNTTNNNTT",
             candidates: 2,
         },
         Witness {
@@ -3068,8 +3068,8 @@ fn restricted_postmodifier_paths_ownership_and_ambiguity_are_exact() {
                 SelectionResolution::Specificity
             }
         );
-        assert_eq!(decision.selected(), Some(0));
-        assert_eq!(decision.survivors(), [0]);
+        let selected_ordinal = decision.selected().expect("selected parse has an ordinal");
+        assert_eq!(decision.survivors(), [selected_ordinal]);
         if expected_candidates == 1 {
             assert!(decision.comparisons().is_empty());
         } else {
@@ -3765,8 +3765,8 @@ fn every_selector_family_enters_the_ordered_nominal_qualification_stages() {
     for (text, candidate_count, resolution) in [
         (
             "A creature card you control in exile with mana value 2 or less gains 2 life.",
-            1,
-            SelectionResolution::Unique,
+            2,
+            SelectionResolution::Specificity,
         ),
         (
             "Target creature you control gains 2 life.",
@@ -3836,13 +3836,16 @@ fn every_selector_family_enters_the_ordered_nominal_qualification_stages() {
         let decision = analysis.decision().expect("selected parse has a decision");
         assert_eq!(decision.candidates().len(), candidate_count, "{text:?}");
         assert_eq!(decision.resolution(), resolution, "{text:?}: {decision:?}");
-        assert_eq!(decision.selected(), Some(0));
-        assert_eq!(decision.survivors(), [0]);
+        let selected_ordinal = decision.selected().expect("selected parse has an ordinal");
+        assert_eq!(decision.survivors(), [selected_ordinal]);
         if resolution == SelectionResolution::Unique {
             assert!(decision.comparisons().is_empty(), "{text:?}: {decision:?}");
         } else {
             assert_eq!(decision.comparisons().len(), 1, "{text:?}: {decision:?}");
-            assert_eq!(decision.comparisons()[0].ordering(), Ordering::Greater);
+            assert_eq!(
+                decision.comparisons()[0].ordering(),
+                if selected_ordinal == 0 { Ordering::Greater } else { Ordering::Less }
+            );
             assert!(matches!(
                 decision.comparisons()[0].decisive(),
                 SelectionDecisive::Position(_)
@@ -6177,12 +6180,13 @@ fn compound_classifier_nominals_admit_every_positive_modifier_and_reject_negativ
         let decision = analysis
             .decision()
             .expect("selected compound classifier has a decision");
-        let expected_candidates =
-            if witness.text.contains("Equipment") || witness.text.contains("Plains") {
-                2
-            } else {
-                1
-            };
+        let expected_candidates = if witness.text.contains("blue artifact type") {
+            3
+        } else if witness.text.contains("Equipment") || witness.text.contains("Plains") {
+            2
+        } else {
+            1
+        };
         assert_eq!(
             decision.candidates().len(),
             expected_candidates,
@@ -6337,7 +6341,7 @@ fn any_one_is_one_closed_determiner_and_beats_the_generic_duration_rival() {
     let decision = analysis
         .decision()
         .expect("the selected reading records its syntactic rival");
-    assert_eq!(decision.candidates().len(), 4);
+    assert_eq!(decision.candidates().len(), 2);
     assert_eq!(decision.resolution(), SelectionResolution::Specificity);
     assert_eq!(decision.survivors(), [0]);
     assert_eq!(decision.selected(), Some(0));

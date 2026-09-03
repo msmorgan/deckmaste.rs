@@ -65,6 +65,8 @@ pub(crate) enum FeatureValue {
     FusedHead,
     UnrestrictedComplement,
     RelationalComplement,
+    SelectionComplement,
+    SourceComplement,
     InComplement,
     OnComplement,
     AtComplement,
@@ -94,6 +96,7 @@ pub(crate) enum FeatureValue {
     Proper,
     NonRelational,
     QualifiedRelational,
+    DeterminedRelational,
     Relational,
     AdjunctCapable,
     PostmodifierOnly,
@@ -158,6 +161,8 @@ impl Feature {
             Self::PrepositionComplementKind => &[
                 FeatureValue::UnrestrictedComplement,
                 FeatureValue::RelationalComplement,
+                FeatureValue::SelectionComplement,
+                FeatureValue::SourceComplement,
                 FeatureValue::InComplement,
                 FeatureValue::OnComplement,
                 FeatureValue::AtComplement,
@@ -198,6 +203,7 @@ impl Feature {
             Self::Relationality => &[
                 FeatureValue::NonRelational,
                 FeatureValue::QualifiedRelational,
+                FeatureValue::DeterminedRelational,
                 FeatureValue::Relational,
             ],
             Self::PrepositionAttachment => &[
@@ -286,6 +292,8 @@ impl FeatureValue {
             Self::FusedHead => "FusedHead",
             Self::UnrestrictedComplement => "UnrestrictedComplement",
             Self::RelationalComplement => "RelationalComplement",
+            Self::SelectionComplement => "SelectionComplement",
+            Self::SourceComplement => "SourceComplement",
             Self::InComplement => "InComplement",
             Self::OnComplement => "OnComplement",
             Self::AtComplement => "AtComplement",
@@ -313,6 +321,7 @@ impl FeatureValue {
             Self::Proper => "Proper",
             Self::NonRelational => "NonRelational",
             Self::QualifiedRelational => "QualifiedRelational",
+            Self::DeterminedRelational => "DeterminedRelational",
             Self::Relational => "Relational",
             Self::AdjunctCapable => "AdjunctCapable",
             Self::PostmodifierOnly => "PostmodifierOnly",
@@ -506,6 +515,8 @@ impl FeatureValue {
             Self::FusedHead => "FusedHead",
             Self::UnrestrictedComplement => "UnrestrictedComplement",
             Self::RelationalComplement => "RelationalComplement",
+            Self::SelectionComplement => "SelectionComplement",
+            Self::SourceComplement => "SourceComplement",
             Self::InComplement => "InComplement",
             Self::OnComplement => "OnComplement",
             Self::AtComplement => "AtComplement",
@@ -533,6 +544,7 @@ impl FeatureValue {
             Self::Proper => "Proper",
             Self::NonRelational => "NonRelational",
             Self::QualifiedRelational => "QualifiedRelational",
+            Self::DeterminedRelational => "DeterminedRelational",
             Self::Relational => "Relational",
             Self::AdjunctCapable => "AdjunctCapable",
             Self::PostmodifierOnly => "PostmodifierOnly",
@@ -603,6 +615,12 @@ pub(crate) fn lower_constant(
         (model::Feature::PrepositionComplementKind, "RelationalComplement") => {
             FeatureValue::RelationalComplement
         }
+        (model::Feature::PrepositionComplementKind, "SelectionComplement") => {
+            FeatureValue::SelectionComplement
+        }
+        (model::Feature::PrepositionComplementKind, "SourceComplement") => {
+            FeatureValue::SourceComplement
+        }
         (model::Feature::PrepositionComplementKind, "InComplement") => FeatureValue::InComplement,
         (model::Feature::PrepositionComplementKind, "OnComplement") => FeatureValue::OnComplement,
         (model::Feature::PrepositionComplementKind, "AtComplement") => FeatureValue::AtComplement,
@@ -650,6 +668,9 @@ pub(crate) fn lower_constant(
         (model::Feature::Properness, "Proper") => FeatureValue::Proper,
         (model::Feature::Relationality, "NonRelational") => FeatureValue::NonRelational,
         (model::Feature::Relationality, "QualifiedRelational") => FeatureValue::QualifiedRelational,
+        (model::Feature::Relationality, "DeterminedRelational") => {
+            FeatureValue::DeterminedRelational
+        }
         (model::Feature::Relationality, "Relational") => FeatureValue::Relational,
         (model::Feature::PrepositionAttachment, "AdjunctCapable") => FeatureValue::AdjunctCapable,
         (model::Feature::PrepositionAttachment, "PostmodifierOnly") => {

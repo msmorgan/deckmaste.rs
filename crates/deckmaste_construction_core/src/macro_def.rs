@@ -107,6 +107,7 @@ pub enum NounLocativeTemporalLicense {
 pub enum NounRelationality {
     NonRelational,
     QualifiedRelational,
+    DeterminedRelational,
     Relational,
 }
 

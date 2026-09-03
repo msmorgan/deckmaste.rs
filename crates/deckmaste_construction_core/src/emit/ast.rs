@@ -1041,6 +1041,12 @@ fn feature_value(value: crate::feature::FeatureValue) -> TokenStream {
         crate::feature::FeatureValue::RelationalComplement => {
             quote! { PrepositionComplementKind::RelationalComplement }
         }
+        crate::feature::FeatureValue::SelectionComplement => {
+            quote! { PrepositionComplementKind::SelectionComplement }
+        }
+        crate::feature::FeatureValue::SourceComplement => {
+            quote! { PrepositionComplementKind::SourceComplement }
+        }
         crate::feature::FeatureValue::InComplement => {
             quote! { PrepositionComplementKind::InComplement }
         }
@@ -1129,6 +1135,9 @@ fn feature_value(value: crate::feature::FeatureValue) -> TokenStream {
         }
         crate::feature::FeatureValue::QualifiedRelational => {
             quote! { Relationality::QualifiedRelational }
+        }
+        crate::feature::FeatureValue::DeterminedRelational => {
+            quote! { Relationality::DeterminedRelational }
         }
         crate::feature::FeatureValue::Relational => quote! { Relationality::Relational },
     }

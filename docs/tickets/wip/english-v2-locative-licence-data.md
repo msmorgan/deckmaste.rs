@@ -60,3 +60,131 @@ Class D routing (14 hardwired preposition rows) and the collision-metric
 row-by-row rule carry over from the first issue. Deviations section
 mandatory; landing record numbers read from your own gate output.
 Standard constraints apply.
+
+## Landing record (2026-09-03)
+
+Measured on change `nnmwmukz` with 16,337 lock-covered identities.
+
+The binding order was preserved as two changes. The first change,
+`trptkuvx`, contains the complete noun-class data and compiler enforcement;
+the mechanism is its child. Missing class data is a normalization error, and
+no parser fallback or permissive noun default exists.
+
+### Declared noun-class census
+
+| declaration class | members | declared class semantics |
+| --- | ---: | --- |
+| `Type` | 10 | object attachment; qualified relational `of` |
+| `Subtype` | 462 | object attachment; qualified relational `of` |
+| `CounterKind` | 31 | `on <host>`; nonrelational |
+| `TurnPart` | 19 | temporal attachment; relational `of` |
+| closed `CommonNoun` | 50 | explicit per-member locative/temporal and relationality values |
+
+The four open declaration classes inherit a value declared once on their
+class macro; adding an undeclared noun class fails compilation. Every closed
+noun member declares both facts directly. The corpus census was used only to
+prove all 522 open noun declarations and all 50 closed members have data; it
+does not decide which phrases are grammatical.
+
+### Class-D preposition routing
+
+All 14 members continue to declare attachment, bare-complement, and
+complement-kind facts explicitly:
+
+| preposition | attachment | bare | complement kind |
+| --- | --- | --- | --- |
+| after | adjunct-capable | no | unrestricted |
+| among | postmodifier-only | no | selection |
+| at | adjunct-capable | no | temporal `at` |
+| before | adjunct-capable | no | unrestricted |
+| during | adjunct-capable | no | temporal `during` |
+| for | adjunct-capable | no | unrestricted |
+| from | postmodifier-only | yes | source |
+| in | adjunct-capable | yes | interior |
+| into | selected-only | no | unrestricted |
+| of | postmodifier-only | no | relational |
+| on | adjunct-capable | no | surface/host |
+| onto | selected-only | no | unrestricted |
+| to | selected-only | no | unrestricted |
+| under | selected-only | no | unrestricted |
+
+H2 removes recursively nested `PrepositionalPhrase` complements; the flat
+`from among <object>` construction keeps both declared lexical prepositions.
+H3 admits existential domains only through an adjunct-capable wrapper. M3
+checks the nominal head and PP complement licences together; the named
+`Destroy each creature on the battlefield.` witness selects the NP-internal
+attachment and not the predicate-adjunct rival.
+
+### Measurements and lock
+
+| gate | before | after |
+| --- | ---: | ---: |
+| selected and covered units | 16,237 | 16,337 |
+| ordinary parse failures | 16,404 | 16,304 |
+| unique selections | 10,731 | 10,843 |
+| specificity-resolved selections | 5,506 | 5,494 |
+| unresolved ties | 0 | 0 |
+| construction declarations | 378 | 384 |
+| coverage-lock identities | 16,237 | 16,337 |
+
+The coverage-lock diff is +100/-0. Its SHA-256 moved from
+`482785cac240a055b484152861421caf19799e10fdc6667ce239db0df78d66a8`
+to `c73055d0af4c46077cc580bbc0185baaba1188184b3391806dfe22be5cc9069b`.
+Selected-uncovered, internal failures, exception uses, round-trip mismatches,
+ownership failures, gaps, overlaps, synthetic claims, and provenance-plan
+mismatches are all zero. No retirement manifest was created or used.
+
+`literal_lexicon_collisions` is 72 -> 60. The row-by-row ledger is:
+
+- Removed 14 form-literal/vocabulary overlaps by routing the preposition
+  through `lex Preposition`: `ordered_predicate` (`in`),
+  `only_during_restriction` (`during`),
+  `any_number_quantifying_determiner` (`of`), `control_phrase` (`under`),
+  both `edge_of_phrase` forms (`of`, two rows),
+  `number_of_scalar_value` (`of`), `greatest_scalar_value` (`among`),
+  `contracted_copular_relative_reference` (`of`),
+  `determinative_partitive` (`of`), `positional_partitive` (`of`),
+  `chosen_distribution_phrase` (`among`), `even_distribution_phrase`
+  (`among`), and `enter_control` (`under`).
+- Added two form-literal/vocabulary overlaps in the sole-realization
+  `put_onto_source_after` construction: `onto` and `from`.
+- Net movement: 72 - 14 + 2 = 60. No collision row was waived or hidden.
+
+All required positive families and both genitive positives select. Every
+ticket negative and all review negatives reject. The complete
+`deckmaste_construction_core`, `deckmaste_english_v2`, and xtask suites are
+green; the corpus ambiguity gate reports 16,337 selected, zero unresolved,
+zero exceptions, and zero internal failures. `cargo fmt --all -- --check`,
+strict all-target Clippy for construction-core, English v2, and xtask with
+warnings denied, and the final coverage check are green.
+
+### Deviations and additions
+
+- Added six construction declarations, each needed to preserve an existing
+  printed positive while enforcing the licence boundary:
+  `existential_domain` (H3 wrapper), `from_among_prepositional_phrase` (flat
+  H2-safe source selection), `locative_and_noun_phrase_coordination` plus
+  `locative_coordinated_noun_phrase` (guarded coordination with at least one
+  genuinely PP-qualified member),
+  `postscalar_prepositional_qualified_noun_phrase` (the licensed `on` case
+  after a scalar modifier), and `put_onto_source_after` (the attested
+  destination-before-source frame). No construction was deleted.
+- Added `DeterminedRelational` for heads such as `target` and `ability`, which
+  license a determined relational complement but not the rejected bare-head
+  readings. Added `SelectionComplement` and `SourceComplement` so `among` and
+  `from` are not smuggled through an unrestricted nested-PP rule.
+- Declaration nouns now carry the generic derived fact `number_invariant`,
+  computed from their declared singular/plural surfaces. It prevents a
+  duplicate plural reading for invariant declarations without naming any
+  subtype.
+- Existing general relatives gained only the optional slots required by
+  newly preserved positives: an existential-domain adjunct on the positive
+  object-gap relative, duration on the contracted-perfect object-gap
+  relative, and duration/manner on the reduced passive reference.
+- No test function was added, deleted, ignored, or converted from positive to
+  negative. Existing feature-recipe, nominal-selection, and preposition
+  integration tests were extended with the ticket's exact assertions; the
+  declaration expansion golden was updated for the new derived fact.
+
+STOPs: none; no locked unit was lost, so the zero-retirement stop condition
+did not trigger.

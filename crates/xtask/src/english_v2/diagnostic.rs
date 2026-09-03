@@ -905,6 +905,7 @@ enum NonterminalKind {
     ControlPhrase,
     PrepositionalPhrase,
     PrepositionalComplement,
+    ExistentialDomain,
     PrepositionalAdjunctPredicate,
     PreposedPrepositionalAdjunct,
     PreposedPrepositionalAdjunctPredicate,
@@ -1081,6 +1082,7 @@ enum NonterminalKind {
     SingularSelector,
     PluralSelector,
     FullNounPhraseCoordination,
+    LocativeNounPhraseCoordination,
     PartitiveSelection,
     BareLocative,
     BareLocativeNoun,
@@ -1575,6 +1577,7 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::ControlPhrase => NonterminalKind::ControlPhrase,
         NonterminalCategory::PrepositionalPhrase => NonterminalKind::PrepositionalPhrase,
         NonterminalCategory::PrepositionalComplement => NonterminalKind::PrepositionalComplement,
+        NonterminalCategory::ExistentialDomain => NonterminalKind::ExistentialDomain,
         NonterminalCategory::PrepositionalAdjunctPredicate => {
             NonterminalKind::PrepositionalAdjunctPredicate
         }
@@ -1822,6 +1825,9 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::ScalarQualification => NonterminalKind::ScalarQualification,
         NonterminalCategory::ControllerStage => NonterminalKind::ControllerStage,
         NonterminalCategory::LocativeStage => NonterminalKind::LocativeStage,
+        NonterminalCategory::LocativeNounPhraseCoordination => {
+            NonterminalKind::LocativeNounPhraseCoordination
+        }
         NonterminalCategory::NumericStage => NonterminalKind::NumericStage,
         NonterminalCategory::VerbPhrase => NonterminalKind::VerbPhrase,
         NonterminalCategory::BaseVerbFrame => NonterminalKind::BaseVerbFrame,

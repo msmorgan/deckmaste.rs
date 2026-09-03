@@ -1,6 +1,9 @@
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeclarationNoun {
     id: ::deckmaste_construction_core::macro_def::DeclarationIdentity,
+    locative_temporal_license: ::deckmaste_construction_core::macro_def::NounLocativeTemporalLicense,
+    relationality: ::deckmaste_construction_core::macro_def::NounRelationality,
+    number_invariant: bool,
 }
 impl DeclarationNoun {
     pub fn new(
@@ -20,20 +23,50 @@ impl DeclarationNoun {
                     )
             })
             .is_some();
-        has_surface.then(|| Self::from_reading(id)).flatten()
+        let (locative_temporal_license, relationality, number_invariant) = environment
+            .declaration_noun_features(&id)?;
+        has_surface
+            .then(|| Self::from_reading(
+                id,
+                locative_temporal_license,
+                relationality,
+                number_invariant,
+            ))
+            .flatten()
     }
     pub(crate) fn from_reading(
         id: ::deckmaste_construction_core::macro_def::DeclarationIdentity,
+        locative_temporal_license: ::deckmaste_construction_core::macro_def::NounLocativeTemporalLicense,
+        relationality: ::deckmaste_construction_core::macro_def::NounRelationality,
+        number_invariant: bool,
     ) -> Option<Self> {
         matches!(
             id.kind(), ::deckmaste_construction_core::macro_def::DeclarationKind::Type |
             ::deckmaste_construction_core::macro_def::DeclarationKind::Subtype(_) |
             ::deckmaste_construction_core::macro_def::DeclarationKind::TurnPart
         )
-            .then_some(Self { id })
+            .then_some(Self {
+                id,
+                locative_temporal_license,
+                relationality,
+                number_invariant,
+            })
     }
     pub fn id(&self) -> &::deckmaste_construction_core::macro_def::DeclarationIdentity {
         &self.id
+    }
+    pub(crate) fn locative_temporal_license(
+        &self,
+    ) -> ::deckmaste_construction_core::macro_def::NounLocativeTemporalLicense {
+        self.locative_temporal_license
+    }
+    pub(crate) fn relationality(
+        &self,
+    ) -> ::deckmaste_construction_core::macro_def::NounRelationality {
+        self.relationality
+    }
+    pub(crate) fn number_invariant(&self) -> bool {
+        self.number_invariant
     }
 }
 #[derive(Debug, Clone, PartialEq, Eq)]

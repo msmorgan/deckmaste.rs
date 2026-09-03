@@ -12,6 +12,9 @@ use deckmaste_construction_core::macro_def::DeclarationKind;
 pub use deckmaste_construction_core::macro_def::GrammarPosition;
 use deckmaste_construction_core::macro_def::GrammarRecipe;
 use deckmaste_construction_core::macro_def::NormalizedDeclaration;
+use deckmaste_construction_core::macro_def::NounClassSemantics;
+use deckmaste_construction_core::macro_def::NounLocativeTemporalLicense;
+use deckmaste_construction_core::macro_def::NounRelationality;
 use deckmaste_construction_core::macro_def::Onset;
 use deckmaste_construction_core::macro_def::SurfaceFeature;
 use deckmaste_construction_core::macro_def::VerbValence;
@@ -37,6 +40,7 @@ use crate::orthography::initial_surface;
 pub struct DeclarationRecord {
     id: DeclarationId,
     recipe: Option<GrammarRecipe>,
+    noun_class: Option<NounClassSemantics>,
     surfaces: Vec<(SurfaceFeature, Onset, Arc<str>)>,
     params: Vec<Arc<str>>,
     provenance: PathBuf,
@@ -573,6 +577,7 @@ impl ParserEnvironment {
                 DeclarationRecord {
                     id,
                     recipe,
+                    noun_class: declaration.noun_class(),
                     surfaces,
                     params,
                     provenance,
@@ -695,6 +700,21 @@ impl ParserEnvironment {
 
     pub(crate) fn grammar_recipe(&self, id: &DeclarationId) -> Option<&GrammarRecipe> {
         self.declaration(id.kind(), id.name())?.recipe()
+    }
+
+    pub(crate) fn declaration_noun_features(
+        &self,
+        id: &DeclarationId,
+    ) -> Option<(NounLocativeTemporalLicense, NounRelationality, bool)> {
+        let declaration = self.declaration(id.kind(), id.name())?;
+        let semantics = declaration.noun_class?;
+        let number_invariant = declaration.surface(SurfaceFeature::Singular)
+            == declaration.surface(SurfaceFeature::Plural);
+        Some((
+            semantics.locative_temporal_license,
+            semantics.relationality,
+            number_invariant,
+        ))
     }
 
     /// Returns every exact reading for a surface in deterministic identity

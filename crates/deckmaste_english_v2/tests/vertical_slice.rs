@@ -278,6 +278,7 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
                                             .expect(
                                                 "the core inventory declares transitive Control",
                                             ),
+                                            adjunct: Box::new(None),
                                         },
                                     ),
                                 ))),
@@ -324,12 +325,14 @@ fn number_of(counted: Object) -> NounPhrase {
                                 reference: Box::new(number),
                             },
                         )),
-                        PrepositionalPhrase::PrepositionalPhrase(PrepositionalPhraseValue {
-                            preposition: Preposition::Of,
-                            complement: Box::new(PrepositionalComplement::Object(Box::new(
-                                counted,
-                            ))),
-                        }),
+                        Box::new(PrepositionalPhrase::PrepositionalPhrase(
+                            PrepositionalPhraseValue {
+                                preposition: Preposition::Of,
+                                complement: Box::new(PrepositionalComplement::Object(Box::new(
+                                    counted,
+                                ))),
+                            },
+                        )),
                     )
                     .expect("`of` is a licensed nominal postmodifier"),
                 )),

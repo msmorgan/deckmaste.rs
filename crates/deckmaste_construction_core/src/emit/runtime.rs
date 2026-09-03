@@ -171,6 +171,8 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 pub(crate) enum PrepositionComplementKind {
                     UnrestrictedComplement,
                     RelationalComplement,
+                    SelectionComplement,
+                    SourceComplement,
                     InComplement,
                     OnComplement,
                     AtComplement,
@@ -249,6 +251,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 pub(crate) enum Relationality {
                     NonRelational,
                     QualifiedRelational,
+                    DeterminedRelational,
                     Relational,
                 }
             },

@@ -3124,8 +3124,13 @@ mod tests {
             environment.surface(&id, SurfaceFeature::Plural),
             Some("creatures")
         );
-        let identity =
-            DeclarationNoun::from_reading(id).expect("Type is an allowed declaration noun kind");
+        let identity = DeclarationNoun::from_reading(
+            id,
+            deckmaste_construction_core::macro_def::NounLocativeTemporalLicense::ObjectAttachmentLicensed,
+            deckmaste_construction_core::macro_def::NounRelationality::QualifiedRelational,
+            false,
+        )
+        .expect("Type is an allowed declaration noun kind");
         let value = Leaf::Noun {
             noun: Noun::Declaration(identity),
             number: super::Number::Plural,
@@ -3134,7 +3139,7 @@ mod tests {
         };
         assert_eq!(
             value_label_v1(&value),
-            "Noun { noun: Declaration(DeclarationNoun { id: DeclarationIdentity { kind: Type, name: \"Creature\" } }), number: Plural, onset: Consonant, possessive_ending: EndsInS }"
+            "Noun { noun: Declaration(DeclarationNoun { id: DeclarationIdentity { kind: Type, name: \"Creature\" }, locative_temporal_license: ObjectAttachmentLicensed, relationality: QualifiedRelational, number_invariant: false }), number: Plural, onset: Consonant, possessive_ending: EndsInS }"
         );
     }
 

@@ -4022,11 +4022,40 @@ fn preposition_attachment_and_complement_head_licenses_are_conjunctive() {
         "Creatures you control get +1/+1 on your turn.",
         "Destroy creatures you control of the chosen type.",
         "Sacrifice a nontoken creature of their choice.",
+        "Remove X counters from among them.",
+        "Put two counters on this artifact.",
+        "Destroy cards in your graveyard.",
+        "Destroy target creature on the battlefield.",
+        "Destroy each creature on the battlefield.",
+        "Reveal the top card of your library.",
+        "Destroy a copy of target creature.",
+        "You gain life equal to that creature's power.",
+        "You gain life equal to that card's mana value.",
         "Sacrifice a creature during your upkeep.",
         "Draw a card for each creature you control.",
     ] {
         assert_selected_with_specificity(&parser, &context, text, true);
     }
+
+    let m3 = parser.analyze("Destroy each creature on the battlefield.", &context);
+    let decision = m3.decision().expect("M3 witness has a selection decision");
+    let selected = decision.selected().expect("M3 witness selects one reading");
+    assert!(
+        decision.candidates()[selected]
+            .construction_path()
+            .iter()
+            .any(|construction| construction == "LocativeStagePrepositionalQualifiedReference"),
+        "the licensed PP must attach inside the object noun phrase"
+    );
+    assert!(
+        !decision.candidates()[selected]
+            .construction_path()
+            .iter()
+            .any(|construction| {
+                construction == "PrepositionalAdjunctPredicatePrepositionalAdjunctPredicate"
+            }),
+        "the predicate-adjunct rival must lose"
+    );
 
     for text in [
         "Into your graveyard, draw a card.",
@@ -4034,10 +4063,16 @@ fn preposition_attachment_and_complement_head_licenses_are_conjunctive() {
         "To target player, draw a card.",
         "Under your control, draw a card.",
         "Among them, draw a card.",
+        "Draw a card of target player.",
+        "Draw a card of a Goblin.",
+        "Destroy target creature on an artifact.",
+        "Destroy target creature on target player.",
         "Draw a card of your library.",
         "Sacrifice a creature of your hand.",
         "You gain 2 life of your library.",
         "Destroy target creature on your hand.",
+        "There is a creature into your graveyard.",
+        "Draw a card for from your graveyard.",
     ] {
         assert_eq!(
             parser.analyze(text, &context).outcome(),
