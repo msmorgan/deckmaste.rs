@@ -1910,7 +1910,7 @@ impl GameState {
         if specs.is_empty() {
             return Progress::NewTargetsOpened { specs: 0 };
         }
-        let mut legal = self.legal_targets_for_specs(&specs, entry, activation);
+        let mut legal = self.retarget_candidates_for_specs(&specs, entry, activation, &current);
         // [CR#707.10c]: the union rule — every current target of a slot is a
         // keepable choice, even when it didn't make the fresh legal cut
         // (keeping the ENTIRE current set is always legal, final-set rule).

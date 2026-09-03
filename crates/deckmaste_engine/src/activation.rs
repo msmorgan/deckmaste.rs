@@ -169,6 +169,39 @@ impl crate::state::GameState {
         self.enter_region_with(region, frame, &[], &[])
     }
 
+    /// Evaluate a read-only probe inside a materialized region activation,
+    /// then reclaim both the activation and the identity it temporarily
+    /// consumed. Castability checks need this when a target filter reads an
+    /// earlier announced-target register: `ActivationId::NONE` has no
+    /// register file to receive trial prefixes, while merely probing legal
+    /// actions must not perturb the ids a later real resolution will mint.
+    pub(crate) fn with_temporary_region_activation<T, R>(
+        &self,
+        region: &Region<T>,
+        frame: &Frame,
+        probe: impl FnOnce(ActivationId) -> R,
+    ) -> R {
+        let next_activation = self.next_activation.get();
+        let activation = self.enter_region(region, frame);
+        let result = probe(activation);
+        self.remove_activation_family(activation);
+        // Matching candidates may enter arbitrarily many child regions. They
+        // all inherit this probe's root and are reclaimed with it; only rewind
+        // the counter once no minted identity remains live.
+        let can_rewind = self.activations.borrow().keys().all(|id| match id {
+            ActivationId::Stored(raw) => *raw < next_activation,
+            ActivationId::None | ActivationId::Bare { .. } => true,
+        });
+        debug_assert!(
+            can_rewind,
+            "every activation minted by a temporary probe belongs to its family"
+        );
+        if can_rewind {
+            self.next_activation.set(next_activation);
+        }
+        result
+    }
+
     /// Enter a region whose declared captures are supplied from outside the
     /// activation table — a delayed or reflexive body ([CR#603.7,603.12])
     /// firing long after the region that created it was reclaimed. `captures`

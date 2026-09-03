@@ -787,6 +787,71 @@ pub(crate) fn announced_effect_items(
     items
 }
 
+struct TargetAnnouncementSearch<'a> {
+    state: &'a GameState,
+    specs: &'a [TargetSpec],
+    targeting_id: ObjectId,
+    activation: crate::ActivationId,
+}
+
+impl TargetAnnouncementSearch<'_> {
+    fn choose_slot(
+        &self,
+        candidates: &[ObjectId],
+        wanted: usize,
+        start: usize,
+        slot: &mut Vec<ObjectId>,
+        chosen: &mut Vec<Vec<ObjectId>>,
+    ) -> bool {
+        if slot.len() == wanted {
+            chosen.push(slot.clone());
+            let found = self.prefix_exists(chosen);
+            chosen.pop();
+            return found;
+        }
+        let remaining = wanted - slot.len();
+        if candidates.len().saturating_sub(start) < remaining {
+            return false;
+        }
+        for index in start..=candidates.len().saturating_sub(remaining) {
+            slot.push(candidates[index]);
+            if self.choose_slot(candidates, wanted, index + 1, slot, chosen) {
+                return true;
+            }
+            slot.pop();
+        }
+        false
+    }
+
+    fn prefix_exists(&self, chosen: &mut Vec<Vec<ObjectId>>) -> bool {
+        if chosen.len() == self.specs.len() {
+            return crate::resolve::validate_target_set(self.specs, chosen).is_ok();
+        }
+        self.state.activation_set_targets(self.activation, chosen);
+        let index = chosen.len();
+        let candidates =
+            self.state
+                .legal_targets_for_specs(self.specs, self.targeting_id, self.activation)[index]
+                .clone();
+        let (min, max) = crate::resolve::slot_count_bounds(&self.specs[index]);
+        let min = usize::try_from(min).expect("minimum target count fits usize");
+        let max = max.map_or(candidates.len(), |count| {
+            usize::try_from(count)
+                .expect("maximum target count fits usize")
+                .min(candidates.len())
+        });
+        if min > max {
+            return false;
+        }
+        for wanted in min..=max {
+            if self.choose_slot(&candidates, wanted, 0, &mut Vec::new(), chosen) {
+                return true;
+            }
+        }
+        false
+    }
+}
+
 impl GameState {
     pub(crate) fn announcement_effect_satisfiable(
         &self,
@@ -798,6 +863,13 @@ impl GameState {
         let carrier = Some(self.objects.obj(source).source);
         let selection_satisfiable = |picks: &[Uint]| {
             let specs = announced_target_specs(effect, targets, picks);
+            if crate::resolve::announced_prefix_len(&specs) != 0 {
+                return self.with_temporary_region_activation(
+                    effect,
+                    &Frame::bare(source, controller),
+                    |activation| self.target_announcement_satisfiable(&specs, source, activation),
+                );
+            }
             let legal: Vec<Vec<ObjectId>> = specs
                 .iter()
                 .map(|spec| self.legal_targets(spec, carrier, crate::ActivationId::NONE))
@@ -838,8 +910,7 @@ impl GameState {
             .expect("an announcement-time mode choice has an announce in flight");
         let view = self.layers();
         let specs = self.stack_object_target_specs(&view, &pending.object, picks);
-        let legal = self.legal_targets_for_specs(&specs, pending.id, pending.activation);
-        crate::resolve::announce_satisfiable(&specs, &legal)
+        self.target_announcement_satisfiable(&specs, pending.id, pending.activation)
     }
 
     pub(crate) fn first_legal_announced_mode_selection(
@@ -1532,6 +1603,115 @@ impl GameState {
                     .collect()
             })
             .collect()
+    }
+
+    /// Whether at least one complete target announcement exists when later
+    /// slots may read earlier announced-target registers ([CR#601.2c]). The
+    /// ordinary independent-slot case keeps the compact set-level gate. A
+    /// telescoping target list instead enumerates legal slot subsets in
+    /// declaration order, writing each trial prefix into the activation before
+    /// deriving the next slot. This is a satisfiability search only; the live
+    /// register file is restored before returning.
+    #[must_use]
+    pub(crate) fn target_announcement_satisfiable(
+        &self,
+        specs: &[TargetSpec],
+        targeting_id: ObjectId,
+        activation: crate::ActivationId,
+    ) -> bool {
+        if crate::resolve::announced_prefix_len(specs) == 0 {
+            let legal = self.legal_targets_for_specs(specs, targeting_id, activation);
+            return crate::resolve::announce_satisfiable(specs, &legal);
+        }
+
+        let restore = self.announced_targets(activation);
+        self.activation_set_targets(activation, &[]);
+        let found = TargetAnnouncementSearch {
+            state: self,
+            specs,
+            targeting_id,
+            activation,
+        }
+        .prefix_exists(&mut Vec::new());
+        self.activation_set_targets(activation, &restore);
+        found
+    }
+
+    /// Candidate menus for choosing new targets when later slots read earlier
+    /// ones. The prompt must contain candidates reachable after ANY fresh
+    /// earlier choice, candidates reachable while keeping the current prefix,
+    /// and every current target itself ([CR#707.10c,115.7d]). Final-set
+    /// legality is re-derived from the submitted prefix by
+    /// [`Self::cross_retarget_choice_legal`].
+    pub(crate) fn retarget_candidates_for_specs(
+        &self,
+        specs: &[TargetSpec],
+        targeting_id: ObjectId,
+        activation: crate::ActivationId,
+        current: &[Vec<ObjectId>],
+    ) -> Vec<Vec<ObjectId>> {
+        let current_legal = self.legal_targets_for_specs(specs, targeting_id, activation);
+        if crate::resolve::announced_prefix_len(specs) == 0 {
+            return current_legal;
+        }
+        self.activation_set_targets(activation, &[]);
+        let mut widened = self.legal_targets_for_specs(specs, targeting_id, activation);
+        self.activation_set_targets(activation, current);
+        for (slot, under_current) in widened.iter_mut().zip(current_legal) {
+            for candidate in under_current {
+                if !slot.contains(&candidate) {
+                    slot.push(candidate);
+                }
+            }
+        }
+        widened
+    }
+
+    /// Validate a retarget proposal whose later slots read earlier target
+    /// registers. A newly chosen target must be legal under the PROPOSED
+    /// prefix. A retained current target remains keepable when it was already
+    /// illegal, but changing an earlier slot may not turn a formerly legal
+    /// unchanged target illegal ([CR#115.7d]).
+    #[must_use]
+    pub(crate) fn cross_retarget_choice_legal(
+        &self,
+        specs: &[TargetSpec],
+        current: &[Vec<ObjectId>],
+        chosen: &[Vec<ObjectId>],
+        targeting_id: ObjectId,
+        activation: crate::ActivationId,
+    ) -> bool {
+        if specs.len() != current.len()
+            || specs.len() != chosen.len()
+            || crate::resolve::announced_prefix_len(specs) == 0
+        {
+            return specs.len() == current.len() && specs.len() == chosen.len();
+        }
+        self.activation_set_targets(activation, current);
+        let current_legal = self.legal_targets_for_specs(specs, targeting_id, activation);
+        let mut prefix: Vec<Vec<ObjectId>> = Vec::new();
+        let mut legal = true;
+        for (index, picks) in chosen.iter().enumerate() {
+            self.activation_set_targets(activation, &prefix);
+            let proposed_legal = self.legal_targets_for_specs(specs, targeting_id, activation);
+            for &pick in picks {
+                let retained = current[index].contains(&pick);
+                if (!retained && !proposed_legal[index].contains(&pick))
+                    || (retained
+                        && current_legal[index].contains(&pick)
+                        && !proposed_legal[index].contains(&pick))
+                {
+                    legal = false;
+                    break;
+                }
+            }
+            if !legal {
+                break;
+            }
+            prefix.push(picks.clone());
+        }
+        self.activation_set_targets(activation, current);
+        legal
     }
 
     /// [CR#601.2b]: surface a `ChooseXValue` if the in-flight announce's cost

@@ -304,6 +304,27 @@ fn to_target_prompt(state: &mut GameState) -> ChooseTargets {
     panic!("no target prompt surfaced");
 }
 
+/// Steps until a `Retarget` prompt surfaces, answering routine prompts on the
+/// way. Cross-target retarget fixtures need to submit one illegal final set,
+/// observe the refusal, then retry the same pending decision.
+fn to_retarget_prompt(state: &mut GameState) -> deckmaste_engine::Retarget {
+    for _ in 0..200 {
+        let (_, outcome) = step_to_stop(state);
+        let StepOutcome::NeedsDecision(pending) = outcome else {
+            panic!("the game ended before a retarget prompt: {outcome:?}");
+        };
+        if let PendingDecision::Retarget(prompt) = pending {
+            return prompt;
+        }
+        let decision =
+            routine(state, &pending).unwrap_or_else(|| panic!("no routine answer for {pending:?}"));
+        state
+            .submit_decision(decision)
+            .expect("a routine answer is legal");
+    }
+    panic!("no retarget prompt surfaced");
+}
+
 /// The `ActivateAbility` action for `object` offered by the priority window in
 /// flight — read off the legal list rather than guessing an ability index.
 fn activation_of(state: &GameState, object: ObjectId) -> Action {
@@ -475,6 +496,40 @@ const RELIC2: &str = r#"Normal(name: "Witness Relic", mana_cost: [Generic(2)],
 /// Mana value 3 — the near miss the same activation must leave alone.
 const RELIC3: &str = r#"Normal(name: "Witness Reliquary", mana_cost: [Generic(3)],
     types: [Artifact])"#;
+
+/// A synthetic cross-target spell used only for engine-path witnesses. The
+/// second creature must be controlled by someone other than the first one's
+/// controller, so its filter reads slot 0's announced register.
+const CROSS_TARGET_RETURN: &str = r#"Normal(
+    name: "Cross-Target Return",
+    mana_cost: [Generic(0)],
+    types: [Instant],
+    abilities: [
+        Spell(effect: Targeted(
+            targets: [
+                TargetOne(Creature),
+                TargetOne(And([
+                    Creature,
+                    Not(ControlledBy(Ref(ControllerOf(Target(0))))),
+                ])),
+            ],
+            effect: Sequentially([Move(Target(0), Hand), Move(Target(1), Hand)]))),
+    ])"#;
+
+/// A fixture-local spelling of "{T}: Choose new targets for target spell."
+const CROSS_TARGET_RETARGETER: &str = r#"Normal(
+    name: "Cross-Target Retargeter",
+    mana_cost: [Generic(0)],
+    types: [Creature],
+    abilities: [
+        Activated(
+            cost: [Tap],
+            effect: Targeted(
+                targets: [TargetOne(Kind(Spell))],
+                effect: Retarget(mode: ChooseNew, of: Target(0), by: You))),
+    ],
+    power: 1,
+    toughness: 1)"#;
 
 // --- per-player choice -------------------------------------------------------
 
@@ -1706,6 +1761,227 @@ fn steel_hellkite_case(damaged: &str) {
     );
 }
 
+/// Castability precheck for a telescoping target list ([CR#601.2c]). Both
+/// creatures in play have the same controller, so no complete announcement of
+/// `CROSS_TARGET_RETURN` exists: whichever creature slot 0 names, slot 1 has
+/// no candidate under a different controller. The spell must therefore be
+/// absent from the priority window rather than leading to an unanswerable
+/// target prompt.
+#[test]
+fn cross_target_spell_without_a_complete_announcement_is_not_castable() {
+    let spell_card = fixture(CROSS_TARGET_RETURN);
+    let bear = fixture(BEAR);
+    let mut p0 = deck(&spell_card, 2);
+    p0.extend(deck(&bear, 22));
+    let mut state = game(vec![p0, deck(&bear, 24)], 98);
+    let spell = into_hand(&mut state, PlayerId(0), "Cross-Target Return");
+    onto_battlefield(&mut state, PlayerId(0), "Witness Bear");
+    onto_battlefield(&mut state, PlayerId(0), "Witness Bear");
+
+    to_phase(
+        &mut state,
+        PlayerId(0),
+        PhaseStep::PrecombatMain,
+        &mut plain,
+    );
+    let Some(PendingDecision::Priority(Priority { legal, .. })) = &state.pending else {
+        panic!("the fixture stopped outside priority: {:?}", state.pending);
+    };
+    assert!(
+        !legal
+            .iter()
+            .any(|action| matches!(action, Action::CastSpell { object } if *object == spell)),
+        "a spell with no legal complete target announcement is not offered"
+    );
+}
+
+struct CrossRetargetFixture {
+    state: GameState,
+    spell: ObjectId,
+    current_second: ObjectId,
+    replacement_first: ObjectId,
+    replacement_second: ObjectId,
+    prompt: deckmaste_engine::Retarget,
+}
+
+/// Drives a hand-spelled cross-target spell and retarget ability to the
+/// `Retarget` decision. When `invalidate_current_second` is set, direct fixture
+/// setup changes that target's controller after its legal announcement but
+/// before the retarget effect resolves, making it already illegal under the
+/// current prefix.
+fn cross_retarget_fixture(seed: u64, invalidate_current_second: bool) -> CrossRetargetFixture {
+    let spell_card = fixture(CROSS_TARGET_RETURN);
+    let retargeter_card = fixture(CROSS_TARGET_RETARGETER);
+    let bear = fixture(BEAR);
+    let mut p0 = deck(&spell_card, 2);
+    p0.extend(deck(&bear, 22));
+    let mut p1 = deck(&retargeter_card, 2);
+    p1.extend(deck(&bear, 22));
+    let mut state = game(vec![p0, p1], seed);
+    let spell = into_hand(&mut state, PlayerId(0), "Cross-Target Return");
+    let retargeter = onto_battlefield(&mut state, PlayerId(1), "Cross-Target Retargeter");
+    state.objects.obj_mut(retargeter).summoning_sick = false;
+    let current_first = onto_battlefield(&mut state, PlayerId(0), "Witness Bear");
+    let replacement_second = onto_battlefield(&mut state, PlayerId(0), "Witness Bear");
+    let current_second = onto_battlefield(&mut state, PlayerId(1), "Witness Bear");
+    let replacement_first = onto_battlefield(&mut state, PlayerId(1), "Witness Bear");
+
+    to_phase(
+        &mut state,
+        PlayerId(0),
+        PhaseStep::PrecombatMain,
+        &mut plain,
+    );
+    state
+        .submit_decision(Decision::Act(Action::CastSpell { object: spell }))
+        .expect("the spell has a legal initial cross-target announcement");
+    let prompt = to_target_prompt(&mut state);
+    assert!(prompt.legal[0].contains(&current_first));
+    assert!(prompt.legal[1].contains(&current_second));
+    state
+        .submit_decision(Decision::Targets(vec![
+            vec![current_first],
+            vec![current_second],
+        ]))
+        .expect("the initial targets have different controllers");
+    drive(
+        &mut state,
+        |s, player| player == PlayerId(0) && s.stack.len() == 1,
+        &mut plain,
+    );
+
+    state
+        .submit_decision(Decision::Act(Action::Pass))
+        .expect("P0 passes with the spell on the stack");
+    drive(
+        &mut state,
+        |s, player| player == PlayerId(1) && s.stack.len() == 1,
+        &mut plain,
+    );
+    let activate = activation_of(&state, retargeter);
+    state
+        .submit_decision(Decision::Act(activate))
+        .expect("the retarget ability is activatable");
+    let prompt = to_target_prompt(&mut state);
+    assert!(prompt.legal[0].contains(&spell));
+    state
+        .submit_decision(Decision::Targets(vec![vec![spell]]))
+        .expect("the committed spell is a legal target");
+    drive(
+        &mut state,
+        |s, player| player == PlayerId(1) && s.stack.len() == 2,
+        &mut plain,
+    );
+    if invalidate_current_second {
+        state.objects.obj_mut(current_second).controller = PlayerId(0);
+    }
+    state
+        .submit_decision(Decision::Act(Action::Pass))
+        .expect("P1 passes");
+    drive(
+        &mut state,
+        |s, player| player == PlayerId(0) && s.stack.len() == 2,
+        &mut plain,
+    );
+    state
+        .submit_decision(Decision::Act(Action::Pass))
+        .expect("P0 passes");
+
+    let prompt = to_retarget_prompt(&mut state);
+    CrossRetargetFixture {
+        state,
+        spell,
+        current_second,
+        replacement_first,
+        replacement_second,
+        prompt,
+    }
+}
+
+/// Choosing new targets evaluates only the FINAL target set ([CR#115.7e]),
+/// but changing an earlier target may not make an unchanged later target
+/// illegal ([CR#115.7d]). The initial pair is P0/P1. Changing slot 0 to a P1
+/// creature while retaining slot 1's P1 creature is rejected; changing slot 1
+/// to the P0 alternative is accepted. The accepted later target was not legal
+/// under the entry's old slot-0 value, so its presence in the surfaced union
+/// also witnesses cross-prefix re-enumeration.
+#[test]
+fn cross_target_retarget_rederives_later_slots_from_the_proposed_prefix() {
+    let CrossRetargetFixture {
+        mut state,
+        spell,
+        current_second,
+        replacement_first,
+        replacement_second,
+        prompt,
+    } = cross_retarget_fixture(99, false);
+    assert!(
+        prompt.legal[1].contains(&replacement_second),
+        "the later-slot menu includes a target reachable after changing slot 0"
+    );
+    let refused = state
+        .submit_decision(Decision::Targets(vec![
+            vec![replacement_first],
+            vec![current_second],
+        ]))
+        .expect_err("changing slot 0 must not invalidate unchanged slot 1");
+    assert!(matches!(
+        refused,
+        deckmaste_engine::DecisionError::Illegal { .. }
+    ));
+    state
+        .submit_decision(Decision::Targets(vec![
+            vec![replacement_first],
+            vec![replacement_second],
+        ]))
+        .expect("the final targets have different controllers");
+    assert_eq!(
+        state
+            .stack
+            .iter()
+            .find(|entry| entry.id == spell)
+            .expect("the retargeted spell remains on the stack")
+            .targets,
+        vec![vec![replacement_first], vec![replacement_second]]
+    );
+}
+
+/// [CR#115.7d] separately permits an unchanged target that was ALREADY
+/// illegal. Here control of slot 1 changes after announcement, making it
+/// illegal under the current P0 slot 0. Changing slot 0 to another P0 creature
+/// leaves slot 1 illegal, but does not CAUSE that illegality, so the retarget is
+/// legal and the current target remains in place.
+#[test]
+fn cross_target_retarget_keeps_a_later_target_that_was_already_illegal() {
+    let CrossRetargetFixture {
+        mut state,
+        spell,
+        current_second,
+        replacement_second,
+        prompt,
+        ..
+    } = cross_retarget_fixture(100, true);
+    assert!(
+        prompt.legal[1].contains(&current_second),
+        "the union rule keeps the current illegal target in the menu"
+    );
+    state
+        .submit_decision(Decision::Targets(vec![
+            vec![replacement_second],
+            vec![current_second],
+        ]))
+        .expect("an already-illegal unchanged target remains keepable");
+    assert_eq!(
+        state
+            .stack
+            .iter()
+            .find(|entry| entry.id == spell)
+            .expect("the retargeted spell remains on the stack")
+            .targets,
+        vec![vec![replacement_second], vec![current_second]]
+    );
+}
+
 /// Run Away Together — "Choose two target creatures controlled by different
 /// players. Return those creatures to their owners' hands."
 ///
@@ -1713,9 +1989,9 @@ fn steel_hellkite_case(damaged: &str) {
 /// register, so a second creature under the first target's controller is not a
 /// legal announcement ([CR#601.2c]).
 ///
-/// The first slot is announced before the second is enumerated, so the second
-/// offers only creatures under another controller and the same-controller pair
-/// is refused as an illegal announcement.
+/// The second slot's surfaced menu is the union over possible first targets;
+/// the whole submitted proposal is then re-derived in declaration order, so a
+/// same-controller pair is refused as an illegal announcement.
 ///
 /// Both faithful spellings of "controlled by a different player" are exercised:
 /// the relation-predicate detour, and the DERIVED reference

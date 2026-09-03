@@ -228,6 +228,20 @@ impl DecisionHandler for Retarget {
         if let Err(reason) = crate::resolve::validate_target_set(&spec, &chosen) {
             return Err(DecisionError::Illegal { reason });
         }
+        if let Some(found) = g.stack.iter().find(|candidate| candidate.id == entry)
+            && !g.cross_retarget_choice_legal(
+                &spec,
+                &found.targets,
+                &chosen,
+                entry,
+                found.activation,
+            )
+        {
+            return Err(DecisionError::Illegal {
+                reason: "a target slot reading an earlier retargeted slot rejects this final set"
+                    .into(),
+            });
+        }
         g.pending = None;
         // [CR#707.10c]: the referenced entry may have left the stack
         // between this decision surfacing and its answer (e.g.
