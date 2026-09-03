@@ -11,15 +11,17 @@ use super::audit::AuditStatus;
 use super::corpus::Corpus;
 
 pub(super) fn run(args: &RoundtripArgs, output: &mut dyn Write) -> anyhow::Result<()> {
+    let started = std::time::Instant::now();
     let corpus = Corpus::load(&args.corpus.data)
         .with_context(|| format!("loading corpus from {}", args.corpus.data.display()))?;
     let parser = crate::english_v2::parser_from_builtin_v2()?;
-    let report = AuditReport::run(&corpus, &parser);
+    let report = AuditReport::run(&corpus, &parser, args.corpus.workers, false);
 
     render_report(&report, args.json, output)?;
     output
         .flush()
         .context("flushing English-v2 round-trip report")?;
+    super::corpus::write_corpus_performance("roundtrip", started.elapsed(), report.performance())?;
     if args.require_clean {
         require_clean(&report)?;
     }

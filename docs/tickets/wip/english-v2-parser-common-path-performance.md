@@ -146,3 +146,75 @@ unchanged. Every separately launched command satisfies the 16.26-second ceiling
 acceptance cost beside wall time. Failure messages are ranked and bounded.
 Record fresh v1/v2 baselines, profiles, the repairs actually taken, and
 post-repair samples.
+
+## Landing record
+
+The ruled 16.26-second wall ceiling remains the acceptance criterion; no new
+criterion ruling was made. Measurements below are ordinary dev-profile runs on
+the same shared 16-thread host. The fresh v1 comparison still reports its
+existing four-worker cap, so it is contextual rather than a like-for-like
+parallelism comparison.
+
+| sample | before | after |
+|---|---:|---:|
+| v2 `parse` wall | 56.690 s | 15.059 s |
+| accepted cost | about 232 us/byte in the ticket diagnosis | 87.016 us/byte |
+| parse report size | 23,936,694 bytes | 3,490,375 bytes |
+| fresh v1 `roundtrip --require-clean` wall | 36.537 s | n/a |
+
+Fresh final corpus-gate samples, each explicitly requested with 16 workers:
+
+| gate | wall | accepted cost | result |
+|---|---:|---:|---|
+| `parse --require-complete` | 15.059 s | 87.016 us/byte | expected exit 1: 16,174 accepted and 16,467 ordinary failures |
+| `roundtrip --require-clean` | 14.591 s | 83.371 us/byte | clean |
+| `ambiguity --require-resolved` | 14.879 s | 74.246 us/byte | resolved |
+| `coverage --check` | 13.281 s | 70.244 us/byte | clean |
+
+`expand` took 1.564 s and `report` took 1.137 s. The complete 32,641-unit
+partition after the final refresh is 16,174 accepted and 16,467 ordinary parse
+failures, with zero roundtrip mismatches, zero unresolved ties, zero exceptions
+or exception uses, zero ownership failures, and zero internal failures.
+Coverage selected and covered all 16,174 accepted units, with zero gaps,
+overlaps, synthetic spans, or provenance mismatches; the add-only lock did not
+change. The refresh brought 208 additional accepted units from default; the
+feature itself did not change grammar, candidate selection, or outcomes.
+
+R0 landed as generated, feature-gated counters for prediction, completion,
+materialization, memo misses, and clone-heavy activity. The final full-corpus
+instrumented sample recorded 217,800,452 predictions, 17,684,186 completions,
+69,436,102 materializations, 46,280,504 memo misses, and 80,240,134 clone-heavy
+events. Its leading constructions were
+`ControllerStageUnqualifiedControllerStage`,
+`UnqualifiedReferenceDeterminedNominal`, `Predicate`, `MassNounMassNoun`, and
+`CoordinatedPredicate`. Instrumentation is deliberately off by default and its
+atomic observation overhead is excluded from the normal-command ceiling.
+
+The retained repairs are persistent per-parse checked-materialization state
+with a completion-only value cache; indexed node interning, waiters, LHS rules,
+and completed starts; shared-prefix partial families with an inline singleton
+family representation; family-reachable requeueing; lexical-scan memoization;
+requested worker parallelism with longest-text-first scheduling; and streaming
+or omitted audit strings where the caller does not consume them. Corpus-facing
+parse failures now rank literal, terminal, then nonterminal expectations,
+deduplicate display names, show at most eight names, and report the omitted
+count while the parser retains its complete private diagnostic.
+
+Experiments replacing the chart with a hash map, adding a completion reverse
+dependency index, and using a custom hot-path hasher regressed measurements and
+were removed. A direct `hashbrown` dependency also violated the repository's
+dependency invariant and was removed. R8 token indexing was not needed after
+the ceiling cleared. No grammar, candidate set, semantic ranking, corpus
+selection, or direct dependency set changed.
+
+Verification passed with the parser-metrics feature enabled:
+
+- `cargo test -p deckmaste_english_v2 -p xtask -p deckmaste_construction_core --features xtask/parser-metrics --quiet`
+- `cargo clippy -p deckmaste_construction_core -p deckmaste_english_v2 -p xtask --all-targets --features xtask/parser-metrics -- -D warnings`
+- `cargo fmt --all -- --check`
+
+Test assurance accounting: zero tests restored, one existing concurrency test
+re-spelled to assert the requested worker count rather than the removed
+four-worker cap, zero ignored blockers added, one new bounded/ranked diagnostic
+test added, and zero tests removed. Existing CLI fixtures were updated only for
+the new `--workers` interface.

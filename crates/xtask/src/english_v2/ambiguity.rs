@@ -15,16 +15,23 @@ use serde::Serialize;
 
 use super::AmbiguityArgs;
 use super::corpus::Corpus;
+use super::corpus::CorpusPerformance;
 use super::corpus::CorpusUnit;
 use super::corpus::map_corpus_units;
 
 pub(super) fn run(args: &AmbiguityArgs, output: &mut dyn Write) -> anyhow::Result<()> {
+    let started = std::time::Instant::now();
     let corpus = Corpus::load(&args.corpus.data)
         .with_context(|| format!("loading corpus from {}", args.corpus.data.display()))?;
     let parser = crate::english_v2::parser_from_builtin_v2()?;
-    let report = AmbiguityReport::run(&corpus, &parser)?;
+    let report = AmbiguityReport::run(&corpus, &parser, args.corpus.workers)?;
 
-    render_then_apply(&report, args.json, args.require_resolved, output)
+    render_report(&report, args.json, output)?;
+    output
+        .flush()
+        .context("flushing English-v2 ambiguity census")?;
+    super::corpus::write_corpus_performance("ambiguity", started.elapsed(), report.performance)?;
+    apply_exit_predicates(&report, args.require_resolved)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -230,10 +237,7 @@ impl AmbiguityRow {
                 row.internal_kind = Some(internal_kind(kind));
             }
         }
-        row.message = analysis
-            .into_parse_result()
-            .err()
-            .map(|error| error.to_string());
+        row.message = analysis.error().map(super::corpus::corpus_error_message);
         row
     }
 
@@ -365,14 +369,20 @@ struct AmbiguityReport {
     source_fingerprint: String,
     rows: Vec<AmbiguityRow>,
     summary: AmbiguitySummary,
+    #[serde(skip)]
+    performance: CorpusPerformance,
 }
 
 impl AmbiguityReport {
-    fn run(corpus: &Corpus, parser: &Parser) -> anyhow::Result<Self> {
-        let rows = map_corpus_units(corpus.units(), |_, unit| {
-            AmbiguityRow::from_unit(unit, parser)
-        });
-        let report = Self::new(corpus.source_fingerprint().to_owned(), rows)?;
+    fn run(corpus: &Corpus, parser: &Parser, workers: usize) -> anyhow::Result<Self> {
+        let (rows, performance) = map_corpus_units(
+            corpus.units(),
+            workers,
+            |_, unit| AmbiguityRow::from_unit(unit, parser),
+            |row| row.status == AmbiguityStatus::Selected,
+        );
+        let mut report = Self::new(corpus.source_fingerprint().to_owned(), rows)?;
+        report.performance = performance;
         report.validate_against_corpus(corpus)?;
         Ok(report)
     }
@@ -393,6 +403,7 @@ impl AmbiguityReport {
             source_fingerprint,
             rows,
             summary,
+            performance: CorpusPerformance::default(),
         })
     }
 
@@ -587,6 +598,7 @@ fn is_lower_hex_64(value: &str) -> bool {
             .all(|byte| byte.is_ascii_digit() || matches!(byte, b'a'..=b'f'))
 }
 
+#[cfg(test)]
 fn render_then_apply(
     report: &AmbiguityReport,
     json: bool,
@@ -615,21 +627,7 @@ fn render_report(
     writeln!(output, "English v2 selection ambiguity census")
         .context("writing English-v2 ambiguity census")?;
     for row in &report.rows {
-        let id = json_value(&row.id)?;
-        let card_name = json_value(&row.card_name)?;
-        let face_name = json_value(&row.face_name)?;
-        let side = json_value(&row.side)?;
-        let context_name = json_value(&row.context_name)?;
-        let text = json_value(&row.text)?;
-        let message = json_value(&row.message)?;
-        let internal_kind = json_value(&row.internal_kind)?;
-        let decision = json_value(&row.decision)?;
-        writeln!(
-            output,
-            "row id={id} card_name={card_name} face_name={face_name} side={side} context_name={context_name} text={text} status={} message={message} internal_kind={internal_kind} decision={decision}",
-            status_name(row.status),
-        )
-        .context("writing English-v2 ambiguity census row")?;
+        write_human_row(row, output).context("writing English-v2 ambiguity census row")?;
     }
     let summary = &report.summary;
     writeln!(output, "summary total={}", summary.total)
@@ -669,8 +667,27 @@ fn render_report(
     Ok(())
 }
 
-fn json_value<T: Serialize>(value: &T) -> anyhow::Result<String> {
-    serde_json::to_string(value).context("encoding English-v2 ambiguity human field")
+fn write_human_row(row: &AmbiguityRow, output: &mut dyn Write) -> anyhow::Result<()> {
+    output.write_all(b"row id=")?;
+    serde_json::to_writer(&mut *output, &row.id)?;
+    output.write_all(b" card_name=")?;
+    serde_json::to_writer(&mut *output, &row.card_name)?;
+    output.write_all(b" face_name=")?;
+    serde_json::to_writer(&mut *output, &row.face_name)?;
+    output.write_all(b" side=")?;
+    serde_json::to_writer(&mut *output, &row.side)?;
+    output.write_all(b" context_name=")?;
+    serde_json::to_writer(&mut *output, &row.context_name)?;
+    output.write_all(b" text=")?;
+    serde_json::to_writer(&mut *output, &row.text)?;
+    write!(output, " status={} message=", status_name(row.status))?;
+    serde_json::to_writer(&mut *output, &row.message)?;
+    output.write_all(b" internal_kind=")?;
+    serde_json::to_writer(&mut *output, &row.internal_kind)?;
+    output.write_all(b" decision=")?;
+    serde_json::to_writer(&mut *output, &row.decision)?;
+    writeln!(output)?;
+    Ok(())
 }
 
 fn status_name(status: AmbiguityStatus) -> &'static str {
@@ -730,7 +747,7 @@ mod tests {
             CorpusUnit::for_test("Failed", "You frobnitz a card."),
         ]);
         let parser = crate::english_v2::parser_from_builtin_v2().unwrap();
-        let report = AmbiguityReport::run(&corpus, &parser).unwrap();
+        let report = AmbiguityReport::run(&corpus, &parser, 1).unwrap();
 
         assert_eq!(report.rows()[0].card_name, corpus.units()[0].card_name());
         assert_eq!(report.rows()[1].card_name, corpus.units()[1].card_name());

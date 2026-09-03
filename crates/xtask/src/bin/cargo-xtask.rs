@@ -417,6 +417,8 @@ mod tests {
             "ambiguity",
             "--data",
             "fixtures/atomic-cards.json",
+            "--workers",
+            "3",
             "--json",
             "--require-resolved",
         ])
@@ -456,11 +458,16 @@ mod tests {
             "parse",
             "--data",
             "fixtures/atomic-cards.json",
+            "--workers",
+            "3",
             "--json",
             "--require-complete",
         ])
         .unwrap();
         assert!(matches!(cli.command, Cmd::EnglishV2(_)));
+        assert!(
+            Cli::try_parse_from(["cargo xtask", "english_v2", "parse", "--workers", "0",]).is_err()
+        );
         assert!(
             Cli::try_parse_from([
                 "cargo xtask",
@@ -490,8 +497,9 @@ mod tests {
             "--require-complete",
             "--lock",
             "--bless",
+            "--workers",
         ] {
-            let args = if matches!(flag, "--data" | "--catalogs") {
+            let args = if matches!(flag, "--data" | "--catalogs" | "--workers") {
                 vec!["cargo xtask", "english_v2", "expand", flag, "fixtures"]
             } else {
                 vec!["cargo xtask", "english_v2", "expand", flag]

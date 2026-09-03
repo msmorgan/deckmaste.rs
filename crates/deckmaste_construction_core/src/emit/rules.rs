@@ -253,6 +253,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
     let rule_id_count = ident(RULE_ID_COUNT);
     let rule_id_public_construction = ident("public_construction");
     let rule_id_form_name = ident("form_name");
+    let rule_id_metric_name = ident("metric_name");
     let rule_id_index = ident(RULE_ID_INDEX);
     let rules_constant = ident(RULES_CONSTANT);
     let constructions = plan.constructions();
@@ -285,6 +286,13 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
     let owner_matches = lowered.iter().zip(&rule_ids).map(|(row, rule_id)| {
         let owner = syn::LitStr::new(&row.owner, Span::call_site());
         quote! { Self::#rule_id => #owner }
+    });
+    let metric_name_matches = lowered.iter().zip(&rule_ids).map(|(row, rule_id)| {
+        let name = syn::LitStr::new(
+            row.public_construction.as_deref().unwrap_or(&row.owner),
+            Span::call_site(),
+        );
+        quote! { Self::#rule_id => #name }
     });
     let role_matches = lowered.iter().zip(&rule_ids).map(|(row, rule_id)| {
         let role = row.role.as_ref().map_or_else(
@@ -379,6 +387,10 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
                     }
                     pub(crate) const fn #rule_id_form_name(self) -> Option<&'static str> {
                         match self { #(#form_name_matches,)* }
+                    }
+                    #[cfg(feature = "parser-metrics")]
+                    pub(crate) const fn #rule_id_metric_name(self) -> &'static str {
+                        match self { #(#metric_name_matches,)* }
                     }
                     pub(crate) const fn owner(self) -> &'static str {
                         match self { #(#owner_matches,)* }

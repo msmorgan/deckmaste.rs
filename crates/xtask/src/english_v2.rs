@@ -348,6 +348,24 @@ enum EnglishV2Command {
 struct CorpusArgs {
     #[arg(long, default_value = "data/mtgjson/AtomicCards.json")]
     data: PathBuf,
+    /// Maximum parser workers for this corpus run.
+    #[arg(long, default_value_t = default_corpus_workers(), value_parser = parse_worker_count)]
+    workers: usize,
+}
+
+fn default_corpus_workers() -> usize {
+    std::thread::available_parallelism()
+        .map_or(1, usize::from)
+        .min(16)
+}
+
+fn parse_worker_count(value: &str) -> Result<usize, String> {
+    let workers = value
+        .parse::<usize>()
+        .map_err(|error| format!("invalid worker count: {error}"))?;
+    (workers > 0)
+        .then_some(workers)
+        .ok_or_else(|| "worker count must be at least 1".to_owned())
 }
 
 #[derive(Debug, clap::Args)]

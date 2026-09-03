@@ -13,13 +13,15 @@ use super::audit::AuditStatus;
 use super::corpus::Corpus;
 
 pub(super) fn run(args: &ParseArgs, output: &mut dyn Write) -> anyhow::Result<()> {
+    let started = std::time::Instant::now();
     let corpus = Corpus::load(&args.corpus.data)
         .with_context(|| format!("loading corpus from {}", args.corpus.data.display()))?;
     let parser = crate::english_v2::parser_from_builtin_v2()?;
-    let report = AuditReport::run(&corpus, &parser);
+    let report = AuditReport::run(&corpus, &parser, args.corpus.workers, true);
 
     render_report(&report, args.json, output)?;
     output.flush().context("flushing English-v2 parse census")?;
+    super::corpus::write_corpus_performance("parse", started.elapsed(), report.performance())?;
     if args.require_complete
         && let CompletionCheck::Incomplete(outcome) =
             completion_check(&report, corpus.units().len())
@@ -210,6 +212,7 @@ mod tests {
         ParseArgs {
             corpus: CorpusArgs {
                 data: data.to_owned(),
+                workers: 1,
             },
             json,
             require_complete,

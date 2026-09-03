@@ -1,5 +1,7 @@
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::hash::Hash;
 use std::sync::Arc;
@@ -19,12 +21,14 @@ pub(crate) struct Rule<N: 'static, L: 'static, R> {
     pub rhs: &'static [RulePosition<N, L>],
 }
 
+#[derive(Clone)]
 pub(crate) struct LexicalMatch<T, O = ()> {
     pub end: usize,
     pub value: T,
     pub owner: Option<O>,
 }
 
+#[derive(Clone)]
 pub(crate) struct StatefulLexicalMatch<T, O, S> {
     pub lexical: LexicalMatch<T, O>,
     pub state: S,
@@ -43,7 +47,7 @@ pub(crate) enum Child<T, O = ()> {
     Lexical(SpannedLexical<T, O>),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub(crate) struct NodeId(pub usize);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -449,14 +453,16 @@ where
             extended_nodes: Vec::new(),
         },
         node_states: Vec::new(),
-        node_index: BTreeMap::new(),
-        parents_by_child: BTreeMap::new(),
+        node_index: HashMap::new(),
+        parents_by_child: HashMap::new(),
     };
 
     let mut chart = (0..=input_length)
         .map(|_| ChartColumn::<T, Owner, S>::new())
         .collect::<Vec<_>>();
     let mut agenda = VecDeque::new();
+    let mut scan_cache =
+        BTreeMap::<(L, usize, S, bool), Vec<StatefulLexicalMatch<T, Owner, S>>>::new();
     let mut completed_by_start = (0..=input_length)
         .map(|_| BTreeMap::<(N, bool), Vec<NodeId>>::new())
         .collect::<Vec<_>>();
@@ -480,20 +486,23 @@ where
     while let Some((column, item, family)) = agenda.pop_front() {
         let rule = &rules[item.rule_index];
         if item.dot == rule.rhs.len() {
+            #[cfg(feature = "parser-metrics")]
+            super::metrics::record(item.rule_index, super::metrics::MetricEvent::Completion);
             let Some((node_id, extended_existing_node)) = accept_completed_node(
                 rule,
                 column,
                 &item,
-                Arc::clone(&family),
+                &family,
                 &mut stateful_forest,
                 &mut validate_completion,
                 observation,
             ) else {
                 continue;
             };
-            // Family-reachable validation cannot reference a node before it exists, so
-            // only extending an existing packed node can change an earlier result.
-            // Whole-forest validation retains the conservative global retry contract.
+            // Family-reachable validation cannot reference a node before it
+            // exists, so only extending an existing packed node can
+            // change an earlier result. Whole-forest validation
+            // retains the conservative global retry contract.
             if extended_existing_node {
                 match seed.completion_dependency() {
                     CompletionDependency::FamilyReachable => {
@@ -544,21 +553,26 @@ where
                     item.suppress_right_boundary,
                 ))
                 .into_iter()
-                .flatten()
+                .flat_map(|waiters| &waiters.items)
                 .map(|waiter| {
                     (
                         waiter.clone(),
                         chart[item.origin]
                             .get(waiter)
                             .expect("the waiter index references a live chart item")
-                            .clone(),
+                            .as_slice()
+                            .to_vec(),
                     )
                 })
                 .collect::<Vec<_>>();
             for (waiter, waiter_families) in waiters {
                 for waiter_family in waiter_families {
-                    let mut children = waiter_family.children.clone();
-                    children.push(Child::Node(node_id));
+                    #[cfg(feature = "parser-metrics")]
+                    super::metrics::record(
+                        waiter.rule_index,
+                        super::metrics::MetricEvent::CloneHeavy,
+                    );
+                    let family = waiter_family.appended(Child::Node(node_id));
                     insert_item(
                         rules,
                         &mut chart,
@@ -573,7 +587,7 @@ where
                             state: item.state.clone(),
                             suppress_right_boundary: waiter.suppress_right_boundary,
                         },
-                        Family { children },
+                        family,
                     );
                 }
             }
@@ -583,27 +597,39 @@ where
         match rule.rhs[item.dot] {
             RulePosition::Nonterminal(category) | RulePosition::AdjacentNonterminal(category) => {
                 let suppress_right_boundary = expected_right_boundary(rules, &item);
-                for &predicted_rule in rules_by_lhs.get(&category).into_iter().flatten() {
-                    let predicted = &rules[predicted_rule];
-                    if !seed.excludes_from_prediction(&predicted.id) {
-                        insert_item(
-                            rules,
-                            &mut chart,
-                            &mut waiters_by_column,
-                            &mut agenda,
-                            column,
-                            ItemKey {
-                                rule_index: predicted_rule,
-                                dot: 0,
-                                origin: column,
-                                origin_state: item.state.clone(),
-                                state: item.state.clone(),
-                                suppress_right_boundary,
-                            },
-                            Family {
-                                children: Vec::new(),
-                            },
-                        );
+                let prediction_key = (category, item.state.clone(), suppress_right_boundary);
+                let should_predict = {
+                    let waiters = waiters_by_column[column]
+                        .get_mut(&prediction_key)
+                        .expect("a live nonterminal item is registered as a waiter");
+                    !std::mem::replace(&mut waiters.predicted, true)
+                };
+                if should_predict {
+                    for &predicted_rule in rules_by_lhs.get(&category).into_iter().flatten() {
+                        let predicted = &rules[predicted_rule];
+                        if !seed.excludes_from_prediction(&predicted.id) {
+                            #[cfg(feature = "parser-metrics")]
+                            super::metrics::record(
+                                predicted_rule,
+                                super::metrics::MetricEvent::Prediction,
+                            );
+                            insert_item(
+                                rules,
+                                &mut chart,
+                                &mut waiters_by_column,
+                                &mut agenda,
+                                column,
+                                ItemKey {
+                                    rule_index: predicted_rule,
+                                    dot: 0,
+                                    origin: column,
+                                    origin_state: item.state.clone(),
+                                    state: item.state.clone(),
+                                    suppress_right_boundary,
+                                },
+                                PartialFamily::default(),
+                            );
+                        }
                     }
                 }
 
@@ -615,8 +641,12 @@ where
                     .filter(|node_id| stateful_forest.node_states[node_id.0].start == item.state)
                     .collect::<Vec<_>>();
                 for node_id in completed {
-                    let mut children = family.children.clone();
-                    children.push(Child::Node(node_id));
+                    #[cfg(feature = "parser-metrics")]
+                    super::metrics::record(
+                        item.rule_index,
+                        super::metrics::MetricEvent::CloneHeavy,
+                    );
+                    let family = family.appended(Child::Node(node_id));
                     let node = &stateful_forest.forest.nodes[node_id.0];
                     insert_item(
                         rules,
@@ -632,17 +662,22 @@ where
                             state: stateful_forest.node_states[node_id.0].end.clone(),
                             suppress_right_boundary: item.suppress_right_boundary,
                         },
-                        Family { children },
+                        family,
                     );
                 }
             }
             RulePosition::Lexical(lexical) => {
+                let suppress_right_boundary =
+                    item.suppress_right_boundary && item.dot + 1 == rule.rhs.len();
+                let scan_key = (lexical, column, item.state.clone(), suppress_right_boundary);
+                let matches = scan_cache
+                    .entry(scan_key)
+                    .or_insert_with(|| scan(lexical, column, &item.state, suppress_right_boundary))
+                    .clone();
                 advance_lexical(
                     rules,
                     &PendingLexicalScan {
                         lexical,
-                        suppress_right_boundary: item.suppress_right_boundary
-                            && item.dot + 1 == rule.rhs.len(),
                         column,
                         input_length,
                         item: &item,
@@ -651,7 +686,7 @@ where
                     &mut chart,
                     &mut waiters_by_column,
                     &mut agenda,
-                    &mut scan,
+                    matches,
                     observation,
                 );
             }
@@ -702,7 +737,7 @@ fn accept_completed_node<N, L, R, T, O, D, S, ValidateCompletion, Obs>(
     rule: &Rule<N, L, R>,
     column: usize,
     item: &ItemKey<S>,
-    family: SharedFamily<T, O>,
+    family: &SharedFamily<T, O>,
     stateful_forest: &mut StatefulForest<R, T, O, S>,
     validate_completion: &mut ValidateCompletion,
     observation: &mut Obs,
@@ -711,14 +746,15 @@ where
     R: Copy + Eq,
     T: Clone + Eq,
     O: Clone + Eq,
-    S: Clone + Ord,
+    S: Clone + Hash + Ord,
     D: CompletionResult,
     ValidateCompletion: FnMut(R, &Family<T, O>, &Forest<R, T, O>) -> D,
     Obs: Observation<R, T, L, O, D::Rejection>,
 {
+    let family = family.materialize();
     let disposition =
-        validate_completion(rule.id, family.as_ref(), &stateful_forest.forest).into_disposition();
-    observation.checked_completion(rule.id, item.origin, column, family.as_ref(), &disposition);
+        validate_completion(rule.id, &family, &stateful_forest.forest).into_disposition();
+    observation.checked_completion(rule.id, item.origin, column, &family, &disposition);
     if !disposition.is_accepted() {
         return None;
     }
@@ -748,7 +784,6 @@ where
             stateful_forest.node_index.insert(key, node_id);
             (node_id, false)
         };
-    let family = Arc::unwrap_or_clone(family);
     let child_nodes = family
         .children
         .iter()
@@ -793,20 +828,20 @@ fn observe_final_chart<N, L, R, T, O, E, S, Obs>(
                 rules[item.rule_index].id,
                 item.dot,
                 item.origin,
-                families.len(),
+                families.as_slice().len(),
             );
         }
     }
     observation.final_forest(forest);
 }
 
-fn advance_lexical<N, L, R, T, O, E, S, Scan, Obs>(
+fn advance_lexical<N, L, R, T, O, E, S, Obs>(
     rules: &[Rule<N, L, R>],
     pending: &PendingLexicalScan<'_, L, T, O, S>,
     chart: &mut [ChartColumn<T, O, S>],
     waiters_by_column: &mut [WaiterIndex<N, S>],
     agenda: &mut Agenda<T, O, S>,
-    scan: &mut Scan,
+    matches: Vec<StatefulLexicalMatch<T, O, S>>,
     observation: &mut Obs,
 ) where
     N: Copy + Ord,
@@ -814,15 +849,9 @@ fn advance_lexical<N, L, R, T, O, E, S, Scan, Obs>(
     T: Clone + Eq,
     O: Clone + Eq,
     S: Clone + Eq + Hash + Ord,
-    Scan: FnMut(L, usize, &S, bool) -> Vec<StatefulLexicalMatch<T, O, S>>,
     Obs: Observation<R, T, L, O, E>,
 {
-    for stateful_match in scan(
-        pending.lexical,
-        pending.column,
-        &pending.item.state,
-        pending.suppress_right_boundary,
-    ) {
+    for stateful_match in matches {
         let lexical_match = stateful_match.lexical;
         if !(pending.column..=pending.input_length).contains(&lexical_match.end) {
             continue;
@@ -833,8 +862,12 @@ fn advance_lexical<N, L, R, T, O, E, S, Scan, Obs>(
             lexical_match.end,
             &lexical_match.value,
         );
-        let mut children = pending.family.children.clone();
-        children.push(Child::Lexical(SpannedLexical {
+        #[cfg(feature = "parser-metrics")]
+        super::metrics::record(
+            pending.item.rule_index,
+            super::metrics::MetricEvent::CloneHeavy,
+        );
+        let family = pending.family.appended(Child::Lexical(SpannedLexical {
             span: TextSpan {
                 start: pending.column,
                 end: lexical_match.end,
@@ -856,7 +889,7 @@ fn advance_lexical<N, L, R, T, O, E, S, Scan, Obs>(
                 state: stateful_match.state,
                 suppress_right_boundary: pending.item.suppress_right_boundary,
             },
-            Family { children },
+            family,
         );
     }
 }
@@ -914,9 +947,7 @@ fn seed_chart<N, L, R, T, O, S>(
                     state: initial_state.clone(),
                     suppress_right_boundary: false,
                 },
-                Family {
-                    children: Vec::new(),
-                },
+                PartialFamily::default(),
             );
         }
     }
@@ -937,7 +968,7 @@ fn completed_rule_is_root<N: Eq, R: Eq>(
     selected && origin == 0 && column == input_length
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq, Ord, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
 struct ItemKey<S> {
     rule_index: usize,
     dot: usize,
@@ -952,7 +983,7 @@ struct NodeState<S> {
     end: S,
 }
 
-#[derive(Clone, PartialEq, Eq, Ord, PartialOrd)]
+#[derive(Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
 struct PackedNodeKey<S> {
     rule_index: usize,
     start: usize,
@@ -965,23 +996,146 @@ struct PackedNodeKey<S> {
 struct StatefulForest<R, T, O, S> {
     forest: Forest<R, T, O>,
     node_states: Vec<NodeState<S>>,
-    node_index: BTreeMap<PackedNodeKey<S>, NodeId>,
-    parents_by_child: BTreeMap<NodeId, BTreeSet<NodeId>>,
+    node_index: HashMap<PackedNodeKey<S>, NodeId>,
+    parents_by_child: HashMap<NodeId, HashSet<NodeId>>,
 }
 
 struct PendingLexicalScan<'a, L, T, O, S> {
     lexical: L,
-    suppress_right_boundary: bool,
     column: usize,
     input_length: usize,
     item: &'a ItemKey<S>,
-    family: &'a Family<T, O>,
+    family: &'a PartialFamily<T, O>,
 }
 
-type SharedFamily<T, O> = Arc<Family<T, O>>;
-type ChartColumn<T, O, S> = BTreeMap<ItemKey<S>, Vec<SharedFamily<T, O>>>;
+#[derive(Debug, Clone)]
+struct PartialFamily<T, O> {
+    tail: Option<Arc<PartialChild<T, O>>>,
+    len: usize,
+}
+
+impl<T, O> Default for PartialFamily<T, O> {
+    fn default() -> Self {
+        Self { tail: None, len: 0 }
+    }
+}
+
+#[derive(Debug)]
+struct PartialChild<T, O> {
+    prefix: PartialFamily<T, O>,
+    child: Child<T, O>,
+}
+
+impl<T: PartialEq, O: PartialEq> PartialEq for PartialFamily<T, O> {
+    fn eq(&self, other: &Self) -> bool {
+        if self.len != other.len {
+            return false;
+        }
+        let mut left = self.tail.as_ref();
+        let mut right = other.tail.as_ref();
+        loop {
+            match (left, right) {
+                (None, None) => return true,
+                (Some(left_tail), Some(right_tail)) => {
+                    if Arc::ptr_eq(left_tail, right_tail) {
+                        return true;
+                    }
+                    if left_tail.child != right_tail.child {
+                        return false;
+                    }
+                    left = left_tail.prefix.tail.as_ref();
+                    right = right_tail.prefix.tail.as_ref();
+                }
+                _ => return false,
+            }
+        }
+    }
+}
+
+impl<T: Eq, O: Eq> Eq for PartialFamily<T, O> {}
+
+impl<T: Clone, O: Clone> PartialFamily<T, O> {
+    fn appended(&self, child: Child<T, O>) -> Self {
+        Self {
+            tail: Some(Arc::new(PartialChild {
+                prefix: self.clone(),
+                child,
+            })),
+            len: self.len + 1,
+        }
+    }
+
+    fn materialize(&self) -> Family<T, O> {
+        let mut reversed = Vec::with_capacity(self.len);
+        let mut tail = self.tail.as_deref();
+        while let Some(link) = tail {
+            reversed.push(link.child.clone());
+            tail = link.prefix.tail.as_deref();
+        }
+        reversed.reverse();
+        Family { children: reversed }
+    }
+
+    fn contains_node(&self, nodes: &BTreeSet<NodeId>) -> bool {
+        let mut tail = self.tail.as_deref();
+        while let Some(link) = tail {
+            if matches!(&link.child, Child::Node(node_id) if nodes.contains(node_id)) {
+                return true;
+            }
+            tail = link.prefix.tail.as_deref();
+        }
+        false
+    }
+}
+
+type SharedFamily<T, O> = PartialFamily<T, O>;
+type ChartColumn<T, O, S> = BTreeMap<ItemKey<S>, FamilySet<T, O>>;
 type Agenda<T, O, S> = VecDeque<(usize, ItemKey<S>, SharedFamily<T, O>)>;
-type WaiterIndex<N, S> = BTreeMap<(N, S, bool), Vec<ItemKey<S>>>;
+type WaiterIndex<N, S> = BTreeMap<(N, S, bool), Waiters<S>>;
+
+struct Waiters<S> {
+    items: Vec<ItemKey<S>>,
+    predicted: bool,
+}
+
+impl<S> Default for Waiters<S> {
+    fn default() -> Self {
+        Self {
+            items: Vec::new(),
+            predicted: false,
+        }
+    }
+}
+
+#[derive(Clone)]
+enum FamilySet<T, O> {
+    One(SharedFamily<T, O>),
+    Many(Vec<SharedFamily<T, O>>),
+}
+
+impl<T, O> FamilySet<T, O> {
+    fn as_slice(&self) -> &[SharedFamily<T, O>] {
+        match self {
+            Self::One(family) => std::slice::from_ref(family),
+            Self::Many(families) => families,
+        }
+    }
+}
+
+impl<T: Clone + Eq, O: Clone + Eq> FamilySet<T, O> {
+    fn insert(&mut self, family: SharedFamily<T, O>) -> bool {
+        if self.as_slice().contains(&family) {
+            return false;
+        }
+        match self {
+            Self::One(first) => {
+                *self = Self::Many(vec![first.clone(), family]);
+            }
+            Self::Many(families) => families.push(family),
+        }
+        true
+    }
+}
 
 fn insert_item<N, L, R, T, O, S>(
     rules: &[Rule<N, L, R>],
@@ -990,18 +1144,23 @@ fn insert_item<N, L, R, T, O, S>(
     agenda: &mut Agenda<T, O, S>,
     column: usize,
     item: ItemKey<S>,
-    family: Family<T, O>,
+    family: SharedFamily<T, O>,
 ) where
     N: Copy + Ord,
     T: Clone + Eq,
     O: Clone + Eq,
     S: Clone + Eq + Hash + Ord,
 {
-    let (families, new_item) = match chart[column].entry(item.clone()) {
-        std::collections::btree_map::Entry::Vacant(entry) => (entry.insert(Vec::new()), true),
-        std::collections::btree_map::Entry::Occupied(entry) => (entry.into_mut(), false),
+    let (inserted, new_item) = match chart[column].entry(item.clone()) {
+        std::collections::btree_map::Entry::Vacant(entry) => {
+            entry.insert(FamilySet::One(family.clone()));
+            (true, true)
+        }
+        std::collections::btree_map::Entry::Occupied(mut entry) => {
+            (entry.get_mut().insert(family.clone()), false)
+        }
     };
-    if let Some(family) = insert_shared_family(families, family) {
+    if inserted {
         agenda.push_back((column, item.clone(), family));
     }
     if new_item
@@ -1016,20 +1175,8 @@ fn insert_item<N, L, R, T, O, S>(
                 expected_right_boundary(rules, &item),
             ))
             .or_default()
+            .items
             .push(item);
-    }
-}
-
-fn insert_shared_family<T: Eq, O: Eq>(
-    families: &mut Vec<SharedFamily<T, O>>,
-    family: Family<T, O>,
-) -> Option<SharedFamily<T, O>> {
-    if families.iter().any(|existing| existing.as_ref() == &family) {
-        None
-    } else {
-        let family = Arc::new(family);
-        families.push(Arc::clone(&family));
-        Some(family)
     }
 }
 
@@ -1071,13 +1218,9 @@ fn requeue_completed_items_after_forest_growth<N, L, R, T: Clone, O: Clone, S: C
             if item.dot != rules[item.rule_index].rhs.len() {
                 continue;
             }
-            for family in families {
-                if affected.is_none_or(|affected| {
-                    family.children.iter().any(
-                        |child| matches!(child, Child::Node(node_id) if affected.contains(node_id)),
-                    )
-                }) {
-                    agenda.push_back((column, item.clone(), Arc::clone(family)));
+            for family in families.as_slice() {
+                if affected.is_none_or(|affected| family.contains_node(affected)) {
+                    agenda.push_back((column, item.clone(), family.clone()));
                 }
             }
         }
@@ -1115,13 +1258,8 @@ where
     L: Clone + Ord,
 {
     column
-        .iter()
-        .filter_map(|(item, families)| {
-            (!families.is_empty())
-                .then(|| rules[item.rule_index].rhs.get(item.dot))
-                .flatten()
-                .cloned()
-        })
+        .keys()
+        .filter_map(|item| rules[item.rule_index].rhs.get(item.dot).cloned())
         .collect()
 }
 
@@ -1236,7 +1374,7 @@ mod tests {
         },
     ];
 
-    #[derive(Clone, Hash, PartialEq, Eq, Ord, PartialOrd)]
+    #[derive(Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
     struct RootBoundaryState;
 
     fn scan_root_boundary(
@@ -1871,7 +2009,7 @@ mod tests {
 
     #[test]
     fn scanner_state_is_path_local_across_ambiguous_same_offset_derivations() {
-        #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Ord, PartialOrd)]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
         enum ScanState {
             Initial,
             Left,

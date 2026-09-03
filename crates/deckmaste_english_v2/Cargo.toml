@@ -9,6 +9,7 @@ workspace = true
 
 [features]
 test-support = []
+parser-metrics = []
 
 [dependencies]
 anyhow = "1.0.102"

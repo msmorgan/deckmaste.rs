@@ -952,6 +952,11 @@ impl<V> ParseAnalysis<V> {
     }
 
     #[must_use]
+    pub fn error(&self) -> Option<&ParseError> {
+        self.result.as_ref().err()
+    }
+
+    #[must_use]
     pub fn ownership(&self) -> Option<&SelectedOwnership> {
         self.ownership.as_ref()
     }

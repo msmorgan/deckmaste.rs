@@ -552,11 +552,7 @@ pub(super) fn analysis_row<Ownership: SelectedOwnershipSource>(
 fn runtime_analysis_row<V: Clone>(unit: &CorpusUnit, analysis: &ParseAnalysis<V>) -> CoverageRow {
     let outcome = analysis.outcome();
     let (exception_resolved, exception_uses) = selection_exception_evidence(analysis.decision());
-    let error = analysis
-        .clone()
-        .into_parse_result()
-        .err()
-        .map(|error| error.to_string());
+    let error = analysis.error().map(super::corpus::corpus_error_message);
     if outcome == ParseAnalysisOutcome::Selected && analysis.selected().is_none() {
         return CoverageRow {
             id: unit.id().to_owned(),
@@ -1077,20 +1073,31 @@ where
     LoadParser: FnOnce() -> anyhow::Result<Parser>,
     Gate: FnMut(&CoverageReport, &Path, CoverageLockMode, &mut dyn Write) -> anyhow::Result<()>,
 {
+    let started = std::time::Instant::now();
     observer.record("load_corpus".to_owned());
     let corpus = load_corpus()?;
     observer.record("load_environment".to_owned());
     let parser = load_parser()?;
-    let rows = map_corpus_units(corpus.units(), |_, unit| {
-        let context = ParseContext::new(
-            unit.context_name(),
-            unit.is_legendary(),
-            unit.context_onset(),
-        )
-        .expect("Corpus validates every stored parse context");
-        let analysis = parser.analyze_oracle_text(unit.text(), &context);
-        runtime_analysis_row(unit, &analysis)
-    });
+    let (rows, performance) = map_corpus_units(
+        corpus.units(),
+        args.corpus.workers,
+        |_, unit| {
+            let context = ParseContext::new(
+                unit.context_name(),
+                unit.is_legendary(),
+                unit.context_onset(),
+            )
+            .expect("Corpus validates every stored parse context");
+            let analysis = parser.analyze_oracle_text(unit.text(), &context);
+            runtime_analysis_row(unit, &analysis)
+        },
+        |row| {
+            matches!(
+                row.status,
+                CoverageStatus::SelectedCovered | CoverageStatus::SelectedUncovered
+            )
+        },
+    );
     for unit in corpus.units() {
         observer.record(format!("analyze_oracle_text:{}", unit.id()));
         observer.record(format!("map_row:{}", unit.id()));
@@ -1108,6 +1115,7 @@ where
     output
         .flush()
         .context("flushing English-v2 coverage report")?;
+    super::corpus::write_corpus_performance("coverage", started.elapsed(), performance)?;
     reject_internal_failures(&report)?;
     let mode = args.lock_mode();
     if mode != CoverageLockMode::None {
@@ -2311,6 +2319,7 @@ mod tests {
         CoverageArgs {
             corpus: CorpusArgs {
                 data: Path::new("fixture.json").to_owned(),
+                workers: 1,
             },
             lock: Path::new("fixture.lock").to_owned(),
             json,

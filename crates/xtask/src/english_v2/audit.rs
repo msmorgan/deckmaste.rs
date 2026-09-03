@@ -6,6 +6,7 @@ use deckmaste_english_v2::parser::Parser;
 use deckmaste_english_v2::render::Render;
 
 use super::corpus::Corpus;
+use super::corpus::CorpusPerformance;
 use super::corpus::CorpusUnit;
 use super::corpus::map_corpus_units;
 
@@ -61,15 +62,28 @@ pub(super) struct AuditReport {
     schema_version: u32,
     source_fingerprint: String,
     rows: Vec<AuditRow>,
+    #[serde(skip)]
+    performance: CorpusPerformance,
 }
 
 impl AuditReport {
-    pub(super) fn run(corpus: &Corpus, parser: &Parser) -> Self {
+    pub(super) fn run(corpus: &Corpus, parser: &Parser, workers: usize, messages: bool) -> Self {
+        let (rows, performance) = map_corpus_units(
+            corpus.units(),
+            workers,
+            |_, unit| audit_unit(unit, parser, messages),
+            |row| matches!(row.status, AuditStatus::Clean | AuditStatus::Mismatch),
+        );
         Self {
             schema_version: 1,
             source_fingerprint: corpus.source_fingerprint().to_owned(),
-            rows: map_corpus_units(corpus.units(), |_, unit| audit_unit(unit, parser)),
+            rows,
+            performance,
         }
+    }
+
+    pub(super) const fn performance(&self) -> CorpusPerformance {
+        self.performance
     }
 
     pub(super) fn rows(&self) -> &[AuditRow] {
@@ -124,7 +138,7 @@ impl AuditSummary {
     }
 }
 
-fn audit_unit(unit: &CorpusUnit, parser: &Parser) -> AuditRow {
+fn audit_unit(unit: &CorpusUnit, parser: &Parser, messages: bool) -> AuditRow {
     let mut row = AuditRow {
         id: unit.id().to_owned(),
         card_name: unit.card_name().to_owned(),
@@ -157,17 +171,17 @@ fn audit_unit(unit: &CorpusUnit, parser: &Parser) -> AuditRow {
             row.rendered = Some(rendered);
         }
         Err(error) => {
-            apply_parse_error(&mut row, &error);
+            apply_parse_error(&mut row, &error, messages);
         }
     }
 
     row
 }
 
-fn apply_parse_error(row: &mut AuditRow, error: &ParseError) {
+fn apply_parse_error(row: &mut AuditRow, error: &ParseError, messages: bool) {
     row.status = audit_status_for_error(error);
     row.rendered = None;
-    row.message = Some(error.to_string());
+    row.message = messages.then(|| super::corpus::corpus_error_message(error));
 }
 
 fn audit_status_for_error(error: &ParseError) -> AuditStatus {
@@ -203,6 +217,7 @@ impl AuditReport {
             schema_version: 1,
             source_fingerprint: "0".repeat(64),
             rows,
+            performance: CorpusPerformance::default(),
         }
     }
 
@@ -247,6 +262,7 @@ impl AuditReport {
             schema_version: 1,
             source_fingerprint: "0".repeat(64),
             rows,
+            performance: CorpusPerformance::default(),
         }
     }
 }
@@ -261,9 +277,13 @@ impl AuditSummary {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
+
+    use deckmaste_english_v2::parser::Expectation;
     use deckmaste_english_v2::parser::ParseError;
     use deckmaste_english_v2::parser::Parser;
     use deckmaste_english_v2::parser::SelectionExceptionInventoryError;
+    use deckmaste_english_v2::parser::TextSpan;
 
     use super::AuditReport;
     use super::AuditRow;
@@ -286,7 +306,7 @@ mod tests {
             unit("Clean", "Whenever a player connives, you gain X life."),
             unit("Failed", "You frobnitz a card."),
         ]);
-        let report = AuditReport::run(&corpus, &parser());
+        let report = AuditReport::run(&corpus, &parser(), 1, true);
         assert_eq!(report.rows()[0].status(), AuditStatus::Clean);
         assert_eq!(
             report.rows()[0].rendered.as_deref(),
@@ -307,7 +327,7 @@ mod tests {
             unit("Two Blocks", "Destroy target creature.\nYou gain 2 life."),
             unit("Failed", "You frobnitz a card."),
         ]);
-        let report = AuditReport::run(&corpus, &parser());
+        let report = AuditReport::run(&corpus, &parser(), 1, true);
 
         assert_eq!(report.rows().len(), corpus.units().len());
         assert_eq!(
@@ -387,13 +407,30 @@ mod tests {
             message: None,
         };
 
-        super::apply_parse_error(&mut row, &error);
+        super::apply_parse_error(&mut row, &error, true);
 
         assert_eq!(row.status(), AuditStatus::InternalFailure);
         assert_eq!(row.rendered(), None);
         assert_eq!(
             row.message(),
             Some("invalid selection exception configuration: entry id is empty or whitespace-only")
+        );
+    }
+
+    #[test]
+    fn corpus_failure_message_is_ranked_and_bounded() {
+        let expectations = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]
+            .into_iter()
+            .map(Expectation::Literal)
+            .collect::<BTreeSet<_>>();
+        let message = crate::english_v2::corpus::corpus_error_message(&ParseError::Failure {
+            span: TextSpan { start: 4, end: 5 },
+            expectations,
+        });
+
+        assert_eq!(
+            message,
+            "parse failed at bytes 4..5; expected `a`, `b`, `c`, `d`, `e`, `f`, `g`, `h`, and 2 more"
         );
     }
 }

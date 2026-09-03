@@ -144,6 +144,12 @@ pub enum ParserBuildError {
 }
 
 mod error;
+#[cfg(feature = "parser-metrics")]
+mod metrics;
+#[cfg(feature = "parser-metrics")]
+pub use metrics::ConstructionMetrics;
+#[cfg(feature = "parser-metrics")]
+pub use metrics::parser_metrics;
 
 #[cfg(test)]
 #[derive(Clone, Copy)]

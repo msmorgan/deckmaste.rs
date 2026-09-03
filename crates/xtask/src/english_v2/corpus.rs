@@ -2,19 +2,23 @@ use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::fs;
 use std::path::Path;
+use std::time::Duration;
+use std::time::Instant;
 
 use anyhow::Context;
 use anyhow::ensure;
 use deckmaste_construction_core::macro_def::Onset;
 use deckmaste_data::mtgjson::AtomicCards;
 use deckmaste_english_v2::context::ParseContext;
+use deckmaste_english_v2::parser::Expectation;
+use deckmaste_english_v2::parser::ParseError;
 use rayon::prelude::*;
 use sha2::Digest;
 use sha2::Sha256;
 
 const ID_DOMAIN: &[u8] = b"deckmaste:english-v2:corpus-unit:v1";
 const NORMALIZATION_DIGEST_DOMAIN: &[u8] = b"deckmaste:english-v2:normalization:v1";
-const MAX_CORPUS_UNIT_JOBS: usize = 4;
+const CORPUS_WALL_CEILING_SECONDS: f64 = 16.26;
 const RULES_BEARING_PARENTHETICALS: &[&str] = &[
     "(as long as this creature is on the battlefield)",
     "(even if this card isn't on the battlefield)",
@@ -33,6 +37,51 @@ const REMINDER_FOLLOWED_BY_TEXT_PARENTHETICALS: &[&str] = &[
     "(three energy counters)",
     "(two energy counters)",
 ];
+
+pub(super) fn corpus_error_message(error: &ParseError) -> String {
+    const MAX_EXPECTATIONS: usize = 8;
+    let ParseError::Failure { span, expectations } = error else {
+        return error.to_string();
+    };
+    let mut ranked = Vec::with_capacity(MAX_EXPECTATIONS);
+    'ranking: for rank in (1..=3).rev() {
+        for expectation in expectations
+            .iter()
+            .filter(|expectation| corpus_expectation_rank(expectation) == rank)
+        {
+            let name = expectation.to_string();
+            if !ranked.contains(&name) {
+                ranked.push(name);
+                if ranked.len() == MAX_EXPECTATIONS {
+                    break 'ranking;
+                }
+            }
+        }
+    }
+    let omitted = expectations.len().saturating_sub(ranked.len());
+    let mut message = format!(
+        "parse failed at bytes {}..{}; expected ",
+        span.start, span.end
+    );
+    for (index, name) in ranked.into_iter().enumerate() {
+        if index > 0 {
+            message.push_str(", ");
+        }
+        message.push_str(&name);
+    }
+    if omitted > 0 {
+        write!(message, ", and {omitted} more").expect("writing to String cannot fail");
+    }
+    message
+}
+
+const fn corpus_expectation_rank(expectation: &Expectation) -> u8 {
+    match expectation {
+        Expectation::Literal(_) => 3,
+        Expectation::Terminal(_) => 2,
+        Expectation::Nonterminal(_) => 1,
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub(super) struct CorpusUnit {
@@ -204,49 +253,173 @@ pub(super) fn normalization_digest<'a>(texts: impl IntoIterator<Item = &'a str>)
     sha256_hex(&digest.finalize())
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(super) struct CorpusPerformance {
+    units: usize,
+    bytes: usize,
+    cpu_nanos: u128,
+}
+
+impl CorpusPerformance {
+    fn record<T>(
+        &mut self,
+        unit: &CorpusUnit,
+        elapsed: Duration,
+        value: &T,
+        accepted: &impl Fn(&T) -> bool,
+    ) {
+        if accepted(value) {
+            self.units += 1;
+            self.bytes += unit.text().len();
+            self.cpu_nanos += elapsed.as_nanos();
+        }
+    }
+
+    #[expect(
+        clippy::cast_precision_loss,
+        reason = "corpus-scale timing ratios do not need integer precision beyond f64"
+    )]
+    pub(super) fn accepted_cpu_micros_per_byte(self) -> f64 {
+        if self.bytes == 0 {
+            return 0.0;
+        }
+        self.cpu_nanos as f64 / 1_000.0 / self.bytes as f64
+    }
+}
+
+pub(super) fn write_corpus_performance(
+    gate: &str,
+    elapsed: Duration,
+    performance: CorpusPerformance,
+) -> anyhow::Result<()> {
+    use std::io::Write as _;
+
+    let mut diagnostics = std::io::stderr().lock();
+    writeln!(
+        diagnostics,
+        "PERFORMANCE english-v2 gate={gate} elapsed_seconds={:.9} accepted_cpu_micros_per_byte={:.3} accepted_units={} accepted_bytes={}",
+        elapsed.as_secs_f64(),
+        performance.accepted_cpu_micros_per_byte(),
+        performance.units,
+        performance.bytes,
+    )?;
+    if elapsed.as_secs_f64() > CORPUS_WALL_CEILING_SECONDS {
+        writeln!(
+            diagnostics,
+            "WARNING english-v2-common-path-performance-regression gate={gate} elapsed_seconds={:.9} ceiling_seconds={CORPUS_WALL_CEILING_SECONDS:.3}",
+            elapsed.as_secs_f64(),
+        )?;
+    }
+    #[cfg(feature = "parser-metrics")]
+    write_parser_metrics(&mut diagnostics)?;
+    Ok(())
+}
+
+#[cfg(feature = "parser-metrics")]
+fn write_parser_metrics(output: &mut dyn std::io::Write) -> anyhow::Result<()> {
+    let mut rows = deckmaste_english_v2::parser::parser_metrics();
+    let score = |row: &deckmaste_english_v2::parser::ConstructionMetrics| {
+        row.predictions()
+            + row.completions()
+            + row.materializations()
+            + row.memo_misses()
+            + row.clone_heavy()
+    };
+    rows.sort_by(|left, right| {
+        score(right)
+            .cmp(&score(left))
+            .then_with(|| left.name().cmp(right.name()))
+    });
+    let totals = rows.iter().fold([0_u64; 5], |mut totals, row| {
+        totals[0] += row.predictions();
+        totals[1] += row.completions();
+        totals[2] += row.materializations();
+        totals[3] += row.memo_misses();
+        totals[4] += row.clone_heavy();
+        totals
+    });
+    writeln!(
+        output,
+        "PARSER_METRICS totals predictions={} completions={} materializations={} memo_misses={} clone_heavy={}",
+        totals[0], totals[1], totals[2], totals[3], totals[4],
+    )?;
+    for (rank, row) in rows
+        .into_iter()
+        .filter(|row| score(row) > 0)
+        .take(20)
+        .enumerate()
+    {
+        writeln!(
+            output,
+            "PARSER_METRICS rank={} construction={} predictions={} completions={} materializations={} memo_misses={} clone_heavy={}",
+            rank + 1,
+            row.name(),
+            row.predictions(),
+            row.completions(),
+            row.materializations(),
+            row.memo_misses(),
+            row.clone_heavy(),
+        )?;
+    }
+    Ok(())
+}
+
 pub(super) fn map_corpus_units<T: Send>(
     units: &[CorpusUnit],
+    requested_workers: usize,
     map: impl Fn(usize, &CorpusUnit) -> T + Send + Sync,
-) -> Vec<T> {
-    let available = std::thread::available_parallelism().map_or(1, usize::from);
-    map_corpus_units_with_workers(units, available, map)
+    accepted: impl Fn(&T) -> bool + Send + Sync,
+) -> (Vec<T>, CorpusPerformance) {
+    map_corpus_units_with_workers(units, requested_workers, map, accepted)
 }
 
 fn map_corpus_units_with_workers<T: Send>(
     units: &[CorpusUnit],
     requested_workers: usize,
     map: impl Fn(usize, &CorpusUnit) -> T + Send + Sync,
-) -> Vec<T> {
+    accepted: impl Fn(&T) -> bool + Send + Sync,
+) -> (Vec<T>, CorpusPerformance) {
     if units.is_empty() {
-        return Vec::new();
+        return (Vec::new(), CorpusPerformance::default());
     }
     let jobs = corpus_unit_jobs(requested_workers, units.len());
-    if jobs == 1 {
-        return units
-            .iter()
-            .enumerate()
-            .map(|(index, unit)| map(index, unit))
-            .collect();
-    }
-    rayon::ThreadPoolBuilder::new()
-        .num_threads(jobs)
-        .thread_name(|index| format!("english-v2-corpus-{index}"))
-        .build()
-        .expect("bounded English-v2 corpus pool must build")
-        .install(|| {
-            units
-                .par_iter()
-                .enumerate()
-                .map(|(index, unit)| map(index, unit))
-                .collect()
+    let mut scheduled = units.iter().enumerate().collect::<Vec<_>>();
+    scheduled.sort_by(|(left_index, left), (right_index, right)| {
+        right
+            .text()
+            .len()
+            .cmp(&left.text().len())
+            .then_with(|| left_index.cmp(right_index))
+    });
+    let run = |(index, unit): &(usize, &CorpusUnit)| {
+        let started = Instant::now();
+        let value = map(*index, unit);
+        (*index, started.elapsed(), value)
+    };
+    let mut completed = if jobs == 1 {
+        scheduled.iter().map(run).collect::<Vec<_>>()
+    } else {
+        rayon::ThreadPoolBuilder::new()
+            .num_threads(jobs)
+            .thread_name(|index| format!("english-v2-corpus-{index}"))
+            .build()
+            .expect("bounded English-v2 corpus pool must build")
+            .install(|| scheduled.par_iter().map(run).collect::<Vec<_>>())
+    };
+    completed.sort_by_key(|(index, _, _)| *index);
+    let mut performance = CorpusPerformance::default();
+    let values = completed
+        .into_iter()
+        .map(|(index, elapsed, value)| {
+            performance.record(&units[index], elapsed, &value, &accepted);
+            value
         })
+        .collect();
+    (values, performance)
 }
 
 fn corpus_unit_jobs(requested_workers: usize, units: usize) -> usize {
-    requested_workers
-        .min(MAX_CORPUS_UNIT_JOBS)
-        .min(units)
-        .max(1)
+    requested_workers.min(units).max(1)
 }
 
 fn quoted(value: &str) -> String {
@@ -528,8 +701,10 @@ mod tests {
         let (sender, receiver) = sync_channel(1);
         let receiver = Mutex::new(receiver);
 
-        let results =
-            map_corpus_units_with_workers(&units, 2, |index, unit| match unit.card_name() {
+        let (results, _) = map_corpus_units_with_workers(
+            &units,
+            2,
+            |index, unit| match unit.card_name() {
                 "First" => format!(
                     "{index}:{}",
                     receiver
@@ -543,36 +718,42 @@ mod tests {
                     format!("{index}:second")
                 }
                 name => panic!("unexpected mapped corpus unit {name}"),
-            });
+            },
+            |_| false,
+        );
 
         assert_eq!(results, ["0:released", "1:second"]);
     }
 
     #[test]
-    fn corpus_unit_map_caps_parser_concurrency() {
+    fn corpus_unit_map_honors_requested_concurrency() {
         let units = (0..12)
             .map(|index| CorpusUnit::for_test(&format!("Unit {index:02}"), ""))
             .collect::<Vec<_>>();
         let active = Arc::new(AtomicUsize::new(0));
         let peak = Arc::new(AtomicUsize::new(0));
-        let cohort = Arc::new(Barrier::new(MAX_CORPUS_UNIT_JOBS));
+        let cohort = Arc::new(Barrier::new(units.len()));
 
-        let results = map_corpus_units_with_workers(&units, 64, {
-            let active = Arc::clone(&active);
-            let peak = Arc::clone(&peak);
-            let cohort = Arc::clone(&cohort);
-            move |index, _unit| {
-                let now = active.fetch_add(1, Ordering::SeqCst) + 1;
-                peak.fetch_max(now, Ordering::SeqCst);
-                cohort.wait();
-                active.fetch_sub(1, Ordering::SeqCst);
-                index
-            }
-        });
+        let (results, _) = map_corpus_units_with_workers(
+            &units,
+            64,
+            {
+                let active = Arc::clone(&active);
+                let peak = Arc::clone(&peak);
+                let cohort = Arc::clone(&cohort);
+                move |index, _unit| {
+                    let now = active.fetch_add(1, Ordering::SeqCst) + 1;
+                    peak.fetch_max(now, Ordering::SeqCst);
+                    cohort.wait();
+                    active.fetch_sub(1, Ordering::SeqCst);
+                    index
+                }
+            },
+            |_| false,
+        );
 
         assert_eq!(results, (0..units.len()).collect::<Vec<_>>());
-        assert_eq!(peak.load(Ordering::SeqCst), MAX_CORPUS_UNIT_JOBS);
-        assert!(peak.load(Ordering::SeqCst) <= 4);
+        assert_eq!(peak.load(Ordering::SeqCst), units.len());
     }
 
     fn snapshot_onsets() -> BTreeMap<String, Onset> {

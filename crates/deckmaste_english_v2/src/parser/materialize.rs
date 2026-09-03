@@ -1,5 +1,5 @@
-use std::collections::BTreeMap;
-use std::collections::BTreeSet;
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use super::diagnostic::MaterializationTrace;
@@ -42,8 +42,8 @@ pub(super) struct MaterializedCandidate<V, C, K = Category, M = Lexical, T = (),
     pub(super) claims: Arc<[SpannedLexical<T, O>]>,
 }
 
-type MaterializedMemo<V, C, K, M, T, O> =
-    BTreeMap<NodeId, Vec<MaterializedCandidate<V, C, K, M, T, O>>>;
+type MaterializedValues<V, C, K, M, T, O> = Arc<[MaterializedCandidate<V, C, K, M, T, O>]>;
+type MaterializedMemo<V, C, K, M, T, O> = HashMap<NodeId, MaterializedValues<V, C, K, M, T, O>>;
 
 #[cfg(test)]
 thread_local! {
@@ -145,32 +145,16 @@ impl MaterializationObservation<RootRuleId> for MaterializationTraceBuilder {
 
 struct MaterializationStateFor<V, C, K = Category, M = Lexical, T = (), O = ()> {
     memo: MaterializedMemo<V, C, K, M, T, O>,
-    in_progress: BTreeSet<NodeId>,
-    parents_by_child: BTreeMap<NodeId, BTreeSet<NodeId>>,
+    in_progress: HashSet<NodeId>,
+    parents_by_child: HashMap<NodeId, HashSet<NodeId>>,
 }
 
 impl<V, C, K, M, T, O> Default for MaterializationStateFor<V, C, K, M, T, O> {
     fn default() -> Self {
         Self {
-            memo: BTreeMap::new(),
-            in_progress: BTreeSet::new(),
-            parents_by_child: BTreeMap::new(),
-        }
-    }
-}
-
-impl<V, C, K, M, T, O> MaterializationStateFor<V, C, K, M, T, O> {
-    fn invalidate(&mut self, node_id: NodeId) {
-        let mut pending = vec![node_id];
-        let mut invalidated = BTreeSet::new();
-        while let Some(node_id) = pending.pop() {
-            if !invalidated.insert(node_id) {
-                continue;
-            }
-            self.memo.remove(&node_id);
-            if let Some(parents) = self.parents_by_child.remove(&node_id) {
-                pending.extend(parents);
-            }
+            memo: HashMap::new(),
+            in_progress: HashSet::new(),
+            parents_by_child: HashMap::new(),
         }
     }
 }
@@ -184,7 +168,7 @@ struct MaterializationOutcomeFor<
     O = (),
     E = BuildRejection,
 > {
-    values: Vec<MaterializedCandidate<V, C, K, M, T, O>>,
+    values: MaterializedValues<V, C, K, M, T, O>,
     cycle_pruned: bool,
     first_rejection: Option<E>,
 }
@@ -236,7 +220,7 @@ where
             if first_rejection.is_none() {
                 first_rejection = outcome.first_rejection;
             }
-            for built in outcome.values {
+            for built in outcome.values.iter().cloned() {
                 push_unique(&mut candidates, built);
             }
         }
@@ -258,23 +242,33 @@ where
         O: MaterializationObservation<R, E>,
         Owner: Clone + PartialEq,
     {
+        let node = forest.node(node_id);
         if let Some(values) = state.memo.get(&node_id) {
+            #[cfg(feature = "parser-metrics")]
+            super::metrics::record(
+                (self.rule_index)(node.rule),
+                super::metrics::MetricEvent::CloneHeavy,
+            );
             return MaterializationOutcomeFor {
-                values: values.clone(),
+                values: Arc::clone(values),
                 cycle_pruned: false,
                 first_rejection: None,
             };
         }
+        #[cfg(feature = "parser-metrics")]
+        super::metrics::record(
+            (self.rule_index)(node.rule),
+            super::metrics::MetricEvent::MemoMiss,
+        );
         if !state.in_progress.insert(node_id) {
             observation.cycle_pruned(node_id, rule_path);
             return MaterializationOutcomeFor {
-                values: Vec::new(),
+                values: Arc::from([]),
                 cycle_pruned: true,
                 first_rejection: None,
             };
         }
 
-        let node = forest.node(node_id);
         for family in &node.families {
             for child in &family.children {
                 if let Child::Node(child_id) = child {
@@ -296,17 +290,24 @@ where
             if first_rejection.is_none() {
                 first_rejection = outcome.first_rejection;
             }
-            for built in outcome.values {
+            for built in outcome.values.iter().cloned() {
                 push_unique(&mut values, built);
             }
         }
         state.in_progress.remove(&node_id);
         if !cycle_pruned && first_rejection.is_none() {
-            state.memo.insert(node_id, values.clone());
+            let values = Arc::from(values);
+            state.memo.insert(node_id, Arc::clone(&values));
+            let first_rejection = values.is_empty().then_some(first_rejection).flatten();
+            return MaterializationOutcomeFor {
+                values,
+                cycle_pruned,
+                first_rejection,
+            };
         }
         let first_rejection = values.is_empty().then_some(first_rejection).flatten();
         MaterializationOutcomeFor {
-            values,
+            values: Arc::from(values),
             cycle_pruned,
             first_rejection,
         }
@@ -325,6 +326,11 @@ where
         O: MaterializationObservation<R, E>,
         Owner: Clone + PartialEq,
     {
+        #[cfg(feature = "parser-metrics")]
+        super::metrics::record(
+            (self.rule_index)(rule_id),
+            super::metrics::MetricEvent::Materialization,
+        );
         let rule = &self.rules[(self.rule_index)(rule_id)];
         let public_construction = (self.public_construction)(rule_id);
         if O::ENABLED {
@@ -343,16 +349,16 @@ where
                     }
                     outcome.values
                 }
-                Child::Lexical(lexical) => vec![MaterializedCandidate {
+                Child::Lexical(lexical) => Arc::from([MaterializedCandidate {
                     value: Arc::new((self.build_leaf)(&lexical.value)),
                     constructions: Arc::from([]),
                     positions: Arc::from([]),
                     claims: Arc::from([lexical.clone()]),
-                }],
+                }]),
             };
             let mut next = Vec::new();
             for combination in combinations {
-                for child_value in &child_values {
+                for child_value in child_values.iter() {
                     let mut combination = combination.clone();
                     combination.push(child_value.clone());
                     next.push(combination);
@@ -418,7 +424,7 @@ where
         }
         let first_rejection = values.is_empty().then_some(first_rejection).flatten();
         MaterializationOutcomeFor {
-            values,
+            values: Arc::from(values),
             cycle_pruned,
             first_rejection,
         }
@@ -821,9 +827,37 @@ fn materialize_node(
 }
 
 #[derive(Default)]
+struct CheckedMaterializationState {
+    memo: HashMap<NodeId, Arc<[Arc<BuildValue>]>>,
+    in_progress: HashSet<NodeId>,
+    parents_by_child: HashMap<NodeId, HashSet<NodeId>>,
+}
+
+impl CheckedMaterializationState {
+    fn invalidate(&mut self, node_id: NodeId) {
+        let mut pending = vec![node_id];
+        let mut invalidated = HashSet::new();
+        while let Some(node_id) = pending.pop() {
+            if !invalidated.insert(node_id) {
+                continue;
+            }
+            self.memo.remove(&node_id);
+            if let Some(parents) = self.parents_by_child.remove(&node_id) {
+                pending.extend(parents);
+            }
+        }
+    }
+}
+
+struct CheckedMaterializationOutcome {
+    values: Arc<[Arc<BuildValue>]>,
+    cycle_pruned: bool,
+    first_rejection: Option<BuildRejection>,
+}
+
+#[derive(Default)]
 pub(super) struct CheckedCompletionState {
-    materialization:
-        MaterializationStateFor<BuildValue, Construction, Category, Lexical, Leaf, LexicalOwner>,
+    materialization: CheckedMaterializationState,
     observed_extensions: usize,
 }
 
@@ -840,32 +874,13 @@ pub(super) fn completion_has_checked_build(
     for &node_id in extensions {
         state.materialization.invalidate(node_id);
     }
-    let kernel: MaterializationKernel<
-        '_,
-        RootRuleId,
-        Leaf,
-        BuildValue,
-        Construction,
-        Category,
-        LexicalTerminal,
-        Lexical,
-        _,
-    > = MaterializationKernel {
+    let outcome = checked_materialize_family(
         rules,
-        rule_index: RootRuleId::index,
-        public_construction: RootRuleId::public_construction,
-        lexical_matcher: |terminal| terminal.matcher,
-        build_leaf: |leaf: &Leaf| BuildValue::Leaf(leaf.clone()),
-        build: |rule, children: &[BuildValue]| build_root_rule(rule, children, context),
-        rejection: std::marker::PhantomData,
-    };
-    let outcome = kernel.materialize_family(
         forest,
         rule,
         family,
+        context,
         &mut state.materialization,
-        &mut Vec::new(),
-        &mut (),
     );
     if !outcome.values.is_empty() {
         super::engine::CompletionDisposition::Accepted
@@ -873,6 +888,134 @@ pub(super) fn completion_has_checked_build(
         super::engine::CompletionDisposition::DeferredBuildRejection(rejection)
     } else {
         super::engine::CompletionDisposition::Rejected
+    }
+}
+
+fn checked_materialize_node(
+    rules: &[Rule<Category, LexicalTerminal, RootRuleId>],
+    forest: &Forest<RootRuleId, Leaf, LexicalOwner>,
+    node_id: NodeId,
+    context: &ParseContext<'_>,
+    state: &mut CheckedMaterializationState,
+) -> CheckedMaterializationOutcome {
+    let node = forest.node(node_id);
+    if let Some(values) = state.memo.get(&node_id) {
+        #[cfg(feature = "parser-metrics")]
+        super::metrics::record(node.rule.index(), super::metrics::MetricEvent::CloneHeavy);
+        return CheckedMaterializationOutcome {
+            values: Arc::clone(values),
+            cycle_pruned: false,
+            first_rejection: None,
+        };
+    }
+    #[cfg(feature = "parser-metrics")]
+    super::metrics::record(node.rule.index(), super::metrics::MetricEvent::MemoMiss);
+    if !state.in_progress.insert(node_id) {
+        return CheckedMaterializationOutcome {
+            values: Arc::from([]),
+            cycle_pruned: true,
+            first_rejection: None,
+        };
+    }
+
+    for family in &node.families {
+        for child in &family.children {
+            if let Child::Node(child_id) = child {
+                state
+                    .parents_by_child
+                    .entry(*child_id)
+                    .or_default()
+                    .insert(node_id);
+            }
+        }
+    }
+    let mut values = Vec::new();
+    let mut cycle_pruned = false;
+    let mut first_rejection = None;
+    for family in &node.families {
+        let outcome = checked_materialize_family(rules, forest, node.rule, family, context, state);
+        cycle_pruned |= outcome.cycle_pruned;
+        if first_rejection.is_none() {
+            first_rejection = outcome.first_rejection;
+        }
+        for value in outcome.values.iter().cloned() {
+            push_unique(&mut values, value);
+        }
+    }
+    state.in_progress.remove(&node_id);
+    let first_rejection = values.is_empty().then_some(first_rejection).flatten();
+    let values = Arc::from(values);
+    if !cycle_pruned && first_rejection.is_none() {
+        state.memo.insert(node_id, Arc::clone(&values));
+    }
+    CheckedMaterializationOutcome {
+        values,
+        cycle_pruned,
+        first_rejection,
+    }
+}
+
+fn checked_materialize_family(
+    rules: &[Rule<Category, LexicalTerminal, RootRuleId>],
+    forest: &Forest<RootRuleId, Leaf, LexicalOwner>,
+    rule_id: RootRuleId,
+    family: &Family<Leaf, LexicalOwner>,
+    context: &ParseContext<'_>,
+    state: &mut CheckedMaterializationState,
+) -> CheckedMaterializationOutcome {
+    #[cfg(feature = "parser-metrics")]
+    super::metrics::record(
+        rule_id.index(),
+        super::metrics::MetricEvent::Materialization,
+    );
+    let mut combinations = vec![Vec::new()];
+    let mut cycle_pruned = false;
+    let mut first_rejection = None;
+    for child in &family.children {
+        let child_values = match child {
+            Child::Node(id) => {
+                let outcome = checked_materialize_node(rules, forest, *id, context, state);
+                cycle_pruned |= outcome.cycle_pruned;
+                if first_rejection.is_none() {
+                    first_rejection = outcome.first_rejection;
+                }
+                outcome.values
+            }
+            Child::Lexical(lexical) => {
+                Arc::from([Arc::new(BuildValue::Leaf(lexical.value.clone()))])
+            }
+        };
+        let mut next = Vec::new();
+        for combination in combinations {
+            for child_value in child_values.iter() {
+                let mut combination = combination.clone();
+                combination.push(child_value.clone());
+                next.push(combination);
+            }
+        }
+        combinations = next;
+    }
+    let mut values = Vec::new();
+    for children in combinations {
+        let child_values = children
+            .iter()
+            .map(|child| child.as_ref().clone())
+            .collect::<Vec<_>>();
+        match build_root_rule(rule_id, &child_values, context) {
+            Ok(Some(value)) => {
+                push_unique(&mut values, Arc::new(value));
+            }
+            Err(rejection) if first_rejection.is_none() => {
+                first_rejection = Some(rejection);
+            }
+            Ok(None) | Err(_) => {}
+        }
+    }
+    let first_rejection = values.is_empty().then_some(first_rejection).flatten();
+    CheckedMaterializationOutcome {
+        values: Arc::from(values),
+        cycle_pruned,
+        first_rejection,
     }
 }
 
