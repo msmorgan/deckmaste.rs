@@ -71,7 +71,7 @@ badLifeTotalSuperlative Refl impossible
 
 public export
 badAnnouncingRemovalAgent : Unspellable (GameEvent []) (\ok =>
-  LastCounterRemoved Intervention Macros.thisEnchantment (Just (Macros.target AnyPlayer))
+  LastCounterRemoved (Named "Intervention") Macros.thisEnchantment (Just (Macros.target AnyPlayer))
                      {ag = AgentVoiced {bl = ok}})
 badAnnouncingRemovalAgent Refl impossible
 
@@ -79,7 +79,7 @@ badAnnouncingRemovalAgent Refl impossible
 ||| "Each player gets a charge counter."
 public export
 badGetsChargeCounter : Unspellable (Effect []) (\ok =>
-  PutCounters (Lit 1) (PrintedKind Charge) You {sc = ok})
+  PutCounters (Lit 1) (PrintedKind (Named "Charge")) You {sc = ok})
 badGetsChargeCounter Oh impossible
 
 

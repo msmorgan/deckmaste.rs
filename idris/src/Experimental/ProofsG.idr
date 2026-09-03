@@ -44,7 +44,7 @@ badAbilityJoinAnaphorOnAbility Refl impossible
 ||| "each creature with a poison counter on it"
 public export
 badPoisonCounterDescription : Unspellable (Predicate [] Object) (\ok =>
-  HasCounters (Just Poison) {kn = KindNamed {sc = ok}})
+  HasCounters (Just (Named "Poison")) {kn = KindNamed {sc = ok}})
 badPoisonCounterDescription Refl impossible
 
 
@@ -895,9 +895,23 @@ badEmptyCounterMenu IsNonEmpty impossible
 ||| "Put your choice of a +1/+1 counter or a poison counter on target creature."
 public export
 badMixedScopeCounterMenu : Unspellable (Effect []) (\ok =>
-  PutCounters (Lit 1) (ChosenKind [Macros.plusOnePlusOne, Poison])
+  PutCounters (Lit 1) (ChosenKind [Macros.plusOnePlusOne, Named "Poison"])
               (Macros.target Macros.creature) {sc = ok})
 badMixedScopeCounterMenu Oh impossible
+
+||| "Put a zorp counter on target creature."
+public export
+badUnknownCounterLabel : Unspellable (Effect []) (\ok =>
+  PutCounters (Lit 1) (PrintedKind (Named "Zorp" {ok}))
+              (Macros.target Macros.creature))
+badUnknownCounterLabel Oh impossible
+
+||| "Put a flying counter on target creature." [CR#122.1b]
+public export
+badKeywordCounterNamedPlainly : Unspellable (Effect []) (\ok =>
+  PutCounters (Lit 1) (PrintedKind (Named "Flying" {ok}))
+              (Macros.target Macros.creature))
+badKeywordCounterNamedPlainly Oh impossible
 
 ||| "Put a counter of each of those kinds on target creature."
 public export

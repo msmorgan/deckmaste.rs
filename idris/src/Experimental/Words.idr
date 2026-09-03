@@ -3323,95 +3323,121 @@ definesToughness ToughnessAlone = True
 definesToughness BothEach = True
 
 public export
+record CounterFacts where
+  constructor MkCounterFacts
+  counterLabel : String
+  ||| What the counter is placed on: an object or a player [CR#122.1].
+  counterHolder : Kind
+
+public export
+counterFacts : List CounterFacts
+counterFacts =
+  [ MkCounterFacts "Charge"       Object
+  , MkCounterFacts "Time"         Object
+  , MkCounterFacts "Lore"         Object
+  , MkCounterFacts "Poison"       Player
+  , MkCounterFacts "Age"          Object
+  , MkCounterFacts "Stun"         Object
+  , MkCounterFacts "Energy"       Player
+  , MkCounterFacts "Oil"          Object
+  , MkCounterFacts "Loyalty"      Object
+  , MkCounterFacts "Quest"        Object
+  , MkCounterFacts "Finality"     Object
+  , MkCounterFacts "Shield"       Object
+  , MkCounterFacts "Storage"      Object
+  , MkCounterFacts "Fade"         Object
+  , MkCounterFacts "Spore"        Object
+  , MkCounterFacts "Experience"   Player
+  , MkCounterFacts "Depletion"    Object
+  , MkCounterFacts "Level"        Object
+  , MkCounterFacts "Verse"        Object
+  , MkCounterFacts "Rad"          Player
+  , MkCounterFacts "Ki"           Object
+  , MkCounterFacts "Divinity"     Object
+  , MkCounterFacts "Study"        Object
+  , MkCounterFacts "Plan"         Object
+  , MkCounterFacts "Ice"          Object
+  , MkCounterFacts "Doom"         Object
+  , MkCounterFacts "Tide"         Object
+  , MkCounterFacts "Soul"         Object
+  , MkCounterFacts "Page"         Object
+  , MkCounterFacts "Fuse"         Object
+  , MkCounterFacts "Flood"        Object
+  , MkCounterFacts "Bounty"       Object
+  , MkCounterFacts "Strike"       Object
+  , MkCounterFacts "Hour"         Object
+  , MkCounterFacts "Growth"       Object
+  , MkCounterFacts "Egg"          Object
+  , MkCounterFacts "Dream"        Object
+  , MkCounterFacts "Brick"        Object
+  , MkCounterFacts "Blood"        Object
+  , MkCounterFacts "Omen"         Object
+  , MkCounterFacts "Luck"         Object
+  , MkCounterFacts "Plague"       Object
+  , MkCounterFacts "Slime"        Object
+  , MkCounterFacts "Fungus"       Object
+  , MkCounterFacts "Wish"         Object
+  , MkCounterFacts "Wind"         Object
+  , MkCounterFacts "Stash"        Object
+  , MkCounterFacts "Scream"       Object
+  , MkCounterFacts "Defense"      Object
+  , MkCounterFacts "Hone"         Object
+  , MkCounterFacts "Sleight"      Object
+  , MkCounterFacts "Spite"        Object
+  , MkCounterFacts "Rev"          Object
+  , MkCounterFacts "Intervention" Object
+  , MkCounterFacts "Suspect"      Object
+  , MkCounterFacts "Bloodstain"   Object
+  ]
+
+public export
+distinctCounterLabels : List CounterFacts -> Bool
+distinctCounterLabels [] = True
+distinctCounterLabels (f :: fs) =
+  not (elem (counterLabel f) (map counterLabel fs)) && distinctCounterLabels fs
+
+export
+counterLabelsDistinct : So (distinctCounterLabels Experimental.Words.counterFacts)
+counterLabelsDistinct = Oh
+
+public export
+counterFactsIn : String -> List CounterFacts -> Maybe CounterFacts
+counterFactsIn l [] = Nothing
+counterFactsIn l (f :: fs) =
+  if counterLabel f == l then Just f else counterFactsIn l fs
+
+public export
+counterFactsFor : String -> Maybe CounterFacts
+counterFactsFor l = counterFactsIn l counterFacts
+
+public export
+knownCounter : String -> Bool
+knownCounter l = isJust (counterFactsFor l)
+
+public export
+KnownCounter : String -> Type
+KnownCounter l = So (knownCounter l)
+
+public export
 data CounterKind : Type where
   BoostCounter : Counter.Delta -> Counter.Delta -> CounterKind
-  Stun : CounterKind
-  Time : CounterKind
   KeywordCounter : (k : KeywordLabel) ->
                    {auto 0 ok : KeywordCounterEligible k} -> CounterKind
-  Charge : CounterKind
-  Omen : CounterKind
-  Spite : CounterKind
-  Rev : CounterKind
-  Intervention : CounterKind
-  Poison : CounterKind
-  Rad : CounterKind
-  Experience : CounterKind
-  Lore : CounterKind
-  Age : CounterKind
-  Shield : CounterKind
-  LoyaltyCounter : CounterKind
-  Plan : CounterKind
-  Hour : CounterKind
-  Suspect : CounterKind
-  Luck : CounterKind
-  Blood : CounterKind
-  Bloodstain : CounterKind
-  Wind : CounterKind
-  Ice : CounterKind
-  Storage : CounterKind
+  Named : (label : String) ->
+          {auto 0 ok : KnownCounter label} -> CounterKind
 
 public export
 counterScope : CounterKind -> Kind
 counterScope (BoostCounter _ _) = Object
-counterScope Stun = Object
-counterScope Time = Object
 counterScope (KeywordCounter _) = Object
-counterScope Charge = Object
-counterScope Omen = Object
-counterScope Spite = Object
-counterScope Rev = Object
-counterScope Intervention = Object
-counterScope Poison = Player
-counterScope Rad = Player
-counterScope Experience = Player
-counterScope Lore = Object
-counterScope Age = Object
-counterScope Shield = Object
-counterScope LoyaltyCounter = Object
-counterScope Plan = Object
-counterScope Hour = Object
-counterScope Suspect = Object
-counterScope Luck = Object
-counterScope Blood = Object
-counterScope Bloodstain = Object
-counterScope Wind = Object
-counterScope Ice = Object
-counterScope Storage = Object
-
-public export
-counterIx : CounterKind -> Nat
-counterIx (BoostCounter _ _) = 0
-counterIx Stun = 1
-counterIx Time = 2
-counterIx (KeywordCounter _) = 3
-counterIx Charge = 4
-counterIx Omen = 5
-counterIx Spite = 6
-counterIx Rev = 7
-counterIx Intervention = 8
-counterIx Poison = 9
-counterIx Rad = 10
-counterIx Experience = 11
-counterIx Lore = 12
-counterIx Age = 13
-counterIx Shield = 14
-counterIx LoyaltyCounter = 15
-counterIx Plan = 16
-counterIx Hour = 17
-counterIx Suspect = 18
-counterIx Luck = 19
-counterIx Blood = 20
-counterIx Bloodstain = 21
-counterIx Wind = 22
-counterIx Ice = 23
-counterIx Storage = 24
+counterScope (Named l) = maybe Object counterHolder (counterFactsFor l)
 
 public export
 Eq CounterKind where
   (==) (BoostCounter ap at) (BoostCounter bp bt) = ap == bp && at == bt
   (==) (KeywordCounter a) (KeywordCounter b) = a == b
-  (==) a b = counterIx a == counterIx b
+  (==) (Named a) (Named b) = a == b
+  (==) _ _ = False
 
 public export
 data ProjAxis = CharAxis Characteristic | PlayerStatAxis PlayerStat

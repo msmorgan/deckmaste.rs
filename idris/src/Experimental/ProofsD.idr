@@ -252,7 +252,7 @@ badUntapCapGraveyardSet Oh impossible
 ||| "Put a poison counter on target creature."
 public export
 badPutPoisonOnCreature : Unspellable (Effect []) (\ok =>
-  PutCounters (Lit 1) (PrintedKind Poison) (Macros.target Macros.creature) {sc = ok})
+  PutCounters (Lit 1) (PrintedKind (Named "Poison")) (Macros.target Macros.creature) {sc = ok})
 badPutPoisonOnCreature Oh impossible
 
 
@@ -266,9 +266,9 @@ badGetsBoostCounter Oh impossible
 ||| "Each opponent loses all +1/+1 counters."
 public export
 badLosesAllBoostCounters : Unspellable (Effect []) (\ok =>
-  LosesCounters (Macros.each Opponent) (Just Macros.plusOnePlusOne) Nothing
-                   {pk = KindNamed {sc = ok}})
-badLosesAllBoostCounters Refl impossible
+  LosesCounters (Macros.each Opponent) (Just (PrintedKind Macros.plusOnePlusOne)) Nothing
+                   {sc = ok})
+badLosesAllBoostCounters Oh impossible
 
 
 ||| "the number of +1/+1 counters you have"
@@ -281,13 +281,13 @@ badCountersHeldByPlayer Refl impossible
 ||| "When the last poison counter is removed from this creature, draw a card."
 public export
 badLastPoisonCounterRemoved : Unspellable Ability (\ok =>
-  Triggered When (LastCounterRemoved Poison Macros.thisCreature Nothing {sc = ok}) [] Nothing [] Nothing Nothing Nothing (Macros.draw You (Lit 1)))
+  Triggered When (LastCounterRemoved (Named "Poison") Macros.thisCreature Nothing {sc = ok}) [] Nothing [] Nothing Nothing Nothing (Macros.draw You (Lit 1)))
 badLastPoisonCounterRemoved Refl impossible
 
 
 public export
 badExileCheckOnSortedSelf : Unspellable Ability (\ok =>
-  Triggered When (LastCounterRemoved Time Macros.thisCreature Nothing) [] Nothing [] Nothing Nothing (Just (Matches Macros.thisCreature (InZone Macros.exileZ)
+  Triggered When (LastCounterRemoved (Named "Time") Macros.thisCreature Nothing) [] Nothing [] Nothing Nothing (Just (Matches Macros.thisCreature (InZone Macros.exileZ)
                                          {zc = ok})) (Macros.draw You (Lit 1)))
 badExileCheckOnSortedSelf Oh impossible
 

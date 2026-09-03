@@ -1749,23 +1749,25 @@ proliferate =
                       , PutCounters (Lit 1) OwnKinds (EachOf (Those JoinW {ok = mj})) ])
 
 public export
-losesAllCounters : (who : Noun bs Player) -> (kind : Maybe CounterKind) ->
-                   {auto 0 pk : CounterKindNamed Player kind} -> Effect bs
-losesAllCounters who kind = LosesCounters who kind Nothing {pk}
+losesAllCounters : (who : Noun bs Player) ->
+                   (kind : Maybe (CounterKindSource bs)) ->
+                   {auto 0 sc : OptCounterSourceScope kind Player} -> Effect bs
+losesAllCounters who kind = LosesCounters who kind Nothing {sc}
 
 public export
-removeCounters : (q : Quantity bs) -> (kind : Maybe CounterKind) ->
+removeCounters : (q : Quantity bs) -> (kind : Maybe (CounterKindSource bs)) ->
                  (from : Noun (quantIntro q) Object) ->
                  {auto 0 wf : WellFormedQ q} ->
-                 {auto 0 sc : OptCounterSourceScope (namedKind {bs} kind) Object} ->
+                 {auto 0 sc : OptCounterSourceScope kind Object} ->
                  {auto 0 cm : CounterMemory from} -> Effect bs
-removeCounters q kind from = RemoveCounters (Just q) (namedKind {bs} kind) from {wf} {sc} {cm}
+removeCounters q kind from = RemoveCounters (Just q) kind from {wf} {sc} {cm}
 
 public export
-removeAllCounters : (kind : Maybe CounterKind) -> (from : Noun bs Object) ->
-                    {auto 0 sc : OptCounterSourceScope (namedKind {bs} kind) Object} ->
+removeAllCounters : (kind : Maybe (CounterKindSource bs)) ->
+                    (from : Noun bs Object) ->
+                    {auto 0 sc : OptCounterSourceScope kind Object} ->
                     {auto 0 cm : CounterMemory from} -> Effect bs
-removeAllCounters kind from = RemoveCounters Nothing (namedKind {bs} kind) from {sc} {cm}
+removeAllCounters kind from = RemoveCounters Nothing kind from {sc} {cm}
 
 public export
 keyword : {0 bs : Bindings} -> (kw : KeywordLabel) ->
@@ -2528,8 +2530,8 @@ cumulativeUpkeepExpansion c =
   triggeredIf At (BeginningOf Upkeep yours)
     (Matches thisPermanent (InZone battlefieldZ))
     (Sequentially
-       [ PutCounters (Lit 1) (PrintedKind Age) thisPermanent
-       , May You (Pay You (ScaledCost c (Times 1 (CountersOn Age thisPermanent)))
+       [ PutCounters (Lit 1) (PrintedKind (Named "Age")) thisPermanent
+       , May You (Pay You (ScaledCost c (Times 1 (CountersOn (Named "Age") thisPermanent)))
                           PaidOnce {pb} {ag = py})
              Nothing (Just (sacrifice You thisPermanent)) ])
 

@@ -104,11 +104,6 @@ OptCounterSourceScope : {bs : Bindings} -> Maybe (CounterKindSource bs) -> Kind 
 OptCounterSourceScope s k = So (optCounterSourceScope s k)
 
 public export
-namedKind : Maybe CounterKind -> Maybe (CounterKindSource bs)
-namedKind Nothing = Nothing
-namedKind (Just c) = Just (PrintedKind c)
-
-public export
 kindSourceIntro : {bs : Bindings} -> CounterKindSource bs -> Bindings
 kindSourceIntro (SameAs src) = nomIntro src
 kindSourceIntro _ = bs
@@ -1252,25 +1247,28 @@ mutual
                      {auto 0 wf : OptWellFormedQ q} ->
                      {auto 0 sc : OptCounterSourceScope kind k} ->
                      {auto 0 cm : CounterMemory from} -> Effect bs
-    RemoveCountersAmong : (q : Quantity bs) -> (kind : Maybe CounterKind) ->
+    RemoveCountersAmong : (q : Quantity bs) ->
+                          (kind : Maybe (CounterKindSource bs)) ->
                           (among : Noun (quantIntro q) Object) ->
                           {auto 0 wf : WellFormedQ q} ->
-                          {auto 0 kn : CounterKindNamed Object kind} ->
+                          {auto 0 sc : OptCounterSourceScope kind Object} ->
                           {auto 0 cm : CounterMemory among} ->
                           {auto 0 pb : PartitiveBase among} -> Effect bs
-    MoveCounters : (amt : Amount bs) -> (kind : Maybe CounterKind) ->
+    MoveCounters : (amt : Amount bs) ->
+                   (kind : Maybe (CounterKindSource bs)) ->
                    (src : Noun (amtIntro amt) Object) ->
                    (dst : Noun (nomIntro src) Object) ->
-                   {auto 0 kn : CounterKindNamed Object kind} ->
+                   {auto 0 sc : OptCounterSourceScope kind Object} ->
                    {auto 0 cm : CounterMemory src} ->
                    {auto 0 md : MoveDestination dst} ->
                    {auto 0 pm : PerMember dst} -> Effect bs
     DoubleCounters : {k : Kind} -> (on : Noun bs k) ->
                      {auto 0 hk : So (counterHolderKind k)} ->
                      {auto 0 pm : PerMember on} -> Effect bs
-    LosesCounters : (who : Noun bs Player) -> (kind : Maybe CounterKind) ->
+    LosesCounters : (who : Noun bs Player) ->
+                    (kind : Maybe (CounterKindSource bs)) ->
                     (amt : Maybe (Amount (nomIntro who))) ->
-                    {auto 0 pk : CounterKindNamed Player kind} -> Effect bs
+                    {auto 0 sc : OptCounterSourceScope kind Player} -> Effect bs
     Enact : (v : VerbLabel) -> (e : Effect bs) ->
             {auto 0 kn : KnownAct v} -> Effect bs
     Does : (subj : Noun bs Player) -> (v : VerbLabel) ->
