@@ -6,30 +6,14 @@ use std::process::Command;
 
 use anyhow::Context;
 use anyhow::bail;
+use deckmaste_construction_core::macro_def::Onset;
 use tempfile::NamedTempFile;
 
 use super::coverage::CoverageLockMode;
 use super::coverage::CoverageReport;
 
-const SCHEMA_VERSION_V1: u32 = 1;
-const SCHEMA_VERSION_V2: u32 = 2;
 const SCHEMA_VERSION_V3: u32 = 3;
-
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(super) struct CoverageLockV1 {
-    schema_version: u32,
-    source_fingerprint: String,
-    accepted: Vec<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(super) struct CoverageLockV2 {
-    schema_version: u32,
-    source_fingerprint: String,
-    covered: Vec<String>,
-}
+const SCHEMA_VERSION_V4: u32 = 4;
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
@@ -40,11 +24,29 @@ pub(super) struct CoverageLockV3 {
     covered: Vec<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
+struct NormalizationUnit {
+    source_id: String,
+    id: String,
+    card_name: String,
+    context_onset: Onset,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
+pub(super) struct CoverageLockV4 {
+    schema_version: u32,
+    source_fingerprint: String,
+    normalization_digest: String,
+    normalization_units: Vec<NormalizationUnit>,
+    covered: Vec<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum LoadedCoverageLock {
-    V1(CoverageLockV1),
-    V2(CoverageLockV2),
     V3(CoverageLockV3),
+    V4(CoverageLockV4),
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -53,21 +55,6 @@ struct CoverageLockSchema {
 }
 
 impl CoverageLockV3 {
-    fn new(
-        source_fingerprint: String,
-        normalization_digest: String,
-        covered: Vec<String>,
-    ) -> anyhow::Result<Self> {
-        let lock = Self {
-            schema_version: SCHEMA_VERSION_V3,
-            source_fingerprint,
-            normalization_digest,
-            covered,
-        };
-        lock.validate(Path::new("<new coverage lock>"))?;
-        Ok(lock)
-    }
-
     fn validate(&self, path: &Path) -> anyhow::Result<()> {
         if self.schema_version != SCHEMA_VERSION_V3 {
             bail!(
@@ -82,21 +69,75 @@ impl CoverageLockV3 {
     }
 }
 
+impl CoverageLockV4 {
+    fn new(report: &CoverageReport, covered: Vec<String>) -> anyhow::Result<Self> {
+        let mut normalization_units = report
+            .normalization_inputs()
+            .map(|input| NormalizationUnit {
+                source_id: input.source_id.to_owned(),
+                id: input.id.to_owned(),
+                card_name: input.card_name.to_owned(),
+                context_onset: input.context_onset,
+            })
+            .collect::<Vec<_>>();
+        normalization_units.sort_by(|left, right| left.source_id.cmp(&right.source_id));
+        let lock = Self {
+            schema_version: SCHEMA_VERSION_V4,
+            source_fingerprint: report.source_fingerprint().to_owned(),
+            normalization_digest: report.normalization_digest(),
+            normalization_units,
+            covered,
+        };
+        lock.validate(Path::new("<new coverage lock>"))?;
+        Ok(lock)
+    }
+
+    fn validate(&self, path: &Path) -> anyhow::Result<()> {
+        if self.schema_version != SCHEMA_VERSION_V4 {
+            bail!(
+                "invalid English-v2 coverage lock {}: unsupported schema version {}",
+                path.display(),
+                self.schema_version,
+            );
+        }
+        validate_identity(&self.source_fingerprint, "source fingerprint", path)?;
+        validate_identity(&self.normalization_digest, "normalization digest", path)?;
+        validate_vector(&self.covered, "covered corpus identity", path)?;
+        for unit in &self.normalization_units {
+            validate_identity(&unit.source_id, "normalization source identity", path)?;
+            validate_identity(&unit.id, "normalized corpus identity", path)?;
+        }
+        for pair in self.normalization_units.windows(2) {
+            match pair[0].source_id.cmp(&pair[1].source_id) {
+                std::cmp::Ordering::Less => {}
+                std::cmp::Ordering::Equal => bail!(
+                    "invalid English-v2 coverage lock {}: duplicate normalization source identity {}",
+                    path.display(),
+                    pair[0].source_id,
+                ),
+                std::cmp::Ordering::Greater => bail!(
+                    "invalid English-v2 coverage lock {}: normalization units must be strictly sorted by source identity",
+                    path.display(),
+                ),
+            }
+        }
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 impl LoadedCoverageLock {
     fn source_fingerprint(&self) -> &str {
         match self {
-            Self::V1(lock) => &lock.source_fingerprint,
-            Self::V2(lock) => &lock.source_fingerprint,
             Self::V3(lock) => &lock.source_fingerprint,
+            Self::V4(lock) => &lock.source_fingerprint,
         }
     }
 
     fn covered(&self) -> &[String] {
         match self {
-            Self::V1(lock) => &lock.accepted,
-            Self::V2(lock) => &lock.covered,
             Self::V3(lock) => &lock.covered,
+            Self::V4(lock) => &lock.covered,
         }
     }
 }
@@ -107,28 +148,6 @@ pub(super) fn read_lock(path: &Path) -> anyhow::Result<LoadedCoverageLock> {
     let schema = serde_json::from_slice::<CoverageLockSchema>(&bytes)
         .with_context(|| format!("parsing English-v2 coverage lock {}", path.display()))?;
     match schema.schema_version {
-        SCHEMA_VERSION_V1 => {
-            let lock = serde_json::from_slice::<CoverageLockV1>(&bytes).with_context(|| {
-                format!(
-                    "parsing schema-1 English-v2 coverage lock {}",
-                    path.display()
-                )
-            })?;
-            validate_identity(&lock.source_fingerprint, "source fingerprint", path)?;
-            validate_vector(&lock.accepted, "accepted corpus identity", path)?;
-            Ok(LoadedCoverageLock::V1(lock))
-        }
-        SCHEMA_VERSION_V2 => {
-            let lock = serde_json::from_slice::<CoverageLockV2>(&bytes).with_context(|| {
-                format!(
-                    "parsing schema-2 English-v2 coverage lock {}",
-                    path.display()
-                )
-            })?;
-            validate_identity(&lock.source_fingerprint, "source fingerprint", path)?;
-            validate_vector(&lock.covered, "covered corpus identity", path)?;
-            Ok(LoadedCoverageLock::V2(lock))
-        }
         SCHEMA_VERSION_V3 => {
             let lock = serde_json::from_slice::<CoverageLockV3>(&bytes).with_context(|| {
                 format!(
@@ -138,6 +157,16 @@ pub(super) fn read_lock(path: &Path) -> anyhow::Result<LoadedCoverageLock> {
             })?;
             lock.validate(path)?;
             Ok(LoadedCoverageLock::V3(lock))
+        }
+        SCHEMA_VERSION_V4 => {
+            let lock = serde_json::from_slice::<CoverageLockV4>(&bytes).with_context(|| {
+                format!(
+                    "parsing schema-4 English-v2 coverage lock {}",
+                    path.display()
+                )
+            })?;
+            lock.validate(path)?;
+            Ok(LoadedCoverageLock::V4(lock))
         }
         version => bail!(
             "invalid English-v2 coverage lock {}: unsupported schema version {version}",
@@ -211,15 +240,13 @@ impl LockWriter for FilesystemLockWriter {
     }
 }
 
-fn write_v3_with(
-    lock: &CoverageLockV3,
+fn write_v4_with(
+    lock: &CoverageLockV4,
     path: &Path,
     writer: &mut impl LockWriter,
 ) -> anyhow::Result<()> {
     lock.validate(path)?;
-    let mut serialized =
-        serde_json::to_vec_pretty(lock).context("serializing English-v2 coverage lock")?;
-    serialized.push(b'\n');
+    let serialized = serialize_v4(lock)?;
     let parent = path.parent().unwrap_or_else(|| Path::new("."));
     let mut temporary = writer.create(parent).with_context(|| {
         format!(
@@ -237,6 +264,50 @@ fn write_v3_with(
         .persist(temporary, path)
         .with_context(|| format!("persisting English-v2 coverage lock {}", path.display()))?;
     Ok(())
+}
+
+fn serialize_v4(lock: &CoverageLockV4) -> anyhow::Result<Vec<u8>> {
+    let mut output = Vec::new();
+    writeln!(output, "{{").context("serializing English-v2 coverage lock")?;
+    writeln!(output, "  \"schema_version\": {},", lock.schema_version)
+        .context("serializing English-v2 coverage lock")?;
+    writeln!(
+        output,
+        "  \"source_fingerprint\": {},",
+        serde_json::to_string(&lock.source_fingerprint)?
+    )
+    .context("serializing English-v2 coverage lock")?;
+    writeln!(
+        output,
+        "  \"normalization_digest\": {},",
+        serde_json::to_string(&lock.normalization_digest)?
+    )
+    .context("serializing English-v2 coverage lock")?;
+    writeln!(output, "  \"normalization_units\": [")
+        .context("serializing English-v2 coverage lock")?;
+    for (index, unit) in lock.normalization_units.iter().enumerate() {
+        writeln!(
+            output,
+            "    {}{}",
+            serde_json::to_string(unit)?,
+            if index + 1 == lock.normalization_units.len() { "" } else { "," },
+        )
+        .context("serializing English-v2 coverage lock")?;
+    }
+    writeln!(output, "  ],").context("serializing English-v2 coverage lock")?;
+    writeln!(output, "  \"covered\": [").context("serializing English-v2 coverage lock")?;
+    for (index, identity) in lock.covered.iter().enumerate() {
+        writeln!(
+            output,
+            "    {}{}",
+            serde_json::to_string(identity)?,
+            if index + 1 == lock.covered.len() { "" } else { "," },
+        )
+        .context("serializing English-v2 coverage lock")?;
+    }
+    writeln!(output, "  ]").context("serializing English-v2 coverage lock")?;
+    writeln!(output, "}}").context("serializing English-v2 coverage lock")?;
+    Ok(output)
 }
 
 pub(super) fn apply_with_retirement(
@@ -296,9 +367,10 @@ fn apply_with_test_retirement(
     )
 }
 
-fn write_v3_coverage_drift(
+fn write_v4_coverage_drift(
     report: &CoverageReport,
-    baseline: &CoverageLockV3,
+    baseline: &CoverageLockV4,
+    current_normalization: &[NormalizationUnit],
     newly_covered: &[&String],
     diagnostics: &mut dyn Write,
 ) -> anyhow::Result<()> {
@@ -319,6 +391,11 @@ fn write_v3_coverage_drift(
             baseline.normalization_digest,
         )
         .context("writing English-v2 coverage lock diagnostic")?;
+        write_normalization_unit_drift(
+            &baseline.normalization_units,
+            current_normalization,
+            diagnostics,
+        )?;
     }
     if !newly_covered.is_empty() {
         writeln!(
@@ -336,29 +413,78 @@ fn write_v3_coverage_drift(
     Ok(())
 }
 
-fn migrate_v2(
+fn write_normalization_unit_drift(
+    baseline: &[NormalizationUnit],
+    current: &[NormalizationUnit],
+    diagnostics: &mut dyn Write,
+) -> anyhow::Result<()> {
+    let mut old = baseline.iter().peekable();
+    let mut new = current.iter().peekable();
+    while let (Some(old_unit), Some(new_unit)) = (old.peek(), new.peek()) {
+        match old_unit.source_id.cmp(&new_unit.source_id) {
+            std::cmp::Ordering::Less => {
+                old.next();
+            }
+            std::cmp::Ordering::Greater => {
+                new.next();
+            }
+            std::cmp::Ordering::Equal => {
+                let card_name = serde_json::to_string(&new_unit.card_name)
+                    .context("serializing normalization-drift card name")?;
+                if old_unit.id != new_unit.id {
+                    writeln!(
+                        diagnostics,
+                        "normalized text changed\told {}\tnew {}\tcard {card_name}",
+                        old_unit.id, new_unit.id,
+                    )
+                    .context("writing English-v2 per-unit normalization diagnostic")?;
+                }
+                if old_unit.context_onset != new_unit.context_onset {
+                    writeln!(
+                        diagnostics,
+                        "context onset changed\t{}\tcard {card_name}\told {}\tnew {}",
+                        new_unit.id,
+                        onset_name(old_unit.context_onset),
+                        onset_name(new_unit.context_onset),
+                    )
+                    .context("writing English-v2 per-unit onset diagnostic")?;
+                }
+                old.next();
+                new.next();
+            }
+        }
+    }
+    Ok(())
+}
+
+const fn onset_name(onset: Onset) -> &'static str {
+    match onset {
+        Onset::Consonant => "consonant",
+        Onset::Vowel => "vowel",
+    }
+}
+
+fn migrate_v3(
     report: &CoverageReport,
-    baseline: &CoverageLockV2,
+    baseline: &CoverageLockV3,
     current: Vec<String>,
-    normalization_digest: String,
     retirement_path: Option<&Path>,
     path: &Path,
     writer: &mut impl LockWriter,
 ) -> anyhow::Result<()> {
     if retirement_path.is_some() {
-        bail!("a coverage retirement manifest requires an existing schema-3 lock");
+        bail!("a coverage retirement manifest requires an existing schema-4 lock");
     }
-    if baseline.source_fingerprint != report.source_fingerprint() || baseline.covered != current {
+    if baseline.source_fingerprint != report.source_fingerprint()
+        || baseline.normalization_digest != report.legacy_normalization_digest()
+        || baseline.covered != current
+    {
         bail!(
-            "coverage schema-2 migration requires the current source fingerprint and covered vector to exactly equal the baseline",
+            "coverage schema-3 migration requires the current source fingerprint, legacy normalization digest, and covered vector to exactly equal the baseline",
         );
     }
-    let replacement = CoverageLockV3::new(
-        report.source_fingerprint().to_owned(),
-        normalization_digest,
-        current,
-    )?;
-    write_v3_with(&replacement, path, writer)
+    let replacement = CoverageLockV4::new(report, current)?;
+    write_v4_with(&replacement, path, writer)
 }
 
 fn validate_gate_preconditions(
@@ -413,7 +539,6 @@ where
 {
     validate_gate_preconditions(report, mode, retirement_path)?;
     let current = report.selected_covered_ids()?;
-    let normalization_digest = report.normalization_digest();
     let baseline = if path.exists() { Some(read_lock(path)?) } else { None };
     match (mode, baseline) {
         (CoverageLockMode::None, _) => Ok(()),
@@ -423,50 +548,20 @@ where
         ),
         (CoverageLockMode::Bless, None) => {
             if retirement_path.is_some() {
-                bail!("a coverage retirement manifest requires an existing schema-3 lock");
+                bail!("a coverage retirement manifest requires an existing schema-4 lock");
             }
-            let replacement = CoverageLockV3::new(
-                report.source_fingerprint().to_owned(),
-                normalization_digest,
-                current,
-            )?;
-            write_v3_with(&replacement, path, writer)
+            let replacement = CoverageLockV4::new(report, current)?;
+            write_v4_with(&replacement, path, writer)
         }
-        (CoverageLockMode::Check, Some(LoadedCoverageLock::V1(_))) => bail!(
-            "English-v2 coverage lock {} uses schema 1; migrate it with coverage --bless",
+        (CoverageLockMode::Check, Some(LoadedCoverageLock::V3(_))) => bail!(
+            "English-v2 coverage lock {} uses schema 3 without per-unit normalization inputs; migrate it with coverage --bless",
             path.display(),
         ),
-        (CoverageLockMode::Bless, Some(LoadedCoverageLock::V1(baseline))) => {
-            if retirement_path.is_some() {
-                bail!("a coverage retirement manifest requires an existing schema-3 lock");
-            }
-            if current != baseline.accepted {
-                bail!(
-                    "coverage schema-1 migration requires the current covered vector to exactly equal all {} accepted identities",
-                    baseline.accepted.len(),
-                );
-            }
-            let replacement = CoverageLockV3::new(
-                report.source_fingerprint().to_owned(),
-                normalization_digest,
-                current,
-            )?;
-            write_v3_with(&replacement, path, writer)
+        (CoverageLockMode::Bless, Some(LoadedCoverageLock::V3(baseline))) => {
+            migrate_v3(report, &baseline, current, retirement_path, path, writer)
         }
-        (CoverageLockMode::Check, Some(LoadedCoverageLock::V2(_))) => bail!(
-            "English-v2 coverage lock {} uses schema 2 without a corpus-wide normalization digest; migrate it with coverage --bless",
-            path.display(),
-        ),
-        (CoverageLockMode::Bless, Some(LoadedCoverageLock::V2(baseline))) => migrate_v2(
-            report,
-            &baseline,
-            current,
-            normalization_digest,
-            retirement_path,
-            path,
-            writer,
-        ),
-        (mode, Some(LoadedCoverageLock::V3(baseline))) => {
+        (mode, Some(LoadedCoverageLock::V4(baseline))) => {
+            let replacement = CoverageLockV4::new(report, current.clone())?;
             let lost = baseline
                 .covered
                 .iter()
@@ -476,7 +571,13 @@ where
                 .iter()
                 .filter(|identity| baseline.covered.binary_search(identity).is_err())
                 .collect::<Vec<_>>();
-            write_v3_coverage_drift(report, &baseline, &newly_covered, diagnostics)?;
+            write_v4_coverage_drift(
+                report,
+                &baseline,
+                &replacement.normalization_units,
+                &newly_covered,
+                diagnostics,
+            )?;
             if !lost.is_empty() {
                 let Some(retirement_path) = retirement_path else {
                     bail!(
@@ -531,19 +632,14 @@ where
                         "coverage lock source fingerprint changed; review the coverage report and rerun with --bless",
                     );
                 }
-                if baseline.normalization_digest != normalization_digest {
+                if baseline.normalization_digest != replacement.normalization_digest {
                     bail!(
                         "coverage lock normalization digest changed; review the normalized corpus and rerun with --bless",
                     );
                 }
                 return Ok(());
             }
-            let replacement = CoverageLockV3::new(
-                report.source_fingerprint().to_owned(),
-                normalization_digest,
-                current,
-            )?;
-            write_v3_with(&replacement, path, writer)
+            write_v4_with(&replacement, path, writer)
         }
     }
 }
@@ -786,17 +882,6 @@ impl LockWriter for FailingLockWriter {
 }
 
 #[cfg(test)]
-impl CoverageLockV3 {
-    fn new_for_test(
-        source_fingerprint: String,
-        normalization_digest: String,
-        covered: Vec<String>,
-    ) -> Self {
-        Self::new(source_fingerprint, normalization_digest, covered).unwrap()
-    }
-}
-
-#[cfg(test)]
 impl LoadedCoverageLock {
     fn covered_for_test(&self) -> &[String] {
         self.covered()
@@ -804,10 +889,10 @@ impl LoadedCoverageLock {
     fn source_fingerprint_for_test(&self) -> &str {
         self.source_fingerprint()
     }
-    fn normalization_digest_for_test(&self) -> Option<&str> {
+    fn normalization_digest_for_test(&self) -> &str {
         match self {
-            Self::V1(_) | Self::V2(_) => None,
-            Self::V3(lock) => Some(&lock.normalization_digest),
+            Self::V3(lock) => &lock.normalization_digest,
+            Self::V4(lock) => &lock.normalization_digest,
         }
     }
 }
@@ -819,7 +904,9 @@ mod tests {
     use std::path::PathBuf;
     use std::process::Command;
 
-    use super::CoverageLockV3;
+    use deckmaste_construction_core::macro_def::Onset;
+
+    use super::CoverageLockV4;
     use super::FailureStage;
     use super::LoadedCoverageLock;
     use super::apply_with_retirement;
@@ -828,28 +915,12 @@ mod tests {
     use super::apply_with_writer_and_retirement;
     use super::read_lock;
     use super::validate_retirement_authentication;
-    use super::write_v3_with;
+    use super::write_v4_with;
     use crate::english_v2::coverage::CoverageLockMode;
     use crate::english_v2::coverage::CoverageReport;
 
     fn id(digit: char) -> String {
         digit.to_string().repeat(64)
-    }
-
-    fn json_v1(source: &str, accepted: &[String]) -> Vec<u8> {
-        let accepted = serde_json::to_string(accepted).unwrap();
-        format!(
-            "{{\n  \"schema_version\": 1,\n  \"source_fingerprint\": \"{source}\",\n  \"accepted\": {accepted}\n}}\n"
-        )
-        .into_bytes()
-    }
-
-    fn json_v2(source: &str, covered: &[String]) -> Vec<u8> {
-        let covered = serde_json::to_string(covered).unwrap();
-        format!(
-            "{{\n  \"schema_version\": 2,\n  \"source_fingerprint\": \"{source}\",\n  \"covered\": {covered}\n}}\n"
-        )
-        .into_bytes()
     }
 
     fn json_v3(source: &str, normalization: &str, covered: &[String]) -> Vec<u8> {
@@ -858,6 +929,25 @@ mod tests {
             "{{\n  \"schema_version\": 3,\n  \"source_fingerprint\": \"{source}\",\n  \"normalization_digest\": \"{normalization}\",\n  \"covered\": {covered}\n}}\n"
         )
         .into_bytes()
+    }
+
+    fn json_v4(report: &CoverageReport, covered: Vec<String>) -> Vec<u8> {
+        let lock = CoverageLockV4::new(report, covered).unwrap();
+        let mut bytes = serde_json::to_vec_pretty(&lock).unwrap();
+        bytes.push(b'\n');
+        bytes
+    }
+
+    fn json_v4_with_source(
+        report: &CoverageReport,
+        source_fingerprint: String,
+        covered: Vec<String>,
+    ) -> Vec<u8> {
+        let mut lock = CoverageLockV4::new(report, covered).unwrap();
+        lock.source_fingerprint = source_fingerprint;
+        let mut bytes = serde_json::to_vec_pretty(&lock).unwrap();
+        bytes.push(b'\n');
+        bytes
     }
 
     fn report(
@@ -926,11 +1016,7 @@ mod tests {
         let current = report(&id('1'), vec![id('b'), id('c')], 0, 0, 0, 0);
         fs::write(
             workspace.join("coverage.lock"),
-            json_v3(
-                &id('1'),
-                &current.normalization_digest(),
-                &[id('a'), id('b')],
-            ),
+            json_v4(&current, vec![id('a'), id('b')]),
         )
         .unwrap();
         fs::write(workspace.join("retired.ids"), format!("{}\n", id('a'))).unwrap();
@@ -1071,80 +1157,26 @@ mod tests {
             ),
             (
                 format!(
-                    "{{\"schema_version\":4,\"source_fingerprint\":\"{}\",\"covered\":[]}}",
+                    "{{\"schema_version\":4,\"source_fingerprint\":\"{}\",\"normalization_digest\":\"{}\",\"covered\":[]}}",
+                    id('1'),
                     id('1')
                 )
                 .into_bytes(),
-                "unsupported schema version 4",
+                "missing field `normalization_units`",
+            ),
+            (
+                b"{\"schema_version\":1}".to_vec(),
+                "unsupported schema version 1",
+            ),
+            (
+                b"{\"schema_version\":2}".to_vec(),
+                "unsupported schema version 2",
             ),
             (
                 format!(
-                    "{{\"schema_version\":1,\"source_fingerprint\":\"{}\"}}",
-                    id('1')
-                )
-                .into_bytes(),
-                "missing field `accepted`",
-            ),
-            (
-                format!(
-                    "{{\"schema_version\":2,\"source_fingerprint\":\"{}\"}}",
-                    id('1')
-                )
-                .into_bytes(),
-                "missing field `covered`",
-            ),
-            (
-                format!(
-                    "{{\"schema_version\":1,\"source_fingerprint\":\"{}\",\"accepted\":[],\"covered\":[]}}",
-                    id('1')
-                )
-                .into_bytes(),
-                "unknown field `covered`",
-            ),
-            (
-                format!(
-                    "{{\"schema_version\":2,\"source_fingerprint\":\"{}\",\"covered\":[],\"accepted\":[]}}",
-                    id('1')
-                )
-                .into_bytes(),
-                "unknown field `accepted`",
-            ),
-            (
-                format!(
-                    "{{\"schema_version\":1,\"source_fingerprint\":\"{}\",\"accepted\":[],\"covered\":null}}",
-                    id('1')
-                )
-                .into_bytes(),
-                "unknown field",
-            ),
-            (
-                format!(
-                    "{{\"schema_version\":2,\"source_fingerprint\":\"{}\",\"covered\":[],\"accepted\":null}}",
-                    id('1')
-                )
-                .into_bytes(),
-                "unknown field",
-            ),
-            (
-                format!(
-                    "{{\"schema_version\":2,\"source_fingerprint\":\"{}\",\"covered\":[],\"covered\":[]}}",
-                    id('1')
-                )
-                .into_bytes(),
-                "duplicate field `covered`",
-            ),
-            (
-                format!(
-                    "{{\"schema_version\":2,\"schema_version\":2,\"source_fingerprint\":\"{}\",\"covered\":[]}}",
-                    id('1')
-                )
-                .into_bytes(),
-                "duplicate field `schema_version`",
-            ),
-            (
-                format!(
-                    "{{\"schema_version\":2,\"source_fingerprint\":\"{}\",\"covered\":[],\"extra\":true}}",
-                    id('1')
+                    "{{\"schema_version\":3,\"source_fingerprint\":\"{}\",\"normalization_digest\":\"{}\",\"covered\":[],\"extra\":true}}",
+                    id('1'),
+                    id('2')
                 )
                 .into_bytes(),
                 "unknown field",
@@ -1164,13 +1196,22 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("coverage.lock");
         for (bytes, needle) in [
-            (json_v1(&"A".repeat(64), &[id('a')]), "source fingerprint"),
             (
-                json_v2(&id('1'), &["a".repeat(63)]),
+                json_v3(&"A".repeat(64), &id('1'), &[id('a')]),
+                "source fingerprint",
+            ),
+            (
+                json_v3(&id('1'), &id('2'), &["a".repeat(63)]),
                 "covered corpus identity",
             ),
-            (json_v1(&id('1'), &[id('a'), id('a')]), "duplicate"),
-            (json_v2(&id('1'), &[id('b'), id('a')]), "strictly sorted"),
+            (
+                json_v3(&id('1'), &id('2'), &[id('a'), id('a')]),
+                "duplicate",
+            ),
+            (
+                json_v3(&id('1'), &id('2'), &[id('b'), id('a')]),
+                "strictly sorted",
+            ),
             (
                 json_v3(&id('1'), &"A".repeat(64), &[id('a')]),
                 "normalization digest",
@@ -1185,88 +1226,105 @@ mod tests {
     }
 
     #[test]
-    fn schema_one_check_is_rejected_and_exact_bless_alone_migrates_without_id_changes() {
+    fn schema_four_rejects_bad_duplicate_and_unsorted_normalization_units() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("coverage.lock");
-        let accepted = vec![id('a'), id('b')];
-        let baseline = json_v1(&id('1'), &accepted);
+        let current = report(&id('1'), vec![id('a'), id('b')], 0, 0, 0, 0);
+        let valid: serde_json::Value =
+            serde_json::from_slice(&json_v4(&current, vec![id('a'), id('b')])).unwrap();
+
+        let mut bad_identity = valid.clone();
+        bad_identity["normalization_units"][0]["source_id"] = serde_json::json!("A".repeat(64));
+        let mut duplicate = valid.clone();
+        duplicate["normalization_units"][1]["source_id"] =
+            duplicate["normalization_units"][0]["source_id"].clone();
+        let mut unsorted = valid.clone();
+        unsorted["normalization_units"]
+            .as_array_mut()
+            .unwrap()
+            .reverse();
+        let mut bad_onset = valid;
+        bad_onset["normalization_units"][0]["context_onset"] = serde_json::json!("Unknown");
+
+        for (value, needle) in [
+            (bad_identity, "normalization source identity"),
+            (duplicate, "duplicate normalization source identity"),
+            (unsorted, "strictly sorted by source identity"),
+            (bad_onset, "unknown variant"),
+        ] {
+            let bytes = serde_json::to_vec_pretty(&value).unwrap();
+            fs::write(&path, &bytes).unwrap();
+            let error = format!("{:#}", read_lock(&path).unwrap_err());
+            assert!(error.contains(needle), "expected {needle:?} in {error:?}");
+            assert_eq!(fs::read(&path).unwrap(), bytes);
+        }
+    }
+
+    #[test]
+    fn schema_three_requires_an_exact_bless_to_add_per_unit_inputs() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("coverage.lock");
+        let covered = vec![id('a'), id('b')];
+        let current = report(&id('1'), covered.clone(), 0, 3, 0, 0);
+        let baseline = json_v3(&id('1'), &current.legacy_normalization_digest(), &covered);
         fs::write(&path, &baseline).unwrap();
-        let current = report(&id('1'), accepted.clone(), 0, 7, 0, 0);
-        let mut diagnostics = Vec::new();
 
         let error = apply_with_writer(
             &current,
             &path,
             CoverageLockMode::Check,
-            &mut diagnostics,
+            &mut Vec::new(),
             &mut super::FilesystemLockWriter,
         )
         .unwrap_err()
         .to_string();
-        assert!(error.contains("schema 1"));
+        assert!(error.contains("schema 3"), "{error}");
+        assert!(error.contains("per-unit normalization inputs"), "{error}");
         assert_eq!(fs::read(&path).unwrap(), baseline);
 
         apply_with_writer(
             &current,
             &path,
             CoverageLockMode::Bless,
-            &mut diagnostics,
+            &mut Vec::new(),
             &mut super::FilesystemLockWriter,
         )
         .unwrap();
         let migrated = fs::read(&path).unwrap();
         let loaded = read_lock(&path).unwrap();
+        assert!(matches!(loaded, LoadedCoverageLock::V4(_)));
+        assert_eq!(loaded.covered_for_test(), covered);
         assert_eq!(
-            loaded,
-            LoadedCoverageLock::V3(CoverageLockV3::new_for_test(
-                id('1'),
-                current.normalization_digest(),
-                accepted.clone(),
-            ))
+            loaded.normalization_digest_for_test(),
+            current.normalization_digest()
         );
-        assert_eq!(loaded.covered_for_test(), accepted.as_slice());
         let value: serde_json::Value = serde_json::from_slice(&migrated).unwrap();
-        assert!(value.get("accepted").is_none());
-        assert_eq!(
-            value["normalization_digest"],
-            serde_json::json!(current.normalization_digest())
-        );
-        assert_eq!(value["covered"], serde_json::json!(accepted));
+        assert_eq!(value["schema_version"], 4);
+        assert_eq!(value["normalization_units"].as_array().unwrap().len(), 5);
         assert!(migrated.ends_with(b"\n"));
         assert!(!migrated.ends_with(b"\n\n"));
+
+        let mismatched = report(&id('1'), vec![id('a')], 0, 3, 0, 0);
+        fs::write(&path, &baseline).unwrap();
+        let error = apply_with_writer(
+            &mismatched,
+            &path,
+            CoverageLockMode::Bless,
+            &mut Vec::new(),
+            &mut super::FilesystemLockWriter,
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("exactly equal"), "{error}");
+        assert_eq!(fs::read(&path).unwrap(), baseline);
     }
 
     #[test]
-    fn schema_one_migration_rejects_both_growth_and_loss_without_mutation() {
-        let directory = tempfile::tempdir().unwrap();
-        let path = directory.path().join("coverage.lock");
-        let baseline = json_v1(&id('1'), &[id('a'), id('b')]);
-        for current in [vec![id('a')], vec![id('a'), id('b'), id('c')]] {
-            fs::write(&path, &baseline).unwrap();
-            let error = apply_with_writer(
-                &report(&id('1'), current, 0, 0, 0, 0),
-                &path,
-                CoverageLockMode::Bless,
-                &mut Vec::new(),
-                &mut super::FilesystemLockWriter,
-            )
-            .unwrap_err()
-            .to_string();
-            assert!(error.contains("exact"), "{error}");
-            assert_eq!(fs::read(&path).unwrap(), baseline);
-        }
-    }
-
-    #[test]
-    fn schema_three_check_rejects_new_coverage_and_loss_while_bless_is_add_only() {
+    fn schema_four_check_localizes_drift_and_rejects_loss_while_bless_is_add_only() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("coverage.lock");
         let growth = report(&id('2'), vec![id('a'), id('b'), id('c')], 0, 3, 0, 0);
-        let baseline = json_v3(
-            &id('1'),
-            &growth.normalization_digest(),
-            &[id('a'), id('b')],
-        );
+        let baseline = json_v4_with_source(&growth, id('1'), vec![id('a'), id('b')]);
         fs::write(&path, &baseline).unwrap();
         let mut diagnostics = Vec::new();
         let error = apply_with_writer(
@@ -1337,12 +1395,13 @@ mod tests {
         );
         assert_eq!(
             read_lock(&path).unwrap().normalization_digest_for_test(),
-            Some(growth.normalization_digest().as_str())
+            growth.normalization_digest()
         );
 
         let blessed = fs::read(&path).unwrap();
         let mut normalization_drift = growth.clone();
-        normalization_drift
+        let old_id = format!("{:064x}", 0x1000);
+        let changed_id = normalization_drift
             .set_first_parse_failure_text_for_test("changed only on a parse failure");
         let mut diagnostics = Vec::new();
         let error = apply_with_writer(
@@ -1356,10 +1415,16 @@ mod tests {
         .to_string();
         assert!(error.contains("normalization digest changed"), "{error}");
         assert!(error.contains("--bless"), "{error}");
+        let diagnostics = String::from_utf8(diagnostics).unwrap();
         assert!(
-            String::from_utf8(diagnostics)
-                .unwrap()
-                .contains("coverage lock normalization digest changed")
+            diagnostics.contains("coverage lock normalization digest changed"),
+            "{diagnostics}"
+        );
+        assert!(
+            diagnostics.contains(&format!(
+                "normalized text changed\told {old_id}\tnew {changed_id}\tcard \"Fixture\""
+            )),
+            "{diagnostics}"
         );
         assert_eq!(fs::read(&path).unwrap(), blessed);
 
@@ -1373,73 +1438,40 @@ mod tests {
         .unwrap();
         assert_eq!(
             read_lock(&path).unwrap().normalization_digest_for_test(),
-            Some(normalization_drift.normalization_digest().as_str())
+            normalization_drift.normalization_digest()
         );
-    }
 
-    #[test]
-    fn schema_two_requires_an_exact_bless_to_add_the_normalization_digest() {
-        let directory = tempfile::tempdir().unwrap();
-        let path = directory.path().join("coverage.lock");
-        let covered = vec![id('a'), id('b')];
-        let baseline = json_v2(&id('1'), &covered);
-        let current = report(&id('1'), covered.clone(), 0, 3, 0, 0);
-        fs::write(&path, &baseline).unwrap();
-
+        let text_blessed = fs::read(&path).unwrap();
+        let mut onset_drift = normalization_drift.clone();
+        onset_drift.set_first_parse_failure_onset_for_test(Onset::Vowel);
+        let mut diagnostics = Vec::new();
         let error = apply_with_writer(
-            &current,
+            &onset_drift,
             &path,
             CoverageLockMode::Check,
-            &mut Vec::new(),
+            &mut diagnostics,
             &mut super::FilesystemLockWriter,
         )
         .unwrap_err()
         .to_string();
-        assert!(error.contains("normalization digest"), "{error}");
-        assert!(error.contains("--bless"), "{error}");
-        assert_eq!(fs::read(&path).unwrap(), baseline);
-
-        apply_with_writer(
-            &current,
-            &path,
-            CoverageLockMode::Bless,
-            &mut Vec::new(),
-            &mut super::FilesystemLockWriter,
-        )
-        .unwrap();
-        let loaded = read_lock(&path).unwrap();
-        assert!(matches!(loaded, LoadedCoverageLock::V3(_)));
-        assert_eq!(
-            loaded.normalization_digest_for_test(),
-            Some(current.normalization_digest().as_str())
+        assert!(error.contains("normalization digest changed"), "{error}");
+        let diagnostics = String::from_utf8(diagnostics).unwrap();
+        assert!(
+            diagnostics.contains(&format!(
+                "context onset changed\t{changed_id}\tcard \"Fixture\"\told consonant\tnew vowel"
+            )),
+            "{diagnostics}"
         );
-
-        fs::write(&path, &baseline).unwrap();
-        let drifted = report(&id('1'), vec![id('a')], 0, 3, 0, 0);
-        let error = apply_with_writer(
-            &drifted,
-            &path,
-            CoverageLockMode::Bless,
-            &mut Vec::new(),
-            &mut super::FilesystemLockWriter,
-        )
-        .unwrap_err()
-        .to_string();
-        assert!(error.contains("exactly equal"), "{error}");
-        assert_eq!(fs::read(&path).unwrap(), baseline);
+        assert_eq!(fs::read(&path).unwrap(), text_blessed);
     }
 
     #[test]
-    fn schema_three_bless_accepts_only_an_exact_one_time_retirement_manifest() {
+    fn schema_four_bless_accepts_only_an_exact_one_time_retirement_manifest() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("coverage.lock");
         let retirement = directory.path().join("retired.ids");
         let current = report(&id('1'), vec![id('b'), id('c')], 0, 3, 0, 0);
-        let baseline = json_v3(
-            &id('1'),
-            &current.normalization_digest(),
-            &[id('a'), id('b')],
-        );
+        let baseline = json_v4(&current, vec![id('a'), id('b')]);
 
         fs::write(&path, &baseline).unwrap();
         fs::write(&retirement, format!("{}\n", id('b'))).unwrap();
@@ -1509,11 +1541,7 @@ WARNING: coverage retirement is a coordinator ruling; a ticket-vs-purpose contra
         let ticket = directory.path().join("docs/tickets/wip/fixture.md");
         fs::create_dir_all(ticket.parent().unwrap()).unwrap();
         let current = report(&id('1'), vec![id('b')], 0, 0, 0, 0);
-        let baseline = json_v3(
-            &id('1'),
-            &current.normalization_digest(),
-            &[id('a'), id('b')],
-        );
+        let baseline = json_v4(&current, vec![id('a'), id('b')]);
         fs::write(&path, &baseline).unwrap();
         fs::write(&retirement, format!("{}\n", id('a'))).unwrap();
         fs::write(
@@ -1595,7 +1623,7 @@ WARNING: coverage retirement is a coordinator ruling; a ticket-vs-purpose contra
     }
 
     #[test]
-    fn missing_lock_is_check_error_but_bless_creates_schema_three() {
+    fn missing_lock_is_check_error_but_bless_creates_schema_four() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("coverage.lock");
         let current = report(&id('1'), vec![id('a')], 0, 1, 0, 0);
@@ -1623,7 +1651,7 @@ WARNING: coverage retirement is a coordinator ruling; a ticket-vs-purpose contra
         .unwrap();
         assert!(matches!(
             read_lock(&path).unwrap(),
-            LoadedCoverageLock::V3(_)
+            LoadedCoverageLock::V4(_)
         ));
     }
 
@@ -1632,11 +1660,7 @@ WARNING: coverage retirement is a coordinator ruling; a ticket-vs-purpose contra
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("coverage.lock");
         let ordinary_failures = report(&id('1'), vec![id('a')], 0, 99, 0, 0);
-        let baseline = json_v3(
-            &id('1'),
-            &ordinary_failures.normalization_digest(),
-            &[id('a')],
-        );
+        let baseline = json_v4(&ordinary_failures, vec![id('a')]);
         fs::write(&path, &baseline).unwrap();
 
         for (uncovered, unresolved, internal, needle) in [
@@ -1668,15 +1692,7 @@ WARNING: coverage retirement is a coordinator ruling; a ticket-vs-purpose contra
 
         let visible_collision =
             CoverageReport::for_collision_metric_test(id('1'), vec![id('a')], 9);
-        fs::write(
-            &path,
-            json_v3(
-                &id('1'),
-                &visible_collision.normalization_digest(),
-                &[id('a')],
-            ),
-        )
-        .unwrap();
+        fs::write(&path, json_v4(&visible_collision, vec![id('a')])).unwrap();
         apply_with_writer(
             &visible_collision,
             &path,
@@ -1707,7 +1723,8 @@ WARNING: coverage retirement is a coordinator ruling; a ticket-vs-purpose contra
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("coverage.lock");
         let baseline = json_v3(&id('1'), &id('9'), &[id('a')]);
-        let replacement = CoverageLockV3::new_for_test(id('2'), id('8'), vec![id('a'), id('b')]);
+        let replacement_report = report(&id('2'), vec![id('a'), id('b')], 0, 0, 0, 0);
+        let replacement = CoverageLockV4::new(&replacement_report, vec![id('a'), id('b')]).unwrap();
 
         for stage in [
             FailureStage::Create,
@@ -1717,7 +1734,7 @@ WARNING: coverage retirement is a coordinator ruling; a ticket-vs-purpose contra
         ] {
             fs::write(&path, &baseline).unwrap();
             let mut writer = super::FailingLockWriter::new(stage);
-            let error = write_v3_with(&replacement, &path, &mut writer)
+            let error = write_v4_with(&replacement, &path, &mut writer)
                 .unwrap_err()
                 .to_string();
             assert!(error.contains(stage.name()), "{error}");
@@ -1748,7 +1765,7 @@ WARNING: coverage retirement is a coordinator ruling; a ticket-vs-purpose contra
     #[test]
     fn production_lock_passes_intrinsic_schema_and_identity_validation() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../english-v2-coverage.lock");
-        let loaded = read_lock(&path).expect("production coverage lock is strict schema 3");
-        assert!(matches!(loaded, LoadedCoverageLock::V3(_)));
+        let loaded = read_lock(&path).expect("production coverage lock is strict schema 4");
+        assert!(matches!(loaded, LoadedCoverageLock::V4(_)));
     }
 }

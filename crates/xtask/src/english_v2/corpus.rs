@@ -17,7 +17,9 @@ use sha2::Digest;
 use sha2::Sha256;
 
 const ID_DOMAIN: &[u8] = b"deckmaste:english-v2:corpus-unit:v1";
-const NORMALIZATION_DIGEST_DOMAIN: &[u8] = b"deckmaste:english-v2:normalization:v1";
+const SOURCE_ID_DOMAIN: &[u8] = b"deckmaste:english-v2:source-unit:v1";
+const NORMALIZATION_DIGEST_DOMAIN: &[u8] = b"deckmaste:english-v2:normalization:v2";
+const LEGACY_NORMALIZATION_DIGEST_DOMAIN: &[u8] = b"deckmaste:english-v2:normalization:v1";
 const CORPUS_WALL_CEILING_SECONDS: f64 = 16.26;
 const RULES_BEARING_PARENTHETICALS: &[&str] = &[
     "(as long as this creature is on the battlefield)",
@@ -85,6 +87,7 @@ const fn corpus_expectation_rank(expectation: &Expectation) -> u8 {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub(super) struct CorpusUnit {
+    source_id: String,
     id: String,
     card_name: String,
     face_name: Option<String>,
@@ -96,6 +99,10 @@ pub(super) struct CorpusUnit {
 }
 
 impl CorpusUnit {
+    pub(super) fn source_id(&self) -> &str {
+        &self.source_id
+    }
+
     pub(super) fn id(&self) -> &str {
         &self.id
     }
@@ -185,10 +192,8 @@ impl Corpus {
                         "missing explicit card-name onset metadata for opaque context {context_name:?}"
                     )
                 })?;
-                let text = normalize_oracle_text(
-                    &card_name,
-                    card.text.as_deref().unwrap_or_default(),
-                )?;
+                let source_text = card.text.as_deref().unwrap_or_default();
+                let text = normalize_oracle_text(&card_name, source_text)?;
                 Ok(corpus_unit(
                     &card_name,
                     face_name.as_deref(),
@@ -196,6 +201,7 @@ impl Corpus {
                     &context_name,
                     is_legendary,
                     context_onset,
+                    source_text,
                     &text,
                 ))
             })
@@ -221,7 +227,11 @@ impl Corpus {
     }
 
     pub(super) fn normalization_digest(&self) -> String {
-        normalization_digest(self.units.iter().map(CorpusUnit::text))
+        normalization_digest(
+            self.units
+                .iter()
+                .map(|unit| (unit.text(), unit.context_onset())),
+        )
     }
 
     pub(super) fn units(&self) -> &[CorpusUnit] {
@@ -242,9 +252,26 @@ impl Corpus {
     }
 }
 
-pub(super) fn normalization_digest<'a>(texts: impl IntoIterator<Item = &'a str>) -> String {
+pub(super) fn normalization_digest<'a>(
+    inputs: impl IntoIterator<Item = (&'a str, Onset)>,
+) -> String {
     let mut digest = Sha256::new();
     digest.update(NORMALIZATION_DIGEST_DOMAIN);
+    for (text, onset) in inputs {
+        let length = u64::try_from(text.len()).expect("normalized text length fits in u64");
+        digest.update(length.to_be_bytes());
+        digest.update(text.as_bytes());
+        digest.update([match onset {
+            Onset::Consonant => 0,
+            Onset::Vowel => 1,
+        }]);
+    }
+    sha256_hex(&digest.finalize())
+}
+
+pub(super) fn legacy_normalization_digest<'a>(texts: impl IntoIterator<Item = &'a str>) -> String {
+    let mut digest = Sha256::new();
+    digest.update(LEGACY_NORMALIZATION_DIGEST_DOMAIN);
     for text in texts {
         let length = u64::try_from(text.len()).expect("normalized text length fits in u64");
         digest.update(length.to_be_bytes());
@@ -447,6 +474,10 @@ fn validate_contexts(units: &[CorpusUnit]) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "a corpus unit identity pins every source and parser-context field"
+)]
 fn corpus_unit(
     card_name: &str,
     face_name: Option<&str>,
@@ -454,8 +485,23 @@ fn corpus_unit(
     context_name: &str,
     is_legendary: bool,
     context_onset: Onset,
+    source_text: &str,
     text: &str,
 ) -> CorpusUnit {
+    let mut source_hasher = Sha256::new();
+    source_hasher.update(SOURCE_ID_DOMAIN);
+    for field in [
+        card_name,
+        face_name.unwrap_or_default(),
+        side.unwrap_or_default(),
+        context_name,
+        source_text,
+    ] {
+        source_hasher.update((field.len() as u64).to_be_bytes());
+        source_hasher.update(field.as_bytes());
+    }
+    source_hasher.update([u8::from(is_legendary)]);
+
     let mut hasher = Sha256::new();
     hasher.update(ID_DOMAIN);
     for field in [
@@ -470,6 +516,7 @@ fn corpus_unit(
     }
 
     CorpusUnit {
+        source_id: sha256_hex(&source_hasher.finalize()),
         id: sha256_hex(&hasher.finalize()),
         card_name: card_name.to_owned(),
         face_name: face_name.map(str::to_owned),
@@ -633,6 +680,7 @@ impl CorpusUnit {
             card_name,
             false,
             context_onset,
+            text,
             &normalize_oracle_text(card_name, text)
                 .expect("test corpus fixture must satisfy normalization invariants"),
         )
@@ -653,6 +701,7 @@ impl CorpusUnit {
             false,
             super::catalog_surface_onset(context_name)
                 .expect("test corpus fixture must use a context name with known onset"),
+            text,
             &normalize_oracle_text(card_name, text)
                 .expect("test corpus fixture must satisfy normalization invariants"),
         )
@@ -1135,16 +1184,23 @@ mod tests {
     }
 
     #[test]
-    fn normalization_digest_frames_texts_and_preserves_unit_order() {
+    fn normalization_digest_frames_texts_onsets_and_preserves_unit_order() {
         assert_ne!(
-            normalization_digest(["ab", "c"]),
-            normalization_digest(["a", "bc"])
+            normalization_digest([("ab", Onset::Consonant), ("c", Onset::Consonant)]),
+            normalization_digest([("a", Onset::Consonant), ("bc", Onset::Consonant)])
         );
         assert_ne!(
-            normalization_digest(["first", "second"]),
-            normalization_digest(["second", "first"])
+            normalization_digest([("first", Onset::Consonant), ("second", Onset::Vowel),]),
+            normalization_digest([("second", Onset::Vowel), ("first", Onset::Consonant),])
         );
-        assert_ne!(normalization_digest([""]), normalization_digest([]));
+        assert_ne!(
+            normalization_digest([("same", Onset::Consonant)]),
+            normalization_digest([("same", Onset::Vowel)])
+        );
+        assert_ne!(
+            normalization_digest([("", Onset::Consonant)]),
+            normalization_digest([])
+        );
     }
 
     #[test]

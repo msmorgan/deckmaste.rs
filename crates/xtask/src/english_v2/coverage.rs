@@ -3,6 +3,7 @@ use std::path::Path;
 
 use anyhow::Context;
 use anyhow::bail;
+use deckmaste_construction_core::macro_def::Onset;
 use deckmaste_english_v2::context::ParseContext;
 use deckmaste_english_v2::parser::ByteMismatchScope as RuntimeByteMismatchScope;
 use deckmaste_english_v2::parser::InternalFailureKind as RuntimeInternalFailureKind;
@@ -22,7 +23,7 @@ use super::corpus::Corpus;
 use super::corpus::CorpusUnit;
 use super::corpus::map_corpus_units;
 
-const REPORT_SCHEMA_VERSION: u32 = 4;
+const REPORT_SCHEMA_VERSION: u32 = 5;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum CoverageLockMode {
@@ -412,11 +413,13 @@ impl SelectedCoverage {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub(super) struct CoverageRow {
+    source_id: String,
     id: String,
     card_name: String,
     face_name: Option<String>,
     side: Option<String>,
     context_name: String,
+    context_onset: Onset,
     text: String,
     status: CoverageStatus,
     exception_resolved: bool,
@@ -487,11 +490,13 @@ pub(super) fn analysis_row<Ownership: SelectedOwnershipSource>(
     message: Option<&str>,
 ) -> CoverageRow {
     let mut row = CoverageRow {
+        source_id: unit.source_id().to_owned(),
         id: unit.id().to_owned(),
         card_name: unit.card_name().to_owned(),
         face_name: unit.face_name().map(str::to_owned),
         side: unit.side().map(str::to_owned),
         context_name: unit.context_name().to_owned(),
+        context_onset: unit.context_onset(),
         text: unit.text().to_owned(),
         status: CoverageStatus::InternalFailure,
         exception_resolved,
@@ -555,11 +560,13 @@ fn runtime_analysis_row<V: Clone>(unit: &CorpusUnit, analysis: &ParseAnalysis<V>
     let error = analysis.error().map(super::corpus::corpus_error_message);
     if outcome == ParseAnalysisOutcome::Selected && analysis.selected().is_none() {
         return CoverageRow {
+            source_id: unit.source_id().to_owned(),
             id: unit.id().to_owned(),
             card_name: unit.card_name().to_owned(),
             face_name: unit.face_name().map(str::to_owned),
             side: unit.side().map(str::to_owned),
             context_name: unit.context_name().to_owned(),
+            context_onset: unit.context_onset(),
             text: unit.text().to_owned(),
             status: CoverageStatus::InternalFailure,
             exception_resolved,
@@ -917,6 +924,13 @@ pub(super) struct CoverageReport {
     summary: CoverageSummary,
 }
 
+pub(super) struct NormalizationInput<'a> {
+    pub(super) source_id: &'a str,
+    pub(super) id: &'a str,
+    pub(super) card_name: &'a str,
+    pub(super) context_onset: Onset,
+}
+
 impl CoverageReport {
     #[cfg(test)]
     pub(super) fn try_new(
@@ -946,7 +960,24 @@ impl CoverageReport {
     }
 
     pub(super) fn normalization_digest(&self) -> String {
-        super::corpus::normalization_digest(self.rows.iter().map(|row| row.text.as_str()))
+        super::corpus::normalization_digest(
+            self.rows
+                .iter()
+                .map(|row| (row.text.as_str(), row.context_onset)),
+        )
+    }
+
+    pub(super) fn legacy_normalization_digest(&self) -> String {
+        super::corpus::legacy_normalization_digest(self.rows.iter().map(|row| row.text.as_str()))
+    }
+
+    pub(super) fn normalization_inputs(&self) -> impl Iterator<Item = NormalizationInput<'_>> {
+        self.rows.iter().map(|row| NormalizationInput {
+            source_id: &row.source_id,
+            id: &row.id,
+            card_name: &row.card_name,
+            context_onset: row.context_onset,
+        })
     }
 
     pub(super) const fn gate_failure_counts(&self) -> (usize, usize, usize, usize, usize) {
@@ -1216,11 +1247,13 @@ impl CoverageRow {
             .collect::<Vec<_>>();
         let ownership = CoverageOwnership::from_source(summary, &failures);
         Self {
+            source_id: id.clone(),
             id,
             card_name: "Fixture".to_owned(),
             face_name: None,
             side: None,
             context_name: "Fixture".to_owned(),
+            context_onset: Onset::Consonant,
             text: "expected".to_owned(),
             status,
             exception_resolved: false,
@@ -1242,11 +1275,13 @@ impl CoverageRow {
 
     fn outcome_for_test(id: String, status: CoverageStatus) -> Self {
         Self {
+            source_id: id.clone(),
             id,
             card_name: "Fixture".to_owned(),
             face_name: None,
             side: None,
             context_name: "Fixture".to_owned(),
+            context_onset: Onset::Consonant,
             text: "fixture".to_owned(),
             status,
             exception_resolved: false,
@@ -1279,11 +1314,13 @@ impl CoverageRow {
             actual: rendered.to_owned(),
         });
         Self {
+            source_id: id.clone(),
             id,
             card_name: card_name.to_owned(),
             face_name: face_name.map(str::to_owned),
             side: side.map(str::to_owned),
             context_name: context_name.to_owned(),
+            context_onset: Onset::Consonant,
             text: text.to_owned(),
             status,
             exception_resolved: false,
@@ -1358,12 +1395,23 @@ impl CoverageReport {
         (self.summary.exception_resolved, self.summary.exception_uses)
     }
 
-    pub(super) fn set_first_parse_failure_text_for_test(&mut self, text: &str) {
+    pub(super) fn set_first_parse_failure_text_for_test(&mut self, text: &str) -> String {
+        let row = self
+            .rows
+            .iter_mut()
+            .find(|row| row.status == CoverageStatus::ParseFailure)
+            .expect("normalization fixture requires one parse-failure row");
+        row.text = text.to_owned();
+        row.id = "d".repeat(64);
+        row.id.clone()
+    }
+
+    pub(super) fn set_first_parse_failure_onset_for_test(&mut self, onset: Onset) {
         self.rows
             .iter_mut()
             .find(|row| row.status == CoverageStatus::ParseFailure)
             .expect("normalization fixture requires one parse-failure row")
-            .text = text.to_owned();
+            .context_onset = onset;
     }
 
     pub(super) fn for_gate_test(
@@ -1399,11 +1447,13 @@ impl CoverageReport {
         let mut rows = covered
             .into_iter()
             .map(|id| CoverageRow {
+                source_id: id.clone(),
                 id,
                 card_name: "Covered".to_owned(),
                 face_name: None,
                 side: None,
                 context_name: "Covered".to_owned(),
+                context_onset: Onset::Consonant,
                 text: String::new(),
                 status: CoverageStatus::SelectedCovered,
                 exception_resolved: false,
@@ -1427,11 +1477,13 @@ impl CoverageReport {
                 .failures
                 .push(CoverageOwnershipFailure::Synthetic { start: 0, end: 0 });
             rows.push(CoverageRow {
+                source_id: format!("{next_id:064x}"),
                 id: format!("{next_id:064x}"),
                 card_name: "Uncovered".to_owned(),
                 face_name: None,
                 side: None,
                 context_name: "Uncovered".to_owned(),
+                context_onset: Onset::Consonant,
                 text: String::new(),
                 status: CoverageStatus::SelectedUncovered,
                 exception_resolved: false,
