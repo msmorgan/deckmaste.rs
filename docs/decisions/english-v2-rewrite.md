@@ -1201,3 +1201,19 @@ your hand" therefore rejects on the noun's licence while "on your turn"
 attaches freely; "Under your control, draw a card" rejects because
 `under` is selected-only. No preposition or noun is named in any
 construction; all of it is declared data.
+
+
+## Ruling: corpus timing ceiling and acceptance-cost telemetry (2026-09-02)
+
+The gate criterion stays a per-command wall-clock ceiling of 16.26 s,
+measured on a quiet host (the hardcoded `CORPUS_WALL_CEILING_SECONDS`
+cites this section); under sibling-workspace load the warning is
+advisory and a landing record states the load. The per-byte acceptance
+cost proposed by the performance investigation is adopted as TELEMETRY,
+not a gate: every corpus command reports it, computed from thread CPU
+time (`CLOCK_THREAD_CPUTIME_ID`), never summed wall time, so it is
+load-insensitive. Worker parallelism (`--workers`, default = host
+threads) is part of the measured configuration and every timing claim
+states its worker count; a speed-up claim decomposes parallelism from
+constant-factor work. Persistent breach on a quiet host remains
+STOP-and-report; re-blessing the ceiling is a coordinator ruling.

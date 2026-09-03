@@ -218,3 +218,15 @@ re-spelled to assert the requested worker count rather than the removed
 four-worker cap, zero ignored blockers added, one new bounded/ranked diagnostic
 test added, and zero tests removed. Existing CLI fixtures were updated only for
 the new `--workers` interface.
+
+
+## Erratum (perf landing review, 2026-09-02)
+
+The 56.7 -> 15.1 s headline changes workers from 4 (the deleted hard
+cap) to 16; held at 4 workers the Earley work bought ~1.5x (60.1 -> 39.1
+s wall, 229 -> 152 s CPU). R2/R3/R4/R9 existed before this landing (two
+converted to HashMap, one dedup flag added); R1 and R5 are the real
+constant-factor work. Per-byte acceptance cost sums per-unit WALL time
+and varies 2x run-to-run under load (english-v2-perf-round-2 fixes it to
+thread CPU). RSS unchanged at matched workers. Ceiling clears on a quiet
+host; ruling recorded in the rewrite ADR.
