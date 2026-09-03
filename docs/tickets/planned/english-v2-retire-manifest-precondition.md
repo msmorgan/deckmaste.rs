@@ -22,3 +22,17 @@ The check is cheap: refuse a `--retire` path that `jj file list` reports as
 tracked. Acceptance: blessing a retirement from a tracked manifest path is
 refused with a clear message, the lock is untouched by that refusal, and a
 regression test covers it.
+
+
+Expanded scope (lock-gate landing review M1/M2, 2026-09-02):
+- Authority, not disclosure: `--bless --retire` must fail unless the
+  manifest is authenticated (the documented "untracked manifest"
+  precondition enforced in code) AND the claimed ticket's landing record
+  contains a retirement/re-coverage obligation line naming each retired
+  identity. An unattended retirement is the exact wrong-authority path the
+  parenthetical-guard landing took.
+- Fingerprint drift (coordinator default, veto-able): a lock whose corpus
+  fingerprint no longer matches the snapshot fails `--check` like
+  newly-covered drift does — a data refresh changes identities and must
+  be blessed honestly, never left advisory.
+- Loss + gain in one run reports both, not only the loss.
