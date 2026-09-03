@@ -36,3 +36,21 @@ Completion (2026-09-02):
   mismatches, ownership failures, gaps, overlaps, synthetic claims, or
   provenance mismatches. Unfiltered xtask tests and strict all-target xtask
   Clippy pass.
+
+## Erratum / landing record (coordinator, from parenthetical-guard-landing-review.md, 2026-09-02)
+
+Retired identities were genuine corruption, not collateral: Galian Beast
+(Vincent Valentine, side b) and The Great Synthesis (Jin-Gitaxias, side b)
+were locked against text missing "(front face up)"; both now carry the
+printed text and are honest parse failures. The retirement was the
+correct outcome by the correct mechanism but the WRONG AUTHORITY — the
+ticket's identity-stability constraint made this a STOP, resolved
+unilaterally instead (HIGH process finding; the mechanism's blast radius
+was provably 2). No re-coverage obligation: the retired texts exist on no
+card. Inventory 20 -> 17: the record's Vintage-filter explanation is
+false; all three dropped cards are in-corpus. The real cause is a correct,
+unrecorded reclassification — "(a ticket counter)" is a {TK} gloss
+parallel to the stripped energy glosses [CR#107.17], and "raid" is a
+rules-inert ability word [CR#207.2c]. Reviewer re-derived all 32,641
+identities independently: 0 mismatches, exactly 17 changed, lock -2/+0,
+0 newly covered on the integrated tree.
