@@ -28,23 +28,23 @@ badChosenNumberRead Oh impossible
 ||| "Choose two target creatures. You gain life equal to their power."
 public export
 badGroupPower : Unspellable (Effect []) (\ok =>
-  Sequentially [Choose (Macros.targets (Macros.exactly 2) Macros.creature) Nothing Openly,
-                Macros.gainsLife You (Macros.powerOf Them {one = ok})])
+  Sequentially [Choose (Described (TargetDet (Macros.exactly 2)) Macros.creature) Nothing Openly,
+                Macros.gainsLife You (StatOf Power ((Macros.It ManyOf)) {one = ok})])
 badGroupPower Refl impossible
 
 
 ||| "Choose two target creatures. Their owner loses 1 life."
 public export
 badGroupOwner : Unspellable (Effect []) (\ok =>
-  Sequentially [Choose (Macros.targets (Macros.exactly 2) Macros.creature) Nothing Openly,
-                Macros.losesLife (Macros.ownerOf Them {one = ok}) (Lit 1)])
+  Sequentially [Choose (Described (TargetDet (Macros.exactly 2)) Macros.creature) Nothing Openly,
+                Macros.losesLife (Macros.ownerOf ((Macros.It ManyOf)) {one = ok}) (Lit 1)])
 badGroupOwner Refl impossible
 
 
 ||| "Two target creatures fight target creature."
 public export
 badFightGroup : Unspellable (Effect []) (\ok =>
-  Fights (Macros.targets (Macros.exactly 2) Macros.creature) {pa = ok}
+  Fights (Described (TargetDet (Macros.exactly 2)) Macros.creature) {pa = ok}
          (Macros.target Macros.creature))
 badFightGroup Refl impossible
 
@@ -52,7 +52,7 @@ badFightGroup Refl impossible
 ||| "a creature two target opponents control"
 public export
 badControlledByGroup : Unspellable (Predicate [] Object) (\ok =>
-  HasPossessor ControllerAx (Macros.targets (Macros.exactly 2) Opponent) {ps = ok})
+  HasPossessor ControllerAx (Described (TargetDet (Macros.exactly 2)) Opponent) {ps = ok})
 badControlledByGroup Oh impossible
 
 
@@ -67,7 +67,7 @@ badEachOfSingular Refl impossible
 public export
 badSliceOfCountedPossessor : Unspellable (Effect []) (\ok =>
   Macros.lookAt (LibrarySlice OnTop (Lit 1)
-                              (Macros.targets (Macros.exactly 2) AnyPlayer) {sp = ok}))
+                              (Described (TargetDet (Macros.exactly 2)) AnyPlayer) {sp = ok}))
 badSliceOfCountedPossessor Oh impossible
 
 
@@ -75,7 +75,7 @@ badSliceOfCountedPossessor Oh impossible
 public export
 badCastsPluralComplement : Unspellable (Ability) (\ok =>
   Triggered Whenever (Casts You (Macros.allOf Macros.spell) Nothing {one = ok}) [] Nothing [] Nothing Nothing Nothing
-            (Macros.draw You (Lit 1)))
+            (Draw You (Lit 1)))
 badCastsPluralComplement Refl impossible
 
 
@@ -83,7 +83,7 @@ public export
 badDisjunctAntecedent : Unspellable (Effect []) (\ok =>
   Sequentially [SetStatus Tapped (Macros.target (Or [And [Macros.creature, HasPossessor ControllerAx Macros.anOpponent],
                                         And [Macros.land, HasPossessor ControllerAx You]])),
-                Macros.losesLife (That PlayerW {ok}) (Lit 1)])
+                Macros.losesLife (Macros.That PlayerW OneOf {ok}) (Lit 1)])
 badDisjunctAntecedent Refl impossible
 
 
@@ -120,7 +120,7 @@ badOther Refl impossible
 public export
 badIt : Unspellable (Effect []) (\ok =>
   Sequentially [Fights (Macros.target Macros.creature) (Macros.target Macros.creature),
-                SetStatus Tapped (It {ok})])
+                SetStatus Tapped ((Macros.It OneOf) {ok})])
 badIt Refl impossible
 
 
@@ -128,7 +128,7 @@ badIt Refl impossible
 public export
 badTheyIt : Unspellable (Effect []) (\ok =>
   Sequentially [DealDamage This (Lit 3) (Macros.each Macros.creature),
-                SetStatus Tapped (It {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
+                SetStatus Tapped ((Macros.It OneOf) {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badTheyIt (Refl, _) impossible
 
 
@@ -136,7 +136,7 @@ badTheyIt (Refl, _) impossible
 public export
 badStale : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.destroy (Macros.target Macros.creature),
-               Delayed (BeginningOf ThePart EndStep NoPossessor) [] Nothing (Macros.sacrifice You It {ok})])
+               Delayed (BeginningOf ThePart EndStep NoPossessor) [] Nothing (Macros.sacrifice You ((Macros.It OneOf)) {ok})])
 badStale Oh impossible
 
 
@@ -150,7 +150,7 @@ badDelayedOther Refl impossible
 public export
 badStaleCarrier : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.exile You (Macros.target Macros.creatureYouControl),
-               Move (That (TypeW Creature) {ok}) Macros.battlefieldZ []])
+               Move (Macros.That (TypeW Creature) OneOf {ok}) Macros.battlefieldZ []])
 badStaleCarrier Refl impossible
 
 
@@ -158,7 +158,7 @@ badStaleCarrier Refl impossible
 public export
 badHiddenCost : Unspellable Ability (\ok =>
   Activated (Do (Move (Macros.a Macros.creature) Macros.handZ []))
-            (SetStatus Tapped (It {ok = Builtin.fst ok}) {ok = Builtin.snd ok}) Nothing Nothing Nothing Nothing)
+            (SetStatus Tapped ((Macros.It OneOf) {ok = Builtin.fst ok}) {ok = Builtin.snd ok}) Nothing Nothing Nothing Nothing)
 badHiddenCost (Refl, _) impossible
 
 
@@ -167,7 +167,7 @@ public export
 badTwoCostMentions : Unspellable Ability (\ok =>
   Activated (Compound [Do ((Macros.discard You (Macros.a (InZone Macros.handZ)))),
                        Do (Macros.sacrifice You (Macros.a Macros.creature))])
-            (Macros.exile You (It {ok})) Nothing Nothing Nothing Nothing)
+            (Macros.exile You ((Macros.It OneOf) {ok})) Nothing Nothing Nothing Nothing)
 badTwoCostMentions Refl impossible
 
 
@@ -175,14 +175,14 @@ badTwoCostMentions Refl impossible
 public export
 badSacrificeExiled : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.exile You (Macros.target Macros.creature),
-               Macros.sacrifice You It {ok}])
+               Macros.sacrifice You ((Macros.It OneOf)) {ok}])
 badSacrificeExiled Oh impossible
 
 
 public export
 badDeadCreatureRead : Unspellable (Effect []) (\ok =>
   Delayed (Dies (Macros.target Macros.creature)) [] (Just ThisTurn)
-          (Move (That (TypeW Creature) {ok}) Macros.battlefieldZ []))
+          (Move (Macros.That (TypeW Creature) OneOf {ok}) Macros.battlefieldZ []))
 badDeadCreatureRead Refl impossible
 
 
@@ -204,9 +204,9 @@ badChosenCounterKindRead Oh impossible
 ||| "Choose two target creatures. Choose two target creatures. Tap them."
 public export
 badThemAmbig : Unspellable (Effect []) (\ok =>
-  Sequentially [Choose (Macros.targets (Macros.exactly 2) Macros.creature) Nothing Openly,
-               Choose (Macros.targets (Macros.exactly 2) Macros.creature) Nothing Openly,
-               SetStatus Tapped (Them {ok})])
+  Sequentially [Choose (Described (TargetDet (Macros.exactly 2)) Macros.creature) Nothing Openly,
+               Choose (Described (TargetDet (Macros.exactly 2)) Macros.creature) Nothing Openly,
+               SetStatus Tapped ((Macros.It ManyOf) {ok})])
 badThemAmbig Refl impossible
 
 
@@ -214,7 +214,7 @@ public export
 badInnerAmbig : Unspellable (Effect []) (\ok =>
   Sequentially [Fights (Macros.target (And [Macros.creature, HasPossessor ControllerAx Macros.anOpponent]))
                        (Macros.target (And [Macros.creature, HasPossessor ControllerAx Macros.anOpponent])),
-               Macros.losesLife (That PlayerW {ok}) (Lit 1)])
+               Macros.losesLife (Macros.That PlayerW OneOf {ok}) (Lit 1)])
 badInnerAmbig Refl impossible
 
 
@@ -222,7 +222,7 @@ badInnerAmbig Refl impossible
 public export
 badVerbedWrongVerb : Unspellable Ability (\ok =>
   Activated (Do ((Macros.discard You (Macros.a (InZone Macros.handZ)))))
-            (Move (TheVerbed "Sacrifice" CardW Attributive {ok}) Macros.battlefieldZ []) Nothing Nothing Nothing Nothing)
+            (Move (Macros.TheVerbed "Sacrifice" CardW Attributive OneOf {ok}) Macros.battlefieldZ []) Nothing Nothing Nothing Nothing)
 badVerbedWrongVerb Refl impossible
 
 
@@ -230,7 +230,7 @@ badVerbedWrongVerb Refl impossible
 public export
 badVerbedWrongNoun : Unspellable Ability (\ok =>
   Activated (Do (Macros.sacrifice You (Macros.a (HasType Artifact))))
-            (Move (TheVerbed "Sacrifice" (TypeW Creature) Attributive {ok}) Macros.battlefieldZ []) Nothing Nothing Nothing Nothing)
+            (Move (Macros.TheVerbed "Sacrifice" (TypeW Creature) Attributive OneOf {ok}) Macros.battlefieldZ []) Nothing Nothing Nothing Nothing)
 badVerbedWrongNoun Refl impossible
 
 
@@ -238,7 +238,7 @@ public export
 badVerbedAmbig : Unspellable Ability (\ok =>
   Activated (Compound [Do (Macros.sacrifice You (Macros.a Macros.creature)),
                        Do (Macros.sacrifice You (Macros.a Macros.creature))])
-            (Move (TheVerbed "Sacrifice" CardW Attributive {ok}) Macros.battlefieldZ []) Nothing Nothing Nothing Nothing)
+            (Move (Macros.TheVerbed "Sacrifice" CardW Attributive OneOf {ok}) Macros.battlefieldZ []) Nothing Nothing Nothing Nothing)
 badVerbedAmbig Refl impossible
 
 
@@ -246,7 +246,7 @@ public export
 badBareCardRead : Unspellable Ability (\ok =>
   Activated (Do (Macros.sacrifice You (Macros.a Macros.creature)))
             (Sequentially [Macros.exile You (Macros.target Macros.creature),
-                           Delayed (BeginningOf ThePart EndStep NoPossessor) [] Nothing (Move (That CardW {ok}) Macros.battlefieldZ [])]) Nothing Nothing Nothing Nothing)
+                           Delayed (BeginningOf ThePart EndStep NoPossessor) [] Nothing (Move (Macros.That CardW OneOf {ok}) Macros.battlefieldZ [])]) Nothing Nothing Nothing Nothing)
 badBareCardRead Refl impossible
 
 
@@ -289,7 +289,7 @@ badPermanentInstant Oh impossible
 public export
 badThatPermanentDeparted : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.destroy (Macros.target Permanent),
-               SetStatus Tapped (That PermanentW {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
+               SetStatus Tapped (Macros.That PermanentW OneOf {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badThatPermanentDeparted (Refl, _) impossible
 
 
@@ -311,7 +311,7 @@ badNontokenToken Oh impossible
 public export
 badThatTokenOfCard : Unspellable (Effect []) (\ok =>
   Sequentially [SetStatus Tapped (Macros.target Macros.creature),
-               SetStatus Untapped (That TokenW {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
+               SetStatus Untapped (Macros.That TokenW OneOf {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badThatTokenOfCard (Refl, _) impossible
 
 
@@ -347,7 +347,7 @@ badFightPermanent Oh impossible
 public export
 badDiesInGraveyard : Unspellable (Effect []) (\ok =>
   Delayed (Dies (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {zn = ok}) [] (Just ThisTurn)
-          (Move (That CardW) Macros.battlefieldZ []))
+          (Move (Macros.That CardW OneOf) Macros.battlefieldZ []))
 badDiesInGraveyard Oh impossible
 
 
@@ -355,7 +355,7 @@ badDiesInGraveyard Oh impossible
 public export
 badDamageGraveyardCard : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.destroy (Macros.target Macros.creature),
-               DealDamage This (Lit 3) It {rk = ok}])
+               DealDamage This (Lit 3) ((Macros.It OneOf)) {rk = ok}])
 badDamageGraveyardCard ObjectTakes impossible
 
 
@@ -391,7 +391,7 @@ badNegatedPlayerHead Oh impossible
 public export
 badNegatedAntecedent : Unspellable (Effect []) (\ok =>
   Sequentially [SetStatus Tapped (Macros.target (And [Macros.creature, Not (HasPossessor ControllerAx Macros.anOpponent)])),
-                Macros.losesLife (That PlayerW {ok}) (Lit 1)])
+                Macros.losesLife (Macros.That PlayerW OneOf {ok}) (Lit 1)])
 badNegatedAntecedent Refl impossible
 
 
@@ -413,7 +413,7 @@ badTargetColor ObjectTgt impossible
 public export
 badGetsGraveyard : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.destroy (Macros.target Macros.creature),
-                Macros.gets It (PtUp (Lit 3)) (PtUp (Lit 3)) (Just Macros.untilEndOfTurn) {ok}])
+                Macros.gets ((Macros.It OneOf)) (PtUp (Lit 3)) (PtUp (Lit 3)) (Just Macros.untilEndOfTurn) {ok}])
 badGetsGraveyard Oh impossible
 
 
@@ -455,7 +455,7 @@ badUnknownVerbLabel Oh impossible
 ||| "Choose zero target creatures."
 public export
 badZeroGroup : Unspellable (Effect []) (\ok =>
-  Choose (Macros.targets (Macros.exactly 0) Macros.creature {ok}) Nothing Openly)
+  Choose (Described (TargetDet (Macros.exactly 0)) Macros.creature {ok}) Nothing Openly)
 badZeroGroup (MaxAtLeastOne, _, _) impossible
 
 
@@ -470,7 +470,7 @@ public export
 badDiscardedCreatureWord : Unspellable Ability (\ok =>
   Activated (Do (Macros.discard You (Macros.aAtRandom (And [Macros.creature, InZone Macros.handZ]))))
             (DealDamage This
-                          (Macros.manaValueOf (TheVerbed "Discard" (TypeW Creature) Attributive {ok}))
+                          (StatOf ManaValue (Macros.TheVerbed "Discard" (TypeW Creature) Attributive OneOf {ok}))
                           (Macros.target Macros.anyTarget)) Nothing Nothing Nothing Nothing)
 badDiscardedCreatureWord Refl impossible
 
@@ -500,7 +500,7 @@ badThatMuchAmbig Refl impossible
 ||| "1 life for each 0 creatures"
 public export
 badForEachZero : Unspellable (Amount []) (\ok =>
-  Macros.nForEach 0 Macros.creature {nz = ok})
+  Macros.forEach 0 Macros.creature {nz = ok})
 badForEachZero Oh impossible
 
 
@@ -567,7 +567,7 @@ badAltHeaderMixedReadback : Unspellable Ability (\ok =>
             [BecomesBlocked Macros.thisCreature
                             (Just (Macros.a Macros.creature))]
             Nothing [] Nothing Nothing Nothing
-            (Macros.gets (That (TypeW Creature) {ok = Builtin.fst ok}) (PtDown (Lit 1))
+            (Macros.gets (Macros.That (TypeW Creature) OneOf {ok = Builtin.fst ok}) (PtDown (Lit 1))
                          (PtDown (Lit 1)) {ok = Builtin.snd ok} (Just Macros.untilEndOfTurn)))
 badAltHeaderMixedReadback (Refl, _) impossible
 
@@ -578,7 +578,7 @@ badThreeArmHeaderReadback : Unspellable Ability (\ok =>
             [ Blocks Macros.thisCreature Nothing
             , BecomesTarget Macros.thisCreature (Macros.a Macros.spell) ]
             Nothing [] Nothing Nothing Nothing
-            (DealDamage Macros.thisCreature (Macros.powerOf (It {ok = ok}))
+            (DealDamage Macros.thisCreature (StatOf Power ((Macros.It OneOf) {ok = ok}))
                         (Macros.each Opponent)))
 badThreeArmHeaderReadback Refl impossible
 
@@ -590,7 +590,7 @@ badJoinedHeaderReadback : Unspellable Ability (\ok =>
                 (Dies (Macros.a Macros.creatureYouControl)) ]
             Nothing Nothing Nothing
             (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
-                         (It {ok = ok})))
+                         ((Macros.It OneOf) {ok = ok})))
 badJoinedHeaderReadback Refl impossible
 
 
@@ -600,5 +600,5 @@ badWhileDoingMoment : Unspellable Ability (\ok =>
   Triggered Whenever (Macros.attacks Macros.thisCreature) []
             (Just (WhileDoing (Dies (Macros.a Macros.creature)) {up = ok}))
             [] Nothing Nothing Nothing
-            (Macros.draw You (Lit 1)))
+            (Draw You (Lit 1)))
 badWhileDoingMoment Oh impossible

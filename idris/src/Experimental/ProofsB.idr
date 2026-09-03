@@ -26,7 +26,7 @@ badDoubleOther Oh impossible
 public export
 badDiscardIt : Unspellable
   (Effect [MkBinding AD Object OneOf (ObjectP Nothing Nothing Nothing Nothing Nothing)])
-  (\ok => Macros.discard You It {dk = ok})
+  (\ok => Macros.discard You ((Macros.It OneOf)) {dk = ok})
 badDiscardIt DiscardTracked impossible
 
 
@@ -52,7 +52,7 @@ badEmptySequence ItIsSucc impossible
 public export
 badDestroyAnyTargetRemention : Unspellable (Effect []) (\ok =>
   Sequentially [DealDamage This (Lit 3) (Macros.target Macros.anyTarget),
-               Macros.destroy It {ok}])
+               Macros.destroy ((Macros.It OneOf)) {ok}])
 badDestroyAnyTargetRemention Oh impossible
 
 
@@ -149,7 +149,7 @@ badBlockedAndUnblocked Oh impossible
 ||| "between three and two target creatures"
 public export
 badDescendingRange : Unspellable (Noun [] Object) (\ok =>
-  Macros.targets (Range (Just 3) (Just 2)) Macros.creature {ok = (MaxAtLeastOne, ok, ObjectTgt)})
+  Described (TargetDet (Range (Just 3) (Just 2))) Macros.creature {ok = (MaxAtLeastOne, ok, ObjectTgt)})
 badDescendingRange Oh impossible
 
 
@@ -170,28 +170,28 @@ badRepeatedStructuredDisjunct Oh impossible
 ||| "Target land can't attack this turn."
 public export
 badCantAttackLand : Unspellable (Effect []) (\ok =>
-  Macros.cantAttack (Macros.target Macros.land) (Just Macros.thisTurn) {dp = ok})
+  Macros.cantAttack (Macros.target Macros.land) (Just ThisTurn) {dp = ok})
 badCantAttackLand Oh impossible
 
 
 ||| "Target creature or land can't block this turn."
 public export
 badCantDisjunctSubject : Unspellable (Effect []) (\ok =>
-  Macros.cantBlock (Macros.target (Or [Macros.creature, Macros.land])) (Just Macros.thisTurn) {dp = ok})
+  Macros.cantBlock (Macros.target (Or [Macros.creature, Macros.land])) (Just ThisTurn) {dp = ok})
 badCantDisjunctSubject Oh impossible
 
 
 ||| "Target creature can't be attacked this turn."
 public export
 badCantBeAttacked : Unspellable (Effect []) (\ok =>
-  Continuously {ts = StaticFirstDone} (Macros.deontic (Macros.target Macros.creature) Forbid ["Attack"] Patient NoDeonticPatient {dp = ok}) (Just Macros.thisTurn))
+  Continuously {ts = StaticFirstDone} (Macros.deontic (Macros.target Macros.creature) Forbid ["Attack"] Patient NoDeonticPatient {dp = ok}) (Just ThisTurn))
 badCantBeAttacked Oh impossible
 
 
 ||| "Target creature card in a graveyard can't block this turn."
 public export
 badCantInGraveyard : Unspellable (Effect []) (\ok =>
-  Macros.cantBlock (Macros.target (And [Macros.creature, InZone Macros.graveyardZ])) (Just Macros.thisTurn) {dp = ok})
+  Macros.cantBlock (Macros.target (And [Macros.creature, InZone Macros.graveyardZ])) (Just ThisTurn) {dp = ok})
 badCantInGraveyard Oh impossible
 
 
@@ -233,14 +233,14 @@ badMatchesTargetSubject Oh impossible
 public export
 badMatchesNothing : Unspellable (Effect []) (\ok =>
   Sequentially [SetStatus Tapped (Macros.target Macros.creature),
-                OnlyIf (Macros.gainsLife You (Lit 1)) (Matches It (And []) {sy = ok}) Nothing])
+                OnlyIf (Macros.gainsLife You (Lit 1)) (Matches ((Macros.It OneOf)) (And []) {sy = ok}) Nothing])
 badMatchesNothing Oh impossible
 
 
 ||| "Destroy target creature if it's in a graveyard."
 public export
 badTrailingPostStateZone : Unspellable (Effect []) (\ok =>
-  OnlyIf (Macros.destroy (Macros.target Macros.creature)) (Matches It (InZone Macros.graveyardZ) {zc = ok}) Nothing)
+  OnlyIf (Macros.destroy (Macros.target Macros.creature)) (Matches ((Macros.It OneOf)) (InZone Macros.graveyardZ) {zc = ok}) Nothing)
 badTrailingPostStateZone Oh impossible
 
 
@@ -257,14 +257,14 @@ badCompareLiteralSubject Oh impossible
 public export
 badConditionAntecedent : Unspellable (Effect []) (\ok =>
   Sequentially [OnlyIf (Macros.gainsLife You (Lit 2)) (Macros.exists Macros.creatureYouControl) Nothing,
-                SetStatus Tapped (It {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
+                SetStatus Tapped ((Macros.It OneOf) {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badConditionAntecedent (Refl, _) impossible
 
 
 ||| "You may sacrifice a creature. If you don't, exile it."
 public export
 badIfNotReadsMayBody : Unspellable (Effect []) (\ok =>
-  (May You (Macros.sacrifice You (Macros.a Macros.creature)) Nothing (Just (Macros.exile You (It {ok})))))
+  (May You (Macros.sacrifice You (Macros.a Macros.creature)) Nothing (Just (Macros.exile You ((Macros.It OneOf) {ok})))))
 badIfNotReadsMayBody Refl impossible
 
 
@@ -294,14 +294,14 @@ badTypelessToken (Oh, Oh, Oh, Oh, Oh, Oh) impossible
 public export
 badRemoveCountersDead : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.destroy (Macros.target Macros.creature),
-                RemoveCounters (Just (Macros.exactly 1)) (Just (PrintedKind Macros.plusOnePlusOne)) It {cm = ok}])
+                RemoveCounters (Just (Macros.exactly 1)) (Just (PrintedKind Macros.plusOnePlusOne)) ((Macros.It OneOf)) {cm = ok}])
 badRemoveCountersDead Oh impossible
 
 
 ||| "Move a counter from target creature onto it."
 public export
 badMoveCountersSelf : Unspellable (Effect []) (\ok =>
-  MoveCounters (Lit 1) Nothing (Macros.target Macros.creature) It {md = ok})
+  MoveCounters (Lit 1) Nothing (Macros.target Macros.creature) ((Macros.It OneOf)) {md = ok})
 badMoveCountersSelf Oh impossible
 
 
@@ -345,7 +345,7 @@ public export
 badOtherwiseReadsIfArm : Unspellable (Effect []) (\ok =>
   OnlyIf (Macros.create (Lit 1) (Macros.creatureTok 1 1 [Black] [creatureType "Zombie"]))
      (Macros.exists Macros.creatureYouControl)
-     (Just (SetStatus Tapped (It {ok = Builtin.fst ok}) {ok = Builtin.snd ok})))
+     (Just (SetStatus Tapped ((Macros.It OneOf) {ok = Builtin.fst ok}) {ok = Builtin.snd ok})))
 badOtherwiseReadsIfArm (Refl, _) impossible
 
 
@@ -367,22 +367,22 @@ badModalOverreach Oh impossible
 ||| "Choose one — Destroy target artifact; or tap it."
 public export
 badModalReadsAcrossModes : Unspellable (Effect []) (\ok =>
-  Macros.chooseOne [Macros.destroy (Macros.target Macros.artifact),
-                    SetStatus Tapped (It {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
+  Macros.chooseModes (Macros.exactly 1) [Macros.destroy (Macros.target Macros.artifact),
+                    SetStatus Tapped ((Macros.It OneOf) {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badModalReadsAcrossModes (_, Oh) impossible
 
 
 public export
 badReadsAfterModal : Unspellable (Effect []) (\ok =>
-  Sequentially [Macros.chooseOne [Macros.destroy (Macros.target Macros.artifact), Macros.destroy (Macros.target Macros.enchantment)],
-                SetStatus Tapped (It {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
+  Sequentially [Macros.chooseModes (Macros.exactly 1) [Macros.destroy (Macros.target Macros.artifact), Macros.destroy (Macros.target Macros.enchantment)],
+                SetStatus Tapped ((Macros.It OneOf) {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badReadsAfterModal (_, Oh) impossible
 
 
 ||| "Draw a card. Exile that card."
 public export
 badDrawnCardRemention : Unspellable (Effect []) (\ok =>
-  Sequentially [(Macros.draw You (Lit 1)), Macros.exile You (That CardW {ok})])
+  Sequentially [(Draw You (Lit 1)), Macros.exile You (Macros.That CardW OneOf {ok})])
 badDrawnCardRemention Refl impossible
 
 
@@ -390,7 +390,7 @@ badDrawnCardRemention Refl impossible
 public export
 identicalModesAllowed : Effect []
 identicalModesAllowed =
-  Macros.chooseTwo [(Macros.draw You (Lit 1)), (Macros.draw You (Lit 1))]
+  Macros.chooseModes (Macros.exactly 2) [(Draw You (Lit 1)), (Draw You (Lit 1))]
 
 
 ||| "Choose you."
@@ -405,7 +405,7 @@ badConditionalArmAntecedent : Unspellable (Effect []) (\ok =>
   Sequentially [OnlyIf (Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [creatureType "Soldier"]))
                    (Macros.exists Macros.creatureYouControl)
                    Nothing,
-                PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) (It {ok})])
+                PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) ((Macros.It OneOf) {ok})])
 badConditionalArmAntecedent Refl impossible
 
 
@@ -414,7 +414,7 @@ badBothArmsAntecedent : Unspellable (Effect []) (\ok =>
   Sequentially [May You (Macros.gainsLife You (Lit 1))
                      (Just (Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [creatureType "Soldier"])))
                      (Just (Macros.create (Lit 2) (Macros.creatureTok 1 1 [White] [creatureType "Soldier"]))),
-                PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) (It {ok})])
+                PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) ((Macros.It OneOf) {ok})])
 badBothArmsAntecedent Refl impossible
 
 
@@ -428,7 +428,7 @@ badComplementAnchorAnnounces MkComplementAnchor impossible
 ||| "other than up to two target creatures"
 public export
 badPluralComplementAnchor : Unspellable (Predicate [] Object) (\ok =>
-  OtherThan (Macros.targets (Macros.upTo 2) Macros.creature) {ca = ok})
+  OtherThan (Described (TargetDet (Macros.upTo 2)) Macros.creature) {ca = ok})
 badPluralComplementAnchor MkComplementAnchor impossible
 
 
@@ -474,7 +474,7 @@ badEmptySimultaneous ItIsSucc impossible
 public export
 badSimultaneousReadsRetag : Unspellable (Effect []) (\ok =>
   Simultaneously [Macros.exile You (Macros.target Macros.creature),
-                  Macros.destroy (That CardW {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
+                  Macros.destroy (Macros.That CardW OneOf {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badSimultaneousReadsRetag (_, Oh) impossible
 
 
@@ -490,7 +490,7 @@ badSimultaneousReadsOutcome Refl impossible
 public export
 badSimultaneousReadsMayDeed : Unspellable (Effect []) (\ok =>
   Simultaneously [Macros.may You (Macros.create (Lit 1) (Macros.creatureTok 1 1 [Green] [creatureType "Plant"])),
-                  PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) (It {ok})])
+                  PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) ((Macros.It OneOf) {ok})])
 badSimultaneousReadsMayDeed Refl impossible
 
 
@@ -507,7 +507,7 @@ public export
 badBatchTwoCreatesThenIt : Unspellable (Effect []) (\ok =>
   Sequentially [Simultaneously [Macros.create (Lit 1) (Macros.creatureTok 1 1 [Green] [creatureType "Plant"]),
                                Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [creatureType "Soldier"])],
-                PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) (It {ok})])
+                PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) ((Macros.It OneOf) {ok})])
 badBatchTwoCreatesThenIt Refl impossible
 
 

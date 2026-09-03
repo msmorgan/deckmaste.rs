@@ -12,7 +12,7 @@ import Experimental.Unspellable
 ||| "This deals 3 damage to that permanent or player."
 public export
 badUnionAnaphorNoAntecedent : Unspellable (Effect []) (\ok =>
-  DealDamage This (Lit 3) (That JoinW {ok = ok}))
+  DealDamage This (Lit 3) (Macros.That JoinW OneOf {ok = ok}))
 badUnionAnaphorNoAntecedent Refl impossible
 
 
@@ -20,7 +20,7 @@ badUnionAnaphorNoAntecedent Refl impossible
 public export
 badUnionAnaphorOnObject : Unspellable (Effect []) (\ok =>
   Sequentially [ Macros.destroy (Macros.target Macros.creature)
-               , DealDamage This (Lit 3) (That JoinW {ok = ok}) ])
+               , DealDamage This (Lit 3) (Macros.That JoinW OneOf {ok = ok}) ])
 badUnionAnaphorOnObject Refl impossible
 
 
@@ -28,15 +28,15 @@ badUnionAnaphorOnObject Refl impossible
 public export
 badAbilityJoinAnaphorOnPlayerUnion : Unspellable (Effect []) (\ok =>
   Sequentially [ DealDamage This (Lit 3) (Macros.target Macros.anyTarget)
-               , Macros.counterSpell (That AbilityJoinW {ok = ok}) ])
+               , CounterSpell (Macros.That AbilityJoinW OneOf {ok = ok}) ])
 badAbilityJoinAnaphorOnPlayerUnion Refl impossible
 
 
 ||| "Counter target activated ability. Counter that spell or ability."
 public export
 badAbilityJoinAnaphorOnAbility : Unspellable (Effect []) (\ok =>
-  Sequentially [ Macros.counterSpell (Macros.target (AbilityHead AnyActivated))
-               , Macros.counterSpell (That AbilityJoinW {ok = ok}) ])
+  Sequentially [ CounterSpell (Macros.target (AbilityHead AnyActivated))
+               , CounterSpell (Macros.That AbilityJoinW OneOf {ok = ok}) ])
 badAbilityJoinAnaphorOnAbility Refl impossible
 
 
@@ -166,7 +166,7 @@ badPlayerCastComplement MkLookbackComplement impossible
 ||| "Counter target spell cast from the stack."
 public export
 badCastFromStack : Unspellable (Predicate [] Object) (\ok =>
-  CastFrom Macros.stackZ {pf = ok})
+  CastFrom (ZoneAt Stack Bare) {pf = ok})
 badCastFromStack Oh impossible
 
 
@@ -182,7 +182,7 @@ badDeathOriginZone Oh impossible
 public export
 badCastOriginFromStack : Unspellable (Condition []) (\ok =>
   Happened SpellCast You Lookback.ThisTurn
-           (Just (FromZones (FromZone [Macros.stackZ]) Nothing {ok = ok})))
+           (Just (FromZones (FromZone [ZoneAt Stack Bare]) Nothing {ok = ok})))
 badCastOriginFromStack Oh impossible
 
 
@@ -359,7 +359,7 @@ badBareActivationLookback Oh impossible
 ||| "At the beginning of all players' upkeep, draw a card." [CR#102.1]
 public export
 badPluralPartPossessor : Unspellable Ability (\ok =>
-  Triggered At (BeginningOf ThePart Upkeep (ByPlayer (Macros.allOf AnyPlayer)) {pu = ok}) [] Nothing [] Nothing Nothing Nothing (Macros.draw You (Lit 1)))
+  Triggered At (BeginningOf ThePart Upkeep (ByPlayer (Macros.allOf AnyPlayer)) {pu = ok}) [] Nothing [] Nothing Nothing Nothing (Draw You (Lit 1)))
 badPluralPartPossessor Oh impossible
 
 
@@ -579,7 +579,7 @@ badTransformingBackWithCost MkFaceLaws impossible
 public export
 badConspiracyActivated : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Conspiracy])
-       [ Macros.activated (Mana [Macros.generic 1]) (Macros.draw You (Lit 1)) ] Nothing {fl = ok})
+       [ Macros.activated (Mana [Macros.generic 1]) (Draw You (Lit 1)) ] Nothing {fl = ok})
 badConspiracyActivated MkFaceLaws impossible
 
 ||| a static ability printed on a dungeon card
@@ -623,7 +623,7 @@ public export
 badAmountRollRow : Unspellable (Effect []) (\ok =>
   Sequentially [(Macros.rollDice You 1 20),
                 ResultsTable [MkRollRow (UpToOf (LetterVal X))
-                                        (Macros.draw You (Lit 1)) {lt = ok}]])
+                                        (Draw You (Lit 1)) {lt = ok}]])
 badAmountRollRow Oh impossible
 
 public export
@@ -631,7 +631,10 @@ badCreatureHalfRead : Unspellable (Effect []) (\ok =>
   Sequentially
     [ DealDamage This (Lit 3)
         (Macros.target (Macros.kindJoin AnyPlayer (HasType Planeswalker)))
-    , (Macros.discard (Macros.thatSplitController (That (TypeW Creature) {ok = ok})) (Macros.a (InZone Macros.handZ))) ])
+    , (Macros.discard
+        (EitherOf (Pro (UnionHalf PlayerW) OneOf)
+                  (Macros.controllerOf (Macros.That (TypeW Creature) OneOf {ok = ok})))
+        (Macros.a (InZone Macros.handZ))) ])
 badCreatureHalfRead Refl impossible
 
 ||| "Whenever a creature attacks a planeswalker or a creature"
@@ -690,7 +693,7 @@ badCoinsShowingWithoutFlip Oh impossible
 ||| "If you rolled 7, sacrifice this creature."
 public export
 badTotalWithoutRoll : Unspellable (Effect []) (\ok =>
-  Macros.ifThen (CompareAmt (Macros.theTotal {ok}) Eq (Lit 7))
+  Macros.ifThen (CompareAmt (TheOutcome RollResult {ok}) Eq (Lit 7))
                 (Macros.sacrifice You Macros.thisCreature))
 badTotalWithoutRoll Refl impossible
 
@@ -794,7 +797,7 @@ badRestWithoutAPartition Oh impossible
 ||| "Choose any number of target creatures. Destroy the rest."
 public export
 badRestAfterTargetChoice : Unspellable (Effect []) (\ok =>
-  Sequentially [ Macros.choose (Macros.targets Macros.anyNumber Macros.creature)
+  Sequentially [ Macros.choose (Described (TargetDet Macros.anyNumber) Macros.creature)
                , Macros.destroy (Macros.theRest {ok}) ])
 badRestAfterTargetChoice Oh impossible
 
@@ -840,7 +843,7 @@ afterPassivePayment =
 ||| "Whenever this creature's cumulative upkeep is paid, that player …"
 public export
 badPassivePayerReadback :
-  Unspellable (Noun ProofsG.afterPassivePayment Player) (\ok => That PlayerW {ok})
+  Unspellable (Noun ProofsG.afterPassivePayment Player) (\ok => Macros.That PlayerW OneOf {ok})
 badPassivePayerReadback Refl impossible
 
 public export
@@ -862,22 +865,22 @@ public export
 afterShuffledLook : Bindings
 afterShuffledLook =
   effIntro (the (Effect [])
-    (Sequentially [ Macros.lookAt Macros.topCard, Macros.shuffle ]))
+    (Sequentially [ Macros.lookAt (Macros.topSlice (Lit 1)), Macros.shuffle ]))
 
 public export
 badReadsShuffledLibraryCard :
-  Unspellable (Noun ProofsG.afterShuffledLook Object) (\ok => That CardW {ok})
+  Unspellable (Noun ProofsG.afterShuffledLook Object) (\ok => Macros.That CardW OneOf {ok})
 badReadsShuffledLibraryCard Refl impossible
 
 public export
 afterShuffledIntoLook : Bindings
 afterShuffledIntoLook =
   effIntro (the (Effect [])
-    (Sequentially [ Macros.lookAt Macros.topCard, Macros.shuffleInto You This ]))
+    (Sequentially [ Macros.lookAt (Macros.topSlice (Lit 1)), Macros.shuffleInto You This ]))
 
 public export
 badReadsShuffledIntoLibraryCard :
-  Unspellable (Noun ProofsG.afterShuffledIntoLook Object) (\ok => That CardW {ok})
+  Unspellable (Noun ProofsG.afterShuffledIntoLook Object) (\ok => Macros.That CardW OneOf {ok})
 badReadsShuffledIntoLibraryCard Refl impossible
 
 ||| "if up to three is 4 or greater"
@@ -1188,8 +1191,8 @@ badCardWordReadsPiles : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Instant])
        [ Spell (Sequentially
                   [ Macros.revealCards (Macros.topSlice (Lit 5))
-                  , SeparateIntoPiles Macros.anOpponent Them 2 []
-                  , Macros.move (Those CardW {ok = ok}) Macros.handZ ]) ]
+                  , SeparateIntoPiles Macros.anOpponent ((Macros.It ManyOf)) 2 []
+                  , Macros.move (Macros.That CardW ManyOf {ok = ok}) Macros.handZ ]) ]
        Nothing)
 badCardWordReadsPiles Refl impossible
 
@@ -1200,7 +1203,7 @@ badPileWordWithoutAPartition : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Instant])
        [ Spell (Sequentially
                   [ Macros.revealCards (Macros.topSlice (Lit 5))
-                  , Macros.move (Those PileW {ok = ok}) Macros.handZ ]) ]
+                  , Macros.move (Macros.That PileW ManyOf {ok = ok}) Macros.handZ ]) ]
        Nothing)
 badPileWordWithoutAPartition Refl impossible
 
@@ -1217,7 +1220,7 @@ badMembershipInANonPile : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Instant])
        [ Spell (Sequentially
                   [ Macros.revealCards (Macros.topSlice (Lit 5))
-                  , Macros.move (Macros.allOf (And [IsCard, InPile Them {pm = ok}]))
+                  , Macros.move (Macros.allOf (And [IsCard, InPile ((Macros.It ManyOf)) {pm = ok}]))
                                 Macros.handZ ]) ]
        Nothing)
 badMembershipInANonPile PilePartitive impossible
@@ -1230,8 +1233,8 @@ badPileFaceAsAStatus : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Instant])
        [ Spell (Sequentially
                   [ Macros.revealCards (Macros.topSlice (Lit 5))
-                  , SeparateIntoPiles Macros.anOpponent Them 2 []
-                  , SetStatus FaceDown (Those PileW) {ok = ok} ]) ]
+                  , SeparateIntoPiles Macros.anOpponent ((Macros.It ManyOf)) 2 []
+                  , SetStatus FaceDown (Macros.That PileW ManyOf) {ok = ok} ]) ]
        Nothing)
 badPileFaceAsAStatus Oh impossible
 
@@ -1296,14 +1299,14 @@ badIfDoneWithNeitherArm Oh impossible
 public export
 badIfDoneOverAgentlessBody : Unspellable (Effect []) (\ok =>
   IfDone (DealDamage Macros.thisCreature (Lit 3) (Macros.target Macros.anyTarget))
-         (Just (Macros.draw You (Lit 1))) Nothing {en = ok})
+         (Just (Draw You (Lit 1))) Nothing {en = ok})
 badIfDoneOverAgentlessBody Oh impossible
 
 
 ||| "Take an extra turn after this one. If you do, draw a card."
 public export
 badIfDoneOverScheduledBody : Unspellable (Effect []) (\ok =>
-  IfDone (ExtraTurn You (Lit 1)) (Just (Macros.draw You (Lit 1))) Nothing {en = ok})
+  IfDone (ExtraTurn You (Lit 1)) (Just (Draw You (Lit 1))) Nothing {en = ok})
 badIfDoneOverScheduledBody Oh impossible
 
 
@@ -1329,8 +1332,15 @@ manaRunReductionFloor =
 public export
 nestedStaticConditionals : StaticEffect []
 nestedStaticConditionals =
-  Macros.ifSo (Macros.exists AnyPlayer)
-    (Macros.ifSo (Macros.exists AnyPlayer) (KeepsUnspentMana You (UnspentMana Nothing)))
+  Conditionally {bs = []} {condBase = []}
+    {staticBase = condIntro (Macros.exists {bs = []} AnyPlayer)}
+    (Macros.exists {bs = []} AnyPlayer)
+    (Conditionally {bs = condIntro (Macros.exists {bs = []} AnyPlayer)}
+      {condBase = condIntro (Macros.exists {bs = []} AnyPlayer)}
+      {staticBase = condIntro
+        (Macros.exists {bs = condIntro (Macros.exists {bs = []} AnyPlayer)} AnyPlayer)}
+      (Macros.exists {bs = condIntro (Macros.exists {bs = []} AnyPlayer)} AnyPlayer)
+      (KeepsUnspentMana You (UnspentMana Nothing)) IfSo) IfSo
 
 public export
 nestedTurnPartWindows : StaticEffect []
@@ -1374,7 +1384,7 @@ namedAdditionalPartAnchor =
 public export
 badDelayedDoorDeixis : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Instant])
-    [Spell (Delayed (UnlocksDoor You ThisDoor) [] Nothing (Macros.draw You (Lit 1))
+    [Spell (Delayed (UnlocksDoor You ThisDoor) [] Nothing (Draw You (Lit 1))
                     {so = Absent})]
     Nothing {fl = ok})
 badDelayedDoorDeixis MkFaceLaws impossible
@@ -1410,7 +1420,7 @@ playerItRead = They
 public export
 delayedDoorTraversal :
   effectNamesThisDoor
-    (Delayed (UnlocksDoor You ThisDoor) [] Nothing (Macros.draw You (Lit 1))
+    (Delayed (UnlocksDoor You ThisDoor) [] Nothing (Draw You (Lit 1))
              {so = Absent}) = True
 delayedDoorTraversal = Refl
 
@@ -1419,7 +1429,7 @@ distributiveGroupSurvives : Effect []
 distributiveGroupSurvives =
   Sequentially
     [ Enact (Just (Macros.each Opponent)) "Shuffle" (Shuffle They)
-    , ChangeLife (Those PlayerW) (Down (Lit 1))
+    , ChangeLife (Macros.That PlayerW ManyOf) (Down (Lit 1))
     ]
 
 public export

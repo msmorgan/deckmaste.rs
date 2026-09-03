@@ -6,72 +6,34 @@ import public Experimental
 %default total
 
 public export
-It : {auto 0 ok : countReach Bare OneOf bs = 1} -> Noun bs Object
-It = Pro Bare OneOf
+It : (pl : Plurality) -> {auto 0 ok : countReach Bare pl bs = 1} -> Noun bs Object
+It pl = Pro Bare pl
 
 public export
-ItAbility : {auto 0 ok : countReach (Word AbilityW) OneOf bs = 1} -> Noun bs Ability
-ItAbility = Pro (Word AbilityW) OneOf
-
-public export
-ItAt : (sl : SlotCarrier) -> {auto 0 ok : countReach (AtSlot sl) OneOf bs = 1} ->
-       Noun bs Object
-ItAt sl = Pro (AtSlot sl) OneOf
-
-public export
-ItVerbed : (v : VerbLabel) -> {auto 0 kn : KnownAct v} ->
-           {auto 0 ok : countReach (Stamped v) OneOf bs = 1} -> Noun bs Object
-ItVerbed v = Pro (Stamped v) OneOf
-
-public export
-ItToken : {auto 0 ok : countReach TokenBorn OneOf bs = 1} -> Noun bs Object
-ItToken = Pro TokenBorn OneOf
+ItVerbed : (v : VerbLabel) -> (pl : Plurality) -> {auto 0 kn : KnownAct v} ->
+           {auto 0 ok : countReach (Stamped v) pl bs = 1} -> Noun bs Object
+ItVerbed v pl = Pro (Stamped v) pl
 
 public export
 They : {auto 0 ok : countReach (Word PlayerW) OneOf bs = 1} -> Noun bs Player
 They = Pro (Word PlayerW) OneOf
 
 public export
-Them : {auto 0 ok : countReach Bare ManyOf bs = 1} -> Noun bs Object
-Them = Pro Bare ManyOf
-
-public export
-ThemVerbed : (v : VerbLabel) -> {auto 0 kn : KnownAct v} ->
-             {auto 0 ok : countReach (Stamped v) ManyOf bs = 1} -> Noun bs Object
-ThemVerbed v = Pro (Stamped v) ManyOf
-
-public export
-Those : (w : NounWord) -> {auto 0 ok : countReach (Word w) ManyOf bs = 1} ->
-        Noun bs (kindOfW w)
-Those w = Pro (Word w) ManyOf
-
-public export
-That : (w : NounWord) -> {auto 0 ok : countReach (Word w) OneOf bs = 1} ->
+That : (w : NounWord) -> (pl : Plurality) ->
+       {auto 0 ok : countReach (Word w) pl bs = 1} ->
        Noun bs (kindOfW w)
-That w = Pro (Word w) OneOf
+That w pl = Pro (Word w) pl
 
 public export
 thatTurn : {auto 0 ok : countReach ThatTurn OneOf bs = 1} -> Noun bs TurnRef
 thatTurn = Pro ThatTurn OneOf
 
 public export
-ThatHalf : (w : NounWord) ->
-           {auto 0 ok : countReach (UnionHalf w) OneOf bs = 1} ->
-           Noun bs (kindOfW w)
-ThatHalf w = Pro (UnionHalf w) OneOf
-
-public export
 TheVerbed : (v : VerbLabel) -> (w : NounWord) -> (marking : VerbedMarking) ->
-            {auto 0 ok : countReach (Verbed v w marking) OneOf bs = 1} ->
+            (pl : Plurality) ->
+            {auto 0 ok : countReach (Verbed v w marking) pl bs = 1} ->
             {auto 0 mk : ActNamesParticiple v} -> Noun bs (kindOfW w)
-TheVerbed v w marking = Pro (Verbed v w marking) OneOf
-
-public export
-ThoseVerbed : (v : VerbLabel) -> (w : NounWord) -> (marking : VerbedMarking) ->
-              {auto 0 ok : countReach (Verbed v w marking) ManyOf bs = 1} ->
-              {auto 0 mk : ActNamesParticiple v} -> Noun bs (kindOfW w)
-ThoseVerbed v w marking = Pro (Verbed v w marking) ManyOf
-
+TheVerbed v w marking pl = Pro (Verbed v w marking) pl
 
 public export
 exactly : Nat -> Quantity bs
@@ -94,14 +56,27 @@ oneThrough : Nat -> Quantity bs
 oneThrough n = Range (Just 1) (Just n)
 
 public export
-target : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
-         {auto 0 tk : Targetable k} -> Noun bs k
-target p = Described (TargetDet (exactly 1)) p {ph} {ok = (MaxAtLeastOne, Oh, tk)}
+EntersTapped : TokenRider bs
+EntersTapped = EntersAs Tapped
 
 public export
-targets : (q : Quantity bs) -> (p : Predicate bs k) -> {auto ph : Phrasal k} ->
-          {auto 0 ok : detOk (TargetDet q) p} -> Noun bs k
-targets q p = Described (TargetDet q) p {ph} {ok}
+MkToken : {0 bs : Bindings} ->
+          Maybe (p : Amount bs ** Amount (amtIntro p)) -> List Color ->
+          TypeLine -> List Ability -> Maybe String -> TokenChars bs
+MkToken {bs} pt cs l abs nm = MkTokenChars {bs} pt cs [] l abs nm []
+
+public export
+MkSupertypedToken : {0 bs : Bindings} ->
+                    Maybe (p : Amount bs ** Amount (amtIntro p)) ->
+                    List Color -> List Supertype ->
+                    TypeLine -> List Ability -> Maybe String -> TokenChars bs
+MkSupertypedToken {bs} pt cs sups l abs nm = MkTokenChars {bs} pt cs sups l abs nm []
+
+public export
+target : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
+         {auto 0 tk : Targetable k} -> Noun bs k
+target p = Described (TargetDet (Range (Just 1) (Just 1))) p
+                     {ph} {ok = (MaxAtLeastOne, Oh, tk)}
 
 public export
 each : (p : Predicate bs k) -> {auto ph : Phrasal k} -> Noun bs k
@@ -162,7 +137,7 @@ youOr n = EitherOf You n
 
 public export
 thatJoin : {auto 0 ok : countReach (Word JoinW) OneOf bs = 1} -> Noun bs (Object \/ Player)
-thatJoin = That JoinW {ok}
+thatJoin = That JoinW OneOf {ok}
 
 public export
 controllerOf : {k : Kind} -> (n : Noun bs k) ->
@@ -177,25 +152,23 @@ ownerOf : {k : Kind} -> (n : Noun bs k) ->
 ownerOf n = PossessorOf OwnerAx n {one} {ck}
 
 public export
-thatSplitController : (cls : Noun bs Object) ->
-                      {auto 0 one : nounPlur cls = OneOf} ->
-                      {auto 0 pk : countReach (UnionHalf PlayerW) OneOf bs = 1} ->
-                      Noun bs Player
-thatSplitController cls = EitherOf (ThatHalf PlayerW {ok = pk}) (Macros.controllerOf cls {one})
-
-public export
 splitOverPlaneswalker : {bs : Bindings} ->
                         {auto 0 ck : countReach (UnionHalf (TypeW Planeswalker)) OneOf bs = 1} ->
                         {auto 0 pk : countReach (UnionHalf PlayerW) OneOf bs = 1} ->
                         Noun bs Player
-splitOverPlaneswalker = thatSplitController (ThatHalf (TypeW Planeswalker) {ok = ck}) {pk}
+splitOverPlaneswalker =
+  EitherOf (Pro (UnionHalf PlayerW) OneOf {ok = pk})
+           (Macros.controllerOf
+             (Pro (UnionHalf (TypeW Planeswalker)) OneOf {ok = ck}))
 
 public export
 splitOverPermanent : {bs : Bindings} ->
                      {auto 0 ck : countReach (UnionHalf PermanentW) OneOf bs = 1} ->
                      {auto 0 pk : countReach (UnionHalf PlayerW) OneOf bs = 1} ->
                      Noun bs Player
-splitOverPermanent = thatSplitController (ThatHalf PermanentW {ok = ck}) {pk}
+splitOverPermanent =
+  EitherOf (Pro (UnionHalf PlayerW) OneOf {ok = pk})
+           (Macros.controllerOf (Pro (UnionHalf PermanentW) OneOf {ok = ck}))
 
 
 public export
@@ -211,16 +184,12 @@ handZ : ZoneExpr bs
 handZ = ZoneAt Hand Bare
 
 public export
-stackZ : ZoneExpr bs
-stackZ = ZoneAt Stack Bare
-
-public export
 commandZ : ZoneExpr bs
 commandZ = ZoneAt Command Bare
 
 public export
 spell : Predicate bs Object
-spell = InZone stackZ
+spell = InZone (ZoneAt Stack Bare)
 
 public export
 frontFace : (name : String) -> (cost : Maybe ManaCost) ->
@@ -272,30 +241,6 @@ card : (name : String) -> (cost : Maybe ManaCost) -> (supers : List Supertype) -
        Card
 card name cost supers line text stats =
   SingleFaced (MkFace name cost [] supers line text (printedBox stats)) {fl}
-
-public export
-jointCard : (choices : List QualitySort) ->
-            (name : String) -> (cost : Maybe ManaCost) ->
-            (supers : List Supertype) -> (line : TypeLine) ->
-            (text : AbilitySeq (jointBindings choices (costLetters cost))) ->
-            (stats : Maybe (Integer, Integer)) ->
-            {auto 0 ln : CardLine line} ->
-            {auto 0 sp : CardSupers supers} ->
-            {auto 0 tx : CardText line text} ->
-            {auto 0 ch : CardChapters line text} ->
-            {auto 0 bx : CardBox Front line text (printedBox stats)} ->
-            {auto 0 mc : CardCost Front line cost} ->
-            {auto 0 dr : DoorFrame text} ->
-            {auto 0 jc : JointChoices choices text} -> Card
-jointCard choices name cost supers line text stats =
-  SingleFaced
-    (MkFace name cost choices supers line text (printedBox stats))
-    {fl = MkFaceLaws {ln} {sp} {tx} {ch} {bx} {mc} {dr} {jc}}
-
-public export
-counterSpell : {k : Kind} -> (n : Noun bs k) ->
-               {auto 0 ct : Counterable n} -> Effect bs
-counterSpell n = CounterSpell n {ct}
 
 public export
 graveyardZ : ZoneExpr bs
@@ -542,32 +487,12 @@ otherPlayer = And [AnyPlayer, OtherThan You]
 
 
 public export
-powerOf : (n : Noun bs Object) -> {auto 0 one : nounPlur n = OneOf} -> Amount bs
-powerOf n = StatOf Power n {one}
-
-public export
-toughnessOf : (n : Noun bs Object) -> {auto 0 one : nounPlur n = OneOf} -> Amount bs
-toughnessOf n = StatOf Toughness n {one}
-
-public export
-manaValueOf : (n : Noun bs Object) -> {auto 0 one : nounPlur n = OneOf} -> Amount bs
-manaValueOf n = StatOf ManaValue n {one}
-
-
-public export
-nForEach : {bs : Bindings} -> {k : Kind} -> (n : Nat) -> (p : Predicate bs k) ->
-           {auto ph : Phrasal k} ->
-           {auto 0 pl : nounPlur (bare p {ph}) = ManyOf} ->
-           {auto 0 nz : So (amtNonZero (Lit {bs} n))} ->
-           Amount bs
-nForEach n p = times n (countOf p {ph} {pl}) {nz}
-
-public export
-forEach : {bs : Bindings} -> {k : Kind} -> (p : Predicate bs k) ->
+forEach : {bs : Bindings} -> {k : Kind} -> (n : Nat) -> (p : Predicate bs k) ->
           {auto ph : Phrasal k} ->
           {auto 0 pl : nounPlur (bare p {ph}) = ManyOf} ->
+          {auto 0 nz : So (amtNonZero (Lit {bs} n))} ->
           Amount bs
-forEach p = nForEach 1 p {ph} {pl}
+forEach n p = times n (countOf p {ph} {pl}) {nz}
 
 public export
 move : (what : Noun bs Object) -> (to : ZoneExpr (nomIntro what)) ->
@@ -649,7 +574,7 @@ sacrificeIt : (agent : Noun bs Player) ->
               {auto 0 ok : countReach (AtSlot PermanentSlot) OneOf (agentIntro agent) = 1} ->
               {auto 0 zn : ZoneIs (zoneOfReach (AtSlot PermanentSlot) OneOf (agentIntro agent)) Battlefield} ->
               Effect bs
-sacrificeIt agent = sacrifice agent (ItAt PermanentSlot {ok}) {ok = zn}
+sacrificeIt agent = sacrifice agent (Pro (AtSlot PermanentSlot) OneOf {ok}) {ok = zn}
 
 public export
 discard : (agent : Noun bs Player) -> (n : Noun (agentIntro agent) Object) ->
@@ -709,7 +634,7 @@ returnToBattlefield n = returnTo n battlefieldZ {arr} {pl}
 
 public export
 itAsToken : {auto 0 ok : countReach TokenBorn OneOf bs = 1} -> Noun bs Object
-itAsToken = ItToken {ok}
+itAsToken = Pro TokenBorn OneOf {ok}
 
 public export
 ownSubject : {bs : Bindings} -> (n : Noun bs Object) ->
@@ -748,10 +673,6 @@ distributeCounters amt kind among =
 
 
 public export
-thisTurn : Duration bs
-thisTurn = ThisTurn
-
-public export
 untilEndOfTurn : Duration bs
 untilEndOfTurn = Until (EndOf Turn Nothing)
 
@@ -778,10 +699,6 @@ asLongAs {bs} c se = Conditionally {bs} c se AsLongAs
 public export
 unlessSo : {bs : Bindings} -> (c : Condition bs) -> (se : StaticEffect (condIntro (NotCond c))) -> StaticEffect bs
 unlessSo {bs} c se = Conditionally {bs} (NotCond c) se Unless
-
-public export
-ifSo : {bs : Bindings} -> (c : Condition bs) -> (se : StaticEffect (condIntro c)) -> StaticEffect bs
-ifSo {bs} c se = Conditionally {bs} c se IfSo
 
 public export
 entersTapped : (n : Noun bs Object) ->
@@ -1122,51 +1039,19 @@ basicLandLine ss = MkTypeLine ss []
 
 
 public export
-draw : (who : Noun bs Player) -> (amt : Amount (nomIntro who)) -> Effect bs
-draw who amt = Draw who amt
-
-
-public export
-chooseOne : (modes : List (Effect bs)) ->
-            {auto 0 tw : AtLeastTwo (modeCount modes)} ->
-            {auto 0 mf : ModesFit (exactly {bs} 1) (modeCount modes)} -> Effect bs
-chooseOne modes = Modal (exactly 1) modes {tw} {mf}
-
-public export
-chooseTwo : (modes : List (Effect bs)) ->
-            {auto 0 tw : AtLeastTwo (modeCount modes)} ->
-            {auto 0 mf : ModesFit (exactly {bs} 2) (modeCount modes)} -> Effect bs
-chooseTwo modes = Modal (exactly 2) modes {tw} {mf}
-
-public export
-chooseOneOrBoth : (modes : List (Effect bs)) ->
-                  {auto 0 tw : AtLeastTwo (modeCount modes)} ->
-                  {auto 0 mf : ModesFit (Range (Just 1) (Just 2) {bs}) (modeCount modes)} -> Effect bs
-chooseOneOrBoth modes =
-  Modal (Range (Just 1) (Just 2)) modes {tw} {mf}
-
-public export
-chooseOneOrMore : (modes : List (Effect bs)) ->
-                  {auto 0 tw : AtLeastTwo (modeCount modes)} ->
-                  {auto 0 mf : ModesFit (atLeast {bs} 1) (modeCount modes)} -> Effect bs
-chooseOneOrMore modes = Modal (atLeast 1) modes {tw} {mf}
-
-public export
-chooseAnyNumber : (modes : List (Effect bs)) ->
-                  {auto 0 tw : AtLeastTwo (modeCount modes)} ->
-                  {auto 0 mf : ModesFit (Macros.anyNumber {bs}) (modeCount modes)} -> Effect bs
-chooseAnyNumber modes = Modal Macros.anyNumber modes {wf = Oh} {tw} {mf}
-
-public export
-notSo : (c : Condition bs) -> Condition bs
-notSo c = NotCond c
+chooseModes : (q : Quantity bs) -> (modes : List (Effect bs)) ->
+              {auto 0 nz : NonZeroQ q} ->
+              {auto 0 wf : WellFormedQ q} ->
+              {auto 0 tw : AtLeastTwo (modeCount modes)} ->
+              {auto 0 mf : ModesFit q (modeCount modes)} -> Effect bs
+chooseModes q modes = Modal q modes {nz} {wf} {tw} {mf}
 
 public export
 itsA : (p : Predicate bs Object) -> {auto 0 ok : countReach Bare OneOf bs = 1} ->
        {auto 0 sy : PredSays p} ->
        {auto 0 zc : ZoneFits (zoneOfReach Bare OneOf bs) (seedZone p)} ->
        Condition bs
-itsA p = Matches (It {ok}) p {sy} {zc}
+itsA p = Matches (It OneOf {ok}) p {sy} {zc}
 
 public export
 itIsntA : (p : Predicate bs Object) -> {auto 0 ok : countReach Bare OneOf bs = 1} ->
@@ -1181,18 +1066,18 @@ itsACard : (p : Predicate bs Object) ->
            {auto 0 sy : PredSays p} ->
            {auto 0 zc : ZoneFits (zoneOfReach (AtSlot CardSlot) OneOf bs) (seedZone p)} ->
            Condition bs
-itsACard p = Matches (ItAt CardSlot {ok}) p {sy} {zc}
+itsACard p = Matches (Pro (AtSlot CardSlot) OneOf {ok}) p {sy} {zc}
 
 public export
 itIsntAnAbility : (p : Predicate bs Ability) ->
                   {auto 0 ok : countReach (Word AbilityW) OneOf bs = 1} ->
                   {auto 0 sy : PredSays p} ->
-                  {auto 0 bl : TestSubject (ItAbility {bs} {ok})} ->
+                  {auto 0 bl : TestSubject (Pro (Word AbilityW) OneOf {bs} {ok})} ->
                   {auto 0 zc : ZoneFits (zoneOfReach (Word AbilityW) OneOf bs)
                                               (seedZone p)} ->
                   Condition bs
 itIsntAnAbility p =
-  NotCond (Matches (ItAbility {ok}) p {sy} {bl} {zc})
+  NotCond (Matches (Pro (Word AbilityW) OneOf {ok}) p {sy} {bl} {zc})
 
 
 public export
@@ -1253,20 +1138,15 @@ topSlice : (amt : Amount bs) -> Noun bs Object
 topSlice amt = LibrarySlice OnTop amt You
 
 public export
-topCards : (n : Nat) -> Noun bs Object
-topCards n = topSlice (Lit n)
-
-public export
-topCard : Noun bs Object
-topCard = topCards 1
-
-public export
 bottomCard : Noun bs Object
 bottomCard = LibrarySlice OnBottom (Lit 1) You
 
 public export
-oneOf : (grp : Noun bs Object) -> {auto 0 gm : PartitiveBase grp} -> Noun bs Object
-oneOf grp = SomeOf (CountedSlice (exactly 1)) Nothing grp {gm}
+someOf : (q : Quantity bs) -> (grp : Noun bs Object) ->
+         {auto 0 gm : PartitiveBase grp} ->
+         {auto 0 nz : NonZeroQ q} ->
+         {auto 0 wf : WellFormedQ q} -> Noun bs Object
+someOf q grp = SomeOf (CountedSlice q {nz} {wf}) Nothing grp {gm}
 
 public export
 onePile : {auto 0 ok : countReach (Word PileW) ManyOf bs = 1} -> Noun bs Object
@@ -1276,12 +1156,6 @@ public export
 pileOfChoice : (by : Noun bs Player) ->
                {auto 0 ok : countReach (Word PileW) ManyOf bs = 1} -> Noun bs Object
 pileOfChoice by = PileOf (CountedSlice (exactly 1)) (Just by) {ok}
-
-public export
-someOf : (n : Nat) -> (grp : Noun bs Object) -> {auto 0 gm : PartitiveBase grp} ->
-         {auto 0 nz : NonZeroQ (exactly {bs} n)} ->
-         {auto 0 wf : WellFormedQ (exactly {bs} n)} -> Noun bs Object
-someOf n grp = SomeOf (CountedSlice (exactly n) {nz} {wf}) Nothing grp {gm}
 
 public export
 fromAmong : (q : Quantity bs) -> (p : Predicate bs Object) ->
@@ -1297,12 +1171,6 @@ allFromAmong : (p : Predicate bs Object) -> (grp : Noun bs Object) ->
 allFromAmong p grp = SomeOf WholeSlice (Just p) grp {gm}
 
 public export
-oneFromAmong : (p : Predicate bs Object) -> (grp : Noun bs Object) ->
-               {auto 0 gm : PartitiveBase grp} -> Noun bs Object
-oneFromAmong p grp = SomeOf (CountedSlice (exactly 1)) (Just p) grp {gm}
-
-
-public export
 lookAt : (n : Noun bs Object) -> Effect bs
 lookAt n = Expose LookAt You (ExposedCards n)
 
@@ -1316,7 +1184,7 @@ lookAtHandOf n = Expose LookAt You (ExposedZone (handOf n))
 
 public export
 foundCard : {auto 0 ok : countReach (Stamped "Search") OneOf bs = 1} -> Noun bs Object
-foundCard = ItVerbed "Search" {ok}
+foundCard = ItVerbed "Search" OneOf {ok}
 
 public export
 revealsIt : {auto 0 ok : countReach (Stamped "Search") OneOf bs = 1} -> Effect bs
@@ -1330,16 +1198,11 @@ revealsTheirHand who = Expose Reveal who (ExposedZone (handOf (They {ok})))
 
 
 public export
-searchLibraryFor : (p : Predicate bs Object) ->
+searchLibraryFor : (q : Quantity bs) -> (p : Predicate bs Object) ->
+                   {auto 0 nz : NonZeroQ q} ->
+                   {auto 0 wf : WellFormedQ q} ->
                    {auto 0 zf : ZoneFree p} -> Effect bs
-searchLibraryFor p = Search You (OneZone yourLibrary) (exactly 1) p {zf}
-
-public export
-searchLibraryForCount : (q : Quantity bs) -> (p : Predicate bs Object) ->
-                        {auto 0 nz : NonZeroQ q} ->
-                        {auto 0 wf : WellFormedQ q} ->
-                        {auto 0 zf : ZoneFree p} -> Effect bs
-searchLibraryForCount q p = Search You (OneZone yourLibrary) q p {zf}
+searchLibraryFor q p = Search You (OneZone yourLibrary) q p {zf}
 
 public export
 searchZonesOf : (whose : Noun bs Player) -> (p : Predicate bs Object) ->
@@ -1411,11 +1274,6 @@ preventAllBy {bs} kind src scope d =
   Continuously {bs} (DamageRule kind (DealtBy src) scope (Prevent CutAll Nothing) Repeatedly) d {sp}
 
 public export
-shieldingIt : {k : Kind} -> (n : Noun bs k) ->
-              {auto 0 rk : DamageRecipient n} -> DamageScope bs
-shieldingIt n = ToRecipient n {rk}
-
-public export
 exileUntil : (n : Noun bs Object) ->
              (ev : GameEvent
                      (preIntro
@@ -1439,12 +1297,6 @@ phasesOutUntil : (n : Noun bs Object) ->
                  (ev : GameEvent (annIntro (SetStatus PhasedOut n {ok = zn} {at}))) ->
                  Effect bs
 phasesOutUntil n ev = HeldUntil (SetStatus PhasedOut n {ok = zn} {at}) ev {ok = Oh}
-
-public export
-insteadOf : (replaced : Effect bs) -> (repl : Effect (replacedCtx replaced)) ->
-            {auto 0 na : NotInstead replaced} ->
-            {auto 0 nb : NotInstead repl} -> Effect bs
-insteadOf replaced repl = InsteadOf replaced repl {na} {nb}
 
 
 public export
@@ -1508,7 +1360,7 @@ agentMovedRest : (bs : Bindings) -> (0 mn : countReach Bare ManyOf bs = 1) ->
 agentMovedRest bs mn z =
   moveIntro {bs} Nothing
     (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
-            (Them {ok = mn}) {gm = Oh})
+            (Pro Bare ManyOf {ok = mn}) {gm = Oh})
     (Just z)
 
 public export %inline
@@ -1551,7 +1403,7 @@ data LookReq : {bs : Bindings} -> (agent : Noun bs Player) ->
                         (lookedTop (Experimental.Phrase.agentIntro agent) amt) mn z)) Library} ->
     LookReq agent amt z
   TheirOneLookReq :
-    {auto 0 ny : So (not (nounIsYou agent))} ->
+    {auto 0 ny : nounIsYou agent = False} ->
     {auto 0 am : amt = Lit 1} ->
     {auto 0 an : countReach (Word PlayerW) OneOf
                     (Experimental.Phrase.agentIntro agent) = 1} ->
@@ -1564,7 +1416,7 @@ data LookReq : {bs : Bindings} -> (agent : Noun bs Player) ->
                       (agentLookedTop (Experimental.Phrase.agentIntro agent) an (Lit 1))) z} ->
     LookReq agent amt z
   TheirManyLookReq :
-    {auto 0 ny : So (not (nounIsYou agent))} ->
+    {auto 0 ny : nounIsYou agent = False} ->
     {auto 0 no : So (not (oneCardAmount amt))} ->
     {auto 0 an : countReach (Word PlayerW) OneOf
                     (Experimental.Phrase.agentIntro agent) = 1} ->
@@ -1582,90 +1434,48 @@ data LookReq : {bs : Bindings} -> (agent : Noun bs Player) ->
                     Library} ->
     LookReq agent amt z
 
-scryTheirOne : {bs : Bindings} -> (agent : Noun bs Player) ->
-               {0 an : countReach (Word PlayerW) OneOf (Experimental.Phrase.agentIntro agent) = 1} ->
-               {0 ap : countReach (Word PlayerW) OneOf
-                         (agentLookedTop (Experimental.Phrase.agentIntro agent) an (Lit 1)) = 1} ->
-               {0 iw : countReach (Word CardW) OneOf
-                         (agentLookedTop (Experimental.Phrase.agentIntro agent) an (Lit 1)) = 1} ->
-               {0 pi : Placeable
-                         (tyOfReach (Word CardW) OneOf
-                           (agentLookedTop
-                             (Experimental.Phrase.agentIntro agent) an (Lit 1))) Library} ->
-               Effect bs
-scryTheirOne {bs} agent {an} {ap} {iw} {pi} =
-  Enact (Just agent) "Scry" {kn = Oh}
-       (Sequentially
-          [ lookAtAgentsTop (Lit 1) {an}
-          , may (They {ok = ap})
-                (move (That CardW {ok = iw}) onBottomZ
-                      {ok = LibraryPosOk {af = Oh} {nf = Oh}}
-                      {arr = Oh} {pl = pi}) ])
-
-scryTheirMany : {bs : Bindings} -> (agent : Noun bs Player) ->
-                (amt : Amount (Experimental.Phrase.agentIntro agent)) ->
-                {0 an : countReach (Word PlayerW) OneOf (Experimental.Phrase.agentIntro agent) = 1} ->
-                {0 mn : countReach Bare ManyOf
-                          (agentLookedTop (Experimental.Phrase.agentIntro agent) an amt) = 1} ->
-                {0 ps : Placeable
-                          (tyOfReach Bare ManyOf
-                            (agentLookedTop
-                              (Experimental.Phrase.agentIntro agent) an amt)) Library} ->
-                {0 tr : So (theRestOk
-                             (agentMovedRest
-                               (agentLookedTop
-                                 (Experimental.Phrase.agentIntro agent) an amt) mn Library))} ->
-                {0 pr : Placeable
-                          (tyOfGroup
-                            (agentMovedRest
-                              (agentLookedTop
-                                (Experimental.Phrase.agentIntro agent) an amt) mn Library)) Library} ->
-                Effect bs
-scryTheirMany {bs} agent amt {an} {mn} {ps} {tr} {pr} =
-  Enact (Just agent) "Scry" {kn = Oh}
-       (Sequentially [ lookAtAgentsTop amt {an}
-                     , move (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
-                                    (Them {ok = mn}) {gm = Oh})
-                            (onBottomIn AnyOrder {af = Oh})
-                            {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = ps}
-                     , move (theRest {ok = tr})
-                            (onTopIn AnyOrder {af = Oh})
-                            {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
-
 public export
 scry : {bs : Bindings} -> (agent : Noun bs Player) ->
        (amt : Amount (Experimental.Phrase.agentIntro agent)) ->
        {auto req : LookReq agent amt Library} -> Effect bs
-scry {bs} _ _ {req = YourOneLookReq {ay = Refl} {iw} {pi}} =
-  Enact (Just You) "Scry" {kn = Oh}
+scry {bs} agent amt {req = YourOneLookReq {ay} {am} {iw} {pi}} =
+  Enact (Just agent) "Scry" {kn = Oh}
        (Sequentially
-          [ lookAt topCard
+          [ lookAt (topSlice (Lit 1))
           , may You
-                (move (That CardW {ok = iw}) onBottomZ
+                (move (That CardW OneOf {ok = iw}) onBottomZ
                       {ok = LibraryPosOk {af = Oh} {nf = Oh}}
                       {arr = Oh} {pl = pi}) ])
-scry {bs} _ amt {req = YourManyLookReq {ay = Refl} {mn} {ps} {tr} {pr}} =
-  Enact (Just You) "Scry" {kn = Oh}
-       (Sequentially [ lookAt (topSlice amt)
-                     , move (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
-                                    (Them {ok = mn}) {gm = Oh})
-                            (onBottomIn AnyOrder {af = Oh})
-                            {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = ps}
-                     , move (theRest {ok = tr})
-                            (onTopIn AnyOrder {af = Oh})
-                            {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
-scry agent@(Pro (Word PlayerW) _) _ {req = TheirOneLookReq {an} {ap} {iw} {pi}} = scryTheirOne agent {an} {ap} {iw} {pi}
-scry agent@(Pro (UnionHalf PlayerW) _) _ {req = TheirOneLookReq {an} {ap} {iw} {pi}} = scryTheirOne agent {an} {ap} {iw} {pi}
-scry agent@(Pro (Verbed _ PlayerW _) _) _ {req = TheirOneLookReq {an} {ap} {iw} {pi}} = scryTheirOne agent {an} {ap} {iw} {pi}
-scry agent@(Pro (Word PlayerW) _) amt {req = TheirManyLookReq {an} {mn} {ps} {tr} {pr}} = scryTheirMany agent amt {an} {mn} {ps} {tr} {pr}
-scry agent@(Pro (UnionHalf PlayerW) _) amt {req = TheirManyLookReq {an} {mn} {ps} {tr} {pr}} = scryTheirMany agent amt {an} {mn} {ps} {tr} {pr}
-scry agent@(Pro (Verbed _ PlayerW _) _) amt {req = TheirManyLookReq {an} {mn} {ps} {tr} {pr}} = scryTheirMany agent amt {an} {mn} {ps} {tr} {pr}
-scry agent@(AttachHost _ PlayerW) _ {req = TheirOneLookReq {an} {ap} {iw} {pi}} = scryTheirOne agent {an} {ap} {iw} {pi}
-scry agent@(AttachHost _ PlayerW) amt {req = TheirManyLookReq {an} {mn} {ps} {tr} {pr}} = scryTheirMany agent amt {an} {mn} {ps} {tr} {pr}
-scry agent _ {req = TheirOneLookReq {an} {ap} {iw} {pi}} =
-  scryTheirOne agent {an} {ap} {iw} {pi}
-scry agent amt {req = TheirManyLookReq {an} {mn} {ps} {tr} {pr}} =
-  scryTheirMany agent amt {an} {mn} {ps} {tr} {pr}
+scry {bs} agent amt {req = YourManyLookReq {ay} {no} {mn} {ps} {tr} {pr}} =
+  Enact (Just agent) "Scry" {kn = Oh}
+       (Sequentially
+          [ lookAt (topSlice amt)
+          , move (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
+                         (Pro Bare ManyOf {ok = mn}) {gm = Oh})
+                 (onBottomIn AnyOrder {af = Oh})
+                 {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = ps}
+          , move (theRest {ok = tr})
+                 (onTopIn AnyOrder {af = Oh})
+                 {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
+scry agent amt {req = TheirOneLookReq {ny} {am} {an} {ap} {iw} {pi}} =
+  Enact (Just agent) "Scry" {kn = Oh}
+       (Sequentially
+          [ lookAtAgentsTop (Lit 1) {an}
+          , may (They {ok = ap})
+                (move (That CardW OneOf {ok = iw}) onBottomZ
+                      {ok = LibraryPosOk {af = Oh} {nf = Oh}}
+                      {arr = Oh} {pl = pi}) ])
+scry agent amt {req = TheirManyLookReq {ny} {no} {an} {mn} {ps} {tr} {pr}} =
+  Enact (Just agent) "Scry" {kn = Oh}
+       (Sequentially
+          [ lookAtAgentsTop amt {an}
+          , move (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
+                         (Pro Bare ManyOf {ok = mn}) {gm = Oh})
+                 (onBottomIn AnyOrder {af = Oh})
+                 {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = ps}
+          , move (theRest {ok = tr})
+                 (onTopIn AnyOrder {af = Oh})
+                 {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
 
 ||| "fateseal N" [CR#701.29a]
 public export
@@ -1689,88 +1499,56 @@ fateseal : {bs : Bindings} ->
                          (agentLookedTop
                            (Experimental.Phrase.agentIntro (anOpponent {bs})) an amt) mn Library)) Library} ->
            Effect bs
-fateseal amt = scryTheirMany anOpponent amt {an} {mn} {ps} {tr} {pr}
-
-surveilTheirOne : {bs : Bindings} -> (agent : Noun bs Player) ->
-                  {0 an : countReach (Word PlayerW) OneOf (Experimental.Phrase.agentIntro agent) = 1} ->
-                  {0 ap : countReach (Word PlayerW) OneOf
-                            (agentLookedTop (Experimental.Phrase.agentIntro agent) an (Lit 1)) = 1} ->
-                  {0 iw : countReach (Word CardW) OneOf
-                            (agentLookedTop (Experimental.Phrase.agentIntro agent) an (Lit 1)) = 1} ->
-                  {0 pi : Placeable
-                            (tyOfReach (Word CardW) OneOf
-                              (agentLookedTop
-                                (Experimental.Phrase.agentIntro agent) an (Lit 1))) Graveyard} ->
-                  Effect bs
-surveilTheirOne {bs} agent {an} {ap} {iw} {pi} =
-  Enact (Just agent) "Surveil" {kn = Oh}
-       (Sequentially
-          [ lookAtAgentsTop (Lit 1) {an}
-          , may (They {ok = ap})
-                (move (That CardW {ok = iw}) graveyardZ
-                      {ok = GraveyardOkBare} {arr = Oh} {pl = pi}) ])
-
-surveilTheirMany : {bs : Bindings} -> (agent : Noun bs Player) ->
-                   (amt : Amount (Experimental.Phrase.agentIntro agent)) ->
-                   {0 an : countReach (Word PlayerW) OneOf (Experimental.Phrase.agentIntro agent) = 1} ->
-                   {0 mn : countReach Bare ManyOf
-                             (agentLookedTop (Experimental.Phrase.agentIntro agent) an amt) = 1} ->
-                   {0 ps : Placeable
-                             (tyOfReach Bare ManyOf
-                               (agentLookedTop
-                                 (Experimental.Phrase.agentIntro agent) an amt)) Graveyard} ->
-                   {0 tr : So (theRestOk
-                                (agentMovedRest
-                                  (agentLookedTop
-                                    (Experimental.Phrase.agentIntro agent) an amt) mn Graveyard))} ->
-                   {0 pr : Placeable
-                             (tyOfGroup
-                               (agentMovedRest
-                                 (agentLookedTop
-                                   (Experimental.Phrase.agentIntro agent) an amt) mn Graveyard)) Library} ->
-                   Effect bs
-surveilTheirMany {bs} agent amt {an} {mn} {ps} {tr} {pr} =
-  Enact (Just agent) "Surveil" {kn = Oh}
-       (Sequentially [ lookAtAgentsTop amt {an}
-                     , move (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
-                                    (Them {ok = mn}) {gm = Oh})
-                            graveyardZ {ok = GraveyardOkBare} {arr = Oh} {pl = ps}
-                     , move (theRest {ok = tr})
-                            (onTopIn AnyOrder {af = Oh})
-                            {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
+fateseal amt =
+  Enact (Just anOpponent) "Scry" {kn = Oh}
+        (Sequentially
+           [ lookAtAgentsTop amt {an}
+           , move (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
+                          (Pro Bare ManyOf {ok = mn}) {gm = Oh})
+                  (onBottomIn AnyOrder {af = Oh})
+                  {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = ps}
+           , move (theRest {ok = tr})
+                  (onTopIn AnyOrder {af = Oh})
+                  {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
 
 public export
 surveil : {bs : Bindings} -> (agent : Noun bs Player) ->
           (amt : Amount (Experimental.Phrase.agentIntro agent)) ->
           {auto req : LookReq agent amt Graveyard} -> Effect bs
-surveil {bs} _ _ {req = YourOneLookReq {ay = Refl} {iw} {pi}} =
-  Enact (Just You) "Surveil" {kn = Oh}
+surveil {bs} agent amt {req = YourOneLookReq {ay} {am} {iw} {pi}} =
+  Enact (Just agent) "Surveil" {kn = Oh}
        (Sequentially
-          [ lookAt topCard
+          [ lookAt (topSlice (Lit 1))
           , may You
-                (move (That CardW {ok = iw}) graveyardZ
+                (move (That CardW OneOf {ok = iw}) graveyardZ
                       {ok = GraveyardOkBare} {arr = Oh} {pl = pi}) ])
-surveil {bs} _ amt {req = YourManyLookReq {ay = Refl} {mn} {ps} {tr} {pr}} =
-  Enact (Just You) "Surveil" {kn = Oh}
-       (Sequentially [ lookAt (topSlice amt)
-                     , move (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
-                                    (Them {ok = mn}) {gm = Oh})
-                            graveyardZ {ok = GraveyardOkBare} {arr = Oh} {pl = ps}
-                     , move (theRest {ok = tr})
-                            (onTopIn AnyOrder {af = Oh})
-                            {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
-surveil agent@(Pro (Word PlayerW) _) _ {req = TheirOneLookReq {an} {ap} {iw} {pi}} = surveilTheirOne agent {an} {ap} {iw} {pi}
-surveil agent@(Pro (UnionHalf PlayerW) _) _ {req = TheirOneLookReq {an} {ap} {iw} {pi}} = surveilTheirOne agent {an} {ap} {iw} {pi}
-surveil agent@(Pro (Verbed _ PlayerW _) _) _ {req = TheirOneLookReq {an} {ap} {iw} {pi}} = surveilTheirOne agent {an} {ap} {iw} {pi}
-surveil agent@(Pro (Word PlayerW) _) amt {req = TheirManyLookReq {an} {mn} {ps} {tr} {pr}} = surveilTheirMany agent amt {an} {mn} {ps} {tr} {pr}
-surveil agent@(Pro (UnionHalf PlayerW) _) amt {req = TheirManyLookReq {an} {mn} {ps} {tr} {pr}} = surveilTheirMany agent amt {an} {mn} {ps} {tr} {pr}
-surveil agent@(Pro (Verbed _ PlayerW _) _) amt {req = TheirManyLookReq {an} {mn} {ps} {tr} {pr}} = surveilTheirMany agent amt {an} {mn} {ps} {tr} {pr}
-surveil agent@(AttachHost _ PlayerW) _ {req = TheirOneLookReq {an} {ap} {iw} {pi}} = surveilTheirOne agent {an} {ap} {iw} {pi}
-surveil agent@(AttachHost _ PlayerW) amt {req = TheirManyLookReq {an} {mn} {ps} {tr} {pr}} = surveilTheirMany agent amt {an} {mn} {ps} {tr} {pr}
-surveil agent _ {req = TheirOneLookReq {an} {ap} {iw} {pi}} =
-  surveilTheirOne agent {an} {ap} {iw} {pi}
-surveil agent amt {req = TheirManyLookReq {an} {mn} {ps} {tr} {pr}} =
-  surveilTheirMany agent amt {an} {mn} {ps} {tr} {pr}
+surveil {bs} agent amt {req = YourManyLookReq {ay} {no} {mn} {ps} {tr} {pr}} =
+  Enact (Just agent) "Surveil" {kn = Oh}
+       (Sequentially
+          [ lookAt (topSlice amt)
+          , move (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
+                         (Pro Bare ManyOf {ok = mn}) {gm = Oh})
+                 graveyardZ {ok = GraveyardOkBare} {arr = Oh} {pl = ps}
+          , move (theRest {ok = tr})
+                 (onTopIn AnyOrder {af = Oh})
+                 {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
+surveil agent amt {req = TheirOneLookReq {ny} {am} {an} {ap} {iw} {pi}} =
+  Enact (Just agent) "Surveil" {kn = Oh}
+       (Sequentially
+          [ lookAtAgentsTop (Lit 1) {an}
+          , may (They {ok = ap})
+                (move (That CardW OneOf {ok = iw}) graveyardZ
+                      {ok = GraveyardOkBare} {arr = Oh} {pl = pi}) ])
+surveil agent amt {req = TheirManyLookReq {ny} {no} {an} {mn} {ps} {tr} {pr}} =
+  Enact (Just agent) "Surveil" {kn = Oh}
+       (Sequentially
+          [ lookAtAgentsTop amt {an}
+          , move (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
+                         (Pro Bare ManyOf {ok = mn}) {gm = Oh})
+                 graveyardZ {ok = GraveyardOkBare} {arr = Oh} {pl = ps}
+          , move (theRest {ok = tr})
+                 (onTopIn AnyOrder {af = Oh})
+                 {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
 
 public export
 playerSearchesTheirLibraryFor : (who : Noun bs Player) ->
@@ -1795,7 +1573,7 @@ proliferate =
                             (kindJoin (Compare [AnyCounterAxis Player] AtLeast (Lit 1))
                                       (And [Permanent, HasCounters Nothing])))
                           Nothing Openly
-                      , PutCounters (Lit 1) OwnKinds (EachOf (Those JoinW {ok = mj})) ])
+                      , PutCounters (Lit 1) OwnKinds (EachOf (Pro (Word JoinW) ManyOf {ok = mj})) ])
 
 public export
 losesAllCounters : (who : Noun bs Player) ->
@@ -1944,14 +1722,6 @@ triggeredWhile word ev wh eff =
   Triggered word ev [] (Just wh) [] Nothing Nothing Nothing eff {hn} {hs} {ae} {cd}
 
 public export
-whileState : {0 bs : Bindings} -> Condition bs -> Concurrent bs
-whileState c = WhileTrue c
-
-public export
-whenState : {0 bs : Bindings} -> Condition bs -> GameEvent bs
-whenState c = StateHolds c
-
-public export
 triggeredJoined : {bs : Bindings} -> (word : TriggerWord) -> (ev : GameEvent bs) ->
                   (joins : List (JoinedHeader bs)) ->
                   (eff : Effect (joinedCtx joins (headerCtx (the (List (GameEvent bs)) []) ev))) ->
@@ -2049,32 +1819,9 @@ activatedOnlyOnceIf cost eff lim g =
   Activated cost eff Nothing (Just lim) (Just g) Nothing {tp} {py} {ul}
 
 public export
-fromZ : ZoneExpr bs -> Maybe (ZoneExpr bs)
-fromZ = Just
-
-public export
-free : PlayPayment bs
-free = WithoutPaying
-
-public export
-paying : (c : Cost bs) -> {auto 0 ok : So (costOffBattlefield c)} -> PlayPayment bs
-paying c = PayingInstead c {ok}
-
-public export
-onceEachYourTurn : Maybe PlayLimit
-onceEachYourTurn = Just OnceEachYourTurn
-
-public export
-duringEachYourTurn : Maybe PlayWindow
-duringEachYourTurn = Just DuringEachOfYourTurns
-
-public export
-whileSearching : Maybe PlayWindow
-whileSearching = Just WhileSearchingLibrary
-
-public export
 mayPlayDeed : (deed : VerbLabel) -> (who : Noun bs Player) ->
               (what : Noun (nomIntro who) Object) ->
+              (asThough : Maybe (AsThough (nomIntro who))) ->
               (rider : DeonticRider (nomIntro what)) ->
               {auto 0 kd : KnownActs [deed]} ->
               {auto 0 dd : So (distinctDeeds [deed])} ->
@@ -2082,14 +1829,16 @@ mayPlayDeed : (deed : VerbLabel) -> (who : Noun bs Player) ->
               {auto 0 pt : So (deonticPatientOk who [deed] Agent
                                                 (DeonticCounterpart what)
                                                 rider)} ->
+              {auto 0 at : So (asThoughOk (Permit {bs = selfSubjIntro who})
+                                           [deed] asThough)} ->
               {auto 0 rd : So (deonticRiderOk [deed] Agent
                                               (Permit {bs = selfSubjIntro who})
-                                              (DeonticCounterpart what) False
+                                              (DeonticCounterpart what) (isJust asThough)
                                               rider)} ->
               StaticEffect bs
-mayPlayDeed deed who what rider =
-  Deontic who Permit [deed] Agent Nothing (DeonticCounterpart what) Nothing rider
-          {kd} {dd} {dp} {pt} {rd}
+mayPlayDeed deed who what asThough rider =
+  Deontic who Permit [deed] Agent Nothing (DeonticCounterpart what) asThough rider
+          {kd} {dd} {dp} {pt} {at} {rd}
 
 public export
 leavesBattlefield : {0 bs : Bindings} -> (n : Noun bs Object) ->
@@ -2171,29 +1920,19 @@ tokensCreatedByEffectUnder n under =
   TokensCreated n True Nothing (Just under) {tk} {vo}
 
 public export
-manyCounterEvent : (dir : CounterMove) -> (kind : CounterKind) ->
-                   (n : Noun bs Object) ->
-                   {auto 0 sc : counterScope kind = Object} -> GameEvent bs
-manyCounterEvent dir kind n =
-  CounterEvent dir (Just kind) n ManyCounters Nothing False
+counterEvent : (dir : CounterMove) -> (kind : CounterKind) ->
+               (many : CounterBatch) -> (n : Noun bs Object) ->
+               {auto 0 sc : counterScope kind = Object} ->
+               {auto 0 ba : So (counterBatchOk many dir (Just kind))} -> GameEvent bs
+counterEvent dir kind many n =
+  CounterEvent dir (Just kind) n many Nothing False
 
 public export
-singleCounterEvent : (dir : CounterMove) -> (kind : CounterKind) ->
-                     (n : Noun bs Object) ->
-                     {auto 0 sc : counterScope kind = Object} -> GameEvent bs
-singleCounterEvent dir kind n =
-  CounterEvent dir (Just kind) n OneCounter Nothing False
-
-public export
-bareCounterEvent : {k : Kind} -> (dir : CounterMove) -> (n : Noun bs k) ->
+bareCounterEvent : {k : Kind} -> (dir : CounterMove) ->
+                   (many : CounterBatch) -> (n : Noun bs k) ->
+                   {auto 0 ba : So (counterBatchOk many dir Nothing)} ->
                    GameEvent bs
-bareCounterEvent dir n = CounterEvent dir Nothing n OneCounter Nothing False
-
-public export
-manyBareCounterEvent : {k : Kind} -> (dir : CounterMove) -> (n : Noun bs k) ->
-                       GameEvent bs
-manyBareCounterEvent dir n =
-  CounterEvent dir Nothing n ManyCounters Nothing False
+bareCounterEvent dir many n = CounterEvent dir Nothing n many Nothing False
 
 public export
 manyCountersPutByEffect : (n : Noun bs Object) -> GameEvent bs
@@ -2242,7 +1981,7 @@ exchangeControlOfThis t other =
   Simultaneously
     [ gainControl (controllerOf other {one}) (AsType t This Nothing {way}) Nothing
     , gainControl (controllerOf (AsType t This Nothing {way}))
-                  (That PermanentW {ok = pw}) Nothing {zn = zw} ]
+                  (That PermanentW OneOf {ok = pw}) Nothing {zn = zw} ]
 
 public export
 choose : {k : Kind} -> (n : Noun bs k) ->
@@ -2264,7 +2003,7 @@ public export
                (0 ac : countReach (Word (TypeW Creature)) OneOf (AmassCtx {bs}) = 1) -> Bindings
 AmassAfter n ac =
   effIntro (PutCounters {bs = AmassCtx {bs}} (Lit n) (PrintedKind plusOnePlusOne)
-                        (That (TypeW Creature) {ok = ac}))
+                        (That (TypeW Creature) OneOf {ok = ac}))
 
 ||| "amass [subtype] N" [CR#701.47a]
 public export
@@ -2273,15 +2012,15 @@ amass : {bs : Bindings} -> (sub : String) -> (n : Nat) ->
         {auto 0 ab : countReach Bare OneOf (AmassAfter {bs} n ac) = 1} ->
         Effect bs
 amass sub n =
-  Sequentially [ If (notSo (exists armyYouControl))
+  Sequentially [ If (NotCond (exists armyYouControl))
                     (create (Lit 1) (creatureTok 0 0 [Black]
                                        [creatureType sub, creatureType "Army"]))
                     Nothing
                , choose (Macros.a armyYouControl)
                , PutCounters (Lit n) (PrintedKind plusOnePlusOne)
-                             (That (TypeW Creature) {ok = ac})
+                             (That (TypeW Creature) OneOf {ok = ac})
                , If (itIsntA (HasSubtype (creatureType sub)) {ok = ab})
-                    (becomes (It {ok = ab}) (subtypesOnly [creatureType sub]) Nothing)
+                    (becomes (It OneOf {ok = ab}) (subtypesOnly [creatureType sub]) Nothing)
                     Nothing ]
 
 
@@ -2294,16 +2033,6 @@ public export
 secretlyChooses : {k : Kind} -> (who : Noun bs Player) -> (n : Noun bs k) ->
                   {auto 0 ch : ChoiceClause (Just who) n} -> Effect bs
 secretlyChooses who n = Choose n (Just who) Secretly {ch}
-
-public export
-itVerbed : (v : VerbLabel) -> {auto 0 kn : KnownAct v} ->
-           {auto 0 ok : countReach (Stamped v) OneOf bs = 1} -> Noun bs Object
-itVerbed v = ItVerbed v {kn} {ok}
-
-public export
-themVerbed : (v : VerbLabel) -> {auto 0 kn : KnownAct v} ->
-             {auto 0 ok : countReach (Stamped v) ManyOf bs = 1} -> Noun bs Object
-themVerbed v = ThemVerbed v {kn} {ok}
 
 takeDropAppend : {0 elem : Type} -> (n : Nat) -> (xs : List elem) ->
                  xs = take n xs ++ drop n xs
@@ -2330,30 +2059,6 @@ dealsDamageOwnPower : {bs : Bindings} -> {k : Kind} -> (src : Noun bs Object) ->
                       {auto 0 rk : DamageRecipient to} -> Effect bs
 dealsDamageOwnPower src to =
   DealDamage src (StatOf Power (Own OneOf (nounDelta src) bs {sp = Refl} {ok})) to {pm} {rk}
-
-public export
-theVerbed : (v : VerbLabel) -> (w : NounWord) ->
-            {auto 0 ok : countReach (Verbed v w Attributive) OneOf bs = 1} ->
-            {auto 0 mk : ActNamesParticiple v} -> Noun bs (kindOfW w)
-theVerbed v w = TheVerbed v w Attributive {ok} {mk}
-
-public export
-theVerbedThisWay : (v : VerbLabel) -> (w : NounWord) ->
-                   {auto 0 ok : countReach (Verbed v w ThisWay) OneOf bs = 1} ->
-                   {auto 0 mk : ActNamesParticiple v} -> Noun bs (kindOfW w)
-theVerbedThisWay v w = TheVerbed v w ThisWay {ok} {mk}
-
-public export
-thoseVerbed : (v : VerbLabel) -> (w : NounWord) ->
-              {auto 0 ok : countReach (Verbed v w Attributive) ManyOf bs = 1} ->
-              {auto 0 mk : ActNamesParticiple v} -> Noun bs (kindOfW w)
-thoseVerbed v w = ThoseVerbed v w Attributive {ok} {mk}
-
-public export
-thoseVerbedThisWay : (v : VerbLabel) -> (w : NounWord) ->
-                     {auto 0 ok : countReach (Verbed v w ThisWay) ManyOf bs = 1} ->
-                     {auto 0 mk : ActNamesParticiple v} -> Noun bs (kindOfW w)
-thoseVerbedThisWay v w = ThoseVerbed v w ThisWay {ok} {mk}
 
 public export
 additionalPart : (part : TurnPart) -> (anchor : Maybe TurnPart) ->
@@ -2557,18 +2262,6 @@ happenedAt : {k : Kind} -> (ev : EventName) -> (who : Noun bs k) ->
 happenedAt ev who w z = Happened ev who w (Just (AtZone z {ok = zo})) {cw} {sb}
 
 public export
-yours : HeaderPossessor bs
-yours = ByPlayer You
-
-public export
-eachPlayers : HeaderPossessor bs
-eachPlayers = ByPlayer (each AnyPlayer)
-
-public export
-eachOpponents : HeaderPossessor bs
-eachOpponents = ByPlayer (each Opponent)
-
-public export
 thatTurns : {auto 0 ok : countReach ThatTurn OneOf bs = 1} -> HeaderPossessor bs
 thatTurns = ByTurn (thatTurn {ok})
 
@@ -2590,7 +2283,7 @@ public export
 monstrosity : {bs : Bindings} -> (amt : Amount bs) ->
               Effect bs
 monstrosity amt =
-  If (notSo (Matches This (HasDesignation Monstrous)))
+  If (NotCond (Matches This (HasDesignation Monstrous)))
      (Sequentially [ PutCounters amt (PrintedKind plusOnePlusOne) thisCreature
                    , GainsDesignation thisCreature Monstrous
                                       (InExpansionOf MonstrosityW) Nothing ])
@@ -2607,13 +2300,6 @@ becomesSaddled =
   GainsDesignation (AsType Artifact This Nothing) Saddled (InExpansionOf SaddleW) (Just untilEndOfTurn)
 
 public export
-becomesRenowned : {bs : Bindings} -> (amt : Amount bs) -> Effect bs
-becomesRenowned amt =
-  Sequentially [ PutCounters amt (PrintedKind plusOnePlusOne) thisCreature
-               , GainsDesignation thisCreature Renowned
-                                  (InExpansionOf RenownW) Nothing ]
-
-public export
 getsEnduringStory : Effect bs
 getsEnduringStory =
   GainsDesignation You EnduringStory (InExpansionOf StoriedW) (Just RestOfGame)
@@ -2624,8 +2310,10 @@ renownExpansion : (n : Nat) -> AbilityAt []
 renownExpansion n =
   triggeredIf When
     (dealsCombatDamage thisCreature (a AnyPlayer))
-    (notSo (Matches thisCreature (HasDesignation Renowned)))
-    (becomesRenowned (Lit n))
+    (NotCond (Matches thisCreature (HasDesignation Renowned)))
+    (Sequentially [ PutCounters (Lit n) (PrintedKind plusOnePlusOne) thisCreature
+                  , GainsDesignation thisCreature Renowned
+                                     (InExpansionOf RenownW) Nothing ])
 
 public export
 renown : {0 bs : Bindings} -> (n : Nat) -> AbilityAt bs
@@ -2642,7 +2330,7 @@ stormExpansion =
            (eventCountInvolving SpellCast (a AnyPlayer) ThisTurn
               (a (And [spell, OtherThan thisSpell])))
            []
-       , may You (ChooseNewTargets (Those CopyW)) ])
+       , may You (ChooseNewTargets (Pro (Word CopyW) ManyOf)) ])
 
 public export
 storm : {0 bs : Bindings} -> AbilityAt bs
@@ -2654,7 +2342,7 @@ cumulativeUpkeepExpansion : (c : Cost []) ->
                             {auto 0 pb : Payable c} ->
                             {auto 0 py : CostPaidByYou c} -> AbilityAt []
 cumulativeUpkeepExpansion c =
-  triggeredIf At (BeginningOf ThePart Upkeep yours)
+  triggeredIf At (BeginningOf ThePart Upkeep (ByPlayer You))
     (Matches thisPermanent (InZone battlefieldZ))
     (Sequentially
        [ PutCounters (Lit 1) (PrintedKind (Named "Age")) thisPermanent
@@ -2716,10 +2404,6 @@ rollDice : (who : Noun bs Player) -> (count : Nat) -> (sides : Nat) ->
 rollDice who count sides = RollDice who (Lit count) (SidesOf sides {nz})
 
 public export
-theResult : {auto 0 ok : countOutcomes RollResult bs = 1} -> Amount bs
-theResult = TheOutcome RollResult {ok}
-
-public export
 rollRow : (results : Quantity bs) -> (e : Effect bs) ->
           {auto 0 nz : NonZeroQ results} ->
           {auto 0 wf : WellFormedQ results} ->
@@ -2752,14 +2436,6 @@ rollThePlanarDie : Effect bs
 rollThePlanarDie = RollPlanarDie You (Lit 1)
 
 public export
-orHigher : Nat -> Quantity bs
-orHigher lo = Range (Just lo) Nothing
-
-public export
-theTotal : {auto 0 ok : countOutcomes RollResult bs = 1} -> Amount bs
-theTotal = TheOutcome RollResult {ok}
-
-public export
 preventedThisWay : {auto 0 ok : countOutcomes DamagePrevented bs = 1} -> Amount bs
 preventedThisWay = TheOutcome DamagePrevented {ok}
 
@@ -2770,8 +2446,3 @@ removedThisWay = TheOutcome CountersRemoved {ok}
 public export
 shortOfCeiling : {auto 0 ok : countOutcomes CeilingShortfall bs = 1} -> Amount bs
 shortOfCeiling = TheOutcome CeilingShortfall {ok}
-
-public export
-coinsThatCameUp : (face : CoinFace) ->
-                  {auto 0 fl : So (coinFlipInScope bs)} -> Amount bs
-coinsThatCameUp face = CoinsShowing face {fl}

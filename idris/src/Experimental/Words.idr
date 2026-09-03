@@ -601,7 +601,6 @@ record ActFacts where
   constructor MkActFacts
   label : VerbLabel
   participle : Maybe String
-  actPatient : Maybe Kind
   actDest : Maybe Zone
   actStepwise : Bool
   actLoci : List Zone
@@ -614,156 +613,152 @@ record ActFacts where
   actRides : Bool
   actPlays : Bool
   actBounded : Bool
+  actForMana : Bool
 
 public export
 actFacts : List ActFacts
 actFacts =
-  [ MkActFacts "Destroy"     (Just "destroyed") (Just Object)
-      (Just Graveyard) False [] False
-      noRole (MkDeedRole [] [] False (Just Battlefield))
-      False False Nothing False False False
-  , MkActFacts "Sacrifice"   (Just "sacrificed") (Just Object)
-      (Just Graveyard) False [] False
+  [ MkActFacts "Destroy"     (Just "destroyed") (Just Graveyard) False [] False
+      noRole (MkDeedRole [Object] [] False (Just Battlefield))
+      False False Nothing False False False False
+  , MkActFacts "Sacrifice"   (Just "sacrificed") (Just Graveyard) False [] False
       (MkDeedRole [Player] [] True Nothing)
       (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment,
                             Planeswalker, Battle] True (Just Battlefield))
-      False False Nothing False False True
-  , MkActFacts "Exile"       (Just "exiled")    (Just Object)
-      (Just Exile) False [] False
+      False False Nothing False False True False
+  , MkActFacts "Exile"       (Just "exiled") (Just Exile) False [] False
+      noRole (MkDeedRole [Object] [] False Nothing)
+      False False Nothing False False False False
+  , MkActFacts "Discard"     (Just "discarded") (Just Graveyard) False [] False
+      noRole (MkDeedRole [Object] [] False (Just Hand))
+      False False Nothing False False False False
+  , MkActFacts "Mill"        (Just "milled") (Just Graveyard) False [] False
+      noRole (MkDeedRole [Object] [] False (Just Library))
+      False False Nothing False False False False
+  , MkActFacts "Scry"        Nothing Nothing True [] False
       noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Discard"     (Just "discarded") (Just Object)
-      (Just Graveyard) False [] False
-      noRole (MkDeedRole [] [] False (Just Hand))
-      False False Nothing False False False
-  , MkActFacts "Mill"        (Just "milled")    (Just Object)
-      (Just Graveyard) False [] False
-      noRole (MkDeedRole [] [] False (Just Library))
-      False False Nothing False False False
-  , MkActFacts "Scry"        Nothing Nothing Nothing True [] False
+      False False Nothing False False False False
+  , MkActFacts "Surveil"     Nothing Nothing True [] False
       noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Surveil"     Nothing Nothing Nothing True [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Tap"         (Just "tapped")    (Just Object) Nothing False [] False
-      noRole (MkDeedRole [] [] False (Just Battlefield))
-      False False Nothing False False False
-  , MkActFacts "Untap"       (Just "untapped")  (Just Object) Nothing False [] False
+      False False Nothing False False False False
+  , MkActFacts "Tap"         (Just "tapped") Nothing False [] False
+      noRole (MkDeedRole [Object] [] False (Just Battlefield))
+      False False Nothing False False False True
+  , MkActFacts "Untap"       (Just "untapped") Nothing False [] False
       (MkDeedRole [Player] [] True Nothing)
       (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment,
                             Planeswalker, Battle] True (Just Battlefield))
-      False False Nothing False False True
-  , MkActFacts "Return"      Nothing (Just Object) Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "GainControl" Nothing (Just Object) Nothing False [] False
-      noRole (MkDeedRole [] [] False (Just Battlefield))
-      False False Nothing False False False
-  , MkActFacts "Put"         Nothing (Just Object) Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Search"      Nothing Nothing Nothing False
+      False False Nothing False False True False
+  , MkActFacts "Return"      Nothing Nothing False [] False
+      noRole (MkDeedRole [Object] [] False Nothing)
+      False False Nothing False False False False
+  , MkActFacts "GainControl" Nothing Nothing False [] False
+      noRole (MkDeedRole [Object] [] False (Just Battlefield))
+      False False Nothing False False False False
+  , MkActFacts "Put"         Nothing Nothing False [] False
+      noRole (MkDeedRole [Object] [] False Nothing)
+      False False Nothing False False False False
+  , MkActFacts "Search"      Nothing Nothing False
       [Battlefield, Graveyard, Exile, Hand, Library, Stack, Command] False
       (MkDeedRole [Player] [] True Nothing) noRole
-      False False Nothing False False True
-  , MkActFacts "Shuffle"     Nothing Nothing Nothing False [Library] False
+      False False Nothing False False True False
+  , MkActFacts "Shuffle"     Nothing Nothing False [Library] False
       noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Proliferate" Nothing Nothing Nothing False [] False
+      False False Nothing False False False False
+  , MkActFacts "Proliferate" Nothing Nothing False [] False
       noRole noRole
-      False False Nothing False False False
-  , MkActFacts "The Ring Tempts You" Nothing Nothing Nothing False [] False
+      False False Nothing False False False False
+  , MkActFacts "The Ring Tempts You" Nothing Nothing False [] False
       noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Transform"   Nothing (Just Object) Nothing False [] True
+      False False Nothing False False False False
+  , MkActFacts "Transform"   Nothing Nothing False [] True
+      noRole (MkDeedRole [Object] [] False (Just Battlefield))
+      False False Nothing False False False False
+  , MkActFacts "Convert"     Nothing Nothing False [] True
+      noRole (MkDeedRole [Object] [] False (Just Battlefield))
+      False False Nothing False False False False
+  , MkActFacts "Meld"        Nothing (Just Battlefield) False [] False
+      noRole (MkDeedRole [Object] [] False Nothing)
+      False False Nothing False False False False
+  , MkActFacts "Unlock"      Nothing Nothing False [] False
       noRole (MkDeedRole [] [] False (Just Battlefield))
-      False False Nothing False False False
-  , MkActFacts "Convert"     Nothing (Just Object) Nothing False [] True
-      noRole (MkDeedRole [] [] False (Just Battlefield))
-      False False Nothing False False False
-  , MkActFacts "Meld"        Nothing (Just Object) (Just Battlefield) False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Unlock"      Nothing Nothing Nothing False [] False
-      noRole (MkDeedRole [] [] False (Just Battlefield))
-      False False Nothing False False False
-  , MkActFacts "Fully Unlock" Nothing (Just Object) Nothing False [] False
-      noRole (MkDeedRole [] [] False (Just Battlefield))
-      False False Nothing False False False
-  , MkActFacts "Attack"      Nothing Nothing Nothing False [] False
+      False False Nothing False False False False
+  , MkActFacts "Fully Unlock" Nothing Nothing False [] False
+      noRole (MkDeedRole [Object] [] False (Just Battlefield))
+      False False Nothing False False False False
+  , MkActFacts "Attack"      Nothing Nothing False [] False
       (MkDeedRole [Object] [Creature] True (Just Battlefield))
       (MkDeedRole [Object] [Planeswalker, Battle] False (Just Battlefield))
-      True False (Just ObjectPremise) False False True
-  , MkActFacts "Block"       Nothing Nothing Nothing False [] False
+      True False (Just ObjectPremise) False False True False
+  , MkActFacts "Block"       Nothing Nothing False [] False
       (MkDeedRole [Object] [Creature] True (Just Battlefield))
       (MkDeedRole [Object] [Creature] False (Just Battlefield))
-      False False (Just ObjectPremise) False False True
-  , MkActFacts "Target"      Nothing Nothing Nothing False [] False
+      False False (Just ObjectPremise) False False True False
+  , MkActFacts "Target"      Nothing Nothing False [] False
       (MkDeedRole [] [] True (Just Stack))
       (MkDeedRole [Object, Player] [Creature, Artifact, Land, Enchantment, Instant, Sorcery,
                    Planeswalker, Battle, Kindred] True Nothing)
-      False True (Just ObjectPremise) False False True
-  , MkActFacts "Cast"        Nothing Nothing Nothing False [] False
+      False True (Just ObjectPremise) False False True False
+  , MkActFacts "Cast"        Nothing Nothing False [] False
       (MkDeedRole [Player] [] True Nothing)
       (MkDeedRole [Object] [Creature, Artifact, Enchantment, Instant, Sorcery,
                    Planeswalker, Battle, Kindred] True (Just Stack))
-      False False (Just ObjectPremise) True True True
-  , MkActFacts "Play"        Nothing Nothing Nothing False [] False
+      False False (Just ObjectPremise) True True True False
+  , MkActFacts "Play"        Nothing Nothing False [] False
       (MkDeedRole [Player] [] True Nothing)
       (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment, Instant, Sorcery,
                    Planeswalker, Battle, Kindred] True Nothing)
-      False False (Just ObjectPremise) True True True
-  , MkActFacts "Counter"     Nothing Nothing Nothing False [] False
+      False False (Just ObjectPremise) True True True False
+  , MkActFacts "Counter"     Nothing Nothing False [] False
       (MkDeedRole [] [] True (Just Stack))
       (MkDeedRole [Object] [Creature, Artifact, Enchantment, Instant, Sorcery,
                    Planeswalker, Battle, Kindred] True (Just Stack))
-      False False Nothing True False False
-  , MkActFacts "Copy"        Nothing Nothing Nothing False [] False
+      False False Nothing True False False False
+  , MkActFacts "Copy"        Nothing Nothing False [] False
       (MkDeedRole [] [] True (Just Stack))
       (MkDeedRole [Object] [Creature, Artifact, Enchantment, Instant, Sorcery,
                    Planeswalker, Battle, Kindred] True (Just Stack))
-      False False Nothing False False True
-  , MkActFacts "Activate"    Nothing Nothing Nothing False [] False
+      False False Nothing False False True False
+  , MkActFacts "Activate"    Nothing Nothing False [] False
       (MkDeedRole [Player] [] True Nothing)
       (MkDeedRole [Ability] [] True Nothing)
-      False False Nothing False False True
-  , MkActFacts "Regenerate"  Nothing Nothing Nothing False [] False
+      False False Nothing False False True False
+  , MkActFacts "Regenerate"  Nothing Nothing False [] False
       (MkDeedRole [] [] True Nothing)
       (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment,
                             Planeswalker, Battle] True (Just Battlefield))
-      False False Nothing True False True
-  , MkActFacts "GainLife"    Nothing Nothing Nothing False [] False
+      False False Nothing True False True False
+  , MkActFacts "GainLife"    Nothing Nothing False [] False
       (MkDeedRole [Player] [] True Nothing) noRole
-      False False Nothing False False True
-  , MkActFacts "DrawCard"    Nothing Nothing Nothing False [] False
+      False False Nothing False False True False
+  , MkActFacts "Draw"        Nothing Nothing False [] False
       (MkDeedRole [Player] [] True Nothing)
       (MkDeedRole [Object] [] True (Just Library))
-      False False Nothing False False True
-  , MkActFacts "Trigger"     Nothing Nothing Nothing False [] False
+      False False Nothing False False True False
+  , MkActFacts "Trigger"     Nothing Nothing False [] False
       (MkDeedRole [Ability] [] True Nothing) noRole
-      False False Nothing False False True
-  , MkActFacts "LoseGame"    Nothing Nothing Nothing False [] False
+      False False Nothing False False True False
+  , MkActFacts "LoseGame"    Nothing Nothing False [] False
       (MkDeedRole [Player] [] True Nothing) noRole
-      False False Nothing False False False
-  , MkActFacts "WinGame"     Nothing Nothing Nothing False [] False
+      False False Nothing False False False False
+  , MkActFacts "WinGame"     Nothing Nothing False [] False
       (MkDeedRole [Player] [] True Nothing) noRole
-      False False Nothing False False False
-  , MkActFacts "Spend"       Nothing Nothing Nothing False [] False
+      False False Nothing False False False False
+  , MkActFacts "Spend"       Nothing Nothing False [] False
       (MkDeedRole [Player] [] True Nothing) noRole
-      False False (Just ManaPremise) False False True
-  , MkActFacts "Crew"        Nothing Nothing Nothing False [] False
+      False False (Just ManaPremise) False False True False
+  , MkActFacts "Crew"        Nothing Nothing False [] False
       (MkDeedRole [Object] [Creature] True (Just Battlefield))
       (MkDeedRole [Object] [Artifact] True (Just Battlefield))
-      False False (Just ValuePremise) False False True
-  , MkActFacts "Saddle"      Nothing Nothing Nothing False [] False
+      False False (Just ValuePremise) False False True False
+  , MkActFacts "Saddle"      Nothing Nothing False [] False
       (MkDeedRole [Object] [Creature] True (Just Battlefield))
       (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment,
                             Planeswalker, Battle] True (Just Battlefield))
-      False False (Just ValuePremise) False False True
-  , MkActFacts "Vote"        Nothing Nothing Nothing False [] False
+      False False (Just ValuePremise) False False True False
+  , MkActFacts "Vote"        Nothing Nothing False [] False
       (MkDeedRole [Player] [] True Nothing) noRole
-      False False Nothing False False True
+      False False Nothing False False True False
   ]
 
 public export
@@ -798,12 +793,12 @@ participleOf : VerbLabel -> Maybe String
 participleOf v = actFactsFor v >>= participle
 
 public export
-actPatientOf : VerbLabel -> Maybe Kind
-actPatientOf v = actFactsFor v >>= actPatient
+actPatientKindsOf : VerbLabel -> List Kind
+actPatientKindsOf v = maybe [] (roleKinds . patientRole) (actFactsFor v)
 
 public export
 actNamesPatient : VerbLabel -> Bool
-actNamesPatient v = isJust (actPatientOf v)
+actNamesPatient v = not (null (actPatientKindsOf v))
 
 public export
 actZoneOf : VerbLabel -> Maybe Zone
@@ -2103,7 +2098,7 @@ Eq StackRegime where
 
 public export
 record KeywordFacts where
-  constructor MkKeywordFacts
+  constructor MkKeywordFactsRow
   word : KeywordLabel
   paramShape : KeywordParamShape
   counterEligible : Bool
@@ -2114,6 +2109,19 @@ record KeywordFacts where
   paidCost : Bool
   ||| Defined by the CR as a triggered ability with a quoted expansion [CR#702.21a,702.24a,702.30a,702.40a,702.45a,702.86a,702.112a,702.135a].
   bodied : Bool
+  wantsModes : Bool
+
+public export
+MkKeywordFacts : KeywordLabel -> KeywordParamShape -> Bool -> Maybe StackRegime ->
+                 Bool -> Bool -> Bool -> Bool -> Bool -> KeywordFacts
+MkKeywordFacts w p c r permanent spell command paid body =
+  MkKeywordFactsRow w p c r permanent spell command paid body False
+
+public export
+MkModesKeywordFacts : KeywordLabel -> KeywordParamShape -> Bool -> Maybe StackRegime ->
+                      Bool -> Bool -> Bool -> Bool -> Bool -> KeywordFacts
+MkModesKeywordFacts w p c r permanent spell command paid body =
+  MkKeywordFactsRow w p c r permanent spell command paid body True
 
 public export
 keywordFacts : List KeywordFacts
@@ -2185,8 +2193,8 @@ keywordFacts =
   , MkKeywordFacts "Mayhem"           CostParam    False Nothing             True  True  False True  False
   , MkKeywordFacts "Disturb"          CostParam    False Nothing             True  True  False True  False
   , MkKeywordFacts "Morph"            CostParam    False Nothing             True  True  False True  False
-  , MkKeywordFacts "Entwine"          CostParam    False (Just AtCasting)    True  True  False True  False
-  , MkKeywordFacts "Escalate"         CostParam    False (Just AtCasting)    True  True  False True  False
+  , MkModesKeywordFacts "Entwine"     CostParam    False (Just AtCasting)    True  True  False True  False
+  , MkModesKeywordFacts "Escalate"    CostParam    False (Just AtCasting)    True  True  False True  False
   , MkKeywordFacts "Fuse"             NoParam      False (Just AtCasting)    False True  False False False
   , MkKeywordFacts "Escape"           CostParam    False Nothing             True  True  False True  False
   , MkKeywordFacts "Foretell"         CostParam    False Nothing             True  True  False True  False
@@ -2357,11 +2365,14 @@ PaidCostNamed : PaidCostName -> Type
 PaidCostNamed n = So (paidCostNamed n)
 
 public export
-paidCostAgrees :
-  So (all (\f => knownKeyword (word f) &&
-                 paidCostNamed (ByKeyword (word f)) == paidCost f)
-          Experimental.Words.keywordFacts)
-paidCostAgrees = Oh
+distinctKeywordWords : List KeywordFacts -> Bool
+distinctKeywordWords [] = True
+distinctKeywordWords (f :: fs) =
+  not (elem (word f) (map word fs)) && distinctKeywordWords fs
+
+export
+keywordWordsDistinct : So (distinctKeywordWords Experimental.Words.keywordFacts)
+keywordWordsDistinct = Oh
 
 public export
 data AbilityClass : Type where
@@ -2766,23 +2777,35 @@ public export
 data DesignationScope = HeldBy Kind | HeldByCard | HeldByGame
 
 public export
+record DesignationFacts where
+  constructor MkDesignationFacts
+  designationFactScope : DesignationScope
+  designationEffectful : Bool
+  designationFactZone : Maybe Zone
+  designationFactType : Maybe CardType
+
+public export
+designationFacts : Designation -> DesignationFacts
+designationFacts Monarch = MkDesignationFacts (HeldBy Player) True Nothing Nothing
+designationFacts TheInitiative = MkDesignationFacts (HeldBy Player) True Nothing Nothing
+designationFacts CitysBlessing = MkDesignationFacts (HeldBy Player) True Nothing Nothing
+designationFacts EnduringStory = MkDesignationFacts (HeldBy Player) True Nothing Nothing
+designationFacts Goaded = MkDesignationFacts (HeldBy Object) True (Just Battlefield) (Just Creature)
+designationFacts RingBearer = MkDesignationFacts (HeldBy Object) True (Just Battlefield) (Just Creature)
+designationFacts Monstrous = MkDesignationFacts (HeldBy Object) True (Just Battlefield) (Just Creature)
+designationFacts Renowned = MkDesignationFacts (HeldBy Object) True (Just Battlefield) (Just Creature)
+designationFacts Suspected = MkDesignationFacts (HeldBy Object) True (Just Battlefield) (Just Creature)
+designationFacts Saddled = MkDesignationFacts (HeldBy Object) True (Just Battlefield) Nothing
+designationFacts Prepared = MkDesignationFacts (HeldBy Object) True (Just Battlefield) (Just Creature)
+designationFacts LeftHalfUnlocked = MkDesignationFacts (HeldBy Object) True (Just Battlefield) Nothing
+designationFacts RightHalfUnlocked = MkDesignationFacts (HeldBy Object) True (Just Battlefield) Nothing
+designationFacts CommanderD = MkDesignationFacts HeldByCard False Nothing Nothing
+designationFacts Day = MkDesignationFacts HeldByGame True Nothing Nothing
+designationFacts Night = MkDesignationFacts HeldByGame True Nothing Nothing
+
+public export
 designationScope : Designation -> DesignationScope
-designationScope Monarch = HeldBy Player
-designationScope TheInitiative = HeldBy Player
-designationScope CitysBlessing = HeldBy Player
-designationScope EnduringStory = HeldBy Player
-designationScope Goaded = HeldBy Object
-designationScope RingBearer = HeldBy Object
-designationScope Monstrous = HeldBy Object
-designationScope Renowned = HeldBy Object
-designationScope Suspected = HeldBy Object
-designationScope Saddled = HeldBy Object
-designationScope Prepared = HeldBy Object
-designationScope LeftHalfUnlocked = HeldBy Object
-designationScope RightHalfUnlocked = HeldBy Object
-designationScope CommanderD = HeldByCard
-designationScope Day = HeldByGame
-designationScope Night = HeldByGame
+designationScope d = designationFactScope (designationFacts d)
 
 public export
 designationIx : Designation -> Nat
@@ -2844,41 +2867,11 @@ Eq LockState where
 
 public export
 designationChecked : Designation -> Bool
-designationChecked Monarch = True
-designationChecked TheInitiative = True
-designationChecked CitysBlessing = True
-designationChecked EnduringStory = True
-designationChecked Goaded = True
-designationChecked RingBearer = True
-designationChecked Monstrous = True
-designationChecked Renowned = True
-designationChecked Suspected = True
-designationChecked Saddled = True
-designationChecked Prepared = True
-designationChecked LeftHalfUnlocked = True
-designationChecked RightHalfUnlocked = True
-designationChecked CommanderD = False
-designationChecked Day = True
-designationChecked Night = True
+designationChecked d = designationEffectful (designationFacts d)
 
 public export
 designationGiven : Designation -> Bool
-designationGiven Monarch = True
-designationGiven TheInitiative = True
-designationGiven CitysBlessing = True
-designationGiven EnduringStory = True
-designationGiven Goaded = True
-designationGiven RingBearer = True
-designationGiven Monstrous = True
-designationGiven Renowned = True
-designationGiven Suspected = True
-designationGiven Saddled = True
-designationGiven Prepared = True
-designationGiven LeftHalfUnlocked = True
-designationGiven RightHalfUnlocked = True
-designationGiven CommanderD = False
-designationGiven Day = True
-designationGiven Night = True
+designationGiven = designationChecked
 
 public export
 data ConferringWord = MonstrosityW | SaddleW | AscendW | StoriedW | RenownW
@@ -2898,41 +2891,11 @@ data GivingWarrant : Designation -> Type where
 
 public export
 designationSeedZone : Designation -> Maybe Zone
-designationSeedZone Monarch = Nothing
-designationSeedZone TheInitiative = Nothing
-designationSeedZone CitysBlessing = Nothing
-designationSeedZone EnduringStory = Nothing
-designationSeedZone Goaded = Just Battlefield
-designationSeedZone RingBearer = Just Battlefield
-designationSeedZone Monstrous = Just Battlefield
-designationSeedZone Renowned = Just Battlefield
-designationSeedZone Suspected = Just Battlefield
-designationSeedZone Saddled = Just Battlefield
-designationSeedZone Prepared = Just Battlefield
-designationSeedZone LeftHalfUnlocked = Just Battlefield
-designationSeedZone RightHalfUnlocked = Just Battlefield
-designationSeedZone CommanderD = Nothing
-designationSeedZone Day = Nothing
-designationSeedZone Night = Nothing
+designationSeedZone d = designationFactZone (designationFacts d)
 
 public export
 designationSeedType : Designation -> Maybe CardType
-designationSeedType Monarch = Nothing
-designationSeedType TheInitiative = Nothing
-designationSeedType CitysBlessing = Nothing
-designationSeedType EnduringStory = Nothing
-designationSeedType Goaded = Just Creature
-designationSeedType RingBearer = Just Creature
-designationSeedType Monstrous = Just Creature
-designationSeedType Renowned = Just Creature
-designationSeedType Suspected = Just Creature
-designationSeedType Saddled = Nothing
-designationSeedType Prepared = Just Creature
-designationSeedType LeftHalfUnlocked = Nothing
-designationSeedType RightHalfUnlocked = Nothing
-designationSeedType CommanderD = Nothing
-designationSeedType Day = Nothing
-designationSeedType Night = Nothing
+designationSeedType d = designationFactType (designationFacts d)
 
 public export
 designationHolder : Designation -> Maybe Kind

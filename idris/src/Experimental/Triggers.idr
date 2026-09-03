@@ -139,8 +139,8 @@ mutual
   public export
   verbPatientOk : {0 bs : Bindings} -> (v : VerbLabel) ->
                   Maybe (Noun bs Object) -> Bool
-  verbPatientOk v Nothing = isNothing (actPatientOf v)
-  verbPatientOk v (Just _) = actPatientOf v == Just Object
+  verbPatientOk v Nothing = null (actPatientKindsOf v)
+  verbPatientOk v (Just _) = elem Object (actPatientKindsOf v)
 
   public export
   verbBecomesOk : {0 bs : Bindings} -> (v : VerbLabel) ->

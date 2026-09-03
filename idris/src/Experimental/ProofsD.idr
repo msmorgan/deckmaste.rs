@@ -20,7 +20,7 @@ badExiledWithAttacking Oh impossible
 public export
 badSpellAbilityOnPermanent : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Creature])
-       [Spell (Macros.draw You (Lit 1))] (Just (1, 1)) {fl = ok})
+       [Spell (Draw You (Lit 1))] (Just (1, 1)) {fl = ok})
 badSpellAbilityOnPermanent MkFaceLaws impossible
 
 
@@ -44,7 +44,7 @@ badKeywordOnInstant MkFaceLaws impossible
 public export
 badTapSorcery : Unspellable Card (\ok =>
   Macros.card "Impossible Tap Sorcery" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Sorcery])
-       [Activated TapSymbol (Macros.draw You (Lit 1)) Nothing Nothing Nothing Nothing] Nothing {fl = ok})
+       [Activated TapSymbol (Draw You (Lit 1)) Nothing Nothing Nothing Nothing] Nothing {fl = ok})
 badTapSorcery MkFaceLaws impossible
 
 
@@ -95,21 +95,21 @@ badCardDuplicateType (MkFaceLaws {ln = MkCardLine}) impossible
 ||| "Target creature gains a spell ability."
 public export
 badGainsSpellAbility : Unspellable (Effect []) (\ok =>
-  Macros.gains (Macros.target Macros.creature) (Spell (Macros.draw You (Lit 1))) Nothing {gr = ok})
+  Macros.gains (Macros.target Macros.creature) (Spell (Draw You (Lit 1))) Nothing {gr = ok})
 badGainsSpellAbility Oh impossible
 
 
 ||| "Counter target creature."
 public export
 badCounterPermanent : Unspellable (Effect []) (\ok =>
-  Macros.counterSpell (Macros.target Macros.creature) {ct = ok})
+  CounterSpell (Macros.target Macros.creature) {ct = ok})
 badCounterPermanent StackSpell impossible
 
 
 ||| "Counter target creature or player."
 public export
 badCounterJoinedPlayer : Unspellable (Effect []) (\ok =>
-  Macros.counterSpell (Macros.target Macros.anyTarget) {ct = ok})
+  CounterSpell (Macros.target Macros.anyTarget) {ct = ok})
 badCounterJoinedPlayer StackJoin impossible
 
 
@@ -119,7 +119,7 @@ badPlayFromStack : Unspellable (Effect []) (\ok =>
   Continuously {ts = StaticFirstDone} (Deontic You Permit ["Play"] Agent Nothing
                   (DeonticCounterpart (Macros.a Macros.spell)) Nothing
                   (PlayRider Nothing Nothing Nothing False ItsOwnCost) {rd = ok})
-               (Just Macros.thisTurn))
+               (Just ThisTurn))
 badPlayFromStack Oh impossible
 
 
@@ -131,7 +131,7 @@ badCastALand : Unspellable (Effect []) (\ok =>
                      (Macros.a (And [Macros.land, InZone (Macros.graveyardOf You)])))
                   Nothing (PlayRider Nothing Nothing Nothing False ItsOwnCost)
                   {pt = ok})
-               (Just Macros.thisTurn))
+               (Just ThisTurn))
 badCastALand Oh impossible
 
 
@@ -145,14 +145,14 @@ badPlayFromWrongZone : Unspellable (Effect []) (\ok =>
                   (PlayRider (Just (Macros.graveyardOf You)) Nothing Nothing
                              False ItsOwnCost)
                   {rd = ok})
-               (Just Macros.thisTurn))
+               (Just ThisTurn))
 badPlayFromWrongZone Oh impossible
 
 
 ||| "Put target creature onto the stack."
 public export
 badMoveToStack : Unspellable (Effect []) (\ok =>
-  Move (Macros.target Macros.creature) Macros.stackZ [] {ok})
+  Move (Macros.target Macros.creature) (ZoneAt Stack Bare) [] {ok})
 badMoveToStack BattlefieldOk impossible
 
 
@@ -175,7 +175,7 @@ badUnlessOnPositive MkMarkingOk impossible
 ||| a trigger header watching a permanent become unflipped
 public export
 badUnflipEvent : Unspellable Ability (\ok =>
-  Triggered Whenever (StatusEvent (Macros.a Permanent) Unflipped {at = ok}) [] Nothing [] Nothing Nothing Nothing (Macros.draw You (Lit 1)))
+  Triggered Whenever (StatusEvent (Macros.a Permanent) Unflipped {at = ok}) [] Nothing [] Nothing Nothing Nothing (Draw You (Lit 1)))
 badUnflipEvent Oh impossible
 
 
@@ -183,7 +183,7 @@ public export
 turnedFaceDownHeader : Ability
 turnedFaceDownHeader =
   Triggered Whenever (StatusEvent (Macros.a Permanent) FaceDown)
-            [] Nothing [] Nothing Nothing Nothing (Macros.draw You (Lit 1))
+            [] Nothing [] Nothing Nothing Nothing (Draw You (Lit 1))
 
 
 
@@ -198,7 +198,7 @@ public export
 badUntapNextAmbiguousIt : Unspellable (Effect []) (\ok =>
   Sequentially [SetStatus Tapped (Macros.target Macros.creature),
                 SetStatus Tapped (Macros.target Macros.artifact),
-                DoesntUntapNext (It {ok = ok}) (Lit 1)])
+                DoesntUntapNext ((Macros.It OneOf) {ok = ok}) (Lit 1)])
 badUntapNextAmbiguousIt Refl impossible
 
 
@@ -281,28 +281,28 @@ badCountersHeldByPlayer Refl impossible
 ||| "When the last poison counter is removed from this creature, draw a card."
 public export
 badLastPoisonCounterRemoved : Unspellable Ability (\ok =>
-  Triggered When (Macros.lastCounterRemoved (Named "Poison") Macros.thisCreature {sc = ok}) [] Nothing [] Nothing Nothing Nothing (Macros.draw You (Lit 1)))
+  Triggered When (Macros.lastCounterRemoved (Named "Poison") Macros.thisCreature {sc = ok}) [] Nothing [] Nothing Nothing Nothing (Draw You (Lit 1)))
 badLastPoisonCounterRemoved Refl impossible
 
 
 public export
 badExileCheckOnSortedSelf : Unspellable Ability (\ok =>
   Triggered When (Macros.lastCounterRemoved (Named "Time") Macros.thisCreature) [] Nothing [] Nothing Nothing (Just (Matches Macros.thisCreature (InZone Macros.exileZ)
-                                         {zc = ok})) (Macros.draw You (Lit 1)))
+                                         {zc = ok})) (Draw You (Lit 1)))
 badExileCheckOnSortedSelf Oh impossible
 
 
 ||| "When this creature enters, if you died this turn, draw a card."
 public export
 badLookbackPlayerDied : Unspellable Ability (\ok =>
-  Triggered When (Enters Macros.thisCreature Nothing) [] Nothing [] Nothing Nothing (Just (Happened Death You Lookback.ThisTurn Nothing {sb = ok})) (Macros.draw You (Lit 1)))
+  Triggered When (Enters Macros.thisCreature Nothing) [] Nothing [] Nothing Nothing (Just (Happened Death You Lookback.ThisTurn Nothing {sb = ok})) (Draw You (Lit 1)))
 badLookbackPlayerDied MkLookbackSubject impossible
 
 
 public export
 badLookbackObjectCast : Unspellable Ability (\ok =>
   Triggered When (Enters Macros.thisCreature Nothing) [] Nothing [] Nothing Nothing (Just (Happened SpellCast (Macros.a Macros.creature)
-                                          Lookback.ThisTurn Nothing {sb = ok})) (Macros.draw You (Lit 1)))
+                                          Lookback.ThisTurn Nothing {sb = ok})) (Draw You (Lit 1)))
 badLookbackObjectCast MkLookbackSubject impossible
 
 
@@ -337,14 +337,14 @@ badColorlessWhite Oh impossible
 ||| "{2}: Draw a card. Activate only during all players' end step." [CR#102.1]
 public export
 badPluralPartWindow : Unspellable Ability (\ok =>
-  Activated (Mana [Macros.generic 2]) (Macros.draw You (Lit 1)) (Just (DuringPart EndStep (Just (Macros.allOf AnyPlayer)) {wk = ok})) Nothing Nothing Nothing)
+  Activated (Mana [Macros.generic 2]) (Draw You (Lit 1)) (Just (DuringPart EndStep (Just (Macros.allOf AnyPlayer)) {wk = ok})) Nothing Nothing Nothing)
 badPluralPartWindow Oh impossible
 
 
 ||| "{2}: Draw a card. Activate only before all players' attackers are declared." [CR#102.1]
 public export
 badPluralAttackWindow : Unspellable Ability (\ok =>
-  Activated (Mana [Macros.generic 2]) (Macros.draw You (Lit 1)) (Just (BeforeAttackersDeclared (Just (Macros.allOf AnyPlayer)) {pk = ok})) Nothing Nothing Nothing)
+  Activated (Mana [Macros.generic 2]) (Draw You (Lit 1)) (Just (BeforeAttackersDeclared (Just (Macros.allOf AnyPlayer)) {pk = ok})) Nothing Nothing Nothing)
 badPluralAttackWindow Oh impossible
 
 
@@ -352,7 +352,7 @@ badPluralAttackWindow Oh impossible
 public export
 badMustAttackLand : Unspellable (Effect []) (\ok =>
   Continuously {ts = StaticFirstDone} (Macros.deontic (Macros.target Macros.land) Require ["Attack"] Agent NoDeonticPatient {dp = ok})
-               (Just Macros.thisTurn))
+               (Just ThisTurn))
 badMustAttackLand Oh impossible
 
 
@@ -367,7 +367,7 @@ badRingBearerInGraveyard Oh impossible
 public export
 badThatCreatureIsSelf : Unspellable Ability (\ok =>
   Triggered Whenever (Attacks Macros.thisCreature NoDefender) [] Nothing [] Nothing Nothing Nothing
-            (Macros.gets (That (TypeW Creature) {ok = Builtin.fst ok}) (PtUp (Lit 2)) (PtUp (Lit 0))
+            (Macros.gets (Macros.That (TypeW Creature) OneOf {ok = Builtin.fst ok}) (PtUp (Lit 2)) (PtUp (Lit 0))
                          {ok = Builtin.snd ok} (Just Macros.untilEndOfTurn)))
 badThatCreatureIsSelf (Refl, _) impossible
 
@@ -377,7 +377,7 @@ public export
 badForbidAttackWithPatient : Unspellable (Effect []) (\ok =>
   Continuously {ts = StaticFirstDone} (Macros.deontic Macros.thisCreature Forbid ["Attack"] Agent
                         (DeonticCounterpart (Macros.target Macros.creature)) {pt = ok})
-               (Just Macros.thisTurn))
+               (Just ThisTurn))
 badForbidAttackWithPatient Oh impossible
 
 
@@ -385,8 +385,8 @@ badForbidAttackWithPatient Oh impossible
 public export
 badBlocksItself : Unspellable (Effect []) (\ok =>
   Continuously {ts = StaticFirstDone} (Macros.deontic (Macros.target Macros.creature) Require ["Block"] Agent
-                               (DeonticCounterpart It) {pt = ok})
-               (Just Macros.thisTurn))
+                               (DeonticCounterpart ((Macros.It OneOf))) {pt = ok})
+               (Just ThisTurn))
 badBlocksItself Oh impossible
 
 
@@ -394,7 +394,7 @@ badBlocksItself Oh impossible
 public export
 badThatCreatureIsCondSubject : Unspellable Ability (\ok =>
   Static (Macros.asLongAs (Matches Macros.thisCreature Attacking)
-                          (Gets Adds (That (TypeW Creature) {ok = Builtin.fst ok}) (PtUp (Lit 2)) (PtUp (Lit 0))
+                          (Gets Adds (Macros.That (TypeW Creature) OneOf {ok = Builtin.fst ok}) (PtUp (Lit 2)) (PtUp (Lit 0))
                                 {ok = Builtin.snd ok})))
 badThatCreatureIsCondSubject (Refl, _) impossible
 

@@ -53,12 +53,13 @@ keywordCardOk CommandZoneCard k = maybe False onCommandZoneCard (keywordFactsFor
 
 public export
 staticOnSpellCardOk : {0 bs : Bindings} -> StaticEffect bs -> Bool
-staticOnSpellCardOk (Deontic _ Forbid ["Counter"] Patient _ _ _ _) = True
-staticOnSpellCardOk (Deontic _ Forbid ["Copy"] Patient _ _ _ _) = True
+staticOnSpellCardOk (Deontic _ Forbid deeds Patient _ _ _ _) =
+  all (\deed => deedZoneOf deed Patient == Just Stack) deeds
 staticOnSpellCardOk (AltCost This _) = True
 staticOnSpellCardOk (CostsToCast This _) = True
 staticOnSpellCardOk (AddedCost _ _) = True
-staticOnSpellCardOk (OnlyDuring _ _ (Deontic _ Permit ["Cast"] Patient _ _ _ _)) = True
+staticOnSpellCardOk (OnlyDuring _ _ (Deontic _ Permit deeds Patient _ _ _ _)) =
+  all (\deed => deedZoneOf deed Patient == Just Stack) deeds
 staticOnSpellCardOk (OnlyDuring _ _ se) = staticOnSpellCardOk se
 staticOnSpellCardOk (Conditionally _ se _) = staticOnSpellCardOk se
 staticOnSpellCardOk _ = False
@@ -227,7 +228,7 @@ data CardLine : TypeLine -> Type where
 
 public export
 keywordWantsModes : {0 bs : Bindings} -> AbilityAt bs -> Bool
-keywordWantsModes (KeywordAbility k _ _) = k == "Entwine" || k == "Escalate"
+keywordWantsModes (KeywordAbility k _ _) = maybe False wantsModes (keywordFactsFor k)
 keywordWantsModes (ItalicHead _ ab) = keywordWantsModes ab
 keywordWantsModes (AlsoForKeywords ab _) = keywordWantsModes ab
 keywordWantsModes _ = False

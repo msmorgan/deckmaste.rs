@@ -244,8 +244,8 @@ eventFactsOf DamageDealing =
                [] True True False True False
 eventFactsOf (VerbedAct v) =
   MkEventFacts (Player ::
-                  (if actPatientOf v == Just Object then [Object] else []))
-               (maybe [] (\k => [(Player, k)]) (actPatientOf v))
+                  (if elem Object (actPatientKindsOf v) then [Object] else []))
+               (map (\k => (Player, k)) (actPatientKindsOf v))
                (if actNamesPatient v || actNamesLocus v then [Player] else [])
                False True False True (actStepwiseOf v)
 eventFactsOf StateMatch = MkEventFacts [] [] [] False True False True False
@@ -353,7 +353,7 @@ counterRole Patient = Agent
 
 public export
 verbForManaOk : VerbLabel -> Bool
-verbForManaOk v = v == "Tap"
+verbForManaOk v = maybe False actForMana (actFactsFor v)
 
 public export
 deedRoleOf : VerbLabel -> Role -> DeedRole

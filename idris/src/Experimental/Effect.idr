@@ -876,10 +876,6 @@ mutual
                {auto 0 pm : PerMember src} -> TokenRider bs
 
   public export
-  EntersTapped : TokenRider bs
-  EntersTapped = EntersAs Tapped
-
-  public export
   entryRiderIntro : {bs : Bindings} -> TokenRider bs -> Bindings
   entryRiderIntro (WithCounters amt kind _) = kindSourceIntro kind
   entryRiderIntro (Under who) = nomIntro who
@@ -2638,16 +2634,3 @@ mutual
 public export
 Ability : Type
 Ability = AbilityAt []
-
-public export
-MkToken : {0 bs : Bindings} ->
-          Maybe (p : Amount bs ** Amount (amtIntro p)) -> List Color ->
-          TypeLine -> List Ability -> Maybe String -> TokenChars bs
-MkToken {bs} pt cs l abs nm = MkTokenChars {bs} pt cs [] l abs nm []
-
-public export
-MkSupertypedToken : {0 bs : Bindings} ->
-                    Maybe (p : Amount bs ** Amount (amtIntro p)) ->
-                    List Color -> List Supertype ->
-                    TypeLine -> List Ability -> Maybe String -> TokenChars bs
-MkSupertypedToken {bs} pt cs sups l abs nm = MkTokenChars {bs} pt cs sups l abs nm []

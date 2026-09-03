@@ -234,8 +234,8 @@ badCreatureAttackDefender Oh impossible
 
 public export
 badAgentChooseTheRest : Unspellable (Effect []) (\ok =>
-  Sequentially [ Macros.lookAt (Macros.topCards 4)
-               , Move (Macros.oneOf Them) Macros.handZ []
+  Sequentially [ Macros.lookAt ((Macros.topSlice (Lit 4)))
+               , Move (Macros.someOf (Macros.exactly 1) ((Macros.It ManyOf))) Macros.handZ []
                , Choose Macros.theRest (Just (Macros.a Opponent)) Openly {ch = ok} ])
 badAgentChooseTheRest AgentChoice impossible
 
@@ -252,7 +252,7 @@ badPlacementLookback Oh impossible
 public export
 badHeaderBareTurnWindow : Unspellable Ability (\ok =>
   Triggered Whenever (Enters (Macros.a Macros.creature) Nothing) [] Nothing [] (Just (DuringWindow Turn Nothing {hw = ok})) Nothing Nothing
-            (Macros.draw You (Lit 1)))
+            (Draw You (Lit 1)))
 badHeaderBareTurnWindow Oh impossible
 
 
@@ -269,7 +269,7 @@ badSingularCounterBatchSize : Unspellable (StaticEffect []) (\ok =>
   Intercepts (CounterEvent CounterPut (Just Macros.plusOnePlusOne)
                            (Macros.a Macros.creatureYouControl) OneCounter Nothing False) [] Nothing
              (PutCounters (Plus (ThatMuch {ok}) (Lit 1))
-                          (PrintedKind Macros.plusOnePlusOne) It)
+                          (PrintedKind Macros.plusOnePlusOne) ((Macros.It OneOf)))
              Repeatedly Nothing)
 badSingularCounterBatchSize Refl impossible
 
@@ -307,9 +307,9 @@ public export
 badNestedCoordination : Unspellable (StaticEffect []) (\ok =>
   AndAlso Nothing (Coord.(::) (AndAlso Nothing [ Gets Adds (Macros.target Macros.creature)
                                       (PtUp (Lit 1)) (PtUp (Lit 1))
-                               , Gains It (KeywordAbility "Flying" Nothing Nothing) ])
+                               , Gains ((Macros.It OneOf)) (KeywordAbility "Flying" Nothing Nothing) ])
                       {nc = ok}
-                      (Coord.(::) (Gains It (KeywordAbility "Trample" Nothing Nothing)) Coord.Nil)))
+                      (Coord.(::) (Gains ((Macros.It OneOf)) (KeywordAbility "Trample" Nothing Nothing)) Coord.Nil)))
 badNestedCoordination Oh impossible
 
 
@@ -324,7 +324,7 @@ badEmptyCoordination ItIsSucc impossible
 public export
 badThatCreatureIsStaticSubject : Unspellable Ability (\ok =>
   Static (AndAlso Nothing [ Gets Adds Macros.thisCreature (PtUp (Lit 1)) (PtUp (Lit 1))
-                  , Gains (That (TypeW Creature) {ok = ok}) (KeywordAbility "Flying" Nothing Nothing) ]))
+                  , Gains (Macros.That (TypeW Creature) OneOf {ok = ok}) (KeywordAbility "Flying" Nothing Nothing) ]))
 badThatCreatureIsStaticSubject Refl impossible
 
 
@@ -333,7 +333,7 @@ public export
 badCoordinatedHostPlural : Unspellable Ability (\ok =>
   Static (AndAlso Nothing [ Gets Adds (AttachHost Enchanted (TypeW Creature))
                          (PtUp (Lit 1)) (PtUp (Lit 1))
-                  , Gains (Them {ok = ok}) (KeywordAbility "Flying" Nothing Nothing) ]))
+                  , Gains ((Macros.It ManyOf) {ok = ok}) (KeywordAbility "Flying" Nothing Nothing) ]))
 badCoordinatedHostPlural Refl impossible
 
 
@@ -342,7 +342,7 @@ public export
 badCoordinatedLandHostBlocks : Unspellable Ability (\ok =>
   Static (AndAlso Nothing [ Gets Adds (AttachHost Enchanted (TypeW Land))
                          (PtUp (Lit 1)) (PtUp (Lit 1))
-                  , Macros.deontic It Forbid ["Block"] Agent NoDeonticPatient {dp = ok} ]))
+                  , Macros.deontic ((Macros.It OneOf)) Forbid ["Block"] Agent NoDeonticPatient {dp = ok} ]))
 badCoordinatedLandHostBlocks Oh impossible
 
 
@@ -405,7 +405,7 @@ public export
 badTokenSpellAbility : Unspellable (Effect []) (\ok =>
   Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [White]
                                  (MkTypeLine [creatureType "Soldier"] [Creature])
-                                 [Spell (Macros.draw You (Lit 1))] Nothing) {wf = ok})
+                                 [Spell (Draw You (Lit 1))] Nothing) {wf = ok})
 badTokenSpellAbility (Oh, Oh, Oh, Oh, Oh, Oh) impossible
 
 
@@ -413,7 +413,7 @@ badTokenSpellAbility (Oh, Oh, Oh, Oh, Oh, Oh) impossible
 public export
 badQuotedGrantOnSpell : Unspellable (StaticEffect []) (\ok =>
   Gains (Macros.allOf (And [Macros.instantOrSorcery, Macros.spell, Macros.castBy You]))
-        (Activated TapSymbol (Macros.draw You (Lit 1)) Nothing Nothing Nothing Nothing) {ok})
+        (Activated TapSymbol (Draw You (Lit 1)) Nothing Nothing Nothing Nothing) {ok})
 badQuotedGrantOnSpell Oh impossible
 
 
@@ -443,7 +443,7 @@ public export
 badLoyaltySorcery : Unspellable Card (\ok =>
   Macros.card "Impossible Loyalty Sorcery" (Just [Macros.pip Blue]) []
        (MkTypeLine [] [Sorcery])
-       [Activated (LoyaltySymbol (LoyaltyUp 1)) (Macros.draw You (Lit 1)) Nothing Nothing Nothing Nothing] Nothing {fl = ok})
+       [Activated (LoyaltySymbol (LoyaltyUp 1)) (Draw You (Lit 1)) Nothing Nothing Nothing Nothing] Nothing {fl = ok})
 badLoyaltySorcery MkFaceLaws impossible
 
 
@@ -493,7 +493,7 @@ public export
 badStackCopyAsToken : Unspellable (Effect []) (\ok =>
   Sequentially [Copy FromStack You (Macros.target (And [Macros.instantOrSorcery, Macros.spell]))
                           (Lit 1) [],
-                SetStatus Untapped (That TokenW {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
+                SetStatus Untapped (Macros.That TokenW OneOf {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badStackCopyAsToken (Refl, _) impossible
 
 
@@ -501,7 +501,7 @@ badStackCopyAsToken (Refl, _) impossible
 public export
 badTokenCopyAsCopyMention : Unspellable (Effect []) (\ok =>
   Sequentially [Create You (Lit 1) (TokenCopyOf (Macros.target Macros.creature) []) [],
-                SetStatus Untapped (That CopyW {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
+                SetStatus Untapped (Macros.That CopyW OneOf {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badTokenCopyAsCopyMention (Refl, _) impossible
 
 
@@ -509,7 +509,7 @@ public export
 badOtherwiseReadsLeadingArm : Unspellable (Effect []) (\ok =>
   If (Macros.exists Macros.creatureYouControl)
      (Macros.create (Lit 1) (Macros.creatureTok 1 1 [Black] [creatureType "Zombie"]))
-     (Just (SetStatus Tapped (It {ok = Builtin.fst ok}) {ok = Builtin.snd ok})))
+     (Just (SetStatus Tapped ((Macros.It OneOf) {ok = Builtin.fst ok}) {ok = Builtin.snd ok})))
 badOtherwiseReadsLeadingArm (Refl, _) impossible
 
 
@@ -519,5 +519,5 @@ badLeadingConditionAntecedent : Unspellable (Effect []) (\ok =>
                                (PlayerStatOf LifeTotal Macros.anOpponent))
                    (Macros.gainsLife You (Lit 6))
                    Nothing,
-                Macros.losesLife (That PlayerW {ok}) (Lit 1)])
+                Macros.losesLife (Macros.That PlayerW OneOf {ok}) (Lit 1)])
 badLeadingConditionAntecedent Refl impossible

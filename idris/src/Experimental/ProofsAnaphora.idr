@@ -336,7 +336,7 @@ resolveManys k bs ok =
 
 public export
 itReadsOnlyPrefix : (bs : Bindings) -> countReach Bare OneOf bs = 1 -> Noun bs Object
-itReadsOnlyPrefix bs ok = Pro Bare OneOf {bs} {ok}
+itReadsOnlyPrefix bs ok = (Macros.It OneOf) {bs} {ok}
 
 public export
 itResolvesInPrefix : (bs : Bindings) -> countReach Bare OneOf bs = 1 ->
@@ -366,7 +366,7 @@ public export
 itVerbedReadsOnlyPrefix : (bs : Bindings) -> (v : VerbLabel) ->
                           KnownAct v -> countReach (Stamped v) OneOf bs = 1 ->
                           Noun bs Object
-itVerbedReadsOnlyPrefix bs v kn ok = Pro (Stamped v) OneOf {bs} {ok}
+itVerbedReadsOnlyPrefix bs v kn ok = Macros.ItVerbed v OneOf {bs} {ok}
 
 public export
 itVerbedResolvesInPrefix : (bs : Bindings) -> (v : VerbLabel) ->
@@ -465,7 +465,7 @@ ownResolvesInPrefix pl own outer ok =
 public export
 theyReadsOnlyPrefix : (bs : Bindings) -> countReach (Word PlayerW) OneOf bs = 1 ->
                       Noun bs Player
-theyReadsOnlyPrefix bs ok = Pro (Word PlayerW) OneOf {bs} {ok}
+theyReadsOnlyPrefix bs ok = Macros.That PlayerW OneOf {bs} {ok}
 
 public export
 theyResolvesInPrefix : (bs : Bindings) -> countReach (Word PlayerW) OneOf bs = 1 ->
@@ -479,7 +479,7 @@ theyResolvesInPrefix bs ok =
 
 public export
 themReadsOnlyPrefix : (bs : Bindings) -> countReach Bare ManyOf bs = 1 -> Noun bs Object
-themReadsOnlyPrefix bs ok = Pro Bare ManyOf {bs} {ok}
+themReadsOnlyPrefix bs ok = (Macros.It ManyOf) {bs} {ok}
 
 public export
 themResolvesInPrefix : (bs : Bindings) -> countReach Bare ManyOf bs = 1 ->
@@ -494,7 +494,7 @@ public export
 themVerbedReadsOnlyPrefix : (bs : Bindings) -> (v : VerbLabel) ->
                             KnownAct v -> countReach (Stamped v) ManyOf bs = 1 ->
                             Noun bs Object
-themVerbedReadsOnlyPrefix bs v kn ok = Pro (Stamped v) ManyOf {bs} {ok}
+themVerbedReadsOnlyPrefix bs v kn ok = Macros.ItVerbed v ManyOf {bs} {ok}
 
 public export
 themVerbedResolvesInPrefix : (bs : Bindings) -> (v : VerbLabel) ->
@@ -510,7 +510,7 @@ themVerbedResolvesInPrefix bs v ok =
 public export
 thatReadsOnlyPrefix : (bs : Bindings) -> (w : NounWord) ->
                       countReach (Word w) OneOf bs = 1 -> Noun bs (kindOfW w)
-thatReadsOnlyPrefix bs w ok = Pro (Word w) OneOf {bs} {ok}
+thatReadsOnlyPrefix bs w ok = Macros.That w OneOf {bs} {ok}
 
 public export
 thatResolvesInPrefix : (bs : Bindings) -> (w : NounWord) ->
@@ -542,7 +542,7 @@ thatHalfResolvesInPrefix bs w ok =
 public export
 thoseReadsOnlyPrefix : (bs : Bindings) -> (w : NounWord) ->
                        countReach (Word w) ManyOf bs = 1 -> Noun bs (kindOfW w)
-thoseReadsOnlyPrefix bs w ok = Pro (Word w) ManyOf {bs} {ok}
+thoseReadsOnlyPrefix bs w ok = Macros.That w ManyOf {bs} {ok}
 
 public export
 thoseResolvesInPrefix : (bs : Bindings) -> (w : NounWord) ->
@@ -650,7 +650,7 @@ preventedThisWayResolvesInPrefix bs ok =
 public export
 theResultReadsOnlyPrefix : (bs : Bindings) ->
                            countOutcomes RollResult bs = 1 -> Amount bs
-theResultReadsOnlyPrefix bs ok = Macros.theResult {bs} {ok}
+theResultReadsOnlyPrefix bs ok = TheOutcome RollResult {ok}
 
 public export
 theResultResolvesInPrefix :
@@ -939,7 +939,7 @@ ownSurvivesSecondSingular =
 public export
 badItAcrossOwnSlot : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.exile You (Macros.target Macros.artifact),
-                DealDamage (Macros.target Macros.creature) (StatOf Power (It {ok}))
+                DealDamage (Macros.target Macros.creature) (StatOf Power ((Macros.It OneOf) {ok}))
                            (Macros.target Macros.anyTarget)])
 badItAcrossOwnSlot Refl impossible
 
@@ -949,7 +949,7 @@ public export
 badSingularReadOfBarePlural : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.gets (Macros.bare Macros.creatureYouControl)
                             (PtUp (Lit 1)) (PtUp (Lit 1)) (Just Macros.untilEndOfTurn),
-                Macros.draw You (StatOf Power (It {ok}))])
+                Draw You (StatOf Power ((Macros.It OneOf) {ok}))])
 badSingularReadOfBarePlural Refl impossible
 
 public export
@@ -970,14 +970,20 @@ sharedSubjectSurvivesSecondSingular =
 
 public export
 badSharedSubjectEmptyDelta : Unspellable (Noun [] Object) (\ok =>
-  Macros.ownSubject {bs = []} (ItVerbed "Untap") {ok})
+  Macros.ownSubject {bs = []} (Macros.ItVerbed "Untap" OneOf) {ok})
 badSharedSubjectEmptyDelta Refl impossible
 
 public export
 badSharedSubjectTwoInDelta : Unspellable (Effect []) (\ok =>
-  Macros.sharedSubject (Both (Macros.target Macros.creature) (Macros.target Macros.artifact))
-    [ Gets Adds (Own OneOf (nounDelta {k = Object} (Both (Macros.target Macros.creature)
-                                          (Macros.target Macros.artifact))) []
+  Macros.sharedSubject (Both (Macros.target {bs = []} Macros.creature)
+                             (Macros.target
+                               {bs = nomIntro (Macros.target {bs = []} Macros.creature)}
+                               Macros.artifact))
+    [ Gets Adds (Own OneOf (nounDelta {k = Object}
+                    (Both (Macros.target {bs = []} Macros.creature)
+                          (Macros.target
+                            {bs = nomIntro (Macros.target {bs = []} Macros.creature)}
+                            Macros.artifact))) []
                 {sp = Refl} {ok})
            (PtUp (Lit 1)) (PtUp (Lit 1)) ]
     Nothing)
@@ -1250,13 +1256,13 @@ public export
 distributedDeedReadsBackPlural : Effect []
 distributedDeedReadsBackPlural =
   Sequentially [ Macros.discard (Macros.each Opponent) (Macros.a (InZone Macros.handZ))
-               , Macros.exile You (Macros.thoseVerbed "Discard" CardW) ]
+               , Macros.exile You (Macros.TheVerbed "Discard" CardW Attributive ManyOf) ]
 
 ||| "Each opponent discards a card. Exile that card."
 public export
 badDistributedDiscardSingular : Unspellable (Effect []) (\ok =>
   Sequentially [ Macros.discard (Macros.each Opponent) (Macros.a (InZone Macros.handZ))
-               , Macros.exile You (Macros.theVerbed "Discard" CardW {ok}) ])
+               , Macros.exile You (Macros.TheVerbed "Discard" CardW Attributive OneOf {ok}) ])
 badDistributedDiscardSingular Refl impossible
 
 ||| "Each opponent discards a card. Simultaneously, exile those cards."
@@ -1264,13 +1270,13 @@ public export
 distributedDeedReadsBackPluralUnderAnnouncement : Effect []
 distributedDeedReadsBackPluralUnderAnnouncement =
   Simultaneously [ Macros.discard (Macros.each Opponent) (Macros.a (InZone Macros.handZ))
-                 , Macros.exile You (Macros.Those CardW) ]
+                 , Macros.exile You (Macros.That CardW ManyOf) ]
 
 ||| "Each opponent discards a card. Simultaneously, exile that card."
 public export
 badDistributedAnnouncedDiscardSingular : Unspellable (Effect []) (\ok =>
   Simultaneously [ Macros.discard (Macros.each Opponent) (Macros.a (InZone Macros.handZ))
-                 , Macros.exile You (Macros.That CardW {ok}) ])
+                 , Macros.exile You (Macros.That CardW OneOf {ok}) ])
 badDistributedAnnouncedDiscardSingular Refl impossible
 
 ||| "Each opponent discards a card, if those cards are creature cards."
@@ -1278,14 +1284,14 @@ public export
 distributedDeedReadsBackPluralUnderCondition : Effect []
 distributedDeedReadsBackPluralUnderCondition =
   OnlyIf (Macros.discard (Macros.each Opponent) (Macros.a (InZone Macros.handZ)))
-         (Matches (Macros.Those CardW) Macros.creature) Nothing
+         (Matches (Macros.That CardW ManyOf) Macros.creature) Nothing
 
 ||| "Each opponent sacrifices a creature. Those sacrificed permanents can't be regenerated."
 public export
 distributedDeedRiderReadsBackPlural : Effect []
 distributedDeedRiderReadsBackPlural =
   CantBe (Macros.sacrifice (Macros.each Opponent) (Macros.a Macros.creature))
-         "Regenerate" (Macros.ThoseVerbed "Sacrifice" PermanentW Attributive)
+         "Regenerate" (Macros.TheVerbed "Sacrifice" PermanentW Attributive ManyOf)
 
 ||| "Whenever enchanted player is dealt damage, they lose half their life, rounded up."
 public export

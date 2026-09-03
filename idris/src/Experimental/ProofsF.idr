@@ -29,14 +29,14 @@ badPreventDealtToArtifact ObjectTakes impossible
 ||| "All damage that would be dealt to you is dealt to target artifact instead."
 public export
 badRedirectToArtifact : Unspellable (StaticEffect []) (\ok =>
-  DamageRule AnyDamage Unattributed (Macros.shieldingIt You)
+  DamageRule AnyDamage Unattributed (ToRecipient You)
              (Redirect CutAll (Macros.target Macros.artifact) {rk = ok}) Repeatedly)
 badRedirectToArtifact ObjectTakes impossible
 
 
 public export
 badRedirectToPlural : Unspellable (StaticEffect []) (\ok =>
-  DamageRule AnyDamage Unattributed (Macros.shieldingIt You)
+  DamageRule AnyDamage Unattributed (ToRecipient You)
              (Redirect CutAll (Macros.allOf Macros.creatureYouControl) {one = ok}) Repeatedly)
 badRedirectToPlural Refl impossible
 
@@ -88,14 +88,14 @@ badShortOfCeilingUnannounced Refl impossible
 
 public export
 badShieldSizedByItsOwnPrevention : Unspellable (StaticEffect []) (\ok =>
-  DamageRule AnyDamage Unattributed (Macros.shieldingIt You)
+  DamageRule AnyDamage Unattributed (ToRecipient You)
              (Prevent (Shield (Macros.preventedThisWay {ok})) Nothing) Repeatedly)
 badShieldSizedByItsOwnPrevention Refl impossible
 
 
 public export
 badShieldNextTimeOnly : Unspellable (StaticEffect []) (\ok =>
-  DamageRule AnyDamage Unattributed (Macros.shieldingIt You)
+  DamageRule AnyDamage Unattributed (ToRecipient You)
              (Prevent (Shield (Lit 3)) Nothing) NextTimeOnly {su = ok})
 badShieldNextTimeOnly Oh impossible
 
@@ -131,7 +131,7 @@ badNonsource Oh impossible
 
 public export
 badRedirectToGroup : Unspellable (StaticEffect []) (\ok =>
-  DamageRule AnyDamage Unattributed (Macros.shieldingIt You)
+  DamageRule AnyDamage Unattributed (ToRecipient You)
              (Redirect CutAll
                 (Macros.youAnd (Macros.allOf (And [Permanent, HasPossessor ControllerAx You])))
                 {one = ok})
@@ -143,7 +143,7 @@ badRedirectToGroup Refl impossible
 public export
 badScaleShiftByThatMuch : Unspellable (StaticEffect []) (\ok =>
   DamageRule AnyDamage (DealtBy (Macros.a Macros.source))
-             (Macros.shieldingIt (Macros.a (Macros.kindJoin AnyPlayer Permanent)))
+             (ToRecipient (Macros.a (Macros.kindJoin AnyPlayer Permanent)))
              (Scale (Shifted ShiftUp (ThatMuch {ok}))) Repeatedly)
 badScaleShiftByThatMuch Refl impossible
 
@@ -159,7 +159,7 @@ badScaleToArtifact ObjectTakes impossible
 public export
 badPreventedThisWayAfterDamageEvent : Unspellable Ability (\ok =>
   Triggered Whenever (IsDealtDamage AnyDamage Macros.thisCreature) [] Nothing [] Nothing Nothing Nothing
-            (DealDamage It (Macros.preventedThisWay {ok = ok}) (Macros.target Macros.anyTarget)))
+            (DealDamage ((Macros.It OneOf)) (Macros.preventedThisWay {ok = ok}) (Macros.target Macros.anyTarget)))
 badPreventedThisWayAfterDamageEvent Refl impossible
 
 
@@ -174,7 +174,7 @@ badThatMuchAfterDeath Refl impossible
 public export
 badThatCreatureIsDamagedSelf : Unspellable Ability (\ok =>
   Triggered Whenever (IsDealtDamage AnyDamage Macros.thisCreature) [] Nothing [] Nothing Nothing Nothing
-            (DealDamage (That (TypeW Creature) {ok = ok}) ThatMuch
+            (DealDamage (Macros.That (TypeW Creature) OneOf {ok = ok}) ThatMuch
                         (Macros.target Macros.anyTarget)))
 badThatCreatureIsDamagedSelf Refl impossible
 
@@ -273,7 +273,7 @@ public export
 badNameMatchBeforeChooser : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
        [ Activated (Mana [Macros.pip Blue])
-                   (Macros.counterSpell
+                   (CounterSpell
                       (Macros.target (And [Macros.spell,
                                            Named (ChosenName {ok = ok})]))) Nothing Nothing Nothing Nothing
        , Static (EntersChoice Macros.thisEnchantment (QSort CardName) Nothing Openly) ]
@@ -286,7 +286,7 @@ badNameMatchWrongSort : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
        [ Static (EntersChoice Macros.thisEnchantment (QSort Color) Nothing Openly)
        , Activated (Mana [Macros.pip Blue])
-                   (Macros.counterSpell
+                   (CounterSpell
                       (Macros.target (And [Macros.spell,
                                            Named (ChosenName {ok = ok})]))) Nothing Nothing Nothing Nothing ]
        Nothing)
@@ -318,7 +318,7 @@ badCounteredInGraveyard Oh impossible
 public export
 badChapterOnNonSaga : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip White]) [] (MkTypeLine [] [Enchantment])
-       [ Triggered When (ChapterMark [ChapterI]) [] Nothing [] Nothing Nothing Nothing (Macros.draw You (Lit 1)) ]
+       [ Triggered When (ChapterMark [ChapterI]) [] Nothing [] Nothing Nothing Nothing (Draw You (Lit 1)) ]
        Nothing {fl = ok})
 badChapterOnNonSaga MkFaceLaws impossible
 
@@ -326,14 +326,14 @@ badChapterOnNonSaga MkFaceLaws impossible
 ||| "— Draw a card."
 public export
 badEmptyChapterMark : Unspellable Ability (\ok =>
-  Triggered When (ChapterMark [] {cm = ok}) [] Nothing [] Nothing Nothing Nothing (Macros.draw You (Lit 1)))
+  Triggered When (ChapterMark [] {cm = ok}) [] Nothing [] Nothing Nothing Nothing (Draw You (Lit 1)))
 badEmptyChapterMark Oh impossible
 
 
 ||| "II, II — Draw a card."
 public export
 badRepeatedChapterMark : Unspellable Ability (\ok =>
-  Triggered When (ChapterMark [ChapterII, ChapterII] {cm = ok}) [] Nothing [] Nothing Nothing Nothing (Macros.draw You (Lit 1)))
+  Triggered When (ChapterMark [ChapterII, ChapterII] {cm = ok}) [] Nothing [] Nothing Nothing Nothing (Draw You (Lit 1)))
 badRepeatedChapterMark Oh impossible
 
 
@@ -341,7 +341,7 @@ badRepeatedChapterMark Oh impossible
 public export
 badChapterLimit : Unspellable Ability (\ok =>
   Triggered When (ChapterMark [ChapterI]) [] Nothing [] Nothing (Just OncePerTurn) Nothing
-    (Macros.draw You (Lit 1)) {cd = ok})
+    (Draw You (Lit 1)) {cd = ok})
 badChapterLimit Oh impossible
 
 
@@ -349,14 +349,14 @@ badChapterLimit Oh impossible
 public export
 badChapterIntervening : Unspellable Ability (\ok =>
   Triggered When (ChapterMark [ChapterI]) [] Nothing [] Nothing Nothing (Just (Macros.exists (And [Macros.creature, HasPossessor ControllerAx You])))
-    (Macros.draw You (Lit 1)) {cd = ok})
+    (Draw You (Lit 1)) {cd = ok})
 badChapterIntervening Oh impossible
 
 
 ||| "{T}: Draw a card. Do this only once each turn."
 public export
 badActionLimitOnActivated : Unspellable Ability (\ok =>
-  Activated TapSymbol (Macros.draw You (Lit 1)) Nothing (Just ActionOncePerTurn) Nothing
+  Activated TapSymbol (Draw You (Lit 1)) Nothing (Just ActionOncePerTurn) Nothing
             Nothing {ul = ok})
 badActionLimitOnActivated Oh impossible
 
@@ -365,9 +365,9 @@ badActionLimitOnActivated Oh impossible
 public export
 badChapterWhile : Unspellable Ability (\ok =>
   Triggered When (ChapterMark [ChapterI]) []
-    (Just (Macros.whileState (Macros.exists (And [Macros.creature, HasPossessor ControllerAx You]))))
+    (Just (WhileTrue (Macros.exists (And [Macros.creature, HasPossessor ControllerAx You]))))
     [] Nothing Nothing Nothing
-    (Macros.draw You (Lit 1)) {cd = ok})
+    (Draw You (Lit 1)) {cd = ok})
 badChapterWhile Oh impossible
 
 
@@ -377,14 +377,14 @@ badChapterJoin : Unspellable Ability (\ok =>
   Triggered When (ChapterMark [ChapterI]) [] Nothing
     [ Macros.joinedHead Whenever (Draws You) ]
     Nothing Nothing Nothing
-    (Macros.draw You (Lit 1)) {cd = ok})
+    (Draw You (Lit 1)) {cd = ok})
 badChapterJoin Oh impossible
 
 
 ||| "If I — would happen, draw a card instead."
 public export
 badChapterReplacement : Unspellable (StaticEffect []) (\ok =>
-  Intercepts (ChapterMark [ChapterI]) [] Nothing (Macros.draw You (Lit 1)) Repeatedly Nothing {ok})
+  Intercepts (ChapterMark [ChapterI]) [] Nothing (Draw You (Lit 1)) Repeatedly Nothing {ok})
 badChapterReplacement Oh impossible
 
 
@@ -603,7 +603,7 @@ public export
 badLastChosenBeforeChooser : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
        [ Static (DamageRule AnyDamage (DealtBy (Macros.allOf (And [Macros.source,
-                                                OfTheLastChosen Color {ok = ok}]))) (Macros.shieldingIt You) (Prevent CutAll Nothing) Repeatedly)
+                                                OfTheLastChosen Color {ok = ok}]))) (ToRecipient You) (Prevent CutAll Nothing) Repeatedly)
        , Static (EntersChoice Macros.thisEnchantment (QSort Color) Nothing Openly) ]
        Nothing)
 badLastChosenBeforeChooser Oh impossible
@@ -614,7 +614,7 @@ badLastChosenWrongSort : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
        [ Static (EntersChoice Macros.thisEnchantment (QSort (SubtypeQ Creature)) Nothing Openly)
        , Static (DamageRule AnyDamage (DealtBy (Macros.allOf (And [Macros.source,
-                                                OfTheLastChosen Color {ok = ok}]))) (Macros.shieldingIt You) (Prevent CutAll Nothing) Repeatedly) ]
+                                                OfTheLastChosen Color {ok = ok}]))) (ToRecipient You) (Prevent CutAll Nothing) Repeatedly) ]
        Nothing)
 badLastChosenWrongSort Oh impossible
 
@@ -636,10 +636,12 @@ badSingletonBallot Oh impossible
 public export
 jointCrossAbilityChoice : Card
 jointCrossAbilityChoice =
-  Macros.jointCard [Color] "Joint choice witness" Nothing []
-    (MkTypeLine [creatureType "Shapeshifter"] [Creature])
-    [ Static (Gains Macros.thisCreature
-               (Macros.keywordQuality "Protection" (OfChosen Color)))
-    , Static (Macros.entersChoosing Macros.thisCreature Color)
-    ]
-    (Just (1, 1))
+  SingleFaced
+    (MkFace "Joint choice witness" Nothing [Color] []
+      (MkTypeLine [creatureType "Shapeshifter"] [Creature])
+      [ Static (Gains Macros.thisCreature
+                 (Macros.keywordQuality "Protection" (OfChosen Color)))
+      , Static (Macros.entersChoosing Macros.thisCreature Color)
+      ]
+      (Macros.printedBox (Just (1, 1))))
+    {fl = MkFaceLaws}
