@@ -1,6 +1,8 @@
 use std::fs;
 use std::io::Write;
 use std::path::Path;
+use std::path::PathBuf;
+use std::process::Command;
 
 use anyhow::Context;
 use anyhow::bail;
@@ -214,6 +216,7 @@ pub(super) fn apply_with_retirement(
     retirement_path: Option<&Path>,
     diagnostics: &mut dyn Write,
 ) -> anyhow::Result<()> {
+    let mut authenticate = authenticate_retirement;
     apply_with_writer_and_retirement(
         report,
         path,
@@ -221,6 +224,7 @@ pub(super) fn apply_with_retirement(
         retirement_path,
         diagnostics,
         &mut FilesystemLockWriter,
+        &mut authenticate,
     )
 }
 
@@ -232,13 +236,40 @@ fn apply_with_writer(
     diagnostics: &mut dyn Write,
     writer: &mut impl LockWriter,
 ) -> anyhow::Result<()> {
-    apply_with_writer_and_retirement(report, path, mode, None, diagnostics, writer)
+    apply_with_writer_and_retirement(
+        report,
+        path,
+        mode,
+        None,
+        diagnostics,
+        writer,
+        &mut |_, _| Ok(()),
+    )
 }
 
-fn check_v2_coverage_drift(
+#[cfg(test)]
+fn apply_with_test_retirement(
+    report: &CoverageReport,
+    path: &Path,
+    mode: CoverageLockMode,
+    retirement_path: Option<&Path>,
+    diagnostics: &mut dyn Write,
+) -> anyhow::Result<()> {
+    apply_with_writer_and_retirement(
+        report,
+        path,
+        mode,
+        retirement_path,
+        diagnostics,
+        &mut FilesystemLockWriter,
+        &mut |_, _| Ok(()),
+    )
+}
+
+fn write_v2_coverage_drift(
     report: &CoverageReport,
     baseline: &CoverageLockV2,
-    current: &[String],
+    newly_covered: &[&String],
     diagnostics: &mut dyn Write,
 ) -> anyhow::Result<()> {
     if baseline.source_fingerprint != report.source_fingerprint() {
@@ -250,32 +281,25 @@ fn check_v2_coverage_drift(
         )
         .context("writing English-v2 coverage lock diagnostic")?;
     }
-    let newly_covered = current
-        .iter()
-        .filter(|identity| baseline.covered.binary_search(identity).is_err())
-        .collect::<Vec<_>>();
-    for identity in &newly_covered {
+    for identity in newly_covered {
         writeln!(diagnostics, "newly covered\t{identity}")
             .context("writing English-v2 coverage lock diagnostic")?;
-    }
-    if !newly_covered.is_empty() {
-        bail!(
-            "coverage lock has {} newly covered corpus identit{}; review the coverage report and rerun with --bless",
-            newly_covered.len(),
-            if newly_covered.len() == 1 { "y" } else { "ies" },
-        );
     }
     Ok(())
 }
 
-fn apply_with_writer_and_retirement(
+fn apply_with_writer_and_retirement<Authenticate>(
     report: &CoverageReport,
     path: &Path,
     mode: CoverageLockMode,
     retirement_path: Option<&Path>,
     diagnostics: &mut dyn Write,
     writer: &mut impl LockWriter,
-) -> anyhow::Result<()> {
+    authenticate: &mut Authenticate,
+) -> anyhow::Result<()>
+where
+    Authenticate: FnMut(&Path, &[String]) -> anyhow::Result<()>,
+{
     if retirement_path.is_some() && mode != CoverageLockMode::Bless {
         bail!("a coverage retirement manifest is valid only with --bless");
     }
@@ -344,6 +368,11 @@ fn apply_with_writer_and_retirement(
                 .iter()
                 .filter(|identity| current.binary_search(identity).is_err())
                 .collect::<Vec<_>>();
+            let newly_covered = current
+                .iter()
+                .filter(|identity| baseline.covered.binary_search(identity).is_err())
+                .collect::<Vec<_>>();
+            write_v2_coverage_drift(report, &baseline, &newly_covered, diagnostics)?;
             if !lost.is_empty() {
                 let Some(retirement_path) = retirement_path else {
                     bail!(
@@ -366,6 +395,7 @@ fn apply_with_writer_and_retirement(
                         if lost.len() == 1 { "y" } else { "ies" },
                     );
                 }
+                authenticate(retirement_path, &retired)?;
                 writeln!(
                     diagnostics,
                     "retired {} previously covered corpus identit{}",
@@ -385,13 +415,160 @@ fn apply_with_writer_and_retirement(
                 );
             }
             if mode == CoverageLockMode::Check {
-                check_v2_coverage_drift(report, &baseline, &current, diagnostics)?;
+                if !newly_covered.is_empty() {
+                    bail!(
+                        "coverage lock has {} newly covered corpus identit{}; review the coverage report and rerun with --bless",
+                        newly_covered.len(),
+                        if newly_covered.len() == 1 { "y" } else { "ies" },
+                    );
+                }
+                if baseline.source_fingerprint != report.source_fingerprint() {
+                    bail!(
+                        "coverage lock source fingerprint changed; review the coverage report and rerun with --bless",
+                    );
+                }
                 return Ok(());
             }
             let replacement = CoverageLockV2::new(report.source_fingerprint().to_owned(), current)?;
             write_v2_with(&replacement, path, writer)
         }
     }
+}
+
+fn authenticate_retirement(path: &Path, retired: &[String]) -> anyhow::Result<()> {
+    let current_directory = std::env::current_dir().context("reading the current directory")?;
+    let workspace_root_output = run_jj(&["workspace", "root"])?;
+    let workspace_root = PathBuf::from(workspace_root_output.trim());
+    let workspace_root = workspace_root
+        .canonicalize()
+        .with_context(|| format!("resolving jj workspace root {}", workspace_root.display()))?;
+    let tracked_output = run_jj(&["file", "list", "-T", "path ++ \"\\n\""])?;
+    let tracked = tracked_output
+        .lines()
+        .map(|relative| workspace_root.join(relative))
+        .collect::<Vec<_>>();
+    let manifest = absolute_existing_path(path, &current_directory)?;
+    validate_retirement_manifest(path, &manifest, &tracked)?;
+
+    let workspace_name = workspace_root
+        .file_name()
+        .and_then(|name| name.to_str())
+        .context("the jj workspace root has no UTF-8 workspace name")?;
+    if workspace_name == "default" {
+        bail!(
+            "coverage retirement requires a claimed feature ticket; current workspace is default"
+        );
+    }
+    let ticket = workspace_root
+        .join("docs/tickets/wip")
+        .join(format!("{workspace_name}.md"));
+    validate_claimed_ticket(&ticket, &tracked)?;
+    let ticket_source = fs::read_to_string(&ticket)
+        .with_context(|| format!("reading claimed retirement ticket {}", ticket.display()))?;
+    validate_retirement_obligation(&ticket, &ticket_source, retired)
+}
+
+fn run_jj(arguments: &[&str]) -> anyhow::Result<String> {
+    let output = Command::new("jj")
+        .arg("--no-pager")
+        .args(arguments)
+        .output()
+        .with_context(|| format!("running jj {}", arguments.join(" ")))?;
+    if !output.status.success() {
+        bail!(
+            "jj {} failed while authenticating coverage retirement: {}",
+            arguments.join(" "),
+            String::from_utf8_lossy(&output.stderr).trim(),
+        );
+    }
+    String::from_utf8(output.stdout).context("jj output was not UTF-8")
+}
+
+fn absolute_existing_path(path: &Path, current_directory: &Path) -> anyhow::Result<PathBuf> {
+    let absolute = if path.is_absolute() { path.to_owned() } else { current_directory.join(path) };
+    absolute
+        .canonicalize()
+        .with_context(|| format!("resolving coverage retirement manifest {}", path.display()))
+}
+
+fn path_is_tracked(path: &Path, tracked: &[PathBuf]) -> bool {
+    tracked.iter().any(|candidate| {
+        candidate
+            .canonicalize()
+            .is_ok_and(|candidate| candidate == path)
+    })
+}
+
+#[cfg(test)]
+fn validate_retirement_authentication(
+    manifest_argument: &Path,
+    manifest: &Path,
+    tracked: &[PathBuf],
+    ticket: &Path,
+    ticket_source: &str,
+    retired: &[String],
+) -> anyhow::Result<()> {
+    validate_retirement_manifest(manifest_argument, manifest, tracked)?;
+    validate_claimed_ticket(ticket, tracked)?;
+    validate_retirement_obligation(ticket, ticket_source, retired)
+}
+
+fn validate_retirement_manifest(
+    manifest_argument: &Path,
+    manifest: &Path,
+    tracked: &[PathBuf],
+) -> anyhow::Result<()> {
+    if path_is_tracked(manifest, tracked) {
+        bail!(
+            "coverage retirement manifest {} must be untracked; jj file list reports it as tracked",
+            manifest_argument.display(),
+        );
+    }
+    Ok(())
+}
+
+fn validate_claimed_ticket(ticket: &Path, tracked: &[PathBuf]) -> anyhow::Result<()> {
+    if !path_is_tracked(ticket, tracked) {
+        bail!(
+            "coverage retirement requires tracked claimed ticket {}",
+            ticket.display(),
+        );
+    }
+    Ok(())
+}
+
+fn validate_retirement_obligation(
+    ticket: &Path,
+    ticket_source: &str,
+    retired: &[String],
+) -> anyhow::Result<()> {
+    let mut landing_record = false;
+    for line in ticket_source.lines() {
+        let trimmed = line.trim();
+        if trimmed == "## Landing record" {
+            landing_record = true;
+            continue;
+        }
+        if landing_record && trimmed.starts_with("## ") {
+            break;
+        }
+        if landing_record {
+            let obligation = trimmed
+                .strip_prefix("- ")
+                .unwrap_or(trimmed)
+                .to_ascii_lowercase();
+            let names_obligation = obligation.starts_with("retirement/re-coverage obligation:")
+                || obligation.starts_with("re-coverage/retirement obligation:")
+                || obligation.starts_with("re-coverage or retirement obligation:");
+            if names_obligation && retired.iter().all(|identity| line.contains(identity)) {
+                return Ok(());
+            }
+        }
+    }
+    bail!(
+        "claimed ticket {} must have a ## Landing record containing one retirement/re-coverage obligation line that names every retired identity",
+        ticket.display(),
+    )
 }
 
 fn read_retirement_manifest(path: &Path) -> anyhow::Result<Vec<String>> {
@@ -514,9 +691,11 @@ mod tests {
     use super::CoverageLockV2;
     use super::FailureStage;
     use super::LoadedCoverageLock;
-    use super::apply_with_retirement;
+    use super::apply_with_test_retirement;
     use super::apply_with_writer;
+    use super::apply_with_writer_and_retirement;
     use super::read_lock;
+    use super::validate_retirement_authentication;
     use super::write_v2_with;
     use crate::english_v2::coverage::CoverageLockMode;
     use crate::english_v2::coverage::CoverageReport;
@@ -766,17 +945,37 @@ mod tests {
         assert_eq!(fs::read(&path).unwrap(), baseline);
 
         let loss = report(&id('2'), vec![id('b'), id('c')], 0, 0, 0, 0);
+        let mut loss_diagnostics = Vec::new();
         let error = apply_with_writer(
             &loss,
             &path,
             CoverageLockMode::Bless,
-            &mut Vec::new(),
+            &mut loss_diagnostics,
             &mut super::FilesystemLockWriter,
         )
         .unwrap_err()
         .to_string();
         assert!(error.contains("lost 1 previously covered corpus identity"));
         assert!(error.contains(&id('a')));
+        assert!(
+            String::from_utf8(loss_diagnostics)
+                .unwrap()
+                .contains(&format!("newly covered\t{}", id('c')))
+        );
+        assert_eq!(fs::read(&path).unwrap(), baseline);
+
+        let fingerprint_only = report(&id('2'), vec![id('a'), id('b')], 0, 0, 0, 0);
+        let error = apply_with_writer(
+            &fingerprint_only,
+            &path,
+            CoverageLockMode::Check,
+            &mut Vec::new(),
+            &mut super::FilesystemLockWriter,
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("source fingerprint changed"), "{error}");
+        assert!(error.contains("--bless"), "{error}");
         assert_eq!(fs::read(&path).unwrap(), baseline);
 
         apply_with_writer(
@@ -807,7 +1006,7 @@ mod tests {
 
         fs::write(&path, &baseline).unwrap();
         fs::write(&retirement, format!("{}\n", id('b'))).unwrap();
-        let error = apply_with_retirement(
+        let error = apply_with_test_retirement(
             &current,
             &path,
             CoverageLockMode::Bless,
@@ -821,7 +1020,7 @@ mod tests {
 
         fs::write(&retirement, format!("{}\n", id('a'))).unwrap();
         let mut diagnostics = Vec::new();
-        apply_with_retirement(
+        apply_with_test_retirement(
             &current,
             &path,
             CoverageLockMode::Bless,
@@ -835,11 +1034,12 @@ mod tests {
         );
         assert_eq!(
             String::from_utf8(diagnostics).unwrap(),
-            "retired 1 previously covered corpus identity\n\
+            "newly covered\tcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\n\
+retired 1 previously covered corpus identity\n\
 WARNING: coverage retirement is a coordinator ruling; a ticket-vs-purpose contradiction requires a STOP, and the landing record must contain a re-coverage or retirement obligation line\n"
         );
 
-        apply_with_retirement(
+        apply_with_test_retirement(
             &current,
             &path,
             CoverageLockMode::Check,
@@ -850,7 +1050,7 @@ WARNING: coverage retirement is a coordinator ruling; a ticket-vs-purpose contra
 
         let next_loss = report(&id('1'), vec![id('c')], 0, 4, 0, 0);
         let migrated = fs::read(&path).unwrap();
-        let error = apply_with_retirement(
+        let error = apply_with_test_retirement(
             &next_loss,
             &path,
             CoverageLockMode::Bless,
@@ -861,6 +1061,95 @@ WARNING: coverage retirement is a coordinator ruling; a ticket-vs-purpose contra
         .to_string();
         assert!(error.contains("exactly match"), "{error}");
         assert_eq!(fs::read(&path).unwrap(), migrated);
+    }
+
+    #[test]
+    fn tracked_retirement_manifest_is_refused_before_the_lock_write() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("coverage.lock");
+        let retirement = directory.path().join("retired.ids");
+        let ticket = directory.path().join("docs/tickets/wip/fixture.md");
+        fs::create_dir_all(ticket.parent().unwrap()).unwrap();
+        let baseline = json_v2(&id('1'), &[id('a'), id('b')]);
+        let current = report(&id('1'), vec![id('b')], 0, 0, 0, 0);
+        fs::write(&path, &baseline).unwrap();
+        fs::write(&retirement, format!("{}\n", id('a'))).unwrap();
+        fs::write(
+            &ticket,
+            format!(
+                "## Landing record\n\n- Retirement/re-coverage obligation: {}\n",
+                id('a')
+            ),
+        )
+        .unwrap();
+        let tracked = vec![retirement.clone(), ticket.clone()];
+        let ticket_source = fs::read_to_string(&ticket).unwrap();
+        let mut authenticate = |manifest: &Path, retired: &[String]| {
+            validate_retirement_authentication(
+                manifest,
+                &manifest.canonicalize().unwrap(),
+                &tracked,
+                &ticket,
+                &ticket_source,
+                retired,
+            )
+        };
+
+        let error = apply_with_writer_and_retirement(
+            &current,
+            &path,
+            CoverageLockMode::Bless,
+            Some(&retirement),
+            &mut Vec::new(),
+            &mut super::FilesystemLockWriter,
+            &mut authenticate,
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("must be untracked"), "{error}");
+        assert!(
+            error.contains("jj file list reports it as tracked"),
+            "{error}"
+        );
+        assert_eq!(fs::read(&path).unwrap(), baseline);
+    }
+
+    #[test]
+    fn retirement_obligation_must_name_every_lost_identity_on_one_line() {
+        let directory = tempfile::tempdir().unwrap();
+        let manifest = directory.path().join("retired.ids");
+        let ticket = directory.path().join("docs/tickets/wip/fixture.md");
+        fs::create_dir_all(ticket.parent().unwrap()).unwrap();
+        fs::write(&manifest, format!("{}\n{}\n", id('a'), id('b'))).unwrap();
+        fs::write(&ticket, "ticket fixture\n").unwrap();
+        let tracked = vec![ticket.clone()];
+        let retired = vec![id('a'), id('b')];
+
+        let error = validate_retirement_authentication(
+            &manifest,
+            &manifest.canonicalize().unwrap(),
+            &tracked,
+            &ticket,
+            "## Landing record\n- Retirement/re-coverage obligation: a later ticket\n",
+            &retired,
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("names every retired identity"), "{error}");
+
+        validate_retirement_authentication(
+            &manifest,
+            &manifest.canonicalize().unwrap(),
+            &tracked,
+            &ticket,
+            &format!(
+                "## Landing record\n- Re-coverage/retirement obligation: {} {}\n",
+                id('a'),
+                id('b')
+            ),
+            &retired,
+        )
+        .unwrap();
     }
 
     #[test]
