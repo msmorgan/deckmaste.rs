@@ -3621,6 +3621,7 @@ fn resolve_feature_place(
                     Feature::BareLocativeLicense
                     | Feature::Compoundability
                     | Feature::Countability
+                    | Feature::HomographLicense
                     | Feature::LocativeTemporalLicense
                     | Feature::Properness
                     | Feature::Relationality,
@@ -3630,6 +3631,7 @@ fn resolve_feature_place(
                         Feature::BareLocativeLicense
                         | Feature::Compoundability
                         | Feature::Countability
+                        | Feature::HomographLicense
                         | Feature::LocativeTemporalLicense
                         | Feature::Properness
                         | Feature::Relationality,
@@ -3843,6 +3845,8 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::NonCompoundable => quote! { Compoundability::NonCompoundable },
         FeatureValue::Count => quote! { Countability::Count },
         FeatureValue::Mass => quote! { Countability::Mass },
+        FeatureValue::HomographUnlicensed => quote! { HomographLicense::Unlicensed },
+        FeatureValue::HomographLicensed => quote! { HomographLicense::Licensed },
         FeatureValue::Unrestricted => quote! { ModifierLicense::Unrestricted },
         FeatureValue::LocalDeterminer => quote! { ModifierLicense::LocalDeterminer },
         FeatureValue::No => quote! { BareLocativeComplement::No },

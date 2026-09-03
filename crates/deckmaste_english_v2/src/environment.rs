@@ -20,12 +20,16 @@ use serde::Deserialize;
 
 use crate::constructions::CatalogProvider;
 use crate::constructions::FORM_LITERAL_SURFACES;
+use crate::constructions::FormLiteralSurface;
+use crate::constructions::HomographLicense;
 use crate::constructions::LEXICON_SURFACES;
 use crate::constructions::VERB_TAIL_LITERAL_SURFACES;
 use crate::constructions::VOCAB_SURFACES;
 use crate::constructions::VerbFrameAtom;
 use crate::constructions::VerbFrameClass;
 use crate::constructions::VerbFrameKey;
+use crate::constructions::VerbTailLiteralSurface;
+use crate::constructions::VocabSurface;
 use crate::orthography::initial_surface;
 
 /// One declaration and its validated grammar metadata.
@@ -962,8 +966,9 @@ impl ParserEnvironment {
         self.data.catalog_providers.contains_key(&provider)
     }
 
-    /// Counts exact fixed-surface/lexicon homographs observed by the same
-    /// checker that rejects unreviewed collisions during environment loading.
+    /// Counts exact fixed-surface collisions observed by the environment
+    /// checker, including form-literal/vocabulary overlaps. Unlicensed
+    /// vocabulary/lexicon and literal/lexicon collisions still reject loading.
     #[must_use]
     pub fn literal_lexicon_collisions(&self) -> usize {
         self.data.literal_lexicon_collisions
@@ -993,6 +998,22 @@ impl ParserEnvironment {
 fn reject_literal_lexicon_collisions(
     records: &BTreeMap<DeclarationKind, BTreeMap<Arc<str>, DeclarationRecord>>,
     verb_inventory: &BTreeMap<VerbInventoryRef, VerbInventoryRecord>,
+) -> Result<usize, ParserEnvironmentError> {
+    reject_literal_lexicon_collisions_from_surfaces(
+        records,
+        verb_inventory,
+        FORM_LITERAL_SURFACES,
+        VOCAB_SURFACES,
+        VERB_TAIL_LITERAL_SURFACES,
+    )
+}
+
+fn reject_literal_lexicon_collisions_from_surfaces(
+    records: &BTreeMap<DeclarationKind, BTreeMap<Arc<str>, DeclarationRecord>>,
+    verb_inventory: &BTreeMap<VerbInventoryRef, VerbInventoryRecord>,
+    form_literal_surfaces: &[FormLiteralSurface],
+    vocab_surfaces: &[VocabSurface],
+    verb_tail_literal_surfaces: &[VerbTailLiteralSurface],
 ) -> Result<usize, ParserEnvironmentError> {
     let mut lexical_owners = BTreeMap::<&str, String>::new();
 
@@ -1038,6 +1059,29 @@ fn reject_literal_lexicon_collisions(
         }
     }
 
+    let mut collisions = Vec::new();
+    let mut collision_count = 0usize;
+
+    for row in vocab_surfaces {
+        if let Some(lexical_owner) = lexical_owners.get(row.surface) {
+            let error = ParserEnvironmentError::LiteralLexiconCollision {
+                surface: row.surface.to_owned(),
+                literal_owner: format!("vocab `{}::{}`", row.vocabulary, row.member),
+                lexical_owner: lexical_owner.clone(),
+            };
+            collision_count += 1;
+            if row.homograph_license != HomographLicense::Licensed {
+                collisions.push(error);
+            }
+        }
+    }
+    let mut vocab_owners = BTreeMap::<&str, String>::new();
+    for row in vocab_surfaces {
+        vocab_owners
+            .entry(row.surface)
+            .or_insert_with(|| format!("vocab `{}::{}`", row.vocabulary, row.member));
+    }
+
     let collision = |surface: &str, literal_owner: String| {
         lexical_owners.get(surface).map(|lexical_owner| {
             ParserEnvironmentError::LiteralLexiconCollision {
@@ -1047,10 +1091,8 @@ fn reject_literal_lexicon_collisions(
             }
         })
     };
-    let mut collisions = Vec::new();
-    let mut collision_count = 0usize;
 
-    for row in FORM_LITERAL_SURFACES {
+    for row in form_literal_surfaces {
         if let Some(error) = collision(
             row.surface,
             format!(
@@ -1060,20 +1102,11 @@ fn reject_literal_lexicon_collisions(
         ) {
             collision_count += 1;
             collisions.push(error);
-        }
-    }
-    for row in VOCAB_SURFACES {
-        if let Some(error) = collision(
-            row.surface,
-            format!("vocab `{}::{}`", row.vocabulary, row.member),
-        ) {
+        } else if vocab_owners.contains_key(row.surface) {
             collision_count += 1;
-            if !reviewed_vocab_lexicon_homograph(row.vocabulary) {
-                collisions.push(error);
-            }
         }
     }
-    for row in VERB_TAIL_LITERAL_SURFACES {
+    for row in verb_tail_literal_surfaces {
         if let Some(error) = collision(
             row.surface,
             format!(
@@ -1108,12 +1141,6 @@ fn reject_literal_lexicon_collisions(
         .into_iter()
         .next()
         .map_or(Ok(collision_count), Err)
-}
-
-fn reviewed_vocab_lexicon_homograph(vocabulary: &str) -> bool {
-    // Adjective readings remain category-safe when their surface is also a
-    // noun or verb. Noun-shaped vocabularies get no such escape.
-    vocabulary == "AttributiveAdjective"
 }
 
 fn valence_licenses_frame(valence: &VerbValence, frame: &[CustomTailAtom]) -> bool {
@@ -1582,26 +1609,40 @@ mod tests {
     #[test]
     fn literal_lexicon_tripwire_counts_vocab_and_rejects_form_and_tail_collisions_exactly() {
         let baseline = ParserEnvironment::try_from_declarations([])
-            .expect("the reviewed target homograph is the only fixed-surface collision");
-        assert_eq!(baseline.literal_lexicon_collisions(), 1);
-        assert!(reviewed_vocab_lexicon_homograph("AttributiveAdjective"));
-        assert!(!reviewed_vocab_lexicon_homograph("BareLocativeNoun"));
+            .expect("licensed homographs and closed-class overlaps load cleanly");
+        assert!(baseline.literal_lexicon_collisions() > 1);
+
+        let untap = deckmaste_construction_core::macro_def::read_str(
+            "/synthetic/Untap.ron",
+            r#"KeywordAction(name:"Untap",spelling:"untap",grammar:Verb(bare:"untap",valence:Transitive))"#,
+        )
+        .expect("synthetic untap verb is valid");
+        let licensed = ParserEnvironment::try_from_declarations([untap])
+            .expect("the per-member untap homograph license admits the verb declaration");
+        assert_eq!(
+            licensed.literal_lexicon_collisions(),
+            baseline.literal_lexicon_collisions() + 1,
+        );
 
         let noun = deckmaste_construction_core::macro_def::read_str(
-            "/synthetic/Additional.ron",
-            r#"Type(name:"Additional",spelling:"additional",grammar:Noun(singular:"additional"))"#,
+            "/synthetic/Long.ron",
+            r#"Type(name:"Long",spelling:"long",grammar:Noun(singular:"long"))"#,
         )
         .expect("synthetic noun is valid");
-        assert!(matches!(
-            ParserEnvironment::try_from_declarations([noun]),
-            Err(ParserEnvironmentError::LiteralLexiconCollision {
-                surface,
-                literal_owner,
-                lexical_owner,
-            }) if surface == "additional"
-                && literal_owner.contains("construction `additional_cost`")
-                && lexical_owner.contains("Noun declaration")
-        ));
+        let form_collision = ParserEnvironment::try_from_declarations([noun]);
+        assert!(
+            matches!(
+                &form_collision,
+                Err(ParserEnvironmentError::LiteralLexiconCollision {
+                    surface,
+                    literal_owner,
+                    lexical_owner,
+                }) if surface == "long"
+                    && literal_owner.contains("as_long_as")
+                    && lexical_owner.contains("Noun declaration")
+            ),
+            "unexpected collision result: {form_collision:?}"
+        );
 
         let colliding_tail = deckmaste_construction_core::macro_def::read_str(
             "/synthetic/Act.ron",
@@ -1626,6 +1667,58 @@ mod tests {
         .expect("synthetic verb is valid");
         ParserEnvironment::try_from_declarations([case_distinct_tail])
             .expect("the literal/lexicon comparison is exact and case-sensitive");
+    }
+
+    #[test]
+    fn vocab_collision_ownership_and_member_license_are_row_local() {
+        let records = BTreeMap::new();
+        let verb_inventory = BTreeMap::new();
+        let scratch_card = [VocabSurface {
+            surface: "card",
+            vocabulary: "AttributiveAdjective",
+            member: "ScratchCard",
+            homograph_license: HomographLicense::Unlicensed,
+        }];
+        assert!(matches!(
+            reject_literal_lexicon_collisions_from_surfaces(
+                &records,
+                &verb_inventory,
+                &[],
+                &scratch_card,
+                &[],
+            ),
+            Err(ParserEnvironmentError::LiteralLexiconCollision {
+                surface,
+                literal_owner,
+                lexical_owner,
+            }) if surface == "card"
+                && literal_owner.contains("AttributiveAdjective::ScratchCard")
+                && lexical_owner.contains("CommonNoun::Card")
+        ));
+
+        let preposition = [VocabSurface {
+            surface: "during",
+            vocabulary: "Preposition",
+            member: "During",
+            homograph_license: HomographLicense::Unlicensed,
+        }];
+        let colliding_form = [FormLiteralSurface {
+            surface: "during",
+            construction: "synthetic_during",
+            form: "plain",
+            atom_index: 0,
+        }];
+        assert_eq!(
+            reject_literal_lexicon_collisions_from_surfaces(
+                &records,
+                &verb_inventory,
+                &colliding_form,
+                &preposition,
+                &[],
+            ),
+            Ok(1),
+            "the Preposition surface is a visible collision owner without turning a closed-class overlap into a load error",
+        );
     }
 
     #[test]

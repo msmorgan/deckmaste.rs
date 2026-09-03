@@ -2003,6 +2003,7 @@ fn validate_vocab_declaration_shape(vocab: &crate::model::Vocab, errors: &mut Op
             default.feature,
             crate::model::Feature::BareLocativeComplement
                 | crate::model::Feature::ModifierLicense
+                | crate::model::Feature::HomographLicense
                 | crate::model::Feature::PrepositionComplementKind
                 | crate::model::Feature::PrepositionAttachment
         ) {
@@ -2010,7 +2011,7 @@ fn validate_vocab_declaration_shape(vocab: &crate::model::Vocab, errors: &mut Op
                 errors,
                 syn::Error::new(
                     default.value.span(),
-                    "closed vocab metadata supports only BareLocativeComplement, ModifierLicense, PrepositionAttachment, and PrepositionComplementKind",
+                    "closed vocab metadata supports only BareLocativeComplement, HomographLicense, ModifierLicense, PrepositionAttachment, and PrepositionComplementKind",
                 ),
             );
         }
@@ -2037,6 +2038,7 @@ fn validate_vocab_declaration_shape(vocab: &crate::model::Vocab, errors: &mut Op
                 override_.feature,
                 crate::model::Feature::BareLocativeComplement
                     | crate::model::Feature::ModifierLicense
+                    | crate::model::Feature::HomographLicense
                     | crate::model::Feature::PrepositionComplementKind
                     | crate::model::Feature::PrepositionAttachment
             ) {
@@ -2044,7 +2046,7 @@ fn validate_vocab_declaration_shape(vocab: &crate::model::Vocab, errors: &mut Op
                     errors,
                     syn::Error::new(
                         override_.value.span(),
-                        "closed vocab metadata supports only BareLocativeComplement, ModifierLicense, PrepositionAttachment, and PrepositionComplementKind",
+                        "closed vocab metadata supports only BareLocativeComplement, HomographLicense, ModifierLicense, PrepositionAttachment, and PrepositionComplementKind",
                     ),
                 );
             }
@@ -5085,6 +5087,9 @@ fn generated_name_inventory(
                         ParsedFeature::Cardinality => ("cardinality", "Cardinality"),
                         ParsedFeature::Compoundability => ("compoundability", "Compoundability"),
                         ParsedFeature::Countability => ("countability", "Countability"),
+                        ParsedFeature::HomographLicense => {
+                            ("homograph_license", "HomographLicense")
+                        }
                         ParsedFeature::ModifierLicense => ("modifier_license", "ModifierLicense"),
                         ParsedFeature::DeterminerNumber => {
                             ("determiner_number", "DeterminerNumber")
@@ -5709,6 +5714,7 @@ fn raw_category_reads_feature(raw: &Declarations, category: &str, feature: Featu
         Feature::Cardinality => ParsedFeature::Cardinality,
         Feature::Compoundability => ParsedFeature::Compoundability,
         Feature::Countability => ParsedFeature::Countability,
+        Feature::HomographLicense => ParsedFeature::HomographLicense,
         Feature::ModifierLicense => ParsedFeature::ModifierLicense,
         Feature::DeterminerNumber => ParsedFeature::DeterminerNumber,
         Feature::FusedHeadLicense => ParsedFeature::FusedHeadLicense,
@@ -5768,6 +5774,7 @@ fn raw_sequence_reads_inherent_category_feature(
         Feature::Cardinality => ParsedFeature::Cardinality,
         Feature::Compoundability => ParsedFeature::Compoundability,
         Feature::Countability => ParsedFeature::Countability,
+        Feature::HomographLicense => ParsedFeature::HomographLicense,
         Feature::ModifierLicense => ParsedFeature::ModifierLicense,
         Feature::DeterminerNumber => ParsedFeature::DeterminerNumber,
         Feature::FusedHeadLicense => ParsedFeature::FusedHeadLicense,
@@ -6031,6 +6038,7 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                 | ParsedFeature::BareLocativeLicense
                 | ParsedFeature::Compoundability
                 | ParsedFeature::Countability
+                | ParsedFeature::HomographLicense
                 | ParsedFeature::ModifierLicense
                 | ParsedFeature::DeterminerNumber
                 | ParsedFeature::FusedHeadLicense
@@ -9727,6 +9735,7 @@ fn feature_name(feature: ParsedFeature) -> &'static str {
         ParsedFeature::Cardinality => "cardinality",
         ParsedFeature::Compoundability => "compoundability",
         ParsedFeature::Countability => "countability",
+        ParsedFeature::HomographLicense => "homograph_license",
         ParsedFeature::ModifierLicense => "modifier_license",
         ParsedFeature::DeterminerNumber => "determiner_number",
         ParsedFeature::FusedHeadLicense => "fused_head_license",
@@ -10172,6 +10181,7 @@ fn validate_lowerable_feature_compositions(
                     ParsedFeature::BareLocativeLicense
                     | ParsedFeature::Compoundability
                     | ParsedFeature::Countability
+                    | ParsedFeature::HomographLicense
                     | ParsedFeature::Properness,
                 ),
                 _,
@@ -10231,6 +10241,7 @@ fn validate_lowerable_feature_compositions(
                         ParsedFeature::BareLocativeLicense
                         | ParsedFeature::Compoundability
                         | ParsedFeature::Countability
+                        | ParsedFeature::HomographLicense
                         | ParsedFeature::Properness
                         | ParsedFeature::Relationality,
                     ..
@@ -10487,6 +10498,7 @@ fn parsed_feature_name(feature: ParsedFeature) -> &'static str {
         ParsedFeature::Cardinality => "cardinality",
         ParsedFeature::Compoundability => "compoundability",
         ParsedFeature::Countability => "countability",
+        ParsedFeature::HomographLicense => "homograph_license",
         ParsedFeature::ModifierLicense => "modifier_license",
         ParsedFeature::DeterminerNumber => "determiner_number",
         ParsedFeature::FusedHeadLicense => "fused_head_license",
@@ -16744,7 +16756,7 @@ pub(crate) mod tests {
         assert_eq!(validated.semantic().constructions().len(), 6);
         assert_eq!(validated.semantic().terminals().len(), 8);
         assert_eq!(validated.semantic().roots().len(), 1);
-        assert_eq!(expansion.plan().items().len(), 135);
+        assert_eq!(expansion.plan().items().len(), 136);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -17109,7 +17121,7 @@ pub(crate) mod tests {
             snapshot.dynamic_number_constructions,
             vec!["leaf".to_owned()]
         );
-        assert_eq!(expansion.plan().items().len(), 135);
+        assert_eq!(expansion.plan().items().len(), 136);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -17249,7 +17261,7 @@ pub(crate) mod tests {
 
         let emission = crate::plan::plan_emission(validated.semantic())
             .expect("the already validated semantic plan emits");
-        assert_eq!(emission.items().len(), 135);
+        assert_eq!(emission.items().len(), 136);
         assert!(emission.items().iter().any(|item| {
             matches!(
                 &item.key,

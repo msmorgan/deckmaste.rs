@@ -112,6 +112,7 @@ constructions! {
     vocab FrequencyAdverb { Once = "once", Twice = "twice", }
     vocab ScalarDegree { Equal = "equal", Lesser = "lesser", Greater = "greater", }
     vocab AttributiveAdjective {
+        feature HomographLicense = Unlicensed;
         feature ModifierLicense = Unrestricted;
         Additional = "additional",
         Base = "base",
@@ -127,8 +128,11 @@ constructions! {
         Same = "same",
         Second = "second",
         SixSided = "six-sided",
-        Target = "target" { feature ModifierLicense = LocalDeterminer; },
-        Untap = "untap",
+        Target = "target" {
+            feature HomographLicense = Licensed;
+            feature ModifierLicense = LocalDeterminer;
+        },
+        Untap = "untap" { feature HomographLicense = Licensed; },
     }
     vocab ContractedPerfectSubject { Youve = "you've", Theyve = "they've", }
     vocab ContractedCopularSubject {

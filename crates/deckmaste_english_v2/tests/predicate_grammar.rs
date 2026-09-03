@@ -58,7 +58,7 @@ fn environment() -> ParserEnvironment {
         ),
         (
             "/synthetic/actions/Declare.ron",
-            r#"KeywordAction(name:"Declare",spelling:"declare",grammar:Verb(bare:"declare",participle:"declared",valence:Transitive))"#,
+            r#"KeywordAction(name:"Declare",spelling:"proclaim",grammar:Verb(bare:"proclaim",valence:Transitive))"#,
         ),
         (
             "/synthetic/actions/Cast.ron",

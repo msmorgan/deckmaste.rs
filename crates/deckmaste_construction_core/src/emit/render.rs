@@ -1754,6 +1754,7 @@ fn emit_vocab_feature_helper(helper: VocabFeatureHelper<'_>) -> GeneratedItem {
         Feature::Cardinality => quote! { Cardinality },
         Feature::Compoundability => quote! { Compoundability },
         Feature::Countability => quote! { Countability },
+        Feature::HomographLicense => quote! { HomographLicense },
         Feature::ModifierLicense => quote! { ModifierLicense },
         Feature::DeterminerNumber => quote! { DeterminerNumber },
         Feature::FusedHeadLicense => quote! { FusedHeadLicense },
@@ -3861,7 +3862,10 @@ fn feature_expr(
                     Feature::BareLocativeLicense | Feature::Compoundability => {
                         Err(internal("noun licensing is closed lexeme metadata"))
                     }
-                    Feature::Countability | Feature::Properness | Feature::Relationality => {
+                    Feature::Countability
+                    | Feature::HomographLicense
+                    | Feature::Properness
+                    | Feature::Relationality => {
                         Err(internal("noun classification is closed lexical metadata"))
                     }
                     Feature::BareLocativeComplement | Feature::PrepositionAttachment => {
@@ -4831,6 +4835,7 @@ fn emit_feature_helper(
         Feature::Cardinality => quote! { Cardinality },
         Feature::Compoundability => quote! { Compoundability },
         Feature::Countability => quote! { Countability },
+        Feature::HomographLicense => quote! { HomographLicense },
         Feature::ModifierLicense => quote! { ModifierLicense },
         Feature::DeterminerNumber => quote! { DeterminerNumber },
         Feature::FusedHeadLicense => quote! { FusedHeadLicense },
@@ -5422,6 +5427,8 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::NonCompoundable => quote! { Compoundability::NonCompoundable },
         FeatureValue::Count => quote! { Countability::Count },
         FeatureValue::Mass => quote! { Countability::Mass },
+        FeatureValue::HomographUnlicensed => quote! { HomographLicense::Unlicensed },
+        FeatureValue::HomographLicensed => quote! { HomographLicense::Licensed },
         FeatureValue::Unrestricted => quote! { ModifierLicense::Unrestricted },
         FeatureValue::LocalDeterminer => quote! { ModifierLicense::LocalDeterminer },
         FeatureValue::No => quote! { BareLocativeComplement::No },
@@ -5703,6 +5710,7 @@ fn feature_name(feature: Feature) -> &'static str {
         Feature::Cardinality => "cardinality",
         Feature::Compoundability => "compoundability",
         Feature::Countability => "countability",
+        Feature::HomographLicense => "homograph_license",
         Feature::ModifierLicense => "modifier_license",
         Feature::Number => "number",
         Feature::Onset => "onset",

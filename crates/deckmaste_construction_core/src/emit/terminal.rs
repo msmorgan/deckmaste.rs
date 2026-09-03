@@ -845,6 +845,7 @@ fn emit_lexeme_surface_helper(
         | crate::Feature::BareLocativeLicense
         | crate::Feature::Compoundability
         | crate::Feature::Countability
+        | crate::Feature::HomographLicense
         | crate::Feature::ModifierLicense
         | crate::Feature::DeterminerNumber
         | crate::Feature::FusedHeadLicense

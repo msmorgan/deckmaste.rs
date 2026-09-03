@@ -15,6 +15,7 @@ pub(crate) enum Feature {
     Cardinality,
     Compoundability,
     Countability,
+    HomographLicense,
     ModifierLicense,
     DeterminerNumber,
     FusedHeadLicense,
@@ -53,6 +54,8 @@ pub(crate) enum FeatureValue {
     NonCompoundable,
     Count,
     Mass,
+    HomographUnlicensed,
+    HomographLicensed,
     Unrestricted,
     LocalDeterminer,
     SingularOnly,
@@ -139,6 +142,10 @@ impl Feature {
             Self::Cardinality => &[FeatureValue::Zero, FeatureValue::One, FeatureValue::TwoPlus],
             Self::Compoundability => &[FeatureValue::Compoundable, FeatureValue::NonCompoundable],
             Self::Countability => &[FeatureValue::Count, FeatureValue::Mass],
+            Self::HomographLicense => &[
+                FeatureValue::HomographUnlicensed,
+                FeatureValue::HomographLicensed,
+            ],
             Self::ModifierLicense => &[FeatureValue::Unrestricted, FeatureValue::LocalDeterminer],
             Self::DeterminerNumber => &[
                 FeatureValue::SingularOnly,
@@ -219,6 +226,7 @@ impl Feature {
             Self::Cardinality => "cardinality",
             Self::Compoundability => "compoundability",
             Self::Countability => "countability",
+            Self::HomographLicense => "homograph_license",
             Self::ModifierLicense => "modifier_license",
             Self::DeterminerNumber => "determiner_number",
             Self::FusedHeadLicense => "fused_head_license",
@@ -260,6 +268,8 @@ impl FeatureValue {
             Self::NonCompoundable => "NonCompoundable",
             Self::Count => "Count",
             Self::Mass => "Mass",
+            Self::HomographUnlicensed | Self::Unlicensed => "Unlicensed",
+            Self::HomographLicensed => "Licensed",
             Self::Unrestricted => "Unrestricted",
             Self::LocalDeterminer => "LocalDeterminer",
             Self::SingularOnly => "SingularOnly",
@@ -273,7 +283,6 @@ impl FeatureValue {
             Self::OnComplement => "OnComplement",
             Self::AtComplement => "AtComplement",
             Self::DuringComplement => "DuringComplement",
-            Self::Unlicensed => "Unlicensed",
             Self::OfLicensed => "OfLicensed",
             Self::OfAndOnLicensed => "OfAndOnLicensed",
             Self::OfInAndOnLicensed => "OfInAndOnLicensed",
@@ -434,6 +443,7 @@ impl Feature {
             Self::Cardinality => "cardinality",
             Self::Compoundability => "compoundability",
             Self::Countability => "countability",
+            Self::HomographLicense => "homograph_license",
             Self::ModifierLicense => "modifier_license",
             Self::DeterminerNumber => "determiner_number",
             Self::FusedHeadLicense => "fused_head_license",
@@ -476,6 +486,8 @@ impl FeatureValue {
             Self::NonCompoundable => "NonCompoundable",
             Self::Count => "Count",
             Self::Mass => "Mass",
+            Self::HomographUnlicensed | Self::Unlicensed => "Unlicensed",
+            Self::HomographLicensed => "Licensed",
             Self::Unrestricted => "Unrestricted",
             Self::LocalDeterminer => "LocalDeterminer",
             Self::SingularOnly => "SingularOnly",
@@ -489,7 +501,6 @@ impl FeatureValue {
             Self::OnComplement => "OnComplement",
             Self::AtComplement => "AtComplement",
             Self::DuringComplement => "DuringComplement",
-            Self::Unlicensed => "Unlicensed",
             Self::OfLicensed => "OfLicensed",
             Self::OfAndOnLicensed => "OfAndOnLicensed",
             Self::OfInAndOnLicensed => "OfInAndOnLicensed",
@@ -566,6 +577,8 @@ pub(crate) fn lower_constant(
         (model::Feature::Compoundability, "NonCompoundable") => FeatureValue::NonCompoundable,
         (model::Feature::Countability, "Count") => FeatureValue::Count,
         (model::Feature::Countability, "Mass") => FeatureValue::Mass,
+        (model::Feature::HomographLicense, "Unlicensed") => FeatureValue::HomographUnlicensed,
+        (model::Feature::HomographLicense, "Licensed") => FeatureValue::HomographLicensed,
         (model::Feature::ModifierLicense, "Unrestricted") => FeatureValue::Unrestricted,
         (model::Feature::ModifierLicense, "LocalDeterminer") => FeatureValue::LocalDeterminer,
         (model::Feature::DeterminerNumber, "SingularOnly") => FeatureValue::SingularOnly,
@@ -662,6 +675,12 @@ pub(crate) fn lower_constant(
             return Err(syn::Error::new_spanned(
                 path,
                 format!("`{name}` is not a countability value"),
+            ));
+        }
+        (model::Feature::HomographLicense, _) => {
+            return Err(syn::Error::new_spanned(
+                path,
+                format!("`{name}` is not a homograph-license value"),
             ));
         }
         (model::Feature::ModifierLicense, _) => {
@@ -761,6 +780,7 @@ impl From<model::Feature> for Feature {
             model::Feature::Cardinality => Self::Cardinality,
             model::Feature::Compoundability => Self::Compoundability,
             model::Feature::Countability => Self::Countability,
+            model::Feature::HomographLicense => Self::HomographLicense,
             model::Feature::ModifierLicense => Self::ModifierLicense,
             model::Feature::DeterminerNumber => Self::DeterminerNumber,
             model::Feature::FusedHeadLicense => Self::FusedHeadLicense,

@@ -572,6 +572,7 @@ fn declaration_noun_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
             | crate::feature::Feature::Cardinality
             | crate::feature::Feature::Compoundability
             | crate::feature::Feature::Countability
+            | crate::feature::Feature::HomographLicense
             | crate::feature::Feature::ModifierLicense
             | crate::feature::Feature::DeterminerNumber
             | crate::feature::Feature::FusedHeadLicense

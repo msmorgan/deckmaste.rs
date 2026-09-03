@@ -210,6 +210,13 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             },
         ),
         named_type(
+            "HomographLicense",
+            quote! {
+                #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+                pub(crate) enum HomographLicense { Unlicensed, Licensed }
+            },
+        ),
+        named_type(
             "ModifierLicense",
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
@@ -400,6 +407,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                     pub(crate) surface: &'static str,
                     pub(crate) vocabulary: &'static str,
                     pub(crate) member: &'static str,
+                    pub(crate) homograph_license: HomographLicense,
                 }
             },
         ),
@@ -442,16 +450,37 @@ fn emit_vocab_surfaces(plan: &SemanticPlan) -> GeneratedItem {
     let rows = plan
         .runtime_vocabs()
         .flat_map(|vocab| {
+            let licenses = vocab.feature_members(crate::feature::Feature::HomographLicense);
             vocab.variants().iter().map(move |variant| {
                 let surface = variant.word();
                 let vocabulary = syn::LitStr::new(vocab.name(), vocab.name_ident().span());
                 let member =
                     syn::LitStr::new(&identifier_key(variant.name()), variant.name().span());
+                let homograph_license = licenses
+                    .and_then(|members| {
+                        members
+                            .iter()
+                            .find(|(name, _)| name == &identifier_key(variant.name()))
+                            .map(|(_, value)| value)
+                    })
+                    .map_or_else(
+                        || quote! { HomographLicense::Unlicensed },
+                        |value| match value {
+                            crate::feature::FeatureValue::HomographUnlicensed => {
+                                quote! { HomographLicense::Unlicensed }
+                            }
+                            crate::feature::FeatureValue::HomographLicensed => {
+                                quote! { HomographLicense::Licensed }
+                            }
+                            _ => unreachable!("sealed homograph license has its closed domain"),
+                        },
+                    );
                 quote! {
                     VocabSurface {
                         surface: #surface,
                         vocabulary: #vocabulary,
                         member: #member,
+                        homograph_license: #homograph_license,
                     }
                 }
             })
@@ -2934,6 +2963,48 @@ mod tests {
         assert!(runtime.iter().any(|item| {
             matches!(&item.key, crate::ItemKey::Impl { trait_name: Some(name), self_ty } if name == "From<Category>" && self_ty == "NonterminalCategory")
         }));
+    }
+
+    #[test]
+    fn vocab_surface_rows_carry_effective_homograph_licenses() {
+        let plan = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                vocab AttributiveAdjective {
+                    feature HomographLicense = Unlicensed;
+                    Plain = "plain",
+                    Target = "target" { feature HomographLicense = Licensed; },
+                }
+                vocab Preposition { During = "during", }
+                construction phrase: Phrase {
+                    element PhraseNode {
+                        adjective: lex AttributiveAdjective,
+                        preposition: lex Preposition,
+                    }
+                    form phrase = lex(adjective) " " lex(preposition);
+                }
+                root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("homograph metadata fixture parses"),
+        )
+        .expect("homograph metadata fixture validates")
+        .into_semantic();
+        let runtime = super::emit(&plan);
+        let rows = runtime
+            .iter()
+            .find(|item| {
+                matches!(&item.key, crate::ItemKey::Named { name, .. } if name == "VOCAB_SURFACES")
+            })
+            .expect("vocab surface rows are emitted")
+            .tokens
+            .to_string();
+
+        for fragment in [
+            "surface : \"plain\" , vocabulary : \"AttributiveAdjective\" , member : \"Plain\" , homograph_license : HomographLicense :: Unlicensed",
+            "surface : \"target\" , vocabulary : \"AttributiveAdjective\" , member : \"Target\" , homograph_license : HomographLicense :: Licensed",
+            "surface : \"during\" , vocabulary : \"Preposition\" , member : \"During\" , homograph_license : HomographLicense :: Unlicensed",
+        ] {
+            assert!(rows.contains(fragment), "missing `{fragment}`: {rows}");
+        }
     }
 
     fn structural_semantic_plan() -> crate::semantic::SemanticPlan {

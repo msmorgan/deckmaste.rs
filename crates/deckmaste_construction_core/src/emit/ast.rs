@@ -1025,6 +1025,12 @@ fn feature_value(value: crate::feature::FeatureValue) -> TokenStream {
         }
         crate::feature::FeatureValue::Count => quote! { Countability::Count },
         crate::feature::FeatureValue::Mass => quote! { Countability::Mass },
+        crate::feature::FeatureValue::HomographUnlicensed => {
+            quote! { HomographLicense::Unlicensed }
+        }
+        crate::feature::FeatureValue::HomographLicensed => {
+            quote! { HomographLicense::Licensed }
+        }
         crate::feature::FeatureValue::Unrestricted => quote! { ModifierLicense::Unrestricted },
         crate::feature::FeatureValue::LocalDeterminer => {
             quote! { ModifierLicense::LocalDeterminer }
@@ -2071,6 +2077,7 @@ mod tests {
                 "LocativeTemporalLicense",
                 "Compoundability",
                 "Countability",
+                "HomographLicense",
                 "ModifierLicense",
                 "PrepositionAttachment",
                 "Properness",

@@ -784,6 +784,7 @@ fn feature_from_ident(ident: &Ident) -> Option<Feature> {
         "cardinality" => Some(Feature::Cardinality),
         "compoundability" => Some(Feature::Compoundability),
         "countability" => Some(Feature::Countability),
+        "homograph_license" => Some(Feature::HomographLicense),
         "modifier_license" => Some(Feature::ModifierLicense),
         "determiner_number" => Some(Feature::DeterminerNumber),
         "fused_head_license" => Some(Feature::FusedHeadLicense),
@@ -808,6 +809,7 @@ fn lexeme_feature_from_ident(ident: &Ident) -> Option<Feature> {
         .or_else(|| (ident == "BareLocativeComplement").then_some(Feature::BareLocativeComplement))
         .or_else(|| (ident == "BareLocativeLicense").then_some(Feature::BareLocativeLicense))
         .or_else(|| (ident == "Countability").then_some(Feature::Countability))
+        .or_else(|| (ident == "HomographLicense").then_some(Feature::HomographLicense))
         .or_else(|| (ident == "ModifierLicense").then_some(Feature::ModifierLicense))
         .or_else(|| {
             (ident == "PrepositionComplementKind").then_some(Feature::PrepositionComplementKind)

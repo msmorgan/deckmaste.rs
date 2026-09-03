@@ -274,12 +274,12 @@ fn environment() -> ParserEnvironment {
     ParserEnvironment::try_from_declarations([
         deckmaste_construction_core::macro_def::read_str(
             "/synthetic/actions/Destroy.ron",
-            r#"KeywordAction(name:"Destroy",spelling:"same",grammar:Verb(bare:"same",valence:Intransitive))"#,
+            r#"KeywordAction(name:"Destroy",spelling:"homonym",grammar:Verb(bare:"homonym",valence:Intransitive))"#,
         )
         .unwrap(),
         deckmaste_construction_core::macro_def::read_str(
             "/synthetic/abilities/Destroy.ron",
-            r#"KeywordAbility(name:"Destroy",spelling:"same",grammar:Verb(bare:"same",valence:Intransitive))"#,
+            r#"KeywordAbility(name:"Destroy",spelling:"homonym",grammar:Verb(bare:"homonym",valence:Intransitive))"#,
         )
         .unwrap(),
     ])
@@ -797,7 +797,7 @@ fn generated_helper_cycle_is_an_internal_materialization_failure_with_owner_role
 fn generated_homonyms_survive_scan_build_and_trace_with_category_safe_identity() {
     let environment = environment();
     let context = ParseContext::default();
-    let text = "Same.";
+    let text = "Homonym.";
     assert_eq!(
         REQUIRED_DECLARATIONS
             .iter()
@@ -903,8 +903,8 @@ fn generated_homonyms_survive_scan_build_and_trace_with_category_safe_identity()
         let (rendered, claims) = render_homonym_with_claims(homonym, &context, &environment);
         assert_eq!(rendered, text);
         assert_eq!(claims.len(), 2);
-        assert_eq!((claims[0].start, claims[0].end), (0, 4));
-        assert_eq!((claims[1].start, claims[1].end), (4, 5));
+        assert_eq!((claims[0].start, claims[0].end), (0, 7));
+        assert_eq!((claims[1].start, claims[1].end), (7, 8));
         assert_eq!(claims[0].owner.kind(), LexicalProvenanceKind::Lexeme);
         let mut visitor = IdentityVisitor::default();
         match homonym {

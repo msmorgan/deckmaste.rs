@@ -2490,7 +2490,7 @@ mod tests {
                 .unwrap()
                 > 0
         );
-        assert_eq!(json["summary"]["literal_lexicon_collisions"], 2);
+        assert_eq!(json["summary"]["literal_lexicon_collisions"], 72);
     }
 
     #[test]
