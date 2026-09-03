@@ -2194,15 +2194,6 @@ fn validate_lexeme_declaration_shape(
                     ),
                 );
             }
-            if !feature_defaults.contains(&override_.feature) {
-                combine(
-                    errors,
-                    syn::Error::new(
-                        override_.value.span(),
-                        "lexeme feature override requires a lexeme-level default",
-                    ),
-                );
-            }
             if !feature_overrides.insert(override_.feature) {
                 combine(
                     errors,
@@ -2216,6 +2207,31 @@ fn validate_lexeme_declaration_shape(
                 combine(
                     errors,
                     syn::Error::new(override_.value.span(), "invalid lexeme feature override"),
+                );
+            }
+        }
+    }
+    let explicit_features = lexeme
+        .members
+        .iter()
+        .flat_map(|member| member.feature_overrides.iter().map(|row| row.feature))
+        .collect::<HashSet<_>>();
+    for feature in explicit_features.difference(&feature_defaults) {
+        for member in &lexeme.members {
+            if !member
+                .feature_overrides
+                .iter()
+                .any(|row| row.feature == *feature)
+            {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        member.name.span(),
+                        format!(
+                            "lexeme feature `{}` without a default must be declared on every member",
+                            crate::feature::Feature::from(*feature).key()
+                        ),
+                    ),
                 );
             }
         }
@@ -9594,6 +9610,21 @@ fn declared_terminal_feature_providers(
             for default in &lexeme.feature_defaults {
                 providers.insert((identifier_key(&lexeme.name), default.feature));
             }
+            let explicit_features = lexeme
+                .members
+                .iter()
+                .flat_map(|member| member.feature_overrides.iter().map(|row| row.feature))
+                .collect::<HashSet<_>>();
+            for feature in explicit_features {
+                if lexeme.members.iter().all(|member| {
+                    member
+                        .feature_overrides
+                        .iter()
+                        .any(|row| row.feature == feature)
+                }) {
+                    providers.insert((identifier_key(&lexeme.name), feature));
+                }
+            }
         }
         if let Declaration::Vocab(vocab) = declaration {
             for default in &vocab.feature_defaults {
@@ -9635,6 +9666,21 @@ fn declared_terminal_feature_providers(
         };
         for default in &lexeme.feature_defaults {
             providers.insert((identifier_key(&codec.name), default.feature));
+        }
+        let explicit_features = lexeme
+            .members
+            .iter()
+            .flat_map(|member| member.feature_overrides.iter().map(|row| row.feature))
+            .collect::<HashSet<_>>();
+        for feature in explicit_features {
+            if lexeme.members.iter().all(|member| {
+                member
+                    .feature_overrides
+                    .iter()
+                    .any(|row| row.feature == feature)
+            }) {
+                providers.insert((identifier_key(&codec.name), feature));
+            }
         }
     }
 }
@@ -10669,6 +10715,42 @@ pub(crate) mod tests {
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         })
         .expect("feature-bearing lexical field accepts a build-only check");
+    }
+
+    #[test]
+    fn defaultless_lexeme_features_are_exhaustive_declared_data() {
+        validate(quote! {
+            morphology EnglishNoun {
+                feature = Number;
+                recipe = english_noun;
+            }
+            lexeme Head using EnglishNoun {
+                First = "first" { feature Relationality = NonRelational; },
+                Second = "second" { feature Relationality = QualifiedRelational; },
+            }
+            construction root: Root { element RootNode {} form root = "root"; }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("an explicit value on every member is a sealed lexical feature");
+
+        let diagnostic = error(quote! {
+            morphology EnglishNoun {
+                feature = Number;
+                recipe = english_noun;
+            }
+            lexeme Head using EnglishNoun {
+                First = "first" { feature Relationality = NonRelational; },
+                Second = "second",
+            }
+            construction root: Root { element RootNode {} form root = "root"; }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            diagnostic.contains(
+                "lexeme feature `relationality` without a default must be declared on every member"
+            ),
+            "{diagnostic}"
+        );
     }
 
     #[test]

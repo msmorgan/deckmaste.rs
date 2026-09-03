@@ -17,6 +17,10 @@
             category: Param(category),
             spelling: Param(spelling),
             grammar: Param(grammar),
+            noun_class: (
+                locative_temporal_license: ObjectAttachmentLicensed,
+                relationality: QualifiedRelational,
+            ),
         ),
         body: Param(body),
     ),

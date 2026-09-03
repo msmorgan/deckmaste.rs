@@ -76,6 +76,7 @@ pub(crate) enum FeatureValue {
     InLicensed,
     OnLicensed,
     InOrOnEdgeLicensed,
+    ObjectAttachmentLicensed,
     TemporalLicensed,
     OfAndTemporalLicensed,
     BareSingularNoun,
@@ -92,6 +93,7 @@ pub(crate) enum FeatureValue {
     Common,
     Proper,
     NonRelational,
+    QualifiedRelational,
     Relational,
     AdjunctCapable,
     PostmodifierOnly,
@@ -169,6 +171,7 @@ impl Feature {
                 FeatureValue::InLicensed,
                 FeatureValue::OnLicensed,
                 FeatureValue::InOrOnEdgeLicensed,
+                FeatureValue::ObjectAttachmentLicensed,
                 FeatureValue::TemporalLicensed,
                 FeatureValue::OfAndTemporalLicensed,
             ],
@@ -192,7 +195,11 @@ impl Feature {
             Self::Participle => &[FeatureValue::Participle],
             Self::PossessiveEnding => &[FeatureValue::EndsInS, FeatureValue::Other],
             Self::Properness => &[FeatureValue::Common, FeatureValue::Proper],
-            Self::Relationality => &[FeatureValue::NonRelational, FeatureValue::Relational],
+            Self::Relationality => &[
+                FeatureValue::NonRelational,
+                FeatureValue::QualifiedRelational,
+                FeatureValue::Relational,
+            ],
             Self::PrepositionAttachment => &[
                 FeatureValue::AdjunctCapable,
                 FeatureValue::PostmodifierOnly,
@@ -289,6 +296,7 @@ impl FeatureValue {
             Self::InLicensed => "InLicensed",
             Self::OnLicensed => "OnLicensed",
             Self::InOrOnEdgeLicensed => "InOrOnEdgeLicensed",
+            Self::ObjectAttachmentLicensed => "ObjectAttachmentLicensed",
             Self::TemporalLicensed => "TemporalLicensed",
             Self::OfAndTemporalLicensed => "OfAndTemporalLicensed",
             Self::BareSingularNoun | Self::LicensedBareSingularNoun => "BareSingularNoun",
@@ -304,6 +312,7 @@ impl FeatureValue {
             Self::Common => "Common",
             Self::Proper => "Proper",
             Self::NonRelational => "NonRelational",
+            Self::QualifiedRelational => "QualifiedRelational",
             Self::Relational => "Relational",
             Self::AdjunctCapable => "AdjunctCapable",
             Self::PostmodifierOnly => "PostmodifierOnly",
@@ -507,6 +516,7 @@ impl FeatureValue {
             Self::InLicensed => "InLicensed",
             Self::OnLicensed => "OnLicensed",
             Self::InOrOnEdgeLicensed => "InOrOnEdgeLicensed",
+            Self::ObjectAttachmentLicensed => "ObjectAttachmentLicensed",
             Self::TemporalLicensed => "TemporalLicensed",
             Self::OfAndTemporalLicensed => "OfAndTemporalLicensed",
             Self::BareSingularNoun | Self::LicensedBareSingularNoun => "BareSingularNoun",
@@ -522,6 +532,7 @@ impl FeatureValue {
             Self::Common => "Common",
             Self::Proper => "Proper",
             Self::NonRelational => "NonRelational",
+            Self::QualifiedRelational => "QualifiedRelational",
             Self::Relational => "Relational",
             Self::AdjunctCapable => "AdjunctCapable",
             Self::PostmodifierOnly => "PostmodifierOnly",
@@ -611,6 +622,9 @@ pub(crate) fn lower_constant(
         (model::Feature::LocativeTemporalLicense, "InOrOnEdgeLicensed") => {
             FeatureValue::InOrOnEdgeLicensed
         }
+        (model::Feature::LocativeTemporalLicense, "ObjectAttachmentLicensed") => {
+            FeatureValue::ObjectAttachmentLicensed
+        }
         (model::Feature::LocativeTemporalLicense, "TemporalLicensed") => {
             FeatureValue::TemporalLicensed
         }
@@ -635,6 +649,7 @@ pub(crate) fn lower_constant(
         (model::Feature::Properness, "Common") => FeatureValue::Common,
         (model::Feature::Properness, "Proper") => FeatureValue::Proper,
         (model::Feature::Relationality, "NonRelational") => FeatureValue::NonRelational,
+        (model::Feature::Relationality, "QualifiedRelational") => FeatureValue::QualifiedRelational,
         (model::Feature::Relationality, "Relational") => FeatureValue::Relational,
         (model::Feature::PrepositionAttachment, "AdjunctCapable") => FeatureValue::AdjunctCapable,
         (model::Feature::PrepositionAttachment, "PostmodifierOnly") => {

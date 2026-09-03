@@ -272,96 +272,221 @@ constructions! {
         feature BareLocativeLicense = QualifiedOnly;
         feature Compoundability = Compoundable;
         feature Countability = Count;
-        feature LocativeTemporalLicense = OfAndOnLicensed;
         feature Properness = Common;
-        feature Relationality = NonRelational;
         Ability = "ability" {
             Plural = "abilities",
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = QualifiedRelational;
         },
-        Attacker = "attacker",
-        Battlefield = "battlefield" { feature LocativeTemporalLicense = OnLicensed; },
+        Attacker = "attacker" {
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = NonRelational;
+        },
+        Battlefield = "battlefield" {
+            feature LocativeTemporalLicense = OnLicensed;
+            feature Relationality = NonRelational;
+        },
         Beginning = "beginning" {
-            feature LocativeTemporalLicense = OfAndTemporalLicensed;
+            feature LocativeTemporalLicense = TemporalLicensed;
             feature Relationality = Relational;
         },
-        Blocker = "blocker",
-        Card = "card",
-        Choice = "choice" { feature LocativeTemporalLicense = OfLicensed; },
-        Coin = "coin",
-        Color = "color" { feature LocativeTemporalLicense = OfLicensed; },
-        CommandZone = "command zone" { feature LocativeTemporalLicense = InLicensed; },
-        Control = "control" { feature Countability = Mass; },
+        Blocker = "blocker" {
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = NonRelational;
+        },
+        Card = "card" {
+            feature LocativeTemporalLicense = ObjectAttachmentLicensed;
+            feature Relationality = NonRelational;
+        },
+        Choice = "choice" {
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = QualifiedRelational;
+        },
+        Coin = "coin" {
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = NonRelational;
+        },
+        Color = "color" {
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = QualifiedRelational;
+        },
+        CommandZone = "command zone" {
+            feature LocativeTemporalLicense = InLicensed;
+            feature Relationality = NonRelational;
+        },
+        Control = "control" {
+            feature Countability = Mass;
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = QualifiedRelational;
+        },
         Copy = "copy" {
             Plural = "copies",
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = QualifiedRelational;
         },
-        Cost = "cost",
-        Counter = "counter",
-        Damage = "damage" { feature Countability = Mass; },
-        Death = "death",
-        Draw = "draw",
+        Cost = "cost" {
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = QualifiedRelational;
+        },
+        Counter = "counter" {
+            feature LocativeTemporalLicense = OnLicensed;
+            feature Relationality = NonRelational;
+        },
+        Damage = "damage" {
+            feature Countability = Mass;
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = NonRelational;
+        },
+        Death = "death" {
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = NonRelational;
+        },
+        Draw = "draw" {
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = NonRelational;
+        },
         End = "end" {
             feature Compoundability = NonCompoundable;
-            feature LocativeTemporalLicense = OfAndTemporalLicensed;
+            feature LocativeTemporalLicense = TemporalLicensed;
             feature Relationality = Relational;
         },
         Exile = "exile" {
             feature BareLocativeLicense = BareAllowed;
             feature LocativeTemporalLicense = InLicensed;
+            feature Relationality = NonRelational;
         },
-        Graveyard = "graveyard" { feature LocativeTemporalLicense = InLicensed; },
+        Graveyard = "graveyard" {
+            feature LocativeTemporalLicense = InLicensed;
+            feature Relationality = NonRelational;
+        },
         Hand = "hand" {
             feature BareLocativeLicense = BareAllowed;
             feature LocativeTemporalLicense = InLicensed;
+            feature Relationality = NonRelational;
         },
         Library = "library" {
             Plural = "libraries",
             feature LocativeTemporalLicense = InOrOnEdgeLicensed;
+            feature Relationality = NonRelational;
         },
-        Life = "life" { feature Countability = Mass; },
-        Mana = "mana" { feature Countability = Mass; },
-        Mode = "mode",
-        Name = "name",
-        Number = "number",
-        Controller = "controller",
-        Opponent = "opponent",
-        Owner = "owner",
-        Permanent = "permanent",
+        Life = "life" {
+            feature Countability = Mass;
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = NonRelational;
+        },
+        Mana = "mana" {
+            feature Countability = Mass;
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = QualifiedRelational;
+        },
+        Mode = "mode" {
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = NonRelational;
+        },
+        Name = "name" {
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = QualifiedRelational;
+        },
+        Number = "number" {
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = QualifiedRelational;
+        },
+        Controller = "controller" {
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = QualifiedRelational;
+        },
+        Opponent = "opponent" {
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = NonRelational;
+        },
+        Owner = "owner" {
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = QualifiedRelational;
+        },
+        Permanent = "permanent" {
+            feature LocativeTemporalLicense = ObjectAttachmentLicensed;
+            feature Relationality = NonRelational;
+        },
         Phase = "phase" {
-            feature LocativeTemporalLicense = OfAndTemporalLicensed;
+            feature LocativeTemporalLicense = TemporalLicensed;
             feature Relationality = Relational;
         },
-        Player = "player",
-        Power = "power",
-        Rest = "rest",
-        Source = "source",
-        Size = "size",
-        Spell = "spell",
-        Stack = "stack" { feature LocativeTemporalLicense = OnLicensed; },
+        Player = "player" {
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = NonRelational;
+        },
+        Power = "power" {
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = QualifiedRelational;
+        },
+        Rest = "rest" {
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = QualifiedRelational;
+        },
+        Source = "source" {
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = QualifiedRelational;
+        },
+        Size = "size" {
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = QualifiedRelational;
+        },
+        Spell = "spell" {
+            feature LocativeTemporalLicense = ObjectAttachmentLicensed;
+            feature Relationality = NonRelational;
+        },
+        Stack = "stack" {
+            feature LocativeTemporalLicense = OnLicensed;
+            feature Relationality = NonRelational;
+        },
         Step = "step" {
-            feature LocativeTemporalLicense = OfAndTemporalLicensed;
+            feature LocativeTemporalLicense = TemporalLicensed;
             feature Relationality = Relational;
         },
         Target = "target" {
             feature Compoundability = NonCompoundable;
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = QualifiedRelational;
         },
         Tax = "tax" {
             Plural = "taxes",
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = NonRelational;
         },
-        Token = "token",
+        Token = "token" {
+            feature LocativeTemporalLicense = ObjectAttachmentLicensed;
+            feature Relationality = NonRelational;
+        },
         Toughness = "toughness" {
             Plural = "toughnesses",
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = QualifiedRelational;
         },
         Turn = "turn" {
-            feature LocativeTemporalLicense = OfAndTemporalLicensed;
+            feature LocativeTemporalLicense = TemporalLicensed;
             feature Relationality = Relational;
         },
-        Type = "type" { feature LocativeTemporalLicense = OfLicensed; },
-        Value = "value",
-        Way = "way",
+        Type = "type" {
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = QualifiedRelational;
+        },
+        Value = "value" {
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = QualifiedRelational;
+        },
+        Way = "way" {
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = NonRelational;
+        },
         Die = "die" {
             Plural = "dice",
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = NonRelational;
         },
-        D20 = "d20",
+        D20 = "d20" {
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = NonRelational;
+        },
     }
     codec IntransitiveVerb {
         generate declaration_verb {
@@ -4562,6 +4687,7 @@ fn preposition_complement_is_licensed(
                 | LocativeTemporalLicense::OfAndOnLicensed
                 | LocativeTemporalLicense::OfInAndOnLicensed
                 | LocativeTemporalLicense::OfAndTemporalLicensed
+                | LocativeTemporalLicense::ObjectAttachmentLicensed
         ),
         PrepositionComplementKind::InComplement => {
             !edge
@@ -4577,7 +4703,8 @@ fn preposition_complement_is_licensed(
             | LocativeTemporalLicense::OfAndOnLicensed
             | LocativeTemporalLicense::OfInAndOnLicensed
             | LocativeTemporalLicense::TemporalLicensed
-            | LocativeTemporalLicense::OfAndTemporalLicensed => !edge,
+            | LocativeTemporalLicense::OfAndTemporalLicensed
+            | LocativeTemporalLicense::ObjectAttachmentLicensed => !edge,
             LocativeTemporalLicense::InOrOnEdgeLicensed => edge,
             LocativeTemporalLicense::Unlicensed
             | LocativeTemporalLicense::OfLicensed

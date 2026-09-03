@@ -1053,6 +1053,9 @@ fn emit_lexeme_relationality_helper(
                 crate::feature::FeatureValue::NonRelational => {
                     quote! { Relationality::NonRelational }
                 }
+                crate::feature::FeatureValue::QualifiedRelational => {
+                    quote! { Relationality::QualifiedRelational }
+                }
                 crate::feature::FeatureValue::Relational => {
                     quote! { Relationality::Relational }
                 }
@@ -1104,6 +1107,9 @@ fn emit_lexeme_locative_temporal_license_helper(
                 }
                 crate::feature::FeatureValue::InOrOnEdgeLicensed => {
                     quote! { LocativeTemporalLicense::InOrOnEdgeLicensed }
+                }
+                crate::feature::FeatureValue::ObjectAttachmentLicensed => {
+                    quote! { LocativeTemporalLicense::ObjectAttachmentLicensed }
                 }
                 crate::feature::FeatureValue::TemporalLicensed => {
                     quote! { LocativeTemporalLicense::TemporalLicensed }

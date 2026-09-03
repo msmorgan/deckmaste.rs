@@ -73,10 +73,41 @@ pub struct Metadata {
     pub spelling: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub grammar: Option<Grammar>,
+    /// Noun-attachment facts declared once by each noun-bearing declaration
+    /// class and inherited by every declaration in that class.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub noun_class: Option<NounClassSemantics>,
     /// Only subtype declarations carry a category; it forms part of their
     /// category-safe identity after normalization.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub category: Option<SubtypeCategory>,
+}
+
+/// The noun-attachment facts shared by one declaration class.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct NounClassSemantics {
+    pub locative_temporal_license: NounLocativeTemporalLicense,
+    pub relationality: NounRelationality,
+}
+
+/// The locative or temporal attachment family licensed by a noun class.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub enum NounLocativeTemporalLicense {
+    Unlicensed,
+    InLicensed,
+    OnLicensed,
+    InOrOnEdgeLicensed,
+    ObjectAttachmentLicensed,
+    TemporalLicensed,
+}
+
+/// Whether a noun class licenses an `of` complement.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub enum NounRelationality {
+    NonRelational,
+    QualifiedRelational,
+    Relational,
 }
 
 /// The open registry family in which a declaration name is unique.
@@ -388,6 +419,7 @@ pub struct NormalizedDeclaration {
     params: Option<Vec<ParameterType>>,
     spelling: Vec<SpellingPart>,
     grammar: Option<GrammarRow>,
+    noun_class: Option<NounClassSemantics>,
     body: Option<Box<RawValue>>,
     provenance: SourceProvenance,
 }
@@ -411,6 +443,11 @@ impl NormalizedDeclaration {
     #[must_use]
     pub fn grammar(&self) -> Option<&GrammarRow> {
         self.grammar.as_ref()
+    }
+
+    #[must_use]
+    pub fn noun_class(&self) -> Option<NounClassSemantics> {
+        self.noun_class
     }
 
     #[must_use]
@@ -751,6 +788,10 @@ pub enum ValidationError {
     UnexpectedSubtypeCategory,
     #[error("a subtype declaration requires a subtype category")]
     MissingSubtypeCategory,
+    #[error("noun-bearing declaration class {kind} has no declared noun semantics")]
+    MissingNounClassSemantics { kind: DeclarationKind },
+    #[error("declaration class {kind} cannot carry noun semantics")]
+    UnexpectedNounClassSemantics { kind: DeclarationKind },
     #[error("v2 semantic declarations require positional parameter signatures")]
     NamedParameters,
     #[error("v2 semantic declaration parameters must be plain type names")]
@@ -1271,8 +1312,33 @@ fn normalize(
     let Metadata {
         spelling,
         grammar,
+        noun_class,
         category: _,
     } = definition.metadata.clone();
+    let noun_bearing = matches!(
+        kind,
+        DeclarationKind::Subtype(_)
+            | DeclarationKind::Type
+            | DeclarationKind::TurnPart
+            | DeclarationKind::CounterKind
+    );
+    match (noun_bearing, noun_class) {
+        (true, None) => {
+            return Err(validation_error_at(
+                &path,
+                source_map.declaration,
+                ValidationError::MissingNounClassSemantics { kind },
+            ));
+        }
+        (false, Some(_)) => {
+            return Err(validation_error_at(
+                &path,
+                source_map.declaration,
+                ValidationError::UnexpectedNounClassSemantics { kind },
+            ));
+        }
+        (true, Some(_)) | (false, None) => {}
+    }
     let body = source_map
         .body
         .map(|_| {
@@ -1352,6 +1418,7 @@ fn normalize(
         params,
         spelling: spelling_parts,
         grammar,
+        noun_class,
         body,
         provenance: SourceProvenance { path },
     })

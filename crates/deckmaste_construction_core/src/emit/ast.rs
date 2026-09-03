@@ -1074,6 +1074,9 @@ fn feature_value(value: crate::feature::FeatureValue) -> TokenStream {
         crate::feature::FeatureValue::InOrOnEdgeLicensed => {
             quote! { LocativeTemporalLicense::InOrOnEdgeLicensed }
         }
+        crate::feature::FeatureValue::ObjectAttachmentLicensed => {
+            quote! { LocativeTemporalLicense::ObjectAttachmentLicensed }
+        }
         crate::feature::FeatureValue::TemporalLicensed => {
             quote! { LocativeTemporalLicense::TemporalLicensed }
         }
@@ -1123,6 +1126,9 @@ fn feature_value(value: crate::feature::FeatureValue) -> TokenStream {
         crate::feature::FeatureValue::Proper => quote! { Properness::Proper },
         crate::feature::FeatureValue::NonRelational => {
             quote! { Relationality::NonRelational }
+        }
+        crate::feature::FeatureValue::QualifiedRelational => {
+            quote! { Relationality::QualifiedRelational }
         }
         crate::feature::FeatureValue::Relational => quote! { Relationality::Relational },
     }

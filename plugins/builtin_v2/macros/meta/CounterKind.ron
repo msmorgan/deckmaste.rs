@@ -15,6 +15,10 @@
         metadata: (
             spelling: Param(spelling),
             grammar: Param(grammar),
+            noun_class: (
+                locative_temporal_license: OnLicensed,
+                relationality: NonRelational,
+            ),
         ),
         body: Param(body),
     ),
