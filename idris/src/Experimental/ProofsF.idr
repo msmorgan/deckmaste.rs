@@ -41,7 +41,7 @@ badRedirectToArtifact ObjectTakes impossible
 public export
 badRedirectToPlural : Unspellable (StaticEffect []) (\ok =>
   Redirects AnyDamage Unattributed (Macros.shieldingIt You) CutAll
-            (AllOf Macros.creatureYouControl) Repeatedly {one = ok})
+            (Macros.allOf Macros.creatureYouControl) Repeatedly {one = ok})
 badRedirectToPlural Oh impossible
 
 
@@ -133,7 +133,7 @@ badNonsource Oh impossible
 public export
 badRedirectToGroup : Unspellable (StaticEffect []) (\ok =>
   Redirects AnyDamage Unattributed (Macros.shieldingIt You) CutAll
-            (Macros.youAnd (AllOf (And [Permanent, ControlledBy You]))) Repeatedly {one = ok})
+            (Macros.youAnd (Macros.allOf (And [Permanent, ControlledBy You]))) Repeatedly {one = ok})
 badRedirectToGroup Oh impossible
 
 
@@ -207,7 +207,7 @@ badChosenBasicTypeOnCreature Oh impossible
 ||| A subtype-only line carries no card type, and [CR#205.3i] puts Mountain in the land set.
 public export
 badCreaturesAreMountains : Unspellable (StaticEffect []) (\ok =>
-  Becomes (AllOf Macros.creature) Sets (Bundle (MkToken Nothing [] (Macros.basicLandLine [landType "Mountain"]) [] Nothing) Nothing) {ok = ok})
+  Becomes (Macros.allOf Macros.creature) Sets (Bundle (MkToken Nothing [] (Macros.basicLandLine [landType "Mountain"]) [] Nothing) Nothing) {ok = ok})
 badCreaturesAreMountains Oh impossible
 
 
@@ -224,7 +224,7 @@ badYourChoiceNumber Oh impossible
 public export
 badReaderBeforeChooser : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
-       [ Static (Gets (AllOf (And [Macros.creature,
+       [ Static (Gets (Macros.allOf (And [Macros.creature,
                                    OfChosen (SubtypeQ Creature) {ok = ok}]))
                       (PtUp (Lit 1)) (PtUp (Lit 1)))
        , Static (EntersChoice Macros.thisEnchantment (QSort (SubtypeQ Creature)) Nothing Openly) ]
@@ -239,7 +239,7 @@ badTwoChoosersOneSortRead : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
        [ Static (EntersChoice Macros.thisEnchantment (QSort (SubtypeQ Creature)) Nothing Openly)
        , Static (EntersChoice Macros.thisEnchantment (QSort (SubtypeQ Creature)) Nothing Openly)
-       , Static (Gets (AllOf (And [Macros.creature,
+       , Static (Gets (Macros.allOf (And [Macros.creature,
                                    OfChosen (SubtypeQ Creature) {ok = ok}]))
                       (PtUp (Lit 1)) (PtUp (Lit 1))) ]
        Nothing)
@@ -252,7 +252,7 @@ public export
 badChosenReadWrongSort : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
        [ Static (EntersChoice Macros.thisEnchantment (QSort Color) Nothing Openly)
-       , Static (Gets (AllOf (And [Macros.creature,
+       , Static (Gets (Macros.allOf (And [Macros.creature,
                                    OfChosen (SubtypeQ Creature) {ok = ok}]))
                       (PtUp (Lit 1)) (PtUp (Lit 1))) ]
        Nothing)
@@ -276,7 +276,7 @@ badChosenProtectionBeforeChoice Refl impossible
 public export
 badAscribedQualityBeforeChoice : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
-       [ Static (Becomes (AllOf (And [Macros.creature, ControlledBy You])) Adds (ChosenQuality (OfChosen (SubtypeQ Creature) {ok = ok})))
+       [ Static (Becomes (Macros.allOf (And [Macros.creature, ControlledBy You])) Adds (ChosenQuality (OfChosen (SubtypeQ Creature) {ok = ok})))
        , Static (EntersChoice Macros.thisEnchantment (QSort (SubtypeQ Creature)) Nothing Openly) ]
        Nothing)
 badAscribedQualityBeforeChoice Refl impossible
@@ -288,7 +288,7 @@ public export
 badDoubleExtension : Unspellable (StaticEffect []) (\ok =>
   AlsoOffBattlefield
     (AlsoOffBattlefield
-       (Becomes (AllOf (And [Macros.creature, ControlledBy You])) Adds (Bundle (MkToken Nothing [] (MkTypeLine [] [Artifact]) [] Nothing) Nothing))) {nx = ok})
+       (Becomes (Macros.allOf (And [Macros.creature, ControlledBy You])) Adds (Bundle (MkToken Nothing [] (MkTypeLine [] [Artifact]) [] Nothing) Nothing))) {nx = ok})
 badDoubleExtension Oh impossible
 
 
@@ -341,7 +341,7 @@ badSingularNameAgreement Refl impossible
 public export
 badCounteredInGraveyard : Unspellable (StaticEffect []) (\ok =>
   Macros.objectCant "Counter"
-    (AllOf (And [Macros.creature, InZone Macros.graveyardZ])) {dp = ok})
+    (Macros.allOf (And [Macros.creature, InZone Macros.graveyardZ])) {dp = ok})
 badCounteredInGraveyard Oh impossible
 
 
@@ -435,7 +435,7 @@ badLookAtHandRider Oh impossible
 ||| [CR#205.3m] gives the creature types to creatures and kindreds, so the space demands its own host.
 public export
 badEveryCreatureTypeOnLand : Unspellable (StaticEffect []) (\ok =>
-  Becomes (AllOf (And [Macros.land, ControlledBy You])) Adds (EveryTypeOf CreatureSpace)
+  Becomes (Macros.allOf (And [Macros.land, ControlledBy You])) Adds (EveryTypeOf CreatureSpace)
                 {ok = ok})
 badEveryCreatureTypeOnLand Oh impossible
 
@@ -444,7 +444,7 @@ badEveryCreatureTypeOnLand Oh impossible
 ||| The other direction of the same host gate: nothing here adds the land card type for the subtype to sit on.
 public export
 badEveryBasicLandTypeOnCreature : Unspellable (StaticEffect []) (\ok =>
-  Becomes (AllOf (And [Macros.creature, ControlledBy You])) Adds (EveryTypeOf BasicLandSpace)
+  Becomes (Macros.allOf (And [Macros.creature, ControlledBy You])) Adds (EveryTypeOf BasicLandSpace)
                 {ok = ok})
 badEveryBasicLandTypeOnCreature Oh impossible
 
@@ -535,7 +535,7 @@ public export
 badActivatedSpellClass : Unspellable
   (StaticEffect [MkBinding AD (Quality CardName) OneOf QualityP]) (\ok =>
   Macros.objectCant "Activate"
-    (AllOf (And [Macros.spell, Named ChosenName])) {dp = ok})
+    (Macros.allOf (And [Macros.spell, Named ChosenName])) {dp = ok})
 badActivatedSpellClass Oh impossible
 
 
@@ -544,7 +544,7 @@ badActivatedSpellClass Oh impossible
 public export
 badCastAbilityClass : Unspellable (StaticEffect []) (\ok =>
   Macros.objectCant "Cast"
-    (AllOf (And [AbilityHead AnyActivated, AbilityOf (AllOf Macros.artifact)]))
+    (Macros.allOf (And [AbilityHead AnyActivated, AbilityOf (Macros.allOf Macros.artifact)]))
     {dp = ok})
 badCastAbilityClass Oh impossible
 
@@ -665,7 +665,7 @@ public export
 badLastChosenBeforeChooser : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
        [ Static (Prevents AnyDamage
-                          (DealtBy (AllOf (And [Macros.source,
+                          (DealtBy (Macros.allOf (And [Macros.source,
                                                 OfLastChosen Color {ok = ok}])))
                           (Macros.shieldingIt You) CutAll Repeatedly Nothing)
        , Static (EntersChoice Macros.thisEnchantment (QSort Color) Nothing Openly) ]
@@ -680,7 +680,7 @@ badLastChosenWrongSort : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
        [ Static (EntersChoice Macros.thisEnchantment (QSort (SubtypeQ Creature)) Nothing Openly)
        , Static (Prevents AnyDamage
-                          (DealtBy (AllOf (And [Macros.source,
+                          (DealtBy (Macros.allOf (And [Macros.source,
                                                 OfLastChosen Color {ok = ok}])))
                           (Macros.shieldingIt You) CutAll Repeatedly Nothing) ]
        Nothing)

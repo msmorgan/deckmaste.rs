@@ -82,7 +82,7 @@ badCumulativeUpkeepCounter Oh impossible
 ||| The trailer extends a keyword-conditional line, so the base sentence must name a keyword.
 public export
 badKeywordListOnPlainLine : Unspellable Ability (\ok =>
-  AlsoForKeywords (Static (Gets (AllOf Macros.creatureYouControl)
+  AlsoForKeywords (Static (Gets (Macros.allOf Macros.creatureYouControl)
                                 (PtUp (Lit 1)) (PtUp (Lit 1))))
                   [TheKeyword "Menace", TheKeyword "Trample"]
                   {ex = Builtin.fst ok, lk = Builtin.snd ok})
@@ -471,7 +471,7 @@ badFlashbackOnPermanentCard Oh impossible
 ||| [CR#702.185a] leaves warp's statics on the stack, so the grant reaches no graveyard card [CR#113.6e].
 public export
 badWarpGrantInGraveyard : Unspellable Ability (\ok =>
-  Static (Gains (AllOf (And [Macros.creature, InZone (Macros.graveyardOf You)]))
+  Static (Gains (Macros.allOf (And [Macros.creature, InZone (Macros.graveyardOf You)]))
                 (Macros.keywordCosting "Warp" (Mana [Macros.generic 2]))
                 {ok = ok}))
 badWarpGrantInGraveyard Oh impossible
@@ -636,7 +636,7 @@ badSingularAggregateOf Refl impossible
 ||| "the greatest life total among all creatures"
 public export
 badAggregateOfWrongSort : Unspellable (Amount []) (\ok =>
-  AggregateOf MaxOf (PlayerStatAxis LifeTotal) (AllOf Macros.creature)
+  AggregateOf MaxOf (PlayerStatAxis LifeTotal) (Macros.allOf Macros.creature)
               {sc = ok})
 badAggregateOfWrongSort Refl impossible
 
@@ -701,7 +701,7 @@ badBecomesBlockingPlaneswalker Oh impossible
 ||| "During each opponent's next turn, ..."
 public export
 badPluralNextTurnSpan : Unspellable (Duration []) (\ok =>
-  DuringNextTurnOf (Each Opponent) {one = ok})
+  DuringNextTurnOf (Macros.each Opponent) {one = ok})
 badPluralNextTurnSpan Refl impossible
 
 
@@ -820,7 +820,7 @@ badRestWithoutAPartition Oh impossible
 ||| "Choose any number of target creatures. Destroy the rest."
 public export
 badRestAfterTargetChoice : Unspellable (Effect []) (\ok =>
-  Sequentially [ Macros.choose (TargetGroup Macros.anyNumber Macros.creature)
+  Sequentially [ Macros.choose (Macros.targets Macros.anyNumber Macros.creature)
                , Macros.destroy (TheRest {ok}) ])
 badRestAfterTargetChoice Oh impossible
 
@@ -829,7 +829,7 @@ public export
 afterChoiceRestDisposed : Bindings
 afterChoiceRestDisposed =
   effIntro (the (Effect [])
-    (Sequentially [ Macros.choose (CountedGroup (Macros.upTo 1) Nothing Macros.creature)
+    (Sequentially [ Macros.choose (Macros.counted (Macros.upTo 1) Macros.creature)
                   , Macros.destroy TheRest ]))
 
 ||| "Choose up to one creature. Destroy the rest. Destroy the rest."
@@ -849,7 +849,7 @@ badMemberInComparisonBound Refl impossible
 public export
 badBasicCreatureTypeAxis : Unspellable (Amount []) (\ok =>
   DistinctCount (SubtypeAxis Creature BasicOnly {sc = ok})
-                (AllOf Macros.creatureYouControl))
+                (Macros.allOf Macros.creatureYouControl))
 badBasicCreatureTypeAxis Oh impossible
 
 ||| "Echo"
@@ -947,14 +947,14 @@ badThoseKindsUnannounced Refl impossible
 ||| "For each color among permanents you control, add one mana of that color"
 public export
 badRepeatedCarriesNoColor : Unspellable (Effect []) (\ok =>
-  Repeated (DistinctCount ColorAxis (AllOf (And [Permanent, ControlledBy You])))
+  Repeated (DistinctCount ColorAxis (Macros.allOf (And [Permanent, ControlledBy You])))
            (AddMana You (Lit 1) (OfChosenColor Nothing {cq = ok}) []))
 badRepeatedCarriesNoColor Refl impossible
 
 ||| "For each color among permanents you control, … of that creature type."
 public export
 badAxisValueCrossing : Unspellable (Effect []) (\ok =>
-  ForEachKindOf ColorAxis (Just (AllOf (And [Permanent, ControlledBy You])))
+  ForEachKindOf ColorAxis (Just (Macros.allOf (And [Permanent, ControlledBy You])))
                 (SubtypeQ Creature) (Draw You (Lit 1)) {sc = ok})
 badAxisValueCrossing Refl impossible
 
@@ -1206,7 +1206,7 @@ badMembershipInANonPile : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Instant])
        [ Spell (Sequentially
                   [ Macros.revealCards (Macros.topSlice (Lit 5))
-                  , Macros.move (AllOf (And [IsCard, InPile Them {pm = ok}]))
+                  , Macros.move (Macros.allOf (And [IsCard, InPile Them {pm = ok}]))
                                 Macros.handZ ]) ]
        Nothing)
 badMembershipInANonPile PilePartitive impossible
@@ -1256,7 +1256,7 @@ badDoorHeaderOffSharedLine : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Red]) []
        (MkTypeLine [enchantmentType "Room"] [Enchantment])
        [ Macros.triggered When (UnlocksDoor You ThisDoor)
-           (DealDamage Macros.thisRoom (Lit 1) (Each Opponent)) ]
+           (DealDamage Macros.thisRoom (Lit 1) (Macros.each Opponent)) ]
        Nothing {dr = ok})
 badDoorHeaderOffSharedLine Oh impossible
 
@@ -1342,7 +1342,7 @@ repeatWithIndependentException = AgainExcept (Exists AnyPlayer)
 public export
 voteStartingWithSpecifiedPlayer : Effect []
 voteStartingWithSpecifiedPlayer =
-  VoteStarting Macros.anOpponent (Each AnyPlayer) (ByLabel ["alpha", "beta"])
+  VoteStarting Macros.anOpponent (Macros.each AnyPlayer) (ByLabel ["alpha", "beta"])
 
 public export
 oneWayResultShift : Effect []
@@ -1405,7 +1405,7 @@ public export
 distributiveGroupSurvives : Effect []
 distributiveGroupSurvives =
   Sequentially
-    [ DoesGroup (Each Opponent) "Shuffle" (Shuffle They)
+    [ DoesGroup (Macros.each Opponent) "Shuffle" (Shuffle They)
     , ChangeLife (Those PlayerW) (Down (Lit 1))
     ]
 

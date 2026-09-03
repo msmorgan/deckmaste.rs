@@ -30,7 +30,7 @@ badSpellAbilityOnPermanent Oh impossible
 public export
 badStaticOnSorcery : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Green]) [] (MkTypeLine [] [Sorcery])
-       [Static (Gets (AllOf Macros.creatureYouControl) (PtUp (Lit 1)) (PtUp (Lit 1)))] Nothing {tx = ok})
+       [Static (Gets (Macros.allOf Macros.creatureYouControl) (PtUp (Lit 1)) (PtUp (Lit 1)))] Nothing {tx = ok})
 badStaticOnSorcery Oh impossible
 
 
@@ -295,7 +295,7 @@ badGetsBoostCounter Oh impossible
 ||| A named kind on the player's removal verb must be a player's kind [CR#122.1].
 public export
 badLosesAllBoostCounters : Unspellable (Effect []) (\ok =>
-  LosesCounters (Each Opponent) (Just Macros.plusOnePlusOne) Nothing
+  LosesCounters (Macros.each Opponent) (Just Macros.plusOnePlusOne) Nothing
                    {pk = KindNamed {sc = ok}})
 badLosesAllBoostCounters Refl impossible
 
@@ -354,7 +354,7 @@ badHappenedToObjectCast MkLookbackSubject impossible
 ||| The same table at its second reader: dying is an object's event, so a player head cannot ask it.
 public export
 badHappenedToPlayerDied : Unspellable (Noun [] Player) (\ok =>
-  Each (And [Opponent, HappenedTo Death Lookback.ThisTurn Nothing {sb = ok}]))
+  Macros.each (And [Opponent, HappenedTo Death Lookback.ThisTurn Nothing {sb = ok}]))
 badHappenedToPlayerDied MkLookbackSubject impossible
 
 
@@ -362,7 +362,7 @@ badHappenedToPlayerDied MkLookbackSubject impossible
 ||| [CR#603.8]'s state trigger fires when a game state is true "rather than triggering when an event occurs", so nothing happened and no participant of it can be looked back on afterwards -- at either kind.
 public export
 badStateMatchLookback : Unspellable (Noun [] Player) (\ok =>
-  Each (And [Opponent, HappenedTo StateMatch Lookback.ThisTurn Nothing {sb = ok}]))
+  Macros.each (And [Opponent, HappenedTo StateMatch Lookback.ThisTurn Nothing {sb = ok}]))
 badStateMatchLookback MkLookbackSubject impossible
 
 
@@ -488,7 +488,7 @@ badPluralLifeTotalRead Refl impossible
 ||| The distributive names no one player, so there is no total to read.
 public export
 badDistributiveLifeTotalRead : Unspellable (Amount []) (\ok =>
-  PlayerStatOf LifeTotal (Each AnyPlayer) {one = ok})
+  PlayerStatOf LifeTotal (Macros.each AnyPlayer) {one = ok})
 badDistributiveLifeTotalRead Refl impossible
 
 
@@ -557,7 +557,7 @@ badLifeTotalAmongObjects Refl impossible
 ||| A cost statement is about a spell [CR#609.2], and a battlefield noun is not one.
 public export
 badCostSubjectOnBattlefield : Unspellable (StaticEffect []) (\ok =>
-  CostsToCast (AllOf Macros.creatureYouControl) (CostLess (Lit 1) Nothing) {cs = ok})
+  CostsToCast (Macros.allOf Macros.creatureYouControl) (CostLess (Lit 1) Nothing) {cs = ok})
 badCostSubjectOnBattlefield MkCostSubject impossible
 
 

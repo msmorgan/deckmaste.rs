@@ -44,8 +44,7 @@ twoPartiesOk : {bs : Bindings} -> Noun bs Player -> Bool
 twoPartiesOk (BothOf l r) = case (nounPlur l, nounPlur {bs = nomIntro l} r) of
   (OneOf, OneOf) => True
   _ => False
-twoPartiesOk (TargetGroup q _) = quantExact q == Just 2
-twoPartiesOk (CountedGroup q _ _) = quantExact q == Just 2
+twoPartiesOk (Described d _) = (detQuant d >>= quantExact) == Just 2
 twoPartiesOk _ = False
 
 
@@ -2706,12 +2705,7 @@ mutual
 
   public export
   nounRegime : {bs : Bindings} -> Noun bs Object -> Maybe StackRegime
-  nounRegime (AllOf p) = predRegime p
-  nounRegime (Indefinite _ p) = predRegime p
-  nounRegime (Definite p) = predRegime p
-  nounRegime (Each p) = predRegime p
-  nounRegime (TargetGroup _ p) = predRegime p
-  nounRegime (CountedGroup _ _ p) = predRegime p
+  nounRegime (Described _ p) = predRegime p
   nounRegime (NamesAgree _ grp) = nounRegime grp
   nounRegime _ = Nothing
 
@@ -2754,7 +2748,7 @@ mutual
 
   public export
   effChoiceDelta : {0 bs : Bindings} -> Effect bs -> List Binding
-  effChoiceDelta (Choose {k} (Indefinite _ _) _ _) = choiceDeltaAt k
+  effChoiceDelta (Choose {k} (Described (ADet _) _) _ _) = choiceDeltaAt k
   effChoiceDelta (Choose _ _ _) = []
   effChoiceDelta (Sequentially es) = effsChoiceDelta es
   effChoiceDelta (May _ body _ _) = effChoiceDelta body

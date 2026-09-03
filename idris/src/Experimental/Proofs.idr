@@ -23,7 +23,7 @@ badChosenNumberRead Oh impossible
 ||| Two creatures have no single power [CR#208.1]; a fold word writes the group's.
 public export
 badGroupPower : Unspellable (Effect []) (\ok =>
-  Sequentially [Choose (TargetGroup (Macros.exactly 2) Macros.creature) Nothing Openly,
+  Sequentially [Choose (Macros.targets (Macros.exactly 2) Macros.creature) Nothing Openly,
                 Macros.gainsLife You (Macros.powerOf Them {one = ok})])
 badGroupPower Refl impossible
 
@@ -32,7 +32,7 @@ badGroupPower Refl impossible
 ||| Two cards need not share an owner [CR#108.3].
 public export
 badGroupOwner : Unspellable (Effect []) (\ok =>
-  Sequentially [Choose (TargetGroup (Macros.exactly 2) Macros.creature) Nothing Openly,
+  Sequentially [Choose (Macros.targets (Macros.exactly 2) Macros.creature) Nothing Openly,
                 Macros.losesLife (OwnerOf Them {one = ok}) (Lit 1)])
 badGroupOwner Refl impossible
 
@@ -40,7 +40,7 @@ badGroupOwner Refl impossible
 ||| "Two target creatures fight target creature."
 public export
 badFightGroup : Unspellable (Effect []) (\ok =>
-  Fights (TargetGroup (Macros.exactly 2) Macros.creature) {pa = ok}
+  Fights (Macros.targets (Macros.exactly 2) Macros.creature) {pa = ok}
          (Macros.target Macros.creature))
 badFightGroup Refl impossible
 
@@ -49,7 +49,7 @@ badFightGroup Refl impossible
 ||| [CR#110.2] gives a permanent one controller, so a counted plural names no object.
 public export
 badControlledByGroup : Unspellable (Predicate [] Object) (\ok =>
-  ControlledBy (TargetGroup (Macros.exactly 2) Opponent) {ps = ok})
+  ControlledBy (Macros.targets (Macros.exactly 2) Opponent) {ps = ok})
 badControlledByGroup Oh impossible
 
 
@@ -65,14 +65,14 @@ badEachOfSingular Refl impossible
 public export
 badSliceOfCountedPossessor : Unspellable (Effect []) (\ok =>
   Macros.lookAt (LibrarySlice OnTop (Lit 1)
-                              (TargetGroup (Macros.exactly 2) AnyPlayer) {sp = ok}))
+                              (Macros.targets (Macros.exactly 2) AnyPlayer) {sp = ok}))
 badSliceOfCountedPossessor Oh impossible
 
 
 ||| "Whenever you cast all spells, draw a card."
 public export
 badCastsPluralComplement : Unspellable (Ability) (\ok =>
-  Triggered Whenever (Casts You (AllOf Macros.spell) Nothing {one = ok}) [] Nothing [] Nothing Nothing Nothing
+  Triggered Whenever (Casts You (Macros.allOf Macros.spell) Nothing {one = ok}) [] Nothing [] Nothing Nothing Nothing
             (Macros.draw You (Lit 1)))
 badCastsPluralComplement Refl impossible
 
@@ -133,7 +133,7 @@ badIt Refl impossible
 ||| A group is no singular antecedent: "it" has no referent.
 public export
 badTheyIt : Unspellable (Effect []) (\ok =>
-  Sequentially [DealDamage This (Lit 3) (Each Macros.creature),
+  Sequentially [DealDamage This (Lit 3) (Macros.each Macros.creature),
                 SetStatus Tapped (It {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badTheyIt (Refl, _) impossible
 
@@ -220,8 +220,8 @@ badChosenCounterKindRead Oh impossible
 ||| Two group mentions leave "them" ambiguous.
 public export
 badThemAmbig : Unspellable (Effect []) (\ok =>
-  Sequentially [Choose (TargetGroup (Macros.exactly 2) Macros.creature) Nothing Openly,
-               Choose (TargetGroup (Macros.exactly 2) Macros.creature) Nothing Openly,
+  Sequentially [Choose (Macros.targets (Macros.exactly 2) Macros.creature) Nothing Openly,
+               Choose (Macros.targets (Macros.exactly 2) Macros.creature) Nothing Openly,
                SetStatus Tapped (Them {ok})])
 badThemAmbig Refl impossible
 
@@ -495,8 +495,8 @@ badUnknownVerbLabel Oh impossible
 ||| A written quantity permits at least one; the demand is on its MAXIMUM.
 public export
 badZeroGroup : Unspellable (Effect []) (\ok =>
-  Choose (TargetGroup (Macros.exactly 0) Macros.creature {nz = Builtin.fst ok} {wf = Builtin.snd ok}) Nothing Openly)
-badZeroGroup (MaxAtLeastOne, _) impossible
+  Choose (Macros.targets (Macros.exactly 0) Macros.creature {ok}) Nothing Openly)
+badZeroGroup (MaxAtLeastOne, _, _) impossible
 
 
 ||| "your battlefield"
@@ -636,7 +636,7 @@ badThreeArmHeaderReadback : Unspellable Ability (\ok =>
             , BecomesTarget Macros.thisCreature (Macros.a Macros.spell) ]
             Nothing [] Nothing Nothing Nothing
             (DealDamage Macros.thisCreature (Macros.powerOf (It {ok = ok}))
-                        (Each Opponent)))
+                        (Macros.each Opponent)))
 badThreeArmHeaderReadback Refl impossible
 
 

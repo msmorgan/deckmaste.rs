@@ -14,7 +14,7 @@ import Experimental.Unspellable
 ||| Convoke functions only while the spell is on the stack [CR#702.51a], so a permanent grant does nothing.
 public export
 badBattlefieldConvoke : Unspellable (StaticEffect []) (\ok =>
-  Gains (AllOf Macros.creatureYouControl) (KeywordAbility "Convoke" Nothing) {ok})
+  Gains (Macros.allOf Macros.creatureYouControl) (KeywordAbility "Convoke" Nothing) {ok})
 badBattlefieldConvoke Oh impossible
 
 ||| "Enchanted creature's power and toughness are each equal to your life total."
@@ -58,7 +58,7 @@ badSumSelection Oh impossible
 ||| The definite article demands a description that identifies its referent; the superlative is the one licensor.
 public export
 badBareDefinite : Unspellable (Noun [] Object) (\ok =>
-  Definite Macros.creature {uq = ok})
+  Macros.the Macros.creature {ok})
 badBareDefinite Oh impossible
 
 
@@ -66,7 +66,7 @@ badBareDefinite Oh impossible
 ||| A definite description names its referent, so a choice clause has nothing to offer.
 public export
 badChooseDefinite : Unspellable (Effect []) (\ok =>
-  Choose (Definite (And [Macros.creature,
+  Choose (Macros.the (And [Macros.creature,
                          Superlative MinOf (CharAxis Toughness)
                                      Macros.creatureYouControl])) Nothing Openly {ch = ok})
 badChooseDefinite BareChoice impossible
@@ -228,7 +228,7 @@ badEquipOnSorcery Oh impossible
 ||| The counted untargeted group has not fixed its members, so there is nothing to distribute into.
 public export
 badEachOfCountedGroup : Unspellable (Noun [] Object) (\ok =>
-  EachOf (CountedGroup (Macros.atLeast 1) Nothing Macros.creature) {gm = ok})
+  EachOf (Macros.counted (Macros.atLeast 1) Macros.creature) {gm = ok})
 badEachOfCountedGroup Oh impossible
 
 
@@ -237,7 +237,7 @@ badEachOfCountedGroup Oh impossible
 public export
 badPartitiveOfCountedGroup : Unspellable (Noun [] Object) (\ok =>
   SomeOf (CountedSlice (Macros.exactly 1)) Nothing
-         (CountedGroup (Macros.atLeast 1) Nothing Macros.creature)
+         (Macros.counted (Macros.atLeast 1) Macros.creature)
          {gm = ok})
 badPartitiveOfCountedGroup Oh impossible
 
@@ -292,7 +292,7 @@ badHeaderBareTurnWindow Oh impossible
 ||| Only a token is ever created [CR#111.1]; the head word may be added to and never replaced.
 public export
 badNonTokenCreationSubject : Unspellable (GameEvent []) (\ok =>
-  TokensCreated (CountedGroup (Macros.atLeast 1) Nothing Macros.creature) Nothing Nothing (Just You) {tk = ok})
+  TokensCreated (Macros.counted (Macros.atLeast 1) Macros.creature) Nothing Nothing (Just You) {tk = ok})
 badNonTokenCreationSubject CountedTokens impossible
 badNonTokenCreationSubject OneToken impossible
 
@@ -468,7 +468,7 @@ badTokenSpellAbility Oh impossible
 ||| [CR#113.6e] gives a granted play-modifying ability the stack alone to function in.
 public export
 badQuotedGrantOnSpell : Unspellable (StaticEffect []) (\ok =>
-  Gains (AllOf (And [Macros.instantOrSorcery, Macros.spell, CastBy You]))
+  Gains (Macros.allOf (And [Macros.instantOrSorcery, Macros.spell, CastBy You]))
         (Activated TapSymbol (Macros.draw You (Lit 1)) Nothing Nothing Nothing Nothing) {ok})
 badQuotedGrantOnSpell Oh impossible
 

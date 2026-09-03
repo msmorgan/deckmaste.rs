@@ -90,8 +90,32 @@ oneThrough : Nat -> Quantity bs
 oneThrough n = Range (Just 1) (Just n)
 
 public export
-target : (p : Predicate bs k) -> {auto tk : Targetable k} -> Noun bs k
-target p = TargetGroup (exactly 1) p {tk}
+target : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
+         {auto 0 tk : Targetable k} -> Noun bs k
+target p = Described (TargetDet (exactly 1)) p {ph} {ok = (MaxAtLeastOne, Oh, tk)}
+
+public export
+targets : (q : Quantity bs) -> (p : Predicate bs k) -> {auto ph : Phrasal k} ->
+          {auto 0 ok : detOk (TargetDet q) p} -> Noun bs k
+targets q p = Described (TargetDet q) p {ph} {ok}
+
+public export
+each : (p : Predicate bs k) -> {auto ph : Phrasal k} -> Noun bs k
+each p = Described EachDet p {ph} {ok = ()}
+
+public export
+allOf : (p : Predicate bs k) -> {auto ph : Phrasal k} -> Noun bs k
+allOf p = Described AllDet p {ph} {ok = ()}
+
+public export
+the : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
+      {auto 0 ok : detOk TheDet p} -> Noun bs k
+the p = Described TheDet p {ph} {ok}
+
+public export
+counted : (q : Quantity bs) -> (p : Predicate bs k) -> {auto ph : Phrasal k} ->
+          {auto 0 ok : detOk (CountDet q Nothing) p} -> Noun bs k
+counted q p = Described (CountDet q Nothing) p {ph} {ok}
 
 public export
 anyTarget : Predicate bs (Object \/ Player)
@@ -358,18 +382,18 @@ nontoken = Not IsToken
 public export
 a : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
     Noun bs k
-a p = Indefinite Unmarked p {ph}
+a p = Described (ADet Unmarked) p {ph} {ok = ()}
 
 public export
 aTheirChoice : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
                {auto 0 ch : countChoosers bs = 1} ->
                Noun bs k
-aTheirChoice p = Indefinite (TheirChoice {ch}) p {ph}
+aTheirChoice p = Described (ADet (TheirChoice {ch})) p {ph} {ok = ()}
 
 public export
 aYourChoice : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
               Noun bs k
-aYourChoice p = Indefinite YourChoice p {ph}
+aYourChoice p = Described (ADet YourChoice) p {ph} {ok = ()}
 
 public export
 withDifferentNames : (grp : Noun bs Object) ->
@@ -386,13 +410,13 @@ withTheSameName grp = NamesAgree SameName grp {cm} {pl}
 public export
 aAtRandom : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
             Noun bs k
-aAtRandom p = Indefinite AtRandom p {ph}
+aAtRandom p = Described (ADet AtRandom) p {ph} {ok = ()}
 
 public export
 countedAtRandom : (q : Quantity bs) -> (p : Predicate bs k) ->
-                  {auto ph : Phrasal k} -> {auto 0 nz : NonZeroQ q} ->
-                  {auto 0 wf : WellFormedQ q} -> Noun bs k
-countedAtRandom q p = CountedGroup q (Just AtRandom) p {ph} {nz} {wf}
+                  {auto ph : Phrasal k} ->
+                  {auto 0 ok : detOk (CountDet q (Just AtRandom)) p} -> Noun bs k
+countedAtRandom q p = Described (CountDet q (Just AtRandom)) p {ph} {ok}
 
 public export
 anOpponent : Noun bs Player
@@ -729,10 +753,10 @@ cantMoreThan : (who : Noun bs Player) -> (deed : VerbLabel) -> (k : Nat) ->
                {auto 0 bd : So (deonticBoundOk {bs = nomIntro who} [deed]
                                                 (Just (MoreThan (Lit k))))} ->
                {auto 0 pt : So (deonticPatientOk who [deed] Agent
-                                  (DeonticCounterpart (AllOf p)) NoDeonticRider)} ->
+                                  (DeonticCounterpart (allOf p)) NoDeonticRider)} ->
                StaticEffect bs
 cantMoreThan who deed k p =
-  Deontic who Forbid [deed] Agent (Just (MoreThan (Lit k))) (DeonticCounterpart (AllOf p))
+  Deontic who Forbid [deed] Agent (Just (MoreThan (Lit k))) (DeonticCounterpart (allOf p))
           Nothing NoDeonticRider {kd} {dp} {bd} {pt}
 
 public export
@@ -741,11 +765,11 @@ mayPlayAdditionalLands : (who : Noun bs Player) -> (q : Quantity (nomIntro who))
                          {auto 0 dp : DeedFits ["Play"] Agent Player (nounHeadTys who) (nounZone who)} ->
                          {auto 0 bd : So (deonticBoundOk ["Play"] (Just (Additional q)))} ->
                          {auto 0 pt : So (deonticPatientOk who ["Play"] Agent
-                                            (DeonticCounterpart (AllOf Macros.land))
+                                            (DeonticCounterpart (allOf Macros.land))
                                             NoDeonticRider)} ->
                          StaticEffect bs
 mayPlayAdditionalLands who q =
-  Deontic who Permit ["Play"] Agent (Just (Additional q)) (DeonticCounterpart (AllOf Macros.land))
+  Deontic who Permit ["Play"] Agent (Just (Additional q)) (DeonticCounterpart (allOf Macros.land))
           Nothing NoDeonticRider {dp} {bd} {pt}
 
 public export
@@ -754,11 +778,11 @@ mayBlockAdditional : (n : Noun bs Object) -> (q : Quantity (nomIntro n)) ->
                      {auto 0 dp : DeedFits ["Block"] Agent Object (nounHeadTys n) (nounZone n)} ->
                      {auto 0 bd : So (deonticBoundOk ["Block"] (Just (Additional q)))} ->
                      {auto 0 pt : So (deonticPatientOk n ["Block"] Agent
-                                        (DeonticCounterpart (AllOf Macros.creature))
+                                        (DeonticCounterpart (allOf Macros.creature))
                                         NoDeonticRider)} ->
                      StaticEffect bs
 mayBlockAdditional n q =
-  Deontic n Permit ["Block"] Agent (Just (Additional q)) (DeonticCounterpart (AllOf Macros.creature))
+  Deontic n Permit ["Block"] Agent (Just (Additional q)) (DeonticCounterpart (allOf Macros.creature))
           Nothing NoDeonticRider {dp} {bd} {pt}
 
 public export
@@ -1651,14 +1675,14 @@ public export
 proliferate : {bs : Bindings} ->
               {auto 0 mj : countReach (Word JoinW) ManyOf
                               (chosenIntro {bs}
-                                (CountedGroup Macros.anyNumber Nothing
+                                (counted Macros.anyNumber
                                   (kindJoin (CounterCompare Nothing AtLeast (Lit 1))
                                             (And [Permanent, HasCounters Nothing])))) = 1} ->
               Effect bs
 proliferate =
   Enact "Proliferate" {kn = Oh}
         (Sequentially [ Choose
-                          (CountedGroup Macros.anyNumber Nothing
+                          (counted Macros.anyNumber
                             (kindJoin (CounterCompare Nothing AtLeast (Lit 1))
                                       (And [Permanent, HasCounters Nothing])))
                           Nothing Openly

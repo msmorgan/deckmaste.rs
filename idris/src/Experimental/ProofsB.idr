@@ -163,7 +163,7 @@ badBlockedAndUnblocked Oh impossible
 ||| A range runs upward; a descending pair names an empty interval.
 public export
 badDescendingRange : Unspellable (Noun [] Object) (\ok =>
-  TargetGroup (Range (Just 3) (Just 2)) Macros.creature {wf = ok})
+  Macros.targets (Range (Just 3) (Just 2)) Macros.creature {ok = (MaxAtLeastOne, ok, ObjectTgt)})
 badDescendingRange Oh impossible
 
 
@@ -479,7 +479,7 @@ badComplementAnchorAnnounces MkComplementAnchor impossible
 ||| The anchor is singular; this constructor subtracts one referent, not a group.
 public export
 badPluralComplementAnchor : Unspellable (Predicate [] Object) (\ok =>
-  OtherThan (TargetGroup (Macros.upTo 2) Macros.creature) {ca = ok})
+  OtherThan (Macros.targets (Macros.upTo 2) Macros.creature) {ca = ok})
 badPluralComplementAnchor MkComplementAnchor impossible
 
 
@@ -487,7 +487,7 @@ badPluralComplementAnchor MkComplementAnchor impossible
 ||| The anchor must be something the phrase could have described; a cross-head anchor subtracts nothing.
 public export
 badComplementCrossHead : Unspellable (Effect []) (\ok =>
-  DealDamage This (Lit 1) (Each (And [Macros.creature, OtherThan Macros.thisLand] {oa = ok})))
+  DealDamage This (Lit 1) (Macros.each (And [Macros.creature, OtherThan Macros.thisLand] {oa = ok})))
 badComplementCrossHead Oh impossible
 
 
@@ -496,7 +496,7 @@ badComplementCrossHead Oh impossible
 public export
 badDoubleComplement : Unspellable (Effect []) (\ok =>
   DealDamage This (Lit 1)
-             (Each (And [Macros.creature, OtherThan Macros.thisCreature, OtherThan Macros.thisCreature] {oa = ok})))
+             (Macros.each (And [Macros.creature, OtherThan Macros.thisCreature, OtherThan Macros.thisCreature] {oa = ok})))
 badDoubleComplement Oh impossible
 
 
@@ -506,7 +506,7 @@ public export
 badOtherAndComplement : Unspellable (Effect []) (\ok =>
   Sequentially [SetStatus Tapped (Macros.target Macros.creature),
                 DealDamage This (Lit 1)
-                           (Each (And [Macros.creature, Other, OtherThan Macros.thisCreature] {oa = ok}))])
+                           (Macros.each (And [Macros.creature, Other, OtherThan Macros.thisCreature] {oa = ok}))])
 badOtherAndComplement Oh impossible
 
 

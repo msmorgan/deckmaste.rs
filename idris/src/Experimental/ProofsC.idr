@@ -14,7 +14,7 @@ import Experimental.Unspellable
 ||| A distributed creation exports a plural mention, so the singular pronoun resolves to nothing.
 public export
 badDistributedCreationIt : Unspellable (Effect []) (\ok =>
-  Sequentially [Create (Each AnyPlayer) (Lit 1)
+  Sequentially [Create (Macros.each AnyPlayer) (Lit 1)
                        (TokenWritten (Macros.creatureTok 1 1 [Green] [creatureType "Plant"])) [],
                 PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) (It {ok})])
 badDistributedCreationIt Refl impossible
@@ -24,7 +24,7 @@ badDistributedCreationIt Refl impossible
 ||| "Each of" reaches into a group MENTION, and the distributive is a description.
 public export
 badEachOfDistributive : Unspellable (Noun [] Object) (\ok =>
-  EachOf (Each Macros.creature) {gm = ok})
+  EachOf (Macros.each Macros.creature) {gm = ok})
 badEachOfDistributive Oh impossible
 
 
@@ -32,7 +32,7 @@ badEachOfDistributive Oh impossible
 ||| Nor the universal, for the same reason: it too describes rather than mentions.
 public export
 badEachOfAll : Unspellable (Noun [] Object) (\ok =>
-  EachOf (AllOf Macros.creature) {gm = ok})
+  EachOf (Macros.allOf Macros.creature) {gm = ok})
 badEachOfAll Oh impossible
 
 
@@ -40,7 +40,7 @@ badEachOfAll Oh impossible
 ||| One determiner fills the position, so it does not stack.
 public export
 badNestedEachOf : Unspellable (Noun [] Object) (\ok =>
-  EachOf (EachOf (TargetGroup (Macros.upTo 2) Macros.creature)) {gm = ok})
+  EachOf (EachOf (Macros.targets (Macros.upTo 2) Macros.creature)) {gm = ok})
 badNestedEachOf Oh impossible
 
 
@@ -48,7 +48,7 @@ badNestedEachOf Oh impossible
 ||| A clause writing one per-member amount refuses a bare plural recipient; "each of" is the word.
 public export
 badBarePluralCounterRecipient : Unspellable (Effect []) (\ok =>
-  PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) (TargetGroup (Macros.upTo 2) Macros.creature) {pm = ok})
+  PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) (Macros.targets (Macros.upTo 2) Macros.creature) {pm = ok})
 badBarePluralCounterRecipient Oh impossible
 
 
@@ -56,7 +56,7 @@ badBarePluralCounterRecipient Oh impossible
 ||| The damage verb reads the same way: its plural-looking recipient is singular already.
 public export
 badBarePluralDamageRecipient : Unspellable (Effect []) (\ok =>
-  DealDamage This (Lit 1) (TargetGroup (Macros.upTo 2) Macros.creature) {pm = ok})
+  DealDamage This (Lit 1) (Macros.targets (Macros.upTo 2) Macros.creature) {pm = ok})
 badBarePluralDamageRecipient Oh impossible
 
 
@@ -64,7 +64,7 @@ badBarePluralDamageRecipient Oh impossible
 ||| A plural read is no better than a plural mention at the recipient slot.
 public export
 badThemCounterRecipient : Unspellable (Effect []) (\ok =>
-  Sequentially [Choose (TargetGroup Macros.anyNumber Macros.creature) Nothing Openly,
+  Sequentially [Choose (Macros.targets Macros.anyNumber Macros.creature) Nothing Openly,
                 PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) Them {pm = ok}])
 badThemCounterRecipient Oh impossible
 
@@ -73,7 +73,7 @@ badThemCounterRecipient Oh impossible
 ||| [CR#601.2d] divides over the announced targets, so the members are a mention and not a description.
 public export
 badDivideAmongDescription : Unspellable (Effect []) (\ok =>
-  Macros.dealsDivided This (Lit 2) (Each Macros.creature) {gm = ok})
+  Macros.dealsDivided This (Lit 2) (Macros.each Macros.creature) {gm = ok})
 badDivideAmongDescription Oh impossible
 
 
@@ -175,7 +175,7 @@ badSearchZonedDescription Refl impossible
 ||| [CR#701.17a] mills each player from their own library, so a distributed mill leaves a plural group.
 public export
 badDistributedMillSingular : Unspellable (Effect []) (\ok =>
-  Sequentially [ Macros.mills (Each AnyPlayer) (Lit 1) (Each AnyPlayer)
+  Sequentially [ Macros.mills (Macros.each AnyPlayer) (Lit 1) (Macros.each AnyPlayer)
                , Macros.exile You (It {ok}) ])
 badDistributedMillSingular Refl impossible
 
@@ -290,7 +290,7 @@ badPayTapSymbol Oh impossible
 ||| "Creatures you control get +1/+1 until end of turn:"
 public export
 badContinuousAsCost : Unspellable Ability (\ok =>
-  Activated (Do (Macros.gets (AllOf Macros.creatureYouControl) (PtUp (Lit 1)) (PtUp (Lit 1))
+  Activated (Do (Macros.gets (Macros.allOf Macros.creatureYouControl) (PtUp (Lit 1)) (PtUp (Lit 1))
                              (Just Macros.untilEndOfTurn)) {ok})
             (Macros.draw You (Lit 1)) Nothing Nothing Nothing Nothing)
 badContinuousAsCost Oh impossible
@@ -579,7 +579,7 @@ badMoveControlToHand Oh impossible
 ||| One controller [CR#109.4]; the plural relational is not a spelling this vocabulary has.
 public export
 badMoveRidersPluralController : Unspellable (Effect []) (\ok =>
-  Move (Macros.target Macros.creature) Macros.battlefieldZ [Under (AllOf Macros.otherPlayer) {one = ok}])
+  Move (Macros.target Macros.creature) Macros.battlefieldZ [Under (Macros.allOf Macros.otherPlayer) {one = ok}])
 badMoveRidersPluralController OneController impossible
 
 

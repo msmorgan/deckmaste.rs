@@ -1470,6 +1470,40 @@ mutual
     MkBinding det k plur (joinHalfPayload ph (seedTys p))
 
   public export
+  data DetPhrase : Bindings -> Type where
+    TargetDet : (q : Quantity bs) -> DetPhrase bs
+    ADet : (m : ChoiceMode bs) -> DetPhrase bs
+    EachDet : DetPhrase bs   -- "each …": a group, resolution-time [CR#608.2]
+    AllDet : DetPhrase bs
+    TheDet : DetPhrase bs
+    CountDet : (q : Quantity bs) -> (mode : Maybe (ChoiceMode bs)) -> DetPhrase bs
+
+  public export
+  detOf : {0 bs : Bindings} -> DetPhrase bs -> Determiner
+  detOf (TargetDet _) = TargetD
+  detOf (ADet _) = AD
+  detOf EachDet = EachD
+  detOf AllDet = AllD
+  detOf TheDet = TheD
+  detOf (CountDet _ _) = CountD
+
+  public export
+  detPlur : {0 bs : Bindings} -> DetPhrase bs -> Plurality
+  detPlur (TargetDet q) = quantPlur q
+  detPlur (CountDet q _) = quantPlur q
+  detPlur (ADet _) = OneOf
+  detPlur TheDet = OneOf
+  detPlur EachDet = ManyOf
+  detPlur AllDet = ManyOf
+
+  public export
+  detOk : {bs : Bindings} -> {k : Kind} -> DetPhrase bs -> Predicate bs k -> Type
+  detOk (TargetDet q) p = (NonZeroQ q, WellFormedQ q, Targetable k)
+  detOk (CountDet q _) p = (NonZeroQ q, WellFormedQ q)
+  detOk TheDet p = Uniquifying p
+  detOk _ p = ()
+
+  public export
   data Noun : Bindings -> Kind -> Type where
     This : Noun bs Object       -- the source, by self-name or "this spell" [CR#113.7]
     AsType : (t : CardType) -> (n : Noun bs Object) ->
@@ -1488,24 +1522,8 @@ mutual
     TheDefendingPlayer : Noun bs Player
     TheAttackingPlayer : Noun bs Player
     PlayerGroup : (w : PlayerGroupWord) -> Noun bs Player
-    Each : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
-           Noun bs k    -- "each …": a group, resolution-time [CR#608.2]
-    Indefinite : (m : ChoiceMode bs) -> (p : Predicate bs k) ->
-                 {auto ph : Phrasal k} ->
-                 Noun bs k
-    Definite : (p : Predicate bs k) ->
-               {auto ph : Phrasal k} ->
-               {auto 0 uq : Uniquifying p} -> Noun bs k
-    TargetGroup : (q : Quantity bs) -> (p : Predicate bs k) ->
-                  {auto tk : Targetable k} -> {auto 0 nz : NonZeroQ q} ->
-                  {auto 0 wf : WellFormedQ q} -> Noun bs k
-    CountedGroup : (q : Quantity bs) -> (mode : Maybe (ChoiceMode bs)) ->
-                   (p : Predicate bs k) ->
-                   {auto ph : Phrasal k} -> {auto 0 nz : NonZeroQ q} ->
-                   {auto 0 wf : WellFormedQ q} ->
-                   Noun bs k
-    AllOf : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
-            Noun bs k
+    Described : (d : DetPhrase bs) -> (p : Predicate bs k) ->
+                {auto ph : Phrasal k} -> {auto 0 ok : detOk d p} -> Noun bs k
     EachOf : (grp : Noun bs k) ->
              {auto 0 pl : nounPlur grp = ManyOf} ->
              {auto 0 gm : GroupMention grp} -> Noun bs k
@@ -1575,12 +1593,7 @@ mutual
   nounEqRef You _ = False
   nounEqRef (PlayerGroup v) (PlayerGroup w) = v == w
   nounEqRef (PlayerGroup _) _ = False
-  nounEqRef (Each _) _ = False
-  nounEqRef (Indefinite _ _) _ = False
-  nounEqRef (Definite _) _ = False
-  nounEqRef (TargetGroup _ _) _ = False
-  nounEqRef (CountedGroup _ _ _) _ = False
-  nounEqRef (AllOf _) _ = False
+  nounEqRef (Described _ _) _ = False
   nounEqRef (EachOf _) _ = False
   nounEqRef (Both _ _) _ = False
   nounEqRef (EitherOf _ _) _ = False
@@ -1640,6 +1653,17 @@ mutual
   sliceDelta (Just p) = predDelta p
 
   public export
+  detDelta : {bs : Bindings} -> {k : Kind} -> DetPhrase bs -> Phrasal k ->
+             Predicate bs k -> List Binding
+  detDelta (TargetDet q) ph p =
+    sized (quantExact q) (bindFor TargetD (quantPlur q) ph p)
+      :: (quantDelta q ++ predDelta p)
+  detDelta (CountDet q _) ph p =
+    sized (quantExact q) (bindFor CountD (quantPlur q) ph p)
+      :: (quantDelta q ++ predDelta p)
+  detDelta d ph p = bindFor (detOf d) (detPlur d) ph p :: predDelta p
+
+  public export
   nounDelta : {bs : Bindings} -> {k : Kind} -> Noun bs k -> List Binding
   nounDelta This = []
   nounDelta (AsType t n _) = nounDelta n
@@ -1651,16 +1675,7 @@ mutual
   nounDelta TheAttackingPlayer = []
   nounDelta You = []
   nounDelta (PlayerGroup _) = []
-  nounDelta (Each p {ph}) = bindFor EachD ManyOf ph p :: predDelta p
-  nounDelta (Indefinite m p {ph}) = bindFor AD OneOf ph p :: predDelta p
-  nounDelta (Definite p {ph}) = bindFor TheD OneOf ph p :: predDelta p
-  nounDelta (TargetGroup q p {tk}) =
-    sized (quantExact q) (bindFor TargetD (quantPlur q) (targetablePhrasal tk) p)
-      :: (quantDelta q ++ predDelta p)
-  nounDelta (CountedGroup q _ p {ph}) =
-    sized (quantExact q) (bindFor CountD (quantPlur q) ph p)
-      :: (quantDelta q ++ predDelta p)
-  nounDelta (AllOf p {ph}) = bindFor AllD ManyOf ph p :: predDelta p
+  nounDelta (Described d p {ph}) = detDelta d ph p
   nounDelta (EachOf grp) = nounDelta grp
   nounDelta (Both l r) = nounDelta r ++ nounDelta l
   nounDelta (EitherOf l r) = nounDelta l ++ nounDelta r
@@ -1721,7 +1736,7 @@ mutual
 
   public export
   agentIntro : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bindings
-  agentIntro (Each p {ph}) = bindFor TheD OneOf ph p :: predDelta p ++ bs
+  agentIntro (Described EachDet p {ph}) = bindFor TheD OneOf ph p :: predDelta p ++ bs
   agentIntro n = nomIntro n
 
   public export
@@ -1848,8 +1863,8 @@ mutual
 
   public export
   chosenDelta : {bs : Bindings} -> {k : Kind} -> Noun bs k -> List Binding
-  chosenDelta (Indefinite m p {ph}) = chosenBind (chosenDet ph AD) OneOf ph p :: predDelta p
-  chosenDelta (CountedGroup q _ p {ph}) =
+  chosenDelta (Described (ADet m) p {ph}) = chosenBind (chosenDet ph AD) OneOf ph p :: predDelta p
+  chosenDelta (Described (CountDet q _) p {ph}) =
     chosenBind (chosenDet ph CountD) (quantPlur q) ph p :: (quantDelta q ++ predDelta p)
   chosenDelta (NamesAgree _ grp) = chosenDelta grp
   chosenDelta n = nounDelta n
@@ -2227,6 +2242,12 @@ mutual
   quantPlur (ExactlyOf _) = ManyOf
 
   public export
+  detQuant : {0 bs : Bindings} -> DetPhrase bs -> Maybe (Quantity bs)
+  detQuant (TargetDet q) = Just q
+  detQuant (CountDet q _) = Just q
+  detQuant _ = Nothing
+
+  public export
   modesFit : {0 bs : Bindings} -> Quantity bs -> Nat -> Bool
   modesFit (Range Nothing Nothing) n = True
   modesFit (Range Nothing (Just hi)) n = lte hi n
@@ -2283,7 +2304,7 @@ mutual
 
   public export
   testSubjectOk : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bool
-  testSubjectOk (Definite _) = True
+  testSubjectOk (Described TheDet _) = True
   testSubjectOk (LibrarySlice _ _ _) = True
   testSubjectOk n = case nounDelta n of
                       [] => True
@@ -2295,12 +2316,7 @@ mutual
 
   public export
   nounDet : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Maybe Determiner
-  nounDet (Each _) = Just EachD
-  nounDet (Indefinite _ _) = Just AD
-  nounDet (Definite _) = Just TheD
-  nounDet (TargetGroup _ _) = Just TargetD
-  nounDet (CountedGroup _ _ _) = Just CountD
-  nounDet (AllOf _) = Just AllD
+  nounDet (Described d _) = Just (detOf d)
   nounDet (EachOf _) = Just EachD
   nounDet (LibrarySlice _ _ _) = Just TheD
   nounDet (SomeOf _ _ _) = Just PartD
@@ -2452,7 +2468,7 @@ mutual
 
   public export
   slicePossessorOk : {bs : Bindings} -> Noun bs Player -> Bool
-  slicePossessorOk (Each _) = True
+  slicePossessorOk (Described EachDet _) = True
   slicePossessorOk (EachOf _) = True
   slicePossessorOk (PlayerGroup _) = True
   slicePossessorOk n = isOne (nounPlur n)
@@ -2711,14 +2727,13 @@ mutual
   data TokenPhrase : {0 bs : Bindings} -> Noun bs Object -> Type where
     CountedTokens : {0 q : Quantity bs} -> {0 m : Maybe (ChoiceMode bs)} ->
                     {0 p : Predicate bs Object} ->
-                    {0 ph : Phrasal Object} -> {0 nz : NonZeroQ q} ->
-                    {0 wf : WellFormedQ q} ->
+                    {0 ph : Phrasal Object} -> {0 dk : detOk (CountDet q m) p} ->
                     {auto 0 ok : So (seedsToken p)} ->
-                    TokenPhrase (CountedGroup q m p {ph} {nz} {wf})
+                    TokenPhrase (Described (CountDet q m) p {ph} {ok = dk})
     OneToken : {0 m : ChoiceMode bs} -> {0 p : Predicate bs Object} ->
-               {0 ph : Phrasal Object} ->
+               {0 ph : Phrasal Object} -> {0 dk : detOk (ADet m) p} ->
                {auto 0 ok : So (seedsToken p)} ->
-               TokenPhrase (Indefinite m p {ph})
+               TokenPhrase (Described (ADet m) p {ph} {ok = dk})
 
   public export
   selfSubjDelta : {bs : Bindings} -> {k : Kind} -> Noun bs k -> List Binding
@@ -2968,12 +2983,7 @@ mutual
 
   public export
   moveIntro : {bs : Bindings} -> {k : Kind} -> Maybe VerbLabel -> Noun bs k -> Maybe Zone -> Bindings
-  moveIntro p nn@(Each pr) z = setZoneHead p z (nomIntro nn)
-  moveIntro p nn@(Indefinite m pr) z = setZoneHead p z (nomIntro nn)
-  moveIntro p nn@(Definite pr) z = setZoneHead p z (nomIntro nn)
-  moveIntro p nn@(TargetGroup q pr) z = setZoneHead p z (nomIntro nn)
-  moveIntro p nn@(CountedGroup q _ pr) z = setZoneHead p z (nomIntro nn)
-  moveIntro p nn@(AllOf pr) z = setZoneHead p z (nomIntro nn)
+  moveIntro p nn@(Described _ _) z = setZoneHead p z (nomIntro nn)
   moveIntro p (EachOf grp) z = moveIntro p grp z
   moveIntro p (NamesAgree _ grp) z = moveIntro p grp z
   moveIntro p nn@(Both _ _) z = nomIntro nn
@@ -3067,12 +3077,7 @@ mutual
   nounZone TheAttackingPlayer = Nothing
   nounZone You = Nothing
   nounZone (PlayerGroup _) = Nothing
-  nounZone (Each p) = phraseZone p
-  nounZone (Indefinite m p) = phraseZone p
-  nounZone (Definite p) = phraseZone p
-  nounZone (TargetGroup q p) = phraseZone p
-  nounZone (CountedGroup q _ p) = phraseZone p
-  nounZone (AllOf p) = phraseZone p
+  nounZone (Described _ p) = phraseZone p
   nounZone (EachOf grp) = nounZone grp
   nounZone (NamesAgree _ grp) = nounZone grp
   nounZone (Both _ _) = Nothing
@@ -3107,12 +3112,7 @@ mutual
   nounTy TheAttackingPlayer = Nothing
   nounTy You = Nothing
   nounTy (PlayerGroup _) = Nothing
-  nounTy (Each p) = seedTy p
-  nounTy (Indefinite m p) = seedTy p
-  nounTy (Definite p) = seedTy p
-  nounTy (TargetGroup q p) = seedTy p
-  nounTy (CountedGroup q _ p) = seedTy p
-  nounTy (AllOf p) = seedTy p
+  nounTy (Described _ p) = seedTy p
   nounTy (EachOf grp) = nounTy grp
   nounTy (NamesAgree _ grp) = nounTy grp
   nounTy (Both _ _) = Nothing
@@ -3137,12 +3137,7 @@ mutual
 
   public export
   nounHeadTys : {bs : Bindings} -> {k : Kind} -> Noun bs k -> List CardType
-  nounHeadTys (Each p) = headTys p
-  nounHeadTys (Indefinite _ p) = headTys p
-  nounHeadTys (Definite p) = headTys p
-  nounHeadTys (TargetGroup _ p) = headTys p
-  nounHeadTys (CountedGroup _ _ p) = headTys p
-  nounHeadTys (AllOf p) = headTys p
+  nounHeadTys (Described _ p) = headTys p
   nounHeadTys (EachOf grp) = nounHeadTys grp
   nounHeadTys (NamesAgree _ grp) = nounHeadTys grp
   nounHeadTys (ResolvedPermanent n) = nounHeadTys n
@@ -3156,12 +3151,7 @@ mutual
 
   public export
   nounTys : {bs : Bindings} -> {k : Kind} -> Noun bs k -> HeadTy k
-  nounTys (Each p) = seedTys p
-  nounTys (Indefinite m p) = seedTys p
-  nounTys (Definite p) = seedTys p
-  nounTys (TargetGroup q p) = seedTys p
-  nounTys (CountedGroup q _ p) = seedTys p
-  nounTys (AllOf p) = seedTys p
+  nounTys (Described _ p) = seedTys p
   nounTys (EachOf grp) = nounTys grp
   nounTys (NamesAgree _ grp) = nounTys grp
   nounTys (SomeOf _ d grp) = SoleTy (sliceTy d grp)
@@ -3183,12 +3173,7 @@ mutual
   nounPlur TheAttackingPlayer = OneOf
   nounPlur You = OneOf
   nounPlur (PlayerGroup _) = ManyOf
-  nounPlur (Each p) = ManyOf
-  nounPlur (Indefinite m p) = OneOf
-  nounPlur (Definite p) = OneOf
-  nounPlur (TargetGroup q p) = quantPlur q
-  nounPlur (CountedGroup q _ p) = quantPlur q
-  nounPlur (AllOf p) = ManyOf
+  nounPlur (Described d _) = detPlur d
   nounPlur (EachOf grp) = ManyOf
   nounPlur (NamesAgree _ grp) = nounPlur grp
   nounPlur (Both _ _) = ManyOf
