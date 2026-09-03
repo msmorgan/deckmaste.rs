@@ -235,6 +235,39 @@ fn apply_with_writer(
     apply_with_writer_and_retirement(report, path, mode, None, diagnostics, writer)
 }
 
+fn check_v2_coverage_drift(
+    report: &CoverageReport,
+    baseline: &CoverageLockV2,
+    current: &[String],
+    diagnostics: &mut dyn Write,
+) -> anyhow::Result<()> {
+    if baseline.source_fingerprint != report.source_fingerprint() {
+        writeln!(
+            diagnostics,
+            "coverage lock source fingerprint changed: old {} new {}",
+            baseline.source_fingerprint,
+            report.source_fingerprint(),
+        )
+        .context("writing English-v2 coverage lock diagnostic")?;
+    }
+    let newly_covered = current
+        .iter()
+        .filter(|identity| baseline.covered.binary_search(identity).is_err())
+        .collect::<Vec<_>>();
+    for identity in &newly_covered {
+        writeln!(diagnostics, "newly covered\t{identity}")
+            .context("writing English-v2 coverage lock diagnostic")?;
+    }
+    if !newly_covered.is_empty() {
+        bail!(
+            "coverage lock has {} newly covered corpus identit{}; review the coverage report and rerun with --bless",
+            newly_covered.len(),
+            if newly_covered.len() == 1 { "y" } else { "ies" },
+        );
+    }
+    Ok(())
+}
+
 fn apply_with_writer_and_retirement(
     report: &CoverageReport,
     path: &Path,
@@ -352,6 +385,11 @@ fn apply_with_writer_and_retirement(
                     if retired.len() == 1 { "y" } else { "ies" },
                 )
                 .context("writing English-v2 coverage retirement diagnostic")?;
+                writeln!(
+                    diagnostics,
+                    "WARNING: coverage retirement is a coordinator ruling; a ticket-vs-purpose contradiction requires a STOP, and the landing record must contain a re-coverage or retirement obligation line",
+                )
+                .context("writing English-v2 coverage retirement authority diagnostic")?;
             } else if let Some(retirement_path) = retirement_path {
                 bail!(
                     "coverage retirement manifest {} was supplied but no identities are currently lost",
@@ -359,22 +397,7 @@ fn apply_with_writer_and_retirement(
                 );
             }
             if mode == CoverageLockMode::Check {
-                if baseline.source_fingerprint != report.source_fingerprint() {
-                    writeln!(
-                        diagnostics,
-                        "coverage lock source fingerprint changed: old {} new {}",
-                        baseline.source_fingerprint,
-                        report.source_fingerprint(),
-                    )
-                    .context("writing English-v2 coverage lock diagnostic")?;
-                }
-                for identity in current
-                    .iter()
-                    .filter(|identity| baseline.covered.binary_search(identity).is_err())
-                {
-                    writeln!(diagnostics, "newly covered\t{identity}")
-                        .context("writing English-v2 coverage lock diagnostic")?;
-                }
+                check_v2_coverage_drift(report, &baseline, &current, diagnostics)?;
                 return Ok(());
             }
             let replacement = CoverageLockV2::new(report.source_fingerprint().to_owned(), current)?;
@@ -731,21 +754,24 @@ mod tests {
     }
 
     #[test]
-    fn schema_two_check_allows_new_coverage_but_rejects_loss_and_bless_is_add_only() {
+    fn schema_two_check_rejects_new_coverage_and_loss_while_bless_is_add_only() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("coverage.lock");
         let baseline = json_v2(&id('1'), &[id('a'), id('b')]);
         fs::write(&path, &baseline).unwrap();
         let growth = report(&id('2'), vec![id('a'), id('b'), id('c')], 0, 3, 0, 0);
         let mut diagnostics = Vec::new();
-        apply_with_writer(
+        let error = apply_with_writer(
             &growth,
             &path,
             CoverageLockMode::Check,
             &mut diagnostics,
             &mut super::FilesystemLockWriter,
         )
-        .unwrap();
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("1 newly covered corpus identity"), "{error}");
+        assert!(error.contains("--bless"), "{error}");
         let diagnostics = String::from_utf8(diagnostics).unwrap();
         assert!(diagnostics.contains("source fingerprint changed"));
         assert!(diagnostics.contains(&format!("newly covered\t{}", id('c'))));
@@ -821,7 +847,8 @@ mod tests {
         );
         assert_eq!(
             String::from_utf8(diagnostics).unwrap(),
-            "retired 1 previously covered corpus identity\n"
+            "retired 1 previously covered corpus identity\n\
+WARNING: coverage retirement is a coordinator ruling; a ticket-vs-purpose contradiction requires a STOP, and the landing record must contain a re-coverage or retirement obligation line\n"
         );
 
         apply_with_retirement(
