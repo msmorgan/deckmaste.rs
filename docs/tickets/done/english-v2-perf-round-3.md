@@ -111,3 +111,17 @@ Deviations and additions:
   directly rather than written outside `~/Dump`.
 - No STOP was taken. The loaded-host warnings are advisory under the existing
   ADR and all semantic gates passed unchanged.
+
+
+## Erratum (perf round 3 landing review, 2026-09-03)
+
+Figures were measured on the pre-integrate tree (`c85a9d6ad972`, covered
+16,174); the integrate rebased onto the since-reverted locative landing
+(15,635) where none of the corpus figures held — today's head is back at
+16,174 so the record reads correctly again. Records now stamp the
+measured tree (CLAUDE.md). R8 is STRUCK, not deferred: live columns equal
+the token set (767,843 vs ~747,358), predictions are invariant under
+token indexing, total upside <1%. The reviewer's sweep counter shows
+`requeue_completed_items_after_forest_growth` visiting 198.5M columns of
+which 171.0M (86.1%) are empty — ~0.6% of parse; R9 (bounded requeue) is
+the remaining structural target, low value now that the ceiling clears.
