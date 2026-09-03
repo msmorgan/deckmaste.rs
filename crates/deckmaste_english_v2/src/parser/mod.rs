@@ -150,6 +150,8 @@ mod metrics;
 pub use metrics::ConstructionMetrics;
 #[cfg(feature = "parser-metrics")]
 pub use metrics::parser_metrics;
+#[cfg(feature = "parser-metrics")]
+pub use metrics::parser_work_metrics;
 
 #[cfg(test)]
 #[derive(Clone, Copy)]

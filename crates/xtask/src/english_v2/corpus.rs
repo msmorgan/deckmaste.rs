@@ -19,6 +19,8 @@ const ID_DOMAIN: &[u8] = b"deckmaste:english-v2:corpus-unit:v1";
 const SOURCE_ID_DOMAIN: &[u8] = b"deckmaste:english-v2:source-unit:v1";
 const NORMALIZATION_DIGEST_DOMAIN: &[u8] = b"deckmaste:english-v2:normalization:v2";
 const LEGACY_NORMALIZATION_DIGEST_DOMAIN: &[u8] = b"deckmaste:english-v2:normalization:v1";
+// Governed by docs/decisions/english-v2-rewrite.md, "Ruling: corpus timing
+// ceiling and acceptance-cost telemetry" (2026-09-02).
 const CORPUS_WALL_CEILING_SECONDS: f64 = 16.26;
 const RULES_BEARING_PARENTHETICALS: &[&str] = &[
     "(as long as this creature is on the battlefield)",
@@ -418,6 +420,7 @@ pub(super) fn thread_cpu_time() -> Duration {
 #[cfg(feature = "parser-metrics")]
 fn write_parser_metrics(output: &mut dyn std::io::Write) -> anyhow::Result<()> {
     let mut rows = deckmaste_english_v2::parser::parser_metrics();
+    let work = deckmaste_english_v2::parser::parser_work_metrics();
     let score = |row: &deckmaste_english_v2::parser::ConstructionMetrics| {
         row.predictions()
             + row.completions()
@@ -442,6 +445,13 @@ fn write_parser_metrics(output: &mut dyn std::io::Write) -> anyhow::Result<()> {
         output,
         "PARSER_METRICS totals predictions={} completions={} materializations={} memo_misses={} clone_heavy={}",
         totals[0], totals[1], totals[2], totals[3], totals[4],
+    )?;
+    writeln!(
+        output,
+        "PARSER_METRICS work chart_columns_visited={} predictions_per_column={:.3} scan_attempts={}",
+        work.chart_columns_visited(),
+        work.predictions_per_column(totals[0]),
+        work.scan_attempts(),
     )?;
     for (rank, row) in rows
         .into_iter()

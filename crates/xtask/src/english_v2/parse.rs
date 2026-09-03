@@ -252,6 +252,11 @@ mod tests {
                 "internal_failure"
             ]
         );
+        assert!(
+            json["rows"][0].get("message").is_none(),
+            "parse JSON omits a null message from a clean row",
+        );
+        assert_eq!(json["rows"][1]["message"], "rendered bytes differ");
         assert_eq!(
             json["summary"],
             serde_json::json!({

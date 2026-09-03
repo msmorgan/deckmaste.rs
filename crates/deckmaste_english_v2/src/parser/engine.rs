@@ -463,6 +463,8 @@ where
     let mut agenda = VecDeque::new();
     let mut scan_cache =
         BTreeMap::<(L, usize, S, bool), Vec<StatefulLexicalMatch<T, Owner, S>>>::new();
+    #[cfg(feature = "parser-metrics")]
+    let mut scan_attempts = 0_u64;
     let mut completed_by_start = (0..=input_length)
         .map(|_| BTreeMap::<(N, bool), Vec<NodeId>>::new())
         .collect::<Vec<_>>();
@@ -672,7 +674,13 @@ where
                 let scan_key = (lexical, column, item.state.clone(), suppress_right_boundary);
                 let matches = scan_cache
                     .entry(scan_key)
-                    .or_insert_with(|| scan(lexical, column, &item.state, suppress_right_boundary))
+                    .or_insert_with(|| {
+                        #[cfg(feature = "parser-metrics")]
+                        {
+                            scan_attempts += 1;
+                        }
+                        scan(lexical, column, &item.state, suppress_right_boundary)
+                    })
                     .clone();
                 advance_lexical(
                     rules,
@@ -694,6 +702,17 @@ where
     }
 
     observe_final_chart(&chart, rules, observation, &stateful_forest.forest);
+
+    #[cfg(feature = "parser-metrics")]
+    super::metrics::record_work(
+        chart
+            .iter()
+            .filter(|column| !column.is_empty())
+            .count()
+            .try_into()
+            .expect("chart column count fits in u64"),
+        scan_attempts,
+    );
 
     if stateful_forest.forest.accepted_roots.is_empty() {
         Err(chart_failure(&chart, rules))
@@ -1451,6 +1470,25 @@ mod tests {
         ],
     }];
 
+    #[cfg(feature = "parser-metrics")]
+    const METRIC_RULES: &[Rule<ToyCategory, &'static str, ToyRuleId>] = &[
+        Rule {
+            id: ToyRuleId::Start,
+            lhs: ToyCategory::Start,
+            rhs: &[RulePosition::Nonterminal(ToyCategory::Value)],
+        },
+        Rule {
+            id: ToyRuleId::ValueLeaf,
+            lhs: ToyCategory::Value,
+            rhs: &[RulePosition::Lexical("a")],
+        },
+        Rule {
+            id: ToyRuleId::FastChild,
+            lhs: ToyCategory::Value,
+            rhs: &[RulePosition::Lexical("a")],
+        },
+    ];
+
     const BACKWARDS_SCAN_RULES: &[Rule<ToyCategory, &'static str, ToyRuleId>] = &[Rule {
         id: ToyRuleId::Start,
         lhs: ToyCategory::Start,
@@ -1675,6 +1713,46 @@ mod tests {
         };
         assert_eq!(lexical.value, "alpha beta");
         assert_eq!(lexical.span, TextSpan { start: 0, end: 10 });
+    }
+
+    #[cfg(feature = "parser-metrics")]
+    #[test]
+    fn work_metrics_count_live_columns_predictions_and_uncached_scans() {
+        let before_work = crate::parser::parser_work_metrics();
+        let before_predictions = crate::parser::parser_metrics()
+            .into_iter()
+            .map(|row| row.predictions())
+            .sum::<u64>();
+
+        let forest = parse(
+            METRIC_RULES,
+            ToyCategory::Start,
+            1,
+            |literal, start| {
+                (literal == "a" && start == 0)
+                    .then_some(vec![LexicalMatch {
+                        end: 1,
+                        value: literal,
+                        owner: None::<()>,
+                    }])
+                    .unwrap_or_default()
+            },
+            |_, _, _| true,
+        )
+        .expect("both rules share one cached lexical scan and accept");
+        assert_eq!(forest.accepted_roots().count(), 1);
+
+        let after_work = crate::parser::parser_work_metrics();
+        let after_predictions = crate::parser::parser_metrics()
+            .into_iter()
+            .map(|row| row.predictions())
+            .sum::<u64>();
+        assert!(
+            after_work.chart_columns_visited()
+                >= before_work.chart_columns_visited() + 2
+        );
+        assert!(after_work.scan_attempts() > before_work.scan_attempts());
+        assert!(after_predictions >= before_predictions + 2);
     }
 
     #[test]
