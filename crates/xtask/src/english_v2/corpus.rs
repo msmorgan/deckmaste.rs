@@ -21,7 +21,7 @@ const RULES_BEARING_PARENTHETICALS: &[&str] = &[
     "(if it's still on the battlefield)",
     "(or {1})",
 ];
-const REMINDER_MID_LINE_PARENTHETICALS: &[&str] = &[
+const REMINDER_FOLLOWED_BY_TEXT_PARENTHETICALS: &[&str] = &[
     "(For example, you may change \"black creatures can't attack\" to \"blue creatures can't attack.\")",
     "(a ticket counter)",
     "(an energy counter)",
@@ -319,8 +319,9 @@ fn normalize_oracle_text(card_name: &str, text: &str) -> anyhow::Result<String> 
 
 /// Removes nonempty, single-line reminder parentheticals while retaining at
 /// most one surrounding space. A line containing only reminder text
-/// disappears. Every mid-line parenthetical must be explicitly classified;
-/// authored rules-bearing parentheticals survive byte-exactly.
+/// disappears. Every parenthetical followed by non-whitespace text on its
+/// line must be explicitly classified; authored rules-bearing parentheticals
+/// survive byte-exactly.
 fn strip_reminder_text(card_name: &str, text: &str) -> anyhow::Result<String> {
     text.split('\n')
         .map(|line| {
@@ -352,12 +353,11 @@ fn strip_reminder_text_line(card_name: &str, line: &str) -> anyhow::Result<Strin
             remainder = after;
             continue;
         }
-        let original_prefix_len = line.len() - remainder.len() + open;
-        let is_mid_line =
-            !line[..original_prefix_len].trim().is_empty() && !after.trim().is_empty();
+        let is_followed_by_text = !after.trim().is_empty();
         ensure!(
-            !is_mid_line || REMINDER_MID_LINE_PARENTHETICALS.contains(&parenthetical),
-            "unknown mid-line parenthetical {parenthetical:?} while normalizing card {card_name:?}",
+            !is_followed_by_text
+                || REMINDER_FOLLOWED_BY_TEXT_PARENTHETICALS.contains(&parenthetical),
+            "unknown parenthetical followed by text {parenthetical:?} while normalizing card {card_name:?}",
         );
 
         if relative_close == 0 {
@@ -500,49 +500,6 @@ mod tests {
         rows.into_iter()
             .map(|(name, onset)| (name.to_owned(), onset))
             .collect()
-    }
-
-    fn previous_strip_reminder_text(text: &str, preserve_rules_bearing: bool) -> String {
-        text.split('\n')
-            .filter_map(|line| {
-                assert_no_nested_parentheses(line);
-                let mut stripped = String::with_capacity(line.len());
-                let mut remainder = line;
-                while let Some(open) = remainder.find('(') {
-                    stripped.push_str(&remainder[..open]);
-                    let Some(relative_close) = remainder[open + 1..].find(')') else {
-                        stripped.push_str(&remainder[open..]);
-                        break;
-                    };
-                    let close = open + 1 + relative_close;
-                    let parenthetical = &remainder[open..=close];
-                    let after = &remainder[close + 1..];
-
-                    if relative_close == 0
-                        || (preserve_rules_bearing
-                            && RULES_BEARING_PARENTHETICALS.contains(&parenthetical))
-                    {
-                        stripped.push_str(parenthetical);
-                        remainder = after;
-                        continue;
-                    }
-
-                    if stripped.ends_with(' ') {
-                        stripped.pop();
-                    }
-                    let (after, had_space_after) = after
-                        .strip_prefix(' ')
-                        .map_or((after, false), |after| (after, true));
-                    if !stripped.is_empty() && !after.is_empty() && had_space_after {
-                        stripped.push(' ');
-                    }
-                    remainder = after;
-                }
-                stripped.push_str(remainder);
-                (!stripped.trim().is_empty() || line.is_empty()).then_some(stripped)
-            })
-            .collect::<Vec<_>>()
-            .join("\n")
     }
 
     #[test]
@@ -709,7 +666,7 @@ mod tests {
             "Flying"
         );
         assert_eq!(
-            strip_reminder_text("Fixture", "(Reminder) Foo").unwrap(),
+            strip_reminder_text("Fixture", "(the Fridge) Foo").unwrap(),
             "Foo"
         );
         assert_eq!(
@@ -754,10 +711,20 @@ mod tests {
     }
 
     #[test]
+    fn unknown_line_initial_parenthetical_is_a_card_named_error() {
+        let error = strip_reminder_text("Tripwire Card", "(a wholly novel gloss) trample.")
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("Tripwire Card"), "{error}");
+        assert!(error.contains("(a wholly novel gloss)"), "{error}");
+    }
+
+    #[test]
     fn unknown_mid_line_parenthetical_after_a_leading_reminder_is_an_error() {
         let error = strip_reminder_text(
             "Tripwire Card",
-            "(A leading reminder.) (a wholly novel gloss) trample.",
+            "(the Fridge) (a wholly novel gloss) trample.",
         )
         .unwrap_err()
         .to_string();
@@ -790,7 +757,7 @@ mod tests {
     }
 
     #[test]
-    fn mid_line_parenthetical_inventory_matches_the_vintage_snapshot() {
+    fn classified_parenthetical_inventory_matches_the_vintage_snapshot() {
         const EXPECTED_RULES_BEARING_USES: [usize; 5] = [2, 1, 11, 2, 1];
         const EXPECTED_REMINDER_USES: [usize; 9] = [1, 2, 23, 1, 16, 7, 1, 21, 64];
 
@@ -822,7 +789,7 @@ mod tests {
                     .count()
             })
             .collect::<Vec<_>>();
-        let reminder_counts = REMINDER_MID_LINE_PARENTHETICALS
+        let reminder_counts = REMINDER_FOLLOWED_BY_TEXT_PARENTHETICALS
             .iter()
             .map(|parenthetical| {
                 vintage_cards
@@ -843,11 +810,11 @@ mod tests {
     }
 
     #[test]
-    fn exhaustive_tripwire_preserves_every_current_normalized_identity() {
+    fn vintage_snapshot_has_no_line_initial_parenthetical_followed_by_text() {
         let bytes =
             deckmaste_data::mtgjson::atomic_cards_bytes().expect("reading AtomicCards snapshot");
         let cards = AtomicCards::parse(&bytes).expect("parsing AtomicCards snapshot");
-        let mut differences_from_raw_strip = 0;
+        let mut line_initial_parentheticals_followed_by_text = Vec::new();
 
         for card in cards
             .data
@@ -855,24 +822,24 @@ mod tests {
             .flatten()
             .filter(|card| card.vintage_playable())
         {
-            let raw = card.text.as_deref().unwrap_or_default();
-            let typography =
-                normalize_roll_row_dashes(&deckmaste_data::academyruins::normalize_quotes(raw));
-            let normalized = normalize_oracle_text(card.name.as_str(), raw)
-                .unwrap_or_else(|error| panic!("{error}"));
-            let previous = previous_strip_reminder_text(&typography, true);
-            let raw_strip = previous_strip_reminder_text(&typography, false);
-
-            assert_eq!(
-                normalized,
-                previous,
-                "normalization identity changed for {:?}",
-                card.name.as_str()
-            );
-            differences_from_raw_strip += usize::from(normalized != raw_strip);
+            for line in card.text.as_deref().unwrap_or_default().split('\n') {
+                let Some(remainder) = line.strip_prefix('(') else {
+                    continue;
+                };
+                let Some(relative_close) = remainder.find(')') else {
+                    continue;
+                };
+                let after = &remainder[relative_close + 1..];
+                if !after.trim().is_empty() {
+                    line_initial_parentheticals_followed_by_text.push((card.name.as_str(), line));
+                }
+            }
         }
 
-        assert_eq!(differences_from_raw_strip, 17);
+        assert!(
+            line_initial_parentheticals_followed_by_text.is_empty(),
+            "line-initial parentheticals followed by text changed normalization identity: {line_initial_parentheticals_followed_by_text:?}",
+        );
     }
 
     #[test]
