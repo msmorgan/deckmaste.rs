@@ -1156,3 +1156,13 @@ the gap, both data, neither a per-construction guard:
 Negative oracles (agreement/quantity violations) are part of the fidelity
 standard: a landing that makes one parse is a defect, never a coverage
 gain.
+
+
+## Correction: cutover debt path (2026-09-02)
+
+§Crates' `deckmaste_english_v2 -> macro_ron -> deckmaste_features` debt no
+longer exists: the macro-ron fold-back removed `macro_ron` from
+`deckmaste_english_v2`'s dependency closure (v2 depends directly on
+`deckmaste_construction_core`, which owns the spelling/grammar metadata
+type as the row consumer). `macro_ron`'s remaining `deckmaste_features`
+edge is its legacy `frames.rs` re-exports, deleted with v1.

@@ -38,3 +38,17 @@ Sequencing: coordinate with the in-flight stage-5 Plan 10 work, which authors
 stubs in the current dialect — land after its stub authoring settles, with a
 mechanical migration of whatever stubs exist by then. Coverage, byte-exact
 laws, and the ratchet are unchanged throughout; standard constraints apply.
+
+
+## Landing record (coordinator, from fold-back-landing-review.md, 2026-09-02)
+
+Executor wrote none. macro_ron::v2 removed entirely (module, dialect,
+reader); MacroDef<Metadata = ()> as sketched; metadata type owned by
+deckmaste_construction_core (the row consumer; correct by elimination —
+no new edges, english_v2 dropped macro_ron and gained a direct
+construction_core dependency). 867 stubs untouched (null diff). Positional
+ABI now enforced (non-numeric body hole rejected; exact <Param(n)>
+spelling pinned). Gates green at 15,932. Residue:
+macro-ron-fold-back-residue (deny_unknown_fields lost so `template:`
+loads clean; type.rs test weakened; `extern crate self` rename crutch;
+two public DeclarationKind types from one crate).

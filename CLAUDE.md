@@ -51,11 +51,12 @@ Authority: `docs/decisions/english-v2-rewrite.md` (cutover plan). Until cutover:
   deletion-bound `deckmaste_features`; v2's dependency set is unchanged. v2
   must never add a direct dependency on a crate slated for deletion. It does
   not depend directly on `deckmaste_catalogs`: xtask alone adapts catalog
-  contents into the frozen typed provider rows v2 consumes. The current graph
-  still has the transitive cutover debt
-  `deckmaste_english_v2 -> macro_ron -> deckmaste_features`; the surviving
-  `macro_ron`/v2 normalization path must shed that edge before
-  `deckmaste_features` is deleted.
+  contents into the frozen typed provider rows v2 consumes. Since the macro-ron
+  fold-back (2026-09-02) `deckmaste_english_v2` no longer depends on
+  `macro_ron` at all (it depends directly on `deckmaste_construction_core`,
+  which owns the spelling/grammar metadata type); `macro_ron`'s own
+  `deckmaste_features` edge lives only in its legacy `frames.rs` re-exports
+  and deletes with v1.
 - **`deckmaste_migrations` survives as a function** (card
   extract→resolve→graduate, snapshot ingestion). Its oracle-text extraction
   is its own regex pipeline — it does not consume the construction parser —
