@@ -1485,6 +1485,14 @@ scry {bs} _ amt {req = YourManyLookReq {ay = Refl} {mn} {ps} {tr} {pr}} =
                      , move (TheRest {ok = tr})
                             (onTopIn AnyOrder {af = Oh})
                             {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
+scry agent@(Pro (Word PlayerW) _) _ {req = TheirOneLookReq {an} {ap} {iw} {pi}} = scryTheirOne agent {an} {ap} {iw} {pi}
+scry agent@(Pro (UnionHalf PlayerW) _) _ {req = TheirOneLookReq {an} {ap} {iw} {pi}} = scryTheirOne agent {an} {ap} {iw} {pi}
+scry agent@(Pro (Verbed _ PlayerW _) _) _ {req = TheirOneLookReq {an} {ap} {iw} {pi}} = scryTheirOne agent {an} {ap} {iw} {pi}
+scry agent@(Pro (Word PlayerW) _) amt {req = TheirManyLookReq {an} {mn} {ps} {tr} {pr}} = scryTheirMany agent amt {an} {mn} {ps} {tr} {pr}
+scry agent@(Pro (UnionHalf PlayerW) _) amt {req = TheirManyLookReq {an} {mn} {ps} {tr} {pr}} = scryTheirMany agent amt {an} {mn} {ps} {tr} {pr}
+scry agent@(Pro (Verbed _ PlayerW _) _) amt {req = TheirManyLookReq {an} {mn} {ps} {tr} {pr}} = scryTheirMany agent amt {an} {mn} {ps} {tr} {pr}
+scry agent@(AttachHost _ PlayerW) _ {req = TheirOneLookReq {an} {ap} {iw} {pi}} = scryTheirOne agent {an} {ap} {iw} {pi}
+scry agent@(AttachHost _ PlayerW) amt {req = TheirManyLookReq {an} {mn} {ps} {tr} {pr}} = scryTheirMany agent amt {an} {mn} {ps} {tr} {pr}
 scry agent _ {req = TheirOneLookReq {an} {ap} {iw} {pi}} =
   scryTheirOne agent {an} {ap} {iw} {pi}
 scry agent amt {req = TheirManyLookReq {an} {mn} {ps} {tr} {pr}} =
@@ -1558,6 +1566,14 @@ surveil {bs} _ amt {req = YourManyLookReq {ay = Refl} {mn} {ps} {tr} {pr}} =
                      , move (TheRest {ok = tr})
                             (onTopIn AnyOrder {af = Oh})
                             {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
+surveil agent@(Pro (Word PlayerW) _) _ {req = TheirOneLookReq {an} {ap} {iw} {pi}} = surveilTheirOne agent {an} {ap} {iw} {pi}
+surveil agent@(Pro (UnionHalf PlayerW) _) _ {req = TheirOneLookReq {an} {ap} {iw} {pi}} = surveilTheirOne agent {an} {ap} {iw} {pi}
+surveil agent@(Pro (Verbed _ PlayerW _) _) _ {req = TheirOneLookReq {an} {ap} {iw} {pi}} = surveilTheirOne agent {an} {ap} {iw} {pi}
+surveil agent@(Pro (Word PlayerW) _) amt {req = TheirManyLookReq {an} {mn} {ps} {tr} {pr}} = surveilTheirMany agent amt {an} {mn} {ps} {tr} {pr}
+surveil agent@(Pro (UnionHalf PlayerW) _) amt {req = TheirManyLookReq {an} {mn} {ps} {tr} {pr}} = surveilTheirMany agent amt {an} {mn} {ps} {tr} {pr}
+surveil agent@(Pro (Verbed _ PlayerW _) _) amt {req = TheirManyLookReq {an} {mn} {ps} {tr} {pr}} = surveilTheirMany agent amt {an} {mn} {ps} {tr} {pr}
+surveil agent@(AttachHost _ PlayerW) _ {req = TheirOneLookReq {an} {ap} {iw} {pi}} = surveilTheirOne agent {an} {ap} {iw} {pi}
+surveil agent@(AttachHost _ PlayerW) amt {req = TheirManyLookReq {an} {mn} {ps} {tr} {pr}} = surveilTheirMany agent amt {an} {mn} {ps} {tr} {pr}
 surveil agent _ {req = TheirOneLookReq {an} {ap} {iw} {pi}} =
   surveilTheirOne agent {an} {ap} {iw} {pi}
 surveil agent amt {req = TheirManyLookReq {an} {mn} {ps} {tr} {pr}} =

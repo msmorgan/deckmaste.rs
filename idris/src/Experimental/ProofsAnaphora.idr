@@ -966,14 +966,14 @@ controllerSacrificesReadsNoPrefix bs n one zn = ControllerSacrifices n {one} {zn
 public export
 ownSurvivesSecondSingular : Effect []
 ownSurvivesSecondSingular =
-  Sequentially [Macros.exile (Macros.target Macros.artifact),
+  Sequentially [Macros.exile You (Macros.target Macros.artifact),
                 Macros.dealsDamageOwnPower (Macros.target Macros.creature)
                                            (Macros.target Macros.anyTarget)]
 
 ||| The same sentence through `It`: the exiled artifact is a second singular object.
 public export
 badItAcrossOwnSlot : Unspellable (Effect []) (\ok =>
-  Sequentially [Macros.exile (Macros.target Macros.artifact),
+  Sequentially [Macros.exile You (Macros.target Macros.artifact),
                 DealDamage (Macros.target Macros.creature) (StatOf Power (It {ok}))
                            (Macros.target Macros.anyTarget)])
 badItAcrossOwnSlot Refl impossible
