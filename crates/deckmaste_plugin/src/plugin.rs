@@ -403,6 +403,31 @@ impl Plugin {
         Ok(LoadedCard { semantic, core })
     }
 
+    /// The RESOLVER half of the certifier/resolver differential
+    /// (`semantics-spelling-lowering.md` §17): read a card through the same
+    /// restricted entry as [`Plugin::card_from_str`], but hand back lowering's
+    /// VERDICT as data instead of propagating a refusal.
+    ///
+    /// `Ok(Err(diagnostic))` is a card whose text the resolver refuses (an
+    /// ambiguous or unbound anaphor); the differential gate pairs that verdict
+    /// against the Idris mirror's certification of the same card. A plain
+    /// `Err` is still a read failure — a card that does not parse has no
+    /// resolver verdict to compare.
+    ///
+    /// This is not a second read path: it runs the identical restricted read
+    /// and the identical `lower_card`, and differs only in whether a refusal
+    /// is returned or raised.
+    ///
+    /// # Errors
+    /// If the source doesn't expand to a card.
+    pub fn card_resolution_from_str(
+        &self,
+        source: &str,
+    ) -> anyhow::Result<Result<deckmaste_card::Card, deckmaste_lowering::Diagnostic>> {
+        let semantic: deckmaste_semantics::Card = self.macros.read_str_restricted(source)?;
+        Ok(deckmaste_lowering::lower_card(semantic))
+    }
+
     /// A semantic card WITHOUT identity-macro invocation provenance: the value
     /// shape a card had before the ban routed mirrored spellings through
     /// identity macros (spec §5, "wrapper interaction at remembering kinds").

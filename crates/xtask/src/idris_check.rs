@@ -14,6 +14,14 @@
 //!    result with `<plugin>/idris-check-baseline.ron`. The baseline is an exact
 //!    pass/gap classification: regressions fail, improvements require a
 //!    reviewed `--bless`, and Idris proof failures are always fatal.
+//!  - `idris-check <plugin> --differential` — the CERTIFIER/RESOLVER
+//!    differential (`semantics-spelling-lowering.md` §17, [Core is explicit
+//!    regions] law 12). The mirror CERTIFIES that a card's anaphora resolve
+//!    uniquely; `deckmaste_lowering` COMPUTES that resolution. Two independent
+//!    derivations of one rule, so they must agree card for card: a card the
+//!    mirror proves sound must lower, and a card the mirror refutes must not.
+//!    Emitter gaps carry NO certifier verdict and are skipped — a shape the
+//!    emitter cannot express is not a claim about the card.
 
 use std::collections::BTreeSet;
 use std::collections::HashMap;
@@ -47,6 +55,69 @@ pub struct IdrisCheckArgs {
     /// emitter gaps. Batch mode only; proof failures can never be blessed.
     #[arg(long, conflicts_with = "card_name")]
     bless: bool,
+    /// Pair lowering's computed resolution against the Idris mirror's
+    /// certification over the whole plugin and report every disagreement
+    /// (`semantics-spelling-lowering.md` §17). Batch mode only.
+    #[arg(long, conflicts_with_all = ["card_name", "bless"])]
+    differential: bool,
+}
+
+/// One card on which the resolver and the certifier disagree.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Disagreement {
+    card: String,
+    /// What the mirror proved, and what lowering did instead.
+    detail: String,
+}
+
+/// What the Idris mirror concluded about one card.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CertifierVerdict {
+    /// The re-emitted term typechecks: its anaphora provably resolve uniquely.
+    Sound,
+    /// The re-emitted term fails the proof: the card is refuted.
+    Unsound,
+    /// The emitter cannot express this card's shape, so there is no claim
+    /// about it either way.
+    NoVerdict,
+}
+
+/// How one card's two verdicts pair up.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Pairing {
+    AgreedSound,
+    AgreedUnsound,
+    /// No certifier verdict to compare against.
+    Skipped,
+    /// The mirror proved the anaphora resolve; lowering refused.
+    CertifiedButRefused,
+    /// The mirror refuted the anaphora; lowering resolved them anyway.
+    RefutedButResolved,
+}
+
+/// Pair one card's two derivations. Split out from the walk so the gate's
+/// verdict table is testable without an `idris2` invocation — a differential
+/// that cannot be shown to REPORT a disagreement is not evidence of anything.
+const fn pair_verdicts(certifier: CertifierVerdict, resolver_resolved: bool) -> Pairing {
+    match (certifier, resolver_resolved) {
+        (CertifierVerdict::Sound, true) => Pairing::AgreedSound,
+        (CertifierVerdict::Sound, false) => Pairing::CertifiedButRefused,
+        (CertifierVerdict::Unsound, true) => Pairing::RefutedButResolved,
+        (CertifierVerdict::Unsound, false) => Pairing::AgreedUnsound,
+        (CertifierVerdict::NoVerdict, _) => Pairing::Skipped,
+    }
+}
+
+/// The paired verdicts over one plugin slice.
+#[derive(Debug, Clone, Default)]
+struct DifferentialReport {
+    /// Cards where both derivations accept.
+    agreed_sound: usize,
+    /// Cards where both derivations reject.
+    agreed_unsound: usize,
+    /// Cards the emitter cannot express, so the certifier has no verdict.
+    skipped_gaps: usize,
+    disagreements: Vec<Disagreement>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -114,6 +185,9 @@ pub fn run(args: &IdrisCheckArgs) -> anyhow::Result<()> {
         .with_context(|| format!("loading plugin {}", args.plugin_dir.display()))?;
     match &args.card_name {
         Some(name) => run_single(&plugin, name, &idris_dir),
+        None if args.differential => {
+            run_differential(&plugin, &args.plugin_dir, &idris_dir, args.batch_size)
+        }
         None => run_batch(
             &plugin,
             &args.plugin_dir,
@@ -122,6 +196,120 @@ pub fn run(args: &IdrisCheckArgs) -> anyhow::Result<()> {
             args.bless,
         ),
     }
+}
+
+/// The certifier/resolver differential over one plugin slice.
+///
+/// The mirror's verdict comes from the same batch typecheck the baseline gate
+/// runs; the resolver's comes from `Plugin::card_resolution_from_str`, which
+/// returns lowering's refusal as data rather than raising it. Both derive the
+/// same rule (a card's anaphora resolve uniquely — R1/R2), so any card they
+/// classify differently is a real finding in one of them.
+///
+/// # Errors
+/// If cards cannot be read, or if the two derivations disagree anywhere.
+fn run_differential(
+    plugin: &Plugin,
+    plugin_dir: &Path,
+    idris_dir: &Path,
+    batch_size: usize,
+) -> anyhow::Result<()> {
+    let certifier = collect_batch_report(plugin, plugin_dir, idris_dir, batch_size)?;
+    let certified: HashSet<&str> = certifier.passes.iter().map(String::as_str).collect();
+    let refuted: HashSet<&str> = certifier
+        .proof_failures
+        .iter()
+        .map(|failure| failure.card.as_str())
+        .collect();
+    let gaps: HashSet<&str> = certifier.gaps.iter().map(|gap| gap.card.as_str()).collect();
+
+    let mut report = DifferentialReport::default();
+    for path in crate::idris_check::card_sources(plugin_dir)? {
+        let source =
+            fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
+        if deckmaste_core::plugin::is_todo_source(&source) {
+            continue;
+        }
+        let resolution = plugin
+            .card_resolution_from_str(&source)
+            .with_context(|| format!("parsing {}", path.display()))?;
+        // Name the card the way the certifier does, so the two verdicts key on
+        // one identity rather than on a file stem that may differ.
+        let semantic = plugin
+            .rendering_card_from_str(&source)
+            .with_context(|| format!("parsing {}", path.display()))?;
+        let name = idris_emit::card_display_name(&semantic).to_string();
+
+        let certifier = if certified.contains(name.as_str()) {
+            CertifierVerdict::Sound
+        } else if refuted.contains(name.as_str()) {
+            CertifierVerdict::Unsound
+        } else {
+            // An emitter gap: a shape the mirror cannot express is not a claim
+            // about the card. Anything NOT in the gap list either has been
+            // silently dropped by the batch or is named differently by the two
+            // halves — a hole in the gate itself, so say so rather than
+            // counting it as agreement.
+            anyhow::ensure!(
+                gaps.contains(name.as_str()),
+                "{name} reached no certifier verdict and is not a listed emitter gap — \
+                 the differential is not covering it"
+            );
+            CertifierVerdict::NoVerdict
+        };
+        match pair_verdicts(certifier, resolution.is_ok()) {
+            Pairing::AgreedSound => report.agreed_sound += 1,
+            Pairing::AgreedUnsound => report.agreed_unsound += 1,
+            Pairing::Skipped => report.skipped_gaps += 1,
+            Pairing::CertifiedButRefused => {
+                let detail = resolution.as_ref().err().map_or_else(
+                    || "lowering refused".to_owned(),
+                    |diagnostic| {
+                        format!(
+                            "the mirror PROVES its anaphora resolve uniquely, but \
+                             lowering refused: {diagnostic}"
+                        )
+                    },
+                );
+                report
+                    .disagreements
+                    .push(Disagreement { card: name, detail });
+            }
+            Pairing::RefutedButResolved => report.disagreements.push(Disagreement {
+                card: name,
+                detail: "the mirror REFUTES this card's anaphora, but lowering \
+                         resolved it without complaint"
+                    .to_owned(),
+            }),
+        }
+    }
+
+    println!(
+        "{}: certifier/resolver differential — {} agreed sound, {} agreed unsound, \
+         {} skipped (no certifier verdict)",
+        plugin_dir.display(),
+        report.agreed_sound,
+        report.agreed_unsound,
+        report.skipped_gaps,
+    );
+    if report.disagreements.is_empty() {
+        println!("differential OK: 0 disagreements");
+        return Ok(());
+    }
+    for disagreement in &report.disagreements {
+        println!("  {}: {}", disagreement.card, disagreement.detail);
+    }
+    anyhow::bail!(
+        "{} card(s) on which lowering's resolution and the Idris mirror's certification disagree",
+        report.disagreements.len()
+    )
+}
+
+/// Every finished card source file in a plugin, in a stable order.
+fn card_sources(plugin_dir: &Path) -> anyhow::Result<Vec<PathBuf>> {
+    deckmaste_plugin::plugin::ron_files_recursive(
+        &plugin_dir.join(deckmaste_core::plugin::CARDS_DIR),
+    )
 }
 
 /// The workspace's `idris/` directory — `idris2 --find-ipkg --check` is run
@@ -909,5 +1097,55 @@ mod tests {
                 reason: "different unsupported shape".into(),
             }]
         );
+    }
+}
+
+#[cfg(test)]
+mod differential_tests {
+    use super::CertifierVerdict;
+    use super::Pairing;
+    use super::pair_verdicts;
+
+    /// The differential AGREES when both derivations reach the same verdict —
+    /// the shape the canon slice is in today.
+    #[test]
+    fn matching_verdicts_agree() {
+        assert_eq!(
+            pair_verdicts(CertifierVerdict::Sound, true),
+            Pairing::AgreedSound
+        );
+        assert_eq!(
+            pair_verdicts(CertifierVerdict::Unsound, false),
+            Pairing::AgreedUnsound
+        );
+    }
+
+    /// The gate REPORTS a disagreement in both directions. Without this the
+    /// "0 disagreements" line would be indistinguishable from a gate that
+    /// cannot fail.
+    #[test]
+    fn opposed_verdicts_are_disagreements() {
+        assert_eq!(
+            pair_verdicts(CertifierVerdict::Sound, false),
+            Pairing::CertifiedButRefused,
+            "the mirror proved the anaphora resolve; lowering must not refuse"
+        );
+        assert_eq!(
+            pair_verdicts(CertifierVerdict::Unsound, true),
+            Pairing::RefutedButResolved,
+            "the mirror refuted the anaphora; lowering must not resolve them"
+        );
+    }
+
+    /// An emitter gap is not a claim about the card, so it can never be a
+    /// disagreement — in either resolver direction.
+    #[test]
+    fn an_emitter_gap_is_never_a_disagreement() {
+        for resolved in [true, false] {
+            assert_eq!(
+                pair_verdicts(CertifierVerdict::NoVerdict, resolved),
+                Pairing::Skipped
+            );
+        }
     }
 }
