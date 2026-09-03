@@ -46,3 +46,17 @@ and the live English-v2 coverage check. Assurance counts: 0 tests restored
 Deviations and additions: the only addition beyond the four named code fixes
 is the required `template:` regression test. No constructions or production
 behaviors were added or removed. No STOP was taken.
+
+## Erratum (fold-back-residue landing review, 2026-09-02)
+
+Two ticket premises were false (carried from the prior review, unverified
+by the coordinator): `template:`/`plural:` were ALREADY refused by
+macro_ron's named-parameter check (expand.rs ~:1984) — the added
+deny_unknown_fields attributes are a no-op (proven: identical diagnostics
+with them removed); the regression test is sound and stays. The M6
+evidence named the wrong symbol (xtask used macro_def::Onset, not
+DeclarationKind). Neither false premise was reported back. Record
+numbers (398 / 15,932) were copied from the previous ticket; the tree at
+claim was 378 / 15,966 and the gate genuinely passed there. "schema-2
+lock" is correct (lock schema_version 2; the report header's "schema 4"
+is REPORT_SCHEMA_VERSION).
