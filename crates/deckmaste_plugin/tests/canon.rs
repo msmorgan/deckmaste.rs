@@ -126,6 +126,46 @@ fn lightning_bolt_expands_target_macros() {
     );
 }
 
+/// Do or Die's authored pile labels are a surface convenience only: lowering
+/// allocates two pile registers, makes the choice read those registers, and
+/// makes the nested `Each` iterate the chosen-pile register
+/// ([CR#700.3a..700.3b]).
+#[test]
+fn do_or_die_lowers_pile_labels_to_registers() {
+    let plugin = canon();
+    let Card::Normal(face) = plugin.card("Do or Die").unwrap().core else {
+        panic!("Do or Die should be single-faced");
+    };
+    let Ability::Spell(ref spell) = face.abilities[0] else {
+        panic!("expected a spell ability");
+    };
+    let [OneShotEffect::SeparatePiles(separate)] = spell.effect.body.as_ref() else {
+        panic!("expected SeparatePiles, got {:?}", spell.effect.body);
+    };
+    assert_eq!(
+        separate.dests.as_ref(),
+        [deckmaste_core::DefId(4), deckmaste_core::DefId(5)]
+    );
+    let Some(then) = &separate.then else {
+        panic!("the pile separation should carry its choice");
+    };
+    let OneShotEffect::ChoosePile(choice) = then.as_ref() else {
+        panic!("expected ChoosePile, got {then:?}");
+    };
+    assert_eq!(
+        choice.from.as_ref(),
+        [deckmaste_core::RefId(4), deckmaste_core::RefId(5)]
+    );
+    assert_eq!(choice.dest, deckmaste_core::DefId(6));
+    let OneShotEffect::Each(each) = choice.then.as_ref() else {
+        panic!("expected Each, got {:?}", choice.then);
+    };
+    assert_eq!(
+        each.over,
+        deckmaste_core::Selection::Reg(deckmaste_core::RefId(6))
+    );
+}
+
 /// The `Domain` count macro expands at a `Count` position through real data:
 /// Tribal Flames' damage amount is the BODY of a `Domain` invocation — the
 /// distinct-union count of the BASIC-land-type axis ([CR#205.3i]). `lower`

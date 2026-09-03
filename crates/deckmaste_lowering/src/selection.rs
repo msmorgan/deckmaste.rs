@@ -55,10 +55,9 @@ impl Lower for deckmaste_semantics::Selection {
             Self::Them(sort) => deckmaste_core::Selection::Reg(
                 crate::region::they(Some(sort)).expect("unbound sorted plural during lowering"),
             ),
-            Self::PilesOf { note, of } => deckmaste_core::Selection::PilesOf {
-                note: note.lower(),
-                of: of.lower(),
-            },
+            Self::PilesOf { .. } => crate::region::refuse(
+                "noted pile sets have no register spelling yet; owner: engine-piles",
+            ),
             Self::Pick { op, proj } => deckmaste_core::Selection::Pick {
                 op: op.lower(),
                 proj: proj.lower(),
@@ -201,18 +200,13 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "noted pile sets have no register spelling yet")]
     fn lowers_selection_piles_of() {
-        assert_matches!(
-            deckmaste_semantics::Selection::PilesOf {
-                note: "X".into(),
-                of: minimal_reference()
-            }
-            .lower(),
-            deckmaste_core::Selection::PilesOf {
-                note: _,
-                of: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
-            }
-        );
+        let _ = deckmaste_semantics::Selection::PilesOf {
+            note: "X".into(),
+            of: minimal_reference(),
+        }
+        .lower();
     }
 
     #[test]

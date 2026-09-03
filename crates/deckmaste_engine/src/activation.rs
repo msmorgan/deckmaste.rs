@@ -57,6 +57,9 @@ pub(crate) enum Value {
     Unavailable,
     Object(ReferenceProduct),
     Objects(Vec<ReferenceProduct>),
+    /// One temporary pile. Its members are object products; the pile itself
+    /// is not an object ([CR#700.3b]).
+    Pile(Vec<ReferenceProduct>),
     Number(Uint),
     Symbol(String),
 }
@@ -72,7 +75,7 @@ impl Value {
                 [product] => product.current,
                 _ => None,
             },
-            Self::Unavailable | Self::Number(_) | Self::Symbol(_) => None,
+            Self::Unavailable | Self::Pile(_) | Self::Number(_) | Self::Symbol(_) => None,
         }
     }
 }
@@ -201,10 +204,12 @@ impl crate::state::GameState {
         kind: deckmaste_core::Kind,
     ) -> Value {
         match kind {
-            deckmaste_core::Kind::Objects => {
+            deckmaste_core::Kind::Objects | deckmaste_core::Kind::Pile => {
                 let objects = self.activation_objects(frame.activation, reference);
                 if objects.is_empty() {
                     self.frozen_register(frame, reference)
+                } else if kind == deckmaste_core::Kind::Pile {
+                    Value::Pile(pack_objects(self, &objects))
                 } else {
                     Value::Objects(pack_objects(self, &objects))
                 }
@@ -680,7 +685,7 @@ impl crate::state::GameState {
         let mut product = match record.values.get(reference.0 as usize)? {
             Value::Object(product) => Some(product.clone()),
             Value::Objects(objects) => objects.first().cloned(),
-            Value::Unavailable | Value::Number(_) | Value::Symbol(_) => None,
+            Value::Unavailable | Value::Pile(_) | Value::Number(_) | Value::Symbol(_) => None,
         }?;
         if product
             .current
@@ -719,7 +724,7 @@ impl crate::state::GameState {
             }
         };
         match record.values.get(reference.0 as usize) {
-            Some(Value::Objects(objects)) => objects
+            Some(Value::Objects(objects) | Value::Pile(objects)) => objects
                 .iter()
                 .filter_map(|product| product.current.and_then(live))
                 .collect(),
@@ -741,7 +746,11 @@ impl crate::state::GameState {
             .get(reference.0 as usize)?
         {
             Value::Number(number) => Some(*number),
-            Value::Unavailable | Value::Object(_) | Value::Objects(_) | Value::Symbol(_) => None,
+            Value::Unavailable
+            | Value::Object(_)
+            | Value::Objects(_)
+            | Value::Pile(_)
+            | Value::Symbol(_) => None,
         }
     }
 
@@ -1080,7 +1089,7 @@ fn freeze_value(value: &mut Value, object: ObjectId, snapshot: &LkiSnapshot) {
         Value::Object(product) if product.current == Some(object) => {
             product.lki = Some(snapshot.clone());
         }
-        Value::Objects(products) => {
+        Value::Objects(products) | Value::Pile(products) => {
             for product in products {
                 if product.current == Some(object) {
                     product.lki = Some(snapshot.clone());
@@ -1209,5 +1218,23 @@ mod tests {
             Some(candidate),
             "…and still names itself through its last-known information"
         );
+    }
+
+    /// A temporary pile is a group of its member objects, never an object in
+    /// its own right ([CR#700.3b]).
+    #[test]
+    fn a_pile_value_is_an_object_group_not_an_object() {
+        let state = bare_game();
+        let source = state.player(PlayerId(0)).object;
+        let region = Region::closed(());
+        let activation = state.enter_region(&region, &Frame::bare(source, PlayerId(0)));
+        state.activation_write(
+            activation,
+            deckmaste_core::DefId(0),
+            Value::Pile(pack_objects(&state, &[source])),
+        );
+
+        assert_eq!(state.activation_product(activation, RefId(0)), None);
+        assert_eq!(state.activation_objects(activation, RefId(0)), vec![source]);
     }
 }

@@ -1866,6 +1866,7 @@ mod tests {
     use std::sync::Arc;
 
     use deckmaste_card::Card;
+    use deckmaste_core::Ability;
     use deckmaste_core::Action;
     use deckmaste_core::ChosenValueKind;
     use deckmaste_core::Count;
@@ -1922,6 +1923,26 @@ mod tests {
             let _ = state.step();
         }
         assert_eq!(state.objects.obj(bear).total_damage(), 3);
+    }
+
+    /// The real Do or Die card compiles through the register-backed pile
+    /// shape and reaches the deliberately unimplemented resolution boundary;
+    /// lowering must not reject it first.
+    #[test]
+    #[should_panic(expected = "owner: engine-piles")]
+    fn do_or_die_reaches_the_engine_piles_seam() {
+        let Card::Normal(face) = canon().card("Do or Die").unwrap().core else {
+            panic!("Do or Die should be single-faced");
+        };
+        let [Ability::Spell(spell)] = face.abilities.as_slice() else {
+            panic!("expected one spell ability");
+        };
+        let [effect] = spell.effect.body.as_ref() else {
+            panic!("expected one pile instruction");
+        };
+        let (mut state, bear) = bear_on_field();
+        let frame = frame_src(&state, bear);
+        state.run_effect(effect.clone(), &frame);
     }
 
     #[test]

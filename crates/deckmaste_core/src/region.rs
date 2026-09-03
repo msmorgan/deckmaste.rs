@@ -41,6 +41,9 @@ pub enum Kind {
     Object,
     /// A group of objects, preserving its semantic order.
     Objects,
+    /// One temporary pile: an object group whose members remain individual
+    /// objects ([CR#700.3b]).
+    Pile,
     /// A non-negative game number.
     Number,
     /// A chosen symbolic value (currently a color or card name).
@@ -620,8 +623,11 @@ fn validate_instructions(
             }
             E::ChoosePile(choice) => {
                 choice.from.serialize(definitions.walker())?;
+                for source in choice.from.iter() {
+                    validate_read(&definitions.params, *source, Some(Kind::Pile))?;
+                }
                 choice.by.serialize(definitions.walker())?;
-                append_definition(definitions, choice.dest, Kind::Objects)?;
+                append_definition(definitions, choice.dest, Kind::Pile)?;
                 let outer = definitions.params.len();
                 validate_instructions(std::slice::from_ref(choice.then.as_ref()), definitions)?;
                 definitions.hide_since(outer);
@@ -630,6 +636,9 @@ fn validate_instructions(
                 separate.group.serialize(definitions.walker())?;
                 separate.by.serialize(definitions.walker())?;
                 validate_selection_regions(&separate.group, &definitions.params)?;
+                for dest in separate.dests.iter() {
+                    append_definition(definitions, *dest, Kind::Pile)?;
+                }
                 if let Some(then) = &separate.then {
                     let outer = definitions.params.len();
                     validate_instructions(std::slice::from_ref(then.as_ref()), definitions)?;
@@ -963,6 +972,7 @@ fn validate_selection_regions(
 ) -> Result<(), ValidationError> {
     use crate::Selection as S;
     match selection {
+        S::Reg(reference) => validate_read(definitions, *reference, Some(Kind::Objects)),
         S::SelectAll(region) => validate_predicate_region(region, definitions),
         S::Union(parts) => {
             for part in parts {
@@ -1190,7 +1200,8 @@ fn validate_read(
     if let Some(expected) = expected {
         let object_compatible = matches!(expected, Kind::Object | Kind::Objects)
             && matches!(param.kind, Kind::Object | Kind::Objects);
-        if param.kind != expected && !object_compatible {
+        let pile_group = expected == Kind::Objects && param.kind == Kind::Pile;
+        if param.kind != expected && !object_compatible && !pile_group {
             return Err(ValidationError::KindMismatch {
                 reference,
                 expected,
@@ -2058,6 +2069,68 @@ mod tests {
                 .map(|(here, cell, kind)| (here, cell.to_string(), kind))
                 .collect::<Vec<_>>(),
             vec![(RefId(2), "exiled".to_owned(), Kind::Object)]
+        );
+    }
+
+    /// Pile-producing instructions form a typed register chain: separating
+    /// defines each candidate pile, choosing reads only those pile registers,
+    /// and the chosen pile remains an iterable object group ([CR#700.3a..700.3b]).
+    #[test]
+    fn pile_registers_validate_as_iterable_groups() {
+        let loop_body = Region::new(
+            Arc::from([Param {
+                def: DefId(0),
+                kind: Kind::Object,
+                provenance: Provenance::LoopElement,
+            }]),
+            Block::default(),
+        );
+        let region = Region::new(
+            Arc::from([param(0, Provenance::Source)]),
+            OneShotEffect::SeparatePiles(crate::SeparatePiles {
+                dests: Arc::from([DefId(1), DefId(2)]),
+                group: crate::Selection::Union(Vec::new()),
+                by: crate::Reference::Reg(RefId(0)),
+                then: Some(Arc::new(OneShotEffect::ChoosePile(crate::ChoosePile {
+                    dest: DefId(3),
+                    from: Arc::from([RefId(1), RefId(2)]),
+                    by: crate::Reference::Reg(RefId(0)),
+                    random: false,
+                    then: Arc::new(OneShotEffect::Each(crate::Each {
+                        over: crate::Selection::Reg(RefId(3)),
+                        body: loop_body,
+                    })),
+                }))),
+            })
+            .into(),
+        );
+
+        assert_eq!(validate(&region), Ok(()));
+    }
+
+    /// A pile choice cannot consume an ordinary object register: a pile is an
+    /// object group, but is not itself an object ([CR#700.3b]).
+    #[test]
+    fn choose_pile_rejects_non_pile_registers() {
+        let region = Region::new(
+            Arc::from([param(0, Provenance::Source)]),
+            OneShotEffect::ChoosePile(crate::ChoosePile {
+                dest: DefId(1),
+                from: Arc::from([RefId(0)]),
+                by: crate::Reference::Reg(RefId(0)),
+                random: false,
+                then: Arc::new(OneShotEffect::Sequentially(Arc::from([]))),
+            })
+            .into(),
+        );
+
+        assert_eq!(
+            validate(&region),
+            Err(ValidationError::KindMismatch {
+                reference: RefId(0),
+                expected: Kind::Pile,
+                found: Kind::Object,
+            })
         );
     }
 }

@@ -146,7 +146,6 @@ pub use effect::Let;
 pub use effect::May;
 pub use effect::Modal;
 pub use effect::OneShotEffect;
-pub use effect::PileSource;
 pub use effect::Remember;
 pub use effect::RevealUntil;
 pub use effect::Search;

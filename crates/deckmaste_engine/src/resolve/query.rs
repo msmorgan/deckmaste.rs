@@ -253,18 +253,6 @@ impl GameState {
             // member. Wiring the choice replaces this arm's body, not its
             // shape.
             Selection::InChosenOrder(inner, _by) => self.eval_selection_set(inner, frame),
-            // The ordered plural group bound by the enclosing many-binder
-            // (`OneShotEffect::With`/`Each`/`Distribute`). Reads the `(Many, k)`
-            // `that` slot, order-preserved exactly as bound (top→down for a
-            // library window). A `(One, k)` binding has NO group read — the
-            // singular `Reference::That` is its only reader — so a single object
-            // can never be silently splayed into a group here.
-            Selection::PilesOf { .. } => {
-                todo!(
-                    "engine seam: Selection::PilesOf ([CR#700.3a,700.3b]) — labeled pile groups \
-                     have no runtime store to read back; owner: engine-piles"
-                )
-            }
             // The top `count` cards of `of`'s library, front-to-back (top→down).
             // `of` resolves to a player via `eval_reference` → player proxy →
             // PlayerId. Supports `You` (controller's library) and `Opponent`

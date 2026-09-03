@@ -1,23 +1,25 @@
 ---
 needs: [core-regions-piles]
 ---
-**Engine: grouped piles have no resolution or read path.**
+**Engine: pile registers have no resolution writer or choice path.**
 
-`Selection::PilesOf { note, of }` reads back the labeled piles a
-`SeparatePiles.note:` binder produced ([CR#700.3a] — each affected object goes
-into exactly one pile; [CR#700.3b] — a pile is not an object, each card in it
-stays individual). `resolve/query.rs` panics at read time, and the seam has
-been naming an `engine-piles` owner that did not exist as a ticket. This is
-that ticket.
+Core now represents each temporary pile as a `Kind::Pile` register
+([CR#700.3a] — each affected object goes into exactly one pile; [CR#700.3b] —
+a pile is not an object, each card in it stays individual). `SeparatePiles`
+declares its `dests`, `ChoosePile.from` reads those registers and writes the
+chosen pile to its own `dest`, and a pile-valued `Selection::Reg` iterates the
+members. The activation value exists and reads as an object group, but no
+engine instruction writes one yet.
 
 The whole family is unbuilt, not just the read:
 
 - `resolve/effect.rs` has no arm for `OneShotEffect::SeparatePiles` or
   `ChoosePile` — both fall into the catch-all choice seam.
-- `PileSource::Noted` has no store. `engine-noted-slots` (done) deliberately
-  left this as a boundary, naming "(pile store)" as the missing piece.
-- `Action::Shuffle` over a `PilesOf`-shaped face-down pile degrades to a
-  silent no-op in `resolve/player_action.rs`.
+- The semantic `PileSource::Noted` / `Selection::PilesOf` surface has no
+  register spelling and lowering refuses it; the old label-bearing core
+  variants and pile store are gone.
+- `Action::Shuffle` over a pile-valued register degrades to a silent no-op in
+  `resolve/player_action.rs`.
 
 **This is the engine-resolution half that `core-do-or-die-divide-and-choose`
 asked for.** That ticket (planned) scopes the two-pile,
@@ -30,11 +32,12 @@ blocker 2 also records the one reuse dead end worth knowing up front:
 `ChoiceContinuation::ArrangePiles` is scry-style ordering *within* a known
 pile, not partition-and-choose, so it is not a starting point.
 
-Scope: partition `group` into `into.len()` labeled piles per `by`'s divider,
-binding each label as a Many antecedent and persisting to a pile store keyed
-by `(note, label, divider)` when `note:` is set; a pile-pick decision over
-`from` binding the chosen pile and running `then`; the `PilesOf` read; and the
-shuffle wiring once a pile has a real object-group representation.
+Scope: surface a partition decision for `group` into `dests.len()` piles and
+write every destination register; surface a pile-pick decision over `from`,
+write the chosen pile to `dest`, and run `then`; wire shuffle over a pile
+register. The cross-region, per-player noted-pile shape needed by Whims of the
+Fates also needs a label-free authored/core design before its engine storage
+can be built; do not restore the deleted label-bearing core variants.
 
 No canon card exercises this today — Whims of the Fates is the design target
 once authored, so check the corpus at pickup before sizing.

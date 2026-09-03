@@ -803,7 +803,7 @@ fn compatible(want: Sort, have: Sort) -> bool {
 fn kind_compatible(want: Sort, have: Kind) -> bool {
     match want {
         Sort::Amount => have == Kind::Number,
-        Sort::Pile => have == Kind::Objects,
+        Sort::Pile => have == Kind::Pile,
         Sort::Player
         | Sort::Card
         | Sort::Token

@@ -73,12 +73,13 @@ mod tests {
     #[test]
     fn lowers_one_shot_effect_separate_piles() {
         assert_matches!(
-            deckmaste_semantics::OneShotEffect::SeparatePiles(minimal_separate_piles()).lower(),
+            in_spell_region(|| {
+                deckmaste_semantics::OneShotEffect::SeparatePiles(minimal_separate_piles()).lower()
+            }),
             deckmaste_core::OneShotEffect::SeparatePiles(deckmaste_core::SeparatePiles {
+                dests: _,
                 group: deckmaste_core::Selection::SelectAll(_),
-                into: _,
                 by: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
-                note: None,
                 then: None
             })
         );
@@ -164,19 +165,20 @@ mod tests {
     #[test]
     fn lowers_separate_piles() {
         assert_matches!(
-            deckmaste_semantics::SeparatePiles {
-                group: minimal_selection(),
-                into: [].into(),
-                by: minimal_reference(),
-                note: None,
-                then: None
-            }
-            .lower(),
+            in_spell_region(|| {
+                deckmaste_semantics::SeparatePiles {
+                    group: minimal_selection(),
+                    into: [].into(),
+                    by: minimal_reference(),
+                    note: None,
+                    then: None,
+                }
+                .lower()
+            }),
             deckmaste_core::SeparatePiles {
+                dests: _,
                 group: deckmaste_core::Selection::SelectAll(_),
-                into: _,
                 by: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
-                note: None,
                 then: None
             }
         );
@@ -184,25 +186,62 @@ mod tests {
 
     #[test]
     fn lowers_pile_source_labels() {
-        assert_matches!(
-            deckmaste_semantics::PileSource::Labels([].into()).lower(),
-            deckmaste_core::PileSource::Labels(_)
+        let lowered = in_spell_region(|| {
+            deckmaste_semantics::OneShotEffect::SeparatePiles(deckmaste_semantics::SeparatePiles {
+                group: minimal_selection(),
+                into: ["left".into(), "right".into()].into(),
+                by: minimal_reference(),
+                note: None,
+                then: Some(std::sync::Arc::new(
+                    deckmaste_semantics::OneShotEffect::ChoosePile(
+                        deckmaste_semantics::ChoosePile {
+                            from: deckmaste_semantics::PileSource::Labels(
+                                ["left".into(), "right".into()].into(),
+                            ),
+                            by: minimal_reference(),
+                            random: false,
+                            then: std::sync::Arc::new(minimal_one_shot_effect()),
+                        },
+                    ),
+                )),
+            })
+            .lower()
+        });
+        let deckmaste_core::OneShotEffect::SeparatePiles(separate) = lowered else {
+            panic!("expected SeparatePiles");
+        };
+        assert_eq!(
+            separate.dests.as_ref(),
+            [deckmaste_core::DefId(3), deckmaste_core::DefId(4)]
         );
+        let Some(then) = separate.then else {
+            panic!("expected nested choice");
+        };
+        let deckmaste_core::OneShotEffect::ChoosePile(choice) = then.as_ref() else {
+            panic!("expected ChoosePile");
+        };
+        assert_eq!(
+            choice.from.as_ref(),
+            [deckmaste_core::RefId(3), deckmaste_core::RefId(4)]
+        );
+        assert_eq!(choice.dest, deckmaste_core::DefId(5));
     }
 
     #[test]
+    #[should_panic(expected = "noted pile sets have no register spelling yet")]
     fn lowers_pile_source_noted() {
-        assert_matches!(
-            deckmaste_semantics::PileSource::Noted {
-                note: "X".into(),
-                of: minimal_reference()
+        let _ = in_spell_region(|| {
+            deckmaste_semantics::ChoosePile {
+                from: deckmaste_semantics::PileSource::Noted {
+                    note: "X".into(),
+                    of: minimal_reference(),
+                },
+                by: minimal_reference(),
+                random: false,
+                then: std::sync::Arc::new(minimal_one_shot_effect()),
             }
-            .lower(),
-            deckmaste_core::PileSource::Noted {
-                note: _,
-                of: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
-            }
-        );
+            .lower()
+        });
     }
 
     // ---- Instruction lowering, restored from the discourse landing ----
@@ -653,7 +692,7 @@ mod tests {
             .lower()),
             deckmaste_core::OneShotEffect::ChoosePile(deckmaste_core::ChoosePile {
                 dest: deckmaste_core::DefId(3),
-                from: deckmaste_core::PileSource::Labels(_),
+                from: _,
                 by: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 random: false,
                 then: _
@@ -673,7 +712,7 @@ mod tests {
             .lower()),
             deckmaste_core::ChoosePile {
                 dest: deckmaste_core::DefId(3),
-                from: deckmaste_core::PileSource::Labels(_),
+                from: _,
                 by: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 random: false,
                 then: _
@@ -1885,12 +1924,32 @@ impl Lower for deckmaste_semantics::Modal {
 impl Lower for deckmaste_semantics::SeparatePiles {
     type Target = deckmaste_core::SeparatePiles;
     fn lower(self) -> <Self as Lower>::Target {
+        if self.note.is_some() {
+            crate::region::refuse(
+                "noted pile sets have no register spelling yet; owner: engine-piles",
+            );
+        }
+        let group = self.group.lower();
+        let by = self.by.lower();
+        let (dests, then) = crate::region::scoped_anaphora(|| {
+            let dests: std::sync::Arc<[deckmaste_core::DefId]> = self
+                .into
+                .iter()
+                .copied()
+                .map(|label| {
+                    let dest = crate::region::define(deckmaste_core::Kind::Pile);
+                    crate::region::bind_named(label, dest.into());
+                    dest
+                })
+                .collect::<Vec<_>>()
+                .into();
+            (dests, self.then.lower())
+        });
         deckmaste_core::SeparatePiles {
-            group: self.group.lower(),
-            into: self.into.lower(),
-            by: self.by.lower(),
-            note: self.note.lower(),
-            then: self.then.lower(),
+            dests,
+            group,
+            by,
+            then,
         }
     }
 }
@@ -1898,12 +1957,27 @@ impl Lower for deckmaste_semantics::SeparatePiles {
 impl Lower for deckmaste_semantics::ChoosePile {
     type Target = deckmaste_core::ChoosePile;
     fn lower(self) -> <Self as Lower>::Target {
-        let from = self.from.lower();
+        let from: std::sync::Arc<[deckmaste_core::RefId]> = match self.from {
+            deckmaste_semantics::PileSource::Labels(labels) => labels
+                .iter()
+                .map(|label| {
+                    crate::region::named(label).unwrap_or_else(|| {
+                        crate::region::refuse(&format!(
+                            "pile label `{label}` has no dominating SeparatePiles definition"
+                        ))
+                    })
+                })
+                .collect::<Vec<_>>()
+                .into(),
+            deckmaste_semantics::PileSource::Noted { .. } => crate::region::refuse(
+                "noted pile sets have no register spelling yet; owner: engine-piles",
+            ),
+        };
         let by = self.by.lower();
-        let dest = crate::region::define(deckmaste_core::Kind::Objects);
+        let dest = crate::region::define(deckmaste_core::Kind::Pile);
         let then = crate::region::with_antecedent(
             dest.into(),
-            deckmaste_core::Kind::Objects,
+            deckmaste_core::Kind::Pile,
             crate::region::Cardinality::Many,
             Some(deckmaste_semantics::Sort::Pile),
             crate::region::Site::Frame,
@@ -1915,19 +1989,6 @@ impl Lower for deckmaste_semantics::ChoosePile {
             by,
             random: self.random.lower(),
             then,
-        }
-    }
-}
-
-impl Lower for deckmaste_semantics::PileSource {
-    type Target = deckmaste_core::PileSource;
-    fn lower(self) -> <Self as Lower>::Target {
-        match self {
-            Self::Labels(f0) => deckmaste_core::PileSource::Labels(f0.lower()),
-            Self::Noted { note, of } => deckmaste_core::PileSource::Noted {
-                note: note.lower(),
-                of: of.lower(),
-            },
         }
     }
 }

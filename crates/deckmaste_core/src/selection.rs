@@ -62,7 +62,7 @@ pub enum Selection {
     /// Exists because [CR#701.24a] names a library as one of shuffle's two
     /// own objects — "to shuffle **a library** or a face-down pile of cards"
     /// — and a `count`-bearing slice cannot spell "a library". The pile half
-    /// rides [`PilesOf`](Self::PilesOf).
+    /// rides a pile-valued [`Reg`](Self::Reg).
     ///
     /// No bare default `whose`, unlike the slice family: a whole-library read
     /// always names whose library it is, so there is no dominant filler to
@@ -95,11 +95,6 @@ pub enum Selection {
     /// `Each(InChosenOrder(ValidTargetsFor(s), You), CopySpell(You, s,
     /// TargetsThat(It)))`.
     ValidTargetsFor(Reference),
-    /// Piles noted earlier by a
-    /// [`SeparatePiles`](crate::OneShotEffect::SeparatePiles) with a `note:
-    /// ` key, keyed by their divider: `of` names the player whose piles
-    /// these are ([CR#700.3a]; the Whims-of-the-Fates per-player nesting).
-    PilesOf { note: crate::Ident, of: Reference },
     /// The extremal element(s) of a set, ranked by a per-element
     /// [`Projection`] ([CR#107.1]): "the creature with the greatest power" =
     /// `Pick(op: MaxOf, proj: (of: Objects(Type(Creature)), by: StatOf(It,

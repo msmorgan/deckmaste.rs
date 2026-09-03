@@ -261,10 +261,10 @@ impl GameState {
             // [CR#701.24a]: shuffle a collection; the Shuffled apply
             // randomizes via the seeded rng. `Selection::LibraryOf(who)` is
             // the whole-library shape ([CR#701.24a] "a library"); the
-            // face-down-pile shape ([CR#701.24a]'s other object) rides
-            // `Selection::PilesOf` and is an engine seam (never wired to a
-            // `Shuffled` event before this reshape either — fizzles, never
-            // panics).
+            // face-down-pile shape ([CR#701.24a]'s other object) rides a
+            // pile-valued region register and is an engine seam (never wired
+            // to a `Shuffled` event before this reshape either — fizzles,
+            // never panics).
             Action::Shuffle(sel) => match sel {
                 Selection::LibraryOf(whose) => match self.eval_player_ref(whose, frame) {
                     Some(player) => {
@@ -346,9 +346,8 @@ impl GameState {
             // labeled seam rather than silently no-op'ing. The verb is
             // `&self`, so it only SCHEDULES the surfacing work item; the
             // `&mut self` handler opens the decision. The kind-space is now
-            // [`ChosenValueKind`] (Objects/Piles are a SEPARATE store-side
-            // `NotedKind`, written by `Noting`/`SeparatePiles`, never reached
-            // through this node).
+            // [`ChosenValueKind`] (object-set note kinds are separate
+            // store-side values, never reached through this node).
             Action::ChooseValue(who, kind, key) => {
                 let actor = self.acting_player(who, frame);
                 match kind {

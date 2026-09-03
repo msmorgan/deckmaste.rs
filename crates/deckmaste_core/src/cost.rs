@@ -370,7 +370,6 @@ fn runnable_selection_is_bound(selection: &crate::Selection) -> bool {
         | crate::Selection::LibraryOf(_)
         | crate::Selection::TopOfGraveyard { .. }
         | crate::Selection::ValidTargetsFor(_)
-        | crate::Selection::PilesOf { .. }
         | crate::Selection::Pick { .. } => false,
     }
 }

@@ -84,14 +84,12 @@ pub enum Instr {
     /// (`Continuously` is the single-part spelling; `Static` ability
     /// position stays live re-gathering, [CR#611.3a].)
     Until(Duration, Arc<[StaticEffect]>),
-    /// `SeparatePiles { group, into, by, note, then }` — `by` separates
-    /// `group` into labeled piles ([CR#700.3a]; piles may be empty). `note:`
-    /// persists them keyed by (note, label, divider), read through
-    /// [`Selection::PilesOf`](crate::Selection::PilesOf).
+    /// `SeparatePiles { dests, group, by, then }` — `by` separates `group`
+    /// into the pile registers in `dests` ([CR#700.3a]; piles may be empty).
     SeparatePiles(SeparatePiles),
-    /// `ChoosePile { from, by, random, then }` — `by` picks one pile
-    /// ([CR#700.3b] — the Fact-or-Fiction shape), writes it to `dest`, and
-    /// runs `then` with that register in scope.
+    /// `ChoosePile { dest, from, by, random, then }` — `by` picks one of the
+    /// pile registers in `from` ([CR#700.3b]), writes it to `dest`, and runs
+    /// `then` with that register in scope.
     ChoosePile(ChoosePile),
     /// "You may [do]" ([CR#603,608]) — with "if you do"/"if you don't". The
     /// may-pay/must-pay family collapses into this node ([CR#118.12a]):
@@ -340,40 +338,28 @@ pub struct Modal {
     pub modes: Arc<[Mode]>,
 }
 
-/// `SeparatePiles { group, into, by, note, then }` — see
-/// [`OneShotEffect::SeparatePiles`]. `by` defaults to `You` and is omitted from
-/// RON when it is; `note`/`then` are omitted when absent.
+/// `SeparatePiles { dests, group, by, then }` — see
+/// [`OneShotEffect::SeparatePiles`]. Each destination is one pile register;
+/// labels exist only in the authored semantics and are erased by lowering.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct SeparatePiles {
+    pub dests: Arc<[crate::DefId]>,
     pub group: crate::Selection,
-    pub into: Arc<[crate::Ident]>,
     pub by: Reference,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub note: Option<crate::Ident>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub then: Option<Arc<OneShotEffect>>,
 }
 
-/// `ChoosePile { from, by, random, then }` — see [`OneShotEffect::ChoosePile`].
-/// `by` defaults to `You`; `random` defaults to `false`; both are omitted
-/// from RON at their defaults.
+/// `ChoosePile { dest, from, by, random, then }` — see
+/// [`OneShotEffect::ChoosePile`]. `from` contains only pile-register reads;
+/// the chosen pile is written to `dest`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct ChoosePile {
     /// The chosen pile, available to the nested body and later instructions.
     pub dest: crate::DefId,
-    pub from: PileSource,
+    pub from: Arc<[crate::RefId]>,
     pub by: Reference,
     #[serde(default, skip_serializing_if = "core::ops::Not::not")]
     pub random: bool,
     pub then: Arc<OneShotEffect>,
-}
-
-/// Where a [`ChoosePile`] takes its piles from: labels introduced in scope
-/// (`Labels(["a", "b"])`, the Fact-or-Fiction shape) or piles noted earlier
-/// under a key, per divider (`Noted { note, of }`, the Whims-of-the-Fates
-/// shape) ([CR#700.3a..700.3b]).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
-pub enum PileSource {
-    Labels(Arc<[crate::Ident]>),
-    Noted { note: crate::Ident, of: Reference },
 }

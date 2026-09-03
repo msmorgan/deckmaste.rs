@@ -51,9 +51,8 @@ pub enum Visibility {
 /// `ChooseAndNote`/`NotedKind`, split per the action-role-reshape design,
 /// 2026-08-01): a resolution CHOICE the player makes and the engine stores
 /// under a note key, distinct from the persisted OBJECT-SET note kinds
-/// ([`NotedKind`], written by explicit [`crate::Let`] linkage or
-/// [`SeparatePiles`](crate::SeparatePiles) and staying store-side with their
-/// writers). Readers: `Reference::Linked(key)`,
+/// ([`NotedKind`], staying store-side with their writers). Readers:
+/// `Reference::Linked(key)`,
 /// `Count::Noted(key)`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 pub enum ChosenValueKind {
@@ -65,11 +64,8 @@ pub enum ChosenValueKind {
 /// A persisted OBJECT-SET note's kind ([CR#607.2] linked slots) — the
 /// store-side kinds [`ChosenValueKind`] does NOT cover: written by
 /// explicit [`crate::Let`] linkage (the object set an inner effect touched,
-/// [CR#607.2a] exiled-with linkage) and `SeparatePiles { note, .. }`
-/// (labeled pile groups, keyed by (note, label, divider) — read back via
-/// `Selection::PilesOf`, [CR#700.3a]). Never a choice-node kind (that is
-/// [`ChosenValueKind`]) — the note store's key-typing keeps both kind
-/// vocabularies, split by writer.
+/// [CR#607.2a] exiled-with linkage). Never a choice-node kind (that is
+/// [`ChosenValueKind`]).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 pub enum NotedKind {
     Objects,

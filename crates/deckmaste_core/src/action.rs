@@ -351,10 +351,8 @@ pub enum Action {
     /// `who` makes a resolution choice stored under a note key ([CR#608.2d]
     /// choice + [CR#607.2] slot): "choose a color" and kin. `kind` narrows to
     /// the CHOSEN-VALUE kinds ([`ChosenValueKind`]) — the persisted
-    /// object-set kinds ([`crate::NotedKind`]) are set-notes written by
-    /// explicit [`crate::Let`] linkage or
-    /// [`SeparatePiles`](crate::SeparatePiles), and stay store-side with
-    /// their writers, not this choice node.
+    /// object-set kinds ([`crate::NotedKind`]) stay store-side with their
+    /// writers, not this choice node.
     ChooseValue(Reference, ChosenValueKind, crate::Ident),
     /// `controller` puts a copy of `spec` on the stack ([CR#707.10] — a copy
     /// on the stack, NOT casting one; [CR#707.12] casting is
@@ -463,8 +461,8 @@ pub enum Action {
     /// Shuffle a collection ([CR#701.24a]: "to shuffle **a library or a
     /// face-down pile of cards**") — the collection patient, not an agent;
     /// the owner is derivable from the collection term (Law 3).
-    /// [`Selection::LibraryOf`](crate::Selection) names a whole library, the
-    /// pile family rides [`Selection::PilesOf`](crate::Selection). An
+    /// [`Selection::LibraryOf`](crate::Selection) names a whole library; a
+    /// temporary pile is read through a pile-valued [`Selection::Reg`]. An
     /// INFORMATION event too: order knowledge is destroyed for everyone, and
     /// revealed cards in the library stop being revealed and become new
     /// objects ([CR#701.20d]). Why library actions never rewind: [CR#733.1].
