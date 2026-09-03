@@ -347,12 +347,14 @@ fn strip_reminder_text_line(card_name: &str, line: &str) -> anyhow::Result<Strin
         let parenthetical = &remainder[open..=close];
         let after = &remainder[close + 1..];
 
-        let is_mid_line = !stripped.trim().is_empty() && !after.trim().is_empty();
-        if is_mid_line && RULES_BEARING_PARENTHETICALS.contains(&parenthetical) {
+        if RULES_BEARING_PARENTHETICALS.contains(&parenthetical) {
             stripped.push_str(parenthetical);
             remainder = after;
             continue;
         }
+        let original_prefix_len = line.len() - remainder.len() + open;
+        let is_mid_line =
+            !line[..original_prefix_len].trim().is_empty() && !after.trim().is_empty();
         ensure!(
             !is_mid_line || REMINDER_MID_LINE_PARENTHETICALS.contains(&parenthetical),
             "unknown mid-line parenthetical {parenthetical:?} while normalizing card {card_name:?}",
@@ -734,6 +736,11 @@ mod tests {
             strip_reminder_text("Fixture", "(Reminder only.) ").unwrap(),
             ""
         );
+        assert_eq!(
+            strip_reminder_text("Fixture", "A (an energy counter) (two energy counters) d")
+                .unwrap(),
+            "A d"
+        );
     }
 
     #[test]
@@ -744,19 +751,41 @@ mod tests {
 
         assert!(error.contains("Tripwire Card"), "{error}");
         assert!(error.contains("(unknown spelling)"), "{error}");
-        assert!(
-            strip_reminder_text("Empty Group", "Before () after")
-                .unwrap_err()
-                .to_string()
-                .contains("Empty Group")
-        );
+    }
+
+    #[test]
+    fn unknown_mid_line_parenthetical_after_a_leading_reminder_is_an_error() {
+        let error = strip_reminder_text(
+            "Tripwire Card",
+            "(A leading reminder.) (a wholly novel gloss) trample.",
+        )
+        .unwrap_err()
+        .to_string();
+
+        assert!(error.contains("Tripwire Card"), "{error}");
+        assert!(error.contains("(a wholly novel gloss)"), "{error}");
+    }
+
+    #[test]
+    fn empty_mid_line_parenthetical_is_a_card_named_error() {
+        let error = strip_reminder_text("Empty Group", "Before () after")
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("Empty Group"), "{error}");
+        assert!(error.contains("()"), "{error}");
     }
 
     #[test]
     fn rules_bearing_parentheticals_survive_byte_exactly() {
         for parenthetical in RULES_BEARING_PARENTHETICALS {
-            let input = format!("Before {parenthetical} after");
-            assert_eq!(strip_reminder_text("Fixture", &input).unwrap(), input);
+            for input in [
+                format!("{parenthetical} after"),
+                format!("Before {parenthetical} after"),
+                format!("Before {parenthetical}"),
+            ] {
+                assert_eq!(strip_reminder_text("Fixture", &input).unwrap(), input);
+            }
         }
     }
 
