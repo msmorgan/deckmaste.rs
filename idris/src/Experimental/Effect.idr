@@ -63,6 +63,57 @@ tokenQualHosted tys (WithQuality q) = case qualityReadHost q of
                                         Nothing => True
                                         Just h => elem h tys
 
+public export
+data CounterKindSource : Bindings -> Type where
+  PrintedKind : CounterKind -> CounterKindSource bs
+  ChosenKind : (menu : List CounterKind) ->
+               {auto 0 ne : NonEmpty menu} -> CounterKindSource bs
+  DistinctChosenKinds : (menu : List CounterKind) ->
+                        {auto 0 ne : NonEmpty menu} -> CounterKindSource bs
+  BoundKind : {auto 0 ok : countChoice (QSort CounterKindQ) bs = 1} ->
+              CounterKindSource bs
+  ThoseKinds : {auto 0 ok : countOutcomes CountersPut bs = 1} ->
+               CounterKindSource bs
+  OwnKinds : CounterKindSource bs
+  SameAs : (src : Noun bs Object) -> CounterKindSource bs
+
+public export
+counterHolderKind : Kind -> Bool
+counterHolderKind k = kindLte k ((Object \/ Player) \/ Ability)
+
+public export
+counterSourceScope : {0 bs : Bindings} -> CounterKindSource bs -> Kind -> Bool
+counterSourceScope (PrintedKind c) k = counterScope c == k
+counterSourceScope (ChosenKind menu) k = all (\c => counterScope c == k) menu
+counterSourceScope (DistinctChosenKinds menu) k = all (\c => counterScope c == k) menu
+counterSourceScope BoundKind k = counterHolderKind k
+counterSourceScope ThoseKinds k = counterHolderKind k
+counterSourceScope OwnKinds k = counterHolderKind k
+counterSourceScope (SameAs _) k = counterHolderKind k
+
+public export
+CounterSourceScope : {bs : Bindings} -> CounterKindSource bs -> Kind -> Type
+CounterSourceScope s k = So (counterSourceScope s k)
+
+public export
+optCounterSourceScope : {0 bs : Bindings} -> Maybe (CounterKindSource bs) -> Kind -> Bool
+optCounterSourceScope Nothing k = counterHolderKind k
+optCounterSourceScope (Just s) k = counterSourceScope s k
+
+public export
+OptCounterSourceScope : {bs : Bindings} -> Maybe (CounterKindSource bs) -> Kind -> Type
+OptCounterSourceScope s k = So (optCounterSourceScope s k)
+
+public export
+namedKind : Maybe CounterKind -> Maybe (CounterKindSource bs)
+namedKind Nothing = Nothing
+namedKind (Just c) = Just (PrintedKind c)
+
+public export
+kindSourceIntro : {bs : Bindings} -> CounterKindSource bs -> Bindings
+kindSourceIntro (SameAs src) = nomIntro src
+kindSourceIntro _ = bs
+
 
 mutual
   public export
@@ -363,39 +414,25 @@ mutual
                    {auto 0 ul : So (untriggeredLimitOk limit)} ->
                    {auto 0 ok : Interceptable ev} ->
                    {auto 0 oks : InterceptableArms alts} -> StaticEffect bs
-      Prevents : (kind : DamageKind) -> (size : Shield bs) ->
-                 (scope : DamageScope (shieldIntro size)) ->
-                 (by : Maybe (Noun (scopeIntro scope) Object)) ->
-                 (also : Maybe (Effect (outcomeB DamagePrevented :: byIntro by))) ->
+      Prevents : (kind : DamageKind) ->
+                 (src : DamageAgent bs) ->
+                 (scope : DamageScope (agentIntro src)) ->
+                 (cut : PreventCut (scopeIntro scope)) ->
+                 (use : ReplUse) ->
+                 (also : Maybe (Effect (outcomeB DamagePrevented :: cutIntro cut))) ->
                  StaticEffect bs
-      PreventsFrom : (kind : DamageKind) ->
-                     (src : DamageAgent bs) ->
-                     (scope : DamageScope (agentIntro src)) ->
-                     (cut : PreventCut (scopeIntro scope)) ->
-                     (use : ReplUse) ->
-                     (also : Maybe (Effect (outcomeB DamagePrevented :: cutIntro cut))) ->
-                     StaticEffect bs
-      Redirects : {k : Kind} -> (kind : DamageKind) -> (size : Shield bs) ->
-                  (scope : DamageScope (shieldIntro size)) ->
-                  (by : Maybe (Noun (scopeIntro scope) Object)) ->
-                  (to : Noun (byIntro by) k) ->
+      Redirects : {k : Kind} -> (kind : DamageKind) ->
+                  (src : DamageAgent bs) ->
+                  (scope : DamageScope (agentIntro src)) ->
+                  (cut : PreventCut (scopeIntro scope)) ->
+                  (to : Noun (cutIntro cut) k) ->
+                  (use : ReplUse) ->
                   {auto 0 rk : DamageRecipient to} ->
                   {auto 0 one : SingleRecipient to} -> StaticEffect bs
-      RedirectsFrom : {k : Kind} -> (kind : DamageKind) ->
-                      (src : DamageAgent bs) ->
-                      (scope : DamageScope (agentIntro src)) ->
-                      (to : Noun (scopeIntro scope) k) ->
-                      (use : ReplUse) ->
-                      {auto 0 rk : DamageRecipient to} ->
-                      {auto 0 one : SingleRecipient to} -> StaticEffect bs
       Scales : (kind : DamageKind) -> (src : Noun bs Object) ->
                (scope : DamageScope (nomIntro src)) ->
                (op : DamageScale (scopeIntro scope)) ->
                (use : ReplUse) -> StaticEffect bs
-      EntersUnderInstead : (n : Noun bs Object) ->
-                           (who : Noun (nomIntro n) Player) ->
-                           {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                           {auto 0 ps : SoleHolder who} -> StaticEffect bs
       CantPrevent : (kind : DamageKind) -> (what : Unpreventable bs) ->
                     (ban : PreventionBan) -> StaticEffect bs
       Conditionally : (c : Condition bs) -> (se : StaticEffect (condIntro c)) ->
@@ -435,18 +472,9 @@ mutual
                              {auto 0 lt : So (isNil (quantDelta q))} ->
                              {auto 0 ok : So (triggerCountOk (eventName ev))} ->
                              StaticEffect bs
-      EntersRider : (n : Noun bs Object) -> (rider : TokenRider (selfSubjIntro n)) ->
+      EntersRider : (n : Noun bs Object) -> (rider : TokenRider (nomIntro n)) ->
                     {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                     StaticEffect bs
-      EntersWithCounters : (n : Noun bs Object) -> (amt : Amount bs) ->
-                           (kind : CounterKindSource bs) ->
-                           (mark : EntryCounterMark) ->
-                           StaticEffect bs
-      EntersAsCopy : (n : Noun bs Object) -> (optional : Bool) ->
-                     (src : Noun (selfSubjIntro n) Object) ->
-                     (exc : List (CopyExcept (selfSubjIntro n))) ->
-                     {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                     {auto 0 pm : PerMember src} -> StaticEffect bs
       EntersChoice : (n : Noun bs Object) -> (q : ChoiceSort) ->
                      (dom : Maybe (ChoiceDomain q)) -> (disc : Disclosure) ->
                      {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
@@ -613,16 +641,6 @@ mutual
   notWindowed _ = True
 
   public export
-  data Shield : Bindings -> Type where
-    AllOfIt : Shield bs
-    TheNext : (amt : Amount bs) -> Shield bs
-
-  public export
-  shieldIntro : {bs : Bindings} -> Shield bs -> Bindings
-  shieldIntro AllOfIt = bs
-  shieldIntro (TheNext amt) = amtIntro amt
-
-  public export
   data DamageScope : Bindings -> Type where
     Everywhere : DamageScope bs
     ToRecipient : {k : Kind} -> (n : Noun bs k) ->
@@ -644,20 +662,15 @@ mutual
   agentIntro (DealtBy n) = nomIntro n
 
   public export
-  byIntro : {bs : Bindings} -> Maybe (Noun bs Object) -> Bindings
-  byIntro Nothing = bs
-  byIntro (Just n) = nomIntro n
-
-  public export
   data Unpreventable : Bindings -> Type where
-    DamageDescribed : (scope : DamageScope bs) ->
-                      (by : Maybe (Noun (scopeIntro scope) Object)) ->
+    DamageDescribed : (src : DamageAgent bs) ->
+                      (scope : DamageScope (agentIntro src)) ->
                       Unpreventable bs
     ThatDamage : {auto 0 ok : So (damageDealtInScope bs)} -> Unpreventable bs
 
   public export
   unpreventableIntro : {bs : Bindings} -> Unpreventable bs -> Bindings
-  unpreventableIntro (DamageDescribed scope by) = byIntro by
+  unpreventableIntro (DamageDescribed src scope) = scopeIntro scope
   unpreventableIntro ThatDamage = bs
 
   public export
@@ -750,12 +763,9 @@ mutual
   staticKind (LosesAbilities _ _) = AbilityLoss
   staticKind (GainsControl _ _) = ControlGrant
   staticKind (Intercepts _ _ _ _ _ _) = Replacement
-  staticKind (Prevents _ _ _ _ _) = Prevention
-  staticKind (PreventsFrom _ _ _ _ _ _) = Prevention
+  staticKind (Prevents _ _ _ _ _ _) = Prevention
   staticKind (CantPrevent _ _ _) = Prevention
-  staticKind (Redirects _ _ _ _ _) = Replacement
-  staticKind (EntersUnderInstead _ _) = Replacement
-  staticKind (RedirectsFrom _ _ _ _ _) = Replacement
+  staticKind (Redirects _ _ _ _ _ _) = Replacement
   staticKind (Scales _ _ _ _ _) = Replacement
   staticKind (OnlyDuring _ _ se) = staticKind se
   staticKind (Conditionally _ _ _) = Conditional
@@ -769,8 +779,6 @@ mutual
   staticKind (MayVoteAdditional _ _) = VoteAllowance
   staticKind (TriggersAdditionally _ _) = TriggerMultiplier
   staticKind (EntersRider _ _) = EntryRider
-  staticKind (EntersAsCopy _ _ _ _) = EntryRider
-  staticKind (EntersWithCounters _ _ _ _) = EntryRider
   staticKind (EntersChoice _ _ _ _) = EntryRider
   staticKind (AttachChoice _ _ _) = Replacement
   staticKind (AndAlso _) = Coordination
@@ -810,12 +818,9 @@ mutual
   staticIntro (LosesAbilities n _) = selfSubjIntro n
   staticIntro (GainsControl who what) = stampIntro (Just "GainControl") what
   staticIntro (Intercepts ev alts window repl use limit) = interceptCtx alts ev
-  staticIntro (Prevents kind size scope by also) = byIntro by
-  staticIntro (PreventsFrom kind src scope cut use also) = cutIntro cut
+  staticIntro (Prevents kind src scope cut use also) = cutIntro cut
   staticIntro (CantPrevent kind what ban) = unpreventableIntro what
-  staticIntro (Redirects kind size scope by to) = nomIntro to
-  staticIntro (EntersUnderInstead n who) = nomIntro who
-  staticIntro (RedirectsFrom kind src scope to use) = nomIntro to
+  staticIntro (Redirects kind src scope cut to use) = nomIntro to
   staticIntro (Scales kind src scope op use) = scaleIntro op
   staticIntro (OnlyDuring _ _ se) = staticIntro se
   staticIntro (Conditionally c se _) = staticIntro se
@@ -828,9 +833,7 @@ mutual
   staticIntro (MayBlockAdditional n _) = selfSubjIntro n
   staticIntro (MayVoteAdditional who _) = nomIntro who
   staticIntro (TriggersAdditionally _ _) = bs
-  staticIntro (EntersRider n _) = selfSubjIntro n
-  staticIntro (EntersAsCopy n _ _ _) = selfSubjIntro n
-  staticIntro (EntersWithCounters n amt _ _) = amtDelta amt ++ selfSubjIntro n
+  staticIntro (EntersRider n rider) = entryRiderIntro rider
   staticIntro (EntersChoice n _ _ _) = selfSubjIntro n
   staticIntro (AttachChoice n _ _) = selfSubjIntro n
   staticIntro (AndAlso parts) = partsIntro parts
@@ -872,49 +875,52 @@ mutual
     CountersDistributed : DividedTakes DivCounters {k = Object} n
 
   public export
-  data CounterRider : Bindings -> Type where
-    MkCounterRider : (amt : Amount bs) -> (kind : CounterKind) ->
-                     CounterRider bs
-
-  public export
-  data MoveRiders : Bindings -> Type where
-    MkMoveRiders : (entry : List (TokenRider bs)) ->
-                   (ctrl : Maybe (Noun bs Player)) ->
-                   (counters : Maybe (CounterRider bs)) ->
-                   {auto 0 one : CtrlOverrideOk ctrl} -> MoveRiders bs
-
-  public export
-  data CtrlOverrideOk : {0 bs : Bindings} -> Maybe (Noun bs Player) -> Type where
-    NoOverride : CtrlOverrideOk Nothing
+  data CtrlOverrideOk : {0 bs : Bindings} -> Noun bs Player -> Type where
     OneController : {0 n : Noun bs Player} ->
-                    {auto 0 one : nounPlur n = OneOf} -> CtrlOverrideOk (Just n)
+                    {auto 0 one : nounPlur n = OneOf} -> CtrlOverrideOk n
     PerMemberController : {0 bs : Bindings} -> {0 ax : PossessorAxis} ->
                           {0 grp : Noun bs Object} ->
                           {0 pl : nounPlur grp = ManyOf} ->
-                          CtrlOverrideOk (Just (PossessorsOf ax grp {pl}))
+                          CtrlOverrideOk (PossessorsOf ax grp {pl})
 
   public export
-  fieldRidersWritten : {0 bs : Bindings} -> MoveRiders bs -> Bool
-  fieldRidersWritten (MkMoveRiders [] Nothing _) = False
-  fieldRidersWritten _ = True
+  data TokenRider : Bindings -> Type where
+    EntersAs : {0 c : StatusCat} -> (v : StatusVal c) ->
+               {auto 0 at : StatusEffectVal v} -> TokenRider bs
+    EntersAttacking : (whom : AttackDefender bs) -> TokenRider bs
+    EntersTransformed : TokenRider bs
+    EntersMelded : (into : String) -> TokenRider bs
+    WithCounters : (amt : Amount bs) -> (kind : CounterKindSource (amtIntro amt)) ->
+                   (mark : EntryCounterMark) -> TokenRider bs
+    Under : (who : Noun bs Player) ->
+            {auto 0 one : CtrlOverrideOk who} -> TokenRider bs
+    AsCopyOf : (optional : Bool) -> (src : Noun bs Object) ->
+               (exc : List (CopyExcept bs)) ->
+               {auto 0 pm : PerMember src} -> TokenRider bs
 
   public export
-  counterRiderWritten : {0 bs : Bindings} -> MoveRiders bs -> Bool
-  counterRiderWritten (MkMoveRiders _ _ Nothing) = False
-  counterRiderWritten (MkMoveRiders _ _ (Just _)) = True
+  EntersTapped : TokenRider bs
+  EntersTapped = EntersAs Tapped
 
   public export
-  ridersWritten : {0 bs : Bindings} -> MoveRiders bs -> Bool
-  ridersWritten r = fieldRidersWritten r || counterRiderWritten r
+  entryRiderIntro : {bs : Bindings} -> TokenRider bs -> Bindings
+  entryRiderIntro (WithCounters amt kind _) = kindSourceIntro kind
+  entryRiderIntro (Under who) = nomIntro who
+  entryRiderIntro _ = bs
 
   public export
-  ridersFitZone : {0 bs : Bindings} -> MoveRiders bs -> Zone -> Bool
-  ridersFitZone r z =
-    not (fieldRidersWritten r) || z == Battlefield
+  ridersZoneFree : {0 bs : Bindings} -> List (TokenRider bs) -> Bool
+  ridersZoneFree [] = True
+  ridersZoneFree (WithCounters _ _ _ :: rs) = ridersZoneFree rs
+  ridersZoneFree (_ :: rs) = False
 
   public export
-  RidersFit : {0 bs : Bindings} -> MoveRiders bs -> Zone -> Type
-  RidersFit r z = So (ridersFitZone r z)
+  ridersFitZone : {0 bs : Bindings} -> List (TokenRider bs) -> Zone -> Bool
+  ridersFitZone rs z = ridersZoneFree rs || z == Battlefield
+
+  public export
+  RidersFit : {0 bs : Bindings} -> List (TokenRider bs) -> Zone -> Type
+  RidersFit rs z = So (ridersFitZone rs z)
 
   public export
   data Cost : Bindings -> Type where
@@ -1150,7 +1156,7 @@ mutual
                    (voters : Noun (nomIntro first) Player) ->
                    (ballot : Ballot (nomIntro voters)) -> Effect bs
     Move : (what : Noun bs Object) -> (to : ZoneExpr (nomIntro what)) ->
-           (riders : MoveRiders (nomIntro what)) ->
+           (riders : List (TokenRider (nomIntro what))) ->
            {auto 0 ok : DestOk to} ->
            {auto 0 arr : ArrangementOk (nounPlur what) to} ->
            {auto 0 pl : Placeable (nounTy what) (zoneSort to)} ->
@@ -1231,19 +1237,21 @@ mutual
              Effect bs
     GetsEmblem : (who : Noun bs Player) -> (abl : List (AbilityAt [])) ->
                  {auto 0 ea : EmblemAbilities abl} -> Effect bs
-    PutCounters : (amt : Amount bs) -> (kind : CounterKindSource bs) ->
-                  (on : Noun (amtIntro amt) Object) ->
+    PutCounters : {k : Kind} -> (amt : Amount bs) ->
+                  (kind : CounterKindSource (amtIntro amt)) ->
+                  (on : Noun (kindSourceIntro kind) k) ->
                   {auto 0 pm : PerMember on} ->
-                  {auto 0 sc : CounterSourceScope kind Object} -> Effect bs
+                  {auto 0 sc : CounterSourceScope kind k} -> Effect bs
     Distribute : {k : Kind} -> (v : DividedVerb bs) ->
                  (amt : Amount (divIntro v)) ->
                  (among : Noun (amtIntro amt) k) ->
                  {auto 0 gm : GroupMention among} ->
                  {auto 0 tk : DividedTakes (divTag v) among} -> Effect bs
-    RemoveCounters : (q : Maybe (Quantity bs)) -> (kind : Maybe CounterKind) ->
-                     (from : Noun (optQuantIntro q) Object) ->
+    RemoveCounters : {k : Kind} -> (q : Maybe (Quantity bs)) ->
+                     (kind : Maybe (CounterKindSource bs)) ->
+                     (from : Noun (optQuantIntro q) k) ->
                      {auto 0 wf : OptWellFormedQ q} ->
-                     {auto 0 kn : CounterKindNamed Object kind} ->
+                     {auto 0 sc : OptCounterSourceScope kind k} ->
                      {auto 0 cm : CounterMemory from} -> Effect bs
     RemoveCountersAmong : (q : Quantity bs) -> (kind : Maybe CounterKind) ->
                           (among : Noun (quantIntro q) Object) ->
@@ -1258,31 +1266,9 @@ mutual
                    {auto 0 cm : CounterMemory src} ->
                    {auto 0 md : MoveDestination dst} ->
                    {auto 0 pm : PerMember dst} -> Effect bs
-    PutSameCounters : (src : Noun bs Object) ->
-                      (dst : Noun (nomIntro src) Object) ->
-                      {auto 0 pm : PerMember dst} -> Effect bs
-    PutCountersOfThoseKinds : (amt : Amount bs) ->
-                              (on : Noun (amtIntro amt) Object) ->
-                              {auto 0 pm : PerMember on} ->
-                              {auto 0 ok : countOutcomes CountersPut bs = 1} ->
-                              Effect bs
-    GetsCounters : (who : Noun bs Player) -> (amt : Amount (nomIntro who)) ->
-                   (kind : CounterKind) ->
-                   {auto 0 sc : counterScope kind = Player} -> Effect bs
-    GetsCountersOfThoseKinds : (who : Noun bs Player) ->
-                               (amt : Amount (nomIntro who)) ->
-                               {auto 0 ok : countOutcomes CountersPut bs = 1} ->
-                               Effect bs
-    GiveCountersOfOwnKinds : {k : Kind} -> (on : Noun bs k) ->
-                             {auto 0 hk : So (kindLte k (Object \/ Player))} ->
-                             {auto 0 pm : PerMember on} -> Effect bs
-    DoubleCountersOfOwnKinds : {k : Kind} -> (on : Noun bs k) ->
-                               {auto 0 hk : So (kindLte k (Object \/ Player))} ->
-                               {auto 0 pm : PerMember on} -> Effect bs
-    GiveAbilityCountersOfOwnKinds : (on : Noun bs Ability) -> Effect bs
-    RemoveCountersOfOwnKinds : {k : Kind} -> (from : Noun bs k) ->
-                               {auto 0 hk : So (kindLte k (Object \/ Player))} ->
-                               {auto 0 pm : PerMember from} -> Effect bs
+    DoubleCounters : {k : Kind} -> (on : Noun bs k) ->
+                     {auto 0 hk : So (counterHolderKind k)} ->
+                     {auto 0 pm : PerMember on} -> Effect bs
     LosesCounters : (who : Noun bs Player) -> (kind : Maybe CounterKind) ->
                     (amt : Maybe (Amount (nomIntro who))) ->
                     {auto 0 pk : CounterKindNamed Player kind} -> Effect bs
@@ -1396,8 +1382,6 @@ mutual
   heldUntilOk (TurnOver _) = False
   heldUntilOk (SetStatus PhasedOut _) = True
   heldUntilOk (SetStatus _ _) = False
-  heldUntilOk (GetsCounters _ _ _) = False
-  heldUntilOk (GetsCountersOfThoseKinds _ _) = False
   heldUntilOk (LosesCounters _ _ _) = False
   heldUntilOk (RemoveFromCombat _) = False
   heldUntilOk (AttachTo _ _) = False
@@ -1450,12 +1434,7 @@ mutual
   heldUntilOk (RemoveCounters _ _ _) = False
   heldUntilOk (RemoveCountersAmong _ _ _) = False
   heldUntilOk (MoveCounters _ _ _ _) = False
-  heldUntilOk (PutSameCounters _ _) = False
-  heldUntilOk (PutCountersOfThoseKinds _ _) = False
-  heldUntilOk (GiveCountersOfOwnKinds _) = False
-  heldUntilOk (DoubleCountersOfOwnKinds _) = False
-  heldUntilOk (GiveAbilityCountersOfOwnKinds _) = False
-  heldUntilOk (RemoveCountersOfOwnKinds _) = False
+  heldUntilOk (DoubleCounters _) = False
   heldUntilOk (Enact _ (Move _ _ _)) = True
   heldUntilOk (Enact _ _) = False
   heldUntilOk (Does _ _ _) = False
@@ -1516,8 +1495,6 @@ mutual
   reflexEncloseUse (Enact _ _) = EncReflexive
   reflexEncloseUse (TurnOver _) = EncAgentless
   reflexEncloseUse (SetStatus _ _) = EncAgentless
-  reflexEncloseUse (GetsCounters _ _ _) = EncAgentless
-  reflexEncloseUse (GetsCountersOfThoseKinds _ _) = EncAgentless
   reflexEncloseUse (LosesCounters _ _ _) = EncAgentless
   reflexEncloseUse (RemoveFromCombat _) = EncAgentless
   reflexEncloseUse (AttachTo _ _) = EncAgentless
@@ -1545,12 +1522,7 @@ mutual
   reflexEncloseUse (RemoveCounters _ _ _) = EncReflexive -- 7
   reflexEncloseUse (RemoveCountersAmong _ _ _) = EncReflexive
   reflexEncloseUse (MoveCounters _ _ _ _) = EncReflexive
-  reflexEncloseUse (PutSameCounters _ _) = EncReflexive
-  reflexEncloseUse (PutCountersOfThoseKinds _ _) = EncReflexive
-  reflexEncloseUse (GiveCountersOfOwnKinds _) = EncReflexive
-  reflexEncloseUse (DoubleCountersOfOwnKinds _) = EncReflexive
-  reflexEncloseUse (GiveAbilityCountersOfOwnKinds _) = EncReflexive
-  reflexEncloseUse (RemoveCountersOfOwnKinds _) = EncReflexive
+  reflexEncloseUse (DoubleCounters _) = EncReflexive
   reflexEncloseUse (Move _ _ _) = EncReflexive       -- 3
   reflexEncloseUse (Expose _ _ _) = EncReflexive   -- 2
   reflexEncloseUse (AddMana _ _ _ _) = EncReflexive
@@ -1625,8 +1597,6 @@ mutual
   thisWayOutcomeOk (TurnOver _) = True
   thisWayOutcomeOk (SetStatus _ _) = True
   thisWayOutcomeOk (ControllerSacrifices _) = True
-  thisWayOutcomeOk (GetsCounters _ _ _) = True
-  thisWayOutcomeOk (GetsCountersOfThoseKinds _ _) = True
   thisWayOutcomeOk (LosesCounters _ _ _) = True
   thisWayOutcomeOk (RemoveFromCombat _) = True
   thisWayOutcomeOk (AttachTo _ _) = True
@@ -1679,12 +1649,7 @@ mutual
   thisWayOutcomeOk (RemoveCounters _ _ _) = True
   thisWayOutcomeOk (RemoveCountersAmong _ _ _) = True
   thisWayOutcomeOk (MoveCounters _ _ _ _) = True
-  thisWayOutcomeOk (PutSameCounters _ _) = True
-  thisWayOutcomeOk (PutCountersOfThoseKinds _ _) = True
-  thisWayOutcomeOk (GiveCountersOfOwnKinds _) = True
-  thisWayOutcomeOk (DoubleCountersOfOwnKinds _) = True
-  thisWayOutcomeOk (GiveAbilityCountersOfOwnKinds _) = True
-  thisWayOutcomeOk (RemoveCountersOfOwnKinds _) = True
+  thisWayOutcomeOk (DoubleCounters _) = True
   thisWayOutcomeOk (Enact _ _) = True
   thisWayOutcomeOk (Does _ _ _) = True
   thisWayOutcomeOk (DoesGroup _ _ _) = True
@@ -1739,8 +1704,6 @@ mutual
   costActionOk (Fights a _) = costNounOk a
   costActionOk (TurnOver n) = costNounOk n
   costActionOk (SetStatus _ n) = costNounOk n
-  costActionOk (GetsCounters who _ _) = costNounOk who
-  costActionOk (GetsCountersOfThoseKinds _ _) = False
   costActionOk (LosesCounters who _ _) = costNounOk who
   costActionOk (RemoveFromCombat n) = costNounOk n
   costActionOk (AttachTo what _) = costNounOk what
@@ -1794,12 +1757,7 @@ mutual
   costActionOk (RemoveCounters _ _ from) = costNounOk from
   costActionOk (RemoveCountersAmong _ _ among) = costNounOk among
   costActionOk (MoveCounters _ _ src dst) = costNounOk src && costNounOk dst
-  costActionOk (PutSameCounters src dst) = costNounOk src && costNounOk dst
-  costActionOk (GiveCountersOfOwnKinds on) = costNounOk on
-  costActionOk (DoubleCountersOfOwnKinds on) = costNounOk on
-  costActionOk (GiveAbilityCountersOfOwnKinds on) = costNounOk on
-  costActionOk (RemoveCountersOfOwnKinds from) = costNounOk from
-  costActionOk (PutCountersOfThoseKinds _ _) = False
+  costActionOk (DoubleCounters on) = costNounOk on
   costActionOk (Enact _ e) = costActionOk e
   costActionOk (Does _ _ e) = costActionOk e
   costActionOk (DoesGroup _ _ e) = costActionOk e
@@ -1883,9 +1841,6 @@ mutual
   effEq (TurnOver _) _ = False
   effEq (SetStatus v a) (SetStatus w b) = sameStatusVal v w && nounEqRef a b
   effEq (SetStatus _ _) _ = False
-  effEq (GetsCounters You x j) (GetsCounters You y l) = j == l && boundEq x y
-  effEq (GetsCounters _ _ _) _ = False
-  effEq (GetsCountersOfThoseKinds _ _) _ = False
   effEq (LosesCounters You j Nothing) (LosesCounters You l Nothing) = j == l
   effEq (LosesCounters You j (Just x)) (LosesCounters You l (Just y)) =
     j == l && boundEq x y
@@ -1949,16 +1904,13 @@ mutual
   effEq (Throughout _ _) _ = False
   effEq (Create _ _ _ _) _ = False
   effEq (GetsEmblem _ _) _ = False
+  effEq (PutCounters x (PrintedKind j) You) (PutCounters y (PrintedKind l) You) =
+    j == l && boundEq x y
   effEq (PutCounters _ _ _) _ = False
   effEq (RemoveCounters _ _ _) _ = False
   effEq (RemoveCountersAmong _ _ _) _ = False
   effEq (MoveCounters _ _ _ _) _ = False
-  effEq (PutSameCounters _ _) _ = False
-  effEq (PutCountersOfThoseKinds _ _) _ = False
-  effEq (GiveCountersOfOwnKinds _) _ = False
-  effEq (DoubleCountersOfOwnKinds _) _ = False
-  effEq (GiveAbilityCountersOfOwnKinds _) _ = False
-  effEq (RemoveCountersOfOwnKinds _) _ = False
+  effEq (DoubleCounters _) _ = False
   effEq (Enact v e) (Enact w f) = v == w && effEq e f
   effEq (Enact _ _) _ = False
   effEq (Does _ _ _) _ = False
@@ -2026,8 +1978,6 @@ mutual
   effIntro (GetsAdditionalPart w _ count) = amtDelta count ++ nomIntro w
   effIntro (GetsAdditionalPartAfter w _ count _) = amtDelta count ++ nomIntro w
   effIntro (SkipsAllOf w _) = nomIntro w
-  effIntro (GetsCounters who amt _) = amtIntro amt
-  effIntro (GetsCountersOfThoseKinds who amt) = amtIntro amt
   effIntro (LosesCounters who _ amt) = optAmtIntro amt
   effIntro (RemoveFromCombat n) = nomIntro n
   effIntro (AttachTo _ host) = nomIntro host
@@ -2104,12 +2054,7 @@ mutual
   effIntro (RemoveCounters q kind from) = outcomeB CountersRemoved :: nomIntro from
   effIntro (RemoveCountersAmong q kind among) = outcomeB CountersRemoved :: nomIntro among
   effIntro (MoveCounters amt kind src dst) = nomIntro dst
-  effIntro (PutSameCounters src dst) = nomIntro dst
-  effIntro (PutCountersOfThoseKinds amt on) = nomIntro on
-  effIntro (GiveCountersOfOwnKinds on) = nomIntro on
-  effIntro (DoubleCountersOfOwnKinds on) = nomIntro on
-  effIntro (GiveAbilityCountersOfOwnKinds on) = nomIntro on
-  effIntro (RemoveCountersOfOwnKinds from) = nomIntro from
+  effIntro (DoubleCounters on) = nomIntro on
   effIntro (Enact v (Move what to _)) =
     afterMoveTo to (moveIntro (Just v) what (Just (zoneSort to)))
   effIntro (Enact v (SetStatus _ n)) = stampIntro (Just v) n
@@ -2157,8 +2102,6 @@ mutual
   preIntro (GetsAdditionalPart w _ count) = amtDelta count ++ nomIntro w
   preIntro (GetsAdditionalPartAfter w _ count _) = amtDelta count ++ nomIntro w
   preIntro (SkipsAllOf w _) = nomIntro w
-  preIntro (GetsCounters who amt _) = amtIntro amt
-  preIntro (GetsCountersOfThoseKinds who amt) = amtIntro amt
   preIntro (LosesCounters who _ amt) = optAmtIntro amt
   preIntro (RemoveFromCombat n) = nomIntro n
   preIntro (AttachTo _ host) = nomIntro host
@@ -2215,12 +2158,7 @@ mutual
   preIntro (RemoveCounters q kind from) = nomIntro from
   preIntro (RemoveCountersAmong q kind among) = nomIntro among
   preIntro (MoveCounters amt kind src dst) = nomIntro dst
-  preIntro (PutSameCounters src dst) = nomIntro dst
-  preIntro (PutCountersOfThoseKinds amt on) = nomIntro on
-  preIntro (GiveCountersOfOwnKinds on) = nomIntro on
-  preIntro (DoubleCountersOfOwnKinds on) = nomIntro on
-  preIntro (GiveAbilityCountersOfOwnKinds on) = nomIntro on
-  preIntro (RemoveCountersOfOwnKinds from) = nomIntro from
+  preIntro (DoubleCounters on) = nomIntro on
   preIntro (Enact v (Move what to _)) = nomIntro what
   preIntro (Enact _ e) = preIntro e
   preIntro (Does s v (Move what to _)) = nomIntro what
@@ -2279,8 +2217,6 @@ mutual
   annIntro (GetsAdditionalPart w _ count) = amtDelta count ++ nomIntro w
   annIntro (GetsAdditionalPartAfter w _ count _) = amtDelta count ++ nomIntro w
   annIntro (SkipsAllOf w _) = nomIntro w
-  annIntro (GetsCounters who amt _) = amtIntro amt
-  annIntro (GetsCountersOfThoseKinds who amt) = amtIntro amt
   annIntro (LosesCounters who _ amt) = optAmtIntro amt
   annIntro (RemoveFromCombat n) = nomIntro n
   annIntro (AttachTo _ host) = nomIntro host
@@ -2340,12 +2276,7 @@ mutual
   annIntro (RemoveCounters q kind from) = nomIntro from
   annIntro (RemoveCountersAmong q kind among) = nomIntro among
   annIntro (MoveCounters amt kind src dst) = nomIntro dst
-  annIntro (PutSameCounters src dst) = nomIntro dst
-  annIntro (PutCountersOfThoseKinds amt on) = nomIntro on
-  annIntro (GiveCountersOfOwnKinds on) = nomIntro on
-  annIntro (DoubleCountersOfOwnKinds on) = nomIntro on
-  annIntro (GiveAbilityCountersOfOwnKinds on) = nomIntro on
-  annIntro (RemoveCountersOfOwnKinds from) = nomIntro from
+  annIntro (DoubleCounters on) = nomIntro on
   annIntro (Enact v (Move what to _)) = nomIntro what
   annIntro (Enact _ e) = annIntro e
   annIntro (Does s v (Move what to _)) = nomIntro what
@@ -2411,8 +2342,6 @@ mutual
   deedDelta (GetsAdditionalPart _ _ _) = []
   deedDelta (GetsAdditionalPartAfter _ _ _ _) = []
   deedDelta (SkipsAllOf _ _) = []
-  deedDelta (GetsCounters _ _ _) = []
-  deedDelta (GetsCountersOfThoseKinds _ _) = []
   deedDelta (LosesCounters _ _ _) = []
   deedDelta (RemoveFromCombat _) = []
   deedDelta (AttachTo _ _) = []
@@ -2477,12 +2406,7 @@ mutual
   deedDelta (RemoveCounters q kind from) = [outcomeB CountersRemoved]
   deedDelta (RemoveCountersAmong q kind among) = [outcomeB CountersRemoved]
   deedDelta (MoveCounters amt kind src dst) = []
-  deedDelta (PutSameCounters src dst) = []
-  deedDelta (PutCountersOfThoseKinds amt on) = []
-  deedDelta (GiveCountersOfOwnKinds on) = []
-  deedDelta (DoubleCountersOfOwnKinds on) = []
-  deedDelta (GiveAbilityCountersOfOwnKinds _) = []
-  deedDelta (RemoveCountersOfOwnKinds _) = []
+  deedDelta (DoubleCounters on) = []
   deedDelta (Enact v (Move what to _)) = []
   deedDelta (Enact _ e) = deedDelta e
   deedDelta (Does s v (Move what to _)) = []

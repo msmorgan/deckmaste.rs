@@ -928,7 +928,7 @@ badCompareCeilingSubject Oh impossible
 ||| "This creature enters with your choice of a counter on it."
 public export
 badEmptyCounterMenu : Unspellable (StaticEffect []) (\ok =>
-  EntersWithCounters Macros.thisCreature (Lit 1) (ChosenKind [] {ne = ok}) Fresh)
+  EntersRider Macros.thisCreature (WithCounters (Lit 1) (ChosenKind [] {ne = ok}) Fresh))
 badEmptyCounterMenu IsNonEmpty impossible
 
 ||| "Put your choice of a +1/+1 counter or a poison counter on target creature."
@@ -937,6 +937,13 @@ badMixedScopeCounterMenu : Unspellable (Effect []) (\ok =>
   PutCounters (Lit 1) (ChosenKind [Macros.plusOnePlusOne, Poison])
               (Macros.target Macros.creature) {sc = ok})
 badMixedScopeCounterMenu Oh impossible
+
+||| "Put a counter of each of those kinds on target creature."
+||| Nothing has put counters, so "those kinds" reads no antecedent.
+public export
+badThoseKindsUnannounced : Unspellable (Effect []) (\ok =>
+  PutCounters (Lit 1) (ThoseKinds {ok}) (Macros.target Macros.creature))
+badThoseKindsUnannounced Refl impossible
 
 ||| "For each color among permanents you control, add one mana of that color"
 public export
@@ -1150,7 +1157,7 @@ badTurnOverOffField OnField impossible
 public export
 badTransformedArrivalOffField : Unspellable (Effect []) (\ok =>
   Move (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)]))
-       Macros.handZ (MkMoveRiders [EntersTransformed] Nothing Nothing) {rf = ok})
+       Macros.handZ [EntersTransformed] {rf = ok})
 badTransformedArrivalOffField Oh impossible
 
 
@@ -1341,11 +1348,11 @@ objectScopedChaos = ChaosEnsuesFor Macros.thisRoom
 public export
 abilityCounterRecipient : Effect []
 abilityCounterRecipient =
-  GiveAbilityCountersOfOwnKinds (Macros.a (AbilityHead AnyOnStack))
+  PutCounters (Lit 1) OwnKinds (Macros.a (AbilityHead AnyOnStack))
 
 public export
 removeOwnCounterKinds : Effect []
-removeOwnCounterKinds = RemoveCountersOfOwnKinds You
+removeOwnCounterKinds = RemoveCounters (Just (Macros.exactly 1)) (Just OwnKinds) You
 
 public export
 namedAdditionalPartAnchor : Effect []

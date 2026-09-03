@@ -14,7 +14,7 @@ import Experimental.Unspellable
 ||| Bare "This" is the source as an object, standing in no zone and projecting no head type [CR#120.1a].
 public export
 badPreventedBareThis : Unspellable (StaticEffect []) (\ok =>
-  Prevents AnyDamage AllOfIt (ToRecipient This {rk = ok}) Nothing Nothing)
+  Prevents AnyDamage Unattributed (ToRecipient This {rk = ok}) CutAll Repeatedly Nothing)
 badPreventedBareThis ObjectTakes impossible
 
 
@@ -22,8 +22,8 @@ badPreventedBareThis ObjectTakes impossible
 ||| [CR#120.1a] at the shield: damage reaches only a battle, a creature or a planeswalker.
 public export
 badPreventDealtToArtifact : Unspellable (StaticEffect []) (\ok =>
-  Prevents AnyDamage AllOfIt
-           (ToRecipient (Macros.target Macros.artifact) {rk = ok}) Nothing Nothing)
+  Prevents AnyDamage Unattributed
+           (ToRecipient (Macros.target Macros.artifact) {rk = ok}) CutAll Repeatedly Nothing)
 badPreventDealtToArtifact ObjectTakes impossible
 
 
@@ -31,8 +31,8 @@ badPreventDealtToArtifact ObjectTakes impossible
 ||| [CR#120.1a] at the destination, which [CR#614.9] names from the same closed list.
 public export
 badRedirectToArtifact : Unspellable (StaticEffect []) (\ok =>
-  Redirects AnyDamage AllOfIt (Macros.shieldingIt You) Nothing
-            (Macros.target Macros.artifact) {rk = ok})
+  Redirects AnyDamage Unattributed (Macros.shieldingIt You) CutAll
+            (Macros.target Macros.artifact) Repeatedly {rk = ok})
 badRedirectToArtifact ObjectTakes impossible
 
 
@@ -40,8 +40,8 @@ badRedirectToArtifact ObjectTakes impossible
 ||| [CR#614.9] replaces damage dealt to one thing with the same damage dealt to another: one head per arrow.
 public export
 badRedirectToPlural : Unspellable (StaticEffect []) (\ok =>
-  Redirects AnyDamage AllOfIt (Macros.shieldingIt You) Nothing
-            (AllOf Macros.creatureYouControl) {one = ok})
+  Redirects AnyDamage Unattributed (Macros.shieldingIt You) CutAll
+            (AllOf Macros.creatureYouControl) Repeatedly {one = ok})
 badRedirectToPlural Oh impossible
 
 
@@ -99,8 +99,8 @@ badShortOfCeilingUnannounced Refl impossible
 ||| A shield cannot be sized by what it prevents: [CR#615.7]'s cap is spent one damage at a time.
 public export
 badShieldSizedByItsOwnPrevention : Unspellable (StaticEffect []) (\ok =>
-  Prevents AnyDamage (TheNext (PreventedThisWay {ok}))
-           (Macros.shieldingIt You) Nothing Nothing)
+  Prevents AnyDamage Unattributed (Macros.shieldingIt You)
+           (CutSome (PreventedThisWay {ok})) Repeatedly Nothing)
 badShieldSizedByItsOwnPrevention Refl impossible
 
 
@@ -132,8 +132,8 @@ badNonsource Oh impossible
 ||| [CR#614.9] puts one thing at each end of the arrow, and the mixed group is plural by construction.
 public export
 badRedirectToGroup : Unspellable (StaticEffect []) (\ok =>
-  Redirects AnyDamage AllOfIt (Macros.shieldingIt You) Nothing
-            (Macros.youAnd (AllOf (And [Permanent, ControlledBy You]))) {one = ok})
+  Redirects AnyDamage Unattributed (Macros.shieldingIt You) CutAll
+            (Macros.youAnd (AllOf (And [Permanent, ControlledBy You]))) Repeatedly {one = ok})
 badRedirectToGroup Oh impossible
 
 
@@ -609,11 +609,10 @@ badLastChosenColorNoChooser ChoiceMade impossible
 public export
 badLastChosenBeforeChooser : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
-       [ Static (Prevents AnyDamage AllOfIt
-                          (Macros.shieldingIt You)
-                          (Just (AllOf (And [Macros.source,
-                                             OfLastChosen Color {ok = ok}])))
-                          Nothing)
+       [ Static (Prevents AnyDamage
+                          (DealtBy (AllOf (And [Macros.source,
+                                                OfLastChosen Color {ok = ok}])))
+                          (Macros.shieldingIt You) CutAll Repeatedly Nothing)
        , Static (EntersChoice Macros.thisEnchantment (QSort Color) Nothing Openly) ]
        Nothing)
 badLastChosenBeforeChooser ChoiceMade impossible
@@ -625,11 +624,10 @@ public export
 badLastChosenWrongSort : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
        [ Static (EntersChoice Macros.thisEnchantment (QSort (SubtypeQ Creature)) Nothing Openly)
-       , Static (Prevents AnyDamage AllOfIt
-                          (Macros.shieldingIt You)
-                          (Just (AllOf (And [Macros.source,
-                                             OfLastChosen Color {ok = ok}])))
-                          Nothing) ]
+       , Static (Prevents AnyDamage
+                          (DealtBy (AllOf (And [Macros.source,
+                                                OfLastChosen Color {ok = ok}])))
+                          (Macros.shieldingIt You) CutAll Repeatedly Nothing) ]
        Nothing)
 badLastChosenWrongSort ChoiceMade impossible
 

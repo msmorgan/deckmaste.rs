@@ -3336,27 +3336,6 @@ data CounterKindNamed : Kind -> Maybe CounterKind -> Type where
               CounterKindNamed k (Just c)
 
 public export
-data CounterKindSource : Bindings -> Type where
-  PrintedKind : CounterKind -> CounterKindSource bs
-  ChosenKind : (menu : List CounterKind) ->
-               {auto 0 ne : NonEmpty menu} -> CounterKindSource bs
-  DistinctChosenKinds : (menu : List CounterKind) ->
-                        {auto 0 ne : NonEmpty menu} -> CounterKindSource bs
-  BoundKind : {auto 0 ok : countChoice (QSort CounterKindQ) bs = 1} ->
-              CounterKindSource bs
-
-public export
-counterSourceScope : {0 bs : Bindings} -> CounterKindSource bs -> Kind -> Bool
-counterSourceScope (PrintedKind c) k = counterScope c == k
-counterSourceScope (ChosenKind menu) k = all (\c => counterScope c == k) menu
-counterSourceScope (DistinctChosenKinds menu) k = all (\c => counterScope c == k) menu
-counterSourceScope BoundKind k = True
-
-public export
-CounterSourceScope : {bs : Bindings} -> CounterKindSource bs -> Kind -> Type
-CounterSourceScope s k = So (counterSourceScope s k)
-
-public export
 data ChapterNumber = ChapterI | ChapterII | ChapterIII
                    | ChapterIV | ChapterV | ChapterVI
 

@@ -161,14 +161,14 @@ badDelayedOther Refl impossible
 public export
 badStaleCarrier : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.exile (Macros.target Macros.creatureYouControl),
-               Move (That (TypeW Creature) {ok}) Macros.battlefieldZ (MkMoveRiders [] Nothing Nothing)])
+               Move (That (TypeW Creature) {ok}) Macros.battlefieldZ []])
 badStaleCarrier Refl impossible
 
 
 ||| "Return a creature to its owner's hand: Tap it."
 public export
 badHiddenCost : Unspellable Ability (\ok =>
-  Activated (Do (Move (Macros.a Macros.creature) Macros.handZ (MkMoveRiders [] Nothing Nothing)))
+  Activated (Do (Move (Macros.a Macros.creature) Macros.handZ []))
             (SetStatus Tapped (It {ok = Builtin.fst ok}) {ok = Builtin.snd ok}) Nothing Nothing Nothing Nothing)
 badHiddenCost (Refl, _) impossible
 
@@ -197,7 +197,7 @@ badSacrificeExiled OnField impossible
 public export
 badDeadCreatureRead : Unspellable (Effect []) (\ok =>
   Delayed (Dies (Macros.target Macros.creature)) [] (Just ThisTurn)
-          (Move (That (TypeW Creature) {ok}) Macros.battlefieldZ (MkMoveRiders [] Nothing Nothing)))
+          (Move (That (TypeW Creature) {ok}) Macros.battlefieldZ []))
 badDeadCreatureRead Refl impossible
 
 
@@ -241,7 +241,7 @@ badInnerAmbig Refl impossible
 public export
 badVerbedWrongVerb : Unspellable Ability (\ok =>
   Activated (Do (Macros.discardsACard You))
-            (Move (TheVerbed "Sacrifice" CardW Attributive {ok}) Macros.battlefieldZ (MkMoveRiders [] Nothing Nothing)) Nothing Nothing Nothing Nothing)
+            (Move (TheVerbed "Sacrifice" CardW Attributive {ok}) Macros.battlefieldZ []) Nothing Nothing Nothing Nothing)
 badVerbedWrongVerb Refl impossible
 
 
@@ -250,7 +250,7 @@ badVerbedWrongVerb Refl impossible
 public export
 badVerbedWrongNoun : Unspellable Ability (\ok =>
   Activated (Do (Macros.sacrifice You (Macros.a (HasType Artifact))))
-            (Move (TheVerbed "Sacrifice" (TypeW Creature) Attributive {ok}) Macros.battlefieldZ (MkMoveRiders [] Nothing Nothing)) Nothing Nothing Nothing Nothing)
+            (Move (TheVerbed "Sacrifice" (TypeW Creature) Attributive {ok}) Macros.battlefieldZ []) Nothing Nothing Nothing Nothing)
 badVerbedWrongNoun Refl impossible
 
 
@@ -260,7 +260,7 @@ public export
 badVerbedAmbig : Unspellable Ability (\ok =>
   Activated (Compound [Do (Macros.sacrifice You (Macros.a Macros.creature)),
                        Do (Macros.sacrifice You (Macros.a Macros.creature))])
-            (Move (TheVerbed "Sacrifice" CardW Attributive {ok}) Macros.battlefieldZ (MkMoveRiders [] Nothing Nothing)) Nothing Nothing Nothing Nothing)
+            (Move (TheVerbed "Sacrifice" CardW Attributive {ok}) Macros.battlefieldZ []) Nothing Nothing Nothing Nothing)
 badVerbedAmbig Refl impossible
 
 
@@ -269,7 +269,7 @@ public export
 badBareCardRead : Unspellable Ability (\ok =>
   Activated (Do (Macros.sacrifice You (Macros.a Macros.creature)))
             (Sequentially [Macros.exile (Macros.target Macros.creature),
-                           Delayed (BeginningOf EndStep NoPossessor) [] Nothing (Move (That CardW {ok}) Macros.battlefieldZ (MkMoveRiders [] Nothing Nothing))]) Nothing Nothing Nothing Nothing)
+                           Delayed (BeginningOf EndStep NoPossessor) [] Nothing (Move (That CardW {ok}) Macros.battlefieldZ [])]) Nothing Nothing Nothing Nothing)
 badBareCardRead Refl impossible
 
 
@@ -376,7 +376,7 @@ badFightLand Fighter impossible
 public export
 badDiesInGraveyard : Unspellable (Effect []) (\ok =>
   Delayed (Dies (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {zn = ok}) [] (Just ThisTurn)
-          (Move (That CardW) Macros.battlefieldZ (MkMoveRiders [] Nothing Nothing)))
+          (Move (That CardW) Macros.battlefieldZ []))
 badDiesInGraveyard Oh impossible
 
 
@@ -456,7 +456,7 @@ badGetsGraveyard Oh impossible
 ||| A card never enters another player's hand [CR#400.3].
 public export
 badMoveToTargetsHand : Unspellable (Effect []) (\ok =>
-  Move (Macros.target Macros.creature) (Macros.handOf (Macros.target AnyPlayer)) (MkMoveRiders [] Nothing Nothing) {ok})
+  Move (Macros.target Macros.creature) (Macros.handOf (Macros.target AnyPlayer)) [] {ok})
 badMoveToTargetsHand HandOkBare impossible
 
 
@@ -486,7 +486,7 @@ badDestroyGraveyardCard OnField impossible
 ||| A move labeled with a word outside the label catalog
 public export
 badUnknownVerbLabel : Unspellable (Effect []) (\ok =>
-  Enact "Descry" (Move (Macros.a Macros.creature) Macros.graveyardZ (MkMoveRiders [] Nothing Nothing)) {kn = ok})
+  Enact "Descry" (Move (Macros.a Macros.creature) Macros.graveyardZ []) {kn = ok})
 badUnknownVerbLabel Oh impossible
 
 

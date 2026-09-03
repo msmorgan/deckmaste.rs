@@ -93,8 +93,8 @@ badAnnouncingRemovalAgent Refl impossible
 ||| A charge counter is placed on an object [CR#122.1], so the player verb refuses it.
 public export
 badGetsChargeCounter : Unspellable (Effect []) (\ok =>
-  GetsCounters You (Lit 1) Charge {sc = ok})
-badGetsChargeCounter Refl impossible
+  PutCounters (Lit 1) (PrintedKind Charge) You {sc = ok})
+badGetsChargeCounter Oh impossible
 
 
 ||| "this instant"
@@ -265,7 +265,7 @@ badCreatureAttackDefender Oh impossible
 public export
 badAgentChooseTheRest : Unspellable (Effect []) (\ok =>
   Sequentially [ Macros.lookAt (Macros.topCards 4)
-               , Move (Macros.oneOf Them) Macros.handZ (MkMoveRiders [] Nothing Nothing)
+               , Move (Macros.oneOf Them) Macros.handZ []
                , Choose TheRest (Just (Macros.a Opponent)) Openly {ch = ok} ])
 badAgentChooseTheRest AgentChoice impossible
 

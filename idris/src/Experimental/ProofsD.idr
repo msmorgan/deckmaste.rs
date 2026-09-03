@@ -166,7 +166,7 @@ badPlayFromWrongZone Oh impossible
 ||| [CR#601.2a] puts a card on the stack as part of casting, which is no placement.
 public export
 badMoveToStack : Unspellable (Effect []) (\ok =>
-  Move (Macros.target Macros.creature) Macros.stackZ (MkMoveRiders [] Nothing Nothing) {ok})
+  Move (Macros.target Macros.creature) Macros.stackZ [] {ok})
 badMoveToStack BattlefieldOk impossible
 
 
@@ -228,7 +228,7 @@ badUntapNextAmbiguousIt Refl impossible
 public export
 badExileTapped : Unspellable (Effect []) (\ok =>
   Enact "Exile" (Move (Macros.target Macros.creature) Macros.exileZ
-                      (MkMoveRiders [EntersTapped] Nothing Nothing) {rf = ok}))
+                      [EntersTapped] {rf = ok}))
 badExileTapped Oh impossible
 
 
@@ -287,8 +287,8 @@ badPutPoisonOnCreature Oh impossible
 ||| The same table read the other way: a stat counter is an object's [CR#122.1a].
 public export
 badGetsBoostCounter : Unspellable (Effect []) (\ok =>
-  GetsCounters You (Lit 1) Macros.plusOnePlusOne {sc = ok})
-badGetsBoostCounter Refl impossible
+  PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) You {sc = ok})
+badGetsBoostCounter Oh impossible
 
 
 ||| "Each opponent loses all +1/+1 counters."

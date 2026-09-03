@@ -449,8 +449,8 @@ forEach : {k : Kind} -> (p : Predicate bs k) ->
 forEach p = nForEach 1 p
 
 public export
-noRiders : MoveRiders bs
-noRiders = MkMoveRiders [] Nothing Nothing
+noRiders : List (TokenRider bs)
+noRiders = []
 
 public export
 move : (what : Noun bs Object) -> (to : ZoneExpr (nomIntro what)) ->
@@ -478,7 +478,7 @@ exileWithCounters : (n : Noun bs Object) -> (amt : Amount (nomIntro n)) ->
                     (kind : CounterKind) -> Effect bs
 exileWithCounters n amt kind =
   Enact "Exile"
-        (Move n exileZ (MkMoveRiders [] Nothing (Just (MkCounterRider amt kind))))
+        (Move n exileZ [WithCounters amt (PrintedKind kind) Fresh])
 
 public export
 returnToBattlefieldWithCounters :
@@ -489,7 +489,8 @@ returnToBattlefieldWithCounters :
   {auto 0 pl : Placeable (nounTy n) Battlefield} ->
   Effect bs
 returnToBattlefieldWithCounters n who amt kind =
-  Move n battlefieldZ (MkMoveRiders [] (Just who) (Just (MkCounterRider amt kind)) {one = OneController {one}}) {pl}
+  Move n battlefieldZ [ Under who {one = OneController {one}}
+                      , WithCounters amt (PrintedKind kind) Fresh ] {pl}
 
 public export
 putOntoBattlefield : (n : Noun bs Object) ->
@@ -504,7 +505,7 @@ putOntoBattlefieldTapped : (n : Noun bs Object) ->
                            {auto 0 pl : Placeable (nounTy n) Battlefield} ->
                            Effect bs
 putOntoBattlefieldTapped n =
-  Move n battlefieldZ (MkMoveRiders [EntersTapped] Nothing Nothing) {pl}
+  Move n battlefieldZ [EntersTapped] {pl}
 
 public export
 putOntoBattlefieldTappedAttacking :
@@ -513,7 +514,7 @@ putOntoBattlefieldTappedAttacking :
   {auto 0 pl : Placeable (nounTy n) Battlefield} ->
   Effect bs
 putOntoBattlefieldTappedAttacking n =
-  Move n battlefieldZ (MkMoveRiders [EntersTapped, EntersAttacking NoDefender] Nothing Nothing) {pl}
+  Move n battlefieldZ [EntersTapped, EntersAttacking NoDefender] {pl}
 
 public export
 putOntoBattlefieldUnderYourControl :
@@ -522,7 +523,7 @@ putOntoBattlefieldUnderYourControl :
   {auto 0 pl : Placeable (nounTy n) Battlefield} ->
   Effect bs
 putOntoBattlefieldUnderYourControl n =
-  Move n battlefieldZ (MkMoveRiders [] (Just You) Nothing) {pl}
+  Move n battlefieldZ [Under You] {pl}
 
 public export
 sacrifice : (agent : Noun bs Player) -> (n : Noun (agentIntro agent) Object) ->
@@ -604,7 +605,7 @@ meldInto : (n : Noun bs Object) -> (into : String) ->
            Effect bs
 meldInto n into =
   Enact "Meld"
-        (Move n battlefieldZ (MkMoveRiders [EntersMelded into] Nothing Nothing) {arr} {pl})
+        (Move n battlefieldZ [EntersMelded into] {arr} {pl})
 
 public export
 returnTo : (n : Noun bs Object) -> (to : ZoneExpr (nomIntro n)) ->
@@ -616,15 +617,14 @@ returnTo n to = Enact "Return" (Move n to noRiders {ok} {arr} {pl})
 
 public export
 returnToBattlefieldTransformed :
-  (n : Noun bs Object) -> (ctrl : Maybe (Noun (nomIntro n) Player)) ->
+  (n : Noun bs Object) -> (ctrl : Noun (nomIntro n) Player) ->
   {auto 0 one : CtrlOverrideOk ctrl} ->
   {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
   {auto 0 pl : Placeable (nounTy n) Battlefield} ->
   Effect bs
 returnToBattlefieldTransformed n ctrl =
   Enact "Return"
-        (Move n battlefieldZ (MkMoveRiders [EntersTransformed] ctrl Nothing {one})
-              {arr} {pl})
+        (Move n battlefieldZ [EntersTransformed, Under ctrl {one}] {arr} {pl})
 
 public export
 returnToBattlefield : (n : Noun bs Object) ->
@@ -708,9 +708,12 @@ entersTapped : (n : Noun bs Object) ->
 entersTapped n = EntersRider n EntersTapped {zn}
 
 public export
-entersWithCounters : (n : Noun bs Object) -> (amt : Amount bs) ->
-                     (kind : CounterKind) -> StaticEffect bs
-entersWithCounters n amt kind = EntersWithCounters n amt (PrintedKind kind) Fresh
+entersWithCounters : (n : Noun bs Object) -> (amt : Amount (nomIntro n)) ->
+                     (kind : CounterKind) ->
+                     {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                     StaticEffect bs
+entersWithCounters n amt kind =
+  EntersRider n (WithCounters amt (PrintedKind kind) Fresh) {zn}
 
 public export
 gets : (n : Noun bs Object) -> (pow : PtShift (selfSubjIntro n)) ->
@@ -1323,32 +1326,33 @@ public export
 preventAll : (kind : DamageKind) -> (scope : DamageScope bs) ->
              (d : Maybe (Duration (scopeIntro scope))) ->
              {auto 0 sp : SpanOk Prevention d} -> Effect bs
-preventAll kind scope d = Continuously (Prevents kind AllOfIt scope Nothing Nothing) d {sp}
+preventAll kind scope d =
+  Continuously (Prevents kind Unattributed scope CutAll Repeatedly Nothing) d {sp}
 
 public export
-preventNext : (kind : DamageKind) -> (amt : Amount bs) ->
-              (scope : DamageScope (amtIntro amt)) ->
-              (d : Maybe (Duration (scopeIntro scope))) ->
+preventNext : (kind : DamageKind) -> (scope : DamageScope bs) ->
+              (amt : Amount (scopeIntro scope)) ->
+              (d : Maybe (Duration (amtIntro amt))) ->
               {auto 0 sp : SpanOk Prevention d} -> Effect bs
-preventNext kind amt scope d =
-  Continuously (Prevents kind (TheNext amt) scope Nothing Nothing) d {sp}
+preventNext kind scope amt d =
+  Continuously (Prevents kind Unattributed scope (CutSome amt) Repeatedly Nothing) d {sp}
 
 public export
-preventAllBy : (kind : DamageKind) -> (scope : DamageScope bs) ->
-               (src : Noun (scopeIntro scope) Object) ->
-               (d : Maybe (Duration (nomIntro src))) ->
+preventAllBy : (kind : DamageKind) -> (src : Noun bs Object) ->
+               (scope : DamageScope (nomIntro src)) ->
+               (d : Maybe (Duration (scopeIntro scope))) ->
                {auto 0 sp : SpanOk Prevention d} -> Effect bs
-preventAllBy kind scope src d =
-  Continuously (Prevents kind AllOfIt scope (Just src) Nothing) d {sp}
+preventAllBy kind src scope d =
+  Continuously (Prevents kind (DealtBy src) scope CutAll Repeatedly Nothing) d {sp}
 
 public export
-preventNextBy : (kind : DamageKind) -> (amt : Amount bs) ->
-                (scope : DamageScope (amtIntro amt)) ->
-                (src : Noun (scopeIntro scope) Object) ->
-                (d : Maybe (Duration (nomIntro src))) ->
+preventNextBy : (kind : DamageKind) -> (src : Noun bs Object) ->
+                (scope : DamageScope (nomIntro src)) ->
+                (amt : Amount (scopeIntro scope)) ->
+                (d : Maybe (Duration (amtIntro amt))) ->
                 {auto 0 sp : SpanOk Prevention d} -> Effect bs
-preventNextBy kind amt scope src d =
-  Continuously (Prevents kind (TheNext amt) scope (Just src) Nothing) d {sp}
+preventNextBy kind src scope amt d =
+  Continuously (Prevents kind (DealtBy src) scope (CutSome amt) Repeatedly Nothing) d {sp}
 
 public export
 shieldingIt : {k : Kind} -> (n : Noun bs k) ->
@@ -1594,7 +1598,7 @@ proliferate : {bs : Bindings} ->
 proliferate =
   Enact "Proliferate" {kn = Oh}
         (Sequentially [ Choose (CountedGroup Macros.anyNumber Nothing Macros.proliferable) Nothing Openly
-                      , GiveCountersOfOwnKinds (EachOf (Those JoinW {ok = mj})) ])
+                      , PutCounters (Lit 1) OwnKinds (EachOf (Those JoinW {ok = mj})) ])
 
 public export
 losesCounters : (who : Noun bs Player) -> (amt : Amount (nomIntro who)) ->
@@ -1611,15 +1615,15 @@ public export
 removeCounters : (q : Quantity bs) -> (kind : Maybe CounterKind) ->
                  (from : Noun (quantIntro q) Object) ->
                  {auto 0 wf : WellFormedQ q} ->
-                 {auto 0 kn : CounterKindNamed Object kind} ->
+                 {auto 0 sc : OptCounterSourceScope (namedKind {bs} kind) Object} ->
                  {auto 0 cm : CounterMemory from} -> Effect bs
-removeCounters q kind from = RemoveCounters (Just q) kind from {wf} {kn} {cm}
+removeCounters q kind from = RemoveCounters (Just q) (namedKind {bs} kind) from {wf} {sc} {cm}
 
 public export
 removeAllCounters : (kind : Maybe CounterKind) -> (from : Noun bs Object) ->
-                    {auto 0 kn : CounterKindNamed Object kind} ->
+                    {auto 0 sc : OptCounterSourceScope (namedKind {bs} kind) Object} ->
                     {auto 0 cm : CounterMemory from} -> Effect bs
-removeAllCounters kind from = RemoveCounters Nothing kind from {kn} {cm}
+removeAllCounters kind from = RemoveCounters Nothing (namedKind {bs} kind) from {sc} {cm}
 
 public export
 keyword : {0 bs : Bindings} -> (kw : KeywordLabel) ->
@@ -2084,15 +2088,20 @@ putIntoFrom : (n : Noun bs Object) -> (to : ZoneExpr bs) -> (src : EventSource b
 putIntoFrom n to src = PutInto n to (Just src) {dk} {sk} {zn}
 
 public export
-entersWithAdditionalCounters : (n : Noun bs Object) -> (amt : Amount bs) ->
-                               (kind : CounterKind) -> StaticEffect bs
+entersWithAdditionalCounters : (n : Noun bs Object) -> (amt : Amount (nomIntro n)) ->
+                               (kind : CounterKind) ->
+                               {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                               StaticEffect bs
 entersWithAdditionalCounters n amt kind =
-  EntersWithCounters n amt (PrintedKind kind) Additional
+  EntersRider n (WithCounters amt (PrintedKind kind) Additional) {zn}
 
 public export
-entersWithFewerCounters : (n : Noun bs Object) -> (amt : Amount bs) ->
-                          (kind : CounterKind) -> StaticEffect bs
-entersWithFewerCounters n amt kind = EntersWithCounters n amt (PrintedKind kind) Fewer
+entersWithFewerCounters : (n : Noun bs Object) -> (amt : Amount (nomIntro n)) ->
+                          (kind : CounterKind) ->
+                          {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                          StaticEffect bs
+entersWithFewerCounters n amt kind =
+  EntersRider n (WithCounters amt (PrintedKind kind) Fewer) {zn}
 
 public export
 attacks : (n : Noun bs Object) ->

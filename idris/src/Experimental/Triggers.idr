@@ -23,18 +23,6 @@ mutual
                   {auto 0 at : Attackable m} -> AttackDefender bs
 
   public export
-  data TokenRider : Bindings -> Type where
-    EntersAs : {0 c : StatusCat} -> (v : StatusVal c) ->
-               {auto 0 at : StatusEffectVal v} -> TokenRider bs
-    EntersAttacking : (whom : AttackDefender bs) -> TokenRider bs
-    EntersTransformed : TokenRider bs
-    EntersMelded : (into : String) -> TokenRider bs
-
-  public export
-  EntersTapped : TokenRider bs
-  EntersTapped = EntersAs Tapped
-
-  public export
   data DamagePatient : Bindings -> Type where
     NoPatient : DamagePatient bs
     OnePatient : {k : Kind} -> (m : Noun bs k) ->

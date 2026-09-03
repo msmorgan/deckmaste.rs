@@ -81,7 +81,7 @@ badDivideAmongDescription Oh impossible
 ||| A library is ordered [CR#401.2], so the bare zone names no place to put a card.
 public export
 badMoveToBareLibrary : Unspellable (Effect []) (\ok =>
-  Move (Macros.target Macros.creature) (ZoneAt Library Bare) (MkMoveRiders [] Nothing Nothing) {ok})
+  Move (Macros.target Macros.creature) (ZoneAt Library Bare) [] {ok})
 badMoveToBareLibrary BattlefieldOk impossible
 
 
@@ -89,7 +89,7 @@ badMoveToBareLibrary BattlefieldOk impossible
 ||| The order rider needs two or more cards to order — [CR#401.4]'s own condition, and English's.
 public export
 badSingularOrderRider : Unspellable (Effect []) (\ok =>
-  Sequentially [Macros.lookAt Macros.topCard, Move (That CardW) (Macros.onBottomIn AnyOrder) (MkMoveRiders [] Nothing Nothing) {arr = ok}])
+  Sequentially [Macros.lookAt Macros.topCard, Move (That CardW) (Macros.onBottomIn AnyOrder) [] {arr = ok}])
 badSingularOrderRider Oh impossible
 
 
@@ -97,7 +97,7 @@ badSingularOrderRider Oh impossible
 ||| "The rest" of what: with no group in the discourse there is nothing to be the rest of.
 public export
 badRestWithoutGroup : Unspellable (Effect []) (\ok =>
-  Move (TheRest {ok}) Macros.graveyardZ (MkMoveRiders [] Nothing Nothing))
+  Move (TheRest {ok}) Macros.graveyardZ [])
 badRestWithoutGroup Oh impossible
 
 
@@ -105,7 +105,7 @@ badRestWithoutGroup Oh impossible
 ||| With nothing taken out, "the rest" is the group, which the sentence would call "them".
 public export
 badRestWithoutPart : Unspellable (Effect []) (\ok =>
-  Sequentially [Macros.lookAt (Macros.topCards 4), Move (TheRest {ok}) Macros.onBottomZ (MkMoveRiders [] Nothing Nothing)])
+  Sequentially [Macros.lookAt (Macros.topCards 4), Move (TheRest {ok}) Macros.onBottomZ []])
 badRestWithoutPart Oh impossible
 
 
@@ -114,9 +114,9 @@ badRestWithoutPart Oh impossible
 public export
 badRestDisposedTwice : Unspellable (Effect []) (\ok =>
   Sequentially [ Macros.lookAt (Macros.topCards 4)
-               , Move (Macros.oneOf Them) Macros.handZ (MkMoveRiders [] Nothing Nothing)
-               , Move TheRest Macros.onBottomZ (MkMoveRiders [] Nothing Nothing)
-               , Move (TheRest {ok}) Macros.graveyardZ (MkMoveRiders [] Nothing Nothing)
+               , Move (Macros.oneOf Them) Macros.handZ []
+               , Move TheRest Macros.onBottomZ []
+               , Move (TheRest {ok}) Macros.graveyardZ []
                ])
 badRestDisposedTwice Oh impossible
 
@@ -126,7 +126,7 @@ badRestDisposedTwice Oh impossible
 public export
 badRestOverTwoAnnouncements : Unspellable (Effect []) (\ok =>
   Sequentially [ Fights (Macros.target Macros.creatureYouControl) (Macros.target Macros.creatureYouDontControl)
-               , Move (TheRest {ok}) Macros.graveyardZ (MkMoveRiders [] Nothing Nothing)
+               , Move (TheRest {ok}) Macros.graveyardZ []
                ])
 badRestOverTwoAnnouncements Oh impossible
 
@@ -151,7 +151,7 @@ badTapLibraryTop OnField impossible
 ||| The slice names a place and describes no card [CR#400.2,401.2], so a typed demonstrative reaches nothing.
 public export
 badSliceTypeRead : Unspellable (Effect []) (\ok =>
-  Sequentially [Macros.lookAt (Macros.topCards 4), Move (Those (TypeW Creature) {ok}) Macros.handZ (MkMoveRiders [] Nothing Nothing)])
+  Sequentially [Macros.lookAt (Macros.topCards 4), Move (Those (TypeW Creature) {ok}) Macros.handZ []])
 badSliceTypeRead Refl impossible
 
 
@@ -201,7 +201,7 @@ badPartitiveOfPartitive Oh impossible
 public export
 badEachOfTheRest : Unspellable (Effect []) (\ok =>
   Sequentially [ Macros.lookAt (Macros.topCards 4)
-               , Move (Macros.oneOf Them) Macros.handZ (MkMoveRiders [] Nothing Nothing)
+               , Move (Macros.oneOf Them) Macros.handZ []
                , Macros.exile (EachOf TheRest {gm = ok})
                ])
 badEachOfTheRest Oh impossible
@@ -233,7 +233,7 @@ badInterceptReplacementAntecedent (Refl, _) impossible
 public export
 badHeldUntilExileRetag : Unspellable (Effect []) (\ok =>
   Sequentially [ Macros.exileUntil (Macros.target Macros.creature) (Macros.leavesBattlefield Macros.thisCreature)
-               , Move (That CardW {ok}) Macros.handZ (MkMoveRiders [] Nothing Nothing)
+               , Move (That CardW {ok}) Macros.handZ []
                ])
 badHeldUntilExileRetag Refl impossible
 
@@ -563,7 +563,7 @@ badReflexiveTapsSacrificed OnField impossible
 ||| An arrival rider is battlefield-only: status belongs to permanents [CR#110.5,110.5b].
 public export
 badMoveRidersToGraveyard : Unspellable (Effect []) (\ok =>
-  Move (Macros.target Macros.creature) Macros.graveyardZ (MkMoveRiders [EntersTapped] Nothing Nothing) {rf = ok})
+  Move (Macros.target Macros.creature) Macros.graveyardZ [EntersTapped] {rf = ok})
 badMoveRidersToGraveyard Oh impossible
 
 
@@ -571,7 +571,7 @@ badMoveRidersToGraveyard Oh impossible
 ||| An object neither on the stack nor on the battlefield has no controller [CR#109.4].
 public export
 badMoveControlToHand : Unspellable (Effect []) (\ok =>
-  Move (Macros.target Macros.creature) Macros.handZ (MkMoveRiders [] (Just You) Nothing) {rf = ok})
+  Move (Macros.target Macros.creature) Macros.handZ [Under You] {rf = ok})
 badMoveControlToHand Oh impossible
 
 
@@ -579,7 +579,7 @@ badMoveControlToHand Oh impossible
 ||| One controller [CR#109.4]; the plural relational is not a spelling this vocabulary has.
 public export
 badMoveRidersPluralController : Unspellable (Effect []) (\ok =>
-  Move (Macros.target Macros.creature) Macros.battlefieldZ (MkMoveRiders [] (Just (AllOf Macros.otherPlayer)) Nothing {one = ok}))
+  Move (Macros.target Macros.creature) Macros.battlefieldZ [Under (AllOf Macros.otherPlayer) {one = ok}])
 badMoveRidersPluralController OneController impossible
 
 
