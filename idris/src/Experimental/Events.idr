@@ -403,12 +403,8 @@ Deeds : Type
 Deeds = List VerbLabel
 
 public export
-knownActs : Deeds -> Bool
-knownActs ds = all knownAct ds
-
-public export
 KnownActs : Deeds -> Type
-KnownActs ds = So (knownActs ds)
+KnownActs = Data.List.Quantifiers.All.All KnownAct
 
 public export
 distinctDeeds : Deeds -> Bool

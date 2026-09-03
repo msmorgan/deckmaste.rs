@@ -272,22 +272,22 @@ badIfNotReadsMayBody Refl impossible
 public export
 badZombieArtifactToken : Unspellable (Effect []) (\ok =>
   Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [Black] (MkTypeLine [creatureType "Zombie"] [Artifact])
-                          [] Nothing) {sf = ok})
-badZombieArtifactToken Oh impossible
+                          [] Nothing) {wf = ok})
+badZombieArtifactToken (Oh, Oh, Oh, Oh, Oh, Oh) impossible
 
 
 ||| "Create a white Soldier creature token."
 public export
 badCreatureTokenNoPt : Unspellable (Effect []) (\ok =>
-  Macros.create (Lit 1) (MkToken Nothing [White] (MkTypeLine [creatureType "Soldier"] [Creature]) [] Nothing) {tp = ok})
-badCreatureTokenNoPt Oh impossible
+  Macros.create (Lit 1) (MkToken Nothing [White] (MkTypeLine [creatureType "Soldier"] [Creature]) [] Nothing) {wf = ok})
+badCreatureTokenNoPt (Oh, Oh, Oh, Oh, Oh, Oh) impossible
 
 
 ||| "Create a 1/1 white token."
 public export
 badTypelessToken : Unspellable (Effect []) (\ok =>
-  Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [White] (MkTypeLine [] []) [] Nothing) {tt = ok})
-badTypelessToken Oh impossible
+  Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [White] (MkTypeLine [] []) [] Nothing) {wf = ok})
+badTypelessToken (Oh, Oh, Oh, Oh, Oh, Oh) impossible
 
 
 ||| "Destroy target creature. Remove a +1/+1 counter from it."
@@ -309,15 +309,15 @@ badMoveCountersSelf Oh impossible
 public export
 badTokenDuplicateType : Unspellable (Effect []) (\ok =>
   Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [] (MkTypeLine [] [Creature, Creature])
-                          [] Nothing) {tc = ok})
-badTokenDuplicateType Oh impossible
+                          [] Nothing) {wf = ok})
+badTokenDuplicateType (Oh, Oh, Oh, Oh, Oh, Oh) impossible
 
 
 ||| "Create a 1/1 white white Soldier creature token."
 public export
 badTokenDuplicateColor : Unspellable (Effect []) (\ok =>
-  Macros.create (Lit 1) (Macros.creatureTok 1 1 [White, White] [creatureType "Soldier"]) {tc = ok})
-badTokenDuplicateColor Oh impossible
+  Macros.create (Lit 1) (Macros.creatureTok 1 1 [White, White] [creatureType "Soldier"]) {wf = ok})
+badTokenDuplicateColor (Oh, Oh, Oh, Oh, Oh, Oh) impossible
 
 
 ||| "Target land becomes a Zombie in addition to its other types."

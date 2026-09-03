@@ -1,0 +1,52 @@
+#!/usr/bin/env python3
+
+import re
+import sys
+
+
+TABLES = {
+    "heldUntilOk": "False",
+    "reflexEncloseUse": "EncAgentless",
+    "thisWayOutcomeOk": "True",
+    "costActionOk": "False",
+    "wordReaches": "False",
+    "verbedWordOk": "False",
+    "attachHeadOk": "False",
+    "attachHostZone": "Nothing",
+    "attachHostTy": "Nothing",
+    "seedZone": "Nothing",
+    "seedType": "Nothing",
+    "hasHead": "False",
+    "predSays": "True",
+    "predNegFree": "True",
+    "condNegated": "False",
+}
+
+
+def main():
+    lines = sys.stdin.read().splitlines()
+    found = set()
+    for name, fallback in TABLES.items():
+        old = re.compile(rf"^-(?:  )?{name}(?: |$).*= {re.escape(fallback)}$")
+        changed = re.compile(rf"^[+-](?:  )?{name}(?: |$)")
+        wildcard = re.compile(
+            rf"^[+ ](?:  )?{name}(?: _)+ = {re.escape(fallback)}$"
+        )
+        relevant = [line for line in lines if changed.match(line)]
+        if not relevant:
+            continue
+        for line in relevant:
+            if line.startswith("-") and not old.match(line):
+                raise SystemExit(f"non-fallback clause removed: {line}")
+            if line.startswith("+") and not wildcard.match(line):
+                raise SystemExit(f"non-wildcard clause added: {line}")
+        if not any(wildcard.match(line) for line in lines):
+            raise SystemExit(f"missing wildcard: {name}")
+        found.add(name)
+        removed = sum(1 for line in relevant if line.startswith("-"))
+        print(f"{name}: {removed} {fallback} clauses folded")
+    print(f"wildcard tables checked: {len(found)}")
+
+
+if __name__ == "__main__":
+    main()

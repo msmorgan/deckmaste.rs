@@ -783,10 +783,10 @@ chosenNameResolvesInPrefix bs ok = ofChosenResolvesInPrefix bs CardName ok
 
 public export
 ofChosenColorReadsOnlyPrefix : (bs : Bindings) -> (alt : Maybe ProducedRun) ->
-                               AltRunWritten alt -> countChoice (QSort Color) bs = 1 ->
+                               countChoice (QSort Color) bs = 1 ->
                                ChosenQualityRead Color -> ProducedMana bs
-ofChosenColorReadsOnlyPrefix bs alt ar cq rd =
-  OfChosenColor alt {bs} {ar} {cq} {rd}
+ofChosenColorReadsOnlyPrefix bs alt cq rd =
+  OfChosenColor alt {bs} {cq} {rd}
 
 public export
 ofChosenColorResolvesInPrefix : (bs : Bindings) -> countChoice (QSort Color) bs = 1 ->

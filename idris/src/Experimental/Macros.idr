@@ -267,16 +267,11 @@ public export
 card : (name : String) -> (cost : Maybe ManaCost) -> (supers : List Supertype) ->
        (line : TypeLine) -> (text : AbilitySeq (costLetters cost)) ->
        (stats : Maybe (Integer, Integer)) ->
-       {auto 0 ln : CardLine line} ->
-       {auto 0 sp : CardSupers supers} ->
-       {auto 0 tx : CardText line text} ->
-       {auto 0 ch : CardChapters line text} ->
-       {auto 0 bx : CardBox Front line text (printedBox stats)} ->
-       {auto 0 mc : CardCost Front line cost} ->
-       {auto 0 dr : DoorFrame text} ->
+       {auto 0 fl : FaceLaws Front
+                    (MkFace name cost [] supers line text (printedBox stats))} ->
        Card
 card name cost supers line text stats =
-  cardOf name cost supers line text (printedBox stats) {ln} {sp} {tx} {ch} {bx} {mc} {dr}
+  SingleFaced (MkFace name cost [] supers line text (printedBox stats)) {fl}
 
 public export
 jointCard : (choices : List QualitySort) ->
@@ -689,7 +684,7 @@ sharedSubject : {bs : Bindings} -> {0 k : Nat} -> (n : Noun bs Object) ->
                 (parts : StaticParts k (selfSubjIntro n)) ->
                 {auto 0 ne : IsSucc k} ->
                 (d : Maybe (Duration (partsIntro parts))) ->
-                {auto 0 sp : SpanOk Coordination d} ->
+                {auto 0 sp : SpanOk d} ->
                 {auto 0 cl : ClauseStatic (SharedSubject n parts {ne})} -> Effect bs
 sharedSubject {bs} n parts d = Continuously {bs} (SharedSubject n parts {ne}) d {sp} {cl}
 
@@ -767,7 +762,7 @@ gets : {bs : Bindings} -> (n : Noun bs Object) -> (pow : PtShift (selfSubjIntro 
        (tou : PtShift (shiftIntro pow)) ->
        {auto 0 ok : ZoneIs (nounZone n) Battlefield} ->
        (d : Maybe (Duration (staticIntro (Gets n pow tou {ok})))) ->
-       {auto 0 sp : SpanOk PtDelta d} -> Effect bs
+       {auto 0 sp : SpanOk d} -> Effect bs
 gets {bs} n pow tou d = Continuously {bs} (Gets n pow tou {ok}) d {sp}
 
 public export
@@ -775,13 +770,13 @@ gains : {bs : Bindings} -> (n : Noun bs Object) -> (a : AbilityAt bs) ->
         {auto 0 ok : GrantSubject a n} ->
         {auto 0 gr : Grantable a} ->
         (d : Maybe (Duration (staticIntro (Gains n a {ok} {gr})))) ->
-        {auto 0 sp : SpanOk KeywordGrant d} -> Effect bs
+        {auto 0 sp : SpanOk d} -> Effect bs
 gains {bs} n a d = Continuously {bs} (Gains n a {ok} {gr}) d
 
 public export
 gainsHaste : {bs : Bindings} -> (n : Noun bs Object) -> (d : Maybe (Duration (selfSubjIntro n))) ->
              {auto 0 ok : GrantSubject (KeywordAbility "Haste" Nothing Nothing) n} ->
-             {auto 0 sp : SpanOk KeywordGrant d} -> Effect bs
+             {auto 0 sp : SpanOk d} -> Effect bs
 gainsHaste {bs} n d = gains {bs} n (KeywordAbility "Haste" Nothing Nothing) d
 
 public export
@@ -893,14 +888,14 @@ untapsDuring n w =
 public export
 cantAttack : {bs : Bindings} -> (n : Noun bs Object) -> (span : Maybe (Duration (selfSubjIntro n))) ->
              {auto 0 dp : DeedFits ["Attack"] Agent Object (nounHeadTys n) (nounZone n)} ->
-             {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
+             {auto 0 sp : SpanOk span} -> Effect bs
 cantAttack {bs} n span =
   Continuously {bs} (Deontic n Forbid ["Attack"] Agent Nothing NoDeonticPatient Nothing NoDeonticRider {dp}) span {sp}
 
 public export
 cantBlock : {bs : Bindings} -> (n : Noun bs Object) -> (span : Maybe (Duration (selfSubjIntro n))) ->
             {auto 0 dp : DeedFits ["Block"] Agent Object (nounHeadTys n) (nounZone n)} ->
-            {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
+            {auto 0 sp : SpanOk span} -> Effect bs
 cantBlock {bs} n span =
   Continuously {bs} (Deontic n Forbid ["Block"] Agent Nothing NoDeonticPatient Nothing NoDeonticRider {dp}) span {sp}
 
@@ -927,7 +922,7 @@ maySpendAsThough : (who : Noun bs Player) ->
 maySpendAsThough who what as purpose =
   Deontic who Permit ["Spend"] Agent Nothing NoDeonticPatient
           (Just (AsThoughMana what as purpose)) NoDeonticRider
-          {kd = Oh} {dd = Oh} {dp} {bd = Oh} {at} {pt = Oh} {rd = Oh}
+          {dd = Oh} {dp} {bd = Oh} {at} {pt = Oh} {rd = Oh}
 
 public export
 playerCant : (deed : VerbLabel) -> (who : Noun bs Player) ->
@@ -981,7 +976,7 @@ canBeTargetedAsThough what by p =
 public export
 cantBeBlocked : {bs : Bindings} -> (n : Noun bs Object) -> (span : Maybe (Duration (selfSubjIntro n))) ->
                 {auto 0 dp : DeedFits ["Block"] Patient Object (nounHeadTys n) (nounZone n)} ->
-                {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
+                {auto 0 sp : SpanOk span} -> Effect bs
 cantBeBlocked {bs} n span =
   Continuously {bs} (Deontic n Forbid ["Block"] Patient Nothing NoDeonticPatient Nothing NoDeonticRider {dp}) span {sp}
 
@@ -993,7 +988,7 @@ mustBlockIt : {bs : Bindings} -> (n : Noun bs Object) ->
               {auto 0 pt : So (deonticPatientOk n ["Block"] Agent
                                  (DeonticCounterpart (ItOtherThan (nounDelta n) bs {ok}))
                                  NoDeonticRider)} ->
-              {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
+              {auto 0 sp : SpanOk span} -> Effect bs
 mustBlockIt n span =
   Continuously (Deontic n Require ["Block"] Agent Nothing
                   (DeonticCounterpart (ItOtherThan (nounDelta n) bs {ok}))
@@ -1012,7 +1007,7 @@ public export
 gainControl : {bs : Bindings} -> (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
               {auto 0 zn : ZoneIs (nounZone what) Battlefield} ->
               (d : Maybe (Duration (staticIntro (GainsControl who what {zn})))) ->
-              {auto 0 sp : SpanOk ControlGrant d} -> Effect bs
+              {auto 0 sp : SpanOk d} -> Effect bs
 gainControl {bs} who what d = Continuously {bs} (GainsControl who what {zn}) d {sp}
 
 public export
@@ -1048,47 +1043,37 @@ typesOnly ts = MkTypeLine [] ts
 
 public export
 create : (count : Amount bs) -> (tok : TokenChars (amtIntro count)) ->
-         {auto 0 tt : TokenTyped tok} ->
-         {auto 0 tp : TokenPt tok} ->
-         {auto 0 sf : SubtypesFit tok} ->
-         {auto 0 ta : TokenAbilities tok} ->
-         {auto 0 tc : TokenCanonical tok} ->
-         {auto 0 qf : TokenQualsFit tok} ->
+         {auto 0 wf : TokenWellFormed tok} ->
          Effect bs
-create count tok = Create You count (TokenWritten tok {tt} {tp} {sf} {ta} {tc} {qf}) []
+create count tok = Create You count (TokenWritten tok {wf}) []
 
 public export
 createTappedAttacking : (count : Amount bs) -> (tok : TokenChars (amtIntro count)) ->
-                        {auto 0 tt : TokenTyped tok} ->
-                        {auto 0 tp : TokenPt tok} ->
-                        {auto 0 sf : SubtypesFit tok} ->
-                        {auto 0 ta : TokenAbilities tok} ->
-                        {auto 0 tc : TokenCanonical tok} ->
-                        {auto 0 qf : TokenQualsFit tok} ->
+                        {auto 0 wf : TokenWellFormed tok} ->
                         Effect bs
 createTappedAttacking count tok =
-  Create You count (TokenWritten tok {tt} {tp} {sf} {ta} {tc} {qf})
+  Create You count (TokenWritten tok {wf})
          [EntersTapped, EntersAttacking NoDefender]
 
 public export
 becomesAs : {bs : Bindings} -> (n : Noun bs Object) -> (added : TokenChars bs) ->
             (d : Maybe (Duration (selfSubjIntro n))) ->
             {auto 0 ok : BecomesOk Adds n (Bundle added Nothing)} ->
-            {auto 0 sp : SpanOk TypeAddition d} -> Effect bs
+            {auto 0 sp : SpanOk d} -> Effect bs
 becomesAs {bs} n added d = Continuously {bs} (Becomes n Adds (Bundle added Nothing) {ok}) d {sp}
 
 public export
 becomes : {bs : Bindings} -> (n : Noun bs Object) -> (added : TypeLine) ->
           (d : Maybe (Duration (selfSubjIntro n))) ->
           {auto 0 ok : BecomesOk Adds n (Bundle (MkToken {bs} Nothing [] added [] Nothing) Nothing)} ->
-          {auto 0 sp : SpanOk TypeAddition d} -> Effect bs
+          {auto 0 sp : SpanOk d} -> Effect bs
 becomes {bs} n added d = becomesAs {bs} n (MkToken Nothing [] added [] Nothing) d {ok} {sp}
 
 public export
 becomesColor : {bs : Bindings} -> (n : Noun bs Object) -> (cs : ColorSpec) ->
                (d : Maybe (Duration (selfSubjIntro n))) ->
                {auto 0 ok : BecomesOk Sets n (Colored cs)} ->
-               {auto 0 sp : SpanOk ColorSet d} -> Effect bs
+               {auto 0 sp : SpanOk d} -> Effect bs
 becomesColor {bs} n cs d = Continuously {bs} (Becomes n Sets (Colored cs) {ok}) d {sp}
 
 public export
@@ -1351,21 +1336,21 @@ public export
 ifWouldInstead : {bs : Bindings} -> (ev : GameEvent bs) -> (repl : Effect (eventIntro ev)) ->
                  (d : Maybe (Duration (eventIntro ev))) ->
                  {auto 0 ok : Interceptable ev} ->
-                 {auto 0 sp : SpanOk Replacement d} -> Effect bs
+                 {auto 0 sp : SpanOk d} -> Effect bs
 ifWouldInstead {bs} ev repl d = Continuously {bs} (Intercepts ev [] Nothing repl Repeatedly Nothing {ok}) d {sp}
 
 public export
 nextTimeWouldInstead : {bs : Bindings} -> (ev : GameEvent bs) -> (repl : Effect (eventIntro ev)) ->
                        (d : Maybe (Duration (eventIntro ev))) ->
                        {auto 0 ok : Interceptable ev} ->
-                       {auto 0 sp : SpanOk Replacement d} -> Effect bs
+                       {auto 0 sp : SpanOk d} -> Effect bs
 nextTimeWouldInstead {bs} ev repl d =
   Continuously {bs} (Intercepts ev [] Nothing repl NextTimeOnly Nothing {ok}) d {sp}
 
 public export
 preventAll : {bs : Bindings} -> (kind : DamageKind) -> (scope : DamageScope bs) ->
              (d : Maybe (Duration (scopeIntro scope))) ->
-             {auto 0 sp : SpanOk Prevention d} -> Effect bs
+             {auto 0 sp : SpanOk d} -> Effect bs
 preventAll {bs} kind scope d =
   Continuously {bs} (Prevents kind Unattributed scope CutAll Repeatedly Nothing) d {sp}
 
@@ -1373,7 +1358,7 @@ public export
 preventNext : {bs : Bindings} -> (kind : DamageKind) -> (scope : DamageScope bs) ->
               (amt : Amount (scopeIntro scope)) ->
               (d : Maybe (Duration (amtIntro amt))) ->
-              {auto 0 sp : SpanOk Prevention d} -> Effect bs
+              {auto 0 sp : SpanOk d} -> Effect bs
 preventNext {bs} kind scope amt d =
   Continuously {bs} (Prevents kind Unattributed scope (Shield amt) Repeatedly Nothing) d {sp}
 
@@ -1381,7 +1366,7 @@ public export
 preventAllBy : {bs : Bindings} -> (kind : DamageKind) -> (src : Noun bs Object) ->
                (scope : DamageScope (nomIntro src)) ->
                (d : Maybe (Duration (scopeIntro scope))) ->
-               {auto 0 sp : SpanOk Prevention d} -> Effect bs
+               {auto 0 sp : SpanOk d} -> Effect bs
 preventAllBy {bs} kind src scope d =
   Continuously {bs} (Prevents kind (DealtBy src) scope CutAll Repeatedly Nothing) d {sp}
 
@@ -1760,7 +1745,9 @@ removeCounters : (q : Quantity bs) -> (kind : Maybe (CounterKindSource bs)) ->
                  {auto 0 wf : WellFormedQ q} ->
                  {auto 0 sc : OptCounterSourceScope kind Object} ->
                  {auto 0 cm : CounterMemory from} -> Effect bs
-removeCounters q kind from = RemoveCounters (Just q) kind from {wf} {sc} {cm}
+removeCounters q kind from =
+  RemoveCounters (Just q) kind from
+                 {wf = Present {ok = wf}} {sc} {cm}
 
 public export
 removeAllCounters : (kind : Maybe (CounterKindSource bs)) ->
@@ -2572,7 +2559,7 @@ onlyIfSo {bs} se c = Conditionally {bs} c se IfSo {st = Static.StaticFirstDone}
 
 public export
 throughout : {bs : Bindings} -> (span : Duration bs) -> (se : StaticEffect (spanIntro span)) ->
-             {auto 0 sp : SpanOk (staticKind se) (Just span)} ->
+             {auto 0 sp : SpanOk (Just span)} ->
              {auto 0 cl : ClauseStatic se} -> Effect bs
 throughout {bs} span se = Continuously {bs} se (Just span) {ts = SpanFirstDone} {sp} {cl}
 

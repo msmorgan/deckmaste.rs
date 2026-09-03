@@ -1,11 +1,17 @@
 module Experimental.Words
 
 import public Data.List
+import public Data.List.Quantifiers
 import public Data.Maybe
 import public Data.Nat
 import public Data.So
 
 %default total
+
+public export
+data OptOk : (a -> Type) -> Maybe a -> Type where
+  Absent : OptOk p Nothing
+  Present : {0 x : a} -> {auto 0 ok : p x} -> OptOk p (Just x)
 
 
 public export
@@ -98,41 +104,42 @@ public export
 data Characteristic = Power | Toughness | ManaValue | Loyalty
 
 public export
+characteristicIx : Characteristic -> Nat
+characteristicIx Power = 0
+characteristicIx Toughness = 1
+characteristicIx ManaValue = 2
+characteristicIx Loyalty = 3
+
+public export
 Eq Characteristic where
-  (==) Power Power = True
-  (==) Power _ = False
-  (==) Toughness Toughness = True
-  (==) Toughness _ = False
-  (==) ManaValue ManaValue = True
-  (==) ManaValue _ = False
-  (==) Loyalty Loyalty = True
-  (==) Loyalty _ = False
+  (==) a b = characteristicIx a == characteristicIx b
 
 public export
 data PlayerStat = LifeTotal | StartingLifeTotal
 
 public export
+playerStatIx : PlayerStat -> Nat
+playerStatIx LifeTotal = 0
+playerStatIx StartingLifeTotal = 1
+
+public export
 Eq PlayerStat where
-  (==) LifeTotal LifeTotal = True
-  (==) LifeTotal _ = False
-  (==) StartingLifeTotal StartingLifeTotal = True
-  (==) StartingLifeTotal _ = False
+  (==) a b = playerStatIx a == playerStatIx b
 
 public export
 data Comparator = AtLeast | AtMost | Greater | Less | Eq
 
 public export
+comparatorIx : Comparator -> Nat
+comparatorIx AtLeast = 0
+comparatorIx AtMost = 1
+comparatorIx Greater = 2
+comparatorIx Less = 3
+comparatorIx Eq = 4
+
+public export
 Eq Comparator where
-  (==) AtLeast AtLeast = True
-  (==) AtLeast _ = False
-  (==) AtMost AtMost = True
-  (==) AtMost _ = False
-  (==) Greater Greater = True
-  (==) Greater _ = False
-  (==) Less Less = True
-  (==) Less _ = False
-  (==) Eq Eq = True
-  (==) Eq _ = False
+  (==) a b = comparatorIx a == comparatorIx b
 
 public export
 comparedType : Characteristic -> Maybe CardType
@@ -199,11 +206,13 @@ public export
 data Letter = X | Y
 
 public export
+letterIx : Letter -> Nat
+letterIx X = 0
+letterIx Y = 1
+
+public export
 Eq Letter where
-  (==) X X = True
-  (==) X Y = False
-  (==) Y X = False
-  (==) Y Y = True
+  (==) a b = letterIx a == letterIx b
 
 export infixl 5 \/
 
@@ -220,88 +229,32 @@ data Kind : Type where
   (\/) : Kind -> Kind -> Kind
 
 public export
+kindIx : Kind -> Nat
+kindIx Object = 0
+kindIx Player = 1
+kindIx (Quality _) = 2
+kindIx Outcome = 3
+kindIx Gap = 4
+kindIx (LetterK _) = 5
+kindIx TurnRef = 6
+kindIx Ability = 7
+kindIx (_ \/ _) = 8
+
+mutual
+  public export
+  sameKindValue : Kind -> Kind -> Bool
+  sameKindValue a b = kindIx a == kindIx b && sameKindPayload a b
+
+  public export
+  sameKindPayload : Kind -> Kind -> Bool
+  sameKindPayload (Quality a) (Quality b) = a == b
+  sameKindPayload (LetterK a) (LetterK b) = a == b
+  sameKindPayload (a \/ b) (c \/ d) = sameKindValue a c && sameKindValue b d
+  sameKindPayload _ _ = True
+
+public export
 Eq Kind where
-  (==) Object Object = True
-  (==) Object Player = False
-  (==) Object (Quality _) = False
-  (==) Object Outcome = False
-  (==) Object Gap = False
-  (==) Object (LetterK _) = False
-  (==) Object TurnRef = False
-  (==) Object Ability = False
-  (==) Object (_ \/ _) = False
-  (==) Player Object = False
-  (==) Player Player = True
-  (==) Player (Quality _) = False
-  (==) Player Outcome = False
-  (==) Player Gap = False
-  (==) Player (LetterK _) = False
-  (==) Player TurnRef = False
-  (==) Player Ability = False
-  (==) Player (_ \/ _) = False
-  (==) (Quality _) Object = False
-  (==) (Quality _) Player = False
-  (==) (Quality a) (Quality b) = a == b
-  (==) (Quality _) Outcome = False
-  (==) (Quality _) Gap = False
-  (==) (Quality _) (LetterK _) = False
-  (==) (Quality _) TurnRef = False
-  (==) (Quality _) Ability = False
-  (==) (Quality _) (_ \/ _) = False
-  (==) Outcome Object = False
-  (==) Outcome Player = False
-  (==) Outcome (Quality _) = False
-  (==) Outcome Outcome = True
-  (==) Outcome Gap = False
-  (==) Outcome (LetterK _) = False
-  (==) Outcome TurnRef = False
-  (==) Outcome Ability = False
-  (==) Outcome (_ \/ _) = False
-  (==) Gap Object = False
-  (==) Gap Player = False
-  (==) Gap (Quality _) = False
-  (==) Gap Outcome = False
-  (==) Gap Gap = True
-  (==) Gap (LetterK _) = False
-  (==) Gap TurnRef = False
-  (==) Gap Ability = False
-  (==) Gap (_ \/ _) = False
-  (==) (LetterK _) Object = False
-  (==) (LetterK _) Player = False
-  (==) (LetterK _) (Quality _) = False
-  (==) (LetterK _) Outcome = False
-  (==) (LetterK _) Gap = False
-  (==) (LetterK a) (LetterK b) = a == b
-  (==) (LetterK _) TurnRef = False
-  (==) (LetterK _) Ability = False
-  (==) (LetterK _) (_ \/ _) = False
-  (==) TurnRef Object = False
-  (==) TurnRef Player = False
-  (==) TurnRef (Quality _) = False
-  (==) TurnRef Outcome = False
-  (==) TurnRef Gap = False
-  (==) TurnRef (LetterK _) = False
-  (==) TurnRef TurnRef = True
-  (==) TurnRef Ability = False
-  (==) TurnRef (_ \/ _) = False
-  (==) Ability Object = False
-  (==) Ability Player = False
-  (==) Ability (Quality _) = False
-  (==) Ability Outcome = False
-  (==) Ability Gap = False
-  (==) Ability (LetterK _) = False
-  (==) Ability TurnRef = False
-  (==) Ability Ability = True
-  (==) Ability (_ \/ _) = False
-  (==) (_ \/ _) Object = False
-  (==) (_ \/ _) Player = False
-  (==) (_ \/ _) (Quality _) = False
-  (==) (_ \/ _) Outcome = False
-  (==) (_ \/ _) Gap = False
-  (==) (_ \/ _) (LetterK _) = False
-  (==) (_ \/ _) TurnRef = False
-  (==) (_ \/ _) Ability = False
-  (==) (a \/ b) (c \/ d) = a == c && b == d
+  (==) = sameKindValue
 
 public export
 sameQRefl : (q : QualitySort) -> So (q == q)
@@ -321,13 +274,6 @@ public export
 sameLetterRefl : (w : Letter) -> So (w == w)
 sameLetterRefl X = Oh
 sameLetterRefl Y = Oh
-
-public export
-sameLetterEq : (a, b : Letter) -> So (a == b) -> a = b
-sameLetterEq X X _ = Refl
-sameLetterEq X Y ok = absurd ok
-sameLetterEq Y X ok = absurd ok
-sameLetterEq Y Y _ = Refl
 
 public export
 sameKindRefl : (k : Kind) -> So (k == k)
@@ -420,109 +366,6 @@ kindLteAssocL a b c =
                 kindLteJoinR (a \/ b) c))
 
 public export
-kindLteTrans : (a, b, c : Kind) ->
-               So (kindLte a b) -> So (kindLte b c) -> So (kindLte a c)
-kindLteTrans (p \/ q) b c ab bc =
-  andSo (kindLteTrans p b c (fst (soAnd ab)) bc,
-         kindLteTrans q b c (snd (soAnd ab)) bc)
-
-kindLteTrans Object (r \/ s) c ab bc = case soOr ab of
-  Left l => kindLteTrans Object r c l (fst (soAnd bc))
-  Right m => kindLteTrans Object s c m (snd (soAnd bc))
-kindLteTrans Object Object c ab bc = bc
-kindLteTrans Object Player c ab bc = absurd ab
-kindLteTrans Object (Quality _) c ab bc = absurd ab
-kindLteTrans Object Outcome c ab bc = absurd ab
-kindLteTrans Object Gap c ab bc = absurd ab
-kindLteTrans Object (LetterK _) c ab bc = absurd ab
-kindLteTrans Object TurnRef c ab bc = absurd ab
-kindLteTrans Object Ability c ab bc = absurd ab
-
-kindLteTrans Player (r \/ s) c ab bc = case soOr ab of
-  Left l => kindLteTrans Player r c l (fst (soAnd bc))
-  Right m => kindLteTrans Player s c m (snd (soAnd bc))
-kindLteTrans Player Object c ab bc = absurd ab
-kindLteTrans Player Player c ab bc = bc
-kindLteTrans Player (Quality _) c ab bc = absurd ab
-kindLteTrans Player Outcome c ab bc = absurd ab
-kindLteTrans Player Gap c ab bc = absurd ab
-kindLteTrans Player (LetterK _) c ab bc = absurd ab
-kindLteTrans Player TurnRef c ab bc = absurd ab
-kindLteTrans Player Ability c ab bc = absurd ab
-
-kindLteTrans (Quality _) (r \/ s) c ab bc = case soOr ab of
-  Left l => kindLteTrans (Quality _) r c l (fst (soAnd bc))
-  Right m => kindLteTrans (Quality _) s c m (snd (soAnd bc))
-kindLteTrans (Quality _) Object c ab bc = absurd ab
-kindLteTrans (Quality _) Player c ab bc = absurd ab
-kindLteTrans (Quality q) (Quality r) c ab bc = case sameQEq q r ab of Refl => bc
-kindLteTrans (Quality _) Outcome c ab bc = absurd ab
-kindLteTrans (Quality _) Gap c ab bc = absurd ab
-kindLteTrans (Quality _) (LetterK _) c ab bc = absurd ab
-kindLteTrans (Quality _) TurnRef c ab bc = absurd ab
-kindLteTrans (Quality _) Ability c ab bc = absurd ab
-
-kindLteTrans Outcome (r \/ s) c ab bc = case soOr ab of
-  Left l => kindLteTrans Outcome r c l (fst (soAnd bc))
-  Right m => kindLteTrans Outcome s c m (snd (soAnd bc))
-kindLteTrans Outcome Object c ab bc = absurd ab
-kindLteTrans Outcome Player c ab bc = absurd ab
-kindLteTrans Outcome (Quality _) c ab bc = absurd ab
-kindLteTrans Outcome Outcome c ab bc = bc
-kindLteTrans Outcome Gap c ab bc = absurd ab
-kindLteTrans Outcome (LetterK _) c ab bc = absurd ab
-kindLteTrans Outcome TurnRef c ab bc = absurd ab
-kindLteTrans Outcome Ability c ab bc = absurd ab
-
-kindLteTrans Gap (r \/ s) c ab bc = case soOr ab of
-  Left l => kindLteTrans Gap r c l (fst (soAnd bc))
-  Right m => kindLteTrans Gap s c m (snd (soAnd bc))
-kindLteTrans Gap Object c ab bc = absurd ab
-kindLteTrans Gap Player c ab bc = absurd ab
-kindLteTrans Gap (Quality _) c ab bc = absurd ab
-kindLteTrans Gap Outcome c ab bc = absurd ab
-kindLteTrans Gap Gap c ab bc = bc
-kindLteTrans Gap (LetterK _) c ab bc = absurd ab
-kindLteTrans Gap TurnRef c ab bc = absurd ab
-kindLteTrans Gap Ability c ab bc = absurd ab
-
-kindLteTrans (LetterK _) (r \/ s) c ab bc = case soOr ab of
-  Left l => kindLteTrans (LetterK _) r c l (fst (soAnd bc))
-  Right m => kindLteTrans (LetterK _) s c m (snd (soAnd bc))
-kindLteTrans (LetterK _) Object c ab bc = absurd ab
-kindLteTrans (LetterK _) Player c ab bc = absurd ab
-kindLteTrans (LetterK _) (Quality _) c ab bc = absurd ab
-kindLteTrans (LetterK _) Outcome c ab bc = absurd ab
-kindLteTrans (LetterK _) Gap c ab bc = absurd ab
-kindLteTrans (LetterK v) (LetterK w) c ab bc = case sameLetterEq v w ab of Refl => bc
-kindLteTrans (LetterK _) TurnRef c ab bc = absurd ab
-kindLteTrans (LetterK _) Ability c ab bc = absurd ab
-
-kindLteTrans TurnRef (r \/ s) c ab bc = case soOr ab of
-  Left l => kindLteTrans TurnRef r c l (fst (soAnd bc))
-  Right m => kindLteTrans TurnRef s c m (snd (soAnd bc))
-kindLteTrans TurnRef Object c ab bc = absurd ab
-kindLteTrans TurnRef Player c ab bc = absurd ab
-kindLteTrans TurnRef (Quality _) c ab bc = absurd ab
-kindLteTrans TurnRef Outcome c ab bc = absurd ab
-kindLteTrans TurnRef Gap c ab bc = absurd ab
-kindLteTrans TurnRef (LetterK _) c ab bc = absurd ab
-kindLteTrans TurnRef TurnRef c ab bc = bc
-kindLteTrans TurnRef Ability c ab bc = absurd ab
-
-kindLteTrans Ability (r \/ s) c ab bc = case soOr ab of
-  Left l => kindLteTrans Ability r c l (fst (soAnd bc))
-  Right m => kindLteTrans Ability s c m (snd (soAnd bc))
-kindLteTrans Ability Object c ab bc = absurd ab
-kindLteTrans Ability Player c ab bc = absurd ab
-kindLteTrans Ability (Quality _) c ab bc = absurd ab
-kindLteTrans Ability Outcome c ab bc = absurd ab
-kindLteTrans Ability Gap c ab bc = absurd ab
-kindLteTrans Ability (LetterK _) c ab bc = absurd ab
-kindLteTrans Ability TurnRef c ab bc = absurd ab
-kindLteTrans Ability Ability c ab bc = bc
-
-public export
 data AggregateOp = SumOf | MinOf | MaxOf
 
 public export
@@ -536,13 +379,14 @@ IsExtremal : AggregateOp -> Type
 IsExtremal op = So (isExtremal op)
 
 public export
+aggregateOpIx : AggregateOp -> Nat
+aggregateOpIx SumOf = 0
+aggregateOpIx MinOf = 1
+aggregateOpIx MaxOf = 2
+
+public export
 Eq AggregateOp where
-  (==) SumOf SumOf = True
-  (==) SumOf _ = False
-  (==) MinOf MinOf = True
-  (==) MinOf _ = False
-  (==) MaxOf MaxOf = True
-  (==) MaxOf _ = False
+  (==) a b = aggregateOpIx a == aggregateOpIx b
 
 public export
 data SubtypeScope = AnySubtype | BasicOnly | NonbasicOnly
@@ -616,8 +460,12 @@ public export
 data Causer = AnEffect      -- "an effect" [CR#614.16]
 
 public export
+causerIx : Causer -> Nat
+causerIx AnEffect = 0
+
+public export
 Eq Causer where
-  (==) AnEffect AnEffect = True
+  (==) a b = causerIx a == causerIx b
 
 public export
 data Plurality = OneOf | ManyOf
@@ -659,45 +507,48 @@ public export
 data PossessorAxis = OwnerAx | ControllerAx
 
 public export
+possessorAxisIx : PossessorAxis -> Nat
+possessorAxisIx OwnerAx = 0
+possessorAxisIx ControllerAx = 1
+
+public export
 Eq PossessorAxis where
-  (==) OwnerAx OwnerAx = True
-  (==) ControllerAx ControllerAx = True
-  (==) _ _ = False
+  (==) a b = possessorAxisIx a == possessorAxisIx b
 
 public export
 data CombatRelation = BlockerOf | BlockedBy | AttackedBy | AttackerOf
                     | CouldBlock | CouldBeBlockedBy
 
 public export
+combatRelationIx : CombatRelation -> Nat
+combatRelationIx BlockerOf = 0
+combatRelationIx BlockedBy = 1
+combatRelationIx AttackedBy = 2
+combatRelationIx AttackerOf = 3
+combatRelationIx CouldBlock = 4
+combatRelationIx CouldBeBlockedBy = 5
+
+public export
 Eq CombatRelation where
-  (==) BlockerOf BlockerOf = True
-  (==) BlockedBy BlockedBy = True
-  (==) AttackedBy AttackedBy = True
-  (==) AttackerOf AttackerOf = True
-  (==) CouldBlock CouldBlock = True
-  (==) CouldBeBlockedBy CouldBeBlockedBy = True
-  (==) _ _ = False
+  (==) a b = combatRelationIx a == combatRelationIx b
 
 public export
 data Zone = Battlefield | Graveyard | Exile | Hand | Library | Stack
           | Command
 
 public export
+zoneIx : Zone -> Nat
+zoneIx Battlefield = 0
+zoneIx Graveyard = 1
+zoneIx Exile = 2
+zoneIx Hand = 3
+zoneIx Library = 4
+zoneIx Stack = 5
+zoneIx Command = 6
+
+public export
 Eq Zone where
-  (==) Battlefield Battlefield = True
-  (==) Battlefield _ = False
-  (==) Graveyard Graveyard = True
-  (==) Graveyard _ = False
-  (==) Exile Exile = True
-  (==) Exile _ = False
-  (==) Hand Hand = True
-  (==) Hand _ = False
-  (==) Library Library = True
-  (==) Library _ = False
-  (==) Stack Stack = True
-  (==) Stack _ = False
-  (==) Command Command = True
-  (==) Command _ = False
+  (==) a b = zoneIx a == zoneIx b
 
 public export
 data LibPos = OnTop | OnBottom
@@ -721,13 +572,14 @@ public export
 data PremiseSort = ObjectPremise | ManaPremise | ValuePremise
 
 public export
+premiseSortIx : PremiseSort -> Nat
+premiseSortIx ObjectPremise = 0
+premiseSortIx ManaPremise = 1
+premiseSortIx ValuePremise = 2
+
+public export
 Eq PremiseSort where
-  (==) ObjectPremise ObjectPremise = True
-  (==) ObjectPremise _ = False
-  (==) ManaPremise ManaPremise = True
-  (==) ManaPremise _ = False
-  (==) ValuePremise ValuePremise = True
-  (==) ValuePremise _ = False
+  (==) a b = premiseSortIx a == premiseSortIx b
 
 public export
 record DeedRole where
@@ -1006,10 +858,13 @@ public export
 data PileFace = FaceDownPile | FaceUpPile
 
 public export
+pileFaceIx : PileFace -> Nat
+pileFaceIx FaceDownPile = 0
+pileFaceIx FaceUpPile = 1
+
+public export
 Eq PileFace where
-  (==) FaceDownPile FaceDownPile = True
-  (==) FaceUpPile FaceUpPile = True
-  (==) _ _ = False
+  (==) a b = pileFaceIx a == pileFaceIx b
 
 public export
 facesFit : List PileFace -> Nat -> Bool
@@ -1138,37 +993,26 @@ data HeadTy : Kind -> Type where
   JoinTy : HeadTy ka -> HeadTy kb -> HeadTy (ka \/ kb)
 
 public export
+outcomeSortIx : OutcomeSort -> Nat
+outcomeSortIx DamageDealt = 0
+outcomeSortIx LifeGained = 1
+outcomeSortIx LifeLost = 2
+outcomeSortIx CountersPut = 3
+outcomeSortIx DamagePrevented = 4
+outcomeSortIx RollResult = 5
+outcomeSortIx CoinFlipped = 6
+outcomeSortIx DiceRolled = 7
+outcomeSortIx PlanarRolled = 8
+outcomeSortIx NamedNumber = 9
+outcomeSortIx RepeatCount = 10
+outcomeSortIx CountersRemoved = 11
+outcomeSortIx ManaAdded = 12
+outcomeSortIx ManaProduced = 13
+outcomeSortIx CeilingShortfall = 14
+
+public export
 Eq OutcomeSort where
-  (==) DamageDealt DamageDealt = True
-  (==) DamageDealt _ = False
-  (==) LifeGained LifeGained = True
-  (==) LifeGained _ = False
-  (==) LifeLost LifeLost = True
-  (==) LifeLost _ = False
-  (==) CountersPut CountersPut = True
-  (==) CountersPut _ = False
-  (==) DamagePrevented DamagePrevented = True
-  (==) DamagePrevented _ = False
-  (==) RollResult RollResult = True
-  (==) RollResult _ = False
-  (==) CoinFlipped CoinFlipped = True
-  (==) CoinFlipped _ = False
-  (==) DiceRolled DiceRolled = True
-  (==) DiceRolled _ = False
-  (==) PlanarRolled PlanarRolled = True
-  (==) PlanarRolled _ = False
-  (==) NamedNumber NamedNumber = True
-  (==) NamedNumber _ = False
-  (==) RepeatCount RepeatCount = True
-  (==) RepeatCount _ = False
-  (==) CountersRemoved CountersRemoved = True
-  (==) CountersRemoved _ = False
-  (==) ManaAdded ManaAdded = True
-  (==) ManaAdded _ = False
-  (==) ManaProduced ManaProduced = True
-  (==) ManaProduced _ = False
-  (==) CeilingShortfall CeilingShortfall = True
-  (==) CeilingShortfall _ = False
+  (==) a b = outcomeSortIx a == outcomeSortIx b
 
 public export
 outcomeB : OutcomeSort -> Binding
@@ -1196,11 +1040,18 @@ data ChoiceSort : Type where
   PlayerC : ChoiceSort
 
 public export
+choiceSortIx : ChoiceSort -> Nat
+choiceSortIx (QSort _) = 0
+choiceSortIx PlayerC = 1
+
+public export
+sameChoicePayload : ChoiceSort -> ChoiceSort -> Bool
+sameChoicePayload (QSort a) (QSort b) = a == b
+sameChoicePayload _ _ = True
+
+public export
 Eq ChoiceSort where
-  (==) (QSort a) (QSort b) = a == b
-  (==) (QSort _) PlayerC = False
-  (==) PlayerC (QSort _) = False
-  (==) PlayerC PlayerC = True
+  (==) a b = choiceSortIx a == choiceSortIx b && sameChoicePayload a b
 
 public export
 choiceB : ChoiceSort -> Binding
@@ -1308,21 +1159,25 @@ public export
 data Disclosure = Openly | Secretly
 
 public export
+disclosureIx : Disclosure -> Nat
+disclosureIx Openly = 0
+disclosureIx Secretly = 1
+
+public export
 Eq Disclosure where
-  (==) Openly Openly = True
-  (==) Openly Secretly = False
-  (==) Secretly Openly = False
-  (==) Secretly Secretly = True
+  (==) a b = disclosureIx a == disclosureIx b
 
 public export
 data HiddenSort = HiddenNumbers | HiddenChoices
 
 public export
+hiddenSortIx : HiddenSort -> Nat
+hiddenSortIx HiddenNumbers = 0
+hiddenSortIx HiddenChoices = 1
+
+public export
 Eq HiddenSort where
-  (==) HiddenNumbers HiddenNumbers = True
-  (==) HiddenNumbers HiddenChoices = False
-  (==) HiddenChoices HiddenNumbers = False
-  (==) HiddenChoices HiddenChoices = True
+  (==) a b = hiddenSortIx a == hiddenSortIx b
 
 public export
 VoteLabel : Type
@@ -1501,29 +1356,24 @@ outcomesOnly (b@(MkBinding _ Outcome _ _) :: bs) = b :: outcomesOnly bs
 outcomesOnly (_ :: bs) = outcomesOnly bs
 
 public export
+determinerIx : Determiner -> Nat
+determinerIx TargetD = 0
+determinerIx AD = 1
+determinerIx EachD = 2
+determinerIx AllD = 3
+determinerIx TheD = 4
+determinerIx PartD = 5
+determinerIx CountD = 6
+determinerIx SelfD = 7
+determinerIx BareD = 8
+
+public export
 sameDet : Determiner -> Determiner -> Bool
-sameDet TargetD TargetD = True
-sameDet TargetD _ = False
-sameDet AD AD = True
-sameDet AD _ = False
-sameDet EachD EachD = True
-sameDet EachD _ = False
-sameDet AllD AllD = True
-sameDet AllD _ = False
-sameDet TheD TheD = True
-sameDet TheD _ = False
-sameDet PartD PartD = True
-sameDet PartD _ = False
-sameDet CountD CountD = True
-sameDet CountD _ = False
-sameDet SelfD SelfD = True
-sameDet SelfD _ = False
-sameDet BareD BareD = True
-sameDet BareD _ = False
+sameDet a b = determinerIx a == determinerIx b
 
 public export
 Eq Determiner where
-  (==) = sameDet
+  (==) a b = determinerIx a == determinerIx b
 
 public export
 samePlur : Plurality -> Plurality -> Bool
@@ -1647,8 +1497,12 @@ public export
 data LoseCause = ZeroOrLessLife   -- a cause of losing the game [CR#704.5a..704.5c]
 
 public export
+loseCauseIx : LoseCause -> Nat
+loseCauseIx ZeroOrLessLife = 0
+
+public export
 Eq LoseCause where
-  (==) ZeroOrLessLife ZeroOrLessLife = True
+  (==) a b = loseCauseIx a == loseCauseIx b
 
 public export
 data ExposeVerb = LookAt | Reveal
@@ -1851,135 +1705,30 @@ joinedPayload (JoinP _ _) = True
 public export
 wordReaches : NounWord -> Binding -> Bool
 wordReaches (TypeW t) (MkBinding _ _ _ (ObjectP ty zn _ _ _)) = onFieldZone zn && tyIs t ty
-wordReaches (TypeW t) (MkBinding _ _ _ PlayerP) = False
-wordReaches (TypeW t) (MkBinding _ _ _ ChosenPlayerP) = False
-wordReaches (TypeW t) (MkBinding _ _ _ QualityP) = False
-wordReaches (TypeW t) (MkBinding _ _ _ (OutcomeP _)) = False
-wordReaches (TypeW t) (MkBinding _ _ _ GapP) = False
-wordReaches (TypeW t) (MkBinding _ _ _ LetterP) = False
-wordReaches (TypeW t) (MkBinding _ _ _ TurnRefP) = False
-wordReaches (TypeW t) (MkBinding _ _ _ (AbilityP _)) = False
-wordReaches (TypeW t) (MkBinding _ _ _ (PileP _ _ _)) = False
 wordReaches (TypeW t) (MkBinding _ _ _ pl@(JoinP _ _)) = halfReaches (TypeW t) pl
 wordReaches CardW (MkBinding _ _ _ (ObjectP _ zn _ _ _)) = isCardZone zn
-wordReaches CardW (MkBinding _ _ _ PlayerP) = False
-wordReaches CardW (MkBinding _ _ _ ChosenPlayerP) = False
-wordReaches CardW (MkBinding _ _ _ QualityP) = False
-wordReaches CardW (MkBinding _ _ _ (OutcomeP _)) = False
-wordReaches CardW (MkBinding _ _ _ GapP) = False
-wordReaches CardW (MkBinding _ _ _ LetterP) = False
-wordReaches CardW (MkBinding _ _ _ TurnRefP) = False
-wordReaches CardW (MkBinding _ _ _ (AbilityP _)) = False
-wordReaches CardW (MkBinding _ _ _ (PileP _ _ _)) = False
-wordReaches CardW (MkBinding _ _ _ (JoinP _ _)) = False
 wordReaches (TypedCardW t) (MkBinding _ _ _ (ObjectP ty zn _ _ _)) =
   isCardZone zn && tyIs t ty
-wordReaches (TypedCardW t) (MkBinding _ _ _ PlayerP) = False
-wordReaches (TypedCardW t) (MkBinding _ _ _ ChosenPlayerP) = False
-wordReaches (TypedCardW t) (MkBinding _ _ _ QualityP) = False
-wordReaches (TypedCardW t) (MkBinding _ _ _ (OutcomeP _)) = False
-wordReaches (TypedCardW t) (MkBinding _ _ _ GapP) = False
-wordReaches (TypedCardW t) (MkBinding _ _ _ LetterP) = False
-wordReaches (TypedCardW t) (MkBinding _ _ _ TurnRefP) = False
-wordReaches (TypedCardW t) (MkBinding _ _ _ (AbilityP _)) = False
-wordReaches (TypedCardW t) (MkBinding _ _ _ (PileP _ _ _)) = False
-wordReaches (TypedCardW t) (MkBinding _ _ _ (JoinP _ _)) = False
 wordReaches SpellW (MkBinding _ _ _ (ObjectP _ zn _ og _)) =
   onStackZone zn && not (isCopyOrigin og)
-wordReaches SpellW (MkBinding _ _ _ PlayerP) = False
-wordReaches SpellW (MkBinding _ _ _ ChosenPlayerP) = False
-wordReaches SpellW (MkBinding _ _ _ QualityP) = False
-wordReaches SpellW (MkBinding _ _ _ (OutcomeP _)) = False
-wordReaches SpellW (MkBinding _ _ _ GapP) = False
-wordReaches SpellW (MkBinding _ _ _ LetterP) = False
-wordReaches SpellW (MkBinding _ _ _ TurnRefP) = False
-wordReaches SpellW (MkBinding _ _ _ (AbilityP _)) = False
-wordReaches SpellW (MkBinding _ _ _ (PileP _ _ _)) = False
-wordReaches SpellW (MkBinding _ _ _ (JoinP _ _)) = False
-wordReaches PlayerW (MkBinding _ _ _ (ObjectP _ _ _ _ _)) = False
 wordReaches PlayerW (MkBinding _ _ _ PlayerP) = True
 wordReaches PlayerW (MkBinding _ _ _ ChosenPlayerP) = True
-wordReaches PlayerW (MkBinding _ _ _ QualityP) = False
-wordReaches PlayerW (MkBinding _ _ _ (OutcomeP _)) = False
-wordReaches PlayerW (MkBinding _ _ _ GapP) = False
-wordReaches PlayerW (MkBinding _ _ _ LetterP) = False
-wordReaches PlayerW (MkBinding _ _ _ TurnRefP) = False
-wordReaches PlayerW (MkBinding _ _ _ (AbilityP _)) = False
-wordReaches PlayerW (MkBinding _ _ _ (PileP _ _ _)) = False
 wordReaches PlayerW (MkBinding _ _ _ pl@(JoinP _ _)) = halfReaches PlayerW pl
 wordReaches PermanentW (MkBinding _ _ _ (ObjectP _ zn pv _ _)) =
   onFieldZone zn || stampWasField pv
-wordReaches PermanentW (MkBinding _ _ _ PlayerP) = False
-wordReaches PermanentW (MkBinding _ _ _ ChosenPlayerP) = False
-wordReaches PermanentW (MkBinding _ _ _ QualityP) = False
-wordReaches PermanentW (MkBinding _ _ _ (OutcomeP _)) = False
-wordReaches PermanentW (MkBinding _ _ _ GapP) = False
-wordReaches PermanentW (MkBinding _ _ _ LetterP) = False
-wordReaches PermanentW (MkBinding _ _ _ TurnRefP) = False
-wordReaches PermanentW (MkBinding _ _ _ (AbilityP _)) = False
-wordReaches PermanentW (MkBinding _ _ _ (PileP _ _ _)) = False
 wordReaches PermanentW (MkBinding _ _ _ pl@(JoinP _ _)) = halfReaches PermanentW pl
 wordReaches TokenW (MkBinding _ _ _ (ObjectP _ zn _ og _)) =
   onFieldZone zn && isTokenOrigin og
-wordReaches TokenW (MkBinding _ _ _ PlayerP) = False
-wordReaches TokenW (MkBinding _ _ _ ChosenPlayerP) = False
-wordReaches TokenW (MkBinding _ _ _ QualityP) = False
-wordReaches TokenW (MkBinding _ _ _ (OutcomeP _)) = False
-wordReaches TokenW (MkBinding _ _ _ GapP) = False
-wordReaches TokenW (MkBinding _ _ _ LetterP) = False
-wordReaches TokenW (MkBinding _ _ _ TurnRefP) = False
-wordReaches TokenW (MkBinding _ _ _ (AbilityP _)) = False
-wordReaches TokenW (MkBinding _ _ _ (PileP _ _ _)) = False
-wordReaches TokenW (MkBinding _ _ _ (JoinP _ _)) = False
 wordReaches CopyW (MkBinding _ _ _ (ObjectP _ zn _ og _)) = isCopyOrigin og
-wordReaches CopyW (MkBinding _ _ _ PlayerP) = False
-wordReaches CopyW (MkBinding _ _ _ ChosenPlayerP) = False
-wordReaches CopyW (MkBinding _ _ _ QualityP) = False
-wordReaches CopyW (MkBinding _ _ _ (OutcomeP _)) = False
-wordReaches CopyW (MkBinding _ _ _ GapP) = False
-wordReaches CopyW (MkBinding _ _ _ LetterP) = False
-wordReaches CopyW (MkBinding _ _ _ TurnRefP) = False
-wordReaches CopyW (MkBinding _ _ _ (AbilityP _)) = False
-wordReaches CopyW (MkBinding _ _ _ (PileP _ _ _)) = False
-wordReaches CopyW (MkBinding _ _ _ (JoinP _ _)) = False
 wordReaches AbilityW (MkBinding _ _ _ (AbilityP og)) = not (isCopyOrigin og)
-wordReaches AbilityW (MkBinding _ _ _ (PileP _ _ _)) = False
-wordReaches AbilityW (MkBinding _ _ _ (ObjectP _ _ _ _ _)) = False
-wordReaches AbilityW (MkBinding _ _ _ PlayerP) = False
-wordReaches AbilityW (MkBinding _ _ _ ChosenPlayerP) = False
-wordReaches AbilityW (MkBinding _ _ _ QualityP) = False
-wordReaches AbilityW (MkBinding _ _ _ (OutcomeP _)) = False
-wordReaches AbilityW (MkBinding _ _ _ GapP) = False
-wordReaches AbilityW (MkBinding _ _ _ LetterP) = False
-wordReaches AbilityW (MkBinding _ _ _ TurnRefP) = False
-wordReaches AbilityW (MkBinding _ _ _ (JoinP _ _)) = False
 wordReaches AbilityCopyW (MkBinding _ _ _ (AbilityP og)) = isCopyOrigin og
-wordReaches AbilityCopyW (MkBinding _ _ _ (PileP _ _ _)) = False
-wordReaches AbilityCopyW (MkBinding _ _ _ (ObjectP _ _ _ _ _)) = False
-wordReaches AbilityCopyW (MkBinding _ _ _ PlayerP) = False
-wordReaches AbilityCopyW (MkBinding _ _ _ ChosenPlayerP) = False
-wordReaches AbilityCopyW (MkBinding _ _ _ QualityP) = False
-wordReaches AbilityCopyW (MkBinding _ _ _ (OutcomeP _)) = False
-wordReaches AbilityCopyW (MkBinding _ _ _ GapP) = False
-wordReaches AbilityCopyW (MkBinding _ _ _ LetterP) = False
-wordReaches AbilityCopyW (MkBinding _ _ _ TurnRefP) = False
-wordReaches AbilityCopyW (MkBinding _ _ _ (JoinP _ _)) = False
 wordReaches PileW (MkBinding _ _ _ (PileP _ _ _)) = True
-wordReaches PileW (MkBinding _ _ _ (ObjectP _ _ _ _ _)) = False
-wordReaches PileW (MkBinding _ _ _ PlayerP) = False
-wordReaches PileW (MkBinding _ _ _ ChosenPlayerP) = False
-wordReaches PileW (MkBinding _ _ _ QualityP) = False
-wordReaches PileW (MkBinding _ _ _ (OutcomeP _)) = False
-wordReaches PileW (MkBinding _ _ _ GapP) = False
-wordReaches PileW (MkBinding _ _ _ LetterP) = False
-wordReaches PileW (MkBinding _ _ _ TurnRefP) = False
-wordReaches PileW (MkBinding _ _ _ (AbilityP _)) = False
-wordReaches PileW (MkBinding _ _ _ (JoinP _ _)) = False
 wordReaches JoinW (MkBinding _ kd _ pl) = joinedPayload pl && kindLte Player kd
 wordReaches AbilityJoinW (MkBinding _ kd _ pl) =
   joinedPayload pl && kindLte Ability kd && not (isCopyOrigin (payloadOrig pl))
 wordReaches CopyJoinW (MkBinding _ kd _ pl) =
   joinedPayload pl && kindLte Ability kd && isCopyOrigin (payloadOrig pl)
+wordReaches _ _ = False
 
 public export
 wordNow : NounWord -> Binding -> Bool
@@ -2031,16 +1780,8 @@ verbedWordOk (TypeW t) (MkStamp _ wasF _) ty zn = wasF && tyIs t ty
 verbedWordOk CardW st ty zn = isCardZone zn
 verbedWordOk (TypedCardW t) st ty zn = isCardZone zn && tyIs t ty
 verbedWordOk SpellW st ty zn = onStackZone zn
-verbedWordOk PlayerW st ty zn = False
 verbedWordOk PermanentW (MkStamp _ wasF _) ty zn = wasF
-verbedWordOk TokenW st ty zn = False
-verbedWordOk CopyW st ty zn = False
-verbedWordOk JoinW st ty zn = False
-verbedWordOk AbilityJoinW st ty zn = False
-verbedWordOk AbilityW st ty zn = False
-verbedWordOk AbilityCopyW st ty zn = False
-verbedWordOk PileW st ty zn = False
-verbedWordOk CopyJoinW st ty zn = False
+verbedWordOk _ _ _ _ = False
 
 public export
 stampIs : VerbLabel -> Maybe Stamp -> Bool
@@ -2149,55 +1890,63 @@ public export
 data EntryCounterMark = Fresh | Additional | Fewer
 
 public export
+entryCounterMarkIx : EntryCounterMark -> Nat
+entryCounterMarkIx Fresh = 0
+entryCounterMarkIx Additional = 1
+entryCounterMarkIx Fewer = 2
+
+public export
 Eq EntryCounterMark where
-  (==) Fresh Fresh = True
-  (==) Fresh _ = False
-  (==) Additional Additional = True
-  (==) Additional _ = False
-  (==) Fewer Fewer = True
-  (==) Fewer _ = False
+  (==) a b = entryCounterMarkIx a == entryCounterMarkIx b
 
 public export
 data PlayerGroupWord = AllPlayers | YourOpponents | YourTeam
 
 public export
+playerGroupWordIx : PlayerGroupWord -> Nat
+playerGroupWordIx AllPlayers = 0
+playerGroupWordIx YourOpponents = 1
+playerGroupWordIx YourTeam = 2
+
+public export
 Eq PlayerGroupWord where
-  (==) AllPlayers AllPlayers = True
-  (==) AllPlayers _ = False
-  (==) YourOpponents YourOpponents = True
-  (==) YourOpponents _ = False
-  (==) YourTeam YourTeam = True
-  (==) YourTeam _ = False
+  (==) a b = playerGroupWordIx a == playerGroupWordIx b
 
 public export
 data RoundMode = RoundUp | RoundDown
 
 public export
+roundModeIx : RoundMode -> Nat
+roundModeIx RoundUp = 0
+roundModeIx RoundDown = 1
+
+public export
 Eq RoundMode where
-  (==) RoundUp RoundUp = True
-  (==) RoundUp _ = False
-  (==) RoundDown RoundDown = True
-  (==) RoundDown _ = False
+  (==) a b = roundModeIx a == roundModeIx b
 
 public export
 data ScaleFactor = Doubled | Tripled
 
 public export
+scaleFactorIx : ScaleFactor -> Nat
+scaleFactorIx Doubled = 0
+scaleFactorIx Tripled = 1
+
+public export
 Eq ScaleFactor where
-  (==) Doubled Doubled = True
-  (==) Doubled _ = False
-  (==) Tripled Tripled = True
-  (==) Tripled _ = False
+  (==) a b = scaleFactorIx a == scaleFactorIx b
 
 public export
 data ShiftDir = ShiftUp | ShiftDown
 
 public export
+shiftDirIx : ShiftDir -> Nat
+shiftDirIx ShiftUp = 0
+shiftDirIx ShiftDown = 1
+
+public export
 Eq ShiftDir where
-  (==) ShiftUp ShiftUp = True
-  (==) ShiftUp _ = False
-  (==) ShiftDown ShiftDown = True
-  (==) ShiftDown _ = False
+  (==) a b = shiftDirIx a == shiftDirIx b
 
 
 namespace Lookback
@@ -2286,11 +2035,13 @@ public export
 data CompoundHead = QualityHead | NumberHead
 
 public export
+compoundHeadIx : CompoundHead -> Nat
+compoundHeadIx QualityHead = 0
+compoundHeadIx NumberHead = 1
+
+public export
 Eq CompoundHead where
-  (==) QualityHead QualityHead = True
-  (==) QualityHead _ = False
-  (==) NumberHead NumberHead = True
-  (==) NumberHead _ = False
+  (==) a b = compoundHeadIx a == compoundHeadIx b
 
 public export
 compoundHeadOptional : CompoundHead -> Bool
@@ -2303,21 +2054,23 @@ data KeywordParamShape = NoParam | CostParam | QualityParam | SubjectParam
                        | CompoundParam CompoundHead
 
 public export
+keywordParamShapeIx : KeywordParamShape -> Nat
+keywordParamShapeIx NoParam = 0
+keywordParamShapeIx CostParam = 1
+keywordParamShapeIx QualityParam = 2
+keywordParamShapeIx SubjectParam = 3
+keywordParamShapeIx NumberParam = 4
+keywordParamShapeIx AbilityParam = 5
+keywordParamShapeIx (CompoundParam _) = 6
+
+public export
+sameKeywordParam : KeywordParamShape -> KeywordParamShape -> Bool
+sameKeywordParam (CompoundParam a) (CompoundParam b) = a == b
+sameKeywordParam _ _ = True
+
+public export
 Eq KeywordParamShape where
-  (==) NoParam NoParam = True
-  (==) NoParam _ = False
-  (==) CostParam CostParam = True
-  (==) CostParam _ = False
-  (==) QualityParam QualityParam = True
-  (==) QualityParam _ = False
-  (==) SubjectParam SubjectParam = True
-  (==) SubjectParam _ = False
-  (==) NumberParam NumberParam = True
-  (==) NumberParam _ = False
-  (==) AbilityParam AbilityParam = True
-  (==) AbilityParam _ = False
-  (==) (CompoundParam a) (CompoundParam b) = a == b
-  (==) (CompoundParam _) _ = False
+  (==) a b = keywordParamShapeIx a == keywordParamShapeIx b && sameKeywordParam a b
 
 public export
 paramShapeFits : KeywordParamShape -> KeywordParamShape -> Bool
@@ -2334,11 +2087,13 @@ public export
 data StackRegime = AtCasting | AtResolution
 
 public export
+stackRegimeIx : StackRegime -> Nat
+stackRegimeIx AtCasting = 0
+stackRegimeIx AtResolution = 1
+
+public export
 Eq StackRegime where
-  (==) AtCasting AtCasting = True
-  (==) AtCasting _ = False
-  (==) AtResolution AtResolution = True
-  (==) AtResolution _ = False
+  (==) a b = stackRegimeIx a == stackRegimeIx b
 
 public export
 record KeywordFacts where
@@ -2494,8 +2249,12 @@ record KeywordFamily where
   familySort : Maybe QualitySort
 
 public export
+keywordFamilyIx : KeywordFamily -> (KeywordLabel, Maybe QualitySort)
+keywordFamilyIx f = (familyWord f, familySort f)
+
+public export
 Eq KeywordFamily where
-  (==) a b = familyWord a == familyWord b && familySort a == familySort b
+  (==) a b = keywordFamilyIx a == keywordFamilyIx b
 
 public export
 keywordFamilyOk : KeywordFamily -> Bool
@@ -2515,11 +2274,19 @@ data KeywordTerm : Type where
   AnyKeywordIn : (c : KeywordFamily) -> KeywordTerm
 
 public export
+keywordTermIx : KeywordTerm -> Nat
+keywordTermIx (TheKeyword _) = 0
+keywordTermIx (AnyKeywordIn _) = 1
+
+public export
+sameKeywordTerm : KeywordTerm -> KeywordTerm -> Bool
+sameKeywordTerm (TheKeyword a) (TheKeyword b) = a == b
+sameKeywordTerm (AnyKeywordIn a) (AnyKeywordIn b) = a == b
+sameKeywordTerm _ _ = True
+
+public export
 Eq KeywordTerm where
-  (==) (TheKeyword a) (TheKeyword b) = a == b
-  (==) (TheKeyword _) _ = False
-  (==) (AnyKeywordIn a) (AnyKeywordIn b) = a == b
-  (==) (AnyKeywordIn _) _ = False
+  (==) a b = keywordTermIx a == keywordTermIx b && sameKeywordTerm a b
 
 public export
 knownKeywordTerm : KeywordTerm -> Bool
@@ -2555,15 +2322,22 @@ data PaidCostName : Type where
   TheAdditional : PaidCostName
 
 public export
+paidCostNameIx : PaidCostName -> Nat
+paidCostNameIx (ByKeyword _) = 0
+paidCostNameIx (ByNthKeyword _ _) = 1
+paidCostNameIx TheAlternative = 2
+paidCostNameIx TheAdditional = 3
+
+public export
+samePaidCostName : PaidCostName -> PaidCostName -> Bool
+samePaidCostName (ByKeyword a) (ByKeyword b) = a == b
+samePaidCostName (ByNthKeyword (Nth m) a) (ByNthKeyword (Nth n) b) =
+  m == n && a == b
+samePaidCostName _ _ = True
+
+public export
 Eq PaidCostName where
-  (==) (ByKeyword a) (ByKeyword b) = a == b
-  (==) (ByKeyword _) _ = False
-  (==) (ByNthKeyword (Nth m) a) (ByNthKeyword (Nth n) b) = m == n && a == b
-  (==) (ByNthKeyword _ _) _ = False
-  (==) TheAlternative TheAlternative = True
-  (==) TheAlternative _ = False
-  (==) TheAdditional TheAdditional = True
-  (==) TheAdditional _ = False
+  (==) a b = paidCostNameIx a == paidCostNameIx b && samePaidCostName a b
 
 public export
 paidCostNamed : PaidCostName -> Bool
@@ -2593,17 +2367,21 @@ data AbilityClass : Type where
                  AbilityClass
 
 public export
+abilityClassIx : AbilityClass -> Nat
+abilityClassIx AnyOnStack = 0
+abilityClassIx AnyActivated = 1
+abilityClassIx AnyTriggered = 2
+abilityClassIx LoyaltyClass = 3
+abilityClassIx (KeywordClass _) = 4
+
+public export
+sameAbilityClass : AbilityClass -> AbilityClass -> Bool
+sameAbilityClass (KeywordClass a) (KeywordClass b) = a == b
+sameAbilityClass _ _ = True
+
+public export
 Eq AbilityClass where
-  (==) AnyOnStack AnyOnStack = True
-  (==) AnyOnStack _ = False
-  (==) AnyActivated AnyActivated = True
-  (==) AnyActivated _ = False
-  (==) AnyTriggered AnyTriggered = True
-  (==) AnyTriggered _ = False
-  (==) LoyaltyClass LoyaltyClass = True
-  (==) LoyaltyClass _ = False
-  (==) (KeywordClass a) (KeywordClass b) = a == b
-  (==) (KeywordClass _) _ = False
+  (==) a b = abilityClassIx a == abilityClassIx b && sameAbilityClass a b
 
 public export
 distinctClasses : List AbilityClass -> Bool
@@ -2643,17 +2421,16 @@ namespace Chroma
   data ColorOrColorless = Colorless | OfColor Color
 
 public export
+colorIx : Color -> Nat
+colorIx White = 0
+colorIx Blue = 1
+colorIx Black = 2
+colorIx Red = 3
+colorIx Green = 4
+
+public export
 Eq Color where
-  (==) White White = True
-  (==) White _ = False
-  (==) Blue Blue = True
-  (==) Blue _ = False
-  (==) Black Black = True
-  (==) Black _ = False
-  (==) Red Red = True
-  (==) Red _ = False
-  (==) Green Green = True
-  (==) Green _ = False
+  (==) a b = colorIx a == colorIx b
 
 public export
 data SimpleManaSymbol = Generic Nat | Specific ColorOrColorless
@@ -2701,13 +2478,19 @@ public export
 data PayTimes = PaidOnce | AnyNumberOfTimes | UpToTimes Nat
 
 public export
+payTimesIx : PayTimes -> Nat
+payTimesIx PaidOnce = 0
+payTimesIx AnyNumberOfTimes = 1
+payTimesIx (UpToTimes _) = 2
+
+public export
+samePayTimes : PayTimes -> PayTimes -> Bool
+samePayTimes (UpToTimes m) (UpToTimes n) = m == n
+samePayTimes _ _ = True
+
+public export
 Eq PayTimes where
-  (==) PaidOnce PaidOnce = True
-  (==) PaidOnce _ = False
-  (==) AnyNumberOfTimes AnyNumberOfTimes = True
-  (==) AnyNumberOfTimes _ = False
-  (==) (UpToTimes m) (UpToTimes n) = m == n
-  (==) (UpToTimes _) _ = False
+  (==) a b = payTimesIx a == payTimesIx b && samePayTimes a b
 
 public export
 payRepeats : PayTimes -> Bool
@@ -2733,15 +2516,15 @@ public export
 data SpecialAction = TurnFaceUp | PutCompanionIntoHand | Foretell | UnlockDoor
 
 public export
+specialActionIx : SpecialAction -> Nat
+specialActionIx TurnFaceUp = 0
+specialActionIx PutCompanionIntoHand = 1
+specialActionIx Foretell = 2
+specialActionIx UnlockDoor = 3
+
+public export
 Eq SpecialAction where
-  (==) TurnFaceUp TurnFaceUp = True
-  (==) TurnFaceUp _ = False
-  (==) PutCompanionIntoHand PutCompanionIntoHand = True
-  (==) PutCompanionIntoHand _ = False
-  (==) Foretell Foretell = True
-  (==) Foretell _ = False
-  (==) UnlockDoor UnlockDoor = True
-  (==) UnlockDoor _ = False
+  (==) a b = specialActionIx a == specialActionIx b
 
 public export
 data CostNamed : Type where
@@ -2780,15 +2563,6 @@ ProducedRuns : List ProducedRun -> Type
 ProducedRuns rs = So (producedRunsWritten rs)
 
 public export
-altRunWritten : Maybe ProducedRun -> Bool
-altRunWritten Nothing = True
-altRunWritten (Just _) = True
-
-public export
-AltRunWritten : Maybe ProducedRun -> Type
-AltRunWritten alt = So (altRunWritten alt)
-
-public export
 data ColorFreedom = SameColor | EachColor | DistinctColors
 
 public export
@@ -2821,8 +2595,12 @@ subtypeLabel : Subtype -> String
 subtypeLabel (MkSubtype _ label) = label
 
 public export
+subtypeIx : Subtype -> (CardType, String)
+subtypeIx (MkSubtype host label) = (host, label)
+
+public export
 Eq Subtype where
-  (==) (MkSubtype h1 l1) (MkSubtype h2 l2) = h1 == h2 && l1 == l2
+  (==) a b = subtypeIx a == subtypeIx b
 
 public export
 creatureType : String -> Subtype
@@ -2902,15 +2680,15 @@ public export
 data MarkerWord = TokenMarker | EmblemMarker | SpellMarker | PermanentMarker
 
 public export
+markerWordIx : MarkerWord -> Nat
+markerWordIx TokenMarker = 0
+markerWordIx EmblemMarker = 1
+markerWordIx SpellMarker = 2
+markerWordIx PermanentMarker = 3
+
+public export
 Eq MarkerWord where
-  (==) TokenMarker TokenMarker = True
-  (==) TokenMarker _ = False
-  (==) EmblemMarker EmblemMarker = True
-  (==) EmblemMarker _ = False
-  (==) SpellMarker SpellMarker = True
-  (==) SpellMarker _ = False
-  (==) PermanentMarker PermanentMarker = True
-  (==) PermanentMarker _ = False
+  (==) a b = markerWordIx a == markerWordIx b
 
 public export
 markerZone : MarkerWord -> Zone
@@ -2931,27 +2709,28 @@ namespace Counter
     Down : Nat -> Delta
 
   public export
+  deltaIx : Delta -> (Nat, Nat)
+  deltaIx (Up n) = (0, n)
+  deltaIx (Down n) = (1, n)
+
+  public export
   Eq Delta where
-    (==) (Up a) (Up b) = a == b
-    (==) (Up _) _ = False
-    (==) (Down a) (Down b) = a == b
-    (==) (Down _) _ = False
+    (==) a b = deltaIx a == deltaIx b
 
 public export
 data Supertype = Legendary | Basic | Snow | Ongoing | World
 
 public export
+supertypeIx : Supertype -> Nat
+supertypeIx Legendary = 0
+supertypeIx Basic = 1
+supertypeIx Snow = 2
+supertypeIx Ongoing = 3
+supertypeIx World = 4
+
+public export
 Eq Supertype where
-  (==) Legendary Legendary = True
-  (==) Legendary _ = False
-  (==) Basic Basic = True
-  (==) Basic _ = False
-  (==) Snow Snow = True
-  (==) Snow _ = False
-  (==) Ongoing Ongoing = True
-  (==) Ongoing _ = False
-  (==) World World = True
-  (==) World _ = False
+  (==) a b = supertypeIx a == supertypeIx b
 
 public export
 supersDistinct : List Supertype -> Bool
@@ -2995,49 +2774,39 @@ designationScope Day = HeldByGame
 designationScope Night = HeldByGame
 
 public export
+designationIx : Designation -> Nat
+designationIx Monarch = 0
+designationIx TheInitiative = 1
+designationIx CitysBlessing = 2
+designationIx EnduringStory = 3
+designationIx Goaded = 4
+designationIx RingBearer = 5
+designationIx Monstrous = 6
+designationIx Renowned = 7
+designationIx Suspected = 8
+designationIx Saddled = 9
+designationIx Prepared = 10
+designationIx LeftHalfUnlocked = 11
+designationIx RightHalfUnlocked = 12
+designationIx CommanderD = 13
+designationIx Day = 14
+designationIx Night = 15
+
+public export
 Eq Designation where
-  (==) Monarch Monarch = True
-  (==) Monarch _ = False
-  (==) TheInitiative TheInitiative = True
-  (==) TheInitiative _ = False
-  (==) CitysBlessing CitysBlessing = True
-  (==) CitysBlessing _ = False
-  (==) EnduringStory EnduringStory = True
-  (==) EnduringStory _ = False
-  (==) Goaded Goaded = True
-  (==) Goaded _ = False
-  (==) RingBearer RingBearer = True
-  (==) RingBearer _ = False
-  (==) Monstrous Monstrous = True
-  (==) Monstrous _ = False
-  (==) Renowned Renowned = True
-  (==) Renowned _ = False
-  (==) Suspected Suspected = True
-  (==) Suspected _ = False
-  (==) Saddled Saddled = True
-  (==) Saddled _ = False
-  (==) Prepared Prepared = True
-  (==) Prepared _ = False
-  (==) LeftHalfUnlocked LeftHalfUnlocked = True
-  (==) LeftHalfUnlocked _ = False
-  (==) RightHalfUnlocked RightHalfUnlocked = True
-  (==) RightHalfUnlocked _ = False
-  (==) CommanderD CommanderD = True
-  (==) CommanderD _ = False
-  (==) Day Day = True
-  (==) Day _ = False
-  (==) Night Night = True
-  (==) Night _ = False
+  (==) a b = designationIx a == designationIx b
 
 public export
 data RoomHalf = LeftHalf | RightHalf
 
 public export
+roomHalfIx : RoomHalf -> Nat
+roomHalfIx LeftHalf = 0
+roomHalfIx RightHalf = 1
+
+public export
 Eq RoomHalf where
-  (==) LeftHalf LeftHalf = True
-  (==) LeftHalf RightHalf = False
-  (==) RightHalf LeftHalf = False
-  (==) RightHalf RightHalf = True
+  (==) a b = roomHalfIx a == roomHalfIx b
 
 public export
 halfDesignation : RoomHalf -> Designation
@@ -3051,28 +2820,16 @@ designationHalf RightHalfUnlocked = Just RightHalf
 designationHalf _ = Nothing
 
 public export
-halfDesignationInjective : (a, b : RoomHalf) ->
-                           halfDesignation a = halfDesignation b -> a = b
-halfDesignationInjective LeftHalf LeftHalf _ = Refl
-halfDesignationInjective LeftHalf RightHalf Refl impossible
-halfDesignationInjective RightHalf LeftHalf Refl impossible
-halfDesignationInjective RightHalf RightHalf _ = Refl
-
-public export
-designationHalfInverse : (h : RoomHalf) ->
-                         designationHalf (halfDesignation h) = Just h
-designationHalfInverse LeftHalf = Refl
-designationHalfInverse RightHalf = Refl
-
-public export
 data LockState = Locked | Unlocked
 
 public export
+lockStateIx : LockState -> Nat
+lockStateIx Locked = 0
+lockStateIx Unlocked = 1
+
+public export
 Eq LockState where
-  (==) Locked Locked = True
-  (==) Locked Unlocked = False
-  (==) Unlocked Locked = False
-  (==) Unlocked Unlocked = True
+  (==) a b = lockStateIx a == lockStateIx b
 
 public export
 designationChecked : Designation -> Bool
@@ -3177,73 +2934,22 @@ public export
 data AttachWord = Enchanted | Equipped | Fortified
 
 public export
+attachWordIx : AttachWord -> Nat
+attachWordIx Enchanted = 0
+attachWordIx Equipped = 1
+attachWordIx Fortified = 2
+
+public export
 Eq AttachWord where
-  (==) Enchanted Enchanted = True
-  (==) Enchanted _ = False
-  (==) Equipped Equipped = True
-  (==) Equipped _ = False
-  (==) Fortified Fortified = True
-  (==) Fortified _ = False
+  (==) a b = attachWordIx a == attachWordIx b
 
 public export
 attachHeadOk : AttachWord -> NounWord -> Bool
 attachHeadOk Enchanted _ = True
 attachHeadOk Equipped (TypeW Creature) = True
-attachHeadOk Equipped (TypeW Artifact) = False
-attachHeadOk Equipped (TypeW Land) = False
-attachHeadOk Equipped (TypeW Enchantment) = False
-attachHeadOk Equipped (TypeW Planeswalker) = False
-attachHeadOk Equipped (TypeW Battle) = False
-attachHeadOk Equipped (TypeW Kindred) = False
-attachHeadOk Equipped (TypeW Instant) = False
-attachHeadOk Equipped (TypeW Sorcery) = False
-attachHeadOk Equipped (TypeW Conspiracy) = False
-attachHeadOk Equipped (TypeW Dungeon) = False
-attachHeadOk Equipped (TypeW Phenomenon) = False
-attachHeadOk Equipped (TypeW Plane) = False
-attachHeadOk Equipped (TypeW Scheme) = False
-attachHeadOk Equipped (TypeW Vanguard) = False
-attachHeadOk Equipped CardW = False
-attachHeadOk Equipped (TypedCardW _) = False
-attachHeadOk Equipped SpellW = False
-attachHeadOk Equipped PlayerW = False
 attachHeadOk Equipped PermanentW = True
-attachHeadOk Equipped TokenW = False
-attachHeadOk Equipped CopyW = False
-attachHeadOk Equipped JoinW = False
-attachHeadOk Equipped AbilityJoinW = False
-attachHeadOk Equipped AbilityW = False
-attachHeadOk Equipped AbilityCopyW = False
-attachHeadOk Equipped PileW = False
-attachHeadOk Equipped CopyJoinW = False
-attachHeadOk Fortified (TypeW Creature) = False
-attachHeadOk Fortified (TypeW Artifact) = False
 attachHeadOk Fortified (TypeW Land) = True
-attachHeadOk Fortified (TypeW Enchantment) = False
-attachHeadOk Fortified (TypeW Planeswalker) = False
-attachHeadOk Fortified (TypeW Battle) = False
-attachHeadOk Fortified (TypeW Kindred) = False
-attachHeadOk Fortified (TypeW Instant) = False
-attachHeadOk Fortified (TypeW Sorcery) = False
-attachHeadOk Fortified (TypeW Conspiracy) = False
-attachHeadOk Fortified (TypeW Dungeon) = False
-attachHeadOk Fortified (TypeW Phenomenon) = False
-attachHeadOk Fortified (TypeW Plane) = False
-attachHeadOk Fortified (TypeW Scheme) = False
-attachHeadOk Fortified (TypeW Vanguard) = False
-attachHeadOk Fortified CardW = False
-attachHeadOk Fortified (TypedCardW _) = False
-attachHeadOk Fortified SpellW = False
-attachHeadOk Fortified PlayerW = False
-attachHeadOk Fortified PermanentW = False
-attachHeadOk Fortified TokenW = False
-attachHeadOk Fortified CopyW = False
-attachHeadOk Fortified JoinW = False
-attachHeadOk Fortified AbilityJoinW = False
-attachHeadOk Fortified AbilityW = False
-attachHeadOk Fortified AbilityCopyW = False
-attachHeadOk Fortified PileW = False
-attachHeadOk Fortified CopyJoinW = False
+attachHeadOk _ _ = False
 
 public export
 attachedCheckOk : AttachWord -> Bool
@@ -3257,7 +2963,6 @@ AttachHeadOk w h = So (attachHeadOk w h)
 
 public export
 attachHostZone : NounWord -> Maybe Zone
-attachHostZone PlayerW = Nothing
 attachHostZone (TypeW _) = Just Battlefield
 attachHostZone CardW = Just Battlefield
 attachHostZone (TypedCardW _) = Just Battlefield
@@ -3265,39 +2970,25 @@ attachHostZone SpellW = Just Battlefield
 attachHostZone PermanentW = Just Battlefield
 attachHostZone TokenW = Just Battlefield
 attachHostZone CopyW = Just Stack
-attachHostZone JoinW = Nothing
-attachHostZone AbilityJoinW = Nothing
-attachHostZone AbilityW = Nothing
-attachHostZone AbilityCopyW = Nothing
-attachHostZone PileW = Nothing
-attachHostZone CopyJoinW = Nothing
+attachHostZone _ = Nothing
 
 public export
 attachHostTy : NounWord -> Maybe CardType
 attachHostTy (TypeW t) = Just t
-attachHostTy CardW = Nothing
 attachHostTy (TypedCardW t) = Just t
-attachHostTy SpellW = Nothing
-attachHostTy PlayerW = Nothing
-attachHostTy PermanentW = Nothing
-attachHostTy TokenW = Nothing
-attachHostTy CopyW = Nothing
-attachHostTy JoinW = Nothing
-attachHostTy AbilityJoinW = Nothing
-attachHostTy AbilityW = Nothing
-attachHostTy AbilityCopyW = Nothing
-attachHostTy PileW = Nothing
-attachHostTy CopyJoinW = Nothing
+attachHostTy _ = Nothing
 
 public export
 data OutcomeVerb = WinGame | LoseGame
 
 public export
+outcomeVerbIx : OutcomeVerb -> Nat
+outcomeVerbIx WinGame = 0
+outcomeVerbIx LoseGame = 1
+
+public export
 Eq OutcomeVerb where
-  (==) WinGame WinGame = True
-  (==) WinGame _ = False
-  (==) LoseGame LoseGame = True
-  (==) LoseGame _ = False
+  (==) a b = outcomeVerbIx a == outcomeVerbIx b
 
 public export
 data DefinedSlots = PowerAlone | ToughnessAlone | BothEach
@@ -3425,11 +3116,21 @@ counterScope (KeywordCounter _) = Object
 counterScope (Named l) = maybe Object counterHolder (counterFactsFor l)
 
 public export
+sameCounterPayload : CounterKind -> CounterKind -> Bool
+sameCounterPayload (BoostCounter ap at) (BoostCounter bp bt) = ap == bp && at == bt
+sameCounterPayload (KeywordCounter a) (KeywordCounter b) = a == b
+sameCounterPayload (Named a) (Named b) = a == b
+sameCounterPayload _ _ = True
+
+public export
+counterKindIx : CounterKind -> Nat
+counterKindIx (BoostCounter _ _) = 0
+counterKindIx (KeywordCounter _) = 1
+counterKindIx (Named _) = 2
+
+public export
 Eq CounterKind where
-  (==) (BoostCounter ap at) (BoostCounter bp bt) = ap == bp && at == bt
-  (==) (KeywordCounter a) (KeywordCounter b) = a == b
-  (==) (Named a) (Named b) = a == b
-  (==) _ _ = False
+  (==) a b = counterKindIx a == counterKindIx b && sameCounterPayload a b
 
 public export
 data ProjAxis = CharAxis Characteristic | PlayerStatAxis PlayerStat
@@ -3443,15 +3144,23 @@ projScope (CounterAxis c) = counterScope c
 projScope (AnyCounterAxis k) = k
 
 public export
+projAxisIx : ProjAxis -> Nat
+projAxisIx (CharAxis _) = 0
+projAxisIx (PlayerStatAxis _) = 1
+projAxisIx (CounterAxis _) = 2
+projAxisIx (AnyCounterAxis _) = 3
+
+public export
+sameProjAxis : ProjAxis -> ProjAxis -> Bool
+sameProjAxis (CharAxis a) (CharAxis b) = a == b
+sameProjAxis (PlayerStatAxis a) (PlayerStatAxis b) = a == b
+sameProjAxis (CounterAxis a) (CounterAxis b) = a == b
+sameProjAxis (AnyCounterAxis a) (AnyCounterAxis b) = a == b
+sameProjAxis _ _ = True
+
+public export
 Eq ProjAxis where
-  (==) (CharAxis a) (CharAxis b) = a == b
-  (==) (CharAxis _) _ = False
-  (==) (PlayerStatAxis a) (PlayerStatAxis b) = a == b
-  (==) (PlayerStatAxis _) _ = False
-  (==) (CounterAxis a) (CounterAxis b) = a == b
-  (==) (CounterAxis _) _ = False
-  (==) (AnyCounterAxis a) (AnyCounterAxis b) = a == b
-  (==) (AnyCounterAxis _) _ = False
+  (==) a b = projAxisIx a == projAxisIx b && sameProjAxis a b
 
 
 public export
@@ -3488,11 +3197,8 @@ data AxesAt : Kind -> List ProjAxis -> Type where
              AxesAt (projScope a) (a :: b :: as)
 
 public export
-data CounterKindNamed : Kind -> Maybe CounterKind -> Type where
-  KindUnnamed : CounterKindNamed k Nothing
-  KindNamed : {0 c : CounterKind} ->
-              {auto 0 sc : counterScope c = k} ->
-              CounterKindNamed k (Just c)
+CounterKindNamed : Kind -> Maybe CounterKind -> Type
+CounterKindNamed k = OptOk (\c => counterScope c = k)
 
 public export
 data ChapterNumber = ChapterI | ChapterII | ChapterIII
@@ -3837,29 +3543,22 @@ data RankPeriod : Type where
   RankEach : TurnPart -> RankPeriod
 
 public export
+turnPartIx : TurnPart -> Nat
+turnPartIx Turn = 0
+turnPartIx Upkeep = 1
+turnPartIx EndStep = 2
+turnPartIx Combat = 3
+turnPartIx UntapStep = 4
+turnPartIx EndOfCombat = 5
+turnPartIx FirstMain = 6
+turnPartIx PostcombatMain = 7
+turnPartIx DrawStep = 8
+turnPartIx MainPhase = 9
+turnPartIx BeginningPhase = 10
+
+public export
 Eq TurnPart where
-  (==) Turn Turn = True
-  (==) Turn _ = False
-  (==) Upkeep Upkeep = True
-  (==) Upkeep _ = False
-  (==) EndStep EndStep = True
-  (==) EndStep _ = False
-  (==) Combat Combat = True
-  (==) Combat _ = False
-  (==) UntapStep UntapStep = True
-  (==) UntapStep _ = False
-  (==) EndOfCombat EndOfCombat = True
-  (==) EndOfCombat _ = False
-  (==) FirstMain FirstMain = True
-  (==) FirstMain _ = False
-  (==) PostcombatMain PostcombatMain = True
-  (==) PostcombatMain _ = False
-  (==) DrawStep DrawStep = True
-  (==) DrawStep _ = False
-  (==) MainPhase MainPhase = True
-  (==) MainPhase _ = False
-  (==) BeginningPhase BeginningPhase = True
-  (==) BeginningPhase _ = False
+  (==) a b = turnPartIx a == turnPartIx b
 
 ||| A turn can hold more than one instance of a part [CR#500.8,505.1a], so a
 ||| header can distribute over them: "each of your postcombat main phases".

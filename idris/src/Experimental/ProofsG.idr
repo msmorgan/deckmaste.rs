@@ -44,7 +44,7 @@ badAbilityJoinAnaphorOnAbility Refl impossible
 ||| "each creature with a poison counter on it"
 public export
 badPoisonCounterDescription : Unspellable (Predicate [] Object) (\ok =>
-  HasCounters (Just (Named "Poison")) {kn = KindNamed {sc = ok}})
+  HasCounters (Just (Named "Poison")) {kn = Present {ok}})
 badPoisonCounterDescription Refl impossible
 
 
@@ -59,8 +59,8 @@ badBareCumulativeUpkeep Oh impossible
 public export
 badCumulativeUpkeepOnSpell : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Sorcery])
-       [KeywordAbility "CumulativeUpkeep" (Just (ParamCost (Mana [Macros.generic 2]))) Nothing] Nothing {tx = ok})
-badCumulativeUpkeepOnSpell Oh impossible
+       [KeywordAbility "CumulativeUpkeep" (Just (ParamCost (Mana [Macros.generic 2]))) Nothing] Nothing {fl = ok})
+badCumulativeUpkeepOnSpell MkFaceLaws impossible
 
 
 ||| "Flying (When this creature deals combat damage to a player, …)"
@@ -424,8 +424,8 @@ badCostedRetrace Oh impossible
 public export
 badUnearthOnSpellCard : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Black]) [] (MkTypeLine [] [Instant])
-       [KeywordAbility "Unearth" (Just (ParamCost (Mana [Macros.pip Black]))) Nothing] Nothing {tx = ok})
-badUnearthOnSpellCard Oh impossible
+       [KeywordAbility "Unearth" (Just (ParamCost (Mana [Macros.pip Black]))) Nothing] Nothing {fl = ok})
+badUnearthOnSpellCard MkFaceLaws impossible
 
 
 ||| "Flashback {2}{U}"
@@ -434,8 +434,8 @@ badFlashbackOnPermanentCard : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.generic 2, Macros.pip Blue]) []
        (MkTypeLine [] [Artifact])
        [KeywordAbility "Flashback" (Just (ParamCost (Mana [Macros.generic 2, Macros.pip Blue]))) Nothing]
-       Nothing {tx = ok})
-badFlashbackOnPermanentCard Oh impossible
+       Nothing {fl = ok})
+badFlashbackOnPermanentCard MkFaceLaws impossible
 
 
 ||| "Creature cards in your graveyard have warp {2}."
@@ -526,8 +526,8 @@ badNoughtSidedDie ItIsSucc impossible
 public export
 badPlaneswalkerNoLoyalty : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Blue]) [Legendary] (MkTypeLine [planeswalkerType "Jace"] [Planeswalker])
-       [] Nothing {bx = ok})
-badPlaneswalkerNoLoyalty MkCardBox impossible
+       [] Nothing {fl = ok})
+badPlaneswalkerNoLoyalty (MkFaceLaws {bx = MkCardBox}) impossible
 
 ||| a planeswalker card printing "3/3" where its loyalty number goes
 public export
@@ -540,8 +540,8 @@ badPlaneswalkerPtBox MkCardBox impossible
 public export
 badBattleNoDefense : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.generic 2, Macros.pip White]) []
-       (MkTypeLine [battleType "Siege"] [Battle]) [] Nothing {bx = ok})
-badBattleNoDefense MkCardBox impossible
+       (MkTypeLine [battleType "Siege"] [Battle]) [] Nothing {fl = ok})
+badBattleNoDefense (MkFaceLaws {bx = MkCardBox}) impossible
 
 ||| an adventurer card whose inset frame is a plain instant, naming no Adventure
 public export
@@ -579,16 +579,16 @@ badTransformingBackWithCost MkFaceLaws impossible
 public export
 badConspiracyActivated : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Conspiracy])
-       [ Macros.activated (Mana [Macros.generic 1]) (Macros.draw You (Lit 1)) ] Nothing {tx = ok})
-badConspiracyActivated Oh impossible
+       [ Macros.activated (Mana [Macros.generic 1]) (Macros.draw You (Lit 1)) ] Nothing {fl = ok})
+badConspiracyActivated MkFaceLaws impossible
 
 ||| a static ability printed on a dungeon card
 public export
 badDungeonStatic : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Dungeon])
        [ Static (Macros.entersWithCounters Macros.thisCreature (Lit 1)
-                   Macros.plusOnePlusOne) ] Nothing {tx = ok})
-badDungeonStatic Oh impossible
+                   Macros.plusOnePlusOne) ] Nothing {fl = ok})
+badDungeonStatic MkFaceLaws impossible
 
 
 ||| "your opponents' devotion to black"
@@ -1236,8 +1236,8 @@ badDoorHeaderOffSharedLine : Unspellable Card (\ok =>
        (MkTypeLine [enchantmentType "Room"] [Enchantment])
        [ Macros.triggered When (UnlocksDoor You ThisDoor)
            (DealDamage Macros.thisRoom (Lit 1) (Macros.each Opponent)) ]
-       Nothing {dr = ok})
-badDoorHeaderOffSharedLine Oh impossible
+       Nothing {fl = ok})
+badDoorHeaderOffSharedLine MkFaceLaws impossible
 
 
 ||| "unlock a locked door of a Room card in your graveyard"
@@ -1283,8 +1283,8 @@ badTokenDuplicateSupertype : Unspellable (Effect []) (\ok =>
   Macros.create (Lit 1)
     (MkSupertypedToken (Just (Lit 20 ** Lit 20)) [Black] [Legendary, Legendary]
        (MkTypeLine [creatureType "Avatar"] [Creature]) [] (Just "Marit Lage"))
-    {tc = ok})
-badTokenDuplicateSupertype Oh impossible
+    {wf = ok})
+badTokenDuplicateSupertype (Oh, Oh, Oh, Oh, Oh, Oh) impossible
 
 
 public export
@@ -1345,9 +1345,9 @@ public export
 badDelayedDoorDeixis : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Instant])
     [Spell (Delayed (UnlocksDoor You ThisDoor) [] Nothing (Macros.draw You (Lit 1))
-                    {so = DelayOnce})]
-    Nothing {dr = ok})
-badDelayedDoorDeixis Oh impossible
+                    {so = Absent})]
+    Nothing {fl = ok})
+badDelayedDoorDeixis MkFaceLaws impossible
 
 public export
 joinedDealerDamageComplement :
@@ -1381,7 +1381,7 @@ public export
 delayedDoorTraversal :
   effectNamesThisDoor
     (Delayed (UnlocksDoor You ThisDoor) [] Nothing (Macros.draw You (Lit 1))
-             {so = DelayOnce}) = True
+             {so = Absent}) = True
 delayedDoorTraversal = Refl
 
 public export

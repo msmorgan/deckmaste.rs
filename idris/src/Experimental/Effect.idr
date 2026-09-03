@@ -126,10 +126,6 @@ mutual
   tokenQualsFit t = all (tokenQualHosted t.line.tys) t.quals
 
   public export
-  TokenQualsFit : TokenChars bs -> Type
-  TokenQualsFit {bs} t = So (tokenQualsFit t)
-
-  public export
   tokenTyped : {0 bs : Bindings} -> TokenChars bs -> Bool
   tokenTyped t = lineNonEmpty (MkTypeLine [] t.line.tys)
 
@@ -143,25 +139,9 @@ mutual
   tokenPtOk t = not (elem Creature t.line.tys) || ptWritten t.pt
 
   public export
-  TokenTyped : TokenChars bs -> Type
-  TokenTyped {bs} t = So (tokenTyped t)
-
-  public export
-  TokenPt : TokenChars bs -> Type
-  TokenPt {bs} t = So (tokenPtOk t)
-
-  public export
-  SubtypesFit : TokenChars bs -> Type
-  SubtypesFit {bs} t = So (subsFitLine t.line.subs t.line.tys)
-
-  public export
   tokenCanonical : {0 bs : Bindings} -> TokenChars bs -> Bool
   tokenCanonical t = colorsDistinct t.colors && typesDistinct t.line.tys
                        && supersDistinct t.supers
-
-  public export
-  TokenCanonical : TokenChars bs -> Type
-  TokenCanonical {bs} t = So (tokenCanonical t)
 
   public export
   additionUnnamed : {0 bs : Bindings} -> TokenChars bs -> Bool
@@ -241,12 +221,7 @@ mutual
   public export
   data TokenSpec : Bindings -> Type where
     TokenWritten : (t : TokenChars bs) ->
-                   {auto 0 tt : TokenTyped t} ->
-                   {auto 0 tp : TokenPt t} ->
-                   {auto 0 sf : SubtypesFit t} ->
-                   {auto 0 ta : TokenAbilities t} ->
-                   {auto 0 tc : TokenCanonical t} ->
-                   {auto 0 qf : TokenQualsFit t} -> TokenSpec bs
+                   {auto 0 wf : TokenWellFormed t} -> TokenSpec bs
     TokenAsThose : {auto 0 ok : countTokenSpecs bs = 1} -> TokenSpec bs
     TokenCopyOf : (src : Noun bs Object) -> (exc : List (CopyExcept bs)) ->
                   {auto 0 pm : PerMember src} -> TokenSpec bs
@@ -968,7 +943,6 @@ mutual
            {auto 0 ok : ProducedRuns rs} -> ProducedMana bs
     AnyColor : ColorFreedom -> ProducedMana bs
     OfChosenColor : (alt : Maybe ProducedRun) ->
-                    {auto 0 ar : AltRunWritten alt} ->
                     {auto 0 cq : countChoice (QSort Color) bs = 1} ->
                     {auto 0 rd : ChosenQualityRead Color} -> ProducedMana bs
     AsPrintedCost : (n : Noun bs Object) ->
@@ -1024,9 +998,9 @@ mutual
     ||| [CR#707.9d] “In addition” retains only type characteristics.
     ExceptChars : (t : TokenChars bs) -> (typesAdded : Bool) ->
                   {auto 0 bd : CopyBundle t} ->
-                  {auto 0 tc : TokenCanonical t} ->
-                  {auto 0 ta : TokenAbilities t} ->
-                  {auto 0 qf : TokenQualsFit t} ->
+                  {auto 0 tc : So (tokenCanonical t)} ->
+                  {auto 0 ta : So (tokenAbilitiesOk t)} ->
+                  {auto 0 qf : So (tokenQualsFit t)} ->
                   {auto 0 un : AdditionUnnamed t} -> CopyExcept bs
     ExceptAbility : (ab : AbilityAt []) ->
                     {auto 0 gr : Grantable ab} -> CopyExcept bs
@@ -1223,7 +1197,7 @@ mutual
                    (span : Maybe (Duration spanBase)) ->
                    {auto 0 ts : SpanStaticThreads bs staticBase (staticIntro se)
                                                   spanBase span} ->
-                   {auto 0 sp : SpanOk (staticKind se) span} ->
+                   {auto 0 sp : SpanOk span} ->
                    {auto 0 cl : ClauseStatic se} -> Effect bs
     Create : (agent : Noun bs Player) -> (count : Amount (nomIntro agent)) ->
              (spec : TokenSpec (amtIntro count)) ->
@@ -1355,89 +1329,10 @@ mutual
 
   public export
   heldUntilOk : {0 bs : Bindings} -> Effect bs -> Bool
-  heldUntilOk (DealDamage _ _ _) = False
-  heldUntilOk (ControllerSacrifices _) = False
-  heldUntilOk (DoesntUntapNext _ _) = False
-  heldUntilOk (SkipsNext _ _ _) = False
-  heldUntilOk (ExtraTurn _ _) = False
-  heldUntilOk (AdditionalPart _ _ _ _ _) = False
-  heldUntilOk (SkipsAllOf _ _) = False
-  heldUntilOk (Distribute _ _ _) = False
-  heldUntilOk (Fights _ _) = False
-  heldUntilOk (TurnOver _) = False
   heldUntilOk (SetStatus PhasedOut _) = True
-  heldUntilOk (SetStatus _ _) = False
-  heldUntilOk (LosesCounters _ _ _) = False
-  heldUntilOk (RemoveFromCombat _) = False
-  heldUntilOk (AttachTo _ _) = False
-  heldUntilOk (Unattach _) = False
-  heldUntilOk (BecomesBlocking _ _) = False
-  heldUntilOk (StopsBlocking _ _) = False
-  heldUntilOk (BecomesAttacking _ _) = False
-  heldUntilOk (Regenerate _) = False
-  heldUntilOk (CantBe _ _ _) = False
-  heldUntilOk (GainsDesignation _ _ _ _) = False
-  heldUntilOk (Unlock _) = False
-  heldUntilOk (GameBecomes _) = False
-  heldUntilOk (Concludes _ _) = False
-  heldUntilOk GameDrawn = False
-  heldUntilOk RestartsGame = False
-  heldUntilOk (SeparateIntoPiles _ _ _ _) = False
-  heldUntilOk (CounterSpell _) = False
-  heldUntilOk (CopyStack _ _ _ _) = False
-  heldUntilOk (ChooseNewTargets _) = False
-  heldUntilOk (CopyTargets _ _) = False
-  heldUntilOk (CopyCard _ _ _) = False
-  heldUntilOk (Choose _ _ _) = False
-  heldUntilOk (ChoicesRevealed _) = False
-  heldUntilOk (Vote _ _ _ _) = False
   heldUntilOk (Move _ _ _) = True
-  heldUntilOk (ExchangeLife _) = False
-  heldUntilOk (ChangeLife _ _) = False
-  heldUntilOk (AddMana _ _ _ _) = False
-  heldUntilOk (Draw _ _) = False
-  heldUntilOk (Expose _ _ _) = False
-  heldUntilOk (Search _ _ _ _) = False
-  heldUntilOk (Shuffle _) = False
-  heldUntilOk (FlipCoins _ _) = False
-  heldUntilOk (RollDice _ _ _) = False
-  heldUntilOk (ResultsTable _) = False
-  heldUntilOk (IgnoreOutcomes _) = False
-  heldUntilOk (ShiftResult _ _) = False
-  heldUntilOk (RollPlanarDie _ _) = False
-  heldUntilOk (ChaosEnsues _) = False
-  heldUntilOk (StoreResults _) = False
-  heldUntilOk (RerollStored _ _ _) = False
-  heldUntilOk (Continuously _ _) = False
-  heldUntilOk (Create _ _ _ _) = False
-  heldUntilOk (GetsEmblem _ _) = False
-  heldUntilOk (PutCounters _ _ _) = False
-  heldUntilOk (RemoveCounters _ _ _) = False
-  heldUntilOk (RemoveCountersAmong _ _ _) = False
-  heldUntilOk (MoveCounters _ _ _ _) = False
-  heldUntilOk (DoubleCounters _) = False
   heldUntilOk (Enact _ (Move _ _ _)) = True
-  heldUntilOk (Enact _ _) = False
-  heldUntilOk (Does _ _ _) = False
-  heldUntilOk (Pay _ _ _) = False
-  heldUntilOk (May _ _ _ _) = False
-  heldUntilOk (IfDone _ _ _) = False
-  heldUntilOk (OnlyIf _ _ _) = False
-  heldUntilOk (If _ _ _) = False
-  heldUntilOk (Unless _ _ _) = False
-  heldUntilOk (Define _ _) = False
-  heldUntilOk (ForEachOf _ _) = False
-  heldUntilOk (ForEachKindOf _ _ _ _) = False
-  heldUntilOk (Repeat _) = False
-  heldUntilOk (Repeated _ _) = False
-  heldUntilOk (Sequentially _) = False
-  heldUntilOk (Simultaneously _) = False
-  heldUntilOk (Modal _ _) = False
-  heldUntilOk (Delayed _ _ _ _) = False
-  heldUntilOk (InsteadOf _ _) = False
-  heldUntilOk (HeldUntil _ _) = False
-  heldUntilOk (Reflexively _ _) = False
-  heldUntilOk (ThisWay _ _ _) = False
+  heldUntilOk _ = False
 
   public export
   data EncloseUse
@@ -1452,48 +1347,18 @@ mutual
 
   public export
   reflexEncloseUse : {0 bs : Bindings} -> Effect bs -> EncloseUse
-  reflexEncloseUse (DealDamage _ _ _) = EncAgentless
   reflexEncloseUse (ControllerSacrifices _) = EncReflexive
-  reflexEncloseUse (DoesntUntapNext _ _) = EncAgentless
   reflexEncloseUse (SkipsNext _ _ _) = EncNotYetTaken
   reflexEncloseUse (ExtraTurn _ _) = EncNotYetTaken
-  reflexEncloseUse (AdditionalPart Nothing _ _ _ _) = EncAgentless
   reflexEncloseUse (AdditionalPart (Just _) _ _ _ _) = EncNotYetTaken
   reflexEncloseUse (SkipsAllOf _ _) = EncNotYetTaken
-  reflexEncloseUse (Distribute _ _ _) = EncAgentless
-  reflexEncloseUse (Fights _ _) = EncAgentless
-  reflexEncloseUse (ExchangeLife _) = EncAgentless
-  reflexEncloseUse (ChangeLife _ _) = EncAgentless
   reflexEncloseUse (Continuously (GainsControl _ _) _) = EncReflexive
-  reflexEncloseUse (Continuously _ _) = EncAgentless
   reflexEncloseUse (Does _ _ _) = EncReflexive
   reflexEncloseUse (Pay _ _ _) = EncReflexive
   reflexEncloseUse (Enact _ _) = EncReflexive
-  reflexEncloseUse (TurnOver _) = EncAgentless
-  reflexEncloseUse (SetStatus _ _) = EncAgentless
-  reflexEncloseUse (LosesCounters _ _ _) = EncAgentless
-  reflexEncloseUse (RemoveFromCombat _) = EncAgentless
-  reflexEncloseUse (AttachTo _ _) = EncAgentless
-  reflexEncloseUse (Unattach _) = EncAgentless
-  reflexEncloseUse (BecomesBlocking _ _) = EncAgentless
-  reflexEncloseUse (StopsBlocking _ _) = EncAgentless
-  reflexEncloseUse (BecomesAttacking _ _) = EncAgentless
-  reflexEncloseUse (Regenerate _) = EncAgentless
-  reflexEncloseUse (CantBe _ _ _) = EncAgentless
-  reflexEncloseUse (GainsDesignation _ _ _ _) = EncAgentless
-  reflexEncloseUse (Unlock _) = EncAgentless
-  reflexEncloseUse (GameBecomes _) = EncAgentless
-  reflexEncloseUse (Concludes _ _) = EncAgentless
-  reflexEncloseUse GameDrawn = EncAgentless
-  reflexEncloseUse RestartsGame = EncAgentless
   reflexEncloseUse (SeparateIntoPiles _ _ _ _) = EncReflexive
-  reflexEncloseUse (CounterSpell _) = EncAgentless
-  reflexEncloseUse (CopyStack _ _ _ _) = EncAgentless
   reflexEncloseUse (ChooseNewTargets _) = EncReflexive
-  reflexEncloseUse (CopyTargets _ _) = EncAgentless
-  reflexEncloseUse (CopyCard _ _ _) = EncAgentless
   reflexEncloseUse (Create _ _ _ _) = EncReflexive
-  reflexEncloseUse (GetsEmblem _ _) = EncAgentless
   reflexEncloseUse (PutCounters _ _ _) = EncReflexive
   reflexEncloseUse (RemoveCounters _ _ _) = EncReflexive
   reflexEncloseUse (RemoveCountersAmong _ _ _) = EncReflexive
@@ -1504,18 +1369,13 @@ mutual
   reflexEncloseUse (AddMana _ _ _ _) = EncReflexive
   reflexEncloseUse (Draw _ _) = EncReflexive
   reflexEncloseUse (Choose _ _ _) = EncReflexive
-  reflexEncloseUse (ChoicesRevealed _) = EncAgentless
   reflexEncloseUse (Vote _ _ _ _) = EncReflexive
   reflexEncloseUse (Search _ _ _ _) = EncReflexive
   reflexEncloseUse (Shuffle _) = EncReflexive
   reflexEncloseUse (FlipCoins _ _) = EncReflexive
   reflexEncloseUse (RollDice _ _ _) = EncReflexive
   reflexEncloseUse (ResultsTable _) = EncNotOneAction
-  reflexEncloseUse (IgnoreOutcomes _) = EncAgentless
-  reflexEncloseUse (ShiftResult _ _) = EncAgentless
   reflexEncloseUse (RollPlanarDie _ _) = EncReflexive
-  reflexEncloseUse (ChaosEnsues _) = EncAgentless
-  reflexEncloseUse (StoreResults _) = EncAgentless
   reflexEncloseUse (RerollStored _ _ _) = EncReflexive
   reflexEncloseUse (May _ body Nothing _) = reflexEncloseUse body
   reflexEncloseUse (May _ _ _ _) = EncNotOneAction
@@ -1524,7 +1384,6 @@ mutual
   reflexEncloseUse (OnlyIf e _ _) = reflexEncloseUse e
   reflexEncloseUse (If _ _ _) = EncNotOneAction
   reflexEncloseUse (Unless _ _ _) = EncNotOneAction
-  reflexEncloseUse (Define _ _) = EncAgentless
   reflexEncloseUse (ForEachOf _ _) = EncNotOneAction
   reflexEncloseUse (ForEachKindOf _ _ _ _) = EncNotOneAction
   reflexEncloseUse (Repeat _) = EncNotOneAction
@@ -1539,6 +1398,7 @@ mutual
   reflexEncloseUse (ThisWay _ _ _) = EncNotOneAction
   reflexEncloseUse (Delayed _ _ _ _) = EncNotYetTaken
   reflexEncloseUse (HeldUntil _ _) = EncNotYetTaken
+  reflexEncloseUse _ = EncAgentless
 
   public export
   admitsReflexEnclosure : EncloseUse -> Bool
@@ -1556,84 +1416,7 @@ mutual
   thisWayOutcomeOk (Delayed _ _ _ _) = False
   thisWayOutcomeOk (May _ body _ _) = thisWayOutcomeOk body
   thisWayOutcomeOk (IfDone body _ _) = thisWayOutcomeOk body
-  thisWayOutcomeOk (DoesntUntapNext _ _) = True
-  thisWayOutcomeOk (SkipsNext _ _ _) = True
-  thisWayOutcomeOk (ExtraTurn _ _) = True
-  thisWayOutcomeOk (AdditionalPart _ _ _ _ _) = True
-  thisWayOutcomeOk (SkipsAllOf _ _) = True
-  thisWayOutcomeOk (HeldUntil _ _) = True
-  thisWayOutcomeOk (DealDamage _ _ _) = True
-  thisWayOutcomeOk (Distribute _ _ _) = True
-  thisWayOutcomeOk (Fights _ _) = True
-  thisWayOutcomeOk (TurnOver _) = True
-  thisWayOutcomeOk (SetStatus _ _) = True
-  thisWayOutcomeOk (ControllerSacrifices _) = True
-  thisWayOutcomeOk (LosesCounters _ _ _) = True
-  thisWayOutcomeOk (RemoveFromCombat _) = True
-  thisWayOutcomeOk (AttachTo _ _) = True
-  thisWayOutcomeOk (Unattach _) = True
-  thisWayOutcomeOk (BecomesBlocking _ _) = True
-  thisWayOutcomeOk (StopsBlocking _ _) = True
-  thisWayOutcomeOk (BecomesAttacking _ _) = True
-  thisWayOutcomeOk (Regenerate _) = True
-  thisWayOutcomeOk (CantBe _ _ _) = True
-  thisWayOutcomeOk (GainsDesignation _ _ _ _) = True
-  thisWayOutcomeOk (Unlock _) = True
-  thisWayOutcomeOk (GameBecomes _) = True
-  thisWayOutcomeOk (Concludes _ _) = True
-  thisWayOutcomeOk GameDrawn = True
-  thisWayOutcomeOk RestartsGame = True
-  thisWayOutcomeOk (SeparateIntoPiles _ _ _ _) = True
-  thisWayOutcomeOk (CounterSpell _) = True
-  thisWayOutcomeOk (CopyStack _ _ _ _) = True
-  thisWayOutcomeOk (ChooseNewTargets _) = True
-  thisWayOutcomeOk (CopyTargets _ _) = True
-  thisWayOutcomeOk (CopyCard _ _ _) = True
-  thisWayOutcomeOk (Choose _ _ _) = True
-  thisWayOutcomeOk (ChoicesRevealed _) = True
-  thisWayOutcomeOk (Vote _ _ _ _) = True
-  thisWayOutcomeOk (Move _ _ _) = True
-  thisWayOutcomeOk (ExchangeLife _) = True
-  thisWayOutcomeOk (ChangeLife _ _) = True
-  thisWayOutcomeOk (AddMana _ _ _ _) = True
-  thisWayOutcomeOk (Draw _ _) = True
-  thisWayOutcomeOk (Expose _ _ _) = True
-  thisWayOutcomeOk (Search _ _ _ _) = True
-  thisWayOutcomeOk (Shuffle _) = True
-  thisWayOutcomeOk (FlipCoins _ _) = True
-  thisWayOutcomeOk (RollDice _ _ _) = True
-  thisWayOutcomeOk (ResultsTable _) = True
-  thisWayOutcomeOk (IgnoreOutcomes _) = True
-  thisWayOutcomeOk (ShiftResult _ _) = True
-  thisWayOutcomeOk (RollPlanarDie _ _) = True
-  thisWayOutcomeOk (ChaosEnsues _) = True
-  thisWayOutcomeOk (StoreResults _) = True
-  thisWayOutcomeOk (RerollStored _ _ _) = True
-  thisWayOutcomeOk (Continuously _ _) = True
-  thisWayOutcomeOk (Create _ _ _ _) = True
-  thisWayOutcomeOk (GetsEmblem _ _) = True
-  thisWayOutcomeOk (PutCounters _ _ _) = True
-  thisWayOutcomeOk (RemoveCounters _ _ _) = True
-  thisWayOutcomeOk (RemoveCountersAmong _ _ _) = True
-  thisWayOutcomeOk (MoveCounters _ _ _ _) = True
-  thisWayOutcomeOk (DoubleCounters _) = True
-  thisWayOutcomeOk (Enact _ _) = True
-  thisWayOutcomeOk (Does _ _ _) = True
-  thisWayOutcomeOk (Pay _ _ _) = True
-  thisWayOutcomeOk (OnlyIf _ _ _) = True
-  thisWayOutcomeOk (If _ _ _) = True
-  thisWayOutcomeOk (Unless _ _ _) = True
-  thisWayOutcomeOk (Define _ _) = True
-  thisWayOutcomeOk (ForEachOf _ _) = True
-  thisWayOutcomeOk (ForEachKindOf _ _ _ _) = True
-  thisWayOutcomeOk (Repeat _) = True
-  thisWayOutcomeOk (Repeated _ _) = True
-  thisWayOutcomeOk (Sequentially _) = True
-  thisWayOutcomeOk (Simultaneously _) = True
-  thisWayOutcomeOk (Modal _ _) = True
-  thisWayOutcomeOk (InsteadOf _ _) = True
-  thisWayOutcomeOk (Reflexively _ _) = True
-  thisWayOutcomeOk (ThisWay _ _ _) = True
+  thisWayOutcomeOk _ = True
 
   public export
   ThisWayOutcome : Effect bs -> Type
@@ -1661,11 +1444,9 @@ mutual
   costActionOk (DealDamage src _ _) = costNounOk src
   costActionOk (ControllerSacrifices n) = costNounOk n
   costActionOk (DoesntUntapNext n _) = costNounOk n
-  costActionOk (SkipsNext _ _ _) = False
   costActionOk (ExtraTurn who _) = costNounOk who
   costActionOk (AdditionalPart Nothing _ _ _ _) = True
   costActionOk (AdditionalPart (Just who) _ _ _ _) = costNounOk who
-  costActionOk (SkipsAllOf _ _) = False
   costActionOk (Distribute _ _ among) = costNounOk among
   costActionOk (Fights a _) = costNounOk a
   costActionOk (TurnOver n) = costNounOk n
@@ -1685,7 +1466,6 @@ mutual
   costActionOk (GameBecomes _) = True
   costActionOk (Concludes _ _) = True
   costActionOk GameDrawn = True
-  costActionOk RestartsGame = False
   costActionOk (SeparateIntoPiles _ grp _ _) = costNounOk grp
   costActionOk (CounterSpell _) = True
   costActionOk (CopyStack _ what _ _) = costNounOk what
@@ -1693,8 +1473,6 @@ mutual
   costActionOk (CopyTargets copy _) = costNounOk copy
   costActionOk (CopyCard _ what _) = costNounOk what
   costActionOk (Choose n _ _) = costNounOk n
-  costActionOk (ChoicesRevealed _) = False
-  costActionOk (Vote _ _ _ _) = False
   costActionOk (Move what _ _) = costNounOk what
   costActionOk (ExchangeLife parties) = costNounOk parties
   costActionOk (ChangeLife _ _) = True
@@ -1705,14 +1483,8 @@ mutual
   costActionOk (Shuffle whose) = costNounOk whose
   costActionOk (FlipCoins who _) = costNounOk who
   costActionOk (RollDice who _ _) = costNounOk who
-  costActionOk (ResultsTable _) = False
-  costActionOk (IgnoreOutcomes _) = False
-  costActionOk (ShiftResult _ _) = False
-  costActionOk (StoreResults _) = False
   costActionOk (RollPlanarDie who _) = costNounOk who
-  costActionOk (ChaosEnsues _) = False
   costActionOk (RerollStored who _ _) = costNounOk who
-  costActionOk (Continuously _ _) = False
   costActionOk (Create agent _ _ _) = costNounOk agent
   costActionOk (GetsEmblem _ _) = True
   costActionOk (PutCounters _ _ on) = costNounOk on
@@ -1722,27 +1494,18 @@ mutual
   costActionOk (DoubleCounters on) = costNounOk on
   costActionOk (Enact _ e) = costActionOk e
   costActionOk (Does _ _ e) = costActionOk e
-  costActionOk (Pay _ _ _) = False
   costActionOk (May _ body ifDid ifNot) =
     costActionOk body && costActionOkOpt ifDid && costActionOkOpt ifNot
   costActionOk (IfDone body ifDid ifNot) =
     costActionOk body && costActionOkOpt ifDid && costActionOkOpt ifNot
   costActionOk (OnlyIf e _ otherwise) = costActionOk e && costActionOkOpt otherwise
   costActionOk (If _ e otherwise) = costActionOk e && costActionOkOpt otherwise
-  costActionOk (Unless _ _ _) = False
   costActionOk (Define _ _) = True
   costActionOk (ForEachOf _ body) = costActionOk body
   costActionOk (ForEachKindOf _ _ _ body) = costActionOk body
-  costActionOk (Repeat _) = False
   costActionOk (Repeated _ body) = costRepeatedOk body
-  costActionOk (Sequentially _) = False
-  costActionOk (Simultaneously _) = False
   costActionOk (Modal _ modes) = costActionsOk modes
-  costActionOk (Delayed _ _ _ _) = False
-  costActionOk (InsteadOf _ _) = False
-  costActionOk (HeldUntil _ _) = False
-  costActionOk (Reflexively _ _) = False
-  costActionOk (ThisWay _ _ _) = False
+  costActionOk _ = False
 
   public export
   costActionOkOpt : {0 bs : Bindings} -> Maybe (Effect bs) -> Bool
@@ -2273,6 +2036,25 @@ mutual
   deedDelta (HeldUntil e ev) = []
 
   public export
+  record EffProfile (bs : Bindings) where
+    constructor MkEffProfile
+    pre : Bindings
+    deed : List Binding
+    moved : Bool
+    scheduled : Bool
+    agentive : Bool
+    announced : Bindings
+    introduced : Bindings
+    enclosure : EncloseUse
+
+  public export
+  effProfile : {bs : Bindings} -> Effect bs -> EffProfile bs
+  effProfile e = MkEffProfile (preIntro e) (deedDelta e)
+                              (heldUntilOk e) (not (thisWayOutcomeOk e))
+                              (costActionOk e) (annIntro e)
+                              (effIntro e) (reflexEncloseUse e)
+
+  public export
   preIntros : {bs : Bindings} -> {0 n : Nat} -> Effects n bs -> Bindings
   preIntros [] = bs
   preIntros (e :: []) = preIntro e
@@ -2574,8 +2356,14 @@ mutual
   tokenAbilitiesOk t = abilitiesGrantable t.abilities
 
   public export
-  TokenAbilities : TokenChars bs -> Type
-  TokenAbilities {bs} t = So (tokenAbilitiesOk t)
+  TokenWellFormed : TokenChars bs -> Type
+  TokenWellFormed t = ( So (tokenTyped t)
+                      , So (tokenPtOk t)
+                      , So (subsFitLine t.line.subs t.line.tys)
+                      , So (tokenAbilitiesOk t)
+                      , So (tokenCanonical t)
+                      , So (tokenQualsFit t)
+                      )
 
   public export
   predRegime : {0 bs : Bindings} -> {0 k : Kind} ->
@@ -2834,11 +2622,8 @@ mutual
   costsOffBattlefield (c :: cs) = costOffBattlefield c && costsOffBattlefield cs
 
   public export
-  data AltPayment : {0 bs : Bindings} -> Maybe (Cost bs) -> Type where
-    NoAltPayment : AltPayment Nothing
-    AltPaymentWritten : {0 c : Cost bs} ->
-                        {auto 0 ok : So (costOffBattlefield c)} ->
-                        AltPayment (Just c)
+  AltPayment : {0 bs : Bindings} -> Maybe (Cost bs) -> Type
+  AltPayment = OptOk (\c => So (costOffBattlefield c))
 
   public export
   data AddedPayment : {0 bs : Bindings} -> Cost bs -> Type where

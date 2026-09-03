@@ -36,7 +36,7 @@ public export
 badRedirectToPlural : Unspellable (StaticEffect []) (\ok =>
   Redirects AnyDamage Unattributed (Macros.shieldingIt You) CutAll
             (Macros.allOf Macros.creatureYouControl) Repeatedly {one = ok})
-badRedirectToPlural Oh impossible
+badRedirectToPlural Refl impossible
 
 
 ||| "The damage can't be prevented."
@@ -131,7 +131,7 @@ public export
 badRedirectToGroup : Unspellable (StaticEffect []) (\ok =>
   Redirects AnyDamage Unattributed (Macros.shieldingIt You) CutAll
             (Macros.youAnd (Macros.allOf (And [Permanent, HasPossessor ControllerAx You]))) Repeatedly {one = ok})
-badRedirectToGroup Oh impossible
+badRedirectToGroup Refl impossible
 
 
 ||| "… it deals that much damage plus that much instead."
@@ -314,8 +314,8 @@ public export
 badChapterOnNonSaga : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip White]) [] (MkTypeLine [] [Enchantment])
        [ Triggered When (ChapterMark [ChapterI]) [] Nothing [] Nothing Nothing Nothing (Macros.draw You (Lit 1)) ]
-       Nothing {ch = ok})
-badChapterOnNonSaga Oh impossible
+       Nothing {fl = ok})
+badChapterOnNonSaga MkFaceLaws impossible
 
 
 ||| "— Draw a card."
@@ -499,32 +499,30 @@ badCastAbilityClass Oh impossible
 public export
 badAltCostTapSymbol : Unspellable (StaticEffect []) (\ok =>
   AltCost This (Just TapSymbol) {ap = ok})
-badAltCostTapSymbol NoAltPayment impossible
-badAltCostTapSymbol AltPaymentWritten impossible
+badAltCostTapSymbol (Present {ok = Oh}) impossible
 
 
 ||| "You may [+1] rather than pay this spell's mana cost."
 public export
 badAltCostLoyaltySymbol : Unspellable (StaticEffect []) (\ok =>
   AltCost This (Just (LoyaltySymbol (LoyaltyUp 1))) {ap = ok})
-badAltCostLoyaltySymbol NoAltPayment impossible
-badAltCostLoyaltySymbol AltPaymentWritten impossible
+badAltCostLoyaltySymbol (Present {ok = Oh}) impossible
 
 
 ||| "Escalate {2}"
 public export
 badEscalateWithoutModes : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Black]) [] (MkTypeLine [] [Instant])
-       [Macros.keywordCosting "Escalate" (Mana [Macros.generic 2])] Nothing {tx = ok})
-badEscalateWithoutModes Oh impossible
+       [Macros.keywordCosting "Escalate" (Mana [Macros.generic 2])] Nothing {fl = ok})
+badEscalateWithoutModes MkFaceLaws impossible
 
 
 ||| "Entwine {2}"
 public export
 badEntwineWithoutModes : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Green]) [] (MkTypeLine [] [Sorcery])
-       [Macros.keywordCosting "Entwine" (Mana [Macros.generic 2])] Nothing {tx = ok})
-badEntwineWithoutModes Oh impossible
+       [Macros.keywordCosting "Entwine" (Mana [Macros.generic 2])] Nothing {fl = ok})
+badEntwineWithoutModes MkFaceLaws impossible
 
 
 public export

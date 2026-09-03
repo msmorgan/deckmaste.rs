@@ -1,0 +1,59 @@
+#!/usr/bin/env python3
+
+import re
+import sys
+from pathlib import Path
+
+
+TABLES = {
+    "heldUntilOk": "False",
+    "reflexEncloseUse": "EncAgentless",
+    "thisWayOutcomeOk": "True",
+    "costActionOk": "False",
+    "effIntro": None,
+    "preIntro": None,
+    "annIntro": None,
+    "deedDelta": None,
+}
+
+
+def clauses(path, name):
+    lines = Path(path).read_text().splitlines()
+    starts = [
+        i for i, line in enumerate(lines)
+        if re.match(rf"^  {name}(?: |$)", line) and "=" in line
+    ]
+    result = []
+    for start in starts:
+        end = start + 1
+        while end < len(lines) and not re.match(r"^  \S", lines[end]):
+            end += 1
+        result.append("\n".join(lines[start:end]).rstrip())
+    return result
+
+
+def main():
+    if len(sys.argv) != 3:
+        raise SystemExit("usage: compare-effect-tables BEFORE AFTER")
+    before, after = sys.argv[1:]
+    total = 0
+    for name, fallback in TABLES.items():
+        old = clauses(before, name)
+        new = clauses(after, name)
+        old_set = set(old)
+        wildcard = None if fallback is None else f"  {name} _ = {fallback}"
+        for clause in old:
+            if clause not in new and not (
+                wildcard in new and clause.splitlines()[0].endswith(f"= {fallback}")
+            ):
+                raise SystemExit(f"changed projection: {clause}")
+        for clause in new:
+            if clause != wildcard and clause not in old_set:
+                raise SystemExit(f"new projection: {clause}")
+        total += len(old)
+        print(f"{name}: {len(old)} old clauses -> {len(new)} clauses")
+    print(f"effect profile: {total} old clauses preserved")
+
+
+if __name__ == "__main__":
+    main()

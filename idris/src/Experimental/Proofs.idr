@@ -105,8 +105,8 @@ badForestNonland Oh impossible
 ||| "Snow Snow Land — Forest"
 public export
 badDuplicateSnow : Unspellable Card (\ok =>
-  Macros.card "" Nothing [Snow, Snow] (MkTypeLine [landType "Forest"] [Land]) [] Nothing {sp = ok})
-badDuplicateSnow Oh impossible
+  Macros.card "" Nothing [Snow, Snow] (MkTypeLine [landType "Forest"] [Land]) [] Nothing {fl = ok})
+badDuplicateSnow MkFaceLaws impossible
 
 
 ||| "This deals 1 damage to any other target."

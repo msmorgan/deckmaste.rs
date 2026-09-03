@@ -445,29 +445,14 @@ mutual
   seedZone (CombatRel _ _) = Just Battlefield
   seedZone Blocked = Just Battlefield
   seedZone Unblocked = Just Battlefield
-  seedZone (HappenedTo _ _ _) = Nothing
-  seedZone (ColorIs _) = Nothing
-  seedZone IsColorless = Nothing
-  seedZone Multicolored = Nothing
-  seedZone Monocolored = Nothing
-  seedZone (ExactlyColors _) = Nothing
-  seedZone (HasSupertype _) = Nothing
-  seedZone (Named _) = Nothing
   seedZone (HasDesignation d) = designationSeedZone d
-  seedZone (CoinCameUp _) = Nothing
   seedZone (IsAttached _) = Just Battlefield
   seedZone (AttachedBy _ _) = Just Battlefield
   seedZone (AttachedTo _) = Just Battlefield
   seedZone IsToken = Just Battlefield
   seedZone IsTransformed = Just Battlefield
   seedZone (HasStatus _) = Just Battlefield
-  seedZone (HasCounters _) = Nothing
-  seedZone (PaidCost _ _) = Nothing
-  seedZone (HasPossessor _ _) = Nothing
-  seedZone (CastBy _) = Nothing
-  seedZone (NthCastBy _ _ _) = Nothing
   seedZone (Targets _ _) = Just Stack
-  seedZone (InPile _) = Nothing
   seedZone (ExiledWith _) = Just Exile
   seedZone (CompareOver dom _ _ _) = seedZone dom
   seedZone (And ps) = seedZoneAll ps
@@ -529,24 +514,9 @@ mutual
   seedType (CombatRel _ _) = Just Creature
   seedType Blocked = Just Creature
   seedType Unblocked = Just Creature
-  seedType (HappenedTo _ _ _) = Nothing
-  seedType (ColorIs _) = Nothing
-  seedType IsColorless = Nothing
-  seedType Multicolored = Nothing
-  seedType Monocolored = Nothing
-  seedType (ExactlyColors _) = Nothing
-  seedType (HasSupertype _) = Nothing
-  seedType (Named _) = Nothing
   seedType (HasDesignation d) = designationSeedType d
-  seedType (IsAttached _) = Nothing
-  seedType (AttachedBy _ _) = Nothing
-  seedType (AttachedTo _) = Nothing
-  seedType (Targets _ _) = Nothing
   seedType (Compare cs _ _) = axisTypes cs
   seedType (Superlative _ (CharAxis c) _) = comparedType c
-  seedType (Superlative _ (PlayerStatAxis _) _) = Nothing
-  seedType WithMostVotes = Nothing
-  seedType (ChoseExtreme _) = Nothing
   seedType (CompareOver dom _ _ _) = seedType dom
   seedType (HasSubtype s) = Just (subtypeType s)
   seedType (And ps) = seedTypeAll ps
@@ -587,64 +557,19 @@ mutual
   hasHead TheLastChosenPlayer = True
   hasHead (QualityNoun _ _) = True
   hasHead (CounterKindOn _) = True
-  hasHead (OfChosen _) = False
-  hasHead (OfTheLastChosen _) = False
-  hasHead (OfYourChoice _ _) = False
   hasHead (AbilityHead _) = True
-  hasHead (AbilityOf _) = False
-  hasHead (ActivatedBy _) = False
-  hasHead IsManaAbility = False
-  hasHead (Targets _ _) = False
   hasHead IsSource = True
-  hasHead (ManaCostHas _) = False
-  hasHead (HasKeyword _) = False
-  hasHead (HasPossessor _ _) = False
-  hasHead (CastBy _) = False
-  hasHead (NthCastBy _ _ _) = False
-  hasHead Attacking = False
-  hasHead BeingDeclaredAttacker = False
-  hasHead Blocking = False
-  hasHead (CombatRel _ _) = False
-  hasHead Blocked = False
-  hasHead Unblocked = False
-  hasHead (HappenedTo _ _ _) = False
-  hasHead (CastFrom _) = False
-  hasHead WasCast = False
-  hasHead (ColorIs _) = False
-  hasHead IsColorless = False
-  hasHead Multicolored = False
-  hasHead Monocolored = False
-  hasHead (ExactlyColors _) = False
-  hasHead (HasSupertype _) = False
-  hasHead (Named _) = False
-  hasHead (HasDesignation _) = False
   hasHead (HasCardDesignation _) = True
-  hasHead (CoinCameUp _) = False
-  hasHead (IsAttached _) = False
-  hasHead (AttachedBy _ _) = False
-  hasHead (AttachedTo _) = False
   hasHead Permanent = True
   hasHead IsCard = True
   hasHead IsToken = True
-  hasHead IsHistoric = False
-  hasHead IsTransformed = False
-  hasHead (HasStatus _) = False
-  hasHead (HasCounters _) = False
-  hasHead (PaidCost _ _) = False
-  hasHead (Compare _ _ _) = False
-  hasHead (Superlative _ _ _) = False
-  hasHead WithMostVotes = False
-  hasHead (ChoseExtreme _) = False
   hasHead (CompareOver dom _ _ _) = hasHead dom
   hasHead (InZone _) = True
-  hasHead (InPile _) = False
   hasHead (ExiledWith _) = True
   hasHead (And ps) = hasHeadAny ps
   hasHead (Or ps) = hasHeadAll ps
-  hasHead (Not _) = False
-  hasHead Other = False
-  hasHead (OtherThan _) = False
   hasHead (Joined _ _) = True
+  hasHead _ = False
 
   public export
   hasHeadAny : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
@@ -1242,72 +1167,9 @@ mutual
 
   public export
   predSays : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
-  predSays (HasType _) = True
-  predSays (HasSubtype _) = True
-  predSays AnyPlayer = True
-  predSays ChosenPlayer = True
-  predSays TheLastChosenPlayer = True
-  predSays Opponent = True
-  predSays (QualityNoun _ _) = True
-  predSays (CounterKindOn _) = True
-  predSays (OfChosen _) = True
-  predSays (OfTheLastChosen _) = True
-  predSays (OfYourChoice _ _) = True
-  predSays (AbilityHead _) = True
-  predSays (AbilityOf _) = True
-  predSays (ActivatedBy _) = True
-  predSays IsManaAbility = True
-  predSays (Targets _ _) = True
-  predSays IsSource = True
-  predSays (ManaCostHas _) = True
-  predSays (HasKeyword _) = True
-  predSays (HasPossessor _ _) = True
-  predSays (CastBy _) = True
-  predSays (NthCastBy _ _ _) = True
-  predSays (ExiledWith _) = True
-  predSays (InPile _) = True
-  predSays Attacking = True
-  predSays BeingDeclaredAttacker = True
-  predSays Blocking = True
-  predSays (CombatRel _ _) = True
-  predSays Blocked = True
-  predSays Unblocked = True
-  predSays (HappenedTo _ _ _) = True
-  predSays (CastFrom _) = True
-  predSays WasCast = True
-  predSays (ColorIs _) = True
-  predSays IsColorless = True
-  predSays Multicolored = True
-  predSays Monocolored = True
-  predSays (ExactlyColors _) = True
-  predSays (HasSupertype _) = True
-  predSays (Named _) = True
-  predSays (HasDesignation _) = True
-  predSays (HasCardDesignation _) = True
-  predSays (CoinCameUp _) = True
-  predSays (IsAttached _) = True
-  predSays (AttachedBy _ _) = True
-  predSays (AttachedTo _) = True
-  predSays Permanent = True
-  predSays IsCard = True
-  predSays IsToken = True
-  predSays IsHistoric = True
-  predSays IsTransformed = True
-  predSays (HasStatus _) = True
-  predSays (HasCounters _) = True
-  predSays (PaidCost _ _) = True
-  predSays (Compare _ _ _) = True
-  predSays (Superlative _ _ _) = True
-  predSays WithMostVotes = True
-  predSays (ChoseExtreme _) = True
-  predSays (CompareOver _ _ _ _) = True
-  predSays (InZone _) = True
   predSays (And ps) = predSaysAny ps
-  predSays (Or _) = True
   predSays (Not p) = predSays p
-  predSays Other = True
-  predSays (OtherThan _) = True
-  predSays (Joined _ _) = True
+  predSays _ = True
 
   public export
   predSaysAny : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
@@ -1320,72 +1182,11 @@ mutual
 
   public export
   predNegFree : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
-  predNegFree (HasType _) = True
-  predNegFree (HasSubtype _) = True
-  predNegFree AnyPlayer = True
-  predNegFree ChosenPlayer = True
-  predNegFree TheLastChosenPlayer = True
-  predNegFree Opponent = True
-  predNegFree (QualityNoun _ _) = True
-  predNegFree (CounterKindOn _) = True
-  predNegFree (OfChosen _) = True
-  predNegFree (OfTheLastChosen _) = True
-  predNegFree (OfYourChoice _ _) = True
-  predNegFree (AbilityHead _) = True
-  predNegFree (AbilityOf _) = True
-  predNegFree (ActivatedBy _) = True
-  predNegFree IsManaAbility = True
-  predNegFree (Targets _ _) = True
-  predNegFree IsSource = True
-  predNegFree (ManaCostHas _) = True
-  predNegFree (HasKeyword _) = True
-  predNegFree (HasPossessor _ _) = True
-  predNegFree (CastBy _) = True
-  predNegFree (NthCastBy _ _ _) = True
-  predNegFree (ExiledWith _) = True
-  predNegFree (InPile _) = True
-  predNegFree Attacking = True
-  predNegFree BeingDeclaredAttacker = True
-  predNegFree Blocking = True
-  predNegFree (CombatRel _ _) = True
-  predNegFree Blocked = True
-  predNegFree Unblocked = True
-  predNegFree (HappenedTo _ _ _) = True
-  predNegFree (CastFrom _) = True
-  predNegFree WasCast = True
-  predNegFree (ColorIs _) = True
-  predNegFree IsColorless = True
-  predNegFree Multicolored = True
-  predNegFree Monocolored = True
-  predNegFree (ExactlyColors _) = True
-  predNegFree (HasSupertype _) = True
-  predNegFree (Named _) = True
-  predNegFree (HasDesignation _) = True
-  predNegFree (HasCardDesignation _) = True
-  predNegFree (CoinCameUp _) = True
-  predNegFree (IsAttached _) = True
-  predNegFree (AttachedBy _ _) = True
-  predNegFree (AttachedTo _) = True
-  predNegFree Permanent = True
-  predNegFree IsCard = True
-  predNegFree IsToken = True
-  predNegFree IsHistoric = True
-  predNegFree IsTransformed = True
-  predNegFree (HasStatus _) = True
-  predNegFree (HasCounters _) = True
-  predNegFree (PaidCost _ _) = True
-  predNegFree (Compare _ _ _) = True
-  predNegFree (Superlative _ _ _) = True
-  predNegFree WithMostVotes = True
-  predNegFree (ChoseExtreme _) = True
-  predNegFree (CompareOver _ _ _ _) = True
-  predNegFree (InZone _) = True
   predNegFree (And ps) = predNegFreeAll ps
   predNegFree (Or ps) = predNegFreeAll ps
   predNegFree (Not _) = False
-  predNegFree Other = True
-  predNegFree (OtherThan _) = True
   predNegFree (Joined l r) = predNegFree l && predNegFree r
+  predNegFree _ = True
 
   public export
   predNegFreeAll : {0 bs : Bindings} -> {0 k : Kind} ->
@@ -2155,13 +1956,8 @@ mutual
   WellFormedQ q = So (quantWellFormed q)
 
   public export
-  optQuantWellFormed : {0 bs : Bindings} -> Maybe (Quantity bs) -> Bool
-  optQuantWellFormed Nothing = True
-  optQuantWellFormed (Just q) = quantWellFormed q
-
-  public export
   OptWellFormedQ : Maybe (Quantity bs) -> Type
-  OptWellFormedQ q = So (optQuantWellFormed q)
+  OptWellFormedQ = OptOk WellFormedQ
 
   public export
   data SliceCount : Bindings -> Type where
@@ -2448,15 +2244,6 @@ mutual
   counterKind _ = False
 
   public export
-  data Counterable : {0 k : Kind} -> Noun bs k -> Type where
-    SpellCountered : {0 n : Noun bs Object} ->
-                     {auto 0 zn : ZoneIs (nounZone n) Stack} -> Counterable n
-    AbilityCountered : {0 n : Noun bs Ability} -> Counterable n
-    JoinCountered : {0 ka : Kind} -> {0 kb : Kind} ->
-                    {0 n : Noun bs (ka \/ kb)} ->
-                    {auto 0 ck : So (counterKind (ka \/ kb))} -> Counterable n
-
-  public export
   controlKind : Kind -> Bool
   controlKind Object = True
   controlKind Ability = True
@@ -2476,13 +2263,21 @@ mutual
   copyKind _ = False
 
   public export
-  data Copiable : {0 k : Kind} -> Noun bs k -> Type where
-    SpellCopied : {0 n : Noun bs Object} ->
-                  {auto 0 zn : ZoneIs (nounZone n) Stack} -> Copiable n
-    AbilityCopied : {0 n : Noun bs Ability} -> Copiable n
-    JoinCopied : {0 ka : Kind} -> {0 kb : Kind} ->
-                 {0 n : Noun bs (ka \/ kb)} ->
-                 {auto 0 ck : So (copyKind (ka \/ kb))} -> Copiable n
+  data StackActOn : (Kind -> Bool) -> {0 k : Kind} -> Noun bs k -> Type where
+    StackSpell : {0 n : Noun bs Object} ->
+                 {auto 0 zn : ZoneIs (nounZone n) Stack} -> StackActOn p n
+    StackAbility : {0 n : Noun bs Ability} -> StackActOn p n
+    StackJoin : {0 ka : Kind} -> {0 kb : Kind} ->
+                {0 n : Noun bs (ka \/ kb)} ->
+                {auto 0 ok : So (p (ka \/ kb))} -> StackActOn p n
+
+  public export
+  Counterable : {0 k : Kind} -> Noun bs k -> Type
+  Counterable = StackActOn counterKind
+
+  public export
+  Copiable : {0 k : Kind} -> Noun bs k -> Type
+  Copiable = StackActOn copyKind
 
   public export
   selfDefinedOk : {bs : Bindings} -> Noun bs Object -> Bool
@@ -2587,23 +2382,8 @@ mutual
 
   public export
   condNegated : {0 bs : Bindings} -> Condition bs -> Bool
-  condNegated (Exists _) = False
-  condNegated (Happened _ _ _ _) = False
-  condNegated (GameIs _) = False
-  condNegated (NoHolder _) = False
-  condNegated (ManaSpentToCast _ _) = False
-  condNegated (Matches _ _) = False
-  condNegated (CompareAmt _ _ _) = False
-  condNegated (DealtThisWay _) = False
-  condNegated (PreventedFromSource _) = False
-  condNegated (FlipCalled _ _) = False
-  condNegated (FlipFace _) = False
-  condNegated (VoteLead _ _) = False
-  condNegated (AnyResultIs _ _) = False
-  condNegated RolledDoubles = False
   condNegated (NotCond _) = True
-  condNegated (AndCond _) = False
-  condNegated (OrCond _) = False
+  condNegated _ = False
 
   public export
   markingOk : {0 bs : Bindings} -> CondMarking -> Condition bs -> Bool
@@ -2671,10 +2451,8 @@ mutual
     k == Object && km == Object && zoneIsB z Battlefield
 
   public export
-  data EventAgent : {0 bs : Bindings} -> Maybe (Noun bs Player) -> Type where
-    AgentUnvoiced : EventAgent Nothing
-    AgentVoiced : {0 w : Noun bs Player} ->
-                  {auto 0 bl : Bindingless w} -> EventAgent (Just w)
+  EventAgent : {bs : Bindings} -> Maybe (Noun bs Player) -> Type
+  EventAgent m = OptOk (\w => nounDelta w = []) m
 
   public export
   data TokenPhrase : {0 bs : Bindings} -> Noun bs Object -> Type where
@@ -2876,7 +2654,7 @@ mutual
 
   public export
   SingleRecipient : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type
-  SingleRecipient {bs} {k} n = So (isOne (nounPlur n))
+  SingleRecipient {bs} {k} n = nounPlur n = OneOf
 
   public export
   data DiscardOk : Noun bs Object -> Type where

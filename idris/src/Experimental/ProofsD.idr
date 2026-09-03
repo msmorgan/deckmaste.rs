@@ -20,76 +20,76 @@ badExiledWithAttacking Oh impossible
 public export
 badSpellAbilityOnPermanent : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Creature])
-       [Spell (Macros.draw You (Lit 1))] (Just (1, 1)) {tx = ok})
-badSpellAbilityOnPermanent Oh impossible
+       [Spell (Macros.draw You (Lit 1))] (Just (1, 1)) {fl = ok})
+badSpellAbilityOnPermanent MkFaceLaws impossible
 
 
 ||| "Creatures you control get +1/+1."
 public export
 badStaticOnSorcery : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Green]) [] (MkTypeLine [] [Sorcery])
-       [Static (Gets (Macros.allOf Macros.creatureYouControl) (PtUp (Lit 1)) (PtUp (Lit 1)))] Nothing {tx = ok})
-badStaticOnSorcery Oh impossible
+       [Static (Gets (Macros.allOf Macros.creatureYouControl) (PtUp (Lit 1)) (PtUp (Lit 1)))] Nothing {fl = ok})
+badStaticOnSorcery MkFaceLaws impossible
 
 
 ||| "Flying"
 public export
 badKeywordOnInstant : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Red]) [] (MkTypeLine [] [Instant])
-       [KeywordAbility "Flying" Nothing Nothing] Nothing {tx = ok})
-badKeywordOnInstant Oh impossible
+       [KeywordAbility "Flying" Nothing Nothing] Nothing {fl = ok})
+badKeywordOnInstant MkFaceLaws impossible
 
 
 ||| "{T}: Draw a card."
 public export
 badTapSorcery : Unspellable Card (\ok =>
   Macros.card "Impossible Tap Sorcery" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Sorcery])
-       [Activated TapSymbol (Macros.draw You (Lit 1)) Nothing Nothing Nothing Nothing] Nothing {tx = ok})
-badTapSorcery Oh impossible
+       [Activated TapSymbol (Macros.draw You (Lit 1)) Nothing Nothing Nothing Nothing] Nothing {fl = ok})
+badTapSorcery MkFaceLaws impossible
 
 
 ||| a creature card printed with no power or toughness
 public export
 badCreatureCardNoPt : Unspellable Card (\ok =>
-  Macros.card "" (Just [Macros.pip Green]) [] (MkTypeLine [] [Creature]) [] Nothing {bx = ok})
-badCreatureCardNoPt MkCardBox impossible
+  Macros.card "" (Just [Macros.pip Green]) [] (MkTypeLine [] [Creature]) [] Nothing {fl = ok})
+badCreatureCardNoPt (MkFaceLaws {bx = MkCardBox}) impossible
 
 
 ||| a land card printed with "{1}"
 public export
 badLandWithManaCost : Unspellable Card (\ok =>
-  Macros.card "" (Just [Macros.generic 1]) [] (MkTypeLine [] [Land]) [] Nothing {mc = ok})
-badLandWithManaCost Oh impossible
+  Macros.card "" (Just [Macros.generic 1]) [] (MkTypeLine [] [Land]) [] Nothing {fl = ok})
+badLandWithManaCost MkFaceLaws impossible
 
 
 ||| "Legendary Legendary Creature"
 public export
 badDuplicateSupertype : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Blue]) [Legendary, Legendary] (MkTypeLine [] [Creature])
-       [] (Just (1, 1)) {sp = ok})
-badDuplicateSupertype Oh impossible
+       [] (Just (1, 1)) {fl = ok})
+badDuplicateSupertype MkFaceLaws impossible
 
 
 ||| "Land Creature Instant"
 public export
 badMixedPermanentSpellLine : Unspellable Card (\ok =>
-  Macros.card "" Nothing [] (MkTypeLine [] [Land, Creature, Instant]) [] (Just (1, 1)) {ln = ok})
-badMixedPermanentSpellLine MkCardLine impossible
+  Macros.card "" Nothing [] (MkTypeLine [] [Land, Creature, Instant]) [] (Just (1, 1)) {fl = ok})
+badMixedPermanentSpellLine (MkFaceLaws {ln = MkCardLine}) impossible
 
 
 ||| a card printed with an empty type line
 public export
 badCardNoTypes : Unspellable Card (\ok =>
-  Macros.card "" (Just [Macros.generic 1]) [] (MkTypeLine [] []) [] Nothing {ln = ok})
-badCardNoTypes MkCardLine impossible
+  Macros.card "" (Just [Macros.generic 1]) [] (MkTypeLine [] []) [] Nothing {fl = ok})
+badCardNoTypes (MkFaceLaws {ln = MkCardLine}) impossible
 
 
 ||| "Creature Creature"
 public export
 badCardDuplicateType : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.generic 2]) [] (MkTypeLine [] [Creature, Creature]) []
-       (Just (2, 2)) {ln = ok})
-badCardDuplicateType MkCardLine impossible
+       (Just (2, 2)) {fl = ok})
+badCardDuplicateType (MkFaceLaws {ln = MkCardLine}) impossible
 
 
 ||| "Target creature gains a spell ability."
@@ -103,14 +103,14 @@ badGainsSpellAbility Oh impossible
 public export
 badCounterPermanent : Unspellable (Effect []) (\ok =>
   Macros.counterSpell (Macros.target Macros.creature) {ct = ok})
-badCounterPermanent SpellCountered impossible
+badCounterPermanent StackSpell impossible
 
 
 ||| "Counter target creature or player."
 public export
 badCounterJoinedPlayer : Unspellable (Effect []) (\ok =>
   Macros.counterSpell (Macros.target Macros.anyTarget) {ct = ok})
-badCounterJoinedPlayer JoinCountered impossible
+badCounterJoinedPlayer StackJoin impossible
 
 
 ||| "You may play a spell this turn."

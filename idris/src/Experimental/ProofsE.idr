@@ -27,8 +27,8 @@ badStarlessDefinedPt : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Green]) [] (MkTypeLine [] [Creature])
        [Static (DefinesPt Macros.thisCreature BothEach
                           (Macros.countOf Macros.creatureYouControl))]
-       (Just (2, 2)) {bx = ok})
-badStarlessDefinedPt MkCardBox impossible
+       (Just (2, 2)) {fl = ok})
+badStarlessDefinedPt (MkFaceLaws {bx = MkCardBox}) impossible
 
 
 public export
@@ -72,7 +72,7 @@ badLifeTotalSuperlative Refl impossible
 public export
 badAnnouncingRemovalAgent : Unspellable (GameEvent []) (\ok =>
   LastCounterRemoved (Named "Intervention") Macros.thisEnchantment (Just (Macros.target AnyPlayer))
-                     {ag = AgentVoiced {bl = ok}})
+                     {ag = Present {ok}})
 badAnnouncingRemovalAgent Refl impossible
 
 
@@ -179,8 +179,8 @@ badUnknownKeywordPredicate Oh impossible
 public export
 badProtectionOnInstant : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip White]) [] (MkTypeLine [] [Instant])
-       [KeywordAbility "Protection" (Just (ParamQuality (ColorIs Red))) Nothing] Nothing {tx = ok})
-badProtectionOnInstant Oh impossible
+       [KeywordAbility "Protection" (Just (ParamQuality (ColorIs Red))) Nothing] Nothing {fl = ok})
+badProtectionOnInstant MkFaceLaws impossible
 
 
 ||| "Protection from player"
@@ -195,8 +195,8 @@ public export
 badEquipOnSorcery : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.generic 1]) [] (MkTypeLine [] [Sorcery])
        [KeywordAbility "Equip" (Just (ParamCost (Mana [Macros.generic 2]))) Nothing]
-       Nothing {tx = ok})
-badEquipOnSorcery Oh impossible
+       Nothing {fl = ok})
+badEquipOnSorcery MkFaceLaws impossible
 
 
 ||| "each of one or more creatures"
@@ -378,8 +378,8 @@ public export
 badSiegeWithoutBattle : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.generic 2]) []
        (MkTypeLine [battleType "Siege"] [Kindred, Enchantment])
-       [KeywordAbility "Flying" Nothing Nothing] Nothing {ln = ok})
-badSiegeWithoutBattle MkCardLine impossible
+       [KeywordAbility "Flying" Nothing Nothing] Nothing {fl = ok})
+badSiegeWithoutBattle (MkFaceLaws {ln = MkCardLine}) impossible
 
 
 ||| a "Kindred — Merfolk" card naming no other card type
@@ -387,8 +387,8 @@ public export
 badKindredAlone : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.generic 2]) []
        (MkTypeLine [creatureType "Merfolk"] [Kindred])
-       [KeywordAbility "Flying" Nothing Nothing] Nothing {ln = ok})
-badKindredAlone MkCardLine impossible
+       [KeywordAbility "Flying" Nothing Nothing] Nothing {fl = ok})
+badKindredAlone (MkFaceLaws {ln = MkCardLine}) impossible
 
 
 ||| "Enchanted planeswalker can't attack."
@@ -404,8 +404,8 @@ public export
 badTokenSpellAbility : Unspellable (Effect []) (\ok =>
   Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [White]
                                  (MkTypeLine [creatureType "Soldier"] [Creature])
-                                 [Spell (Macros.draw You (Lit 1))] Nothing) {ta = ok})
-badTokenSpellAbility Oh impossible
+                                 [Spell (Macros.draw You (Lit 1))] Nothing) {wf = ok})
+badTokenSpellAbility (Oh, Oh, Oh, Oh, Oh, Oh) impossible
 
 
 ||| "Instant and sorcery spells you cast have '{T}: Draw a card.'"
@@ -442,8 +442,8 @@ public export
 badLoyaltySorcery : Unspellable Card (\ok =>
   Macros.card "Impossible Loyalty Sorcery" (Just [Macros.pip Blue]) []
        (MkTypeLine [] [Sorcery])
-       [Activated (LoyaltySymbol (LoyaltyUp 1)) (Macros.draw You (Lit 1)) Nothing Nothing Nothing Nothing] Nothing {tx = ok})
-badLoyaltySorcery Oh impossible
+       [Activated (LoyaltySymbol (LoyaltyUp 1)) (Macros.draw You (Lit 1)) Nothing Nothing Nothing Nothing] Nothing {fl = ok})
+badLoyaltySorcery MkFaceLaws impossible
 
 
 ||| "Add."
@@ -477,14 +477,14 @@ badEmptyCopyTypeException Oh impossible
 public export
 badCopyPermanent : Unspellable (Effect []) (\ok =>
   CopyStack You (Macros.target Macros.creature) (Lit 1) [] {cp = ok})
-badCopyPermanent SpellCopied impossible
+badCopyPermanent StackSpell impossible
 
 
 ||| "Choose new targets for target creature."
 public export
 badRetargetPermanent : Unspellable (Effect []) (\ok =>
   ChooseNewTargets (Macros.target Macros.creature) {cp = ok})
-badRetargetPermanent SpellCopied impossible
+badRetargetPermanent StackSpell impossible
 
 
 ||| "Copy target instant or sorcery spell. Untap that token."

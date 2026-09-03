@@ -433,7 +433,7 @@ badPlayFromBattlefield Oh impossible
 public export
 badUntilBeginningOfUpkeep : Unspellable (Effect []) (\ok =>
   Macros.gets (Macros.target Macros.creature) (PtUp (Lit 3)) (PtUp (Lit 3)) (Just (UntilEvent (BeginningOf ThePart Upkeep (Macros.yours)))) {sp = ok})
-badUntilBeginningOfUpkeep (SpanStated {ok = Oh}) impossible
+badUntilBeginningOfUpkeep (Present {ok = Oh}) impossible
 
 
 ||| "This creature deals 3 damage to any target. When you do, draw a card."

@@ -579,10 +579,8 @@ mutual
   AddedPart p = So (partAddable p)
 
   public export
-  data AddedPartWritten : Maybe TurnPart -> Type where
-    NoPartWritten : AddedPartWritten Nothing
-    PartWritten : {auto 0 ok : So (partAddable p)} ->
-                  AddedPartWritten (Just p)
+  AddedPartWritten : Maybe TurnPart -> Type
+  AddedPartWritten = OptOk AddedPart
 
   public export
   durationOk : {0 bs : Bindings} -> Duration bs -> Bool
@@ -599,14 +597,12 @@ mutual
   spanIntro (DuringNextTurnOf who) = nomIntro who
 
   public export
-  data SpanOk : StaticKind -> Maybe (Duration bs) -> Type where
-    SpanUnstated : SpanOk k Nothing
-    SpanStated : {auto 0 ok : So (durationOk d)} -> SpanOk k (Just d)
+  SpanOk : Maybe (Duration bs) -> Type
+  SpanOk = OptOk (\d => So (durationOk d))
 
   public export
-  data DelaySpanOk : Maybe (Duration bs) -> Type where
-    DelayOnce : DelaySpanOk Nothing
-    DelayFor : {auto 0 ok : So (durationOk d)} -> DelaySpanOk (Just d)
+  DelaySpanOk : Maybe (Duration bs) -> Type
+  DelaySpanOk = SpanOk
 
   public export
   data TriggerWindow : Bindings -> Type where

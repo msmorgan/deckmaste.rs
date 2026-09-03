@@ -1,0 +1,26 @@
+#!/usr/bin/env python3
+
+import re
+import sys
+from pathlib import Path
+
+
+def main():
+    path = Path(sys.argv[1]) if len(sys.argv) == 2 else Path("src/Experimental/Words.idr")
+    lines = path.read_text().splitlines()
+    instances = []
+    for i, line in enumerate(lines):
+        match = re.match(r"^\s*Eq (\S+) where$", line)
+        if not match:
+            continue
+        body = lines[i + 1].strip()
+        if not body.startswith("(==)") or not re.search(r"(?:Ix|same)", body):
+            raise SystemExit(f"non-index Eq {match.group(1)}: {body}")
+        instances.append(match.group(1))
+    if len(instances) != 47:
+        raise SystemExit(f"expected 47 Eq instances, found {len(instances)}")
+    print("Eq instances checked: 47 index-based or derived")
+
+
+if __name__ == "__main__":
+    main()
