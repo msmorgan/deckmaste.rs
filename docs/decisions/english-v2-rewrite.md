@@ -1135,3 +1135,24 @@ is derived structurally, never stored and never guarded per construction.
 Oracle style avoids genuine attachment ambiguity by design, so two
 surviving readings for the same bytes is a genuine selection tie and a
 STOP-and-report — never a preference weight or a default.
+
+
+## Amendment: preposition classes and noun complement licensing (2026-09-02)
+
+The derived-attachment ruling above presupposed nominal-side preposition
+licensing that did not exist; a general PP without it licenses every
+preposition at every site, and negative oracles ("deals 2 damage to each
+creatures") parsed via rescue adjunct readings. Two declared facts close
+the gap, both data, neither a per-construction guard:
+- Each Preposition member declares its class: adjunct-capable (locative,
+  temporal, manner — in, on, under, at, during, until, ...) or
+  selected-only (to, into, onto, of, ...). Only adjunct-capable PPs enter
+  the free predicate-adjunct / NP-postmodifier attachment rule.
+- Nouns declare complement prepositions (noun valence, parallel to verb
+  valence): relational nouns license their complement PP ("the top of",
+  "the controller of", "a copy of"); other nouns license none. A
+  selected-only preposition therefore appears only under a licensing verb
+  frame or noun valence.
+Negative oracles (agreement/quantity violations) are part of the fidelity
+standard: a landing that makes one parse is a defect, never a coverage
+gain.
