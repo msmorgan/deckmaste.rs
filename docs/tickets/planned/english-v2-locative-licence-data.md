@@ -2,11 +2,14 @@
 needs: [english-v2-homograph-feature]
 ---
 Remove the census-in-a-default from locative/temporal licensing
-(preposition-class landing review H1/H2/H3/M3). HELD FOR COORDINATOR GO:
-this ticket lowers coverage by design (>=161 identities selected only
-through readings the attachment amendment forbids); retirement goes
-through the authenticated `--bless --retire` path with every retired
-identity named in the landing record. Do not start without the go.
+(preposition-class landing review H1/H2/H3/M3). COORDINATOR GO GRANTED
+(user ruling 2026-09-02): this ticket lowers coverage by design (>=161
+identities selected only through readings the attachment amendment
+forbids); retirement goes through the authenticated `--bless --retire`
+path with every retired identity named in the landing record's
+obligation line. Retire only identities whose sole surviving reading is a
+forbidden one — prove each by probe; a unit that still selects through a
+legitimate reading is not retired.
 
 - H1: `feature LocativeTemporalLicense = OfAndOnLicensed` is the default
   for 34/49 closed nouns and all open Type/Subtype nouns; "Draw a card of
