@@ -72,3 +72,15 @@ Positive gates: all `deckmaste_construction_core` test targets; all
   new blockers; added 2 tests; removed 0 tests.
 - No constructions were added or deleted. No CR citations changed. No STOP was
   taken.
+
+## Erratum (compiler-onset landing review, 2026-09-03)
+
+Only the compiler half of item 1 landed: all 5 pawprint faces remain
+parse failures until 14-10 builds the "N {P} worth of Y" measure
+construction. Undisclosed widening: the quoted interior is now a
+newline-separated block sequence (`OracleText` is a `seq`), so a
+multi-line quoted grant parses — unattested (0 corpus units) but
+well-formed English, admitted under generative fidelity; recorded here.
+`mana_amount`'s Consonant onset is authored without corpus attestation
+(0 `a {…}` witnesses; `+1/+1` precedent). Namespace hole for the other
+nine provider features routed to construction-core-provider-namespace.
