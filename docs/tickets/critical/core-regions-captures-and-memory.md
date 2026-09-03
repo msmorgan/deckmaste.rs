@@ -49,6 +49,23 @@ snapshot for information reads ([CR#608.2h]). A capture list crossing a
 region boundary needs the same split decided once and stated in the ADR: a
 snapshot for information, a chased live id for actions.
 
+## Also routed here (2026-09-02, from the restoration landing)
+
+- **A noted product group has no core spelling.** The note-taking effect
+  and the selection that read it back left core with the discourse stage,
+  so the runtime note store still has readers and writers but nothing
+  produces it from a card. Two restored tests are `#[ignore]`d on this,
+  and it belongs with declared memory cells because a note is the same
+  idea at effect scope.
+- **Lowering is no longer context-free at ability granularity**, by
+  design: a carried region appends a capture parameter per enclosing
+  register, so an isolated ability subterm can never lower to the same
+  value as the nested one. Measured at 14 of 245 canon subterms, all
+  nested. One restored test is `#[ignore]`d on it. Decide whether the
+  subterm walk is recoverable under a capture-aware comparison or is
+  permanently superseded by the depth-zero check, and say which in the
+  ADR rather than leaving the test ignored forever.
+
 ## Gates
 
 Canon re-lowers green with the engine suites and the Idris re-emit gate.

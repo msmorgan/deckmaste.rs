@@ -44,6 +44,19 @@ apply.
    canon slice. No xtask target compares them. Build it, or record in the
    ADR why the pairing is dropped.
 
+6. **The magnitude anaphor never gets nearest-wins.** A card fixing two
+   magnitudes and then reading a bare "that much" is refused by the
+   uniqueness gate at lowering rather than resolving to the nearer
+   antecedent, because the amount channel is the only anaphor channel
+   with no site preference. The absorbed `engine-that-much-frame-scoped`
+   ticket's wording, that such a card reads the semantic antecedent,
+   implies nearest-wins was intended. The restoration landing pinned the
+   refusal as the actual behaviour rather than changing the resolver, so
+   this is a live contradiction between a pinned test and an absorbed
+   ticket's intent. Settle it: either the amount channel gains a site
+   preference and the pin flips, or the refusal is correct and the
+   absorbed wording was wrong, recorded here.
+
 ## Gates
 
 Standard constraints apply. A grep proves no backwards register scan
