@@ -71,8 +71,9 @@ badLifeTotalSuperlative Refl impossible
 
 public export
 badAnnouncingRemovalAgent : Unspellable (GameEvent []) (\ok =>
-  LastCounterRemoved (Named "Intervention") Macros.thisEnchantment (Just (Macros.target AnyPlayer))
-                     {ag = Present {ok}})
+  CounterEvent CounterTaken (Just (Named "Intervention")) Macros.thisEnchantment LastCounter
+               (Just (Macros.target AnyPlayer)) False
+               {ag = Present {ok}})
 badAnnouncingRemovalAgent Refl impossible
 
 
@@ -235,7 +236,7 @@ public export
 badAgentChooseTheRest : Unspellable (Effect []) (\ok =>
   Sequentially [ Macros.lookAt (Macros.topCards 4)
                , Move (Macros.oneOf Them) Macros.handZ []
-               , Choose TheRest (Just (Macros.a Opponent)) Openly {ch = ok} ])
+               , Choose Macros.theRest (Just (Macros.a Opponent)) Openly {ch = ok} ])
 badAgentChooseTheRest AgentChoice impossible
 
 
@@ -258,7 +259,7 @@ badHeaderBareTurnWindow Oh impossible
 ||| "If one or more creatures would be created under your control, …"
 public export
 badNonTokenCreationSubject : Unspellable (GameEvent []) (\ok =>
-  TokensCreated (Macros.counted (Macros.atLeast 1) Macros.creature) Nothing Nothing (Just You) {tk = ok})
+  TokensCreated (Macros.counted (Macros.atLeast 1) Macros.creature) False Nothing (Just You) {tk = ok})
 badNonTokenCreationSubject CountedTokens impossible
 badNonTokenCreationSubject OneToken impossible
 
@@ -266,7 +267,7 @@ badNonTokenCreationSubject OneToken impossible
 public export
 badSingularCounterBatchSize : Unspellable (StaticEffect []) (\ok =>
   Intercepts (CounterEvent CounterPut (Just Macros.plusOnePlusOne)
-                           (Macros.a Macros.creatureYouControl) OneCounter Nothing Nothing) [] Nothing
+                           (Macros.a Macros.creatureYouControl) OneCounter Nothing False) [] Nothing
              (PutCounters (Plus (ThatMuch {ok}) (Lit 1))
                           (PrintedKind Macros.plusOnePlusOne) It)
              Repeatedly Nothing)
@@ -276,7 +277,7 @@ badSingularCounterBatchSize Refl impossible
 public export
 badCausedCounterWithAgent : Unspellable (GameEvent []) (\ok =>
   CounterEvent CounterPut (Just Macros.plusOnePlusOne)
-               (Macros.a Macros.creatureYouControl) ManyCounters (Just You) (Just AnEffect) {cz = ok})
+               (Macros.a Macros.creatureYouControl) ManyCounters (Just You) True {cz = ok})
 badCausedCounterWithAgent Oh impossible
 
 
@@ -304,7 +305,7 @@ badStillAnInstant Oh impossible
 ||| "Target creature gets +1/+1 and gains flying and gains trample."
 public export
 badNestedCoordination : Unspellable (StaticEffect []) (\ok =>
-  AndAlso (Coord.(::) (AndAlso [ Gets (Macros.target Macros.creature)
+  AndAlso Nothing (Coord.(::) (AndAlso Nothing [ Gets Adds (Macros.target Macros.creature)
                                       (PtUp (Lit 1)) (PtUp (Lit 1))
                                , Gains It (KeywordAbility "Flying" Nothing Nothing) ])
                       {nc = ok}
@@ -315,14 +316,14 @@ badNestedCoordination Oh impossible
 ||| a coordination of no statements
 public export
 badEmptyCoordination : Unspellable (StaticEffect []) (\ok =>
-  AndAlso [] {ne = ok})
+  AndAlso Nothing [] {ne = ok})
 badEmptyCoordination ItIsSucc impossible
 
 
 ||| "This creature gets +1/+1 and that creature has flying."
 public export
 badThatCreatureIsStaticSubject : Unspellable Ability (\ok =>
-  Static (AndAlso [ Gets Macros.thisCreature (PtUp (Lit 1)) (PtUp (Lit 1))
+  Static (AndAlso Nothing [ Gets Adds Macros.thisCreature (PtUp (Lit 1)) (PtUp (Lit 1))
                   , Gains (That (TypeW Creature) {ok = ok}) (KeywordAbility "Flying" Nothing Nothing) ]))
 badThatCreatureIsStaticSubject Refl impossible
 
@@ -330,7 +331,7 @@ badThatCreatureIsStaticSubject Refl impossible
 ||| "Enchanted creature gets +1/+1 and they have flying."
 public export
 badCoordinatedHostPlural : Unspellable Ability (\ok =>
-  Static (AndAlso [ Gets (AttachHost Enchanted (TypeW Creature))
+  Static (AndAlso Nothing [ Gets Adds (AttachHost Enchanted (TypeW Creature))
                          (PtUp (Lit 1)) (PtUp (Lit 1))
                   , Gains (Them {ok = ok}) (KeywordAbility "Flying" Nothing Nothing) ]))
 badCoordinatedHostPlural Refl impossible
@@ -339,7 +340,7 @@ badCoordinatedHostPlural Refl impossible
 ||| "Enchanted land gets +1/+1 and can't block."
 public export
 badCoordinatedLandHostBlocks : Unspellable Ability (\ok =>
-  Static (AndAlso [ Gets (AttachHost Enchanted (TypeW Land))
+  Static (AndAlso Nothing [ Gets Adds (AttachHost Enchanted (TypeW Land))
                          (PtUp (Lit 1)) (PtUp (Lit 1))
                   , Macros.deontic It Forbid ["Block"] Agent NoDeonticPatient {dp = ok} ]))
 badCoordinatedLandHostBlocks Oh impossible
@@ -411,7 +412,7 @@ badTokenSpellAbility (Oh, Oh, Oh, Oh, Oh, Oh) impossible
 ||| "Instant and sorcery spells you cast have '{T}: Draw a card.'"
 public export
 badQuotedGrantOnSpell : Unspellable (StaticEffect []) (\ok =>
-  Gains (Macros.allOf (And [Macros.instantOrSorcery, Macros.spell, CastBy You]))
+  Gains (Macros.allOf (And [Macros.instantOrSorcery, Macros.spell, Macros.castBy You]))
         (Activated TapSymbol (Macros.draw You (Lit 1)) Nothing Nothing Nothing Nothing) {ok})
 badQuotedGrantOnSpell Oh impossible
 
@@ -476,7 +477,7 @@ badEmptyCopyTypeException Oh impossible
 ||| "Copy target creature."
 public export
 badCopyPermanent : Unspellable (Effect []) (\ok =>
-  CopyStack You (Macros.target Macros.creature) (Lit 1) [] {cp = ok})
+  Copy FromStack You (Macros.target Macros.creature) (Lit 1) [] {cp = ok})
 badCopyPermanent StackSpell impossible
 
 
@@ -490,7 +491,7 @@ badRetargetPermanent StackSpell impossible
 ||| "Copy target instant or sorcery spell. Untap that token."
 public export
 badStackCopyAsToken : Unspellable (Effect []) (\ok =>
-  Sequentially [CopyStack You (Macros.target (And [Macros.instantOrSorcery, Macros.spell]))
+  Sequentially [Copy FromStack You (Macros.target (And [Macros.instantOrSorcery, Macros.spell]))
                           (Lit 1) [],
                 SetStatus Untapped (That TokenW {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badStackCopyAsToken (Refl, _) impossible

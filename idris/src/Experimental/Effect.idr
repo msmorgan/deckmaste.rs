@@ -263,6 +263,21 @@ mutual
   shiftDelta : {bs : Bindings} -> PtShift bs -> List Binding
   shiftDelta s = amtDelta (shiftAmount s)
 
+  -- [CR#613.4b] sets base power/toughness, [CR#613.4c] modifies it; only a
+  -- modification is signed, and neither layer subtracts a whole characteristic.
+  public export
+  ptOpOk : {0 b1 : Bindings} -> {0 b2 : Bindings} ->
+           CharOp -> PtShift b1 -> PtShift b2 -> Bool
+  ptOpOk Adds _ _ = True
+  ptOpOk Sets p t = shiftRises p && shiftRises t
+  ptOpOk Loses _ _ = False
+
+  public export
+  ptOpKind : CharOp -> StaticKind
+  ptOpKind Adds = PtDelta
+  ptOpKind Sets = BasePtSet
+  ptOpKind Loses = PtDelta
+
   public export
   shiftIntro : {bs : Bindings} -> PtShift bs -> Bindings
   shiftIntro s = amtIntro (shiftAmount s)
@@ -308,16 +323,16 @@ mutual
 
     public export
     data StaticEffect : Bindings -> Type where
-      Gets : (n : Noun bs Object) -> (pow : PtShift (selfSubjIntro n)) ->
+      Gets : (op : CharOp) -> (n : Noun bs Object) ->
+             (pow : PtShift (selfSubjIntro n)) ->
              (tou : PtShift (shiftIntro pow)) ->
              {auto 0 ok : ZoneIs (nounZone n) Battlefield} ->
+             {auto 0 lo : So (ptOpOk op pow tou)} ->
              StaticEffect bs
       DefinesPt : (n : Noun bs Object) -> (sl : DefinedSlots) ->
                   (amt : Amount (selfSubjIntro n)) ->
                   {auto 0 sd : SelfDefined n} ->
                   StaticEffect bs
-      HasBasePt : (n : Noun bs Object) -> (pow : Amount bs) ->
-                  (tou : Amount (amtIntro pow)) -> StaticEffect bs
       SwitchesPt : (n : Noun bs Object) ->
                    {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
                    StaticEffect bs
@@ -390,27 +405,13 @@ mutual
                    {auto 0 ul : So (untriggeredLimitOk limit)} ->
                    {auto 0 ok : Interceptable ev} ->
                    {auto 0 oks : InterceptableArms alts} -> StaticEffect bs
-      Prevents : (kind : DamageKind) ->
-                 (src : DamageAgent bs) ->
-                 (scope : DamageScope (agentIntro src)) ->
-                 (cut : PreventCut (scopeIntro scope)) ->
-                 (use : ReplUse) ->
-                 (also : Maybe (Effect (outcomeB DamagePrevented :: cutIntro cut))) ->
-                 {auto 0 su : ShieldUse cut use} ->
-                 StaticEffect bs
-      Redirects : {k : Kind} -> (kind : DamageKind) ->
-                  (src : DamageAgent bs) ->
-                  (scope : DamageScope (agentIntro src)) ->
-                  (cut : PreventCut (scopeIntro scope)) ->
-                  (to : Noun (cutIntro cut) k) ->
-                  (use : ReplUse) ->
-                  {auto 0 rk : DamageRecipient to} ->
-                  {auto 0 one : SingleRecipient to} ->
-                  {auto 0 su : ShieldUse cut use} -> StaticEffect bs
-      Scales : (kind : DamageKind) -> (src : Noun bs Object) ->
-               (scope : DamageScope (nomIntro src)) ->
-               (op : DamageScale (scopeIntro scope)) ->
-               (use : ReplUse) -> StaticEffect bs
+      DamageRule : (kind : DamageKind) ->
+                   (src : DamageAgent bs) ->
+                   (scope : DamageScope (agentIntro src)) ->
+                   (op : DamageOp (scopeIntro scope)) ->
+                   (use : ReplUse) ->
+                   {auto 0 su : So (damageOpUseOk op use)} ->
+                   StaticEffect bs
       CantPrevent : (kind : DamageKind) -> (what : Unpreventable bs) ->
                     (ban : PreventionBan) -> StaticEffect bs
       Conditionally : {0 bs : Bindings} ->
@@ -425,8 +426,8 @@ mutual
                    (se : StaticEffect bs) ->
                    {auto 0 wk : WindowOk p w} ->
                    StaticEffect bs
-      NoLossFrom : (who : Noun bs Player) -> (cause : LoseCause) ->
-                   StaticEffect bs
+      -- "doesn't lose the game for having 0 or less life" [CR#704.5a]
+      NoLossFromZeroLife : (who : Noun bs Player) -> StaticEffect bs
       Visibility : (v : ExposeVerb) -> (who : Noun bs Player) ->
                    (what : VisibleThing (nomIntro who)) ->
                    {auto 0 vo : VisibilityOk v what} -> StaticEffect bs
@@ -447,11 +448,9 @@ mutual
                      (dom : Maybe (ChoiceDomain q)) ->
                      {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
                      StaticEffect bs
-      AndAlso : {0 n : Nat} -> StaticParts n bs ->
+      AndAlso : {0 n : Nat} -> (subject : Maybe (Noun bs Object)) ->
+                (parts : StaticParts n (subjCtx subject)) ->
                 {auto 0 ne : IsSucc n} -> StaticEffect bs
-      SharedSubject : {0 k : Nat} -> (n : Noun bs Object) ->
-                      (parts : StaticParts k (selfSubjIntro n)) ->
-                      {auto 0 ne : IsSucc k} -> StaticEffect bs
 
   public export
   gatePayer : Binding
@@ -692,9 +691,37 @@ mutual
   scaleIntro (Shifted _ amt) = amtIntro amt
 
   public export
+  data DamageOp : Bindings -> Type where
+    Prevent : (cut : PreventCut bs) ->
+              (also : Maybe (Effect (outcomeB DamagePrevented :: cutIntro cut))) ->
+              DamageOp bs
+    Redirect : {k : Kind} -> (cut : PreventCut bs) ->
+               (to : Noun (cutIntro cut) k) ->
+               {auto 0 rk : DamageRecipient to} ->
+               {auto 0 one : SingleRecipient to} -> DamageOp bs
+    Scale : (sc : DamageScale bs) -> DamageOp bs
+
+  public export
+  damageOpIntro : {bs : Bindings} -> DamageOp bs -> Bindings
+  damageOpIntro (Prevent cut _) = cutIntro cut
+  damageOpIntro (Redirect _ to) = nomIntro to
+  damageOpIntro (Scale sc) = scaleIntro sc
+
+  public export
+  damageOpKind : {0 bs : Bindings} -> DamageOp bs -> StaticKind
+  damageOpKind (Prevent _ _) = Prevention
+  damageOpKind (Redirect _ _) = Replacement
+  damageOpKind (Scale _) = Replacement
+
+  public export
+  damageOpUseOk : {0 bs : Bindings} -> DamageOp bs -> ReplUse -> Bool
+  damageOpUseOk (Prevent cut _) use = shieldUseOk cut use
+  damageOpUseOk (Redirect cut _) use = shieldUseOk cut use
+  damageOpUseOk (Scale _) _ = True
+
+  public export
   isCoord : {0 bs : Bindings} -> StaticEffect bs -> Bool
-  isCoord (AndAlso _) = True
-  isCoord (SharedSubject _ _) = True
+  isCoord (AndAlso _ _) = True
   isCoord _ = False
 
   public export
@@ -722,9 +749,8 @@ mutual
   public export
   staticKind : {0 bs : Bindings} -> StaticEffect bs -> StaticKind
   staticKind (Define _ _) = LetterDefinition
-  staticKind (Gets _ _ _) = PtDelta
+  staticKind (Gets op _ _ _) = ptOpKind op
   staticKind (DefinesPt _ _ _) = PtDefinition
-  staticKind (HasBasePt _ _ _) = BasePtSet
   staticKind (SwitchesPt _) = PtSwitch
   staticKind (CostsToCast _ _) = CostModification
   staticKind (AltCost _ _) = CostModification
@@ -740,31 +766,27 @@ mutual
   staticKind (LosesAbilities _ _) = AbilityLoss
   staticKind (GainsControl _ _) = ControlGrant
   staticKind (Intercepts _ _ _ _ _ _) = Replacement
-  staticKind (Prevents _ _ _ _ _ _) = Prevention
+  staticKind (DamageRule _ _ _ op _) = damageOpKind op
   staticKind (CantPrevent _ _ _) = Prevention
-  staticKind (Redirects _ _ _ _ _ _) = Replacement
-  staticKind (Scales _ _ _ _ _) = Replacement
   staticKind (OnlyDuring _ _ se) = staticKind se
   staticKind (Conditionally _ _ _) = Conditional
   staticKind (AlsoOffBattlefield se) = staticKind se
   staticKind (DoesntRemove se _) = staticKind se
-  staticKind (NoLossFrom _ _) = OutcomeImmunity
+  staticKind (NoLossFromZeroLife _) = OutcomeImmunity
   staticKind (Visibility _ _ _) = VisibilityRider
   staticKind (TriggersAdditionally _ _) = TriggerMultiplier
   staticKind (EntersRider _ _) = EntryRider
   staticKind (EntersChoice _ _ _ _) = EntryRider
   staticKind (AttachChoice _ _ _) = Replacement
-  staticKind (AndAlso _) = Coordination
-  staticKind (SharedSubject _ _) = Coordination
+  staticKind (AndAlso _ _) = Coordination
 
 
   public export
   staticIntro : {bs : Bindings} -> StaticEffect bs -> Bindings
   staticIntro (Define l amt) = defineLetter l (amtIntro amt)
-  staticIntro (Gets n pow tou) = shiftDelta tou ++ shiftDelta pow ++ selfSubjIntro n
+  staticIntro (Gets _ n pow tou) = shiftDelta tou ++ shiftDelta pow ++ selfSubjIntro n
   staticIntro (DefinesPt n _ amt) =
     outcomeB NamedNumber :: (amtDelta amt ++ selfSubjIntro n)
-  staticIntro (HasBasePt n pow tou) = amtDelta tou ++ amtDelta pow ++ selfSubjIntro n
   staticIntro (SwitchesPt n) = selfSubjIntro n
   staticIntro (CostsToCast n sh) = costShiftDelta sh ++ selfSubjIntro n
   staticIntro (AltCost n _) = selfSubjIntro n
@@ -780,29 +802,25 @@ mutual
   staticIntro (LosesAbilities n _) = selfSubjIntro n
   staticIntro (GainsControl who what) = stampIntro (Just "GainControl") what
   staticIntro (Intercepts ev alts window repl use limit) = interceptCtx alts ev
-  staticIntro (Prevents kind src scope cut use also) = cutIntro cut
+  staticIntro (DamageRule kind src scope op use) = damageOpIntro op
   staticIntro (CantPrevent kind what ban) = unpreventableIntro what
-  staticIntro (Redirects kind src scope cut to use) = nomIntro to
-  staticIntro (Scales kind src scope op use) = scaleIntro op
   staticIntro (OnlyDuring _ _ se) = staticIntro se
   staticIntro (Conditionally c se _) = staticIntro se
   staticIntro (AlsoOffBattlefield se) = staticIntro se
   staticIntro (DoesntRemove _ n) = nomIntro n
-  staticIntro (NoLossFrom who _) = nomIntro who
+  staticIntro (NoLossFromZeroLife who) = nomIntro who
   staticIntro (Visibility _ who what) = visibleIntro what
   staticIntro (TriggersAdditionally _ _) = bs
   staticIntro (EntersRider n rider) = entryRiderIntro rider
   staticIntro (EntersChoice n _ _ _) = selfSubjIntro n
   staticIntro (AttachChoice n _ _) = selfSubjIntro n
-  staticIntro (AndAlso parts) = partsIntro parts
-  staticIntro (SharedSubject _ parts) = partsIntro parts
+  staticIntro (AndAlso _ parts) = partsIntro parts
 
   public export
   staticChoiceDelta : {bs : Bindings} -> StaticEffect bs -> List Binding
   staticChoiceDelta (EntersChoice _ q _ _) = [choiceB q]
   staticChoiceDelta (AttachChoice _ q _) = [choiceB q]
-  staticChoiceDelta (AndAlso parts) = partsChoiceDelta parts
-  staticChoiceDelta (SharedSubject _ parts) = partsChoiceDelta parts
+  staticChoiceDelta (AndAlso _ parts) = partsChoiceDelta parts
   staticChoiceDelta (AddedCost c _) = costDelta c
   staticChoiceDelta _ = []
 
@@ -901,7 +919,6 @@ mutual
 
   public export
   forEachAmount : {0 bs : Bindings} -> Amount bs -> Bool
-  forEachAmount (Times _ _) = True
   forEachAmount (TimesOf _ _) = True
   forEachAmount _ = False
 
@@ -1133,17 +1150,13 @@ mutual
            {auto 0 rf : RidersFit riders (zoneSort to)} -> Effect bs
     CounterSpell : {k : Kind} -> (what : Noun bs k) ->
                    {auto 0 ct : Counterable what} -> Effect bs
-    CopyStack : {k : Kind} -> (agent : Noun bs Player) ->
-                (what : Noun (nomIntro agent) k) ->
-                (times : Amount (nomIntro what)) ->
-                (exc : List (CopyExcept (amtIntro times))) ->
-                {auto ph : Phrasal k} ->
-                {auto 0 cp : Copiable what} ->
-                Effect bs
-    CopyCard : (who : Noun bs Player) ->
-               (what : Noun (nomIntro who) Object) ->
-               (times : Amount (nomIntro what)) ->
-               {auto 0 zn : So (isCardZone (nounZone what))} -> Effect bs
+    Copy : {k : Kind} -> (src : CopySort) -> (agent : Noun bs Player) ->
+           (what : Noun (nomIntro agent) k) ->
+           (times : Amount (nomIntro what)) ->
+           (exc : List (CopyExcept (amtIntro times))) ->
+           {auto ph : Phrasal k} ->
+           {auto 0 cp : CopySourceOk src what} ->
+           Effect bs
     ChooseNewTargets : {k : Kind} -> (what : Noun bs k) ->
                        {auto 0 cp : Copiable what} -> Effect bs
     CopyTargets : {k : Kind} -> {kt : Kind} ->
@@ -1242,12 +1255,10 @@ mutual
     LosesCounters : (who : Noun bs Player) ->
                     (kind : Maybe (CounterKindSource bs)) ->
                     (amt : Maybe (Amount (nomIntro who))) ->
-                    {auto 0 sc : OptCounterSourceScope kind Player} -> Effect bs
-    Enact : (v : VerbLabel) -> (e : Effect bs) ->
+                   {auto 0 sc : OptCounterSourceScope kind Player} -> Effect bs
+    Enact : (subj : Maybe (Noun bs Player)) -> (v : VerbLabel) ->
+            (e : Effect (agentCtx subj)) ->
             {auto 0 kn : KnownAct v} -> Effect bs
-    Does : (subj : Noun bs Player) -> (v : VerbLabel) ->
-           (e : Effect (agentIntro subj)) ->
-           {auto 0 kn : KnownAct v} -> Effect bs
     ControllerSacrifices : (n : Noun bs Object) ->
                            {auto 0 one : nounPlur n = OneOf} ->
                            {auto 0 zn : ZoneIs (nounZone n) Battlefield} -> Effect bs
@@ -1331,7 +1342,7 @@ mutual
   heldUntilOk : {0 bs : Bindings} -> Effect bs -> Bool
   heldUntilOk (SetStatus PhasedOut _) = True
   heldUntilOk (Move _ _ _) = True
-  heldUntilOk (Enact _ (Move _ _ _)) = True
+  heldUntilOk (Enact Nothing _ (Move _ _ _)) = True
   heldUntilOk _ = False
 
   public export
@@ -1353,9 +1364,8 @@ mutual
   reflexEncloseUse (AdditionalPart (Just _) _ _ _ _) = EncNotYetTaken
   reflexEncloseUse (SkipsAllOf _ _) = EncNotYetTaken
   reflexEncloseUse (Continuously (GainsControl _ _) _) = EncReflexive
-  reflexEncloseUse (Does _ _ _) = EncReflexive
   reflexEncloseUse (Pay _ _ _) = EncReflexive
-  reflexEncloseUse (Enact _ _) = EncReflexive
+  reflexEncloseUse (Enact _ _ _) = EncReflexive
   reflexEncloseUse (SeparateIntoPiles _ _ _ _) = EncReflexive
   reflexEncloseUse (ChooseNewTargets _) = EncReflexive
   reflexEncloseUse (Create _ _ _ _) = EncReflexive
@@ -1468,10 +1478,9 @@ mutual
   costActionOk GameDrawn = True
   costActionOk (SeparateIntoPiles _ grp _ _) = costNounOk grp
   costActionOk (CounterSpell _) = True
-  costActionOk (CopyStack _ what _ _) = costNounOk what
+  costActionOk (Copy _ _ what _ _) = costNounOk what
   costActionOk (ChooseNewTargets what) = costNounOk what
   costActionOk (CopyTargets copy _) = costNounOk copy
-  costActionOk (CopyCard _ what _) = costNounOk what
   costActionOk (Choose n _ _) = costNounOk n
   costActionOk (Move what _ _) = costNounOk what
   costActionOk (ExchangeLife parties) = costNounOk parties
@@ -1492,8 +1501,7 @@ mutual
   costActionOk (RemoveCountersAmong _ _ among) = costNounOk among
   costActionOk (MoveCounters _ _ src dst) = costNounOk src && costNounOk dst
   costActionOk (DoubleCounters on) = costNounOk on
-  costActionOk (Enact _ e) = costActionOk e
-  costActionOk (Does _ _ e) = costActionOk e
+  costActionOk (Enact _ _ e) = costActionOk e
   costActionOk (May _ body ifDid ifNot) =
     costActionOk body && costActionOkOpt ifDid && costActionOkOpt ifNot
   costActionOk (IfDone body ifDid ifNot) =
@@ -1591,16 +1599,12 @@ mutual
               (PileP (nounZone grp) (Just piles) (pileMentionFace faces))
       :: groupSpent (nomIntro grp)
   effIntro (CounterSpell what) = nomIntro what
-  effIntro (CopyStack {k} {ph} agent what times exc) =
+  effIntro (Copy {k} {ph} src agent what times exc) =
     MkBinding TheD k (outputPlur (nounPlur what) (amtPlur times))
-              (copyPayload ph (nounTy what))
+              (copyPayloadIn ph (nounTy what) (copyLandsIn src (nounZone what)))
       :: amtIntro times
   effIntro (ChooseNewTargets what) = nomIntro what
   effIntro (CopyTargets copy whom) = nomIntro whom
-  effIntro (CopyCard who what times) =
-    MkBinding TheD Object (outputPlur (nounPlur what) (amtPlur times))
-              (ObjectP (nounTy what) (nounZone what) Nothing (Just CopyOrigin) Nothing)
-      :: amtIntro times
   effIntro (Choose n Nothing _) = chosenIntro n
   effIntro (Choose n (Just b) _) = nounDelta b ++ chosenIntro n
   effIntro (ChoicesRevealed _) = bs
@@ -1644,11 +1648,11 @@ mutual
   effIntro (RemoveCountersAmong q kind among) = outcomeB CountersRemoved :: nomIntro among
   effIntro (MoveCounters amt kind src dst) = nomIntro dst
   effIntro (DoubleCounters on) = nomIntro on
-  effIntro (Enact v (Move what to _)) =
+  effIntro (Enact Nothing v (Move what to _)) =
     afterMoveTo to (moveIntro (Just v) what (Just (zoneSort to)))
-  effIntro (Enact v (SetStatus _ n)) = stampIntro (Just v) n
-  effIntro (Enact _ e) = effIntro e
-  effIntro (Does s v e) = doesEffIntro (nounPlur s) s v e
+  effIntro (Enact Nothing v (SetStatus _ n)) = stampIntro (Just v) n
+  effIntro (Enact Nothing _ e) = effIntro e
+  effIntro (Enact (Just s) v e) = doesEffIntro (nounPlur s) s v e
   effIntro (Pay who c PaidOnce) = costIntro c
   effIntro (Pay who c AnyNumberOfTimes) = outcomeB RepeatCount :: costIntro c
   effIntro (Pay who c (UpToTimes _)) = outcomeB RepeatCount :: costIntro c
@@ -1722,10 +1726,9 @@ mutual
   preIntro RestartsGame = bs
   preIntro (SeparateIntoPiles who grp _ _) = nomIntro grp
   preIntro (CounterSpell what) = nomIntro what
-  preIntro (CopyStack agent what times exc) = amtIntro times
+  preIntro (Copy _ agent what times exc) = amtIntro times
   preIntro (ChooseNewTargets what) = nomIntro what
   preIntro (CopyTargets copy whom) = nomIntro whom
-  preIntro (CopyCard who what times) = amtIntro times
   preIntro (Choose n _ _) = chosenIntro n
   preIntro (ChoicesRevealed _) = bs
   preIntro (Vote _ _ _ _) = bs
@@ -1758,9 +1761,9 @@ mutual
   preIntro (RemoveCountersAmong q kind among) = nomIntro among
   preIntro (MoveCounters amt kind src dst) = nomIntro dst
   preIntro (DoubleCounters on) = nomIntro on
-  preIntro (Enact v (Move what to _)) = nomIntro what
-  preIntro (Enact _ e) = preIntro e
-  preIntro (Does s v e) = doesPreIntro (nounPlur s) s v e
+  preIntro (Enact Nothing v (Move what to _)) = nomIntro what
+  preIntro (Enact Nothing _ e) = preIntro e
+  preIntro (Enact (Just s) v e) = doesPreIntro (nounPlur s) s v e
   preIntro (Pay who c _) = nomIntro who
   preIntro (May d body did notd) = mayIntro body did notd
   preIntro (IfDone body did notd) = mayIntro body did notd
@@ -1784,15 +1787,17 @@ mutual
   public export
   doesPreIntro : {bs : Bindings} -> Plurality -> (s : Noun bs Player) ->
                  (v : VerbLabel) -> Effect (agentIntro s) -> Bindings
+  doesPreIntro ManyOf s v (Move what to _) =
+    distributedDelta s (nomIntro what) ++ nomIntro s
   doesPreIntro ManyOf s v e = nomIntro s
   doesPreIntro OneOf s v (Move what to _) = nomIntro what
   doesPreIntro OneOf s v e = preIntro e
 
   public export
   riderIntro : {bs : Bindings} -> Effect bs -> Bindings
-  riderIntro (Enact v (Move what to _)) = stampIntro (Just v) what
-  riderIntro (Enact _ e) = riderIntro e
-  riderIntro (Does s v e) = doesRiderIntro (nounPlur s) s v e
+  riderIntro (Enact Nothing v (Move what to _)) = stampIntro (Just v) what
+  riderIntro (Enact Nothing _ e) = riderIntro e
+  riderIntro (Enact (Just s) v e) = doesRiderIntro (nounPlur s) s v e
   riderIntro (CantBe e _ _) = riderIntro e
   riderIntro (Reflexively body _) = riderIntro body
   riderIntro (ThisWay body _ _) = riderIntro body
@@ -1808,6 +1813,8 @@ mutual
   public export
   doesRiderIntro : {bs : Bindings} -> Plurality -> (s : Noun bs Player) ->
                    (v : VerbLabel) -> Effect (agentIntro s) -> Bindings
+  doesRiderIntro ManyOf s v (Move what to _) =
+    distributedDelta s (stampIntro (Just v) what) ++ nomIntro s
   doesRiderIntro ManyOf s v e = nomIntro s
   doesRiderIntro OneOf s v (Move what to _) = stampIntro (Just v) what
   doesRiderIntro OneOf s v e = riderIntro e
@@ -1846,10 +1853,9 @@ mutual
               (PileP (nounZone grp) (Just piles) (pileMentionFace faces))
       :: groupSpent (nomIntro grp)
   annIntro (CounterSpell what) = nomIntro what
-  annIntro (CopyStack agent what times exc) = amtIntro times
+  annIntro (Copy _ agent what times exc) = amtIntro times
   annIntro (ChooseNewTargets what) = nomIntro what
   annIntro (CopyTargets copy whom) = nomIntro whom
-  annIntro (CopyCard who what times) = amtIntro times
   annIntro (Choose n _ _) = chosenIntro n
   annIntro (ChoicesRevealed _) = bs
   annIntro (Vote _ _ _ _) = bs
@@ -1882,9 +1888,9 @@ mutual
   annIntro (RemoveCountersAmong q kind among) = nomIntro among
   annIntro (MoveCounters amt kind src dst) = nomIntro dst
   annIntro (DoubleCounters on) = nomIntro on
-  annIntro (Enact v (Move what to _)) = nomIntro what
-  annIntro (Enact _ e) = annIntro e
-  annIntro (Does s v e) = doesAnnIntro (nounPlur s) s v e
+  annIntro (Enact Nothing v (Move what to _)) = nomIntro what
+  annIntro (Enact Nothing _ e) = annIntro e
+  annIntro (Enact (Just s) v e) = doesAnnIntro (nounPlur s) s v e
   annIntro (Pay who c _) = nomIntro who
   annIntro (May d body did notd) = annIntro body
   annIntro (IfDone body did notd) = annIntro body
@@ -1908,6 +1914,8 @@ mutual
   public export
   doesAnnIntro : {bs : Bindings} -> Plurality -> (s : Noun bs Player) ->
                  (v : VerbLabel) -> Effect (agentIntro s) -> Bindings
+  doesAnnIntro ManyOf s v (Move what to _) =
+    distributedDelta s (nomIntro what) ++ nomIntro s
   doesAnnIntro ManyOf s v e = deedDelta e ++ nomIntro s
   doesAnnIntro OneOf s v (Move what to _) = nomIntro what
   doesAnnIntro OneOf s v e = annIntro e
@@ -1969,14 +1977,11 @@ mutual
     [MkBinding TheD Object ManyOf
                (PileP (nounZone grp) (Just piles) (pileMentionFace faces))]
   deedDelta (CounterSpell _) = []
-  deedDelta (CopyStack {k} {ph} agent what times exc) =
+  deedDelta (Copy {k} {ph} src agent what times exc) =
     [MkBinding TheD k (outputPlur (nounPlur what) (amtPlur times))
-               (copyPayload ph (nounTy what))]
+               (copyPayloadIn ph (nounTy what) (copyLandsIn src (nounZone what)))]
   deedDelta (ChooseNewTargets _) = []
   deedDelta (CopyTargets _ _) = []
-  deedDelta (CopyCard who what times) =
-    [MkBinding TheD Object (outputPlur (nounPlur what) (amtPlur times))
-               (ObjectP (nounTy what) (nounZone what) Nothing (Just CopyOrigin) Nothing)]
   deedDelta (Choose n _ _) = []
   deedDelta (ChoicesRevealed _) = []
   deedDelta (Vote _ _ _ _) = []
@@ -2011,10 +2016,8 @@ mutual
   deedDelta (RemoveCountersAmong q kind among) = [outcomeB CountersRemoved]
   deedDelta (MoveCounters amt kind src dst) = []
   deedDelta (DoubleCounters on) = []
-  deedDelta (Enact v (Move what to _)) = []
-  deedDelta (Enact _ e) = deedDelta e
-  deedDelta (Does s v (Move what to _)) = []
-  deedDelta (Does s v e) = deedDelta e
+  deedDelta (Enact _ _ (Move what to _)) = []
+  deedDelta (Enact _ _ e) = deedDelta e
   deedDelta (Pay who c _) = []
   deedDelta (May d body did notd) = []
   deedDelta (IfDone body did notd) = []
@@ -2368,8 +2371,7 @@ mutual
   public export
   predRegime : {0 bs : Bindings} -> {0 k : Kind} ->
                Predicate bs k -> Maybe StackRegime
-  predRegime (CastBy _) = Just AtCasting
-  predRegime (NthCastBy _ _ _) = Just AtCasting
+  predRegime (CastBy _ _) = Just AtCasting
   predRegime (CastFrom _) = Just AtCasting
   predRegime WasCast = Just AtCasting
   predRegime (HasPossessor ControllerAx _) = Just AtResolution
@@ -2522,8 +2524,7 @@ mutual
   clauseStaticOk : {0 bs : Bindings} -> StaticEffect bs -> Bool
   clauseStaticOk (DefinesPt _ _ _) = False
   clauseStaticOk (AltCost _ _) = False
-  clauseStaticOk (AndAlso parts) = partsClauseOk parts
-  clauseStaticOk (SharedSubject _ parts) = partsClauseOk parts
+  clauseStaticOk (AndAlso _ parts) = partsClauseOk parts
   clauseStaticOk _ = True
 
   public export
@@ -2578,8 +2579,11 @@ mutual
   costPaidByYou TapSymbol = True
   costPaidByYou UntapSymbol = True
   costPaidByYou (LoyaltySymbol _) = True
-  costPaidByYou (Do (ChangeLife who _)) = nounIsYou who
-  costPaidByYou (Do (Does subj _ _)) = nounIsYou subj
+  -- [CR#119.4] a life payment leaves the payer's own total; granting life is an
+  -- action the payer takes, so its recipient is free
+  costPaidByYou (Do (ChangeLife who (Down _))) = nounIsYou who
+  costPaidByYou (Do (ChangeLife _ (Up _))) = True
+  costPaidByYou (Do (Enact (Just subj) _ _)) = nounIsYou subj
   costPaidByYou (Do _) = True
   costPaidByYou (Compound cs) = costsPaidByYou cs
   costPaidByYou (EitherCost l r) = costPaidByYou l && costPaidByYou r

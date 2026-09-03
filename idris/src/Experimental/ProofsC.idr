@@ -83,14 +83,14 @@ badSingularOrderRider Oh impossible
 ||| "Put the rest into your graveyard."
 public export
 badRestWithoutGroup : Unspellable (Effect []) (\ok =>
-  Move (TheRest {ok}) Macros.graveyardZ [])
+  Move (Macros.theRest {ok}) Macros.graveyardZ [])
 badRestWithoutGroup Oh impossible
 
 
 ||| "Look at the top four cards of your library. Put the rest on the bottom."
 public export
 badRestWithoutPart : Unspellable (Effect []) (\ok =>
-  Sequentially [Macros.lookAt (Macros.topCards 4), Move (TheRest {ok}) Macros.onBottomZ []])
+  Sequentially [Macros.lookAt (Macros.topCards 4), Move (Macros.theRest {ok}) Macros.onBottomZ []])
 badRestWithoutPart Oh impossible
 
 
@@ -98,8 +98,8 @@ public export
 badRestDisposedTwice : Unspellable (Effect []) (\ok =>
   Sequentially [ Macros.lookAt (Macros.topCards 4)
                , Move (Macros.oneOf Them) Macros.handZ []
-               , Move TheRest Macros.onBottomZ []
-               , Move (TheRest {ok}) Macros.graveyardZ []
+               , Move Macros.theRest Macros.onBottomZ []
+               , Move (Macros.theRest {ok}) Macros.graveyardZ []
                ])
 badRestDisposedTwice Oh impossible
 
@@ -107,7 +107,7 @@ badRestDisposedTwice Oh impossible
 public export
 badRestOverTwoAnnouncements : Unspellable (Effect []) (\ok =>
   Sequentially [ Fights (Macros.target Macros.creatureYouControl) (Macros.target Macros.creatureYouDontControl)
-               , Move (TheRest {ok}) Macros.graveyardZ []
+               , Move (Macros.theRest {ok}) Macros.graveyardZ []
                ])
 badRestOverTwoAnnouncements Oh impossible
 
@@ -173,7 +173,7 @@ public export
 badEachOfTheRest : Unspellable (Effect []) (\ok =>
   Sequentially [ Macros.lookAt (Macros.topCards 4)
                , Move (Macros.oneOf Them) Macros.handZ []
-               , Macros.exile You (EachOf TheRest {gm = ok})
+               , Macros.exile You (EachOf Macros.theRest {gm = ok})
                ])
 badEachOfTheRest Oh impossible
 

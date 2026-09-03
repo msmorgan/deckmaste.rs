@@ -88,7 +88,7 @@ badCumulativeUpkeepCounter Oh impossible
 ||| "Creatures you control get +1/+1. The same is true for menace and trample."
 public export
 badKeywordListOnPlainLine : Unspellable Ability (\ok =>
-  AlsoForKeywords (Static (Gets (Macros.allOf Macros.creatureYouControl)
+  AlsoForKeywords (Static (Gets Adds (Macros.allOf Macros.creatureYouControl)
                                 (PtUp (Lit 1)) (PtUp (Lit 1))))
                   [TheKeyword "Menace", TheKeyword "Trample"]
                   {ex = Builtin.fst ok, lk = Builtin.snd ok})
@@ -449,7 +449,7 @@ badWarpGrantInGraveyard Oh impossible
 
 
 public export
-copyParticipleUnwritten : verbedMarkingOk "Copy" Attributive = False
+copyParticipleUnwritten : actNamesParticiple "Copy" = False
 copyParticipleUnwritten = Refl
 
 ||| "Change the target of target spell or ability with a single target."
@@ -600,7 +600,7 @@ badPluralDevotion Refl impossible
 ||| "the amount of creatures that died this turn"
 public export
 badDeathSum : Unspellable (Amount []) (\ok =>
-  EventSum Death (Macros.a Macros.creature) Lookback.ThisTurn Nothing
+  EventTally TallySum Death (Macros.a Macros.creature) Lookback.ThisTurn Nothing
            {qm = ok})
 badDeathSum Oh impossible
 
@@ -690,7 +690,7 @@ badCoinsShowingWithoutFlip Oh impossible
 ||| "If you rolled 7, sacrifice this creature."
 public export
 badTotalWithoutRoll : Unspellable (Effect []) (\ok =>
-  Macros.ifThen (CompareAmt (TheTotal {ok}) Eq (Lit 7))
+  Macros.ifThen (CompareAmt (Macros.theTotal {ok}) Eq (Lit 7))
                 (Macros.sacrifice You Macros.thisCreature))
 badTotalWithoutRoll Refl impossible
 
@@ -703,7 +703,7 @@ badCreatureWonFlip MkLookbackSubject impossible
 ||| "the amount of dice you rolled this turn"
 public export
 badRollAsMagnitude : Unspellable (Amount []) (\ok =>
-  EventSum DiceRoll You Lookback.ThisTurn Nothing {qm = ok})
+  EventTally TallySum DiceRoll You Lookback.ThisTurn Nothing {qm = ok})
 badRollAsMagnitude Oh impossible
 
 public export
@@ -788,14 +788,14 @@ badBarePaymentLookback MkLookbackSubject impossible
 ||| "Destroy the rest."
 public export
 badRestWithoutAPartition : Unspellable (Noun [] Object) (\ok =>
-  TheRest {ok})
+  Macros.theRest {ok})
 badRestWithoutAPartition Oh impossible
 
 ||| "Choose any number of target creatures. Destroy the rest."
 public export
 badRestAfterTargetChoice : Unspellable (Effect []) (\ok =>
   Sequentially [ Macros.choose (Macros.targets Macros.anyNumber Macros.creature)
-               , Macros.destroy (TheRest {ok}) ])
+               , Macros.destroy (Macros.theRest {ok}) ])
 badRestAfterTargetChoice Oh impossible
 
 public export
@@ -803,12 +803,12 @@ afterChoiceRestDisposed : Bindings
 afterChoiceRestDisposed =
   effIntro (the (Effect [])
     (Sequentially [ Macros.choose (Macros.counted (Macros.upTo 1) Macros.creature)
-                  , Macros.destroy TheRest ]))
+                  , Macros.destroy Macros.theRest ]))
 
 ||| "Choose up to one creature. Destroy the rest. Destroy the rest."
 public export
 badChoiceRestDisposedTwice :
-  Unspellable (Noun ProofsG.afterChoiceRestDisposed Object) (\ok => TheRest {ok})
+  Unspellable (Noun ProofsG.afterChoiceRestDisposed Object) (\ok => Macros.theRest {ok})
 badChoiceRestDisposedTwice Oh impossible
 
 ||| "an opponent who controls more lands than they control"
@@ -940,16 +940,46 @@ badDomainlessOpenAxis : Unspellable (Effect []) (\ok =>
                 (SubtypeQ Creature) (Draw You (Lit 1)) {cl = ok})
 badDomainlessOpenAxis Oh impossible
 
-||| "target permanent that's exactly one color"
+||| "Cumulative upkeep — an opponent loses 1 life."
 public export
-badExactlyOneColor : Unspellable (Predicate [] Object) (\ok =>
-  ExactlyColors 1 {ok = ok})
-badExactlyOneColor Oh impossible
+badOpponentPaysYourCost : Unspellable (AbilityAt []) (\ok =>
+  Macros.cumulativeUpkeep (Do (Macros.losesLife Macros.anOpponent (Lit 1))) {py = ok})
+badOpponentPaysYourCost Oh impossible
+
+||| "this creature has base power and toughness -1/-1"
+public export
+badSetBasePtDownward : Unspellable (StaticEffect []) (\ok =>
+  Gets Sets Macros.thisCreature (PtDown (Lit 1)) (PtDown (Lit 1)) {lo = ok})
+badSetBasePtDownward Oh impossible
+
+||| "this creature loses 1/1"
+public export
+badLosePtOp : Unspellable (StaticEffect []) (\ok =>
+  Gets Loses Macros.thisCreature (PtUp (Lit 1)) (PtUp (Lit 1)) {lo = ok})
+badLosePtOp Oh impossible
+
+||| "when the last time counter is put on this enchantment"
+public export
+badLastCounterOnPlacement : Unspellable (GameEvent []) (\ok =>
+  CounterEvent CounterPut (Just Time) Macros.thisEnchantment LastCounter Nothing False
+               {lb = ok})
+badLastCounterOnPlacement Oh impossible
+
+||| "target monocolored permanent" — exactly one color is the printed lemma
+public export
+monocoloredIsOneColor : Predicate [] Object
+monocoloredIsOneColor = ColorCount Eq 1
+
+||| "target permanent that's exactly zero colors"
+public export
+badExactlyZeroColors : Unspellable (Predicate [] Object) (\ok =>
+  ColorCount Eq 0 {ok = ok})
+badExactlyZeroColors Oh impossible
 
 ||| "target permanent that's exactly six colors"
 public export
 badExactlySixColors : Unspellable (Predicate [] Object) (\ok =>
-  ExactlyColors 6 {ok = ok})
+  ColorCount Eq 6 {ok = ok})
 badExactlySixColors Oh impossible
 
 ||| "if this creature's flying cost was paid"
@@ -1000,7 +1030,7 @@ badBecomesWithoutIntransitive Oh impossible
 public export
 badTokensCreatedByCauserAndPlayer : Unspellable (GameEvent []) (\ok =>
   TokensCreated (Macros.counted (Macros.atLeast 1) IsToken)
-                (Just AnEffect) (Just You) Nothing {vo = ok})
+                True (Just You) Nothing {vo = ok})
 badTokensCreatedByCauserAndPlayer Oh impossible
 
 
@@ -1008,7 +1038,7 @@ badTokensCreatedByCauserAndPlayer Oh impossible
 public export
 badTokensCreatedUnderPlural : Unspellable (GameEvent []) (\ok =>
   TokensCreated (Macros.counted (Macros.atLeast 1) IsToken)
-                Nothing Nothing (Just (PlayerGroup YourOpponents)) {vo = ok})
+                False Nothing (Just (PlayerGroup YourOpponents)) {vo = ok})
 badTokensCreatedUnderPlural Oh impossible
 
 
@@ -1016,7 +1046,7 @@ badTokensCreatedUnderPlural Oh impossible
 public export
 badTokensCreatedByMintingNoun : Unspellable (GameEvent []) (\ok =>
   TokensCreated (Macros.counted (Macros.atLeast 1) IsToken)
-                Nothing (Just Macros.anOpponent) Nothing {vo = ok})
+                False (Just Macros.anOpponent) Nothing {vo = ok})
 badTokensCreatedByMintingNoun Oh impossible
 
 
@@ -1388,7 +1418,7 @@ public export
 distributiveGroupSurvives : Effect []
 distributiveGroupSurvives =
   Sequentially
-    [ Does (Macros.each Opponent) "Shuffle" (Shuffle They)
+    [ Enact (Just (Macros.each Opponent)) "Shuffle" (Shuffle They)
     , ChangeLife (Those PlayerW) (Down (Lit 1))
     ]
 
@@ -1400,7 +1430,7 @@ secondChooserDevotionRead =
 
 public export
 emblemGrantorRead : Noun [] Object
-emblemGrantorRead = TheEmblemGrantor
+emblemGrantorRead = TheGrantor EmblemMarker
 
 public export
 alternativeCostReadbacks : List (Predicate [] Object)

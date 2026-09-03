@@ -142,7 +142,7 @@ badWrappedStatusLaunder Oh impossible
 ||| "blocked creature that's unblocked"
 public export
 badBlockedAndUnblocked : Unspellable (Predicate [] Object) (\ok =>
-  And [Macros.creature, Blocked, Unblocked] {cf = ok})
+  And [Macros.creature, Blocked, Macros.unblocked] {cf = ok})
 badBlockedAndUnblocked Oh impossible
 
 

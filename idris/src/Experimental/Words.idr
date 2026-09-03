@@ -435,6 +435,15 @@ public export
 colorCountOk : Nat -> Bool
 colorCountOk n = n >= 2 && n <= 5
 
+-- an object is 0..5 colors [CR#105.1]; `Eq 0` is `IsColorless`
+public export
+colorBoundOk : Comparator -> Nat -> Bool
+colorBoundOk Eq n = n >= 1 && n <= 5
+colorBoundOk AtLeast n = n >= 2 && n <= 5
+colorBoundOk AtMost n = n >= 1 && n <= 4
+colorBoundOk Greater n = n >= 1 && n <= 4
+colorBoundOk Less n = n >= 2 && n <= 5
+
 public export
 data OutcomeSort = DamageDealt | LifeGained | LifeLost | CountersPut
                  | DamagePrevented | RollResult | CoinFlipped
@@ -448,6 +457,11 @@ data OutcomeSort = DamageDealt | LifeGained | LifeLost | CountersPut
                  | CeilingShortfall
 
 public export
+outcomeComparable : OutcomeSort -> Bool
+outcomeComparable RollResult = True
+outcomeComparable _ = False
+
+public export
 data FlipCall = WinsFlip | LosesFlip
 
 public export
@@ -455,17 +469,6 @@ data CoinFace = Heads | Tails
 
 public export
 data RollExtreme = LowestRoll | HighestRoll
-
-public export
-data Causer = AnEffect      -- "an effect" [CR#614.16]
-
-public export
-causerIx : Causer -> Nat
-causerIx AnEffect = 0
-
-public export
-Eq Causer where
-  (==) a b = causerIx a == causerIx b
 
 public export
 data Plurality = OneOf | ManyOf
@@ -831,6 +834,10 @@ actIntransitiveOf v = maybe False actIntransitive (actFactsFor v)
 public export
 actNamesParticiple : VerbLabel -> Bool
 actNamesParticiple v = isJust (participleOf v)
+
+public export
+ActNamesParticiple : VerbLabel -> Type
+ActNamesParticiple v = So (actNamesParticiple v)
 
 public export
 record Stamp where
@@ -1301,6 +1308,11 @@ theOtherOk bs = theRestOk bs &&
                    Just n => n == S (partsTaken bs))
 
 public export
+theRestFits : Plurality -> Bindings -> Bool
+theRestFits OneOf bs = theOtherOk bs
+theRestFits ManyOf bs = theRestOk bs
+
+public export
 groupSpent : Bindings -> Bindings
 groupSpent [] = []
 groupSpent (MkBinding PartD k pl p :: bs) = MkBinding TheD k pl p :: groupSpent bs
@@ -1494,17 +1506,6 @@ publicZone Stack = True
 publicZone Command = True
 
 public export
-data LoseCause = ZeroOrLessLife   -- a cause of losing the game [CR#704.5a..704.5c]
-
-public export
-loseCauseIx : LoseCause -> Nat
-loseCauseIx ZeroOrLessLife = 0
-
-public export
-Eq LoseCause where
-  (==) a b = loseCauseIx a == loseCauseIx b
-
-public export
 data ExposeVerb = LookAt | Reveal
 
 public export
@@ -1618,13 +1619,6 @@ data NounWord = TypeW CardType | CardW | SpellW | PlayerW
 public export
 data VerbedMarking = Attributive | ThisWay
 
-public export
-verbedMarkingOk : VerbLabel -> VerbedMarking -> Bool
-verbedMarkingOk v _ = isJust (participleOf v)
-
-public export
-VerbedMarkingOk : VerbLabel -> VerbedMarking -> Type
-VerbedMarkingOk v m = So (verbedMarkingOk v m)
 
 public export
 tyIs : CardType -> Maybe CardType -> Bool
@@ -2019,12 +2013,24 @@ targetablePhrasal (JoinTgt l r) =
   PhJoin (targetablePhrasal l) (targetablePhrasal r)
 
 public export
+copyPayloadIn : {k : Kind} -> Phrasal k -> Maybe CardType -> Maybe Zone -> Payload k
+copyPayloadIn PhObject ty z = ObjectP ty z Nothing (Just CopyOrigin) Nothing
+copyPayloadIn PhAbility _ _ = AbilityP (Just CopyOrigin)
+copyPayloadIn (PhJoin l r) ty z = JoinP (copyPayloadIn l ty z) (copyPayloadIn r ty z)
+copyPayloadIn PhPlayer _ _ = PlayerP
+copyPayloadIn {k = Quality q} PhQuality _ _ = QualityP
+
+public export
+data CopySort = FromStack | FromCardZone
+
+public export
+copyLandsIn : CopySort -> Maybe Zone -> Maybe Zone
+copyLandsIn FromStack _ = Just Stack
+copyLandsIn FromCardZone z = z
+
+public export
 copyPayload : {k : Kind} -> Phrasal k -> Maybe CardType -> Payload k
-copyPayload PhObject ty = ObjectP ty (Just Stack) Nothing (Just CopyOrigin) Nothing
-copyPayload PhAbility _ = AbilityP (Just CopyOrigin)
-copyPayload (PhJoin l r) ty = JoinP (copyPayload l ty) (copyPayload r ty)
-copyPayload PhPlayer _ = PlayerP
-copyPayload {k = Quality q} PhQuality _ = QualityP
+copyPayload ph ty = copyPayloadIn ph ty (Just Stack)
 
 
 public export
@@ -2390,26 +2396,16 @@ distinctClasses (c :: cs) = not (elem c cs) && distinctClasses cs
 
 
 public export
-data AbilityWordName = Adamant | Addendum | Alliance | Battalion | Bloodrush
-                     | Celebration | Channel | Chroma | Cohort | Constellation
-                     | Converge | CouncilsDilemma | Coven | Delirium
-                     | Descend4 | Descend8 | Disappear | Domain | Eerie
-                     | Eminence | Enrage | FatefulHour | FathomlessDescent
-                     | Ferocious | Flurry | Formidable | Grandeur | Hellbent
-                     | Heroic | Imprint | Infusion | Inspired | JoinForces
-                     | Kinship | Landfall | Lieutenant | Magecraft
-                     | Metalcraft | Morbid | Opus | PackTactics | Paradox
-                     | Parley | Radiance | Raid | Rally | Renew | Repartee
-                     | Revolt | SecretCouncil | SpellMastery | Strive
-                     | Survival | Sweep | TemptingOffer | Threshold
-                     | Undergrowth | Valiant | Vivid | Void | WillOfTheCouncil
+-- ability words have no rules meaning [CR#207.2c], so the label is open
+AbilityWordLabel : Type
+AbilityWordLabel = String
 
 public export
 FlavorWordLabel : Type
 FlavorWordLabel = String
 
 public export
-data ItalicWord = AnAbilityWord AbilityWordName
+data ItalicWord = AnAbilityWord AbilityWordLabel
                 | AFlavorWord FlavorWordLabel
 
 
@@ -2585,14 +2581,23 @@ loyaltyAnnouncesX LoyaltyZero = False
 public export
 data Subtype : Type where
   MkSubtype : (host : CardType) -> (label : String) -> Subtype
+  -- instants and sorceries share their spell types [CR#205.3k]
+  MkSpellSubtype : (label : String) -> Subtype
 
 public export
-subtypeType : Subtype -> CardType
-subtypeType (MkSubtype host _) = host
+subtypeType : Subtype -> Maybe CardType
+subtypeType (MkSubtype host _) = Just host
+subtypeType (MkSpellSubtype _) = Nothing
+
+public export
+subtypeFits : Subtype -> CardType -> Bool
+subtypeFits (MkSubtype host _) t = host == t
+subtypeFits (MkSpellSubtype _) t = t == Instant || t == Sorcery
 
 public export
 subtypeLabel : Subtype -> String
 subtypeLabel (MkSubtype _ label) = label
+subtypeLabel (MkSpellSubtype label) = label
 
 public export
 subtypeIx : Subtype -> (CardType, String)
@@ -2628,7 +2633,7 @@ battleType n = MkSubtype Battle n
 
 public export
 spellType : String -> Subtype
-spellType n = MkSubtype Instant n
+spellType n = MkSpellSubtype n
 
 public export
 data BasicLandType : Subtype -> Type where
@@ -2691,6 +2696,11 @@ Eq MarkerWord where
   (==) a b = markerWordIx a == markerWordIx b
 
 public export
+grantorOrigin : MarkerWord -> Maybe Zone
+grantorOrigin EmblemMarker = Just Command
+grantorOrigin _ = Nothing
+
+public export
 markerZone : MarkerWord -> Zone
 markerZone TokenMarker = Battlefield
 markerZone EmblemMarker = Command
@@ -2700,7 +2710,7 @@ markerZone PermanentMarker = Battlefield
 public export
 ascriptionOk : CardType -> Maybe Subtype -> Bool
 ascriptionOk t Nothing = ascribesAsType t
-ascriptionOk t (Just s) = ascribesAsType t && subtypeType s == t
+ascriptionOk t (Just s) = ascribesAsType t && subtypeFits s t
 
 namespace Counter
   public export
@@ -2922,6 +2932,19 @@ designationSeedType RightHalfUnlocked = Nothing
 designationSeedType CommanderD = Nothing
 designationSeedType Day = Nothing
 designationSeedType Night = Nothing
+
+public export
+designationHolder : Designation -> Maybe Kind
+designationHolder d = case designationScope d of
+  HeldBy k => Just k
+  HeldByCard => Just Object
+  HeldByGame => Nothing
+
+public export
+heldByItsCard : Designation -> Bool
+heldByItsCard d = case designationScope d of
+  HeldByCard => True
+  _ => False
 
 public export
 data DesignationHolder : Designation -> Maybe Zone -> Type where
@@ -3241,16 +3264,11 @@ lineNonEmpty (MkTypeLine _ _) = True
 
 
 public export
-spellSubtype : Subtype -> Bool
-spellSubtype s = subtypeType s == Instant
-
-public export
 subsFitLine : List Subtype -> List CardType -> Bool
 subsFitLine [] tys = True
 subsFitLine (s :: ss) tys =
-  (elem (subtypeType s) tys
-     || (subtypeType s == Creature && elem Kindred tys)
-     || (spellSubtype s && (elem Instant tys || elem Sorcery tys)))
+  (any (subtypeFits s) tys
+     || (subtypeFits s Creature && elem Kindred tys))
   && subsFitLine ss tys
 
 
@@ -3468,10 +3486,10 @@ public export
 addedFits : Maybe CardType -> TypeLine -> Bool
 addedFits subj (MkTypeLine [] tys) = True
 addedFits subj (MkTypeLine (s :: ss) tys) =
-  (elem (subtypeType s) tys ||
+  (any (subtypeFits s) tys ||
    (case subj of
       Nothing => False
-      Just t => subtypeType s == t)) &&
+      Just t => subtypeFits s t)) &&
   addedFits subj (MkTypeLine ss tys)
 
 public export
@@ -3565,5 +3583,3 @@ Eq TurnPart where
 public export
 data PartQuant = ThePart | EachPart
 
-public export
-data TurnPoint = AttackersDeclared   -- a combat-phase point a before/after limit names [CR#506.7]

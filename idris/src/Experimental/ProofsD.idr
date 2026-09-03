@@ -28,7 +28,7 @@ badSpellAbilityOnPermanent MkFaceLaws impossible
 public export
 badStaticOnSorcery : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Green]) [] (MkTypeLine [] [Sorcery])
-       [Static (Gets (Macros.allOf Macros.creatureYouControl) (PtUp (Lit 1)) (PtUp (Lit 1)))] Nothing {fl = ok})
+       [Static (Gets Adds (Macros.allOf Macros.creatureYouControl) (PtUp (Lit 1)) (PtUp (Lit 1)))] Nothing {fl = ok})
 badStaticOnSorcery MkFaceLaws impossible
 
 
@@ -207,7 +207,7 @@ badUntapNextAmbiguousIt Refl impossible
 ||| "Exile target creature tapped."
 public export
 badExileTapped : Unspellable (Effect []) (\ok =>
-  Enact "Exile" (Move (Macros.target Macros.creature) Macros.exileZ
+  Enact Nothing "Exile" (Move (Macros.target Macros.creature) Macros.exileZ
                       [EntersTapped] {rf = ok}))
 badExileTapped Oh impossible
 
@@ -281,13 +281,13 @@ badCountersHeldByPlayer Refl impossible
 ||| "When the last poison counter is removed from this creature, draw a card."
 public export
 badLastPoisonCounterRemoved : Unspellable Ability (\ok =>
-  Triggered When (LastCounterRemoved (Named "Poison") Macros.thisCreature Nothing {sc = ok}) [] Nothing [] Nothing Nothing Nothing (Macros.draw You (Lit 1)))
+  Triggered When (Macros.lastCounterRemoved (Named "Poison") Macros.thisCreature {sc = ok}) [] Nothing [] Nothing Nothing Nothing (Macros.draw You (Lit 1)))
 badLastPoisonCounterRemoved Refl impossible
 
 
 public export
 badExileCheckOnSortedSelf : Unspellable Ability (\ok =>
-  Triggered When (LastCounterRemoved (Named "Time") Macros.thisCreature Nothing) [] Nothing [] Nothing Nothing (Just (Matches Macros.thisCreature (InZone Macros.exileZ)
+  Triggered When (Macros.lastCounterRemoved (Named "Time") Macros.thisCreature) [] Nothing [] Nothing Nothing (Just (Matches Macros.thisCreature (InZone Macros.exileZ)
                                          {zc = ok})) (Macros.draw You (Lit 1)))
 badExileCheckOnSortedSelf Oh impossible
 
@@ -344,7 +344,7 @@ badPluralPartWindow Oh impossible
 ||| "{2}: Draw a card. Activate only before all players' attackers are declared." [CR#102.1]
 public export
 badPluralAttackWindow : Unspellable Ability (\ok =>
-  Activated (Mana [Macros.generic 2]) (Macros.draw You (Lit 1)) (Just (BeforePoint AttackersDeclared (Just (Macros.allOf AnyPlayer)) {pk = ok})) Nothing Nothing Nothing)
+  Activated (Mana [Macros.generic 2]) (Macros.draw You (Lit 1)) (Just (BeforeAttackersDeclared (Just (Macros.allOf AnyPlayer)) {pk = ok})) Nothing Nothing Nothing)
 badPluralAttackWindow Oh impossible
 
 
@@ -394,7 +394,7 @@ badBlocksItself Oh impossible
 public export
 badThatCreatureIsCondSubject : Unspellable Ability (\ok =>
   Static (Macros.asLongAs (Matches Macros.thisCreature Attacking)
-                          (Gets (That (TypeW Creature) {ok = Builtin.fst ok}) (PtUp (Lit 2)) (PtUp (Lit 0))
+                          (Gets Adds (That (TypeW Creature) {ok = Builtin.fst ok}) (PtUp (Lit 2)) (PtUp (Lit 0))
                                 {ok = Builtin.snd ok})))
 badThatCreatureIsCondSubject (Refl, _) impossible
 
@@ -402,14 +402,14 @@ badThatCreatureIsCondSubject (Refl, _) impossible
 ||| "Equipped land gets +1/+1."
 public export
 badEquippedLand : Unspellable Ability (\ok =>
-  Static (Gets (AttachHost Equipped (TypeW Land) {ok = ok}) (PtUp (Lit 1)) (PtUp (Lit 1))))
+  Static (Gets Adds (AttachHost Equipped (TypeW Land) {ok = ok}) (PtUp (Lit 1)) (PtUp (Lit 1))))
 badEquippedLand Oh impossible
 
 
 ||| "Fortified creature gets +1/+1."
 public export
 badFortifiedCreature : Unspellable Ability (\ok =>
-  Static (Gets (AttachHost Fortified (TypeW Creature) {ok = ok}) (PtUp (Lit 1)) (PtUp (Lit 1))))
+  Static (Gets Adds (AttachHost Fortified (TypeW Creature) {ok = ok}) (PtUp (Lit 1)) (PtUp (Lit 1))))
 badFortifiedCreature Oh impossible
 
 
@@ -473,7 +473,7 @@ badUnlicensedY Oh impossible
 
 public export
 badDoubleStaticRider : Unspellable (StaticEffect []) (\ok =>
-  AndAlso [ Gets Macros.thisCreature (PtUp (LetterVal X)) (PtUp (Lit 0))
+  AndAlso Nothing [ Gets Adds Macros.thisCreature (PtUp (LetterVal X)) (PtUp (Lit 0))
           , Define X (Macros.countOf Macros.creatureYouControl)
           , Define X (Macros.countOf Macros.creature) {ok} ])
 badDoubleStaticRider Oh impossible

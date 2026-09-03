@@ -448,7 +448,7 @@ badDestroyGraveyardCard Oh impossible
 ||| A move labeled with a word outside the label catalog
 public export
 badUnknownVerbLabel : Unspellable (Effect []) (\ok =>
-  Enact "Descry" (Move (Macros.a Macros.creature) Macros.graveyardZ []) {kn = ok})
+  Enact Nothing "Descry" (Move (Macros.a Macros.creature) Macros.graveyardZ []) {kn = ok})
 badUnknownVerbLabel Oh impossible
 
 
@@ -501,7 +501,7 @@ badThatMuchAmbig Refl impossible
 public export
 badForEachZero : Unspellable (Amount []) (\ok =>
   Macros.nForEach 0 Macros.creature {nz = ok})
-badForEachZero ItIsSucc impossible
+badForEachZero Oh impossible
 
 
 ||| "creature that isn't on the battlefield"

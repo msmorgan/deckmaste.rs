@@ -41,12 +41,20 @@ public export
 data CounterMove = CounterPut | CounterTaken
 
 public export
-counterEventName : CounterMove -> EventName
-counterEventName CounterPut = CounterPlacement
-counterEventName CounterTaken = CounterRemoval
+data CounterBatch = OneCounter | ManyCounters | LastCounter
 
 public export
-data CounterBatch = OneCounter | ManyCounters
+counterEventName : CounterMove -> CounterBatch -> EventName
+counterEventName CounterPut _ = CounterPlacement
+counterEventName CounterTaken LastCounter = LastCounterRemoval
+counterEventName CounterTaken _ = CounterRemoval
+
+-- only a removal empties a named kind, so only it has a last counter
+public export
+counterBatchOk : CounterBatch -> CounterMove -> Maybe CounterKind -> Bool
+counterBatchOk LastCounter CounterTaken kind = isJust kind
+counterBatchOk LastCounter _ _ = False
+counterBatchOk _ _ _ = True
 
 public export
 flipEventName : FlipCall -> EventName
@@ -279,6 +287,14 @@ eventUnderwayOk ev = underway (eventFactsOf ev)
 public export
 eventHasMagnitude : EventName -> Bool
 eventHasMagnitude ev = hasMagnitude (eventFactsOf ev)
+
+public export
+data TallyOp = TallyCount | TallySum
+
+public export
+tallyOk : TallyOp -> EventName -> Bool
+tallyOk TallyCount _ = True
+tallyOk TallySum ev = eventHasMagnitude ev
 
 public export
 data ReplUse = Repeatedly | NextTimeOnly

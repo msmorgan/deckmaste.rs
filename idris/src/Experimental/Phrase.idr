@@ -107,7 +107,7 @@ mutual
     NameOfCard : (p : Predicate [] Object) -> ChoiceDomain (QSort CardName)
     ColorOtherThan : (c : Chroma.Color) -> ChoiceDomain (QSort Color)
     TypeOtherThan : (s : Subtype) ->
-                    {auto 0 ct : subtypeType s = Creature} ->
+                    {auto 0 ct : subtypeType s = Just Creature} ->
                     ChoiceDomain (QSort (SubtypeQ Creature))
     BasicTypesOnly : ChoiceDomain (QSort (SubtypeQ Land))
     NonbasicTypesOnly : ChoiceDomain (QSort (SubtypeQ Land))
@@ -250,9 +250,8 @@ mutual
     HasPossessor : {k : Kind} -> (ax : PossessorAxis) -> (n : Noun bs Player) ->
                    {auto 0 ps : SoleHolder n} ->
                    {auto 0 ck : So (possessorKind ax k)} -> Predicate bs k
-    CastBy : (n : Noun bs Player) -> {auto 0 ps : SoleHolder n} -> Predicate bs Object
-    NthCastBy : (ord : Ordinal) -> (n : Noun bs Player) -> (per : RankPeriod) ->
-                {auto 0 ps : SoleHolder n} -> Predicate bs Object
+    CastBy : (n : Noun bs Player) -> (rank : Maybe (Ordinal, RankPeriod)) ->
+             {auto 0 ps : SoleHolder n} -> Predicate bs Object
     CastFrom : (z : ZoneExpr bs) ->
                {auto 0 pf : So (playableFrom (Just (zoneSort z)))} ->
                Predicate bs Object
@@ -261,7 +260,6 @@ mutual
     BeingDeclaredAttacker : Predicate bs Object
     Blocking : Predicate bs Object
     Blocked : Predicate bs Object
-    Unblocked : Predicate bs Object
     CombatRel : {k : Kind} -> {km : Kind} -> (r : CombatRelation) ->
                 (m : Noun bs km) ->
                 {auto 0 ok : So (combatRelOk r k km (nounZone m) (nounTys m))} ->
@@ -272,19 +270,12 @@ mutual
                  {auto 0 sb : LookbackSubject ev k} -> Predicate bs k
     ColorIs : (c : Chroma.Color) -> Predicate bs Object
     IsColorless : Predicate bs Object
-    Multicolored : Predicate bs Object
-    Monocolored : Predicate bs Object
-    ExactlyColors : (n : Nat) -> {auto 0 ok : So (colorCountOk n)} ->
-                    Predicate bs Object
+    ColorCount : (r : Comparator) -> (n : Nat) ->
+                 {auto 0 ok : So (colorBoundOk r n)} -> Predicate bs Object
     HasSupertype : (s : Supertype) -> Predicate bs Object
     Named : (src : NameSource bs) -> Predicate bs Object
     HasDesignation : (d : Designation) ->
-                     {auto 0 sc : designationScope d = HeldBy k} ->
-                     {auto 0 at : So (designationChecked d)} ->
-                     Predicate bs k
-    HasCardDesignation : (d : Designation) ->
-                         {auto 0 sc : designationScope d = HeldByCard} ->
-                         Predicate bs Object
+                     {auto 0 sc : designationHolder d = Just k} -> Predicate bs k
     IsAttached : (w : AttachWord) ->
                  {auto 0 ok : So (attachedCheckOk w)} -> Predicate bs Object
     AttachedBy : (w : AttachWord) -> (by : Noun bs Object) ->
@@ -356,7 +347,7 @@ mutual
   public export
   seedTy : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Maybe CardType
   seedTy (HasType t) = Just t
-  seedTy (HasSubtype s) = Just (subtypeType s)
+  seedTy (HasSubtype s) = subtypeType s
   seedTy (And ps) = seedTyAll ps
   seedTy (Or ps) = seedTyJoin ps
   seedTy (Joined l r) = joinSeed (seedTy l) (seedTy r)
@@ -444,7 +435,6 @@ mutual
   seedZone (CombatRel AttackedBy _) = Nothing
   seedZone (CombatRel _ _) = Just Battlefield
   seedZone Blocked = Just Battlefield
-  seedZone Unblocked = Just Battlefield
   seedZone (HasDesignation d) = designationSeedZone d
   seedZone (IsAttached _) = Just Battlefield
   seedZone (AttachedBy _ _) = Just Battlefield
@@ -513,12 +503,11 @@ mutual
   seedType (CombatRel AttackedBy _) = Nothing
   seedType (CombatRel _ _) = Just Creature
   seedType Blocked = Just Creature
-  seedType Unblocked = Just Creature
   seedType (HasDesignation d) = designationSeedType d
   seedType (Compare cs _ _) = axisTypes cs
   seedType (Superlative _ (CharAxis c) _) = comparedType c
   seedType (CompareOver dom _ _ _) = seedType dom
-  seedType (HasSubtype s) = Just (subtypeType s)
+  seedType (HasSubtype s) = subtypeType s
   seedType (And ps) = seedTypeAll ps
   seedType (Or ps) = seedTypeJoin ps
   seedType _ = Nothing
@@ -559,7 +548,7 @@ mutual
   hasHead (CounterKindOn _) = True
   hasHead (AbilityHead _) = True
   hasHead IsSource = True
-  hasHead (HasCardDesignation _) = True
+  hasHead (HasDesignation d) = heldByItsCard d
   hasHead Permanent = True
   hasHead IsCard = True
   hasHead IsToken = True
@@ -614,7 +603,7 @@ mutual
   uniquifies WithMostVotes = False
   uniquifies (ChoseExtreme _) = False
   uniquifies (CombatRel AttackedBy _) = True
-  uniquifies (NthCastBy _ _ _) = True
+  uniquifies (CastBy _ rank) = isJust rank
   uniquifies (And ps) = uniquifiesAny ps
   uniquifies _ = False
 
@@ -710,9 +699,8 @@ mutual
   predEq (HasKeyword _) _ = False
   predEq (HasPossessor ax a) (HasPossessor bx b) = ax == bx && nounEqRef a b
   predEq (HasPossessor _ _) _ = False
-  predEq (CastBy a) (CastBy b) = nounEqRef a b
-  predEq (CastBy _) _ = False
-  predEq (NthCastBy _ _ _) _ = False
+  predEq (CastBy a Nothing) (CastBy b Nothing) = nounEqRef a b
+  predEq (CastBy _ _) _ = False
   predEq (ExiledWith a) (ExiledWith b) = nounEqRef a b
   predEq (ExiledWith _) _ = False
   predEq (InPile a) (InPile b) = nounEqRef a b
@@ -726,8 +714,6 @@ mutual
   predEq (CombatRel AttackerOf _) _ = False
   predEq Blocked Blocked = True
   predEq Blocked _ = False
-  predEq Unblocked Unblocked = True
-  predEq Unblocked _ = False
   predEq (CombatRel {km = Object} r a) (CombatRel {km = Object} s b) =
     r == s && nounEqRef a b
   predEq (CombatRel _ _) _ = False
@@ -738,20 +724,14 @@ mutual
   predEq (ColorIs _) _ = False
   predEq IsColorless IsColorless = True
   predEq IsColorless _ = False
-  predEq Multicolored Multicolored = True
-  predEq Multicolored _ = False
-  predEq Monocolored Monocolored = True
-  predEq Monocolored _ = False
-  predEq (ExactlyColors a) (ExactlyColors b) = a == b
-  predEq (ExactlyColors _) _ = False
+  predEq (ColorCount r a) (ColorCount s b) = r == s && a == b
+  predEq (ColorCount _ _) _ = False
   predEq (HasSupertype a) (HasSupertype b) = a == b
   predEq (HasSupertype _) _ = False
   predEq (Named a) (Named b) = a == b
   predEq (Named _) _ = False
   predEq (HasDesignation a) (HasDesignation b) = a == b
   predEq (HasDesignation _) _ = False
-  predEq (HasCardDesignation a) (HasCardDesignation b) = a == b
-  predEq (HasCardDesignation _) _ = False
   predEq (CoinCameUp Heads) (CoinCameUp Heads) = True
   predEq (CoinCameUp Tails) (CoinCameUp Tails) = True
   predEq (CoinCameUp _) _ = False
@@ -883,25 +863,6 @@ mutual
   noStatusClash (p :: ps) = not (anyStatusClash p ps) && noStatusClash ps
 
   public export
-  combatRoleClashOf : {0 bs : Bindings} -> {0 k : Kind} ->
-                      Predicate bs k -> Predicate bs k -> Bool
-  combatRoleClashOf Blocked Unblocked = True
-  combatRoleClashOf Unblocked Blocked = True
-  combatRoleClashOf _ _ = False
-
-  public export
-  anyCombatRoleClash : {0 bs : Bindings} -> {0 k : Kind} ->
-                       Predicate bs k -> List (Predicate bs k) -> Bool
-  anyCombatRoleClash p [] = False
-  anyCombatRoleClash p (q :: qs) = combatRoleClashOf p q || anyCombatRoleClash p qs
-
-  public export
-  noCombatRoleClash : {0 bs : Bindings} -> {0 k : Kind} ->
-                      List (Predicate bs k) -> Bool
-  noCombatRoleClash [] = True
-  noCombatRoleClash (p :: ps) = not (anyCombatRoleClash p ps) && noCombatRoleClash ps
-
-  public export
   isPermanentHead : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   isPermanentHead Permanent = True
   isPermanentHead _ = False
@@ -935,8 +896,10 @@ mutual
 
   public export
   seedTypeAlts : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> List CardType
-  seedTypeAlts (HasSubtype s) =
-    if subtypeType s == Creature then [Creature, Kindred] else [subtypeType s]
+  seedTypeAlts (HasSubtype s) = case subtypeType s of
+    Just Creature => [Creature, Kindred]
+    Just t => [t]
+    Nothing => [Instant, Sorcery]
   seedTypeAlts p = case seedType p of
     Just t => [t]
     Nothing => []
@@ -961,7 +924,6 @@ mutual
     noNegatedPair fs &&
     not (anySeedEmptied (negTypes fs) fs) &&
     noStatusClash fs &&
-    noCombatRoleClash fs &&
     noColorClash fs &&
     noCardTokenClash fs &&
     not (anyPermanentHead fs && anyNonPermanentTy fs)
@@ -1279,8 +1241,7 @@ mutual
                         {auto 0 zn : ZoneIs (nounZone spell) Stack} ->
                         {auto 0 pm : So (permanentSpellType (nounTy spell))} ->
                         Noun bs Object
-    TheGrantor : Noun bs Object
-    TheEmblemGrantor : Noun bs Object
+    TheGrantor : (m : MarkerWord) -> Noun bs Object
     You : Noun bs Player        -- "you" [CR#109.5]
     TheDefendingPlayer : Noun bs Player
     TheAttackingPlayer : Noun bs Player
@@ -1304,8 +1265,8 @@ mutual
     NamesAgree : (agr : NameAgreement) -> (grp : Noun bs Object) ->
                  {auto 0 cm : CountedMention grp} ->
                  {auto 0 pl : nounPlur grp = ManyOf} -> Noun bs Object
-    TheRest : {auto 0 ok : So (theRestOk bs)} -> Noun bs Object
-    TheOther : {auto 0 ok : So (theOtherOk bs)} -> Noun bs Object
+    TheRest : (pl : Plurality) -> {auto 0 ok : So (theRestFits pl bs)} ->
+              Noun bs Object
     PileOf : (q : SliceCount bs) -> (by : Maybe (Noun bs Player)) ->
              {auto 0 ok : countReach (Word PileW) ManyOf bs = 1} -> Noun bs Object
     Pro : (r : Reach) -> (pl : Plurality) ->
@@ -1342,10 +1303,8 @@ mutual
   nounEqRef (AsType _ _ _) _ = False
   nounEqRef (ResolvedPermanent _) _ = False
   nounEqRef (AsMarker _ _) _ = False
-  nounEqRef TheGrantor TheGrantor = True
-  nounEqRef TheGrantor _ = False
-  nounEqRef TheEmblemGrantor TheEmblemGrantor = True
-  nounEqRef TheEmblemGrantor _ = False
+  nounEqRef (TheGrantor a) (TheGrantor b) = a == b
+  nounEqRef (TheGrantor _) _ = False
   nounEqRef TheDefendingPlayer TheDefendingPlayer = True
   nounEqRef TheDefendingPlayer _ = False
   nounEqRef TheAttackingPlayer TheAttackingPlayer = True
@@ -1361,8 +1320,7 @@ mutual
   nounEqRef (LibrarySlice _ _ _) _ = False
   nounEqRef (SomeOf _ _ _) _ = False
   nounEqRef (NamesAgree _ _) _ = False
-  nounEqRef TheRest _ = False
-  nounEqRef TheOther _ = False
+  nounEqRef (TheRest _) _ = False
   nounEqRef (PileOf _ _) _ = False
   nounEqRef (Pro Bare OneOf) (Pro Bare OneOf) = True
   nounEqRef (Pro (Word AbilityW) OneOf) (Pro (Word AbilityW) OneOf) = True
@@ -1436,8 +1394,7 @@ mutual
   nounDelta (AsType t n _) = nounDelta n
   nounDelta (ResolvedPermanent n) = nounDelta n
   nounDelta (AsMarker _ n) = nounDelta n
-  nounDelta TheGrantor = []
-  nounDelta TheEmblemGrantor = []
+  nounDelta (TheGrantor _) = []
   nounDelta TheDefendingPlayer = []
   nounDelta TheAttackingPlayer = []
   nounDelta You = []
@@ -1455,8 +1412,7 @@ mutual
     MkBinding PartD Object (slicePlur q)
               (ObjectP (sliceTy d grp) (nounZone grp) Nothing Nothing (sliceExact q))
       :: (sliceCountDelta q ++ sliceDelta d ++ nounDelta grp)
-  nounDelta TheRest = []
-  nounDelta TheOther = []
+  nounDelta (TheRest _) = []
   nounDelta (PileOf q Nothing) =
     MkBinding PartD Object (slicePlur q)
               (PileP (zoneOfReach (Word PileW) ManyOf bs) (sliceExact q)
@@ -1501,6 +1457,16 @@ mutual
   agentIntro n = nomIntro n
 
   public export
+  agentCtx : {bs : Bindings} -> {k : Kind} -> Maybe (Noun bs k) -> Bindings
+  agentCtx Nothing = bs
+  agentCtx (Just n) = agentIntro n
+
+  public export
+  subjCtx : {bs : Bindings} -> {k : Kind} -> Maybe (Noun bs k) -> Bindings
+  subjCtx Nothing = bs
+  subjCtx (Just n) = selfSubjIntro n
+
+  public export
   kindValueIntro : {bs : Bindings} -> QualitySort -> Maybe (Noun bs Object) -> Bindings
   kindValueIntro q (Just dom) = qualityB q :: nomIntro dom
   kindValueIntro {bs} q Nothing = qualityB q :: bs
@@ -1516,21 +1482,17 @@ mutual
   predDelta (ActivatedBy n) = nounDelta n
   predDelta (Targets m _) = nounDelta m
   predDelta (HasPossessor _ n) = nounDelta n
-  predDelta (CastBy n) = nounDelta n
-  predDelta (NthCastBy _ n _) = nounDelta n
+  predDelta (CastBy n _) = nounDelta n
   predDelta (CombatRel _ m) = nounDelta m
   predDelta (CounterKindOn n) = nounDelta n
   predDelta (HappenedTo _ _ what) = complementDelta what
   predDelta (CastFrom z) = zoneDelta z
   predDelta (ColorIs _) = []
   predDelta IsColorless = []
-  predDelta Multicolored = []
-  predDelta Monocolored = []
-  predDelta (ExactlyColors _) = []
+  predDelta (ColorCount _ _) = []
   predDelta (HasSupertype _) = []
   predDelta (Named src) = nameSrcDelta src
   predDelta (HasDesignation _) = []
-  predDelta (HasCardDesignation _) = []
   predDelta (CoinCameUp _) = []
   predDelta (IsAttached _) = []
   predDelta (AttachedBy _ by) = nounDelta by
@@ -1674,27 +1636,23 @@ mutual
     TimesPaid : (which : PaidCostName) -> (whose : Noun bs Object) ->
                 {auto 0 nc : PaidCostNamed which} ->
                 {auto 0 one : nounPlur whose = OneOf} -> Amount bs
-    EventCount : {k : Kind} -> (ev : EventName) -> (who : Noun bs k) ->
-                 (w : Lookback) ->
+    EventTally : {k : Kind} -> (op : TallyOp) -> (ev : EventName) ->
+                 (who : Noun bs k) -> (w : Lookback) ->
                  (what :
                     Maybe (EventComplement (nomIntro who) ev k)) ->
                  {auto 0 cw : ComplementWritten what} ->
-                 {auto 0 sb : LookbackSubject ev k} -> Amount bs
-    Times : (per : Nat) -> (a : Amount bs) ->
-            {auto 0 nz : IsSucc per} -> Amount bs
-    TimesOf : (per : Amount bs) -> (a : Amount (amtIntro per)) -> Amount bs
+                 {auto 0 sb : LookbackSubject ev k} ->
+                 {auto 0 qm : So (tallyOk op ev)} -> Amount bs
+    TimesOf : (per : Amount bs) -> (a : Amount (amtIntro per)) ->
+              {auto 0 nz : So (amtNonZero per)} -> Amount bs
     ThatMuch : {auto 0 ok : countQuantOutcomes bs = 1} -> Amount bs
     ChosenNumber : {auto 0 ok : countChoice (QSort Number) bs = 1} ->
                    Amount bs
     TheLastChosenNumber : {auto 0 ok : ChoiceStands (countChoice (QSort Number) bs)} ->
                           Amount bs               -- printed "the last chosen number": the recency is lexical
     VotesFor : (l : VoteLabel) -> Amount bs
-    PreventedThisWay : {auto 0 ok : countOutcomes DamagePrevented bs = 1} ->
-                       Amount bs
-    RemovedThisWay : {auto 0 ok : countOutcomes CountersRemoved bs = 1} ->
-                     Amount bs
-    TheResult : {auto 0 ok : countOutcomes RollResult bs = 1} -> Amount bs
-    TheTotal : {auto 0 ok : countOutcomes RollResult bs = 1} -> Amount bs
+    TheOutcome : (s : OutcomeSort) -> {auto 0 ok : countOutcomes s bs = 1} ->
+                 Amount bs
     CoinsShowing : (face : CoinFace) ->
                    {auto 0 fl : So (coinFlipInScope bs)} -> Amount bs
     GreatestStoredMatch : (n : Noun bs Object) ->
@@ -1710,13 +1668,6 @@ mutual
     Half : (r : RoundMode) -> (a : Amount bs) -> Amount bs
     DifferenceBetween : (a : Amount bs) -> (b : Amount (amtIntro a)) ->
                         Amount bs
-    EventSum : {k : Kind} -> (ev : EventName) -> (who : Noun bs k) ->
-               (w : Lookback) ->
-               (what :
-                  Maybe (EventComplement (nomIntro who) ev k)) ->
-               {auto 0 cw : ComplementWritten what} ->
-               {auto 0 sb : LookbackSubject ev k} ->
-               {auto 0 qm : So (eventHasMagnitude ev)} -> Amount bs
     AggregateOver : {k : Kind} -> (op : AggregateOp) ->
                     (dom : Predicate bs k) -> {auto ph : Phrasal k} ->
                     (body : Amount (bindFor TheD OneOf ph dom
@@ -1724,8 +1675,11 @@ mutual
                     Amount bs
     DistinctCount : (ax : KindAxis) -> (dom : Noun bs Object) -> Amount bs
     UpTo : (bound : Amount bs) -> Amount bs
-    ShortOfCeiling : {auto 0 ok : countOutcomes CeilingShortfall bs = 1} ->
-                     Amount bs
+
+  public export
+  amtNonZero : {bs : Bindings} -> Amount bs -> Bool
+  amtNonZero (Lit Z) = False
+  amtNonZero _ = True
 
   public export
   amtDelta : {bs : Bindings} -> Amount bs -> List Binding
@@ -1734,19 +1688,15 @@ mutual
   amtDelta (PlayerStatOf _ nom) = nounDelta nom
   amtDelta (CountersOn _ holder) = nounDelta holder
   amtDelta (TimesPaid _ whose) = nounDelta whose
-  amtDelta (EventCount _ who _ what) = nounDelta who ++ complementDelta what
+  amtDelta (EventTally _ _ who _ what) = nounDelta who ++ complementDelta what
   amtDelta (CountOf grp) = nounDelta grp
   amtDelta (Aggregate _ _ grp) = nounDelta grp
-  amtDelta (Times _ a) = amtDelta a
   amtDelta (TimesOf per a) = amtDelta per ++ amtDelta a
   amtDelta ThatMuch = []
   amtDelta ChosenNumber = []
   amtDelta TheLastChosenNumber = []
   amtDelta (VotesFor _) = []
-  amtDelta PreventedThisWay = []
-  amtDelta RemovedThisWay = []
-  amtDelta TheResult = []
-  amtDelta TheTotal = []
+  amtDelta (TheOutcome _) = []
   amtDelta (CoinsShowing _) = []
   amtDelta (GreatestStoredMatch _) = []
   amtDelta GroupSize = []
@@ -1757,11 +1707,9 @@ mutual
   amtDelta (Devotion who _ _) = nounDelta who
   amtDelta (Half _ a) = amtDelta a
   amtDelta (DifferenceBetween a b) = amtDelta a ++ amtDelta b
-  amtDelta (EventSum _ who _ what) = nounDelta who ++ complementDelta what
   amtDelta (AggregateOver _ dom _) = predDelta dom
   amtDelta (DistinctCount _ dom) = nounDelta dom
   amtDelta (UpTo b) = outcomeB CeilingShortfall :: amtDelta b
-  amtDelta ShortOfCeiling = []
 
   public export
   amtIntro : {bs : Bindings} -> Amount bs -> Bindings
@@ -1770,19 +1718,15 @@ mutual
   amtIntro (PlayerStatOf w nom) = nomIntro nom
   amtIntro (CountersOn _ holder) = nomIntro holder
   amtIntro (TimesPaid _ whose) = nomIntro whose
-  amtIntro (EventCount _ who _ what) = complementDelta what ++ nomIntro who
+  amtIntro (EventTally _ _ who _ what) = complementDelta what ++ nomIntro who
   amtIntro (CountOf grp) = nomIntro grp
   amtIntro (Aggregate _ _ grp) = nomIntro grp
-  amtIntro (Times per a) = amtIntro a
   amtIntro (TimesOf per a) = amtIntro a
   amtIntro ThatMuch = bs
   amtIntro ChosenNumber = bs
   amtIntro TheLastChosenNumber = bs
   amtIntro (VotesFor _) = bs
-  amtIntro PreventedThisWay = bs
-  amtIntro RemovedThisWay = bs
-  amtIntro TheResult = bs
-  amtIntro TheTotal = bs
+  amtIntro (TheOutcome _) = bs
   amtIntro (CoinsShowing _) = bs
   amtIntro (GreatestStoredMatch _) = bs
   amtIntro GroupSize = bs
@@ -1793,11 +1737,9 @@ mutual
   amtIntro (Devotion who _ _) = nomIntro who
   amtIntro (Half _ a) = amtIntro a
   amtIntro (DifferenceBetween a b) = amtIntro b
-  amtIntro (EventSum _ who _ what) = complementDelta what ++ nomIntro who
   amtIntro (AggregateOver _ dom _) = predDelta dom ++ bs
   amtIntro (DistinctCount _ dom) = nomIntro dom
   amtIntro (UpTo b) = outcomeB CeilingShortfall :: amtIntro b
-  amtIntro ShortOfCeiling = bs
 
   public export
   optAmtIntro : {bs : Bindings} -> Maybe (Amount bs) -> Bindings
@@ -1812,19 +1754,15 @@ mutual
   amtPlur (PlayerStatOf _ _) = ManyOf
   amtPlur (CountersOn _ _) = ManyOf
   amtPlur (TimesPaid _ _) = ManyOf
-  amtPlur (EventCount _ _ _ _) = ManyOf
+  amtPlur (EventTally _ _ _ _ _) = ManyOf
   amtPlur (CountOf _) = ManyOf
   amtPlur (Aggregate _ _ _) = ManyOf
-  amtPlur (Times _ _) = ManyOf
   amtPlur (TimesOf _ _) = ManyOf
   amtPlur ThatMuch = ManyOf
   amtPlur ChosenNumber = ManyOf
   amtPlur TheLastChosenNumber = ManyOf
   amtPlur (VotesFor _) = ManyOf
-  amtPlur PreventedThisWay = ManyOf
-  amtPlur RemovedThisWay = ManyOf
-  amtPlur TheResult = ManyOf
-  amtPlur TheTotal = ManyOf
+  amtPlur (TheOutcome _) = ManyOf
   amtPlur (CoinsShowing _) = ManyOf
   amtPlur (GreatestStoredMatch _) = ManyOf
   amtPlur GroupSize = ManyOf
@@ -1835,11 +1773,9 @@ mutual
   amtPlur (Devotion _ _ _) = ManyOf
   amtPlur (Half _ _) = ManyOf
   amtPlur (DifferenceBetween _ _) = ManyOf
-  amtPlur (EventSum _ _ _ _) = ManyOf
   amtPlur (AggregateOver _ _ _) = ManyOf
   amtPlur (DistinctCount _ _) = ManyOf
   amtPlur (UpTo b) = amtPlur b
-  amtPlur ShortOfCeiling = ManyOf
 
   public export
   boundEq : {0 bs : Bindings} -> Amount bs -> Amount bs -> Bool
@@ -1897,19 +1833,15 @@ mutual
   readAmount (PlayerStatOf _ _) = True
   readAmount (CountersOn _ _) = True
   readAmount (TimesPaid _ _) = True
-  readAmount (EventCount _ _ _ _) = True
+  readAmount (EventTally _ _ _ _ _) = True
   readAmount (CountOf _) = True
   readAmount (Aggregate _ _ _) = True
-  readAmount (Times _ _) = False
   readAmount (TimesOf _ _) = False
   readAmount ThatMuch = False
   readAmount ChosenNumber = False
   readAmount TheLastChosenNumber = False
   readAmount (VotesFor _) = True
-  readAmount PreventedThisWay = False
-  readAmount RemovedThisWay = False
-  readAmount TheResult = True
-  readAmount TheTotal = True
+  readAmount (TheOutcome s) = outcomeComparable s
   readAmount (CoinsShowing _) = True
   readAmount (GreatestStoredMatch _) = True
   readAmount GroupSize = False
@@ -1920,11 +1852,9 @@ mutual
   readAmount (Devotion _ _ _) = True
   readAmount (Half _ _) = False
   readAmount (DifferenceBetween _ _) = False
-  readAmount (EventSum _ _ _ _) = True
   readAmount (AggregateOver _ _ _) = True
   readAmount (DistinctCount _ _) = True
   readAmount (UpTo _) = False
-  readAmount ShortOfCeiling = False
 
   public export
   ReadAmount : Amount bs -> Type
@@ -2065,8 +1995,7 @@ mutual
   nounDet (LibrarySlice _ _ _) = Just TheD
   nounDet (SomeOf _ _ _) = Just PartD
   nounDet (NamesAgree _ grp) = nounDet grp
-  nounDet TheRest = Just TheD
-  nounDet TheOther = Just TheD
+  nounDet (TheRest _) = Just TheD
   nounDet (PileOf _ _) = Just PartD
   nounDet _ = Nothing
 
@@ -2278,6 +2207,11 @@ mutual
   public export
   Copiable : {0 k : Kind} -> Noun bs k -> Type
   Copiable = StackActOn copyKind
+
+  public export
+  CopySourceOk : {bs : Bindings} -> {k : Kind} -> CopySort -> Noun bs k -> Type
+  CopySourceOk FromStack n = Copiable n
+  CopySourceOk FromCardZone n = So (isCardZone (nounZone n))
 
   public export
   selfDefinedOk : {bs : Bindings} -> Noun bs Object -> Bool
@@ -2707,8 +2641,7 @@ mutual
   moveIntro p nn@(EitherOf _ _) z = nomIntro nn
   moveIntro p nn@(LibrarySlice _ _ _) z = setZoneHead p z (nomIntro nn)
   moveIntro p nn@(SomeOf _ _ _) z = setZoneHead p z (nomIntro nn)
-  moveIntro p TheRest z = groupSpent bs
-  moveIntro p TheOther z = groupSpent bs
+  moveIntro p (TheRest _) z = groupSpent bs
   moveIntro p nn@(PileOf _ _) z = setZoneHead p z (nomIntro nn)
   moveIntro p (Pro r pl) z = setZoneReach r pl p z bs
   moveIntro p (ItOtherThan co rest) z = co ++ setZoneReach Bare OneOf p z rest
@@ -2749,13 +2682,10 @@ mutual
     MkBinding TheD Object OneOf
               (ObjectP Nothing z (mkStamp p Nothing (not (z == Just Battlefield))) Nothing Nothing)
       :: bs
-  moveIntro p TheGrantor z =
+  moveIntro p (TheGrantor m) z =
     MkBinding TheD Object OneOf
-              (ObjectP Nothing z (mkStamp p Nothing (not (z == Just Battlefield))) Nothing Nothing)
-      :: bs
-  moveIntro p TheEmblemGrantor z =
-    MkBinding TheD Object OneOf
-              (ObjectP Nothing z (mkStamp p (Just Command) (not (z == Just Command))) Nothing Nothing)
+              (ObjectP Nothing z (mkStamp p (grantorOrigin m) (not (z == Just (markerZone m))))
+                       Nothing Nothing)
       :: bs
   moveIntro p You z = bs
   moveIntro p TheDefendingPlayer z = bs
@@ -2767,7 +2697,7 @@ mutual
 
   public export
   nounProv : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Maybe Stamp
-  nounProv TheRest = provOfGroup bs
+  nounProv (TheRest _) = provOfGroup bs
   nounProv (Pro r pl) = provOfReach r pl bs
   nounProv (ItOtherThan _ rest) = provOfReach Bare OneOf rest
   nounProv (Own pl own _) = provOfReach Bare pl own
@@ -2782,8 +2712,7 @@ mutual
   nounZone (AsType t n _) = Just Battlefield
   nounZone (ResolvedPermanent _) = Just Battlefield
   nounZone (AsMarker m _) = Just (markerZone m)
-  nounZone TheGrantor = Just Battlefield
-  nounZone TheEmblemGrantor = Just Command
+  nounZone (TheGrantor m) = Just (markerZone m)
   nounZone TheDefendingPlayer = Nothing
   nounZone TheAttackingPlayer = Nothing
   nounZone You = Nothing
@@ -2795,8 +2724,7 @@ mutual
   nounZone (EitherOf _ _) = Nothing
   nounZone (LibrarySlice _ _ _) = Just Library
   nounZone (SomeOf _ _ grp) = nounZone grp
-  nounZone TheRest = zoneOfGroup bs
-  nounZone TheOther = zoneOfGroup bs
+  nounZone (TheRest _) = zoneOfGroup bs
   nounZone (PileOf _ _) = zoneOfReach (Word PileW) ManyOf bs
   nounZone (Pro r pl) = zoneOfReach r pl bs
   nounZone (ItOtherThan _ rest) = zoneOfReach Bare OneOf rest
@@ -2812,8 +2740,7 @@ mutual
   nounTy (AsType t n _) = Just t
   nounTy (ResolvedPermanent n) = nounTy n
   nounTy (AsMarker _ n) = nounTy n
-  nounTy TheGrantor = Nothing
-  nounTy TheEmblemGrantor = Nothing
+  nounTy (TheGrantor _) = Nothing
   nounTy TheDefendingPlayer = Nothing
   nounTy TheAttackingPlayer = Nothing
   nounTy You = Nothing
@@ -2825,8 +2752,7 @@ mutual
   nounTy (EitherOf _ _) = Nothing
   nounTy (LibrarySlice _ _ _) = Nothing
   nounTy (SomeOf _ d grp) = sliceTy d grp
-  nounTy TheRest = tyOfGroup bs
-  nounTy TheOther = tyOfGroup bs
+  nounTy (TheRest _) = tyOfGroup bs
   nounTy (PileOf _ _) = Nothing
   nounTy (Pro r pl) = tyOfReach r pl bs
   nounTy (ItOtherThan _ rest) = tyOfReach Bare OneOf rest
@@ -2872,8 +2798,7 @@ mutual
   nounPlur (AsType t n _) = nounPlur n
   nounPlur (ResolvedPermanent n) = nounPlur n
   nounPlur (AsMarker _ n) = nounPlur n
-  nounPlur TheGrantor = OneOf
-  nounPlur TheEmblemGrantor = OneOf
+  nounPlur (TheGrantor _) = OneOf
   nounPlur TheDefendingPlayer = OneOf
   nounPlur TheAttackingPlayer = OneOf
   nounPlur You = OneOf
@@ -2886,8 +2811,7 @@ mutual
     if samePlur (nounPlur l) (nounPlur r) then nounPlur l else ManyOf
   nounPlur (LibrarySlice _ amt whose) = outputPlur (nounPlur whose) (amtPlur amt)
   nounPlur (SomeOf q _ _) = slicePlur q
-  nounPlur TheRest = ManyOf
-  nounPlur TheOther = OneOf
+  nounPlur (TheRest pl) = pl
   nounPlur (PileOf q _) = slicePlur q
   nounPlur (Pro _ pl) = pl
   nounPlur (ItOtherThan _ _) = OneOf
@@ -2914,12 +2838,12 @@ mutual
   WindowOk p w = So (windowOk p w)
 
   public export
-  pointWindowOk : {bs : Bindings} -> TurnPoint -> Maybe (Noun bs Player) -> Bool
-  pointWindowOk _ w = partPossessorOk w
+  pointWindowOk : {bs : Bindings} -> Maybe (Noun bs Player) -> Bool
+  pointWindowOk w = partPossessorOk w
 
   public export
-  PointWindowOk : {bs : Bindings} -> TurnPoint -> Maybe (Noun bs Player) -> Type
-  PointWindowOk pt w = So (pointWindowOk pt w)
+  PointWindowOk : {bs : Bindings} -> Maybe (Noun bs Player) -> Type
+  PointWindowOk w = So (pointWindowOk w)
 
   ||| A duration ends at one named point, so its possessor must be a single
   ||| definite player.

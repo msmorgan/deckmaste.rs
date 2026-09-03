@@ -50,21 +50,21 @@ mutual
   DoorNamesHost {bs} d = So (doorNamesHost d)
 
   public export
-  creationVoiceOk : {bs : Bindings} -> Maybe Causer ->
+  creationVoiceOk : {bs : Bindings} -> Bool ->
                     Maybe (Noun bs Player) -> Maybe (Noun bs Player) -> Bool
-  creationVoiceOk cause by under =
+  creationVoiceOk byEffect by under =
     (case by of
        Nothing => True
        Just w => isNil (nounDelta w)) &&
     (case under of
        Nothing => True
        Just u => isOne (nounPlur u) && isNil (nounDelta u)) &&
-    not (isJust cause && isJust by)
+    not (byEffect && isJust by)
 
   public export
   causedByOk : {0 bs : Bindings} ->
-               Maybe Causer -> Maybe (Noun bs Player) -> Bool
-  causedByOk cause by = not (isJust cause && isJust by)
+               Bool -> Maybe (Noun bs Player) -> Bool
+  causedByOk byEffect by = not (byEffect && isJust by)
 
   public export
   putDestOk : {0 bs : Bindings} -> ZoneExpr bs -> Bool
@@ -225,10 +225,6 @@ mutual
                   {auto 0 at : StatusEventVal v} -> GameEvent bs
     DayNightShift : GameEvent bs
     StateHolds : (c : Condition bs) -> GameEvent bs
-    LastCounterRemoved : (kind : CounterKind) -> (n : Noun bs Object) ->
-                         (by : Maybe (Noun bs Player)) ->
-                         {auto 0 sc : counterScope kind = Object} ->
-                         {auto 0 ag : EventAgent by} -> GameEvent bs
     PutInto : (n : Noun bs Object) -> (to : ZoneExpr bs) ->
               (from : Maybe (EventSource bs)) ->
               {auto 0 dk : PutDest to} ->
@@ -239,16 +235,17 @@ mutual
                    (n : Noun bs k) ->
                    (many : CounterBatch) ->
                    (by : Maybe (Noun bs Player)) ->
-                   (cause : Maybe Causer) ->
+                   (byEffect : Bool) ->
                    {auto 0 kn : CounterKindNamed k kind} ->
                    {auto 0 ag : EventAgent by} ->
-                   {auto 0 cz : So (causedByOk cause by)} -> GameEvent bs
+                   {auto 0 lb : So (counterBatchOk many dir kind)} ->
+                   {auto 0 cz : So (causedByOk byEffect by)} -> GameEvent bs
     TokensCreated : (n : Noun bs Object) ->
-                    (cause : Maybe Causer) ->
+                    (byEffect : Bool) ->
                     (by : Maybe (Noun bs Player)) ->
                     (under : Maybe (Noun bs Player)) ->
                     {auto 0 tk : TokenPhrase n} ->
-                    {auto 0 vo : So (creationVoiceOk cause by under)} ->
+                    {auto 0 vo : So (creationVoiceOk byEffect by under)} ->
                     GameEvent bs
     ChapterMark : (ns : List ChapterNumber) ->
                   {auto 0 cm : ChapterMarks ns} -> GameEvent bs
@@ -328,9 +325,8 @@ mutual
   eventName (StatusEvent {c} _ _) = statusEventName c
   eventName DayNightShift = TimeShift
   eventName (StateHolds _) = StateMatch
-  eventName (LastCounterRemoved _ _ _) = LastCounterRemoval
   eventName (PutInto _ _ _) = Placement
-  eventName (CounterEvent dir _ _ _ _ _) = counterEventName dir
+  eventName (CounterEvent dir _ _ many _ _) = counterEventName dir many
   eventName (TokensCreated _ _ _ _) = TokenCreation
   eventName (ChapterMark _) = ChapterArrival
   eventName (Activates _ _) = AbilityActivation
@@ -374,11 +370,11 @@ mutual
   eventIntro (StatusEvent n _) = selfSubjIntro n
   eventIntro DayNightShift = bs
   eventIntro (StateHolds _) = bs
-  eventIntro (LastCounterRemoved _ n _) = selfSubjIntro n
   eventIntro (PutInto n _ _) = selfSubjIntro n
   eventIntro (CounterEvent _ _ n OneCounter _ _) = selfSubjIntro n
   eventIntro (CounterEvent _ _ n ManyCounters _ _) =
     outcomeB CountersPut :: selfSubjIntro n
+  eventIntro (CounterEvent _ _ n LastCounter _ _) = selfSubjIntro n
   eventIntro (TokensCreated n _ _ _) = selfSubjIntro n
   eventIntro (ChapterMark _) = bs
   eventIntro (Activates _ what) = selfSubjIntro what
@@ -423,11 +419,11 @@ mutual
   eventAfter (StatusEvent n _) = selfSubjIntro n
   eventAfter DayNightShift = bs
   eventAfter (StateHolds _) = bs
-  eventAfter (LastCounterRemoved _ n _) = selfSubjIntro n
   eventAfter (PutInto n to _) = moveIntro Nothing n (Just (zoneSort to))
   eventAfter (CounterEvent _ _ n OneCounter _ _) = selfSubjIntro n
   eventAfter (CounterEvent _ _ n ManyCounters _ _) =
     outcomeB CountersPut :: selfSubjIntro n
+  eventAfter (CounterEvent _ _ n LastCounter _ _) = selfSubjIntro n
   eventAfter (TokensCreated n _ _ _) = nomIntro n
   eventAfter (ChapterMark _) = bs
   eventAfter (Activates _ what) = nomIntro what
@@ -472,7 +468,6 @@ mutual
   eventSubjectPlur (StatusEvent n _) = nounPlur n
   eventSubjectPlur DayNightShift = OneOf
   eventSubjectPlur (StateHolds _) = OneOf
-  eventSubjectPlur (LastCounterRemoved _ n _) = nounPlur n
   eventSubjectPlur (PutInto n _ _) = nounPlur n
   eventSubjectPlur (CounterEvent _ _ n _ _ _) = nounPlur n
   eventSubjectPlur (TokensCreated n _ _ _) = nounPlur n
@@ -615,8 +610,8 @@ mutual
     AsInstant : Timing bs
     DuringPart : (p : TurnPart) -> (w : Maybe (Noun bs Player)) ->
                  {auto 0 wk : WindowOk p w} -> Timing bs
-    BeforePoint : (pt : TurnPoint) -> (w : Maybe (Noun bs Player)) ->
-                  {auto 0 pk : PointWindowOk pt w} -> Timing bs
+    BeforeAttackersDeclared : (w : Maybe (Noun bs Player)) ->
+                              {auto 0 pk : PointWindowOk w} -> Timing bs
 
   public export
   data UsageLimit = OncePerTurn | OncePerGame | ActionOncePerTurn
