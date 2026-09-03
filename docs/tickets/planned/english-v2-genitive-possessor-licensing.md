@@ -1,5 +1,5 @@
 ---
-needs: [english-v2-pp-construction]
+needs: [english-v2-homograph-feature]
 ---
 Narrow the genitive possessor (restoration-landing-review M1).
 `possessive_singular_nominal` — added by the restoration for the

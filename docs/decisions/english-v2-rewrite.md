@@ -1166,3 +1166,17 @@ longer exists: the macro-ron fold-back removed `macro_ron` from
 `deckmaste_construction_core`, which owns the spelling/grammar metadata
 type as the row consumer). `macro_ron`'s remaining `deckmaste_features`
 edge is its legacy `frames.rs` re-exports, deleted with v1.
+
+
+## Ruling: vocab surfaces and homograph exemptions (2026-09-02)
+
+The frame-literal collision rule extends to `vocab` surfaces: a vocab
+member whose surface equals a declared noun or verb surface is a load
+error. A genuine homograph (attributive `target` beside noun `target`,
+adjective `untap` beside verb `untap`) is admitted only by a per-member
+declared feature on the vocab entry, emitted on the surface row and
+consumed by the collision check — never by a vocabulary-name or category
+carve-out in the checker. Adjectives are content words: their long-term
+home is an adjective inventory (core seed + declaration contributions,
+mirroring nouns and verbs); the attributive-adjective vocab is a
+transitional home, not a permanent one.
