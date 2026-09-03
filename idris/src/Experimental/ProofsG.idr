@@ -1253,7 +1253,14 @@ badUnlockDoorOffBattlefield : Unspellable (Effect []) (\ok =>
   Unlock (DoorOf (Just Locked)
             (Macros.a (And [HasSubtype (enchantmentType "Room"),
                             InZone Macros.graveyardZ])) {zn = ok}))
-badUnlockDoorOffBattlefield Oh impossible
+badUnlockDoorOffBattlefield OnField impossible
+
+
+||| "unlock a locked door of this" leaves the source placeless; unlocked designations belong to battlefield permanents [CR#709.5c].
+public export
+badDoorOfBareThis : Unspellable (Effect []) (\ok =>
+  Unlock (DoorOf (Just Locked) This {zn = ok}))
+badDoorOfBareThis OnField impossible
 
 
 ||| "Sacrifice a creature."

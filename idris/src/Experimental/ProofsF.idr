@@ -567,7 +567,14 @@ public export
 badRegenerateInGraveyard : Unspellable (Effect []) (\ok =>
   Regenerate (Macros.a (And [Macros.creature, InZone Macros.graveyardZ]))
              {zn = ok})
-badRegenerateInGraveyard Oh impossible
+badRegenerateInGraveyard OnField impossible
+
+
+||| "Regenerate this." leaves the source placeless, but regeneration requires a permanent [CR#701.19a].
+public export
+badRegenerateBareThis : Unspellable (Effect []) (\ok =>
+  Regenerate This {zn = ok})
+badRegenerateBareThis OnField impossible
 
 
 ||| "Creature cards in your graveyard can't be regenerated."

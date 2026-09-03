@@ -50,7 +50,7 @@ mutual
   data Door : Bindings -> Type where
     ThisDoor : Door bs
     DoorOf : (state : Maybe LockState) -> (room : Noun bs Object) ->
-             {auto 0 zn : ZoneFits (nounZone room) (Just Battlefield)} ->
+             {auto 0 zn : OnBattlefield (nounZone room)} ->
              Door bs
 
   public export

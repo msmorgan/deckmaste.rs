@@ -35,3 +35,9 @@ decision; each row whose gate tightened carries an `impossible`-clause pin in
 `Proofs*` refuting the newly-excluded subject, and each such pin is
 non-vacuous — it stops compiling if the gate is loosened back. Standard
 constraints apply.
+
+## As landed
+
+- Audited all 53 battlefield gate sites: 16 use `OnBattlefield`, 37 use `ZoneFits`; `Regenerate` and `DoorOf` tightened, while every source-admissible row retained `ZoneFits`.
+- Re-spelled `badRegenerateInGraveyard` and `badUnlockDoorOffBattlefield` through `OnField`; the existing `drudgeSkeletons` and `ghostlyKeybearer` witnesses needed no re-spelling.
+- Added non-vacuous `badRegenerateBareThis` and `badDoorOfBareThis` pins; no part was left undone.

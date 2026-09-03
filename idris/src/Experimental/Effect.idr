@@ -1116,7 +1116,7 @@ mutual
                        {auto 0 dn : DeedParticipant ["Attack"] Agent Object (nounHeadTys n)} ->
                        (whom : AttackDefender (nomIntro n)) -> Effect bs
     Regenerate : (n : Noun bs Object) ->
-                 {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                 {auto 0 zn : OnBattlefield (nounZone n)} ->
                  Effect bs
     CantBe : {k : Kind} -> (e : Effect bs) -> (deed : VerbLabel) ->
              (what : Noun (riderIntro e) k) ->
