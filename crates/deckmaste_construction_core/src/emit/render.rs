@@ -57,6 +57,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         .into_iter()
         .filter(|(category, _)| !validated.explicit_sum_owns_construction_category(category))
         .collect::<Vec<_>>();
+    let following_onset_sources = following_onset_source_categories(validated)?;
     let nested_categories = constructions
         .iter()
         .flat_map(ConstructionPlan::fields)
@@ -536,11 +537,15 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
                     | Feature::ModifierLicense
                     | Feature::NominalForm
                     | Feature::NominalLicense
-                    | Feature::Onset
                     | Feature::PrepositionAttachment
                     | Feature::Relationality
             ) && validated.carries_feature(category, feature);
-            if !validated.category_reads_feature(category, feature) && !provider_helper {
+            let following_onset_helper =
+                feature == Feature::Onset && following_onset_sources.contains(category);
+            if !validated.category_reads_feature(category, feature)
+                && !provider_helper
+                && !following_onset_helper
+            {
                 continue;
             }
             items.push(emit_feature_helper(validated, category, members, feature)?);
@@ -2899,18 +2904,71 @@ fn category_contains_declaration_determinative(
         .flat_map(ConstructionPlan::fields)
         .filter(|field| field.kind() == ConstructionFieldKind::Lex);
     for field in fields {
-        if resolved_declaration_determinative(plan, field.terminal())?.is_some_and(|codec| {
-            codec.closed().iter().any(|member| {
-                member
-                    .realizations()
-                    .iter()
-                    .any(|realization| realization.following_onset().is_some())
-            })
-        }) {
+        if resolved_declaration_determinative(plan, field.terminal())?
+            .is_some_and(declaration_determinative_needs_following_onset)
+        {
             return Ok(true);
         }
     }
     Ok(false)
+}
+
+fn following_onset_source_categories(plan: &SemanticPlan) -> syn::Result<HashSet<String>> {
+    let mut categories = HashSet::new();
+    for construction in plan.constructions() {
+        for form in construction.forms() {
+            for (atom_index, atom) in form.atoms().iter().enumerate() {
+                if matches!(atom, AtomPlan::Bound { .. } | AtomPlan::Circumfix { .. }) {
+                    continue;
+                }
+                let Some(role) = render_atom_role(atom) else {
+                    continue;
+                };
+                let Some(following) = form
+                    .atoms()
+                    .get(atom_index + 1)
+                    .and_then(render_atom_role)
+                    .filter(|following| *following != role)
+                else {
+                    continue;
+                };
+                let following = construction.field(following)?;
+                if following.kind() != ConstructionFieldKind::Category {
+                    continue;
+                }
+                let field = construction.field(role)?;
+                let reads_following_onset = if let Some(structural) = field.structural_plan() {
+                    if let ValueKindPlan::Category(category) = structural.kind().value() {
+                        category_contains_declaration_determinative(plan, category)?
+                    } else {
+                        false
+                    }
+                } else if matches!(atom, AtomPlan::Lex { .. }) {
+                    resolved_declaration_determinative(plan, field.terminal())?
+                        .is_some_and(declaration_determinative_needs_following_onset)
+                } else if matches!(atom, AtomPlan::Category { .. }) {
+                    category_contains_declaration_determinative(plan, field.terminal())?
+                } else {
+                    false
+                };
+                if reads_following_onset {
+                    categories.insert(following.terminal().to_owned());
+                }
+            }
+        }
+    }
+    Ok(categories)
+}
+
+fn declaration_determinative_needs_following_onset(
+    codec: &crate::semantic::DeclarationDeterminativePlan,
+) -> bool {
+    codec.closed().iter().any(|member| {
+        member
+            .realizations()
+            .iter()
+            .any(|realization| realization.following_onset().is_some())
+    })
 }
 
 fn render_construction_structural_field(
@@ -4175,12 +4233,7 @@ fn declaration_determinative_surface_expr(
     locals: &RenderLocals,
     writer: Option<&TokenStream>,
 ) -> syn::Result<TokenStream> {
-    let needs_following_onset = codec.closed().iter().any(|member| {
-        member
-            .realizations()
-            .iter()
-            .any(|realization| realization.following_onset().is_some())
-    });
+    let needs_following_onset = declaration_determinative_needs_following_onset(codec);
     let following_role = needs_following_onset
         .then(|| {
             form.atoms()
@@ -5745,6 +5798,29 @@ mod tests {
         reason = "literal full-surface structural oracles retain detailed mismatch output"
     )]
     use quote::ToTokens;
+
+    #[test]
+    fn latent_feature_providers_do_not_emit_unused_helpers() {
+        let expansion = crate::generate(quote::quote! {
+            construction source: Source {
+                element SourceNode {}
+                derive onset = Values::Consonant;
+                form source = "source";
+            }
+            root Source { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("an unread provider does not need a generated helper");
+
+        assert!(!expansion.items().iter().any(|item| {
+            matches!(
+                &item.key,
+                crate::ItemKey::Named {
+                    kind: crate::NamedKind::Function,
+                    name,
+                } if name == "onset_for_source"
+            )
+        }));
+    }
 
     #[test]
     fn onset_for_measure_unit_is_emitted_for_following_onset_reads() {

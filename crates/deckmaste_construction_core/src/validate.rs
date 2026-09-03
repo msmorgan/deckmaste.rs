@@ -4919,42 +4919,89 @@ fn generated_name_inventory(
                         category_span,
                         errors,
                     );
-                    for (feature, spelling, display) in [
-                        (Feature::Agreement, "agreement", "Agreement"),
+                    for (feature, parsed_feature, spelling, display, reserve_provider) in [
+                        (
+                            Feature::Agreement,
+                            ParsedFeature::Agreement,
+                            "agreement",
+                            "Agreement",
+                            false,
+                        ),
+                        (
+                            Feature::Number,
+                            ParsedFeature::Number,
+                            "number",
+                            "Number",
+                            false,
+                        ),
                         (
                             Feature::ModifierLicense,
+                            ParsedFeature::ModifierLicense,
                             "modifier_license",
                             "ModifierLicense",
+                            true,
                         ),
                         (
                             Feature::DeterminerNumber,
+                            ParsedFeature::DeterminerNumber,
                             "determiner_number",
                             "DeterminerNumber",
+                            true,
                         ),
                         (
                             Feature::FusedHeadLicense,
+                            ParsedFeature::FusedHeadLicense,
                             "fused_head_license",
                             "FusedHeadLicense",
+                            true,
                         ),
                         (
                             Feature::PrepositionComplementKind,
+                            ParsedFeature::PrepositionComplementKind,
                             "preposition_complement_kind",
                             "PrepositionComplementKind",
+                            true,
                         ),
                         (
                             Feature::LocativeTemporalLicense,
+                            ParsedFeature::LocativeTemporalLicense,
                             "locative_temporal_license",
                             "LocativeTemporalLicense",
+                            true,
                         ),
-                        (Feature::NominalForm, "nominal_form", "NominalForm"),
-                        (Feature::NominalLicense, "nominal_license", "NominalLicense"),
-                        (Feature::Number, "number", "Number"),
-                        (Feature::Onset, "onset", "Onset"),
+                        (
+                            Feature::NominalForm,
+                            ParsedFeature::NominalForm,
+                            "nominal_form",
+                            "NominalForm",
+                            true,
+                        ),
+                        (
+                            Feature::NominalLicense,
+                            ParsedFeature::NominalLicense,
+                            "nominal_license",
+                            "NominalLicense",
+                            true,
+                        ),
+                        (Feature::Onset, ParsedFeature::Onset, "onset", "Onset", true),
+                        (
+                            Feature::PrepositionAttachment,
+                            ParsedFeature::PrepositionAttachment,
+                            "preposition_attachment",
+                            "PrepositionAttachment",
+                            true,
+                        ),
+                        (
+                            Feature::Relationality,
+                            ParsedFeature::Relationality,
+                            "relationality",
+                            "Relationality",
+                            true,
+                        ),
                     ] {
                         if raw_category_reads_feature(raw, &category, feature)
-                            || (feature == Feature::Onset
-                                && feature_providers
-                                    .contains(&(category.clone(), ParsedFeature::Onset)))
+                            || (reserve_provider
+                                && feature_providers.contains(&(category.clone(), parsed_feature)))
                         {
                             names.register_value(
                                 &feature_helper(spelling, &category),
@@ -13675,27 +13722,59 @@ pub(crate) mod tests {
         );
         assert!(!feature_helper.contains("internal"), "{feature_helper}");
 
-        let provider_helper = crate::generate(quote! {
-            construction source: Source {
-                element SourceNode {}
-                derive onset = Values::Consonant;
-                form source = "source";
-            }
-            construction collision: Collision {
-                element onset_for_source {}
-                form collision = "collision";
-            }
-            root Source { punctuation = "."; eoi = true; standalone_render = true; }
-        })
-        .expect_err("a latent onset provider helper participates in the value namespace")
-        .to_string();
-        assert!(
-            provider_helper.contains("semantic identity `onset_for_source`")
-                && provider_helper.contains("generated Onset helper for category `Source`")
-                && provider_helper.contains("generated unit element constructor"),
-            "{provider_helper}"
-        );
-        assert!(!provider_helper.contains("internal"), "{provider_helper}");
+        for (feature, value, display) in [
+            ("modifier_license", "Unrestricted", "ModifierLicense"),
+            ("determiner_number", "SingularOnly", "DeterminerNumber"),
+            ("fused_head_license", "NominalOnly", "FusedHeadLicense"),
+            (
+                "preposition_complement_kind",
+                "UnrestrictedComplement",
+                "PrepositionComplementKind",
+            ),
+            (
+                "locative_temporal_license",
+                "Unlicensed",
+                "LocativeTemporalLicense",
+            ),
+            ("nominal_form", "BareSingularNoun", "NominalForm"),
+            ("nominal_license", "AnyNominal", "NominalLicense"),
+            ("onset", "Consonant", "Onset"),
+            (
+                "preposition_attachment",
+                "AdjunctCapable",
+                "PrepositionAttachment",
+            ),
+            ("relationality", "NonRelational", "Relationality"),
+        ] {
+            let feature = syn::Ident::new(feature, proc_macro2::Span::call_site());
+            let value = syn::Ident::new(value, proc_macro2::Span::call_site());
+            let helper = syn::Ident::new(
+                &format!("{feature}_for_source"),
+                proc_macro2::Span::call_site(),
+            );
+            let provider_helper = crate::generate(quote! {
+                construction source: Source {
+                    element SourceNode {}
+                    derive #feature = Values::#value;
+                    form source = "source";
+                }
+                construction collision: Collision {
+                    element #helper {}
+                    form collision = "collision";
+                }
+                root Source { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect_err("a latent provider helper participates in the value namespace")
+            .to_string();
+            assert!(
+                provider_helper.contains(&format!("semantic identity `{helper}`"))
+                    && provider_helper
+                        .contains(&format!("generated {display} helper for category `Source`"))
+                    && provider_helper.contains("generated unit element constructor"),
+                "{provider_helper}"
+            );
+            assert!(!provider_helper.contains("internal"), "{provider_helper}");
+        }
     }
 
     #[test]
