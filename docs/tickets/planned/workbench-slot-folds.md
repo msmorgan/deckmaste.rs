@@ -56,6 +56,11 @@ the presence pattern of `Maybe` slots as constructors — `Triggers.CreationVoic
 `Maybe` slots it enumerates, with the presence law as a gate where one is
 needed.
 
+Also (own-read landing, 2026-09-02): `Own` and `ItPrior` in `Phrase.Noun` are
+structurally identical leading-segment reads (`countReach Bare OneOf` vs
+`countOnes Object`) differing only in what the macro fills the segment with;
+fold them into one segment read if the count gate can be shared.
+
 Done when: build is 23/23; every constructor named above as a fold source is
 gone from the tree; the six presence wrappers are gone; the three folded face records and their three law bundles
 are gone; `PossessorAxis` and `CombatRelation` are the sole spelling of those
