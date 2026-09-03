@@ -255,7 +255,7 @@ mod tests {
         for (text, context) in [
             ("Destroy target creature.", "Accepted Card"),
             (
-                "Destroy target Forest.\nSecond complete line with (reminder text).",
+                "Destroy target Forest.\nSecond complete line with (the Fridge).",
                 "Failed Card",
             ),
         ] {
@@ -307,7 +307,7 @@ mod tests {
                     "Stored Card",
                     Some("Stored\nContext"),
                     Some("a\rside"),
-                    "Complete first line.\nComplete second line (reminder text).",
+                    "Complete first line.\nComplete second line (the Fridge).",
                 ),
                 outcome,
                 fail_at: None,
@@ -509,7 +509,7 @@ mod tests {
                 "name": "Card\nName", "faceName": "Seven Dwarves", "side": "a\nside",
                 "layout": "modal_dfc", "types": ["Creature"], "supertypes": [],
                 "subtypes": [], "legalities": {"vintage": "Legal"},
-                "text": "Destroy target Forest.\nSecond complete line (reminder text)."
+                "text": "Destroy target Forest.\nSecond complete line (the Fridge)."
             }]
         }
     }"#;

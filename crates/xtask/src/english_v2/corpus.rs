@@ -21,6 +21,17 @@ const RULES_BEARING_PARENTHETICALS: &[&str] = &[
     "(if it's still on the battlefield)",
     "(or {1})",
 ];
+const REMINDER_MID_LINE_PARENTHETICALS: &[&str] = &[
+    "(For example, you may change \"black creatures can't attack\" to \"blue creatures can't attack.\")",
+    "(a ticket counter)",
+    "(an energy counter)",
+    "(energy counter)",
+    "(energy counters)",
+    "(four energy counters)",
+    "(the Fridge)",
+    "(three energy counters)",
+    "(two energy counters)",
+];
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub(super) struct CorpusUnit {
@@ -124,7 +135,10 @@ impl Corpus {
                         "missing explicit card-name onset metadata for opaque context {context_name:?}"
                     )
                 })?;
-                let text = normalize_oracle_text(card.text.as_deref().unwrap_or_default());
+                let text = normalize_oracle_text(
+                    &card_name,
+                    card.text.as_deref().unwrap_or_default(),
+                )?;
                 Ok(corpus_unit(
                     &card_name,
                     face_name.as_deref(),
@@ -297,26 +311,28 @@ fn corpus_sort_key(unit: &CorpusUnit) -> (&str, Option<&str>, Option<&str>, &str
     )
 }
 
-fn normalize_oracle_text(text: &str) -> String {
+fn normalize_oracle_text(card_name: &str, text: &str) -> anyhow::Result<String> {
     let typography =
         normalize_roll_row_dashes(&deckmaste_data::academyruins::normalize_quotes(text));
-    strip_reminder_text(&typography)
+    strip_reminder_text(card_name, &typography)
 }
 
 /// Removes nonempty, single-line reminder parentheticals while retaining at
 /// most one surrounding space. A line containing only reminder text
-/// disappears. Authored rules-bearing parentheticals survive byte-exactly.
-fn strip_reminder_text(text: &str) -> String {
+/// disappears. Every mid-line parenthetical must be explicitly classified;
+/// authored rules-bearing parentheticals survive byte-exactly.
+fn strip_reminder_text(card_name: &str, text: &str) -> anyhow::Result<String> {
     text.split('\n')
-        .filter_map(|line| {
-            let stripped = strip_reminder_text_line(line);
-            (!stripped.trim().is_empty() || line.is_empty()).then_some(stripped)
+        .map(|line| {
+            strip_reminder_text_line(card_name, line).map(|stripped| {
+                (!stripped.trim().is_empty() || line.is_empty()).then_some(stripped)
+            })
         })
-        .collect::<Vec<_>>()
-        .join("\n")
+        .collect::<anyhow::Result<Vec<_>>>()
+        .map(|lines| lines.into_iter().flatten().collect::<Vec<_>>().join("\n"))
 }
 
-fn strip_reminder_text_line(line: &str) -> String {
+fn strip_reminder_text_line(card_name: &str, line: &str) -> anyhow::Result<String> {
     assert_no_nested_parentheses(line);
 
     let mut stripped = String::with_capacity(line.len());
@@ -325,13 +341,24 @@ fn strip_reminder_text_line(line: &str) -> String {
         stripped.push_str(&remainder[..open]);
         let Some(relative_close) = remainder[open + 1..].find(')') else {
             stripped.push_str(&remainder[open..]);
-            return stripped;
+            return Ok(stripped);
         };
         let close = open + 1 + relative_close;
         let parenthetical = &remainder[open..=close];
         let after = &remainder[close + 1..];
 
-        if relative_close == 0 || RULES_BEARING_PARENTHETICALS.contains(&parenthetical) {
+        let is_mid_line = !stripped.trim().is_empty() && !after.trim().is_empty();
+        if is_mid_line && RULES_BEARING_PARENTHETICALS.contains(&parenthetical) {
+            stripped.push_str(parenthetical);
+            remainder = after;
+            continue;
+        }
+        ensure!(
+            !is_mid_line || REMINDER_MID_LINE_PARENTHETICALS.contains(&parenthetical),
+            "unknown mid-line parenthetical {parenthetical:?} while normalizing card {card_name:?}",
+        );
+
+        if relative_close == 0 {
             stripped.push_str(parenthetical);
             remainder = after;
             continue;
@@ -349,7 +376,7 @@ fn strip_reminder_text_line(line: &str) -> String {
         remainder = after;
     }
     stripped.push_str(remainder);
-    stripped
+    Ok(stripped)
 }
 
 fn assert_no_nested_parentheses(line: &str) {
@@ -414,7 +441,8 @@ impl CorpusUnit {
             card_name,
             false,
             context_onset,
-            &normalize_oracle_text(text),
+            &normalize_oracle_text(card_name, text)
+                .expect("test corpus fixture must satisfy normalization invariants"),
         )
     }
 
@@ -433,7 +461,8 @@ impl CorpusUnit {
             false,
             super::catalog_surface_onset(context_name)
                 .expect("test corpus fixture must use a context name with known onset"),
-            &normalize_oracle_text(text),
+            &normalize_oracle_text(card_name, text)
+                .expect("test corpus fixture must satisfy normalization invariants"),
         )
     }
 }
@@ -469,6 +498,49 @@ mod tests {
         rows.into_iter()
             .map(|(name, onset)| (name.to_owned(), onset))
             .collect()
+    }
+
+    fn previous_strip_reminder_text(text: &str, preserve_rules_bearing: bool) -> String {
+        text.split('\n')
+            .filter_map(|line| {
+                assert_no_nested_parentheses(line);
+                let mut stripped = String::with_capacity(line.len());
+                let mut remainder = line;
+                while let Some(open) = remainder.find('(') {
+                    stripped.push_str(&remainder[..open]);
+                    let Some(relative_close) = remainder[open + 1..].find(')') else {
+                        stripped.push_str(&remainder[open..]);
+                        break;
+                    };
+                    let close = open + 1 + relative_close;
+                    let parenthetical = &remainder[open..=close];
+                    let after = &remainder[close + 1..];
+
+                    if relative_close == 0
+                        || (preserve_rules_bearing
+                            && RULES_BEARING_PARENTHETICALS.contains(&parenthetical))
+                    {
+                        stripped.push_str(parenthetical);
+                        remainder = after;
+                        continue;
+                    }
+
+                    if stripped.ends_with(' ') {
+                        stripped.pop();
+                    }
+                    let (after, had_space_after) = after
+                        .strip_prefix(' ')
+                        .map_or((after, false), |after| (after, true));
+                    if !stripped.is_empty() && !after.is_empty() && had_space_after {
+                        stripped.push(' ');
+                    }
+                    remainder = after;
+                }
+                stripped.push_str(remainder);
+                (!stripped.trim().is_empty() || line.is_empty()).then_some(stripped)
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
     }
 
     #[test]
@@ -608,10 +680,10 @@ mod tests {
 
     #[test]
     fn normalization_straightens_typography_and_strips_reminder_text() {
-        let input = "‘Choose’.\n1—9 | Draw a card.\n2-10 | Don’t strip (reminder text.)\nDeal 3-4 damage.\n[-2]: Act.";
+        let input = "‘Choose’.\n1—9 | Draw a card.\n2-10 | Get {E}{E} (two energy counters), then don’t strip.\nDeal 3-4 damage.\n[-2]: Act.";
         assert_eq!(
-            normalize_oracle_text(input),
-            "'Choose'.\n1–9 | Draw a card.\n2–10 | Don't strip\nDeal 3-4 damage.\n[-2]: Act."
+            normalize_oracle_text("Fixture", input).unwrap(),
+            "'Choose'.\n1–9 | Draw a card.\n2–10 | Get {E}{E}, then don't strip.\nDeal 3-4 damage.\n[-2]: Act."
         );
     }
 
@@ -619,7 +691,7 @@ mod tests {
     fn normalization_preserves_non_reminder_document_structure() {
         let input = "Choose one —\n• Draw a card.\n• Create a token.\n(Fixed reminder.)";
         assert_eq!(
-            normalize_oracle_text(input),
+            normalize_oracle_text("Fixture", input).unwrap(),
             "Choose one —\n• Draw a card.\n• Create a token."
         );
     }
@@ -627,44 +699,105 @@ mod tests {
     #[test]
     fn reminder_stripping_pins_surrounding_space_and_malformed_input_contracts() {
         assert_eq!(
-            strip_reminder_text("Flying (This creature can't be blocked except by...)"),
+            strip_reminder_text(
+                "Fixture",
+                "Flying (This creature can't be blocked except by...)"
+            )
+            .unwrap(),
             "Flying"
         );
-        assert_eq!(strip_reminder_text("(Reminder) Foo"), "Foo");
-        assert_eq!(strip_reminder_text("A (b) c"), "A c");
-        assert_eq!(strip_reminder_text("A (b) (c) d"), "A d");
-        assert_eq!(strip_reminder_text("A () c"), "A () c");
-        assert_eq!(strip_reminder_text("Choose (perhaps"), "Choose (perhaps");
         assert_eq!(
-            strip_reminder_text("({R/P} can be paid with {R} or 2 life.)\nGain control."),
+            strip_reminder_text("Fixture", "(Reminder) Foo").unwrap(),
+            "Foo"
+        );
+        assert_eq!(
+            strip_reminder_text(
+                "Fixture",
+                "Get {E} (an energy counter), then {E}{E} (two energy counters)."
+            )
+            .unwrap(),
+            "Get {E}, then {E}{E}."
+        );
+        assert_eq!(
+            strip_reminder_text("Fixture", "Choose (perhaps").unwrap(),
+            "Choose (perhaps"
+        );
+        assert_eq!(
+            strip_reminder_text(
+                "Fixture",
+                "({R/P} can be paid with {R} or 2 life.)\nGain control."
+            )
+            .unwrap(),
             "Gain control."
         );
-        assert_eq!(strip_reminder_text("(Reminder only.) "), "");
+        assert_eq!(
+            strip_reminder_text("Fixture", "(Reminder only.) ").unwrap(),
+            ""
+        );
+    }
+
+    #[test]
+    fn unknown_mid_line_parenthetical_is_a_card_named_error() {
+        let error = strip_reminder_text("Tripwire Card", "Before (unknown spelling) after")
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("Tripwire Card"), "{error}");
+        assert!(error.contains("(unknown spelling)"), "{error}");
+        assert!(
+            strip_reminder_text("Empty Group", "Before () after")
+                .unwrap_err()
+                .to_string()
+                .contains("Empty Group")
+        );
     }
 
     #[test]
     fn rules_bearing_parentheticals_survive_byte_exactly() {
         for parenthetical in RULES_BEARING_PARENTHETICALS {
             let input = format!("Before {parenthetical} after");
-            assert_eq!(strip_reminder_text(&input), input);
+            assert_eq!(strip_reminder_text("Fixture", &input).unwrap(), input);
         }
     }
 
     #[test]
-    fn rules_bearing_parenthetical_inventory_matches_the_vintage_snapshot() {
-        const EXPECTED_USES: [usize; 5] = [2, 1, 11, 2, 1];
+    fn mid_line_parenthetical_inventory_matches_the_vintage_snapshot() {
+        const EXPECTED_RULES_BEARING_USES: [usize; 5] = [2, 1, 11, 2, 1];
+        const EXPECTED_REMINDER_USES: [usize; 9] = [1, 2, 23, 1, 16, 7, 1, 21, 64];
 
         let bytes =
             deckmaste_data::mtgjson::atomic_cards_bytes().expect("reading AtomicCards snapshot");
         let cards = AtomicCards::parse(&bytes).expect("parsing AtomicCards snapshot");
-        let counts = RULES_BEARING_PARENTHETICALS
+        let vintage_cards = cards
+            .data
+            .values()
+            .flatten()
+            .filter(|card| card.vintage_playable())
+            .collect::<Vec<_>>();
+
+        for card in &vintage_cards {
+            strip_reminder_text(card.name.as_str(), card.text.as_deref().unwrap_or_default())
+                .unwrap_or_else(|error| panic!("{error}"));
+        }
+
+        let rules_bearing_counts = RULES_BEARING_PARENTHETICALS
             .iter()
             .map(|parenthetical| {
-                cards
-                    .data
-                    .values()
-                    .flatten()
-                    .filter(|card| card.vintage_playable())
+                vintage_cards
+                    .iter()
+                    .filter(|card| {
+                        card.text
+                            .as_deref()
+                            .is_some_and(|text| text.contains(*parenthetical))
+                    })
+                    .count()
+            })
+            .collect::<Vec<_>>();
+        let reminder_counts = REMINDER_MID_LINE_PARENTHETICALS
+            .iter()
+            .map(|parenthetical| {
+                vintage_cards
+                    .iter()
                     .filter(|card| {
                         card.text
                             .as_deref()
@@ -674,19 +807,57 @@ mod tests {
             })
             .collect::<Vec<_>>();
 
-        assert_eq!(counts, EXPECTED_USES);
-        assert_eq!(counts.iter().sum::<usize>(), 17);
+        assert_eq!(rules_bearing_counts, EXPECTED_RULES_BEARING_USES);
+        assert_eq!(rules_bearing_counts.iter().sum::<usize>(), 17);
+        assert_eq!(reminder_counts, EXPECTED_REMINDER_USES);
+        assert_eq!(reminder_counts.iter().sum::<usize>(), 136);
+    }
+
+    #[test]
+    fn exhaustive_tripwire_preserves_every_current_normalized_identity() {
+        let bytes =
+            deckmaste_data::mtgjson::atomic_cards_bytes().expect("reading AtomicCards snapshot");
+        let cards = AtomicCards::parse(&bytes).expect("parsing AtomicCards snapshot");
+        let mut differences_from_raw_strip = 0;
+
+        for card in cards
+            .data
+            .values()
+            .flatten()
+            .filter(|card| card.vintage_playable())
+        {
+            let raw = card.text.as_deref().unwrap_or_default();
+            let typography =
+                normalize_roll_row_dashes(&deckmaste_data::academyruins::normalize_quotes(raw));
+            let normalized = normalize_oracle_text(card.name.as_str(), raw)
+                .unwrap_or_else(|error| panic!("{error}"));
+            let previous = previous_strip_reminder_text(&typography, true);
+            let raw_strip = previous_strip_reminder_text(&typography, false);
+
+            assert_eq!(
+                normalized,
+                previous,
+                "normalization identity changed for {:?}",
+                card.name.as_str()
+            );
+            differences_from_raw_strip += usize::from(normalized != raw_strip);
+        }
+
+        assert_eq!(differences_from_raw_strip, 17);
     }
 
     #[test]
     #[should_panic(expected = "nested parenthetical")]
     fn nested_parentheticals_are_rejected() {
-        let _ = strip_reminder_text("Choose (an outer (nested) phrase).");
+        let _ = strip_reminder_text("Fixture", "Choose (an outer (nested) phrase).");
     }
 
     #[test]
     fn whole_text_reminder_normalizes_to_an_empty_document() {
-        assert_eq!(normalize_oracle_text("(Basic land reminder text.)"), "");
+        assert_eq!(
+            normalize_oracle_text("Fixture", "(Basic land reminder text.)").unwrap(),
+            ""
+        );
     }
 
     #[test]
