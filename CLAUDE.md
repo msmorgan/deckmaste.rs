@@ -74,6 +74,26 @@ Authority: `docs/decisions/english-v2-rewrite.md` (cutover plan). Until cutover:
 - After adding or changing citations: `cargo xtask cite check --list-noncompliant` must be empty, and `cargo xtask cite check` must report 0 stale. When you cite a rule not yet in `cr-citations.lock`, run `cargo xtask cite bless` to register it.
 - Rule numbers come from the CR, never from memory. Before committing citation changes, run `jj diff --git | cargo xtask cite audit --diff` and read each rule's text against the claim citing it — the hash checker can NOT catch a right-number-wrong-topic cite. The command reads its diff from STDIN: run bare (no pipe), it silently audits 0 citation sites and still exits 0, so always pipe a diff in. Give `bless`'s newly-registered list the same read.
 
+## Assurance (a standard constraint)
+
+- **A round never reaches green by removing what could fail.** A test whose
+  subject still exists must keep passing; if it fails, the fix is in the code.
+  A test whose subject a ticket deliberately retires gets **re-spelled**
+  against the replacement shape — same card, same asserted outcome, new
+  spelling — never deleted. Never swap a value comparison for a
+  `discriminant`/`matches!` check, and never add `#[ignore]` without naming
+  the exact blocker in the attribute or an adjacent comment.
+- **Report the counts** in the landing record: restored, re-spelled, ignored
+  with blockers, added, and removed. A nonzero removed count justifies each
+  one by name.
+- **Finding a genuine regression is a successful outcome.** Stop and report
+  it; do not integrate around it and do not delete the test that found it.
+- Why this is a rule: the 2026-09-02 discourse-regions landing removed 164
+  tests and added 1, reported every suite green, and shipped six regressions
+  the deleted tests had covered — one of which silently broke every "that
+  many" replacement, so infect, wither, and doubled mill were all dead on
+  trunk until the restoration round.
+
 ## Model economy
 
 - **If you are Fable: Fable is expensive.** A sequence of mechanical edits or
