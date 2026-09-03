@@ -2737,9 +2737,33 @@ Eq PaidCostName where
   (==) TheAdditional _ = False
 
 public export
+paidCostKeyword : KeywordLabel -> Bool
+paidCostKeyword "Escape" = True
+paidCostKeyword "Foretell" = True
+paidCostKeyword "Bestow" = True
+paidCostKeyword "Disguise" = True
+paidCostKeyword "Mutate" = True
+paidCostKeyword "Overload" = True
+paidCostKeyword "Disturb" = True
+paidCostKeyword "Dash" = True
+paidCostKeyword "Evoke" = True
+paidCostKeyword "Blitz" = True
+paidCostKeyword "Cleave" = True
+paidCostKeyword "Harmonize" = True
+paidCostKeyword "Impending" = True
+paidCostKeyword "Awaken" = True
+paidCostKeyword "Buyback" = True
+paidCostKeyword "Casualty" = True
+paidCostKeyword "Squad" = True
+paidCostKeyword "Offspring" = True
+paidCostKeyword "Gift" = True
+paidCostKeyword "Replicate" = True
+paidCostKeyword k = keywordCosts k
+
+public export
 paidCostNamed : PaidCostName -> Bool
-paidCostNamed (ByKeyword kw) = keywordCosts kw
-paidCostNamed (ByNthKeyword _ kw) = keywordCosts kw
+paidCostNamed (ByKeyword kw) = paidCostKeyword kw
+paidCostNamed (ByNthKeyword _ kw) = paidCostKeyword kw
 paidCostNamed TheAlternative = True
 paidCostNamed TheAdditional = True
 
@@ -3830,7 +3854,7 @@ StatusEventVal v = So (statusEventOk v)
 
 public export
 statusHeaderOk : {0 c : StatusCat} -> StatusVal c -> Bool
-statusHeaderOk FaceDown = False
+statusHeaderOk FaceDown = True
 statusHeaderOk v = statusEventOk v
 
 public export
@@ -4041,5 +4065,4 @@ data DurationEnd : Type where
             {auto 0 dp : DurationPossessor w} -> DurationEnd
   EndOf : TurnPart -> (w : Maybe Owner) ->
           {auto 0 dp : DurationPossessor w} -> DurationEnd
-
 

@@ -317,6 +317,47 @@ record AltFace where
   box : Maybe PrintedBox
 
 public export
+jointBindings : List QualitySort -> Bindings -> Bindings
+jointBindings [] bs = bs
+jointBindings (q :: qs) bs = qualityB q :: jointBindings qs bs
+
+public export
+abilityChoiceDelta : {bs : Bindings} -> AbilityAt bs -> List Binding
+abilityChoiceDelta (Activated _ eff _ _ _ _) = effChoiceDelta eff
+abilityChoiceDelta (Triggered _ _ _ _ _ _ _ _ eff) = effChoiceDelta eff
+abilityChoiceDelta (Static se) = staticChoiceDelta se
+abilityChoiceDelta (AlsoForKeywords ab _) = abilityChoiceDelta ab
+abilityChoiceDelta (ItalicHead _ ab) = abilityChoiceDelta ab
+abilityChoiceDelta (Spell eff) = effChoiceDelta eff
+abilityChoiceDelta _ = []
+
+public export
+textChoiceDelta : {bs : Bindings} -> AbilitySeq bs -> List Binding
+textChoiceDelta [] = []
+textChoiceDelta (ab :: abs) = abilityChoiceDelta ab ++ textChoiceDelta abs
+
+public export
+jointChoicesOk : List QualitySort -> List Binding -> Bool
+jointChoicesOk [] _ = True
+jointChoicesOk (q :: qs) made =
+  not (countChoice (QSort q) made == 0) && jointChoicesOk qs made
+
+public export
+JointChoices : {bs : Bindings} -> List QualitySort -> AbilitySeq bs -> Type
+JointChoices qs text = So (jointChoicesOk qs (textChoiceDelta text))
+
+public export
+record JointFace where
+  constructor MkJointFace
+  choices : List QualitySort
+  name : String
+  cost : Maybe ManaCost
+  supers : List Supertype
+  line : TypeLine
+  text : AbilitySeq (jointBindings choices (costLetters cost))
+  box : Maybe PrintedBox
+
+public export
 data FaceLaws : CardFace -> Type where
   MkFaceLaws : {0 f : CardFace} ->
                {auto 0 ln : CardLine f.line} ->
@@ -338,6 +379,19 @@ data AltFaceLaws : AltFace -> Type where
                   {auto 0 bx : AltCardBox f.line f.text f.box} ->
                   {auto 0 dr : DoorFrame f.text} ->
                   AltFaceLaws f
+
+public export
+data JointFaceLaws : JointFace -> Type where
+  MkJointFaceLaws : {0 f : JointFace} ->
+                    {auto 0 ln : CardLine f.line} ->
+                    {auto 0 sp : CardSupers f.supers} ->
+                    {auto 0 tx : CardText f.line f.text} ->
+                    {auto 0 ch : CardChapters f.line f.text} ->
+                    {auto 0 bx : CardBox f.line f.text f.box} ->
+                    {auto 0 mc : CardCost f.line f.cost} ->
+                    {auto 0 dr : DoorFrame f.text} ->
+                    {auto 0 jc : JointChoices f.choices f.text} ->
+                    JointFaceLaws f
 
 public export
 record SharedLineHalf where
@@ -377,6 +431,9 @@ public export
 data Card : Type where
   SingleFaced : (face : CardFace) ->
                 {auto 0 fl : FaceLaws face} -> Card
+
+  JointSingleFaced : (face : JointFace) ->
+                     {auto 0 fl : JointFaceLaws face} -> Card
 
   Transforming : (front : CardFace) -> (back : AltFace) ->
                  {auto 0 ff : FaceLaws front} ->

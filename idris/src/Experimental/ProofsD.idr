@@ -195,9 +195,10 @@ badUnflipEvent Oh impossible
 
 
 public export
-badTurnedFaceDownHeader : Unspellable Ability (\ok =>
-  Triggered Whenever (StatusEvent (Macros.a Permanent) FaceDown) [] Nothing [] Nothing Nothing Nothing Macros.drawACard {hs = ok})
-badTurnedFaceDownHeader Oh impossible
+turnedFaceDownHeader : Ability
+turnedFaceDownHeader =
+  Triggered Whenever (StatusEvent (Macros.a Permanent) FaceDown)
+            [] Nothing [] Nothing Nothing Nothing Macros.drawACard
 
 
 

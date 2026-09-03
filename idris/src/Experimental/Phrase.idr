@@ -227,8 +227,10 @@ mutual
     HasSubtype : Subtype -> Predicate bs Object
     AnyPlayer : Predicate bs Player                      -- head noun "player" (any player, [CR#102.1])
     Opponent : Predicate bs Player
-    ChosenPlayer : {auto 0 ok : ChoiceStands (countChoice PlayerC bs)} ->
+    ChosenPlayer : {auto 0 ok : countChoice PlayerC bs = 1} ->
                    Predicate bs Player
+    LastChosenPlayer : {auto 0 ok : ChoiceStands (countChoice PlayerC bs)} ->
+                       Predicate bs Player
     QualityNoun : (q : QualitySort) ->
                   (dom : Maybe (ChoiceDomain (QSort q))) ->
                   Predicate bs (Quality q)
@@ -359,7 +361,7 @@ mutual
                  {auto 0 rk : So (kindLte k (Object \/ Player))} ->
                  Predicate bs k
     IsSource : Predicate bs Object
-    ManaCostHasX : Predicate bs Object
+    ManaCostHas : (sym : ManaSymbol) -> Predicate bs Object
     AbilityHead : (cls : AbilityClass) -> Predicate bs Ability
     AbilityOf : (src : Noun bs Object) -> Predicate bs Ability
     ActivatedBy : (who : Noun bs Player) ->
@@ -587,6 +589,7 @@ mutual
   hasHead AnyPlayer = True
   hasHead Opponent = True
   hasHead ChosenPlayer = True
+  hasHead LastChosenPlayer = True
   hasHead (QualityNoun _ _) = True
   hasHead (CounterKindOn _) = True
   hasHead (OfChosen _) = False
@@ -598,7 +601,7 @@ mutual
   hasHead IsManaAbility = False
   hasHead (Targets _ _) = False
   hasHead IsSource = True
-  hasHead ManaCostHasX = False
+  hasHead (ManaCostHas _) = False
   hasHead (HasKeyword _) = False
   hasHead (ControlledBy _) = False
   hasHead (OwnedBy _) = False
@@ -693,6 +696,7 @@ mutual
   public export
   uniquifies : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   uniquifies ChosenPlayer = True
+  uniquifies LastChosenPlayer = True
   uniquifies (Superlative _ _ _) = True
   uniquifies WithMostVotes = False
   uniquifies (ChoseExtreme _) = False
@@ -762,6 +766,8 @@ mutual
   predEq (HasSubtype _) _ = False
   predEq ChosenPlayer ChosenPlayer = True
   predEq ChosenPlayer _ = False
+  predEq LastChosenPlayer LastChosenPlayer = True
+  predEq LastChosenPlayer _ = False
   predEq AnyPlayer AnyPlayer = True
   predEq AnyPlayer _ = False
   predEq Opponent Opponent = True
@@ -787,8 +793,7 @@ mutual
   predEq (Targets _ _) _ = False
   predEq IsSource IsSource = True
   predEq IsSource _ = False
-  predEq ManaCostHasX ManaCostHasX = True
-  predEq ManaCostHasX _ = False
+  predEq (ManaCostHas _) _ = False
   predEq (HasKeyword a) (HasKeyword b) = a == b
   predEq (HasKeyword _) _ = False
   predEq (ControlledBy a) (ControlledBy b) = nounEqRef a b
@@ -1251,6 +1256,7 @@ mutual
   negatable : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   negatable AnyPlayer = False
   negatable ChosenPlayer = False
+  negatable LastChosenPlayer = False
   negatable (QualityNoun _ Nothing) = False
   negatable (QualityNoun _ (Just _)) = True
   negatable (CounterKindOn _) = False
@@ -1267,6 +1273,7 @@ mutual
   predSays (HasSubtype _) = True
   predSays AnyPlayer = True
   predSays ChosenPlayer = True
+  predSays LastChosenPlayer = True
   predSays Opponent = True
   predSays (QualityNoun _ _) = True
   predSays (CounterKindOn _) = True
@@ -1279,7 +1286,7 @@ mutual
   predSays IsManaAbility = True
   predSays (Targets _ _) = True
   predSays IsSource = True
-  predSays ManaCostHasX = True
+  predSays (ManaCostHas _) = True
   predSays (HasKeyword _) = True
   predSays (ControlledBy _) = True
   predSays (OwnedBy _) = True
@@ -1351,6 +1358,7 @@ mutual
   predNegFree (HasSubtype _) = True
   predNegFree AnyPlayer = True
   predNegFree ChosenPlayer = True
+  predNegFree LastChosenPlayer = True
   predNegFree Opponent = True
   predNegFree (QualityNoun _ _) = True
   predNegFree (CounterKindOn _) = True
@@ -1363,7 +1371,7 @@ mutual
   predNegFree IsManaAbility = True
   predNegFree (Targets _ _) = True
   predNegFree IsSource = True
-  predNegFree ManaCostHasX = True
+  predNegFree (ManaCostHas _) = True
   predNegFree (HasKeyword _) = True
   predNegFree (ControlledBy _) = True
   predNegFree (OwnedBy _) = True
@@ -1475,6 +1483,7 @@ mutual
                         {auto 0 pm : So (permanentSpellType (nounTy spell))} ->
                         Noun bs Object
     TheGrantor : Noun bs Object
+    TheEmblemGrantor : Noun bs Object
     You : Noun bs Player        -- "you" [CR#109.5]
     TheDefendingPlayer : Noun bs Player
     TheAttackingPlayer : Noun bs Player
@@ -1526,6 +1535,7 @@ mutual
              {auto 0 ok : countManyWord PileW bs = 1} -> Noun bs Object
     It : {auto 0 ok : countOnes Object bs = 1} -> Noun bs Object
     ItAbility : {auto 0 ok : countOnes Ability bs = 1} -> Noun bs Ability
+    ItPlayer : {auto 0 ok : countOnes Player bs = 1} -> Noun bs Player
     ItAt : (sl : SlotCarrier) -> {auto 0 ok : countOnesAt sl bs = 1} ->
            Noun bs Object
     ItVerbed : (v : VerbLabel) -> {auto 0 kn : KnownVerb v} ->
@@ -1573,6 +1583,8 @@ mutual
   nounEqRef (AsMarker _ _) _ = False
   nounEqRef TheGrantor TheGrantor = True
   nounEqRef TheGrantor _ = False
+  nounEqRef TheEmblemGrantor TheEmblemGrantor = True
+  nounEqRef TheEmblemGrantor _ = False
   nounEqRef TheDefendingPlayer TheDefendingPlayer = True
   nounEqRef TheDefendingPlayer _ = False
   nounEqRef TheAttackingPlayer TheAttackingPlayer = True
@@ -1603,6 +1615,8 @@ mutual
   nounEqRef It _ = False
   nounEqRef ItAbility ItAbility = True
   nounEqRef ItAbility _ = False
+  nounEqRef ItPlayer ItPlayer = True
+  nounEqRef ItPlayer _ = False
   nounEqRef (ItAt _) _ = False
   nounEqRef (ItVerbed _) _ = False
   nounEqRef (ItToken) _ = False
@@ -1663,6 +1677,7 @@ mutual
   nounDelta (ResolvedPermanent n) = nounDelta n
   nounDelta (AsMarker _ n) = nounDelta n
   nounDelta TheGrantor = []
+  nounDelta TheEmblemGrantor = []
   nounDelta TheDefendingPlayer = []
   nounDelta TheAttackingPlayer = []
   nounDelta You = []
@@ -1706,6 +1721,7 @@ mutual
       :: (sliceCountDelta q ++ nounDelta by)
   nounDelta It = []
   nounDelta ItAbility = []
+  nounDelta ItPlayer = []
   nounDelta (ItAt _) = []
   nounDelta (ItVerbed _) = []
   nounDelta ItToken = []
@@ -1906,6 +1922,8 @@ mutual
     LitColor : Chroma.Color -> ColorTerm bs
     ThatColor : {auto 0 ok : countChoice (QSort Color) bs = 1} ->
                 {auto 0 rd : ChosenQualityRead Color} -> ColorTerm bs
+    LastChosenColor : {auto 0 ok : ChoiceStands (countChoice (QSort Color) bs)} ->
+                      {auto 0 rd : ChosenQualityRead Color} -> ColorTerm bs
 
   public export
   data Amount : Bindings -> Type where
@@ -2325,6 +2343,7 @@ mutual
   anchorPhrase (ResolvedPermanent n) = anchorPhrase n
   anchorPhrase (AsMarker _ n) = anchorPhrase n
   anchorPhrase TheGrantor = True
+  anchorPhrase TheEmblemGrantor = True
   anchorPhrase TheDefendingPlayer = True
   anchorPhrase TheAttackingPlayer = True
   anchorPhrase You = True
@@ -2349,6 +2368,7 @@ mutual
   anchorPhrase (PileOf _ _) = False
   anchorPhrase It = True
   anchorPhrase ItAbility = True
+  anchorPhrase ItPlayer = True
   anchorPhrase (ItAt _) = True
   anchorPhrase (ItVerbed _) = True
   anchorPhrase ItToken = True
@@ -2400,6 +2420,7 @@ mutual
   choosable (ResolvedPermanent _) = False
   choosable (AsMarker _ _) = False
   choosable TheGrantor = False
+  choosable TheEmblemGrantor = False
   choosable TheDefendingPlayer = False
   choosable TheAttackingPlayer = False
   choosable You = False
@@ -2424,6 +2445,7 @@ mutual
   choosable (PileOf _ _) = False
   choosable It = False
   choosable ItAbility = False
+  choosable ItPlayer = False
   choosable (ItAt _) = False
   choosable (ItVerbed _) = False
   choosable ItToken = False
@@ -2480,6 +2502,7 @@ mutual
   groupMention (ResolvedPermanent _) = False
   groupMention (AsMarker _ _) = False
   groupMention TheGrantor = False
+  groupMention TheEmblemGrantor = False
   groupMention TheDefendingPlayer = False
   groupMention TheAttackingPlayer = False
   groupMention You = False
@@ -2503,6 +2526,7 @@ mutual
   groupMention (PileOf _ _) = False
   groupMention It = False
   groupMention ItAbility = False
+  groupMention ItPlayer = False
   groupMention (ItAt _) = False
   groupMention (ItVerbed _) = False
   groupMention ItToken = False
@@ -2976,6 +3000,7 @@ mutual
   costNounOk (ResolvedPermanent n) = costNounOk n
   costNounOk (AsMarker _ n) = costNounOk n
   costNounOk TheGrantor = True
+  costNounOk TheEmblemGrantor = True
   costNounOk TheDefendingPlayer = True
   costNounOk TheAttackingPlayer = True
   costNounOk You = True
@@ -3000,6 +3025,7 @@ mutual
   costNounOk (PileOf _ _) = True
   costNounOk It = True
   costNounOk ItAbility = True
+  costNounOk ItPlayer = True
   costNounOk (ItAt _) = True
   costNounOk (ItVerbed _) = True
   costNounOk ItToken = True
@@ -3030,6 +3056,7 @@ mutual
   nounIsYou (ResolvedPermanent _) = False
   nounIsYou (AsMarker _ _) = False
   nounIsYou TheGrantor = False
+  nounIsYou TheEmblemGrantor = False
   nounIsYou (Each _) = False
   nounIsYou (Indefinite _ _) = False
   nounIsYou (Definite _) = False
@@ -3050,6 +3077,7 @@ mutual
   nounIsYou (PileOf _ _) = False
   nounIsYou It = False
   nounIsYou ItAbility = False
+  nounIsYou ItPlayer = False
   nounIsYou (ItAt _) = False
   nounIsYou (ItVerbed _) = False
   nounIsYou ItToken = False
@@ -3078,6 +3106,7 @@ mutual
   nounTargeted (ResolvedPermanent n) = nounTargeted n
   nounTargeted (AsMarker _ n) = nounTargeted n
   nounTargeted TheGrantor = False
+  nounTargeted TheEmblemGrantor = False
   nounTargeted TheDefendingPlayer = False
   nounTargeted TheAttackingPlayer = False
   nounTargeted You = False
@@ -3100,6 +3129,7 @@ mutual
   nounTargeted (PileOf _ _) = False
   nounTargeted It = False
   nounTargeted ItAbility = False
+  nounTargeted ItPlayer = False
   nounTargeted (ItAt _) = False
   nounTargeted (ItVerbed _) = False
   nounTargeted ItToken = False
@@ -3369,7 +3399,12 @@ mutual
     MkBinding TheD Object OneOf
               (ObjectP Nothing z (mkStamp p Nothing (not (z == Just Battlefield))) Nothing Nothing)
       :: bs
+  moveIntro p TheEmblemGrantor z =
+    MkBinding TheD Object OneOf
+              (ObjectP Nothing z (mkStamp p (Just Command) (not (z == Just Command))) Nothing Nothing)
+      :: bs
   moveIntro p You z = bs
+  moveIntro p ItPlayer z = bs
   moveIntro p TheDefendingPlayer z = bs
   moveIntro p TheAttackingPlayer z = bs
   moveIntro p (PlayerGroup _) z = bs
@@ -3408,6 +3443,7 @@ mutual
   nounZone (ResolvedPermanent _) = Just Battlefield
   nounZone (AsMarker m _) = Just (markerZone m)
   nounZone TheGrantor = Just Battlefield
+  nounZone TheEmblemGrantor = Just Command
   nounZone TheDefendingPlayer = Nothing
   nounZone TheAttackingPlayer = Nothing
   nounZone You = Nothing
@@ -3432,6 +3468,7 @@ mutual
   nounZone (PileOf _ _) = zoneOfThose PileW bs
   nounZone It = zoneOfIt bs
   nounZone ItAbility = Nothing
+  nounZone ItPlayer = Nothing
   nounZone (ItAt sl) = zoneOfItAt sl bs
   nounZone (ItVerbed v) = zoneOfVerbedIt v bs
   nounZone ItToken = zoneOfItToken bs
@@ -3458,6 +3495,7 @@ mutual
   nounTy (ResolvedPermanent n) = nounTy n
   nounTy (AsMarker _ n) = nounTy n
   nounTy TheGrantor = Nothing
+  nounTy TheEmblemGrantor = Nothing
   nounTy TheDefendingPlayer = Nothing
   nounTy TheAttackingPlayer = Nothing
   nounTy You = Nothing
@@ -3482,6 +3520,7 @@ mutual
   nounTy (PileOf _ _) = Nothing
   nounTy It = tyOfIt bs
   nounTy ItAbility = Nothing
+  nounTy ItPlayer = Nothing
   nounTy (ItAt sl) = tyOfItAt sl bs
   nounTy (ItVerbed v) = tyOfVerbedIt v bs
   nounTy ItToken = tyOfItToken bs
@@ -3544,6 +3583,7 @@ mutual
   nounPlur (ResolvedPermanent n) = nounPlur n
   nounPlur (AsMarker _ n) = nounPlur n
   nounPlur TheGrantor = OneOf
+  nounPlur TheEmblemGrantor = OneOf
   nounPlur TheDefendingPlayer = OneOf
   nounPlur TheAttackingPlayer = OneOf
   nounPlur You = OneOf
@@ -3569,6 +3609,7 @@ mutual
   nounPlur (PileOf q _) = slicePlur q
   nounPlur It = OneOf
   nounPlur ItAbility = OneOf
+  nounPlur ItPlayer = OneOf
   nounPlur (ItAt _) = OneOf
   nounPlur (ItVerbed _) = OneOf
   nounPlur ItToken = OneOf

@@ -381,13 +381,11 @@ badEmptyCompound : Unspellable Ability (\ok =>
 badEmptyCompound ItIsSucc impossible
 
 
-||| a compound written as one element of a compound
-||| A compound's elements are components; nesting re-mints the tree the telescope replaced.
 public export
-badNestedCompound : Unspellable Ability (\ok =>
-  Activated (Compound ((Compound [Mana [Macros.generic 1], TapSymbol] :: (TapSymbol :: Nil)) {nc = ok}))
-            Macros.drawACard Nothing Nothing Nothing Nothing)
-badNestedCompound Oh impossible
+nestedCompoundCost : Ability
+nestedCompoundCost =
+  Activated (Compound [Compound [Mana [Macros.generic 1], TapSymbol], TapSymbol])
+            Macros.drawACard Nothing Nothing Nothing Nothing
 
 
 ||| "{T}, {T}: Draw a card."

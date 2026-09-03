@@ -380,6 +380,9 @@ lookbackComplementOk CombatDamage Object Player = True
 lookbackComplementOk CombatDamage _ _ = False
 lookbackComplementOk DamageDealing Object Object = True
 lookbackComplementOk DamageDealing Object Player = True
+lookbackComplementOk DamageDealing Object (a \/ b) =
+  lookbackComplementOk DamageDealing Object a &&
+    lookbackComplementOk DamageDealing Object b
 lookbackComplementOk DamageDealing _ _ = False
 lookbackComplementOk AttackDeclaration Player Object = True
 lookbackComplementOk AttackDeclaration Player Player = True

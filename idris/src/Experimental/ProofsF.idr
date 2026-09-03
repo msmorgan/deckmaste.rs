@@ -639,3 +639,15 @@ public export
 badSingletonBallot : Unspellable (Ballot []) (\ok =>
   ByLabel ["death"] {ok})
 badSingletonBallot Oh impossible
+
+
+public export
+jointCrossAbilityChoice : Card
+jointCrossAbilityChoice =
+  Macros.jointCard [Color] "Joint choice witness" Nothing []
+    (MkTypeLine [creatureType "Shapeshifter"] [Creature])
+    [ Static (Gains Macros.thisCreature
+               (Macros.keywordQuality "Protection" (OfChosen Color)))
+    , Static (Macros.entersChoosing Macros.thisCreature Color)
+    ]
+    (Just (1, 1))

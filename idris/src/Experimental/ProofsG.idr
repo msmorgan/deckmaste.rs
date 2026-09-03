@@ -1290,3 +1290,141 @@ badTokenDuplicateSupertype : Unspellable (Effect []) (\ok =>
        (MkTypeLine [creatureType "Avatar"] [Creature]) [] (Just "Marit Lage"))
     {tc = ok})
 badTokenDuplicateSupertype Oh impossible
+
+
+public export
+lessAsThoughCondition : AsThough []
+lessAsThoughCondition = AsThoughLess Power (Lit 1)
+
+public export
+manaRunReductionFloor : CostShift []
+manaRunReductionFloor =
+  CostShiftRunWithFloor [Macros.pip White] (Lit 1) False
+
+public export
+nestedStaticConditionals : StaticEffect []
+nestedStaticConditionals =
+  Macros.ifSo (Exists AnyPlayer)
+    (Macros.ifSo (Exists AnyPlayer) (KeepsUnspentMana You (UnspentMana Nothing)))
+
+public export
+nestedTurnPartWindows : StaticEffect []
+nestedTurnPartWindows =
+  OnlyDuring Combat Nothing
+    (OnlyDuring MainPhase Nothing (KeepsUnspentMana You (UnspentMana Nothing)))
+
+public export
+repeatWithIndependentException : Repetition []
+repeatWithIndependentException = AgainExcept (Exists AnyPlayer)
+
+public export
+voteStartingWithSpecifiedPlayer : Effect []
+voteStartingWithSpecifiedPlayer =
+  VoteStarting Macros.anOpponent (Each AnyPlayer) (ByLabel ["alpha", "beta"])
+
+public export
+oneWayResultShift : Effect []
+oneWayResultShift =
+  Sequentially [Macros.rollADie 6, ShiftResultOneWay True (Lit 1)]
+
+public export
+objectScopedChaos : Effect []
+objectScopedChaos = ChaosEnsuesFor Macros.thisRoom
+
+public export
+abilityCounterRecipient : Effect []
+abilityCounterRecipient =
+  GiveAbilityCountersOfOwnKinds (Macros.a (AbilityHead AnyOnStack))
+
+public export
+removeOwnCounterKinds : Effect []
+removeOwnCounterKinds = RemoveCountersOfOwnKinds You
+
+public export
+namedAdditionalPartAnchor : Effect []
+namedAdditionalPartAnchor =
+  GetsAdditionalPartAfter You Upkeep (Lit 1) MainPhase
+
+||| [CR#709.5j] “This door” requires a door of this permanent.
+public export
+badDelayedDoorDeixis : Unspellable Card (\ok =>
+  Macros.card "" Nothing [] (MkTypeLine [] [Instant])
+    [Spell (Delayed (UnlocksDoor You ThisDoor) [] Nothing Macros.drawACard
+                    {so = DelayOnce})]
+    Nothing {dr = ok})
+badDelayedDoorDeixis Oh impossible
+
+public export
+joinedDealerDamageComplement :
+  LookbackComplement DamageDealing Object (Object \/ Player)
+joinedDealerDamageComplement = MkLookbackComplement
+
+public export
+lastChosenPlayerRead :
+  Predicate [choiceB PlayerC, choiceB PlayerC] Player
+lastChosenPlayerRead = LastChosenPlayer
+
+public export
+generalManaSymbolMatcher : Predicate [] Object
+generalManaSymbolMatcher = ManaCostHas (Simple (Specific (OfColor Red)))
+
+public export
+playerItRead : Noun [MkBinding AD Player OneOf PlayerP] Player
+playerItRead = ItPlayer
+
+public export
+delayedDoorTraversal :
+  effectNamesThisDoor
+    (Delayed (UnlocksDoor You ThisDoor) [] Nothing Macros.drawACard
+             {so = DelayOnce}) = True
+delayedDoorTraversal = Refl
+
+public export
+distributiveGroupSurvives : Effect []
+distributiveGroupSurvives =
+  Sequentially
+    [ DoesGroup (Each Opponent) "Shuffle" (Shuffle ItPlayer)
+    , ChangeLife (Those PlayerW) (Down (Lit 1))
+    ]
+
+public export
+secondChooserDevotionRead :
+  Amount [qualityB Color, qualityB Color]
+secondChooserDevotionRead =
+  Devotion You LastChosenColor Nothing
+
+public export
+emblemGrantorRead : Noun [] Object
+emblemGrantorRead = TheEmblemGrantor
+
+public export
+alternativeCostReadbacks : List (Predicate [] Object)
+alternativeCostReadbacks =
+  [ PaidCost (ByKeyword "Escape") Nothing
+  , PaidCost (ByKeyword "Foretell") Nothing
+  , PaidCost (ByKeyword "Bestow") Nothing
+  , PaidCost (ByKeyword "Disguise") Nothing
+  , PaidCost (ByKeyword "Mutate") Nothing
+  , PaidCost (ByKeyword "Overload") Nothing
+  , PaidCost (ByKeyword "Disturb") Nothing
+  , PaidCost (ByKeyword "Dash") Nothing
+  , PaidCost (ByKeyword "Evoke") Nothing
+  , PaidCost (ByKeyword "Blitz") Nothing
+  , PaidCost (ByKeyword "Cleave") Nothing
+  , PaidCost (ByKeyword "Harmonize") Nothing
+  , PaidCost (ByKeyword "Impending") Nothing
+  , PaidCost (ByKeyword "Awaken") Nothing
+  , PaidCost (ByKeyword "Buyback") Nothing
+  , PaidCost (ByKeyword "Casualty") Nothing
+  , PaidCost (ByKeyword "Squad") Nothing
+  , PaidCost (ByKeyword "Offspring") Nothing
+  , PaidCost (ByKeyword "Gift") Nothing
+  , PaidCost (ByKeyword "Replicate") Nothing
+  ]
+
+public export
+modalCostReadbacks : (Predicate [] Object, Amount [])
+modalCostReadbacks =
+  ( PaidCost (ByKeyword "Entwine") Nothing
+  , TimesPaid (ByKeyword "Escalate") This
+  )

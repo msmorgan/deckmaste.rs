@@ -1164,8 +1164,8 @@ simEffectsThreadPrefix bs n e es = e :: es
 ||| The cost telescope, likewise, at `costIntro`.
 public export
 costSeqThreadsPrefix : (bs : Bindings) -> (n : Nat) -> (c : Cost bs) ->
-                       NotCompound c -> CostSeq n (costIntro c) -> CostSeq (S n) bs
-costSeqThreadsPrefix bs n c nc cs = (::) c {nc} cs
+                       CostSeq n (costIntro c) -> CostSeq (S n) bs
+costSeqThreadsPrefix bs n c cs = (::) c cs
 
 ||| The static coordination telescope, at `staticIntro`.
 public export
@@ -1225,9 +1225,9 @@ ifThreadsPrefix bs c e = If c e Nothing
 ||| The postposed static conditional, the same shape at `staticIntro`.
 public export
 onlyWhileThreadsPrefix : (bs : Bindings) -> (se : StaticEffect bs) ->
-                         (c : Condition (staticIntro se)) -> NotConditional se ->
+                         (c : Condition (staticIntro se)) ->
                          MarkingOk AsLongAs c -> StaticEffect bs
-onlyWhileThreadsPrefix bs se c nn mk = OnlyWhile se c AsLongAs {nn} {mk}
+onlyWhileThreadsPrefix bs se c mk = OnlyWhile se c AsLongAs {mk}
 
 ||| The "this way" trigger reads the enclosure's settled post-state, a
 ||| narrowing of what came before rather than an addition from after.

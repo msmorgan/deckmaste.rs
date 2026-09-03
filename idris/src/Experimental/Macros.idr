@@ -142,6 +142,25 @@ card name cost supers line text stats =
   cardOf name cost supers line text (printedBox stats) {ln} {sp} {tx} {ch} {bx} {mc} {dr}
 
 public export
+jointCard : (choices : List QualitySort) ->
+            (name : String) -> (cost : Maybe ManaCost) ->
+            (supers : List Supertype) -> (line : TypeLine) ->
+            (text : AbilitySeq (jointBindings choices (costLetters cost))) ->
+            (stats : Maybe (Integer, Integer)) ->
+            {auto 0 ln : CardLine line} ->
+            {auto 0 sp : CardSupers supers} ->
+            {auto 0 tx : CardText line text} ->
+            {auto 0 ch : CardChapters line text} ->
+            {auto 0 bx : CardBox line text (printedBox stats)} ->
+            {auto 0 mc : CardCost line cost} ->
+            {auto 0 dr : DoorFrame text} ->
+            {auto 0 jc : JointChoices choices text} -> Card
+jointCard choices name cost supers line text stats =
+  JointSingleFaced
+    (MkJointFace choices name cost supers line text (printedBox stats))
+    {fl = MkJointFaceLaws {ln} {sp} {tx} {ch} {bx} {mc} {dr} {jc}}
+
+public export
 counterSpell : {k : Kind} -> (n : Noun bs k) ->
                {auto 0 ct : Counterable n} -> Effect bs
 counterSpell n = CounterSpell n {ct}
@@ -608,19 +627,16 @@ untilYourNextEndStep : Duration bs
 untilYourNextEndStep = Until (StartOf EndStep (Just Yours))
 
 public export
-asLongAs : (c : Condition bs) -> (se : StaticEffect (condIntro c)) ->
-           {auto 0 nn : NotConditional se} -> StaticEffect bs
-asLongAs c se = Conditionally c se AsLongAs {nn}
+asLongAs : (c : Condition bs) -> (se : StaticEffect (condIntro c)) -> StaticEffect bs
+asLongAs c se = Conditionally c se AsLongAs
 
 public export
-unlessSo : (c : Condition bs) -> (se : StaticEffect (condIntro (NotCond c))) ->
-           {auto 0 nn : NotConditional se} -> StaticEffect bs
-unlessSo c se = Conditionally (NotCond c) se Unless {nn}
+unlessSo : (c : Condition bs) -> (se : StaticEffect (condIntro (NotCond c))) -> StaticEffect bs
+unlessSo c se = Conditionally (NotCond c) se Unless
 
 public export
-ifSo : (c : Condition bs) -> (se : StaticEffect (condIntro c)) ->
-       {auto 0 nn : NotConditional se} -> StaticEffect bs
-ifSo c se = Conditionally c se IfSo {nn}
+ifSo : (c : Condition bs) -> (se : StaticEffect (condIntro c)) -> StaticEffect bs
+ifSo c se = Conditionally c se IfSo
 
 public export
 entersTapped : (n : Noun bs Object) ->
@@ -2410,19 +2426,16 @@ ifThen : (c : Condition bs) -> Effect (condIntro c) -> Effect bs
 ifThen c e = If c e Nothing
 
 public export
-onlyWhile : (se : StaticEffect bs) -> (c : Condition (staticIntro se)) ->
-            {auto 0 nn : NotConditional se} -> StaticEffect bs
-onlyWhile se c = OnlyWhile se c AsLongAs {nn}
+onlyWhile : (se : StaticEffect bs) -> (c : Condition (staticIntro se)) -> StaticEffect bs
+onlyWhile se c = OnlyWhile se c AsLongAs
 
 public export
-onlyUnless : (se : StaticEffect bs) -> (c : Condition (staticIntro se)) ->
-             {auto 0 nn : NotConditional se} -> StaticEffect bs
-onlyUnless se c = OnlyWhile se (NotCond c) Unless {nn}
+onlyUnless : (se : StaticEffect bs) -> (c : Condition (staticIntro se)) -> StaticEffect bs
+onlyUnless se c = OnlyWhile se (NotCond c) Unless
 
 public export
-onlyIfSo : (se : StaticEffect bs) -> (c : Condition (staticIntro se)) ->
-           {auto 0 nn : NotConditional se} -> StaticEffect bs
-onlyIfSo se c = OnlyWhile se c IfSo {nn}
+onlyIfSo : (se : StaticEffect bs) -> (c : Condition (staticIntro se)) -> StaticEffect bs
+onlyIfSo se c = OnlyWhile se c IfSo
 
 public export
 mayCastFromWhileSearching : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
@@ -2552,4 +2565,3 @@ public export
 coinsThatCameUp : (face : CoinFace) ->
                   {auto 0 fl : So (coinFlipInScope bs)} -> Amount bs
 coinsThatCameUp face = CoinsShowing face {fl}
-

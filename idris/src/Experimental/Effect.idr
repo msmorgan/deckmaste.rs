@@ -27,12 +27,16 @@ data AsThough : Bindings -> Type where
   AsThoughGreater : {bs : Bindings} -> (ch : Characteristic) ->
                     (amt : Amount bs) ->
                     {auto 0 nd : So (isNil (amtDelta amt))} -> AsThough bs
+  AsThoughLess : {bs : Bindings} -> (ch : Characteristic) ->
+                 (amt : Amount bs) ->
+                 {auto 0 nd : So (isNil (amtDelta amt))} -> AsThough bs
 
 public export
 asThoughSort : {0 bs : Bindings} -> AsThough bs -> PremiseSort
 asThoughSort (AsThoughOf _) = ObjectPremise
 asThoughSort (AsThoughMana _ _ _) = ManaPremise
 asThoughSort (AsThoughGreater _ _) = ValuePremise
+asThoughSort (AsThoughLess _ _) = ValuePremise
 
 
 public export
@@ -213,12 +217,16 @@ mutual
     CostShiftRun : (run : ManaCost) -> (rises : Bool) ->
                    (coloredOnly : Bool) ->
                    {auto 0 wr : ManaRun run} -> CostShift bs
+    CostShiftRunWithFloor : (run : ManaCost) -> (floor : Amount bs) ->
+                            (coloredOnly : Bool) ->
+                            {auto 0 wr : ManaRun run} -> CostShift bs
 
   public export
   costShiftDelta : {bs : Bindings} -> CostShift bs -> List Binding
   costShiftDelta (CostLess a _) = amtDelta a
   costShiftDelta (CostMore a) = amtDelta a
   costShiftDelta (CostShiftRun _ _ _) = []
+  costShiftDelta (CostShiftRunWithFloor _ floor _) = amtDelta floor
 
   namespace Static
     public export
@@ -392,16 +400,13 @@ mutual
                     (ban : PreventionBan) -> StaticEffect bs
       Conditionally : (c : Condition bs) -> (se : StaticEffect (condIntro c)) ->
                       (marking : CondMarking) ->
-                      {auto 0 nn : NotConditional se} ->
                       {auto 0 mk : MarkingOk marking c} -> StaticEffect bs
       OnlyWhile : (se : StaticEffect bs) -> (c : Condition (staticIntro se)) ->
                   (marking : CondMarking) ->
-                  {auto 0 nn : NotConditional se} ->
                   {auto 0 mk : MarkingOk marking c} -> StaticEffect bs
       OnlyDuring : (p : TurnPart) -> (w : Maybe Owner) ->
                    (se : StaticEffect bs) ->
                    {auto 0 wk : WindowOk p w} ->
-                   {auto 0 nw : So (notWindowed se)} ->
                    StaticEffect bs
       NoLossFrom : (who : Noun bs Player) -> (cause : LoseCause) ->
                    StaticEffect bs
@@ -1023,6 +1028,7 @@ mutual
     ExceptTypes : (added : TypeLine) ->
                   {auto 0 ne : LineNonEmpty added} -> CopyExcept bs
     ExceptName : (nm : String) -> CopyExcept bs
+    ||| [CR#707.9d] “In addition” retains only type characteristics.
     ExceptChars : (t : TokenChars bs) -> (typesAdded : Bool) ->
                   {auto 0 bd : CopyBundle t} ->
                   {auto 0 tc : TokenCanonical t} ->
@@ -1046,6 +1052,7 @@ mutual
     AnyNumber : Repetition bs
     Until : (c : Condition bs) -> Repetition bs
     AgainExcludingChosen : Repetition bs
+    AgainExcept : (c : Condition bs) -> Repetition bs
 
   public export
   data RollRow : Bindings -> Type where
@@ -1143,6 +1150,9 @@ mutual
     ChoicesRevealed : (s : HiddenSort) -> Effect bs
     Vote : (voters : Noun bs Player) -> (disc : Disclosure) ->
            (ballot : Ballot (nomIntro voters)) -> Effect bs
+    VoteStarting : (first : Noun bs Player) ->
+                   (voters : Noun (nomIntro first) Player) ->
+                   (ballot : Ballot (nomIntro voters)) -> Effect bs
     Move : (what : Noun bs Object) -> (to : ZoneExpr (nomIntro what)) ->
            (riders : MoveRiders (nomIntro what)) ->
            {auto 0 ok : DestOk to} ->
@@ -1198,9 +1208,12 @@ mutual
                      {auto 0 ok : So (ignorableFor which)} -> Effect bs
     ShiftResult : (amt : Amount bs) ->
                   {auto 0 ok : countOutcomes RollResult bs = 1} -> Effect bs
+    ShiftResultOneWay : (rises : Bool) -> (amt : Amount bs) ->
+                        {auto 0 ok : countOutcomes RollResult bs = 1} -> Effect bs
     RollPlanarDie : (who : Noun bs Player) ->
                     (count : Amount (nomIntro who)) -> Effect bs
     ChaosEnsues : Effect bs
+    ChaosEnsuesFor : (what : Noun bs Object) -> Effect bs
     StoreResults : (on : Noun bs Object) ->
                    {auto 0 one : nounPlur on = OneOf} ->
                    {auto 0 ok : countOutcomes RollResult bs = 1} -> Effect bs
@@ -1270,6 +1283,10 @@ mutual
     DoubleCountersOfOwnKinds : {k : Kind} -> (on : Noun bs k) ->
                                {auto 0 hk : So (kindLte k (Object \/ Player))} ->
                                {auto 0 pm : PerMember on} -> Effect bs
+    GiveAbilityCountersOfOwnKinds : (on : Noun bs Ability) -> Effect bs
+    RemoveCountersOfOwnKinds : {k : Kind} -> (from : Noun bs k) ->
+                               {auto 0 hk : So (kindLte k (Object \/ Player))} ->
+                               {auto 0 pm : PerMember from} -> Effect bs
     LosesCounters : (who : Noun bs Player) -> (kind : Maybe CounterKind) ->
                     (amt : Maybe (Amount (nomIntro who))) ->
                     {auto 0 pk : CounterKindNamed Player kind} -> Effect bs
@@ -1278,6 +1295,10 @@ mutual
     Does : (subj : Noun bs Player) -> (v : VerbLabel) ->
            (e : Effect (agentIntro subj)) ->
            {auto 0 kn : KnownVerb v} -> Effect bs
+    DoesGroup : (subj : Noun bs Player) -> (v : VerbLabel) ->
+                (e : Effect (agentIntro subj)) ->
+                {auto 0 pl : nounPlur subj = ManyOf} ->
+                {auto 0 kn : KnownVerb v} -> Effect bs
     ControllerSacrifices : (n : Noun bs Object) ->
                            {auto 0 one : nounPlur n = OneOf} ->
                            {auto 0 zn : OnBattlefield (nounZone n)} -> Effect bs
@@ -1359,6 +1380,9 @@ mutual
     GetsAdditionalPart : (who : Noun bs Player) -> (part : TurnPart) ->
                          (count : Amount bs) ->
                          {auto 0 ad : AddedPart part} -> Effect bs
+    GetsAdditionalPartAfter : (who : Noun bs Player) -> (part : TurnPart) ->
+                              (count : Amount bs) -> (anchor : TurnPart) ->
+                              {auto 0 ad : AddedPart part} -> Effect bs
 
   public export
   heldUntilOk : {0 bs : Bindings} -> Effect bs -> Bool
@@ -1370,6 +1394,7 @@ mutual
   heldUntilOk (ExtraTurn _ _) = False
   heldUntilOk (AdditionalPart _ _ _ _) = False
   heldUntilOk (GetsAdditionalPart _ _ _) = False
+  heldUntilOk (GetsAdditionalPartAfter _ _ _ _) = False
   heldUntilOk (SkipsAllOf _ _) = False
   heldUntilOk (Distribute _ _ _) = False
   heldUntilOk (Fights _ _) = False
@@ -1402,6 +1427,7 @@ mutual
   heldUntilOk (Choose _ _ _) = False
   heldUntilOk (ChoicesRevealed _) = False
   heldUntilOk (Vote _ _ _) = False
+  heldUntilOk (VoteStarting _ _ _) = False
   heldUntilOk (Move _ _ _) = True
   heldUntilOk (ExchangeLife _) = False
   heldUntilOk (ChangeLife _ _) = False
@@ -1415,8 +1441,10 @@ mutual
   heldUntilOk (ResultsTable _) = False
   heldUntilOk (IgnoreOutcomes _) = False
   heldUntilOk (ShiftResult _) = False
+  heldUntilOk (ShiftResultOneWay _ _) = False
   heldUntilOk (RollPlanarDie _ _) = False
   heldUntilOk ChaosEnsues = False
+  heldUntilOk (ChaosEnsuesFor _) = False
   heldUntilOk (StoreResults _) = False
   heldUntilOk (RerollStored _ _ _) = False
   heldUntilOk (Continuously _ _) = False
@@ -1431,9 +1459,12 @@ mutual
   heldUntilOk (PutCountersOfThoseKinds _ _) = False
   heldUntilOk (GiveCountersOfOwnKinds _) = False
   heldUntilOk (DoubleCountersOfOwnKinds _) = False
+  heldUntilOk (GiveAbilityCountersOfOwnKinds _) = False
+  heldUntilOk (RemoveCountersOfOwnKinds _) = False
   heldUntilOk (Enact _ (Move _ _ _)) = True
   heldUntilOk (Enact _ _) = False
   heldUntilOk (Does _ _ _) = False
+  heldUntilOk (DoesGroup _ _ _) = False
   heldUntilOk (Pay _ _ _) = False
   heldUntilOk (May _ _ _ _) = False
   heldUntilOk (IfDone _ _ _) = False
@@ -1475,6 +1506,7 @@ mutual
   reflexEncloseUse (ExtraTurn _ _) = EncNotYetTaken
   reflexEncloseUse (AdditionalPart _ _ _ _) = EncAgentless
   reflexEncloseUse (GetsAdditionalPart _ _ _) = EncNotYetTaken
+  reflexEncloseUse (GetsAdditionalPartAfter _ _ _ _) = EncNotYetTaken
   reflexEncloseUse (SkipsAllOf _ _) = EncNotYetTaken
   reflexEncloseUse (Distribute _ _ _) = EncAgentless
   reflexEncloseUse (Fights _ _) = EncAgentless
@@ -1485,6 +1517,7 @@ mutual
   reflexEncloseUse (Throughout _ (GainsControl _ _)) = EncReflexive
   reflexEncloseUse (Throughout _ _) = EncAgentless
   reflexEncloseUse (Does _ _ _) = EncReflexive
+  reflexEncloseUse (DoesGroup _ _ _) = EncReflexive
   reflexEncloseUse (Pay _ _ _) = EncReflexive      -- 66, all of them offered
   reflexEncloseUse (Enact _ _) = EncReflexive
   reflexEncloseUse (TurnOver _) = EncAgentless
@@ -1522,6 +1555,8 @@ mutual
   reflexEncloseUse (PutCountersOfThoseKinds _ _) = EncReflexive
   reflexEncloseUse (GiveCountersOfOwnKinds _) = EncReflexive
   reflexEncloseUse (DoubleCountersOfOwnKinds _) = EncReflexive
+  reflexEncloseUse (GiveAbilityCountersOfOwnKinds _) = EncReflexive
+  reflexEncloseUse (RemoveCountersOfOwnKinds _) = EncReflexive
   reflexEncloseUse (Move _ _ _) = EncReflexive       -- 3
   reflexEncloseUse (Expose _ _ _) = EncReflexive   -- 2
   reflexEncloseUse (AddMana _ _ _ _) = EncReflexive
@@ -1529,6 +1564,7 @@ mutual
   reflexEncloseUse (Choose _ _ _) = EncReflexive       -- 1
   reflexEncloseUse (ChoicesRevealed _) = EncAgentless
   reflexEncloseUse (Vote _ _ _) = EncReflexive
+  reflexEncloseUse (VoteStarting _ _ _) = EncReflexive
   reflexEncloseUse (Search _ _ _ _) = EncReflexive
   reflexEncloseUse (Shuffle _) = EncReflexive
   reflexEncloseUse (FlipCoins _ _) = EncReflexive
@@ -1536,8 +1572,10 @@ mutual
   reflexEncloseUse (ResultsTable _) = EncNotOneAction
   reflexEncloseUse (IgnoreOutcomes _) = EncAgentless
   reflexEncloseUse (ShiftResult _) = EncAgentless
+  reflexEncloseUse (ShiftResultOneWay _ _) = EncAgentless
   reflexEncloseUse (RollPlanarDie _ _) = EncReflexive
   reflexEncloseUse ChaosEnsues = EncAgentless
+  reflexEncloseUse (ChaosEnsuesFor _) = EncAgentless
   reflexEncloseUse (StoreResults _) = EncAgentless
   reflexEncloseUse (RerollStored _ _ _) = EncReflexive
   reflexEncloseUse (May _ body Nothing _) = reflexEncloseUse body
@@ -1584,6 +1622,7 @@ mutual
   thisWayOutcomeOk (ExtraTurn _ _) = True
   thisWayOutcomeOk (AdditionalPart _ _ _ _) = True
   thisWayOutcomeOk (GetsAdditionalPart _ _ _) = True
+  thisWayOutcomeOk (GetsAdditionalPartAfter _ _ _ _) = True
   thisWayOutcomeOk (SkipsAllOf _ _) = True
   thisWayOutcomeOk (HeldUntil _ _) = True
   thisWayOutcomeOk (DealDamage _ _ _) = True
@@ -1619,6 +1658,7 @@ mutual
   thisWayOutcomeOk (Choose _ _ _) = True
   thisWayOutcomeOk (ChoicesRevealed _) = True
   thisWayOutcomeOk (Vote _ _ _) = True
+  thisWayOutcomeOk (VoteStarting _ _ _) = True
   thisWayOutcomeOk (Move _ _ _) = True
   thisWayOutcomeOk (ExchangeLife _) = True
   thisWayOutcomeOk (ChangeLife _ _) = True
@@ -1632,8 +1672,10 @@ mutual
   thisWayOutcomeOk (ResultsTable _) = True
   thisWayOutcomeOk (IgnoreOutcomes _) = True
   thisWayOutcomeOk (ShiftResult _) = True
+  thisWayOutcomeOk (ShiftResultOneWay _ _) = True
   thisWayOutcomeOk (RollPlanarDie _ _) = True
   thisWayOutcomeOk ChaosEnsues = True
+  thisWayOutcomeOk (ChaosEnsuesFor _) = True
   thisWayOutcomeOk (StoreResults _) = True
   thisWayOutcomeOk (RerollStored _ _ _) = True
   thisWayOutcomeOk (Continuously _ _) = True
@@ -1648,8 +1690,11 @@ mutual
   thisWayOutcomeOk (PutCountersOfThoseKinds _ _) = True
   thisWayOutcomeOk (GiveCountersOfOwnKinds _) = True
   thisWayOutcomeOk (DoubleCountersOfOwnKinds _) = True
+  thisWayOutcomeOk (GiveAbilityCountersOfOwnKinds _) = True
+  thisWayOutcomeOk (RemoveCountersOfOwnKinds _) = True
   thisWayOutcomeOk (Enact _ _) = True
   thisWayOutcomeOk (Does _ _ _) = True
+  thisWayOutcomeOk (DoesGroup _ _ _) = True
   thisWayOutcomeOk (Pay _ _ _) = True
   thisWayOutcomeOk (OnlyIf _ _ _) = True
   thisWayOutcomeOk (If _ _ _) = True
@@ -1696,6 +1741,7 @@ mutual
   costActionOk (ExtraTurn who _) = costNounOk who
   costActionOk (AdditionalPart _ _ _ _) = True
   costActionOk (GetsAdditionalPart who _ _) = costNounOk who
+  costActionOk (GetsAdditionalPartAfter who _ _ _) = costNounOk who
   costActionOk (SkipsAllOf _ _) = False
   costActionOk (Distribute _ _ among) = costNounOk among
   costActionOk (Fights a _) = costNounOk a
@@ -1728,6 +1774,7 @@ mutual
   costActionOk (Choose n _ _) = costNounOk n
   costActionOk (ChoicesRevealed _) = False
   costActionOk (Vote _ _ _) = False
+  costActionOk (VoteStarting _ _ _) = False
   costActionOk (Move what _ _) = costNounOk what
   costActionOk (ExchangeLife parties) = costNounOk parties
   costActionOk (ChangeLife _ _) = True
@@ -1741,9 +1788,11 @@ mutual
   costActionOk (ResultsTable _) = False
   costActionOk (IgnoreOutcomes _) = False
   costActionOk (ShiftResult _) = False
+  costActionOk (ShiftResultOneWay _ _) = False
   costActionOk (StoreResults _) = False
   costActionOk (RollPlanarDie who _) = costNounOk who
   costActionOk ChaosEnsues = False
+  costActionOk (ChaosEnsuesFor _) = False
   costActionOk (RerollStored who _ _) = costNounOk who
   costActionOk (Continuously _ _) = False
   costActionOk (Throughout _ _) = False
@@ -1756,9 +1805,12 @@ mutual
   costActionOk (PutSameCounters src dst) = costNounOk src && costNounOk dst
   costActionOk (GiveCountersOfOwnKinds on) = costNounOk on
   costActionOk (DoubleCountersOfOwnKinds on) = costNounOk on
+  costActionOk (GiveAbilityCountersOfOwnKinds on) = costNounOk on
+  costActionOk (RemoveCountersOfOwnKinds from) = costNounOk from
   costActionOk (PutCountersOfThoseKinds _ _) = False
   costActionOk (Enact _ e) = costActionOk e
   costActionOk (Does _ _ e) = costActionOk e
+  costActionOk (DoesGroup _ _ e) = costActionOk e
   costActionOk (Pay _ _ _) = False
   costActionOk (May _ body ifDid ifNot) =
     costActionOk body && costActionOkOpt ifDid && costActionOkOpt ifNot
@@ -1831,6 +1883,7 @@ mutual
   effEq (GetsAdditionalPart w p c) (GetsAdditionalPart x q d) =
     nounEqRef w x && p == q && boundEq c d
   effEq (GetsAdditionalPart _ _ _) _ = False
+  effEq (GetsAdditionalPartAfter _ _ _ _) _ = False
   effEq (SkipsAllOf w p) (SkipsAllOf x q) = nounEqRef w x && p == q
   effEq (SkipsAllOf _ _) _ = False
   effEq (Distribute _ _ _) _ = False
@@ -1878,6 +1931,7 @@ mutual
   effEq (ChoicesRevealed a) (ChoicesRevealed b) = a == b
   effEq (ChoicesRevealed _) _ = False
   effEq (Vote _ _ _) _ = False
+  effEq (VoteStarting _ _ _) _ = False
   effEq (Move a s _) (Move b t _) = nounEqRef a b && zoneSort s == zoneSort t
   effEq (Move _ _ _) _ = False
   effEq (ExchangeLife a) (ExchangeLife b) = nounEqRef a b
@@ -1894,8 +1948,10 @@ mutual
   effEq (ResultsTable _) _ = False
   effEq (IgnoreOutcomes _) _ = False
   effEq (ShiftResult _) _ = False
+  effEq (ShiftResultOneWay _ _) _ = False
   effEq (RollPlanarDie _ _) _ = False
   effEq ChaosEnsues _ = False
+  effEq (ChaosEnsuesFor _) _ = False
   effEq (StoreResults _) _ = False
   effEq (RerollStored _ _ _) _ = False
   effEq (Continuously _ _) _ = False
@@ -1910,9 +1966,12 @@ mutual
   effEq (PutCountersOfThoseKinds _ _) _ = False
   effEq (GiveCountersOfOwnKinds _) _ = False
   effEq (DoubleCountersOfOwnKinds _) _ = False
+  effEq (GiveAbilityCountersOfOwnKinds _) _ = False
+  effEq (RemoveCountersOfOwnKinds _) _ = False
   effEq (Enact v e) (Enact w f) = v == w && effEq e f
   effEq (Enact _ _) _ = False
   effEq (Does _ _ _) _ = False
+  effEq (DoesGroup _ _ _) _ = False
   effEq (Pay _ _ _) _ = False
   effEq (May _ _ _ _) _ = False
   effEq (IfDone _ _ _) _ = False
@@ -1975,6 +2034,7 @@ mutual
   effIntro (ExtraTurn w count) = turnRefB :: (amtDelta count ++ nomIntro w)
   effIntro (AdditionalPart _ _ count _) = amtDelta count ++ bs
   effIntro (GetsAdditionalPart w _ count) = amtDelta count ++ nomIntro w
+  effIntro (GetsAdditionalPartAfter w _ count _) = amtDelta count ++ nomIntro w
   effIntro (SkipsAllOf w _) = nomIntro w
   effIntro (GetsCounters who amt _) = amtIntro amt
   effIntro (GetsCountersOfThoseKinds who amt) = amtIntro amt
@@ -2013,6 +2073,7 @@ mutual
   effIntro (Choose n (Just b) _) = nounDelta b ++ chosenIntro n
   effIntro (ChoicesRevealed _) = bs
   effIntro (Vote _ _ _) = bs
+  effIntro (VoteStarting _ _ _) = bs
   effIntro (Move what to _) =
     afterMoveTo to (moveIntro Nothing what (Just (zoneSort to)))
   effIntro (ExchangeLife parties) =
@@ -2034,8 +2095,10 @@ mutual
   effIntro (ResultsTable rows) = bs
   effIntro (IgnoreOutcomes which) = ignoredOutcomesIntro which
   effIntro (ShiftResult amt) = amtIntro amt
+  effIntro (ShiftResultOneWay _ amt) = amtIntro amt
   effIntro (RollPlanarDie who count) = outcomeB PlanarRolled :: amtIntro count
   effIntro ChaosEnsues = bs
+  effIntro (ChaosEnsuesFor what) = nomIntro what
   effIntro (StoreResults on) = nomIntro on
   effIntro (RerollStored _ _ whose) = nomIntro whose
   effIntro (Continuously se _) = staticIntro se
@@ -2055,6 +2118,8 @@ mutual
   effIntro (PutCountersOfThoseKinds amt on) = nomIntro on
   effIntro (GiveCountersOfOwnKinds on) = nomIntro on
   effIntro (DoubleCountersOfOwnKinds on) = nomIntro on
+  effIntro (GiveAbilityCountersOfOwnKinds on) = nomIntro on
+  effIntro (RemoveCountersOfOwnKinds from) = nomIntro from
   effIntro (Enact v (Move what to _)) =
     afterMoveTo to (moveIntro (Just v) what (Just (zoneSort to)))
   effIntro (Enact v (SetStatus _ n)) = stampIntro (Just v) n
@@ -2063,6 +2128,7 @@ mutual
     afterMoveTo to (moveIntro (Just v) what (Just (zoneSort to)))
   effIntro (Does s v (SetStatus _ n)) = stampIntro (Just v) n
   effIntro (Does s v e) = effIntro e
+  effIntro (DoesGroup s v e) = deedDelta e ++ nomIntro s
   effIntro (Pay who c PaidOnce) = costIntro c
   effIntro (Pay who c AnyNumberOfTimes) = outcomeB RepeatCount :: costIntro c
   effIntro (Pay who c (UpToTimes _)) = outcomeB RepeatCount :: costIntro c
@@ -2100,6 +2166,7 @@ mutual
   preIntro (ExtraTurn w count) = amtDelta count ++ nomIntro w
   preIntro (AdditionalPart _ _ count _) = amtDelta count ++ bs
   preIntro (GetsAdditionalPart w _ count) = amtDelta count ++ nomIntro w
+  preIntro (GetsAdditionalPartAfter w _ count _) = amtDelta count ++ nomIntro w
   preIntro (SkipsAllOf w _) = nomIntro w
   preIntro (GetsCounters who amt _) = amtIntro amt
   preIntro (GetsCountersOfThoseKinds who amt) = amtIntro amt
@@ -2128,6 +2195,7 @@ mutual
   preIntro (Choose n _ _) = chosenIntro n
   preIntro (ChoicesRevealed _) = bs
   preIntro (Vote _ _ _) = bs
+  preIntro (VoteStarting _ _ _) = bs
   preIntro (Move what to _) = nomIntro what
   preIntro (ExchangeLife parties) = nomIntro parties
   preIntro (ChangeLife who (Up a)) = lifeIntro (Up a)
@@ -2144,8 +2212,10 @@ mutual
   preIntro (ResultsTable rows) = bs
   preIntro (IgnoreOutcomes which) = ignoredOutcomesIntro which
   preIntro (ShiftResult amt) = amtIntro amt
+  preIntro (ShiftResultOneWay _ amt) = amtIntro amt
   preIntro (RollPlanarDie who count) = amtIntro count
   preIntro ChaosEnsues = bs
+  preIntro (ChaosEnsuesFor what) = nomIntro what
   preIntro (StoreResults on) = nomIntro on
   preIntro (RerollStored _ _ whose) = nomIntro whose
   preIntro (Continuously se _) = staticIntro se
@@ -2160,10 +2230,13 @@ mutual
   preIntro (PutCountersOfThoseKinds amt on) = nomIntro on
   preIntro (GiveCountersOfOwnKinds on) = nomIntro on
   preIntro (DoubleCountersOfOwnKinds on) = nomIntro on
+  preIntro (GiveAbilityCountersOfOwnKinds on) = nomIntro on
+  preIntro (RemoveCountersOfOwnKinds from) = nomIntro from
   preIntro (Enact v (Move what to _)) = nomIntro what
   preIntro (Enact _ e) = preIntro e
   preIntro (Does s v (Move what to _)) = nomIntro what
   preIntro (Does s v e) = preIntro e
+  preIntro (DoesGroup s v e) = nomIntro s
   preIntro (Pay who c _) = nomIntro who
   preIntro (May d body did notd) = mayIntro body did notd
   preIntro (IfDone body did notd) = mayIntro body did notd
@@ -2216,6 +2289,7 @@ mutual
   annIntro (ExtraTurn w count) = turnRefB :: (amtDelta count ++ nomIntro w)
   annIntro (AdditionalPart _ _ count _) = amtDelta count ++ bs
   annIntro (GetsAdditionalPart w _ count) = amtDelta count ++ nomIntro w
+  annIntro (GetsAdditionalPartAfter w _ count _) = amtDelta count ++ nomIntro w
   annIntro (SkipsAllOf w _) = nomIntro w
   annIntro (GetsCounters who amt _) = amtIntro amt
   annIntro (GetsCountersOfThoseKinds who amt) = amtIntro amt
@@ -2247,6 +2321,7 @@ mutual
   annIntro (Choose n _ _) = chosenIntro n
   annIntro (ChoicesRevealed _) = bs
   annIntro (Vote _ _ _) = bs
+  annIntro (VoteStarting _ _ _) = bs
   annIntro (Move what to _) = nomIntro what
   annIntro (ExchangeLife parties) = nomIntro parties
   annIntro (ChangeLife who (Up a)) = lifeIntro (Up a)
@@ -2263,8 +2338,10 @@ mutual
   annIntro (ResultsTable rows) = bs
   annIntro (IgnoreOutcomes which) = ignoredOutcomesIntro which
   annIntro (ShiftResult amt) = amtIntro amt
+  annIntro (ShiftResultOneWay _ amt) = amtIntro amt
   annIntro (RollPlanarDie who count) = amtIntro count
   annIntro ChaosEnsues = bs
+  annIntro (ChaosEnsuesFor what) = nomIntro what
   annIntro (StoreResults on) = nomIntro on
   annIntro (RerollStored _ _ whose) = nomIntro whose
   annIntro (Continuously se _) = staticIntro se
@@ -2279,10 +2356,13 @@ mutual
   annIntro (PutCountersOfThoseKinds amt on) = nomIntro on
   annIntro (GiveCountersOfOwnKinds on) = nomIntro on
   annIntro (DoubleCountersOfOwnKinds on) = nomIntro on
+  annIntro (GiveAbilityCountersOfOwnKinds on) = nomIntro on
+  annIntro (RemoveCountersOfOwnKinds from) = nomIntro from
   annIntro (Enact v (Move what to _)) = nomIntro what
   annIntro (Enact _ e) = annIntro e
   annIntro (Does s v (Move what to _)) = nomIntro what
   annIntro (Does s v e) = annIntro e
+  annIntro (DoesGroup s v e) = deedDelta e ++ nomIntro s
   annIntro (Pay who c _) = nomIntro who
   annIntro (May d body did notd) = annIntro body
   annIntro (IfDone body did notd) = annIntro body
@@ -2342,6 +2422,7 @@ mutual
   deedDelta (ExtraTurn _ _) = []
   deedDelta (AdditionalPart _ _ _ _) = []
   deedDelta (GetsAdditionalPart _ _ _) = []
+  deedDelta (GetsAdditionalPartAfter _ _ _ _) = []
   deedDelta (SkipsAllOf _ _) = []
   deedDelta (GetsCounters _ _ _) = []
   deedDelta (GetsCountersOfThoseKinds _ _) = []
@@ -2375,6 +2456,7 @@ mutual
   deedDelta (Choose n _ _) = []
   deedDelta (ChoicesRevealed _) = []
   deedDelta (Vote _ _ _) = []
+  deedDelta (VoteStarting _ _ _) = []
   deedDelta (Move what to _) = []
   deedDelta (ExchangeLife _) = [outcomeB LifeGained, outcomeB LifeLost]
   deedDelta (ChangeLife who (Up a)) = [outcomeB LifeGained]
@@ -2392,8 +2474,10 @@ mutual
   deedDelta (ResultsTable _) = []
   deedDelta (IgnoreOutcomes _) = []
   deedDelta (ShiftResult _) = []
+  deedDelta (ShiftResultOneWay _ _) = []
   deedDelta (RollPlanarDie _ _) = [outcomeB PlanarRolled]
   deedDelta ChaosEnsues = []
+  deedDelta (ChaosEnsuesFor _) = []
   deedDelta (StoreResults _) = []
   deedDelta (RerollStored _ _ _) = []
   deedDelta (Continuously se _) = []
@@ -2410,10 +2494,13 @@ mutual
   deedDelta (PutCountersOfThoseKinds amt on) = []
   deedDelta (GiveCountersOfOwnKinds on) = []
   deedDelta (DoubleCountersOfOwnKinds on) = []
+  deedDelta (GiveAbilityCountersOfOwnKinds _) = []
+  deedDelta (RemoveCountersOfOwnKinds _) = []
   deedDelta (Enact v (Move what to _)) = []
   deedDelta (Enact _ e) = deedDelta e
   deedDelta (Does s v (Move what to _)) = []
   deedDelta (Does s v e) = deedDelta e
+  deedDelta (DoesGroup s v e) = deedDelta e
   deedDelta (Pay who c _) = []
   deedDelta (May d body did notd) = []
   deedDelta (IfDone body did notd) = []
@@ -2588,10 +2675,21 @@ mutual
   Untargeting {bs} se = So (not (anyTargetedAt (staticIntro se)))
 
   public export
+  effectNamesThisDoor : {0 bs : Bindings} -> Effect bs -> Bool
+  effectNamesThisDoor (Delayed ev alts _ _) =
+    eventNamesThisDoor ev || anyEventNamesThisDoor alts
+  effectNamesThisDoor (HeldUntil _ ev) = eventNamesThisDoor ev
+  effectNamesThisDoor (ThisWay _ ev _) = eventNamesThisDoor ev
+  effectNamesThisDoor _ = False
+
+  public export
   abilityNamesThisDoor : {0 bs : Bindings} -> AbilityAt bs -> Bool
-  abilityNamesThisDoor (Triggered _ ev alts while joins _ _ _ _) =
+  abilityNamesThisDoor (Activated _ eff _ _ _ _) = effectNamesThisDoor eff
+  abilityNamesThisDoor (Triggered _ ev alts while joins _ _ _ eff) =
     eventNamesThisDoor ev || anyEventNamesThisDoor alts ||
-      concurrentNamesThisDoor while || joinsNameThisDoor joins
+      concurrentNamesThisDoor while || joinsNameThisDoor joins ||
+      effectNamesThisDoor eff
+  abilityNamesThisDoor (Spell eff) = effectNamesThisDoor eff
   abilityNamesThisDoor (ItalicHead _ ab) = abilityNamesThisDoor ab
   abilityNamesThisDoor (AlsoForKeywords ab _) = abilityNamesThisDoor ab
   abilityNamesThisDoor _ = False
@@ -2876,8 +2974,7 @@ mutual
     public export
     data CostSeq : Nat -> Bindings -> Type where
       Nil : CostSeq Z bs
-      (::) : (c : Cost bs) -> {auto 0 nc : NotCompound c} ->
-             CostSeq n (costIntro c) -> CostSeq (S n) bs
+      (::) : (c : Cost bs) -> CostSeq n (costIntro c) -> CostSeq (S n) bs
 
   namespace Text
     public export

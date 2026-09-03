@@ -7681,7 +7681,7 @@ gaddockTeeg =
                                 Compare [CharAxis ManaValue] AtLeast (Lit 4)])))
        , Static (Macros.objectCant "Cast"
                    (AllOf (And [Macros.spell, Not (HasType Creature),
-                                ManaCostHasX]))) ]
+                                ManaCostHas Variable]))) ]
        (Just (2, 2))
 
 ||| Vexing Shusher
