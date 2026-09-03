@@ -1105,17 +1105,26 @@ badActivatedClosesCardLetter Oh impossible
 ||| "This creature can attack as though it were mana of any color."
 public export
 badManaPremiseAtAttack : Unspellable (StaticEffect []) (\ok =>
-  Deontic Macros.thisCreature Permit ["Attack"] Agent NoDeonticPatient
+  Deontic Macros.thisCreature Permit ["Attack"] Agent Nothing NoDeonticPatient
           (Just (AsThoughMana Nothing MatchAnyColor Nothing)) NoDeonticRider
           {at = ok})
 badManaPremiseAtAttack Oh impossible
+
+
+||| "This spell can't be countered more than once."
+||| Countering removes the spell from the stack [CR#701.6a], so no second countering of it can occur.
+public export
+badCounterBoundTwice : Unspellable (StaticEffect []) (\ok =>
+  Deontic This Forbid ["Counter"] Patient (Just (MoreThan (Lit 1))) NoDeonticPatient
+          Nothing NoDeonticRider {bd = ok})
+badCounterBoundTwice Oh impossible
 
 
 ||| "You may spend mana as though it weren't a creature."
 ||| [CR#609.4b] makes the spend permission's premise a statement about mana, and no description of an OBJECT is one; the premise would say the mana counts as something no cost is paid with.
 public export
 badObjectPremiseAtSpend : Unspellable (StaticEffect []) (\ok =>
-  Deontic You Permit ["Spend"] Agent NoDeonticPatient
+  Deontic You Permit ["Spend"] Agent Nothing NoDeonticPatient
           (Just (AsThoughOf (Not Macros.creature))) NoDeonticRider {at = ok})
 badObjectPremiseAtSpend Oh impossible
 

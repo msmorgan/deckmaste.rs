@@ -819,6 +819,7 @@ record ActFacts where
   actCounterfactual : Maybe PremiseSort
   actRides : Bool
   actPlays : Bool
+  actBounded : Bool
 
 public export
 actFacts : List ActFacts
@@ -826,146 +827,149 @@ actFacts =
   [ MkActFacts "Destroy"     (Just "destroyed") (Just Object)
       (Just Graveyard) False [] False
       noRole (MkDeedRole [] [] False (Just Battlefield))
-      False False Nothing False False
+      False False Nothing False False False
   , MkActFacts "Sacrifice"   (Just "sacrificed") (Just Object)
       (Just Graveyard) False [] False
       (MkDeedRole [Player] [] True Nothing)
       (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment,
                             Planeswalker, Battle] True (Just Battlefield))
-      False False Nothing False False
+      False False Nothing False False True
   , MkActFacts "Exile"       (Just "exiled")    (Just Object)
       (Just Exile) False [] False
       noRole noRole
-      False False Nothing False False
+      False False Nothing False False False
   , MkActFacts "Discard"     (Just "discarded") (Just Object)
       (Just Graveyard) False [] False
       noRole (MkDeedRole [] [] False (Just Hand))
-      False False Nothing False False
+      False False Nothing False False False
   , MkActFacts "Mill"        (Just "milled")    (Just Object)
       (Just Graveyard) False [] False
       noRole (MkDeedRole [] [] False (Just Library))
-      False False Nothing False False
+      False False Nothing False False False
   , MkActFacts "Scry"        Nothing Nothing Nothing True [] False
       noRole noRole
-      False False Nothing False False
+      False False Nothing False False False
   , MkActFacts "Surveil"     Nothing Nothing Nothing True [] False
       noRole noRole
-      False False Nothing False False
+      False False Nothing False False False
   , MkActFacts "Tap"         (Just "tapped")    (Just Object) Nothing False [] False
       noRole (MkDeedRole [] [] False (Just Battlefield))
-      False False Nothing False False
+      False False Nothing False False False
   , MkActFacts "Untap"       (Just "untapped")  (Just Object) Nothing False [] False
       (MkDeedRole [Player] [] True Nothing)
       (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment,
                             Planeswalker, Battle] True (Just Battlefield))
-      False False Nothing False False
+      False False Nothing False False True
   , MkActFacts "Return"      Nothing (Just Object) Nothing False [] False
       noRole noRole
-      False False Nothing False False
+      False False Nothing False False False
   , MkActFacts "GainControl" Nothing (Just Object) Nothing False [] False
       noRole (MkDeedRole [] [] False (Just Battlefield))
-      False False Nothing False False
+      False False Nothing False False False
   , MkActFacts "Put"         Nothing (Just Object) Nothing False [] False
       noRole noRole
-      False False Nothing False False
+      False False Nothing False False False
   , MkActFacts "Search"      Nothing Nothing Nothing False
       [Battlefield, Graveyard, Exile, Hand, Library, Stack, Command] False
       (MkDeedRole [Player] [] True Nothing) noRole
-      False False Nothing False False
+      False False Nothing False False True
   , MkActFacts "Shuffle"     Nothing Nothing Nothing False [Library] False
       noRole noRole
-      False False Nothing False False
+      False False Nothing False False False
   , MkActFacts "Proliferate" Nothing Nothing Nothing False [] False
       noRole noRole
-      False False Nothing False False
+      False False Nothing False False False
   , MkActFacts "The Ring Tempts You" Nothing Nothing Nothing False [] False
       noRole noRole
-      False False Nothing False False
+      False False Nothing False False False
   , MkActFacts "Transform"   Nothing (Just Object) Nothing False [] True
       noRole (MkDeedRole [] [] False (Just Battlefield))
-      False False Nothing False False
+      False False Nothing False False False
   , MkActFacts "Convert"     Nothing (Just Object) Nothing False [] True
       noRole (MkDeedRole [] [] False (Just Battlefield))
-      False False Nothing False False
+      False False Nothing False False False
   , MkActFacts "Meld"        Nothing (Just Object) (Just Battlefield) False [] False
       noRole noRole
-      False False Nothing False False
+      False False Nothing False False False
   , MkActFacts "Unlock"      Nothing Nothing Nothing False [] False
       noRole (MkDeedRole [] [] False (Just Battlefield))
-      False False Nothing False False
+      False False Nothing False False False
   , MkActFacts "Fully Unlock" Nothing (Just Object) Nothing False [] False
       noRole (MkDeedRole [] [] False (Just Battlefield))
-      False False Nothing False False
+      False False Nothing False False False
   , MkActFacts "Attack"      Nothing Nothing Nothing False [] False
       (MkDeedRole [Object] [Creature] True (Just Battlefield))
       (MkDeedRole [Object] [Planeswalker, Battle] False (Just Battlefield))
-      True False (Just ObjectPremise) False False
+      True False (Just ObjectPremise) False False True
   , MkActFacts "Block"       Nothing Nothing Nothing False [] False
       (MkDeedRole [Object] [Creature] True (Just Battlefield))
       (MkDeedRole [Object] [Creature] False (Just Battlefield))
-      False False (Just ObjectPremise) False False
+      False False (Just ObjectPremise) False False True
   , MkActFacts "Target"      Nothing Nothing Nothing False [] False
       (MkDeedRole [] [] True (Just Stack))
       (MkDeedRole [Object, Player] [Creature, Artifact, Land, Enchantment, Instant, Sorcery,
                    Planeswalker, Battle, Kindred] True Nothing)
-      False True (Just ObjectPremise) False False
+      False True (Just ObjectPremise) False False True
   , MkActFacts "Cast"        Nothing Nothing Nothing False [] False
       (MkDeedRole [Player] [] True Nothing)
       (MkDeedRole [Object] [Creature, Artifact, Enchantment, Instant, Sorcery,
                    Planeswalker, Battle, Kindred] True (Just Stack))
-      False False (Just ObjectPremise) True True
+      False False (Just ObjectPremise) True True True
   , MkActFacts "Play"        Nothing Nothing Nothing False [] False
       (MkDeedRole [Player] [] True Nothing)
       (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment, Instant, Sorcery,
                    Planeswalker, Battle, Kindred] True Nothing)
-      False False (Just ObjectPremise) True True
+      False False (Just ObjectPremise) True True True
   , MkActFacts "Counter"     Nothing Nothing Nothing False [] False
       (MkDeedRole [] [] True (Just Stack))
       (MkDeedRole [Object] [Creature, Artifact, Enchantment, Instant, Sorcery,
                    Planeswalker, Battle, Kindred] True (Just Stack))
-      False False Nothing True False
+      False False Nothing True False False
   , MkActFacts "Copy"        Nothing Nothing Nothing False [] False
       (MkDeedRole [] [] True (Just Stack))
       (MkDeedRole [Object] [Creature, Artifact, Enchantment, Instant, Sorcery,
                    Planeswalker, Battle, Kindred] True (Just Stack))
-      False False Nothing False False
+      False False Nothing False False True
   , MkActFacts "Activate"    Nothing Nothing Nothing False [] False
       (MkDeedRole [Player] [] True Nothing)
       (MkDeedRole [Ability] [] True Nothing)
-      False False Nothing False False
+      False False Nothing False False True
   , MkActFacts "Regenerate"  Nothing Nothing Nothing False [] False
       (MkDeedRole [] [] True Nothing)
       (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment,
                             Planeswalker, Battle] True (Just Battlefield))
-      False False Nothing True False
+      False False Nothing True False True
   , MkActFacts "GainLife"    Nothing Nothing Nothing False [] False
       (MkDeedRole [Player] [] True Nothing) noRole
-      False False Nothing False False
+      False False Nothing False False True
   , MkActFacts "DrawCard"    Nothing Nothing Nothing False [] False
       (MkDeedRole [Player] [] True Nothing)
       (MkDeedRole [Object] [] True (Just Library))
-      False False Nothing False False
+      False False Nothing False False True
   , MkActFacts "Trigger"     Nothing Nothing Nothing False [] False
       (MkDeedRole [Ability] [] True Nothing) noRole
-      False False Nothing False False
+      False False Nothing False False True
   , MkActFacts "LoseGame"    Nothing Nothing Nothing False [] False
       (MkDeedRole [Player] [] True Nothing) noRole
-      False False Nothing False False
+      False False Nothing False False False
   , MkActFacts "WinGame"     Nothing Nothing Nothing False [] False
       (MkDeedRole [Player] [] True Nothing) noRole
-      False False Nothing False False
+      False False Nothing False False False
   , MkActFacts "Spend"       Nothing Nothing Nothing False [] False
       (MkDeedRole [Player] [] True Nothing) noRole
-      False False (Just ManaPremise) False False
+      False False (Just ManaPremise) False False True
   , MkActFacts "Crew"        Nothing Nothing Nothing False [] False
       (MkDeedRole [Object] [Creature] True (Just Battlefield))
       (MkDeedRole [Object] [Artifact] True (Just Battlefield))
-      False False (Just ValuePremise) False False
+      False False (Just ValuePremise) False False True
   , MkActFacts "Saddle"      Nothing Nothing Nothing False [] False
       (MkDeedRole [Object] [Creature] True (Just Battlefield))
       (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment,
                             Planeswalker, Battle] True (Just Battlefield))
-      False False (Just ValuePremise) False False
+      False False (Just ValuePremise) False False True
+  , MkActFacts "Vote"        Nothing Nothing Nothing False [] False
+      (MkDeedRole [Player] [] True Nothing) noRole
+      False False Nothing False False True
   ]
 
 public export

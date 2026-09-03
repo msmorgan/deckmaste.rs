@@ -350,7 +350,8 @@ badThatTokenOfCard (Refl, _) impossible
 ||| The lock's subject stands on the battlefield — only a permanent untaps [CR#701.26b].
 public export
 badUntapLockGraveyard : Unspellable Ability (\ok =>
-  Static (DoesntUntap (Macros.a (And [Macros.creature, InZone (Macros.graveyardOf You)])) {zn = ok}))
+  Static (Macros.doesntUntap (Macros.a (And [Macros.creature, InZone (Macros.graveyardOf You)]))
+                             (Just Yours) {zn = ok}))
 badUntapLockGraveyard Oh impossible
 
 

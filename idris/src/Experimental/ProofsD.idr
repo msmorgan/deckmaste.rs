@@ -127,7 +127,7 @@ badCounterJoinedPlayer JoinCountered impossible
 ||| "You may play a spell this turn."
 public export
 badPlayFromStack : Unspellable (Effect []) (\ok =>
-  Continuously (Deontic You Permit ["Play"] Agent
+  Continuously (Deontic You Permit ["Play"] Agent Nothing
                   (DeonticCounterpart (Macros.a Macros.spell)) Nothing
                   (PlayRider Nothing Nothing Nothing False ItsOwnCost) {rd = ok})
                (Just Macros.thisTurn))
@@ -138,7 +138,7 @@ badPlayFromStack Oh impossible
 ||| A land card "can be played only as a land. It can't be cast as a spell" [CR#305.9].
 public export
 badCastALand : Unspellable (Effect []) (\ok =>
-  Continuously (Deontic You Permit ["Cast"] Agent
+  Continuously (Deontic You Permit ["Cast"] Agent Nothing
                   (DeonticCounterpart
                      (Macros.a (And [Macros.land, InZone (Macros.graveyardOf You)])))
                   Nothing (PlayRider Nothing Nothing Nothing False ItsOwnCost)
@@ -151,7 +151,7 @@ badCastALand Oh impossible
 ||| A written source phrase must agree with the zone the complement already names.
 public export
 badPlayFromWrongZone : Unspellable (Effect []) (\ok =>
-  Continuously (Deontic You Permit ["Play"] Agent
+  Continuously (Deontic You Permit ["Play"] Agent Nothing
                   (DeonticCounterpart
                      (Macros.a (And [Macros.creature, InZone Macros.exileZ])))
                   Nothing
@@ -270,8 +270,8 @@ badBlockingGraveyardRelatum Oh impossible
 ||| [CR#502.3] untaps the permanents a player controls, which a graveyard phrase contradicts.
 public export
 badUntapCapGraveyardSet : Unspellable Ability (\ok =>
-  Static (CantMoreThan (PlayerGroup AllPlayers) "Untap" 1
-                         (And [Macros.creature, InZone (Macros.graveyardOf You)]) {zn = ok}))
+  Static (Macros.cantMoreThan (PlayerGroup AllPlayers) "Untap" 1
+                              (And [Macros.creature, InZone (Macros.graveyardOf You)]) {pt = ok}))
 badUntapCapGraveyardSet Oh impossible
 
 

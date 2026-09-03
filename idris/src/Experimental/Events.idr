@@ -394,6 +394,10 @@ deedPlaysOk : VerbLabel -> Bool
 deedPlaysOk v = maybe False actPlays (actFactsFor v)
 
 public export
+deedBoundedOk : VerbLabel -> Bool
+deedBoundedOk v = maybe False actBounded (actFactsFor v)
+
+public export
 Deeds : Type
 Deeds = List VerbLabel
 
@@ -435,10 +439,6 @@ data StaticKind = PtDelta | KeywordGrant | DeedRestriction | TypeAddition
                 | CopyEffect
                 | VisibilityRider
                 | OutcomeImmunity
-                | LandAllowance
-                | BlockAllowance
-                | VoteAllowance
-                | UntapGrant
                 | TriggerMultiplier
                 | TurnSkip
                 | LetterDefinition

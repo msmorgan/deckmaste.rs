@@ -53,12 +53,12 @@ keywordCardOk CommandZoneCard k = maybe False onCommandZoneCard (keywordFactsFor
 
 public export
 staticOnSpellCardOk : {0 bs : Bindings} -> StaticEffect bs -> Bool
-staticOnSpellCardOk (Deontic _ Forbid ["Counter"] Patient _ _ _) = True
-staticOnSpellCardOk (Deontic _ Forbid ["Copy"] Patient _ _ _) = True
+staticOnSpellCardOk (Deontic _ Forbid ["Counter"] Patient _ _ _ _) = True
+staticOnSpellCardOk (Deontic _ Forbid ["Copy"] Patient _ _ _ _) = True
 staticOnSpellCardOk (AltCost This _) = True
 staticOnSpellCardOk (CostsToCast This _) = True
 staticOnSpellCardOk (AddedCost _ _) = True
-staticOnSpellCardOk (OnlyDuring _ _ (Deontic _ Permit ["Cast"] Patient _ _ _)) = True
+staticOnSpellCardOk (OnlyDuring _ _ (Deontic _ Permit ["Cast"] Patient _ _ _ _)) = True
 staticOnSpellCardOk (OnlyDuring _ _ se) = staticOnSpellCardOk se
 staticOnSpellCardOk (Conditionally _ se _) = staticOnSpellCardOk se
 staticOnSpellCardOk (OnlyWhile se _ _) = staticOnSpellCardOk se

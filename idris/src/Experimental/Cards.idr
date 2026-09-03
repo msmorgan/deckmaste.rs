@@ -771,7 +771,7 @@ aphettoAlchemist = Macros.activated TapSymbol
 
 ||| Time Vault
 timeVaultLock : Ability
-timeVaultLock = Static (DoesntUntap Macros.thisArtifact)
+timeVaultLock = Static (Macros.doesntUntap Macros.thisArtifact (Just Yours))
 
 vindicate : Effect []
 vindicate = Macros.destroy (Macros.target Permanent)
@@ -1174,23 +1174,23 @@ vertigoSpawn =
 
 
 munghaWurm : Ability
-munghaWurm = Static (CantMoreThan You "Untap" 1 Macros.land)
+munghaWurm = Static (Macros.cantMoreThan You "Untap" 1 Macros.land)
 
 dampingField : Ability
-dampingField = Static (CantMoreThan (PlayerGroup AllPlayers) "Untap" 1 Macros.artifact)
+dampingField = Static (Macros.cantMoreThan (PlayerGroup AllPlayers) "Untap" 1 Macros.artifact)
 
 smoke : Ability
-smoke = Static (CantMoreThan (PlayerGroup AllPlayers) "Untap" 1 Macros.creature)
+smoke = Static (Macros.cantMoreThan (PlayerGroup AllPlayers) "Untap" 1 Macros.creature)
 
 winterOrb : Ability
 winterOrb =
   Static (Macros.asLongAs (Matches Macros.thisArtifact Macros.untapped)
-                          (CantMoreThan (PlayerGroup AllPlayers) "Untap" 1 Macros.land))
+                          (Macros.cantMoreThan (PlayerGroup AllPlayers) "Untap" 1 Macros.land))
 
 staticOrb : Ability
 staticOrb =
   Static (Macros.asLongAs (Matches Macros.thisArtifact Macros.untapped)
-                          (CantMoreThan (PlayerGroup AllPlayers) "Untap" 2 Permanent))
+                          (Macros.cantMoreThan (PlayerGroup AllPlayers) "Untap" 2 Permanent))
 
 ||| Rule of Law
 public export
@@ -1198,7 +1198,7 @@ ruleOfLaw : Card
 ruleOfLaw =
   Macros.card "Rule of Law" (Just [Macros.generic 2, Macros.pip White]) []
        (MkTypeLine [] [Enchantment])
-       [ Static (CantMoreThan (PlayerGroup AllPlayers) "Cast" 1 Macros.spell) ]
+       [ Static (Macros.cantMoreThan (PlayerGroup AllPlayers) "Cast" 1 Macros.spell) ]
        Nothing
 
 ||| Spirit of the Labyrinth
@@ -1208,7 +1208,7 @@ spiritOfTheLabyrinth =
   Macros.card "Spirit of the Labyrinth"
        (Just [Macros.generic 1, Macros.pip White]) []
        (MkTypeLine [creatureType "Spirit"] [Enchantment, Creature])
-       [ Static (CantMoreThan (PlayerGroup AllPlayers) "DrawCard" 1 IsCard) ]
+       [ Static (Macros.cantMoreThan (PlayerGroup AllPlayers) "DrawCard" 1 IsCard) ]
        (Just (3, 1))
 
 
@@ -1321,7 +1321,7 @@ furiousSpinesplitter =
 
 winterMoon : Ability
 winterMoon =
-  Static (CantMoreThan (PlayerGroup AllPlayers) "Untap" 1
+  Static (Macros.cantMoreThan (PlayerGroup AllPlayers) "Untap" 1
                          (And [Macros.land, Not (HasSupertype Basic)]))
 
 cradleToGrave : Effect []
@@ -1395,7 +1395,7 @@ loathsomeCatoblepas =
                           (Just Macros.thisTurn))
 
 ashnodsBattleGear : Ability
-ashnodsBattleGear = Static (MayDeclineUntap Macros.thisArtifact)
+ashnodsBattleGear = Static (Macros.mayDeclineUntap Macros.thisArtifact (Just Yours))
 
 
 throneWarden : Ability
@@ -2383,7 +2383,7 @@ bombur =
        (MkTypeLine [creatureType "Dwarf", creatureType "Bard"] [Creature])
        [ Macros.keyword "Storied"
        , Static (Macros.unlessSo (Matches You (HasDesignation EnduringStory))
-                                 (DoesntUntap Macros.thisCreature)) ]
+                                 (Macros.doesntUntap Macros.thisCreature (Just Yours))) ]
        (Just (5, 3))
 
 
@@ -6422,7 +6422,7 @@ vedalkenOrrery : Card
 vedalkenOrrery =
   Macros.card "Vedalken Orrery" (Just [Macros.generic 4]) []
        (MkTypeLine [] [Artifact])
-       [ Static ((Deontic You Permit ["Cast"] Agent (DeonticCounterpart (AllOf Macros.spell)) (Just (AsThoughOf (HasKeyword (TheKeyword "Flash")))) (PlayRider Nothing Nothing Nothing False ItsOwnCost))) ]
+       [ Static ((Deontic You Permit ["Cast"] Agent Nothing (DeonticCounterpart (AllOf Macros.spell)) (Just (AsThoughOf (HasKeyword (TheKeyword "Flash")))) (PlayRider Nothing Nothing Nothing False ItsOwnCost))) ]
        Nothing
 
 public export
@@ -6431,7 +6431,7 @@ shimmerMyr =
   Macros.card "Shimmer Myr" (Just [Macros.generic 3]) []
        (MkTypeLine [creatureType "Myr"] [Artifact, Creature])
        [ Macros.keyword "Flash"
-       , Static ((Deontic You Permit ["Cast"] Agent (DeonticCounterpart (AllOf (And [Macros.spell, HasType Artifact]))) (Just (AsThoughOf (HasKeyword (TheKeyword "Flash")))) (PlayRider Nothing Nothing Nothing False ItsOwnCost))) ]
+       , Static ((Deontic You Permit ["Cast"] Agent Nothing (DeonticCounterpart (AllOf (And [Macros.spell, HasType Artifact]))) (Just (AsThoughOf (HasKeyword (TheKeyword "Flash")))) (PlayRider Nothing Nothing Nothing False ItsOwnCost))) ]
        (Just (2, 2))
 
 public export
@@ -6440,7 +6440,7 @@ quickSliver =
   Macros.card "Quick Sliver" (Just [Macros.generic 1, Macros.pip Green]) []
        (MkTypeLine [creatureType "Sliver"] [Creature])
        [ Macros.keyword "Flash"
-       , Static ((Deontic (Macros.a AnyPlayer) Permit ["Cast"] Agent (DeonticCounterpart (AllOf (And [Macros.spell, HasSubtype (creatureType "Sliver")]))) (Just (AsThoughOf (HasKeyword (TheKeyword "Flash")))) (PlayRider Nothing Nothing Nothing False ItsOwnCost))) ]
+       , Static ((Deontic (Macros.a AnyPlayer) Permit ["Cast"] Agent Nothing (DeonticCounterpart (AllOf (And [Macros.spell, HasSubtype (creatureType "Sliver")]))) (Just (AsThoughOf (HasKeyword (TheKeyword "Flash")))) (PlayRider Nothing Nothing Nothing False ItsOwnCost))) ]
        (Just (1, 1))
 
 public export
@@ -6449,7 +6449,7 @@ vernalEquinox =
   Macros.card "Vernal Equinox"
        (Just [Macros.generic 3, Macros.pip Green]) []
        (MkTypeLine [] [Enchantment])
-       [ Static ((Deontic (Macros.a AnyPlayer) Permit ["Cast"] Agent (DeonticCounterpart (AllOf (And [Macros.spell,
+       [ Static ((Deontic (Macros.a AnyPlayer) Permit ["Cast"] Agent Nothing (DeonticCounterpart (AllOf (And [Macros.spell,
                                                      Or [HasType Creature, HasType Enchantment]]))) (Just (AsThoughOf (HasKeyword (TheKeyword "Flash")))) (PlayRider Nothing Nothing Nothing False ItsOwnCost))) ]
        Nothing
 
@@ -6459,7 +6459,7 @@ borneUponAWind =
   Macros.card "Borne Upon a Wind" (Just [Macros.generic 1, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
        [ Spell (Continuously
-                  ((Deontic You Permit ["Cast"] Agent (DeonticCounterpart (AllOf Macros.spell)) (Just (AsThoughOf (HasKeyword (TheKeyword "Flash")))) (PlayRider Nothing Nothing Nothing False ItsOwnCost)))
+                  ((Deontic You Permit ["Cast"] Agent Nothing (DeonticCounterpart (AllOf Macros.spell)) (Just (AsThoughOf (HasKeyword (TheKeyword "Flash")))) (PlayRider Nothing Nothing Nothing False ItsOwnCost)))
                   (Just Macros.thisTurn))
        , Spell (Macros.draw You (Lit 1)) ]
        Nothing
@@ -6624,7 +6624,7 @@ exploration : Card
 exploration =
   Macros.card "Exploration" (Just [Macros.pip Green]) []
        (MkTypeLine [] [Enchantment])
-       [ Static (MayPlayAdditionalLands You (Macros.exactly 1)) ]
+       [ Static (Macros.mayPlayAdditionalLands You (Macros.exactly 1)) ]
        Nothing
 
 public export
@@ -6633,7 +6633,7 @@ oracleOfMulDaya =
   Macros.card "Oracle of Mul Daya"
        (Just [Macros.generic 3, Macros.pip Green]) []
        (MkTypeLine [creatureType "Elf", creatureType "Shaman"] [Creature])
-       [ Static (MayPlayAdditionalLands You (Macros.exactly 1))
+       [ Static (Macros.mayPlayAdditionalLands You (Macros.exactly 1))
        , Static (Visibility Reveal You TopOfLibrary)
        , Static ((Macros.mayPlayDeed "Play" You (AllOf Macros.land) (PlayRider (Macros.fromZ Macros.onTopZ) Nothing Nothing False ItsOwnCost))) ]
        (Just (2, 2))
@@ -6644,7 +6644,7 @@ azusaLostButSeeking =
   Macros.card "Azusa, Lost but Seeking"
        (Just [Macros.generic 2, Macros.pip Green]) [Legendary]
        (MkTypeLine [creatureType "Human", creatureType "Monk"] [Creature])
-       [ Static (MayPlayAdditionalLands You (Macros.exactly 2)) ]
+       [ Static (Macros.mayPlayAdditionalLands You (Macros.exactly 2)) ]
        (Just (1, 2))
 
 public export
@@ -6653,7 +6653,7 @@ summerBloom =
   Macros.card "Summer Bloom"
        (Just [Macros.generic 1, Macros.pip Green]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Continuously (MayPlayAdditionalLands You (Macros.upTo 3))
+       [ Spell (Continuously (Macros.mayPlayAdditionalLands You (Macros.upTo 3))
                              (Just ThisTurn)) ]
        Nothing
 
@@ -6663,7 +6663,7 @@ explore =
   Macros.card "Explore" (Just [Macros.generic 1, Macros.pip Green]) []
        (MkTypeLine [] [Sorcery])
        [ Spell (Sequentially
-           [ Continuously (MayPlayAdditionalLands You (Macros.exactly 1))
+           [ Continuously (Macros.mayPlayAdditionalLands You (Macros.exactly 1))
                           (Just ThisTurn)
            , (Macros.draw You (Lit 1)) ]) ]
        Nothing
@@ -6676,14 +6676,14 @@ urbanEvolution =
        (MkTypeLine [] [Sorcery])
        [ Spell (Sequentially
            [ Draw You (Lit 3)
-           , Continuously (MayPlayAdditionalLands You (Macros.exactly 1))
+           , Continuously (Macros.mayPlayAdditionalLands You (Macros.exactly 1))
                           (Just ThisTurn) ]) ]
        Nothing
 
 public export
 eachPlayerPlaysAdditionalLand : StaticEffect []
 eachPlayerPlaysAdditionalLand =
-  MayPlayAdditionalLands (Each AnyPlayer) (Macros.exactly 1)
+  Macros.mayPlayAdditionalLands (Each AnyPlayer) (Macros.exactly 1)
 
 public export
 prismaticOmen : Card
@@ -6699,7 +6699,7 @@ dryadOfTheIlysianGrove =
   Macros.card "Dryad of the Ilysian Grove"
        (Just [Macros.generic 2, Macros.pip Green]) []
        (MkTypeLine [creatureType "Nymph", creatureType "Dryad"] [Enchantment, Creature])
-       [ Static (MayPlayAdditionalLands You (Macros.exactly 1))
+       [ Static (Macros.mayPlayAdditionalLands You (Macros.exactly 1))
        , Static (Becomes (AllOf (And [Macros.land, ControlledBy You])) Adds (EveryTypeOf BasicLandSpace)) ]
        (Just (2, 4))
 
@@ -7126,8 +7126,7 @@ seedbornMuse =
   Macros.card "Seedborn Muse"
        (Just [Macros.generic 3, Macros.pip Green, Macros.pip Green]) []
        (MkTypeLine [creatureType "Spirit"] [Creature])
-       [ Static (OnlyDuring UntapStep (Just EachOthers)
-                   (UntapsDuringStep (AllOf (ControlledBy You)))) ]
+       [ Static (Macros.untapsDuring (AllOf (ControlledBy You)) (Just EachOthers)) ]
        (Just (2, 4))
 
 ||| Unwinding Clock
@@ -7136,9 +7135,8 @@ unwindingClock : Card
 unwindingClock =
   Macros.card "Unwinding Clock" (Just [Macros.generic 4]) []
        (MkTypeLine [] [Artifact])
-       [ Static (OnlyDuring UntapStep (Just EachOthers)
-                   (UntapsDuringStep
-                      (AllOf (And [Macros.artifact, ControlledBy You])))) ]
+       [ Static (Macros.untapsDuring (AllOf (And [Macros.artifact, ControlledBy You]))
+                                     (Just EachOthers)) ]
        Nothing
 
 ||| Drumbellower
@@ -7148,9 +7146,8 @@ drumbellower =
   Macros.card "Drumbellower" (Just [Macros.generic 2, Macros.pip White]) []
        (MkTypeLine [creatureType "Spirit"] [Creature])
        [ Macros.keyword "Flying"
-       , Static (OnlyDuring UntapStep (Just EachOthers)
-                   (UntapsDuringStep
-                      (AllOf (And [Macros.creature, ControlledBy You])))) ]
+       , Static (Macros.untapsDuring (AllOf (And [Macros.creature, ControlledBy You]))
+                                     (Just EachOthers)) ]
        (Just (2, 1))
 
 ||| Thousand Moons Infantry
@@ -7160,9 +7157,15 @@ thousandMoonsInfantry =
   Macros.card "Thousand Moons Infantry"
        (Just [Macros.generic 2, Macros.pip White]) []
        (MkTypeLine [creatureType "Human", creatureType "Soldier"] [Creature])
-       [ Static (OnlyDuring UntapStep (Just EachOthers)
-                   (UntapsDuringStep Macros.thisCreature)) ]
+       [ Static (Macros.untapsDuring Macros.thisCreature (Just EachOthers)) ]
        (Just (2, 4))
+
+||| Battlefront Krushok
+public export
+battlefrontKrushokEvasion : Ability
+battlefrontKrushokEvasion =
+  Static (Deontic Macros.thisCreature Forbid ["Block"] Patient (Just (MoreThan (Lit 1)))
+                  (DeonticCounterpart (AllOf Macros.creature)) Nothing NoDeonticRider)
 
 ||| Foriysian Brigade
 public export
@@ -7170,7 +7173,7 @@ foriysianBrigade : Card
 foriysianBrigade =
   Macros.card "Foriysian Brigade" (Just [Macros.generic 3, Macros.pip White]) []
        (MkTypeLine [creatureType "Human", creatureType "Soldier"] [Creature])
-       [Static (MayBlockAdditional Macros.thisCreature (Macros.exactly 1))]
+       [Static (Macros.mayBlockAdditional Macros.thisCreature (Macros.exactly 1))]
        (Just (2, 4))
 
 ||| Two-Headed Giant of Foriys
@@ -7181,7 +7184,7 @@ twoHeadedGiantOfForiys =
        (Just [Macros.generic 4, Macros.pip Red]) []
        (MkTypeLine [creatureType "Giant"] [Creature])
        [ Macros.keyword "Trample"
-       , Static (MayBlockAdditional Macros.thisCreature (Macros.exactly 1)) ]
+       , Static (Macros.mayBlockAdditional Macros.thisCreature (Macros.exactly 1)) ]
        (Just (4, 4))
 
 public export
@@ -7189,7 +7192,7 @@ highGround : Card
 highGround =
   Macros.card "High Ground" (Just [Macros.pip White]) []
        (MkTypeLine [] [Enchantment])
-       [Static (MayBlockAdditional (Each Macros.creatureYouControl)
+       [Static (Macros.mayBlockAdditional (Each Macros.creatureYouControl)
                                    (Macros.exactly 1))]
        Nothing
 
@@ -7200,7 +7203,7 @@ watcherInTheWeb =
   Macros.card "Watcher in the Web" (Just [Macros.generic 4, Macros.pip Green]) []
        (MkTypeLine [creatureType "Spider"] [Creature])
        [ Macros.keyword "Reach"
-       , Static (MayBlockAdditional Macros.thisCreature (Macros.exactly 7)) ]
+       , Static (Macros.mayBlockAdditional Macros.thisCreature (Macros.exactly 7)) ]
        (Just (2, 5))
 
 ||| Rites of Flourishing
@@ -7212,7 +7215,7 @@ ritesOfFlourishing =
        (MkTypeLine [] [Enchantment])
        [ Macros.triggered At (BeginningOf DrawStep (ByWord EachPlayers))
            (Draw (That PlayerW) (Lit 1))
-       , Static (MayPlayAdditionalLands (Each AnyPlayer) (Macros.exactly 1)) ]
+       , Static (Macros.mayPlayAdditionalLands (Each AnyPlayer) (Macros.exactly 1)) ]
        Nothing
 
 ||| Karn Liberated
@@ -8913,7 +8916,7 @@ helmOfPossession : Card
 helmOfPossession =
   Macros.card "Helm of Possession" (Just [Macros.generic 4]) []
        (MkTypeLine [] [Artifact])
-       [ Static (MayDeclineUntap Macros.thisArtifact)
+       [ Static (Macros.mayDeclineUntap Macros.thisArtifact (Just Yours))
        , Macros.activated (Compound [Mana [Macros.generic 2], TapSymbol,
                               Do (Macros.sacrifice You (Macros.a Macros.creature))])
                           (Macros.gainControl You (Macros.target Macros.creature)
@@ -9365,7 +9368,7 @@ goadedAttacksOther =
 ||| Fastbond
 public export
 fastbondLands : Ability
-fastbondLands = Static (MayPlayAdditionalLands You Macros.anyNumber)
+fastbondLands = Static (Macros.mayPlayAdditionalLands You Macros.anyNumber)
 
 ||| Furious Reprisal
 public export
@@ -9615,7 +9618,7 @@ glaringSpotlight =
               [ Gains (Macros.ownSubject (AllOf Macros.creatureYouControl))
                       (Macros.keyword "Hexproof")
               , Deontic (Macros.ownSubject (AllOf Macros.creatureYouControl)) Forbid ["Block"]
-                        Patient NoDeonticPatient Nothing NoDeonticRider ]
+                        Patient Nothing NoDeonticPatient Nothing NoDeonticRider ]
               (Just Macros.untilEndOfTurn)) ]
        Nothing
 
@@ -9631,7 +9634,7 @@ public export
 canoptekWraith : Ability
 canoptekWraith =
   Macros.flavorWord "Wraith Form"
-    (Static (Deontic Macros.thisCreature Forbid ["Block"] Patient
+    (Static (Deontic Macros.thisCreature Forbid ["Block"] Patient Nothing
                      NoDeonticPatient Nothing NoDeonticRider))
 
 ||| Tymora's Invoker
@@ -13322,7 +13325,7 @@ muldrothaLandWindow =
 ||| Nahiri's Lithoforming
 public export
 nahiriExtraLands : StaticEffect (costLetters (Just [Variable]))
-nahiriExtraLands = MayPlayAdditionalLands You (ExactlyOf (LetterVal X))
+nahiriExtraLands = Macros.mayPlayAdditionalLands You (ExactlyOf (LetterVal X))
 
 ||| Phyrexian Unlife
 public export
@@ -15155,7 +15158,7 @@ distortionStrikeLine : Effect []
 distortionStrikeLine =
   Macros.sharedSubject (Macros.target Macros.creature)
     [ Gets (Macros.ownSubject (Macros.target Macros.creature)) (PtUp (Lit 1)) (PtUp (Lit 0))
-    , Deontic (Macros.ownSubject (Macros.target Macros.creature)) Forbid ["Block"] Patient
+    , Deontic (Macros.ownSubject (Macros.target Macros.creature)) Forbid ["Block"] Patient Nothing
               NoDeonticPatient Nothing NoDeonticRider ]
     (Just Macros.untilEndOfTurn)
 
@@ -15189,7 +15192,7 @@ retroMutation =
            [ Becomes (AttachHost Enchanted (TypeW Creature)) Sets (Bundle (MkToken Nothing []
                                (MkTypeLine [creatureType "Turtle"] []) [] Nothing) Nothing)
            , HasBasePt It (Lit 0) (Lit 1)
-           , Deontic It Forbid ["Attack"] Agent NoDeonticPatient Nothing
+           , Deontic It Forbid ["Attack"] Agent Nothing NoDeonticPatient Nothing
                       NoDeonticRider
            , LosesAllAbilities It Nothing ]) ]
        Nothing
@@ -15214,7 +15217,7 @@ hotshotMechanic : Card
 hotshotMechanic =
   Macros.card "Hotshot Mechanic" (Just [Macros.pip White]) []
        (MkTypeLine [creatureType "Fox", creatureType "Pilot"] [Artifact, Creature])
-       [ Static (Deontic Macros.thisCreature Permit ["Crew"] Agent
+       [ Static (Deontic Macros.thisCreature Permit ["Crew"] Agent Nothing
                    (DeonticCounterpart (AllOf (HasSubtype (artifactType "Vehicle"))))
                    (Just (AsThoughGreater Power (Lit 2)))
                    NoDeonticRider) ]
@@ -15224,7 +15227,7 @@ hotshotMechanic =
 public export
 cloudspireCaptainCrewLine : StaticEffect []
 cloudspireCaptainCrewLine =
-  Deontic Macros.thisCreature Permit ["Saddle", "Crew"] Agent
+  Deontic Macros.thisCreature Permit ["Saddle", "Crew"] Agent Nothing
           (CounterpartsAt
              [ MkDeedComplement "Saddle" (AllOf (HasSubtype (creatureType "Mount")))
              , MkDeedComplement "Crew" (AllOf (HasSubtype (artifactType "Vehicle"))) ])
@@ -15239,7 +15242,7 @@ revokePrivileges =
        (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject "Enchant" Macros.creature
        , Static (Deontic (AttachHost Enchanted (TypeW Creature))
-                   Forbid ["Attack", "Block", "Crew"] Agent
+                   Forbid ["Attack", "Block", "Crew"] Agent Nothing
                    (CounterpartsAt
                       [ MkDeedComplement "Crew"
                           (AllOf (HasSubtype (artifactType "Vehicle"))) ])
@@ -15258,7 +15261,7 @@ harriedSpearguard =
               (MkToken (Just (Lit 1 ** Lit 1)) [Black]
                        (MkTypeLine [creatureType "Rat"] [Creature])
                        [ Static (Deontic (AsMarker TokenMarker This)
-                                   Forbid ["Block"] Agent NoDeonticPatient
+                                   Forbid ["Block"] Agent Nothing NoDeonticPatient
                                    Nothing NoDeonticRider) ]
                        Nothing)) ]
        (Just (1, 1))
@@ -15399,7 +15402,7 @@ ballotBroker =
   Macros.card "Ballot Broker"
        (Just [Macros.generic 2, Macros.pip White]) []
        (MkTypeLine [creatureType "Human", creatureType "Advisor"] [Creature])
-       [ Static (MayVoteAdditional You (Macros.exactly 1)) ]
+       [ Static (Macros.mayVoteAdditional You (Macros.exactly 1)) ]
        (Just (2, 3))
 
 ||| Council's Judgment

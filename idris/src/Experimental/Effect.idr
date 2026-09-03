@@ -365,6 +365,7 @@ mutual
       Deontic : {k : Kind} -> (n : Noun bs k) ->
                 (c : Compulsion (selfSubjIntro n)) ->
                 (deeds : Deeds) -> (role : Role) ->
+                (bound : Maybe (CountBound (nomIntro n))) ->
                 (patient : DeonticPatient {bs = nomIntro n} deeds role) ->
                 (asThough : Maybe (AsThough (nomIntro n))) ->
                 (rider : DeonticRider (deonticPatientIntro patient)) ->
@@ -373,6 +374,7 @@ mutual
                 {auto 0 kd : KnownActs deeds} ->
                 {auto 0 zn : ZoneFits (nounZone n) (deedsZone deeds role)} ->
                 {auto 0 dp : DeedParticipant deeds role k (nounHeadTys n)} ->
+                {auto 0 bd : So (deonticBoundOk deeds bound)} ->
                 {auto 0 pt : So (deonticPatientOk n deeds role patient rider)} ->
                 {auto 0 at : So (asThoughOk c deeds asThough)} ->
                 {auto 0 rd : So (deonticRiderOk deeds role c patient
@@ -380,21 +382,6 @@ mutual
                 StaticEffect bs
       KeepsUnspentMana : (who : Noun bs Player) ->
                          (what : ManaHeld (nomIntro who)) -> StaticEffect bs
-      MayDeclineUntap : (n : Noun bs Object) ->
-                        {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                        StaticEffect bs
-      DoesntUntap : (n : Noun bs Object) ->
-                    {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                    StaticEffect bs
-      UntapsDuringStep : (n : Noun bs Object) ->
-                         {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                         StaticEffect bs
-      CantMoreThan : (who : Noun bs Player) -> (deed : VerbLabel) ->
-                     (k : Nat) -> (p : Predicate bs Object) ->
-                     {auto 0 kd : KnownAct deed} ->
-                     {auto 0 pk : So (deedKindOk deed Patient Object)} ->
-                     {auto 0 zn : ZoneFits (seedZone p) (deedZoneOf deed Patient)} ->
-                     StaticEffect bs
       Skips : (who : Noun bs Player) -> (part : TurnPart) -> StaticEffect bs
       ||| The op is data over every payload [CR#613.1d,613.1e]; reverses choice-D's one row per op.
       Becomes : (n : Noun bs Object) -> (op : CharOp) -> (q : QualityPayload bs) ->
@@ -461,22 +448,6 @@ mutual
       Visibility : (v : ExposeVerb) -> (who : Noun bs Player) ->
                    (what : VisibleThing (nomIntro who)) ->
                    {auto 0 vo : VisibilityOk v what} -> StaticEffect bs
-      MayPlayAdditionalLands : (who : Noun bs Player) -> (q : Quantity bs) ->
-                               {auto 0 nz : NonZeroQ q} ->
-                               {auto 0 wf : WellFormedQ q} ->
-                               {auto 0 lt : So (isNil (quantDelta q))} ->
-                               StaticEffect bs
-      MayBlockAdditional : (n : Noun bs Object) -> (q : Quantity bs) ->
-                           {auto 0 nz : NonZeroQ q} ->
-                           {auto 0 wf : WellFormedQ q} ->
-                           {auto 0 lt : So (isNil (quantDelta q))} ->
-                           {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                           StaticEffect bs
-      MayVoteAdditional : (who : Noun bs Player) -> (q : Quantity bs) ->
-                          {auto 0 nz : NonZeroQ q} ->
-                          {auto 0 wf : WellFormedQ q} ->
-                          {auto 0 lt : So (isNil (quantDelta q))} ->
-                          StaticEffect bs
       TriggersAdditionally : (ev : GameEvent bs) -> (q : Quantity bs) ->
                              {auto 0 nz : NonZeroQ q} ->
                              {auto 0 wf : WellFormedQ q} ->
@@ -510,6 +481,23 @@ mutual
     Require : Compulsion bs
     GatedBy : (c : Cost (Effect.gatePayer :: bs)) -> Compulsion bs
     Permit : Compulsion bs
+
+  public export
+  data CountBound : Bindings -> Type where
+    MoreThan : (k : Amount bs) -> CountBound bs
+    Additional : (q : Quantity bs) ->
+                 {auto 0 nz : NonZeroQ q} ->
+                 {auto 0 wf : WellFormedQ q} -> CountBound bs
+
+  public export
+  boundDelta : {bs : Bindings} -> CountBound bs -> List Binding
+  boundDelta (MoreThan k) = amtDelta k
+  boundDelta (Additional q) = quantDelta q
+
+  public export
+  deonticBoundOk : {bs : Bindings} -> Deeds -> Maybe (CountBound bs) -> Bool
+  deonticBoundOk _ Nothing = True
+  deonticBoundOk ds (Just b) = all deedBoundedOk ds && isNil (boundDelta b)
 
   public export
   data DeonticPatient : {0 bs : Bindings} -> Deeds -> Role -> Type where
@@ -751,13 +739,9 @@ mutual
   staticKind (AddedCost _ _) = CostModification
   staticKind (Gains _ _) = KeywordGrant
   staticKind (GainsAbilitiesOf _ _ _ _) = KeywordGrant
-  staticKind (Deontic _ _ _ _ _ _ _) = DeedRestriction
-  staticKind (DoesntUntap _) = DeedRestriction
-  staticKind (CantMoreThan _ _ _ _) = DeedRestriction
+  staticKind (Deontic _ _ _ _ _ _ _ _) = DeedRestriction
   staticKind (Skips _ _) = TurnSkip
   staticKind (KeepsUnspentMana _ _) = ManaPersistence
-  staticKind (MayDeclineUntap _) = DeedRestriction
-  staticKind (UntapsDuringStep _) = UntapGrant
   staticKind (Becomes _ op q) = becomesKind op q
   staticKind (BecomesCopy _ _ _) = CopyEffect
   staticKind (LosesAllAbilities _ _) = AbilityLoss
@@ -775,9 +759,6 @@ mutual
   staticKind (DoesntRemove se _) = staticKind se
   staticKind (NoLossFrom _ _) = OutcomeImmunity
   staticKind (Visibility _ _ _) = VisibilityRider
-  staticKind (MayPlayAdditionalLands _ _) = LandAllowance
-  staticKind (MayBlockAdditional _ _) = BlockAllowance
-  staticKind (MayVoteAdditional _ _) = VoteAllowance
   staticKind (TriggersAdditionally _ _) = TriggerMultiplier
   staticKind (EntersRider _ _) = EntryRider
   staticKind (EntersChoice _ _ _ _) = EntryRider
@@ -799,13 +780,9 @@ mutual
   staticIntro (AddedCost _ _) = bs
   staticIntro (Gains n ab) = abLetterDelta ab ++ selfSubjIntro n
   staticIntro (GainsAbilitiesOf n _ src _) = nomIntro src
-  staticIntro (Deontic n _ _ _ _ _ _) = selfSubjIntro n
-  staticIntro (DoesntUntap n) = selfSubjIntro n
-  staticIntro (CantMoreThan _ _ _ _) = bs
+  staticIntro (Deontic n _ _ _ _ _ _ _) = selfSubjIntro n
   staticIntro (Skips _ _) = bs
   staticIntro (KeepsUnspentMana who _) = nomIntro who
-  staticIntro (MayDeclineUntap n) = selfSubjIntro n
-  staticIntro (UntapsDuringStep n) = selfSubjIntro n
   staticIntro (Becomes n _ _) = selfSubjIntro n
   staticIntro (BecomesCopy n _ _) = selfSubjIntro n
   staticIntro (LosesAllAbilities n _) = selfSubjIntro n
@@ -823,9 +800,6 @@ mutual
   staticIntro (DoesntRemove _ n) = nomIntro n
   staticIntro (NoLossFrom who _) = nomIntro who
   staticIntro (Visibility _ who what) = visibleIntro what
-  staticIntro (MayPlayAdditionalLands who _) = nomIntro who
-  staticIntro (MayBlockAdditional n _) = selfSubjIntro n
-  staticIntro (MayVoteAdditional who _) = nomIntro who
   staticIntro (TriggersAdditionally _ _) = bs
   staticIntro (EntersRider n rider) = entryRiderIntro rider
   staticIntro (EntersChoice n _ _ _) = selfSubjIntro n
