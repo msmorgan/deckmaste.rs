@@ -137,3 +137,16 @@ Deviations and additions:
 - No STOP was taken. The loaded ambiguity warning did not cross a STOP boundary
   because the governing ADR makes loaded-host warnings advisory; its lower-load
   foreground rerun passed the unchanged ceiling.
+
+## Erratum (perf round 2 landing review, 2026-09-03)
+
+Host changed between rounds (16-thread i9-11950H -> 24-thread Core Ultra
+9 285K); round-1 and round-2 absolute timings are not comparable. R8 was
+declined on the top-20-by-sum view, which structurally buries predictions
+(217.8M events, 50.5% of all, 3.1x materializations, scaling with column
+count) — the decision is defensible on risk, the rationale is not; no
+counter measures column/scan work directly. `parse --json` also lost
+`"message": null` on accepted rows (-2.4%), undisclosed. The residual
+1.36x spread of the new metric under load is real CPU inflation, not
+stated. `CORPUS_WALL_CEILING_SECONDS` still carries no ADR citation
+comment. Routed to english-v2-perf-round-3.
