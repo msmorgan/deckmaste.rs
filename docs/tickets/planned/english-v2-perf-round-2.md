@@ -14,6 +14,10 @@ the removed worker cap, so parallelism headroom is now spent.
 - Clean-ups: `parents_by_child` populated but never read; "and N more"
   counts raw entries; `inspect` prints no performance line; roundtrip
   --json `"message": null` rows disclosed or reverted.
+- One `CORPUS_WALL_CEILING_SECONDS` is shared across all gates but was
+  calibrated on `parse`; `coverage --check` runs ~14.0 s quiet and trips
+  the 16.26 s tripwire under sibling-workspace load — decide per-gate
+  ceilings or a load-aware report (never a silent relaxation).
 Zero semantic change (per-unit identity of status/render/ownership, as
 the round-1 review proved); timings state worker count and host load.
 Standard constraints apply.

@@ -43,3 +43,13 @@ removed 0.
   regression that independently falsifies `card_name` and `context_onset`.
   No constructions, corpus fixtures, or tests were added or deleted beyond
   the ticket's letter. No STOP was taken.
+
+
+## Erratum (unit-records landing review, 2026-09-02)
+
+Construction count cell copied stale: 378 at parent, change, and tip (the
+record says 398, a figure four landings old). Substantive claim
+(unchanged) is true. Review LOWs unrouted: single named mismatch with no
+count; both tests fail at index 0 on a one-unit fixture (first-differing
+and baseline-longer paths pinned only by live probe); struct-dump message
+vs the house tab-separated form.
