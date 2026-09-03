@@ -637,6 +637,24 @@ where
                         "coverage lock normalization digest changed; review the normalized corpus and rerun with --bless",
                     );
                 }
+                if baseline.normalization_units != replacement.normalization_units {
+                    let index = baseline
+                        .normalization_units
+                        .iter()
+                        .zip(&replacement.normalization_units)
+                        .position(|(locked, current)| locked != current)
+                        .unwrap_or_else(|| {
+                            baseline
+                                .normalization_units
+                                .len()
+                                .min(replacement.normalization_units.len())
+                        });
+                    bail!(
+                        "coverage lock normalization unit records differ; first differing unit at index {index}: lock {:?}, current {:?}; review the normalized corpus and rerun with --bless",
+                        baseline.normalization_units.get(index),
+                        replacement.normalization_units.get(index),
+                    );
+                }
                 return Ok(());
             }
             write_v4_with(&replacement, path, writer)
@@ -1463,6 +1481,75 @@ mod tests {
             "{diagnostics}"
         );
         assert_eq!(fs::read(&path).unwrap(), text_blessed);
+    }
+
+    #[test]
+    fn schema_four_check_rejects_a_deleted_normalization_unit_vector() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("coverage.lock");
+        let current = report(&id('1'), vec![id('a')], 0, 0, 0, 0);
+        let mut baseline: serde_json::Value =
+            serde_json::from_slice(&json_v4(&current, vec![id('a')])).unwrap();
+        baseline["normalization_units"] = serde_json::json!([]);
+        let baseline = serde_json::to_vec_pretty(&baseline).unwrap();
+        fs::write(&path, &baseline).unwrap();
+
+        let error = apply_with_writer(
+            &current,
+            &path,
+            CoverageLockMode::Check,
+            &mut Vec::new(),
+            &mut super::FilesystemLockWriter,
+        )
+        .unwrap_err()
+        .to_string();
+
+        assert!(
+            error.contains("normalization unit records differ"),
+            "{error}"
+        );
+        assert!(error.contains("first differing unit at index 0"), "{error}");
+        assert!(error.contains(&id('a')), "{error}");
+        assert!(error.contains("--bless"), "{error}");
+        assert_eq!(fs::read(&path).unwrap(), baseline);
+    }
+
+    #[test]
+    fn schema_four_check_rejects_each_falsified_normalization_unit_field() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("coverage.lock");
+        let current = report(&id('1'), vec![id('a')], 0, 0, 0, 0);
+        let valid: serde_json::Value =
+            serde_json::from_slice(&json_v4(&current, vec![id('a')])).unwrap();
+
+        for (field, falsified) in [
+            ("card_name", serde_json::json!("Falsified")),
+            ("context_onset", serde_json::json!("Vowel")),
+        ] {
+            let mut baseline = valid.clone();
+            baseline["normalization_units"][0][field] = falsified;
+            let baseline = serde_json::to_vec_pretty(&baseline).unwrap();
+            fs::write(&path, &baseline).unwrap();
+
+            let error = apply_with_writer(
+                &current,
+                &path,
+                CoverageLockMode::Check,
+                &mut Vec::new(),
+                &mut super::FilesystemLockWriter,
+            )
+            .unwrap_err()
+            .to_string();
+
+            assert!(
+                error.contains("normalization unit records differ"),
+                "{error}"
+            );
+            assert!(error.contains("first differing unit at index 0"), "{error}");
+            assert!(error.contains(&id('a')), "{error}");
+            assert!(error.contains("--bless"), "{error}");
+            assert_eq!(fs::read(&path).unwrap(), baseline);
+        }
     }
 
     #[test]
