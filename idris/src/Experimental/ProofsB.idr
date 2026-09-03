@@ -11,6 +11,13 @@ import Experimental.Unspellable
 
 
 
+||| "another creature"
+public export
+okOtherAnchored :
+  Predicate [MkBinding TargetD Object OneOf
+                       (ObjectP (Just Creature) (Just Battlefield) Nothing Nothing Nothing)] Object
+okOtherAnchored = And [Macros.creature, Other]
+
 ||| "another other creature"
 public export
 badDoubleOther : Unspellable
@@ -22,6 +29,13 @@ badDoubleOther Oh impossible
 
 
 
+||| "You discard a card."
+public export
+okDiscardHandCard :
+  Effect [MkBinding AD Object OneOf
+                    (ObjectP Nothing Nothing Nothing Nothing Nothing)]
+okDiscardHandCard = Macros.discard You (Macros.a (InZone Macros.handZ))
+
 ||| "You discard it."
 public export
 badDiscardIt : Unspellable
@@ -32,12 +46,23 @@ badDiscardIt DiscardTracked impossible
 
 
 
+||| "creature card in a graveyard"
+public export
+okZoneCoherentAnd : Predicate [] Object
+okZoneCoherentAnd = And [Macros.creature, InZone Macros.graveyardZ]
+
 ||| "a creature you control in your graveyard"
 public export
 badControlledInGraveyard : Unspellable (Predicate [] Object) (\ok =>
   And [Macros.creature, HasPossessor ControllerAx You, InZone Macros.graveyardZ] {zc = ok})
 badControlledInGraveyard Oh impossible
 
+
+||| "Draw a card. You gain 1 life."
+public export
+okNonEmptySequence : Effect []
+okNonEmptySequence =
+  Sequentially [Macros.draw You (Lit 1), Macros.gainsLife You (Lit 1)]
 
 ||| an empty sentence list
 public export
@@ -47,6 +72,13 @@ badEmptySequence ItIsSucc impossible
 
 
 
+
+||| "This deals 3 damage to target creature. Destroy it."
+public export
+okDestroyDamagedCreature : Effect []
+okDestroyDamagedCreature =
+  Sequentially [DealDamage This (Lit 3) (Macros.target Macros.creature),
+                Macros.destroy It]
 
 ||| "This deals 3 damage to any target. Destroy it."
 public export
@@ -58,12 +90,22 @@ badDestroyAnyTargetRemention Oh impossible
 
 
 
+||| "This deals 1 damage to target creature."
+public export
+okDamageCreature : Effect []
+okDamageCreature = DealDamage This (Lit 1) (Macros.target Macros.creature)
+
 ||| "This deals 1 damage to this spell."
 public export
 badDamageThis : Unspellable (Effect []) (\ok =>
   DealDamage This (Lit 1) This {rk = ok})
 badDamageThis ObjectTakes impossible
 
+
+||| "artifact or enchantment"
+public export
+okFlatDisjunction : Predicate [] Object
+okFlatDisjunction = Or [Macros.artifact, Macros.enchantment]
 
 ||| a coordination of no alternatives
 public export
@@ -102,6 +144,13 @@ badSpellOrPermanentSubject Oh impossible
 
 
 
+||| "creature you control or artifact you control"
+public export
+okStructuredDisjunction : Predicate [] Object
+okStructuredDisjunction =
+  Or [And [Macros.creature, HasPossessor ControllerAx You],
+      And [Macros.artifact, HasPossessor ControllerAx You]]
+
 ||| "other creature or land"
 public export
 badOtherInOr : Unspellable
@@ -125,6 +174,12 @@ badAttackingOrBlockingInGraveyard : Unspellable (Predicate [] Object) (\ok =>
 badAttackingOrBlockingInGraveyard Oh impossible
 
 
+||| "creature with power 2 or less"
+public export
+okContradictionFreeAnd : Predicate [] Object
+okContradictionFreeAnd =
+  And [Macros.creature, Compare [CharAxis Power] AtMost (Lit 2)]
+
 ||| "noncreature that is attacking or blocking"
 public export
 badNoncreatureAttackingOrBlocking : Unspellable (Predicate [] Object) (\ok =>
@@ -145,6 +200,11 @@ badBlockedAndUnblocked : Unspellable (Predicate [] Object) (\ok =>
   And [Macros.creature, Blocked, Macros.unblocked] {cf = ok})
 badBlockedAndUnblocked Oh impossible
 
+
+||| "between two and three target creatures"
+public export
+okAscendingRange : Noun [] Object
+okAscendingRange = Macros.targets (Range (Just 2) (Just 3)) Macros.creature
 
 ||| "between three and two target creatures"
 public export
@@ -167,6 +227,12 @@ badRepeatedStructuredDisjunct : Unspellable (Predicate [] Object) (\ok =>
 badRepeatedStructuredDisjunct Oh impossible
 
 
+||| "Target creature can't attack this turn."
+public export
+okCantAttackCreature : Effect []
+okCantAttackCreature =
+  Macros.cantAttack (Macros.target Macros.creature) (Just Macros.thisTurn)
+
 ||| "Target land can't attack this turn."
 public export
 badCantAttackLand : Unspellable (Effect []) (\ok =>
@@ -174,12 +240,27 @@ badCantAttackLand : Unspellable (Effect []) (\ok =>
 badCantAttackLand Oh impossible
 
 
+||| "Target creature can't block this turn."
+public export
+okCantBlockCreature : Effect []
+okCantBlockCreature =
+  Macros.cantBlock (Macros.target Macros.creature) (Just Macros.thisTurn)
+
 ||| "Target creature or land can't block this turn."
 public export
 badCantDisjunctSubject : Unspellable (Effect []) (\ok =>
   Macros.cantBlock (Macros.target (Or [Macros.creature, Macros.land])) (Just ThisTurn) {dp = ok})
 badCantDisjunctSubject Oh impossible
 
+
+||| "Target creature can't be blocked this turn."
+public export
+okCantBeBlocked : Effect []
+okCantBeBlocked =
+  Continuously {ts = StaticFirstDone}
+    (Macros.deontic (Macros.target Macros.creature) Forbid ["Block"] Patient
+                    NoDeonticPatient)
+    (Just Macros.thisTurn)
 
 ||| "Target creature can't be attacked this turn."
 public export
@@ -222,12 +303,25 @@ badMixedCharacteristicDisjunct Oh impossible
 
 
 
+||| "if this creature is attacking"
+public export
+okMatchesThisCreature : Condition []
+okMatchesThisCreature = Matches Macros.thisCreature Attacking
+
 ||| "if target creature is an artifact"
 public export
 badMatchesTargetSubject : Unspellable (Condition []) (\ok =>
   Matches (Macros.target Macros.creature) Macros.artifact {bl = ok})
 badMatchesTargetSubject Oh impossible
 
+
+||| "Tap target creature. You gain 1 life if it's an artifact."
+public export
+okMatchesArtifact : Effect []
+okMatchesArtifact =
+  Sequentially [SetStatus Tapped (Macros.target Macros.creature),
+                OnlyIf (Macros.gainsLife You (Lit 1))
+                       (Matches It Macros.artifact) Nothing]
 
 ||| "Tap target creature. You gain 1 life if it's."
 public export
@@ -237,12 +331,27 @@ badMatchesNothing : Unspellable (Effect []) (\ok =>
 badMatchesNothing Oh impossible
 
 
+||| "Destroy target creature if it's on the battlefield."
+public export
+okMatchesZoneFits : Effect []
+okMatchesZoneFits =
+  OnlyIf (Macros.destroy (Macros.target Macros.creature))
+         (Matches It (InZone Macros.battlefieldZ)) Nothing
+
 ||| "Destroy target creature if it's in a graveyard."
 public export
 badTrailingPostStateZone : Unspellable (Effect []) (\ok =>
   OnlyIf (Macros.destroy (Macros.target Macros.creature)) (Matches ((Macros.It OneOf)) (InZone Macros.graveyardZ) {zc = ok}) Nothing)
 badTrailingPostStateZone Oh impossible
 
+
+||| "if the number of artifacts you control is 4 or greater"
+public export
+okCompareCountSubject : Condition []
+okCompareCountSubject =
+  CompareAmt (Macros.countOf (And [Macros.artifact,
+                                   HasPossessor ControllerAx You]))
+             AtLeast (Lit 4)
 
 ||| "if 3 is 4 or greater"
 public export
@@ -252,6 +361,13 @@ badCompareLiteralSubject Oh impossible
 
 
 
+
+||| "This deals 2 damage to target creature. Tap it."
+public export
+okTapDamagedCreature : Effect []
+okTapDamagedCreature =
+  Sequentially [DealDamage This (Lit 2) (Macros.target Macros.creature),
+                SetStatus Tapped It]
 
 ||| "You gain 2 life if you control a creature. Tap it."
 public export
@@ -267,6 +383,13 @@ badIfNotReadsMayBody : Unspellable (Effect []) (\ok =>
   (May You (Macros.sacrifice You (Macros.a Macros.creature)) Nothing (Just (Macros.exile You ((Macros.It OneOf) {ok})))))
 badIfNotReadsMayBody Refl impossible
 
+
+||| "Create a 1/1 white Soldier creature token."
+public export
+okSoldierToken : Effect []
+okSoldierToken =
+  Macros.create (Lit 1)
+                (Macros.creatureTok 1 1 [White] [creatureType "Soldier"])
 
 ||| "Create a 1/1 black Zombie artifact token."
 public export
@@ -290,6 +413,14 @@ badTypelessToken : Unspellable (Effect []) (\ok =>
 badTypelessToken (Oh, Oh, Oh, Oh, Oh, Oh) impossible
 
 
+||| "Remove a +1/+1 counter from target creature."
+public export
+okRemoveCounterFromTarget : Effect []
+okRemoveCounterFromTarget =
+  RemoveCounters (Just (Macros.exactly 1))
+                 (Just (PrintedKind Macros.plusOnePlusOne))
+                 (Macros.target Macros.creature)
+
 ||| "Destroy target creature. Remove a +1/+1 counter from it."
 public export
 badRemoveCountersDead : Unspellable (Effect []) (\ok =>
@@ -297,6 +428,13 @@ badRemoveCountersDead : Unspellable (Effect []) (\ok =>
                 RemoveCounters (Just (Macros.exactly 1)) (Just (PrintedKind Macros.plusOnePlusOne)) ((Macros.It OneOf)) {cm = ok}])
 badRemoveCountersDead Oh impossible
 
+
+||| "Move a counter from target creature onto this creature."
+public export
+okMoveCounterOntoThis : Effect []
+okMoveCounterOntoThis =
+  MoveCounters (Lit 1) Nothing (Macros.target Macros.creature)
+               Macros.thisCreature
 
 ||| "Move a counter from target creature onto it."
 public export
@@ -319,6 +457,13 @@ badTokenDuplicateColor : Unspellable (Effect []) (\ok =>
   Macros.create (Lit 1) (Macros.creatureTok 1 1 [White, White] [creatureType "Soldier"]) {wf = ok})
 badTokenDuplicateColor (Oh, Oh, Oh, Oh, Oh, Oh) impossible
 
+
+||| "Target creature becomes an artifact in addition to its other types."
+public export
+okBecomesArtifact : Effect []
+okBecomesArtifact =
+  Macros.becomes (Macros.target Macros.creature) (Macros.typesOnly [Artifact])
+                 Nothing
 
 ||| "Target land becomes a Zombie in addition to its other types."
 public export
@@ -349,12 +494,26 @@ badOtherwiseReadsIfArm : Unspellable (Effect []) (\ok =>
 badOtherwiseReadsIfArm (Refl, _) impossible
 
 
+||| "Choose up to one — Destroy target artifact; or destroy target enchantment."
+public export
+okModalTwoModes : Effect []
+okModalTwoModes =
+  Modal (Macros.upTo 1) [Macros.destroy (Macros.target Macros.artifact),
+                         Macros.destroy (Macros.target Macros.enchantment)]
+
 ||| "Choose one — Destroy target artifact."
 public export
 badModalOneMode : Unspellable (Effect []) (\ok =>
   Modal (Macros.upTo 1) [Macros.destroy (Macros.target Macros.artifact)] {tw = ok})
 badModalOneMode Oh impossible
 
+
+||| "Choose two — Destroy target artifact; or destroy target enchantment."
+public export
+okModalTwoOfTwo : Effect []
+okModalTwoOfTwo =
+  Modal (Macros.exactly 2) [Macros.destroy (Macros.target Macros.artifact),
+                            Macros.destroy (Macros.target Macros.enchantment)]
 
 ||| "Choose three — Destroy target artifact; or destroy target enchantment."
 public export
@@ -379,6 +538,13 @@ badReadsAfterModal : Unspellable (Effect []) (\ok =>
 badReadsAfterModal (_, Oh) impossible
 
 
+||| "Choose a card in your hand. You discard that card."
+public export
+okChosenCardRemention : Effect []
+okChosenCardRemention =
+  Sequentially [Macros.choose (Macros.a (InZone Macros.handZ)),
+                Macros.discard You (That CardW)]
+
 ||| "Draw a card. Exile that card."
 public export
 badDrawnCardRemention : Unspellable (Effect []) (\ok =>
@@ -392,6 +558,13 @@ identicalModesAllowed : Effect []
 identicalModesAllowed =
   Macros.chooseModes (Macros.exactly 2) [(Draw You (Lit 1)), (Draw You (Lit 1))]
 
+
+||| "Choose a player or planeswalker."
+public export
+okChoosePlayerOrPlaneswalker : Effect []
+okChoosePlayerOrPlaneswalker =
+  Choose (Macros.a (Macros.kindJoin AnyPlayer (HasType Planeswalker))) Nothing
+         Openly
 
 ||| "Choose you."
 public export
@@ -417,6 +590,11 @@ badBothArmsAntecedent : Unspellable (Effect []) (\ok =>
                 PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) ((Macros.It OneOf) {ok})])
 badBothArmsAntecedent Refl impossible
 
+
+||| "other than this creature"
+public export
+okComplementThisCreature : Predicate [] Object
+okComplementThisCreature = OtherThan Macros.thisCreature
 
 ||| "other than a creature"
 public export
@@ -463,6 +641,12 @@ badComplementInOr : Unspellable (Predicate [] Object) (\ok =>
 badComplementInOr Oh impossible
 
 
+||| "Draw a card and you gain 1 life."
+public export
+okNonEmptyBatch : Effect []
+okNonEmptyBatch =
+  Simultaneously [Macros.draw You (Lit 1), Macros.gainsLife You (Lit 1)]
+
 ||| an empty batch
 public export
 badEmptySimultaneous : Unspellable (Effect []) (\ok =>
@@ -477,6 +661,13 @@ badSimultaneousReadsRetag : Unspellable (Effect []) (\ok =>
                   Macros.destroy (Macros.That CardW OneOf {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badSimultaneousReadsRetag (_, Oh) impossible
 
+
+||| "Target opponent loses 2 life. You gain that much life."
+public export
+okThatMuchAfterOutcome : Effect []
+okThatMuchAfterOutcome =
+  Sequentially [Macros.losesLife (Macros.target Opponent) (Lit 2),
+                Macros.gainsLife You ThatMuch]
 
 ||| "This deals 2 damage to target creature and you gain that much life."
 public export
@@ -518,6 +709,12 @@ badBatchTwoOutcomesThenThatMuch : Unspellable (Effect []) (\ok =>
                 Macros.gainsLife You (ThatMuch {ok})])
 badBatchTwoOutcomesThenThatMuch Refl impossible
 
+
+||| "Gain control of target creature."
+public export
+okGainControlBattlefield : Effect []
+okGainControlBattlefield =
+  Macros.gainControl You (Macros.target Macros.creature) Nothing
 
 ||| "Gain control of target creature card in a graveyard."
 public export

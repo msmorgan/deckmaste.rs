@@ -9,12 +9,23 @@ import public Experimental.Unspellable
 %unbound_implicits off
 
 
+||| "the chosen number", one number choice standing
+public export
+okChosenNumberOneStanding : Amount [qualityB Number]
+okChosenNumberOneStanding = ChosenNumber
+
 ||| "... is equal to the chosen number", two number choices standing (Shapeshifter prints "last")
 public export
 badChosenNumberTwoStanding :
   Unspellable (Amount [qualityB Number, qualityB Number]) (\ok => ChosenNumber {ok})
 badChosenNumberTwoStanding Refl impossible
 
+
+||| "of the chosen color"
+public export
+okChosenColorRead :
+  Predicate [MkBinding AD (Quality Color) OneOf QualityP] Object
+okChosenColorRead = OfChosen Color
 
 ||| "of the chosen number"
 public export
@@ -25,6 +36,13 @@ badChosenNumberRead :
 badChosenNumberRead Oh impossible
 
 
+||| "Choose target creature. You gain life equal to its power."
+public export
+okSinglePower : Effect []
+okSinglePower =
+  Sequentially [Choose (Macros.target Macros.creature) Nothing Openly,
+                Macros.gainsLife You (Macros.powerOf It)]
+
 ||| "Choose two target creatures. You gain life equal to their power."
 public export
 badGroupPower : Unspellable (Effect []) (\ok =>
@@ -32,6 +50,13 @@ badGroupPower : Unspellable (Effect []) (\ok =>
                 Macros.gainsLife You (StatOf Power ((Macros.It ManyOf)) {one = ok})])
 badGroupPower Refl impossible
 
+
+||| "Choose target creature. Its owner loses 1 life."
+public export
+okSingleOwner : Effect []
+okSingleOwner =
+  Sequentially [Choose (Macros.target Macros.creature) Nothing Openly,
+                Macros.losesLife (Macros.ownerOf It) (Lit 1)]
 
 ||| "Choose two target creatures. Their owner loses 1 life."
 public export
@@ -41,6 +66,12 @@ badGroupOwner : Unspellable (Effect []) (\ok =>
 badGroupOwner Refl impossible
 
 
+||| "Target creature fights target creature."
+public export
+okFightCreatures : Effect []
+okFightCreatures =
+  Fights (Macros.target Macros.creature) (Macros.target Macros.creature)
+
 ||| "Two target creatures fight target creature."
 public export
 badFightGroup : Unspellable (Effect []) (\ok =>
@@ -49,6 +80,11 @@ badFightGroup : Unspellable (Effect []) (\ok =>
 badFightGroup Refl impossible
 
 
+||| "a creature target opponent controls"
+public export
+okControlledByOne : Predicate [] Object
+okControlledByOne = HasPossessor ControllerAx (Macros.target Opponent)
+
 ||| "a creature two target opponents control"
 public export
 badControlledByGroup : Unspellable (Predicate [] Object) (\ok =>
@@ -56,12 +92,23 @@ badControlledByGroup : Unspellable (Predicate [] Object) (\ok =>
 badControlledByGroup Oh impossible
 
 
+||| "each of up to two target creatures"
+public export
+okEachOfGroup : Noun [] Object
+okEachOfGroup = EachOf (Macros.targets (Macros.upTo 2) Macros.creature)
+
 ||| "each of target creature"
 public export
 badEachOfSingular : Unspellable (Noun [] Object) (\ok =>
   EachOf (Macros.target Macros.creature) {pl = ok})
 badEachOfSingular Refl impossible
 
+
+||| "Look at the top card of target player's library."
+public export
+okSliceOfOnePossessor : Effect []
+okSliceOfOnePossessor =
+  Macros.lookAt (LibrarySlice OnTop (Lit 1) (Macros.target AnyPlayer))
 
 ||| "Look at the top card of two target players' library."
 public export
@@ -71,6 +118,13 @@ badSliceOfCountedPossessor : Unspellable (Effect []) (\ok =>
 badSliceOfCountedPossessor Oh impossible
 
 
+||| "Whenever you cast a spell, draw a card."
+public export
+okCastsSingularComplement : Ability
+okCastsSingularComplement =
+  Triggered Whenever (Casts You (Macros.a Macros.spell) Nothing) [] Nothing []
+            Nothing Nothing Nothing (Macros.draw You (Lit 1))
+
 ||| "Whenever you cast all spells, draw a card."
 public export
 badCastsPluralComplement : Unspellable (Ability) (\ok =>
@@ -79,6 +133,14 @@ badCastsPluralComplement : Unspellable (Ability) (\ok =>
 badCastsPluralComplement Refl impossible
 
 
+||| "Tap target creature an opponent controls. That player loses 1 life."
+public export
+okThatPlayer : Effect []
+okThatPlayer =
+  Sequentially [SetStatus Tapped (Macros.target (And [Macros.creature,
+                  HasPossessor ControllerAx Macros.anOpponent])),
+                Macros.losesLife (That PlayerW) (Lit 1)]
+
 public export
 badDisjunctAntecedent : Unspellable (Effect []) (\ok =>
   Sequentially [SetStatus Tapped (Macros.target (Or [And [Macros.creature, HasPossessor ControllerAx Macros.anOpponent],
@@ -86,6 +148,13 @@ badDisjunctAntecedent : Unspellable (Effect []) (\ok =>
                 Macros.losesLife (Macros.That PlayerW OneOf {ok}) (Lit 1)])
 badDisjunctAntecedent Refl impossible
 
+
+||| "Tap target creature with flying."
+public export
+okKeywordConjunction : Effect []
+okKeywordConjunction =
+  SetStatus Tapped (Macros.target (And [Macros.creature,
+                                        HasKeyword (TheKeyword "Flying")]))
 
 ||| "Tap target creature with flying that doesn't have flying."
 public export
@@ -102,6 +171,13 @@ badForestNonland : Unspellable (Effect []) (\ok =>
 badForestNonland Oh impossible
 
 
+||| "Snow-Covered Forest — Basic Snow Land — Forest"
+public export
+okSingleSnow : Card
+okSingleSnow =
+  Macros.card "Snow-Covered Forest" Nothing [Basic, Snow]
+              (MkTypeLine [landType "Forest"] [Land]) [] Nothing
+
 ||| "Snow Snow Land — Forest"
 public export
 badDuplicateSnow : Unspellable Card (\ok =>
@@ -109,12 +185,27 @@ badDuplicateSnow : Unspellable Card (\ok =>
 badDuplicateSnow MkFaceLaws impossible
 
 
+||| "This deals 2 damage to any target and 1 damage to any other target."
+public export
+okAnyOtherTarget : Effect []
+okAnyOtherTarget =
+  Sequentially [DealDamage This (Lit 2) (Macros.target Macros.anyTarget),
+                DealDamage This (Lit 1) (Macros.target Macros.anyOtherTarget)]
+
 ||| "This deals 1 damage to any other target."
 public export
 badOther : Unspellable (Effect []) (\ok =>
   DealDamage This (Lit 1) (Macros.target (Macros.anyOtherTarget {ok})))
 badOther Refl impossible
 
+
+||| "Tap target creature. It gets -1/-1 until end of turn."
+public export
+okIt : Effect []
+okIt =
+  Sequentially [SetStatus Tapped (Macros.target Macros.creature),
+                Macros.gets It (PtDown (Lit 1)) (PtDown (Lit 1))
+                            (Just Macros.untilEndOfTurn)]
 
 ||| "Target creature fights target creature. Tap it."
 public export
@@ -124,6 +215,11 @@ badIt : Unspellable (Effect []) (\ok =>
 badIt Refl impossible
 
 
+||| "Tap target creature."
+public export
+okTapBattlefield : Effect []
+okTapBattlefield = SetStatus Tapped (Macros.target Macros.creature)
+
 ||| "This deals 3 damage to each creature. Tap it."
 public export
 badTheyIt : Unspellable (Effect []) (\ok =>
@@ -131,6 +227,11 @@ badTheyIt : Unspellable (Effect []) (\ok =>
                 SetStatus Tapped ((Macros.It OneOf) {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badTheyIt (Refl, _) impossible
 
+
+||| "Sacrifice a creature."
+public export
+okSacrificeBattlefield : Effect []
+okSacrificeBattlefield = Macros.sacrifice You (Macros.a Macros.creature)
 
 ||| "Destroy target creature. At the beginning of the end step, sacrifice it."
 public export
@@ -188,6 +289,12 @@ badDeadCreatureRead Refl impossible
 
 ||| "of the chosen creature type"
 public export
+okChosenCreatureType :
+  Predicate [MkBinding AD (Quality (SubtypeQ Creature)) OneOf QualityP] Object
+okChosenCreatureType = OfChosen (SubtypeQ Creature)
+
+||| "of the chosen creature type"
+public export
 badChosenWrongSort : Unspellable
   (Predicate [MkBinding AD (Quality Color) OneOf QualityP] Object)
   (\ok => OfChosen (SubtypeQ Creature) {ok})
@@ -200,6 +307,14 @@ badChosenCounterKindRead : Unspellable
   (\read => OfChosen CounterKindQ {read})
 badChosenCounterKindRead Oh impossible
 
+
+||| "Choose two target creatures. Tap them."
+public export
+okThem : Effect []
+okThem =
+  Sequentially [Choose (Macros.targets (Macros.exactly 2) Macros.creature)
+                       Nothing Openly,
+                SetStatus Tapped Them]
 
 ||| "Choose two target creatures. Choose two target creatures. Tap them."
 public export
@@ -217,6 +332,15 @@ badInnerAmbig : Unspellable (Effect []) (\ok =>
                Macros.losesLife (Macros.That PlayerW OneOf {ok}) (Lit 1)])
 badInnerAmbig Refl impossible
 
+
+||| "Discard a card: Return the discarded card to the battlefield."
+public export
+okVerbedDiscardedCard : Ability
+okVerbedDiscardedCard =
+  Activated (Do (Macros.discard You (Macros.a (InZone Macros.handZ))))
+            (Move (TheVerbed "Discard" CardW Attributive)
+                  Macros.battlefieldZ [])
+            Nothing Nothing Nothing Nothing
 
 ||| "Discard a card: Return the sacrificed card to the battlefield."
 public export
@@ -256,6 +380,12 @@ badTapGraveyard : Unspellable (Effect []) (\ok =>
   SetStatus Tapped (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {ok})
 badTapGraveyard Oh impossible
 
+
+||| "Destroy target tapped creature."
+public export
+okTappedBattlefield : Effect []
+okTappedBattlefield =
+  Macros.destroy (Macros.target (And [Macros.creature, Macros.tapped]))
 
 ||| "Destroy target tapped creature card in your graveyard."
 public export
@@ -315,6 +445,12 @@ badThatTokenOfCard : Unspellable (Effect []) (\ok =>
 badThatTokenOfCard (Refl, _) impossible
 
 
+||| "A creature doesn't untap during your untap step."
+public export
+okUntapLockBattlefield : Ability
+okUntapLockBattlefield =
+  Static (Macros.doesntUntap (Macros.a Macros.creature) (Just You))
+
 public export
 badUntapLockGraveyard : Unspellable Ability (\ok =>
   Static (Macros.doesntUntap (Macros.a (And [Macros.creature, InZone (Macros.graveyardOf You)]))
@@ -344,12 +480,24 @@ badFightPermanent : Unspellable (Effect []) (\ok =>
 badFightPermanent Oh impossible
 
 
+||| "When target creature dies this turn, return that card to the battlefield."
+public export
+okDiesBattlefield : Effect []
+okDiesBattlefield =
+  Delayed (Dies (Macros.target Macros.creature)) [] (Just ThisTurn)
+          (Move (That CardW) Macros.battlefieldZ [])
+
 public export
 badDiesInGraveyard : Unspellable (Effect []) (\ok =>
   Delayed (Dies (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {zn = ok}) [] (Just ThisTurn)
           (Move (Macros.That CardW OneOf) Macros.battlefieldZ []))
 badDiesInGraveyard Oh impossible
 
+
+||| "This deals 3 damage to target creature."
+public export
+okDamageCreature : Effect []
+okDamageCreature = DealDamage This (Lit 3) (Macros.target Macros.creature)
 
 ||| "Destroy target creature. This deals 3 damage to it."
 public export
@@ -372,6 +520,12 @@ badDamageArtifact : Unspellable (Effect []) (\ok =>
   DealDamage This (Lit 1) (Macros.target (HasType Artifact)) {rk = ok})
 badDamageArtifact ObjectTakes impossible
 
+
+||| "not of a color other than white"
+public export
+okNegatedRestrictedQuality : Predicate [] (Quality Color)
+okNegatedRestrictedQuality =
+  Not (QualityNoun Color (Just (ColorOtherThan White)))
 
 ||| "noncolor"
 public export
@@ -402,12 +556,24 @@ badConflictingZones : Unspellable (Effect []) (\ok =>
 badConflictingZones Oh impossible
 
 
+||| "Choose target creature."
+public export
+okTargetCreature : Effect []
+okTargetCreature = Choose (Macros.target Macros.creature) Nothing Openly
+
 ||| "Choose target color."
 public export
 badTargetColor : Unspellable (Effect []) (\ok =>
   Choose (Macros.target (QualityNoun Color Nothing) {tk = ok}) Nothing Openly)
 badTargetColor ObjectTgt impossible
 
+
+||| "Target creature gets +3/+3 until end of turn."
+public export
+okGetsBattlefield : Effect []
+okGetsBattlefield =
+  Macros.gets (Macros.target Macros.creature) (PtUp (Lit 3)) (PtUp (Lit 3))
+              (Just Macros.untilEndOfTurn)
 
 ||| "Destroy target creature. It gets +3/+3 until end of turn."
 public export
@@ -417,6 +583,11 @@ badGetsGraveyard : Unspellable (Effect []) (\ok =>
 badGetsGraveyard Oh impossible
 
 
+||| "Return target creature to its owner's hand."
+public export
+okMoveToHand : Effect []
+okMoveToHand = Move (Macros.target Macros.creature) Macros.handZ []
+
 ||| "Put target creature into target player's hand."
 public export
 badMoveToTargetsHand : Unspellable (Effect []) (\ok =>
@@ -424,12 +595,22 @@ badMoveToTargetsHand : Unspellable (Effect []) (\ok =>
 badMoveToTargetsHand HandOkBare impossible
 
 
+||| "Destroy target creature."
+public export
+okDestroyBattlefield : Effect []
+okDestroyBattlefield = Macros.destroy (Macros.target Macros.creature)
+
 ||| "Destroy target creature card in your graveyard."
 public export
 badDestroyGraveyard : Unspellable (Effect []) (\ok =>
   Macros.destroy (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {ok})
 badDestroyGraveyard Oh impossible
 
+
+||| "You discard a card."
+public export
+okDiscardHand : Effect []
+okDiscardHand = Macros.discard You (Macros.a (InZone Macros.handZ))
 
 ||| "You discard a creature."
 public export
@@ -445,6 +626,13 @@ badDestroyGraveyardCard : Unspellable (Effect []) (\ok =>
 badDestroyGraveyardCard Oh impossible
 
 
+||| "Destroy a creature."
+public export
+okKnownVerbLabel : Effect []
+okKnownVerbLabel =
+  Enact Nothing "Destroy"
+        (Move (Macros.a Macros.creature) Macros.graveyardZ [])
+
 ||| A move labeled with a word outside the label catalog
 public export
 badUnknownVerbLabel : Unspellable (Effect []) (\ok =>
@@ -452,12 +640,23 @@ badUnknownVerbLabel : Unspellable (Effect []) (\ok =>
 badUnknownVerbLabel Oh impossible
 
 
+||| "Choose two target creatures."
+public export
+okTwoGroup : Effect []
+okTwoGroup =
+  Choose (Macros.targets (Macros.exactly 2) Macros.creature) Nothing Openly
+
 ||| "Choose zero target creatures."
 public export
 badZeroGroup : Unspellable (Effect []) (\ok =>
   Choose (Described (TargetDet (Macros.exactly 0)) Macros.creature {ok}) Nothing Openly)
 badZeroGroup (MaxAtLeastOne, _, _) impossible
 
+
+||| "your hand"
+public export
+okOwnedHand : ZoneExpr []
+okOwnedHand = ZoneAt Hand (PossessedBy You)
 
 ||| "your battlefield"
 public export
@@ -475,12 +674,28 @@ badDiscardedCreatureWord : Unspellable Ability (\ok =>
 badDiscardedCreatureWord Refl impossible
 
 
+||| "Target player sacrifices a creature of their choice."
+public export
+okBoundTheirChoice : Effect []
+okBoundTheirChoice =
+  Macros.sacrifice (Macros.target AnyPlayer)
+                   (Macros.aTheirChoice Macros.creature)
+
 ||| "Destroy a creature of their choice."
 public export
 badUnboundTheirChoice : Unspellable (Effect []) (\ok =>
   Macros.destroy (Macros.aTheirChoice Macros.creature {ch = ok}))
 badUnboundTheirChoice Refl impossible
 
+
+||| "... loses 1 life for each attacking creature. You gain that much life."
+public export
+okThatMuchBound : Effect []
+okThatMuchBound =
+  Sequentially [Macros.losesLife (Macros.target Opponent)
+                  (Macros.forEach (And [Attacking, Macros.creature,
+                                        HasPossessor ControllerAx You])),
+                Macros.gainsLife You ThatMuch]
 
 ||| "This deals that much damage to any target."
 public export
@@ -496,6 +711,11 @@ badThatMuchAmbig : Unspellable (Effect []) (\ok =>
                 Macros.gainsLife You (ThatMuch {ok})])
 badThatMuchAmbig Refl impossible
 
+
+||| "1 life for each creature"
+public export
+okForEachOne : Amount []
+okForEachOne = Macros.nForEach 1 Macros.creature
 
 ||| "1 life for each 0 creatures"
 public export
@@ -539,6 +759,11 @@ badDiscardThisCreature : Unspellable (Effect []) (\ok =>
   Macros.discard You Macros.thisCreature {dk = ok})
 badDiscardThisCreature DiscardTracked impossible
 
+
+||| "this creature"
+public export
+okAscribedSelf : Noun [] Object
+okAscribedSelf = AsType Creature This Nothing
 
 ||| "this creature"
 public export
@@ -593,6 +818,15 @@ badJoinedHeaderReadback : Unspellable Ability (\ok =>
                          ((Macros.It OneOf) {ok = ok})))
 badJoinedHeaderReadback Refl impossible
 
+
+||| "Whenever this creature attacks while you're casting a spell, draw a card."
+public export
+okWhileDoingCast : Ability
+okWhileDoingCast =
+  Triggered Whenever (Macros.attacks Macros.thisCreature) []
+            (Just (WhileDoing (Casts You (Macros.a Macros.spell) Nothing)))
+            [] Nothing Nothing Nothing
+            (Macros.draw You (Lit 1))
 
 ||| "Whenever this creature attacks while a creature is dying, draw a card."
 public export

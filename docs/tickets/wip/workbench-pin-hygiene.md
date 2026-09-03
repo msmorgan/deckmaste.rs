@@ -43,3 +43,104 @@ scratch twin to be deleted; the eight docstrings name the refused spelling and
 its spellable sibling; the pin count is unchanged or higher (no pin deleted);
 each twin is shown to fail when its pin's gate is loosened, and the landing
 record gives the twin count before and after. Standard constraints apply.
+
+## As landed
+
+- **Twins beside the pins.** 319 positive definitions added across the eight
+  `Proofs*` modules, one per distinct obligation — an obligation keyed as a
+  (head constructor, implicit slot) pair, 338 of them over the 584 pins. Each
+  twin applies the pin's own head constructor at the pin's own slot with only
+  the rejected argument replaced by an admitted one, and sits immediately above
+  the first pin sharing that obligation. 0 obligations skipped.
+- **`VERIFY.md`.** The non-vacuity paragraph now requires the twin to live
+  beside the pin in the same module instead of in a deleted scratch module, and
+  says one twin covers the pins sharing its obligation. A second paragraph
+  requires the docstring to name the refused *spelling* and its spellable
+  sibling, and prefers a named `data` witness over a bare `So (…)` where the
+  refusal message carries the meaning.
+- **The eight docstrings.** Seven amended with one why line naming the refused
+  spelling and the sibling that spells the sentence: `ProofsC.badStaticTargets`,
+  `ProofsC.badUntilBeginningOfUpkeep`, `ProofsD.badTargetedOutcomeGate`,
+  `ProofsF.badDestroySource`, `ProofsF.badStaticPlayerCantTargets`,
+  `ProofsG.badLiteralScaledMana`, `ProofsG.badExchangeOneParty`. The eighth,
+  `badExactlyOneColor`, no longer exists: `workbench-axis-pairs` already
+  replaced it with the positive `ProofsG.monocoloredIsOneColor` beside
+  `badExactlyZeroColors`/`badExactlySixColors`, which is exactly this ticket's
+  fix. Nothing to do.
+- **Closure tables §2 (audit N9).** All 712 Site anchors in §2.1–§2.6 rewritten
+  from `<File>.idr:<line>` to `Module.decl`; the three `Experimental.idr — lines
+  N–M` headings renamed to the modules that hold the region; the `Refresh
+  method` and the file's demotion note rewritten to prescribe name anchors. The
+  `CapBound` and `CantMoreThan` rows are re-anchored to `Effect.Deontic`'s
+  `bound` slot / `Effect.CountBound`.
+- **Not done:** §1 (flip-risk ranking) and the `Totals` table still name
+  `Experimental.idr`; both are outside N9's and this ticket's scope and are
+  labelled snapshots.
+
+## Landing record
+
+**Numbers before/after.** Pins 584 → 584 (no pin added or deleted). Positive
+top-level definitions in `Proofs*`: 214 → 533, i.e. **319 twins added**.
+Per module (before → after): `Proofs` 2 → 39, `ProofsB` 1 → 31, `ProofsC`
+1 → 40, `ProofsD` 1 → 42, `ProofsE` 0 → 44, `ProofsF` 4 → 39, `ProofsG`
+46 → 134, `ProofsAnaphora` 159 → 164 (its baseline is the counting-lemma proof
+library, not twins; 5 of its 7 obligations gained one, 2 already had one).
+Distinct obligations: 338, all covered.
+
+**Gate lines.**
+- `cd idris && ./scripts/build` — clean `build/`, exit 0, `23/23: Building
+  Cards (src/Cards.idr)`, 0 `Error:` and 0 `Warning:` lines.
+- `cargo xtask cite check --list-noncompliant` — `0 non-compliant
+  citation-looking string(s)`.
+- `cargo xtask cite check` — `checked 17797 citations against cr.txt (eff.
+  2026-08-07); 0 stale`.
+- `jj --no-pager diff --git | cargo xtask cite audit --diff` — read. No rule
+  number is added or changed anywhere in the diff: every bracketed citation on
+  a `+` line is pre-existing, on a closure-tables row whose Site cell moved, and
+  no file under `idris/src/` gained a citation. `cite bless` therefore not run.
+
+**Assurance counts.** restored 0 / re-spelled 0 / ignored 0 / added 319
+(positive twins; 0 pins) / **removed 0**. No pin, docstring, name or ordering
+was deleted or changed except the seven docstrings above, which gained a line
+and lost none; each module's diff against its pre-round state has zero deleted
+lines and zero duplicate definitions.
+
+**Non-vacuity re-probe.** Five twins were mutated back to their pin's rejected
+argument and each reproduced the pin's own refusal, then were restored:
+`Proofs.okChosenNumberOneStanding` (two standing number choices →
+`countChoice (QSort …)`), `ProofsB.okFlatDisjunction` (`Or [artifact,
+artifact]` → `So (noRepeatedPair …)`), `ProofsC.okStaticUntargeting`,
+`ProofsD.okUntargetedOutcomeGate`, `ProofsF.okStaticPlayerCant` (each
+`target …` under a `Static` → `So False`). The implementers probed a further
+nine of their own the same way.
+
+**Deviations and additions.**
+- *One twin per obligation, not one per pin.* The ticket's "every pin has a
+  positive twin in-tree" is met at the level of the obligation: where several
+  pins share a (constructor, slot) gate, they share one twin, because the
+  per-pin variants would be byte-identical definitions under different names
+  (`badExactlyZeroColors` and `badExactlySixColors` already share
+  `monocoloredIsOneColor`, the convention this ticket generalises). Every pin
+  therefore has a twin on its gate; no pin has a private duplicate. Disclosed
+  rather than silently equated.
+- *Closure tables: 164 of 680 §2 rows are now marked `site not found
+  2026-09-03`.* Re-anchoring by name rather than by line makes the demoted
+  §2.3/§2.4/§2.6 snapshot's dead names visible for the first time (`combatant`,
+  `verbFacts`, `deedFacts`, `TurnDeixis`, `CopyStack`, `Monocolored`, … — all
+  confirmed absent from `idris/src/Experimental` by grep). Their remaining
+  cells are left as written, per the round brief; only the Site cell changed.
+- *Residue, not resolved here:* the re-anchored `Effect.Deontic` bound row
+  carries a pre-existing `[CR#205.4c]` (basic versus nonbasic land) that reads
+  off-topic for a count bound. Untouched — the citation list was not edited.
+- Added: 4 `Bindings` fixtures in `ProofsG` (`afterATwoDieRoll`,
+  `afterCountersPut`, `afterALandTapForMana`, `afterManaAdded`), following the
+  module's existing `afterACoinFlip` idiom, because the scope-sensitive gates
+  need a prefix to be twinned at all. Counted in the 319.
+
+**STOP taken.** None. One incident: mid-round the working copy went stale (a
+sibling workspace advanced the op log) and `jj workspace update-stale` produced
+a divergent `@`, checking out the half that carried only `VERIFY.md` and the
+closure tables. The halves were diffed by content, the half carrying all ten
+files was selected with `jj edit 13d1bc81112c`, and the two-file half was
+abandoned (`jj abandon 5483b99830c2`). All gates above were re-run after the
+recovery on the rebased parent.

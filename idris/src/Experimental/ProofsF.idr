@@ -9,6 +9,15 @@ import Experimental.Unspellable
 %unbound_implicits off
 
 
+||| "Prevent all damage that would be dealt to any player or permanent."
+public export
+okPreventDealtToPermanent : StaticEffect []
+okPreventDealtToPermanent =
+  DamageRule AnyDamage Unattributed
+             (ToRecipient (Macros.a (Macros.kindJoin AnyPlayer Permanent)))
+             (Prevent CutAll Nothing) Repeatedly
+
+
 ||| "Prevent all damage that would be dealt to this this turn."
 public export
 badPreventedBareThis : Unspellable (StaticEffect []) (\ok =>
@@ -26,6 +35,15 @@ badPreventDealtToArtifact : Unspellable (StaticEffect []) (\ok =>
 badPreventDealtToArtifact ObjectTakes impossible
 
 
+||| "… is dealt to target attacking creature instead."
+public export
+okRedirectToSingleCreature : StaticEffect []
+okRedirectToSingleCreature =
+  DamageRule AnyDamage Unattributed (Macros.shieldingIt You)
+             (Redirect CutAll (Macros.target (And [Macros.creature, Attacking])))
+             Repeatedly
+
+
 ||| "All damage that would be dealt to you is dealt to target artifact instead."
 public export
 badRedirectToArtifact : Unspellable (StaticEffect []) (\ok =>
@@ -39,6 +57,15 @@ badRedirectToPlural : Unspellable (StaticEffect []) (\ok =>
   DamageRule AnyDamage Unattributed (ToRecipient You)
              (Redirect CutAll (Macros.allOf Macros.creatureYouControl) {one = ok}) Repeatedly)
 badRedirectToPlural Refl impossible
+
+
+||| "This deals 4 damage to target creature. The damage can't be prevented."
+public export
+okTheDamageAfterDealing : Effect []
+okTheDamageAfterDealing =
+  Sequentially [ DealDamage This (Lit 4) (Macros.target Macros.creature)
+               , Continuously {ts = StaticFirstDone}
+                   (CantPrevent AnyDamage ThatDamage NoPreventionOnly) Nothing ]
 
 
 ||| "The damage can't be prevented."
@@ -57,12 +84,32 @@ badTheDamageAfterLifeGain : Unspellable (Effect []) (\ok =>
 badTheDamageAfterLifeGain Oh impossible
 
 
+||| "… If damage from a red source is prevented this way, you gain 3 life."
+public export
+okPreventedFromSourceAnnounced : StaticEffect []
+okPreventedFromSourceAnnounced =
+  DamageRule AnyDamage Unattributed (Macros.shieldingIt You)
+             (Prevent CutAll
+                (Just (If (PreventedFromSource (And [Macros.source, ColorIs Red]))
+                          (Macros.gainsLife You (Lit 3)) Nothing)))
+             Repeatedly
+
+
 ||| "If damage from a red source is prevented this way, you gain 3 life."
 public export
 badPreventedFromSourceUnannounced : Unspellable (Effect []) (\ok =>
   If (PreventedFromSource (And [Macros.source, ColorIs Red]) {ok})
      (Macros.gainsLife You (Lit 3)) Nothing)
 badPreventedFromSourceUnannounced Refl impossible
+
+
+||| "… You gain life equal to the damage prevented this way."
+public export
+okPreventedThisWayAnnounced : StaticEffect []
+okPreventedThisWayAnnounced =
+  DamageRule AnyDamage Unattributed (Macros.shieldingIt You)
+             (Prevent CutAll (Just (Macros.gainsLife You Macros.preventedThisWay)))
+             Repeatedly
 
 
 public export
@@ -79,6 +126,14 @@ badPreventedThisWayUnannounced : Unspellable (Effect []) (\ok =>
 badPreventedThisWayUnannounced Refl impossible
 
 
+||| "… They gain 2 life for each card less than two they drew this way."
+public export
+okShortOfCeilingAnnounced : Effect []
+okShortOfCeilingAnnounced =
+  Sequentially [ Macros.may (Macros.each AnyPlayer) (Draw They (UpTo (Lit 2)))
+               , Macros.gainsLife They (Macros.times 2 Macros.shortOfCeiling) ]
+
+
 ||| "You gain 2 life for each card less than two you draw this way."
 public export
 badShortOfCeilingUnannounced : Unspellable (Effect []) (\ok =>
@@ -93,6 +148,14 @@ badShieldSizedByItsOwnPrevention : Unspellable (StaticEffect []) (\ok =>
 badShieldSizedByItsOwnPrevention Refl impossible
 
 
+||| "Prevent the next 3 damage that would be dealt to you this turn."
+public export
+okShieldRepeatedly : StaticEffect []
+okShieldRepeatedly =
+  DamageRule AnyDamage Unattributed (Macros.shieldingIt You)
+             (Prevent (Shield (Lit 3)) Nothing) Repeatedly
+
+
 public export
 badShieldNextTimeOnly : Unspellable (StaticEffect []) (\ok =>
   DamageRule AnyDamage Unattributed (ToRecipient You)
@@ -100,11 +163,26 @@ badShieldNextTimeOnly : Unspellable (StaticEffect []) (\ok =>
 badShieldNextTimeOnly Oh impossible
 
 
+||| "Destroy target creature."
+public export
+okDestroyCreature : Effect []
+okDestroyCreature = Macros.destroy (Macros.target Macros.creature)
+
+
 ||| "Destroy target source."
+||| Refused for an unzoned noun, not for the verb; no sibling spells it.
 public export
 badDestroySource : Unspellable (Effect []) (\ok =>
   Macros.destroy (Macros.target Macros.source) {ok})
 badDestroySource Oh impossible
+
+
+||| "Target creature gets +1/+1 until end of turn."
+public export
+okGetsCreature : Effect []
+okGetsCreature =
+  Macros.gets (Macros.target Macros.creature) (PtUp (Lit 1)) (PtUp (Lit 1))
+              (Just Macros.untilEndOfTurn)
 
 
 ||| "Target source gets +1/+1 until end of turn." [CR#609.7a]
@@ -115,11 +193,23 @@ badGetsSource : Unspellable (Effect []) (\ok =>
 badGetsSource Oh impossible
 
 
+||| "This creature deals 3 damage to target creature."
+public export
+okDamageToCreature : Effect []
+okDamageToCreature = DealDamage This (Lit 3) (Macros.target Macros.creature)
+
+
 ||| "This creature deals 3 damage to target source."
 public export
 badDamageToSource : Unspellable (Effect []) (\ok =>
   DealDamage This (Lit 3) (Macros.target Macros.source) {rk = ok})
 badDamageToSource ObjectTakes impossible
+
+
+||| "…target nonartifact…"
+public export
+okNonartifact : Predicate [] Object
+okNonartifact = Not Macros.artifact
 
 
 ||| "…target nonsource…"
@@ -137,6 +227,14 @@ badRedirectToGroup : Unspellable (StaticEffect []) (\ok =>
                 {one = ok})
              Repeatedly)
 badRedirectToGroup Refl impossible
+
+
+||| "Target opponent loses 1 life. You gain that much life."
+public export
+okThatMuchAfterLifeLoss : Effect []
+okThatMuchAfterLifeLoss =
+  Sequentially [ Macros.losesLife (Macros.target Opponent) (Lit 1)
+               , Macros.gainsLife You ThatMuch ]
 
 
 ||| "… it deals that much damage plus that much instead."
@@ -171,6 +269,17 @@ badThatMuchAfterDeath : Unspellable Ability (\ok =>
 badThatMuchAfterDeath Refl impossible
 
 
+||| "… That creature deals damage equal to its power to this creature."
+public export
+okThatCreatureAfterDamage : Effect []
+okThatCreatureAfterDamage =
+  Sequentially [ DealDamage Macros.thisCreature
+                            (Macros.powerOf Macros.thisCreature)
+                            (Macros.target Macros.creature)
+               , DealDamage (That (TypeW Creature)) (Macros.powerOf It)
+                            Macros.thisCreature ]
+
+
 public export
 badThatCreatureIsDamagedSelf : Unspellable Ability (\ok =>
   Triggered Whenever (IsDealtDamage AnyDamage Macros.thisCreature) [] Nothing [] Nothing Nothing Nothing
@@ -179,7 +288,15 @@ badThatCreatureIsDamagedSelf : Unspellable Ability (\ok =>
 badThatCreatureIsDamagedSelf Refl impossible
 
 
+||| "Your opponents can't gain life."
+public export
+okStaticPlayerCant : Ability
+okStaticPlayerCant =
+  Static (Macros.playerCant "GainLife" (PlayerGroup YourOpponents))
+
+
 ||| "Target player can't gain life."
+||| Refused as a Static; Continuously (playerCant …) spells the sentence.
 public export
 badStaticPlayerCantTargets : Unspellable Ability (\ok =>
   Static (Macros.playerCant "GainLife" (Macros.target AnyPlayer)) {ut = ok})
@@ -199,6 +316,12 @@ public export
 badCreaturesAreMountains : Unspellable (StaticEffect []) (\ok =>
   Becomes (Macros.allOf Macros.creature) Sets (Bundle (MkToken Nothing [] (Macros.basicLandLine [landType "Mountain"]) [] Nothing) Nothing) {ok = ok})
 badCreaturesAreMountains Oh impossible
+
+
+||| "of the creature type of your choice"
+public export
+okYourChoiceCreatureType : Predicate [] Object
+okYourChoiceCreatureType = OfYourChoice (SubtypeQ Creature) Nothing
 
 
 ||| "of the number of your choice"
@@ -261,12 +384,35 @@ badAscribedQualityBeforeChoice : Unspellable Card (\ok =>
 badAscribedQualityBeforeChoice Refl impossible
 
 
+||| "Creatures you control are every creature type."
+public export
+okSingleExtension : StaticEffect []
+okSingleExtension =
+  AlsoOffBattlefield
+    (Becomes (Macros.allOf Macros.creatureYouControl) Adds
+             (EveryTypeOf CreatureSpace))
+
+
 public export
 badDoubleExtension : Unspellable (StaticEffect []) (\ok =>
   AlsoOffBattlefield
     (AlsoOffBattlefield
        (Becomes (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You])) Adds (Bundle (MkToken Nothing [] (MkTypeLine [] [Artifact]) [] Nothing) Nothing))) {nx = ok})
 badDoubleExtension Oh impossible
+
+
+||| "… Counter target spell with the chosen name."
+public export
+okNameMatchAfterChooser : Card
+okNameMatchAfterChooser =
+  Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
+       [ Static (EntersChoice Macros.thisEnchantment (QSort CardName) Nothing
+                              Openly)
+       , Activated (Mana [Macros.pip Blue])
+                   (Macros.counterSpell
+                      (Macros.target (And [Macros.spell, Named ChosenName])))
+                   Nothing Nothing Nothing Nothing ]
+       Nothing
 
 
 public export
@@ -293,6 +439,12 @@ badNameMatchWrongSort : Unspellable Card (\ok =>
 badNameMatchWrongSort Refl impossible
 
 
+||| "Choose a creature type other than Wall."
+public export
+okCreatureTypeExclusion : ChoiceDomain (QSort (SubtypeQ Creature))
+okCreatureTypeExclusion = TypeOtherThan (creatureType "Wall")
+
+
 ||| "Choose a creature type other than Equipment."
 public export
 badNonCreatureTypeExclusion : Unspellable (ChoiceDomain (QSort (SubtypeQ Creature))) (\ok =>
@@ -300,11 +452,25 @@ badNonCreatureTypeExclusion : Unspellable (ChoiceDomain (QSort (SubtypeQ Creatur
 badNonCreatureTypeExclusion Refl impossible
 
 
+||| "… two cards with the same name in your hand …"
+public export
+okPluralNameAgreement : Noun [] Object
+okPluralNameAgreement =
+  NamesAgree SameName (Macros.counted (Macros.exactly 2)
+                                      (And [Not Macros.land, InZone Macros.handZ]))
+
+
 ||| "… target creature with different names."
 public export
 badSingularNameAgreement : Unspellable (Noun [] Object) (\ok =>
   NamesAgree DifferentNames (Macros.target Macros.creature) {pl = ok})
 badSingularNameAgreement Refl impossible
+
+
+||| "This spell can't be countered."
+public export
+okCantBeCountered : StaticEffect []
+okCantBeCountered = Macros.objectCant "Counter" This
 
 
 ||| "Creature cards in graveyards can't be countered."
@@ -315,12 +481,35 @@ badCounteredInGraveyard : Unspellable (StaticEffect []) (\ok =>
 badCounteredInGraveyard Oh impossible
 
 
+||| "Saga — I, II, III — Draw a card."
+public export
+okChapterOnSaga : Card
+okChapterOnSaga =
+  Macros.card "" (Just [Macros.pip White]) []
+       (MkTypeLine [enchantmentType "Saga"] [Enchantment])
+       [ Macros.triggered When (ChapterMark [ChapterI])
+           (Macros.draw You (Lit 1))
+       , Macros.triggered When (ChapterMark [ChapterII])
+           (Macros.draw You (Lit 1))
+       , Macros.triggered When (ChapterMark [ChapterIII])
+           (Macros.draw You (Lit 1)) ]
+       Nothing
+
+
 public export
 badChapterOnNonSaga : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip White]) [] (MkTypeLine [] [Enchantment])
        [ Triggered When (ChapterMark [ChapterI]) [] Nothing [] Nothing Nothing Nothing (Draw You (Lit 1)) ]
        Nothing {fl = ok})
 badChapterOnNonSaga MkFaceLaws impossible
+
+
+||| "I — Draw a card."
+public export
+okChapterMark : Ability
+okChapterMark =
+  Triggered When (ChapterMark [ChapterI]) [] Nothing [] Nothing Nothing Nothing
+    (Macros.draw You (Lit 1))
 
 
 ||| "— Draw a card."
@@ -337,6 +526,14 @@ badRepeatedChapterMark : Unspellable Ability (\ok =>
 badRepeatedChapterMark Oh impossible
 
 
+||| "Whenever you draw a card, draw a card. This triggers only once each turn."
+public export
+okTriggerLimitOffChapter : Ability
+okTriggerLimitOffChapter =
+  Triggered Whenever (Draws You) [] Nothing [] Nothing (Just OncePerTurn) Nothing
+    (Macros.draw You (Lit 1))
+
+
 ||| "I — Draw a card. This ability triggers only once each turn."
 public export
 badChapterLimit : Unspellable Ability (\ok =>
@@ -351,6 +548,14 @@ badChapterIntervening : Unspellable Ability (\ok =>
   Triggered When (ChapterMark [ChapterI]) [] Nothing [] Nothing Nothing (Just (Macros.exists (And [Macros.creature, HasPossessor ControllerAx You])))
     (Draw You (Lit 1)) {cd = ok})
 badChapterIntervening Oh impossible
+
+
+||| "{T}: Draw a card. Activate only once each turn."
+public export
+okActivatedTurnLimit : Ability
+okActivatedTurnLimit =
+  Activated TapSymbol (Macros.draw You (Lit 1)) Nothing (Just OncePerTurn) Nothing
+            Nothing
 
 
 ||| "{T}: Draw a card. Do this only once each turn."
@@ -381,11 +586,24 @@ badChapterJoin : Unspellable Ability (\ok =>
 badChapterJoin Oh impossible
 
 
+||| "If you would draw a card, draw two cards instead."
+public export
+okDrawReplacement : StaticEffect []
+okDrawReplacement =
+  Intercepts (Draws You) [] Nothing (Draw You (Lit 2)) Repeatedly Nothing
+
+
 ||| "If I — would happen, draw a card instead."
 public export
 badChapterReplacement : Unspellable (StaticEffect []) (\ok =>
   Intercepts (ChapterMark [ChapterI]) [] Nothing (Draw You (Lit 1)) Repeatedly Nothing {ok})
 badChapterReplacement Oh impossible
+
+
+||| "You may look at the top card of your library any time."
+public export
+okLookAtTopOfLibrary : StaticEffect []
+okLookAtTopOfLibrary = Visibility LookAt You TopOfLibrary
 
 
 ||| "You may look at your hand any time."
@@ -466,6 +684,15 @@ badStillOnAddition : Unspellable (StaticEffect []) (\ok =>
 badStillOnAddition Oh impossible
 
 
+||| "… At the beginning of that turn's end step, you lose the game."
+public export
+okDeicticTurnAfterExtraTurn : Effect []
+okDeicticTurnAfterExtraTurn =
+  Sequentially [ExtraTurn You (Lit 1),
+                Delayed (BeginningOf ThePart EndStep Macros.thatTurns) [] Nothing
+                        (Concludes LoseGame You)]
+
+
 ||| "Draw a card. At the beginning of that turn's end step, you lose the game."
 public export
 badDeicticTurnWithoutIntroducer : Unspellable (Effect []) (\ok =>
@@ -473,6 +700,12 @@ badDeicticTurnWithoutIntroducer : Unspellable (Effect []) (\ok =>
                 Delayed (BeginningOf ThePart EndStep (Macros.thatTurns {ok})) [] Nothing
                         (Concludes LoseGame You)])
 badDeicticTurnWithoutIntroducer Refl impossible
+
+
+||| "After this combat phase, there is an additional upkeep step."
+public export
+okAdditionalUpkeep : Effect []
+okAdditionalUpkeep = AdditionalPart Nothing Upkeep (Just Combat) (Lit 1) Nothing
 
 
 ||| "After this combat phase, there is an additional turn."
@@ -498,6 +731,14 @@ badCastAbilityClass : Unspellable (StaticEffect []) (\ok =>
     (Macros.allOf (And [AbilityHead AnyActivated, AbilityOf (Macros.allOf Macros.artifact)]))
     {dp = ok})
 badCastAbilityClass Oh impossible
+
+
+||| "You may sacrifice a Mountain rather than pay this spell's mana cost."
+public export
+okAltCostSacrifice : StaticEffect []
+okAltCostSacrifice =
+  AltCost This (Just (Do (Macros.sacrifice You
+                 (Macros.a (And [Macros.land, HasSubtype (landType "Mountain")])))))
 
 
 ||| "You may {T} rather than pay this spell's mana cost."
@@ -530,10 +771,23 @@ badEntwineWithoutModes : Unspellable Card (\ok =>
 badEntwineWithoutModes MkFaceLaws impossible
 
 
+||| "… rather than pay this spell's mana cost, pay {2}."
+public export
+okPlayPaymentMana : PlayPayment []
+okPlayPaymentMana = PayingInstead (Mana [Macros.generic 2])
+
+
 public export
 badPlayPaymentTapSymbol : Unspellable (PlayPayment []) (\ok =>
   PayingInstead TapSymbol {ok})
 badPlayPaymentTapSymbol Oh impossible
+
+
+||| "As an additional cost to cast this spell, sacrifice an artifact."
+public export
+okAddedCostSacrifice : StaticEffect []
+okAddedCostSacrifice =
+  AddedCost (Do (Macros.sacrifice You (Macros.a Macros.artifact))) False
 
 
 ||| "As an additional cost to cast this spell, {T}."
@@ -559,6 +813,12 @@ badAltCostClause : Unspellable (Effect []) (\ok =>
 badAltCostClause Oh impossible
 
 
+||| "Regenerate target creature."
+public export
+okRegenerateCreature : Effect []
+okRegenerateCreature = Regenerate (Macros.target Macros.creature)
+
+
 ||| "Regenerate target creature card in your graveyard."
 public export
 badRegenerateInGraveyard : Unspellable (Effect []) (\ok =>
@@ -582,6 +842,18 @@ badRegeneratedInGraveyard : Unspellable (StaticEffect []) (\ok =>
 badRegeneratedInGraveyard Oh impossible
 
 
+||| "…choose a color. {T}: Add one mana of the chosen color."
+public export
+okChosenColorAfterChooser : Card
+okChosenColorAfterChooser =
+  Macros.card "" Nothing [] (MkTypeLine [] [Land])
+       [ Static (EntersChoice Macros.thisLand (QSort Color) Nothing Openly)
+       , Activated TapSymbol
+           (AddMana You (Lit 1) (OfChosenColor Nothing) []) Nothing Nothing Nothing
+           Nothing ]
+       Nothing
+
+
 ||| "{T}: Add one mana of the chosen color."
 public export
 badChosenColorNoChooser : Unspellable Card (\ok =>
@@ -590,6 +862,20 @@ badChosenColorNoChooser : Unspellable Card (\ok =>
            (AddMana You (Lit 1) (OfChosenColor Nothing {cq = ok}) []) Nothing Nothing Nothing Nothing ]
        Nothing)
 badChosenColorNoChooser Refl impossible
+
+
+||| "Prevent all damage sources of the last chosen color would deal to you."
+public export
+okLastChosenAfterChooser : Card
+okLastChosenAfterChooser =
+  Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
+       [ Static (EntersChoice Macros.thisEnchantment (QSort Color) Nothing
+                              Openly)
+       , Static (DamageRule AnyDamage
+                   (DealtBy (Macros.allOf (And [Macros.source,
+                                                OfTheLastChosen Color])))
+                   (Macros.shieldingIt You) (Prevent CutAll Nothing) Repeatedly) ]
+       Nothing
 
 
 ||| "sources of the last chosen color"
@@ -617,6 +903,12 @@ badLastChosenWrongSort : Unspellable Card (\ok =>
                                                 OfTheLastChosen Color {ok = ok}]))) (ToRecipient You) (Prevent CutAll Nothing) Repeatedly) ]
        Nothing)
 badLastChosenWrongSort Oh impossible
+
+
+||| "Starting with you, each player votes for death or torture."
+public export
+okDistinctBallotOptions : Ballot []
+okDistinctBallotOptions = ByLabel ["death", "torture"]
 
 
 ||| "Starting with you, each player votes for death or death."

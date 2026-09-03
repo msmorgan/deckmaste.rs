@@ -49,11 +49,20 @@ that the term's open obligation has no proof, and its body (`Oh impossible`,
 `Refl impossible`) makes the compiler confirm it. Table assertions are
 checked proofs of the same kind, `So (…)` over a facts table with body `Oh`
 (e.g. `Words.actLabelsDistinct`). A pin is evidence only once it is
-**non-vacuous**: before landing one, put its positive twin — the same
-sentence with the obligation met — in a scratch module and check that it
-typechecks as a term (delete the scratch module afterwards); a pin whose
-positive twin also fails is refusing nothing. A table assertion is probed
-the same way, by making the table wrong and watching the proof fail.
+**non-vacuous**: its positive twin — the same constructor at the same slot
+with the obligation met — is an ordinary definition **kept beside the pin in
+the same module**, so the build re-checks non-vacuity after every core change.
+A pin whose twin also fails is refusing nothing. One twin covers the pins
+that share its obligation; write it above the first of them, named for what
+it admits. A table assertion is probed the same way, by making the table
+wrong and watching the proof fail.
+
+A pin's docstring names the **spelling** it refuses, not just the sentence:
+where a sibling constructor spells the same printed sentence, the docstring
+says which, so the pin is not read as evidence that the sentence itself is
+unwritable. Where the refusal message carries the meaning, prefer a named
+`data` witness (`OptOk`, `ZoneIs`) over a bare `So (…)`, which collapses to
+`Can't find an implementation for So False.` before the message is raised.
 
 The gates, from `idris/`:
 

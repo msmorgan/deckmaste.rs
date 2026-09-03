@@ -823,6 +823,13 @@ turnInScopeResolvesInPrefix bs ok =
   countByWitness (reaches ThatTurn OneOf) bs Z
     (trans (sym (countReachIsFold ThatTurn OneOf bs)) ok)
 
+||| "that turn" after exactly one extra turn is minted
+public export
+okThatTurnAfterOneTurn :
+  Noun (effIntro {bs = []} (ExtraTurn You (Lit 1))) TurnRef
+okThatTurnAfterOneTurn =
+  Macros.thatTurn {bs = effIntro {bs = []} (ExtraTurn You (Lit 1))}
+
 public export
 badThatTurnWithoutTurn : Unspellable (Noun [] TurnRef) (\ok =>
   Macros.thatTurn {bs = []} {ok})
@@ -936,6 +943,13 @@ ownSurvivesSecondSingular =
                 Macros.dealsDamageOwnPower (Macros.target Macros.creature)
                                            (Macros.target Macros.anyTarget)]
 
+||| "Exile target artifact. Draw cards equal to its power."
+public export
+okItReadsTheOnlyBareSingular : Effect []
+okItReadsTheOnlyBareSingular =
+  Sequentially [Macros.exile You (Macros.target Macros.artifact),
+                Macros.draw You (StatOf Power It)]
+
 public export
 badItAcrossOwnSlot : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.exile You (Macros.target Macros.artifact),
@@ -972,6 +986,18 @@ public export
 badSharedSubjectEmptyDelta : Unspellable (Noun [] Object) (\ok =>
   Macros.ownSubject {bs = []} (Macros.ItVerbed "Untap" OneOf) {ok})
 badSharedSubjectEmptyDelta Refl impossible
+
+||| "Target creature gets +1/+1"
+public export
+okOwnReadsOneInDelta : Effect []
+okOwnReadsOneInDelta =
+  Macros.sharedSubject (Macros.target Macros.creature)
+    [ Gets Adds (Own OneOf
+                     (nounDelta {k = Object}
+                                (Macros.target {bs = []} Macros.creature))
+                     [] {sp = Refl})
+           (PtUp (Lit 1)) (PtUp (Lit 1)) ]
+    Nothing
 
 public export
 badSharedSubjectTwoInDelta : Unspellable (Effect []) (\ok =>
@@ -1258,6 +1284,13 @@ distributedDeedReadsBackPlural =
   Sequentially [ Macros.discard (Macros.each Opponent) (Macros.a (InZone Macros.handZ))
                , Macros.exile You (Macros.TheVerbed "Discard" CardW Attributive ManyOf) ]
 
+||| "Discard a card. Exile the discarded card."
+public export
+okTheVerbedAfterSingularDiscard : Effect []
+okTheVerbedAfterSingularDiscard =
+  Sequentially [ Macros.discard You (Macros.a (InZone Macros.handZ))
+               , Macros.exile You (Macros.theVerbed "Discard" CardW) ]
+
 ||| "Each opponent discards a card. Exile that card."
 public export
 badDistributedDiscardSingular : Unspellable (Effect []) (\ok =>
@@ -1271,6 +1304,13 @@ distributedDeedReadsBackPluralUnderAnnouncement : Effect []
 distributedDeedReadsBackPluralUnderAnnouncement =
   Simultaneously [ Macros.discard (Macros.each Opponent) (Macros.a (InZone Macros.handZ))
                  , Macros.exile You (Macros.That CardW ManyOf) ]
+
+||| "Discard a card. Simultaneously, exile that card."
+public export
+okThatAfterSingularDiscard : Effect []
+okThatAfterSingularDiscard =
+  Simultaneously [ Macros.discard You (Macros.a (InZone Macros.handZ))
+                 , Macros.exile You (Macros.That CardW) ]
 
 ||| "Each opponent discards a card. Simultaneously, exile that card."
 public export
