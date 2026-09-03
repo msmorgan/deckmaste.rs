@@ -193,6 +193,14 @@ mod tests {
             "Different \"fixture\" 2 text.\\"
         );
         assert_eq!(json["rows"][2]["status"], "mismatch");
+        assert!(
+            json["rows"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|row| row.get("message").is_none()),
+            "roundtrip JSON must not emit meaningless null message fields"
+        );
         assert_eq!(json["summary"]["parse_failures"], 1);
         assert_eq!(json["summary"]["ambiguous"], 1);
         assert_eq!(json["summary"]["internal_failures"], 1);

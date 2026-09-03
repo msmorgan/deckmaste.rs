@@ -1312,6 +1312,10 @@ impl DiagnosticReport {
             | DiagnosticOutcome::UnresolvedAmbiguity(_) => None,
         }
     }
+
+    pub(super) const fn accepted(&self) -> bool {
+        matches!(&self.trace.outcome, DiagnosticOutcome::Selected(_))
+    }
 }
 
 fn corpus_source(unit: &super::corpus::CorpusUnit) -> DiagnosticSource {

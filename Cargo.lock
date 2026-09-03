@@ -2238,6 +2238,7 @@ dependencies = [
  "deckmaste_plugin",
  "deckmaste_semantics",
  "deckmaste_spelling",
+ "libc",
  "macro_ron",
  "proc-macro2",
  "quote",

@@ -146,7 +146,6 @@ impl MaterializationObservation<RootRuleId> for MaterializationTraceBuilder {
 struct MaterializationStateFor<V, C, K = Category, M = Lexical, T = (), O = ()> {
     memo: MaterializedMemo<V, C, K, M, T, O>,
     in_progress: HashSet<NodeId>,
-    parents_by_child: HashMap<NodeId, HashSet<NodeId>>,
 }
 
 impl<V, C, K, M, T, O> Default for MaterializationStateFor<V, C, K, M, T, O> {
@@ -154,7 +153,6 @@ impl<V, C, K, M, T, O> Default for MaterializationStateFor<V, C, K, M, T, O> {
         Self {
             memo: HashMap::new(),
             in_progress: HashSet::new(),
-            parents_by_child: HashMap::new(),
         }
     }
 }
@@ -269,17 +267,6 @@ where
             };
         }
 
-        for family in &node.families {
-            for child in &family.children {
-                if let Child::Node(child_id) = child {
-                    state
-                        .parents_by_child
-                        .entry(*child_id)
-                        .or_default()
-                        .insert(node_id);
-                }
-            }
-        }
         let mut values = Vec::new();
         let mut cycle_pruned = false;
         let mut first_rejection = None;

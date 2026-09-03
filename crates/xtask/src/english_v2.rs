@@ -354,9 +354,7 @@ struct CorpusArgs {
 }
 
 fn default_corpus_workers() -> usize {
-    std::thread::available_parallelism()
-        .map_or(1, usize::from)
-        .min(16)
+    std::thread::available_parallelism().map_or(1, usize::from)
 }
 
 fn parse_worker_count(value: &str) -> Result<usize, String> {

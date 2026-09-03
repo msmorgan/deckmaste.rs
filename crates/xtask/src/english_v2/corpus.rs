@@ -3,7 +3,6 @@ use std::fmt::Write as _;
 use std::fs;
 use std::path::Path;
 use std::time::Duration;
-use std::time::Instant;
 
 use anyhow::Context;
 use anyhow::ensure;
@@ -45,27 +44,21 @@ pub(super) fn corpus_error_message(error: &ParseError) -> String {
     let ParseError::Failure { span, expectations } = error else {
         return error.to_string();
     };
-    let mut ranked = Vec::with_capacity(MAX_EXPECTATIONS);
-    'ranking: for rank in (1..=3).rev() {
+    let mut ordered = Vec::new();
+    for rank in (1..=3).rev() {
         for expectation in expectations
             .iter()
             .filter(|expectation| corpus_expectation_rank(expectation) == rank)
         {
-            let name = expectation.to_string();
-            if !ranked.contains(&name) {
-                ranked.push(name);
-                if ranked.len() == MAX_EXPECTATIONS {
-                    break 'ranking;
-                }
-            }
+            ordered.push(expectation.to_string());
         }
     }
-    let omitted = expectations.len().saturating_sub(ranked.len());
+    let (ranked, omitted) = bounded_unique_names(ordered, MAX_EXPECTATIONS);
     let mut message = format!(
         "parse failed at bytes {}..{}; expected ",
         span.start, span.end
     );
-    for (index, name) in ranked.into_iter().enumerate() {
+    for (index, name) in ranked.into_iter().take(MAX_EXPECTATIONS).enumerate() {
         if index > 0 {
             message.push_str(", ");
         }
@@ -75,6 +68,21 @@ pub(super) fn corpus_error_message(error: &ParseError) -> String {
         write!(message, ", and {omitted} more").expect("writing to String cannot fail");
     }
     message
+}
+
+fn bounded_unique_names(
+    names: impl IntoIterator<Item = String>,
+    limit: usize,
+) -> (Vec<String>, usize) {
+    let mut unique = Vec::new();
+    for name in names {
+        if !unique.contains(&name) {
+            unique.push(name);
+        }
+    }
+    let omitted = unique.len().saturating_sub(limit);
+    unique.truncate(limit);
+    (unique, omitted)
 }
 
 const fn corpus_expectation_rank(expectation: &Expectation) -> u8 {
@@ -282,6 +290,7 @@ pub(super) fn legacy_normalization_digest<'a>(texts: impl IntoIterator<Item = &'
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub(super) struct CorpusPerformance {
+    workers: usize,
     units: usize,
     bytes: usize,
     cpu_nanos: u128,
@@ -312,6 +321,15 @@ impl CorpusPerformance {
         }
         self.cpu_nanos as f64 / 1_000.0 / self.bytes as f64
     }
+
+    pub(super) fn for_unit_bytes(bytes: usize, cpu_elapsed: Duration, accepted: bool) -> Self {
+        Self {
+            workers: 1,
+            units: usize::from(accepted),
+            bytes: bytes * usize::from(accepted),
+            cpu_nanos: cpu_elapsed.as_nanos() * u128::from(accepted),
+        }
+    }
 }
 
 pub(super) fn write_corpus_performance(
@@ -321,25 +339,80 @@ pub(super) fn write_corpus_performance(
 ) -> anyhow::Result<()> {
     use std::io::Write as _;
 
+    let load = host_load_average();
     let mut diagnostics = std::io::stderr().lock();
     writeln!(
         diagnostics,
-        "PERFORMANCE english-v2 gate={gate} elapsed_seconds={:.9} accepted_cpu_micros_per_byte={:.3} accepted_units={} accepted_bytes={}",
+        "PERFORMANCE english-v2 gate={gate} workers={} elapsed_seconds={:.9} accepted_cpu_micros_per_byte={:.3} accepted_units={} accepted_bytes={} host_load_1m={} host_load_5m={} host_load_15m={}",
+        performance.workers,
         elapsed.as_secs_f64(),
         performance.accepted_cpu_micros_per_byte(),
         performance.units,
         performance.bytes,
+        load.map_or_else(
+            || "unavailable".to_owned(),
+            |value| format!("{:.2}", value[0])
+        ),
+        load.map_or_else(
+            || "unavailable".to_owned(),
+            |value| format!("{:.2}", value[1])
+        ),
+        load.map_or_else(
+            || "unavailable".to_owned(),
+            |value| format!("{:.2}", value[2])
+        ),
     )?;
     if elapsed.as_secs_f64() > CORPUS_WALL_CEILING_SECONDS {
         writeln!(
             diagnostics,
-            "WARNING english-v2-common-path-performance-regression gate={gate} elapsed_seconds={:.9} ceiling_seconds={CORPUS_WALL_CEILING_SECONDS:.3}",
+            "WARNING english-v2-common-path-performance-regression gate={gate} workers={} elapsed_seconds={:.9} ceiling_seconds={CORPUS_WALL_CEILING_SECONDS:.3} criterion=quiet_host host_load_1m={} host_load_5m={} host_load_15m={}",
+            performance.workers,
             elapsed.as_secs_f64(),
+            load.map_or_else(
+                || "unavailable".to_owned(),
+                |value| format!("{:.2}", value[0])
+            ),
+            load.map_or_else(
+                || "unavailable".to_owned(),
+                |value| format!("{:.2}", value[1])
+            ),
+            load.map_or_else(
+                || "unavailable".to_owned(),
+                |value| format!("{:.2}", value[2])
+            ),
         )?;
     }
     #[cfg(feature = "parser-metrics")]
     write_parser_metrics(&mut diagnostics)?;
     Ok(())
+}
+
+fn host_load_average() -> Option<[f64; 3]> {
+    let mut load = [0.0; 3];
+    // SAFETY: `load` provides space for the three samples requested from the
+    // POSIX `getloadavg` API, and remains live for the duration of the call.
+    let samples = unsafe { libc::getloadavg(load.as_mut_ptr(), load.len().try_into().ok()?) };
+    (samples == 3).then_some(load)
+}
+
+pub(super) fn thread_cpu_time() -> Duration {
+    let mut sample = std::mem::MaybeUninit::<libc::timespec>::uninit();
+    // SAFETY: `sample` is a valid out pointer and `CLOCK_THREAD_CPUTIME_ID`
+    // asks the POSIX clock for the calling worker thread, not process wall time.
+    let status = unsafe { libc::clock_gettime(libc::CLOCK_THREAD_CPUTIME_ID, sample.as_mut_ptr()) };
+    assert_eq!(status, 0, "CLOCK_THREAD_CPUTIME_ID must be available");
+    // SAFETY: successful `clock_gettime` initialized the complete timespec.
+    let sample = unsafe { sample.assume_init() };
+    Duration::new(
+        sample
+            .tv_sec
+            .try_into()
+            .expect("thread CPU seconds are nonnegative"),
+        sample
+            .tv_nsec
+            .try_into()
+            .expect("thread CPU nanoseconds fit in u32"),
+    )
 }
 
 #[cfg(feature = "parser-metrics")]
@@ -419,9 +492,12 @@ fn map_corpus_units_with_workers<T: Send>(
             .then_with(|| left_index.cmp(right_index))
     });
     let run = |(index, unit): &(usize, &CorpusUnit)| {
-        let started = Instant::now();
+        let started = thread_cpu_time();
         let value = map(*index, unit);
-        (*index, started.elapsed(), value)
+        let elapsed = thread_cpu_time()
+            .checked_sub(started)
+            .expect("thread CPU clock is monotonic");
+        (*index, elapsed, value)
     };
     let mut completed = if jobs == 1 {
         scheduled.iter().map(run).collect::<Vec<_>>()
@@ -434,7 +510,10 @@ fn map_corpus_units_with_workers<T: Send>(
             .install(|| scheduled.par_iter().map(run).collect::<Vec<_>>())
     };
     completed.sort_by_key(|(index, _, _)| *index);
-    let mut performance = CorpusPerformance::default();
+    let mut performance = CorpusPerformance {
+        workers: jobs,
+        ..CorpusPerformance::default()
+    };
     let values = completed
         .into_iter()
         .map(|(index, elapsed, value)| {
@@ -732,6 +811,28 @@ mod tests {
     use std::time::Duration;
 
     use super::*;
+
+    #[test]
+    fn omitted_expectation_count_uses_unique_display_names() {
+        let names = ["a", "b", "a", "c", "b", "d"]
+            .into_iter()
+            .map(str::to_owned);
+        let (shown, omitted) = bounded_unique_names(names, 2);
+
+        assert_eq!(shown, ["a", "b"]);
+        assert_eq!(omitted, 2);
+    }
+
+    #[test]
+    fn thread_cpu_clock_excludes_sleeping_wall_time() {
+        let started = thread_cpu_time();
+        std::thread::sleep(Duration::from_millis(20));
+        let cpu_elapsed = thread_cpu_time()
+            .checked_sub(started)
+            .expect("thread CPU clock is monotonic");
+
+        assert!(cpu_elapsed < Duration::from_millis(10), "{cpu_elapsed:?}");
+    }
 
     fn explicit_onsets(
         rows: impl IntoIterator<Item = (&'static str, Onset)>,

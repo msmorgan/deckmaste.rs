@@ -23,6 +23,7 @@ deckmaste_plugin = { version = "0.1.0", path = "../deckmaste_plugin" }
 deckmaste_legacy_render = { version = "0.1.0", path = "../deckmaste_legacy_render" }
 deckmaste_core = { version = "0.1.0", path = "../deckmaste_core" }
 deckmaste_english = { version = "0.1.0", path = "../deckmaste_english" }
+libc = "0.2.186"
 # `macro inspect` compiles a frame (needs `CompiledFrame`/`compile`); `macro
 # templates` only needs the schema (`macro_ron::frames`) and `MacroDef`, but
 # both live in the same two crates the frame layer split across.

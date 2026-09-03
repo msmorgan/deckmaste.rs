@@ -32,6 +32,7 @@ trait InspectSteps {
     fn load_corpus(&mut self, path: &Path) -> anyhow::Result<Self::Corpus>;
     fn validate_id(&mut self, id: &str) -> anyhow::Result<Self::Id>;
     fn resolve(&mut self, corpus: &Self::Corpus, id: &Self::Id) -> anyhow::Result<Self::Unit>;
+    fn unit_bytes(&self, unit: &Self::Unit) -> usize;
     fn load_parser(&mut self) -> anyhow::Result<Self::Parser>;
     fn context<'a>(&mut self, unit: &'a Self::Unit) -> anyhow::Result<Self::Context<'a>>;
     fn trace(
@@ -71,6 +72,10 @@ impl InspectSteps for ProductionSteps {
 
     fn resolve(&mut self, corpus: &Self::Corpus, id: &Self::Id) -> anyhow::Result<Self::Unit> {
         corpus.resolve_exact(id).cloned()
+    }
+
+    fn unit_bytes(&self, unit: &Self::Unit) -> usize {
+        unit.text().len()
     }
 
     fn load_parser(&mut self) -> anyhow::Result<Self::Parser> {
@@ -125,6 +130,7 @@ fn orchestrate<S: InspectSteps>(
     output: &mut dyn Write,
     steps: &mut S,
 ) -> anyhow::Result<()> {
+    let wall_started = std::time::Instant::now();
     let corpus = steps.load_corpus(&args.data)?;
     let id = steps.validate_id(&args.id)?;
     let unit = steps.resolve(&corpus, &id)?;
@@ -135,10 +141,23 @@ fn orchestrate<S: InspectSteps>(
             args.data.display()
         )
     })?;
+    let cpu_started = super::corpus::thread_cpu_time();
     let trace = steps.trace(&parser, &unit, &context, TraceLimits::new(args.limit));
+    let cpu_elapsed = super::corpus::thread_cpu_time()
+        .checked_sub(cpu_started)
+        .expect("thread CPU clock is monotonic");
     let report = steps.map(&unit, &trace);
     steps.render(&report, args.json, output)?;
     steps.flush(output)?;
+    super::corpus::write_corpus_performance(
+        "inspect",
+        wall_started.elapsed(),
+        super::corpus::CorpusPerformance::for_unit_bytes(
+            steps.unit_bytes(&unit),
+            cpu_elapsed,
+            report.accepted(),
+        ),
+    )?;
 
     if let Some((kind, message)) = report.internal_failure() {
         anyhow::bail!(
@@ -350,6 +369,10 @@ mod tests {
             self.events.push("resolve");
             self.fail("resolve")?;
             Ok(self.unit.clone())
+        }
+
+        fn unit_bytes(&self, unit: &Self::Unit) -> usize {
+            unit.text().len()
         }
 
         fn load_parser(&mut self) -> anyhow::Result<Self::Parser> {
