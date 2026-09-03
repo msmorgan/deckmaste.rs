@@ -215,8 +215,4 @@ impl Frame {
     pub(crate) fn source_lki(&self, state: &crate::state::GameState) -> Option<LkiSnapshot> {
         state.activation_source_lki(self.activation)
     }
-
-    pub(crate) fn defending_player(&self, state: &crate::state::GameState) -> Option<PlayerId> {
-        state.activation_defending_player(self.activation)
-    }
 }

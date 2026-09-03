@@ -257,6 +257,39 @@ pub(super) fn drain_progress(state: &mut GameState, n: usize) -> Vec<Progress> {
     out
 }
 
+/// Steps the agenda, PASSING priority for whoever holds it, until `n` steps
+/// elapse or a non-priority decision (or game over) stops it. `drain_progress`
+/// stops at the first priority window, which is not far enough to see a
+/// triggered ability actually resolve.
+pub(super) fn drain_passing_priority(state: &mut GameState, n: usize) {
+    use crate::decide::Decision;
+    use crate::decide::PendingDecision;
+
+    for _ in 0..n {
+        match state.step() {
+            StepOutcome::Progress(_) => {}
+            StepOutcome::NeedsDecision(PendingDecision::Priority(_)) => {
+                if state
+                    .submit_decision(Decision::Act(crate::decide::Action::Pass))
+                    .is_err()
+                {
+                    return;
+                }
+            }
+            // [CR#603.3b]: several of one player's triggers going on the stack
+            // together are ordered by that player. Any order will do for a
+            // fixture that asserts on the outcome of all of them.
+            StepOutcome::NeedsDecision(PendingDecision::OrderTriggers(order)) => {
+                let identity: Vec<usize> = (0..order.triggers.len()).collect();
+                if state.submit_decision(Decision::Order(identity)).is_err() {
+                    return;
+                }
+            }
+            StepOutcome::NeedsDecision(_) | StepOutcome::GameOver(_) => return,
+        }
+    }
+}
+
 /// Mint a fresh card-backed object into `owner`'s hand. Returns its id.
 pub(super) fn mint_in_hand(state: &mut GameState, owner: PlayerId, name: &str) -> ObjectId {
     let cid = state.cards.push(

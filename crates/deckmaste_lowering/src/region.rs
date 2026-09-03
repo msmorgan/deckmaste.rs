@@ -63,10 +63,56 @@ struct Context {
     x: Option<RefId>,
     antecedents: Vec<Antecedent>,
     named: HashMap<Ident, RefId>,
+    /// ADR law 8: the card's linked memory cells this region declares as
+    /// `Provenance::Linked` parameters, and the register each landed in.
+    linked: HashMap<Ident, RefId>,
+}
+
+/// The card-scoped linked-memory plan ([CR#607.1], ADR law 8).
+///
+/// Lowering is context-free per ability EXCEPT for what a region declares, so
+/// a cell read in one ability and written in another needs the card's whole
+/// text before either ability can be lowered. `lower_card` therefore lowers
+/// the card twice when — and only when — the first pass sees a cell read at
+/// all: pass one collects which abilities read which cells and which cells the
+/// card writes, pass two declares the surviving cells as parameters. A read
+/// whose cell no ability on the card writes is a LOWERING ERROR naming the
+/// card, never a register that resolves to nothing at run time.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct CellPlan {
+    /// `(ability region ordinal, cell)` — every linked read, keyed by the
+    /// ability region whose parameter list must carry it.
+    reads: std::collections::BTreeSet<(u32, Ident)>,
+    /// Every cell the card writes, with the runtime shape written.
+    writes: HashMap<Ident, Kind>,
+}
+
+impl CellPlan {
+    fn is_empty(&self) -> bool {
+        self.reads.is_empty()
+    }
+
+    /// The cells one ability region declares, in a stable order.
+    fn declared(&self, ability: u32) -> Vec<(Ident, Kind)> {
+        self.reads
+            .iter()
+            .filter(|(owner, _)| *owner == ability)
+            .filter_map(|(_, cell)| self.writes.get(cell).map(|kind| (*cell, *kind)))
+            .collect()
+    }
 }
 
 thread_local! {
     static CONTEXTS: RefCell<Vec<Context>> = const { RefCell::new(Vec::new()) };
+    /// Pass one's accumulator; `Some` only while collecting.
+    static COLLECT: RefCell<Option<CellPlan>> = const { RefCell::new(None) };
+    /// Pass two's settled plan; `Some` only while lowering against it.
+    static PLAN: RefCell<Option<CellPlan>> = const { RefCell::new(None) };
+    /// The ability region currently being lowered, and the next ordinal to
+    /// hand out. Ability regions are entered in a deterministic order, so the
+    /// two passes agree on the numbering.
+    static ABILITY: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
+    static NEXT_ABILITY: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
     /// The card whose text is being compiled, so an R1/R2 refusal names it.
     /// The ADR makes ambiguity a compilation error with provenance (law 12),
     /// and provenance starts with which card failed to compile.
@@ -104,6 +150,110 @@ fn card_context() -> String {
 /// refusal that escapes it is a card-authoring bug and stays LOUD.
 pub(crate) fn refuse(reason: &str) -> ! {
     panic!("{}: {reason}", card_context())
+}
+
+/// Pass one: lower `f` with linked reads RECORDED instead of refused, and
+/// return the plan the second pass needs.
+pub(crate) fn collect_cells<T>(f: impl FnOnce() -> T) -> (CellPlan, T) {
+    COLLECT.with(|slot| *slot.borrow_mut() = Some(CellPlan::default()));
+    NEXT_ABILITY.with(|next| next.set(0));
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f));
+    let plan = COLLECT
+        .with(|slot| slot.borrow_mut().take())
+        .unwrap_or_default();
+    match result {
+        Ok(value) => (plan, value),
+        Err(payload) => std::panic::resume_unwind(payload),
+    }
+}
+
+/// Pass two: lower `f` with `plan`'s cells declared as region parameters.
+pub(crate) fn with_cells<T>(plan: CellPlan, f: impl FnOnce() -> T) -> T {
+    PLAN.with(|slot| *slot.borrow_mut() = Some(plan));
+    NEXT_ABILITY.with(|next| next.set(0));
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f));
+    PLAN.with(|slot| *slot.borrow_mut() = None);
+    match result {
+        Ok(value) => value,
+        Err(payload) => std::panic::resume_unwind(payload),
+    }
+}
+
+/// Whether the plan the first pass produced needs a second pass at all.
+pub(crate) fn plan_is_empty(plan: &CellPlan) -> bool {
+    plan.is_empty()
+}
+
+/// Read one of the card's linked memory cells ([CR#607.1]) from the region
+/// currently being lowered — the fallback when the name is not bound in this
+/// region. Returns the declared parameter in pass two, a placeholder in pass
+/// one (whose result is discarded), and `None` outside a card compile, where
+/// the caller's own refusal stands.
+pub(crate) fn cell_read(name: &Ident) -> Option<RefId> {
+    if let Some(reference) = read(|context| context.linked.get(name).copied()) {
+        return Some(reference);
+    }
+    COLLECT.with(|slot| {
+        slot.borrow_mut().as_mut().map(|plan| {
+            plan.reads
+                .insert((ABILITY.with(std::cell::Cell::get), *name));
+            // Pass one's lowered value is discarded; only the plan escapes.
+            RefId(0)
+        })
+    })
+}
+
+/// Declare that this card writes the linked memory cell `name` with runtime
+/// shape `kind`, and report whether a reading ability elsewhere on the card
+/// actually reads it — which is what makes the write a `Remember` instruction
+/// rather than a purely local binding.
+pub(crate) fn cell_write(name: &Ident, kind: Kind) -> bool {
+    COLLECT.with(|slot| {
+        if let Some(plan) = slot.borrow_mut().as_mut() {
+            plan.writes.insert(*name, kind);
+        }
+    });
+    PLAN.with(|slot| {
+        slot.borrow()
+            .as_ref()
+            .is_some_and(|plan| plan.reads.iter().any(|(_, cell)| cell == name))
+    })
+}
+
+/// Take the next ability-region ordinal and make it current for the duration
+/// of `f`. Ability regions nest (a granted ability inside another's body), so
+/// the previous ordinal is restored.
+fn in_ability_region<T>(f: impl FnOnce(u32) -> T) -> T {
+    let ordinal = NEXT_ABILITY.with(|next| {
+        let ordinal = next.get();
+        next.set(ordinal + 1);
+        ordinal
+    });
+    let previous = ABILITY.with(|current| current.replace(ordinal));
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| f(ordinal)));
+    ABILITY.with(|current| current.set(previous));
+    match result {
+        Ok(value) => value,
+        Err(payload) => std::panic::resume_unwind(payload),
+    }
+}
+
+/// Push this ability region's declared linked-memory parameters ([CR#607.1]).
+/// They follow the intrinsic prefix and precede any capture, so the parameter
+/// order stays a function of the region's kind plus its plan.
+fn declare_linked(context: &mut Context, ability: u32) {
+    let cells = PLAN.with(|slot| {
+        slot.borrow()
+            .as_ref()
+            .map(|plan| plan.declared(ability))
+            .unwrap_or_default()
+    });
+    for (cell, kind) in cells {
+        let reference = push_param(&mut context.params, kind, Provenance::Linked(cell));
+        context.definitions.push(kind);
+        context.visible.push(true);
+        context.linked.insert(cell, reference);
+    }
 }
 
 fn with_pushed_context<T>(context: Context, f: impl FnOnce() -> T) -> (Context, T) {
@@ -228,6 +378,7 @@ fn context(kind: RegionKind, target_count: usize) -> Context {
         x,
         antecedents,
         named: HashMap::new(),
+        linked: HashMap::new(),
     }
 }
 
@@ -236,8 +387,12 @@ pub(crate) fn in_region<T>(
     target_count: usize,
     f: impl FnOnce() -> T,
 ) -> (Arc<[Param]>, T) {
-    let (context, value) = with_pushed_context(context(kind, target_count), f);
-    (context.params.into(), value)
+    in_ability_region(|ability| {
+        let mut region = context(kind, target_count);
+        declare_linked(&mut region, ability);
+        let (context, value) = with_pushed_context(region, f);
+        (context.params.into(), value)
+    })
 }
 
 pub(crate) fn is_active() -> bool {
@@ -252,10 +407,20 @@ pub(crate) fn in_carried_region<T>(
     target_count: usize,
     f: impl FnOnce() -> T,
 ) -> (Arc<[Param]>, T) {
+    in_ability_region(|ability| in_carried_region_inner(kind, target_count, ability, f))
+}
+
+fn in_carried_region_inner<T>(
+    kind: RegionKind,
+    target_count: usize,
+    ability: u32,
+    f: impl FnOnce() -> T,
+) -> (Arc<[Param]>, T) {
     let parent = CONTEXTS
         .with(|contexts| contexts.borrow().last().cloned())
         .expect("carried core region outside a parent region");
     let mut child = context(kind, target_count);
+    declare_linked(&mut child, ability);
     let captures: Vec<Option<RefId>> = parent
         .definitions
         .iter()
@@ -356,6 +521,14 @@ pub(crate) fn in_child<T>(
         .into_iter()
         .filter_map(|(name, reference)| remap(reference, &captures).map(|r| (name, r)))
         .collect();
+    // A nested region inherits its enclosing ability's linked cells: `in_child`
+    // re-declares a parent `Provenance::Linked` parameter with the same
+    // provenance, so the engine supplies it from the same memory cell.
+    let linked = parent
+        .linked
+        .into_iter()
+        .filter_map(|(cell, reference)| remap(reference, &captures).map(|r| (cell, r)))
+        .collect();
     let definitions: Vec<_> = params.iter().map(|param| param.kind).collect();
     let visible = vec![true; definitions.len()];
     let child = Context {
@@ -376,6 +549,7 @@ pub(crate) fn in_child<T>(
         x: map(parent.x),
         antecedents,
         named,
+        linked,
     };
     let (child, value) = with_pushed_context(child, f);
     (child.params.into(), value)
@@ -487,6 +661,19 @@ pub(crate) fn newest_antecedent() -> Option<RefId> {
             .antecedents
             .first()
             .map(|antecedent| antecedent.reference)
+    })
+}
+
+/// The newest antecedent's register together with its runtime shape — what a
+/// `Noting` publishes into a memory cell.
+pub(crate) fn newest_antecedent_typed() -> Option<(RefId, Kind)> {
+    CONTEXTS.with(|contexts| {
+        contexts.borrow().last().and_then(|context| {
+            context
+                .antecedents
+                .first()
+                .map(|antecedent| (antecedent.reference, antecedent.kind))
+        })
     })
 }
 
@@ -782,6 +969,7 @@ pub(crate) fn candidate_region<T>(f: impl FnOnce() -> T) -> deckmaste_core::Regi
                     inherited: false,
                 }],
                 named: HashMap::new(),
+                linked: HashMap::new(),
             },
             f,
         );

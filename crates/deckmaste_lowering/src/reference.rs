@@ -62,11 +62,21 @@ impl Lower for deckmaste_semantics::Reference {
                 crate::region::named(&name)
                     .unwrap_or_else(|| panic!("unbound role `{name}` during semantic lowering")),
             ),
-            Self::Linked(name) => {
-                deckmaste_core::Reference::Reg(crate::region::named(&name).unwrap_or_else(|| {
-                    panic!("linked-memory read `{name}` has no declared cell ([CR#607])")
-                }))
-            }
+            // [CR#607.1]: a linked read resolves to a register of THIS region —
+            // either one the same ability bound, or the card's memory cell
+            // declared as a `Provenance::Linked` parameter (ADR law 8). A name
+            // no ability on the card writes has no cell to read, and refusing
+            // here names the card.
+            Self::Linked(name) => deckmaste_core::Reference::Reg(
+                crate::region::named(&name)
+                    .or_else(|| crate::region::cell_read(&name))
+                    .unwrap_or_else(|| {
+                        crate::region::refuse(&format!(
+                            "linked-memory read `{name}` has no declared cell — no ability on \
+                             this card writes it ([CR#607.1])"
+                        ))
+                    }),
+            ),
             Self::ControllerOf(f0) => deckmaste_core::Reference::ControllerOf(f0.lower()),
             Self::Coalesce(f0) => deckmaste_core::Reference::Coalesce(f0.lower()),
             Self::OwnerOf(f0) => deckmaste_core::Reference::OwnerOf(f0.lower()),

@@ -104,6 +104,14 @@ pub struct TriggerBindings {
     /// and again at the resolution recheck ([CR#603.4]). `None` for facts
     /// that fix no totals.
     pub crossed: Option<(Uint, Uint)>,
+    /// ADR law 7: the DECLARED captures of a delayed or reflexive body
+    /// ([CR#603.7,603.12]), snapshotted when the creating effect created it
+    /// ([CR#603.7a]) and keyed by the created region's own parameter. Empty
+    /// for a printed trigger, which captures nothing — its whole context is
+    /// its own event roles. This is the ONLY channel by which a value reaches
+    /// a created body from the region that created it; a body's `this` is its
+    /// own `Source` parameter ([CR#603.7d,603.7e]), not a capture.
+    pub(crate) captures: Vec<(deckmaste_core::RefId, crate::activation::Value)>,
 }
 
 /// A trigger that has fired but is not yet on the stack ([CR#603.2]). Noted by
@@ -756,7 +764,8 @@ impl GameState {
             bindings.produced_mana.clone(),
             bindings.crossed,
         );
-        frame.activation = self.enter_region(&ct.ability.effect, &frame);
+        frame.activation =
+            self.enter_created_region(&ct.ability.effect, &frame, &bindings.captures);
         frame
     }
 
@@ -1421,7 +1430,7 @@ impl GameState {
             bindings.produced_mana.clone(),
             bindings.crossed,
         );
-        frame.activation = self.enter_region(region, &frame);
+        frame.activation = self.enter_created_region(region, &frame, &bindings.captures);
         frame
     }
 
@@ -1494,6 +1503,9 @@ impl EventRoles {
             event_amount: self.event_amount,
             crossed: self.crossed,
             produced_mana: self.produced_mana.clone(),
+            // A capture is fixed at CREATION ([CR#603.7a]); the firing event
+            // supplies roles, never captures.
+            captures: base.captures,
         }
     }
 }

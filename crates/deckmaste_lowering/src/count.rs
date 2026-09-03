@@ -771,10 +771,16 @@ impl Lower for deckmaste_semantics::Count {
             ),
             Self::EventCount(f0, f1) => deckmaste_core::Count::EventCount(f0.lower(), f1.lower()),
             Self::EventSum(f0, f1) => deckmaste_core::Count::EventSum(f0.lower(), f1.lower()),
-            Self::Noted(name) => crate::region::named(&name).map_or_else(
-                || deckmaste_core::Count::Noted(name.lower()),
-                deckmaste_core::Count::Reg,
-            ),
+            // A region-local binding wins; then the card's linked memory cell
+            // ([CR#607.1], ADR law 8). `Count::Noted` survives as the
+            // resolution-scoped number note a `ChooseAndNote` player action
+            // writes, which is not linked memory and has no register.
+            Self::Noted(name) => crate::region::named(&name)
+                .or_else(|| crate::region::cell_read(&name))
+                .map_or_else(
+                    || deckmaste_core::Count::Noted(name.lower()),
+                    deckmaste_core::Count::Reg,
+                ),
             Self::TimesPaid(f0) => deckmaste_core::Count::TimesPaid(f0.lower()),
             Self::Damage(f0) => deckmaste_core::Count::Damage(f0.lower()),
             Self::ManaAvailable(f0) => deckmaste_core::Count::ManaAvailable(f0.lower()),

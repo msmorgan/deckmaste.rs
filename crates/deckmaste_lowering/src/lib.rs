@@ -166,7 +166,20 @@ pub fn lower_card(card: deckmaste_semantics::Card) -> Result<deckmaste_card::Car
     let hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(|_| {}));
     let lowered = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        region::in_card(&name, || card.lower())
+        region::in_card(&name, || {
+            // [CR#607.1]: linkage is between two abilities printed on ONE
+            // object, so a cell read in one ability and written in another is
+            // not knowable from either ability alone. Pass one collects the
+            // card's cell reads and writes; pass two runs only when the card
+            // actually reads a cell, and declares the surviving ones as
+            // `Provenance::Linked` parameters (ADR law 8).
+            let (plan, first) = region::collect_cells(|| card.clone().lower());
+            if region::plan_is_empty(&plan) {
+                first
+            } else {
+                region::with_cells(plan, || card.lower())
+            }
+        })
     }));
     std::panic::set_hook(hook);
     lowered.map_err(|payload| Diagnostic {

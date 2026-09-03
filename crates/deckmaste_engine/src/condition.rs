@@ -182,16 +182,13 @@ impl GameState {
                 })
             }
 
-            // [CR#702.33d]: "was kicked" — the resolving entry's announced
-            // optional-cost record carries the tag ([CR#601.2b,607.2]; the
-            // record rides the STACK entry, so the read holds while this
-            // object resolves — an ETB "if it was kicked" recheck after the
-            // permanent lands is engine-alt-costs follow-up work).
-            Condition::PaidCost(tag) => self
-                .stack
-                .iter()
-                .find(|e| e.id == frame.source(self))
-                .is_some_and(|e| e.paid_costs.iter().any(|(t, n)| t == tag && *n > 0)),
+            // [CR#702.33d]: "was kicked" — the announced optional-cost record
+            // of THIS activation ([CR#601.2b,607.2i]). Reading the register
+            // file rather than scanning the stack by source id is what lets a
+            // kicked permanent's enters-the-battlefield recheck answer after
+            // the spell has left the stack: the record crossed the one zone
+            // change with the object ([CR#400.7d,702.33e]).
+            Condition::PaidCost(tag) => self.activation_times_paid(frame.activation, tag) > 0,
 
             // "if its [keyword] cost was paid" ([CR#702.34a,702.74a]) — the
             // ALTERNATIVE-cost twin of `PaidCost`. The announce record that

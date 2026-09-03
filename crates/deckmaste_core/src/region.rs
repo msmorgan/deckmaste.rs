@@ -60,10 +60,21 @@ pub enum Provenance {
     DefendingPlayer,
     AnnouncedTarget(u32),
     AnnouncedX,
-    /// Reserved by the capture stage; present now so region data has one
-    /// stable provenance vocabulary.
+    /// A register of the enclosing region, snapshotted when THIS region was
+    /// created ([CR#603.7,603.12]) — the only thing that crosses a region
+    /// boundary (ADR law 7). The snapshot is taken once, at creation, of the
+    /// value the creating region had already chased to its post-move
+    /// incarnation ([CR#400.7j] — "other parts of that effect can find that
+    /// object"); it is NEVER chased again at the read site. [CR#603.7c]
+    /// settles that: a captured object that is no longer in the zone it was
+    /// expected to be in is not affected, and one that left and returned "is
+    /// a new object and thus won't be affected". Information reads therefore
+    /// fall back to last-known information ([CR#608.2h]) while actions find
+    /// nothing.
     Capture(RefId),
-    /// Reserved by the linked-memory stage.
+    /// A linked memory cell of the card ([CR#607.1] — ADR law 8), written by
+    /// an [`OneShotEffect::Remember`](crate::OneShotEffect::Remember) on
+    /// another ability of the same card and supplied to this region at entry.
     Linked(crate::Ident),
     /// Reserved by the discourse stage.
     LoopElement,
@@ -206,6 +217,31 @@ impl<T> Region<T> {
             .iter()
             .find(|param| &param.provenance == provenance)
             .map(|param| param.def.into())
+    }
+
+    /// The registers this region captures from the region that created it
+    /// ([CR#603.7,603.12] — ADR law 7). Each item is `(here, there)`: the
+    /// parameter this region reads and the enclosing register it was taken
+    /// from. The list IS the declaration a created body's supplier must
+    /// satisfy in full; nothing else crosses the boundary.
+    pub fn captures(&self) -> impl Iterator<Item = (RefId, RefId, Kind)> + '_ {
+        self.params
+            .iter()
+            .filter_map(|param| match param.provenance {
+                Provenance::Capture(outer) => Some((param.def.into(), outer, param.kind)),
+                _ => None,
+            })
+    }
+
+    /// The linked memory cells this region reads ([CR#607.1] — ADR law 8),
+    /// as `(here, cell, kind)`.
+    pub fn linked_cells(&self) -> impl Iterator<Item = (RefId, &crate::Ident, Kind)> + '_ {
+        self.params
+            .iter()
+            .filter_map(|param| match &param.provenance {
+                Provenance::Linked(cell) => Some((param.def.into(), cell, param.kind)),
+                _ => None,
+            })
     }
 
     /// Return the provenance declared for a register in this region.
@@ -617,6 +653,17 @@ fn validate_instructions(
                     Expr::Object(_) => {}
                 }
                 append_definition(definitions, binding.dest, binding.expr.kind())?;
+            }
+            // [CR#607.1]: the write half of a linked pair. It reads one
+            // register of this region and defines nothing here — the value
+            // crosses to another ability on the same card, never to a later
+            // instruction in this one.
+            E::Remember(remember) => {
+                // The declared cell kind is checked FIRST: it is the cell's
+                // declaration, so a contradiction between it and the register
+                // is what the author needs told, not the generic object read.
+                validate_read(&definitions.params, remember.value, Some(remember.kind))?;
+                crate::Reference::Reg(remember.value).serialize(definitions.walker())?;
             }
             E::Sequentially(block) => validate_instructions(block, definitions)?,
             E::Repeat(count, body) | E::Batch(count, body) => {
@@ -1770,6 +1817,185 @@ mod tests {
                 targets: 1,
                 parameters: 0,
             })
+        );
+    }
+
+    fn delayed_with(effect: Region<Block>) -> crate::TriggeredAbility {
+        crate::TriggeredAbility {
+            ability_word: None,
+            event: crate::EventFilter::ZoneChange {
+                what: crate::Predicate::any(),
+                from: None,
+                to: None,
+                cause: None,
+            },
+            from: None,
+            condition: None,
+            limits: Arc::from([]),
+            where_x: None,
+            targets: Arc::from([]),
+            effect,
+        }
+    }
+
+    /// ADR law 7: a created body's capture must name a definition of the region
+    /// that CREATED it. One that does not is a load-time refusal, which is what
+    /// makes "a declared capture is never unavailable at firing" true — the
+    /// engine supplies every capture the validator let through.
+    #[test]
+    fn a_capture_naming_no_definition_of_the_creating_region_is_refused() {
+        let body = Region::new(
+            Arc::from([Param {
+                def: DefId(0),
+                kind: Kind::Object,
+                provenance: Provenance::Capture(RefId(3)),
+            }]),
+            OneShotEffect::act(crate::Action::Counter(crate::Reference::Reg(RefId(0)))).into(),
+        );
+        let outer = Region::new(
+            Arc::from([param(0, Provenance::Source)]),
+            OneShotEffect::Delayed(Arc::new(delayed_with(body))).into(),
+        );
+        assert_eq!(
+            validate(&outer),
+            Err(ValidationError::UndefinedRead {
+                reference: RefId(3),
+                definitions: 1,
+            })
+        );
+    }
+
+    /// The same capture, naming a register the creating region really declares,
+    /// validates — and the created body may read it.
+    #[test]
+    fn a_capture_of_a_declared_register_validates() {
+        let body = Region::new(
+            Arc::from([Param {
+                def: DefId(0),
+                kind: Kind::Object,
+                provenance: Provenance::Capture(RefId(0)),
+            }]),
+            OneShotEffect::act(crate::Action::Counter(crate::Reference::Reg(RefId(0)))).into(),
+        );
+        let outer = Region::new(
+            Arc::from([param(0, Provenance::Source)]),
+            OneShotEffect::Delayed(Arc::new(delayed_with(body))).into(),
+        );
+        assert_eq!(validate(&outer), Ok(()));
+    }
+
+    /// A capture at an ABILITY ROOT has no enclosing region to take a value
+    /// from, so it is refused however it is numbered ([Core is explicit
+    /// regions] law 7 — captures cross a boundary, and a root has none).
+    #[test]
+    fn a_capture_at_an_ability_root_is_refused() {
+        let root = Region::new(
+            Arc::from([Param {
+                def: DefId(0),
+                kind: Kind::Object,
+                provenance: Provenance::Capture(RefId(0)),
+            }]),
+            Block::default(),
+        );
+        assert_eq!(
+            validate(&root),
+            Err(ValidationError::UndefinedRead {
+                reference: RefId(0),
+                definitions: 0,
+            })
+        );
+    }
+
+    /// ADR law 8: `Remember` reads one register of its own region and defines
+    /// nothing. A write of a register the region never defined is refused.
+    #[test]
+    fn remember_reads_a_register_of_its_own_region() {
+        let valid = Region::new(
+            Arc::from([param(0, Provenance::Source)]),
+            OneShotEffect::Remember(crate::Remember {
+                cell: crate::Ident::from("exiled"),
+                kind: Kind::Object,
+                value: RefId(0),
+            })
+            .into(),
+        );
+        assert_eq!(validate(&valid), Ok(()));
+
+        let undefined = Region::new(
+            Arc::from([param(0, Provenance::Source)]),
+            OneShotEffect::Remember(crate::Remember {
+                cell: crate::Ident::from("exiled"),
+                kind: Kind::Object,
+                value: RefId(1),
+            })
+            .into(),
+        );
+        assert_eq!(
+            validate(&undefined),
+            Err(ValidationError::UndefinedRead {
+                reference: RefId(1),
+                definitions: 1,
+            })
+        );
+    }
+
+    /// A `Remember` whose declared cell kind contradicts the register it reads
+    /// is refused: the cell's runtime shape is a declaration, not a hint.
+    #[test]
+    fn remember_refuses_a_cell_kind_the_register_cannot_hold() {
+        let mismatched = Region::new(
+            Arc::from([Param {
+                def: DefId(0),
+                kind: Kind::Number,
+                provenance: Provenance::AnnouncedX,
+            }]),
+            OneShotEffect::Remember(crate::Remember {
+                cell: crate::Ident::from("chosen"),
+                kind: Kind::Symbol,
+                value: RefId(0),
+            })
+            .into(),
+        );
+        assert_eq!(
+            validate(&mismatched),
+            Err(ValidationError::KindMismatch {
+                reference: RefId(0),
+                expected: Kind::Symbol,
+                found: Kind::Number,
+            })
+        );
+    }
+
+    /// `Region::captures` IS the declaration a created body's supplier has to
+    /// satisfy: every capture parameter, paired with the enclosing register it
+    /// names.
+    #[test]
+    fn captures_enumerates_exactly_the_capture_parameters() {
+        let body: Region<Block> = Region::new(
+            Arc::from([
+                param(0, Provenance::Source),
+                Param {
+                    def: DefId(1),
+                    kind: Kind::Objects,
+                    provenance: Provenance::Capture(RefId(4)),
+                },
+                Param {
+                    def: DefId(2),
+                    kind: Kind::Object,
+                    provenance: Provenance::Linked(crate::Ident::from("exiled")),
+                },
+            ]),
+            Block::default(),
+        );
+        assert_eq!(
+            body.captures().collect::<Vec<_>>(),
+            vec![(RefId(1), RefId(4), Kind::Objects)]
+        );
+        assert_eq!(
+            body.linked_cells()
+                .map(|(here, cell, kind)| (here, cell.to_string(), kind))
+                .collect::<Vec<_>>(),
+            vec![(RefId(2), "exiled".to_owned(), Kind::Object)]
         );
     }
 }

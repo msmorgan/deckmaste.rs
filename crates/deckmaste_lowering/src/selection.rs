@@ -16,8 +16,18 @@ impl Lower for deckmaste_semantics::Selection {
                 deckmaste_core::Selection::InChosenOrder(f0.lower(), f1.lower())
             }
             Self::Random(f0, f1) => deckmaste_core::Selection::Random(f0.lower(), f1.lower()),
+            // [CR#607.1]: "them" over a noted group — a register of this
+            // region, or the card's memory cell read through the ability's
+            // declared `Provenance::Linked` parameter (ADR law 8).
             Self::AmongNoted(name, _) => deckmaste_core::Selection::Reg(
-                crate::region::named(&name).expect("unbound noted selection during lowering"),
+                crate::region::named(&name)
+                    .or_else(|| crate::region::cell_read(&name))
+                    .unwrap_or_else(|| {
+                        crate::region::refuse(&format!(
+                            "noted selection `{name}` has no declared cell — no ability on this \
+                             card writes it ([CR#607.1])"
+                        ))
+                    }),
             ),
             Self::TopOfLibrary { count, whose } => deckmaste_core::Selection::TopOfLibrary {
                 count: count.lower(),

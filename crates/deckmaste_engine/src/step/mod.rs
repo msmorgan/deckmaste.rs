@@ -504,6 +504,24 @@ impl GameState {
         //    replacements are Stage-4 seams; AsEnters self-replacement applied
         //    below at mint.)
 
+        // [CR#400.7d,702.33e]: read the announced optional-cost record off the
+        // stack entry BEFORE the entry is removed, so a kicked permanent
+        // spell's record can cross onto the permanent it becomes and the
+        // linked "if it was kicked" ETB read still answers after the spell has
+        // left the stack.
+        let carried_paid_costs = (from == Some(Zone::Stack) && to == Zone::Battlefield)
+            .then(|| {
+                self.stack
+                    .iter()
+                    .find(|entry| entry.id == object)
+                    .map(|entry| entry.paid_costs.clone())
+            })
+            .flatten()
+            .filter(|paid| !paid.is_empty());
+        // A permanent that leaves the battlefield is a new object when it comes
+        // back ([CR#400.7]); its inherited record dies with the old id.
+        self.paid_costs_by_object.remove(&object);
+
         // 3. Move + remint. Remove the old object from its `from` zone's list,
         //    then from the store; mint a fresh object into `to`.
         match from {
@@ -568,6 +586,9 @@ impl GameState {
         // destinations record nothing: the old id simply goes stale.
         if !to.is_hidden() {
             self.moved_chain.push((object, new));
+        }
+        if let Some(paid) = carried_paid_costs {
+            self.paid_costs_by_object.insert(new, paid);
         }
         if to == Zone::Battlefield {
             let as_enters = self.as_enters_status(snapshot.source, new);
@@ -2293,12 +2314,15 @@ impl GameState {
             chosen_modes: pending.chosen_modes.clone(),
             x: pending.x,
             // [CR#601.2b,702.33d]: the announced optional-cost record rides
-            // the committed entry for the linked reads.
+            // the committed entry AND the register file announcement and
+            // resolution share, which is where the linked reads look
+            // ([CR#607.2i]).
             paid_costs: pending.paid_costs.clone(),
             // A cast/activate promote is never a copy ([CR#707.10]) — copies
             // mint their own `StackEntry` directly.
             copy: false,
         });
+        self.activation_set_paid_costs(pending.activation, &pending.paid_costs);
         pending
     }
 }

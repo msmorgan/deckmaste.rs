@@ -59,10 +59,89 @@ engine tickets its stages absorb (listed in each stage ticket).
 7. **Captures.** `Delayed`, `Reflexive`, and carried bodies declare
    `captures: [RefId]`; the created region takes them as params with
    capture provenance, snapshotted at creation [CR#603.7,603.12]. Nothing
-   else crosses a region boundary.
+   else crosses a region boundary. The declaration IS that parameter list —
+   `Region::captures()` reads it back as `(here, there)` pairs — not a
+   separate field beside it; a second copy of the same fact could only drift
+   from the params the engine actually indexes.
+
+   **The snapshot chases once, at the boundary, and never again.** Inside one
+   region a moved product is chased to its new incarnation for actions
+   [CR#400.7j] while information reads fall back to the snapshot [CR#608.2h]
+   (the cost stage's split). A capture is taken THROUGH that chasing read, at
+   creation [CR#603.7a], and then frozen: what crosses is the object as the
+   creating effect left it — the card in exile, not the permanent that left
+   the battlefield. At the firing site it is not chased again. [CR#603.7c]
+   settles this and is the sharp case's own rule: a delayed ability "won't
+   affect" an object no longer in the zone it was expected to be in, and
+   "if that object left that zone and then returned, it's a new object and
+   thus won't be affected." So a capture behaves like a snapshot for
+   IDENTITY across the boundary — actions find the captured object or
+   nothing — while information reads still fall back to last-known
+   information [CR#608.2h]; the LKI is refreshed as the object departs, so
+   it is the state at departure, not at capture.
+
+   **A declared capture is never unavailable at firing.** Three legs, no
+   runtime hole: lowering emits a capture only for a register the enclosing
+   region declares; `deckmaste_core::validate` refuses at LOAD any capture
+   that names no definition of the creating region; and the engine snapshots
+   every capture the created region declares at creation and supplies the
+   list at region entry, so supply is total over `Region::captures()`.
+   RESIDUE: a carried body reached by a GRANT (`GainAbility`, a keyword
+   expansion) declares the same uniform capture ABI but is entered later by
+   the granted-to object, which has no creating register file. No corpus card
+   reads such a capture — the 14 nested subterms measured below differ from
+   their isolated lowering in `params` only, never in a body read — so this is
+   unbuilt, not broken; supplying it is `engine-granted-body-captures`.
+
+   **Lowering is not context-free at ability granularity, permanently.** A
+   carried region appends a capture parameter per enclosing register, so an
+   ability lowered in isolation and the same ability lowered inside a card are
+   different values, by design. The isolated-subterm equality check is
+   therefore SUPERSEDED by the depth-zero check, not recoverable: a
+   capture-erasing normalization would erase exactly the declaration this law
+   introduces, and an ordinal-shifting one would need the isolated side to
+   know the enclosing region's definition count — precisely the context it
+   does not have. The every-depth coverage is kept as the two claims that DO
+   hold in context (`every_semantic_ability_subterm_appears_at_its_own_depth_in_its_lowered_card`):
+   the semantic subterm tree and the lowered nested-ability tree are the same
+   shape at every depth, and a carried region's parameters are its intrinsic
+   prefix — identical to the isolated lowering's — followed by nothing but
+   captures.
 8. **Linked memory** [CR#607]. A card declares its memory cells;
-   `Remember { cell, value: RefId }` writes one; a reading ability takes the
-   cell as a param with linked provenance.
+   `Remember { cell, kind, value: RefId }` writes one; a reading ability takes
+   the cell as a param with linked provenance, supplied at region entry from
+   the card's memory keyed by the object both abilities are printed on.
+
+   **The `Remember` instruction IS the declaration.** A card's memory cells
+   are exactly the cells its `Remember`s write, with the `kind` each declares;
+   there is no separate cell list on the card shape. [CR#607.1] scopes linkage
+   to two abilities "printed on" ONE object, so the card's own text is the
+   whole vocabulary, and checking a read against it is a card-wide question
+   either way. A read whose cell no ability on the card writes is a LOWERING
+   error naming the card — not [CR#607.5a]'s runtime-undefined, which covers a
+   GAINED reader whose linked writer was not copied, never two abilities
+   printed together. Lowering compiles a card twice when (and only when) its
+   first pass sees a cell read: pass one collects the reads and writes, pass
+   two declares the survivors as parameters.
+
+   A cell is per-OBJECT, so a permanent that leaves and returns reads nothing:
+   it is a new object [CR#400.7] and its abilities are not linked to the
+   departed one's writes. The published value is snapshotted like a capture —
+   chased once through the writing effect's own move [CR#400.7j], never again
+   — so [CR#607.2a]'s "cards in the exile zone that were put there as a result
+   of" stops naming a card that has since left.
+
+   **The paid-cost record is the one linked read that crosses a zone change.**
+   `Condition::PaidCost` and `Count::TimesPaid` read the ACTIVATION's announced
+   optional-cost record, never a stack scan by source id. [CR#702.33e] makes
+   "if it was kicked" a linked ability read, and a kicked permanent's
+   enters-the-battlefield recheck happens after the spell has left the stack —
+   so [CR#400.7d] ("an ability of a permanent can reference information about
+   the spell that became that permanent as it resolved, including what costs
+   were paid to cast that spell") is what lets it answer, and the record
+   crosses onto the permanent at the stack → battlefield remint. It rides the
+   object rather than a memory cell because the two abilities are on two
+   objects [CR#607.2i], which no per-object cell can span.
 9. **Announcement is declared on the ability.** Targets are fields of
    `SpellAbility`, `ActivatedAbility`, `TriggeredAbility`, and `Mode`, never
    effect nodes [CR#601.2b,601.2c]. A cost is a field of the kinds that have
@@ -145,7 +224,9 @@ fixtures), `core-regions-captures-and-memory` (laws 7 and 8, split off when
 the cost half alone ran to ~4k lines), and `core-regions-witness-fixtures`
 (hand-spelled semantic fixtures for the nineteen inherited witness cards,
 which the wizards corpus cannot exercise). A stage is closed by its own
-ticket plus its follow-ups, not by its ticket alone.
+ticket plus its follow-ups, not by its ticket alone. Stage 3's own follow-up
+is `engine-granted-body-captures` (law 7's residue: a carried body reached by
+a GRANT declares captures the engine does not yet supply).
 
 Core's shape is independent of which semantics lowers into it. The chain
 builds the resolver on today's `deckmaste_semantics` → core path as the

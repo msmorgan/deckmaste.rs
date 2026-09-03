@@ -764,9 +764,11 @@ fn ward_counters_targeting_spell_via_that_object() {
 fn kicker_game(seed: u64) -> GameState {
     let charm = testing_card("Kicker Charm");
     let chant = testing_card("Multikicker Chant");
+    let beast = testing_card("Kicked Beast");
     let forest = Arc::new(builtin().card("Forest").unwrap().core);
     let mut p0 = vec![Arc::clone(&charm); 2];
     p0.extend(vec![Arc::clone(&chant); 2]);
+    p0.extend(vec![Arc::clone(&beast); 2]);
     p0.extend(vec![Arc::clone(&forest); 6]);
     let p1 = vec![Arc::clone(&forest); 10];
     let mut state = GameState::new(GameConfig {
@@ -5439,4 +5441,80 @@ fn fate_transfer_partial_fizzle_when_destination_dies() {
         state.stack.is_empty(),
         "Fate Transfer left the stack (resolved, not stuck)"
     );
+}
+
+/// FIXTURE — a KICKED PERMANENT's enters-the-battlefield recheck, read after
+/// the spell has left the stack. [CR#702.33e] makes "if it was kicked" a
+/// linked ability read ([CR#607]), and [CR#400.7d] is the rule that lets it
+/// answer at all: "an ability of a permanent can reference information about
+/// the spell that became that permanent as it resolved, including what costs
+/// were paid to cast that spell." The announced optional-cost record rides the
+/// STACK ENTRY, which is gone by the time the ETB trigger resolves — so the
+/// record has to cross the one stack -> battlefield zone change with the
+/// object, and `Condition::PaidCost` has to read the activation, not scan the
+/// stack for the trigger's source id (which is the permanent, never the
+/// spell).
+#[test]
+fn a_kicked_permanents_etb_recheck_reads_the_record_after_the_spell_left_the_stack() {
+    for (kick, expected_gain, floats) in [(true, 4, 3), (false, 2, 1)] {
+        let mut state = kicker_game(5);
+        let beast = force_into_hand(&mut state, PlayerId(0), "Kicked Beast");
+        let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+        float_mana(&mut state, PlayerId(0), floats);
+        let life0 = state.players[0].life;
+        state
+            .submit_decision(Decision::Act(Action::CastSpell { object: beast }))
+            .unwrap();
+        let (_, stop) = step_to_stop(&mut state);
+        let StepOutcome::NeedsDecision(PendingDecision::YesNo(deckmaste_engine::YesNo { player })) =
+            stop
+        else {
+            panic!("expected the kicker YesNo, got {stop:?}");
+        };
+        assert_eq!(player, PlayerId(0), "the caster announces the kicker");
+        state.submit_decision(Decision::Answer(kick)).unwrap();
+        loop {
+            if state.players[0].life != life0 && state.stack.is_empty() {
+                break;
+            }
+            let (_t, stop) = step_to_stop(&mut state);
+            match stop {
+                StepOutcome::NeedsDecision(PendingDecision::PayMana(
+                    deckmaste_engine::PayMana { .. },
+                )) => {
+                    let pay = state.auto_pay_pending();
+                    state.submit_decision(Decision::Pay(pay)).unwrap();
+                }
+                StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+                    let decision = state
+                        .auto_payment_pending()
+                        .expect("the kicked cast has an automatic payment answer");
+                    state.submit_decision(decision).unwrap();
+                }
+                StepOutcome::NeedsDecision(PendingDecision::Priority(
+                    deckmaste_engine::Priority { .. },
+                )) => {
+                    // Keep passing until the spell AND its enters trigger have
+                    // both resolved; the trigger goes on the stack only after
+                    // the permanent lands, so one empty stack is not enough.
+                    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+                }
+                other => panic!("unexpected stop while resolving the beast: {other:?}"),
+            }
+        }
+        assert!(
+            state
+                .zones
+                .battlefield
+                .iter()
+                .any(|&o| is_card(&state, o, "Kicked Beast")),
+            "kick={kick}: the beast is on the battlefield, so the spell has left the stack"
+        );
+        assert_eq!(
+            state.players[0].life,
+            life0 + expected_gain,
+            "kick={kick}: the ETB recheck read the kicked record after the spell left the stack \
+             ([CR#400.7d,702.33e])"
+        );
+    }
 }

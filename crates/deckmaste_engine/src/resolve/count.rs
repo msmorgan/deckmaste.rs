@@ -472,19 +472,12 @@ impl GameState {
             },
             // [CR#120.3]: the damage marked on the referenced object — read
             // directly off the base state (damage is not a derived stat).
-            // [CR#702.33c..702.33d]: multikicker's per-payment count needs
-            // the optional-cost announce record (engine-alt-costs).
-            // [CR#702.33c]: multikicker's "for each time it was kicked" —
-            // the resolving entry's announced record carries the tag's
-            // multiplicity ([CR#601.2b,607.2]; the record rides the STACK
-            // entry — the post-resolution recheck is engine-alt-costs
-            // follow-up work).
-            Count::TimesPaid(tag) => self
-                .stack
-                .iter()
-                .find(|e| e.id == frame.source(self))
-                .and_then(|e| e.paid_costs.iter().find(|(t, _)| t == tag).map(|(_, n)| *n))
-                .unwrap_or(0),
+            // [CR#702.33c]: multikicker's "for each time it was kicked" — the
+            // tag's multiplicity in THIS activation's announced record
+            // ([CR#601.2b,607.2i]), the same channel `Condition::PaidCost`
+            // reads, so it survives the stack -> battlefield remint with the
+            // object ([CR#400.7d,702.33e]).
+            Count::TimesPaid(tag) => self.activation_times_paid(frame.activation, tag),
             Count::Damage(reference) => {
                 let id = self.eval_reference(reference, frame);
                 self.objects.obj(id).total_damage()

@@ -1213,6 +1213,19 @@ impl GameState {
             // no-op instead (nothing revealed, `body` never runs) — never a
             // panic, matching the CRITICAL never-crash ruling.
             OneShotEffect::RevealUntil(_) => {}
+            // [CR#607.1]: write one of this card's linked memory cells — the
+            // writer half of a linked pair (ADR law 8). The cell is keyed by
+            // the object the two abilities are printed on, so the later
+            // reading ability's `Provenance::Linked` parameter finds it. The
+            // published value is the register's SNAPSHOT, taken here: like a
+            // capture, it is not re-chased at the read site, so [CR#607.2a]'s
+            // "cards in the exile zone that were put there as a result of"
+            // stops naming a card that has since left ([CR#400.7]).
+            OneShotEffect::Remember(remember) => {
+                let owner = frame.source(self);
+                let value = self.snapshot_register(frame, remember.value, remember.kind);
+                self.remember_cell(owner, remember.cell, value);
+            }
             // [CR#603.7,603.12]: create a delayed triggered ability, unified
             // with the reflexive rule. It is printed on no permanent, so it
             // fires ONCE the next time its event occurs ([CR#603.7b]) — BUT if
@@ -1226,7 +1239,7 @@ impl GameState {
             // snapshot (the produced object when the source moved itself away).
             OneShotEffect::Delayed(ability) => {
                 if !self.scan_created_reflexive(&ability, frame) {
-                    let (source, bindings) = self.created_trigger_context(frame);
+                    let (source, bindings) = self.created_trigger_context(&ability, frame);
                     let controller = frame.controller(self);
                     self.delayed_triggers.push(crate::trigger::CreatedTrigger {
                         source,
@@ -1381,12 +1394,22 @@ impl GameState {
         })
     }
 
-    /// [CR#603.7d,603.7e]: the source and captured `~`/`This` context for a
+    /// [CR#603.7d,603.7e]: the source and the DECLARED captures for a
     /// delayed/reflexive triggered ability created while `frame` resolves. The
     /// source is the creating object (the trigger/activated ability's own
     /// source snapshot when `frame` has one — [CR#603.7e]; otherwise the
     /// resolving spell — [CR#603.7d]). `~`/`This` is that same object's
-    /// snapshot, so the created body reads it at its later resolution.
+    /// snapshot, which the created body reads through its OWN `Source`
+    /// parameter — a region's source is intrinsic, not a crossing.
+    ///
+    /// Everything else the created body may read from the region that created
+    /// it comes through `ability.effect`'s declared capture parameters (ADR
+    /// law 7), snapshotted here, once, at creation ([CR#603.7a]). Nothing is
+    /// hand-carried: the defending player this used to copy across is supplied
+    /// by the FIRING event's own roles ([CR#608.2k] — an ability's effect
+    /// refers to what its trigger condition referred to) when the body
+    /// declares it, and by a declared capture when the body means the
+    /// creating combat's.
     ///
     /// [CR#400.7j]: when the creating source itself MOVED during the same
     /// resolution (madness exiles the very card whose ability is discarding
@@ -1397,6 +1420,7 @@ impl GameState {
     /// player proxy.
     fn created_trigger_context(
         &self,
+        ability: &deckmaste_core::TriggeredAbility,
         frame: &Frame,
     ) -> (ObjectSource, crate::trigger::TriggerBindings) {
         let this = frame
@@ -1413,7 +1437,7 @@ impl GameState {
         );
         let bindings = crate::trigger::TriggerBindings {
             this,
-            defending_player: frame.defending_player(self),
+            captures: self.capture_snapshot(&ability.effect, frame),
             ..crate::trigger::TriggerBindings::default()
         };
         (source, bindings)
@@ -1447,7 +1471,7 @@ impl GameState {
         ability: &deckmaste_core::TriggeredAbility,
         frame: &Frame,
     ) -> bool {
-        let (source, base) = self.created_trigger_context(frame);
+        let (source, base) = self.created_trigger_context(ability, frame);
         let mut emits = Vec::new();
         for event in self.resolution_events.clone() {
             if self.event_matches_delayed(&ability.event, &event, source) {
@@ -6456,24 +6480,17 @@ mod tests {
     /// for the following clause — exactly the chooser the unconstrained
     /// full-group read does not need.
     #[test]
-    #[ignore = "blocker: a noted product group has no core spelling. `core: \
-                complete discourse regions` deleted Selection::AmongNoted and \
-                the Noting node, and `core-regions-discourse-closeout` deleted \
-                the reader-less runtime store they drove (GameState.noted/\
-                noting, WorkItem::BeginNote/EndNote), so a constraining read \
-                over 'them' has neither a term to lower to nor a group to read. \
-                Unblocked by the linked memory stage ([CR#607], ADR law 8): \
-                Remember writes a cell and a reading region takes it as a \
-                Linked parameter."]
     fn among_noted_constrained_quantity_surfaces_and_binds_chooser() {
         use crate::decide::Decision;
         use crate::decide::PendingDecision;
 
         let (mut state, a, b) = two_permanents_on_field();
         // The group this reads is "them" — the members a preceding clause
-        // moved. It has no core spelling to seed (see the blocker above), so
-        // the body below stands in the successor's shape: a register holding
-        // the group, read by the constraining chooser.
+        // produced. Its core spelling is the successor's: a register holding
+        // the group, read by the constraining chooser. Where the group has to
+        // outlive the clause that produced it, the register is published as a
+        // linked memory cell instead ([CR#607.1], ADR law 8) — covered by
+        // `a_noted_product_group_can_be_acted_on`.
         //
         // "Destroy exactly one of them" — a constraining quantity over the
         // group.
@@ -6723,6 +6740,444 @@ mod tests {
             state.player(PlayerId(1)).life,
             40,
             "player 1 gained its OWN 20 — not the previous element's 12"
+        );
+    }
+
+    // ---- The named fixtures of `core-regions-captures-and-memory` ----
+    // ADR laws 7 (captures) and 8 (linked memory).
+
+    /// The event-role prefix a lowered TRIGGERED region declares, followed by
+    /// its announced X: source(0), controller(1), event object(2), patient(3),
+    /// actor(4), defending player(5), amount(6), X(7). A created body's
+    /// captures follow it ([Core is explicit regions] law 2).
+    fn created_body_params(
+        captures: &[(deckmaste_core::RefId, deckmaste_core::Kind)],
+    ) -> Arc<[deckmaste_core::Param]> {
+        let mut params: Vec<deckmaste_core::Param> = deckmaste_core::event_region_params().to_vec();
+        params.push(param(
+            7,
+            deckmaste_core::Kind::Number,
+            deckmaste_core::Provenance::AnnouncedX,
+        ));
+        for (index, (outer, kind)) in captures.iter().enumerate() {
+            params.push(param(
+                8 + u32::try_from(index).expect("fixture capture count fits u32"),
+                *kind,
+                deckmaste_core::Provenance::Capture(*outer),
+            ));
+        }
+        params.into()
+    }
+
+    /// The first instruction definition of a `frame_src_targets` activation
+    /// carrying ONE announced target: source(0), controller(1), the four event
+    /// roles(2..=5), the target(6), announced X(7).
+    const FIRST_DEF_ONE_TARGET: deckmaste_core::DefId = deckmaste_core::DefId(8);
+    /// That activation's announced-target register.
+    const TARGET_0: deckmaste_core::RefId = deckmaste_core::RefId(6);
+
+    fn next_end_step() -> deckmaste_core::EventFilter {
+        deckmaste_core::EventFilter::StepBegins {
+            at: deckmaste_core::PhaseStep::Ending(deckmaste_core::EndingStep::End),
+            whose: deckmaste_core::WhoseTurn::EachPlayers,
+        }
+    }
+
+    fn delayed(params: Arc<[deckmaste_core::Param]>, body: OneShotEffect) -> OneShotEffect {
+        OneShotEffect::Delayed(Arc::new(deckmaste_core::TriggeredAbility {
+            ability_word: None,
+            event: next_end_step(),
+            from: None,
+            condition: None,
+            limits: Vec::new().into(),
+            where_x: None,
+            targets: Vec::new().into(),
+            effect: deckmaste_core::Region::new(params, body.into()),
+        }))
+    }
+
+    /// Fire the delayed registry on the end-step onset and run the trigger all
+    /// the way through placement to resolution.
+    fn fire_end_step(state: &mut GameState) {
+        state.scan_triggers(&Occurrence::single(GameEvent::StepBegan(
+            deckmaste_core::PhaseStep::Ending(deckmaste_core::EndingStep::End),
+        )));
+        run_injected(state);
+        drain_passing_priority(state, 400);
+    }
+
+    /// FIXTURE — an exile-then-return-at-end-step card ("exile another target
+    /// permanent; return that card to the battlefield at the beginning of the
+    /// next end step"). The delayed trigger CAPTURES the exiled object, and
+    /// the object it captures is the card in exile — the new object the move
+    /// produced ([CR#400.7]), chased once at capture time because the creating
+    /// effect is what moved it ([CR#400.7j]). The capture is the ONLY channel:
+    /// the delayed body has no activation of its own to read the creating
+    /// region's registers from.
+    #[test]
+    fn a_delayed_trigger_captures_the_exiled_object_and_returns_it() {
+        let (mut state, a, b) = two_permanents_on_field();
+        let frame = frame_src(&state, a);
+        state.run_effect(
+            OneShotEffect::Sequentially(
+                vec![
+                    OneShotEffect::producing(
+                        FIRST_DEF_ONE_TARGET,
+                        Action::Move(
+                            Reference::Reg(TARGET_0),
+                            deckmaste_core::Destination::Zone(Zone::Exile),
+                            vec![].into(),
+                            None,
+                        ),
+                    ),
+                    delayed(
+                        created_body_params(&[(
+                            FIRST_DEF_ONE_TARGET.into(),
+                            deckmaste_core::Kind::Objects,
+                        )]),
+                        OneShotEffect::Act(Action::Move(
+                            Reference::Reg(deckmaste_core::RefId(8)),
+                            deckmaste_core::Destination::Zone(Zone::Battlefield),
+                            vec![].into(),
+                            None,
+                        )),
+                    ),
+                ]
+                .into(),
+            ),
+            &frame_src_targets(&state, a, vec![b]),
+        );
+        let _ = frame;
+        run_injected(&mut state);
+
+        assert!(
+            !state.zones.battlefield.contains(&b),
+            "the targeted permanent was exiled"
+        );
+        assert_eq!(state.zones.exile.len(), 1, "exactly one card in exile");
+        let exiled = state.zones.exile[0];
+        assert_ne!(
+            exiled, b,
+            "[CR#400.7]: the card in exile is a NEW object, not the permanent that left"
+        );
+        let registered = state
+            .delayed_triggers
+            .first()
+            .expect("[CR#603.7b]: the delayed trigger registered for the end step");
+        assert_eq!(
+            registered.bindings.captures.len(),
+            1,
+            "the created body's one declared capture is supplied at creation"
+        );
+
+        fire_end_step(&mut state);
+        assert!(
+            state.zones.exile.is_empty(),
+            "the captured card left exile when the delayed trigger resolved"
+        );
+        assert_eq!(
+            state.zones.battlefield.len(),
+            2,
+            "the exiled card returned to the battlefield alongside the untouched source"
+        );
+    }
+
+    /// [CR#603.7c]: "if that object is no longer in the zone it's expected to
+    /// be in at the time the delayed triggered ability resolves, the ability
+    /// won't affect it." A capture is a SNAPSHOT, never a chase: once the
+    /// captured card leaves exile on its own, the delayed body finds nothing
+    /// and returns nothing — it does not follow the card to its successor.
+    #[test]
+    fn a_capture_is_not_chased_after_the_object_leaves_the_zone_it_was_captured_in() {
+        let (mut state, a, b) = two_permanents_on_field();
+        state.run_effect(
+            OneShotEffect::Sequentially(
+                vec![
+                    OneShotEffect::producing(
+                        FIRST_DEF_ONE_TARGET,
+                        Action::Move(
+                            Reference::Reg(TARGET_0),
+                            deckmaste_core::Destination::Zone(Zone::Exile),
+                            vec![].into(),
+                            None,
+                        ),
+                    ),
+                    delayed(
+                        created_body_params(&[(
+                            FIRST_DEF_ONE_TARGET.into(),
+                            deckmaste_core::Kind::Objects,
+                        )]),
+                        OneShotEffect::Act(Action::Move(
+                            Reference::Reg(deckmaste_core::RefId(8)),
+                            deckmaste_core::Destination::Zone(Zone::Battlefield),
+                            vec![].into(),
+                            None,
+                        )),
+                    ),
+                ]
+                .into(),
+            ),
+            &frame_src_targets(&state, a, vec![b]),
+        );
+        run_injected(&mut state);
+        let exiled = state.zones.exile[0];
+
+        // A later, unrelated effect moves the captured card out of exile. The
+        // object it becomes in the graveyard is a new object ([CR#400.7]).
+        let frame = frame_src(&state, a);
+        state.run_effect(
+            OneShotEffect::Act(Action::Move(
+                Reference::Reg(TARGET_0),
+                deckmaste_core::Destination::Zone(Zone::Graveyard),
+                vec![].into(),
+                None,
+            )),
+            &frame_src_targets(&state, a, vec![exiled]),
+        );
+        let _ = frame;
+        run_injected(&mut state);
+        assert!(state.zones.exile.is_empty(), "the card left exile");
+        let before = state.zones.battlefield.len();
+
+        fire_end_step(&mut state);
+        assert_eq!(
+            state.zones.battlefield.len(),
+            before,
+            "[CR#603.7c]: the captured object is gone from the zone it was captured in, \
+             so the delayed body affects nothing — it does not chase the successor"
+        );
+        assert_eq!(
+            state.zones.graveyards[0].len(),
+            1,
+            "the successor object stayed where it was"
+        );
+    }
+
+    /// FIXTURE — a carried body with a CAPTURE LIST. A delayed trigger created
+    /// inside an `Each` body captures that body's own per-element register:
+    /// the loop element is region-local to the loop body, so the created body
+    /// can only see it by declaring it ([Core is explicit regions] law 7 —
+    /// nothing else crosses a region boundary). Each iteration's capture is
+    /// its own snapshot, so two elements produce two triggers that name two
+    /// different objects.
+    #[test]
+    fn a_carried_body_captures_its_enclosing_loop_element_per_iteration() {
+        let (mut state, a, b) = two_permanents_on_field();
+        let frame = frame_src(&state, a);
+        // The loop body's registers: element(0), source(1), controller(2).
+        state.run_effect(
+            OneShotEffect::Each(deckmaste_core::Each {
+                over: Selection::SelectAll(candidate_region(creatures_on_the_battlefield())),
+                body: deckmaste_core::Region::new(
+                    Arc::from([
+                        param(
+                            0,
+                            deckmaste_core::Kind::Object,
+                            deckmaste_core::Provenance::LoopElement,
+                        ),
+                        param(
+                            1,
+                            deckmaste_core::Kind::Object,
+                            deckmaste_core::Provenance::Source,
+                        ),
+                        param(
+                            2,
+                            deckmaste_core::Kind::Object,
+                            deckmaste_core::Provenance::Controller,
+                        ),
+                    ]),
+                    delayed(
+                        created_body_params(&[(ELEMENT, deckmaste_core::Kind::Object)]),
+                        OneShotEffect::Act(Action::destroy(Reference::Reg(deckmaste_core::RefId(
+                            8,
+                        )))),
+                    )
+                    .into(),
+                ),
+            }),
+            &frame,
+        );
+        run_injected(&mut state);
+
+        let captured: Vec<ObjectId> = state
+            .delayed_triggers
+            .iter()
+            .filter_map(|trigger| {
+                trigger
+                    .bindings
+                    .captures
+                    .first()
+                    .and_then(|(_, value)| value.captured_object())
+            })
+            .collect();
+        let mut got = captured.clone();
+        got.sort();
+        let mut want = vec![a, b];
+        want.sort();
+        assert_eq!(
+            got, want,
+            "each iteration's created body captured ITS OWN element, not the last one"
+        );
+
+        fire_end_step(&mut state);
+        assert!(
+            state.zones.battlefield.is_empty(),
+            "both delayed bodies acted on the object they captured"
+        );
+        assert_eq!(
+            state.zones.graveyards[0].len(),
+            2,
+            "each created body moved ITS OWN captured element"
+        );
+    }
+
+    /// FIXTURE — a linked pair through a DECLARED CELL ([CR#607.1], law 8):
+    /// one ability exiles a card and REMEMBERS it, a second ability of the
+    /// same object acts on "the exiled card" by declaring that cell as a
+    /// `Provenance::Linked` parameter. The two abilities never share an
+    /// activation; the cell is the whole channel.
+    #[test]
+    fn a_linked_pair_acts_on_the_exiled_card_through_a_declared_cell() {
+        let (mut state, a, b) = two_permanents_on_field();
+        // Ability one: "Exile target creature. (Remember it as `exiled`.)"
+        state.run_effect(
+            OneShotEffect::Sequentially(
+                vec![
+                    OneShotEffect::producing(
+                        FIRST_DEF_ONE_TARGET,
+                        Action::Move(
+                            Reference::Reg(TARGET_0),
+                            deckmaste_core::Destination::Zone(Zone::Exile),
+                            vec![].into(),
+                            None,
+                        ),
+                    ),
+                    OneShotEffect::Remember(deckmaste_core::Remember {
+                        cell: deckmaste_core::Ident::from("exiled"),
+                        kind: deckmaste_core::Kind::Objects,
+                        value: FIRST_DEF_ONE_TARGET.into(),
+                    }),
+                ]
+                .into(),
+            ),
+            &frame_src_targets(&state, a, vec![b]),
+        );
+        run_injected(&mut state);
+        assert_eq!(state.zones.exile.len(), 1, "ability one exiled the card");
+
+        // Ability two: "Put the card exiled with this permanent onto the
+        // battlefield." Its own region — a fresh activation with no relation
+        // to ability one's — declares the cell.
+        let reader: deckmaste_core::Region = deckmaste_core::Region::new(
+            Arc::from([
+                param(
+                    0,
+                    deckmaste_core::Kind::Object,
+                    deckmaste_core::Provenance::Source,
+                ),
+                param(
+                    1,
+                    deckmaste_core::Kind::Object,
+                    deckmaste_core::Provenance::Controller,
+                ),
+                param(
+                    2,
+                    deckmaste_core::Kind::Objects,
+                    deckmaste_core::Provenance::Linked(deckmaste_core::Ident::from("exiled")),
+                ),
+            ]),
+            OneShotEffect::Act(Action::Move(
+                Reference::Reg(deckmaste_core::RefId(2)),
+                deckmaste_core::Destination::Zone(Zone::Battlefield),
+                vec![].into(),
+                None,
+            ))
+            .into(),
+        );
+        let mut reading = Frame::bare(a, PlayerId(0));
+        reading.activation = state.enter_region(&reader, &reading);
+        state.run_effect(OneShotEffect::Sequentially(reader.body.0.clone()), &reading);
+        run_injected(&mut state);
+
+        assert!(
+            state.zones.exile.is_empty(),
+            "[CR#607.2a]: the second ability found the card the first one exiled"
+        );
+        assert_eq!(
+            state.zones.battlefield.len(),
+            2,
+            "the exiled card came back alongside the untouched source"
+        );
+    }
+
+    /// [CR#607.1]: a cell is per-OBJECT. A different object's ability reading
+    /// the same cell name finds nothing — the two abilities are not linked.
+    #[test]
+    fn a_linked_cell_is_not_readable_from_another_object() {
+        let (mut state, a, b) = two_permanents_on_field();
+        state.run_effect(
+            OneShotEffect::Sequentially(
+                vec![
+                    OneShotEffect::producing(
+                        FIRST_DEF_ONE_TARGET,
+                        Action::Move(
+                            Reference::Reg(TARGET_0),
+                            deckmaste_core::Destination::Zone(Zone::Exile),
+                            vec![].into(),
+                            None,
+                        ),
+                    ),
+                    OneShotEffect::Remember(deckmaste_core::Remember {
+                        cell: deckmaste_core::Ident::from("exiled"),
+                        kind: deckmaste_core::Kind::Objects,
+                        value: FIRST_DEF_ONE_TARGET.into(),
+                    }),
+                ]
+                .into(),
+            ),
+            &frame_src_targets(&state, a, vec![b]),
+        );
+        run_injected(&mut state);
+        let exiled = state.zones.exile.clone();
+        assert_eq!(exiled.len(), 1);
+
+        // The SAME cell name, read by an ability whose source is the OTHER
+        // object (player 1's proxy stands in for a second permanent).
+        let other = state.player(PlayerId(1)).object;
+        let reader: deckmaste_core::Region = deckmaste_core::Region::new(
+            Arc::from([
+                param(
+                    0,
+                    deckmaste_core::Kind::Object,
+                    deckmaste_core::Provenance::Source,
+                ),
+                param(
+                    1,
+                    deckmaste_core::Kind::Object,
+                    deckmaste_core::Provenance::Controller,
+                ),
+                param(
+                    2,
+                    deckmaste_core::Kind::Objects,
+                    deckmaste_core::Provenance::Linked(deckmaste_core::Ident::from("exiled")),
+                ),
+            ]),
+            OneShotEffect::Act(Action::Move(
+                Reference::Reg(deckmaste_core::RefId(2)),
+                deckmaste_core::Destination::Zone(Zone::Battlefield),
+                vec![].into(),
+                None,
+            ))
+            .into(),
+        );
+        let mut reading = Frame::bare(other, PlayerId(1));
+        reading.activation = state.enter_region(&reader, &reading);
+        state.run_effect(OneShotEffect::Sequentially(reader.body.0.clone()), &reading);
+        run_injected(&mut state);
+
+        assert_eq!(
+            state.zones.exile, exiled,
+            "[CR#607.1]: an unlinked ability reads no cell of another object"
         );
     }
 }

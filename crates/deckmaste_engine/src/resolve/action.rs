@@ -6001,59 +6001,120 @@ mod tests {
     }
 
     /// The half of `cards_milled_this_way_reads_the_enacted_product_group`
-    /// that ACTED on the group: "exile the cards milled this way" iterates the
-    /// noted product group ([CR#607.2a]) and moves exactly those cards.
+    /// that ACTS on the group: "exile the cards milled this way" moves exactly
+    /// the cards the earlier clause put into the graveyard, and nothing else.
+    ///
+    /// RE-SPELLED onto the successor shape. The `Noting` node and
+    /// `Selection::AmongNoted` are gone; a product group that must outlive the
+    /// clause that produced it is now a LINKED MEMORY CELL ([CR#607.1], ADR
+    /// law 8): the producing instruction writes its dest, `Remember` publishes
+    /// that register under a cell of the card, and the acting ability declares
+    /// the cell as a `Provenance::Linked` parameter of its own region. The
+    /// two abilities share no activation — the cell is the whole channel,
+    /// which is exactly what [CR#607.2a] linkage means.
+    ///
+    /// A graveyard occupant that the first clause did NOT put there is the
+    /// control: the group is the produced cards, never "everything in the
+    /// graveyard".
     #[test]
-    #[ignore = "blocker: a noted product group has no core spelling. `core: \
-                complete discourse regions` deleted Noting and \
-                Selection::AmongNoted, and `core-regions-discourse-closeout` \
-                deleted the reader-less runtime store they drove \
-                (GameState.noted/noting, WorkItem::BeginNote/EndNote); \
-                Selection::PilesOf below is still an engine seam. The GROUP \
-                itself survives as a history query (`enacted_moves`) — what is \
-                missing is a core term that NAMES it. Unblocked by giving the \
-                linked memory stage ([CR#607], ADR law 8) a Remember \
-                instruction whose cell a later region takes as a Linked \
-                parameter."]
     fn a_noted_product_group_can_be_acted_on() {
         let (mut state, a) = bear_on_field();
+        let libsize = state.zones.libraries[0].len();
+        assert!(libsize >= 3, "the harness deck has cards to mill");
+        // A bystander already in the graveyard, put there by nobody's mill.
+        let bystander = mint_in_hand(&mut state, PlayerId(0), "Bystander");
+        state.zones.hands[0].retain(|&o| o != bystander);
+        state.objects.obj_mut(bystander).zone = Some(Zone::Graveyard);
+        state.zones.graveyards[0].push(bystander);
+
+        // Clause one: mill three, and remember the product group.
         let frame = frame_src(&state, a);
-        run_effect_scheduled(
-            &mut state,
-            OneShotEffect::mill(Reference::controller_parameter(), Count::Literal(3)),
+        state.run_effect(
+            OneShotEffect::Sequentially(
+                vec![
+                    OneShotEffect::producing(
+                        FIRST_DEF,
+                        Action::MoveGroup {
+                            group: Selection::TopOfLibrary {
+                                count: Count::Literal(3),
+                                whose: Reference::controller_parameter(),
+                            },
+                            arrangement: deckmaste_core::Arrangement::AnyOrder,
+                            to: Destination::Zone(Zone::Graveyard),
+                            riders: vec![].into(),
+                        },
+                    ),
+                    OneShotEffect::Remember(deckmaste_core::Remember {
+                        cell: deckmaste_core::Ident::from("milled"),
+                        kind: deckmaste_core::Kind::Objects,
+                        value: FIRST_DEF.into(),
+                    }),
+                ]
+                .into(),
+            ),
             &frame,
         );
         run_injected(&mut state);
-        let milled: Vec<ObjectId> = enacted_moves(&state)
-            .into_iter()
-            .filter_map(|(_, now)| now)
-            .collect();
-        assert_eq!(milled.len(), 3, "three enacted mill facts");
+        assert_eq!(
+            state.zones.libraries[0].len(),
+            libsize - 3,
+            "three cards left the library"
+        );
+        assert_eq!(
+            state.zones.graveyards[0].len(),
+            4,
+            "the three milled cards joined the bystander in the graveyard"
+        );
 
-        state.run_effect(
-            OneShotEffect::Each(deckmaste_core::Each {
-                over: Selection::PilesOf {
-                    note: deckmaste_core::Ident::from("milled"),
-                    of: Reference::controller_parameter(),
+        // Clause two, a separate ability of the same object: "exile the cards
+        // milled this way." Its region declares the cell, and the loop body
+        // reads the element it yields.
+        let reader: deckmaste_core::Region = deckmaste_core::Region::new(
+            Arc::from([
+                deckmaste_core::Param {
+                    def: deckmaste_core::DefId(0),
+                    kind: deckmaste_core::Kind::Object,
+                    provenance: deckmaste_core::Provenance::Source,
                 },
+                deckmaste_core::Param {
+                    def: deckmaste_core::DefId(1),
+                    kind: deckmaste_core::Kind::Object,
+                    provenance: deckmaste_core::Provenance::Controller,
+                },
+                deckmaste_core::Param {
+                    def: deckmaste_core::DefId(2),
+                    kind: deckmaste_core::Kind::Objects,
+                    provenance: deckmaste_core::Provenance::Linked(deckmaste_core::Ident::from(
+                        "milled",
+                    )),
+                },
+            ]),
+            OneShotEffect::Each(deckmaste_core::Each {
+                over: Selection::Reg(deckmaste_core::RefId(2)),
                 body: loop_region(OneShotEffect::Act(Action::Move(
                     Reference::Reg(ELEMENT),
                     Destination::Zone(Zone::Exile),
                     vec![].into(),
                     None,
                 ))),
-            }),
-            &frame,
+            })
+            .into(),
         );
+        let mut reading = crate::stack::Frame::bare(a, PlayerId(0));
+        reading.activation = state.enter_region(&reader, &reading);
+        state.run_effect(OneShotEffect::Sequentially(reader.body.0.clone()), &reading);
         run_injected(&mut state);
+        drain_progress(&mut state, 60);
+
         assert_eq!(
             state.zones.exile.len(),
             3,
             "the follow-on clause exiled exactly the cards milled this way"
         );
-        assert!(
-            state.zones.graveyards[0].is_empty(),
-            "the milled cards moved on from the graveyard"
+        assert_eq!(
+            state.zones.graveyards[0],
+            vec![bystander],
+            "[CR#607.2a]: the bystander was never part of the produced group"
         );
     }
 

@@ -1120,13 +1120,30 @@ fn lower_action(action: deckmaste_semantics::Action) -> Vec<Instr> {
     if let deckmaste_semantics::Action::ChooseValue(who, domain, note) = action {
         let by = who.lower();
         let domain = domain.lower();
-        let dest = crate::region::define(deckmaste_core::Kind::Symbol);
+        let kind = match domain {
+            deckmaste_core::ChosenValueKind::Number => deckmaste_core::Kind::Number,
+            deckmaste_core::ChosenValueKind::CardName | deckmaste_core::ChosenValueKind::Color => {
+                deckmaste_core::Kind::Symbol
+            }
+        };
+        let dest = crate::region::define(kind);
+        // [CR#607.2d]: "the chosen [value]" read by another ability on the card
+        // is a linked read, so the choice publishes a memory cell too.
+        let published = crate::region::cell_write(&note, kind);
         crate::region::bind_named(note, dest.into());
-        return vec![Instr::ChooseValue(deckmaste_core::ChooseValue {
+        let mut instructions = vec![Instr::ChooseValue(deckmaste_core::ChooseValue {
             dest,
             by,
             domain,
         })];
+        if published {
+            instructions.push(Instr::Remember(deckmaste_core::Remember {
+                cell: note.lower(),
+                kind,
+                value: dest.into(),
+            }));
+        }
+        return instructions;
     }
 
     let action = action.lower();
@@ -1508,9 +1525,21 @@ fn lower_instructions(effect: deckmaste_semantics::OneShotEffect) -> Vec<Instr> 
             }
             instructions
         }
+        // [CR#607.1,607.2a]: "note the cards exiled this way" — the value is a
+        // register of this region for the SAME ability's later clauses, and,
+        // when another ability on the card reads the cell, also a `Remember`
+        // that publishes it as the card's linked memory (ADR law 8).
         S::Noting(noting) => {
-            let instructions = lower_instructions(std::sync::Arc::unwrap_or_clone(noting.effect));
-            if let Some(reference) = crate::region::newest_antecedent() {
+            let mut instructions =
+                lower_instructions(std::sync::Arc::unwrap_or_clone(noting.effect));
+            if let Some((reference, kind)) = crate::region::newest_antecedent_typed() {
+                if crate::region::cell_write(&noting.key, kind) {
+                    instructions.push(Instr::Remember(deckmaste_core::Remember {
+                        cell: noting.key.lower(),
+                        kind,
+                        value: reference,
+                    }));
+                }
                 crate::region::bind_named(noting.key, reference);
             }
             instructions

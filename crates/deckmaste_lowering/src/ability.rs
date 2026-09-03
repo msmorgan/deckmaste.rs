@@ -1091,6 +1091,7 @@ fn effect_mana_facts(effect: &deckmaste_core::OneShotEffect) -> ManaFacts {
         | OneShotEffect::ChooseValue(_)
         | OneShotEffect::Search(_)
         | OneShotEffect::Let(_)
+        | OneShotEffect::Remember(_)
         | OneShotEffect::Continuously(_)
         | OneShotEffect::Until(_, _)
         | OneShotEffect::Delayed(_)

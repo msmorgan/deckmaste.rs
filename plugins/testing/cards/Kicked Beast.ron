@@ -1,0 +1,26 @@
+// A minimal kicker carrier that is a PERMANENT ([CR#702.33a]) whose linked
+// "if it was kicked" read happens in an enters-the-battlefield trigger, i.e.
+// AFTER the spell has left the stack. [CR#702.33e] makes that read a linked
+// ability ([CR#607]), and [CR#400.7d] is what lets it answer: "an ability of a
+// permanent can reference information about the spell that became that
+// permanent as it resolved, including what costs were paid to cast that
+// spell". The record therefore has to survive the one stack -> battlefield
+// zone change; the stack entry does not. Kicked -> 4 life, unkicked -> 2.
+Normal(
+    name: "Kicked Beast",
+    mana_cost: [Green],
+    types: [Creature],
+    power: 2,
+    toughness: 2,
+    abilities: [
+        Keyword(Kicker([Mana([Generic(2)])])),
+        Triggered(
+            event: ThisEnters,
+            effect: If(
+                condition: PaidCost(Kicker),
+                then: ChangeLife(You, Up(4)),
+                otherwise: ChangeLife(You, Up(2)),
+            ),
+        ),
+    ],
+)

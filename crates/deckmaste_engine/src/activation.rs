@@ -45,13 +45,36 @@ pub(crate) struct ReferenceProduct {
     pub(crate) lki: Option<LkiSnapshot>,
 }
 
+/// One register's runtime value.
+///
+/// `Unavailable` is the only shape a read can find empty, and after
+/// `deckmaste_core::validate` it can only mean a bound-but-departed value —
+/// never "never bound" (ADR law 10). A DECLARED capture is never unavailable
+/// for this reason: its value is snapshotted at creation and travels with the
+/// created body (see [`GameState::capture_snapshot`]).
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum Value {
+pub(crate) enum Value {
     Unavailable,
     Object(ReferenceProduct),
     Objects(Vec<ReferenceProduct>),
     Number(Uint),
     Symbol(String),
+}
+
+impl Value {
+    /// The live object this value names, if it names exactly one. Used to
+    /// inspect a frozen capture without an activation to read it through.
+    #[cfg(test)]
+    pub(crate) fn captured_object(&self) -> Option<ObjectId> {
+        match self {
+            Self::Object(product) => product.current,
+            Self::Objects(products) => match products.as_slice() {
+                [product] => product.current,
+                _ => None,
+            },
+            Self::Unavailable | Self::Number(_) | Self::Symbol(_) => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -80,6 +103,13 @@ struct ActivationContext {
     crossed: Option<(Uint, Uint)>,
     inherited_replacements: std::collections::HashSet<crate::replace_registry::ReplacementKey>,
     contained_in_batch: bool,
+    /// [CR#601.2b,702.33d]: which tagged optional costs were announced paid for
+    /// this activation, with multiplicity. Set at promote for a spell or an
+    /// activated ability; seeded from the source object's inherited record
+    /// ([CR#400.7d]) for an ability of a permanent whose spell has already left
+    /// the stack. `Condition::PaidCost` and `Count::TimesPaid` read THIS, never
+    /// a stack scan by source id.
+    paid_costs: Vec<(deckmaste_core::CostTag, Uint)>,
 }
 
 impl ActivationContext {
@@ -99,6 +129,7 @@ impl ActivationContext {
             crossed: None,
             inherited_replacements: std::collections::HashSet::new(),
             contained_in_batch: false,
+            paid_costs: Vec::new(),
         }
     }
 }
@@ -114,7 +145,89 @@ impl crate::state::GameState {
     /// Enter `region`, populating its declared parameter prefix from the
     /// resolution inputs carried by `frame`.
     pub(crate) fn enter_region<T>(&self, region: &Region<T>, frame: &Frame) -> ActivationId {
-        self.enter_region_with(region, frame, &[])
+        self.enter_region_with(region, frame, &[], &[])
+    }
+
+    /// Enter a region whose declared captures are supplied from outside the
+    /// activation table — a delayed or reflexive body ([CR#603.7,603.12])
+    /// firing long after the region that created it was reclaimed. `captures`
+    /// is the snapshot [`Self::capture_snapshot`] took at creation.
+    pub(crate) fn enter_created_region<T>(
+        &self,
+        region: &Region<T>,
+        frame: &Frame,
+        captures: &[(RefId, Value)],
+    ) -> ActivationId {
+        self.enter_region_with(region, frame, &[], captures)
+    }
+
+    /// The values of `region`'s declared captures, read out of the register
+    /// file `frame` is running in and FROZEN ([CR#603.7a] — a delayed
+    /// triggered ability is created during that resolution).
+    ///
+    /// The read goes through [`Self::activation_product`]/
+    /// [`Self::activation_objects`], so a product the creating effect moved to
+    /// a public zone is chased to its new incarnation ONCE, here
+    /// ([CR#400.7j]). It is never chased again at the firing site:
+    /// [CR#603.7c] settles that a captured object which left the zone it was
+    /// expected to be in is not affected, and that one which left and returned
+    /// "is a new object and thus won't be affected".
+    ///
+    /// The list is keyed by the created region's OWN parameter, so supplying
+    /// it is total over `region.captures()` — a declared capture cannot go
+    /// unsupplied at firing.
+    pub(crate) fn capture_snapshot<T>(
+        &self,
+        region: &Region<T>,
+        frame: &Frame,
+    ) -> Vec<(RefId, Value)> {
+        region
+            .captures()
+            .map(|(here, outer, kind)| (here, self.snapshot_register(frame, outer, kind)))
+            .collect()
+    }
+
+    /// Freeze one register of `frame`'s activation for a value that will
+    /// OUTLIVE this resolution — a declared capture or a linked memory cell.
+    ///
+    /// The read chases a product the resolving effect moved to a public zone
+    /// ([CR#400.7j]), so what is frozen is the object as the effect left it,
+    /// not the identity it had before the move. After freezing it is never
+    /// chased again ([CR#603.7c]).
+    pub(crate) fn snapshot_register(
+        &self,
+        frame: &Frame,
+        reference: RefId,
+        kind: deckmaste_core::Kind,
+    ) -> Value {
+        match kind {
+            deckmaste_core::Kind::Objects => {
+                let objects = self.activation_objects(frame.activation, reference);
+                if objects.is_empty() {
+                    self.frozen_register(frame, reference)
+                } else {
+                    Value::Objects(pack_objects(self, &objects))
+                }
+            }
+            deckmaste_core::Kind::Object => self
+                .activation_product(frame.activation, reference)
+                .map_or_else(|| self.frozen_register(frame, reference), Value::Object),
+            deckmaste_core::Kind::Number | deckmaste_core::Kind::Symbol => {
+                self.frozen_register(frame, reference)
+            }
+        }
+    }
+
+    /// The raw stored value of one register, with no chase — the fallback when
+    /// the chasing read finds nothing live, so a departed object still carries
+    /// its last known information across the boundary ([CR#608.2h]).
+    fn frozen_register(&self, frame: &Frame, reference: RefId) -> Value {
+        self.activations
+            .borrow()
+            .get(&frame.activation)
+            .and_then(|record| record.values.get(reference.0 as usize))
+            .cloned()
+            .unwrap_or(Value::Unavailable)
     }
 
     fn enter_region_with<T>(
@@ -122,6 +235,7 @@ impl crate::state::GameState {
         region: &Region<T>,
         frame: &Frame,
         supplied: &[(Provenance, Value)],
+        captures: &[(RefId, Value)],
     ) -> ActivationId {
         let context = self.activation_context(frame.activation);
         let values = region
@@ -182,15 +296,27 @@ impl crate::state::GameState {
                         Value::Objects(pack_objects(self, objects))
                     }),
                 Provenance::AnnouncedX => context.x.map_or(Value::Unavailable, Value::Number),
-                Provenance::Capture(reference) => self
-                    .activations
-                    .borrow()
-                    .get(&frame.activation)
-                    .and_then(|parent| parent.values.get(reference.0 as usize))
-                    .cloned()
+                // A capture supplied explicitly is one that crossed a region
+                // BOUNDARY: the created body's snapshot, frozen at creation
+                // ([CR#603.7a]). Otherwise this is ordinary nesting inside one
+                // resolution and the enclosing register file is still live.
+                Provenance::Capture(reference) => captures
+                    .iter()
+                    .find(|(here, _)| *here == RefId(param.def.0))
+                    .map(|(_, value)| value.clone())
+                    .or_else(|| {
+                        self.activations
+                            .borrow()
+                            .get(&frame.activation)
+                            .and_then(|parent| parent.values.get(reference.0 as usize))
+                            .cloned()
+                    })
                     .unwrap_or(Value::Unavailable),
-                provenance @ (Provenance::Linked(_)
-                | Provenance::LoopElement
+                // [CR#607.1]: a linked memory cell is read out of the card's
+                // own memory, keyed by the reading ability's source — the
+                // object both linked abilities are printed on.
+                Provenance::Linked(cell) => self.memory_cell(context.source, cell),
+                provenance @ (Provenance::LoopElement
                 | Provenance::Allotment
                 | Provenance::Candidate) => supplied
                     .iter()
@@ -216,10 +342,43 @@ impl crate::state::GameState {
         id
     }
 
+    /// [CR#607.1]: read one linked memory cell of `owner`. An unwritten cell
+    /// is `Unavailable` — the reading half of a linked pair whose writer never
+    /// ran does nothing ([CR#607.5a]). For a LOWERED card that state is
+    /// unreachable: lowering refuses a linked read whose cell no ability on
+    /// the card writes.
+    pub(crate) fn memory_cell(&self, owner: ObjectId, cell: &deckmaste_core::Ident) -> Value {
+        self.memory
+            .get(&(owner, *cell))
+            .cloned()
+            .unwrap_or(Value::Unavailable)
+    }
+
+    /// [CR#607.1]: write one linked memory cell of `owner` — the runtime half
+    /// of `OneShotEffect::Remember`.
+    pub(crate) fn remember_cell(
+        &mut self,
+        owner: ObjectId,
+        cell: deckmaste_core::Ident,
+        value: Value,
+    ) {
+        self.memory.insert((owner, cell), value);
+    }
+
     fn activation_context(&self, activation: ActivationId) -> ActivationContext {
         match activation {
             ActivationId::Bare { source, controller } => {
-                ActivationContext::bare(source, controller)
+                let mut context = ActivationContext::bare(source, controller);
+                // [CR#400.7d]: an ability of a permanent reads what was paid to
+                // cast the spell that became it. A bare frame is exactly that
+                // case — a trigger or activation of the permanent itself, with
+                // no announce record of its own.
+                context.paid_costs = self
+                    .paid_costs_by_object
+                    .get(&source)
+                    .cloned()
+                    .unwrap_or_default();
+                context
             }
             ActivationId::Stored(_) => self
                 .activations
@@ -246,11 +405,34 @@ impl crate::state::GameState {
         self.activation_context(activation).source_lki
     }
 
-    pub(crate) fn activation_defending_player(
+    /// [CR#702.33d]: how many times the tagged optional cost was announced
+    /// paid for this activation — 0 when it was not.
+    pub(crate) fn activation_times_paid(
         &self,
         activation: ActivationId,
-    ) -> Option<crate::player::PlayerId> {
-        self.activation_context(activation).defending_player
+        tag: &deckmaste_core::CostTag,
+    ) -> Uint {
+        if activation == ActivationId::NONE {
+            return 0;
+        }
+        self.activation_context(activation)
+            .paid_costs
+            .iter()
+            .find(|(candidate, _)| candidate == tag)
+            .map_or(0, |(_, times)| *times)
+    }
+
+    /// [CR#601.2b]: record the announced optional-cost payments on the register
+    /// file announcement and resolution share.
+    pub(crate) fn activation_set_paid_costs(
+        &self,
+        activation: ActivationId,
+        paid: &[(deckmaste_core::CostTag, Uint)],
+    ) {
+        let mut activations = self.activations.borrow_mut();
+        if let Some(record) = activations.get_mut(&activation) {
+            record.context.paid_costs = paid.to_vec();
+        }
     }
 
     pub(crate) fn activation_x(&self, activation: ActivationId) -> Option<Uint> {
@@ -633,7 +815,7 @@ impl crate::state::GameState {
                 .next()
                 .expect("one candidate"),
         );
-        self.enter_region_with(region, frame, &[(Provenance::Candidate, value)])
+        self.enter_region_with(region, frame, &[(Provenance::Candidate, value)], &[])
     }
 
     pub(crate) fn enter_loop_region(
@@ -653,7 +835,7 @@ impl crate::state::GameState {
         if let Some(amount) = allotment {
             supplied.push((Provenance::Allotment, Value::Number(amount)));
         }
-        self.enter_region_with(region, frame, &supplied)
+        self.enter_region_with(region, frame, &supplied, &[])
     }
 
     fn activation_write(&self, activation: ActivationId, def: deckmaste_core::DefId, value: Value) {
@@ -768,26 +950,29 @@ impl crate::state::GameState {
         context.contained_in_batch = contained;
     }
 
-    /// Freeze last-known information for every active register product that
-    /// names an object immediately before that object leaves its zone.
+    /// Freeze last-known information for every register product that names an
+    /// object immediately before that object leaves its zone ([CR#608.2h] —
+    /// "if it's no longer in that zone … the effect uses the object's last
+    /// known information").
+    ///
+    /// This reaches past the live activation table into the values that
+    /// OUTLIVE a resolution: a delayed trigger's declared captures and the
+    /// cards' linked memory cells. Both are frozen ids, never re-chased, so
+    /// without this an object that departs after the snapshot was taken would
+    /// carry last-known information from the wrong moment.
     pub(crate) fn activation_departed(&mut self, object: ObjectId, snapshot: &LkiSnapshot) {
         for record in self.activations.borrow_mut().values_mut() {
             for value in &mut record.values {
-                match value {
-                    Value::Object(product) if product.current == Some(object) => {
-                        product.lki = Some(snapshot.clone());
-                    }
-                    Value::Objects(products) => {
-                        for product in products {
-                            if product.current == Some(object) {
-                                product.lki = Some(snapshot.clone());
-                            }
-                        }
-                    }
-                    Value::Unavailable | Value::Object(_) | Value::Number(_) | Value::Symbol(_) => {
-                    }
-                }
+                freeze_value(value, object, snapshot);
             }
+        }
+        for trigger in &mut self.delayed_triggers {
+            for (_, value) in &mut trigger.bindings.captures {
+                freeze_value(value, object, snapshot);
+            }
+        }
+        for value in self.memory.values_mut() {
+            freeze_value(value, object, snapshot);
         }
     }
 
@@ -841,6 +1026,22 @@ impl crate::state::GameState {
         self.activations
             .borrow_mut()
             .retain(|_, record| record.root != root);
+    }
+}
+
+fn freeze_value(value: &mut Value, object: ObjectId, snapshot: &LkiSnapshot) {
+    match value {
+        Value::Object(product) if product.current == Some(object) => {
+            product.lki = Some(snapshot.clone());
+        }
+        Value::Objects(products) => {
+            for product in products {
+                if product.current == Some(object) {
+                    product.lki = Some(snapshot.clone());
+                }
+            }
+        }
+        Value::Unavailable | Value::Object(_) | Value::Number(_) | Value::Symbol(_) => {}
     }
 }
 

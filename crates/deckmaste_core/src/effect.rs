@@ -44,6 +44,17 @@ pub enum Instr {
     Search(Search),
     /// Pin a pure expression at this program point.
     Let(Let),
+    /// Write one of the card's linked memory cells ([CR#607.1]) — the writer
+    /// half of a linked pair. `value` is a register in THIS region; `cell`
+    /// names the memory the card's other abilities read through a
+    /// [`Provenance::Linked`](crate::Provenance::Linked) parameter, and
+    /// `kind` is that cell's declared runtime shape. The instruction IS the
+    /// declaration: a card's memory cells are exactly the cells its
+    /// `Remember`s write, which is what makes a reader with no writer a
+    /// load-time refusal rather than [CR#607.5a]'s runtime-undefined (that
+    /// rule covers a GAINED reader whose linked writer was not copied, never
+    /// two abilities printed on one object).
+    Remember(Remember),
     /// Explicit "then" — ordered sub-effects ([CR#608.2c]).
     Sequentially(Arc<[OneShotEffect]>),
     /// Simultaneously sub-effects — the written spec. **One snapshot:** every
@@ -277,6 +288,20 @@ pub struct Search {
 pub struct Let {
     pub dest: crate::DefId,
     pub expr: crate::Expr,
+}
+
+/// `Remember { cell, kind, value }` — see [`OneShotEffect::Remember`]
+/// ([CR#607.1]). Writes the register `value` into the card's memory cell
+/// `cell`; a reading ability on the same card declares that cell as a
+/// [`Provenance::Linked`](crate::Provenance::Linked) parameter of its own
+/// region. Unlike a [`Let`], this defines nothing in the writing region: the
+/// value it publishes crosses to another ability, never to a later
+/// instruction here.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub struct Remember {
+    pub cell: crate::Ident,
+    pub kind: crate::Kind,
+    pub value: crate::RefId,
 }
 
 /// `Each { over, body }` enters the body region once per selected element.

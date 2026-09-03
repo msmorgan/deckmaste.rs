@@ -486,7 +486,7 @@ impl CoreAbilitySubterms for deckmaste_core::OneShotEffect {
             Self::Sequentially(es) | Self::Simultaneously(es) => es.push_abilities(out),
             Self::Continuously(c) => c.effect.push_abilities(out),
             Self::Until(_, es) => es.push_abilities(out),
-            Self::Choose(_) | Self::ChooseValue(_) | Self::Let(_) => {}
+            Self::Choose(_) | Self::ChooseValue(_) | Self::Let(_) | Self::Remember(_) => {}
             Self::Search(search) => search.if_none.push_abilities(out),
             Self::SeparatePiles(s) => s.then.push_abilities(out),
             Self::ChoosePile(c) => c.then.push_abilities(out),
@@ -645,72 +645,143 @@ fn every_top_level_semantic_ability_appears_in_its_lowered_card() {
     assert!(checked > 0, "corpus produced no top-level abilities");
 }
 
-/// Every `Ability` reachable from `ability`, at ANY depth, in pre-order —
-/// `ability` itself plus the full transitive closure of
-/// [`nested_abilities`](deckmaste_semantics::Ability::nested_abilities).
-/// This is the semantic-side walk
-/// [`ProvenanceIndex::insert_ability_owned`](deckmaste_plugin::provenance::ProvenanceIndex)
-/// does when indexing (`crates/deckmaste_plugin/src/provenance.rs`) — an
-/// ability granting an ability that itself grants an ability is indexed at
-/// every depth there, so this test has to visit every depth too, or a
-/// context-dependence bug two-or-more `Ability`-levels down would pass
-/// silently. Reuses `nested_abilities` (one level) recursively rather than
-/// re-implementing the walk.
-fn semantic_ability_subterms(
-    ability: &deckmaste_semantics::Ability,
-) -> Vec<&deckmaste_semantics::Ability> {
-    let mut out = vec![ability];
-    for child in ability.nested_abilities() {
-        out.extend(semantic_ability_subterms(child));
-    }
-    out
+/// The top region of one core ability — the parameter list lowering assigned
+/// it. `None` for an ability shape that carries no region of its own.
+fn ability_region_params(ability: &deckmaste_core::Ability) -> Option<&[deckmaste_core::Param]> {
+    use deckmaste_core::Ability;
+    use deckmaste_core::ManaAbility;
+    Some(match ability {
+        Ability::Static(region) => &region.params,
+        Ability::Activated(a) | Ability::Mana(ManaAbility::Activated { ability: a, .. }) => {
+            &a.effect.params
+        }
+        Ability::Triggered(a) | Ability::Mana(ManaAbility::Triggered(a)) => &a.effect.params,
+        Ability::Spell(a) => &a.effect.params,
+        Ability::Innate(inner) => return ability_region_params(inner),
+        Ability::Keyword(_) => return None,
+    })
 }
 
-/// Every semantic ability subterm remains represented verbatim at the same
-/// nesting depth after lowering.
+/// Pair the semantic ability tree with the core ability tree one level at a
+/// time, in pre-order, asserting the two have the SAME SHAPE at every depth.
 ///
-/// The premise this test was written on — "each ability owns its region, so
-/// lowering at `Ability` granularity assigns the same parameter provenance and
-/// registers whether the ability is isolated or nested in a card" — is now
-/// false BY DESIGN, so the test is kept as the record of the lost coverage
-/// rather than rewritten into a claim it never made. Measured against the
-/// canon corpus: 14 of 245 subterms fail, all of them nested, across
-/// `Chandra, Torch of Defiance`, `Collective Resistance`, `Falkenrath Gorger`
-/// and `Glaring Spotlight`; 3 differ only in the region's `params`, the other
-/// 11 also in a nested region's.
+/// A semantic `Expanded` node is macro provenance, erased at `lower` (spec
+/// §12), so it descends WITHOUT consuming a core level — the invocation and
+/// its value are one core ability.
+fn pair_subterms<'a>(
+    source: &std::path::Path,
+    semantic: &'a deckmaste_semantics::Ability,
+    core: &'a deckmaste_core::Ability,
+    out: &mut Vec<(
+        &'a deckmaste_semantics::Ability,
+        &'a deckmaste_core::Ability,
+    )>,
+) {
+    if let deckmaste_semantics::Ability::Expanded(expanded) = semantic {
+        pair_subterms(source, &expanded.value, core, out);
+        return;
+    }
+    out.push((semantic, core));
+    let children = semantic.nested_abilities();
+    let core_children = core_nested_abilities(core);
+    assert_eq!(
+        children.len(),
+        core_children.len(),
+        "{}: lowering changed the nesting shape — {} semantic child abilities became {}",
+        source.display(),
+        children.len(),
+        core_children.len(),
+    );
+    for (child, core_child) in children.into_iter().zip(core_children) {
+        pair_subterms(source, child, core_child, out);
+    }
+}
+
+/// Every semantic ability subterm is represented at its OWN nesting depth in
+/// the lowered card, and a carried region crosses its boundary with nothing
+/// but declared captures.
 ///
-/// The narrower
-/// [`every_top_level_semantic_ability_appears_in_its_lowered_card`]
-/// covers depth 0 only; nothing covers depths below it.
+/// RE-SPELLED. The claim this test used to make — that a subterm lowered in
+/// isolation equals its image inside the card — is false BY DESIGN and is
+/// permanently superseded (see
+/// `docs/decisions/core-explicit-regions.md`, law 7). A carried region's
+/// value is a function of its ENCLOSING register file: `in_carried_region`
+/// appends a `Capture` parameter per enclosing register, and an isolated
+/// lowering has no enclosing region to count. There is no honest normalization
+/// that recovers the equality — erasing the captures erases exactly the
+/// declaration law 7 introduced, and shifting register ordinals would need the
+/// isolated side to know the enclosing region's definition count, which is
+/// precisely the context it does not have. The depth-zero equality check
+/// [`every_top_level_semantic_ability_appears_in_its_lowered_card`] is the
+/// surviving equality claim.
+///
+/// What this test recovers instead is the coverage that was actually lost —
+/// every depth, not just zero — as two claims that DO hold in context:
+///
+/// 1. The semantic subterm tree and the lowered nested-ability tree are the
+///    same shape at every depth. A nested ability dropped, duplicated, or
+///    re-parented by lowering fails here.
+/// 2. A carried region's parameters are its intrinsic prefix — byte-identical
+///    to what the isolated lowering assigns — followed by NOTHING but
+///    `Provenance::Capture` parameters. That is law 7's "nothing else crosses a
+///    region boundary", checked over the corpus rather than asserted.
 #[test]
-#[ignore = "blocker: lowering is no longer context-free at Ability granularity. \
-A carried ability's region appends a Capture parameter per enclosing register \
-(deckmaste_lowering::region::in_carried_region) and its references resolve \
-against that captured file, while an isolated `subterm.lower()` runs with no \
-region context and falls back to the root prefix — so the two values can never \
-be equal. Unblocked by either a lowering entry point that lowers one subterm \
-under a supplied enclosing register file, or a capture-erasing normalization \
-both sides can be compared through."]
-fn every_semantic_ability_subterm_appears_in_its_lowered_card() {
+fn every_semantic_ability_subterm_appears_at_its_own_depth_in_its_lowered_card() {
     let canon = Plugin::load_with_sibling_prelude(plugin_dir("canon", "")).unwrap();
     let mut checked = 0;
+    let mut carried = 0;
     for source in ron_files(&plugin_dir("canon", CARDS_DIR)) {
         let loaded = load_card_pair(&canon, &source).unwrap();
         let lowered: Vec<&deckmaste_core::Ability> = core_abilities(&loaded.core).collect();
+        let mut top = lowered.iter().copied();
         for face in semantic_faces(&loaded.semantic) {
             for semantic in &face.abilities {
-                for subterm in semantic_ability_subterms(semantic) {
-                    let image = subterm.clone().lower();
+                let core = top.next().unwrap_or_else(|| {
+                    panic!(
+                        "{}: fewer lowered abilities than semantic ones",
+                        source.display()
+                    )
+                });
+                let mut pairs = Vec::new();
+                pair_subterms(&source, semantic, core, &mut pairs);
+                for (depth, (semantic, core)) in pairs.iter().enumerate() {
+                    checked += 1;
+                    let image = (*semantic).clone().lower();
+                    let (Some(intrinsic), Some(actual)) =
+                        (ability_region_params(&image), ability_region_params(core))
+                    else {
+                        continue;
+                    };
                     assert!(
-                        lowered.iter().any(|a| **a == image) || nested_in_any(&lowered, &image),
-                        "{}: a semantic ability subterm's lowering is absent from the \
-                         lowered card — lowering is context-dependent at Ability granularity",
+                        actual.len() >= intrinsic.len(),
+                        "{}: a carried region lost parameters its isolated lowering declares",
                         source.display(),
                     );
-                    checked += 1;
+                    assert_eq!(
+                        &actual[..intrinsic.len()],
+                        intrinsic,
+                        "{}: a carried region's intrinsic parameter prefix diverged from the \
+                         isolated lowering's",
+                        source.display(),
+                    );
+                    for extra in &actual[intrinsic.len()..] {
+                        assert!(
+                            matches!(extra.provenance, deckmaste_core::Provenance::Capture(_)),
+                            "{}: a carried region declares {:?} beyond its intrinsic prefix — \
+                             only a declared capture crosses a region boundary",
+                            source.display(),
+                            extra.provenance,
+                        );
+                        carried += 1;
+                    }
+                    let _ = depth;
                 }
             }
         }
     }
     assert!(checked > 0, "corpus produced no ability subterms");
+    assert!(
+        carried > 0,
+        "no carried region in the corpus declares a capture — this test would pass vacuously"
+    );
 }

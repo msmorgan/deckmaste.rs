@@ -331,6 +331,28 @@ pub struct GameImage {
     /// ([CR#603.12]) are NOT stored here (they are checked against earlier
     /// same-resolution events immediately at creation, never persisted).
     pub delayed_triggers: Vec<crate::trigger::CreatedTrigger>,
+    /// [CR#607.1]: the linked memory each object carries — ADR law 8. Keyed by
+    /// the object both linked abilities are printed on plus the cell name a
+    /// `Remember` instruction declared, so a reading region's
+    /// `Provenance::Linked` parameter is one indexed lookup at region entry.
+    /// A cell is per-OBJECT, so a permanent that left and came back reads
+    /// nothing: it is a new object ([CR#400.7]) and its abilities are not
+    /// linked to the departed one's writes.
+    pub(crate) memory: std::collections::HashMap<
+        (crate::object::ObjectId, deckmaste_core::Ident),
+        crate::activation::Value,
+    >,
+    /// [CR#400.7d]: "an ability of a permanent can reference information about
+    /// the spell that became that permanent as it resolved, including what
+    /// costs were paid to cast that spell". The announced optional-cost record
+    /// rides the STACK ENTRY, which is gone before a kicked permanent's
+    /// enters-the-battlefield trigger resolves; this is the one zone change
+    /// [CR#702.33e]'s linked "if it was kicked" read has to survive, so the
+    /// record crosses onto the permanent at the stack -> battlefield remint.
+    pub(crate) paid_costs_by_object: std::collections::HashMap<
+        crate::object::ObjectId,
+        Vec<(deckmaste_core::CostTag, deckmaste_core::Uint)>,
+    >,
     /// [CR#603.12]: the substantive facts applied SINCE the current stack entry
     /// began resolving — the resolution-scoped window a reflexive triggered
     /// ability ("when you do") looks back over at the instant it is created.
@@ -678,6 +700,8 @@ impl GameState {
             pending_triggers: Vec::new(),
             placing_trigger: None,
             delayed_triggers: Vec::new(),
+            memory: std::collections::HashMap::new(),
+            paid_costs_by_object: std::collections::HashMap::new(),
             resolution_events: Vec::new(),
             resolution_contained_act_commits: std::collections::HashMap::new(),
             resolution_contained_act_serial: 0,
