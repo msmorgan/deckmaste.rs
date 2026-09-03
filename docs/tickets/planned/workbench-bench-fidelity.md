@@ -1,5 +1,5 @@
 ---
-needs: [workbench-corpus-frame-gate]
+needs: []
 ---
 **Correct the bench's wrong printed frames, add the dropped printed abilities,
 record every remaining omission in place, and re-spell the raw-core sites a
@@ -53,6 +53,8 @@ refinement of `workbench-mirrors-semantics-v2-structure`, the bench spells
 through the macro where one exists — including the one raw `Enact` site.
 
 Size: M.
+
+The corpus-frame gate (`maybe/workbench-corpus-frame-gate`) is parked, so each frame is checked by hand against `data/derived/cards.jsonl` (`jq` by name) and the check is recorded per card in the landing record.
 
 Done when: the build is 23/23 with 0 errors and 0 warnings; the corpus-frame
 gate reports 0 mismatches; the five spellable keywords are on their cards; the
