@@ -100,7 +100,8 @@ badEmptyKeywordList : Unspellable Ability (\ok =>
   AlsoForKeywords (Static (Conditionally
                              (Exists (And [ExiledWith Macros.thisCreature,
                                            HasKeyword (TheKeyword "Flying")]))
-                             (Gains Macros.thisCreature (KeywordAbility "Flying" Nothing Nothing)) AsLongAs))
+                             (Gains Macros.thisCreature (KeywordAbility "Flying" Nothing Nothing)) AsLongAs
+                             {st = Static.CondFirstDone}))
                   [] {lk = ok})
 badEmptyKeywordList Oh impossible
 
@@ -110,7 +111,8 @@ badKeywordListRepeatingBase : Unspellable Ability (\ok =>
   AlsoForKeywords (Static (Conditionally
                              (Exists (And [ExiledWith Macros.thisCreature,
                                            HasKeyword (TheKeyword "Flying")]))
-                             (Gains Macros.thisCreature (KeywordAbility "Flying" Nothing Nothing)) AsLongAs))
+                             (Gains Macros.thisCreature (KeywordAbility "Flying" Nothing Nothing)) AsLongAs
+                             {st = Static.CondFirstDone}))
                   [TheKeyword "Menace", TheKeyword "Flying",
                    TheKeyword "Trample"] {lk = ok})
 badKeywordListRepeatingBase Oh impossible
@@ -121,7 +123,8 @@ badParameterisedKeywordInList : Unspellable Ability (\ok =>
   AlsoForKeywords (Static (Conditionally
                              (Exists (And [ExiledWith Macros.thisCreature,
                                            HasKeyword (TheKeyword "Flying")]))
-                             (Gains Macros.thisCreature (KeywordAbility "Flying" Nothing Nothing)) AsLongAs))
+                             (Gains Macros.thisCreature (KeywordAbility "Flying" Nothing Nothing)) AsLongAs
+                             {st = Static.CondFirstDone}))
                   [TheKeyword "Ward"] {lk = ok})
 badParameterisedKeywordInList Oh impossible
 
@@ -297,7 +300,7 @@ public export
 badUnlessConjunction : Unspellable (StaticEffect []) (\ok =>
   Conditionally (AndCond [ Exists (And [Macros.artifact, HasPossessor ControllerAx You])
                          , Exists (And [Macros.enchantment, HasPossessor ControllerAx You]) ])
-                (AltCost This Nothing) Unless {mk = ok})
+                (AltCost This Nothing) Unless {st = Static.CondFirstDone} {mk = ok})
 badUnlessConjunction MkMarkingOk impossible
 
 

@@ -326,6 +326,17 @@ mutual
 
   namespace Static
     public export
+    data StaticThreads : (base, condBase, condAfter,
+                          staticBase, staticAfter : Bindings) -> Type where [noHints]
+      CondFirstDone : StaticThreads bs bs mid mid after
+      StaticFirstDone : StaticThreads bs mid after bs mid
+
+    public export
+    %hint
+    conditionFirstThreads : StaticThreads bs bs mid mid after
+    conditionFirstThreads = CondFirstDone
+
+    public export
     data StaticEffect : Bindings -> Type where
       Gets : (n : Noun bs Object) -> (pow : PtShift (selfSubjIntro n)) ->
              (tou : PtShift (shiftIntro pow)) ->
@@ -432,12 +443,14 @@ mutual
                (use : ReplUse) -> StaticEffect bs
       CantPrevent : (kind : DamageKind) -> (what : Unpreventable bs) ->
                     (ban : PreventionBan) -> StaticEffect bs
-      Conditionally : (c : Condition bs) -> (se : StaticEffect (condIntro c)) ->
+      Conditionally : {0 bs : Bindings} ->
+                      {condBase, staticBase : Bindings} ->
+                      (c : Condition condBase) ->
+                      (se : StaticEffect staticBase) ->
+                      {auto 0 st : StaticThreads bs condBase (condIntro c)
+                                                   staticBase (staticIntro se)} ->
                       (marking : CondMarking) ->
                       {auto 0 mk : MarkingOk marking c} -> StaticEffect bs
-      OnlyWhile : (se : StaticEffect bs) -> (c : Condition (staticIntro se)) ->
-                  (marking : CondMarking) ->
-                  {auto 0 mk : MarkingOk marking c} -> StaticEffect bs
       OnlyDuring : (p : TurnPart) -> (w : Maybe Owner) ->
                    (se : StaticEffect bs) ->
                    {auto 0 wk : WindowOk p w} ->
@@ -620,7 +633,6 @@ mutual
   public export
   notConditional : {0 bs : Bindings} -> StaticEffect bs -> Bool
   notConditional (Conditionally _ _ _) = False
-  notConditional (OnlyWhile _ _ _) = False
   notConditional _ = True
 
 
@@ -764,7 +776,6 @@ mutual
   staticKind (Scales _ _ _ _ _) = Replacement
   staticKind (OnlyDuring _ _ se) = staticKind se
   staticKind (Conditionally _ _ _) = Conditional
-  staticKind (OnlyWhile _ _ _) = Conditional
   staticKind (AlsoOffBattlefield se) = staticKind se
   staticKind (DoesntRemove se _) = staticKind se
   staticKind (NoLossFrom _ _) = OutcomeImmunity
@@ -805,7 +816,6 @@ mutual
   staticIntro (Scales kind src scope op use) = scaleIntro op
   staticIntro (OnlyDuring _ _ se) = staticIntro se
   staticIntro (Conditionally c se _) = staticIntro se
-  staticIntro (OnlyWhile se c _) = staticIntro se
   staticIntro (AlsoOffBattlefield se) = staticIntro se
   staticIntro (DoesntRemove _ n) = nomIntro n
   staticIntro (NoLossFrom who _) = nomIntro who
@@ -1055,6 +1065,18 @@ mutual
   rowCount (_ :: rs) = S (rowCount rs)
 
   public export
+  data SpanStaticThreads : (base, staticBase, staticAfter,
+                            spanBase : Bindings) ->
+                           Maybe (Duration spanBase) -> Type where [noHints]
+    StaticFirstDone : SpanStaticThreads bs bs mid mid dur
+    SpanFirstDone : SpanStaticThreads bs (spanIntro dur) after bs (Just dur)
+
+  public export
+  %hint
+  continuousStaticFirstThreads : SpanStaticThreads bs bs mid mid dur
+  continuousStaticFirstThreads = StaticFirstDone
+
+  public export
   data Effect : Bindings -> Type where
     DealDamage : {k : Kind} -> (src : Noun bs Object) -> (amt : Amount (nomIntro src)) ->
                  (to : Noun (amtIntro amt) k) ->
@@ -1200,13 +1222,14 @@ mutual
                    {auto 0 nz : NonZeroQ q} ->
                    {auto 0 wf : WellFormedQ q} ->
                    {auto 0 one : nounPlur whose = OneOf} -> Effect bs
-    Continuously : (se : StaticEffect bs) -> (span : Maybe (Duration (staticIntro se))) ->
+    Continuously : {0 bs : Bindings} ->
+                   {staticBase, spanBase : Bindings} ->
+                   (se : StaticEffect staticBase) ->
+                   (span : Maybe (Duration spanBase)) ->
+                   {auto 0 ts : SpanStaticThreads bs staticBase (staticIntro se)
+                                                  spanBase span} ->
                    {auto 0 sp : SpanOk (staticKind se) span} ->
                    {auto 0 cl : ClauseStatic se} -> Effect bs
-    Throughout : (span : Duration bs) ->
-                 (se : StaticEffect (spanIntro span)) ->
-                 {auto 0 sp : SpanOk (staticKind se) (Just span)} ->
-                 {auto 0 cl : ClauseStatic se} -> Effect bs
     Create : (agent : Noun bs Player) -> (count : Amount (nomIntro agent)) ->
              (spec : TokenSpec (amtIntro count)) ->
              (riders : List (TokenRider (amtIntro count))) ->
@@ -1388,7 +1411,6 @@ mutual
   heldUntilOk (StoreResults _) = False
   heldUntilOk (RerollStored _ _ _) = False
   heldUntilOk (Continuously _ _) = False
-  heldUntilOk (Throughout _ _) = False
   heldUntilOk (Create _ _ _ _) = False
   heldUntilOk (GetsEmblem _ _) = False
   heldUntilOk (PutCounters _ _ _) = False
@@ -1446,8 +1468,6 @@ mutual
   reflexEncloseUse (ChangeLife _ _) = EncAgentless
   reflexEncloseUse (Continuously (GainsControl _ _) _) = EncReflexive
   reflexEncloseUse (Continuously _ _) = EncAgentless
-  reflexEncloseUse (Throughout _ (GainsControl _ _)) = EncReflexive
-  reflexEncloseUse (Throughout _ _) = EncAgentless
   reflexEncloseUse (Does _ _ _) = EncReflexive
   reflexEncloseUse (Pay _ _ _) = EncReflexive
   reflexEncloseUse (Enact _ _) = EncReflexive
@@ -1592,7 +1612,6 @@ mutual
   thisWayOutcomeOk (StoreResults _) = True
   thisWayOutcomeOk (RerollStored _ _ _) = True
   thisWayOutcomeOk (Continuously _ _) = True
-  thisWayOutcomeOk (Throughout _ _) = True
   thisWayOutcomeOk (Create _ _ _ _) = True
   thisWayOutcomeOk (GetsEmblem _ _) = True
   thisWayOutcomeOk (PutCounters _ _ _) = True
@@ -1696,7 +1715,6 @@ mutual
   costActionOk (ChaosEnsues _) = False
   costActionOk (RerollStored who _ _) = costNounOk who
   costActionOk (Continuously _ _) = False
-  costActionOk (Throughout _ _) = False
   costActionOk (Create agent _ _ _) = costNounOk agent
   costActionOk (GetsEmblem _ _) = True
   costActionOk (PutCounters _ _ on) = costNounOk on
@@ -1853,7 +1871,6 @@ mutual
   effIntro (StoreResults on) = nomIntro on
   effIntro (RerollStored _ _ whose) = nomIntro whose
   effIntro (Continuously se _) = staticIntro se
-  effIntro (Throughout _ se) = staticIntro se
   effIntro (Create agent count spec riders) =
     MkBinding AD Object (outputPlur (nounPlur agent) (amtPlur count))
               (ObjectP (specHeadTy spec) (Just Battlefield) Nothing (Just TokenOrigin) Nothing)
@@ -1973,7 +1990,6 @@ mutual
   preIntro (StoreResults on) = nomIntro on
   preIntro (RerollStored _ _ whose) = nomIntro whose
   preIntro (Continuously se _) = staticIntro se
-  preIntro (Throughout _ se) = staticIntro se
   preIntro (Create agent count spec riders) = specDelta spec ++ amtIntro count
   preIntro (GetsEmblem who _) = nomIntro who
   preIntro (PutCounters amt kind on) = nomIntro on
@@ -2098,7 +2114,6 @@ mutual
   annIntro (StoreResults on) = nomIntro on
   annIntro (RerollStored _ _ whose) = nomIntro whose
   annIntro (Continuously se _) = staticIntro se
-  annIntro (Throughout _ se) = staticIntro se
   annIntro (Create agent count spec riders) = specDelta spec ++ amtIntro count
   annIntro (GetsEmblem who _) = nomIntro who
   annIntro (PutCounters amt kind on) = nomIntro on
@@ -2226,7 +2241,6 @@ mutual
   deedDelta (StoreResults _) = []
   deedDelta (RerollStored _ _ _) = []
   deedDelta (Continuously se _) = []
-  deedDelta (Throughout _ _) = []
   deedDelta (Create agent count spec riders) =
     [MkBinding AD Object (outputPlur (nounPlur agent) (amtPlur count))
                (ObjectP (specHeadTy spec) (Just Battlefield) Nothing (Just TokenOrigin) Nothing)]
@@ -2461,14 +2475,12 @@ mutual
   public export
   statKeyword : {0 bs : Bindings} -> StaticEffect bs -> Maybe KeywordLabel
   statKeyword (Conditionally _ se _) = statKeyword se
-  statKeyword (OnlyWhile se _ _) = statKeyword se
   statKeyword (Gains _ ab) = grantedKeyword ab
   statKeyword _ = Nothing
 
   public export
   effKeyword : {0 bs : Bindings} -> Effect bs -> Maybe KeywordLabel
   effKeyword (Continuously se _) = statKeyword se
-  effKeyword (Throughout _ se) = statKeyword se
   effKeyword _ = Nothing
 
   public export

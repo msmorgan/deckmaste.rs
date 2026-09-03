@@ -61,7 +61,6 @@ staticOnSpellCardOk (AddedCost _ _) = True
 staticOnSpellCardOk (OnlyDuring _ _ (Deontic _ Permit ["Cast"] Patient _ _ _ _)) = True
 staticOnSpellCardOk (OnlyDuring _ _ se) = staticOnSpellCardOk se
 staticOnSpellCardOk (Conditionally _ se _) = staticOnSpellCardOk se
-staticOnSpellCardOk (OnlyWhile se _ _) = staticOnSpellCardOk se
 staticOnSpellCardOk _ = False
 
 public export
@@ -163,7 +162,6 @@ public export
 staticDefinesPt : {0 bs : Bindings} -> StaticEffect bs -> Maybe DefinedSlots
 staticDefinesPt (DefinesPt _ sl _) = Just sl
 staticDefinesPt (Conditionally _ se _) = staticDefinesPt se
-staticDefinesPt (OnlyWhile se _ _) = staticDefinesPt se
 staticDefinesPt _ = Nothing
 
 public export

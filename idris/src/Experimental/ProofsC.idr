@@ -422,7 +422,7 @@ badStaticTargets Oh impossible
 ||| "You may play a creature this turn."
 public export
 badPlayFromBattlefield : Unspellable (Effect []) (\ok =>
-  Continuously (Deontic You Permit ["Play"] Agent Nothing
+  Continuously {ts = StaticFirstDone} (Deontic You Permit ["Play"] Agent Nothing
                   (DeonticCounterpart (Macros.a Macros.creature)) Nothing
                   (PlayRider Nothing Nothing Nothing False ItsOwnCost) {rd = ok})
                (Just Macros.thisTurn))

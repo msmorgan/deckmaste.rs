@@ -184,7 +184,7 @@ badCantDisjunctSubject Oh impossible
 ||| "Target creature can't be attacked this turn."
 public export
 badCantBeAttacked : Unspellable (Effect []) (\ok =>
-  Continuously (Macros.deontic (Macros.target Macros.creature) Forbid ["Attack"] Patient NoDeonticPatient {dp = ok}) (Just Macros.thisTurn))
+  Continuously {ts = StaticFirstDone} (Macros.deontic (Macros.target Macros.creature) Forbid ["Attack"] Patient NoDeonticPatient {dp = ok}) (Just Macros.thisTurn))
 badCantBeAttacked Oh impossible
 
 

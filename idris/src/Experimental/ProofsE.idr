@@ -33,7 +33,7 @@ badStarlessDefinedPt MkCardBox impossible
 
 public export
 badPtDefinitionClause : Unspellable (Effect []) (\ok =>
-  Continuously (DefinesPt Macros.thisCreature BothEach
+  Continuously {ts = StaticFirstDone} (DefinesPt Macros.thisCreature BothEach
                           (CountOf Macros.creatureYouControl))
                Nothing {cl = ok})
 badPtDefinitionClause Oh impossible
@@ -520,4 +520,3 @@ badLeadingConditionAntecedent : Unspellable (Effect []) (\ok =>
                    Nothing,
                 Macros.losesLife (That PlayerW {ok}) (Lit 1)])
 badLeadingConditionAntecedent Refl impossible
-

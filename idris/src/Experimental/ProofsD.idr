@@ -116,7 +116,7 @@ badCounterJoinedPlayer JoinCountered impossible
 ||| "You may play a spell this turn."
 public export
 badPlayFromStack : Unspellable (Effect []) (\ok =>
-  Continuously (Deontic You Permit ["Play"] Agent Nothing
+  Continuously {ts = StaticFirstDone} (Deontic You Permit ["Play"] Agent Nothing
                   (DeonticCounterpart (Macros.a Macros.spell)) Nothing
                   (PlayRider Nothing Nothing Nothing False ItsOwnCost) {rd = ok})
                (Just Macros.thisTurn))
@@ -126,7 +126,7 @@ badPlayFromStack Oh impossible
 ||| "You may cast a land card from your graveyard this turn."
 public export
 badCastALand : Unspellable (Effect []) (\ok =>
-  Continuously (Deontic You Permit ["Cast"] Agent Nothing
+  Continuously {ts = StaticFirstDone} (Deontic You Permit ["Cast"] Agent Nothing
                   (DeonticCounterpart
                      (Macros.a (And [Macros.land, InZone (Macros.graveyardOf You)])))
                   Nothing (PlayRider Nothing Nothing Nothing False ItsOwnCost)
@@ -138,7 +138,7 @@ badCastALand Oh impossible
 ||| "You may play a creature card in exile from your graveyard this turn."
 public export
 badPlayFromWrongZone : Unspellable (Effect []) (\ok =>
-  Continuously (Deontic You Permit ["Play"] Agent Nothing
+  Continuously {ts = StaticFirstDone} (Deontic You Permit ["Play"] Agent Nothing
                   (DeonticCounterpart
                      (Macros.a (And [Macros.creature, InZone Macros.exileZ])))
                   Nothing
@@ -167,7 +167,8 @@ badInstantOntoBattlefield Oh impossible
 public export
 badUnlessOnPositive : Unspellable Ability (\ok =>
   Static (Conditionally (Exists (And [Macros.artifact, HasPossessor ControllerAx You]))
-                        (Macros.deontic Macros.thisCreature Forbid ["Attack"] Agent NoDeonticPatient) Unless {mk = ok}))
+                        (Macros.deontic Macros.thisCreature Forbid ["Attack"] Agent NoDeonticPatient)
+                        Unless {st = Static.CondFirstDone} {mk = ok}))
 badUnlessOnPositive MkMarkingOk impossible
 
 
@@ -350,7 +351,7 @@ badThatTurnsAttackWindow Oh impossible
 ||| "Target land attacks each combat if able."
 public export
 badMustAttackLand : Unspellable (Effect []) (\ok =>
-  Continuously (Macros.deontic (Macros.target Macros.land) Require ["Attack"] Agent NoDeonticPatient {dp = ok})
+  Continuously {ts = StaticFirstDone} (Macros.deontic (Macros.target Macros.land) Require ["Attack"] Agent NoDeonticPatient {dp = ok})
                (Just Macros.thisTurn))
 badMustAttackLand Oh impossible
 
@@ -373,7 +374,7 @@ badThatCreatureIsSelf Refl impossible
 ||| "This creature can't attack target creature this turn."
 public export
 badForbidAttackWithPatient : Unspellable (Effect []) (\ok =>
-  Continuously (Macros.deontic Macros.thisCreature Forbid ["Attack"] Agent
+  Continuously {ts = StaticFirstDone} (Macros.deontic Macros.thisCreature Forbid ["Attack"] Agent
                         (DeonticCounterpart (Macros.target Macros.creature)) {pt = ok})
                (Just Macros.thisTurn))
 badForbidAttackWithPatient Oh impossible
@@ -382,7 +383,7 @@ badForbidAttackWithPatient Oh impossible
 ||| "Target creature blocks it this turn"
 public export
 badBlocksItself : Unspellable (Effect []) (\ok =>
-  Continuously (Macros.deontic (Macros.target Macros.creature) Require ["Block"] Agent
+  Continuously {ts = StaticFirstDone} (Macros.deontic (Macros.target Macros.creature) Require ["Block"] Agent
                                (DeonticCounterpart It) {pt = ok})
                (Just Macros.thisTurn))
 badBlocksItself Oh impossible

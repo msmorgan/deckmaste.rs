@@ -389,7 +389,7 @@ cheeringFanatic =
        [ Macros.triggered Whenever (Macros.attacks Macros.thisCreature)
                           (Sequentially
                      [ Macros.choose (Macros.a (Macros.quality CardName))
-                     , Continuously
+                     , Continuously {ts = StaticFirstDone}
                          (CostsToCast (Macros.allOf (And [Macros.spell, OfChosen CardName]))
                                       (CostLess (Lit 1) Nothing))
                          (Just Macros.thisTurn) ]) ]
@@ -783,13 +783,13 @@ yasminKhan : Ability
 yasminKhan =
   Macros.activated TapSymbol
                    (Sequentially [Macros.exile You Macros.topCard,
-                           Continuously ((Macros.mayPlayDeed "Play" You It (PlayRider Nothing Nothing Nothing False ItsOwnCost))) (Just Macros.untilYourNextEndStep)])
+                           Continuously {ts = StaticFirstDone} ((Macros.mayPlayDeed "Play" You It (PlayRider Nothing Nothing Nothing False ItsOwnCost))) (Just Macros.untilYourNextEndStep)])
 
 ||| Brazen Cannonade
 brazenCannonadePermission : Effect []
 brazenCannonadePermission =
   Sequentially [Macros.exile You Macros.topCard,
-                Continuously ((Macros.mayPlayDeed "Play" You It (PlayRider Nothing Nothing Nothing False ItsOwnCost))) (Just (Until (EndOf Combat (Just Yours))))]
+                Continuously {ts = StaticFirstDone} ((Macros.mayPlayDeed "Play" You It (PlayRider Nothing Nothing Nothing False ItsOwnCost))) (Just (Until (EndOf Combat (Just Yours))))]
 
 
 corneredCrook : Ability
@@ -895,7 +895,7 @@ scourgeOfNelToth =
 escapeToTheWilds : Effect []
 escapeToTheWilds =
   Sequentially [Macros.exile You (Macros.topCards 5),
-                Continuously
+                Continuously {ts = StaticFirstDone}
                   ((Macros.mayPlayDeed "Play" You (Macros.thoseVerbedThisWay "Exile" CardW) (PlayRider Nothing Nothing Nothing False ItsOwnCost)))
                   (Just (Until (EndOf Turn (Just Yours))))]
 
@@ -977,7 +977,7 @@ museVesselPlay : Ability
 museVesselPlay =
   Macros.activated (Mana [Macros.generic 1])
                    (Sequentially [Macros.choose (Macros.a Macros.exiledWithThisArtifact),
-                           Continuously ((Macros.mayPlayDeed "Play" You (That CardW) (PlayRider Nothing Nothing Nothing False ItsOwnCost))) (Just Macros.thisTurn)])
+                           Continuously {ts = StaticFirstDone} ((Macros.mayPlayDeed "Play" You (That CardW) (PlayRider Nothing Nothing Nothing False ItsOwnCost))) (Just Macros.thisTurn)])
 
 aerialVolley : Card
 aerialVolley =
@@ -1261,7 +1261,7 @@ incisorGlider =
                      (Macros.attacks Macros.thisCreature)
                      (CompareAmt (CountersOn Poison (Macros.a Opponent))
                                  AtLeast (Lit 3))
-                     (Continuously (Gets (Macros.allOf Macros.creatureYouControl) (PtUp (Lit 1)) (PtUp (Lit 1)))
+                     (Continuously {ts = StaticFirstDone} (Gets (Macros.allOf Macros.creatureYouControl) (PtUp (Lit 1)) (PtUp (Lit 1)))
                                    (Just Macros.untilEndOfTurn))
 
 
@@ -1350,7 +1350,7 @@ simpleHalf = Macros.destroy (Macros.target (And [Permanent, Multicolored]))
 leitmotifComposer : Ability
 leitmotifComposer =
   Macros.activated (Mana [Macros.generic 2, Macros.pip Blue])
-                   (Continuously (Macros.deontic (Macros.allOf (And [Macros.creature,
+                   (Continuously {ts = StaticFirstDone} (Macros.deontic (Macros.allOf (And [Macros.creature,
                                                 Named (PrintedName "Leitmotif Composer")]))
                                    Forbid ["Block"] Patient NoDeonticPatient)
                           (Just Macros.thisTurn))
@@ -1387,14 +1387,14 @@ berserkersOfBloodRidge = Static (Macros.deontic Macros.thisCreature Require ["At
 trumpetingArmodon : Ability
 trumpetingArmodon =
   Macros.activated (Mana [Macros.generic 1, Macros.pip Green])
-                   (Continuously (Macros.deontic (Macros.target Macros.creature) Require ["Block"] Agent
+                   (Continuously {ts = StaticFirstDone} (Macros.deontic (Macros.target Macros.creature) Require ["Block"] Agent
                                    (DeonticCounterpart Macros.thisCreature))
                           (Just Macros.thisTurn))
 
 loathsomeCatoblepas : Ability
 loathsomeCatoblepas =
   Macros.activated (Mana [Macros.generic 2, Macros.pip Green])
-                   (Continuously (Macros.deontic Macros.thisCreature Require ["Block"] Patient NoDeonticPatient)
+                   (Continuously {ts = StaticFirstDone} (Macros.deontic Macros.thisCreature Require ["Block"] Patient NoDeonticPatient)
                           (Just Macros.thisTurn))
 
 ashnodsBattleGear : Ability
@@ -1504,7 +1504,7 @@ pacifism =
 public export
 everybodyLivesGateLine : Effect []
 everybodyLivesGateLine =
-  Continuously (Macros.deontic (PlayerGroup AllPlayers) Forbid ["LoseGame", "WinGame"]
+  Continuously {ts = StaticFirstDone} (Macros.deontic (PlayerGroup AllPlayers) Forbid ["LoseGame", "WinGame"]
                                Agent NoDeonticPatient)
                (Just Macros.thisTurn)
 
@@ -1651,7 +1651,7 @@ theGoldenThrone =
 
 stunningReversal : Ability
 stunningReversal =
-  Spell (Continuously (Intercepts (LosesGame You) [] Nothing
+  Spell (Continuously {ts = StaticFirstDone} (Intercepts (LosesGame You) [] Nothing
                                   (Sequentially [Draw You (Lit 7),
                                                  ChangeLife You (Set (Lit 1))])
                                   NextTimeOnly Nothing)
@@ -1886,7 +1886,7 @@ acceleratedMutation =
        (Just [Macros.generic 3, Macros.pip Green, Macros.pip Green]) []
        (MkTypeLine [] [Instant])
        [ Spell (Sequentially
-                  [ Continuously (Gets (Macros.target Macros.creature)
+                  [ Continuously {ts = StaticFirstDone} (Gets (Macros.target Macros.creature)
                                        (PtUp (LetterVal X)) (PtUp (LetterVal X)))
                                  (Just Macros.untilEndOfTurn)
                   , Define X (Aggregate MaxOf (CharAxis ManaValue)
@@ -2170,13 +2170,13 @@ diminish : Card
 diminish =
   Macros.card "Diminish" (Just [Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously (HasBasePt (Macros.target Macros.creature) (Lit 1) (Lit 1))
+       [ Spell (Continuously {ts = StaticFirstDone} (HasBasePt (Macros.target Macros.creature) (Lit 1) (Lit 1))
                              (Just Macros.untilEndOfTurn)) ]
        Nothing
 
 cycleOfLife : Effect []
 cycleOfLife =
-  Continuously (HasBasePt (Macros.target (And [Macros.creature, CastBy You]))
+  Continuously {ts = StaticFirstDone} (HasBasePt (Macros.target (And [Macros.creature, CastBy You]))
                           (Lit 0) (Lit 1))
                (Just Macros.untilYourNextUpkeep)
 
@@ -2184,7 +2184,7 @@ aboutFace : Card
 aboutFace =
   Macros.card "About Face" (Just [Macros.pip Red]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously (SwitchesPt (Macros.target Macros.creature))
+       [ Spell (Continuously {ts = StaticFirstDone} (SwitchesPt (Macros.target Macros.creature))
                              (Just Macros.untilEndOfTurn)) ]
        Nothing
 
@@ -2597,7 +2597,7 @@ undercoverButler =
                                          (Macros.the (And [AnyPlayer,
                                              Superlative MaxOf (PlayerStatAxis LifeTotal)
                                                          AnyPlayer])))
-                          (Continuously (Macros.deontic It Forbid ["Block"] Patient NoDeonticPatient)
+                          (Continuously {ts = StaticFirstDone} (Macros.deontic It Forbid ["Block"] Patient NoDeonticPatient)
                                  (Just Macros.thisTurn)) ]
        (Just (2, 3))
 
@@ -3207,7 +3207,7 @@ naturalAffinity : Card
 naturalAffinity =
   Macros.card "Natural Affinity" (Just [Macros.generic 2, Macros.pip Green]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously
+       [ Spell (Continuously {ts = StaticFirstDone}
                   (Becomes (Macros.allOf Macros.land) Sets (Bundle (MkToken (Just (Lit 2 ** Lit 2)) []
                                      (MkTypeLine [] [Creature]) [] Nothing) (Just Land)))
                   (Just Macros.untilEndOfTurn)) ]
@@ -3218,7 +3218,7 @@ mishrasFactory =
   Macros.card "Mishra's Factory" Nothing [] (MkTypeLine [] [Land])
        [ Macros.activated TapSymbol (AddMana You (Lit 1) (Runs [[Colorless]]) [])
        , Macros.activated (Mana [Macros.generic 1])
-                          (Continuously
+                          (Continuously {ts = StaticFirstDone}
                       (Becomes Macros.thisLand Sets (Bundle (MkToken (Just (Lit 2 ** Lit 2)) []
                                          (MkTypeLine [creatureType "AssemblyWorker"] [Artifact, Creature])
                                          [] Nothing) (Just Land)))
@@ -3235,7 +3235,7 @@ mutavault =
   Macros.card "Mutavault" Nothing [] (MkTypeLine [] [Land])
        [ Macros.activated TapSymbol (AddMana You (Lit 1) (Runs [[Colorless]]) [])
        , Macros.activated (Mana [Macros.generic 1])
-                          (Continuously
+                          (Continuously {ts = StaticFirstDone}
                       (Becomes Macros.thisLand Sets (Bundle (MkTokenChars (Just (Lit 2 ** Lit 2)) [] []
                                               (MkTypeLine [] [Creature])
                                               [] Nothing
@@ -3250,7 +3250,7 @@ soulstoneSanctuary =
   Macros.card "Soulstone Sanctuary" Nothing [] (MkTypeLine [] [Land])
        [ Macros.activated TapSymbol (AddMana You (Lit 1) (Runs [[Colorless]]) [])
        , Macros.activated (Mana [Macros.generic 4])
-                          (Continuously
+                          (Continuously {ts = StaticFirstDone}
                       (Becomes Macros.thisLand Sets (Bundle (MkTokenChars (Just (Lit 3 ** Lit 3)) [] []
                                               (MkTypeLine [] [Creature])
                                               [Macros.keyword "Vigilance"] Nothing
@@ -3271,7 +3271,7 @@ windZendikon =
 nullhideFerox : Ability
 nullhideFerox =
   Macros.activated (Mana [Macros.generic 2])
-                   (Continuously (LosesAllAbilities Macros.thisCreature Nothing)
+                   (Continuously {ts = StaticFirstDone} (LosesAllAbilities Macros.thisCreature Nothing)
                           (Just Macros.untilEndOfTurn))
 
 
@@ -3279,7 +3279,7 @@ awakenTheBear : Card
 awakenTheBear =
   Macros.card "Awaken the Bear" (Just [Macros.generic 2, Macros.pip Green]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously
+       [ Spell (Continuously {ts = StaticFirstDone}
                   (AndAlso [ Gets (Macros.target Macros.creature)
                                   (PtUp (Lit 3)) (PtUp (Lit 3))
                            , Gains It (Macros.keyword "Trample") ])
@@ -3299,7 +3299,7 @@ turnToFrog : Card
 turnToFrog =
   Macros.card "Turn to Frog" (Just [Macros.generic 1, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously
+       [ Spell (Continuously {ts = StaticFirstDone}
                   (AndAlso [ LosesAllAbilities (Macros.target Macros.creature) Nothing
                            , Becomes It Sets (Bundle (MkToken Nothing [Blue]
                                                   (MkTypeLine [creatureType "Frog"] []) [] Nothing) Nothing)
@@ -3440,7 +3440,7 @@ ragingRavine =
                           (AddMana You (Lit 1)
                             (Runs [[OfColor Red], [OfColor Green]]) [])
        , Macros.activated (Mana [Macros.generic 2, Macros.pip Red, Macros.pip Green])
-                          (Continuously
+                          (Continuously {ts = StaticFirstDone}
                       (Becomes Macros.thisLand Sets (Bundle (MkToken (Just (Lit 3 ** Lit 3)) [Red, Green]
                                          (MkTypeLine [creatureType "Elemental"] [Creature])
                                          [ Macros.triggered Whenever
@@ -3837,12 +3837,12 @@ mizziumTransreliquat =
   Macros.card "Mizzium Transreliquat" (Just [Macros.generic 3]) []
        (MkTypeLine [] [Artifact])
        [ Macros.activated (Mana [Macros.generic 3])
-                          (Continuously
+                          (Continuously {ts = StaticFirstDone}
                       (BecomesCopy Macros.thisArtifact
                                    (Macros.target Macros.artifact) [])
                       (Just Macros.untilEndOfTurn))
        , Macros.activated (Mana [Macros.generic 1, Macros.pip Blue, Macros.pip Red])
-                          (Continuously
+                          (Continuously {ts = StaticFirstDone}
                       (BecomesCopy Macros.thisArtifact
                                    (Macros.target Macros.artifact)
                                    [ExceptThisAbility])
@@ -3987,7 +3987,7 @@ flawlessForgeryLine =
                                        , InZone (Macros.graveyardOf
                                                    (Macros.a Opponent)) ]))
     , CopyCard You (That CardW) (Lit 1)
-    , Continuously (Macros.mayPlayDeed "Cast" You (That CopyW)
+    , Continuously {ts = StaticFirstDone} (Macros.mayPlayDeed "Cast" You (That CopyW)
                        (PlayRider Nothing Nothing Nothing False Macros.free))
                    Nothing ]
 
@@ -4180,7 +4180,7 @@ dazzlingReflection =
        (MkTypeLine [] [Instant])
        [ Spell (Sequentially
                   [ ChangeLife You (Up (StatOf Power (Macros.target Macros.creature)))
-                  , Continuously
+                  , Continuously {ts = StaticFirstDone}
                       (Prevents AnyDamage (DealtBy (That (TypeW Creature)))
                                     Everywhere CutAll NextTimeOnly Nothing)
                       (Just Macros.thisTurn) ]) ]
@@ -4201,7 +4201,7 @@ flaringPain : Card
 flaringPain =
   Macros.card "Flaring Pain" (Just [Macros.generic 1, Macros.pip Red]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously (CantPrevent AnyDamage (DamageDescribed Unattributed Everywhere) NoPreventionOnly)
+       [ Spell (Continuously {ts = StaticFirstDone} (CantPrevent AnyDamage (DamageDescribed Unattributed Everywhere) NoPreventionOnly)
                              (Just Macros.thisTurn)) ]
        Nothing
 
@@ -4229,7 +4229,7 @@ gideonAllyOfZendikar =
        (MkTypeLine [planeswalkerType "Gideon"] [Planeswalker])
        [ Macros.activated (LoyaltySymbol (LoyaltyUp 1))
                           (Sequentially
-                      [ Continuously
+                      [ Continuously {ts = StaticFirstDone}
                           (Becomes Macros.thisPlaneswalker Sets (Bundle (MkToken (Just (Lit 5 ** Lit 5)) []
                                              (MkTypeLine [creatureType "Human", creatureType "Soldier", creatureType "Ally"] [Creature])
                                              [Macros.keyword "Indestructible"] Nothing) (Just Planeswalker)))
@@ -4250,7 +4250,7 @@ gideonJura =
        (Just [Macros.generic 3, Macros.pip White, Macros.pip White]) [Legendary]
        (MkTypeLine [planeswalkerType "Gideon"] [Planeswalker])
        [ Macros.activated (LoyaltySymbol (LoyaltyUp 2))
-           (Throughout (DuringNextTurnOf (Macros.target Opponent))
+           (Macros.throughout (DuringNextTurnOf (Macros.target Opponent))
                        (Macros.deontic (Macros.allOf (And [Macros.creature,
                                              HasPossessor ControllerAx (That PlayerW)]))
                                 Require ["Attack"] Agent
@@ -4259,7 +4259,7 @@ gideonJura =
            (Macros.destroy (Macros.target (And [Macros.creature, Macros.tapped])))
        , Macros.activated (LoyaltySymbol LoyaltyZero)
            (Sequentially
-              [ Continuously
+              [ Continuously {ts = StaticFirstDone}
                   (Becomes Macros.thisPlaneswalker Sets (Bundle (MkToken (Just (Lit 6 ** Lit 6)) []
                                      (MkTypeLine [creatureType "Human",
                                                   creatureType "Soldier"] [Creature])
@@ -4275,7 +4275,7 @@ turnTheTables =
   Macros.card "Turn the Tables"
        (Just [Macros.generic 3, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously
+       [ Spell (Continuously {ts = StaticFirstDone}
                   (Redirects CombatOnly Unattributed (Macros.shieldingIt You) CutAll
                              (Macros.target (And [Macros.creature, Attacking])) Repeatedly)
                   (Just Macros.thisTurn)) ]
@@ -4310,7 +4310,7 @@ wardOfPiety =
        (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject "Enchant" Macros.creature
        , Macros.activated (Mana [Macros.generic 1, Macros.pip White])
-                          (Continuously
+                          (Continuously {ts = StaticFirstDone}
                       (Redirects AnyDamage Unattributed
                                  (Macros.shieldingIt (AttachHost Enchanted (TypeW Creature)))
                                  (Shield (Lit 1)) (Macros.target Macros.anyTarget) Repeatedly)
@@ -4323,7 +4323,7 @@ mirrorwoodTreefolk =
   Macros.card "Mirrorwood Treefolk" (Just [Macros.generic 3, Macros.pip Green]) []
        (MkTypeLine [creatureType "Treefolk"] [Creature])
        [ Macros.activated (Mana [Macros.generic 2, Macros.pip Red, Macros.pip White])
-                          (Continuously
+                          (Continuously {ts = StaticFirstDone}
                       (Redirects AnyDamage Unattributed
                                      (Macros.shieldingIt Macros.thisCreature)
                                      CutAll (Macros.target Macros.anyTarget) NextTimeOnly)
@@ -4350,7 +4350,7 @@ carom =
   Macros.card "Carom" (Just [Macros.generic 1, Macros.pip White]) []
        (MkTypeLine [] [Instant])
        [ Spell (Sequentially
-                  [ Continuously
+                  [ Continuously {ts = StaticFirstDone}
                       (Redirects AnyDamage Unattributed
                                  (Macros.shieldingIt (Macros.target Macros.creature))
                                  (Shield (Lit 1))
@@ -4366,7 +4366,7 @@ daughterOfAutumn =
        (Just [Macros.generic 2, Macros.pip Green, Macros.pip Green]) [Legendary]
        (MkTypeLine [creatureType "Avatar"] [Creature])
        [ Macros.activated (Mana [Macros.pip White])
-                          (Continuously
+                          (Continuously {ts = StaticFirstDone}
                       (Redirects AnyDamage Unattributed
                                  (Macros.shieldingIt
                                     (Macros.target (And [Macros.creature, ColorIs White])))
@@ -4380,7 +4380,7 @@ aegisOfHonor =
   Macros.card "Aegis of Honor" (Just [Macros.pip White]) []
        (MkTypeLine [] [Enchantment])
        [ Macros.activated (Mana [Macros.generic 1])
-                          (Continuously
+                          (Continuously {ts = StaticFirstDone}
                       (Redirects AnyDamage
                                      (DealtBy (Macros.a Macros.instantOrSorcery))
                                      (Macros.shieldingIt You) CutAll (Macros.controllerOf It)
@@ -4393,7 +4393,7 @@ testOfFaith : Card
 testOfFaith =
   Macros.card "Test of Faith" (Just [Macros.generic 1, Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously
+       [ Spell (Continuously {ts = StaticFirstDone}
                   (Prevents AnyDamage Unattributed
                             (Macros.shieldingIt (Macros.target Macros.creature))
                             (Shield (Lit 3)) Repeatedly
@@ -4408,7 +4408,7 @@ temper : Card
 temper =
   Macros.card "Temper" (Just [Variable, Macros.generic 1, Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously
+       [ Spell (Continuously {ts = StaticFirstDone}
                   (Prevents AnyDamage Unattributed
                             (Macros.shieldingIt (Macros.target Macros.creature))
                             (Shield (LetterVal X)) Repeatedly
@@ -4423,7 +4423,7 @@ candlesGlow : Card
 candlesGlow =
   Macros.card "Candles' Glow" (Just [Macros.generic 1, Macros.pip White]) []
        (MkTypeLine [spellType "Arcane"] [Instant])
-       [ Spell (Continuously
+       [ Spell (Continuously {ts = StaticFirstDone}
                   (Prevents AnyDamage Unattributed
                             (Macros.shieldingIt (Macros.target Macros.anyTarget))
                             (Shield (Lit 3)) Repeatedly
@@ -4434,7 +4434,7 @@ candlesGlow =
 ||| Inkshield
 inkshieldRider : Effect []
 inkshieldRider =
-  Continuously
+  Continuously {ts = StaticFirstDone}
     (Prevents AnyDamage Unattributed (Macros.shieldingIt You) CutAll Repeatedly
               (Just (Macros.create PreventedThisWay
                                    (Macros.creatureTok 2 1 [White, Black] []))))
@@ -4457,7 +4457,7 @@ circleOfProtectionRed =
        (Just [Macros.generic 1, Macros.pip White]) []
        (MkTypeLine [] [Enchantment])
        [ Macros.activated (Mana [Macros.generic 1])
-                          (Continuously
+                          (Continuously {ts = StaticFirstDone}
                       (Prevents AnyDamage
                                     (DealtBy (Macros.aYourChoice
                                                 (And [Macros.source, ColorIs Red])))
@@ -4472,7 +4472,7 @@ healingGrace =
   Macros.card "Healing Grace" (Just [Macros.pip White]) []
        (MkTypeLine [] [Instant])
        [ Spell (Sequentially
-                  [ Continuously
+                  [ Continuously {ts = StaticFirstDone}
                       (Prevents AnyDamage (DealtBy (Macros.aYourChoice Macros.source))
                                 (Macros.shieldingIt (Macros.target Macros.anyTarget))
                                 (Shield (Lit 3)) Repeatedly Nothing)
@@ -4486,7 +4486,7 @@ reverseDamage =
   Macros.card "Reverse Damage"
        (Just [Macros.generic 1, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously
+       [ Spell (Continuously {ts = StaticFirstDone}
                   (Prevents AnyDamage
                                 (DealtBy (Macros.aYourChoice Macros.source))
                                 (Macros.shieldingIt You) CutAll NextTimeOnly
@@ -4499,7 +4499,7 @@ deflectingPalm : Card
 deflectingPalm =
   Macros.card "Deflecting Palm" (Just [Macros.pip Red, Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously
+       [ Spell (Continuously {ts = StaticFirstDone}
                   (Prevents AnyDamage
                                 (DealtBy (Macros.aYourChoice Macros.source))
                                 (Macros.shieldingIt You) CutAll NextTimeOnly
@@ -4515,14 +4515,14 @@ pinpointAvalanche =
        (MkTypeLine [] [Instant])
        [ Spell (Sequentially
                   [ DealDamage This (Lit 4) (Macros.target Macros.creature)
-                  , Continuously
+                  , Continuously {ts = StaticFirstDone}
                       (CantPrevent AnyDamage ThatDamage NoPreventionOnly) Nothing ]) ]
        Nothing
 
 public export
 whippoorwillImmunity : Effect []
 whippoorwillImmunity =
-  Continuously
+  Continuously {ts = StaticFirstDone}
     (CantPrevent AnyDamage
                  (DamageDescribed Unattributed (Macros.shieldingIt (Macros.a Macros.creature)))
                  NoRedirectEither)
@@ -4623,7 +4623,7 @@ darkSphere =
        (MkTypeLine [] [Artifact])
        [ Macros.activated
            (Compound [TapSymbol, Do (Macros.sacrifice You Macros.thisArtifact)])
-                          (Continuously
+                          (Continuously {ts = StaticFirstDone}
                              (Prevents AnyDamage
                                            (DealtBy (Macros.aYourChoice Macros.source))
                                            (Macros.shieldingIt You)
@@ -4636,7 +4636,7 @@ shadowbane : Card
 shadowbane =
   Macros.card "Shadowbane" (Just [Macros.generic 1, Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously
+       [ Spell (Continuously {ts = StaticFirstDone}
                   (Prevents AnyDamage
                                 (DealtBy (Macros.aYourChoice Macros.source))
                                 (Macros.shieldingIt
@@ -4758,7 +4758,7 @@ forcefield =
   Macros.card "Forcefield" (Just [Macros.generic 3]) []
        (MkTypeLine [] [Artifact])
        [ Macros.activated (Mana [Macros.generic 1])
-           (Continuously
+           (Continuously {ts = StaticFirstDone}
               (Prevents CombatOnly
                             (DealtBy (Macros.aYourChoice
                                         (And [Macros.creature, Unblocked])))
@@ -4828,7 +4828,7 @@ harmsWay : Card
 harmsWay =
   Macros.card "Harm's Way" (Just [Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously
+       [ Spell (Continuously {ts = StaticFirstDone}
                   (Redirects AnyDamage (DealtBy (Macros.aYourChoice Macros.source))
                              (Macros.shieldingIt
                                 (Macros.youAnd (Macros.allOf (And [Permanent,
@@ -4843,7 +4843,7 @@ divineDeflection : Card
 divineDeflection =
   Macros.card "Divine Deflection" (Just [Variable, Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously
+       [ Spell (Continuously {ts = StaticFirstDone}
                   (Prevents AnyDamage Unattributed
                             (Macros.shieldingIt
                                (Macros.youAnd (Macros.allOf (And [Permanent,
@@ -4858,7 +4858,7 @@ public export
 glarecasterShield : Ability
 glarecasterShield =
   Macros.activated (Mana [Macros.generic 5, Macros.pip White])
-                   (Continuously
+                   (Continuously {ts = StaticFirstDone}
                (Redirects AnyDamage Unattributed
                               (Macros.shieldingIt (Macros.youAnd Macros.thisCreature))
                               CutAll (Macros.target Macros.anyTarget)
@@ -5006,7 +5006,7 @@ unstableShapeshifter =
        (MkTypeLine [creatureType "Shapeshifter"] [Creature])
        [ Macros.triggered Whenever
                           (Enters (Macros.a (And [Macros.creature, OtherThan This])) Nothing)
-                          (Continuously
+                          (Continuously {ts = StaticFirstDone}
                       (BecomesCopy Macros.thisCreature (That (TypeW Creature))
                                    [ExceptThisAbility])
                       Nothing) ]
@@ -5143,7 +5143,7 @@ screamingNemesis =
                                  (Macros.target (And [Macros.anyTarget,
                                                       OtherThan This]))
                              , If (DealtThisWay AnyPlayer)
-                                  (Continuously (Macros.playerCant "GainLife" They)
+                                  (Continuously {ts = StaticFirstDone} (Macros.playerCant "GainLife" They)
                                                 (Just RestOfGame))
                                   Nothing ]) ]
        (Just (3, 3))
@@ -5176,10 +5176,10 @@ callInAProfessional =
        (Just [Macros.generic 2, Macros.pip Red]) []
        (MkTypeLine [] [Instant])
        [ Spell (Sequentially
-                  [ Continuously
+                  [ Continuously {ts = StaticFirstDone}
                       (Macros.playerCant "GainLife" (PlayerGroup AllPlayers))
                       (Just Macros.thisTurn)
-                  , Continuously
+                  , Continuously {ts = StaticFirstDone}
                       (CantPrevent AnyDamage (DamageDescribed Unattributed Everywhere) NoPreventionOnly)
                       (Just Macros.thisTurn)
                   , DealDamage This (Lit 3) (Macros.target Macros.anyTarget) ]) ]
@@ -5207,7 +5207,7 @@ silence : Card
 silence =
   Macros.card "Silence" (Just [Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously
+       [ Spell (Continuously {ts = StaticFirstDone}
                   (Macros.playerCant "Cast" (PlayerGroup YourOpponents))
                   (Just Macros.thisTurn)) ]
        Nothing
@@ -5219,7 +5219,7 @@ shadowOfDoubt =
        (Just [Macros.hybridPip Blue Black, Macros.hybridPip Blue Black]) []
        (MkTypeLine [] [Instant])
        [ Spell (Sequentially
-                  [ Continuously
+                  [ Continuously {ts = StaticFirstDone}
                       (Macros.playerCant "Search" (PlayerGroup AllPlayers))
                       (Just Macros.thisTurn)
                   , (Macros.draw You (Lit 1)) ]) ]
@@ -5257,7 +5257,7 @@ grievousWoundLifeLock =
 public export
 solfataraLandLock : Effect []
 solfataraLandLock =
-  Continuously (Macros.playerCant "Play" (Macros.target AnyPlayer))
+  Continuously {ts = StaticFirstDone} (Macros.playerCant "Play" (Macros.target AnyPlayer))
                (Just Macros.thisTurn)
 
 
@@ -5314,7 +5314,7 @@ reefShaman =
   Macros.card "Reef Shaman" (Just [Macros.pip Blue]) []
        (MkTypeLine [creatureType "Merfolk", creatureType "Shaman"] [Creature])
        [ Macros.activated TapSymbol
-                          (Continuously
+                          (Continuously {ts = StaticFirstDone}
                              (Becomes (Macros.target Macros.land) Sets (ChosenQuality (OfYourChoice (SubtypeQ Land) (Just BasicTypesOnly))))
                              (Just Macros.untilEndOfTurn)) ]
        (Just (0, 2))
@@ -5325,7 +5325,7 @@ grixisIllusionist =
   Macros.card "Grixis Illusionist" (Just [Macros.pip Blue]) []
        (MkTypeLine [creatureType "Human", creatureType "Wizard"] [Creature])
        [ Macros.activated TapSymbol
-                          (Continuously
+                          (Continuously {ts = StaticFirstDone}
                       (Becomes (Macros.target (And [Macros.land, HasPossessor ControllerAx You])) Sets (ChosenQuality (OfYourChoice (SubtypeQ Land) (Just BasicTypesOnly))))
                       (Just Macros.untilEndOfTurn)) ]
        (Just (1, 1))
@@ -5336,7 +5336,7 @@ unstableFrontier =
   Macros.card "Unstable Frontier" Nothing [] (MkTypeLine [] [Land])
        [ Macros.activated TapSymbol (AddMana You (Lit 1) (Runs [[Colorless]]) [])
        , Macros.activated TapSymbol
-                          (Continuously
+                          (Continuously {ts = StaticFirstDone}
                       (Becomes (Macros.target (And [Macros.land, HasPossessor ControllerAx You])) Sets (ChosenQuality (OfYourChoice (SubtypeQ Land) (Just BasicTypesOnly))))
                       (Just Macros.untilEndOfTurn)) ]
        Nothing
@@ -5675,7 +5675,7 @@ mistformDreamer =
        (MkTypeLine [creatureType "Illusion"] [Creature])
        [ Macros.keyword "Flying"
        , Macros.activated (Mana [Macros.generic 1])
-                          (Continuously
+                          (Continuously {ts = StaticFirstDone}
                       (Becomes Macros.thisCreature Sets (ChosenQuality (OfYourChoice (SubtypeQ Creature) Nothing)))
                       (Just Macros.untilEndOfTurn)) ]
        (Just (2, 1))
@@ -5770,7 +5770,7 @@ crimsonWisps =
   Macros.card "Crimson Wisps" (Just [Macros.pip Red]) []
        (MkTypeLine [] [Instant])
        [ Spell (Sequentially
-                  [ Continuously
+                  [ Continuously {ts = StaticFirstDone}
                       (AndAlso [ Becomes (Macros.target Macros.creature) Sets (Colored (SomeColors [Red]))
                                , Gains It (Macros.keyword "Haste") ])
                       (Just Macros.untilEndOfTurn)
@@ -5783,7 +5783,7 @@ nightcreep : Card
 nightcreep =
   Macros.card "Nightcreep" (Just [Macros.pip Black, Macros.pip Black]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously
+       [ Spell (Continuously {ts = StaticFirstDone}
                   (AndAlso [ Becomes (Macros.allOf Macros.creature) Sets (Colored (SomeColors [Black]))
                            , Becomes (Macros.allOf Macros.land) Sets (Bundle (MkToken Nothing []
                                                (Macros.basicLandLine [landType "Swamp"])
@@ -5830,7 +5830,7 @@ ersatzGnomes =
   Macros.card "Ersatz Gnomes" (Just [Macros.generic 3]) []
        (MkTypeLine [creatureType "Gnome"] [Artifact, Creature])
        [ Macros.activated TapSymbol
-           (Continuously (Becomes (Macros.target Macros.spell) Sets (Colored (SomeColors [])))
+           (Continuously {ts = StaticFirstDone} (Becomes (Macros.target Macros.spell) Sets (Colored (SomeColors [])))
                          Nothing)
        , Macros.activated TapSymbol
            (Macros.becomesColor (Macros.target Permanent) (SomeColors [])
@@ -5847,7 +5847,7 @@ missyFaceDownReturn =
     (Sequentially
        [ Move It Macros.battlefieldZ
               [EntersAs FaceDown, EntersTapped, Under You]
-       , Continuously
+       , Continuously {ts = StaticFirstDone}
            (Becomes It Sets (Bundle (MkToken (Just (Lit 2 ** Lit 2)) []
                               (MkTypeLine [creatureType "Cyberman"] [Artifact, Creature])
                               [] Nothing) Nothing))
@@ -5881,7 +5881,7 @@ indigoFaerie =
        (MkTypeLine [creatureType "Faerie", creatureType "Wizard"] [Creature])
        [ Macros.keyword "Flying"
        , Macros.activated (Mana [Macros.pip Blue])
-                          (Continuously (Becomes (Macros.target Permanent) Adds
+                          (Continuously {ts = StaticFirstDone} (Becomes (Macros.target Permanent) Adds
                                                  (Colored (SomeColors [Blue])))
                                         (Just Macros.untilEndOfTurn)) ]
        (Just (1, 1))
@@ -5892,13 +5892,13 @@ arcumsWeathervane : Card
 arcumsWeathervane =
   Macros.card "Arcum's Weathervane" (Just [Macros.generic 2]) [] (MkTypeLine [] [Artifact])
        [ Macros.activated (Compound [Mana [Macros.generic 2], TapSymbol])
-           (Continuously
+           (Continuously {ts = StaticFirstDone}
               (Becomes (Macros.target (And [Macros.land, HasSupertype Snow])) Loses
                        (Bundle (MkTokenChars Nothing [] [Snow] (MkTypeLine [] []) [] Nothing [])
                                Nothing))
               Nothing)
        , Macros.activated (Compound [Mana [Macros.generic 2], TapSymbol])
-           (Continuously
+           (Continuously {ts = StaticFirstDone}
               (Becomes (Macros.target (And [Macros.land, HasSupertype Basic,
                                             Not (HasSupertype Snow)])) Adds
                        (Bundle (MkTokenChars Nothing [] [Snow] (MkTypeLine [] []) [] Nothing [])
@@ -5957,7 +5957,7 @@ imagecrafter =
        [ Macros.activated TapSymbol
            (Sequentially
               [ Macros.choose (Macros.a (Macros.qualityFrom (SubtypeQ Creature) (TypeOtherThan (creatureType "Wall"))))
-              , Continuously (Becomes (Macros.target Macros.creature) Sets (ChosenQuality (OfChosen (SubtypeQ Creature))))
+              , Continuously {ts = StaticFirstDone} (Becomes (Macros.target Macros.creature) Sets (ChosenQuality (OfChosen (SubtypeQ Creature))))
                              (Just Macros.untilEndOfTurn) ]) ]
        (Just (1, 1))
 
@@ -5969,7 +5969,7 @@ unnaturalSelection =
        [ Macros.activated (Mana [Macros.generic 1])
            (Sequentially
               [ Macros.choose (Macros.a (Macros.qualityFrom (SubtypeQ Creature) (TypeOtherThan (creatureType "Wall"))))
-              , Continuously (Becomes (Macros.target Macros.creature) Sets (ChosenQuality (OfChosen (SubtypeQ Creature))))
+              , Continuously {ts = StaticFirstDone} (Becomes (Macros.target Macros.creature) Sets (ChosenQuality (OfChosen (SubtypeQ Creature))))
                              (Just Macros.untilEndOfTurn) ]) ]
        Nothing
 
@@ -5980,7 +5980,7 @@ standardize =
        (MkTypeLine [] [Instant])
        [ Spell (Sequentially
               [ Macros.choose (Macros.a (Macros.qualityFrom (SubtypeQ Creature) (TypeOtherThan (creatureType "Wall"))))
-              , Continuously (Becomes (Macros.each Macros.creature) Sets (ChosenQuality (OfChosen (SubtypeQ Creature))))
+              , Continuously {ts = StaticFirstDone} (Becomes (Macros.each Macros.creature) Sets (ChosenQuality (OfChosen (SubtypeQ Creature))))
                              (Just Macros.untilEndOfTurn) ]) ]
        Nothing
 
@@ -6147,7 +6147,7 @@ complyNameLock : Effect []
 complyNameLock =
   Sequentially
     [ Macros.choose (Macros.a (Macros.quality CardName))
-    , Continuously
+    , Continuously {ts = StaticFirstDone}
         (Macros.cantDoTo "Cast" (PlayerGroup YourOpponents)
            (Macros.allOf (And [Macros.spell, Named ChosenName])))
         (Just Macros.untilYourNextTurn) ]
@@ -6176,7 +6176,7 @@ academicProbationNameMode =
   Sequentially
     [ Macros.choose (Macros.a (Macros.qualityFrom CardName
                                  (NameOfCard (Not (HasType Land)))))
-    , Continuously
+    , Continuously {ts = StaticFirstDone}
         (Macros.cantDoTo "Cast" (PlayerGroup YourOpponents)
            (Macros.allOf (And [Macros.spell, Named ChosenName])))
         (Just Macros.untilYourNextTurn) ]
@@ -6291,7 +6291,7 @@ conjurersBan =
        (MkTypeLine [] [Sorcery])
        [ Spell (Sequentially
            [ Macros.choose (Macros.a (Macros.quality CardName))
-           , Continuously
+           , Continuously {ts = StaticFirstDone}
                (AndAlso [ Macros.objectCant "Cast"
                             (Macros.allOf (And [Macros.spell, Named ChosenName]))
                         , Macros.objectCant "Play"
@@ -6390,7 +6390,7 @@ theFlux =
            (ChapterMark [ChapterII, ChapterIII, ChapterIV, ChapterV])
            (Sequentially
               [ Macros.exile You Macros.topCard
-              , Continuously ((Macros.mayPlayDeed "Play" You (That CardW) (PlayRider Nothing Nothing Nothing False ItsOwnCost)))
+              , Continuously {ts = StaticFirstDone} ((Macros.mayPlayDeed "Play" You (That CardW) (PlayRider Nothing Nothing Nothing False ItsOwnCost)))
                              (Just Macros.thisTurn) ])
        , Macros.triggered When (ChapterMark [ChapterVI])
            (AddMana You (Lit 6) (Runs [[OfColor Red]]) []) ]
@@ -6461,7 +6461,7 @@ borneUponAWind : Card
 borneUponAWind =
   Macros.card "Borne Upon a Wind" (Just [Macros.generic 1, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously
+       [ Spell (Continuously {ts = StaticFirstDone}
                   ((Deontic You Permit ["Cast"] Agent Nothing (DeonticCounterpart (Macros.allOf Macros.spell)) (Just (AsThoughOf (HasKeyword (TheKeyword "Flash")))) (PlayRider Nothing Nothing Nothing False ItsOwnCost)))
                   (Just Macros.thisTurn))
        , Spell (Macros.draw You (Lit 1)) ]
@@ -6493,7 +6493,7 @@ playLandsAndCastSpellsFromTop =
 public export
 playAndCastFromGraveyardThisTurn : Effect []
 playAndCastFromGraveyardThisTurn =
-  Continuously
+  Continuously {ts = StaticFirstDone}
     (AndAlso [ (Macros.mayPlayDeed "Play" You (Macros.allOf Macros.land) (PlayRider (Macros.fromZ (Macros.graveyardOf You)) Nothing Nothing False ItsOwnCost))
              , (Macros.mayPlayDeed "Cast" You (Macros.allOf Macros.spell) (PlayRider (Macros.fromZ (Macros.graveyardOf You)) Nothing Nothing False ItsOwnCost)) ])
     (Just Macros.untilEndOfTurn)
@@ -6656,7 +6656,7 @@ summerBloom =
   Macros.card "Summer Bloom"
        (Just [Macros.generic 1, Macros.pip Green]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Continuously (Macros.mayPlayAdditionalLands You (Macros.upTo 3))
+       [ Spell (Continuously {ts = StaticFirstDone} (Macros.mayPlayAdditionalLands You (Macros.upTo 3))
                              (Just ThisTurn)) ]
        Nothing
 
@@ -6666,7 +6666,7 @@ explore =
   Macros.card "Explore" (Just [Macros.generic 1, Macros.pip Green]) []
        (MkTypeLine [] [Sorcery])
        [ Spell (Sequentially
-           [ Continuously (Macros.mayPlayAdditionalLands You (Macros.exactly 1))
+           [ Continuously {ts = StaticFirstDone} (Macros.mayPlayAdditionalLands You (Macros.exactly 1))
                           (Just ThisTurn)
            , (Macros.draw You (Lit 1)) ]) ]
        Nothing
@@ -6679,7 +6679,7 @@ urbanEvolution =
        (MkTypeLine [] [Sorcery])
        [ Spell (Sequentially
            [ Draw You (Lit 3)
-           , Continuously (Macros.mayPlayAdditionalLands You (Macros.exactly 1))
+           , Continuously {ts = StaticFirstDone} (Macros.mayPlayAdditionalLands You (Macros.exactly 1))
                           (Just ThisTurn) ]) ]
        Nothing
 
@@ -6769,7 +6769,7 @@ volatileClaws =
   Macros.card "Volatile Claws"
        (Just [Macros.generic 2, Macros.pip Red]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously
+       [ Spell (Continuously {ts = StaticFirstDone}
            (AndAlso
              [ Gets (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You]))
                     (PtUp (Lit 2)) (PtUp (Lit 0))
@@ -6783,17 +6783,17 @@ public export
 amoeboidChangelingTypeAbilities : AbilitySeq []
 amoeboidChangelingTypeAbilities =
   [ Macros.activated TapSymbol
-      (Continuously (Becomes (Macros.target Macros.creature) Adds (EveryTypeOf CreatureSpace))
+      (Continuously {ts = StaticFirstDone} (Becomes (Macros.target Macros.creature) Adds (EveryTypeOf CreatureSpace))
                     (Just Macros.untilEndOfTurn))
   , Macros.activated TapSymbol
-      (Continuously (Becomes (Macros.target Macros.creature) Loses (EveryTypeOf CreatureSpace))
+      (Continuously {ts = StaticFirstDone} (Becomes (Macros.target Macros.creature) Loses (EveryTypeOf CreatureSpace))
                     (Just Macros.untilEndOfTurn)) ]
 
 ||| Nameless Inversion
 public export
 namelessInversionBody : Effect []
 namelessInversionBody =
-  Continuously (AndAlso [ Gets (Macros.target Macros.creature)
+  Continuously {ts = StaticFirstDone} (AndAlso [ Gets (Macros.target Macros.creature)
                                (PtUp (Lit 3)) (PtDown (Lit 3))
                         , Becomes It Loses (EveryTypeOf CreatureSpace) ])
                (Just Macros.untilEndOfTurn)
@@ -6802,7 +6802,7 @@ namelessInversionBody =
 public export
 egoErasureBody : Effect []
 egoErasureBody =
-  Continuously (AndAlso [ Gets (Macros.allOf (And [Macros.creature,
+  Continuously {ts = StaticFirstDone} (AndAlso [ Gets (Macros.allOf (And [Macros.creature,
                                             HasPossessor ControllerAx (Macros.target AnyPlayer)]))
                                (PtDown (Lit 2)) (PtUp (Lit 0))
                         , Becomes Them Loses (EveryTypeOf CreatureSpace) ])
@@ -6836,7 +6836,7 @@ energybending =
   Macros.card "Energybending" (Just [Macros.generic 2]) []
        (MkTypeLine [spellType "Lesson"] [Instant])
        [ Spell (Sequentially
-                  [ Continuously
+                  [ Continuously {ts = StaticFirstDone}
                       (Becomes (Macros.allOf (And [Macros.land, HasPossessor ControllerAx You])) Adds (EveryTypeOf BasicLandSpace))
                       (Just Macros.untilEndOfTurn)
                   , (Macros.draw You (Lit 1)) ]) ]
@@ -6866,7 +6866,7 @@ yedoraGraveGardener =
               (Sequentially
                  [ Move It Macros.battlefieldZ
                         [EntersAs FaceDown, Under (Macros.ownerOf It)]
-                 , Continuously
+                 , Continuously {ts = StaticFirstDone}
                      (Becomes It Sets (Bundle (MkToken Nothing []
                                         (MkTypeLine [landType "Forest"] [Land])
                                         [] Nothing) Nothing))
@@ -7009,7 +7009,7 @@ chanceForGlory =
        (Just [Macros.generic 1, Macros.pip Red, Macros.pip White]) []
        (MkTypeLine [] [Instant])
        [Spell (Sequentially
-         [ Continuously (Gains (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You]))
+         [ Continuously {ts = StaticFirstDone} (Gains (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You]))
                                (Macros.keyword "Indestructible")) Nothing
          , ExtraTurn You (Lit 1)
          , Macros.delayed (BeginningOf EndStep (ByWord ThatTurns))
@@ -7275,7 +7275,7 @@ blatantThievery =
               Macros.pip Blue]) []
        (MkTypeLine [] [Sorcery])
        [ Spell (ForEachOf (Macros.each Opponent)
-                  (Continuously
+                  (Continuously {ts = StaticFirstDone}
                      (GainsControl You (Macros.target (HasPossessor ControllerAx (That PlayerW))))
                      Nothing)) ]
        Nothing
@@ -7616,7 +7616,7 @@ vexingShusher =
        (MkTypeLine [creatureType "Goblin", creatureType "Shaman"] [Creature])
        [ Static (Macros.objectCant "Counter" This)
        , Macros.activated (Mana [Macros.hybridPip Red Green])
-           (Continuously
+           (Continuously {ts = StaticFirstDone}
               (Macros.objectCant "Counter" (Macros.target Macros.spell))
               Nothing) ]
        (Just (2, 2))
@@ -7862,7 +7862,7 @@ massacre =
                       , Exists (And [Macros.land, HasSubtype (landType "Swamp"),
                                      HasPossessor ControllerAx You]) ])
                    (AltCost This Nothing))
-       , Spell (Continuously
+       , Spell (Continuously {ts = StaticFirstDone}
                   (Gets (Macros.allOf Macros.creature) (PtDown (Lit 2)) (PtDown (Lit 2)))
                   (Just Macros.untilEndOfTurn)) ]
        Nothing
@@ -7890,7 +7890,7 @@ rouse =
        [ Static (Macros.asLongAs
                    (Exists (And [Macros.land, HasSubtype (landType "Swamp"), HasPossessor ControllerAx You]))
                    (AltCost This (Just (Do (ChangeLife You (Down (Lit 2)))))))
-       , Spell (Continuously
+       , Spell (Continuously {ts = StaticFirstDone}
                   (Gets (Macros.target Macros.creature) (PtUp (Lit 2)) (PtUp (Lit 0)))
                   (Just Macros.untilEndOfTurn)) ]
        Nothing
@@ -7942,7 +7942,7 @@ shiningShoal =
                    (Macros.a (And [ColorIs White,
                                    Compare [CharAxis ManaValue] Eq (LetterVal X),
                                    InZone (Macros.handOf You)]))))))
-       , Spell (Continuously
+       , Spell (Continuously {ts = StaticFirstDone}
                   (Redirects AnyDamage (DealtBy (Macros.aYourChoice Macros.source))
                              (Macros.shieldingIt
                                 (Macros.youAnd (Macros.allOf (And [HasType Creature,
@@ -8080,7 +8080,7 @@ entrancingMelody =
   Macros.card "Entrancing Melody"
        (Just [Variable, Macros.pip Blue, Macros.pip Blue]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Continuously
+       [ Spell (Continuously {ts = StaticFirstDone}
                   (GainsControl You
                      (Macros.target (And [Macros.creature,
                                           Compare [CharAxis ManaValue] Eq (LetterVal X)])))
@@ -8253,7 +8253,7 @@ incinerate =
        (MkTypeLine [] [Instant])
        [ Spell (Sequentially
                   [ DealDamage This (Lit 3) (Macros.target Macros.anyTarget)
-                  , Continuously
+                  , Continuously {ts = StaticFirstDone}
                       (Macros.objectCant "Regenerate"
                          (Macros.a (And [Macros.creature,
                                          HappenedTo DamageTaken Lookback.ThisWay
@@ -8265,7 +8265,7 @@ public export
 hurrJackalAbility : Ability
 hurrJackalAbility =
   Macros.activated TapSymbol
-    (Continuously (Macros.objectCant "Regenerate" (Macros.target Macros.creature))
+    (Continuously {ts = StaticFirstDone} (Macros.objectCant "Regenerate" (Macros.target Macros.creature))
                   (Just Macros.thisTurn))
 
 public export
@@ -8575,7 +8575,7 @@ odricLunarchMarshal =
                                (BeginningOf Combat (ByWord EachPlayers))
                                (Exists (And [Macros.creature, HasPossessor ControllerAx You,
                                              HasKeyword (TheKeyword "FirstStrike")]))
-                               (Continuously
+                               (Continuously {ts = StaticFirstDone}
                                   (Gains (Macros.allOf Macros.creatureYouControl)
                                          (Macros.keyword "FirstStrike"))
                                   (Just Macros.untilEndOfTurn)))
@@ -8596,7 +8596,7 @@ bleedingEffect =
                                (Exists (And [Macros.creature,
                                              InZone (Macros.graveyardOf You),
                                              HasKeyword (TheKeyword "Flying")]))
-                               (Continuously
+                               (Continuously {ts = StaticFirstDone}
                                   (Gains (Macros.allOf Macros.creatureYouControl)
                                          (Macros.keyword "Flying"))
                                   (Just Macros.untilEndOfTurn)))
@@ -8739,7 +8739,7 @@ mildManneredLibrarian =
        (MkTypeLine [creatureType "Human"] [Creature])
        [ Macros.activatedOnlyOnce (Mana [Macros.generic 3, Macros.pip Green])
                                   (Sequentially
-                                     [ Continuously (Becomes Macros.thisCreature Sets (Bundle (MkToken Nothing [] (Macros.subtypesOnly [creatureType "Werewolf"]) [] Nothing) Nothing)) Nothing
+                                     [ Continuously {ts = StaticFirstDone} (Becomes Macros.thisCreature Sets (Bundle (MkToken Nothing [] (Macros.subtypesOnly [creatureType "Werewolf"]) [] Nothing) Nothing)) Nothing
                                      , PutCounters (Lit 2) (PrintedKind Macros.plusOnePlusOne) It
                                      , (Macros.draw You (Lit 1)) ])
                                   OncePerGame ]
@@ -9203,7 +9203,7 @@ elspethsTalent =
                                      (Macros.creatureTok 1 1 [White] [creatureType "Soldier"]))))
        , Macros.triggered Whenever
                           (Activates You loyaltyAbilityOfEnchanted)
-                          (Continuously
+                          (Continuously {ts = StaticFirstDone}
                       (AndAlso [ Gets (Macros.allOf Macros.creatureYouControl)
                                       (PtUp (Lit 2)) (PtUp (Lit 2))
                                , Gains Them (Macros.keyword "Vigilance") ])
@@ -9335,7 +9335,7 @@ cullingMark : Card
 cullingMark =
   Macros.card "Culling Mark" (Just [Macros.generic 2, Macros.pip Green]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Continuously (Macros.deontic (Macros.target Macros.creature)
+       [ Spell (Continuously {ts = StaticFirstDone} (Macros.deontic (Macros.target Macros.creature)
                                       Require ["Block"] Agent NoDeonticPatient)
                              (Just Macros.thisTurn)) ]
        Nothing
@@ -9366,7 +9366,7 @@ rampantFrogantuaPump =
 public export
 goadedAttacksOther : Effect []
 goadedAttacksOther =
-  Continuously (Macros.deontic (Macros.target Macros.creature) Require ["Attack"] Agent
+  Continuously {ts = StaticFirstDone} (Macros.deontic (Macros.target Macros.creature) Require ["Attack"] Agent
                         (DefendingPlayer (Macros.a (And [AnyPlayer, OtherThan You]))))
                (Just Macros.untilYourNextTurn)
 
@@ -10322,7 +10322,7 @@ berserkersFrenzyLowRoll : Effect []
 berserkersFrenzyLowRoll =
   Sequentially
     [ Macros.choose (Macros.counted Macros.anyNumber Macros.creature)
-    , Continuously (Macros.deontic Them Require ["Block"] Agent NoDeonticPatient)
+    , Continuously {ts = StaticFirstDone} (Macros.deontic Them Require ["Block"] Agent NoDeonticPatient)
                    (Just Macros.thisTurn) ]
 
 
@@ -10715,11 +10715,11 @@ borrowedMalevolence =
        (MkTypeLine [] [Instant])
        [ Macros.keywordCosting "Escalate" (Mana [Macros.generic 2])
        , Spell (Modal (Range (Just 1) (Just 2))
-                  [ Continuously
+                  [ Continuously {ts = StaticFirstDone}
                       (Gets (Macros.target Macros.creature)
                             (PtUp (Lit 1)) (PtUp (Lit 1)))
                       (Just Macros.untilEndOfTurn)
-                  , Continuously
+                  , Continuously {ts = StaticFirstDone}
                       (Gets (Macros.target Macros.creature)
                             (PtDown (Lit 1)) (PtDown (Lit 1)))
                       (Just Macros.untilEndOfTurn) ]) ]
@@ -10745,7 +10745,7 @@ invigorate =
                                  HasPossessor ControllerAx You]))
                    (AltCost This (Just (Do (ChangeLife Macros.anOpponent
                                                   (Up (Lit 3)))))))
-       , Spell (Continuously
+       , Spell (Continuously {ts = StaticFirstDone}
                   (Gets (Macros.target Macros.creature)
                         (PtUp (Lit 4)) (PtUp (Lit 4)))
                   (Just Macros.untilEndOfTurn)) ]
@@ -10819,7 +10819,7 @@ memoryPlunder =
   Macros.card "Memory Plunder"
        (Just [Macros.generic 1, Macros.pip Blue, Macros.pip Black]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously
+       [ Spell (Continuously {ts = StaticFirstDone}
                   ((Macros.mayPlayDeed "Cast" You (Macros.target (And [Macros.instantOrSorcery, IsCard])) (PlayRider (Macros.fromZ (Macros.graveyardOf Macros.anOpponent)) Nothing Nothing False Macros.free)))
                   Nothing) ]
        Nothing
@@ -12613,7 +12613,7 @@ concussiveBolt =
     [ DealDamage This (Lit 4) Cards.targetPlayerOrPlaneswalker
     , If (CompareAmt (CountOf (And [Macros.artifact, HasPossessor ControllerAx You]))
                      AtLeast (Lit 3))
-         (Continuously
+         (Continuously {ts = StaticFirstDone}
             (Macros.deontic (Macros.allOf (And [Macros.creature,
                                   HasPossessor ControllerAx Macros.splitOverPlaneswalker]))
                      Forbid ["Block"] Agent NoDeonticPatient)
@@ -12651,7 +12651,7 @@ aimHigh =
        (MkTypeLine [] [Instant])
        [ Spell (Sequentially
                   [ Macros.untap (Macros.target Macros.creature)
-                  , Continuously
+                  , Continuously {ts = StaticFirstDone}
                       (AndAlso [ Gets (ItVerbed "Untap") (PtUp (Lit 2)) (PtUp (Lit 2))
                                , Gains (ItVerbed "Untap") (Macros.keyword "Reach") ])
                       (Just Macros.untilEndOfTurn) ]) ]
@@ -12998,7 +12998,7 @@ gatherSpecimens =
   Macros.card "Gather Specimens"
        (Just [Macros.generic 3, Macros.pip Blue, Macros.pip Blue, Macros.pip Blue])
        [] (MkTypeLine [] [Instant])
-       [ Spell (Continuously
+       [ Spell (Continuously {ts = StaticFirstDone}
                   (EntersRider
                      (Macros.a (And [Macros.creature,
                                      HasPossessor ControllerAx Macros.anOpponent]))
@@ -13084,7 +13084,7 @@ veilingOddityLine =
   Macros.triggeredWhile When
     (LastCounterRemoved Time This Nothing)
     (Macros.whileState (Matches This (InZone Macros.exileZ)))
-    (Continuously (Macros.deontic (Macros.allOf Macros.creature) Forbid ["Block"] Patient
+    (Continuously {ts = StaticFirstDone} (Macros.deontic (Macros.allOf Macros.creature) Forbid ["Block"] Patient
                            NoDeonticPatient)
                   (Just Macros.thisTurn))
 
@@ -13347,7 +13347,7 @@ haakonStromgaldScourge =
        , Static (Conditionally (Matches This (InZone Macros.battlefieldZ))
                    ((Macros.mayPlayDeed "Cast" You (Macros.allOf (And [Macros.spell,
                                    HasSubtype (creatureType "Knight")])) (PlayRider (Macros.fromZ (Macros.graveyardOf You)) Nothing Nothing False ItsOwnCost)))
-                   AsLongAs)
+                   AsLongAs {st = Static.CondFirstDone})
        , Macros.triggered When (Dies Macros.thisCreature)
            (Macros.losesLife You (Lit 2)) ]
        (Just (3, 3))
@@ -13382,7 +13382,7 @@ apexOfPowerCast : Effect []
 apexOfPowerCast =
   Sequentially
     [ Macros.exile You (LibrarySlice OnTop (Lit 7) You)
-    , Continuously
+    , Continuously {ts = StaticFirstDone}
         (Macros.mayPlayDeed "Cast" You
              (Macros.fromAmong Macros.anyNumber Macros.spell Them)
              (PlayRider Nothing Nothing Nothing False ItsOwnCost))
@@ -13484,12 +13484,11 @@ padeemConsulOfInnovation =
 public export
 turbulentFen : Ability
 turbulentFen =
-  Static (OnlyWhile (Macros.entersTapped Macros.thisLand)
-                    (NotCond (CompareAmt
-                                (CountOf (And [Macros.land,
-                                               HasPossessor ControllerAx (PlayerGroup YourOpponents)]))
-                                AtLeast (Lit 8)))
-                    Unless)
+  Static (Macros.onlyUnless (Macros.entersTapped Macros.thisLand)
+                    (CompareAmt
+                       (CountOf (And [Macros.land,
+                                      HasPossessor ControllerAx (PlayerGroup YourOpponents)]))
+                       AtLeast (Lit 8)))
 
 ||| Darkblade Agent
 public export
@@ -13497,7 +13496,7 @@ darkbladeAgentDeathtouch : Ability
 darkbladeAgentDeathtouch =
   Static (Conditionally (Macros.happened (VerbedAct "Surveil") You ThisTurn)
                         (Gains Macros.thisCreature (Macros.keyword "Deathtouch"))
-                        AsLongAs)
+                        AsLongAs {st = Static.CondFirstDone})
 
 public export
 theFallen : Ability
@@ -13839,7 +13838,7 @@ concertedEffort =
                                (BeginningOf Upkeep (ByWord EachPlayers))
                                (Exists (And [Macros.creature, HasPossessor ControllerAx You,
                                              HasKeyword (TheKeyword "Flying")]))
-                               (Continuously
+                               (Continuously {ts = StaticFirstDone}
                                   (Gains (Macros.allOf Macros.creatureYouControl)
                                          (Macros.keyword "Flying"))
                                   (Just Macros.untilEndOfTurn)))
@@ -14305,7 +14304,7 @@ vesuvanShapeshifterCopySpan :
   Effect [MkBinding AD Object OneOf
             (ObjectP (Just Creature) (Just Battlefield) Nothing Nothing Nothing)]
 vesuvanShapeshifterCopySpan =
-  Continuously
+  Continuously {ts = StaticFirstDone}
     (BecomesCopy Macros.thisCreature (That (TypeW Creature))
        [ExceptAbility
           (Macros.triggered At (BeginningOf Upkeep (ByWord Yours))
@@ -14551,7 +14550,7 @@ delightedHalflingMana =
     (AddMana You (Lit 1) (AnyColor SameColor)
       [ OnSpent AffectsIt True
                 (Macros.a (And [HasSupertype Legendary, Macros.spell]))
-                (Continuously (Macros.objectCant "Counter" (That SpellW)) Nothing) ])
+                (Continuously {ts = StaticFirstDone} (Macros.objectCant "Counter" (That SpellW)) Nothing) ])
 
 ||| Boseiju, Who Shelters All
 public export
@@ -14561,7 +14560,7 @@ boseijuMana =
     (AddMana You (Lit 1) (Runs [[Colorless]])
       [ OnSpent AffectsIt False
                 (Macros.a (And [Macros.instantOrSorcery, Macros.spell]))
-                (Continuously (Macros.objectCant "Counter" (That SpellW))
+                (Continuously {ts = StaticFirstDone} (Macros.objectCant "Counter" (That SpellW))
                               Nothing) ])
 
 ||| Generator Servant
@@ -14592,7 +14591,7 @@ animalAttendant =
              [ OnSpent AffectsIt False
                        (Macros.a (And [Not (HasSubtype (creatureType "Human")),
                                        Macros.creature, Macros.spell]))
-                       (Continuously
+                       (Continuously {ts = StaticFirstDone}
                           (EntersRider (ResolvedPermanent (That SpellW))
                                        (WithCounters (Lit 1)
                                               (PrintedKind Macros.plusOnePlusOne)
@@ -14626,7 +14625,7 @@ suChiCaveGuardDies =
        [ AddMana You (Lit 1)
                  (Runs [[Colorless, Colorless, Colorless, Colorless,
                          Colorless, Colorless, Colorless, Colorless]]) []
-       , Continuously (KeepsUnspentMana You ThisMana)
+       , Continuously {ts = StaticFirstDone} (KeepsUnspentMana You ThisMana)
                       (Just Macros.untilEndOfTurn) ])
 
 ||| Omnath, Locus of Mana
@@ -14759,7 +14758,7 @@ arlinnKord =
     (Macros.frontFace "Arlinn Kord" (Just [Macros.generic 2, Macros.pip Red, Macros.pip Green])
             [Legendary] (MkTypeLine [planeswalkerType "Arlinn"] [Planeswalker])
             [ Macros.activated (LoyaltySymbol (LoyaltyUp 1))
-                (Continuously
+                (Continuously {ts = StaticFirstDone}
                    (AndAlso [ Gets (Macros.targets (Macros.upTo 1) Macros.creature)
                                    (PtUp (Lit 2)) (PtUp (Lit 2))
                             , Gains It (Macros.keyword "Vigilance")
@@ -14774,7 +14773,7 @@ arlinnKord =
     (Macros.backFace "Arlinn, Embraced by the Moon" [Legendary]
                (MkTypeLine [planeswalkerType "Arlinn"] [Planeswalker])
                [ Macros.activated (LoyaltySymbol (LoyaltyUp 1))
-                   (Continuously
+                   (Continuously {ts = StaticFirstDone}
                       (AndAlso [ Gets (Macros.allOf Macros.creatureYouControl)
                                       (PtUp (Lit 1)) (PtUp (Lit 1))
                                , Gains Them (Macros.keyword "Trample") ])
@@ -14876,7 +14875,7 @@ chitteringHostOnScavengers =
             [ Macros.keyword "Haste"
             , Macros.keyword "Menace"
             , Macros.triggered When (Enters Macros.thisCreature Nothing)
-                (Continuously
+                (Continuously {ts = StaticFirstDone}
                    (AndAlso [ Gets (Macros.allOf (Macros.otherCreatureYouControl Macros.thisCreature))
                                    (PtUp (Lit 1)) (PtUp (Lit 0))
                             , Gains Them (Macros.keyword "Menace") ])
@@ -14892,7 +14891,7 @@ chitteringHostOnGrafRats =
             [ Macros.keyword "Haste"
             , Macros.keyword "Menace"
             , Macros.triggered When (Enters Macros.thisCreature Nothing)
-                (Continuously
+                (Continuously {ts = StaticFirstDone}
                    (AndAlso [ Gets (Macros.allOf (Macros.otherCreatureYouControl Macros.thisCreature))
                                    (PtUp (Lit 1)) (PtUp (Lit 0))
                             , Gains Them (Macros.keyword "Menace") ])
@@ -15020,11 +15019,11 @@ blindFury =
        (Just [Macros.generic 2, Macros.pip Red, Macros.pip Red]) []
        (MkTypeLine [] [Instant])
        [ Spell (Sequentially
-                  [ Continuously
+                  [ Continuously {ts = StaticFirstDone}
                       (LosesAbilities (Macros.allOf Macros.creature)
                                       [LostWritten (KeywordAbility "Trample" Nothing Nothing)])
                       (Just Macros.untilEndOfTurn)
-                  , Continuously
+                  , Continuously {ts = StaticFirstDone}
                       (Scales CombatOnly (Macros.a Macros.creature)
                               (Macros.shieldingIt (Macros.a Macros.creature))
                               (Multiplied Doubled) Repeatedly)
@@ -15036,7 +15035,7 @@ public export
 shadowspearStrip : Ability
 shadowspearStrip =
   Macros.activated (Mana [Macros.generic 1])
-    (Continuously
+    (Continuously {ts = StaticFirstDone}
        (LosesAbilities
           (Macros.allOf (And [Permanent, HasPossessor ControllerAx (PlayerGroup YourOpponents)]))
           [ LostWritten (KeywordAbility "Hexproof" Nothing Nothing)
@@ -15048,7 +15047,7 @@ public export
 shayCormacStrip : Ability
 shayCormacStrip =
   Macros.activated (Mana [Macros.generic 1])
-    (Continuously
+    (Continuously {ts = StaticFirstDone}
        (LosesAbilities
           (Macros.allOf (And [Permanent, HasPossessor ControllerAx (PlayerGroup YourOpponents)]))
           [ LostWritten (KeywordAbility "Hexproof" Nothing Nothing)
@@ -15066,7 +15065,7 @@ shelkinBrownie =
        (Just [Macros.generic 1, Macros.pip Green]) []
        (MkTypeLine [creatureType "Ouphe"] [Creature])
        [ Macros.activated (Compound [TapSymbol])
-           (Continuously
+           (Continuously {ts = StaticFirstDone}
               (LosesAbilities (Macros.target Macros.creature)
                               [LostTerm bandsWithOtherAbilities])
               (Just Macros.untilEndOfTurn)) ]
@@ -15079,7 +15078,7 @@ tolaria =
   Macros.card "Tolaria" Nothing [Legendary] (MkTypeLine [] [Land])
        [ Macros.activated TapSymbol (AddMana You (Lit 1) (Runs [[OfColor Blue]]) [])
        , Activated (Compound [TapSymbol])
-           (Continuously
+           (Continuously {ts = StaticFirstDone}
               (LosesAbilities (Macros.target Macros.creature)
                               [ LostWritten (KeywordAbility "Banding" Nothing Nothing)
                               , LostTerm bandsWithOtherAbilities ])
@@ -15176,7 +15175,7 @@ battlegateMimic =
        [ Macros.triggered Whenever
            (Casts You (Macros.a (And [Macros.spell, ColorIs Red,
                                       ColorIs White])) Nothing)
-           (Continuously
+           (Continuously {ts = StaticFirstDone}
               (AndAlso [ HasBasePt Macros.thisCreature (Lit 4) (Lit 2)
                        , Gains Macros.thisCreature
                                (Macros.keyword "FirstStrike") ])
@@ -15810,7 +15809,7 @@ garrukRelentless =
                          , Macros.shuffle ])) Nothing))
                , Macros.activated (LoyaltySymbol (LoyaltyDown 3))
                    (Sequentially
-                      [ Continuously
+                      [ Continuously {ts = StaticFirstDone}
                           (AndAlso
                              [ Gains (Macros.allOf Macros.creatureYouControl)
                                      (Macros.keyword "Trample")

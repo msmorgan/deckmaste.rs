@@ -660,13 +660,13 @@ ownSubject n =
       {sp = appendAssociative (selfSubjDelta n) (nounDelta n) bs} {ok}
 
 public export
-sharedSubject : {0 k : Nat} -> (n : Noun bs Object) ->
+sharedSubject : {bs : Bindings} -> {0 k : Nat} -> (n : Noun bs Object) ->
                 (parts : StaticParts k (selfSubjIntro n)) ->
                 {auto 0 ne : IsSucc k} ->
                 (d : Maybe (Duration (partsIntro parts))) ->
                 {auto 0 sp : SpanOk Coordination d} ->
                 {auto 0 cl : ClauseStatic (SharedSubject n parts {ne})} -> Effect bs
-sharedSubject n parts d = Continuously (SharedSubject n parts {ne}) d {sp} {cl}
+sharedSubject {bs} n parts d = Continuously {bs} (SharedSubject n parts {ne}) d {sp} {cl}
 
 
 public export
@@ -712,16 +712,16 @@ untilYourNextEndStep : Duration bs
 untilYourNextEndStep = Until (StartOf EndStep (Just Yours))
 
 public export
-asLongAs : (c : Condition bs) -> (se : StaticEffect (condIntro c)) -> StaticEffect bs
-asLongAs c se = Conditionally c se AsLongAs
+asLongAs : {bs : Bindings} -> (c : Condition bs) -> (se : StaticEffect (condIntro c)) -> StaticEffect bs
+asLongAs {bs} c se = Conditionally {bs} c se AsLongAs
 
 public export
-unlessSo : (c : Condition bs) -> (se : StaticEffect (condIntro (NotCond c))) -> StaticEffect bs
-unlessSo c se = Conditionally (NotCond c) se Unless
+unlessSo : {bs : Bindings} -> (c : Condition bs) -> (se : StaticEffect (condIntro (NotCond c))) -> StaticEffect bs
+unlessSo {bs} c se = Conditionally {bs} (NotCond c) se Unless
 
 public export
-ifSo : (c : Condition bs) -> (se : StaticEffect (condIntro c)) -> StaticEffect bs
-ifSo c se = Conditionally c se IfSo
+ifSo : {bs : Bindings} -> (c : Condition bs) -> (se : StaticEffect (condIntro c)) -> StaticEffect bs
+ifSo {bs} c se = Conditionally {bs} c se IfSo
 
 public export
 entersTapped : (n : Noun bs Object) ->
@@ -738,26 +738,26 @@ entersWithCounters n amt kind =
   EntersRider n (WithCounters amt (PrintedKind kind) Fresh) {zn}
 
 public export
-gets : (n : Noun bs Object) -> (pow : PtShift (selfSubjIntro n)) ->
+gets : {bs : Bindings} -> (n : Noun bs Object) -> (pow : PtShift (selfSubjIntro n)) ->
        (tou : PtShift (shiftIntro pow)) ->
        {auto 0 ok : ZoneFits (nounZone n) (Just Battlefield)} ->
        (d : Maybe (Duration (staticIntro (Gets n pow tou {ok})))) ->
        {auto 0 sp : SpanOk PtDelta d} -> Effect bs
-gets n pow tou d = Continuously (Gets n pow tou {ok}) d {sp}
+gets {bs} n pow tou d = Continuously {bs} (Gets n pow tou {ok}) d {sp}
 
 public export
-gains : (n : Noun bs Object) -> (a : AbilityAt bs) ->
+gains : {bs : Bindings} -> (n : Noun bs Object) -> (a : AbilityAt bs) ->
         {auto 0 ok : GrantSubject a n} ->
         {auto 0 gr : Grantable a} ->
         (d : Maybe (Duration (staticIntro (Gains n a {ok} {gr})))) ->
         {auto 0 sp : SpanOk KeywordGrant d} -> Effect bs
-gains n a d = Continuously (Gains n a {ok} {gr}) d
+gains {bs} n a d = Continuously {bs} (Gains n a {ok} {gr}) d
 
 public export
-gainsHaste : (n : Noun bs Object) -> (d : Maybe (Duration (selfSubjIntro n))) ->
+gainsHaste : {bs : Bindings} -> (n : Noun bs Object) -> (d : Maybe (Duration (selfSubjIntro n))) ->
              {auto 0 ok : GrantSubject (KeywordAbility "Haste" Nothing Nothing) n} ->
              {auto 0 sp : SpanOk KeywordGrant d} -> Effect bs
-gainsHaste n d = gains n (KeywordAbility "Haste" Nothing Nothing) d
+gainsHaste {bs} n d = gains {bs} n (KeywordAbility "Haste" Nothing Nothing) d
 
 public export
 plusOnePlusOne : CounterKind
@@ -866,18 +866,18 @@ untapsDuring n w =
     {wk}
 
 public export
-cantAttack : (n : Noun bs Object) -> (span : Maybe (Duration (selfSubjIntro n))) ->
+cantAttack : {bs : Bindings} -> (n : Noun bs Object) -> (span : Maybe (Duration (selfSubjIntro n))) ->
              {auto 0 dp : DeedFits ["Attack"] Agent Object (nounHeadTys n) (nounZone n)} ->
              {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
-cantAttack n span =
-  Continuously (Deontic n Forbid ["Attack"] Agent Nothing NoDeonticPatient Nothing NoDeonticRider {dp}) span {sp}
+cantAttack {bs} n span =
+  Continuously {bs} (Deontic n Forbid ["Attack"] Agent Nothing NoDeonticPatient Nothing NoDeonticRider {dp}) span {sp}
 
 public export
-cantBlock : (n : Noun bs Object) -> (span : Maybe (Duration (selfSubjIntro n))) ->
+cantBlock : {bs : Bindings} -> (n : Noun bs Object) -> (span : Maybe (Duration (selfSubjIntro n))) ->
             {auto 0 dp : DeedFits ["Block"] Agent Object (nounHeadTys n) (nounZone n)} ->
             {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
-cantBlock n span =
-  Continuously (Deontic n Forbid ["Block"] Agent Nothing NoDeonticPatient Nothing NoDeonticRider {dp}) span {sp}
+cantBlock {bs} n span =
+  Continuously {bs} (Deontic n Forbid ["Block"] Agent Nothing NoDeonticPatient Nothing NoDeonticRider {dp}) span {sp}
 
 public export
 canDoAsThough : {k : Kind} -> (n : Noun bs k) -> (deed : VerbLabel) ->
@@ -954,11 +954,11 @@ canBeTargetedAsThough what by p =
           NoDeonticRider {dp}
 
 public export
-cantBeBlocked : (n : Noun bs Object) -> (span : Maybe (Duration (selfSubjIntro n))) ->
+cantBeBlocked : {bs : Bindings} -> (n : Noun bs Object) -> (span : Maybe (Duration (selfSubjIntro n))) ->
                 {auto 0 dp : DeedFits ["Block"] Patient Object (nounHeadTys n) (nounZone n)} ->
                 {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
-cantBeBlocked n span =
-  Continuously (Deontic n Forbid ["Block"] Patient Nothing NoDeonticPatient Nothing NoDeonticRider {dp}) span {sp}
+cantBeBlocked {bs} n span =
+  Continuously {bs} (Deontic n Forbid ["Block"] Patient Nothing NoDeonticPatient Nothing NoDeonticRider {dp}) span {sp}
 
 public export
 mustBlockIt : {bs : Bindings} -> (n : Noun bs Object) ->
@@ -984,11 +984,11 @@ attachToIt what = AttachTo what (ItOtherThan (nounDelta what) bs {ok}) {zw}
 
 
 public export
-gainControl : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
+gainControl : {bs : Bindings} -> (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
               {auto 0 zn : ZoneFits (nounZone what) (Just Battlefield)} ->
               (d : Maybe (Duration (staticIntro (GainsControl who what {zn})))) ->
               {auto 0 sp : SpanOk ControlGrant d} -> Effect bs
-gainControl who what d = Continuously (GainsControl who what {zn}) d {sp}
+gainControl {bs} who what d = Continuously {bs} (GainsControl who what {zn}) d {sp}
 
 public export
 losesLife : (who : Noun bs Player) -> Amount (nomIntro who) -> Effect bs
@@ -1046,25 +1046,25 @@ createTappedAttacking count tok =
          [EntersTapped, EntersAttacking NoDefender]
 
 public export
-becomesAs : (n : Noun bs Object) -> (added : TokenChars bs) ->
+becomesAs : {bs : Bindings} -> (n : Noun bs Object) -> (added : TokenChars bs) ->
             (d : Maybe (Duration (selfSubjIntro n))) ->
             {auto 0 ok : BecomesOk Adds n (Bundle added Nothing)} ->
             {auto 0 sp : SpanOk TypeAddition d} -> Effect bs
-becomesAs n added d = Continuously (Becomes n Adds (Bundle added Nothing) {ok}) d {sp}
+becomesAs {bs} n added d = Continuously {bs} (Becomes n Adds (Bundle added Nothing) {ok}) d {sp}
 
 public export
-becomes : (n : Noun bs Object) -> (added : TypeLine) ->
+becomes : {bs : Bindings} -> (n : Noun bs Object) -> (added : TypeLine) ->
           (d : Maybe (Duration (selfSubjIntro n))) ->
           {auto 0 ok : BecomesOk Adds n (Bundle (MkToken {bs} Nothing [] added [] Nothing) Nothing)} ->
           {auto 0 sp : SpanOk TypeAddition d} -> Effect bs
-becomes n added d = becomesAs n (MkToken Nothing [] added [] Nothing) d {ok} {sp}
+becomes {bs} n added d = becomesAs {bs} n (MkToken Nothing [] added [] Nothing) d {ok} {sp}
 
 public export
-becomesColor : (n : Noun bs Object) -> (cs : ColorSpec) ->
+becomesColor : {bs : Bindings} -> (n : Noun bs Object) -> (cs : ColorSpec) ->
                (d : Maybe (Duration (selfSubjIntro n))) ->
                {auto 0 ok : BecomesOk Sets n (Colored cs)} ->
                {auto 0 sp : SpanOk ColorSet d} -> Effect bs
-becomesColor n cs d = Continuously (Becomes n Sets (Colored cs) {ok}) d {sp}
+becomesColor {bs} n cs d = Continuously {bs} (Becomes n Sets (Colored cs) {ok}) d {sp}
 
 public export
 basicLandLine : (ss : List Subtype) -> {auto 0 bl : BasicLandTypes ss} -> TypeLine
@@ -1323,42 +1323,42 @@ lifeTotalBecomes who a = ChangeLife who (Set a)
 
 
 public export
-ifWouldInstead : (ev : GameEvent bs) -> (repl : Effect (eventIntro ev)) ->
+ifWouldInstead : {bs : Bindings} -> (ev : GameEvent bs) -> (repl : Effect (eventIntro ev)) ->
                  (d : Maybe (Duration (eventIntro ev))) ->
                  {auto 0 ok : Interceptable ev} ->
                  {auto 0 sp : SpanOk Replacement d} -> Effect bs
-ifWouldInstead ev repl d = Continuously (Intercepts ev [] Nothing repl Repeatedly Nothing {ok}) d {sp}
+ifWouldInstead {bs} ev repl d = Continuously {bs} (Intercepts ev [] Nothing repl Repeatedly Nothing {ok}) d {sp}
 
 public export
-nextTimeWouldInstead : (ev : GameEvent bs) -> (repl : Effect (eventIntro ev)) ->
+nextTimeWouldInstead : {bs : Bindings} -> (ev : GameEvent bs) -> (repl : Effect (eventIntro ev)) ->
                        (d : Maybe (Duration (eventIntro ev))) ->
                        {auto 0 ok : Interceptable ev} ->
                        {auto 0 sp : SpanOk Replacement d} -> Effect bs
-nextTimeWouldInstead ev repl d =
-  Continuously (Intercepts ev [] Nothing repl NextTimeOnly Nothing {ok}) d {sp}
+nextTimeWouldInstead {bs} ev repl d =
+  Continuously {bs} (Intercepts ev [] Nothing repl NextTimeOnly Nothing {ok}) d {sp}
 
 public export
-preventAll : (kind : DamageKind) -> (scope : DamageScope bs) ->
+preventAll : {bs : Bindings} -> (kind : DamageKind) -> (scope : DamageScope bs) ->
              (d : Maybe (Duration (scopeIntro scope))) ->
              {auto 0 sp : SpanOk Prevention d} -> Effect bs
-preventAll kind scope d =
-  Continuously (Prevents kind Unattributed scope CutAll Repeatedly Nothing) d {sp}
+preventAll {bs} kind scope d =
+  Continuously {bs} (Prevents kind Unattributed scope CutAll Repeatedly Nothing) d {sp}
 
 public export
-preventNext : (kind : DamageKind) -> (scope : DamageScope bs) ->
+preventNext : {bs : Bindings} -> (kind : DamageKind) -> (scope : DamageScope bs) ->
               (amt : Amount (scopeIntro scope)) ->
               (d : Maybe (Duration (amtIntro amt))) ->
               {auto 0 sp : SpanOk Prevention d} -> Effect bs
-preventNext kind scope amt d =
-  Continuously (Prevents kind Unattributed scope (Shield amt) Repeatedly Nothing) d {sp}
+preventNext {bs} kind scope amt d =
+  Continuously {bs} (Prevents kind Unattributed scope (Shield amt) Repeatedly Nothing) d {sp}
 
 public export
-preventAllBy : (kind : DamageKind) -> (src : Noun bs Object) ->
+preventAllBy : {bs : Bindings} -> (kind : DamageKind) -> (src : Noun bs Object) ->
                (scope : DamageScope (nomIntro src)) ->
                (d : Maybe (Duration (scopeIntro scope))) ->
                {auto 0 sp : SpanOk Prevention d} -> Effect bs
-preventAllBy kind src scope d =
-  Continuously (Prevents kind (DealtBy src) scope CutAll Repeatedly Nothing) d {sp}
+preventAllBy {bs} kind src scope d =
+  Continuously {bs} (Prevents kind (DealtBy src) scope CutAll Repeatedly Nothing) d {sp}
 
 public export
 shieldingIt : {k : Kind} -> (n : Noun bs k) ->
@@ -2516,16 +2516,22 @@ ifThen : (c : Condition bs) -> Effect (condIntro c) -> Effect bs
 ifThen c e = If c e Nothing
 
 public export
-onlyWhile : (se : StaticEffect bs) -> (c : Condition (staticIntro se)) -> StaticEffect bs
-onlyWhile se c = OnlyWhile se c AsLongAs
+onlyWhile : {bs : Bindings} -> (se : StaticEffect bs) -> (c : Condition (staticIntro se)) -> StaticEffect bs
+onlyWhile {bs} se c = Conditionally {bs} c se AsLongAs {st = Static.StaticFirstDone}
 
 public export
-onlyUnless : (se : StaticEffect bs) -> (c : Condition (staticIntro se)) -> StaticEffect bs
-onlyUnless se c = OnlyWhile se (NotCond c) Unless
+onlyUnless : {bs : Bindings} -> (se : StaticEffect bs) -> (c : Condition (staticIntro se)) -> StaticEffect bs
+onlyUnless {bs} se c = Conditionally {bs} (NotCond c) se Unless {st = Static.StaticFirstDone}
 
 public export
-onlyIfSo : (se : StaticEffect bs) -> (c : Condition (staticIntro se)) -> StaticEffect bs
-onlyIfSo se c = OnlyWhile se c IfSo
+onlyIfSo : {bs : Bindings} -> (se : StaticEffect bs) -> (c : Condition (staticIntro se)) -> StaticEffect bs
+onlyIfSo {bs} se c = Conditionally {bs} c se IfSo {st = Static.StaticFirstDone}
+
+public export
+throughout : {bs : Bindings} -> (span : Duration bs) -> (se : StaticEffect (spanIntro span)) ->
+             {auto 0 sp : SpanOk (staticKind se) (Just span)} ->
+             {auto 0 cl : ClauseStatic se} -> Effect bs
+throughout {bs} span se = Continuously {bs} se (Just span) {ts = SpanFirstDone} {sp} {cl}
 
 public export
 fromTo : Nat -> Nat -> Quantity bs

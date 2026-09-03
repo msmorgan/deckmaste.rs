@@ -1205,7 +1205,8 @@ public export
 onlyWhileThreadsPrefix : (bs : Bindings) -> (se : StaticEffect bs) ->
                          (c : Condition (staticIntro se)) ->
                          MarkingOk AsLongAs c -> StaticEffect bs
-onlyWhileThreadsPrefix bs se c mk = OnlyWhile se c AsLongAs {mk}
+onlyWhileThreadsPrefix bs se c mk =
+  Conditionally {bs} c se AsLongAs {st = Static.StaticFirstDone} {mk}
 
 public export
 thisWayThreadsPrefix : (bs : Bindings) -> (body : Effect bs) ->

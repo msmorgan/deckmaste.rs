@@ -50,7 +50,7 @@ badTheDamageUnannounced Oh impossible
 public export
 badTheDamageAfterLifeGain : Unspellable (Effect []) (\ok =>
   Sequentially [ ChangeLife You (Up (Lit 3))
-               , Continuously
+               , Continuously {ts = StaticFirstDone}
                    (CantPrevent AnyDamage (ThatDamage {ok}) NoPreventionOnly) Nothing ])
 badTheDamageAfterLifeGain Oh impossible
 
@@ -175,7 +175,7 @@ badStaticPlayerCantTargets Oh impossible
 
 public export
 badChosenBasicTypeOnCreature : Unspellable (Effect []) (\ok =>
-  Continuously (Becomes (Macros.target Macros.creature) Sets (ChosenQuality (OfYourChoice (SubtypeQ Land) (Just BasicTypesOnly)))
+  Continuously {ts = StaticFirstDone} (Becomes (Macros.target Macros.creature) Sets (ChosenQuality (OfYourChoice (SubtypeQ Land) (Just BasicTypesOnly)))
                                   {ok = ok})
                (Just Macros.untilEndOfTurn))
 badChosenBasicTypeOnCreature Oh impossible
@@ -402,7 +402,7 @@ badEveryBasicLandTypeOnCreature Oh impossible
 public export
 setsEveryBasicLandType : Effect []
 setsEveryBasicLandType =
-  Continuously (Becomes (Macros.target Macros.land) Sets (EveryTypeOf BasicLandSpace))
+  Continuously {ts = StaticFirstDone} (Becomes (Macros.target Macros.land) Sets (EveryTypeOf BasicLandSpace))
                (Just Macros.untilEndOfTurn)
 
 
@@ -410,7 +410,7 @@ setsEveryBasicLandType =
 public export
 losesChosenCreatureType : Effect []
 losesChosenCreatureType =
-  Continuously (Becomes (Macros.target Macros.creature) Loses
+  Continuously {ts = StaticFirstDone} (Becomes (Macros.target Macros.creature) Loses
                         (ChosenQuality (OfYourChoice (SubtypeQ Creature) Nothing)))
                (Just Macros.untilEndOfTurn)
 
@@ -419,7 +419,7 @@ losesChosenCreatureType =
 public export
 losesAllColors : Effect []
 losesAllColors =
-  Continuously (Becomes (Macros.target Macros.creature) Loses (Colored EveryColor))
+  Continuously {ts = StaticFirstDone} (Becomes (Macros.target Macros.creature) Loses (Colored EveryColor))
                (Just Macros.untilEndOfTurn)
 
 
@@ -543,7 +543,7 @@ badAddedCostLoyaltySymbol AddedPaymentWritten impossible
 ||| "You may sacrifice a Mountain rather than pay this spell's mana cost"
 public export
 badAltCostClause : Unspellable (Effect []) (\ok =>
-  Continuously (AltCost This (Just (Do (Macros.sacrifice You
+  Continuously {ts = StaticFirstDone} (AltCost This (Just (Do (Macros.sacrifice You
                   (Macros.a (And [Macros.land, HasSubtype (landType "Mountain")]))))))
                Nothing {cl = ok})
 badAltCostClause Oh impossible
