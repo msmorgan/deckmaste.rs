@@ -308,7 +308,7 @@ badEquipOnSorcery MkFaceLaws impossible
 ||| "each of up to two target creatures"
 public export
 okEachOfTargetGroup : Noun [] Object
-okEachOfTargetGroup = EachOf (Macros.targets (Macros.upTo 2) Macros.creature)
+okEachOfTargetGroup = EachOf (Described (TargetDet (Macros.upTo 2)) Macros.creature)
 
 ||| "each of one or more creatures"
 public export
@@ -390,7 +390,7 @@ okHeaderOwnTurnWindow : Ability
 okHeaderOwnTurnWindow =
   Triggered Whenever (Enters (Macros.a Macros.creature) Nothing) [] Nothing []
             (Just (DuringWindow Turn (Just You))) Nothing Nothing
-            (Macros.draw You (Lit 1))
+            (Draw You (Lit 1))
 
 ||| "Whenever a creature enters during the turn, draw a card."
 public export
@@ -423,7 +423,7 @@ okManyCounterBatchSize =
                            (Macros.a Macros.creatureYouControl) ManyCounters
                            Nothing False) [] Nothing
              (PutCounters (Plus ThatMuch (Lit 1))
-                          (PrintedKind Macros.plusOnePlusOne) It)
+                          (PrintedKind Macros.plusOnePlusOne) (Macros.It OneOf))
              Repeatedly Nothing
 
 public export
@@ -494,8 +494,8 @@ okFlatCoordination : StaticEffect []
 okFlatCoordination =
   AndAlso Nothing [ Gets Adds (Macros.target Macros.creature)
                          (PtUp (Lit 1)) (PtUp (Lit 1))
-                  , Gains It (KeywordAbility "Flying" Nothing Nothing)
-                  , Gains It (KeywordAbility "Trample" Nothing Nothing) ]
+                  , Gains (Macros.It OneOf) (KeywordAbility "Flying" Nothing Nothing)
+                  , Gains (Macros.It OneOf) (KeywordAbility "Trample" Nothing Nothing) ]
 
 ||| "Target creature gets +1/+1 and gains flying and gains trample."
 public export
@@ -528,7 +528,7 @@ okThatCreatureAfterAntecedent : Ability
 okThatCreatureAfterAntecedent =
   Triggered Whenever (Enters (Macros.a Macros.creature) Nothing) [] Nothing []
             Nothing Nothing Nothing
-            (Macros.destroy (That (TypeW Creature)))
+            (Macros.destroy (Macros.That (TypeW Creature) OneOf))
 
 ||| "This creature gets +1/+1 and that creature has flying."
 public export
@@ -545,7 +545,7 @@ okCoordinatedPlural =
   Static (AndAlso Nothing
             [ Gets Adds (Macros.allOf Macros.creatureYouControl)
                    (PtUp (Lit 1)) (PtUp (Lit 1))
-            , Gains Them (KeywordAbility "Flying" Nothing Nothing) ])
+            , Gains (Macros.It ManyOf) (KeywordAbility "Flying" Nothing Nothing) ])
 
 ||| "Enchanted creature gets +1/+1 and they have flying."
 public export
@@ -662,8 +662,8 @@ public export
 okTriggeredEmblem : Effect []
 okTriggeredEmblem =
   GetsEmblem You
-    [ Macros.triggered At (BeginningOf ThePart EndStep Macros.yours)
-                       (Macros.draw You (Lit 1)) ]
+    [ Macros.triggered At (BeginningOf ThePart EndStep (ByPlayer You))
+                       (Draw You (Lit 1)) ]
 
 ||| "You get an emblem with 'flying'."
 public export
@@ -779,7 +779,7 @@ okSetStatusOnBattlefield : Effect []
 okSetStatusOnBattlefield =
   Sequentially [Create You (Lit 1)
                        (TokenCopyOf (Macros.target Macros.creature) []) [],
-                SetStatus Untapped (That TokenW)]
+                SetStatus Untapped (Macros.That TokenW OneOf)]
 
 ||| "Copy target instant or sorcery spell. Untap that token."
 public export
@@ -803,7 +803,8 @@ public export
 okItAfterAntecedent : Effect []
 okItAfterAntecedent =
   Sequentially [ Macros.destroy (Macros.target Macros.creature)
-               , Macros.losesLife (Macros.controllerOf It) (Macros.powerOf It) ]
+               , Macros.losesLife (Macros.controllerOf (Macros.It OneOf))
+                                  (StatOf Power (Macros.It OneOf)) ]
 
 public export
 badOtherwiseReadsLeadingArm : Unspellable (Effect []) (\ok =>

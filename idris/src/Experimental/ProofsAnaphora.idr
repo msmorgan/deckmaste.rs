@@ -948,7 +948,7 @@ public export
 okItReadsTheOnlyBareSingular : Effect []
 okItReadsTheOnlyBareSingular =
   Sequentially [Macros.exile You (Macros.target Macros.artifact),
-                Macros.draw You (StatOf Power It)]
+                Draw You (StatOf Power (Macros.It OneOf))]
 
 public export
 badItAcrossOwnSlot : Unspellable (Effect []) (\ok =>
@@ -1289,7 +1289,7 @@ public export
 okTheVerbedAfterSingularDiscard : Effect []
 okTheVerbedAfterSingularDiscard =
   Sequentially [ Macros.discard You (Macros.a (InZone Macros.handZ))
-               , Macros.exile You (Macros.theVerbed "Discard" CardW) ]
+               , Macros.exile You (Macros.TheVerbed "Discard" CardW Attributive OneOf) ]
 
 ||| "Each opponent discards a card. Exile that card."
 public export
@@ -1310,7 +1310,7 @@ public export
 okThatAfterSingularDiscard : Effect []
 okThatAfterSingularDiscard =
   Simultaneously [ Macros.discard You (Macros.a (InZone Macros.handZ))
-                 , Macros.exile You (Macros.That CardW) ]
+                 , Macros.exile You (Macros.That CardW OneOf) ]
 
 ||| "Each opponent discards a card. Simultaneously, exile that card."
 public export

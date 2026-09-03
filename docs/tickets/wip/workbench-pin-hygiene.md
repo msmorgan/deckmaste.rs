@@ -76,6 +76,8 @@ record gives the twin count before and after. Standard constraints apply.
 - **Not done:** §1 (flip-risk ranking) and the `Totals` table still name
   `Experimental.idr`; both are outside N9's and this ticket's scope and are
   labelled snapshots.
+- **Merged onto the landed macro and axis rounds.** `workbench-macro-discipline-2` and `workbench-axis-pairs` landed beneath this round, so the twins were re-spelled to the surface they left — 117 lines over the eight `Proofs*` modules carrying 87 re-spellings: 36 pronoun reads onto the new plurality argument (`It`/`Them`, `That`/`Those`, `TheVerbed`/`theVerbed`), 25 deleted forwarders onto their core terms (`powerOf` → `StatOf Power`, `counterSpell` → `CounterSpell`, `insteadOf` → `InsteadOf`, `thisTurn` → `ThisTurn`, `shieldingIt` → `ToRecipient`, `yours` → `ByPlayer You`, `theTotal` → `TheOutcome RollResult`), and 26 collapsed arity families (`targets q` → `Described (TargetDet q)`, `topCard`/`topCards` → `topSlice (Lit n)`, `oneOf` → `someOf (exactly 1)`, `nForEach`/`forEach` → `forEach n p`, `searchLibraryFor` gaining its quantity, `manyCounterEvent` → `counterEvent … ManyCounters`).
+- Each twin keeps its pin's own head constructor at its own slot, so every module's definition set is unchanged across the merge (115 / 174 / 97 / 110 / 107 / 111 / 113 / 290 top-level definitions before and after); no pin, twin or docstring was deleted or weakened and no deleted macro or constructor was resurrected. Three re-spelled twins were re-probed by mutating them back to their pin's rejected argument — `ProofsAnaphora.okThatAfterSingularDiscard`, `ProofsE.okManyCounterBatchSize` and `Proofs.okIt` — and each reproduced its pin's own refusal before being restored.
 
 ## Landing record
 

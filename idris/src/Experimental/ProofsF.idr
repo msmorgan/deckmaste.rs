@@ -39,7 +39,7 @@ badPreventDealtToArtifact ObjectTakes impossible
 public export
 okRedirectToSingleCreature : StaticEffect []
 okRedirectToSingleCreature =
-  DamageRule AnyDamage Unattributed (Macros.shieldingIt You)
+  DamageRule AnyDamage Unattributed (ToRecipient You)
              (Redirect CutAll (Macros.target (And [Macros.creature, Attacking])))
              Repeatedly
 
@@ -88,7 +88,7 @@ badTheDamageAfterLifeGain Oh impossible
 public export
 okPreventedFromSourceAnnounced : StaticEffect []
 okPreventedFromSourceAnnounced =
-  DamageRule AnyDamage Unattributed (Macros.shieldingIt You)
+  DamageRule AnyDamage Unattributed (ToRecipient You)
              (Prevent CutAll
                 (Just (If (PreventedFromSource (And [Macros.source, ColorIs Red]))
                           (Macros.gainsLife You (Lit 3)) Nothing)))
@@ -107,7 +107,7 @@ badPreventedFromSourceUnannounced Refl impossible
 public export
 okPreventedThisWayAnnounced : StaticEffect []
 okPreventedThisWayAnnounced =
-  DamageRule AnyDamage Unattributed (Macros.shieldingIt You)
+  DamageRule AnyDamage Unattributed (ToRecipient You)
              (Prevent CutAll (Just (Macros.gainsLife You Macros.preventedThisWay)))
              Repeatedly
 
@@ -152,7 +152,7 @@ badShieldSizedByItsOwnPrevention Refl impossible
 public export
 okShieldRepeatedly : StaticEffect []
 okShieldRepeatedly =
-  DamageRule AnyDamage Unattributed (Macros.shieldingIt You)
+  DamageRule AnyDamage Unattributed (ToRecipient You)
              (Prevent (Shield (Lit 3)) Nothing) Repeatedly
 
 
@@ -274,9 +274,10 @@ public export
 okThatCreatureAfterDamage : Effect []
 okThatCreatureAfterDamage =
   Sequentially [ DealDamage Macros.thisCreature
-                            (Macros.powerOf Macros.thisCreature)
+                            (StatOf Power Macros.thisCreature)
                             (Macros.target Macros.creature)
-               , DealDamage (That (TypeW Creature)) (Macros.powerOf It)
+               , DealDamage (Macros.That (TypeW Creature) OneOf)
+                            (StatOf Power (Macros.It OneOf))
                             Macros.thisCreature ]
 
 
@@ -409,7 +410,7 @@ okNameMatchAfterChooser =
        [ Static (EntersChoice Macros.thisEnchantment (QSort CardName) Nothing
                               Openly)
        , Activated (Mana [Macros.pip Blue])
-                   (Macros.counterSpell
+                   (CounterSpell
                       (Macros.target (And [Macros.spell, Named ChosenName])))
                    Nothing Nothing Nothing Nothing ]
        Nothing
@@ -488,11 +489,11 @@ okChapterOnSaga =
   Macros.card "" (Just [Macros.pip White]) []
        (MkTypeLine [enchantmentType "Saga"] [Enchantment])
        [ Macros.triggered When (ChapterMark [ChapterI])
-           (Macros.draw You (Lit 1))
+           (Draw You (Lit 1))
        , Macros.triggered When (ChapterMark [ChapterII])
-           (Macros.draw You (Lit 1))
+           (Draw You (Lit 1))
        , Macros.triggered When (ChapterMark [ChapterIII])
-           (Macros.draw You (Lit 1)) ]
+           (Draw You (Lit 1)) ]
        Nothing
 
 
@@ -509,7 +510,7 @@ public export
 okChapterMark : Ability
 okChapterMark =
   Triggered When (ChapterMark [ChapterI]) [] Nothing [] Nothing Nothing Nothing
-    (Macros.draw You (Lit 1))
+    (Draw You (Lit 1))
 
 
 ||| "— Draw a card."
@@ -531,7 +532,7 @@ public export
 okTriggerLimitOffChapter : Ability
 okTriggerLimitOffChapter =
   Triggered Whenever (Draws You) [] Nothing [] Nothing (Just OncePerTurn) Nothing
-    (Macros.draw You (Lit 1))
+    (Draw You (Lit 1))
 
 
 ||| "I — Draw a card. This ability triggers only once each turn."
@@ -554,7 +555,7 @@ badChapterIntervening Oh impossible
 public export
 okActivatedTurnLimit : Ability
 okActivatedTurnLimit =
-  Activated TapSymbol (Macros.draw You (Lit 1)) Nothing (Just OncePerTurn) Nothing
+  Activated TapSymbol (Draw You (Lit 1)) Nothing (Just OncePerTurn) Nothing
             Nothing
 
 
@@ -874,7 +875,7 @@ okLastChosenAfterChooser =
        , Static (DamageRule AnyDamage
                    (DealtBy (Macros.allOf (And [Macros.source,
                                                 OfTheLastChosen Color])))
-                   (Macros.shieldingIt You) (Prevent CutAll Nothing) Repeatedly) ]
+                   (ToRecipient You) (Prevent CutAll Nothing) Repeatedly) ]
        Nothing
 
 

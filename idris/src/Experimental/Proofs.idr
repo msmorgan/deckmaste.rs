@@ -41,7 +41,7 @@ public export
 okSinglePower : Effect []
 okSinglePower =
   Sequentially [Choose (Macros.target Macros.creature) Nothing Openly,
-                Macros.gainsLife You (Macros.powerOf It)]
+                Macros.gainsLife You (StatOf Power (Macros.It OneOf))]
 
 ||| "Choose two target creatures. You gain life equal to their power."
 public export
@@ -56,7 +56,7 @@ public export
 okSingleOwner : Effect []
 okSingleOwner =
   Sequentially [Choose (Macros.target Macros.creature) Nothing Openly,
-                Macros.losesLife (Macros.ownerOf It) (Lit 1)]
+                Macros.losesLife (Macros.ownerOf (Macros.It OneOf)) (Lit 1)]
 
 ||| "Choose two target creatures. Their owner loses 1 life."
 public export
@@ -95,7 +95,7 @@ badControlledByGroup Oh impossible
 ||| "each of up to two target creatures"
 public export
 okEachOfGroup : Noun [] Object
-okEachOfGroup = EachOf (Macros.targets (Macros.upTo 2) Macros.creature)
+okEachOfGroup = EachOf (Described (TargetDet (Macros.upTo 2)) Macros.creature)
 
 ||| "each of target creature"
 public export
@@ -123,7 +123,7 @@ public export
 okCastsSingularComplement : Ability
 okCastsSingularComplement =
   Triggered Whenever (Casts You (Macros.a Macros.spell) Nothing) [] Nothing []
-            Nothing Nothing Nothing (Macros.draw You (Lit 1))
+            Nothing Nothing Nothing (Draw You (Lit 1))
 
 ||| "Whenever you cast all spells, draw a card."
 public export
@@ -139,7 +139,7 @@ okThatPlayer : Effect []
 okThatPlayer =
   Sequentially [SetStatus Tapped (Macros.target (And [Macros.creature,
                   HasPossessor ControllerAx Macros.anOpponent])),
-                Macros.losesLife (That PlayerW) (Lit 1)]
+                Macros.losesLife (Macros.That PlayerW OneOf) (Lit 1)]
 
 public export
 badDisjunctAntecedent : Unspellable (Effect []) (\ok =>
@@ -204,7 +204,7 @@ public export
 okIt : Effect []
 okIt =
   Sequentially [SetStatus Tapped (Macros.target Macros.creature),
-                Macros.gets It (PtDown (Lit 1)) (PtDown (Lit 1))
+                Macros.gets (Macros.It OneOf) (PtDown (Lit 1)) (PtDown (Lit 1))
                             (Just Macros.untilEndOfTurn)]
 
 ||| "Target creature fights target creature. Tap it."
@@ -312,9 +312,9 @@ badChosenCounterKindRead Oh impossible
 public export
 okThem : Effect []
 okThem =
-  Sequentially [Choose (Macros.targets (Macros.exactly 2) Macros.creature)
+  Sequentially [Choose (Described (TargetDet (Macros.exactly 2)) Macros.creature)
                        Nothing Openly,
-                SetStatus Tapped Them]
+                SetStatus Tapped (Macros.It ManyOf)]
 
 ||| "Choose two target creatures. Choose two target creatures. Tap them."
 public export
@@ -338,7 +338,7 @@ public export
 okVerbedDiscardedCard : Ability
 okVerbedDiscardedCard =
   Activated (Do (Macros.discard You (Macros.a (InZone Macros.handZ))))
-            (Move (TheVerbed "Discard" CardW Attributive)
+            (Move (Macros.TheVerbed "Discard" CardW Attributive OneOf)
                   Macros.battlefieldZ [])
             Nothing Nothing Nothing Nothing
 
@@ -485,7 +485,7 @@ public export
 okDiesBattlefield : Effect []
 okDiesBattlefield =
   Delayed (Dies (Macros.target Macros.creature)) [] (Just ThisTurn)
-          (Move (That CardW) Macros.battlefieldZ [])
+          (Move (Macros.That CardW OneOf) Macros.battlefieldZ [])
 
 public export
 badDiesInGraveyard : Unspellable (Effect []) (\ok =>
@@ -644,7 +644,7 @@ badUnknownVerbLabel Oh impossible
 public export
 okTwoGroup : Effect []
 okTwoGroup =
-  Choose (Macros.targets (Macros.exactly 2) Macros.creature) Nothing Openly
+  Choose (Described (TargetDet (Macros.exactly 2)) Macros.creature) Nothing Openly
 
 ||| "Choose zero target creatures."
 public export
@@ -693,8 +693,8 @@ public export
 okThatMuchBound : Effect []
 okThatMuchBound =
   Sequentially [Macros.losesLife (Macros.target Opponent)
-                  (Macros.forEach (And [Attacking, Macros.creature,
-                                        HasPossessor ControllerAx You])),
+                  (Macros.forEach 1 (And [Attacking, Macros.creature,
+                                          HasPossessor ControllerAx You])),
                 Macros.gainsLife You ThatMuch]
 
 ||| "This deals that much damage to any target."
@@ -715,7 +715,7 @@ badThatMuchAmbig Refl impossible
 ||| "1 life for each creature"
 public export
 okForEachOne : Amount []
-okForEachOne = Macros.nForEach 1 Macros.creature
+okForEachOne = Macros.forEach 1 Macros.creature
 
 ||| "1 life for each 0 creatures"
 public export
@@ -826,7 +826,7 @@ okWhileDoingCast =
   Triggered Whenever (Macros.attacks Macros.thisCreature) []
             (Just (WhileDoing (Casts You (Macros.a Macros.spell) Nothing)))
             [] Nothing Nothing Nothing
-            (Macros.draw You (Lit 1))
+            (Draw You (Lit 1))
 
 ||| "Whenever this creature attacks while a creature is dying, draw a card."
 public export

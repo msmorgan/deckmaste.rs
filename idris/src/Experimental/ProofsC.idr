@@ -16,7 +16,7 @@ okCreatedThenCountered =
   Sequentially [Create You (Lit 1)
                        (TokenWritten
                           (Macros.creatureTok 1 1 [Green] [creatureType "Plant"])) [],
-                PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) It]
+                PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) (Macros.It OneOf)]
 
 
 public export
@@ -30,7 +30,7 @@ badDistributedCreationIt Refl impossible
 ||| "each of up to two target creatures"
 public export
 okEachOfTargetGroup : Noun [] Object
-okEachOfTargetGroup = EachOf (Macros.targets (Macros.upTo 2) Macros.creature)
+okEachOfTargetGroup = EachOf (Described (TargetDet (Macros.upTo 2)) Macros.creature)
 
 
 ||| "each of each creature"
@@ -59,7 +59,7 @@ public export
 okDistributedCounterRecipient : Effect []
 okDistributedCounterRecipient =
   PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
-              (EachOf (Macros.targets (Macros.upTo 2) Macros.creature))
+              (EachOf (Described (TargetDet (Macros.upTo 2)) Macros.creature))
 
 
 ||| "Put a +1/+1 counter on up to two target creatures."
@@ -74,7 +74,7 @@ public export
 okDistributedDamageRecipient : Effect []
 okDistributedDamageRecipient =
   DealDamage This (Lit 1)
-             (EachOf (Macros.targets (Macros.upTo 2) Macros.creature))
+             (EachOf (Described (TargetDet (Macros.upTo 2)) Macros.creature))
 
 
 ||| "This deals 1 damage to up to two target creatures."
@@ -97,7 +97,7 @@ public export
 okDivideAmongTargets : Effect []
 okDivideAmongTargets =
   Macros.dealsDivided This (Lit 2)
-                      (Macros.targets (Macros.oneThrough 2) Macros.creature)
+                      (Described (TargetDet (Macros.oneThrough 2)) Macros.creature)
 
 
 ||| "This deals 2 damage divided as you choose among each creature."
@@ -125,8 +125,8 @@ badMoveToBareLibrary BattlefieldOk impossible
 public export
 okPluralOrderRider : Effect []
 okPluralOrderRider =
-  Sequentially [Macros.revealCards (Macros.topCards 4),
-                Move (Those CardW) (Macros.onBottomIn AnyOrder) []]
+  Sequentially [Macros.revealCards (Macros.topSlice (Lit 4)),
+                Move (Macros.That CardW ManyOf) (Macros.onBottomIn AnyOrder) []]
 
 
 public export
@@ -139,8 +139,8 @@ badSingularOrderRider Oh impossible
 public export
 okRestAfterPart : Effect []
 okRestAfterPart =
-  Sequentially [ Macros.lookAt (Macros.topCards 4)
-               , Move (Macros.oneOf Them) Macros.handZ []
+  Sequentially [ Macros.lookAt (Macros.topSlice (Lit 4))
+               , Move (Macros.someOf (Macros.exactly 1) (Macros.It ManyOf)) Macros.handZ []
                , Move Macros.theRest Macros.graveyardZ []
                ]
 
@@ -181,8 +181,8 @@ badRestOverTwoAnnouncements Oh impossible
 public export
 okAgentChoiceOfSome : Effect []
 okAgentChoiceOfSome =
-  Sequentially [Macros.lookAt (Macros.topCards 4),
-                Choose (Macros.oneOf Them) (Just You) Openly]
+  Sequentially [Macros.lookAt (Macros.topSlice (Lit 4)),
+                Choose (Macros.someOf (Macros.exactly 1) (Macros.It ManyOf)) (Just You) Openly]
 
 
 ||| "Look at the top four cards of your library. Choose one of them."
@@ -209,8 +209,8 @@ badTapLibraryTop Oh impossible
 public export
 okSliceCardRead : Effect []
 okSliceCardRead =
-  Sequentially [Macros.lookAt (Macros.topCards 4),
-                Move (Those CardW) Macros.handZ []]
+  Sequentially [Macros.lookAt (Macros.topSlice (Lit 4)),
+                Move (Macros.That CardW ManyOf) Macros.handZ []]
 
 
 public export
@@ -235,7 +235,7 @@ badRevealGraveyard Oh impossible
 ||| "Search your library for a creature card."
 public export
 okSearchZoneFreeDescription : Effect []
-okSearchZoneFreeDescription = Macros.searchLibraryFor Macros.creature
+okSearchZoneFreeDescription = Macros.searchLibraryFor (Macros.exactly 1) Macros.creature
 
 
 ||| "Search your library for a creature card in a graveyard."
@@ -258,7 +258,7 @@ public export
 okPartitiveOfTargetGroup : Effect []
 okPartitiveOfTargetGroup =
   Macros.exile You (SomeOf (CountedSlice (Macros.exactly 1)) Nothing
-                           (Macros.targets (Macros.upTo 2) Macros.creature))
+                           (Described (TargetDet (Macros.upTo 2)) Macros.creature))
 
 
 ||| "one of a creature you control"
@@ -272,8 +272,8 @@ badPartitiveOfDescription Oh impossible
 public export
 okPartitiveOfThem : Effect []
 okPartitiveOfThem =
-  Sequentially [Macros.lookAt (Macros.topCards 4),
-                Macros.exile You (Macros.oneOf Them)]
+  Sequentially [Macros.lookAt (Macros.topSlice (Lit 4)),
+                Macros.exile You (Macros.someOf (Macros.exactly 1) (Macros.It ManyOf))]
 
 
 ||| "two of one of them"
@@ -298,7 +298,7 @@ public export
 okWouldDieOnBattlefield : Effect []
 okWouldDieOnBattlefield =
   Macros.ifWouldInstead (Dies (Macros.target Macros.creatureYouControl))
-                 (Macros.exile You It) (Just Macros.thisTurn)
+                 (Macros.exile You (Macros.It OneOf)) (Just ThisTurn)
 
 
 public export
@@ -328,8 +328,8 @@ badInterceptReplacementAntecedent (Refl, _) impossible
 public export
 okSingularCardRetag : Effect []
 okSingularCardRetag =
-  Sequentially [ Macros.revealCards Macros.topCard
-               , Move (That CardW) Macros.handZ []
+  Sequentially [ Macros.revealCards (Macros.topSlice (Lit 1))
+               , Move (Macros.That CardW OneOf) Macros.handZ []
                ]
 
 
@@ -345,7 +345,7 @@ badHeldUntilExileRetag Refl impossible
 public export
 okFlatInstead : Effect []
 okFlatInstead =
-  Macros.insteadOf (Macros.draw You (Lit 1)) (Macros.draw You (Lit 2))
+  InsteadOf (Draw You (Lit 1)) (Draw You (Lit 2))
 
 
 public export
@@ -359,7 +359,7 @@ public export
 okSacrificeAsCost : Ability
 okSacrificeAsCost =
   Activated (Do (Macros.sacrifice You (Macros.a Macros.creature)))
-            (Macros.draw You (Lit 1)) Nothing Nothing Nothing Nothing
+            (Draw You (Lit 1)) Nothing Nothing Nothing Nothing
 
 
 ||| "Sacrifice a creature, Exile the sacrificed card: Draw a card."
@@ -375,7 +375,7 @@ badCostReadsSiblingDeed Oh impossible
 public export
 okOwnPayerCost : Ability
 okOwnPayerCost =
-  Activated (Macros.payLife You 2) (Macros.draw You (Lit 1))
+  Activated (Macros.payLife You 2) (Draw You (Lit 1))
             Nothing Nothing Nothing Nothing
 
 
@@ -398,7 +398,7 @@ public export
 okMatchedPayer : Effect []
 okMatchedPayer =
   (May You (Pay You (Macros.payLife You 1) PaidOnce) Nothing
-       (Just (Macros.draw You (Lit 1))))
+       (Just (Draw You (Lit 1))))
 
 
 ||| "you pay"
@@ -522,7 +522,7 @@ public export
 okSingleTapCost : Ability
 okSingleTapCost =
   Activated (Compound [Mana [Macros.generic 1], TapSymbol])
-            (Macros.draw You (Lit 1)) Nothing Nothing Nothing Nothing
+            (Draw You (Lit 1)) Nothing Nothing Nothing Nothing
 
 
 ||| "{T}, {T}: Draw a card."
@@ -536,7 +536,7 @@ badDoubleTapCost Oh impossible
 public export
 okNonEmptyManaCost : Ability
 okNonEmptyManaCost =
-  Activated (Mana [Macros.generic 1]) (Macros.draw You (Lit 1))
+  Activated (Mana [Macros.generic 1]) (Draw You (Lit 1))
             Nothing Nothing Nothing Nothing
 
 
@@ -584,8 +584,8 @@ badIfNotReadsMandatoryBody Refl impossible
 public export
 okUnlessManaCost : Effect []
 okUnlessManaCost =
-  Unless (Macros.counterSpell (Macros.target Macros.spell))
-         (Macros.controllerOf It) (Mana [Macros.generic 3])
+  Unless (CounterSpell (Macros.target Macros.spell))
+         (Macros.controllerOf (Macros.It OneOf)) (Mana [Macros.generic 3])
 
 
 ||| "Counter target spell unless its controller taps."
@@ -600,7 +600,7 @@ public export
 okNontargetDeathHeader : Ability
 okNontargetDeathHeader =
   Triggered Whenever (Dies (Macros.a Macros.creature)) [] Nothing []
-            Nothing Nothing Nothing (Macros.draw You (Lit 1))
+            Nothing Nothing Nothing (Draw You (Lit 1))
 
 
 ||| "Whenever target creature dies, draw a card."
@@ -614,8 +614,8 @@ badTargetedDeathHeader Oh impossible
 public export
 okTriggerAtYourUpkeep : Ability
 okTriggerAtYourUpkeep =
-  Triggered At (BeginningOf ThePart Upkeep (Macros.yours)) [] Nothing []
-            Nothing Nothing Nothing (Macros.draw You (Lit 1))
+  Triggered At (BeginningOf ThePart Upkeep (ByPlayer You)) [] Nothing []
+            Nothing Nothing Nothing (Draw You (Lit 1))
 
 
 ||| "At the beginning of your turn, draw a card."
@@ -663,7 +663,7 @@ okPlayFromGraveyard =
                (Deontic You Permit ["Play"] Agent Nothing
                   (DeonticCounterpart (Macros.a (InZone Macros.graveyardZ)))
                   Nothing (PlayRider Nothing Nothing Nothing False ItsOwnCost))
-               (Just Macros.thisTurn)
+               (Just ThisTurn)
 
 
 ||| "You may play a creature this turn."
@@ -697,7 +697,7 @@ public export
 okReflexiveOnSacrifice : Effect []
 okReflexiveOnSacrifice =
   Reflexively (Macros.sacrifice You (Macros.a Macros.creature))
-              (Macros.draw You (Lit 1))
+              (Draw You (Lit 1))
 
 
 ||| "This creature deals 3 damage to any target. When you do, draw a card."
@@ -732,7 +732,7 @@ public export
 okThisWayOnRegenerate : Effect []
 okThisWayOnRegenerate =
   ThisWay (Regenerate Macros.thisCreature) (Regenerates Macros.thisCreature)
-          (Macros.draw You (Lit 1))
+          (Draw You (Lit 1))
 
 
 public export

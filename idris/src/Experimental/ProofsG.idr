@@ -16,7 +16,7 @@ okUnionAnaphorAfterJoin : Effect []
 okUnionAnaphorAfterJoin =
   Sequentially [ DealDamage This (Lit 3)
                    (Macros.target (Macros.kindJoin AnyPlayer Macros.creature))
-               , DealDamage This (Lit 1) (That JoinW) ]
+               , DealDamage This (Lit 1) (Macros.That JoinW OneOf) ]
 
 ||| "This deals 3 damage to that permanent or player."
 public export
@@ -432,8 +432,8 @@ badUnlessConjunction MkMarkingOk impossible
 public export
 okForEachScaledMana : Cost []
 okForEachScaledMana =
-  ScaledMana GenericUnit (Macros.forEach (And [Macros.artifact,
-                                               HasPossessor ControllerAx You]))
+  ScaledMana GenericUnit (Macros.forEach 1 (And [Macros.artifact,
+                                                 HasPossessor ControllerAx You]))
 
 ||| "Counter target spell unless its controller pays {2}."
 ||| Refused as ScaledMana; Mana [Macros.generic 2] spells the flat cost.
@@ -507,7 +507,7 @@ public export
 okSingularPartPossessor : Ability
 okSingularPartPossessor =
   Triggered At (BeginningOf ThePart Upkeep (ByPlayer You)) [] Nothing []
-           Nothing Nothing Nothing (Macros.draw You (Lit 1))
+           Nothing Nothing Nothing (Draw You (Lit 1))
 
 ||| "At the beginning of all players' upkeep, draw a card." [CR#102.1]
 public export
@@ -694,8 +694,8 @@ public export
 okThatMuchAfterQuantity : Effect []
 okThatMuchAfterQuantity =
   Sequentially [ Macros.losesLife (Macros.target Opponent)
-                   (Macros.forEach (And [Attacking, Macros.creature,
-                                         HasPossessor ControllerAx You]))
+                   (Macros.forEach 1 (And [Attacking, Macros.creature,
+                                           HasPossessor ControllerAx You]))
                , Macros.gainsLife You ThatMuch ]
 
 ||| "Flip a coin. Draw that many cards."
@@ -723,7 +723,7 @@ okResultsTableAfterRoll : Effect []
 okResultsTableAfterRoll =
   Sequentially [ (Macros.rollDice You 1 20)
                , ResultsTable [MkRollRow (Macros.fromTo 1 9)
-                                         (Macros.draw You (Lit 1))] ]
+                                         (Draw You (Lit 1))] ]
 
 ||| "1—9 | Draw a card."
 public export
@@ -1004,7 +1004,7 @@ public export
 okTotalAfterRoll : Effect []
 okTotalAfterRoll =
   Sequentially [ (Macros.rollDice You 2 6)
-               , Macros.ifThen (CompareAmt Macros.theTotal Eq (Lit 7))
+               , Macros.ifThen (CompareAmt (TheOutcome RollResult) Eq (Lit 7))
                                (Macros.sacrifice You Macros.thisCreature) ]
 
 ||| "If you rolled 7, sacrifice this creature."
@@ -1680,7 +1680,7 @@ afterALandTapForMana =
 ||| "one mana of any type that land produced"
 public export
 okProducedByTapEvent : ProducedMana ProofsG.afterALandTapForMana
-okProducedByTapEvent = ProducedByEvent (That (TypeW Land))
+okProducedByTapEvent = ProducedByEvent (Macros.That (TypeW Land) OneOf)
 
 ||| "Add one mana of any type that land produced"
 public export
@@ -1763,7 +1763,7 @@ public export
 okOnePileAfterPartition : Effect []
 okOnePileAfterPartition =
   Sequentially [ Macros.revealCards (Macros.topSlice (Lit 5))
-               , SeparateIntoPiles Macros.anOpponent Them 2 []
+               , SeparateIntoPiles Macros.anOpponent (Macros.It ManyOf) 2 []
                , Macros.move Macros.onePile Macros.handZ ]
 
 ||| "Put one pile into your hand."
@@ -1780,7 +1780,7 @@ okMembershipInAPile =
   Macros.card "" Nothing [] (MkTypeLine [] [Instant])
        [ Spell (Sequentially
                   [ Macros.revealCards (Macros.topSlice (Lit 5))
-                  , SeparateIntoPiles Macros.anOpponent Them 2 []
+                  , SeparateIntoPiles Macros.anOpponent (Macros.It ManyOf) 2 []
                   , Macros.move (Macros.allOf (And [IsCard,
                                     InPile (Macros.pileOfChoice You)]))
                                 Macros.handZ ]) ]
@@ -1821,11 +1821,11 @@ badPileFaceAsAStatus Oh impossible
 public export
 okInterceptsCounterEvent : StaticEffect []
 okInterceptsCounterEvent =
-  Intercepts (Macros.manyCounterEvent CounterPut Macros.plusOnePlusOne
-                                      (Macros.a Macros.creatureYouControl))
+  Intercepts (Macros.counterEvent CounterPut Macros.plusOnePlusOne ManyCounters
+                                  (Macros.a Macros.creatureYouControl))
              [] Nothing
              (PutCounters (Plus ThatMuch (Lit 1))
-                          (PrintedKind Macros.plusOnePlusOne) It)
+                          (PrintedKind Macros.plusOnePlusOne) (Macros.It OneOf))
              Repeatedly Nothing
 
 public export
@@ -1860,7 +1860,7 @@ public export
 okUnlockRoomDoor : Effect []
 okUnlockRoomDoor =
   Unlock (DoorOf (Just Locked)
-            (Macros.targets (Macros.upTo 1)
+            (Described (TargetDet (Macros.upTo 1))
                (And [HasSubtype (enchantmentType "Room"),
                      HasPossessor ControllerAx You])))
 
@@ -1902,7 +1902,7 @@ public export
 okIfDoneWithArm : Effect []
 okIfDoneWithArm =
   IfDone (Macros.sacrifice You (Macros.a Macros.creature))
-         (Just (Macros.draw You (Lit 1))) Nothing
+         (Just (Draw You (Lit 1))) Nothing
 
 ||| "Sacrifice a creature."
 public export

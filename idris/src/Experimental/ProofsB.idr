@@ -62,7 +62,7 @@ badControlledInGraveyard Oh impossible
 public export
 okNonEmptySequence : Effect []
 okNonEmptySequence =
-  Sequentially [Macros.draw You (Lit 1), Macros.gainsLife You (Lit 1)]
+  Sequentially [Draw You (Lit 1), Macros.gainsLife You (Lit 1)]
 
 ||| an empty sentence list
 public export
@@ -78,7 +78,7 @@ public export
 okDestroyDamagedCreature : Effect []
 okDestroyDamagedCreature =
   Sequentially [DealDamage This (Lit 3) (Macros.target Macros.creature),
-                Macros.destroy It]
+                Macros.destroy (Macros.It OneOf)]
 
 ||| "This deals 3 damage to any target. Destroy it."
 public export
@@ -204,7 +204,7 @@ badBlockedAndUnblocked Oh impossible
 ||| "between two and three target creatures"
 public export
 okAscendingRange : Noun [] Object
-okAscendingRange = Macros.targets (Range (Just 2) (Just 3)) Macros.creature
+okAscendingRange = Described (TargetDet (Range (Just 2) (Just 3))) Macros.creature
 
 ||| "between three and two target creatures"
 public export
@@ -231,7 +231,7 @@ badRepeatedStructuredDisjunct Oh impossible
 public export
 okCantAttackCreature : Effect []
 okCantAttackCreature =
-  Macros.cantAttack (Macros.target Macros.creature) (Just Macros.thisTurn)
+  Macros.cantAttack (Macros.target Macros.creature) (Just ThisTurn)
 
 ||| "Target land can't attack this turn."
 public export
@@ -244,7 +244,7 @@ badCantAttackLand Oh impossible
 public export
 okCantBlockCreature : Effect []
 okCantBlockCreature =
-  Macros.cantBlock (Macros.target Macros.creature) (Just Macros.thisTurn)
+  Macros.cantBlock (Macros.target Macros.creature) (Just ThisTurn)
 
 ||| "Target creature or land can't block this turn."
 public export
@@ -260,7 +260,7 @@ okCantBeBlocked =
   Continuously {ts = StaticFirstDone}
     (Macros.deontic (Macros.target Macros.creature) Forbid ["Block"] Patient
                     NoDeonticPatient)
-    (Just Macros.thisTurn)
+    (Just ThisTurn)
 
 ||| "Target creature can't be attacked this turn."
 public export
@@ -321,7 +321,7 @@ okMatchesArtifact : Effect []
 okMatchesArtifact =
   Sequentially [SetStatus Tapped (Macros.target Macros.creature),
                 OnlyIf (Macros.gainsLife You (Lit 1))
-                       (Matches It Macros.artifact) Nothing]
+                       (Matches (Macros.It OneOf) Macros.artifact) Nothing]
 
 ||| "Tap target creature. You gain 1 life if it's."
 public export
@@ -336,7 +336,7 @@ public export
 okMatchesZoneFits : Effect []
 okMatchesZoneFits =
   OnlyIf (Macros.destroy (Macros.target Macros.creature))
-         (Matches It (InZone Macros.battlefieldZ)) Nothing
+         (Matches (Macros.It OneOf) (InZone Macros.battlefieldZ)) Nothing
 
 ||| "Destroy target creature if it's in a graveyard."
 public export
@@ -367,7 +367,7 @@ public export
 okTapDamagedCreature : Effect []
 okTapDamagedCreature =
   Sequentially [DealDamage This (Lit 2) (Macros.target Macros.creature),
-                SetStatus Tapped It]
+                SetStatus Tapped (Macros.It OneOf)]
 
 ||| "You gain 2 life if you control a creature. Tap it."
 public export
@@ -543,7 +543,7 @@ public export
 okChosenCardRemention : Effect []
 okChosenCardRemention =
   Sequentially [Macros.choose (Macros.a (InZone Macros.handZ)),
-                Macros.discard You (That CardW)]
+                Macros.discard You (Macros.That CardW OneOf)]
 
 ||| "Draw a card. Exile that card."
 public export
@@ -645,7 +645,7 @@ badComplementInOr Oh impossible
 public export
 okNonEmptyBatch : Effect []
 okNonEmptyBatch =
-  Simultaneously [Macros.draw You (Lit 1), Macros.gainsLife You (Lit 1)]
+  Simultaneously [Draw You (Lit 1), Macros.gainsLife You (Lit 1)]
 
 ||| an empty batch
 public export

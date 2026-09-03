@@ -27,7 +27,7 @@ public export
 okSpellAbilityOnInstant : Card
 okSpellAbilityOnInstant =
   Macros.card "" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Instant])
-       [Spell (Macros.draw You (Lit 1))] Nothing
+       [Spell (Draw You (Lit 1))] Nothing
 
 
 ||| "Draw a card."
@@ -123,7 +123,7 @@ badGainsSpellAbility Oh impossible
 ||| "Counter target spell."
 public export
 okCounterSpell : Effect []
-okCounterSpell = Macros.counterSpell (Macros.target Macros.spell)
+okCounterSpell = CounterSpell (Macros.target Macros.spell)
 
 
 ||| "Counter target creature."
@@ -152,7 +152,7 @@ okPlayLandFromGraveyard =
        Nothing
        (PlayRider (Just (Macros.graveyardOf You)) Nothing Nothing False
                   ItsOwnCost))
-    (Just Macros.thisTurn)
+    (Just ThisTurn)
 
 
 ||| "You may play a spell this turn."
@@ -177,7 +177,7 @@ okCastCreatureFromGraveyard =
        Nothing
        (PlayRider (Just (Macros.graveyardOf You)) Nothing Nothing False
                   ItsOwnCost))
-    (Just Macros.thisTurn)
+    (Just ThisTurn)
 
 
 ||| "You may cast a land card from your graveyard this turn."
@@ -290,7 +290,7 @@ public export
 okUntapNextSingleIt : Effect []
 okUntapNextSingleIt =
   Sequentially [SetStatus Tapped (Macros.target Macros.creature),
-                DoesntUntapNext It (Lit 1)]
+                DoesntUntapNext (Macros.It OneOf) (Lit 1)]
 
 
 public export
@@ -445,7 +445,7 @@ okLastBoostCounterRemoved =
   Triggered When
             (Macros.lastCounterRemoved Macros.plusOnePlusOne
                                        Macros.thisCreature)
-            [] Nothing [] Nothing Nothing Nothing (Macros.draw You (Lit 1))
+            [] Nothing [] Nothing Nothing Nothing (Draw You (Lit 1))
 
 
 ||| "When the last poison counter is removed from this creature, draw a card."
@@ -462,7 +462,7 @@ okMatchesBattlefieldZone =
   Triggered When (Macros.lastCounterRemoved (Named "Time") Macros.thisCreature)
             [] Nothing [] Nothing Nothing
             (Just (Matches Macros.thisCreature Attacking))
-            (Macros.draw You (Lit 1))
+            (Draw You (Lit 1))
 
 
 public export
@@ -480,7 +480,7 @@ okLookbackObjectDied =
             Nothing Nothing
             (Just (Happened Death (Macros.a Macros.creature) Lookback.ThisTurn
                             Nothing))
-            (Macros.draw You (Lit 1))
+            (Draw You (Lit 1))
 
 
 ||| "When this creature enters, if you died this turn, draw a card."
@@ -543,7 +543,7 @@ badColorlessWhite Oh impossible
 public export
 okDistributivePartWindow : Ability
 okDistributivePartWindow =
-  Activated (Mana [Macros.generic 2]) (Macros.draw You (Lit 1))
+  Activated (Mana [Macros.generic 2]) (Draw You (Lit 1))
             (Just (DuringPart EndStep (Just (Macros.each AnyPlayer))))
             Nothing Nothing Nothing
 
@@ -559,7 +559,7 @@ badPluralPartWindow Oh impossible
 public export
 okDistributiveAttackWindow : Ability
 okDistributiveAttackWindow =
-  Activated (Mana [Macros.generic 2]) (Macros.draw You (Lit 1))
+  Activated (Mana [Macros.generic 2]) (Draw You (Lit 1))
             (Just (BeforeAttackersDeclared (Just (Macros.each AnyPlayer))))
             Nothing Nothing Nothing
 
@@ -578,7 +578,7 @@ okMustAttackCreature =
   Continuously {ts = StaticFirstDone}
                (Macros.deontic (Macros.target Macros.creature) Require
                                ["Attack"] Agent NoDeonticPatient)
-               (Just Macros.thisTurn)
+               (Just ThisTurn)
 
 
 ||| "Target land attacks each combat if able."
@@ -603,7 +603,7 @@ okThatCreatureAfterAttack : Ability
 okThatCreatureAfterAttack =
   Triggered Whenever (Attacks (Macros.a Macros.creature) NoDefender)
             [] Nothing [] Nothing Nothing Nothing
-            (Macros.gets (That (TypeW Creature)) (PtUp (Lit 2)) (PtUp (Lit 0))
+            (Macros.gets (Macros.That (TypeW Creature) OneOf) (PtUp (Lit 2)) (PtUp (Lit 0))
                          (Just Macros.untilEndOfTurn))
 
 
@@ -623,7 +623,7 @@ okForbidAttackPlaneswalker =
                (Macros.deontic Macros.thisCreature Forbid ["Attack"] Agent
                         (DeonticCounterpart
                            (Macros.target (HasType Planeswalker))))
-               (Just Macros.thisTurn)
+               (Just ThisTurn)
 
 
 ||| "This creature can't attack target creature this turn."
