@@ -1,5 +1,5 @@
 ---
-needs: [english-v2-pp-construction]
+needs: [english-v2-preposition-class-data]
 ---
 Replace the name-keyed homograph exemption with a per-member declared
 feature (gate-metric-landing-review H1). `reviewed_vocab_lexicon_homograph`

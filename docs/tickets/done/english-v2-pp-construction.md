@@ -204,3 +204,15 @@ Constructions and declarations ADDED, with justification:
 - `fixed_duration_phrase` accepts any `NounPhrase` as a temporal endpoint;
   that hole was one half of the `deals 2 damage to each creatures.` rescue
   parse and is unrelated to this ticket.
+
+
+## Erratum (pp landing review, 2026-09-02)
+
+Snapshot pins moved 131->133 / 112->114 across five sites in three
+files (record said 129->131 / 110->112, three sites). Undisclosed
+selection-pressure shift: unique 11,107->10,784, specificity-resolved
+4,827->5,182. The `of` data withdrawal warranted a second STOP (a
+freshly-issued ruling item withdrawn on the executor's own analysis —
+disclosed, but disclosure is not authority). Class data findings
+(temporal prefix unguarded; at/under classified by vocab default;
+of-overgeneration reopened) routed to english-v2-preposition-class-data.
