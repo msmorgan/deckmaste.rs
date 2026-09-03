@@ -1042,7 +1042,7 @@ badBecomesWithoutIntransitive Oh impossible
 ||| One clause names one creator: the causer stands where the player agent would and excludes it.
 public export
 badTokensCreatedByCauserAndPlayer : Unspellable (GameEvent []) (\ok =>
-  TokensCreated (CountedGroup (Macros.atLeast 1) Nothing IsToken)
+  TokensCreated (Macros.counted (Macros.atLeast 1) IsToken)
                 (Just AnEffect) (Just You) Nothing {vo = ok})
 badTokensCreatedByCauserAndPlayer Oh impossible
 
@@ -1051,7 +1051,7 @@ badTokensCreatedByCauserAndPlayer Oh impossible
 ||| A token enters under the control of the one player who created it [CR#111.2], so the slot reads a single controller.
 public export
 badTokensCreatedUnderPlural : Unspellable (GameEvent []) (\ok =>
-  TokensCreated (CountedGroup (Macros.atLeast 1) Nothing IsToken)
+  TokensCreated (Macros.counted (Macros.atLeast 1) IsToken)
                 Nothing Nothing (Just (PlayerGroup YourOpponents)) {vo = ok})
 badTokensCreatedUnderPlural Oh impossible
 
@@ -1060,7 +1060,7 @@ badTokensCreatedUnderPlural Oh impossible
 ||| The creator is read back, not introduced; an article would mint a mention the event has no place to bind.
 public export
 badTokensCreatedByMintingNoun : Unspellable (GameEvent []) (\ok =>
-  TokensCreated (CountedGroup (Macros.atLeast 1) Nothing IsToken)
+  TokensCreated (Macros.counted (Macros.atLeast 1) IsToken)
                 Nothing (Just Macros.anOpponent) Nothing {vo = ok})
 badTokensCreatedByMintingNoun Oh impossible
 
