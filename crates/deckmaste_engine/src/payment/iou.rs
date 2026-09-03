@@ -57,6 +57,9 @@ pub enum IouKind {
     /// A payment-time object choice writing its destination register
     /// ([CR#601.2b]) — the verbs after it pay through that register.
     Choose(deckmaste_core::Choose),
+    /// A payment-time random object sample writing its destination register.
+    /// It is deferred with every random-element cost ([CR#601.2h]).
+    Sample(deckmaste_core::Sample),
     /// A payment-time hidden-zone search ([CR#701.23]) writing its register.
     Search(deckmaste_core::Search),
     /// A pure read pinned as a payment subject.
@@ -77,6 +80,9 @@ pub struct PaymentIou {
     pub id: IouId,
     pub kind: IouKind,
     pub alternatives: Vec<PayAct>,
+    /// This obligation spends the product of a preceding deferred subject
+    /// instruction and therefore belongs to that instruction's tier.
+    pub(crate) deferred: bool,
 }
 
 /// The payer's exact answer for one `Fulfill` command. Mana names its already

@@ -37,3 +37,48 @@ Standard constraints apply.
 The six ignored payment tests un-ignore and pass. A singular `Let` over a
 random selection is refused at load with a diagnostic, not resolved to
 null. Standard suites green.
+
+## Landing record
+
+The core cost instruction inventory grew from 10 to 11 variants. The added
+`Sample` instruction owns a quantity, an explicit candidate region, and the
+destination objects register; lowering emits it for an existing random cost
+subject. It consumes RNG without surfacing a player decision, records the
+chosen group and post-sample RNG position, and replay retains that outcome.
+
+The deferred-tier arm is deliberate: `Sample` and the action that consumes its
+register both belong to the remaining-cost tier under [CR#601.2h]. The tier
+gate now considers the first outstanding register writer before separating
+ordinary and deferred obligations, so no consuming action can pass its sample.
+
+Decision-in-expression validation went from checking one direct plural-object
+shape to recursively checking all three `Expr` result shapes: object, objects,
+and number. Random and chosen-order selections are rejected anywhere below a
+`Let`; ordinary register reads remain validated by the enclosing region. The
+workspace corpus rejected 0 cards after this tightening, so there are no
+follow-up cards to route.
+
+Test accounting:
+
+- Restored: 6 payment tests changed from ignored to active; all 6 pass.
+- Re-spelled: those 6 tests now use the shared `Sample` cost fixtures instead
+  of `Let(Random(..))` fixtures.
+- Strengthened: the existing core rejection test covers all 3 expression
+  shapes, and the existing lowering test authenticates the candidate and
+  controller provenance of the sample region.
+- Ignored with blockers: 0 ticket-specific tests. The payment suite's 2
+  unrelated whole-body-preflight ignores are unchanged.
+- Added or removed test functions: 0. Coverage and citation locks are
+  unchanged.
+
+Positive gates: `cargo fmt --all -- --check`; `cargo test --workspace` (all
+non-ignored tests and doctests passed); payment integration suite 30 passed,
+0 failed, 2 unrelated ignored; focused core and lowering tests each passed;
+`cargo clippy --workspace --all-targets -- -D warnings`; citation scan 0
+non-compliant strings, 17,882 citations checked with 0 stale, and every added
+diff citation audited against its rule text.
+
+The explicit candidate region, retained random replay record, and dependent
+action tier flag are implementation additions required to preserve the ADR's
+region boundary and payment replay semantics. There were no scope deviations,
+lock changes, routed corpus regressions, or STOPs.

@@ -500,7 +500,7 @@ pub(crate) fn automatic_activation_cost_usable(
 /// Whether the automatic payer can satisfy one cost instruction against
 /// `frame` ([CR#601.2b]) — the gate half of [`automatic_step_witness`].
 fn automatic_step_is_satisfiable(state: &GameState, step: &CostComponent, frame: &Frame) -> bool {
-    !matches!(step, CostComponent::Choose(_))
+    !matches!(step, CostComponent::Choose(_) | CostComponent::Sample(_))
         || automatic_step_witness(state, step, frame).is_some()
 }
 
@@ -534,6 +534,18 @@ fn automatic_step_witness(
                 candidates.truncate(count);
                 FulfillmentWitness::Objects(candidates)
             })
+        }
+        CostComponent::Sample(sample) => {
+            let candidates = crate::target::candidates_region_with_activation(
+                state,
+                &sample.filter,
+                watcher,
+                frame.activation,
+            );
+            let (lo, _) = sample.quantity.bounds();
+            let count = lo.map_or(0, |count| state.eval_count(count, frame));
+            let count = usize::try_from(count).ok()?;
+            (candidates.len() >= count).then_some(FulfillmentWitness::Bound)
         }
         CostComponent::Search(search) => {
             let mut candidates = automatic_search_candidates(
@@ -853,7 +865,7 @@ impl GameState {
                     IouKind::Tap | IouKind::Untap | IouKind::Act { .. } | IouKind::Let(_) => {
                         FulfillmentWitness::Bound
                     }
-                    IouKind::Choose(_) | IouKind::Search(_) => {
+                    IouKind::Choose(_) | IouKind::Sample(_) | IouKind::Search(_) => {
                         let frame = self
                             .payment
                             .as_ref()
@@ -861,6 +873,7 @@ impl GameState {
                             .expect("a Payment prompt has an active frame");
                         let step = match &iou.kind {
                             IouKind::Choose(choice) => CostComponent::Choose(choice.clone()),
+                            IouKind::Sample(sample) => CostComponent::Sample(sample.clone()),
                             IouKind::Search(search) => CostComponent::Search(search.clone()),
                             _ => unreachable!("the match arm selected a decision IOU"),
                         };
@@ -1643,7 +1656,9 @@ impl GameState {
             .iter()
             .filter(|record| match record.command {
                 ReplayCommand::ManaAbility { action, .. } => !reversed.contains(&action),
-                ReplayCommand::Fulfill { .. } => !record.reversal_barriers.is_empty(),
+                ReplayCommand::Fulfill {
+                    ref random_outcome, ..
+                } => !record.reversal_barriers.is_empty() || random_outcome.is_some(),
             })
             .map(|record| record.id)
             .collect();
@@ -2084,7 +2099,9 @@ impl GameState {
                 .iter()
                 .filter(|record| match record.command {
                     ReplayCommand::ManaAbility { action, .. } => !reversed.contains(&action),
-                    ReplayCommand::Fulfill { .. } => !record.reversal_barriers.is_empty(),
+                    ReplayCommand::Fulfill {
+                        ref random_outcome, ..
+                    } => !record.reversal_barriers.is_empty() || random_outcome.is_some(),
                 })
                 .map(|record| record.id)
                 .collect();
@@ -2167,7 +2184,9 @@ impl GameState {
                 .iter()
                 .filter(|record| match record.command {
                     ReplayCommand::ManaAbility { action, .. } => !reversed.contains(&action),
-                    ReplayCommand::Fulfill { .. } => !record.reversal_barriers.is_empty(),
+                    ReplayCommand::Fulfill {
+                        ref random_outcome, ..
+                    } => !record.reversal_barriers.is_empty() || random_outcome.is_some(),
                 })
                 .map(|record| record.id)
                 .collect();
@@ -2297,6 +2316,7 @@ pub fn lock_cost(
         ious: Vec::new(),
         next_iou: 0,
         has_mana_payment: false,
+        defer_next_action: false,
     };
     builder.lock_components(cost)?;
     let entry_stage = if builder.has_mana_payment {
@@ -2323,6 +2343,9 @@ struct LockBuilder<'a> {
     ious: Vec<PaymentIou>,
     next_iou: u64,
     has_mana_payment: bool,
+    /// A deferred sample or library search carries its tier onto the action
+    /// that consumes the register it writes.
+    defer_next_action: bool,
 }
 
 impl LockBuilder<'_> {
@@ -2371,8 +2394,13 @@ impl LockBuilder<'_> {
                 CostComponent::Choose(choice) => {
                     self.push(IouKind::Choose(choice.clone()), Vec::new());
                 }
+                CostComponent::Sample(sample) => {
+                    self.push(IouKind::Sample(sample.clone()), Vec::new());
+                    self.defer_next_action = true;
+                }
                 CostComponent::Search(search) => {
                     self.push(IouKind::Search(search.clone()), Vec::new());
+                    self.defer_next_action |= search.from.contains(&deckmaste_core::Zone::Library);
                 }
                 CostComponent::Let(binding) => {
                     self.push(IouKind::Let(binding.clone()), Vec::new());
@@ -2383,6 +2411,7 @@ impl LockBuilder<'_> {
     }
 
     fn lock_action(&mut self, dest: Option<deckmaste_core::DefId>, action: &RunnableCostAction) {
+        let deferred = std::mem::take(&mut self.defer_next_action);
         let kind = match action.as_action() {
             Action::ChangeLife(reference, LifeOp::Down(count))
                 if dest.is_none() && reference == &Reference::controller_parameter() =>
@@ -2394,7 +2423,7 @@ impl LockBuilder<'_> {
                 action: action.clone(),
             },
         };
-        self.push(kind, Vec::new());
+        self.push_deferred(kind, Vec::new(), deferred);
     }
 
     fn lock_mana(&mut self, mana: &ManaCost) -> Result<(), PaymentLockError> {
@@ -2433,6 +2462,10 @@ impl LockBuilder<'_> {
     }
 
     fn push(&mut self, kind: IouKind, alternatives: Vec<PayAct>) {
+        self.push_deferred(kind, alternatives, false);
+    }
+
+    fn push_deferred(&mut self, kind: IouKind, alternatives: Vec<PayAct>, deferred: bool) {
         let id = IouId(self.next_iou);
         self.next_iou = self
             .next_iou
@@ -2442,6 +2475,7 @@ impl LockBuilder<'_> {
             id,
             kind,
             alternatives,
+            deferred,
         });
     }
 }

@@ -4,7 +4,6 @@ use deckmaste_core::Cmp;
 use deckmaste_core::Destination;
 use deckmaste_core::PayAct;
 use deckmaste_core::Predicate;
-use deckmaste_core::Selection;
 use deckmaste_core::Stat;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
@@ -33,21 +32,25 @@ use crate::state::GameState;
 /// nonrandom/nonlibrary tier must finish before any remaining obligation that
 /// introduces randomness or moves a card out of a library.
 ///
-/// Within a tier, a payment-time DECISION ([CR#601.2b]) also gates everything
+/// Within a tier, a payment-time subject instruction also gates everything
 /// declared after it in the cost block: the verbs that follow pay through the
 /// register it writes, so offering them first would ask the payer to spend an
-/// unwritten binding. Obligation ids are minted in block order, so "declared
-/// after" is "has a larger id".
+/// unwritten binding. Choices and samples are both such writers. Obligation
+/// ids are minted in block order, so "declared after" is "has a larger id".
 pub(super) fn current_tier(outstanding: &[PaymentIou]) -> Vec<&PaymentIou> {
-    let ordinary: Vec<&PaymentIou> = outstanding.iter().filter(|iou| !is_deferred(iou)).collect();
-    let tier: Vec<&PaymentIou> =
-        if ordinary.is_empty() { outstanding.iter().collect() } else { ordinary };
-    let Some(first_writer) = tier
+    let first_writer = outstanding
         .iter()
         .filter(|iou| writes_a_register(iou))
         .map(|iou| iou.id)
-        .min()
-    else {
+        .min();
+    let ordinary: Vec<&PaymentIou> = outstanding
+        .iter()
+        .filter(|iou| !is_deferred(iou))
+        .filter(|iou| first_writer.is_none_or(|writer| iou.id <= writer))
+        .collect();
+    let tier: Vec<&PaymentIou> =
+        if ordinary.is_empty() { outstanding.iter().collect() } else { ordinary };
+    let Some(first_writer) = first_writer else {
         return tier;
     };
     tier.into_iter()
@@ -59,7 +62,7 @@ pub(super) fn current_tier(outstanding: &[PaymentIou]) -> Vec<&PaymentIou> {
 /// ([CR#601.2b]).
 fn writes_a_register(iou: &PaymentIou) -> bool {
     match &iou.kind {
-        IouKind::Choose(_) | IouKind::Search(_) | IouKind::Let(_) => true,
+        IouKind::Choose(_) | IouKind::Sample(_) | IouKind::Search(_) | IouKind::Let(_) => true,
         IouKind::Act { dest, .. } => dest.is_some(),
         IouKind::ManaPip(_)
         | IouKind::PayLife(_)
@@ -70,20 +73,21 @@ fn writes_a_register(iou: &PaymentIou) -> bool {
 }
 
 fn is_deferred(iou: &PaymentIou) -> bool {
+    if iou.deferred {
+        return true;
+    }
     match &iou.kind {
         IouKind::Act { action, .. } => action_is_deferred(action),
         // [CR#601.2h]: a search that moves a card out of a library belongs to
         // the second payment tier, as does a random pick.
         IouKind::Search(search) => search.from.contains(&Zone::Library),
-        IouKind::Let(binding) => matches!(
-            &binding.expr,
-            deckmaste_core::Expr::Objects(Selection::Random(..))
-        ),
+        IouKind::Sample(_) => true,
         IouKind::ManaPip(_)
         | IouKind::PayLife(_)
         | IouKind::Tap
         | IouKind::Untap
         | IouKind::Choose(_)
+        | IouKind::Let(_)
         | IouKind::TapTotal { .. } => false,
     }
 }
@@ -122,7 +126,15 @@ fn effect_is_deferred(effect: &deckmaste_core::OneShotEffect) -> bool {
 
 struct FulfillmentPlan {
     spend: Option<FloatingManaId>,
+    sample: Option<PaymentSample>,
     work: Vec<WorkItem>,
+}
+
+struct PaymentSample {
+    activation: crate::ActivationId,
+    dest: deckmaste_core::DefId,
+    candidates: Vec<ObjectId>,
+    count: usize,
 }
 
 impl GameState {
@@ -214,6 +226,7 @@ impl GameState {
                         }
                         FulfillmentPlan {
                             spend: Some(unit_id),
+                            sample: None,
                             work: Vec::new(),
                         }
                     }
@@ -253,6 +266,7 @@ impl GameState {
                         };
                         FulfillmentPlan {
                             spend: None,
+                            sample: None,
                             work: vec![item],
                         }
                     }
@@ -270,6 +284,7 @@ impl GameState {
                 }
                 FulfillmentPlan {
                     spend: None,
+                    sample: None,
                     work: vec![WorkItem::Emit(Occurrence::single(GameEvent::Tapped(
                         Tapped {
                             object: source,
@@ -293,6 +308,7 @@ impl GameState {
                 }
                 FulfillmentPlan {
                     spend: None,
+                    sample: None,
                     work: vec![WorkItem::Emit(Occurrence::single(GameEvent::Untapped(
                         source,
                         Some(
@@ -321,7 +337,11 @@ impl GameState {
                     })
                     .into_iter()
                     .collect();
-                FulfillmentPlan { spend: None, work }
+                FulfillmentPlan {
+                    spend: None,
+                    sample: None,
+                    work,
+                }
             }
             IouKind::Act { dest, action } => {
                 if witness != FulfillmentWitness::Bound {
@@ -362,6 +382,7 @@ impl GameState {
                 }
                 FulfillmentPlan {
                     spend: None,
+                    sample: None,
                     work: vec![WorkItem::RunEffect {
                         effect: std::sync::Arc::new(deckmaste_core::OneShotEffect::act(
                             action.as_action().clone(),
@@ -394,6 +415,46 @@ impl GameState {
                 self.activation_write_objects(frame.activation, choice.dest, objects);
                 FulfillmentPlan {
                     spend: None,
+                    sample: None,
+                    work: Vec::new(),
+                }
+            }
+            IouKind::Sample(sample) => {
+                if witness != FulfillmentWitness::Bound {
+                    return illegal("a random payment sample requires Bound");
+                }
+                let frame = self
+                    .payment
+                    .as_ref()
+                    .expect("controller remains live")
+                    .frames
+                    .last()
+                    .expect("frame remains live")
+                    .locked
+                    .frame
+                    .clone();
+                let watcher = Some(self.frame_watcher(&frame));
+                let candidates = crate::target::candidates_region_with_activation(
+                    self,
+                    &sample.filter,
+                    watcher,
+                    frame.activation,
+                );
+                let (lo, _) = sample.quantity.bounds();
+                let required = lo.map_or(0, |count| self.eval_count(count, &frame));
+                if Uint::try_from(candidates.len()).unwrap_or(Uint::MAX) < required {
+                    return illegal("a random payment sample has too few legal subjects");
+                }
+                let (_, count) = self.choice_bounds(&sample.quantity, candidates.len(), &frame);
+                let count = usize::try_from(count).expect("sample count fits usize");
+                FulfillmentPlan {
+                    spend: None,
+                    sample: Some(PaymentSample {
+                        activation: frame.activation,
+                        dest: sample.dest,
+                        candidates,
+                        count,
+                    }),
                     work: Vec::new(),
                 }
             }
@@ -430,6 +491,7 @@ impl GameState {
                 self.activation_write_objects(frame.activation, search.dest, objects);
                 FulfillmentPlan {
                     spend: None,
+                    sample: None,
                     work: Vec::new(),
                 }
             }
@@ -450,6 +512,7 @@ impl GameState {
                 self.write_let(binding, &frame);
                 FulfillmentPlan {
                     spend: None,
+                    sample: None,
                     work: Vec::new(),
                 }
             }
@@ -487,7 +550,11 @@ impl GameState {
                         })))
                     })
                     .collect();
-                FulfillmentPlan { spend: None, work }
+                FulfillmentPlan {
+                    spend: None,
+                    sample: None,
+                    work,
+                }
             }
         };
 
@@ -518,7 +585,8 @@ impl GameState {
                 facts: Vec::new(),
                 spent_mana: plan
                     .spend
-                    .into_iter()
+                    .iter()
+                    .copied()
                     .map(|id| super::replay::QualifiedManaId { player: payer, id })
                     .collect(),
                 reversal_barriers: Vec::new(),
@@ -531,6 +599,24 @@ impl GameState {
                 .mana_pool
                 .remove_ids(&[unit])
                 .expect("the exact covered unit was validated above");
+        }
+        if let Some(sample) = plan.sample {
+            let selected = if let Some((recorded, post_sample_rng)) =
+                self.take_replay_random_outcome()
+            {
+                self.rng.set_stream(post_sample_rng.stream);
+                self.rng.set_word_pos(post_sample_rng.word_pos);
+                recorded
+            } else {
+                let indices =
+                    rand::seq::index::sample(&mut self.rng, sample.candidates.len(), sample.count);
+                indices
+                    .into_iter()
+                    .map(|index| sample.candidates[index])
+                    .collect()
+            };
+            self.record_payment_random_outcome(&selected);
+            self.activation_write_objects(sample.activation, sample.dest, &selected);
         }
         let mut work = plan.work;
         work.push(WorkItem::FinishPaymentFulfillment(id));

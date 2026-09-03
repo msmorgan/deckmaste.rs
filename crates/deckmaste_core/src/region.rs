@@ -415,11 +415,15 @@ pub fn validate_sba(region: &Region<crate::SbaBody>) -> Result<(), ValidationErr
     region.body.scope.serialize(RegisterWalker {
         params: &region.params,
         visible: None,
+        ignore_registers: false,
+        reject_decisions: false,
     })?;
     validate_predicate_regions(&region.body.scope, &region.params)?;
     region.body.when.serialize(RegisterWalker {
         params: &region.params,
         visible: None,
+        ignore_registers: false,
+        reject_decisions: false,
     })?;
     validate_condition_regions(&region.body.when, &region.params)?;
 
@@ -639,11 +643,7 @@ fn validate_instructions(
                 append_definition(definitions, search.dest, Kind::Objects)?;
             }
             E::Let(binding) => {
-                if matches!(&binding.expr, Expr::Objects(selection)
-                    if selection_is_decision_bearing(selection))
-                {
-                    return Err(ValidationError::DecisionInExpression);
-                }
+                validate_pure_expr(&binding.expr)?;
                 binding.expr.serialize(definitions.walker())?;
                 match &binding.expr {
                     Expr::Objects(selection) => {
@@ -775,6 +775,11 @@ fn validate_cost(cost: &crate::Cost, definitions: &mut Definitions) -> Result<()
                 validate_predicate_region(&choice.filter, &definitions.params)?;
                 append_definition(definitions, choice.dest, Kind::Objects)?;
             }
+            CostComponent::Sample(sample) => {
+                sample.quantity.serialize(definitions.walker())?;
+                validate_predicate_region(&sample.filter, &definitions.params)?;
+                append_definition(definitions, sample.dest, Kind::Objects)?;
+            }
             CostComponent::Search(search) => {
                 search.by.serialize(definitions.walker())?;
                 search.whose.serialize(definitions.walker())?;
@@ -786,11 +791,7 @@ fn validate_cost(cost: &crate::Cost, definitions: &mut Definitions) -> Result<()
                 append_definition(definitions, search.dest, Kind::Objects)?;
             }
             CostComponent::Let(binding) => {
-                if matches!(&binding.expr, Expr::Objects(selection)
-                    if selection_is_decision_bearing(selection))
-                {
-                    return Err(ValidationError::DecisionInExpression);
-                }
+                validate_pure_expr(&binding.expr)?;
                 binding.expr.serialize(definitions.walker())?;
                 match &binding.expr {
                     Expr::Objects(selection) => {
@@ -841,20 +842,13 @@ fn validate_action(
     }
 }
 
-fn selection_is_decision_bearing(selection: &crate::Selection) -> bool {
-    match selection {
-        crate::Selection::Random(..) | crate::Selection::InChosenOrder(..) => true,
-        crate::Selection::Union(members) => members.iter().any(selection_is_decision_bearing),
-        crate::Selection::Reg(_)
-        | crate::Selection::SelectAll(_)
-        | crate::Selection::TopOfLibrary { .. }
-        | crate::Selection::BottomOfLibrary { .. }
-        | crate::Selection::LibraryOf(_)
-        | crate::Selection::TopOfGraveyard { .. }
-        | crate::Selection::ValidTargetsFor(_)
-        | crate::Selection::PilesOf { .. }
-        | crate::Selection::Pick { .. } => false,
-    }
+fn validate_pure_expr(expr: &Expr) -> Result<(), ValidationError> {
+    expr.serialize(RegisterWalker {
+        params: &[],
+        visible: None,
+        ignore_registers: true,
+        reject_decisions: true,
+    })
 }
 
 fn validate_value_region<T: Serialize>(
@@ -865,6 +859,8 @@ fn validate_value_region<T: Serialize>(
     region.body.serialize(RegisterWalker {
         params: &region.params,
         visible: None,
+        ignore_registers: false,
+        reject_decisions: false,
     })
 }
 
@@ -1129,6 +1125,8 @@ fn validate_telescope_inner(
         target.serialize(RegisterWalker {
             params: &region.params[..limit],
             visible: None,
+            ignore_registers: false,
+            reject_decisions: false,
         })?;
         validate_target_regions(target, &region.params[..limit])?;
     }
@@ -1206,6 +1204,8 @@ impl Definitions {
         RegisterWalker {
             params: &self.params,
             visible: Some(&self.visible),
+            ignore_registers: false,
+            reject_decisions: false,
         }
     }
 
@@ -1218,6 +1218,8 @@ impl Definitions {
 struct RegisterWalker<'a> {
     params: &'a [Param],
     visible: Option<&'a [bool]>,
+    ignore_registers: bool,
+    reject_decisions: bool,
 }
 
 struct Compound<'a> {
@@ -1331,7 +1333,7 @@ impl<'a> serde::Serializer for RegisterWalker<'a> {
         variant: &'static str,
         value: &T,
     ) -> Result<(), Self::Error> {
-        if variant == "Reg" {
+        if variant == "Reg" && !self.ignore_registers {
             let mut capture = RefCapture(None);
             value.serialize(&mut capture)?;
             let reference = RefId(capture.0.ok_or_else(|| {
@@ -1363,7 +1365,7 @@ impl<'a> serde::Serializer for RegisterWalker<'a> {
         name: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeStruct, Self::Error> {
-        Ok(compound(self, name == "Region"))
+        Ok(compound(self, name == "Region" && !self.ignore_registers))
     }
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq, Self::Error> {
         Ok(compound(self, false))
@@ -1380,11 +1382,17 @@ impl<'a> serde::Serializer for RegisterWalker<'a> {
     }
     fn serialize_tuple_variant(
         self,
-        _name: &'static str,
+        name: &'static str,
         _index: u32,
-        _variant: &'static str,
+        variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeTupleVariant, Self::Error> {
+        if self.reject_decisions
+            && name == "Selection"
+            && matches!(variant, "Random" | "InChosenOrder")
+        {
+            return Err(ValidationError::DecisionInExpression);
+        }
         Ok(compound(self, false))
     }
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap, Self::Error> {

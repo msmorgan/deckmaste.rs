@@ -11,14 +11,27 @@ use crate::Stat;
 use crate::mana::ManaCost;
 use crate::reference::Reference;
 
+/// A payment-time random object sample written to a region register.
+///
+/// Unlike [`Choose`](crate::Choose), sampling exposes no player decision. It
+/// is nevertheless an instruction rather than an expression: drawing the
+/// sample consumes RNG, fixes the objects later payment actions spend, and
+/// belongs to the deferred payment tier ([CR#601.2h]).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub struct Sample {
+    pub dest: crate::DefId,
+    pub quantity: crate::Quantity,
+    pub filter: Arc<crate::Region<Predicate>>,
+}
+
 /// A cost-eligible action whose payment subjects are already bound.
 ///
 /// The semantic grammar may place a chooser or random selection inside a
 /// keyword-action composite (notably discard). Lowering lifts that binder into
-/// its own [`CostComponent::Choose`] instruction ahead of the paying action
-/// and constructs this wrapper only around the remaining bound action. The
-/// private field makes it impossible for runnable core costs to bypass that
-/// check.
+/// its own [`CostComponent::Choose`] or [`CostComponent::Sample`] instruction
+/// ahead of the paying action and constructs this wrapper only around the
+/// remaining bound action. The private field makes it impossible for runnable
+/// core costs to bypass that check.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct RunnableCostAction(Arc<crate::Action>);
 
@@ -436,6 +449,10 @@ pub enum CostComponent {
     /// ([`Instr::Choose`](crate::Instr::Choose)) — a cost block is a block of
     /// instructions, not a second grammar.
     Choose(crate::Choose),
+    /// A payment-time random object sample ([CR#601.2h]) writing its result to
+    /// `dest`. The payer surfaces no choice; the engine records the sampled
+    /// group and post-sample RNG state so payment replay is deterministic.
+    Sample(Sample),
     /// A payment-time hidden-zone search ([CR#701.23]) writing its
     /// found group to `dest` — the search-as-cost shape, the cost twin of
     /// [`Instr::Search`](crate::Instr::Search).
@@ -486,13 +503,14 @@ impl CostComponent {
         }
     }
 
-    /// The register this component defines, if any — the paid product or the
-    /// payment-time decision's destination ([CR#601.2b]).
+    /// The register this component defines, if any — the paid product or a
+    /// payment-time subject instruction's destination.
     #[must_use]
     pub fn dest(&self) -> Option<crate::DefId> {
         match self {
             Self::Act { dest, .. } => *dest,
             Self::Choose(choice) => Some(choice.dest),
+            Self::Sample(sample) => Some(sample.dest),
             Self::Search(search) => Some(search.dest),
             Self::Let(binding) => Some(binding.dest),
             Self::Mana(_)
@@ -922,7 +940,8 @@ mod tests {
     /// exact-random payment shapes a cost block spells, now that the binder
     /// enum is gone: a `Let` pinning an existing selection, a `Choose` over a
     /// filter, and a producing `Act` whose product a body reads
-    /// ([CR#601.2b,400.7]).
+    /// ([CR#601.2b,400.7]). A no-choice `Sample` owns the corresponding
+    /// exact-random shape.
     ///
     /// Re-spelled from the deleted `cost_binder_is_runnable` check: same
     /// shapes, same admitted/rejected verdicts, asserted against the cost
@@ -956,6 +975,14 @@ mod tests {
             filter: Arc::new(crate::Region::candidate(Predicate::Any)),
         });
         assert_eq!(read(&to_string(&chosen)), chosen);
+
+        let sampled = CostComponent::Sample(Sample {
+            dest: crate::DefId(2),
+            quantity: crate::Quantity::one(),
+            filter: Arc::new(crate::Region::candidate(Predicate::Any)),
+        });
+        assert_eq!(read(&to_string(&sampled)), sampled);
+        assert_eq!(sampled.dest(), Some(crate::DefId(2)));
 
         let produced = CostComponent::producing(
             crate::DefId(2),
@@ -1002,15 +1029,6 @@ mod tests {
             "a non-cost-eligible action is not a payment at all"
         );
 
-        // A random pick is a DECISION, so it cannot ride a pure `Let`; the
-        // region validator refuses the whole cost block.
-        let random_let = crate::Cost(Arc::from([CostComponent::Let(crate::Let {
-            dest: crate::DefId(2),
-            expr: crate::Expr::Objects(crate::Selection::Random(
-                crate::Quantity::one(),
-                Predicate::Any,
-            )),
-        })]));
         let region = crate::Region::new(
             Arc::from([
                 crate::Param {
@@ -1026,10 +1044,29 @@ mod tests {
             ]),
             crate::Block::default(),
         );
-        assert_eq!(
-            crate::validate_announced(&region, &[], &random_let),
-            Err(crate::ValidationError::DecisionInExpression),
-        );
+        let random_reference = || {
+            Reference::Single(Arc::new(crate::Selection::Random(
+                crate::Quantity::one(),
+                Predicate::Any,
+            )))
+        };
+        for expr in [
+            crate::Expr::Objects(crate::Selection::Random(
+                crate::Quantity::one(),
+                Predicate::Any,
+            )),
+            crate::Expr::Object(random_reference()),
+            crate::Expr::Number(Count::StatOf(random_reference(), crate::Stat::Power)),
+        ] {
+            let random_let = crate::Cost(Arc::from([CostComponent::Let(crate::Let {
+                dest: crate::DefId(2),
+                expr,
+            })]));
+            assert_eq!(
+                crate::validate_announced(&region, &[], &random_let),
+                Err(crate::ValidationError::DecisionInExpression),
+            );
+        }
     }
 
     /// `ManaCostOf(Reference)` reads and round-trips through the

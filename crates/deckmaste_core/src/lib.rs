@@ -89,6 +89,7 @@ pub use cost::CostTag;
 pub use cost::OptionalCost;
 pub use cost::RunnableCostAction;
 pub use cost::RunnableCostActionError;
+pub use cost::Sample;
 pub use cost::TotalCost;
 
 mod counter;

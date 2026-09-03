@@ -3,11 +3,11 @@
 //! A semantic cost is a list of payment demands; a core cost is a BLOCK of
 //! cost instructions run at announcement in the ability's own activation
 //! ([CR#601.2b,601.2h]). Lowering is what turns one into the other: a
-//! semantic `With` binder becomes the decision instruction that writes the
-//! payment subject's register, and the verbs that spend it follow flat in the
-//! same block, reading that register. The binding stays live afterwards, so
-//! the ability body can read the paid product ("the sacrificed creature") as
-//! a def rather than re-deriving it.
+//! semantic `With` binder becomes the subject instruction that writes the
+//! payment register, and the verbs that spend it follow flat in the same
+//! block, reading that register. The binding stays live afterwards, so the
+//! ability body can read the paid product ("the sacrificed creature") as a
+//! def rather than re-deriving it.
 //!
 //! Scaffolded once, then hand-owned. See the crate docs.
 
@@ -115,8 +115,8 @@ fn lower_cost_component(
         S::With { binder, body } => {
             // [CR#601.2b]: the choice is its OWN instruction, made before the
             // verbs that spend it, writing a register they read.
-            let (instructions, bound) = crate::effect::lower_binder(Arc::unwrap_or_clone(binder));
-            out.extend(instructions.into_iter().map(cost_instruction));
+            let (instructions, bound) = lower_cost_binder(Arc::unwrap_or_clone(binder));
+            out.extend(instructions);
             crate::region::push_antecedent(
                 bound.reference,
                 bound.kind,
@@ -157,6 +157,46 @@ fn cost_instruction(instruction: deckmaste_core::Instr) -> deckmaste_core::CostC
     }
 }
 
+/// Lower a semantic payment binder into the cost instruction that writes its
+/// subject. Random sampling is cost-specific: it is an instruction here, while
+/// effect-side random iteration remains owned by `Each`.
+fn lower_cost_binder(
+    binder: deckmaste_semantics::Binder,
+) -> (Vec<deckmaste_core::CostComponent>, BoundValue) {
+    match binder {
+        deckmaste_semantics::Binder::Existing(deckmaste_semantics::Selection::Random(
+            quantity,
+            filter,
+        )) => {
+            let quantity = quantity.lower();
+            let filter = Arc::new(crate::region::candidate_region(|| filter.lower()));
+            let dest = crate::region::define(deckmaste_core::Kind::Objects);
+            (
+                vec![deckmaste_core::CostComponent::Sample(
+                    deckmaste_core::Sample {
+                        dest,
+                        quantity,
+                        filter,
+                    },
+                )],
+                BoundValue {
+                    reference: dest.into(),
+                    kind: deckmaste_core::Kind::Objects,
+                    cardinality: crate::region::Cardinality::Many,
+                    sort: None,
+                },
+            )
+        }
+        other => {
+            let (instructions, bound) = crate::effect::lower_binder(other);
+            (
+                instructions.into_iter().map(cost_instruction).collect(),
+                bound,
+            )
+        }
+    }
+}
+
 fn lower_action_cost(
     action: &Arc<deckmaste_semantics::Action>,
     out: &mut Vec<deckmaste_core::CostComponent>,
@@ -180,8 +220,8 @@ fn lower_action_cost(
     };
     // "Discard a card:" — the composite's own chooser is lifted out of the
     // verb into a preceding cost instruction ([CR#701.9,601.2b]).
-    let (instructions, bound) = crate::effect::lower_binder(with.binder.clone());
-    out.extend(instructions.into_iter().map(cost_instruction));
+    let (instructions, bound) = lower_cost_binder(with.binder.clone());
+    out.extend(instructions);
     crate::region::push_antecedent(
         bound.reference,
         bound.kind,
@@ -395,8 +435,8 @@ mod tests {
     // is the cost INSTRUCTION that writes the payment subject's register
     // ([CR#601.2b]) — same binder, same asserted shape.
 
-    /// The predicate a payment-time decision filters by is a per-candidate
-    /// REGION ([CR#601.2b]); this reads its body and checks it declares its
+    /// The predicate a payment-time subject instruction filters by is a
+    /// per-candidate REGION; this reads its body and checks it declares its
     /// candidate as parameter zero.
     fn pins_minimal_filter(filter: &deckmaste_core::Region<deckmaste_core::Predicate>) -> bool {
         filter.body == deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
@@ -731,10 +771,22 @@ mod tests {
             panic!("the sampled subject precedes the one runnable action cost");
         };
         let sampled = match first {
-            deckmaste_core::CostComponent::Let(deckmaste_core::Let {
-                dest,
-                expr: deckmaste_core::Expr::Objects(deckmaste_core::Selection::Random(..)),
-            }) => *dest,
+            deckmaste_core::CostComponent::Sample(deckmaste_core::Sample {
+                dest, filter, ..
+            }) => {
+                assert_eq!(
+                    filter.params[0].provenance,
+                    deckmaste_core::Provenance::Candidate,
+                );
+                assert!(
+                    filter.params.iter().any(|param| {
+                        param.provenance == deckmaste_core::Provenance::Controller
+                    }),
+                    "sample filter params: {:?}",
+                    filter.params,
+                );
+                *dest
+            }
             other => {
                 panic!("an action-embedded random subject lowers into cost position: {other:?}")
             }

@@ -728,11 +728,11 @@ fn as_additional_cost(
 
 /// Build an ability region together with its announcement ([CR#601.2b]).
 ///
-/// The cost block is lowered FIRST, so its payment-time decisions occupy the
-/// definitions that come before the body's — a paid product is a def the body
-/// reads (ADR law 9), never an anaphor re-derived at resolution. `declared` is
-/// the ability's own printed cost (an activation cost, a mode's cost); a root
-/// `AdditionalCost` in `effect` is hoisted onto the same block.
+/// The cost block is lowered FIRST, so its payment-time subject instructions
+/// occupy the definitions that come before the body's — a paid product is a
+/// def the body reads (ADR law 9), never an anaphor re-derived at resolution.
+/// `declared` is the ability's own printed cost (an activation cost, a mode's
+/// cost); a root `AdditionalCost` in `effect` is hoisted onto the same block.
 fn lower_announced_region(
     kind: crate::region::RegionKind,
     declared: &[deckmaste_semantics::CostComponent],

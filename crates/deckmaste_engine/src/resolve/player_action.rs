@@ -1995,6 +1995,7 @@ mod tests {
                 activated.cost.iter().all(|component| !matches!(
                     component,
                     deckmaste_core::CostComponent::Choose(_)
+                        | deckmaste_core::CostComponent::Sample(_)
                         | deckmaste_core::CostComponent::Search(_)
                 )),
                 "the bound exile cost needs no payment-time decision ([CR#601.2b])"

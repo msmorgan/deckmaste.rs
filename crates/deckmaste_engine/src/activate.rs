@@ -95,15 +95,15 @@ pub(crate) struct CostSummary {
     /// runner alone applies a preference among them.
     pub tap_totals: Vec<TapTotalReq>,
     /// The cost block's INSTRUCTIONS in announcement order
-    /// ([CR#601.2b,601.2h]): every payment-time decision and every paying
-    /// action, kept as one ordered run because a decision writes the
-    /// register the action after it pays through. "Sacrifice a creature" is
+    /// ([CR#601.2b,601.2h]): every payment-time subject instruction and every
+    /// paying action, kept as one ordered run because an instruction may write
+    /// the register the action after it pays through. "Sacrifice a creature" is
     /// `[Choose(dest: 2, Creature), Act(Sacrifice(Reg(1), Reg(2)))]`.
-    /// Collected verbatim because a decision can only be surfaced against a
-    /// live frame: the gate ([`GameState::can_activate`]) checks each
-    /// decision's feasibility and the pay step ([`GameState::pay_cost`]) runs
-    /// the whole run against the ANNOUNCE activation, so the paid product is
-    /// a register the ability body reads.
+    /// Collected verbatim because these instructions can only run against a
+    /// live frame: the gate ([`GameState::can_activate`]) checks each one's
+    /// feasibility and the pay step ([`GameState::pay_cost`]) runs the whole
+    /// block against the ANNOUNCE activation, so the paid product is a register
+    /// the ability body reads.
     pub steps: Vec<CostComponent>,
 }
 
@@ -161,11 +161,14 @@ pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
                 verbs.push(action.as_action().clone());
                 steps.push(component.clone());
             }
-            // A payment-time decision ([CR#601.2b]) — collected verbatim in
-            // place, because the action after it pays through the register it
-            // writes. Feasibility is decided against a live frame at the gate;
-            // the pay step runs the whole ordered block.
-            CostComponent::Choose(_) | CostComponent::Search(_) | CostComponent::Let(_) => {
+            // A payment-time subject instruction — collected verbatim in place,
+            // because the action after it pays through the register it writes.
+            // Feasibility is decided against a live frame at the gate; the pay
+            // step runs the whole ordered block.
+            CostComponent::Choose(_)
+            | CostComponent::Sample(_)
+            | CostComponent::Search(_)
+            | CostComponent::Let(_) => {
                 steps.push(component.clone());
             }
             // Provenance is erased at `lower` (`deckmaste_lowering`), so no
@@ -442,6 +445,18 @@ impl GameState {
                 let frame = Frame::bare(source, controller);
                 let (lo, _hi) = choice.quantity.bounds();
                 let need = lo.map_or(0, |c| self.eval_count(c, &frame));
+                Uint::try_from(candidates.len()).unwrap_or(Uint::MAX) >= need
+            }
+            CostComponent::Sample(sample) => {
+                let candidates = crate::target::candidates_region_with_activation(
+                    self,
+                    &sample.filter,
+                    watcher,
+                    crate::ActivationId::NONE,
+                );
+                let frame = Frame::bare(source, controller);
+                let (lo, _) = sample.quantity.bounds();
+                let need = lo.map_or(0, |count| self.eval_count(count, &frame));
                 Uint::try_from(candidates.len()).unwrap_or(Uint::MAX) >= need
             }
             // A search ([CR#701.23b..701.23d]) is ALWAYS payable, unlike a
@@ -930,7 +945,7 @@ mod tests {
         assert!(
             cycling.cost.iter().all(|component| !matches!(
                 component,
-                CostComponent::Choose(_) | CostComponent::Search(_)
+                CostComponent::Choose(_) | CostComponent::Sample(_) | CostComponent::Search(_)
             )),
             "cycling's bound discard needs no payment-time decision ([CR#702.29a])"
         );

@@ -566,6 +566,7 @@ fn cost_component_mentions_x(component: &CostComponent) -> bool {
         // A payment-time choice's cardinality reads X ("sacrifice X
         // creatures", [CR#601.2b]).
         CostComponent::Choose(choice) => quantity_mentions_cost_x(&choice.quantity),
+        CostComponent::Sample(sample) => quantity_mentions_cost_x(&sample.quantity),
         CostComponent::Search(search) => quantity_mentions_cost_x(&search.quantity),
         CostComponent::Let(_)
         | CostComponent::ManaCostOf(_)
@@ -1932,6 +1933,7 @@ impl GameState {
                         CostComponent::Mana(m) => mana.extend(m.iter().copied()),
                         CostComponent::Act { .. }
                         | CostComponent::Choose(_)
+                        | CostComponent::Sample(_)
                         | CostComponent::Search(_)
                         | CostComponent::Let(_) => {
                             items.extend(cost_step_items(

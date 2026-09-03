@@ -397,13 +397,16 @@ pub(crate) fn unless_cost_action(
         // Provenance is erased at `lower` (`deckmaste_lowering`), so no
         // loaded value reaches here wrapped. The arm survives only because
         // the variant does; `core-demacro` deletes both.
-        // A payment-time decision ([CR#601.2b]) has no single-`Action`
-        // rendering — it surfaces a choice and writes a register. Every
-        // caller that can see one routes through `unless_cost_effect`, which
-        // renders it as the matching instruction.
-        CostComponent::Choose(_) | CostComponent::Search(_) | CostComponent::Let(_) => {
+        // A payment-time subject instruction has no single-`Action` rendering:
+        // it may surface a choice and it writes a register. Every caller that
+        // can see one routes through `unless_cost_effect`, which renders it as
+        // the matching instruction.
+        CostComponent::Choose(_)
+        | CostComponent::Sample(_)
+        | CostComponent::Search(_)
+        | CostComponent::Let(_) => {
             unreachable!(
-                "a payment-time decision ([CR#601.2b]) is rendered by unless_cost_effect as \
+                "a payment-time subject instruction is rendered by unless_cost_effect as \
                  its own instruction, never as a single Action"
             )
         }
@@ -456,6 +459,9 @@ pub(crate) fn unless_cost_effect(
         // node the effect grammar uses — so it runs through the ordinary
         // interpreter and writes its register in the announce activation.
         CostComponent::Choose(choice) => OneShotEffect::Choose(choice.clone()),
+        CostComponent::Sample(_) => unreachable!(
+            "a random payment sample runs only through the payment protocol ([CR#601.2h])"
+        ),
         CostComponent::Search(search) => OneShotEffect::Search(search.clone()),
         CostComponent::Let(binding) => OneShotEffect::Let(binding.clone()),
         // [CR#400.7]: a producing payment writes its product for the ability

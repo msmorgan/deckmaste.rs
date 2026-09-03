@@ -960,10 +960,26 @@ fn discard_two_cost() -> Vec<CostComponent> {
 
 /// "Discard two cards at random" as a cost block ([CR#701.9b]).
 ///
-/// Re-spelled from `ChooseAndPay { binder: Existing(Random(..)), .. }`:
-/// lowering turns a payment binder over an existing group into a
-/// `CostComponent::Let`, so the random pick is the pinned expression whose
-/// register the paying verb iterates.
+/// The random pick is a `CostComponent::Sample` instruction whose register
+/// the paying verb iterates.
+fn random_sample_filter(filter: Predicate) -> Arc<deckmaste_core::Region<Predicate>> {
+    Arc::new(deckmaste_core::Region::new(
+        Arc::from([
+            deckmaste_core::Param {
+                def: deckmaste_core::DefId(0),
+                kind: deckmaste_core::Kind::Object,
+                provenance: deckmaste_core::Provenance::Candidate,
+            },
+            deckmaste_core::Param {
+                def: deckmaste_core::DefId(1),
+                kind: deckmaste_core::Kind::Object,
+                provenance: deckmaste_core::Provenance::Controller,
+            },
+        ]),
+        filter,
+    ))
+}
+
 fn random_discard_two_cost() -> Vec<CostComponent> {
     let CoreAction::Composite { name, body } = CoreAction::discard(
         Reference::Reg(deckmaste_core::RefId(1)),
@@ -979,9 +995,16 @@ fn random_discard_two_cost() -> Vec<CostComponent> {
         unreachable!("an at-random discard is one per-card loop")
     };
     vec![
-        CostComponent::Let(deckmaste_core::Let {
+        CostComponent::Sample(deckmaste_core::Sample {
             dest: PAID,
-            expr: deckmaste_core::Expr::Objects(each.over.clone()),
+            quantity: match &each.over {
+                deckmaste_core::Selection::Random(quantity, _) => quantity.clone(),
+                _ => unreachable!("an at-random discard samples a Random selection"),
+            },
+            filter: random_sample_filter(match &each.over {
+                deckmaste_core::Selection::Random(_, filter) => filter.clone(),
+                _ => unreachable!("an at-random discard samples a Random selection"),
+            }),
         }),
         CostComponent::do_action(CoreAction::Composite {
             name,
@@ -993,7 +1016,7 @@ fn random_discard_two_cost() -> Vec<CostComponent> {
     ]
 }
 
-/// Exile two random library cards as a cost — the same `Let`-then-verb shape
+/// Exile two random library cards as a cost — the same sample-then-verb shape
 /// as [`random_discard_two_cost`], over a library rather than a hand.
 fn random_library_exile_two_cost() -> Vec<CostComponent> {
     let filter = Predicate::And(
@@ -1006,12 +1029,13 @@ fn random_library_exile_two_cost() -> Vec<CostComponent> {
         .into(),
     );
     vec![
-        CostComponent::Let(deckmaste_core::Let {
+        CostComponent::Sample(deckmaste_core::Sample {
             dest: PAID,
-            expr: deckmaste_core::Expr::Objects(deckmaste_core::Selection::Random(
-                deckmaste_core::Quantity::Range(Some(Count::Literal(2)), Some(Count::Literal(2))),
-                filter,
-            )),
+            quantity: deckmaste_core::Quantity::Range(
+                Some(Count::Literal(2)),
+                Some(Count::Literal(2)),
+            ),
+            filter: random_sample_filter(filter),
         }),
         CostComponent::do_action(CoreAction::Composite {
             name: deckmaste_core::VerbName::from("Discard"),
@@ -1197,16 +1221,6 @@ fn choose_and_pay_rejects_sacrificing_an_opponents_permanent() {
 }
 
 #[test]
-#[ignore = "blocker: a random payment subject has no cost spelling. The \
-            binder enum is retired and core::validate_announced now refuses a \
-            CostComponent::Let whose expression is a Selection::Random as \
-            DecisionInExpression ([CR#608.2h]); the pure evaluator behind \
-            payment::fulfill::write_let yields the empty group for one, and \
-            current_tier defers such a Let BEHIND the verb that reads the \
-            register it writes. Unblocked by giving a payment-time random \
-            pick its own decision instruction in deckmaste_core - a sampling \
-            twin of CostComponent::Choose, sampled and recorded the way \
-            resolve::effect::iteration_selection samples an Each."]
 fn decline_replays_the_exact_random_subset_and_restores_post_sample_rng() {
     let extras = (0..4)
         .map(|index| {
@@ -1313,16 +1327,6 @@ fn decline_replays_the_exact_random_subset_and_restores_post_sample_rng() {
 }
 
 #[test]
-#[ignore = "blocker: a random payment subject has no cost spelling. The \
-            binder enum is retired and core::validate_announced now refuses a \
-            CostComponent::Let whose expression is a Selection::Random as \
-            DecisionInExpression ([CR#608.2h]); the pure evaluator behind \
-            payment::fulfill::write_let yields the empty group for one, and \
-            current_tier defers such a Let BEHIND the verb that reads the \
-            register it writes. Unblocked by giving a payment-time random \
-            pick its own decision instruction in deckmaste_core - a sampling \
-            twin of CostComponent::Choose, sampled and recorded the way \
-            resolve::effect::iteration_selection samples an Each."]
 fn declining_an_omitted_random_cost_preserves_consumed_entropy() {
     let extras = (0..4)
         .map(|index| {
@@ -1498,16 +1502,6 @@ fn producer_cost_runs_the_producer_then_binds_its_moved_product() {
 }
 
 #[test]
-#[ignore = "blocker: a random payment subject has no cost spelling. The \
-            binder enum is retired and core::validate_announced now refuses a \
-            CostComponent::Let whose expression is a Selection::Random as \
-            DecisionInExpression ([CR#608.2h]); the pure evaluator behind \
-            payment::fulfill::write_let yields the empty group for one, and \
-            current_tier defers such a Let BEHIND the verb that reads the \
-            register it writes. Unblocked by giving a payment-time random \
-            pick its own decision instruction in deckmaste_core - a sampling \
-            twin of CostComponent::Choose, sampled and recorded the way \
-            resolve::effect::iteration_selection samples an Each."]
 fn random_cost_rejects_an_insufficient_subject_set_without_advancing_rng() {
     let only_card = Arc::new(Card::Normal(CardFace {
         name: "Only random discard".into(),
@@ -1532,16 +1526,6 @@ fn random_cost_rejects_an_insufficient_subject_set_without_advancing_rng() {
 }
 
 #[test]
-#[ignore = "blocker: a random payment subject has no cost spelling. The \
-            binder enum is retired and core::validate_announced now refuses a \
-            CostComponent::Let whose expression is a Selection::Random as \
-            DecisionInExpression ([CR#608.2h]); the pure evaluator behind \
-            payment::fulfill::write_let yields the empty group for one, and \
-            current_tier defers such a Let BEHIND the verb that reads the \
-            register it writes. Unblocked by giving a payment-time random \
-            pick its own decision instruction in deckmaste_core - a sampling \
-            twin of CostComponent::Choose, sampled and recorded the way \
-            resolve::effect::iteration_selection samples an Each."]
 fn random_cost_waits_for_the_deferred_tier_and_samples_without_a_choice() {
     let first_card = Arc::new(Card::Normal(CardFace {
         name: "First random discard".into(),
@@ -1566,7 +1550,7 @@ fn random_cost_waits_for_the_deferred_tier_and_samples_without_a_choice() {
     let random = prompt
         .outstanding
         .iter()
-        .find(|iou| matches!(iou.kind, IouKind::Let(_)))
+        .find(|iou| matches!(iou.kind, IouKind::Sample(_)))
         .expect("random-discard IOU")
         .id;
     assert_eq!(prompt.fulfillable, vec![tap]);
@@ -1641,16 +1625,6 @@ fn random_producer_subject_cost_binder_fails_closed() {
 }
 
 #[test]
-#[ignore = "blocker: a random payment subject has no cost spelling. The \
-            binder enum is retired and core::validate_announced now refuses a \
-            CostComponent::Let whose expression is a Selection::Random as \
-            DecisionInExpression ([CR#608.2h]); the pure evaluator behind \
-            payment::fulfill::write_let yields the empty group for one, and \
-            current_tier defers such a Let BEHIND the verb that reads the \
-            register it writes. Unblocked by giving a payment-time random \
-            pick its own decision instruction in deckmaste_core - a sampling \
-            twin of CostComponent::Choose, sampled and recorded the way \
-            resolve::effect::iteration_selection samples an Each."]
 fn runner_declines_an_insufficient_random_choose_and_pay_cost() {
     let only_card = Arc::new(Card::Normal(CardFace {
         name: "Only automatic random discard".into(),
@@ -1752,16 +1726,6 @@ fn search_cost_validates_and_runs_an_explicit_complete_witness() {
 }
 
 #[test]
-#[ignore = "blocker: a random payment subject has no cost spelling. The \
-            binder enum is retired and core::validate_announced now refuses a \
-            CostComponent::Let whose expression is a Selection::Random as \
-            DecisionInExpression ([CR#608.2h]); the pure evaluator behind \
-            payment::fulfill::write_let yields the empty group for one, and \
-            current_tier defers such a Let BEHIND the verb that reads the \
-            register it writes. Unblocked by giving a payment-time random \
-            pick its own decision instruction in deckmaste_core - a sampling \
-            twin of CostComponent::Choose, sampled and recorded the way \
-            resolve::effect::iteration_selection samples an Each."]
 fn omitted_random_cost_advances_rng_before_a_retained_shuffle() {
     let mut cost = random_discard_two_cost();
     cost.push(CostComponent::Search(deckmaste_core::Search {
@@ -1871,7 +1835,7 @@ fn omitted_random_cost_advances_rng_before_a_retained_shuffle() {
     let random = prompt
         .outstanding
         .iter()
-        .find(|iou| matches!(&iou.kind, IouKind::Let(_)))
+        .find(|iou| matches!(&iou.kind, IouKind::Sample(_)))
         .unwrap()
         .id;
     let library_iou = prompt
