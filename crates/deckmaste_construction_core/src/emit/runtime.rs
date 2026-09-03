@@ -31,6 +31,7 @@ use crate::identifier::SCAN_POSITION_TYPE;
 use crate::identifier::STRUCTURAL_TRANSITION_TYPE;
 use crate::identifier::TERMINAL_CLASS_TYPE;
 use crate::identifier::emitted_ident;
+use crate::identifier::key as identifier_key;
 use crate::identifier::path_key;
 use crate::identifier::snake_case;
 use crate::plan::GeneratedItem;
@@ -343,6 +344,17 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             },
         ),
         named_type(
+            "VocabSurface",
+            quote! {
+                #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+                pub(crate) struct VocabSurface {
+                    pub(crate) surface: &'static str,
+                    pub(crate) vocabulary: &'static str,
+                    pub(crate) member: &'static str,
+                }
+            },
+        ),
+        named_type(
             "VerbTailLiteralSurface",
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -365,6 +377,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
     items.extend(emit_runtime_impls(&inventory));
     items.push(emit_form_literal_surfaces(plan));
     items.push(emit_lexicon_surfaces(plan));
+    items.push(emit_vocab_surfaces(plan));
     items.push(emit_verb_tail_literal_surfaces(plan));
     if plan.has_open_declarations() {
         items.push(emit_required_declarations(plan));
@@ -374,6 +387,38 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
         item.origins.clone_from(&origins);
     }
     items
+}
+
+fn emit_vocab_surfaces(plan: &SemanticPlan) -> GeneratedItem {
+    let rows = plan
+        .runtime_vocabs()
+        .flat_map(|vocab| {
+            vocab.variants().iter().map(move |variant| {
+                let surface = variant.word();
+                let vocabulary = syn::LitStr::new(vocab.name(), vocab.name_ident().span());
+                let member =
+                    syn::LitStr::new(&identifier_key(variant.name()), variant.name().span());
+                quote! {
+                    VocabSurface {
+                        surface: #surface,
+                        vocabulary: #vocabulary,
+                        member: #member,
+                    }
+                }
+            })
+        })
+        .collect::<Vec<_>>();
+
+    GeneratedItem::new(
+        ItemKey::Named {
+            kind: crate::plan::NamedKind::Constant,
+            name: "VOCAB_SURFACES".to_owned(),
+        },
+        quote! {
+            pub(crate) const VOCAB_SURFACES: &[VocabSurface] = &[#(#rows),*];
+        },
+        plan.declaration_keys().to_vec(),
+    )
 }
 
 fn emit_verb_tail_literal_surfaces(plan: &SemanticPlan) -> GeneratedItem {

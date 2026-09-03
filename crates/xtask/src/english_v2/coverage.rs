@@ -7,6 +7,7 @@ use deckmaste_english_v2::context::ParseContext;
 use deckmaste_english_v2::parser::ByteMismatchScope as RuntimeByteMismatchScope;
 use deckmaste_english_v2::parser::InternalFailureKind as RuntimeInternalFailureKind;
 use deckmaste_english_v2::parser::InvalidSpanKind as RuntimeInvalidSpanKind;
+use deckmaste_english_v2::parser::LexicalProvenanceKind;
 use deckmaste_english_v2::parser::OwnershipFailure as RuntimeOwnershipFailure;
 use deckmaste_english_v2::parser::OwnershipSummary as RuntimeOwnershipSummary;
 use deckmaste_english_v2::parser::ParseAnalysis;
@@ -21,7 +22,7 @@ use super::corpus::Corpus;
 use super::corpus::CorpusUnit;
 use super::corpus::map_corpus_units;
 
-const REPORT_SCHEMA_VERSION: u32 = 3;
+const REPORT_SCHEMA_VERSION: u32 = 4;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum CoverageLockMode {
@@ -382,6 +383,8 @@ pub(super) struct SelectedCoverage {
     rendered_text: String,
     ownership: CoverageOwnership,
     roundtrip_failure: Option<RoundtripFailure>,
+    nonterminal_nodes: usize,
+    longest_form_literal_bytes: usize,
 }
 
 impl SelectedCoverage {
@@ -396,6 +399,14 @@ impl SelectedCoverage {
     #[cfg(test)]
     const fn roundtrip_failure(&self) -> Option<&RoundtripFailure> {
         self.roundtrip_failure.as_ref()
+    }
+    #[cfg(test)]
+    const fn nonterminal_nodes(&self) -> usize {
+        self.nonterminal_nodes
+    }
+    #[cfg(test)]
+    const fn longest_form_literal_bytes(&self) -> usize {
+        self.longest_form_literal_bytes
     }
 }
 
@@ -513,6 +524,8 @@ pub(super) fn analysis_row<Ownership: SelectedOwnershipSource>(
                 rendered_text,
                 ownership: mapped,
                 roundtrip_failure,
+                nonterminal_nodes: 0,
+                longest_form_literal_bytes: 0,
             });
         }
         ParseAnalysisOutcome::ParseFailure => row.status = CoverageStatus::ParseFailure,
@@ -562,14 +575,35 @@ fn runtime_analysis_row<V: Clone>(unit: &CorpusUnit, analysis: &ParseAnalysis<V>
             message: Some("selected analysis has no selected value".to_owned()),
         };
     }
-    analysis_row(
+    let mut row = analysis_row(
         unit,
         outcome,
         analysis.ownership(),
         exception_resolved,
         exception_uses,
         error.as_deref(),
-    )
+    );
+    if let Some(selected) = row.selected.as_mut() {
+        let selected_ordinal = analysis.decision().and_then(SelectionDecision::selected);
+        selected.nonterminal_nodes = selected_ordinal
+            .and_then(|ordinal| {
+                analysis
+                    .decision()?
+                    .candidates()
+                    .iter()
+                    .find(|candidate| candidate.ordinal() == ordinal)
+            })
+            .map_or(0, |candidate| candidate.construction_path().len());
+        selected.longest_form_literal_bytes = analysis
+            .ownership()
+            .into_iter()
+            .flat_map(RuntimeSelectedOwnership::parsed_claims)
+            .filter(|claim| claim.kind() == LexicalProvenanceKind::FormLiteral)
+            .filter_map(|claim| claim.span().end.checked_sub(claim.span().start))
+            .max()
+            .unwrap_or(0);
+    }
+    row
 }
 
 fn selection_exception_evidence(decision: Option<&SelectionDecision>) -> (bool, usize) {
@@ -594,8 +628,10 @@ pub(super) struct CoverageSummary {
     exception_uses: usize,
     roundtrip_mismatch_units: usize,
     ownership_failure_units: usize,
-    /// Environment loading rejects every such collision before census work.
+    /// Exact fixed-surface/lexicon homographs enumerated during environment loading.
     literal_lexicon_collisions: usize,
+    nonterminal_nodes: usize,
+    longest_form_literal_bytes: usize,
     claims: usize,
     claimed_bytes: usize,
     form_literal_claims: usize,
@@ -639,6 +675,8 @@ summary_getters!(
     roundtrip_mismatch_units,
     ownership_failure_units,
     literal_lexicon_collisions,
+    nonterminal_nodes,
+    longest_form_literal_bytes,
     claims,
     claimed_bytes,
 );
@@ -680,6 +718,14 @@ impl CoverageSummary {
                 }
             }
             let Some(selected) = &row.selected else { continue };
+            add_field(
+                &mut summary.nonterminal_nodes,
+                selected.nonterminal_nodes,
+                "nonterminal_nodes",
+            )?;
+            summary.longest_form_literal_bytes = summary
+                .longest_form_literal_bytes
+                .max(selected.longest_form_literal_bytes);
             let ownership = &selected.ownership;
             if selected.roundtrip_failure.is_some() {
                 checked_increment(
@@ -875,11 +921,21 @@ pub(super) struct CoverageReport {
 }
 
 impl CoverageReport {
+    #[cfg(test)]
     pub(super) fn try_new(
         source_fingerprint: String,
         rows: Vec<CoverageRow>,
     ) -> Result<Self, CoverageValidationError> {
-        let summary = CoverageSummary::from_rows(&rows)?;
+        Self::try_new_with_collisions(source_fingerprint, rows, 0)
+    }
+
+    fn try_new_with_collisions(
+        source_fingerprint: String,
+        rows: Vec<CoverageRow>,
+        literal_lexicon_collisions: usize,
+    ) -> Result<Self, CoverageValidationError> {
+        let mut summary = CoverageSummary::from_rows(&rows)?;
+        summary.literal_lexicon_collisions = literal_lexicon_collisions;
         Ok(Self {
             schema_version: REPORT_SCHEMA_VERSION,
             source_fingerprint,
@@ -892,14 +948,13 @@ impl CoverageReport {
         &self.source_fingerprint
     }
 
-    pub(super) const fn gate_failure_counts(&self) -> (usize, usize, usize, usize, usize, usize) {
+    pub(super) const fn gate_failure_counts(&self) -> (usize, usize, usize, usize, usize) {
         (
             self.summary.selected_uncovered_units,
             self.summary.unresolved_ties,
             self.summary.internal_failures,
             self.summary.exception_resolved,
             self.summary.exception_uses,
-            self.summary.literal_lexicon_collisions,
         )
     }
 
@@ -1036,7 +1091,11 @@ where
         observer.record(format!("map_row:{}", unit.id()));
     }
     observer.record("validate".to_owned());
-    let report = CoverageReport::try_new(corpus.source_fingerprint().to_owned(), rows)?;
+    let report = CoverageReport::try_new_with_collisions(
+        corpus.source_fingerprint().to_owned(),
+        rows,
+        parser.environment().literal_lexicon_collisions(),
+    )?;
     observer.record("render".to_owned());
     render_report(&report, args.json, output)?;
     observer.record("flush".to_owned());
@@ -1159,6 +1218,8 @@ impl CoverageRow {
                     expected: "expected".to_owned(),
                     actual: "actual".to_owned(),
                 }),
+                nonterminal_nodes: 0,
+                longest_form_literal_bytes: 0,
             }),
             internal_failure_kind: None,
             message: None,
@@ -1217,6 +1278,8 @@ impl CoverageRow {
                 rendered_text: rendered.to_owned(),
                 ownership: CoverageOwnership::from_source(summary, failures),
                 roundtrip_failure,
+                nonterminal_nodes: 0,
+                longest_form_literal_bytes: 0,
             }),
             internal_failure_kind: None,
             message: None,
@@ -1253,6 +1316,16 @@ impl CoverageSummary {
 
 #[cfg(test)]
 impl CoverageReport {
+    pub(super) fn for_collision_metric_test(
+        source_fingerprint: String,
+        covered: Vec<String>,
+        literal_lexicon_collisions: usize,
+    ) -> Self {
+        let mut report = Self::for_gate_test(source_fingerprint, covered, 0, 0, 0, 0);
+        report.summary.literal_lexicon_collisions = literal_lexicon_collisions;
+        report
+    }
+
     pub(super) fn for_exception_gate_test(
         source_fingerprint: String,
         covered: Vec<String>,
@@ -1317,6 +1390,8 @@ impl CoverageReport {
                     rendered_text: String::new(),
                     ownership: empty_ownership(),
                     roundtrip_failure: None,
+                    nonterminal_nodes: 0,
+                    longest_form_literal_bytes: 0,
                 }),
                 internal_failure_kind: None,
                 message: None,
@@ -1343,6 +1418,8 @@ impl CoverageReport {
                     rendered_text: String::new(),
                     ownership,
                     roundtrip_failure: None,
+                    nonterminal_nodes: 0,
+                    longest_form_literal_bytes: 0,
                 }),
                 internal_failure_kind: None,
                 message: None,
@@ -1829,7 +1906,7 @@ mod tests {
                 40, 400, 2, 20, 4, 40, 6, 60, 8, 80, 20, 200, 10, 100, 11, 110, 12, 13,
             ],
         };
-        let rows = vec![
+        let mut rows = vec![
             CoverageRow::selected_for_test(
                 id('1'),
                 CoverageStatus::SelectedCovered,
@@ -1848,12 +1925,19 @@ mod tests {
             CoverageRow::outcome_for_test(id('4'), CoverageStatus::UnresolvedAmbiguity),
             CoverageRow::outcome_for_test(id('5'), CoverageStatus::InternalFailure),
         ];
-        CoverageReport::try_new(id('a'), rows).unwrap()
+        rows[0].selected_mut_for_test().nonterminal_nodes = 17;
+        rows[0].selected_mut_for_test().longest_form_literal_bytes = 11;
+        rows[1].selected_mut_for_test().nonterminal_nodes = 25;
+        rows[1].selected_mut_for_test().longest_form_literal_bytes = 7;
+        CoverageReport::try_new_with_collisions(id('a'), rows, 1).unwrap()
     }
 
     #[test]
-    fn summary_matches_all_twenty_nine_independently_derived_fields() {
+    fn summary_matches_all_thirty_one_independently_derived_fields() {
         let report = independently_derived_report();
+        let selected = report.rows()[0].selected().unwrap();
+        assert_eq!(selected.nonterminal_nodes(), 17);
+        assert_eq!(selected.longest_form_literal_bytes(), 11);
         let summary = report.summary();
         assert_eq!(summary.total_units(), 5);
         assert_eq!(summary.selected_units(), 2);
@@ -1866,7 +1950,9 @@ mod tests {
         assert_eq!(summary.exception_uses(), 0);
         assert_eq!(summary.roundtrip_mismatch_units(), 1);
         assert_eq!(summary.ownership_failure_units(), 1);
-        assert_eq!(summary.literal_lexicon_collisions(), 0);
+        assert_eq!(summary.literal_lexicon_collisions(), 1);
+        assert_eq!(summary.nonterminal_nodes(), 42);
+        assert_eq!(summary.longest_form_literal_bytes(), 11);
         assert_eq!(summary.claims(), 55);
         assert_eq!(summary.claimed_bytes(), 550);
 
@@ -1884,7 +1970,9 @@ mod tests {
                 "exception_uses": 0,
                 "roundtrip_mismatch_units": 1,
                 "ownership_failure_units": 1,
-                "literal_lexicon_collisions": 0,
+                "literal_lexicon_collisions": 1,
+                "nonterminal_nodes": 42,
+                "longest_form_literal_bytes": 11,
                 "claims": 55,
                 "claimed_bytes": 550,
                 "form_literal_claims": 3,
@@ -1913,6 +2001,11 @@ mod tests {
         let json = serde_json::to_value(&report).unwrap();
         assert_eq!(json["rows"][0]["exception_resolved"], false);
         assert_eq!(json["rows"][0]["exception_uses"], 0);
+        assert_eq!(json["rows"][0]["selected"]["nonterminal_nodes"], 17);
+        assert_eq!(
+            json["rows"][0]["selected"]["longest_form_literal_bytes"],
+            11
+        );
         let summary_keys = json["summary"]
             .as_object()
             .unwrap()
@@ -1934,6 +2027,8 @@ mod tests {
                 "roundtrip_mismatch_units",
                 "ownership_failure_units",
                 "literal_lexicon_collisions",
+                "nonterminal_nodes",
+                "longest_form_literal_bytes",
                 "claims",
                 "claimed_bytes",
                 "form_literal_claims",
@@ -2310,6 +2405,17 @@ mod tests {
             expected_ids.iter().map(String::as_str).collect::<Vec<_>>()
         );
         assert_eq!(json["rows"][0]["status"], "selected_covered");
+        let selected = &json["rows"][0]["selected"];
+        assert!(selected["nonterminal_nodes"].as_u64().unwrap() > 0);
+        assert!(selected["longest_form_literal_bytes"].as_u64().unwrap() > 0);
+        assert!(json["summary"]["nonterminal_nodes"].as_u64().unwrap() > 0);
+        assert!(
+            json["summary"]["longest_form_literal_bytes"]
+                .as_u64()
+                .unwrap()
+                > 0
+        );
+        assert_eq!(json["summary"]["literal_lexicon_collisions"], 2);
     }
 
     #[test]

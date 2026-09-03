@@ -279,14 +279,8 @@ fn apply_with_writer_and_retirement(
     if retirement_path.is_some() && mode != CoverageLockMode::Bless {
         bail!("a coverage retirement manifest is valid only with --bless");
     }
-    let (
-        selected_uncovered,
-        unresolved,
-        internal,
-        exception_resolved,
-        exception_uses,
-        literal_lexicon_collisions,
-    ) = report.gate_failure_counts();
+    let (selected_uncovered, unresolved, internal, exception_resolved, exception_uses) =
+        report.gate_failure_counts();
     if selected_uncovered != 0 {
         bail!(
             "coverage gate rejected {selected_uncovered} selected-uncovered unit{}",
@@ -310,12 +304,6 @@ fn apply_with_writer_and_retirement(
             "coverage gate rejected {exception_resolved} exception-resolved unit{} and {exception_uses} exception use{}",
             if exception_resolved == 1 { "" } else { "s" },
             if exception_uses == 1 { "" } else { "s" },
-        );
-    }
-    if literal_lexicon_collisions != 0 {
-        bail!(
-            "coverage gate rejected {literal_lexicon_collisions} literal/lexicon collision{}",
-            if literal_lexicon_collisions == 1 { "" } else { "s" },
         );
     }
     let current = report.selected_covered_ids()?;
@@ -941,6 +929,17 @@ WARNING: coverage retirement is a coordinator ruling; a ticket-vs-purpose contra
             &mut super::FilesystemLockWriter,
         )
         .unwrap();
+
+        let visible_collision =
+            CoverageReport::for_collision_metric_test(id('1'), vec![id('a')], 9);
+        apply_with_writer(
+            &visible_collision,
+            &path,
+            CoverageLockMode::Check,
+            &mut Vec::new(),
+            &mut super::FilesystemLockWriter,
+        )
+        .expect("collision census is visible but not ratcheted");
 
         let decision = deckmaste_english_v2::parser::exception_decision_for_test();
         let exception = CoverageReport::for_exception_gate_test(id('1'), vec![id('a')], &decision);

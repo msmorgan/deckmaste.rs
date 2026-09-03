@@ -2033,6 +2033,7 @@ mod tests {
                 "DeclarationLeaf",
                 "FormLiteralSurface",
                 "LexiconSurface",
+                "VocabSurface",
                 "VerbTailLiteralSurface",
                 "Lexical",
                 "Leaf",

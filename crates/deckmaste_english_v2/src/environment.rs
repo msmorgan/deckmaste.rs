@@ -22,6 +22,7 @@ use crate::constructions::CatalogProvider;
 use crate::constructions::FORM_LITERAL_SURFACES;
 use crate::constructions::LEXICON_SURFACES;
 use crate::constructions::VERB_TAIL_LITERAL_SURFACES;
+use crate::constructions::VOCAB_SURFACES;
 use crate::constructions::VerbFrameAtom;
 use crate::constructions::VerbFrameClass;
 use crate::constructions::VerbFrameKey;
@@ -488,6 +489,7 @@ struct EnvironmentData {
     verb_inventory: BTreeMap<VerbInventoryRef, VerbInventoryRecord>,
     verb_inventory_readings: BTreeMap<Arc<str>, Vec<IndexedVerbInventoryReading>>,
     initial_verb_inventory_readings: BTreeMap<Arc<str>, Vec<IndexedVerbInventoryReading>>,
+    literal_lexicon_collisions: usize,
 }
 
 #[cfg(test)]
@@ -657,7 +659,8 @@ impl ParserEnvironment {
             );
         }
         let verb_inventory = normalized_verb_inventory(&records)?;
-        reject_literal_lexicon_collisions(&records, &verb_inventory)?;
+        let literal_lexicon_collisions =
+            reject_literal_lexicon_collisions(&records, &verb_inventory)?;
         let (verb_inventory_readings, initial_verb_inventory_readings) =
             index_verb_inventory_readings(&verb_inventory);
 
@@ -672,6 +675,7 @@ impl ParserEnvironment {
                 verb_inventory,
                 verb_inventory_readings,
                 initial_verb_inventory_readings,
+                literal_lexicon_collisions,
             }),
         })
     }
@@ -958,6 +962,13 @@ impl ParserEnvironment {
         self.data.catalog_providers.contains_key(&provider)
     }
 
+    /// Counts exact fixed-surface/lexicon homographs observed by the same
+    /// checker that rejects unreviewed collisions during environment loading.
+    #[must_use]
+    pub fn literal_lexicon_collisions(&self) -> usize {
+        self.data.literal_lexicon_collisions
+    }
+
     #[cfg(test)]
     pub(crate) fn test_only_shares_storage_with(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.data, &other.data)
@@ -982,7 +993,7 @@ impl ParserEnvironment {
 fn reject_literal_lexicon_collisions(
     records: &BTreeMap<DeclarationKind, BTreeMap<Arc<str>, DeclarationRecord>>,
     verb_inventory: &BTreeMap<VerbInventoryRef, VerbInventoryRecord>,
-) -> Result<(), ParserEnvironmentError> {
+) -> Result<usize, ParserEnvironmentError> {
     let mut lexical_owners = BTreeMap::<&str, String>::new();
 
     for row in LEXICON_SURFACES {
@@ -1037,6 +1048,7 @@ fn reject_literal_lexicon_collisions(
         })
     };
     let mut collisions = Vec::new();
+    let mut collision_count = 0usize;
 
     for row in FORM_LITERAL_SURFACES {
         if let Some(error) = collision(
@@ -1046,7 +1058,19 @@ fn reject_literal_lexicon_collisions(
                 row.construction, row.form, row.atom_index
             ),
         ) {
+            collision_count += 1;
             collisions.push(error);
+        }
+    }
+    for row in VOCAB_SURFACES {
+        if let Some(error) = collision(
+            row.surface,
+            format!("vocab `{}::{}`", row.vocabulary, row.member),
+        ) {
+            collision_count += 1;
+            if !reviewed_vocab_lexicon_homograph(row.vocabulary) {
+                collisions.push(error);
+            }
         }
     }
     for row in VERB_TAIL_LITERAL_SURFACES {
@@ -1057,6 +1081,7 @@ fn reject_literal_lexicon_collisions(
                 row.codec, row.atom_index
             ),
         ) {
+            collision_count += 1;
             collisions.push(error);
         }
     }
@@ -1073,12 +1098,22 @@ fn reject_literal_lexicon_collisions(
                         record.reference
                     ),
                 ) {
+                    collision_count += 1;
                     collisions.push(error);
                 }
             }
         }
     }
-    collisions.into_iter().next().map_or(Ok(()), Err)
+    collisions
+        .into_iter()
+        .next()
+        .map_or(Ok(collision_count), Err)
+}
+
+fn reviewed_vocab_lexicon_homograph(vocabulary: &str) -> bool {
+    // Adjective readings remain category-safe when their surface is also a
+    // noun or verb. Noun-shaped vocabularies get no such escape.
+    vocabulary == "AttributiveAdjective"
 }
 
 fn valence_licenses_frame(valence: &VerbValence, frame: &[CustomTailAtom]) -> bool {
@@ -1545,7 +1580,13 @@ mod tests {
     }
 
     #[test]
-    fn literal_lexicon_tripwire_rejects_form_and_tail_collisions_exactly() {
+    fn literal_lexicon_tripwire_counts_vocab_and_rejects_form_and_tail_collisions_exactly() {
+        let baseline = ParserEnvironment::try_from_declarations([])
+            .expect("the reviewed target homograph is the only fixed-surface collision");
+        assert_eq!(baseline.literal_lexicon_collisions(), 1);
+        assert!(reviewed_vocab_lexicon_homograph("AttributiveAdjective"));
+        assert!(!reviewed_vocab_lexicon_homograph("BareLocativeNoun"));
+
         let noun = deckmaste_construction_core::macro_def::read_str(
             "/synthetic/Additional.ron",
             r#"Type(name:"Additional",spelling:"additional",grammar:Noun(singular:"additional"))"#,
