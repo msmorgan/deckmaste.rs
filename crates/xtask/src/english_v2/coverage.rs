@@ -628,7 +628,8 @@ pub(super) struct CoverageSummary {
     exception_uses: usize,
     roundtrip_mismatch_units: usize,
     ownership_failure_units: usize,
-    /// Exact fixed-surface/lexicon homographs enumerated during environment loading.
+    /// Exact fixed-surface/lexicon homographs enumerated during environment
+    /// loading.
     literal_lexicon_collisions: usize,
     nonterminal_nodes: usize,
     longest_form_literal_bytes: usize,
@@ -948,6 +949,10 @@ impl CoverageReport {
         &self.source_fingerprint
     }
 
+    pub(super) fn normalization_digest(&self) -> String {
+        super::corpus::normalization_digest(self.rows.iter().map(|row| row.text.as_str()))
+    }
+
     pub(super) const fn gate_failure_counts(&self) -> (usize, usize, usize, usize, usize) {
         (
             self.summary.selected_uncovered_units,
@@ -1096,6 +1101,7 @@ where
         rows,
         parser.environment().literal_lexicon_collisions(),
     )?;
+    debug_assert_eq!(report.normalization_digest(), corpus.normalization_digest());
     observer.record("render".to_owned());
     render_report(&report, args.json, output)?;
     observer.record("flush".to_owned());
@@ -1342,6 +1348,14 @@ impl CoverageReport {
 
     pub(super) const fn exception_counts_for_test(&self) -> (usize, usize) {
         (self.summary.exception_resolved, self.summary.exception_uses)
+    }
+
+    pub(super) fn set_first_parse_failure_text_for_test(&mut self, text: &str) {
+        self.rows
+            .iter_mut()
+            .find(|row| row.status == CoverageStatus::ParseFailure)
+            .expect("normalization fixture requires one parse-failure row")
+            .text = text.to_owned();
     }
 
     pub(super) fn for_gate_test(

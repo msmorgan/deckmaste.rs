@@ -13,6 +13,7 @@ use sha2::Digest;
 use sha2::Sha256;
 
 const ID_DOMAIN: &[u8] = b"deckmaste:english-v2:corpus-unit:v1";
+const NORMALIZATION_DIGEST_DOMAIN: &[u8] = b"deckmaste:english-v2:normalization:v1";
 const MAX_CORPUS_UNIT_JOBS: usize = 4;
 const RULES_BEARING_PARENTHETICALS: &[&str] = &[
     "(as long as this creature is on the battlefield)",
@@ -170,6 +171,10 @@ impl Corpus {
         &self.source_fingerprint
     }
 
+    pub(super) fn normalization_digest(&self) -> String {
+        normalization_digest(self.units.iter().map(CorpusUnit::text))
+    }
+
     pub(super) fn units(&self) -> &[CorpusUnit] {
         &self.units
     }
@@ -186,6 +191,17 @@ impl Corpus {
         );
         Ok(unit)
     }
+}
+
+pub(super) fn normalization_digest<'a>(texts: impl IntoIterator<Item = &'a str>) -> String {
+    let mut digest = Sha256::new();
+    digest.update(NORMALIZATION_DIGEST_DOMAIN);
+    for text in texts {
+        let length = u64::try_from(text.len()).expect("normalized text length fits in u64");
+        digest.update(length.to_be_bytes());
+        digest.update(text.as_bytes());
+    }
+    sha256_hex(&digest.finalize())
 }
 
 pub(super) fn map_corpus_units<T: Send>(
@@ -321,7 +337,8 @@ fn normalize_oracle_text(card_name: &str, text: &str) -> anyhow::Result<String> 
 /// most one surrounding space. A line containing only reminder text
 /// disappears. Every parenthetical followed by non-whitespace text on its
 /// line must be explicitly classified; authored rules-bearing parentheticals
-/// survive byte-exactly.
+/// survive byte-exactly. An empty line-final parenthetical is not reminder
+/// text and passes through byte-exactly.
 fn strip_reminder_text(card_name: &str, text: &str) -> anyhow::Result<String> {
     text.split('\n')
         .map(|line| {
@@ -701,7 +718,7 @@ mod tests {
     }
 
     #[test]
-    fn unknown_mid_line_parenthetical_is_a_card_named_error() {
+    fn unknown_parenthetical_followed_by_text_is_a_card_named_error() {
         let error = strip_reminder_text("Tripwire Card", "Before (unknown spelling) after")
             .unwrap_err()
             .to_string();
@@ -721,7 +738,7 @@ mod tests {
     }
 
     #[test]
-    fn unknown_mid_line_parenthetical_after_a_leading_reminder_is_an_error() {
+    fn unknown_parenthetical_after_a_leading_reminder_is_an_error() {
         let error = strip_reminder_text(
             "Tripwire Card",
             "(the Fridge) (a wholly novel gloss) trample.",
@@ -734,13 +751,22 @@ mod tests {
     }
 
     #[test]
-    fn empty_mid_line_parenthetical_is_a_card_named_error() {
+    fn empty_parenthetical_followed_by_text_is_a_card_named_error() {
         let error = strip_reminder_text("Empty Group", "Before () after")
             .unwrap_err()
             .to_string();
 
         assert!(error.contains("Empty Group"), "{error}");
         assert!(error.contains("()"), "{error}");
+    }
+
+    #[test]
+    fn empty_line_final_parenthetical_is_preserved() {
+        assert_eq!(
+            strip_reminder_text("Empty Group", "Before ()").unwrap(),
+            "Before ()"
+        );
+        assert_eq!(strip_reminder_text("Empty Group", "()").unwrap(), "()");
     }
 
     #[test]
@@ -908,6 +934,7 @@ mod tests {
         let left = Corpus::from_bytes_with_context_onsets(SNAPSHOT_A, &onsets).unwrap();
         let right = Corpus::from_bytes_with_context_onsets(SNAPSHOT_B, &onsets).unwrap();
         assert_eq!(left.units(), right.units());
+        assert_eq!(left.normalization_digest(), right.normalization_digest());
         assert_eq!(left.units().len(), 4);
         assert_eq!(
             left.units()
@@ -924,6 +951,19 @@ mod tests {
         assert_eq!(front.face_name(), Some("Front"));
         assert_eq!(front.side.as_deref(), Some("a"));
         assert_eq!(front.text(), "1–2 | Choose one.");
+    }
+
+    #[test]
+    fn normalization_digest_frames_texts_and_preserves_unit_order() {
+        assert_ne!(
+            normalization_digest(["ab", "c"]),
+            normalization_digest(["a", "bc"])
+        );
+        assert_ne!(
+            normalization_digest(["first", "second"]),
+            normalization_digest(["second", "first"])
+        );
+        assert_ne!(normalization_digest([""]), normalization_digest([]));
     }
 
     #[test]

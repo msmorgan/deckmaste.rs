@@ -1,6 +1,7 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "source_fingerprint": "e85359d7b8c578df13dff2fdf7c743a520a5b367d5ed25ab0a5f03cb8b3637dd",
+  "normalization_digest": "dfd487831e5cd6d02b3ec9d8087e649463b1d023b62cf2916084f4099486d749",
   "covered": [
     "0000943033be56af279974751b66a49d5f1b8112e4f8b795a9b8cb6e574602e4",
     "0005221db3d620a7b8ed811f2fabe907d6731fcaec9202df5766cccc28b10760",
