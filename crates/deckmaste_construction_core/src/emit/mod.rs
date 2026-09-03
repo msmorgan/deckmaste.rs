@@ -366,6 +366,10 @@ pub(super) fn feature_type(feature: crate::feature::Feature) -> TokenStream {
         crate::feature::Feature::ModifierLicense => quote! { ModifierLicense },
         crate::feature::Feature::DeterminerNumber => quote! { DeterminerNumber },
         crate::feature::Feature::FusedHeadLicense => quote! { FusedHeadLicense },
+        crate::feature::Feature::PrepositionComplementKind => {
+            quote! { PrepositionComplementKind }
+        }
+        crate::feature::Feature::LocativeTemporalLicense => quote! { LocativeTemporalLicense },
         crate::feature::Feature::NominalForm => quote! { NominalForm },
         crate::feature::Feature::NominalLicense => quote! { NominalLicense },
         crate::feature::Feature::Number => quote! { Number },
@@ -374,8 +378,8 @@ pub(super) fn feature_type(feature: crate::feature::Feature) -> TokenStream {
         crate::feature::Feature::PossessiveEnding => quote! { PossessiveEnding },
         crate::feature::Feature::Properness => quote! { Properness },
         crate::feature::Feature::Relationality => quote! { Relationality },
-        crate::feature::Feature::NounComplement => quote! { NounComplement },
-        crate::feature::Feature::PrepositionClass => quote! { PrepositionClass },
+        crate::feature::Feature::BareLocativeComplement => quote! { BareLocativeComplement },
+        crate::feature::Feature::PrepositionAttachment => quote! { PrepositionAttachment },
     }
 }
 
@@ -481,6 +485,12 @@ fn emit_predicate_atom(
                 crate::feature::Feature::ModifierLicense => local_ident("ModifierLicense"),
                 crate::feature::Feature::DeterminerNumber => local_ident("DeterminerNumber"),
                 crate::feature::Feature::FusedHeadLicense => local_ident("FusedHeadLicense"),
+                crate::feature::Feature::PrepositionComplementKind => {
+                    local_ident("PrepositionComplementKind")
+                }
+                crate::feature::Feature::LocativeTemporalLicense => {
+                    local_ident("LocativeTemporalLicense")
+                }
                 crate::feature::Feature::NominalForm => local_ident("NominalForm"),
                 crate::feature::Feature::NominalLicense => local_ident("NominalLicense"),
                 crate::feature::Feature::Number => local_ident("Number"),
@@ -489,8 +499,12 @@ fn emit_predicate_atom(
                 crate::feature::Feature::PossessiveEnding => local_ident("PossessiveEnding"),
                 crate::feature::Feature::Properness => local_ident("Properness"),
                 crate::feature::Feature::Relationality => local_ident("Relationality"),
-                crate::feature::Feature::NounComplement => local_ident("NounComplement"),
-                crate::feature::Feature::PrepositionClass => local_ident("PrepositionClass"),
+                crate::feature::Feature::BareLocativeComplement => {
+                    local_ident("BareLocativeComplement")
+                }
+                crate::feature::Feature::PrepositionAttachment => {
+                    local_ident("PrepositionAttachment")
+                }
             };
             let members = allowed
                 .iter()

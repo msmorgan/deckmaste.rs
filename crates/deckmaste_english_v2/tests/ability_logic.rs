@@ -1376,7 +1376,7 @@ fn finite_temporal_and_intervening_trigger_prefixes_have_dedicated_generated_sha
     let temporal_text = "At the beginning of each player's draw step, you gain X life.";
     let temporal = assert_selected_trigger(&parser, &context, temporal_text);
     let Ability::Triggered(Triggered {
-        trigger: TriggerPrefix::Temporal(Temporal { phrase }),
+        trigger: TriggerPrefix::Temporal(temporal),
         intervening_if,
         ..
     }) = temporal
@@ -1384,7 +1384,7 @@ fn finite_temporal_and_intervening_trigger_prefixes_have_dedicated_generated_sha
         panic!("At takes the dedicated temporal phrase")
     };
     assert!(intervening_if.as_ref().is_none());
-    let PrepositionalPhrase::PrepositionalPhrase(phrase) = phrase else {
+    let PrepositionalPhrase::PrepositionalPhrase(phrase) = temporal.phrase() else {
         panic!("the temporal trigger takes an ordinary prepositional complement")
     };
     assert!(matches!(phrase.preposition, Preposition::At));

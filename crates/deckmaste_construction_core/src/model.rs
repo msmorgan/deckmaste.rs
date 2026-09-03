@@ -228,9 +228,10 @@ pub struct FeatureSlot {
     pub feature: Feature,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum Feature {
     Agreement,
+    BareLocativeComplement,
     BareLocativeLicense,
     Cardinality,
     Compoundability,
@@ -238,14 +239,15 @@ pub enum Feature {
     ModifierLicense,
     DeterminerNumber,
     FusedHeadLicense,
+    PrepositionComplementKind,
+    LocativeTemporalLicense,
     NominalForm,
     NominalLicense,
-    NounComplement,
     Number,
     Onset,
     Participle,
     PossessiveEnding,
-    PrepositionClass,
+    PrepositionAttachment,
     Properness,
     Relationality,
 }

@@ -516,22 +516,28 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
     for feature in [
         Feature::Agreement,
         Feature::Cardinality,
+        Feature::PrepositionComplementKind,
+        Feature::LocativeTemporalLicense,
         Feature::ModifierLicense,
         Feature::NominalForm,
         Feature::Number,
         Feature::Onset,
         Feature::PossessiveEnding,
-        Feature::PrepositionClass,
+        Feature::PrepositionAttachment,
+        Feature::Relationality,
     ] {
         for (category, members) in &categories {
             let provider_helper = matches!(
                 feature,
                 Feature::DeterminerNumber
                     | Feature::FusedHeadLicense
+                    | Feature::PrepositionComplementKind
+                    | Feature::LocativeTemporalLicense
                     | Feature::ModifierLicense
                     | Feature::NominalForm
                     | Feature::NominalLicense
-                    | Feature::PrepositionClass
+                    | Feature::PrepositionAttachment
+                    | Feature::Relationality
             ) && validated.carries_feature(category, feature);
             if !validated.category_reads_feature(category, feature) && !provider_helper {
                 continue;
@@ -560,9 +566,12 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         items.push(emit_sum_agreement_match_helper(validated, sum)?);
     }
     for feature in [
+        Feature::PrepositionComplementKind,
+        Feature::LocativeTemporalLicense,
         Feature::ModifierLicense,
         Feature::NominalForm,
-        Feature::PrepositionClass,
+        Feature::PrepositionAttachment,
+        Feature::Relationality,
     ] {
         for sum in validated
             .sums()
@@ -1748,6 +1757,8 @@ fn emit_vocab_feature_helper(helper: VocabFeatureHelper<'_>) -> GeneratedItem {
         Feature::ModifierLicense => quote! { ModifierLicense },
         Feature::DeterminerNumber => quote! { DeterminerNumber },
         Feature::FusedHeadLicense => quote! { FusedHeadLicense },
+        Feature::PrepositionComplementKind => quote! { PrepositionComplementKind },
+        Feature::LocativeTemporalLicense => quote! { LocativeTemporalLicense },
         Feature::NominalForm => quote! { NominalForm },
         Feature::NominalLicense => quote! { NominalLicense },
         Feature::Number => quote! { Number },
@@ -1756,8 +1767,8 @@ fn emit_vocab_feature_helper(helper: VocabFeatureHelper<'_>) -> GeneratedItem {
         Feature::PossessiveEnding => quote! { PossessiveEnding },
         Feature::Properness => quote! { Properness },
         Feature::Relationality => quote! { Relationality },
-        Feature::NounComplement => quote! { NounComplement },
-        Feature::PrepositionClass => quote! { PrepositionClass },
+        Feature::BareLocativeComplement => quote! { BareLocativeComplement },
+        Feature::PrepositionAttachment => quote! { PrepositionAttachment },
     };
     let arms = helper
         .vocab
@@ -2086,7 +2097,12 @@ fn reserve_feature_callees(
     }
     if matches!(
         *source_feature,
-        Feature::ModifierLicense | Feature::PrepositionClass
+        Feature::BareLocativeComplement
+            | Feature::PrepositionComplementKind
+            | Feature::LocativeTemporalLicense
+            | Feature::ModifierLicense
+            | Feature::PrepositionAttachment
+            | Feature::Relationality
     ) && field.kind() == ConstructionFieldKind::Lex
         && validated.terminal_has_feature(field.terminal(), *source_feature)
     {
@@ -3829,6 +3845,12 @@ fn feature_expr(
                     Feature::FusedHeadLicense => {
                         Err(internal("verb slot does not provide fused-head license"))
                     }
+                    Feature::PrepositionComplementKind => Err(internal(
+                        "verb slot does not provide locative-temporal complement metadata",
+                    )),
+                    Feature::LocativeTemporalLicense => Err(internal(
+                        "verb slot does not provide locative-temporal license metadata",
+                    )),
                     Feature::NominalForm => {
                         Err(internal("verb slot does not provide nominal form"))
                     }
@@ -3839,14 +3861,11 @@ fn feature_expr(
                     Feature::BareLocativeLicense | Feature::Compoundability => {
                         Err(internal("noun licensing is closed lexeme metadata"))
                     }
-                    Feature::Countability
-                    | Feature::NounComplement
-                    | Feature::Properness
-                    | Feature::Relationality => {
+                    Feature::Countability | Feature::Properness | Feature::Relationality => {
                         Err(internal("noun classification is closed lexical metadata"))
                     }
-                    Feature::PrepositionClass => {
-                        Err(internal("verb slot does not provide preposition class"))
+                    Feature::BareLocativeComplement | Feature::PrepositionAttachment => {
+                        Err(internal("verb slot does not provide preposition metadata"))
                     }
                     Feature::ModifierLicense => {
                         Err(internal("verb slot does not provide modifier license"))
@@ -3990,7 +4009,12 @@ fn feature_expr(
             }
             if matches!(
                 *source_feature,
-                Feature::ModifierLicense | Feature::PrepositionClass
+                Feature::BareLocativeComplement
+                    | Feature::PrepositionComplementKind
+                    | Feature::LocativeTemporalLicense
+                    | Feature::ModifierLicense
+                    | Feature::PrepositionAttachment
+                    | Feature::Relationality
             ) && field.kind() == ConstructionFieldKind::Lex
                 && validated.terminal_has_feature(field.terminal(), *source_feature)
             {
@@ -3998,7 +4022,11 @@ fn feature_expr(
                     feature_name(*source_feature),
                     field.terminal(),
                 ));
-                let value = copy_value(construction, &role_key, role_value)?;
+                let value = if terminal_is_declaration_noun(validated, field.terminal())? {
+                    role_value
+                } else {
+                    copy_value(construction, &role_key, role_value)?
+                };
                 return Ok(quote! { #function(#value) });
             }
             let (source, value) = match field.kind() {
@@ -4806,6 +4834,8 @@ fn emit_feature_helper(
         Feature::ModifierLicense => quote! { ModifierLicense },
         Feature::DeterminerNumber => quote! { DeterminerNumber },
         Feature::FusedHeadLicense => quote! { FusedHeadLicense },
+        Feature::PrepositionComplementKind => quote! { PrepositionComplementKind },
+        Feature::LocativeTemporalLicense => quote! { LocativeTemporalLicense },
         Feature::NominalForm => quote! { NominalForm },
         Feature::NominalLicense => quote! { NominalLicense },
         Feature::Number => quote! { Number },
@@ -4814,8 +4844,8 @@ fn emit_feature_helper(
         Feature::PossessiveEnding => quote! { PossessiveEnding },
         Feature::Properness => quote! { Properness },
         Feature::Relationality => quote! { Relationality },
-        Feature::NounComplement => quote! { NounComplement },
-        Feature::PrepositionClass => quote! { PrepositionClass },
+        Feature::BareLocativeComplement => quote! { BareLocativeComplement },
+        Feature::PrepositionAttachment => quote! { PrepositionAttachment },
     };
     let mut entries: Vec<(TokenStream, String, TokenStream)> = Vec::new();
     for construction in members {
@@ -4991,9 +5021,11 @@ fn emit_sum_feature_helper(
                     category
                 }
                 _ => {
-                    return Err(internal(
-                        "feature-bearing sum alternative lacks a generated feature helper",
-                    ));
+                    return Err(internal(&format!(
+                        "feature-bearing sum `{}` alternative `{}` lacks a generated {feature:?} helper",
+                        sum.name(),
+                        alternative.name(),
+                    )));
                 }
             };
             let helper = ident(&feature_helper(feature_name(feature), target));
@@ -5392,14 +5424,36 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::Mass => quote! { Countability::Mass },
         FeatureValue::Unrestricted => quote! { ModifierLicense::Unrestricted },
         FeatureValue::LocalDeterminer => quote! { ModifierLicense::LocalDeterminer },
-        FeatureValue::AdjunctCapable => quote! { PrepositionClass::AdjunctCapable },
-        FeatureValue::PostmodifierOnly => quote! { PrepositionClass::PostmodifierOnly },
-        FeatureValue::PostmodifierBareLocative => {
-            quote! { PrepositionClass::PostmodifierBareLocative }
+        FeatureValue::No => quote! { BareLocativeComplement::No },
+        FeatureValue::Yes => quote! { BareLocativeComplement::Yes },
+        FeatureValue::UnrestrictedComplement => {
+            quote! { PrepositionComplementKind::UnrestrictedComplement }
         }
-        FeatureValue::SelectedOnly => quote! { PrepositionClass::SelectedOnly },
-        FeatureValue::NoComplement => quote! { NounComplement::NoComplement },
-        FeatureValue::OfComplement => quote! { NounComplement::OfComplement },
+        FeatureValue::RelationalComplement => {
+            quote! { PrepositionComplementKind::RelationalComplement }
+        }
+        FeatureValue::InComplement => quote! { PrepositionComplementKind::InComplement },
+        FeatureValue::OnComplement => quote! { PrepositionComplementKind::OnComplement },
+        FeatureValue::AtComplement => quote! { PrepositionComplementKind::AtComplement },
+        FeatureValue::DuringComplement => {
+            quote! { PrepositionComplementKind::DuringComplement }
+        }
+        FeatureValue::Unlicensed => quote! { LocativeTemporalLicense::Unlicensed },
+        FeatureValue::OfLicensed => quote! { LocativeTemporalLicense::OfLicensed },
+        FeatureValue::OfAndOnLicensed => quote! { LocativeTemporalLicense::OfAndOnLicensed },
+        FeatureValue::OfInAndOnLicensed => quote! { LocativeTemporalLicense::OfInAndOnLicensed },
+        FeatureValue::InLicensed => quote! { LocativeTemporalLicense::InLicensed },
+        FeatureValue::OnLicensed => quote! { LocativeTemporalLicense::OnLicensed },
+        FeatureValue::InOrOnEdgeLicensed => {
+            quote! { LocativeTemporalLicense::InOrOnEdgeLicensed }
+        }
+        FeatureValue::TemporalLicensed => quote! { LocativeTemporalLicense::TemporalLicensed },
+        FeatureValue::OfAndTemporalLicensed => {
+            quote! { LocativeTemporalLicense::OfAndTemporalLicensed }
+        }
+        FeatureValue::AdjunctCapable => quote! { PrepositionAttachment::AdjunctCapable },
+        FeatureValue::PostmodifierOnly => quote! { PrepositionAttachment::PostmodifierOnly },
+        FeatureValue::SelectedOnly => quote! { PrepositionAttachment::SelectedOnly },
         FeatureValue::SingularOnly => quote! { DeterminerNumber::SingularOnly },
         FeatureValue::PluralOnly => quote! { DeterminerNumber::PluralOnly },
         FeatureValue::Both => quote! { DeterminerNumber::Both },
@@ -5656,12 +5710,14 @@ fn feature_name(feature: Feature) -> &'static str {
         Feature::PossessiveEnding => "possessive_ending",
         Feature::DeterminerNumber => "determiner_number",
         Feature::FusedHeadLicense => "fused_head_license",
+        Feature::PrepositionComplementKind => "preposition_complement_kind",
+        Feature::LocativeTemporalLicense => "locative_temporal_license",
         Feature::NominalForm => "nominal_form",
         Feature::NominalLicense => "nominal_license",
         Feature::Properness => "properness",
         Feature::Relationality => "relationality",
-        Feature::NounComplement => "noun_complement",
-        Feature::PrepositionClass => "preposition_class",
+        Feature::BareLocativeComplement => "bare_locative_complement",
+        Feature::PrepositionAttachment => "preposition_attachment",
     }
 }
 fn ident(name: &str) -> syn::Ident {

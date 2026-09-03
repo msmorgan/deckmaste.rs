@@ -3621,7 +3621,7 @@ fn resolve_feature_place(
                     Feature::BareLocativeLicense
                     | Feature::Compoundability
                     | Feature::Countability
-                    | Feature::NounComplement
+                    | Feature::LocativeTemporalLicense
                     | Feature::Properness
                     | Feature::Relationality,
                 )
@@ -3630,7 +3630,7 @@ fn resolve_feature_place(
                         Feature::BareLocativeLicense
                         | Feature::Compoundability
                         | Feature::Countability
-                        | Feature::NounComplement
+                        | Feature::LocativeTemporalLicense
                         | Feature::Properness
                         | Feature::Relationality,
                     ..
@@ -3640,10 +3640,17 @@ fn resolve_feature_place(
                     ));
                 }
                 FeaturePlace::Construction(
-                    Feature::ModifierLicense | Feature::PrepositionClass,
+                    Feature::BareLocativeComplement
+                    | Feature::PrepositionComplementKind
+                    | Feature::ModifierLicense
+                    | Feature::PrepositionAttachment,
                 )
                 | FeaturePlace::Role {
-                    feature: Feature::ModifierLicense | Feature::PrepositionClass,
+                    feature:
+                        Feature::BareLocativeComplement
+                        | Feature::PrepositionComplementKind
+                        | Feature::ModifierLicense
+                        | Feature::PrepositionAttachment,
                     ..
                 } => {
                     let ty = ident(terminal_for_role(row, role)?);
@@ -3838,14 +3845,36 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::Mass => quote! { Countability::Mass },
         FeatureValue::Unrestricted => quote! { ModifierLicense::Unrestricted },
         FeatureValue::LocalDeterminer => quote! { ModifierLicense::LocalDeterminer },
-        FeatureValue::AdjunctCapable => quote! { PrepositionClass::AdjunctCapable },
-        FeatureValue::PostmodifierOnly => quote! { PrepositionClass::PostmodifierOnly },
-        FeatureValue::PostmodifierBareLocative => {
-            quote! { PrepositionClass::PostmodifierBareLocative }
+        FeatureValue::No => quote! { BareLocativeComplement::No },
+        FeatureValue::Yes => quote! { BareLocativeComplement::Yes },
+        FeatureValue::UnrestrictedComplement => {
+            quote! { PrepositionComplementKind::UnrestrictedComplement }
         }
-        FeatureValue::SelectedOnly => quote! { PrepositionClass::SelectedOnly },
-        FeatureValue::NoComplement => quote! { NounComplement::NoComplement },
-        FeatureValue::OfComplement => quote! { NounComplement::OfComplement },
+        FeatureValue::RelationalComplement => {
+            quote! { PrepositionComplementKind::RelationalComplement }
+        }
+        FeatureValue::InComplement => quote! { PrepositionComplementKind::InComplement },
+        FeatureValue::OnComplement => quote! { PrepositionComplementKind::OnComplement },
+        FeatureValue::AtComplement => quote! { PrepositionComplementKind::AtComplement },
+        FeatureValue::DuringComplement => {
+            quote! { PrepositionComplementKind::DuringComplement }
+        }
+        FeatureValue::Unlicensed => quote! { LocativeTemporalLicense::Unlicensed },
+        FeatureValue::OfLicensed => quote! { LocativeTemporalLicense::OfLicensed },
+        FeatureValue::OfAndOnLicensed => quote! { LocativeTemporalLicense::OfAndOnLicensed },
+        FeatureValue::OfInAndOnLicensed => quote! { LocativeTemporalLicense::OfInAndOnLicensed },
+        FeatureValue::InLicensed => quote! { LocativeTemporalLicense::InLicensed },
+        FeatureValue::OnLicensed => quote! { LocativeTemporalLicense::OnLicensed },
+        FeatureValue::InOrOnEdgeLicensed => {
+            quote! { LocativeTemporalLicense::InOrOnEdgeLicensed }
+        }
+        FeatureValue::TemporalLicensed => quote! { LocativeTemporalLicense::TemporalLicensed },
+        FeatureValue::OfAndTemporalLicensed => {
+            quote! { LocativeTemporalLicense::OfAndTemporalLicensed }
+        }
+        FeatureValue::AdjunctCapable => quote! { PrepositionAttachment::AdjunctCapable },
+        FeatureValue::PostmodifierOnly => quote! { PrepositionAttachment::PostmodifierOnly },
+        FeatureValue::SelectedOnly => quote! { PrepositionAttachment::SelectedOnly },
         FeatureValue::SingularOnly => quote! { DeterminerNumber::SingularOnly },
         FeatureValue::PluralOnly => quote! { DeterminerNumber::PluralOnly },
         FeatureValue::Both => quote! { DeterminerNumber::Both },

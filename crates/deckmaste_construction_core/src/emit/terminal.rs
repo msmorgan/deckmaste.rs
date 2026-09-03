@@ -69,10 +69,31 @@ pub(crate) fn emit(
                     items.push(emit_vocab_modifier_license_helper(row, origin.clone()));
                 }
                 if row
-                    .feature_members(crate::feature::Feature::PrepositionClass)
+                    .feature_members(crate::feature::Feature::BareLocativeComplement)
                     .is_some()
                 {
-                    items.push(emit_vocab_preposition_class_helper(row, origin.clone()));
+                    items.push(emit_vocab_bare_locative_complement_helper(
+                        row,
+                        origin.clone(),
+                    ));
+                }
+                if row
+                    .feature_members(crate::feature::Feature::PrepositionComplementKind)
+                    .is_some()
+                {
+                    items.push(emit_vocab_preposition_complement_kind_helper(
+                        row,
+                        origin.clone(),
+                    ));
+                }
+                if row
+                    .feature_members(crate::feature::Feature::PrepositionAttachment)
+                    .is_some()
+                {
+                    items.push(emit_vocab_preposition_attachment_helper(
+                        row,
+                        origin.clone(),
+                    ));
                 }
                 contributions.push(TerminalContribution::new(
                     origin,
@@ -147,10 +168,13 @@ pub(crate) fn emit(
                     items.push(emit_lexeme_modifier_license_helper(row, origin.clone()));
                 }
                 if row
-                    .feature_members(crate::feature::Feature::NounComplement)
+                    .feature_members(crate::feature::Feature::LocativeTemporalLicense)
                     .is_some()
                 {
-                    items.push(emit_lexeme_noun_complement_helper(row, origin.clone()));
+                    items.push(emit_lexeme_locative_temporal_license_helper(
+                        row,
+                        origin.clone(),
+                    ));
                 }
                 if row
                     .feature_members(crate::feature::Feature::Properness)
@@ -692,33 +716,23 @@ fn emit_vocab_modifier_license_helper(
     )
 }
 
-fn emit_vocab_preposition_class_helper(
+fn emit_vocab_bare_locative_complement_helper(
     vocab: &crate::semantic::VocabPlan,
     origin: DeclarationKey,
 ) -> GeneratedItem {
-    let function_name = feature_helper("preposition_class", vocab.name());
+    let function_name = feature_helper("bare_locative_complement", vocab.name());
     let function = emitted_ident(&function_name, vocab.name_ident().span());
     let ty = emitted_ident(vocab.name(), vocab.name_ident().span());
     let members = vocab
-        .feature_members(crate::feature::Feature::PrepositionClass)
-        .expect("requested sealed preposition-class metadata")
+        .feature_members(crate::feature::Feature::BareLocativeComplement)
+        .expect("requested sealed bare-locative-complement metadata")
         .iter()
         .map(|(member, value)| {
             let member = emitted_ident(member, vocab.name_ident().span());
             let value = match value {
-                crate::feature::FeatureValue::AdjunctCapable => {
-                    quote! { PrepositionClass::AdjunctCapable }
-                }
-                crate::feature::FeatureValue::PostmodifierOnly => {
-                    quote! { PrepositionClass::PostmodifierOnly }
-                }
-                crate::feature::FeatureValue::PostmodifierBareLocative => {
-                    quote! { PrepositionClass::PostmodifierBareLocative }
-                }
-                crate::feature::FeatureValue::SelectedOnly => {
-                    quote! { PrepositionClass::SelectedOnly }
-                }
-                _ => unreachable!("sealed preposition class has its closed domain"),
+                crate::feature::FeatureValue::No => quote! { BareLocativeComplement::No },
+                crate::feature::FeatureValue::Yes => quote! { BareLocativeComplement::Yes },
+                _ => unreachable!("sealed bare locative complement has its closed domain"),
             };
             quote! { #ty::#member => #value }
         });
@@ -727,7 +741,90 @@ fn emit_vocab_preposition_class_helper(
             kind: NamedKind::Function,
             name: function_name,
         },
-        quote! { fn #function(value: #ty) -> PrepositionClass { match value { #(#members),* } } },
+        quote! { fn #function(value: #ty) -> BareLocativeComplement { match value { #(#members),* } } },
+        vec![origin],
+    )
+}
+
+fn emit_vocab_preposition_attachment_helper(
+    vocab: &crate::semantic::VocabPlan,
+    origin: DeclarationKey,
+) -> GeneratedItem {
+    let function_name = feature_helper("preposition_attachment", vocab.name());
+    let function = emitted_ident(&function_name, vocab.name_ident().span());
+    let ty = emitted_ident(vocab.name(), vocab.name_ident().span());
+    let members = vocab
+        .feature_members(crate::feature::Feature::PrepositionAttachment)
+        .expect("requested sealed preposition-attachment metadata")
+        .iter()
+        .map(|(member, value)| {
+            let member = emitted_ident(member, vocab.name_ident().span());
+            let value = match value {
+                crate::feature::FeatureValue::AdjunctCapable => {
+                    quote! { PrepositionAttachment::AdjunctCapable }
+                }
+                crate::feature::FeatureValue::PostmodifierOnly => {
+                    quote! { PrepositionAttachment::PostmodifierOnly }
+                }
+                crate::feature::FeatureValue::SelectedOnly => {
+                    quote! { PrepositionAttachment::SelectedOnly }
+                }
+                _ => unreachable!("sealed preposition attachment has its closed domain"),
+            };
+            quote! { #ty::#member => #value }
+        });
+    GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function_name,
+        },
+        quote! { fn #function(value: #ty) -> PrepositionAttachment { match value { #(#members),* } } },
+        vec![origin],
+    )
+}
+
+fn emit_vocab_preposition_complement_kind_helper(
+    vocab: &crate::semantic::VocabPlan,
+    origin: DeclarationKey,
+) -> GeneratedItem {
+    let function_name = feature_helper("preposition_complement_kind", vocab.name());
+    let function = emitted_ident(&function_name, vocab.name_ident().span());
+    let ty = emitted_ident(vocab.name(), vocab.name_ident().span());
+    let members = vocab
+        .feature_members(crate::feature::Feature::PrepositionComplementKind)
+        .expect("requested sealed locative-temporal-complement metadata")
+        .iter()
+        .map(|(member, value)| {
+            let member = emitted_ident(member, vocab.name_ident().span());
+            let value = match value {
+                crate::feature::FeatureValue::UnrestrictedComplement => {
+                    quote! { PrepositionComplementKind::UnrestrictedComplement }
+                }
+                crate::feature::FeatureValue::RelationalComplement => {
+                    quote! { PrepositionComplementKind::RelationalComplement }
+                }
+                crate::feature::FeatureValue::InComplement => {
+                    quote! { PrepositionComplementKind::InComplement }
+                }
+                crate::feature::FeatureValue::OnComplement => {
+                    quote! { PrepositionComplementKind::OnComplement }
+                }
+                crate::feature::FeatureValue::AtComplement => {
+                    quote! { PrepositionComplementKind::AtComplement }
+                }
+                crate::feature::FeatureValue::DuringComplement => {
+                    quote! { PrepositionComplementKind::DuringComplement }
+                }
+                _ => unreachable!("sealed locative-temporal complement has its closed domain"),
+            };
+            quote! { #ty::#member => #value }
+        });
+    GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function_name,
+        },
+        quote! { fn #function(value: #ty) -> PrepositionComplementKind { match value { #(#members),* } } },
         vec![origin],
     )
 }
@@ -744,18 +841,20 @@ fn emit_lexeme_surface_helper(
         crate::Feature::Number => (quote! { Number }, quote! { number }),
         crate::Feature::Participle => (quote! { Participle }, quote! { participle }),
         crate::Feature::Cardinality
+        | crate::Feature::BareLocativeComplement
         | crate::Feature::BareLocativeLicense
         | crate::Feature::Compoundability
         | crate::Feature::Countability
         | crate::Feature::ModifierLicense
         | crate::Feature::DeterminerNumber
         | crate::Feature::FusedHeadLicense
+        | crate::Feature::PrepositionComplementKind
+        | crate::Feature::LocativeTemporalLicense
         | crate::Feature::NominalForm
         | crate::Feature::NominalLicense
-        | crate::Feature::NounComplement
         | crate::Feature::Onset
         | crate::Feature::PossessiveEnding
-        | crate::Feature::PrepositionClass
+        | crate::Feature::PrepositionAttachment
         | crate::Feature::Properness
         | crate::Feature::Relationality => {
             unreachable!("derived surface features are not morphology axes")
@@ -936,40 +1035,6 @@ fn emit_lexeme_properness_helper(
     )
 }
 
-fn emit_lexeme_noun_complement_helper(
-    lexeme: &crate::semantic::LexemePlan,
-    origin: DeclarationKey,
-) -> GeneratedItem {
-    let function_name = feature_helper("noun_complement", lexeme.name());
-    let function = emitted_ident(&function_name, lexeme.name_ident().span());
-    let ty = emitted_ident(lexeme.name(), lexeme.name_ident().span());
-    let members = lexeme
-        .feature_members(crate::feature::Feature::NounComplement)
-        .expect("requested sealed noun-complement metadata")
-        .iter()
-        .map(|(member, value)| {
-            let member = emitted_ident(member, lexeme.name_ident().span());
-            let value = match value {
-                crate::feature::FeatureValue::NoComplement => {
-                    quote! { NounComplement::NoComplement }
-                }
-                crate::feature::FeatureValue::OfComplement => {
-                    quote! { NounComplement::OfComplement }
-                }
-                _ => unreachable!("sealed noun complement has its closed domain"),
-            };
-            quote! { #ty::#member => #value }
-        });
-    GeneratedItem::new(
-        ItemKey::Named {
-            kind: NamedKind::Function,
-            name: function_name,
-        },
-        quote! { fn #function(value: #ty) -> NounComplement { match value { #(#members),* } } },
-        vec![origin],
-    )
-}
-
 fn emit_lexeme_relationality_helper(
     lexeme: &crate::semantic::LexemePlan,
     origin: DeclarationKey,
@@ -1000,6 +1065,61 @@ fn emit_lexeme_relationality_helper(
             name: function_name,
         },
         quote! { fn #function(value: #ty) -> Relationality { match value { #(#members),* } } },
+        vec![origin],
+    )
+}
+
+fn emit_lexeme_locative_temporal_license_helper(
+    lexeme: &crate::semantic::LexemePlan,
+    origin: DeclarationKey,
+) -> GeneratedItem {
+    let function_name = feature_helper("locative_temporal_license", lexeme.name());
+    let function = emitted_ident(&function_name, lexeme.name_ident().span());
+    let ty = emitted_ident(lexeme.name(), lexeme.name_ident().span());
+    let members = lexeme
+        .feature_members(crate::feature::Feature::LocativeTemporalLicense)
+        .expect("requested sealed locative-temporal-license metadata")
+        .iter()
+        .map(|(member, value)| {
+            let member = emitted_ident(member, lexeme.name_ident().span());
+            let value = match value {
+                crate::feature::FeatureValue::Unlicensed => {
+                    quote! { LocativeTemporalLicense::Unlicensed }
+                }
+                crate::feature::FeatureValue::OfLicensed => {
+                    quote! { LocativeTemporalLicense::OfLicensed }
+                }
+                crate::feature::FeatureValue::OfAndOnLicensed => {
+                    quote! { LocativeTemporalLicense::OfAndOnLicensed }
+                }
+                crate::feature::FeatureValue::OfInAndOnLicensed => {
+                    quote! { LocativeTemporalLicense::OfInAndOnLicensed }
+                }
+                crate::feature::FeatureValue::InLicensed => {
+                    quote! { LocativeTemporalLicense::InLicensed }
+                }
+                crate::feature::FeatureValue::OnLicensed => {
+                    quote! { LocativeTemporalLicense::OnLicensed }
+                }
+                crate::feature::FeatureValue::InOrOnEdgeLicensed => {
+                    quote! { LocativeTemporalLicense::InOrOnEdgeLicensed }
+                }
+                crate::feature::FeatureValue::TemporalLicensed => {
+                    quote! { LocativeTemporalLicense::TemporalLicensed }
+                }
+                crate::feature::FeatureValue::OfAndTemporalLicensed => {
+                    quote! { LocativeTemporalLicense::OfAndTemporalLicensed }
+                }
+                _ => unreachable!("sealed locative-temporal license has its closed domain"),
+            };
+            quote! { #ty::#member => #value }
+        });
+    GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function_name,
+        },
+        quote! { fn #function(value: #ty) -> LocativeTemporalLicense { match value { #(#members),* } } },
         vec![origin],
     )
 }
@@ -1039,16 +1159,17 @@ fn emit_aggregate_noun_feature_helpers(
         &feature_helper("properness", closed.name()),
         closed_ident.span(),
     );
+    let locative_temporal_license_name =
+        feature_helper("locative_temporal_license", noun.codec_name());
+    let locative_temporal_license = emitted_ident(&locative_temporal_license_name, ty.span());
+    let closed_locative_temporal_license = emitted_ident(
+        &feature_helper("locative_temporal_license", closed.name()),
+        closed_ident.span(),
+    );
     let relationality_name = feature_helper("relationality", noun.codec_name());
     let relationality = emitted_ident(&relationality_name, ty.span());
     let closed_relationality = emitted_ident(
         &feature_helper("relationality", closed.name()),
-        closed_ident.span(),
-    );
-    let noun_complement_name = feature_helper("noun_complement", noun.codec_name());
-    let noun_complement = emitted_ident(&noun_complement_name, ty.span());
-    let closed_noun_complement = emitted_ident(
-        &feature_helper("noun_complement", closed.name()),
         closed_ident.span(),
     );
     let mut items = Vec::new();
@@ -1138,19 +1259,30 @@ fn emit_aggregate_noun_feature_helpers(
         ));
     }
     if closed
-        .feature_members(crate::feature::Feature::NounComplement)
+        .feature_members(crate::feature::Feature::LocativeTemporalLicense)
         .is_some()
     {
         items.push(GeneratedItem::new(
             ItemKey::Named {
                 kind: NamedKind::Function,
-                name: noun_complement_name,
+                name: locative_temporal_license_name,
             },
             quote! {
-                fn #noun_complement(value: impl ::std::borrow::Borrow<#ty>) -> NounComplement {
+                fn #locative_temporal_license(
+                    value: impl ::std::borrow::Borrow<#ty>,
+                ) -> LocativeTemporalLicense {
                     match ::std::borrow::Borrow::borrow(&value) {
-                        #ty::Lexeme(value) => #closed_noun_complement(*value),
-                        #ty::Declaration(_) => NounComplement::NoComplement,
+                        #ty::Lexeme(value) => #closed_locative_temporal_license(*value),
+                        #ty::Declaration(value) => match value.id().kind() {
+                            ::deckmaste_construction_core::macro_def::DeclarationKind::Type
+                            | ::deckmaste_construction_core::macro_def::DeclarationKind::Subtype(_) => {
+                                LocativeTemporalLicense::OfAndOnLicensed
+                            }
+                            ::deckmaste_construction_core::macro_def::DeclarationKind::TurnPart => {
+                                LocativeTemporalLicense::OfAndTemporalLicensed
+                            }
+                            _ => LocativeTemporalLicense::Unlicensed,
+                        },
                     }
                 }
             },

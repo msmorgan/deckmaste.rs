@@ -1029,23 +1029,61 @@ fn feature_value(value: crate::feature::FeatureValue) -> TokenStream {
         crate::feature::FeatureValue::LocalDeterminer => {
             quote! { ModifierLicense::LocalDeterminer }
         }
+        crate::feature::FeatureValue::UnrestrictedComplement => {
+            quote! { PrepositionComplementKind::UnrestrictedComplement }
+        }
+        crate::feature::FeatureValue::RelationalComplement => {
+            quote! { PrepositionComplementKind::RelationalComplement }
+        }
+        crate::feature::FeatureValue::InComplement => {
+            quote! { PrepositionComplementKind::InComplement }
+        }
+        crate::feature::FeatureValue::OnComplement => {
+            quote! { PrepositionComplementKind::OnComplement }
+        }
+        crate::feature::FeatureValue::AtComplement => {
+            quote! { PrepositionComplementKind::AtComplement }
+        }
+        crate::feature::FeatureValue::DuringComplement => {
+            quote! { PrepositionComplementKind::DuringComplement }
+        }
+        crate::feature::FeatureValue::Unlicensed => {
+            quote! { LocativeTemporalLicense::Unlicensed }
+        }
+        crate::feature::FeatureValue::OfLicensed => {
+            quote! { LocativeTemporalLicense::OfLicensed }
+        }
+        crate::feature::FeatureValue::OfAndOnLicensed => {
+            quote! { LocativeTemporalLicense::OfAndOnLicensed }
+        }
+        crate::feature::FeatureValue::OfInAndOnLicensed => {
+            quote! { LocativeTemporalLicense::OfInAndOnLicensed }
+        }
+        crate::feature::FeatureValue::InLicensed => {
+            quote! { LocativeTemporalLicense::InLicensed }
+        }
+        crate::feature::FeatureValue::OnLicensed => {
+            quote! { LocativeTemporalLicense::OnLicensed }
+        }
+        crate::feature::FeatureValue::InOrOnEdgeLicensed => {
+            quote! { LocativeTemporalLicense::InOrOnEdgeLicensed }
+        }
+        crate::feature::FeatureValue::TemporalLicensed => {
+            quote! { LocativeTemporalLicense::TemporalLicensed }
+        }
+        crate::feature::FeatureValue::OfAndTemporalLicensed => {
+            quote! { LocativeTemporalLicense::OfAndTemporalLicensed }
+        }
+        crate::feature::FeatureValue::No => quote! { BareLocativeComplement::No },
+        crate::feature::FeatureValue::Yes => quote! { BareLocativeComplement::Yes },
         crate::feature::FeatureValue::AdjunctCapable => {
-            quote! { PrepositionClass::AdjunctCapable }
+            quote! { PrepositionAttachment::AdjunctCapable }
         }
         crate::feature::FeatureValue::PostmodifierOnly => {
-            quote! { PrepositionClass::PostmodifierOnly }
-        }
-        crate::feature::FeatureValue::PostmodifierBareLocative => {
-            quote! { PrepositionClass::PostmodifierBareLocative }
+            quote! { PrepositionAttachment::PostmodifierOnly }
         }
         crate::feature::FeatureValue::SelectedOnly => {
-            quote! { PrepositionClass::SelectedOnly }
-        }
-        crate::feature::FeatureValue::NoComplement => {
-            quote! { NounComplement::NoComplement }
-        }
-        crate::feature::FeatureValue::OfComplement => {
-            quote! { NounComplement::OfComplement }
+            quote! { PrepositionAttachment::SelectedOnly }
         }
         crate::feature::FeatureValue::SingularOnly => quote! { DeterminerNumber::SingularOnly },
         crate::feature::FeatureValue::PluralOnly => quote! { DeterminerNumber::PluralOnly },
@@ -2027,12 +2065,14 @@ mod tests {
                 "ActionStem",
                 "Agreement",
                 "Cardinality",
+                "BareLocativeComplement",
                 "BareLocativeLicense",
+                "PrepositionComplementKind",
+                "LocativeTemporalLicense",
                 "Compoundability",
                 "Countability",
                 "ModifierLicense",
-                "NounComplement",
-                "PrepositionClass",
+                "PrepositionAttachment",
                 "Properness",
                 "Relationality",
                 "DeterminerNumber",

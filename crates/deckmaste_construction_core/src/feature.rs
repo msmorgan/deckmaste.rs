@@ -10,6 +10,7 @@ use crate::model;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum Feature {
     Agreement,
+    BareLocativeComplement,
     BareLocativeLicense,
     Cardinality,
     Compoundability,
@@ -17,14 +18,15 @@ pub(crate) enum Feature {
     ModifierLicense,
     DeterminerNumber,
     FusedHeadLicense,
+    PrepositionComplementKind,
+    LocativeTemporalLicense,
     NominalForm,
     NominalLicense,
-    NounComplement,
     Number,
     Onset,
     Participle,
     PossessiveEnding,
-    PrepositionClass,
+    PrepositionAttachment,
     Properness,
     Relationality,
 }
@@ -35,6 +37,8 @@ pub(crate) enum FeatureValue {
     ThirdPersonSingular,
     QualifiedOnly,
     BareAllowed,
+    No,
+    Yes,
     Singular,
     Plural,
     Consonant,
@@ -56,6 +60,21 @@ pub(crate) enum FeatureValue {
     Both,
     NominalOnly,
     FusedHead,
+    UnrestrictedComplement,
+    RelationalComplement,
+    InComplement,
+    OnComplement,
+    AtComplement,
+    DuringComplement,
+    Unlicensed,
+    OfLicensed,
+    OfAndOnLicensed,
+    OfInAndOnLicensed,
+    InLicensed,
+    OnLicensed,
+    InOrOnEdgeLicensed,
+    TemporalLicensed,
+    OfAndTemporalLicensed,
     BareSingularNoun,
     ModifiedSingularNoun,
     SingularCoordination,
@@ -73,10 +92,7 @@ pub(crate) enum FeatureValue {
     Relational,
     AdjunctCapable,
     PostmodifierOnly,
-    PostmodifierBareLocative,
     SelectedOnly,
-    NoComplement,
-    OfComplement,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -118,6 +134,7 @@ impl Feature {
     pub(crate) fn domain(self) -> &'static [FeatureValue] {
         match self {
             Self::Agreement => &[FeatureValue::Bare, FeatureValue::ThirdPersonSingular],
+            Self::BareLocativeComplement => &[FeatureValue::No, FeatureValue::Yes],
             Self::BareLocativeLicense => &[FeatureValue::QualifiedOnly, FeatureValue::BareAllowed],
             Self::Cardinality => &[FeatureValue::Zero, FeatureValue::One, FeatureValue::TwoPlus],
             Self::Compoundability => &[FeatureValue::Compoundable, FeatureValue::NonCompoundable],
@@ -129,6 +146,25 @@ impl Feature {
                 FeatureValue::Both,
             ],
             Self::FusedHeadLicense => &[FeatureValue::NominalOnly, FeatureValue::FusedHead],
+            Self::PrepositionComplementKind => &[
+                FeatureValue::UnrestrictedComplement,
+                FeatureValue::RelationalComplement,
+                FeatureValue::InComplement,
+                FeatureValue::OnComplement,
+                FeatureValue::AtComplement,
+                FeatureValue::DuringComplement,
+            ],
+            Self::LocativeTemporalLicense => &[
+                FeatureValue::Unlicensed,
+                FeatureValue::OfLicensed,
+                FeatureValue::OfAndOnLicensed,
+                FeatureValue::OfInAndOnLicensed,
+                FeatureValue::InLicensed,
+                FeatureValue::OnLicensed,
+                FeatureValue::InOrOnEdgeLicensed,
+                FeatureValue::TemporalLicensed,
+                FeatureValue::OfAndTemporalLicensed,
+            ],
             Self::NominalForm => &[
                 FeatureValue::BareSingularNoun,
                 FeatureValue::ModifiedSingularNoun,
@@ -150,11 +186,9 @@ impl Feature {
             Self::PossessiveEnding => &[FeatureValue::EndsInS, FeatureValue::Other],
             Self::Properness => &[FeatureValue::Common, FeatureValue::Proper],
             Self::Relationality => &[FeatureValue::NonRelational, FeatureValue::Relational],
-            Self::NounComplement => &[FeatureValue::NoComplement, FeatureValue::OfComplement],
-            Self::PrepositionClass => &[
+            Self::PrepositionAttachment => &[
                 FeatureValue::AdjunctCapable,
                 FeatureValue::PostmodifierOnly,
-                FeatureValue::PostmodifierBareLocative,
                 FeatureValue::SelectedOnly,
             ],
         }
@@ -180,6 +214,7 @@ impl Feature {
     pub(crate) fn key(self) -> &'static str {
         match self {
             Self::Agreement => "agreement",
+            Self::BareLocativeComplement => "bare_locative_complement",
             Self::BareLocativeLicense => "bare_locative_license",
             Self::Cardinality => "cardinality",
             Self::Compoundability => "compoundability",
@@ -187,6 +222,8 @@ impl Feature {
             Self::ModifierLicense => "modifier_license",
             Self::DeterminerNumber => "determiner_number",
             Self::FusedHeadLicense => "fused_head_license",
+            Self::PrepositionComplementKind => "preposition_complement_kind",
+            Self::LocativeTemporalLicense => "locative_temporal_license",
             Self::NominalForm => "nominal_form",
             Self::NominalLicense => "nominal_license",
             Self::Number => "number",
@@ -195,8 +232,7 @@ impl Feature {
             Self::PossessiveEnding => "possessive_ending",
             Self::Properness => "properness",
             Self::Relationality => "relationality",
-            Self::NounComplement => "noun_complement",
-            Self::PrepositionClass => "preposition_class",
+            Self::PrepositionAttachment => "preposition_attachment",
         }
     }
 }
@@ -208,6 +244,8 @@ impl FeatureValue {
             Self::ThirdPersonSingular => "ThirdPersonSingular",
             Self::QualifiedOnly => "QualifiedOnly",
             Self::BareAllowed => "BareAllowed",
+            Self::No => "No",
+            Self::Yes => "Yes",
             Self::Singular => "Singular",
             Self::Plural => "Plural",
             Self::Consonant => "Consonant",
@@ -229,6 +267,21 @@ impl FeatureValue {
             Self::Both => "Both",
             Self::NominalOnly => "NominalOnly",
             Self::FusedHead => "FusedHead",
+            Self::UnrestrictedComplement => "UnrestrictedComplement",
+            Self::RelationalComplement => "RelationalComplement",
+            Self::InComplement => "InComplement",
+            Self::OnComplement => "OnComplement",
+            Self::AtComplement => "AtComplement",
+            Self::DuringComplement => "DuringComplement",
+            Self::Unlicensed => "Unlicensed",
+            Self::OfLicensed => "OfLicensed",
+            Self::OfAndOnLicensed => "OfAndOnLicensed",
+            Self::OfInAndOnLicensed => "OfInAndOnLicensed",
+            Self::InLicensed => "InLicensed",
+            Self::OnLicensed => "OnLicensed",
+            Self::InOrOnEdgeLicensed => "InOrOnEdgeLicensed",
+            Self::TemporalLicensed => "TemporalLicensed",
+            Self::OfAndTemporalLicensed => "OfAndTemporalLicensed",
             Self::BareSingularNoun | Self::LicensedBareSingularNoun => "BareSingularNoun",
             Self::ModifiedSingularNoun => "ModifiedSingularNoun",
             Self::SingularCoordination => "SingularCoordination",
@@ -245,10 +298,7 @@ impl FeatureValue {
             Self::Relational => "Relational",
             Self::AdjunctCapable => "AdjunctCapable",
             Self::PostmodifierOnly => "PostmodifierOnly",
-            Self::PostmodifierBareLocative => "PostmodifierBareLocative",
             Self::SelectedOnly => "SelectedOnly",
-            Self::NoComplement => "NoComplement",
-            Self::OfComplement => "OfComplement",
         }
     }
 }
@@ -379,6 +429,7 @@ impl Feature {
     fn snapshot(self) -> &'static str {
         match self {
             Self::Agreement => "agreement",
+            Self::BareLocativeComplement => "bare_locative_complement",
             Self::BareLocativeLicense => "bare_locative_license",
             Self::Cardinality => "cardinality",
             Self::Compoundability => "compoundability",
@@ -386,6 +437,8 @@ impl Feature {
             Self::ModifierLicense => "modifier_license",
             Self::DeterminerNumber => "determiner_number",
             Self::FusedHeadLicense => "fused_head_license",
+            Self::PrepositionComplementKind => "preposition_complement_kind",
+            Self::LocativeTemporalLicense => "locative_temporal_license",
             Self::NominalForm => "nominal_form",
             Self::NominalLicense => "nominal_license",
             Self::Number => "number",
@@ -394,8 +447,7 @@ impl Feature {
             Self::PossessiveEnding => "possessive_ending",
             Self::Properness => "properness",
             Self::Relationality => "relationality",
-            Self::NounComplement => "noun_complement",
-            Self::PrepositionClass => "preposition_class",
+            Self::PrepositionAttachment => "preposition_attachment",
         }
     }
 }
@@ -408,6 +460,8 @@ impl FeatureValue {
             Self::ThirdPersonSingular => "ThirdPersonSingular",
             Self::QualifiedOnly => "QualifiedOnly",
             Self::BareAllowed => "BareAllowed",
+            Self::No => "No",
+            Self::Yes => "Yes",
             Self::Singular => "Singular",
             Self::Plural => "Plural",
             Self::Consonant => "Consonant",
@@ -429,6 +483,21 @@ impl FeatureValue {
             Self::Both => "Both",
             Self::NominalOnly => "NominalOnly",
             Self::FusedHead => "FusedHead",
+            Self::UnrestrictedComplement => "UnrestrictedComplement",
+            Self::RelationalComplement => "RelationalComplement",
+            Self::InComplement => "InComplement",
+            Self::OnComplement => "OnComplement",
+            Self::AtComplement => "AtComplement",
+            Self::DuringComplement => "DuringComplement",
+            Self::Unlicensed => "Unlicensed",
+            Self::OfLicensed => "OfLicensed",
+            Self::OfAndOnLicensed => "OfAndOnLicensed",
+            Self::OfInAndOnLicensed => "OfInAndOnLicensed",
+            Self::InLicensed => "InLicensed",
+            Self::OnLicensed => "OnLicensed",
+            Self::InOrOnEdgeLicensed => "InOrOnEdgeLicensed",
+            Self::TemporalLicensed => "TemporalLicensed",
+            Self::OfAndTemporalLicensed => "OfAndTemporalLicensed",
             Self::BareSingularNoun | Self::LicensedBareSingularNoun => "BareSingularNoun",
             Self::ModifiedSingularNoun => "ModifiedSingularNoun",
             Self::SingularCoordination => "SingularCoordination",
@@ -445,10 +514,7 @@ impl FeatureValue {
             Self::Relational => "Relational",
             Self::AdjunctCapable => "AdjunctCapable",
             Self::PostmodifierOnly => "PostmodifierOnly",
-            Self::PostmodifierBareLocative => "PostmodifierBareLocative",
             Self::SelectedOnly => "SelectedOnly",
-            Self::NoComplement => "NoComplement",
-            Self::OfComplement => "OfComplement",
         }
     }
 }
@@ -482,6 +548,8 @@ pub(crate) fn lower_constant(
     let value = match (feature, name.as_str()) {
         (model::Feature::Agreement, "Bare") => FeatureValue::Bare,
         (model::Feature::Agreement, "ThirdPersonSingular") => FeatureValue::ThirdPersonSingular,
+        (model::Feature::BareLocativeComplement, "No") => FeatureValue::No,
+        (model::Feature::BareLocativeComplement, "Yes") => FeatureValue::Yes,
         (model::Feature::BareLocativeLicense, "QualifiedOnly") => FeatureValue::QualifiedOnly,
         (model::Feature::BareLocativeLicense, "BareAllowed") => FeatureValue::BareAllowed,
         (model::Feature::Number, "Singular") => FeatureValue::Singular,
@@ -505,6 +573,37 @@ pub(crate) fn lower_constant(
         (model::Feature::DeterminerNumber, "Both") => FeatureValue::Both,
         (model::Feature::FusedHeadLicense, "NominalOnly") => FeatureValue::NominalOnly,
         (model::Feature::FusedHeadLicense, "FusedHead") => FeatureValue::FusedHead,
+        (model::Feature::PrepositionComplementKind, "UnrestrictedComplement") => {
+            FeatureValue::UnrestrictedComplement
+        }
+        (model::Feature::PrepositionComplementKind, "RelationalComplement") => {
+            FeatureValue::RelationalComplement
+        }
+        (model::Feature::PrepositionComplementKind, "InComplement") => FeatureValue::InComplement,
+        (model::Feature::PrepositionComplementKind, "OnComplement") => FeatureValue::OnComplement,
+        (model::Feature::PrepositionComplementKind, "AtComplement") => FeatureValue::AtComplement,
+        (model::Feature::PrepositionComplementKind, "DuringComplement") => {
+            FeatureValue::DuringComplement
+        }
+        (model::Feature::LocativeTemporalLicense, "Unlicensed") => FeatureValue::Unlicensed,
+        (model::Feature::LocativeTemporalLicense, "OfLicensed") => FeatureValue::OfLicensed,
+        (model::Feature::LocativeTemporalLicense, "OfAndOnLicensed") => {
+            FeatureValue::OfAndOnLicensed
+        }
+        (model::Feature::LocativeTemporalLicense, "OfInAndOnLicensed") => {
+            FeatureValue::OfInAndOnLicensed
+        }
+        (model::Feature::LocativeTemporalLicense, "InLicensed") => FeatureValue::InLicensed,
+        (model::Feature::LocativeTemporalLicense, "OnLicensed") => FeatureValue::OnLicensed,
+        (model::Feature::LocativeTemporalLicense, "InOrOnEdgeLicensed") => {
+            FeatureValue::InOrOnEdgeLicensed
+        }
+        (model::Feature::LocativeTemporalLicense, "TemporalLicensed") => {
+            FeatureValue::TemporalLicensed
+        }
+        (model::Feature::LocativeTemporalLicense, "OfAndTemporalLicensed") => {
+            FeatureValue::OfAndTemporalLicensed
+        }
         (model::Feature::NominalForm, "BareSingularNoun") => FeatureValue::BareSingularNoun,
         (model::Feature::NominalForm, "ModifiedSingularNoun") => FeatureValue::ModifiedSingularNoun,
         (model::Feature::NominalForm, "SingularCoordination") => FeatureValue::SingularCoordination,
@@ -524,18 +623,21 @@ pub(crate) fn lower_constant(
         (model::Feature::Properness, "Proper") => FeatureValue::Proper,
         (model::Feature::Relationality, "NonRelational") => FeatureValue::NonRelational,
         (model::Feature::Relationality, "Relational") => FeatureValue::Relational,
-        (model::Feature::NounComplement, "NoComplement") => FeatureValue::NoComplement,
-        (model::Feature::NounComplement, "OfComplement") => FeatureValue::OfComplement,
-        (model::Feature::PrepositionClass, "AdjunctCapable") => FeatureValue::AdjunctCapable,
-        (model::Feature::PrepositionClass, "PostmodifierOnly") => FeatureValue::PostmodifierOnly,
-        (model::Feature::PrepositionClass, "PostmodifierBareLocative") => {
-            FeatureValue::PostmodifierBareLocative
+        (model::Feature::PrepositionAttachment, "AdjunctCapable") => FeatureValue::AdjunctCapable,
+        (model::Feature::PrepositionAttachment, "PostmodifierOnly") => {
+            FeatureValue::PostmodifierOnly
         }
-        (model::Feature::PrepositionClass, "SelectedOnly") => FeatureValue::SelectedOnly,
+        (model::Feature::PrepositionAttachment, "SelectedOnly") => FeatureValue::SelectedOnly,
         (model::Feature::Agreement, _) => {
             return Err(syn::Error::new_spanned(
                 path,
                 format!("`{name}` is not an agreement value"),
+            ));
+        }
+        (model::Feature::BareLocativeComplement, _) => {
+            return Err(syn::Error::new_spanned(
+                path,
+                format!("`{name}` is not a bare-locative-complement value"),
             ));
         }
         (model::Feature::BareLocativeLicense, _) => {
@@ -580,6 +682,18 @@ pub(crate) fn lower_constant(
                 format!("`{name}` is not a fused-head-license value"),
             ));
         }
+        (model::Feature::PrepositionComplementKind, _) => {
+            return Err(syn::Error::new_spanned(
+                path,
+                format!("`{name}` is not a locative-temporal-complement value"),
+            ));
+        }
+        (model::Feature::LocativeTemporalLicense, _) => {
+            return Err(syn::Error::new_spanned(
+                path,
+                format!("`{name}` is not a locative-temporal-license value"),
+            ));
+        }
         (model::Feature::NominalForm, _) => {
             return Err(syn::Error::new_spanned(
                 path,
@@ -622,16 +736,10 @@ pub(crate) fn lower_constant(
                 format!("`{name}` is not a properness value"),
             ));
         }
-        (model::Feature::NounComplement, _) => {
+        (model::Feature::PrepositionAttachment, _) => {
             return Err(syn::Error::new_spanned(
                 path,
-                format!("`{name}` is not a noun-complement value"),
-            ));
-        }
-        (model::Feature::PrepositionClass, _) => {
-            return Err(syn::Error::new_spanned(
-                path,
-                format!("`{name}` is not a preposition-class value"),
+                format!("`{name}` is not a preposition-attachment value"),
             ));
         }
         (model::Feature::Relationality, _) => {
@@ -648,6 +756,7 @@ impl From<model::Feature> for Feature {
     fn from(value: model::Feature) -> Self {
         match value {
             model::Feature::Agreement => Self::Agreement,
+            model::Feature::BareLocativeComplement => Self::BareLocativeComplement,
             model::Feature::BareLocativeLicense => Self::BareLocativeLicense,
             model::Feature::Cardinality => Self::Cardinality,
             model::Feature::Compoundability => Self::Compoundability,
@@ -655,14 +764,15 @@ impl From<model::Feature> for Feature {
             model::Feature::ModifierLicense => Self::ModifierLicense,
             model::Feature::DeterminerNumber => Self::DeterminerNumber,
             model::Feature::FusedHeadLicense => Self::FusedHeadLicense,
+            model::Feature::PrepositionComplementKind => Self::PrepositionComplementKind,
+            model::Feature::LocativeTemporalLicense => Self::LocativeTemporalLicense,
             model::Feature::NominalForm => Self::NominalForm,
             model::Feature::NominalLicense => Self::NominalLicense,
-            model::Feature::NounComplement => Self::NounComplement,
             model::Feature::Number => Self::Number,
             model::Feature::Onset => Self::Onset,
             model::Feature::Participle => Self::Participle,
             model::Feature::PossessiveEnding => Self::PossessiveEnding,
-            model::Feature::PrepositionClass => Self::PrepositionClass,
+            model::Feature::PrepositionAttachment => Self::PrepositionAttachment,
             model::Feature::Properness => Self::Properness,
             model::Feature::Relationality => Self::Relationality,
         }

@@ -32,25 +32,80 @@ constructions! {
     vocab PredicativeAdjective { Legendary = "legendary", }
     vocab FaceOrientation { FaceUp = "face up", }
     vocab ObjectOrder { Any = "any", Random = "a random", }
-    // One preposition class for the single general prepositional phrase.
-    // Which phrase a verb selects is a fact of the verb's declared valence,
-    // not of the preposition, so this vocabulary is flat.
+    // Attachment and bare-complement licensing are orthogonal declared facts.
+    // Every member spells out both values so additions cannot inherit a
+    // permissive default accidentally.
     vocab Preposition {
-        feature PrepositionClass = SelectedOnly;
-        After = "after" { feature PrepositionClass = AdjunctCapable; },
-        Among = "among",
-        At = "at",
-        Before = "before" { feature PrepositionClass = AdjunctCapable; },
-        During = "during" { feature PrepositionClass = AdjunctCapable; },
-        For = "for" { feature PrepositionClass = AdjunctCapable; },
-        From = "from" { feature PrepositionClass = PostmodifierBareLocative; },
-        In = "in" { feature PrepositionClass = PostmodifierBareLocative; },
-        Into = "into",
-        Of = "of" { feature PrepositionClass = PostmodifierOnly; },
-        On = "on" { feature PrepositionClass = PostmodifierOnly; },
-        Onto = "onto",
-        To = "to",
-        Under = "under",
+        After = "after" {
+            feature PrepositionAttachment = AdjunctCapable;
+            feature BareLocativeComplement = No;
+            feature PrepositionComplementKind = UnrestrictedComplement;
+        },
+        Among = "among" {
+            feature PrepositionAttachment = SelectedOnly;
+            feature BareLocativeComplement = No;
+            feature PrepositionComplementKind = UnrestrictedComplement;
+        },
+        At = "at" {
+            feature PrepositionAttachment = AdjunctCapable;
+            feature BareLocativeComplement = No;
+            feature PrepositionComplementKind = AtComplement;
+        },
+        Before = "before" {
+            feature PrepositionAttachment = AdjunctCapable;
+            feature BareLocativeComplement = No;
+            feature PrepositionComplementKind = UnrestrictedComplement;
+        },
+        During = "during" {
+            feature PrepositionAttachment = AdjunctCapable;
+            feature BareLocativeComplement = No;
+            feature PrepositionComplementKind = DuringComplement;
+        },
+        For = "for" {
+            feature PrepositionAttachment = AdjunctCapable;
+            feature BareLocativeComplement = No;
+            feature PrepositionComplementKind = UnrestrictedComplement;
+        },
+        From = "from" {
+            feature PrepositionAttachment = PostmodifierOnly;
+            feature BareLocativeComplement = Yes;
+            feature PrepositionComplementKind = UnrestrictedComplement;
+        },
+        In = "in" {
+            feature PrepositionAttachment = AdjunctCapable;
+            feature BareLocativeComplement = Yes;
+            feature PrepositionComplementKind = InComplement;
+        },
+        Into = "into" {
+            feature PrepositionAttachment = SelectedOnly;
+            feature BareLocativeComplement = No;
+            feature PrepositionComplementKind = UnrestrictedComplement;
+        },
+        Of = "of" {
+            feature PrepositionAttachment = PostmodifierOnly;
+            feature BareLocativeComplement = No;
+            feature PrepositionComplementKind = RelationalComplement;
+        },
+        On = "on" {
+            feature PrepositionAttachment = AdjunctCapable;
+            feature BareLocativeComplement = No;
+            feature PrepositionComplementKind = OnComplement;
+        },
+        Onto = "onto" {
+            feature PrepositionAttachment = SelectedOnly;
+            feature BareLocativeComplement = No;
+            feature PrepositionComplementKind = UnrestrictedComplement;
+        },
+        To = "to" {
+            feature PrepositionAttachment = SelectedOnly;
+            feature BareLocativeComplement = No;
+            feature PrepositionComplementKind = UnrestrictedComplement;
+        },
+        Under = "under" {
+            feature PrepositionAttachment = SelectedOnly;
+            feature BareLocativeComplement = No;
+            feature PrepositionComplementKind = UnrestrictedComplement;
+        },
     }
     vocab LocativeProform { Anywhere = "anywhere", }
     vocab ComparativeQuantifier { Fewer = "fewer", More = "more", }
@@ -213,19 +268,24 @@ constructions! {
         feature BareLocativeLicense = QualifiedOnly;
         feature Compoundability = Compoundable;
         feature Countability = Count;
+        feature LocativeTemporalLicense = OfAndOnLicensed;
         feature Properness = Common;
         feature Relationality = NonRelational;
         Ability = "ability" {
             Plural = "abilities",
         },
         Attacker = "attacker",
-        Battlefield = "battlefield",
-        Beginning = "beginning" { feature Relationality = Relational; },
+        Battlefield = "battlefield" { feature LocativeTemporalLicense = OnLicensed; },
+        Beginning = "beginning" {
+            feature LocativeTemporalLicense = OfAndTemporalLicensed;
+            feature Relationality = Relational;
+        },
         Blocker = "blocker",
         Card = "card",
-        Choice = "choice",
+        Choice = "choice" { feature LocativeTemporalLicense = OfLicensed; },
         Coin = "coin",
-        Color = "color",
+        Color = "color" { feature LocativeTemporalLicense = OfLicensed; },
+        CommandZone = "command zone" { feature LocativeTemporalLicense = InLicensed; },
         Control = "control" { feature Countability = Mass; },
         Copy = "copy" {
             Plural = "copies",
@@ -237,13 +297,21 @@ constructions! {
         Draw = "draw",
         End = "end" {
             feature Compoundability = NonCompoundable;
+            feature LocativeTemporalLicense = OfAndTemporalLicensed;
             feature Relationality = Relational;
         },
-        Exile = "exile" { feature BareLocativeLicense = BareAllowed; },
-        Graveyard = "graveyard",
-        Hand = "hand" { feature BareLocativeLicense = BareAllowed; },
+        Exile = "exile" {
+            feature BareLocativeLicense = BareAllowed;
+            feature LocativeTemporalLicense = InLicensed;
+        },
+        Graveyard = "graveyard" { feature LocativeTemporalLicense = InLicensed; },
+        Hand = "hand" {
+            feature BareLocativeLicense = BareAllowed;
+            feature LocativeTemporalLicense = InLicensed;
+        },
         Library = "library" {
             Plural = "libraries",
+            feature LocativeTemporalLicense = InOrOnEdgeLicensed;
         },
         Life = "life" { feature Countability = Mass; },
         Mana = "mana" { feature Countability = Mass; },
@@ -254,15 +322,21 @@ constructions! {
         Opponent = "opponent",
         Owner = "owner",
         Permanent = "permanent",
-        Phase = "phase" { feature Relationality = Relational; },
+        Phase = "phase" {
+            feature LocativeTemporalLicense = OfAndTemporalLicensed;
+            feature Relationality = Relational;
+        },
         Player = "player",
         Power = "power",
         Rest = "rest",
         Source = "source",
         Size = "size",
         Spell = "spell",
-        Stack = "stack",
-        Step = "step" { feature Relationality = Relational; },
+        Stack = "stack" { feature LocativeTemporalLicense = OnLicensed; },
+        Step = "step" {
+            feature LocativeTemporalLicense = OfAndTemporalLicensed;
+            feature Relationality = Relational;
+        },
         Target = "target" {
             feature Compoundability = NonCompoundable;
         },
@@ -273,8 +347,11 @@ constructions! {
         Toughness = "toughness" {
             Plural = "toughnesses",
         },
-        Turn = "turn" { feature Relationality = Relational; },
-        Type = "type",
+        Turn = "turn" {
+            feature LocativeTemporalLicense = OfAndTemporalLicensed;
+            feature Relationality = Relational;
+        },
+        Type = "type" { feature LocativeTemporalLicense = OfLicensed; },
         Value = "value",
         Way = "way",
         Die = "die" {
@@ -1161,6 +1238,7 @@ constructions! {
     }
     construction temporal: TriggerPrefix {
         element Temporal { phrase: PrepositionalPhrase, }
+        require phrase.preposition_attachment is AdjunctCapable;
         form temporal = phrase;
     }
     construction triggered: Ability {
@@ -1307,7 +1385,7 @@ constructions! {
             adjunct: PrepositionalPhrase,
             body: Clause,
         }
-        require adjunct.preposition_class is AdjunctCapable;
+        require adjunct.preposition_attachment is AdjunctCapable;
         form preposed_prepositional_adjunct = adjunct "," body;
     }
     construction preposed_prepositional_adjunct_predicate: ClauseAttachment {
@@ -1315,7 +1393,7 @@ constructions! {
             adjunct: PrepositionalPhrase,
             body: Predicate,
         }
-        require adjunct.preposition_class is AdjunctCapable;
+        require adjunct.preposition_attachment is AdjunctCapable;
         derive body.agreement = Values::Bare;
         form preposed_prepositional_adjunct_predicate = adjunct "," body;
     }
@@ -1738,7 +1816,7 @@ constructions! {
             predicate: VerbPhrase,
             adjunct: PrepositionalPhrase,
         }
-        require adjunct.preposition_class is AdjunctCapable;
+        require adjunct.preposition_attachment is AdjunctCapable;
         derive agreement = predicate.agreement;
         form prepositional_adjunct_predicate = predicate adjunct;
     }
@@ -2049,6 +2127,8 @@ constructions! {
         derive agreement = value.agreement;
         derive number = value.number;
         derive onset = value.onset;
+        derive relationality = value.relationality;
+        derive locative_temporal_license = value.locative_temporal_license;
         form object_nominal = value;
     }
     construction bare_singular_coordination_object: Object {
@@ -2056,6 +2136,8 @@ constructions! {
         derive agreement = value.agreement;
         derive number = value.number;
         derive onset = value.onset;
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::OfInAndOnLicensed;
         form bare_singular_coordination_object = value;
     }
     construction object_pronoun: Object {
@@ -2075,6 +2157,8 @@ constructions! {
             You => Values::Singular,
         };
         derive onset = word.onset;
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::OfInAndOnLicensed;
         form object_pronoun = lex(word);
     }
     construction reflexive_object: Object {
@@ -2098,6 +2182,8 @@ constructions! {
             Yourselves => Values::Plural,
         };
         derive onset = word.onset;
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::OfInAndOnLicensed;
         form reflexive_object = lex(word);
     }
     construction noun_singular_head: SingularHead {
@@ -2108,6 +2194,8 @@ constructions! {
         derive number = Values::Singular;
         derive onset = noun.onset;
         derive possessive_ending = noun.possessive_ending;
+        derive relationality = noun.relationality;
+        derive locative_temporal_license = noun.locative_temporal_license;
         form noun_singular_head = noun(noun);
     }
     construction noun_plural_head: PluralHead {
@@ -2118,6 +2206,8 @@ constructions! {
         derive number = Values::Plural;
         derive onset = noun.onset;
         derive possessive_ending = noun.possessive_ending;
+        derive relationality = noun.relationality;
+        derive locative_temporal_license = noun.locative_temporal_license;
         form noun_plural_head = noun(noun);
     }
     construction bare_locative_proform: BareLocative {
@@ -2366,6 +2456,8 @@ constructions! {
         derive nominal_form = Values::BareSingularNoun;
         derive onset = head.onset;
         derive possessive_ending = head.possessive_ending;
+        derive relationality = head.relationality;
+        derive locative_temporal_license = head.locative_temporal_license;
         form bare_singular_nominal = head;
     }
     construction modified_singular_nominal: SingularNominal {
@@ -2379,6 +2471,8 @@ constructions! {
         derive nominal_form = Values::ModifiedSingularNoun;
         derive onset = first.onset;
         derive possessive_ending = head.possessive_ending;
+        derive relationality = head.relationality;
+        derive locative_temporal_license = head.locative_temporal_license;
         form modified_singular_nominal = first rest head;
     }
     construction negative_modified_singular_nominal: SingularNominal {
@@ -2393,6 +2487,8 @@ constructions! {
         derive nominal_form = Values::ModifiedSingularNoun;
         derive onset = Values::Consonant;
         derive possessive_ending = head.possessive_ending;
+        derive relationality = head.relationality;
+        derive locative_temporal_license = head.locative_temporal_license;
         form negative_modified_singular_nominal = leading modifiers head;
     }
     construction bare_relational_reference: UnqualifiedReference {
@@ -2402,6 +2498,8 @@ constructions! {
         derive number = Values::Singular;
         derive onset = head.onset;
         derive possessive_ending = head.possessive_ending;
+        derive relationality = head.relationality;
+        derive locative_temporal_license = head.locative_temporal_license;
         derive head.number = Values::Singular;
         form bare_relational_reference = noun(head);
     }
@@ -2416,6 +2514,8 @@ constructions! {
         derive number = Values::Singular;
         derive onset = first.onset;
         derive possessive_ending = head.possessive_ending;
+        derive relationality = head.relationality;
+        derive locative_temporal_license = head.locative_temporal_license;
         derive head.number = Values::Singular;
         form modified_bare_relational_reference = first rest noun(head);
     }
@@ -2429,6 +2529,8 @@ constructions! {
         derive number = Values::Singular;
         derive onset = adjective.onset;
         derive possessive_ending = head.possessive_ending;
+        derive relationality = head.relationality;
+        derive locative_temporal_license = head.locative_temporal_license;
         form participial_singular_reference = adjective head;
     }
     construction premodified_participial_singular_reference: UnqualifiedReference {
@@ -2444,6 +2546,8 @@ constructions! {
         derive number = Values::Singular;
         derive onset = first.onset;
         derive possessive_ending = head.possessive_ending;
+        derive relationality = head.relationality;
+        derive locative_temporal_license = head.locative_temporal_license;
         form premodified_participial_singular_reference = first rest adjective head;
     }
     construction bare_plural_nominal: PluralNominal {
@@ -2453,6 +2557,8 @@ constructions! {
         derive nominal_form = Values::BarePluralNoun;
         derive onset = head.onset;
         derive possessive_ending = head.possessive_ending;
+        derive relationality = head.relationality;
+        derive locative_temporal_license = head.locative_temporal_license;
         form bare_plural_nominal = head;
     }
     construction modified_plural_nominal: PluralNominal {
@@ -2466,6 +2572,8 @@ constructions! {
         derive nominal_form = Values::ModifiedPluralNoun;
         derive onset = first.onset;
         derive possessive_ending = head.possessive_ending;
+        derive relationality = head.relationality;
+        derive locative_temporal_license = head.locative_temporal_license;
         form modified_plural_nominal = first rest head;
     }
     construction negative_modified_plural_nominal: PluralNominal {
@@ -2480,6 +2588,8 @@ constructions! {
         derive nominal_form = Values::ModifiedPluralNoun;
         derive onset = Values::Consonant;
         derive possessive_ending = head.possessive_ending;
+        derive relationality = head.relationality;
+        derive locative_temporal_license = head.locative_temporal_license;
         form negative_modified_plural_nominal = leading modifiers head;
     }
     construction bare_singular_coordination_member: SingularCoordinationMember {
@@ -2655,6 +2765,8 @@ constructions! {
         derive nominal_form = nominal.nominal_form;
         derive onset = nominal.onset;
         derive possessive_ending = nominal.possessive_ending;
+        derive relationality = nominal.relationality;
+        derive locative_temporal_license = nominal.locative_temporal_license;
         form singular_nominal_value = nominal;
     }
     construction plural_nominal_value: Nominal {
@@ -2664,6 +2776,8 @@ constructions! {
         derive nominal_form = nominal.nominal_form;
         derive onset = nominal.onset;
         derive possessive_ending = nominal.possessive_ending;
+        derive relationality = nominal.relationality;
+        derive locative_temporal_license = nominal.locative_temporal_license;
         form plural_nominal_value = nominal;
     }
     construction mass_noun: MassNoun {
@@ -2673,6 +2787,8 @@ constructions! {
         derive number = Values::Singular;
         derive onset = noun.onset;
         derive possessive_ending = noun.possessive_ending;
+        derive relationality = noun.relationality;
+        derive locative_temporal_license = noun.locative_temporal_license;
         form mass_noun = noun(noun);
     }
     construction mass_nominal: Nominal {
@@ -2682,6 +2798,8 @@ constructions! {
         derive nominal_form = Values::MassNoun;
         derive onset = noun.onset;
         derive possessive_ending = noun.possessive_ending;
+        derive relationality = noun.relationality;
+        derive locative_temporal_license = noun.locative_temporal_license;
         form mass_nominal = noun;
     }
     construction modified_mass_nominal: Nominal {
@@ -2695,6 +2813,8 @@ constructions! {
         derive nominal_form = Values::MassNoun;
         derive onset = first.onset;
         derive possessive_ending = noun.possessive_ending;
+        derive relationality = noun.relationality;
+        derive locative_temporal_license = noun.locative_temporal_license;
         form modified_mass_nominal = first rest noun;
     }
     construction singular_coordination_nominal_value: Nominal {
@@ -2706,6 +2826,8 @@ constructions! {
         derive nominal_form = coordination.nominal_form;
         derive onset = coordination.onset;
         derive possessive_ending = coordination.possessive_ending;
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::OfInAndOnLicensed;
         form singular_coordination_nominal_value = coordination;
     }
     construction plural_coordination_nominal_value: Nominal {
@@ -2717,6 +2839,8 @@ constructions! {
         derive nominal_form = coordination.nominal_form;
         derive onset = coordination.onset;
         derive possessive_ending = coordination.possessive_ending;
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::OfInAndOnLicensed;
         form plural_coordination_nominal_value = coordination;
     }
     construction modified_singular_coordination_nominal_value: Nominal {
@@ -2730,6 +2854,8 @@ constructions! {
         derive nominal_form = coordination.nominal_form;
         derive onset = first.onset;
         derive possessive_ending = coordination.possessive_ending;
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::OfInAndOnLicensed;
         form modified_singular_coordination_nominal_value = first rest coordination;
     }
     construction modified_plural_coordination_nominal_value: Nominal {
@@ -2743,6 +2869,8 @@ constructions! {
         derive nominal_form = coordination.nominal_form;
         derive onset = first.onset;
         derive possessive_ending = coordination.possessive_ending;
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::OfInAndOnLicensed;
         form modified_plural_coordination_nominal_value = first rest coordination;
     }
     construction unmarked_singular_selector: SingularSelector {
@@ -2891,6 +3019,8 @@ constructions! {
         derive number = Values::Singular;
         derive onset = Values::Consonant;
         derive possessive_ending = name.possessive_ending;
+        derive relationality = kind.relationality;
+        derive locative_temporal_license = kind.locative_temporal_license;
         form named_card_reference = "a" kind "named" identity(name);
     }
     construction definite_next_mass_quantity_reference: UnqualifiedReference {
@@ -2902,6 +3032,8 @@ constructions! {
         derive number = Values::Singular;
         derive onset = Values::Consonant;
         derive possessive_ending = noun.possessive_ending;
+        derive relationality = noun.relationality;
+        derive locative_temporal_license = noun.locative_temporal_license;
         form definite_next_mass_quantity_reference = "the" "next" quantity noun;
     }
     construction that_many: CountReference {
@@ -2922,6 +3054,8 @@ constructions! {
         derive number = possessed.number;
         derive onset = Values::Consonant;
         derive possessive_ending = possessed.possessive_ending;
+        derive relationality = possessed.relationality;
+        derive locative_temporal_license = possessed.locative_temporal_license;
         form demonstrative_possessive_reference = lex(demonstrative) possessor possessed;
     }
     construction possessed_singular_reference: UnqualifiedReference {
@@ -2933,6 +3067,8 @@ constructions! {
         derive number = nominal.number;
         derive onset = possessor.onset;
         derive possessive_ending = nominal.possessive_ending;
+        derive relationality = nominal.relationality;
+        derive locative_temporal_license = nominal.locative_temporal_license;
         form possessed_singular_reference = lex(possessor) nominal;
     }
     construction possessed_plural_reference: UnqualifiedReference {
@@ -2944,6 +3080,8 @@ constructions! {
         derive number = nominal.number;
         derive onset = possessor.onset;
         derive possessive_ending = nominal.possessive_ending;
+        derive relationality = nominal.relationality;
+        derive locative_temporal_license = nominal.locative_temporal_license;
         form possessed_plural_reference = lex(possessor) nominal;
     }
     construction possessed_mass_reference: UnqualifiedReference {
@@ -2956,6 +3094,8 @@ constructions! {
         derive number = nominal.number;
         derive onset = possessor.onset;
         derive possessive_ending = nominal.possessive_ending;
+        derive relationality = nominal.relationality;
+        derive locative_temporal_license = nominal.locative_temporal_license;
         form possessed_mass_reference = lex(possessor) nominal;
     }
     construction genitive_determiner_singular_reference: UnqualifiedReference {
@@ -2968,6 +3108,8 @@ constructions! {
         derive number = nominal.number;
         derive onset = Values::Consonant;
         derive possessive_ending = nominal.possessive_ending;
+        derive relationality = nominal.relationality;
+        derive locative_temporal_license = nominal.locative_temporal_license;
         form genitive_determiner_singular_reference = possessor nominal;
     }
     construction genitive_determiner_plural_reference: UnqualifiedReference {
@@ -2980,6 +3122,8 @@ constructions! {
         derive number = nominal.number;
         derive onset = Values::Consonant;
         derive possessive_ending = nominal.possessive_ending;
+        derive relationality = nominal.relationality;
+        derive locative_temporal_license = nominal.locative_temporal_license;
         form genitive_determiner_plural_reference = possessor nominal;
     }
     construction plural_genitive_determiner_singular_reference: UnqualifiedReference {
@@ -2992,6 +3136,8 @@ constructions! {
         derive number = nominal.number;
         derive onset = Values::Consonant;
         derive possessive_ending = nominal.possessive_ending;
+        derive relationality = nominal.relationality;
+        derive locative_temporal_license = nominal.locative_temporal_license;
         form plural_genitive_determiner_singular_reference = possessor nominal;
     }
     construction plural_genitive_determiner_plural_reference: UnqualifiedReference {
@@ -3004,6 +3150,8 @@ constructions! {
         derive number = nominal.number;
         derive onset = Values::Consonant;
         derive possessive_ending = nominal.possessive_ending;
+        derive relationality = nominal.relationality;
+        derive locative_temporal_license = nominal.locative_temporal_license;
         form plural_genitive_determiner_plural_reference = possessor nominal;
     }
     construction genitive_determiner_mass_reference: UnqualifiedReference {
@@ -3019,6 +3167,8 @@ constructions! {
         derive number = nominal.number;
         derive onset = Values::Consonant;
         derive possessive_ending = nominal.possessive_ending;
+        derive relationality = nominal.relationality;
+        derive locative_temporal_license = nominal.locative_temporal_license;
         form genitive_determiner_mass_reference = possessor nominal;
     }
     construction plural_genitive_determiner_mass_reference: UnqualifiedReference {
@@ -3034,6 +3184,8 @@ constructions! {
         derive number = nominal.number;
         derive onset = Values::Consonant;
         derive possessive_ending = nominal.possessive_ending;
+        derive relationality = nominal.relationality;
+        derive locative_temporal_license = nominal.locative_temporal_license;
         form plural_genitive_determiner_mass_reference = possessor nominal;
     }
     construction genitive_determiner_coordination_reference: UnqualifiedReference {
@@ -3045,6 +3197,8 @@ constructions! {
         derive number = Values::Plural;
         derive onset = Values::Consonant;
         derive possessive_ending = coordination.possessive_ending;
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::OfInAndOnLicensed;
         form genitive_determiner_coordination_reference = possessor coordination;
     }
     construction possessive_absolute_reference: UnqualifiedReference {
@@ -3063,6 +3217,8 @@ constructions! {
         };
         derive onset = word.onset;
         derive possessive_ending = word.possessive_ending;
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::OfInAndOnLicensed;
         form possessive_absolute_reference = lex(word);
     }
     construction determined_nominal: UnqualifiedReference {
@@ -3079,6 +3235,8 @@ constructions! {
         derive number = nominal.number;
         derive onset = nominal.onset;
         derive possessive_ending = nominal.possessive_ending;
+        derive relationality = nominal.relationality;
+        derive locative_temporal_license = nominal.locative_temporal_license;
         form determined_nominal = det nominal;
     }
     construction all_predetermined_nominal: UnqualifiedReference {
@@ -3096,6 +3254,8 @@ constructions! {
         derive number = nominal.number;
         derive onset = nominal.onset;
         derive possessive_ending = nominal.possessive_ending;
+        derive relationality = nominal.relationality;
+        derive locative_temporal_license = nominal.locative_temporal_license;
         form all_predetermined_nominal = all det nominal;
     }
     construction full_and_noun_phrase_coordination: FullNounPhraseCoordination {
@@ -3151,6 +3311,8 @@ constructions! {
         derive number = coordination.number;
         derive onset = Values::Consonant;
         derive possessive_ending = coordination.possessive_ending;
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::OfInAndOnLicensed;
         form coordinated_noun_phrase = coordination;
     }
     construction self_reference: UnqualifiedReference {
@@ -3159,6 +3321,8 @@ constructions! {
         derive number = Values::Singular;
         derive onset = spelling.onset;
         derive possessive_ending = spelling.possessive_ending;
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::OfInAndOnLicensed;
         form self_reference = identity(spelling);
     }
     construction this_way: MannerReference {
@@ -3248,9 +3412,15 @@ constructions! {
     construction prepositional_phrase: PrepositionalPhrase {
         element PrepositionalPhraseValue {
             preposition: lex Preposition,
-            complement: PrepositionalComplement,
+            complement: PrepositionalComplement checked by preposition_complement_is_licensed(
+                preposition.preposition_complement_kind,
+                complement.locative_temporal_license
+            ),
         }
-        derive preposition_class = preposition.preposition_class;
+        derive bare_locative_complement = preposition.bare_locative_complement;
+        derive preposition_attachment = preposition.preposition_attachment;
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::Unlicensed;
         form prepositional_phrase = lex(preposition) complement;
     }
     // A determiner-less locative is licensed by the preposition class as well
@@ -3258,10 +3428,15 @@ constructions! {
     construction bare_locative_prepositional_phrase: PrepositionalPhrase {
         element BareLocativePrepositionalPhrase {
             preposition: lex Preposition,
-            complement: BareLocative,
+            complement: BareLocative checked by bare_preposition_complement_is_licensed(
+                preposition.preposition_complement_kind
+            ),
         }
-        require preposition.preposition_class is PostmodifierBareLocative;
-        derive preposition_class = preposition.preposition_class;
+        require preposition.bare_locative_complement is Yes;
+        derive bare_locative_complement = preposition.bare_locative_complement;
+        derive preposition_attachment = preposition.preposition_attachment;
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::Unlicensed;
         form bare_locative_prepositional_phrase = lex(preposition) complement;
     }
     // Two frame roles whose preposition is declared valence data. They exist
@@ -3279,6 +3454,8 @@ constructions! {
             position: lex EdgePosition,
             whole: Object,
         }
+        derive relationality = whole.relationality;
+        derive locative_temporal_license = whole.locative_temporal_license;
         form top when position is Top = lex(position) "of" whole;
         form bottom otherwise = "the" lex(position) "of" whole;
     }
@@ -3398,6 +3575,8 @@ constructions! {
         derive number = reference.number;
         derive onset = reference.onset;
         derive possessive_ending = reference.possessive_ending;
+        derive relationality = reference.relationality;
+        derive locative_temporal_license = reference.locative_temporal_license;
         form unqualified_controller_stage = reference;
     }
     construction relative_qualified_reference: ControllerStage {
@@ -3409,6 +3588,8 @@ constructions! {
         derive number = reference.number;
         derive onset = reference.onset;
         derive possessive_ending = reference.possessive_ending;
+        derive relationality = reference.relationality;
+        derive locative_temporal_license = reference.locative_temporal_license;
         form relative_qualified_reference = reference clause;
     }
     construction subject_relative_qualified_reference: ControllerStage {
@@ -3421,6 +3602,8 @@ constructions! {
         derive number = reference.number;
         derive onset = reference.onset;
         derive possessive_ending = reference.possessive_ending;
+        derive relationality = reference.relationality;
+        derive locative_temporal_license = reference.locative_temporal_license;
         form subject_relative_qualified_reference = reference clause;
     }
     construction contracted_copular_relative_reference: ControllerStage {
@@ -3434,6 +3617,8 @@ constructions! {
         derive number = reference.number;
         derive onset = reference.onset;
         derive possessive_ending = Values::Other;
+        derive relationality = reference.relationality;
+        derive locative_temporal_license = reference.locative_temporal_license;
         form contracted_copular_relative_reference =
             reference "that's" "a" nominal "of" complement;
     }
@@ -3446,6 +3631,8 @@ constructions! {
         derive number = reference.number;
         derive onset = reference.onset;
         derive possessive_ending = reference.possessive_ending;
+        derive relationality = reference.relationality;
+        derive locative_temporal_license = reference.locative_temporal_license;
         form reduced_passive_qualified_reference = reference clause;
     }
     construction other_than_qualified_reference: ControllerStage {
@@ -3457,6 +3644,8 @@ constructions! {
         derive number = reference.number;
         derive onset = reference.onset;
         derive possessive_ending = excluded.possessive_ending;
+        derive relationality = reference.relationality;
+        derive locative_temporal_license = reference.locative_temporal_license;
         form other_than_qualified_reference = reference "other" "than" excluded;
     }
     construction unqualified_locative_stage: LocativeStage {
@@ -3464,6 +3653,8 @@ constructions! {
         derive agreement = reference.agreement;
         derive number = reference.number;
         derive onset = reference.onset;
+        derive relationality = reference.relationality;
+        derive locative_temporal_license = reference.locative_temporal_license;
         form unqualified_locative_stage = reference;
     }
     // Low attachment: a prepositional phrase postmodifies the nearest
@@ -3473,10 +3664,12 @@ constructions! {
             reference: ControllerStage,
             modifier: PrepositionalPhrase,
         }
-        require modifier.preposition_class in [AdjunctCapable, PostmodifierOnly, PostmodifierBareLocative];
+        require modifier.preposition_attachment in [AdjunctCapable, PostmodifierOnly];
         derive agreement = reference.agreement;
         derive number = reference.number;
         derive onset = reference.onset;
+        derive relationality = reference.relationality;
+        derive locative_temporal_license = reference.locative_temporal_license;
         form prepositional_qualified_reference = reference modifier;
     }
     construction unqualified_numeric_stage: NumericStage {
@@ -3484,6 +3677,8 @@ constructions! {
         derive agreement = reference.agreement;
         derive number = reference.number;
         derive onset = reference.onset;
+        derive relationality = reference.relationality;
+        derive locative_temporal_license = reference.locative_temporal_license;
         form unqualified_numeric_stage = reference;
     }
     construction scalar_qualified_reference: NumericStage {
@@ -3494,6 +3689,8 @@ constructions! {
         derive agreement = reference.agreement;
         derive number = reference.number;
         derive onset = reference.onset;
+        derive relationality = reference.relationality;
+        derive locative_temporal_license = reference.locative_temporal_license;
         form scalar_qualified_reference = reference scalar;
     }
     // One nominal `with` postmodifier for granted abilities, whose complement
@@ -3511,6 +3708,8 @@ constructions! {
         derive agreement = reference.agreement;
         derive number = reference.number;
         derive onset = reference.onset;
+        derive relationality = reference.relationality;
+        derive locative_temporal_license = reference.locative_temporal_license;
         form granted_ability_qualified_reference = reference "with" granted;
     }
     construction qualified_noun_phrase: NounPhrase {
@@ -3518,6 +3717,8 @@ constructions! {
         derive agreement = reference.agreement;
         derive number = reference.number;
         derive onset = reference.onset;
+        derive relationality = reference.relationality;
+        derive locative_temporal_license = reference.locative_temporal_license;
         form qualified_noun_phrase = reference;
     }
     construction comparative_quantified_reference: NounPhrase {
@@ -3529,6 +3730,8 @@ constructions! {
         derive agreement = Values::Bare;
         derive number = Values::Plural;
         derive onset = Values::Consonant;
+        derive relationality = nominal.relationality;
+        derive locative_temporal_license = nominal.locative_temporal_license;
         form comparative_quantified_reference = lex(quantifier) nominal "than" standard;
     }
     construction fused_determinative_reference: NounPhrase {
@@ -3538,6 +3741,8 @@ constructions! {
         derive agreement = head.agreement;
         derive number = head.number;
         derive onset = head.onset;
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::OfInAndOnLicensed;
         form fused_determinative_reference = head;
     }
     construction determinative_partitive: UnqualifiedReference {
@@ -3555,6 +3760,8 @@ constructions! {
         derive number = head.number;
         derive onset = head.onset;
         derive possessive_ending = Values::Other;
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = whole.locative_temporal_license;
         form determinative_partitive = head "of" whole;
     }
     construction positional_partitive: NounPhrase {
@@ -3566,6 +3773,8 @@ constructions! {
         derive agreement = selection.agreement;
         derive number = selection.number;
         derive onset = Values::Consonant;
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::OfInAndOnLicensed;
         form positional_partitive = "the" lex(position) selection "of" whole;
     }
     construction singular_common_noun_choice: CommonNounChoice {
@@ -3588,6 +3797,8 @@ constructions! {
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = Values::Consonant;
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::OfInAndOnLicensed;
         form common_noun_choice_list = choices;
     }
     construction fused_color_nominal: Nominal {
@@ -3597,6 +3808,8 @@ constructions! {
         derive nominal_form = Values::BareSingularNoun;
         derive onset = color.onset;
         derive possessive_ending = color.possessive_ending;
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::OfInAndOnLicensed;
         form fused_color_nominal = lex(color);
     }
     construction indefinite_pronoun_nominal: Nominal {
@@ -3606,6 +3819,8 @@ constructions! {
         derive nominal_form = Values::BareSingularNoun;
         derive onset = pronoun.onset;
         derive possessive_ending = pronoun.possessive_ending;
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::OfInAndOnLicensed;
         form indefinite_pronoun_nominal = lex(pronoun);
     }
     construction possessive_plural_noun: PossessiveOwner {
@@ -4324,6 +4539,73 @@ constructions! {
     root CountReference { eoi = true; standalone_render = true; }
     root ScalarReference { eoi = true; standalone_render = true; }
     root OracleText { eoi = true; standalone_render = true; }
+}
+
+fn preposition_complement_is_licensed(
+    complement: &PrepositionalComplement,
+    kind: PrepositionComplementKind,
+    license: LocativeTemporalLicense,
+) -> bool {
+    let edge = matches!(complement, PrepositionalComplement::Edge(_));
+    match kind {
+        PrepositionComplementKind::UnrestrictedComplement => true,
+        PrepositionComplementKind::RelationalComplement => matches!(
+            license,
+            LocativeTemporalLicense::OfLicensed
+                | LocativeTemporalLicense::OfAndOnLicensed
+                | LocativeTemporalLicense::OfInAndOnLicensed
+                | LocativeTemporalLicense::OfAndTemporalLicensed
+        ),
+        PrepositionComplementKind::InComplement => {
+            !edge
+                && matches!(
+                    license,
+                    LocativeTemporalLicense::OfInAndOnLicensed
+                        | LocativeTemporalLicense::InLicensed
+                        | LocativeTemporalLicense::InOrOnEdgeLicensed
+                )
+        }
+        PrepositionComplementKind::OnComplement => match license {
+            LocativeTemporalLicense::OnLicensed
+            | LocativeTemporalLicense::OfAndOnLicensed
+            | LocativeTemporalLicense::OfInAndOnLicensed
+            | LocativeTemporalLicense::TemporalLicensed
+            | LocativeTemporalLicense::OfAndTemporalLicensed => !edge,
+            LocativeTemporalLicense::InOrOnEdgeLicensed => edge,
+            LocativeTemporalLicense::Unlicensed
+            | LocativeTemporalLicense::OfLicensed
+            | LocativeTemporalLicense::InLicensed => false,
+        },
+        PrepositionComplementKind::AtComplement | PrepositionComplementKind::DuringComplement => {
+            !edge
+                && matches!(
+                    license,
+                    LocativeTemporalLicense::TemporalLicensed
+                        | LocativeTemporalLicense::OfAndTemporalLicensed
+                )
+        }
+    }
+}
+
+fn bare_preposition_complement_is_licensed(
+    complement: &BareLocative,
+    kind: PrepositionComplementKind,
+) -> bool {
+    let license = match complement {
+        BareLocative::Proform(_) => LocativeTemporalLicense::Unlicensed,
+        BareLocative::Noun(value) => locative_temporal_license_for_noun(&value.noun),
+    };
+    match kind {
+        PrepositionComplementKind::UnrestrictedComplement => true,
+        PrepositionComplementKind::InComplement => matches!(
+            license,
+            LocativeTemporalLicense::InLicensed | LocativeTemporalLicense::InOrOnEdgeLicensed
+        ),
+        PrepositionComplementKind::RelationalComplement
+        | PrepositionComplementKind::OnComplement
+        | PrepositionComplementKind::AtComplement
+        | PrepositionComplementKind::DuringComplement => false,
+    }
 }
 
 fn determinative_is_fused(head: &Determinative, fused_head_license: FusedHeadLicense) -> bool {

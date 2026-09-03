@@ -2001,13 +2001,16 @@ fn validate_vocab_declaration_shape(vocab: &crate::model::Vocab, errors: &mut Op
     for default in &vocab.feature_defaults {
         if !matches!(
             default.feature,
-            crate::model::Feature::ModifierLicense | crate::model::Feature::PrepositionClass
+            crate::model::Feature::BareLocativeComplement
+                | crate::model::Feature::ModifierLicense
+                | crate::model::Feature::PrepositionComplementKind
+                | crate::model::Feature::PrepositionAttachment
         ) {
             combine(
                 errors,
                 syn::Error::new(
                     default.value.span(),
-                    "closed vocab metadata supports only ModifierLicense and PrepositionClass",
+                    "closed vocab metadata supports only BareLocativeComplement, ModifierLicense, PrepositionAttachment, and PrepositionComplementKind",
                 ),
             );
         }
@@ -2032,22 +2035,16 @@ fn validate_vocab_declaration_shape(vocab: &crate::model::Vocab, errors: &mut Op
         for override_ in &variant.feature_overrides {
             if !matches!(
                 override_.feature,
-                crate::model::Feature::ModifierLicense | crate::model::Feature::PrepositionClass
+                crate::model::Feature::BareLocativeComplement
+                    | crate::model::Feature::ModifierLicense
+                    | crate::model::Feature::PrepositionComplementKind
+                    | crate::model::Feature::PrepositionAttachment
             ) {
                 combine(
                     errors,
                     syn::Error::new(
                         override_.value.span(),
-                        "closed vocab metadata supports only ModifierLicense and PrepositionClass",
-                    ),
-                );
-            }
-            if !feature_defaults.contains(&override_.feature) {
-                combine(
-                    errors,
-                    syn::Error::new(
-                        override_.value.span(),
-                        "vocab feature override requires a vocab-level default",
+                        "closed vocab metadata supports only BareLocativeComplement, ModifierLicense, PrepositionAttachment, and PrepositionComplementKind",
                     ),
                 );
             }
@@ -2068,6 +2065,31 @@ fn validate_vocab_declaration_shape(vocab: &crate::model::Vocab, errors: &mut Op
             }
         }
     }
+    let explicit_features = vocab
+        .variants
+        .iter()
+        .flat_map(|variant| variant.feature_overrides.iter().map(|row| row.feature))
+        .collect::<HashSet<_>>();
+    for feature in explicit_features.difference(&feature_defaults) {
+        for variant in &vocab.variants {
+            if !variant
+                .feature_overrides
+                .iter()
+                .any(|row| row.feature == *feature)
+            {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        variant.name.span(),
+                        format!(
+                            "vocab feature `{}` without a default must be declared on every member",
+                            crate::feature::Feature::from(*feature).key()
+                        ),
+                    ),
+                );
+            }
+        }
+    }
 }
 
 fn validate_lexeme_declaration_shape(
@@ -2081,8 +2103,8 @@ fn validate_lexeme_declaration_shape(
             crate::model::Feature::BareLocativeLicense
                 | crate::model::Feature::Compoundability
                 | crate::model::Feature::Countability
+                | crate::model::Feature::LocativeTemporalLicense
                 | crate::model::Feature::ModifierLicense
-                | crate::model::Feature::NounComplement
                 | crate::model::Feature::Properness
                 | crate::model::Feature::Relationality
         ) {
@@ -2090,7 +2112,7 @@ fn validate_lexeme_declaration_shape(
                 errors,
                 syn::Error::new(
                     default.value.span(),
-                    "closed lexeme metadata supports only BareLocativeLicense, Compoundability, Countability, ModifierLicense, NounComplement, Properness, and Relationality",
+                    "closed lexeme metadata supports only BareLocativeLicense, Compoundability, Countability, LocativeTemporalLicense, ModifierLicense, Properness, and Relationality",
                 ),
             );
         }
@@ -2157,8 +2179,8 @@ fn validate_lexeme_declaration_shape(
                 crate::model::Feature::BareLocativeLicense
                     | crate::model::Feature::Compoundability
                     | crate::model::Feature::Countability
+                    | crate::model::Feature::LocativeTemporalLicense
                     | crate::model::Feature::ModifierLicense
-                    | crate::model::Feature::NounComplement
                     | crate::model::Feature::Properness
                     | crate::model::Feature::Relationality
             ) {
@@ -2166,7 +2188,7 @@ fn validate_lexeme_declaration_shape(
                     errors,
                     syn::Error::new(
                         override_.value.span(),
-                        "closed lexeme metadata supports only BareLocativeLicense, Compoundability, Countability, ModifierLicense, NounComplement, Properness, and Relationality",
+                        "closed lexeme metadata supports only BareLocativeLicense, Compoundability, Countability, LocativeTemporalLicense, ModifierLicense, Properness, and Relationality",
                     ),
                 );
             }
@@ -3870,6 +3892,8 @@ fn seal_category_feature_reads(
                 Feature::ModifierLicense,
                 Feature::DeterminerNumber,
                 Feature::FusedHeadLicense,
+                Feature::PrepositionComplementKind,
+                Feature::LocativeTemporalLicense,
                 Feature::NominalForm,
                 Feature::NominalLicense,
                 Feature::Number,
@@ -4909,6 +4933,16 @@ fn generated_name_inventory(
                             "fused_head_license",
                             "FusedHeadLicense",
                         ),
+                        (
+                            Feature::PrepositionComplementKind,
+                            "preposition_complement_kind",
+                            "PrepositionComplementKind",
+                        ),
+                        (
+                            Feature::LocativeTemporalLicense,
+                            "locative_temporal_license",
+                            "LocativeTemporalLicense",
+                        ),
                         (Feature::NominalForm, "nominal_form", "NominalForm"),
                         (Feature::NominalLicense, "nominal_license", "NominalLicense"),
                         (Feature::Number, "number", "Number"),
@@ -5058,6 +5092,12 @@ fn generated_name_inventory(
                         ParsedFeature::FusedHeadLicense => {
                             ("fused_head_license", "FusedHeadLicense")
                         }
+                        ParsedFeature::PrepositionComplementKind => {
+                            ("preposition_complement_kind", "PrepositionComplementKind")
+                        }
+                        ParsedFeature::LocativeTemporalLicense => {
+                            ("locative_temporal_license", "LocativeTemporalLicense")
+                        }
                         ParsedFeature::NominalForm => ("nominal_form", "NominalForm"),
                         ParsedFeature::NominalLicense => ("nominal_license", "NominalLicense"),
                         ParsedFeature::Number => ("number", "Number"),
@@ -5068,9 +5108,11 @@ fn generated_name_inventory(
                         }
                         ParsedFeature::Properness => ("properness", "Properness"),
                         ParsedFeature::Relationality => ("relationality", "Relationality"),
-                        ParsedFeature::NounComplement => ("noun_complement", "NounComplement"),
-                        ParsedFeature::PrepositionClass => {
-                            ("preposition_class", "PrepositionClass")
+                        ParsedFeature::BareLocativeComplement => {
+                            ("bare_locative_complement", "BareLocativeComplement")
+                        }
+                        ParsedFeature::PrepositionAttachment => {
+                            ("preposition_attachment", "PrepositionAttachment")
                         }
                     };
                     names.register_value(
@@ -5670,6 +5712,8 @@ fn raw_category_reads_feature(raw: &Declarations, category: &str, feature: Featu
         Feature::ModifierLicense => ParsedFeature::ModifierLicense,
         Feature::DeterminerNumber => ParsedFeature::DeterminerNumber,
         Feature::FusedHeadLicense => ParsedFeature::FusedHeadLicense,
+        Feature::PrepositionComplementKind => ParsedFeature::PrepositionComplementKind,
+        Feature::LocativeTemporalLicense => ParsedFeature::LocativeTemporalLicense,
         Feature::NominalForm => ParsedFeature::NominalForm,
         Feature::NominalLicense => ParsedFeature::NominalLicense,
         Feature::Number => ParsedFeature::Number,
@@ -5678,8 +5722,8 @@ fn raw_category_reads_feature(raw: &Declarations, category: &str, feature: Featu
         Feature::PossessiveEnding => ParsedFeature::PossessiveEnding,
         Feature::Properness => ParsedFeature::Properness,
         Feature::Relationality => ParsedFeature::Relationality,
-        Feature::NounComplement => ParsedFeature::NounComplement,
-        Feature::PrepositionClass => ParsedFeature::PrepositionClass,
+        Feature::BareLocativeComplement => ParsedFeature::BareLocativeComplement,
+        Feature::PrepositionAttachment => ParsedFeature::PrepositionAttachment,
     };
     raw.declarations.iter().any(|declaration| {
         let Declaration::Construction(construction) = declaration else { return false };
@@ -5727,6 +5771,8 @@ fn raw_sequence_reads_inherent_category_feature(
         Feature::ModifierLicense => ParsedFeature::ModifierLicense,
         Feature::DeterminerNumber => ParsedFeature::DeterminerNumber,
         Feature::FusedHeadLicense => ParsedFeature::FusedHeadLicense,
+        Feature::PrepositionComplementKind => ParsedFeature::PrepositionComplementKind,
+        Feature::LocativeTemporalLicense => ParsedFeature::LocativeTemporalLicense,
         Feature::NominalForm => ParsedFeature::NominalForm,
         Feature::NominalLicense => ParsedFeature::NominalLicense,
         Feature::Number => ParsedFeature::Number,
@@ -5735,8 +5781,8 @@ fn raw_sequence_reads_inherent_category_feature(
         Feature::PossessiveEnding => ParsedFeature::PossessiveEnding,
         Feature::Properness => ParsedFeature::Properness,
         Feature::Relationality => ParsedFeature::Relationality,
-        Feature::NounComplement => ParsedFeature::NounComplement,
-        Feature::PrepositionClass => ParsedFeature::PrepositionClass,
+        Feature::BareLocativeComplement => ParsedFeature::BareLocativeComplement,
+        Feature::PrepositionAttachment => ParsedFeature::PrepositionAttachment,
     };
     raw.declarations.iter().any(|declaration| {
         let Declaration::Construction(construction) = declaration else {
@@ -5988,13 +6034,15 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                 | ParsedFeature::ModifierLicense
                 | ParsedFeature::DeterminerNumber
                 | ParsedFeature::FusedHeadLicense
+                | ParsedFeature::PrepositionComplementKind
+                | ParsedFeature::LocativeTemporalLicense
                 | ParsedFeature::NominalForm
                 | ParsedFeature::NominalLicense
                 | ParsedFeature::Onset
                 | ParsedFeature::Participle
                 | ParsedFeature::PossessiveEnding
-                | ParsedFeature::NounComplement
-                | ParsedFeature::PrepositionClass
+                | ParsedFeature::BareLocativeComplement
+                | ParsedFeature::PrepositionAttachment
                 | ParsedFeature::Properness
                 | ParsedFeature::Relationality => None,
             }
@@ -9476,6 +9524,60 @@ fn validate_contextual_agreement_uses(
     finish(errors)
 }
 
+fn declared_terminal_feature_providers(
+    raw: &Declarations,
+    providers: &mut HashSet<(String, ParsedFeature)>,
+) {
+    for declaration in &raw.declarations {
+        if let Declaration::Lexeme(lexeme) = declaration {
+            for default in &lexeme.feature_defaults {
+                providers.insert((identifier_key(&lexeme.name), default.feature));
+            }
+        }
+        if let Declaration::Vocab(vocab) = declaration {
+            for default in &vocab.feature_defaults {
+                providers.insert((identifier_key(&vocab.name), default.feature));
+            }
+            let explicit_features = vocab
+                .variants
+                .iter()
+                .flat_map(|variant| variant.feature_overrides.iter().map(|row| row.feature))
+                .collect::<HashSet<_>>();
+            for feature in explicit_features {
+                if vocab.variants.iter().all(|variant| {
+                    variant
+                        .feature_overrides
+                        .iter()
+                        .any(|row| row.feature == feature)
+                }) {
+                    providers.insert((identifier_key(&vocab.name), feature));
+                }
+            }
+        }
+    }
+    for declaration in &raw.declarations {
+        let Declaration::Codec(codec) = declaration else {
+            continue;
+        };
+        let Some(crate::model::GeneratedCodecRecipe::DeclarationNoun(recipe)) = &codec.generated
+        else {
+            continue;
+        };
+        let Some(closed) = recipe.closed_slots.first() else {
+            continue;
+        };
+        let closed_name = identifier_key(&closed.value);
+        let Some(Declaration::Lexeme(lexeme)) = raw.declarations.iter().find(|declaration| {
+            matches!(declaration, Declaration::Lexeme(lexeme) if identifier_key(&lexeme.name) == closed_name)
+        }) else {
+            continue;
+        };
+        for default in &lexeme.feature_defaults {
+            providers.insert((identifier_key(&codec.name), default.feature));
+        }
+    }
+}
+
 fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
     let mut categories: HashMap<String, Vec<&crate::model::Construction>> = HashMap::new();
     for declaration in &raw.declarations {
@@ -9487,31 +9589,24 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
         }
     }
     let mut providers = HashSet::new();
-    for declaration in &raw.declarations {
-        if let Declaration::Lexeme(lexeme) = declaration {
-            for default in &lexeme.feature_defaults {
-                providers.insert((identifier_key(&lexeme.name), default.feature));
-            }
-        }
-        if let Declaration::Vocab(vocab) = declaration {
-            for default in &vocab.feature_defaults {
-                providers.insert((identifier_key(&vocab.name), default.feature));
-            }
-        }
-    }
+    declared_terminal_feature_providers(raw, &mut providers);
     for (category, constructions) in categories {
         for feature in [
             ParsedFeature::Agreement,
+            ParsedFeature::BareLocativeComplement,
             ParsedFeature::Cardinality,
             ParsedFeature::ModifierLicense,
             ParsedFeature::DeterminerNumber,
             ParsedFeature::FusedHeadLicense,
+            ParsedFeature::PrepositionComplementKind,
+            ParsedFeature::LocativeTemporalLicense,
             ParsedFeature::NominalForm,
             ParsedFeature::NominalLicense,
             ParsedFeature::Number,
             ParsedFeature::Onset,
             ParsedFeature::PossessiveEnding,
-            ParsedFeature::PrepositionClass,
+            ParsedFeature::PrepositionAttachment,
+            ParsedFeature::Relationality,
         ] {
             if constructions.iter().all(|construction| construction.equations.iter().any(|equation| matches!(equation.target, ParsedFeaturePlace::Construction(found) if found == feature))) {
                 providers.insert((category.clone(), feature));
@@ -9563,7 +9658,7 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
                     ParsedFeature::BareLocativeLicense
                         | ParsedFeature::Compoundability
                         | ParsedFeature::Countability
-                        | ParsedFeature::NounComplement
+                        | ParsedFeature::LocativeTemporalLicense
                         | ParsedFeature::Properness
                         | ParsedFeature::Relationality
                 ) {
@@ -9593,8 +9688,10 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
                 ParsedFeature::ModifierLicense,
                 ParsedFeature::DeterminerNumber,
                 ParsedFeature::FusedHeadLicense,
+                ParsedFeature::LocativeTemporalLicense,
                 ParsedFeature::NominalForm,
                 ParsedFeature::NominalLicense,
+                ParsedFeature::Relationality,
             ] {
                 if !sum.alternatives.is_empty()
                     && sum.alternatives.iter().all(|alternative| {
@@ -9633,6 +9730,8 @@ fn feature_name(feature: ParsedFeature) -> &'static str {
         ParsedFeature::ModifierLicense => "modifier_license",
         ParsedFeature::DeterminerNumber => "determiner_number",
         ParsedFeature::FusedHeadLicense => "fused_head_license",
+        ParsedFeature::PrepositionComplementKind => "preposition_complement_kind",
+        ParsedFeature::LocativeTemporalLicense => "locative_temporal_license",
         ParsedFeature::NominalForm => "nominal_form",
         ParsedFeature::NominalLicense => "nominal_license",
         ParsedFeature::Number => "number",
@@ -9641,8 +9740,8 @@ fn feature_name(feature: ParsedFeature) -> &'static str {
         ParsedFeature::PossessiveEnding => "possessive_ending",
         ParsedFeature::Properness => "properness",
         ParsedFeature::Relationality => "relationality",
-        ParsedFeature::NounComplement => "noun_complement",
-        ParsedFeature::PrepositionClass => "preposition_class",
+        ParsedFeature::BareLocativeComplement => "bare_locative_complement",
+        ParsedFeature::PrepositionAttachment => "preposition_attachment",
     }
 }
 
@@ -10073,9 +10172,7 @@ fn validate_lowerable_feature_compositions(
                     ParsedFeature::BareLocativeLicense
                     | ParsedFeature::Compoundability
                     | ParsedFeature::Countability
-                    | ParsedFeature::NounComplement
-                    | ParsedFeature::Properness
-                    | ParsedFeature::Relationality,
+                    | ParsedFeature::Properness,
                 ),
                 _,
             ) => false,
@@ -10083,10 +10180,14 @@ fn validate_lowerable_feature_compositions(
                 ParsedFeaturePlace::Construction(
                     ParsedFeature::DeterminerNumber
                     | ParsedFeature::FusedHeadLicense
+                    | ParsedFeature::PrepositionComplementKind
+                    | ParsedFeature::LocativeTemporalLicense
                     | ParsedFeature::NominalForm
                     | ParsedFeature::NominalLicense
                     | ParsedFeature::ModifierLicense
-                    | ParsedFeature::PrepositionClass,
+                    | ParsedFeature::BareLocativeComplement
+                    | ParsedFeature::PrepositionAttachment
+                    | ParsedFeature::Relationality,
                 ),
                 ParsedFeatureValue::FromRole(source),
             ) => role_feature_is_constructible(
@@ -10130,7 +10231,6 @@ fn validate_lowerable_feature_compositions(
                         ParsedFeature::BareLocativeLicense
                         | ParsedFeature::Compoundability
                         | ParsedFeature::Countability
-                        | ParsedFeature::NounComplement
                         | ParsedFeature::Properness
                         | ParsedFeature::Relationality,
                     ..
@@ -10149,10 +10249,13 @@ fn validate_lowerable_feature_compositions(
                     feature:
                         ParsedFeature::DeterminerNumber
                         | ParsedFeature::FusedHeadLicense
+                        | ParsedFeature::PrepositionComplementKind
+                        | ParsedFeature::LocativeTemporalLicense
                         | ParsedFeature::NominalForm
                         | ParsedFeature::NominalLicense
                         | ParsedFeature::ModifierLicense
-                        | ParsedFeature::PrepositionClass,
+                        | ParsedFeature::BareLocativeComplement
+                        | ParsedFeature::PrepositionAttachment,
                     ..
                 },
                 ParsedFeatureValue::Constant(_) | ParsedFeatureValue::FromRole(_),
@@ -10387,6 +10490,8 @@ fn parsed_feature_name(feature: ParsedFeature) -> &'static str {
         ParsedFeature::ModifierLicense => "modifier_license",
         ParsedFeature::DeterminerNumber => "determiner_number",
         ParsedFeature::FusedHeadLicense => "fused_head_license",
+        ParsedFeature::PrepositionComplementKind => "preposition_complement_kind",
+        ParsedFeature::LocativeTemporalLicense => "locative_temporal_license",
         ParsedFeature::NominalForm => "nominal_form",
         ParsedFeature::NominalLicense => "nominal_license",
         ParsedFeature::Number => "number",
@@ -10395,8 +10500,8 @@ fn parsed_feature_name(feature: ParsedFeature) -> &'static str {
         ParsedFeature::PossessiveEnding => "possessive_ending",
         ParsedFeature::Properness => "properness",
         ParsedFeature::Relationality => "relationality",
-        ParsedFeature::NounComplement => "noun_complement",
-        ParsedFeature::PrepositionClass => "preposition_class",
+        ParsedFeature::BareLocativeComplement => "bare_locative_complement",
+        ParsedFeature::PrepositionAttachment => "preposition_attachment",
     }
 }
 
@@ -16639,7 +16744,7 @@ pub(crate) mod tests {
         assert_eq!(validated.semantic().constructions().len(), 6);
         assert_eq!(validated.semantic().terminals().len(), 8);
         assert_eq!(validated.semantic().roots().len(), 1);
-        assert_eq!(expansion.plan().items().len(), 133);
+        assert_eq!(expansion.plan().items().len(), 135);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -17004,7 +17109,7 @@ pub(crate) mod tests {
             snapshot.dynamic_number_constructions,
             vec!["leaf".to_owned()]
         );
-        assert_eq!(expansion.plan().items().len(), 133);
+        assert_eq!(expansion.plan().items().len(), 135);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -17144,7 +17249,7 @@ pub(crate) mod tests {
 
         let emission = crate::plan::plan_emission(validated.semantic())
             .expect("the already validated semantic plan emits");
-        assert_eq!(emission.items().len(), 133);
+        assert_eq!(emission.items().len(), 135);
         assert!(emission.items().iter().any(|item| {
             matches!(
                 &item.key,

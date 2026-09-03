@@ -151,10 +151,48 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             },
         ),
         named_type(
+            "BareLocativeComplement",
+            quote! {
+                #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+                pub(crate) enum BareLocativeComplement { No, Yes }
+            },
+        ),
+        named_type(
             "BareLocativeLicense",
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
                 pub(crate) enum BareLocativeLicense { QualifiedOnly, BareAllowed }
+            },
+        ),
+        named_type(
+            "PrepositionComplementKind",
+            quote! {
+                #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+                pub(crate) enum PrepositionComplementKind {
+                    UnrestrictedComplement,
+                    RelationalComplement,
+                    InComplement,
+                    OnComplement,
+                    AtComplement,
+                    DuringComplement,
+                }
+            },
+        ),
+        named_type(
+            "LocativeTemporalLicense",
+            quote! {
+                #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+                pub(crate) enum LocativeTemporalLicense {
+                    Unlicensed,
+                    OfLicensed,
+                    OfAndOnLicensed,
+                    OfInAndOnLicensed,
+                    InLicensed,
+                    OnLicensed,
+                    InOrOnEdgeLicensed,
+                    TemporalLicensed,
+                    OfAndTemporalLicensed,
+                }
             },
         ),
         named_type(
@@ -179,20 +217,12 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             },
         ),
         named_type(
-            "NounComplement",
+            "PrepositionAttachment",
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
-                pub(crate) enum NounComplement { NoComplement, OfComplement }
-            },
-        ),
-        named_type(
-            "PrepositionClass",
-            quote! {
-                #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
-                pub(crate) enum PrepositionClass {
+                pub(crate) enum PrepositionAttachment {
                     AdjunctCapable,
                     PostmodifierOnly,
-                    PostmodifierBareLocative,
                     SelectedOnly,
                 }
             },

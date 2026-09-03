@@ -779,6 +779,7 @@ fn parse_equation(input: ParseStream<'_>) -> syn::Result<FeatureEquation> {
 fn feature_from_ident(ident: &Ident) -> Option<Feature> {
     match ident.to_string().as_str() {
         "agreement" => Some(Feature::Agreement),
+        "bare_locative_complement" => Some(Feature::BareLocativeComplement),
         "bare_locative_license" => Some(Feature::BareLocativeLicense),
         "cardinality" => Some(Feature::Cardinality),
         "compoundability" => Some(Feature::Compoundability),
@@ -786,6 +787,8 @@ fn feature_from_ident(ident: &Ident) -> Option<Feature> {
         "modifier_license" => Some(Feature::ModifierLicense),
         "determiner_number" => Some(Feature::DeterminerNumber),
         "fused_head_license" => Some(Feature::FusedHeadLicense),
+        "preposition_complement_kind" => Some(Feature::PrepositionComplementKind),
+        "locative_temporal_license" => Some(Feature::LocativeTemporalLicense),
         "nominal_form" => Some(Feature::NominalForm),
         "nominal_license" => Some(Feature::NominalLicense),
         "number" => Some(Feature::Number),
@@ -794,8 +797,7 @@ fn feature_from_ident(ident: &Ident) -> Option<Feature> {
         "participle" => Some(Feature::Participle),
         "properness" => Some(Feature::Properness),
         "relationality" => Some(Feature::Relationality),
-        "noun_complement" => Some(Feature::NounComplement),
-        "preposition_class" => Some(Feature::PrepositionClass),
+        "preposition_attachment" => Some(Feature::PrepositionAttachment),
         _ => None,
     }
 }
@@ -803,13 +805,19 @@ fn feature_from_ident(ident: &Ident) -> Option<Feature> {
 fn lexeme_feature_from_ident(ident: &Ident) -> Option<Feature> {
     (ident == "Compoundability")
         .then_some(Feature::Compoundability)
+        .or_else(|| (ident == "BareLocativeComplement").then_some(Feature::BareLocativeComplement))
         .or_else(|| (ident == "BareLocativeLicense").then_some(Feature::BareLocativeLicense))
         .or_else(|| (ident == "Countability").then_some(Feature::Countability))
         .or_else(|| (ident == "ModifierLicense").then_some(Feature::ModifierLicense))
+        .or_else(|| {
+            (ident == "PrepositionComplementKind").then_some(Feature::PrepositionComplementKind)
+        })
+        .or_else(|| {
+            (ident == "LocativeTemporalLicense").then_some(Feature::LocativeTemporalLicense)
+        })
         .or_else(|| (ident == "Properness").then_some(Feature::Properness))
         .or_else(|| (ident == "Relationality").then_some(Feature::Relationality))
-        .or_else(|| (ident == "NounComplement").then_some(Feature::NounComplement))
-        .or_else(|| (ident == "PrepositionClass").then_some(Feature::PrepositionClass))
+        .or_else(|| (ident == "PrepositionAttachment").then_some(Feature::PrepositionAttachment))
         .or_else(|| feature_from_ident(ident))
 }
 

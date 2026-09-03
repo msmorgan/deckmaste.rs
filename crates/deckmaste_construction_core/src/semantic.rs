@@ -5393,9 +5393,25 @@ impl TerminalPlan {
 impl VocabPlan {
     fn from_source(source_index: usize, source: &crate::Vocab) -> syn::Result<Self> {
         let mut features = Vec::new();
-        for default in &source.feature_defaults {
-            let feature = Feature::from(default.feature);
-            let default_value = feature.member(&default.value)?;
+        let feature_kinds = source
+            .feature_defaults
+            .iter()
+            .map(|row| row.feature)
+            .chain(
+                source
+                    .variants
+                    .iter()
+                    .flat_map(|variant| variant.feature_overrides.iter().map(|row| row.feature)),
+            )
+            .collect::<std::collections::BTreeSet<_>>();
+        for feature_kind in feature_kinds {
+            let feature = Feature::from(feature_kind);
+            let default_value = source
+                .feature_defaults
+                .iter()
+                .find(|row| row.feature == feature_kind)
+                .map(|row| feature.member(&row.value))
+                .transpose()?;
             let members = source
                 .variants
                 .iter()
@@ -5403,10 +5419,20 @@ impl VocabPlan {
                     let value = variant
                         .feature_overrides
                         .iter()
-                        .find(|override_| override_.feature == default.feature)
+                        .find(|override_| override_.feature == feature_kind)
                         .map(|override_| feature.member(&override_.value))
                         .transpose()?
-                        .unwrap_or(default_value);
+                        .or(default_value)
+                        .ok_or_else(|| {
+                            syn::Error::new(
+                                variant.name.span(),
+                                format!(
+                                    "vocab feature `{}` has no value for member `{}`",
+                                    feature.key(),
+                                    variant.name
+                                ),
+                            )
+                        })?;
                     Ok((identifier_key(&variant.name), value))
                 })
                 .collect::<syn::Result<Vec<_>>>()?;

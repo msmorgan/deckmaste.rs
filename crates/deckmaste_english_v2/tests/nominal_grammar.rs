@@ -2893,7 +2893,6 @@ fn restricted_nominal_postmodifiers_and_comparison_families_parse() {
         "Destroy target creature you own.",
         "Destroy target creature card from your graveyard.",
         "Destroy target card in exile.",
-        "Destroy target card in a coin.",
         "Destroy target creature with power 2 or less.",
         "Destroy target creature with power 2 or greater.",
         "Destroy target creature with mana value X or greater.",
@@ -2907,6 +2906,10 @@ fn restricted_nominal_postmodifiers_and_comparison_families_parse() {
     }
 
     for (text, reason) in [
+        (
+            "Destroy target card in a coin.",
+            "the complement head does not license a locative in phrase",
+        ),
         (
             "Destroy target creature with power 2 or fewer.",
             "scalar syntax cannot select the countable fewer family",

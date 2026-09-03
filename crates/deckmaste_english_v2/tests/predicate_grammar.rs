@@ -4011,3 +4011,38 @@ fn restored_general_construction_probes_select_uniquely() {
         assert_selected(&parser, &context, text);
     }
 }
+
+#[test]
+fn preposition_attachment_and_complement_head_licenses_are_conjunctive() {
+    let parser = parser();
+    let context = context();
+
+    for text in [
+        "Draw a card at the beginning of your end step.",
+        "Creatures you control get +1/+1 on your turn.",
+        "Destroy creatures you control of the chosen type.",
+        "Sacrifice a nontoken creature of their choice.",
+        "Sacrifice a creature during your upkeep.",
+        "Draw a card for each creature you control.",
+    ] {
+        assert_selected_with_specificity(&parser, &context, text, true);
+    }
+
+    for text in [
+        "Into your graveyard, draw a card.",
+        "Of your library, draw a card.",
+        "To target player, draw a card.",
+        "Under your control, draw a card.",
+        "Among them, draw a card.",
+        "Draw a card of your library.",
+        "Sacrifice a creature of your hand.",
+        "You gain 2 life of your library.",
+        "Destroy target creature on your hand.",
+    ] {
+        assert_eq!(
+            parser.analyze(text, &context).outcome(),
+            ParseAnalysisOutcome::ParseFailure,
+            "preposition data must reject {text:?}",
+        );
+    }
+}

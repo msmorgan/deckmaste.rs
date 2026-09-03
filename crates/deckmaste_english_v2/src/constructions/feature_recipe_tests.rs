@@ -238,3 +238,132 @@ mod mass_nominal_feature_recipes {
         assert!(DeterminedNominal::new(Determiner::Zero, nominal).is_some());
     }
 }
+
+#[cfg(test)]
+mod preposition_license_recipes {
+    use crate::constructions::*;
+
+    fn possessed_singular_complement(noun: CommonNoun) -> PrepositionalComplement {
+        let noun = Noun::Lexeme(noun);
+        let head = SingularHead::NounSingularHead(
+            NounSingularHead::new(noun).expect("licensed complement head is a count noun"),
+        );
+        let nominal = SingularNominal::BareSingularNominal(BareSingularNominal { head });
+        let reference =
+            UnqualifiedReference::PossessedSingularReference(PossessedSingularReference {
+                possessor: PossessiveDeterminerPronoun::Your,
+                nominal,
+            });
+        let controller = ControllerStage::UnqualifiedControllerStage(UnqualifiedControllerStage {
+            reference: Box::new(reference),
+        });
+        let locative = LocativeStage::UnqualifiedLocativeStage(UnqualifiedLocativeStage {
+            reference: Box::new(controller),
+        });
+        let numeric = NumericStage::UnqualifiedNumericStage(UnqualifiedNumericStage {
+            reference: Box::new(locative),
+        });
+        let phrase = NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
+            reference: Box::new(numeric),
+        });
+        PrepositionalComplement::Object(Box::new(Object::ObjectNominal(NominalObject {
+            value: Box::new(phrase),
+        })))
+    }
+
+    #[test]
+    fn turn_license_relays_from_the_lexeme_through_the_nominal() {
+        let noun = Noun::Lexeme(CommonNoun::Turn);
+        assert_eq!(
+            locative_temporal_license_for_common_noun(CommonNoun::Turn),
+            LocativeTemporalLicense::OfAndTemporalLicensed,
+        );
+        assert_eq!(
+            locative_temporal_license_for_noun(&noun),
+            LocativeTemporalLicense::OfAndTemporalLicensed,
+        );
+        let head = SingularHead::NounSingularHead(
+            NounSingularHead::new(noun).expect("turn is a count noun"),
+        );
+        assert_eq!(
+            locative_temporal_license_for_singular_head(&head),
+            LocativeTemporalLicense::OfAndTemporalLicensed,
+        );
+        let nominal = SingularNominal::BareSingularNominal(BareSingularNominal { head });
+        assert_eq!(
+            locative_temporal_license_for_singular_nominal(&nominal),
+            LocativeTemporalLicense::OfAndTemporalLicensed,
+        );
+        let reference =
+            UnqualifiedReference::PossessedSingularReference(PossessedSingularReference {
+                possessor: PossessiveDeterminerPronoun::Your,
+                nominal,
+            });
+        let controller = ControllerStage::UnqualifiedControllerStage(UnqualifiedControllerStage {
+            reference: Box::new(reference),
+        });
+        let locative = LocativeStage::UnqualifiedLocativeStage(UnqualifiedLocativeStage {
+            reference: Box::new(controller),
+        });
+        let numeric = NumericStage::UnqualifiedNumericStage(UnqualifiedNumericStage {
+            reference: Box::new(locative),
+        });
+        let phrase = NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
+            reference: Box::new(numeric),
+        });
+        assert_eq!(
+            locative_temporal_license_for_noun_phrase(&phrase),
+            LocativeTemporalLicense::OfAndTemporalLicensed,
+        );
+        let object = Object::ObjectNominal(NominalObject {
+            value: Box::new(phrase),
+        });
+        assert_eq!(
+            locative_temporal_license_for_object(&object),
+            LocativeTemporalLicense::OfAndTemporalLicensed,
+        );
+        let complement = PrepositionalComplement::Object(Box::new(object));
+        assert_eq!(
+            locative_temporal_license_for_prepositional_complement(&complement),
+            LocativeTemporalLicense::OfAndTemporalLicensed,
+        );
+        assert_eq!(
+            preposition_complement_kind_for_preposition(Preposition::On),
+            PrepositionComplementKind::OnComplement,
+        );
+        assert!(preposition_complement_is_licensed(
+            &complement,
+            PrepositionComplementKind::OnComplement,
+            locative_temporal_license_for_prepositional_complement(&complement),
+        ));
+    }
+
+    #[test]
+    fn amended_under_and_hand_data_enforce_the_rejection_reasons() {
+        assert_eq!(
+            preposition_attachment_for_preposition(Preposition::Under),
+            PrepositionAttachment::SelectedOnly,
+        );
+        for preposition in [Preposition::On, Preposition::At, Preposition::During] {
+            assert_eq!(
+                preposition_attachment_for_preposition(preposition),
+                PrepositionAttachment::AdjunctCapable,
+                "{preposition:?}",
+            );
+        }
+
+        let complement = possessed_singular_complement(CommonNoun::Hand);
+        let license = locative_temporal_license_for_prepositional_complement(&complement);
+        assert_eq!(license, LocativeTemporalLicense::InLicensed);
+        assert!(preposition_complement_is_licensed(
+            &complement,
+            PrepositionComplementKind::InComplement,
+            license,
+        ));
+        assert!(!preposition_complement_is_licensed(
+            &complement,
+            PrepositionComplementKind::OnComplement,
+            license,
+        ));
+    }
+}
