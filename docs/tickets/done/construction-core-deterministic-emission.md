@@ -13,3 +13,19 @@ close the remaining terminal-kind wildcard: `semantic.rs` (~:1865)
 `terminal_has_feature` has `_ => false` over `TerminalPlan` — make it
 exhaustive so a new declaration kind carrying features is a compile
 error, not silently featureless. Standard constraints apply.
+
+## Landing record (coordinator, from deterministic-emission-landing-review.md, 2026-09-02)
+
+Executor wrote none. Two HashMap->BTreeMap fixes: emit/build.rs
+role_following_onsets (named) and emit/ast.rs zeroable_types (found by
+the executor, unnamed in the ticket). Reviewer enumerated every hash
+container in emit/*: no hash-ordered emission remains. Cross-process
+determinism test verified genuine (pre-image fails 6/6, landed passes
+4/4; expand output now 7,504,179 bytes, identical md5 every run).
+terminal_has_feature exhaustive. Undisclosed: deleted
+declaration_verb_expansion_is_deterministic (360 -> 359 tests) — the
+crate now has no in-process determinism pin. Loose ends: assert_eq on
+7.5MB Vec<u8> dumps 64MB on failure (assert on md5 + first differing
+offset instead); add a comment that separate processes are required
+(per-process RandomState); semantic.rs:1612/1620 name an arbitrary
+HashMap entry in an internal error (nondeterministic diagnostic text).
