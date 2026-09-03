@@ -34,3 +34,30 @@ consumers taking the value directly) or carry a `[CR#…]` citation naming the
 rule that opens them; `LoseCause` and `Causer` carry their citations
 ([CR#704.5a..704.5c] on the first) on the declaration; `cargo xtask cite check
 --list-noncompliant` is empty and reports 0 stale. Standard constraints apply.
+
+## Landing record
+
+As landed:
+
+- `LoseCause` — kept; `[CR#704.5a..704.5c]` on the declaration.
+- `Causer` — kept; `[CR#614.16]` on the declaration (the rule that names "an effect").
+- `TurnPoint` — kept, escape hatch taken: `[CR#506.7]` opens the axis by
+  enumerating "[a particular point in the combat phase]" — attackers declared,
+  blockers declared, the combat damage step, the end of combat step, the combat
+  phase, combat — and `[CR#506.7g]` extends it to "Activate only" limits.
+- `Ordinal` — kept, escape hatch taken: `[CR#401.7]` reads "Nth" with N a
+  variable. The singleton premise did not hold: `Nth : (n : Nat) -> {auto 0 nz :
+  IsSucc n}` has one constructor but unboundedly many inhabitants (`Nth 1`,
+  `Nth 2`, …, read at `NthCastBy`, `NthOccurrence`, `ByNthKeyword`,
+  `LibraryAt`, the `nthFromTop` macros); it is a positivity refinement of the
+  same kind as the out-of-scope proof wrappers, and the `badZerothFromTop` pin
+  is its `IsSucc` gate. Collapsing would spread that gate over five consumer
+  signatures and a `Maybe` slot for no shape gain.
+
+Gates: `./scripts/build` 23/23, no Warning lines; `cite check` 0 stale;
+`cite bless` registered [CR#506.7] (read against its claim); `cite audit --diff`
+4 sites, all on-topic; `--list-noncompliant` reports one pre-existing non-compliant string in
+`docs/tickets/done/workbench-facts-tables.md:95`, not this round's.
+
+Deviations and additions: none. Tests/pins restored 0, re-spelled 0, ignored 0,
+added 0, removed 0. No STOP taken.

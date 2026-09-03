@@ -700,7 +700,7 @@ public export
 data RollExtreme = LowestRoll | HighestRoll
 
 public export
-data Causer = AnEffect
+data Causer = AnEffect      -- "an effect" [CR#614.16]
 
 public export
 Eq Causer where
@@ -767,7 +767,7 @@ public export
 data Arrangement = AnyOrder | RandomOrder
 
 public export
-data Ordinal : Type where
+data Ordinal : Type where   -- the N of "Nth" [CR#401.7]
   Nth : (n : Nat) -> {auto 0 nz : IsSucc n} -> Ordinal
 
 public export
@@ -1692,7 +1692,7 @@ publicZone Stack = True
 publicZone Command = True
 
 public export
-data LoseCause = ZeroOrLessLife
+data LoseCause = ZeroOrLessLife   -- a cause of losing the game [CR#704.5a..704.5c]
 
 public export
 Eq LoseCause where
@@ -3843,7 +3843,7 @@ Eq TurnPart where
   (==) BeginningPhase _ = False
 
 public export
-data TurnPoint = AttackersDeclared
+data TurnPoint = AttackersDeclared   -- a combat-phase point a before/after limit names [CR#506.7]
 
 namespace Owner
   public export
