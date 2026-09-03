@@ -2055,6 +2055,19 @@ pub mod fixture {
         ($tests:item) => {};
     }
 
+    #[cfg(feature = "parser-metrics")]
+    mod metrics {
+        pub(crate) enum MetricEvent {
+            Prediction,
+            Completion,
+            CloneHeavy,
+        }
+
+        pub(crate) fn record(_rule_index: usize, _event: MetricEvent) {}
+
+        pub(crate) fn record_work(_chart_columns_visited: u64, _scan_attempts: u64) {}
+    }
+
     mod engine {
         include!("../../deckmaste_english_v2/src/parser/engine.rs");
     }

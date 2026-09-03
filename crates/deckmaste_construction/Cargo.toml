@@ -10,6 +10,9 @@ proc-macro = true
 [lints]
 workspace = true
 
+[features]
+parser-metrics = []
+
 [dependencies]
 deckmaste_construction_core = { path = "../deckmaste_construction_core" }
 
