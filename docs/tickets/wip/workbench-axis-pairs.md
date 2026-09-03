@@ -265,6 +265,11 @@ before and after. Standard constraints apply.
 - **`PossessorOf` / `PossessorsOf` — not touched**, per the round brief: the sibling
   `workbench-possessor-noun` owns them.
 
+### Merged onto the landed rounds
+
+- Rebased onto `workbench-table-machinery`, `-bench-fidelity`, `-possessor-residues`, `-zone-gate-unify`, `-counter-kind-open`, `-possessor-noun`, `-keyword-ability-body`, `-bare-plural-det` and `-order-twin-macros`: 70 marker blocks over 10 modules resolved so both intents survive — a folded clause whose value equals table-machinery's new wildcard vanishes into it, `Owner` (moved to `Phrase` as `Maybe (Noun bs Player)`) and `TurnPoint` both retire so `Timing` gains `BeforeAttackersDeclared (w : Maybe (Noun bs Player))`, counter kinds read `Named "…"`, and every site another round re-spelled through a macro keeps that macro with the round's fold absorbed into it (`Macros.gets` supplies `Adds`, `Macros.times` supplies `TimesOf`).
+- Merge fixes past the markers, in `@`: `Words.subtypeIx` re-typed to `(Maybe CardType, String)` so table-machinery's index-form `Eq` covers the round's `MkSpellSubtype`; `Macros.hasBasePt` and `exchangeControlOfThis` moved from `ZoneFits … (Just Battlefield)` to zone-gate-unify's `ZoneIs … Battlefield` / `zoneIsB`; `Macros.lastCounterRemoved`/`lastCounterRemovedBy` swap the retired `KindNamed` witness for table-machinery's `OptOk` `Present`; `ProofsG.badLastCounterOnPlacement` reads `Named "Time"`. No construction, macro or pin was resurrected, deleted or weakened to close a block.
+
 ## Landing record
 
 Constructor counts (`cargo xtask map idris`), before → after:

@@ -961,7 +961,7 @@ badLosePtOp Oh impossible
 ||| "when the last time counter is put on this enchantment"
 public export
 badLastCounterOnPlacement : Unspellable (GameEvent []) (\ok =>
-  CounterEvent CounterPut (Just Time) Macros.thisEnchantment LastCounter Nothing False
+  CounterEvent CounterPut (Just (Named "Time")) Macros.thisEnchantment LastCounter Nothing False
                {lb = ok})
 badLastCounterOnPlacement Oh impossible
 

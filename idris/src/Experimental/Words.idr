@@ -2600,8 +2600,9 @@ subtypeLabel (MkSubtype _ label) = label
 subtypeLabel (MkSpellSubtype label) = label
 
 public export
-subtypeIx : Subtype -> (CardType, String)
-subtypeIx (MkSubtype host label) = (host, label)
+subtypeIx : Subtype -> (Maybe CardType, String)
+subtypeIx (MkSubtype host label) = (Just host, label)
+subtypeIx (MkSpellSubtype label) = (Nothing, label)
 
 public export
 Eq Subtype where

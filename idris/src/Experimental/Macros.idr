@@ -397,7 +397,7 @@ land = HasType Land
 public export
 hasBasePt : (n : Noun bs Object) -> (pow : Amount (selfSubjIntro n)) ->
             (tou : Amount (amtIntro pow)) ->
-            {auto 0 ok : ZoneFits (nounZone n) (Just Battlefield)} -> StaticEffect bs
+            {auto 0 ok : ZoneIs (nounZone n) Battlefield} -> StaticEffect bs
 hasBasePt n pow tou = Gets Sets n (PtUp pow) (PtUp tou) {ok}
 
 public export
@@ -2211,7 +2211,7 @@ lastCounterRemoved : (kind : CounterKind) -> (n : Noun bs Object) ->
                      {auto 0 sc : counterScope kind = Object} -> GameEvent bs
 lastCounterRemoved kind n =
   CounterEvent CounterTaken (Just kind) n LastCounter Nothing False
-               {kn = KindNamed {sc}}
+               {kn = Present {ok = sc}}
 
 public export
 lastCounterRemovedBy : (kind : CounterKind) -> (n : Noun bs Object) ->
@@ -2220,7 +2220,7 @@ lastCounterRemovedBy : (kind : CounterKind) -> (n : Noun bs Object) ->
                        {auto 0 ag : EventAgent (Just who)} -> GameEvent bs
 lastCounterRemovedBy kind n who =
   CounterEvent CounterTaken (Just kind) n LastCounter (Just who) False
-               {kn = KindNamed {sc}} {ag}
+               {kn = Present {ok = sc}} {ag}
 
 public export
 0 ExchangeCtx : {bs : Bindings} -> (t : CardType) -> (other : Noun bs Object) ->
@@ -2235,8 +2235,8 @@ exchangeControlOfThis : {bs : Bindings} -> (t : CardType) -> (other : Noun bs Ob
                         {auto 0 way : So (ascriptionOk t Nothing)} ->
                         {auto 0 pw : countReach (Word PermanentW) OneOf
                                        (ExchangeCtx t other one way) = 1} ->
-                        {auto 0 zw : So (zoneFits (zoneOfReach (Word PermanentW) OneOf
-                                          (ExchangeCtx t other one way)) (Just Battlefield))} ->
+                        {auto 0 zw : So (zoneIsB (zoneOfReach (Word PermanentW) OneOf
+                                          (ExchangeCtx t other one way)) Battlefield)} ->
                         Effect bs
 exchangeControlOfThis t other =
   Simultaneously
