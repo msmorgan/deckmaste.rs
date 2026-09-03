@@ -319,6 +319,14 @@ thisAura : Noun bs Object
 thisAura = AsType Enchantment This (Just (enchantmentType "Aura"))
 
 public export
+thisPermanent : Noun bs Object
+thisPermanent = AsMarker PermanentMarker This
+
+public export
+thisSpell : Noun bs Object
+thisSpell = AsMarker SpellMarker This
+
+public export
 thisEquipment : Noun bs Object
 thisEquipment = AsType Artifact This (Just (artifactType "Equipment"))
 
@@ -747,9 +755,9 @@ gains n a d = Continuously (Gains n a {ok} {gr}) d
 
 public export
 gainsHaste : (n : Noun bs Object) -> (d : Maybe (Duration (selfSubjIntro n))) ->
-             {auto 0 ok : GrantSubject (KeywordAbility "Haste" Nothing) n} ->
+             {auto 0 ok : GrantSubject (KeywordAbility "Haste" Nothing Nothing) n} ->
              {auto 0 sp : SpanOk KeywordGrant d} -> Effect bs
-gainsHaste n d = gains n (KeywordAbility "Haste" Nothing) d
+gainsHaste n d = gains n (KeywordAbility "Haste" Nothing Nothing) d
 
 public export
 plusOnePlusOne : CounterKind
@@ -1739,7 +1747,7 @@ keyword : {0 bs : Bindings} -> (kw : KeywordLabel) ->
           {auto 0 pf : KeywordParamFits {bs} kw
                          (the (Maybe (KeywordParam bs)) Nothing)} ->
           AbilityAt bs
-keyword kw = KeywordAbility kw Nothing {pf}
+keyword kw = KeywordAbility kw Nothing Nothing {pf}
 
 public export
 keywordSubject : {0 bs : Bindings} -> {k : Kind} -> (kw : KeywordLabel) ->
@@ -1747,28 +1755,28 @@ keywordSubject : {0 bs : Bindings} -> {k : Kind} -> (kw : KeywordLabel) ->
                  {auto 0 pf : KeywordParamFits {bs} kw
                                 (Just (ParamSubject {bs} p))} ->
                  AbilityAt bs
-keywordSubject kw p = KeywordAbility kw (Just (ParamSubject p)) {pf}
+keywordSubject kw p = KeywordAbility kw (Just (ParamSubject p)) Nothing {pf}
 
 public export
 keywordCosting : {0 bs : Bindings} -> (kw : KeywordLabel) -> (c : Cost []) ->
                  {auto 0 pf : KeywordParamFits {bs} kw
                                 (Just (ParamCost {bs} c))} ->
                  AbilityAt bs
-keywordCosting kw c = KeywordAbility kw (Just (ParamCost c)) {pf}
+keywordCosting kw c = KeywordAbility kw (Just (ParamCost c)) Nothing {pf}
 
 public export
 keywordQuality : {k : Kind} -> (kw : KeywordLabel) -> (q : Predicate bs k) ->
                  {auto 0 pk : So (qualityParamKind k)} ->
                  {auto 0 pf : KeywordParamFits kw (Just (ParamQuality q {pk}))} ->
                  AbilityAt bs
-keywordQuality kw q = KeywordAbility kw (Just (ParamQuality q {pk})) {pf}
+keywordQuality kw q = KeywordAbility kw (Just (ParamQuality q {pk})) Nothing {pf}
 
 public export
 keywordNumber : {0 bs : Bindings} -> (kw : KeywordLabel) -> (amt : Amount []) ->
                 {auto 0 pf : KeywordParamFits {bs} kw
                                (Just (ParamNumber {bs} amt))} ->
                 AbilityAt bs
-keywordNumber kw amt = KeywordAbility kw (Just (ParamNumber amt)) {pf}
+keywordNumber kw amt = KeywordAbility kw (Just (ParamNumber amt)) Nothing {pf}
 
 public export
 keywordQualityCosting : {0 bs : Bindings} -> (kw : KeywordLabel) ->
@@ -1776,7 +1784,7 @@ keywordQualityCosting : {0 bs : Bindings} -> (kw : KeywordLabel) ->
                         {auto 0 pf : KeywordParamFits kw
                                        (Just (ParamQualityCost q c))} ->
                         AbilityAt bs
-keywordQualityCosting kw q c = KeywordAbility kw (Just (ParamQualityCost q c)) {pf}
+keywordQualityCosting kw q c = KeywordAbility kw (Just (ParamQualityCost q c)) Nothing {pf}
 
 public export
 keywordNumberCosting : {0 bs : Bindings} -> (kw : KeywordLabel) ->
@@ -1784,7 +1792,7 @@ keywordNumberCosting : {0 bs : Bindings} -> (kw : KeywordLabel) ->
                        {auto 0 pf : KeywordParamFits {bs} kw
                                       (Just (ParamNumberCost {bs} amt c))} ->
                        AbilityAt bs
-keywordNumberCosting kw amt c = KeywordAbility kw (Just (ParamNumberCost amt c)) {pf}
+keywordNumberCosting kw amt c = KeywordAbility kw (Just (ParamNumberCost amt c)) Nothing {pf}
 
 public export
 abilityWord : {0 bs : Bindings} -> (word : AbilityWordName) ->
@@ -2430,8 +2438,8 @@ becomesSaddled =
   GainsDesignation (AsType Artifact This Nothing) Saddled (InExpansionOf SaddleW) (Just untilEndOfTurn)
 
 public export
-renown : {bs : Bindings} -> (amt : Amount bs) -> Effect bs
-renown amt =
+becomesRenowned : {bs : Bindings} -> (amt : Amount bs) -> Effect bs
+becomesRenowned amt =
   Sequentially [ PutCounters amt (PrintedKind plusOnePlusOne) thisCreature
                , GainsDesignation thisCreature Renowned
                                   (InExpansionOf RenownW) Nothing ]
@@ -2440,6 +2448,58 @@ public export
 getsEnduringStory : Effect bs
 getsEnduringStory =
   GainsDesignation You EnduringStory (InExpansionOf StoriedW) (Just RestOfGame)
+
+||| The renown expansion [CR#702.112a].
+public export
+renownExpansion : (n : Nat) -> AbilityAt []
+renownExpansion n =
+  triggeredIf When
+    (dealsCombatDamage thisCreature (a AnyPlayer))
+    (notSo (Matches thisCreature (HasDesignation Renowned)))
+    (becomesRenowned (Lit n))
+
+public export
+renown : {0 bs : Bindings} -> (n : Nat) -> AbilityAt bs
+renown n =
+  KeywordAbility "Renown" (Just (ParamNumber (Lit n))) (Just (renownExpansion n))
+
+||| The storm expansion [CR#702.40a].
+public export
+stormExpansion : AbilityAt []
+stormExpansion =
+  triggered When (Casts You thisSpell Nothing)
+    (Sequentially
+       [ CopyStack You thisSpell
+           (eventCountInvolving SpellCast (a AnyPlayer) ThisTurn
+              (a (And [spell, OtherThan thisSpell])))
+           []
+       , may You (ChooseNewTargets (Those CopyW)) ])
+
+public export
+storm : {0 bs : Bindings} -> AbilityAt bs
+storm = KeywordAbility "Storm" Nothing (Just stormExpansion)
+
+||| The cumulative upkeep expansion [CR#702.24a].
+public export
+cumulativeUpkeepExpansion : (c : Cost []) ->
+                            {auto 0 pb : Payable c} ->
+                            {auto 0 py : CostPaidByYou c} -> AbilityAt []
+cumulativeUpkeepExpansion c =
+  triggeredIf At (BeginningOf Upkeep (ByWord Yours))
+    (Matches thisPermanent (InZone battlefieldZ))
+    (Sequentially
+       [ PutCounters (Lit 1) (PrintedKind Age) thisPermanent
+       , May You (Pay You (ScaledCost c (Times 1 (CountersOn Age thisPermanent)))
+                          PaidOnce {pb} {ag = py})
+             Nothing (Just (sacrifice You thisPermanent)) ])
+
+public export
+cumulativeUpkeep : {0 bs : Bindings} -> (c : Cost []) ->
+                   {auto 0 pb : Payable c} ->
+                   {auto 0 py : CostPaidByYou c} -> AbilityAt bs
+cumulativeUpkeep c =
+  KeywordAbility "CumulativeUpkeep" (Just (ParamCost c))
+    (Just (cumulativeUpkeepExpansion c {pb} {py}))
 
 public export
 yourCommander : Noun bs Object

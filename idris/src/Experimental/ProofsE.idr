@@ -12,7 +12,7 @@ import Experimental.Unspellable
 ||| "Creatures you control have convoke."
 public export
 badBattlefieldConvoke : Unspellable (StaticEffect []) (\ok =>
-  Gains (Macros.allOf Macros.creatureYouControl) (KeywordAbility "Convoke" Nothing) {ok})
+  Gains (Macros.allOf Macros.creatureYouControl) (KeywordAbility "Convoke" Nothing Nothing) {ok})
 badBattlefieldConvoke Oh impossible
 
 public export
@@ -143,28 +143,28 @@ badUnflipInstruction Oh impossible
 
 ||| "Ward"
 public export
-badBareWardLine : Unspellable Ability (\ok => KeywordAbility "Ward" Nothing {pf = ok})
+badBareWardLine : Unspellable Ability (\ok => KeywordAbility "Ward" Nothing Nothing {pf = ok})
 badBareWardLine Oh impossible
 
 
 ||| "Ward red"
 public export
 badWardQuality : Unspellable Ability (\ok =>
-  KeywordAbility "Ward" (Just (ParamQuality (ColorIs Red))) {pf = ok})
+  KeywordAbility "Ward" (Just (ParamQuality (ColorIs Red))) Nothing {pf = ok})
 badWardQuality Oh impossible
 
 
 ||| "Flying {2}"
 public export
 badParamOnNullaryKeyword : Unspellable Ability (\ok =>
-  KeywordAbility "Flying" (Just (ParamCost (Mana [Macros.generic 2]))) {pf = ok})
+  KeywordAbility "Flying" (Just (ParamCost (Mana [Macros.generic 2]))) Nothing {pf = ok})
 badParamOnNullaryKeyword Oh impossible
 
 
 ||| "Flyign"
 public export
 badUnknownKeywordLabel : Unspellable Ability (\ok =>
-  KeywordAbility "Flyign" Nothing {pf = ok})
+  KeywordAbility "Flyign" Nothing Nothing {pf = ok})
 badUnknownKeywordLabel Oh impossible
 
 
@@ -179,14 +179,14 @@ badUnknownKeywordPredicate Oh impossible
 public export
 badProtectionOnInstant : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip White]) [] (MkTypeLine [] [Instant])
-       [KeywordAbility "Protection" (Just (ParamQuality (ColorIs Red)))] Nothing {tx = ok})
+       [KeywordAbility "Protection" (Just (ParamQuality (ColorIs Red))) Nothing] Nothing {tx = ok})
 badProtectionOnInstant Oh impossible
 
 
 ||| "Protection from player"
 public export
 badProtectionFromPlayerRestriction : Unspellable Ability (\ok =>
-  KeywordAbility "Protection" (Just (ParamSubject AnyPlayer)) {pf = ok})
+  KeywordAbility "Protection" (Just (ParamSubject AnyPlayer)) Nothing {pf = ok})
 badProtectionFromPlayerRestriction Oh impossible
 
 
@@ -194,7 +194,7 @@ badProtectionFromPlayerRestriction Oh impossible
 public export
 badEquipOnSorcery : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.generic 1]) [] (MkTypeLine [] [Sorcery])
-       [KeywordAbility "Equip" (Just (ParamCost (Mana [Macros.generic 2])))]
+       [KeywordAbility "Equip" (Just (ParamCost (Mana [Macros.generic 2]))) Nothing]
        Nothing {tx = ok})
 badEquipOnSorcery Oh impossible
 
@@ -306,9 +306,9 @@ public export
 badNestedCoordination : Unspellable (StaticEffect []) (\ok =>
   AndAlso (Coord.(::) (AndAlso [ Gets (Macros.target Macros.creature)
                                       (PtUp (Lit 1)) (PtUp (Lit 1))
-                               , Gains It (KeywordAbility "Flying" Nothing) ])
+                               , Gains It (KeywordAbility "Flying" Nothing Nothing) ])
                       {nc = ok}
-                      (Coord.(::) (Gains It (KeywordAbility "Trample" Nothing)) Coord.Nil)))
+                      (Coord.(::) (Gains It (KeywordAbility "Trample" Nothing Nothing)) Coord.Nil)))
 badNestedCoordination Oh impossible
 
 
@@ -323,7 +323,7 @@ badEmptyCoordination ItIsSucc impossible
 public export
 badThatCreatureIsStaticSubject : Unspellable Ability (\ok =>
   Static (AndAlso [ Gets Macros.thisCreature (PtUp (Lit 1)) (PtUp (Lit 1))
-                  , Gains (That (TypeW Creature) {ok = ok}) (KeywordAbility "Flying" Nothing) ]))
+                  , Gains (That (TypeW Creature) {ok = ok}) (KeywordAbility "Flying" Nothing Nothing) ]))
 badThatCreatureIsStaticSubject Refl impossible
 
 
@@ -332,7 +332,7 @@ public export
 badCoordinatedHostPlural : Unspellable Ability (\ok =>
   Static (AndAlso [ Gets (AttachHost Enchanted (TypeW Creature))
                          (PtUp (Lit 1)) (PtUp (Lit 1))
-                  , Gains (Them {ok = ok}) (KeywordAbility "Flying" Nothing) ]))
+                  , Gains (Them {ok = ok}) (KeywordAbility "Flying" Nothing Nothing) ]))
 badCoordinatedHostPlural Refl impossible
 
 
@@ -362,14 +362,14 @@ badFortifiedCreature Oh impossible
 ||| "Target creature gains flash."
 public export
 badBattlefieldFlash : Unspellable (StaticEffect []) (\ok =>
-  Gains (Macros.target Macros.creature) (KeywordAbility "Flash" Nothing) {ok})
+  Gains (Macros.target Macros.creature) (KeywordAbility "Flash" Nothing Nothing) {ok})
 badBattlefieldFlash Oh impossible
 
 
 ||| "Target spell gains indestructible."
 public export
 badSpellIndestructible : Unspellable (StaticEffect []) (\ok =>
-  Gains (Macros.target Macros.spell) (KeywordAbility "Indestructible" Nothing) {ok})
+  Gains (Macros.target Macros.spell) (KeywordAbility "Indestructible" Nothing Nothing) {ok})
 badSpellIndestructible Oh impossible
 
 
@@ -378,7 +378,7 @@ public export
 badSiegeWithoutBattle : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.generic 2]) []
        (MkTypeLine [battleType "Siege"] [Kindred, Enchantment])
-       [KeywordAbility "Flying" Nothing] Nothing {ln = ok})
+       [KeywordAbility "Flying" Nothing Nothing] Nothing {ln = ok})
 badSiegeWithoutBattle MkCardLine impossible
 
 
@@ -387,7 +387,7 @@ public export
 badKindredAlone : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.generic 2]) []
        (MkTypeLine [creatureType "Merfolk"] [Kindred])
-       [KeywordAbility "Flying" Nothing] Nothing {ln = ok})
+       [KeywordAbility "Flying" Nothing Nothing] Nothing {ln = ok})
 badKindredAlone MkCardLine impossible
 
 
@@ -419,7 +419,7 @@ badQuotedGrantOnSpell Oh impossible
 ||| "You get an emblem with 'flying'."
 public export
 badKeywordEmblem : Unspellable (Effect []) (\ok =>
-  GetsEmblem You [KeywordAbility "Flying" Nothing] {ea = ok})
+  GetsEmblem You [KeywordAbility "Flying" Nothing Nothing] {ea = ok})
 badKeywordEmblem Oh impossible
 
 

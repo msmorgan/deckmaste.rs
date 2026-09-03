@@ -906,6 +906,8 @@ mutual
     Mana : (c : ManaCost) -> {auto 0 wr : ManaRun c} -> Cost bs
     ScaledMana : (unit : ManaUnit) -> (amt : Amount bs) ->
                  {auto 0 fe : ForEachAmount amt} -> Cost bs
+    ScaledCost : (c : Cost bs) -> (amt : Amount bs) ->
+                 {auto 0 fe : ForEachAmount amt} -> Cost bs
     TapSymbol : Cost bs
     UntapSymbol : Cost bs
     LoyaltySymbol : (s : LoyaltyCost) -> Cost bs
@@ -931,6 +933,7 @@ mutual
   costIntro : {bs : Bindings} -> Cost bs -> Bindings
   costIntro (Mana c) = if manaHasX c then letterB X :: bs else bs
   costIntro (ScaledMana _ _) = bs
+  costIntro (ScaledCost c _) = costIntro c
   costIntro TapSymbol = bs
   costIntro UntapSymbol = bs
   costIntro (LoyaltySymbol LoyaltyDownX) = letterB X :: bs
@@ -1623,6 +1626,7 @@ mutual
   payableOk : {0 bs : Bindings} -> Cost bs -> Bool
   payableOk (Mana _) = True
   payableOk (ScaledMana _ _) = True
+  payableOk (ScaledCost c _) = payableOk c
   payableOk TapSymbol = False
   payableOk UntapSymbol = False
   payableOk (LoyaltySymbol _) = False
@@ -2359,7 +2363,9 @@ mutual
   data AbilityAt : Bindings -> Type where
     KeywordAbility : (k : KeywordLabel) ->
                      (param : Maybe (KeywordParam bs)) ->
-                     {auto 0 pf : KeywordParamFits k param} -> AbilityAt bs
+                     (body : Maybe (AbilityAt [])) ->
+                     {auto 0 pf : KeywordParamFits k param} ->
+                     {auto 0 bf : KeywordBodyFits k body} -> AbilityAt bs
     Activated : (cost : Cost (dropLetter X bs)) ->
                 (eff : Effect (publicOnly (costIntro cost))) ->
                 {auto 0 tp : CostTapOnce cost} ->
@@ -2406,6 +2412,23 @@ mutual
   NotWordHeaded {bs} ab = So (notWordHeaded ab)
 
   public export
+  bodyEventRegime : {0 bs : Bindings} -> GameEvent bs -> Maybe StackRegime
+  bodyEventRegime ev = case eventName ev of
+    SpellCast => Just AtCasting
+    _ => Nothing
+
+  public export
+  keywordBodyFits : KeywordLabel -> Maybe (AbilityAt []) -> Bool
+  keywordBodyFits k Nothing = True
+  keywordBodyFits k (Just (Triggered _ ev _ _ _ _ _ _ _)) =
+    keywordBodied k && keywordStackRegime k == bodyEventRegime ev
+  keywordBodyFits k (Just _) = False
+
+  public export
+  KeywordBodyFits : KeywordLabel -> Maybe (AbilityAt []) -> Type
+  KeywordBodyFits k b = So (keywordBodyFits k b)
+
+  public export
   Untargeting : {bs : Bindings} -> StaticEffect bs -> Type
   Untargeting {bs} se = So (not (anyTargetedAt (staticIntro se)))
 
@@ -2450,7 +2473,7 @@ mutual
 
   public export
   grantedKeyword : {0 bs : Bindings} -> AbilityAt bs -> Maybe KeywordLabel
-  grantedKeyword (KeywordAbility k Nothing) =
+  grantedKeyword (KeywordAbility k Nothing _) =
     if keywordParamless k then Just k else Nothing
   grantedKeyword _ = Nothing
 
@@ -2488,7 +2511,7 @@ mutual
 
   public export
   grantableAb : {0 bs : Bindings} -> AbilityAt bs -> Bool
-  grantableAb (KeywordAbility _ _) = True
+  grantableAb (KeywordAbility _ _ _) = True
   grantableAb (Activated _ _ _ _ _ _) = True
   grantableAb (Triggered _ _ _ _ _ _ _ _ _) = True
   grantableAb (Static _) = True
@@ -2503,7 +2526,7 @@ mutual
 
   public export
   emblemAbilityOk : AbilityAt [] -> Bool
-  emblemAbilityOk (KeywordAbility _ _) = False
+  emblemAbilityOk (KeywordAbility _ _ _) = False
   emblemAbilityOk (Activated _ _ _ _ _ _) = True
   emblemAbilityOk (Triggered _ _ _ _ _ _ _ _ _) = True
   emblemAbilityOk (Static _) = True
@@ -2572,7 +2595,7 @@ mutual
 
   public export
   abRegime : {0 bs : Bindings} -> AbilityAt bs -> Maybe StackRegime
-  abRegime (KeywordAbility k _) = keywordStackRegime k
+  abRegime (KeywordAbility k _ _) = keywordStackRegime k
   abRegime (Activated _ _ _ _ _ _) = Nothing
   abRegime (Triggered _ _ _ _ _ _ _ _ _) = Nothing
   abRegime (Static _) = Nothing
@@ -2624,7 +2647,7 @@ mutual
 
   public export
   abIntro : {bs : Bindings} -> AbilityAt bs -> Bindings
-  abIntro (KeywordAbility _ _) = bs
+  abIntro (KeywordAbility _ _ _) = bs
   abIntro (Activated _ eff _ _ _ _) = effChoiceDelta eff ++ bs
   abIntro (Triggered _ _ _ _ _ _ _ _ eff) = effChoiceDelta eff ++ bs
   abIntro (Static se) = staticChoiceIntro se
@@ -2635,7 +2658,7 @@ mutual
 
   public export
   abLetterDelta : {0 bs : Bindings} -> AbilityAt bs -> List Binding
-  abLetterDelta (KeywordAbility _ (Just (ParamNumber (LetterVal l)))) = [letterB l]
+  abLetterDelta (KeywordAbility _ (Just (ParamNumber (LetterVal l))) _) = [letterB l]
   abLetterDelta _ = []
 
 
@@ -2713,6 +2736,7 @@ mutual
   selfTapPayment : {0 bs : Bindings} -> Cost bs -> Bool
   selfTapPayment (Mana _) = False
   selfTapPayment (ScaledMana _ _) = False
+  selfTapPayment (ScaledCost c _) = selfTapPayment c
   selfTapPayment TapSymbol = True
   selfTapPayment UntapSymbol = True
   selfTapPayment (LoyaltySymbol _) = False
@@ -2735,6 +2759,7 @@ mutual
   costTapOnce : {0 bs : Bindings} -> Cost bs -> Bool
   costTapOnce (Mana _) = True
   costTapOnce (ScaledMana _ _) = True
+  costTapOnce (ScaledCost c _) = costTapOnce c
   costTapOnce TapSymbol = True
   costTapOnce UntapSymbol = True
   costTapOnce (LoyaltySymbol _) = True
@@ -2751,6 +2776,7 @@ mutual
   costPaidByYou : {0 bs : Bindings} -> Cost bs -> Bool
   costPaidByYou (Mana _) = True
   costPaidByYou (ScaledMana _ _) = True
+  costPaidByYou (ScaledCost c _) = costPaidByYou c
   costPaidByYou TapSymbol = True
   costPaidByYou UntapSymbol = True
   costPaidByYou (LoyaltySymbol _) = True
@@ -2783,6 +2809,7 @@ mutual
   costOffBattlefield : {0 bs : Bindings} -> Cost bs -> Bool
   costOffBattlefield (Mana _) = True
   costOffBattlefield (ScaledMana _ _) = True
+  costOffBattlefield (ScaledCost c _) = costOffBattlefield c
   costOffBattlefield TapSymbol = False
   costOffBattlefield UntapSymbol = False
   costOffBattlefield (LoyaltySymbol _) = False

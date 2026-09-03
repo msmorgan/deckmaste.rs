@@ -51,7 +51,7 @@ badPoisonCounterDescription Refl impossible
 ||| "Cumulative upkeep"
 public export
 badBareCumulativeUpkeep : Unspellable Ability (\ok =>
-  KeywordAbility "CumulativeUpkeep" Nothing {pf = ok})
+  KeywordAbility "CumulativeUpkeep" Nothing Nothing {pf = ok})
 badBareCumulativeUpkeep Oh impossible
 
 
@@ -59,8 +59,23 @@ badBareCumulativeUpkeep Oh impossible
 public export
 badCumulativeUpkeepOnSpell : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Sorcery])
-       [KeywordAbility "CumulativeUpkeep" (Just (ParamCost (Mana [Macros.generic 2])))] Nothing {tx = ok})
+       [KeywordAbility "CumulativeUpkeep" (Just (ParamCost (Mana [Macros.generic 2]))) Nothing] Nothing {tx = ok})
 badCumulativeUpkeepOnSpell Oh impossible
+
+
+||| "Flying (When this creature deals combat damage to a player, …)"
+public export
+badBodyOnBodilessKeyword : Unspellable Ability (\ok =>
+  KeywordAbility "Flying" Nothing (Just (Macros.renownExpansion 1)) {bf = ok})
+badBodyOnBodilessKeyword Oh impossible
+
+
+||| "Renown 1 (When you cast this spell, copy it …)"
+public export
+badRenownWithStormExpansion : Unspellable Ability (\ok =>
+  KeywordAbility "Renown" (Just (ParamNumber (Lit 1)))
+                 (Just Macros.stormExpansion) {bf = ok})
+badRenownWithStormExpansion Oh impossible
 
 
 ||| "a cumulative upkeep counter"
@@ -85,7 +100,7 @@ badEmptyKeywordList : Unspellable Ability (\ok =>
   AlsoForKeywords (Static (Conditionally
                              (Exists (And [ExiledWith Macros.thisCreature,
                                            HasKeyword (TheKeyword "Flying")]))
-                             (Gains Macros.thisCreature (KeywordAbility "Flying" Nothing)) AsLongAs))
+                             (Gains Macros.thisCreature (KeywordAbility "Flying" Nothing Nothing)) AsLongAs))
                   [] {lk = ok})
 badEmptyKeywordList Oh impossible
 
@@ -95,7 +110,7 @@ badKeywordListRepeatingBase : Unspellable Ability (\ok =>
   AlsoForKeywords (Static (Conditionally
                              (Exists (And [ExiledWith Macros.thisCreature,
                                            HasKeyword (TheKeyword "Flying")]))
-                             (Gains Macros.thisCreature (KeywordAbility "Flying" Nothing)) AsLongAs))
+                             (Gains Macros.thisCreature (KeywordAbility "Flying" Nothing Nothing)) AsLongAs))
                   [TheKeyword "Menace", TheKeyword "Flying",
                    TheKeyword "Trample"] {lk = ok})
 badKeywordListRepeatingBase Oh impossible
@@ -106,7 +121,7 @@ badParameterisedKeywordInList : Unspellable Ability (\ok =>
   AlsoForKeywords (Static (Conditionally
                              (Exists (And [ExiledWith Macros.thisCreature,
                                            HasKeyword (TheKeyword "Flying")]))
-                             (Gains Macros.thisCreature (KeywordAbility "Flying" Nothing)) AsLongAs))
+                             (Gains Macros.thisCreature (KeywordAbility "Flying" Nothing Nothing)) AsLongAs))
                   [TheKeyword "Ward"] {lk = ok})
 badParameterisedKeywordInList Oh impossible
 
@@ -390,14 +405,14 @@ badPossessedMonarch Refl impossible
 ||| "Unearth"
 public export
 badBareUnearth : Unspellable Ability (\ok =>
-  KeywordAbility "Unearth" Nothing {pf = ok})
+  KeywordAbility "Unearth" Nothing Nothing {pf = ok})
 badBareUnearth Oh impossible
 
 
 ||| "Retrace {1}"
 public export
 badCostedRetrace : Unspellable Ability (\ok =>
-  KeywordAbility "Retrace" (Just (ParamCost (Mana [Macros.generic 1])))
+  KeywordAbility "Retrace" (Just (ParamCost (Mana [Macros.generic 1]))) Nothing
                  {pf = ok})
 badCostedRetrace Oh impossible
 
@@ -406,7 +421,7 @@ badCostedRetrace Oh impossible
 public export
 badUnearthOnSpellCard : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Black]) [] (MkTypeLine [] [Instant])
-       [KeywordAbility "Unearth" (Just (ParamCost (Mana [Macros.pip Black])))] Nothing {tx = ok})
+       [KeywordAbility "Unearth" (Just (ParamCost (Mana [Macros.pip Black]))) Nothing] Nothing {tx = ok})
 badUnearthOnSpellCard Oh impossible
 
 
@@ -415,7 +430,7 @@ public export
 badFlashbackOnPermanentCard : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.generic 2, Macros.pip Blue]) []
        (MkTypeLine [] [Artifact])
-       [KeywordAbility "Flashback" (Just (ParamCost (Mana [Macros.generic 2, Macros.pip Blue])))]
+       [KeywordAbility "Flashback" (Just (ParamCost (Mana [Macros.generic 2, Macros.pip Blue]))) Nothing]
        Nothing {tx = ok})
 badFlashbackOnPermanentCard Oh impossible
 
@@ -810,7 +825,7 @@ badBasicCreatureTypeAxis Oh impossible
 ||| "Echo"
 public export
 badBareEcho : Unspellable Ability (\ok =>
-  KeywordAbility "Echo" Nothing {pf = ok})
+  KeywordAbility "Echo" Nothing Nothing {pf = ok})
 badBareEcho Oh impossible
 
 public export

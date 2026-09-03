@@ -233,7 +233,7 @@ public export
 badChosenProtectionBeforeChoice : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [creatureType "Angel"] [Creature])
        [ Static (Gains Macros.thisCreature
-                       (KeywordAbility "Protection" (Just (ParamQuality (OfChosen Color {ok = ok})))))
+                       (KeywordAbility "Protection" (Just (ParamQuality (OfChosen Color {ok = ok}))) Nothing))
        , Static (EntersChoice Macros.thisCreature (QSort Color) Nothing Openly) ]
        (Just (2, 2)))
 badChosenProtectionBeforeChoice Refl impossible

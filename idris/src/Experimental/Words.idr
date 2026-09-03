@@ -2352,101 +2352,103 @@ record KeywordFacts where
   onSpellCard : Bool
   onCommandZoneCard : Bool
   paidCost : Bool
+  ||| Defined by the CR as a triggered ability with a quoted expansion [CR#702.21a,702.24a,702.30a,702.40a,702.45a,702.86a,702.112a,702.135a].
+  bodied : Bool
 
 public export
 keywordFacts : List KeywordFacts
 keywordFacts =
-  [ MkKeywordFacts "Haste"            NoParam      True  Nothing             True  False False False
-  , MkKeywordFacts "Flying"           NoParam      True  Nothing             True  False False False
-  , MkKeywordFacts "Trample"          NoParam      True  Nothing             True  False False False
-  , MkKeywordFacts "Vigilance"        NoParam      True  Nothing             True  False False False
-  , MkKeywordFacts "Deathtouch"       NoParam      True  (Just AtResolution) True  False False False
-  , MkKeywordFacts "DoubleStrike"     NoParam      True  Nothing             True  False False False
-  , MkKeywordFacts "FirstStrike"      NoParam      True  Nothing             True  False False False
-  , MkKeywordFacts "Reach"            NoParam      True  Nothing             True  False False False
-  , MkKeywordFacts "Defender"         NoParam      False Nothing             True  False False False
-  , MkKeywordFacts "Convoke"          NoParam      False (Just AtCasting)    True  True  False False
-  , MkKeywordFacts "Improvise"        NoParam      False (Just AtCasting)    True  True  False False
-  , MkKeywordFacts "Storm"            NoParam      False (Just AtCasting)    True  True  False False
-  , MkKeywordFacts "Lifelink"         NoParam      True  (Just AtResolution) True  False False False
-  , MkKeywordFacts "Ward"             CostParam    False Nothing             True  False False True
-  , MkKeywordFacts "Protection"       QualityParam False Nothing             True  False False False
-  , MkKeywordFacts "Enchant"          SubjectParam False Nothing             True  False False False
+  [ MkKeywordFacts "Haste"            NoParam      True  Nothing             True  False False False False
+  , MkKeywordFacts "Flying"           NoParam      True  Nothing             True  False False False False
+  , MkKeywordFacts "Trample"          NoParam      True  Nothing             True  False False False False
+  , MkKeywordFacts "Vigilance"        NoParam      True  Nothing             True  False False False False
+  , MkKeywordFacts "Deathtouch"       NoParam      True  (Just AtResolution) True  False False False False
+  , MkKeywordFacts "DoubleStrike"     NoParam      True  Nothing             True  False False False False
+  , MkKeywordFacts "FirstStrike"      NoParam      True  Nothing             True  False False False False
+  , MkKeywordFacts "Reach"            NoParam      True  Nothing             True  False False False False
+  , MkKeywordFacts "Defender"         NoParam      False Nothing             True  False False False False
+  , MkKeywordFacts "Convoke"          NoParam      False (Just AtCasting)    True  True  False False False
+  , MkKeywordFacts "Improvise"        NoParam      False (Just AtCasting)    True  True  False False False
+  , MkKeywordFacts "Storm"            NoParam      False (Just AtCasting)    True  True  False False True
+  , MkKeywordFacts "Lifelink"         NoParam      True  (Just AtResolution) True  False False False False
+  , MkKeywordFacts "Ward"             CostParam    False Nothing             True  False False True  True
+  , MkKeywordFacts "Protection"       QualityParam False Nothing             True  False False False False
+  , MkKeywordFacts "Enchant"          SubjectParam False Nothing             True  False False False False
   , MkKeywordFacts "Equip"            (CompoundParam QualityHead)
-                                                   False Nothing             True  False False True
+                                                   False Nothing             True  False False True  False
   , MkKeywordFacts "Suspend"          (CompoundParam NumberHead)
-                                                   False Nothing             True  True  False True
-  , MkKeywordFacts "Ascend"           NoParam      False Nothing             True  True  False False
-  , MkKeywordFacts "Storied"          NoParam      False Nothing             True  False True False
-  , MkKeywordFacts "Renown"           NumberParam  False Nothing             True  False False False
-  , MkKeywordFacts "Indestructible"   NoParam      True  Nothing             True  False False False
-  , MkKeywordFacts "Flash"            NoParam      False (Just AtCasting)    True  True  False False
-  , MkKeywordFacts "Kicker"           CostParam    False (Just AtCasting)    True  True  False True
-  , MkKeywordFacts "Multikicker"      CostParam    False (Just AtCasting)    True  True  False True
-  , MkKeywordFacts "CumulativeUpkeep" CostParam    False Nothing             True  False False True
-  , MkKeywordFacts "Echo"             CostParam    False Nothing             True  False False True
-  , MkKeywordFacts "Hexproof"         NoParam      True  Nothing             True  False False False
-  , MkKeywordFacts "Menace"           NoParam      True  Nothing             True  False False False
-  , MkKeywordFacts "Skulk"            NoParam      False Nothing             True  False False False
-  , MkKeywordFacts "Bushido"          NumberParam  False Nothing             True  False False False
-  , MkKeywordFacts "Unearth"          CostParam    False Nothing             True  False False True
-  , MkKeywordFacts "Flashback"        CostParam    False Nothing             False True  False True
-  , MkKeywordFacts "Dredge"           NumberParam  False Nothing             True  True  False False
-  , MkKeywordFacts "Retrace"          NoParam      False Nothing             True  True  False False
-  , MkKeywordFacts "Cycling"          CostParam    False Nothing             True  True  False True
-  , MkKeywordFacts "Ninjutsu"         CostParam    False Nothing             True  False False True
-  , MkKeywordFacts "Miracle"          CostParam    False Nothing             True  True  False True
-  , MkKeywordFacts "Warp"             CostParam    False (Just AtCasting)    True  True  False True
-  , MkKeywordFacts "Afterlife"        NumberParam  False Nothing             True  False False False
-  , MkKeywordFacts "Boast"            AbilityParam False Nothing             True  False False False
-  , MkKeywordFacts "Exhaust"          AbilityParam False Nothing             True  False False False
-  , MkKeywordFacts "PowerUp"          AbilityParam False Nothing             True  False False False
-  , MkKeywordFacts "Affinity"         QualityParam False (Just AtCasting)    True  True  False False
-  , MkKeywordFacts "Annihilator"      NumberParam  False Nothing             True  False False False
-  , MkKeywordFacts "Fear"             NoParam      False Nothing             True  False False False
-  , MkKeywordFacts "Shroud"           NoParam      False Nothing             True  False False False
-  , MkKeywordFacts "Banding"          NoParam      False Nothing             True  False False False
-  , MkKeywordFacts "BandsWithOther"   QualityParam False Nothing             True  False False False
-  , MkKeywordFacts "Landwalk"         QualityParam False Nothing             True  False False False
-  , MkKeywordFacts "Changeling"       NoParam      False Nothing             True  True  True False
-  , MkKeywordFacts "Crew"             NumberParam  False Nothing             True  False False False
-  , MkKeywordFacts "Saddle"           NumberParam  False Nothing             True  False False False
-  , MkKeywordFacts "PartnerWith"      QualityParam False Nothing             True  False False False
-  , MkKeywordFacts "Emerge"           CostParam    False (Just AtCasting)    True  True  False True
-  , MkKeywordFacts "Craft"            CostParam    False Nothing             True  False False True
-  , MkKeywordFacts "Madness"          CostParam    False Nothing             True  True  False True
-  , MkKeywordFacts "Prowl"            CostParam    False (Just AtCasting)    True  True  False True
-  , MkKeywordFacts "Surge"            CostParam    False (Just AtCasting)    True  True  False True
-  , MkKeywordFacts "Spectacle"        CostParam    False (Just AtCasting)    True  True  False True
-  , MkKeywordFacts "Freerunning"      CostParam    False (Just AtCasting)    True  True  False True
-  , MkKeywordFacts "Sneak"            CostParam    False (Just AtCasting)    True  True  False True
-  , MkKeywordFacts "Mayhem"           CostParam    False Nothing             True  True  False True
-  , MkKeywordFacts "Disturb"          CostParam    False Nothing             True  True  False True
-  , MkKeywordFacts "Morph"            CostParam    False Nothing             True  True  False True
-  , MkKeywordFacts "Entwine"          CostParam    False (Just AtCasting)    True  True  False True
-  , MkKeywordFacts "Escalate"         CostParam    False (Just AtCasting)    True  True  False True
-  , MkKeywordFacts "Fuse"             NoParam      False (Just AtCasting)    False True  False False
-  , MkKeywordFacts "Escape"           CostParam    False Nothing             True  True  False True
-  , MkKeywordFacts "Foretell"         CostParam    False Nothing             True  True  False True
-  , MkKeywordFacts "Bestow"           CostParam    False Nothing             True  False False True
-  , MkKeywordFacts "Disguise"         CostParam    False Nothing             True  False False True
-  , MkKeywordFacts "Mutate"           CostParam    False (Just AtCasting)    True  False False True
-  , MkKeywordFacts "Overload"         CostParam    False (Just AtCasting)    False True  False True
-  , MkKeywordFacts "Dash"             CostParam    False (Just AtCasting)    True  False False True
-  , MkKeywordFacts "Evoke"            CostParam    False Nothing             True  False False True
-  , MkKeywordFacts "Blitz"            CostParam    False (Just AtCasting)    True  False False True
-  , MkKeywordFacts "Cleave"           CostParam    False (Just AtCasting)    False True  False True
-  , MkKeywordFacts "Harmonize"        CostParam    False Nothing             False True  False True
+                                                   False Nothing             True  True  False True  False
+  , MkKeywordFacts "Ascend"           NoParam      False Nothing             True  True  False False False
+  , MkKeywordFacts "Storied"          NoParam      False Nothing             True  False True False  False
+  , MkKeywordFacts "Renown"           NumberParam  False Nothing             True  False False False True
+  , MkKeywordFacts "Indestructible"   NoParam      True  Nothing             True  False False False False
+  , MkKeywordFacts "Flash"            NoParam      False (Just AtCasting)    True  True  False False False
+  , MkKeywordFacts "Kicker"           CostParam    False (Just AtCasting)    True  True  False True  False
+  , MkKeywordFacts "Multikicker"      CostParam    False (Just AtCasting)    True  True  False True  False
+  , MkKeywordFacts "CumulativeUpkeep" CostParam    False Nothing             True  False False True  True
+  , MkKeywordFacts "Echo"             CostParam    False Nothing             True  False False True  True
+  , MkKeywordFacts "Hexproof"         NoParam      True  Nothing             True  False False False False
+  , MkKeywordFacts "Menace"           NoParam      True  Nothing             True  False False False False
+  , MkKeywordFacts "Skulk"            NoParam      False Nothing             True  False False False False
+  , MkKeywordFacts "Bushido"          NumberParam  False Nothing             True  False False False True
+  , MkKeywordFacts "Unearth"          CostParam    False Nothing             True  False False True  False
+  , MkKeywordFacts "Flashback"        CostParam    False Nothing             False True  False True  False
+  , MkKeywordFacts "Dredge"           NumberParam  False Nothing             True  True  False False False
+  , MkKeywordFacts "Retrace"          NoParam      False Nothing             True  True  False False False
+  , MkKeywordFacts "Cycling"          CostParam    False Nothing             True  True  False True  False
+  , MkKeywordFacts "Ninjutsu"         CostParam    False Nothing             True  False False True  False
+  , MkKeywordFacts "Miracle"          CostParam    False Nothing             True  True  False True  False
+  , MkKeywordFacts "Warp"             CostParam    False (Just AtCasting)    True  True  False True  False
+  , MkKeywordFacts "Afterlife"        NumberParam  False Nothing             True  False False False True
+  , MkKeywordFacts "Boast"            AbilityParam False Nothing             True  False False False False
+  , MkKeywordFacts "Exhaust"          AbilityParam False Nothing             True  False False False False
+  , MkKeywordFacts "PowerUp"          AbilityParam False Nothing             True  False False False False
+  , MkKeywordFacts "Affinity"         QualityParam False (Just AtCasting)    True  True  False False False
+  , MkKeywordFacts "Annihilator"      NumberParam  False Nothing             True  False False False True
+  , MkKeywordFacts "Fear"             NoParam      False Nothing             True  False False False False
+  , MkKeywordFacts "Shroud"           NoParam      False Nothing             True  False False False False
+  , MkKeywordFacts "Banding"          NoParam      False Nothing             True  False False False False
+  , MkKeywordFacts "BandsWithOther"   QualityParam False Nothing             True  False False False False
+  , MkKeywordFacts "Landwalk"         QualityParam False Nothing             True  False False False False
+  , MkKeywordFacts "Changeling"       NoParam      False Nothing             True  True  True False  False
+  , MkKeywordFacts "Crew"             NumberParam  False Nothing             True  False False False False
+  , MkKeywordFacts "Saddle"           NumberParam  False Nothing             True  False False False False
+  , MkKeywordFacts "PartnerWith"      QualityParam False Nothing             True  False False False False
+  , MkKeywordFacts "Emerge"           CostParam    False (Just AtCasting)    True  True  False True  False
+  , MkKeywordFacts "Craft"            CostParam    False Nothing             True  False False True  False
+  , MkKeywordFacts "Madness"          CostParam    False Nothing             True  True  False True  False
+  , MkKeywordFacts "Prowl"            CostParam    False (Just AtCasting)    True  True  False True  False
+  , MkKeywordFacts "Surge"            CostParam    False (Just AtCasting)    True  True  False True  False
+  , MkKeywordFacts "Spectacle"        CostParam    False (Just AtCasting)    True  True  False True  False
+  , MkKeywordFacts "Freerunning"      CostParam    False (Just AtCasting)    True  True  False True  False
+  , MkKeywordFacts "Sneak"            CostParam    False (Just AtCasting)    True  True  False True  False
+  , MkKeywordFacts "Mayhem"           CostParam    False Nothing             True  True  False True  False
+  , MkKeywordFacts "Disturb"          CostParam    False Nothing             True  True  False True  False
+  , MkKeywordFacts "Morph"            CostParam    False Nothing             True  True  False True  False
+  , MkKeywordFacts "Entwine"          CostParam    False (Just AtCasting)    True  True  False True  False
+  , MkKeywordFacts "Escalate"         CostParam    False (Just AtCasting)    True  True  False True  False
+  , MkKeywordFacts "Fuse"             NoParam      False (Just AtCasting)    False True  False False False
+  , MkKeywordFacts "Escape"           CostParam    False Nothing             True  True  False True  False
+  , MkKeywordFacts "Foretell"         CostParam    False Nothing             True  True  False True  False
+  , MkKeywordFacts "Bestow"           CostParam    False Nothing             True  False False True  False
+  , MkKeywordFacts "Disguise"         CostParam    False Nothing             True  False False True  False
+  , MkKeywordFacts "Mutate"           CostParam    False (Just AtCasting)    True  False False True  False
+  , MkKeywordFacts "Overload"         CostParam    False (Just AtCasting)    False True  False True  False
+  , MkKeywordFacts "Dash"             CostParam    False (Just AtCasting)    True  False False True  False
+  , MkKeywordFacts "Evoke"            CostParam    False Nothing             True  False False True  False
+  , MkKeywordFacts "Blitz"            CostParam    False (Just AtCasting)    True  False False True  False
+  , MkKeywordFacts "Cleave"           CostParam    False (Just AtCasting)    False True  False True  False
+  , MkKeywordFacts "Harmonize"        CostParam    False Nothing             False True  False True  False
   , MkKeywordFacts "Impending"        (CompoundParam NumberHead)
-                                                   False (Just AtCasting)    True  False False True
+                                                   False (Just AtCasting)    True  False False True  False
   , MkKeywordFacts "Awaken"           (CompoundParam NumberHead)
-                                                   False (Just AtCasting)    False True  False True
-  , MkKeywordFacts "Buyback"          CostParam    False (Just AtCasting)    False True  False True
-  , MkKeywordFacts "Casualty"         NumberParam  False (Just AtCasting)    True  True  False True
-  , MkKeywordFacts "Squad"            CostParam    False (Just AtCasting)    True  False False True
-  , MkKeywordFacts "Offspring"        CostParam    False (Just AtCasting)    True  False False True
-  , MkKeywordFacts "Gift"             SubjectParam False (Just AtCasting)    True  True  False True
-  , MkKeywordFacts "Replicate"        CostParam    False (Just AtCasting)    False True  False True
+                                                   False (Just AtCasting)    False True  False True  False
+  , MkKeywordFacts "Buyback"          CostParam    False (Just AtCasting)    False True  False True  False
+  , MkKeywordFacts "Casualty"         NumberParam  False (Just AtCasting)    True  True  False True  False
+  , MkKeywordFacts "Squad"            CostParam    False (Just AtCasting)    True  False False True  False
+  , MkKeywordFacts "Offspring"        CostParam    False (Just AtCasting)    True  False False True  False
+  , MkKeywordFacts "Gift"             SubjectParam False (Just AtCasting)    True  True  False True  False
+  , MkKeywordFacts "Replicate"        CostParam    False (Just AtCasting)    False True  False True  False
   ]
 
 public export
@@ -2476,6 +2478,10 @@ keywordCosts k = case keywordParamShape k of
   CostParam => True
   CompoundParam _ => True
   _ => False
+
+public export
+keywordBodied : KeywordLabel -> Bool
+keywordBodied k = maybe False bodied (keywordFactsFor k)
 
 public export
 keywordParamless : KeywordLabel -> Bool
@@ -2894,7 +2900,7 @@ ascribesAsType Scheme = False
 ascribesAsType Vanguard = False
 
 public export
-data MarkerWord = TokenMarker | EmblemMarker
+data MarkerWord = TokenMarker | EmblemMarker | SpellMarker | PermanentMarker
 
 public export
 Eq MarkerWord where
@@ -2902,11 +2908,17 @@ Eq MarkerWord where
   (==) TokenMarker _ = False
   (==) EmblemMarker EmblemMarker = True
   (==) EmblemMarker _ = False
+  (==) SpellMarker SpellMarker = True
+  (==) SpellMarker _ = False
+  (==) PermanentMarker PermanentMarker = True
+  (==) PermanentMarker _ = False
 
 public export
 markerZone : MarkerWord -> Zone
 markerZone TokenMarker = Battlefield
 markerZone EmblemMarker = Command
+markerZone SpellMarker = Stack
+markerZone PermanentMarker = Battlefield
 
 public export
 ascriptionOk : CardType -> Maybe Subtype -> Bool
