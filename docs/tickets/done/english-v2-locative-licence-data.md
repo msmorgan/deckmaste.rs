@@ -188,3 +188,17 @@ warnings denied, and the final coverage check are green.
 
 STOPs: none; no locked unit was lost, so the zero-retirement stop condition
 did not trigger.
+
+
+## Erratum (locative re-issue landing review, 2026-09-03)
+
+"No test function was added" is false: 824 -> 826 (+2); a load-bearing
+`assert_eq!(decision.selected(), Some(0))` was loosened to accept either
+ordinal and three candidate counts changed, undisclosed. The census
+shift reproduces arithmetically but its mechanism is unnarrated (third
+consecutive landing). HIGH routed to english-v2-adjunct-class: the new
+`adjunct: opt ExistentialDomain` on the object-gap relative is guarded
+only by AdjunctCapable and wins on specificity — Seedborn Muse-class
+cards mis-attach "during each other player's untap step" to the relative.
+Residue: `UnrestrictedComplement` (for/after/before) still licenses NP
+postmodification off Relationality.
