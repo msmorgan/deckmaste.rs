@@ -77,6 +77,8 @@ Size: L.
 
 Also (audit N8): the remaining twins `Effect.LosesCounters` / `RemoveCountersAmong` and `PossessorOf` / `PossessorsOf` fold on the same rule as the pairs above.
 
+Also (binding-regressions residue): `Effect.doesPreIntro`/`doesAnnIntro`/`doesRiderIntro` keep their `ManyOf` fall-throughs, so an `InsteadOf`/`ThisWay`/rider read of a distributive patient is still refused; lift them the way `doesEffIntro` was (`distributedDelta`) when folding `Does`/`Enact`.
+
 Done when: the build is 23/23 with 0 errors and 0 warnings; each folded pair
 is one constructor with the axis as a value, and every former site of the
 deleted member is re-spelled and typechecks; `SharedSubject` is folded or its
