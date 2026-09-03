@@ -79,6 +79,8 @@ Also (audit N8): the remaining twins `Effect.LosesCounters` / `RemoveCountersAmo
 
 Also (binding-regressions residue): `Effect.doesPreIntro`/`doesAnnIntro`/`doesRiderIntro` keep their `ManyOf` fall-throughs, so an `InsteadOf`/`ThisWay`/rider read of a distributive patient is still refused; lift them the way `doesEffIntro` was (`distributedDelta`) when folding `Does`/`Enact`.
 
+Also (keyword-ability-body STOP residue): `Effect.costPaidByYou` conflates payer with agent (`Do (ChangeLife who _)` → `nounIsYou who`), so "Cumulative upkeep — an opponent gains 1 life" (Wall of Shards) cannot take the keyword body; separate payer from agent on the cost rows so an opponent-agent cost is paid by you.
+
 Done when: the build is 23/23 with 0 errors and 0 warnings; each folded pair
 is one constructor with the axis as a value, and every former site of the
 deleted member is re-spelled and typechecks; `SharedSubject` is folded or its
