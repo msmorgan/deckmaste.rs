@@ -386,11 +386,11 @@ badDrawnCardRemention : Unspellable (Effect []) (\ok =>
 badDrawnCardRemention Refl impossible
 
 
-||| "Choose one — Draw a card; or draw a card."
+||| "Choose two — Draw a card; draw a card." [CR#700.2d]
 public export
-badDuplicateModes : Unspellable (Effect []) (\ok =>
-  Macros.chooseOne [(Macros.draw You (Lit 1)), (Macros.draw You (Lit 1))] {dm = ok})
-badDuplicateModes Refl impossible
+identicalModesAllowed : Effect []
+identicalModesAllowed =
+  Macros.chooseTwo [(Macros.draw You (Lit 1)), (Macros.draw You (Lit 1))]
 
 
 ||| "Choose you."

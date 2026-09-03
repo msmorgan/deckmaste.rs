@@ -1282,8 +1282,7 @@ mutual
             {auto 0 nz : NonZeroQ q} ->
             {auto 0 wf : WellFormedQ q} ->
             {auto 0 tw : AtLeastTwo (modeCount modes)} ->
-            {auto 0 mf : ModesFit q (modeCount modes)} ->
-            {auto 0 dm : So (distinctModes modes)} -> Effect bs
+            {auto 0 mf : ModesFit q (modeCount modes)} -> Effect bs
     Delayed : (ev : GameEvent bs) ->
               (alts : List (GameEvent bs)) ->
               (span : Maybe (Duration bs)) ->
@@ -1741,130 +1740,6 @@ mutual
   modeCount : {0 bs : Bindings} -> List (Effect bs) -> Nat
   modeCount [] = Z
   modeCount (_ :: es) = S (modeCount es)
-
-  public export
-  effEq : {0 bs : Bindings} -> Effect bs -> Effect bs -> Bool
-  effEq (DealDamage _ _ _) _ = False
-  effEq (ControllerSacrifices _) _ = False
-  effEq (DoesntUntapNext n s) (DoesntUntapNext m t) = nounEqRef n m && boundEq s t
-  effEq (DoesntUntapNext _ _) _ = False
-  effEq (SkipsNext w p c) (SkipsNext x q d) =
-    nounEqRef w x && p == q && boundEq c d
-  effEq (SkipsNext _ _ _) _ = False
-  effEq (ExtraTurn w c) (ExtraTurn x d) = nounEqRef w x && boundEq c d
-  effEq (ExtraTurn _ _) _ = False
-  effEq (AdditionalPart Nothing p a c _) (AdditionalPart Nothing q b d _) =
-    p == q && a == b && boundEq c d
-  effEq (AdditionalPart (Just w) p a c _) (AdditionalPart (Just x) q b d _) =
-    nounEqRef w x && p == q && a == b && boundEq c d
-  effEq (AdditionalPart _ _ _ _ _) _ = False
-  effEq (SkipsAllOf w p) (SkipsAllOf x q) = nounEqRef w x && p == q
-  effEq (SkipsAllOf _ _) _ = False
-  effEq (Distribute _ _ _) _ = False
-  effEq (Fights _ _) _ = False
-  effEq (TurnOver a) (TurnOver b) = nounEqRef a b
-  effEq (TurnOver _) _ = False
-  effEq (SetStatus v a) (SetStatus w b) = sameStatusVal v w && nounEqRef a b
-  effEq (SetStatus _ _) _ = False
-  effEq (LosesCounters You j Nothing) (LosesCounters You l Nothing) = j == l
-  effEq (LosesCounters You j (Just x)) (LosesCounters You l (Just y)) =
-    j == l && boundEq x y
-  effEq (LosesCounters _ _ _) _ = False
-  effEq (RemoveFromCombat a) (RemoveFromCombat b) = nounEqRef a b
-  effEq (RemoveFromCombat _) _ = False
-  effEq (AttachTo a _) (AttachTo b _) = nounEqRef a b
-  effEq (AttachTo _ _) _ = False
-  effEq (Unattach a) (Unattach b) = nounEqRef a b
-  effEq (Unattach _) _ = False
-  effEq (BecomesBlocking _ _) _ = False
-  effEq (StopsBlocking _ _) _ = False
-  effEq (BecomesAttacking _ _) _ = False
-  effEq (Regenerate a) (Regenerate b) = nounEqRef a b
-  effEq (Regenerate _) _ = False
-  effEq (CantBe _ _ _) _ = False
-  effEq (GainsDesignation _ _ _ _) _ = False
-  effEq (Unlock _) _ = False
-  effEq (GameBecomes a) (GameBecomes b) = a == b
-  effEq (GameBecomes _) _ = False
-  effEq (Concludes v a) (Concludes w b) = v == w && nounEqRef a b
-  effEq (Concludes _ _) _ = False
-  effEq GameDrawn GameDrawn = True
-  effEq GameDrawn _ = False
-  effEq RestartsGame RestartsGame = True
-  effEq RestartsGame _ = False
-  effEq (SeparateIntoPiles _ _ _ _) _ = False
-  effEq (CounterSpell _) _ = False
-  effEq (CopyStack _ _ _ _) _ = False
-  effEq (ChooseNewTargets _) _ = False
-  effEq (CopyTargets _ _) _ = False
-  effEq (CopyCard _ _ _) _ = False
-  effEq (Choose _ _ _) _ = False
-  effEq (ChoicesRevealed a) (ChoicesRevealed b) = a == b
-  effEq (ChoicesRevealed _) _ = False
-  effEq (Vote _ _ _ _) _ = False
-  effEq (Move a s _) (Move b t _) = nounEqRef a b && zoneSort s == zoneSort t
-  effEq (Move _ _ _) _ = False
-  effEq (ExchangeLife a) (ExchangeLife b) = nounEqRef a b
-  effEq (ExchangeLife _) _ = False
-  effEq (ChangeLife _ _) _ = False
-  effEq (AddMana _ _ _ _) _ = False
-  effEq (Draw You a) (Draw You b) = boundEq a b
-  effEq (Draw _ _) _ = False
-  effEq (Expose _ _ _) _ = False
-  effEq (Search _ _ _ _) _ = False
-  effEq (Shuffle _) _ = False
-  effEq (FlipCoins _ _) _ = False
-  effEq (RollDice _ _ _) _ = False
-  effEq (ResultsTable _) _ = False
-  effEq (IgnoreOutcomes _) _ = False
-  effEq (ShiftResult _ _) _ = False
-  effEq (RollPlanarDie _ _) _ = False
-  effEq (ChaosEnsues _) _ = False
-  effEq (StoreResults _) _ = False
-  effEq (RerollStored _ _ _) _ = False
-  effEq (Continuously _ _) _ = False
-  effEq (Throughout _ _) _ = False
-  effEq (Create _ _ _ _) _ = False
-  effEq (GetsEmblem _ _) _ = False
-  effEq (PutCounters x (PrintedKind j) You) (PutCounters y (PrintedKind l) You) =
-    j == l && boundEq x y
-  effEq (PutCounters _ _ _) _ = False
-  effEq (RemoveCounters _ _ _) _ = False
-  effEq (RemoveCountersAmong _ _ _) _ = False
-  effEq (MoveCounters _ _ _ _) _ = False
-  effEq (DoubleCounters _) _ = False
-  effEq (Enact v e) (Enact w f) = v == w && effEq e f
-  effEq (Enact _ _) _ = False
-  effEq (Does _ _ _) _ = False
-  effEq (Pay _ _ _) _ = False
-  effEq (May _ _ _ _) _ = False
-  effEq (IfDone _ _ _) _ = False
-  effEq (OnlyIf _ _ _) _ = False
-  effEq (If _ _ _) _ = False
-  effEq (Unless _ _ _) _ = False
-  effEq (Define _ _) _ = False
-  effEq (ForEachOf _ _) _ = False
-  effEq (ForEachKindOf _ _ _ _) _ = False
-  effEq (Repeat _) _ = False
-  effEq (Repeated _ _) _ = False
-  effEq (Sequentially _) _ = False
-  effEq (Simultaneously _) _ = False
-  effEq (Modal _ _) _ = False
-  effEq (Delayed _ _ _ _) _ = False
-  effEq (InsteadOf _ _) _ = False
-  effEq (HeldUntil _ _) _ = False
-  effEq (Reflexively _ _) _ = False
-  effEq (ThisWay _ _ _) _ = False
-
-  public export
-  anyEffEq : {0 bs : Bindings} -> Effect bs -> List (Effect bs) -> Bool
-  anyEffEq e [] = False
-  anyEffEq e (f :: fs) = effEq e f || anyEffEq e fs
-
-  public export
-  distinctModes : {0 bs : Bindings} -> List (Effect bs) -> Bool
-  distinctModes [] = True
-  distinctModes (e :: es) = not (anyEffEq e es) && distinctModes es
 
   public export
   data Effects : Nat -> Bindings -> Type where

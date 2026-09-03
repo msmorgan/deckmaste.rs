@@ -1067,38 +1067,33 @@ draw who amt = Draw who amt
 public export
 chooseOne : (modes : List (Effect bs)) ->
             {auto 0 tw : AtLeastTwo (modeCount modes)} ->
-            {auto 0 mf : ModesFit (exactly {bs} 1) (modeCount modes)} ->
-            {auto 0 dm : distinctModes modes = True} -> Effect bs
-chooseOne modes = Modal (exactly 1) modes {tw} {mf} {dm = eqToSo dm}
+            {auto 0 mf : ModesFit (exactly {bs} 1) (modeCount modes)} -> Effect bs
+chooseOne modes = Modal (exactly 1) modes {tw} {mf}
 
 public export
 chooseTwo : (modes : List (Effect bs)) ->
             {auto 0 tw : AtLeastTwo (modeCount modes)} ->
-            {auto 0 mf : ModesFit (exactly {bs} 2) (modeCount modes)} ->
-            {auto 0 dm : distinctModes modes = True} -> Effect bs
-chooseTwo modes = Modal (exactly 2) modes {tw} {mf} {dm = eqToSo dm}
+            {auto 0 mf : ModesFit (exactly {bs} 2) (modeCount modes)} -> Effect bs
+chooseTwo modes = Modal (exactly 2) modes {tw} {mf}
 
 public export
 chooseOneOrBoth : (modes : List (Effect bs)) ->
                   {auto 0 tw : AtLeastTwo (modeCount modes)} ->
-                  {auto 0 mf : ModesFit (Range (Just 1) (Just 2) {bs}) (modeCount modes)} ->
-                  {auto 0 dm : distinctModes modes = True} -> Effect bs
+                  {auto 0 mf : ModesFit (Range (Just 1) (Just 2) {bs}) (modeCount modes)} -> Effect bs
 chooseOneOrBoth modes =
-  Modal (Range (Just 1) (Just 2)) modes {tw} {mf} {dm = eqToSo dm}
+  Modal (Range (Just 1) (Just 2)) modes {tw} {mf}
 
 public export
 chooseOneOrMore : (modes : List (Effect bs)) ->
                   {auto 0 tw : AtLeastTwo (modeCount modes)} ->
-                  {auto 0 mf : ModesFit (atLeast {bs} 1) (modeCount modes)} ->
-                  {auto 0 dm : distinctModes modes = True} -> Effect bs
-chooseOneOrMore modes = Modal (atLeast 1) modes {tw} {mf} {dm = eqToSo dm}
+                  {auto 0 mf : ModesFit (atLeast {bs} 1) (modeCount modes)} -> Effect bs
+chooseOneOrMore modes = Modal (atLeast 1) modes {tw} {mf}
 
 public export
 chooseAnyNumber : (modes : List (Effect bs)) ->
                   {auto 0 tw : AtLeastTwo (modeCount modes)} ->
-                  {auto 0 mf : ModesFit (Macros.anyNumber {bs}) (modeCount modes)} ->
-                  {auto 0 dm : distinctModes modes = True} -> Effect bs
-chooseAnyNumber modes = Modal Macros.anyNumber modes {wf = Oh} {tw} {mf} {dm = eqToSo dm}
+                  {auto 0 mf : ModesFit (Macros.anyNumber {bs}) (modeCount modes)} -> Effect bs
+chooseAnyNumber modes = Modal Macros.anyNumber modes {wf = Oh} {tw} {mf}
 
 public export
 notSo : (c : Condition bs) -> Condition bs
