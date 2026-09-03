@@ -183,15 +183,61 @@ mutual
   someWritten (_ :: _) = True
 
   public export
-  additionSaysSomething : {0 bs : Bindings} -> Maybe CardType ->
-                          TokenChars bs -> Bool
-  additionSaysSomething subj t =
-    addsSomething subj t.line ||
-      (not (lineNonEmpty t.line) && someWritten t.colors)
+  data CharOp = Adds | Sets | Loses
 
   public export
-  AdditionSaysSomething : Maybe CardType -> TokenChars bs -> Type
-  AdditionSaysSomething {bs} subj t = So (additionSaysSomething subj t)
+  data QualityPayload : Bindings -> Type where
+    Bundle : (t : TokenChars bs) -> (ret : Maybe CardType) -> QualityPayload bs
+    EveryTypeOf : (space : TypeSpace) -> QualityPayload bs
+    ChosenQuality : (q : Predicate bs Object) -> QualityPayload bs
+    Colored : (cs : ColorSpec) -> QualityPayload bs
+
+  public export
+  lossWritesTypes : {0 bs : Bindings} -> TokenChars bs -> Bool
+  lossWritesTypes t =
+    isNothing t.pt && not (someWritten t.colors) && not (someWritten t.abilities)
+      && isNothing t.name && not (someWritten t.quals)
+      && (lineNonEmpty t.line || someWritten t.supers)
+
+  public export
+  bundleOk : {0 bs : Bindings} -> CharOp -> Maybe CardType -> Maybe Zone ->
+             TokenChars bs -> Maybe CardType -> Bool
+  bundleOk Adds ty z t ret =
+    (addsSomething ty t.line || someWritten t.supers) && addedFits ty t.line
+      && tokenCanonical t && tokenAbilitiesOk t && tokenQualsFit t
+      && additionUnnamed t && isNothing ret
+  bundleOk Sets ty z t ret =
+    zoneFits z (Just Battlefield) && lineNonEmpty t.line && addedFits ty t.line
+      && tokenAbilitiesOk t && tokenCanonical t && tokenQualsFit t
+      && retentionOk t.line ret
+  bundleOk Loses ty z t ret =
+    zoneFits z (Just Battlefield) && lossWritesTypes t && tokenCanonical t
+      && isNothing ret
+
+  public export
+  colorOpOk : CharOp -> ColorSpec -> Bool
+  colorOpOk Sets _ = True
+  colorOpOk _ (SomeColors []) = False
+  colorOpOk _ _ = True
+
+  public export
+  becomesOk : {bs : Bindings} -> CharOp -> Noun bs Object -> QualityPayload bs -> Bool
+  becomesOk op n (Bundle t ret) = bundleOk op (nounTy n) (nounZone n) t ret
+  becomesOk op n (EveryTypeOf space) =
+    zoneFits (nounZone n) (Just Battlefield) && spaceHosted space (nounTy n)
+  becomesOk op n (ChosenQuality q) = qualityReadOk q && hostedRead q n
+  becomesOk op n (Colored cs) = colorSpecOk cs && colorOpOk op cs
+
+  public export
+  BecomesOk : {bs : Bindings} -> CharOp -> Noun bs Object -> QualityPayload bs -> Type
+  BecomesOk op n q = So (becomesOk op n q)
+
+  public export
+  becomesKind : {0 bs : Bindings} -> CharOp -> QualityPayload bs -> StaticKind
+  becomesKind _ (Colored _) = ColorSet
+  becomesKind Adds _ = TypeAddition
+  becomesKind Sets _ = TypeSet
+  becomesKind Loses _ = TypeLoss
 
 
   public export
@@ -350,44 +396,9 @@ mutual
                      {auto 0 zn : ZoneFits (seedZone p) (deedZoneOf deed Patient)} ->
                      StaticEffect bs
       Skips : (who : Noun bs Player) -> (part : TurnPart) -> StaticEffect bs
-      BecomesAlso : (n : Noun bs Object) -> (added : TokenChars bs) ->
-                    {auto 0 sw : AdditionSaysSomething (nounTy n) added} ->
-                    {auto 0 af : AddedFits (nounTy n) added.line} ->
-                    {auto 0 tc : TokenCanonical added} ->
-                    {auto 0 ta : TokenAbilities added} ->
-                    {auto 0 qf : TokenQualsFit added} ->
-                    {auto 0 un : AdditionUnnamed added} -> StaticEffect bs
-      AddsEveryType : (n : Noun bs Object) -> (space : TypeSpace) ->
-                      {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                      {auto 0 sh : SpaceHosted space (nounTy n)} ->
-                      StaticEffect bs
-      LosesEveryType : (n : Noun bs Object) -> (space : TypeSpace) ->
-                       {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                       {auto 0 sh : SpaceHosted space (nounTy n)} ->
-                       StaticEffect bs
-      LosesType : (n : Noun bs Object) -> (t : CardType) ->
-                  {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                  StaticEffect bs
-      SetsColor : (n : Noun bs Object) -> (cs : ColorSpec) ->
-                  {auto 0 cd : ColorSpecOk cs} ->
-                  StaticEffect bs
-      SetsType : (n : Noun bs Object) -> (t : TokenChars bs) ->
-                 (ret : Maybe CardType) ->
-                 {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                 {auto 0 ne : LineNonEmpty t.line} ->
-                 {auto 0 af : AddedFits (nounTy n) t.line} ->
-                 {auto 0 ta : TokenAbilities t} ->
-                 {auto 0 tc : TokenCanonical t} ->
-                 {auto 0 qf : TokenQualsFit t} ->
-                 {auto 0 ro : RetentionOk t.line ret} -> StaticEffect bs
-      AddsChosenQuality : (n : Noun bs Object) -> (q : Predicate bs Object) ->
-                       {auto 0 qr : QualityRead q} ->
-                       {auto 0 hr : HostedRead q n} ->
-                       StaticEffect bs
-      SetsChosenQuality : (n : Noun bs Object) -> (q : Predicate bs Object) ->
-                       {auto 0 qr : QualityRead q} ->
-                       {auto 0 hr : HostedRead q n} ->
-                       StaticEffect bs
+      ||| The op is data over every payload [CR#613.1d,613.1e]; reverses choice-D's one row per op.
+      Becomes : (n : Noun bs Object) -> (op : CharOp) -> (q : QualityPayload bs) ->
+                {auto 0 ok : BecomesOk op n q} -> StaticEffect bs
       AlsoOffBattlefield : (se : StaticEffect bs) ->
                            {auto 0 nx : NotExtended se} -> StaticEffect bs
       DoesntRemove : (se : StaticEffect bs) ->
@@ -747,15 +758,8 @@ mutual
   staticKind (KeepsUnspentMana _ _) = ManaPersistence
   staticKind (MayDeclineUntap _) = DeedRestriction
   staticKind (UntapsDuringStep _) = UntapGrant
-  staticKind (BecomesAlso _ _) = TypeAddition
-  staticKind (AddsEveryType _ _) = TypeAddition
-  staticKind (LosesEveryType _ _) = TypeLoss
-  staticKind (LosesType _ _) = TypeLoss
-  staticKind (SetsColor _ _) = ColorSet
+  staticKind (Becomes _ op q) = becomesKind op q
   staticKind (BecomesCopy _ _ _) = CopyEffect
-  staticKind (SetsType _ _ _) = TypeSet
-  staticKind (AddsChosenQuality _ _) = TypeAddition
-  staticKind (SetsChosenQuality _ _) = TypeSet
   staticKind (LosesAllAbilities _ _) = AbilityLoss
   staticKind (LosesAbilities _ _) = AbilityLoss
   staticKind (GainsControl _ _) = ControlGrant
@@ -802,15 +806,8 @@ mutual
   staticIntro (KeepsUnspentMana who _) = nomIntro who
   staticIntro (MayDeclineUntap n) = selfSubjIntro n
   staticIntro (UntapsDuringStep n) = selfSubjIntro n
-  staticIntro (BecomesAlso n _) = selfSubjIntro n
-  staticIntro (AddsEveryType n _) = selfSubjIntro n
-  staticIntro (LosesEveryType n _) = selfSubjIntro n
-  staticIntro (LosesType n _) = selfSubjIntro n
-  staticIntro (SetsColor n _) = selfSubjIntro n
+  staticIntro (Becomes n _ _) = selfSubjIntro n
   staticIntro (BecomesCopy n _ _) = selfSubjIntro n
-  staticIntro (SetsType n _ _) = selfSubjIntro n
-  staticIntro (AddsChosenQuality n _) = selfSubjIntro n
-  staticIntro (SetsChosenQuality n _) = selfSubjIntro n
   staticIntro (LosesAllAbilities n _) = selfSubjIntro n
   staticIntro (LosesAbilities n _) = selfSubjIntro n
   staticIntro (GainsControl who what) = stampIntro (Just "GainControl") what

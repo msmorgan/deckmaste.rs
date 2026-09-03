@@ -275,3 +275,5 @@ Two new rows (`SetsColor`, `LosesEveryType`) and one new catalog
 are stale independently of this round (they point into the pre-split
 `Experimental.idr`), and sub-round B's `SetsChosenBasicType` row is stale
 there too.
+
+Superseded 2026-09-02 by `workbench-quality-op-axis` (audit R6): `SetsColor` and the seven sibling type/colour rows are one `Becomes n op q` with the op as data; the colour-only addition is its `Adds × Colored` cell.

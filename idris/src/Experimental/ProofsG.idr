@@ -344,7 +344,7 @@ public export
 badNamedAddition : Unspellable (Effect []) (\ok =>
   Macros.becomesAs (Macros.target Macros.creature)
                    (MkToken Nothing [] (MkTypeLine [creatureType "Zombie"] []) [] (Just "Bob"))
-                   Nothing {un = ok})
+                   Nothing {ok = ok})
 badNamedAddition Oh impossible
 
 
@@ -353,7 +353,7 @@ public export
 badRepeatedAdditionColor : Unspellable (Effect []) (\ok =>
   Macros.becomesAs (Macros.target Macros.creature)
                    (MkToken Nothing [Black, Black] (MkTypeLine [creatureType "Zombie"] []) [] Nothing)
-                   Nothing {tc = ok})
+                   Nothing {ok = ok})
 badRepeatedAdditionColor Oh impossible
 
 
@@ -362,7 +362,7 @@ public export
 badRepeatedAdditionType : Unspellable (Effect []) (\ok =>
   Macros.becomesAs (Macros.target Macros.creature)
                    (MkToken Nothing [] (MkTypeLine [] [Artifact, Artifact]) [] Nothing)
-                   Nothing {tc = ok})
+                   Nothing {ok = ok})
 badRepeatedAdditionType Oh impossible
 
 

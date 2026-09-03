@@ -197,9 +197,8 @@ badStaticPlayerCantTargets Oh impossible
 ||| [CR#205.3d] refuses a subtype that corresponds to none of the object's types, and the subject's projected head is no land.
 public export
 badChosenBasicTypeOnCreature : Unspellable (Effect []) (\ok =>
-  Continuously (SetsChosenQuality (Macros.target Macros.creature)
-                                  (OfYourChoice (SubtypeQ Land) (Just BasicTypesOnly))
-                                  {hr = ok})
+  Continuously (Becomes (Macros.target Macros.creature) Sets (ChosenQuality (OfYourChoice (SubtypeQ Land) (Just BasicTypesOnly)))
+                                  {ok = ok})
                (Just Macros.untilEndOfTurn))
 badChosenBasicTypeOnCreature Oh impossible
 
@@ -208,9 +207,7 @@ badChosenBasicTypeOnCreature Oh impossible
 ||| A subtype-only line carries no card type, and [CR#205.3i] puts Mountain in the land set.
 public export
 badCreaturesAreMountains : Unspellable (StaticEffect []) (\ok =>
-  SetsType (AllOf Macros.creature)
-           (MkToken Nothing [] (Macros.basicLandLine [landType "Mountain"]) [] Nothing)
-           Nothing {af = ok})
+  Becomes (AllOf Macros.creature) Sets (Bundle (MkToken Nothing [] (Macros.basicLandLine [landType "Mountain"]) [] Nothing) Nothing) {ok = ok})
 badCreaturesAreMountains Oh impossible
 
 
@@ -279,9 +276,7 @@ badChosenProtectionBeforeChoice Refl impossible
 public export
 badAscribedQualityBeforeChoice : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
-       [ Static (AddsChosenQuality
-                   (AllOf (And [Macros.creature, ControlledBy You]))
-                   (OfChosen (SubtypeQ Creature) {ok = ok}))
+       [ Static (Becomes (AllOf (And [Macros.creature, ControlledBy You])) Adds (ChosenQuality (OfChosen (SubtypeQ Creature) {ok = ok})))
        , Static (EntersChoice Macros.thisEnchantment (QSort (SubtypeQ Creature)) Nothing Openly) ]
        Nothing)
 badAscribedQualityBeforeChoice Refl impossible
@@ -293,8 +288,7 @@ public export
 badDoubleExtension : Unspellable (StaticEffect []) (\ok =>
   AlsoOffBattlefield
     (AlsoOffBattlefield
-       (BecomesAlso (AllOf (And [Macros.creature, ControlledBy You]))
-                    (MkToken Nothing [] (MkTypeLine [] [Artifact]) [] Nothing))) {nx = ok})
+       (Becomes (AllOf (And [Macros.creature, ControlledBy You])) Adds (Bundle (MkToken Nothing [] (MkTypeLine [] [Artifact]) [] Nothing) Nothing))) {nx = ok})
 badDoubleExtension Oh impossible
 
 
@@ -441,8 +435,8 @@ badLookAtHandRider Oh impossible
 ||| [CR#205.3m] gives the creature types to creatures and kindreds, so the space demands its own host.
 public export
 badEveryCreatureTypeOnLand : Unspellable (StaticEffect []) (\ok =>
-  AddsEveryType (AllOf (And [Macros.land, ControlledBy You])) CreatureSpace
-                {sh = ok})
+  Becomes (AllOf (And [Macros.land, ControlledBy You])) Adds (EveryTypeOf CreatureSpace)
+                {ok = ok})
 badEveryCreatureTypeOnLand Oh impossible
 
 
@@ -450,9 +444,70 @@ badEveryCreatureTypeOnLand Oh impossible
 ||| The other direction of the same host gate: nothing here adds the land card type for the subtype to sit on.
 public export
 badEveryBasicLandTypeOnCreature : Unspellable (StaticEffect []) (\ok =>
-  AddsEveryType (AllOf (And [Macros.creature, ControlledBy You])) BasicLandSpace
-                {sh = ok})
+  Becomes (AllOf (And [Macros.creature, ControlledBy You])) Adds (EveryTypeOf BasicLandSpace)
+                {ok = ok})
 badEveryBasicLandTypeOnCreature Oh impossible
+
+
+||| "Target land becomes every basic land type until end of turn."
+public export
+setsEveryBasicLandType : Effect []
+setsEveryBasicLandType =
+  Continuously (Becomes (Macros.target Macros.land) Sets (EveryTypeOf BasicLandSpace))
+               (Just Macros.untilEndOfTurn)
+
+
+||| "Target creature loses the creature type of your choice until end of turn."
+public export
+losesChosenCreatureType : Effect []
+losesChosenCreatureType =
+  Continuously (Becomes (Macros.target Macros.creature) Loses
+                        (ChosenQuality (OfYourChoice (SubtypeQ Creature) Nothing)))
+               (Just Macros.untilEndOfTurn)
+
+
+||| "Target creature loses all colors until end of turn."
+public export
+losesAllColors : Effect []
+losesAllColors =
+  Continuously (Becomes (Macros.target Macros.creature) Loses (Colored EveryColor))
+               (Just Macros.untilEndOfTurn)
+
+
+||| "Target creature becomes colorless in addition to its other colors until end of turn."
+||| A colorless object has no color [CR#105.2c], so there is none to add.
+public export
+badAddsNoColor : Unspellable (StaticEffect []) (\ok =>
+  Becomes (Macros.target Macros.creature) Adds (Colored (SomeColors [])) {ok = ok})
+badAddsNoColor Oh impossible
+
+
+||| "Target creature loses colorless until end of turn."
+||| The same rule from the other side: nothing is lost by losing no color [CR#105.2c].
+public export
+badLosesNoColor : Unspellable (StaticEffect []) (\ok =>
+  Becomes (Macros.target Macros.creature) Loses (Colored (SomeColors [])) {ok = ok})
+badLosesNoColor Oh impossible
+
+
+||| "Equipped permanent isn't a 2/2 creature."
+||| A type-changing effect changes card types, subtypes and supertypes [CR#613.1d]; a loss writes nothing else.
+public export
+badLosesPt : Unspellable (StaticEffect []) (\ok =>
+  Becomes (AttachHost Equipped PermanentW) Loses
+          (Bundle (MkToken (Just (Lit 2 ** Lit 2)) [] (Macros.typesOnly [Creature]) [] Nothing)
+                  Nothing) {ok = ok})
+badLosesPt Oh impossible
+
+
+||| "Target creature becomes an artifact in addition to its other types. It's still a creature."
+||| The addition already retains every prior type [CR#205.1b]; the rider retains nothing.
+public export
+badStillOnAddition : Unspellable (StaticEffect []) (\ok =>
+  Becomes (Macros.target Macros.creature) Adds
+          (Bundle (MkToken Nothing [] (Macros.typesOnly [Artifact]) [] Nothing)
+                  (Just Creature)) {ok = ok})
+badStillOnAddition Oh impossible
 
 
 ||| "Draw a card. At the beginning of that turn's end step, you lose the game."

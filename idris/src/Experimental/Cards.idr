@@ -3205,10 +3205,8 @@ naturalAffinity =
   Macros.card "Natural Affinity" (Just [Macros.generic 2, Macros.pip Green]) []
        (MkTypeLine [] [Instant])
        [ Spell (Continuously
-                  (SetsType (AllOf Macros.land)
-                            (MkToken (Just (Lit 2 ** Lit 2)) []
-                                     (MkTypeLine [] [Creature]) [] Nothing)
-                            (Just Land))
+                  (Becomes (AllOf Macros.land) Sets (Bundle (MkToken (Just (Lit 2 ** Lit 2)) []
+                                     (MkTypeLine [] [Creature]) [] Nothing) (Just Land)))
                   (Just Macros.untilEndOfTurn)) ]
        Nothing
 
@@ -3218,11 +3216,9 @@ mishrasFactory =
        [ Macros.activated TapSymbol (AddMana You (Lit 1) (Runs [[Colorless]]) [])
        , Macros.activated (Mana [Macros.generic 1])
                           (Continuously
-                      (SetsType Macros.thisLand
-                                (MkToken (Just (Lit 2 ** Lit 2)) []
+                      (Becomes Macros.thisLand Sets (Bundle (MkToken (Just (Lit 2 ** Lit 2)) []
                                          (MkTypeLine [creatureType "AssemblyWorker"] [Artifact, Creature])
-                                         [] Nothing)
-                                (Just Land))
+                                         [] Nothing) (Just Land)))
                       (Just Macros.untilEndOfTurn))
        , Macros.activated TapSymbol
                           (Macros.gets (Macros.target (And [Macros.creature, HasSubtype (creatureType "AssemblyWorker")]))
@@ -3237,12 +3233,10 @@ mutavault =
        [ Macros.activated TapSymbol (AddMana You (Lit 1) (Runs [[Colorless]]) [])
        , Macros.activated (Mana [Macros.generic 1])
                           (Continuously
-                      (SetsType Macros.thisLand
-                                (MkTokenChars (Just (Lit 2 ** Lit 2)) [] []
+                      (Becomes Macros.thisLand Sets (Bundle (MkTokenChars (Just (Lit 2 ** Lit 2)) [] []
                                               (MkTypeLine [] [Creature])
                                               [] Nothing
-                                              [WithEveryType CreatureSpace])
-                                (Just Land))
+                                              [WithEveryType CreatureSpace]) (Just Land)))
                       (Just Macros.untilEndOfTurn)) ]
        Nothing
 
@@ -3254,12 +3248,10 @@ soulstoneSanctuary =
        [ Macros.activated TapSymbol (AddMana You (Lit 1) (Runs [[Colorless]]) [])
        , Macros.activated (Mana [Macros.generic 4])
                           (Continuously
-                      (SetsType Macros.thisLand
-                                (MkTokenChars (Just (Lit 3 ** Lit 3)) [] []
+                      (Becomes Macros.thisLand Sets (Bundle (MkTokenChars (Just (Lit 3 ** Lit 3)) [] []
                                               (MkTypeLine [] [Creature])
                                               [Macros.keyword "Vigilance"] Nothing
-                                              [WithEveryType CreatureSpace])
-                                (Just Land))
+                                              [WithEveryType CreatureSpace]) (Just Land)))
                       Nothing) ]
        Nothing
 
@@ -3268,11 +3260,9 @@ windZendikon =
   Macros.card "Wind Zendikon" (Just [Macros.pip Blue]) []
        (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject "Enchant" Macros.land
-       , Static (SetsType (AttachHost Enchanted (TypeW Land))
-                          (MkToken (Just (Lit 2 ** Lit 2)) [Blue]
+       , Static (Becomes (AttachHost Enchanted (TypeW Land)) Sets (Bundle (MkToken (Just (Lit 2 ** Lit 2)) [Blue]
                                    (MkTypeLine [creatureType "Elemental"] [Creature])
-                                   [Macros.keyword "Flying"] Nothing)
-                          (Just Land)) ]
+                                   [Macros.keyword "Flying"] Nothing) (Just Land))) ]
        Nothing
 
 nullhideFerox : Ability
@@ -3308,9 +3298,8 @@ turnToFrog =
        (MkTypeLine [] [Instant])
        [ Spell (Continuously
                   (AndAlso [ LosesAllAbilities (Macros.target Macros.creature) Nothing
-                           , SetsType It (MkToken Nothing [Blue]
-                                                  (MkTypeLine [creatureType "Frog"] []) [] Nothing)
-                                      Nothing
+                           , Becomes It Sets (Bundle (MkToken Nothing [Blue]
+                                                  (MkTypeLine [creatureType "Frog"] []) [] Nothing) Nothing)
                            , HasBasePt It (Lit 1) (Lit 1) ])
                   (Just Macros.untilEndOfTurn)) ]
        Nothing
@@ -3360,9 +3349,8 @@ frogify =
        (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject "Enchant" Macros.creature
        , Static (AndAlso [ LosesAllAbilities (AttachHost Enchanted (TypeW Creature)) Nothing
-                         , SetsType It (MkToken Nothing [Blue]
-                                                (MkTypeLine [creatureType "Frog"] [Creature]) [] Nothing)
-                                    Nothing
+                         , Becomes It Sets (Bundle (MkToken Nothing [Blue]
+                                                (MkTypeLine [creatureType "Frog"] [Creature]) [] Nothing) Nothing)
                          , HasBasePt It (Lit 1) (Lit 1) ]) ]
        Nothing
 
@@ -3372,11 +3360,9 @@ darksteelMutation =
   Macros.card "Darksteel Mutation" (Just [Macros.generic 1, Macros.pip White]) []
        (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject "Enchant" Macros.creature
-       , Static (AndAlso [ SetsType (AttachHost Enchanted (TypeW Creature))
-                                    (MkToken Nothing []
+       , Static (AndAlso [ Becomes (AttachHost Enchanted (TypeW Creature)) Sets (Bundle (MkToken Nothing []
                                              (MkTypeLine [creatureType "Insect"] [Artifact, Creature])
-                                             [] Nothing)
-                                    Nothing
+                                             [] Nothing) Nothing)
                          , HasBasePt It (Lit 0) (Lit 1)
                          , Gains It (Macros.keyword "Indestructible")
                          , LosesAllAbilities It Nothing ]) ]
@@ -3389,9 +3375,8 @@ kenrithsTransformation =
        [ Macros.keywordSubject "Enchant" Macros.creature
        , Macros.triggered When (Enters Macros.thisAura Nothing) (Draw You (Lit 1))
        , Static (AndAlso [ LosesAllAbilities (AttachHost Enchanted (TypeW Creature)) Nothing
-                         , SetsType It (MkToken Nothing [Green]
-                                                (MkTypeLine [creatureType "Elk"] [Creature]) [] Nothing)
-                                    Nothing
+                         , Becomes It Sets (Bundle (MkToken Nothing [Green]
+                                                (MkTypeLine [creatureType "Elk"] [Creature]) [] Nothing) Nothing)
                          , HasBasePt It (Lit 3) (Lit 3) ]) ]
        Nothing
 
@@ -3403,9 +3388,8 @@ amphibianDownpour =
        , Macros.keyword "Storm"
        , Macros.keywordSubject "Enchant" Macros.creature
        , Static (AndAlso [ LosesAllAbilities (AttachHost Enchanted (TypeW Creature)) Nothing
-                         , SetsType It (MkToken Nothing [Blue]
-                                                (MkTypeLine [creatureType "Frog"] [Creature]) [] Nothing)
-                                    Nothing
+                         , Becomes It Sets (Bundle (MkToken Nothing [Blue]
+                                                (MkTypeLine [creatureType "Frog"] [Creature]) [] Nothing) Nothing)
                          , HasBasePt It (Lit 1) (Lit 1) ]) ]
        Nothing
 
@@ -3415,10 +3399,8 @@ lignify =
   Macros.card "Lignify" (Just [Macros.generic 1, Macros.pip Green]) []
        (MkTypeLine [creatureType "Treefolk", enchantmentType "Aura"] [Kindred, Enchantment])
        [ Macros.keywordSubject "Enchant" Macros.creature
-       , Static (AndAlso [ SetsType (AttachHost Enchanted (TypeW Creature))
-                                    (MkToken Nothing [] (MkTypeLine [creatureType "Treefolk"] [])
-                                             [] Nothing)
-                                    Nothing
+       , Static (AndAlso [ Becomes (AttachHost Enchanted (TypeW Creature)) Sets (Bundle (MkToken Nothing [] (MkTypeLine [creatureType "Treefolk"] [])
+                                             [] Nothing) Nothing)
                          , HasBasePt It (Lit 0) (Lit 4)
                          , LosesAllAbilities It Nothing ]) ]
        Nothing
@@ -3456,15 +3438,13 @@ ragingRavine =
                             (Runs [[OfColor Red], [OfColor Green]]) [])
        , Macros.activated (Mana [Macros.generic 2, Macros.pip Red, Macros.pip Green])
                           (Continuously
-                      (SetsType Macros.thisLand
-                                (MkToken (Just (Lit 3 ** Lit 3)) [Red, Green]
+                      (Becomes Macros.thisLand Sets (Bundle (MkToken (Just (Lit 3 ** Lit 3)) [Red, Green]
                                          (MkTypeLine [creatureType "Elemental"] [Creature])
                                          [ Macros.triggered Whenever
                                                             (Macros.attacks Macros.thisCreature)
                                                             (PutCounters (Lit 1)
                                                                   (PrintedKind Macros.plusOnePlusOne) Macros.thisCreature) ]
-                                         Nothing)
-                                (Just Land))
+                                         Nothing) (Just Land)))
                       (Just Macros.untilEndOfTurn)) ]
        Nothing
 
@@ -4247,11 +4227,9 @@ gideonAllyOfZendikar =
        [ Macros.activated (LoyaltySymbol (LoyaltyUp 1))
                           (Sequentially
                       [ Continuously
-                          (SetsType Macros.thisPlaneswalker
-                                    (MkToken (Just (Lit 5 ** Lit 5)) []
+                          (Becomes Macros.thisPlaneswalker Sets (Bundle (MkToken (Just (Lit 5 ** Lit 5)) []
                                              (MkTypeLine [creatureType "Human", creatureType "Soldier", creatureType "Ally"] [Creature])
-                                             [Macros.keyword "Indestructible"] Nothing)
-                                    (Just Planeswalker))
+                                             [Macros.keyword "Indestructible"] Nothing) (Just Planeswalker)))
                           (Just Macros.untilEndOfTurn)
                       , Macros.preventAll AnyDamage (Macros.shieldingIt It)
                                           (Just Macros.thisTurn) ])
@@ -4279,12 +4257,10 @@ gideonJura =
        , Macros.activated (LoyaltySymbol LoyaltyZero)
            (Sequentially
               [ Continuously
-                  (SetsType Macros.thisPlaneswalker
-                            (MkToken (Just (Lit 6 ** Lit 6)) []
+                  (Becomes Macros.thisPlaneswalker Sets (Bundle (MkToken (Just (Lit 6 ** Lit 6)) []
                                      (MkTypeLine [creatureType "Human",
                                                   creatureType "Soldier"] [Creature])
-                                     [] Nothing)
-                            (Just Planeswalker))
+                                     [] Nothing) (Just Planeswalker)))
                   (Just Macros.untilEndOfTurn)
               , Macros.preventAll AnyDamage (Macros.shieldingIt It)
                                   (Just Macros.thisTurn) ]) ]
@@ -5284,10 +5260,8 @@ bloodMoon : Card
 bloodMoon =
   Macros.card "Blood Moon" (Just [Macros.generic 2, Macros.pip Red]) []
        (MkTypeLine [] [Enchantment])
-       [ Static (SetsType (AllOf (And [Macros.land, Not (HasSupertype Basic)]))
-                          (MkToken Nothing [] (Macros.basicLandLine [landType "Mountain"])
-                                   [] Nothing)
-                          Nothing) ]
+       [ Static (Becomes (AllOf (And [Macros.land, Not (HasSupertype Basic)])) Sets (Bundle (MkToken Nothing [] (Macros.basicLandLine [landType "Mountain"])
+                                   [] Nothing) Nothing)) ]
        Nothing
 
 public export
@@ -5295,10 +5269,8 @@ magusOfTheMoon : Card
 magusOfTheMoon =
   Macros.card "Magus of the Moon" (Just [Macros.generic 2, Macros.pip Red]) []
        (MkTypeLine [creatureType "Human", creatureType "Wizard"] [Creature])
-       [ Static (SetsType (AllOf (And [Macros.land, Not (HasSupertype Basic)]))
-                          (MkToken Nothing [] (Macros.basicLandLine [landType "Mountain"])
-                                   [] Nothing)
-                          Nothing) ]
+       [ Static (Becomes (AllOf (And [Macros.land, Not (HasSupertype Basic)])) Sets (Bundle (MkToken Nothing [] (Macros.basicLandLine [landType "Mountain"])
+                                   [] Nothing) Nothing)) ]
        (Just (2, 2))
 
 public export
@@ -5307,10 +5279,8 @@ harbingerOfTheSeas =
   Macros.card "Harbinger of the Seas"
        (Just [Macros.generic 1, Macros.pip Blue, Macros.pip Blue]) []
        (MkTypeLine [creatureType "Merfolk", creatureType "Wizard"] [Creature])
-       [ Static (SetsType (AllOf (And [Macros.land, Not (HasSupertype Basic)]))
-                          (MkToken Nothing [] (Macros.basicLandLine [landType "Island"])
-                                   [] Nothing)
-                          Nothing) ]
+       [ Static (Becomes (AllOf (And [Macros.land, Not (HasSupertype Basic)])) Sets (Bundle (MkToken Nothing [] (Macros.basicLandLine [landType "Island"])
+                                   [] Nothing) Nothing)) ]
        (Just (2, 2))
 
 public export
@@ -5319,11 +5289,9 @@ lushGrowth =
   Macros.card "Lush Growth" (Just [Macros.pip Green]) []
        (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject "Enchant" Macros.land
-       , Static (SetsType (AttachHost Enchanted (TypeW Land))
-                          (MkToken Nothing []
+       , Static (Becomes (AttachHost Enchanted (TypeW Land)) Sets (Bundle (MkToken Nothing []
                                    (Macros.basicLandLine [landType "Mountain", landType "Forest", landType "Plains"])
-                                   [] Nothing)
-                          Nothing) ]
+                                   [] Nothing) Nothing)) ]
        Nothing
 
 public export
@@ -5331,8 +5299,7 @@ yavimayaCradleOfGrowth : Card
 yavimayaCradleOfGrowth =
   Macros.card "Yavimaya, Cradle of Growth" Nothing [Legendary]
        (MkTypeLine [] [Land])
-       [ Static (BecomesAlso (AllOf Macros.land)
-                             (MkToken Nothing [] (Macros.basicLandLine [landType "Forest"]) [] Nothing)) ]
+       [ Static (Becomes (AllOf Macros.land) Adds (Bundle (MkToken Nothing [] (Macros.basicLandLine [landType "Forest"]) [] Nothing) Nothing)) ]
        Nothing
 
 public export
@@ -5342,8 +5309,7 @@ reefShaman =
        (MkTypeLine [creatureType "Merfolk", creatureType "Shaman"] [Creature])
        [ Macros.activated TapSymbol
                           (Continuously
-                             (SetsChosenQuality (Macros.target Macros.land)
-                                (OfYourChoice (SubtypeQ Land) (Just BasicTypesOnly)))
+                             (Becomes (Macros.target Macros.land) Sets (ChosenQuality (OfYourChoice (SubtypeQ Land) (Just BasicTypesOnly))))
                              (Just Macros.untilEndOfTurn)) ]
        (Just (0, 2))
 
@@ -5354,9 +5320,7 @@ grixisIllusionist =
        (MkTypeLine [creatureType "Human", creatureType "Wizard"] [Creature])
        [ Macros.activated TapSymbol
                           (Continuously
-                      (SetsChosenQuality
-                         (Macros.target (And [Macros.land, ControlledBy You]))
-                         (OfYourChoice (SubtypeQ Land) (Just BasicTypesOnly)))
+                      (Becomes (Macros.target (And [Macros.land, ControlledBy You])) Sets (ChosenQuality (OfYourChoice (SubtypeQ Land) (Just BasicTypesOnly))))
                       (Just Macros.untilEndOfTurn)) ]
        (Just (1, 1))
 
@@ -5367,9 +5331,7 @@ unstableFrontier =
        [ Macros.activated TapSymbol (AddMana You (Lit 1) (Runs [[Colorless]]) [])
        , Macros.activated TapSymbol
                           (Continuously
-                      (SetsChosenQuality
-                         (Macros.target (And [Macros.land, ControlledBy You]))
-                         (OfYourChoice (SubtypeQ Land) (Just BasicTypesOnly)))
+                      (Becomes (Macros.target (And [Macros.land, ControlledBy You])) Sets (ChosenQuality (OfYourChoice (SubtypeQ Land) (Just BasicTypesOnly))))
                       (Just Macros.untilEndOfTurn)) ]
        Nothing
 
@@ -5652,10 +5614,8 @@ psychicPaperChoiceAndReads =
                     , Macros.attachChoosing Macros.thisEquipment
                                             (SubtypeQ Creature) ])
   , Static (AndAlso
-      [ SetsChosenQuality (AttachHost Equipped (TypeW Creature))
-                          (OfLastChosen CardName)
-      , SetsChosenQuality (AttachHost Equipped (TypeW Creature))
-                          (OfLastChosen (SubtypeQ Creature)) ]) ]
+      [ Becomes (AttachHost Equipped (TypeW Creature)) Sets (ChosenQuality (OfLastChosen CardName))
+      , Becomes (AttachHost Equipped (TypeW Creature)) Sets (ChosenQuality (OfLastChosen (SubtypeQ Creature))) ]) ]
 
 public export
 xenograft : Card
@@ -5663,8 +5623,7 @@ xenograft =
   Macros.card "Xenograft" (Just [Macros.generic 4, Macros.pip Blue]) []
        (MkTypeLine [] [Enchantment])
        [ Static (Macros.entersChoosing Macros.thisEnchantment (SubtypeQ Creature))
-       , Static (AddsChosenQuality (AllOf (And [Macros.creature, ControlledBy You]))
-                                (OfChosen (SubtypeQ Creature))) ]
+       , Static (Becomes (AllOf (And [Macros.creature, ControlledBy You])) Adds (ChosenQuality (OfChosen (SubtypeQ Creature)))) ]
        Nothing
 
 ||| Convincing Mirage
@@ -5676,8 +5635,7 @@ convincingMirage =
        [ Macros.keywordSubject "Enchant" Macros.land
        , Static (Macros.entersChoosingFrom Macros.thisAura (SubtypeQ Land)
                                            BasicTypesOnly)
-       , Static (SetsChosenQuality (AttachHost Enchanted (TypeW Land))
-                                   (OfChosen (SubtypeQ Land))) ]
+       , Static (Becomes (AttachHost Enchanted (TypeW Land)) Sets (ChosenQuality (OfChosen (SubtypeQ Land)))) ]
        Nothing
 
 ||| Realmwright
@@ -5688,8 +5646,7 @@ realmwright =
        (MkTypeLine [creatureType "Vedalken", creatureType "Wizard"] [Creature])
        [ Static (Macros.entersChoosingFrom Macros.thisCreature (SubtypeQ Land)
                                            BasicTypesOnly)
-       , Static (AddsChosenQuality (AllOf (And [Macros.land, ControlledBy You]))
-                                (OfChosen (SubtypeQ Land))) ]
+       , Static (Becomes (AllOf (And [Macros.land, ControlledBy You])) Adds (ChosenQuality (OfChosen (SubtypeQ Land)))) ]
        (Just (1, 1))
 
 public export
@@ -5698,7 +5655,7 @@ adaptiveAutomaton =
   Macros.card "Adaptive Automaton" (Just [Macros.generic 3]) []
        (MkTypeLine [creatureType "Construct"] [Artifact, Creature])
        [ Static (Macros.entersChoosing Macros.thisCreature (SubtypeQ Creature))
-       , Static (AddsChosenQuality Macros.thisCreature (OfChosen (SubtypeQ Creature)))
+       , Static (Becomes Macros.thisCreature Adds (ChosenQuality (OfChosen (SubtypeQ Creature))))
        , Static (Gets (AllOf (And [Macros.creature, ControlledBy You,
                                    OtherThan Macros.thisCreature,
                                    OfChosen (SubtypeQ Creature)]))
@@ -5713,8 +5670,7 @@ mistformDreamer =
        [ Macros.keyword "Flying"
        , Macros.activated (Mana [Macros.generic 1])
                           (Continuously
-                      (SetsChosenQuality Macros.thisCreature
-                                      (OfYourChoice (SubtypeQ Creature) Nothing))
+                      (Becomes Macros.thisCreature Sets (ChosenQuality (OfYourChoice (SubtypeQ Creature) Nothing)))
                       (Just Macros.untilEndOfTurn)) ]
        (Just (2, 1))
 
@@ -5725,9 +5681,7 @@ arcaneAdaptation =
        (MkTypeLine [] [Enchantment])
        [ Static (Macros.entersChoosing Macros.thisEnchantment (SubtypeQ Creature))
        , Static (AlsoOffBattlefield
-                   (AddsChosenQuality
-                      (AllOf (And [Macros.creature, ControlledBy You]))
-                      (OfChosen (SubtypeQ Creature)))) ]
+                   (Becomes (AllOf (And [Macros.creature, ControlledBy You])) Adds (ChosenQuality (OfChosen (SubtypeQ Creature))))) ]
        Nothing
 
 public export
@@ -5738,9 +5692,7 @@ conspiracy =
        (MkTypeLine [] [Enchantment])
        [ Static (Macros.entersChoosing Macros.thisEnchantment (SubtypeQ Creature))
        , Static (AlsoOffBattlefield
-                   (SetsChosenQuality
-                      (AllOf (And [Macros.creature, ControlledBy You]))
-                      (OfChosen (SubtypeQ Creature)))) ]
+                   (Becomes (AllOf (And [Macros.creature, ControlledBy You])) Sets (ChosenQuality (OfChosen (SubtypeQ Creature))))) ]
        Nothing
 
 public export
@@ -5749,9 +5701,8 @@ encroachingMycosynth =
   Macros.card "Encroaching Mycosynth" (Just [Macros.generic 3, Macros.pip Blue]) []
        (MkTypeLine [] [Artifact])
        [ Static (AlsoOffBattlefield
-                   (BecomesAlso (AllOf (And [Permanent, Not (HasType Land),
-                                             ControlledBy You]))
-                                (MkToken Nothing [] (MkTypeLine [] [Artifact]) [] Nothing))) ]
+                   (Becomes (AllOf (And [Permanent, Not (HasType Land),
+                                             ControlledBy You])) Adds (Bundle (MkToken Nothing [] (MkTypeLine [] [Artifact]) [] Nothing) Nothing))) ]
        Nothing
 
 ||| Aisling Leprechaun
@@ -5773,7 +5724,7 @@ darkestHour : Card
 darkestHour =
   Macros.card "Darkest Hour" (Just [Macros.pip Black]) []
        (MkTypeLine [] [Enchantment])
-       [ Static (SetsColor (AllOf Macros.creature) (SomeColors [Black])) ]
+       [ Static (Becomes (AllOf Macros.creature) Sets (Colored (SomeColors [Black]))) ]
        Nothing
 
 ||| Thran Lens
@@ -5782,7 +5733,7 @@ thranLens : Card
 thranLens =
   Macros.card "Thran Lens" (Just [Macros.generic 2]) []
        (MkTypeLine [] [Artifact])
-       [ Static (SetsColor (AllOf Permanent) (SomeColors [])) ]
+       [ Static (Becomes (AllOf Permanent) Sets (Colored (SomeColors []))) ]
        Nothing
 
 ||| Ghostflame Sliver
@@ -5791,7 +5742,7 @@ ghostflameSliver : Card
 ghostflameSliver =
   Macros.card "Ghostflame Sliver" (Just [Macros.pip Black, Macros.pip Red]) []
        (MkTypeLine [creatureType "Sliver"] [Creature])
-       [ Static (SetsColor (AllOf (HasSubtype (creatureType "Sliver"))) (SomeColors [])) ]
+       [ Static (Becomes (AllOf (HasSubtype (creatureType "Sliver"))) Sets (Colored (SomeColors []))) ]
        (Just (2, 2))
 
 ||| Sinister Strength
@@ -5803,7 +5754,7 @@ sinisterStrength =
        [ Macros.keywordSubject "Enchant" Macros.creature
        , Static (AndAlso [ Gets (AttachHost Enchanted (TypeW Creature))
                                 (PtUp (Lit 3)) (PtUp (Lit 1))
-                         , SetsColor It (SomeColors [Black]) ]) ]
+                         , Becomes It Sets (Colored (SomeColors [Black])) ]) ]
        Nothing
 
 ||| Crimson Wisps
@@ -5814,7 +5765,7 @@ crimsonWisps =
        (MkTypeLine [] [Instant])
        [ Spell (Sequentially
                   [ Continuously
-                      (AndAlso [ SetsColor (Macros.target Macros.creature) (SomeColors [Red])
+                      (AndAlso [ Becomes (Macros.target Macros.creature) Sets (Colored (SomeColors [Red]))
                                , Gains It (Macros.keyword "Haste") ])
                       (Just Macros.untilEndOfTurn)
                   , (Macros.draw You (Lit 1)) ]) ]
@@ -5827,12 +5778,10 @@ nightcreep =
   Macros.card "Nightcreep" (Just [Macros.pip Black, Macros.pip Black]) []
        (MkTypeLine [] [Instant])
        [ Spell (Continuously
-                  (AndAlso [ SetsColor (AllOf Macros.creature) (SomeColors [Black])
-                           , SetsType (AllOf Macros.land)
-                                      (MkToken Nothing []
+                  (AndAlso [ Becomes (AllOf Macros.creature) Sets (Colored (SomeColors [Black]))
+                           , Becomes (AllOf Macros.land) Sets (Bundle (MkToken Nothing []
                                                (Macros.basicLandLine [landType "Swamp"])
-                                               [] Nothing)
-                                      Nothing ])
+                                               [] Nothing) Nothing) ])
                   (Just Macros.untilEndOfTurn)) ]
        Nothing
 
@@ -5840,13 +5789,10 @@ nightcreep =
 public export
 celestialDawnAscriptions : AbilitySeq []
 celestialDawnAscriptions =
-  [ Static (SetsType (AllOf (And [Macros.land, ControlledBy You]))
-                     (MkToken Nothing [] (Macros.basicLandLine [landType "Plains"])
-                              [] Nothing)
-                     Nothing)
+  [ Static (Becomes (AllOf (And [Macros.land, ControlledBy You])) Sets (Bundle (MkToken Nothing [] (Macros.basicLandLine [landType "Plains"])
+                              [] Nothing) Nothing))
   , Static (AlsoOffBattlefield
-              (SetsColor (AllOf (And [Permanent, Not (HasType Land), ControlledBy You]))
-                         (SomeColors [White]))) ]
+              (Becomes (AllOf (And [Permanent, Not (HasType Land), ControlledBy You])) Sets (Colored (SomeColors [White])))) ]
 
 ||| Ghoulflesh
 public export
@@ -5857,10 +5803,9 @@ ghoulflesh =
        [ Macros.keywordSubject "Enchant" Macros.creature
        , Static (AndAlso [ Gets (AttachHost Enchanted (TypeW Creature))
                                 (PtDown (Lit 1)) (PtDown (Lit 1))
-                         , BecomesAlso It
-                                       (MkToken Nothing [Black]
+                         , Becomes It Adds (Bundle (MkToken Nothing [Black]
                                                 (MkTypeLine [creatureType "Zombie"] [])
-                                                [] Nothing) ]) ]
+                                                [] Nothing) Nothing) ]) ]
        Nothing
 
 ||| Blade of the Oni
@@ -5869,9 +5814,8 @@ bladeOfTheOniStatic : StaticEffect []
 bladeOfTheOniStatic =
   AndAlso [ HasBasePt (AttachHost Equipped (TypeW Creature)) (Lit 5) (Lit 5)
           , Gains It (Macros.keyword "Menace")
-          , BecomesAlso It
-                        (MkToken Nothing [Black]
-                                 (MkTypeLine [creatureType "Demon"] []) [] Nothing) ]
+          , Becomes It Adds (Bundle (MkToken Nothing [Black]
+                                 (MkTypeLine [creatureType "Demon"] []) [] Nothing) Nothing) ]
 
 ||| Ersatz Gnomes
 public export
@@ -5880,7 +5824,7 @@ ersatzGnomes =
   Macros.card "Ersatz Gnomes" (Just [Macros.generic 3]) []
        (MkTypeLine [creatureType "Gnome"] [Artifact, Creature])
        [ Macros.activated TapSymbol
-           (Continuously (SetsColor (Macros.target Macros.spell) (SomeColors []))
+           (Continuously (Becomes (Macros.target Macros.spell) Sets (Colored (SomeColors [])))
                          Nothing)
        , Macros.activated TapSymbol
            (Macros.becomesColor (Macros.target Permanent) (SomeColors [])
@@ -5898,11 +5842,9 @@ missyFaceDownReturn =
        [ Move It Macros.battlefieldZ
               [EntersAs FaceDown, EntersTapped, Under You]
        , Continuously
-           (SetsType It
-                     (MkToken (Just (Lit 2 ** Lit 2)) []
+           (Becomes It Sets (Bundle (MkToken (Just (Lit 2 ** Lit 2)) []
                               (MkTypeLine [creatureType "Cyberman"] [Artifact, Creature])
-                              [] Nothing)
-                     Nothing)
+                              [] Nothing) Nothing))
            Nothing ])
 
 ||| Transguild Courier
@@ -5911,7 +5853,7 @@ transguildCourier : Card
 transguildCourier =
   Macros.card "Transguild Courier" (Just [Macros.generic 4]) []
        (MkTypeLine [creatureType "Golem"] [Artifact, Creature])
-       [ Static (SetsColor Macros.thisCreature EveryColor) ]
+       [ Static (Becomes Macros.thisCreature Sets (Colored EveryColor)) ]
        (Just (3, 3))
 
 ||| Scrapbasket
@@ -5933,11 +5875,30 @@ indigoFaerie =
        (MkTypeLine [creatureType "Faerie", creatureType "Wizard"] [Creature])
        [ Macros.keyword "Flying"
        , Macros.activated (Mana [Macros.pip Blue])
-                          (Macros.becomesAs (Macros.target Permanent)
-                                            (MkToken Nothing [Blue] (MkTypeLine [] [])
-                                                     [] Nothing)
-                                            (Just Macros.untilEndOfTurn)) ]
+                          (Continuously (Becomes (Macros.target Permanent) Adds
+                                                 (Colored (SomeColors [Blue])))
+                                        (Just Macros.untilEndOfTurn)) ]
        (Just (1, 1))
+
+||| Arcum's Weathervane
+public export
+arcumsWeathervane : Card
+arcumsWeathervane =
+  Macros.card "Arcum's Weathervane" (Just [Macros.generic 2]) [] (MkTypeLine [] [Artifact])
+       [ Macros.activated (Compound [Mana [Macros.generic 2], TapSymbol])
+           (Continuously
+              (Becomes (Macros.target (And [Macros.land, HasSupertype Snow])) Loses
+                       (Bundle (MkTokenChars Nothing [] [Snow] (MkTypeLine [] []) [] Nothing [])
+                               Nothing))
+              Nothing)
+       , Macros.activated (Compound [Mana [Macros.generic 2], TapSymbol])
+           (Continuously
+              (Becomes (Macros.target (And [Macros.land, HasSupertype Basic,
+                                            Not (HasSupertype Snow)])) Adds
+                       (Bundle (MkTokenChars Nothing [] [Snow] (MkTypeLine [] []) [] Nothing [])
+                               Nothing))
+              Nothing) ]
+       Nothing
 
 public export
 declarationOfNaught : Card
@@ -5990,8 +5951,7 @@ imagecrafter =
        [ Macros.activated TapSymbol
            (Sequentially
               [ Macros.choose (Macros.a (Macros.qualityFrom (SubtypeQ Creature) (TypeOtherThan (creatureType "Wall"))))
-              , Continuously (SetsChosenQuality (Macros.target Macros.creature)
-                                                (OfChosen (SubtypeQ Creature)))
+              , Continuously (Becomes (Macros.target Macros.creature) Sets (ChosenQuality (OfChosen (SubtypeQ Creature))))
                              (Just Macros.untilEndOfTurn) ]) ]
        (Just (1, 1))
 
@@ -6003,8 +5963,7 @@ unnaturalSelection =
        [ Macros.activated (Mana [Macros.generic 1])
            (Sequentially
               [ Macros.choose (Macros.a (Macros.qualityFrom (SubtypeQ Creature) (TypeOtherThan (creatureType "Wall"))))
-              , Continuously (SetsChosenQuality (Macros.target Macros.creature)
-                                                (OfChosen (SubtypeQ Creature)))
+              , Continuously (Becomes (Macros.target Macros.creature) Sets (ChosenQuality (OfChosen (SubtypeQ Creature))))
                              (Just Macros.untilEndOfTurn) ]) ]
        Nothing
 
@@ -6015,8 +5974,7 @@ standardize =
        (MkTypeLine [] [Instant])
        [ Spell (Sequentially
               [ Macros.choose (Macros.a (Macros.qualityFrom (SubtypeQ Creature) (TypeOtherThan (creatureType "Wall"))))
-              , Continuously (SetsChosenQuality (Each Macros.creature)
-                                                (OfChosen (SubtypeQ Creature)))
+              , Continuously (Becomes (Each Macros.creature) Sets (ChosenQuality (OfChosen (SubtypeQ Creature))))
                              (Just Macros.untilEndOfTurn) ]) ]
        Nothing
 
@@ -6732,8 +6690,7 @@ prismaticOmen : Card
 prismaticOmen =
   Macros.card "Prismatic Omen" (Just [Macros.generic 1, Macros.pip Green]) []
        (MkTypeLine [] [Enchantment])
-       [ Static (AddsEveryType (AllOf (And [Macros.land, ControlledBy You]))
-                               BasicLandSpace) ]
+       [ Static (Becomes (AllOf (And [Macros.land, ControlledBy You])) Adds (EveryTypeOf BasicLandSpace)) ]
        Nothing
 
 public export
@@ -6743,8 +6700,7 @@ dryadOfTheIlysianGrove =
        (Just [Macros.generic 2, Macros.pip Green]) []
        (MkTypeLine [creatureType "Nymph", creatureType "Dryad"] [Enchantment, Creature])
        [ Static (MayPlayAdditionalLands You (Macros.exactly 1))
-       , Static (AddsEveryType (AllOf (And [Macros.land, ControlledBy You]))
-                               BasicLandSpace) ]
+       , Static (Becomes (AllOf (And [Macros.land, ControlledBy You])) Adds (EveryTypeOf BasicLandSpace)) ]
        (Just (2, 4))
 
 public export
@@ -6753,7 +6709,7 @@ mistformUltimus =
   Macros.card "Mistform Ultimus"
        (Just [Macros.generic 3, Macros.pip Blue]) [Legendary]
        (MkTypeLine [creatureType "Illusion"] [Creature])
-       [ Static (AddsEveryType Macros.thisCreature CreatureSpace) ]
+       [ Static (Becomes Macros.thisCreature Adds (EveryTypeOf CreatureSpace)) ]
        (Just (3, 3))
 
 public export
@@ -6764,8 +6720,7 @@ amorphousAxe =
        [ Static (AndAlso
            [ Gets (AttachHost Equipped (TypeW Creature)) (PtUp (Lit 3))
                   (PtUp (Lit 0))
-           , AddsEveryType (AttachHost Equipped (TypeW Creature))
-                           CreatureSpace ])
+           , Becomes (AttachHost Equipped (TypeW Creature)) Adds (EveryTypeOf CreatureSpace) ])
        , Macros.keywordCosting "Equip" (Mana [Macros.generic 3]) ]
        Nothing
 
@@ -6777,8 +6732,7 @@ runedStalactite =
        [ Static (AndAlso
            [ Gets (AttachHost Equipped (TypeW Creature)) (PtUp (Lit 1))
                   (PtUp (Lit 1))
-           , AddsEveryType (AttachHost Equipped (TypeW Creature))
-                           CreatureSpace ])
+           , Becomes (AttachHost Equipped (TypeW Creature)) Adds (EveryTypeOf CreatureSpace) ])
        , Macros.keywordCosting "Equip" (Mana [Macros.generic 2]) ]
        Nothing
 
@@ -6792,8 +6746,7 @@ arachnoform =
            [ Gets (AttachHost Enchanted (TypeW Creature)) (PtUp (Lit 2))
                   (PtUp (Lit 2))
            , Gains (AttachHost Enchanted (TypeW Creature)) (Macros.keyword "Reach")
-           , AddsEveryType (AttachHost Enchanted (TypeW Creature))
-                           CreatureSpace ]) ]
+           , Becomes (AttachHost Enchanted (TypeW Creature)) Adds (EveryTypeOf CreatureSpace) ]) ]
        Nothing
 
 public export
@@ -6804,8 +6757,7 @@ nyleasPresence =
        (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject "Enchant" Macros.land
        , Macros.triggered When (Enters Macros.thisAura Nothing) (Macros.draw You (Lit 1))
-       , Static (AddsEveryType (AttachHost Enchanted (TypeW Land))
-                               BasicLandSpace) ]
+       , Static (Becomes (AttachHost Enchanted (TypeW Land)) Adds (EveryTypeOf BasicLandSpace)) ]
        Nothing
 
 public export
@@ -6818,8 +6770,7 @@ volatileClaws =
            (AndAlso
              [ Gets (AllOf (And [Macros.creature, ControlledBy You]))
                     (PtUp (Lit 2)) (PtUp (Lit 0))
-             , AddsEveryType (AllOf (And [Macros.creature, ControlledBy You]))
-                             CreatureSpace ])
+             , Becomes (AllOf (And [Macros.creature, ControlledBy You])) Adds (EveryTypeOf CreatureSpace) ])
            (Just Macros.untilEndOfTurn)) ]
        Nothing
 
@@ -6829,10 +6780,10 @@ public export
 amoeboidChangelingTypeAbilities : AbilitySeq []
 amoeboidChangelingTypeAbilities =
   [ Macros.activated TapSymbol
-      (Continuously (AddsEveryType (Macros.target Macros.creature) CreatureSpace)
+      (Continuously (Becomes (Macros.target Macros.creature) Adds (EveryTypeOf CreatureSpace))
                     (Just Macros.untilEndOfTurn))
   , Macros.activated TapSymbol
-      (Continuously (LosesEveryType (Macros.target Macros.creature) CreatureSpace)
+      (Continuously (Becomes (Macros.target Macros.creature) Loses (EveryTypeOf CreatureSpace))
                     (Just Macros.untilEndOfTurn)) ]
 
 ||| Nameless Inversion
@@ -6841,7 +6792,7 @@ namelessInversionBody : Effect []
 namelessInversionBody =
   Continuously (AndAlso [ Gets (Macros.target Macros.creature)
                                (PtUp (Lit 3)) (PtDown (Lit 3))
-                        , LosesEveryType It CreatureSpace ])
+                        , Becomes It Loses (EveryTypeOf CreatureSpace) ])
                (Just Macros.untilEndOfTurn)
 
 ||| Ego Erasure
@@ -6851,7 +6802,7 @@ egoErasureBody =
   Continuously (AndAlso [ Gets (AllOf (And [Macros.creature,
                                             ControlledBy (Macros.target AnyPlayer)]))
                                (PtDown (Lit 2)) (PtUp (Lit 0))
-                        , LosesEveryType Them CreatureSpace ])
+                        , Becomes Them Loses (EveryTypeOf CreatureSpace) ])
                (Just Macros.untilEndOfTurn)
 
 ||| Curse of Conformity
@@ -6865,14 +6816,14 @@ curseOfConformity =
            [ HasBasePt (AllOf (And [Macros.creature, Not (HasSupertype Legendary),
                                     ControlledBy (AttachHost Enchanted PlayerW)]))
                        (Lit 3) (Lit 3)
-           , LosesEveryType Them CreatureSpace ]) ]
+           , Becomes Them Loses (EveryTypeOf CreatureSpace) ]) ]
        Nothing
 
 ||| Lithoform Blight
 public export
 lithoformBlightLoss : StaticEffect []
 lithoformBlightLoss =
-  AndAlso [ LosesEveryType (AttachHost Enchanted (TypeW Land)) LandSpace
+  AndAlso [ Becomes (AttachHost Enchanted (TypeW Land)) Loses (EveryTypeOf LandSpace)
           , LosesAllAbilities It Nothing ]
 
 ||| Energybending
@@ -6883,8 +6834,7 @@ energybending =
        (MkTypeLine [spellType "Lesson"] [Instant])
        [ Spell (Sequentially
                   [ Continuously
-                      (AddsEveryType (AllOf (And [Macros.land, ControlledBy You]))
-                                     BasicLandSpace)
+                      (Becomes (AllOf (And [Macros.land, ControlledBy You])) Adds (EveryTypeOf BasicLandSpace))
                       (Just Macros.untilEndOfTurn)
                   , (Macros.draw You (Lit 1)) ]) ]
        Nothing
@@ -6896,9 +6846,7 @@ ashesOfTheFallen =
   Macros.card "Ashes of the Fallen" (Just [Macros.generic 2]) []
        (MkTypeLine [] [Artifact])
        [ Static (Macros.entersChoosing Macros.thisArtifact (SubtypeQ Creature))
-       , Static (AddsChosenQuality
-                   (Each (And [Macros.creature, InZone (Macros.graveyardOf You)]))
-                   (OfChosen (SubtypeQ Creature))) ]
+       , Static (Becomes (Each (And [Macros.creature, InZone (Macros.graveyardOf You)])) Adds (ChosenQuality (OfChosen (SubtypeQ Creature)))) ]
        Nothing
 
 ||| Yedora, Grave Gardener
@@ -6916,11 +6864,9 @@ yedoraGraveGardener =
                  [ Move It Macros.battlefieldZ
                         [EntersAs FaceDown, Under (OwnerOf It)]
                  , Continuously
-                     (SetsType It
-                               (MkToken Nothing []
+                     (Becomes It Sets (Bundle (MkToken Nothing []
                                         (MkTypeLine [landType "Forest"] [Land])
-                                        [] Nothing)
-                               Nothing)
+                                        [] Nothing) Nothing))
                      Nothing ])) ]
        (Just (5, 5))
 
@@ -7382,7 +7328,7 @@ metallicMimic =
   Macros.card "Metallic Mimic" (Just [Macros.generic 2]) []
        (MkTypeLine [creatureType "Shapeshifter"] [Artifact, Creature])
        [ Static (Macros.entersChoosing Macros.thisCreature (SubtypeQ Creature))
-       , Static (AddsChosenQuality Macros.thisCreature (OfChosen (SubtypeQ Creature)))
+       , Static (Becomes Macros.thisCreature Adds (ChosenQuality (OfChosen (SubtypeQ Creature))))
        , Static (Macros.entersWithAdditionalCounters (Each (And [Macros.creature, ControlledBy You,
                                                                  OfChosen (SubtypeQ Creature),
                                                                  OtherThan Macros.thisCreature]))
@@ -8783,9 +8729,7 @@ mildManneredLibrarian =
        (MkTypeLine [creatureType "Human"] [Creature])
        [ Macros.activatedOnlyOnce (Mana [Macros.generic 3, Macros.pip Green])
                                   (Sequentially
-                                     [ Continuously (SetsType Macros.thisCreature
-                                         (MkToken Nothing [] (Macros.subtypesOnly [creatureType "Werewolf"]) [] Nothing)
-                                         Nothing) Nothing
+                                     [ Continuously (Becomes Macros.thisCreature Sets (Bundle (MkToken Nothing [] (Macros.subtypesOnly [creatureType "Werewolf"]) [] Nothing) Nothing)) Nothing
                                      , PutCounters (Lit 2) (PrintedKind Macros.plusOnePlusOne) It
                                      , (Macros.draw You (Lit 1)) ])
                                   OncePerGame ]
@@ -9434,7 +9378,7 @@ public export
 maskwoodNexusTypes : Ability
 maskwoodNexusTypes =
   Static (AlsoOffBattlefield
-            (AddsEveryType (AllOf Macros.creatureYouControl) CreatureSpace))
+            (Becomes (AllOf Macros.creatureYouControl) Adds (EveryTypeOf CreatureSpace)))
 
 ||| Mystical Tutor
 public export
@@ -9477,8 +9421,7 @@ brimazAttackToken =
 public export
 luxiorEquippedPermanent : Ability
 luxiorEquippedPermanent =
-  Static (BecomesAlso (AttachHost Equipped PermanentW)
-                      (MkToken Nothing [] (MkTypeLine [] [Creature]) [] Nothing))
+  Static (Becomes (AttachHost Equipped PermanentW) Adds (Bundle (MkToken Nothing [] (MkTypeLine [] [Creature]) [] Nothing) Nothing))
 
 public export
 nahiriLoyaltyRead : Predicate [] Object
@@ -12548,16 +12491,14 @@ sugarCoat =
        , Macros.keywordSubject "Enchant"
            (Or [HasType Creature, HasSubtype (artifactType "Food")])
        , Static (AndAlso
-           [ SetsType (AttachHost Enchanted PermanentW)
-                      (MkToken Nothing []
+           [ Becomes (AttachHost Enchanted PermanentW) Sets (Bundle (MkToken Nothing []
                                (MkTypeLine [artifactType "Food"] [Artifact])
                                [ Macros.activated
                                    (Compound [ Mana [Macros.generic 2]
                                              , TapSymbol
                                              , Do (Macros.sacrifice You Macros.thisArtifact) ])
                                    (Macros.gainsLife You (Lit 3)) ]
-                               Nothing)
-                      Nothing
+                               Nothing) Nothing)
            , LosesAllAbilities It Nothing ]) ]
        Nothing
 
@@ -14344,9 +14285,12 @@ public export
 luxiorTypeSetting : Ability
 luxiorTypeSetting =
   Static (AndAlso
-            [ LosesType (AttachHost Equipped PermanentW) Planeswalker
-            , BecomesAlso It (MkToken Nothing []
-                                      (MkTypeLine [] [Creature]) [] Nothing) ])
+            [ Becomes (AttachHost Equipped PermanentW) Loses
+                      (Bundle (MkToken Nothing [] (Macros.typesOnly [Planeswalker]) [] Nothing)
+                              Nothing)
+            , Becomes It Adds
+                      (Bundle (MkToken Nothing [] (MkTypeLine [] [Creature]) [] Nothing)
+                              Nothing) ])
 
 ||| Vesuvan Shapeshifter
 public export
@@ -14714,8 +14658,7 @@ shimmerwildsGrowth =
        (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject "Enchant" Macros.land
        , Static (Macros.entersChoosing Macros.thisAura Color)
-       , Static (SetsChosenQuality (AttachHost Enchanted (TypeW Land))
-                                   (OfChosen Color))
+       , Static (Becomes (AttachHost Enchanted (TypeW Land)) Sets (ChosenQuality (OfChosen Color)))
        , Macros.triggered Whenever
            (VerbedEvent Nothing "Tap"
                         (Just (AttachHost Enchanted (TypeW Land))) Nothing True)
@@ -15243,10 +15186,8 @@ retroMutation =
        (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject "Enchant" Macros.creature
        , Static (AndAlso
-           [ SetsType (AttachHost Enchanted (TypeW Creature))
-                      (MkToken Nothing []
-                               (MkTypeLine [creatureType "Turtle"] []) [] Nothing)
-                      Nothing
+           [ Becomes (AttachHost Enchanted (TypeW Creature)) Sets (Bundle (MkToken Nothing []
+                               (MkTypeLine [creatureType "Turtle"] []) [] Nothing) Nothing)
            , HasBasePt It (Lit 0) (Lit 1)
            , Deontic It Forbid ["Attack"] Agent NoDeonticPatient Nothing
                       NoDeonticRider

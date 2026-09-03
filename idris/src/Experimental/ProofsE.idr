@@ -332,9 +332,7 @@ badAnaphoricTokenAfterNonToken Refl impossible
 ||| Removing a subtype does not affect card types [CR#205.1a], so a retention rider puts nothing back.
 public export
 badStillOnSubtypeSet : Unspellable (StaticEffect []) (\ok =>
-  SetsType (Macros.target Macros.creature)
-           (MkToken Nothing [] (MkTypeLine [creatureType "Coward"] []) [] Nothing)
-           (Just Land) {ro = ok})
+  Becomes (Macros.target Macros.creature) Sets (Bundle (MkToken Nothing [] (MkTypeLine [creatureType "Coward"] []) [] Nothing) (Just Land)) {ok = ok})
 badStillOnSubtypeSet Oh impossible
 
 
@@ -342,9 +340,7 @@ badStillOnSubtypeSet Oh impossible
 ||| [CR#205.1a] retains the instant and sorcery types with no rider at all.
 public export
 badStillAnInstant : Unspellable (StaticEffect []) (\ok =>
-  SetsType (Macros.target Macros.creature)
-           (MkToken Nothing [] (MkTypeLine [] [Artifact]) [] Nothing)
-           (Just Instant) {ro = ok})
+  Becomes (Macros.target Macros.creature) Sets (Bundle (MkToken Nothing [] (MkTypeLine [] [Artifact]) [] Nothing) (Just Instant)) {ok = ok})
 badStillAnInstant Oh impossible
 
 

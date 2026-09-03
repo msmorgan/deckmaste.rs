@@ -357,14 +357,14 @@ badTokenDuplicateColor Oh impossible
 ||| A creature subtype has nowhere to sit on a land [CR#205.1a]; the line must name the card type.
 public export
 badBecomesZombieLand : Unspellable (Effect []) (\ok =>
-  Macros.becomes (Macros.target Macros.land) (Macros.subtypesOnly [creatureType "Zombie"]) Nothing {af = ok})
+  Macros.becomes (Macros.target Macros.land) (Macros.subtypesOnly [creatureType "Zombie"]) Nothing {ok = ok})
 badBecomesZombieLand Oh impossible
 
 
 ||| "Target creature becomes in addition to its other types."
 public export
 badBecomesNothing : Unspellable (Effect []) (\ok =>
-  Macros.becomes (Macros.target Macros.creature) (MkTypeLine [] []) Nothing {sw = ok})
+  Macros.becomes (Macros.target Macros.creature) (MkTypeLine [] []) Nothing {ok = ok})
 badBecomesNothing Oh impossible
 
 
@@ -372,7 +372,7 @@ badBecomesNothing Oh impossible
 ||| The clause retains what the object had and states what it gains [CR#205.1b]; this states nothing.
 public export
 badBecomesOwnType : Unspellable (Effect []) (\ok =>
-  Macros.becomes (Macros.target Macros.creature) (Macros.typesOnly [Creature]) Nothing {sw = ok})
+  Macros.becomes (Macros.target Macros.creature) (Macros.typesOnly [Creature]) Nothing {ok = ok})
 badBecomesOwnType Oh impossible
 
 

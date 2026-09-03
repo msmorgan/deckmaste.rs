@@ -916,31 +916,23 @@ createTappedAttacking count tok =
 public export
 becomesAs : (n : Noun bs Object) -> (added : TokenChars bs) ->
             (d : Maybe (Duration (selfSubjIntro n))) ->
-            {auto 0 sw : AdditionSaysSomething (nounTy n) added} ->
-            {auto 0 af : AddedFits (nounTy n) added.line} ->
-            {auto 0 tc : TokenCanonical added} ->
-            {auto 0 ta : TokenAbilities added} ->
-            {auto 0 qf : TokenQualsFit added} ->
-            {auto 0 un : AdditionUnnamed added} ->
+            {auto 0 ok : BecomesOk Adds n (Bundle added Nothing)} ->
             {auto 0 sp : SpanOk TypeAddition d} -> Effect bs
-becomesAs n added d =
-  Continuously (BecomesAlso n added {sw} {af} {tc} {ta} {qf} {un}) d {sp}
+becomesAs n added d = Continuously (Becomes n Adds (Bundle added Nothing) {ok}) d {sp}
 
 public export
 becomes : (n : Noun bs Object) -> (added : TypeLine) ->
           (d : Maybe (Duration (selfSubjIntro n))) ->
-          {auto 0 sw : AdditionSaysSomething (nounTy n) (MkToken {bs} Nothing [] added [] Nothing)} ->
-          {auto 0 af : AddedFits (nounTy n) added} ->
-          {auto 0 tc : TokenCanonical (MkToken {bs} Nothing [] added [] Nothing)} ->
+          {auto 0 ok : BecomesOk Adds n (Bundle (MkToken {bs} Nothing [] added [] Nothing) Nothing)} ->
           {auto 0 sp : SpanOk TypeAddition d} -> Effect bs
-becomes n added d = becomesAs n (MkToken Nothing [] added [] Nothing) d {sw} {af} {tc} {sp}
+becomes n added d = becomesAs n (MkToken Nothing [] added [] Nothing) d {ok} {sp}
 
 public export
 becomesColor : (n : Noun bs Object) -> (cs : ColorSpec) ->
                (d : Maybe (Duration (selfSubjIntro n))) ->
-               {auto 0 cd : ColorSpecOk cs} ->
+               {auto 0 ok : BecomesOk Sets n (Colored cs)} ->
                {auto 0 sp : SpanOk ColorSet d} -> Effect bs
-becomesColor n cs d = Continuously (SetsColor n cs {cd}) d {sp}
+becomesColor n cs d = Continuously (Becomes n Sets (Colored cs) {ok}) d {sp}
 
 public export
 basicLandLine : (ss : List Subtype) -> {auto 0 bl : BasicLandTypes ss} -> TypeLine
