@@ -1216,3 +1216,24 @@ public export
 letterValDeltaIsPrefixFold : (bs : Bindings) -> (l : Letter) ->
                              amtDelta (LetterVal l {bs}) = letterDelta l bs
 letterValDeltaIsPrefixFold bs l = Refl
+
+||| "Each opponent discards a card. Exile those cards."
+public export
+distributedDeedReadsBackPlural : Effect []
+distributedDeedReadsBackPlural =
+  Sequentially [ Macros.discard (Macros.each Opponent) (Macros.a (InZone Macros.handZ))
+               , Macros.exile You (Macros.thoseVerbed "Discard" CardW) ]
+
+||| "Each opponent discards a card. Exile that card."
+public export
+badDistributedDiscardSingular : Unspellable (Effect []) (\ok =>
+  Sequentially [ Macros.discard (Macros.each Opponent) (Macros.a (InZone Macros.handZ))
+               , Macros.exile You (Macros.theVerbed "Discard" CardW {ok}) ])
+badDistributedDiscardSingular Refl impossible
+
+||| "Whenever enchanted player is dealt damage, they lose half their life, rounded up."
+public export
+enchantedPlayerDamageReadsBackAsThey : Ability
+enchantedPlayerDamageReadsBackAsThey =
+  Macros.triggered Whenever (IsDealtDamage AnyDamage (AttachHost Enchanted PlayerW))
+                   (Macros.losesLife They (Half RoundUp (PlayerStatOf LifeTotal They)))

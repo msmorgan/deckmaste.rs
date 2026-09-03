@@ -393,9 +393,7 @@ mutual
   eventAfter : {bs : Bindings} -> GameEvent bs -> Bindings
   eventAfter (Dies n) = moveIntro Nothing n (Just Graveyard)
   eventAfter (Leaves n _) = moveIntro Nothing n Nothing
-  eventAfter (IsDealtDamage {k = Object} _ to) =
-    outcomeB DamageDealt :: selfSubjIntro to
-  eventAfter (IsDealtDamage _ to) = outcomeB DamageDealt :: nomIntro to
+  eventAfter (IsDealtDamage _ to) = outcomeB DamageDealt :: selfSubjIntro to
   eventAfter (Draws who) = nomIntro who
   eventAfter (LosesGame who) = nomIntro who
   eventAfter (Enters n _) = moveIntro Nothing n (Just Battlefield)

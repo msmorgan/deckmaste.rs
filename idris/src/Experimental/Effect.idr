@@ -1891,8 +1891,18 @@ mutual
   effIntro (HeldUntil e ev) = annIntro e
 
   public export
+  distributedDelta : {bs : Bindings} -> (s : Noun bs Player) -> Bindings -> List Binding
+  distributedDelta s out =
+    pluralizeDelta (take (length out `minus` length (agentIntro s)) out)
+
+  public export
   doesEffIntro : {bs : Bindings} -> Plurality -> (s : Noun bs Player) ->
                  (v : VerbLabel) -> Effect (agentIntro s) -> Bindings
+  doesEffIntro ManyOf s v (Move what to _) =
+    afterMoveTo to (distributedDelta s (moveIntro (Just v) what (Just (zoneSort to)))
+                      ++ nomIntro s)
+  doesEffIntro ManyOf s v (SetStatus _ n) =
+    distributedDelta s (stampIntro (Just v) n) ++ nomIntro s
   doesEffIntro ManyOf s v e = deedDelta e ++ nomIntro s
   doesEffIntro OneOf s v (Move what to _) =
     afterMoveTo to (moveIntro (Just v) what (Just (zoneSort to)))

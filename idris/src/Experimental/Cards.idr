@@ -467,7 +467,10 @@ carnifexDemon =
   PutCounters (Lit 1) (PrintedKind Macros.minusOneMinusOne) (Macros.each (Macros.otherCreature Macros.thisCreature))
 
 syphonMind : Effect []
-syphonMind = (Macros.discard (Macros.each Macros.otherPlayer) (Macros.a (InZone Macros.handZ)))
+syphonMind =
+  Sequentially
+    [ Macros.discard (Macros.each Macros.otherPlayer) (Macros.a (InZone Macros.handZ))
+    , ForEachOf (Macros.thoseVerbedThisWay "Discard" CardW) (Draw You (Lit 1)) ]
 
 brashTaunter : Effect []
 brashTaunter = Fights Macros.thisCreature (Macros.target (Macros.otherCreature Macros.thisCreature))
@@ -5245,7 +5248,10 @@ grievousWoundLifeLock =
        (Just [Macros.generic 3, Macros.pip Black, Macros.pip Black]) []
        (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject "Enchant" AnyPlayer
-       , Static (Macros.playerCant "GainLife" (AttachHost Enchanted PlayerW)) ]
+       , Static (Macros.playerCant "GainLife" (AttachHost Enchanted PlayerW))
+       , Macros.triggered Whenever
+                          (IsDealtDamage AnyDamage (AttachHost Enchanted PlayerW))
+                          (Macros.losesLife They (Half RoundUp (PlayerStatOf LifeTotal They))) ]
        Nothing
 
 public export
