@@ -737,7 +737,7 @@ impl GameState {
             bindings.that_player,
             bindings.that_patient.clone(),
         );
-        let activation = self.enter_region(&triggered.effect, &seed);
+        let activation = self.enter_created_region(&triggered.effect, &seed, &bindings.captures);
         let mut frame = Frame {
             activation,
             payment: None,

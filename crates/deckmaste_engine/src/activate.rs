@@ -676,13 +676,13 @@ impl GameState {
             "begin_activate only handles battlefield sources"
         );
         let abilities = crate::derive::usable_abilities(self, object);
-        let ability = as_activated(
-            abilities
-                .get(index)
-                .expect("ability index from the legal list is in bounds"),
-        )
-        .expect("BeginActivate names an activated ability")
-        .clone();
+        let compiled = abilities
+            .get(index)
+            .expect("ability index from the legal list is in bounds");
+        let captures = crate::derive::usable_ability_captures(self, object, index, compiled);
+        let ability = as_activated(compiled)
+            .expect("BeginActivate names an activated ability")
+            .clone();
         let controller = self.objects.obj(object).controller;
         if self.payment.is_none() {
             self.begin_payment_proposal(controller);
@@ -692,6 +692,7 @@ impl GameState {
         // as for a fresh trigger outside any event context.
         let bindings = TriggerBindings {
             this: Some(LkiSnapshot::capture(self, object)),
+            captures: captures.clone(),
             ..Default::default()
         };
         // [CR#602.2a]: the ability is created on the stack as the FIRST step
@@ -703,7 +704,7 @@ impl GameState {
         let id = self.objects.mint(src, controller, Some(Zone::Stack));
         let mut frame = crate::stack::Frame::bare(object, controller);
         self.frame_set_source_lki(&mut frame, bindings.this.clone());
-        let activation = self.enter_region(&ability.effect, &frame);
+        let activation = self.enter_created_region(&ability.effect, &frame, &captures);
         self.announcing = Some(PendingStackEntry {
             optional_components: Vec::new(),
             paid_costs: Vec::new(),

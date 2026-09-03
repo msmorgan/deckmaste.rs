@@ -296,7 +296,7 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
     // non-index-stable positions are harmless here. Hot path: the derived read
     // recomputes conferrals per candidate per event (perf-last).
     for &obj in &state.zones.battlefield {
-        let (abilities, _printed_len) =
+        let (abilities, _printed_len, _captures) =
             crate::derive::derived_abilities_of(state, Some(obj), state.objects.obj(obj).source);
         for (ai, ability) in abilities.iter().enumerate() {
             let Ability::Static(s) = ability else {
@@ -357,7 +357,7 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
         // shape static confers madness on an owned off-battlefield card, so the
         // self-replacement that redirects its discard is a CONFERRED ability
         // the printed-only spine would never surface here.
-        let (abilities, _printed_len) =
+        let (abilities, _printed_len, _captures) =
             crate::derive::derived_abilities_of(state, Some(obj), state.objects.obj(obj).source);
         for (ai, ability) in abilities.iter().enumerate() {
             if let Ability::Static(s) = ability
@@ -418,7 +418,7 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
             // DERIVED read (see the replacement sweep above): a conferred
             // damage prevention participates too — derived ⊇
             // printed, `ai` is lineage-only.
-            let (abilities, _printed_len) = crate::derive::derived_abilities_of(
+            let (abilities, _printed_len, _captures) = crate::derive::derived_abilities_of(
                 state,
                 Some(obj),
                 state.objects.obj(obj).source,

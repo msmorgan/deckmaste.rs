@@ -64,6 +64,24 @@ pub(crate) enum Value {
     Symbol(String),
 }
 
+/// One executable ability reached by flattening a granted ability value,
+/// together with the values its root region captured when the granting
+/// continuous effect was created. A composite keyword contributes one entry
+/// per executable member; an intrinsic keyword contributes none.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CapturedAbility {
+    pub(crate) ability: deckmaste_core::Ability,
+    pub(crate) captures: Vec<(RefId, Value)>,
+}
+
+/// Runtime payload aligned with one `Modification::GainAbility` in a floating
+/// continuous effect. The core ability remains immutable grammar; this
+/// engine-owned companion is its closure environment.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct AbilityRuntime {
+    pub(crate) flattened: Vec<CapturedAbility>,
+}
+
 impl Value {
     /// The live object this value names, if it names exactly one. Used to
     /// inspect a frozen capture without an activation to read it through.
@@ -188,6 +206,102 @@ impl crate::state::GameState {
             .captures()
             .map(|(here, outer, kind)| (here, self.snapshot_register(frame, outer, kind)))
             .collect()
+    }
+
+    /// Close over every executable region inside a granted ability. The
+    /// snapshot happens while the granting resolution's activation is still
+    /// live; later layer derivation and activation/trigger entry use only this
+    /// frozen payload.
+    pub(crate) fn capture_ability_runtime(
+        &self,
+        ability: &deckmaste_core::Ability,
+        frame: &Frame,
+    ) -> AbilityRuntime {
+        let mut flattened = Vec::new();
+        self.capture_ability_runtime_into(ability, frame, &mut flattened);
+        AbilityRuntime { flattened }
+    }
+
+    fn capture_ability_runtime_into(
+        &self,
+        ability: &deckmaste_core::Ability,
+        frame: &Frame,
+        out: &mut Vec<CapturedAbility>,
+    ) {
+        use deckmaste_core::Ability;
+        use deckmaste_core::ManaAbility;
+
+        let captures = match ability {
+            Ability::Static(region) => self.capture_snapshot(region, frame),
+            Ability::Activated(activated) => self.capture_snapshot(&activated.effect, frame),
+            Ability::Triggered(triggered) => self.capture_snapshot(&triggered.effect, frame),
+            Ability::Mana(ManaAbility::Activated { ability, .. }) => {
+                self.capture_snapshot(&ability.effect, frame)
+            }
+            Ability::Mana(ManaAbility::Triggered(triggered)) => {
+                self.capture_snapshot(&triggered.effect, frame)
+            }
+            Ability::Spell(spell) => self.capture_snapshot(&spell.effect, frame),
+            Ability::Keyword(deckmaste_core::KeywordAbility::Composite { abilities, .. }) => {
+                for member in abilities {
+                    self.capture_ability_runtime_into(member, frame, out);
+                }
+                return;
+            }
+            Ability::Innate(inner) => {
+                self.capture_ability_runtime_into(inner, frame, out);
+                return;
+            }
+            Ability::Keyword(_) => return,
+        };
+        out.push(CapturedAbility {
+            ability: ability.peel_innate().clone(),
+            captures,
+        });
+    }
+
+    /// Capture companions for a flattened continuous-effect change list.
+    /// Non-grant changes carry an empty entry so the vectors remain aligned.
+    pub(crate) fn capture_grant_runtimes(
+        &self,
+        changes: &[deckmaste_core::Modification],
+        frame: &Frame,
+    ) -> Vec<AbilityRuntime> {
+        changes
+            .iter()
+            .map(|change| match change {
+                deckmaste_core::Modification::GainAbility(ability) => {
+                    self.capture_ability_runtime(ability, frame)
+                }
+                _ => AbilityRuntime::default(),
+            })
+            .collect()
+    }
+
+    /// Read nested grant captures through a created static region without
+    /// making a characteristics query consume a durable activation id.
+    pub(crate) fn capture_grant_runtimes_in_created_region<T>(
+        &self,
+        changes: &[deckmaste_core::Modification],
+        region: &Region<T>,
+        frame: &Frame,
+        captures: &[(RefId, Value)],
+    ) -> Vec<AbilityRuntime> {
+        let next_activation = self.next_activation.get();
+        let activation = self.enter_created_region(region, frame, captures);
+        let created = Frame {
+            activation,
+            payment: frame.payment,
+        };
+        let runtimes = self.capture_grant_runtimes(changes, &created);
+        self.remove_activation_family(activation);
+        debug_assert_eq!(
+            self.next_activation.get(),
+            next_activation + 1,
+            "capture-only region entry mints exactly one activation"
+        );
+        self.next_activation.set(next_activation);
+        runtimes
     }
 
     /// Freeze one register of `frame`'s activation for a value that will

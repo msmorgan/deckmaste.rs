@@ -386,6 +386,14 @@ pub struct GameImage {
     /// spells/abilities via `OneShotEffect::Continuously`, retained until their
     /// `duration` expires.
     pub continuous: Vec<ContinuousEffect>,
+    /// Grant-time closure environments keyed by the timestamp of the floating
+    /// continuous effect that owns them. Kept outside the public
+    /// `ContinuousEffect` value so callers constructing ordinary effects do
+    /// not need to know about engine activation values.
+    pub(crate) continuous_grant_runtimes: std::collections::BTreeMap<
+        crate::object::Timestamp,
+        Vec<crate::activation::AbilityRuntime>,
+    >,
     /// Floating one-shot/duration-bounded replacement effects ([CR#614.3]):
     /// regeneration shields and other "the next time …" replacements. Swept at
     /// end of turn; a `one_shot` instance is removed when it is the chosen
@@ -709,6 +717,7 @@ impl GameState {
             combat_damage: None,
             rng,
             continuous: Vec::new(),
+            continuous_grant_runtimes: std::collections::BTreeMap::new(),
             shields: Vec::new(),
             no_regen_subjects: Vec::new(),
             designations: DesignationStore::default(),
@@ -1050,6 +1059,7 @@ impl GameState {
         use deckmaste_core::TurnMarker::EndOfTurn;
         self.continuous
             .retain(|e| !matches!(e.duration, FixedUntil(EndOfTurn | EndOfCombat)));
+        self.prune_continuous_grant_runtimes();
         self.shields
             .retain(|s| !matches!(s.duration, FixedUntil(EndOfTurn | EndOfCombat)));
     }
@@ -1062,6 +1072,7 @@ impl GameState {
         use deckmaste_core::TurnMarker::EndOfCombat;
         self.continuous
             .retain(|e| !matches!(e.duration, FixedUntil(EndOfCombat)));
+        self.prune_continuous_grant_runtimes();
         self.shields
             .retain(|s| !matches!(s.duration, FixedUntil(EndOfCombat)));
     }
@@ -1081,6 +1092,7 @@ impl GameState {
         self.continuous.retain(|e| {
             !(matches!(e.duration, FixedUntil(YourNextTurn)) && e.controller == new_active)
         });
+        self.prune_continuous_grant_runtimes();
         // A shield reads its controller from the live source — take the list
         // out so the `self.objects` lookup doesn't overlap the `retain` borrow.
         let shields = std::mem::take(&mut self.shields);
@@ -1124,6 +1136,7 @@ impl GameState {
                 self.continuous.remove(i);
             }
         }
+        self.prune_continuous_grant_runtimes();
         let mut drop_sh = vec![false; self.shields.len()];
         for (i, s) in self.shields.iter().enumerate() {
             if let UntilEvent(filter) = &s.duration
@@ -1170,6 +1183,7 @@ impl GameState {
                 self.continuous.remove(i);
             }
         }
+        self.prune_continuous_grant_runtimes();
         let mut drop_sh = vec![false; self.shields.len()];
         for (i, s) in self.shields.iter().enumerate() {
             if let ForAsLongAs(cond) = &s.duration
@@ -1184,6 +1198,16 @@ impl GameState {
                 self.shields.remove(i);
             }
         }
+    }
+
+    fn prune_continuous_grant_runtimes(&mut self) {
+        let live: std::collections::BTreeSet<_> = self
+            .continuous
+            .iter()
+            .map(|effect| effect.timestamp)
+            .collect();
+        self.continuous_grant_runtimes
+            .retain(|timestamp, _| live.contains(timestamp));
     }
 }
 

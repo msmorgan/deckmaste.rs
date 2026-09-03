@@ -1030,7 +1030,7 @@ impl GameState {
             // Falkenrath-Gorger-shape conferral's trigger
             // participates in the scan where the printed-only spine would miss
             // it.
-            let (abilities, printed_len) =
+            let (abilities, printed_len, ability_captures) =
                 crate::derive::derived_abilities_of(self, live_id, source);
             // Whether this watcher is a battlefield permanent showing its BACK
             // face — exactly when `abilities_of_source` sources its section-1
@@ -1059,6 +1059,7 @@ impl GameState {
                 // region, so provenance parameters resolve by register.
                 let bindings = roles.bindings_over(TriggerBindings {
                     this: Some(this.clone()),
+                    captures: ability_captures[idx].clone(),
                     ..TriggerBindings::default()
                 });
                 let frame = self.trigger_gate_frame(&t.effect, controller, &bindings);

@@ -86,12 +86,20 @@ engine tickets its stages absorb (listed in each stage ticket).
    that names no definition of the creating region; and the engine snapshots
    every capture the created region declares at creation and supplies the
    list at region entry, so supply is total over `Region::captures()`.
-   RESIDUE: a carried body reached by a GRANT (`GainAbility`, a keyword
-   expansion) declares the same uniform capture ABI but is entered later by
-   the granted-to object, which has no creating register file. No corpus card
-   reads such a capture — the 14 nested subterms measured below differ from
-   their isolated lowering in `params` only, never in a body read — so this is
-   unbuilt, not broken; supplying it is `engine-granted-body-captures`.
+   **A grant closes over the same capture ABI.** `GainAbility` is an
+   ability-adding characteristic modification applied in layer 6
+   [CR#613.1f], but the continuous effect that carries it is created by the
+   resolving spell or ability [CR#611.2]. At that creation boundary the engine
+   snapshots every executable region inside the granted ability, including
+   each member of a composite keyword. The floating effect owns those closure
+   values; layer derivation carries them beside the granted ability, and a
+   later activation or trigger entry supplies them through
+   `enter_created_region`. The granted-to object's source/controller and event
+   roles remain the new region's intrinsic parameters; only its declared
+   `Provenance::Capture` suffix comes from the granting resolution. Thus a
+   controller change, later re-derivation, or composite expansion cannot turn
+   a declared grant capture into `Value::Unavailable` or silently substitute
+   the later bare frame.
 
    **Lowering is not context-free at ability granularity, permanently.** A
    carried region appends a capture parameter per enclosing register, so an
@@ -224,9 +232,10 @@ fixtures), `core-regions-captures-and-memory` (laws 7 and 8, split off when
 the cost half alone ran to ~4k lines), and `core-regions-witness-fixtures`
 (hand-spelled semantic fixtures for the nineteen inherited witness cards,
 which the wizards corpus cannot exercise). A stage is closed by its own
-ticket plus its follow-ups, not by its ticket alone. Stage 3's own follow-up
-is `engine-granted-body-captures` (law 7's residue: a carried body reached by
-a GRANT declares captures the engine does not yet supply).
+ticket plus its follow-ups, not by its ticket alone. Stage 3's grant-boundary
+follow-up was `engine-granted-body-captures`; it closed law 7's final runtime
+supply residue by carrying grant-time closure values through layer-derived
+abilities.
 
 Core's shape is independent of which semantics lowers into it. The chain
 builds the resolver on today's `deckmaste_semantics` → core path as the

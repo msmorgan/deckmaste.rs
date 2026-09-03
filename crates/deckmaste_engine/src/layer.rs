@@ -130,6 +130,10 @@ impl Characteristics {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct DerivedObject {
     characteristics: Characteristics,
+    /// Runtime closure companions aligned with `characteristics.abilities`.
+    /// Printed and rule-conferred abilities carry empty entries; a layer-6
+    /// grant from a resolved effect carries its grant-time captures here.
+    ability_runtimes: Vec<crate::activation::AbilityRuntime>,
     /// Derived controller ([CR#613.1b]). Seeded from the object's base
     /// controller, overwritten by layer-2 control-change effects; reverts
     /// automatically when those effects expire (it is re-derived each pass).
@@ -176,6 +180,14 @@ impl LayeredView {
         self.0.get(&id).map(|d| &d.characteristics)
     }
 
+    pub(crate) fn ability_runtime(
+        &self,
+        id: ObjectId,
+        index: usize,
+    ) -> Option<&crate::activation::AbilityRuntime> {
+        self.0.get(&id)?.ability_runtimes.get(index)
+    }
+
     fn entry(&self, id: ObjectId) -> &DerivedObject {
         self.0.get(&id).expect("live ObjectId in LayeredView")
     }
@@ -197,6 +209,7 @@ impl LayeredView {
     #[cfg(test)]
     pub(crate) fn single_with_abilities(id: ObjectId, abilities: Vec<Ability>) -> Self {
         let mut working = BTreeMap::new();
+        let ability_count = abilities.len();
         working.insert(
             id,
             DerivedObject {
@@ -209,6 +222,7 @@ impl LayeredView {
                     supertypes: Arc::new(Vec::new()),
                     abilities: Arc::new(abilities),
                 },
+                ability_runtimes: vec![crate::activation::AbilityRuntime::default(); ability_count],
                 controller: PlayerId(0),
                 cant_have: Vec::new(),
             },
@@ -306,6 +320,7 @@ fn base_values(state: &GameState, id: ObjectId) -> DerivedObject {
             supertypes: Arc::clone(&cache.supertypes),
             abilities: Arc::clone(&cache.printed),
         },
+        ability_runtimes: vec![crate::activation::AbilityRuntime::default(); cache.printed.len()],
         // Base controller ([CR#108.4]): what the object would have absent any
         // control-change effect. Layer 2 may overwrite it.
         controller: obj.controller,
@@ -405,6 +420,8 @@ struct ActiveEffect {
     controller: PlayerId,
     scope: ScopeResolved,
     changes: Vec<Modification>,
+    /// Closure companions aligned with `changes`; non-grant entries are empty.
+    grant_runtimes: Vec<crate::activation::AbilityRuntime>,
     /// The effect's carrier ([CR#611.2c]) — the object whose `Ref(This)`/
     /// `Ref(You)` a matching-set static resolves against. The source permanent
     /// for a static ability; `Player(controller)` for a spell-built
@@ -517,28 +534,54 @@ fn gather(
         // continuous effect (devoid → colorless, changeling → every creature
         // type) would silently do nothing. This mirrors the flat ability space
         // `abilities_of_source` builds for the trigger scan.
-        let mut sources = Vec::new();
+        let mut sources: Vec<(
+            Ability,
+            Vec<(deckmaste_core::RefId, crate::activation::Value)>,
+        )> = Vec::new();
         match derived.and_then(|d| d.get(&obj.id)) {
             // Later iterations: the derived ability list (granted statics
             // included). `Arc<Vec<Ability>>`, indexed not re-derived.
             Some(d) => {
-                for ability in d.characteristics.abilities.iter() {
-                    crate::derive::flatten_composites(ability, &mut sources);
+                for (ability, runtime) in
+                    d.characteristics.abilities.iter().zip(&d.ability_runtimes)
+                {
+                    if runtime.flattened.is_empty() {
+                        let mut flat = Vec::new();
+                        crate::derive::flatten_composites(ability, &mut flat);
+                        sources.extend(flat.into_iter().map(|ability| (ability, Vec::new())));
+                    } else {
+                        sources.extend(
+                            runtime
+                                .flattened
+                                .iter()
+                                .map(|entry| (entry.ability.clone(), entry.captures.clone())),
+                        );
+                    }
                 }
             }
             // First iteration (or an object absent from the derived map):
             // printed abilities.
             None => {
                 for ability in crate::derive::printed_abilities(state, obj.id) {
-                    crate::derive::flatten_composites(ability, &mut sources);
+                    let mut flat = Vec::new();
+                    crate::derive::flatten_composites(ability, &mut flat);
+                    sources.extend(flat.into_iter().map(|ability| (ability, Vec::new())));
                 }
             }
         }
-        for ability in &sources {
+        for (ability, captures) in &sources {
             let Ability::Static(effect) = ability else {
                 continue;
             };
-            if let Some((conditions, scope, changes)) = static_effect_scope(state, obj.id, effect) {
+            if let Some((conditions, scope, changes)) =
+                static_effect_scope(state, obj.id, effect, captures)
+            {
+                let grant_runtimes = state.capture_grant_runtimes_in_created_region(
+                    &changes,
+                    effect,
+                    &crate::stack::Frame::bare(obj.id, obj.controller),
+                    captures,
+                );
                 effects.push(ActiveEffect {
                     timestamp,
                     // The 7a/CDA layer distinction is deferred (0 cards use
@@ -553,6 +596,7 @@ fn gather(
                     controller: obj.controller,
                     scope,
                     changes,
+                    grant_runtimes,
                     // The carrier is the source permanent itself: a `Matching`
                     // scope's `Ref(This)` is this object and `Ref(You)` is its
                     // controller ([CR#603.10a,109.5]).
@@ -581,8 +625,13 @@ fn gather(
                 // an `Each`-shaped conferral, which the `Property` grammar does
                 // not carry today), so this is always a locked, source-relative
                 // resolve — never `Floating`.
-                let scope =
-                    ScopeResolved::Locked(resolve_source_relative(state, obj.id, reference, None));
+                let scope = ScopeResolved::Locked(resolve_source_relative(
+                    state,
+                    obj.id,
+                    reference,
+                    None,
+                    &[],
+                ));
                 let changes = vec![change.clone()];
                 effects.push(ActiveEffect {
                     timestamp: obj.timestamp,
@@ -594,6 +643,10 @@ fn gather(
                     // the self-scoped counter counts — the same single boundary
                     // as the static-ability path.
                     changes: bake_counter_counts(&Modification::flatten(&changes), &obj.counters),
+                    grant_runtimes: vec![
+                        crate::activation::AbilityRuntime::default();
+                        Modification::flatten(&changes).len()
+                    ],
                     watcher: Some(obj.source),
                     locked: None,
                 });
@@ -602,6 +655,13 @@ fn gather(
     }
     // Append floating one-shot continuous effects from the registry.
     for ce in &state.continuous {
+        let changes = Modification::flatten(&ce.changes).to_vec();
+        let grant_runtimes = state
+            .continuous_grant_runtimes
+            .get(&ce.timestamp)
+            .cloned()
+            .filter(|runtimes| runtimes.len() == changes.len())
+            .unwrap_or_else(|| vec![crate::activation::AbilityRuntime::default(); changes.len()]);
         effects.push(ActiveEffect {
             timestamp: ce.timestamp,
             is_cda: ce.is_cda,
@@ -610,7 +670,8 @@ fn gather(
             scope: ce.scope.clone(),
             // Same single boundary: a floating one-shot's `changes` (a granted
             // `+N/+N until end of turn`) is flattened before the layer pass.
-            changes: Modification::flatten(&ce.changes).to_vec(),
+            changes,
+            grant_runtimes,
             // A spell-built floating effect's source spell has left the stack by
             // the time the layer pass runs, so `Ref(You)` anchors on the locked
             // controller's player proxy (`controller_of_source(Player(p)) == p`,
@@ -650,6 +711,7 @@ fn static_effect_scope(
     state: &GameState,
     obj: ObjectId,
     region: &deckmaste_core::Region<StaticEffect>,
+    captures: &[(deckmaste_core::RefId, crate::activation::Value)],
 ) -> Option<(Vec<Condition>, ScopeResolved, Vec<Modification>)> {
     match &region.body {
         StaticEffect::Modify(reference, change) => Some((
@@ -659,6 +721,7 @@ fn static_effect_scope(
                 obj,
                 reference,
                 Some(&region.params),
+                captures,
             )),
             Modification::flatten(std::slice::from_ref(change)).to_vec(),
         )),
@@ -682,7 +745,8 @@ fn static_effect_scope(
         // still hold for the innermost modification to apply.
         StaticEffect::Conditionally(condition, inner) => {
             let nested = deckmaste_core::Region::new(region.params.clone(), inner.as_ref().clone());
-            let (mut conditions, scope, changes) = static_effect_scope(state, obj, &nested)?;
+            let (mut conditions, scope, changes) =
+                static_effect_scope(state, obj, &nested, captures)?;
             conditions.insert(0, condition.clone());
             Some((conditions, scope, changes))
         }
@@ -708,26 +772,33 @@ fn resolve_source_relative(
     source: ObjectId,
     reference: &deckmaste_core::Reference,
     params: Option<&[deckmaste_core::Param]>,
+    captures: &[(deckmaste_core::RefId, crate::activation::Value)],
 ) -> Vec<ObjectId> {
     use deckmaste_core::Reference;
     match reference {
         // The carrying object itself.
-        &Reference::Reg(reference)
-            if params.is_none_or(|params| {
-                params
-                    .get(reference.0 as usize)
-                    .is_some_and(|param| param.provenance == deckmaste_core::Provenance::Source)
-            }) =>
+        &Reference::Reg(reference) => match params
+            .and_then(|params| params.get(reference.0 as usize))
         {
-            vec![source]
-        }
+            Some(param) if param.provenance == deckmaste_core::Provenance::Source => vec![source],
+            Some(param) if matches!(param.provenance, deckmaste_core::Provenance::Capture(_)) => {
+                captures
+                    .iter()
+                    .find(|(here, _)| *here == reference)
+                    .map_or_else(Vec::new, |(_, value)| captured_objects(value))
+            }
+            None if params.is_none() => vec![source],
+            _ => Vec::new(),
+        },
         // The host an attachment is attached to ([CR#301.5,303.4]) — read the
         // attachment→host link off the resolved inner object. No host (an
         // unattached attachment) → empty, so nothing is buffed.
-        Reference::AttachHostOf(inner) => resolve_source_relative(state, source, inner, params)
-            .into_iter()
-            .filter_map(|id| state.objects.get(id).and_then(|o| o.attached_to))
-            .collect(),
+        Reference::AttachHostOf(inner) => {
+            resolve_source_relative(state, source, inner, params, captures)
+                .into_iter()
+                .filter_map(|id| state.objects.get(id).and_then(|o| o.attached_to))
+                .collect()
+        }
         // Frame-dependent references only: `Target`, bindings (`Bound`,
         // `Linked`, `EventObject`, `EventActor`) — and the player-valued
         // `You`/`ControllerOf`/`OwnerOf` — cannot be resolved without a `Frame`
@@ -735,6 +806,18 @@ fn resolve_source_relative(
         // need `eval_reference`, which `gather` deliberately lacks to avoid the
         // layers()→eval recursion).
         _ => Vec::new(),
+    }
+}
+
+fn captured_objects(value: &crate::activation::Value) -> Vec<ObjectId> {
+    use crate::activation::Value;
+    match value {
+        Value::Object(product) => product.current.into_iter().collect(),
+        Value::Objects(products) | Value::Pile(products) => products
+            .iter()
+            .filter_map(|product| product.current)
+            .collect(),
+        Value::Unavailable | Value::Number(_) | Value::Symbol(_) => Vec::new(),
     }
 }
 
@@ -1078,7 +1161,7 @@ fn resolve_count_ref(
         }
         _ => {
             let source = state.objects.iter().find(|o| Some(o.source) == watcher)?.id;
-            resolve_source_relative(state, source, reference, None)
+            resolve_source_relative(state, source, reference, None, &[])
                 .into_iter()
                 .next()
         }
@@ -1555,6 +1638,7 @@ pub(crate) fn ability_is_named(a: &Ability, name: &Ident) -> bool {
 /// no borrow conflict.
 fn apply(
     m: &Modification,
+    grant_runtime: &crate::activation::AbilityRuntime,
     effect_controller: PlayerId,
     state: &GameState,
     working: &mut BTreeMap<ObjectId, DerivedObject>,
@@ -1581,7 +1665,7 @@ fn apply(
             }
         }
         // Non-count ops: borrow the entry mutably and mutate in place.
-        m => apply_static(m, effect_controller, state, working, obj_id),
+        m => apply_static(m, grant_runtime, effect_controller, state, working, obj_id),
     }
 }
 
@@ -1682,6 +1766,7 @@ fn resolve_type(state: &GameState, name: &Ident) -> TypeDef {
 )]
 fn apply_static(
     m: &Modification,
+    grant_runtime: &crate::activation::AbilityRuntime,
     effect_controller: PlayerId,
     state: &GameState,
     working: &mut BTreeMap<ObjectId, DerivedObject>,
@@ -1790,6 +1875,7 @@ fn apply_static(
             // Respect any active "can't have" prohibition ([CR#613.1f]).
             if !d.cant_have.iter().any(|n| ability_is_named(a, n)) {
                 Arc::make_mut(&mut c.abilities).push((**a).clone());
+                d.ability_runtimes.push(grant_runtime.clone());
             }
         }
         // [CR#113.12]: "loses all abilities" strips card abilities but NOT
@@ -1797,19 +1883,19 @@ fn apply_static(
         // Equipment/Fortification host restriction) — those are rules of the
         // object, not abilities it has, so they survive.
         Modification::LoseAllAbilities => {
-            Arc::make_mut(&mut c.abilities).retain(Ability::is_innate);
+            retain_abilities(d, Ability::is_innate);
         }
         Modification::LoseAbility(name) => {
             // [CR#113.12]: never remove an `Innate` ability. (A named-keyword
             // `LoseAbility` already misses `Innate`, which carries no keyword
             // name, but guard explicitly so the invariant is local.)
-            Arc::make_mut(&mut c.abilities).retain(|x| x.is_innate() || !ability_is_named(x, name));
+            retain_abilities(d, |x| x.is_innate() || !ability_is_named(x, name));
         }
         Modification::CantHaveAbility(name) => {
             // Remove any already-present instance of the named ability (except
             // `Innate`, [CR#113.12]), then record the prohibition so future
             // GainAbility skips it.
-            Arc::make_mut(&mut c.abilities).retain(|x| x.is_innate() || !ability_is_named(x, name));
+            retain_abilities(d, |x| x.is_innate() || !ability_is_named(x, name));
             d.cant_have.push(*name);
         }
         // --- Layer 2: control-changing ([CR#613.1b]) ---
@@ -1834,6 +1920,20 @@ fn apply_static(
             unreachable!("Several/Expanded are flattened before the engine")
         }
     }
+}
+
+fn retain_abilities(d: &mut DerivedObject, mut keep: impl FnMut(&Ability) -> bool) {
+    let abilities = Arc::make_mut(&mut d.characteristics.abilities);
+    let mut next_abilities = Vec::with_capacity(abilities.len());
+    let mut next_runtimes = Vec::with_capacity(d.ability_runtimes.len());
+    for (ability, runtime) in abilities.drain(..).zip(d.ability_runtimes.drain(..)) {
+        if keep(&ability) {
+            next_abilities.push(ability);
+            next_runtimes.push(runtime);
+        }
+    }
+    *abilities = next_abilities;
+    d.ability_runtimes = next_runtimes;
 }
 
 /// Resolve a control-change effect's new controller ([CR#613.1b]) to a concrete
@@ -1893,9 +1993,17 @@ fn apply_effect_in_layer(
     let targets = effect.locked.clone().expect("locked just set");
     for obj_id in targets {
         if working.contains_key(&obj_id) {
-            for m in &effect.changes {
+            for (m, runtime) in effect.changes.iter().zip(&effect.grant_runtimes) {
                 if layer_of(m, effect.is_cda) == Some(layer) {
-                    apply(m, effect.controller, state, working, obj_id, effect.watcher);
+                    apply(
+                        m,
+                        runtime,
+                        effect.controller,
+                        state,
+                        working,
+                        obj_id,
+                        effect.watcher,
+                    );
                 }
             }
         }
@@ -1914,9 +2022,17 @@ fn probe_apply(
     let mut probe = working.clone();
     for obj_id in effect_targets(state, working, d) {
         if probe.contains_key(&obj_id) {
-            for m in &d.changes {
+            for (m, runtime) in d.changes.iter().zip(&d.grant_runtimes) {
                 if layer_of(m, d.is_cda) == Some(layer) {
-                    apply(m, d.controller, state, &mut probe, obj_id, d.watcher);
+                    apply(
+                        m,
+                        runtime,
+                        d.controller,
+                        state,
+                        &mut probe,
+                        obj_id,
+                        d.watcher,
+                    );
                 }
             }
         }
@@ -1972,6 +2088,7 @@ type EffectSignature = Vec<(
     Vec<Condition>,
     ScopeSig,
     Vec<Modification>,
+    Vec<crate::activation::AbilityRuntime>,
 )>;
 
 /// The `Eq`-able projection of a `ScopeResolved` for the signature.
@@ -1997,6 +2114,7 @@ fn effect_signature(effects: &[ActiveEffect]) -> EffectSignature {
                 e.conditions.clone(),
                 scope,
                 e.changes.clone(),
+                e.grant_runtimes.clone(),
             )
         })
         .collect()
@@ -2128,6 +2246,10 @@ fn fold_conferred_abilities(working: &mut BTreeMap<ObjectId, DerivedObject>) {
             continue;
         }
         let abilities = Arc::make_mut(&mut c.abilities);
+        d.ability_runtimes.extend(
+            std::iter::repeat_with(crate::activation::AbilityRuntime::default)
+                .take(conferred.len()),
+        );
         abilities.extend(conferred);
     }
 }

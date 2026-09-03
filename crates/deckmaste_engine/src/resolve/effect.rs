@@ -463,6 +463,7 @@ impl GameState {
                     controller: crate::player::PlayerId,
                     ids: Vec<ObjectId>,
                     changes: Vec<Modification>,
+                    grant_runtimes: Vec<crate::activation::AbilityRuntime>,
                     duration: deckmaste_core::Duration,
                     origin: Option<Box<Frame>>,
                 }
@@ -558,10 +559,12 @@ impl GameState {
                                 }
                                 _ => None,
                             };
+                            let grant_runtimes = self.capture_grant_runtimes(&changes, frame);
                             members.push(Member::Static(Box::new(PendingStatic {
                                 controller,
                                 ids,
                                 changes,
+                                grant_runtimes,
                                 duration: e.duration.clone(),
                                 origin,
                             })));
@@ -593,10 +596,13 @@ impl GameState {
                                 controller,
                                 ids,
                                 changes,
+                                grant_runtimes,
                                 duration,
                                 origin,
                             } = *pending;
                             let timestamp = self.objects.next_timestamp();
+                            self.continuous_grant_runtimes
+                                .insert(timestamp, grant_runtimes);
                             self.continuous.push(ContinuousEffect {
                                 timestamp,
                                 controller,
@@ -739,6 +745,10 @@ impl GameState {
                     return;
                 }
                 let controller = frame.controller(self);
+                let changes = changes.to_vec();
+                let grant_runtimes = self.capture_grant_runtimes(&changes, frame);
+                self.continuous_grant_runtimes
+                    .insert(timestamp, grant_runtimes);
                 self.continuous.push(ContinuousEffect {
                     timestamp,
                     // The continuous effect's controller is the controller
@@ -746,7 +756,7 @@ impl GameState {
                     // it resolves the `You` in a layer-2 control change.
                     controller,
                     scope,
-                    changes: changes.to_vec(),
+                    changes,
                     rows,
                     duration: e.duration.clone(),
                     origin,
@@ -3172,6 +3182,147 @@ mod tests {
         assert_eq!(
             ce.changes,
             vec![Modification::Toughness(NumericOp::Up(Count::Literal(2)))]
+        );
+    }
+
+    /// FIXTURE — a resolved effect grants an activated ability whose body
+    /// reads the granting region's controller. The granted object changes
+    /// controller before activation, proving the later body reads the frozen
+    /// grant-time capture rather than its new bare frame ([CR#611.2,613.1f]).
+    #[test]
+    fn a_granted_ability_body_reads_its_grant_time_capture() {
+        use deckmaste_core::Ability;
+        use deckmaste_core::ActivatedAbility;
+        use deckmaste_core::Continuously;
+        use deckmaste_core::Cost;
+        use deckmaste_core::DefId;
+        use deckmaste_core::Duration;
+        use deckmaste_core::Kind;
+        use deckmaste_core::LifeOp;
+        use deckmaste_core::Modification;
+        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::Param;
+        use deckmaste_core::Provenance;
+        use deckmaste_core::RefId;
+        use deckmaste_core::Reference;
+        use deckmaste_core::Region;
+        use deckmaste_core::StaticEffect;
+
+        let (mut state, _) = bear_on_field();
+        let captured_controller = RefId(2);
+        let granted = Ability::activated(ActivatedAbility {
+            ability_word: None,
+            cost: Cost::default(),
+            from: None,
+            window: None,
+            condition: None,
+            limits: Arc::from([]),
+            targets: Arc::from([]),
+            effect: Region::new(
+                Arc::from([
+                    Param {
+                        def: DefId(0),
+                        kind: Kind::Object,
+                        provenance: Provenance::Source,
+                    },
+                    Param {
+                        def: DefId(1),
+                        kind: Kind::Object,
+                        provenance: Provenance::Controller,
+                    },
+                    Param {
+                        def: DefId(captured_controller.0),
+                        kind: Kind::Object,
+                        provenance: Provenance::Capture(RefId(1)),
+                    },
+                ]),
+                OneShotEffect::Act(deckmaste_core::Action::ChangeLife(
+                    Reference::Reg(captured_controller),
+                    LifeOp::Down(deckmaste_core::Count::Literal(1)),
+                ))
+                .into(),
+            ),
+        });
+        let grant_effect = OneShotEffect::Continuously(Continuously {
+            effect: Arc::new(StaticEffect::Modify(
+                Reference::Reg(RefId(0)),
+                Modification::GainAbility(Arc::new(granted)),
+            )),
+            duration: Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn),
+        });
+        let grant_region = Region::new(
+            Arc::from([
+                Param {
+                    def: DefId(0),
+                    kind: Kind::Object,
+                    provenance: Provenance::Source,
+                },
+                Param {
+                    def: DefId(1),
+                    kind: Kind::Object,
+                    provenance: Provenance::Controller,
+                },
+            ]),
+            grant_effect.clone().into(),
+        );
+        let fixture = mint_on_field(
+            &mut state,
+            Card::Normal(deckmaste_card::CardFace {
+                name: "Grant Capture Fixture".into(),
+                types: vec![Type::Creature.def()],
+                abilities: vec![Ability::activated(ActivatedAbility {
+                    ability_word: None,
+                    cost: Cost::default(),
+                    from: None,
+                    window: None,
+                    condition: None,
+                    limits: Arc::from([]),
+                    targets: Arc::from([]),
+                    effect: grant_region.clone(),
+                })],
+                ..deckmaste_card::CardFace::default()
+            }),
+        );
+        let bare = frame_src(&state, fixture);
+        let activation = state.enter_region(&grant_region, &bare);
+        let grant_frame = Frame {
+            activation,
+            payment: None,
+        };
+        state.run_effect(grant_effect, &grant_frame);
+        state.remove_activation_family(activation);
+
+        // The ability is activated under a different controller. Its own
+        // Controller parameter is now P1, while capture 2 must remain P0.
+        state.objects.obj_mut(fixture).controller = PlayerId(1);
+        let abilities = crate::derive::usable_abilities(&state, fixture);
+        let index = abilities
+            .iter()
+            .rposition(|ability| ability.as_activated().is_some())
+            .expect("the layer-6 grant is usable");
+        state.begin_activate(fixture, index);
+        let pending = state
+            .announcing
+            .as_ref()
+            .expect("activation announcement opened");
+        let StackObject::Activated { ability, .. } = &pending.object else {
+            panic!("the granted ability is the pending activation")
+        };
+        let body = ability.effect.body[0].clone();
+        let frame = Frame {
+            activation: pending.activation,
+            payment: None,
+        };
+        let p0_before = state.player(PlayerId(0)).life;
+        let p1_before = state.player(PlayerId(1)).life;
+        state.run_effect(body, &frame);
+        run_injected(&mut state);
+
+        assert_eq!(state.player(PlayerId(0)).life, p0_before - 1);
+        assert_eq!(
+            state.player(PlayerId(1)).life,
+            p1_before,
+            "the later bare activation controller did not replace the grant-time capture"
         );
     }
 

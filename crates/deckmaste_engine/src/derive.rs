@@ -21,6 +21,9 @@ use crate::object::ObjectId;
 use crate::object::ObjectSource;
 use crate::state::GameState;
 
+type AbilityCaptures = Vec<(deckmaste_core::RefId, crate::activation::Value)>;
+type DerivedAbilities = (Vec<Ability>, usize, Vec<AbilityCaptures>);
+
 /// The face an object presents. Skeleton: the front face.
 #[must_use]
 pub fn face(card: &Card) -> &CardFace {
@@ -132,6 +135,26 @@ pub fn usable_abilities(state: &GameState, id: ObjectId) -> Arc<Vec<Ability>> {
             .map(|a| a.peel_innate().clone())
             .collect(),
     )
+}
+
+/// Grant-time captures for one entry in [`usable_abilities`]. Printed and
+/// rule-conferred abilities return an empty list. A granted executable root
+/// returns the closure environment stored alongside the layer-derived ability.
+pub(crate) fn usable_ability_captures(
+    state: &GameState,
+    id: ObjectId,
+    index: usize,
+    ability: &Ability,
+) -> Vec<(deckmaste_core::RefId, crate::activation::Value)> {
+    let view = state.layers();
+    let Some(runtime) = view.ability_runtime(id, index) else {
+        return Vec::new();
+    };
+    runtime
+        .flattened
+        .iter()
+        .find(|entry| entry.ability == *ability.peel_innate())
+        .map_or_else(Vec::new, |entry| entry.captures.clone())
 }
 
 /// The object's CARD-FACING derived abilities after layer 6
@@ -268,15 +291,18 @@ pub(crate) fn derived_abilities_of(
     state: &GameState,
     id: Option<ObjectId>,
     source: ObjectSource,
-) -> (Vec<Ability>, usize) {
+) -> DerivedAbilities {
     let mut out = abilities_of_source(state, source);
     let printed_len = out.len();
+    let mut captures = vec![Vec::new(); printed_len];
     if let Some(id) = id {
         // Section 2: predicate-scoped `ConferralRule` grants — a global-rule
         // mechanism SEPARATE from the layer system (never folded into
         // `layers()`), so it does not overlap section 3.
         for conferred in conferred_rule_abilities(state, id) {
+            let before = out.len();
             flatten_composites(&conferred, &mut out);
+            captures.resize(captures.len() + out.len() - before, Vec::new());
         }
         // Section 3: the layer-derived tail. Skip the printed prefix the layer
         // view seeds from `instance.printed` (it is already section 1 in `out`,
@@ -290,13 +316,31 @@ pub(crate) fn derived_abilities_of(
         // gather and trigger scan, never from inside the
         // layer pipeline, and the pipeline's own matcher (`matches_derived`)
         // never re-enters `layers()`.
-        if let Some(chars) = state.layers().try_get(id) {
-            for granted in chars.abilities.iter().skip(printed_base_len(state, id)) {
-                flatten_composites(granted, &mut out);
+        let view = state.layers();
+        if let Some(chars) = view.try_get(id) {
+            for (index, granted) in chars
+                .abilities
+                .iter()
+                .enumerate()
+                .skip(printed_base_len(state, id))
+            {
+                let runtime = view
+                    .ability_runtime(id, index)
+                    .expect("derived abilities and runtime companions stay aligned");
+                if runtime.flattened.is_empty() {
+                    let before = out.len();
+                    flatten_composites(granted, &mut out);
+                    captures.resize(captures.len() + out.len() - before, Vec::new());
+                } else {
+                    for entry in &runtime.flattened {
+                        out.push(entry.ability.clone());
+                        captures.push(entry.captures.clone());
+                    }
+                }
             }
         }
     }
-    (out, printed_len)
+    (out, printed_len, captures)
 }
 
 /// The count of a live object's UNFLATTENED printed abilities — the length of
@@ -631,7 +675,8 @@ mod tests {
         // (`printed_len == 1`), and the back trigger must
         // appear EXACTLY once — a front-length skip (0) would duplicate the
         // layer view's back trigger into section 3.
-        let (derived, printed_len) = super::derived_abilities_of(&state, Some(id), source);
+        let (derived, printed_len, captures) =
+            super::derived_abilities_of(&state, Some(id), source);
         assert_eq!(
             printed_len, 1,
             "section-1 printed length is the back face's"
@@ -645,5 +690,6 @@ mod tests {
             "the back trigger is enumerated exactly once — neither dropped nor \
              duplicated by the section-3 skip-count"
         );
+        assert_eq!(captures.len(), derived.len());
     }
 }

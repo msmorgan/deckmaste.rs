@@ -45,3 +45,47 @@ residue paragraph there.
 Standard constraints apply. A fixture card that grants an ability whose body
 reads an enclosing register, exercised end to end: it either reads the value
 the grant captured, or fails to load with a diagnostic naming the card.
+
+## Landing record
+
+### Decision
+
+Supply the captures. A granted ability is an ability-adding characteristic
+modification in layer 6 [CR#613.1f], carried by the continuous effect created
+when the granting spell or ability resolves [CR#611.2]. Rejecting the shape
+would reject valid Oracle designs whose granted ability later refers to an
+object fixed by that resolution. ADR law 7 now records the grant as a closure:
+the floating effect snapshots each executable carried region, layer derivation
+keeps that runtime payload aligned with the granted ability, and later
+activated/triggered entry supplies the frozen capture list. Composite keyword
+members are flattened with their own region-specific capture lists.
+
+The end-to-end fixture grants an activated ability that captures the granting
+controller, changes the granted-to permanent's controller, then activates the
+ability. The body changes the original controller's life total and leaves the
+new controller untouched, proving the read came from the grant-time snapshot
+rather than the later bare activation frame.
+
+### Numbers and assurance
+
+- Engine library tests: 741 → 742 (+1 fixture); the complete
+  `deckmaste_engine` package suite passes.
+- Tests restored: 0; re-spelled: 0; ignored with blockers: 0 added; added: 1;
+  removed: 0.
+- Construction declarations and corpus coverage are unchanged. Provisioning
+  regenerated the same 7,323 graduated wizard cards with 23,365 still in
+  progress.
+- Coverage locks are unchanged. `cr-citations.lock` is unchanged.
+- Positive gates: the named fixture test, full `cargo test -p
+  deckmaste_engine`, workspace formatting, engine clippy, and citation checks.
+
+### Deviations and additions
+
+- Added one engine-only runtime companion table keyed by continuous-effect
+  timestamp. This keeps runtime `Value`s out of the public/core
+  `ContinuousEffect` grammar while preserving transactional cloning and
+  pruning entries with their owning effects.
+- No constructions, production fixtures, or tests beyond the ticket's stated
+  grant-capture fixture were added or removed.
+
+No STOP was taken.
