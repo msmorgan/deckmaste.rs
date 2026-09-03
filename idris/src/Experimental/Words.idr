@@ -3861,5 +3861,10 @@ Eq TurnPart where
   (==) BeginningPhase BeginningPhase = True
   (==) BeginningPhase _ = False
 
+||| A turn can hold more than one instance of a part [CR#500.8,505.1a], so a
+||| header can distribute over them: "each of your postcombat main phases".
+public export
+data PartQuant = ThePart | EachPart
+
 public export
 data TurnPoint = AttackersDeclared   -- a combat-phase point a before/after limit names [CR#506.7]

@@ -465,7 +465,7 @@ badStillOnAddition Oh impossible
 public export
 badDeicticTurnWithoutIntroducer : Unspellable (Effect []) (\ok =>
   Sequentially [Draw You (Lit 1),
-                Delayed (BeginningOf EndStep (Macros.thatTurns {ok})) [] Nothing
+                Delayed (BeginningOf ThePart EndStep (Macros.thatTurns {ok})) [] Nothing
                         (Concludes LoseGame You)])
 badDeicticTurnWithoutIntroducer Refl impossible
 

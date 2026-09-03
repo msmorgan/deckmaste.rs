@@ -206,7 +206,8 @@ mutual
                   (to : DamagePatient (nomIntro n)) ->
                   {auto 0 zn : ZoneFits (nounZone n) (damageSourceZone kind)} ->
                   GameEvent bs
-    BeginningOf : (part : TurnPart) -> (whose : HeaderPossessor bs) ->
+    BeginningOf : (q : PartQuant) -> (part : TurnPart) ->
+                  (whose : HeaderPossessor bs) ->
                   {auto 0 pu : PartTriggerable part whose} -> GameEvent bs
     Casts : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
             (from : Maybe (ZoneExpr (nomIntro what))) ->
@@ -321,7 +322,7 @@ mutual
   eventName (BecomesUnattached _ _) = Unattachment
   eventName (DealsDamage CombatOnly _ _) = CombatDamage
   eventName (DealsDamage _ _ _) = DamageDealing
-  eventName (BeginningOf _ _) = PartBeginning
+  eventName (BeginningOf _ _ _) = PartBeginning
   eventName (Casts _ _ _) = SpellCast
   eventName (BecomesTarget _ _) = BecomesTarget
   eventName (StatusEvent {c} _ _) = statusEventName c
@@ -367,7 +368,7 @@ mutual
   eventIntro (DealsDamage _ n NoPatient) = outcomeB DamageDealt :: selfSubjIntro n
   eventIntro (DealsDamage _ _ (OnePatient m)) =
     outcomeB DamageDealt :: selfSubjIntro m
-  eventIntro (BeginningOf _ _) = bs
+  eventIntro (BeginningOf _ _ _) = bs
   eventIntro (Casts _ what _) = selfSubjIntro what
   eventIntro (BecomesTarget _ by) = selfSubjIntro by
   eventIntro (StatusEvent n _) = selfSubjIntro n
@@ -418,7 +419,7 @@ mutual
   eventAfter (DealsDamage _ _ (OnePatient m)) = outcomeB DamageDealt :: nomIntro m
   eventAfter (Casts _ what _) = nomIntro what
   eventAfter (BecomesTarget n by) = nounDelta by ++ selfSubjIntro n
-  eventAfter (BeginningOf _ whose) = possessorIntro whose
+  eventAfter (BeginningOf _ _ whose) = possessorIntro whose
   eventAfter (StatusEvent n _) = selfSubjIntro n
   eventAfter DayNightShift = bs
   eventAfter (StateHolds _) = bs
@@ -465,7 +466,7 @@ mutual
   eventSubjectPlur (BecomesAttached n _) = nounPlur n
   eventSubjectPlur (BecomesUnattached n _) = nounPlur n
   eventSubjectPlur (DealsDamage _ n _) = nounPlur n
-  eventSubjectPlur (BeginningOf _ _) = OneOf
+  eventSubjectPlur (BeginningOf _ _ _) = OneOf
   eventSubjectPlur (Casts _ what _) = nounPlur what
   eventSubjectPlur (BecomesTarget n _) = nounPlur n
   eventSubjectPlur (StatusEvent n _) = nounPlur n

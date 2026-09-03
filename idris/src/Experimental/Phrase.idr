@@ -1607,6 +1607,14 @@ mutual
   sliceDelta Nothing = []
   sliceDelta (Just p) = predDelta p
 
+  ||| "the chosen player" refers to the choice rather than making one
+  ||| [CR#607.2d], so a definite description over it re-reads that binding.
+  public export
+  choiceRead : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
+  choiceRead ChosenPlayer = True
+  choiceRead TheLastChosenPlayer = True
+  choiceRead _ = False
+
   public export
   detDelta : {bs : Bindings} -> {k : Kind} -> DetPhrase bs -> Phrasal k ->
              Predicate bs k -> List Binding
@@ -1616,6 +1624,9 @@ mutual
   detDelta (CountDet q _) ph p =
     sized (quantExact q) (bindFor CountD (quantPlur q) ph p)
       :: (quantDelta q ++ predDelta p)
+  detDelta TheDet ph p =
+    if choiceRead p then predDelta p
+                    else bindFor TheD OneOf ph p :: predDelta p
   detDelta d ph p = bindFor (detOf d) (detPlur d) ph p :: predDelta p
 
   public export

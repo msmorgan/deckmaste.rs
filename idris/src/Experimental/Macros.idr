@@ -2447,10 +2447,11 @@ thatTurns : {auto 0 ok : countReach ThatTurn OneOf bs = 1} -> HeaderPossessor bs
 thatTurns = ByTurn (thatTurn {ok})
 
 public export
-beginningOfPossessed : (part : TurnPart) -> (poss : Noun bs Player) ->
+beginningOfPossessed : (q : PartQuant) -> (part : TurnPart) ->
+                       (poss : Noun bs Player) ->
                        {auto 0 pu : PartTriggerable part (ByPlayer poss)} ->
                        GameEvent bs
-beginningOfPossessed part poss = BeginningOf part (ByPlayer poss) {pu}
+beginningOfPossessed q part poss = BeginningOf q part (ByPlayer poss) {pu}
 
 public export
 gainsDesignation : {k : Kind} -> (n : Noun bs k) -> (d : Designation) ->
@@ -2527,7 +2528,7 @@ cumulativeUpkeepExpansion : (c : Cost []) ->
                             {auto 0 pb : Payable c} ->
                             {auto 0 py : CostPaidByYou c} -> AbilityAt []
 cumulativeUpkeepExpansion c =
-  triggeredIf At (BeginningOf Upkeep yours)
+  triggeredIf At (BeginningOf ThePart Upkeep yours)
     (Matches thisPermanent (InZone battlefieldZ))
     (Sequentially
        [ PutCounters (Lit 1) (PrintedKind (Named "Age")) thisPermanent

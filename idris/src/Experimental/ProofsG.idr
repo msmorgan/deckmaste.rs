@@ -359,7 +359,7 @@ badBareActivationLookback Oh impossible
 ||| "At the beginning of all players' upkeep, draw a card." [CR#102.1]
 public export
 badPluralPartPossessor : Unspellable Ability (\ok =>
-  Triggered At (BeginningOf Upkeep (ByPlayer (Macros.allOf AnyPlayer)) {pu = ok}) [] Nothing [] Nothing Nothing Nothing (Macros.draw You (Lit 1)))
+  Triggered At (BeginningOf ThePart Upkeep (ByPlayer (Macros.allOf AnyPlayer)) {pu = ok}) [] Nothing [] Nothing Nothing Nothing (Macros.draw You (Lit 1)))
 badPluralPartPossessor Oh impossible
 
 
@@ -1358,6 +1358,16 @@ public export
 lastChosenPlayerRead :
   Predicate [choiceB PlayerC, choiceB PlayerC] Player
 lastChosenPlayerRead = TheLastChosenPlayer
+
+
+||| "This deals 3 damage to a chosen player. This deals 3 damage to that
+||| player." Only a definite description refers to the choice [CR#607.2d];
+||| the indefinite binds a second player, so the read is ambiguous.
+public export
+badIndefiniteChosenPlayerRead : Unspellable (Effect [choiceB PlayerC]) (\ok =>
+  Sequentially [ DealDamage This (Lit 3) (Macros.a ChosenPlayer)
+               , DealDamage This (Lit 3) (They {ok = ok}) ])
+badIndefiniteChosenPlayerRead Refl impossible
 
 public export
 generalManaSymbolMatcher : Predicate [] Object
