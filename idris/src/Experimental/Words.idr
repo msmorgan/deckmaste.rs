@@ -812,8 +812,8 @@ record ActFacts where
   actStepwise : Bool
   actLoci : List Zone
   actIntransitive : Bool
-  agent : DeedRole
-  patient : DeedRole
+  agentRole : DeedRole
+  patientRole : DeedRole
   actDefends : Bool
   actTargeted : Bool
   actCounterfactual : Maybe PremiseSort
@@ -1009,7 +1009,7 @@ actNamesPatient v = isJust (actPatientOf v)
 
 public export
 actZoneOf : VerbLabel -> Maybe Zone
-actZoneOf v = actFactsFor v >>= roleZone . patient
+actZoneOf v = actFactsFor v >>= roleZone . patientRole
 
 public export
 actDestOf : VerbLabel -> Maybe Zone

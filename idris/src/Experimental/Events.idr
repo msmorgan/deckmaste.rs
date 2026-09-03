@@ -341,8 +341,8 @@ verbForManaOk v = v == "Tap"
 
 public export
 deedRoleOf : VerbLabel -> Role -> DeedRole
-deedRoleOf v Agent = maybe noRole agent (actFactsFor v)
-deedRoleOf v Patient = maybe noRole patient (actFactsFor v)
+deedRoleOf v Agent = maybe noRole agentRole (actFactsFor v)
+deedRoleOf v Patient = maybe noRole patientRole (actFactsFor v)
 
 public export
 deedKindOk : VerbLabel -> Role -> Kind -> Bool
