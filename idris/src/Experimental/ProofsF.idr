@@ -585,7 +585,7 @@ badChosenColorNoChooser Refl impossible
 ||| "sources of the last chosen color"
 public export
 badLastChosenColorNoChooser : Unspellable (Predicate [] Object) (\ok =>
-  OfLastChosen Color {ok = ok})
+  OfTheLastChosen Color {ok = ok})
 badLastChosenColorNoChooser ChoiceMade impossible
 
 
@@ -594,7 +594,7 @@ badLastChosenBeforeChooser : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
        [ Static (Prevents AnyDamage
                           (DealtBy (Macros.allOf (And [Macros.source,
-                                                OfLastChosen Color {ok = ok}])))
+                                                OfTheLastChosen Color {ok = ok}])))
                           (Macros.shieldingIt You) CutAll Repeatedly Nothing)
        , Static (EntersChoice Macros.thisEnchantment (QSort Color) Nothing Openly) ]
        Nothing)
@@ -607,7 +607,7 @@ badLastChosenWrongSort : Unspellable Card (\ok =>
        [ Static (EntersChoice Macros.thisEnchantment (QSort (SubtypeQ Creature)) Nothing Openly)
        , Static (Prevents AnyDamage
                           (DealtBy (Macros.allOf (And [Macros.source,
-                                                OfLastChosen Color {ok = ok}])))
+                                                OfTheLastChosen Color {ok = ok}])))
                           (Macros.shieldingIt You) CutAll Repeatedly Nothing) ]
        Nothing)
 badLastChosenWrongSort ChoiceMade impossible

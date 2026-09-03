@@ -1325,7 +1325,7 @@ joinedDealerDamageComplement = MkLookbackComplement
 public export
 lastChosenPlayerRead :
   Predicate [choiceB PlayerC, choiceB PlayerC] Player
-lastChosenPlayerRead = LastChosenPlayer
+lastChosenPlayerRead = TheLastChosenPlayer
 
 public export
 generalManaSymbolMatcher : Predicate [] Object
@@ -1354,7 +1354,7 @@ public export
 secondChooserDevotionRead :
   Amount [qualityB Color, qualityB Color]
 secondChooserDevotionRead =
-  Devotion You LastChosenColor Nothing
+  Devotion You TheLastChosenColor Nothing
 
 public export
 emblemGrantorRead : Noun [] Object

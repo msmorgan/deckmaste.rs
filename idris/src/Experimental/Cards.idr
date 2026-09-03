@@ -5535,7 +5535,7 @@ chromaticArmor =
        (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject "Enchant" Macros.creature
        , Static (Macros.entersChoosing Macros.thisAura Color)
-       , Static (Prevents AnyDamage (DealtBy (Macros.allOf (And [Macros.source, OfLastChosen Color])))
+       , Static (Prevents AnyDamage (DealtBy (Macros.allOf (And [Macros.source, OfTheLastChosen Color])))
                           (Macros.shieldingIt (AttachHost Enchanted (TypeW Creature)))
                           CutAll Repeatedly
                           Nothing) ]
@@ -5602,7 +5602,7 @@ sanctuaryBlade =
                                 (PtUp (Lit 2)) (PtUp (Lit 0))
                          , Gains (AttachHost Equipped (TypeW Creature))
                                  (Macros.keywordQuality "Protection"
-                                    (OfLastChosen Color)) ])
+                                    (OfTheLastChosen Color)) ])
        , Macros.keywordCosting "Equip" (Mana [Macros.generic 3]) ]
        Nothing
 
@@ -5614,8 +5614,8 @@ psychicPaperChoiceAndReads =
                     , Macros.attachChoosing Macros.thisEquipment
                                             (SubtypeQ Creature) ])
   , Static (AndAlso
-      [ Becomes (AttachHost Equipped (TypeW Creature)) Sets (ChosenQuality (OfLastChosen CardName))
-      , Becomes (AttachHost Equipped (TypeW Creature)) Sets (ChosenQuality (OfLastChosen (SubtypeQ Creature))) ]) ]
+      [ Becomes (AttachHost Equipped (TypeW Creature)) Sets (ChosenQuality (OfTheLastChosen CardName))
+      , Becomes (AttachHost Equipped (TypeW Creature)) Sets (ChosenQuality (OfTheLastChosen (SubtypeQ Creature))) ]) ]
 
 public export
 xenograft : Card
@@ -10233,9 +10233,9 @@ shapeshifter =
               (Macros.choose (Macros.a (Macros.qualityFrom Number
                                           (NumberBetween 0 7)))))
        , Static (AndAlso
-           [ DefinesPt Macros.thisCreature PowerAlone ChosenNumber
+           [ DefinesPt Macros.thisCreature PowerAlone TheLastChosenNumber
            , DefinesPt Macros.thisCreature ToughnessAlone
-               (Minus (Lit 7) ChosenNumber) ]) ]
+               (Minus (Lit 7) TheLastChosenNumber) ]) ]
        (Just shapeshifterBox)
 
 ||| Multiple Choice

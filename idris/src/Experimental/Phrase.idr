@@ -229,8 +229,8 @@ mutual
     Opponent : Predicate bs Player
     ChosenPlayer : {auto 0 ok : countChoice PlayerC bs = 1} ->
                    Predicate bs Player
-    LastChosenPlayer : {auto 0 ok : ChoiceStands (countChoice PlayerC bs)} ->
-                       Predicate bs Player
+    TheLastChosenPlayer : {auto 0 ok : ChoiceStands (countChoice PlayerC bs)} ->
+                          Predicate bs Player     -- printed "the last chosen player": the recency is lexical
     QualityNoun : (q : QualitySort) ->
                   (dom : Maybe (ChoiceDomain (QSort q))) ->
                   Predicate bs (Quality q)
@@ -239,9 +239,10 @@ mutual
                     Predicate bs (Quality CounterKindQ)
     OfChosen : (q : QualitySort) -> {auto 0 ok : countChoice (QSort q) bs = 1} ->
                {auto 0 read : ChosenQualityRead q} -> Predicate bs Object
-    OfLastChosen : (q : QualitySort) ->
-                   {auto 0 ok : ChoiceStands (countChoice (QSort q) bs)} ->
-                   {auto 0 read : ChosenQualityRead q} -> Predicate bs Object
+    OfTheLastChosen : (q : QualitySort) ->
+                      {auto 0 ok : ChoiceStands (countChoice (QSort q) bs)} ->
+                      {auto 0 read : ChosenQualityRead q} ->
+                      Predicate bs Object         -- printed "the last chosen ...": the recency is lexical
     OfYourChoice : (q : QualitySort) -> (dom : Maybe (ChoiceDomain (QSort q))) ->
                    {auto 0 read : ChosenQualityRead q} -> Predicate bs Object
     HasKeyword : (k : KeywordTerm) -> {auto 0 kn : KnownKeywordTerm k} ->
@@ -564,11 +565,11 @@ mutual
   hasHead AnyPlayer = True
   hasHead Opponent = True
   hasHead ChosenPlayer = True
-  hasHead LastChosenPlayer = True
+  hasHead TheLastChosenPlayer = True
   hasHead (QualityNoun _ _) = True
   hasHead (CounterKindOn _) = True
   hasHead (OfChosen _) = False
-  hasHead (OfLastChosen _) = False
+  hasHead (OfTheLastChosen _) = False
   hasHead (OfYourChoice _ _) = False
   hasHead (AbilityHead _) = True
   hasHead (AbilityOf _) = False
@@ -639,7 +640,7 @@ mutual
   public export
   qualityReadOk : {0 bs : Bindings} -> Predicate bs Object -> Bool
   qualityReadOk (OfChosen _) = True
-  qualityReadOk (OfLastChosen _) = True
+  qualityReadOk (OfTheLastChosen _) = True
   qualityReadOk (OfYourChoice _ _) = True
   qualityReadOk (Named _) = True
   qualityReadOk _ = False
@@ -651,7 +652,7 @@ mutual
   public export
   qualityReadHost : {0 bs : Bindings} -> Predicate bs Object -> Maybe CardType
   qualityReadHost (OfChosen (SubtypeQ h)) = Just h
-  qualityReadHost (OfLastChosen (SubtypeQ h)) = Just h
+  qualityReadHost (OfTheLastChosen (SubtypeQ h)) = Just h
   qualityReadHost (OfYourChoice (SubtypeQ h) _) = Just h
   qualityReadHost _ = Nothing
 
@@ -664,7 +665,7 @@ mutual
   public export
   uniquifies : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   uniquifies ChosenPlayer = True
-  uniquifies LastChosenPlayer = True
+  uniquifies TheLastChosenPlayer = True
   uniquifies (Superlative _ _ _) = True
   uniquifies WithMostVotes = False
   uniquifies (ChoseExtreme _) = False
@@ -733,8 +734,8 @@ mutual
   predEq (HasSubtype _) _ = False
   predEq ChosenPlayer ChosenPlayer = True
   predEq ChosenPlayer _ = False
-  predEq LastChosenPlayer LastChosenPlayer = True
-  predEq LastChosenPlayer _ = False
+  predEq TheLastChosenPlayer TheLastChosenPlayer = True
+  predEq TheLastChosenPlayer _ = False
   predEq AnyPlayer AnyPlayer = True
   predEq AnyPlayer _ = False
   predEq Opponent Opponent = True
@@ -745,8 +746,8 @@ mutual
   predEq (CounterKindOn _) _ = False
   predEq (OfChosen a) (OfChosen b) = a == b
   predEq (OfChosen _) _ = False
-  predEq (OfLastChosen a) (OfLastChosen b) = a == b
-  predEq (OfLastChosen _) _ = False
+  predEq (OfTheLastChosen a) (OfTheLastChosen b) = a == b
+  predEq (OfTheLastChosen _) _ = False
   predEq (OfYourChoice a d) (OfYourChoice b e) = a == b && sameDomainOpt d e
   predEq (OfYourChoice _ _) _ = False
   predEq (AbilityHead a) (AbilityHead b) = a == b
@@ -1209,7 +1210,7 @@ mutual
   negatable : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   negatable AnyPlayer = False
   negatable ChosenPlayer = False
-  negatable LastChosenPlayer = False
+  negatable TheLastChosenPlayer = False
   negatable (QualityNoun _ Nothing) = False
   negatable (QualityNoun _ (Just _)) = True
   negatable (CounterKindOn _) = False
@@ -1226,12 +1227,12 @@ mutual
   predSays (HasSubtype _) = True
   predSays AnyPlayer = True
   predSays ChosenPlayer = True
-  predSays LastChosenPlayer = True
+  predSays TheLastChosenPlayer = True
   predSays Opponent = True
   predSays (QualityNoun _ _) = True
   predSays (CounterKindOn _) = True
   predSays (OfChosen _) = True
-  predSays (OfLastChosen _) = True
+  predSays (OfTheLastChosen _) = True
   predSays (OfYourChoice _ _) = True
   predSays (AbilityHead _) = True
   predSays (AbilityOf _) = True
@@ -1304,12 +1305,12 @@ mutual
   predNegFree (HasSubtype _) = True
   predNegFree AnyPlayer = True
   predNegFree ChosenPlayer = True
-  predNegFree LastChosenPlayer = True
+  predNegFree TheLastChosenPlayer = True
   predNegFree Opponent = True
   predNegFree (QualityNoun _ _) = True
   predNegFree (CounterKindOn _) = True
   predNegFree (OfChosen _) = True
-  predNegFree (OfLastChosen _) = True
+  predNegFree (OfTheLastChosen _) = True
   predNegFree (OfYourChoice _ _) = True
   predNegFree (AbilityHead _) = True
   predNegFree (AbilityOf _) = True
@@ -1804,8 +1805,9 @@ mutual
     LitColor : Chroma.Color -> ColorTerm bs
     ThatColor : {auto 0 ok : countChoice (QSort Color) bs = 1} ->
                 {auto 0 rd : ChosenQualityRead Color} -> ColorTerm bs
-    LastChosenColor : {auto 0 ok : ChoiceStands (countChoice (QSort Color) bs)} ->
-                      {auto 0 rd : ChosenQualityRead Color} -> ColorTerm bs
+    TheLastChosenColor : {auto 0 ok : ChoiceStands (countChoice (QSort Color) bs)} ->
+                         {auto 0 rd : ChosenQualityRead Color} ->
+                         ColorTerm bs             -- printed "the last chosen color": the recency is lexical
 
   public export
   data Amount : Bindings -> Type where
@@ -1836,8 +1838,10 @@ mutual
             {auto 0 nz : IsSucc per} -> Amount bs
     TimesOf : (per : Amount bs) -> (a : Amount (amtIntro per)) -> Amount bs
     ThatMuch : {auto 0 ok : countQuantOutcomes bs = 1} -> Amount bs
-    ChosenNumber : {auto 0 ok : ChoiceStands (countChoice (QSort Number) bs)} ->
+    ChosenNumber : {auto 0 ok : countChoice (QSort Number) bs = 1} ->
                    Amount bs
+    TheLastChosenNumber : {auto 0 ok : ChoiceStands (countChoice (QSort Number) bs)} ->
+                          Amount bs               -- printed "the last chosen number": the recency is lexical
     VotesFor : (l : VoteLabel) -> Amount bs
     PreventedThisWay : {auto 0 ok : countOutcomes DamagePrevented bs = 1} ->
                        Amount bs
@@ -1898,6 +1902,7 @@ mutual
   amtDelta (TimesOf per a) = amtDelta per ++ amtDelta a
   amtDelta ThatMuch = []
   amtDelta ChosenNumber = []
+  amtDelta TheLastChosenNumber = []
   amtDelta (VotesFor _) = []
   amtDelta PreventedThisWay = []
   amtDelta RemovedThisWay = []
@@ -1935,6 +1940,7 @@ mutual
   amtIntro (TimesOf per a) = amtIntro a
   amtIntro ThatMuch = bs
   amtIntro ChosenNumber = bs
+  amtIntro TheLastChosenNumber = bs
   amtIntro (VotesFor _) = bs
   amtIntro PreventedThisWay = bs
   amtIntro RemovedThisWay = bs
@@ -1978,6 +1984,7 @@ mutual
   amtPlur (TimesOf _ _) = ManyOf
   amtPlur ThatMuch = ManyOf
   amtPlur ChosenNumber = ManyOf
+  amtPlur TheLastChosenNumber = ManyOf
   amtPlur (VotesFor _) = ManyOf
   amtPlur PreventedThisWay = ManyOf
   amtPlur RemovedThisWay = ManyOf
@@ -2064,6 +2071,7 @@ mutual
   readAmount (TimesOf _ _) = False
   readAmount ThatMuch = False
   readAmount ChosenNumber = False
+  readAmount TheLastChosenNumber = False
   readAmount (VotesFor _) = True
   readAmount PreventedThisWay = False
   readAmount RemovedThisWay = False
@@ -2713,7 +2721,7 @@ mutual
     ExposedZone : (z : ZoneExpr bs) ->
                   {auto 0 ok : ExposableZone (zoneSort z)} -> Exposed bs
     ExposedChoice : (q : ChoiceSort) ->
-                    {auto 0 ok : ChoiceStands (countChoice q bs)} ->
+                    {auto 0 ok : countChoice q bs = 1} ->
                     Exposed bs
 
   public export

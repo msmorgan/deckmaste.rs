@@ -750,7 +750,7 @@ public export
 ofLastChosenColorReadsOnlyPrefix : (bs : Bindings) ->
                                    ChoiceStands (countChoice (QSort Color) bs) ->
                                    Predicate bs Object
-ofLastChosenColorReadsOnlyPrefix bs ok = OfLastChosen Color {bs} {ok}
+ofLastChosenColorReadsOnlyPrefix bs ok = OfTheLastChosen Color {bs} {ok}
 
 public export
 ofLastChosenColorResolvesInPrefix :

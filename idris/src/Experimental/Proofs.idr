@@ -9,6 +9,13 @@ import public Experimental.Unspellable
 %unbound_implicits off
 
 
+||| "... is equal to the chosen number", two number choices standing (Shapeshifter prints "last")
+public export
+badChosenNumberTwoStanding :
+  Unspellable (Amount [qualityB Number, qualityB Number]) (\ok => ChosenNumber {ok})
+badChosenNumberTwoStanding Refl impossible
+
+
 ||| "of the chosen number"
 public export
 badChosenNumberRead :
