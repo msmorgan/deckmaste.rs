@@ -13,5 +13,8 @@ distinctions (attributive/predicative, gradable, participial) as declared
 features consumed by constructions; morphology strictly regular with
 per-word attested overrides. The homograph licence moves with the members.
 Delete the adjective vocabs once every member has a home; the collision
-tripwire then covers adjectives without exemption classes. Coverage must
+tripwire then covers adjectives without exemption classes. Hard blocker this ticket owns: three
+form literals (`additional`, `next`, `other`) collide with adjective vocab
+members today and become unconditional load errors once adjectives are
+lexemes — re-route them through the inventory first. Coverage must
 not drop; standard constraints apply.

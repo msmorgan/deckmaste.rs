@@ -12,4 +12,4 @@ demonstrative possessive route it was added for. Also: the restoration's
 +7 came entirely from the unlisted `genitive_determiner_coordination_
 reference`; keep it, document it. Probe: the sentence above rejects;
 "target creature's controller", "that creature's owner", "their owners'
-libraries" select. Zero net loss, lock current. Standard constraints apply.
+libraries" select. Zero net loss, lock current. Metric rule: `literal_lexicon_collisions` (72) movement is accounted row-by-row, never bumped. Fixture hazard: synthetic surfaces owned by an unlicensed vocab member fail to load; use novel surfaces. Standard constraints apply.

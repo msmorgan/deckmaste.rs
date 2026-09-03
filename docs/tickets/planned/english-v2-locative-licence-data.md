@@ -33,5 +33,20 @@ legitimate reading is not retired.
   creature during your upkeep." attaches the PP to the predicate, not the
   NP); a genuine two-survivor case is a STOP. Explain the unique/
   specificity shift in the record.
+- Class D (homograph review): the preposition machinery is bypassed by
+  14 form-literal rows — `"of"` hardwired in 7 constructions
+  (edge_of_phrase, positional_partitive, determinative_partitive,
+  number_of_scalar_value, any_number_quantifying_determiner,
+  contracted_copular_relative_reference, …), `"among"` in 3, `"under"` in
+  enter_control/control_phrase, `"during"` in only_during_restriction,
+  `"in"` in 1. Head-side licensing cannot govern literals, so these are IN
+  SCOPE: route each through the general PP + licence, or declare it as a
+  frame-selected preposition in valence data; none may stay a form
+  literal. Any movement of `literal_lexicon_collisions` (72 today) is
+  accounted row-by-row in the record, never bumped at coverage.rs:2493.
+- Fixture hazard: synthetic test declarations may no longer use a surface
+  owned by an unlicensed vocab member (same, declare, other, next,
+  additional, first, second, main, base, maximum, …) — the environment
+  hard-fails to load; re-spell fixtures with novel surfaces.
 Probes: all review negatives reject; all amendment positives parse.
 Standard constraints apply.
