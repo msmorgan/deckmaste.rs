@@ -278,7 +278,6 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
                                             .expect(
                                                 "the core inventory declares transitive Control",
                                             ),
-                                            adjunct: Box::new(None),
                                         },
                                     ),
                                 ))),

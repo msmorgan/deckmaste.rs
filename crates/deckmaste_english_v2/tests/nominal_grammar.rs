@@ -3765,8 +3765,8 @@ fn every_selector_family_enters_the_ordered_nominal_qualification_stages() {
     for (text, candidate_count, resolution) in [
         (
             "A creature card you control in exile with mana value 2 or less gains 2 life.",
-            2,
-            SelectionResolution::Specificity,
+            1,
+            SelectionResolution::Unique,
         ),
         (
             "Target creature you control gains 2 life.",
@@ -3828,6 +3828,11 @@ fn every_selector_family_enters_the_ordered_nominal_qualification_stages() {
             1,
             SelectionResolution::Unique,
         ),
+        (
+            "A creature with mana value 2 or less from your graveyard gains 2 life.",
+            1,
+            SelectionResolution::Unique,
+        ),
     ] {
         let analysis = parser.analyze(text, &context);
         let selected = analysis
@@ -3862,7 +3867,6 @@ fn every_selector_family_enters_the_ordered_nominal_qualification_stages() {
 
     for text in [
         "A card in exile you own gains 2 life.",
-        "A creature with mana value 2 or less from your graveyard gains 2 life.",
         "A creature you control you own gains 2 life.",
         "A card in exile in your graveyard gains 2 life.",
         "A creature with power 2 or less with toughness 2 or less gains 2 life.",
@@ -4084,7 +4088,7 @@ fn quantity_determinatives_exclude_zero_and_derive_number() {
         selected
             .construction_path()
             .iter()
-            .any(|item| item == "DurationPredicateDurationPredicate"),
+            .any(|item| item == "PredicateAdjunctDurationPredicateAdjunct"),
         "rejecting an object noun as a temporal endpoint belongs downstream: {decision:#?}",
     );
 }
@@ -6343,10 +6347,10 @@ fn any_one_is_one_closed_determiner_and_beats_the_generic_duration_rival() {
         .expect("the selected reading records its syntactic rival");
     assert_eq!(decision.candidates().len(), 2);
     assert_eq!(decision.resolution(), SelectionResolution::Specificity);
-    assert_eq!(decision.survivors(), [0]);
-    assert_eq!(decision.selected(), Some(0));
+    let selected_ordinal = decision.selected().expect("one reading is selected");
+    assert_eq!(decision.survivors(), [selected_ordinal]);
     assert!(decision.exception_uses().is_empty());
-    let selected_path = decision.candidates()[0].construction_path();
+    let selected_path = decision.candidates()[selected_ordinal].construction_path();
     assert!(
         selected_path
             .iter()
@@ -6355,7 +6359,20 @@ fn any_one_is_one_closed_determiner_and_beats_the_generic_duration_rival() {
     assert!(
         !selected_path
             .iter()
-            .any(|item| item.starts_with("Duration"))
+            .any(|item| item == "PredicateAdjunctDurationPredicateAdjunct")
+    );
+    assert!(
+        decision
+            .candidates()
+            .iter()
+            .enumerate()
+            .any(|(ordinal, candidate)| {
+                ordinal != selected_ordinal
+                    && candidate
+                        .construction_path()
+                        .iter()
+                        .any(|item| item == "PredicateAdjunctDurationPredicateAdjunct")
+            })
     );
 
     let selected = analysis

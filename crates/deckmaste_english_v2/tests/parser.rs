@@ -538,7 +538,6 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
                                         PositiveObjectGapRelativeClauseValue {
                                             subject: subject_you(),
                                             head: core_transitive_head(CoreVerbIdentity::Control),
-                                            adjunct: Box::new(None),
                                         },
                                     ),
                                 ))),
@@ -951,6 +950,16 @@ fn typed_where_staging_rejects_a_finite_subordinate_clause_in_the_chart() {
             ("NounPhraseFusedDeterminativeReference", 8, 10),
             ("NounPhraseFusedDeterminativeReference", 8, 10),
             ("NounPhraseFusedDeterminativeReference", 17, 18),
+            (
+                "PredicateAdjunctPredicatePrepositionalPredicateAdjunctPredicate",
+                3,
+                15,
+            ),
+            (
+                "PredicateAdjunctPredicatePrepositionalPredicateAdjunctPredicate",
+                3,
+                15,
+            ),
             ("UnqualifiedReferenceDeterminedNominalDetPresent", 8, 15),
             ("UnqualifiedReferenceDeterminedNominalDetPresent", 8, 15),
         ],

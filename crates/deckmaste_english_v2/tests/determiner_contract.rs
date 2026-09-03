@@ -98,7 +98,7 @@ fn zero_and_quantity_number_are_selected_from_the_complete_determinative() {
                     candidate
                         .construction_path()
                         .iter()
-                        .any(|step| *step == "DurationPredicateDurationPredicate")
+                        .any(|step| *step == "PredicateAdjunctDurationPredicateAdjunct")
                 })
             }),
             "the invalid object agreement has only a syntactic duration reading; temporal semantics is downstream: {analysis:#?}",

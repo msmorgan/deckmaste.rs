@@ -1789,7 +1789,6 @@ mod tests {
                 Role("ManaAmount"),
                 Role("CostComparisonDirection"),
                 Role("ControlledCostAction"),
-                OptionalRole("ForEachCostBasis"),
             ]),
         ));
         for identity in [

@@ -1798,6 +1798,68 @@ fn compositional_for_phrases_attach_to_atomic_predicates() {
 }
 
 #[test]
+fn predicate_adjuncts_pin_postposed_prepositions_outside_their_objects() {
+    let parser = parser();
+    let context = context();
+
+    for (text, expected_preposition) in [
+        (
+            "Untap all permanents you control during each other player's untap step.",
+            Preposition::During,
+        ),
+        (
+            "Return it to its owner's hand at the beginning of the next end step.",
+            Preposition::At,
+        ),
+        (
+            "Draw a card for each creature you control.",
+            Preposition::For,
+        ),
+    ] {
+        let analysis = parser.analyze_sentence(text, &context);
+        let Some(Sentence::Imperative(sentence)) = analysis.selected() else {
+            panic!("the predicate-adjunct witness is imperative: {text:?}")
+        };
+        let Predicate::Adjunct(predicate) = sentence.predicate() else {
+            panic!("the PP must attach to the predicate: {text:?}")
+        };
+        let PredicateAdjunctPredicate::PrepositionalPredicateAdjunctPredicate(value) =
+            predicate.as_ref()
+        else {
+            panic!("the PP must use the general prepositional attachment: {text:?}")
+        };
+        let PredicateAdjunct::Prepositional(adjunct) = value.adjunct.as_ref() else {
+            panic!("the shared adjunct value must be prepositional: {text:?}")
+        };
+        let PrepositionalPhrase::PrepositionalPhrase(phrase) = adjunct.adjunct() else {
+            panic!("the witness uses an ordinary prepositional phrase: {text:?}")
+        };
+        assert_eq!(phrase.preposition, expected_preposition, "{text:?}");
+    }
+
+    let text = "This ability costs {1} less to activate for each legendary creature you control.";
+    let analysis = parser.analyze_sentence(text, &context);
+    let Some(Sentence::Declarative(sentence)) = analysis.selected() else {
+        panic!("the cost-comparison witness is declarative")
+    };
+    let Clause::Finite(clause) = sentence.clause.as_ref() else {
+        panic!("the cost-comparison witness has an ordinary finite clause")
+    };
+    let FiniteClause::PlainFiniteClause(clause) = clause.as_ref() else {
+        panic!("the cost-comparison witness has an ordinary finite clause")
+    };
+    let Predicate::Adjunct(predicate) = clause.predicate() else {
+        panic!("for each must attach outside the cost-comparison predicate")
+    };
+    let PredicateAdjunctPredicate::CostComparisonPrepositionalPredicateAdjunct(value) =
+        predicate.as_ref()
+    else {
+        panic!("for each must use the general prepositional attachment")
+    };
+    let _ = value;
+}
+
+#[test]
 fn subject_sharing_modal_predicates_keep_their_bare_complement() {
     let parser = parser();
     let context = context();
@@ -2028,14 +2090,20 @@ fn modal_subject_gap_relatives_modify_ordinary_mass_noun_phrases() {
     let Sentence::Imperative(sentence) = parser.parse_sentence(text, &context).unwrap() else {
         panic!("the witness is imperative")
     };
-    let Predicate::Duration(duration_predicate) = sentence.predicate() else {
-        panic!("the subject-relative NP remains inside an ordinary duration predicate")
+    let Predicate::Adjunct(adjunct_predicate) = sentence.predicate() else {
+        panic!("the subject-relative NP remains inside an ordinary adjunct predicate")
     };
-    let DurationPredicate::DurationPredicate(DurationPredicateValue { predicate, .. }) =
-        duration_predicate.as_ref();
+    let PredicateAdjunctPredicate::PredicateAdjunctPredicate(value) = adjunct_predicate.as_ref()
+    else {
+        panic!("the duration adjunct uses the general base-frame attachment")
+    };
     assert!(matches!(
-        predicate.as_ref(),
+        value.predicate.as_ref(),
         BaseVerbFrame::TransitiveFrame(_)
+    ));
+    assert!(matches!(
+        value.adjunct.as_ref(),
+        PredicateAdjunct::Duration(_)
     ));
     assert!(
         parser
@@ -3139,14 +3207,14 @@ impl Visitor for AdjunctVisitor {
         deckmaste_english_v2::visit::walk_ordered_predicate_value(self, value);
     }
 
-    fn visit_purpose_predicate_value(&mut self, value: &PurposePredicateValue) {
+    fn visit_purpose_predicate_adjunct(&mut self, value: &PurposePredicateAdjunct) {
         self.0.push("purpose");
-        deckmaste_english_v2::visit::walk_purpose_predicate_value(self, value);
+        deckmaste_english_v2::visit::walk_purpose_predicate_adjunct(self, value);
     }
 
-    fn visit_duration_predicate_value(&mut self, value: &DurationPredicateValue) {
+    fn visit_duration_predicate_adjunct(&mut self, value: &DurationPredicateAdjunct) {
         self.0.push("duration");
-        deckmaste_english_v2::visit::walk_duration_predicate_value(self, value);
+        deckmaste_english_v2::visit::walk_duration_predicate_adjunct(self, value);
     }
 
     fn visit_instead_predicate_value(&mut self, value: &InsteadPredicateValue) {
@@ -3154,9 +3222,9 @@ impl Visitor for AdjunctVisitor {
         deckmaste_english_v2::visit::walk_instead_predicate_value(self, value);
     }
 
-    fn visit_manner_predicate_value(&mut self, value: &MannerPredicateValue) {
+    fn visit_manner_predicate_adjunct(&mut self, value: &MannerPredicateAdjunct) {
         self.0.push("manner");
-        deckmaste_english_v2::visit::walk_manner_predicate_value(self, value);
+        deckmaste_english_v2::visit::walk_manner_predicate_adjunct(self, value);
     }
 }
 
@@ -3277,13 +3345,13 @@ fn this_way_keeps_a_specific_manner_reading_beside_downstream_semantic_rivals() 
         candidate
             .construction_path()
             .iter()
-            .any(|item| item == "MannerPredicateMannerPredicate")
+            .any(|item| item == "PredicateAdjunctMannerPredicateAdjunct")
     }));
     assert!(decision.candidates().iter().any(|candidate| {
         candidate
             .construction_path()
             .iter()
-            .any(|item| item == "DurationPredicateDurationPredicate")
+            .any(|item| item == "PredicateAdjunctDurationPredicateAdjunct")
     }));
     let selected = decision
         .candidates()
@@ -3314,9 +3382,9 @@ impl Visitor for AdjunctSurfaceVisitor {
         }
     }
 
-    fn visit_duration_predicate_value(&mut self, value: &DurationPredicateValue) {
+    fn visit_duration_predicate_adjunct(&mut self, value: &DurationPredicateAdjunct) {
         self.0.push("duration".to_owned());
-        deckmaste_english_v2::visit::walk_duration_predicate_value(self, value);
+        deckmaste_english_v2::visit::walk_duration_predicate_adjunct(self, value);
     }
 
     fn visit_at_random_manner(&mut self, value: &AtRandomManner) {
@@ -3371,8 +3439,27 @@ fn permission_restriction_exception_random_and_order_surfaces_are_scoped() {
 fn attachment_movement_does_not_silently_change_scope() {
     let parser = parser();
     let context = context();
+    let purpose = parser.analyze("To draw a card, discard a card.", &context);
+    let decision = purpose
+        .decision()
+        .expect("the preposed purpose adjunct has a selection decision");
+    let selected = &decision.candidates()[decision
+        .selected()
+        .expect("the preposed purpose adjunct selects")];
+    assert!(
+        selected
+            .construction_path()
+            .iter()
+            .any(|item| item == "ClauseAttachmentPreposedPredicateAdjunctPredicate")
+    );
+    assert!(
+        selected
+            .construction_path()
+            .iter()
+            .any(|item| item == "PredicateAdjunctPurposePredicateAdjunct")
+    );
+
     for text in [
-        "To draw a card, discard a card.",
         "You may this turn cast it.",
         "Instead draw a card.",
         "If able, this creature attacks each combat.",
@@ -3403,13 +3490,13 @@ fn attachment_movement_does_not_silently_change_scope() {
         selected
             .construction_path()
             .iter()
-            .any(|item| item == "DurationPredicateDurationPredicate")
+            .any(|item| item == "PredicateAdjunctDurationPredicateAdjunct")
     );
     assert!(
         !selected
             .construction_path()
             .iter()
-            .any(|item| item == "MannerPredicateMannerPredicate")
+            .any(|item| item == "PredicateAdjunctMannerPredicateAdjunct")
     );
 }
 
@@ -3535,7 +3622,7 @@ fn object_internal_discarded_this_way_remains_a_downstream_semantic_decision() {
         !selected
             .construction_path()
             .iter()
-            .any(|item| item == "MannerPredicateMannerPredicate")
+            .any(|item| item == "PredicateAdjunctMannerPredicateAdjunct")
     );
     let parsed = analysis.selected().expect("selected syntax has an AST");
     assert_eq!(parsed.render(&context, parser.environment()), text);
@@ -4052,7 +4139,7 @@ fn preposition_attachment_and_complement_head_licenses_are_conjunctive() {
             .construction_path()
             .iter()
             .any(|construction| {
-                construction == "PrepositionalAdjunctPredicatePrepositionalAdjunctPredicate"
+                construction == "PredicateAdjunctPrepositionalPredicateAdjunct"
             }),
         "the predicate-adjunct rival must lose"
     );

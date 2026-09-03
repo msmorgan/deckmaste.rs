@@ -697,12 +697,7 @@ constructions! {
         generate declaration_verb {
             class = Predicate;
             position = Verb;
-            tail = [
-                ManaAmount,
-                CostComparisonDirection,
-                ControlledCostAction,
-                ForEachCostBasis?,
-            ];
+            tail = [ManaAmount, CostComparisonDirection, ControlledCostAction];
             feature = Agreement;
         }
     }
@@ -1068,6 +1063,13 @@ constructions! {
         Fixed: FixedDurationPhrase,
         Until: UntilDurationPhrase,
     }
+    abstract sum PredicateAdjunct {
+        Prepositional: PrepositionalPredicateAdjunct,
+        Purpose: PurposePredicateAdjunct,
+        Duration: DurationPredicateAdjunct,
+        Frequency: FrequencyPredicateAdjunct,
+        Manner: MannerPredicateAdjunct,
+    }
     abstract sum ScalarDegreePhrase {
         Single: SingleScalarDegreePhrase,
         Or: OrScalarDegreePhrase,
@@ -1107,18 +1109,13 @@ constructions! {
         BarePassive: BarePassivePredicate,
         FinitePassive: FinitePassivePredicate,
         Auxiliary: AuxiliaryPredicate,
-        PrepositionalAdjunct: PrepositionalAdjunctPredicate,
+        Adjunct: PredicateAdjunctPredicate,
         Cause: ObjectInfinitivePredicate,
         Requirement: RequirementPredicate,
         TransitiveRequirement: TransitiveRequirementPredicate,
         AsThough: AsThoughPredicate,
         Ordered: OrderedPredicate,
-        Purpose: PurposePredicate,
-        Duration: DurationPredicate,
-        StateDuration: StateDurationPredicate,
         Instead: InsteadPredicate,
-        Manner: MannerPredicate,
-        Frequency: FrequencyPredicate,
         Alternative: AlternativePredicate,
         WithoutGerundObject: WithoutGerundObjectPredicate,
         CostComparison: CostComparisonPredicate,
@@ -1128,18 +1125,13 @@ constructions! {
         Atomic: VerbPhrase,
         BareCopular: BareCopularPredicate,
         BarePassive: BarePassivePredicate,
-        PrepositionalAdjunct: PrepositionalAdjunctPredicate,
+        Adjunct: PredicateAdjunctPredicate,
         Cause: ObjectInfinitivePredicate,
         Requirement: RequirementPredicate,
         TransitiveRequirement: TransitiveRequirementPredicate,
         AsThough: AsThoughPredicate,
         Ordered: OrderedPredicate,
-        Purpose: PurposePredicate,
-        Duration: DurationPredicate,
-        StateDuration: StateDurationPredicate,
         Instead: InsteadPredicate,
-        Manner: MannerPredicate,
-        Frequency: FrequencyPredicate,
         Alternative: AlternativePredicate,
         WithoutGerundObject: WithoutGerundObjectPredicate,
         CostComparison: CostComparisonPredicate,
@@ -1151,18 +1143,13 @@ constructions! {
         ThenSequence: BareThenPredicateSequence,
         BareCopular: BareCopularPredicate,
         BarePassive: BarePassivePredicate,
-        PrepositionalAdjunct: PrepositionalAdjunctPredicate,
+        Adjunct: PredicateAdjunctPredicate,
         Cause: ObjectInfinitivePredicate,
         Requirement: RequirementPredicate,
         TransitiveRequirement: TransitiveRequirementPredicate,
         AsThough: AsThoughPredicate,
         Ordered: OrderedPredicate,
-        Purpose: PurposePredicate,
-        Duration: DurationPredicate,
-        StateDuration: StateDurationPredicate,
         Instead: InsteadPredicate,
-        Manner: MannerPredicate,
-        Frequency: FrequencyPredicate,
         Alternative: AlternativePredicate,
         WithoutGerundObject: WithoutGerundObjectPredicate,
         CostComparison: CostComparisonPredicate,
@@ -1177,18 +1164,13 @@ constructions! {
         BarePassive: BarePassivePredicate,
         FinitePassive: FinitePassivePredicate,
         Auxiliary: AuxiliaryPredicate,
-        PrepositionalAdjunct: PrepositionalAdjunctPredicate,
+        Adjunct: PredicateAdjunctPredicate,
         Cause: ObjectInfinitivePredicate,
         Requirement: RequirementPredicate,
         TransitiveRequirement: TransitiveRequirementPredicate,
         AsThough: AsThoughPredicate,
         Ordered: OrderedPredicate,
-        Purpose: PurposePredicate,
-        Duration: DurationPredicate,
-        StateDuration: StateDurationPredicate,
         Instead: InsteadPredicate,
-        Manner: MannerPredicate,
-        Frequency: FrequencyPredicate,
         Alternative: AlternativePredicate,
         WithoutGerundObject: WithoutGerundObjectPredicate,
         CostComparison: CostComparisonPredicate,
@@ -1228,9 +1210,6 @@ constructions! {
         DeclaredTransitiveFrom: DeclaredTransitivePassiveFromPredicate,
         DeclaredToObject: DeclaredToObjectPassivePredicate,
     }
-    abstract sum StateDurationBase {
-        BarePassive: BarePassivePredicate,
-    }
     abstract sum DistributionPhrase {
         AsYouChoose: ChosenDistributionPhrase,
         Evenly: EvenDistributionPhrase,
@@ -1251,14 +1230,12 @@ constructions! {
         PreposedAsLongAsPredicate,
         PostposedAsLongAs,
         PostposedAsLongAsPredicate,
-        PreposedPrepositionalAdjunct,
-        PreposedPrepositionalAdjunctPredicate,
+        PreposedPredicateAdjunct,
+        PreposedPredicateAdjunctPredicate,
         PreposedWhile,
         PreposedWhilePredicate,
         PreposedUntil,
         PreposedUntilPredicate,
-        PreposedDuration,
-        PreposedDurationPredicate,
         ThenSequence,
         AdditionalCost,
     }
@@ -1508,22 +1485,20 @@ constructions! {
         }
         form postposed_for_as_long_as_clause = body "for" "as" "long" "as" condition;
     }
-    construction preposed_prepositional_adjunct: ClauseAttachment {
-        element PreposedPrepositionalAdjunct {
-            adjunct: PrepositionalPhrase,
+    construction preposed_predicate_adjunct: ClauseAttachment {
+        element PreposedPredicateAdjunct {
+            adjunct: PredicateAdjunct,
             body: Clause,
         }
-        require adjunct.preposition_attachment is AdjunctCapable;
-        form preposed_prepositional_adjunct = adjunct "," body;
+        form preposed_predicate_adjunct = adjunct "," body;
     }
-    construction preposed_prepositional_adjunct_predicate: ClauseAttachment {
-        element PreposedPrepositionalAdjunctPredicate {
-            adjunct: PrepositionalPhrase,
+    construction preposed_predicate_adjunct_predicate: ClauseAttachment {
+        element PreposedPredicateAdjunctPredicate {
+            adjunct: PredicateAdjunct,
             body: Predicate,
         }
-        require adjunct.preposition_attachment is AdjunctCapable;
         derive body.agreement = Values::Bare;
-        form preposed_prepositional_adjunct_predicate = adjunct "," body;
+        form preposed_predicate_adjunct_predicate = adjunct "," body;
     }
     construction preposed_while: ClauseAttachment {
         element PreposedWhile { condition: FiniteClause, body: Clause, }
@@ -1542,18 +1517,6 @@ constructions! {
         element PreposedUntilPredicate { condition: FiniteClause, body: Predicate, }
         derive body.agreement = Values::Bare;
         form preposed_until_predicate = "until" condition "," body;
-    }
-    construction preposed_duration: ClauseAttachment {
-        element PreposedDuration { duration: DurationPhrase, body: Clause, }
-        form preposed_duration = duration "," body;
-    }
-    construction preposed_duration_predicate: ClauseAttachment {
-        element PreposedDurationPredicate {
-            duration: DurationPhrase,
-            body: Predicate,
-        }
-        derive body.agreement = Values::Bare;
-        form preposed_duration_predicate = duration "," body;
     }
     construction fixed_duration_phrase: FixedDurationPhrase {
         element FixedDurationPhraseValue { endpoint: TemporalEndpoint, }
@@ -1829,14 +1792,6 @@ constructions! {
         derive agreement = head.agreement;
         form inventory_auxiliary = verb(head);
     }
-    construction state_duration_predicate: StateDurationPredicate {
-        element StateDurationPredicateValue {
-            predicate: StateDurationBase,
-            duration: DurationPhrase,
-        }
-        derive agreement = Values::Bare;
-        form state_duration_predicate = predicate duration;
-    }
     construction object_infinitive_predicate: ObjectInfinitivePredicate {
         element ObjectInfinitivePredicateValue {
             head: lex ObjectInfinitiveVerb,
@@ -1924,34 +1879,85 @@ constructions! {
         element KeywordPossessiveComplementValue { value: lex KeywordAbility, }
         form keyword_possessive_complement = lex(value);
     }
-    construction purpose_predicate: PurposePredicate {
-        element PurposePredicateValue {
-            predicate: BaseVerbFrame,
+    construction purpose_predicate_adjunct: PredicateAdjunct {
+        element PurposePredicateAdjunct {
             purpose: BaseVerbFrame,
         }
-        derive agreement = predicate.agreement;
         derive purpose.agreement = Values::Bare;
-        form purpose_predicate = predicate "to" purpose;
+        form purpose_predicate_adjunct = "to" purpose;
     }
-    construction duration_predicate: DurationPredicate {
-        element DurationPredicateValue {
-            predicate: BaseVerbFrame,
+    construction duration_predicate_adjunct: PredicateAdjunct {
+        element DurationPredicateAdjunct {
             duration: DurationPhrase,
         }
-        derive agreement = predicate.agreement;
-        form duration_predicate = predicate duration;
+        form duration_predicate_adjunct = duration;
     }
-    construction prepositional_adjunct_predicate: PrepositionalAdjunctPredicate {
-        element PrepositionalAdjunctPredicateValue {
-            predicate: VerbPhrase,
+    construction prepositional_predicate_adjunct: PredicateAdjunct {
+        element PrepositionalPredicateAdjunct {
             adjunct: PrepositionalPhrase checked by predicate_preposition_is_licensed(
                 adjunct.preposition_complement_kind,
                 adjunct.locative_temporal_license
             ),
         }
         require adjunct.preposition_attachment is AdjunctCapable;
+        form prepositional_predicate_adjunct = adjunct;
+    }
+    construction predicate_adjunct_predicate: PredicateAdjunctPredicate {
+        element PredicateAdjunctPredicateValue {
+            predicate: BaseVerbFrame,
+            adjunct: PredicateAdjunct checked by predicate_adjunct_is_nonprepositional(),
+        }
         derive agreement = predicate.agreement;
-        form prepositional_adjunct_predicate = predicate adjunct;
+        form predicate_adjunct_predicate = predicate adjunct;
+    }
+    construction prepositional_predicate_adjunct_predicate: PredicateAdjunctPredicate {
+        element PrepositionalPredicateAdjunctPredicateValue {
+            predicate: VerbPhrase,
+            adjunct: PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
+        }
+        derive agreement = predicate.agreement;
+        form prepositional_predicate_adjunct_predicate = predicate adjunct;
+    }
+    construction cost_comparison_prepositional_predicate_adjunct: PredicateAdjunctPredicate {
+        element CostComparisonPrepositionalPredicateAdjunct {
+            predicate: CostComparisonPredicate,
+            adjunct: PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
+        }
+        derive agreement = predicate.agreement;
+        form cost_comparison_prepositional_predicate_adjunct = predicate adjunct;
+    }
+    construction action_restriction_prepositional_predicate_adjunct: PredicateAdjunctPredicate {
+        element ActionRestrictionPrepositionalPredicateAdjunct {
+            predicate: ActionRestrictionPredicate,
+            adjunct: PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
+        }
+        derive agreement = predicate.agreement;
+        form action_restriction_prepositional_predicate_adjunct = predicate adjunct;
+    }
+    construction alternative_prepositional_predicate_adjunct: PredicateAdjunctPredicate {
+        element AlternativePrepositionalPredicateAdjunct {
+            predicate: AlternativePredicate,
+            adjunct: PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
+        }
+        derive agreement = predicate.agreement;
+        form alternative_prepositional_predicate_adjunct = predicate adjunct;
+    }
+    construction stacked_predicate_adjunct_predicate: PredicateAdjunctPredicate {
+        element StackedPredicateAdjunctPredicate {
+            predicate: TransitiveFrame,
+            leading: PredicateAdjunct checked by predicate_adjunct_is_nonprepositional(),
+            trailing: PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
+        }
+        derive agreement = predicate.agreement;
+        form stacked_predicate_adjunct_predicate = predicate leading trailing;
+    }
+    construction passive_duration_predicate_adjunct: PredicateAdjunctPredicate {
+        element PassiveDurationPredicateAdjunct {
+            predicate: BarePassivePredicate,
+            adjunct: PredicateAdjunct checked by predicate_adjunct_is_duration(),
+        }
+        derive agreement = Values::Bare;
+        form passive_duration_predicate_adjunct = predicate adjunct;
     }
     construction instead_predicate: InsteadPredicate {
         element InsteadPredicateValue { predicate: VerbPhrase, }
@@ -1971,21 +1977,17 @@ constructions! {
         }
         form comparative_frequency = lex(quantifier) "than" lex(adverb);
     }
-    construction frequency_predicate: FrequencyPredicate {
-        element FrequencyPredicateValue {
-            predicate: BaseVerbFrame,
+    construction frequency_predicate_adjunct: PredicateAdjunct {
+        element FrequencyPredicateAdjunct {
             frequency: FrequencyReference,
         }
-        derive agreement = predicate.agreement;
-        form frequency_predicate = predicate frequency;
+        form frequency_predicate_adjunct = frequency;
     }
-    construction manner_predicate: MannerPredicate {
-        element MannerPredicateValue {
-            predicate: BaseVerbFrame,
+    construction manner_predicate_adjunct: PredicateAdjunct {
+        element MannerPredicateAdjunct {
             manner: MannerReference,
         }
-        derive agreement = predicate.agreement;
-        form manner_predicate = predicate manner;
+        form manner_predicate_adjunct = manner;
     }
     construction alternative_predicate: AlternativePredicate {
         element AlternativePredicateValue {
@@ -2018,15 +2020,9 @@ constructions! {
             amount: ManaAmount,
             direction: lex CostComparisonDirection,
             action: ControlledCostAction,
-            basis: opt ForEachCostBasis,
         }
         derive agreement = head.agreement;
-        form cost_comparison_predicate =
-            verb(head) amount lex(direction) action basis;
-    }
-    construction for_each_cost_basis: ForEachCostBasis {
-        element ForEachCostBasisValue { object: Object, }
-        form for_each_cost_basis = "for" object;
+        form cost_comparison_predicate = verb(head) amount lex(direction) action;
     }
     construction restriction_turn: RestrictionTurn {
         element RestrictionTurnValue { endpoint: TemporalEndpoint, }
@@ -2142,16 +2138,11 @@ constructions! {
         }
         form contracted_perfect_passive_clause = lex(subject) "been" predicate duration;
     }
-    construction existential_domain: ExistentialDomain {
-        element ExistentialDomainValue { phrase: PrepositionalPhrase, }
-        require phrase.preposition_attachment is AdjunctCapable;
-        form existential_domain = phrase;
-    }
     construction existential_finite_clause: FiniteClause {
         element ExistentialFiniteClause {
             copula: lex FiniteCopula,
             pivot: NounPhrase,
-            domain: opt ExistentialDomain,
+            adjunct: opt ExistentialPredicateAdjunct,
         }
         derive copula.agreement = match copula {
             Is => Values::ThirdPersonSingular,
@@ -2162,7 +2153,13 @@ constructions! {
             Were => Values::Bare,
         };
         derive pivot.agreement = copula.agreement;
-        form existential_finite_clause = "there" lex(copula) pivot domain;
+        form existential_finite_clause = "there" lex(copula) pivot adjunct;
+    }
+    construction existential_predicate_adjunct: ExistentialPredicateAdjunct {
+        element ExistentialPredicateAdjunctValue {
+            adjunct: PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
+        }
+        form existential_predicate_adjunct = adjunct;
     }
     construction floated_quantifier_finite_clause: FiniteClause {
         element FloatedQuantifierFiniteClause {
@@ -3520,10 +3517,20 @@ constructions! {
         element PositiveObjectGapRelativeClauseValue {
             subject: Subject,
             head: lex TransitiveVerb,
-            adjunct: opt ExistentialDomain,
         }
         derive head.agreement = subject.agreement;
-        form positive_object_gap_relative = subject verb(head) adjunct;
+        form positive_object_gap_relative = subject verb(head);
+    }
+    construction positive_object_gap_relative_with_adjunct: PositiveObjectGapRelativeClause {
+        element PositiveObjectGapRelativeWithAdjunct {
+            subject: Subject,
+            // `control` leaves the shared adjunct for the containing predicate,
+            // pinning Seedborn Muse's temporal PP above the relative clause.
+            head: lex TransitiveVerb checked by object_gap_relative_head_licenses_adjunct(),
+            adjunct: PredicateAdjunct,
+        }
+        derive head.agreement = subject.agreement;
+        form positive_object_gap_relative_with_adjunct = subject verb(head) adjunct;
     }
     construction auxiliary_object_gap_relative: AuxiliaryObjectGapRelativeClause {
         element AuxiliaryObjectGapRelativeClauseValue {
@@ -3539,9 +3546,9 @@ constructions! {
         element ContractedPerfectObjectGapRelativeClauseValue {
             subject: lex ContractedPerfectSubject,
             head: lex DeclaredTransitiveParticipleHead,
-            duration: opt DurationPhrase,
+            adjunct: opt PredicateAdjunct,
         }
-        form contracted_perfect_object_gap_relative = lex(subject) verb(head) duration;
+        form contracted_perfect_object_gap_relative = lex(subject) verb(head) adjunct;
     }
     construction bare_negative_object_gap_relative: BareNegativeObjectGapRelativeClause {
         element BareNegativeObjectGapRelativeClauseValue {
@@ -3834,8 +3841,7 @@ constructions! {
         element ReducedPassiveQualifiedReference {
             reference: UnqualifiedReference,
             clause: PassivePredicate,
-            duration: opt DurationPhrase,
-            manner: opt MannerReference,
+            adjunct: opt PredicateAdjunct,
         }
         derive agreement = reference.agreement;
         derive number = reference.number;
@@ -3843,7 +3849,7 @@ constructions! {
         derive possessive_ending = reference.possessive_ending;
         derive relationality = reference.relationality;
         derive locative_temporal_license = reference.locative_temporal_license;
-        form reduced_passive_qualified_reference = reference clause duration manner;
+        form reduced_passive_qualified_reference = reference clause adjunct;
     }
     construction other_than_qualified_reference: ControllerStage {
         element OtherThanQualifiedReference {
@@ -3958,7 +3964,6 @@ constructions! {
             AdjunctCapable,
             PostmodifierOnly
         ];
-        require modifier.preposition_complement_kind is OnComplement;
         derive agreement = reference.agreement;
         derive number = reference.number;
         derive onset = reference.onset;
@@ -4871,7 +4876,7 @@ fn nominal_preposition_is_licensed(
     _modifier: &PrepositionalPhrase,
     relationality: Relationality,
     license: LocativeTemporalLicense,
-    attachment: PrepositionAttachment,
+    _attachment: PrepositionAttachment,
     kind: PrepositionComplementKind,
     complement_relationality: Relationality,
     complement_license: LocativeTemporalLicense,
@@ -4938,13 +4943,7 @@ fn nominal_preposition_is_licensed(
         PrepositionComplementKind::AtComplement | PrepositionComplementKind::DuringComplement => {
             accepts_temporal
         }
-        PrepositionComplementKind::UnrestrictedComplement => {
-            attachment == PrepositionAttachment::AdjunctCapable
-                && matches!(
-                    relationality,
-                    Relationality::QualifiedRelational | Relationality::Relational
-                )
-        }
+        PrepositionComplementKind::UnrestrictedComplement => false,
     }
 }
 
@@ -4959,6 +4958,23 @@ fn predicate_preposition_is_licensed(
             LocativeTemporalLicense::TemporalLicensed
                 | LocativeTemporalLicense::OfAndTemporalLicensed
         )
+}
+
+fn predicate_adjunct_is_prepositional(adjunct: &PredicateAdjunct) -> bool {
+    matches!(adjunct, PredicateAdjunct::Prepositional(_))
+}
+
+fn predicate_adjunct_is_nonprepositional(adjunct: &PredicateAdjunct) -> bool {
+    !predicate_adjunct_is_prepositional(adjunct)
+}
+
+fn predicate_adjunct_is_duration(adjunct: &PredicateAdjunct) -> bool {
+    matches!(adjunct, PredicateAdjunct::Duration(_))
+}
+
+fn object_gap_relative_head_licenses_adjunct(head: &TransitiveVerb) -> bool {
+    head.reference
+        != crate::environment::VerbInventoryRef::Core(crate::environment::CoreVerbIdentity::Control)
 }
 
 fn bare_preposition_complement_is_licensed(

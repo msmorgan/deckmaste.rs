@@ -35,7 +35,6 @@
             Role("ManaAmount"),
             Role("CostComparisonDirection"),
             Role("ControlledCostAction"),
-            OptionalRole("ForEachCostBasis"),
         ]),
     ]),
     (identity: Cycle, bare: "cycle", third_person: "cycles", valences: [Predicate([])]),
