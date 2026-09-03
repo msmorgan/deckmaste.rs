@@ -1664,15 +1664,15 @@ pubB (MkBinding _ _ _ (ObjectP _ Nothing _ _ _)) = True
 pubB (MkBinding _ _ _ PlayerP) = True
 pubB (MkBinding _ _ _ ChosenPlayerP) = True
 pubB (MkBinding _ _ _ QualityP) = True
-pubB (MkBinding _ _ _ (OutcomeP _)) = True  -- what happened is a public fact
-pubB (MkBinding _ _ _ GapP) = True          -- so is a comparison's margin
-pubB (MkBinding _ _ _ LetterP) = True       -- and so is a value the text defines
-pubB (MkBinding _ _ _ TurnRefP) = True       -- and so is a value the text defines
-pubB (MkBinding _ _ _ (AbilityP _)) = True       -- an ability class is public too
+pubB (MkBinding _ _ _ (OutcomeP _)) = True
+pubB (MkBinding _ _ _ GapP) = True
+pubB (MkBinding _ _ _ LetterP) = True
+pubB (MkBinding _ _ _ TurnRefP) = True
+pubB (MkBinding _ _ _ (AbilityP _)) = True
 pubB (MkBinding _ _ _ (PileP _ _ (Just FaceDownPile))) = False
 pubB (MkBinding _ _ _ (PileP (Just z) _ _)) = publicZone z
 pubB (MkBinding _ _ _ (PileP Nothing _ _)) = True
-pubB (MkBinding _ _ _ (JoinP _ _)) = True         -- a target is public whichever half it is
+pubB (MkBinding _ _ _ (JoinP _ _)) = True
 
 public export
 publicOnly : Bindings -> Bindings

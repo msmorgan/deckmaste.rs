@@ -1,4 +1,3 @@
-||| Compiler-checked proofs that certain English phrases are unspellable.
 module Experimental.Proofs
 
 import Experimental
@@ -20,7 +19,6 @@ badChosenNumberRead Oh impossible
 
 
 ||| "Choose two target creatures. You gain life equal to their power."
-||| Two creatures have no single power [CR#208.1]; a fold word writes the group's.
 public export
 badGroupPower : Unspellable (Effect []) (\ok =>
   Sequentially [Choose (Macros.targets (Macros.exactly 2) Macros.creature) Nothing Openly,
@@ -29,7 +27,6 @@ badGroupPower Refl impossible
 
 
 ||| "Choose two target creatures. Their owner loses 1 life."
-||| Two cards need not share an owner [CR#108.3].
 public export
 badGroupOwner : Unspellable (Effect []) (\ok =>
   Sequentially [Choose (Macros.targets (Macros.exactly 2) Macros.creature) Nothing Openly,
@@ -46,7 +43,6 @@ badFightGroup Refl impossible
 
 
 ||| "a creature two target opponents control"
-||| [CR#110.2] gives a permanent one controller, so a counted plural names no object.
 public export
 badControlledByGroup : Unspellable (Predicate [] Object) (\ok =>
   HasPossessor ControllerAx (Macros.targets (Macros.exactly 2) Opponent) {ps = ok})
@@ -54,7 +50,6 @@ badControlledByGroup Oh impossible
 
 
 ||| "each of target creature"
-||| The complement to EachOf must be plural.
 public export
 badEachOfSingular : Unspellable (Noun [] Object) (\ok =>
   EachOf (Macros.target Macros.creature) {pl = ok})
@@ -77,8 +72,6 @@ badCastsPluralComplement : Unspellable (Ability) (\ok =>
 badCastsPluralComplement Refl impossible
 
 
-||| "Tap target creature an opponent controls or land you control. That player loses 1 life."
-||| Unspellable because its disjunction binds no coherent singular player antecedent.
 public export
 badDisjunctAntecedent : Unspellable (Effect []) (\ok =>
   Sequentially [SetStatus Tapped (Macros.target (Or [And [Macros.creature, HasPossessor ControllerAx Macros.anOpponent],
@@ -88,7 +81,6 @@ badDisjunctAntecedent Refl impossible
 
 
 ||| "Tap target creature with flying that doesn't have flying."
-||| A keyword beside its own negation contradicts.
 public export
 badKeywordContradiction : Unspellable (Effect []) (\ok =>
   SetStatus Tapped (Macros.target (And [Macros.creature, HasKeyword (TheKeyword "Flying"),
@@ -97,7 +89,6 @@ badKeywordContradiction Oh impossible
 
 
 ||| "Tap target nonland Forest."
-||| Forest is a land type [CR#205.3i], so the conjunction contradicts itself.
 public export
 badForestNonland : Unspellable (Effect []) (\ok =>
   SetStatus Tapped (Macros.target (And [HasSubtype (landType "Forest"), Not Macros.land] {cf = ok})))
@@ -105,7 +96,6 @@ badForestNonland Oh impossible
 
 
 ||| "Snow Snow Land — Forest"
-||| The type line's distinctness is per WORD, not per line.
 public export
 badDuplicateSnow : Unspellable Card (\ok =>
   Macros.card "" Nothing [Snow, Snow] (MkTypeLine [landType "Forest"] [Land]) [] Nothing {sp = ok})
@@ -113,7 +103,6 @@ badDuplicateSnow Oh impossible
 
 
 ||| "This deals 1 damage to any other target."
-||| "Other" presupposes an earlier mention, and nothing precedes it.
 public export
 badOther : Unspellable (Effect []) (\ok =>
   DealDamage This (Lit 1) (Macros.target (Macros.anyOtherTarget {ok})))
@@ -121,7 +110,6 @@ badOther Refl impossible
 
 
 ||| "Target creature fights target creature. Tap it."
-||| Two singular Object mentions precede "it", so uniqueness refuses.
 public export
 badIt : Unspellable (Effect []) (\ok =>
   Sequentially [Fights (Macros.target Macros.creature) (Macros.target Macros.creature),
@@ -130,7 +118,6 @@ badIt Refl impossible
 
 
 ||| "This deals 3 damage to each creature. Tap it."
-||| A group is no singular antecedent: "it" has no referent.
 public export
 badTheyIt : Unspellable (Effect []) (\ok =>
   Sequentially [DealDamage This (Lit 3) (Macros.each Macros.creature),
@@ -139,7 +126,6 @@ badTheyIt (Refl, _) impossible
 
 
 ||| "Destroy target creature. At the beginning of the end step, sacrifice it."
-||| The destroyed target is in the graveyard when the delayed sacrifice reads it [CR#701.21a].
 public export
 badStale : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.destroy (Macros.target Macros.creature),
@@ -147,8 +133,6 @@ badStale : Unspellable (Effect []) (\ok =>
 badStale OnField impossible
 
 
-||| "This deals 2 damage to any target. At the beginning of the end step, this deals 1 damage to any other target."
-||| A delayed clause announces its own targets [CR#603.3d,601.2c], so "other" has no witness.
 public export
 badDelayedOther : Unspellable (Effect []) (\ok =>
   Sequentially [DealDamage This (Lit 2) (Macros.target Macros.anyTarget),
@@ -156,8 +140,6 @@ badDelayedOther : Unspellable (Effect []) (\ok =>
 badDelayedOther Refl impossible
 
 
-||| "Exile target creature you control. Return that creature to the battlefield."
-||| Exile retags the carrier [CR#110.1], so the typed demonstrative has no antecedent.
 public export
 badStaleCarrier : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.exile You (Macros.target Macros.creatureYouControl),
@@ -174,7 +156,6 @@ badHiddenCost (Refl, _) impossible
 
 
 ||| "Discard a card, Sacrifice a creature: Exile it."
-||| Two cost moves leave a bare "It" past the colon ambiguous.
 public export
 badTwoCostMentions : Unspellable Ability (\ok =>
   Activated (Compound [Do ((Macros.discard You (Macros.a (InZone Macros.handZ)))),
@@ -184,7 +165,6 @@ badTwoCostMentions Refl impossible
 
 
 ||| "Exile target creature. Sacrifice it."
-||| An exiled referent is not sacrificeable [CR#701.21a].
 public export
 badSacrificeExiled : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.exile You (Macros.target Macros.creature),
@@ -192,8 +172,6 @@ badSacrificeExiled : Unspellable (Effect []) (\ok =>
 badSacrificeExiled OnField impossible
 
 
-||| "When target creature dies this turn, return that creature to the battlefield."
-||| The death retag flips the carrier [CR#700.4,110.1], so "creature" no longer reads.
 public export
 badDeadCreatureRead : Unspellable (Effect []) (\ok =>
   Delayed (Dies (Macros.target Macros.creature)) [] (Just ThisTurn)
@@ -217,7 +195,6 @@ badChosenCounterKindRead Oh impossible
 
 
 ||| "Choose two target creatures. Choose two target creatures. Tap them."
-||| Two group mentions leave "them" ambiguous.
 public export
 badThemAmbig : Unspellable (Effect []) (\ok =>
   Sequentially [Choose (Macros.targets (Macros.exactly 2) Macros.creature) Nothing Openly,
@@ -226,8 +203,6 @@ badThemAmbig : Unspellable (Effect []) (\ok =>
 badThemAmbig Refl impossible
 
 
-||| "Target creature an opponent controls fights target creature an opponent controls. That player loses 1 life."
-||| Uniqueness reaches inside relative clauses: two opponents leave "that player" ambiguous.
 public export
 badInnerAmbig : Unspellable (Effect []) (\ok =>
   Sequentially [Fights (Macros.target (And [Macros.creature, HasPossessor ControllerAx Macros.anOpponent]))
@@ -237,7 +212,6 @@ badInnerAmbig Refl impossible
 
 
 ||| "Discard a card: Return the sacrificed card to the battlefield."
-||| The participle's verb filter has no witness: nothing was sacrificed.
 public export
 badVerbedWrongVerb : Unspellable Ability (\ok =>
   Activated (Do ((Macros.discard You (Macros.a (InZone Macros.handZ)))))
@@ -246,7 +220,6 @@ badVerbedWrongVerb Refl impossible
 
 
 ||| "Sacrifice an artifact: Return the sacrificed creature to the battlefield."
-||| The noun word misses on the type axis: an artifact was sacrificed.
 public export
 badVerbedWrongNoun : Unspellable Ability (\ok =>
   Activated (Do (Macros.sacrifice You (Macros.a (HasType Artifact))))
@@ -254,8 +227,6 @@ badVerbedWrongNoun : Unspellable Ability (\ok =>
 badVerbedWrongNoun Refl impossible
 
 
-||| "Sacrifice a creature, Sacrifice a creature: Return the sacrificed card to the battlefield."
-||| Two same-verb stamps leave the participle ambiguous.
 public export
 badVerbedAmbig : Unspellable Ability (\ok =>
   Activated (Compound [Do (Macros.sacrifice You (Macros.a Macros.creature)),
@@ -264,7 +235,6 @@ badVerbedAmbig : Unspellable Ability (\ok =>
 badVerbedAmbig Refl impossible
 
 
-||| "Sacrifice a creature: Exile target creature. At the beginning of the end step, return that card to the battlefield."
 public export
 badBareCardRead : Unspellable Ability (\ok =>
   Activated (Do (Macros.sacrifice You (Macros.a Macros.creature)))
@@ -274,7 +244,6 @@ badBareCardRead Refl impossible
 
 
 ||| "Tap target creature card in your graveyard."
-||| Tapping takes a battlefield object [CR#701.26a].
 public export
 badTapGraveyard : Unspellable (Effect []) (\ok =>
   SetStatus Tapped (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {ok})
@@ -282,7 +251,6 @@ badTapGraveyard OnField impossible
 
 
 ||| "Destroy target tapped creature card in your graveyard."
-||| Status is only a battlefield permanent's [CR#110.5d], so this names two zones at once.
 public export
 badTappedGraveyard : Unspellable (Effect []) (\ok =>
   Macros.destroy (Macros.target (And [Macros.creature, Macros.tapped,
@@ -291,7 +259,6 @@ badTappedGraveyard Oh impossible
 
 
 ||| "Destroy target tapped untapped creature."
-||| One value per category [CR#110.5]: a category clash, not a negation pair.
 public export
 badTappedUntapped : Unspellable (Effect []) (\ok =>
   Macros.destroy (Macros.target (And [Macros.creature, Macros.tapped, Macros.untapped] {cf = ok})))
@@ -299,7 +266,6 @@ badTappedUntapped Oh impossible
 
 
 ||| "Untap target creature card in your graveyard."
-||| Untap takes a battlefield object [CR#701.26b].
 public export
 badUntapGraveyard : Unspellable (Effect []) (\ok =>
   SetStatus Untapped (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {ok})
@@ -307,7 +273,6 @@ badUntapGraveyard OnField impossible
 
 
 ||| "Destroy target permanent instant."
-||| "Permanent" beside a projected instant head describes nothing [CR#110.4].
 public export
 badPermanentInstant : Unspellable (Effect []) (\ok =>
   Macros.destroy (Macros.target (And [Permanent, HasType Instant] {cf = ok})))
@@ -322,7 +287,6 @@ badThatPermanentDeparted (Refl, _) impossible
 
 
 ||| "Destroy target token card in your graveyard."
-||| A token off the battlefield has ceased to exist [CR#111.7].
 public export
 badTokenGraveyard : Unspellable (Effect []) (\ok =>
   Macros.destroy (Macros.target (And [IsToken, InZone (Macros.graveyardOf You)] {zc = ok})))
@@ -330,7 +294,6 @@ badTokenGraveyard Oh impossible
 
 
 ||| "Destroy target nontoken token."
-||| The negation pair the contradiction scan already refuses.
 public export
 badNontokenToken : Unspellable (Effect []) (\ok =>
   Macros.destroy (Macros.target (And [IsToken, Macros.nontoken] {cf = ok})))
@@ -338,7 +301,6 @@ badNontokenToken Oh impossible
 
 
 ||| "Tap target creature. Untap that token."
-||| The origin field is written only by the create clause [CR#111.1].
 public export
 badThatTokenOfCard : Unspellable (Effect []) (\ok =>
   Sequentially [SetStatus Tapped (Macros.target Macros.creature),
@@ -346,8 +308,6 @@ badThatTokenOfCard : Unspellable (Effect []) (\ok =>
 badThatTokenOfCard (Refl, _) impossible
 
 
-||| "A creature card in your graveyard doesn't untap during its controller's untap step."
-||| The lock's subject stands on the battlefield — only a permanent untaps [CR#701.26b].
 public export
 badUntapLockGraveyard : Unspellable Ability (\ok =>
   Static (Macros.doesntUntap (Macros.a (And [Macros.creature, InZone (Macros.graveyardOf You)]))
@@ -356,7 +316,6 @@ badUntapLockGraveyard Oh impossible
 
 
 ||| "Target creature card in your graveyard fights target creature."
-||| Only battlefield creatures fight [CR#701.14b].
 public export
 badFightGraveyard : Unspellable (Effect []) (\ok =>
   Fights (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {za = ok}
@@ -365,15 +324,12 @@ badFightGraveyard OnField impossible
 
 
 ||| "Target land fights target creature you don't control."
-||| Only combatant types fight [CR#701.14a]; a land declares no fight participation.
 public export
 badFightLand : Unspellable (Effect []) (\ok =>
   Fights (Macros.target (HasType Land)) {ta = ok} (Macros.target Macros.creatureYouDontControl))
 badFightLand Oh impossible
 
 
-||| "When target creature card in your graveyard dies this turn, return that card to the battlefield."
-||| Dying is the battlefield-to-graveyard transition [CR#700.4]; a graveyard head contradicts it.
 public export
 badDiesInGraveyard : Unspellable (Effect []) (\ok =>
   Delayed (Dies (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {zn = ok}) [] (Just ThisTurn)
@@ -382,7 +338,6 @@ badDiesInGraveyard Oh impossible
 
 
 ||| "Destroy target creature. This deals 3 damage to it."
-||| Damage reaches players and battlefield objects only [CR#120.1].
 public export
 badDamageGraveyardCard : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.destroy (Macros.target Macros.creature),
@@ -391,7 +346,6 @@ badDamageGraveyardCard ObjectTakes impossible
 
 
 ||| "This deals 1 damage to a color."
-||| A quality cannot take damage [CR#120.1].
 public export
 badDamageToColor : Unspellable (Effect []) (\ok =>
   DealDamage This (Lit 1) (Macros.a (QualityNoun Color Nothing)) {rk = ok})
@@ -399,7 +353,6 @@ badDamageToColor ObjectTakes impossible
 
 
 ||| "This deals 1 damage to target artifact."
-||| Damage goes to battles, creatures, planeswalkers, or players [CR#120.1a].
 public export
 badDamageArtifact : Unspellable (Effect []) (\ok =>
   DealDamage This (Lit 1) (Macros.target (HasType Artifact)) {rk = ok})
@@ -414,7 +367,6 @@ badNegatedQualityHead Oh impossible
 
 
 ||| "non-player"
-||| The universal player word names one of the game's people [CR#102.1]; "non-" has no complement.
 public export
 badNegatedPlayerHead : Unspellable (Predicate [] Player) (\ok =>
   Not AnyPlayer {ng = ok})
@@ -422,7 +374,6 @@ badNegatedPlayerHead Oh impossible
 
 
 ||| "Tap target creature an opponent doesn't control. That player loses 1 life."
-||| Negation binds nothing, so no opponent is named for "that player".
 public export
 badNegatedAntecedent : Unspellable (Effect []) (\ok =>
   Sequentially [SetStatus Tapped (Macros.target (And [Macros.creature, Not (HasPossessor ControllerAx Macros.anOpponent)])),
@@ -438,7 +389,6 @@ badConflictingZones Oh impossible
 
 
 ||| "Choose target color."
-||| Targets are objects and players [CR#115.1]; qualities are chosen.
 public export
 badTargetColor : Unspellable (Effect []) (\ok =>
   Choose (Macros.target (QualityNoun Color Nothing) {tk = ok}) Nothing Openly)
@@ -454,7 +404,6 @@ badGetsGraveyard Oh impossible
 
 
 ||| "Put target creature into target player's hand."
-||| A card never enters another player's hand [CR#400.3].
 public export
 badMoveToTargetsHand : Unspellable (Effect []) (\ok =>
   Move (Macros.target Macros.creature) (Macros.handOf (Macros.target AnyPlayer)) [] {ok})
@@ -462,7 +411,6 @@ badMoveToTargetsHand HandOkBare impossible
 
 
 ||| "Destroy target creature card in your graveyard."
-||| Only a battlefield permanent is destroyable [CR#701.8a].
 public export
 badDestroyGraveyard : Unspellable (Effect []) (\ok =>
   Macros.destroy (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {ok})
@@ -470,7 +418,6 @@ badDestroyGraveyard OnField impossible
 
 
 ||| "You discard a creature."
-||| Discarding moves a card from a HAND [CR#701.9a].
 public export
 badDiscardBattlefield : Unspellable (Effect []) (\ok =>
   Macros.discard You (Macros.a Macros.creature) {dk = ok})
@@ -492,7 +439,6 @@ badUnknownVerbLabel Oh impossible
 
 
 ||| "Choose zero target creatures."
-||| A written quantity permits at least one; the demand is on its MAXIMUM.
 public export
 badZeroGroup : Unspellable (Effect []) (\ok =>
   Choose (Macros.targets (Macros.exactly 0) Macros.creature {ok}) Nothing Openly)
@@ -500,15 +446,12 @@ badZeroGroup (MaxAtLeastOne, _, _) impossible
 
 
 ||| "your battlefield"
-||| Shared zones take no possessor: [CR#400.1] gives each player library, hand, and graveyard.
 public export
 badOwnedBattlefield : Unspellable (ZoneExpr []) (\ok =>
   ZoneAt Battlefield (PossessedBy You {ps = ok}))
 badOwnedBattlefield HandIsOwned impossible
 
 
-||| "Discard a card at random: This deals damage equal to the discarded creature's mana value to any target."
-||| A bare type word denotes a permanent [CR#109.2]; what was discarded left a hand [CR#701.9a].
 public export
 badDiscardedCreatureWord : Unspellable Ability (\ok =>
   Activated (Do (Macros.discard You (Macros.aAtRandom (And [Macros.creature, InZone Macros.handZ]))))
@@ -519,7 +462,6 @@ badDiscardedCreatureWord Refl impossible
 
 
 ||| "Destroy a creature of their choice."
-||| "Of their choice" demands a player antecedent: a subject or one distributive group [CR#608.2d].
 public export
 badUnboundTheirChoice : Unspellable (Effect []) (\ok =>
   Macros.destroy (Macros.aTheirChoice Macros.creature {ch = ok}))
@@ -527,15 +469,12 @@ badUnboundTheirChoice Refl impossible
 
 
 ||| "This deals that much damage to any target."
-||| "That much" with nothing done yet: no outcome to read.
 public export
 badThatMuchUnbound : Unspellable (Effect []) (\ok =>
   DealDamage This (ThatMuch {ok}) (Macros.target Macros.anyTarget))
 badThatMuchUnbound Refl impossible
 
 
-||| "This deals 3 damage to any target. You lose 2 life. You gain that much life."
-||| Two event clauses leave "that much" ambiguous.
 public export
 badThatMuchAmbig : Unspellable (Effect []) (\ok =>
   Sequentially [DealDamage This (Lit 3) (Macros.target Macros.anyTarget),
@@ -545,7 +484,6 @@ badThatMuchAmbig Refl impossible
 
 
 ||| "1 life for each 0 creatures"
-||| A written numeral is at least one.
 public export
 badForEachZero : Unspellable (Amount []) (\ok =>
   Macros.nForEach 0 Macros.creature {nz = ok})
@@ -553,7 +491,6 @@ badForEachZero ItIsSucc impossible
 
 
 ||| "creature that isn't on the battlefield"
-||| A bare "creature" means the battlefield [CR#109.2], which the negation contradicts.
 public export
 badNotOnBattlefield : Unspellable (Predicate [] Object) (\ok =>
   And [Macros.creature, Not (InZone Macros.battlefieldZ)] {zc = ok})
@@ -561,7 +498,6 @@ badNotOnBattlefield Oh impossible
 
 
 ||| "of the chosen color and not of the chosen color"
-||| No member negates a sibling.
 public export
 badQualityContradiction : Unspellable
   (Predicate [MkBinding AD (Quality Color) OneOf QualityP] Object)
@@ -577,7 +513,6 @@ badNestedContradiction Oh impossible
 
 
 ||| "attacking card in your hand"
-||| Attacking seeds the battlefield [CR#508.1a,506.4], which the hand clause contradicts.
 public export
 badAttackingInHand : Unspellable (Predicate [] Object) (\ok =>
   And [Attacking, InZone Macros.handZ] {zc = ok})
@@ -585,7 +520,6 @@ badAttackingInHand Oh impossible
 
 
 ||| "Discard this creature."
-||| A type-worded self-reference denotes the permanent [CR#109.2], not a hand card [CR#701.9a].
 public export
 badDiscardThisCreature : Unspellable (Effect []) (\ok =>
   Macros.discard You Macros.thisCreature {dk = ok})
@@ -593,7 +527,6 @@ badDiscardThisCreature DiscardTracked impossible
 
 
 ||| "this creature"
-||| The ascription is the SOURCE's and only the source's; re-sorting a target spells nothing new.
 public export
 badAscribedTarget : Unspellable (Noun [] Object) (\ok =>
   AsType Creature (Macros.target Macros.creature) Nothing {asc = ok})
@@ -601,7 +534,6 @@ badAscribedTarget AscribeThis impossible
 
 
 ||| "creature you control that you don't control"
-||| "You" denotes one player at both mentions, so the phrase asserts and denies one fact.
 public export
 badControlContradiction : Unspellable (Predicate [] Object) (\ok =>
   And [HasPossessor ControllerAx You, Not (HasPossessor ControllerAx You)] {cf = ok})
@@ -609,14 +541,12 @@ badControlContradiction Oh impossible
 
 
 ||| "attacking noncreature"
-||| Only a creature can attack [CR#506.3], so the status word presupposes the type.
 public export
 badAttackingNoncreature : Unspellable (Predicate [] Object) (\ok =>
   And [Attacking, Not Macros.creature] {cf = ok})
 badAttackingNoncreature Oh impossible
 
 
-||| "Whenever this creature blocks or becomes blocked by a creature, that creature gets -1/-1 until end of turn."
 public export
 badAltHeaderMixedReadback : Unspellable Ability (\ok =>
   Triggered Whenever (Blocks Macros.thisCreature Nothing)
@@ -628,7 +558,6 @@ badAltHeaderMixedReadback : Unspellable Ability (\ok =>
 badAltHeaderMixedReadback Refl impossible
 
 
-||| Giggling Skitterspike — "Whenever this creature attacks, blocks, or
 public export
 badThreeArmHeaderReadback : Unspellable Ability (\ok =>
   Triggered Whenever (Macros.attacks Macros.thisCreature)
@@ -640,7 +569,6 @@ badThreeArmHeaderReadback : Unspellable Ability (\ok =>
 badThreeArmHeaderReadback Refl impossible
 
 
-||| "When this creature enters and whenever a creature you control dies, put a +1/+1 counter on it."
 public export
 badJoinedHeaderReadback : Unspellable Ability (\ok =>
   Triggered When (Enters Macros.thisCreature Nothing) [] Nothing

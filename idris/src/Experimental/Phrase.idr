@@ -223,7 +223,7 @@ mutual
 
   public export
   data Predicate : Bindings -> Kind -> Type where
-    HasType : CardType -> Predicate bs Object            -- head noun "creature"/…
+    HasType : CardType -> Predicate bs Object
     HasSubtype : Subtype -> Predicate bs Object
     AnyPlayer : Predicate bs Player                      -- head noun "player" (any player, [CR#102.1])
     Opponent : Predicate bs Player
@@ -1489,7 +1489,6 @@ mutual
     ItOtherThan : (co : Bindings) -> (rest : Bindings) ->
                   {auto 0 sp : bs = co ++ rest} ->
                   {auto 0 ok : countOnes Object rest = 1} -> Noun bs Object
-    ||| "Exile target artifact. Target creature deals damage equal to ITS power": `It` there counts two.
     Own : (pl : Plurality) -> (own : Bindings) -> (outer : Bindings) ->
           {auto 0 sp : bs = own ++ outer} ->
           {auto 0 ok : countReach Bare pl own = 1} -> Noun bs Object
@@ -2010,9 +2009,9 @@ mutual
 
   public export
   data LifeOp : Bindings -> Type where
-    Up : Amount bs -> LifeOp bs     -- "gains [amt] life"
-    Down : Amount bs -> LifeOp bs   -- "loses [amt] life"
-    Set : Amount bs -> LifeOp bs    -- "[whose] life total becomes [amt]"
+    Up : Amount bs -> LifeOp bs
+    Down : Amount bs -> LifeOp bs
+    Set : Amount bs -> LifeOp bs
 
   public export
   lifeIntro : {bs : Bindings} -> LifeOp bs -> Bindings

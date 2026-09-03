@@ -1,4 +1,3 @@
-||| Forward-anaphora closure: every anaphor gate is a fold over the
 module Experimental.ProofsAnaphora
 
 import Experimental
@@ -13,20 +12,16 @@ import Data.List.Elem
 
 
 
-||| The shape of every counted-uniqueness gate: fold the context, keep
-||| the bindings a per-binding test admits.
 public export
 countBy : (Binding -> Bool) -> Bindings -> Nat
 countBy p [] = Z
 countBy p (b :: bs) = if p b then S (countBy p bs) else countBy p bs
 
-||| The shape of every existence gate.
 public export
 anyBy : (Binding -> Bool) -> Bindings -> Bool
 anyBy p [] = False
 anyBy p (b :: bs) = p b || anyBy p bs
 
-||| A gate reads its context left to right. Every threading function in
 public export
 countBySplit : (p : Binding -> Bool) -> (xs, ys : Bindings) ->
                countBy p (xs ++ ys) = countBy p xs + countBy p ys
@@ -35,7 +30,6 @@ countBySplit p (b :: xs) ys with (p b)
   _ | True = cong S (countBySplit p xs ys)
   _ | False = countBySplit p xs ys
 
-||| The same for an existence gate.
 public export
 anyBySplit : (p : Binding -> Bool) -> (xs, ys : Bindings) ->
              anyBy p (xs ++ ys) = anyBy p xs || anyBy p ys
@@ -54,7 +48,6 @@ countByWitness p (b :: bs) n prf with (p b) proof eq
   countByWitness p (b :: bs) n prf | False =
     let (c ** (el, ok)) = countByWitness p bs n prf in (c ** (There el, ok))
 
-||| The same for an existence gate.
 public export
 anyByWitness : (p : Binding -> Bool) -> (bs : Bindings) ->
                So (anyBy p bs) -> (b : Binding ** (Elem b bs, So (p b)))
@@ -65,14 +58,12 @@ anyByWitness p (b :: bs) ok with (p b) proof eq
     let (c ** (el, ok')) = anyByWitness p bs ok in (c ** (There el, ok'))
 
 ||| An empty prefix counts nothing, so no anaphor is writable before its
-||| antecedent. Every grounding claim below is this lemma at some test.
 public export
 countByEmpty : (p : Binding -> Bool) -> countBy p [] = Z
 countByEmpty p = Refl
 
 
 
-||| What `countOnes` folds: a singular mention whose kind the read sits
 public export
 oneOfKind : Kind -> Binding -> Bool
 oneOfKind k (MkBinding _ j OneOf _) = kindLte k j
@@ -87,7 +78,6 @@ countOnesIsFold k (MkBinding d j OneOf p :: bs) with (kindLte k j)
   _ | False = countOnesIsFold k bs
 countOnesIsFold k (MkBinding d j ManyOf p :: bs) = countOnesIsFold k bs
 
-||| What `countManys` folds: the plural twin.
 public export
 manyOfKind : Kind -> Binding -> Bool
 manyOfKind k (MkBinding _ j ManyOf _) = kindLte k j
@@ -102,8 +92,6 @@ countManysIsFold k (MkBinding d j ManyOf p :: bs) with (kindLte k j)
   _ | False = countManysIsFold k bs
 countManysIsFold k (MkBinding d j OneOf p :: bs) = countManysIsFold k bs
 
-||| What `countManysAny` folds: any group mention at all, whatever it is
-||| a group of — "one or more opponents" leaves a size to read back.
 public export
 anyMany : Binding -> Bool
 anyMany (MkBinding _ _ ManyOf _) = True
@@ -115,8 +103,6 @@ countManysAnyIsFold [] = Refl
 countManysAnyIsFold (MkBinding d j ManyOf p :: bs) = cong S (countManysAnyIsFold bs)
 countManysAnyIsFold (MkBinding d j OneOf p :: bs) = countManysAnyIsFold bs
 
-||| What `countOutcomes` folds: a singular event-outcome mention of the
-||| named sort.
 public export
 outcomeIs : OutcomeSort -> Binding -> Bool
 outcomeIs s (MkBinding _ Outcome OneOf (OutcomeP t)) = s == t
@@ -140,7 +126,6 @@ countOutcomesIsFold s (MkBinding d TurnRef p pay :: bs) = countOutcomesIsFold s 
 countOutcomesIsFold s (MkBinding d Ability p pay :: bs) = countOutcomesIsFold s bs
 countOutcomesIsFold s (MkBinding d (a \/ b) p pay :: bs) = countOutcomesIsFold s bs
 
-||| What `countQuantOutcomes` folds: an outcome mention that carries a
 public export
 quantOutcome : Binding -> Bool
 quantOutcome (MkBinding _ Outcome OneOf (OutcomeP t)) = outcomeIsQuantity t
@@ -165,8 +150,6 @@ countQuantOutcomesIsFold (MkBinding d TurnRef p pay :: bs) = countQuantOutcomesI
 countQuantOutcomesIsFold (MkBinding d Ability p pay :: bs) = countQuantOutcomesIsFold bs
 countQuantOutcomesIsFold (MkBinding d (a \/ b) p pay :: bs) = countQuantOutcomesIsFold bs
 
-||| `countQuality` is `countOnes` at a quality kind: the chosen-quality
-||| gates and the wildcard pronoun read the context the same way.
 public export
 countQualityIsCountOnes : (q : QualitySort) -> (bs : Bindings) ->
                           countChoice (QSort q) bs = countOnes (Quality q) bs
@@ -182,8 +165,6 @@ countQualityIsFold : (q : QualitySort) -> (bs : Bindings) ->
 countQualityIsFold q bs =
   trans (countQualityIsCountOnes q bs) (countOnesIsFold (Quality q) bs)
 
-||| `countLetter` likewise: a letter is a singular mention of a letter
-||| kind [CR#107.3].
 public export
 countLetterIsCountOnes : (l : Letter) -> (bs : Bindings) ->
                          countLetter l bs = countOnes (LetterK l) bs
@@ -199,7 +180,6 @@ countLetterIsFold : (l : Letter) -> (bs : Bindings) ->
 countLetterIsFold l bs =
   trans (countLetterIsCountOnes l bs) (countOnesIsFold (LetterK l) bs)
 
-||| Every indexed pronoun read is the fold at its structural reach test.
 public export
 countReachIsFold : (r : Reach) -> (pl : Plurality) -> (bs : Bindings) ->
                    countReach r pl bs = countBy (reaches r pl) bs
@@ -260,8 +240,6 @@ countManyVerbedIsFold : (v : VerbLabel) -> (w : NounWord) -> (bs : Bindings) ->
 countManyVerbedIsFold v w bs =
   countReachIsFold (Verbed v w Attributive) ManyOf bs
 
-||| What `countGroups` folds for "the rest": an assembled group of
-||| objects, with the parts already taken out of it excluded.
 public export
 groupOne : Binding -> Bool
 groupOne (MkBinding PartD _ _ _) = False
@@ -297,8 +275,6 @@ countGroupsIsFold (MkBinding SelfD j p pay :: bs)
   _ | True = cong S (countGroupsIsFold bs)
   _ | False = countGroupsIsFold bs
 
-||| What `countParts` folds: a part already taken from a group, which is
-||| what makes "the rest" have something to be the rest OF.
 public export
 partOne : Binding -> Bool
 partOne (MkBinding PartD j _ _) = kindLte Object j
@@ -318,8 +294,6 @@ countPartsIsFold (MkBinding TheD j p pay :: bs) = countPartsIsFold bs
 countPartsIsFold (MkBinding CountD j p pay :: bs) = countPartsIsFold bs
 countPartsIsFold (MkBinding SelfD j p pay :: bs) = countPartsIsFold bs
 
-||| What `anyTargeted` folds for the "other" presupposition: an announced
-||| target of a kind the modifier's own kind reaches [CR#601.2c,115.4].
 public export
 targetOfKind : Kind -> Binding -> Bool
 targetOfKind k (MkBinding TargetD j _ _) = kindLte k j
@@ -342,7 +316,6 @@ anyTargetedIsAny k (MkBinding SelfD j p pay :: bs) = anyTargetedIsAny k bs
 
 
 
-||| Resolution for every `countOnes` gate, once.
 public export
 resolveOnes : (k : Kind) -> (bs : Bindings) -> countOnes k bs = 1 ->
               (b : Binding ** (Elem b bs, So (oneOfKind k b)))
@@ -357,7 +330,6 @@ resolveManys k bs ok =
 
 
 
-||| The pronoun asks its context one question and no other: given a
 public export
 itReadsOnlyPrefix : (bs : Bindings) -> countReach Bare OneOf bs = 1 -> Noun bs Object
 itReadsOnlyPrefix bs ok = Pro Bare OneOf {bs} {ok}
@@ -371,7 +343,6 @@ itResolvesInPrefix bs ok =
 
 
 
-||| The scoped pronoun asks its context ONE question too, and the same
 public export
 itAtReadsOnlyPrefix : (sl : SlotCarrier) -> (bs : Bindings) ->
                       countReach (AtSlot sl) OneOf bs = 1 -> Noun bs Object
@@ -387,7 +358,6 @@ itAtResolvesInPrefix sl bs ok =
 
 
 
-||| The verb-scoped pronoun asks the prefix ONE question -- how many of
 public export
 itVerbedReadsOnlyPrefix : (bs : Bindings) -> (v : VerbLabel) ->
                           KnownAct v -> countReach (Stamped v) OneOf bs = 1 ->
@@ -404,7 +374,6 @@ itVerbedResolvesInPrefix bs v ok =
 
 
 
-||| The origin-scoped pronoun asks the prefix ONE question -- how many of
 public export
 itTokenReadsOnlyPrefix : (bs : Bindings) -> countReach TokenBorn OneOf bs = 1 ->
                          Noun bs Object
@@ -419,7 +388,6 @@ itTokenResolvesInPrefix bs ok =
 
 
 
-||| A binding one segment holds is a binding the whole prefix holds.
 public export
 elemInSuffix : {0 b : Binding} -> {0 rest : Bindings} -> (co : Bindings) ->
                Elem b rest -> Elem b (co ++ rest)
@@ -445,7 +413,6 @@ countBySegmentNoLarger p xs ys =
     lteRightPlus Z m = reflexive
     lteRightPlus (S n) m = lteSuccRight (lteRightPlus n m)
 
-||| The co-argument-scoped pronoun asks the prefix ONE question -- how
 public export
 itOtherThanReadsOnlyPrefix : (co, rest : Bindings) ->
                              countOnes Object rest = 1 -> Noun (co ++ rest) Object
@@ -460,7 +427,6 @@ itOtherThanResolvesInPrefix co rest ok =
   let (b ** (el, k)) = resolveOnes Object rest ok in
       (b ** (elemInSuffix co el, k))
 
-||| The previous-sibling read is the same shape at the other end of the
 public export
 itPriorReadsOnlyPrefix : (made, before : Bindings) ->
                          countReach Bare OneOf made = 1 -> Noun (made ++ before) Object
@@ -520,7 +486,6 @@ themResolvesInPrefix bs ok =
 
 
 
-||| The verb-scoped GROUP pronoun asks the prefix the singular row's
 public export
 themVerbedReadsOnlyPrefix : (bs : Bindings) -> (v : VerbLabel) ->
                             KnownAct v -> countReach (Stamped v) ManyOf bs = 1 ->
@@ -538,8 +503,6 @@ themVerbedResolvesInPrefix bs v ok =
 
 
 
-||| The word filter is extra content on the read, not a second context:
-||| the gate is still one `countReach`, a fact about the prefix alone.
 public export
 thatReadsOnlyPrefix : (bs : Bindings) -> (w : NounWord) ->
                       countReach (Word w) OneOf bs = 1 -> Noun bs (kindOfW w)
@@ -555,7 +518,6 @@ thatResolvesInPrefix bs w ok =
 
 
 
-||| The split arm's gate counts the UNION mentions its word names a half
 public export
 thatHalfReadsOnlyPrefix : (bs : Bindings) -> (w : NounWord) ->
                           countReach (UnionHalf w) OneOf bs = 1 ->
@@ -588,7 +550,6 @@ thoseResolvesInPrefix bs w ok =
 
 
 
-||| The participle read carries a second obligation — that the verb takes
 public export
 theVerbedReadsOnlyPrefix : (bs : Bindings) -> (v : VerbLabel) -> (w : NounWord) ->
                            (m : VerbedMarking) ->
@@ -720,7 +681,6 @@ theDifferenceResolvesInPrefix bs ok = resolveOnes Gap bs ok
 
 
 
-||| What `anyOpenLetter` folds: an introduced, still-undefined letter.
 public export
 openLetterIsAny : (l : Letter) -> (bs : Bindings) ->
                   anyOpenLetter l bs = anyBy (openLetter l) bs
@@ -729,7 +689,6 @@ openLetterIsAny l (b :: bs) with (openLetter l b)
   _ | True = Refl
   _ | False = openLetterIsAny l bs
 
-||| The definition asks one thing of its context: that some open X stands
 public export
 defineReadsOnlyPrefix : (bs : Bindings) -> (l : Letter) -> (amt : Amount bs) ->
                         So (anyOpenLetter l bs) -> Effect bs
@@ -741,7 +700,6 @@ defineResolvesInPrefix : (bs : Bindings) -> (l : Letter) -> So (anyOpenLetter l 
 defineResolvesInPrefix bs l ok =
   anyByWitness (openLetter l) bs (replace {p = So} (openLetterIsAny l bs) ok)
 
-||| After a definition no instance of the letter is open.
 public export
 defineClosesLetter : (l : Letter) -> (bs : Bindings) ->
                      anyOpenLetter l (defineLetter l bs) = False
@@ -756,13 +714,11 @@ badDefineWithoutUse : Not (So (anyOpenLetter X []))
 badDefineWithoutUse Oh impossible
 
 ||| a second "where X is" on one ability: the first settled every
-||| instance [CR#107.3i], so none is open for the second to define.
 public export
 badSecondDefine : (bs : Bindings) -> (l : Letter) ->
                   Not (So (anyOpenLetter l (defineLetter l bs)))
 badSecondDefine bs l ok = absurd (replace {p = So} (defineClosesLetter l bs) ok)
 
-||| A cost's X is the same variable the text writes [CR#107.3i] and stays
 public export
 costXStaysOpen : So (anyOpenLetter X (costIntro (LoyaltySymbol {bs = []} LoyaltyDownX)))
 costXStaysOpen = Oh
@@ -786,13 +742,10 @@ ofChosenResolvesInPrefix bs q ok =
 
 
 
-||| `ChoiceStands n` is `n` being a successor, so opening it is opening a
-||| `Nat`.
 public export
 choiceStandsSucc : (n : Nat) -> ChoiceStands n -> (k : Nat ** n = S k)
 choiceStandsSucc (S k) ChoiceMade = (k ** Refl)
 
-||| The marked read asks for EXISTENCE rather than uniqueness — bindings
 public export
 ofLastChosenColorReadsOnlyPrefix : (bs : Bindings) ->
                                    ChoiceStands (countChoice (QSort Color) bs) ->
@@ -865,7 +818,6 @@ turnInScopeResolvesInPrefix bs ok = resolveOnes TurnRef bs ok
 
 
 
-||| `countTokenSpecs` is the one gate whose definition overlaps its
 public export
 tokenAsThoseReadsOnlyPrefix : (bs : Bindings) -> countTokenSpecs bs = 1 ->
                               TokenSpec bs
@@ -875,7 +827,6 @@ public export
 noTokenAsThoseWithoutAntecedent : Not (countTokenSpecs [] = 1)
 noTokenAsThoseWithoutAntecedent Refl impossible
 
-||| The gate counts a DEFINITION, so plurality is not one of the fields it
 public export
 oneTokenIsOneSpec :
   countTokenSpecs [MkBinding AD Object OneOf
@@ -891,7 +842,6 @@ manyTokensAreOneSpec :
 manyTokensAreOneSpec = Refl
 
 ||| A non-token object leaves no definition whatever its plurality, which
-||| is the fact `badAnaphoricTokenAfterNonToken` (ProofsE) spells as a card.
 public export
 oneNonTokenIsNoSpec :
   countTokenSpecs [MkBinding TheD Object OneOf
@@ -901,8 +851,6 @@ oneNonTokenIsNoSpec = Refl
 
 
 
-||| `countChoosers` is the two player counts summed, so one chooser means
-||| exactly one of the two folds found it.
 public export
 sumIsOne : (m, n : Nat) -> m + n = 1 -> Either (m = 1) (n = 1)
 sumIsOne Z n prf = Right prf
@@ -927,7 +875,6 @@ theirChoiceResolvesInPrefix bs ok =
 
 
 
-||| The source names itself [CR#113.7]: deixis to the ability's own
 public export
 thisNeedsNoAntecedent : Noun [] Object
 thisNeedsNoAntecedent = This
@@ -937,7 +884,6 @@ public export
 youNeedsNoAntecedent : Noun [] Player
 youNeedsNoAntecedent = You
 
-||| The player-group words name a set the game defines, not a mention.
 public export
 playerGroupNeedsNoAntecedent : (w : PlayerGroupWord) -> Noun [] Player
 playerGroupNeedsNoAntecedent w = PlayerGroup w
@@ -948,8 +894,6 @@ attachHostNeedsNoAntecedent : (w : AttachWord) -> (h : NounWord) ->
                               AttachHeadOk w h -> Noun [] (kindOfW h)
 attachHostNeedsNoAntecedent w h ok = AttachHost w h {ok}
 
-||| The letter is writable at the empty prefix -- not as deixis but as an
-||| INTRODUCTION: `LetterVal` at `[]` mints the letter it names [CR#107.3].
 public export
 letterValIntroducesAtEmptyPrefix : (l : Letter) -> Amount []
 letterValIntroducesAtEmptyPrefix l = LetterVal l
@@ -963,7 +907,6 @@ controllerSacrificesReadsNoPrefix : (bs : Bindings) -> (n : Noun bs Object) ->
                                     OnBattlefield (nounZone n) -> Effect bs
 controllerSacrificesReadsNoPrefix bs n one zn = ControllerSacrifices n {one} {zn}
 
-||| "Exile target artifact. Target creature deals damage equal to its power to any target."
 public export
 ownSurvivesSecondSingular : Effect []
 ownSurvivesSecondSingular =
@@ -971,7 +914,6 @@ ownSurvivesSecondSingular =
                 Macros.dealsDamageOwnPower (Macros.target Macros.creature)
                                            (Macros.target Macros.anyTarget)]
 
-||| The same sentence through `It`: the exiled artifact is a second singular object.
 public export
 badItAcrossOwnSlot : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.exile You (Macros.target Macros.artifact),
@@ -979,13 +921,11 @@ badItAcrossOwnSlot : Unspellable (Effect []) (\ok =>
                            (Macros.target Macros.anyTarget)])
 badItAcrossOwnSlot Refl impossible
 
-||| "This creature deals damage equal to its power to any target": `This` mints nothing.
 public export
 badOwnEmptyDelta : Unspellable (Effect []) (\ok =>
   Macros.dealsDamageOwnPower Macros.thisCreature (Macros.target Macros.anyTarget) {ok})
 badOwnEmptyDelta Refl impossible
 
-||| "Exile target artifact. Target creature gets +1/+1 and gains flying until end of turn."
 public export
 sharedSubjectSurvivesSecondSingular : Effect []
 sharedSubjectSurvivesSecondSingular =
@@ -997,7 +937,6 @@ sharedSubjectSurvivesSecondSingular =
                           (Macros.keyword "Flying") ]
                   (Just Macros.untilEndOfTurn)]
 
-||| "Untap target creature. It gets +2/+2 and gains reach until end of turn": a pronoun mints nothing for the list to share.
 public export
 badSharedSubjectEmptyDelta : Unspellable (Effect []) (\ok =>
   Sequentially [ Macros.untap (Macros.target Macros.creature)
@@ -1007,7 +946,6 @@ badSharedSubjectEmptyDelta : Unspellable (Effect []) (\ok =>
                    (Just Macros.untilEndOfTurn) ])
 badSharedSubjectEmptyDelta Refl impossible
 
-||| "Target creature and target artifact: it gets +1/+1 and gains flying": the list's delta holds two.
 public export
 badSharedSubjectTwoInDelta : Unspellable (Effect []) (\ok =>
   Macros.sharedSubject (Both (Macros.target Macros.creature) (Macros.target Macros.artifact))
@@ -1018,7 +956,6 @@ badSharedSubjectTwoInDelta : Unspellable (Effect []) (\ok =>
     Nothing)
 badSharedSubjectTwoInDelta Refl impossible
 
-||| "Target creature and target artifact deal damage equal to its power to any target."
 public export
 badOwnTwoInDelta : Unspellable (Effect []) (\ok =>
   Macros.dealsDamageOwnPower (Both (Macros.target Macros.creature) (Macros.target Macros.artifact))
@@ -1074,7 +1011,6 @@ markTyKeepsAt sl ty (MkBinding det TurnRef plur TurnRefP) = Refl
 markTyKeepsAt sl ty (MkBinding det Ability plur (AbilityP og)) = Refl
 markTyKeepsAt sl ty (MkBinding det (a \/ b) plur (JoinP l r)) = Refl
 
-||| The re-mark drops nothing and inserts nothing: it is the list it was
 public export
 markFirstKeepsLength : (q : Binding -> Bool) -> (ty : Maybe CardType) ->
                        (bs : Bindings) -> length (markFirst q ty bs) = length bs
@@ -1083,8 +1019,6 @@ markFirstKeepsLength q ty (b :: bs) with (q b)
   _ | True = Refl
   _ | False = cong S (markFirstKeepsLength q ty bs)
 
-||| What one binding contributes to a fold: the whole of its
-||| contribution, and a function of its test's answer alone.
 public export
 keptBy : Bool -> Nat -> Nat
 keptBy True n = S n
@@ -1139,19 +1073,16 @@ condRemarkKeepsAt bs c sl with (condRemarkAt c)
                                  (markTyKeepsAt sl ty) bs)
                  (sym (countReachIsFold (AtSlot sl) OneOf bs)))
 
-||| The same for a condition, which is what `If`'s consequent is typed
 public export
 condIntroIsDeltaThenRemark : (bs : Bindings) -> (c : Condition bs) ->
                              condIntro c = condDelta c ++ condRemark c
 condIntroIsDeltaThenRemark bs c = Refl
 
-||| The `otherwise` arm is typed in the phrases the then-branch announced
 public export
 otherwiseCtxIsThenBranchOnly : (bs : Bindings) -> (e : Effect bs) ->
                                otherwiseCtx e = outcomesOnly (deedDelta e) ++ annIntro e
 otherwiseCtxIsThenBranchOnly bs e = Refl
 
-||| The consequence for gates: at a threaded context, a count is this
 public export
 gateSplitsAtNomIntro : (bs : Bindings) -> (k : Kind) -> (n : Noun bs k) ->
                        (j : Kind) ->
@@ -1174,7 +1105,6 @@ gateSplitsAtCondIntro bs c j =
                           (trans (sym (countOnesIsFold j (condRemark c)))
                                  (condRemarkKeepsOnes bs c j))))
 
-||| The SCOPED gate splits the same way. Narrowing which mentions are
 public export
 slotGateSplitsAtNomIntro : (bs : Bindings) -> (k : Kind) -> (n : Noun bs k) ->
                            (sl : SlotCarrier) ->
@@ -1201,7 +1131,6 @@ slotGateSplitsAtCondIntro bs c sl =
                           (trans (sym (countReachIsFold (AtSlot sl) OneOf (condRemark c)))
                                  (condRemarkKeepsAt bs c sl))))
 
-||| The split arm's gate, likewise.
 public export
 unionHalfGateSplitsAtNomIntro : (bs : Bindings) -> (k : Kind) -> (n : Noun bs k) ->
                                 (w : NounWord) ->
@@ -1214,26 +1143,21 @@ unionHalfGateSplitsAtNomIntro bs k n w =
                (cong2 (+) (sym (countReachIsFold (UnionHalf w) OneOf (nounDelta n)))
                           (sym (countReachIsFold (UnionHalf w) OneOf bs))))
 
-||| The sequential telescope hands each member exactly its predecessors'
-||| output. A member typed anywhere else would not fit here.
 public export
 effectsThreadPrefix : (bs : Bindings) -> (n : Nat) -> (e : Effect bs) ->
                       Effects n (effIntro e) -> Effects (S n) bs
 effectsThreadPrefix bs n e es = e :: es
 
-||| The simultaneous telescope threads the narrower `annIntro`: a
 public export
 simEffectsThreadPrefix : (bs : Bindings) -> (n : Nat) -> (e : Effect bs) ->
                          SimEffects n (annIntro e) -> SimEffects (S n) bs
 simEffectsThreadPrefix bs n e es = e :: es
 
-||| The cost telescope, likewise, at `costIntro`.
 public export
 costSeqThreadsPrefix : (bs : Bindings) -> (n : Nat) -> (c : Cost bs) ->
                        CostSeq n (costIntro c) -> CostSeq (S n) bs
 costSeqThreadsPrefix bs n c cs = (::) c cs
 
-||| The static coordination telescope, at `staticIntro`.
 public export
 staticPartsThreadPrefix : (bs : Bindings) -> (n : Nat) -> (se : StaticEffect bs) ->
                           NotCoord se -> StaticParts n (staticIntro se) ->
@@ -1241,42 +1165,33 @@ staticPartsThreadPrefix : (bs : Bindings) -> (n : Nat) -> (se : StaticEffect bs)
 staticPartsThreadPrefix bs n se nc rest = (::) se {nc} rest
 
 ||| An arithmetic amount reads its left operand's output, not the other
-||| way round: "X plus Y" types Y in X's context.
 public export
 amountPlusThreadsPrefix : (bs : Bindings) -> (a : Amount bs) ->
                           Amount (amtIntro a) -> Amount bs
 amountPlusThreadsPrefix bs a b = Plus a b
 
-||| A cost is paid by a player already named: `Pay` types the cost at the
-||| payer's context.
 public export
 payThreadsPrefix : (bs : Bindings) -> (who : Noun bs Player) ->
                    (c : Cost (nomIntro who)) -> Payable c -> PayAgrees who c ->
                    Effect bs
 payThreadsPrefix bs who c pb ag = Pay who c PaidOnce {pb} {ag}
 
-||| The postposed conditional: the condition is written after the clause
-||| and reads what the clause announced. Forward.
 public export
 onlyIfThreadsPrefix : (bs : Bindings) -> (e : Effect bs) ->
                       Condition (preIntro e) -> Effect bs
 onlyIfThreadsPrefix bs e c = OnlyIf e c Nothing
 
-||| The leading conditional: the consequent is written after the
 public export
 ifThreadsPrefix : (bs : Bindings) -> (c : Condition bs) ->
                   Effect (condIntro c) -> Effect bs
 ifThreadsPrefix bs c e = If c e Nothing
 
-||| The postposed static conditional, the same shape at `staticIntro`.
 public export
 onlyWhileThreadsPrefix : (bs : Bindings) -> (se : StaticEffect bs) ->
                          (c : Condition (staticIntro se)) ->
                          MarkingOk AsLongAs c -> StaticEffect bs
 onlyWhileThreadsPrefix bs se c mk = OnlyWhile se c AsLongAs {mk}
 
-||| The "this way" trigger reads the enclosure's settled post-state, a
-||| narrowing of what came before rather than an addition from after.
 public export
 thisWayThreadsPrefix : (bs : Bindings) -> (body : Effect bs) ->
                        (ev : GameEvent (effIntro body)) ->
@@ -1291,15 +1206,12 @@ defineIntroIsRemark : (bs : Bindings) -> (l : Letter) -> (amt : Amount bs) ->
                       effIntro (Define l amt {ok}) = defineLetter l (amtIntro amt)
 defineIntroIsRemark bs l amt ok = Refl
 
-||| One variable written twice. "This creature gets -X/-X, where X is your
 public export
 twinShiftMintsOneLetter :
   countLetter X (staticIntro (Gets {bs = []} Macros.thisCreature
                                    (PtDown (LetterVal X)) (PtDown (LetterVal X)))) = 1
 twinShiftMintsOneLetter = Refl
 
-||| The letter's own contribution is a fold over the prefix: the
-||| introduction exactly when the prefix counts no such letter.
 public export
 letterValDeltaIsPrefixFold : (bs : Bindings) -> (l : Letter) ->
                              amtDelta (LetterVal l {bs}) = letterDelta l bs

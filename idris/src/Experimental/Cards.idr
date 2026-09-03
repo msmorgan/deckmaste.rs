@@ -9356,7 +9356,6 @@ rampantFrogantuaPump =
                (PtUp (Macros.nForEach 10 (And [AnyPlayer, Macros.happenedTo GameLoss ThisGame])))
                (PtUp (Macros.nForEach 10 (And [AnyPlayer, Macros.happenedTo GameLoss ThisGame]))))
 
-||| Goad's own reminder text, on the creature the goad names
 public export
 goadedAttacksOther : Effect []
 goadedAttacksOther =
@@ -11746,7 +11745,6 @@ nekrataalRider =
     (Macros.destroy (Macros.target
        (And [Macros.creature, Not Macros.artifact, Not (ColorIs Black)])))
 
-||| Two battlefield creatures stand there
 public export
 nekrataalOneCreatureWord : countReach (Word (TypeW Creature)) OneOf Cards.nekrataalRider = 1
 nekrataalOneCreatureWord = Refl
@@ -11789,7 +11787,6 @@ sequencedRider =
     (Sequentially [ Macros.exile You (Macros.target Macros.artifact)
                   , Macros.destroy (Macros.target Macros.creature) ])
 
-||| Exactly one mention carries the destroying label
 public export
 sequencedRiderOneDestroyed : countReach (Stamped "Destroy") OneOf Cards.sequencedRider = 1
 sequencedRiderOneDestroyed = Refl

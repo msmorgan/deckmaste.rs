@@ -381,7 +381,6 @@ mutual
       KeepsUnspentMana : (who : Noun bs Player) ->
                          (what : ManaHeld (nomIntro who)) -> StaticEffect bs
       Skips : (who : Noun bs Player) -> (part : TurnPart) -> StaticEffect bs
-      ||| The op is data over every payload [CR#613.1d,613.1e]; reverses choice-D's one row per op.
       Becomes : (n : Noun bs Object) -> (op : CharOp) -> (q : QualityPayload bs) ->
                 {auto 0 ok : BecomesOk op n q} -> StaticEffect bs
       AlsoOffBattlefield : (se : StaticEffect bs) ->
@@ -1433,7 +1432,7 @@ mutual
   reflexEncloseUse (Throughout _ (GainsControl _ _)) = EncReflexive
   reflexEncloseUse (Throughout _ _) = EncAgentless
   reflexEncloseUse (Does _ _ _) = EncReflexive
-  reflexEncloseUse (Pay _ _ _) = EncReflexive      -- 66, all of them offered
+  reflexEncloseUse (Pay _ _ _) = EncReflexive
   reflexEncloseUse (Enact _ _) = EncReflexive
   reflexEncloseUse (TurnOver _) = EncAgentless
   reflexEncloseUse (SetStatus _ _) = EncAgentless
@@ -1458,18 +1457,18 @@ mutual
   reflexEncloseUse (ChooseNewTargets _) = EncReflexive
   reflexEncloseUse (CopyTargets _ _) = EncAgentless
   reflexEncloseUse (CopyCard _ _ _) = EncAgentless
-  reflexEncloseUse (Create _ _ _ _) = EncReflexive -- 8
+  reflexEncloseUse (Create _ _ _ _) = EncReflexive
   reflexEncloseUse (GetsEmblem _ _) = EncAgentless
-  reflexEncloseUse (PutCounters _ _ _) = EncReflexive    -- 8
-  reflexEncloseUse (RemoveCounters _ _ _) = EncReflexive -- 7
+  reflexEncloseUse (PutCounters _ _ _) = EncReflexive
+  reflexEncloseUse (RemoveCounters _ _ _) = EncReflexive
   reflexEncloseUse (RemoveCountersAmong _ _ _) = EncReflexive
   reflexEncloseUse (MoveCounters _ _ _ _) = EncReflexive
   reflexEncloseUse (DoubleCounters _) = EncReflexive
-  reflexEncloseUse (Move _ _ _) = EncReflexive       -- 3
-  reflexEncloseUse (Expose _ _ _) = EncReflexive   -- 2
+  reflexEncloseUse (Move _ _ _) = EncReflexive
+  reflexEncloseUse (Expose _ _ _) = EncReflexive
   reflexEncloseUse (AddMana _ _ _ _) = EncReflexive
-  reflexEncloseUse (Draw _ _) = EncReflexive       -- 1 ([CR#121.1]: a PLAYER draws)
-  reflexEncloseUse (Choose _ _ _) = EncReflexive       -- 1
+  reflexEncloseUse (Draw _ _) = EncReflexive
+  reflexEncloseUse (Choose _ _ _) = EncReflexive
   reflexEncloseUse (ChoicesRevealed _) = EncAgentless
   reflexEncloseUse (Vote _ _ _ _) = EncReflexive
   reflexEncloseUse (Search _ _ _ _) = EncReflexive

@@ -1,4 +1,3 @@
-||| The Unspellable type: a phrase whose open obligation has no proof.
 module Experimental.Unspellable
 
 %default total
