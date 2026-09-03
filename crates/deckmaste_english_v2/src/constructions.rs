@@ -3545,7 +3545,7 @@ constructions! {
             possessor: Possessive,
             measure: ScalarMeasure,
         }
-        form genitive_scalar_value = "the" possessor measure;
+        form genitive_scalar_value = possessor measure;
     }
     construction number_of_scalar_value: ScalarValue {
         element NumberOfScalarValue { measure: SingularHead, counted: Object, }
@@ -3840,7 +3840,9 @@ constructions! {
         form possessive_self_reference = identity(spelling);
     }
     construction possessive_singular_nominal: PossessiveOwner {
-        element PossessiveSingularNominal { nominal: SingularNominal, }
+        element PossessiveSingularNominal {
+            nominal: SingularNominal checked by singular_nominal_is_proper(),
+        }
         derive number = Values::Singular;
         derive possessive_ending = nominal.possessive_ending;
         form possessive_singular_nominal = nominal;
@@ -4654,6 +4656,16 @@ fn nominal_object_is_not_fused_all(value: &NounPhrase) -> bool {
         NounPhrase::FusedDeterminativeReference(FusedDeterminativeReference { head })
             if determinative_is_all(head)
     )
+}
+
+fn singular_nominal_is_proper(nominal: &SingularNominal) -> bool {
+    let head = match nominal {
+        SingularNominal::BareSingularNominal(value) => &value.head,
+        SingularNominal::ModifiedSingularNominal(value) => &value.head,
+        SingularNominal::NegativeModifiedSingularNominal(value) => &value.head,
+    };
+    let SingularHead::NounSingularHead(value) = head;
+    properness_for_noun(&value.noun) == Properness::Proper
 }
 
 fn partitive_whole_is_licensed(

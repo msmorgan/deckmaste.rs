@@ -920,6 +920,57 @@ mod structural_trace_tests {
     }
 
     #[test]
+    fn genitive_possessors_require_a_licensed_noun_phrase() {
+        use super::ParseAnalysisOutcome;
+        use super::SelectionResolution;
+
+        let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
+        let context = ParseContext::new(
+            "Novel Context",
+            false,
+            deckmaste_construction_core::macro_def::Onset::Consonant,
+        )
+        .expect("valid context");
+
+        for text in ["Destroy creature.", "Destroy creature's controller."] {
+            assert_eq!(
+                parser.analyze(text, &context).outcome(),
+                ParseAnalysisOutcome::ParseFailure,
+                "{text:?} must not license a bare singular count noun",
+            );
+        }
+
+        for text in [
+            "Destroy target creature's controller.",
+            "Destroy that creature's owner.",
+            "Destroy their owners' libraries.",
+        ] {
+            let analysis = parser.analyze(text, &context);
+            assert_eq!(
+                analysis.outcome(),
+                ParseAnalysisOutcome::Selected,
+                "{text:?}"
+            );
+            assert_eq!(
+                analysis
+                    .decision()
+                    .expect("selected parse has a decision")
+                    .resolution(),
+                SelectionResolution::Unique,
+                "{text:?}",
+            );
+        }
+
+        for text in ["Destroy Merfolk's controller.", "Destroy control's owner."] {
+            assert_eq!(
+                parser.analyze(text, &context).outcome(),
+                ParseAnalysisOutcome::Selected,
+                "{text:?} keeps the proper/mass nominal exception",
+            );
+        }
+    }
+
+    #[test]
     fn ability_and_sentence_public_calls_each_use_one_pipeline() {
         let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
         let context = ParseContext::new(
