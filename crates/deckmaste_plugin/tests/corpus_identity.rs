@@ -10,6 +10,13 @@
 //! accept the author-facing spellings. Variant-level lowering tests are the
 //! divergence ledger; these corpus tests retain the non-tautological coverage
 //! that every real artifact parses and lowers through the production path.
+//!
+//! The nineteen `core-regions-substrate` witness cards were once swept here
+//! too, by a test that stripped each `.ron.todo`'s `Unparsed` line before
+//! loading — which left fourteen of them contributing no region-bearing
+//! ability at all. They are now per-card fixtures in
+//! `deckmaste_engine/tests/region_witnesses.rs`, which spells each witnessed
+//! ability by hand and runs it.
 
 use std::fs;
 use std::path::Path;
@@ -237,99 +244,6 @@ fn wizards_cards_lower() {
         "{} of {total} wizards card(s) did not load; first: {}",
         swept.unparsed,
         swept.first_error.as_deref().unwrap_or("—"),
-    );
-}
-
-/// The named substrate witnesses stay loadable through the production
-/// semantic-to-core boundary, including generated `.ron.todo` cards whose
-/// remaining `Unparsed` text belongs to later grammar work. Every executable
-/// ability they already contain must carry a valid region telescope.
-#[test]
-#[cfg_attr(
-    not(wizards_corpus),
-    ignore = "needs the generated plugins/wizards corpus (cargo xtask generate)"
-)]
-fn core_region_substrate_witness_cards_lower_with_valid_regions() {
-    let wizards = Plugin::load_with_sibling_prelude(workspace_root().join("plugins/wizards"))
-        .expect("wizards loads over the builtin prelude");
-    let cards = plugin_dir("wizards", "cards");
-    let witnesses = [
-        "Angel of Finality",
-        "Arbiter of Woe",
-        "Blasphemous Edict",
-        "Bloodtithe Collector",
-        "Burglar Rat",
-        "Deadly Brew",
-        "Duress",
-        "Liliana, Dreadhorde General",
-        "Painful Quandary",
-        "Perforating Artist",
-        "Pilfer",
-        "River's Rebuke",
-        "Tribute to Hunger",
-        "Tinybones, Bauble Burglar",
-        "Fiery Annihilation",
-        "Run Away Together",
-        "Steel Hellkite",
-        "Trygon Predator",
-        "Predator Ooze",
-    ];
-
-    let mut regions = 0;
-    for name in witnesses {
-        let regular = cards.join(format!("{name}.ron"));
-        let path = if regular.is_file() { regular } else { cards.join(format!("{name}.ron.todo")) };
-        let source = fs::read_to_string(&path).expect("witness source reads");
-        // `.ron.todo` keeps unsupported oracle clauses as a one-line
-        // `Unparsed` pseudo-ability that the production reader deliberately
-        // rejects. Remove only those unrelated placeholders; every parsed
-        // ability still takes the real reader/lowering path below.
-        let source = source
-            .lines()
-            .filter(|line| !line.trim_start().starts_with("Unparsed("))
-            .collect::<Vec<_>>()
-            .join("\n");
-        let loaded = wizards
-            .card_from_str(&source)
-            .unwrap_or_else(|error| panic!("{} did not lower: {error}", path.display()));
-        let printed_name = match &loaded.core {
-            deckmaste_card::Card::Normal(face) => face.name.as_ref(),
-            deckmaste_card::Card::TwoFaced { front, .. } => front.name.as_ref(),
-        };
-        assert_eq!(
-            printed_name,
-            name,
-            "{} loaded the wrong card",
-            path.display()
-        );
-
-        for ability in core_abilities(&loaded.core) {
-            if let Some(ability) = ability.as_activated() {
-                deckmaste_core::validate_announced(
-                    &ability.effect,
-                    &ability.targets,
-                    &ability.cost,
-                )
-                .unwrap_or_else(|error| panic!("{name}: invalid activated region: {error}"));
-                regions += 1;
-            } else if let Some(ability) = ability.as_triggered() {
-                deckmaste_core::validate_telescope(&ability.effect, &ability.targets)
-                    .unwrap_or_else(|error| panic!("{name}: invalid triggered region: {error}"));
-                regions += 1;
-            } else if let deckmaste_core::Ability::Spell(ability) = ability {
-                deckmaste_core::validate_announced(
-                    &ability.effect,
-                    &ability.targets,
-                    &ability.cost,
-                )
-                .unwrap_or_else(|error| panic!("{name}: invalid spell region: {error}"));
-                regions += 1;
-            }
-        }
-    }
-    assert!(
-        regions > 0,
-        "the witness set contained no executable regions"
     );
 }
 
