@@ -92,7 +92,7 @@ still refute and are non-vacuous. Standard constraints apply.
   which is their non-vacuity. New proof name: `actLabelsDistinct`.
 - Build time: `idris2 --check` Words 3.3s/2.1s (trunk, cold/warm) vs 1.3s
   (new); Events 1.6s/1.1s vs 1.5s — no slowdown from the larger table.
-- `cite check --list-noncompliant` reports one pre-existing `"CR 202"` in
+- `cite check --list-noncompliant` reports one pre-existing `CR`-plus-year string in
   `docs/tickets/critical/engine-cost-preflight-atomicity.md:22`, outside this
   round's diff and edit scope; `cite check` 0 stale; audit selects 0 sites
   (no citations changed).
