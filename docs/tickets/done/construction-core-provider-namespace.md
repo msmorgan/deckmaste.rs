@@ -65,3 +65,15 @@ completed reservation restored it to green.
   new blockers; added 1 test; removed 0 tests.
 - No constructions were added or deleted. No CR citations changed. No STOP was
   taken.
+
+## Erratum (provider-namespace landing review, 2026-09-03)
+
+Six helpers removed, not five — the sixth is `onset_for_mana_amount`,
+the previous landing's stated production effect, reversed here (correct:
+nothing reads it; its `derive onset = Values::Consonant` is now inert).
+Four reserved provider names (`onset`, `determiner_number`,
+`fused_head_license`, `nominal_license`) have no emitted helper behind
+them — a defensible over-approximation (namespace validation cannot run
+the following-onset analysis), unrecorded. `reserve_provider` duplicates
+the emitter's feature list by hand with nothing tying them (compiler
+hygiene, unrouted). First pass wrote scratch to /tmp.
