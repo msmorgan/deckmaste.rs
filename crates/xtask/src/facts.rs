@@ -1569,7 +1569,7 @@ fn normalize(label: &str) -> String {
         .collect()
 }
 
-/// Every label captured by `MkActFacts "…"`-style rows in `Words.idr`.
+/// Every label captured by `MkCounterFacts "…"`-style positional rows.
 fn table_labels(src: &str, ctor: &str) -> Vec<String> {
     let head = format!("{ctor} \"");
     src.lines()
@@ -1579,6 +1579,67 @@ fn table_labels(src: &str, ctor: &str) -> Vec<String> {
             Some(label.to_owned())
         })
         .collect()
+}
+
+/// One `actFacts` row: the label its `plainAct` names, and the row text the
+/// `{ field := … }` record-update overrides are read out of.
+struct ActRow {
+    label: String,
+    #[cfg_attr(
+        not(test),
+        allow(dead_code, reason = "the override text is read by the row-shape tests")
+    )]
+    text: String,
+}
+
+/// The `actFacts` rows, read off the list literal in `Words.idr`. A row is
+/// either a bare `plainAct "Label"` or a record update over one.
+fn act_rows(src: &str) -> Vec<ActRow> {
+    let mut rows = Vec::new();
+    let mut current: Option<String> = None;
+    let mut in_table = false;
+    for line in src.lines() {
+        if !in_table {
+            in_table = line == "actFacts =";
+            continue;
+        }
+        if line.starts_with("  [ ") || line.starts_with("  , ") {
+            push_act_row(&mut rows, current.take());
+            current = Some(line.to_owned());
+            continue;
+        }
+        if line == "  ]" {
+            break;
+        }
+        if let Some(text) = current.as_mut() {
+            text.push('\n');
+            text.push_str(line);
+        }
+    }
+    push_act_row(&mut rows, current.take());
+    rows
+}
+
+fn push_act_row(rows: &mut Vec<ActRow>, text: Option<String>) {
+    let Some(text) = text else { return };
+    let Some(rest) = text.split_once("plainAct \"").map(|(_, r)| r) else {
+        return;
+    };
+    let Some((label, _)) = rest.split_once('"') else {
+        return;
+    };
+    rows.push(ActRow {
+        label: label.to_owned(),
+        text,
+    });
+}
+
+/// One record-update override on a row, read to the end of its line; `None`
+/// where the row leaves the field at its `plainAct` default.
+#[cfg(test)]
+fn act_field<'a>(row: &'a ActRow, field: &str) -> Option<&'a str> {
+    let rest = row.text.split_once(&format!("{field} := "))?.1;
+    Some(rest.split('\n').next().unwrap_or(rest).trim_end())
 }
 
 /// The `Designation` constructors, read off the `designationFacts` clauses.
@@ -1738,7 +1799,7 @@ fn run_labels(root: &Path) -> anyhow::Result<()> {
             name: "keyword actions",
             scope: ACT_SCOPE,
             stubs: stub_names(&root.join(ACTION_STUBS))?,
-            rows: table_labels(&words, "MkActFacts"),
+            rows: act_rows(&words).into_iter().map(|r| r.label).collect(),
             stub_exempt: &[],
             row_exempt: &[],
             rows_bind: false,
@@ -1937,6 +1998,7 @@ mod tests {
     #[test]
     fn keyword_action_destinations_come_from_their_cr_entry() {
         let words = fs::read_to_string(root().join(WORDS)).expect("reading Words.idr");
+        let rows = act_rows(&words);
         for (label, zone) in [
             ("Create", "Battlefield"),
             ("Investigate", "Battlefield"),
@@ -1946,11 +2008,55 @@ mod tests {
             ("Airbend", "Exile"),
             ("Collect Evidence", "Exile"),
         ] {
-            assert!(
-                words.contains(&format!(r#"MkActFacts "{label}" Nothing (Just {zone})"#)),
+            let row = rows
+                .iter()
+                .find(|r| r.label == label)
+                .unwrap_or_else(|| panic!("{label}: no `actFacts` row"));
+            assert_eq!(
+                act_field(row, "actDest"),
+                Some(format!("Just {zone}").as_str()),
                 "{label}: no {zone} destination"
             );
+            assert_eq!(
+                act_field(row, "participle"),
+                None,
+                "{label}: a participle where the row leaves it at its default"
+            );
         }
+    }
+
+    #[test]
+    fn act_rows_read_the_bare_and_the_overridden_spelling() {
+        let words = fs::read_to_string(root().join(WORDS)).expect("reading Words.idr");
+        let rows = act_rows(&words);
+        let bare = rows
+            .iter()
+            .find(|r| r.label == "Proliferate")
+            .expect("no Proliferate row");
+        assert_eq!(act_field(bare, "actDest"), None);
+        let destroy = rows
+            .iter()
+            .find(|r| r.label == "Destroy")
+            .expect("no Destroy row");
+        assert_eq!(
+            act_field(destroy, "participle"),
+            Some(r#"Just "destroyed""#)
+        );
+        assert_eq!(act_field(destroy, "actDest"), Some("Just Graveyard"));
+        assert_eq!(
+            act_field(destroy, "patientRole"),
+            Some("MkDeedRole [Object] [] False (Just Battlefield)")
+        );
+        let attack = rows
+            .iter()
+            .find(|r| r.label == "Attack")
+            .expect("no Attack row");
+        assert_eq!(act_field(attack, "actFeature"), Some("Just Attacking"));
+        let mut labels: Vec<&str> = rows.iter().map(|r| r.label.as_str()).collect();
+        let count = labels.len();
+        labels.sort_unstable();
+        labels.dedup();
+        assert_eq!(labels.len(), count, "an `actFacts` label is listed twice");
     }
 
     #[test]
