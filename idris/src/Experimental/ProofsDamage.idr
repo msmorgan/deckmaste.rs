@@ -614,7 +614,7 @@ badCreatureHalfRead : Unspellable (Instruction []) (\ok =>
     [ DealDamage This (Lit 3)
         (Macros.target (Macros.kindJoin AnyPlayer (HasType Planeswalker)))
     , (Macros.discard
-        (EitherOf (Pro (UnionHalf PlayerW) OneOf)
+        (EitherOf (Pro (UnionHalf PlayerW) OneOf Whole)
                   (Macros.controllerOf (Macros.That (TypeW Creature) OneOf {ok = ok})))
         (Macros.a (InZone Macros.handZ))) ])
 badCreatureHalfRead Refl impossible

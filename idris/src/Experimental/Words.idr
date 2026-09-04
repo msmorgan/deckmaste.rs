@@ -1928,6 +1928,22 @@ faceOfReach r pl [] = Nothing
 faceOfReach r pl (b :: bs) =
   if reaches r pl b then bindingFace b else faceOfReach r pl bs
 
+||| The stretch of the binding stack a read resolves in.
+public export
+data Window = Whole | Top Nat | Below Nat
+
+public export
+view : Window -> Bindings -> Bindings
+view Whole bs = bs
+view (Top n) bs = take n bs
+view (Below n) bs = drop n bs
+
+public export
+overWindow : (Bindings -> Bindings) -> Window -> Bindings -> Bindings
+overWindow f Whole bs = f bs
+overWindow f (Top n) bs = f (take n bs) ++ drop n bs
+overWindow f (Below n) bs = take n bs ++ f (drop n bs)
+
 public export
 countTokenSpecs : Bindings -> Nat
 countTokenSpecs [] = Z

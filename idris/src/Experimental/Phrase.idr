@@ -1347,15 +1347,8 @@ mutual
               {auto 0 ok : So (theRestFits k pl bs)} -> Noun bs k
     PileOf : (q : SliceCount bs) -> (by : Maybe (Noun bs Player)) ->
              {auto 0 ok : countReach (Word PileW) ManyOf bs = 1} -> Noun bs Pile
-    Pro : (r : Reach) -> (pl : Plurality) ->
-          {auto 0 ok : countReach r pl bs = 1} -> Noun bs (reachKind r)
-    ItOtherThan : (co : Bindings) -> (rest : Bindings) ->
-                  {auto 0 sp : bs = co ++ rest} ->
-                  {auto 0 ok : countOnes Object rest = 1} -> Noun bs Object
-    Own : (r : Reach) -> (pl : Plurality) -> (own : Bindings) ->
-          (outer : Bindings) ->
-          {auto 0 sp : bs = own ++ outer} ->
-          {auto 0 ok : countReach r pl own = 1} -> Noun bs (reachKind r)
+    Pro : (r : Reach) -> (pl : Plurality) -> (w : Window) ->
+          {auto 0 ok : countReach r pl (view w bs) = 1} -> Noun bs (reachKind r)
     AttachHost : (w : AttachWord) -> (h : NounWord) ->
                  {auto 0 ok : AttachHeadOk w h} -> Noun bs (kindOfW h)
     PossessorOf : {k : Kind} -> (ax : PossessorAxis) -> (n : Noun bs k) ->
@@ -1401,12 +1394,10 @@ mutual
   nounEqRef (NamesAgree _ _) _ = False
   nounEqRef (TheRest _ _) _ = False
   nounEqRef (PileOf _ _) _ = False
-  nounEqRef (Pro Bare OneOf) (Pro Bare OneOf) = True
-  nounEqRef (Pro (Word AbilityW) OneOf) (Pro (Word AbilityW) OneOf) = True
-  nounEqRef (Pro (Word PlayerW) OneOf) (Pro (Word PlayerW) OneOf) = True
-  nounEqRef (Pro _ _) _ = False
-  nounEqRef (ItOtherThan _ _) _ = False
-  nounEqRef (Own _ _ _ _) _ = False
+  nounEqRef (Pro Bare OneOf Whole) (Pro Bare OneOf Whole) = True
+  nounEqRef (Pro (Word AbilityW) OneOf Whole) (Pro (Word AbilityW) OneOf Whole) = True
+  nounEqRef (Pro (Word PlayerW) OneOf Whole) (Pro (Word PlayerW) OneOf Whole) = True
+  nounEqRef (Pro _ _ _) _ = False
   nounEqRef (AttachHost _ _) _ = False
   nounEqRef (PossessorOf _ _) _ = False
   nounEqRef (Designated _ _) _ = False
@@ -1500,9 +1491,7 @@ mutual
               (PileP (zoneOfReach (Word PileW) ManyOf bs) (sliceExact q)
                      (faceOfReach (Word PileW) ManyOf bs))
       :: (sliceCountDelta q ++ nounDelta by)
-  nounDelta (Pro _ _) = []
-  nounDelta (ItOtherThan _ _) = []
-  nounDelta (Own _ _ _ _) = []
+  nounDelta (Pro _ _ _) = []
   nounDelta (AttachHost _ _) = []
   nounDelta (PossessorOf _ n) =
     MkBinding TheD Player (nounPlur n) PlayerP :: (selfSubjDelta n ++ nounDelta n)
@@ -2132,9 +2121,9 @@ mutual
                     {0 ok : countReach (Word PileW) ManyOf bs = 1} ->
                     PileMention (PileOf q by {ok})
     ThatPile : {0 ok : countReach (Word PileW) OneOf bs = 1} ->
-               PileMention {bs} (Pro (Word PileW) OneOf {ok})
+               PileMention {bs} (Pro (Word PileW) OneOf Whole {ok})
     ThosePiles : {0 ok : countReach (Word PileW) ManyOf bs = 1} ->
-                 PileMention {bs} (Pro (Word PileW) ManyOf {ok})
+                 PileMention {bs} (Pro (Word PileW) ManyOf Whole {ok})
 
   public export
   choosable : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
@@ -2182,7 +2171,7 @@ mutual
   public export
   groupMention : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
   groupMention (LibrarySlice _ _ _) = True
-  groupMention (Pro _ pl) = not (isOne pl)
+  groupMention (Pro _ pl Whole) = not (isOne pl)
   groupMention (Both _ _) = True
   groupMention (OneEachOf _ _) = True
   groupMention n = nounDet n == Just TargetD
@@ -2195,7 +2184,7 @@ mutual
   ||| one-card group included [CR#701.22a].
   public export
   partitiveBase : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
-  partitiveBase (Own _ _ _ _) = True
+  partitiveBase (Pro _ _ (Top _)) = True
   partitiveBase n = nounDet n == Just AllD || groupMention n
 
   public export
@@ -2545,14 +2534,12 @@ mutual
   public export
   remarkTest : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k ->
                Maybe (Binding -> Bool)
-  remarkTest (Pro Bare pl) = Just (reaches Bare pl)
-  remarkTest (Pro (AtSlot sl) pl) = Just (reaches (AtSlot sl) pl)
-  remarkTest (Pro (Stamped v) pl) = Just (reaches (Stamped v) pl)
-  remarkTest (Pro TokenBorn pl) = Just (reaches TokenBorn pl)
-  remarkTest (Pro (Word AbilityW) OneOf) = Just (reaches (Word AbilityW) OneOf)
-  remarkTest (Pro _ _) = Nothing
-  remarkTest (ItOtherThan _ _) = Nothing
-  remarkTest (Own _ _ _ _) = Nothing
+  remarkTest (Pro Bare pl Whole) = Just (reaches Bare pl)
+  remarkTest (Pro (AtSlot sl) pl Whole) = Just (reaches (AtSlot sl) pl)
+  remarkTest (Pro (Stamped v) pl Whole) = Just (reaches (Stamped v) pl)
+  remarkTest (Pro TokenBorn pl Whole) = Just (reaches TokenBorn pl)
+  remarkTest (Pro (Word AbilityW) OneOf Whole) = Just (reaches (Word AbilityW) OneOf)
+  remarkTest (Pro _ _ _) = Nothing
   remarkTest _ = Nothing
 
   public export
@@ -2636,7 +2623,7 @@ mutual
   costNounOk (SomeOf _ _ grp) = costNounOk grp
   costNounOk (EitherOf l r) = costNounOk l && costNounOk r
   costNounOk (Both _ _) = False
-  costNounOk (Pro (Verbed _ _ _) _) = False
+  costNounOk (Pro (Verbed _ _ _) _ _) = False
   costNounOk _ = True
 
   public export
@@ -2661,19 +2648,15 @@ mutual
 
   public export
   counterMemoryOk : {bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
-  counterMemoryOk (Pro (Verbed _ _ _) _) = False
-  counterMemoryOk (Pro Bare pl) = not (stampMoves (provOfReach Bare pl bs))
-  counterMemoryOk (Pro (AtSlot sl) pl) =
-    not (stampMoves (provOfReach (AtSlot sl) pl bs))
-  counterMemoryOk (Pro (Stamped v) pl) =
-    not (stampMoves (provOfReach (Stamped v) pl bs))
-  counterMemoryOk (Pro TokenBorn pl) =
-    not (stampMoves (provOfReach TokenBorn pl bs))
-  counterMemoryOk (Pro _ _) = True
-  counterMemoryOk (ItOtherThan _ rest) =
-    not (stampMoves (provOfReach Bare OneOf rest))
-  counterMemoryOk (Own r pl own _) =
-    not (stampMoves (provOfReach r pl own))
+  counterMemoryOk (Pro (Verbed _ _ _) _ _) = False
+  counterMemoryOk (Pro Bare pl w) = not (stampMoves (provOfReach Bare pl (view w bs)))
+  counterMemoryOk (Pro (AtSlot sl) pl w) =
+    not (stampMoves (provOfReach (AtSlot sl) pl (view w bs)))
+  counterMemoryOk (Pro (Stamped v) pl w) =
+    not (stampMoves (provOfReach (Stamped v) pl (view w bs)))
+  counterMemoryOk (Pro TokenBorn pl w) =
+    not (stampMoves (provOfReach TokenBorn pl (view w bs)))
+  counterMemoryOk (Pro _ _ _) = True
   counterMemoryOk _ = True
 
   public export
@@ -2682,13 +2665,12 @@ mutual
 
   public export
   moveDestOk : {bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
-  moveDestOk (Pro Bare _) = False
-  moveDestOk (Pro (AtSlot _) _) = False
-  moveDestOk (Pro (Stamped _) _) = False
-  moveDestOk (Pro TokenBorn _) = False
-  moveDestOk (Pro _ _) = True
-  moveDestOk (ItOtherThan _ _) = False
-  moveDestOk (Own _ _ _ _) = False
+  moveDestOk (Pro Bare _ _) = False
+  moveDestOk (Pro (AtSlot _) _ _) = False
+  moveDestOk (Pro (Stamped _) _ _) = False
+  moveDestOk (Pro TokenBorn _ _) = False
+  moveDestOk (Pro _ _ Whole) = True
+  moveDestOk (Pro _ _ _) = False
   moveDestOk _ = True
 
   public export
@@ -2788,9 +2770,7 @@ mutual
   moveIntro p nn@(OneEachOf _ _) z = setZoneHead p z (nomIntro nn)
   moveIntro p (TheRest k _) z = groupSpent k bs
   moveIntro p nn@(PileOf _ _) z = setZoneHead p z (nomIntro nn)
-  moveIntro p (Pro r pl) z = setZoneReach r pl p z bs
-  moveIntro p (ItOtherThan co rest) z = co ++ setZoneReach Bare OneOf p z rest
-  moveIntro p (Own r pl own outer) z = setZoneReach r pl p z own ++ outer
+  moveIntro p (Pro r pl w) z = overWindow (setZoneReach r pl p z) w bs
   moveIntro p This z =
     MkBinding SelfD Object OneOf (ObjectP Nothing z (mkStamp p Nothing (isJust z)) Nothing Nothing) :: bs
   moveIntro p (AttachHost _ (TypeW t)) z =
@@ -2842,9 +2822,7 @@ mutual
   public export
   nounProv : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Maybe Stamp
   nounProv (TheRest k _) = provOfGroup k bs
-  nounProv (Pro r pl) = provOfReach r pl bs
-  nounProv (ItOtherThan _ rest) = provOfReach Bare OneOf rest
-  nounProv (Own r pl own _) = provOfReach r pl own
+  nounProv (Pro r pl w) = provOfReach r pl (view w bs)
   nounProv (EachOf grp) = nounProv grp
   nounProv (NamesAgree _ grp) = nounProv grp
   nounProv (SomeOf _ _ grp) = nounProv grp
@@ -2870,9 +2848,7 @@ mutual
   nounZone (SomeOf _ _ grp) = nounZone grp
   nounZone (TheRest k _) = zoneOfGroup k bs
   nounZone (PileOf _ _) = zoneOfReach (Word PileW) ManyOf bs
-  nounZone (Pro r pl) = zoneOfReach r pl bs
-  nounZone (ItOtherThan _ rest) = zoneOfReach Bare OneOf rest
-  nounZone (Own r pl own _) = zoneOfReach r pl own
+  nounZone (Pro r pl w) = zoneOfReach r pl (view w bs)
   nounZone (AttachHost _ h) = attachHostZone h
   nounZone (PossessorOf _ n) = Nothing
   nounZone (Designated _ _) = Nothing
@@ -2884,8 +2860,8 @@ mutual
   public export
   nounIsAbility : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
   nounIsAbility (Described _ p) = seedsAbility p
-  nounIsAbility (Pro (Word AbilityW) _) = True
-  nounIsAbility (Pro (Word AbilityCopyW) _) = True
+  nounIsAbility (Pro (Word AbilityW) _ _) = True
+  nounIsAbility (Pro (Word AbilityCopyW) _ _) = True
   nounIsAbility (EachOf grp) = nounIsAbility grp
   nounIsAbility (NamesAgree _ grp) = nounIsAbility grp
   nounIsAbility (ResolvedPermanent n) = nounIsAbility n
@@ -2913,9 +2889,7 @@ mutual
   nounTy (SomeOf _ d grp) = sliceTy d grp
   nounTy (TheRest k _) = tyOfGroup k bs
   nounTy (PileOf _ _) = Nothing
-  nounTy (Pro r pl) = tyOfReach r pl bs
-  nounTy (ItOtherThan _ rest) = tyOfReach Bare OneOf rest
-  nounTy (Own r pl own _) = tyOfReach r pl own
+  nounTy (Pro r pl w) = tyOfReach r pl (view w bs)
   nounTy (AttachHost _ h) = attachHostTy h
   nounTy (PossessorOf _ n) = Nothing
   nounTy (Designated _ _) = Nothing
@@ -2973,9 +2947,7 @@ mutual
   nounPlur (SomeOf q _ _) = slicePlur q
   nounPlur (TheRest _ pl) = pl
   nounPlur (PileOf q _) = slicePlur q
-  nounPlur (Pro _ pl) = pl
-  nounPlur (ItOtherThan _ _) = OneOf
-  nounPlur (Own _ pl _ _) = pl
+  nounPlur (Pro _ pl _) = pl
   nounPlur (AttachHost _ _) = OneOf
   nounPlur (PossessorOf _ n) = nounPlur n
   nounPlur (Designated _ _) = OneOf

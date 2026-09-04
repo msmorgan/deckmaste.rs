@@ -1095,7 +1095,7 @@ itResolvesInPrefix bs ok =
 public export
 itAtReadsOnlyPrefix : (sl : SlotCarrier) -> (bs : Bindings) ->
                       countReach (AtSlot sl) OneOf bs = 1 -> Noun bs Object
-itAtReadsOnlyPrefix sl bs ok = Pro (AtSlot sl) OneOf {bs} {ok}
+itAtReadsOnlyPrefix sl bs ok = Pro (AtSlot sl) OneOf Whole {bs} {ok}
 
 public export
 itAtResolvesInPrefix : (sl : SlotCarrier) -> (bs : Bindings) ->
@@ -1122,7 +1122,7 @@ itVerbedResolvesInPrefix bs v ok =
 public export
 itTokenReadsOnlyPrefix : (bs : Bindings) -> countReach TokenBorn OneOf bs = 1 ->
                          Noun bs Object
-itTokenReadsOnlyPrefix bs ok = Pro TokenBorn OneOf {bs} {ok}
+itTokenReadsOnlyPrefix bs ok = Pro TokenBorn OneOf Whole {bs} {ok}
 
 public export
 itTokenResolvesInPrefix : (bs : Bindings) -> countReach TokenBorn OneOf bs = 1 ->
@@ -1157,47 +1157,83 @@ countBySegmentNoLarger p xs ys =
     lteRightPlus (S n) m = lteSuccRight (lteRightPlus n m)
 
 public export
+elemInTake : {0 b : Binding} -> (n : Nat) -> (bs : Bindings) ->
+             Elem b (take n bs) -> Elem b bs
+elemInTake Z bs el = absurd el
+elemInTake (S n) [] el = absurd el
+elemInTake (S n) (x :: xs) Here = Here
+elemInTake (S n) (x :: xs) (There el) = There (elemInTake n xs el)
+
+public export
+elemInDrop : {0 b : Binding} -> (n : Nat) -> (bs : Bindings) ->
+             Elem b (drop n bs) -> Elem b bs
+elemInDrop Z bs el = el
+elemInDrop (S n) [] el = el
+elemInDrop (S n) (x :: xs) el = There (elemInDrop n xs el)
+
+||| A read only ever names a binding its own window holds.
+public export
+elemInView : {0 b : Binding} -> (w : Window) -> (bs : Bindings) ->
+             Elem b (view w bs) -> Elem b bs
+elemInView Whole bs el = el
+elemInView (Top n) bs el = elemInTake n bs el
+elemInView (Below n) bs el = elemInDrop n bs el
+
+public export
+proResolvesInWindow : (pl : Plurality) -> (w : Window) -> (bs : Bindings) ->
+                      countReach Bare pl (view w bs) = 1 ->
+                      (b : Binding ** (Elem b bs, So (reaches Bare pl b)))
+proResolvesInWindow pl w bs ok =
+  let (b ** (el, k)) = countByWitness (reaches Bare pl) (view w bs) Z
+                         (trans (sym (countReachIsFold Bare pl (view w bs))) ok) in
+      (b ** (elemInView w bs el, k))
+
+public export
 itOtherThanReadsOnlyPrefix : (co, rest : Bindings) ->
-                             countOnes Object rest = 1 -> Noun (co ++ rest) Object
-itOtherThanReadsOnlyPrefix co rest ok = ItOtherThan co rest {sp = Refl} {ok}
+                             countReach Bare OneOf
+                               (view (Below (length co)) (co ++ rest)) = 1 ->
+                             Noun (co ++ rest) Object
+itOtherThanReadsOnlyPrefix co rest ok = Pro Bare OneOf (Below (length co)) {ok}
 
 public export
 itOtherThanResolvesInPrefix : (co, rest : Bindings) ->
-                              countOnes Object rest = 1 ->
+                              countReach Bare OneOf
+                                (view (Below (length co)) (co ++ rest)) = 1 ->
                               (b : Binding ** (Elem b (co ++ rest),
-                                               So (oneOfKind Object b)))
+                                               So (reaches Bare OneOf b)))
 itOtherThanResolvesInPrefix co rest ok =
-  let (b ** (el, k)) = resolveOnes Object rest ok in
-      (b ** (elemInSuffix co el, k))
+  proResolvesInWindow OneOf (Below (length co)) (co ++ rest) ok
 
 public export
 itPriorReadsOnlyPrefix : (made, before : Bindings) ->
-                         countReach Bare OneOf made = 1 -> Noun (made ++ before) Object
-itPriorReadsOnlyPrefix made before ok = Own Bare OneOf made before {sp = Refl} {ok}
+                         countReach Bare OneOf
+                           (view (Top (length made)) (made ++ before)) = 1 ->
+                         Noun (made ++ before) Object
+itPriorReadsOnlyPrefix made before ok = Pro Bare OneOf (Top (length made)) {ok}
 
 public export
 itPriorResolvesInPrefix : (made, before : Bindings) ->
-                          countReach Bare OneOf made = 1 ->
+                          countReach Bare OneOf
+                            (view (Top (length made)) (made ++ before)) = 1 ->
                           (b : Binding ** (Elem b (made ++ before),
                                            So (reaches Bare OneOf b)))
 itPriorResolvesInPrefix made before ok =
-  let (b ** (el, k)) = countByWitness (reaches Bare OneOf) made Z
-                         (trans (sym (countReachIsFold Bare OneOf made)) ok) in
-      (b ** (elemInPrefix before el, k))
+  proResolvesInWindow OneOf (Top (length made)) (made ++ before) ok
 
 public export
 ownReadsOnlyPrefix : (pl : Plurality) -> (own, outer : Bindings) ->
-                     countReach Bare pl own = 1 -> Noun (own ++ outer) Object
-ownReadsOnlyPrefix pl own outer ok = Own Bare pl own outer {sp = Refl} {ok}
+                     countReach Bare pl
+                       (view (Top (length own)) (own ++ outer)) = 1 ->
+                     Noun (own ++ outer) Object
+ownReadsOnlyPrefix pl own outer ok = Pro Bare pl (Top (length own)) {ok}
 
 public export
 ownResolvesInPrefix : (pl : Plurality) -> (own, outer : Bindings) ->
-                      countReach Bare pl own = 1 ->
+                      countReach Bare pl
+                        (view (Top (length own)) (own ++ outer)) = 1 ->
                       (b : Binding ** (Elem b (own ++ outer), So (reaches Bare pl b)))
 ownResolvesInPrefix pl own outer ok =
-  let (b ** (el, k)) = countByWitness (reaches Bare pl) own Z
-                         (trans (sym (countReachIsFold Bare pl own)) ok) in
-      (b ** (elemInPrefix outer el, k))
+  proResolvesInWindow pl (Top (length own)) (own ++ outer) ok
 
 public export
 theyReadsOnlyPrefix : (bs : Bindings) -> countReach (Word PlayerW) OneOf bs = 1 ->
@@ -1255,7 +1291,7 @@ public export
 thatHalfReadsOnlyPrefix : (bs : Bindings) -> (w : NounWord) ->
                           countReach (UnionHalf w) OneOf bs = 1 ->
                           Noun bs (kindOfW w)
-thatHalfReadsOnlyPrefix bs w ok = Pro (UnionHalf w) OneOf {bs} {ok}
+thatHalfReadsOnlyPrefix bs w ok = Pro (UnionHalf w) OneOf Whole {bs} {ok}
 
 public export
 thatHalfResolvesInPrefix : (bs : Bindings) -> (w : NounWord) ->
@@ -1284,7 +1320,7 @@ theVerbedReadsOnlyPrefix : (bs : Bindings) -> (v : VerbLabel) -> (w : NounWord) 
                            (m : VerbedMarking) ->
                            countReach (Verbed v w m) OneOf bs = 1 ->
                            ActNamesParticiple v -> Noun bs (kindOfW w)
-theVerbedReadsOnlyPrefix bs v w m ok mk = Pro (Verbed v w m) OneOf {bs} {ok}
+theVerbedReadsOnlyPrefix bs v w m ok mk = Pro (Verbed v w m) OneOf Whole {bs} {ok}
 
 public export
 theVerbedResolvesInPrefix : (bs : Bindings) -> (v : VerbLabel) -> (w : NounWord) ->
@@ -1302,7 +1338,7 @@ thoseVerbedReadsOnlyPrefix : (bs : Bindings) -> (v : VerbLabel) -> (w : NounWord
                              countReach (Verbed v w m) ManyOf bs = 1 ->
                              ActNamesParticiple v -> Noun bs (kindOfW w)
 thoseVerbedReadsOnlyPrefix bs v w m ok mk =
-  Pro (Verbed v w m) ManyOf {bs} {ok}
+  Pro (Verbed v w m) ManyOf Whole {bs} {ok}
 
 public export
 thoseVerbedResolvesInPrefix : (bs : Bindings) -> (v : VerbLabel) -> (w : NounWord) ->
@@ -1510,7 +1546,7 @@ otherResolvesInPrefix bs k ok =
 public export
 turnInScopeReadsOnlyPrefix : (bs : Bindings) -> countReach ThatTurn OneOf bs = 1 ->
                              Noun bs TurnRef
-turnInScopeReadsOnlyPrefix bs ok = Pro ThatTurn OneOf {bs} {ok}
+turnInScopeReadsOnlyPrefix bs ok = Pro ThatTurn OneOf Whole {bs} {ok}
 
 public export
 turnInScopeResolvesInPrefix : (bs : Bindings) -> countReach ThatTurn OneOf bs = 1 ->
@@ -1654,10 +1690,9 @@ public export
 okOwnReadsOneInDelta : Instruction []
 okOwnReadsOneInDelta =
   Macros.sharedSubject (Macros.target Macros.creature)
-    [ Gets Adds (Own Bare OneOf
-                     (nounDelta {k = Object}
-                                (Macros.target {bs = []} Macros.creature))
-                     [] {sp = Refl})
+    [ Gets Adds (Pro Bare OneOf
+                     (Top (length (nounDelta {k = Object}
+                                             (Macros.target {bs = []} Macros.creature)))))
            (PtUp (Lit 1)) (PtUp (Lit 1)) ]
     Nothing
 
@@ -1667,12 +1702,12 @@ badSharedSubjectTwoInDelta : Unspellable (Instruction []) (\ok =>
                              (Macros.target
                                {bs = nomIntro (Macros.target {bs = []} Macros.creature)}
                                Macros.artifact))
-    [ Gets Adds (Own Bare OneOf (nounDelta {k = Object}
-                    (Both (Macros.target {bs = []} Macros.creature)
-                          (Macros.target
-                            {bs = nomIntro (Macros.target {bs = []} Macros.creature)}
-                            Macros.artifact))) []
-                {sp = Refl} {ok})
+    [ Gets Adds (Pro Bare OneOf
+                    (Top (length (nounDelta {k = Object}
+                       (Both (Macros.target {bs = []} Macros.creature)
+                             (Macros.target
+                               {bs = nomIntro (Macros.target {bs = []} Macros.creature)}
+                               Macros.artifact))))) {ok})
            (PtUp (Lit 1)) (PtUp (Lit 1)) ]
     Nothing)
 badSharedSubjectTwoInDelta Refl impossible
