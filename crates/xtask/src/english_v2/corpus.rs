@@ -42,6 +42,56 @@ const REMINDER_FOLLOWED_BY_TEXT_PARENTHETICALS: &[&str] = &[
     "(two energy counters)",
 ];
 
+/// Snapshot provenance for the two parenthetical classes used by normalization.
+/// The classification remains the invariant; these attestation counts are not
+/// acceptance targets.
+#[derive(Debug, serde::Serialize)]
+pub(super) struct ParentheticalInventory {
+    pub(super) rules_bearing: Vec<ParentheticalOccurrence>,
+    pub(super) reminder_followed_by_text: Vec<ParentheticalOccurrence>,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub(super) struct ParentheticalOccurrence {
+    pub(super) surface: String,
+    pub(super) occurrences: usize,
+}
+
+pub(super) fn parenthetical_inventory() -> anyhow::Result<ParentheticalInventory> {
+    let bytes = deckmaste_data::mtgjson::atomic_cards_bytes()
+        .context("reading AtomicCards snapshot for parenthetical provenance")?;
+    let cards = AtomicCards::parse(&bytes)
+        .context("parsing AtomicCards snapshot for parenthetical provenance")?;
+    Ok(parenthetical_inventory_from_texts(
+        cards
+            .data
+            .values()
+            .flatten()
+            .filter(|card| card.vintage_playable())
+            .filter_map(|card| card.text.as_deref()),
+    ))
+}
+
+fn parenthetical_inventory_from_texts<'a>(
+    texts: impl IntoIterator<Item = &'a str>,
+) -> ParentheticalInventory {
+    let texts = texts.into_iter().collect::<Vec<_>>();
+    let count = |surface: &str| texts.iter().filter(|text| text.contains(surface)).count();
+    let rows = |surfaces: &[&str]| {
+        surfaces
+            .iter()
+            .map(|surface| ParentheticalOccurrence {
+                surface: (*surface).to_owned(),
+                occurrences: count(surface),
+            })
+            .collect()
+    };
+    ParentheticalInventory {
+        rules_bearing: rows(RULES_BEARING_PARENTHETICALS),
+        reminder_followed_by_text: rows(REMINDER_FOLLOWED_BY_TEXT_PARENTHETICALS),
+    }
+}
+
 /// Quarantines corrections to irregular source-of-truth corpus text as
 /// reviewed data. A patch corrects raw `AtomicCards` text before structural
 /// normalization; grammatical Oracle English that the construction grammar
@@ -1387,10 +1437,7 @@ mod tests {
     }
 
     #[test]
-    fn classified_parenthetical_inventory_matches_the_vintage_snapshot() {
-        const EXPECTED_RULES_BEARING_USES: [usize; 5] = [2, 1, 11, 2, 1];
-        const EXPECTED_REMINDER_USES: [usize; 9] = [1, 2, 23, 1, 16, 7, 1, 21, 64];
-
+    fn classified_parenthetical_inventory_is_reported_without_replacing_normalization_errors() {
         let bytes =
             deckmaste_data::mtgjson::atomic_cards_bytes().expect("reading AtomicCards snapshot");
         let cards = AtomicCards::parse(&bytes).expect("parsing AtomicCards snapshot");
@@ -1406,37 +1453,23 @@ mod tests {
                 .unwrap_or_else(|error| panic!("{error}"));
         }
 
-        let rules_bearing_counts = RULES_BEARING_PARENTHETICALS
-            .iter()
-            .map(|parenthetical| {
-                vintage_cards
-                    .iter()
-                    .filter(|card| {
-                        card.text
-                            .as_deref()
-                            .is_some_and(|text| text.contains(*parenthetical))
-                    })
-                    .count()
-            })
-            .collect::<Vec<_>>();
-        let reminder_counts = REMINDER_FOLLOWED_BY_TEXT_PARENTHETICALS
-            .iter()
-            .map(|parenthetical| {
-                vintage_cards
-                    .iter()
-                    .filter(|card| {
-                        card.text
-                            .as_deref()
-                            .is_some_and(|text| text.contains(*parenthetical))
-                    })
-                    .count()
-            })
-            .collect::<Vec<_>>();
-
-        assert_eq!(rules_bearing_counts, EXPECTED_RULES_BEARING_USES);
-        assert_eq!(rules_bearing_counts.iter().sum::<usize>(), 17);
-        assert_eq!(reminder_counts, EXPECTED_REMINDER_USES);
-        assert_eq!(reminder_counts.iter().sum::<usize>(), 136);
+        let inventory = parenthetical_inventory_from_texts(
+            vintage_cards.iter().filter_map(|card| card.text.as_deref()),
+        );
+        assert_eq!(
+            inventory.rules_bearing.len(),
+            RULES_BEARING_PARENTHETICALS.len()
+        );
+        assert_eq!(
+            inventory.reminder_followed_by_text.len(),
+            REMINDER_FOLLOWED_BY_TEXT_PARENTHETICALS.len()
+        );
+        assert!(
+            inventory
+                .rules_bearing
+                .iter()
+                .all(|row| !row.surface.is_empty())
+        );
     }
 
     #[test]

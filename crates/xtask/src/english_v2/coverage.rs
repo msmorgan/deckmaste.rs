@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fs;
 use std::io::Write;
 use std::path::Path;
 
@@ -26,9 +27,7 @@ use super::corpus::Corpus;
 use super::corpus::CorpusUnit;
 use super::corpus::map_corpus_units;
 
-const REPORT_SCHEMA_VERSION: u32 = 9;
-const LICENSED_VOCAB_LEXICON_HOMOGRAPHS: usize = 2;
-const FORM_LITERAL_VOCAB_OVERLAPS_CEILING: usize = 5;
+const REPORT_SCHEMA_VERSION: u32 = 10;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum CoverageLockPolicy {
@@ -1124,6 +1123,8 @@ pub(super) struct CoverageReport {
     source_fingerprint: String,
     rows: Vec<CoverageRow>,
     licensing_checkers: super::licensing_checkers::LicensingCheckerCensus,
+    licensed_vocab_lexicon_homograph_owners: Vec<String>,
+    form_literal_vocab_overlap_surfaces: Vec<String>,
     summary: CoverageSummary,
 }
 
@@ -1155,6 +1156,8 @@ impl CoverageReport {
             rows,
             licensed_vocab_lexicon_homographs,
             form_literal_vocab_overlaps,
+            vec![],
+            vec![],
             super::licensing_checkers::LicensingCheckerCensus::default(),
         )
     }
@@ -1164,6 +1167,8 @@ impl CoverageReport {
         rows: Vec<CoverageRow>,
         licensed_vocab_lexicon_homographs: usize,
         form_literal_vocab_overlaps: usize,
+        licensed_vocab_lexicon_homograph_owners: Vec<String>,
+        form_literal_vocab_overlap_surfaces: Vec<String>,
         licensing_checkers: super::licensing_checkers::LicensingCheckerCensus,
     ) -> Result<Self, CoverageValidationError> {
         let mut summary = CoverageSummary::from_rows(&rows)?;
@@ -1176,6 +1181,8 @@ impl CoverageReport {
             source_fingerprint,
             rows,
             licensing_checkers,
+            licensed_vocab_lexicon_homograph_owners,
+            form_literal_vocab_overlap_surfaces,
             summary,
         })
     }
@@ -1407,11 +1414,19 @@ where
     observer.record("validate".to_owned());
     let licensing_checkers =
         super::licensing_checkers::from_path(&super::production_declaration_path())?;
+    let declaration_source = fs::read_to_string(super::production_declaration_path())
+        .context("reading English-v2 declaration provenance for coverage")?;
+    let declaration_provenance = super::declaration_provenance(&declaration_source)?;
     let report = CoverageReport::try_new_with_censuses(
         corpus.source_fingerprint().to_owned(),
         rows,
         parser.environment().licensed_vocab_lexicon_homographs(),
         parser.environment().form_literal_vocab_overlaps(),
+        parser
+            .environment()
+            .licensed_vocab_lexicon_homograph_owners()
+            .to_vec(),
+        declaration_provenance.form_literal_vocab_overlap_surfaces,
         licensing_checkers,
     )?;
     debug_assert_eq!(report.normalization_digest(), corpus.normalization_digest());
@@ -1424,37 +1439,9 @@ where
     super::corpus::write_corpus_performance("coverage", started.elapsed(), performance)?;
     reject_internal_failures(&report)?;
     let mode = args.lock_action();
-    if mode == CoverageLockMode::Check {
-        reject_collision_census(
-            &report,
-            parser
-                .environment()
-                .licensed_vocab_lexicon_homograph_owners(),
-        )?;
-    }
     if mode != CoverageLockMode::None {
         observer.record("gate".to_owned());
         gate(&report, &args.lock, mode, run.lock_policy, diagnostics)?;
-    }
-    Ok(())
-}
-
-fn reject_collision_census(
-    report: &CoverageReport,
-    licensed_owners: &[String],
-) -> anyhow::Result<()> {
-    let licensed = report.summary.licensed_vocab_lexicon_homographs;
-    if licensed != LICENSED_VOCAB_LEXICON_HOMOGRAPHS {
-        let observed = licensed_owners.join("; ");
-        bail!(
-            "English-v2 licensed vocabulary/lexicon homographs changed: expected {LICENSED_VOCAB_LEXICON_HOMOGRAPHS}, found {licensed} [{observed}]"
-        );
-    }
-    let overlaps = report.summary.form_literal_vocab_overlaps;
-    if overlaps > FORM_LITERAL_VOCAB_OVERLAPS_CEILING {
-        bail!(
-            "English-v2 form-literal/vocabulary overlaps exceed ceiling {FORM_LITERAL_VOCAB_OVERLAPS_CEILING}: found {overlaps}"
-        );
     }
     Ok(())
 }
@@ -1486,6 +1473,14 @@ fn render_report(
             .context("serializing English-v2 licensing checker row")?;
         writeln!(output, "licensing_checker {rendered}")
             .context("writing English-v2 licensing checker row")?;
+    }
+    for owner in &report.licensed_vocab_lexicon_homograph_owners {
+        writeln!(output, "licensed_vocab_lexicon_homograph_owner {owner:?}")
+            .context("writing English-v2 licensed homograph provenance")?;
+    }
+    for surface in &report.form_literal_vocab_overlap_surfaces {
+        writeln!(output, "form_literal_vocab_overlap_surface {surface:?}")
+            .context("writing English-v2 form-literal overlap provenance")?;
     }
     let summary = serde_json::to_string(&report.summary)
         .context("serializing English-v2 coverage summary")?;
@@ -1938,7 +1933,6 @@ mod tests {
     use super::OwnershipSummarySource;
     use super::SelectedOwnershipSource;
     use super::analysis_row;
-    use super::reject_collision_census;
     use super::render_report;
     use super::run_with_components;
     use crate::english_v2::CorpusArgs;
@@ -1951,30 +1945,22 @@ mod tests {
     }
 
     #[test]
-    fn collision_census_pins_licensed_homographs_and_caps_unlicensed_overlaps() {
-        let owners = [
-            "vocab `Synthetic::First` beside a lexeme".to_owned(),
-            "vocab `Synthetic::Second` beside a lexeme".to_owned(),
-        ];
-        let at_ceiling = CoverageReport::for_collision_metric_test(id('1'), vec![id('2')], 2, 5);
-        reject_collision_census(&at_ceiling, &owners)
-            .expect("the exact census satisfies both guards");
+    fn collision_census_is_reported_without_replacing_environment_load_invariants() {
+        let changed = CoverageReport::for_collision_metric_test(id('1'), vec![id('2')], 3, 6);
+        let mut output = Vec::new();
+        render_report(&changed, false, CoverageLockPolicy::Report, &mut output)
+            .expect("changed collision figures are reported, not gated");
+        let rendered = String::from_utf8(output).unwrap();
+        assert!(rendered.contains("\"licensed_vocab_lexicon_homographs\":3"));
+        assert!(rendered.contains("\"form_literal_vocab_overlaps\":6"));
 
-        let changed_license =
-            CoverageReport::for_collision_metric_test(id('1'), vec![id('2')], 1, 5);
-        let changed_message = reject_collision_census(&changed_license, &owners[..1])
-            .unwrap_err()
-            .to_string();
-        assert!(changed_message.contains("expected 2, found 1"));
-        assert!(changed_message.contains("Synthetic::First"));
-
-        let raised_overlap =
-            CoverageReport::for_collision_metric_test(id('1'), vec![id('2')], 2, 6);
+        let environment = crate::english_v2::parser_from_builtin_v2()
+            .expect("the environment still loads only after its lexical ownership checks pass");
         assert!(
-            reject_collision_census(&raised_overlap, &owners)
-                .unwrap_err()
-                .to_string()
-                .contains("ceiling 5: found 6")
+            environment
+                .environment()
+                .licensed_vocab_lexicon_homographs()
+                > 0
         );
     }
 
@@ -2501,7 +2487,7 @@ mod tests {
     fn report_and_summary_json_have_the_exact_reviewed_fields() {
         let report = independently_derived_report();
         let json = serde_json::to_value(&report).unwrap();
-        assert_eq!(json["schema_version"], 9);
+        assert_eq!(json["schema_version"], 10);
         assert_eq!(json["rows"][0]["exception_resolved"], false);
         assert_eq!(json["rows"][0]["exception_uses"], 0);
         assert_eq!(json["rows"][0]["selected"]["nonterminal_nodes"], 17);
@@ -2574,7 +2560,9 @@ mod tests {
                 .map(String::as_str)
                 .collect::<std::collections::BTreeSet<_>>(),
             [
+                "form_literal_vocab_overlap_surfaces",
                 "licensing_checkers",
+                "licensed_vocab_lexicon_homograph_owners",
                 "rows",
                 "schema_version",
                 "source_fingerprint",

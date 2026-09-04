@@ -244,7 +244,6 @@ mod catalog_adapter_tests {
             })
             .collect::<std::collections::BTreeSet<_>>();
 
-        assert_eq!(names.len(), 32_548, "every raw generated row is counted");
         assert_eq!(actual_exceptional, expected_exceptional);
         assert_eq!(actual_exceptional, reviewed_exceptional);
         assert_eq!(
@@ -575,6 +574,86 @@ fn expansion_from_source(source: &str) -> anyhow::Result<Expansion> {
     deckmaste_construction_core::generate(invocation.tokens).map_err(anyhow::Error::new)
 }
 
+/// Provenance figures derived from the declaration source. These are reported
+/// rather than used as acceptance thresholds: grammar evolution is allowed to
+/// change either inventory while the environment keeps enforcing ownership.
+#[derive(Debug, PartialEq, Eq)]
+pub(super) struct DeclarationProvenance {
+    pub(super) construction_count: usize,
+    pub(super) form_literal_vocab_overlap_surfaces: Vec<String>,
+}
+
+pub(super) fn declaration_provenance(source: &str) -> anyhow::Result<DeclarationProvenance> {
+    use deckmaste_construction_core::Declaration;
+    use deckmaste_construction_core::FormAtom;
+
+    let invocation = deckmaste_construction_core::invocation_from_source(source)
+        .map_err(anyhow::Error::new)
+        .context("reading English-v2 declaration provenance")?;
+    let declarations = deckmaste_construction_core::parse_declarations(invocation.tokens)
+        .map_err(anyhow::Error::new)
+        .context("parsing English-v2 declaration provenance")?;
+    let vocabulary_surfaces = declarations
+        .declarations
+        .iter()
+        .filter_map(|declaration| match declaration {
+            Declaration::Vocab(vocabulary) => Some(vocabulary),
+            _ => None,
+        })
+        .flat_map(|vocabulary| vocabulary.variants.iter())
+        .map(|variant| variant.word.value())
+        .collect::<BTreeSet<_>>();
+    let mut construction_count = 0;
+    let mut form_literal_vocab_overlap_surfaces = Vec::new();
+    for declaration in &declarations.declarations {
+        let Declaration::Construction(construction) = declaration else {
+            continue;
+        };
+        construction_count += 1;
+        for form in &construction.forms {
+            for (atom_index, atom) in form.atoms.iter().enumerate() {
+                let surface = match atom {
+                    FormAtom::Literal(surface) | FormAtom::SentenceInitial(surface) => {
+                        surface.value()
+                    }
+                    FormAtom::LicensedLiteral(_)
+                    | FormAtom::Role(_)
+                    | FormAtom::Lex(_)
+                    | FormAtom::FixedLex(_)
+                    | FormAtom::Marked(_)
+                    | FormAtom::Identity(_)
+                    | FormAtom::Verb(_)
+                    | FormAtom::OpenVerb(_)
+                    | FormAtom::Noun(_)
+                    | FormAtom::Bound(_)
+                    | FormAtom::Circumfix(_) => continue,
+                };
+                if vocabulary_surfaces.contains(&surface) {
+                    form_literal_vocab_overlap_surfaces.push(format!(
+                        "surface `{surface}` at construction `{}` form `{}` atom {atom_index}",
+                        construction.name, form.name,
+                    ));
+                }
+            }
+        }
+    }
+    Ok(DeclarationProvenance {
+        construction_count,
+        form_literal_vocab_overlap_surfaces,
+    })
+}
+
+fn card_name_catalog_row_count_from_text(source: &str) -> usize {
+    source.lines().count()
+}
+
+pub(super) fn card_name_catalog_row_count() -> anyhow::Result<usize> {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs/card-names.txt");
+    let source = fs::read_to_string(&path)
+        .with_context(|| format!("reading generated card-name catalog {}", path.display()))?;
+    Ok(card_name_catalog_row_count_from_text(&source))
+}
+
 fn render_expansion(expansion: &Expansion) -> anyhow::Result<String> {
     let mut output = String::new();
     for item in expansion.items() {
@@ -778,6 +857,40 @@ mod tests {
             .expect_err("unknown root fails xtask expansion")
             .to_string();
         assert_eq!(command_error, core_error);
+    }
+
+    #[test]
+    fn declaration_provenance_has_one_canonical_construction_count_and_overlap_inventory() {
+        let source = r#"
+            constructions! {
+                vocab Marker { During = "during", }
+                construction first: Root { element First {} form first = "during"; }
+                construction second: Root { element Second {} form second = "outside"; }
+            }
+        "#;
+
+        let provenance = declaration_provenance(source).expect("fixture provenance parses");
+        assert_eq!(provenance.construction_count, 2);
+        assert_eq!(
+            provenance.form_literal_vocab_overlap_surfaces,
+            ["surface `during` at construction `first` form `first` atom 0"],
+        );
+    }
+
+    #[test]
+    fn catalog_row_count_is_reported_without_weakening_the_onset_override_closure() {
+        assert_eq!(
+            card_name_catalog_row_count_from_text("one\ntwo\nthree\n"),
+            3
+        );
+        ensure_card_name_onset_override_inventory(
+            ["+2 Mace", "+3 Mace"],
+            &[(
+                "+2 Mace",
+                deckmaste_construction_core::macro_def::Onset::Consonant,
+            )],
+        )
+        .expect_err("the two-way onset override closure still rejects a changed inventory");
     }
 
     #[test]

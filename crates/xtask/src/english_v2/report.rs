@@ -16,6 +16,9 @@ use super::production_declaration_path;
 #[derive(Debug, Serialize)]
 struct CountedReport {
     schema_version: u32,
+    construction_count: usize,
+    card_name_catalog_rows: usize,
+    parenthetical_inventory: super::corpus::ParentheticalInventory,
     noun_morphology: NounMorphologyCensus,
     licensing_checkers: super::licensing_checkers::LicensingCheckerCensus,
     mapping_layers: Vec<CountedEntry>,
@@ -84,14 +87,20 @@ pub(super) fn run(args: &ReportArgs, output: &mut dyn Write) -> anyhow::Result<(
 
 fn build_report_from_source(source: &str) -> anyhow::Result<CountedReport> {
     let expansion = expansion_from_source(source)?;
+    let declaration_provenance = super::declaration_provenance(source)?;
     let licensing_checkers = super::licensing_checkers::from_expansion(source, &expansion)?;
     let selection_exceptions = deckmaste_english_v2::parser::selection_exception_inventory()
         .map_err(anyhow::Error::new)
         .context("validating English-v2 selection exception inventory")?;
     let builtin_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2");
     let builtin_nouns = builtin_noun_morphology(&builtin_root)?;
+    let card_name_catalog_rows = super::card_name_catalog_row_count()?;
+    let parenthetical_inventory = super::corpus::parenthetical_inventory()?;
     build_report(
         &expansion,
+        declaration_provenance.construction_count,
+        card_name_catalog_rows,
+        parenthetical_inventory,
         &selection_exceptions,
         builtin_nouns,
         licensing_checkers,
@@ -100,6 +109,9 @@ fn build_report_from_source(source: &str) -> anyhow::Result<CountedReport> {
 
 fn build_report(
     expansion: &Expansion,
+    construction_count: usize,
+    card_name_catalog_rows: usize,
+    parenthetical_inventory: super::corpus::ParentheticalInventory,
     selection_exceptions: &[SelectionExceptionInfo],
     builtin_nouns: BuiltinNounMorphology,
     licensing_checkers: super::licensing_checkers::LicensingCheckerCensus,
@@ -122,7 +134,10 @@ fn build_report(
         .chain(builtin_nouns.irregulars)
         .collect();
     let mut report = CountedReport {
-        schema_version: 5,
+        schema_version: 6,
+        construction_count,
+        card_name_catalog_rows,
+        parenthetical_inventory,
         noun_morphology: builtin_nouns.census,
         licensing_checkers,
         mapping_layers: plain_entries(escape_hatches.mapping_layers(), None, None),
@@ -247,7 +262,21 @@ fn builtin_noun_morphology(root: &Path) -> anyhow::Result<BuiltinNounMorphology>
     }
     // Unattested open plurals remain unavailable and exist only in this census;
     // report evidence is restricted to authenticated authored overrides.
+    validate_noun_morphology_census(census)?;
     Ok(BuiltinNounMorphology { census, irregulars })
+}
+
+fn validate_noun_morphology_census(census: NounMorphologyCensus) -> anyhow::Result<()> {
+    if census.total != census.derived_plural + census.explicit_plural + census.unavailable_plural {
+        bail!(
+            "builtin noun morphology has an unclassifiable surface: total {} != derived {} + explicit {} + unavailable {}",
+            census.total,
+            census.derived_plural,
+            census.explicit_plural,
+            census.unavailable_plural,
+        );
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -348,6 +377,38 @@ fn render_json(report: &CountedReport) -> anyhow::Result<String> {
 
 fn render_human(report: &CountedReport) -> String {
     let mut output = String::from("English v2 counted escape hatches\n");
+    writeln!(
+        &mut output,
+        "construction declarations ({})",
+        report.construction_count,
+    )
+    .expect("writing to String cannot fail");
+    writeln!(
+        &mut output,
+        "card-name catalog rows ({})",
+        report.card_name_catalog_rows,
+    )
+    .expect("writing to String cannot fail");
+    for (kind, rows) in [
+        (
+            "rules-bearing parentheticals",
+            &report.parenthetical_inventory.rules_bearing,
+        ),
+        (
+            "reminder parentheticals followed by text",
+            &report.parenthetical_inventory.reminder_followed_by_text,
+        ),
+    ] {
+        writeln!(&mut output, "{kind} ({})", rows.len()).expect("writing to String cannot fail");
+        for row in rows {
+            writeln!(
+                &mut output,
+                "  - surface={:?} occurrences={}",
+                row.surface, row.occurrences,
+            )
+            .expect("writing to String cannot fail");
+        }
+    }
     writeln!(
         &mut output,
         "noun morphology (total={}, derived +s={}, explicit={}, unavailable={})",
@@ -518,7 +579,7 @@ mod tests {
         let rendered = render_json(&report).expect("schema 5 serializes");
         let json: serde_json::Value = serde_json::from_str(&rendered).unwrap();
 
-        assert_eq!(json["schema_version"], 5);
+        assert_eq!(json["schema_version"], 6);
         assert_eq!(
             json["abstract_products"],
             serde_json::json!(["ZetaHolder", "AlphaHolder", "MuHolder", "BetaHolder"])
@@ -567,7 +628,7 @@ mod tests {
     }
 
     #[test]
-    fn schema5_pins_exact_top_level_key_order_and_has_no_legacy_mode() {
+    fn schema6_pins_exact_top_level_key_order_and_has_no_legacy_mode() {
         let report = build_report_from_source(PRODUCTION_SOURCE)
             .expect("production declaration report builds");
         let rendered = render_json(&report).expect("production report serializes");
@@ -576,6 +637,9 @@ mod tests {
             raw_top_level_keys(&rendered),
             [
                 "schema_version",
+                "construction_count",
+                "card_name_catalog_rows",
+                "parenthetical_inventory",
                 "noun_morphology",
                 "licensing_checkers",
                 "mapping_layers",
@@ -598,7 +662,8 @@ mod tests {
                 "stored_separator_fields",
             ]
         );
-        assert!(rendered.contains("\"schema_version\": 5"));
+        assert!(rendered.contains("\"schema_version\": 6"));
+        assert!(!rendered.contains("\"schema_version\": 5"));
         assert!(!rendered.contains("\"schema_version\": 4"));
         assert!(!rendered.contains("\"schema_version\": 3"));
     }
@@ -613,7 +678,13 @@ mod tests {
 
     fn report() -> CountedReport {
         CountedReport {
-            schema_version: 5,
+            schema_version: 6,
+            construction_count: 0,
+            card_name_catalog_rows: 0,
+            parenthetical_inventory: super::super::corpus::ParentheticalInventory {
+                rules_bearing: vec![],
+                reminder_followed_by_text: vec![],
+            },
             noun_morphology: NounMorphologyCensus {
                 total: 0,
                 derived_plural: 0,
@@ -731,6 +802,10 @@ mod tests {
             render_human(&report),
             concat!(
                 "English v2 counted escape hatches\n",
+                "construction declarations (0)\n",
+                "card-name catalog rows (0)\n",
+                "rules-bearing parentheticals (0)\n",
+                "reminder parentheticals followed by text (0)\n",
                 "noun morphology (total=0, derived +s=0, explicit=0, unavailable=0)\n",
                 "licensing checkers (permitted=0, forbidden=0)\n",
                 "mapping layers (1)\n",
@@ -764,29 +839,23 @@ mod tests {
         let report = build_report_from_source(PRODUCTION_SOURCE)
             .expect("production declaration report builds");
 
-        assert_eq!(report.schema_version, 5);
+        assert_eq!(report.schema_version, 6);
+        let escape_hatch_zeros = [
+            report.mapping_layers.len(),
+            report.handwritten_codecs.len(),
+            report.stored_form_tags.len(),
+            report.selection_exceptions.len(),
+            report.terminal_bindings.len(),
+            report.checked_constructor_bindings.len(),
+            report.stored_separator_fields.len(),
+        ];
         assert_eq!(
-            report.noun_morphology,
-            NounMorphologyCensus {
-                total: 491,
-                derived_plural: 165,
-                explicit_plural: 26,
-                unavailable_plural: 300,
-            }
+            escape_hatch_zeros, [0; 7],
+            "categories intentionally overlap and have no unique total"
         );
         assert_eq!(
-            [
-                report.mapping_layers.len(),
-                report.handwritten_codecs.len(),
-                report.stored_form_tags.len(),
-                report.stored_spelling_codecs.len(),
-                report.selection_exceptions.len(),
-                report.terminal_bindings.len(),
-                report.checked_constructor_bindings.len(),
-                report.roots.len(),
-            ],
-            [0, 0, 0, 1, 0, 0, 0, 8],
-            "categories intentionally overlap and have no unique total"
+            identities(&report.stored_spelling_codecs),
+            ["SelfReferenceSpelling"]
         );
         assert!(!report.morphology_irregulars.is_empty());
         assert!(report.morphology_irregulars.iter().all(|irregular| {
@@ -859,25 +928,9 @@ mod tests {
             report.selection_exceptions.is_empty(),
             "guarded demonstrative selection does not alter specificity",
         );
-        assert_eq!(
-            identities(&report.stored_spelling_codecs),
-            ["SelfReferenceSpelling"]
-        );
         assert!(report.terminal_bindings.is_empty());
         assert!(report.checked_constructor_bindings.is_empty());
-        assert_eq!(
-            identities(&report.roots),
-            [
-                "Ability",
-                "CardinalQuantity",
-                "CountReference",
-                "MannerReference",
-                "OracleText",
-                "Possessive",
-                "ScalarReference",
-                "Sentence",
-            ]
-        );
+        assert!(report.roots.iter().all(|entry| !entry.identity.is_empty()));
         for entries in [
             &report.abstract_products,
             &report.abstract_sums,
@@ -976,7 +1029,7 @@ mod tests {
     }
 
     #[test]
-    fn schema4_preserves_legacy_field_order_before_structural_inventory() {
+    fn schema6_preserves_legacy_field_order_before_structural_inventory() {
         let report = build_report_from_source(PRODUCTION_SOURCE)
             .expect("production declaration report builds");
         let rendered = render_json(&report).expect("production report serializes");
@@ -985,6 +1038,9 @@ mod tests {
             raw_top_level_keys(&rendered),
             [
                 "schema_version",
+                "construction_count",
+                "card_name_catalog_rows",
+                "parenthetical_inventory",
                 "noun_morphology",
                 "licensing_checkers",
                 "mapping_layers",
@@ -1032,19 +1088,26 @@ mod tests {
     }
 
     #[test]
-    fn production_builtin_noun_morphology_census_is_exact() {
+    fn builtin_noun_morphology_census_reports_changed_totals_but_keeps_its_partition_law() {
         let root =
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2");
         let census = builtin_noun_morphology_census(&root)
             .expect("authenticated builtin-v2 noun sources census cleanly");
 
-        assert_eq!(census.total, 491);
-        assert_eq!(census.derived_plural, 165);
-        assert_eq!(census.explicit_plural, 26);
-        assert_eq!(census.unavailable_plural, 300);
         assert_eq!(
             census.total,
             census.derived_plural + census.explicit_plural + census.unavailable_plural
+        );
+
+        let unclassifiable = validate_noun_morphology_census(NounMorphologyCensus {
+            total: census.total + 1,
+            ..census
+        })
+        .expect_err("the partition law still rejects an unclassifiable surface");
+        assert!(
+            unclassifiable
+                .to_string()
+                .contains("unclassifiable surface")
         );
     }
 
