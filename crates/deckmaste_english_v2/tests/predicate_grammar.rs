@@ -3402,6 +3402,7 @@ fn movement_control_role_rejects_an_undeclared_marker() {
     let context = context();
 
     for text in [
+        "Put target creature card onto the battlefield onto the battlefield.",
         "Put target creature card onto the battlefield into your graveyard.",
         "Return target creature card to your hand into your graveyard.",
     ] {
