@@ -106,8 +106,11 @@ ADR-blessed 34-construction card-kind **noun** partition (`english-v2-rewrite.md
 side only. Same `declaration_noun` codec-parameterisation note as A8a.
 
 `english-v2-adjective-inventory` previously waited on this as a ticket; it no longer
-does, and its three form-literal re-routes are handled by
-`english-v2-closed-class-single-owner`.
+does. 2026-09-04: its three form-literal re-routes
+(`AttributiveAdjective::{Additional,Next,Other}`) are NOT handled by
+`english-v2-closed-class-single-owner` (done; it did not touch them) — the
+adjective ticket's own "Hard blocker this ticket owns" is accurate and owns
+them.
 
 Hangs on: the noun-feature work; `english-v2-number-feature-unification` as the
 feature-collapse precedent.
@@ -167,5 +170,8 @@ Recorded for the record, attributed to neither grammar — no ticket owns these,
 - AdvP with degree modification
 
 Each becomes a ticket only on evidence — a corpus witness count plus a pinned
-construction shape. Adding one to a general construction that already exists (a
+construction shape. Evidence decides WHEN a gap is scheduled, never whether a
+general construction may admit it: attestation is provenance, not a filter
+(rewrite ADR), so a landed construction admits its full linguistic domain
+regardless of this register's counts (clarified 2026-09-04). Adding one to a general construction that already exists (a
 relative-marker slot, a coordination) is the cheap path; none is a family of its own.

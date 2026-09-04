@@ -11,8 +11,14 @@ consumer: a `constructions!` Construction for the Type Line (supertypes, card
 types, the em-dash separator, subtypes) whose Linearization of card types is
 consumed from the declared order rather than restated in the grammar. Card
 Type words keep entering through the normalized open `Type` inventory (single
-authority); the order lives beside it as a declaration, at the boundary the
-claimant designs and records in the landing record. Integrating this ticket
+authority); the order lives ON that inventory as a declaration field
+(ruling 2026-09-04: a single authority carries its own linearization order;
+a second inventory or a crate-local copy is a STOP), so this ticket's
+consumption boundary includes the normalized open `Type` declaration schema
+and the builtin declarations under `plugins/builtin_v2` that populate it.
+2026-09-04: pinned — was: "at the boundary the claimant designs and records
+in the landing record" (the unpinned boundary is what produced the
+type-line-declaration STOP). Integrating this ticket
 unblocks `english-v2-type-line-declaration`, which then converts the table into
 that declaration form with tests against the 12 attested sequences.
 

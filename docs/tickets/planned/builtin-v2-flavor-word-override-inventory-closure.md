@@ -12,5 +12,7 @@ inventory enforces two-way equality per the rewrite ADR (a surface the recipe
 can classify may not carry an override); the flavor-word inventory currently
 permits a redundant override. Adopt two-way equality here too so both
 inventories share one closure rule, and extend the ADR sentence's scope from
-"card-name rows" to both authored override inventories. Zero grammar change;
+"card-name rows" to both authored override inventories — that extension is
+pre-ruled (coordinator, 2026-09-04): the claimant appends the dated amendment
+in the same landing; it is not a STOP. Zero grammar change;
 generated stubs byte-unchanged. Standard constraints apply.
