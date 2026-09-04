@@ -63,3 +63,53 @@ the ledger, `crates/xtask/src/english_v2/` tests. No Idris source.
   distinction from `SelectedUncovered` above.
 
 Standard constraints apply.
+
+## Landing record
+
+Measured on change `wyrytpll` with 16,771 covered lock identities.
+
+- The xtask corpus loader now reads a named RON corpus-patch ledger. Each
+  entry carries a reason, card or Card Face names, and exact find/replace
+  text; matching raw `AtomicCards` text is patched exactly once before the
+  existing structural normalization builds the downstream corpus unit. The
+  checked-in ledger is empty, so this change introduces no real corpus patch.
+- The corpus module documents that source-text irregularities belong in this
+  ledger, while grammatical Oracle English that no Construction analyzes yet
+  remains `CoverageStatus::SelectedUncovered`.
+- Coverage before/after: 16,771 -> 16,771 selected and covered corpus units
+  out of 32,641; 15,870 parse failures; 0 newly covered identities; 0 drops;
+  0 selected-uncovered units, unresolved ties, internal failures,
+  exception resolutions/uses, round-trip mismatches, ownership failures,
+  traversal failures, gaps, overlaps, synthetic claims, or provenance-plan
+  mismatches. Newly covered identities and selected analyses: none.
+- Construction and selection censuses before/after: 397 -> 397 Construction
+  declarations; 11,515 -> 11,515 unique and 5,256 -> 5,256
+  specificity-resolved selections; 0 exception-resolved selections.
+- Coverage lock: schema 4, +0/-0 identities, and byte-unchanged at 49,421
+  lines / 8,306,882 bytes, with source fingerprint
+  `e85359d7b8c578df13dff2fdf7c743a520a5b367d5ed25ab0a5f03cb8b3637dd`,
+  normalization digest
+  `f3a2fccd079f0bc53c79b4c23e28e0351b3cf69a5324b3893c695638935341c9`,
+  and SHA-256
+  `2cf7f9b716e13b27d626c60638d1266ca6cdc083bbcca87cb1435b4b00cd65ca`.
+- Performance advisory: `coverage --check` reported 28.653360888 seconds and
+  120,749 ns/B across 1,523,802 accepted bytes, above the 16.26-second
+  quiet-host ceiling while host load was 31.94/24.22/18.28; 1 concurrent
+  `codex` process was present at measurement. This contention warning is
+  reported and is not a STOP.
+- Positive gate artifacts: `cargo fmt --all` exited 0; strict
+  `cargo clippy -p xtask --all-targets -- -D warnings` exited 0;
+  `cargo test -p xtask` reported `test result: ok. 423 passed; 0 failed; 1
+  ignored`, `test result: ok. 12 passed; 0 failed`, and two integration
+  `test result: ok. 1 passed; 0 failed` lines; `cargo xtask english_v2
+  ambiguity --require-resolved` reported 0 unresolved ties and 0 internal
+  failures; `cargo xtask english_v2 coverage --check` exited 0 with the
+  coverage summary above. No citations changed, so the citation gate was not
+  applicable.
+- Assurance: restored 0; re-spelled 0; ignored with blockers 0; added 1;
+  removed 0. The added corpus-level test proves a synthetic patch changes the
+  raw snapshot text before quote normalization and preserves its reason.
+- Deviations and additions: none; the one added test is required by the
+  ticket. No grammar, Construction, `core_verbs.ron`, coverage-lock, citation,
+  or Idris source changed. No scratch or probe tree was created.
+- STOPs: none. Glossary gaps: none. Decisions wanted: none.

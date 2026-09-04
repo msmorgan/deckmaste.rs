@@ -19,6 +19,7 @@ const ID_DOMAIN: &[u8] = b"deckmaste:english-v2:corpus-unit:v1";
 const SOURCE_ID_DOMAIN: &[u8] = b"deckmaste:english-v2:source-unit:v1";
 const NORMALIZATION_DIGEST_DOMAIN: &[u8] = b"deckmaste:english-v2:normalization:v2";
 const LEGACY_NORMALIZATION_DIGEST_DOMAIN: &[u8] = b"deckmaste:english-v2:normalization:v1";
+const CORPUS_PATCH_LEDGER: &str = include_str!("corpus_patches.ron");
 // Governed by docs/decisions/english-v2-rewrite.md, "Ruling: corpus timing
 // ceiling and acceptance-cost telemetry" (2026-09-02).
 const CORPUS_WALL_CEILING_SECONDS: f64 = 16.26;
@@ -40,6 +41,98 @@ const REMINDER_FOLLOWED_BY_TEXT_PARENTHETICALS: &[&str] = &[
     "(three energy counters)",
     "(two energy counters)",
 ];
+
+/// Quarantines corrections to irregular source-of-truth corpus text as
+/// reviewed data. A patch corrects raw `AtomicCards` text before structural
+/// normalization; grammatical Oracle English that the construction grammar
+/// does not yet analyze instead remains `CoverageStatus::SelectedUncovered`.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CorpusPatchLedger {
+    patches: Vec<CorpusTextPatch>,
+}
+
+impl CorpusPatchLedger {
+    fn embedded() -> anyhow::Result<Self> {
+        Self::parse(CORPUS_PATCH_LEDGER).context("loading English-v2 corpus patch ledger")
+    }
+
+    fn parse(source: &str) -> anyhow::Result<Self> {
+        let ledger = ron::from_str::<Self>(source).context("parsing corpus patch ledger RON")?;
+        ledger.validate()?;
+        Ok(ledger)
+    }
+
+    fn validate(&self) -> anyhow::Result<()> {
+        for (index, patch) in self.patches.iter().enumerate() {
+            ensure!(
+                !patch.reason.trim().is_empty(),
+                "corpus patch {index} has an empty reason"
+            );
+            ensure!(
+                !patch.card_or_face_names.is_empty(),
+                "corpus patch {index} has no card or face names"
+            );
+            ensure!(
+                patch
+                    .card_or_face_names
+                    .iter()
+                    .all(|name| !name.trim().is_empty()),
+                "corpus patch {index} has an empty card or face name"
+            );
+            ensure!(
+                !patch.find.is_empty(),
+                "corpus patch {index} has empty find text"
+            );
+            ensure!(
+                patch.find != patch.replace,
+                "corpus patch {index} has identical find and replace text"
+            );
+        }
+        Ok(())
+    }
+
+    fn apply(
+        &self,
+        card_name: &str,
+        face_name: Option<&str>,
+        source_text: &str,
+    ) -> anyhow::Result<String> {
+        let mut text = source_text.to_owned();
+        for patch in self
+            .patches
+            .iter()
+            .filter(|patch| patch.applies_to(card_name, face_name))
+        {
+            let occurrences = text.matches(&patch.find).count();
+            ensure!(
+                occurrences == 1,
+                "corpus patch for card {card_name:?}, face {face_name:?} expected find text {:?} exactly once, found {occurrences}; reason: {}",
+                patch.find,
+                patch.reason,
+            );
+            text = text.replacen(&patch.find, &patch.replace, 1);
+        }
+        Ok(text)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CorpusTextPatch {
+    reason: String,
+    card_or_face_names: Vec<String>,
+    find: String,
+    replace: String,
+}
+
+impl CorpusTextPatch {
+    fn applies_to(&self, card_name: &str, face_name: Option<&str>) -> bool {
+        self.card_or_face_names
+            .iter()
+            .any(|name| name == card_name || face_name.is_some_and(|face| name == face))
+    }
+}
 
 pub(super) fn corpus_error_message(error: &ParseError) -> String {
     const MAX_EXPECTATIONS: usize = 8;
@@ -178,6 +271,15 @@ impl Corpus {
         bytes: &[u8],
         context_onsets: &BTreeMap<String, Onset>,
     ) -> anyhow::Result<Self> {
+        let patches = CorpusPatchLedger::embedded()?;
+        Self::from_bytes_with_context_onsets_and_patches(bytes, context_onsets, &patches)
+    }
+
+    fn from_bytes_with_context_onsets_and_patches(
+        bytes: &[u8],
+        context_onsets: &BTreeMap<String, Onset>,
+        patches: &CorpusPatchLedger,
+    ) -> anyhow::Result<Self> {
         let cards = AtomicCards::parse(bytes).context("parsing MTGJSON atomic-card snapshot")?;
         let mut units = cards
             .data
@@ -203,7 +305,8 @@ impl Corpus {
                     )
                 })?;
                 let source_text = card.text.as_deref().unwrap_or_default();
-                let text = normalize_oracle_text(&card_name, source_text)?;
+                let patched_text = patches.apply(&card_name, face_name.as_deref(), source_text)?;
+                let text = normalize_oracle_text(&card_name, &patched_text)?;
                 Ok(corpus_unit(
                     &card_name,
                     face_name.as_deref(),
@@ -994,6 +1097,46 @@ mod tests {
             }]
         }
     }"#;
+
+    #[test]
+    fn corpus_patch_changes_raw_text_before_normalization_and_keeps_its_reason() {
+        let snapshot = br#"{"data":{"Patch Fixture":[{
+            "name":"Patch Fixture", "layout":"normal", "types":["Creature"],
+            "supertypes":[], "subtypes":[], "legalities":{"vintage":"Legal"},
+            "text":"\u2018Creatue\u2019 enters tapped."
+        }]}}"#;
+        let ledger = CorpusPatchLedger::parse(
+            r#"CorpusPatchLedger(
+                patches: [
+                    CorpusTextPatch(
+                        reason: "The source snapshot misspells creature.",
+                        card_or_face_names: ["Patch Fixture"],
+                        find: "‘Creatue’",
+                        replace: "‘Creature’",
+                    ),
+                ],
+            )"#,
+        )
+        .expect("fixture patch ledger loads");
+        let onsets = explicit_onsets([("Patch Fixture", Onset::Consonant)]);
+        let cards = AtomicCards::parse(snapshot).expect("fixture snapshot loads");
+        let raw_text = cards.data["Patch Fixture"][0]
+            .text
+            .as_deref()
+            .expect("fixture has raw text");
+
+        let corpus = Corpus::from_bytes_with_context_onsets_and_patches(snapshot, &onsets, &ledger)
+            .expect("patched fixture corpus loads");
+        let unit = &corpus.units()[0];
+
+        assert_eq!(raw_text, "‘Creatue’ enters tapped.");
+        assert_ne!(unit.text(), raw_text);
+        assert_eq!(unit.text(), "'Creature' enters tapped.");
+        assert_eq!(
+            ledger.patches[0].reason,
+            "The source snapshot misspells creature."
+        );
+    }
 
     #[test]
     fn normalization_straightens_typography_and_strips_reminder_text() {
