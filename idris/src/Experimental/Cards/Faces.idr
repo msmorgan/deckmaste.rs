@@ -717,3 +717,46 @@ karganDragonlord =
            , Macros.activated (Mana [Macros.pip Red])
                (Macros.gets Macros.thisCreature (PtUp (Lit 1)) (PtUp (Lit 0))
                             (Just Macros.untilEndOfTurn)) ] ]
+
+||| Arcane Proxy
+public export
+arcaneProxy : Card
+arcaneProxy =
+  Macros.prototype "Arcane Proxy" (Just [Macros.generic 7]) []
+       (MkTypeLine [creatureType "Wizard"] [Artifact, Creature])
+       [ Macros.triggeredIf When (Enters Macros.thisCreature Nothing)
+           (Matches ((Macros.It OneOf)) (Macros.castBy You))
+           (Sequentially
+              [ Macros.exile You
+                  (Macros.target (And [ Macros.instantOrSorcery
+                                      , IsCard
+                                      , Compare [CharAxis ManaValue] AtMost
+                                                (StatOf Power Macros.thisCreature)
+                                      , InZone (Macros.graveyardOf You) ]))
+              , Copy FromCardZone You (Macros.That CardW OneOf) (Lit 1) []
+              , Continuously
+                  (Macros.mayPlayDeed "Cast" You (Macros.That CopyW OneOf) Nothing
+                     (PlayRider Nothing Nothing Nothing False WithoutPaying))
+                  Nothing ]) ]
+       (Just (4, 3))
+       (Macros.prototypeAlt [Macros.generic 1, Macros.pip Blue, Macros.pip Blue] 2 1)
+
+||| Blitz Automaton
+public export
+blitzAutomaton : Card
+blitzAutomaton =
+  Macros.prototype "Blitz Automaton" (Just [Macros.generic 7]) []
+       (MkTypeLine [creatureType "Construct"] [Artifact, Creature])
+       [ Macros.keyword "Haste" ]
+       (Just (6, 4))
+       (Macros.prototypeAlt [Macros.generic 2, Macros.pip Red] 3 2)
+
+||| Goring Warplow
+public export
+goringWarplow : Card
+goringWarplow =
+  Macros.prototype "Goring Warplow" (Just [Macros.generic 6]) []
+       (MkTypeLine [creatureType "Construct"] [Artifact, Creature])
+       [ Macros.keyword "Deathtouch" ]
+       (Just (5, 4))
+       (Macros.prototypeAlt [Macros.generic 1, Macros.pip Black] 1 1)

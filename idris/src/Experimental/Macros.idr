@@ -271,6 +271,26 @@ leveler name cost supers line text stats bands =
           {nf} {lv} {bl} {dj}
 
 public export
+prototypeAlt : (cost : ManaCost) -> (pow : Integer) -> (tou : Integer) ->
+               PrototypeAlt
+prototypeAlt cost pow tou =
+  MkPrototypeAlt cost (PtBox (PrintedNum pow) (PrintedNum tou))
+
+public export
+prototype : (name : String) -> (cost : Maybe ManaCost) ->
+            (supers : List Supertype) -> (line : TypeLine) ->
+            (text : AbilitySeq (costLetters cost)) ->
+            (stats : Maybe (Integer, Integer)) -> (alt : PrototypeAlt) ->
+            {auto 0 nf : FaceLaws Front
+                         (MkFace name cost [] supers line text (printedBox stats))} ->
+            {auto 0 pf : So (prototypeFrameOk line (printedBox stats))} ->
+            {auto 0 al : PrototypeAltLaws line alt} ->
+            Card
+prototype name cost supers line text stats alt =
+  Prototype (MkFace name cost [] supers line text (printedBox stats)) alt
+            {nf} {pf} {al}
+
+public export
 graveyardZ : ZoneExpr bs
 graveyardZ = ZoneAt Graveyard Bare
 

@@ -414,6 +414,25 @@ data LevelBandsLaws : (l : TypeLine) -> List LevelBand -> Type where
             {auto 0 tl : LevelBandsLaws l bs} ->
             LevelBandsLaws l (b :: bs)
 
+||| [CR#718.1] the inset frame's second set: a mana cost and a power/toughness box
+public export
+record PrototypeAlt where
+  constructor MkPrototypeAlt
+  cost : ManaCost
+  box : PrintedBox
+
+public export
+prototypeFrameOk : TypeLine -> Maybe PrintedBox -> Bool
+prototypeFrameOk l (Just (PtBox _ _)) = elem Creature l.tys
+prototypeFrameOk _ _ = False
+
+public export
+data PrototypeAltLaws : (l : TypeLine) -> PrototypeAlt -> Type where
+  MkPrototypeAltLaws : {0 l : TypeLine} -> {0 a : PrototypeAlt} ->
+                       {auto 0 mc : ManaRun a.cost} ->
+                       {auto 0 bx : CardBox {bs = []} Front l [] (Just a.box)} ->
+                       PrototypeAltLaws l a
+
 public export
 data Card : Type where
   SingleFaced : (face : CardFace) ->
@@ -456,3 +475,8 @@ data Card : Type where
             {auto 0 lv : So (levelerFrameOk inner.line inner.box bands)} ->
             {auto 0 bl : LevelBandsLaws inner.line bands} ->
             {auto 0 dj : So (bandsDisjoint bands)} -> Card
+
+  Prototype : (inner : CardFace) -> (alt : PrototypeAlt) ->
+              {auto 0 nf : FaceLaws Front inner} ->
+              {auto 0 pf : So (prototypeFrameOk inner.line inner.box)} ->
+              {auto 0 al : PrototypeAltLaws inner.line alt} -> Card

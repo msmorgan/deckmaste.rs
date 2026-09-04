@@ -790,3 +790,36 @@ badLevelBandOffLevelerFrame : Unspellable Card (\ok =>
   Macros.leveler "" (Just [Macros.pip Red]) [] (MkTypeLine [] [Sorcery]) [] Nothing
        [ Macros.levelBand (LevelAtLeast 1) 2 2 [] ] {lv = ok})
 badLevelBandOffLevelerFrame Oh impossible
+
+||| "Prototype {1}{R} — 1/1" on a 2/2 artifact creature
+public export
+okPrototypeAlt : Card
+okPrototypeAlt =
+  Macros.prototype "" (Just [Macros.generic 2]) []
+       (MkTypeLine [] [Artifact, Creature]) [] (Just (2, 2))
+       (Macros.prototypeAlt [Macros.generic 1, Macros.pip Red] 1 1)
+
+||| "Prototype — 1/1" -- the inset frame's second set includes a mana cost, and a prototyped spell is cast using only that one [CR#702.160a,718.3a]
+public export
+badPrototypeWithoutAltCost : Unspellable Card (\ok =>
+  Macros.prototype "" (Just [Macros.generic 2]) []
+       (MkTypeLine [] [Artifact, Creature]) [] (Just (2, 2))
+       (Macros.prototypeAlt [] 1 1) {al = ok})
+badPrototypeWithoutAltCost (MkPrototypeAltLaws {mc = IsNonEmpty}) impossible
+
+||| "Prototype {1}{R} — loyalty 3" -- the inset frame's second set is power and toughness [CR#702.160a,718.1]
+public export
+badPrototypeAltLoyaltyBox : Unspellable Card (\ok =>
+  Macros.prototype "" (Just [Macros.generic 2]) []
+       (MkTypeLine [] [Artifact, Creature]) [] (Just (2, 2))
+       (MkPrototypeAlt [Macros.generic 1, Macros.pip Red]
+                       (LoyaltyBox (PrintedNum 3))) {al = ok})
+badPrototypeAltLoyaltyBox (MkPrototypeAltLaws {bx = MkCardBox {ok = Oh}}) impossible
+
+||| "Prototype {1}{R} — 1/1" printed on a noncreature artifact -- no first set of power and toughness for the inset frame to give a second [CR#718.1,718.2]
+public export
+badPrototypeOffCreatureFrame : Unspellable Card (\ok =>
+  Macros.prototype "" (Just [Macros.generic 2]) [] (MkTypeLine [] [Artifact]) []
+       Nothing (Macros.prototypeAlt [Macros.generic 1, Macros.pip Red] 1 1)
+       {pf = ok})
+badPrototypeOffCreatureFrame Oh impossible
