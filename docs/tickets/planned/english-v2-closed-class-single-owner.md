@@ -5,9 +5,10 @@ Single ownership for closed-class words (homograph review Class C, 17
 rows): `less`, `equal`, `greater`, `more` (three owners), `twice`,
 demonstrative `that`, `fewer`, `both`, `any`, `instead` are spelled both
 as form literals and as vocab members. One owner each: consume the vocab
-member through the existing restricted-slot idiom (`checked by
-singular_demonstrative_is_this()`-style, constructions.rs ~:3334) and
-delete the duplicate literal. Class A (16 rows: infinitival `to`,
+member through a DSL `require role is Member` on the declared vocab member
+(the `require relation is Among` idiom) and delete the duplicate literal.
+Never a Rust `checked by` naming the word: `singular_demonstrative_is_this()`
+/ `noun_is_way()` are the shape `english-v2-this-way-lexeme-guard` retires. Class A (16 rows: infinitival `to`,
 complementizer `that`, `for each`, `at random`, "as you choose") are
 genuinely different words — declare their licence on the form atom so
 the census separates governed from ungoverned. Split the metric:
