@@ -78,6 +78,12 @@ It is distinct from the Determiner function.
 The grammatical function that marks a Noun Phrase as definite, quantified, or
 otherwise determined. A Determinative commonly realizes this function.
 
+**Quantity**:
+The Game Model count constraint a Determiner states over a Selection, such as
+*one*, *up to two*, *one or more*, or *any number*. Determiners are this
+context's side of it; the constraint itself belongs to the
+[Game Model](../game-model/CONTEXT.md).
+
 **Subject**:
 A grammatical relation within a Clause, not a constituent Category or a
 pronoun case.

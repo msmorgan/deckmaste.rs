@@ -22,6 +22,14 @@ _Avoid_: Entity when the specifically rules-defined Object is meant
 A Magic card or an Object represented by a Magic card ([CR#108.2]); a Token is
 not a Card ([CR#108.2b]).
 
+**Token**:
+A marker used to represent a Permanent that is not represented by a card
+([CR#111.1]). A Token is an Object but never a Card ([CR#108.2b]).
+
+**Emblem**:
+A marker in the command zone representing an Object that has one or more
+Abilities and usually no other characteristics ([CR#114.1]).
+
 **Spell**:
 A card, copy of a card, or copy of a spell on the stack as specified by
 [CR#112.1..112.1b]. Spell is a current rules role, not a Card Type.
@@ -70,6 +78,23 @@ One of the properties enumerated by [CR#109.3], such as name, mana cost, color,
 types, rules text, abilities, or power, toughness, loyalty, and defense. State
 such as tappedness, targets, ownership, control, and attachments is not a
 Characteristic.
+
+**Color**:
+One of white, blue, black, red, and green ([CR#105.1]). An Object is the Color
+or Colors of the mana symbols in its mana cost unless a color indicator or a
+characteristic-defining ability says otherwise ([CR#105.2]); colorless is not a
+Color ([CR#105.4]).
+
+**Status**:
+A Permanent's physical state in four categories, each with two values:
+tapped/untapped, flipped/unflipped, face up/face down, and phased in/phased out
+([CR#110.5]). Status is not a Characteristic, and only Permanents have one
+([CR#110.5a,110.5d]).
+
+**Counter**:
+A marker placed on an Object or Player that modifies its characteristics and/or
+interacts with a rule, Ability, or Effect ([CR#122.1]). Counters are not Objects
+and have no characteristics; a Counter is not a Token.
 
 **Ability**:
 A rules-defined quality of an Object or Player, or an activated or triggered
@@ -140,6 +165,44 @@ Something a Player or the game does. Keyword Actions are the specialized verbs
 defined by [CR#701]. Action names what is done; Event names its occurrence as
 grouped by the relevant observer.
 
+**Keyword Action**:
+One of the specialized verbs whose meaning a game rule supplies rather than
+ordinary English ([CR#701.1]). A Keyword Action names something done; a Keyword
+Ability names a quality an Object has.
+
+**Special Action**:
+An Action a Player may take while they have priority that does not use the stack
+([CR#116.1]). The game does not generate it, which is what separates it from a
+Turn-Based Action and a State-Based Action.
+
+**Turn-Based Action**:
+An Action that happens automatically when a Step or Phase begins, or when one
+ends, without using the stack ([CR#703.1]). An Ability that watches for the same
+moment is a Triggered Ability instead ([CR#703.1a]).
+
+**State-Based Action**:
+An Action that happens automatically whenever one of the conditions listed by
+[CR#704.1] is met, without using the stack. An Ability that watches for a game
+state is a Triggered Ability instead ([CR#704.1a]).
+
+**Priority**:
+The system determining which Player may cast spells, activate abilities, and
+take Special Actions at a given time ([CR#117.1]).
+
+**Turn**:
+The unit of turn structure made of five Phases in order — beginning, precombat
+main, combat, postcombat main, and ending — each of which takes place even if
+nothing happens during it ([CR#500.1]).
+
+**Phase**:
+One of the five parts of a Turn; the beginning, combat, and ending Phases are
+further broken down into Steps ([CR#500.1]).
+
+**Step**:
+An ordered subdivision of the beginning, combat, or ending Phase ([CR#500.1]). A
+Phase or Step in which Players receive priority ends when the stack is empty and
+all Players pass in succession ([CR#500.2]).
+
 **Choice**:
 A rules procedure in which an allowed option or value is selected. Choice names
 the rules-level selection, not the engine boundary that waits for an agent.
@@ -167,6 +230,25 @@ a Characteristic.
 An Object's contextual relationship as the source of an Ability, damage, or
 mana ([CR#109.2c]). Source is not an intrinsic Object class.
 
+**Damage**:
+Harm an Object deals to a battle, creature, planeswalker, or Player
+([CR#120.1]). The Object that deals it is the Source of that Damage, and Damage
+cannot be dealt to any other Object ([CR#120.1a]).
+
+**Life Total**:
+The number each Player begins the game with ([CR#119.1]), adjusted whenever an
+Effect causes that Player to gain or lose life ([CR#119.3]). Setting a total to
+a number resolves as the gain or loss needed to reach it ([CR#119.5]).
+
+**Mana**:
+The primary resource of the game, spent to pay costs ([CR#106.1]). There are
+five colors of Mana and six types of it, colorless included
+([CR#106.1a,106.1b]).
+
+**Cost**:
+An action or payment necessary to take another action, or to stop another action
+from taking place ([CR#118.1]).
+
 **Card Face**:
 A set of printed characteristics that the CR calls a card face. Split cards
 have two faces on one side ([CR#709.1]); a double-faced card has a Magic card
@@ -178,6 +260,12 @@ Alternative Characteristics rather than a second face ([CR#710.1,715.2]).
 A non-face set of characteristics used in a rules-defined situation, such as a
 flip card's upside-down characteristics or an adventurer card's inset Adventure
 characteristics ([CR#710.1,715.2]).
+
+**Copy**:
+An Object that has acquired the copiable values of another Object's
+characteristics and, for an Object on the stack, the choices made when casting
+or activating it ([CR#707.2]). Other effects, status, counters, and stickers
+are not copied.
 
 ## Engine semantic language
 
@@ -243,6 +331,29 @@ force for a duration ([CR#611.2]); like an Instruction it is syntax, so it is
 not itself an Effect — the Continuous Effect is what applying it establishes.
 _Avoid_: Static Effect
 
+**Amount** (project term):
+A semantic expression denoting a number in context — a literal, a count over a
+Selection, or a characteristic read. An Amount is not a Reference.
+_Avoid_: Quantity for a denoted number
+
+**Quantity** (project term):
+The count constraint a determiner states over a Selection — "one", "up to two",
+"one or more", "any number". A Quantity bounds how many members a Selection has;
+it is not an Amount.
+_Avoid_: Amount for a cardinality constraint
+
+**Delta** (project term):
+A change stated against a numeric property: up by an Amount, down by an Amount,
+or set to an Amount. The Delta states the change; the engine derives the Event
+it causes — [CR#613.4c] for a characteristic modification, [CR#119.3] for life.
+_Avoid_: separate gain/lose and raise/lower vocabularies per property
+
+**Duration** (project term):
+The span a Continuous Effect created by a one-shot lasts, and the span for which
+a Static Spec is put in force. A stated Duration is what ends the Effect; with
+none stated it lasts until the game ends ([CR#611.2a]).
+_Avoid_: span, window
+
 **Decision Point** (project term):
 An engine boundary at which progress waits for an external agent to supply a
 Decision.
@@ -255,6 +366,12 @@ Choice or a proposed Action.
 The relationship by which a rule, Card Type, or Subtype supplies an Ability or
 other rules property. A conferred Ability remains an ordinary Ability unless
 the CR says otherwise.
+
+**Designation** (project term):
+A named marker an Object, a Player, or the game can have, which rules and
+Effects identify without it being an Ability or a copiable value. The CR names
+each Designation on its own — goaded ([CR#701.15b]), the city's blessing
+([CR#702.131c]) — rather than defining the class.
 
 **Primitive Keyword Ability** (project term):
 A Keyword Ability whose semantics are represented directly rather than

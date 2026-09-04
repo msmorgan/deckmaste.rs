@@ -33,3 +33,62 @@ does not.
 Size: S–M. Done when: no term the glossary or the core uses lacks an entry;
 each rules concept carries a citation whose text the entry restates;
 `cargo xtask cite check` clean. Standard constraints apply.
+
+## As landed
+
+Game Model, Magic rules language (18 entries, each restating its rule):
+Token [CR#111.1], Emblem [CR#114.1], Color [CR#105.1], Status [CR#110.5],
+Counter [CR#122.1], Keyword Action [CR#701.1], Special Action [CR#116.1],
+Turn-Based Action [CR#703.1], State-Based Action [CR#704.1], Priority
+[CR#117.1], Turn [CR#500.1], Phase [CR#500.1], Step [CR#500.1], Damage
+[CR#120.1], Life Total [CR#119.1], Mana [CR#106.1], Cost [CR#118.1], Copy
+[CR#707.2].
+
+Game Model, Engine semantic language (5 entries): Amount, Quantity, Delta and
+Duration beside Static Spec as the ticket words them, plus Designation — a
+project term, because the CR names each designation on its own ([CR#701.15b]
+goaded, [CR#702.131c] the city's blessing) without defining the class.
+
+Oracle English (1 entry): Quantity, cross-referencing the Game Model
+constraint from the Determiner side.
+
+Audited: the 54 pre-existing Game Model entries for capitalised terms used
+without an entry, and 305 sorts — 109 in `deckmaste_core` (`map enums`), 196 in
+the workbench (`map idris` over `Words.idr`, `Phrase.idr`, `Effect.idr`).
+
+Left without an entry, deliberately:
+
+- `Window` — the anaphora read scope; internal per the ticket.
+- Power, Toughness, Mana Value, Loyalty, Defense (core `Stat`, workbench
+  `Stat`/`PlayerStat`) — the Characteristic entry enumerates them from
+  [CR#109.3]; a per-characteristic entry would restate that list.
+- Land, Activated Mana Ability, Triggered Mana Ability — capitalised values of
+  classes that already have entries (Card Type, Mana Ability).
+- Search, Shuffle, Reveal, Sacrifice, Attach and the rest of core `Action`'s
+  verb rows — the new Keyword Action entry defines the class [CR#701.1];
+  entries per verb would duplicate [CR#701].
+- Core `Deontic`, `Condition`, `Region`, `Provenance`, `Kind`, `Expr`,
+  `StatValue` and the workbench's parser-shape sorts — engine and grammar
+  machinery, not names for rules concepts.
+
+## Landing record
+
+Gates (foreground):
+
+- `cargo xtask cite check --list-noncompliant` → `0 non-compliant
+  citation-looking string(s)`
+- `cargo xtask cite bless` → `blessed 1428 rules at cr_date 2026-08-07`;
+  newly registered [CR#106.1a,500.2,703.1,703.1a], each read against its
+  entry. No entries pruned.
+- `cargo xtask cite check` → `checked 14373 citations against cr.txt
+  (eff. 2026-08-07); 0 stale`
+- `jj --no-pager diff --git > /tmp/round.diff && cargo xtask cite audit --diff
+  < /tmp/round.diff` → `audited 59 citation site(s) — read each rule text
+  against its claim`; every site read, none off-topic.
+
+Deviations and additions: Designation added beyond the ticket's enumerated
+families — it is a core sort family (`DesignationDef`, `DesignationScope`,
+`DesignationUniqueness`, `DesignationPersistence`) and a workbench sort naming
+a rules concept, so the audit clause covers it. Life Total is the entry name
+rather than Life, matching [CR#119] and core `PlayerAttr`/`LifeOp`. No STOP
+taken.
