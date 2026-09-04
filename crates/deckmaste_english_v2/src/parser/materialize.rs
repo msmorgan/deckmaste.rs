@@ -1796,7 +1796,7 @@ mod tests {
             (
                 "You gain X life, where X is the number of creatures you control with power 2 or less.",
                 "Context Card",
-                3,
+                1,
             ),
             (
                 "Zacama deals 3 damage to target creature.",
@@ -1823,7 +1823,7 @@ mod tests {
                     .expect("canonical environment satisfies the grammar");
                 let analysis = parser.analyze(text, &context);
                 let decision = analysis.decision().expect("two readings require selection");
-                assert_eq!(decision.resolution(), SelectionResolution::Specificity);
+                assert_eq!(decision.resolution(), SelectionResolution::Unique);
                 assert!(decision.exception_uses().is_empty());
                 assert_eq!(decision.survivors().len(), 1);
                 let selected = decision
@@ -1846,7 +1846,7 @@ mod tests {
                         "PostmodifiedReferenceUnqualifiedPostmodifiedReference",
                         "PostmodifiedReferenceRelationalQualifiedReference",
                         "PostmodifiedReferenceUnqualifiedPostmodifiedReference",
-                        "PostmodifiedReferenceScalarQualifiedReference",
+                        "PostmodifiedReferencePrepositionalQualifiedReference",
                         "PostmodifiedReferenceRelativeQualifiedReference",
                         "PostmodifiedReferenceUnqualifiedPostmodifiedReference",
                     ],

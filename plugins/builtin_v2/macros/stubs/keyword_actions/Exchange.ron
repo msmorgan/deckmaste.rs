@@ -6,7 +6,7 @@ KeywordAction(
         frame_set: Custom(
             frames: [
                 [ObjectNounPhrase],
-                [ObjectNounPhrase, Literal("with"), ObjectNounPhrase],
+                [ObjectNounPhrase, Lex("Preposition", "With"), ObjectNounPhrase],
                 [ObjectNounPhrase, Lex("Preposition", "For"), ObjectNounPhrase],
             ],
         ),

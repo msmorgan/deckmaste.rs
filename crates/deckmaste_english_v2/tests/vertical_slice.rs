@@ -249,9 +249,9 @@ fn determined_plural(determiner: Determiner, noun: Noun) -> NounPhrase {
 
 fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
     NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
-        reference: Box::new(PostmodifiedReference::ScalarQualifiedReference(
-            ScalarQualifiedReference {
-                reference: Box::new(PostmodifiedReference::RelativeQualifiedReference(
+        reference: Box::new(PostmodifiedReference::PrepositionalQualifiedReference(
+            PrepositionalQualifiedReference::new(
+                Box::new(PostmodifiedReference::RelativeQualifiedReference(
                     RelativeQualifiedReference {
                         reference: Box::new(
                             PostmodifiedReference::UnqualifiedPostmodifiedReference(
@@ -280,24 +280,38 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
                         ))),
                     },
                 )),
-                scalar: ScalarQualification::ScalarQualification(ScalarQualificationValue {
-                    measure: ScalarMeasure::NominalScalarMeasure(
-                        NominalScalarMeasure::new(singular_nominal(Noun::Lexeme(
-                            CommonNoun::Power,
-                        )))
-                        .expect("power is a Singular nominal scalar measure"),
-                    ),
-                    comparison: ScalarComparison::ScalarOrLess(
-                        ScalarOrLess::new(
-                            ScalarThreshold::FixedScalarThreshold(FixedScalarThreshold {
-                                value: ScalarNumber { magnitude: 2 },
+                Box::new(PrepositionalPhrase::PrepositionalPhrase(
+                    PrepositionalPhraseValue {
+                        preposition: Preposition::With,
+                        complement: Box::new(PrepositionalComplement::ScalarMeasure(
+                            ScalarMeasureValue::ScalarMeasureValue(ScalarMeasureValueValue {
+                                measure: ScalarMeasure::NominalScalarMeasure(
+                                    NominalScalarMeasure::new(singular_nominal(Noun::Lexeme(
+                                        CommonNoun::Power,
+                                    )))
+                                    .expect("power is a Singular nominal scalar measure"),
+                                ),
+                                value: ScalarMeasureAssignedValue::Comparison(
+                                    ScalarComparison::ScalarOrLess(
+                                        ScalarOrLess::new(
+                                            ScalarThreshold::FixedScalarThreshold(
+                                                FixedScalarThreshold {
+                                                    value: ScalarNumber { magnitude: 2 },
+                                                },
+                                            ),
+                                            CostComparisonDirection::Less,
+                                        )
+                                        .expect(
+                                            "the closed member satisfies the direction requirement",
+                                        ),
+                                    ),
+                                ),
                             }),
-                            CostComparisonDirection::Less,
-                        )
-                        .expect("the closed member satisfies the direction requirement"),
-                    ),
-                }),
-            },
+                        )),
+                    },
+                )),
+            )
+            .expect("a declared object-attachment licence admits the scalar postmodifier"),
         )),
     })
 }

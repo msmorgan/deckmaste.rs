@@ -613,6 +613,13 @@ fn restricted_nominal_postmodifiers_and_comparison_families_parse() {
         "Destroy target creature with power 2 or less.",
         "Destroy target creature with power 2 or greater.",
         "Destroy target creature with mana value X or greater.",
+        "Destroy target creature with base power 1.",
+        "Destroy target creature with greater power.",
+        "Destroy target creature with base power and toughness 1/1.",
+        "Destroy target creature with power and toughness each equal to its mana value.",
+        "Create a 1/1 white Bird creature token with flying.",
+        "Create a 1/1 white Bird creature token with trample and haste.",
+        "Create a 1/1 white Spirit creature token with \"When this token dies, draw a card.\".",
         "Destroy target creature with power 2 or less you control.",
         "Destroy two or more creatures.",
         "Destroy two or fewer creatures.",
@@ -643,6 +650,14 @@ fn restricted_nominal_postmodifiers_and_comparison_families_parse() {
         (
             "Destroy two or greater creatures.",
             "countable syntax cannot select the scalar greater family",
+        ),
+        (
+            "Destroy target creature with power and toughness each.",
+            "a power/toughness equality complement requires its value",
+        ),
+        (
+            "Destroy target creature with power and toughness 1/1 equal to its mana value.",
+            "fixed and equality power/toughness values are mutually exclusive",
         ),
         (
             "Destroy target creature from your graveyard you controls.",
@@ -705,13 +720,13 @@ fn restricted_postmodifier_paths_ownership_and_ambiguity_are_exact() {
         (
             "Context Card",
             "Creatures you control with power 2 or less gain X life.",
-            "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceScalarQualifiedReference/PostmodifiedReferenceRelativeQualifiedReference/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceDeterminedNominal/NominalBarePluralNominal/HeadNounPluralHead/PositiveObjectGapRelativeClausePositiveObjectGapRelative/SubjectSubjectPronoun/ScalarQualificationScalarQualification/ScalarMeasureNominalScalarMeasure/NominalBareSingularNominal/HeadNounSingularHead/ScalarComparisonScalarOrLess/ScalarThresholdFixedScalarThreshold/VerbPhraseBaseVerbPhrase/TransitiveLexicalVerbPhraseTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceDeterminedNominal/DeterminativeMassQuantityDeterminer/AmountVariable/NominalMassNominal/MassNounMassNoun",
+            "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferencePrepositionalQualifiedReference/PostmodifiedReferenceRelativeQualifiedReference/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceDeterminedNominal/NominalBarePluralNominal/HeadNounPluralHead/PositiveObjectGapRelativeClausePositiveObjectGapRelative/SubjectSubjectPronoun/PrepositionalPhrasePrepositionalPhrase/ScalarMeasureValueScalarMeasureValue/ScalarMeasureNominalScalarMeasure/NominalBareSingularNominal/HeadNounSingularHead/ScalarComparisonScalarOrLess/ScalarThresholdFixedScalarThreshold/VerbPhraseBaseVerbPhrase/TransitiveLexicalVerbPhraseTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceDeterminedNominal/DeterminativeMassQuantityDeterminer/AmountVariable/NominalMassNominal/MassNounMassNoun",
             "NNNNNNNNNNNNNNNTTTLNNTNLLTTNLT",
         ),
         (
             "Defeat",
             "Destroy target creature with power 2 or less.",
-            "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveLexicalVerbPhraseTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceScalarQualifiedReference/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceDeterminedNominal/DeterminativeTargetingMarkerDeterminative/NominalBareSingularNominal/HeadNounSingularHead/ScalarQualificationScalarQualification/ScalarMeasureNominalScalarMeasure/NominalBareSingularNominal/HeadNounSingularHead/ScalarComparisonScalarOrLess/ScalarThresholdFixedScalarThreshold",
+            "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveLexicalVerbPhraseTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferencePrepositionalQualifiedReference/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceDeterminedNominal/DeterminativeTargetingMarkerDeterminative/NominalBareSingularNominal/HeadNounSingularHead/PrepositionalPhrasePrepositionalPhrase/ScalarMeasureValueScalarMeasureValue/ScalarMeasureNominalScalarMeasure/NominalBareSingularNominal/HeadNounSingularHead/ScalarComparisonScalarOrLess/ScalarThresholdFixedScalarThreshold",
             "NNNNTNNNNNNNNNTNNTLNNTNLLT",
         ),
         (
@@ -741,7 +756,7 @@ fn restricted_postmodifier_paths_ownership_and_ambiguity_are_exact() {
         (
             "Context Card",
             "Destroy target creature with mana value X or greater.",
-            "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveLexicalVerbPhraseTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceScalarQualifiedReference/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceDeterminedNominal/DeterminativeTargetingMarkerDeterminative/NominalBareSingularNominal/HeadNounSingularHead/ScalarQualificationScalarQualification/ScalarMeasureNominalScalarMeasure/NominalModifiedSingularNominal/NominalModifierNounModifier/HeadNounSingularHead/ScalarComparisonScalarOrGreater/ScalarThresholdVariableScalarThreshold",
+            "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveLexicalVerbPhraseTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferencePrepositionalQualifiedReference/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceDeterminedNominal/DeterminativeTargetingMarkerDeterminative/NominalBareSingularNominal/HeadNounSingularHead/PrepositionalPhrasePrepositionalPhrase/ScalarMeasureValueScalarMeasureValue/ScalarMeasureNominalScalarMeasure/NominalModifiedSingularNominal/NominalModifierNounModifier/HeadNounSingularHead/ScalarComparisonScalarOrGreater/ScalarThresholdVariableScalarThreshold",
             "NNNNTNNNNNNNNNTNNTLNNLLNLLT",
         ),
         (
@@ -835,8 +850,8 @@ fn assert_former_count_fixture_ownership(
         (
             21,
             26,
-            LexicalProvenanceKind::FormLiteral,
-            "form:scalar_qualification/scalar_qualification/0",
+            LexicalProvenanceKind::Vocab,
+            "vocab:Preposition/With",
         ),
         (
             26,
@@ -894,7 +909,8 @@ fn former_count_fixture_has_exact_compositional_ast_and_ownership() {
     use deckmaste_english_v2::ast::Plain;
     use deckmaste_english_v2::ast::ScalarComparison;
     use deckmaste_english_v2::ast::ScalarMeasure;
-    use deckmaste_english_v2::ast::ScalarQualification;
+    use deckmaste_english_v2::ast::ScalarMeasureAssignedValue;
+    use deckmaste_english_v2::ast::ScalarMeasureValue;
     use deckmaste_english_v2::ast::ScalarThreshold;
     use deckmaste_english_v2::ast::Sentence;
     use deckmaste_english_v2::ast::Subject;
@@ -929,10 +945,11 @@ fn former_count_fixture_has_exact_compositional_ast_and_ownership() {
     let NounPhrase::QualifiedNounPhrase(noun_phrase) = &subject.value else {
         panic!("former fixture remains an ordinary qualified noun phrase: {subject:?}");
     };
-    let deckmaste_english_v2::ast::PostmodifiedReference::ScalarQualifiedReference(reference) =
-        noun_phrase.reference.as_ref()
+    let deckmaste_english_v2::ast::PostmodifiedReference::PrepositionalQualifiedReference(
+        reference,
+    ) = noun_phrase.reference.as_ref()
     else {
-        panic!("the final numeric stage owns the scalar qualification: {subject:?}");
+        panic!("the final PP stage owns the scalar qualification: {subject:?}");
     };
     let deckmaste_english_v2::ast::PostmodifiedReference::RelativeQualifiedReference(relative) =
         reference.reference.as_ref()
@@ -967,9 +984,21 @@ fn former_count_fixture_has_exact_compositional_ast_and_ownership() {
         relative_clause.as_ref(),
         deckmaste_english_v2::ast::PositiveObjectGapRelativeClause::PositiveObjectGapRelative(_)
     ));
-    let ScalarQualification::ScalarQualification(scalar) = &reference.scalar else {
-        panic!("power 2 or less uses the simple scalar qualification")
+    let deckmaste_english_v2::ast::PrepositionalPhrase::PrepositionalPhrase(modifier) =
+        reference.modifier()
+    else {
+        panic!("the final modifier is a prepositional phrase")
     };
+    assert_eq!(
+        modifier.preposition,
+        deckmaste_english_v2::ast::Preposition::With
+    );
+    let deckmaste_english_v2::ast::PrepositionalComplement::ScalarMeasure(qualification) =
+        modifier.complement.as_ref()
+    else {
+        panic!("the PP complement is a scalar qualification")
+    };
+    let ScalarMeasureValue::ScalarMeasureValue(scalar) = qualification;
     let ScalarMeasure::NominalScalarMeasure(measure) = &scalar.measure;
     assert!(matches!(
         measure.nominal(),
@@ -977,7 +1006,9 @@ fn former_count_fixture_has_exact_compositional_ast_and_ownership() {
             if matches!(nominal.head(), deckmaste_english_v2::ast::Head::NounSingularHead(head)
                 if head.noun() == &deckmaste_english_v2::ast::Noun::Lexeme(CommonNoun::Power))
     ));
-    let ScalarComparison::ScalarOrLess(comparison) = &scalar.comparison else {
+    let ScalarMeasureAssignedValue::Comparison(ScalarComparison::ScalarOrLess(comparison)) =
+        &scalar.value
+    else {
         panic!("the parsed comparison keeps its expected Category member")
     };
     assert!(matches!(

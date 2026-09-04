@@ -62,7 +62,7 @@
     (identity: Enter, bare: "enter", third_person: "enters", frames: [
         Predicate([]),
         Predicate([PredicativeComplement]),
-        Predicate([Literal("with"), ObjectNounPhrase, Lex("Preposition", "On"), Role("FrameComplement")]),
+        Predicate([Lex("Preposition", "With"), ObjectNounPhrase, Lex("Preposition", "On"), Role("FrameComplement")]),
         Predicate([Role("Object"), OptionalRole("PredicativeComplement"), OptionalMarkedRole("Preposition", "Under", "Object")]),
         Predicate([MarkedRole("Preposition", "Under", "Object")]),
     ]),

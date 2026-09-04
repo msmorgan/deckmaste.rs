@@ -5,7 +5,7 @@ KeywordAction(
         bare: "clash",
         third_person: "clashes",
         frame_set: Custom(
-            frames: [[], [Literal("with"), ObjectNounPhrase]],
+            frames: [[], [Lex("Preposition", "With"), ObjectNounPhrase]],
         ),
     ),
 )

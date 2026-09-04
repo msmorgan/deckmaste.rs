@@ -86,11 +86,11 @@ fn environment() -> ParserEnvironment {
         ),
         (
             "/synthetic/actions/Clash.ron",
-            r#"KeywordAction(name:"Clash",spelling:"clash",grammar:Verb(bare:"clash",third_person:"clashes",frame_set:Custom(frames:[[],[Literal("with"),ObjectNounPhrase]])))"#,
+            r#"KeywordAction(name:"Clash",spelling:"clash",grammar:Verb(bare:"clash",third_person:"clashes",frame_set:Custom(frames:[[],[Lex("Preposition","With"),ObjectNounPhrase]])))"#,
         ),
         (
             "/synthetic/actions/Exchange.ron",
-            r#"KeywordAction(name:"Exchange",spelling:"exchange",grammar:Verb(bare:"exchange",frame_set:Custom(frames:[[ObjectNounPhrase],[ObjectNounPhrase,Literal("with"),ObjectNounPhrase],[ObjectNounPhrase,Lex("Preposition","For"),ObjectNounPhrase]])))"#,
+            r#"KeywordAction(name:"Exchange",spelling:"exchange",grammar:Verb(bare:"exchange",frame_set:Custom(frames:[[ObjectNounPhrase],[ObjectNounPhrase,Lex("Preposition","With"),ObjectNounPhrase],[ObjectNounPhrase,Lex("Preposition","For"),ObjectNounPhrase]])))"#,
         ),
         (
             "/synthetic/actions/Vote.ron",

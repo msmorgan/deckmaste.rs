@@ -3193,13 +3193,18 @@ mod tests {
             .is_ok(),
             "a grammatical non-you subject is admitted without a game-semantic controller guard"
         );
+        let parser = Parser::new(canonical_test_environment())
+            .expect("canonical environment satisfies the grammar");
+        let context = context("Context Card");
         assert!(
-            slice_candidates(
-                "You gain X life, where X is the number of creatures you controls with power 2 or less.",
-                "Context Card"
-            )
-            .is_err(),
-            "derived concord_class remains a chart-level grammar constraint"
+            parser
+                .analyze(
+                    "You gain X life, where X is the number of creatures you controls with power 2 or less.",
+                    &context,
+                )
+                .selected()
+                .is_none(),
+            "derived concord_class rejects the invalid selected analysis"
         );
 
         assert!(

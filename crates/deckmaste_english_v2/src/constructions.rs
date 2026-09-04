@@ -106,6 +106,11 @@ constructions! {
             feature BareLocativeComplement = No;
             feature PrepositionComplementKind = UnrestrictedComplement;
         },
+        With = "with" {
+            feature PrepositionAttachment = PostmodifierOnly;
+            feature BareLocativeComplement = No;
+            feature PrepositionComplementKind = UnrestrictedComplement;
+        },
     }
     vocab LocativeProform { Anywhere = "anywhere", }
     vocab ComparativeQuantifier { Fewer = "fewer", More = "more", }
@@ -561,7 +566,7 @@ constructions! {
     codec WithObjectVerb {
         generate declaration_verb {
             position = Verb;
-            tail = ["with", object: ObjectNounPhrase];
+            tail = [lex(Preposition::With), object: ObjectNounPhrase];
             feature = ConcordClass;
         }
     }
@@ -577,7 +582,7 @@ constructions! {
             position = Verb;
             tail = [
                 object: ObjectNounPhrase,
-                "with",
+                lex(Preposition::With),
                 complement: ObjectNounPhrase,
             ];
             feature = ConcordClass;
@@ -715,7 +720,7 @@ constructions! {
     codec EnterWithCountersVerb {
         generate declaration_verb {
             position = Verb;
-            tail = ["with", object: ObjectNounPhrase, lex(Preposition::On), recipient: FrameComplement];
+            tail = [lex(Preposition::With), object: ObjectNounPhrase, lex(Preposition::On), recipient: FrameComplement];
             feature = ConcordClass;
         }
     }
@@ -1089,6 +1094,15 @@ constructions! {
     abstract sum PrepositionalComplement {
         Object: Object,
         Edge: EdgeOfPhrase,
+        Keyword: GrantedKeywordLine,
+        Quoted: QuotedAbility,
+        ScalarMeasure: ScalarMeasureValue,
+        DegreeMeasure: DegreeMeasure,
+        PowerToughness: PowerToughnessValue,
+    }
+    abstract sum ScalarMeasureAssignedValue {
+        Exact: ScalarThreshold,
+        Comparison: ScalarComparison,
     }
     // A frame names its own preposition, so its complement also admits the
     // determiner-less locative that the free phrase licenses by class.
@@ -1441,7 +1455,7 @@ constructions! {
     }
     construction starting_with: ClauseAttachment {
         element StartingWithAttachment { starter: Object, body: Clause, }
-        form starting_with = "starting" "with" starter "," body;
+        form starting_with = "starting" lex(Preposition::With) starter "," body;
     }
     construction preposed_if_predicate: ClauseAttachment {
         element PreposedIfPredicate { condition: Clause, body: Predicate, }
@@ -3682,12 +3696,14 @@ constructions! {
         require quantifier is Both;
         form count_or_both = "or" lex(quantifier);
     }
-    construction scalar_qualification: ScalarQualification {
-        element ScalarQualificationValue {
+    construction scalar_measure_value: ScalarMeasureValue {
+        element ScalarMeasureValueValue {
             measure: ScalarMeasure,
-            comparison: ScalarComparison,
+            value: ScalarMeasureAssignedValue,
         }
-        form scalar_qualification = "with" measure comparison;
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::Unlicensed;
+        form scalar_measure_value = measure value;
     }
     construction single_scalar_degree_phrase: SingleScalarDegreePhrase {
         element SingleScalarDegreePhraseValue { degree: lex ScalarDegree, }
@@ -3701,12 +3717,31 @@ constructions! {
         require len(rest) >= 1;
         form or_scalar_degree_phrase = lex(first) "or" lex(rest);
     }
-    construction degree_scalar_qualification: ScalarQualification {
-        element DegreeScalarQualification {
+    construction degree_measure: DegreeMeasure {
+        element DegreeMeasureValue {
             degree: ScalarDegreePhrase,
             measure: ScalarMeasure,
         }
-        form degree_scalar_qualification = "with" degree measure;
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::Unlicensed;
+        form degree_measure = degree measure;
+    }
+    construction power_toughness_value: PowerToughnessValue {
+        element PowerToughnessValueValue {
+            characteristics: Nominal,
+            fixed: opt PredicativePowerToughnessComplement,
+            equality: opt ScalarEquality,
+        }
+        require any(
+            all(fixed.is_some(), equality.is_none()),
+            all(fixed.is_none(), equality.is_some())
+        );
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::Unlicensed;
+        form fixed_power_toughness when fixed.is_some() =
+            characteristics fixed equality;
+        form equal_power_toughness otherwise =
+            characteristics lex(FloatedQuantifier::Each) fixed equality;
     }
     construction possessed_scalar_value: ScalarValue {
         element PossessedScalarValue {
@@ -3924,39 +3959,6 @@ constructions! {
         derive relationality = Values::SaturatedRelational;
         derive locative_temporal_license = reference.locative_temporal_license;
         form relational_qualified_reference = reference modifier;
-    }
-    construction scalar_qualified_reference: PostmodifiedReference {
-        element ScalarQualifiedReference {
-            reference: PostmodifiedReference,
-            scalar: ScalarQualification,
-        }
-        derive concord_class = reference.concord_class;
-        derive number = reference.number;
-        derive onset = reference.onset;
-        derive possessive_ending = reference.possessive_ending;
-        derive relationality = reference.relationality;
-        derive locative_temporal_license = reference.locative_temporal_license;
-        form scalar_qualified_reference = reference scalar;
-    }
-    // One nominal `with` postmodifier for granted abilities, whose complement
-    // is either a keyword-line item ("with flying", "with ward {2}") or a
-    // quoted ability document ("with \"When this creature dies, ...\"").
-    abstract sum GrantedAbility {
-        Keyword: KeywordLineItem,
-        Quoted: QuotedAbility,
-    }
-    construction granted_ability_qualified_reference: PostmodifiedReference {
-        element GrantedAbilityQualifiedReference {
-            reference: PostmodifiedReference,
-            granted: GrantedAbility,
-        }
-        derive concord_class = reference.concord_class;
-        derive number = reference.number;
-        derive onset = reference.onset;
-        derive possessive_ending = reference.possessive_ending;
-        derive relationality = reference.relationality;
-        derive locative_temporal_license = reference.locative_temporal_license;
-        form granted_ability_qualified_reference = reference "with" granted;
     }
     construction qualified_noun_phrase: NounPhrase {
         element QualifiedNounPhrase { reference: PostmodifiedReference, }
@@ -4255,7 +4257,7 @@ constructions! {
             object: Object,
         }
         derive concord_class = head.concord_class;
-        form declared_with_object_lexical_verb_phrase = verb(head) "with" object;
+        form declared_with_object_lexical_verb_phrase = verb(head) lex(Preposition::With) object;
     }
     construction declared_object_with_object_lexical_verb_phrase: ObjectWithObjectLexicalVerbPhrase {
         element DeclaredObjectWithObjectLexicalVerbPhrase {
@@ -4264,7 +4266,7 @@ constructions! {
             complement: Object,
         }
         derive concord_class = head.concord_class;
-        form declared_object_with_object_lexical_verb_phrase = verb(head) object "with" complement;
+        form declared_object_with_object_lexical_verb_phrase = verb(head) object lex(Preposition::With) complement;
     }
     construction declared_object_for_object_lexical_verb_phrase: ObjectForObjectLexicalVerbPhrase {
         element DeclaredObjectForObjectLexicalVerbPhrase {
@@ -4491,7 +4493,7 @@ constructions! {
         }
         derive concord_class = head.concord_class;
         form declared_with_object_on_predicate =
-            verb(head) "with" object lex(Preposition::On) recipient;
+            verb(head) lex(Preposition::With) object lex(Preposition::On) recipient;
     }
     construction enter_location: VerbPhrase {
         element EnterLocation {
@@ -4543,6 +4545,8 @@ constructions! {
     }
     construction quoted_ability: QuotedAbility {
         element QuotedAbilityValue { block: QuotedBlock, }
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::Unlicensed;
         form quoted_ability = sentence_initial(" \"") suffix(block, "\"");
     }
     construction quoted_ability_predicate: VerbPhrase {
@@ -4675,6 +4679,8 @@ constructions! {
     }
     construction bare_keyword_line_item: BareKeywordLineItem {
         element BareKeywordLineItemValue { keyword: lex BareKeywordAbility, }
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::Unlicensed;
         form bare_keyword_line_item = lex(keyword);
     }
     construction costed_keyword_line_item: CostedKeywordLineItem {
@@ -4682,6 +4688,8 @@ constructions! {
             keyword: lex CostedKeywordAbility,
             cost: KeywordCostSeparator,
         }
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::Unlicensed;
         form costed_keyword_line_item = lex(keyword) cost;
     }
     construction keyword_mana_cost: KeywordManaCost {
@@ -4715,6 +4723,8 @@ constructions! {
             keyword: lex AmountKeywordAbility,
             amount: Amount,
         }
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::Unlicensed;
         form amount_keyword_line_item = lex(keyword) amount;
     }
     construction amount_cost_keyword_line_item: AmountCostKeywordLineItem {
@@ -4723,6 +4733,8 @@ constructions! {
             amount: Amount,
             cost: KeywordCostSeparator,
         }
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::Unlicensed;
         form amount_cost_keyword_line_item = lex(keyword) amount cost;
     }
     construction keyword_quality_coordination: KeywordQualityCoordination {
@@ -4742,6 +4754,8 @@ constructions! {
             keyword: lex QualityKeywordAbility,
             quality: KeywordQuality,
         }
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::Unlicensed;
         form qualified_keyword_line_item = lex(keyword) quality;
     }
     construction quality_cost_keyword_line_item: QualityCostKeywordLineItem {
@@ -4750,6 +4764,8 @@ constructions! {
             quality: KeywordQuality,
             cost: KeywordCostSeparator,
         }
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::Unlicensed;
         form quality_cost_keyword_line_item = lex(keyword) quality cost;
     }
     construction subject_keyword_line_item: SubjectKeywordLineItem {
@@ -4757,24 +4773,30 @@ constructions! {
             keyword: lex SubjectKeywordAbility,
             subject: KeywordSubject,
         }
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::Unlicensed;
         form subject_keyword_line_item = lex(keyword) subject;
+    }
+    construction granted_keyword_line: GrantedKeywordLine {
+        element GrantedKeywordLineValue {
+            items: seq KeywordLineItem separated by " and ",
+        }
+        require len(items) >= 1;
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::Unlicensed;
+        form granted_keyword_line = items;
     }
     construction reference_keyword_subject: KeywordSubject {
         element ReferenceKeywordSubject { subject: NounPhrase, }
         form reference_keyword_subject = subject;
     }
     construction bare_keyword_subject: KeywordSubject {
-        element BareKeywordSubject { subject: Nominal, }
-        require subject.number is Singular;
-        form bare_keyword_subject = subject;
-    }
-    construction qualified_bare_keyword_subject: KeywordSubject {
-        element QualifiedBareKeywordSubject {
+        element BareKeywordSubject {
             subject: Nominal,
-            modifier: KeywordSubjectModifier,
+            modifier: opt KeywordSubjectModifier,
         }
         require subject.number is Singular;
-        form qualified_bare_keyword_subject = subject modifier;
+        form bare_keyword_subject = subject modifier;
     }
     construction keyword_relative_subject_modifier: KeywordSubjectModifier {
         element KeywordRelativeSubjectModifier { modifier: ObjectGapRelativeClause, }
@@ -4783,14 +4805,6 @@ constructions! {
     construction keyword_prepositional_subject_modifier: KeywordSubjectModifier {
         element KeywordPrepositionalSubjectModifier { modifier: PrepositionalPhrase, }
         form keyword_prepositional_subject_modifier = modifier;
-    }
-    construction keyword_scalar_subject_modifier: KeywordSubjectModifier {
-        element KeywordScalarSubjectModifier { modifier: ScalarQualification, }
-        form keyword_scalar_subject_modifier = modifier;
-    }
-    construction keyword_with_subject_modifier: KeywordSubjectModifier {
-        element KeywordWithSubjectModifier { complement: Object, }
-        form keyword_with_subject_modifier = "with" complement;
     }
     construction keyword_without_subject_modifier: KeywordSubjectModifier {
         element KeywordWithoutSubjectModifier { ability: lex KeywordAbility, }
@@ -4978,7 +4992,7 @@ fn nominal_preposition_is_licensed(
     _modifier: &PrepositionalPhrase,
     relationality: Relationality,
     license: LocativeTemporalLicense,
-    _attachment: PrepositionAttachment,
+    attachment: PrepositionAttachment,
     kind: PrepositionComplementKind,
     complement_relationality: Relationality,
     complement_license: LocativeTemporalLicense,
@@ -5047,7 +5061,14 @@ fn nominal_preposition_is_licensed(
         PrepositionComplementKind::InComplement => accepts_interior,
         PrepositionComplementKind::OnComplement => accepts_surface,
         PrepositionComplementKind::TemporalComplement => accepts_temporal,
-        PrepositionComplementKind::UnrestrictedComplement => false,
+        PrepositionComplementKind::UnrestrictedComplement => {
+            attachment == PrepositionAttachment::PostmodifierOnly
+                && matches!(
+                    license,
+                    LocativeTemporalLicense::ObjectAttachmentLicensed
+                        | LocativeTemporalLicense::OfInAndOnLicensed
+                )
+        }
     }
 }
 
@@ -5105,9 +5126,7 @@ fn right_edge_postmodified_reference_kind(
         | PostmodifiedReference::ReducedPassiveQualifiedReference(_)
         | PostmodifiedReference::ReducedPassiveAdjunctQualifiedReference(_)
         | PostmodifiedReference::ReducedPassivePrepositionalAdjunctQualifiedReference(_)
-        | PostmodifiedReference::OtherThanQualifiedReference(_)
-        | PostmodifiedReference::ScalarQualifiedReference(_)
-        | PostmodifiedReference::GrantedAbilityQualifiedReference(_) => None,
+        | PostmodifiedReference::OtherThanQualifiedReference(_) => None,
     }
 }
 
@@ -5249,12 +5268,6 @@ fn postmodified_base(reference: &PostmodifiedReference) -> &UnqualifiedReference
         PostmodifiedReference::RelationalQualifiedReference(value) => {
             postmodified_base(&value.reference)
         }
-        PostmodifiedReference::ScalarQualifiedReference(value) => {
-            postmodified_base(&value.reference)
-        }
-        PostmodifiedReference::GrantedAbilityQualifiedReference(value) => {
-            postmodified_base(&value.reference)
-        }
     }
 }
 
@@ -5308,12 +5321,6 @@ fn locative_coordination_has_modifier(coordination: &LocativeNounPhraseCoordinat
                 has_prepositional_modifier(&value.reference)
             }
             PostmodifiedReference::OtherThanQualifiedReference(value) => {
-                has_prepositional_modifier(&value.reference)
-            }
-            PostmodifiedReference::ScalarQualifiedReference(value) => {
-                has_prepositional_modifier(&value.reference)
-            }
-            PostmodifiedReference::GrantedAbilityQualifiedReference(value) => {
                 has_prepositional_modifier(&value.reference)
             }
         }

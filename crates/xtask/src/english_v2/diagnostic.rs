@@ -997,6 +997,7 @@ enum NonterminalKind {
     ParticipialExceptByComplement,
     PredicativeAbilityComplement,
     PredicativePowerToughnessComplement,
+    PowerToughnessValue,
     PredicativeScalarComplement,
     KeywordLineItem,
     KeywordCost,
@@ -1085,7 +1086,10 @@ enum NonterminalKind {
     ScalarMeasure,
     ScalarComparison,
     CountComparison,
-    ScalarQualification,
+    ScalarMeasureAssignedValue,
+    ScalarMeasureValue,
+    GrantedKeywordLine,
+    DegreeMeasure,
     PostmodifiedReference,
     VerbPhrase,
     LexicalVerbPhrase,
@@ -1099,7 +1103,6 @@ enum NonterminalKind {
     ConditionClause,
     FiniteCondition,
     QuotedAbility,
-    GrantedAbility,
     QuotedBlock,
     CommonNounChoice,
     AuxiliaryHead,
@@ -1697,6 +1700,7 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::PredicativePowerToughnessComplement => {
             NonterminalKind::PredicativePowerToughnessComplement
         }
+        NonterminalCategory::PowerToughnessValue => NonterminalKind::PowerToughnessValue,
         NonterminalCategory::PredicativeScalarComplement => {
             NonterminalKind::PredicativeScalarComplement
         }
@@ -1808,7 +1812,12 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::ScalarMeasure => NonterminalKind::ScalarMeasure,
         NonterminalCategory::ScalarComparison => NonterminalKind::ScalarComparison,
         NonterminalCategory::CountComparison => NonterminalKind::CountComparison,
-        NonterminalCategory::ScalarQualification => NonterminalKind::ScalarQualification,
+        NonterminalCategory::ScalarMeasureAssignedValue => {
+            NonterminalKind::ScalarMeasureAssignedValue
+        }
+        NonterminalCategory::ScalarMeasureValue => NonterminalKind::ScalarMeasureValue,
+        NonterminalCategory::GrantedKeywordLine => NonterminalKind::GrantedKeywordLine,
+        NonterminalCategory::DegreeMeasure => NonterminalKind::DegreeMeasure,
         NonterminalCategory::PostmodifiedReference => NonterminalKind::PostmodifiedReference,
         NonterminalCategory::LocativeNounPhraseCoordination => {
             NonterminalKind::LocativeNounPhraseCoordination
@@ -1831,7 +1840,6 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::ConditionClause => NonterminalKind::ConditionClause,
         NonterminalCategory::FiniteCondition => NonterminalKind::FiniteCondition,
         NonterminalCategory::QuotedAbility => NonterminalKind::QuotedAbility,
-        NonterminalCategory::GrantedAbility => NonterminalKind::GrantedAbility,
         NonterminalCategory::QuotedBlock => NonterminalKind::QuotedBlock,
         NonterminalCategory::CommonNounChoice => NonterminalKind::CommonNounChoice,
         NonterminalCategory::AuxiliaryHead => NonterminalKind::AuxiliaryHead,
