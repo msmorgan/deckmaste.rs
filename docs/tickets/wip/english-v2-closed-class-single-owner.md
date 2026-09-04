@@ -54,18 +54,22 @@ schema-4 lock remains 49,421 lines with SHA-256
   label remains a separate Construction, removing two Construction
   declarations without changing selection.
 - Performance advisory: `cargo xtask english_v2 coverage --check` used 24
-  workers, took 21.247511613 seconds at 105,362 ns/B, and reported host load
-  15.81/30.41/26.31. `pgrep -c -x codex` reported 1 concurrent Codex process
+  workers, took 21.494721400 seconds at 112,535 ns/B, and reported host load
+  28.93/20.21/20.98. `pgrep -c -x codex` reported 1 concurrent Codex process
   at measurement. The elapsed time exceeded the 16.26-second ceiling under
   concurrent Cargo activity; this is advisory, not a STOP.
-- Positive artifacts before the landing commit: `cargo fmt --all -- --check`;
+- The required post-commit Kata refresh rewrote the feature stack. Its
+  remeasurement retained every census value in the table, the exact 2/ceiling
+  25 collision split, the zero-failure coverage summary, and zero unresolved
+  ties.
+- Positive artifacts after the changed refresh: `cargo fmt --all -- --check`;
   strict all-target Clippy for `deckmaste_construction_core`,
   `deckmaste_english_v2`, and `xtask`; focused tests for those packages;
   `cargo test --workspace`; `cargo xtask english_v2 ambiguity
   --require-resolved`; and `cargo xtask english_v2 coverage --check` all
   exited zero. Representative test artifacts include `test result: ok. 397
   passed; 0 failed`, `test result: ok. 143 passed; 0 failed`, and `test result:
-  ok. 423 passed; 0 failed; 1 ignored`. A strict workspace-wide Clippy attempt
+  ok. 425 passed; 0 failed; 1 ignored`. A strict workspace-wide Clippy attempt
   reached ten pre-existing `unneeded_wildcard_pattern` findings in
   `deckmaste_lowering/src/card.rs`; that file is not changed here.
 - Assurance census: restored 0; re-spelled 11 existing test functions;
