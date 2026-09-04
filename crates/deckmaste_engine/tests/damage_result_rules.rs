@@ -61,7 +61,7 @@ fn combatant_creature_def() -> deckmaste_core::TypeDef {
     use deckmaste_core::Property;
     use deckmaste_core::Reference;
     use deckmaste_core::StatePredicate;
-    use deckmaste_core::StaticEffect;
+    use deckmaste_core::StaticSpec;
     let sick_not_hasty = || {
         Condition::And(
             vec![
@@ -77,32 +77,30 @@ fn combatant_creature_def() -> deckmaste_core::TypeDef {
             .into(),
         )
     };
-    let ability = |s: StaticEffect| Property::Ability(Arc::new(Ability::r#static(s)));
+    let ability = |s: StaticSpec| Property::Ability(Arc::new(Ability::r#static(s)));
     deckmaste_core::TypeDef {
         name: "Creature".into(),
         permanent: true,
         confers: vec![
-            ability(StaticEffect::Deontic(Deontic::May(DeonticAction::Attack {
+            ability(StaticSpec::Deontic(Deontic::May(DeonticAction::Attack {
                 by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 on: Predicate::Any,
             }))),
-            ability(StaticEffect::Deontic(Deontic::May(DeonticAction::Block {
+            ability(StaticSpec::Deontic(Deontic::May(DeonticAction::Block {
                 by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 on: Predicate::Any,
                 count: None,
             }))),
-            ability(StaticEffect::Conditionally(
+            ability(StaticSpec::Conditionally(
                 sick_not_hasty(),
-                Arc::new(StaticEffect::Deontic(Deontic::Cant(
-                    DeonticAction::Attack {
-                        by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
-                        on: Predicate::Any,
-                    },
-                ))),
+                Arc::new(StaticSpec::Deontic(Deontic::Cant(DeonticAction::Attack {
+                    by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
+                    on: Predicate::Any,
+                }))),
             )),
-            ability(StaticEffect::Conditionally(
+            ability(StaticSpec::Conditionally(
                 sick_not_hasty(),
-                Arc::new(StaticEffect::Deontic(Deontic::Cant(
+                Arc::new(StaticSpec::Deontic(Deontic::Cant(
                     DeonticAction::Activate {
                         what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                         by: Predicate::Any,

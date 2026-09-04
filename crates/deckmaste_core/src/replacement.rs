@@ -3,7 +3,7 @@ use serde::Serialize;
 
 use crate::Count;
 use crate::EventFilter;
-use crate::OneShotEffect;
+use crate::Instruction;
 use crate::PhaseStep;
 use crate::Predicate;
 use crate::continuous::Duration;
@@ -14,7 +14,7 @@ pub enum Replacement {
     /// "If [event] would happen, [effect] instead" — replace ([CR#614.1a]).
     Instead {
         would: EventFilter,
-        instead: OneShotEffect,
+        instead: Instruction,
     },
     /// Skip a step or phase — omit ([CR#614.1b]).
     Skip { what: PhaseStep },
@@ -22,7 +22,7 @@ pub enum Replacement {
     /// ([CR#614.1c]). `AsEnters` is a prelude macro over this.
     Also {
         would: EventFilter,
-        also: OneShotEffect,
+        also: Instruction,
     },
 }
 

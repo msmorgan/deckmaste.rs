@@ -1,4 +1,4 @@
-//! `run_effect`: walk a `OneShotEffect` AST — combinators, binders, riders,
+//! `run_effect`: walk a `Instruction` AST — combinators, binders, riders,
 //! continuous-effect minting — lowering each node to agenda work.
 
 use std::sync::Arc;
@@ -7,13 +7,13 @@ use deckmaste_core::Action;
 use deckmaste_core::Count;
 use deckmaste_core::Deontic;
 use deckmaste_core::DeonticAction;
+use deckmaste_core::Instruction;
 use deckmaste_core::Modification;
 use deckmaste_core::Normalize;
-use deckmaste_core::OneShotEffect;
 use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
 use deckmaste_core::Selection;
-use deckmaste_core::StaticEffect;
+use deckmaste_core::StaticSpec;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
 use slotmap::Key;
@@ -111,10 +111,10 @@ impl GameState {
     /// not APPLIED to the destruction, and stays unconsumed); every OTHER rider
     /// kind is LOUD (its enforcement belongs to a future ticket), as is a
     /// `Regenerate` whose `on` is not a bare object reference.
-    fn resolve_no_regen_riders(&self, parts: &[StaticEffect], frame: &Frame) -> Vec<ObjectId> {
+    fn resolve_no_regen_riders(&self, parts: &[StaticSpec], frame: &Frame) -> Vec<ObjectId> {
         let mut ids = Vec::new();
         for part in parts {
-            let StaticEffect::Deontic(Deontic::Cant(action)) = part else {
+            let StaticSpec::Deontic(Deontic::Cant(action)) = part else {
                 todo!(
                     "engine seam: ForThisEvent rider {part:?} ([CR#701.19c]) — only Cant(Regenerate) is wired; owner: engine-forthisevent-riders"
                 );
@@ -170,13 +170,13 @@ impl GameState {
         selected
     }
 
-    /// Interpret one `OneShotEffect` node ([CR#608.2]). `Act` becomes one or
+    /// Interpret one `Instruction` node ([CR#608.2]). `Act` becomes one or
     /// more `Emit` work items (via `action_items`); `Sequentially` expands
     /// to one `RunEffect` per child.
     ///
     /// # Panics
     ///
-    /// Panics on any `OneShotEffect` variant not wired for Stage 3.
+    /// Panics on any `Instruction` variant not wired for Stage 3.
     /// [CR#608.2g]: if `may`'s body is a bare `Cast(<ref>)` verb, resolve the
     /// caster (`Cast`'s own agent slot) and the referent object it would
     /// cast — so the `May` arm can gate the "yes" offer on
@@ -193,7 +193,7 @@ impl GameState {
         Option<deckmaste_core::Cost>,
     )> {
         match &*may.effect {
-            OneShotEffect::Act {
+            Instruction::Act {
                 action: Action::Cast(actor, what, for_cost),
                 ..
             } => Some((
@@ -209,16 +209,16 @@ impl GameState {
         clippy::too_many_lines,
         reason = "one arm per effect-frame variant; splitting would scatter the dispatch"
     )]
-    pub(crate) fn run_effect(&mut self, effect: OneShotEffect, frame: &Frame) {
+    pub(crate) fn run_effect(&mut self, effect: Instruction, frame: &Frame) {
         match effect {
-            OneShotEffect::Act { dest, action } => {
+            Instruction::Act { dest, action } => {
                 // A verb acts on an already-bound `Reference` — choosing is a
                 // separate preceding instruction
                 // (`Choose`/`ChooseValue`/`Search`),
                 // never the verb's, so an `Act` never surfaces a choice itself.
                 // `CreateReplacement` directly mutates `state.shields` — it
                 // cannot go through `action_items` (which is `&self`). Handle
-                // it here, mirroring how `OneShotEffect::Continuously` works.
+                // it here, mirroring how `Instruction::Continuously` works.
                 let magnitude = match &action {
                     Action::FlipCoins(_, _, called) => {
                         Some(crate::agenda::MagnitudeSource::CoinFlips { called: *called })
@@ -291,7 +291,7 @@ impl GameState {
                     self.schedule_front(items);
                 }
             }
-            OneShotEffect::Let(binding) => match binding.expr {
+            Instruction::Let(binding) => match binding.expr {
                 deckmaste_core::Expr::Object(reference) => {
                     let object = self.eval_reference(&reference, frame);
                     self.activation_write_object(frame.activation, binding.dest, object);
@@ -305,7 +305,7 @@ impl GameState {
                     self.activation_write_number(frame.activation, binding.dest, number);
                 }
             },
-            OneShotEffect::Choose(choice) => {
+            Instruction::Choose(choice) => {
                 let candidates = crate::target::candidates_region_with_activation(
                     self,
                     &choice.filter,
@@ -327,7 +327,7 @@ impl GameState {
                     if_none: deckmaste_core::Block::default(),
                 });
             }
-            OneShotEffect::Search(search) => {
+            Instruction::Search(search) => {
                 let owner = self.acting_player(&search.whose, frame);
                 let candidates: Vec<_> = self
                     .objects
@@ -370,7 +370,7 @@ impl GameState {
                     if_none: search.if_none,
                 });
             }
-            OneShotEffect::ChooseValue(choice) => {
+            Instruction::ChooseValue(choice) => {
                 let actor = self.acting_player(&choice.by, frame);
                 match choice.domain {
                     deckmaste_core::ChosenValueKind::Number => {
@@ -400,7 +400,7 @@ impl GameState {
                     deckmaste_core::ChosenValueKind::Color => {}
                 }
             }
-            OneShotEffect::Sequentially(children) => {
+            Instruction::Sequentially(children) => {
                 // Pre-scan for `ForThisEvent` riders ([CR#611.2a],
                 // [CR#701.19c]): an `Until(ForThisEvent,
                 // parts)` child NEVER mints its own instance —
@@ -448,7 +448,7 @@ impl GameState {
             // exchange occurs"). The exchange family restricts members to
             // pure-verb bodies — a choice-bearing member is unrepresentable
             // in sound data and trips loudly.
-            OneShotEffect::Simultaneously(children) => {
+            Instruction::Simultaneously(children) => {
                 // Phase A (read-only): classify and evaluate every member
                 // against the pre-state snapshot ([CR#611.2c]). An `Act` verb
                 // lowers to events via `action_items`, unchanged. A
@@ -476,7 +476,7 @@ impl GameState {
                 let mut void = false;
                 for child in children.iter() {
                     match child {
-                        OneShotEffect::Act { action, .. } => {
+                        Instruction::Act { action, .. } => {
                             let mut events = Vec::new();
                             for item in self.action_items(action, frame) {
                                 match item {
@@ -500,8 +500,8 @@ impl GameState {
                             }
                             members.push(Member::Events(events));
                         }
-                        OneShotEffect::Continuously(e) => {
-                            let StaticEffect::Modify(r, change) = &*e.effect else {
+                        Instruction::Continuously(e) => {
+                            let StaticSpec::Modify(r, change) = &*e.effect else {
                                 todo!(
                                     "engine seam: Simultaneously(Continuously({e:?})) \
                                      ([CR#701.12a,611.2c]) — only a bare Modify(_, _) inner is \
@@ -634,7 +634,7 @@ impl GameState {
                     ))]);
                 }
             }
-            OneShotEffect::Continuously(e) => {
+            Instruction::Continuously(e) => {
                 // [CR#611.2]/[CR#611.2c]: stamp at creation; lock the object set
                 // for non-floating scopes, leave `Matching` floating.
                 let timestamp = self.objects.next_timestamp();
@@ -659,7 +659,7 @@ impl GameState {
                 let (scope, changes, rows) = match &*e.effect {
                     // The single-object shape locks the one resolved reference
                     // ([CR#613.6]).
-                    StaticEffect::Modify(r, change) => (
+                    StaticSpec::Modify(r, change) => (
                         ScopeResolved::Locked(vec![self.eval_reference(r, frame)]),
                         Modification::flatten(std::slice::from_ref(change)),
                         vec![],
@@ -668,8 +668,8 @@ impl GameState {
                     // it shares a color with get +1/+1", or a plain anthem)
                     // stays `Floating(f)`: the filter is NOT expanded to objects
                     // here.
-                    StaticEffect::Each(Selection::SelectAll(f), inner) => match &inner.body {
-                        StaticEffect::Modify(Reference::Reg(reference), change)
+                    StaticSpec::Each(Selection::SelectAll(f), inner) => match &inner.body {
+                        StaticSpec::Modify(Reference::Reg(reference), change)
                             if matches!(
                                 inner.provenance_of(*reference),
                                 Some(deckmaste_core::Provenance::Candidate(_))
@@ -693,12 +693,12 @@ impl GameState {
                     // the scope members. Row EVALUATION stays LOUD at `legal.rs`
                     // (core-casting-restrictions / engine-combat-requirements
                     // own it); this only makes the row EXIST in the view.
-                    StaticEffect::Deontic(deontic) => {
+                    StaticSpec::Deontic(deontic) => {
                         let (ids, locked) = self.lock_deontic_subject(deontic, frame);
                         (
                             ScopeResolved::Locked(ids),
                             [].into(),
-                            vec![StaticEffect::Deontic(locked)],
+                            vec![StaticSpec::Deontic(locked)],
                         )
                     }
                     // Self-filtered rows: `of` / the `CantHappen` filter carry
@@ -706,25 +706,25 @@ impl GameState {
                     // empty lock). `CostModifier` is wired into
                     // `cost_modifier_rows` (cast.rs), `CantHappen` into
                     // `cant_event` (replace_registry.rs).
-                    row @ (StaticEffect::CostModifier { .. } | StaticEffect::CantHappen(_)) => {
+                    row @ (StaticSpec::CostModifier { .. } | StaticSpec::CantHappen(_)) => {
                         (ScopeResolved::Locked(vec![]), [].into(), vec![row.clone()])
                     }
                     // Prevention shields/windows are engine-prevention's domain
                     // ([CR#615.1]); the PreventNext/PreventAll macros stay
                     // blocked until that ticket lands.
-                    StaticEffect::Prevention(_) => todo!(
+                    StaticSpec::Prevention(_) => todo!(
                         "engine seam: Continuously(Prevention) ([CR#615.1]) — granted prevention shields/windows unbuilt; owner: engine-granted-prevention-rows"
                     ),
                     // Narrower than the old catch-all: name the specific unbuilt
                     // granted static-row kind.
-                    StaticEffect::Each(sel, _) => todo!(
+                    StaticSpec::Each(sel, _) => todo!(
                         "engine seam: Continuously(Each({sel:?}, _)) — only Each(SelectAll, Modify(It, _)) is wired; owner: engine-granted-static-rows"
                     ),
                     // Becomes-a-copy is a deferred-exec seam: its copiable-value install is
                     // owned by engine-layers-1-copy-facedown-text (base_values). Until that
                     // lands a resolved becomes-a-copy FIZZLES — installs nothing — per the
                     // never-panic contract, matching the early-return fizzles above (473/555).
-                    StaticEffect::BecomesCopy(..) => return,
+                    StaticSpec::BecomesCopy(..) => return,
                     other => {
                         todo!(
                             "engine seam: Continuously({other:?}) — granted static-row kind unbuilt; owner: engine-granted-static-rows"
@@ -769,16 +769,14 @@ impl GameState {
             // continuous effect with parts, each part's affected set
             // determined independently): each part lowers to its own
             // continuous-effect instance sharing the duration.
-            OneShotEffect::Until(duration, parts) => {
+            Instruction::Until(duration, parts) => {
                 let items: Vec<WorkItem> = parts
                     .iter()
                     .map(|part| WorkItem::RunEffect {
-                        effect: Arc::new(OneShotEffect::Continuously(
-                            deckmaste_core::Continuously {
-                                effect: Arc::new(part.clone()),
-                                duration: duration.clone(),
-                            },
-                        )),
+                        effect: Arc::new(Instruction::Continuously(deckmaste_core::Continuously {
+                            effect: Arc::new(part.clone()),
+                            duration: duration.clone(),
+                        })),
                         frame: frame.clone(),
                     })
                     .collect();
@@ -786,7 +784,7 @@ impl GameState {
             }
             // A label names the clause's introductions (a compile-time
             // soundness concept); at runtime it is transparent.
-            OneShotEffect::If(if_effect) => {
+            Instruction::If(if_effect) => {
                 if self.condition_holds(&if_effect.condition, frame) {
                     self.run_effect(Arc::unwrap_or_clone(if_effect.then), frame);
                 } else if let Some(otherwise) = if_effect.otherwise {
@@ -801,7 +799,7 @@ impl GameState {
             // triggers and SBAs see the simultaneous instruction together. A
             // body that can pause, define a product, or otherwise needs the
             // ordinary effect interpreter keeps per-element scheduling.
-            OneShotEffect::Each(each) => {
+            Instruction::Each(each) => {
                 let matches = self.iteration_selection(&each.over, frame);
                 // [CR#701.22a] look-visibility: the controller sees the cards a
                 // top-of-library PEEK iterates (scry/surveil/fateseal look
@@ -837,10 +835,8 @@ impl GameState {
                 let (setup, action) = each.body.body.split_last().map_or(
                     (&[][..], None),
                     |(last, setup)| match last {
-                        OneShotEffect::Act { dest: None, action }
-                            if setup
-                                .iter()
-                                .all(|item| matches!(item, OneShotEffect::Let(_))) =>
+                        Instruction::Act { dest: None, action }
+                            if setup.iter().all(|item| matches!(item, Instruction::Let(_))) =>
                         {
                             (setup, Some(action))
                         }
@@ -853,7 +849,7 @@ impl GameState {
                     let mut batchable = true;
                     for next in &frames {
                         for item in setup {
-                            let OneShotEffect::Let(binding) = item else {
+                            let Instruction::Let(binding) = item else {
                                 unreachable!(
                                     "the simultaneous Each fast path admits only Let setup"
                                 )
@@ -927,7 +923,7 @@ impl GameState {
                 }
                 self.schedule_front(items);
             }
-            OneShotEffect::Distribute(divide) => {
+            Instruction::Distribute(divide) => {
                 let group = self.iteration_selection(&divide.over, frame);
                 let total = self.eval_count(&divide.amount, frame);
                 let shares = split_evenly(total, group.len());
@@ -949,13 +945,13 @@ impl GameState {
                         .collect();
                 self.schedule_front(items);
             }
-            OneShotEffect::May(may) => {
+            Instruction::May(may) => {
                 // [CR#118.12a,118.12]: `May(Pay(cost))` is a real optional
                 // payment transaction. No preliminary YesNo answer or
                 // affordability oracle can faithfully account for mana
                 // abilities activated during payment; submission means the
                 // payer chose to pay, while decline means they did not.
-                if let OneShotEffect::Act {
+                if let Instruction::Act {
                     action: Action::Pay(cost),
                     ..
                 } = &*may.effect
@@ -1021,7 +1017,7 @@ impl GameState {
             // witness: Collective Resistance, escalate + per-mode targets on
             // every mode). Building announce-time mode choice is tracked at
             // `docs/tickets/planned/engine-modal-announce-time.md`.
-            OneShotEffect::Modal(modal) => {
+            Instruction::Modal(modal) => {
                 if modal
                     .modes
                     .iter()
@@ -1129,7 +1125,7 @@ impl GameState {
             // ruling) — unlike `Each`'s all-`Emit` fast path, a `Repeat`
             // body always gets its own `RunEffect`. `n == 0` schedules
             // nothing — a clean no-op.
-            OneShotEffect::Repeat(count, body) => {
+            Instruction::Repeat(count, body) => {
                 let n = self.eval_count(&count, frame);
                 if n > 0 {
                     let items = vec![
@@ -1138,7 +1134,7 @@ impl GameState {
                             frame: frame.clone(),
                         },
                         WorkItem::RunEffect {
-                            effect: Arc::new(OneShotEffect::Repeat(Count::Literal(n - 1), body)),
+                            effect: Arc::new(Instruction::Repeat(Count::Literal(n - 1), body)),
                             frame: frame.clone(),
                         },
                     ];
@@ -1170,7 +1166,7 @@ impl GameState {
             // (never `n`-many eagerly materialized `RunEffect` items, per
             // the CRITICAL never-crash ruling against a saturated/huge
             // count). `n == 0` schedules nothing either way — a clean no-op.
-            OneShotEffect::Batch(count, body) => {
+            Instruction::Batch(count, body) => {
                 let n = self.eval_count(&count, frame);
                 if n == 0 {
                     // Clean no-op — mirrors `Repeat`.
@@ -1228,7 +1224,7 @@ impl GameState {
                             frame: frame.clone(),
                         },
                         WorkItem::RunEffect {
-                            effect: Arc::new(OneShotEffect::Batch(Count::Literal(n - 1), body)),
+                            effect: Arc::new(Instruction::Batch(Count::Literal(n - 1), body)),
                             frame: frame.clone(),
                         },
                     ];
@@ -1253,7 +1249,7 @@ impl GameState {
             // discover), out of scope here; this arm fizzles to a graceful
             // no-op instead (nothing revealed, `body` never runs) — never a
             // panic, matching the CRITICAL never-crash ruling.
-            OneShotEffect::RevealUntil(_) => {}
+            Instruction::RevealUntil(_) => {}
             // [CR#607.1]: write one of this card's linked memory cells — the
             // writer half of a linked pair (ADR law 8). The cell is keyed by
             // the object the two abilities are printed on, so the later
@@ -1262,7 +1258,7 @@ impl GameState {
             // capture, it is not re-chased at the read site, so [CR#607.2a]'s
             // "cards in the exile zone that were put there as a result of"
             // stops naming a card that has since left ([CR#400.7]).
-            OneShotEffect::Remember(remember) => {
+            Instruction::Remember(remember) => {
                 let owner = frame.source(self);
                 let value = self.snapshot_register(frame, remember.value, remember.kind);
                 self.remember_cell(owner, remember.cell, value);
@@ -1278,7 +1274,7 @@ impl GameState {
             // the `delayed_triggers` registry for the future. Source/controller
             // follow [CR#603.7d,603.7e]; `~`/`This` is the creating object's
             // snapshot (the produced object when the source moved itself away).
-            OneShotEffect::Delayed(ability) => {
+            Instruction::Delayed(ability) => {
                 if !self.scan_created_reflexive(&ability, frame) {
                     let (source, bindings) = self.created_trigger_context(&ability, frame);
                     let controller = frame.controller(self);
@@ -1293,7 +1289,7 @@ impl GameState {
             // [CR#603.12]: a reflexive triggered ability ("when you do") — the
             // same immediate resolution-window scan, but NEVER registered for a
             // future event.
-            OneShotEffect::Reflexive(ability) => {
+            Instruction::Reflexive(ability) => {
                 self.scan_created_reflexive(&ability, frame);
             }
             // Provenance is erased at `lower` (`deckmaste_lowering`), so no
@@ -1595,10 +1591,10 @@ impl GameState {
     /// an `If`-guarded body looks through to the branch its condition selects.
     /// The move verbs (destroy/discard/mill) vet their coordinates directly in
     /// `composite_items` instead.
-    pub(crate) fn composite_body_would_act(&self, body: &OneShotEffect, frame: &Frame) -> bool {
+    pub(crate) fn composite_body_would_act(&self, body: &Instruction, frame: &Frame) -> bool {
         match body {
-            OneShotEffect::Each(each) => !self.eval_selection_set(&each.over, frame).is_empty(),
-            OneShotEffect::If(i) => {
+            Instruction::Each(each) => !self.eval_selection_set(&each.over, frame).is_empty(),
+            Instruction::If(i) => {
                 if self.condition_holds(&i.condition, frame) {
                     self.composite_body_would_act(&i.then, frame)
                 } else {
@@ -1665,31 +1661,31 @@ fn is_top_of_library_peek(over: &deckmaste_core::Selection) -> bool {
 /// ([CR#401.4]). True when any reachable move verb targets a
 /// [`Destination::Library`] anchor (scry/surveil's top pick, fateseal); false
 /// for a graveyard-only body (mill — the graveyard is unordered).
-fn body_repositions_ordered(block: &[OneShotEffect]) -> bool {
+fn body_repositions_ordered(block: &[Instruction]) -> bool {
     block.iter().any(instruction_repositions_ordered)
 }
 
-fn instruction_repositions_ordered(effect: &OneShotEffect) -> bool {
+fn instruction_repositions_ordered(effect: &Instruction) -> bool {
     match effect {
-        OneShotEffect::Act { action, .. } => action_moves_to_library(action),
-        OneShotEffect::Sequentially(v) | OneShotEffect::Simultaneously(v) => {
+        Instruction::Act { action, .. } => action_moves_to_library(action),
+        Instruction::Sequentially(v) | Instruction::Simultaneously(v) => {
             body_repositions_ordered(v)
         }
-        OneShotEffect::Modal(m) => m
+        Instruction::Modal(m) => m
             .modes
             .iter()
             .any(|mode| body_repositions_ordered(&mode.effect.body)),
-        OneShotEffect::Each(e) => body_repositions_ordered(&e.body.body),
-        OneShotEffect::Distribute(d) => body_repositions_ordered(&d.body.body),
-        OneShotEffect::RevealUntil(r) => body_repositions_ordered(&r.body.body),
-        OneShotEffect::Search(s) => body_repositions_ordered(&s.if_none),
-        OneShotEffect::If(i) => {
+        Instruction::Each(e) => body_repositions_ordered(&e.body.body),
+        Instruction::Distribute(d) => body_repositions_ordered(&d.body.body),
+        Instruction::RevealUntil(r) => body_repositions_ordered(&r.body.body),
+        Instruction::Search(s) => body_repositions_ordered(&s.if_none),
+        Instruction::If(i) => {
             instruction_repositions_ordered(&i.then)
                 || i.otherwise
                     .as_ref()
                     .is_some_and(|o| instruction_repositions_ordered(o))
         }
-        OneShotEffect::May(m) => {
+        Instruction::May(m) => {
             instruction_repositions_ordered(&m.effect)
                 || m.if_did
                     .as_ref()
@@ -1698,12 +1694,12 @@ fn instruction_repositions_ordered(effect: &OneShotEffect) -> bool {
                     .as_ref()
                     .is_some_and(|e| instruction_repositions_ordered(e))
         }
-        OneShotEffect::ChoosePile(c) => instruction_repositions_ordered(&c.then),
-        OneShotEffect::SeparatePiles(p) => p
+        Instruction::ChoosePile(c) => instruction_repositions_ordered(&c.then),
+        Instruction::SeparatePiles(p) => p
             .then
             .as_ref()
             .is_some_and(|e| instruction_repositions_ordered(e)),
-        OneShotEffect::Repeat(_, body) | OneShotEffect::Batch(_, body) => {
+        Instruction::Repeat(_, body) | Instruction::Batch(_, body) => {
             instruction_repositions_ordered(body)
         }
         _ => false,
@@ -1736,9 +1732,9 @@ fn split_evenly(total: Uint, n: usize) -> Vec<Uint> {
 /// — return its `parts`: the instruction-scoped statics to
 /// fold onto the preceding sibling in `Sequentially` lowering ([CR#611.2a]).
 /// `None` for every other effect.
-fn for_this_event_rider(effect: &OneShotEffect) -> Option<&[StaticEffect]> {
+fn for_this_event_rider(effect: &Instruction) -> Option<&[StaticSpec]> {
     match effect {
-        OneShotEffect::Until(deckmaste_core::Duration::ForThisEvent, parts) => Some(parts),
+        Instruction::Until(deckmaste_core::Duration::ForThisEvent, parts) => Some(parts),
         _ => None,
     }
 }
@@ -1754,19 +1750,19 @@ fn for_this_event_rider(effect: &OneShotEffect) -> Option<&[StaticEffect]> {
 ///   irreducible ([CR#121.5]: a Library → Hand move made without the word
 ///   "draw" is not a draw), so it has no body to read.
 enum BatchUnit<'a> {
-    Composite(&'a deckmaste_core::VerbName, &'a OneShotEffect),
+    Composite(&'a deckmaste_core::VerbName, &'a Instruction),
     Draw(&'a Reference),
 }
 
 /// Classify a `Batch`'s per-unit body: `Some` iff it takes an aggregate window.
 /// `None` keeps the plain sequential `Repeat`-style lane.
-fn batch_act_unit(unit: &OneShotEffect) -> Option<BatchUnit<'_>> {
+fn batch_act_unit(unit: &Instruction) -> Option<BatchUnit<'_>> {
     match unit {
-        OneShotEffect::Act {
+        Instruction::Act {
             action: Action::Composite { name, body },
             ..
         } => Some(BatchUnit::Composite(name, body)),
-        OneShotEffect::Act {
+        Instruction::Act {
             action: Action::DrawCard(who),
             ..
         } => Some(BatchUnit::Draw(who)),
@@ -1883,14 +1879,14 @@ mod tests {
     use deckmaste_core::ChosenValueKind;
     use deckmaste_core::Count;
     use deckmaste_core::Countable;
+    use deckmaste_core::Instruction;
     use deckmaste_core::LifeOp;
     use deckmaste_core::ObjectClass;
-    use deckmaste_core::OneShotEffect;
     use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
     use deckmaste_core::Selection;
     use deckmaste_core::StatePredicate;
-    use deckmaste_core::StaticEffect;
+    use deckmaste_core::StaticSpec;
     use deckmaste_core::Type;
     use deckmaste_core::Zone;
 
@@ -1924,7 +1920,7 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let frame = frame_src_targets(&state, bear, vec![bear]);
         state.run_effect(
-            OneShotEffect::Act(Action::deal_damage(
+            Instruction::Act(Action::deal_damage(
                 Reference::Reg(deckmaste_core::RefId(6)),
                 Count::Literal(3),
             )),
@@ -1998,12 +1994,12 @@ mod tests {
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
 
-        let body = OneShotEffect::Act(Action::ChangeLife(
+        let body = Instruction::Act(Action::ChangeLife(
             Reference::Reg(deckmaste_core::RefId(1)),
             LifeOp::Up(Count::Literal(2)),
         ));
         state.run_effect(
-            OneShotEffect::Repeat(Count::Literal(3), Arc::new(body)),
+            Instruction::Repeat(Count::Literal(3), Arc::new(body)),
             &frame,
         );
         let _ = drain_progress(&mut state, 40);
@@ -2026,12 +2022,12 @@ mod tests {
         let life0 = state.player(p0).life;
         let agenda_before = state.agenda.len();
 
-        let body = OneShotEffect::Act(Action::ChangeLife(
+        let body = Instruction::Act(Action::ChangeLife(
             Reference::Reg(deckmaste_core::RefId(1)),
             LifeOp::Up(Count::Literal(2)),
         ));
         state.run_effect(
-            OneShotEffect::Repeat(Count::Literal(0), Arc::new(body)),
+            Instruction::Repeat(Count::Literal(0), Arc::new(body)),
             &frame,
         );
 
@@ -2075,9 +2071,9 @@ mod tests {
         let life0 = state.player(p0).life;
 
         let may_gain_3 = || {
-            OneShotEffect::May(deckmaste_core::May {
+            Instruction::May(deckmaste_core::May {
                 who: Reference::Reg(deckmaste_core::RefId(1)),
-                effect: Arc::new(OneShotEffect::Act(Action::ChangeLife(
+                effect: Arc::new(Instruction::Act(Action::ChangeLife(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     LifeOp::Up(Count::Literal(3)),
                 ))),
@@ -2086,7 +2082,7 @@ mod tests {
             })
         };
         state.run_effect(
-            OneShotEffect::Repeat(Count::Literal(2), Arc::new(may_gain_3())),
+            Instruction::Repeat(Count::Literal(2), Arc::new(may_gain_3())),
             &frame,
         );
 
@@ -2131,12 +2127,12 @@ mod tests {
         let frame = frame_for(&state, p0);
         let agenda_before = state.agenda.len();
 
-        let body = OneShotEffect::Act(Action::ChangeLife(
+        let body = Instruction::Act(Action::ChangeLife(
             Reference::Reg(deckmaste_core::RefId(1)),
             LifeOp::Up(Count::Literal(1)),
         ));
         state.run_effect(
-            OneShotEffect::Repeat(Count::Literal(1_000_000), Arc::new(body)),
+            Instruction::Repeat(Count::Literal(1_000_000), Arc::new(body)),
             &frame,
         );
 
@@ -2153,11 +2149,11 @@ mod tests {
                 WorkItem::RunEffect { effect: second, .. },
             ) => {
                 assert!(
-                    matches!(**first, OneShotEffect::Act { .. }),
+                    matches!(**first, Instruction::Act { .. }),
                     "the front item is this iteration's own body, not another Repeat layer"
                 );
                 match &**second {
-                    OneShotEffect::Repeat(Count::Literal(n), _) => {
+                    Instruction::Repeat(Count::Literal(n), _) => {
                         assert_eq!(
                             *n, 999_999,
                             "the tail carries the DECREMENTED remaining count"
@@ -2183,12 +2179,12 @@ mod tests {
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
 
-        let body = OneShotEffect::Act(Action::ChangeLife(
+        let body = Instruction::Act(Action::ChangeLife(
             Reference::Reg(deckmaste_core::RefId(1)),
             LifeOp::Up(Count::Literal(1)),
         ));
         state.run_effect(
-            OneShotEffect::Batch(Count::Literal(2), Arc::new(body)),
+            Instruction::Batch(Count::Literal(2), Arc::new(body)),
             &frame,
         );
         let _ = drain_progress(&mut state, 40);
@@ -2222,12 +2218,12 @@ mod tests {
         let life0 = state.player(p0).life;
         let agenda_before = state.agenda.len();
 
-        let body = OneShotEffect::Act(Action::ChangeLife(
+        let body = Instruction::Act(Action::ChangeLife(
             Reference::Reg(deckmaste_core::RefId(1)),
             LifeOp::Up(Count::Literal(2)),
         ));
         state.run_effect(
-            OneShotEffect::Batch(Count::Literal(0), Arc::new(body)),
+            Instruction::Batch(Count::Literal(0), Arc::new(body)),
             &frame,
         );
 
@@ -2312,9 +2308,9 @@ mod tests {
                 on: Predicate::Any,
                 cause: None,
             },
-            instead: OneShotEffect::Batch(
+            instead: Instruction::Batch(
                 Count::Literal(2),
-                Arc::new(OneShotEffect::Act(deckmaste_core::Action::draw_one(
+                Arc::new(Instruction::Act(deckmaste_core::Action::draw_one(
                     Reference::Reg(deckmaste_core::RefId(1)),
                 ))),
             ),
@@ -2325,7 +2321,7 @@ mod tests {
                 name: "Archive Stand-In".into(),
                 types: vec![Type::Enchantment.def()],
                 abilities: vec![deckmaste_core::Ability::r#static(
-                    deckmaste_core::StaticEffect::Replacement(Arc::new(archive)),
+                    deckmaste_core::StaticSpec::Replacement(Arc::new(archive)),
                 )],
                 ..deckmaste_card::CardFace::default()
             }),
@@ -2333,7 +2329,7 @@ mod tests {
 
         let frame = frame_for(&state, p0);
         state.run_effect(
-            OneShotEffect::draw(Reference::Reg(deckmaste_core::RefId(1)), Count::Literal(1)),
+            Instruction::draw(Reference::Reg(deckmaste_core::RefId(1)), Count::Literal(1)),
             &frame,
         );
         let _ = drain_progress(&mut state, 60);
@@ -2378,7 +2374,7 @@ mod tests {
                             on: Predicate::Any,
                             cause: None,
                         },
-                        effect: OneShotEffect::Act(Action::ChangeLife(
+                        effect: Instruction::Act(Action::ChangeLife(
                             Reference::Reg(deckmaste_core::RefId(1)),
                             LifeOp::Up(Count::Literal(1)),
                         ))
@@ -2390,11 +2386,11 @@ mod tests {
         );
 
         let frame = frame_for(&state, p0);
-        let mill_one = OneShotEffect::Act(deckmaste_core::Action::mill_one(Reference::Reg(
+        let mill_one = Instruction::Act(deckmaste_core::Action::mill_one(Reference::Reg(
             deckmaste_core::RefId(1),
         )));
         state.run_effect(
-            OneShotEffect::Batch(Count::Literal(3), Arc::new(mill_one)),
+            Instruction::Batch(Count::Literal(3), Arc::new(mill_one)),
             &frame,
         );
         let fired = count_trigger_fired(&mut state, 60);
@@ -2432,7 +2428,7 @@ mod tests {
         let frame = frame_src_targets(&state, a, vec![a, b]);
 
         state.run_effect(
-            OneShotEffect::Batch(
+            Instruction::Batch(
                 Count::Literal(2),
                 Arc::new(fight_effect(
                     &Reference::Reg(deckmaste_core::RefId(6)),
@@ -2495,7 +2491,7 @@ mod tests {
         let frame = frame_src_targets(&state, a, vec![a, b]);
 
         state.run_effect(
-            OneShotEffect::Batch(
+            Instruction::Batch(
                 Count::Literal(1),
                 Arc::new(fight_effect(
                     &Reference::Reg(deckmaste_core::RefId(6)),
@@ -2548,12 +2544,12 @@ mod tests {
         );
 
         let frame = frame_for(&state, p0);
-        let mill_one = OneShotEffect::Act(deckmaste_core::Action::mill_one(Reference::Reg(
+        let mill_one = Instruction::Act(deckmaste_core::Action::mill_one(Reference::Reg(
             deckmaste_core::RefId(1),
         )));
         let agenda_before = state.agenda.len();
         state.run_effect(
-            OneShotEffect::Batch(Count::Literal(2), Arc::new(mill_one)),
+            Instruction::Batch(Count::Literal(2), Arc::new(mill_one)),
             &frame,
         );
 
@@ -2599,14 +2595,14 @@ mod tests {
 
         let (mut state, a) = bear_on_field();
         let key = deckmaste_core::Ident::from("n");
-        let effect = OneShotEffect::Sequentially(
+        let effect = Instruction::Sequentially(
             vec![
-                OneShotEffect::Act(Action::ChooseValue(
+                Instruction::Act(Action::ChooseValue(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     ChosenValueKind::Number,
                     key,
                 )),
-                OneShotEffect::mill(
+                Instruction::mill(
                     deckmaste_core::Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Noted(key),
                 ),
@@ -2724,7 +2720,7 @@ mod tests {
         let (mut state, a) = bear_on_field();
         let frame = frame_src(&state, a);
         state.run_effect(
-            OneShotEffect::Act(Action::ChooseValue(
+            Instruction::Act(Action::ChooseValue(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 ChosenValueKind::Color,
                 deckmaste_core::Ident::from("c"),
@@ -2744,7 +2740,7 @@ mod tests {
         let frame = frame_src(&state, a);
         let key = deckmaste_core::Ident::from("cn");
         state.run_effect(
-            OneShotEffect::Act(Action::ChooseValue(
+            Instruction::Act(Action::ChooseValue(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 ChosenValueKind::CardName,
                 key,
@@ -2799,7 +2795,7 @@ mod tests {
         // Re-home `other` to player 1 so the exchange crosses seats.
         state.objects.obj_mut(other).controller = PlayerId(1);
 
-        // Parsed through the SEMANTICS path (`semantics::OneShotEffect` →
+        // Parsed through the SEMANTICS path (`semantics::Instruction` →
         // `lower()`), the path production now takes.
         let semantic: deckmaste_semantics::OneShotEffect = builtin()
             .macros
@@ -2846,7 +2842,7 @@ mod tests {
     #[test]
     fn same_controller_exchange_does_nothing() {
         let (mut state, mine, other) = two_permanents_on_field();
-        // Parsed through the SEMANTICS path (`semantics::OneShotEffect` →
+        // Parsed through the SEMANTICS path (`semantics::Instruction` →
         // `lower()`), the path production now takes.
         let semantic: deckmaste_semantics::OneShotEffect = builtin()
             .macros
@@ -2867,10 +2863,10 @@ mod tests {
     /// shape — deliberately NOT the `Action::GainControl`-based
     /// `ExchangeControl` builtin macro `same_controller_exchange_does_nothing`
     /// above exercises.
-    fn avarice_totem_body(this: &Reference, target: &Reference) -> OneShotEffect {
+    fn avarice_totem_body(this: &Reference, target: &Reference) -> Instruction {
         let half = |subject: &Reference, other: &Reference| {
-            OneShotEffect::Continuously(deckmaste_core::Continuously {
-                effect: Arc::new(deckmaste_core::StaticEffect::Modify(
+            Instruction::Continuously(deckmaste_core::Continuously {
+                effect: Arc::new(deckmaste_core::StaticSpec::Modify(
                     subject.clone(),
                     deckmaste_core::Modification::SetController(
                         deckmaste_core::Reference::ControllerOf(Arc::new(other.clone())),
@@ -2879,7 +2875,7 @@ mod tests {
                 duration: deckmaste_core::Duration::EndOfGame,
             })
         };
-        OneShotEffect::Simultaneously(vec![half(this, target), half(target, this)].into())
+        Instruction::Simultaneously(vec![half(this, target), half(target, this)].into())
     }
 
     /// Avarice Totem's ability ([CR#701.12a,701.12b]): the two `Continuously`
@@ -3147,28 +3143,28 @@ mod tests {
         );
     }
 
-    /// [CR#611.2]/[CR#611.2c]: `OneShotEffect::Continuously(Modify(Matching(...), ...),
+    /// [CR#611.2]/[CR#611.2c]: `Instruction::Continuously(Modify(Matching(...), ...),
     /// UntilEndOfTurn)` — the resolve arm pushes one `ContinuousEffect` with a
     /// `ScopeResolved::Floating` scope and the right duration/changes.
 
-    /// [CR#611.2c]: `OneShotEffect::Continuously(Modify(Of(This), ...), ...)` locks
+    /// [CR#611.2c]: `Instruction::Continuously(Modify(Of(This), ...), ...)` locks
     /// the id at creation — `ScopeResolved::Locked(vec![src])`.
     #[test]
     fn continuously_of_this_registers_locked_scope() {
         use deckmaste_core::Continuously;
         use deckmaste_core::Count;
         use deckmaste_core::Duration;
+        use deckmaste_core::Instruction;
         use deckmaste_core::Modification;
         use deckmaste_core::NumericOp;
-        use deckmaste_core::OneShotEffect;
         use deckmaste_core::Reference;
-        use deckmaste_core::StaticEffect;
+        use deckmaste_core::StaticSpec;
 
         let (mut state, src) = bear_on_field();
         let frame = frame_src(&state, src);
 
-        let effect = OneShotEffect::Continuously(Continuously {
-            effect: Arc::new(StaticEffect::Modify(
+        let effect = Instruction::Continuously(Continuously {
+            effect: Arc::new(StaticSpec::Modify(
                 Reference::Reg(deckmaste_core::RefId(0)),
                 Modification::Toughness(NumericOp::Up(Count::Literal(2))),
             )),
@@ -3200,16 +3196,16 @@ mod tests {
         use deckmaste_core::Cost;
         use deckmaste_core::DefId;
         use deckmaste_core::Duration;
+        use deckmaste_core::Instruction;
         use deckmaste_core::Kind;
         use deckmaste_core::LifeOp;
         use deckmaste_core::Modification;
-        use deckmaste_core::OneShotEffect;
         use deckmaste_core::Param;
         use deckmaste_core::Provenance;
         use deckmaste_core::RefId;
         use deckmaste_core::Reference;
         use deckmaste_core::Region;
-        use deckmaste_core::StaticEffect;
+        use deckmaste_core::StaticSpec;
 
         let (mut state, _) = bear_on_field();
         let captured_controller = RefId(2);
@@ -3239,15 +3235,15 @@ mod tests {
                         provenance: Provenance::Capture(RefId(1)),
                     },
                 ]),
-                OneShotEffect::Act(deckmaste_core::Action::ChangeLife(
+                Instruction::Act(deckmaste_core::Action::ChangeLife(
                     Reference::Reg(captured_controller),
                     LifeOp::Down(deckmaste_core::Count::Literal(1)),
                 ))
                 .into(),
             ),
         });
-        let grant_effect = OneShotEffect::Continuously(Continuously {
-            effect: Arc::new(StaticEffect::Modify(
+        let grant_effect = Instruction::Continuously(Continuously {
+            effect: Arc::new(StaticSpec::Modify(
                 Reference::Reg(RefId(0)),
                 Modification::GainAbility(Arc::new(granted)),
             )),
@@ -3340,15 +3336,15 @@ mod tests {
         use deckmaste_core::Continuously;
         use deckmaste_core::CostChange;
         use deckmaste_core::Duration;
-        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::Instruction;
         use deckmaste_core::Predicate;
-        use deckmaste_core::StaticEffect;
+        use deckmaste_core::StaticSpec;
         use deckmaste_core::TurnMarker;
 
         let (mut state, src) = bear_on_field();
         let frame = frame_src(&state, src);
-        let effect = OneShotEffect::Continuously(Continuously {
-            effect: Arc::new(StaticEffect::CostModifier {
+        let effect = Instruction::Continuously(Continuously {
+            effect: Arc::new(StaticSpec::CostModifier {
                 of: Predicate::creature(),
                 change: CostChange::Increase(vec![].into()),
             }),
@@ -3361,7 +3357,7 @@ mod tests {
             "self-filtered → empty lock"
         );
         assert!(ce.changes.is_empty());
-        assert!(matches!(&ce.rows[..], [StaticEffect::CostModifier { .. }]));
+        assert!(matches!(&ce.rows[..], [StaticSpec::CostModifier { .. }]));
     }
 
     /// A granted `CantHappen` is self-filtered and lands as a row.
@@ -3370,9 +3366,9 @@ mod tests {
         use deckmaste_core::Continuously;
         use deckmaste_core::Duration;
         use deckmaste_core::EventFilter;
-        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::Instruction;
         use deckmaste_core::Predicate;
-        use deckmaste_core::StaticEffect;
+        use deckmaste_core::StaticSpec;
         use deckmaste_core::TurnMarker;
 
         let (mut state, src) = bear_on_field();
@@ -3383,14 +3379,14 @@ mod tests {
             combat: None,
             amount: None,
         };
-        let effect = OneShotEffect::Continuously(Continuously {
-            effect: Arc::new(StaticEffect::CantHappen(filter)),
+        let effect = Instruction::Continuously(Continuously {
+            effect: Arc::new(StaticSpec::CantHappen(filter)),
             duration: Duration::FixedUntil(TurnMarker::EndOfTurn),
         });
         state.run_effect(effect, &frame);
         let ce = &state.continuous[0];
         assert!(ce.changes.is_empty());
-        assert!(matches!(&ce.rows[..], [StaticEffect::CantHappen(_)]));
+        assert!(matches!(&ce.rows[..], [StaticSpec::CantHappen(_)]));
     }
 
     /// A granted `Prevention` is LOUD — `engine-granted-prevention-rows` owns
@@ -3401,16 +3397,16 @@ mod tests {
     fn continuously_prevention_is_loud() {
         use deckmaste_core::Continuously;
         use deckmaste_core::Duration;
-        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::Instruction;
         use deckmaste_core::Predicate;
         use deckmaste_core::Prevention;
-        use deckmaste_core::StaticEffect;
+        use deckmaste_core::StaticSpec;
         use deckmaste_core::TurnMarker;
 
         let (mut state, src) = bear_on_field();
         let frame = frame_src(&state, src);
-        let effect = OneShotEffect::Continuously(Continuously {
-            effect: Arc::new(StaticEffect::Prevention(Arc::new(
+        let effect = Instruction::Continuously(Continuously {
+            effect: Arc::new(StaticSpec::Prevention(Arc::new(
                 Prevention::PreventNextInstance {
                     from: Predicate::Any,
                     to: Predicate::Any,
@@ -3429,20 +3425,20 @@ mod tests {
         use deckmaste_core::Continuously;
         use deckmaste_core::Count;
         use deckmaste_core::Duration;
+        use deckmaste_core::Instruction;
         use deckmaste_core::Modification;
         use deckmaste_core::NumericOp;
-        use deckmaste_core::OneShotEffect;
         use deckmaste_core::Predicate;
         use deckmaste_core::Reference;
-        use deckmaste_core::StaticEffect;
+        use deckmaste_core::StaticSpec;
 
         let (mut state, src) = bear_on_field();
         let frame = frame_src(&state, src);
         // "for as long as an object matching not-anything exists" — always
         // false.
         let cond = Condition::Exists(Predicate::Not(Arc::new(Predicate::Any)));
-        let effect = OneShotEffect::Continuously(Continuously {
-            effect: Arc::new(StaticEffect::Modify(
+        let effect = Instruction::Continuously(Continuously {
+            effect: Arc::new(StaticSpec::Modify(
                 Reference::Reg(deckmaste_core::RefId(0)),
                 Modification::Power(NumericOp::Up(Count::Literal(1))),
             )),
@@ -3466,9 +3462,9 @@ mod tests {
         use deckmaste_core::CopySource;
         use deckmaste_core::CopySpec;
         use deckmaste_core::Duration;
-        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::Instruction;
         use deckmaste_core::Reference;
-        use deckmaste_core::StaticEffect;
+        use deckmaste_core::StaticSpec;
 
         let (mut state, src) = bear_on_field();
         let frame = frame_src(&state, src);
@@ -3477,8 +3473,8 @@ mod tests {
             exceptions: vec![],
         };
 
-        let effect = OneShotEffect::Continuously(Continuously {
-            effect: Arc::new(StaticEffect::BecomesCopy(
+        let effect = Instruction::Continuously(Continuously {
+            effect: Arc::new(StaticSpec::BecomesCopy(
                 Reference::Reg(deckmaste_core::RefId(0)),
                 spec.clone(),
             )),
@@ -3490,9 +3486,9 @@ mod tests {
             "Continuously(BecomesCopy(..)) fizzles — installs no continuous instance"
         );
 
-        let until = OneShotEffect::Until(
+        let until = Instruction::Until(
             Duration::EndOfGame,
-            vec![StaticEffect::BecomesCopy(
+            vec![StaticSpec::BecomesCopy(
                 Reference::Reg(deckmaste_core::RefId(0)),
                 spec,
             )]
@@ -3553,23 +3549,23 @@ mod tests {
         use deckmaste_core::Deontic;
         use deckmaste_core::DeonticAction;
         use deckmaste_core::Duration;
+        use deckmaste_core::Instruction;
         use deckmaste_core::LifeOp;
-        use deckmaste_core::OneShotEffect;
         use deckmaste_core::Predicate;
         use deckmaste_core::Reference;
-        use deckmaste_core::StaticEffect;
+        use deckmaste_core::StaticSpec;
 
         let (mut state, src) = bear_on_field();
         let frame = frame_src(&state, src);
-        let seq = OneShotEffect::Sequentially(
+        let seq = Instruction::Sequentially(
             vec![
-                OneShotEffect::Act(Action::ChangeLife(
+                Instruction::Act(Action::ChangeLife(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     LifeOp::Up(Count::Literal(1)),
                 )),
-                OneShotEffect::Until(
+                Instruction::Until(
                     Duration::ForThisEvent,
-                    vec![StaticEffect::Deontic(Deontic::Cant(
+                    vec![StaticSpec::Deontic(Deontic::Cant(
                         DeonticAction::Regenerate {
                             by: Predicate::Any,
                             on: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
@@ -3605,17 +3601,17 @@ mod tests {
         use deckmaste_core::Deontic;
         use deckmaste_core::DeonticAction;
         use deckmaste_core::Duration;
-        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::Instruction;
         use deckmaste_core::Predicate;
         use deckmaste_core::Reference;
-        use deckmaste_core::StaticEffect;
+        use deckmaste_core::StaticSpec;
 
         let (mut state, src) = bear_on_field();
         let frame = frame_src(&state, src);
-        let seq = OneShotEffect::Sequentially(
-            vec![OneShotEffect::Until(
+        let seq = Instruction::Sequentially(
+            vec![Instruction::Until(
                 Duration::ForThisEvent,
-                vec![StaticEffect::Deontic(Deontic::Cant(
+                vec![StaticSpec::Deontic(Deontic::Cant(
                     DeonticAction::Regenerate {
                         by: Predicate::Any,
                         on: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
@@ -3812,7 +3808,7 @@ mod tests {
     /// has nothing in scope and is rejected — proving threading is
     /// add-AND-clear.
 
-    /// [CR#608.2c]: `OneShotEffect::If` evaluates its condition WHEN it resolves and
+    /// [CR#608.2c]: `Instruction::If` evaluates its condition WHEN it resolves and
     /// runs the taken branch — `then` on true, `otherwise` on false, and
     /// nothing when false with no `otherwise`. Driven via `GainLife` (a
     /// choice-free, library-free player action) so the assertion is a clean
@@ -3827,7 +3823,7 @@ mod tests {
         let yes = Condition::Compare(Count::Literal(1), Cmp::AtLeast, Count::Literal(0));
         let no = Condition::Compare(Count::Literal(0), Cmp::AtLeast, Count::Literal(1));
         let gain = |n| {
-            OneShotEffect::Act(Action::ChangeLife(
+            Instruction::Act(Action::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(n)),
             ))
@@ -3840,7 +3836,7 @@ mod tests {
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
         state.run_effect(
-            OneShotEffect::If(If {
+            Instruction::If(If {
                 condition: yes.clone(),
                 then: Arc::new(gain(3)),
                 otherwise: Some(Arc::new(gain(5))),
@@ -3855,7 +3851,7 @@ mod tests {
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
         state.run_effect(
-            OneShotEffect::If(If {
+            Instruction::If(If {
                 condition: no.clone(),
                 then: Arc::new(gain(3)),
                 otherwise: Some(Arc::new(gain(5))),
@@ -3870,7 +3866,7 @@ mod tests {
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
         state.run_effect(
-            OneShotEffect::If(If {
+            Instruction::If(If {
                 condition: no.clone(),
                 then: Arc::new(gain(3)),
                 otherwise: None,
@@ -3885,7 +3881,7 @@ mod tests {
         );
     }
 
-    /// [CR#118.12]: `OneShotEffect::May` surfaces a yes/no to the controller. Yes runs
+    /// [CR#118.12]: `Instruction::May` surfaces a yes/no to the controller. Yes runs
     /// `effect` then `if_did`; no runs `if_not` (nothing when absent). Driven
     /// via `GainLife` so each branch reads as a clean life delta.
     #[test]
@@ -3896,7 +3892,7 @@ mod tests {
         use crate::decide::DecisionPointKind;
 
         let gain = |n| {
-            OneShotEffect::Act(Action::ChangeLife(
+            Instruction::Act(Action::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(n)),
             ))
@@ -3914,7 +3910,7 @@ mod tests {
         let mut state = game();
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
-        state.run_effect(OneShotEffect::May(may()), &frame);
+        state.run_effect(Instruction::May(may()), &frame);
         let StepOutcome::NeedsDecision(DecisionPointKind::YesNo(crate::decide::pending::YesNo {
             player,
         })) = state.step()
@@ -3930,7 +3926,7 @@ mod tests {
         let mut state = game();
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
-        state.run_effect(OneShotEffect::May(may()), &frame);
+        state.run_effect(Instruction::May(may()), &frame);
         state.submit_decision(Decision::Answer(false)).unwrap();
         let _ = drain_progress(&mut state, 40);
         assert_eq!(state.player(p0).life, life0 + 1, "no → if_not");
@@ -3940,7 +3936,7 @@ mod tests {
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
         state.run_effect(
-            OneShotEffect::May(May {
+            Instruction::May(May {
                 who: Reference::Reg(deckmaste_core::RefId(1)),
                 effect: Arc::new(gain(3)),
                 if_did: None,
@@ -3953,7 +3949,7 @@ mod tests {
         assert_eq!(state.player(p0).life, life0, "no + no if_not → no change");
     }
 
-    /// [CR#700.2]: `OneShotEffect::Modal` surfaces `ChooseModes`; the chosen modes'
+    /// [CR#700.2]: `Instruction::Modal` surfaces `ChooseModes`; the chosen modes'
     /// effects run in written order. "Choose one" of three life-gain modes —
     /// picking index 1 gains 5; "choose two" runs both picks (+3+7); bad picks
     /// (too many, out of range) are rejected.
@@ -3968,7 +3964,7 @@ mod tests {
 
         let gain_mode = |n| Mode {
             targets: [].into(),
-            effect: OneShotEffect::Act(Action::ChangeLife(
+            effect: Instruction::Act(Action::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(n)),
             ))
@@ -3993,7 +3989,7 @@ mod tests {
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
         state.run_effect(
-            OneShotEffect::Modal(Modal {
+            Instruction::Modal(Modal {
                 choose: spec(1, false),
                 modes: modes().into(),
             }),
@@ -4041,7 +4037,7 @@ mod tests {
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
         state.run_effect(
-            OneShotEffect::Modal(Modal {
+            Instruction::Modal(Modal {
                 choose: spec(2, false),
                 modes: modes().into(),
             }),
@@ -4058,17 +4054,17 @@ mod tests {
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
         state.run_effect(
-            OneShotEffect::Modal(Modal {
+            Instruction::Modal(Modal {
                 choose: spec(1, false),
                 modes: vec![Mode {
                     targets: [].into(),
-                    effect: OneShotEffect::Sequentially(
+                    effect: Instruction::Sequentially(
                         vec![
-                            OneShotEffect::Act(Action::ChangeLife(
+                            Instruction::Act(Action::ChangeLife(
                                 Reference::Reg(deckmaste_core::RefId(1)),
                                 LifeOp::Up(Count::Literal(2)),
                             )),
-                            OneShotEffect::Act(Action::ChangeLife(
+                            Instruction::Act(Action::ChangeLife(
                                 Reference::Reg(deckmaste_core::RefId(1)),
                                 LifeOp::Up(Count::Literal(4)),
                             )),
@@ -4122,7 +4118,7 @@ mod tests {
                 Arc::new(deckmaste_core::Region::candidate(predicate)),
             )]
             .into(),
-            effect: OneShotEffect::Act(Action::ChangeLife(
+            effect: Instruction::Act(Action::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(0)),
             ))
@@ -4131,7 +4127,7 @@ mod tests {
         };
         let gain_mode = |n| Mode {
             targets: [].into(),
-            effect: OneShotEffect::Act(Action::ChangeLife(
+            effect: Instruction::Act(Action::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(n)),
             ))
@@ -4153,7 +4149,7 @@ mod tests {
         let mut state = game();
         let frame = frame_for(&state, p0);
         state.run_effect(
-            OneShotEffect::Modal(Modal {
+            Instruction::Modal(Modal {
                 choose: ChooseSpec {
                     count: Quantity::Range(Some(Count::Literal(1)), None),
                     up_to: false,
@@ -4181,7 +4177,7 @@ mod tests {
         let mut state = game();
         let frame = frame_for(&state, p0);
         state.run_effect(
-            OneShotEffect::Modal(Modal {
+            Instruction::Modal(Modal {
                 choose: ChooseSpec {
                     count: Quantity::one(),
                     up_to: false,
@@ -4216,7 +4212,7 @@ mod tests {
 
         let gain_mode = |n| Mode {
             targets: [].into(),
-            effect: OneShotEffect::Act(Action::ChangeLife(
+            effect: Instruction::Act(Action::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(n)),
             ))
@@ -4229,7 +4225,7 @@ mod tests {
         let mut state = game();
         let frame = frame_for(&state, p0);
         state.run_effect(
-            OneShotEffect::Modal(Modal {
+            Instruction::Modal(Modal {
                 choose: ChooseSpec {
                     count: Quantity::one(),
                     up_to: false,
@@ -4269,11 +4265,11 @@ mod tests {
         let mut state = game();
         let frame = frame_for(&state, p0);
         state.run_effect(
-            OneShotEffect::May(May {
+            Instruction::May(May {
                 who: Reference::OpponentOf(std::sync::Arc::new(Reference::Reg(
                     deckmaste_core::RefId(1),
                 ))),
-                effect: Arc::new(OneShotEffect::Act(Action::ChangeLife(
+                effect: Arc::new(Instruction::Act(Action::ChangeLife(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     LifeOp::Up(Count::Literal(3)),
                 ))),
@@ -4308,7 +4304,7 @@ mod tests {
 
         let p0 = PlayerId(0);
         let pay_cost = || {
-            OneShotEffect::Act(Action::Pay(Cost(
+            Instruction::Act(Action::Pay(Cost(
                 vec![CostComponent::do_action(Action::ChangeLife(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     LifeOp::Down(Count::Literal(2)),
@@ -4320,7 +4316,7 @@ mod tests {
             who: Reference::Reg(deckmaste_core::RefId(1)),
             effect: Arc::new(pay_cost()),
             if_did: None,
-            if_not: Some(Arc::new(OneShotEffect::Act(Action::ChangeLife(
+            if_not: Some(Arc::new(Instruction::Act(Action::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(10)),
             )))),
@@ -4330,7 +4326,7 @@ mod tests {
         let mut state = game();
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
-        state.run_effect(OneShotEffect::May(must_pay()), &frame);
+        state.run_effect(Instruction::May(must_pay()), &frame);
         let Some(DecisionPointKind::Payment(prompt)) = state.pending.as_ref() else {
             panic!("expected optional payment, got {:?}", state.pending);
         };
@@ -4357,7 +4353,7 @@ mod tests {
         let mut state = game();
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
-        state.run_effect(OneShotEffect::May(must_pay()), &frame);
+        state.run_effect(Instruction::May(must_pay()), &frame);
         state
             .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
             .unwrap();
@@ -4382,7 +4378,7 @@ mod tests {
 
         let p0 = PlayerId(0);
         let pay_cost = || {
-            OneShotEffect::Act(Action::Pay(Cost(
+            Instruction::Act(Action::Pay(Cost(
                 vec![CostComponent::do_action(Action::ChangeLife(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     LifeOp::Down(Count::Literal(2)),
@@ -4393,11 +4389,11 @@ mod tests {
         let may_pay = || May {
             who: Reference::Reg(deckmaste_core::RefId(1)),
             effect: Arc::new(pay_cost()),
-            if_did: Some(Arc::new(OneShotEffect::Act(Action::ChangeLife(
+            if_did: Some(Arc::new(Instruction::Act(Action::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(10)),
             )))),
-            if_not: Some(Arc::new(OneShotEffect::Act(Action::ChangeLife(
+            if_not: Some(Arc::new(Instruction::Act(Action::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(1)),
             )))),
@@ -4407,7 +4403,7 @@ mod tests {
         let mut state = game();
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
-        state.run_effect(OneShotEffect::May(may_pay()), &frame);
+        state.run_effect(Instruction::May(may_pay()), &frame);
         let Some(DecisionPointKind::Payment(prompt)) = state.pending.as_ref() else {
             panic!("expected optional payment, got {:?}", state.pending);
         };
@@ -4434,7 +4430,7 @@ mod tests {
         let mut state = game();
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
-        state.run_effect(OneShotEffect::May(may_pay()), &frame);
+        state.run_effect(Instruction::May(may_pay()), &frame);
         state
             .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
             .unwrap();
@@ -4460,7 +4456,7 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let p0 = PlayerId(0);
         let frame = frame_src(&state, bear);
-        let pay_cost = OneShotEffect::Act(Action::Pay(Cost(
+        let pay_cost = Instruction::Act(Action::Pay(Cost(
             vec![CostComponent::do_action(Action::Sacrifice(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 Reference::Reg(deckmaste_core::RefId(0)),
@@ -4470,14 +4466,14 @@ mod tests {
         let may = May {
             who: Reference::Reg(deckmaste_core::RefId(1)),
             effect: Arc::new(pay_cost),
-            if_did: Some(Arc::new(OneShotEffect::Act(Action::ChangeLife(
+            if_did: Some(Arc::new(Instruction::Act(Action::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(7)),
             )))),
             if_not: None,
         };
         let life0 = state.player(p0).life;
-        state.run_effect(OneShotEffect::May(may), &frame);
+        state.run_effect(Instruction::May(may), &frame);
         let Some(DecisionPointKind::Payment(prompt)) = state.pending.as_ref() else {
             panic!("expected optional payment, got {:?}", state.pending);
         };
@@ -4501,7 +4497,7 @@ mod tests {
             matches!(
                 state.agenda.front(),
                 Some(WorkItem::RunEffect { effect, .. })
-                    if matches!(effect.as_ref(), OneShotEffect::Act { action: Action::ChangeLife(..), .. })
+                    if matches!(effect.as_ref(), Instruction::Act { action: Action::ChangeLife(..), .. })
             ),
             "submission schedules if_did independently of payment events"
         );
@@ -4534,7 +4530,7 @@ mod tests {
         // can't cover a 5-life toll, so the "yes" choice is illegal.
         state.player_mut(p0).life = 1;
         let frame = frame_for(&state, p0);
-        let pay_cost = OneShotEffect::Act(Action::Pay(Cost(
+        let pay_cost = Instruction::Act(Action::Pay(Cost(
             vec![CostComponent::do_action(Action::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Down(Count::Literal(5)),
@@ -4544,17 +4540,17 @@ mod tests {
         let may = May {
             who: Reference::Reg(deckmaste_core::RefId(1)),
             effect: Arc::new(pay_cost),
-            if_did: Some(Arc::new(OneShotEffect::Act(Action::ChangeLife(
+            if_did: Some(Arc::new(Instruction::Act(Action::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(10)),
             )))),
-            if_not: Some(Arc::new(OneShotEffect::Act(Action::ChangeLife(
+            if_not: Some(Arc::new(Instruction::Act(Action::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(1)),
             )))),
         };
         let life0 = state.player(p0).life;
-        state.run_effect(OneShotEffect::May(may), &frame);
+        state.run_effect(Instruction::May(may), &frame);
         let Some(DecisionPointKind::Payment(prompt)) = state.pending.as_ref() else {
             panic!("unaffordable cost should still open payment");
         };
@@ -4584,11 +4580,8 @@ mod tests {
     /// as one ordered run against a single activation — the shape
     /// `cast::cost_step_items` schedules, with the body's instructions after
     /// it ([CR#601.2b,601.2h]).
-    fn announced_run(
-        block: &[deckmaste_core::CostComponent],
-        body: OneShotEffect,
-    ) -> OneShotEffect {
-        let mut instructions: Vec<OneShotEffect> = block
+    fn announced_run(block: &[deckmaste_core::CostComponent], body: Instruction) -> Instruction {
+        let mut instructions: Vec<Instruction> = block
             .iter()
             .map(|component| {
                 crate::decide::unless_cost_effect(
@@ -4598,7 +4591,7 @@ mod tests {
             })
             .collect();
         instructions.push(body);
-        OneShotEffect::Sequentially(instructions.into())
+        Instruction::Sequentially(instructions.into())
     }
 
     /// "Sacrifice another creature", as the cost instruction the announcement
@@ -4615,8 +4608,8 @@ mod tests {
 
     /// "You gain life equal to the sacrificed creature's [counters]" — the
     /// ability body reading the paid product's register.
-    fn gain_life_from_counters_of(register: u32) -> OneShotEffect {
-        OneShotEffect::Act {
+    fn gain_life_from_counters_of(register: u32) -> Instruction {
+        Instruction::Act {
             dest: None,
             action: Action::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
@@ -4737,8 +4730,8 @@ mod tests {
     //
     // The spell form of Ascend folds into `Sequentially([If(<gate>,
     // GetDesignation), If(Is(You,Designated), Draw(3), otherwise: Draw(2))])`
-    // (Task 7). The `OneShotEffect::If` interpreter is now live (see the
-    // `OneShotEffect::If` arm in `run_effect` — it evaluates `condition_holds`,
+    // (Task 7). The `Instruction::If` interpreter is now live (see the
+    // `Instruction::If` arm in `run_effect` — it evaluates `condition_holds`,
     // then schedules `then`/`otherwise`), so these run unignored. They prove
     // the grant-then-read ordering ([CR#608.2c]): draws 3 at ten, 2 at nine,
     // and 2 at ten-then-nine (no high-water mark). The fixture is isolated by
@@ -4790,30 +4783,30 @@ mod tests {
     ///   If(Is(You, Designated), then: Draw(3), otherwise: Draw(2)),
     /// ])
     /// ```
-    fn secrets_effect() -> OneShotEffect {
+    fn secrets_effect() -> Instruction {
         use deckmaste_core::Condition;
         use deckmaste_core::If;
 
-        OneShotEffect::Sequentially(
+        Instruction::Sequentially(
             vec![
-                OneShotEffect::If(If {
+                Instruction::If(If {
                     condition: ascend_gate(),
-                    then: Arc::new(OneShotEffect::Act(Action::GetDesignation(
+                    then: Arc::new(Instruction::Act(Action::GetDesignation(
                         Reference::Reg(deckmaste_core::RefId(1)),
                         "CitysBlessing".into(),
                     ))),
                     otherwise: None,
                 }),
-                OneShotEffect::If(If {
+                Instruction::If(If {
                     condition: Condition::Matches(
                         Reference::Reg(deckmaste_core::RefId(1)),
                         Predicate::State(StatePredicate::Designated("CitysBlessing".into())),
                     ),
-                    then: Arc::new(OneShotEffect::draw(
+                    then: Arc::new(Instruction::draw(
                         Reference::Reg(deckmaste_core::RefId(1)),
                         Count::Literal(3),
                     )),
-                    otherwise: Some(Arc::new(OneShotEffect::draw(
+                    otherwise: Some(Arc::new(Instruction::draw(
                         Reference::Reg(deckmaste_core::RefId(1)),
                         Count::Literal(2),
                     ))),
@@ -4930,7 +4923,7 @@ mod tests {
     }
 
     /// Isolation guard: proves the spell-form fixture is sound independent of
-    /// the `OneShotEffect::If` interpreter — the gate reads true at ten / false
+    /// the `Instruction::If` interpreter — the gate reads true at ten / false
     /// at nine for these minted battlefield objects, and a bare `Draw(3)`
     /// from the stocked library lands three cards in hand. So any failure
     /// of the three behavioral cases below points at the interpreter, not
@@ -4957,7 +4950,7 @@ mod tests {
         let (mut sd, p0, lib_before) = secrets_on_stack(10);
         let dframe = frame_for(&sd, p0);
         sd.run_effect(
-            OneShotEffect::draw(Reference::Reg(deckmaste_core::RefId(1)), Count::Literal(3)),
+            Instruction::draw(Reference::Reg(deckmaste_core::RefId(1)), Count::Literal(3)),
             &dframe,
         );
         let _ = drain_progress(&mut sd, 40);
@@ -5061,7 +5054,7 @@ mod tests {
     }
 
     /// `TopOfLibrary` returns the top N cards in order (front of library =
-    /// top); `OneShotEffect::With` binds them so `Selection::That` resolves to
+    /// top); `Instruction::With` binds them so `Selection::That` resolves to
     /// the same ordered vec inside the body frame.
 
     /// [CR#701.23a,701.23b]: a stated-quality search (Rampant Growth: "search
@@ -5141,7 +5134,7 @@ mod tests {
         let source = explorer_on_field(&mut state);
         let land = mint_library_top(&mut state, p0, "Forest", Type::Land);
 
-        // Parsed through the SEMANTICS path (`semantics::OneShotEffect` →
+        // Parsed through the SEMANTICS path (`semantics::Instruction` →
         // `lower()`), the path production now takes.
         let semantic: deckmaste_semantics::OneShotEffect =
             builtin().macros.read_str("Explore").unwrap();
@@ -5185,7 +5178,7 @@ mod tests {
         let source = explorer_on_field(&mut state);
         let spell = mint_library_top(&mut state, p0, "Shock", Type::Instant);
 
-        // Parsed through the SEMANTICS path (`semantics::OneShotEffect` →
+        // Parsed through the SEMANTICS path (`semantics::Instruction` →
         // `lower()`), the path production now takes.
         let semantic: deckmaste_semantics::OneShotEffect =
             builtin().macros.read_str("Explore").unwrap();
@@ -5380,7 +5373,7 @@ mod tests {
     /// A loop body region: the element at parameter zero, then the enclosing
     /// source and controller — the prefix lowering's `in_child` builds for an
     /// `Each` body.
-    fn loop_region(body: OneShotEffect) -> deckmaste_core::Region {
+    fn loop_region(body: Instruction) -> deckmaste_core::Region {
         deckmaste_core::Region::new(
             Arc::from([
                 param(
@@ -5405,7 +5398,7 @@ mod tests {
 
     /// A distribution body region: the recipient at parameter zero and its
     /// allotted share at parameter one ([CR#601.2d]).
-    fn allot_region(body: OneShotEffect) -> deckmaste_core::Region {
+    fn allot_region(body: Instruction) -> deckmaste_core::Region {
         deckmaste_core::Region::new(
             Arc::from([
                 param(
@@ -5478,8 +5471,8 @@ mod tests {
         let (mut state, src) = bear_on_field();
         // The bear is the lone announced target — the restriction's subject.
         let frame = frame_src_targets(&state, src, vec![src]);
-        let effect = OneShotEffect::Continuously(Continuously {
-            effect: Arc::new(StaticEffect::Deontic(Deontic::Cant(DeonticAction::Block {
+        let effect = Instruction::Continuously(Continuously {
+            effect: Arc::new(StaticSpec::Deontic(Deontic::Cant(DeonticAction::Block {
                 by: Predicate::Ref(Reference::Reg(TARGET)),
                 on: Predicate::Any,
                 count: None,
@@ -5501,7 +5494,7 @@ mod tests {
         assert!(
             matches!(
                 &ce.rows[..],
-                [StaticEffect::Deontic(Deontic::Cant(DeonticAction::Block { by, .. }))]
+                [StaticSpec::Deontic(Deontic::Cant(DeonticAction::Block { by, .. }))]
                     if *by == Predicate::Any
             ),
             "the subject slot is rewritten to Any — the scope carries the identity, got {:?}",
@@ -5525,10 +5518,10 @@ mod tests {
         assert!(state.continuous.is_empty(), "no effects before resolve");
 
         let filter = candidate_region(Predicate::creature());
-        let effect = OneShotEffect::Continuously(Continuously {
-            effect: Arc::new(StaticEffect::Each(
+        let effect = Instruction::Continuously(Continuously {
+            effect: Arc::new(StaticSpec::Each(
                 Selection::SelectAll(Arc::clone(&filter)),
-                Arc::new(deckmaste_core::Region::candidate(StaticEffect::Modify(
+                Arc::new(deckmaste_core::Region::candidate(StaticSpec::Modify(
                     Reference::Reg(ELEMENT),
                     Modification::Power(NumericOp::Up(Count::Literal(1))),
                 ))),
@@ -5571,10 +5564,10 @@ mod tests {
         // first-listed creature takes 2, the player takes 1.
         let frame = frame_src(&state, creature);
         state.activation_write_objects(frame.activation, FIRST_DEF, &[creature, player]);
-        let effect = OneShotEffect::Distribute(Distribute {
+        let effect = Instruction::Distribute(Distribute {
             amount: Count::Literal(3),
             over: Selection::Reg(FIRST_DEF.into()),
-            body: allot_region(OneShotEffect::Act(Action::deal_damage(
+            body: allot_region(Instruction::Act(Action::deal_damage(
                 Reference::Reg(ELEMENT),
                 Count::Reg(SHARE),
             ))),
@@ -5601,10 +5594,10 @@ mod tests {
         use deckmaste_core::Distribute;
         let (mut state, a, b) = two_permanents_on_field();
         let frame = frame_src(&state, a);
-        let effect = OneShotEffect::Distribute(Distribute {
+        let effect = Instruction::Distribute(Distribute {
             amount: Count::Literal(3),
             over: Selection::SelectAll(candidate_region(creatures_on_the_battlefield())),
-            body: allot_region(OneShotEffect::Act(Action::deal_damage(
+            body: allot_region(Instruction::Act(Action::deal_damage(
                 Reference::Reg(ELEMENT),
                 Count::Reg(SHARE),
             ))),
@@ -5634,9 +5627,9 @@ mod tests {
         let b = second_creature_on_field(&mut state);
 
         let frame = frame_src(&state, a);
-        let effect = OneShotEffect::Each(deckmaste_core::Each {
+        let effect = Instruction::Each(deckmaste_core::Each {
             over: Selection::SelectAll(candidate_region(creatures_on_the_battlefield())),
-            body: loop_region(OneShotEffect::Act(Action::deal_damage(
+            body: loop_region(Instruction::Act(Action::deal_damage(
                 Reference::Reg(ELEMENT),
                 Count::Literal(2),
             ))),
@@ -5739,24 +5732,24 @@ mod tests {
             ]
             .into(),
         );
-        let discard_one = OneShotEffect::Act(Action::Composite {
+        let discard_one = Instruction::Act(Action::Composite {
             name: deckmaste_core::VerbName::from("Discard"),
-            body: Arc::new(OneShotEffect::Sequentially(
+            body: Arc::new(Instruction::Sequentially(
                 vec![
-                    OneShotEffect::Choose(deckmaste_core::Choose {
+                    Instruction::Choose(deckmaste_core::Choose {
                         dest: CHOSEN,
                         by: Reference::Reg(LOOP_CONTROLLER),
                         quantity: deckmaste_core::Quantity::one(),
                         filter: nested_filter_region(in_your_hand),
                     }),
-                    OneShotEffect::Act(Action::discard_what(Reference::Reg(CHOSEN.into()))),
+                    Instruction::Act(Action::discard_what(Reference::Reg(CHOSEN.into()))),
                 ]
                 .into(),
             )),
         });
 
         let frame = frame_src(&state, a);
-        let effect = OneShotEffect::Each(deckmaste_core::Each {
+        let effect = Instruction::Each(deckmaste_core::Each {
             over: Selection::SelectAll(candidate_region(creatures_on_the_battlefield())),
             body: loop_region(discard_one),
         });
@@ -5812,17 +5805,17 @@ mod tests {
         let theirs = second_bear_to_player_1(&mut state);
         let frame = frame_src(&state, bear);
         state.run_effect(
-            OneShotEffect::Sequentially(
+            Instruction::Sequentially(
                 vec![
-                    OneShotEffect::Choose(deckmaste_core::Choose {
+                    Instruction::Choose(deckmaste_core::Choose {
                         dest: FIRST_DEF,
                         by: Reference::controller_parameter(),
                         quantity: Quantity::Range(Some(Count::Literal(2)), Some(Count::Literal(2))),
                         filter: candidate_region(creatures_on_the_battlefield()),
                     }),
-                    OneShotEffect::Each(deckmaste_core::Each {
+                    Instruction::Each(deckmaste_core::Each {
                         over: Selection::Reg(FIRST_DEF.into()),
-                        body: loop_region(OneShotEffect::Act(Action::destroy(Reference::Reg(
+                        body: loop_region(Instruction::Act(Action::destroy(Reference::Reg(
                             ELEMENT,
                         )))),
                     }),
@@ -5874,11 +5867,11 @@ mod tests {
         let (mut state, src) = bear_on_field();
         let frame = frame_src(&state, src);
 
-        let effect = OneShotEffect::Each(deckmaste_core::Each {
+        let effect = Instruction::Each(deckmaste_core::Each {
             over: Selection::SelectAll(candidate_region(Predicate::Entity(
                 deckmaste_core::EntityClass::Player,
             ))),
-            body: loop_region(OneShotEffect::Act(Action::deal_damage(
+            body: loop_region(Instruction::Act(Action::deal_damage(
                 Reference::Reg(ELEMENT),
                 Count::Literal(20),
             ))),
@@ -5909,11 +5902,11 @@ mod tests {
         ];
         let frame = frame_src(&state, bear);
         state.run_effect(
-            OneShotEffect::Each(deckmaste_core::Each {
+            Instruction::Each(deckmaste_core::Each {
                 over: Selection::SelectAll(candidate_region(Predicate::Entity(
                     deckmaste_core::EntityClass::Player,
                 ))),
-                body: loop_region(OneShotEffect::Act(Action::deal_damage(
+                body: loop_region(Instruction::Act(Action::deal_damage(
                     Reference::Reg(ELEMENT),
                     Count::Literal(1),
                 ))),
@@ -5960,16 +5953,16 @@ mod tests {
                     deckmaste_core::Provenance::Capture(deckmaste_core::RefId(1)),
                 ),
             ]),
-            OneShotEffect::Act(Action::deal_damage(
+            Instruction::Act(Action::deal_damage(
                 Reference::Reg(ELEMENT),
                 Count::Reg(deckmaste_core::RefId(2)),
             ))
             .into(),
         );
-        let effect = OneShotEffect::Distribute(deckmaste_core::Distribute {
+        let effect = Instruction::Distribute(deckmaste_core::Distribute {
             amount: Count::Literal(2),
             over: Selection::SelectAll(candidate_region(creatures_on_the_battlefield())),
-            body: allot_region(OneShotEffect::Each(deckmaste_core::Each {
+            body: allot_region(Instruction::Each(deckmaste_core::Each {
                 over: Selection::SelectAll(candidate_region(creatures_on_the_battlefield())),
                 body: inner,
             })),
@@ -5997,13 +5990,13 @@ mod tests {
         let life0 = state.player(PlayerId(0)).life;
         let agenda_before = state.agenda.len();
 
-        let effect = OneShotEffect::RevealUntil(deckmaste_core::RevealUntil {
+        let effect = Instruction::RevealUntil(deckmaste_core::RevealUntil {
             found: FIRST_DEF,
             passed: deckmaste_core::DefId(FIRST_DEF.0 + 1),
             whose: Reference::controller_parameter(),
             matches: candidate_region(Predicate::creature()),
             body: deckmaste_core::Region::closed(
-                OneShotEffect::Act(Action::ChangeLife(
+                Instruction::Act(Action::ChangeLife(
                     Reference::controller_parameter(),
                     LifeOp::Up(Count::Literal(99)),
                 ))
@@ -6033,9 +6026,9 @@ mod tests {
         let theirs = second_bear_to_player_1(&mut state);
         let frame = frame_src(&state, bear);
         state.run_effect(
-            OneShotEffect::Each(deckmaste_core::Each {
+            Instruction::Each(deckmaste_core::Each {
                 over: Selection::SelectAll(candidate_region(creatures_on_the_battlefield())),
-                body: loop_region(OneShotEffect::Act(Action::destroy(Reference::Reg(ELEMENT)))),
+                body: loop_region(Instruction::Act(Action::destroy(Reference::Reg(ELEMENT)))),
             }),
             &frame,
         );
@@ -6055,9 +6048,9 @@ mod tests {
         let frame = frame_src(&state, bear);
         let life0 = state.player(PlayerId(0)).life;
         state.run_effect(
-            OneShotEffect::Each(deckmaste_core::Each {
+            Instruction::Each(deckmaste_core::Each {
                 over: Selection::SelectAll(candidate_region(creatures_on_the_battlefield())),
-                body: loop_region(OneShotEffect::Act(Action::ChangeLife(
+                body: loop_region(Instruction::Act(Action::ChangeLife(
                     Reference::Reg(LOOP_CONTROLLER),
                     LifeOp::Up(Count::Literal(1)),
                 ))),
@@ -6078,8 +6071,8 @@ mod tests {
         quantity: deckmaste_core::Quantity,
         filter: Predicate,
         if_none: deckmaste_core::Block,
-    ) -> OneShotEffect {
-        OneShotEffect::Search(deckmaste_core::Search {
+    ) -> Instruction {
+        Instruction::Search(deckmaste_core::Search {
             dest: FIRST_DEF,
             by: Reference::controller_parameter(),
             whose: Reference::controller_parameter(),
@@ -6090,8 +6083,8 @@ mod tests {
         })
     }
 
-    fn shuffle_your_library() -> OneShotEffect {
-        OneShotEffect::Act(Action::Shuffle(Selection::LibraryOf(
+    fn shuffle_your_library() -> Instruction {
+        Instruction::Act(Action::Shuffle(Selection::LibraryOf(
             Reference::controller_parameter(),
         )))
     }
@@ -6116,12 +6109,12 @@ mod tests {
             let frame = player_frame(&state, p0);
             let life0 = state.player(p0).life;
             state.run_effect(
-                OneShotEffect::Sequentially(
+                Instruction::Sequentially(
                     vec![
                         search_library(
                             deckmaste_core::Quantity::one(),
                             Predicate::r#type(Type::Land),
-                            OneShotEffect::Act(Action::ChangeLife(
+                            Instruction::Act(Action::ChangeLife(
                                 Reference::controller_parameter(),
                                 LifeOp::Down(Count::Literal(1)),
                             ))
@@ -6186,16 +6179,16 @@ mod tests {
         let frame = player_frame(&state, p0);
 
         state.run_effect(
-            OneShotEffect::Sequentially(
+            Instruction::Sequentially(
                 vec![
                     search_library(
                         Quantity::Range(Some(Count::Literal(0)), Some(Count::Literal(2))),
                         Predicate::r#type(Type::Land),
                         deckmaste_core::Block::default(),
                     ),
-                    OneShotEffect::Each(deckmaste_core::Each {
+                    Instruction::Each(deckmaste_core::Each {
                         over: Selection::Reg(FIRST_DEF.into()),
-                        body: loop_region(OneShotEffect::Act(Action::Move(
+                        body: loop_region(Instruction::Act(Action::Move(
                             Reference::Reg(ELEMENT),
                             Destination::Zone(Zone::Hand),
                             vec![].into(),
@@ -6301,7 +6294,7 @@ mod tests {
         let frame = player_frame(&state, p0);
 
         state.run_effect(
-            OneShotEffect::Sequentially(
+            Instruction::Sequentially(
                 vec![
                     search_library(
                         deckmaste_core::Quantity::one(),
@@ -6353,18 +6346,18 @@ mod tests {
         let frame = player_frame(&state, p0);
 
         state.run_effect(
-            OneShotEffect::Sequentially(
+            Instruction::Sequentially(
                 vec![
                     search_library(
                         deckmaste_core::Quantity::one(),
                         Predicate::r#type(Type::Land),
                         deckmaste_core::Block::default(),
                     ),
-                    OneShotEffect::Act(Action::Reveal {
+                    Instruction::Act(Action::Reveal {
                         what: Reference::Reg(FIRST_DEF.into()),
                         to: None,
                     }),
-                    OneShotEffect::Act(Action::Move(
+                    Instruction::Act(Action::Move(
                         Reference::Reg(FIRST_DEF.into()),
                         Destination::Zone(Zone::Hand),
                         vec![].into(),
@@ -6412,14 +6405,14 @@ mod tests {
         let frame = player_frame(&state, p0);
 
         state.run_effect(
-            OneShotEffect::Sequentially(
+            Instruction::Sequentially(
                 vec![
                     search_library(
                         deckmaste_core::Quantity::one(),
                         Predicate::r#type(Type::Land),
                         deckmaste_core::Block::default(),
                     ),
-                    OneShotEffect::Act(Action::Move(
+                    Instruction::Act(Action::Move(
                         Reference::Reg(FIRST_DEF.into()),
                         Destination::Zone(Zone::Battlefield),
                         vec![EnterRider::Tapped].into(),
@@ -6496,7 +6489,7 @@ mod tests {
         let frame = player_frame(&state, p0);
 
         state.run_effect(
-            OneShotEffect::Sequentially(
+            Instruction::Sequentially(
                 vec![
                     search_library(
                         deckmaste_core::Quantity::one(),
@@ -6573,7 +6566,7 @@ mod tests {
         // Pinned into a register, the same ordered group reads back by
         // register — the binding a later clause names.
         state.run_effect(
-            OneShotEffect::Let(deckmaste_core::Let {
+            Instruction::Let(deckmaste_core::Let {
                 dest: FIRST_DEF,
                 expr: deckmaste_core::Expr::Objects(top_two),
             }),
@@ -6613,12 +6606,12 @@ mod tests {
                 on: Predicate::Any,
                 cause: None,
             },
-            instead: OneShotEffect::Batch(
+            instead: Instruction::Batch(
                 Count::Times(
                     Arc::new(Count::Literal(2)),
                     Arc::new(Count::Reg(EVENT_AMOUNT)),
                 ),
-                Arc::new(OneShotEffect::Act(deckmaste_core::Action::mill_one(
+                Arc::new(Instruction::Act(deckmaste_core::Action::mill_one(
                     Reference::controller_parameter(),
                 ))),
             ),
@@ -6629,18 +6622,18 @@ mod tests {
                 name: "Bruvac Stand-In".into(),
                 types: vec![Type::Enchantment.def()],
                 abilities: vec![deckmaste_core::Ability::r#static(
-                    deckmaste_core::StaticEffect::Replacement(Arc::new(bruvac)),
+                    deckmaste_core::StaticSpec::Replacement(Arc::new(bruvac)),
                 )],
                 ..deckmaste_card::CardFace::default()
             }),
         );
 
         let frame = player_frame(&state, p0);
-        let mill_one = OneShotEffect::Act(deckmaste_core::Action::mill_one(
+        let mill_one = Instruction::Act(deckmaste_core::Action::mill_one(
             Reference::controller_parameter(),
         ));
         state.run_effect(
-            OneShotEffect::Batch(Count::Literal(3), Arc::new(mill_one)),
+            Instruction::Batch(Count::Literal(3), Arc::new(mill_one)),
             &frame,
         );
 
@@ -6706,9 +6699,9 @@ mod tests {
         // group.
         let frame = frame_src(&state, a);
         state.run_effect(
-            OneShotEffect::Sequentially(
+            Instruction::Sequentially(
                 vec![
-                    OneShotEffect::Choose(deckmaste_core::Choose {
+                    Instruction::Choose(deckmaste_core::Choose {
                         dest: FIRST_DEF,
                         by: Reference::controller_parameter(),
                         quantity: deckmaste_core::Quantity::Range(
@@ -6717,9 +6710,9 @@ mod tests {
                         ),
                         filter: candidate_region(creatures_on_the_battlefield()),
                     }),
-                    OneShotEffect::Each(deckmaste_core::Each {
+                    Instruction::Each(deckmaste_core::Each {
                         over: Selection::Reg(FIRST_DEF.into()),
-                        body: loop_region(OneShotEffect::Act(Action::destroy(Reference::Reg(
+                        body: loop_region(Instruction::Act(Action::destroy(Reference::Reg(
                             ELEMENT,
                         )))),
                     }),
@@ -6792,14 +6785,14 @@ mod tests {
         );
 
         state.run_effect(
-            OneShotEffect::Sequentially(
+            Instruction::Sequentially(
                 vec![
-                    OneShotEffect::Let(deckmaste_core::Let {
+                    Instruction::Let(deckmaste_core::Let {
                         dest: FIRST_DEF,
                         expr: deckmaste_core::Expr::Number(creature_count.clone()),
                     }),
-                    OneShotEffect::Act(Action::destroy(Reference::Reg(VICTIM.into()))),
-                    OneShotEffect::Act(Action::ChangeLife(
+                    Instruction::Act(Action::destroy(Reference::Reg(VICTIM.into()))),
+                    Instruction::Act(Action::ChangeLife(
                         Reference::controller_parameter(),
                         LifeOp::Up(Count::Reg(FIRST_DEF.into())),
                     )),
@@ -6847,27 +6840,25 @@ mod tests {
 
         let frame = frame_src(&state, outer_pick);
         state.run_effect(
-            OneShotEffect::Sequentially(
+            Instruction::Sequentially(
                 vec![
-                    OneShotEffect::Choose(deckmaste_core::Choose {
+                    Instruction::Choose(deckmaste_core::Choose {
                         dest: FIRST_DEF,
                         by: Reference::controller_parameter(),
                         quantity: deckmaste_core::Quantity::one(),
                         filter: candidate_region(creatures_on_the_battlefield()),
                     }),
-                    OneShotEffect::Each(deckmaste_core::Each {
+                    Instruction::Each(deckmaste_core::Each {
                         over: Selection::Reg(FIRST_DEF.into()),
-                        body: loop_region(OneShotEffect::Sequentially(
+                        body: loop_region(Instruction::Sequentially(
                             vec![
-                                OneShotEffect::Choose(deckmaste_core::Choose {
+                                Instruction::Choose(deckmaste_core::Choose {
                                     dest: INNER_DEF,
                                     by: Reference::Reg(LOOP_CONTROLLER),
                                     quantity: deckmaste_core::Quantity::one(),
                                     filter: candidate_region(creatures_on_the_battlefield()),
                                 }),
-                                OneShotEffect::Act(Action::destroy(Reference::Reg(
-                                    INNER_DEF.into(),
-                                ))),
+                                Instruction::Act(Action::destroy(Reference::Reg(INNER_DEF.into()))),
                             ]
                             .into(),
                         )),
@@ -6917,20 +6908,20 @@ mod tests {
         let frame = frame_src(&state, src);
 
         state.run_effect(
-            OneShotEffect::Each(deckmaste_core::Each {
+            Instruction::Each(deckmaste_core::Each {
                 over: Selection::SelectAll(candidate_region(Predicate::Entity(
                     deckmaste_core::EntityClass::Player,
                 ))),
-                body: loop_region(OneShotEffect::Sequentially(
+                body: loop_region(Instruction::Sequentially(
                     vec![
-                        OneShotEffect::Let(deckmaste_core::Let {
+                        Instruction::Let(deckmaste_core::Let {
                             dest: PER_ELEMENT,
                             expr: deckmaste_core::Expr::Number(Count::PlayerStatOf(
                                 Reference::Reg(ELEMENT),
                                 PlayerAttr::Life,
                             )),
                         }),
-                        OneShotEffect::Act(Action::ChangeLife(
+                        Instruction::Act(Action::ChangeLife(
                             Reference::Reg(ELEMENT),
                             LifeOp::Up(Count::Reg(PER_ELEMENT.into())),
                         )),
@@ -6995,8 +6986,8 @@ mod tests {
         }
     }
 
-    fn delayed(params: Arc<[deckmaste_core::Param]>, body: OneShotEffect) -> OneShotEffect {
-        OneShotEffect::Delayed(Arc::new(deckmaste_core::TriggeredAbility {
+    fn delayed(params: Arc<[deckmaste_core::Param]>, body: Instruction) -> Instruction {
+        Instruction::Delayed(Arc::new(deckmaste_core::TriggeredAbility {
             ability_word: None,
             event: next_end_step(),
             from: None,
@@ -7031,9 +7022,9 @@ mod tests {
         let (mut state, a, b) = two_permanents_on_field();
         let frame = frame_src(&state, a);
         state.run_effect(
-            OneShotEffect::Sequentially(
+            Instruction::Sequentially(
                 vec![
-                    OneShotEffect::producing(
+                    Instruction::producing(
                         FIRST_DEF_ONE_TARGET,
                         Action::Move(
                             Reference::Reg(TARGET_0),
@@ -7047,7 +7038,7 @@ mod tests {
                             FIRST_DEF_ONE_TARGET.into(),
                             deckmaste_core::Kind::Entities,
                         )]),
-                        OneShotEffect::Act(Action::Move(
+                        Instruction::Act(Action::Move(
                             Reference::Reg(deckmaste_core::RefId(8)),
                             deckmaste_core::Destination::Zone(Zone::Battlefield),
                             vec![].into(),
@@ -7103,9 +7094,9 @@ mod tests {
     fn a_capture_is_not_chased_after_the_object_leaves_the_zone_it_was_captured_in() {
         let (mut state, a, b) = two_permanents_on_field();
         state.run_effect(
-            OneShotEffect::Sequentially(
+            Instruction::Sequentially(
                 vec![
-                    OneShotEffect::producing(
+                    Instruction::producing(
                         FIRST_DEF_ONE_TARGET,
                         Action::Move(
                             Reference::Reg(TARGET_0),
@@ -7119,7 +7110,7 @@ mod tests {
                             FIRST_DEF_ONE_TARGET.into(),
                             deckmaste_core::Kind::Entities,
                         )]),
-                        OneShotEffect::Act(Action::Move(
+                        Instruction::Act(Action::Move(
                             Reference::Reg(deckmaste_core::RefId(8)),
                             deckmaste_core::Destination::Zone(Zone::Battlefield),
                             vec![].into(),
@@ -7138,7 +7129,7 @@ mod tests {
         // object it becomes in the graveyard is a new object ([CR#400.7]).
         let frame = frame_src(&state, a);
         state.run_effect(
-            OneShotEffect::Act(Action::Move(
+            Instruction::Act(Action::Move(
                 Reference::Reg(TARGET_0),
                 deckmaste_core::Destination::Zone(Zone::Graveyard),
                 vec![].into(),
@@ -7178,7 +7169,7 @@ mod tests {
         let frame = frame_src(&state, a);
         // The loop body's registers: element(0), source(1), controller(2).
         state.run_effect(
-            OneShotEffect::Each(deckmaste_core::Each {
+            Instruction::Each(deckmaste_core::Each {
                 over: Selection::SelectAll(candidate_region(creatures_on_the_battlefield())),
                 body: deckmaste_core::Region::new(
                     Arc::from([
@@ -7200,9 +7191,7 @@ mod tests {
                     ]),
                     delayed(
                         created_body_params(&[(ELEMENT, deckmaste_core::Kind::Entity)]),
-                        OneShotEffect::Act(Action::destroy(Reference::Reg(deckmaste_core::RefId(
-                            8,
-                        )))),
+                        Instruction::Act(Action::destroy(Reference::Reg(deckmaste_core::RefId(8)))),
                     )
                     .into(),
                 ),
@@ -7253,9 +7242,9 @@ mod tests {
         let (mut state, a, b) = two_permanents_on_field();
         // Ability one: "Exile target creature. (Remember it as `exiled`.)"
         state.run_effect(
-            OneShotEffect::Sequentially(
+            Instruction::Sequentially(
                 vec![
-                    OneShotEffect::producing(
+                    Instruction::producing(
                         FIRST_DEF_ONE_TARGET,
                         Action::Move(
                             Reference::Reg(TARGET_0),
@@ -7264,7 +7253,7 @@ mod tests {
                             None,
                         ),
                     ),
-                    OneShotEffect::Remember(deckmaste_core::Remember {
+                    Instruction::Remember(deckmaste_core::Remember {
                         cell: deckmaste_core::Ident::from("exiled"),
                         kind: deckmaste_core::Kind::Entities,
                         value: FIRST_DEF_ONE_TARGET.into(),
@@ -7298,7 +7287,7 @@ mod tests {
                     deckmaste_core::Provenance::Linked(deckmaste_core::Ident::from("exiled")),
                 ),
             ]),
-            OneShotEffect::Act(Action::Move(
+            Instruction::Act(Action::Move(
                 Reference::Reg(deckmaste_core::RefId(2)),
                 deckmaste_core::Destination::Zone(Zone::Battlefield),
                 vec![].into(),
@@ -7308,7 +7297,7 @@ mod tests {
         );
         let mut reading = Frame::bare(a, PlayerId(0));
         reading.activation = state.enter_region(&reader, &reading);
-        state.run_effect(OneShotEffect::Sequentially(reader.body.0.clone()), &reading);
+        state.run_effect(Instruction::Sequentially(reader.body.0.clone()), &reading);
         run_injected(&mut state);
 
         assert!(
@@ -7328,9 +7317,9 @@ mod tests {
     fn a_linked_cell_is_not_readable_from_another_object() {
         let (mut state, a, b) = two_permanents_on_field();
         state.run_effect(
-            OneShotEffect::Sequentially(
+            Instruction::Sequentially(
                 vec![
-                    OneShotEffect::producing(
+                    Instruction::producing(
                         FIRST_DEF_ONE_TARGET,
                         Action::Move(
                             Reference::Reg(TARGET_0),
@@ -7339,7 +7328,7 @@ mod tests {
                             None,
                         ),
                     ),
-                    OneShotEffect::Remember(deckmaste_core::Remember {
+                    Instruction::Remember(deckmaste_core::Remember {
                         cell: deckmaste_core::Ident::from("exiled"),
                         kind: deckmaste_core::Kind::Entities,
                         value: FIRST_DEF_ONE_TARGET.into(),
@@ -7374,7 +7363,7 @@ mod tests {
                     deckmaste_core::Provenance::Linked(deckmaste_core::Ident::from("exiled")),
                 ),
             ]),
-            OneShotEffect::Act(Action::Move(
+            Instruction::Act(Action::Move(
                 Reference::Reg(deckmaste_core::RefId(2)),
                 deckmaste_core::Destination::Zone(Zone::Battlefield),
                 vec![].into(),
@@ -7384,7 +7373,7 @@ mod tests {
         );
         let mut reading = Frame::bare(other, PlayerId(1));
         reading.activation = state.enter_region(&reader, &reading);
-        state.run_effect(OneShotEffect::Sequentially(reader.body.0.clone()), &reading);
+        state.run_effect(Instruction::Sequentially(reader.body.0.clone()), &reading);
         run_injected(&mut state);
 
         assert_eq!(

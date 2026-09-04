@@ -28,7 +28,7 @@ use deckmaste_core::Property;
 use deckmaste_core::Reference;
 use deckmaste_core::Selection;
 use deckmaste_core::StatValue;
-use deckmaste_core::StaticEffect;
+use deckmaste_core::StaticSpec;
 use deckmaste_core::Subtype;
 use deckmaste_core::Supertype;
 use deckmaste_core::Type;
@@ -78,7 +78,7 @@ pub struct ContinuousEffect {
     /// game rules, outside the characteristic layers, [CR#613.11]); printed
     /// rows stay layer-6-sensitive, these instance rows are immune. Empty for
     /// the characteristic-modifying (`Modify`/`Each`) instances.
-    pub rows: Vec<StaticEffect>,
+    pub rows: Vec<StaticSpec>,
     pub duration: Duration,
     /// The minting resolution frame, kept ONLY for the two durations whose
     /// sweep must re-evaluate semantic data anchored on the source/controller:
@@ -291,8 +291,8 @@ pub(crate) fn symbol_colors(sym: &ManaSymbol) -> impl Iterator<Item = Color> {
 /// (layer 1b, [CR#708.2]). The layer-1a GRAMMAR now exists
 /// (`core-copy-grammar` Task 6): [`deckmaste_core::EnterRider::AsCopy`]
 /// ([CR#707.5], an enter-riding copy input on `Move`/`Create`) and
-/// [`deckmaste_core::StaticEffect::BecomesCopy`] ([CR#707.4], a continuous
-/// copy static gathered like [`deckmaste_core::StaticEffect::Modify`]) both
+/// [`deckmaste_core::StaticSpec::BecomesCopy`] ([CR#707.4], a continuous
+/// copy static gathered like [`deckmaste_core::StaticSpec::Modify`]) both
 /// carry the shared [`deckmaste_core::CopySpec`] — but neither is CONSUMED
 /// yet; this still reads the printed face unconditionally.
 /// `engine-layers-1-copy-facedown-text` owns the application: when an object
@@ -513,7 +513,7 @@ fn gather(
             continue;
         }
         let timestamp = obj.timestamp;
-        // OneShotEffect-source abilities come from the DERIVED list once the fixpoint
+        // Instruction-source abilities come from the DERIVED list once the fixpoint
         // is running ([CR#613.7]): the first iteration reads the PRINTED list
         // (the cycle-safe base that breaks the `layers() → derive::abilities →
         // layers()` recursion), and every later iteration reads the working
@@ -685,7 +685,7 @@ fn gather(
     effects
 }
 
-/// Resolve one gathered `StaticEffect` (a static ability's `effect`, or a
+/// Resolve one gathered `StaticSpec` (a static ability's `effect`, or a
 /// counter's conferred `Property::Continuous` lowered to the same shape by the
 /// caller) into a `(ScopeResolved, flattened changes)` pair, SOURCE-RELATIVE
 /// (no [`Frame`](crate::resolve::Frame); mirrors [`resolve_source_relative`]).
@@ -703,18 +703,18 @@ fn gather(
 /// `Random`, …), or an `Each` whose inner effect isn't a bare
 /// `Modify(It, _)` — is a documented seam: no current macro or card produces
 /// it, so it contributes no effect (`None`) rather than guessing a scope.
-/// Every other `StaticEffect` variant (`Deontic`, `CostModifier`, …) is
+/// Every other `StaticSpec` variant (`Deontic`, `CostModifier`, …) is
 /// likewise `None` here — the layer gather only ever contributes `Modify`/
 /// `Each`-of-`Modify` effects; the rest are read by their own consumers
 /// (`legal.rs`, `cast.rs`, `trigger.rs`, …).
 fn static_effect_scope(
     state: &GameState,
     obj: ObjectId,
-    region: &deckmaste_core::Region<StaticEffect>,
+    region: &deckmaste_core::Region<StaticSpec>,
     captures: &[(deckmaste_core::RefId, crate::activation::Value)],
 ) -> Option<(Vec<Condition>, ScopeResolved, Vec<Modification>)> {
     match &region.body {
-        StaticEffect::Modify(reference, change) => Some((
+        StaticSpec::Modify(reference, change) => Some((
             Vec::new(),
             ScopeResolved::Locked(resolve_source_relative(
                 state,
@@ -725,8 +725,8 @@ fn static_effect_scope(
             )),
             Modification::flatten(std::slice::from_ref(change)).to_vec(),
         )),
-        StaticEffect::Each(Selection::SelectAll(filter), inner) => match &inner.body {
-            StaticEffect::Modify(deckmaste_core::Reference::Reg(reference), change)
+        StaticSpec::Each(Selection::SelectAll(filter), inner) => match &inner.body {
+            StaticSpec::Modify(deckmaste_core::Reference::Reg(reference), change)
                 if matches!(
                     inner.provenance_of(*reference),
                     Some(deckmaste_core::Provenance::Candidate(_))
@@ -745,7 +745,7 @@ fn static_effect_scope(
         // than here against printed values or through a recursive `layers()`.
         // Nested wrappers form a conjunction: every enclosing condition must
         // still hold for the innermost modification to apply.
-        StaticEffect::Conditionally(condition, inner) => {
+        StaticSpec::Conditionally(condition, inner) => {
             let nested = deckmaste_core::Region::new(region.params.clone(), inner.as_ref().clone());
             let (mut conditions, scope, changes) =
                 static_effect_scope(state, obj, &nested, captures)?;
@@ -2346,7 +2346,7 @@ mod tests {
     use deckmaste_core::Reference;
     use deckmaste_core::Selection;
     use deckmaste_core::StatValue;
-    use deckmaste_core::StaticEffect;
+    use deckmaste_core::StaticSpec;
     use deckmaste_core::Type;
     use deckmaste_core::Zone;
 
@@ -2396,11 +2396,11 @@ mod tests {
     /// creature itself (a floating `SelectAll` set, no Stage-3 source-relative
     /// reference needed). Wrapped or not per `innate`.
     fn pump_static(innate: bool) -> Ability {
-        let s = Ability::r#static(StaticEffect::Each(
+        let s = Ability::r#static(StaticSpec::Each(
             Selection::SelectAll(Arc::new(deckmaste_core::Region::candidate(
                 Predicate::r#type(Type::Creature),
             ))),
-            Arc::new(deckmaste_core::Region::candidate(StaticEffect::Modify(
+            Arc::new(deckmaste_core::Region::candidate(StaticSpec::Modify(
                 Reference::Reg(deckmaste_core::RefId(0)),
                 Modification::Several(
                     vec![
@@ -2568,10 +2568,10 @@ mod tests {
         use deckmaste_card::CardFace;
         use deckmaste_core::ColorOrColorless;
         use deckmaste_core::CostComponent;
+        use deckmaste_core::Instruction;
         use deckmaste_core::ManaAbility;
         use deckmaste_core::ManaProduction;
         use deckmaste_core::ManaSpec;
-        use deckmaste_core::OneShotEffect;
         use deckmaste_core::Property;
         use deckmaste_core::Reference;
         use deckmaste_core::Subtype;
@@ -2596,7 +2596,7 @@ mod tests {
                         window: None,
                         condition: None,
                         limits: vec![].into(),
-                        effect: OneShotEffect::Act(deckmaste_core::Action::AddMana(
+                        effect: Instruction::Act(deckmaste_core::Action::AddMana(
                             Reference::Reg(deckmaste_core::RefId(1)),
                             Count::Literal(1),
                             ManaProduction::Bare(ManaSpec::Specific(ColorOrColorless::Color(
@@ -2785,7 +2785,7 @@ mod tests {
     /// resolves.
     fn host_pump_static(n: u32) -> Ability {
         use deckmaste_core::Reference;
-        Ability::r#static(StaticEffect::Modify(
+        Ability::r#static(StaticSpec::Modify(
             Reference::AttachHostOf(Arc::new(Reference::Reg(deckmaste_core::RefId(0)))),
             Modification::Several(
                 vec![
@@ -2880,7 +2880,7 @@ mod tests {
 
     /// M1 formerly covered `These([This, This])` dedup: a static naming the
     /// same object twice through a fixed reference LIST had to apply its
-    /// additive op only once. That list shape is GONE — `StaticEffect::Modify`
+    /// additive op only once. That list shape is GONE — `StaticSpec::Modify`
     /// now takes exactly one `Reference` ([CR#613.6] positional single-object
     /// contract), so two references can no longer collide inside one `Modify`;
     /// the dedup scenario is structurally impossible, not merely untested.
@@ -2890,7 +2890,7 @@ mod tests {
     fn single_modify_applies_its_change_once() {
         use deckmaste_core::Reference;
 
-        let pump = Ability::r#static(StaticEffect::Modify(
+        let pump = Ability::r#static(StaticSpec::Modify(
             Reference::Reg(deckmaste_core::RefId(0)),
             Modification::Power(NumericOp::Up(Count::Literal(1))),
         ));
@@ -3041,7 +3041,7 @@ mod tests {
     fn goblin_lord_static() -> Ability {
         use deckmaste_core::Reference;
         use deckmaste_core::RelationPredicate;
-        Ability::r#static(StaticEffect::Each(
+        Ability::r#static(StaticSpec::Each(
             Selection::SelectAll(Arc::new(static_candidate_filter(Predicate::And(
                 vec![
                     Predicate::creature(),
@@ -3057,7 +3057,7 @@ mod tests {
                 ]
                 .into(),
             )))),
-            Arc::new(deckmaste_core::Region::candidate(StaticEffect::Modify(
+            Arc::new(deckmaste_core::Region::candidate(StaticSpec::Modify(
                 Reference::Reg(deckmaste_core::RefId(0)),
                 Modification::Several(
                     vec![
@@ -3229,7 +3229,7 @@ mod tests {
         let count = Count::CountOf(Countable::Objects(Arc::new(
             deckmaste_core::Region::candidate(Predicate::creature()),
         )));
-        Ability::r#static(StaticEffect::Modify(
+        Ability::r#static(StaticSpec::Modify(
             Reference::Reg(deckmaste_core::RefId(0)),
             Modification::Several(
                 vec![
@@ -3276,7 +3276,7 @@ mod tests {
         let count = Count::CountOf(Countable::Objects(Arc::new(
             deckmaste_core::Region::candidate(Predicate::creature()),
         )));
-        Ability::r#static(StaticEffect::Modify(
+        Ability::r#static(StaticSpec::Modify(
             Reference::Reg(deckmaste_core::RefId(0)),
             Modification::Several(
                 vec![
@@ -3512,7 +3512,7 @@ mod tests {
     /// unambiguous regardless of how many creatures hold it.
     fn self_pump_static() -> Ability {
         use deckmaste_core::Reference;
-        Ability::r#static(StaticEffect::Modify(
+        Ability::r#static(StaticSpec::Modify(
             Reference::Reg(deckmaste_core::RefId(0)),
             Modification::Several(
                 vec![
@@ -3532,7 +3532,7 @@ mod tests {
     /// functions once the fixpoint re-gathers it from the derived list.
     fn lord_granting_static(granted: Ability) -> Ability {
         use deckmaste_core::Reference;
-        Ability::r#static(StaticEffect::Each(
+        Ability::r#static(StaticSpec::Each(
             Selection::SelectAll(Arc::new(static_candidate_filter(Predicate::And(
                 vec![
                     Predicate::creature(),
@@ -3542,7 +3542,7 @@ mod tests {
                 ]
                 .into(),
             )))),
-            Arc::new(deckmaste_core::Region::candidate(StaticEffect::Modify(
+            Arc::new(deckmaste_core::Region::candidate(StaticSpec::Modify(
                 Reference::Reg(deckmaste_core::RefId(0)),
                 Modification::GainAbility(Arc::new(granted)),
             ))),
@@ -3638,17 +3638,17 @@ mod tests {
     /// apply that grant first, then apply the conditional Vigilance grant.
     #[test]
     fn same_layer_change_enables_conditional_static() {
-        let conditional_vigilance = Ability::r#static(StaticEffect::Conditionally(
+        let conditional_vigilance = Ability::r#static(StaticSpec::Conditionally(
             Condition::Matches(
                 Reference::Reg(deckmaste_core::RefId(0)),
                 Predicate::Characteristic(CharacteristicPredicate::Has("Trample".into())),
             ),
-            Arc::new(StaticEffect::Modify(
+            Arc::new(StaticSpec::Modify(
                 Reference::Reg(deckmaste_core::RefId(0)),
                 Modification::GainAbility(Arc::new(Ability::Keyword(KeywordAbility::Vigilance))),
             )),
         ));
-        let grant_trample = Ability::r#static(StaticEffect::Modify(
+        let grant_trample = Ability::r#static(StaticSpec::Modify(
             Reference::Reg(deckmaste_core::RefId(0)),
             Modification::GainAbility(Arc::new(Ability::Keyword(KeywordAbility::Trample))),
         ));

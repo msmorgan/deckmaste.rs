@@ -44,7 +44,7 @@ fn assert_mana_then_discard_this(
     use deckmaste_core::Action;
     use deckmaste_core::CostComponent;
     use deckmaste_core::Destination;
-    use deckmaste_core::OneShotEffect;
+    use deckmaste_core::Instruction;
     use deckmaste_core::Reference;
     use deckmaste_core::Zone;
 
@@ -69,7 +69,7 @@ fn assert_mana_then_discard_this(
     assert!(
         matches!(
             body.as_ref(),
-            OneShotEffect::Act {
+            Instruction::Act {
                 action: Action::Move(
                     Reference::Reg(deckmaste_core::RefId(0)),
                     Destination::Zone(Zone::Graveyard),
@@ -171,11 +171,11 @@ fn crew_expands_to_a_tap_total_activation() {
     use deckmaste_core::CollectionOp;
     use deckmaste_core::CostComponent;
     use deckmaste_core::Duration;
+    use deckmaste_core::Instruction;
     use deckmaste_core::Modification;
-    use deckmaste_core::OneShotEffect;
     use deckmaste_core::Reference;
     use deckmaste_core::Stat;
-    use deckmaste_core::StaticEffect;
+    use deckmaste_core::StaticSpec;
     use deckmaste_core::TurnMarker;
 
     let plugin = builtin();
@@ -195,13 +195,13 @@ fn crew_expands_to_a_tap_total_activation() {
             ..
         }]
     ));
-    let [OneShotEffect::Continuously(effect)] = ability.effect.body.as_ref() else {
+    let [Instruction::Continuously(effect)] = ability.effect.body.as_ref() else {
         panic!("Crew's activation creates one continuous effect")
     };
     assert_eq!(effect.duration, Duration::FixedUntil(TurnMarker::EndOfTurn));
     assert!(matches!(
         effect.effect.as_ref(),
-        StaticEffect::Modify(
+        StaticSpec::Modify(
             Reference::Reg(deckmaste_core::RefId(0)),
             Modification::CardTypes(CollectionOp::Add(kind)),
         ) if kind.as_str() == "Creature"
@@ -221,14 +221,14 @@ fn convoke_delve_improvise_confer_pay_pips_statics() {
     use deckmaste_core::Color;
     use deckmaste_core::PayAct;
     use deckmaste_core::PipClass;
-    use deckmaste_core::StaticEffect;
+    use deckmaste_core::StaticSpec;
 
-    fn statics(a: &Ability, out: &mut Vec<StaticEffect>) {
+    fn statics(a: &Ability, out: &mut Vec<StaticSpec>) {
         if let Ability::Static(s) = a {
             out.push(s.body.clone());
         }
     }
-    fn peel(e: &StaticEffect) -> &StaticEffect {
+    fn peel(e: &StaticSpec) -> &StaticSpec {
         e
     }
     // Expand a keyword invocation to the flat list of its `PayPips` rows.
@@ -243,7 +243,7 @@ fn convoke_delve_improvise_confer_pay_pips_statics() {
         }
         effs.iter()
             .filter_map(|e| match peel(e) {
-                StaticEffect::PayPips(class, act) => Some((*class, act.clone())),
+                StaticSpec::PayPips(class, act) => Some((*class, act.clone())),
                 _ => None,
             })
             .collect()
@@ -308,14 +308,14 @@ fn convoke_delve_improvise_confer_pay_pips_statics() {
 fn enchant_confers_spell_may_attach_and_as_enters() {
     use deckmaste_core::Ability;
     use deckmaste_core::DeonticAction;
-    use deckmaste_core::StaticEffect;
+    use deckmaste_core::StaticSpec;
 
-    fn statics(a: &Ability, out: &mut Vec<StaticEffect>) {
+    fn statics(a: &Ability, out: &mut Vec<StaticSpec>) {
         if let Ability::Static(s) = a {
             out.push(s.body.clone());
         }
     }
-    fn peel(e: &StaticEffect) -> &StaticEffect {
+    fn peel(e: &StaticSpec) -> &StaticSpec {
         e
     }
 
@@ -341,13 +341,13 @@ fn enchant_confers_spell_may_attach_and_as_enters() {
     // (2) the host-grant May(Attach) row.
     assert!(
         effs.iter().any(|e| matches!(peel(e),
-            StaticEffect::Deontic(d) if matches!(deontic_inner(d), DeonticAction::Attach { .. }))),
+            StaticSpec::Deontic(d) if matches!(deontic_inner(d), DeonticAction::Attach { .. }))),
         "Enchant confers May(Attach(... to Param(0))) ([CR#702.5a]); got {effs:?}"
     );
     // (3) the AsEnters self-replacement (enters attached).
     assert!(
         effs.iter()
-            .any(|e| matches!(peel(e), StaticEffect::Replacement(r) if is_also(r))),
+            .any(|e| matches!(peel(e), StaticSpec::Replacement(r) if is_also(r))),
         "Enchant confers AsEnters(Attach(...)) ([CR#303.4f]); got {effs:?}"
     );
 }
@@ -358,7 +358,7 @@ fn enchant_confers_spell_may_attach_and_as_enters() {
 fn fortify_confers_sorcery_speed_attach_activated() {
     use deckmaste_core::Ability;
     use deckmaste_core::Action;
-    use deckmaste_core::OneShotEffect;
+    use deckmaste_core::Instruction;
     use deckmaste_core::Timing;
     let plugin = builtin();
     let kw = read_keyword(&plugin, "Fortify([Tap])");
@@ -381,7 +381,7 @@ fn fortify_confers_sorcery_speed_attach_activated() {
     assert!(
         matches!(
             act.effect.body.as_ref(),
-            [OneShotEffect::Act {
+            [Instruction::Act {
                 action: Action::Attach { .. },
                 ..
             }]
@@ -401,7 +401,7 @@ fn fortify_confers_sorcery_speed_attach_activated() {
 fn reconfigure_confers_attach_and_unattach_activated() {
     use deckmaste_core::Ability;
     use deckmaste_core::Action;
-    use deckmaste_core::OneShotEffect;
+    use deckmaste_core::Instruction;
     use deckmaste_core::Timing;
 
     let plugin = builtin();
@@ -428,7 +428,7 @@ fn reconfigure_confers_attach_and_unattach_activated() {
         acts.iter().any(|a| !a.targets.is_empty()
             && matches!(
                 a.effect.body.as_ref(),
-                [OneShotEffect::Act {
+                [Instruction::Act {
                     action: Action::Attach { .. },
                     ..
                 }]
@@ -438,7 +438,7 @@ fn reconfigure_confers_attach_and_unattach_activated() {
     assert!(
         acts.iter().any(|a| matches!(
             a.effect.body.as_ref(),
-            [OneShotEffect::Act {
+            [Instruction::Act {
                 action: Action::Unattach(_),
                 ..
             }]
@@ -458,7 +458,7 @@ fn outlast_confers_sorcery_speed_tap_put_counter() {
     use deckmaste_core::Action;
     use deckmaste_core::Cost;
     use deckmaste_core::Count;
-    use deckmaste_core::OneShotEffect;
+    use deckmaste_core::Instruction;
     use deckmaste_core::Timing;
     use deckmaste_core::ron::options as ron_options;
 
@@ -493,10 +493,10 @@ fn outlast_confers_sorcery_speed_tap_put_counter() {
         "outlast cost is the param cost plus {{T}}, spliced flat ([CR#702.107a])"
     );
 
-    // (3) OneShotEffect puts one +1/+1 counter on THIS creature ([CR#122.1a]).
+    // (3) Instruction puts one +1/+1 counter on THIS creature ([CR#122.1a]).
     // PutCounters is agent-silent ([CR#122.1..122.6]).
     let [
-        OneShotEffect::Act {
+        Instruction::Act {
             action: Action::PutCounters(_, counter, count),
             ..
         },
@@ -515,19 +515,19 @@ fn outlast_confers_sorcery_speed_tap_put_counter() {
 /// [CR#702.131b]: **Ascend** on a permanent confers a state-checked static —
 /// modeled as the generic `Sba { when, then }` primitive (the same shape the
 /// Aura graveyard rule uses, swept generically). Proves the macro expands to a
-/// `Static` ability whose effects carry a reachable `StaticEffect::Sba`.
+/// `Static` ability whose effects carry a reachable `StaticSpec::Sba`.
 #[test]
 fn ascend_macro_expands_to_static_sba() {
     use deckmaste_core::Ability;
-    use deckmaste_core::StaticEffect;
+    use deckmaste_core::StaticSpec;
 
     // Walk every Static effect (peel Expanded) and look for an Sba row.
-    fn statics(a: &Ability, out: &mut Vec<StaticEffect>) {
+    fn statics(a: &Ability, out: &mut Vec<StaticSpec>) {
         if let Ability::Static(s) = a {
             out.push(s.body.clone());
         }
     }
-    fn peel(e: &StaticEffect) -> &StaticEffect {
+    fn peel(e: &StaticSpec) -> &StaticSpec {
         e
     }
 
@@ -545,7 +545,7 @@ fn ascend_macro_expands_to_static_sba() {
     let when = effs
         .iter()
         .find_map(|e| match peel(e) {
-            StaticEffect::Sba { when, .. } => Some(when.clone()),
+            StaticSpec::Sba { when, .. } => Some(when.clone()),
             _ => None,
         })
         .unwrap_or_else(|| {
@@ -568,7 +568,7 @@ fn ascend_macro_expands_to_static_sba() {
     let Ability::Static(canonical) = canonical.lower() else {
         panic!("canonical Ascend gate lowers as a Static ability");
     };
-    let StaticEffect::Sba {
+    let StaticSpec::Sba {
         when: canonical, ..
     } = &canonical.body
     else {
@@ -659,7 +659,7 @@ fn reinforce_confers_from_hand_discard_self_put_counters() {
     use deckmaste_core::Action;
     use deckmaste_core::Count;
     use deckmaste_core::CounterRef;
-    use deckmaste_core::OneShotEffect;
+    use deckmaste_core::Instruction;
     use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
     use deckmaste_core::TargetSpec;
@@ -695,7 +695,7 @@ fn reinforce_confers_from_hand_discard_self_put_counters() {
         .unwrap();
     assert_mana_then_discard_this(&act.cost, printed_cost);
 
-    // (3) OneShotEffect = put N +1/+1 counters on target creature
+    // (3) Instruction = put N +1/+1 counters on target creature
     // ([CR#702.77a]).
     assert_eq!(
         act.targets.len(),
@@ -713,7 +713,7 @@ fn reinforce_confers_from_hand_discard_self_put_counters() {
     // Inner effect places N (= Param(0) = 2) +1/+1 counters on the target.
     // PutCounters is agent-silent ([CR#122.1]).
     let [
-        OneShotEffect::Act {
+        Instruction::Act {
             action: Action::PutCounters(sel, counter, count),
             ..
         },
@@ -766,7 +766,7 @@ fn scavenge_confers_from_graveyard_exile_self_sorcery_counters() {
     use deckmaste_core::Cost;
     use deckmaste_core::Count;
     use deckmaste_core::CounterRef;
-    use deckmaste_core::OneShotEffect;
+    use deckmaste_core::Instruction;
     use deckmaste_core::Reference;
     use deckmaste_core::Stat;
     use deckmaste_core::TargetSpec;
@@ -816,7 +816,7 @@ fn scavenge_confers_from_graveyard_exile_self_sorcery_counters() {
         "scavenge cost is the printed cost + exile this card, spliced flat"
     );
 
-    // (4) OneShotEffect = put +1/+1 counters equal to this card's power on
+    // (4) Instruction = put +1/+1 counters equal to this card's power on
     // target creature ([CR#702.97a]). One creature target, inner
     // PutCounters reads `StatOf(This, Power)` for the magnitude.
     assert_eq!(
@@ -828,7 +828,7 @@ fn scavenge_confers_from_graveyard_exile_self_sorcery_counters() {
         panic!("expected a Target spec; got {:?}", act.targets[0]);
     };
     let [
-        OneShotEffect::Act {
+        Instruction::Act {
             action: Action::PutCounters(sel, kind, count),
             ..
         },
@@ -884,7 +884,7 @@ fn soulshift_confers_dies_may_return_spirit_from_graveyard() {
     use deckmaste_core::Count;
     use deckmaste_core::Destination;
     use deckmaste_core::EventFilter;
-    use deckmaste_core::OneShotEffect;
+    use deckmaste_core::Instruction;
     use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
     use deckmaste_core::RelationPredicate;
@@ -921,7 +921,7 @@ fn soulshift_confers_dies_may_return_spirit_from_graveyard() {
         trig.event
     );
     // The effect is a `May` ([CR#702.46a] "you may").
-    let [OneShotEffect::May(may)] = trig.effect.body.as_ref() else {
+    let [Instruction::May(may)] = trig.effect.body.as_ref() else {
         panic!("soulshift's effect is a May; got {:?}", trig.effect);
     };
     // Target declarations are hoisted onto the triggered ability's region.
@@ -973,7 +973,7 @@ fn soulshift_confers_dies_may_return_spirit_from_graveyard() {
     assert!(
         matches!(
             &*may.effect,
-            OneShotEffect::Act {
+            Instruction::Act {
                 action: Action::Move(Reference::Reg(_), Destination::Zone(Zone::Hand), _, _,),
                 ..
             }
@@ -995,7 +995,7 @@ fn afterlife_confers_dies_create_spirit_tokens_with_flying() {
     use deckmaste_core::Color;
     use deckmaste_core::Count;
     use deckmaste_core::EventFilter;
-    use deckmaste_core::OneShotEffect;
+    use deckmaste_core::Instruction;
     use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
     use deckmaste_core::StatValue;
@@ -1031,7 +1031,7 @@ fn afterlife_confers_dies_create_spirit_tokens_with_flying() {
     );
     // Create's agent is spelled ([CR#111.1]).
     let [
-        OneShotEffect::Act {
+        Instruction::Act {
             action:
                 Action::Create {
                     agent: Reference::Reg(deckmaste_core::RefId(1)),

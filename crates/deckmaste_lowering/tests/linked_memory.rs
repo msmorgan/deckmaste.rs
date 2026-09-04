@@ -91,7 +91,7 @@ fn a_cell_written_by_one_ability_becomes_a_parameter_of_the_ability_that_reads_i
         .body
         .iter()
         .filter_map(|instruction| match instruction {
-            deckmaste_core::OneShotEffect::Remember(remember) => Some(remember),
+            deckmaste_core::Instruction::Remember(remember) => Some(remember),
             _ => None,
         })
         .collect();
@@ -149,7 +149,7 @@ fn a_cell_no_ability_reads_publishes_nothing() {
         !region
             .body
             .iter()
-            .any(|instruction| matches!(instruction, deckmaste_core::OneShotEffect::Remember(_))),
+            .any(|instruction| matches!(instruction, deckmaste_core::Instruction::Remember(_))),
         "no reader, no cell — the note stays a region-local binding"
     );
 }
@@ -251,9 +251,9 @@ fn a_composite_body_granted_inside_a_region_declares_a_capture_list() {
 
 /// The abilities a granted `KeywordAbility::Composite` carries.
 fn carried_keyword_abilities(ability: &deckmaste_core::Ability) -> Vec<&deckmaste_core::Ability> {
-    fn from_static(effect: &deckmaste_core::StaticEffect) -> Vec<&deckmaste_core::Ability> {
+    fn from_static(effect: &deckmaste_core::StaticSpec) -> Vec<&deckmaste_core::Ability> {
         match effect {
-            deckmaste_core::StaticEffect::Modify(
+            deckmaste_core::StaticSpec::Modify(
                 _,
                 deckmaste_core::Modification::GainAbility(granted),
             ) => match granted.as_ref() {
@@ -268,7 +268,7 @@ fn carried_keyword_abilities(ability: &deckmaste_core::Ability) -> Vec<&deckmast
     }
     let mut out = Vec::new();
     for instruction in region_of(ability).body.iter() {
-        if let deckmaste_core::OneShotEffect::Until(_, parts) = instruction {
+        if let deckmaste_core::Instruction::Until(_, parts) = instruction {
             for part in parts.iter() {
                 out.extend(from_static(part));
             }

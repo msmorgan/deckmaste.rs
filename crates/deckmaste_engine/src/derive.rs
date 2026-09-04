@@ -13,8 +13,8 @@ use deckmaste_core::Action;
 use deckmaste_core::ColorOrColorless;
 use deckmaste_core::CostComponent;
 use deckmaste_core::Count;
+use deckmaste_core::Instruction;
 use deckmaste_core::ManaSpec;
-use deckmaste_core::OneShotEffect;
 use deckmaste_core::Uint;
 
 use crate::object::ObjectId;
@@ -414,7 +414,7 @@ pub fn tap_mana_ability(ability: &Ability) -> Option<(ColorOrColorless, Uint)> {
                 // The produced-mana effect is a bare `AddMana` in RON; the
                 // agent is irrelevant for tap-for-mana derivation.
                 [
-                    OneShotEffect::Act {
+                    Instruction::Act {
                         action:
                             Action::AddMana(
                                 _,
@@ -439,7 +439,7 @@ mod tests {
     use deckmaste_card::CardFace;
     use deckmaste_core::Ability;
     use deckmaste_core::EventFilter;
-    use deckmaste_core::OneShotEffect;
+    use deckmaste_core::Instruction;
     use deckmaste_core::Reference;
     use deckmaste_core::TriggeredAbility;
     use deckmaste_core::Zone;
@@ -487,7 +487,7 @@ mod tests {
             },
             condition: None,
             limits: vec![].into(),
-            effect: OneShotEffect::draw(
+            effect: Instruction::draw(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 deckmaste_core::Count::Literal(1),
             )
@@ -603,7 +603,7 @@ mod tests {
             },
             condition: None,
             limits: vec![].into(),
-            effect: OneShotEffect::draw(
+            effect: Instruction::draw(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 deckmaste_core::Count::Literal(1),
             )

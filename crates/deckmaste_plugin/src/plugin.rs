@@ -863,10 +863,12 @@ mod tests {
         );
         // Every authored row, including the `Destroy(This)` macro invocation,
         // has been lowered to a runnable action before it reaches core.
-        assert!(plugin.sba_rules.iter().all(|r| matches!(
-            r.region.body.then,
-            deckmaste_core::OneShotEffect::Act { .. }
-        )));
+        assert!(
+            plugin
+                .sba_rules
+                .iter()
+                .all(|r| matches!(r.region.body.then, deckmaste_core::Instruction::Act { .. }))
+        );
     }
 
     /// `builtin/rules/grant/planeswalker-loyalty.ron` confers the
@@ -951,7 +953,7 @@ mod tests {
                 name: "Land".into(),
                 permanent: true,
                 confers: vec![deckmaste_core::Property::Ability(Arc::new(
-                    deckmaste_core::Ability::r#static(deckmaste_core::StaticEffect::Deontic(
+                    deckmaste_core::Ability::r#static(deckmaste_core::StaticSpec::Deontic(
                         deckmaste_core::Deontic::May(deckmaste_core::DeonticAction::Play {
                             what: deckmaste_core::Predicate::Ref(deckmaste_core::Reference::Reg(
                                 deckmaste_core::RefId(0)
@@ -973,7 +975,7 @@ mod tests {
                 name: "Instant".into(),
                 permanent: false,
                 confers: vec![deckmaste_core::Property::Ability(Arc::new(
-                    deckmaste_core::Ability::r#static(deckmaste_core::StaticEffect::Deontic(
+                    deckmaste_core::Ability::r#static(deckmaste_core::StaticSpec::Deontic(
                         deckmaste_core::Deontic::May(deckmaste_core::DeonticAction::Cast {
                             what: deckmaste_core::Predicate::Ref(deckmaste_core::Reference::Reg(
                                 deckmaste_core::RefId(0)

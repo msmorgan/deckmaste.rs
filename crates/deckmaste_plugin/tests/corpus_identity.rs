@@ -363,7 +363,7 @@ impl CoreAbilitySubterms for deckmaste_core::KeywordAbility {
     }
 }
 
-impl CoreAbilitySubterms for deckmaste_core::StaticEffect {
+impl CoreAbilitySubterms for deckmaste_core::StaticSpec {
     fn push_abilities<'a>(&'a self, out: &mut Vec<&'a deckmaste_core::Ability>) {
         match self {
             Self::Modify(_, m) => m.push_abilities(out),
@@ -371,7 +371,7 @@ impl CoreAbilitySubterms for deckmaste_core::StaticEffect {
             Self::Conditionally(_, e) => e.push_abilities(out),
             // A copy delivery site ([CR#707.4]); mirrors the semantics side.
             Self::BecomesCopy(_, spec) => spec.push_abilities(out),
-            // No other `StaticEffect` shape carries an `Ability` — same
+            // No other `StaticSpec` shape carries an `Ability` — same
             // catch-all the semantics twin uses, for the same reason.
             _ => {}
         }
@@ -405,7 +405,7 @@ impl CoreAbilitySubterms for deckmaste_core::Modification {
     }
 }
 
-impl CoreAbilitySubterms for deckmaste_core::OneShotEffect {
+impl CoreAbilitySubterms for deckmaste_core::Instruction {
     fn push_abilities<'a>(&'a self, out: &mut Vec<&'a deckmaste_core::Ability>) {
         match self {
             Self::Act { action, .. } => action.push_abilities(out),
@@ -500,7 +500,7 @@ impl CoreAbilitySubterms for deckmaste_core::Action {
             }
             // A copy delivery site ([CR#707.12]); mirrors the semantics side.
             Self::CastCopy(_, spec) => spec.push_abilities(out),
-            // As with `StaticEffect`: dozens of variants, few ability-
+            // As with `StaticSpec`: dozens of variants, few ability-
             // bearing, and the list churns; the catch-all mirrors the
             // semantics side.
             _ => {}

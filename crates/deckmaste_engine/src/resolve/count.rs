@@ -715,8 +715,8 @@ mod tests {
     use deckmaste_core::Action;
     use deckmaste_core::Count;
     use deckmaste_core::Countable;
+    use deckmaste_core::Instruction;
     use deckmaste_core::Lookback;
-    use deckmaste_core::OneShotEffect;
     use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
     use deckmaste_core::StatePredicate;
@@ -1699,7 +1699,7 @@ mod tests {
             let frame = frame_src(&state, source);
             let before = state.zones.battlefield.len();
             state.run_effect(
-                OneShotEffect::Act(Action::Create {
+                Instruction::Act(Action::Create {
                     agent: Reference::Reg(deckmaste_core::RefId(1)),
                     count: Count::CountOf(Countable::Objects(Arc::new(
                         deckmaste_core::Region::candidate(parsed),
@@ -2561,17 +2561,17 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let frame = frame_src_targets(&state, bear, vec![bear]);
         state.run_effect(
-            OneShotEffect::Sequentially(
+            Instruction::Sequentially(
                 vec![
-                    OneShotEffect::Let(deckmaste_core::Let {
+                    Instruction::Let(deckmaste_core::Let {
                         dest: AMOUNT,
                         expr: deckmaste_core::Expr::Number(Count::Literal(3)),
                     }),
-                    OneShotEffect::Act(Action::deal_damage(
+                    Instruction::Act(Action::deal_damage(
                         Reference::Reg(TARGET),
                         Count::Reg(AMOUNT.into()),
                     )),
-                    OneShotEffect::Act(Action::ChangeLife(
+                    Instruction::Act(Action::ChangeLife(
                         Reference::controller_parameter(),
                         deckmaste_core::LifeOp::Up(Count::Reg(AMOUNT.into())),
                     )),

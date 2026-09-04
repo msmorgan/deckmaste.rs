@@ -48,8 +48,8 @@ mod tests {
         assert_matches!(
             lowered.effect.body.as_ref(),
             [
-                deckmaste_core::OneShotEffect::Let(_),
-                deckmaste_core::OneShotEffect::Act {
+                deckmaste_core::Instruction::Let(_),
+                deckmaste_core::Instruction::Act {
                     action: deckmaste_core::Action::DealDamage(
                         deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                         deckmaste_core::Count::Reg(_),
@@ -77,8 +77,8 @@ mod tests {
         assert_matches!(
             lowered.effect.body.as_ref(),
             [
-                deckmaste_core::OneShotEffect::Let(_),
-                deckmaste_core::OneShotEffect::Act {
+                deckmaste_core::Instruction::Let(_),
+                deckmaste_core::Instruction::Act {
                     action: deckmaste_core::Action::DealDamage(
                         deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                         deckmaste_core::Count::Reg(_),
@@ -130,8 +130,8 @@ mod tests {
         assert_matches!(
             lowered.effect.body.as_ref(),
             [
-                deckmaste_core::OneShotEffect::Let(_),
-                deckmaste_core::OneShotEffect::Act {
+                deckmaste_core::Instruction::Let(_),
+                deckmaste_core::Instruction::Act {
                     action: deckmaste_core::Action::DealDamage(
                         deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                         deckmaste_core::Count::Reg(_),
@@ -191,8 +191,8 @@ mod tests {
         assert_matches!(
             lowered.effect.body.as_ref(),
             [
-                deckmaste_core::OneShotEffect::Let(_),
-                deckmaste_core::OneShotEffect::Act {
+                deckmaste_core::Instruction::Let(_),
+                deckmaste_core::Instruction::Act {
                     action: deckmaste_core::Action::DealDamage(
                         deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                         deckmaste_core::Count::Reg(_),
@@ -230,20 +230,20 @@ mod tests {
         assert_matches!(
             lowered.effect.body.as_ref(),
             [
-                deckmaste_core::OneShotEffect::Act {
+                deckmaste_core::Instruction::Act {
                     action: deckmaste_core::Action::DrawCard(deckmaste_core::Reference::Reg(
                         deckmaste_core::RefId(2)
                     )),
                     ..
                 },
-                deckmaste_core::OneShotEffect::Let(_),
-                deckmaste_core::OneShotEffect::Act {
+                deckmaste_core::Instruction::Let(_),
+                deckmaste_core::Instruction::Act {
                     action: deckmaste_core::Action::DrawCard(deckmaste_core::Reference::Reg(
                         deckmaste_core::RefId(3)
                     )),
                     ..
                 },
-                deckmaste_core::OneShotEffect::Let(_)
+                deckmaste_core::Instruction::Let(_)
             ]
         );
         assert_eq!(
@@ -273,8 +273,8 @@ mod tests {
         assert_matches!(
             lowered.effect.body.as_ref(),
             [
-                deckmaste_core::OneShotEffect::Let(_),
-                deckmaste_core::OneShotEffect::Act {
+                deckmaste_core::Instruction::Let(_),
+                deckmaste_core::Instruction::Act {
                     action: deckmaste_core::Action::DealDamage(
                         deckmaste_core::Reference::Reg(deckmaste_core::RefId(2)),
                         _,
@@ -282,13 +282,13 @@ mod tests {
                     ),
                     ..
                 },
-                deckmaste_core::OneShotEffect::Act {
+                deckmaste_core::Instruction::Act {
                     action: deckmaste_core::Action::DrawCard(deckmaste_core::Reference::Reg(
                         deckmaste_core::RefId(4)
                     )),
                     ..
                 },
-                deckmaste_core::OneShotEffect::Let(_)
+                deckmaste_core::Instruction::Let(_)
             ]
         );
         assert_eq!(
@@ -315,13 +315,13 @@ mod tests {
         assert_matches!(
             targeted_mode.effect.body.as_ref(),
             [
-                deckmaste_core::OneShotEffect::Act {
+                deckmaste_core::Instruction::Act {
                     action: deckmaste_core::Action::DrawCard(deckmaste_core::Reference::Reg(
                         deckmaste_core::RefId(2)
                     )),
                     ..
                 },
-                deckmaste_core::OneShotEffect::Let(_)
+                deckmaste_core::Instruction::Let(_)
             ]
         );
 
@@ -336,7 +336,7 @@ mod tests {
             }),
         }
         .lower();
-        let [deckmaste_core::OneShotEffect::Delayed(inner)] = outer.effect.body.as_ref() else {
+        let [deckmaste_core::Instruction::Delayed(inner)] = outer.effect.body.as_ref() else {
             panic!("outer targeted spell should contain one delayed trigger")
         };
         assert!(inner.targets.is_empty());
@@ -1003,8 +1003,8 @@ fn classify_activated(
     ability: std::sync::Arc<deckmaste_core::ActivatedAbility>,
 ) -> deckmaste_core::Ability {
     use deckmaste_core::ActivatedManaProfile;
+    use deckmaste_core::Instruction;
     use deckmaste_core::ManaAbility;
-    use deckmaste_core::OneShotEffect;
     use deckmaste_core::UseLimit;
 
     let loyalty = ability.limits.contains(&UseLimit::LoyaltyOncePerTurn);
@@ -1012,7 +1012,7 @@ fn classify_activated(
         return deckmaste_core::Ability::Activated(ability);
     }
 
-    if let [OneShotEffect::Modal(modal)] = ability.effect.body.as_ref() {
+    if let [Instruction::Modal(modal)] = ability.effect.body.as_ref() {
         let classes: std::sync::Arc<[deckmaste_core::ManaModeClass]> = modal
             .modes
             .iter()
@@ -1076,33 +1076,33 @@ fn triggered_by_mana(event: &deckmaste_core::EventFilter) -> bool {
     }
 }
 
-fn effect_mana_facts(effect: &deckmaste_core::OneShotEffect) -> ManaFacts {
-    use deckmaste_core::OneShotEffect;
+fn effect_mana_facts(effect: &deckmaste_core::Instruction) -> ManaFacts {
+    use deckmaste_core::Instruction;
     match effect {
-        OneShotEffect::Act { action, .. } => effect_action_facts(action),
-        OneShotEffect::Sequentially(parts) | OneShotEffect::Simultaneously(parts) => {
+        Instruction::Act { action, .. } => effect_action_facts(action),
+        Instruction::Sequentially(parts) | Instruction::Simultaneously(parts) => {
             parts.iter().fold(ManaFacts::NEUTRAL, |facts, part| {
                 facts.merge(effect_mana_facts(part))
             })
         }
         // RevealUntil is intentionally inert at runtime; none of these nodes
         // can establish that the executable ability produces mana.
-        OneShotEffect::Choose(_)
-        | OneShotEffect::ChooseValue(_)
-        | OneShotEffect::Search(_)
-        | OneShotEffect::Let(_)
-        | OneShotEffect::Remember(_)
-        | OneShotEffect::Continuously(_)
-        | OneShotEffect::Until(_, _)
-        | OneShotEffect::Delayed(_)
-        | OneShotEffect::Reflexive(_)
-        | OneShotEffect::RevealUntil(_) => ManaFacts::NEUTRAL,
-        OneShotEffect::SeparatePiles(piles) => piles
+        Instruction::Choose(_)
+        | Instruction::ChooseValue(_)
+        | Instruction::Search(_)
+        | Instruction::Let(_)
+        | Instruction::Remember(_)
+        | Instruction::Continuously(_)
+        | Instruction::Until(_, _)
+        | Instruction::Delayed(_)
+        | Instruction::Reflexive(_)
+        | Instruction::RevealUntil(_) => ManaFacts::NEUTRAL,
+        Instruction::SeparatePiles(piles) => piles
             .then
             .as_deref()
             .map_or(ManaFacts::NEUTRAL, effect_mana_facts),
-        OneShotEffect::ChoosePile(pile) => effect_mana_facts(&pile.then),
-        OneShotEffect::May(may) => [
+        Instruction::ChoosePile(pile) => effect_mana_facts(&pile.then),
+        Instruction::May(may) => [
             Some(may.effect.as_ref()),
             may.if_did.as_deref(),
             may.if_not.as_deref(),
@@ -1112,20 +1112,18 @@ fn effect_mana_facts(effect: &deckmaste_core::OneShotEffect) -> ManaFacts {
         .fold(ManaFacts::NEUTRAL, |facts, part| {
             facts.merge(effect_mana_facts(part))
         }),
-        OneShotEffect::If(branch) => [Some(branch.then.as_ref()), branch.otherwise.as_deref()]
+        Instruction::If(branch) => [Some(branch.then.as_ref()), branch.otherwise.as_deref()]
             .into_iter()
             .flatten()
             .fold(ManaFacts::NEUTRAL, |facts, part| {
                 facts.merge(effect_mana_facts(part))
             }),
-        OneShotEffect::Each(each) => region_mana_facts(&each.body),
-        OneShotEffect::Distribute(distribute) => region_mana_facts(&distribute.body),
-        OneShotEffect::Modal(modal) => {
-            modal.modes.iter().fold(ManaFacts::NEUTRAL, |facts, mode| {
-                facts.merge(region_mana_facts(&mode.effect))
-            })
-        }
-        OneShotEffect::Repeat(_, body) | OneShotEffect::Batch(_, body) => effect_mana_facts(body),
+        Instruction::Each(each) => region_mana_facts(&each.body),
+        Instruction::Distribute(distribute) => region_mana_facts(&distribute.body),
+        Instruction::Modal(modal) => modal.modes.iter().fold(ManaFacts::NEUTRAL, |facts, mode| {
+            facts.merge(region_mana_facts(&mode.effect))
+        }),
+        Instruction::Repeat(_, body) | Instruction::Batch(_, body) => effect_mana_facts(body),
     }
 }
 

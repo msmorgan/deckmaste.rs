@@ -667,14 +667,14 @@ pub struct Act {
     /// (destroy/discard commit `on`/`from`/`to` directly) and draw (its
     /// apply late-binds the library top), and always `None` once committed
     /// (the recorded fact carries no resolution context — it never enters
-    /// `FactView`). Also carried by the [`OneShotEffect::Batch`]
+    /// `FactView`). Also carried by the [`Instruction::Batch`]
     /// aggregate window (`batch: Some(n)` below): `body` there is the
     /// stored PER-UNIT keyword action, replicated `n` times once the
     /// window passes.
     pub contents: Option<Box<ActContents>>,
     /// [CR#616.1g,121.2a]: `Some(n)` on the ONE aggregate window a
     /// `Batch(n, keyword-action)` resolve builds
-    /// ([`OneShotEffect::Batch`]), carrying the batch cardinality
+    /// ([`Instruction::Batch`]), carrying the batch cardinality
     /// so a count-multiplying replacement (Bruvac-style "mill twice
     /// as many") can read/ rewrite it via `Count::ThatMany`
     /// (`intent_magnitude`'s batch arm, [CR#107.3]) BEFORE any of
@@ -821,7 +821,7 @@ pub enum GameEvent {
 /// context.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ActContents {
-    pub body: deckmaste_core::OneShotEffect,
+    pub body: deckmaste_core::Instruction,
     pub frame: crate::stack::Frame,
 }
 

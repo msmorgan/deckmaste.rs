@@ -168,7 +168,7 @@ impl From<crate::Uint> for ManaSymbol {
 }
 
 /// A predicate over mana symbols — both the SPEND-time payment-freedom slot of
-/// `StaticEffect::SpendAsThough` ([CR#609.4b]) and the devotion/pip matcher
+/// `StaticSpec::SpendAsThough` ([CR#609.4b]) and the devotion/pip matcher
 /// under `Countable::ManaSymbols` ([CR#700.5]). Grown from the spend-time
 /// subset (`AnyColor`/`AnyType`) into the Idris `SymbolPred` matcher algebra;
 /// Rust stays a permissive superset (the spend-time spellings have no Idris
@@ -250,10 +250,10 @@ pub enum ManaRider {
     SpendOnly(crate::Predicate),
     /// An effect granted to the spell or ability the mana is spent on
     /// ("If that mana is spent on a creature spell, it gains riot").
-    GrantOnSpend(Arc<crate::OneShotEffect>),
+    GrantOnSpend(Arc<crate::Instruction>),
     /// A delayed trigger ([CR#603.7a]) firing when the mana is spent
     /// ("When that mana is spent to cast …, copy that spell").
-    TriggerOnSpend(Arc<crate::OneShotEffect>),
+    TriggerOnSpend(Arc<crate::Instruction>),
     /// Persistence override ([CR#106.4] emptying does not claim it until
     /// the marker — firebending's "you don't lose this mana",
     /// [CR#702.189a]).

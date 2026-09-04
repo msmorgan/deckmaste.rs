@@ -150,12 +150,12 @@ fn runnable_action_subjects_are_bound(action: &crate::Action) -> bool {
     }
 }
 
-fn runnable_discard_effect_is_bound(effect: &crate::OneShotEffect) -> bool {
+fn runnable_discard_effect_is_bound(effect: &crate::Instruction) -> bool {
     match effect {
-        crate::OneShotEffect::Act { action, .. } => {
+        crate::Instruction::Act { action, .. } => {
             action.is_cost_eligible() && runnable_action_subjects_are_bound(action)
         }
-        crate::OneShotEffect::Each(each) => {
+        crate::Instruction::Each(each) => {
             each.body.body.iter().all(runnable_discard_effect_is_bound)
         }
         _ => false,
@@ -397,7 +397,7 @@ pub enum CostComponent {
     /// every agent-bearing verb (`Do(Sacrifice(You, This))`, Law 2: no
     /// read-time default). `dest` names the PAID PRODUCT ([CR#400.7]) — the
     /// exiled or moved object the ability body later reads — mirroring
-    /// [`Instr::Act`](crate::Instr::Act)'s optional destination; a payment
+    /// [`Instruction::Act`](crate::Instruction::Act)'s optional destination; a payment
     /// nothing reads back leaves it `None`. [`RunnableCostAction`] retains the
     /// full action so a keyword-action composite can be a cost — "Discard a
     /// card:" lifts its chooser into a preceding
@@ -446,7 +446,7 @@ pub enum CostComponent {
     /// the same block, and the ability body, read it by register. Keeps
     /// choosing OUT of the verb: the paying action receives an already-bound
     /// reference. The same node the effect grammar uses
-    /// ([`Instr::Choose`](crate::Instr::Choose)) — a cost block is a block of
+    /// ([`Instruction::Choose`](crate::Instruction::Choose)) — a cost block is a block of
     /// instructions, not a second grammar.
     Choose(crate::Choose),
     /// A payment-time random object sample ([CR#601.2h]) writing its result to
@@ -455,10 +455,10 @@ pub enum CostComponent {
     Sample(Sample),
     /// A payment-time hidden-zone search ([CR#701.23]) writing its
     /// found group to `dest` — the search-as-cost shape, the cost twin of
-    /// [`Instr::Search`](crate::Instr::Search).
+    /// [`Instruction::Search`](crate::Instruction::Search).
     Search(crate::Search),
     /// Pin a pure read as a payment subject ([CR#608.2h]) — the cost twin of
-    /// [`Instr::Let`](crate::Instr::Let). Spells "an existing group/reference
+    /// [`Instruction::Let`](crate::Instruction::Let). Spells "an existing group/reference
     /// pays this" without a decision: the register the paying action reads.
     Let(crate::Let),
 }
@@ -667,7 +667,7 @@ impl<'de> Deserialize<'de> for CostTag {
 
 /// A declared OPTIONAL cost ([CR#118.8b] "you may pay an additional [cost] as
 /// you cast this spell") — the kicker/multikicker/buyback identity, carried by
-/// `StaticEffect::CostOption`. One `tag`, three read channels:
+/// `StaticSpec::CostOption`. One `tag`, three read channels:
 /// `Condition::PaidCost(tag)` (was it paid — kicked, [CR#702.33d]),
 /// `Count::TimesPaid(tag)` (how many times — multikicker, [CR#702.33c]), and
 /// `Predicate::WasPaidWith(tag)` (an object whose cost was paid with it,
@@ -924,7 +924,7 @@ mod tests {
 
         let spoofed_discard = crate::Action::Composite {
             name: crate::VerbName::from("Discard"),
-            body: Arc::new(crate::OneShotEffect::act(crate::Action::DealDamage(
+            body: Arc::new(crate::Instruction::act(crate::Action::DealDamage(
                 random(),
                 Count::Literal(1),
                 Reference::Reg(crate::RefId(1)),

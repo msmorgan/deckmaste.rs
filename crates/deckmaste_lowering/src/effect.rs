@@ -9,12 +9,12 @@
 
 use crate::Lower;
 
-type Instr = deckmaste_core::OneShotEffect;
+use deckmaste_core::Instruction;
 
-fn one(instructions: Vec<Instr>) -> Instr {
+fn one(instructions: Vec<Instruction>) -> Instruction {
     match instructions.as_slice() {
         [instruction] => instruction.clone(),
-        _ => Instr::Sequentially(instructions.into()),
+        _ => Instruction::Sequentially(instructions.into()),
     }
 }
 #[cfg(test)]
@@ -34,7 +34,7 @@ mod tests {
     fn lowers_one_shot_effect_sequentially() {
         assert_matches!(
             deckmaste_semantics::OneShotEffect::Sequentially([].into()).lower(),
-            deckmaste_core::OneShotEffect::Sequentially(_)
+            deckmaste_core::Instruction::Sequentially(_)
         );
     }
 
@@ -42,7 +42,7 @@ mod tests {
     fn lowers_one_shot_effect_simultaneously() {
         assert_matches!(
             deckmaste_semantics::OneShotEffect::Simultaneously([].into()).lower(),
-            deckmaste_core::OneShotEffect::Simultaneously(_)
+            deckmaste_core::Instruction::Simultaneously(_)
         );
     }
 
@@ -50,7 +50,7 @@ mod tests {
     fn lowers_one_shot_effect_continuously() {
         assert_matches!(
             deckmaste_semantics::OneShotEffect::Continuously(minimal_continuously()).lower(),
-            deckmaste_core::OneShotEffect::Continuously(deckmaste_core::Continuously {
+            deckmaste_core::Instruction::Continuously(deckmaste_core::Continuously {
                 effect: _,
                 duration: deckmaste_core::Duration::FixedUntil(
                     deckmaste_core::TurnMarker::EndOfTurn
@@ -63,7 +63,7 @@ mod tests {
     fn lowers_one_shot_effect_until() {
         assert_matches!(
             deckmaste_semantics::OneShotEffect::Until(minimal_duration(), [].into()).lower(),
-            deckmaste_core::OneShotEffect::Until(
+            deckmaste_core::Instruction::Until(
                 deckmaste_core::Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn),
                 _
             )
@@ -76,7 +76,7 @@ mod tests {
             in_spell_region(|| {
                 deckmaste_semantics::OneShotEffect::SeparatePiles(minimal_separate_piles()).lower()
             }),
-            deckmaste_core::OneShotEffect::SeparatePiles(deckmaste_core::SeparatePiles {
+            deckmaste_core::Instruction::SeparatePiles(deckmaste_core::SeparatePiles {
                 dests: _,
                 group: deckmaste_core::Selection::SelectAll(_),
                 by: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
@@ -92,7 +92,7 @@ mod tests {
                 minimal_triggered_ability()
             ))
             .lower(),
-            deckmaste_core::OneShotEffect::Delayed(_)
+            deckmaste_core::Instruction::Delayed(_)
         );
     }
 
@@ -103,7 +103,7 @@ mod tests {
                 minimal_triggered_ability()
             ))
             .lower(),
-            deckmaste_core::OneShotEffect::Reflexive(_)
+            deckmaste_core::Instruction::Reflexive(_)
         );
     }
 
@@ -111,7 +111,7 @@ mod tests {
     fn lowers_one_shot_effect_modal() {
         assert_matches!(
             deckmaste_semantics::OneShotEffect::Modal(minimal_modal()).lower(),
-            deckmaste_core::OneShotEffect::Modal(deckmaste_core::Modal {
+            deckmaste_core::Instruction::Modal(deckmaste_core::Modal {
                 choose: deckmaste_core::ChooseSpec {
                     count: deckmaste_core::Quantity::Range(None, None),
                     up_to: false,
@@ -207,7 +207,7 @@ mod tests {
             })
             .lower()
         });
-        let deckmaste_core::OneShotEffect::SeparatePiles(separate) = lowered else {
+        let deckmaste_core::Instruction::SeparatePiles(separate) = lowered else {
             panic!("expected SeparatePiles");
         };
         assert_eq!(
@@ -217,7 +217,7 @@ mod tests {
         let Some(then) = separate.then else {
             panic!("expected nested choice");
         };
-        let deckmaste_core::OneShotEffect::ChoosePile(choice) = then.as_ref() else {
+        let deckmaste_core::Instruction::ChoosePile(choice) = then.as_ref() else {
             panic!("expected ChoosePile");
         };
         assert_eq!(
@@ -294,15 +294,15 @@ mod tests {
         .lower();
 
         let [
-            deckmaste_core::OneShotEffect::Act {
+            deckmaste_core::Instruction::Act {
                 dest: Some(tally),
                 action: deckmaste_core::Action::FlipCoins(..),
             },
-            deckmaste_core::OneShotEffect::Let(deckmaste_core::Let {
+            deckmaste_core::Instruction::Let(deckmaste_core::Let {
                 expr: deckmaste_core::Expr::Number(deckmaste_core::Count::Reg(read)),
                 ..
             }),
-            deckmaste_core::OneShotEffect::Act {
+            deckmaste_core::Instruction::Act {
                 action: deckmaste_core::Action::ChangeLife(..),
                 ..
             },
@@ -330,7 +330,7 @@ mod tests {
             assert!(
                 matches!(
                     lowered.effect.body.as_ref(),
-                    [deckmaste_core::OneShotEffect::Act {
+                    [deckmaste_core::Instruction::Act {
                         dest: Some(deckmaste_core::DefId(3)),
                         ..
                     }]
@@ -352,7 +352,7 @@ mod tests {
             )
             .lower()
         });
-        let deckmaste_core::OneShotEffect::Batch(count, body) = &lowered else {
+        let deckmaste_core::Instruction::Batch(count, body) = &lowered else {
             panic!("a semantic Batch lowers to a core Batch");
         };
         assert_eq!(
@@ -372,7 +372,7 @@ mod tests {
             )
             .lower()
         });
-        let deckmaste_core::OneShotEffect::Repeat(count, body) = &lowered else {
+        let deckmaste_core::Instruction::Repeat(count, body) = &lowered else {
             panic!("a semantic Repeat lowers to a core Repeat");
         };
         assert_eq!(*count, deckmaste_core::Count::Reg(deckmaste_core::RefId(2)));
@@ -399,7 +399,7 @@ mod tests {
     fn lowers_one_shot_effect_if() {
         assert_matches!(
             in_spell_region(|| deckmaste_semantics::OneShotEffect::If(minimal_if()).lower()),
-            deckmaste_core::OneShotEffect::If(deckmaste_core::If {
+            deckmaste_core::Instruction::If(deckmaste_core::If {
                 condition: deckmaste_core::Condition::Compare(
                     deckmaste_core::Count::Reg(deckmaste_core::RefId(2)),
                     deckmaste_core::Cmp::Eq,
@@ -436,7 +436,7 @@ mod tests {
     fn lowers_one_shot_effect_may() {
         assert_matches!(
             in_spell_region(|| deckmaste_semantics::OneShotEffect::May(minimal_may()).lower()),
-            deckmaste_core::OneShotEffect::May(deckmaste_core::May {
+            deckmaste_core::Instruction::May(deckmaste_core::May {
                 who: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 effect: _,
                 if_did: None,
@@ -568,20 +568,20 @@ mod tests {
     fn lowers_with_to_a_defining_instruction_then_its_flattened_body() {
         let lowered =
             in_spell_region(|| deckmaste_semantics::OneShotEffect::With(minimal_with()).lower());
-        let deckmaste_core::OneShotEffect::Sequentially(parts) = &lowered else {
+        let deckmaste_core::Instruction::Sequentially(parts) = &lowered else {
             panic!("a binder plus its body is a sequence of instructions");
         };
         assert_matches!(
             parts.as_ref(),
             [
-                deckmaste_core::OneShotEffect::Let(deckmaste_core::Let {
+                deckmaste_core::Instruction::Let(deckmaste_core::Let {
                     dest: deckmaste_core::DefId(3),
                     expr: deckmaste_core::Expr::Object(deckmaste_core::Reference::Reg(
                         deckmaste_core::RefId(0)
                     )),
                 }),
-                deckmaste_core::OneShotEffect::Let(_),
-                deckmaste_core::OneShotEffect::Act { dest: None, .. },
+                deckmaste_core::Instruction::Let(_),
+                deckmaste_core::Instruction::Act { dest: None, .. },
             ],
             "the binder defines register 3, then the body's own instructions follow"
         );
@@ -594,12 +594,12 @@ mod tests {
     fn lowers_each_to_a_loop_region_over_the_binders_register() {
         let lowered =
             in_spell_region(|| deckmaste_semantics::OneShotEffect::Each(minimal_each()).lower());
-        let deckmaste_core::OneShotEffect::Sequentially(parts) = &lowered else {
+        let deckmaste_core::Instruction::Sequentially(parts) = &lowered else {
             panic!("a binder plus its loop is a sequence of instructions");
         };
         let [
-            deckmaste_core::OneShotEffect::Let(deckmaste_core::Let { dest, .. }),
-            deckmaste_core::OneShotEffect::Each(each),
+            deckmaste_core::Instruction::Let(deckmaste_core::Let { dest, .. }),
+            deckmaste_core::Instruction::Each(each),
         ] = parts.as_ref()
         else {
             panic!("the binder's definition precedes the loop that reads it");
@@ -628,12 +628,12 @@ mod tests {
         let lowered = in_spell_region(|| {
             deckmaste_semantics::OneShotEffect::Distribute(minimal_distribute()).lower()
         });
-        let deckmaste_core::OneShotEffect::Sequentially(parts) = &lowered else {
+        let deckmaste_core::Instruction::Sequentially(parts) = &lowered else {
             panic!("a binder plus its distribution is a sequence of instructions");
         };
         let [
-            deckmaste_core::OneShotEffect::Let(deckmaste_core::Let { dest, .. }),
-            deckmaste_core::OneShotEffect::Distribute(distribute),
+            deckmaste_core::Instruction::Let(deckmaste_core::Let { dest, .. }),
+            deckmaste_core::Instruction::Distribute(distribute),
         ] = parts.as_ref()
         else {
             panic!("the binder's definition precedes the distribution that reads it");
@@ -670,7 +670,7 @@ mod tests {
         let lowered = in_spell_region(|| {
             deckmaste_semantics::OneShotEffect::RevealUntil(minimal_reveal_until()).lower()
         });
-        let deckmaste_core::OneShotEffect::RevealUntil(reveal) = &lowered else {
+        let deckmaste_core::Instruction::RevealUntil(reveal) = &lowered else {
             panic!("a semantic RevealUntil lowers to a core RevealUntil");
         };
         assert_eq!(
@@ -700,7 +700,7 @@ mod tests {
                 minimal_choose_pile()
             )
             .lower()),
-            deckmaste_core::OneShotEffect::ChoosePile(deckmaste_core::ChoosePile {
+            deckmaste_core::Instruction::ChoosePile(deckmaste_core::ChoosePile {
                 dest: deckmaste_core::DefId(3),
                 from: _,
                 by: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
@@ -843,11 +843,11 @@ mod tests {
             .into(),
         ));
         let [
-            deckmaste_core::OneShotEffect::Act {
+            deckmaste_core::Instruction::Act {
                 dest: Some(product),
                 action: exile,
             },
-            deckmaste_core::OneShotEffect::Act {
+            deckmaste_core::Instruction::Act {
                 dest: Some(_),
                 action: ret,
             },
@@ -943,11 +943,11 @@ mod tests {
         }
         .lower();
         let [
-            deckmaste_core::OneShotEffect::Act {
+            deckmaste_core::Instruction::Act {
                 dest: Some(token),
                 action: deckmaste_core::Action::Create { .. },
             },
-            deckmaste_core::OneShotEffect::Act {
+            deckmaste_core::Instruction::Act {
                 dest: _,
                 action: deckmaste_core::Action::Sacrifice(_, sacrificed),
             },
@@ -1004,7 +1004,7 @@ mod tests {
             .body
             .iter()
             .filter_map(|instruction| match instruction {
-                deckmaste_core::OneShotEffect::Let(deckmaste_core::Let {
+                deckmaste_core::Instruction::Let(deckmaste_core::Let {
                     dest,
                     expr: deckmaste_core::Expr::Number(_),
                 }) => Some(*dest),
@@ -1111,11 +1111,11 @@ mod tests {
             ),
         }
         .lower();
-        let Some(deckmaste_core::OneShotEffect::Each(each)) = lowered
+        let Some(deckmaste_core::Instruction::Each(each)) = lowered
             .effect
             .body
             .iter()
-            .find(|instruction| matches!(instruction, deckmaste_core::OneShotEffect::Each(_)))
+            .find(|instruction| matches!(instruction, deckmaste_core::Instruction::Each(_)))
         else {
             panic!("the loop lowers to an Each, got {:?}", lowered.effect.body);
         };
@@ -1125,7 +1125,7 @@ mod tests {
             .body
             .iter()
             .filter_map(|instruction| match instruction {
-                deckmaste_core::OneShotEffect::Let(deckmaste_core::Let {
+                deckmaste_core::Instruction::Let(deckmaste_core::Let {
                     dest,
                     expr: deckmaste_core::Expr::Number(_),
                 }) => Some(*dest),
@@ -1138,7 +1138,7 @@ mod tests {
             .body
             .iter()
             .find_map(|instruction| match instruction {
-                deckmaste_core::OneShotEffect::Let(deckmaste_core::Let {
+                deckmaste_core::Instruction::Let(deckmaste_core::Let {
                     dest,
                     expr: deckmaste_core::Expr::Number(count),
                 }) if *dest == pins[1] => Some(count),
@@ -1167,7 +1167,7 @@ mod tests {
             .body
             .iter()
             .filter_map(|instruction| match instruction {
-                deckmaste_core::OneShotEffect::Let(deckmaste_core::Let {
+                deckmaste_core::Instruction::Let(deckmaste_core::Let {
                     expr: deckmaste_core::Expr::Number(count),
                     ..
                 }) => Some(count),
@@ -1187,7 +1187,9 @@ pub(crate) fn lower_block(effect: deckmaste_semantics::OneShotEffect) -> deckmas
     deckmaste_core::Block(lower_instructions(effect).into())
 }
 
-fn lower_arc(effect: std::sync::Arc<deckmaste_semantics::OneShotEffect>) -> std::sync::Arc<Instr> {
+fn lower_arc(
+    effect: std::sync::Arc<deckmaste_semantics::OneShotEffect>,
+) -> std::sync::Arc<Instruction> {
     std::sync::Arc::new(one(lower_instructions(std::sync::Arc::unwrap_or_clone(
         effect,
     ))))
@@ -1195,7 +1197,7 @@ fn lower_arc(effect: std::sync::Arc<deckmaste_semantics::OneShotEffect>) -> std:
 
 fn lower_optional_arc(
     effect: Option<std::sync::Arc<deckmaste_semantics::OneShotEffect>>,
-) -> Option<std::sync::Arc<Instr>> {
+) -> Option<std::sync::Arc<Instruction>> {
     effect.map(lower_arc)
 }
 
@@ -1219,7 +1221,7 @@ fn each_over_they(
 fn lower_existing_each(
     over: deckmaste_core::Selection,
     effect: std::sync::Arc<deckmaste_semantics::OneShotEffect>,
-) -> Instr {
+) -> Instruction {
     let (params, body) = crate::region::in_child(
         [(
             deckmaste_core::Kind::Entity,
@@ -1236,7 +1238,7 @@ fn lower_existing_each(
             lower_block(std::sync::Arc::unwrap_or_clone(effect))
         },
     );
-    Instr::Each(deckmaste_core::Each {
+    Instruction::Each(deckmaste_core::Each {
         over,
         body: deckmaste_core::Region::new(params, body),
     })
@@ -1254,7 +1256,7 @@ fn destination_sort(destination: &deckmaste_core::Destination) -> deckmaste_sema
     }
 }
 
-fn lower_action(action: deckmaste_semantics::Action) -> Vec<Instr> {
+fn lower_action(action: deckmaste_semantics::Action) -> Vec<Instruction> {
     if let deckmaste_semantics::Action::ChooseValue(who, domain, note) = action {
         let by = who.lower();
         let domain = domain.lower();
@@ -1269,13 +1271,13 @@ fn lower_action(action: deckmaste_semantics::Action) -> Vec<Instr> {
         // is a linked read, so the choice publishes a memory cell too.
         let published = crate::region::cell_write(&note, kind);
         crate::region::bind_named(note, dest.into());
-        let mut instructions = vec![Instr::ChooseValue(deckmaste_core::ChooseValue {
+        let mut instructions = vec![Instruction::ChooseValue(deckmaste_core::ChooseValue {
             dest,
             by,
             domain,
         })];
         if published {
-            instructions.push(Instr::Remember(deckmaste_core::Remember {
+            instructions.push(Instruction::Remember(deckmaste_core::Remember {
                 cell: note.lower(),
                 kind,
                 value: dest.into(),
@@ -1295,7 +1297,7 @@ fn lower_action(action: deckmaste_semantics::Action) -> Vec<Instr> {
                 Some(destination_sort(destination)),
                 crate::region::Site::Product,
             );
-            vec![Instr::producing(dest, action)]
+            vec![Instruction::producing(dest, action)]
         }
         deckmaste_core::Action::MoveGroup { to, .. } => {
             let dest = crate::region::define(deckmaste_core::Kind::Entities);
@@ -1306,7 +1308,7 @@ fn lower_action(action: deckmaste_semantics::Action) -> Vec<Instr> {
                 Some(destination_sort(to)),
                 crate::region::Site::Product,
             );
-            vec![Instr::producing(dest, action)]
+            vec![Instruction::producing(dest, action)]
         }
         deckmaste_core::Action::Create { .. } => {
             let dest = crate::region::define(deckmaste_core::Kind::Entities);
@@ -1317,7 +1319,7 @@ fn lower_action(action: deckmaste_semantics::Action) -> Vec<Instr> {
                 Some(deckmaste_semantics::Sort::Token),
                 crate::region::Site::Product,
             );
-            vec![Instr::producing(dest, action)]
+            vec![Instruction::producing(dest, action)]
         }
         deckmaste_core::Action::DrawCard(_) => {
             let dest = crate::region::define(deckmaste_core::Kind::Entity);
@@ -1337,8 +1339,8 @@ fn lower_action(action: deckmaste_semantics::Action) -> Vec<Instr> {
                 crate::region::Site::Product,
             );
             vec![
-                Instr::producing(dest, action),
-                Instr::Let(deckmaste_core::Let {
+                Instruction::producing(dest, action),
+                Instruction::Let(deckmaste_core::Let {
                     dest: amount,
                     expr: deckmaste_core::Expr::Number(deckmaste_core::Count::Literal(1)),
                 }),
@@ -1354,11 +1356,11 @@ fn lower_action(action: deckmaste_semantics::Action) -> Vec<Instr> {
                 crate::region::Site::Product,
             );
             vec![
-                Instr::Let(deckmaste_core::Let {
+                Instruction::Let(deckmaste_core::Let {
                     dest,
                     expr: deckmaste_core::Expr::Number(amount.clone()),
                 }),
-                Instr::act(deckmaste_core::Action::DealDamage(
+                Instruction::act(deckmaste_core::Action::DealDamage(
                     source.clone(),
                     deckmaste_core::Count::Reg(dest.into()),
                     target.clone(),
@@ -1370,7 +1372,7 @@ fn lower_action(action: deckmaste_semantics::Action) -> Vec<Instr> {
             let (amount, rebuild): (_, fn(deckmaste_core::Count) -> LifeOp) = match op {
                 LifeOp::Up(amount) => (amount, LifeOp::Up),
                 LifeOp::Down(amount) => (amount, LifeOp::Down),
-                LifeOp::Set(_) => return vec![Instr::act(action)],
+                LifeOp::Set(_) => return vec![Instruction::act(action)],
             };
             let dest = crate::region::define(deckmaste_core::Kind::Number);
             crate::region::push_antecedent(
@@ -1381,11 +1383,11 @@ fn lower_action(action: deckmaste_semantics::Action) -> Vec<Instr> {
                 crate::region::Site::Product,
             );
             vec![
-                Instr::Let(deckmaste_core::Let {
+                Instruction::Let(deckmaste_core::Let {
                     dest,
                     expr: deckmaste_core::Expr::Number(amount.clone()),
                 }),
-                Instr::act(deckmaste_core::Action::ChangeLife(
+                Instruction::act(deckmaste_core::Action::ChangeLife(
                     patient.clone(),
                     rebuild(deckmaste_core::Count::Reg(dest.into())),
                 )),
@@ -1400,9 +1402,9 @@ fn lower_action(action: deckmaste_semantics::Action) -> Vec<Instr> {
                 Some(deckmaste_semantics::Sort::Amount),
                 crate::region::Site::Product,
             );
-            vec![Instr::producing(dest, action)]
+            vec![Instruction::producing(dest, action)]
         }
-        _ => vec![Instr::act(action)],
+        _ => vec![Instruction::act(action)],
     }
 }
 
@@ -1461,14 +1463,14 @@ fn predicate_sort(predicate: &deckmaste_semantics::Predicate) -> Option<deckmast
     }
 }
 
-pub(crate) fn lower_binder(binder: deckmaste_semantics::Binder) -> (Vec<Instr>, BoundValue) {
+pub(crate) fn lower_binder(binder: deckmaste_semantics::Binder) -> (Vec<Instruction>, BoundValue) {
     use deckmaste_semantics::Binder;
     match binder {
         Binder::TheRef(reference) => {
             let reference = reference.lower();
             let dest = crate::region::define(deckmaste_core::Kind::Entity);
             (
-                vec![Instr::Let(deckmaste_core::Let {
+                vec![Instruction::Let(deckmaste_core::Let {
                     dest,
                     expr: deckmaste_core::Expr::Object(reference),
                 })],
@@ -1486,7 +1488,7 @@ pub(crate) fn lower_binder(binder: deckmaste_semantics::Binder) -> (Vec<Instr>, 
             let filter = std::sync::Arc::new(crate::region::predicate_region(|| filter.lower()));
             let dest = crate::region::define(deckmaste_core::Kind::Entities);
             (
-                vec![Instr::Choose(deckmaste_core::Choose {
+                vec![Instruction::Choose(deckmaste_core::Choose {
                     dest,
                     by,
                     quantity: deckmaste_core::Quantity::one(),
@@ -1510,7 +1512,7 @@ pub(crate) fn lower_binder(binder: deckmaste_semantics::Binder) -> (Vec<Instr>, 
             let filter = std::sync::Arc::new(crate::region::predicate_region(|| filter.lower()));
             let dest = crate::region::define(deckmaste_core::Kind::Entities);
             (
-                vec![Instr::Choose(deckmaste_core::Choose {
+                vec![Instruction::Choose(deckmaste_core::Choose {
                     dest,
                     by,
                     quantity,
@@ -1528,7 +1530,7 @@ pub(crate) fn lower_binder(binder: deckmaste_semantics::Binder) -> (Vec<Instr>, 
             let selection = selection.lower();
             let dest = crate::region::define(deckmaste_core::Kind::Entities);
             (
-                vec![Instr::Let(deckmaste_core::Let {
+                vec![Instruction::Let(deckmaste_core::Let {
                     dest,
                     expr: deckmaste_core::Expr::Objects(selection),
                 })],
@@ -1566,7 +1568,7 @@ pub(crate) fn lower_binder(binder: deckmaste_semantics::Binder) -> (Vec<Instr>, 
             };
             let dest = crate::region::define(kind);
             (
-                vec![Instr::producing(dest, action)],
+                vec![Instruction::producing(dest, action)],
                 BoundValue {
                     reference: dest.into(),
                     kind,
@@ -1615,7 +1617,7 @@ fn lower_search(
     quantity: deckmaste_core::Quantity,
     filter: deckmaste_semantics::Predicate,
     if_none: Option<std::sync::Arc<deckmaste_semantics::OneShotEffect>>,
-) -> (Vec<Instr>, BoundValue) {
+) -> (Vec<Instruction>, BoundValue) {
     let by = by.lower();
     let whose = whose.lower();
     let from = from.lower();
@@ -1627,7 +1629,7 @@ fn lower_search(
     });
     let dest = crate::region::define(deckmaste_core::Kind::Entities);
     (
-        vec![Instr::Search(deckmaste_core::Search {
+        vec![Instruction::Search(deckmaste_core::Search {
             dest,
             by,
             whose,
@@ -1649,12 +1651,12 @@ fn lower_search(
     clippy::too_many_lines,
     reason = "the exhaustive semantic-to-core instruction dispatch is clearer as one match"
 )]
-fn lower_instructions(effect: deckmaste_semantics::OneShotEffect) -> Vec<Instr> {
+fn lower_instructions(effect: deckmaste_semantics::OneShotEffect) -> Vec<Instruction> {
     use deckmaste_semantics::OneShotEffect as S;
     match effect {
         S::Act(action) => lower_action(action),
         S::Sequentially(parts) => parts.iter().cloned().flat_map(lower_instructions).collect(),
-        S::Simultaneously(parts) => vec![Instr::Simultaneously(
+        S::Simultaneously(parts) => vec![Instruction::Simultaneously(
             parts
                 .iter()
                 .map(|part| {
@@ -1665,8 +1667,8 @@ fn lower_instructions(effect: deckmaste_semantics::OneShotEffect) -> Vec<Instr> 
                 .collect::<Vec<_>>()
                 .into(),
         )],
-        S::Continuously(value) => vec![Instr::Continuously(value.lower())],
-        S::Until(duration, effects) => vec![Instr::Until(duration.lower(), effects.lower())],
+        S::Continuously(value) => vec![Instruction::Continuously(value.lower())],
+        S::Until(duration, effects) => vec![Instruction::Until(duration.lower(), effects.lower())],
         S::Label(label) => {
             let instructions = lower_instructions(std::sync::Arc::unwrap_or_clone(label.effect));
             if let Some(reference) = crate::region::newest_antecedent() {
@@ -1683,7 +1685,7 @@ fn lower_instructions(effect: deckmaste_semantics::OneShotEffect) -> Vec<Instr> 
                 lower_instructions(std::sync::Arc::unwrap_or_clone(noting.effect));
             if let Some((reference, kind)) = crate::region::newest_antecedent_typed() {
                 if crate::region::cell_write(&noting.key, kind) {
-                    instructions.push(Instr::Remember(deckmaste_core::Remember {
+                    instructions.push(Instruction::Remember(deckmaste_core::Remember {
                         cell: noting.key.lower(),
                         kind,
                         value: reference,
@@ -1755,7 +1757,7 @@ fn lower_instructions(effect: deckmaste_semantics::OneShotEffect) -> Vec<Instr> 
                     lower_block(std::sync::Arc::unwrap_or_clone(each.effect))
                 },
             );
-            setup.push(Instr::Each(deckmaste_core::Each {
+            setup.push(Instruction::Each(deckmaste_core::Each {
                 over,
                 body: deckmaste_core::Region::new(params, body),
             }));
@@ -1794,7 +1796,7 @@ fn lower_instructions(effect: deckmaste_semantics::OneShotEffect) -> Vec<Instr> 
                         lower_block(std::sync::Arc::unwrap_or_clone(distribute.body))
                     },
                 );
-                return vec![Instr::Distribute(deckmaste_core::Distribute {
+                return vec![Instruction::Distribute(deckmaste_core::Distribute {
                     amount,
                     over,
                     body: deckmaste_core::Region::new(params, body),
@@ -1831,7 +1833,7 @@ fn lower_instructions(effect: deckmaste_semantics::OneShotEffect) -> Vec<Instr> 
                     lower_block(std::sync::Arc::unwrap_or_clone(distribute.body))
                 },
             );
-            setup.push(Instr::Distribute(deckmaste_core::Distribute {
+            setup.push(Instruction::Distribute(deckmaste_core::Distribute {
                 amount,
                 over,
                 body: deckmaste_core::Region::new(params, body),
@@ -1861,7 +1863,7 @@ fn lower_instructions(effect: deckmaste_semantics::OneShotEffect) -> Vec<Instr> 
             let (params, body) = crate::region::in_child([], || {
                 lower_block(std::sync::Arc::unwrap_or_clone(reveal.body))
             });
-            vec![Instr::RevealUntil(deckmaste_core::RevealUntil {
+            vec![Instruction::RevealUntil(deckmaste_core::RevealUntil {
                 found,
                 passed,
                 whose,
@@ -1869,19 +1871,19 @@ fn lower_instructions(effect: deckmaste_semantics::OneShotEffect) -> Vec<Instr> 
                 body: deckmaste_core::Region::new(params, body),
             })]
         }
-        S::SeparatePiles(value) => vec![Instr::SeparatePiles(value.lower())],
-        S::ChoosePile(value) => vec![Instr::ChoosePile(value.lower())],
-        S::May(value) => vec![Instr::May(value.lower())],
-        S::If(value) => vec![Instr::If(value.lower())],
-        S::Delayed(value) => vec![Instr::Delayed(value.lower())],
-        S::Reflexive(value) => vec![Instr::Reflexive(value.lower())],
-        S::Modal(value) => vec![Instr::Modal(value.lower())],
+        S::SeparatePiles(value) => vec![Instruction::SeparatePiles(value.lower())],
+        S::ChoosePile(value) => vec![Instruction::ChoosePile(value.lower())],
+        S::May(value) => vec![Instruction::May(value.lower())],
+        S::If(value) => vec![Instruction::If(value.lower())],
+        S::Delayed(value) => vec![Instruction::Delayed(value.lower())],
+        S::Reflexive(value) => vec![Instruction::Reflexive(value.lower())],
+        S::Modal(value) => vec![Instruction::Modal(value.lower())],
         S::Targeted(value) => lower_instructions(std::sync::Arc::unwrap_or_clone(value.effect)),
-        S::Repeat(count, body) => vec![Instr::Repeat(
+        S::Repeat(count, body) => vec![Instruction::Repeat(
             count.lower(),
             crate::region::scoped_antecedents(|| lower_arc(body)),
         )],
-        S::Batch(count, body) => vec![Instr::Batch(
+        S::Batch(count, body) => vec![Instruction::Batch(
             count.lower(),
             crate::region::scoped_antecedents(|| lower_arc(body)),
         )],
@@ -1890,7 +1892,7 @@ fn lower_instructions(effect: deckmaste_semantics::OneShotEffect) -> Vec<Instr> 
 }
 
 impl Lower for deckmaste_semantics::OneShotEffect {
-    type Target = deckmaste_core::OneShotEffect;
+    type Target = deckmaste_core::Instruction;
     fn lower(self) -> <Self as Lower>::Target {
         one(lower_instructions(self))
     }
@@ -1907,7 +1909,7 @@ impl Lower for deckmaste_semantics::Continuously {
 }
 
 impl Lower for deckmaste_semantics::Targeted {
-    type Target = deckmaste_core::OneShotEffect;
+    type Target = deckmaste_core::Instruction;
     fn lower(self) -> <Self as Lower>::Target {
         std::sync::Arc::unwrap_or_clone(self.effect).lower()
     }

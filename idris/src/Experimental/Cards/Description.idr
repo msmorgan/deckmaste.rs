@@ -6,42 +6,42 @@ import Experimental.Macros
 %default total
 
 
-glyphOfDestruction : Effect []
+glyphOfDestruction : Instruction []
 glyphOfDestruction =
   Macros.gets (Macros.target (And [Blocking, Macros.creature, HasPossessor ControllerAx You])) (PtUp (Lit 10)) (PtUp (Lit 0)) (Just Macros.untilEndOfCombat)
 
 rawNonattacking : Predicate [] Object
 rawNonattacking = And [Macros.creature, Not Attacking, Not Blocking]
 
-harmonyOfNature : Effect []
+harmonyOfNature : Instruction []
 harmonyOfNature =
   Sequentially [ Macros.tap (Macros.counted Macros.anyNumber
                               (And [Macros.untapped, Macros.creature, HasPossessor ControllerAx You]))
                , ForEachOf (Macros.TheVerbed "Tap" (TypeW Creature) ThisWay ManyOf)
                            (Macros.gainsLife You (Lit 4)) ]
 
-ratsOfRath : Effect []
+ratsOfRath : Instruction []
 ratsOfRath = Macros.destroy (Macros.target (And [Or [Macros.artifact, Macros.creature, Macros.land], HasPossessor ControllerAx You]))
 
 anotherDisjunctPhrase : Predicate [MkBinding TargetD Object OneOf
                                              (ObjectP Nothing (Just Battlefield) Nothing Nothing Nothing)] Object
 anotherDisjunctPhrase = And [Or [Macros.creature, Macros.land], Other]
 
-defeat : Effect []
+defeat : Instruction []
 defeat = Macros.destroy (Macros.target (And [Macros.creature, Compare [CharAxis Power] AtMost (Lit 2)]))
 
-terashisVerdict : Effect []
+terashisVerdict : Instruction []
 terashisVerdict =
   Macros.destroy (Macros.target (And [Macros.creature, Attacking, Compare [CharAxis Power] AtMost (Lit 3)]))
 
-pillarOfLight : Effect []
+pillarOfLight : Instruction []
 pillarOfLight =
   Macros.exile You (Macros.target (And [Macros.creature, Compare [CharAxis Toughness] AtLeast (Lit 4)]))
 
 clavilenoPhrase : Predicate [] Object
 clavilenoPhrase = And [Macros.creature, Attacking, Not (HasSubtype (creatureType "Demon"))]
 
-unholyAnnex : Effect []
+unholyAnnex : Instruction []
 unholyAnnex =
   Sequentially [(Draw You (Lit 1)),
                 If (Macros.exists (And [HasSubtype (creatureType "Demon"), HasPossessor ControllerAx You]))
@@ -49,26 +49,26 @@ unholyAnnex =
                                   Macros.gainsLife You (Lit 2)])
                    (Just (Macros.losesLife You (Lit 2)))]
 
-warScreecher : Effect []
+warScreecher : Instruction []
 warScreecher =
   Macros.gets (Macros.allOf (Macros.otherCreatureYouControl Macros.thisCreature)) (PtUp (Lit 1)) (PtUp (Lit 1)) (Just Macros.untilEndOfTurn)
 
-mindFlayer : Effect []
+mindFlayer : Instruction []
 mindFlayer =
   Macros.gainControl You (Macros.target Macros.creature) (Just (ForAsLongAs (Matches Macros.thisCreature (HasPossessor ControllerAx You))))
 
-arcLightning : Effect []
+arcLightning : Instruction []
 arcLightning = Macros.dealsDivided This (Lit 3) (Described (TargetDet (Macros.oneThrough 3)) Macros.anyTarget)
 
-boulderfall : Effect []
+boulderfall : Instruction []
 boulderfall = Macros.dealsDivided This (Lit 5) (Described (TargetDet Macros.anyNumber) Macros.anyTarget)
 
-banisherPriest : Effect []
+banisherPriest : Instruction []
 banisherPriest = Macros.exileUntil (Macros.target (And [Macros.creature, HasPossessor ControllerAx Macros.anOpponent]))
                             (Macros.leavesBattlefield Macros.thisCreature)
 
 ||| Tezzeret, Artifice Master
-tezzeretDrawTwo : Effect []
+tezzeretDrawTwo : Instruction []
 tezzeretDrawTwo =
   InsteadOf (Draw You (Lit 1))
             (If (CompareAmt (Macros.countOf (And [Macros.artifact, HasPossessor ControllerAx You]))
@@ -77,7 +77,7 @@ tezzeretDrawTwo =
                 Nothing)
 
 ||| Zimone, Quandrix Prodigy
-zimoneDrawTwo : Effect []
+zimoneDrawTwo : Instruction []
 zimoneDrawTwo =
   InsteadOf (Draw You (Lit 1))
             (If (CompareAmt (Macros.countOf (And [Macros.land, HasPossessor ControllerAx You]))
@@ -112,7 +112,7 @@ timelyReinforcements =
                        Nothing ]) ]
        Nothing
 
-survivalCache : Effect []
+survivalCache : Instruction []
 survivalCache =
   Sequentially [ Macros.gainsLife You (Lit 2)
                , If (CompareAmt (PlayerStatOf LifeTotal You) Greater
@@ -157,7 +157,7 @@ warTaxScaledPayment =
 
 ||| Croaking Counterpart
 public export
-croakingCounterpartCopy : Effect []
+croakingCounterpartCopy : Instruction []
 croakingCounterpartCopy =
   Create You (Lit 1)
     (TokenCopyOf (Macros.target (And [ Macros.creature
@@ -224,7 +224,7 @@ witchsVengeance =
        Nothing
 
 public export
-storiedEnduringStory : Effect []
+storiedEnduringStory : Instruction []
 storiedEnduringStory =
   If (AndCond
         [ CompareAmt (Macros.countOf (And [Permanent,
@@ -304,7 +304,7 @@ loyaltyAbilityOfEnchanted =
 
 ||| Balance of Power
 public export
-balanceOfPower : Effect []
+balanceOfPower : Instruction []
 balanceOfPower =
   If (CompareAmt (Macros.countOf (InZone (Macros.handOf (Macros.target Opponent))))
                  Greater
@@ -314,7 +314,7 @@ balanceOfPower =
 
 ||| Spark Fiend
 public export
-sparkFiendUpkeepRoll : Effect []
+sparkFiendUpkeepRoll : Instruction []
 sparkFiendUpkeepRoll =
   Sequentially [(Macros.rollDice You 2 6),
                 Macros.ifThen (CompareAmt (TheOutcome RollResult) Eq (Lit 7))
@@ -327,7 +327,7 @@ devotionCondition = CompareAmt (Devotion You (LitColor Black) Nothing) Less (Lit
 
 ||| Multiple Choice
 public export
-multipleChoiceFirstArm : Effect []
+multipleChoiceFirstArm : Instruction []
 multipleChoiceFirstArm =
   If (CompareAmt (LetterVal X) Eq (Lit 1))
      (Sequentially [ Macros.scry You (Lit 1)
@@ -341,7 +341,7 @@ multipleChoiceFourthGate = CompareAmt (LetterVal X) AtLeast (Lit 4)
 
 ||| Fell the Mighty
 public export
-fellTheMighty : Effect []
+fellTheMighty : Instruction []
 fellTheMighty =
   Macros.destroy
     (Macros.allOf (And [Macros.creature,
@@ -406,7 +406,7 @@ roguesGallery =
 public export
 bioplasmAfterExile : Bindings
 bioplasmAfterExile =
-  effIntro {bs = eventAfter {bs = []} (Attacks Macros.thisCreature NoDefender)}
+  instrIntro {bs = eventAfter {bs = []} (Attacks Macros.thisCreature NoDefender)}
            (Macros.exile You (Macros.topSlice (Lit 1)))
 
 public export
@@ -425,7 +425,7 @@ deepglowSkateRecipientRefused = Refl
 
 ||| Weftwalking
 public export
-weftwalkingShuffle : Effect []
+weftwalkingShuffle : Instruction []
 weftwalkingShuffle =
   Sequentially
     [ Macros.shuffleInto You (Both (Macros.allOf (InZone (Macros.handOf You)))
@@ -538,37 +538,37 @@ disarm =
                               , AttachedTo (Macros.target Macros.creature) ]))) ]
        Nothing
 
-rawExile : Effect []
+rawExile : Instruction []
 rawExile = Macros.exile You (Macros.target Macros.creature)
 
-disenchant : Effect []
+disenchant : Instruction []
 disenchant = Macros.destroy (Macros.target (Or [Macros.artifact, Macros.enchantment]))
 
-icyManipulator : Effect []
+icyManipulator : Instruction []
 icyManipulator = SetStatus Tapped (Macros.target (Or [Macros.artifact, Macros.creature, Macros.land]))
 
-divination : Effect []
+divination : Instruction []
 divination = (Draw You (Lit 2))
 
-ancestralRecall : Effect []
+ancestralRecall : Instruction []
 ancestralRecall = Draw (Macros.target AnyPlayer) (Lit 3)
 
-lifeTotalBecomesOne : Effect []
+lifeTotalBecomesOne : Instruction []
 lifeTotalBecomesOne = Macros.lifeTotalBecomes (Macros.target AnyPlayer) (Lit 1)
 
 ||| Berserker's Frenzy's roll
 public export
-berserkersFrenzyRoll : Effect []
+berserkersFrenzyRoll : Instruction []
 berserkersFrenzyRoll =
   Sequentially [(Macros.rollDice You 2 20), IgnoreOutcomes (IgnoreExtreme LowestRoll)]
 
 public export
-ironMastiffIgnore : Effect []
+ironMastiffIgnore : Instruction []
 ironMastiffIgnore =
   Sequentially [(Macros.rollDice You 1 20), IgnoreOutcomes (IgnoreAllBut HighestRoll)]
 
 public export
-xenosquirrelsShift : Effect []
+xenosquirrelsShift : Instruction []
 xenosquirrelsShift =
   Sequentially [(Macros.rollDice You 1 6), Macros.shiftResult (Lit 1)]
 
@@ -578,7 +578,7 @@ playersTopCardIsPlural = Refl
 
 ||| Aetheric Amplifier
 public export
-doubleYourOwnCounters : Effect []
+doubleYourOwnCounters : Instruction []
 doubleYourOwnCounters = DoubleCounters You
 
 public export

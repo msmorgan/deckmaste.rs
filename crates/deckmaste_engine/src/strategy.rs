@@ -947,9 +947,9 @@ mod tests {
         use deckmaste_core::Ability;
         use deckmaste_core::CharacteristicPredicate;
         use deckmaste_core::ChooseSpec;
+        use deckmaste_core::Instruction;
         use deckmaste_core::Modal;
         use deckmaste_core::Mode;
-        use deckmaste_core::OneShotEffect;
         use deckmaste_core::SpellAbility;
 
         let impossible_target = TargetSpec::Target(
@@ -966,7 +966,7 @@ mod tests {
                 ability_word: None,
                 cost: deckmaste_core::Cost::default(),
                 targets: [].into(),
-                effect: OneShotEffect::Modal(Modal {
+                effect: Instruction::Modal(Modal {
                     choose: ChooseSpec {
                         count: Quantity::one(),
                         up_to: false,
@@ -977,12 +977,12 @@ mod tests {
                     modes: vec![
                         Mode {
                             targets: vec![impossible_target].into(),
-                            effect: OneShotEffect::Sequentially(Arc::from([])).into(),
+                            effect: Instruction::Sequentially(Arc::from([])).into(),
                             cost: deckmaste_core::Cost::default(),
                         },
                         Mode {
                             targets: [].into(),
-                            effect: OneShotEffect::Sequentially(Arc::from([])).into(),
+                            effect: Instruction::Sequentially(Arc::from([])).into(),
                             cost: deckmaste_core::Cost::default(),
                         },
                     ]

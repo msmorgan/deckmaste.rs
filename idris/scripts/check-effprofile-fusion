@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare the fused effProfile against the per-constructor tables it replaced.
+"""Compare the fused instrProfile against the per-constructor tables it replaced.
 
 usage: check-effprofile-fusion BEFORE AFTER
 """
@@ -144,12 +144,12 @@ def main():
     if len(sys.argv) != 3:
         raise SystemExit(__doc__)
     before, after = sys.argv[1:]
-    fused = [split(c, "effProfile") for c in clauses(after, "effProfile")]
+    fused = [split(c, "instrProfile") for c in clauses(after, "instrProfile")]
     checked = 0
     for field, name in FIELDS:
         old = [split(c, name) for c in clauses(before, name)]
         proj = [split(c, name) for c in clauses(after, name)]
-        if proj != [("e", f"{field} (effProfile e)")]:
+        if proj != [("e", f"{field} (instrProfile e)")]:
             raise SystemExit(f"{name} is not a lone projection of {field}: {proj}")
         reached = set()
         for pat, rhs in fused:
@@ -176,16 +176,16 @@ def main():
         if missing:
             raise SystemExit(f"{name}: old clauses never reached: {missing}")
         print(f"{name}: {len(old)} old clauses -> {field} of {len(fused)} fused clauses")
-    print(f"effProfile: {checked} projection values checked, all equal")
+    print(f"instrProfile: {checked} projection values checked, all equal")
 
 
 def value(rhs, field):
-    """the field-th argument of a sameIntro / MkEffProfile right-hand side"""
+    """the field-th argument of a sameIntro / MkInstrProfile right-hand side"""
     head, args = toks(f"({rhs})")
     if head == "sameIntro":
         args = [args[0], args[0]] + args[1:]
-    elif head != "MkEffProfile":
-        raise SystemExit(f"unexpected effProfile body: {rhs}")
+    elif head != "MkInstrProfile":
+        raise SystemExit(f"unexpected instrProfile body: {rhs}")
     idx = [f for f, _ in FIELDS].index(field)
     a = args[idx]
     return a[1:-1].strip() if a.startswith("(") and a.endswith(")") else a

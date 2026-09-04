@@ -2,7 +2,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::Condition;
-use crate::OneShotEffect;
+use crate::Instruction;
 use crate::Predicate;
 use crate::Region;
 
@@ -24,7 +24,7 @@ pub struct SbaRule {
 pub struct SbaBody {
     pub scope: Predicate,
     pub when: Condition,
-    pub then: OneShotEffect,
+    pub then: Instruction,
 }
 
 #[cfg(test)]
@@ -32,7 +32,7 @@ mod tests {
     use super::*;
     use crate::CharacteristicPredicate;
     use crate::Condition;
-    use crate::OneShotEffect;
+    use crate::Instruction;
     use crate::Predicate;
     use crate::Type;
 
@@ -45,7 +45,7 @@ mod tests {
                     Type::Creature.into(),
                 )),
                 when: Condition::YourTurn,
-                then: OneShotEffect::Sequentially(vec![].into()),
+                then: Instruction::Sequentially(vec![].into()),
             }),
         };
         assert!(matches!(
@@ -55,7 +55,7 @@ mod tests {
         assert!(matches!(rule.region.body.when, Condition::YourTurn));
         assert!(matches!(
             rule.region.body.then,
-            OneShotEffect::Sequentially(_)
+            Instruction::Sequentially(_)
         ));
     }
 }

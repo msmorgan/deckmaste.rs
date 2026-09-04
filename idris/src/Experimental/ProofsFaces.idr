@@ -103,30 +103,30 @@ turnedFaceDownHeader =
 
 ||| "Target creature doesn't untap during its controller's next untap step."
 public export
-okDoesntUntapNextOnBattlefield : Effect []
+okDoesntUntapNextOnBattlefield : Instruction []
 okDoesntUntapNextOnBattlefield =
   DoesntUntapNext (Macros.target Macros.creature) (Lit 1)
 
 public export
-badUntapNextGraveyard : Unspellable (Effect []) (\ok =>
+badUntapNextGraveyard : Unspellable (Instruction []) (\ok =>
   DoesntUntapNext (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) (Lit 1) {ok = ok})
 badUntapNextGraveyard Oh impossible
 
 ||| "Turn target creature face down."
 public export
-okTurnFaceDownOnBattlefield : Effect []
+okTurnFaceDownOnBattlefield : Instruction []
 okTurnFaceDownOnBattlefield =
   SetStatus FaceDown (Macros.target Macros.creature)
 
 ||| "Turn target creature card in your graveyard face down."
 public export
-badTurnFaceDownGraveyard : Unspellable (Effect []) (\ok =>
+badTurnFaceDownGraveyard : Unspellable (Instruction []) (\ok =>
   SetStatus FaceDown (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {ok = ok})
 badTurnFaceDownGraveyard Oh impossible
 
 ||| "Target creature card in your hand phases out."
 public export
-badPhasesOutInHand : Unspellable (Effect []) (\ok =>
+badPhasesOutInHand : Unspellable (Instruction []) (\ok =>
   SetStatus PhasedOut (Macros.target (And [Macros.creature, InZone (Macros.handOf You)])) {ok = ok})
 badPhasesOutInHand Oh impossible
 
@@ -203,13 +203,13 @@ badFortifiedCreatureNoun Oh impossible
 
 ||| "Target creature gains flash."
 public export
-badBattlefieldFlash : Unspellable (StaticEffect []) (\ok =>
+badBattlefieldFlash : Unspellable (StaticSpec []) (\ok =>
   Gains (Macros.target Macros.creature) (KeywordAbility "Flash" Nothing Nothing) {ok})
 badBattlefieldFlash Oh impossible
 
 ||| "Target spell gains indestructible."
 public export
-badSpellIndestructible : Unspellable (StaticEffect []) (\ok =>
+badSpellIndestructible : Unspellable (StaticSpec []) (\ok =>
   Gains (Macros.target Macros.spell) (KeywordAbility "Indestructible" Nothing Nothing) {ok})
 badSpellIndestructible Oh impossible
 
@@ -238,12 +238,12 @@ badPlaneswalkerAttacks Oh impossible
 
 ||| "you pay {2}"
 public export
-okPayMana : Effect []
+okPayMana : Instruction []
 okPayMana = Pay You (Mana [Macros.generic 2]) PaidOnce
 
 ||| "you pay [+1]"
 public export
-badPayLoyalty : Unspellable (Effect []) (\ok =>
+badPayLoyalty : Unspellable (Instruction []) (\ok =>
   Pay You (LoyaltySymbol (LoyaltyUp 1)) PaidOnce {pb = ok})
 badPayLoyalty Oh impossible
 
@@ -257,14 +257,14 @@ badLoyaltySorcery MkFaceLaws impossible
 
 ||| "a token that's a copy of target creature, except it's an artifact"
 public export
-okCopyTypeException : Effect []
+okCopyTypeException : Instruction []
 okCopyTypeException =
   Create You (Lit 1)
          (TokenCopyOf (Macros.target Macros.creature)
                       [ExceptTypes (MkTypeLine [] [Artifact])]) []
 
 public export
-badEmptyCopyTypeException : Unspellable (Effect []) (\ok =>
+badEmptyCopyTypeException : Unspellable (Instruction []) (\ok =>
   Create You (Lit 1)
          (TokenCopyOf (Macros.target Macros.creature)
                       [ExceptTypes (MkTypeLine [] []) {ne = ok}]) [])
@@ -272,20 +272,20 @@ badEmptyCopyTypeException Oh impossible
 
 ||| "Copy target instant or sorcery spell."
 public export
-okCopyStackSpell : Effect []
+okCopyStackSpell : Instruction []
 okCopyStackSpell =
   Copy FromStack You
        (Macros.target (And [Macros.instantOrSorcery, Macros.spell])) (Lit 1) []
 
 ||| "Copy target creature."
 public export
-badCopyPermanent : Unspellable (Effect []) (\ok =>
+badCopyPermanent : Unspellable (Instruction []) (\ok =>
   Copy FromStack You (Macros.target Macros.creature) (Lit 1) [] {cp = ok})
 badCopyPermanent StackSpell impossible
 
 ||| "Create a token that's a copy of target creature. Untap that token."
 public export
-okSetStatusOnBattlefield : Effect []
+okSetStatusOnBattlefield : Instruction []
 okSetStatusOnBattlefield =
   Sequentially [Create You (Lit 1)
                        (TokenCopyOf (Macros.target Macros.creature) []) [],
@@ -293,7 +293,7 @@ okSetStatusOnBattlefield =
 
 ||| "Copy target instant or sorcery spell. Untap that token."
 public export
-badStackCopyAsToken : Unspellable (Effect []) (\ok =>
+badStackCopyAsToken : Unspellable (Instruction []) (\ok =>
   Sequentially [Copy FromStack You (Macros.target (And [Macros.instantOrSorcery, Macros.spell]))
                           (Lit 1) [],
                 SetStatus Untapped (Macros.That TokenW OneOf {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
@@ -301,7 +301,7 @@ badStackCopyAsToken (Refl, _) impossible
 
 ||| "Create a token that's a copy of target creature. Untap that copy."
 public export
-badTokenCopyAsCopyMention : Unspellable (Effect []) (\ok =>
+badTokenCopyAsCopyMention : Unspellable (Instruction []) (\ok =>
   Sequentially [Create You (Lit 1) (TokenCopyOf (Macros.target Macros.creature) []) [],
                 SetStatus Untapped (Macros.That CopyW OneOf {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badTokenCopyAsCopyMention (Refl, _) impossible
@@ -329,20 +329,20 @@ badChapterOnNonSaga MkFaceLaws impossible
 
 ||| "You may sacrifice a Mountain rather than pay this spell's mana cost."
 public export
-okAltCostSacrifice : StaticEffect []
+okAltCostSacrifice : StaticSpec []
 okAltCostSacrifice =
   AltCost This (Just (Do (Macros.sacrifice You
                  (Macros.a (And [Macros.land, HasSubtype (landType "Mountain")])))))
 
 ||| "You may {T} rather than pay this spell's mana cost."
 public export
-badAltCostTapSymbol : Unspellable (StaticEffect []) (\ok =>
+badAltCostTapSymbol : Unspellable (StaticSpec []) (\ok =>
   AltCost This (Just TapSymbol) {ap = ok})
 badAltCostTapSymbol (Present {ok = Oh}) impossible
 
 ||| "You may [+1] rather than pay this spell's mana cost."
 public export
-badAltCostLoyaltySymbol : Unspellable (StaticEffect []) (\ok =>
+badAltCostLoyaltySymbol : Unspellable (StaticSpec []) (\ok =>
   AltCost This (Just (LoyaltySymbol (LoyaltyUp 1))) {ap = ok})
 badAltCostLoyaltySymbol (Present {ok = Oh}) impossible
 
@@ -450,7 +450,7 @@ badFlashbackOnPermanentCard MkFaceLaws impossible
 
 ||| "for each attacking creature you control. You gain that much life."
 public export
-okThatMuchAfterQuantity : Effect []
+okThatMuchAfterQuantity : Instruction []
 okThatMuchAfterQuantity =
   Sequentially [ Macros.losesLife (Macros.target Opponent)
                    (Macros.forEach 1 (And [Attacking, Macros.creature,
@@ -459,31 +459,31 @@ okThatMuchAfterQuantity =
 
 ||| "Flip a coin. Draw that many cards."
 public export
-badThatMuchAfterFlip : Unspellable (Effect []) (\ok =>
+badThatMuchAfterFlip : Unspellable (Instruction []) (\ok =>
   Sequentially [(Macros.flipCoins You 1), Draw You (ThatMuch {ok})])
 badThatMuchAfterFlip Refl impossible
 
 ||| "Flip a coin. If you win the flip, draw a card."
 public export
-okFlipArmAfterFlip : Effect []
+okFlipArmAfterFlip : Instruction []
 okFlipArmAfterFlip =
   Sequentially [ (Macros.flipCoins You 1)
                , If (FlipCalled You WinsFlip) (Draw You (Lit 1)) Nothing ]
 
 ||| "If you win the flip, draw a card."
 public export
-badFlipArmWithoutFlip : Unspellable (Effect []) (\ok =>
+badFlipArmWithoutFlip : Unspellable (Instruction []) (\ok =>
   If (FlipCalled You WinsFlip {fl = ok}) (Draw You (Lit 1)) Nothing)
 badFlipArmWithoutFlip Oh impossible
 
 ||| "Roll a d6."
 public export
-okSixSidedDie : Effect []
+okSixSidedDie : Instruction []
 okSixSidedDie = RollDice You (Lit 1) (SidesOf 6)
 
 ||| "Roll a d0."
 public export
-badNoughtSidedDie : Unspellable (Effect []) (\ok =>
+badNoughtSidedDie : Unspellable (Instruction []) (\ok =>
   RollDice You (Lit 1) (SidesOf 0 {nz = ok}))
 badNoughtSidedDie ItIsSucc impossible
 
@@ -601,32 +601,32 @@ badPluralDevotion Refl impossible
 
 ||| "Flip a coin. Take an extra turn for each coin that comes up heads."
 public export
-okCoinsShowingAfterFlip : Effect []
+okCoinsShowingAfterFlip : Instruction []
 okCoinsShowingAfterFlip =
   Sequentially [ (Macros.flipCoins You 1)
                , ExtraTurn You (CoinsShowing Heads) ]
 
 ||| "Take an extra turn for each coin that comes up heads."
 public export
-badCoinsShowingWithoutFlip : Unspellable (Effect []) (\ok =>
+badCoinsShowingWithoutFlip : Unspellable (Instruction []) (\ok =>
   ExtraTurn You (CoinsShowing Heads {fl = ok}))
 badCoinsShowingWithoutFlip Oh impossible
 
 ||| "Transform target creature."
 public export
-okTurnOverOnField : Effect []
+okTurnOverOnField : Instruction []
 okTurnOverOnField = TurnOver (Macros.target Macros.creature)
 
 ||| "Transform target creature card in your graveyard."
 public export
-badTurnOverOffField : Unspellable (Effect []) (\ok =>
+badTurnOverOffField : Unspellable (Instruction []) (\ok =>
   TurnOver (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)]))
            {ok})
 badTurnOverOffField Oh impossible
 
 ||| "unlock a locked door of a Room you control"
 public export
-okUnlockRoomDoor : Effect []
+okUnlockRoomDoor : Instruction []
 okUnlockRoomDoor =
   Unlock (DoorOf (Just Locked)
             (Described (TargetDet (Macros.upTo 1))
@@ -635,7 +635,7 @@ okUnlockRoomDoor =
 
 ||| "unlock this door"
 public export
-badUnlockThisDoor : Unspellable (Effect []) (\ok =>
+badUnlockThisDoor : Unspellable (Instruction []) (\ok =>
   Unlock ThisDoor {nh = ok})
 badUnlockThisDoor Oh impossible
 
@@ -651,14 +651,14 @@ badDoorHeaderOffSharedLine MkFaceLaws impossible
 
 ||| "unlock a locked door of a Room card in your graveyard"
 public export
-badUnlockDoorOffBattlefield : Unspellable (Effect []) (\ok =>
+badUnlockDoorOffBattlefield : Unspellable (Instruction []) (\ok =>
   Unlock (DoorOf (Just Locked)
             (Macros.a (And [HasSubtype (enchantmentType "Room"),
                             InZone Macros.graveyardZ])) {zn = ok}))
 badUnlockDoorOffBattlefield Oh impossible
 
 public export
-badDoorOfBareThis : Unspellable (Effect []) (\ok =>
+badDoorOfBareThis : Unspellable (Instruction []) (\ok =>
   Unlock (DoorOf (Just Locked) This {zn = ok}))
 badDoorOfBareThis Oh impossible
 
@@ -678,7 +678,7 @@ delayedDoorTraversal :
 delayedDoorTraversal = Refl
 
 public export
-distributiveGroupSurvives : Effect []
+distributiveGroupSurvives : Instruction []
 distributiveGroupSurvives =
   Sequentially
     [ Enact (Just (Macros.each Opponent)) "Shuffle" (Shuffle They)
@@ -729,13 +729,13 @@ modalCostReadbacks =
 
 ||| "It doesn't untap during its controller's next untap step."
 public export
-okUntapNextSingleIt : Effect []
+okUntapNextSingleIt : Instruction []
 okUntapNextSingleIt =
   Sequentially [SetStatus Tapped (Macros.target Macros.creature),
                 DoesntUntapNext (Macros.It OneOf) (Lit 1)]
 
 public export
-badUntapNextAmbiguousIt : Unspellable (Effect []) (\ok =>
+badUntapNextAmbiguousIt : Unspellable (Instruction []) (\ok =>
   Sequentially [SetStatus Tapped (Macros.target Macros.creature),
                 SetStatus Tapped (Macros.target Macros.artifact),
                 DoesntUntapNext ((Macros.It OneOf) {ok = ok}) (Lit 1)])
@@ -762,7 +762,7 @@ badRepeatedChapterMark Oh impossible
 
 ||| "Roll a d20. 1—9 | Draw a card."
 public export
-okResultsTableAfterRoll : Effect []
+okResultsTableAfterRoll : Instruction []
 okResultsTableAfterRoll =
   Sequentially [ (Macros.rollDice You 1 20)
                , ResultsTable [MkRollRow (Macros.fromTo 1 9)
@@ -770,6 +770,6 @@ okResultsTableAfterRoll =
 
 ||| "1—9 | Draw a card."
 public export
-badTableWithoutRoll : Unspellable (Effect []) (\ok =>
+badTableWithoutRoll : Unspellable (Instruction []) (\ok =>
   ResultsTable [Macros.rollRow (Macros.fromTo 1 9) (Draw You (Lit 1))] {ok})
 badTableWithoutRoll Refl impossible

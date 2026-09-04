@@ -10,24 +10,30 @@ use crate::Mode;
 use crate::ability::TriggeredAbility;
 use crate::action::Action;
 use crate::continuous::Duration;
-use crate::continuous::StaticEffect;
+use crate::continuous::StaticSpec;
 use crate::reference::Reference;
 
-/// An effect an ability produces ([CR#608]). Core RON keeps the `Act` wrapper
-/// explicit around an [`Action`] (`effect: Act(DealDamage(This, 3, It))`). The
-/// structural forms (`Sequentially`, `May`, `If`, …) are the corpus's
-/// connective tissue interpreted by the engine. Semantic lowering preserves
-/// these forms and wraps authored action shorthand in `Act`.
+/// Executable semantic syntax — the work a resolving spell or ability is told
+/// to perform ([CR#608]). An `Instruction` is NOT an effect: "text itself is
+/// never an effect" ([CR#609.1]). Executing one is what produces the one-shot
+/// effects ([CR#610.1]) and, through
+/// [`Continuously`](Instruction::Continuously)/[`Until`](Instruction::Until),
+/// the continuous effects ([CR#611.2]) the game records. Core RON keeps the
+/// `Act` wrapper explicit around an [`Action`]
+/// (`effect: Act(DealDamage(This, 3, It))`). The structural forms
+/// (`Sequentially`, `May`, `If`, …) are the corpus's connective tissue
+/// interpreted by the engine. Semantic lowering preserves these forms and
+/// wraps authored action shorthand in `Act`.
 // No `large_enum_variant` suppression: the top variants cluster within clippy's
 // threshold (`Distribute` ~568 B, `Act`/`Each` ~488 B, `SeparatePiles`
 // ~416 B — a spread under 200 B), so the lint does not fire. `Act(Action)` is
 // kept inline deliberately: `Action` is a big *balanced* leaf enum (no single fat
-// field to box), and `OneShotEffect` is the hot, recursively-matched node of the
+// field to box), and `Instruction` is the hot, recursively-matched node of the
 // effect grammar — boxing `Act` would inject a deref into every match on the
 // `resolve` hot path for no lint gain. The recursive sub-effect fields are
 // already boxed (`May.effect`, …).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
-pub enum Instr {
+pub enum Instruction {
     /// A single intrinsic instruction (the `Act` compartment, transparent in
     /// RON).
     Act {
@@ -56,7 +62,7 @@ pub enum Instr {
     /// two abilities printed on one object).
     Remember(Remember),
     /// Explicit "then" — ordered sub-effects ([CR#608.2c]).
-    Sequentially(Arc<[OneShotEffect]>),
+    Sequentially(Arc<[Instruction]>),
     /// Simultaneously sub-effects — the written spec. **One snapshot:** every
     /// member reads game state as of one pre-application view (an exchange
     /// works BECAUSE both halves read the pre-state). **One timestamp, one
@@ -72,7 +78,7 @@ pub enum Instr {
     /// `Simultaneously` sugar — it stays a primitive verb
     /// ([CR#701.14a..701.14d]). Restricted to the exchange-family macros'
     /// bodies until the wiring generalizes.
-    Simultaneously(Arc<[OneShotEffect]>),
+    Simultaneously(Arc<[Instruction]>),
     /// A one-shot-created continuous effect ([CR#611.2]).
     Continuously(Continuously),
     /// A one-shot-created continuous effect over a LIST of static parts —
@@ -83,7 +89,7 @@ pub enum Instr {
     /// follows each part's kind.
     /// (`Continuously` is the single-part spelling; `Static` ability
     /// position stays live re-gathering, [CR#611.3a].)
-    Until(Duration, Arc<[StaticEffect]>),
+    Until(Duration, Arc<[StaticSpec]>),
     /// `SeparatePiles { dests, group, by, then }` — `by` separates `group`
     /// into the pile registers in `dests` ([CR#700.3a]; piles may be empty).
     SeparatePiles(SeparatePiles),
@@ -126,28 +132,28 @@ pub enum Instr {
     /// "[body], [count] times": resolution follows the general
     /// spell/ability resolution walk ([CR#608.2]) — there is no dedicated CR
     /// rule defining a "do N times" quantifier; this is engine-side
-    /// shorthand, sibling to [`Each`](OneShotEffect::Each)/
-    /// [`Distribute`](OneShotEffect::Distribute) rather than the
+    /// shorthand, sibling to [`Each`](Instruction::Each)/
+    /// [`Distribute`](Instruction::Distribute) rather than the
     /// manner-adverb family
-    /// ([`Simultaneously`](OneShotEffect::Simultaneously)/
-    /// [`Continuously`](OneShotEffect::Continuously)): a `Count` over ONE
+    /// ([`Simultaneously`](Instruction::Simultaneously)/
+    /// [`Continuously`](Instruction::Continuously)): a `Count` over ONE
     /// body, not a manner over a list. `body` elaborates in the SAME
     /// context every iteration — no iteration-index binder; Storm/Replicate
     /// per-iteration semantics are engine-side. `body` is boxed to break
-    /// the `OneShotEffect` → `Repeat` → `OneShotEffect` size cycle. Mirrors
-    /// the Idris `Repeat : (count : Count b) -> OneShotEffect
-    /// b -> OneShotEffect b`.
-    Repeat(Count, Arc<OneShotEffect>),
+    /// the `Instruction` → `Repeat` → `Instruction` size cycle. Mirrors
+    /// the Idris `Repeat : (count : Count b) -> Instruction
+    /// b -> Instruction b`.
+    Repeat(Count, Arc<Instruction>),
     /// `Repeat`'s BATCHING twin ([CR#616.1g]): performs `body` `count` times
     /// as ONE aggregate containing event — the count tier where "twice that
     /// many" replacements bite ([CR#121.2a,616.1g]) and aggregate triggers
     /// read. THIS shape is the shell only: it currently resolves purely
-    /// sequentially, identically to [`Repeat`](OneShotEffect::Repeat) — a
+    /// sequentially, identically to [`Repeat`](Instruction::Repeat) — a
     /// later pass rebuilds it into the true aggregate-count tier. Boxed for
-    /// the same `OneShotEffect` → `Batch` → `OneShotEffect` size-cycle
+    /// the same `Instruction` → `Batch` → `Instruction` size-cycle
     /// reason as `Repeat`. Mirrors the Idris `Batch : (count : Count b) ->
-    /// OneShotEffect b -> OneShotEffect b`.
-    Batch(Count, Arc<OneShotEffect>),
+    /// Instruction b -> Instruction b`.
+    Batch(Count, Arc<Instruction>),
     /// The variable-length DIG-UNTIL ([CR#702.85] cascade, [CR#701.57]
     /// discover): `whose` reveals cards off the top of their library one at a
     /// time until one matches `matches`; `body` then runs with the found card
@@ -155,15 +161,15 @@ pub enum Instr {
     /// Idris `bindFound` binding. Reveal-nothing (no match in the
     /// library) degrades at runtime, never a compile-time gate. Mirrors the
     /// Idris `RevealUntil : (whose : Reference b APlayer) -> (match :
-    /// Predicate b AnObject) -> OneShotEffect (bindFound match b) ->
-    /// OneShotEffect b`.
+    /// Predicate b AnObject) -> Instruction (bindFound match b) ->
+    /// Instruction b`.
     RevealUntil(RevealUntil),
 }
 
-impl Instr {
+impl Instruction {
     /// Construct a destination-less intrinsic instruction.
     ///
-    /// This preserves the compact `OneShotEffect::Act(action)` Rust spelling
+    /// This preserves the compact `Instruction::Act(action)` Rust spelling
     /// while the core data model and serialized form use `Act { dest, action
     /// }`.
     #[allow(
@@ -176,24 +182,24 @@ impl Instr {
     }
 
     /// "`who` mills `count`" ([CR#701.17a]) — a slice-family keyword action:
-    /// [`Batch`](OneShotEffect::Batch) over the per-unit [`Action::mill_one`],
+    /// [`Batch`](Instruction::Batch) over the per-unit [`Action::mill_one`],
     /// so a count-doubling replacement (Bruvac, [CR#121.2a,616.1g]) bites the
     /// ONE aggregate window and the whole top slice commits as ONE simultaneous
     /// batch of per-card, individually-redirectable moves. The
     /// [`Mill`](../plugins)/`Mills` macros expand to this.
     #[must_use]
-    pub fn mill(who: crate::Reference, count: Count) -> OneShotEffect {
-        OneShotEffect::Batch(count, Arc::new(OneShotEffect::act(Action::mill_one(who))))
+    pub fn mill(who: crate::Reference, count: Count) -> Instruction {
+        Instruction::Batch(count, Arc::new(Instruction::act(Action::mill_one(who))))
     }
 
     /// "`who` draws `count`" ([CR#121.1]) — a slice-family keyword action:
-    /// [`Batch`](OneShotEffect::Batch) over the per-unit [`Action::draw_one`],
+    /// [`Batch`](Instruction::Batch) over the per-unit [`Action::draw_one`],
     /// `count` SEQUENTIAL single-card draws ([CR#121.2], each seeing prior
     /// state and empty-checking BEFORE its move). The `Draw`/`Draws` macros
     /// expand to this.
     #[must_use]
-    pub fn draw(who: crate::Reference, count: Count) -> OneShotEffect {
-        OneShotEffect::Batch(count, Arc::new(OneShotEffect::act(Action::draw_one(who))))
+    pub fn draw(who: crate::Reference, count: Count) -> Instruction {
+        Instruction::Batch(count, Arc::new(Instruction::act(Action::draw_one(who))))
     }
 
     #[must_use]
@@ -210,17 +216,12 @@ impl Instr {
     }
 }
 
-/// Transitional source-compatible name for the pre-region instruction enum.
-/// New core code should say [`Instr`]; the alias keeps downstream crates
-/// compiling while their public fixtures migrate to region terminology.
-pub type OneShotEffect = Instr;
-
 /// `Continuously { effect, duration }` ([CR#611.2]). `effect` is boxed to break
-/// the `OneShotEffect` → `StaticEffect` → `Replacement` → `OneShotEffect` size
+/// the `Instruction` → `StaticSpec` → `Replacement` → `Instruction` size
 /// cycle.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct Continuously {
-    pub effect: Arc<StaticEffect>,
+    pub effect: Arc<StaticSpec>,
     pub duration: Duration,
 }
 
@@ -238,11 +239,11 @@ pub struct Continuously {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct May {
     pub who: Reference,
-    pub effect: Arc<OneShotEffect>,
+    pub effect: Arc<Instruction>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub if_did: Option<Arc<OneShotEffect>>,
+    pub if_did: Option<Arc<Instruction>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub if_not: Option<Arc<OneShotEffect>>,
+    pub if_not: Option<Arc<Instruction>>,
 }
 
 /// `If { condition, then, else }` — `else` is a keyword, so the field is
@@ -250,9 +251,9 @@ pub struct May {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct If {
     pub condition: Condition,
-    pub then: Arc<OneShotEffect>,
+    pub then: Arc<Instruction>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub otherwise: Option<Arc<OneShotEffect>>,
+    pub otherwise: Option<Arc<Instruction>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
@@ -288,7 +289,7 @@ pub struct Let {
     pub expr: crate::Expr,
 }
 
-/// `Remember { cell, kind, value }` — see [`OneShotEffect::Remember`]
+/// `Remember { cell, kind, value }` — see [`Instruction::Remember`]
 /// ([CR#607.1]). Writes the register `value` into the card's memory cell
 /// `cell`; a reading ability on the same card declares that cell as a
 /// [`Provenance::Linked`](crate::Provenance::Linked) parameter of its own
@@ -319,7 +320,7 @@ pub struct Distribute {
 }
 
 /// `RevealUntil { whose, matches, body }` — see
-/// [`OneShotEffect::RevealUntil`]. `whose`'s library is revealed from the top
+/// [`Instruction::RevealUntil`]. `whose`'s library is revealed from the top
 /// one card at a time until one satisfies `matches`; `body` receives the
 /// found card and passed-over prefix through explicit parameters.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
@@ -339,7 +340,7 @@ pub struct Modal {
 }
 
 /// `SeparatePiles { dests, group, by, then }` — see
-/// [`OneShotEffect::SeparatePiles`]. Each destination is one pile register;
+/// [`Instruction::SeparatePiles`]. Each destination is one pile register;
 /// labels exist only in the authored semantics and are erased by lowering.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct SeparatePiles {
@@ -347,11 +348,11 @@ pub struct SeparatePiles {
     pub group: crate::Selection,
     pub by: Reference,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub then: Option<Arc<OneShotEffect>>,
+    pub then: Option<Arc<Instruction>>,
 }
 
 /// `ChoosePile { dest, from, by, random, then }` — see
-/// [`OneShotEffect::ChoosePile`]. `from` contains only pile-register reads;
+/// [`Instruction::ChoosePile`]. `from` contains only pile-register reads;
 /// the chosen pile is written to `dest`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct ChoosePile {
@@ -361,5 +362,5 @@ pub struct ChoosePile {
     pub by: Reference,
     #[serde(default, skip_serializing_if = "core::ops::Not::not")]
     pub random: bool,
-    pub then: Arc<OneShotEffect>,
+    pub then: Arc<Instruction>,
 }

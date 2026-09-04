@@ -22,18 +22,18 @@ pyromancy = Macros.activated (Compound [Mana [Macros.generic 3],
                                   (StatOf ManaValue (Macros.TheVerbed "Discard" CardW Attributive OneOf))
                                   (Macros.target Macros.anyTarget))
 
-luckyOffering : Effect []
+luckyOffering : Instruction []
 luckyOffering =
   Sequentially [Macros.destroy (Macros.target (And [Macros.artifact,
                                       Compare [CharAxis ManaValue] AtMost (Lit 3)])),
                 Macros.gainsLife You (Lit 3)]
 
-overload : Effect []
+overload : Instruction []
 overload = OnlyIf (Macros.destroy (Macros.target Macros.artifact))
                   (CompareAmt (StatOf ManaValue ((Macros.It OneOf))) AtMost (Lit 2))
                   Nothing
 
-austereCommand : Effect []
+austereCommand : Instruction []
 austereCommand =
   Macros.chooseModes (Macros.exactly 2) [Macros.destroy (Macros.allOf Macros.artifact),
              Macros.destroy (Macros.allOf Macros.enchantment),
@@ -403,7 +403,7 @@ elementalResonance =
        Nothing
 
 ||| Steelswarm Operator
-steelswarmOperatorMana : Effect []
+steelswarmOperatorMana : Instruction []
 steelswarmOperatorMana =
   AddMana You (Lit 2) (Runs [[OfColor Blue, OfColor Blue]])
           [SpendOnly [ToActivate (Just (And [Macros.source, Macros.artifact]))]]
@@ -854,7 +854,7 @@ nahiriLoyaltyRead =
 
 ||| Caustic Bronco
 public export
-causticBroncoLoss : Effect []
+causticBroncoLoss : Instruction []
 causticBroncoLoss =
   Sequentially [ Macros.revealCards (Macros.topSlice (Lit 1))
                , Macros.move (Macros.That CardW OneOf) Macros.handZ
@@ -1180,7 +1180,7 @@ shelteredValley =
 
 ||| Soul Shatter
 public export
-soulShatter : Effect []
+soulShatter : Instruction []
 soulShatter =
   Macros.sacrifice (Macros.each Opponent)
     (Macros.a (And [Or [Macros.creature, HasType Planeswalker],
@@ -1288,7 +1288,7 @@ animalAttendant =
 
 ||| Thran Turbine
 public export
-thranTurbineMana : Effect []
+thranTurbineMana : Instruction []
 thranTurbineMana =
   AddMana You (Lit 1) (Runs [[Colorless, Colorless]])
           [SpendNotOn [ToCast Macros.spell]]
@@ -1307,7 +1307,7 @@ suChiCaveGuardDies =
 
 ||| Omnath, Locus of Mana
 public export
-omnathLocusOfManaPersistence : StaticEffect []
+omnathLocusOfManaPersistence : StaticSpec []
 omnathLocusOfManaPersistence =
   KeepsUnspentMana You (UnspentMana (Just (OfColor Green)))
 

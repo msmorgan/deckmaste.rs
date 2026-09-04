@@ -6,10 +6,10 @@ import Experimental.Macros
 %default total
 
 
-cyberConversion : Effect []
+cyberConversion : Instruction []
 cyberConversion = SetStatus FaceDown (Macros.target Macros.creature)
 
-breakOpen : Effect []
+breakOpen : Instruction []
 breakOpen = SetStatus FaceUp (Macros.target (And [Macros.creature, Macros.faceDown,
                                                HasPossessor ControllerAx Macros.anOpponent]))
 
@@ -75,14 +75,14 @@ yedoraGraveGardener =
 
 ||| Ral Zarek, Guest Lecturer's ultimate
 public export
-ralZarekGuestLecturerUltimate : Effect []
+ralZarekGuestLecturerUltimate : Instruction []
 ralZarekGuestLecturerUltimate =
   Sequentially [ FlipCoins You (FlipCount (Lit 5))
                , SkipsNext (Macros.target Opponent) Turn (LetterVal X)
                , Define X (CoinsShowing Heads) ]
 
 public export
-faceDownFlyingCounter : StaticEffect []
+faceDownFlyingCounter : StaticSpec []
 faceDownFlyingCounter =
   Macros.entersWithCounters (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You,
                                   Macros.faceDown]))
@@ -124,14 +124,14 @@ karplusanMinotaurWinFlip =
 
 ||| Ral Zarek's ultimate
 public export
-ralZarekUltimate : Effect []
+ralZarekUltimate : Instruction []
 ralZarekUltimate =
   Sequentially [(Macros.flipCoins You 5),
                 ExtraTurn You (CoinsShowing Heads)]
 
 ||| Krark's Thumb
 public export
-krarksThumbExtraFlip : Effect []
+krarksThumbExtraFlip : Instruction []
 krarksThumbExtraFlip =
   Macros.ifWouldInstead (Macros.flipsCoin You)
     (Sequentially [ (Macros.flipCoins You 2)
@@ -140,7 +140,7 @@ krarksThumbExtraFlip =
 
 ||| Goblin Assassin
 public export
-goblinAssassinCoinTails : Effect []
+goblinAssassinCoinTails : Instruction []
 goblinAssassinCoinTails =
   Sequentially [ FlipCoins (Macros.each AnyPlayer) (FlipCount (Lit 1))
                , Macros.sacrifice (Macros.each (And [AnyPlayer, CoinCameUp Tails]))
@@ -148,7 +148,7 @@ goblinAssassinCoinTails =
 
 ||| Rakdos, the Showstopper
 public export
-rakdosShowstopperFlips : Effect []
+rakdosShowstopperFlips : Instruction []
 rakdosShowstopperFlips =
   Sequentially
     [ (FlipCoins You (FlipPer (Macros.each (And [ Macros.creature
@@ -159,7 +159,7 @@ rakdosShowstopperFlips =
 
 ||| Warp Vortex
 public export
-warpVortexFlips : Effect []
+warpVortexFlips : Instruction []
 warpVortexFlips = (FlipCoins You (FlipPer (Macros.each Opponent)))
 
 merfolkSecretkeeper : Card
@@ -227,7 +227,7 @@ garrukRelentlessFlip =
 
 ||| Mana Clash
 public export
-manaClashFlip : Effect []
+manaClashFlip : Instruction []
 manaClashFlip =
   FlipCoins (EachOf (Both You (Macros.target Opponent))) (FlipCount (Lit 1))
 
@@ -325,7 +325,7 @@ kitsuneMystic =
 ||| Vesuvan Shapeshifter
 public export
 vesuvanShapeshifterCopySpan :
-  Effect [MkBinding AD Object OneOf
+  Instruction [MkBinding AD Object OneOf
             (ObjectP (Just Creature) (Just Battlefield) Nothing Nothing Nothing)]
 vesuvanShapeshifterCopySpan =
   Continuously {ts = StaticFirstDone}
@@ -489,7 +489,7 @@ midnightScavengers =
     Faces.chitteringHostOnScavengers
 
 public export
-meldThemInto : Effect []
+meldThemInto : Instruction []
 meldThemInto =
   Sequentially
     [ Macros.exile You (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You]))

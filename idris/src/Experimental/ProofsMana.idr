@@ -84,20 +84,20 @@ badSameColorHybrid Oh impossible
 
 ||| "Sacrifice a creature. If you don't, exile it."
 public export
-badIfNotReadsMandatoryBody : Unspellable (Effect []) (\ok =>
+badIfNotReadsMandatoryBody : Unspellable (Instruction []) (\ok =>
   (IfDone (Macros.sacrifice You (Macros.a Macros.creature)) Nothing (Just (Macros.exile You ((Macros.It OneOf) {ok})))))
 badIfNotReadsMandatoryBody Refl impossible
 
 ||| "Counter target spell unless its controller pays {3}."
 public export
-okUnlessManaCost : Effect []
+okUnlessManaCost : Instruction []
 okUnlessManaCost =
   Unless (CounterSpell (Macros.target Macros.spell))
          (Macros.controllerOf (Macros.It OneOf)) (Mana [Macros.generic 3])
 
 ||| "Counter target spell unless its controller taps."
 public export
-badUnlessTapSymbol : Unspellable (Effect []) (\ok =>
+badUnlessTapSymbol : Unspellable (Instruction []) (\ok =>
   Unless (CounterSpell (Macros.target Macros.spell)) (Macros.controllerOf ((Macros.It OneOf))) TapSymbol {pb = ok})
 badUnlessTapSymbol Oh impossible
 
@@ -147,30 +147,30 @@ badUnknownKeywordLabel Oh impossible
 
 ||| "Add {R}."
 public export
-okSingleProduction : Effect []
+okSingleProduction : Instruction []
 okSingleProduction = AddMana You (Lit 1) (Runs [[OfColor Red]]) []
 
 ||| "Add."
 public export
-badEmptyProduction : Unspellable (Effect []) (\ok =>
+badEmptyProduction : Unspellable (Instruction []) (\ok =>
   AddMana You (Lit 1) (Runs [] {ok}) [])
 badEmptyProduction Oh impossible
 
 ||| "Add {R} or ."
 public export
-badEmptyAlternative : Unspellable (Effect []) (\ok =>
+badEmptyAlternative : Unspellable (Instruction []) (\ok =>
   AddMana You (Lit 1) (Runs [[OfColor Red], []] {ok}) [])
 badEmptyAlternative Oh impossible
 
 ||| "Add {C}. Spend this mana only to activate abilities."
 public export
-okSpendPurpose : Effect []
+okSpendPurpose : Instruction []
 okSpendPurpose =
   AddMana You (Lit 1) (Runs [[Colorless]]) [SpendOnly [ToActivate Nothing]]
 
 ||| "Add {C}. Spend this mana only."
 public export
-badPurposelessSpend : Unspellable (Effect []) (\ok =>
+badPurposelessSpend : Unspellable (Instruction []) (\ok =>
   AddMana You (Lit 1) (Runs [[Colorless]]) [SpendOnly [] {ne = ok}])
 badPurposelessSpend MkSpendPurposes impossible
 
@@ -221,25 +221,25 @@ badPlayPaymentTapSymbol Oh impossible
 
 ||| "As an additional cost to cast this spell, sacrifice an artifact."
 public export
-okAddedCostSacrifice : StaticEffect []
+okAddedCostSacrifice : StaticSpec []
 okAddedCostSacrifice =
   AddedCost (Do (Macros.sacrifice You (Macros.a Macros.artifact))) False
 
 ||| "As an additional cost to cast this spell, {T}."
 public export
-badAddedCostTapSymbol : Unspellable (StaticEffect []) (\ok =>
+badAddedCostTapSymbol : Unspellable (StaticSpec []) (\ok =>
   AddedCost TapSymbol False {ap = ok})
 badAddedCostTapSymbol AddedPaymentWritten impossible
 
 ||| "As an additional cost to cast this spell, [+1]."
 public export
-badAddedCostLoyaltySymbol : Unspellable (StaticEffect []) (\ok =>
+badAddedCostLoyaltySymbol : Unspellable (StaticSpec []) (\ok =>
   AddedCost (LoyaltySymbol (LoyaltyUp 1)) False {ap = ok})
 badAddedCostLoyaltySymbol AddedPaymentWritten impossible
 
 ||| "You may sacrifice a Mountain rather than pay this spell's mana cost"
 public export
-badAltCostClause : Unspellable (Effect []) (\ok =>
+badAltCostClause : Unspellable (Instruction []) (\ok =>
   Continuously {ts = StaticFirstDone} (AltCost This (Just (Do (Macros.sacrifice You
                   (Macros.a (And [Macros.land, HasSubtype (landType "Mountain")]))))))
                Nothing {cl = ok})
@@ -314,7 +314,7 @@ badWarpGrantInGraveyard Oh impossible
 
 ||| "For each color among permanents you control, add one mana of that color."
 public export
-okChosenColorPerColor : Effect []
+okChosenColorPerColor : Instruction []
 okChosenColorPerColor =
   ForEachKindOf ColorAxis
     (Just (Macros.allOf (And [Permanent, HasPossessor ControllerAx You]))) Color
@@ -322,21 +322,21 @@ okChosenColorPerColor =
 
 ||| "For each color among permanents you control, add one mana of that color"
 public export
-badRepeatedCarriesNoColor : Unspellable (Effect []) (\ok =>
+badRepeatedCarriesNoColor : Unspellable (Instruction []) (\ok =>
   Repeated (DistinctCount ColorAxis (Macros.allOf (And [Permanent, HasPossessor ControllerAx You])))
            (AddMana You (Lit 1) (OfChosenColor Nothing {cq = ok}) []))
 badRepeatedCarriesNoColor Refl impossible
 
 ||| "For each color among permanents you control, … of that creature type."
 public export
-badAxisValueCrossing : Unspellable (Effect []) (\ok =>
+badAxisValueCrossing : Unspellable (Instruction []) (\ok =>
   ForEachKindOf ColorAxis (Just (Macros.allOf (And [Permanent, HasPossessor ControllerAx You])))
                 (SubtypeQ Creature) (Draw You (Lit 1)) {sc = ok})
 badAxisValueCrossing Refl impossible
 
 ||| "For each creature type, …"
 public export
-badDomainlessOpenAxis : Unspellable (Effect []) (\ok =>
+badDomainlessOpenAxis : Unspellable (Instruction []) (\ok =>
   ForEachKindOf (SubtypeAxis Creature AnySubtype) Nothing
                 (SubtypeQ Creature) (Draw You (Lit 1)) {cl = ok})
 badDomainlessOpenAxis Oh impossible
@@ -387,35 +387,35 @@ badProducedByEventWithoutEvent Refl impossible
 public export
 afterManaAdded : Bindings
 afterManaAdded =
-  effIntro (the (Effect []) (AddMana You (Lit 1) (Runs [[Colorless]]) []))
+  instrIntro (the (Instruction []) (AddMana You (Lit 1) (Runs [[Colorless]]) []))
 
 ||| "You don't lose this mana as steps and phases end."
 public export
-okThisManaAfterAdd : StaticEffect ProofsMana.afterManaAdded
+okThisManaAfterAdd : StaticSpec ProofsMana.afterManaAdded
 okThisManaAfterAdd = KeepsUnspentMana You ThisMana
 
 ||| "You don't lose this mana as steps and phases end"
 public export
-badThisManaWithoutAdd : Unspellable (StaticEffect []) (\ok =>
+badThisManaWithoutAdd : Unspellable (StaticSpec []) (\ok =>
   KeepsUnspentMana You (ThisMana {ok = ok}))
 badThisManaWithoutAdd Refl impossible
 
 ||| "Target player sacrifices a creature of their choice."
 public export
-okBoundTheirChoice : Effect []
+okBoundTheirChoice : Instruction []
 okBoundTheirChoice =
   Macros.sacrifice (Macros.target AnyPlayer)
                    (Macros.aTheirChoice Macros.creature)
 
 ||| "Destroy a creature of their choice."
 public export
-badUnboundTheirChoice : Unspellable (Effect []) (\ok =>
+badUnboundTheirChoice : Unspellable (Instruction []) (\ok =>
   Macros.destroy (Macros.aTheirChoice Macros.creature {ch = ok}))
 badUnboundTheirChoice Refl impossible
 
 ||| "Target creature becomes a black Zombie in addition to its other types."
 public export
-okUnnamedAddition : Effect []
+okUnnamedAddition : Instruction []
 okUnnamedAddition =
   Macros.becomesAs (Macros.target Macros.creature)
                    (MkToken Nothing [Black]
@@ -424,21 +424,21 @@ okUnnamedAddition =
 
 ||| "Target creature becomes a Zombie named Bob in addition to its other types."
 public export
-badNamedAddition : Unspellable (Effect []) (\ok =>
+badNamedAddition : Unspellable (Instruction []) (\ok =>
   Macros.becomesAs (Macros.target Macros.creature)
                    (MkToken Nothing [] (MkTypeLine [creatureType "Zombie"] []) [] (Just "Bob"))
                    Nothing {ok = ok})
 badNamedAddition Oh impossible
 
 public export
-badRepeatedAdditionColor : Unspellable (Effect []) (\ok =>
+badRepeatedAdditionColor : Unspellable (Instruction []) (\ok =>
   Macros.becomesAs (Macros.target Macros.creature)
                    (MkToken Nothing [Black, Black] (MkTypeLine [creatureType "Zombie"] []) [] Nothing)
                    Nothing {ok = ok})
 badRepeatedAdditionColor Oh impossible
 
 public export
-badRepeatedAdditionType : Unspellable (Effect []) (\ok =>
+badRepeatedAdditionType : Unspellable (Instruction []) (\ok =>
   Macros.becomesAs (Macros.target Macros.creature)
                    (MkToken Nothing [] (MkTypeLine [] [Artifact, Artifact]) [] Nothing)
                    Nothing {ok = ok})

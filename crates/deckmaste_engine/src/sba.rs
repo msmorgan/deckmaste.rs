@@ -136,7 +136,7 @@ pub fn sweep(state: &GameState) -> Vec<GameEvent> {
                 .is_some_and(|o| o.zone != Some(Zone::Stack))
         {
             let frame = crate::stack::Frame::bare(entry.id, entry.controller);
-            let effect = deckmaste_core::OneShotEffect::act(deckmaste_core::Action::Cease(
+            let effect = deckmaste_core::Instruction::act(deckmaste_core::Action::Cease(
                 deckmaste_core::Reference::source_parameter(),
             ));
             for mut ev in run_sba_effect(state, &effect, &frame) {
@@ -162,7 +162,7 @@ pub fn sweep(state: &GameState) -> Vec<GameEvent> {
 ///    graveyard rule ([CR#704.5m]) is `StateBased(Not(LegallyAttached(
 ///    Ref(This))), Move(Ref(This), Graveyard))`, an ability-free conferral
 ///    because a [CR#704] game action is not an ability ([CR#704.1,704.1a])
-///    — and the `StaticEffect::Sba` statics an OBJECT carries (peeling
+///    — and the `StaticSpec::Sba` statics an OBJECT carries (peeling
 ///    `Innate`), which still spell card-level state-checked statics such as
 ///    ascend ([CR#702.131b]). For each battlefield object, evaluate `when`
 ///    with `This` = the object; if true, run `then`'s events. Objects a
@@ -182,7 +182,7 @@ fn attachment_sbas(state: &GameState, view: &crate::layer::LayeredView) -> Vec<G
         // A `This`-anchored frame: `condition_holds`/`action_items` resolve
         // `Ref(This)` to this object via the frame source ([CR#603.10a]).
         let frame = crate::stack::Frame::bare(id, state.objects.obj(id).controller);
-        let mut rows: Vec<(deckmaste_core::Condition, deckmaste_core::OneShotEffect)> = Vec::new();
+        let mut rows: Vec<(deckmaste_core::Condition, deckmaste_core::Instruction)> = Vec::new();
         // Type/subtype-conferred SBAs ([CR#704.5m]) — the ability-free
         // `Property::StateBased` flavor, read off the DERIVED types/subtypes so
         // a layer-4 grant contributes exactly like a printed one. It confers no
@@ -201,7 +201,7 @@ fn attachment_sbas(state: &GameState, view: &crate::layer::LayeredView) -> Vec<G
             }
         }
         crate::legal::for_each_static(state, view, id, |e| {
-            if let deckmaste_core::StaticEffect::Sba { when, then } = e {
+            if let deckmaste_core::StaticSpec::Sba { when, then } = e {
                 rows.push((when.as_ref().clone(), (**then).clone()));
             }
         });
@@ -358,14 +358,14 @@ fn stamp_sba_cause(ev: &mut GameEvent) {
 /// the pre-removal counts). Choice-bearing shapes are a documented seam.
 fn run_sba_effect(
     state: &GameState,
-    effect: &deckmaste_core::OneShotEffect,
+    effect: &deckmaste_core::Instruction,
     frame: &crate::stack::Frame,
 ) -> Vec<GameEvent> {
-    use deckmaste_core::OneShotEffect;
+    use deckmaste_core::Instruction;
 
     let mut out = Vec::new();
     match effect {
-        OneShotEffect::Act { action, .. } => {
+        Instruction::Act { action, .. } => {
             for item in state.action_items(action, frame) {
                 if let WorkItem::Emit(occ) = item {
                     match occ {
@@ -375,7 +375,7 @@ fn run_sba_effect(
                 }
             }
         }
-        OneShotEffect::Sequentially(children) => {
+        Instruction::Sequentially(children) => {
             for child in children.iter() {
                 out.extend(run_sba_effect(state, child, frame));
             }
@@ -843,7 +843,7 @@ mod tests {
     fn dead_token_ceases_to_exist() {
         use deckmaste_core::Action;
         use deckmaste_core::Count;
-        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::Instruction;
         use deckmaste_core::Reference;
         use deckmaste_core::Token;
 
@@ -860,7 +860,7 @@ mod tests {
             toughness: None,
         };
         state.run_effect(
-            OneShotEffect::Act(Action::Create {
+            Instruction::Act(Action::Create {
                 agent: Reference::Reg(deckmaste_core::RefId(1)),
                 count: Count::Literal(1),
                 token: token.into(),
@@ -1010,8 +1010,8 @@ mod tests {
         use deckmaste_core::CopySource;
         use deckmaste_core::CopySpec;
         use deckmaste_core::Count;
+        use deckmaste_core::Instruction;
         use deckmaste_core::ObjectClass;
-        use deckmaste_core::OneShotEffect;
         use deckmaste_core::Reference;
 
         use crate::event::AbilityCountered;
@@ -1019,7 +1019,7 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let frame = crate::stack::Frame::bare(bear, PlayerId(0));
         state.run_effect(
-            OneShotEffect::Act(Action::Create {
+            Instruction::Act(Action::Create {
                 agent: Reference::Reg(deckmaste_core::RefId(1)),
                 count: Count::Literal(1),
                 token: deckmaste_core::TokenSpec::Copy(
@@ -1105,9 +1105,9 @@ mod tests {
     use deckmaste_core::Condition;
     use deckmaste_core::Deontic;
     use deckmaste_core::DeonticAction;
-    use deckmaste_core::OneShotEffect;
+    use deckmaste_core::Instruction;
     use deckmaste_core::Reference;
-    use deckmaste_core::StaticEffect;
+    use deckmaste_core::StaticSpec;
 
     fn game() -> GameState {
         GameState::new(GameConfig {
@@ -1169,11 +1169,11 @@ mod tests {
     /// The Aura-subtype shape (scaffolded in-Rust): `Innate(Static([Sba(Not(
     /// LegallyAttached(Ref(This))), Move(Ref(This), Graveyard))]))`.
     fn aura_graveyard_sba() -> Ability {
-        Ability::Innate(Arc::new(Ability::r#static(StaticEffect::Sba {
+        Ability::Innate(Arc::new(Ability::r#static(StaticSpec::Sba {
             when: Arc::new(Condition::Not(Arc::new(Condition::LegallyAttached(
                 Reference::Reg(deckmaste_core::RefId(0)),
             )))),
-            then: Arc::new(OneShotEffect::Act(deckmaste_core::Action::move_to(
+            then: Arc::new(Instruction::Act(deckmaste_core::Action::move_to(
                 Reference::Reg(deckmaste_core::RefId(0)),
                 Zone::Graveyard,
             ))),
@@ -1184,7 +1184,7 @@ mod tests {
     /// what: Ref(This), to: Creature))]))` — an attachment that may legally
     /// attach to a creature host (and to nothing else without a further grant).
     fn may_attach_creature() -> Ability {
-        Ability::Innate(Arc::new(Ability::r#static(StaticEffect::Deontic(
+        Ability::Innate(Arc::new(Ability::r#static(StaticSpec::Deontic(
             Deontic::May(DeonticAction::Attach {
                 what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 to: Predicate::r#type(Type::Creature),
@@ -1226,7 +1226,7 @@ mod tests {
                 condition: Arc::new(Condition::Not(Arc::new(Condition::LegallyAttached(
                     Reference::Reg(deckmaste_core::RefId(0)),
                 )))),
-                effect: Arc::new(OneShotEffect::Act(deckmaste_core::Action::move_to(
+                effect: Arc::new(Instruction::Act(deckmaste_core::Action::move_to(
                     Reference::Reg(deckmaste_core::RefId(0)),
                     Zone::Graveyard,
                 ))),
@@ -1443,7 +1443,7 @@ mod tests {
             &mut state,
             "Protected",
             vec![Type::Creature],
-            vec![Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
+            vec![Ability::r#static(StaticSpec::Deontic(Deontic::Cant(
                 DeonticAction::Attach {
                     what: Predicate::Any,
                     to: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
@@ -1505,9 +1505,9 @@ mod tests {
             ]
             .into(),
         );
-        let ascend = Ability::r#static(StaticEffect::Sba {
+        let ascend = Ability::r#static(StaticSpec::Sba {
             when: Arc::new(gate),
-            then: Arc::new(OneShotEffect::Act(Action::GetDesignation(
+            then: Arc::new(Instruction::Act(Action::GetDesignation(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 name,
             ))),
@@ -1579,7 +1579,7 @@ mod tests {
         // object's controller via the Sba frame, so each ascender counts ITS
         // controller's permanents and grants to that controller.
         let ascend = || {
-            Ability::r#static(StaticEffect::Sba {
+            Ability::r#static(StaticSpec::Sba {
                 when: Arc::new(Condition::And(
                     vec![
                         Condition::Compare(
@@ -1606,7 +1606,7 @@ mod tests {
                     ]
                     .into(),
                 )),
-                then: Arc::new(OneShotEffect::Act(Action::GetDesignation(
+                then: Arc::new(Instruction::Act(Action::GetDesignation(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     name,
                 ))),
@@ -2237,12 +2237,12 @@ mod tests {
     #[test]
     fn platinum_angel_parses_two_outcome_gates() {
         use deckmaste_core::Ability;
-        use deckmaste_core::StaticEffect;
+        use deckmaste_core::StaticSpec;
         let angel = canon().card("Platinum Angel").unwrap().core;
         let gates = crate::derive::face(&angel)
             .abilities
             .iter()
-            .filter(|a| matches!(a, Ability::Static(s) if matches!(&s.body, StaticEffect::OutcomeGate { .. })))
+            .filter(|a| matches!(a, Ability::Static(s) if matches!(&s.body, StaticSpec::OutcomeGate { .. })))
             .count();
         assert_eq!(gates, 2, "Platinum Angel has two OutcomeGate statics");
     }

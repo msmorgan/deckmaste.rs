@@ -359,7 +359,7 @@ mod tests {
         assert_matches!(
             deckmaste_semantics::StaticEffect::Modify(minimal_reference(), minimal_modification())
                 .lower(),
-            deckmaste_core::StaticEffect::Modify(
+            deckmaste_core::StaticSpec::Modify(
                 deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::Modification::Power(deckmaste_core::NumericOp::Set(
                     deckmaste_core::StatValue::DefinedByAbility
@@ -376,7 +376,7 @@ mod tests {
                 minimal_copy_spec()
             )
             .lower(),
-            deckmaste_core::StaticEffect::BecomesCopy(
+            deckmaste_core::StaticSpec::BecomesCopy(
                 deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::CopySpec {
                     source: deckmaste_core::CopySource::Object(deckmaste_core::Reference::Reg(
@@ -396,7 +396,7 @@ mod tests {
                 std::sync::Arc::new(minimal_static_effect())
             )
             .lower(),
-            deckmaste_core::StaticEffect::Each(deckmaste_core::Selection::SelectAll(_), _)
+            deckmaste_core::StaticSpec::Each(deckmaste_core::Selection::SelectAll(_), _)
         );
     }
 
@@ -408,7 +408,7 @@ mod tests {
                 std::sync::Arc::new(minimal_static_effect())
             )
             .lower(),
-            deckmaste_core::StaticEffect::Conditionally(
+            deckmaste_core::StaticSpec::Conditionally(
                 deckmaste_core::Condition::Compare(
                     deckmaste_core::Count::X,
                     deckmaste_core::Cmp::Eq,
@@ -423,7 +423,7 @@ mod tests {
     fn lowers_static_effect_deontic() {
         assert_matches!(
             deckmaste_semantics::StaticEffect::Deontic(minimal_deontic()).lower(),
-            deckmaste_core::StaticEffect::Deontic(deckmaste_core::Deontic::May(
+            deckmaste_core::StaticSpec::Deontic(deckmaste_core::Deontic::May(
                 deckmaste_core::DeonticAction::Attack {
                     by: deckmaste_core::Predicate::Class(
                         deckmaste_core::ObjectClass::AbilityOnStack
@@ -444,7 +444,7 @@ mod tests {
                 change: minimal_cost_change()
             }
             .lower(),
-            deckmaste_core::StaticEffect::CostModifier {
+            deckmaste_core::StaticSpec::CostModifier {
                 of: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
                 change: deckmaste_core::CostChange::Increase(_)
             }
@@ -455,7 +455,7 @@ mod tests {
     fn lowers_static_effect_cost_option() {
         assert_matches!(
             deckmaste_semantics::StaticEffect::CostOption(minimal_optional_cost()).lower(),
-            deckmaste_core::StaticEffect::CostOption(deckmaste_core::OptionalCost {
+            deckmaste_core::StaticSpec::CostOption(deckmaste_core::OptionalCost {
                 components: _,
                 tag: deckmaste_core::CostTag(_),
                 repeatable: false
@@ -472,7 +472,7 @@ mod tests {
                 affected: minimal_predicate()
             }
             .lower(),
-            deckmaste_core::StaticEffect::TriggerMultiplier {
+            deckmaste_core::StaticSpec::TriggerMultiplier {
                 cause: deckmaste_core::EventFilter::ZoneChange {
                     what: deckmaste_core::Predicate::Class(
                         deckmaste_core::ObjectClass::AbilityOnStack
@@ -497,7 +497,7 @@ mod tests {
                 minimal_player_mod()
             )
             .lower(),
-            deckmaste_core::StaticEffect::ModifyPlayer(
+            deckmaste_core::StaticSpec::ModifyPlayer(
                 deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::PlayerMod::SetTo(
                     deckmaste_core::PlayerAttr::Life,
@@ -514,7 +514,7 @@ mod tests {
                 std::sync::Arc::new(minimal_prevention())
             )
             .lower(),
-            deckmaste_core::StaticEffect::Prevention(_)
+            deckmaste_core::StaticSpec::Prevention(_)
         );
     }
 
@@ -526,7 +526,7 @@ mod tests {
                 to: minimal_predicate()
             }
             .lower(),
-            deckmaste_core::StaticEffect::CantPrevent {
+            deckmaste_core::StaticSpec::CantPrevent {
                 from: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
                 to: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
             }
@@ -541,7 +541,7 @@ mod tests {
                 as_: minimal_symbol_pred()
             }
             .lower(),
-            deckmaste_core::StaticEffect::SpendAsThough {
+            deckmaste_core::StaticSpec::SpendAsThough {
                 mana_from: deckmaste_core::Predicate::Class(
                     deckmaste_core::ObjectClass::AbilityOnStack
                 ),
@@ -554,7 +554,7 @@ mod tests {
     fn lowers_static_effect_as_though() {
         assert_matches!(
             deckmaste_semantics::StaticEffect::AsThough(minimal_as_though()).lower(),
-            deckmaste_core::StaticEffect::AsThough(deckmaste_core::AsThough::Counterfactual {
+            deckmaste_core::StaticSpec::AsThough(deckmaste_core::AsThough::Counterfactual {
                 premise: deckmaste_core::Predicate::Class(
                     deckmaste_core::ObjectClass::AbilityOnStack
                 ),
@@ -571,7 +571,7 @@ mod tests {
                 gate: minimal_outcome_gate_kind()
             }
             .lower(),
-            deckmaste_core::StaticEffect::OutcomeGate {
+            deckmaste_core::StaticSpec::OutcomeGate {
                 who: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
                 gate: deckmaste_core::OutcomeGateKind::CantLose
             }
@@ -582,7 +582,7 @@ mod tests {
     fn lowers_static_effect_cant_happen() {
         assert_matches!(
             deckmaste_semantics::StaticEffect::CantHappen(minimal_event_filter()).lower(),
-            deckmaste_core::StaticEffect::CantHappen(deckmaste_core::EventFilter::ZoneChange {
+            deckmaste_core::StaticSpec::CantHappen(deckmaste_core::EventFilter::ZoneChange {
                 what: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
                 from: None,
                 to: None,
@@ -600,7 +600,7 @@ mod tests {
                 ignore: minimal_ignore_rule()
             }
             .lower(),
-            deckmaste_core::StaticEffect::ReplaceRoll {
+            deckmaste_core::StaticSpec::ReplaceRoll {
                 query: deckmaste_core::EventFilter::ZoneChange {
                     what: deckmaste_core::Predicate::Class(
                         deckmaste_core::ObjectClass::AbilityOnStack
@@ -620,7 +620,7 @@ mod tests {
         assert_matches!(
             deckmaste_semantics::StaticEffect::PayPips(minimal_pip_class(), minimal_pay_act())
                 .lower(),
-            deckmaste_core::StaticEffect::PayPips(
+            deckmaste_core::StaticSpec::PayPips(
                 deckmaste_core::PipClass::Generic,
                 deckmaste_core::PayAct::TapToPay(deckmaste_core::Predicate::Class(
                     deckmaste_core::ObjectClass::AbilityOnStack
@@ -639,7 +639,7 @@ mod tests {
                 value: Box::new(minimal_static_effect())
             })
             .lower(),
-            deckmaste_core::StaticEffect::Modify(
+            deckmaste_core::StaticSpec::Modify(
                 deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::Modification::Power(deckmaste_core::NumericOp::Set(
                     deckmaste_core::StatValue::DefinedByAbility
@@ -796,7 +796,7 @@ mod tests {
                 std::sync::Arc::new(minimal_replacement())
             )
             .lower()),
-            deckmaste_core::StaticEffect::Replacement(_)
+            deckmaste_core::StaticSpec::Replacement(_)
         );
     }
 
@@ -808,7 +808,7 @@ mod tests {
                 then: std::sync::Arc::new(minimal_one_shot_effect())
             }
             .lower()),
-            deckmaste_core::StaticEffect::Sba { when: _, then: _ }
+            deckmaste_core::StaticSpec::Sba { when: _, then: _ }
         );
     }
 }
@@ -891,70 +891,70 @@ impl Lower for deckmaste_semantics::CostChange {
 }
 
 impl Lower for deckmaste_semantics::StaticEffect {
-    type Target = deckmaste_core::StaticEffect;
+    type Target = deckmaste_core::StaticSpec;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
-            Self::Modify(f0, f1) => deckmaste_core::StaticEffect::Modify(f0.lower(), f1.lower()),
+            Self::Modify(f0, f1) => deckmaste_core::StaticSpec::Modify(f0.lower(), f1.lower()),
             Self::BecomesCopy(f0, f1) => {
-                deckmaste_core::StaticEffect::BecomesCopy(f0.lower(), f1.lower())
+                deckmaste_core::StaticSpec::BecomesCopy(f0.lower(), f1.lower())
             }
-            Self::Each(f0, f1) => deckmaste_core::StaticEffect::Each(
+            Self::Each(f0, f1) => deckmaste_core::StaticSpec::Each(
                 f0.lower(),
                 std::sync::Arc::new(crate::region::candidate_region(|| {
                     std::sync::Arc::unwrap_or_clone(f1).lower()
                 })),
             ),
             Self::Conditionally(f0, f1) => {
-                deckmaste_core::StaticEffect::Conditionally(f0.lower(), f1.lower())
+                deckmaste_core::StaticSpec::Conditionally(f0.lower(), f1.lower())
             }
-            Self::Deontic(f0) => deckmaste_core::StaticEffect::Deontic(f0.lower()),
-            Self::CostModifier { of, change } => deckmaste_core::StaticEffect::CostModifier {
+            Self::Deontic(f0) => deckmaste_core::StaticSpec::Deontic(f0.lower()),
+            Self::CostModifier { of, change } => deckmaste_core::StaticSpec::CostModifier {
                 of: of.lower(),
                 change: change.lower(),
             },
-            Self::CostOption(f0) => deckmaste_core::StaticEffect::CostOption(f0.lower()),
+            Self::CostOption(f0) => deckmaste_core::StaticSpec::CostOption(f0.lower()),
             Self::TriggerMultiplier {
                 cause,
                 extra,
                 affected,
-            } => deckmaste_core::StaticEffect::TriggerMultiplier {
+            } => deckmaste_core::StaticSpec::TriggerMultiplier {
                 cause: cause.lower(),
                 extra: extra.lower(),
                 affected: affected.lower(),
             },
             Self::ModifyPlayer(f0, f1) => {
-                deckmaste_core::StaticEffect::ModifyPlayer(f0.lower(), f1.lower())
+                deckmaste_core::StaticSpec::ModifyPlayer(f0.lower(), f1.lower())
             }
-            Self::Replacement(f0) => deckmaste_core::StaticEffect::Replacement(f0.lower()),
-            Self::Prevention(f0) => deckmaste_core::StaticEffect::Prevention(f0.lower()),
-            Self::CantPrevent { from, to } => deckmaste_core::StaticEffect::CantPrevent {
+            Self::Replacement(f0) => deckmaste_core::StaticSpec::Replacement(f0.lower()),
+            Self::Prevention(f0) => deckmaste_core::StaticSpec::Prevention(f0.lower()),
+            Self::CantPrevent { from, to } => deckmaste_core::StaticSpec::CantPrevent {
                 from: from.lower(),
                 to: to.lower(),
             },
-            Self::SpendAsThough { mana_from, as_ } => deckmaste_core::StaticEffect::SpendAsThough {
+            Self::SpendAsThough { mana_from, as_ } => deckmaste_core::StaticSpec::SpendAsThough {
                 mana_from: mana_from.lower(),
                 as_: as_.lower(),
             },
-            Self::AsThough(f0) => deckmaste_core::StaticEffect::AsThough(f0.lower()),
-            Self::Sba { when, then } => deckmaste_core::StaticEffect::Sba {
+            Self::AsThough(f0) => deckmaste_core::StaticSpec::AsThough(f0.lower()),
+            Self::Sba { when, then } => deckmaste_core::StaticSpec::Sba {
                 when: when.lower(),
                 then: then.lower(),
             },
-            Self::OutcomeGate { who, gate } => deckmaste_core::StaticEffect::OutcomeGate {
+            Self::OutcomeGate { who, gate } => deckmaste_core::StaticSpec::OutcomeGate {
                 who: who.lower(),
                 gate: gate.lower(),
             },
-            Self::CantHappen(f0) => deckmaste_core::StaticEffect::CantHappen(f0.lower()),
+            Self::CantHappen(f0) => deckmaste_core::StaticSpec::CantHappen(f0.lower()),
             Self::ReplaceRoll {
                 query,
                 extra,
                 ignore,
-            } => deckmaste_core::StaticEffect::ReplaceRoll {
+            } => deckmaste_core::StaticSpec::ReplaceRoll {
                 query: query.lower(),
                 extra: extra.lower(),
                 ignore: ignore.lower(),
             },
-            Self::PayPips(f0, f1) => deckmaste_core::StaticEffect::PayPips(f0.lower(), f1.lower()),
+            Self::PayPips(f0, f1) => deckmaste_core::StaticSpec::PayPips(f0.lower(), f1.lower()),
             // Invocation provenance does not cross `lower`: the core grammar is
             // a compiled artifact and carries no record of the semantic
             // spelling (spec §12). Prose recovers the semantic term through the

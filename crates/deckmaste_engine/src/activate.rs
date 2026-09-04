@@ -740,9 +740,9 @@ mod tests {
     use deckmaste_core::BeginningStep;
     use deckmaste_core::Condition;
     use deckmaste_core::CostComponent;
+    use deckmaste_core::Instruction;
     use deckmaste_core::ManaCost;
     use deckmaste_core::ManaSymbol;
-    use deckmaste_core::OneShotEffect;
     use deckmaste_core::PhaseStep;
     use deckmaste_core::Reference;
     use deckmaste_core::SimpleManaSymbol;
@@ -813,7 +813,7 @@ mod tests {
 
     /// Build an `ActivatedAbility` with the given cost and no
     /// condition/limits/targets.
-    fn activated(cost: Vec<CostComponent>, effect: OneShotEffect) -> ActivatedAbility {
+    fn activated(cost: Vec<CostComponent>, effect: Instruction) -> ActivatedAbility {
         ActivatedAbility {
             ability_word: None,
             targets: [].into(),
@@ -826,9 +826,9 @@ mod tests {
         }
     }
 
-    fn noop_effect() -> OneShotEffect {
+    fn noop_effect() -> Instruction {
         // A no-target effect: Sacrifice(You, This) — available in core.
-        OneShotEffect::Act(Action::Sacrifice(
+        Instruction::Act(Action::Sacrifice(
             Reference::Reg(deckmaste_core::RefId(1)),
             Reference::Reg(deckmaste_core::RefId(0)),
         ))
@@ -849,7 +849,7 @@ mod tests {
             // The effect's content is immaterial here — only the
             // `Ability::Static` shell (vs. `Activated`) matters, so a
             // no-op `Several([])` stands in for "any static ability".
-            as_activated(&Ability::r#static(deckmaste_core::StaticEffect::Modify(
+            as_activated(&Ability::r#static(deckmaste_core::StaticSpec::Modify(
                 deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::Modification::Several(vec![].into()),
             )))
@@ -932,7 +932,7 @@ mod tests {
                             if name.as_str() == "Discard"
                                 && matches!(
                                     body.as_ref(),
-                                    deckmaste_core::OneShotEffect::Act { action: Action::Move(
+                                    deckmaste_core::Instruction::Act { action: Action::Move(
                                         Reference::Reg(deckmaste_core::RefId(0)),
                                         deckmaste_core::Destination::Zone(Zone::Graveyard),
                                         _,

@@ -28,14 +28,14 @@ badSingletonBallot Oh impossible
 
 ||| "Put target creature card ... onto the battlefield transformed."
 public export
-okTransformedArrivalOnField : Effect []
+okTransformedArrivalOnField : Instruction []
 okTransformedArrivalOnField =
   Move (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)]))
        Macros.battlefieldZ [EntersTransformed]
 
 ||| "Return target creature card from your graveyard to your hand transformed."
 public export
-badTransformedArrivalOffField : Unspellable (Effect []) (\ok =>
+badTransformedArrivalOffField : Unspellable (Instruction []) (\ok =>
   Move (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)]))
        Macros.handZ [EntersTransformed] {rf = ok})
 badTransformedArrivalOffField Oh impossible
@@ -62,7 +62,7 @@ badPileWordWithoutAPartition Refl impossible
 
 ||| "... into two piles. Put one pile into your hand."
 public export
-okOnePileAfterPartition : Effect []
+okOnePileAfterPartition : Instruction []
 okOnePileAfterPartition =
   Sequentially [ Macros.revealCards (Macros.topSlice (Lit 5))
                , SeparateIntoPiles Macros.anOpponent (Macros.It ManyOf) 2 []
@@ -70,7 +70,7 @@ okOnePileAfterPartition =
 
 ||| "Put one pile into your hand."
 public export
-badPilePartitiveWithoutAPartition : Unspellable (Effect []) (\ok =>
+badPilePartitiveWithoutAPartition : Unspellable (Instruction []) (\ok =>
   Macros.move (Macros.onePile {ok = ok}) Macros.handZ)
 badPilePartitiveWithoutAPartition Refl impossible
 
@@ -101,7 +101,7 @@ badMembershipInANonPile ThosePiles impossible
 
 ||| "Turn target creature face down."
 public export
-okStatusOnBattlefieldNoun : Effect []
+okStatusOnBattlefieldNoun : Instruction []
 okStatusOnBattlefieldNoun =
   SetStatus FaceDown (Macros.target Macros.creature)
 
@@ -125,7 +125,7 @@ manaRunReductionFloor =
   CostShiftRunWithFloor [Macros.pip White] (Lit 1) False
 
 public export
-nestedStaticConditionals : StaticEffect []
+nestedStaticConditionals : StaticSpec []
 nestedStaticConditionals =
   Conditionally {bs = []} {condBase = []}
     {staticBase = condIntro (Macros.exists {bs = []} AnyPlayer)}
@@ -138,7 +138,7 @@ nestedStaticConditionals =
       (KeepsUnspentMana You (UnspentMana Nothing)) IfSo) IfSo
 
 public export
-nestedTurnPartWindows : StaticEffect []
+nestedTurnPartWindows : StaticSpec []
 nestedTurnPartWindows =
   OnlyDuring Combat Nothing
     (OnlyDuring MainPhase Nothing (KeepsUnspentMana You (UnspentMana Nothing)))
@@ -148,31 +148,31 @@ repeatWithIndependentException : Repetition []
 repeatWithIndependentException = AgainExcept (Macros.exists AnyPlayer)
 
 public export
-voteStartingWithSpecifiedPlayer : Effect []
+voteStartingWithSpecifiedPlayer : Instruction []
 voteStartingWithSpecifiedPlayer =
   Vote (Just Macros.anOpponent) (Macros.each AnyPlayer) Openly
        (ByLabel ["alpha", "beta"])
 
 public export
-oneWayResultShift : Effect []
+oneWayResultShift : Instruction []
 oneWayResultShift =
   Sequentially [(Macros.rollDice You 1 6), ShiftResult (Just ShiftUp) (Lit 1)]
 
 public export
-objectScopedChaos : Effect []
+objectScopedChaos : Instruction []
 objectScopedChaos = ChaosEnsues (Just Macros.thisRoom)
 
 public export
-abilityCounterRecipient : Effect []
+abilityCounterRecipient : Instruction []
 abilityCounterRecipient =
   PutCounters (Lit 1) OwnKinds (Macros.a (AbilityHead AnyOnStack))
 
 public export
-removeOwnCounterKinds : Effect []
+removeOwnCounterKinds : Instruction []
 removeOwnCounterKinds = RemoveCounters (Just (Macros.exactly 1)) (Just OwnKinds) You
 
 public export
-namedAdditionalPartAnchor : Effect []
+namedAdditionalPartAnchor : Instruction []
 namedAdditionalPartAnchor =
   AdditionalPart (Just You) Upkeep (Just MainPhase) (Lit 1) Nothing
 

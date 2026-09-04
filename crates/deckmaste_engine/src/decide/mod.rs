@@ -410,7 +410,7 @@ pub(crate) fn unless_cost_action(
                  its own instruction, never as a single Action"
             )
         }
-        // The `unless` cost list is `Cost::normalize`d at the `OneShotEffect::Unless`
+        // The `unless` cost list is `Cost::normalize`d at the `Instruction::Unless`
         // boundary (see `resolve.rs`), which splices every nested `Cost` flat,
         // so a `Cost` component never survives to here.
         CostComponent::Cost(_) => {
@@ -441,36 +441,36 @@ pub(crate) fn unless_cost_action(
 /// ([CR#118.12a,601.2b]) — the entry point every cost-to-effect payment walk
 /// outside the optional-payment protocol (`AdditionalCost` and the activation
 /// cost-`With` step) uses. Most components are a single payer
-/// `Action`, so they wrap [`unless_cost_action`] in [`OneShotEffect::Act`]; a
+/// `Action`, so they wrap [`unless_cost_action`] in [`Instruction::Act`]; a
 /// cost-side [`With`](deckmaste_core::CostComponent::With) is a choose-then-pay
 /// step with no single-`Action` rendering, so it becomes an
-/// [`OneShotEffect::With`]: the binder surfaces the controller's
+/// [`Instruction::With`]: the binder surfaces the controller's
 /// `ChooseObjects` choice (bound as `That`/`Those`), then the body pays against
 /// it — exactly the effect-side `With` machinery, reused here so cost choosing
 /// stays OUT of the verb.
 pub(crate) fn unless_cost_effect(
     component: &deckmaste_core::CostComponent,
     who: &deckmaste_core::Reference,
-) -> deckmaste_core::OneShotEffect {
+) -> deckmaste_core::Instruction {
     use deckmaste_core::CostComponent;
-    use deckmaste_core::OneShotEffect;
+    use deckmaste_core::Instruction;
     match component {
         // [CR#601.2b]: a payment-time decision IS an instruction — the same
         // node the effect grammar uses — so it runs through the ordinary
         // interpreter and writes its register in the announce activation.
-        CostComponent::Choose(choice) => OneShotEffect::Choose(choice.clone()),
+        CostComponent::Choose(choice) => Instruction::Choose(choice.clone()),
         CostComponent::Sample(_) => unreachable!(
             "a random payment sample runs only through the payment protocol ([CR#601.2h])"
         ),
-        CostComponent::Search(search) => OneShotEffect::Search(search.clone()),
-        CostComponent::Let(binding) => OneShotEffect::Let(binding.clone()),
+        CostComponent::Search(search) => Instruction::Search(search.clone()),
+        CostComponent::Let(binding) => Instruction::Let(binding.clone()),
         // [CR#400.7]: a producing payment writes its product for the ability
         // body to read.
         CostComponent::Act {
             dest: Some(dest),
             action,
-        } => OneShotEffect::producing(*dest, unless_cost_action_of(action, who)),
-        other => OneShotEffect::act(unless_cost_action(other, who)),
+        } => Instruction::producing(*dest, unless_cost_action_of(action, who)),
+        other => Instruction::act(unless_cost_action(other, who)),
     }
 }
 

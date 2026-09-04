@@ -15,13 +15,13 @@ use deckmaste_core::ActivatedManaProfile;
 use deckmaste_core::CostComponent;
 use deckmaste_core::Count;
 use deckmaste_core::DefId;
+use deckmaste_core::Instruction;
 use deckmaste_core::Kind;
 use deckmaste_core::LifeOp;
 use deckmaste_core::ManaAbility;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSpec;
 use deckmaste_core::ManaSymbol;
-use deckmaste_core::OneShotEffect;
 use deckmaste_core::Param;
 use deckmaste_core::Provenance;
 use deckmaste_core::Reference;
@@ -70,7 +70,7 @@ fn artifact_subtype(name: &str) -> Subtype {
     }
 }
 
-fn ability_region(effect: OneShotEffect) -> Region {
+fn ability_region(effect: Instruction) -> Region {
     let provenances = [
         (Kind::Entity, Provenance::Source),
         (Kind::Entity, Provenance::Controller),
@@ -129,7 +129,7 @@ fn treasure_token_parses() {
                     .into(),
                 condition: None,
                 limits: vec![].into(),
-                effect: ability_region(OneShotEffect::Act(Action::AddMana(
+                effect: ability_region(Instruction::Act(Action::AddMana(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(1),
                     ManaSpec::AnyColor.into()
@@ -202,18 +202,18 @@ fn food_token_parses() {
                 condition: None,
                 limits: vec![].into(),
                 effect: Region::new(
-                    ability_region(OneShotEffect::Act(Action::ChangeLife(
+                    ability_region(Instruction::Act(Action::ChangeLife(
                         Reference::Reg(deckmaste_core::RefId(1)),
                         LifeOp::Up(Count::Literal(3)),
                     )))
                     .params,
                     deckmaste_core::Block(
                         vec![
-                            OneShotEffect::Let(deckmaste_core::Let {
+                            Instruction::Let(deckmaste_core::Let {
                                 dest: DefId(3),
                                 expr: deckmaste_core::Expr::Number(Count::Literal(3)),
                             }),
-                            OneShotEffect::Act(Action::ChangeLife(
+                            Instruction::Act(Action::ChangeLife(
                                 Reference::Reg(deckmaste_core::RefId(1)),
                                 LifeOp::Up(Count::Reg(deckmaste_core::RefId(3))),
                             )),
@@ -249,7 +249,7 @@ fn gold_token_parses() {
                 cost: Arc::<[CostComponent]>::from(vec![sacrifice_this()]).into(),
                 condition: None,
                 limits: vec![].into(),
-                effect: ability_region(OneShotEffect::Act(Action::AddMana(
+                effect: ability_region(Instruction::Act(Action::AddMana(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(1),
                     ManaSpec::AnyColor.into()
@@ -306,7 +306,7 @@ fn vibranium_token_parses() {
     use deckmaste_core::ManaRider;
     use deckmaste_core::ObjectClass;
     use deckmaste_core::Predicate;
-    use deckmaste_core::StaticEffect;
+    use deckmaste_core::StaticSpec;
 
     // Indestructible expands from the `Keyword(Indestructible)` macro — a
     // `Composite` keyword carrying the event-side can't-happen. `lower`
@@ -316,7 +316,7 @@ fn vibranium_token_parses() {
     // form).
     let indestructible = Ability::Keyword(KeywordAbility::Composite {
         name: "Indestructible".into(),
-        abilities: vec![Ability::r#static(StaticEffect::CantHappen(
+        abilities: vec![Ability::r#static(StaticSpec::CantHappen(
             EventFilter::Act {
                 verb: deckmaste_core::VerbName::from("Destroy"),
                 who: Predicate::Any,
@@ -327,7 +327,7 @@ fn vibranium_token_parses() {
     });
     // "{T}: Add {C}. This mana can't be spent to cast a nonartifact spell." The
     // SpendOnly rider admits everything EXCEPT a nonartifact spell.
-    let restricted_mana = OneShotEffect::Act(Action::AddMana(
+    let restricted_mana = Instruction::Act(Action::AddMana(
         Reference::Reg(deckmaste_core::RefId(1)),
         Count::Literal(1),
         ManaProduction::WithRiders {

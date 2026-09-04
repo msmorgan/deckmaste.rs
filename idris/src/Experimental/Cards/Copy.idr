@@ -8,7 +8,7 @@ import Experimental.Macros
 
 ||| Display of Power
 public export
-displayOfPowerCopyLock : StaticEffect []
+displayOfPowerCopyLock : StaticSpec []
 displayOfPowerCopyLock = Macros.objectCant "Copy" This
 
 ||| Repeated Reverberation
@@ -48,7 +48,7 @@ frontlineHeroismCopy =
 
 ||| Flawless Forgery
 public export
-flawlessForgeryLine : Effect []
+flawlessForgeryLine : Instruction []
 flawlessForgeryLine =
   Sequentially
     [ Macros.exile You (Macros.target (And [ Macros.instantOrSorcery

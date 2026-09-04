@@ -287,7 +287,7 @@ causticTar =
        Nothing
 
 ||| Saheeli, Filigree Master
-saheelisEmblem : Effect []
+saheelisEmblem : Instruction []
 saheelisEmblem =
   GetsEmblem You
     [ Static (Gets Adds (Macros.allOf (And [Macros.artifact, Macros.creature, HasPossessor ControllerAx You]))
@@ -324,7 +324,7 @@ elspethSunsChampion =
        (Macros.loyaltyBox 4)
 
 ||| Elspeth's Talent
-elspethsTalentGrant : StaticEffect []
+elspethsTalentGrant : StaticSpec []
 elspethsTalentGrant =
   Gains (AttachHost Enchanted (TypeW Planeswalker))
         (Macros.activated (LoyaltySymbol (LoyaltyUp 1))
@@ -737,7 +737,7 @@ bureauHeadmaster =
        (Just (2, 2))
 
 public export
-oppressiveRaysLine : StaticEffect []
+oppressiveRaysLine : StaticSpec []
 oppressiveRaysLine =
   CostsToCast
     (Macros.allOf (And [ AbilityHead AnyActivated
@@ -1031,7 +1031,7 @@ sugarCoat =
 
 ||| Doc Aurlock, Grizzled Genius
 public export
-docAurlockCost : StaticEffect []
+docAurlockCost : StaticSpec []
 docAurlockCost =
   CostsToCast (Macros.allOf (And [Macros.spell, Macros.castBy You,
                            Or [ CastFrom (Macros.graveyardOf You)
@@ -1363,7 +1363,7 @@ deathWard =
        Nothing
 
 public export
-missyChaosBranch : Effect []
+missyChaosBranch : Instruction []
 missyChaosBranch = Sequentially [(Draw You (Lit 1)), Macros.chaosEnsues]
 
 public export

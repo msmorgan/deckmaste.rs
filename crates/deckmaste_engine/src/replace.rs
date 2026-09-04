@@ -6,11 +6,11 @@
 use deckmaste_core::Ability;
 use deckmaste_core::Action;
 use deckmaste_core::EventFilter;
-use deckmaste_core::OneShotEffect;
+use deckmaste_core::Instruction;
 use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
 use deckmaste_core::Replacement;
-use deckmaste_core::StaticEffect;
+use deckmaste_core::StaticSpec;
 use deckmaste_core::Zone;
 
 use crate::event::EnterStatus;
@@ -35,7 +35,7 @@ impl GameState {
         let mut status = EnterStatus::default();
         for ability in self.enters_fold_abilities(source, entering) {
             if let Ability::Static(s) = ability.peel_innate()
-                && let StaticEffect::Replacement(replacement) = &s.body
+                && let StaticSpec::Replacement(replacement) = &s.body
                 && let Replacement::Also { would, also } = &**replacement
                 && would_is_self_enter(would)
             {
@@ -83,7 +83,7 @@ impl GameState {
             .iter()
             .any(|ability| {
                 let Ability::Static(s) = ability else { return false };
-                matches!(&s.body, StaticEffect::Replacement(r)
+                matches!(&s.body, StaticSpec::Replacement(r)
                     if matches!(&**r, Replacement::Also { would, also }
                         if would_is_self_enter(would) && also_is_self_attach(also)))
             })
@@ -96,7 +96,7 @@ impl GameState {
     /// child, folding each into the same status. Face-down is a Stage-4 seam.
     fn apply_as_enters(
         &self,
-        effect: &OneShotEffect,
+        effect: &Instruction,
         entering: crate::object::ObjectId,
         status: &mut EnterStatus,
         frame: &crate::stack::Frame,
@@ -104,13 +104,13 @@ impl GameState {
         match effect {
             // `Tap` is agent-silent, so the `AsEnters` sugar expands to
             // `Act(Tap(This))`.
-            OneShotEffect::Act {
+            Instruction::Act {
                 action: Action::Tap(reference),
                 ..
             } if *reference == Reference::source_parameter() => {
                 status.tapped = true;
             }
-            OneShotEffect::Act {
+            Instruction::Act {
                 action: Action::Attach { what, to },
                 ..
             } if self.eval_reference(what, frame) == entering => {
@@ -121,7 +121,7 @@ impl GameState {
                     status.attach_to = Some(host);
                 }
             }
-            OneShotEffect::Choose(choice) => {
+            Instruction::Choose(choice) => {
                 let watcher = Some(self.objects.obj(entering).source);
                 if let Some(host) = crate::target::candidates_region_with_activation(
                     self,
@@ -145,7 +145,7 @@ impl GameState {
             // n)` self-replacement → fold `(kind, n)` into the entering status.
             // `n` is evaluated against a `This`-anchored frame so a count that
             // scales ("a +1/+1 counter for each …") resolves at entry.
-            OneShotEffect::Act {
+            Instruction::Act {
                 action: Action::PutCounters(what, kind, count),
                 ..
             } if is_self_reference(what) => {
@@ -159,7 +159,7 @@ impl GameState {
             // `AsEnters(If(condition: <gate>, then: <fold>, otherwise: <fold>))`.
             // Evaluate the gate against a `This`-anchored entry frame (the "you"
             // is the entering object's controller) and fold the chosen branch.
-            OneShotEffect::If(if_effect) => {
+            Instruction::If(if_effect) => {
                 if self.condition_holds(&if_effect.condition, frame) {
                     self.apply_as_enters(&if_effect.then, entering, status, frame);
                 } else if let Some(otherwise) = &if_effect.otherwise {
@@ -171,7 +171,7 @@ impl GameState {
             // PutCounters(This, kind, n)])`. Tap, attach, and counters touch
             // disjoint `EnterStatus` fields, so both variants fold every
             // child into the same `status` in turn; order doesn't matter.
-            OneShotEffect::Sequentially(effects) | OneShotEffect::Simultaneously(effects) => {
+            Instruction::Sequentially(effects) | Instruction::Simultaneously(effects) => {
                 for child in effects.iter() {
                     self.apply_as_enters(child, entering, status, frame);
                 }
@@ -207,11 +207,11 @@ fn is_self_reference(r: &Reference) -> bool {
 /// Whether an `also` effect is this object attaching itself on entry — the
 /// enters-attached shape: a host `Choose` instruction followed by the attach
 /// verb that reads the register it wrote ([CR#303.4f]).
-fn also_is_self_attach(effect: &OneShotEffect) -> bool {
-    let OneShotEffect::Sequentially(parts) = effect else { return false };
+fn also_is_self_attach(effect: &Instruction) -> bool {
+    let Instruction::Sequentially(parts) = effect else { return false };
     let [
-        OneShotEffect::Choose(choice),
-        OneShotEffect::Act {
+        Instruction::Choose(choice),
+        Instruction::Act {
             action: Action::Attach { what, to },
             ..
         },
@@ -338,7 +338,7 @@ mod tests {
         let card = Card::Normal(CardFace {
             name: "Test Counterer".into(),
             types: vec![Type::Artifact.def()],
-            abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
+            abilities: vec![Ability::r#static(StaticSpec::Replacement(Arc::new(
                 Replacement::Also {
                     would: EventFilter::ZoneChange {
                         what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
@@ -346,7 +346,7 @@ mod tests {
                         to: Some(Zone::Battlefield),
                         cause: None,
                     },
-                    also: OneShotEffect::Act(Action::PutCounters(
+                    also: Instruction::Act(Action::PutCounters(
                         Reference::Reg(deckmaste_core::RefId(0)),
                         "P1P1Counter".into(),
                         Count::Literal(2),
@@ -405,16 +405,16 @@ mod tests {
     /// counters on it"; still an `Unparsed`/`.ron.todo` placeholder in the
     /// wizards corpus pending the authoring pipeline, so this fixture
     /// exercises the same shape synthetically). `compose` is
-    /// `OneShotEffect::Sequentially` or `OneShotEffect::Simultaneously`.
+    /// `Instruction::Sequentially` or `Instruction::Simultaneously`.
     fn tapped_with_counters_card(
-        compose: fn(std::sync::Arc<[OneShotEffect]>) -> OneShotEffect,
+        compose: fn(std::sync::Arc<[Instruction]>) -> Instruction,
     ) -> Card {
         use deckmaste_core::Count;
 
         Card::Normal(CardFace {
             name: "Test Slumbering Isle".into(),
             types: vec![Type::Creature.def()],
-            abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
+            abilities: vec![Ability::r#static(StaticSpec::Replacement(Arc::new(
                 Replacement::Also {
                     would: EventFilter::ZoneChange {
                         what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
@@ -424,10 +424,8 @@ mod tests {
                     },
                     also: compose(
                         vec![
-                            OneShotEffect::Act(Action::Tap(Reference::Reg(deckmaste_core::RefId(
-                                0,
-                            )))),
-                            OneShotEffect::Act(Action::PutCounters(
+                            Instruction::Act(Action::Tap(Reference::Reg(deckmaste_core::RefId(0)))),
+                            Instruction::Act(Action::PutCounters(
                                 Reference::Reg(deckmaste_core::RefId(0)),
                                 "SlumberCounter".into(),
                                 Count::Literal(5),
@@ -488,7 +486,7 @@ mod tests {
     #[test]
     fn enters_tapped_with_counters_sequentially() {
         let mut state = game();
-        let card = Arc::new(tapped_with_counters_card(OneShotEffect::Sequentially));
+        let card = Arc::new(tapped_with_counters_card(Instruction::Sequentially));
         let entered = enter_from_hand_stop_on_arrival(&mut state, card);
         assert!(
             state.objects.obj(entered).tapped,
@@ -513,7 +511,7 @@ mod tests {
     #[test]
     fn enters_tapped_with_counters_simultaneously() {
         let mut state = game();
-        let card = Arc::new(tapped_with_counters_card(OneShotEffect::Simultaneously));
+        let card = Arc::new(tapped_with_counters_card(Instruction::Simultaneously));
         let entered = enter_from_hand_stop_on_arrival(&mut state, card);
         assert!(
             state.objects.obj(entered).tapped,
@@ -589,7 +587,7 @@ mod tests {
         Card::Normal(CardFace {
             name: "Test Tapland".into(),
             types: vec![Type::Land.def()],
-            abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
+            abilities: vec![Ability::r#static(StaticSpec::Replacement(Arc::new(
                 Replacement::Also {
                     would: EventFilter::ZoneChange {
                         what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
@@ -597,9 +595,9 @@ mod tests {
                         to: Some(Zone::Battlefield),
                         cause: None,
                     },
-                    also: OneShotEffect::If(If {
+                    also: Instruction::If(If {
                         condition: Condition::Not(Arc::new(gate)),
-                        then: Arc::new(OneShotEffect::Act(Action::Tap(Reference::Reg(
+                        then: Arc::new(Instruction::Act(Action::Tap(Reference::Reg(
                             deckmaste_core::RefId(0),
                         )))),
                         otherwise: None,
@@ -710,7 +708,7 @@ mod tests {
         let mut state = game();
         state.conferral_rules = vec![ConferralRule {
             scope: Predicate::r#type(Type::Planeswalker),
-            confer: Property::Ability(Arc::new(Ability::r#static(StaticEffect::Replacement(
+            confer: Property::Ability(Arc::new(Ability::r#static(StaticSpec::Replacement(
                 Arc::new(Replacement::Also {
                     would: EventFilter::ZoneChange {
                         what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
@@ -718,7 +716,7 @@ mod tests {
                         to: Some(Zone::Battlefield),
                         cause: None,
                     },
-                    also: OneShotEffect::Act(Action::PutCounters(
+                    also: Instruction::Act(Action::PutCounters(
                         Reference::Reg(deckmaste_core::RefId(0)),
                         "LoyaltyCounter".into(),
                         Count::Literal(3),
@@ -998,16 +996,16 @@ mod tests {
     /// verb reads the register it wrote ([CR#303.4f]). The deleted
     /// `With(ChooseOne(quality), Attach(This, It))` said the same thing with
     /// a binder.
-    fn enters_attached_also(quality: Predicate) -> OneShotEffect {
-        OneShotEffect::Sequentially(
+    fn enters_attached_also(quality: Predicate) -> Instruction {
+        Instruction::Sequentially(
             vec![
-                OneShotEffect::Choose(deckmaste_core::Choose {
+                Instruction::Choose(deckmaste_core::Choose {
                     dest: HOST_DEF,
                     by: Reference::controller_parameter(),
                     quantity: deckmaste_core::Quantity::one(),
                     filter: nested_candidate_region(quality),
                 }),
-                OneShotEffect::Act {
+                Instruction::Act {
                     dest: None,
                     action: Action::Attach {
                         what: Reference::source_parameter(),
@@ -1024,15 +1022,15 @@ mod tests {
     fn enchant_creature_grant() -> Ability {
         use deckmaste_core::Deontic;
         use deckmaste_core::DeonticAction;
-        Ability::r#static(StaticEffect::Deontic(Deontic::May(DeonticAction::Attach {
+        Ability::r#static(StaticSpec::Deontic(Deontic::May(DeonticAction::Attach {
             what: Predicate::Ref(Reference::source_parameter()),
             to: Predicate::creature(),
         })))
     }
 
     /// The self-enter replacement carrying `also`.
-    fn enters_replacement(also: OneShotEffect) -> Ability {
-        Ability::r#static(StaticEffect::Replacement(Arc::new(Replacement::Also {
+    fn enters_replacement(also: Instruction) -> Ability {
+        Ability::r#static(StaticSpec::Replacement(Arc::new(Replacement::Also {
             would: EventFilter::ZoneChange {
                 what: Predicate::Ref(Reference::source_parameter()),
                 from: None,

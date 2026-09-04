@@ -10,7 +10,7 @@ use crate::KeywordAbility;
 use crate::Region;
 use crate::TargetSpec;
 use crate::Timing;
-use crate::continuous::StaticEffect;
+use crate::continuous::StaticSpec;
 use crate::cost::Cost;
 
 /// A spell ability — what an instant or sorcery does on resolution
@@ -41,7 +41,7 @@ pub struct SpellAbility {
 /// An activated ability: paid with a cost and produces an effect
 /// ([CR#113.3b,602]). Targeting lives in `targets` ([CR#115.1,601.2c]); the
 /// `Resolvable` wrapper of the design sketch is realized as
-/// `OneShotEffect::Modal` (see `effect`).
+/// `Instruction::Modal` (see `effect`).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct ActivatedAbility {
     /// The ability word printed before the em dash ([CR#207.2c] — no rules
@@ -96,7 +96,7 @@ pub enum UseLimit {
 
 /// A triggered ability ([CR#113.3c,603]). A named struct because it recurs:
 /// delayed ([CR#603.7]) and reflexive ([CR#603.12]) triggers are the same
-/// value, created inside an `OneShotEffect`.
+/// value, created inside an `Instruction`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct TriggeredAbility {
     /// The ability word printed before the em dash ([CR#207.2c] — no rules
@@ -231,13 +231,13 @@ pub enum ManaAbility {
 /// `engine-event-size-boxing`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 pub enum Ability {
-    /// A static ability ([CR#113.3d,604]) — a single [`StaticEffect`], read
+    /// A static ability ([CR#113.3d,604]) — a single [`StaticSpec`], read
     /// POSITIONALLY bare (`Static(Each(SelectAll(...), Modify(It, ...)))`,
     /// `Static(Cant(...))`). Duration is implicit ("while it functions",
-    /// [CR#611.3]); conditionality/other qualifiers compose as `StaticEffect`
-    /// wrappers ([`Conditionally`](crate::StaticEffect::Conditionally)), never
-    /// a struct field. Mirrors Idris `Static : StaticEffect -> Ability`.
-    Static(Arc<Region<StaticEffect>>),
+    /// [CR#611.3]); conditionality/other qualifiers compose as `StaticSpec`
+    /// wrappers ([`Conditionally`](crate::StaticSpec::Conditionally)), never
+    /// a struct field. Mirrors Idris `Static : StaticSpec -> Ability`.
+    Static(Arc<Region<StaticSpec>>),
     Activated(Arc<ActivatedAbility>),
     Triggered(Arc<TriggeredAbility>),
     /// A lowering-classified activated or triggered mana ability.
@@ -262,11 +262,11 @@ pub enum Ability {
 }
 
 impl Ability {
-    /// Build [`Ability::Static`], boxing the [`StaticEffect`] payload — the
+    /// Build [`Ability::Static`], boxing the [`StaticSpec`] payload — the
     /// value-side counterpart of the flat RON `Static(…)`, so call sites never
     /// hand-write `Arc::new`. (Raw ident: `static` is a keyword.)
     #[must_use]
-    pub fn r#static(effect: StaticEffect) -> Self {
+    pub fn r#static(effect: StaticSpec) -> Self {
         Ability::Static(Arc::new(Region::new(crate::event_region_params(), effect)))
     }
 

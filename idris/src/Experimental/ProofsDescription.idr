@@ -33,27 +33,27 @@ badEachOfSingular Refl impossible
 
 ||| "Look at the top card of target player's library."
 public export
-okSliceOfOnePossessor : Effect []
+okSliceOfOnePossessor : Instruction []
 okSliceOfOnePossessor =
   Macros.lookAt (LibrarySlice OnTop (Lit 1) (Macros.target AnyPlayer))
 
 ||| "Look at the top card of two target players' library."
 public export
-badSliceOfCountedPossessor : Unspellable (Effect []) (\ok =>
+badSliceOfCountedPossessor : Unspellable (Instruction []) (\ok =>
   Macros.lookAt (LibrarySlice OnTop (Lit 1)
                               (Described (TargetDet (Macros.exactly 2)) AnyPlayer) {sp = ok}))
 badSliceOfCountedPossessor Oh impossible
 
 ||| "Tap target creature an opponent controls. That player loses 1 life."
 public export
-okThatPlayer : Effect []
+okThatPlayer : Instruction []
 okThatPlayer =
   Sequentially [SetStatus Tapped (Macros.target (And [Macros.creature,
                   HasPossessor ControllerAx Macros.anOpponent])),
                 Macros.losesLife (Macros.That PlayerW OneOf) (Lit 1)]
 
 public export
-badDisjunctAntecedent : Unspellable (Effect []) (\ok =>
+badDisjunctAntecedent : Unspellable (Instruction []) (\ok =>
   Sequentially [SetStatus Tapped (Macros.target (Or [And [Macros.creature, HasPossessor ControllerAx Macros.anOpponent],
                                         And [Macros.land, HasPossessor ControllerAx You]])),
                 Macros.losesLife (Macros.That PlayerW OneOf {ok}) (Lit 1)])
@@ -61,21 +61,21 @@ badDisjunctAntecedent Refl impossible
 
 ||| "Tap target creature with flying."
 public export
-okKeywordConjunction : Effect []
+okKeywordConjunction : Instruction []
 okKeywordConjunction =
   SetStatus Tapped (Macros.target (And [Macros.creature,
                                         HasKeyword (TheKeyword "Flying")]))
 
 ||| "Tap target creature with flying that doesn't have flying."
 public export
-badKeywordContradiction : Unspellable (Effect []) (\ok =>
+badKeywordContradiction : Unspellable (Instruction []) (\ok =>
   SetStatus Tapped (Macros.target (And [Macros.creature, HasKeyword (TheKeyword "Flying"),
                             Not (HasKeyword (TheKeyword "Flying"))] {cf = ok})))
 badKeywordContradiction Oh impossible
 
 ||| "Tap target nonland Forest."
 public export
-badForestNonland : Unspellable (Effect []) (\ok =>
+badForestNonland : Unspellable (Instruction []) (\ok =>
   SetStatus Tapped (Macros.target (And [HasSubtype (landType "Forest"), Not Macros.land] {cf = ok})))
 badForestNonland Oh impossible
 
@@ -139,7 +139,7 @@ badMatchesTargetSubject Oh impossible
 
 ||| "Tap target creature. You gain 1 life if it's an artifact."
 public export
-okMatchesArtifact : Effect []
+okMatchesArtifact : Instruction []
 okMatchesArtifact =
   Sequentially [SetStatus Tapped (Macros.target Macros.creature),
                 OnlyIf (Macros.gainsLife You (Lit 1))
@@ -147,7 +147,7 @@ okMatchesArtifact =
 
 ||| "Tap target creature. You gain 1 life if it's."
 public export
-badMatchesNothing : Unspellable (Effect []) (\ok =>
+badMatchesNothing : Unspellable (Instruction []) (\ok =>
   Sequentially [SetStatus Tapped (Macros.target Macros.creature),
                 OnlyIf (Macros.gainsLife You (Lit 1)) (Matches ((Macros.It OneOf)) (And []) {sy = ok}) Nothing])
 badMatchesNothing Oh impossible
@@ -202,13 +202,13 @@ badColorlessWhite Oh impossible
 
 ||| "Draw X cards, where X is the number of creatures you control."
 public export
-okSingleXRider : Effect []
+okSingleXRider : Instruction []
 okSingleXRider =
   Sequentially [ Draw You (LetterVal X)
                , Define X (Macros.countOf Macros.creatureYouControl) ]
 
 public export
-badDoubleXRider : Unspellable (Effect []) (\ok =>
+badDoubleXRider : Unspellable (Instruction []) (\ok =>
   Sequentially [ Draw You (LetterVal X)
                , Define X (Macros.countOf Macros.creatureYouControl)
                , Define X (Macros.countOf Macros.creature) {ok} ])
@@ -216,7 +216,7 @@ badDoubleXRider Oh impossible
 
 ||| "Draw Y cards, where X is the number of creatures you control."
 public export
-badUnlicensedY : Unspellable (Effect []) (\ok =>
+badUnlicensedY : Unspellable (Instruction []) (\ok =>
   Sequentially [ Draw You (LetterVal Y)
                , Define X (Macros.countOf Macros.creatureYouControl) {ok} ])
 badUnlicensedY Oh impossible
@@ -332,21 +332,21 @@ badPartitiveOfCountedGroup Oh impossible
 
 ||| "Destroy target creature. Its controller loses life equal to its power."
 public export
-okItAfterAntecedent : Effect []
+okItAfterAntecedent : Instruction []
 okItAfterAntecedent =
   Sequentially [ Macros.destroy (Macros.target Macros.creature)
                , Macros.losesLife (Macros.controllerOf (Macros.It OneOf))
                                   (StatOf Power (Macros.It OneOf)) ]
 
 public export
-badOtherwiseReadsLeadingArm : Unspellable (Effect []) (\ok =>
+badOtherwiseReadsLeadingArm : Unspellable (Instruction []) (\ok =>
   If (Macros.exists Macros.creatureYouControl)
      (Macros.create (Lit 1) (Macros.creatureTok 1 1 [Black] [creatureType "Zombie"]))
      (Just (SetStatus Tapped ((Macros.It OneOf) {ok = Builtin.fst ok}) {ok = Builtin.snd ok})))
 badOtherwiseReadsLeadingArm (Refl, _) impossible
 
 public export
-badLeadingConditionAntecedent : Unspellable (Effect []) (\ok =>
+badLeadingConditionAntecedent : Unspellable (Instruction []) (\ok =>
   Sequentially [If (CompareAmt (PlayerStatOf LifeTotal You) Less
                                (PlayerStatOf LifeTotal Macros.anOpponent))
                    (Macros.gainsLife You (Lit 6))
@@ -378,7 +378,7 @@ badNestedConjunction Oh impossible
 
 ||| "Roll two d6. If you rolled 7, sacrifice this creature."
 public export
-okTotalAfterRoll : Effect []
+okTotalAfterRoll : Instruction []
 okTotalAfterRoll =
   Sequentially [ (Macros.rollDice You 2 6)
                , Macros.ifThen (CompareAmt (TheOutcome RollResult) Eq (Lit 7))
@@ -386,7 +386,7 @@ okTotalAfterRoll =
 
 ||| "If you rolled 7, sacrifice this creature."
 public export
-badTotalWithoutRoll : Unspellable (Effect []) (\ok =>
+badTotalWithoutRoll : Unspellable (Instruction []) (\ok =>
   Macros.ifThen (CompareAmt (TheOutcome RollResult {ok}) Eq (Lit 7))
                 (Macros.sacrifice You Macros.thisCreature))
 badTotalWithoutRoll Refl impossible
@@ -394,7 +394,7 @@ badTotalWithoutRoll Refl impossible
 public export
 afterShuffledIntoLook : Bindings
 afterShuffledIntoLook =
-  effIntro (the (Effect [])
+  instrIntro (the (Instruction [])
     (Sequentially [ Macros.lookAt (Macros.topSlice (Lit 1)), Macros.shuffleInto You This ]))
 
 public export
@@ -510,24 +510,24 @@ badCardCopyOfACard Oh impossible
 
 ||| "Target creature can't attack this turn."
 public export
-okCantAttackCreature : Effect []
+okCantAttackCreature : Instruction []
 okCantAttackCreature =
   Macros.cantAttack (Macros.target Macros.creature) (Just ThisTurn)
 
 ||| "Target land can't attack this turn."
 public export
-badCantAttackLand : Unspellable (Effect []) (\ok =>
+badCantAttackLand : Unspellable (Instruction []) (\ok =>
   Macros.cantAttack (Macros.target Macros.land) (Just ThisTurn) {dp = ok})
 badCantAttackLand Oh impossible
 
 ||| "Target creature can't block this turn."
 public export
-okCantBlockCreature : Effect []
+okCantBlockCreature : Instruction []
 okCantBlockCreature =
   Macros.cantBlock (Macros.target Macros.creature) (Just ThisTurn)
 
 ||| "Target creature or land can't block this turn."
 public export
-badCantDisjunctSubject : Unspellable (Effect []) (\ok =>
+badCantDisjunctSubject : Unspellable (Instruction []) (\ok =>
   Macros.cantBlock (Macros.target (Or [Macros.creature, Macros.land])) (Just ThisTurn) {dp = ok})
 badCantDisjunctSubject Oh impossible

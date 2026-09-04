@@ -19,10 +19,10 @@ use deckmaste_core::Color;
 use deckmaste_core::ColorOrColorless;
 use deckmaste_core::CostComponent;
 use deckmaste_core::Count;
+use deckmaste_core::Instruction;
 use deckmaste_core::LifeOp;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSymbol;
-use deckmaste_core::OneShotEffect;
 use deckmaste_core::PhaseStep;
 use deckmaste_core::Reference;
 use deckmaste_core::SimpleManaSymbol;
@@ -1197,8 +1197,8 @@ fn pinger_fizzles_when_target_dies() {
 
 /// A nondescript no-target effect: gain 0 life. Resolving it mutates nothing,
 /// so a test can isolate the *cost* being performed from the effect.
-fn gain_zero() -> OneShotEffect {
-    OneShotEffect::Act(CoreAction::ChangeLife(
+fn gain_zero() -> Instruction {
+    Instruction::Act(CoreAction::ChangeLife(
         Reference::Reg(deckmaste_core::RefId(1)),
         LifeOp::Up(Count::Literal(0)),
     ))
@@ -2445,7 +2445,7 @@ fn phyrexian_spell_proposal_is_offered_even_when_current_resources_fail() {
 fn artifact_with_cost_and_effect(
     name: &str,
     cost: Vec<CostComponent>,
-    effect: OneShotEffect,
+    effect: Instruction,
 ) -> Arc<Card> {
     Arc::new(Card::Normal(CardFace {
         name: name.into(),
@@ -2534,7 +2534,7 @@ fn sacrifice_cost_is_paid_at_activation_and_its_product_is_read_at_resolution() 
                 Reference::Reg(chosen.into()),
             )),
         ],
-        OneShotEffect::Act(CoreAction::ChangeLife(
+        Instruction::Act(CoreAction::ChangeLife(
             Reference::Reg(deckmaste_core::RefId(1)),
             LifeOp::Up(Count::StatOf(
                 Reference::Reg(chosen.into()),

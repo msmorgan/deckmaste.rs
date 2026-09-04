@@ -10,7 +10,7 @@ TABLES = {
     "reflexEncloseUse": "EncAgentless",
     "thisWayOutcomeOk": "True",
     "costActionOk": "False",
-    "effIntro": None,
+    "instrIntro": None,
     "preIntro": None,
     "annIntro": None,
     "deedDelta": None,

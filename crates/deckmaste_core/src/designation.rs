@@ -6,7 +6,7 @@ use serde::Serialize;
 use crate::Condition;
 use crate::Ident;
 use crate::Predicate;
-use crate::continuous::StaticEffect;
+use crate::continuous::StaticSpec;
 
 /// Where a designation attaches (taxonomy §8).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
@@ -60,7 +60,7 @@ pub enum DesignationDef {
         persistence: DesignationPersistence,
         /// Abilities the designation confers (e.g. suspected's menace).
         #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
-        payload: Arc<[StaticEffect]>,
+        payload: Arc<[StaticSpec]>,
     },
     /// A designation derived by re-evaluating a filter (e.g. `Modified`).
     Derived(Predicate),

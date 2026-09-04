@@ -233,8 +233,15 @@ _Avoid_: Predicate as an interchangeable noun
 **Instruction** (project term):
 Executable semantic syntax describing work to perform. Executing an
 Instruction may cause Actions, Events, and Effects, but the Instruction is none
-of those things.
-_Avoid_: Effect for executable syntax
+of those things ([CR#609.1] — text itself is never an Effect).
+_Avoid_: Effect for executable syntax; One-Shot Effect as its name
+
+**Static Spec** (project term):
+Declarative semantic syntax stating what holds while its carrier is in force.
+It is the payload a Static Ability states, and the part a one-shot puts in
+force for a duration ([CR#611.2]); like an Instruction it is syntax, so it is
+not itself an Effect — the Continuous Effect is what applying it establishes.
+_Avoid_: Static Effect
 
 **Decision Point** (project term):
 An engine boundary at which progress waits for an external agent to supply a

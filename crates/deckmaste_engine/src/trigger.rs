@@ -18,7 +18,7 @@ use deckmaste_core::Ident;
 use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
 use deckmaste_core::StatePredicate;
-use deckmaste_core::StaticEffect;
+use deckmaste_core::StaticSpec;
 use deckmaste_core::TargetSpec;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
@@ -1136,7 +1136,7 @@ impl GameState {
     }
 
     /// The number of ADDITIONAL times a trigger fires under
-    /// [`StaticEffect::TriggerMultiplier`] statics ([CR#603.2d]):
+    /// [`StaticSpec::TriggerMultiplier`] statics ([CR#603.2d]):
     /// Panharmonicon, Yarok, Doubling Season's trigger half. A multiplier
     /// applies when its `cause` matches the triggering `event` AND the fired
     /// trigger's source permanent (`trig_object`) matches the multiplier's
@@ -1157,7 +1157,7 @@ impl GameState {
                 let Ability::Static(effect) = &ability else {
                     continue;
                 };
-                if let StaticEffect::TriggerMultiplier {
+                if let StaticSpec::TriggerMultiplier {
                     cause,
                     extra: count,
                     affected,
@@ -3647,7 +3647,7 @@ mod tests {
     #[test]
     fn dies_trigger_fires_off_a_composite_destroy() {
         use deckmaste_core::Action;
-        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::Instruction;
         use deckmaste_core::Reference;
 
         let (mut state, goblin) = fixture_on_field("Footlight Fiend");
@@ -3655,7 +3655,7 @@ mod tests {
         // An EFFECT destroy (not the lethal-damage SBA) — the dual-facet
         // `Act(Destroy)` commits Battlefield→Graveyard on apply.
         state.run_effect(
-            OneShotEffect::Act(Action::destroy(Reference::Reg(deckmaste_core::RefId(0)))),
+            Instruction::Act(Action::destroy(Reference::Reg(deckmaste_core::RefId(0)))),
             &frame,
         );
         for _ in 0..30 {
@@ -3726,7 +3726,7 @@ mod tests {
         use deckmaste_card::DoubleFacedLayout;
         use deckmaste_core::Ability;
         use deckmaste_core::Count;
-        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::Instruction;
         use deckmaste_core::StatValue;
         use deckmaste_core::StateChange;
         use deckmaste_core::TriggeredAbility;
@@ -3743,11 +3743,8 @@ mod tests {
             },
             condition: None,
             limits: Vec::new().into(),
-            effect: OneShotEffect::draw(
-                Reference::Reg(deckmaste_core::RefId(1)),
-                Count::Literal(1),
-            )
-            .into(),
+            effect: Instruction::draw(Reference::Reg(deckmaste_core::RefId(1)), Count::Literal(1))
+                .into(),
         });
         let face = |name: &str| CardFace {
             name: name.into(),
@@ -3775,7 +3772,7 @@ mod tests {
     #[test]
     fn transform_fires_when_transforms_trigger() {
         use deckmaste_core::Action;
-        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::Instruction;
 
         use crate::object::Side;
 
@@ -3783,7 +3780,7 @@ mod tests {
         let dfc = put_synthetic_on_field(&mut state, transform_watcher_dfc(), PlayerId(0));
         let frame = crate::test_support::frame_src(&state, dfc);
         state.run_effect(
-            OneShotEffect::Act(Action::Transform(Reference::Reg(deckmaste_core::RefId(0)))),
+            Instruction::Act(Action::Transform(Reference::Reg(deckmaste_core::RefId(0)))),
             &frame,
         );
 
@@ -3876,10 +3873,10 @@ mod tests {
         use deckmaste_core::Action;
         use deckmaste_core::Count;
         use deckmaste_core::Duration;
+        use deckmaste_core::Instruction;
         use deckmaste_core::KeywordAbility;
         use deckmaste_core::Modification;
         use deckmaste_core::NumericOp;
-        use deckmaste_core::OneShotEffect;
         use deckmaste_core::TurnMarker;
 
         use crate::combat::has_keyword;
@@ -3927,7 +3924,7 @@ mod tests {
 
         let frame = crate::test_support::frame_src(&state, delver);
         state.run_effect(
-            OneShotEffect::Act(Action::Transform(Reference::Reg(deckmaste_core::RefId(0)))),
+            Instruction::Act(Action::Transform(Reference::Reg(deckmaste_core::RefId(0)))),
             &frame,
         );
         // Break the instant the flip lands — NOT on `agenda.is_empty()`,
@@ -3972,7 +3969,7 @@ mod tests {
         // the graveyard (a real remint, [CR#400.7]) then returns to the
         // battlefield as yet another new object.
         state.run_effect(
-            OneShotEffect::Act(Action::destroy(Reference::Reg(deckmaste_core::RefId(0)))),
+            Instruction::Act(Action::destroy(Reference::Reg(deckmaste_core::RefId(0)))),
             &frame,
         );
         for _ in 0..30 {
@@ -3991,7 +3988,7 @@ mod tests {
 
         let gy_frame = crate::test_support::frame_src(&state, in_graveyard);
         state.run_effect(
-            OneShotEffect::Act(Action::move_to(
+            Instruction::Act(Action::move_to(
                 Reference::Reg(deckmaste_core::RefId(0)),
                 Zone::Battlefield,
             )),
@@ -4055,8 +4052,8 @@ mod tests {
         use deckmaste_core::Action;
         use deckmaste_core::Count;
         use deckmaste_core::If;
+        use deckmaste_core::Instruction;
         use deckmaste_core::May;
-        use deckmaste_core::OneShotEffect;
         use deckmaste_core::Selection;
         use deckmaste_core::StatValue;
 
@@ -4114,7 +4111,7 @@ mod tests {
             }))
         };
         let upkeep_effect = || {
-            OneShotEffect::If(If {
+            Instruction::If(If {
                 condition: Condition::Matches(
                     top_ref(),
                     Predicate::Or(
@@ -4129,15 +4126,15 @@ mod tests {
                         .into(),
                     ),
                 ),
-                then: Arc::new(OneShotEffect::May(May {
+                then: Arc::new(Instruction::May(May {
                     who: Reference::Reg(deckmaste_core::RefId(1)),
-                    effect: Arc::new(OneShotEffect::Sequentially(
+                    effect: Arc::new(Instruction::Sequentially(
                         vec![
-                            OneShotEffect::Act(Action::Reveal {
+                            Instruction::Act(Action::Reveal {
                                 what: top_ref(),
                                 to: None,
                             }),
-                            OneShotEffect::Act(Action::Transform(Reference::Reg(
+                            Instruction::Act(Action::Transform(Reference::Reg(
                                 deckmaste_core::RefId(0),
                             ))),
                         ]
@@ -4234,7 +4231,7 @@ mod tests {
         use deckmaste_core::CombatStep;
         use deckmaste_core::Count;
         use deckmaste_core::EventFilter;
-        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::Instruction;
         use deckmaste_core::PhaseStep;
         use deckmaste_core::Reference;
         use deckmaste_core::StatValue;
@@ -4266,7 +4263,7 @@ mod tests {
                 },
                 condition: None,
                 limits: Vec::new().into(),
-                effect: OneShotEffect::Act(Action::Create {
+                effect: Instruction::Act(Action::Create {
                     agent: Reference::Reg(deckmaste_core::RefId(1)),
                     count: Count::Literal(1),
                     token: goblin_token.into(),
@@ -4408,7 +4405,7 @@ mod tests {
     /// register.
     fn draw_on(event: EventFilter) -> deckmaste_core::TriggeredAbility {
         use deckmaste_core::Count;
-        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::Instruction;
         use deckmaste_core::Reference;
 
         deckmaste_core::TriggeredAbility {
@@ -4419,11 +4416,8 @@ mod tests {
             event,
             condition: None,
             limits: Vec::new().into(),
-            effect: OneShotEffect::draw(
-                Reference::Reg(deckmaste_core::RefId(1)),
-                Count::Literal(1),
-            )
-            .into(),
+            effect: Instruction::draw(Reference::Reg(deckmaste_core::RefId(1)), Count::Literal(1))
+                .into(),
         }
     }
 
@@ -4533,7 +4527,7 @@ mod tests {
     #[test]
     fn reflexive_trigger_fires_on_the_same_resolution_event_then_is_gone() {
         use deckmaste_core::EventFilter;
-        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::Instruction;
         use deckmaste_core::Predicate;
 
         use crate::stack::Frame;
@@ -4549,7 +4543,7 @@ mod tests {
         // No earlier event in this resolution yet → the "when you do" window is
         // empty, so the reflexive trigger does NOT fire (it never waits for a
         // future event — [CR#603.12]).
-        state.run_effect(OneShotEffect::Reflexive(Arc::new(ability.clone())), &frame);
+        state.run_effect(Instruction::Reflexive(Arc::new(ability.clone())), &frame);
         assert_eq!(
             total_fired(&state),
             0,
@@ -4569,7 +4563,7 @@ mod tests {
                 amount: 3,
                 cause: None,
             }));
-        state.run_effect(OneShotEffect::Reflexive(Arc::new(ability)), &frame);
+        state.run_effect(Instruction::Reflexive(Arc::new(ability)), &frame);
         assert_eq!(
             total_fired(&state),
             1,
@@ -4592,7 +4586,7 @@ mod tests {
     #[test]
     fn delayed_trigger_installed_after_its_event_fires_reflexively() {
         use deckmaste_core::EventFilter;
-        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::Instruction;
         use deckmaste_core::Predicate;
 
         use crate::stack::Frame;
@@ -4607,7 +4601,7 @@ mod tests {
         let mut state = empty_game();
         let src = put_synthetic_on_field(&mut state, upkeep_trigger_from(None), PlayerId(0));
         let frame = Frame::bare(src, PlayerId(0));
-        state.run_effect(OneShotEffect::Delayed(Arc::new(ability.clone())), &frame);
+        state.run_effect(Instruction::Delayed(Arc::new(ability.clone())), &frame);
         assert_eq!(
             total_fired(&state),
             0,
@@ -4632,7 +4626,7 @@ mod tests {
                 amount: 3,
                 cause: None,
             }));
-        state.run_effect(OneShotEffect::Delayed(Arc::new(ability)), &frame);
+        state.run_effect(Instruction::Delayed(Arc::new(ability)), &frame);
         assert_eq!(
             total_fired(&state),
             1,
@@ -4654,7 +4648,7 @@ mod tests {
         use deckmaste_core::BeginningStep;
         use deckmaste_core::Count;
         use deckmaste_core::EventFilter;
-        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::Instruction;
         use deckmaste_core::PhaseStep;
         use deckmaste_core::Reference;
         use deckmaste_core::TriggeredAbility;
@@ -4674,7 +4668,7 @@ mod tests {
                 },
                 condition: None,
                 limits: Vec::new().into(),
-                effect: OneShotEffect::draw(
+                effect: Instruction::draw(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(1),
                 )
@@ -4943,7 +4937,7 @@ mod tests {
         use deckmaste_core::Ability;
         use deckmaste_core::BeginningStep;
         use deckmaste_core::Count;
-        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::Instruction;
         use deckmaste_core::PhaseStep;
         use deckmaste_core::StatValue;
         use deckmaste_core::TriggeredAbility;
@@ -4962,11 +4956,8 @@ mod tests {
             },
             condition: None,
             limits: Vec::new().into(),
-            effect: OneShotEffect::draw(
-                Reference::Reg(deckmaste_core::RefId(1)),
-                Count::Literal(1),
-            )
-            .into(),
+            effect: Instruction::draw(Reference::Reg(deckmaste_core::RefId(1)), Count::Literal(1))
+                .into(),
         };
         let front = CardFace {
             name: "Front Vanilla".into(),
@@ -5692,8 +5683,8 @@ mod tests {
         use deckmaste_core::Action;
         use deckmaste_core::Count;
         use deckmaste_core::EventFilter;
+        use deckmaste_core::Instruction;
         use deckmaste_core::LifeOp;
-        use deckmaste_core::OneShotEffect;
         use deckmaste_core::Reference;
         use deckmaste_core::StatValue;
         use deckmaste_core::TriggeredAbility;
@@ -5715,7 +5706,7 @@ mod tests {
                 },
                 condition: None,
                 limits: limits.into(),
-                effect: OneShotEffect::Act(Action::ChangeLife(
+                effect: Instruction::Act(Action::ChangeLife(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     LifeOp::Up(Count::Literal(1)),
                 ))
@@ -6356,7 +6347,7 @@ mod tests {
 
     /// The saga-chapter walk-through ([CR#714.2b]): three chapter abilities
     /// authored through the `Chapter` MACRO (`Chapter(n: [N], effect: …)` —
-    /// the [CR#714.2b] "{rN}—[`OneShotEffect`]" spelling, expanding to
+    /// the [CR#714.2b] "{rN}—[`Instruction`]" spelling, expanding to
     /// `OneOrMore(CounterPlaced(kind: LoreCounter, on: Ref(This)))` gated by
     /// `Crossed` at thresholds 1/2/3) against a counter-DOUBLED
     /// 0→2 lore jump arriving as ONE batch fact — chapter I fires
@@ -6533,8 +6524,8 @@ mod tests {
         use deckmaste_core::Ability;
         use deckmaste_core::Action;
         use deckmaste_core::Count;
+        use deckmaste_core::Instruction;
         use deckmaste_core::LifeOp;
-        use deckmaste_core::OneShotEffect;
         use deckmaste_core::StatValue;
         use deckmaste_core::TriggeredAbility;
 
@@ -6556,7 +6547,7 @@ mod tests {
                 limits: vec![].into(),
                 effect: deckmaste_core::Region::new(
                     deckmaste_core::event_region_params(),
-                    OneShotEffect::Act(Action::ChangeLife(
+                    Instruction::Act(Action::ChangeLife(
                         Reference::controller_parameter(),
                         LifeOp::Up(Count::Reg(EVENT_AMOUNT)),
                     ))

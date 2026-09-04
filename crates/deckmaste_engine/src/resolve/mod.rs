@@ -1,4 +1,4 @@
-//! Resolution ([CR#608]): dispatch a stack object, and walk its `OneShotEffect`
+//! Resolution ([CR#608]): dispatch a stack object, and walk its `Instruction`
 //! AST as reified agenda work. Stage 3 wires the corpus's arms; the rest are
 //! `todo!`.
 
@@ -447,7 +447,7 @@ impl GameState {
     }
 }
 
-/// Extracts the `OneShotEffect` from the first `Ability::Spell` arm.
+/// Extracts the `Instruction` from the first `Ability::Spell` arm.
 fn spell_ability_effect(ability: &Ability) -> Option<&deckmaste_core::Region> {
     match ability {
         Ability::Spell(s) => Some(&s.effect),
@@ -703,7 +703,7 @@ mod tests {
             ability_word: None,
             cost: deckmaste_core::Cost([].into()),
             targets: vec![spec.clone()].into(),
-            effect: deckmaste_core::Instr::act(deckmaste_core::Action::deal_damage(
+            effect: deckmaste_core::Instruction::act(deckmaste_core::Action::deal_damage(
                 deckmaste_core::Reference::Reg(deckmaste_core::RefId(6)),
                 deckmaste_core::Count::Literal(3),
             ))

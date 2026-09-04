@@ -26,45 +26,45 @@ badCostReadsSiblingDeed Oh impossible
 
 ||| "Target creature gains flying."
 public export
-okGainsKeyword : Effect []
+okGainsKeyword : Instruction []
 okGainsKeyword =
   Macros.gains (Macros.target Macros.creature) (Macros.keyword "Flying") Nothing
 
 ||| "Target creature gains a spell ability."
 public export
-badGainsSpellAbility : Unspellable (Effect []) (\ok =>
+badGainsSpellAbility : Unspellable (Instruction []) (\ok =>
   Macros.gains (Macros.target Macros.creature) (Spell (Draw You (Lit 1))) Nothing {gr = ok})
 badGainsSpellAbility Oh impossible
 
 ||| "Creature spells you cast cost {1} less to cast."
 public export
-okCostSubjectOnStack : StaticEffect []
+okCostSubjectOnStack : StaticSpec []
 okCostSubjectOnStack =
   CostsToCast (Macros.allOf (And [Macros.creature, Macros.spell]))
               (CostLess (Lit 1) Nothing)
 
 ||| "Creatures you control cost {1} less to cast."
 public export
-badCostSubjectOnBattlefield : Unspellable (StaticEffect []) (\ok =>
+badCostSubjectOnBattlefield : Unspellable (StaticSpec []) (\ok =>
   CostsToCast (Macros.allOf Macros.creatureYouControl) (CostLess (Lit 1) Nothing) {cs = ok})
 badCostSubjectOnBattlefield MkCostSubject impossible
 
 ||| "Creatures you control have flying."
 public export
-okBattlefieldFlying : StaticEffect []
+okBattlefieldFlying : StaticSpec []
 okBattlefieldFlying =
   Gains (Macros.allOf Macros.creatureYouControl)
         (KeywordAbility "Flying" Nothing Nothing)
 
 ||| "Creatures you control have convoke."
 public export
-badBattlefieldConvoke : Unspellable (StaticEffect []) (\ok =>
+badBattlefieldConvoke : Unspellable (StaticSpec []) (\ok =>
   Gains (Macros.allOf Macros.creatureYouControl) (KeywordAbility "Convoke" Nothing Nothing) {ok})
 badBattlefieldConvoke Oh impossible
 
 ||| "Target creature gets +1/+1, gains flying, and gains trample."
 public export
-okFlatCoordination : StaticEffect []
+okFlatCoordination : StaticSpec []
 okFlatCoordination =
   AndAlso Nothing [ Gets Adds (Macros.target Macros.creature)
                          (PtUp (Lit 1)) (PtUp (Lit 1))
@@ -73,7 +73,7 @@ okFlatCoordination =
 
 ||| "Target creature gets +1/+1 and gains flying and gains trample."
 public export
-badNestedCoordination : Unspellable (StaticEffect []) (\ok =>
+badNestedCoordination : Unspellable (StaticSpec []) (\ok =>
   AndAlso Nothing (Coord.(::) (AndAlso Nothing [ Gets Adds (Macros.target Macros.creature)
                                       (PtUp (Lit 1)) (PtUp (Lit 1))
                                , Gains ((Macros.It OneOf)) (KeywordAbility "Flying" Nothing Nothing) ])
@@ -115,7 +115,7 @@ badCoordinatedHostPlural Refl impossible
 
 ||| "Create a 1/1 white Soldier creature token with flying."
 public export
-okTokenKeywordAbility : Effect []
+okTokenKeywordAbility : Instruction []
 okTokenKeywordAbility =
   Macros.create (Lit 1)
     (MkToken (Just (Lit 1 ** Lit 1)) [White]
@@ -124,7 +124,7 @@ okTokenKeywordAbility =
 
 ||| "Create a 1/1 white Soldier creature token with 'Draw two cards.'"
 public export
-badTokenSpellAbility : Unspellable (Effect []) (\ok =>
+badTokenSpellAbility : Unspellable (Instruction []) (\ok =>
   Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [White]
                                  (MkTypeLine [creatureType "Soldier"] [Creature])
                                  [Spell (Draw You (Lit 1))] Nothing) {wf = ok})
@@ -132,7 +132,7 @@ badTokenSpellAbility (Oh, Oh, Oh, Oh, Oh, Oh) impossible
 
 ||| "Instant and sorcery spells you cast have '{T}: Draw a card.'"
 public export
-badQuotedGrantOnSpell : Unspellable (StaticEffect []) (\ok =>
+badQuotedGrantOnSpell : Unspellable (StaticSpec []) (\ok =>
   Gains (Macros.allOf (And [Macros.instantOrSorcery, Macros.spell, Macros.castBy You]))
         (Activated TapSymbol (Draw You (Lit 1)) Nothing Nothing Nothing Nothing) {ok})
 badQuotedGrantOnSpell Oh impossible
@@ -317,7 +317,7 @@ badActivatedClosesCardLetter :
 badActivatedClosesCardLetter Oh impossible
 
 public export
-sharedSubjectSurvivesSecondSingular : Effect []
+sharedSubjectSurvivesSecondSingular : Instruction []
 sharedSubjectSurvivesSecondSingular =
   Sequentially [Macros.exile You (Macros.target Macros.artifact),
                 Macros.sharedSubject (Macros.target Macros.creature)
@@ -353,17 +353,17 @@ badForeignSacrificeCost Oh impossible
 
 ||| "Counter target spell."
 public export
-okCounterSpell : Effect []
+okCounterSpell : Instruction []
 okCounterSpell = CounterSpell (Macros.target Macros.spell)
 
 ||| "Counter target creature."
 public export
-badCounterPermanent : Unspellable (Effect []) (\ok =>
+badCounterPermanent : Unspellable (Instruction []) (\ok =>
   CounterSpell (Macros.target Macros.creature) {ct = ok})
 badCounterPermanent StackSpell impossible
 
 ||| "Counter target creature or player."
 public export
-badCounterJoinedPlayer : Unspellable (Effect []) (\ok =>
+badCounterJoinedPlayer : Unspellable (Instruction []) (\ok =>
   CounterSpell (Macros.target Macros.anyTarget) {ct = ok})
 badCounterJoinedPlayer StackJoin impossible

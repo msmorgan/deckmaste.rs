@@ -1,4 +1,4 @@
-//! Per-pip alternative payment (`StaticEffect::PayPips`) — convoke / delve /
+//! Per-pip alternative payment (`StaticSpec::PayPips`) — convoke / delve /
 //! improvise ([CR#702.51a,702.66a,702.126a]). Proves the cost-payment hook
 //! ([CR#601.2g..601.2h]) satisfies an individual pip by tapping a creature /
 //! exiling a graveyard card "rather than pay that mana" ([CR#702.51a]) while

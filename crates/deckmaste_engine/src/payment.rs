@@ -84,8 +84,8 @@ pub enum PaymentProgress {
 pub enum PaymentPurpose {
     Announcement,
     Optional {
-        if_did: Option<Arc<deckmaste_core::OneShotEffect>>,
-        if_not: Option<Arc<deckmaste_core::OneShotEffect>>,
+        if_did: Option<Arc<deckmaste_core::Instruction>>,
+        if_not: Option<Arc<deckmaste_core::Instruction>>,
         frame: Box<Frame>,
     },
 }
@@ -233,7 +233,7 @@ pub struct PaymentFrame {
     /// The negative branch of a resolution-time `May(Cast)` announcement.
     /// Submission leaves the queued `if_did` continuation intact; decline
     /// restores `proposal_base` and schedules this branch instead.
-    pub(crate) announcement_if_not: Option<(Arc<deckmaste_core::OneShotEffect>, Box<Frame>)>,
+    pub(crate) announcement_if_not: Option<(Arc<deckmaste_core::Instruction>, Box<Frame>)>,
     /// The activated mana action whose announcement this nested frame owns.
     /// Root announcements and optional payments leave this absent.
     pub(crate) mana_action: Option<ManaActionId>,
@@ -1086,7 +1086,7 @@ impl GameState {
     pub(crate) fn configure_resolution_cast_decline(
         &mut self,
         resume: &[crate::agenda::WorkItem],
-        if_not: Option<(Arc<deckmaste_core::OneShotEffect>, Box<Frame>)>,
+        if_not: Option<(Arc<deckmaste_core::Instruction>, Box<Frame>)>,
     ) {
         let frame = self
             .payment
@@ -1108,8 +1108,8 @@ impl GameState {
         &mut self,
         payer: PlayerId,
         cost: Cost,
-        if_did: Option<Arc<deckmaste_core::OneShotEffect>>,
-        if_not: Option<Arc<deckmaste_core::OneShotEffect>>,
+        if_did: Option<Arc<deckmaste_core::Instruction>>,
+        if_not: Option<Arc<deckmaste_core::Instruction>>,
         frame: Frame,
     ) {
         // A cost's `You` is its payer. Fork the containing effect activation
@@ -2498,17 +2498,17 @@ mod tests {
     use deckmaste_core::CostComponent;
     use deckmaste_core::Count;
     use deckmaste_core::EventFilter;
+    use deckmaste_core::Instruction;
     use deckmaste_core::LifeOp;
     use deckmaste_core::ManaCost;
     use deckmaste_core::ManaRider;
     use deckmaste_core::May;
-    use deckmaste_core::OneShotEffect;
     use deckmaste_core::PayAct;
     use deckmaste_core::PipClass;
     use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
     use deckmaste_core::Replacement;
-    use deckmaste_core::StaticEffect;
+    use deckmaste_core::StaticSpec;
     use deckmaste_core::Type;
     use deckmaste_core::Zone;
 
@@ -2560,19 +2560,19 @@ mod tests {
 
     fn may_pay(
         cost: Cost,
-        if_did: Option<Arc<OneShotEffect>>,
-        if_not: Option<Arc<OneShotEffect>>,
-    ) -> OneShotEffect {
-        OneShotEffect::May(May {
+        if_did: Option<Arc<Instruction>>,
+        if_not: Option<Arc<Instruction>>,
+    ) -> Instruction {
+        Instruction::May(May {
             who: Reference::Reg(deckmaste_core::RefId(1)),
-            effect: Arc::new(OneShotEffect::Act(Action::Pay(cost))),
+            effect: Arc::new(Instruction::Act(Action::Pay(cost))),
             if_did,
             if_not,
         })
     }
 
-    fn gain_life(amount: u32) -> Arc<OneShotEffect> {
-        Arc::new(OneShotEffect::Act(Action::ChangeLife(
+    fn gain_life(amount: u32) -> Arc<Instruction> {
+        Arc::new(Instruction::Act(Action::ChangeLife(
             Reference::Reg(deckmaste_core::RefId(1)),
             LifeOp::Up(Count::Literal(amount)),
         )))
@@ -3032,17 +3032,17 @@ mod tests {
                 to: Some(Zone::Graveyard),
                 cause: None,
             },
-            instead: OneShotEffect::Sequentially(Arc::from([])),
+            instead: Instruction::Sequentially(Arc::from([])),
         };
         let shield_card = state.cards.push(
             Arc::new(Card::Normal(CardFace {
                 name: "Two replacement shields".into(),
                 types: vec![Type::Enchantment.def()],
                 abilities: vec![
-                    deckmaste_core::Ability::r#static(StaticEffect::Replacement(Arc::new(
+                    deckmaste_core::Ability::r#static(StaticSpec::Replacement(Arc::new(
                         replacement.clone(),
                     ))),
-                    deckmaste_core::Ability::r#static(StaticEffect::Replacement(Arc::new(
+                    deckmaste_core::Ability::r#static(StaticSpec::Replacement(Arc::new(
                         replacement,
                     ))),
                 ],

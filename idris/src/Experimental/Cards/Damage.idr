@@ -10,25 +10,25 @@ import Experimental.Cards.Trigger
 
 
 ||| Lightning Bolt
-bolt : Effect []
+bolt : Instruction []
 bolt = DealDamage This (Lit 3) (Macros.target Macros.anyTarget)
 
-barrageOfBoulders : Effect []
+barrageOfBoulders : Instruction []
 barrageOfBoulders = DealDamage This (Lit 1) (Macros.each Macros.creatureYouDontControl)
 
-rabidBite : Effect []
+rabidBite : Instruction []
 rabidBite = DealDamage (Macros.target Macros.creatureYouControl)
                        (StatOf Power ((Macros.It OneOf)))
                        (Macros.target Macros.creatureYouDontControl)
 
-preyUpon : Effect []
+preyUpon : Instruction []
 preyUpon = Fights (Macros.target Macros.creatureYouControl) (Macros.target Macros.creatureYouDontControl)
 
-arcTrail : Effect []
+arcTrail : Instruction []
 arcTrail = Sequentially [DealDamage This (Lit 2) (Macros.target Macros.anyTarget),
                          DealDamage This (Lit 1) (Macros.target Macros.anyOtherTarget)]
 
-deadshot : Effect []
+deadshot : Instruction []
 deadshot = Sequentially [SetStatus Tapped (Macros.target Macros.creature),
                          DealDamage ((Macros.It OneOf)) (StatOf Power ((Macros.It OneOf))) (Macros.target (And [Macros.creature, Other]))]
 
@@ -44,24 +44,24 @@ pyriteSpellbomb : Ability
 pyriteSpellbomb = Macros.activated (Compound [Mana [Macros.pip Red], Do (Macros.sacrifice You Macros.thisArtifact)])
                                    (DealDamage ((Macros.It OneOf)) (Lit 2) (Macros.target Macros.anyTarget))
 
-karplusanYeti : Effect []
+karplusanYeti : Instruction []
 karplusanYeti = Sequentially [DealDamage Macros.thisCreature (StatOf Power Macros.thisCreature) (Macros.target Macros.creature),
                               DealDamage (Macros.That (TypeW Creature) OneOf) (StatOf Power ((Macros.It OneOf))) Macros.thisCreature]
 
-suddenDemise : Effect []
+suddenDemise : Instruction []
 suddenDemise = Sequentially [Macros.choose (Macros.a (Macros.quality Color)),
                              DealDamage This (LetterVal X) (Macros.each (And [Macros.creature, OfChosen Color]))]
 
-caseOfTheGatewayExpress : Effect []
+caseOfTheGatewayExpress : Instruction []
 caseOfTheGatewayExpress = Sequentially [Macros.choose (Macros.target Macros.creatureYouDontControl),
                                         DealDamage (Macros.each Macros.creatureYouControl) (Lit 1)
                                                    (Macros.That (TypeW Creature) OneOf)]
 
-arrowsOfJustice : Effect []
+arrowsOfJustice : Instruction []
 arrowsOfJustice = DealDamage This (Lit 4)
                              (Macros.target (And [Macros.creature, Or [Attacking, Blocking]]))
 
-flamesOfTheRazeBoar : Effect []
+flamesOfTheRazeBoar : Instruction []
 flamesOfTheRazeBoar =
   Sequentially [DealDamage This (Lit 4) (Macros.target (And [Macros.creature, HasPossessor ControllerAx Macros.anOpponent])),
                 OnlyIf (DealDamage This (Lit 2)
@@ -70,52 +70,52 @@ flamesOfTheRazeBoar =
                                      Compare [CharAxis Power] AtLeast (Lit 4)]))
                        Nothing]
 
-yawgmothDemon : Effect []
+yawgmothDemon : Instruction []
 yawgmothDemon =
   (May You (Macros.sacrifice You (Macros.a Macros.artifact)) Nothing (Just (Sequentially [SetStatus Tapped Macros.thisCreature, DealDamage This (Lit 2) You])))
 
-arcBlade : Effect []
+arcBlade : Instruction []
 arcBlade = Sequentially [DealDamage This (Lit 2) (Macros.target Macros.anyTarget),
                          Macros.exileWithCounters This (Lit 3) (Named "Time")]
 
-abrade : Effect []
+abrade : Instruction []
 abrade = Macros.chooseModes (Macros.exactly 1) [DealDamage This (Lit 3) (Macros.target Macros.creature),
                     Macros.destroy (Macros.target Macros.artifact)]
 
-nibelheimAflame : Effect []
+nibelheimAflame : Instruction []
 nibelheimAflame =
   Sequentially [Macros.choose (Macros.target Macros.creatureYouControl),
                 DealDamage ((Macros.It OneOf)) (StatOf Power ((Macros.It OneOf))) (Macros.each (Macros.otherCreature ((Macros.It OneOf))))]
 
-brashTaunter : Effect []
+brashTaunter : Instruction []
 brashTaunter = Fights Macros.thisCreature (Macros.target (Macros.otherCreature Macros.thisCreature))
 
-ulvenwaldTracker : Effect []
+ulvenwaldTracker : Instruction []
 ulvenwaldTracker = Fights (Macros.target Macros.creatureYouControl) (Macros.target (And [Macros.creature, Other]))
 
-fallOfTheTitans : Effect []
+fallOfTheTitans : Instruction []
 fallOfTheTitans = DealDamage This (LetterVal X) (EachOf (Described (TargetDet (Macros.upTo 2)) Macros.anyTarget))
 
-botBashingTime : Effect []
+botBashingTime : Instruction []
 botBashingTime =
   Sequentially [ DealDamage This (Lit 6) (Macros.target Macros.creature)
                , Macros.ifWouldInstead (Dies (Macros.That (TypeW Creature) OneOf)) (Macros.exile You ((Macros.It OneOf))) (Just ThisTurn)
                ]
 
-wordsOfWar : Effect []
+wordsOfWar : Instruction []
 wordsOfWar = Macros.nextTimeWouldInstead (Draws You)
                                   (DealDamage This (Lit 2) (Macros.target Macros.anyTarget))
                                   (Just ThisTurn)
 
 ||| Fog, Holy Day, Darkness, Root Snare
-fog : Effect []
+fog : Instruction []
 fog = Macros.preventAll CombatOnly Everywhere (Just ThisTurn)
 
 ||| Indestructible Aura, Shielded Passage
-indestructibleAura : Effect []
+indestructibleAura : Instruction []
 indestructibleAura = Macros.preventAll AnyDamage (ToRecipient (Macros.target Macros.creature)) (Just ThisTurn)
 
-shieldmatesBlessing : Effect []
+shieldmatesBlessing : Instruction []
 shieldmatesBlessing =
   Macros.preventNext AnyDamage (ToRecipient (Macros.target Macros.anyTarget)) (Lit 3) (Just ThisTurn)
 
@@ -145,7 +145,7 @@ aladdinsRing =
                          (DealDamage Macros.thisArtifact (Lit 4) (Macros.target Macros.anyTarget))]
        Nothing
 
-chandrasRevolution : Effect []
+chandrasRevolution : Instruction []
 chandrasRevolution = Sequentially [DealDamage This (Lit 4) (Macros.target Macros.creature),
                                    SetStatus Tapped (Macros.target Macros.land),
                                    DoesntUntapNext (Macros.That (TypeW Land) OneOf) (Lit 1)]
@@ -157,7 +157,7 @@ arbalestElite =
                                       (Macros.target (And [Macros.creature, Or [Attacking, Blocking]])),
                            DoesntUntapNext Macros.thisCreature (Lit 1)])
 
-sizzlingBarrage : Effect []
+sizzlingBarrage : Instruction []
 sizzlingBarrage =
   DealDamage This (Lit 4)
              (Macros.target (And [Macros.creature,
@@ -473,7 +473,7 @@ candlesGlow =
        Nothing
 
 ||| Inkshield
-inkshieldRider : Effect []
+inkshieldRider : Instruction []
 inkshieldRider =
   Continuously {ts = StaticFirstDone}
     (DamageRule AnyDamage Unattributed (ToRecipient You) (Prevent CutAll (Just (Macros.create Macros.preventedThisWay
@@ -608,7 +608,7 @@ onakkeJavelineerBolt =
 
 ||| Firesong and Sunspeaker
 public export
-firesongJoinEcho : Effect []
+firesongJoinEcho : Instruction []
 firesongJoinEcho =
   Sequentially [ DealDamage This (Lit 3)
                    (Macros.target (Macros.kindJoin AnyPlayer Macros.creature))
@@ -939,7 +939,7 @@ stuffyDoll =
        (Just (0, 1))
 
 public export
-saheeliRaiPlusOne : Effect []
+saheeliRaiPlusOne : Instruction []
 saheeliRaiPlusOne =
   Sequentially [ Macros.scry You (Lit 1)
                , DealDamage This (Lit 1) (Macros.each Opponent) ]
@@ -956,7 +956,7 @@ sarkhansUnsealingLine =
 
 ||| Savage Swipe, both sentences
 public export
-savageSwipeLine : Effect []
+savageSwipeLine : Instruction []
 savageSwipeLine =
   Sequentially
     [ OnlyIf (Macros.gets (Macros.target Macros.creatureYouControl) (PtUp (Lit 2))
@@ -1009,7 +1009,7 @@ ashZealot =
        (Just (2, 2))
 
 public export
-galvanicBlastLine : Effect []
+galvanicBlastLine : Instruction []
 galvanicBlastLine =
   InsteadOf (DealDamage This (Lit 2) (Macros.target Macros.anyTarget))
             (OnlyIf (DealDamage This (Lit 4) (Macros.thatJoin))
@@ -1019,7 +1019,7 @@ galvanicBlastLine =
 
 ||| Furious Reprisal
 public export
-furiousReprisal : Effect []
+furiousReprisal : Instruction []
 furiousReprisal =
   DealDamage This (Lit 2) (EachOf (Described (TargetDet (Macros.exactly 2)) Macros.anyTarget))
 
@@ -1087,7 +1087,7 @@ brazenDwarf =
 
 ||| Lavalanche
 public export
-lavalanche : Effect []
+lavalanche : Instruction []
 lavalanche =
   Simultaneously
     [ DealDamage This (LetterVal X) Description.targetPlayerOrPlaneswalker
@@ -1095,7 +1095,7 @@ lavalanche =
 
 ||| Flame Wave
 public export
-flameWave : Effect []
+flameWave : Instruction []
 flameWave =
   Simultaneously
     [ DealDamage This (Lit 4) Description.targetPlayerOrPlaneswalker
@@ -1103,7 +1103,7 @@ flameWave =
 
 ||| Chandra Nalaar's ultimate
 public export
-chandraNalaarUltimate : Effect []
+chandraNalaarUltimate : Instruction []
 chandraNalaarUltimate =
   Simultaneously
     [ DealDamage This (Lit 10) Description.targetPlayerOrPlaneswalker
@@ -1111,7 +1111,7 @@ chandraNalaarUltimate =
 
 ||| Chandra, Pyrogenius's ultimate
 public export
-chandraPyrogeniusUltimate : Effect []
+chandraPyrogeniusUltimate : Instruction []
 chandraPyrogeniusUltimate =
   Simultaneously
     [ DealDamage This (Lit 6) Description.targetPlayerOrPlaneswalker
@@ -1119,7 +1119,7 @@ chandraPyrogeniusUltimate =
 
 ||| Bonfire of the Damned
 public export
-bonfireOfTheDamned : Effect []
+bonfireOfTheDamned : Instruction []
 bonfireOfTheDamned =
   Simultaneously
     [ DealDamage This (LetterVal X) Description.targetPlayerOrPlaneswalker
@@ -1127,7 +1127,7 @@ bonfireOfTheDamned =
 
 ||| Chandra's Fury
 public export
-chandrasFury : Effect []
+chandrasFury : Instruction []
 chandrasFury =
   Simultaneously
     [ DealDamage This (Lit 4) Description.targetPlayerOrPlaneswalker
@@ -1135,7 +1135,7 @@ chandrasFury =
 
 ||| Heart of Bogardan
 public export
-heartOfBogardanBody : Effect []
+heartOfBogardanBody : Instruction []
 heartOfBogardanBody =
   Sequentially
     [ Simultaneously
@@ -1145,14 +1145,14 @@ heartOfBogardanBody =
 
 ||| Angrath, Minotaur Pirate's plus
 public export
-angrathMinotaurPirateBolt : Effect []
+angrathMinotaurPirateBolt : Instruction []
 angrathMinotaurPirateBolt =
   Simultaneously
     [ DealDamage This (Lit 1) Description.targetOpponentOrPlaneswalker
     , DealDamage This (Lit 1) Anaphora.eachCreatureThatSplitControls ]
 
 public export
-whichOfYouBurnsBrightestBody : Effect []
+whichOfYouBurnsBrightestBody : Instruction []
 whichOfYouBurnsBrightestBody =
   Simultaneously
     [ DealDamage This (LetterVal X) Description.targetOpponentOrPlaneswalker
@@ -1160,7 +1160,7 @@ whichOfYouBurnsBrightestBody =
 
 ||| Chandra, Pyromaster's plus
 public export
-chandraPyromasterBolt : Effect []
+chandraPyromasterBolt : Instruction []
 chandraPyromasterBolt =
   Simultaneously
     [ DealDamage This (Lit 1) Description.targetPlayerOrPlaneswalker
@@ -1170,7 +1170,7 @@ chandraPyromasterBolt =
 
 ||| Ravager of the Fells
 public export
-ravagerOfTheFellsBolt : Effect []
+ravagerOfTheFellsBolt : Instruction []
 ravagerOfTheFellsBolt =
   Simultaneously
     [ DealDamage Macros.thisCreature (Lit 2) Description.targetOpponentOrPlaneswalker
@@ -1180,7 +1180,7 @@ ravagerOfTheFellsBolt =
 
 ||| Soul of Shandalar's battlefield activation
 public export
-soulOfShandalarBolt : Effect []
+soulOfShandalarBolt : Instruction []
 soulOfShandalarBolt =
   Simultaneously
     [ DealDamage Macros.thisCreature (Lit 3) Description.targetPlayerOrPlaneswalker
@@ -1190,7 +1190,7 @@ soulOfShandalarBolt =
 
 ||| Soul of Shandalar's graveyard activation
 public export
-soulOfShandalarGraveyardBolt : Effect []
+soulOfShandalarGraveyardBolt : Instruction []
 soulOfShandalarGraveyardBolt =
   Simultaneously
     [ DealDamage This (Lit 3) Description.targetPlayerOrPlaneswalker
@@ -1200,7 +1200,7 @@ soulOfShandalarGraveyardBolt =
 
 ||| Blightning
 public export
-blightning : Effect []
+blightning : Instruction []
 blightning =
   Sequentially
     [ DealDamage This (Lit 3) Description.targetPlayerOrPlaneswalker
@@ -1208,7 +1208,7 @@ blightning =
 
 ||| Rakdos's Return
 public export
-rakdossReturn : Effect []
+rakdossReturn : Instruction []
 rakdossReturn =
   Sequentially
     [ DealDamage This (LetterVal X) Description.targetOpponentOrPlaneswalker
@@ -1216,7 +1216,7 @@ rakdossReturn =
 
 ||| Nicol Bolas, Planeswalker's ultimate
 public export
-nicolBolasUltimate : Effect []
+nicolBolasUltimate : Instruction []
 nicolBolasUltimate =
   Sequentially
     [ DealDamage This (Lit 7) Description.targetPlayerOrPlaneswalker
@@ -1226,7 +1226,7 @@ nicolBolasUltimate =
 
 ||| Pulse of the Forge
 public export
-pulseOfTheForge : Effect []
+pulseOfTheForge : Instruction []
 pulseOfTheForge =
   Sequentially
     [ DealDamage This (Lit 4) Description.targetPlayerOrPlaneswalker
@@ -1237,7 +1237,7 @@ pulseOfTheForge =
 
 ||| Goblin Lyre's losing arm
 public export
-goblinLyreLoseFlip : Effect []
+goblinLyreLoseFlip : Instruction []
 goblinLyreLoseFlip =
   Sequentially
     [ DealDamage Macros.thisArtifact (Macros.countOf Macros.creatureYouControl)
@@ -1249,7 +1249,7 @@ goblinLyreLoseFlip =
 
 ||| Quenchable Fire
 public export
-quenchableFire : Effect []
+quenchableFire : Instruction []
 quenchableFire =
   Sequentially
     [ DealDamage This (Lit 3) Description.targetPlayerOrPlaneswalker
@@ -1467,7 +1467,7 @@ theFallenUpkeep =
 
 ||| Breeches, Brazen Plunderer's slice
 public export
-eachOfThoseOpponentsTopCard : Effect []
+eachOfThoseOpponentsTopCard : Instruction []
 eachOfThoseOpponentsTopCard =
   Sequentially [ DealDamage This (Lit 1) (Macros.each Opponent)
                , Macros.exile You (LibrarySlice OnTop (Lit 1) (EachOf (Macros.That PlayerW ManyOf))) ]
@@ -1522,7 +1522,7 @@ frostwielder =
 
 ||| Crackling Doom
 public export
-cracklingDoom : Effect []
+cracklingDoom : Instruction []
 cracklingDoom =
   Sequentially
     [ DealDamage This (Lit 2) (Macros.each Opponent)
@@ -1571,7 +1571,7 @@ blindFury =
 
 ||| Chandra, Awakened Inferno's emblem
 public export
-chandraAwakenedInfernoEmblem : Effect []
+chandraAwakenedInfernoEmblem : Instruction []
 chandraAwakenedInfernoEmblem =
   GetsEmblem You
     [ Macros.triggered At (BeginningOf ThePart Upkeep (ByPlayer You))
@@ -1593,30 +1593,30 @@ keeperOfTheFlame =
               , DealDamage Macros.thisCreature (Lit 2) (Macros.That PlayerW OneOf) ]) ]
        (Just (1, 2))
 
-diabolicEdict : Effect []
+diabolicEdict : Instruction []
 diabolicEdict = Macros.sacrifice (Macros.target AnyPlayer) (Macros.aTheirChoice Macros.creature)
 
-innocentBlood : Effect []
+innocentBlood : Instruction []
 innocentBlood = Macros.sacrifice (Macros.each AnyPlayer) (Macros.aTheirChoice Macros.creature)
 
-cryOfContrition : Effect []
+cryOfContrition : Instruction []
 cryOfContrition = (Macros.discard (Macros.target AnyPlayer) (Macros.a (InZone Macros.handZ)))
 
-cyclingCost : Effect []
+cyclingCost : Instruction []
 cyclingCost = Macros.discard You This
 
-raiseTheAlarm : Effect []
+raiseTheAlarm : Instruction []
 raiseTheAlarm = Macros.create (Lit 2) (Macros.creatureTok 1 1 [White] [creatureType "Soldier"])
 
-actOfTreason : Effect []
+actOfTreason : Instruction []
 actOfTreason = Macros.gainControl You (Macros.target Macros.creature) (Just Macros.untilEndOfTurn)
 
-wordsOfWorship : Effect []
+wordsOfWorship : Instruction []
 wordsOfWorship = Macros.nextTimeWouldInstead (Draws You)
                                       (Macros.gainsLife You (Lit 5))
                                       (Just ThisTurn)
 
-theLastRoninII : Effect []
+theLastRoninII : Instruction []
 theLastRoninII =
   Reflexively (Macros.mills You (Lit 4) You)
               (Macros.move (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) Macros.handZ)

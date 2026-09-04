@@ -8,7 +8,7 @@ import Experimental.Cards.Anaphora
 %default total
 
 
-gracefulReprieve : Effect []
+gracefulReprieve : Instruction []
 gracefulReprieve = Macros.delayedWithin (Dies (Macros.target Macros.creature))
                                         ThisTurn
                                         (Macros.move (Macros.That CardW OneOf) Macros.battlefieldZ)
@@ -139,12 +139,12 @@ loanShark =
                                  AtLeast (Lit 2))
                      (Draw You (Lit 1))
 
-forceOfDespair : Effect []
+forceOfDespair : Instruction []
 forceOfDespair =
   Macros.destroy (Macros.allOf (And [Macros.creature,
                               Macros.happenedTo Entry Lookback.ThisTurn]))
 
-cradleToGrave : Effect []
+cradleToGrave : Instruction []
 cradleToGrave =
   Macros.destroy (Macros.target (And [Macros.creature, Not (ColorIs Black),
                                       Macros.happenedTo Entry Lookback.ThisTurn]))
@@ -597,7 +597,7 @@ jawsOfDefeat =
 
 ||| Defiling Daemogoth
 public export
-defilingDaemogothDrain : Effect []
+defilingDaemogothDrain : Instruction []
 defilingDaemogothDrain =
   Sequentially [ Macros.losesLife (Macros.each Opponent) (LetterVal X)
                , Define X (Macros.eventSum LifeGain You Lookback.ThisTurn) ]
@@ -869,7 +869,7 @@ ferociousPup =
 
 ||| Agency Outfitter's search
 public export
-agencyOutfitterSearch : Effect []
+agencyOutfitterSearch : Instruction []
 agencyOutfitterSearch =
   Sequentially
     [ Macros.searchZonesOf You
@@ -953,7 +953,7 @@ gatherSpecimens =
 
 ||| Don't Blink's replacement, without its written agent
 public export
-dontBlinkReplacement : StaticEffect []
+dontBlinkReplacement : StaticSpec []
 dontBlinkReplacement =
   Intercepts (Enters (Macros.counted (Macros.atLeast 1) Macros.creature)
                      (Just (FromZone [Macros.exileZ])))
@@ -1153,7 +1153,7 @@ jeskaiAscendancyPump =
                      (PtUp (Lit 1)) (PtUp (Lit 1)) (Just Macros.untilEndOfTurn)
        , Macros.untap (Macros.That (TypeW Creature) ManyOf) ])
 
-herosDemise : Effect []
+herosDemise : Instruction []
 herosDemise =
   Macros.destroy (Macros.target (And [Macros.creature, HasSupertype Legendary]))
 

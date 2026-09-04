@@ -355,7 +355,7 @@ impl GameState {
 
     /// The object(s) a verb's [`Reference`] patient acts on — zero or one.
     /// Plurality is never the verb's: a "for each"/"all" instruction is an
-    /// enclosing [`OneShotEffect::Each`]/[`OneShotEffect::Distribute`] whose
+    /// enclosing [`Instruction::Each`]/[`Instruction::Distribute`] whose
     /// body names a single reference per element ([CR#608.2]). A 1-element
     /// vector keeps the verb arms' batch-shaped `.into_iter()…` bodies; null
     /// and departed current-only patients become the empty set so no action
@@ -429,7 +429,7 @@ impl GameState {
             // role the old `Subject` named). Kind-poly ([CR#120.3]): a card/token
             // element resolves to its (last-known) id, a player element to its
             // proxy. Referenced at a frameless position it is a malformed read.
-            // The single object bound by an enclosing `OneShotEffect::With`/cost
+            // The single object bound by an enclosing `Instruction::With`/cost
             // `With` one-binder (`TheRef`/`ChooseOne`) — the choice made BEFORE
             // the verb, so the verb reads an already-bound reference
             // ([CR#608.2]). Reads the `(One, k)` `that` slot. A many-binder's
@@ -539,7 +539,7 @@ mod tests {
     use std::sync::Arc;
 
     use deckmaste_core::Action;
-    use deckmaste_core::OneShotEffect;
+    use deckmaste_core::Instruction;
     use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
     use deckmaste_core::Selection;
@@ -968,9 +968,9 @@ mod tests {
         let _theirs = second_bear_to_player_1(&mut state);
         let frame = frame_src(&state, bear);
         state.run_effect(
-            OneShotEffect::Sequentially(
+            Instruction::Sequentially(
                 vec![
-                    OneShotEffect::Choose(deckmaste_core::Choose {
+                    Instruction::Choose(deckmaste_core::Choose {
                         dest: FIRST_DEF,
                         by: Reference::OpponentOf(std::sync::Arc::new(
                             Reference::controller_parameter(),
@@ -978,7 +978,7 @@ mod tests {
                         quantity: deckmaste_core::Quantity::one(),
                         filter: candidate_region(creatures_on_the_battlefield()),
                     }),
-                    OneShotEffect::Act(Action::destroy(Reference::Reg(FIRST_DEF.into()))),
+                    Instruction::Act(Action::destroy(Reference::Reg(FIRST_DEF.into()))),
                 ]
                 .into(),
             ),
@@ -1129,7 +1129,7 @@ mod tests {
         // Exile `a` through the real effect machinery: the apply records the
         // public move and the instruction writes its product.
         state.run_effect(
-            OneShotEffect::Act {
+            Instruction::Act {
                 dest: Some(FIRST_DEF),
                 action: Action::Move(
                     Reference::source_parameter(),
@@ -1153,7 +1153,7 @@ mod tests {
         // register finds nothing and does not fall back to an older object.
         let pframe = frame_src(&state, product);
         state.run_effect(
-            OneShotEffect::Act(Action::Move(
+            Instruction::Act(Action::Move(
                 Reference::source_parameter(),
                 deckmaste_core::Destination::Zone(Zone::Hand),
                 vec![].into(),
@@ -1288,7 +1288,7 @@ mod tests {
                 .into(),
                 // The body is irrelevant to the read under test; any
                 // slot-referencing action keeps the declaration well-formed.
-                effect: OneShotEffect::Act(Action::deal_damage(
+                effect: Instruction::Act(Action::deal_damage(
                     Reference::Reg(deckmaste_core::RefId(6)),
                     deckmaste_core::Count::Literal(1),
                 ))
@@ -1373,9 +1373,9 @@ mod tests {
         let (mut state, a, _) = two_permanents_on_field();
         let frame = frame_src(&state, a);
         state.run_effect(
-            OneShotEffect::Sequentially(
+            Instruction::Sequentially(
                 vec![
-                    OneShotEffect::Act {
+                    Instruction::Act {
                         dest: Some(FIRST_DEF),
                         action: Action::Move(
                             Reference::source_parameter(),
@@ -1384,7 +1384,7 @@ mod tests {
                             None,
                         ),
                     },
-                    OneShotEffect::Act(Action::Move(
+                    Instruction::Act(Action::Move(
                         Reference::Reg(FIRST_DEF.into()),
                         Destination::Zone(Zone::Battlefield),
                         vec![].into(),

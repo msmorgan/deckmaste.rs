@@ -10,13 +10,13 @@ use deckmaste_core::Action as CoreAction;
 use deckmaste_core::Agency;
 use deckmaste_core::ColorOrColorless;
 use deckmaste_core::CostComponent;
+use deckmaste_core::Instruction;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSymbol;
-use deckmaste_core::OneShotEffect;
 use deckmaste_core::PayAct;
 use deckmaste_core::PipClass;
 use deckmaste_core::SimpleManaSymbol;
-use deckmaste_core::StaticEffect;
+use deckmaste_core::StaticSpec;
 use deckmaste_core::TargetSpec;
 use deckmaste_core::Timing;
 use deckmaste_core::Uint;
@@ -516,7 +516,7 @@ fn verb_payment_items(
                 payment: Some(payment),
             };
             WorkItem::RunEffect {
-                effect: Arc::new(OneShotEffect::act(verb.clone())),
+                effect: Arc::new(Instruction::act(verb.clone())),
                 frame,
             }
         })
@@ -626,7 +626,7 @@ pub(crate) fn announced_target_specs(
     chosen_modes: &[Uint],
 ) -> Vec<TargetSpec> {
     match effect.body.as_ref() {
-        [OneShotEffect::Modal(modal)] => chosen_modes
+        [Instruction::Modal(modal)] => chosen_modes
             .iter()
             .flat_map(|&index| {
                 let mode = modal
@@ -701,7 +701,7 @@ fn announced_mode_cost_components(
     effect: &deckmaste_core::Region,
     chosen_modes: &[Uint],
 ) -> Vec<CostComponent> {
-    let [OneShotEffect::Modal(modal)] = effect.body.as_ref() else {
+    let [Instruction::Modal(modal)] = effect.body.as_ref() else {
         return Vec::new();
     };
     let mut components = Vec::new();
@@ -740,7 +740,7 @@ pub(crate) fn announced_effect_items(
     chosen_modes: &[Uint],
     targets: &[Vec<ObjectId>],
 ) -> Vec<WorkItem> {
-    let [OneShotEffect::Modal(modal)] = effect.body.as_ref() else {
+    let [Instruction::Modal(modal)] = effect.body.as_ref() else {
         let mut region_frame = frame.clone();
         if !matches!(region_frame.activation, crate::ActivationId::Stored(_)) {
             region_frame.activation = state.enter_region(effect, frame);
@@ -876,7 +876,7 @@ impl GameState {
                 .collect();
             crate::resolve::announce_satisfiable(&specs, &legal)
         };
-        let [OneShotEffect::Modal(modal)] = effect.body.as_ref() else {
+        let [Instruction::Modal(modal)] = effect.body.as_ref() else {
             return selection_satisfiable(&[]);
         };
         let options = Uint::try_from(modal.modes.len()).expect("mode count fits Uint");
@@ -1223,7 +1223,7 @@ impl GameState {
         let region = self.spell_effect(object).unwrap_or_else(|| {
             deckmaste_core::Region::new(
                 Arc::from([]),
-                OneShotEffect::Sequentially(Arc::from([])).into(),
+                Instruction::Sequentially(Arc::from([])).into(),
             )
         });
         let activation = self.enter_region(&region, &crate::stack::Frame::bare(object, controller));
@@ -1357,8 +1357,8 @@ impl GameState {
         object: ObjectId,
         caster: PlayerId,
         alternative_cost: Option<deckmaste_core::Cost>,
-        if_did: Option<Arc<OneShotEffect>>,
-        if_not: Option<Arc<OneShotEffect>>,
+        if_did: Option<Arc<Instruction>>,
+        if_not: Option<Arc<Instruction>>,
         frame: Frame,
     ) -> Vec<WorkItem> {
         let origin = self
@@ -1406,7 +1406,7 @@ impl GameState {
             // Permanent spells need no spell-effect payload to be modal.
             return 0;
         };
-        let [OneShotEffect::Modal(modal)] = effect.body.as_ref() else {
+        let [Instruction::Modal(modal)] = effect.body.as_ref() else {
             return 0;
         };
         let options = Uint::try_from(modal.modes.len()).expect("mode count fits Uint");
@@ -1898,7 +1898,7 @@ impl GameState {
 
     /// [CR#601.2b,702.33a]: announce the in-flight SPELL's tagged optional
     /// additional costs — the kicker family, declared as
-    /// `StaticEffect::CostOption` rows on the card (they function from the
+    /// `StaticSpec::CostOption` rows on the card (they function from the
     /// stack while the spell is cast). Surfaces one `YesNo` for the
     /// `index`-th declared row (with the `OptionalCost` continuation
     /// recording the answer); returns whether a decision surfaced. `false` =
@@ -1939,7 +1939,7 @@ impl GameState {
                 _ => None,
             })
             .filter_map(|e| match e {
-                deckmaste_core::StaticEffect::CostOption(oc) => Some(oc.clone()),
+                deckmaste_core::StaticSpec::CostOption(oc) => Some(oc.clone()),
                 _ => None,
             })
             .collect()
@@ -2055,7 +2055,7 @@ impl GameState {
         let view = self.layers();
         let mut alternatives = Vec::new();
         crate::legal::for_each_static(self, &view, spell, |effect| {
-            if let StaticEffect::PayPips(class, act) = effect {
+            if let StaticSpec::PayPips(class, act) = effect {
                 alternatives.push((*class, act.clone()));
             }
         });
@@ -2245,7 +2245,7 @@ impl GameState {
 
     /// [CR#601.2g..601.2h]: the per-pip alternative-payment hook for a spell
     /// being cast (convoke / delve / improvise) — the EXECUTING consumer of
-    /// [`StaticEffect::PayPips`]. Runs the shared [`Self::pip_coverage`] walk
+    /// [`StaticSpec::PayPips`]. Runs the shared [`Self::pip_coverage`] walk
     /// over the locked-in `mana` and turns each covered pip into its payment
     /// work item, returning the mana the player must still pay with real mana
     /// plus those tap/exile items for the payment window.
@@ -2294,7 +2294,7 @@ impl GameState {
         let view = self.layers();
         let mut acts: Vec<(PipClass, PayAct)> = Vec::new();
         crate::legal::for_each_static(self, &view, spell, |e| {
-            if let StaticEffect::PayPips(class, act) = e {
+            if let StaticSpec::PayPips(class, act) = e {
                 acts.push((*class, act.clone()));
             }
         });
@@ -2422,7 +2422,7 @@ impl GameState {
             // unconditionally (a cost-modifier read, not a live-condition gate).
             &mut |_: &deckmaste_core::Condition| true,
             &mut |e| {
-                if let deckmaste_core::StaticEffect::CostModifier { of, change } = e
+                if let deckmaste_core::StaticSpec::CostModifier { of, change } = e
                     && self.filter_matches_live(of, object, source)
                 {
                     rows.push((
@@ -2437,7 +2437,7 @@ impl GameState {
         let view = self.layers();
         for &id in &self.zones.battlefield {
             crate::legal::for_each_static(self, &view, id, |e| {
-                if let deckmaste_core::StaticEffect::CostModifier { of, change } = e
+                if let deckmaste_core::StaticSpec::CostModifier { of, change } = e
                     && self.filter_matches_live(of, object, self.objects.obj(id).source)
                 {
                     rows.push((
@@ -2455,7 +2455,7 @@ impl GameState {
             let carrier = self.player(ce.controller).object;
             let source = self.objects.obj(carrier).source;
             for row in &ce.rows {
-                if let deckmaste_core::StaticEffect::CostModifier { of, change } = row
+                if let deckmaste_core::StaticSpec::CostModifier { of, change } = row
                     && self.filter_matches_live(of, object, source)
                 {
                     rows.push((Frame::bare(carrier, ce.controller), change.clone()));
@@ -2469,7 +2469,7 @@ impl GameState {
     /// mandatory additional mana) on `Raise`, reductions on `Lower` — with
     /// `times` scaling from any enclosing `Scaled` ([CR#601.2f]).
     /// The optional kicker-family shape ([CR#118.8b]) is a declared
-    /// `StaticEffect::CostOption` — the [CR#601.2b] announce family — and
+    /// `StaticSpec::CostOption` — the [CR#601.2b] announce family — and
     /// stays inert here until its announce machinery lands
     /// (core-alt-costs/engine-alt-costs), exactly as before this pipeline.
     fn apply_cost_change(
@@ -2978,7 +2978,7 @@ mod tests {
     use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
     use deckmaste_core::StatePredicate;
-    use deckmaste_core::StaticEffect;
+    use deckmaste_core::StaticSpec;
     use deckmaste_core::Type;
     use deckmaste_core::Zone;
     use deckmaste_plugin::plugin::Plugin;
@@ -3060,7 +3060,7 @@ mod tests {
                 ability_word: None,
                 cost: deckmaste_core::Cost::default(),
                 targets: [].into(),
-                effect: OneShotEffect::Modal(Modal {
+                effect: Instruction::Modal(Modal {
                     choose: ChooseSpec {
                         count: Quantity::one(),
                         up_to: false,
@@ -3071,7 +3071,7 @@ mod tests {
                     modes: vec![
                         deckmaste_core::Mode {
                             targets: [].into(),
-                            effect: OneShotEffect::Act(CoreAction::ChangeLife(
+                            effect: Instruction::Act(CoreAction::ChangeLife(
                                 Reference::Reg(deckmaste_core::RefId(1)),
                                 deckmaste_core::LifeOp::Up(Count::Literal(1)),
                             ))
@@ -3080,7 +3080,7 @@ mod tests {
                         },
                         Mode {
                             targets: vec![target.clone()].into(),
-                            effect: OneShotEffect::Act(CoreAction::destroy(Reference::Reg(
+                            effect: Instruction::Act(CoreAction::destroy(Reference::Reg(
                                 deckmaste_core::RefId(6),
                             )))
                             .into(),
@@ -3139,7 +3139,7 @@ mod tests {
 
         let life_mode = |amount| Mode {
             targets: [].into(),
-            effect: OneShotEffect::Act(CoreAction::ChangeLife(
+            effect: Instruction::Act(CoreAction::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 deckmaste_core::LifeOp::Up(Count::Literal(amount)),
             ))
@@ -3154,7 +3154,7 @@ mod tests {
                 ability_word: None,
                 cost: deckmaste_core::Cost::default(),
                 targets: [].into(),
-                effect: OneShotEffect::Modal(Modal {
+                effect: Instruction::Modal(Modal {
                     choose: ChooseSpec {
                         count: Quantity::Range(Some(Count::Literal(2)), Some(Count::Literal(2))),
                         up_to: false,
@@ -3202,7 +3202,7 @@ mod tests {
                 )),
             )]
             .into(),
-            effect: OneShotEffect::Sequentially(Arc::from([])).into(),
+            effect: Instruction::Sequentially(Arc::from([])).into(),
             cost: deckmaste_core::Cost::default(),
         };
         let card = Card::Normal(CardFace {
@@ -3213,7 +3213,7 @@ mod tests {
                 ability_word: None,
                 cost: deckmaste_core::Cost::default(),
                 targets: [].into(),
-                effect: OneShotEffect::Modal(Modal {
+                effect: Instruction::Modal(Modal {
                     choose: ChooseSpec {
                         count: Quantity::one(),
                         up_to: false,
@@ -3273,7 +3273,7 @@ mod tests {
                     },
                 ]
                 .into(),
-                OneShotEffect::Act(CoreAction::ChangeLife(
+                Instruction::Act(CoreAction::ChangeLife(
                     Reference::Reg(deckmaste_core::RefId(2)),
                     deckmaste_core::LifeOp::Up(Count::Literal(amount)),
                 ))
@@ -3289,7 +3289,7 @@ mod tests {
                 ability_word: None,
                 cost: deckmaste_core::Cost::default(),
                 targets: [].into(),
-                effect: OneShotEffect::Modal(Modal {
+                effect: Instruction::Modal(Modal {
                     choose: ChooseSpec {
                         count: Quantity::Range(Some(Count::Literal(2)), Some(Count::Literal(2))),
                         up_to: false,
@@ -3349,7 +3349,7 @@ mod tests {
 
         let mode = |generic| Mode {
             targets: [].into(),
-            effect: OneShotEffect::Act(CoreAction::ChangeLife(
+            effect: Instruction::Act(CoreAction::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 deckmaste_core::LifeOp::Up(Count::Literal(1)),
             ))
@@ -3369,7 +3369,7 @@ mod tests {
                 ability_word: None,
                 cost: deckmaste_core::Cost::default(),
                 targets: [].into(),
-                effect: OneShotEffect::Modal(Modal {
+                effect: Instruction::Modal(Modal {
                     choose: ChooseSpec {
                         count: Quantity::one(),
                         up_to: false,
@@ -3414,7 +3414,7 @@ mod tests {
 
         let mode = || Mode {
             targets: [].into(),
-            effect: OneShotEffect::Act(CoreAction::ChangeLife(
+            effect: Instruction::Act(CoreAction::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 deckmaste_core::LifeOp::Up(Count::Literal(1)),
             ))
@@ -3429,7 +3429,7 @@ mod tests {
                 ability_word: None,
                 cost: deckmaste_core::Cost::default(),
                 targets: [].into(),
-                effect: OneShotEffect::Modal(Modal {
+                effect: Instruction::Modal(Modal {
                     choose: ChooseSpec {
                         count: Quantity::one(),
                         up_to: false,
@@ -3474,7 +3474,7 @@ mod tests {
 
         let mode = |mana: &str| Mode {
             targets: [].into(),
-            effect: OneShotEffect::Act(CoreAction::ChangeLife(
+            effect: Instruction::Act(CoreAction::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 deckmaste_core::LifeOp::Up(Count::Literal(1)),
             ))
@@ -3490,7 +3490,7 @@ mod tests {
                     ability_word: None,
                     cost: deckmaste_core::Cost::default(),
                     targets: [].into(),
-                    effect: OneShotEffect::Modal(Modal {
+                    effect: Instruction::Modal(Modal {
                         choose: ChooseSpec {
                             count: Quantity::one(),
                             up_to: false,
@@ -3549,7 +3549,7 @@ mod tests {
             name: "Fromite".into(),
             mana_cost: printed.parse().unwrap(),
             types: vec![Type::Artifact.def()],
-            abilities: vec![Ability::r#static(StaticEffect::CostModifier {
+            abilities: vec![Ability::r#static(StaticSpec::CostModifier {
                 of: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 change: CostChange::Scaled {
                     change: Arc::new(CostChange::Reduce(
@@ -3631,7 +3631,7 @@ mod tests {
         let taxer = Card::Normal(CardFace {
             name: "Thorn Totem".into(),
             types: vec![Type::Artifact.def()],
-            abilities: vec![Ability::r#static(StaticEffect::CostModifier {
+            abilities: vec![Ability::r#static(StaticSpec::CostModifier {
                 of: Predicate::r#type(Type::Creature),
                 change: CostChange::Increase(
                     vec![CostComponent::Mana("{1}".parse().unwrap())].into(),
@@ -3689,7 +3689,7 @@ mod tests {
             window: None,
             condition: None,
             limits: vec![].into(),
-            effect: OneShotEffect::Act(CoreAction::AddMana(
+            effect: Instruction::Act(CoreAction::AddMana(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 ManaSpec::Specific(color).into(),
@@ -3719,7 +3719,7 @@ mod tests {
             name: "Instant".into(),
             permanent: false,
             confers: vec![deckmaste_core::Property::Ability(Arc::new(
-                Ability::r#static(StaticEffect::Deontic(deckmaste_core::Deontic::May(
+                Ability::r#static(StaticSpec::Deontic(deckmaste_core::Deontic::May(
                     deckmaste_core::DeonticAction::Cast {
                         what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                         by: Predicate::Any,
@@ -3806,7 +3806,7 @@ mod tests {
             name: "Land".into(),
             permanent: true,
             confers: vec![deckmaste_core::Property::Ability(Arc::new(
-                Ability::r#static(StaticEffect::Deontic(deckmaste_core::Deontic::May(
+                Ability::r#static(StaticSpec::Deontic(deckmaste_core::Deontic::May(
                     deckmaste_core::DeonticAction::Play {
                         what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                         by: Predicate::Any,

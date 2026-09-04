@@ -3148,14 +3148,14 @@ mod tests {
         use deckmaste_core::DeonticAction;
         use deckmaste_core::Predicate;
         use deckmaste_core::Reference;
-        use deckmaste_core::StaticEffect;
+        use deckmaste_core::StaticSpec;
 
         let mut state = game();
         state.turn.active_player = PlayerId(0);
         let restricted = tapped_perm(
             &mut state,
             PlayerId(0),
-            vec![Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
+            vec![Ability::r#static(StaticSpec::Deontic(Deontic::Cant(
                 DeonticAction::Untap {
                     what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 },
@@ -3237,7 +3237,7 @@ mod tests {
     fn copy_activated_ability_with_gone_source_fizzles() {
         use deckmaste_core::ActivatedAbility;
         use deckmaste_core::Cost;
-        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::Instruction;
 
         use crate::stack::StackEntry;
         use crate::stack::StackObject;
@@ -3262,7 +3262,7 @@ mod tests {
                     window: None,
                     condition: None,
                     limits: vec![].into(),
-                    effect: OneShotEffect::Sequentially(vec![].into()).into(),
+                    effect: Instruction::Sequentially(vec![].into()).into(),
                 }),
                 bindings: TriggerBindings::default(),
             },
@@ -3370,7 +3370,7 @@ mod tests {
         }
         let initial_hand = state.zones.hands[0].len();
         state.run_effect(
-            deckmaste_core::OneShotEffect::producing(
+            deckmaste_core::Instruction::producing(
                 deckmaste_core::DefId(TALLY.0),
                 deckmaste_core::Action::discard(
                     deckmaste_core::Reference::controller_parameter(),

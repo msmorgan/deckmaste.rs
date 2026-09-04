@@ -12,25 +12,25 @@ import Data.List.Elem
 
 ||| "Choose two — Draw a card; draw a card." [CR#700.2d]
 public export
-identicalModesAllowed : Effect []
+identicalModesAllowed : Instruction []
 identicalModesAllowed =
   Macros.chooseModes (Macros.exactly 2) [(Draw You (Lit 1)), (Draw You (Lit 1))]
 
 ||| "Choose a player or planeswalker."
 public export
-okChoosePlayerOrPlaneswalker : Effect []
+okChoosePlayerOrPlaneswalker : Instruction []
 okChoosePlayerOrPlaneswalker =
   Choose (Macros.a (Macros.kindJoin AnyPlayer (HasType Planeswalker))) Nothing
          Openly
 
 ||| "Choose you."
 public export
-badChooseYou : Unspellable (Effect []) (\ok =>
+badChooseYou : Unspellable (Instruction []) (\ok =>
   Choose You Nothing Openly {ch = ok})
 badChooseYou BareChoice impossible
 
 public export
-badConditionalArmAntecedent : Unspellable (Effect []) (\ok =>
+badConditionalArmAntecedent : Unspellable (Instruction []) (\ok =>
   Sequentially [OnlyIf (Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [creatureType "Soldier"]))
                    (Macros.exists Macros.creatureYouControl)
                    Nothing,
@@ -38,7 +38,7 @@ badConditionalArmAntecedent : Unspellable (Effect []) (\ok =>
 badConditionalArmAntecedent Refl impossible
 
 public export
-badBothArmsAntecedent : Unspellable (Effect []) (\ok =>
+badBothArmsAntecedent : Unspellable (Instruction []) (\ok =>
   Sequentially [May You (Macros.gainsLife You (Lit 1))
                      (Just (Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [creatureType "Soldier"])))
                      (Just (Macros.create (Lit 2) (Macros.creatureTok 1 1 [White] [creatureType "Soldier"]))),
@@ -47,37 +47,37 @@ badBothArmsAntecedent Refl impossible
 
 ||| "Put target creature onto the battlefield."
 public export
-okMoveToBattlefield : Effect []
+okMoveToBattlefield : Instruction []
 okMoveToBattlefield =
   Move (Macros.target Macros.creature) (ZoneAt Battlefield Bare) []
 
 ||| "Put target creature into your library."
 public export
-badMoveToBareLibrary : Unspellable (Effect []) (\ok =>
+badMoveToBareLibrary : Unspellable (Instruction []) (\ok =>
   Move (Macros.target Macros.creature) (ZoneAt Library Bare) [] {ok})
 badMoveToBareLibrary BattlefieldOk impossible
 
 ||| "Look at the top four cards of your library. You choose one of them."
 public export
-okAgentChoiceOfSome : Effect []
+okAgentChoiceOfSome : Instruction []
 okAgentChoiceOfSome =
   Sequentially [Macros.lookAt (Macros.topSlice (Lit 4)),
                 Choose (Macros.someOf (Macros.exactly 1) (Macros.It ManyOf)) (Just You) Openly]
 
 ||| "Look at the top four cards of your library. Choose one of them."
 public export
-badChooseSomeOf : Unspellable (Effect []) (\ok =>
+badChooseSomeOf : Unspellable (Instruction []) (\ok =>
   Sequentially [Macros.lookAt ((Macros.topSlice (Lit 4))), Choose (Macros.someOf (Macros.exactly 1) ((Macros.It ManyOf))) Nothing Openly {ch = ok}])
 badChooseSomeOf BareChoice impossible
 
 ||| "Exile target creature."
 public export
-okMoveToExile : Effect []
+okMoveToExile : Instruction []
 okMoveToExile = Move (Macros.target Macros.creature) Macros.exileZ []
 
 ||| "Put target creature onto the stack."
 public export
-badMoveToStack : Unspellable (Effect []) (\ok =>
+badMoveToStack : Unspellable (Instruction []) (\ok =>
   Move (Macros.target Macros.creature) (ZoneAt Stack Bare) [] {ok})
 badMoveToStack BattlefieldOk impossible
 
@@ -130,12 +130,12 @@ badStateMatchLookback MkLookbackSubject impossible
 
 ||| "Choose a creature you control."
 public export
-okChooseIndefinite : Effect []
+okChooseIndefinite : Instruction []
 okChooseIndefinite = Choose (Macros.a Macros.creatureYouControl) Nothing Openly
 
 ||| "Choose the creature with the least toughness among creatures you control."
 public export
-badChooseDefinite : Unspellable (Effect []) (\ok =>
+badChooseDefinite : Unspellable (Instruction []) (\ok =>
   Choose (Macros.the (And [Macros.creature,
                          Superlative MinOf (CharAxis Toughness)
                                      Macros.creatureYouControl])) Nothing Openly {ch = ok})
@@ -143,7 +143,7 @@ badChooseDefinite BareChoice impossible
 
 ||| "This deals 1 damage to that permanent or player."
 public export
-okUnionAnaphorAfterJoin : Effect []
+okUnionAnaphorAfterJoin : Instruction []
 okUnionAnaphorAfterJoin =
   Sequentially [ DealDamage This (Lit 3)
                    (Macros.target (Macros.kindJoin AnyPlayer Macros.creature))
@@ -151,27 +151,27 @@ okUnionAnaphorAfterJoin =
 
 ||| "This deals 3 damage to that permanent or player."
 public export
-badUnionAnaphorNoAntecedent : Unspellable (Effect []) (\ok =>
+badUnionAnaphorNoAntecedent : Unspellable (Instruction []) (\ok =>
   DealDamage This (Lit 3) (Macros.That JoinW OneOf {ok = ok}))
 badUnionAnaphorNoAntecedent Refl impossible
 
 ||| "Destroy target creature. This deals 3 damage to that permanent or player."
 public export
-badUnionAnaphorOnObject : Unspellable (Effect []) (\ok =>
+badUnionAnaphorOnObject : Unspellable (Instruction []) (\ok =>
   Sequentially [ Macros.destroy (Macros.target Macros.creature)
                , DealDamage This (Lit 3) (Macros.That JoinW OneOf {ok = ok}) ])
 badUnionAnaphorOnObject Refl impossible
 
 ||| "This deals 3 damage to any target. Counter that spell or ability."
 public export
-badAbilityJoinAnaphorOnPlayerUnion : Unspellable (Effect []) (\ok =>
+badAbilityJoinAnaphorOnPlayerUnion : Unspellable (Instruction []) (\ok =>
   Sequentially [ DealDamage This (Lit 3) (Macros.target Macros.anyTarget)
                , CounterSpell (Macros.That AbilityJoinW OneOf {ok = ok}) ])
 badAbilityJoinAnaphorOnPlayerUnion Refl impossible
 
 ||| "Counter target activated ability. Counter that spell or ability."
 public export
-badAbilityJoinAnaphorOnAbility : Unspellable (Effect []) (\ok =>
+badAbilityJoinAnaphorOnAbility : Unspellable (Instruction []) (\ok =>
   Sequentially [ CounterSpell (Macros.target (AbilityHead AnyActivated))
                , CounterSpell (Macros.That AbilityJoinW OneOf {ok = ok}) ])
 badAbilityJoinAnaphorOnAbility Refl impossible
@@ -364,12 +364,12 @@ badEntryOriginBattlefield Oh impossible
 
 ||| "For each opponent, you draw a card."
 public export
-okPluralForEach : Effect []
+okPluralForEach : Instruction []
 okPluralForEach = ForEachOf (Macros.each Opponent) (Draw You (Lit 1))
 
 ||| "For each of target creature, its controller draws a card."
 public export
-badSingletonForEach : Unspellable (Effect []) (\ok =>
+badSingletonForEach : Unspellable (Instruction []) (\ok =>
   ForEachOf (Macros.target Macros.creature) (Draw You (Lit 1)) {pl = ok})
 badSingletonForEach Refl impossible
 
@@ -429,7 +429,7 @@ abilityUnderSpellOrAbility = kindLteJoinR Object Ability
 
 public export
 joinedCreatureTy :
-  tyOfReach (Word JoinW) OneOf (effIntro {bs = []}
+  tyOfReach (Word JoinW) OneOf (instrIntro {bs = []}
     (DealDamage This (Lit 3)
        (Macros.target (Macros.kindJoin AnyPlayer Macros.creature))))
   = Just Creature
@@ -451,20 +451,20 @@ youAndBindsNothing = Refl
 
 ||| "If a player is dealt damage this way, you draw a card."
 public export
-okDealtThisWayAfterDamage : Effect []
+okDealtThisWayAfterDamage : Instruction []
 okDealtThisWayAfterDamage =
   Sequentially [ DealDamage This (Lit 3) (Macros.target Macros.anyTarget)
                , If (DealtThisWay AnyPlayer) (Draw You (Lit 1)) Nothing ]
 
 ||| "You draw a card. If a player is dealt damage this way, you draw a card."
 public export
-badDealtThisWayNoDamage : Unspellable (Effect []) (\ok =>
+badDealtThisWayNoDamage : Unspellable (Instruction []) (\ok =>
   Sequentially [ Draw You (Lit 1)
                , If (DealtThisWay AnyPlayer {wy = ok}) (Draw You (Lit 1)) Nothing ])
 badDealtThisWayNoDamage Oh impossible
 
 public export
-badDealtThisWayAbility : Unspellable (Effect []) (\ok =>
+badDealtThisWayAbility : Unspellable (Instruction []) (\ok =>
   Sequentially [ DealDamage This (Lit 2) (Macros.target Macros.anyTarget)
                , If (DealtThisWay IsManaAbility {rk = ok}) (Draw You (Lit 1))
                     Nothing ])
@@ -511,20 +511,20 @@ youRolledADieThisTurn = Happened DiceRoll You Lookback.ThisTurn Nothing
 
 ||| "Roll two d20. Ignore the lowest roll."
 public export
-okIgnoreAfterRoll : Effect []
+okIgnoreAfterRoll : Instruction []
 okIgnoreAfterRoll =
   Sequentially [ (Macros.rollDice You 2 20)
                , IgnoreOutcomes (IgnoreExtreme LowestRoll) ]
 
 ||| "Ignore the lowest roll."
 public export
-badIgnoreWithoutRoll : Unspellable (Effect []) (\ok =>
+badIgnoreWithoutRoll : Unspellable (Instruction []) (\ok =>
   IgnoreOutcomes (IgnoreExtreme LowestRoll) {ok})
 badIgnoreWithoutRoll Oh impossible
 
 public export
 afterATwoDieRoll : Bindings
-afterATwoDieRoll = effIntro (the (Effect []) (Macros.rollDice You 2 6))
+afterATwoDieRoll = instrIntro (the (Instruction []) (Macros.rollDice You 2 6))
 
 ||| "if you rolled doubles"
 public export
@@ -539,7 +539,7 @@ badRolledDoublesWithoutRoll Refl impossible
 
 public export
 afterACoinFlip : Bindings
-afterACoinFlip = effIntro (the (Effect []) (Macros.flipCoins You 1))
+afterACoinFlip = instrIntro (the (Instruction []) (Macros.flipCoins You 1))
 
 ||| "a player whose coin comes up tails"
 public export
@@ -578,7 +578,7 @@ badPlanarResultTest Oh impossible
 ||| "If you would flip a coin, instead flip two coins and ignore the lower one."
 public export
 badExtremeOverFlips :
-  Unspellable (Effect ProofsAnaphora.afterACoinFlip) (\ok =>
+  Unspellable (Instruction ProofsAnaphora.afterACoinFlip) (\ok =>
     IgnoreOutcomes (IgnoreExtreme LowestRoll) {ok})
 badExtremeOverFlips Oh impossible
 
@@ -602,7 +602,7 @@ badRestWithoutAPartition Oh impossible
 
 ||| "Choose any number of target creatures. Destroy the rest."
 public export
-badRestAfterTargetChoice : Unspellable (Effect []) (\ok =>
+badRestAfterTargetChoice : Unspellable (Instruction []) (\ok =>
   Sequentially [ Macros.choose (Described (TargetDet Macros.anyNumber) Macros.creature)
                , Macros.destroy (Macros.theRest {ok}) ])
 badRestAfterTargetChoice Oh impossible
@@ -614,7 +614,7 @@ youPaidLifeThisTurn = Happened LifePayment You Lookback.ThisTurn Nothing
 public export
 afterShuffledLook : Bindings
 afterShuffledLook =
-  effIntro (the (Effect [])
+  instrIntro (the (Instruction [])
     (Sequentially [ Macros.lookAt (Macros.topSlice (Lit 1)), Macros.shuffle ]))
 
 public export
@@ -701,7 +701,7 @@ lastChosenPlayerRead = TheLastChosenPlayer
 ||| "... a chosen player. ... that player."
 ||| Only a definite description refers to the choice [CR#607.2d].
 public export
-badIndefiniteChosenPlayerRead : Unspellable (Effect [choiceB PlayerC]) (\ok =>
+badIndefiniteChosenPlayerRead : Unspellable (Instruction [choiceB PlayerC]) (\ok =>
   Sequentially [ DealDamage This (Lit 3) (Macros.a ChosenPlayer)
                , DealDamage This (Lit 3) (They {ok = ok}) ])
 badIndefiniteChosenPlayerRead Refl impossible
@@ -1345,7 +1345,7 @@ openLetterIsAny l (b :: bs) with (openLetter l b)
 
 public export
 defineReadsOnlyPrefix : (bs : Bindings) -> (l : Letter) -> (amt : Amount bs) ->
-                        So (anyOpenLetter l bs) -> Effect bs
+                        So (anyOpenLetter l bs) -> Instruction bs
 defineReadsOnlyPrefix bs l amt ok = Define l amt {bs} {ok}
 
 public export
@@ -1464,9 +1464,9 @@ turnInScopeResolvesInPrefix bs ok =
 ||| "that turn" after exactly one extra turn is minted
 public export
 okThatTurnAfterOneTurn :
-  Noun (effIntro {bs = []} (ExtraTurn You (Lit 1))) TurnRef
+  Noun (instrIntro {bs = []} (ExtraTurn You (Lit 1))) TurnRef
 okThatTurnAfterOneTurn =
-  Macros.thatTurn {bs = effIntro {bs = []} (ExtraTurn You (Lit 1))}
+  Macros.thatTurn {bs = instrIntro {bs = []} (ExtraTurn You (Lit 1))}
 
 public export
 badThatTurnWithoutTurn : Unspellable (Noun [] TurnRef) (\ok =>
@@ -1553,11 +1553,11 @@ letterValIntroducesAtEmptyPrefix l = LetterVal l
 public export
 controllerSacrificesReadsNoPrefix : (bs : Bindings) -> (n : Noun bs Object) ->
                                     nounPlur n = OneOf ->
-                                    ZoneIs (nounZone n) Battlefield -> Effect bs
+                                    ZoneIs (nounZone n) Battlefield -> Instruction bs
 controllerSacrificesReadsNoPrefix bs n one zn = ControllerSacrifices n {one} {zn}
 
 public export
-ownSurvivesSecondSingular : Effect []
+ownSurvivesSecondSingular : Instruction []
 ownSurvivesSecondSingular =
   Sequentially [Macros.exile You (Macros.target Macros.artifact),
                 Macros.dealsDamageOwnPower (Macros.target Macros.creature)
@@ -1565,13 +1565,13 @@ ownSurvivesSecondSingular =
 
 ||| "Exile target artifact. Draw cards equal to its power."
 public export
-okItReadsTheOnlyBareSingular : Effect []
+okItReadsTheOnlyBareSingular : Instruction []
 okItReadsTheOnlyBareSingular =
   Sequentially [Macros.exile You (Macros.target Macros.artifact),
                 Draw You (StatOf Power (Macros.It OneOf))]
 
 public export
-badItAcrossOwnSlot : Unspellable (Effect []) (\ok =>
+badItAcrossOwnSlot : Unspellable (Instruction []) (\ok =>
   Sequentially [Macros.exile You (Macros.target Macros.artifact),
                 DealDamage (Macros.target Macros.creature) (StatOf Power ((Macros.It OneOf) {ok}))
                            (Macros.target Macros.anyTarget)])
@@ -1579,20 +1579,20 @@ badItAcrossOwnSlot Refl impossible
 
 ||| "Draw cards equal to its power."
 public export
-badSingularReadOfBarePlural : Unspellable (Effect []) (\ok =>
+badSingularReadOfBarePlural : Unspellable (Instruction []) (\ok =>
   Sequentially [Macros.gets (Macros.bare Macros.creatureYouControl)
                             (PtUp (Lit 1)) (PtUp (Lit 1)) (Just Macros.untilEndOfTurn),
                 Draw You (StatOf Power ((Macros.It OneOf) {ok}))])
 badSingularReadOfBarePlural Refl impossible
 
 public export
-badOwnEmptyDelta : Unspellable (Effect []) (\ok =>
+badOwnEmptyDelta : Unspellable (Instruction []) (\ok =>
   Macros.dealsDamageOwnPower Macros.thisCreature (Macros.target Macros.anyTarget) {ok})
 badOwnEmptyDelta Refl impossible
 
 ||| "Target creature gets +1/+1"
 public export
-okOwnReadsOneInDelta : Effect []
+okOwnReadsOneInDelta : Instruction []
 okOwnReadsOneInDelta =
   Macros.sharedSubject (Macros.target Macros.creature)
     [ Gets Adds (Own OneOf
@@ -1603,7 +1603,7 @@ okOwnReadsOneInDelta =
     Nothing
 
 public export
-badSharedSubjectTwoInDelta : Unspellable (Effect []) (\ok =>
+badSharedSubjectTwoInDelta : Unspellable (Instruction []) (\ok =>
   Macros.sharedSubject (Both (Macros.target {bs = []} Macros.creature)
                              (Macros.target
                                {bs = nomIntro (Macros.target {bs = []} Macros.creature)}
@@ -1619,7 +1619,7 @@ badSharedSubjectTwoInDelta : Unspellable (Effect []) (\ok =>
 badSharedSubjectTwoInDelta Refl impossible
 
 public export
-badOwnTwoInDelta : Unspellable (Effect []) (\ok =>
+badOwnTwoInDelta : Unspellable (Instruction []) (\ok =>
   Macros.dealsDamageOwnPower (Both (Macros.target Macros.creature) (Macros.target Macros.artifact))
                              (Macros.target Macros.anyTarget) {ok})
 badOwnTwoInDelta Refl impossible
@@ -1628,7 +1628,7 @@ badOwnTwoInDelta Refl impossible
 public export
 sharedSubjectReadsNoPrefix : (bs : Bindings) -> (k : Nat) -> (n : Noun bs Object) ->
                              (parts : StaticParts k (selfSubjIntro n)) -> IsSucc k ->
-                             StaticEffect bs
+                             StaticSpec bs
 sharedSubjectReadsNoPrefix bs k n parts ne = AndAlso (Just n) parts {ne}
 
 ||| A noun hands the next clause its own mints in front of the prefix it
@@ -1739,7 +1739,7 @@ condIntroIsDeltaThenRemark : (bs : Bindings) -> (c : Condition bs) ->
 condIntroIsDeltaThenRemark bs c = Refl
 
 public export
-otherwiseCtxIsThenBranchOnly : (bs : Bindings) -> (e : Effect bs) ->
+otherwiseCtxIsThenBranchOnly : (bs : Bindings) -> (e : Instruction bs) ->
                                otherwiseCtx e = outcomesOnly (deedDelta e) ++ annIntro e
 otherwiseCtxIsThenBranchOnly bs e = Refl
 
@@ -1804,14 +1804,14 @@ unionHalfGateSplitsAtNomIntro bs k n w =
                           (sym (countReachIsFold (UnionHalf w) OneOf bs))))
 
 public export
-effectsThreadPrefix : (bs : Bindings) -> (n : Nat) -> (e : Effect bs) ->
-                      Effects n (effIntro e) -> Effects (S n) bs
-effectsThreadPrefix bs n e es = e :: es
+instructionsThreadPrefix : (bs : Bindings) -> (n : Nat) -> (e : Instruction bs) ->
+                      Instructions n (instrIntro e) -> Instructions (S n) bs
+instructionsThreadPrefix bs n e es = e :: es
 
 public export
-simEffectsThreadPrefix : (bs : Bindings) -> (n : Nat) -> (e : Effect bs) ->
-                         SimEffects n (annIntro e) -> SimEffects (S n) bs
-simEffectsThreadPrefix bs n e es = e :: es
+simInstructionsThreadPrefix : (bs : Bindings) -> (n : Nat) -> (e : Instruction bs) ->
+                         SimInstructions n (annIntro e) -> SimInstructions (S n) bs
+simInstructionsThreadPrefix bs n e es = e :: es
 
 public export
 costSeqThreadsPrefix : (bs : Bindings) -> (n : Nat) -> (c : Cost bs) ->
@@ -1819,7 +1819,7 @@ costSeqThreadsPrefix : (bs : Bindings) -> (n : Nat) -> (c : Cost bs) ->
 costSeqThreadsPrefix bs n c cs = (::) c cs
 
 public export
-staticPartsThreadPrefix : (bs : Bindings) -> (n : Nat) -> (se : StaticEffect bs) ->
+staticPartsThreadPrefix : (bs : Bindings) -> (n : Nat) -> (se : StaticSpec bs) ->
                           NotCoord se -> StaticParts n (staticIntro se) ->
                           StaticParts (S n) bs
 staticPartsThreadPrefix bs n se nc rest = (::) se {nc} rest
@@ -1833,38 +1833,38 @@ amountPlusThreadsPrefix bs a b = Plus a b
 public export
 payThreadsPrefix : (bs : Bindings) -> (who : Noun bs Player) ->
                    (c : Cost (nomIntro who)) -> Payable c -> PayAgrees who c ->
-                   Effect bs
+                   Instruction bs
 payThreadsPrefix bs who c pb ag = Pay who c PaidOnce {pb} {ag}
 
 public export
-onlyIfThreadsPrefix : (bs : Bindings) -> (e : Effect bs) ->
-                      Condition (preIntro e) -> Effect bs
+onlyIfThreadsPrefix : (bs : Bindings) -> (e : Instruction bs) ->
+                      Condition (preIntro e) -> Instruction bs
 onlyIfThreadsPrefix bs e c = OnlyIf e c Nothing
 
 public export
 ifThreadsPrefix : (bs : Bindings) -> (c : Condition bs) ->
-                  Effect (condIntro c) -> Effect bs
+                  Instruction (condIntro c) -> Instruction bs
 ifThreadsPrefix bs c e = If c e Nothing
 
 public export
-onlyWhileThreadsPrefix : (bs : Bindings) -> (se : StaticEffect bs) ->
+onlyWhileThreadsPrefix : (bs : Bindings) -> (se : StaticSpec bs) ->
                          (c : Condition (staticIntro se)) ->
-                         MarkingOk AsLongAs c -> StaticEffect bs
+                         MarkingOk AsLongAs c -> StaticSpec bs
 onlyWhileThreadsPrefix bs se c mk =
   Conditionally {bs} c se AsLongAs {st = Static.StaticFirstDone} {mk}
 
 public export
-thisWayThreadsPrefix : (bs : Bindings) -> (body : Effect bs) ->
-                       (ev : GameEvent (effIntro body)) ->
-                       Effect (thisWayCtx body ev) -> ThisWayOutcome body ->
-                       Effect bs
+thisWayThreadsPrefix : (bs : Bindings) -> (body : Instruction bs) ->
+                       (ev : GameEvent (instrIntro body)) ->
+                       Instruction (thisWayCtx body ev) -> ThisWayOutcome body ->
+                       Instruction bs
 thisWayThreadsPrefix bs body ev trig oc = ThisWay body ev trig {oc}
 
 ||| "where X is"
 public export
 defineIntroIsRemark : (bs : Bindings) -> (l : Letter) -> (amt : Amount bs) ->
                       (ok : So (anyOpenLetter l bs)) ->
-                      effIntro (Define l amt {ok}) = defineLetter l (amtIntro amt)
+                      instrIntro (Define l amt {ok}) = defineLetter l (amtIntro amt)
 defineIntroIsRemark bs l amt ok = Refl
 
 public export
@@ -1880,33 +1880,33 @@ letterValDeltaIsPrefixFold bs l = Refl
 
 ||| "Each opponent discards a card. Exile those cards."
 public export
-distributedDeedReadsBackPlural : Effect []
+distributedDeedReadsBackPlural : Instruction []
 distributedDeedReadsBackPlural =
   Sequentially [ Macros.discard (Macros.each Opponent) (Macros.a (InZone Macros.handZ))
                , Macros.exile You (Macros.TheVerbed "Discard" CardW Attributive ManyOf) ]
 
 ||| "Discard a card. Exile the discarded card."
 public export
-okTheVerbedAfterSingularDiscard : Effect []
+okTheVerbedAfterSingularDiscard : Instruction []
 okTheVerbedAfterSingularDiscard =
   Sequentially [ Macros.discard You (Macros.a (InZone Macros.handZ))
                , Macros.exile You (Macros.TheVerbed "Discard" CardW Attributive OneOf) ]
 
 ||| "Each opponent discards a card. Exile that card."
 public export
-badDistributedDiscardSingular : Unspellable (Effect []) (\ok =>
+badDistributedDiscardSingular : Unspellable (Instruction []) (\ok =>
   Sequentially [ Macros.discard (Macros.each Opponent) (Macros.a (InZone Macros.handZ))
                , Macros.exile You (Macros.TheVerbed "Discard" CardW Attributive OneOf {ok}) ])
 badDistributedDiscardSingular Refl impossible
 
 ||| "Tap target creature."
 public export
-okTapBattlefieldPermanent : Effect []
+okTapBattlefieldPermanent : Instruction []
 okTapBattlefieldPermanent = SetStatus Tapped (Macros.target Macros.creature)
 
 ||| "Tap the top card of your library."
 public export
-badTapLibraryTop : Unspellable (Effect []) (\ok =>
+badTapLibraryTop : Unspellable (Instruction []) (\ok =>
   SetStatus Tapped (Macros.topSlice (Lit 1)) {ok})
 badTapLibraryTop Oh impossible
 
@@ -1923,26 +1923,26 @@ badNoHolderOnObject Refl impossible
 
 ||| "Roll five d6. Store those results on this creature."
 public export
-okStoreResultsAfterRoll : Effect []
+okStoreResultsAfterRoll : Instruction []
 okStoreResultsAfterRoll =
   Sequentially [ (Macros.rollDice You 5 6)
                , StoreResults Macros.thisCreature ]
 
 ||| "Store those results on this creature."
 public export
-badStoreResultsWithoutRoll : Unspellable (Effect []) (\ok =>
+badStoreResultsWithoutRoll : Unspellable (Instruction []) (\ok =>
   StoreResults Macros.thisCreature {ok})
 badStoreResultsWithoutRoll Refl impossible
 
 ||| "If you would roll one or more d6, instead roll that many of those dice."
 public export
-okThoseDiceAfterRollEvent : Effect []
+okThoseDiceAfterRollEvent : Instruction []
 okThoseDiceAfterRollEvent =
   Macros.ifWouldInstead (RollsDice You ManyDice (SidedDie 6) AnyResult)
     (RollDice You ThatMuch ThoseDice) Nothing
 
 ||| "Roll that many dice."
 public export
-badAnaphoricSidesWithoutRoll : Unspellable (Effect []) (\ok =>
+badAnaphoricSidesWithoutRoll : Unspellable (Instruction []) (\ok =>
   RollDice You (Lit 1) (ThoseDice {ok}))
 badAnaphoricSidesWithoutRoll Refl impossible

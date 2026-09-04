@@ -16,6 +16,7 @@ use deckmaste_core::Count;
 use deckmaste_core::Countable;
 use deckmaste_core::Destination;
 use deckmaste_core::EventFilter;
+use deckmaste_core::Instruction;
 use deckmaste_core::LifeOp;
 use deckmaste_core::ManaAbility;
 use deckmaste_core::ManaCost;
@@ -25,7 +26,6 @@ use deckmaste_core::Modal;
 use deckmaste_core::Mode;
 use deckmaste_core::Modification;
 use deckmaste_core::NumericOp;
-use deckmaste_core::OneShotEffect;
 use deckmaste_core::Predicate;
 use deckmaste_core::Projection;
 use deckmaste_core::Quantity;
@@ -34,7 +34,7 @@ use deckmaste_core::RelationPredicate;
 use deckmaste_core::Replacement;
 use deckmaste_core::StatValue;
 use deckmaste_core::StatePredicate;
-use deckmaste_core::StaticEffect;
+use deckmaste_core::StaticSpec;
 use deckmaste_core::Supertype;
 use deckmaste_core::Token;
 use deckmaste_core::TriggeredAbility;
@@ -81,7 +81,7 @@ fn activation_fixture_with_extras(
             window: None,
             condition: None,
             limits: Arc::from([]),
-            effect: OneShotEffect::Sequentially(Arc::from([])).into(),
+            effect: Instruction::Sequentially(Arc::from([])).into(),
         })],
         ..CardFace::default()
     }));
@@ -175,7 +175,7 @@ fn mana_source_for(name: &str, cost: Cost, color: Color, recipient: Reference) -
                 window: None,
                 condition: None,
                 limits: Arc::from([]),
-                effect: OneShotEffect::Act(CoreAction::AddMana(
+                effect: Instruction::Act(CoreAction::AddMana(
                     recipient,
                     Count::Literal(1),
                     ManaSpec::Specific(color.into()).into(),
@@ -189,7 +189,7 @@ fn mana_source_for(name: &str, cost: Cost, color: Color, recipient: Reference) -
 }
 
 fn suspending_barred_mana_source() -> Arc<Card> {
-    let choose = OneShotEffect::Modal(Modal {
+    let choose = Instruction::Modal(Modal {
         choose: ChooseSpec {
             count: Quantity::one(),
             up_to: false,
@@ -200,12 +200,12 @@ fn suspending_barred_mana_source() -> Arc<Card> {
         modes: vec![
             Mode {
                 targets: [].into(),
-                effect: OneShotEffect::Sequentially(Arc::from([])).into(),
+                effect: Instruction::Sequentially(Arc::from([])).into(),
                 cost: deckmaste_core::Cost::default(),
             },
             Mode {
                 targets: [].into(),
-                effect: OneShotEffect::Sequentially(Arc::from([])).into(),
+                effect: Instruction::Sequentially(Arc::from([])).into(),
                 cost: deckmaste_core::Cost::default(),
             },
         ]
@@ -223,16 +223,16 @@ fn suspending_barred_mana_source() -> Arc<Card> {
                 window: None,
                 condition: None,
                 limits: Arc::from([]),
-                effect: OneShotEffect::Sequentially(
+                effect: Instruction::Sequentially(
                     vec![
-                        OneShotEffect::Act(CoreAction::Move(
+                        Instruction::Act(CoreAction::Move(
                             Reference::Reg(deckmaste_core::RefId(0)),
                             Destination::Library(Anchor::FromBottom(Count::Literal(0))),
                             Arc::from([]),
                             Some(Zone::Battlefield),
                         )),
                         choose,
-                        OneShotEffect::Act(CoreAction::AddMana(
+                        Instruction::Act(CoreAction::AddMana(
                             Reference::Reg(deckmaste_core::RefId(1)),
                             Count::Literal(1),
                             ManaSpec::Specific(Color::Green.into()).into(),
@@ -279,15 +279,15 @@ fn token_creating_barred_mana_source() -> Arc<Card> {
                 window: None,
                 condition: None,
                 limits: Arc::from([]),
-                effect: OneShotEffect::Sequentially(
+                effect: Instruction::Sequentially(
                     vec![
-                        OneShotEffect::Act(CoreAction::Create {
+                        Instruction::Act(CoreAction::Create {
                             agent: Reference::Reg(deckmaste_core::RefId(1)),
                             count: Count::Literal(1),
                             token: token.into(),
                             riders: Arc::from([]),
                         }),
-                        OneShotEffect::Act(CoreAction::AddMana(
+                        Instruction::Act(CoreAction::AddMana(
                             Reference::Reg(deckmaste_core::RefId(1)),
                             Count::Literal(1),
                             ManaSpec::Specific(Color::Green.into()).into(),
@@ -304,7 +304,7 @@ fn token_creating_barred_mana_source() -> Arc<Card> {
 }
 
 fn token_creating_source_with_a_token_mana_ability() -> Arc<Card> {
-    // Re-spelled from `OneShotEffect::With`/`Binder::ChooseOne`: the choice is
+    // Re-spelled from `Instruction::With`/`Binder::ChooseOne`: the choice is
     // its own instruction writing register 3 (0 source, 1 controller,
     // 2 announced X), and the mana add follows it.
     let token_ability = Ability::Mana(ManaAbility::Activated {
@@ -316,9 +316,9 @@ fn token_creating_source_with_a_token_mana_ability() -> Arc<Card> {
             window: None,
             condition: None,
             limits: Arc::from([]),
-            effect: OneShotEffect::Sequentially(
+            effect: Instruction::Sequentially(
                 vec![
-                    OneShotEffect::Choose(deckmaste_core::Choose {
+                    Instruction::Choose(deckmaste_core::Choose {
                         dest: deckmaste_core::DefId(3),
                         by: Reference::Reg(deckmaste_core::RefId(1)),
                         quantity: Quantity::one(),
@@ -330,7 +330,7 @@ fn token_creating_source_with_a_token_mana_ability() -> Arc<Card> {
                             .into(),
                         ))),
                     }),
-                    OneShotEffect::Act(CoreAction::AddMana(
+                    Instruction::Act(CoreAction::AddMana(
                         Reference::Reg(deckmaste_core::RefId(1)),
                         Count::Literal(1),
                         ManaSpec::Specific(Color::Green.into()).into(),
@@ -372,15 +372,15 @@ fn token_creating_source_with_a_token_mana_ability() -> Arc<Card> {
                 window: None,
                 condition: None,
                 limits: Arc::from([]),
-                effect: OneShotEffect::Sequentially(
+                effect: Instruction::Sequentially(
                     vec![
-                        OneShotEffect::Act(CoreAction::Create {
+                        Instruction::Act(CoreAction::Create {
                             agent: Reference::Reg(deckmaste_core::RefId(1)),
                             count: Count::Literal(1),
                             token: token.into(),
                             riders: Arc::from([]),
                         }),
-                        OneShotEffect::Act(CoreAction::AddMana(
+                        Instruction::Act(CoreAction::AddMana(
                             Reference::Reg(deckmaste_core::RefId(1)),
                             Count::Literal(1),
                             ManaSpec::Specific(Color::Green.into()).into(),
@@ -406,7 +406,7 @@ fn fulfillment_created_mana_source_replacements() -> (Arc<Card>, Arc<Card>) {
             window: None,
             condition: None,
             limits: Arc::from([]),
-            effect: OneShotEffect::Act(CoreAction::AddMana(
+            effect: Instruction::Act(CoreAction::AddMana(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 ManaSpec::Specific(Color::Green.into()).into(),
@@ -430,15 +430,15 @@ fn fulfillment_created_mana_source_replacements() -> (Arc<Card>, Arc<Card>) {
             who: Predicate::Any,
             amount: None,
         },
-        instead: OneShotEffect::Sequentially(
+        instead: Instruction::Sequentially(
             vec![
-                OneShotEffect::Act(CoreAction::Create {
+                Instruction::Act(CoreAction::Create {
                     agent: Reference::Reg(deckmaste_core::RefId(1)),
                     count: Count::Literal(1),
                     token: token.into(),
                     riders: Arc::from([]),
                 }),
-                OneShotEffect::Act(CoreAction::Shuffle(deckmaste_core::Selection::LibraryOf(
+                Instruction::Act(CoreAction::Shuffle(deckmaste_core::Selection::LibraryOf(
                     Reference::Reg(deckmaste_core::RefId(1)),
                 ))),
             ]
@@ -448,7 +448,7 @@ fn fulfillment_created_mana_source_replacements() -> (Arc<Card>, Arc<Card>) {
     let creator = Arc::new(Card::Normal(CardFace {
         name: "Fulfillment source creator".into(),
         types: vec![Type::Enchantment.def()],
-        abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
+        abilities: vec![Ability::r#static(StaticSpec::Replacement(Arc::new(
             creator_replacement,
         )))],
         ..CardFace::default()
@@ -460,9 +460,9 @@ fn fulfillment_created_mana_source_replacements() -> (Arc<Card>, Arc<Card>) {
             to: Some(Zone::Graveyard),
             cause: None,
         },
-        instead: OneShotEffect::May(May {
+        instead: Instruction::May(May {
             who: Reference::Reg(deckmaste_core::RefId(1)),
-            effect: Arc::new(OneShotEffect::Act(CoreAction::Pay(Cost(
+            effect: Arc::new(Instruction::Act(CoreAction::Pay(Cost(
                 vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
             )))),
             if_did: None,
@@ -472,7 +472,7 @@ fn fulfillment_created_mana_source_replacements() -> (Arc<Card>, Arc<Card>) {
     let optional = Arc::new(Card::Normal(CardFace {
         name: "Fulfillment source consumer".into(),
         types: vec![Type::Enchantment.def()],
-        abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
+        abilities: vec![Ability::r#static(StaticSpec::Replacement(Arc::new(
             optional_replacement,
         )))],
         ..CardFace::default()
@@ -511,17 +511,17 @@ fn token_creating_then_choosing_barred_mana_source() -> Arc<Card> {
                 window: None,
                 condition: None,
                 limits: Arc::from([]),
-                // Re-spelled from `OneShotEffect::With`/`Binder::ChooseOne`:
+                // Re-spelled from `Instruction::With`/`Binder::ChooseOne`:
                 // the choice is its own instruction writing register 3.
-                effect: OneShotEffect::Sequentially(
+                effect: Instruction::Sequentially(
                     vec![
-                        OneShotEffect::Act(CoreAction::Create {
+                        Instruction::Act(CoreAction::Create {
                             agent: Reference::Reg(deckmaste_core::RefId(1)),
                             count: Count::Literal(1),
                             token: token.into(),
                             riders: Arc::from([]),
                         }),
-                        OneShotEffect::Choose(deckmaste_core::Choose {
+                        Instruction::Choose(deckmaste_core::Choose {
                             dest: deckmaste_core::DefId(3),
                             by: Reference::Reg(deckmaste_core::RefId(1)),
                             quantity: Quantity::one(),
@@ -535,7 +535,7 @@ fn token_creating_then_choosing_barred_mana_source() -> Arc<Card> {
                                 .into(),
                             ))),
                         }),
-                        OneShotEffect::Act(CoreAction::AddMana(
+                        Instruction::Act(CoreAction::AddMana(
                             Reference::Reg(deckmaste_core::RefId(1)),
                             Count::Literal(1),
                             ManaSpec::Specific(Color::Green.into()).into(),
@@ -574,18 +574,18 @@ fn token_revealing_reversible_mana_source() -> Arc<Card> {
                 window: None,
                 condition: None,
                 limits: Arc::from([]),
-                // Re-spelled from `OneShotEffect::With`/`Binder::TheRef`: the
+                // Re-spelled from `Instruction::With`/`Binder::TheRef`: the
                 // pinned read is a `Let` writing register 3, and the reveal
                 // reads that register instead of `That(Token)`.
-                effect: OneShotEffect::Sequentially(
+                effect: Instruction::Sequentially(
                     vec![
-                        OneShotEffect::Act(CoreAction::Create {
+                        Instruction::Act(CoreAction::Create {
                             agent: Reference::Reg(deckmaste_core::RefId(1)),
                             count: Count::Literal(1),
                             token: token.into(),
                             riders: Arc::from([]),
                         }),
-                        OneShotEffect::Let(deckmaste_core::Let {
+                        Instruction::Let(deckmaste_core::Let {
                             dest: deckmaste_core::DefId(3),
                             expr: deckmaste_core::Expr::Object(Reference::Single(Arc::new(
                                 deckmaste_core::Selection::SelectAll(Arc::new(
@@ -597,11 +597,11 @@ fn token_revealing_reversible_mana_source() -> Arc<Card> {
                                 )),
                             ))),
                         }),
-                        OneShotEffect::Act(CoreAction::Reveal {
+                        Instruction::Act(CoreAction::Reveal {
                             what: Reference::Reg(deckmaste_core::RefId(3)),
                             to: None,
                         }),
-                        OneShotEffect::Act(CoreAction::AddMana(
+                        Instruction::Act(CoreAction::AddMana(
                             Reference::Reg(deckmaste_core::RefId(1)),
                             Count::Literal(1),
                             ManaSpec::Specific(Color::Green.into()).into(),
@@ -655,7 +655,7 @@ fn krark_clan_ironworks() -> Arc<Card> {
                 window: None,
                 condition: None,
                 limits: Arc::from([]),
-                effect: OneShotEffect::Act(CoreAction::AddMana(
+                effect: Instruction::Act(CoreAction::AddMana(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(2),
                     ManaSpec::Specific(deckmaste_core::ColorOrColorless::Colorless).into(),
@@ -676,13 +676,13 @@ fn wheel_of_sun_and_moon() -> Arc<Card> {
             to: Some(Zone::Graveyard),
             cause: None,
         },
-        instead: OneShotEffect::Sequentially(
+        instead: Instruction::Sequentially(
             vec![
-                OneShotEffect::Act(CoreAction::Reveal {
+                Instruction::Act(CoreAction::Reveal {
                     what: Reference::Reg(deckmaste_core::RefId(2)),
                     to: None,
                 }),
-                OneShotEffect::Act(CoreAction::Move(
+                Instruction::Act(CoreAction::Move(
                     Reference::Reg(deckmaste_core::RefId(2)),
                     Destination::Library(Anchor::FromBottom(Count::Literal(0))),
                     Arc::from([]),
@@ -695,7 +695,7 @@ fn wheel_of_sun_and_moon() -> Arc<Card> {
     Arc::new(Card::Normal(CardFace {
         name: "Wheel of Sun and Moon".into(),
         types: vec![Type::Enchantment.def()],
-        abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
+        abilities: vec![Ability::r#static(StaticSpec::Replacement(Arc::new(
             instead,
         )))],
         ..CardFace::default()
@@ -726,7 +726,7 @@ fn mox_amber_fixture() -> Arc<Card> {
     let sole_eligible_legend = Reference::Single(Arc::new(deckmaste_core::Selection::SelectAll(
         Arc::new(deckmaste_core::Region::candidate(colored_legend)),
     )));
-    let effect = OneShotEffect::Act(CoreAction::AddMana(
+    let effect = Instruction::Act(CoreAction::AddMana(
         Reference::Reg(deckmaste_core::RefId(1)),
         Count::Literal(1),
         ManaSpec::AmongColorsOf(sole_eligible_legend).into(),
@@ -767,7 +767,7 @@ fn colored_legendary_artifact() -> Arc<Card> {
             window: None,
             condition: None,
             limits: Arc::from([]),
-            effect: OneShotEffect::Sequentially(Arc::from([])).into(),
+            effect: Instruction::Sequentially(Arc::from([])).into(),
         })],
         ..CardFace::default()
     }))
@@ -785,7 +785,7 @@ fn omnath_fixture() -> Arc<Card> {
         types: vec![Type::Creature.def()],
         power: Some(StatValue::Number(1)),
         toughness: Some(StatValue::Number(1)),
-        abilities: vec![Ability::r#static(StaticEffect::Modify(
+        abilities: vec![Ability::r#static(StaticSpec::Modify(
             Reference::Reg(deckmaste_core::RefId(0)),
             Modification::Several(
                 vec![
@@ -818,7 +818,7 @@ fn mana_cylix_fixture() -> Arc<Card> {
                 window: None,
                 condition: None,
                 limits: Arc::from([]),
-                effect: OneShotEffect::Act(CoreAction::AddMana(
+                effect: Instruction::Act(CoreAction::AddMana(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(1),
                     ManaSpec::AnyColor.into(),
@@ -871,7 +871,7 @@ fn bighorner_rancher_fixture() -> Arc<Card> {
                 window: None,
                 condition: None,
                 limits: Arc::from([]),
-                effect: OneShotEffect::Act(CoreAction::AddMana(
+                effect: Instruction::Act(CoreAction::AddMana(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     greatest_power,
                     ManaSpec::Specific(Color::Green.into()).into(),
@@ -1212,7 +1212,7 @@ fn replay_restores_ordinary_triggers_caused_by_a_retained_fulfillment() {
             from: None,
             condition: None,
             limits: Arc::from([]),
-            effect: OneShotEffect::Sequentially(Arc::from([])).into(),
+            effect: Instruction::Sequentially(Arc::from([])).into(),
         })],
         ..CardFace::default()
     }));
@@ -1829,14 +1829,14 @@ fn decline_is_available_during_an_in_flight_replacement_choice() {
             to: Some(Zone::Graveyard),
             cause: None,
         },
-        instead: OneShotEffect::Sequentially(Arc::from([])),
+        instead: Instruction::Sequentially(Arc::from([])),
     };
     let shield = Arc::new(Card::Normal(CardFace {
         name: "Double replacement".into(),
         types: vec![Type::Enchantment.def()],
         abilities: vec![
-            Ability::r#static(StaticEffect::Replacement(Arc::new(replacement.clone()))),
-            Ability::r#static(StaticEffect::Replacement(Arc::new(replacement))),
+            Ability::r#static(StaticSpec::Replacement(Arc::new(replacement.clone()))),
+            Ability::r#static(StaticSpec::Replacement(Arc::new(replacement))),
         ],
         ..CardFace::default()
     }));
@@ -1883,9 +1883,9 @@ fn rescind_replays_an_optional_payment_nested_inside_a_fulfillment() {
             to: Some(Zone::Graveyard),
             cause: None,
         },
-        instead: OneShotEffect::May(May {
+        instead: Instruction::May(May {
             who: Reference::Reg(deckmaste_core::RefId(1)),
-            effect: Arc::new(OneShotEffect::Act(CoreAction::Pay(Cost(
+            effect: Arc::new(Instruction::Act(CoreAction::Pay(Cost(
                 vec![CostComponent::do_action(CoreAction::ChangeLife(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     LifeOp::Down(Count::Literal(1)),
@@ -1899,7 +1899,7 @@ fn rescind_replays_an_optional_payment_nested_inside_a_fulfillment() {
     let shield = Arc::new(Card::Normal(CardFace {
         name: "Optional replacement".into(),
         types: vec![Type::Enchantment.def()],
-        abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
+        abilities: vec![Ability::r#static(StaticSpec::Replacement(Arc::new(
             replacement,
         )))],
         ..CardFace::default()
@@ -1974,9 +1974,9 @@ fn fulfillment_owned_mana_child_remains_a_separate_reversal_unit() {
             to: Some(Zone::Graveyard),
             cause: None,
         },
-        instead: OneShotEffect::May(May {
+        instead: Instruction::May(May {
             who: Reference::Reg(deckmaste_core::RefId(1)),
-            effect: Arc::new(OneShotEffect::Act(CoreAction::Pay(Cost(
+            effect: Arc::new(Instruction::Act(CoreAction::Pay(Cost(
                 vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
             )))),
             if_did: None,
@@ -1986,7 +1986,7 @@ fn fulfillment_owned_mana_child_remains_a_separate_reversal_unit() {
     let shield = Arc::new(Card::Normal(CardFace {
         name: "Optional mana replacement".into(),
         types: vec![Type::Enchantment.def()],
-        abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
+        abilities: vec![Ability::r#static(StaticSpec::Replacement(Arc::new(
             replacement,
         )))],
         ..CardFace::default()
@@ -2087,14 +2087,14 @@ fn fulfillment_owned_mana_child_can_reverse_under_a_retained_parent() {
             to: Some(Zone::Graveyard),
             cause: None,
         },
-        instead: OneShotEffect::Sequentially(
+        instead: Instruction::Sequentially(
             vec![
-                OneShotEffect::Act(CoreAction::Shuffle(deckmaste_core::Selection::LibraryOf(
+                Instruction::Act(CoreAction::Shuffle(deckmaste_core::Selection::LibraryOf(
                     Reference::Reg(deckmaste_core::RefId(1)),
                 ))),
-                OneShotEffect::May(May {
+                Instruction::May(May {
                     who: Reference::Reg(deckmaste_core::RefId(1)),
-                    effect: Arc::new(OneShotEffect::Act(CoreAction::Pay(Cost(
+                    effect: Arc::new(Instruction::Act(CoreAction::Pay(Cost(
                         vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
                     )))),
                     if_did: None,
@@ -2107,7 +2107,7 @@ fn fulfillment_owned_mana_child_can_reverse_under_a_retained_parent() {
     let shield = Arc::new(Card::Normal(CardFace {
         name: "Barred optional mana replacement".into(),
         types: vec![Type::Enchantment.def()],
-        abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
+        abilities: vec![Ability::r#static(StaticSpec::Replacement(Arc::new(
             replacement,
         )))],
         ..CardFace::default()
@@ -2338,7 +2338,7 @@ fn omitted_fulfillment_mana_child_replays_after_earlier_created_source() {
     reason = "the suspended fulfillment regression exercises two causal mana children and both reversal outcomes"
 )]
 fn suspended_fulfillment_keeps_dependent_mana_children_separately_reversible() {
-    let modal = OneShotEffect::Modal(Modal {
+    let modal = Instruction::Modal(Modal {
         choose: ChooseSpec {
             count: Quantity::one(),
             up_to: false,
@@ -2349,12 +2349,12 @@ fn suspended_fulfillment_keeps_dependent_mana_children_separately_reversible() {
         modes: vec![
             Mode {
                 targets: [].into(),
-                effect: OneShotEffect::Sequentially(Arc::from([])).into(),
+                effect: Instruction::Sequentially(Arc::from([])).into(),
                 cost: deckmaste_core::Cost::default(),
             },
             Mode {
                 targets: [].into(),
-                effect: OneShotEffect::Sequentially(Arc::from([])).into(),
+                effect: Instruction::Sequentially(Arc::from([])).into(),
                 cost: deckmaste_core::Cost::default(),
             },
         ]
@@ -2367,14 +2367,14 @@ fn suspended_fulfillment_keeps_dependent_mana_children_separately_reversible() {
             to: Some(Zone::Graveyard),
             cause: None,
         },
-        instead: OneShotEffect::Sequentially(
+        instead: Instruction::Sequentially(
             vec![
-                OneShotEffect::Act(CoreAction::Shuffle(deckmaste_core::Selection::LibraryOf(
+                Instruction::Act(CoreAction::Shuffle(deckmaste_core::Selection::LibraryOf(
                     Reference::Reg(deckmaste_core::RefId(1)),
                 ))),
-                OneShotEffect::May(May {
+                Instruction::May(May {
                     who: Reference::Reg(deckmaste_core::RefId(1)),
-                    effect: Arc::new(OneShotEffect::Act(CoreAction::Pay(Cost(
+                    effect: Arc::new(Instruction::Act(CoreAction::Pay(Cost(
                         vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
                     )))),
                     if_did: None,
@@ -2387,7 +2387,7 @@ fn suspended_fulfillment_keeps_dependent_mana_children_separately_reversible() {
     let shield = Arc::new(Card::Normal(CardFace {
         name: "Suspended optional mana replacement".into(),
         types: vec![Type::Enchantment.def()],
-        abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
+        abilities: vec![Ability::r#static(StaticSpec::Replacement(Arc::new(
             replacement,
         )))],
         ..CardFace::default()
@@ -2540,7 +2540,7 @@ fn suspended_fulfillment_keeps_dependent_mana_children_separately_reversible() {
 
 #[test]
 fn decline_retains_a_library_move_from_an_in_flight_fulfillment() {
-    let modal = OneShotEffect::Modal(Modal {
+    let modal = Instruction::Modal(Modal {
         choose: ChooseSpec {
             count: Quantity::one(),
             up_to: false,
@@ -2551,12 +2551,12 @@ fn decline_retains_a_library_move_from_an_in_flight_fulfillment() {
         modes: vec![
             Mode {
                 targets: [].into(),
-                effect: OneShotEffect::Sequentially(Arc::from([])).into(),
+                effect: Instruction::Sequentially(Arc::from([])).into(),
                 cost: deckmaste_core::Cost::default(),
             },
             Mode {
                 targets: [].into(),
-                effect: OneShotEffect::Sequentially(Arc::from([])).into(),
+                effect: Instruction::Sequentially(Arc::from([])).into(),
                 cost: deckmaste_core::Cost::default(),
             },
         ]
@@ -2569,9 +2569,9 @@ fn decline_retains_a_library_move_from_an_in_flight_fulfillment() {
             to: Some(Zone::Graveyard),
             cause: None,
         },
-        instead: OneShotEffect::Sequentially(
+        instead: Instruction::Sequentially(
             vec![
-                OneShotEffect::Act(CoreAction::Move(
+                Instruction::Act(CoreAction::Move(
                     Reference::Reg(deckmaste_core::RefId(2)),
                     Destination::Library(Anchor::FromBottom(Count::Literal(0))),
                     Arc::from([]),
@@ -2585,7 +2585,7 @@ fn decline_retains_a_library_move_from_an_in_flight_fulfillment() {
     let shield = Arc::new(Card::Normal(CardFace {
         name: "Barred replacement".into(),
         types: vec![Type::Enchantment.def()],
-        abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
+        abilities: vec![Ability::r#static(StaticSpec::Replacement(Arc::new(
             replacement,
         )))],
         ..CardFace::default()
@@ -2654,15 +2654,15 @@ fn decline_replays_a_retained_fulfillment_that_creates_then_remints_a_token() {
             who: Predicate::Any,
             amount: None,
         },
-        instead: OneShotEffect::Sequentially(
+        instead: Instruction::Sequentially(
             vec![
-                OneShotEffect::Act(CoreAction::Create {
+                Instruction::Act(CoreAction::Create {
                     agent: Reference::Reg(deckmaste_core::RefId(1)),
                     count: Count::Literal(1),
                     token: token.into(),
                     riders: Arc::from([]),
                 }),
-                OneShotEffect::Act(CoreAction::Move(
+                Instruction::Act(CoreAction::Move(
                     Reference::Single(
                         deckmaste_core::Selection::SelectAll(Arc::new(
                             deckmaste_core::Region::candidate(token_on_battlefield.clone()),
@@ -2673,7 +2673,7 @@ fn decline_replays_a_retained_fulfillment_that_creates_then_remints_a_token() {
                     Arc::from([]),
                     Some(Zone::Battlefield),
                 )),
-                OneShotEffect::Act(CoreAction::Move(
+                Instruction::Act(CoreAction::Move(
                     Reference::Single(
                         deckmaste_core::Selection::SelectAll(Arc::new(
                             deckmaste_core::Region::candidate(token_on_battlefield),
@@ -2691,7 +2691,7 @@ fn decline_replays_a_retained_fulfillment_that_creates_then_remints_a_token() {
     let shield = Arc::new(Card::Normal(CardFace {
         name: "Create-remint replacement".into(),
         types: vec![Type::Enchantment.def()],
-        abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
+        abilities: vec![Ability::r#static(StaticSpec::Replacement(Arc::new(
             replacement,
         )))],
         ..CardFace::default()
@@ -2723,7 +2723,7 @@ fn decline_replays_a_retained_fulfillment_that_creates_then_remints_a_token() {
 
 #[test]
 fn decline_preserves_a_public_reveal_without_crossing_an_observation_barrier() {
-    let modal = OneShotEffect::Modal(Modal {
+    let modal = Instruction::Modal(Modal {
         choose: ChooseSpec {
             count: Quantity::one(),
             up_to: false,
@@ -2734,12 +2734,12 @@ fn decline_preserves_a_public_reveal_without_crossing_an_observation_barrier() {
         modes: vec![
             Mode {
                 targets: [].into(),
-                effect: OneShotEffect::Sequentially(Arc::from([])).into(),
+                effect: Instruction::Sequentially(Arc::from([])).into(),
                 cost: deckmaste_core::Cost::default(),
             },
             Mode {
                 targets: [].into(),
-                effect: OneShotEffect::Sequentially(Arc::from([])).into(),
+                effect: Instruction::Sequentially(Arc::from([])).into(),
                 cost: deckmaste_core::Cost::default(),
             },
         ]
@@ -2752,9 +2752,9 @@ fn decline_preserves_a_public_reveal_without_crossing_an_observation_barrier() {
             to: Some(Zone::Graveyard),
             cause: None,
         },
-        instead: OneShotEffect::Sequentially(
+        instead: Instruction::Sequentially(
             vec![
-                OneShotEffect::Act(CoreAction::Reveal {
+                Instruction::Act(CoreAction::Reveal {
                     what: Reference::Reg(deckmaste_core::RefId(2)),
                     to: None,
                 }),
@@ -2766,7 +2766,7 @@ fn decline_preserves_a_public_reveal_without_crossing_an_observation_barrier() {
     let shield = Arc::new(Card::Normal(CardFace {
         name: "Observe then choose".into(),
         types: vec![Type::Enchantment.def()],
-        abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
+        abilities: vec![Ability::r#static(StaticSpec::Replacement(Arc::new(
             replacement,
         )))],
         ..CardFace::default()

@@ -11,69 +11,69 @@ import Experimental.Unspellable
 
 ||| "Destroy target tapped creature."
 public export
-okTappedBattlefield : Effect []
+okTappedBattlefield : Instruction []
 okTappedBattlefield =
   Macros.destroy (Macros.target (And [Macros.creature, Macros.tapped]))
 
 ||| "Destroy target tapped creature card in your graveyard."
 public export
-badTappedGraveyard : Unspellable (Effect []) (\ok =>
+badTappedGraveyard : Unspellable (Instruction []) (\ok =>
   Macros.destroy (Macros.target (And [Macros.creature, Macros.tapped,
                                        InZone (Macros.graveyardOf You)] {zc = ok})))
 badTappedGraveyard Oh impossible
 
 ||| "Destroy target tapped untapped creature."
 public export
-badTappedUntapped : Unspellable (Effect []) (\ok =>
+badTappedUntapped : Unspellable (Instruction []) (\ok =>
   Macros.destroy (Macros.target (And [Macros.creature, Macros.tapped, Macros.untapped] {cf = ok})))
 badTappedUntapped Oh impossible
 
 ||| "Untap target creature card in your graveyard."
 public export
-badUntapGraveyard : Unspellable (Effect []) (\ok =>
+badUntapGraveyard : Unspellable (Instruction []) (\ok =>
   SetStatus Untapped (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {ok})
 badUntapGraveyard Oh impossible
 
 ||| "Destroy target permanent instant."
 public export
-badPermanentInstant : Unspellable (Effect []) (\ok =>
+badPermanentInstant : Unspellable (Instruction []) (\ok =>
   Macros.destroy (Macros.target (And [Permanent, HasType Instant] {cf = ok})))
 badPermanentInstant Oh impossible
 
 public export
-badThatPermanentDeparted : Unspellable (Effect []) (\ok =>
+badThatPermanentDeparted : Unspellable (Instruction []) (\ok =>
   Sequentially [Macros.destroy (Macros.target Permanent),
                SetStatus Tapped (Macros.That PermanentW OneOf {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badThatPermanentDeparted (Refl, _) impossible
 
 ||| "Destroy target token card in your graveyard."
 public export
-badTokenGraveyard : Unspellable (Effect []) (\ok =>
+badTokenGraveyard : Unspellable (Instruction []) (\ok =>
   Macros.destroy (Macros.target (And [IsToken, InZone (Macros.graveyardOf You)] {zc = ok})))
 badTokenGraveyard Oh impossible
 
 ||| "Destroy target nontoken token."
 public export
-badNontokenToken : Unspellable (Effect []) (\ok =>
+badNontokenToken : Unspellable (Instruction []) (\ok =>
   Macros.destroy (Macros.target (And [IsToken, Macros.nontoken] {cf = ok})))
 badNontokenToken Oh impossible
 
 ||| "Tap target creature. Untap that token."
 public export
-badThatTokenOfCard : Unspellable (Effect []) (\ok =>
+badThatTokenOfCard : Unspellable (Instruction []) (\ok =>
   Sequentially [SetStatus Tapped (Macros.target Macros.creature),
                SetStatus Untapped (Macros.That TokenW OneOf {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badThatTokenOfCard (Refl, _) impossible
 
 ||| "When target creature dies this turn, return that card to the battlefield."
 public export
-okDiesBattlefield : Effect []
+okDiesBattlefield : Instruction []
 okDiesBattlefield =
   Delayed (Dies (Macros.target Macros.creature)) [] (Just ThisTurn)
           (Move (Macros.That CardW OneOf) Macros.battlefieldZ [])
 
 public export
-badDiesInGraveyard : Unspellable (Effect []) (\ok =>
+badDiesInGraveyard : Unspellable (Instruction []) (\ok =>
   Delayed (Dies (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {zn = ok}) [] (Just ThisTurn)
           (Move (Macros.That CardW OneOf) Macros.battlefieldZ []))
 badDiesInGraveyard Oh impossible
@@ -98,66 +98,66 @@ badNegatedPlayerHead Oh impossible
 
 ||| "Tap target creature an opponent doesn't control. That player loses 1 life."
 public export
-badNegatedAntecedent : Unspellable (Effect []) (\ok =>
+badNegatedAntecedent : Unspellable (Instruction []) (\ok =>
   Sequentially [SetStatus Tapped (Macros.target (And [Macros.creature, Not (HasPossessor ControllerAx Macros.anOpponent)])),
                 Macros.losesLife (Macros.That PlayerW OneOf {ok}) (Lit 1)])
 badNegatedAntecedent Refl impossible
 
 ||| "Destroy target creature on the battlefield in a graveyard."
 public export
-badConflictingZones : Unspellable (Effect []) (\ok =>
+badConflictingZones : Unspellable (Instruction []) (\ok =>
   Macros.destroy (Macros.target (And [Macros.creature, InZone Macros.battlefieldZ, InZone Macros.graveyardZ] {zc = ok})))
 badConflictingZones Oh impossible
 
 ||| "Return target creature to its owner's hand."
 public export
-okMoveToHand : Effect []
+okMoveToHand : Instruction []
 okMoveToHand = Move (Macros.target Macros.creature) Macros.handZ []
 
 ||| "Put target creature into target player's hand."
 public export
-badMoveToTargetsHand : Unspellable (Effect []) (\ok =>
+badMoveToTargetsHand : Unspellable (Instruction []) (\ok =>
   Move (Macros.target Macros.creature) (Macros.handOf (Macros.target AnyPlayer)) [] {ok})
 badMoveToTargetsHand HandOkBare impossible
 
 ||| "Destroy target creature."
 public export
-okDestroyBattlefield : Effect []
+okDestroyBattlefield : Instruction []
 okDestroyBattlefield = Macros.destroy (Macros.target Macros.creature)
 
 ||| "Destroy target creature card in your graveyard."
 public export
-badDestroyGraveyard : Unspellable (Effect []) (\ok =>
+badDestroyGraveyard : Unspellable (Instruction []) (\ok =>
   Macros.destroy (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {ok})
 badDestroyGraveyard Oh impossible
 
 ||| "You discard a card."
 public export
-okDiscardHand : Effect []
+okDiscardHand : Instruction []
 okDiscardHand = Macros.discard You (Macros.a (InZone Macros.handZ))
 
 ||| "You discard a creature."
 public export
-badDiscardBattlefield : Unspellable (Effect []) (\ok =>
+badDiscardBattlefield : Unspellable (Instruction []) (\ok =>
   Macros.discard You (Macros.a Macros.creature) {dk = ok})
 badDiscardBattlefield DiscardTracked impossible
 
 ||| "Destroy target creature card in a graveyard."
 public export
-badDestroyGraveyardCard : Unspellable (Effect []) (\ok =>
+badDestroyGraveyardCard : Unspellable (Instruction []) (\ok =>
   Macros.destroy (Macros.target (And [Macros.creature, InZone Macros.graveyardZ])) {ok})
 badDestroyGraveyardCard Oh impossible
 
 ||| "Destroy a creature."
 public export
-okKnownVerbLabel : Effect []
+okKnownVerbLabel : Instruction []
 okKnownVerbLabel =
   Enact Nothing "Destroy"
         (Move (Macros.a Macros.creature) Macros.graveyardZ [])
 
 ||| A move labeled with a word outside the label catalog
 public export
-badUnknownVerbLabel : Unspellable (Effect []) (\ok =>
+badUnknownVerbLabel : Unspellable (Instruction []) (\ok =>
   Enact Nothing "Descry" (Move (Macros.a Macros.creature) Macros.graveyardZ []) {kn = ok})
 badUnknownVerbLabel Oh impossible
 
@@ -199,7 +199,7 @@ badAttackingInHand Oh impossible
 
 ||| "Discard this creature."
 public export
-badDiscardThisCreature : Unspellable (Effect []) (\ok =>
+badDiscardThisCreature : Unspellable (Instruction []) (\ok =>
   Macros.discard You Macros.thisCreature {dk = ok})
 badDiscardThisCreature DiscardTracked impossible
 
@@ -221,14 +221,14 @@ badDoubleOther Oh impossible
 ||| "You discard a card."
 public export
 okDiscardHandCard :
-  Effect [MkBinding AD Object OneOf
+  Instruction [MkBinding AD Object OneOf
                     (ObjectP Nothing Nothing Nothing Nothing Nothing)]
 okDiscardHandCard = Macros.discard You (Macros.a (InZone Macros.handZ))
 
 ||| "You discard it."
 public export
 badDiscardIt : Unspellable
-  (Effect [MkBinding AD Object OneOf (ObjectP Nothing Nothing Nothing Nothing Nothing)])
+  (Instruction [MkBinding AD Object OneOf (ObjectP Nothing Nothing Nothing Nothing Nothing)])
   (\ok => Macros.discard You ((Macros.It OneOf)) {dk = ok})
 badDiscardIt DiscardTracked impossible
 
@@ -280,132 +280,132 @@ badSpellOrPermanentSubject Oh impossible
 
 ||| "Destroy target creature if it's on the battlefield."
 public export
-okMatchesZoneFits : Effect []
+okMatchesZoneFits : Instruction []
 okMatchesZoneFits =
   OnlyIf (Macros.destroy (Macros.target Macros.creature))
          (Matches (Macros.It OneOf) (InZone Macros.battlefieldZ)) Nothing
 
 ||| "Destroy target creature if it's in a graveyard."
 public export
-badTrailingPostStateZone : Unspellable (Effect []) (\ok =>
+badTrailingPostStateZone : Unspellable (Instruction []) (\ok =>
   OnlyIf (Macros.destroy (Macros.target Macros.creature)) (Matches ((Macros.It OneOf)) (InZone Macros.graveyardZ) {zc = ok}) Nothing)
 badTrailingPostStateZone Oh impossible
 
 ||| "Choose a card in your hand. You discard that card."
 public export
-okChosenCardRemention : Effect []
+okChosenCardRemention : Instruction []
 okChosenCardRemention =
   Sequentially [Macros.choose (Macros.a (InZone Macros.handZ)),
                 Macros.discard You (Macros.That CardW OneOf)]
 
 ||| "Draw a card. Exile that card."
 public export
-badDrawnCardRemention : Unspellable (Effect []) (\ok =>
+badDrawnCardRemention : Unspellable (Instruction []) (\ok =>
   Sequentially [(Draw You (Lit 1)), Macros.exile You (Macros.That CardW OneOf {ok})])
 badDrawnCardRemention Refl impossible
 
 ||| "Draw a card and you gain 1 life."
 public export
-okNonEmptyBatch : Effect []
+okNonEmptyBatch : Instruction []
 okNonEmptyBatch =
   Simultaneously [Draw You (Lit 1), Macros.gainsLife You (Lit 1)]
 
 ||| an empty batch
 public export
-badEmptySimultaneous : Unspellable (Effect []) (\ok =>
+badEmptySimultaneous : Unspellable (Instruction []) (\ok =>
   Simultaneously [] {ne = ok})
 badEmptySimultaneous ItIsSucc impossible
 
 ||| "Exile target creature and destroy that card."
 public export
-badSimultaneousReadsRetag : Unspellable (Effect []) (\ok =>
+badSimultaneousReadsRetag : Unspellable (Instruction []) (\ok =>
   Simultaneously [Macros.exile You (Macros.target Macros.creature),
                   Macros.destroy (Macros.That CardW OneOf {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badSimultaneousReadsRetag (_, Oh) impossible
 
 ||| "Gain control of target creature."
 public export
-okGainControlBattlefield : Effect []
+okGainControlBattlefield : Instruction []
 okGainControlBattlefield =
   Macros.gainControl You (Macros.target Macros.creature) Nothing
 
 ||| "Gain control of target creature card in a graveyard."
 public export
-badGainControlGraveyard : Unspellable (Effect []) (\ok =>
+badGainControlGraveyard : Unspellable (Instruction []) (\ok =>
   Macros.gainControl You (Macros.target (And [Macros.creature, InZone Macros.graveyardZ])) Nothing {zn = ok})
 badGainControlGraveyard Oh impossible
 
 ||| "Reveal the top four cards. Put them on the bottom in any order."
 public export
-okPluralOrderRider : Effect []
+okPluralOrderRider : Instruction []
 okPluralOrderRider =
   Sequentially [Macros.revealCards (Macros.topSlice (Lit 4)),
                 Move (Macros.That CardW ManyOf) (Macros.onBottomIn AnyOrder) []]
 
 public export
-badSingularOrderRider : Unspellable (Effect []) (\ok =>
+badSingularOrderRider : Unspellable (Instruction []) (\ok =>
   Sequentially [Macros.lookAt (Macros.topSlice (Lit 1)), Move (Macros.That CardW OneOf) (Macros.onBottomIn AnyOrder) [] {arr = ok}])
 badSingularOrderRider Oh impossible
 
 ||| "Look at the top four cards of your library. Put them into your hand."
 public export
-okSliceCardRead : Effect []
+okSliceCardRead : Instruction []
 okSliceCardRead =
   Sequentially [Macros.lookAt (Macros.topSlice (Lit 4)),
                 Move (Macros.That CardW ManyOf) Macros.handZ []]
 
 public export
-badSliceTypeRead : Unspellable (Effect []) (\ok =>
+badSliceTypeRead : Unspellable (Instruction []) (\ok =>
   Sequentially [Macros.lookAt ((Macros.topSlice (Lit 4))), Move (Macros.That (TypeW Creature) ManyOf {ok}) Macros.handZ []])
 badSliceTypeRead Refl impossible
 
 ||| "Search your library for a creature card."
 public export
-okSearchZoneFreeDescription : Effect []
+okSearchZoneFreeDescription : Instruction []
 okSearchZoneFreeDescription = Macros.searchLibraryFor (Macros.exactly 1) Macros.creature
 
 ||| "Search your library for a creature card in a graveyard."
 public export
-badSearchZonedDescription : Unspellable (Effect []) (\ok =>
+badSearchZonedDescription : Unspellable (Instruction []) (\ok =>
   Macros.searchLibraryFor (Macros.exactly 1) (And [Macros.creature, InZone Macros.graveyardZ]) {zf = ok})
 badSearchZonedDescription Refl impossible
 
 ||| "Each player mills a card. Exile it."
 public export
-badDistributedMillSingular : Unspellable (Effect []) (\ok =>
+badDistributedMillSingular : Unspellable (Instruction []) (\ok =>
   Sequentially [ Macros.mills (Macros.each AnyPlayer) (Lit 1) (Macros.each AnyPlayer)
                , Macros.exile You ((Macros.It OneOf) {ok}) ])
 badDistributedMillSingular Refl impossible
 
 ||| "one of up to two target creatures"
 public export
-okPartitiveOfTargetGroup : Effect []
+okPartitiveOfTargetGroup : Instruction []
 okPartitiveOfTargetGroup =
   Macros.exile You (SomeOf (CountedSlice (Macros.exactly 1)) Nothing
                            (Described (TargetDet (Macros.upTo 2)) Macros.creature))
 
 ||| "one of a creature you control"
 public export
-badPartitiveOfDescription : Unspellable (Effect []) (\ok =>
+badPartitiveOfDescription : Unspellable (Instruction []) (\ok =>
   Macros.exile You (SomeOf (CountedSlice (Macros.exactly 1)) Nothing (Macros.a Macros.creature) {gm = ok}))
 badPartitiveOfDescription Oh impossible
 
 ||| "Look at the top four cards of your library. Exile one of them."
 public export
-okPartitiveOfThem : Effect []
+okPartitiveOfThem : Instruction []
 okPartitiveOfThem =
   Sequentially [Macros.lookAt (Macros.topSlice (Lit 4)),
                 Macros.exile You (Macros.someOf (Macros.exactly 1) (Macros.It ManyOf))]
 
 ||| "two of one of them"
 public export
-badPartitiveOfPartitive : Unspellable (Effect []) (\ok =>
+badPartitiveOfPartitive : Unspellable (Instruction []) (\ok =>
   Sequentially [Macros.lookAt ((Macros.topSlice (Lit 4))), Macros.exile You (Macros.someOf (Macros.exactly 1) (Macros.someOf (Macros.exactly 1) ((Macros.It ManyOf))) {gm = ok})])
 badPartitiveOfPartitive Oh impossible
 
 ||| "each of the rest"
 public export
-badEachOfTheRest : Unspellable (Effect []) (\ok =>
+badEachOfTheRest : Unspellable (Instruction []) (\ok =>
   Sequentially [ Macros.lookAt ((Macros.topSlice (Lit 4)))
                , Move (Macros.someOf (Macros.exactly 1) ((Macros.It ManyOf))) Macros.handZ []
                , Macros.exile You (EachOf Macros.theRest {gm = ok})
@@ -414,27 +414,27 @@ badEachOfTheRest Oh impossible
 
 ||| "If a creature you control would die this turn, exile it instead."
 public export
-okWouldDieOnBattlefield : Effect []
+okWouldDieOnBattlefield : Instruction []
 okWouldDieOnBattlefield =
   Macros.ifWouldInstead (Dies (Macros.target Macros.creatureYouControl))
                  (Macros.exile You (Macros.It OneOf)) (Just ThisTurn)
 
 public export
-badWouldDieInGraveyard : Unspellable (Effect []) (\ok =>
+badWouldDieInGraveyard : Unspellable (Instruction []) (\ok =>
   Macros.ifWouldInstead (Dies (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {zn = ok})
                  (Macros.exile You ((Macros.It OneOf))) (Just ThisTurn))
 badWouldDieInGraveyard Oh impossible
 
 ||| "Reveal the top card of your library. Put that card into your hand."
 public export
-okSingularCardRetag : Effect []
+okSingularCardRetag : Instruction []
 okSingularCardRetag =
   Sequentially [ Macros.revealCards (Macros.topSlice (Lit 1))
                , Move (Macros.That CardW OneOf) Macros.handZ []
                ]
 
 public export
-badHeldUntilExileRetag : Unspellable (Effect []) (\ok =>
+badHeldUntilExileRetag : Unspellable (Instruction []) (\ok =>
   Sequentially [ Macros.exileUntil (Macros.target Macros.creature) (Macros.leavesBattlefield Macros.thisCreature)
                , Move (Macros.That CardW OneOf {ok}) Macros.handZ []
                ])
@@ -442,31 +442,31 @@ badHeldUntilExileRetag Refl impossible
 
 ||| "Put target creature onto the battlefield tapped."
 public export
-okMoveRidersToBattlefield : Effect []
+okMoveRidersToBattlefield : Instruction []
 okMoveRidersToBattlefield =
   Move (Macros.target Macros.creature) Macros.battlefieldZ [EntersTapped]
 
 ||| "Put target creature into its owner's graveyard tapped."
 public export
-badMoveRidersToGraveyard : Unspellable (Effect []) (\ok =>
+badMoveRidersToGraveyard : Unspellable (Instruction []) (\ok =>
   Move (Macros.target Macros.creature) Macros.graveyardZ [EntersTapped] {rf = ok})
 badMoveRidersToGraveyard Oh impossible
 
 ||| "Put target creature into its owner's hand under your control."
 public export
-badMoveControlToHand : Unspellable (Effect []) (\ok =>
+badMoveControlToHand : Unspellable (Instruction []) (\ok =>
   Move (Macros.target Macros.creature) Macros.handZ [Under You] {rf = ok})
 badMoveControlToHand Oh impossible
 
 ||| "Put target creature onto the battlefield under your control."
 public export
-okMoveRidersSingularController : Effect []
+okMoveRidersSingularController : Instruction []
 okMoveRidersSingularController =
   Move (Macros.target Macros.creature) Macros.battlefieldZ [Under You]
 
 ||| "Put target creature onto the battlefield under the other players' control."
 public export
-badMoveRidersPluralController : Unspellable (Effect []) (\ok =>
+badMoveRidersPluralController : Unspellable (Instruction []) (\ok =>
   Move (Macros.target Macros.creature) Macros.battlefieldZ [Under (Macros.allOf Macros.otherPlayer) {one = ok}])
 badMoveRidersPluralController OneController impossible
 
@@ -511,26 +511,26 @@ badExiledWithAttacking Oh impossible
 
 ||| "Put target creature card from a graveyard onto the battlefield tapped."
 public export
-okCreatureOntoBattlefieldTapped : Effect []
+okCreatureOntoBattlefieldTapped : Instruction []
 okCreatureOntoBattlefieldTapped =
   Macros.putOntoBattlefieldTapped
     (Macros.target (And [Macros.creature, InZone Macros.graveyardZ]))
 
 ||| "Put target instant card from a graveyard onto the battlefield tapped."
 public export
-badInstantOntoBattlefield : Unspellable (Effect []) (\ok =>
+badInstantOntoBattlefield : Unspellable (Instruction []) (\ok =>
   Macros.putOntoBattlefieldTapped (Macros.target (And [HasType Instant, InZone Macros.graveyardZ])) {pl = ok})
 badInstantOntoBattlefield Oh impossible
 
 ||| "Remove target creature from combat."
 public export
-okRemoveFromCombatOnBattlefield : Effect []
+okRemoveFromCombatOnBattlefield : Instruction []
 okRemoveFromCombatOnBattlefield =
   RemoveFromCombat (Macros.target Macros.creature)
 
 ||| "Remove target creature card in your graveyard from combat."
 public export
-badRemoveFromCombatGraveyard : Unspellable (Effect []) (\ok =>
+badRemoveFromCombatGraveyard : Unspellable (Instruction []) (\ok =>
   RemoveFromCombat (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {ok = ok})
 badRemoveFromCombatGraveyard Oh impossible
 
@@ -564,14 +564,14 @@ badExileCheckOnSortedSelf Oh impossible
 
 ||| "Draw cards equal to the difference." under a comparison
 public export
-okDifferenceAfterComparison : Effect []
+okDifferenceAfterComparison : Instruction []
 okDifferenceAfterComparison =
   If (CompareAmt (Macros.countOf (InZone (Macros.handOf You))) Less (Lit 7))
      (Draw You TheDifference) Nothing
 
 ||| "Draw cards equal to the difference."
 public export
-badUnlicensedDifference : Unspellable (Effect []) (\ok =>
+badUnlicensedDifference : Unspellable (Instruction []) (\ok =>
   Draw You (TheDifference {ok}))
 badUnlicensedDifference Refl impossible
 
@@ -583,13 +583,13 @@ badNonComparisonDifference Refl impossible
 
 ||| "Goad target creature."
 public export
-okGoadOnBattlefield : Effect []
+okGoadOnBattlefield : Instruction []
 okGoadOnBattlefield =
   GainsDesignation (Macros.target Macros.creature) Goaded Instructed Nothing
 
 ||| "goad target creature card in your graveyard"
 public export
-badGoadInGraveyard : Unspellable (Effect []) (\ok =>
+badGoadInGraveyard : Unspellable (Instruction []) (\ok =>
   GainsDesignation (Macros.target (And [Macros.creature,
                                         InZone (Macros.graveyardOf You)]))
                    Goaded Instructed Nothing {zn = ok})
@@ -610,7 +610,7 @@ badCreatureAttackDefender : Unspellable (GameEvent []) (\ok =>
 badCreatureAttackDefender Oh impossible
 
 public export
-badAgentChooseTheRest : Unspellable (Effect []) (\ok =>
+badAgentChooseTheRest : Unspellable (Instruction []) (\ok =>
   Sequentially [ Macros.lookAt ((Macros.topSlice (Lit 4)))
                , Move (Macros.someOf (Macros.exactly 1) ((Macros.It ManyOf))) Macros.handZ []
                , Choose Macros.theRest (Just (Macros.a Opponent)) Openly {ch = ok} ])
@@ -631,61 +631,61 @@ badSingularNameAgreement Refl impossible
 
 ||| "This spell can't be countered."
 public export
-okCantBeCountered : StaticEffect []
+okCantBeCountered : StaticSpec []
 okCantBeCountered = Macros.objectCant "Counter" This
 
 ||| "Creature cards in graveyards can't be countered."
 public export
-badCounteredInGraveyard : Unspellable (StaticEffect []) (\ok =>
+badCounteredInGraveyard : Unspellable (StaticSpec []) (\ok =>
   Macros.objectCant "Counter"
     (Macros.allOf (And [Macros.creature, InZone Macros.graveyardZ])) {dp = ok})
 badCounteredInGraveyard Oh impossible
 
 ||| "You may look at the top card of your library any time."
 public export
-okLookAtTopOfLibrary : StaticEffect []
+okLookAtTopOfLibrary : StaticSpec []
 okLookAtTopOfLibrary = Visibility LookAt You TopOfLibrary
 
 ||| "You may look at your hand any time."
 public export
-badLookAtHandRider : Unspellable (StaticEffect []) (\ok =>
+badLookAtHandRider : Unspellable (StaticSpec []) (\ok =>
   Visibility LookAt You WholeHand {vo = ok})
 badLookAtHandRider Oh impossible
 
 ||| "Lands you control are every creature type."
 public export
-badEveryCreatureTypeOnLand : Unspellable (StaticEffect []) (\ok =>
+badEveryCreatureTypeOnLand : Unspellable (StaticSpec []) (\ok =>
   Becomes (Macros.allOf (And [Macros.land, HasPossessor ControllerAx You])) Adds (EveryTypeOf CreatureSpace)
                 {ok = ok})
 badEveryCreatureTypeOnLand Oh impossible
 
 ||| "Creatures you control are every basic land type."
 public export
-badEveryBasicLandTypeOnCreature : Unspellable (StaticEffect []) (\ok =>
+badEveryBasicLandTypeOnCreature : Unspellable (StaticSpec []) (\ok =>
   Becomes (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You])) Adds (EveryTypeOf BasicLandSpace)
                 {ok = ok})
 badEveryBasicLandTypeOnCreature Oh impossible
 
 ||| "Regenerate target creature."
 public export
-okRegenerateCreature : Effect []
+okRegenerateCreature : Instruction []
 okRegenerateCreature = Regenerate (Macros.target Macros.creature)
 
 ||| "Regenerate target creature card in your graveyard."
 public export
-badRegenerateInGraveyard : Unspellable (Effect []) (\ok =>
+badRegenerateInGraveyard : Unspellable (Instruction []) (\ok =>
   Regenerate (Macros.a (And [Macros.creature, InZone Macros.graveyardZ]))
              {zn = ok})
 badRegenerateInGraveyard Oh impossible
 
 public export
-badRegenerateBareThis : Unspellable (Effect []) (\ok =>
+badRegenerateBareThis : Unspellable (Instruction []) (\ok =>
   Regenerate This {zn = ok})
 badRegenerateBareThis Oh impossible
 
 ||| "Creature cards in your graveyard can't be regenerated."
 public export
-badRegeneratedInGraveyard : Unspellable (StaticEffect []) (\ok =>
+badRegeneratedInGraveyard : Unspellable (StaticSpec []) (\ok =>
   Macros.objectCant "Regenerate"
                     (Macros.a (And [Macros.creature, InZone Macros.graveyardZ]))
                     {dp = ok})
@@ -693,55 +693,55 @@ badRegeneratedInGraveyard Oh impossible
 
 ||| "Each opponent discards a card. Simultaneously, exile those cards."
 public export
-distributedDeedReadsBackPluralUnderAnnouncement : Effect []
+distributedDeedReadsBackPluralUnderAnnouncement : Instruction []
 distributedDeedReadsBackPluralUnderAnnouncement =
   Simultaneously [ Macros.discard (Macros.each Opponent) (Macros.a (InZone Macros.handZ))
                  , Macros.exile You (Macros.That CardW ManyOf) ]
 
 ||| "Discard a card. Simultaneously, exile that card."
 public export
-okThatAfterSingularDiscard : Effect []
+okThatAfterSingularDiscard : Instruction []
 okThatAfterSingularDiscard =
   Simultaneously [ Macros.discard You (Macros.a (InZone Macros.handZ))
                  , Macros.exile You (Macros.That CardW OneOf) ]
 
 ||| "Each opponent discards a card. Simultaneously, exile that card."
 public export
-badDistributedAnnouncedDiscardSingular : Unspellable (Effect []) (\ok =>
+badDistributedAnnouncedDiscardSingular : Unspellable (Instruction []) (\ok =>
   Simultaneously [ Macros.discard (Macros.each Opponent) (Macros.a (InZone Macros.handZ))
                  , Macros.exile You (Macros.That CardW OneOf {ok}) ])
 badDistributedAnnouncedDiscardSingular Refl impossible
 
 ||| "Draw a card. You gain 1 life."
 public export
-okNonEmptySequence : Effect []
+okNonEmptySequence : Instruction []
 okNonEmptySequence =
   Sequentially [Draw You (Lit 1), Macros.gainsLife You (Lit 1)]
 
 ||| an empty sentence list
 public export
-badEmptySequence : Unspellable (Effect []) (\ok =>
+badEmptySequence : Unspellable (Instruction []) (\ok =>
   Sequentially [] {ne = ok})
 badEmptySequence ItIsSucc impossible
 
 ||| "Reveal your hand."
 public export
-okRevealHand : Effect []
+okRevealHand : Instruction []
 okRevealHand = Expose Reveal You (ExposedZone Macros.handZ)
 
 ||| "Reveal your graveyard."
 public export
-badRevealGraveyard : Unspellable (Effect []) (\ok =>
+badRevealGraveyard : Unspellable (Instruction []) (\ok =>
   Expose Reveal You (ExposedZone Macros.graveyardZ {ok}))
 badRevealGraveyard Oh impossible
 
 ||| "Sacrifice a creature."
 public export
-okSacrificeBattlefieldNoun : Effect []
+okSacrificeBattlefieldNoun : Instruction []
 okSacrificeBattlefieldNoun = Macros.sacrifice You (Macros.a Macros.creature)
 
 public export
-badInterceptReplacementAntecedent : Unspellable (Effect []) (\ok =>
+badInterceptReplacementAntecedent : Unspellable (Instruction []) (\ok =>
   Sequentially [ Macros.nextTimeWouldInstead (Draws You)
                                       (Macros.create (Lit 1) (Macros.creatureTok 1 1 [Green] [creatureType "Soldier"]))
                                       (Just ThisTurn)
@@ -751,23 +751,23 @@ badInterceptReplacementAntecedent (Refl, _) impossible
 
 ||| "If you would draw a card, draw two cards instead."
 public export
-okFlatInstead : Effect []
+okFlatInstead : Instruction []
 okFlatInstead =
   InsteadOf (Draw You (Lit 1)) (Draw You (Lit 2))
 
 public export
-badNestedInstead : Unspellable (Effect []) (\ok =>
+badNestedInstead : Unspellable (Instruction []) (\ok =>
   InsteadOf (InsteadOf (Draw You (Lit 1)) ((Draw You (Lit 2)))) ((Draw You (Lit 3))) {na = ok})
 badNestedInstead Oh impossible
 
 ||| "Untap target creature."
 public export
-okUntapInstruction : Effect []
+okUntapInstruction : Instruction []
 okUntapInstruction = SetStatus Untapped (Macros.target Macros.creature)
 
 ||| "Unflip target creature."
 public export
-badUnflipInstruction : Unspellable (Effect []) (\ok =>
+badUnflipInstruction : Unspellable (Instruction []) (\ok =>
   SetStatus Unflipped (Macros.target Macros.creature) {at = ok})
 badUnflipInstruction Oh impossible
 

@@ -9,7 +9,7 @@ use deckmaste_card::CardFace;
 use deckmaste_core::Ability;
 use deckmaste_core::Action;
 use deckmaste_core::Count;
-use deckmaste_core::OneShotEffect;
+use deckmaste_core::Instruction;
 use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
 use deckmaste_core::Subtype;
@@ -386,7 +386,7 @@ pub(super) fn battlefield_with(names: &[&str]) -> (GameState, Vec<ObjectId>) {
 /// = itself])`. Slots `x`/`y` are the two fighters. Mirrors
 /// `plugins/builtin/macros/effect/Fight.ron` (the guard's `Permanent` is
 /// spelled here as `InZone(Battlefield)`, an equivalent for the test).
-pub(super) fn fight_effect(x: &Reference, y: &Reference) -> OneShotEffect {
+pub(super) fn fight_effect(x: &Reference, y: &Reference) -> Instruction {
     use deckmaste_core::Condition;
     use deckmaste_core::Predicate;
     use deckmaste_core::Stat;
@@ -404,17 +404,17 @@ pub(super) fn fight_effect(x: &Reference, y: &Reference) -> OneShotEffect {
         )
     };
     let half = |tgt: &Reference, src: &Reference| {
-        OneShotEffect::Act(Action::DealDamage(
+        Instruction::Act(Action::DealDamage(
             src.clone(),
             Count::StatOf(src.clone(), Stat::Power),
             tgt.clone(),
         ))
     };
-    OneShotEffect::Act(Action::Composite {
+    Instruction::Act(Action::Composite {
         name: deckmaste_core::VerbName::from("Fight"),
-        body: Arc::new(OneShotEffect::If(deckmaste_core::If {
+        body: Arc::new(Instruction::If(deckmaste_core::If {
             condition: Condition::And(vec![is_creature(x), is_creature(y)].into()),
-            then: Arc::new(OneShotEffect::Simultaneously(
+            then: Arc::new(Instruction::Simultaneously(
                 vec![half(y, x), half(x, y)].into(),
             )),
             otherwise: None,

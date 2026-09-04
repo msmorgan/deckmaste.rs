@@ -19,7 +19,7 @@ use deckmaste_core::Condition;
 use deckmaste_core::DeonticAction;
 use deckmaste_core::Ident;
 use deckmaste_core::Property;
-use deckmaste_core::StaticEffect;
+use deckmaste_core::StaticSpec;
 use deckmaste_core::Subtype;
 use deckmaste_plugin::plugin::Plugin;
 
@@ -56,7 +56,7 @@ fn sole_innate_ability(subtype: &Subtype) -> Ability {
 }
 
 /// Every static effect directly carried by a lowered ability, or empty.
-fn static_effects(a: &Ability) -> Vec<StaticEffect> {
+fn static_effects(a: &Ability) -> Vec<StaticSpec> {
     match a {
         Ability::Static(s) => vec![s.body.clone()],
         _ => vec![],
@@ -75,7 +75,7 @@ fn aura_subtype_confers_innate_graveyard_sba() {
     // [CR#704.5m]: the must-be-attached graveyard SBA.
     assert!(
         effs.iter().any(|e| matches!(e,
-            StaticEffect::Sba { when, .. }
+            StaticSpec::Sba { when, .. }
                 if matches!(&**when, Condition::Not(b) if matches!(**b, Condition::LegallyAttached(_))))),
         "Aura confers Sba(Not(LegallyAttached(This)), Move(This, Graveyard)) ([CR#704.5m]); got {effs:?}"
     );
@@ -93,7 +93,7 @@ fn equipment_subtype_confers_innate_may_attach_creature() {
     // [CR#301.5]: Equipment may (only) be attached to a creature — a grant.
     assert!(
         effs.iter().any(|e| matches!(e,
-            StaticEffect::Deontic(d) if matches!(d, deckmaste_core::Deontic::May(
+            StaticSpec::Deontic(d) if matches!(d, deckmaste_core::Deontic::May(
                 DeonticAction::Attach { .. })))),
         "Equipment confers May(Attach(This, Creature)) ([CR#301.5]); got {effs:?}"
     );
@@ -111,7 +111,7 @@ fn fortification_subtype_confers_innate_may_attach_land() {
     // [CR#301.6]: Fortification may (only) be attached to a land — a grant.
     assert!(
         effs.iter().any(|e| matches!(e,
-            StaticEffect::Deontic(d) if matches!(d, deckmaste_core::Deontic::May(
+            StaticSpec::Deontic(d) if matches!(d, deckmaste_core::Deontic::May(
                 DeonticAction::Attach { .. })))),
         "Fortification confers May(Attach(This, Land)) ([CR#301.6]); got {effs:?}"
     );

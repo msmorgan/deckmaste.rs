@@ -9,21 +9,21 @@ import Experimental.Cards.Keyword
 
 
 ||| Yawgmoth Demon
-crovaxTheCursed : Effect []
+crovaxTheCursed : Instruction []
 crovaxTheCursed =
   (May You (Macros.sacrifice You (Macros.a Macros.creature)) (Just (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) Macros.thisCreature)) (Just (RemoveCounters (Just (Macros.exactly 1)) (Just (PrintedKind Macros.plusOnePlusOne)) Macros.thisCreature)))
 
-additiveEvolution : Effect []
+additiveEvolution : Instruction []
 additiveEvolution = Sequentially [Macros.create (Lit 1) (Macros.creatureTok 0 0 [Green, Blue] [creatureType "Fractal"]),
                                   PutCounters (Lit 3) (PrintedKind Macros.plusOnePlusOne) ((Macros.It OneOf))]
 
-battlegrowth : Effect []
+battlegrowth : Instruction []
 battlegrowth = PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) (Macros.target Macros.creature)
 
-chainbreaker : Effect []
+chainbreaker : Instruction []
 chainbreaker = RemoveCounters (Just (Macros.exactly 1)) (Just (PrintedKind Macros.minusOneMinusOne)) (Macros.target Macros.creature)
 
-kaitoBaneOfNightmares : Effect []
+kaitoBaneOfNightmares : Instruction []
 kaitoBaneOfNightmares = Sequentially [SetStatus Tapped (Macros.target Macros.creature),
                                       PutCounters (Lit 2) (PrintedKind (Named "Stun")) ((Macros.It OneOf))]
 
@@ -33,7 +33,7 @@ jhoiraOfTheGhitu =
                        Do (Macros.exile You (Macros.a (And [Not Macros.land, InZone (Macros.handOf You)])))])
                    (PutCounters (Lit 4) (PrintedKind (Named "Time")) (Macros.TheVerbed "Exile" CardW Attributive OneOf))
 
-alaundoTheSeer : Effect []
+alaundoTheSeer : Instruction []
 alaundoTheSeer = RemoveCounters (Just (Macros.exactly 1)) (Just (PrintedKind (Named "Time"))) (Macros.each (InZone Macros.exileZ))
 
 daydream : Card
@@ -53,29 +53,29 @@ ashnodsTransmogrant =
                                          (Macros.target (And [Macros.creature, Not Macros.artifact])),
                              Macros.becomes (Macros.That (TypeW Creature) OneOf) (Macros.typesOnly [Artifact]) Nothing])
 
-azulaAlwaysLies : Effect []
+azulaAlwaysLies : Instruction []
 azulaAlwaysLies =
   Macros.chooseModes (Macros.oneThrough 2) [Macros.gets (Macros.target Macros.creature) (PtDown (Lit 1)) (PtDown (Lit 1)) (Just Macros.untilEndOfTurn),
                    PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) (Macros.target Macros.creature)]
 
-bellowingAegisaur : Effect []
+bellowingAegisaur : Instruction []
 bellowingAegisaur =
   PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) (Macros.each (Macros.otherCreatureYouControl Macros.thisCreature))
 
-carnifexDemon : Effect []
+carnifexDemon : Instruction []
 carnifexDemon =
   PutCounters (Lit 1) (PrintedKind Macros.minusOneMinusOne) (Macros.each (Macros.otherCreature Macros.thisCreature))
 
-ajaniAdversaryOfTyrants : Effect []
+ajaniAdversaryOfTyrants : Instruction []
 ajaniAdversaryOfTyrants =
   PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) (EachOf (Described (TargetDet (Macros.upTo 2)) Macros.creature))
 
-naturesPanoply : Effect []
+naturesPanoply : Instruction []
 naturesPanoply =
   Sequentially [Macros.choose (Described (TargetDet Macros.anyNumber) Macros.creature),
                 PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) (EachOf ((Macros.It ManyOf)))]
 
-armamentCorps : Effect []
+armamentCorps : Instruction []
 armamentCorps =
   Macros.distributeCounters (Lit 2) Macros.plusOnePlusOne
                      (Described (TargetDet (Macros.oneThrough 2)) Macros.creatureYouControl)
@@ -97,11 +97,11 @@ anointerOfValor =
     (Macros.mayWhen You (Pay You (Mana [Macros.generic 3]) PaidOnce)
                  (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) (Macros.That (TypeW Creature) OneOf)))
 
-avianOddity : Effect []
+avianOddity : Instruction []
 avianOddity = PutCounters (Lit 1) (PrintedKind Macros.flyingCounter) (Macros.target Macros.creatureYouControl)
 
 ||| Song of Eärendil
-songOfEarendil : Effect []
+songOfEarendil : Instruction []
 songOfEarendil =
   PutCounters (Lit 1) (PrintedKind Macros.flyingCounter)
               (Macros.each (And [Macros.creature, HasPossessor ControllerAx You, Not (HasKeyword (TheKeyword "Flying"))]))
@@ -112,7 +112,7 @@ gideonsAvenger =
                    (StatusEvent (Macros.a (And [Macros.creature, HasPossessor ControllerAx Macros.anOpponent])) Tapped)
                    (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) Macros.thisCreature)
 
-prologueToPhyresis : Effect []
+prologueToPhyresis : Instruction []
 prologueToPhyresis = PutCounters (Lit 1) (PrintedKind (Named "Poison")) (Macros.each Opponent)
 
 screechingScorchbeast : Ability
@@ -538,23 +538,23 @@ runadiBehemothCaller =
                 (Macros.keyword "Haste"))
 
 ||| Boon of Safety
-boonOfSafetyPut : Effect []
+boonOfSafetyPut : Instruction []
 boonOfSafetyPut = PutCounters (Lit 1) (PrintedKind (Named "Shield")) (Macros.target Macros.creature)
 
 ||| Vivien's Talent and Teferi's Talent
-talentLoyaltyPut : Effect []
+talentLoyaltyPut : Instruction []
 talentLoyaltyPut =
   PutCounters (Lit 1) (PrintedKind (Named "Loyalty"))
               (AttachHost Enchanted (TypeW Planeswalker))
 
 ||| Simic Fluxmage
-simicFluxmageMove : Effect []
+simicFluxmageMove : Instruction []
 simicFluxmageMove =
   MoveCounters (Lit 1) (Just (PrintedKind Macros.plusOnePlusOne)) Macros.thisCreature
                (Macros.target Macros.creature)
 
 ||| Rikku, Resourceful Guardian
-rikkuStealMove : Effect []
+rikkuStealMove : Instruction []
 rikkuStealMove =
   MoveCounters (Lit 1) Nothing
                (Macros.target (And [Macros.creature,
@@ -562,7 +562,7 @@ rikkuStealMove =
                (Macros.target Macros.creatureYouControl)
 
 ||| Littjara Mirrorlake
-littjaraMirrorlakeCopy : Effect []
+littjaraMirrorlakeCopy : Instruction []
 littjaraMirrorlakeCopy =
   Create You (Lit 1)
          (TokenCopyOf (Macros.target (And [Macros.creature, HasPossessor ControllerAx You]))
@@ -779,14 +779,14 @@ metallicMimic =
        (Just (2, 1))
 
 public export
-curatorBeastieLine : StaticEffect []
+curatorBeastieLine : StaticSpec []
 curatorBeastieLine =
   Macros.entersWithAdditionalCounters (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You, IsColorless]))
                                       (Lit 2)
                                       Macros.plusOnePlusOne
 
 public export
-renataLine : StaticEffect []
+renataLine : StaticSpec []
 renataLine =
   Macros.entersWithAdditionalCounters (Macros.each (And [Macros.creature, HasPossessor ControllerAx You,
                                                   OtherThan Macros.thisCreature]))
@@ -993,7 +993,7 @@ viviensTalentTrigger =
                  (AttachHost Enchanted (TypeW Planeswalker)))
 
 public export
-counterOnGraveyardCard : Effect []
+counterOnGraveyardCard : Instruction []
 counterOnGraveyardCard =
   PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
               (Macros.target (And [Macros.creature,
@@ -1010,7 +1010,7 @@ bioessenceHydraTrigger =
 
 ||| Vraska, Betrayal's Sting
 public export
-vraskaBetrayalsStingUltimate : Effect []
+vraskaBetrayalsStingUltimate : Instruction []
 vraskaBetrayalsStingUltimate =
   If (CompareAmt (CountersOn (Named "Poison") (Macros.target AnyPlayer)) Less (Lit 9))
      (PutCounters TheDifference (PrintedKind (Named "Poison")) They)
@@ -1049,7 +1049,7 @@ resoluteVeggiesaurThirdDie =
 
 ||| Run the Play (Striding Shotcaller's other half)
 public export
-runThePlayCounters : Effect []
+runThePlayCounters : Instruction []
 runThePlayCounters =
   PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
               (EachOf (Described (TargetDet (UpToOf (LetterVal X))) Macros.creature))
@@ -1195,7 +1195,7 @@ skeletonShip =
 
 ||| Contractual Safeguard
 public export
-contractualSafeguardPass : Effect []
+contractualSafeguardPass : Instruction []
 contractualSafeguardPass =
   Sequentially
     [ Macros.choose (Macros.a (CounterKindOn (Macros.a Macros.creatureYouControl)))
@@ -1480,7 +1480,7 @@ aetherChaserEnergy =
 
 ||| Blastoderm
 public export
-blastodermEntersFading : StaticEffect []
+blastodermEntersFading : StaticSpec []
 blastodermEntersFading =
   Macros.entersWithCounters Macros.thisCreature (Lit 3) (Named "Fade")
 
@@ -1494,7 +1494,7 @@ blastodermFadeUpkeep =
 
 ||| Archfiend of the Dross
 public export
-archfiendOfTheDrossEntersOiled : StaticEffect []
+archfiendOfTheDrossEntersOiled : StaticSpec []
 archfiendOfTheDrossEntersOiled =
   Macros.entersWithCounters Macros.thisCreature (Lit 4) (Named "Oil")
 
@@ -1506,38 +1506,38 @@ archfiendOfTheDrossOilUpkeep =
     (RemoveCounters (Just (Macros.exactly 1))
        (Just (PrintedKind (Named "Oil"))) Macros.thisCreature)
 
-neurokTransmuter : Effect []
+neurokTransmuter : Instruction []
 neurokTransmuter = Macros.becomes (Macros.target Macros.creature) (Macros.typesOnly [Artifact]) (Just Macros.untilEndOfTurn)
 
-syphonMind : Effect []
+syphonMind : Instruction []
 syphonMind =
   Sequentially
     [ Macros.discard (Macros.each Macros.otherPlayer) (Macros.a (InZone Macros.handZ))
     , ForEachOf (Macros.TheVerbed "Discard" CardW ThisWay ManyOf) (Draw You (Lit 1)) ]
 
-peek : Effect []
+peek : Instruction []
 peek = Sequentially [Macros.lookAtHandOf (Macros.target AnyPlayer), (Draw You (Lit 1))]
 
 ||| Bumi, King of Three Trials
-bumiScryMode : Effect []
+bumiScryMode : Instruction []
 bumiScryMode =
   Macros.scry (Macros.target AnyPlayer) (Lit 3)
 
 ||| Final Act
-finalActCounterMode : Effect []
+finalActCounterMode : Instruction []
 finalActCounterMode = Macros.losesAllCounters (Macros.each Opponent) Nothing
 
-leeches : Effect []
+leeches : Instruction []
 leeches = Macros.losesAllCounters (Macros.target AnyPlayer) (Just (PrintedKind (Named "Poison")))
 
 ||| Ascend's own reminder text
 public export
-ascendConferral : Effect []
+ascendConferral : Instruction []
 ascendConferral = Macros.getsCitysBlessing
 
 ||| Saddle's expansion body
 public export
-saddleConferral : Effect []
+saddleConferral : Instruction []
 saddleConferral = Macros.becomesSaddled
 
 ||| Woeleecher

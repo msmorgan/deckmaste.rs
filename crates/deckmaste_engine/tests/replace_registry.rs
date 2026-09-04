@@ -20,13 +20,13 @@ use deckmaste_core::Deontic;
 use deckmaste_core::DeonticAction;
 use deckmaste_core::Duration;
 use deckmaste_core::EventFilter;
+use deckmaste_core::Instruction;
 use deckmaste_core::LifeOp;
-use deckmaste_core::OneShotEffect;
 use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
 use deckmaste_core::Replacement;
 use deckmaste_core::StatValue;
-use deckmaste_core::StaticEffect;
+use deckmaste_core::StaticSpec;
 use deckmaste_core::TurnMarker;
 use deckmaste_core::Type;
 use deckmaste_core::Zone;
@@ -131,32 +131,30 @@ fn combatant_creature_def() -> deckmaste_core::TypeDef {
             .into(),
         )
     };
-    let ability = |s: StaticEffect| Property::Ability(Arc::new(Ability::r#static(s)));
+    let ability = |s: StaticSpec| Property::Ability(Arc::new(Ability::r#static(s)));
     deckmaste_core::TypeDef {
         name: "Creature".into(),
         permanent: true,
         confers: vec![
-            ability(StaticEffect::Deontic(Deontic::May(DeonticAction::Attack {
+            ability(StaticSpec::Deontic(Deontic::May(DeonticAction::Attack {
                 by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 on: Predicate::Any,
             }))),
-            ability(StaticEffect::Deontic(Deontic::May(DeonticAction::Block {
+            ability(StaticSpec::Deontic(Deontic::May(DeonticAction::Block {
                 by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 on: Predicate::Any,
                 count: None,
             }))),
-            ability(StaticEffect::Conditionally(
+            ability(StaticSpec::Conditionally(
                 sick_not_hasty(),
-                Arc::new(StaticEffect::Deontic(Deontic::Cant(
-                    DeonticAction::Attack {
-                        by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
-                        on: Predicate::Any,
-                    },
-                ))),
+                Arc::new(StaticSpec::Deontic(Deontic::Cant(DeonticAction::Attack {
+                    by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
+                    on: Predicate::Any,
+                }))),
             )),
-            ability(StaticEffect::Conditionally(
+            ability(StaticSpec::Conditionally(
                 sick_not_hasty(),
-                Arc::new(StaticEffect::Deontic(Deontic::Cant(
+                Arc::new(StaticSpec::Deontic(Deontic::Cant(
                     DeonticAction::Activate {
                         what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                         by: Predicate::Any,
@@ -188,7 +186,7 @@ fn creature_with_replacement(replacement: Replacement) -> (GameState, ObjectId) 
         types: vec![Type::Creature.def()],
         power: Some(StatValue::Number(2)),
         toughness: Some(StatValue::Number(2)),
-        abilities: vec![Ability::r#static(StaticEffect::Replacement(Arc::new(
+        abilities: vec![Ability::r#static(StaticSpec::Replacement(Arc::new(
             replacement,
         )))],
         ..CardFace::default()
@@ -303,7 +301,7 @@ fn find_in_graveyard(state: &GameState, player: PlayerId, card_id: CardId) -> Op
 #[test]
 fn instead_redirects_destruction_to_exile() {
     // The `instead` body: Move(This, Zone(Exile)) is agent-silent.
-    let instead_body = OneShotEffect::Act(Action::Move(
+    let instead_body = Instruction::Act(Action::Move(
         Reference::Reg(deckmaste_core::RefId(0)),
         deckmaste_core::Destination::Zone(Zone::Exile),
         vec![].into(),
@@ -347,7 +345,7 @@ fn indestructible_still_survives_via_cant_pass() {
         "Indestructible Test",
         1,
         1,
-        vec![Ability::r#static(StaticEffect::CantHappen(
+        vec![Ability::r#static(StaticSpec::CantHappen(
             EventFilter::ZoneChange {
                 what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 from: Some(Zone::Battlefield),
@@ -384,7 +382,7 @@ fn indestructible_still_survives_via_cant_pass() {
 fn creature_with_two_replacements() -> (GameState, ObjectId) {
     let instead = Replacement::Instead {
         would: destroyed_self(),
-        instead: OneShotEffect::Sequentially(vec![].into()),
+        instead: Instruction::Sequentially(vec![].into()),
     };
     let card = Arc::new(Card::Normal(CardFace {
         name: "Double Shield".into(),
@@ -393,8 +391,8 @@ fn creature_with_two_replacements() -> (GameState, ObjectId) {
         toughness: Some(StatValue::Number(2)),
         // Two SEPARATE static abilities so gather yields two different keys.
         abilities: vec![
-            Ability::r#static(StaticEffect::Replacement(Arc::new(instead.clone()))),
-            Ability::r#static(StaticEffect::Replacement(Arc::new(instead))),
+            Ability::r#static(StaticSpec::Replacement(Arc::new(instead.clone()))),
+            Ability::r#static(StaticSpec::Replacement(Arc::new(instead))),
         ],
         ..CardFace::default()
     }));
@@ -575,7 +573,7 @@ fn combatant_vanilla_creature(power: i32, toughness: i32) -> (GameState, ObjectI
 /// game-startup work items (the initial `BeginStep(Untap)`) do not advance
 /// the game into a priority window and prevent subsequent `drive_sbas` calls
 /// from running.
-fn resolve_and_drive(state: &mut GameState, effect: OneShotEffect, source: ObjectId) {
+fn resolve_and_drive(state: &mut GameState, effect: Instruction, source: ObjectId) {
     // Flush game-startup items; tests that call this function only care about
     // the effect's immediate consequences, not full turn progression.
     state.agenda.clear();
@@ -621,7 +619,7 @@ const REGEN_SUBJECT: deckmaste_core::DefId = deckmaste_core::DefId(7);
 /// form: a binder is now an explicit register definition, so the subject is
 /// pinned by a `Let` and `create_shield` freezes that product as the shield's
 /// subject.
-fn regenerate_effect(subject_ref: Reference) -> OneShotEffect {
+fn regenerate_effect(subject_ref: Reference) -> Instruction {
     // The shield resolves `subject` to a concrete object and remembers it; the
     // watch and body refer to that captured permanent as `EventObject`
     // (`Reg(2)`), NOT `Reg(0)` — the source register stays the source ability.
@@ -635,14 +633,14 @@ fn regenerate_effect(subject_ref: Reference) -> OneShotEffect {
             agent: None,
         })),
     };
-    let instead = OneShotEffect::Sequentially(
+    let instead = Instruction::Sequentially(
         vec![
             // [CR#701.19a]: remove all damage from the regenerated permanent.
-            OneShotEffect::Act(Action::RemoveDamage(Reference::Reg(deckmaste_core::RefId(
+            Instruction::Act(Action::RemoveDamage(Reference::Reg(deckmaste_core::RefId(
                 2,
             )))),
             // [CR#701.19a]: its controller taps it.
-            OneShotEffect::Act(Action::Tap(Reference::Reg(deckmaste_core::RefId(2)))),
+            Instruction::Act(Action::Tap(Reference::Reg(deckmaste_core::RefId(2)))),
         ]
         .into(),
     );
@@ -650,13 +648,13 @@ fn regenerate_effect(subject_ref: Reference) -> OneShotEffect {
     // the region product the preceding `Let` pinned, named on the instruction;
     // `create_shield` freezes that resolved identity. Semantics has no
     // `subject:` field, so lowering resolves the anaphor and declares it.
-    OneShotEffect::Sequentially(
+    Instruction::Sequentially(
         vec![
-            OneShotEffect::Let(deckmaste_core::Let {
+            Instruction::Let(deckmaste_core::Let {
                 dest: REGEN_SUBJECT,
                 expr: deckmaste_core::Expr::Object(subject_ref),
             }),
-            OneShotEffect::Act(Action::CreateReplacement {
+            Instruction::Act(Action::CreateReplacement {
                 // The shield reads the register the preceding `Let` pinned —
                 // the declared subject lowering resolves the anaphor to
                 // ([CR#614.1]), not a search of the register file.
@@ -678,7 +676,7 @@ fn regenerate_effect(subject_ref: Reference) -> OneShotEffect {
 /// entry. Putting the body on the stack as an activated ability is the
 /// production path that mints one; `resolve_and_drive`'s bare frame would
 /// silently register no shield at all.
-fn resolve_region_and_drive(state: &mut GameState, effect: OneShotEffect, source: ObjectId) {
+fn resolve_region_and_drive(state: &mut GameState, effect: Instruction, source: ObjectId) {
     state.agenda.clear();
     state.pending = None;
     let controller = state.objects.obj(source).controller;
@@ -875,14 +873,14 @@ fn regenerate_target_creature_heals_the_subject_not_the_source() {
     // effect pins the subject with a leading `Let`; this test builds the shield
     // instance directly, so it peels that instruction off to reach the
     // replacement (the shield's subject is set explicitly below).
-    let OneShotEffect::Sequentially(steps) =
+    let Instruction::Sequentially(steps) =
         regenerate_effect(Reference::Reg(deckmaste_core::RefId(0)))
     else {
         unreachable!("regenerate_effect builds a Let + CreateReplacement sequence")
     };
     let [
         _,
-        OneShotEffect::Act {
+        Instruction::Act {
             action: Action::CreateReplacement { replacement, .. },
             ..
         },
@@ -980,14 +978,14 @@ fn enchanted_with_umbra() -> (GameState, CardId, CardId) {
         deckmaste_core::RefId(0),
     ))));
 
-    let instead_body = OneShotEffect::Sequentially(
+    let instead_body = Instruction::Sequentially(
         vec![
             // [CR#701.19a,702.89a]: remove all damage from the enchanted permanent.
-            OneShotEffect::Act(Action::RemoveDamage(Reference::AttachHostOf(Arc::new(
+            Instruction::Act(Action::RemoveDamage(Reference::AttachHostOf(Arc::new(
                 Reference::Reg(deckmaste_core::RefId(0)),
             )))),
             // [CR#702.89a]: destroy this Aura.
-            OneShotEffect::Act(Action::destroy(Reference::Reg(deckmaste_core::RefId(0)))),
+            Instruction::Act(Action::destroy(Reference::Reg(deckmaste_core::RefId(0)))),
         ]
         .into(),
     );
@@ -1022,11 +1020,11 @@ fn enchanted_with_umbra() -> (GameState, CardId, CardId) {
         name: "Umbra Armor".into(),
         types: vec![Type::Enchantment.def()],
         abilities: vec![
-            Ability::r#static(StaticEffect::Deontic(Deontic::May(DeonticAction::Attach {
+            Ability::r#static(StaticSpec::Deontic(Deontic::May(DeonticAction::Attach {
                 what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 to: Predicate::creature(),
             }))),
-            Ability::r#static(StaticEffect::Replacement(Arc::new(umbra_armor))),
+            Ability::r#static(StaticSpec::Replacement(Arc::new(umbra_armor))),
         ],
         ..CardFace::default()
     }));
@@ -1198,7 +1196,7 @@ fn lifegain_replaced_by_draw() {
         who: Predicate::Any,
         amount: None,
     };
-    let instead_body = OneShotEffect::Act(deckmaste_core::Action::ChangeLife(
+    let instead_body = Instruction::Act(deckmaste_core::Action::ChangeLife(
         Reference::Reg(deckmaste_core::RefId(1)),
         LifeOp::Down(deckmaste_core::Count::Literal(1)),
     ));
@@ -1267,7 +1265,7 @@ fn set_life_above_current_enters_the_replacement_window() {
         who: Predicate::Any,
         amount: None,
     };
-    let instead_body = OneShotEffect::Act(Action::ChangeLife(
+    let instead_body = Instruction::Act(Action::ChangeLife(
         Reference::Reg(deckmaste_core::RefId(1)),
         LifeOp::Down(deckmaste_core::Count::Literal(1)),
     ));
@@ -1284,7 +1282,7 @@ fn set_life_above_current_enters_the_replacement_window() {
     // resolves, computes the +5 delta, and emits `LifeGained{amount: 5}`.
     resolve_and_drive(
         &mut state,
-        OneShotEffect::Act(Action::ChangeLife(
+        Instruction::Act(Action::ChangeLife(
             Reference::Reg(deckmaste_core::RefId(1)),
             LifeOp::Set(deckmaste_core::Count::Literal(target)),
         )),
@@ -1314,7 +1312,7 @@ fn set_life_equal_to_current_emits_nothing() {
         who: Predicate::Any,
         amount: None,
     };
-    let instead_body = OneShotEffect::Act(Action::ChangeLife(
+    let instead_body = Instruction::Act(Action::ChangeLife(
         Reference::Reg(deckmaste_core::RefId(1)),
         LifeOp::Down(deckmaste_core::Count::Literal(1)),
     ));
@@ -1328,7 +1326,7 @@ fn set_life_equal_to_current_emits_nothing() {
 
     resolve_and_drive(
         &mut state,
-        OneShotEffect::Act(Action::ChangeLife(
+        Instruction::Act(Action::ChangeLife(
             Reference::Reg(deckmaste_core::RefId(1)),
             LifeOp::Set(deckmaste_core::Count::Literal(target)),
         )),
@@ -1394,7 +1392,7 @@ fn double_damage_lineage_terminates() {
 
     // The `instead` body: deal 10 damage to this creature (a fixed amount
     // rather than a doubled one — see doc-comment above for rationale).
-    let instead_body = OneShotEffect::Act(deckmaste_core::Action::deal_damage(
+    let instead_body = Instruction::Act(deckmaste_core::Action::deal_damage(
         Reference::Reg(deckmaste_core::RefId(0)),
         Count::Literal(10),
     ));
@@ -1547,12 +1545,12 @@ fn damage_as_counters_static(on: Predicate, recipient: Reference, kind: &str) ->
         combat: None,
         amount: None,
     };
-    let instead = OneShotEffect::Act(Action::PutCounters(
+    let instead = Instruction::Act(Action::PutCounters(
         recipient,
         kind.into(),
         Count::Reg(deckmaste_core::RefId(6)),
     ));
-    Ability::r#static(StaticEffect::Replacement(Arc::new(Replacement::Instead {
+    Ability::r#static(StaticSpec::Replacement(Arc::new(Replacement::Instead {
         would,
         instead,
     })))

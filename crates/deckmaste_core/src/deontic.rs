@@ -40,8 +40,8 @@ pub enum CostPredicate {
 
 /// A scoped counterfactual premise ([CR#609.4]): "treat the game as if
 /// [premise] were true, for purposes of the named action's legality only."
-/// Carried by `StaticEffect::AsThough`. The mana counterfactual has its own
-/// channel (`StaticEffect::SpendAsThough`, [CR#609.4b]).
+/// Carried by `StaticSpec::AsThough`. The mana counterfactual has its own
+/// channel (`StaticSpec::SpendAsThough`, [CR#609.4b]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 pub enum AsThough {
     /// A per-checker counterfactual overlay. When the engine checks the
@@ -60,7 +60,7 @@ pub enum AsThough {
     ///   `May(Cast(InstantSpeed))` row appears, lifting cast timing (Leyline of
     ///   Anticipation). The keyword is INVOKED, never inlined.
     ///
-    /// Mirrors Idris `AsThough : Condition -> StaticEffect -> StaticEffect`:
+    /// Mirrors Idris `AsThough : Condition -> StaticSpec -> StaticSpec`:
     /// `AsThough (Matches This premise) then`. `then` is `Arc`-boxed to keep
     /// this variant small (`clippy::large_enum_variant`).
     Counterfactual {

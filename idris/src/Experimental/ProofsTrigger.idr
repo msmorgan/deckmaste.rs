@@ -242,7 +242,7 @@ badPlayerTargetingEvent (EitherTargets _ _) impossible
 
 ||| "If an ability ... triggers, it triggers an additional time."
 public export
-okMultipliedTrigger : StaticEffect []
+okMultipliedTrigger : StaticSpec []
 okMultipliedTrigger =
   TriggersAdditionally
     (Triggers (Macros.a (And [ AbilityHead AnyTriggered
@@ -252,24 +252,24 @@ okMultipliedTrigger =
 
 ||| "If a creature you control dies, that ability triggers an additional time."
 public export
-badMultipliedNonTrigger : Unspellable (StaticEffect []) (\ok =>
+badMultipliedNonTrigger : Unspellable (StaticSpec []) (\ok =>
   TriggersAdditionally (Dies (Macros.a Macros.creatureYouControl))
                        (Macros.exactly 1) {ok})
 badMultipliedNonTrigger Oh impossible
 
 ||| "Exchange life totals with target opponent."
 public export
-okExchangeTwoParties : Effect []
+okExchangeTwoParties : Instruction []
 okExchangeTwoParties = ExchangeLife (Both You (Macros.target Opponent))
 
 ||| "Exchange life totals with target opponent"
 public export
-badExchangeOneParty : Unspellable (Effect []) (\ok =>
+badExchangeOneParty : Unspellable (Instruction []) (\ok =>
   ExchangeLife (Macros.target Opponent) {tp = ok})
 badExchangeOneParty Oh impossible
 
 ||| "You and your opponents exchange life totals."
 public export
-badExchangePluralParty : Unspellable (Effect []) (\ok =>
+badExchangePluralParty : Unspellable (Instruction []) (\ok =>
   ExchangeLife (Both You (PlayerGroup YourOpponents)) {tp = ok})
 badExchangePluralParty Oh impossible

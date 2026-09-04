@@ -346,7 +346,7 @@ land = HasType Land
 public export
 hasBasePt : (n : Noun bs Object) -> (pow : Amount (selfSubjIntro n)) ->
             (tou : Amount (amtIntro pow)) ->
-            {auto 0 ok : ZoneIs (nounZone n) Battlefield} -> StaticEffect bs
+            {auto 0 ok : ZoneIs (nounZone n) Battlefield} -> StaticSpec bs
 hasBasePt n pow tou = Gets Sets n (PtUp pow) (PtUp tou) {ok}
 
 public export
@@ -518,22 +518,22 @@ public export
 move : (what : Noun bs Object) -> (to : ZoneExpr (nomIntro what)) ->
        {auto 0 ok : DestOk to} ->
        {auto 0 arr : ArrangementOk (nounPlur what) to} ->
-       {auto 0 pl : Placeable (nounTy what) (zoneSort to)} -> Effect bs
+       {auto 0 pl : Placeable (nounTy what) (zoneSort to)} -> Instruction bs
 move what to = Move what to [] {ok} {arr} {pl}
 
 public export
 destroy : (n : Noun bs Object) -> {auto 0 ok : ZoneIs (nounZone n) Battlefield} ->
-          Effect bs
+          Instruction bs
 destroy n = Enact Nothing "Destroy" (Move n graveyardZ [])
 
 public export
 exile : (agent : Noun bs Player) -> (n : Noun (agentIntro agent) Object) ->
-        Effect bs
+        Instruction bs
 exile agent n = Enact (Just agent) "Exile" (Move n exileZ [])
 
 public export
 exileWithCounters : (n : Noun bs Object) -> (amt : Amount (nomIntro n)) ->
-                    (kind : CounterKind) -> Effect bs
+                    (kind : CounterKind) -> Instruction bs
 exileWithCounters n amt kind =
   Enact Nothing "Exile"
         (Move n exileZ [WithCounters amt (PrintedKind kind) Fresh])
@@ -545,7 +545,7 @@ returnToBattlefieldWithCounters :
   {auto 0 one : nounPlur who = OneOf} ->
   {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
   {auto 0 pl : Placeable (nounTy n) Battlefield} ->
-  Effect bs
+  Instruction bs
 returnToBattlefieldWithCounters n who amt kind =
   Move n battlefieldZ [ Under who {one = OneController {one}}
                       , WithCounters amt (PrintedKind kind) Fresh ] {pl}
@@ -554,14 +554,14 @@ public export
 putOntoBattlefield : (n : Noun bs Object) ->
                      {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
                      {auto 0 pl : Placeable (nounTy n) Battlefield} ->
-                     Effect bs
+                     Instruction bs
 putOntoBattlefield n = Move n battlefieldZ [] {pl}
 
 public export
 putOntoBattlefieldTapped : (n : Noun bs Object) ->
                            {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
                            {auto 0 pl : Placeable (nounTy n) Battlefield} ->
-                           Effect bs
+                           Instruction bs
 putOntoBattlefieldTapped n =
   Move n battlefieldZ [EntersTapped] {pl}
 
@@ -570,7 +570,7 @@ putOntoBattlefieldTappedAttacking :
   (n : Noun bs Object) ->
   {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
   {auto 0 pl : Placeable (nounTy n) Battlefield} ->
-  Effect bs
+  Instruction bs
 putOntoBattlefieldTappedAttacking n =
   Move n battlefieldZ [EntersTapped, EntersAttacking NoDefender] {pl}
 
@@ -579,13 +579,13 @@ putOntoBattlefieldUnderYourControl :
   (n : Noun bs Object) ->
   {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
   {auto 0 pl : Placeable (nounTy n) Battlefield} ->
-  Effect bs
+  Instruction bs
 putOntoBattlefieldUnderYourControl n =
   Move n battlefieldZ [Under You] {pl}
 
 public export
 sacrifice : (agent : Noun bs Player) -> (n : Noun (agentIntro agent) Object) ->
-            {auto 0 ok : ZoneIs (nounZone n) Battlefield} -> Effect bs
+            {auto 0 ok : ZoneIs (nounZone n) Battlefield} -> Instruction bs
 sacrifice agent n =
   Enact (Just agent) "Sacrifice" (Move n graveyardZ [])
 
@@ -593,35 +593,35 @@ public export
 sacrificeIt : (agent : Noun bs Player) ->
               {auto 0 ok : countReach (AtSlot PermanentSlot) OneOf (agentIntro agent) = 1} ->
               {auto 0 zn : ZoneIs (zoneOfReach (AtSlot PermanentSlot) OneOf (agentIntro agent)) Battlefield} ->
-              Effect bs
+              Instruction bs
 sacrificeIt agent = sacrifice agent (Pro (AtSlot PermanentSlot) OneOf {ok}) {ok = zn}
 
 public export
 discard : (agent : Noun bs Player) -> (n : Noun (agentIntro agent) Object) ->
-          {auto 0 dk : DiscardOk n} -> Effect bs
+          {auto 0 dk : DiscardOk n} -> Instruction bs
 discard agent n =
   Enact (Just agent) "Discard" (Move n graveyardZ [])
 
 public export
 tap : (n : Noun bs Object) -> {auto 0 ok : ZoneIs (nounZone n) Battlefield} ->
-      Effect bs
+      Instruction bs
 tap n = Enact Nothing "Tap" (SetStatus Tapped n)
 
 public export
 untap : (n : Noun bs Object) -> {auto 0 ok : ZoneIs (nounZone n) Battlefield} ->
-        Effect bs
+        Instruction bs
 untap n = Enact Nothing "Untap" (SetStatus Untapped n)
 
 public export
 transform : (n : Noun bs Object) ->
-            {auto 0 ok : ZoneIs (nounZone n) Battlefield} -> Effect bs
+            {auto 0 ok : ZoneIs (nounZone n) Battlefield} -> Instruction bs
 transform n = Enact Nothing "Transform" (TurnOver n)
 
 public export
 meldInto : (n : Noun bs Object) -> (into : String) ->
            {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
            {auto 0 pl : Placeable (nounTy n) Battlefield} ->
-           Effect bs
+           Instruction bs
 meldInto n into =
   Enact Nothing "Meld"
         (Move n battlefieldZ [EntersMelded into] {arr} {pl})
@@ -633,7 +633,7 @@ returnTo : (n : Noun bs Object) -> (to : ZoneExpr (nomIntro n)) ->
            {auto 0 arr : ArrangementOk (nounPlur n) to} ->
            {auto 0 pl : Placeable (nounTy n) (zoneSort to)} ->
            {auto 0 rf : RidersFit riders (zoneSort to)} ->
-           Effect bs
+           Instruction bs
 returnTo n to riders = Enact Nothing "Return" (Move n to riders {ok} {arr} {pl} {rf})
 
 public export
@@ -642,7 +642,7 @@ returnToBattlefieldTransformed :
   {auto 0 one : CtrlOverrideOk ctrl} ->
   {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
   {auto 0 pl : Placeable (nounTy n) Battlefield} ->
-  Effect bs
+  Instruction bs
 returnToBattlefieldTransformed n ctrl =
   Enact Nothing "Return"
         (Move n battlefieldZ [EntersTransformed, Under ctrl {one}] {arr} {pl})
@@ -651,7 +651,7 @@ public export
 returnToBattlefield : (n : Noun bs Object) ->
                       {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
                       {auto 0 pl : Placeable (nounTy n) Battlefield} ->
-                      Effect bs
+                      Instruction bs
 returnToBattlefield n = returnTo n battlefieldZ [] {arr} {pl}
 
 public export
@@ -672,7 +672,7 @@ sharedSubject : {bs : Bindings} -> {0 k : Nat} -> (n : Noun bs Object) ->
                 {auto 0 ne : IsSucc k} ->
                 (d : Maybe (Duration (partsIntro parts))) ->
                 {auto 0 sp : SpanOk d} ->
-                {auto 0 cl : ClauseStatic (AndAlso (Just n) parts {ne})} -> Effect bs
+                {auto 0 cl : ClauseStatic (AndAlso (Just n) parts {ne})} -> Instruction bs
 sharedSubject {bs} n parts d = Continuously {bs} (AndAlso (Just n) parts {ne}) d {sp} {cl}
 
 
@@ -680,7 +680,7 @@ public export
 dealsDivided : {k : Kind} -> (src : Noun bs Object) -> (amt : Amount (nomIntro src)) ->
                (among : Noun (amtIntro amt) k) ->
                {auto 0 gm : GroupMention among} ->
-               {auto 0 rk : DamageRecipient among} -> Effect bs
+               {auto 0 rk : DamageRecipient among} -> Instruction bs
 dealsDivided src amt among =
   Distribute (DividedDamage src) amt among {gm}
              {tk = DamageDivided {rk}}
@@ -688,7 +688,7 @@ dealsDivided src amt among =
 public export
 distributeCounters : (amt : Amount bs) -> (kind : CounterKind) ->
                      (among : Noun (amtIntro amt) Object) ->
-                     {auto 0 gm : GroupMention among} -> Effect bs
+                     {auto 0 gm : GroupMention among} -> Instruction bs
 distributeCounters amt kind among =
   Distribute (DistributedCounters kind) amt among {gm}
              {tk = CountersDistributed}
@@ -715,24 +715,24 @@ untilYourNextEndStep : Duration bs
 untilYourNextEndStep = Until (StartOf EndStep (Just You))
 
 public export
-asLongAs : {bs : Bindings} -> (c : Condition bs) -> (se : StaticEffect (condIntro c)) -> StaticEffect bs
+asLongAs : {bs : Bindings} -> (c : Condition bs) -> (se : StaticSpec (condIntro c)) -> StaticSpec bs
 asLongAs {bs} c se = Conditionally {bs} c se AsLongAs
 
 public export
-unlessSo : {bs : Bindings} -> (c : Condition bs) -> (se : StaticEffect (condIntro (NotCond c))) -> StaticEffect bs
+unlessSo : {bs : Bindings} -> (c : Condition bs) -> (se : StaticSpec (condIntro (NotCond c))) -> StaticSpec bs
 unlessSo {bs} c se = Conditionally {bs} (NotCond c) se Unless
 
 public export
 entersTapped : (n : Noun bs Object) ->
                {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
-               StaticEffect bs
+               StaticSpec bs
 entersTapped n = EntersRider n EntersTapped {zn}
 
 public export
 entersWithCounters : (n : Noun bs Object) -> (amt : Amount (nomIntro n)) ->
                      (kind : CounterKind) ->
                      {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
-                     StaticEffect bs
+                     StaticSpec bs
 entersWithCounters n amt kind =
   EntersRider n (WithCounters amt (PrintedKind kind) Fresh) {zn}
 
@@ -741,7 +741,7 @@ gets : {bs : Bindings} -> (n : Noun bs Object) -> (pow : PtShift (selfSubjIntro 
        (tou : PtShift (shiftIntro pow)) ->
        {auto 0 ok : ZoneIs (nounZone n) Battlefield} ->
        (d : Maybe (Duration (staticIntro (Gets Adds n pow tou {ok})))) ->
-       {auto 0 sp : SpanOk d} -> Effect bs
+       {auto 0 sp : SpanOk d} -> Instruction bs
 gets {bs} n pow tou d = Continuously {bs} (Gets Adds n pow tou {ok}) d {sp}
 
 public export
@@ -749,13 +749,13 @@ gains : {bs : Bindings} -> (n : Noun bs Object) -> (a : AbilityAt bs) ->
         {auto 0 ok : GrantSubject a n} ->
         {auto 0 gr : Grantable a} ->
         (d : Maybe (Duration (staticIntro (Gains n a {ok} {gr})))) ->
-        {auto 0 sp : SpanOk d} -> Effect bs
+        {auto 0 sp : SpanOk d} -> Instruction bs
 gains {bs} n a d = Continuously {bs} (Gains n a {ok} {gr}) d
 
 public export
 gainsHaste : {bs : Bindings} -> (n : Noun bs Object) -> (d : Maybe (Duration (selfSubjIntro n))) ->
              {auto 0 ok : GrantSubject (KeywordAbility "Haste" Nothing Nothing) n} ->
-             {auto 0 sp : SpanOk d} -> Effect bs
+             {auto 0 sp : SpanOk d} -> Instruction bs
 gainsHaste {bs} n d = gains {bs} n (KeywordAbility "Haste" Nothing Nothing) d
 
 public export
@@ -780,7 +780,7 @@ deontic : {k : Kind} -> (n : Noun bs k) -> (c : Compulsion (selfSubjIntro n)) ->
           {auto 0 kd : KnownActs deeds} ->
           {auto 0 dp : DeedFits deeds role k (nounHeadTys n) (nounZone n)} ->
           {auto 0 pt : So (deonticPatientOk n deeds role patient NoDeonticRider)} ->
-          StaticEffect bs
+          StaticSpec bs
 deontic n c deeds role patient =
   Deontic n c deeds role Nothing patient Nothing NoDeonticRider {ne} {dd} {kd} {dp} {pt}
 
@@ -793,7 +793,7 @@ cantMoreThan : (who : Noun bs Player) -> (deed : VerbLabel) -> (k : Nat) ->
                                                 (Just (MoreThan (Lit k))))} ->
                {auto 0 pt : So (deonticPatientOk who [deed] Agent
                                   (DeonticCounterpart (allOf p)) NoDeonticRider)} ->
-               StaticEffect bs
+               StaticSpec bs
 cantMoreThan who deed k p =
   Deontic who Forbid [deed] Agent (Just (MoreThan (Lit k))) (DeonticCounterpart (allOf p))
           Nothing NoDeonticRider {kd} {dp} {bd} {pt}
@@ -806,7 +806,7 @@ mayPlayAdditionalLands : (who : Noun bs Player) -> (q : Quantity (nomIntro who))
                          {auto 0 pt : So (deonticPatientOk who ["Play"] Agent
                                             (DeonticCounterpart (allOf Macros.land))
                                             NoDeonticRider)} ->
-                         StaticEffect bs
+                         StaticSpec bs
 mayPlayAdditionalLands who q =
   Deontic who Permit ["Play"] Agent (Just (Additional q)) (DeonticCounterpart (allOf Macros.land))
           Nothing NoDeonticRider {dp} {bd} {pt}
@@ -819,7 +819,7 @@ mayBlockAdditional : (n : Noun bs Object) -> (q : Quantity (nomIntro n)) ->
                      {auto 0 pt : So (deonticPatientOk n ["Block"] Agent
                                         (DeonticCounterpart (allOf Macros.creature))
                                         NoDeonticRider)} ->
-                     StaticEffect bs
+                     StaticSpec bs
 mayBlockAdditional n q =
   Deontic n Permit ["Block"] Agent (Just (Additional q)) (DeonticCounterpart (allOf Macros.creature))
           Nothing NoDeonticRider {dp} {bd} {pt}
@@ -829,7 +829,7 @@ mayVoteAdditional : (who : Noun bs Player) -> (q : Quantity (nomIntro who)) ->
                     {auto 0 nz : NonZeroQ q} -> {auto 0 wf : WellFormedQ q} ->
                     {auto 0 dp : DeedFits ["Vote"] Agent Player (nounHeadTys who) (nounZone who)} ->
                     {auto 0 bd : So (deonticBoundOk ["Vote"] (Just (Additional q)))} ->
-                    StaticEffect bs
+                    StaticSpec bs
 mayVoteAdditional who q =
   Deontic who Permit ["Vote"] Agent (Just (Additional q)) NoDeonticPatient
           Nothing NoDeonticRider {dp} {bd}
@@ -838,7 +838,7 @@ public export
 doesntUntap : (n : Noun bs Object) -> (w : Maybe (Noun bs Player)) ->
               {auto 0 wk : WindowOk UntapStep w} ->
               {auto 0 dp : DeedFits ["Untap"] Patient Object (nounHeadTys n) (nounZone n)} ->
-              StaticEffect bs
+              StaticSpec bs
 doesntUntap n w =
   OnlyDuring UntapStep w
     (Deontic n Forbid ["Untap"] Patient Nothing NoDeonticPatient Nothing NoDeonticRider {dp})
@@ -848,7 +848,7 @@ public export
 mayDeclineUntap : (n : Noun bs Object) -> (w : Maybe (Noun bs Player)) ->
                   {auto 0 wk : WindowOk UntapStep w} ->
                   {auto 0 dp : DeedFits ["Untap"] Patient Object (nounHeadTys n) (nounZone n)} ->
-                  StaticEffect bs
+                  StaticSpec bs
 mayDeclineUntap n w =
   OnlyDuring UntapStep w
     (Deontic n Permit ["Untap"] Patient Nothing NoDeonticPatient Nothing NoDeonticRider {dp})
@@ -858,7 +858,7 @@ public export
 untapsDuring : (n : Noun bs Object) -> (w : Maybe (Noun bs Player)) ->
                {auto 0 wk : WindowOk UntapStep w} ->
                {auto 0 dp : DeedFits ["Untap"] Patient Object (nounHeadTys n) (nounZone n)} ->
-               StaticEffect bs
+               StaticSpec bs
 untapsDuring n w =
   OnlyDuring UntapStep w
     (Deontic n Require ["Untap"] Patient Nothing NoDeonticPatient Nothing NoDeonticRider {dp})
@@ -867,14 +867,14 @@ untapsDuring n w =
 public export
 cantAttack : {bs : Bindings} -> (n : Noun bs Object) -> (span : Maybe (Duration (selfSubjIntro n))) ->
              {auto 0 dp : DeedFits ["Attack"] Agent Object (nounHeadTys n) (nounZone n)} ->
-             {auto 0 sp : SpanOk span} -> Effect bs
+             {auto 0 sp : SpanOk span} -> Instruction bs
 cantAttack {bs} n span =
   Continuously {bs} (Deontic n Forbid ["Attack"] Agent Nothing NoDeonticPatient Nothing NoDeonticRider {dp}) span {sp}
 
 public export
 cantBlock : {bs : Bindings} -> (n : Noun bs Object) -> (span : Maybe (Duration (selfSubjIntro n))) ->
             {auto 0 dp : DeedFits ["Block"] Agent Object (nounHeadTys n) (nounZone n)} ->
-            {auto 0 sp : SpanOk span} -> Effect bs
+            {auto 0 sp : SpanOk span} -> Instruction bs
 cantBlock {bs} n span =
   Continuously {bs} (Deontic n Forbid ["Block"] Agent Nothing NoDeonticPatient Nothing NoDeonticRider {dp}) span {sp}
 
@@ -884,7 +884,7 @@ canDoAsThough : {k : Kind} -> (n : Noun bs k) -> (deed : VerbLabel) ->
                 {auto 0 kd : KnownActs [deed]} ->
                 {auto 0 dp : DeedFits [deed] Agent k (nounHeadTys n) (nounZone n)} ->
                 {auto 0 at : So (asThoughOk (Permit {bs = selfSubjIntro n}) [deed] (Just (AsThoughOf p)))} ->
-                StaticEffect bs
+                StaticSpec bs
 canDoAsThough n deed p =
   Deontic n Permit [deed] Agent Nothing NoDeonticPatient (Just (AsThoughOf p)) NoDeonticRider
           {kd} {dp} {at}
@@ -897,7 +897,7 @@ maySpendAsThough : (who : Noun bs Player) ->
                    {auto 0 dp : DeedFits ["Spend"] Agent Player (nounHeadTys who) (nounZone who)} ->
                    {auto 0 at : So (asThoughOk (Permit {bs = selfSubjIntro who}) ["Spend"]
                                                (Just (AsThoughMana what as purpose)))} ->
-                   StaticEffect bs
+                   StaticSpec bs
 maySpendAsThough who what as purpose =
   Deontic who Permit ["Spend"] Agent Nothing NoDeonticPatient
           (Just (AsThoughMana what as purpose)) NoDeonticRider
@@ -907,7 +907,7 @@ public export
 playerCant : (deed : VerbLabel) -> (who : Noun bs Player) ->
              {auto 0 kd : KnownActs [deed]} ->
              {auto 0 dp : DeedFits [deed] Agent Player (nounHeadTys who) (nounZone who)} ->
-             StaticEffect bs
+             StaticSpec bs
 playerCant deed who = Deontic who Forbid [deed] Agent Nothing NoDeonticPatient Nothing NoDeonticRider
                               {kd} {dp}
 
@@ -915,7 +915,7 @@ public export
 objectCant : {k : Kind} -> (deed : VerbLabel) -> (what : Noun bs k) ->
              {auto 0 kd : KnownActs [deed]} ->
              {auto 0 dp : DeedFits [deed] Patient k (nounHeadTys what) (nounZone what)} ->
-             StaticEffect bs
+             StaticSpec bs
 objectCant deed what =
   Deontic what Forbid [deed] Patient Nothing NoDeonticPatient Nothing NoDeonticRider {kd} {dp}
 
@@ -927,7 +927,7 @@ cantDoTo : {k : Kind} -> {kw : Kind} -> (deed : VerbLabel) ->
            {auto 0 pt : So (deonticPatientOk who [deed] Agent
                               (DeonticCounterpart what)
                               NoDeonticRider)} ->
-           StaticEffect bs
+           StaticSpec bs
 cantDoTo deed who what =
   Deontic who Forbid [deed] Agent Nothing (DeonticCounterpart what) Nothing NoDeonticRider
           {kd} {dp} {pt}
@@ -937,7 +937,7 @@ cantBeTargetedBy : {k : Kind} -> {ka : Kind} -> (what : Noun bs k) ->
                    (by : Noun (nomIntro what) ka) ->
                    {auto 0 tr : Targeter ka} ->
                    {auto 0 dp : DeedFits ["Target"] Patient k (nounHeadTys what) (nounZone what)} ->
-                   StaticEffect bs
+                   StaticSpec bs
 cantBeTargetedBy what by =
   Deontic what Forbid ["Target"] Patient Nothing (TargetedBy by {tr}) Nothing NoDeonticRider {dp}
 
@@ -947,7 +947,7 @@ canBeTargetedAsThough : {k : Kind} -> {ka : Kind} -> (what : Noun bs k) ->
                         (p : Predicate (nomIntro what) Object) ->
                         {auto 0 tr : Targeter ka} ->
                         {auto 0 dp : DeedFits ["Target"] Patient k (nounHeadTys what) (nounZone what)} ->
-                        StaticEffect bs
+                        StaticSpec bs
 canBeTargetedAsThough what by p =
   Deontic what Permit ["Target"] Patient Nothing (TargetedBy by {tr}) (Just (AsThoughOf p))
           NoDeonticRider {dp}
@@ -955,7 +955,7 @@ canBeTargetedAsThough what by p =
 public export
 cantBeBlocked : {bs : Bindings} -> (n : Noun bs Object) -> (span : Maybe (Duration (selfSubjIntro n))) ->
                 {auto 0 dp : DeedFits ["Block"] Patient Object (nounHeadTys n) (nounZone n)} ->
-                {auto 0 sp : SpanOk span} -> Effect bs
+                {auto 0 sp : SpanOk span} -> Instruction bs
 cantBeBlocked {bs} n span =
   Continuously {bs} (Deontic n Forbid ["Block"] Patient Nothing NoDeonticPatient Nothing NoDeonticRider {dp}) span {sp}
 
@@ -967,7 +967,7 @@ mustBlockIt : {bs : Bindings} -> (n : Noun bs Object) ->
               {auto 0 pt : So (deonticPatientOk n ["Block"] Agent
                                  (DeonticCounterpart (ItOtherThan (nounDelta n) bs {ok}))
                                  NoDeonticRider)} ->
-              {auto 0 sp : SpanOk span} -> Effect bs
+              {auto 0 sp : SpanOk span} -> Instruction bs
 mustBlockIt n span =
   Continuously (Deontic n Require ["Block"] Agent Nothing
                   (DeonticCounterpart (ItOtherThan (nounDelta n) bs {ok}))
@@ -978,7 +978,7 @@ mustBlockIt n span =
 public export
 attachToIt : {bs : Bindings} -> (what : Noun bs Object) ->
              {auto 0 zw : ZoneIs (nounZone what) Battlefield} ->
-             {auto 0 ok : countOnes Object bs = 1} -> Effect bs
+             {auto 0 ok : countOnes Object bs = 1} -> Instruction bs
 attachToIt what = AttachTo what (ItOtherThan (nounDelta what) bs {ok}) {zw}
 
 
@@ -986,20 +986,20 @@ public export
 gainControl : {bs : Bindings} -> (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
               {auto 0 zn : ZoneIs (nounZone what) Battlefield} ->
               (d : Maybe (Duration (staticIntro (GainsControl who what {zn})))) ->
-              {auto 0 sp : SpanOk d} -> Effect bs
+              {auto 0 sp : SpanOk d} -> Instruction bs
 gainControl {bs} who what d = Continuously {bs} (GainsControl who what {zn}) d {sp}
 
 public export
-losesLife : (who : Noun bs Player) -> Amount (nomIntro who) -> Effect bs
+losesLife : (who : Noun bs Player) -> Amount (nomIntro who) -> Instruction bs
 losesLife who amt = ChangeLife who (Down amt)
 
 public export
-gainsLife : (who : Noun bs Player) -> Amount (nomIntro who) -> Effect bs
+gainsLife : (who : Noun bs Player) -> Amount (nomIntro who) -> Instruction bs
 gainsLife who amt = ChangeLife who (Up amt)
 
 
 public export
-may : (decider : Noun bs Player) -> Effect (agentIntro decider) -> Effect bs
+may : (decider : Noun bs Player) -> Instruction (agentIntro decider) -> Instruction bs
 may decider body = May decider body Nothing Nothing
 
 
@@ -1023,13 +1023,13 @@ typesOnly ts = MkTypeLine [] ts
 public export
 create : (count : Amount bs) -> (tok : TokenChars (amtIntro count)) ->
          {auto 0 wf : TokenWellFormed tok} ->
-         Effect bs
+         Instruction bs
 create count tok = Create You count (TokenWritten tok {wf}) []
 
 public export
 createTappedAttacking : (count : Amount bs) -> (tok : TokenChars (amtIntro count)) ->
                         {auto 0 wf : TokenWellFormed tok} ->
-                        Effect bs
+                        Instruction bs
 createTappedAttacking count tok =
   Create You count (TokenWritten tok {wf})
          [EntersTapped, EntersAttacking NoDefender]
@@ -1038,21 +1038,21 @@ public export
 becomesAs : {bs : Bindings} -> (n : Noun bs Object) -> (added : TokenChars bs) ->
             (d : Maybe (Duration (selfSubjIntro n))) ->
             {auto 0 ok : BecomesOk Adds n (Bundle added Nothing)} ->
-            {auto 0 sp : SpanOk d} -> Effect bs
+            {auto 0 sp : SpanOk d} -> Instruction bs
 becomesAs {bs} n added d = Continuously {bs} (Becomes n Adds (Bundle added Nothing) {ok}) d {sp}
 
 public export
 becomes : {bs : Bindings} -> (n : Noun bs Object) -> (added : TypeLine) ->
           (d : Maybe (Duration (selfSubjIntro n))) ->
           {auto 0 ok : BecomesOk Adds n (Bundle (MkToken {bs} Nothing [] added [] Nothing) Nothing)} ->
-          {auto 0 sp : SpanOk d} -> Effect bs
+          {auto 0 sp : SpanOk d} -> Instruction bs
 becomes {bs} n added d = becomesAs {bs} n (MkToken Nothing [] added [] Nothing) d {ok} {sp}
 
 public export
 becomesColor : {bs : Bindings} -> (n : Noun bs Object) -> (cs : ColorSpec) ->
                (d : Maybe (Duration (selfSubjIntro n))) ->
                {auto 0 ok : BecomesOk Sets n (Colored cs)} ->
-               {auto 0 sp : SpanOk d} -> Effect bs
+               {auto 0 sp : SpanOk d} -> Instruction bs
 becomesColor {bs} n cs d = Continuously {bs} (Becomes n Sets (Colored cs) {ok}) d {sp}
 
 public export
@@ -1061,11 +1061,11 @@ basicLandLine ss = MkTypeLine ss []
 
 
 public export
-chooseModes : (q : Quantity bs) -> (modes : List (Effect bs)) ->
+chooseModes : (q : Quantity bs) -> (modes : List (Instruction bs)) ->
               {auto 0 nz : NonZeroQ q} ->
               {auto 0 wf : WellFormedQ q} ->
               {auto 0 tw : AtLeastTwo (modeCount modes)} ->
-              {auto 0 mf : ModesFit q (modeCount modes)} -> Effect bs
+              {auto 0 mf : ModesFit q (modeCount modes)} -> Instruction bs
 chooseModes q modes = Modal q modes {nz} {wf} {tw} {mf}
 
 public export
@@ -1149,7 +1149,7 @@ nthFromTopOrBottomZ n = LibraryAt (EitherEnd Nothing) Nothing (Just n) Bare
 
 public export
 shuffleInto : (agent : Noun bs Player) -> (n : Noun (agentIntro agent) Object) ->
-              {auto 0 pl : Placeable (nounTy n) Library} -> Effect bs
+              {auto 0 pl : Placeable (nounTy n) Library} -> Instruction bs
 shuffleInto agent n =
   Enact (Just agent) "Shuffle"
     (Move n (LibraryAt Shuffled Nothing Nothing Bare)
@@ -1193,15 +1193,15 @@ allFromAmong : (p : Predicate bs Object) -> (grp : Noun bs Object) ->
 allFromAmong p grp = SomeOf WholeSlice (Just p) grp {gm}
 
 public export
-lookAt : (n : Noun bs Object) -> Effect bs
+lookAt : (n : Noun bs Object) -> Instruction bs
 lookAt n = Expose LookAt You (ExposedCards n)
 
 public export
-revealCards : (n : Noun bs Object) -> Effect bs
+revealCards : (n : Noun bs Object) -> Instruction bs
 revealCards n = Expose Reveal You (ExposedCards n)
 
 public export
-lookAtHandOf : (n : Noun bs Player) -> Effect bs
+lookAtHandOf : (n : Noun bs Player) -> Instruction bs
 lookAtHandOf n = Expose LookAt You (ExposedZone (handOf n))
 
 public export
@@ -1209,12 +1209,12 @@ foundCard : {auto 0 ok : countReach (Stamped "Search") OneOf bs = 1} -> Noun bs 
 foundCard = ItVerbed "Search" OneOf {ok}
 
 public export
-revealsIt : {auto 0 ok : countReach (Stamped "Search") OneOf bs = 1} -> Effect bs
+revealsIt : {auto 0 ok : countReach (Stamped "Search") OneOf bs = 1} -> Instruction bs
 revealsIt = revealCards (foundCard {ok})
 
 public export
 revealsTheirHand : (who : Noun bs Player) ->
-                   {auto 0 ok : countReach (Word PlayerW) OneOf (nomIntro who) = 1} -> Effect bs
+                   {auto 0 ok : countReach (Word PlayerW) OneOf (nomIntro who) = 1} -> Instruction bs
 revealsTheirHand who = Expose Reveal who (ExposedZone (handOf (They {ok})))
 
 
@@ -1223,18 +1223,18 @@ public export
 searchLibraryFor : (q : Quantity bs) -> (p : Predicate bs Object) ->
                    {auto 0 nz : NonZeroQ q} ->
                    {auto 0 wf : WellFormedQ q} ->
-                   {auto 0 zf : ZoneFree p} -> Effect bs
+                   {auto 0 zf : ZoneFree p} -> Instruction bs
 searchLibraryFor q p = Search You (OneZone yourLibrary) q p {zf}
 
 public export
 searchZonesOf : (whose : Noun bs Player) -> (p : Predicate bs Object) ->
-                {auto 0 zf : ZoneFree p} -> Effect bs
+                {auto 0 zf : ZoneFree p} -> Instruction bs
 searchZonesOf whose p =
   Search You (SomeZones (Just whose) [Graveyard, Hand, Library]) (exactly 1) p {zf}
 
 public export
 searchLibraryOrGraveyard : (p : Predicate bs Object) ->
-                           {auto 0 zf : ZoneFree p} -> Effect bs
+                           {auto 0 zf : ZoneFree p} -> Instruction bs
 searchLibraryOrGraveyard p =
   Search You (SomeZones (Just You) [Library, Graveyard]) (exactly 1) p {zf}
 
@@ -1244,38 +1244,38 @@ puts : (agent : Noun bs Player) -> (n : Noun (agentIntro agent) Object) ->
        {auto 0 ok : DestOk to} ->
        {auto 0 arr : ArrangementOk (nounPlur n) to} ->
        {auto 0 pl : Placeable (nounTy n) (zoneSort to)} ->
-       Effect bs
+       Instruction bs
 puts agent n to =
   Enact (Just agent) "Put" (Move n to [] {ok} {arr} {pl})
 
 public export
-shuffle : Effect bs
+shuffle : Instruction bs
 shuffle = Shuffle You
 
 public export
-lifeTotalBecomes : (who : Noun bs Player) -> Amount (nomIntro who) -> Effect bs
+lifeTotalBecomes : (who : Noun bs Player) -> Amount (nomIntro who) -> Instruction bs
 lifeTotalBecomes who a = ChangeLife who (Set a)
 
 
 public export
-ifWouldInstead : {bs : Bindings} -> (ev : GameEvent bs) -> (repl : Effect (eventIntro ev)) ->
+ifWouldInstead : {bs : Bindings} -> (ev : GameEvent bs) -> (repl : Instruction (eventIntro ev)) ->
                  (d : Maybe (Duration (eventIntro ev))) ->
                  {auto 0 ok : Interceptable ev} ->
-                 {auto 0 sp : SpanOk d} -> Effect bs
+                 {auto 0 sp : SpanOk d} -> Instruction bs
 ifWouldInstead {bs} ev repl d = Continuously {bs} (Intercepts ev [] Nothing repl Repeatedly Nothing {ok}) d {sp}
 
 public export
-nextTimeWouldInstead : {bs : Bindings} -> (ev : GameEvent bs) -> (repl : Effect (eventIntro ev)) ->
+nextTimeWouldInstead : {bs : Bindings} -> (ev : GameEvent bs) -> (repl : Instruction (eventIntro ev)) ->
                        (d : Maybe (Duration (eventIntro ev))) ->
                        {auto 0 ok : Interceptable ev} ->
-                       {auto 0 sp : SpanOk d} -> Effect bs
+                       {auto 0 sp : SpanOk d} -> Instruction bs
 nextTimeWouldInstead {bs} ev repl d =
   Continuously {bs} (Intercepts ev [] Nothing repl NextTimeOnly Nothing {ok}) d {sp}
 
 public export
 preventAll : {bs : Bindings} -> (kind : DamageKind) -> (scope : DamageScope bs) ->
              (d : Maybe (Duration (scopeIntro scope))) ->
-             {auto 0 sp : SpanOk d} -> Effect bs
+             {auto 0 sp : SpanOk d} -> Instruction bs
 preventAll {bs} kind scope d =
   Continuously {bs} (DamageRule kind Unattributed scope (Prevent CutAll Nothing) Repeatedly) d {sp}
 
@@ -1283,7 +1283,7 @@ public export
 preventNext : {bs : Bindings} -> (kind : DamageKind) -> (scope : DamageScope bs) ->
               (amt : Amount (scopeIntro scope)) ->
               (d : Maybe (Duration (amtIntro amt))) ->
-              {auto 0 sp : SpanOk d} -> Effect bs
+              {auto 0 sp : SpanOk d} -> Instruction bs
 preventNext {bs} kind scope amt d =
   Continuously {bs} (DamageRule kind Unattributed scope (Prevent (Shield amt) Nothing) Repeatedly) d {sp}
 
@@ -1291,7 +1291,7 @@ public export
 preventAllBy : {bs : Bindings} -> (kind : DamageKind) -> (src : Noun bs Object) ->
                (scope : DamageScope (nomIntro src)) ->
                (d : Maybe (Duration (scopeIntro scope))) ->
-               {auto 0 sp : SpanOk d} -> Effect bs
+               {auto 0 sp : SpanOk d} -> Instruction bs
 preventAllBy {bs} kind src scope d =
   Continuously {bs} (DamageRule kind (DealtBy src) scope (Prevent CutAll Nothing) Repeatedly) d {sp}
 
@@ -1303,7 +1303,7 @@ exileUntil : (n : Noun bs Object) ->
                          (Move n (Macros.exileZ {bs = nomIntro n})
                                []
                                {ok = ExileOk} {arr = Oh} {pl = Oh} {rf = Oh})))) ->
-             Effect bs
+             Instruction bs
 exileUntil n ev =
   HeldUntil
     (Enact Nothing "Exile"
@@ -1317,7 +1317,7 @@ phasesOutUntil : (n : Noun bs Object) ->
                  {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
                  {auto 0 at : StatusEffectVal PhasedOut} ->
                  (ev : GameEvent (annIntro (SetStatus PhasedOut n {ok = zn} {at}))) ->
-                 Effect bs
+                 Instruction bs
 phasesOutUntil n ev = HeldUntil (SetStatus PhasedOut n {ok = zn} {at}) ev {ok = Oh}
 
 
@@ -1347,10 +1347,10 @@ payLife : (who : Noun bs Player) -> (n : Nat) -> Cost bs
 payLife who n = Do (ChangeLife who (Down (Lit n)))
 
 public export
-mayWhen : (decider : Noun bs Player) -> (body : Effect (agentIntro decider)) ->
-          Effect (settleTargets (effIntro body)) ->
+mayWhen : (decider : Noun bs Player) -> (body : Instruction (agentIntro decider)) ->
+          Instruction (settleTargets (instrIntro body)) ->
           {auto 0 ok : So (admitsReflexEnclosure (reflexEncloseUse body))} ->
-          Effect bs
+          Instruction bs
 mayWhen d body trig =
   Reflexively (May d body Nothing Nothing) trig {en = ok}
 
@@ -1360,7 +1360,7 @@ public export
 mills : (agent : Noun bs Player) -> (amt : Amount (agentIntro agent)) ->
         (whose : Noun (agentIntro agent) Player) ->
         {auto 0 sp : SlicePossessor whose} ->
-        Effect bs
+        Instruction bs
 mills agent amt whose =
   Enact (Just agent) "Mill"
        (Move (LibrarySlice OnTop amt whose {sp}) graveyardZ
@@ -1387,7 +1387,7 @@ agentMovedRest bs mn z =
 
 public export %inline
 lookAtAgentsTop : {bs : Bindings} -> (amt : Amount bs) ->
-                  {auto 0 an : countReach (Word PlayerW) OneOf bs = 1} -> Effect bs
+                  {auto 0 an : countReach (Word PlayerW) OneOf bs = 1} -> Instruction bs
 lookAtAgentsTop amt =
   Expose LookAt (They {ok = an})
     (ExposedCards (LibrarySlice OnTop amt (They {ok = an}) {sp = Oh}))
@@ -1459,7 +1459,7 @@ data LookReq : {bs : Bindings} -> (agent : Noun bs Player) ->
 public export
 scry : {bs : Bindings} -> (agent : Noun bs Player) ->
        (amt : Amount (Experimental.Phrase.agentIntro agent)) ->
-       {auto req : LookReq agent amt Library} -> Effect bs
+       {auto req : LookReq agent amt Library} -> Instruction bs
 scry {bs} agent amt {req = YourOneLookReq {ay} {am} {iw} {pi}} =
   Enact (Just agent) "Scry" {kn = Oh}
        (Sequentially
@@ -1520,7 +1520,7 @@ fateseal : {bs : Bindings} ->
                        (agentMovedRest
                          (agentLookedTop
                            (Experimental.Phrase.agentIntro (anOpponent {bs})) an amt) mn Library)) Library} ->
-           Effect bs
+           Instruction bs
 fateseal amt =
   Enact (Just anOpponent) "Scry" {kn = Oh}
         (Sequentially
@@ -1536,7 +1536,7 @@ fateseal amt =
 public export
 surveil : {bs : Bindings} -> (agent : Noun bs Player) ->
           (amt : Amount (Experimental.Phrase.agentIntro agent)) ->
-          {auto req : LookReq agent amt Graveyard} -> Effect bs
+          {auto req : LookReq agent amt Graveyard} -> Instruction bs
 surveil {bs} agent amt {req = YourOneLookReq {ay} {am} {iw} {pi}} =
   Enact (Just agent) "Surveil" {kn = Oh}
        (Sequentially
@@ -1576,7 +1576,7 @@ public export
 playerSearchesTheirLibraryFor : (who : Noun bs Player) ->
                                 {auto 0 an : countReach (Word PlayerW) OneOf (nomIntro who) = 1} ->
                                 (p : Predicate (nomIntro who) Object) ->
-                                {auto 0 zf : ZoneFree p} -> Effect bs
+                                {auto 0 zf : ZoneFree p} -> Instruction bs
 playerSearchesTheirLibraryFor who p =
   Search who (OneZone (libraryOf (They {ok = an}))) (exactly 1) p {zf}
 
@@ -1587,7 +1587,7 @@ proliferate : {bs : Bindings} ->
                                 (counted Macros.anyNumber
                                   (kindJoin (Compare [AnyCounterAxis Player] AtLeast (Lit 1))
                                             (And [Permanent, HasCounters Nothing])))) = 1} ->
-              Effect bs
+              Instruction bs
 proliferate =
   Enact Nothing "Proliferate" {kn = Oh}
         (Sequentially [ Choose
@@ -1600,7 +1600,7 @@ proliferate =
 public export
 losesAllCounters : (who : Noun bs Player) ->
                    (kind : Maybe (CounterKindSource bs)) ->
-                   {auto 0 sc : OptCounterSourceScope kind Player} -> Effect bs
+                   {auto 0 sc : OptCounterSourceScope kind Player} -> Instruction bs
 losesAllCounters who kind = LosesCounters who kind Nothing {sc}
 
 public export
@@ -1608,7 +1608,7 @@ removeCounters : (q : Quantity bs) -> (kind : Maybe (CounterKindSource bs)) ->
                  (from : Noun (quantIntro q) Object) ->
                  {auto 0 wf : WellFormedQ q} ->
                  {auto 0 sc : OptCounterSourceScope kind Object} ->
-                 {auto 0 cm : CounterMemory from} -> Effect bs
+                 {auto 0 cm : CounterMemory from} -> Instruction bs
 removeCounters q kind from =
   RemoveCounters (Just q) kind from
                  {wf = Present {ok = wf}} {sc} {cm}
@@ -1617,7 +1617,7 @@ public export
 removeAllCounters : (kind : Maybe (CounterKindSource bs)) ->
                     (from : Noun bs Object) ->
                     {auto 0 sc : OptCounterSourceScope kind Object} ->
-                    {auto 0 cm : CounterMemory from} -> Effect bs
+                    {auto 0 cm : CounterMemory from} -> Instruction bs
 removeAllCounters kind from = RemoveCounters Nothing kind from {sc} {cm}
 
 public export
@@ -1686,74 +1686,74 @@ flavorWord word ab = ItalicHead (AFlavorWord word) ab {nw}
 
 public export
 triggered : {bs : Bindings} -> (word : TriggerWord) -> (ev : GameEvent bs) ->
-            (eff : Effect (eventAfter ev)) ->
+            (instr : Instruction (eventAfter ev)) ->
             {auto 0 hn : HeaderNontarget ev} ->
             {auto 0 hs : HeaderStatus ev} ->
             {auto 0 ae : AltEvent word (the (List (GameEvent bs)) [])} ->
             {auto 0 cd : ChapterDefaults ev [] Nothing [] Nothing Nothing Nothing} ->
             AbilityAt bs
-triggered word ev eff =
-  Triggered word ev [] Nothing [] Nothing Nothing Nothing eff {hn} {hs} {ae} {cd}
+triggered word ev instr =
+  Triggered word ev [] Nothing [] Nothing Nothing Nothing instr {hn} {hs} {ae} {cd}
 
 public export
 triggeredIf : {bs : Bindings} -> (word : TriggerWord) -> (ev : GameEvent bs) ->
               (cond : Condition (headerCtx [] ev)) ->
-              (eff : Effect (interveningIntro (Just cond))) ->
+              (instr : Instruction (interveningIntro (Just cond))) ->
               {auto 0 hn : HeaderNontarget ev} ->
               {auto 0 hs : HeaderStatus ev} ->
               {auto 0 ae : AltEvent word (the (List (GameEvent bs)) [])} ->
               {auto 0 cd : ChapterDefaults ev [] Nothing [] Nothing Nothing (Just cond)} ->
               AbilityAt bs
-triggeredIf word ev cond eff =
-  Triggered word ev [] Nothing [] Nothing Nothing (Just cond) eff {hn} {hs} {ae} {cd}
+triggeredIf word ev cond instr =
+  Triggered word ev [] Nothing [] Nothing Nothing (Just cond) instr {hn} {hs} {ae} {cd}
 
 public export
 triggeredOr : {bs : Bindings} -> (word : TriggerWord) -> (ev : GameEvent bs) ->
               (alts : List (GameEvent bs)) ->
-              (eff : Effect (headerCtx alts ev)) ->
+              (instr : Instruction (headerCtx alts ev)) ->
               {auto 0 hn : HeaderNontarget ev} ->
               {auto 0 hs : HeaderStatus ev} ->
               {auto 0 ae : AltEvent word alts} ->
               {auto 0 cd : ChapterDefaults ev alts Nothing [] Nothing Nothing Nothing} ->
               AbilityAt bs
-triggeredOr word ev alts eff =
-  Triggered word ev alts Nothing [] Nothing Nothing Nothing eff {hn} {hs} {ae} {cd}
+triggeredOr word ev alts instr =
+  Triggered word ev alts Nothing [] Nothing Nothing Nothing instr {hn} {hs} {ae} {cd}
 
 public export
 triggeredOnlyDuring : {bs : Bindings} -> (word : TriggerWord) ->
                       (ev : GameEvent bs) -> (w : TriggerWindow bs) ->
-                      (eff : Effect (eventAfter ev)) ->
+                      (instr : Instruction (eventAfter ev)) ->
                       {auto 0 hn : HeaderNontarget ev} ->
                       {auto 0 hs : HeaderStatus ev} ->
                       {auto 0 ae : AltEvent word (the (List (GameEvent bs)) [])} ->
                       {auto 0 cd : ChapterDefaults ev [] Nothing [] (Just w) Nothing Nothing} ->
                       AbilityAt bs
-triggeredOnlyDuring word ev w eff =
-  Triggered word ev [] Nothing [] (Just w) Nothing Nothing eff {hn} {hs} {ae} {cd}
+triggeredOnlyDuring word ev w instr =
+  Triggered word ev [] Nothing [] (Just w) Nothing Nothing instr {hn} {hs} {ae} {cd}
 
 public export
 triggeredWhile : {bs : Bindings} -> (word : TriggerWord) -> (ev : GameEvent bs) ->
                  (wh : Concurrent (headerCtx (the (List (GameEvent bs)) []) ev)) ->
-                 (eff : Effect (eventAfter ev)) ->
+                 (instr : Instruction (eventAfter ev)) ->
                  {auto 0 hn : HeaderNontarget ev} ->
                  {auto 0 hs : HeaderStatus ev} ->
                  {auto 0 ae : AltEvent word (the (List (GameEvent bs)) [])} ->
                  {auto 0 cd : ChapterDefaults ev [] (Just wh) [] Nothing Nothing Nothing} ->
                  AbilityAt bs
-triggeredWhile word ev wh eff =
-  Triggered word ev [] (Just wh) [] Nothing Nothing Nothing eff {hn} {hs} {ae} {cd}
+triggeredWhile word ev wh instr =
+  Triggered word ev [] (Just wh) [] Nothing Nothing Nothing instr {hn} {hs} {ae} {cd}
 
 public export
 triggeredJoined : {bs : Bindings} -> (word : TriggerWord) -> (ev : GameEvent bs) ->
                   (joins : List (JoinedHeader bs)) ->
-                  (eff : Effect (joinedCtx joins (headerCtx (the (List (GameEvent bs)) []) ev))) ->
+                  (instr : Instruction (joinedCtx joins (headerCtx (the (List (GameEvent bs)) []) ev))) ->
                   {auto 0 hn : HeaderNontarget ev} ->
                   {auto 0 hs : HeaderStatus ev} ->
                   {auto 0 ae : AltEvent word (the (List (GameEvent bs)) [])} ->
                   {auto 0 cd : ChapterDefaults ev [] Nothing joins Nothing Nothing Nothing} ->
                   AbilityAt bs
-triggeredJoined word ev joins eff =
-  Triggered word ev [] Nothing joins Nothing Nothing Nothing eff {hn} {hs} {ae} {cd}
+triggeredJoined word ev joins instr =
+  Triggered word ev [] Nothing joins Nothing Nothing Nothing instr {hn} {hs} {ae} {cd}
 
 public export
 joinedHead : {bs : Bindings} -> (word : TriggerWord) -> (ev : GameEvent bs) ->
@@ -1775,70 +1775,70 @@ joinedHeadWhile word ev wh = MkJoinedHeader word ev [] (Just wh) Nothing {hn} {h
 public export
 triggeredOnlyOnce : {bs : Bindings} -> (word : TriggerWord) ->
                     (ev : GameEvent bs) -> (lim : UsageLimit) ->
-                    (eff : Effect (eventAfter ev)) ->
+                    (instr : Instruction (eventAfter ev)) ->
                     {auto 0 hn : HeaderNontarget ev} ->
                     {auto 0 hs : HeaderStatus ev} ->
                     {auto 0 ae : AltEvent word (the (List (GameEvent bs)) [])} ->
                     {auto 0 cd : ChapterDefaults ev [] Nothing [] Nothing (Just lim) Nothing} ->
                     AbilityAt bs
-triggeredOnlyOnce word ev lim eff =
-  Triggered word ev [] Nothing [] Nothing (Just lim) Nothing eff {hn} {hs} {ae} {cd}
+triggeredOnlyOnce word ev lim instr =
+  Triggered word ev [] Nothing [] Nothing (Just lim) Nothing instr {hn} {hs} {ae} {cd}
 
 public export
 activated : (cost : Cost (dropLetter X bs)) ->
-            (eff : Effect (publicOnly (costIntro cost))) ->
+            (instr : Instruction (publicOnly (costIntro cost))) ->
             {auto 0 tp : CostTapOnce cost} ->
             {auto 0 py : CostPaidByYou cost} -> AbilityAt bs
-activated cost eff = Activated cost eff Nothing Nothing Nothing Nothing {tp} {py}
+activated cost instr = Activated cost instr Nothing Nothing Nothing Nothing {tp} {py}
 
 public export
 activatedBy : (cost : Cost (dropLetter X bs)) ->
-              (eff : Effect (publicOnly (costIntro cost))) ->
+              (instr : Instruction (publicOnly (costIntro cost))) ->
               (who : Noun bs Player) ->
               {auto 0 tp : CostTapOnce cost} ->
               {auto 0 py : CostPaidByYou cost} -> AbilityAt bs
-activatedBy cost eff who =
-  Activated cost eff Nothing Nothing Nothing (Just who) {tp} {py}
+activatedBy cost instr who =
+  Activated cost instr Nothing Nothing Nothing (Just who) {tp} {py}
 
 public export
 activatedOnlyDuring : (cost : Cost (dropLetter X bs)) ->
-                      (eff : Effect (publicOnly (costIntro cost))) ->
+                      (instr : Instruction (publicOnly (costIntro cost))) ->
                       (w : Timing bs) ->
                       {auto 0 tp : CostTapOnce cost} ->
                       {auto 0 py : CostPaidByYou cost} ->
                       AbilityAt bs
-activatedOnlyDuring cost eff w = Activated cost eff (Just w) Nothing Nothing Nothing {tp} {py}
+activatedOnlyDuring cost instr w = Activated cost instr (Just w) Nothing Nothing Nothing {tp} {py}
 
 public export
 activatedOnlyOnce : (cost : Cost (dropLetter X bs)) ->
-                    (eff : Effect (publicOnly (costIntro cost))) ->
+                    (instr : Instruction (publicOnly (costIntro cost))) ->
                     (lim : UsageLimit) ->
                     {auto 0 tp : CostTapOnce cost} ->
                     {auto 0 py : CostPaidByYou cost} ->
                     {auto 0 ul : So (untriggeredLimitOk (Just lim))} ->
                     AbilityAt bs
-activatedOnlyOnce cost eff lim =
-  Activated cost eff Nothing (Just lim) Nothing Nothing {tp} {py} {ul}
+activatedOnlyOnce cost instr lim =
+  Activated cost instr Nothing (Just lim) Nothing Nothing {tp} {py} {ul}
 
 public export
 activatedOnlyIf : (cost : Cost (dropLetter X bs)) ->
-                  (eff : Effect (publicOnly (costIntro cost))) ->
+                  (instr : Instruction (publicOnly (costIntro cost))) ->
                   (g : Condition bs) ->
                   {auto 0 tp : CostTapOnce cost} ->
                   {auto 0 py : CostPaidByYou cost} ->
                   AbilityAt bs
-activatedOnlyIf cost eff g = Activated cost eff Nothing Nothing (Just g) Nothing {tp} {py}
+activatedOnlyIf cost instr g = Activated cost instr Nothing Nothing (Just g) Nothing {tp} {py}
 
 public export
 activatedOnlyOnceIf : (cost : Cost (dropLetter X bs)) ->
-                      (eff : Effect (publicOnly (costIntro cost))) ->
+                      (instr : Instruction (publicOnly (costIntro cost))) ->
                       (lim : UsageLimit) -> (g : Condition bs) ->
                       {auto 0 tp : CostTapOnce cost} ->
                       {auto 0 py : CostPaidByYou cost} ->
                       {auto 0 ul : So (untriggeredLimitOk (Just lim))} ->
                       AbilityAt bs
-activatedOnlyOnceIf cost eff lim g =
-  Activated cost eff Nothing (Just lim) (Just g) Nothing {tp} {py} {ul}
+activatedOnlyOnceIf cost instr lim g =
+  Activated cost instr Nothing (Just lim) (Just g) Nothing {tp} {py} {ul}
 
 public export
 mayPlayDeed : (deed : VerbLabel) -> (who : Noun bs Player) ->
@@ -1857,7 +1857,7 @@ mayPlayDeed : (deed : VerbLabel) -> (who : Noun bs Player) ->
                                               (Permit {bs = selfSubjIntro who})
                                               (DeonticCounterpart what) (isJust asThough)
                                               rider)} ->
-              StaticEffect bs
+              StaticSpec bs
 mayPlayDeed deed who what asThough rider =
   Deontic who Permit [deed] Agent Nothing (DeonticCounterpart what) asThough rider
           {kd} {dd} {dp} {pt} {at} {rd}
@@ -1885,7 +1885,7 @@ public export
 entersWithAdditionalCounters : (n : Noun bs Object) -> (amt : Amount (nomIntro n)) ->
                                (kind : CounterKind) ->
                                {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
-                               StaticEffect bs
+                               StaticSpec bs
 entersWithAdditionalCounters n amt kind =
   EntersRider n (WithCounters amt (PrintedKind kind) Additional) {zn}
 
@@ -1893,7 +1893,7 @@ public export
 entersWithFewerCounters : (n : Noun bs Object) -> (amt : Amount (nomIntro n)) ->
                           (kind : CounterKind) ->
                           {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
-                          StaticEffect bs
+                          StaticSpec bs
 entersWithFewerCounters n amt kind =
   EntersRider n (WithCounters amt (PrintedKind kind) Fewer) {zn}
 
@@ -1998,7 +1998,7 @@ exchangeControlOfThis : {bs : Bindings} -> (t : CardType) -> (other : Noun bs Ob
                                        (ExchangeCtx t other one way) = 1} ->
                         {auto 0 zw : So (zoneIsB (zoneOfReach (Word PermanentW) OneOf
                                           (ExchangeCtx t other one way)) Battlefield)} ->
-                        Effect bs
+                        Instruction bs
 exchangeControlOfThis t other =
   Simultaneously
     [ gainControl (controllerOf other {one}) (AsType t This Nothing {way}) Nothing
@@ -2008,7 +2008,7 @@ exchangeControlOfThis t other =
 public export
 choose : {k : Kind} -> (n : Noun bs k) ->
          {auto 0 ch : ChoiceClause (the (Maybe (Noun bs Player)) Nothing) n} ->
-         Effect bs
+         Instruction bs
 choose n = Choose n Nothing Openly {ch}
 
 public export
@@ -2018,13 +2018,13 @@ armyYouControl =
 
 public export
 0 AmassCtx : {bs : Bindings} -> Bindings
-AmassCtx {bs} = effIntro (choose {bs} (Macros.a armyYouControl))
+AmassCtx {bs} = instrIntro (choose {bs} (Macros.a armyYouControl))
 
 public export
 0 AmassAfter : {bs : Bindings} -> (n : Nat) ->
                (0 ac : countReach (Word (TypeW Creature)) OneOf (AmassCtx {bs}) = 1) -> Bindings
 AmassAfter n ac =
-  effIntro (PutCounters {bs = AmassCtx {bs}} (Lit n) (PrintedKind plusOnePlusOne)
+  instrIntro (PutCounters {bs = AmassCtx {bs}} (Lit n) (PrintedKind plusOnePlusOne)
                         (That (TypeW Creature) OneOf {ok = ac}))
 
 ||| "amass [subtype] N" [CR#701.47a]
@@ -2032,7 +2032,7 @@ public export
 amass : {bs : Bindings} -> (sub : String) -> (n : Nat) ->
         {auto 0 ac : countReach (Word (TypeW Creature)) OneOf (AmassCtx {bs}) = 1} ->
         {auto 0 ab : countReach Bare OneOf (AmassAfter {bs} n ac) = 1} ->
-        Effect bs
+        Instruction bs
 amass sub n =
   Sequentially [ If (NotCond (exists armyYouControl))
                     (create (Lit 1) (creatureTok 0 0 [Black]
@@ -2048,12 +2048,12 @@ amass sub n =
 
 public export
 chooses : {k : Kind} -> (who : Noun bs Player) -> (n : Noun bs k) ->
-          {auto 0 ch : ChoiceClause (Just who) n} -> Effect bs
+          {auto 0 ch : ChoiceClause (Just who) n} -> Instruction bs
 chooses who n = Choose n (Just who) Openly {ch}
 
 public export
 secretlyChooses : {k : Kind} -> (who : Noun bs Player) -> (n : Noun bs k) ->
-                  {auto 0 ch : ChoiceClause (Just who) n} -> Effect bs
+                  {auto 0 ch : ChoiceClause (Just who) n} -> Instruction bs
 secretlyChooses who n = Choose n (Just who) Secretly {ch}
 
 takeDropAppend : {0 elem : Type} -> (n : Nat) -> (xs : List elem) ->
@@ -2063,14 +2063,14 @@ takeDropAppend (S n) [] = Refl
 takeDropAppend (S n) (x :: xs) = cong (x ::) (takeDropAppend n xs)
 
 public export
-itPrior : {bs : Bindings} -> (prev : Effect bs) ->
-          {auto 0 ok : countReach Bare OneOf (effDelta prev) = 1} ->
-          Noun (effIntro prev) Object
+itPrior : {bs : Bindings} -> (prev : Instruction bs) ->
+          {auto 0 ok : countReach Bare OneOf (instrDelta prev) = 1} ->
+          Noun (instrIntro prev) Object
 itPrior {bs} prev =
-  Own OneOf (effDelta prev)
-    (drop (length (effIntro prev) `minus` length bs) (effIntro prev))
-    {sp = takeDropAppend (length (effIntro prev) `minus` length bs)
-                         (effIntro prev)}
+  Own OneOf (instrDelta prev)
+    (drop (length (instrIntro prev) `minus` length bs) (instrIntro prev))
+    {sp = takeDropAppend (length (instrIntro prev) `minus` length bs)
+                         (instrIntro prev)}
     {ok}
 
 public export
@@ -2078,7 +2078,7 @@ dealsDamageOwnPower : {bs : Bindings} -> {k : Kind} -> (src : Noun bs Object) ->
                       {auto 0 ok : countReach Bare OneOf (nounDelta src) = 1} ->
                       (to : Noun (nounDelta src ++ bs) k) ->
                       {auto 0 pm : PerMember to} ->
-                      {auto 0 rk : DamageRecipient to} -> Effect bs
+                      {auto 0 rk : DamageRecipient to} -> Instruction bs
 dealsDamageOwnPower src to =
   DealDamage src (StatOf Power (Own OneOf (nounDelta src) bs {sp = Refl} {ok})) to {pm} {rk}
 
@@ -2086,14 +2086,14 @@ public export
 additionalPart : (part : TurnPart) -> (anchor : Maybe TurnPart) ->
                  (count : Amount bs) ->
                  {auto 0 ad : AddedPart part} ->
-                 {auto 0 an : AddedPartWritten anchor} -> Effect bs
+                 {auto 0 an : AddedPartWritten anchor} -> Instruction bs
 additionalPart part anchor count =
   AdditionalPart Nothing part anchor count Nothing {ad} {an}
 
 public export
 getsAdditionalPart : (who : Noun bs Player) -> (part : TurnPart) ->
                      (count : Amount bs) ->
-                     {auto 0 ad : AddedPart part} -> Effect bs
+                     {auto 0 ad : AddedPart part} -> Instruction bs
 getsAdditionalPart who part count =
   AdditionalPart (Just who) part Nothing count Nothing {ad}
 
@@ -2102,33 +2102,33 @@ additionalPartThen : (part : TurnPart) -> (anchor : Maybe TurnPart) ->
                      (count : Amount bs) -> (next : TurnPart) ->
                      {auto 0 ad : AddedPart part} ->
                      {auto 0 an : AddedPartWritten anchor} ->
-                     {auto 0 fb : AddedPartWritten (Just next)} -> Effect bs
+                     {auto 0 fb : AddedPartWritten (Just next)} -> Instruction bs
 additionalPartThen part anchor count next =
   AdditionalPart Nothing part anchor count (Just next) {ad} {an} {fb}
 
 public export
 vote : (voters : Noun bs Player) -> (disc : Disclosure) ->
-       (ballot : Ballot (nomIntro voters)) -> Effect bs
+       (ballot : Ballot (nomIntro voters)) -> Instruction bs
 vote voters disc ballot = Vote Nothing voters disc ballot
 
 public export
 shiftResult : (amt : Amount bs) ->
-              {auto 0 ok : countOutcomes RollResult bs = 1} -> Effect bs
+              {auto 0 ok : countOutcomes RollResult bs = 1} -> Instruction bs
 shiftResult amt = ShiftResult Nothing amt {ok}
 
 public export
-chaosEnsues : Effect bs
+chaosEnsues : Instruction bs
 chaosEnsues = ChaosEnsues Nothing
 
 public export
-delayed : (ev : GameEvent bs) -> (eff : Effect (delayedCtx [] ev)) -> Effect bs
-delayed ev eff = Delayed ev [] Nothing eff
+delayed : (ev : GameEvent bs) -> (instr : Instruction (delayedCtx [] ev)) -> Instruction bs
+delayed ev instr = Delayed ev [] Nothing instr
 
 public export
 delayedWithin : (ev : GameEvent bs) -> (span : Duration bs) ->
-                (eff : Effect (delayedCtx [] ev)) ->
-                {auto 0 so : DelaySpanOk (Just span)} -> Effect bs
-delayedWithin ev span eff = Delayed ev [] (Just span) eff {so}
+                (instr : Instruction (delayedCtx [] ev)) ->
+                {auto 0 so : DelaySpanOk (Just span)} -> Instruction bs
+delayedWithin ev span instr = Delayed ev [] (Just span) instr {so}
 
 public export
 quality : (q : QualitySort) -> Predicate bs (Quality q)
@@ -2141,34 +2141,34 @@ qualityFrom q d = QualityNoun q (Just d)
 public export
 entersChoosing : (n : Noun bs Object) -> (q : QualitySort) ->
                  {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
-                 StaticEffect bs
+                 StaticSpec bs
 entersChoosing n q = EntersChoice n (QSort q) Nothing Openly {zn}
 
 public export
 entersChoosingFrom : (n : Noun bs Object) -> (q : QualitySort) ->
                      (d : ChoiceDomain (QSort q)) ->
                      {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
-                     StaticEffect bs
+                     StaticSpec bs
 entersChoosingFrom n q d = EntersChoice n (QSort q) (Just d) Openly {zn}
 
 public export
 entersChoosingPlayer : (n : Noun bs Object) ->
                        (d : Maybe (ChoiceDomain PlayerC)) ->
                        {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
-                       StaticEffect bs
+                       StaticSpec bs
 entersChoosingPlayer n d = EntersChoice n PlayerC d Openly {zn}
 
 public export
 entersChoosingPlayerSecretly : (n : Noun bs Object) ->
                                (d : Maybe (ChoiceDomain PlayerC)) ->
                                {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
-                               StaticEffect bs
+                               StaticSpec bs
 entersChoosingPlayerSecretly n d = EntersChoice n PlayerC d Secretly {zn}
 
 public export
 attachChoosing : (n : Noun bs Object) -> (q : QualitySort) ->
                  {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
-                 StaticEffect bs
+                 StaticSpec bs
 attachChoosing n q = AttachChoice n (QSort q) Nothing {zn}
 
 public export
@@ -2298,12 +2298,12 @@ public export
 gainsDesignation : {k : Kind} -> (n : Noun bs k) -> (d : Designation) ->
                    (w : GivingWarrant d) ->
                    {auto 0 sc : designationScope d = HeldBy k} ->
-                   {auto 0 zn : DesignationHolder d (nounZone n)} -> Effect bs
+                   {auto 0 zn : DesignationHolder d (nounZone n)} -> Instruction bs
 gainsDesignation n d w = GainsDesignation n d w Nothing {sc} {zn}
 
 public export
 monstrosity : {bs : Bindings} -> (amt : Amount bs) ->
-              Effect bs
+              Instruction bs
 monstrosity amt =
   If (NotCond (Matches This (HasDesignation Monstrous)))
      (Sequentially [ PutCounters amt (PrintedKind plusOnePlusOne) thisCreature
@@ -2312,17 +2312,17 @@ monstrosity amt =
      Nothing
 
 public export
-getsCitysBlessing : Effect bs
+getsCitysBlessing : Instruction bs
 getsCitysBlessing =
   GainsDesignation You CitysBlessing (InExpansionOf AscendW) (Just RestOfGame)
 
 public export
-becomesSaddled : Effect bs
+becomesSaddled : Instruction bs
 becomesSaddled =
   GainsDesignation (AsType Artifact This Nothing) Saddled (InExpansionOf SaddleW) (Just untilEndOfTurn)
 
 public export
-getsEnduringStory : Effect bs
+getsEnduringStory : Instruction bs
 getsEnduringStory =
   GainsDesignation You EnduringStory (InExpansionOf StoriedW) (Just RestOfGame)
 
@@ -2391,25 +2391,25 @@ thereIsNo : (d : Designation) ->
 thereIsNo d = NoHolder d {sc} {at}
 
 public export
-ifThen : (c : Condition bs) -> Effect (condIntro c) -> Effect bs
+ifThen : (c : Condition bs) -> Instruction (condIntro c) -> Instruction bs
 ifThen c e = If c e Nothing
 
 public export
-onlyWhile : {bs : Bindings} -> (se : StaticEffect bs) -> (c : Condition (staticIntro se)) -> StaticEffect bs
+onlyWhile : {bs : Bindings} -> (se : StaticSpec bs) -> (c : Condition (staticIntro se)) -> StaticSpec bs
 onlyWhile {bs} se c = Conditionally {bs} c se AsLongAs {st = Static.StaticFirstDone}
 
 public export
-onlyUnless : {bs : Bindings} -> (se : StaticEffect bs) -> (c : Condition (staticIntro se)) -> StaticEffect bs
+onlyUnless : {bs : Bindings} -> (se : StaticSpec bs) -> (c : Condition (staticIntro se)) -> StaticSpec bs
 onlyUnless {bs} se c = Conditionally {bs} (NotCond c) se Unless {st = Static.StaticFirstDone}
 
 public export
-onlyIfSo : {bs : Bindings} -> (se : StaticEffect bs) -> (c : Condition (staticIntro se)) -> StaticEffect bs
+onlyIfSo : {bs : Bindings} -> (se : StaticSpec bs) -> (c : Condition (staticIntro se)) -> StaticSpec bs
 onlyIfSo {bs} se c = Conditionally {bs} c se IfSo {st = Static.StaticFirstDone}
 
 public export
-throughout : {bs : Bindings} -> (span : Duration bs) -> (se : StaticEffect (spanIntro span)) ->
+throughout : {bs : Bindings} -> (span : Duration bs) -> (se : StaticSpec (spanIntro span)) ->
              {auto 0 sp : SpanOk (Just span)} ->
-             {auto 0 cl : ClauseStatic se} -> Effect bs
+             {auto 0 cl : ClauseStatic se} -> Instruction bs
 throughout {bs} span se = Continuously {bs} se (Just span) {ts = SpanFirstDone} {sp} {cl}
 
 public export
@@ -2417,16 +2417,16 @@ fromTo : Nat -> Nat -> Quantity bs
 fromTo lo hi = Range (Just lo) (Just hi)
 
 public export
-flipCoins : (who : Noun bs Player) -> (count : Nat) -> Effect bs
+flipCoins : (who : Noun bs Player) -> (count : Nat) -> Instruction bs
 flipCoins who count = FlipCoins who (FlipCount (Lit count))
 
 public export
 rollDice : (who : Noun bs Player) -> (count : Nat) -> (sides : Nat) ->
-           {auto 0 nz : IsSucc sides} -> Effect bs
+           {auto 0 nz : IsSucc sides} -> Instruction bs
 rollDice who count sides = RollDice who (Lit count) (SidesOf sides {nz})
 
 public export
-rollRow : (results : Quantity bs) -> (e : Effect bs) ->
+rollRow : (results : Quantity bs) -> (e : Instruction bs) ->
           {auto 0 nz : NonZeroQ results} ->
           {auto 0 wf : WellFormedQ results} ->
           {auto 0 lt : So (quantLiteral results)} -> RollRow bs
@@ -2435,7 +2435,7 @@ rollRow results e = MkRollRow results e {nz} {wf}
 public export
 resultsTable : (rows : List (RollRow bs)) ->
                {auto 0 ne : IsSucc (rowCount rows)} ->
-               {auto 0 ok : countOutcomes RollResult bs = 1} -> Effect bs
+               {auto 0 ok : countOutcomes RollResult bs = 1} -> Instruction bs
 resultsTable rows = ResultsTable rows {ne} {ok}
 
 public export
@@ -2454,7 +2454,7 @@ youRollPlanarDice : GameEvent bs
 youRollPlanarDice = RollsDice You ManyDice PlanarDie AnyResult
 
 public export
-rollThePlanarDie : Effect bs
+rollThePlanarDie : Instruction bs
 rollThePlanarDie = RollPlanarDie You (Lit 1)
 
 public export

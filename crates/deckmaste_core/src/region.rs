@@ -13,7 +13,7 @@ use serde::ser::SerializeTuple;
 use serde::ser::SerializeTupleStruct;
 use serde::ser::SerializeTupleVariant;
 
-use crate::OneShotEffect;
+use crate::Instruction;
 
 /// The ordinal assigned to a value defined in a [`Region`].
 ///
@@ -79,7 +79,7 @@ pub enum Provenance {
     /// nothing.
     Capture(RefId),
     /// A linked memory cell of the card ([CR#607.1] — ADR law 8), written by
-    /// an [`OneShotEffect::Remember`](crate::OneShotEffect::Remember) on
+    /// an [`Instruction::Remember`](crate::Instruction::Remember) on
     /// another ability of the same card and supplied to this region at entry.
     Linked(crate::Ident),
     /// Reserved by the discourse stage.
@@ -155,27 +155,27 @@ pub fn event_region_params() -> Arc<[Param]> {
 /// entry and validation explicit without introducing a second core grammar.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Deserialize, Serialize)]
 #[serde(transparent)]
-pub struct Block(pub Arc<[OneShotEffect]>);
+pub struct Block(pub Arc<[Instruction]>);
 
 impl Deref for Block {
-    type Target = [OneShotEffect];
+    type Target = [Instruction];
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl From<OneShotEffect> for Block {
-    fn from(effect: OneShotEffect) -> Self {
+impl From<Instruction> for Block {
+    fn from(effect: Instruction) -> Self {
         match effect {
-            OneShotEffect::Sequentially(parts) => Block(parts),
+            Instruction::Sequentially(parts) => Block(parts),
             other => Block(Arc::from([other])),
         }
     }
 }
 
-impl From<Arc<[OneShotEffect]>> for Block {
-    fn from(instructions: Arc<[OneShotEffect]>) -> Self {
+impl From<Arc<[Instruction]>> for Block {
+    fn from(instructions: Arc<[Instruction]>) -> Self {
         Block(instructions)
     }
 }
@@ -338,15 +338,15 @@ macro_rules! unconstrained_candidate_body {
     )+};
 }
 
-unconstrained_candidate_body!(crate::Condition, crate::Count, crate::StaticEffect, Block,);
+unconstrained_candidate_body!(crate::Condition, crate::Count, crate::StaticSpec, Block,);
 
-impl From<OneShotEffect> for Region<Block> {
-    fn from(effect: OneShotEffect) -> Self {
+impl From<Instruction> for Region<Block> {
+    fn from(effect: Instruction) -> Self {
         Self::new(Arc::from([]), effect.into())
     }
 }
 
-/// A pure expression whose value can be pinned by [`crate::Instr::Let`].
+/// A pure expression whose value can be pinned by [`crate::Instruction::Let`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum Expr {
     Object(crate::Reference),
@@ -497,7 +497,7 @@ pub fn validate(region: &Region<Block>) -> Result<(), ValidationError> {
 ///
 /// Returns [`ValidationError`] when a declaration or register read violates
 /// the region ABI.
-pub fn validate_static(region: &Region<crate::StaticEffect>) -> Result<(), ValidationError> {
+pub fn validate_static(region: &Region<crate::StaticSpec>) -> Result<(), ValidationError> {
     validate_params(region, None)?;
     let mut definitions = Definitions::new(&region.params);
     validate_static_effect(&region.body, &mut definitions)
@@ -532,24 +532,24 @@ pub fn validate_sba(region: &Region<crate::SbaBody>) -> Result<(), ValidationErr
 }
 
 fn validate_static_effect(
-    effect: &crate::StaticEffect,
+    effect: &crate::StaticSpec,
     definitions: &mut Definitions,
 ) -> Result<(), ValidationError> {
     match effect {
-        crate::StaticEffect::Each(over, body) => {
+        crate::StaticSpec::Each(over, body) => {
             over.serialize(definitions.walker())?;
             validate_selection_regions(over, &definitions.params)?;
             validate_params(body, Some(&definitions.params))?;
             let mut body_definitions = Definitions::new(&body.params);
             validate_static_effect(&body.body, &mut body_definitions)
         }
-        crate::StaticEffect::Conditionally(condition, body) => {
+        crate::StaticSpec::Conditionally(condition, body) => {
             condition.serialize(definitions.walker())?;
             validate_condition_regions(condition, &definitions.params)?;
             validate_static_effect(body, definitions)
         }
-        crate::StaticEffect::Deontic(deontic) => validate_deontic(deontic, definitions),
-        crate::StaticEffect::Sba { when, then } => {
+        crate::StaticSpec::Deontic(deontic) => validate_deontic(deontic, definitions),
+        crate::StaticSpec::Sba { when, then } => {
             when.serialize(definitions.walker())?;
             validate_condition_regions(when, &definitions.params)?;
             let outer = definitions.params.len();
@@ -679,10 +679,10 @@ fn validate_region(
     reason = "the exhaustive instruction validator keeps definition sequencing visible in one dispatch"
 )]
 fn validate_instructions(
-    instructions: &[OneShotEffect],
+    instructions: &[Instruction],
     definitions: &mut Definitions,
 ) -> Result<(), ValidationError> {
-    use crate::OneShotEffect as E;
+    use crate::Instruction as E;
     for instruction in instructions {
         match instruction {
             E::Act { dest, action } => {
@@ -1917,7 +1917,7 @@ mod tests {
 
     #[test]
     fn sequential_effect_becomes_a_textual_block() {
-        let block = Block::from(OneShotEffect::Sequentially(Arc::from([])));
+        let block = Block::from(Instruction::Sequentially(Arc::from([])));
         assert!(block.is_empty());
     }
 
@@ -1952,7 +1952,7 @@ mod tests {
     fn rejects_out_of_range_and_wrong_kind_reads() {
         let out_of_range = Region::new(
             Arc::from([param(0, Provenance::Source)]),
-            OneShotEffect::act(crate::Action::Counter(crate::Reference::Reg(RefId(1)))).into(),
+            Instruction::act(crate::Action::Counter(crate::Reference::Reg(RefId(1)))).into(),
         );
         assert_eq!(
             validate(&out_of_range),
@@ -1964,9 +1964,9 @@ mod tests {
 
         let wrong_kind = Region::new(
             Arc::from([param(0, Provenance::Source)]),
-            OneShotEffect::Repeat(
+            Instruction::Repeat(
                 crate::Count::Reg(RefId(0)),
-                Arc::new(OneShotEffect::Sequentially(Arc::from([]))),
+                Arc::new(Instruction::Sequentially(Arc::from([]))),
             )
             .into(),
         );
@@ -1988,8 +1988,8 @@ mod tests {
         )
     }
 
-    fn object_let(dest: u32, source: u32) -> OneShotEffect {
-        OneShotEffect::Let(crate::Let {
+    fn object_let(dest: u32, source: u32) -> Instruction {
+        Instruction::Let(crate::Let {
             dest: DefId(dest),
             expr: Expr::Object(crate::Reference::Reg(RefId(source))),
         })
@@ -1997,15 +1997,15 @@ mod tests {
 
     #[test]
     fn branch_definitions_are_textual_but_lexically_scoped() {
-        let branch = OneShotEffect::If(crate::If {
+        let branch = Instruction::If(crate::If {
             condition: always(),
-            then: Arc::new(OneShotEffect::Sequentially(Arc::from([
+            then: Arc::new(Instruction::Sequentially(Arc::from([
                 object_let(1, 0),
-                OneShotEffect::act(crate::Action::Counter(crate::Reference::Reg(RefId(1)))),
+                Instruction::act(crate::Action::Counter(crate::Reference::Reg(RefId(1)))),
             ]))),
-            otherwise: Some(Arc::new(OneShotEffect::Sequentially(Arc::from([
+            otherwise: Some(Arc::new(Instruction::Sequentially(Arc::from([
                 object_let(2, 0),
-                OneShotEffect::act(crate::Action::Counter(crate::Reference::Reg(RefId(2)))),
+                Instruction::act(crate::Action::Counter(crate::Reference::Reg(RefId(2)))),
             ])))),
         });
         let valid = Region::new(
@@ -2013,20 +2013,20 @@ mod tests {
             Block(Arc::from([
                 branch.clone(),
                 object_let(3, 0),
-                OneShotEffect::act(crate::Action::Counter(crate::Reference::Reg(RefId(3)))),
+                Instruction::act(crate::Action::Counter(crate::Reference::Reg(RefId(3)))),
             ])),
         );
         assert_eq!(validate(&valid), Ok(()));
 
         let sibling_read = Region::new(
             Arc::from([param(0, Provenance::Source)]),
-            OneShotEffect::If(crate::If {
+            Instruction::If(crate::If {
                 condition: always(),
                 then: match branch {
-                    OneShotEffect::If(branch) => branch.then,
+                    Instruction::If(branch) => branch.then,
                     _ => unreachable!(),
                 },
-                otherwise: Some(Arc::new(OneShotEffect::act(crate::Action::Counter(
+                otherwise: Some(Arc::new(Instruction::act(crate::Action::Counter(
                     crate::Reference::Reg(RefId(1)),
                 )))),
             })
@@ -2068,13 +2068,7 @@ mod tests {
         );
         let region = Region::new(
             Arc::from([param(0, Provenance::Source)]),
-            Block(
-                vec![
-                    OneShotEffect::act(crate::Action::Pay(cost)),
-                    object_let(2, 0),
-                ]
-                .into(),
-            ),
+            Block(vec![Instruction::act(crate::Action::Pay(cost)), object_let(2, 0)].into()),
         );
 
         assert_eq!(validate(&region), Ok(()));
@@ -2084,7 +2078,7 @@ mod tests {
     fn nested_regions_are_closed_against_their_own_params() {
         let nested = Region::new(
             Arc::from([]),
-            OneShotEffect::act(crate::Action::Counter(crate::Reference::Reg(RefId(0)))).into(),
+            Instruction::act(crate::Action::Counter(crate::Reference::Reg(RefId(0)))).into(),
         );
         let ability = crate::TriggeredAbility {
             ability_word: None,
@@ -2103,7 +2097,7 @@ mod tests {
         };
         let outer = Region::new(
             Arc::from([param(0, Provenance::Source)]),
-            OneShotEffect::Delayed(Arc::new(ability)).into(),
+            Instruction::Delayed(Arc::new(ability)).into(),
         );
         assert_eq!(
             validate(&outer),
@@ -2183,11 +2177,11 @@ mod tests {
                 kind: Kind::Entity,
                 provenance: Provenance::Capture(RefId(3)),
             }]),
-            OneShotEffect::act(crate::Action::Counter(crate::Reference::Reg(RefId(0)))).into(),
+            Instruction::act(crate::Action::Counter(crate::Reference::Reg(RefId(0)))).into(),
         );
         let outer = Region::new(
             Arc::from([param(0, Provenance::Source)]),
-            OneShotEffect::Delayed(Arc::new(delayed_with(body))).into(),
+            Instruction::Delayed(Arc::new(delayed_with(body))).into(),
         );
         assert_eq!(
             validate(&outer),
@@ -2208,11 +2202,11 @@ mod tests {
                 kind: Kind::Entity,
                 provenance: Provenance::Capture(RefId(0)),
             }]),
-            OneShotEffect::act(crate::Action::Counter(crate::Reference::Reg(RefId(0)))).into(),
+            Instruction::act(crate::Action::Counter(crate::Reference::Reg(RefId(0)))).into(),
         );
         let outer = Region::new(
             Arc::from([param(0, Provenance::Source)]),
-            OneShotEffect::Delayed(Arc::new(delayed_with(body))).into(),
+            Instruction::Delayed(Arc::new(delayed_with(body))).into(),
         );
         assert_eq!(validate(&outer), Ok(()));
     }
@@ -2245,7 +2239,7 @@ mod tests {
     fn remember_reads_a_register_of_its_own_region() {
         let valid = Region::new(
             Arc::from([param(0, Provenance::Source)]),
-            OneShotEffect::Remember(crate::Remember {
+            Instruction::Remember(crate::Remember {
                 cell: crate::Ident::from("exiled"),
                 kind: Kind::Entity,
                 value: RefId(0),
@@ -2256,7 +2250,7 @@ mod tests {
 
         let undefined = Region::new(
             Arc::from([param(0, Provenance::Source)]),
-            OneShotEffect::Remember(crate::Remember {
+            Instruction::Remember(crate::Remember {
                 cell: crate::Ident::from("exiled"),
                 kind: Kind::Entity,
                 value: RefId(1),
@@ -2282,7 +2276,7 @@ mod tests {
                 kind: Kind::Number,
                 provenance: Provenance::AnnouncedX,
             }]),
-            OneShotEffect::Remember(crate::Remember {
+            Instruction::Remember(crate::Remember {
                 cell: crate::Ident::from("chosen"),
                 kind: Kind::Symbol,
                 value: RefId(0),
@@ -2347,16 +2341,16 @@ mod tests {
         );
         let region = Region::new(
             Arc::from([param(0, Provenance::Source)]),
-            OneShotEffect::SeparatePiles(crate::SeparatePiles {
+            Instruction::SeparatePiles(crate::SeparatePiles {
                 dests: Arc::from([DefId(1), DefId(2)]),
                 group: crate::Selection::Union(Vec::new()),
                 by: crate::Reference::Reg(RefId(0)),
-                then: Some(Arc::new(OneShotEffect::ChoosePile(crate::ChoosePile {
+                then: Some(Arc::new(Instruction::ChoosePile(crate::ChoosePile {
                     dest: DefId(3),
                     from: Arc::from([RefId(1), RefId(2)]),
                     by: crate::Reference::Reg(RefId(0)),
                     random: false,
-                    then: Arc::new(OneShotEffect::Each(crate::Each {
+                    then: Arc::new(Instruction::Each(crate::Each {
                         over: crate::Selection::Reg(RefId(3)),
                         body: loop_body,
                     })),
@@ -2374,12 +2368,12 @@ mod tests {
     fn choose_pile_rejects_non_pile_registers() {
         let region = Region::new(
             Arc::from([param(0, Provenance::Source)]),
-            OneShotEffect::ChoosePile(crate::ChoosePile {
+            Instruction::ChoosePile(crate::ChoosePile {
                 dest: DefId(1),
                 from: Arc::from([RefId(0)]),
                 by: crate::Reference::Reg(RefId(0)),
                 random: false,
-                then: Arc::new(OneShotEffect::Sequentially(Arc::from([]))),
+                then: Arc::new(Instruction::Sequentially(Arc::from([]))),
             })
             .into(),
         );

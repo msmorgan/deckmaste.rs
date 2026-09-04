@@ -7,99 +7,99 @@ import Experimental.Cards.Description
 %default total
 
 
-cloudshift : Effect []
+cloudshift : Instruction []
 cloudshift = Sequentially [Macros.exile You (Macros.target Macros.creatureYouControl),
                            Macros.putOntoBattlefieldUnderYourControl (Macros.That CardW OneOf)]
 
-bitterDownfall : Effect []
+bitterDownfall : Instruction []
 bitterDownfall = Sequentially [Macros.destroy (Macros.target Macros.creature),
                                Macros.losesLife (Macros.controllerOf ((Macros.It OneOf))) (Lit 2)]
 
-suspendedSentence : Effect []
+suspendedSentence : Instruction []
 suspendedSentence = Sequentially [Macros.destroy (Macros.target (And [Macros.creature, HasPossessor ControllerAx Macros.anOpponent])),
                                   Macros.losesLife (Macros.That PlayerW OneOf) (Lit 3)]
 
-flickeringSpirit : Effect []
+flickeringSpirit : Instruction []
 flickeringSpirit = Sequentially [Macros.exile You Macros.thisCreature,
                                  Macros.move ((Macros.It OneOf)) Macros.battlefieldZ]
 
 ||| Bond of Revival
-bondOfRevival : Effect []
+bondOfRevival : Instruction []
 bondOfRevival = Sequentially [Macros.returnToBattlefield (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])),
                               Macros.gainsHaste (Macros.ItVerbed "Return" OneOf) (Just Macros.untilYourNextTurn)]
 
-vraskasStoneglare : Effect []
+vraskasStoneglare : Instruction []
 vraskasStoneglare = Sequentially [Macros.destroy (Macros.target Macros.creature),
                                   Macros.gainsLife You (StatOf Toughness ((Macros.It OneOf)))]
 
-phthisis : Effect []
+phthisis : Instruction []
 phthisis = Sequentially [Macros.destroy (Macros.target Macros.creature),
                          Macros.losesLife (Macros.controllerOf ((Macros.It OneOf))) (Plus (StatOf Power ((Macros.It OneOf))) (StatOf Toughness ((Macros.It OneOf))))]
 
-foulTongueShriek : Effect []
+foulTongueShriek : Instruction []
 foulTongueShriek = Sequentially [Macros.losesLife (Macros.target Opponent)
                                            (Macros.forEach 1 (And [Attacking, Macros.creature, HasPossessor ControllerAx You])),
                                  Macros.gainsLife You ThatMuch]
 
-phyrexianInfiltrator : Effect []
+phyrexianInfiltrator : Instruction []
 phyrexianInfiltrator =
   Simultaneously
     [Macros.gainControl (Macros.controllerOf (Macros.target Macros.creature)) Macros.thisCreature Nothing,
      Macros.gainControl (Macros.controllerOf Macros.thisCreature) (Macros.That (TypeW Creature) OneOf) Nothing]
 
-impulse : Effect []
+impulse : Instruction []
 impulse = Sequentially [ Macros.lookAt ((Macros.topSlice (Lit 4)))
                        , Macros.move (Macros.someOf (Macros.exactly 1) ((Macros.It ManyOf))) Macros.handZ
                        , Macros.move Macros.theRest (Macros.onBottomIn AnyOrder)
                        ]
 
-anticipate : Effect []
+anticipate : Instruction []
 anticipate = Sequentially [ Macros.lookAt ((Macros.topSlice (Lit 3)))
                           , Macros.move (Macros.someOf (Macros.exactly 1) ((Macros.It ManyOf))) Macros.handZ
                           , Macros.move Macros.theRest (Macros.onBottomIn AnyOrder)
                           ]
 
-revealFourPartition : Effect []
+revealFourPartition : Instruction []
 revealFourPartition = Sequentially [ Macros.revealCards ((Macros.topSlice (Lit 4)))
                                    , Macros.move (Macros.someOf (Macros.exactly 1) (Macros.That CardW ManyOf)) Macros.handZ
                                    , Macros.move Macros.theRest Macros.graveyardZ
                                    ]
 
-exileFourOfThem : Effect []
+exileFourOfThem : Instruction []
 exileFourOfThem = Sequentially [ Macros.lookAt ((Macros.topSlice (Lit 8)))
                                , Macros.exile You (Macros.someOf (Macros.exactly 4) ((Macros.It ManyOf)))
                                , Macros.move Macros.theRest (Macros.onTopIn AnyOrder)
                                ]
 
-sylvanScrying : Effect []
+sylvanScrying : Instruction []
 sylvanScrying = Sequentially [ Macros.searchLibraryFor (Macros.exactly 1) Macros.land
                              , Macros.revealCards ((Macros.It OneOf))
                              , Macros.move ((Macros.It OneOf)) Macros.handZ
                              , Macros.shuffle
                              ]
 
-searchToBattlefield : Effect []
+searchToBattlefield : Instruction []
 searchToBattlefield = Sequentially [ Macros.searchLibraryFor (Macros.exactly 1) Macros.creature
                                    , Macros.move ((Macros.It OneOf)) Macros.battlefieldZ
                                    , Macros.shuffle
                                    ]
 
-glimpseTheUnthinkable : Effect []
+glimpseTheUnthinkable : Instruction []
 glimpseTheUnthinkable =
   Macros.mills (Macros.target AnyPlayer) (Lit 10) They
 
-millThenReadGroup : Effect []
+millThenReadGroup : Instruction []
 millThenReadGroup =
   Sequentially [ Macros.mills You (Lit 3) You
                , Macros.exile You (Macros.That CardW ManyOf) ]
 
-takeIntoCustody : Effect []
+takeIntoCustody : Instruction []
 takeIntoCustody = Sequentially [SetStatus Tapped (Macros.target Macros.creature),
                                 DoesntUntapNext ((Macros.It OneOf)) (Lit 1)]
 
 ||| Frenzied Gorespawn
 public export
-frenziedGorespawnGoad : Effect []
+frenziedGorespawnGoad : Instruction []
 frenziedGorespawnGoad =
   ForEachOf (Macros.each Opponent)
     (Macros.gainsDesignation
@@ -158,7 +158,7 @@ oust =
        Nothing
 
 public export
-riseFromTheGrave : Effect []
+riseFromTheGrave : Instruction []
 riseFromTheGrave =
   Sequentially [Macros.putOntoBattlefieldUnderYourControl (Macros.target (And [Macros.creature, InZone Macros.graveyardZ])),
                 Macros.becomesAs (Macros.That (TypeW Creature) OneOf)
@@ -166,7 +166,7 @@ riseFromTheGrave =
                                  Nothing]
 
 public export
-everAfter : Effect []
+everAfter : Instruction []
 everAfter =
   Sequentially [Macros.move (Described (TargetDet (Macros.upTo 2)) (And [Macros.creature, InZone (Macros.graveyardOf You)]))
                             Macros.battlefieldZ,
@@ -176,14 +176,14 @@ everAfter =
                 Macros.move This Macros.onBottomZ]
 
 public export
-martyrsCry : Effect []
+martyrsCry : Instruction []
 martyrsCry =
   Sequentially [Macros.exile You (Macros.allOf (And [Macros.creature, ColorIs White])),
                 ForEachOf (Macros.TheVerbed "Exile" (TypeW Creature) Attributive ManyOf)
                           (Draw (Macros.controllerOf ((Macros.It OneOf))) (Lit 1))]
 
 public export
-anotherRound : Effect []
+anotherRound : Instruction []
 anotherRound =
   Sequentially [ Macros.exile You (Macros.counted Macros.anyNumber
                                  Macros.creatureYouControl)
@@ -192,7 +192,7 @@ anotherRound =
 
 ||| Eradicate
 public export
-eradicateSearch : Effect []
+eradicateSearch : Instruction []
 eradicateSearch =
   Sequentially [ Macros.exile You (Macros.target (And [Macros.creature,
                                                    Not (ColorIs Black)]))
@@ -202,7 +202,7 @@ eradicateSearch =
 
 ||| Deem Inferior
 public export
-deemInferior : Effect []
+deemInferior : Instruction []
 deemInferior =
   Macros.puts (Macros.ownerOf (Macros.target (And [Permanent, Not Macros.land])))
               ((Macros.It OneOf))
@@ -210,7 +210,7 @@ deemInferior =
 
 ||| Write into Being
 public export
-writeIntoBeingPlacement : Effect []
+writeIntoBeingPlacement : Instruction []
 writeIntoBeingPlacement =
   Sequentially [ Macros.lookAt ((Macros.topSlice (Lit 2)))
                , Macros.exile You (Macros.someOf (Macros.exactly 1) ((Macros.It ManyOf)))
@@ -218,7 +218,7 @@ writeIntoBeingPlacement =
 
 ||| Mystical Tutor
 public export
-mysticalTutor : Effect []
+mysticalTutor : Instruction []
 mysticalTutor =
   Sequentially [ Macros.searchLibraryFor (Macros.exactly 1) Macros.instantOrSorcery
                , Macros.revealCards ((Macros.It OneOf))
@@ -227,7 +227,7 @@ mysticalTutor =
 
 ||| Demonic Tutor
 public export
-demonicTutor : Effect []
+demonicTutor : Instruction []
 demonicTutor =
   Sequentially [ Macros.searchLibraryFor (Macros.exactly 1) (And [])
                , Macros.move ((Macros.It OneOf)) Macros.handZ
@@ -235,14 +235,14 @@ demonicTutor =
 
 ||| Thalia's Lancers
 public export
-thaliasLancersSearch : Effect []
+thaliasLancersSearch : Instruction []
 thaliasLancersSearch =
   Sequentially [ Macros.searchLibraryFor (Macros.exactly 1) (And [HasSupertype Legendary])
                , Macros.revealCards ((Macros.It OneOf))
                , Macros.move ((Macros.It OneOf)) Macros.handZ
                , Macros.shuffle ]
 
-contrabandLivestock : Effect []
+contrabandLivestock : Instruction []
 contrabandLivestock =
   Sequentially
     [Macros.exile You (Macros.target Macros.creature),
@@ -259,12 +259,12 @@ contrabandLivestock =
                   (TokenWritten (Macros.creatureTok 0 1 [White] [creatureType "Goat"])) [])]]
 
 ||| Hypnotic Specter
-hypnoticSpecterDiscard : Effect [MkBinding TheD Player OneOf PlayerP]
+hypnoticSpecterDiscard : Instruction [MkBinding TheD Player OneOf PlayerP]
 hypnoticSpecterDiscard = (Macros.discard They (Macros.aAtRandom (InZone Macros.handZ)))
 
 ||| Wyll, Blade of Frontiers
 public export
-wyllExtraDie : Effect []
+wyllExtraDie : Instruction []
 wyllExtraDie =
   Macros.ifWouldInstead (RollsDice You ManyDice AnyDie AnyResult)
     (Sequentially [ RollDice You (Plus ThatMuch (Lit 1)) ThoseDice
@@ -273,7 +273,7 @@ wyllExtraDie =
 
 ||| Ichor Elixir
 public export
-ichorElixirPlanarDice : Effect []
+ichorElixirPlanarDice : Instruction []
 ichorElixirPlanarDice =
   Macros.ifWouldInstead Macros.youRollPlanarDice
     (Sequentially [ RollPlanarDie You (Plus ThatMuch (Lit 1))
@@ -282,7 +282,7 @@ ichorElixirPlanarDice =
 
 ||| Vedalken Squirrel-Whacker
 public export
-vedalkenSquirrelWhackerReroll : Effect []
+vedalkenSquirrelWhackerReroll : Instruction []
 vedalkenSquirrelWhackerReroll =
   Macros.ifWouldInstead (RollsDice You ManyDice (SidedDie 6) AnyResult)
     (RollDice You ThatMuch ThoseDice)
@@ -374,7 +374,7 @@ bioplasmCardTest = Macros.itsACard Macros.creature
 
 ||| Blessed Respite
 public export
-blessedRespiteShuffle : Effect []
+blessedRespiteShuffle : Instruction []
 blessedRespiteShuffle =
   Macros.shuffleInto (Macros.target AnyPlayer)
     (Macros.allOf (InZone (Macros.graveyardOf They)))
@@ -471,13 +471,13 @@ bioplasmTypedCardReadWrites = Refl
 public export
 scapeshiftSacrificed : Bindings
 scapeshiftSacrificed =
-  effIntro {bs = []}
+  instrIntro {bs = []}
            (Macros.sacrifice You (Macros.counted Macros.anyNumber Macros.land))
 
 public export
 scapeshiftAfterSearch : Bindings
 scapeshiftAfterSearch =
-  effIntro {bs = Anaphora.scapeshiftSacrificed}
+  instrIntro {bs = Anaphora.scapeshiftSacrificed}
            (Macros.searchLibraryFor (UpToOf GroupSize) Macros.land)
 
 public export
@@ -511,7 +511,7 @@ scapeshift =
 
 ||| Bind to Life, Vastlands Scavenger's adventure
 public export
-bindToLife : Effect []
+bindToLife : Instruction []
 bindToLife =
   Sequentially [ Macros.mills You (Lit 7) You
                , Macros.move (Macros.fromAmong (Macros.exactly 1) Macros.creature ((Macros.It ManyOf)))
@@ -519,7 +519,7 @@ bindToLife =
 
 ||| Glamdring, Foe-hammer's Gleam of Death
 public export
-gleamOfDeath : Effect []
+gleamOfDeath : Instruction []
 gleamOfDeath =
   Sequentially [ Macros.mills You (Lit 6) You
                , Macros.move (Macros.allFromAmong
@@ -528,7 +528,7 @@ gleamOfDeath =
 
 ||| Tezzeret, Master of the Bridge
 public export
-tezzeretAllArtifacts : Effect []
+tezzeretAllArtifacts : Instruction []
 tezzeretAllArtifacts =
   Sequentially [ Macros.mills You (Lit 6) You
                , Macros.move (Macros.allFromAmong Macros.artifact ((Macros.It ManyOf)))
@@ -551,7 +551,7 @@ companyBareSlice = Macros.someOf (Macros.exactly 2) ((Macros.It ManyOf))
 
 ||| Lord of the Void
 public export
-exileTopThenPutFromAmong : Effect []
+exileTopThenPutFromAmong : Instruction []
 exileTopThenPutFromAmong =
   Sequentially [ Macros.exile You ((Macros.topSlice (Lit 7)))
                , Macros.move (Macros.fromAmong (Macros.exactly 1) Macros.creature ((Macros.It ManyOf)))
@@ -580,7 +580,7 @@ eachPlayerBindsAGroup = Refl
 
 ||| Soul Ransom
 public export
-soulRansomRansom : Effect []
+soulRansomRansom : Instruction []
 soulRansomRansom =
   Sequentially [ Macros.sacrificeIt (Macros.controllerOf Macros.thisAura)
                , Draw They (Lit 2) ]
@@ -646,7 +646,7 @@ hijack =
 
 ||| Open the Vaults
 public export
-openTheVaults : Effect []
+openTheVaults : Instruction []
 openTheVaults =
   Macros.returnTo (Macros.allOf (And [IsCard,
                        Or [Macros.artifact, Macros.enchantment],
@@ -656,7 +656,7 @@ openTheVaults =
 
 ||| Codecracker Hound
 public export
-codecrackerHoundLook : Effect []
+codecrackerHoundLook : Instruction []
 codecrackerHoundLook =
   Sequentially
     [ Macros.lookAt (Macros.topSlice (Lit 2))
@@ -700,7 +700,7 @@ theOtherRefusesTheUniversalSlice :
 theOtherRefusesTheUniversalSlice = Refl
 
 public export
-eachPlayerShufflesTheirHandAndGraveyard : Effect []
+eachPlayerShufflesTheirHandAndGraveyard : Instruction []
 eachPlayerShufflesTheirHandAndGraveyard =
   Macros.shuffleInto (Macros.each AnyPlayer)
     (Both (Macros.allOf (InZone (Macros.handOf They)))
@@ -719,15 +719,15 @@ factOrFiction =
                   , Macros.move Macros.theOther Macros.graveyardZ ]) ]
        Nothing
 
-unsummon : Effect []
+unsummon : Instruction []
 unsummon = Macros.move (Macros.target Macros.creature) Macros.handZ
 
-grismold : Effect []
+grismold : Instruction []
 grismold = Create (Macros.each AnyPlayer) (Lit 1)
                   (TokenWritten (Macros.creatureTok 1 1 [Green] [creatureType "Plant"])) []
 
 ||| Grenzo, Dungeon Warden
-grenzoBottomCard : Effect []
+grenzoBottomCard : Instruction []
 grenzoBottomCard = Macros.move Macros.bottomCard Macros.graveyardZ
 
 public export
@@ -809,6 +809,6 @@ aggressiveInstinct =
 
 ||| Arcum Dagsson
 public export
-arcumDagssonSacrifice : Effect []
+arcumDagssonSacrifice : Instruction []
 arcumDagssonSacrifice =
   ControllerSacrifices (Macros.target (And [Macros.artifact, Macros.creature]))

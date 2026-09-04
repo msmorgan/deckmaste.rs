@@ -3474,8 +3474,8 @@ fn inline_blink() -> Card {
     use deckmaste_core::Action;
     use deckmaste_core::DefId;
     use deckmaste_core::Destination;
+    use deckmaste_core::Instruction;
     use deckmaste_core::Kind;
-    use deckmaste_core::OneShotEffect;
     use deckmaste_core::Param;
     use deckmaste_core::Predicate;
     use deckmaste_core::Provenance;
@@ -3526,9 +3526,9 @@ fn inline_blink() -> Card {
                 .into(),
                 effect: Region::new(
                     params,
-                    OneShotEffect::Sequentially(
+                    Instruction::Sequentially(
                         vec![
-                            OneShotEffect::producing(
+                            Instruction::producing(
                                 exiled,
                                 Action::Move(
                                     Reference::Reg(RefId(2)),
@@ -3537,7 +3537,7 @@ fn inline_blink() -> Card {
                                     None,
                                 ),
                             ),
-                            OneShotEffect::Act(Action::Move(
+                            Instruction::Act(Action::Move(
                                 Reference::Reg(exiled.into()),
                                 Destination::Zone(Zone::Battlefield),
                                 vec![].into(),

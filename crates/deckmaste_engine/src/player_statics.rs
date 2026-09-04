@@ -19,7 +19,7 @@ use deckmaste_core::Int;
 use deckmaste_core::PlayerAttr;
 use deckmaste_core::PlayerMod;
 use deckmaste_core::Reference;
-use deckmaste_core::StaticEffect;
+use deckmaste_core::StaticSpec;
 use deckmaste_core::Uint;
 use deckmaste_core::Zone;
 
@@ -44,7 +44,7 @@ fn literal(count: &Count) -> Int {
 fn resolve_player_ref(
     reference: &Reference,
     controller: PlayerId,
-    region: &deckmaste_core::Region<StaticEffect>,
+    region: &deckmaste_core::Region<StaticSpec>,
 ) -> Option<PlayerId> {
     matches!(reference, Reference::Reg(id)
         if region.provenance_of(*id) == Some(&deckmaste_core::Provenance::Controller))
@@ -82,7 +82,7 @@ impl GameState {
                 // distributed via `Each` (its `Reference` already names the
                 // affected player directly), so only the top-level shape is
                 // matched here.
-                if let StaticEffect::ModifyPlayer(reference, pmod) = &effect.body
+                if let StaticSpec::ModifyPlayer(reference, pmod) = &effect.body
                     && let Some(p) = resolve_player_ref(reference, obj.controller, effect)
                 {
                     visit(p, pmod);
@@ -172,7 +172,7 @@ mod tests {
     use deckmaste_core::PlayerAttr;
     use deckmaste_core::PlayerMod;
     use deckmaste_core::Reference;
-    use deckmaste_core::StaticEffect;
+    use deckmaste_core::StaticSpec;
     use deckmaste_core::Type;
 
     use crate::object::ObjectSource;
@@ -204,7 +204,7 @@ mod tests {
         let card = Card::Normal(CardFace {
             name: "Test Player Static".into(),
             types: vec![Type::Enchantment.def()],
-            abilities: vec![Ability::r#static(StaticEffect::ModifyPlayer(
+            abilities: vec![Ability::r#static(StaticSpec::ModifyPlayer(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 pmod,
             ))],
@@ -268,7 +268,7 @@ mod tests {
         let back = CardFace {
             name: "Exploring Back".into(),
             types: vec![Type::Enchantment.def()],
-            abilities: vec![Ability::r#static(StaticEffect::ModifyPlayer(
+            abilities: vec![Ability::r#static(StaticSpec::ModifyPlayer(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 PlayerMod::Raise(PlayerAttr::LandPlaysPerTurn, Count::Literal(1)),
             ))],

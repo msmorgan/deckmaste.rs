@@ -11,7 +11,7 @@ import Experimental.Unspellable
 
 ||| "Target creature can't be blocked this turn."
 public export
-okCantBeBlocked : Effect []
+okCantBeBlocked : Instruction []
 okCantBeBlocked =
   Continuously {ts = StaticFirstDone}
     (Macros.deontic (Macros.target Macros.creature) Forbid ["Block"] Patient
@@ -20,13 +20,13 @@ okCantBeBlocked =
 
 ||| "Target creature can't be attacked this turn."
 public export
-badCantBeAttacked : Unspellable (Effect []) (\ok =>
+badCantBeAttacked : Unspellable (Instruction []) (\ok =>
   Continuously {ts = StaticFirstDone} (Macros.deontic (Macros.target Macros.creature) Forbid ["Attack"] Patient NoDeonticPatient {dp = ok}) (Just ThisTurn))
 badCantBeAttacked Oh impossible
 
 ||| "Target creature card in a graveyard can't block this turn."
 public export
-badCantInGraveyard : Unspellable (Effect []) (\ok =>
+badCantInGraveyard : Unspellable (Instruction []) (\ok =>
   Macros.cantBlock (Macros.target (And [Macros.creature, InZone Macros.graveyardZ])) (Just ThisTurn) {dp = ok})
 badCantInGraveyard Oh impossible
 
@@ -52,12 +52,12 @@ badMixedCharacteristicDisjunct Oh impossible
 
 ||| "You pay 2 life."
 public export
-okPayLifeCost : Effect []
+okPayLifeCost : Instruction []
 okPayLifeCost = Pay You (Macros.payLife You 2) PaidOnce
 
 ||| "You pay {T}."
 public export
-badPayTapSymbol : Unspellable (Effect []) (\ok =>
+badPayTapSymbol : Unspellable (Instruction []) (\ok =>
   Pay You TapSymbol PaidOnce {pb = ok})
 badPayTapSymbol Oh impossible
 
@@ -154,7 +154,7 @@ badStaticTargets Oh impossible
 
 ||| "You may play a card in your graveyard this turn."
 public export
-okPlayFromGraveyard : Effect []
+okPlayFromGraveyard : Instruction []
 okPlayFromGraveyard =
   Continuously {ts = StaticFirstDone}
                (Deontic You Permit ["Play"] Agent Nothing
@@ -164,7 +164,7 @@ okPlayFromGraveyard =
 
 ||| "You may play a creature this turn."
 public export
-badPlayFromBattlefield : Unspellable (Effect []) (\ok =>
+badPlayFromBattlefield : Unspellable (Instruction []) (\ok =>
   Continuously {ts = StaticFirstDone} (Deontic You Permit ["Play"] Agent Nothing
                   (DeonticCounterpart (Macros.a Macros.creature)) Nothing
                   (PlayRider Nothing Nothing Nothing False ItsOwnCost) {rd = ok})
@@ -173,7 +173,7 @@ badPlayFromBattlefield Oh impossible
 
 ||| "You may play a land card from your graveyard this turn."
 public export
-okPlayLandFromGraveyard : Effect []
+okPlayLandFromGraveyard : Instruction []
 okPlayLandFromGraveyard =
   Continuously {ts = StaticFirstDone}
     (Deontic You Permit ["Play"] Agent Nothing
@@ -187,7 +187,7 @@ okPlayLandFromGraveyard =
 
 ||| "You may play a spell this turn."
 public export
-badPlayFromStack : Unspellable (Effect []) (\ok =>
+badPlayFromStack : Unspellable (Instruction []) (\ok =>
   Continuously {ts = StaticFirstDone} (Deontic You Permit ["Play"] Agent Nothing
                   (DeonticCounterpart (Macros.a Macros.spell)) Nothing
                   (PlayRider Nothing Nothing Nothing False ItsOwnCost) {rd = ok})
@@ -196,7 +196,7 @@ badPlayFromStack Oh impossible
 
 ||| "You may cast a creature card from your graveyard this turn."
 public export
-okCastCreatureFromGraveyard : Effect []
+okCastCreatureFromGraveyard : Instruction []
 okCastCreatureFromGraveyard =
   Continuously {ts = StaticFirstDone}
     (Deontic You Permit ["Cast"] Agent Nothing
@@ -210,7 +210,7 @@ okCastCreatureFromGraveyard =
 
 ||| "You may cast a land card from your graveyard this turn."
 public export
-badCastALand : Unspellable (Effect []) (\ok =>
+badCastALand : Unspellable (Instruction []) (\ok =>
   Continuously {ts = StaticFirstDone} (Deontic You Permit ["Cast"] Agent Nothing
                   (DeonticCounterpart
                      (Macros.a (And [Macros.land, InZone (Macros.graveyardOf You)])))
@@ -221,7 +221,7 @@ badCastALand Oh impossible
 
 ||| "You may play a creature card in exile from your graveyard this turn."
 public export
-badPlayFromWrongZone : Unspellable (Effect []) (\ok =>
+badPlayFromWrongZone : Unspellable (Instruction []) (\ok =>
   Continuously {ts = StaticFirstDone} (Deontic You Permit ["Play"] Agent Nothing
                   (DeonticCounterpart
                      (Macros.a (And [Macros.creature, InZone Macros.exileZ])))
@@ -259,7 +259,7 @@ badUnflipEvent Oh impossible
 
 ||| "Target creature attacks each combat if able."
 public export
-okMustAttackCreature : Effect []
+okMustAttackCreature : Instruction []
 okMustAttackCreature =
   Continuously {ts = StaticFirstDone}
                (Macros.deontic (Macros.target Macros.creature) Require
@@ -268,7 +268,7 @@ okMustAttackCreature =
 
 ||| "Target land attacks each combat if able."
 public export
-badMustAttackLand : Unspellable (Effect []) (\ok =>
+badMustAttackLand : Unspellable (Instruction []) (\ok =>
   Continuously {ts = StaticFirstDone} (Macros.deontic (Macros.target Macros.land) Require ["Attack"] Agent NoDeonticPatient {dp = ok})
                (Just ThisTurn))
 badMustAttackLand Oh impossible
@@ -282,7 +282,7 @@ badRingBearerInGraveyard Oh impossible
 
 ||| "This creature can't attack target planeswalker this turn."
 public export
-okForbidAttackPlaneswalker : Effect []
+okForbidAttackPlaneswalker : Instruction []
 okForbidAttackPlaneswalker =
   Continuously {ts = StaticFirstDone}
                (Macros.deontic Macros.thisCreature Forbid ["Attack"] Agent
@@ -292,7 +292,7 @@ okForbidAttackPlaneswalker =
 
 ||| "This creature can't attack target creature this turn."
 public export
-badForbidAttackWithPatient : Unspellable (Effect []) (\ok =>
+badForbidAttackWithPatient : Unspellable (Instruction []) (\ok =>
   Continuously {ts = StaticFirstDone} (Macros.deontic Macros.thisCreature Forbid ["Attack"] Agent
                         (DeonticCounterpart (Macros.target Macros.creature)) {pt = ok})
                (Just ThisTurn))
@@ -300,7 +300,7 @@ badForbidAttackWithPatient Oh impossible
 
 ||| "Target creature blocks it this turn"
 public export
-badBlocksItself : Unspellable (Effect []) (\ok =>
+badBlocksItself : Unspellable (Instruction []) (\ok =>
   Continuously {ts = StaticFirstDone} (Macros.deontic (Macros.target Macros.creature) Require ["Block"] Agent
                                (DeonticCounterpart ((Macros.It OneOf))) {pt = ok})
                (Just ThisTurn))
@@ -323,7 +323,7 @@ badCoordinatedLandHostBlocks Oh impossible
 
 ||| "This deals 4 damage to target creature. The damage can't be prevented."
 public export
-okTheDamageAfterDealing : Effect []
+okTheDamageAfterDealing : Instruction []
 okTheDamageAfterDealing =
   Sequentially [ DealDamage This (Lit 4) (Macros.target Macros.creature)
                , Continuously {ts = StaticFirstDone}
@@ -331,13 +331,13 @@ okTheDamageAfterDealing =
 
 ||| "The damage can't be prevented."
 public export
-badTheDamageUnannounced : Unspellable (StaticEffect []) (\ok =>
+badTheDamageUnannounced : Unspellable (StaticSpec []) (\ok =>
   CantPrevent AnyDamage (ThatDamage {ok}) NoPreventionOnly)
 badTheDamageUnannounced Oh impossible
 
 ||| "You gain 3 life. The damage can't be prevented."
 public export
-badTheDamageAfterLifeGain : Unspellable (Effect []) (\ok =>
+badTheDamageAfterLifeGain : Unspellable (Instruction []) (\ok =>
   Sequentially [ ChangeLife You (Up (Lit 3))
                , Continuously {ts = StaticFirstDone}
                    (CantPrevent AnyDamage (ThatDamage {ok}) NoPreventionOnly) Nothing ])
@@ -345,7 +345,7 @@ badTheDamageAfterLifeGain Oh impossible
 
 ||| "You may cast spells as though they had flash."
 public export
-okObjectPremiseAtCast : StaticEffect []
+okObjectPremiseAtCast : StaticSpec []
 okObjectPremiseAtCast =
   Deontic You Permit ["Cast"] Agent Nothing
           (DeonticCounterpart (Macros.allOf Macros.spell))
@@ -354,7 +354,7 @@ okObjectPremiseAtCast =
 
 ||| "This creature can attack as though it were mana of any color."
 public export
-badManaPremiseAtAttack : Unspellable (StaticEffect []) (\ok =>
+badManaPremiseAtAttack : Unspellable (StaticSpec []) (\ok =>
   Deontic Macros.thisCreature Permit ["Attack"] Agent Nothing NoDeonticPatient
           (Just (AsThoughMana Nothing MatchAnyColor Nothing)) NoDeonticRider
           {at = ok})
@@ -362,7 +362,7 @@ badManaPremiseAtAttack Oh impossible
 
 ||| "This creature can't be blocked by more than one creature."
 public export
-okBlockBoundOnBlock : StaticEffect []
+okBlockBoundOnBlock : StaticSpec []
 okBlockBoundOnBlock =
   Deontic Macros.thisCreature Forbid ["Block"] Patient (Just (MoreThan (Lit 1)))
           (DeonticCounterpart (Macros.allOf Macros.creature)) Nothing
@@ -370,28 +370,28 @@ okBlockBoundOnBlock =
 
 ||| "This spell can't be countered more than once."
 public export
-badCounterBoundTwice : Unspellable (StaticEffect []) (\ok =>
+badCounterBoundTwice : Unspellable (StaticSpec []) (\ok =>
   Deontic This Forbid ["Counter"] Patient (Just (MoreThan (Lit 1))) NoDeonticPatient
           Nothing NoDeonticRider {bd = ok})
 badCounterBoundTwice Oh impossible
 
 ||| "You may spend mana as though it weren't a creature."
 public export
-badObjectPremiseAtSpend : Unspellable (StaticEffect []) (\ok =>
+badObjectPremiseAtSpend : Unspellable (StaticSpec []) (\ok =>
   Deontic You Permit ["Spend"] Agent Nothing NoDeonticPatient
           (Just (AsThoughOf (Not Macros.creature))) NoDeonticRider {at = ok})
 badObjectPremiseAtSpend Oh impossible
 
 ||| "Each opponent discards a card, if those cards are creature cards."
 public export
-distributedDeedReadsBackPluralUnderCondition : Effect []
+distributedDeedReadsBackPluralUnderCondition : Instruction []
 distributedDeedReadsBackPluralUnderCondition =
   OnlyIf (Macros.discard (Macros.each Opponent) (Macros.a (InZone Macros.handZ)))
          (Matches (Macros.That CardW ManyOf) Macros.creature) Nothing
 
 ||| "... sacrificed permanents can't be regenerated."
 public export
-distributedDeedRiderReadsBackPlural : Effect []
+distributedDeedRiderReadsBackPlural : Instruction []
 distributedDeedRiderReadsBackPlural =
   CantBe (Macros.sacrifice (Macros.each Opponent) (Macros.a Macros.creature))
          "Regenerate" (Macros.TheVerbed "Sacrifice" PermanentW Attributive ManyOf)

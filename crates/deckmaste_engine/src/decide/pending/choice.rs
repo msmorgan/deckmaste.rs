@@ -182,7 +182,7 @@ impl DecisionHandler for YesNo {
             .take()
             .expect("a YesNo decision stashed its continuation");
         match cont {
-            // [CR#118.12]: `OneShotEffect::May` — yes runs `effect` then
+            // [CR#118.12]: `Instruction::May` — yes runs `effect` then
             // `if_did`; no runs `if_not` (or nothing). Front-scheduled
             // in order so `effect` precedes `if_did`.
             crate::state::DecisionContinuation::May { may, frame } => {
@@ -201,7 +201,7 @@ impl DecisionHandler for YesNo {
                     g.schedule_front(items);
                     return Ok(());
                 }
-                let branch: Vec<Arc<deckmaste_core::OneShotEffect>> = if yes {
+                let branch: Vec<Arc<deckmaste_core::Instruction>> = if yes {
                     std::iter::once(may.effect).chain(may.if_did).collect()
                 } else {
                     may.if_not.into_iter().collect()

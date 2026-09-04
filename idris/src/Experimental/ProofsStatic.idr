@@ -57,14 +57,14 @@ badTargetedOutcomeGate Oh impossible
 
 ||| "where X is the number of creatures you control."
 public export
-okSingleStaticXRider : StaticEffect []
+okSingleStaticXRider : StaticSpec []
 okSingleStaticXRider =
   AndAlso Nothing [ Gets Adds Macros.thisCreature (PtUp (LetterVal X))
                          (PtUp (Lit 0))
                   , Define X (Macros.countOf Macros.creatureYouControl) ]
 
 public export
-badDoubleStaticRider : Unspellable (StaticEffect []) (\ok =>
+badDoubleStaticRider : Unspellable (StaticSpec []) (\ok =>
   AndAlso Nothing [ Gets Adds Macros.thisCreature (PtUp (LetterVal X)) (PtUp (Lit 0))
           , Define X (Macros.countOf Macros.creatureYouControl)
           , Define X (Macros.countOf Macros.creature) {ok} ])
@@ -72,20 +72,20 @@ badDoubleStaticRider Oh impossible
 
 ||| "power and toughness are each equal to the number of creatures you control"
 public export
-okSelfDefinedPt : StaticEffect []
+okSelfDefinedPt : StaticSpec []
 okSelfDefinedPt =
   DefinesPt Macros.thisCreature BothEach
             (Macros.countOf Macros.creatureYouControl)
 
 public export
-badGrantedPtDefinition : Unspellable (StaticEffect []) (\ok =>
+badGrantedPtDefinition : Unspellable (StaticSpec []) (\ok =>
   DefinesPt (AttachHost Enchanted (TypeW Creature)) BothEach
             (PlayerStatOf LifeTotal You) {sd = ok})
 badGrantedPtDefinition Oh impossible
 
 ||| "Creatures you control get +1/+1 until end of turn."
 public export
-okContinuousClause : Effect []
+okContinuousClause : Instruction []
 okContinuousClause =
   Continuously {ts = StaticFirstDone}
                (Gets Adds (Macros.allOf Macros.creatureYouControl)
@@ -93,7 +93,7 @@ okContinuousClause =
                (Just Macros.untilEndOfTurn)
 
 public export
-badPtDefinitionClause : Unspellable (Effect []) (\ok =>
+badPtDefinitionClause : Unspellable (Instruction []) (\ok =>
   Continuously {ts = StaticFirstDone} (DefinesPt Macros.thisCreature BothEach
                           (Macros.countOf Macros.creatureYouControl))
                Nothing {cl = ok})
@@ -101,18 +101,18 @@ badPtDefinitionClause Oh impossible
 
 ||| "You become the monarch."
 public export
-okBecomesMonarch : Effect []
+okBecomesMonarch : Instruction []
 okBecomesMonarch = GainsDesignation You Monarch Instructed Nothing
 
 ||| "You become goaded."
 public export
-badGoadedPlayer : Unspellable (Effect []) (\ok =>
+badGoadedPlayer : Unspellable (Instruction []) (\ok =>
   GainsDesignation You Goaded Instructed Nothing {sc = ok})
 badGoadedPlayer Refl impossible
 
 ||| "Each land you control becomes a 2/2 creature. It's still a land."
 public export
-okStillALand : StaticEffect []
+okStillALand : StaticSpec []
 okStillALand =
   Becomes (Macros.allOf Macros.land) Sets
           (Bundle (MkToken (Just (Lit 2 ** Lit 2)) []
@@ -120,38 +120,38 @@ okStillALand =
 
 ||| "Target creature becomes a Coward until end of turn. It's still a land."
 public export
-badStillOnSubtypeSet : Unspellable (StaticEffect []) (\ok =>
+badStillOnSubtypeSet : Unspellable (StaticSpec []) (\ok =>
   Becomes (Macros.target Macros.creature) Sets (Bundle (MkToken Nothing [] (MkTypeLine [creatureType "Coward"] []) [] Nothing) (Just Land)) {ok = ok})
 badStillOnSubtypeSet Oh impossible
 
 public export
-badStillAnInstant : Unspellable (StaticEffect []) (\ok =>
+badStillAnInstant : Unspellable (StaticSpec []) (\ok =>
   Becomes (Macros.target Macros.creature) Sets (Bundle (MkToken Nothing [] (MkTypeLine [] [Artifact]) [] Nothing) (Just Instant)) {ok = ok})
 badStillAnInstant Oh impossible
 
 ||| "Target creature gets +1/+1."
 public export
-okSingletonCoordination : StaticEffect []
+okSingletonCoordination : StaticSpec []
 okSingletonCoordination =
   AndAlso Nothing [ Gets Adds (Macros.target Macros.creature)
                          (PtUp (Lit 1)) (PtUp (Lit 1)) ]
 
 ||| a coordination of no statements
 public export
-badEmptyCoordination : Unspellable (StaticEffect []) (\ok =>
+badEmptyCoordination : Unspellable (StaticSpec []) (\ok =>
   AndAlso Nothing [] {ne = ok})
 badEmptyCoordination ItIsSucc impossible
 
 ||| "Creatures you control are every creature type."
 public export
-okSingleExtension : StaticEffect []
+okSingleExtension : StaticSpec []
 okSingleExtension =
   AlsoOffBattlefield
     (Becomes (Macros.allOf Macros.creatureYouControl) Adds
              (EveryTypeOf CreatureSpace))
 
 public export
-badDoubleExtension : Unspellable (StaticEffect []) (\ok =>
+badDoubleExtension : Unspellable (StaticSpec []) (\ok =>
   AlsoOffBattlefield
     (AlsoOffBattlefield
        (Becomes (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You])) Adds (Bundle (MkToken Nothing [] (MkTypeLine [] [Artifact]) [] Nothing) Nothing))) {nx = ok})
@@ -159,26 +159,26 @@ badDoubleExtension Oh impossible
 
 ||| "If you would draw a card, draw two cards instead."
 public export
-okDrawReplacement : StaticEffect []
+okDrawReplacement : StaticSpec []
 okDrawReplacement =
   Intercepts (Draws You) [] Nothing (Draw You (Lit 2)) Repeatedly Nothing
 
 ||| "If I — would happen, draw a card instead."
 public export
-badChapterReplacement : Unspellable (StaticEffect []) (\ok =>
+badChapterReplacement : Unspellable (StaticSpec []) (\ok =>
   Intercepts (ChapterMark [ChapterI]) [] Nothing (Draw You (Lit 1)) Repeatedly Nothing {ok})
 badChapterReplacement Oh impossible
 
 ||| "unless you control an artifact"
 public export
-okUnlessOverNegatedCondition : StaticEffect []
+okUnlessOverNegatedCondition : StaticSpec []
 okUnlessOverNegatedCondition =
   Conditionally (NotCond (Macros.exists (And [Macros.artifact,
                                               HasPossessor ControllerAx You])))
                 (AltCost This Nothing) Unless {st = Static.CondFirstDone}
 
 public export
-badUnlessConjunction : Unspellable (StaticEffect []) (\ok =>
+badUnlessConjunction : Unspellable (StaticSpec []) (\ok =>
   Conditionally (AndCond [ Macros.exists (And [Macros.artifact, HasPossessor ControllerAx You])
                          , Macros.exists (And [Macros.enchantment, HasPossessor ControllerAx You]) ])
                 (AltCost This Nothing) Unless {st = Static.CondFirstDone} {mk = ok})
@@ -186,40 +186,40 @@ badUnlessConjunction MkMarkingOk impossible
 
 ||| "This creature blocks an attacking creature."
 public export
-okCreatureBecomesBlocking : Effect []
+okCreatureBecomesBlocking : Instruction []
 okCreatureBecomesBlocking =
   BecomesBlocking Macros.thisCreature
                   (Macros.a (And [Macros.creature, Attacking]))
 
 ||| "Target land blocks an attacking creature."
 public export
-badLandBecomesBlocking : Unspellable (Effect []) (\ok =>
+badLandBecomesBlocking : Unspellable (Instruction []) (\ok =>
   BecomesBlocking (Macros.target Macros.land)
                   (Macros.a (And [Macros.creature, Attacking])) {dn = ok})
 badLandBecomesBlocking Oh impossible
 
 ||| "This creature blocks target planeswalker."
 public export
-badBecomesBlockingPlaneswalker : Unspellable (Effect []) (\ok =>
+badBecomesBlockingPlaneswalker : Unspellable (Instruction []) (\ok =>
   BecomesBlocking Macros.thisCreature
                   (Macros.target (HasType Planeswalker)) {dw = ok})
 badBecomesBlockingPlaneswalker Oh impossible
 
 ||| "this creature gets +1/+1"
 public export
-okAddPtUpward : StaticEffect []
+okAddPtUpward : StaticSpec []
 okAddPtUpward =
   Gets Adds Macros.thisCreature (PtUp (Lit 1)) (PtUp (Lit 1))
 
 ||| "this creature has base power and toughness -1/-1"
 public export
-badSetBasePtDownward : Unspellable (StaticEffect []) (\ok =>
+badSetBasePtDownward : Unspellable (StaticSpec []) (\ok =>
   Gets Sets Macros.thisCreature (PtDown (Lit 1)) (PtDown (Lit 1)) {lo = ok})
 badSetBasePtDownward Oh impossible
 
 ||| "this creature loses 1/1"
 public export
-badLosePtOp : Unspellable (StaticEffect []) (\ok =>
+badLosePtOp : Unspellable (StaticSpec []) (\ok =>
   Gets Loses Macros.thisCreature (PtUp (Lit 1)) (PtUp (Lit 1)) {lo = ok})
 badLosePtOp Oh impossible
 

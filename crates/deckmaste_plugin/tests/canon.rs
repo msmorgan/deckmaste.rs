@@ -11,7 +11,7 @@ use deckmaste_card::Card;
 use deckmaste_core::Ability;
 use deckmaste_core::Action;
 use deckmaste_core::Count;
-use deckmaste_core::OneShotEffect;
+use deckmaste_core::Instruction;
 use deckmaste_core::Reference;
 use deckmaste_core::StatValue;
 use deckmaste_core::Subtype;
@@ -113,11 +113,11 @@ fn lightning_bolt_expands_target_macros() {
     assert_eq!(
         spell.effect.body.as_ref(),
         [
-            OneShotEffect::Let(deckmaste_core::Let {
+            Instruction::Let(deckmaste_core::Let {
                 dest: deckmaste_core::DefId(4),
                 expr: deckmaste_core::Expr::Number(Count::Literal(3)),
             }),
-            OneShotEffect::Act(Action::DealDamage(
+            Instruction::Act(Action::DealDamage(
                 Reference::Reg(deckmaste_core::RefId(0)),
                 Count::Reg(deckmaste_core::RefId(4)),
                 Reference::Reg(deckmaste_core::RefId(2)),
@@ -139,7 +139,7 @@ fn do_or_die_lowers_pile_labels_to_registers() {
     let Ability::Spell(ref spell) = face.abilities[0] else {
         panic!("expected a spell ability");
     };
-    let [OneShotEffect::SeparatePiles(separate)] = spell.effect.body.as_ref() else {
+    let [Instruction::SeparatePiles(separate)] = spell.effect.body.as_ref() else {
         panic!("expected SeparatePiles, got {:?}", spell.effect.body);
     };
     assert_eq!(
@@ -149,7 +149,7 @@ fn do_or_die_lowers_pile_labels_to_registers() {
     let Some(then) = &separate.then else {
         panic!("the pile separation should carry its choice");
     };
-    let OneShotEffect::ChoosePile(choice) = then.as_ref() else {
+    let Instruction::ChoosePile(choice) = then.as_ref() else {
         panic!("expected ChoosePile, got {then:?}");
     };
     assert_eq!(
@@ -157,7 +157,7 @@ fn do_or_die_lowers_pile_labels_to_registers() {
         [deckmaste_core::RefId(4), deckmaste_core::RefId(5)]
     );
     assert_eq!(choice.dest, deckmaste_core::DefId(6));
-    let OneShotEffect::Each(each) = choice.then.as_ref() else {
+    let Instruction::Each(each) = choice.then.as_ref() else {
         panic!("expected Each, got {:?}", choice.then);
     };
     assert_eq!(
@@ -184,11 +184,11 @@ fn tribal_flames_expands_the_domain_count() {
         panic!("expected a spell ability");
     };
     let [
-        OneShotEffect::Let(deckmaste_core::Let {
+        Instruction::Let(deckmaste_core::Let {
             dest,
             expr: deckmaste_core::Expr::Number(count),
         }),
-        OneShotEffect::Act {
+        Instruction::Act {
             action: Action::DealDamage(_, Count::Reg(amount), _),
             ..
         },
@@ -264,7 +264,7 @@ fn mana_leak_reads_to_a_must_pay_punisher() {
     let Ability::Spell(ref spell) = face.abilities[0] else {
         panic!("expected a spell ability");
     };
-    let [OneShotEffect::May(m)] = spell.effect.body.as_ref() else {
+    let [Instruction::May(m)] = spell.effect.body.as_ref() else {
         panic!("expected May, got {:?}", spell.effect.body);
     };
     assert_eq!(
@@ -272,7 +272,7 @@ fn mana_leak_reads_to_a_must_pay_punisher() {
         Reference::ControllerOf(Arc::new(Reference::Reg(deckmaste_core::RefId(2)))),
         "the payer is the targeted spell's controller"
     );
-    let OneShotEffect::Act {
+    let Instruction::Act {
         action: Action::Pay(ref cost),
         ..
     } = *m.effect
@@ -298,7 +298,7 @@ fn mana_leak_reads_to_a_must_pay_punisher() {
     };
     assert_eq!(
         **if_not,
-        OneShotEffect::Act(Action::Counter(Reference::Reg(deckmaste_core::RefId(2)))),
+        Instruction::Act(Action::Counter(Reference::Reg(deckmaste_core::RefId(2)))),
         "unpaid → counter the spell"
     );
 }

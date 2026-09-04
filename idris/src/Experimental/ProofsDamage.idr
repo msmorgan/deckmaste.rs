@@ -11,33 +11,33 @@ import Experimental.Unspellable
 
 ||| "Target creature fights target creature."
 public export
-okFightCreatures : Effect []
+okFightCreatures : Instruction []
 okFightCreatures =
   Fights (Macros.target Macros.creature) (Macros.target Macros.creature)
 
 ||| "Two target creatures fight target creature."
 public export
-badFightGroup : Unspellable (Effect []) (\ok =>
+badFightGroup : Unspellable (Instruction []) (\ok =>
   Fights (Described (TargetDet (Macros.exactly 2)) Macros.creature) {pa = ok}
          (Macros.target Macros.creature))
 badFightGroup Refl impossible
 
 ||| "This deals 2 damage to any target and 1 damage to any other target."
 public export
-okAnyOtherTarget : Effect []
+okAnyOtherTarget : Instruction []
 okAnyOtherTarget =
   Sequentially [DealDamage This (Lit 2) (Macros.target Macros.anyTarget),
                 DealDamage This (Lit 1) (Macros.target Macros.anyOtherTarget)]
 
 ||| "This deals 1 damage to any other target."
 public export
-badOther : Unspellable (Effect []) (\ok =>
+badOther : Unspellable (Instruction []) (\ok =>
   DealDamage This (Lit 1) (Macros.target (Macros.anyOtherTarget {ok})))
 badOther Refl impossible
 
 ||| "Tap target creature. It gets -1/-1 until end of turn."
 public export
-okIt : Effect []
+okIt : Instruction []
 okIt =
   Sequentially [SetStatus Tapped (Macros.target Macros.creature),
                 Macros.gets (Macros.It OneOf) (PtDown (Lit 1)) (PtDown (Lit 1))
@@ -45,26 +45,26 @@ okIt =
 
 ||| "Target creature fights target creature. Tap it."
 public export
-badIt : Unspellable (Effect []) (\ok =>
+badIt : Unspellable (Instruction []) (\ok =>
   Sequentially [Fights (Macros.target Macros.creature) (Macros.target Macros.creature),
                 SetStatus Tapped ((Macros.It OneOf) {ok})])
 badIt Refl impossible
 
 ||| "Tap target creature."
 public export
-okTapBattlefield : Effect []
+okTapBattlefield : Instruction []
 okTapBattlefield = SetStatus Tapped (Macros.target Macros.creature)
 
 ||| "This deals 3 damage to each creature. Tap it."
 public export
-badTheyIt : Unspellable (Effect []) (\ok =>
+badTheyIt : Unspellable (Instruction []) (\ok =>
   Sequentially [DealDamage This (Lit 3) (Macros.each Macros.creature),
                 SetStatus Tapped ((Macros.It OneOf) {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badTheyIt (Refl, _) impossible
 
 ||| "Choose two target creatures. Tap them."
 public export
-okThem : Effect []
+okThem : Instruction []
 okThem =
   Sequentially [Choose (Described (TargetDet (Macros.exactly 2)) Macros.creature)
                        Nothing Openly,
@@ -72,14 +72,14 @@ okThem =
 
 ||| "Choose two target creatures. Choose two target creatures. Tap them."
 public export
-badThemAmbig : Unspellable (Effect []) (\ok =>
+badThemAmbig : Unspellable (Instruction []) (\ok =>
   Sequentially [Choose (Described (TargetDet (Macros.exactly 2)) Macros.creature) Nothing Openly,
                Choose (Described (TargetDet (Macros.exactly 2)) Macros.creature) Nothing Openly,
                SetStatus Tapped ((Macros.It ManyOf) {ok})])
 badThemAmbig Refl impossible
 
 public export
-badInnerAmbig : Unspellable (Effect []) (\ok =>
+badInnerAmbig : Unspellable (Instruction []) (\ok =>
   Sequentially [Fights (Macros.target (And [Macros.creature, HasPossessor ControllerAx Macros.anOpponent]))
                        (Macros.target (And [Macros.creature, HasPossessor ControllerAx Macros.anOpponent])),
                Macros.losesLife (Macros.That PlayerW OneOf {ok}) (Lit 1)])
@@ -99,50 +99,50 @@ badUntapLockGraveyard Oh impossible
 
 ||| "Target creature card in your graveyard fights target creature."
 public export
-badFightGraveyard : Unspellable (Effect []) (\ok =>
+badFightGraveyard : Unspellable (Instruction []) (\ok =>
   Fights (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {za = ok}
          (Macros.target Macros.creature))
 badFightGraveyard Oh impossible
 
 ||| "Target land fights target creature you don't control."
 public export
-badFightLand : Unspellable (Effect []) (\ok =>
+badFightLand : Unspellable (Instruction []) (\ok =>
   Fights (Macros.target (HasType Land)) {ta = ok} (Macros.target Macros.creatureYouDontControl))
 badFightLand Oh impossible
 
 ||| "Target permanent fights target creature." [CR#701.14a]
 public export
-badFightPermanent : Unspellable (Effect []) (\ok =>
+badFightPermanent : Unspellable (Instruction []) (\ok =>
   Fights (Macros.target Permanent) {ta = ok} (Macros.target Macros.creature))
 badFightPermanent Oh impossible
 
 ||| "This deals 3 damage to target creature."
 public export
-okDamageCreature : Effect []
+okDamageCreature : Instruction []
 okDamageCreature = DealDamage This (Lit 3) (Macros.target Macros.creature)
 
 ||| "Destroy target creature. This deals 3 damage to it."
 public export
-badDamageGraveyardCard : Unspellable (Effect []) (\ok =>
+badDamageGraveyardCard : Unspellable (Instruction []) (\ok =>
   Sequentially [Macros.destroy (Macros.target Macros.creature),
                DealDamage This (Lit 3) ((Macros.It OneOf)) {rk = ok}])
 badDamageGraveyardCard ObjectTakes impossible
 
 ||| "This deals 1 damage to a color."
 public export
-badDamageToColor : Unspellable (Effect []) (\ok =>
+badDamageToColor : Unspellable (Instruction []) (\ok =>
   DealDamage This (Lit 1) (Macros.a (QualityNoun Color Nothing)) {rk = ok})
 badDamageToColor ObjectTakes impossible
 
 ||| "This deals 1 damage to target artifact."
 public export
-badDamageArtifact : Unspellable (Effect []) (\ok =>
+badDamageArtifact : Unspellable (Instruction []) (\ok =>
   DealDamage This (Lit 1) (Macros.target (HasType Artifact)) {rk = ok})
 badDamageArtifact ObjectTakes impossible
 
 ||| "... loses 1 life for each attacking creature. You gain that much life."
 public export
-okThatMuchBound : Effect []
+okThatMuchBound : Instruction []
 okThatMuchBound =
   Sequentially [Macros.losesLife (Macros.target Opponent)
                   (Macros.forEach 1 (And [Attacking, Macros.creature,
@@ -151,12 +151,12 @@ okThatMuchBound =
 
 ||| "This deals that much damage to any target."
 public export
-badThatMuchUnbound : Unspellable (Effect []) (\ok =>
+badThatMuchUnbound : Unspellable (Instruction []) (\ok =>
   DealDamage This (ThatMuch {ok}) (Macros.target Macros.anyTarget))
 badThatMuchUnbound Refl impossible
 
 public export
-badThatMuchAmbig : Unspellable (Effect []) (\ok =>
+badThatMuchAmbig : Unspellable (Instruction []) (\ok =>
   Sequentially [DealDamage This (Lit 3) (Macros.target Macros.anyTarget),
                 Macros.losesLife You (Lit 2),
                 Macros.gainsLife You (ThatMuch {ok})])
@@ -164,26 +164,26 @@ badThatMuchAmbig Refl impossible
 
 ||| "This deals 3 damage to target creature. Destroy it."
 public export
-okDestroyDamagedCreature : Effect []
+okDestroyDamagedCreature : Instruction []
 okDestroyDamagedCreature =
   Sequentially [DealDamage This (Lit 3) (Macros.target Macros.creature),
                 Macros.destroy (Macros.It OneOf)]
 
 ||| "This deals 3 damage to any target. Destroy it."
 public export
-badDestroyAnyTargetRemention : Unspellable (Effect []) (\ok =>
+badDestroyAnyTargetRemention : Unspellable (Instruction []) (\ok =>
   Sequentially [DealDamage This (Lit 3) (Macros.target Macros.anyTarget),
                Macros.destroy ((Macros.It OneOf)) {ok}])
 badDestroyAnyTargetRemention Oh impossible
 
 ||| "This deals 1 damage to target creature."
 public export
-okDamageOneToCreature : Effect []
+okDamageOneToCreature : Instruction []
 okDamageOneToCreature = DealDamage This (Lit 1) (Macros.target Macros.creature)
 
 ||| "This deals 1 damage to this spell."
 public export
-badDamageThis : Unspellable (Effect []) (\ok =>
+badDamageThis : Unspellable (Instruction []) (\ok =>
   DealDamage This (Lit 1) This {rk = ok})
 badDamageThis ObjectTakes impossible
 
@@ -204,7 +204,7 @@ badOtherInOr Oh impossible
 
 ||| "This deals 2 damage to target artifact or enchantment."
 public export
-badDamageDisjunctHead : Unspellable (Effect []) (\ok =>
+badDamageDisjunctHead : Unspellable (Instruction []) (\ok =>
   DealDamage This (Lit 2) (Macros.target (Or [Macros.artifact, Macros.enchantment])) {rk = ok})
 badDamageDisjunctHead ObjectTakes impossible
 
@@ -216,21 +216,21 @@ badAttackingOrBlockingInGraveyard Oh impossible
 
 ||| "This deals 2 damage to target creature. Tap it."
 public export
-okTapDamagedCreature : Effect []
+okTapDamagedCreature : Instruction []
 okTapDamagedCreature =
   Sequentially [DealDamage This (Lit 2) (Macros.target Macros.creature),
                 SetStatus Tapped (Macros.It OneOf)]
 
 ||| "You gain 2 life if you control a creature. Tap it."
 public export
-badConditionAntecedent : Unspellable (Effect []) (\ok =>
+badConditionAntecedent : Unspellable (Instruction []) (\ok =>
   Sequentially [OnlyIf (Macros.gainsLife You (Lit 2)) (Macros.exists Macros.creatureYouControl) Nothing,
                 SetStatus Tapped ((Macros.It OneOf) {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badConditionAntecedent (Refl, _) impossible
 
 ||| "You may sacrifice a creature. If you don't, exile it."
 public export
-badIfNotReadsMayBody : Unspellable (Effect []) (\ok =>
+badIfNotReadsMayBody : Unspellable (Instruction []) (\ok =>
   (May You (Macros.sacrifice You (Macros.a Macros.creature)) Nothing (Just (Macros.exile You ((Macros.It OneOf) {ok})))))
 badIfNotReadsMayBody Refl impossible
 
@@ -253,20 +253,20 @@ badPluralComplementAnchor MkComplementAnchor impossible
 
 ||| "each creature other than this land"
 public export
-badComplementCrossHead : Unspellable (Effect []) (\ok =>
+badComplementCrossHead : Unspellable (Instruction []) (\ok =>
   DealDamage This (Lit 1) (Macros.each (And [Macros.creature, OtherThan Macros.thisLand] {oa = ok})))
 badComplementCrossHead Oh impossible
 
 ||| "each creature other than this creature other than this creature"
 public export
-badDoubleComplement : Unspellable (Effect []) (\ok =>
+badDoubleComplement : Unspellable (Instruction []) (\ok =>
   DealDamage This (Lit 1)
              (Macros.each (And [Macros.creature, OtherThan Macros.thisCreature, OtherThan Macros.thisCreature] {oa = ok})))
 badDoubleComplement Oh impossible
 
 ||| "each other creature other than this creature"
 public export
-badOtherAndComplement : Unspellable (Effect []) (\ok =>
+badOtherAndComplement : Unspellable (Instruction []) (\ok =>
   Sequentially [SetStatus Tapped (Macros.target Macros.creature),
                 DealDamage This (Lit 1)
                            (Macros.each (And [Macros.creature, Other, OtherThan Macros.thisCreature] {oa = ok}))])
@@ -280,20 +280,20 @@ badComplementInOr Oh impossible
 
 ||| "This deals 2 damage divided as you choose among two target creatures."
 public export
-okDivideAmongTargets : Effect []
+okDivideAmongTargets : Instruction []
 okDivideAmongTargets =
   Macros.dealsDivided This (Lit 2)
                       (Described (TargetDet (Macros.oneThrough 2)) Macros.creature)
 
 ||| "This deals 2 damage divided as you choose among each creature."
 public export
-badDivideAmongDescription : Unspellable (Effect []) (\ok =>
+badDivideAmongDescription : Unspellable (Instruction []) (\ok =>
   Macros.dealsDivided This (Lit 2) (Macros.each Macros.creature) {gm = ok})
 badDivideAmongDescription Oh impossible
 
 ||| "Put one of them into your hand and the rest into your graveyard."
 public export
-okRestAfterPart : Effect []
+okRestAfterPart : Instruction []
 okRestAfterPart =
   Sequentially [ Macros.lookAt (Macros.topSlice (Lit 4))
                , Move (Macros.someOf (Macros.exactly 1) (Macros.It ManyOf)) Macros.handZ []
@@ -302,18 +302,18 @@ okRestAfterPart =
 
 ||| "Put the rest into your graveyard."
 public export
-badRestWithoutGroup : Unspellable (Effect []) (\ok =>
+badRestWithoutGroup : Unspellable (Instruction []) (\ok =>
   Move (Macros.theRest {ok}) Macros.graveyardZ [])
 badRestWithoutGroup Oh impossible
 
 ||| "Look at the top four cards of your library. Put the rest on the bottom."
 public export
-badRestWithoutPart : Unspellable (Effect []) (\ok =>
+badRestWithoutPart : Unspellable (Instruction []) (\ok =>
   Sequentially [Macros.lookAt ((Macros.topSlice (Lit 4))), Move (Macros.theRest {ok}) Macros.onBottomZ []])
 badRestWithoutPart Oh impossible
 
 public export
-badRestDisposedTwice : Unspellable (Effect []) (\ok =>
+badRestDisposedTwice : Unspellable (Instruction []) (\ok =>
   Sequentially [ Macros.lookAt ((Macros.topSlice (Lit 4)))
                , Move (Macros.someOf (Macros.exactly 1) ((Macros.It ManyOf))) Macros.handZ []
                , Move Macros.theRest Macros.onBottomZ []
@@ -322,7 +322,7 @@ badRestDisposedTwice : Unspellable (Effect []) (\ok =>
 badRestDisposedTwice Oh impossible
 
 public export
-badRestOverTwoAnnouncements : Unspellable (Effect []) (\ok =>
+badRestOverTwoAnnouncements : Unspellable (Instruction []) (\ok =>
   Sequentially [ Fights (Macros.target Macros.creatureYouControl) (Macros.target Macros.creatureYouDontControl)
                , Move (Macros.theRest {ok}) Macros.graveyardZ []
                ])
@@ -330,19 +330,19 @@ badRestOverTwoAnnouncements Oh impossible
 
 ||| "This creature deals 2 damage to each opponent."
 public export
-okEachOpponentDamage : Effect []
+okEachOpponentDamage : Instruction []
 okEachOpponentDamage =
   DealDamage Macros.thisCreature (Lit 2) (Macros.each Opponent)
 
 ||| "This creature deals 2 damage to your opponents."
 public export
-badPluralPlayerDamageRecipient : Unspellable (Effect []) (\ok =>
+badPluralPlayerDamageRecipient : Unspellable (Instruction []) (\ok =>
   DealDamage Macros.thisCreature (Lit 2) (PlayerGroup YourOpponents) {pm = ok})
 badPluralPlayerDamageRecipient Oh impossible
 
 ||| "Prevent all damage that would be dealt to any player or permanent."
 public export
-okPreventDealtToPermanent : StaticEffect []
+okPreventDealtToPermanent : StaticSpec []
 okPreventDealtToPermanent =
   DamageRule AnyDamage Unattributed
              (ToRecipient (Macros.a (Macros.kindJoin AnyPlayer Permanent)))
@@ -350,14 +350,14 @@ okPreventDealtToPermanent =
 
 ||| "Prevent all damage that would be dealt to this this turn."
 public export
-badPreventedBareThis : Unspellable (StaticEffect []) (\ok =>
+badPreventedBareThis : Unspellable (StaticSpec []) (\ok =>
   DamageRule AnyDamage Unattributed (ToRecipient This {rk = ok})
              (Prevent CutAll Nothing) Repeatedly)
 badPreventedBareThis ObjectTakes impossible
 
 ||| "Prevent all damage that would be dealt to target artifact this turn."
 public export
-badPreventDealtToArtifact : Unspellable (StaticEffect []) (\ok =>
+badPreventDealtToArtifact : Unspellable (StaticSpec []) (\ok =>
   DamageRule AnyDamage Unattributed
              (ToRecipient (Macros.target Macros.artifact) {rk = ok})
              (Prevent CutAll Nothing) Repeatedly)
@@ -365,7 +365,7 @@ badPreventDealtToArtifact ObjectTakes impossible
 
 ||| "… is dealt to target attacking creature instead."
 public export
-okRedirectToSingleCreature : StaticEffect []
+okRedirectToSingleCreature : StaticSpec []
 okRedirectToSingleCreature =
   DamageRule AnyDamage Unattributed (ToRecipient You)
              (Redirect CutAll (Macros.target (And [Macros.creature, Attacking])))
@@ -373,20 +373,20 @@ okRedirectToSingleCreature =
 
 ||| "All damage that would be dealt to you is dealt to target artifact instead."
 public export
-badRedirectToArtifact : Unspellable (StaticEffect []) (\ok =>
+badRedirectToArtifact : Unspellable (StaticSpec []) (\ok =>
   DamageRule AnyDamage Unattributed (ToRecipient You)
              (Redirect CutAll (Macros.target Macros.artifact) {rk = ok}) Repeatedly)
 badRedirectToArtifact ObjectTakes impossible
 
 public export
-badRedirectToPlural : Unspellable (StaticEffect []) (\ok =>
+badRedirectToPlural : Unspellable (StaticSpec []) (\ok =>
   DamageRule AnyDamage Unattributed (ToRecipient You)
              (Redirect CutAll (Macros.allOf Macros.creatureYouControl) {one = ok}) Repeatedly)
 badRedirectToPlural Refl impossible
 
 ||| "… If damage from a red source is prevented this way, you gain 3 life."
 public export
-okPreventedFromSourceAnnounced : StaticEffect []
+okPreventedFromSourceAnnounced : StaticSpec []
 okPreventedFromSourceAnnounced =
   DamageRule AnyDamage Unattributed (ToRecipient You)
              (Prevent CutAll
@@ -396,71 +396,71 @@ okPreventedFromSourceAnnounced =
 
 ||| "If damage from a red source is prevented this way, you gain 3 life."
 public export
-badPreventedFromSourceUnannounced : Unspellable (Effect []) (\ok =>
+badPreventedFromSourceUnannounced : Unspellable (Instruction []) (\ok =>
   If (PreventedFromSource (And [Macros.source, ColorIs Red]) {ok})
      (Macros.gainsLife You (Lit 3)) Nothing)
 badPreventedFromSourceUnannounced Refl impossible
 
 ||| "… You gain life equal to the damage prevented this way."
 public export
-okPreventedThisWayAnnounced : StaticEffect []
+okPreventedThisWayAnnounced : StaticSpec []
 okPreventedThisWayAnnounced =
   DamageRule AnyDamage Unattributed (ToRecipient You)
              (Prevent CutAll (Just (Macros.gainsLife You Macros.preventedThisWay)))
              Repeatedly
 
 public export
-badPreventedThisWayAfterDamage : Unspellable (Effect []) (\ok =>
+badPreventedThisWayAfterDamage : Unspellable (Instruction []) (\ok =>
   Sequentially [ DealDamage This (Lit 3) (Macros.target Macros.creature)
                , ChangeLife You (Up (Macros.preventedThisWay {ok})) ])
 badPreventedThisWayAfterDamage Refl impossible
 
 ||| "You gain life equal to the damage prevented this way."
 public export
-badPreventedThisWayUnannounced : Unspellable (Effect []) (\ok =>
+badPreventedThisWayUnannounced : Unspellable (Instruction []) (\ok =>
   ChangeLife You (Up (Macros.preventedThisWay {ok})))
 badPreventedThisWayUnannounced Refl impossible
 
 ||| "… They gain 2 life for each card less than two they drew this way."
 public export
-okShortOfCeilingAnnounced : Effect []
+okShortOfCeilingAnnounced : Instruction []
 okShortOfCeilingAnnounced =
   Sequentially [ Macros.may (Macros.each AnyPlayer) (Draw They (UpTo (Lit 2)))
                , Macros.gainsLife They (Macros.times 2 Macros.shortOfCeiling) ]
 
 ||| "You gain 2 life for each card less than two you draw this way."
 public export
-badShortOfCeilingUnannounced : Unspellable (Effect []) (\ok =>
+badShortOfCeilingUnannounced : Unspellable (Instruction []) (\ok =>
   Macros.gainsLife You (Macros.times 2 (Macros.shortOfCeiling {ok})))
 badShortOfCeilingUnannounced Refl impossible
 
 public export
-badShieldSizedByItsOwnPrevention : Unspellable (StaticEffect []) (\ok =>
+badShieldSizedByItsOwnPrevention : Unspellable (StaticSpec []) (\ok =>
   DamageRule AnyDamage Unattributed (ToRecipient You)
              (Prevent (Shield (Macros.preventedThisWay {ok})) Nothing) Repeatedly)
 badShieldSizedByItsOwnPrevention Refl impossible
 
 ||| "Prevent the next 3 damage that would be dealt to you this turn."
 public export
-okShieldRepeatedly : StaticEffect []
+okShieldRepeatedly : StaticSpec []
 okShieldRepeatedly =
   DamageRule AnyDamage Unattributed (ToRecipient You)
              (Prevent (Shield (Lit 3)) Nothing) Repeatedly
 
 public export
-badShieldNextTimeOnly : Unspellable (StaticEffect []) (\ok =>
+badShieldNextTimeOnly : Unspellable (StaticSpec []) (\ok =>
   DamageRule AnyDamage Unattributed (ToRecipient You)
              (Prevent (Shield (Lit 3)) Nothing) NextTimeOnly {su = ok})
 badShieldNextTimeOnly Oh impossible
 
 ||| "This creature deals 3 damage to target creature."
 public export
-okDamageToCreature : Effect []
+okDamageToCreature : Instruction []
 okDamageToCreature = DealDamage This (Lit 3) (Macros.target Macros.creature)
 
 ||| "This creature deals 3 damage to target source."
 public export
-badDamageToSource : Unspellable (Effect []) (\ok =>
+badDamageToSource : Unspellable (Instruction []) (\ok =>
   DealDamage This (Lit 3) (Macros.target Macros.source) {rk = ok})
 badDamageToSource ObjectTakes impossible
 
@@ -476,7 +476,7 @@ badNonsource : Unspellable (Predicate [] Object) (\ok =>
 badNonsource Oh impossible
 
 public export
-badRedirectToGroup : Unspellable (StaticEffect []) (\ok =>
+badRedirectToGroup : Unspellable (StaticSpec []) (\ok =>
   DamageRule AnyDamage Unattributed (ToRecipient You)
              (Redirect CutAll
                 (Macros.youAnd (Macros.allOf (And [Permanent, HasPossessor ControllerAx You])))
@@ -486,21 +486,21 @@ badRedirectToGroup Refl impossible
 
 ||| "Target opponent loses 1 life. You gain that much life."
 public export
-okThatMuchAfterLifeLoss : Effect []
+okThatMuchAfterLifeLoss : Instruction []
 okThatMuchAfterLifeLoss =
   Sequentially [ Macros.losesLife (Macros.target Opponent) (Lit 1)
                , Macros.gainsLife You ThatMuch ]
 
 ||| "… it deals that much damage plus that much instead."
 public export
-badScaleShiftByThatMuch : Unspellable (StaticEffect []) (\ok =>
+badScaleShiftByThatMuch : Unspellable (StaticSpec []) (\ok =>
   DamageRule AnyDamage (DealtBy (Macros.a Macros.source))
              (ToRecipient (Macros.a (Macros.kindJoin AnyPlayer Permanent)))
              (Scale (Shifted ShiftUp (ThatMuch {ok}))) Repeatedly)
 badScaleShiftByThatMuch Refl impossible
 
 public export
-badScaleToArtifact : Unspellable (StaticEffect []) (\ok =>
+badScaleToArtifact : Unspellable (StaticSpec []) (\ok =>
   DamageRule AnyDamage (DealtBy (Macros.a Macros.source))
              (ToRecipient (Macros.target Macros.artifact) {rk = ok})
              (Scale (Multiplied Doubled)) Repeatedly)
@@ -521,7 +521,7 @@ badThatMuchAfterDeath Refl impossible
 
 ||| "… That creature deals damage equal to its power to this creature."
 public export
-okThatCreatureAfterDamage : Effect []
+okThatCreatureAfterDamage : Instruction []
 okThatCreatureAfterDamage =
   Sequentially [ DealDamage Macros.thisCreature
                             (StatOf Power Macros.thisCreature)
@@ -596,14 +596,14 @@ badAggregateWrongSort Refl impossible
 
 ||| "up to X | Draw a card."
 public export
-badAmountRollRow : Unspellable (Effect []) (\ok =>
+badAmountRollRow : Unspellable (Instruction []) (\ok =>
   Sequentially [(Macros.rollDice You 1 20),
                 ResultsTable [MkRollRow (UpToOf (LetterVal X))
                                         (Draw You (Lit 1)) {lt = ok}]])
 badAmountRollRow Oh impossible
 
 public export
-badCreatureHalfRead : Unspellable (Effect []) (\ok =>
+badCreatureHalfRead : Unspellable (Instruction []) (\ok =>
   Sequentially
     [ DealDamage This (Lit 3)
         (Macros.target (Macros.kindJoin AnyPlayer (HasType Planeswalker)))
@@ -615,40 +615,40 @@ badCreatureHalfRead Refl impossible
 
 ||| "This deals 3 damage to any target."
 public export
-okJoinDamageRecipient : Effect []
+okJoinDamageRecipient : Instruction []
 okJoinDamageRecipient =
   DealDamage This (Lit 3) (Macros.target Macros.anyTarget)
 
 ||| "This deals 3 damage to a land or a land."
 public export
-badSameKindJoinDamage : Unspellable (Effect []) (\ok =>
+badSameKindJoinDamage : Unspellable (Instruction []) (\ok =>
   DealDamage This (Lit 3)
              (Macros.a (Joined (HasType Land) (HasType Land))) {rk = ok})
 badSameKindJoinDamage JoinTakes impossible
 
 ||| "Create a 1/1 white Soldier creature token."
 public export
-okSoldierToken : Effect []
+okSoldierToken : Instruction []
 okSoldierToken =
   Macros.create (Lit 1)
                 (Macros.creatureTok 1 1 [White] [creatureType "Soldier"])
 
 ||| "Create a 1/1 black Zombie artifact token."
 public export
-badZombieArtifactToken : Unspellable (Effect []) (\ok =>
+badZombieArtifactToken : Unspellable (Instruction []) (\ok =>
   Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [Black] (MkTypeLine [creatureType "Zombie"] [Artifact])
                           [] Nothing) {wf = ok})
 badZombieArtifactToken (Oh, Oh, Oh, Oh, Oh, Oh) impossible
 
 ||| "Create a white Soldier creature token."
 public export
-badCreatureTokenNoPt : Unspellable (Effect []) (\ok =>
+badCreatureTokenNoPt : Unspellable (Instruction []) (\ok =>
   Macros.create (Lit 1) (MkToken Nothing [White] (MkTypeLine [creatureType "Soldier"] [Creature]) [] Nothing) {wf = ok})
 badCreatureTokenNoPt (Oh, Oh, Oh, Oh, Oh, Oh) impossible
 
 ||| "Create a 1/1 white token."
 public export
-badTypelessToken : Unspellable (Effect []) (\ok =>
+badTypelessToken : Unspellable (Instruction []) (\ok =>
   Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [White] (MkTypeLine [] []) [] Nothing) {wf = ok})
 badTypelessToken (Oh, Oh, Oh, Oh, Oh, Oh) impossible
 
@@ -671,25 +671,25 @@ badDistributiveLifeTotalRead Refl impossible
 
 ||| "Destroy target creature."
 public export
-okDestroyCreature : Effect []
+okDestroyCreature : Instruction []
 okDestroyCreature = Macros.destroy (Macros.target Macros.creature)
 
 ||| "Destroy target source."
 public export
-badDestroySource : Unspellable (Effect []) (\ok =>
+badDestroySource : Unspellable (Instruction []) (\ok =>
   Macros.destroy (Macros.target Macros.source) {ok})
 badDestroySource Oh impossible
 
 ||| "Target creature gets +1/+1 until end of turn."
 public export
-okGetsCreature : Effect []
+okGetsCreature : Instruction []
 okGetsCreature =
   Macros.gets (Macros.target Macros.creature) (PtUp (Lit 1)) (PtUp (Lit 1))
               (Just Macros.untilEndOfTurn)
 
 ||| "Target source gets +1/+1 until end of turn." [CR#609.7a]
 public export
-badGetsSource : Unspellable (Effect []) (\ok =>
+badGetsSource : Unspellable (Instruction []) (\ok =>
   Macros.gets (Macros.target Macros.source) (PtUp (Lit 1)) (PtUp (Lit 1)) {ok}
               (Just Macros.untilEndOfTurn))
 badGetsSource Oh impossible

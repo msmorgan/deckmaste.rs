@@ -84,7 +84,7 @@ badJoinedHeaderReadback Refl impossible
 
 ||| "Remove a +1/+1 counter from target creature."
 public export
-okRemoveCounterFromTarget : Effect []
+okRemoveCounterFromTarget : Instruction []
 okRemoveCounterFromTarget =
   RemoveCounters (Just (Macros.exactly 1))
                  (Just (PrintedKind Macros.plusOnePlusOne))
@@ -92,75 +92,75 @@ okRemoveCounterFromTarget =
 
 ||| "Destroy target creature. Remove a +1/+1 counter from it."
 public export
-badRemoveCountersDead : Unspellable (Effect []) (\ok =>
+badRemoveCountersDead : Unspellable (Instruction []) (\ok =>
   Sequentially [Macros.destroy (Macros.target Macros.creature),
                 RemoveCounters (Just (Macros.exactly 1)) (Just (PrintedKind Macros.plusOnePlusOne)) ((Macros.It OneOf)) {cm = ok}])
 badRemoveCountersDead Oh impossible
 
 ||| "Move a counter from target creature onto this creature."
 public export
-okMoveCounterOntoThis : Effect []
+okMoveCounterOntoThis : Instruction []
 okMoveCounterOntoThis =
   MoveCounters (Lit 1) Nothing (Macros.target Macros.creature)
                Macros.thisCreature
 
 ||| "Move a counter from target creature onto it."
 public export
-badMoveCountersSelf : Unspellable (Effect []) (\ok =>
+badMoveCountersSelf : Unspellable (Instruction []) (\ok =>
   MoveCounters (Lit 1) Nothing (Macros.target Macros.creature) ((Macros.It OneOf)) {md = ok})
 badMoveCountersSelf Oh impossible
 
 ||| "Create a 1/1 creature creature token."
 public export
-badTokenDuplicateType : Unspellable (Effect []) (\ok =>
+badTokenDuplicateType : Unspellable (Instruction []) (\ok =>
   Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [] (MkTypeLine [] [Creature, Creature])
                           [] Nothing) {wf = ok})
 badTokenDuplicateType (Oh, Oh, Oh, Oh, Oh, Oh) impossible
 
 ||| "Create a 1/1 white white Soldier creature token."
 public export
-badTokenDuplicateColor : Unspellable (Effect []) (\ok =>
+badTokenDuplicateColor : Unspellable (Instruction []) (\ok =>
   Macros.create (Lit 1) (Macros.creatureTok 1 1 [White, White] [creatureType "Soldier"]) {wf = ok})
 badTokenDuplicateColor (Oh, Oh, Oh, Oh, Oh, Oh) impossible
 
 ||| "Target opponent loses 2 life. You gain that much life."
 public export
-okThatMuchAfterOutcome : Effect []
+okThatMuchAfterOutcome : Instruction []
 okThatMuchAfterOutcome =
   Sequentially [Macros.losesLife (Macros.target Opponent) (Lit 2),
                 Macros.gainsLife You ThatMuch]
 
 ||| "This deals 2 damage to target creature and you gain that much life."
 public export
-badSimultaneousReadsOutcome : Unspellable (Effect []) (\ok =>
+badSimultaneousReadsOutcome : Unspellable (Instruction []) (\ok =>
   Simultaneously [DealDamage This (Lit 2) (Macros.target Macros.creature),
                   Macros.gainsLife You (ThatMuch {ok})])
 badSimultaneousReadsOutcome Refl impossible
 
 ||| "You may create a token and put a +1/+1 counter on it."
 public export
-badSimultaneousReadsMayDeed : Unspellable (Effect []) (\ok =>
+badSimultaneousReadsMayDeed : Unspellable (Instruction []) (\ok =>
   Simultaneously [Macros.may You (Macros.create (Lit 1) (Macros.creatureTok 1 1 [Green] [creatureType "Plant"])),
                   PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) ((Macros.It OneOf) {ok})])
 badSimultaneousReadsMayDeed Refl impossible
 
 ||| "You may have this deal 2 damage and you gain that much life."
 public export
-badSimultaneousReadsMayOutcome : Unspellable (Effect []) (\ok =>
+badSimultaneousReadsMayOutcome : Unspellable (Instruction []) (\ok =>
   Simultaneously [Macros.may You (DealDamage This (Lit 2) (Macros.target Macros.creature)),
                   Macros.gainsLife You (ThatMuch {ok})])
 badSimultaneousReadsMayOutcome Refl impossible
 
 ||| "Create a Plant token and a Soldier token. Put a +1/+1 counter on it."
 public export
-badBatchTwoCreatesThenIt : Unspellable (Effect []) (\ok =>
+badBatchTwoCreatesThenIt : Unspellable (Instruction []) (\ok =>
   Sequentially [Simultaneously [Macros.create (Lit 1) (Macros.creatureTok 1 1 [Green] [creatureType "Plant"]),
                                Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [creatureType "Soldier"])],
                 PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) ((Macros.It OneOf) {ok})])
 badBatchTwoCreatesThenIt Refl impossible
 
 public export
-badBatchTwoOutcomesThenThatMuch : Unspellable (Effect []) (\ok =>
+badBatchTwoOutcomesThenThatMuch : Unspellable (Instruction []) (\ok =>
   Sequentially [Simultaneously [DealDamage This (Lit 2) (Macros.target Macros.creature),
                                Macros.losesLife (Macros.target Opponent) (Lit 3)],
                 Macros.gainsLife You (ThatMuch {ok})])
@@ -168,7 +168,7 @@ badBatchTwoOutcomesThenThatMuch Refl impossible
 
 ||| "Create a 1/1 green Plant creature token. Put a +1/+1 counter on it."
 public export
-okCreatedThenCountered : Effect []
+okCreatedThenCountered : Instruction []
 okCreatedThenCountered =
   Sequentially [Create You (Lit 1)
                        (TokenWritten
@@ -176,7 +176,7 @@ okCreatedThenCountered =
                 PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) (Macros.It OneOf)]
 
 public export
-badDistributedCreationIt : Unspellable (Effect []) (\ok =>
+badDistributedCreationIt : Unspellable (Instruction []) (\ok =>
   Sequentially [Create (Macros.each AnyPlayer) (Lit 1)
                        (TokenWritten (Macros.creatureTok 1 1 [Green] [creatureType "Plant"])) [],
                 PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) ((Macros.It OneOf) {ok})])
@@ -184,40 +184,40 @@ badDistributedCreationIt Refl impossible
 
 ||| "Put a +1/+1 counter on each of up to two target creatures."
 public export
-okDistributedCounterRecipient : Effect []
+okDistributedCounterRecipient : Instruction []
 okDistributedCounterRecipient =
   PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
               (EachOf (Described (TargetDet (Macros.upTo 2)) Macros.creature))
 
 ||| "Put a +1/+1 counter on up to two target creatures."
 public export
-badBarePluralCounterRecipient : Unspellable (Effect []) (\ok =>
+badBarePluralCounterRecipient : Unspellable (Instruction []) (\ok =>
   PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) (Described (TargetDet (Macros.upTo 2)) Macros.creature) {pm = ok})
 badBarePluralCounterRecipient Oh impossible
 
 ||| "This deals 1 damage to each of up to two target creatures."
 public export
-okDistributedDamageRecipient : Effect []
+okDistributedDamageRecipient : Instruction []
 okDistributedDamageRecipient =
   DealDamage This (Lit 1)
              (EachOf (Described (TargetDet (Macros.upTo 2)) Macros.creature))
 
 ||| "This deals 1 damage to up to two target creatures."
 public export
-badBarePluralDamageRecipient : Unspellable (Effect []) (\ok =>
+badBarePluralDamageRecipient : Unspellable (Instruction []) (\ok =>
   DealDamage This (Lit 1) (Described (TargetDet (Macros.upTo 2)) Macros.creature) {pm = ok})
 badBarePluralDamageRecipient Oh impossible
 
 ||| "Choose any number of target creatures. Put a +1/+1 counter on them."
 public export
-badThemCounterRecipient : Unspellable (Effect []) (\ok =>
+badThemCounterRecipient : Unspellable (Instruction []) (\ok =>
   Sequentially [Choose (Described (TargetDet Macros.anyNumber) Macros.creature) Nothing Openly,
                 PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) ((Macros.It ManyOf)) {pm = ok}])
 badThemCounterRecipient Oh impossible
 
 ||| "Exile target creature with a +1/+1 counter on it."
 public export
-okExileWithCounterRider : Effect []
+okExileWithCounterRider : Instruction []
 okExileWithCounterRider =
   Enact Nothing "Exile"
         (Move (Macros.target Macros.creature) Macros.exileZ
@@ -225,40 +225,40 @@ okExileWithCounterRider =
 
 ||| "Exile target creature tapped."
 public export
-badExileTapped : Unspellable (Effect []) (\ok =>
+badExileTapped : Unspellable (Instruction []) (\ok =>
   Enact Nothing "Exile" (Move (Macros.target Macros.creature) Macros.exileZ
                       [EntersTapped] {rf = ok}))
 badExileTapped Oh impossible
 
 ||| "Put a +1/+1 counter on target creature."
 public export
-okPutBoostCounterOnCreature : Effect []
+okPutBoostCounterOnCreature : Instruction []
 okPutBoostCounterOnCreature =
   PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
               (Macros.target Macros.creature)
 
 ||| "Put a poison counter on target creature."
 public export
-badPutPoisonOnCreature : Unspellable (Effect []) (\ok =>
+badPutPoisonOnCreature : Unspellable (Instruction []) (\ok =>
   PutCounters (Lit 1) (PrintedKind (Named "Poison")) (Macros.target Macros.creature) {sc = ok})
 badPutPoisonOnCreature Oh impossible
 
 ||| "You get a +1/+1 counter."
 public export
-badGetsBoostCounter : Unspellable (Effect []) (\ok =>
+badGetsBoostCounter : Unspellable (Instruction []) (\ok =>
   PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) You {sc = ok})
 badGetsBoostCounter Oh impossible
 
 ||| "Each opponent loses all poison counters."
 public export
-okLosesAllPoisonCounters : Effect []
+okLosesAllPoisonCounters : Instruction []
 okLosesAllPoisonCounters =
   LosesCounters (Macros.each Opponent) (Just (PrintedKind (Named "Poison")))
                 Nothing
 
 ||| "Each opponent loses all +1/+1 counters."
 public export
-badLosesAllBoostCounters : Unspellable (Effect []) (\ok =>
+badLosesAllBoostCounters : Unspellable (Instruction []) (\ok =>
   LosesCounters (Macros.each Opponent) (Just (PrintedKind Macros.plusOnePlusOne)) Nothing
                    {sc = ok})
 badLosesAllBoostCounters Oh impossible
@@ -291,19 +291,19 @@ badLastPoisonCounterRemoved Refl impossible
 
 ||| "Put a charge counter on this artifact."
 public export
-okChargeCounterOnArtifact : Effect []
+okChargeCounterOnArtifact : Instruction []
 okChargeCounterOnArtifact =
   PutCounters (Lit 1) (PrintedKind (Named "Charge")) Macros.thisArtifact
 
 ||| "Each player gets a charge counter."
 public export
-badGetsChargeCounter : Unspellable (Effect []) (\ok =>
+badGetsChargeCounter : Unspellable (Instruction []) (\ok =>
   PutCounters (Lit 1) (PrintedKind (Named "Charge")) You {sc = ok})
 badGetsChargeCounter Oh impossible
 
 ||| "… that many plus one +1/+1 counters are put on it instead"
 public export
-okManyCounterBatchSize : StaticEffect []
+okManyCounterBatchSize : StaticSpec []
 okManyCounterBatchSize =
   Intercepts (CounterEvent CounterPut (Just Macros.plusOnePlusOne)
                            (Macros.a Macros.creatureYouControl) ManyCounters
@@ -313,7 +313,7 @@ okManyCounterBatchSize =
              Repeatedly Nothing
 
 public export
-badSingularCounterBatchSize : Unspellable (StaticEffect []) (\ok =>
+badSingularCounterBatchSize : Unspellable (StaticSpec []) (\ok =>
   Intercepts (CounterEvent CounterPut (Just Macros.plusOnePlusOne)
                            (Macros.a Macros.creatureYouControl) OneCounter Nothing False) [] Nothing
              (PutCounters (Plus (ThatMuch {ok}) (Lit 1))
@@ -360,7 +360,7 @@ badCumulativeUpkeepCounter Oh impossible
 
 ||| "your choice of a +1/+1 counter or a first strike counter on it."
 public export
-okCounterMenu : StaticEffect []
+okCounterMenu : StaticSpec []
 okCounterMenu =
   EntersRider Macros.thisCreature
     (WithCounters (Lit 1)
@@ -369,33 +369,33 @@ okCounterMenu =
 
 ||| "This creature enters with your choice of a counter on it."
 public export
-badEmptyCounterMenu : Unspellable (StaticEffect []) (\ok =>
+badEmptyCounterMenu : Unspellable (StaticSpec []) (\ok =>
   EntersRider Macros.thisCreature (WithCounters (Lit 1) (ChosenKind [] {ne = ok}) Fresh))
 badEmptyCounterMenu IsNonEmpty impossible
 
 ||| "Put your choice of a +1/+1 counter or a poison counter on target creature."
 public export
-badMixedScopeCounterMenu : Unspellable (Effect []) (\ok =>
+badMixedScopeCounterMenu : Unspellable (Instruction []) (\ok =>
   PutCounters (Lit 1) (ChosenKind [Macros.plusOnePlusOne, Named "Poison"])
               (Macros.target Macros.creature) {sc = ok})
 badMixedScopeCounterMenu Oh impossible
 
 ||| "Put a poison counter on target opponent."
 public export
-okPoisonCounterLabel : Effect []
+okPoisonCounterLabel : Instruction []
 okPoisonCounterLabel =
   PutCounters (Lit 1) (PrintedKind (Named "Poison")) (Macros.target Opponent)
 
 ||| "Put a zorp counter on target creature."
 public export
-badUnknownCounterLabel : Unspellable (Effect []) (\ok =>
+badUnknownCounterLabel : Unspellable (Instruction []) (\ok =>
   PutCounters (Lit 1) (PrintedKind (Named "Zorp" {ok}))
               (Macros.target Macros.creature))
 badUnknownCounterLabel Oh impossible
 
 ||| "Put a flying counter on target creature." [CR#122.1b]
 public export
-badKeywordCounterNamedPlainly : Unspellable (Effect []) (\ok =>
+badKeywordCounterNamedPlainly : Unspellable (Instruction []) (\ok =>
   PutCounters (Lit 1) (PrintedKind (Named "Flying" {ok}))
               (Macros.target Macros.creature))
 badKeywordCounterNamedPlainly Oh impossible
@@ -410,18 +410,18 @@ afterCountersPut =
 
 ||| "Put that many counters of each of those kinds on this creature."
 public export
-okThoseKindsAfterCountersPut : Effect ProofsCounters.afterCountersPut
+okThoseKindsAfterCountersPut : Instruction ProofsCounters.afterCountersPut
 okThoseKindsAfterCountersPut = PutCounters ThatMuch ThoseKinds This
 
 ||| "Put a counter of each of those kinds on target creature."
 public export
-badThoseKindsUnannounced : Unspellable (Effect []) (\ok =>
+badThoseKindsUnannounced : Unspellable (Instruction []) (\ok =>
   PutCounters (Lit 1) (ThoseKinds {ok}) (Macros.target Macros.creature))
 badThoseKindsUnannounced Refl impossible
 
 ||| "If ... +1/+1 counters ... that many plus one are put instead."
 public export
-okInterceptsCounterEvent : StaticEffect []
+okInterceptsCounterEvent : StaticSpec []
 okInterceptsCounterEvent =
   Intercepts (Macros.counterEvent CounterPut Macros.plusOnePlusOne ManyCounters
                                   (Macros.a Macros.creatureYouControl))
@@ -431,7 +431,7 @@ okInterceptsCounterEvent =
              Repeatedly Nothing
 
 public export
-badTriggeringReplaced : Unspellable (StaticEffect []) (\ok =>
+badTriggeringReplaced : Unspellable (StaticSpec []) (\ok =>
   Intercepts (Triggers (Macros.a (And [ AbilityHead AnyTriggered
                                       , AbilityOf (Macros.a (And [Permanent, HasPossessor ControllerAx You])) ])))
              [] Nothing (Draw You (Lit 1)) Repeatedly Nothing {ok})
@@ -439,31 +439,31 @@ badTriggeringReplaced Oh impossible
 
 ||| "Target creature becomes an artifact in addition to its other types."
 public export
-okBecomesArtifact : Effect []
+okBecomesArtifact : Instruction []
 okBecomesArtifact =
   Macros.becomes (Macros.target Macros.creature) (Macros.typesOnly [Artifact])
                  Nothing
 
 ||| "Target land becomes a Zombie in addition to its other types."
 public export
-badBecomesZombieLand : Unspellable (Effect []) (\ok =>
+badBecomesZombieLand : Unspellable (Instruction []) (\ok =>
   Macros.becomes (Macros.target Macros.land) (Macros.subtypesOnly [creatureType "Zombie"]) Nothing {ok = ok})
 badBecomesZombieLand Oh impossible
 
 ||| "Target creature becomes in addition to its other types."
 public export
-badBecomesNothing : Unspellable (Effect []) (\ok =>
+badBecomesNothing : Unspellable (Instruction []) (\ok =>
   Macros.becomes (Macros.target Macros.creature) (MkTypeLine [] []) Nothing {ok = ok})
 badBecomesNothing Oh impossible
 
 ||| "Target creature becomes a creature in addition to its other types."
 public export
-badBecomesOwnType : Unspellable (Effect []) (\ok =>
+badBecomesOwnType : Unspellable (Instruction []) (\ok =>
   Macros.becomes (Macros.target Macros.creature) (Macros.typesOnly [Creature]) Nothing {ok = ok})
 badBecomesOwnType Oh impossible
 
 public export
-badOtherwiseReadsIfArm : Unspellable (Effect []) (\ok =>
+badOtherwiseReadsIfArm : Unspellable (Instruction []) (\ok =>
   OnlyIf (Macros.create (Lit 1) (Macros.creatureTok 1 1 [Black] [creatureType "Zombie"]))
      (Macros.exists Macros.creatureYouControl)
      (Just (SetStatus Tapped ((Macros.It OneOf) {ok = Builtin.fst ok}) {ok = Builtin.snd ok})))
@@ -471,7 +471,7 @@ badOtherwiseReadsIfArm (Refl, _) impossible
 
 ||| "Create a 1/1 black Zombie creature token. Create two of those tokens."
 public export
-okAnaphoricTokenAfterToken : Effect []
+okAnaphoricTokenAfterToken : Instruction []
 okAnaphoricTokenAfterToken =
   Sequentially [ Macros.create (Lit 1)
                    (Macros.creatureTok 1 1 [Black] [creatureType "Zombie"])
@@ -479,7 +479,7 @@ okAnaphoricTokenAfterToken =
 
 ||| "Destroy target creature. Create two of those tokens."
 public export
-badAnaphoricTokenAfterNonToken : Unspellable (Effect []) (\ok =>
+badAnaphoricTokenAfterNonToken : Unspellable (Instruction []) (\ok =>
   Sequentially [ Macros.destroy (Macros.target Macros.creature)
                , Create You (Lit 2) (TokenAsThose {ok}) [] ])
 badAnaphoricTokenAfterNonToken Refl impossible

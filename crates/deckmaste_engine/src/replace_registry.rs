@@ -16,7 +16,7 @@ use deckmaste_core::Duration;
 use deckmaste_core::EventFilter;
 use deckmaste_core::Prevention;
 use deckmaste_core::Replacement;
-use deckmaste_core::StaticEffect;
+use deckmaste_core::StaticSpec;
 use deckmaste_core::Zone;
 
 use crate::event::AbilityActivated;
@@ -186,7 +186,7 @@ pub(crate) fn cant_event(state: &GameState, e: &GameEvent) -> bool {
     let view = state.layers();
     let battlefield_cant = state.zones.battlefield.iter().any(|&obj| {
         crate::legal::object_has_static(&view, obj, &|s| {
-            matches!(s, StaticEffect::CantHappen(would)
+            matches!(s, StaticSpec::CantHappen(would)
                 if replacement_watches(state, look_through_event(would), obj, e))
         })
     });
@@ -201,7 +201,7 @@ pub(crate) fn cant_event(state: &GameState, e: &GameEvent) -> bool {
     state.continuous.iter().any(|ce| {
         let anchor = state.player(ce.controller).object;
         ce.rows.iter().any(|s| {
-            matches!(s, StaticEffect::CantHappen(would)
+            matches!(s, StaticSpec::CantHappen(would)
                 if replacement_watches(state, look_through_event(would), anchor, e))
         })
     })
@@ -245,7 +245,7 @@ pub struct ReplacementInstance {
 /// it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ReplacementKey {
-    /// A static `StaticEffect::Replacement` at a known ability/effect index.
+    /// A static `StaticSpec::Replacement` at a known ability/effect index.
     Static {
         source: ObjectId,
         ability: usize,
@@ -302,11 +302,11 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
             let Ability::Static(s) = ability else {
                 continue;
             };
-            // `Ability::Static` carries a single `StaticEffect` directly, so
+            // `Ability::Static` carries a single `StaticSpec` directly, so
             // the effect index is always 0 — kept in `ReplacementKey::Static`
             // for shape stability (multi-effect abilities used to
             // disambiguate by index).
-            if let StaticEffect::Replacement(r) = &s.body
+            if let StaticSpec::Replacement(r) = &s.body
                 && replacement_would(state, r, obj, e, &s.params)
             {
                 out.push(Applicable {
@@ -361,7 +361,7 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
             crate::derive::derived_abilities_of(state, Some(obj), state.objects.obj(obj).source);
         for (ai, ability) in abilities.iter().enumerate() {
             if let Ability::Static(s) = ability
-                && let StaticEffect::Replacement(r) = &s.body
+                && let StaticSpec::Replacement(r) = &s.body
                 && replacement_would(state, r, obj, e, &s.params)
             {
                 out.push(Applicable {
@@ -427,7 +427,7 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
                 let Ability::Static(s) = ability else {
                     continue;
                 };
-                if let StaticEffect::Prevention(p) = &s.body
+                if let StaticSpec::Prevention(p) = &s.body
                     && prevention_watches(state, p, obj, event_source, event_target)
                 {
                     out.push(Applicable {
@@ -445,7 +445,7 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
         }
     }
 
-    // NOTE: `StaticEffect::ReplaceRoll` ([CR#614.3] Krark's Thumb-family
+    // NOTE: `StaticSpec::ReplaceRoll` ([CR#614.3] Krark's Thumb-family
     // roll-more replacement) is a genuine THIRD replacement family — its own
     // `EventQuery`/effect shape, structurally distinct from `Replacement`'s
     // Instead/Also/Skip triad — but it is deliberately NOT gathered here.
@@ -456,7 +456,7 @@ pub(crate) fn gather_applicable(state: &GameState, e: &GameEvent) -> Vec<Applica
     // intercept" gap it once was. Gathering it here,
     // routing the flip/roll batches through the replacement registry, and
     // surfacing the ignore selection as a decision is scoped to the
-    // `engine-replace-roll` ticket. A `StaticEffect::ReplaceRoll` on the
+    // `engine-replace-roll` ticket. A `StaticSpec::ReplaceRoll` on the
     // battlefield is simply never matched by either `if let` above, so it
     // contributes nothing — never a panic. Krark's Thumb round-trips
     // (`idris-check`) and renders; its replacement is a documented no-op
@@ -827,7 +827,7 @@ fn intent_magnitude(state: &GameState, e: &GameEvent) -> Option<deckmaste_core::
 
 fn schedule_body(
     state: &mut GameState,
-    effect: deckmaste_core::OneShotEffect,
+    effect: deckmaste_core::Instruction,
     source: ObjectId,
     that: Option<ObjectId>,
     applied: &std::collections::HashSet<ReplacementKey>,
@@ -1068,7 +1068,7 @@ pub(crate) mod tests_support {
     use deckmaste_card::Card;
     use deckmaste_card::CardFace;
     use deckmaste_core::Ability;
-    use deckmaste_core::StaticEffect;
+    use deckmaste_core::StaticSpec;
     use deckmaste_core::Type;
     use deckmaste_core::Zone;
 
@@ -1157,9 +1157,9 @@ pub(crate) mod tests_support {
         (state, id)
     }
 
-    /// Mint a synthetic creature carrying a single `StaticEffect` on the
+    /// Mint a synthetic creature carrying a single `StaticSpec` on the
     /// battlefield for player 0. Returns `(state, id)`.
-    pub(crate) fn creature_with_static(effect: StaticEffect) -> (GameState, ObjectId) {
+    pub(crate) fn creature_with_static(effect: StaticSpec) -> (GameState, ObjectId) {
         let mut state = GameState::new(GameConfig {
             players: vec![PlayerConfig { deck: vec![] }, PlayerConfig { deck: vec![] }],
             seed: 7,
@@ -1261,7 +1261,7 @@ mod tests {
     #[test]
     fn cant_happen_suppresses_own_destruction() {
         let (state, id) = super::tests_support::creature_with_static(
-            deckmaste_core::StaticEffect::CantHappen(EventFilter::Act {
+            deckmaste_core::StaticSpec::CantHappen(EventFilter::Act {
                 verb: deckmaste_core::VerbName::from("Destroy"),
                 who: Predicate::Any,
                 on: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
@@ -1400,7 +1400,7 @@ mod tests {
     #[test]
     fn cant_happen_cast_suppresses_matching_casts() {
         let (mut state, _watcher) = super::tests_support::creature_with_static(
-            deckmaste_core::StaticEffect::CantHappen(EventFilter::Cast {
+            deckmaste_core::StaticSpec::CantHappen(EventFilter::Cast {
                 who: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
                 what: Predicate::Any,
             }),
@@ -1435,16 +1435,15 @@ mod tests {
     #[test]
     fn gather_collects_static_and_floating_for_will_destroy() {
         use deckmaste_core::Duration;
-        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::Instruction;
         use deckmaste_core::TurnMarker;
 
         let instead = deckmaste_core::Replacement::Instead {
             would: destroyed_self(),
-            instead: OneShotEffect::Sequentially(vec![].into()),
+            instead: Instruction::Sequentially(vec![].into()),
         };
-        let (mut state, id) = tests_support::creature_with_static(StaticEffect::Replacement(
-            Arc::new(instead.clone()),
-        ));
+        let (mut state, id) =
+            tests_support::creature_with_static(StaticSpec::Replacement(Arc::new(instead.clone())));
         state.shields.push(ReplacementInstance {
             id: InstanceId(0),
             replacement: instead,
@@ -1481,7 +1480,7 @@ mod tests {
     #[test]
     fn regen_tag_and_graveyard_body_gather_in_one_step() {
         use deckmaste_core::Duration;
-        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::Instruction;
         use deckmaste_core::TurnMarker;
 
         // Rest in Peace: a battlefield static replacing any `→Graveyard` with
@@ -1493,18 +1492,18 @@ mod tests {
                 to: Some(Zone::Graveyard),
                 cause: None,
             },
-            instead: OneShotEffect::Act(deckmaste_core::Action::move_to(
+            instead: Instruction::Act(deckmaste_core::Action::move_to(
                 Reference::Reg(deckmaste_core::RefId(2)),
                 Zone::Exile,
             )),
         };
         let (mut state, subject) =
-            tests_support::creature_with_static(StaticEffect::Replacement(Arc::new(rip)));
+            tests_support::creature_with_static(StaticSpec::Replacement(Arc::new(rip)));
 
         // A regeneration shield on the SUBJECT: watches the TAG facet.
         let regen = deckmaste_core::Replacement::Instead {
             would: destroyed_self(),
-            instead: OneShotEffect::Sequentially(vec![].into()),
+            instead: Instruction::Sequentially(vec![].into()),
         };
         state.shields.push(ReplacementInstance {
             id: InstanceId(0),
@@ -1591,12 +1590,12 @@ mod tests {
     #[test]
     fn no_regen_rider_skips_regeneration_shield_and_leaves_it_unconsumed() {
         use deckmaste_core::Duration;
-        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::Instruction;
         use deckmaste_core::TurnMarker;
 
         let instead = deckmaste_core::Replacement::Instead {
             would: destroyed_self(),
-            instead: OneShotEffect::Sequentially(vec![].into()),
+            instead: Instruction::Sequentially(vec![].into()),
         };
         let (mut state, _view, id) = tests_support::lone_creature();
         state.shields.push(ReplacementInstance {
@@ -1704,7 +1703,7 @@ mod tests {
         use deckmaste_core::Prevention;
         use deckmaste_core::Reference;
 
-        let (mut state, id) = super::tests_support::creature_with_static(StaticEffect::Prevention(
+        let (mut state, id) = super::tests_support::creature_with_static(StaticSpec::Prevention(
             Arc::new(Prevention::PreventAll {
                 from: Predicate::Any,
                 to: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
@@ -1736,7 +1735,7 @@ mod tests {
         use deckmaste_core::Prevention;
         use deckmaste_core::Reference;
 
-        let (mut state, id) = super::tests_support::creature_with_static(StaticEffect::Prevention(
+        let (mut state, id) = super::tests_support::creature_with_static(StaticSpec::Prevention(
             Arc::new(Prevention::PreventNext {
                 n: Count::Literal(2),
                 from: Predicate::Any,
@@ -1834,7 +1833,7 @@ mod tests {
                         to: None,
                         cause: None,
                     },
-                    instead: deckmaste_core::OneShotEffect::Sequentially(vec![].into()),
+                    instead: deckmaste_core::Instruction::Sequentially(vec![].into()),
                 })),
                 source: id,
                 params: Arc::from([]),

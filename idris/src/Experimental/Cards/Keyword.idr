@@ -7,26 +7,26 @@ import Experimental.Cards.Trigger
 %default total
 
 
-jump : Effect []
+jump : Instruction []
 jump = Macros.gains (Macros.target Macros.creature) (Macros.keyword "Flying") (Just Macros.untilEndOfTurn)
 
-gabrielAngelfire : Effect []
+gabrielAngelfire : Instruction []
 gabrielAngelfire =
   Macros.gains Macros.thisCreature (Macros.keyword "Flying") (Just Macros.untilYourNextUpkeep)
 
-builtToSmash : Effect []
+builtToSmash : Instruction []
 builtToSmash =
   Sequentially [Macros.gets (Macros.target (And [Macros.creature, Attacking])) (PtUp (Lit 3)) (PtUp (Lit 3)) (Just Macros.untilEndOfTurn),
                 If (Macros.itsA (And [Macros.artifact, Macros.creature]))
                    (Macros.gains ((Macros.It OneOf)) (Macros.keyword "Trample") (Just Macros.untilEndOfTurn))
                    Nothing]
 
-aviationPioneer : Effect []
+aviationPioneer : Instruction []
 aviationPioneer =
   Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [] (MkTypeLine [creatureType "Thopter"] [Artifact, Creature])
                           [Macros.keyword "Flying"] Nothing)
 
-fireNavyTrebuchet : Effect []
+fireNavyTrebuchet : Instruction []
 fireNavyTrebuchet =
   Macros.createTappedAttacking (Lit 1)
     (MkToken (Just (Lit 2 ** Lit 1)) [] (MkTypeLine [creatureType "Construct"] [Artifact, Creature])
@@ -45,23 +45,23 @@ yotianSoldier =
        [Macros.keyword "Vigilance"] (Just (1, 4))
 
 ||| Pym Particles
-pymParticlesVigilanceGrant : Effect []
+pymParticlesVigilanceGrant : Instruction []
 pymParticlesVigilanceGrant =
   Macros.gains (Macros.target Macros.creature) (Macros.keyword "Vigilance") (Just Macros.untilEndOfTurn)
 
-bladebrand : Effect []
+bladebrand : Instruction []
 bladebrand =
   Macros.gains (Macros.target Macros.creature) (Macros.keyword "Deathtouch") (Just Macros.untilEndOfTurn)
 
-criticalHit : Effect []
+criticalHit : Instruction []
 criticalHit =
   Macros.gains (Macros.target Macros.creature) (Macros.keyword "DoubleStrike") (Just Macros.untilEndOfTurn)
 
-lightningBlow : Effect []
+lightningBlow : Instruction []
 lightningBlow =
   Macros.gains (Macros.target Macros.creature) (Macros.keyword "FirstStrike") (Just Macros.untilEndOfTurn)
 
-deathByDragons : Effect []
+deathByDragons : Instruction []
 deathByDragons =
   Create (Macros.each (And [AnyPlayer, OtherThan (Macros.target AnyPlayer)])) (Lit 1)
          (TokenWritten (MkToken (Just (Lit 5 ** Lit 5)) [Red] (MkTypeLine [creatureType "Dragon"] [Creature])
@@ -624,7 +624,7 @@ ghoulflesh =
 
 ||| Blade of the Oni
 public export
-bladeOfTheOniStatic : StaticEffect []
+bladeOfTheOniStatic : StaticSpec []
 bladeOfTheOniStatic =
   AndAlso Nothing [ Macros.hasBasePt (AttachHost Equipped (TypeW Creature)) (Lit 5) (Lit 5)
           , Gains ((Macros.It OneOf)) (Macros.keyword "Menace")
@@ -659,7 +659,7 @@ akroanSergeant =
        (Just (2, 2))
 
 public export
-castCreatureSpellsFromTop : StaticEffect []
+castCreatureSpellsFromTop : StaticSpec []
 castCreatureSpellsFromTop =
   (Macros.mayPlayDeed "Cast" You (Macros.allOf (And [Macros.spell, Macros.creature])) Nothing (PlayRider (Just Macros.onTopZ) Nothing Nothing False ItsOwnCost))
 
@@ -758,7 +758,7 @@ drumbellower =
        (Just (2, 1))
 
 public export
-tayamLine : StaticEffect []
+tayamLine : StaticSpec []
 tayamLine =
   Macros.entersWithAdditionalCounters (Macros.each (And [Macros.creature, HasPossessor ControllerAx You,
                                                   OtherThan Macros.thisCreature]))
@@ -780,7 +780,7 @@ clarionConqueror =
 
 ||| Kang the Conqueror
 public export
-kangPowerUpLock : StaticEffect []
+kangPowerUpLock : StaticSpec []
 kangPowerUpLock =
   Macros.objectCant "Activate"
     (Macros.allOf (AbilityHead (KeywordClass "PowerUp")))
@@ -953,7 +953,7 @@ bloodfireEnforcers =
        (Just (5, 2))
 
 public export
-stormOfSouls : Effect []
+stormOfSouls : Instruction []
 stormOfSouls =
   Sequentially [Macros.move (Macros.allOf (And [Macros.creature, InZone (Macros.graveyardOf You)]))
                             Macros.battlefieldZ,
@@ -981,7 +981,7 @@ answeredPrayers =
 
 ||| Hate Mirage's middle two sentences
 public export
-hateMirageTokens : Effect []
+hateMirageTokens : Instruction []
 hateMirageTokens =
   Sequentially
     [ ForEachOf (Described (TargetDet (Macros.upTo 2)) Macros.creatureYouDontControl)
@@ -989,7 +989,7 @@ hateMirageTokens =
     , Macros.gains (Macros.That TokenW ManyOf) (Macros.keyword "Haste") Nothing ]
 
 public export
-descentOfTheDragons : Effect []
+descentOfTheDragons : Instruction []
 descentOfTheDragons =
   Sequentially [Macros.destroy (Described (TargetDet Macros.anyNumber) Macros.creature),
                 ForEachOf (Macros.TheVerbed "Destroy" (TypeW Creature) ThisWay ManyOf)
@@ -1029,7 +1029,7 @@ grixis =
 
 ||| Dralnu, Lich Lord
 public export
-dralnuLichLord : Effect []
+dralnuLichLord : Instruction []
 dralnuLichLord =
   Macros.gains (Macros.target (And [Macros.instantOrSorcery,
                                     InZone (Macros.graveyardOf You)]))
@@ -1109,7 +1109,7 @@ monoxaRollTrigger =
 
 ||| Celebr-8000
 public export
-celebr8000Doubles : Effect []
+celebr8000Doubles : Instruction []
 celebr8000Doubles =
   Sequentially [ (Macros.rollDice You 2 6)
                , Macros.ifThen RolledDoubles
@@ -1288,7 +1288,7 @@ tourachDreadCantor =
 
 ||| Talrand's Invocation
 public export
-talrandsInvocation : Effect []
+talrandsInvocation : Instruction []
 talrandsInvocation =
   Macros.create (Lit 2)
     (MkToken (Just (Lit 2 ** Lit 2)) [Blue] (MkTypeLine [creatureType "Drake"] [Creature])
@@ -1341,7 +1341,7 @@ aimHigh =
 
 ||| Harried Dronesmith
 public export
-harriedDronesmithToken : Effect []
+harriedDronesmithToken : Instruction []
 harriedDronesmithToken =
   Sequentially [ Macros.create (Lit 1)
                    (MkToken (Just (Lit 1 ** Lit 1)) []
@@ -1767,7 +1767,7 @@ mutagenConnoisseur =
 
 ||| Bedrock Tortoise
 public export
-bedrockTortoiseWindow : StaticEffect []
+bedrockTortoiseWindow : StaticSpec []
 bedrockTortoiseWindow =
   OnlyDuring Turn (Just You)
     (Gains (Macros.allOf Macros.creatureYouControl)
@@ -1895,29 +1895,29 @@ seraphicGreatsword =
        , Macros.keywordCosting "Equip" (Mana [Macros.generic 4]) ]
        Nothing
 
-giantGrowth : Effect []
+giantGrowth : Instruction []
 giantGrowth = Macros.gets (Macros.target Macros.creature) (PtUp (Lit 3)) (PtUp (Lit 3)) (Just Macros.untilEndOfTurn)
 
-amassZombiesTwo : Effect []
+amassZombiesTwo : Instruction []
 amassZombiesTwo = Macros.amass "Zombie" 2
 
 ||| Avarice Totem
-avariceTotemExchange : Effect []
+avariceTotemExchange : Instruction []
 avariceTotemExchange =
   Macros.exchangeControlOfThis Artifact (Macros.target (And [Permanent, Not Macros.land]))
 
 ||| Tovolar, Dire Overlord
-tovolarNightfall : Effect []
+tovolarNightfall : Instruction []
 tovolarNightfall = GameBecomes Night
 
 ||| Spin into Myth
-spinIntoMyth : Effect []
+spinIntoMyth : Instruction []
 spinIntoMyth =
   Sequentially [ Macros.move (Macros.target Macros.creature) Macros.onTopZ
                , Macros.fateseal (Lit 2) ]
 
 ||| Pure // Simple
-simpleHalf : Effect []
+simpleHalf : Instruction []
 simpleHalf = Macros.destroy (Macros.target (And [Permanent, Macros.multicolored]))
 
 ||| Korlash

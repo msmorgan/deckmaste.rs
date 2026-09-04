@@ -624,7 +624,7 @@ fn losing_creature_type_removes_the_attack_grant() {
     use deckmaste_core::Modification;
     use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
-    use deckmaste_core::StaticEffect;
+    use deckmaste_core::StaticSpec;
     use deckmaste_core::Type;
     use deckmaste_engine::ContinuousEffect;
     use deckmaste_engine::ScopeResolved;
@@ -633,7 +633,7 @@ fn losing_creature_type_removes_the_attack_grant() {
     let mut state = two_player_with("Grizzly Bears", 1, 10);
     let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
 
-    let may_attack = Ability::Innate(Arc::new(Ability::r#static(StaticEffect::Deontic(
+    let may_attack = Ability::Innate(Arc::new(Ability::r#static(StaticSpec::Deontic(
         Deontic::May(DeonticAction::Attack {
             by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
             on: Predicate::Any,
@@ -706,12 +706,12 @@ fn printed_creature_grant_is_not_doubled_by_the_fold() {
     use deckmaste_core::DeonticAction;
     use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
-    use deckmaste_core::StaticEffect;
+    use deckmaste_core::StaticSpec;
 
     let mut state = two_player_with("Grizzly Bears", 1, 10);
     let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
 
-    let may_attack = Ability::Innate(Arc::new(Ability::r#static(StaticEffect::Deontic(
+    let may_attack = Ability::Innate(Arc::new(Ability::r#static(StaticSpec::Deontic(
         Deontic::May(DeonticAction::Attack {
             by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
             on: Predicate::Any,
@@ -850,7 +850,7 @@ fn stolen_creature_attacks_for_new_controller() {
 }
 
 /// [CR#613.8a,613.8b]: within layer 4, an effect whose affected set DEPENDS on
-/// another applies after it, overriding timestamp order. `OneShotEffect` B
+/// another applies after it, overriding timestamp order. `Instruction` B
 /// ("enchantments are also artifacts", EARLIER timestamp) depends on effect A
 /// ("creatures are also enchantments", LATER timestamp): applying A adds the
 /// bear to B's affected set. So A applies first despite its later timestamp,

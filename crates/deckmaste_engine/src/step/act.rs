@@ -174,7 +174,7 @@ impl GameState {
             let mark = self.finalize_mark();
             self.schedule_front(vec![
                 WorkItem::RunEffect {
-                    effect: Arc::new(deckmaste_core::OneShotEffect::Repeat(
+                    effect: Arc::new(deckmaste_core::Instruction::Repeat(
                         deckmaste_core::Count::Literal(n),
                         Arc::new(contents.body),
                     )),

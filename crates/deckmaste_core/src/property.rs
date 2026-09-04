@@ -4,8 +4,8 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::Condition;
+use crate::Instruction;
 use crate::Modification;
-use crate::OneShotEffect;
 use crate::PhaseStep;
 use crate::Reference;
 use crate::ability::Ability;
@@ -38,13 +38,13 @@ pub enum Property {
     /// annihilation ([CR#704.5q]) are the canonical instances.
     StateBased {
         condition: Arc<Condition>,
-        effect: Arc<OneShotEffect>,
+        effect: Arc<Instruction>,
     },
     /// Executed as a turn-based action — no stack ([CR#714.3c]). Parses
     /// today; the engine executes it in stage 3.
     TurnBased {
         at: PhaseStep,
-        effect: Arc<OneShotEffect>,
+        effect: Arc<Instruction>,
     },
 }
 

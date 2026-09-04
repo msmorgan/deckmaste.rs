@@ -140,14 +140,14 @@ fn lower_cost_component(
 /// One lowered instruction as the cost instruction it becomes. A cost block
 /// admits exactly the instruction kinds a payment can perform: a payment-time
 /// decision and a paying action ([CR#601.2b,601.2h]).
-fn cost_instruction(instruction: deckmaste_core::Instr) -> deckmaste_core::CostComponent {
+fn cost_instruction(instruction: deckmaste_core::Instruction) -> deckmaste_core::CostComponent {
     use deckmaste_core::CostComponent;
-    use deckmaste_core::Instr;
+    use deckmaste_core::Instruction;
     match instruction {
-        Instr::Choose(choice) => CostComponent::Choose(choice),
-        Instr::Search(search) => CostComponent::Search(search),
-        Instr::Let(binding) => CostComponent::Let(binding),
-        Instr::Act { dest, action } => CostComponent::Act {
+        Instruction::Choose(choice) => CostComponent::Choose(choice),
+        Instruction::Search(search) => CostComponent::Search(search),
+        Instruction::Let(binding) => CostComponent::Let(binding),
+        Instruction::Act { dest, action } => CostComponent::Act {
             dest,
             action: runnable_action(action),
         },
@@ -809,7 +809,7 @@ mod tests {
 
     /// Whether a lowered instruction tree still carries a resolution-time
     /// binding decision — the thing lifting into cost position removes.
-    fn body_carries_a_binder(body: &deckmaste_core::OneShotEffect) -> bool {
+    fn body_carries_a_binder(body: &deckmaste_core::Instruction) -> bool {
         deckmaste_core::ron::options()
             .to_string(body)
             .expect("a lowered instruction tree serializes")
@@ -817,10 +817,7 @@ mod tests {
     }
 
     /// Whether a lowered instruction tree reads `register` anywhere.
-    fn reads_register(
-        body: &deckmaste_core::OneShotEffect,
-        register: deckmaste_core::RefId,
-    ) -> bool {
+    fn reads_register(body: &deckmaste_core::Instruction, register: deckmaste_core::RefId) -> bool {
         deckmaste_core::ron::options()
             .to_string(body)
             .expect("a lowered instruction tree serializes")

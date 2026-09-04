@@ -23,7 +23,7 @@ pub enum Selection {
     /// The full object group stored in a region register.
     Reg(crate::RefId),
     /// All matching objects as one set ("every creature you control") — the
-    /// group a distributor ([`Each`](crate::Each) / `StaticEffect::Each`)
+    /// group a distributor ([`Each`](crate::Each) / `StaticSpec::Each`)
     /// iterates. Mirrors Idris `SelectAll : Predicate -> Selection`.
     SelectAll(Arc<crate::Region<Predicate>>),
     /// Several selections combined as ONE group ("each X and each Y") — the

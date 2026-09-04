@@ -50,7 +50,7 @@ use deckmaste_core::Modification;
 use deckmaste_core::NumericOp;
 use deckmaste_core::Reference;
 use deckmaste_core::StatValue;
-use deckmaste_core::StaticEffect;
+use deckmaste_core::StaticSpec;
 use deckmaste_core::SubtypeRef;
 use deckmaste_core::Token;
 use deckmaste_core::Type;
@@ -543,9 +543,9 @@ fn defines_pt(ability: &Ability, axis: PtAxis) -> bool {
     }
 }
 
-fn static_defines_pt(region: &deckmaste_core::Region<StaticEffect>, axis: PtAxis) -> bool {
+fn static_defines_pt(region: &deckmaste_core::Region<StaticSpec>, axis: PtAxis) -> bool {
     match &region.body {
-        StaticEffect::Modify(Reference::Reg(reference), modification)
+        StaticSpec::Modify(Reference::Reg(reference), modification)
             if region.provenance_of(*reference) == Some(&deckmaste_core::Provenance::Source) =>
         {
             modification_defines_pt(modification, axis)
@@ -672,7 +672,7 @@ mod tests {
     #[test]
     fn modify_set_power_drops_pt_defining_cda() {
         let cda =
-            Ability::r#static(StaticEffect::Modify(
+            Ability::r#static(StaticSpec::Modify(
                 Reference::Reg(deckmaste_core::RefId(0)),
                 Modification::Several(
                     vec![
@@ -724,7 +724,7 @@ mod tests {
     /// [CR#208.2a] reads that as 0, worse than doing nothing.
     #[test]
     fn modify_set_power_non_literal_count_is_true_noop() {
-        let cda = Ability::r#static(StaticEffect::Modify(
+        let cda = Ability::r#static(StaticSpec::Modify(
             Reference::Reg(deckmaste_core::RefId(0)),
             Modification::Power(NumericOp::Set(StatValue::Number(0))),
         ));
@@ -759,7 +759,7 @@ mod tests {
     /// P/T-defining ability so it doesn't ride along unused.
     #[test]
     fn retain_power_keeps_value_drops_defining_ability() {
-        let cda = Ability::r#static(StaticEffect::Modify(
+        let cda = Ability::r#static(StaticSpec::Modify(
             Reference::Reg(deckmaste_core::RefId(0)),
             Modification::Power(NumericOp::Set(StatValue::Number(0))),
         ));

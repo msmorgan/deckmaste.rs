@@ -7,20 +7,20 @@ import Experimental.Cards.Description
 %default total
 
 
-infiltrate : Effect []
+infiltrate : Instruction []
 infiltrate = Macros.cantBeBlocked (Macros.target Macros.creature) (Just ThisTurn)
 
-changeOfHeart : Effect []
+changeOfHeart : Instruction []
 changeOfHeart = Macros.cantAttack (Macros.target Macros.creature) (Just ThisTurn)
 
-blindblast : Effect []
+blindblast : Instruction []
 blindblast = Sequentially [DealDamage This (Lit 1) (Macros.target Macros.creature),
                            Macros.cantBlock (Macros.That (TypeW Creature) OneOf) (Just ThisTurn)]
 
-blindingFlare : Effect []
+blindingFlare : Instruction []
 blindingFlare = Macros.cantBlock (Described (TargetDet Macros.anyNumber) Macros.creature) (Just ThisTurn)
 
-cowardKiller : Effect []
+cowardKiller : Instruction []
 cowardKiller = Sequentially [Macros.cantBlock (Macros.target Macros.creature) (Just ThisTurn),
                              Macros.becomes (Macros.That (TypeW Creature) OneOf) (Macros.subtypesOnly [creatureType "Coward"])
                                      (Just Macros.untilEndOfTurn)]
@@ -35,12 +35,12 @@ auriokSiegeSledDenial =
                                  (Just ThisTurn))
 
 ||| Blindblast
-blindblastWhole : Effect []
+blindblastWhole : Instruction []
 blindblastWhole = Sequentially [DealDamage This (Lit 1) (Macros.target Macros.creature),
                                 Macros.cantBlock (Macros.That (TypeW Creature) OneOf) (Just ThisTurn),
                                 (Draw You (Lit 1))]
 
-sparkmagesGambit : Effect []
+sparkmagesGambit : Instruction []
 sparkmagesGambit =
   Sequentially [DealDamage This (Lit 1) (EachOf (Described (TargetDet (Macros.upTo 2)) Macros.creature)),
                 Macros.cantBlock (Macros.That (TypeW Creature) ManyOf) (Just ThisTurn)]
@@ -155,7 +155,7 @@ pacifism =
 
 ||| Everybody Lives!
 public export
-everybodyLivesGateLine : Effect []
+everybodyLivesGateLine : Instruction []
 everybodyLivesGateLine =
   Continuously {ts = StaticFirstDone} (Macros.deontic (PlayerGroup AllPlayers) Forbid ["LoseGame", "WinGame"]
                                Agent NoDeonticPatient)
@@ -178,7 +178,7 @@ gaeasRevenge =
 
 ||| Nowhere to Run
 public export
-nowhereToRunWardLine : StaticEffect []
+nowhereToRunWardLine : StaticSpec []
 nowhereToRunWardLine =
   Macros.deontic
     (Macros.allOf (And [ AbilityHead (KeywordClass "Ward")
@@ -187,7 +187,7 @@ nowhereToRunWardLine =
 
 ||| Mornsong Aria
 public export
-mornsongAriaLock : StaticEffect []
+mornsongAriaLock : StaticSpec []
 mornsongAriaLock =
   Macros.deontic (PlayerGroup AllPlayers) Forbid ["Draw", "GainLife"]
                  Agent NoDeonticPatient
@@ -303,7 +303,7 @@ pinpointAvalanche =
        Nothing
 
 public export
-whippoorwillImmunity : Effect []
+whippoorwillImmunity : Instruction []
 whippoorwillImmunity =
   Continuously {ts = StaticFirstDone}
     (CantPrevent AnyDamage
@@ -347,7 +347,7 @@ councilOfTheAbsolute =
 
 ||| Failure // Comply
 public export
-complyNameLock : Effect []
+complyNameLock : Instruction []
 complyNameLock =
   Sequentially
     [ Macros.choose (Macros.a (Macros.quality CardName))
@@ -372,7 +372,7 @@ gideonsIntervention =
 
 ||| Academic Probation
 public export
-academicProbationNameMode : Effect []
+academicProbationNameMode : Instruction []
 academicProbationNameMode =
   Sequentially
     [ Macros.choose (Macros.a (Macros.qualityFrom CardName
@@ -433,7 +433,7 @@ yawgmothsBargain =
        , Macros.activated (Macros.payLife You 1) (Draw You (Lit 1)) ] Nothing
 
 public export
-sandsOfTimeSkip : StaticEffect []
+sandsOfTimeSkip : StaticSpec []
 sandsOfTimeSkip = Skips (Macros.each AnyPlayer) UntapStep
 
 public export
@@ -448,7 +448,7 @@ wormfangManta =
        (Just (6, 1))
 
 public export
-eaterOfDaysSkip : Effect []
+eaterOfDaysSkip : Instruction []
 eaterOfDaysSkip = SkipsNext You Turn (Lit 2)
 
 ||| Empty City Ruse
@@ -595,7 +595,7 @@ blazingArchonCant =
   Static (Macros.deontic (Macros.allOf Macros.creature) Forbid ["Attack"] Agent (DefendingPlayer You))
 
 public export
-goadedAttacksOther : Effect []
+goadedAttacksOther : Instruction []
 goadedAttacksOther =
   Continuously {ts = StaticFirstDone} (Macros.deontic (Macros.target Macros.creature) Require ["Attack"] Agent
                         (DefendingPlayer (Macros.a (Macros.otherPlayer))))
@@ -641,7 +641,7 @@ gadrakCantAttack =
 
 ||| Berserker's Frenzy, the 1—14 striation
 public export
-berserkersFrenzyLowRoll : Effect []
+berserkersFrenzyLowRoll : Instruction []
 berserkersFrenzyLowRoll =
   Sequentially
     [ Macros.choose (Macros.counted Macros.anyNumber Macros.creature)
@@ -650,7 +650,7 @@ berserkersFrenzyLowRoll =
 
 ||| Damn
 public export
-damnDestroyLine : Effect []
+damnDestroyLine : Instruction []
 damnDestroyLine =
   CantBe (Macros.destroy (Macros.target Macros.creature))
          "Regenerate" (Macros.TheVerbed "Destroy" (TypeW Creature) ThisWay OneOf)
@@ -670,7 +670,7 @@ nekrataalWhole =
 
 ||| Concussive Bolt, both paragraphs
 public export
-concussiveBolt : Effect []
+concussiveBolt : Instruction []
 concussiveBolt =
   Sequentially
     [ DealDamage This (Lit 4) Description.targetPlayerOrPlaneswalker
@@ -822,7 +822,7 @@ oppressiveRays =
 
 ||| Distortion Strike
 public export
-distortionStrikeLine : Effect []
+distortionStrikeLine : Instruction []
 distortionStrikeLine =
   Macros.sharedSubject (Macros.target Macros.creature)
     [ Gets Adds (Macros.ownSubject (Macros.target Macros.creature)) (PtUp (Lit 1)) (PtUp (Lit 0))
@@ -861,7 +861,7 @@ hotshotMechanic =
 
 ||| Cloudspire Captain
 public export
-cloudspireCaptainCrewLine : StaticEffect []
+cloudspireCaptainCrewLine : StaticSpec []
 cloudspireCaptainCrewLine =
   Deontic Macros.thisCreature Permit ["Saddle", "Crew"] Agent Nothing
           (CounterpartsAt
@@ -919,7 +919,7 @@ arrest =
 
 ||| Conqueror's Flail
 public export
-conquerorsFlailProhibition : StaticEffect []
+conquerorsFlailProhibition : StaticSpec []
 conquerorsFlailProhibition =
   Macros.asLongAs (Matches This (AttachedTo (Macros.a Macros.creature)))
     (OnlyDuring Turn (Just You)

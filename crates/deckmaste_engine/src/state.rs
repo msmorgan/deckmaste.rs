@@ -40,7 +40,7 @@ pub enum DesignationValue {
 }
 
 /// One INSTANCE of an object-scope designation. The declaration's payload
-/// (core `DesignationDecl.payload: Vec<StaticEffect>`) is a TEMPLATE; the
+/// (core `DesignationDecl.payload: Vec<StaticSpec>`) is a TEMPLATE; the
 /// instance supplies its bindings: the grantor (goad's "attacks a player
 /// other than [the goader]", [CR#701.15b..701.15c]) and the duration
 /// ("until your next turn"). Multiple goaders = multiple instances, each
@@ -177,13 +177,13 @@ pub enum DecisionContinuation {
         dest: deckmaste_core::DefId,
         activation: crate::ActivationId,
     },
-    /// A `YesNo` answer for `OneShotEffect::May` ([CR#118.12]): true → `effect`
+    /// A `YesNo` answer for `Instruction::May` ([CR#118.12]): true → `effect`
     /// then `if_did`; false → `if_not` (or nothing).
     May {
         may: deckmaste_core::May,
         frame: crate::stack::Frame,
     },
-    /// A `ChooseModes` answer for `OneShotEffect::Modal` ([CR#700.2]): run the
+    /// A `ChooseModes` answer for `Instruction::Modal` ([CR#700.2]): run the
     /// chosen modes' effects in the order they were picked.
     Modal {
         modes: Vec<deckmaste_core::Mode>,
@@ -323,7 +323,7 @@ pub struct GameImage {
     /// `announcing`; `Some` only across that target choice.
     pub placing_trigger: Option<crate::trigger::PendingTrigger>,
     /// [CR#603.7]: the delayed-triggered-ability registry. A delayed ability
-    /// is created during a resolution (`OneShotEffect::Delayed`) and is printed
+    /// is created during a resolution (`Instruction::Delayed`) and is printed
     /// on no permanent, so the live `abilities_of_source` scan never sees it;
     /// the trigger scan (`scan_delayed`) consults this registry alongside live
     /// permanents. Each entry fires ONCE — the next time its event occurs
@@ -383,7 +383,7 @@ pub struct GameImage {
     pub combat_damage: Option<CombatDamage>,
     pub rng: ChaCha8Rng,
     /// Floating one-shot continuous effects ([CR#611.2]): created by resolving
-    /// spells/abilities via `OneShotEffect::Continuously`, retained until their
+    /// spells/abilities via `Instruction::Continuously`, retained until their
     /// `duration` expires.
     pub continuous: Vec<ContinuousEffect>,
     /// Grant-time closure environments keyed by the timestamp of the floating
@@ -832,10 +832,10 @@ impl GameState {
         let proxy = self.player(player).object;
         self.zones.battlefield.iter().any(|&carrier| {
             let source = self.objects.obj(carrier).source;
-            let pred = |s: &deckmaste_core::StaticEffect| {
+            let pred = |s: &deckmaste_core::StaticSpec| {
                 matches!(
                     s,
-                    deckmaste_core::StaticEffect::OutcomeGate { who, gate }
+                    deckmaste_core::StaticSpec::OutcomeGate { who, gate }
                         if *gate == kind
                             && crate::target::matches_with(self, proxy, who, Some(source))
                 )

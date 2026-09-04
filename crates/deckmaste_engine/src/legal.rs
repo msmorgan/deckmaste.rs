@@ -14,7 +14,7 @@ use deckmaste_core::Deontic;
 use deckmaste_core::DeonticAction;
 use deckmaste_core::KeywordAbility;
 use deckmaste_core::Predicate;
-use deckmaste_core::StaticEffect;
+use deckmaste_core::StaticSpec;
 use deckmaste_core::Type;
 
 use crate::decide::Action;
@@ -39,7 +39,7 @@ fn deontic_action(d: &Deontic) -> &DeonticAction {
 /// through composites and `Innate`/`Each` wrappers at every level. A
 /// short-circuiting wrapper over the single [`statics_on`] walker: it stops
 /// the descent the moment `pred` accepts.
-pub(crate) fn object_has_static<F: Fn(&StaticEffect) -> bool>(
+pub(crate) fn object_has_static<F: Fn(&StaticSpec) -> bool>(
     view: &LayeredView,
     id: ObjectId,
     pred: &F,
@@ -58,7 +58,7 @@ pub(crate) fn object_has_static<F: Fn(&StaticEffect) -> bool>(
     .is_break()
 }
 
-pub(crate) fn statics_present<F: Fn(&StaticEffect) -> bool>(
+pub(crate) fn statics_present<F: Fn(&StaticSpec) -> bool>(
     state: &GameState,
     view: &LayeredView,
     pred: F,
@@ -84,7 +84,7 @@ fn guard_deontic_seam(
     let hit = statics_present(
         state,
         view,
-        |e| matches!(e, StaticEffect::Deontic(d) if row(d)),
+        |e| matches!(e, StaticSpec::Deontic(d) if row(d)),
     );
     if hit {
         todo!(
@@ -352,7 +352,7 @@ fn attack_rows(
     for &id in &state.zones.battlefield {
         let source = state.objects.obj(id).source;
         for_each_static(state, view, id, |e| {
-            if let StaticEffect::Deontic(d) = e
+            if let StaticSpec::Deontic(d) = e
                 && let Some(DeonticAction::Attack { by, on }) = pick(d)
             {
                 rows.push((source, by.clone(), on.clone()));
@@ -501,7 +501,7 @@ fn block_rows(
     for &id in &state.zones.battlefield {
         let source = state.objects.obj(id).source;
         for_each_static(state, view, id, |e| {
-            if let StaticEffect::Deontic(d) = e
+            if let StaticSpec::Deontic(d) = e
                 && let Some(DeonticAction::Block { by, on, count }) = pick(d)
             {
                 rows.push(BlockRow {
@@ -569,7 +569,7 @@ pub(crate) fn cant_untap_rows(
     for &id in &state.zones.battlefield {
         let source = state.objects.obj(id).source;
         for_each_static(state, view, id, |e| {
-            if let StaticEffect::Deontic(d) = e
+            if let StaticSpec::Deontic(d) = e
                 && let Some(DeonticAction::Untap { what }) = cant_action(d)
             {
                 rows.push((source, what.clone()));
@@ -639,7 +639,7 @@ fn cant_activate_rows(
     for id in ids {
         let source = state.objects.obj(id).source;
         for_each_static(state, view, id, |e| {
-            if let StaticEffect::Deontic(d) = e
+            if let StaticSpec::Deontic(d) = e
                 && let Some(DeonticAction::Activate { what, by, cost }) = cant_action(d)
             {
                 rows.push((source, what.clone(), by.clone(), cost.clone()));
@@ -719,7 +719,7 @@ pub(crate) fn cant_activate(
 /// descent ran to completion). View-free so it can be unit-tested directly;
 /// [`statics_on`] is the thin `LayeredView` adapter over it.
 ///
-/// `enter_conditional` GATES a [`StaticEffect::Conditionally`] ([CR#611.3a]):
+/// `enter_conditional` GATES a [`StaticSpec::Conditionally`] ([CR#611.3a]):
 /// the walker descends into the inner effect only when `enter_conditional`
 /// accepts the wrapper's condition. Row collectors pass a closure that
 /// evaluates the condition against the game state (via [`for_each_static`]), so
@@ -741,12 +741,12 @@ pub(crate) fn walk_abilities<B, F, G>(
     visit: &mut F,
 ) -> ControlFlow<B>
 where
-    F: FnMut(&StaticEffect) -> ControlFlow<B>,
+    F: FnMut(&StaticSpec) -> ControlFlow<B>,
     G: FnMut(&deckmaste_core::Condition) -> bool,
 {
     fn in_ability<B, F, G>(a: &Ability, enter: &mut G, visit: &mut F) -> ControlFlow<B>
     where
-        F: FnMut(&StaticEffect) -> ControlFlow<B>,
+        F: FnMut(&StaticSpec) -> ControlFlow<B>,
         G: FnMut(&deckmaste_core::Condition) -> bool,
     {
         match a {
@@ -760,7 +760,7 @@ where
     }
     fn in_keyword<B, F, G>(k: &KeywordAbility, enter: &mut G, visit: &mut F) -> ControlFlow<B>
     where
-        F: FnMut(&StaticEffect) -> ControlFlow<B>,
+        F: FnMut(&StaticSpec) -> ControlFlow<B>,
         G: FnMut(&deckmaste_core::Condition) -> bool,
     {
         match k {
@@ -773,23 +773,23 @@ where
             _ => ControlFlow::Continue(()),
         }
     }
-    fn in_static<B, F, G>(e: &StaticEffect, enter: &mut G, visit: &mut F) -> ControlFlow<B>
+    fn in_static<B, F, G>(e: &StaticSpec, enter: &mut G, visit: &mut F) -> ControlFlow<B>
     where
-        F: FnMut(&StaticEffect) -> ControlFlow<B>,
+        F: FnMut(&StaticSpec) -> ControlFlow<B>,
         G: FnMut(&deckmaste_core::Condition) -> bool,
     {
         match e {
-            // Distributed statics ([`StaticEffect::Each`]) are looked through to
+            // Distributed statics ([`StaticSpec::Each`]) are looked through to
             // their inner effect for this presence scan: the walker's callers
             // (Cant/Sba/CostModifier row collectors) match on the effect KIND,
             // not the affected set, so the wrapping `Selection` is immaterial
             // here.
-            StaticEffect::Each(_, inner) => in_static(&inner.body, enter, visit),
+            StaticSpec::Each(_, inner) => in_static(&inner.body, enter, visit),
             // [CR#611.3a]: a `Conditionally` wrapper contributes its inner
             // effect only when `enter` accepts the condition. Collectors gate on
             // the live condition; the presence-only walkers pass `|_| true` and
             // keep the unconditional look-through.
-            StaticEffect::Conditionally(cond, inner) => {
+            StaticSpec::Conditionally(cond, inner) => {
                 if enter(cond) {
                     in_static(inner, enter, visit)
                 } else {
@@ -816,7 +816,7 @@ fn statics_on<B, F, G>(
     visit: &mut F,
 ) -> ControlFlow<B>
 where
-    F: FnMut(&StaticEffect) -> ControlFlow<B>,
+    F: FnMut(&StaticSpec) -> ControlFlow<B>,
     G: FnMut(&deckmaste_core::Condition) -> bool,
 {
     walk_abilities(&view.get(id).abilities, enter_conditional, visit)
@@ -832,7 +832,7 @@ where
 /// [CR#611.3a]: a `Conditionally` static is GATED — its inner effect is visited
 /// only when the wrapper's condition holds for `id`, evaluated with `This`
 /// bound to `id` (a `Frame::bare` on the object's controller).
-pub(crate) fn for_each_static<F: FnMut(&StaticEffect)>(
+pub(crate) fn for_each_static<F: FnMut(&StaticSpec)>(
     state: &GameState,
     view: &LayeredView,
     id: ObjectId,
@@ -933,7 +933,7 @@ fn target_rows(
     for &id in &state.zones.battlefield {
         let source = state.objects.obj(id).source;
         for_each_static(state, view, id, |e| {
-            if let StaticEffect::Deontic(d) = e
+            if let StaticSpec::Deontic(d) = e
                 && let Some(DeonticAction::Target { by, on }) = pick(d)
             {
                 rows.push((source, by.clone(), on.clone()));
@@ -1023,7 +1023,7 @@ pub(crate) fn astough_target_rows(
     for &id in &state.zones.battlefield {
         let source = state.objects.obj(id).source;
         for_each_static(state, view, id, |e| {
-            if let StaticEffect::AsThough(AsThough::Counterfactual { premise, then }) = e
+            if let StaticSpec::AsThough(AsThough::Counterfactual { premise, then }) = e
                 && let Deontic::May(DeonticAction::Target { by, on }) = then.as_ref()
             {
                 rows.push((source, premise.clone(), by.clone(), on.clone()));
@@ -1110,8 +1110,8 @@ fn masked_self_rows_forbid(
     let controller = state.objects.obj(target).controller;
     let frame = crate::stack::Frame::bare(target, controller);
     let mut enter = |cond: &deckmaste_core::Condition| state.condition_holds(cond, &frame);
-    let hit = walk_abilities(&abilities, &mut enter, &mut |e: &StaticEffect| {
-        if let StaticEffect::Deontic(d) = e
+    let hit = walk_abilities(&abilities, &mut enter, &mut |e: &StaticSpec| {
+        if let StaticSpec::Deontic(d) = e
             && let Some(DeonticAction::Target { by, on }) = cant_action(d)
             && deed_agent_matches(state, by, spell, source)
             && state.filter_matches_live(on, target, source)
@@ -1173,7 +1173,7 @@ fn cant_attach_rows(
     for id in state.zones.battlefield.iter().copied().chain(off_field) {
         let source = state.objects.obj(id).source;
         for_each_static(state, view, id, |e| {
-            if let StaticEffect::Deontic(d) = e
+            if let StaticSpec::Deontic(d) = e
                 && let Some(DeonticAction::Attach { what, to }) = cant_action(d)
             {
                 rows.push((source, what.clone(), to.clone()));
@@ -1207,7 +1207,7 @@ fn may_attach_rows(
     for id in state.zones.battlefield.iter().copied().chain(off_field) {
         let source = state.objects.obj(id).source;
         for_each_static(state, view, id, |e| {
-            if let StaticEffect::Deontic(d) = e
+            if let StaticSpec::Deontic(d) = e
                 && let Some(DeonticAction::Attach { what, to }) = may_action(d)
             {
                 rows.push((source, what.clone(), to.clone()));
@@ -1343,7 +1343,7 @@ pub(crate) fn attachment_legal(state: &GameState, attachment: ObjectId, host: Ob
 #[must_use]
 pub(crate) fn confers_may_play(_state: &GameState, view: &LayeredView, object: ObjectId) -> bool {
     object_has_static(view, object, &|e| {
-        matches!(e, StaticEffect::Deontic(d)
+        matches!(e, StaticSpec::Deontic(d)
             if matches!(may_action(d), Some(DeonticAction::Play { .. })))
     })
 }
@@ -1377,7 +1377,7 @@ fn cant_counter_rows(
     for id in ids {
         let source = state.objects.obj(id).source;
         for_each_static(state, view, id, |e| {
-            if let StaticEffect::Deontic(d) = e
+            if let StaticSpec::Deontic(d) = e
                 && let Some(DeonticAction::Counter { by, on }) = cant_action(d)
             {
                 rows.push((source, by.clone(), on.clone()));
@@ -1440,7 +1440,7 @@ fn cant_cast_rows(
     for id in ids {
         let source = state.objects.obj(id).source;
         for_each_static(state, view, id, |e| {
-            if let StaticEffect::Deontic(d) = e
+            if let StaticSpec::Deontic(d) = e
                 && let Some(DeonticAction::Cast { what, by, .. }) = cant_action(d)
             {
                 rows.push((source, what.clone(), by.clone()));
@@ -1502,7 +1502,7 @@ pub(crate) fn may_cast_rows(
     for &id in state.zones.battlefield.iter().chain([&candidate]) {
         let source = state.objects.obj(id).source;
         for_each_static(state, view, id, |e| {
-            if let StaticEffect::Deontic(d) = e
+            if let StaticSpec::Deontic(d) = e
                 && let Some(DeonticAction::Cast {
                     what,
                     by,
@@ -1545,7 +1545,7 @@ mod tests {
     use deckmaste_core::Reference;
     use deckmaste_core::RelationPredicate;
     use deckmaste_core::Selection;
-    use deckmaste_core::StaticEffect;
+    use deckmaste_core::StaticSpec;
     use deckmaste_core::Timing;
     use deckmaste_core::Type;
     use deckmaste_core::Zone;
@@ -1564,14 +1564,14 @@ mod tests {
 
     /// A distinguishable leaf effect: `OutcomeGate` tagged by `gate` so a
     /// collected sequence is order-checkable.
-    fn gate(gate: OutcomeGateKind) -> StaticEffect {
-        StaticEffect::OutcomeGate {
+    fn gate(gate: OutcomeGateKind) -> StaticSpec {
+        StaticSpec::OutcomeGate {
             who: Predicate::Any,
             gate,
         }
     }
 
-    fn static_ability(effect: StaticEffect) -> Ability {
+    fn static_ability(effect: StaticSpec) -> Ability {
         Ability::r#static(effect)
     }
 
@@ -1588,7 +1588,7 @@ mod tests {
             // [0] plain static effect.
             static_ability(gate(CantLose)),
             // [0b] effect reached through an `Each` wrapper, as a sibling ability.
-            static_ability(StaticEffect::Each(
+            static_ability(StaticSpec::Each(
                 Selection::SelectAll(Arc::new(deckmaste_core::Region::candidate(Predicate::Any))),
                 Arc::new(deckmaste_core::Region::candidate(gate(CantWin))),
             )),
@@ -1613,7 +1613,7 @@ mod tests {
         let tree = sample_tree();
         let mut seen = Vec::new();
         let done = walk_abilities(&tree, &mut |_: &deckmaste_core::Condition| true, &mut |e| {
-            if let StaticEffect::OutcomeGate { gate, .. } = e {
+            if let StaticSpec::OutcomeGate { gate, .. } = e {
                 seen.push(*gate);
             }
             ControlFlow::<()>::Continue(())
@@ -1632,7 +1632,7 @@ mod tests {
             visited += 1;
             if matches!(
                 e,
-                StaticEffect::OutcomeGate {
+                StaticSpec::OutcomeGate {
                     gate: OutcomeGateKind::CantWin,
                     ..
                 }
@@ -1713,7 +1713,7 @@ mod tests {
     /// conferred attachable-to-host shape (Equipment/Fortification subtype
     /// rule) under default-deny attachment.
     fn innate_may_attach(what: Predicate, to: Predicate) -> Ability {
-        Ability::Innate(Arc::new(Ability::r#static(StaticEffect::Deontic(
+        Ability::Innate(Arc::new(Ability::r#static(StaticSpec::Deontic(
             Deontic::May(DeonticAction::Attach { what, to }),
         ))))
     }
@@ -1825,7 +1825,7 @@ mod tests {
             &mut state,
             "Protected Bear",
             vec![Type::Creature],
-            vec![Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
+            vec![Ability::r#static(StaticSpec::Deontic(Deontic::Cant(
                 DeonticAction::Attach {
                     what: Predicate::Any,
                     to: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
@@ -1864,9 +1864,9 @@ mod tests {
         // The pathological attachment: its ONLY `May(Attach)` grant is gated
         // behind `LegallyAttached(This)` — the self-referential shape that
         // recurses through the collector.
-        let pathological = Ability::r#static(StaticEffect::Conditionally(
+        let pathological = Ability::r#static(StaticSpec::Conditionally(
             Condition::LegallyAttached(Reference::Reg(deckmaste_core::RefId(0))),
-            Arc::new(StaticEffect::Deontic(Deontic::May(DeonticAction::Attach {
+            Arc::new(StaticSpec::Deontic(Deontic::May(DeonticAction::Attach {
                 what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 to: Predicate::Any,
             }))),
@@ -1967,9 +1967,9 @@ mod tests {
         use deckmaste_core::ColorOrColorless;
         use deckmaste_core::CostComponent;
         use deckmaste_core::Count;
+        use deckmaste_core::Instruction;
         use deckmaste_core::ManaProduction;
         use deckmaste_core::ManaSpec;
-        use deckmaste_core::OneShotEffect;
         let ability = ActivatedAbility {
             ability_word: None,
             targets: [].into(),
@@ -1978,7 +1978,7 @@ mod tests {
             window: None,
             condition: None,
             limits: vec![].into(),
-            effect: OneShotEffect::Act(Action::AddMana(
+            effect: Instruction::Act(Action::AddMana(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 ManaProduction::Bare(ManaSpec::Specific(ColorOrColorless::Colorless)),
@@ -1994,7 +1994,7 @@ mod tests {
     /// An `Innate` static (any conferred rule): PEELED in place — never
     /// dropped — by the usable list, so it occupies an index slot.
     fn innate_static() -> Ability {
-        Ability::Innate(Arc::new(Ability::r#static(StaticEffect::Deontic(
+        Ability::Innate(Arc::new(Ability::r#static(StaticSpec::Deontic(
             Deontic::Cant(DeonticAction::Attach {
                 what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 to: Predicate::Not(Arc::new(creature())),
@@ -2081,7 +2081,7 @@ mod tests {
         // `Keyword(Composite{[Static(..)]})`).
         let enchant_composite = Ability::Keyword(KeywordAbility::Composite {
             name: "Enchant".into(),
-            abilities: vec![Ability::r#static(StaticEffect::Deontic(Deontic::May(
+            abilities: vec![Ability::r#static(StaticSpec::Deontic(Deontic::May(
                 DeonticAction::Attach {
                     what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                     to: creature(),
@@ -2123,7 +2123,7 @@ mod tests {
             &mut state,
             "Uncounterable",
             vec![Type::Instant],
-            vec![Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
+            vec![Ability::r#static(StaticSpec::Deontic(Deontic::Cant(
                 DeonticAction::Counter {
                     by: Predicate::Any,
                     on: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
@@ -2156,7 +2156,7 @@ mod tests {
             name: "Instant".into(),
             permanent: false,
             confers: vec![deckmaste_core::Property::Ability(Arc::new(
-                Ability::r#static(StaticEffect::Deontic(Deontic::May(DeonticAction::Cast {
+                Ability::r#static(StaticSpec::Deontic(Deontic::May(DeonticAction::Cast {
                     what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                     by: Predicate::Any,
                     from: None,
@@ -2205,7 +2205,7 @@ mod tests {
         let card = Card::Normal(CardFace {
             name: name.into(),
             types: vec![Type::Instant.def()],
-            abilities: vec![Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
+            abilities: vec![Ability::r#static(StaticSpec::Deontic(Deontic::Cant(
                 DeonticAction::Cast {
                     what,
                     by,
@@ -2302,7 +2302,7 @@ mod tests {
         let card = Card::Normal(CardFace {
             name: "Departed Permanent".into(),
             types: vec![Type::Creature.def()],
-            abilities: vec![Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
+            abilities: vec![Ability::r#static(StaticSpec::Deontic(Deontic::Cant(
                 DeonticAction::Cast {
                     what: Predicate::Any,
                     by: Predicate::Any,
@@ -2361,7 +2361,7 @@ mod tests {
             &mut state,
             "Grand Abolisher",
             vec![Type::Creature],
-            vec![Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
+            vec![Ability::r#static(StaticSpec::Deontic(Deontic::Cant(
                 DeonticAction::Cast {
                     what: Predicate::Any,
                     by: Predicate::Relation(RelationPredicate::OpponentOf(Arc::new(
@@ -2405,7 +2405,7 @@ mod tests {
             &mut state,
             "Herald",
             vec![Type::Enchantment],
-            vec![Ability::r#static(StaticEffect::Deontic(Deontic::Must(
+            vec![Ability::r#static(StaticSpec::Deontic(Deontic::Must(
                 DeonticAction::Cast {
                     what: Predicate::Any,
                     by: Predicate::Any,
@@ -2435,7 +2435,7 @@ mod tests {
             &mut state,
             "Grim Lockdown",
             vec![Type::Enchantment],
-            vec![Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
+            vec![Ability::r#static(StaticSpec::Deontic(Deontic::Cant(
                 DeonticAction::Cast {
                     what: Predicate::Any,
                     by: Predicate::Any,
@@ -2461,7 +2461,7 @@ mod tests {
             name: "Land".into(),
             permanent: true,
             confers: vec![deckmaste_core::Property::Ability(Arc::new(
-                Ability::r#static(StaticEffect::Deontic(Deontic::May(DeonticAction::Play {
+                Ability::r#static(StaticSpec::Deontic(Deontic::May(DeonticAction::Play {
                     what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                     by: Predicate::Any,
                     from: None,
@@ -2546,7 +2546,7 @@ mod tests {
         use deckmaste_core::Count;
         // The inner `Cant(Attack)` static the `Conditionally` wraps.
         let cant = || {
-            StaticEffect::Deontic(Deontic::Cant(DeonticAction::Attack {
+            StaticSpec::Deontic(Deontic::Cant(DeonticAction::Attack {
                 by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 on: Predicate::Any,
             }))
@@ -2558,7 +2558,7 @@ mod tests {
             &mut off,
             "Off",
             vec![Type::Creature],
-            vec![Ability::r#static(StaticEffect::Conditionally(
+            vec![Ability::r#static(StaticSpec::Conditionally(
                 Condition::Compare(Count::Literal(0), Cmp::Greater, Count::Literal(1)),
                 Arc::new(cant()),
             ))],
@@ -2575,7 +2575,7 @@ mod tests {
             &mut on,
             "On",
             vec![Type::Creature],
-            vec![Ability::r#static(StaticEffect::Conditionally(
+            vec![Ability::r#static(StaticSpec::Conditionally(
                 Condition::Compare(Count::Literal(1), Cmp::AtLeast, Count::Literal(1)),
                 Arc::new(cant()),
             ))],
@@ -2618,32 +2618,30 @@ mod tests {
                 .into(),
             )
         };
-        let ability = |s: StaticEffect| Property::Ability(Arc::new(Ability::r#static(s)));
+        let ability = |s: StaticSpec| Property::Ability(Arc::new(Ability::r#static(s)));
         deckmaste_core::TypeDef {
             name: "Creature".into(),
             permanent: true,
             confers: vec![
-                ability(StaticEffect::Deontic(Deontic::May(DeonticAction::Attack {
+                ability(StaticSpec::Deontic(Deontic::May(DeonticAction::Attack {
                     by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                     on: Predicate::Any,
                 }))),
-                ability(StaticEffect::Deontic(Deontic::May(DeonticAction::Block {
+                ability(StaticSpec::Deontic(Deontic::May(DeonticAction::Block {
                     by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                     on: Predicate::Any,
                     count: None,
                 }))),
-                ability(StaticEffect::Conditionally(
+                ability(StaticSpec::Conditionally(
                     sick_not_hasty(),
-                    Arc::new(StaticEffect::Deontic(Deontic::Cant(
-                        DeonticAction::Attack {
-                            by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
-                            on: Predicate::Any,
-                        },
-                    ))),
+                    Arc::new(StaticSpec::Deontic(Deontic::Cant(DeonticAction::Attack {
+                        by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
+                        on: Predicate::Any,
+                    }))),
                 )),
-                ability(StaticEffect::Conditionally(
+                ability(StaticSpec::Conditionally(
                     sick_not_hasty(),
-                    Arc::new(StaticEffect::Deontic(Deontic::Cant(
+                    Arc::new(StaticSpec::Deontic(Deontic::Cant(
                         DeonticAction::Activate {
                             what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                             by: Predicate::Any,
@@ -2787,7 +2785,7 @@ mod tests {
             &mut state,
             "Barred Bear",
             false,
-            vec![Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
+            vec![Ability::r#static(StaticSpec::Deontic(Deontic::Cant(
                 DeonticAction::Attack {
                     by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                     on: Predicate::Any,
@@ -2869,8 +2867,8 @@ mod tests {
         use deckmaste_core::Action;
         use deckmaste_core::ActivatedAbility;
         use deckmaste_core::Count;
+        use deckmaste_core::Instruction;
         use deckmaste_core::LifeOp;
-        use deckmaste_core::OneShotEffect;
         Ability::activated(ActivatedAbility {
             ability_word: None,
             targets: [].into(),
@@ -2879,7 +2877,7 @@ mod tests {
             window: None,
             condition: None,
             limits: vec![].into(),
-            effect: OneShotEffect::Act(Action::ChangeLife(
+            effect: Instruction::Act(Action::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(1)),
             ))
@@ -2906,7 +2904,7 @@ mod tests {
         let card = Card::Normal(CardFace {
             name: name.into(),
             types: vec![Type::Instant.def()],
-            abilities: vec![Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
+            abilities: vec![Ability::r#static(StaticSpec::Deontic(Deontic::Cant(
                 DeonticAction::Activate { what, by, cost },
             )))],
             ..CardFace::default()
@@ -3005,7 +3003,7 @@ mod tests {
             &mut state,
             "Linvala-ish",
             vec![Type::Creature],
-            vec![Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
+            vec![Ability::r#static(StaticSpec::Deontic(Deontic::Cant(
                 DeonticAction::Activate {
                     what: Predicate::Any,
                     by: Predicate::Any,
@@ -3081,7 +3079,7 @@ mod tests {
             "Blanket Lockdown",
             vec![Type::Enchantment],
             vec![
-                Ability::r#static(StaticEffect::Deontic(Deontic::Cant(DeonticAction::Cast {
+                Ability::r#static(StaticSpec::Deontic(Deontic::Cant(DeonticAction::Cast {
                     what: Predicate::Any,
                     by: Predicate::Any,
                     from: None,
@@ -3089,7 +3087,7 @@ mod tests {
                     cost: None,
                     tag: None,
                 }))),
-                Ability::r#static(StaticEffect::Deontic(Deontic::Cant(
+                Ability::r#static(StaticSpec::Deontic(Deontic::Cant(
                     DeonticAction::Activate {
                         what: Predicate::Any,
                         by: Predicate::Any,
@@ -3133,7 +3131,7 @@ mod tests {
     #[test]
     fn triggered_ability_still_places_on_stack_during_split_second_lockout() {
         use deckmaste_core::EventFilter;
-        use deckmaste_core::OneShotEffect;
+        use deckmaste_core::Instruction;
         use deckmaste_core::TriggeredAbility;
 
         let mut state = game();
@@ -3149,7 +3147,7 @@ mod tests {
                 event: EventFilter::OneOf(Vec::new().into()),
                 condition: None,
                 limits: Vec::new().into(),
-                effect: OneShotEffect::Sequentially(Vec::new().into()).into(),
+                effect: Instruction::Sequentially(Vec::new().into()).into(),
             })],
         );
         let source = state.objects.obj(source_obj).source;

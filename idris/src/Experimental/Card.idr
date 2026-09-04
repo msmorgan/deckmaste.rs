@@ -52,7 +52,7 @@ keywordCardOk SpellCard k = maybe False onSpellCard (keywordFactsFor k)
 keywordCardOk CommandZoneCard k = maybe False onCommandZoneCard (keywordFactsFor k)
 
 public export
-staticOnSpellCardOk : {0 bs : Bindings} -> StaticEffect bs -> Bool
+staticOnSpellCardOk : {0 bs : Bindings} -> StaticSpec bs -> Bool
 staticOnSpellCardOk (Deontic _ Forbid deeds Patient _ _ _ _) =
   all (\deed => deedZoneOf deed Patient == Just Stack) deeds
 staticOnSpellCardOk (AltCost This _) = True
@@ -160,7 +160,7 @@ boxPt (Just (PtBox p t)) = Just (p, t)
 boxPt _ = Nothing
 
 public export
-staticDefinesPt : {0 bs : Bindings} -> StaticEffect bs -> Maybe DefinedSlots
+staticDefinesPt : {0 bs : Bindings} -> StaticSpec bs -> Maybe DefinedSlots
 staticDefinesPt (DefinesPt _ sl _) = Just sl
 staticDefinesPt (Conditionally _ se _) = staticDefinesPt se
 staticDefinesPt _ = Nothing
@@ -295,12 +295,12 @@ Characteristics = CardFace
 
 public export
 abilityChoiceDelta : {bs : Bindings} -> AbilityAt bs -> List Binding
-abilityChoiceDelta (Activated _ eff _ _ _ _) = effChoiceDelta eff
-abilityChoiceDelta (Triggered _ _ _ _ _ _ _ _ eff) = effChoiceDelta eff
+abilityChoiceDelta (Activated _ instr _ _ _ _) = instrChoiceDelta instr
+abilityChoiceDelta (Triggered _ _ _ _ _ _ _ _ instr) = instrChoiceDelta instr
 abilityChoiceDelta (Static se) = staticChoiceDelta se
 abilityChoiceDelta (AlsoForKeywords ab _) = abilityChoiceDelta ab
 abilityChoiceDelta (ItalicHead _ ab) = abilityChoiceDelta ab
-abilityChoiceDelta (Spell eff) = effChoiceDelta eff
+abilityChoiceDelta (Spell instr) = instrChoiceDelta instr
 abilityChoiceDelta _ = []
 
 public export

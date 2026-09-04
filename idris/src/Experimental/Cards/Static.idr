@@ -7,7 +7,7 @@ import Experimental.Cards.Choice
 %default total
 
 
-forkedBolt : Effect []
+forkedBolt : Instruction []
 forkedBolt = Macros.dealsDivided This (Lit 2) (Described (TargetDet (Macros.oneThrough 2)) Macros.anyTarget)
 
 thoughtReflection : Ability
@@ -27,12 +27,12 @@ abandonedOutpost = Static (Macros.entersTapped Macros.thisLand)
 timeVaultLock : Ability
 timeVaultLock = Static (Macros.doesntUntap Macros.thisArtifact (Just You))
 
-hymnOfRebirth : Effect []
+hymnOfRebirth : Instruction []
 hymnOfRebirth =
   Macros.putOntoBattlefieldUnderYourControl
     (Macros.target (And [Macros.creature, InZone Macros.graveyardZ]))
 
-counterspell : Effect []
+counterspell : Instruction []
 counterspell = CounterSpell (Macros.target Macros.spell)
 
 anthemOfChampions : Card
@@ -48,7 +48,7 @@ adantoVanguard =
 
 ||| Nowhere to Run
 public export
-nowhereToRunTargetLine : StaticEffect []
+nowhereToRunTargetLine : StaticSpec []
 nowhereToRunTargetLine =
   Macros.canBeTargetedAsThough (Macros.allOf Macros.creatureYourOpponentsControl)
     (Macros.allOf (Joined Macros.spell (AbilityHead AnyOnStack)))
@@ -56,11 +56,11 @@ nowhereToRunTargetLine =
 
 ||| Hithlain Rope
 public export
-hithlainRopeSacrificeLock : StaticEffect []
+hithlainRopeSacrificeLock : StaticSpec []
 hithlainRopeSacrificeLock = Macros.objectCant "Sacrifice" This
 
 public export
-opponentsCantGainLife : StaticEffect []
+opponentsCantGainLife : StaticSpec []
 opponentsCantGainLife = Macros.playerCant "GainLife" (PlayerGroup YourOpponents)
 
 ||| Lich's Mastery
@@ -138,7 +138,7 @@ diminish =
                              (Just Macros.untilEndOfTurn)) ]
        Nothing
 
-cycleOfLife : Effect []
+cycleOfLife : Instruction []
 cycleOfLife =
   Continuously {ts = StaticFirstDone} (Macros.hasBasePt (Macros.target (And [Macros.creature, Macros.castBy You]))
                           (Lit 0) (Lit 1))
@@ -201,7 +201,7 @@ masterChefGrantedAbility =
   Static (Macros.entersWithAdditionalCounters Macros.thisCreature (Lit 1)
                                               Macros.plusOnePlusOne)
 
-grantedEntryCounterShape : StaticEffect []
+grantedEntryCounterShape : StaticSpec []
 grantedEntryCounterShape =
   Gains (Macros.allOf Macros.creatureYouControl) masterChefGrantedAbility
 
@@ -249,7 +249,7 @@ humility =
 
 ||| Sorrow's Path
 public export
-sorrowsPathReassign : Effect []
+sorrowsPathReassign : Instruction []
 sorrowsPathReassign =
   Sequentially
     [ RemoveFromCombat (Macros.target (And [Macros.creature, Blocking]))
@@ -258,7 +258,7 @@ sorrowsPathReassign =
 
 ||| General Jarkeld's
 public export
-generalJarkeldReassign : Effect []
+generalJarkeldReassign : Instruction []
 generalJarkeldReassign =
   Sequentially
     [ StopsBlocking Macros.thisCreature
@@ -267,7 +267,7 @@ generalJarkeldReassign =
                       (Macros.a (And [Macros.creature, Attacking])) ]
 
 public export
-tahngarthAttacksThatJoin : Effect (effIntro Choice.tahngarthChoosesDefender)
+tahngarthAttacksThatJoin : Instruction (instrIntro Choice.tahngarthChoosesDefender)
 tahngarthAttacksThatJoin =
   BecomesAttacking Macros.thisCreature (OneDefender Macros.thatJoin)
 
@@ -307,7 +307,7 @@ omenMachineDraw : Ability
 omenMachineDraw = Static (Macros.playerCant "Draw" (PlayerGroup AllPlayers))
 
 public export
-solfataraLandLock : Effect []
+solfataraLandLock : Instruction []
 solfataraLandLock =
   Continuously {ts = StaticFirstDone} (Macros.playerCant "Play" (Macros.target AnyPlayer))
                (Just ThisTurn)
@@ -393,14 +393,14 @@ engineeredPlague =
 
 ||| Volrath's Laboratory
 public export
-volrathsLaboratoryChoice : StaticEffect []
+volrathsLaboratoryChoice : StaticSpec []
 volrathsLaboratoryChoice =
   AndAlso Nothing [ Macros.entersChoosing Macros.thisArtifact Color
           , Macros.entersChoosing Macros.thisArtifact (SubtypeQ Creature) ]
 
 ||| Call to Arms
 public export
-callToArmsChoice : StaticEffect []
+callToArmsChoice : StaticSpec []
 callToArmsChoice =
   AndAlso Nothing [ Macros.entersChoosing Macros.thisEnchantment Color
           , Macros.entersChoosingPlayer Macros.thisEnchantment
@@ -477,7 +477,7 @@ transguildCourier =
 
 ||| Booby Trap
 public export
-boobyTrapNameChoice : StaticEffect []
+boobyTrapNameChoice : StaticSpec []
 boobyTrapNameChoice =
   Macros.entersChoosingFrom Macros.thisArtifact
                             CardName
@@ -575,7 +575,7 @@ volatileClaws =
 
 ||| Nameless Inversion
 public export
-namelessInversionBody : Effect []
+namelessInversionBody : Instruction []
 namelessInversionBody =
   Continuously {ts = StaticFirstDone} (AndAlso Nothing [ Gets Adds (Macros.target Macros.creature)
                                (PtUp (Lit 3)) (PtDown (Lit 3))
@@ -584,7 +584,7 @@ namelessInversionBody =
 
 ||| Ego Erasure
 public export
-egoErasureBody : Effect []
+egoErasureBody : Instruction []
 egoErasureBody =
   Continuously {ts = StaticFirstDone} (AndAlso Nothing [ Gets Adds (Macros.allOf (And [Macros.creature,
                                             HasPossessor ControllerAx (Macros.target AnyPlayer)]))
@@ -594,7 +594,7 @@ egoErasureBody =
 
 ||| Lithoform Blight
 public export
-lithoformBlightLoss : StaticEffect []
+lithoformBlightLoss : StaticSpec []
 lithoformBlightLoss =
   AndAlso Nothing [ Becomes (AttachHost Enchanted (TypeW Land)) Loses (EveryTypeOf LandSpace)
           , LosesAllAbilities ((Macros.It OneOf)) Nothing ]
@@ -806,7 +806,7 @@ thwart =
        Nothing
 
 public export
-theLadyOfOtariaLine : StaticEffect []
+theLadyOfOtariaLine : StaticSpec []
 theLadyOfOtariaLine =
   AltCost This (Just (Do (SetStatus Tapped
             (Macros.counted (Macros.exactly 3)
@@ -1065,7 +1065,7 @@ luxiorTypeSetting =
 
 ||| Kasmina, Enigma Sage
 public export
-kasminaLoyaltySharing : StaticEffect []
+kasminaLoyaltySharing : StaticSpec []
 kasminaLoyaltySharing =
   GainsAbilitiesOf (Macros.allOf (And [HasType Planeswalker, HasPossessor ControllerAx You,
                                 OtherThan This]))
@@ -1073,7 +1073,7 @@ kasminaLoyaltySharing =
 
 ||| Nicol Bolas, Dragon-God
 public export
-nicolBolasDragonGodSharing : StaticEffect []
+nicolBolasDragonGodSharing : StaticSpec []
 nicolBolasDragonGodSharing =
   GainsAbilitiesOf This [LoyaltyClass]
                    (Macros.allOf (And [HasType Planeswalker, OtherThan This,
@@ -1082,14 +1082,14 @@ nicolBolasDragonGodSharing =
 
 ||| Myr Welder
 public export
-myrWelderBorrowedAbilities : StaticEffect []
+myrWelderBorrowedAbilities : StaticSpec []
 myrWelderBorrowedAbilities =
   GainsAbilitiesOf Macros.thisCreature [AnyActivated]
                    (Macros.allOf (ExiledWith This)) Nothing
 
 ||| Sharkey, Tyrant of the Shire
 public export
-sharkeyBorrowedLandAbilities : StaticEffect []
+sharkeyBorrowedLandAbilities : StaticSpec []
 sharkeyBorrowedLandAbilities =
   GainsAbilitiesOf This [AnyActivated]
                    (Macros.allOf (And [Macros.land,
@@ -1113,17 +1113,17 @@ skillBorrower =
 
 ||| Emissary of Grudges
 public export
-emissaryOfGrudgesEntry : StaticEffect []
+emissaryOfGrudgesEntry : StaticSpec []
 emissaryOfGrudgesEntry =
   Macros.entersChoosingPlayerSecretly Macros.thisCreature (Just OpponentsOnly)
 
-aerialAssault : Effect []
+aerialAssault : Instruction []
 aerialAssault = Macros.destroy (Macros.target (And [Macros.creature, Macros.tapped]))
 
-asphyxiate : Effect []
+asphyxiate : Instruction []
 asphyxiate = Macros.destroy (Macros.target (And [Macros.creature, Macros.untapped]))
 
-vindicate : Effect []
+vindicate : Instruction []
 vindicate = Macros.destroy (Macros.target Permanent)
 
 counterspellCard : Card
@@ -1168,7 +1168,7 @@ eerieUltimatum =
 
 ||| Gray Merchant of Asphodel
 public export
-grayMerchantDrain : Effect []
+grayMerchantDrain : Instruction []
 grayMerchantDrain =
   Sequentially [ Macros.losesLife (Macros.each Opponent) (LetterVal X)
                , Define X (Devotion You (LitColor Black) Nothing) ]

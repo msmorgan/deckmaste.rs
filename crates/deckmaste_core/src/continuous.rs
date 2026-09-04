@@ -206,7 +206,7 @@ pub enum CostChange {
     /// A MANDATORY "as an additional cost …" ([CR#118.8]). The optional
     /// kicker-family shape ("you may pay an additional …", [CR#118.8b])
     /// is NOT a pipeline step — it is a declared
-    /// [`OptionalCost`](crate::OptionalCost) (`StaticEffect::CostOption`),
+    /// [`OptionalCost`](crate::OptionalCost) (`StaticSpec::CostOption`),
     /// announced at [CR#601.2b] and folded into the total at [CR#601.2f].
     Additional {
         components: Arc<[CostComponent]>,
@@ -223,7 +223,7 @@ pub enum CostChange {
     },
 }
 
-/// The default `affected` for a [`StaticEffect::TriggerMultiplier`]: "you
+/// The default `affected` for a [`StaticSpec::TriggerMultiplier`]: "you
 /// control" — the source permanent's controller ([CR#603.2c]). The common case
 /// (Panharmonicon / Yarok), so it is the serde default and is omitted from RON.
 fn affected_you_control() -> Predicate {
@@ -238,26 +238,40 @@ fn is_affected_you_control(f: &Predicate) -> bool {
     *f == affected_you_control()
 }
 
-/// The shared currency between an "anthem" static ability and a "+3/+3 until
-/// end of turn" one-shot ([CR#611]). The difference is who wraps it: a static
-/// ability (`StaticAbility`) or a one-shot `OneShotEffect::Continuously`.
+/// What a static ability states, and what a one-shot puts in force for a
+/// duration — the shared currency between an "anthem" static ability
+/// ([`Ability::Static`](crate::Ability::Static), [CR#604.1]) and a "+3/+3
+/// until end of turn" one-shot ([`Instruction::Until`](crate::Instruction),
+/// [CR#611.2]). NOT itself an effect: an ability generates effects rather
+/// than being one ([CR#609.1]); the continuous effect ([CR#611.1]) is what
+/// applying this spec establishes, which is why the type is not named
+/// "static effect".
+///
+/// Most variants describe a continuous effect directly.
+/// [`Replacement`](StaticSpec::Replacement) ([CR#614.1]) and
+/// [`Prevention`](StaticSpec::Prevention) ([CR#615.1]) are the two applicable
+/// continuous-effect subfamilies; self-replacement effects are deliberately
+/// NOT among them, being effects of a resolving spell or ability rather than
+/// continuous effects ([CR#614.15]). [`Each`](StaticSpec::Each) and
+/// [`Conditionally`](StaticSpec::Conditionally) are authoring structure over
+/// the other variants, not effects of their own.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
-pub enum StaticEffect {
+pub enum StaticSpec {
     /// Change ONE object's characteristics ([CR#613]) — `Modify(It,
     /// PowerAndToughnessUp(2, 2))`. Positional — a single target [`Reference`]
     /// and a single [`Modification`] (bundle several ops with
     /// [`Modification::Several`]); the meaning is unambiguous, so no field
     /// names. Plurality is NEVER implicit here: to affect a set, distribute a
-    /// single-object `Modify` with [`Each`](StaticEffect::Each) over a
+    /// single-object `Modify` with [`Each`](StaticSpec::Each) over a
     /// [`Selection`]. Mirrors Idris `Modify : Reference AnObject ->
-    /// Modification -> StaticEffect`.
+    /// Modification -> StaticSpec`.
     Modify(Reference, Modification),
     /// "[object] becomes a copy of [source]" ([CR#707.4]) — a CONTINUOUS
     /// layer-1a copy effect: the object stays on the battlefield (no
     /// leaves-/enters-the-battlefield triggers fire, [CR#707.4]) and keeps
     /// any non-copy effects presently affecting it, while its copiable
     /// values are replaced for as long as this effect lasts. Positional,
-    /// mirroring [`Modify`](StaticEffect::Modify) — a single affected
+    /// mirroring [`Modify`](StaticSpec::Modify) — a single affected
     /// [`Reference`] and the shared [`crate::CopySpec`] payload (the same
     /// source + "except" exceptions [CR#707.9] the other three copy
     /// delivery sites carry: [`crate::TokenSpec::Copy`],
@@ -269,11 +283,11 @@ pub enum StaticEffect {
     /// reshapes the *base* copiable values
     /// (`deckmaste_engine::layer::base_values`) rather than applying a
     /// per-op characteristic change; a `BecomesCopy` static is therefore a
-    /// distinct `StaticEffect` variant, not a `Modify(_, Modification::…)`
+    /// distinct `StaticSpec` variant, not a `Modify(_, Modification::…)`
     /// op. Authored via the shared one-shot-continuous machinery —
     /// `Continuously(effect: BecomesCopy(...), duration: ...)` for a single
     /// part, `Until(duration, [BecomesCopy(...), ...])` alongside other
-    /// parts — exactly like [`Modify`](StaticEffect::Modify) is. Its
+    /// parts — exactly like [`Modify`](StaticSpec::Modify) is. Its
     /// layer-1a APPLICATION (deriving and installing the copiable values
     /// from the gathered `BecomesCopy` statics) is the
     /// `engine-layers-1-copy-facedown-text` seam in `base_values`; gathering
@@ -285,9 +299,9 @@ pub enum StaticEffect {
     /// and apply the inner effect." The ONLY way a static reaches many
     /// objects (there is no implicit whole-set scope). The selection is
     /// re-evaluated every layer pass, so the affected set tracks state changes
-    /// live ([CR#613.6]). Mirrors Idris `Each : Bindable Many -> StaticEffect
-    /// -> StaticEffect`; `Each(SelectAll(F), Modify(It, Δ))` is the anthem.
-    Each(crate::Selection, Arc<crate::Region<StaticEffect>>),
+    /// live ([CR#613.6]). Mirrors Idris `Each : Bindable Many -> StaticSpec
+    /// -> StaticSpec`; `Each(SelectAll(F), Modify(It, Δ))` is the anthem.
+    Each(crate::Selection, Arc<crate::Region<StaticSpec>>),
     /// A conditional static ([CR#611.3a]) — "as long as [condition],
     /// [effect]." Wraps an inner static effect with a game-state predicate; the
     /// effect applies only while the condition holds (re-checked continuously,
@@ -295,7 +309,7 @@ pub enum StaticEffect {
     /// struct, now a composable effect wrapper. The layer engine rechecks the
     /// condition against its in-progress derived view ([CR#611.3a]); non-layer
     /// static consumers use the same wrapper as their collection gate.
-    Conditionally(Condition, Arc<StaticEffect>),
+    Conditionally(Condition, Arc<StaticSpec>),
     /// A deontic clause ([CR#101.2,601.3]).
     Deontic(Deontic),
     /// A cost modifier ([CR#118.7]).
@@ -337,7 +351,7 @@ pub enum StaticEffect {
     /// default — the source's controller).
     ModifyPlayer(Reference, PlayerMod),
     /// A replacement effect ([CR#614]). Boxed: `Replacement` is by far the
-    /// largest payload here, so boxing keeps `StaticEffect` small
+    /// largest payload here, so boxing keeps `StaticSpec` small
     /// (`clippy::large_enum_variant`).
     Replacement(Arc<Replacement>),
     /// A prevention effect ([CR#615]). Boxed for the same size reason as
@@ -375,11 +389,11 @@ pub enum StaticEffect {
     /// [`SbaRule`](crate::SbaRule). The sweep reads all three generically — it
     /// never branches on the Aura/Equipment/Fortification subtype.
     ///
-    /// `then` is boxed (an `OneShotEffect` dominates `StaticEffect`'s size;
+    /// `then` is boxed (an `Instruction` dominates `StaticSpec`'s size;
     /// `Box` only for the size cycle, per the "Box only for cycles" rule).
     Sba {
         when: Arc<Condition>,
-        then: Arc<crate::OneShotEffect>,
+        then: Arc<crate::Instruction>,
     },
     /// An outcome gate: "[who] can't lose the game" / "can't win the game".
     /// NOT a deontic row — outcome-"can't" modifies the §104/§704 outcome
@@ -410,7 +424,7 @@ pub enum StaticEffect {
     /// `ReplaceRoll { query: CoinFlipped(by: Ref(You)), extra: 1, ignore:
     /// IgnoreChosen(1) }`. Mirrors Idris `ReplaceRoll : (q : EventQuery b) ->
     /// {auto 0 rnd : isRandomnessQuery q = True} -> (extra : Count b) ->
-    /// (ignore : IgnoreRule) -> StaticEffect b` — the `isRandomnessQuery`
+    /// (ignore : IgnoreRule) -> StaticSpec b` — the `isRandomnessQuery`
     /// erased auto-proof (gating `query` to a `FlipCoin`/`RollDice` kind
     /// only, never the planar die, [CR#901.9d]) is Idris-ONLY, same as the
     /// `EventCaps` proofs `EventFilter::TapForMana`/`ManaSpec::
@@ -442,7 +456,7 @@ pub enum StaticEffect {
     PayPips(PipClass, PayAct),
 }
 
-/// Which outcome a [`StaticEffect::OutcomeGate`] suppresses.
+/// Which outcome a [`StaticSpec::OutcomeGate`] suppresses.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum OutcomeGateKind {
     /// Suppresses the loss SBAs ([CR#704.5a..704.5c]) and "loses the
@@ -453,7 +467,7 @@ pub enum OutcomeGateKind {
     CantWin,
 }
 
-/// Which flip(s)/roll(s) a [`StaticEffect::ReplaceRoll`] discards, once the
+/// Which flip(s)/roll(s) a [`StaticSpec::ReplaceRoll`] discards, once the
 /// extras have been rolled ([CR#706.6]: "if a player is instructed to
 /// ignore a roll ... the player chooses one of those rolls to be ignored"
 /// when multiple tie for lowest). `IgnoreLowest` = an automatic
@@ -467,7 +481,7 @@ pub enum IgnoreRule {
     IgnoreChosen(crate::Uint),
 }
 
-/// Which pips of a spell's locked-in total cost a [`StaticEffect::PayPips`]
+/// Which pips of a spell's locked-in total cost a [`StaticSpec::PayPips`]
 /// alternative may pay ([CR#601.2g]). `Generic` matches a generic pip (delve /
 /// improvise / convoke's generic clause); `Colored` a colored pip of the named
 /// color (convoke's per-color clause — "an untapped creature of that color",
@@ -484,7 +498,7 @@ pub enum PipClass {
     Colored(Color),
 }
 
-/// The per-pip alternative-payment action a [`StaticEffect::PayPips`] performs
+/// The per-pip alternative-payment action a [`StaticSpec::PayPips`] performs
 /// "rather than pay that mana" ([CR#702.51a,702.66a,702.126a]). The object is
 /// chosen at payment time ([CR#601.2g]); `Predicate` is open (plugin-safe).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
@@ -497,7 +511,7 @@ pub enum PayAct {
     ExileToPay(Predicate),
 }
 
-/// A player's numeric attribute a [`StaticEffect::ModifyPlayer`] adjusts — the
+/// A player's numeric attribute a [`StaticSpec::ModifyPlayer`] adjusts — the
 /// player-side twin of an object [`Modification`] axis. `HandSizeLimit`
 /// (normally seven, [CR#402.2]) and `LandPlaysPerTurn` (normally one,
 /// [CR#305.2]) are the caps continuous statics modify (Reliquary Tower /
@@ -512,7 +526,7 @@ pub enum PlayerAttr {
 }
 
 /// A continuous modification to a player attribute, carried by
-/// [`StaticEffect::ModifyPlayer`] — the player-side twin of [`NumericOp`]
+/// [`StaticSpec::ModifyPlayer`] — the player-side twin of [`NumericOp`]
 /// ([CR#611]; players have no [CR#613] layers, so these apply directly).
 /// `SetTo`/`Raise`/`Lower` adjust a count-valued attribute (Exploration =
 /// `Raise(LandPlaysPerTurn, 1)`); `NoMax` removes a cap (Reliquary Tower =

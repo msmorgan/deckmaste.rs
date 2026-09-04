@@ -15,12 +15,12 @@ use deckmaste_core::Cost;
 use deckmaste_core::CostComponent;
 use deckmaste_core::Count;
 use deckmaste_core::Destination;
+use deckmaste_core::Instruction;
 use deckmaste_core::KeywordAbility;
 use deckmaste_core::ManaAbility;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaRider;
 use deckmaste_core::ManaSpec;
-use deckmaste_core::OneShotEffect;
 use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
 use deckmaste_core::RelationPredicate;
@@ -67,7 +67,7 @@ fn activated_card(cost: Vec<CostComponent>) -> Arc<Card> {
             window: None,
             condition: None,
             limits: Arc::from([]),
-            effect: OneShotEffect::Sequentially(Arc::from([])).into(),
+            effect: Instruction::Sequentially(Arc::from([])).into(),
         })],
         ..CardFace::default()
     }))
@@ -192,7 +192,7 @@ fn mana_cylix_fixture() -> Arc<Card> {
                 window: None,
                 condition: None,
                 limits: Arc::from([]),
-                effect: OneShotEffect::Act(CoreAction::AddMana(
+                effect: Instruction::Act(CoreAction::AddMana(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(1),
                     ManaSpec::AnyColor.into(),
@@ -934,10 +934,10 @@ fn discard_two_cost() -> Vec<CostComponent> {
     ) else {
         unreachable!("discard is a keyword-action composite")
     };
-    let OneShotEffect::Sequentially(instructions) = body.as_ref() else {
+    let Instruction::Sequentially(instructions) = body.as_ref() else {
         unreachable!("a chosen discard is a choice then its per-card loop")
     };
-    let [OneShotEffect::Choose(choice), OneShotEffect::Each(each)] = instructions.as_ref() else {
+    let [Instruction::Choose(choice), Instruction::Each(each)] = instructions.as_ref() else {
         unreachable!("a chosen discard is a choice then its per-card loop")
     };
     vec![
@@ -947,7 +947,7 @@ fn discard_two_cost() -> Vec<CostComponent> {
         }),
         CostComponent::do_action(CoreAction::Composite {
             name,
-            body: Arc::new(OneShotEffect::Each(deckmaste_core::Each {
+            body: Arc::new(Instruction::Each(deckmaste_core::Each {
                 over: deckmaste_core::Selection::Reg(PAID_REF),
                 body: each.body.clone(),
             })),
@@ -985,10 +985,10 @@ fn random_discard_two_cost() -> Vec<CostComponent> {
     ) else {
         unreachable!("discard is a keyword-action composite")
     };
-    let OneShotEffect::Sequentially(instructions) = body.as_ref() else {
+    let Instruction::Sequentially(instructions) = body.as_ref() else {
         unreachable!("an at-random discard is one per-card loop")
     };
-    let [OneShotEffect::Each(each)] = instructions.as_ref() else {
+    let [Instruction::Each(each)] = instructions.as_ref() else {
         unreachable!("an at-random discard is one per-card loop")
     };
     vec![
@@ -1005,7 +1005,7 @@ fn random_discard_two_cost() -> Vec<CostComponent> {
         }),
         CostComponent::do_action(CoreAction::Composite {
             name,
-            body: Arc::new(OneShotEffect::Each(deckmaste_core::Each {
+            body: Arc::new(Instruction::Each(deckmaste_core::Each {
                 over: deckmaste_core::Selection::Reg(PAID_REF),
                 body: each.body.clone(),
             })),
@@ -1036,7 +1036,7 @@ fn random_library_exile_two_cost() -> Vec<CostComponent> {
         }),
         CostComponent::do_action(CoreAction::Composite {
             name: deckmaste_core::VerbName::from("Discard"),
-            body: Arc::new(OneShotEffect::Each(deckmaste_core::Each {
+            body: Arc::new(Instruction::Each(deckmaste_core::Each {
                 over: deckmaste_core::Selection::Reg(PAID_REF),
                 body: deckmaste_core::Region::new(
                     Arc::from([deckmaste_core::Param {
@@ -1044,7 +1044,7 @@ fn random_library_exile_two_cost() -> Vec<CostComponent> {
                         kind: deckmaste_core::Kind::Entity,
                         provenance: deckmaste_core::Provenance::LoopElement,
                     }]),
-                    OneShotEffect::Act(CoreAction::Move(
+                    Instruction::Act(CoreAction::Move(
                         Reference::Reg(deckmaste_core::RefId(0)),
                         Destination::Zone(Zone::Exile),
                         Arc::from([]),
@@ -1765,23 +1765,19 @@ fn omitted_random_cost_advances_rng_before_a_retained_shuffle() {
     let shuffler = Arc::new(Card::Normal(CardFace {
         name: "Payment shuffle replacement".into(),
         types: vec![Type::Enchantment.def()],
-        abilities: vec![Ability::r#static(
-            deckmaste_core::StaticEffect::Replacement(Arc::new(
-                deckmaste_core::Replacement::Also {
-                    would: deckmaste_core::EventFilter::ZoneChange {
-                        what: Predicate::Any,
-                        from: Some(Zone::Library),
-                        to: Some(Zone::Exile),
-                        cause: None,
-                    },
-                    also: OneShotEffect::Act(CoreAction::Shuffle(
-                        deckmaste_core::Selection::LibraryOf(Reference::Reg(
-                            deckmaste_core::RefId(1),
-                        )),
-                    )),
+        abilities: vec![Ability::r#static(deckmaste_core::StaticSpec::Replacement(
+            Arc::new(deckmaste_core::Replacement::Also {
+                would: deckmaste_core::EventFilter::ZoneChange {
+                    what: Predicate::Any,
+                    from: Some(Zone::Library),
+                    to: Some(Zone::Exile),
+                    cause: None,
                 },
-            )),
-        )],
+                also: Instruction::Act(CoreAction::Shuffle(deckmaste_core::Selection::LibraryOf(
+                    Reference::Reg(deckmaste_core::RefId(1)),
+                ))),
+            }),
+        ))],
         ..CardFace::default()
     }));
     let chronology_cards = (0..10).map(|index| {

@@ -77,7 +77,7 @@ pub enum EnterRider {
     /// [`crate::CopySpec`] payload (source + "except" exceptions,
     /// [CR#707.9]) like the other three copy delivery sites
     /// ([`crate::TokenSpec::Copy`], [`Action::CastCopy`], and the
-    /// becomes-a-copy [`crate::continuous::StaticEffect::BecomesCopy`]).
+    /// becomes-a-copy [`crate::continuous::StaticSpec::BecomesCopy`]).
     /// This rider is a layer-1a copy INPUT only ([CR#613.2]): applying it —
     /// deriving and installing the copiable values — is the
     /// `engine-layers-1-copy-facedown-text` seam in
@@ -255,17 +255,17 @@ pub enum Action {
     /// macros (`Destroy`, `Scry`, `Discard`, …) desugar to a `Composite` so
     /// there are no bespoke `Scry`/`Surveil` verbs; the engine dispatches
     /// on the NAME plus the body's shape, not a typed atom. Mirrors the
-    /// Idris `Composite : KeywordActionSpec b -> OneShotEffect b -> Action
+    /// Idris `Composite : KeywordActionSpec b -> Instruction b -> Action
     /// b` and the [`KeywordAbility::Composite`](crate::KeywordAbility) `{
     /// name, abilities }` precedent (a struct variant, read all-named).
     /// Resolving runs `body`, then (when the body actually acts — scry 0
     /// does nothing, [CR#701.22b]) commits the present-tense `Act`
     /// name-fact a "whenever you scry/surveil/discard" trigger reads.
-    /// `body` is boxed to break the `Action` → `OneShotEffect` →
+    /// `body` is boxed to break the `Action` → `Instruction` →
     /// `Action` size cycle.
     Composite {
         name: crate::VerbName,
-        body: Arc<crate::OneShotEffect>,
+        body: Arc<crate::Instruction>,
     },
     /// Change a player's life total ([CR#119.3,119.9]) — the merged
     /// `GainLife`/`LoseLife`/`SetLife` family (the funnel criterion, spec §6):
@@ -303,7 +303,7 @@ pub enum Action {
     /// they control, so `agent` is that permanent's controller).
     Sacrifice(Reference, Reference),
     /// "`agent` draws a card" ([CR#121.1]) — exactly ONE card ([CR#121.2]).
-    /// "Draw N" is [`OneShotEffect::draw`](crate::OneShotEffect::draw) —
+    /// "Draw N" is [`Instruction::draw`](crate::Instruction::draw) —
     /// `Batch(n, Act(DrawCard(who)))` — where the `Batch` is the *instruction*
     /// level a count-referring replacement modifies ([CR#121.2a]) and each
     /// element is one individual card draw ([CR#121.2]). The late
@@ -360,7 +360,7 @@ pub enum Action {
     /// (source + "except" exceptions, [CR#707.9]) — the fifth copy-delivery
     /// site, joining [`TokenSpec::Copy`](crate::TokenSpec), `CastCopy`,
     /// [`EnterRider::AsCopy`], and
-    /// [`StaticEffect::BecomesCopy`](crate::continuous::StaticEffect);
+    /// [`StaticSpec::BecomesCopy`](crate::continuous::StaticSpec);
     /// Fork's "except that the copy is red" ([CR#707.10]'s own founding
     /// example) becomes spellable. `retarget` is a CREATION mode
     /// ([`CopyRetarget`]), not a post-hoc edit — [CR#707.10c]: "the copy is
@@ -596,7 +596,7 @@ impl Action {
     pub fn destroy(what: Reference) -> Action {
         Action::Composite {
             name: crate::VerbName::from("Destroy"),
-            body: Arc::new(crate::OneShotEffect::act(Action::move_to(
+            body: Arc::new(crate::Instruction::act(Action::move_to(
                 what,
                 crate::Zone::Graveyard,
             ))),
@@ -610,7 +610,7 @@ impl Action {
     /// [`TopOfLibrary`](crate::Selection::TopOfLibrary), the late-bound slice).
     /// `whose` rides the body's selection so the engine reads the performer off
     /// it. A whole mill is
-    /// [`OneShotEffect::mill`](crate::OneShotEffect::mill) — `Batch(count,
+    /// [`Instruction::mill`](crate::Instruction::mill) — `Batch(count,
     /// Act(Mill))` — and the engine commits the whole slice as ONE simultaneous
     /// batch of per-card, individually-redirectable moves ([CR#701.17a,616.1]),
     /// NOT the per-card sequence a draw is ([CR#121.2]).
@@ -618,7 +618,7 @@ impl Action {
     pub fn mill_one(who: Reference) -> Action {
         Action::Composite {
             name: crate::VerbName::from("Mill"),
-            body: Arc::new(crate::OneShotEffect::act(Action::MoveGroup {
+            body: Arc::new(crate::Instruction::act(Action::MoveGroup {
                 group: Selection::TopOfLibrary {
                     count: Count::Literal(1),
                     whose: who,
@@ -639,7 +639,7 @@ impl Action {
     /// Library → Hand move made *without* the word "draw" is not a draw, so
     /// such a body would denote a different event. See
     /// [`Action::DrawCard`]. A whole draw is
-    /// [`OneShotEffect::draw`](crate::OneShotEffect::draw) — `Batch(count,
+    /// [`Instruction::draw`](crate::Instruction::draw) — `Batch(count,
     /// Act(DrawCard(who)))`, `count` SEQUENTIAL single-card draws ([CR#121.2],
     /// each seeing prior state), UNLIKE mill's one simultaneous batch. The
     /// engine's `Act(DrawCard)` apply binds the library top LATE and
@@ -677,14 +677,14 @@ impl Action {
         };
         let mut instructions = Vec::new();
         if !random {
-            instructions.push(crate::OneShotEffect::Choose(crate::Choose {
+            instructions.push(crate::Instruction::Choose(crate::Choose {
                 dest,
                 by: who,
                 quantity,
                 filter: Arc::new(crate::Region::new(Arc::from([]), filter)),
             }));
         }
-        instructions.push(crate::OneShotEffect::Each(crate::Each {
+        instructions.push(crate::Instruction::Each(crate::Each {
             over,
             body: crate::Region::new(
                 Arc::from([crate::Param {
@@ -692,13 +692,13 @@ impl Action {
                     kind: crate::Kind::Entity,
                     provenance: crate::Provenance::LoopElement,
                 }]),
-                crate::OneShotEffect::act(Action::discard_what(Reference::Reg(crate::RefId(0))))
+                crate::Instruction::act(Action::discard_what(Reference::Reg(crate::RefId(0))))
                     .into(),
             ),
         }));
         Action::Composite {
             name: crate::VerbName::from("Discard"),
-            body: Arc::new(crate::OneShotEffect::Sequentially(instructions.into())),
+            body: Arc::new(crate::Instruction::Sequentially(instructions.into())),
         }
     }
 
@@ -716,7 +716,7 @@ impl Action {
     pub fn discard_what(what: Reference) -> Action {
         Action::Composite {
             name: crate::VerbName::from("Discard"),
-            body: Arc::new(crate::OneShotEffect::act(Action::move_to(
+            body: Arc::new(crate::Instruction::act(Action::move_to(
                 what,
                 crate::Zone::Graveyard,
             ))),
@@ -768,8 +768,8 @@ fn hand_owner_ref(filter: &crate::Predicate) -> Option<&Reference> {
 /// the Idris emitter, so the three can never disagree on which form a
 /// discard is.
 #[must_use]
-pub fn discard_body_what(body: &crate::OneShotEffect) -> Option<&Reference> {
-    use crate::OneShotEffect as Ose;
+pub fn discard_body_what(body: &crate::Instruction) -> Option<&Reference> {
+    use crate::Instruction as Ose;
     match body {
         Ose::Act {
             action: Action::Move(what, Destination::Zone(_), _, _),
@@ -785,8 +785,8 @@ pub fn discard_body_what(body: &crate::OneShotEffect) -> Option<&Reference> {
 /// belongs to the selection, not the tag — shared like
 /// [`discard_body_what`].
 #[must_use]
-pub fn discard_body_random(body: &crate::OneShotEffect) -> bool {
-    use crate::OneShotEffect as Ose;
+pub fn discard_body_random(body: &crate::Instruction) -> bool {
+    use crate::Instruction as Ose;
     match body {
         Ose::Each(crate::Each {
             over: Selection::Random(..),
@@ -811,8 +811,8 @@ pub fn discard_body_random(body: &crate::OneShotEffect) -> bool {
 /// re-agenting a discard cost ([CR#601.2h]) reads its count without a typed
 /// atom.
 #[must_use]
-pub fn discard_body_count(body: &crate::OneShotEffect) -> Option<&Count> {
-    use crate::OneShotEffect as Ose;
+pub fn discard_body_count(body: &crate::Instruction) -> Option<&Count> {
+    use crate::Instruction as Ose;
     match body {
         Ose::Each(crate::Each {
             over: Selection::Random(quantity, _),
@@ -839,8 +839,8 @@ pub fn discard_body_count(body: &crate::OneShotEffect) -> Option<&Count> {
 /// slot) or any other shape. Read off the stored body — shared by the
 /// engine's resolve lane, the renderer, and the Idris emitter.
 #[must_use]
-pub fn discard_body_whose(body: &crate::OneShotEffect) -> Option<&Reference> {
-    use crate::OneShotEffect as Ose;
+pub fn discard_body_whose(body: &crate::Instruction) -> Option<&Reference> {
+    use crate::Instruction as Ose;
     match body {
         Ose::Each(crate::Each {
             over: Selection::Random(_, filter),
@@ -864,9 +864,9 @@ pub fn discard_body_whose(body: &crate::OneShotEffect) -> Option<&Reference> {
 /// the engine's resolve lane and the Idris emitter both consume this, so
 /// the fighters are read off the stored body identically everywhere.
 #[must_use]
-pub fn fight_body_fighters(body: &crate::OneShotEffect) -> Option<(&Reference, &Reference)> {
+pub fn fight_body_fighters(body: &crate::Instruction) -> Option<(&Reference, &Reference)> {
     use crate::Action as A;
-    use crate::OneShotEffect as Ose;
+    use crate::Instruction as Ose;
     match body {
         Ose::If(iff) => fight_body_fighters(&iff.then),
         Ose::Simultaneously(parts) => match parts.as_ref() {

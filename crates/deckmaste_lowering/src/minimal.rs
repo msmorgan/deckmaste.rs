@@ -19,16 +19,16 @@ pub fn in_spell_region<T>(f: impl FnOnce() -> T) -> T {
 /// magnitude in a `Let` at the instruction's program point and then reads that
 /// register ([CR#608.2h]), so one authored action becomes a two-instruction
 /// sequence whose second half reads the first half's definition.
-pub fn is_minimal_lowered_effect(effect: &deckmaste_core::OneShotEffect) -> bool {
-    let deckmaste_core::OneShotEffect::Sequentially(parts) = effect else {
+pub fn is_minimal_lowered_effect(effect: &deckmaste_core::Instruction) -> bool {
+    let deckmaste_core::Instruction::Sequentially(parts) = effect else {
         return false;
     };
     let [
-        deckmaste_core::OneShotEffect::Let(deckmaste_core::Let {
+        deckmaste_core::Instruction::Let(deckmaste_core::Let {
             dest,
             expr: deckmaste_core::Expr::Number(_),
         }),
-        deckmaste_core::OneShotEffect::Act {
+        deckmaste_core::Instruction::Act {
             dest: None,
             action:
                 deckmaste_core::Action::DealDamage(

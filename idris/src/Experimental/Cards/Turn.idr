@@ -10,12 +10,12 @@ import Experimental.Cards.Faces
 
 
 ||| Through the Breach Splice
-throughTheBreach : Effect []
+throughTheBreach : Instruction []
 throughTheBreach = Sequentially [Macros.may You (Macros.move (Macros.a (And [Macros.creature, InZone (Macros.handOf You)])) Macros.battlefieldZ),
                                  Macros.gainsHaste (Macros.That (TypeW Creature) OneOf) Nothing,
                                  Macros.delayed (BeginningOf ThePart EndStep NoPossessor) (Macros.sacrifice You (Macros.That (TypeW Creature) OneOf))]
 
-turnToMist : Effect []
+turnToMist : Instruction []
 turnToMist = Sequentially [Macros.exile You (Macros.target Macros.creature),
                            Macros.delayed (BeginningOf ThePart EndStep NoPossessor) (Macros.move (Macros.That CardW OneOf) Macros.battlefieldZ)]
 
@@ -133,7 +133,7 @@ ivoryTower =
        Nothing
 
 ||| Ajani, Adversary of Tyrants
-ajanisEmblem : Effect []
+ajanisEmblem : Instruction []
 ajanisEmblem =
   GetsEmblem You
     [ Macros.triggered At (BeginningOf ThePart EndStep (ByPlayer You))
@@ -142,7 +142,7 @@ ajanisEmblem =
                             [Macros.keyword "Lifelink"] Nothing)) ]
 
 ||| Saheeli Rai
-saheelisCopy : Effect []
+saheelisCopy : Instruction []
 saheelisCopy =
   Sequentially [ Create You (Lit 1)
                    (TokenCopyOf (Macros.target (And [Or [Macros.artifact, Macros.creature],
@@ -193,7 +193,7 @@ finalFortune =
                                             (Concludes LoseGame You)])] Nothing
 
 public export
-finalFortuneThatTurn : Noun (effIntro {bs = []} (ExtraTurn You (Lit 1))) TurnRef
+finalFortuneThatTurn : Noun (instrIntro {bs = []} (ExtraTurn You (Lit 1))) TurnRef
 finalFortuneThatTurn = Macros.thatTurn
 
 public export
@@ -246,11 +246,11 @@ relentlessAssault =
          , Macros.additionalPartThen Combat (Just MainPhase) (Lit 1) MainPhase])] Nothing
 
 public export
-fullThrottleFirstLine : Effect []
+fullThrottleFirstLine : Instruction []
 fullThrottleFirstLine = Macros.additionalPart Combat (Just MainPhase) (Lit 2)
 
 public export
-yshtolaAdditionalEndStep : Effect []
+yshtolaAdditionalEndStep : Instruction []
 yshtolaAdditionalEndStep = Macros.additionalPart EndStep Nothing (Lit 1)
 
 ||| Sphinx of the Second Sun
@@ -293,7 +293,7 @@ paradoxHaze =
        Nothing
 
 public export
-ninthDoctorAdditionalUpkeep : Effect []
+ninthDoctorAdditionalUpkeep : Instruction []
 ninthDoctorAdditionalUpkeep = Macros.getsAdditionalPart You Upkeep (Lit 1)
 
 ||| Rites of Flourishing
@@ -531,12 +531,12 @@ triarchStalker =
        (Just (4, 5))
 
 public export
-raphaelAdditionalCombat : Effect []
+raphaelAdditionalCombat : Instruction []
 raphaelAdditionalCombat = Macros.additionalPart Combat (Just Combat) (Lit 1)
 
 ||| Karn Liberated
 public export
-karnRestart : Effect []
+karnRestart : Instruction []
 karnRestart = RestartsGame
 
 waxWane : Card

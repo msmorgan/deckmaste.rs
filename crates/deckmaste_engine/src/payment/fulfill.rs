@@ -112,12 +112,12 @@ fn action_is_deferred(action: &Action) -> bool {
     }
 }
 
-fn effect_is_deferred(effect: &deckmaste_core::OneShotEffect) -> bool {
-    use deckmaste_core::OneShotEffect;
+fn effect_is_deferred(effect: &deckmaste_core::Instruction) -> bool {
+    use deckmaste_core::Instruction;
 
     match effect {
-        OneShotEffect::Act { action, .. } => action_is_deferred(action),
-        OneShotEffect::Sequentially(effects) | OneShotEffect::Simultaneously(effects) => {
+        Instruction::Act { action, .. } => action_is_deferred(action),
+        Instruction::Sequentially(effects) | Instruction::Simultaneously(effects) => {
             effects.iter().any(effect_is_deferred)
         }
         _ => false,
@@ -384,7 +384,7 @@ impl GameState {
                     spend: None,
                     sample: None,
                     work: vec![WorkItem::RunEffect {
-                        effect: std::sync::Arc::new(deckmaste_core::OneShotEffect::act(
+                        effect: std::sync::Arc::new(deckmaste_core::Instruction::act(
                             action.as_action().clone(),
                         )),
                         frame,
@@ -1006,12 +1006,12 @@ impl GameState {
 
     fn preflight_discard_effect(
         &mut self,
-        effect: &deckmaste_core::OneShotEffect,
+        effect: &deckmaste_core::Instruction,
         payer: crate::player::PlayerId,
         frame: &Frame,
     ) -> bool {
         match effect {
-            deckmaste_core::OneShotEffect::Act { action, .. } => {
+            deckmaste_core::Instruction::Act { action, .. } => {
                 if let Action::Move(subject, _, _, Some(Zone::Hand)) = action {
                     let object = self.eval_reference(subject, frame);
                     if self.objects.get(object).is_none()
@@ -1023,7 +1023,7 @@ impl GameState {
                 }
                 self.preflight_cost_action(action, payer, frame)
             }
-            deckmaste_core::OneShotEffect::Each(each) => {
+            deckmaste_core::Instruction::Each(each) => {
                 let objects = self.eval_selection_set(&each.over, frame);
                 for object in objects {
                     if self.objects.get(object).is_none() {

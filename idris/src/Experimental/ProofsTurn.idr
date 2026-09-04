@@ -11,24 +11,24 @@ import Experimental.Unspellable
 
 ||| "Sacrifice a creature."
 public export
-okSacrificeBattlefield : Effect []
+okSacrificeBattlefield : Instruction []
 okSacrificeBattlefield = Macros.sacrifice You (Macros.a Macros.creature)
 
 ||| "Destroy target creature. At the beginning of the end step, sacrifice it."
 public export
-badStale : Unspellable (Effect []) (\ok =>
+badStale : Unspellable (Instruction []) (\ok =>
   Sequentially [Macros.destroy (Macros.target Macros.creature),
                Delayed (BeginningOf ThePart EndStep NoPossessor) [] Nothing (Macros.sacrifice You ((Macros.It OneOf)) {ok})])
 badStale Oh impossible
 
 public export
-badDelayedOther : Unspellable (Effect []) (\ok =>
+badDelayedOther : Unspellable (Instruction []) (\ok =>
   Sequentially [DealDamage This (Lit 2) (Macros.target Macros.anyTarget),
                Delayed (BeginningOf ThePart EndStep NoPossessor) [] Nothing (DealDamage This (Lit 1) (Macros.target (Macros.anyOtherTarget {ok})))])
 badDelayedOther Refl impossible
 
 public export
-badStaleCarrier : Unspellable (Effect []) (\ok =>
+badStaleCarrier : Unspellable (Instruction []) (\ok =>
   Sequentially [Macros.exile You (Macros.target Macros.creatureYouControl),
                Move (Macros.That (TypeW Creature) OneOf {ok}) Macros.battlefieldZ []])
 badStaleCarrier Refl impossible
@@ -50,13 +50,13 @@ badTwoCostMentions Refl impossible
 
 ||| "Exile target creature. Sacrifice it."
 public export
-badSacrificeExiled : Unspellable (Effect []) (\ok =>
+badSacrificeExiled : Unspellable (Instruction []) (\ok =>
   Sequentially [Macros.exile You (Macros.target Macros.creature),
                Macros.sacrifice You ((Macros.It OneOf)) {ok}])
 badSacrificeExiled Oh impossible
 
 public export
-badDeadCreatureRead : Unspellable (Effect []) (\ok =>
+badDeadCreatureRead : Unspellable (Instruction []) (\ok =>
   Delayed (Dies (Macros.target Macros.creature)) [] (Just ThisTurn)
           (Move (Macros.That (TypeW Creature) OneOf {ok}) Macros.battlefieldZ []))
 badDeadCreatureRead Refl impossible
@@ -100,7 +100,7 @@ badBareCardRead Refl impossible
 
 ||| "Tap target creature card in your graveyard."
 public export
-badTapGraveyard : Unspellable (Effect []) (\ok =>
+badTapGraveyard : Unspellable (Instruction []) (\ok =>
   SetStatus Tapped (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {ok})
 badTapGraveyard Oh impossible
 
@@ -131,67 +131,67 @@ badLeavesThenTap Oh impossible
 
 ||| "Target creature gets +3/+3 until end of turn."
 public export
-okUntilEndOfTurnSpan : Effect []
+okUntilEndOfTurnSpan : Instruction []
 okUntilEndOfTurnSpan =
   Macros.gets (Macros.target Macros.creature) (PtUp (Lit 3)) (PtUp (Lit 3))
               (Just Macros.untilEndOfTurn)
 
 ||| "Target creature gets +3/+3 until the beginning of your next upkeep."
 public export
-badUntilBeginningOfUpkeep : Unspellable (Effect []) (\ok =>
+badUntilBeginningOfUpkeep : Unspellable (Instruction []) (\ok =>
   Macros.gets (Macros.target Macros.creature) (PtUp (Lit 3)) (PtUp (Lit 3)) (Just (UntilEvent (BeginningOf ThePart Upkeep (ByPlayer You)))) {sp = ok})
 badUntilBeginningOfUpkeep (Present {ok = Oh}) impossible
 
 ||| "Sacrifice a creature. When you do, draw a card."
 public export
-okReflexiveOnSacrifice : Effect []
+okReflexiveOnSacrifice : Instruction []
 okReflexiveOnSacrifice =
   Reflexively (Macros.sacrifice You (Macros.a Macros.creature))
               (Draw You (Lit 1))
 
 ||| "This creature deals 3 damage to any target. When you do, draw a card."
 public export
-badReflexiveOnSourceDeed : Unspellable (Effect []) (\ok =>
+badReflexiveOnSourceDeed : Unspellable (Instruction []) (\ok =>
   Reflexively (DealDamage This (Lit 3) (Macros.target Macros.anyTarget)) (Draw You (Lit 1)) {en = ok})
 badReflexiveOnSourceDeed Oh impossible
 
 ||| "You gain 2 life. When you do, draw a card."
 public export
-badReflexiveOnLifeGain : Unspellable (Effect []) (\ok =>
+badReflexiveOnLifeGain : Unspellable (Instruction []) (\ok =>
   Reflexively (Macros.gainsLife You (Lit 2)) (Draw You (Lit 1)) {en = ok})
 badReflexiveOnLifeGain Oh impossible
 
 ||| "Draw a card, then sacrifice a creature. When you do, draw a card."
 public export
-badReflexiveOnSequence : Unspellable (Effect []) (\ok =>
+badReflexiveOnSequence : Unspellable (Instruction []) (\ok =>
   Reflexively (Sequentially [(Draw You (Lit 1)), Macros.sacrifice You (Macros.a Macros.creature)]) (Draw You (Lit 1)) {en = ok})
 badReflexiveOnSequence Oh impossible
 
 public export
-badReflexiveOnDelayed : Unspellable (Effect []) (\ok =>
+badReflexiveOnDelayed : Unspellable (Instruction []) (\ok =>
   Reflexively (Delayed (BeginningOf ThePart EndStep (ByPlayer You)) [] Nothing (Draw You (Lit 1))) (Draw You (Lit 1)) {en = ok})
 badReflexiveOnDelayed Oh impossible
 
 ||| "Regenerate this creature. If it regenerates this way, draw a card."
 public export
-okThisWayOnRegenerate : Effect []
+okThisWayOnRegenerate : Instruction []
 okThisWayOnRegenerate =
   ThisWay (Regenerate Macros.thisCreature) (Regenerates Macros.thisCreature)
           (Draw You (Lit 1))
 
 public export
-badThisWayOnDelayed : Unspellable (Effect []) (\ok =>
+badThisWayOnDelayed : Unspellable (Instruction []) (\ok =>
   ThisWay (Delayed (BeginningOf ThePart EndStep (ByPlayer You)) [] Nothing (Draw You (Lit 1)))
           (Draws You) (Draw You (Lit 1)) {oc = ok})
 badThisWayOnDelayed Oh impossible
 
 public export
-badReflexiveOnBranchedMay : Unspellable (Effect []) (\ok =>
+badReflexiveOnBranchedMay : Unspellable (Instruction []) (\ok =>
   Reflexively ((May You (Macros.sacrifice You (Macros.a Macros.creature)) (Just (Draw You (Lit 1))) Nothing)) (Draw You (Lit 1)) {en = ok})
 badReflexiveOnBranchedMay Oh impossible
 
 public export
-badAfterReflexiveReadsTrigger : Unspellable (Effect []) (\ok =>
+badAfterReflexiveReadsTrigger : Unspellable (Instruction []) (\ok =>
   Sequentially [Reflexively (Macros.mills You (Lit 4) You)
                             (Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [White]
                                                      (MkTypeLine [creatureType "Soldier"] [Creature])
@@ -201,7 +201,7 @@ badAfterReflexiveReadsTrigger (Refl, _) impossible
 
 ||| "Sacrifice a creature. When you do, tap it."
 public export
-badReflexiveTapsSacrificed : Unspellable (Effect []) (\ok =>
+badReflexiveTapsSacrificed : Unspellable (Instruction []) (\ok =>
   Reflexively (Macros.sacrifice You (Macros.a Macros.creature)) (SetStatus Tapped ((Macros.It OneOf)) {ok}))
 badReflexiveTapsSacrificed Oh impossible
 
@@ -258,7 +258,7 @@ badDurationEndAnOpponent Oh impossible
 
 ||| "You get an emblem with 'At the beginning of your end step, draw a card.'"
 public export
-okTriggeredEmblem : Effect []
+okTriggeredEmblem : Instruction []
 okTriggeredEmblem =
   GetsEmblem You
     [ Macros.triggered At (BeginningOf ThePart EndStep (ByPlayer You))
@@ -266,19 +266,19 @@ okTriggeredEmblem =
 
 ||| "You get an emblem with 'flying'."
 public export
-badKeywordEmblem : Unspellable (Effect []) (\ok =>
+badKeywordEmblem : Unspellable (Instruction []) (\ok =>
   GetsEmblem You [KeywordAbility "Flying" Nothing Nothing] {ea = ok})
 badKeywordEmblem Oh impossible
 
 ||| "You get an emblem."
 public export
-badEmptyEmblem : Unspellable (Effect []) (\ok =>
+badEmptyEmblem : Unspellable (Instruction []) (\ok =>
   GetsEmblem You [] {ea = ok})
 badEmptyEmblem Oh impossible
 
 ||| "… At the beginning of that turn's end step, you lose the game."
 public export
-okDeicticTurnAfterExtraTurn : Effect []
+okDeicticTurnAfterExtraTurn : Instruction []
 okDeicticTurnAfterExtraTurn =
   Sequentially [ExtraTurn You (Lit 1),
                 Delayed (BeginningOf ThePart EndStep Macros.thatTurns) [] Nothing
@@ -286,7 +286,7 @@ okDeicticTurnAfterExtraTurn =
 
 ||| "Draw a card. At the beginning of that turn's end step, you lose the game."
 public export
-badDeicticTurnWithoutIntroducer : Unspellable (Effect []) (\ok =>
+badDeicticTurnWithoutIntroducer : Unspellable (Instruction []) (\ok =>
   Sequentially [Draw You (Lit 1),
                 Delayed (BeginningOf ThePart EndStep (Macros.thatTurns {ok})) [] Nothing
                         (Concludes LoseGame You)])
@@ -294,26 +294,26 @@ badDeicticTurnWithoutIntroducer Refl impossible
 
 ||| "After this combat phase, there is an additional upkeep step."
 public export
-okAdditionalUpkeep : Effect []
+okAdditionalUpkeep : Instruction []
 okAdditionalUpkeep = AdditionalPart Nothing Upkeep (Just Combat) (Lit 1) Nothing
 
 ||| "After this combat phase, there is an additional turn."
 public export
-badAdditionalTurn : Unspellable (Effect []) (\ok =>
+badAdditionalTurn : Unspellable (Instruction []) (\ok =>
   AdditionalPart Nothing Turn (Just Combat) (Lit 1) Nothing {ad = ok})
 badAdditionalTurn Oh impossible
 
 ||| "Spells with the chosen name can't be activated."
 public export
 badActivatedSpellClass : Unspellable
-  (StaticEffect [MkBinding AD (Quality CardName) OneOf QualityP]) (\ok =>
+  (StaticSpec [MkBinding AD (Quality CardName) OneOf QualityP]) (\ok =>
   Macros.objectCant "Activate"
     (Macros.allOf (And [Macros.spell, Named ChosenName])) {dp = ok})
 badActivatedSpellClass Oh impossible
 
 ||| "Activated abilities of artifacts can't be Nothing cast."
 public export
-badCastAbilityClass : Unspellable (StaticEffect []) (\ok =>
+badCastAbilityClass : Unspellable (StaticSpec []) (\ok =>
   Macros.objectCant "Cast"
     (Macros.allOf (And [AbilityHead AnyActivated, AbilityOf (Macros.allOf Macros.artifact)]))
     {dp = ok})
@@ -347,34 +347,34 @@ badCouldBlockGraveyardRelatum Oh impossible
 
 ||| "Sacrifice a creature. If you do, draw a card."
 public export
-okIfDoneWithArm : Effect []
+okIfDoneWithArm : Instruction []
 okIfDoneWithArm =
   IfDone (Macros.sacrifice You (Macros.a Macros.creature))
          (Just (Draw You (Lit 1))) Nothing
 
 ||| "Sacrifice a creature."
 public export
-badIfDoneWithNeitherArm : Unspellable (Effect []) (\ok =>
+badIfDoneWithNeitherArm : Unspellable (Instruction []) (\ok =>
   IfDone (Macros.sacrifice You (Macros.a Macros.creature)) Nothing Nothing {br = ok})
 badIfDoneWithNeitherArm Oh impossible
 
 ||| "This creature deals 3 damage to any target. If you do, draw a card."
 public export
-badIfDoneOverAgentlessBody : Unspellable (Effect []) (\ok =>
+badIfDoneOverAgentlessBody : Unspellable (Instruction []) (\ok =>
   IfDone (DealDamage Macros.thisCreature (Lit 3) (Macros.target Macros.anyTarget))
          (Just (Draw You (Lit 1))) Nothing {en = ok})
 badIfDoneOverAgentlessBody Oh impossible
 
 ||| "Take an extra turn after this one. If you do, draw a card."
 public export
-badIfDoneOverScheduledBody : Unspellable (Effect []) (\ok =>
+badIfDoneOverScheduledBody : Unspellable (Instruction []) (\ok =>
   IfDone (ExtraTurn You (Lit 1)) (Just (Draw You (Lit 1))) Nothing {en = ok})
 badIfDoneOverScheduledBody Oh impossible
 
 public export
 twoExtraTurns : Bindings
 twoExtraTurns =
-  effIntro {bs = effIntro {bs = []} (ExtraTurn You (Lit 1))} (ExtraTurn You (Lit 1))
+  instrIntro {bs = instrIntro {bs = []} (ExtraTurn You (Lit 1))} (ExtraTurn You (Lit 1))
 
 public export
 badThatTurnAfterTwoTurns : Unspellable (Noun twoExtraTurns TurnRef) (\ok =>
@@ -383,7 +383,7 @@ badThatTurnAfterTwoTurns Refl impossible
 
 ||| "create a legendary 20/20 black Avatar creature token named Marit Lage"
 public export
-okTokenSingleSupertype : Effect []
+okTokenSingleSupertype : Instruction []
 okTokenSingleSupertype =
   Macros.create (Lit 1)
     (MkSupertypedToken (Just (Lit 20 ** Lit 20)) [Black] [Legendary]
@@ -391,7 +391,7 @@ okTokenSingleSupertype =
 
 ||| "create a legendary legendary 20/20 black Avatar creature token"
 public export
-badTokenDuplicateSupertype : Unspellable (Effect []) (\ok =>
+badTokenDuplicateSupertype : Unspellable (Instruction []) (\ok =>
   Macros.create (Lit 1)
     (MkSupertypedToken (Just (Lit 20 ** Lit 20)) [Black] [Legendary, Legendary]
        (MkTypeLine [creatureType "Avatar"] [Creature]) [] (Just "Marit Lage"))
