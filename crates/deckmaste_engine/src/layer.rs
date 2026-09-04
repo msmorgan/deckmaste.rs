@@ -763,7 +763,7 @@ fn static_effect_scope(
 /// relations are resolvable here. The rest are a documented seam (see below)
 /// and resolve to the empty set.
 ///
-/// Returns a (possibly empty) vec — the empty set both for a ExecutionFrame-dependent
+/// Returns a (possibly empty) vec — the empty set both for an ExecutionFrame-dependent
 /// reference and for a relation that isn't established (an unattached
 /// attachment's `AttachHostOf(This)` has no host yet). The caller LOCKS the
 /// result ([CR#613.6]: the affected set is fixed at first application).
@@ -803,7 +803,7 @@ fn resolve_source_relative(
         }
         // ExecutionFrame-dependent references only: `Target`, bindings (`Bound`,
         // `Linked`, `EventObject`, `EventActor`) — and the player-valued
-        // `You`/`ControllerOf`/`OwnerOf` — cannot be resolved without a `ExecutionFrame`
+        // `You`/`ControllerOf`/`OwnerOf` — cannot be resolved without an `ExecutionFrame`
         // in gather, so they stay an empty locked set (a documented seam; these
         // need `eval_reference`, which `gather` deliberately lacks to avoid the
         // layers()→eval recursion).
@@ -1209,7 +1209,7 @@ fn eval_divide(mode: deckmaste_core::RoundMode, a: Int, b: Int) -> Int {
 
 /// Evaluate a `Count` to an `Int` against the IN-PROGRESS derived map
 /// (`working`) being built this pass — never `self.layers()` (that would
-/// recurse the layer build) and never a `ExecutionFrame` (which the layer pass lacks).
+/// recurse the layer build) and never an `ExecutionFrame` (which the layer pass lacks).
 /// This is the layer-side sibling of `resolve.rs::eval_count`, mirroring each
 /// variant's meaning but sourcing derived P/T from `working` instead of a
 /// rebuilt view.
@@ -1955,7 +1955,7 @@ fn resolve_new_controller(
     if reference == &deckmaste_core::Reference::controller_parameter() {
         Some(effect_controller)
     } else {
-        // SEAM: opponent / each-player / bound references need a `ExecutionFrame` to
+        // SEAM: opponent / each-player / bound references need an `ExecutionFrame` to
         // resolve a specific player; not reachable by current control fixtures.
         None
     }

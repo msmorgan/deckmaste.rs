@@ -115,7 +115,11 @@ impl GameState {
     /// not APPLIED to the destruction, and stays unconsumed); every OTHER rider
     /// kind is LOUD (its enforcement belongs to a future ticket), as is a
     /// `Regenerate` whose `on` is not a bare object reference.
-    fn resolve_no_regen_riders(&self, parts: &[StaticSpec], frame: &ExecutionFrame) -> Vec<ObjectId> {
+    fn resolve_no_regen_riders(
+        &self,
+        parts: &[StaticSpec],
+        frame: &ExecutionFrame,
+    ) -> Vec<ObjectId> {
         let mut ids = Vec::new();
         for part in parts {
             let StaticSpec::Deontic(Deontic::Cant(action)) = part else {
@@ -1595,7 +1599,11 @@ impl GameState {
     /// an `If`-guarded body looks through to the branch its condition selects.
     /// The move verbs (destroy/discard/mill) vet their coordinates directly in
     /// `composite_items` instead.
-    pub(crate) fn composite_body_would_act(&self, body: &Instruction, frame: &ExecutionFrame) -> bool {
+    pub(crate) fn composite_body_would_act(
+        &self,
+        body: &Instruction,
+        frame: &ExecutionFrame,
+    ) -> bool {
         match body {
             Instruction::Each(each) => !self.eval_selection_set(&each.over, frame).is_empty(),
             Instruction::If(i) => {

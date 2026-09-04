@@ -828,7 +828,7 @@ where
 ///
 /// [CR#611.3a]: a `Conditionally` static is GATED — its inner effect is visited
 /// only when the wrapper's condition holds for `id`, evaluated with `This`
-/// bound to `id` (a `ExecutionFrame::bare` on the object's controller).
+/// bound to `id` (an `ExecutionFrame::bare` on the object's controller).
 pub(crate) fn for_each_static<F: FnMut(&StaticSpec)>(
     state: &GameState,
     view: &LayeredView,

@@ -678,9 +678,9 @@ fn emit_declaration_verb_frame_types() -> Vec<GeneratedItem> {
         named_type(
             "VerbFrameKey",
             quote! {
-                #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
                 /// Compiler compatibility key for matching a realized Lexical Verb Phrase
                 /// against a declared Verb Frame.
+                #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
                 pub(crate) struct VerbFrameKey {
                     class: VerbFrameClass,
                     atoms: &'static [VerbFrameAtom],

@@ -178,4 +178,3 @@ fn a_bare_source_reference_produces_a_diagnostic_naming_the_card() {
         error.message
     );
 }
-

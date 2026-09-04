@@ -827,9 +827,9 @@ pub(crate) enum VerbFrameClass {
     ProVerb,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 /// Compiler compatibility key for matching a realized Lexical Verb Phrase
 /// against a declared Verb Frame.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct VerbFrameKey {
     class: VerbFrameClass,
     atoms: Vec<VerbFrameAtom>,

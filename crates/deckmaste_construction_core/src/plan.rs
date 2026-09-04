@@ -1010,8 +1010,12 @@ mod tests {
     #[test]
     fn declaration_verb_tail_is_a_normalized_semantic_frame_key() {
         use crate::macro_def::CustomTailAtom;
-        use crate::macro_def::VerbFrameSet as Set;
+        use crate::macro_def::VerbFrameSet;
         use crate::semantic::{DeclarationVerbPlan, VerbFrameAtom, VerbFrameClass};
+
+        let intransitive = VerbFrameSet::Intransitive;
+        let transitive = VerbFrameSet::Transitive;
+        let measure_complement = VerbFrameSet::MeasureComplement;
 
         let object_plan = declaration_verb_plan_for(&quote::quote! { ObjectNounPhrase });
         let (terminal_index, object) = sole_declaration_verb(&object_plan);
@@ -1033,25 +1037,17 @@ mod tests {
             object.frame_key().atoms(),
             [VerbFrameAtom::ObjectNounPhrase]
         );
-        assert!(object.frame_key().matches_frame_set(&Set::Transitive));
-        assert!(
-            !object
-                .frame_key()
-                .matches_frame_set(&Set::MeasureComplement)
-        );
-        assert!(object.frame_key().matches_frame_set(&Set::Custom {
+        assert!(object.frame_key().matches_frame_set(&transitive));
+        assert!(!object.frame_key().matches_frame_set(&measure_complement));
+        assert!(object.frame_key().matches_frame_set(&VerbFrameSet::Custom {
             frames: vec![vec![CustomTailAtom::ObjectNounPhrase]],
         }));
 
         let amount_plan = declaration_verb_plan_for(&quote::quote! { Amount });
         let (_, amount) = sole_declaration_verb(&amount_plan);
         assert_eq!(amount.frame_key().atoms(), [VerbFrameAtom::Amount]);
-        assert!(
-            amount
-                .frame_key()
-                .matches_frame_set(&Set::MeasureComplement)
-        );
-        assert!(!amount.frame_key().matches_frame_set(&Set::Transitive));
+        assert!(amount.frame_key().matches_frame_set(&measure_complement));
+        assert!(!amount.frame_key().matches_frame_set(&transitive));
 
         let predicative_plan = declaration_verb_plan_for(&quote::quote! { PredicativeComplement });
         let (_, predicative) = sole_declaration_verb(&predicative_plan);
@@ -1059,9 +1055,13 @@ mod tests {
             predicative.frame_key().atoms(),
             [VerbFrameAtom::PredicativeComplement]
         );
-        assert!(predicative.frame_key().matches_frame_set(&Set::Custom {
-            frames: vec![vec![CustomTailAtom::PredicativeComplement]],
-        }));
+        assert!(
+            predicative
+                .frame_key()
+                .matches_frame_set(&VerbFrameSet::Custom {
+                    frames: vec![vec![CustomTailAtom::PredicativeComplement]],
+                })
+        );
 
         let optional_predicative_plan =
             declaration_verb_plan_for(&quote::quote! { PredicativeComplement? });
@@ -1075,7 +1075,7 @@ mod tests {
         assert!(
             !optional_predicative
                 .frame_key()
-                .matches_frame_set(&Set::Custom {
+                .matches_frame_set(&VerbFrameSet::Custom {
                     frames: vec![vec![CustomTailAtom::PredicativeComplement]],
                 })
         );
@@ -1105,22 +1105,22 @@ mod tests {
                 VerbFrameAtom::ObjectNounPhrase,
             ]
         );
-        assert!(search.frame_key().matches_frame_set(&Set::Custom {
+        assert!(search.frame_key().matches_frame_set(&VerbFrameSet::Custom {
             frames: vec![vec![
                 CustomTailAtom::ObjectNounPhrase,
                 CustomTailAtom::Literal("for".to_owned()),
                 CustomTailAtom::ObjectNounPhrase,
             ]],
         }));
-        assert!(!search.frame_key().matches_frame_set(&Set::Transitive));
+        assert!(!search.frame_key().matches_frame_set(&transitive));
 
         let empty_plan = declaration_verb_plan_for(&quote::quote! {});
         let (_, empty) = sole_declaration_verb(&empty_plan);
-        assert!(empty.frame_key().matches_frame_set(&Set::Intransitive));
-        assert!(empty.frame_key().matches_frame_set(&Set::Custom {
+        assert!(empty.frame_key().matches_frame_set(&intransitive));
+        assert!(empty.frame_key().matches_frame_set(&VerbFrameSet::Custom {
             frames: vec![vec![], vec![CustomTailAtom::Amount]],
         }));
-        assert!(!empty.frame_key().matches_frame_set(&Set::Transitive));
+        assert!(!empty.frame_key().matches_frame_set(&transitive));
 
         let custom_plan = declaration_verb_plan_for(&quote::quote! { "with", ObjectNounPhrase });
         let (_, custom) = sole_declaration_verb(&custom_plan);
@@ -1131,19 +1131,21 @@ mod tests {
                 VerbFrameAtom::ObjectNounPhrase,
             ]
         );
-        assert!(custom.frame_key().matches_frame_set(&Set::Custom {
+        assert!(custom.frame_key().matches_frame_set(&VerbFrameSet::Custom {
             frames: vec![vec![
                 CustomTailAtom::Literal("with".to_owned()),
                 CustomTailAtom::ObjectNounPhrase,
             ]],
         }));
-        assert!(!custom.frame_key().matches_frame_set(&Set::Custom {
-            frames: vec![vec![
-                CustomTailAtom::Literal("with".to_owned()),
-                CustomTailAtom::Amount,
-            ]],
-        }));
-        assert!(!custom.frame_key().matches_frame_set(&Set::Intransitive));
+        assert!(
+            !custom.frame_key().matches_frame_set(&VerbFrameSet::Custom {
+                frames: vec![vec![
+                    CustomTailAtom::Literal("with".to_owned()),
+                    CustomTailAtom::Amount,
+                ]],
+            })
+        );
+        assert!(!custom.frame_key().matches_frame_set(&intransitive));
     }
 
     #[test]

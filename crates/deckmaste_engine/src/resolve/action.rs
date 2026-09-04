@@ -4179,7 +4179,7 @@ mod tests {
         assert_ne!(state.zones.graveyards[0][0], bear, "reminted");
     }
 
-    /// [CR#118.10]: a `ExecutionFrame.payment` (minted by `GameState::mint_payment`)
+    /// [CR#118.10]: an `ExecutionFrame.payment` (minted by `GameState::mint_payment`)
     /// is the sole signal a `Cause::*` construction site reads to choose
     /// `Agency::CostPayment` over the default `EffectInstruction` — and the
     /// SAME payment id rides the cause. Two mints are distinct; a

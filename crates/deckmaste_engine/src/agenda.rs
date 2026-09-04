@@ -149,7 +149,10 @@ pub enum WorkItem {
         /// A `May(Cast)` branch that runs only if its announcement payment is
         /// declined. The successful `if_did` branch rides after `SpellCast`
         /// in the ordinary announce schedule instead.
-        if_not: Option<(Arc<deckmaste_core::Instruction>, Box<crate::stack::ExecutionFrame>)>,
+        if_not: Option<(
+            Arc<deckmaste_core::Instruction>,
+            Box<crate::stack::ExecutionFrame>,
+        )>,
     },
     /// [CR#602.2a,602.2b]: stage a non-mana activated ability — snapshot the
     /// ability text + source LKI into the announce slot. The shared
