@@ -525,11 +525,19 @@ pub(crate) fn escape_hatch_report(plan: &SemanticPlan) -> syn::Result<EscapeHatc
 
 fn surface_feature_key(feature: crate::macro_def::SurfaceFeature) -> &'static str {
     match feature {
-        crate::macro_def::SurfaceFeature::Bare => "bare",
-        crate::macro_def::SurfaceFeature::ThirdPersonSingular => "third_person_singular",
+        crate::macro_def::SurfaceFeature::PLAIN => "plain",
+        crate::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT => {
+            "third_person_singular_present"
+        }
         crate::macro_def::SurfaceFeature::Singular => "singular",
         crate::macro_def::SurfaceFeature::Plural => "plural",
-        crate::macro_def::SurfaceFeature::Participle => "participle",
+        crate::macro_def::SurfaceFeature::PAST_PARTICIPLE => "past_participle",
+        crate::macro_def::SurfaceFeature::Inflectional(
+            crate::macro_def::InflectionalForm::Preterite,
+        ) => "preterite",
+        crate::macro_def::SurfaceFeature::Inflectional(
+            crate::macro_def::InflectionalForm::GerundParticiple,
+        ) => "gerund_participle",
         crate::macro_def::SurfaceFeature::Fixed => "fixed",
         crate::macro_def::SurfaceFeature::BlockLabel => "block_label",
     }
@@ -607,7 +615,7 @@ mod tests {
             crate::parse_declarations(quote::quote! {
                 construction bare: Item {
                     element BareItem {}
-                    derive agreement = Values::Bare;
+                    derive concord_class = Values::Other;
                     form bare = "bare";
                 }
                 construction coordinated: Root {
@@ -615,7 +623,7 @@ mod tests {
                         members: seq Item separated by " ",
                     }
                     require len(members) >= 2;
-                    derive agreement = members.agreement;
+                    derive concord_class = members.concord_class;
                     form coordinated = members;
                 }
                 root Root { punctuation = "."; eoi = true; standalone_render = true; }
@@ -628,7 +636,7 @@ mod tests {
 
         assert_eq!(
             report.sequence_feature_roles(),
-            ["Coordinated.members.agreement"]
+            ["Coordinated.members.concord_class"]
         );
         assert!(report.stored_separator_fields().is_empty());
         assert!(report.stored_form_tags().is_empty());
@@ -788,19 +796,19 @@ mod tests {
     #[test]
     fn generated_declaration_verb_is_not_a_handwritten_codec_escape_hatch() {
         let expansion = crate::generate(quote::quote! {
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme CoreVerb using EnglishVerb { Act = "act", }
             codec ActionVerb {
                 generate declaration_verb {
                     closed = CoreVerb;
                     position = Verb;
                     tail = [];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 }
             }
             construction action: Root {
                 element Action { head: lex ActionVerb, }
-                derive head.agreement = Values::Bare;
+                derive head.concord_class = Values::Other;
                 form action = verb(head);
             }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
@@ -816,12 +824,12 @@ mod tests {
     fn report_exposes_source_ordered_complete_morphology_irregulars() {
         let expansion = crate::generate(quote::quote! {
             morphology EnglishVerb {
-                feature = Agreement;
+                feature = ConcordClass;
                 recipe = english_verb;
             }
             lexeme VerbLexeme using EnglishVerb {
                 FirstIrregular = "first" {
-                    Bare = "first bare",
+                    Other = "first bare",
                     ThirdPersonSingular = "first singular",
                 },
                 Regular = "regular",
@@ -831,7 +839,7 @@ mod tests {
             }
             construction action: Action {
                 element ActionElement {}
-                derive verb.agreement = Values::Bare;
+                derive verb.concord_class = Values::Other;
                 form action = verb(VerbLexeme::FirstIrregular);
             }
             root Action { punctuation = "."; eoi = true; standalone_render = true; }
@@ -848,8 +856,8 @@ mod tests {
                 .map(|row| (row.feature(), row.surface()))
                 .collect::<Vec<_>>(),
             [
-                ("bare", "first bare"),
-                ("third_person_singular", "first singular"),
+                ("plain", "first bare"),
+                ("third_person_singular_present", "first singular"),
             ]
         );
         assert_eq!(
@@ -862,7 +870,7 @@ mod tests {
                 .iter()
                 .map(|row| (row.feature(), row.surface()))
                 .collect::<Vec<_>>(),
-            [("third_person_singular", "second singular")]
+            [("third_person_singular_present", "second singular")]
         );
         assert!(
             irregulars

@@ -5,7 +5,7 @@ constructions! {
         generate declaration_verb {
             position = Verb;
             tail = ["if"?];
-            feature = Agreement;
+            feature = ConcordClass;
         }
     }
 }

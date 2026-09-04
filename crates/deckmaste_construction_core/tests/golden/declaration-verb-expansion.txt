@@ -21,8 +21,8 @@ impl DeclarationTransitiveVerb {
         let nonprepositional_adjunct_licensed = environment
             .verb_frame_nonprepositional_adjunct_licensed(&reference, frame);
         [
-            ::deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
-            ::deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular,
+            ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
+            ::deckmaste_construction_core::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
         ]
             .into_iter()
             .all(|feature| {

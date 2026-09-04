@@ -1398,7 +1398,7 @@ pub(crate) struct RootPlan {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum AgreementAuthorityPlan {
+pub(crate) enum ConcordClassAuthorityPlan {
     Contextual,
     Exact,
     SequenceConstraint { role: String, target: String },
@@ -1414,7 +1414,7 @@ pub(crate) struct FeaturePlan {
     resolutions: HashMap<String, HashMap<feature::FeaturePlace, feature::FeatureResolution>>,
     category_render: HashMap<String, CategoryRenderCapability>,
     sequence_features: HashMap<(String, String), Vec<Feature>>,
-    agreement_carry_sums: HashSet<String>,
+    concord_class_carry_sums: HashSet<String>,
     cardinality_carry_categories: HashSet<String>,
     number_carry_categories: HashSet<String>,
     onset_carry_categories: HashSet<String>,
@@ -1541,7 +1541,7 @@ impl SemanticPlan {
         resolutions: HashMap<String, HashMap<feature::FeaturePlace, feature::FeatureResolution>>,
         category_render: HashMap<String, CategoryRenderCapability>,
         sequence_features: HashMap<(String, String), Vec<Feature>>,
-        agreement_carry_sums: HashSet<String>,
+        concord_class_carry_sums: HashSet<String>,
         mut atoms_by_construction: HashMap<String, (Span, Vec<AtomContribution>)>,
         mut invariants_by_construction: HashMap<String, (Span, InvariantPlan)>,
         verb_lexeme_provider: Option<&str>,
@@ -1666,7 +1666,7 @@ impl SemanticPlan {
             &equations,
             &resolutions,
             &category_render,
-            &agreement_carry_sums,
+            &concord_class_carry_sums,
             &field_policy_terminals,
         )?;
         validate_generated_associated_names(&constructions, &products)?;
@@ -1728,7 +1728,7 @@ impl SemanticPlan {
                 resolutions,
                 category_render,
                 sequence_features,
-                agreement_carry_sums,
+                concord_class_carry_sums,
                 cardinality_carry_categories,
                 number_carry_categories,
                 onset_carry_categories,
@@ -2107,15 +2107,15 @@ impl SemanticPlan {
             .is_some_and(|features| features.contains(&feature))
     }
 
-    pub(crate) fn category_carries_agreement(&self, category: &str) -> bool {
+    pub(crate) fn category_carries_concord_class(&self, category: &str) -> bool {
         self.category_render_capability(category)
-            .carries_agreement()
-            || self.features.agreement_carry_sums.contains(category)
-            || self.carries_feature(category, Feature::Agreement)
+            .carries_concord_class()
+            || self.features.concord_class_carry_sums.contains(category)
+            || self.carries_feature(category, Feature::ConcordClass)
     }
 
-    pub(crate) fn sum_carries_agreement(&self, sum: &str) -> bool {
-        self.features.agreement_carry_sums.contains(sum)
+    pub(crate) fn sum_carries_concord_class(&self, sum: &str) -> bool {
+        self.features.concord_class_carry_sums.contains(sum)
     }
 
     pub(crate) fn carries_feature(&self, value: &str, feature: Feature) -> bool {
@@ -2157,7 +2157,7 @@ impl SemanticPlan {
         carries(self, value, feature, &mut HashSet::new())
     }
 
-    pub(crate) fn sum_requires_external_agreement(&self, sum: &str) -> bool {
+    pub(crate) fn sum_requires_external_concord_class(&self, sum: &str) -> bool {
         fn requires(plan: &SemanticPlan, sum: &str, visiting: &mut HashSet<String>) -> bool {
             if !visiting.insert(sum.to_owned()) {
                 return false;
@@ -2171,7 +2171,7 @@ impl SemanticPlan {
                         .iter()
                         .any(|alternative| match alternative.value() {
                             ValueKindPlan::Category(category) => {
-                                plan.category_requires_external_agreement(category)
+                                plan.category_requires_external_concord_class(category)
                             }
                             ValueKindPlan::Sum(nested) => requires(plan, nested, visiting),
                             ValueKindPlan::Product(_)
@@ -2194,75 +2194,75 @@ impl SemanticPlan {
             .unwrap_or_default()
     }
 
-    pub(crate) fn category_requires_external_agreement(&self, category: &str) -> bool {
+    pub(crate) fn category_requires_external_concord_class(&self, category: &str) -> bool {
         self.category_render_capability(category)
-            .requires_external_agreement()
+            .requires_external_concord_class()
     }
 
-    pub(crate) fn construction_agreement_authority(
+    pub(crate) fn construction_concord_class_authority(
         &self,
         construction: &ConstructionPlan,
-    ) -> AgreementAuthorityPlan {
-        self.construction_agreement_authority_inner(construction)
+    ) -> ConcordClassAuthorityPlan {
+        self.construction_concord_class_authority_inner(construction)
     }
 
-    fn construction_agreement_authority_inner(
+    fn construction_concord_class_authority_inner(
         &self,
         construction: &ConstructionPlan,
-    ) -> AgreementAuthorityPlan {
-        let place = feature::FeaturePlace::Construction(Feature::Agreement);
+    ) -> ConcordClassAuthorityPlan {
+        let place = feature::FeaturePlace::Construction(Feature::ConcordClass);
         if self.feature_resolution(construction.construction_id(), &place)
             == Some(feature::FeatureResolution::External)
         {
-            return AgreementAuthorityPlan::Contextual;
+            return ConcordClassAuthorityPlan::Contextual;
         }
         let Some(equation) = self
             .feature_equations(construction.construction_id())
             .iter()
             .find(|equation| equation.target() == &place)
         else {
-            return AgreementAuthorityPlan::Contextual;
+            return ConcordClassAuthorityPlan::Contextual;
         };
         let feature::FeatureExpr::FromRole {
             role,
-            feature: Feature::Agreement,
+            feature: Feature::ConcordClass,
         } = equation.value()
         else {
-            return AgreementAuthorityPlan::Exact;
+            return ConcordClassAuthorityPlan::Exact;
         };
         let role = identifier_key(role);
         let Ok(field) = construction.field(&role) else {
-            return AgreementAuthorityPlan::Contextual;
+            return ConcordClassAuthorityPlan::Contextual;
         };
         let (sequence, value) = match field.structural_kind() {
             Some(StructuralFieldKindPlan::Sequence { item, .. }) => (true, item),
             Some(StructuralFieldKindPlan::Required(value)) => (false, value),
             Some(StructuralFieldKindPlan::Zeroable(_) | StructuralFieldKindPlan::Optional(_)) => {
-                return AgreementAuthorityPlan::Exact;
+                return ConcordClassAuthorityPlan::Exact;
             }
             None if field.kind() == ConstructionFieldKind::Category => {
                 let terminal = field.terminal();
-                let value = if self.sum_carries_agreement(terminal) {
+                let value = if self.sum_carries_concord_class(terminal) {
                     ValueKindPlan::Sum(terminal.to_owned())
                 } else {
                     ValueKindPlan::Category(terminal.to_owned())
                 };
-                return self.agreement_authority_for_value(&role, false, &value);
+                return self.concord_class_authority_for_value(&role, false, &value);
             }
-            None => return AgreementAuthorityPlan::Exact,
+            None => return ConcordClassAuthorityPlan::Exact,
         };
-        self.agreement_authority_for_value(&role, sequence, value)
+        self.concord_class_authority_for_value(&role, sequence, value)
     }
 
-    fn agreement_authority_for_value(
+    fn concord_class_authority_for_value(
         &self,
         role: &str,
         sequence: bool,
         value: &ValueKindPlan,
-    ) -> AgreementAuthorityPlan {
+    ) -> ConcordClassAuthorityPlan {
         let target = match value {
-            ValueKindPlan::Sum(sum) if self.sum_carries_agreement(sum) => Some(sum.clone()),
-            ValueKindPlan::Category(category) if self.category_carries_agreement(category) => {
+            ValueKindPlan::Sum(sum) if self.sum_carries_concord_class(sum) => Some(sum.clone()),
+            ValueKindPlan::Category(category) if self.category_carries_concord_class(category) => {
                 Some(category.clone())
             }
             ValueKindPlan::Category(_)
@@ -2273,20 +2273,20 @@ impl SemanticPlan {
         };
         if target
             .as_deref()
-            .is_some_and(|category| self.category_requires_external_agreement(category))
+            .is_some_and(|category| self.category_requires_external_concord_class(category))
         {
-            return AgreementAuthorityPlan::Contextual;
+            return ConcordClassAuthorityPlan::Contextual;
         }
         match (sequence, target) {
-            (true, Some(target)) => AgreementAuthorityPlan::SequenceConstraint {
+            (true, Some(target)) => ConcordClassAuthorityPlan::SequenceConstraint {
                 role: role.to_owned(),
                 target,
             },
-            (false, Some(target)) => AgreementAuthorityPlan::ValueConstraint {
+            (false, Some(target)) => ConcordClassAuthorityPlan::ValueConstraint {
                 role: role.to_owned(),
                 target,
             },
-            (_, None) => AgreementAuthorityPlan::Exact,
+            (_, None) => ConcordClassAuthorityPlan::Exact,
         }
     }
 
@@ -2309,9 +2309,9 @@ impl SemanticPlan {
                                 return false;
                             }
                             match feature {
-                                Feature::Agreement => {
-                                    self.sum_carries_agreement(field.terminal())
-                                        || self.category_carries_agreement(field.terminal())
+                                Feature::ConcordClass => {
+                                    self.sum_carries_concord_class(field.terminal())
+                                        || self.category_carries_concord_class(field.terminal())
                                 }
                                 Feature::Number => self.category_carries_number(field.terminal()),
                                 _ => false,
@@ -2967,8 +2967,8 @@ impl SemanticPlan {
             .map(|(category, capability)| {
                 (
                     category.clone(),
-                    capability.carries_agreement(),
-                    capability.requires_external_agreement(),
+                    capability.carries_concord_class(),
+                    capability.requires_external_concord_class(),
                     capability.requires_context(),
                 )
             })
@@ -3178,7 +3178,7 @@ fn seal_invariant_field_policy(
     equations: &HashMap<String, Vec<feature::FeatureEquation>>,
     resolutions: &HashMap<String, HashMap<feature::FeaturePlace, feature::FeatureResolution>>,
     category_render: &HashMap<String, crate::validate::CategoryRenderCapability>,
-    agreement_carry_sums: &HashSet<String>,
+    concord_class_carry_sums: &HashSet<String>,
     terminals: &[TerminalPlan],
 ) -> syn::Result<()> {
     for construction in constructions {
@@ -3191,7 +3191,7 @@ fn seal_invariant_field_policy(
             construction_equations,
             construction_resolutions,
             category_render,
-            agreement_carry_sums,
+            concord_class_carry_sums,
         )?;
         construction.invariant.seal_field_policy(
             &mut construction.fields,
@@ -3207,7 +3207,7 @@ fn invariant_feature_dependencies(
     equations: &[feature::FeatureEquation],
     resolutions: Option<&HashMap<feature::FeaturePlace, feature::FeatureResolution>>,
     category_render: &HashMap<String, crate::validate::CategoryRenderCapability>,
-    agreement_carry_sums: &HashSet<String>,
+    concord_class_carry_sums: &HashSet<String>,
 ) -> syn::Result<InvariantFeatureDependencies> {
     let mut dependencies = InvariantFeatureDependencies::default();
     for subject in construction
@@ -3251,11 +3251,11 @@ fn invariant_feature_dependencies(
             continue;
         }
         let carries_feature = match feature {
-            Feature::Agreement => {
-                agreement_carry_sums.contains(constrained.terminal())
+            Feature::ConcordClass => {
+                concord_class_carry_sums.contains(constrained.terminal())
                     || category_render
                         .get(constrained.terminal())
-                        .is_some_and(|capability| capability.carries_agreement())
+                        .is_some_and(|capability| capability.carries_concord_class())
             }
             Feature::Number => true,
             _ => false,
@@ -5852,9 +5852,10 @@ fn validate_complete_surface_rows(
     let mut covered_features = HashSet::new();
     for &(span, member, feature, surface) in rows {
         if !exact_rows.insert((member, feature, surface)) {
+            let feature = morphology_feature_name(feature);
             let error = syn::Error::new(
                 span,
-                format!("duplicate exact morphology row `({member}, {feature:?}, {surface})`"),
+                format!("duplicate exact morphology row `({member}, {feature}, {surface})`"),
             );
             if let Some(errors) = &mut errors {
                 errors.combine(error);
@@ -5867,9 +5868,10 @@ fn validate_complete_surface_rows(
     for &(member, span, features) in expected_members {
         for &feature in features {
             if !covered_features.contains(&(member, feature)) {
+                let feature = morphology_feature_name(feature);
                 let error = syn::Error::new(
                     span,
-                    format!("missing realized surface row for `{member}` feature `{feature:?}`"),
+                    format!("missing realized surface row for `{member}` feature `{feature}`"),
                 );
                 if let Some(errors) = &mut errors {
                     errors.combine(error);
@@ -5880,6 +5882,25 @@ fn validate_complete_surface_rows(
         }
     }
     errors.map_or(Ok(()), Err)
+}
+
+fn morphology_feature_name(feature: crate::macro_def::SurfaceFeature) -> &'static str {
+    use crate::macro_def::InflectionalForm;
+    use crate::macro_def::SurfaceFeature;
+
+    match feature {
+        SurfaceFeature::Inflectional(InflectionalForm::Plain) => "Plain",
+        SurfaceFeature::Inflectional(InflectionalForm::ThirdPersonSingularPresent) => {
+            "ThirdPersonSingularPresent"
+        }
+        SurfaceFeature::Inflectional(InflectionalForm::Preterite) => "Preterite",
+        SurfaceFeature::Inflectional(InflectionalForm::GerundParticiple) => "GerundParticiple",
+        SurfaceFeature::Inflectional(InflectionalForm::PastParticiple) => "PastParticiple",
+        SurfaceFeature::Singular => "Singular",
+        SurfaceFeature::Plural => "Plural",
+        SurfaceFeature::Fixed => "Fixed",
+        SurfaceFeature::BlockLabel => "BlockLabel",
+    }
 }
 
 impl LexemeSurfacePlan {
@@ -6471,7 +6492,7 @@ impl DeclarationTermPlan {
                     crate::macro_def::SurfaceFeature::Fixed,
                     |slot| match identifier_key(&slot.value).as_str() {
                         "Fixed" => crate::macro_def::SurfaceFeature::Fixed,
-                        "Participle" => crate::macro_def::SurfaceFeature::Participle,
+                        "Participle" => crate::macro_def::SurfaceFeature::PAST_PARTICIPLE,
                         "BlockLabel" => crate::macro_def::SurfaceFeature::BlockLabel,
                         _ => unreachable!("validated declaration_term feature is closed"),
                     },
@@ -6610,7 +6631,7 @@ impl DeclarationVerbPlan {
             )
             .as_str()
             {
-                "Agreement" => Feature::Agreement,
+                "ConcordClass" => Feature::ConcordClass,
                 "Participle" => Feature::Participle,
                 _ => unreachable!("validated declaration_verb feature is closed"),
             },
@@ -7636,15 +7657,15 @@ mod tests {
                 construction predicate: Predicate {
                     element PredicateNode { mode: lex Mode, }
                     require any(
-                        all(mode is One, agreement is Bare),
-                        all(mode is Two, agreement is ThirdPersonSingular),
-                        all(agreement is Bare, mode is One)
+                        all(mode is One, concord_class is Other),
+                        all(mode is Two, concord_class is ThirdPersonSingular),
+                        all(concord_class is Other, mode is One)
                     );
-                    derive agreement = mode.agreement;
-                    derive mode.agreement = match mode {
-                        One => Values::Bare,
+                    derive concord_class = mode.concord_class;
+                    derive mode.concord_class = match mode {
+                        One => Values::Other,
                         Two => Values::ThirdPersonSingular,
-                        Three => Values::Bare,
+                        Three => Values::Other,
                     };
                     form predicate = lex(mode);
                 }
@@ -7658,7 +7679,7 @@ mod tests {
 
         assert_eq!(
             invariant.snapshot(),
-            "(mode in [One] AND agreement in [Bare])\nOR\n(mode in [Two] AND agreement in [ThirdPersonSingular])"
+            "(mode in [One] AND concord_class in [Other])\nOR\n(mode in [Two] AND concord_class in [ThirdPersonSingular])"
         );
     }
 
@@ -7781,16 +7802,16 @@ mod tests {
     fn invariant_resolution_accepts_a_recursive_feature_chain() {
         let semantic = crate::validate_declarations(
             crate::parse_declarations(quote::quote! {
-                morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+                morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
                 lexeme Verbs using EnglishVerb { Act = "act", }
                 vocab Mode { One = "one", Two = "two", }
                 construction recursive: Root {
                     element RecursiveNode { mode: lex Mode, }
-                    require agreement is Bare;
-                    derive agreement = verb.agreement;
-                    derive verb.agreement = mode.agreement;
-                    derive mode.agreement = match mode {
-                        One => Values::Bare,
+                    require concord_class is Other;
+                    derive concord_class = verb.concord_class;
+                    derive verb.concord_class = mode.concord_class;
+                    derive mode.concord_class = match mode {
+                        One => Values::Other,
                         Two => Values::ThirdPersonSingular,
                     };
                     form recursive = lex(mode) verb(Verbs::Act);
@@ -7803,7 +7824,10 @@ mod tests {
         .into_semantic();
         let construction = &semantic.constructions()[0];
 
-        assert_eq!(construction.invariant().snapshot(), "(agreement in [Bare])");
+        assert_eq!(
+            construction.invariant().snapshot(),
+            "(concord_class in [Other])"
+        );
         assert_eq!(
             construction
                 .invariant()
@@ -7822,12 +7846,12 @@ mod tests {
                 vocab Mode { One = "one", Two = "two", }
                 construction feature_bare: FeatureChild {
                     element FeatureBare {}
-                    derive agreement = Values::Bare;
+                    derive concord_class = Values::Other;
                     form feature_bare = "feature bare";
                 }
                 construction feature_third: FeatureChild {
                     element FeatureThird {}
-                    derive agreement = Values::ThirdPersonSingular;
+                    derive concord_class = Values::ThirdPersonSingular;
                     form feature_third = "feature third";
                 }
                 construction recursive: Root {
@@ -7836,12 +7860,12 @@ mod tests {
                         b: FeatureChild,
                         mode: lex Mode,
                     }
-                    require agreement is Bare;
-                    derive agreement = a.agreement;
-                    derive a.agreement = b.agreement;
-                    derive b.agreement = mode.agreement;
-                    derive mode.agreement = match mode {
-                        One => Values::Bare,
+                    require concord_class is Other;
+                    derive concord_class = a.concord_class;
+                    derive a.concord_class = b.concord_class;
+                    derive b.concord_class = mode.concord_class;
+                    derive mode.concord_class = match mode {
+                        One => Values::Other,
                         Two => Values::ThirdPersonSingular,
                     };
                     form recursive = a b lex(mode);
@@ -7858,7 +7882,10 @@ mod tests {
             .find(|construction| construction.construction_id() == "recursive")
             .expect("recursive construction is sealed");
 
-        assert_eq!(construction.invariant().snapshot(), "(agreement in [Bare])");
+        assert_eq!(
+            construction.invariant().snapshot(),
+            "(concord_class in [Other])"
+        );
         assert_eq!(
             construction
                 .invariant()
@@ -7878,8 +7905,8 @@ mod tests {
                 construction only: Root {
                     element Only { mode: lex Mode, }
                     require mode in [One, Two];
-                    require agreement in [Bare, ThirdPersonSingular];
-                    derive agreement = Values::Bare;
+                    require concord_class in [Other, ThirdPersonSingular];
+                    derive concord_class = Values::Other;
                     form only = lex(mode);
                 }
                 root Root { punctuation = "."; eoi = true; standalone_render = true; }
@@ -7898,8 +7925,8 @@ mod tests {
             crate::parse_declarations(quote::quote! {
                 construction satisfied: Root {
                     element SatisfiedUnit {}
-                    require agreement is Bare;
-                    derive agreement = Values::Bare;
+                    require concord_class is Other;
+                    derive concord_class = Values::Other;
                     form satisfied = "satisfied";
                 }
                 root Root { punctuation = "."; eoi = true; standalone_render = true; }
@@ -7919,8 +7946,8 @@ mod tests {
         let error = crate::generate(quote::quote! {
             construction impossible: Root {
                 element ImpossibleUnit {}
-                require agreement is Bare;
-                derive agreement = Values::ThirdPersonSingular;
+                require concord_class is Other;
+                derive concord_class = Values::ThirdPersonSingular;
                 form impossible = "impossible";
             }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
@@ -7947,17 +7974,20 @@ mod morphology_tests {
         let expected = [(
             "Deal",
             member_span,
-            &[SurfaceFeature::Bare, SurfaceFeature::ThirdPersonSingular][..],
+            &[
+                SurfaceFeature::PLAIN,
+                SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
+            ][..],
         )];
-        let rows = [(member_span, "Deal", SurfaceFeature::Bare, "deal")];
+        let rows = [(member_span, "Deal", SurfaceFeature::PLAIN, "deal")];
 
         let error = super::validate_complete_surface_rows(&expected, &rows)
             .expect_err("a missing recipe feature must be rejected");
 
         assert!(
-            error
-                .to_string()
-                .contains("missing realized surface row for `Deal` feature `ThirdPersonSingular`"),
+            error.to_string().contains(
+                "missing realized surface row for `Deal` feature `ThirdPersonSingularPresent`"
+            ),
             "{error}"
         );
         assert_eq!(format!("{:?}", error.span()), format!("{member_span:?}"));
@@ -7970,15 +8000,18 @@ mod morphology_tests {
         let expected = [(
             "Deal",
             member_span,
-            &[SurfaceFeature::Bare, SurfaceFeature::ThirdPersonSingular][..],
+            &[
+                SurfaceFeature::PLAIN,
+                SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
+            ][..],
         )];
         let rows = [
-            (member_span, "Deal", SurfaceFeature::Bare, "deal"),
-            (duplicate_span, "Deal", SurfaceFeature::Bare, "deal"),
+            (member_span, "Deal", SurfaceFeature::PLAIN, "deal"),
+            (duplicate_span, "Deal", SurfaceFeature::PLAIN, "deal"),
             (
                 member_span,
                 "Deal",
-                SurfaceFeature::ThirdPersonSingular,
+                SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
                 "deals",
             ),
         ];
@@ -7989,7 +8022,7 @@ mod morphology_tests {
         assert!(
             error
                 .to_string()
-                .contains("duplicate exact morphology row `(Deal, Bare, deal)`"),
+                .contains("duplicate exact morphology row `(Deal, Plain, deal)`"),
             "{error}"
         );
         assert_eq!(format!("{:?}", error.span()), format!("{duplicate_span:?}"));

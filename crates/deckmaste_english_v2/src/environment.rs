@@ -1443,11 +1443,11 @@ fn core_verb_declaration_records() -> Result<Vec<VerbInventoryRecord>, ParserEnv
             Ok((feature, onset, Arc::from(text)))
         };
         let mut surfaces = vec![
-            surface(SurfaceFeature::Bare, bare)?,
-            surface(SurfaceFeature::ThirdPersonSingular, third_person)?,
+            surface(SurfaceFeature::PLAIN, bare)?,
+            surface(SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT, third_person)?,
         ];
         if let Some(participle) = participle {
-            surfaces.push(surface(SurfaceFeature::Participle, participle)?);
+            surfaces.push(surface(SurfaceFeature::PAST_PARTICIPLE, participle)?);
         }
 
         let frames = declared_frames
@@ -1666,19 +1666,20 @@ mod tests {
                 record
                     .surfaces
                     .iter()
-                    .find_map(|(feature, _, surface)| (*feature == SurfaceFeature::Bare)
+                    .find_map(|(feature, _, surface)| (*feature == SurfaceFeature::PLAIN)
                         .then_some(surface.as_ref())),
                 Some(bare),
             );
             assert_eq!(
                 record.surfaces.iter().find_map(|(feature, _, surface)| {
-                    (*feature == SurfaceFeature::ThirdPersonSingular).then_some(surface.as_ref())
+                    (*feature == SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT)
+                        .then_some(surface.as_ref())
                 }),
                 Some(third_person),
             );
             assert_eq!(
                 record.surfaces.iter().find_map(|(feature, _, surface)| {
-                    (*feature == SurfaceFeature::Participle).then_some(surface.as_ref())
+                    (*feature == SurfaceFeature::PAST_PARTICIPLE).then_some(surface.as_ref())
                 }),
                 participle,
             );
@@ -1730,7 +1731,8 @@ mod tests {
         assert!(environment.verb_frame_licenses(&core, intransitive));
         assert!(!environment.verb_frame_licenses(&core, auxiliary));
         assert_eq!(
-            environment.verb_inventory_surface(&plugin, SurfaceFeature::ThirdPersonSingular),
+            environment
+                .verb_inventory_surface(&plugin, SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT),
             Some("acts"),
         );
         assert!(matches!(
@@ -1963,7 +1965,7 @@ mod tests {
         assert_eq!(
             environment.verb_inventory_surface(
                 &core(CoreVerbIdentity::Do),
-                SurfaceFeature::ThirdPersonSingular,
+                SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
             ),
             Some("does"),
         );
@@ -1975,8 +1977,8 @@ mod tests {
         let error = collect_surfaces(
             &identity,
             [
-                (SurfaceFeature::Bare, Onset::Consonant, "scry"),
-                (SurfaceFeature::Bare, Onset::Consonant, "scry again"),
+                (SurfaceFeature::PLAIN, Onset::Consonant, "scry"),
+                (SurfaceFeature::PLAIN, Onset::Consonant, "scry again"),
             ],
         )
         .expect_err("a repeated realized feature fails closed");
@@ -1984,7 +1986,7 @@ mod tests {
             error,
             ParserEnvironmentError::DuplicateSurfaceFeature {
                 identity,
-                feature: SurfaceFeature::Bare,
+                feature: SurfaceFeature::PLAIN,
             }
         );
     }
@@ -2000,10 +2002,10 @@ mod tests {
         };
         assert_eq!(reading.id().kind(), DeclarationKind::KeywordAbility);
         assert_eq!(reading.id().name(), "Equip");
-        assert_eq!(reading.feature(), SurfaceFeature::Participle);
+        assert_eq!(reading.feature(), SurfaceFeature::PAST_PARTICIPLE);
         let id = DeclarationId::new(DeclarationKind::KeywordAbility, "Equip");
         assert_eq!(
-            environment.surface(&id, SurfaceFeature::Participle),
+            environment.surface(&id, SurfaceFeature::PAST_PARTICIPLE),
             Some("equipped")
         );
     }

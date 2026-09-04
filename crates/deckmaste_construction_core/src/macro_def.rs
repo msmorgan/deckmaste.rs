@@ -641,16 +641,78 @@ pub enum GrammarPosition {
     FixedKeyword,
 }
 
+/// A verb's morphological form, independent of Finiteness and Concord Class.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
+pub enum InflectionalForm {
+    Plain,
+    ThirdPersonSingularPresent,
+    Preterite,
+    GerundParticiple,
+    PastParticiple,
+}
+
+/// The Concord Classes an Inflectional Form can realize before Finiteness is
+/// supplied by its syntactic context.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ConcordClassApplicability {
+    pub without_concord_class: bool,
+    pub other: bool,
+    pub third_person_singular: bool,
+}
+
+impl InflectionalForm {
+    /// Returns the valid Concord Class combinations for this form.
+    #[must_use]
+    pub const fn concord_class_applicability(self) -> ConcordClassApplicability {
+        match self {
+            Self::Plain => ConcordClassApplicability {
+                without_concord_class: true,
+                other: true,
+                third_person_singular: false,
+            },
+            Self::ThirdPersonSingularPresent => ConcordClassApplicability {
+                without_concord_class: false,
+                other: false,
+                third_person_singular: true,
+            },
+            Self::Preterite => ConcordClassApplicability {
+                without_concord_class: false,
+                other: true,
+                third_person_singular: true,
+            },
+            Self::GerundParticiple | Self::PastParticiple => ConcordClassApplicability {
+                without_concord_class: true,
+                other: false,
+                third_person_singular: false,
+            },
+        }
+    }
+}
+
 /// The grammatical feature attached to a realized surface.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum SurfaceFeature {
-    Bare,
-    ThirdPersonSingular,
-    Participle,
+    Inflectional(InflectionalForm),
     Singular,
     Plural,
     Fixed,
     BlockLabel,
+}
+
+impl SurfaceFeature {
+    pub const PLAIN: Self = Self::Inflectional(InflectionalForm::Plain);
+    pub const THIRD_PERSON_SINGULAR_PRESENT: Self =
+        Self::Inflectional(InflectionalForm::ThirdPersonSingularPresent);
+    pub const PAST_PARTICIPLE: Self = Self::Inflectional(InflectionalForm::PastParticiple);
+
+    /// Returns the verb Inflectional Form without inventing a Concord Class.
+    #[must_use]
+    pub const fn inflectional_form(self) -> Option<InflectionalForm> {
+        match self {
+            Self::Inflectional(form) => Some(form),
+            Self::Singular | Self::Plural | Self::Fixed | Self::BlockLabel => None,
+        }
+    }
 }
 
 /// One complete scan/render surface row.
@@ -1723,7 +1785,7 @@ fn normalize_grammar(
                     participle,
                 )?;
                 let mut surfaces = vec![RealizedSurface {
-                    feature: SurfaceFeature::Bare,
+                    feature: SurfaceFeature::PLAIN,
                     onset: normalized_onset(path, *bare_position, &bare, bare_onset)?,
                     onset_override: bare_onset,
                     text: bare.clone(),
@@ -1731,7 +1793,7 @@ fn normalize_grammar(
                 if let Some(text) = third_person {
                     let position = third_person_position.unwrap_or(*bare_position);
                     surfaces.push(RealizedSurface {
-                        feature: SurfaceFeature::ThirdPersonSingular,
+                        feature: SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
                         onset: normalized_onset(path, position, &text, third_person_onset)?,
                         onset_override: third_person_onset,
                         text,
@@ -1740,7 +1802,7 @@ fn normalize_grammar(
                 if let Some(text) = participle {
                     let position = participle_position.unwrap_or(*bare_position);
                     surfaces.push(RealizedSurface {
-                        feature: SurfaceFeature::Participle,
+                        feature: SurfaceFeature::PAST_PARTICIPLE,
                         onset: normalized_onset(path, position, &text, participle_onset)?,
                         onset_override: participle_onset,
                         text,
@@ -1983,7 +2045,7 @@ fn normalize_participial_adjective(
     };
     validate_surface(path, position, "participial adjective", &surface)?;
     Ok(RealizedSurface {
-        feature: SurfaceFeature::Participle,
+        feature: SurfaceFeature::PAST_PARTICIPLE,
         onset: normalized_onset(path, position, &surface, grammar.onset)?,
         onset_override: grammar.onset,
         text: surface,

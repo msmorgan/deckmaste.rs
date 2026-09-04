@@ -1354,7 +1354,7 @@ pub mod declaration_verb_fixture {
 
         match (name, frame_set) {
             (
-                "FirstAct" | "SecondAct" | "Cast" | "MissingAgreement" | "WrongKind",
+                "FirstAct" | "SecondAct" | "Cast" | "MissingConcordClass" | "WrongKind",
                 VerbFrameSet::Transitive,
             ) => TRANSITIVE,
             ("FirstAct" | "Count", VerbFrameSet::MeasureComplement) => MEASURE_COMPLEMENT,
@@ -1400,7 +1400,7 @@ pub mod declaration_verb_fixture {
     }
 
     constructions! {
-        morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+        morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
         morphology EnglishParticiple { feature = Participle; recipe = english_participle; }
         lexeme CoreVerb using EnglishVerb { Act = "act", }
         vocab ObjectWord { Object = "object", }
@@ -1410,21 +1410,21 @@ pub mod declaration_verb_fixture {
                 closed = CoreVerb;
                 position = Verb;
                 tail = [ObjectNounPhrase];
-                feature = Agreement;
+                feature = ConcordClass;
             }
         }
         codec MeasureComplementVerb {
             generate declaration_verb {
                 position = Verb;
                 tail = [Amount];
-                feature = Agreement;
+                feature = ConcordClass;
             }
         }
         codec IntransitiveVerb {
             generate declaration_verb {
                 position = Verb;
                 tail = [];
-                feature = Agreement;
+                feature = ConcordClass;
             }
         }
         codec TransitiveParticiple {
@@ -1438,7 +1438,7 @@ pub mod declaration_verb_fixture {
             generate declaration_verb {
                 position = Verb;
                 tail = [lex(AmountWord::One)];
-                feature = Agreement;
+                feature = ConcordClass;
             }
         }
         construction transitive: VerbPhrase {
@@ -1446,7 +1446,7 @@ pub mod declaration_verb_fixture {
                 head: lex TransitiveVerb,
                 object: lex ObjectWord,
             }
-            derive head.agreement = Values::Bare;
+            derive head.concord_class = Values::Other;
             form transitive = verb(head) lex(object);
         }
         construction measure_complement: MeasureComplementPhrase {
@@ -1454,17 +1454,17 @@ pub mod declaration_verb_fixture {
                 head: lex MeasureComplementVerb,
                 amount: lex AmountWord,
             }
-            derive head.agreement = Values::Bare;
+            derive head.concord_class = Values::Other;
             form measure_complement = verb(head) lex(amount);
         }
         construction intransitive: IntransitivePhrase {
             element Intransitive { head: lex IntransitiveVerb, }
-            derive head.agreement = Values::Bare;
+            derive head.concord_class = Values::Other;
             form intransitive = verb(head);
         }
         construction lex_marked: LexMarkedPhrase {
             element LexMarked { head: lex LexMarkedVerb, }
-            derive head.agreement = Values::Bare;
+            derive head.concord_class = Values::Other;
             form lex_marked = verb(head) lex(AmountWord::One);
         }
         construction participle: ParticiplePhrase {
@@ -1603,8 +1603,8 @@ pub mod declaration_verb_fixture {
                 r#"KeywordAction(name:"WrongPosition",spelling:"static",grammar:FixedTerm(surface:"static"))"#,
             ),
             declaration(
-                "/synthetic/actions/MissingAgreement.ron",
-                r#"KeywordAction(name:"MissingAgreement",spelling:"wane",grammar:Verb(bare:"wane",third_person:Unavailable,frame_set:Transitive))"#,
+                "/synthetic/actions/MissingConcordClass.ron",
+                r#"KeywordAction(name:"MissingConcordClass",spelling:"wane",grammar:Verb(bare:"wane",third_person:Unavailable,frame_set:Transitive))"#,
             ),
         ]
     }
@@ -1735,7 +1735,7 @@ pub mod declaration_verb_fixture {
         assert!(matches!(
             verb_terminal,
             LexicalTerminal {
-                matcher: Lexical::DeclarationVerb(3, FeatureConstraint::Exact(Agreement::Bare)),
+                matcher: Lexical::DeclarationVerb(3, FeatureConstraint::Exact(ConcordClass::Other)),
                 owner: LexicalOwnerTemplate::DeclarationVerb(3),
                 ..
             }
@@ -1751,7 +1751,7 @@ pub mod declaration_verb_fixture {
             &verbs[0].value,
             Leaf::TransitiveVerb {
                 verb: TransitiveVerb::Lexeme(CoreVerb::Act),
-                agreement: Agreement::Bare,
+                concord_class: ConcordClass::Other,
                 onset: deckmaste_construction_core::macro_def::Onset::Vowel,
             }
         ));
@@ -1760,7 +1760,7 @@ pub mod declaration_verb_fixture {
             .map(|candidate| match &candidate.value {
                 Leaf::TransitiveVerb {
                     verb: TransitiveVerb::Declaration(declaration),
-                    agreement: Agreement::Bare,
+                    concord_class: ConcordClass::Other,
                     onset: deckmaste_construction_core::macro_def::Onset::Vowel,
                 } => declaration_id(declaration.reference()).name(),
                 other => panic!("unexpected declaration verb candidate: {other:?}"),
@@ -1940,7 +1940,7 @@ pub mod declaration_verb_fixture {
                 .is_none()
         );
         assert!(
-            DeclarationTransitiveVerb::new(&environment, id(&environment, "MissingAgreement"))
+            DeclarationTransitiveVerb::new(&environment, id(&environment, "MissingConcordClass"))
                 .is_none()
         );
         assert!(
@@ -2042,7 +2042,7 @@ pub mod declaration_verb_fixture {
             .declaration_verb_readings(
                 0,
                 &VerbFrameKey::new(atoms),
-                deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
+                deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
             )
             .into_iter()
             .map(|(_, reading)| declaration_id(reading.reference()).name().to_owned())
@@ -2071,7 +2071,7 @@ pub mod declaration_verb_fixture {
         };
         let Leaf::MeasureComplementVerb {
             verb: identity,
-            agreement: Agreement::Bare,
+            concord_class: ConcordClass::Other,
             onset: deckmaste_construction_core::macro_def::Onset::Consonant,
         } = &verb.value
         else {
@@ -2582,10 +2582,10 @@ pub mod fixture {
             Tap = "T",
         }
         vocab Letter { A = "a", B = "b", }
-        morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+        morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
         lexeme VerbLexeme using EnglishVerb {
             Act = "act",
-            Be = "be" { Bare = "are", ThirdPersonSingular = "is", },
+            Be = "be" { Other = "are", ThirdPersonSingular = "is", },
             Collide = "same" { ThirdPersonSingular = "same", },
             Other = "same",
         }
@@ -2716,12 +2716,12 @@ pub mod fixture {
 
         construction bare: Child {
             element BareChild {}
-            derive agreement = Values::Bare;
+            derive concord_class = Values::Other;
             form bare = "bare";
         }
         construction third: Child {
             element ThirdChild {}
-            derive agreement = Values::ThirdPersonSingular;
+            derive concord_class = Values::ThirdPersonSingular;
             form third = "third";
         }
         construction recursive_leaf: RecursiveNode {
@@ -2738,7 +2738,7 @@ pub mod fixture {
                 all(mode is One, child is Bare),
                 all(mode is Many, child is Third)
             );
-            derive agreement = Values::Bare;
+            derive concord_class = Values::Other;
             form guarded = lex(mode) child;
         }
         construction uniform_children: HomogeneousSequence {
@@ -2746,7 +2746,7 @@ pub mod fixture {
                 members: seq Child separated by " ",
             }
             require len(members) >= 2;
-            derive members.agreement = Values::Bare;
+            derive members.concord_class = Values::Other;
             form uniform_children = members;
         }
         construction relayed_children: RelayedSequence {
@@ -2754,7 +2754,7 @@ pub mod fixture {
                 members: seq Child separated by " ",
             }
             require len(members) >= 2;
-            derive agreement = members.agreement;
+            derive concord_class = members.concord_class;
             form relayed_children = members;
         }
         construction singleton_children: SingletonSequence {
@@ -2762,47 +2762,47 @@ pub mod fixture {
                 members: seq Child separated by " ",
             }
             require len(members) >= 1;
-            derive members.agreement = Values::Bare;
+            derive members.concord_class = Values::Other;
             form singleton_children = members;
         }
         construction singular_number: NumberItem {
             element SingularNumberItem {}
-            derive agreement = Values::Bare;
+            derive concord_class = Values::Other;
             derive number = Values::Singular;
             derive onset = Values::Consonant;
             form singular_number = "one";
         }
         construction plural_number: NumberItem {
             element PluralNumberItem {}
-            derive agreement = Values::Bare;
+            derive concord_class = Values::Other;
             derive number = Values::Plural;
             derive onset = Values::Consonant;
             form plural_number = "many";
         }
         construction artifact_number: NumberItem {
             element ArtifactNumberItem {}
-            derive agreement = Values::Bare;
+            derive concord_class = Values::Other;
             derive number = Values::Singular;
             derive onset = Values::Vowel;
             form artifact_number = "artifact";
         }
         construction enchantment_number: NumberItem {
             element EnchantmentNumberItem {}
-            derive agreement = Values::Bare;
+            derive concord_class = Values::Other;
             derive number = Values::Singular;
             derive onset = Values::Vowel;
             form enchantment_number = "enchantment";
         }
         construction spell_number: NumberItem {
             element SpellNumberItem {}
-            derive agreement = Values::Bare;
+            derive concord_class = Values::Other;
             derive number = Values::Singular;
             derive onset = Values::Consonant;
             form spell_number = "spell";
         }
         construction ability_number: NumberItem {
             element AbilityNumberItem {}
-            derive agreement = Values::Bare;
+            derive concord_class = Values::Other;
             derive number = Values::Singular;
             derive onset = Values::Vowel;
             form ability_number = "ability";
@@ -2820,7 +2820,7 @@ pub mod fixture {
                 members: seq NumberItem separated by " or ",
             }
             require len(members) >= 2;
-            derive agreement = members.agreement;
+            derive concord_class = members.concord_class;
             derive number = members.number;
             derive onset = members.onset;
             form relayed_numbers = members;
@@ -2835,45 +2835,45 @@ pub mod fixture {
         }
         construction uniform_child_choices: HomogeneousChoiceSequence {
             element UniformChildChoices {
-                members: seq AgreementChild separated by " ",
+                members: seq ConcordClassChild separated by " ",
             }
             require len(members) >= 2;
-            derive members.agreement = Values::Bare;
+            derive members.concord_class = Values::Other;
             form uniform_child_choices = members;
         }
         construction relayed_child_choices: RelayedChoiceSequence {
             element RelayedChildChoices {
-                members: seq AgreementChild separated by " ",
+                members: seq ConcordClassChild separated by " ",
             }
             require len(members) >= 2;
-            derive agreement = members.agreement;
+            derive concord_class = members.concord_class;
             form relayed_child_choices = members;
         }
         construction uniform_mixed_child_choices: MixedChoiceSequence {
             element UniformMixedChildChoices {
-                members: seq MixedAgreementChild separated by " ",
+                members: seq MixedConcordClassChild separated by " ",
             }
             require len(members) >= 2;
-            derive members.agreement = Values::Bare;
+            derive members.concord_class = Values::Other;
             form uniform_mixed_child_choices = members;
         }
         construction relayed_mixed_child_choices: RelayedMixedChoiceSequence {
             element RelayedMixedChildChoices {
-                members: seq MixedAgreementChild separated by " ",
+                members: seq MixedConcordClassChild separated by " ",
             }
             require len(members) >= 2;
-            derive agreement = members.agreement;
+            derive concord_class = members.concord_class;
             form relayed_mixed_child_choices = members;
         }
         construction intrinsic_third_mixed_choice: RelayedMixedChoiceSequence {
             element IntrinsicThirdMixedChoice {}
-            derive agreement = Values::ThirdPersonSingular;
+            derive concord_class = Values::ThirdPersonSingular;
             form intrinsic_third_mixed_choice = "intrinsic third";
         }
         construction checked_bare_mixed_choice: RelayedMixedChoiceSequence {
             element CheckedBareMixedChoice { mode: lex Mode, }
             require mode is One;
-            derive agreement = Values::Bare;
+            derive concord_class = Values::Other;
             form checked_bare_mixed_choice = lex(mode);
         }
         construction relayed_outer_mixed_choices: RelayedOuterMixedChoiceSequence {
@@ -2881,54 +2881,54 @@ pub mod fixture {
                 members: seq OuterRelayedMixedChoice separated by " ",
             }
             require len(members) >= 1;
-            derive agreement = members.agreement;
+            derive concord_class = members.concord_class;
             form relayed_outer_mixed_choices = members;
         }
         construction mixed_relay_envelope: MixedRelayEnvelopeRoot {
             element MixedRelayEnvelope {
                 choices: RelayedMixedChoiceSequence,
             }
-            derive choices.agreement = Values::Bare;
+            derive choices.concord_class = Values::Other;
             form mixed_relay_envelope = choices;
         }
         construction third_relay_envelope: MixedRelayEnvelopeRoot {
             element ThirdRelayEnvelope {
                 choices: RelayedMixedChoiceSequence,
             }
-            derive choices.agreement = Values::ThirdPersonSingular;
+            derive choices.concord_class = Values::ThirdPersonSingular;
             form third_relay_envelope = choices;
         }
         construction bare_outer_mixed_relay_envelope: OuterMixedRelayEnvelopeRoot {
             element BareOuterMixedRelayEnvelope {
                 choices: RelayedOuterMixedChoiceSequence,
             }
-            derive choices.agreement = Values::Bare;
+            derive choices.concord_class = Values::Other;
             form bare_outer_mixed_relay_envelope = choices;
         }
         construction third_outer_mixed_relay_envelope: OuterMixedRelayEnvelopeRoot {
             element ThirdOuterMixedRelayEnvelope {
                 choices: RelayedOuterMixedChoiceSequence,
             }
-            derive choices.agreement = Values::ThirdPersonSingular;
+            derive choices.concord_class = Values::ThirdPersonSingular;
             form third_outer_mixed_relay_envelope = choices;
         }
         construction bare_direct_outer_mixed_relay_envelope: DirectOuterMixedRelayEnvelopeRoot {
             element BareDirectOuterMixedRelayEnvelope {
                 choice: OuterRelayedMixedChoice,
             }
-            derive choice.agreement = Values::Bare;
+            derive choice.concord_class = Values::Other;
             form bare_direct_outer_mixed_relay_envelope = choice;
         }
         construction third_direct_outer_mixed_relay_envelope: DirectOuterMixedRelayEnvelopeRoot {
             element ThirdDirectOuterMixedRelayEnvelope {
                 choice: OuterRelayedMixedChoice,
             }
-            derive choice.agreement = Values::ThirdPersonSingular;
+            derive choice.concord_class = Values::ThirdPersonSingular;
             form third_direct_outer_mixed_relay_envelope = choice;
         }
         construction direct_intrinsic_choice: DirectIntrinsicChoiceRoot {
             element DirectIntrinsicChoice {
-                choice: AgreementChild,
+                choice: ConcordClassChild,
             }
             form direct_intrinsic_choice = choice;
         }
@@ -3049,36 +3049,36 @@ pub mod fixture {
         construction refined: Parent {
             element RefinedParent { mode: lex Mode, child: Child, }
             require mode is One;
-            derive agreement = child.agreement;
-            derive child.agreement = mode.agreement;
-            derive mode.agreement = match mode {
+            derive concord_class = child.concord_class;
+            derive child.concord_class = mode.concord_class;
+            derive mode.concord_class = match mode {
                 One => Values::ThirdPersonSingular,
-                Many => Values::Bare,
+                Many => Values::Other,
             };
             form refined = lex(mode) child;
         }
         construction category_chain: Parent {
             element CategoryChain { child: Child, }
-            derive agreement = child.agreement;
-            derive child.agreement = Values::Bare;
+            derive concord_class = child.concord_class;
+            derive child.concord_class = Values::Other;
             form category_chain = child;
         }
 
         construction action: Action {
             element ActionNode {}
-            derive agreement = verb.agreement;
-            derive verb.agreement = Values::Bare;
+            derive concord_class = verb.concord_class;
+            derive verb.concord_class = Values::Other;
             form action = verb(VerbLexeme::Act);
         }
         construction act_onset: VerbHead {
             element ActOnset {}
-            derive verb.agreement = Values::Bare;
+            derive verb.concord_class = Values::Other;
             derive onset = verb.onset;
             form act_onset = verb(VerbLexeme::Act);
         }
         construction other_onset: VerbHead {
             element OtherOnset {}
-            derive verb.agreement = Values::Bare;
+            derive verb.concord_class = Values::Other;
             derive onset = verb.onset;
             form other_onset = verb(VerbLexeme::Other);
         }
@@ -3091,31 +3091,31 @@ pub mod fixture {
 
         construction bare_be: BeSentence {
             element BareBe {}
-            derive agreement = verb.agreement;
-            derive verb.agreement = Values::Bare;
+            derive concord_class = verb.concord_class;
+            derive verb.concord_class = Values::Other;
             form bare_be = verb(VerbLexeme::Be);
         }
 
         construction contextual: Predicate {
             element ContextualPredicate {}
-            derive agreement = verb.agreement;
+            derive concord_class = verb.concord_class;
             form contextual = verb(VerbLexeme::Act);
         }
         construction constant_container: Container {
             element ConstantContainer { predicate: Predicate, }
-            derive predicate.agreement = Values::Bare;
+            derive predicate.concord_class = Values::Other;
             form constant_container = predicate;
         }
         construction from_role_container: Container {
             element FromRoleContainer { source: Child, predicate: Predicate, }
-            derive predicate.agreement = source.agreement;
+            derive predicate.concord_class = source.concord_class;
             form from_role_container = source predicate;
         }
-        construction agreement_relay: Container {
+        construction concord_class_relay: Container {
             element RelayContainer { first: Predicate, second: Predicate, }
-            derive second.agreement = first.agreement;
-            derive first.agreement = Values::Bare;
-            form agreement_relay = first second;
+            derive second.concord_class = first.concord_class;
+            derive first.concord_class = Values::Other;
+            form concord_class_relay = first second;
         }
 
         construction context_bound: ContextBound {
@@ -3138,10 +3138,10 @@ pub mod fixture {
             form a otherwise = "a" head;
         }
 
-        construction agreement: FeatureBound {
-            element AgreementNode { marker: lex Marker, }
-            derive agreement = verb.agreement;
-            form agreement = lex(marker) verb(VerbLexeme::Act);
+        construction concord_class: FeatureBound {
+            element ConcordClassNode { marker: lex Marker, }
+            derive concord_class = verb.concord_class;
+            form concord_class = lex(marker) verb(VerbLexeme::Act);
         }
 
         construction collision: Collision {
@@ -3158,9 +3158,9 @@ pub mod fixture {
         }
 
         construction contextual_named: Predicate {
-            element ContextualNamed { agreement: lex Marker, }
-            derive agreement = verb.agreement;
-            form contextual_named = lex(agreement) verb(VerbLexeme::Act);
+            element ContextualNamed { concord_class: lex Marker, }
+            derive concord_class = verb.concord_class;
+            form contextual_named = lex(concord_class) verb(VerbLexeme::Act);
         }
 
         construction wrapper: RenderChild {
@@ -3175,7 +3175,7 @@ pub mod fixture {
 
         construction where: Keyword {
             element WhereNode { r#payload: lex Marker, }
-            derive agreement = Values::Bare;
+            derive concord_class = Values::Other;
             form where = lex(payload);
         }
 
@@ -3189,7 +3189,7 @@ pub mod fixture {
                 raw_payload: RawPayload,
                 keyword: Keyword,
             }
-            derive predicate.agreement = Values::Bare;
+            derive predicate.concord_class = Values::Other;
             form hygiene_root = lex(r#writer) identity(r#context) predicate render_child
                 lex(writer_word) raw_payload keyword;
         }
@@ -3232,13 +3232,13 @@ pub mod fixture {
         }
 
         abstract sum Choice { Child, MarkerCategory, }
-        abstract sum AgreementChild { Child, }
-        abstract sum MixedAgreementChild { Child, Predicate, }
+        abstract sum ConcordClassChild { Child, }
+        abstract sum MixedConcordClassChild { Child, Predicate, }
         abstract sum OuterRelayedMixedChoice { RelayedMixedChoiceSequence, }
-        abstract product IntrinsicAgreementHolder {
-            required: AgreementChild,
-            optional: opt AgreementChild,
-            members: seq AgreementChild separated by " ",
+        abstract product IntrinsicConcordClassHolder {
+            required: ConcordClassChild,
+            optional: opt ConcordClassChild,
+            members: seq ConcordClassChild separated by " ",
         }
         abstract product Holder {
             maybe: opt Child,
@@ -3328,7 +3328,7 @@ pub mod fixture {
         root OuterMixedRelayEnvelopeRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root DirectOuterMixedRelayEnvelopeRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root DirectIntrinsicChoiceRoot { punctuation = "."; eoi = true; standalone_render = true; }
-        root IntrinsicAgreementHolder { punctuation = "."; eoi = false; standalone_render = true; }
+        root IntrinsicConcordClassHolder { punctuation = "."; eoi = false; standalone_render = true; }
         root PartitionRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root OptionalGuardRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root OptionalVisitRoot { punctuation = "."; eoi = true; standalone_render = true; }
@@ -3464,7 +3464,7 @@ pub mod fixture {
                 },
                 Leaf::Verb {
                     lexeme: VerbLexeme::Act,
-                    agreement: Agreement::Bare,
+                    concord_class: ConcordClass::Other,
                     onset: deckmaste_construction_core::macro_def::Onset::Vowel,
                 },
                 LexicalProvenanceKind::Lexeme,
@@ -3508,7 +3508,7 @@ pub mod fixture {
                 id: deckmaste_construction_core::macro_def::DeclarationIdentity::new(
                     kind, "Destroy",
                 ),
-                feature: deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
+                feature: deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
                 onset: deckmaste_construction_core::macro_def::Onset::Consonant,
             }),
         );
@@ -3537,7 +3537,7 @@ pub mod fixture {
                 id: deckmaste_construction_core::macro_def::DeclarationIdentity::new(
                     kind, "Destroy",
                 ),
-                feature: deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
+                feature: deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
                 onset: deckmaste_construction_core::macro_def::Onset::Consonant,
             }),
         );
@@ -3569,7 +3569,7 @@ pub mod fixture {
                 id: deckmaste_construction_core::macro_def::DeclarationIdentity::new(
                     kind, "Destroy",
                 ),
-                feature: deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
+                feature: deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
                 onset: deckmaste_construction_core::macro_def::Onset::Consonant,
             }),
         );
@@ -3593,12 +3593,12 @@ pub mod fixture {
     fn assert_generated_runtime_abi(context: &ParseContext<'_>) {
         assert_generated_lexical_owner_abi();
         assert_eq!(
-            surface_for_verb_lexeme(VerbLexeme::Act, Agreement::Bare),
+            surface_for_verb_lexeme(VerbLexeme::Act, ConcordClass::Other),
             "act"
         );
         assert_eq!(
-            agreement_for_mode(Mode::One),
-            Agreement::ThirdPersonSingular
+            concord_class_for_mode(Mode::One),
+            ConcordClass::ThirdPersonSingular
         );
 
         let kind = deckmaste_construction_core::macro_def::DeclarationKind::KeywordAction;
@@ -3610,7 +3610,7 @@ pub mod fixture {
                 name: "Destroy",
                 position,
                 feature: FeatureConstraint::Exact(
-                    deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
+                    deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
                 ),
             }),
             owner: LexicalOwnerTemplate::Declaration {
@@ -3682,44 +3682,44 @@ pub mod fixture {
                 },
             )
         };
-        for (text, case, agreement, owner) in [
+        for (text, case, concord_class, owner) in [
             (
                 "Act",
                 CasePosition::DocumentInitial,
-                Agreement::Bare,
+                ConcordClass::Other,
                 "lexeme:VerbLexeme/Act/bare",
             ),
             (
                 "Acts",
                 CasePosition::DocumentInitial,
-                Agreement::ThirdPersonSingular,
+                ConcordClass::ThirdPersonSingular,
                 "lexeme:VerbLexeme/Act/third_person_singular",
             ),
             (
                 " act",
                 CasePosition::Continuation,
-                Agreement::Bare,
+                ConcordClass::Other,
                 "lexeme:VerbLexeme/Act/bare",
             ),
             (
                 " acts",
                 CasePosition::Continuation,
-                Agreement::ThirdPersonSingular,
+                ConcordClass::ThirdPersonSingular,
                 "lexeme:VerbLexeme/Act/third_person_singular",
             ),
         ] {
-            let matches = scan_verb(text, case, FeatureConstraint::Exact(agreement));
+            let matches = scan_verb(text, case, FeatureConstraint::Exact(concord_class));
             assert!(matches!(
                 matches.as_slice(),
                 [LexicalMatch {
                     value: Leaf::Verb {
                         lexeme: VerbLexeme::Act,
-                        agreement: actual,
+                        concord_class: actual,
                         onset: deckmaste_construction_core::macro_def::Onset::Vowel,
                     },
                     owner: Some(_),
                     ..
-                }] if *actual == agreement
+                }] if *actual == concord_class
             ));
             assert_eq!(matches[0].owner.as_ref().unwrap().stable_id(), owner);
         }
@@ -3771,11 +3771,11 @@ pub mod fixture {
         );
         for (constraint, expected_owner) in [
             (
-                FeatureConstraint::Exact(Agreement::Bare),
+                FeatureConstraint::Exact(ConcordClass::Other),
                 "lexeme:VerbLexeme/Collide/bare",
             ),
             (
-                FeatureConstraint::Exact(Agreement::ThirdPersonSingular),
+                FeatureConstraint::Exact(ConcordClass::ThirdPersonSingular),
                 "lexeme:VerbLexeme/Collide/third_person_singular",
             ),
         ] {
@@ -3795,7 +3795,7 @@ pub mod fixture {
             [LexicalMatch {
                 value: Leaf::Verb {
                     lexeme: VerbLexeme::Other,
-                    agreement: Agreement::Bare,
+                    concord_class: ConcordClass::Other,
                     onset: deckmaste_construction_core::macro_def::Onset::Consonant,
                 },
                 owner: Some(_),
@@ -3820,7 +3820,10 @@ pub mod fixture {
                 context,
             },
             LexicalTerminal {
-                matcher: Lexical::Verb(VerbLexeme::Be, FeatureConstraint::Exact(Agreement::Bare)),
+                matcher: Lexical::Verb(
+                    VerbLexeme::Be,
+                    FeatureConstraint::Exact(ConcordClass::Other),
+                ),
                 owner: LexicalOwnerTemplate::Lexeme {
                     declaration: "VerbLexeme",
                     member: "Be",
@@ -3839,7 +3842,7 @@ pub mod fixture {
             context,
         )
         .expect("the exact Bare Be scanner reading builds its generated rule");
-        let BuildValue::BeSentence(be_sentence, Agreement::Bare, _) = built else {
+        let BuildValue::BeSentence(be_sentence, ConcordClass::Other, _) = built else {
             panic!("Bare Be rule produced the wrong generated category value")
         };
         let (rendered, claims) = render_be_sentence_with_claims(&be_sentence, context);
@@ -4935,7 +4938,7 @@ pub mod fixture {
                     context: &context,
                 },
                 LexicalTerminal {
-                    matcher: Lexical::Verb(lexeme, FeatureConstraint::Exact(Agreement::Bare)),
+                    matcher: Lexical::Verb(lexeme, FeatureConstraint::Exact(ConcordClass::Other)),
                     owner: LexicalOwnerTemplate::Lexeme {
                         declaration: "VerbLexeme",
                         member,
@@ -4971,7 +4974,7 @@ pub mod fixture {
                 [LexicalMatch {
                     value: Leaf::Verb {
                         lexeme: actual_lexeme,
-                        agreement: Agreement::Bare,
+                        concord_class: ConcordClass::Other,
                         onset: actual_onset,
                     },
                     ..
@@ -5007,7 +5010,7 @@ pub mod fixture {
                 RuleId::VerbHeadActOnset,
                 &[BuildValue::Leaf(Leaf::Verb {
                     lexeme: VerbLexeme::Act,
-                    agreement: Agreement::Bare,
+                    concord_class: ConcordClass::Other,
                     onset: deckmaste_construction_core::macro_def::Onset::Consonant,
                 })],
                 &context,
@@ -5845,12 +5848,12 @@ pub mod fixture {
 
         let bare_child = BuildValue::Child(
             Child::Bare(BareChild),
-            Agreement::Bare,
+            ConcordClass::Other,
             FeatureConstraint::Any,
         );
         let third_child = BuildValue::Child(
             Child::Third(ThirdChild),
-            Agreement::ThirdPersonSingular,
+            ConcordClass::ThirdPersonSingular,
             FeatureConstraint::Any,
         );
         let parent = build(
@@ -5859,7 +5862,10 @@ pub mod fixture {
             &context,
         )
         .expect("a constant category writer flows into construction output");
-        assert!(matches!(parent, BuildValue::Parent(_, Agreement::Bare, _)));
+        assert!(matches!(
+            parent,
+            BuildValue::Parent(_, ConcordClass::Other, _)
+        ));
         assert!(
             build(
                 RuleId::ParentCategoryChain,
@@ -5871,12 +5877,12 @@ pub mod fixture {
 
         let matching_child = BuildValue::Child(
             Child::Third(ThirdChild),
-            Agreement::ThirdPersonSingular,
+            ConcordClass::ThirdPersonSingular,
             FeatureConstraint::Any,
         );
         let mismatching_child = BuildValue::Child(
             Child::Third(ThirdChild),
-            Agreement::Bare,
+            ConcordClass::Other,
             FeatureConstraint::Any,
         );
         let refined_children = |child| vec![BuildValue::Leaf(Leaf::Mode(Mode::One)), child];
@@ -5888,7 +5894,7 @@ pub mod fixture {
         .expect("a refined writer flows through its category into construction output");
         assert!(matches!(
             refined,
-            BuildValue::Parent(_, Agreement::ThirdPersonSingular, _)
+            BuildValue::Parent(_, ConcordClass::ThirdPersonSingular, _)
         ));
         assert!(
             build(
@@ -5903,19 +5909,22 @@ pub mod fixture {
             RuleId::ActionAction,
             &[BuildValue::Leaf(Leaf::Verb {
                 lexeme: VerbLexeme::Act,
-                agreement: Agreement::Bare,
+                concord_class: ConcordClass::Other,
                 onset: deckmaste_construction_core::macro_def::Onset::Vowel,
             })],
             &context,
         )
         .expect("an implicit-verb constant flows into construction output");
-        assert!(matches!(action, BuildValue::Action(_, Agreement::Bare, _)));
+        assert!(matches!(
+            action,
+            BuildValue::Action(_, ConcordClass::Other, _)
+        ));
         assert!(
             build(
                 RuleId::ActionAction,
                 &[BuildValue::Leaf(Leaf::Verb {
                     lexeme: VerbLexeme::Act,
-                    agreement: Agreement::ThirdPersonSingular,
+                    concord_class: ConcordClass::ThirdPersonSingular,
                     onset: deckmaste_construction_core::macro_def::Onset::Vowel,
                 })],
                 &context,
@@ -5923,17 +5932,17 @@ pub mod fixture {
             .is_none()
         );
 
-        let contextual = |agreement| {
+        let contextual = |concord_class| {
             BuildValue::Predicate(
                 Predicate::Contextual(ContextualPredicate),
-                agreement,
+                concord_class,
                 FeatureConstraint::Any,
             )
         };
         assert!(
             build(
                 RuleId::ContainerConstantContainer,
-                &[contextual(Agreement::Bare)],
+                &[contextual(ConcordClass::Other)],
                 &context,
             )
             .is_some()
@@ -5941,7 +5950,7 @@ pub mod fixture {
         assert!(
             build(
                 RuleId::ContainerConstantContainer,
-                &[contextual(Agreement::ThirdPersonSingular)],
+                &[contextual(ConcordClass::ThirdPersonSingular)],
                 &context,
             )
             .is_none()
@@ -5949,7 +5958,7 @@ pub mod fixture {
         assert!(
             build(
                 RuleId::ContainerFromRoleContainer,
-                &[bare_child.clone(), contextual(Agreement::Bare),],
+                &[bare_child.clone(), contextual(ConcordClass::Other),],
                 &context,
             )
             .is_some()
@@ -5957,25 +5966,28 @@ pub mod fixture {
         assert!(
             build(
                 RuleId::ContainerFromRoleContainer,
-                &[bare_child, contextual(Agreement::ThirdPersonSingular)],
+                &[bare_child, contextual(ConcordClass::ThirdPersonSingular)],
                 &context,
             )
             .is_none()
         );
         assert!(
             build(
-                RuleId::ContainerAgreementRelay,
-                &[contextual(Agreement::Bare), contextual(Agreement::Bare),],
-                &context,
-            )
-            .is_some()
-        );
-        assert!(
-            build(
-                RuleId::ContainerAgreementRelay,
+                RuleId::ContainerConcordClassRelay,
                 &[
-                    contextual(Agreement::Bare),
-                    contextual(Agreement::ThirdPersonSingular),
+                    contextual(ConcordClass::Other),
+                    contextual(ConcordClass::Other),
+                ],
+                &context,
+            )
+            .is_some()
+        );
+        assert!(
+            build(
+                RuleId::ContainerConcordClassRelay,
+                &[
+                    contextual(ConcordClass::Other),
+                    contextual(ConcordClass::ThirdPersonSingular),
                 ],
                 &context,
             )
@@ -6003,21 +6015,21 @@ pub mod fixture {
         ));
 
         let feature_bound = build(
-            RuleId::FeatureBoundAgreement,
+            RuleId::FeatureBoundConcordClass,
             &[
                 BuildValue::Leaf(Leaf::Marker(Marker::One)),
                 BuildValue::Leaf(Leaf::Verb {
                     lexeme: VerbLexeme::Act,
-                    agreement: Agreement::ThirdPersonSingular,
+                    concord_class: ConcordClass::ThirdPersonSingular,
                     onset: deckmaste_construction_core::macro_def::Onset::Vowel,
                 }),
             ],
             &context,
         )
-        .expect("a map local cannot shadow its carried agreement");
+        .expect("a map local cannot shadow its carried concord_class");
         assert!(matches!(
             feature_bound,
-            BuildValue::FeatureBound(_, Agreement::ThirdPersonSingular, _)
+            BuildValue::FeatureBound(_, ConcordClass::ThirdPersonSingular, _)
         ));
 
         let collision = build(
@@ -6058,7 +6070,7 @@ pub mod fixture {
             &context,
         )
         .expect("a keyword-named construction builds with its carried feature");
-        let BuildValue::Keyword(keyword, Agreement::Bare, _) = keyword else {
+        let BuildValue::Keyword(keyword, ConcordClass::Other, _) = keyword else {
             panic!("`where` preserves its category value and known feature")
         };
 
@@ -6066,7 +6078,7 @@ pub mod fixture {
             r#writer: Marker::One,
             r#context: SelfRef::Full,
             predicate: Predicate::ContextualNamed(ContextualNamed {
-                agreement: Marker::One,
+                concord_class: Marker::One,
             }),
             render_child: RenderChild::Wrapper(RenderChildNode {
                 child: Child::Bare(BareChild),
@@ -6375,7 +6387,7 @@ pub mod fixture {
         }
     }
 
-    pub(super) fn assert_sequence_agreement_is_uniform_across_every_member() {
+    pub(super) fn assert_sequence_concord_class_is_uniform_across_every_member() {
         let bare = || Child::Bare(BareChild);
         let third = || Child::Third(ThirdChild);
 
@@ -6402,7 +6414,7 @@ pub mod fixture {
             assert_eq!(
                 inbound.violation(),
                 &BuildViolation::Invariant {
-                    identity: "all members match derived agreement",
+                    identity: "all members match derived concord_class",
                 },
             );
             let outward = RelayedChildren::try_new(members)
@@ -6412,7 +6424,7 @@ pub mod fixture {
             assert_eq!(
                 outward.violation(),
                 &BuildViolation::Invariant {
-                    identity: "all members share agreement",
+                    identity: "all members share concord_class",
                 },
             );
         }
@@ -6423,35 +6435,37 @@ pub mod fixture {
             assert_eq!(forest.accepted_root_ids().count(), 1, "{surface}");
         }
 
-        let child = |agreement| match agreement {
-            Agreement::Bare => BuildValue::Child(bare(), Agreement::Bare, FeatureConstraint::Any),
-            Agreement::ThirdPersonSingular => BuildValue::Child(
+        let child = |concord_class| match concord_class {
+            ConcordClass::Other => {
+                BuildValue::Child(bare(), ConcordClass::Other, FeatureConstraint::Any)
+            }
+            ConcordClass::ThirdPersonSingular => BuildValue::Child(
                 third(),
-                Agreement::ThirdPersonSingular,
+                ConcordClass::ThirdPersonSingular,
                 FeatureConstraint::Any,
             ),
         };
         let pair = build(
             RuleId::UniformChildrenMembersSequenceLength2,
             &[
-                child(Agreement::Bare),
+                child(ConcordClass::Other),
                 BuildValue::Leaf(Leaf::Literal(" ")),
-                child(Agreement::Bare),
+                child(ConcordClass::Other),
             ],
             &context,
         )
-        .expect("the exact pair helper materializes its carried agreement");
+        .expect("the exact pair helper materializes its carried concord_class");
         assert!(matches!(
             pair,
-            BuildValue::UniformChildrenMembersSequence(_, Agreement::Bare)
+            BuildValue::UniformChildrenMembersSequence(_, ConcordClass::Other)
         ));
         assert!(
             build(
                 RuleId::UniformChildrenMembersSequenceLength2,
                 &[
-                    child(Agreement::Bare),
+                    child(ConcordClass::Other),
                     BuildValue::Leaf(Leaf::Literal(" ")),
-                    child(Agreement::ThirdPersonSingular),
+                    child(ConcordClass::ThirdPersonSingular),
                 ],
                 &context,
             )
@@ -6462,7 +6476,7 @@ pub mod fixture {
             build(
                 RuleId::UniformChildrenMembersSequenceRecursive,
                 &[
-                    child(Agreement::ThirdPersonSingular),
+                    child(ConcordClass::ThirdPersonSingular),
                     BuildValue::Leaf(Leaf::Literal(" ")),
                     pair.clone(),
                 ],
@@ -6474,13 +6488,13 @@ pub mod fixture {
         let three = build(
             RuleId::UniformChildrenMembersSequenceRecursive,
             &[
-                child(Agreement::Bare),
+                child(ConcordClass::Other),
                 BuildValue::Leaf(Leaf::Literal(" ")),
                 pair,
             ],
             &context,
         )
-        .expect("the recursive helper preserves homogeneous agreement");
+        .expect("the recursive helper preserves homogeneous concord_class");
         let built = build(
             RuleId::HomogeneousSequenceUniformChildren,
             std::slice::from_ref(&three),
@@ -6597,35 +6611,36 @@ pub mod fixture {
         );
     }
 
-    pub(super) fn assert_singleton_sequence_agreement_crosses_every_runtime_boundary() {
+    pub(super) fn assert_singleton_sequence_concord_class_crosses_every_runtime_boundary() {
         let bare = || Child::Bare(BareChild);
         let third = || Child::Third(ThirdChild);
 
         let singleton = SingletonChildren::new(vec![bare()])
-            .expect("the statically nonempty singleton satisfies its uniform agreement writer");
+            .expect("the statically nonempty singleton satisfies its uniform concord_class writer");
         assert_eq!(singleton.members(), &[bare()]);
         let rejection = SingletonChildren::try_new(vec![third()])
-            .expect_err("a singleton with the wrong derived agreement rejects");
+            .expect_err("a singleton with the wrong derived concord_class rejects");
         assert_eq!(rejection.owner(), "SingletonChildren");
         assert_eq!(rejection.role(), "members");
         assert_eq!(
             rejection.violation(),
             &BuildViolation::Invariant {
-                identity: "all members match derived agreement",
+                identity: "all members match derived concord_class",
             },
         );
 
         let context = ParseContext::default();
-        let child = |value, agreement| BuildValue::Child(value, agreement, FeatureConstraint::Any);
+        let child =
+            |value, concord_class| BuildValue::Child(value, concord_class, FeatureConstraint::Any);
         let carrier = build(
             RuleId::SingletonChildrenMembersSequenceSingleton,
-            &[child(bare(), Agreement::Bare)],
+            &[child(bare(), ConcordClass::Other)],
             &context,
         )
-        .expect("the singleton helper materializes one agreement-bearing member");
+        .expect("the singleton helper materializes one concord_class-bearing member");
         assert!(matches!(
             carrier,
-            BuildValue::SingletonChildrenMembersSequence(_, Agreement::Bare)
+            BuildValue::SingletonChildrenMembersSequence(_, ConcordClass::Other)
         ));
         let built = build(
             RuleId::SingletonSequenceSingletonChildren,
@@ -6640,7 +6655,7 @@ pub mod fixture {
 
         let wrong_carrier = build(
             RuleId::SingletonChildrenMembersSequenceSingleton,
-            &[child(third(), Agreement::ThirdPersonSingular)],
+            &[child(third(), ConcordClass::ThirdPersonSingular)],
             &context,
         )
         .expect("one member is homogeneous with itself before the owner writer applies");
@@ -6649,43 +6664,43 @@ pub mod fixture {
             &[wrong_carrier],
             &context,
         )
-        .expect_err("materialization enforces the singleton owner's derived agreement");
+        .expect_err("materialization enforces the singleton owner's derived concord_class");
         assert_eq!(owner_rejection.owner(), "SingletonChildren");
         assert_eq!(owner_rejection.role(), "members");
 
         let accepted = parse_structural(Category::SingletonSequence, "Bare", &context);
         assert_eq!(accepted.accepted_root_ids().count(), 1);
-        let scanned_wrong_agreement =
+        let scanned_wrong_concord_class =
             parse_structural(Category::SingletonSequence, "Third", &context);
         assert_eq!(
-            scanned_wrong_agreement.accepted_root_ids().count(),
+            scanned_wrong_concord_class.accepted_root_ids().count(),
             1,
             "the scanner and chart preserve the lexical reading before checked materialization rejects it",
         );
     }
 
-    pub(super) fn assert_sum_sequence_agreement_uses_the_explicit_sum_carrier() {
-        let bare = || AgreementChild::Child(Child::Bare(BareChild));
-        let third = || AgreementChild::Child(Child::Third(ThirdChild));
+    pub(super) fn assert_sum_sequence_concord_class_uses_the_explicit_sum_carrier() {
+        let bare = || ConcordClassChild::Child(Child::Bare(BareChild));
+        let third = || ConcordClassChild::Child(Child::Third(ThirdChild));
 
         for length in [2, 3, 4] {
             let members = (0..length).map(|_| bare()).collect::<Vec<_>>();
             let sequence = UniformChildChoices::new(members.clone())
-                .expect("agreement-bearing sum members satisfy the uniform writer");
+                .expect("concord_class-bearing sum members satisfy the uniform writer");
             assert_eq!(sequence.members(), members);
             let relayed = RelayedChildChoices::new(members)
-                .expect("agreement-bearing sum members satisfy the homogeneous outward relay");
+                .expect("concord_class-bearing sum members satisfy the homogeneous outward relay");
             assert_eq!(relayed.members().len(), length);
         }
         for members in [vec![bare(), third(), bare()], vec![bare(), bare(), third()]] {
             let rejection = UniformChildChoices::try_new(members)
-                .expect_err("middle and final sum alternatives retain their carried agreement");
+                .expect_err("middle and final sum alternatives retain their carried concord_class");
             assert_eq!(rejection.owner(), "UniformChildChoices");
             assert_eq!(rejection.role(), "members");
             assert_eq!(
                 rejection.violation(),
                 &BuildViolation::Invariant {
-                    identity: "all members match derived agreement",
+                    identity: "all members match derived concord_class",
                 },
             );
             let relay_rejection = RelayedChildChoices::try_new(vec![bare(), third(), bare()])
@@ -6704,7 +6719,7 @@ pub mod fixture {
             assert_eq!(
                 forest.accepted_root_ids().count(),
                 1,
-                "the scanner and chart preserve {surface:?} before materialization checks carried agreement",
+                "the scanner and chart preserve {surface:?} before materialization checks carried concord_class",
             );
         }
 
@@ -6714,34 +6729,34 @@ pub mod fixture {
         );
         assert_eq!(Render::render(&rendered, &context), "Bare bare bare.");
 
-        let choice = |value, agreement| {
-            BuildValue::AgreementChild(
-                AgreementChild::Child(value),
-                agreement,
+        let choice = |value, concord_class| {
+            BuildValue::ConcordClassChild(
+                ConcordClassChild::Child(value),
+                concord_class,
                 FeatureConstraint::Any,
             )
         };
         let pair = build(
             RuleId::UniformChildChoicesMembersSequenceLength2,
             &[
-                choice(Child::Bare(BareChild), Agreement::Bare),
+                choice(Child::Bare(BareChild), ConcordClass::Other),
                 BuildValue::Leaf(Leaf::Literal(" ")),
-                choice(Child::Bare(BareChild), Agreement::Bare),
+                choice(Child::Bare(BareChild), ConcordClass::Other),
             ],
             &context,
         )
-        .expect("the exact sum pair materializes its agreement carrier");
+        .expect("the exact sum pair materializes its concord_class carrier");
         assert!(matches!(
             pair,
-            BuildValue::UniformChildChoicesMembersSequence(_, Agreement::Bare)
+            BuildValue::UniformChildChoicesMembersSequence(_, ConcordClass::Other)
         ));
         assert!(
             build(
                 RuleId::UniformChildChoicesMembersSequenceLength2,
                 &[
-                    choice(Child::Bare(BareChild), Agreement::Bare),
+                    choice(Child::Bare(BareChild), ConcordClass::Other),
                     BuildValue::Leaf(Leaf::Literal(" ")),
-                    choice(Child::Third(ThirdChild), Agreement::ThirdPersonSingular),
+                    choice(Child::Third(ThirdChild), ConcordClass::ThirdPersonSingular),
                 ],
                 &context,
             )
@@ -6752,7 +6767,7 @@ pub mod fixture {
             build(
                 RuleId::UniformChildChoicesMembersSequenceRecursive,
                 &[
-                    choice(Child::Third(ThirdChild), Agreement::ThirdPersonSingular),
+                    choice(Child::Third(ThirdChild), ConcordClass::ThirdPersonSingular),
                     BuildValue::Leaf(Leaf::Literal(" ")),
                     pair,
                 ],
@@ -6764,23 +6779,26 @@ pub mod fixture {
     }
 
     pub(super) fn assert_mixed_sum_sequence_checks_intrinsic_alternatives() {
-        let bare = MixedAgreementChild::Child(Child::Bare(BareChild));
-        let third = MixedAgreementChild::Child(Child::Third(ThirdChild));
-        let contextual = MixedAgreementChild::Predicate(Predicate::Contextual(ContextualPredicate));
+        let bare = MixedConcordClassChild::Child(Child::Bare(BareChild));
+        let third = MixedConcordClassChild::Child(Child::Third(ThirdChild));
+        let contextual =
+            MixedConcordClassChild::Predicate(Predicate::Contextual(ContextualPredicate));
 
         let rejection = UniformMixedChildChoices::try_new(vec![third.clone(), contextual.clone()])
-            .expect_err("an intrinsic Third alternative cannot satisfy derived Bare agreement");
+            .expect_err(
+                "an intrinsic Third alternative cannot satisfy derived Other Concord Class",
+            );
         assert_eq!(rejection.owner(), "UniformMixedChildChoices");
         assert_eq!(rejection.role(), "members");
         assert_eq!(
             rejection.violation(),
             &BuildViolation::Invariant {
-                identity: "all members match derived agreement",
+                identity: "all members match derived concord_class",
             },
         );
 
         let accepted = UniformMixedChildChoices::try_new(vec![bare.clone(), contextual.clone()])
-            .expect("an intrinsic Bare and contextual member satisfy derived Bare agreement");
+            .expect("an intrinsic Other and contextual member satisfy derived Other Concord Class");
         let root = MixedChoiceSequence::UniformMixedChildChoices(accepted);
         assert_eq!(Render::render(&root, &ParseContext::default()), "Bare act.");
 
@@ -6792,33 +6810,33 @@ pub mod fixture {
         assert_eq!(
             parsed_mismatch.accepted_root_ids().count(),
             1,
-            "the chart preserves both lexical readings before generated materialization rejects their agreement mismatch",
+            "the chart preserves both lexical readings before generated materialization rejects their concord_class mismatch",
         );
 
-        let mixed = |value, agreement| {
-            BuildValue::MixedAgreementChild(value, agreement, FeatureConstraint::Any)
+        let mixed = |value, concord_class| {
+            BuildValue::MixedConcordClassChild(value, concord_class, FeatureConstraint::Any)
         };
         let pair = build(
             RuleId::UniformMixedChildChoicesMembersSequenceLength2,
             &[
-                mixed(bare.clone(), Agreement::Bare),
+                mixed(bare.clone(), ConcordClass::Other),
                 BuildValue::Leaf(Leaf::Literal(" ")),
-                mixed(contextual.clone(), Agreement::Bare),
+                mixed(contextual.clone(), ConcordClass::Other),
             ],
             &context,
         )
-        .expect("the mixed sum pair retains one homogeneous transient agreement");
+        .expect("the mixed sum pair retains one homogeneous transient concord_class");
         assert!(matches!(
             pair,
-            BuildValue::UniformMixedChildChoicesMembersSequence(_, Agreement::Bare)
+            BuildValue::UniformMixedChildChoicesMembersSequence(_, ConcordClass::Other)
         ));
         assert!(
             build(
                 RuleId::UniformMixedChildChoicesMembersSequenceLength2,
                 &[
-                    mixed(third.clone(), Agreement::ThirdPersonSingular),
+                    mixed(third.clone(), ConcordClass::ThirdPersonSingular),
                     BuildValue::Leaf(Leaf::Literal(" ")),
-                    mixed(contextual.clone(), Agreement::Bare),
+                    mixed(contextual.clone(), ConcordClass::Other),
                 ],
                 &context,
             )
@@ -6828,7 +6846,7 @@ pub mod fixture {
 
         let fabricated = BuildValue::UniformMixedChildChoicesMembersSequence(
             vec![third, contextual],
-            Agreement::Bare,
+            ConcordClass::Other,
         );
         let materialization_rejection = build_checked(
             RuleId::MixedChoiceSequenceUniformMixedChildChoices,
@@ -6836,7 +6854,7 @@ pub mod fixture {
             &context,
         )
         .expect_err(
-            "owner materialization rechecks the intrinsic member against its carried agreement",
+            "owner materialization rechecks the intrinsic member against its carried concord_class",
         );
         assert_eq!(
             materialization_rejection.owner(),
@@ -6851,26 +6869,26 @@ pub mod fixture {
     }
 
     fn assert_mixed_sum_sequence_relay_constructor_checks() {
-        let bare = || MixedAgreementChild::Child(Child::Bare(BareChild));
-        let third = || MixedAgreementChild::Child(Child::Third(ThirdChild));
+        let bare = || MixedConcordClassChild::Child(Child::Bare(BareChild));
+        let third = || MixedConcordClassChild::Child(Child::Third(ThirdChild));
         let contextual =
-            || MixedAgreementChild::Predicate(Predicate::Contextual(ContextualPredicate));
+            || MixedConcordClassChild::Predicate(Predicate::Contextual(ContextualPredicate));
 
         RelayedMixedChildChoices::try_new(vec![third(), contextual()])
-            .expect("a contextual alternative can realize the intrinsic Third agreement");
+            .expect("a contextual alternative can realize the intrinsic Third concord_class");
         RelayedMixedChildChoices::try_new(vec![contextual(), bare()])
-            .expect("a contextual alternative can realize the intrinsic Bare agreement");
+            .expect("a contextual alternative can realize the intrinsic Other Concord Class");
         RelayedMixedChildChoices::try_new(vec![contextual(), contextual()])
-            .expect("an all-contextual sequence accepts one homogeneous external agreement");
+            .expect("an all-contextual sequence accepts one homogeneous external concord_class");
 
         let rejection = RelayedMixedChildChoices::try_new(vec![third(), contextual(), bare()])
-            .expect_err("conflicting intrinsic alternatives have no homogeneous agreement");
+            .expect_err("conflicting intrinsic alternatives have no homogeneous concord_class");
         assert_eq!(rejection.owner(), "RelayedMixedChildChoices");
         assert_eq!(rejection.role(), "members");
         assert_eq!(
             rejection.violation(),
             &BuildViolation::Invariant {
-                identity: "all members share agreement",
+                identity: "all members share concord_class",
             },
         );
 
@@ -6879,20 +6897,20 @@ pub mod fixture {
                 .expect("the relay is internally homogeneous at Third"),
         );
         let envelope_rejection = MixedRelayEnvelope::try_new(relayed_third)
-            .expect_err("a Bare writer rejects a relay constrained to intrinsic Third");
+            .expect_err("an Other writer rejects a relay constrained to intrinsic Third");
         assert_eq!(envelope_rejection.owner(), "MixedRelayEnvelope");
         assert_eq!(envelope_rejection.role(), "choices");
         assert_eq!(
             envelope_rejection.violation(),
             &BuildViolation::Invariant {
-                identity: "value matches derived agreement",
+                identity: "value matches derived concord_class",
             },
         );
 
         let intrinsic_third =
             RelayedMixedChoiceSequence::IntrinsicThirdMixedChoice(IntrinsicThirdMixedChoice);
         let intrinsic_rejection = MixedRelayEnvelope::try_new(intrinsic_third)
-            .expect_err("a Bare writer rejects the category's intrinsic Third variant");
+            .expect_err("an Other writer rejects the category's intrinsic Third variant");
         assert_eq!(intrinsic_rejection.owner(), "MixedRelayEnvelope");
         assert_eq!(intrinsic_rejection.role(), "choices");
         let intrinsic_third =
@@ -6911,7 +6929,7 @@ pub mod fixture {
             .expect("the unrelated checked variant accepts its legal value");
         let checked_category = RelayedMixedChoiceSequence::CheckedBareMixedChoice(checked_bare);
         let checked_envelope = MixedRelayEnvelope::try_new(checked_category)
-            .expect("the Bare writer accepts the checked variant's intrinsic Bare agreement");
+            .expect("the Other writer accepts the checked variant's intrinsic Other Concord Class");
         assert_eq!(
             Render::render(
                 &MixedRelayEnvelopeRoot::MixedRelayEnvelope(checked_envelope),
@@ -6926,15 +6944,15 @@ pub mod fixture {
                 .expect("the relay is internally homogeneous at Bare"),
         );
         let envelope = MixedRelayEnvelope::try_new(relayed_bare)
-            .expect("a Bare writer accepts a relay constrained to intrinsic Bare");
+            .expect("an Other writer accepts a relay constrained to intrinsic Other");
         let root = MixedRelayEnvelopeRoot::MixedRelayEnvelope(envelope);
         assert_eq!(Render::render(&root, &ParseContext::default()), "Bare act.");
     }
 
     fn assert_mixed_sum_sequence_relay_build_and_parse_checks() {
-        let third = || MixedAgreementChild::Child(Child::Third(ThirdChild));
+        let third = || MixedConcordClassChild::Child(Child::Third(ThirdChild));
         let contextual =
-            || MixedAgreementChild::Predicate(Predicate::Contextual(ContextualPredicate));
+            || MixedConcordClassChild::Predicate(Predicate::Contextual(ContextualPredicate));
         let context = ParseContext::default();
         let built_intrinsic = build_checked(
             RuleId::RelayedMixedChoiceSequenceIntrinsicThirdMixedChoice,
@@ -6947,7 +6965,7 @@ pub mod fixture {
             built_intrinsic,
             BuildValue::RelayedMixedChoiceSequence(
                 RelayedMixedChoiceSequence::IntrinsicThirdMixedChoice(_),
-                Agreement::ThirdPersonSingular,
+                ConcordClass::ThirdPersonSingular,
                 _
             )
         ));
@@ -6958,7 +6976,7 @@ pub mod fixture {
                 &context,
             )
             .is_none(),
-            "the generated Bare writer rejects the intrinsic Third carrier",
+            "the generated Other writer rejects the intrinsic Third carrier",
         );
         let built_third_envelope = build(
             RuleId::MixedRelayEnvelopeRootThirdRelayEnvelope,
@@ -6971,22 +6989,25 @@ pub mod fixture {
             BuildValue::MixedRelayEnvelopeRoot(MixedRelayEnvelopeRoot::ThirdRelayEnvelope(_), _)
         ));
 
-        let mixed = |value, agreement| {
-            BuildValue::MixedAgreementChild(value, agreement, FeatureConstraint::Any)
+        let mixed = |value, concord_class| {
+            BuildValue::MixedConcordClassChild(value, concord_class, FeatureConstraint::Any)
         };
         let pair = build(
             RuleId::RelayedMixedChildChoicesMembersSequenceLength2,
             &[
-                mixed(third(), Agreement::ThirdPersonSingular),
+                mixed(third(), ConcordClass::ThirdPersonSingular),
                 BuildValue::Leaf(Leaf::Literal(" ")),
-                mixed(contextual(), Agreement::ThirdPersonSingular),
+                mixed(contextual(), ConcordClass::ThirdPersonSingular),
             ],
             &context,
         )
         .expect("relay build preserves the homogeneous Third carrier");
         assert!(matches!(
             &pair,
-            BuildValue::RelayedMixedChildChoicesMembersSequence(_, Agreement::ThirdPersonSingular)
+            BuildValue::RelayedMixedChildChoicesMembersSequence(
+                _,
+                ConcordClass::ThirdPersonSingular
+            )
         ));
         let built_owner = build_checked(
             RuleId::RelayedMixedChoiceSequenceRelayedMixedChildChoices,
@@ -6999,7 +7020,7 @@ pub mod fixture {
             built_owner,
             BuildValue::RelayedMixedChoiceSequence(
                 RelayedMixedChoiceSequence::RelayedMixedChildChoices(_),
-                Agreement::ThirdPersonSingular,
+                ConcordClass::ThirdPersonSingular,
                 _
             )
         ));
@@ -7007,9 +7028,9 @@ pub mod fixture {
             build(
                 RuleId::RelayedMixedChildChoicesMembersSequenceLength2,
                 &[
-                    mixed(third(), Agreement::ThirdPersonSingular),
+                    mixed(third(), ConcordClass::ThirdPersonSingular),
                     BuildValue::Leaf(Leaf::Literal(" ")),
-                    mixed(contextual(), Agreement::Bare),
+                    mixed(contextual(), ConcordClass::Other),
                 ],
                 &context,
             )
@@ -7019,14 +7040,16 @@ pub mod fixture {
 
         let fabricated = BuildValue::RelayedMixedChildChoicesMembersSequence(
             vec![third(), contextual()],
-            Agreement::Bare,
+            ConcordClass::Other,
         );
         let materialization_rejection = build_checked(
             RuleId::RelayedMixedChoiceSequenceRelayedMixedChildChoices,
             &[fabricated],
             &context,
         )
-        .expect_err("relay materialization checks the carried agreement against intrinsic members");
+        .expect_err(
+            "relay materialization checks the carried concord_class against intrinsic members",
+        );
         assert_eq!(
             materialization_rejection.owner(),
             "RelayedMixedChildChoices"
@@ -7060,7 +7083,7 @@ pub mod fixture {
             built_checked,
             BuildValue::RelayedMixedChoiceSequence(
                 RelayedMixedChoiceSequence::CheckedBareMixedChoice(_),
-                Agreement::Bare,
+                ConcordClass::Other,
                 _
             )
         ));
@@ -7084,7 +7107,7 @@ pub mod fixture {
         );
     }
 
-    pub(super) fn assert_outer_sum_preserves_selected_category_agreement_authority() {
+    pub(super) fn assert_outer_sum_preserves_selected_category_concord_class_authority() {
         assert_outer_sum_selected_category_constructor_checks();
         assert_outer_sum_selected_category_build_checks();
     }
@@ -7093,22 +7116,22 @@ pub mod fixture {
         let outer = |value| OuterRelayedMixedChoice::RelayedMixedChoiceSequence(value);
         let intrinsic_third =
             || RelayedMixedChoiceSequence::IntrinsicThirdMixedChoice(IntrinsicThirdMixedChoice);
-        let bare = || MixedAgreementChild::Child(Child::Bare(BareChild));
+        let bare = || MixedConcordClassChild::Child(Child::Bare(BareChild));
         let contextual =
-            || MixedAgreementChild::Predicate(Predicate::Contextual(ContextualPredicate));
+            || MixedConcordClassChild::Predicate(Predicate::Contextual(ContextualPredicate));
 
         let relayed_intrinsic = RelayedOuterMixedChoices::try_new(vec![outer(intrinsic_third())])
             .expect("the outer relay accepts a homogeneous intrinsic Third singleton");
         let relayed_intrinsic =
             RelayedOuterMixedChoiceSequence::RelayedOuterMixedChoices(relayed_intrinsic);
         let bare_rejection = BareOuterMixedRelayEnvelope::try_new(relayed_intrinsic.clone())
-            .expect_err("a Bare writer rejects the outer sum's selected intrinsic Third sibling");
+            .expect_err("an Other writer rejects the outer sum's selected intrinsic Third sibling");
         assert_eq!(bare_rejection.owner(), "BareOuterMixedRelayEnvelope");
         assert_eq!(bare_rejection.role(), "choices");
         assert_eq!(
             bare_rejection.violation(),
             &BuildViolation::Invariant {
-                identity: "value matches derived agreement",
+                identity: "value matches derived concord_class",
             },
         );
 
@@ -7131,7 +7154,7 @@ pub mod fixture {
         let relayed_compatible =
             RelayedOuterMixedChoiceSequence::RelayedOuterMixedChoices(relayed_compatible);
         let compatible_envelope = BareOuterMixedRelayEnvelope::try_new(relayed_compatible)
-            .expect("a Bare writer accepts the compatible relay through the outer sum");
+            .expect("an Other writer accepts the compatible relay through the outer sum");
         assert_eq!(
             Render::render(
                 &OuterMixedRelayEnvelopeRoot::BareOuterMixedRelayEnvelope(compatible_envelope),
@@ -7149,7 +7172,7 @@ pub mod fixture {
         let relayed_checked =
             RelayedOuterMixedChoiceSequence::RelayedOuterMixedChoices(relayed_checked);
         let checked_envelope = BareOuterMixedRelayEnvelope::try_new(relayed_checked)
-            .expect("a Bare writer accepts the unrelated checked sibling");
+            .expect("an Other writer accepts the unrelated checked sibling");
         assert_eq!(
             Render::render(
                 &OuterMixedRelayEnvelopeRoot::BareOuterMixedRelayEnvelope(checked_envelope),
@@ -7183,7 +7206,7 @@ pub mod fixture {
                 OuterRelayedMixedChoice::RelayedMixedChoiceSequence(
                     RelayedMixedChoiceSequence::IntrinsicThirdMixedChoice(_)
                 ),
-                Agreement::ThirdPersonSingular,
+                ConcordClass::ThirdPersonSingular,
                 _,
             )
         ));
@@ -7204,7 +7227,7 @@ pub mod fixture {
             &built_relay,
             BuildValue::RelayedOuterMixedChoiceSequence(
                 RelayedOuterMixedChoiceSequence::RelayedOuterMixedChoices(_),
-                Agreement::ThirdPersonSingular,
+                ConcordClass::ThirdPersonSingular,
                 _,
             )
         ));
@@ -7233,7 +7256,7 @@ pub mod fixture {
 
         let fabricated = BuildValue::RelayedOuterMixedChoicesMembersSequence(
             vec![outer(intrinsic_third())],
-            Agreement::Bare,
+            ConcordClass::Other,
         );
         let materialization_rejection = build_checked(
             RuleId::RelayedOuterMixedChoiceSequenceRelayedOuterMixedChoices,
@@ -7259,22 +7282,22 @@ pub mod fixture {
         );
     }
 
-    pub(super) fn assert_direct_sum_role_invokes_recursive_selected_agreement_authority() {
+    pub(super) fn assert_direct_sum_role_invokes_recursive_selected_concord_class_authority() {
         let outer = |value| OuterRelayedMixedChoice::RelayedMixedChoiceSequence(value);
         let intrinsic_third =
             || RelayedMixedChoiceSequence::IntrinsicThirdMixedChoice(IntrinsicThirdMixedChoice);
-        let bare = || MixedAgreementChild::Child(Child::Bare(BareChild));
+        let bare = || MixedConcordClassChild::Child(Child::Bare(BareChild));
         let contextual =
-            || MixedAgreementChild::Predicate(Predicate::Contextual(ContextualPredicate));
+            || MixedConcordClassChild::Predicate(Predicate::Contextual(ContextualPredicate));
 
         let bare_rejection = BareDirectOuterMixedRelayEnvelope::try_new(outer(intrinsic_third()))
-            .expect_err("a Bare direct writer rejects the nested intrinsic Third construction");
+            .expect_err("an Other direct writer rejects the nested intrinsic Third construction");
         assert_eq!(bare_rejection.owner(), "BareDirectOuterMixedRelayEnvelope");
         assert_eq!(bare_rejection.role(), "choice");
         assert_eq!(
             bare_rejection.violation(),
             &BuildViolation::Invariant {
-                identity: "value matches derived agreement",
+                identity: "value matches derived concord_class",
             },
         );
 
@@ -7293,7 +7316,7 @@ pub mod fixture {
                 .expect("the inner contextual relay is compatible at Bare"),
         );
         let compatible = BareDirectOuterMixedRelayEnvelope::try_new(outer(compatible_relay))
-            .expect("a Bare direct writer accepts the compatible contextual relay");
+            .expect("an Other direct writer accepts the compatible contextual relay");
         assert_eq!(
             Render::render(
                 &DirectOuterMixedRelayEnvelopeRoot::BareDirectOuterMixedRelayEnvelope(compatible),
@@ -7307,7 +7330,7 @@ pub mod fixture {
         let checked = BareDirectOuterMixedRelayEnvelope::try_new(outer(
             RelayedMixedChoiceSequence::CheckedBareMixedChoice(checked),
         ))
-        .expect("the Bare direct writer accepts the unrelated checked sibling");
+        .expect("the Other direct writer accepts the unrelated checked sibling");
         assert_eq!(
             Render::render(
                 &DirectOuterMixedRelayEnvelopeRoot::BareDirectOuterMixedRelayEnvelope(checked),
@@ -7356,7 +7379,7 @@ pub mod fixture {
 
         let fabricated = BuildValue::OuterRelayedMixedChoice(
             outer(intrinsic_third()),
-            Agreement::Bare,
+            ConcordClass::Other,
             FeatureConstraint::Any,
         );
         let materialization_rejection = build_checked(
@@ -7379,22 +7402,22 @@ pub mod fixture {
         assert_eq!(
             parsed.accepted_root_ids().count(),
             2,
-            "the scanner/chart preserves both direct writers before Agreement materialization",
+            "the scanner/chart preserves both direct writers before ConcordClass materialization",
         );
     }
 
-    pub(super) fn assert_agreement_constrained_role_uses_checked_public_boundary() {
+    pub(super) fn assert_concord_class_constrained_role_uses_checked_public_boundary() {
         let intrinsic_third = OuterRelayedMixedChoice::RelayedMixedChoiceSequence(
             RelayedMixedChoiceSequence::IntrinsicThirdMixedChoice(IntrinsicThirdMixedChoice),
         );
         assert!(BareDirectOuterMixedRelayEnvelope::new(intrinsic_third.clone()).is_none());
         let rejection = BareDirectOuterMixedRelayEnvelope::try_new(intrinsic_third.clone())
-            .expect_err("the checked constructor rejects a mismatched intrinsic Agreement");
+            .expect_err("the checked constructor rejects a mismatched intrinsic ConcordClass");
         assert_eq!(rejection.owner(), "BareDirectOuterMixedRelayEnvelope");
         assert_eq!(rejection.role(), "choice");
 
         let accepted = ThirdDirectOuterMixedRelayEnvelope::new(intrinsic_third.clone())
-            .expect("the checked constructor accepts the matching intrinsic Agreement");
+            .expect("the checked constructor accepts the matching intrinsic ConcordClass");
         assert_eq!(accepted.choice(), &intrinsic_third);
         assert_eq!(
             Render::render(
@@ -7406,8 +7429,8 @@ pub mod fixture {
     }
 
     pub(super) fn assert_intrinsic_sum_product_fields_render_every_shape() {
-        let choice = |child| AgreementChild::Child(child);
-        let holder = IntrinsicAgreementHolder {
+        let choice = |child| ConcordClassChild::Child(child);
+        let holder = IntrinsicConcordClassHolder {
             required: choice(Child::Bare(BareChild)),
             optional: Some(choice(Child::Third(ThirdChild))),
             members: vec![
@@ -7421,8 +7444,8 @@ pub mod fixture {
         );
     }
 
-    pub(super) fn assert_direct_intrinsic_sum_render_derives_selected_agreement() {
-        let choice = AgreementChild::Child(Child::Third(ThirdChild));
+    pub(super) fn assert_direct_intrinsic_sum_render_derives_selected_concord_class() {
+        let choice = ConcordClassChild::Child(Child::Third(ThirdChild));
         let root = DirectIntrinsicChoiceRoot::DirectIntrinsicChoice(DirectIntrinsicChoice {
             choice: choice.clone(),
         });
@@ -7431,9 +7454,9 @@ pub mod fixture {
         let context = ParseContext::default();
         let built = build(
             RuleId::DirectIntrinsicChoiceRootDirectIntrinsicChoice,
-            &[BuildValue::AgreementChild(
+            &[BuildValue::ConcordClassChild(
                 choice,
-                Agreement::ThirdPersonSingular,
+                ConcordClass::ThirdPersonSingular,
                 FeatureConstraint::Any,
             )],
             &context,
@@ -7692,8 +7715,8 @@ fn nonzero_unsigned_decimal_is_typed_canonical_and_exact() {
 }
 
 #[test]
-fn sequence_agreement_is_uniform_across_every_member_and_boundary() {
-    fixture::assert_sequence_agreement_is_uniform_across_every_member();
+fn sequence_concord_class_is_uniform_across_every_member_and_boundary() {
+    fixture::assert_sequence_concord_class_is_uniform_across_every_member();
 }
 
 #[test]
@@ -7702,17 +7725,17 @@ fn sequence_number_is_homogeneous_across_checked_build_render_scan_and_materiali
 }
 
 #[test]
-fn singleton_sequence_agreement_crosses_checked_build_render_scan_and_materialization() {
-    fixture::assert_singleton_sequence_agreement_crosses_every_runtime_boundary();
+fn singleton_sequence_concord_class_crosses_checked_build_render_scan_and_materialization() {
+    fixture::assert_singleton_sequence_concord_class_crosses_every_runtime_boundary();
 }
 
 #[test]
-fn sum_sequence_agreement_uses_the_explicit_carrier_across_every_member_and_boundary() {
-    fixture::assert_sum_sequence_agreement_uses_the_explicit_sum_carrier();
+fn sum_sequence_concord_class_uses_the_explicit_carrier_across_every_member_and_boundary() {
+    fixture::assert_sum_sequence_concord_class_uses_the_explicit_sum_carrier();
 }
 
 #[test]
-fn mixed_sum_sequence_checks_intrinsic_alternatives_against_derived_agreement() {
+fn mixed_sum_sequence_checks_intrinsic_alternatives_against_derived_concord_class() {
     fixture::assert_mixed_sum_sequence_checks_intrinsic_alternatives();
 }
 
@@ -7722,13 +7745,13 @@ fn mixed_sum_sequence_relay_checks_every_intrinsic_constraint() {
 }
 
 #[test]
-fn outer_sum_preserves_selected_category_agreement_authority() {
-    fixture::assert_outer_sum_preserves_selected_category_agreement_authority();
+fn outer_sum_preserves_selected_category_concord_class_authority() {
+    fixture::assert_outer_sum_preserves_selected_category_concord_class_authority();
 }
 
 #[test]
-fn direct_sum_role_invokes_recursive_selected_agreement_authority() {
-    fixture::assert_direct_sum_role_invokes_recursive_selected_agreement_authority();
+fn direct_sum_role_invokes_recursive_selected_concord_class_authority() {
+    fixture::assert_direct_sum_role_invokes_recursive_selected_concord_class_authority();
 }
 
 #[test]
@@ -7737,8 +7760,8 @@ fn recursive_optional_fields_render_and_visit_through_generated_boxes() {
 }
 
 #[test]
-fn agreement_constrained_role_uses_checked_public_boundary() {
-    fixture::assert_agreement_constrained_role_uses_checked_public_boundary();
+fn concord_class_constrained_role_uses_checked_public_boundary() {
+    fixture::assert_concord_class_constrained_role_uses_checked_public_boundary();
 }
 
 #[test]
@@ -7747,6 +7770,6 @@ fn intrinsic_sum_product_fields_render_every_shape() {
 }
 
 #[test]
-fn direct_intrinsic_sum_render_derives_selected_agreement_without_writer() {
-    fixture::assert_direct_intrinsic_sum_render_derives_selected_agreement();
+fn direct_intrinsic_sum_render_derives_selected_concord_class_without_writer() {
+    fixture::assert_direct_intrinsic_sum_render_derives_selected_concord_class();
 }

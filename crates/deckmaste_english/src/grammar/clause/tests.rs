@@ -1092,7 +1092,7 @@ fn as_though_licenses_a_past_subjunctive_body() {
     // color`) is NOT covered here — it needs a bare-NP complement after
     // a `PastSubjunctive` `Be`, which routes through the *copular*
     // pathway (`Features::Copula`/`copula_agreement`). That pathway is
-    // now licensed too (`CopulaAgreement::PastSubjunctive`, `round
+    // now licensed too (`CopulaInflection::PastSubjunctive`, `round
     // copsubj`): the copula carries no agreement constraint but marks the
     // clause `subjunctive`, so every consumer other than the `as though`
     // gate (`clause.rs:2056`) still rejects it. See the `PA*`/`NA*` tests

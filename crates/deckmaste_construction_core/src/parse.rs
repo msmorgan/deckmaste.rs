@@ -778,7 +778,7 @@ fn parse_equation(input: ParseStream<'_>) -> syn::Result<FeatureEquation> {
 
 fn feature_from_ident(ident: &Ident) -> Option<Feature> {
     match ident.to_string().as_str() {
-        "agreement" => Some(Feature::Agreement),
+        "concord_class" => Some(Feature::ConcordClass),
         "bare_locative_complement" => Some(Feature::BareLocativeComplement),
         "bare_locative_license" => Some(Feature::BareLocativeLicense),
         "cardinality" => Some(Feature::Cardinality),
@@ -1260,13 +1260,13 @@ fn parse_morphology(input: ParseStream<'_>) -> syn::Result<Morphology> {
     content.parse::<Token![=]>()?;
     let feature_ident: Ident = content.parse()?;
     let feature = match feature_ident.to_string().as_str() {
-        "Agreement" => Feature::Agreement,
+        "ConcordClass" => Feature::ConcordClass,
         "Number" => Feature::Number,
         "Participle" => Feature::Participle,
         _ => {
             return Err(syn::Error::new(
                 feature_ident.span(),
-                "morphology feature must be Agreement, Number, or Participle",
+                "morphology feature must be ConcordClass, Number, or Participle",
             ));
         }
     };
@@ -2472,7 +2472,7 @@ mod tests {
 
         construction imperative: Sentence {
             element Imperative { predicate: VerbPhrase, }
-            derive agreement = Agreement::Bare;
+            derive concord_class = ConcordClass::Other;
             form imperative = predicate;
         }
 
@@ -2481,7 +2481,7 @@ mod tests {
                 subject: NounPhrase,
                 predicate: VerbPhrase,
             }
-            derive predicate.agreement = subject.agreement;
+            derive predicate.concord_class = subject.concord_class;
             form declarative = subject predicate;
         }
 
@@ -2811,7 +2811,7 @@ mod tests {
         let cases = [
             "require event is Event;",
             "require controller in [You];",
-            "require all(mode in [One, Two], agreement is Bare);",
+            "require all(mode in [One, Two], concord_class is Other);",
             "require any(subject.number is Singular, subject.number is Plural);",
             "require optional.is_some();",
             "require optional.is_none();",
@@ -2831,7 +2831,7 @@ mod tests {
                     element PredicateNode { subject: Subject, }
                     require event is Event;
                     require controller in [You];
-                    require all(mode in [One, Two], agreement is Bare);
+                    require all(mode in [One, Two], concord_class is Other);
                     require any(subject.number is Singular, subject.number is Plural);
                     require optional.is_some();
                     require optional.is_none();
@@ -2866,8 +2866,8 @@ mod tests {
                 ) && matches!(
                     &operands[1],
                     RequireExprSource::In {
-                        subject: RequireSubjectSource::ConstructionFeature(Feature::Agreement), members,
-                    } if members.len() == 1 && members[0] == "Bare"
+                        subject: RequireSubjectSource::ConstructionFeature(Feature::ConcordClass), members,
+                    } if members.len() == 1 && members[0] == "Other"
                 )
         ));
         assert!(matches!(
@@ -3054,7 +3054,7 @@ mod tests {
         let declarations = parse(
             r#"
                 morphology EnglishVerb {
-                    feature = Agreement;
+                    feature = ConcordClass;
                     recipe = english_verb;
                 }
                 morphology EnglishNoun {
@@ -3064,7 +3064,7 @@ mod tests {
                 lexeme VerbLexeme using EnglishVerb {
                     Deal = "deal",
                     Be = "be" {
-                        Bare = "are",
+                        Other = "are",
                         ThirdPersonSingular = "is",
                     },
                 }
@@ -3080,7 +3080,7 @@ mod tests {
             panic!("first declaration is the verb morphology")
         };
         assert_eq!(verb_morphology.name, "EnglishVerb");
-        assert_eq!(verb_morphology.feature, Feature::Agreement);
+        assert_eq!(verb_morphology.feature, Feature::ConcordClass);
         assert_eq!(verb_morphology.recipe, "english_verb");
         let Declaration::Morphology(noun_morphology) = &declarations.declarations[1] else {
             panic!("second declaration is the noun morphology")
@@ -3114,7 +3114,7 @@ mod tests {
                     "Be".to_owned(),
                     "be".to_owned(),
                     vec![
-                        ("Bare".to_owned(), "are".to_owned()),
+                        ("Other".to_owned(), "are".to_owned()),
                         ("ThirdPersonSingular".to_owned(), "is".to_owned()),
                     ],
                 ),
@@ -3168,7 +3168,7 @@ mod tests {
         let error = parse(
             r"
                 morphology EnglishVerb {
-                    feature = Agreement;
+                    feature = ConcordClass;
                     recipe = crate::english_verb;
                 }
             ",
@@ -3201,7 +3201,7 @@ mod tests {
     fn generated_morphology_parses_rejects_empty_surfaces() {
         for source in [
             r#"lexeme VerbLexeme using EnglishVerb { Deal = "", }"#,
-            r#"lexeme VerbLexeme using EnglishVerb { Deal = "deal" { Bare = "", }, }"#,
+            r#"lexeme VerbLexeme using EnglishVerb { Deal = "deal" { Other = "", }, }"#,
         ] {
             let error = parse(source)
                 .expect_err("lexical surface literals must not be empty")
@@ -3633,25 +3633,25 @@ mod tests {
         };
         assert!(matches!(
             imperative.equations[0].target,
-            FeaturePlace::Construction(Feature::Agreement)
+            FeaturePlace::Construction(Feature::ConcordClass)
         ));
         let FeatureValue::Constant(imperative_value) = &imperative.equations[0].value else {
-            panic!("imperative agreement is constant");
+            panic!("imperative concord_class is constant");
         };
-        assert_eq!(path(imperative_value), "Agreement :: Bare");
+        assert_eq!(path(imperative_value), "ConcordClass :: Other");
 
         let Declaration::Construction(declarative) = &declarations.declarations[4] else {
             panic!("fifth declaration is declarative");
         };
         assert!(matches!(
             &declarative.equations[0].target,
-            FeaturePlace::Role { field, feature: Feature::Agreement } if field == "predicate"
+            FeaturePlace::Role { field, feature: Feature::ConcordClass } if field == "predicate"
         ));
         let FeatureValue::FromRole(source) = &declarative.equations[0].value else {
-            panic!("declarative agreement comes from its subject");
+            panic!("declarative concord_class comes from its subject");
         };
         assert_eq!(source.role, "subject");
-        assert_eq!(source.feature, Feature::Agreement);
+        assert_eq!(source.feature, Feature::ConcordClass);
 
         let Declaration::Construction(demonstrative) = &declarations.declarations[5] else {
             panic!("sixth declaration is demonstrative");
@@ -3821,7 +3821,7 @@ mod tests {
             r"
                 construction imperative: Sentence {
                     element Imperative { predicate: VerbPhrase, }
-                    derive agreement = Agreement::Bare;
+                    derive concord_class = ConcordClass::Other;
                     form imperative = predicate;
                 }
                 construction count: NounPhrase {
@@ -3834,19 +3834,19 @@ mod tests {
                         subject: NounPhrase,
                         predicate: VerbPhrase,
                     }
-                    derive predicate.agreement = subject.agreement;
+                    derive predicate.concord_class = subject.concord_class;
                     form declarative = subject predicate;
                 }
             ",
         )
-        .expect("construction and role agreement targets are in the MVP");
+        .expect("construction and role concord_class targets are in the MVP");
 
         let expected = [
-            FeaturePlace::Construction(Feature::Agreement),
+            FeaturePlace::Construction(Feature::ConcordClass),
             FeaturePlace::Construction(Feature::Number),
             FeaturePlace::Role {
                 field: syn::parse_str("predicate").expect("identifier"),
-                feature: Feature::Agreement,
+                feature: Feature::ConcordClass,
             },
         ];
         for (declaration, expected) in declarations.declarations.iter().zip(expected) {
@@ -3878,7 +3878,7 @@ mod tests {
             panic!("declarative equation should retain its role source");
         };
         assert_eq!(source.role, "subject");
-        assert_eq!(source.feature, Feature::Agreement);
+        assert_eq!(source.feature, Feature::ConcordClass);
 
         let role_number = parse(
             "construction x: X { element XNode { role: X, } derive role.number = NounNumber::Plural; form x = role; }",
@@ -4159,7 +4159,7 @@ mod tests {
                         class = Auxiliary;
                         position = Verb;
                         tail = ["with", lex(Preposition::For)?, Amount, ObjectNounPhrase];
-                        feature = Agreement;
+                        feature = ConcordClass;
                     }
                 }
             "#,
@@ -4200,7 +4200,7 @@ mod tests {
                 },
             ] if literal.value() == "with" && quote::quote!(#preposition).to_string() == "Preposition :: For"
         ));
-        assert_eq!(source.feature_slots[0].value, "Agreement");
+        assert_eq!(source.feature_slots[0].value, "ConcordClass");
     }
 
     #[test]
@@ -4215,7 +4215,7 @@ mod tests {
                             "for",
                             sought: ObjectNounPhrase,
                         ];
-                        feature = Agreement;
+                        feature = ConcordClass;
                     }
                 }
             "#,
@@ -4413,7 +4413,7 @@ mod tests {
                         subject: NounPhrase,
                         predicate: VerbPhrase,
                     }
-                    derive predicate.agreement = subject.agreement;
+                    derive predicate.concord_class = subject.concord_class;
                     form event = subject predicate;
                 }
             ",

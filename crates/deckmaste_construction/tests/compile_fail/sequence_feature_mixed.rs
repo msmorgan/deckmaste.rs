@@ -3,7 +3,7 @@ use deckmaste_construction::constructions;
 constructions! {
     construction item: Item {
         element ItemValue {}
-        derive agreement = Values::Bare;
+        derive concord_class = Values::Other;
         derive number = Values::Singular;
         form item = "item";
     }

@@ -573,7 +573,7 @@ fn authentic_nominal_and_selector_sentences_parse() {
 }
 
 #[test]
-fn invalid_nominal_order_agreement_join_and_case_are_rejected() {
+fn invalid_nominal_order_concord_class_join_and_case_are_rejected() {
     let parser = parser();
     let context = context("Context Card");
     for text in [
@@ -646,7 +646,7 @@ fn restricted_nominal_postmodifiers_and_comparison_families_parse() {
         ),
         (
             "Destroy target creature from your graveyard you controls.",
-            "embedded controller relatives retain subject-verb agreement",
+            "embedded controller relatives retain subject-verb concord_class",
         ),
         (
             "Creatures you controls gain 2 life.",
@@ -1209,7 +1209,7 @@ fn every_selector_family_enters_the_repeatable_order_free_postmodifier_position(
     ] {
         assert!(
             parser.analyze(text, &context).outcome() == ParseAnalysisOutcome::ParseFailure,
-            "{text:?} must remain an ordinary wrong-agreement failure",
+            "{text:?} must remain an ordinary wrong-concord_class failure",
         );
     }
 }
@@ -1349,7 +1349,7 @@ fn deictic_manner_count_and_scalar_forms_are_distinct_generated_categories() {
         assert_eq!(
             parser.analyze(text, &context).outcome(),
             ParseAnalysisOutcome::ParseFailure,
-            "{text:?} must remain outside the wrong agreement or quantity category",
+            "{text:?} must remain outside the wrong concord_class or quantity category",
         );
     }
 }
@@ -1419,7 +1419,7 @@ fn quantity_determinatives_exclude_zero_and_derive_number() {
     ] {
         assert!(
             parser.parse(text, &context).is_err(),
-            "{text:?} must remain outside the quantity-determiner agreement join",
+            "{text:?} must remain outside the quantity-determiner concord_class join",
         );
     }
 
@@ -2072,7 +2072,7 @@ fn personal_pronoun_case_and_chosen_quality_references_are_typed() {
     ] {
         assert!(
             parser.parse(text, &context).is_err(),
-            "{text:?} must respect pronoun case and nominal agreement",
+            "{text:?} must respect pronoun case and nominal concord_class",
         );
     }
 }
@@ -2741,7 +2741,7 @@ fn malformed_coordination_punctuation_and_scoping_are_rejected() {
 }
 
 #[test]
-fn coordination_minimum_arity_and_agreement_are_unconstructible_when_inconsistent() {
+fn coordination_minimum_arity_and_concord_class_are_unconstructible_when_inconsistent() {
     use deckmaste_construction_core::macro_def::DeclarationIdentity;
     use deckmaste_construction_core::macro_def::DeclarationKind;
     use deckmaste_english_v2::ast::*;
@@ -2816,26 +2816,26 @@ fn coordination_minimum_arity_and_agreement_are_unconstructible_when_inconsisten
     assert!(FullAndOrNounPhraseCoordination::new(Box::new(vec![determined])).is_none());
 
     let context = context("Context Card");
-    for (text, noun_phrase_path, agreement_summary) in [
+    for (text, noun_phrase_path, concord_class_summary) in [
         (
             "Target creature or planeswalker gains 2 life.",
             "NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceDeterminedNominal",
-            "agreement: ThirdPersonSingular",
+            "concord_class: ThirdPersonSingular",
         ),
         (
             "Two target creatures or planeswalkers gain 2 life.",
             "NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceDeterminedNominal",
-            "agreement: Bare",
+            "concord_class: Other",
         ),
         (
             "Target creatures or planeswalkers gain 2 life.",
             "NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceDeterminedNominal",
-            "agreement: Bare",
+            "concord_class: Other",
         ),
         (
             "Target creature and target planeswalker gain 2 life.",
             "NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceCoordinatedNounPhrase",
-            "agreement: Bare",
+            "concord_class: Other",
         ),
     ] {
         let analysis = parser.analyze(text, &context);
@@ -2859,13 +2859,13 @@ fn coordination_minimum_arity_and_agreement_are_unconstructible_when_inconsisten
         );
         let claims = analysis
             .ownership()
-            .expect("selected agreement probe owns its lexical leaves")
+            .expect("selected concord_class probe owns its lexical leaves")
             .parsed_claims();
         assert!(
             claims
                 .iter()
-                .any(|claim| claim.semantic_summary().contains(agreement_summary)),
-            "derived Agreement evidence changed for {text:?}: {claims:?}",
+                .any(|claim| claim.semantic_summary().contains(concord_class_summary)),
+            "derived ConcordClass evidence changed for {text:?}: {claims:?}",
         );
         assert_eq!(parsed.render(&context, parser.environment()), text);
     }
@@ -2877,7 +2877,7 @@ fn coordination_minimum_arity_and_agreement_are_unconstructible_when_inconsisten
         let analysis = parser.analyze(text, &context);
         assert!(
             analysis.outcome() == ParseAnalysisOutcome::ParseFailure,
-            "{text:?} carries inconsistent shared-selector/full-NP agreement: {analysis:?}",
+            "{text:?} carries inconsistent shared-selector/full-NP concord_class: {analysis:?}",
         );
     }
 }

@@ -690,7 +690,7 @@ impl Visitor for ExistentialStructureVisitor {
 }
 
 #[test]
-fn existential_there_derives_be_agreement_and_visits_the_complete_structure() {
+fn existential_there_derives_be_concord_class_and_visits_the_complete_structure() {
     let parser = parser();
     let context = context("Context Card", false);
     let cases = [
@@ -720,7 +720,7 @@ fn existential_there_derives_be_agreement_and_visits_the_complete_structure() {
         );
         let ownership = analysis
             .ownership()
-            .expect("existential agreement witness ownership");
+            .expect("existential concord_class witness ownership");
         assert!(ownership.failures().is_empty(), "{text}: {ownership:?}");
         assert!(ownership.summary().covered(), "{text}: {ownership:?}");
         assert_eq!(ownership.rendered_text(), text);
@@ -777,7 +777,7 @@ fn existential_there_derives_be_agreement_and_visits_the_complete_structure() {
 }
 
 #[test]
-fn existential_there_rejects_malformed_agreement_capitalization_spacing_and_pivots() {
+fn existential_there_rejects_malformed_concord_class_capitalization_spacing_and_pivots() {
     let parser = parser();
     let context = context("Context Card", false);
     for text in [
@@ -1304,19 +1304,19 @@ fn finite_trigger_and_activation_boundaries_keep_structural_bytes_separate_from_
 }
 
 #[test]
-fn finite_trigger_predicate_agreement_is_derived_from_its_subject() {
+fn finite_trigger_predicate_concord_class_is_derived_from_its_subject() {
     let parser = parser();
     let context = context("Context Card", false);
     let text = "Whenever you connive, you gain X life.";
     let parsed = parser
         .parse(text, &context)
-        .expect("second-person trigger subject requires bare predicate agreement");
+        .expect("second-person trigger subject requires bare predicate concord_class");
     assert_eq!(parsed.render(&context, parser.environment()), text);
     assert!(
         parser
             .parse("Whenever you connives, you gain X life.", &context)
             .is_err(),
-        "third-person-singular agreement must reject a second-person trigger subject"
+        "third-person-singular concord_class must reject a second-person trigger subject"
     );
 }
 
@@ -2350,7 +2350,7 @@ fn you_subject() -> Subject {
 fn plain_finite(subject: Subject, predicate: Predicate) -> FiniteClause {
     FiniteClause::PlainFiniteClause(
         PlainFiniteClause::new(subject, Box::new(predicate))
-            .expect("the helper supplies matching subject-predicate agreement"),
+            .expect("the helper supplies matching subject-predicate concord_class"),
     )
 }
 
@@ -2574,11 +2574,11 @@ fn auxiliaries_are_lexical_clause_structure_with_derived_bare_predicates() {
     }
     assert!(
         parser.parse("A player gains 2 life.", &context).is_ok(),
-        "ordinary finite clauses retain subject-derived third-person agreement",
+        "ordinary finite clauses retain subject-derived third-person concord_class",
     );
     assert!(
         parser.parse("A player gain 2 life.", &context).is_err(),
-        "ordinary finite clauses do not inherit auxiliary bare agreement",
+        "ordinary finite clauses do not inherit auxiliary bare concord_class",
     );
 }
 
@@ -2677,7 +2677,7 @@ fn assert_clause_coordination(
 }
 
 #[test]
-fn complete_finite_clause_coordination_is_nary_and_preserves_member_agreement() {
+fn complete_finite_clause_coordination_is_nary_and_preserves_member_concord_class() {
     let parser = parser();
     let context = context("Aang, A Lot to Learn", true);
     for (kind, coordinator) in [(CoordinationKind::And, "and"), (CoordinationKind::Or, "or")] {
@@ -2711,7 +2711,7 @@ fn complete_finite_clause_coordination_is_nary_and_preserves_member_agreement() 
     ] {
         assert!(
             parser.parse(invalid, &context).is_err(),
-            "each coordinated finite clause derives agreement from its own subject: {invalid}",
+            "each coordinated finite clause derives concord_class from its own subject: {invalid}",
         );
     }
 }

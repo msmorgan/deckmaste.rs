@@ -1,11 +1,11 @@
 use deckmaste_construction::constructions;
 
 constructions! {
-    morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+    morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
     lexeme Verbs using EnglishVerb { Act = "act", }
     construction contextual: Child {
         element ContextualChild {}
-        derive agreement = verb.agreement;
+        derive concord_class = verb.concord_class;
         form contextual = verb(Verbs::Act);
     }
     abstract sum Choice { Child, }

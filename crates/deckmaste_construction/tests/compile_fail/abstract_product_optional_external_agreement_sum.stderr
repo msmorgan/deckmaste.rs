@@ -1,5 +1,0 @@
-error: Holder.optional: Agreement-bearing sum `Choice` requires external agreement, but abstract products cannot declare feature writers
-  --> tests/compile_fail/abstract_product_optional_external_agreement_sum.rs:12:31
-   |
-12 |     abstract product Holder { optional: opt Choice, }
-   |                               ^^^^^^^^

@@ -460,7 +460,7 @@ fn imperative(predicate: VerbPhrase) -> Sentence {
 fn finite_clause(subject: Subject, predicate: VerbPhrase) -> FiniteClause {
     FiniteClause::PlainFiniteClause(
         PlainFiniteClause::new(subject, Box::new(atomic(predicate)))
-            .expect("the helper supplies matching subject-predicate agreement"),
+            .expect("the helper supplies matching subject-predicate concord_class"),
     )
 }
 

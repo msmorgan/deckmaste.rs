@@ -535,7 +535,7 @@ contracted_copular_adapter!(
 struct RelativeFeatureValues {
     gap: GapState,
     marker: RelativeMarker,
-    antecedent_agreement: Option<crate::grammar::Agreement>,
+    antecedent_agreement: Option<crate::grammar::PersonNumber>,
     contraction: RelativeContraction,
     distributive_each: bool,
     copular: RelativeCopularClass,
@@ -1034,7 +1034,7 @@ fn contracted_subject_feature_candidates(
 fn contracted_that_features(auxiliary: crate::word::AuxiliaryInstance) -> Features {
     Features::SubjectAuxiliary {
         subject: crate::grammar::ContractedSubjectKey::Demonstrative(Demonstrative::That),
-        agreement: crate::grammar::Agreement {
+        agreement: crate::grammar::PersonNumber {
             person: crate::features::Person::Third,
             number: Number::Singular,
         },

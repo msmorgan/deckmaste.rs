@@ -210,7 +210,7 @@ pub(crate) fn emit(
                 debug_assert_eq!(row.source_index(), binding.source_index());
                 debug_assert!(matches!(
                     row.feature_axis(),
-                    crate::feature::Feature::Agreement | crate::feature::Feature::Participle
+                    crate::feature::Feature::ConcordClass | crate::feature::Feature::Participle
                 ));
                 let origin = row.origin().clone();
                 let verb = row.codec_ident();
@@ -297,8 +297,8 @@ pub(crate) fn emit(
                                 let nonprepositional_adjunct_licensed = environment
                                     .verb_frame_nonprepositional_adjunct_licensed(&reference, frame);
                                 [
-                                    ::deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
-                                    ::deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular,
+                                    ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
+                                    ::deckmaste_construction_core::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
                                 ]
                                 .into_iter()
                                 .all(|feature| environment.verb_inventory_surface(&reference, feature).is_some())
@@ -952,7 +952,7 @@ fn emit_lexeme_surface_helper(
     let function = emitted_ident(&function_name, lexeme.name_ident().span());
     let ty = emitted_ident(lexeme.name(), lexeme.name_ident().span());
     let (feature_ty, feature_argument) = match lexeme.morphology().feature() {
-        crate::Feature::Agreement => (quote! { Agreement }, quote! { agreement }),
+        crate::Feature::ConcordClass => (quote! { ConcordClass }, quote! { concord_class }),
         crate::Feature::Number => (quote! { Number }, quote! { number }),
         crate::Feature::Participle => (quote! { Participle }, quote! { participle }),
         crate::Feature::Cardinality
@@ -983,11 +983,11 @@ fn emit_lexeme_surface_helper(
         .map(|row| {
             let member = emitted_ident(row.member(), Span::call_site());
             let feature = match row.feature() {
-                crate::macro_def::SurfaceFeature::Bare => {
-                    quote! { Agreement::Bare }
+                crate::macro_def::SurfaceFeature::PLAIN => {
+                    quote! { ConcordClass::Other }
                 }
-                crate::macro_def::SurfaceFeature::ThirdPersonSingular => {
-                    quote! { Agreement::ThirdPersonSingular }
+                crate::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT => {
+                    quote! { ConcordClass::ThirdPersonSingular }
                 }
                 crate::macro_def::SurfaceFeature::Singular => {
                     quote! { Number::Singular }
@@ -995,8 +995,14 @@ fn emit_lexeme_surface_helper(
                 crate::macro_def::SurfaceFeature::Plural => {
                     quote! { Number::Plural }
                 }
-                crate::macro_def::SurfaceFeature::Participle => {
+                crate::macro_def::SurfaceFeature::PAST_PARTICIPLE => {
                     quote! { Participle::Participle }
+                }
+                crate::macro_def::SurfaceFeature::Inflectional(_) => {
+                    return Err(syn::Error::new(
+                        Span::call_site(),
+                        "sealed lexeme surface has an unsupported Inflectional Form",
+                    ));
                 }
                 crate::macro_def::SurfaceFeature::Fixed
                 | crate::macro_def::SurfaceFeature::BlockLabel => {
@@ -1684,13 +1690,13 @@ mod tests {
             syn::parse_quote! {
                 fn surface_for_verb_lexeme(
                     lexeme: VerbLexeme,
-                    agreement: Agreement,
+                    concord_class: ConcordClass,
                 ) -> &'static str {
-                    match (lexeme, agreement) {
-                        (VerbLexeme::InventedLemma, Agreement::Bare) => "deal",
-                        (VerbLexeme::InventedLemma, Agreement::ThirdPersonSingular) => "deals",
-                        (VerbLexeme::Be, Agreement::Bare) => "are",
-                        (VerbLexeme::Be, Agreement::ThirdPersonSingular) => "is",
+                    match (lexeme, concord_class) {
+                        (VerbLexeme::InventedLemma, ConcordClass::Other) => "deal",
+                        (VerbLexeme::InventedLemma, ConcordClass::ThirdPersonSingular) => "deals",
+                        (VerbLexeme::Be, ConcordClass::Other) => "are",
+                        (VerbLexeme::Be, ConcordClass::ThirdPersonSingular) => "is",
                     }
                 }
             }

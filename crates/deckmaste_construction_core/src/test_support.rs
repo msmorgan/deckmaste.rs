@@ -12,7 +12,7 @@ pub(crate) fn representative_tokens() -> proc_macro2::TokenStream {
             }
         }
         morphology EnglishNoun { feature = Number; recipe = english_noun; }
-        morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+        morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
 
         construction leaf: Node {
             element WordLeaf { word: lex Words, }
@@ -24,8 +24,8 @@ pub(crate) fn representative_tokens() -> proc_macro2::TokenStream {
         }
         construction action: Action {
             element ActionElement { node: Node, }
-            derive agreement = verb.agreement;
-            derive verb.agreement = Values::Bare;
+            derive concord_class = verb.concord_class;
+            derive verb.concord_class = Values::Other;
             form action = verb(Verbs::Act) node;
         }
 
@@ -40,11 +40,11 @@ pub(crate) fn representative_expansion() -> crate::Expansion {
 pub(crate) fn generated_morphology_tokens() -> proc_macro2::TokenStream {
     quote! {
         vocab Pronoun { It = "it", You = "you", }
-        morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+        morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
         morphology EnglishNoun { feature = Number; recipe = english_noun; }
         lexeme VerbLexeme using EnglishVerb {
             InventedLemma = "deal",
-            Be = "be" { Bare = "are", ThirdPersonSingular = "is", },
+            Be = "be" { Other = "are", ThirdPersonSingular = "is", },
         }
         lexeme NounLexeme using EnglishNoun { TwoWords = "object", }
         codec Noun {
@@ -58,21 +58,21 @@ pub(crate) fn generated_morphology_tokens() -> proc_macro2::TokenStream {
 
         construction statement: Sentence {
             element Statement { pronoun: lex Pronoun, noun: lex Noun, }
-            derive pronoun.agreement = match pronoun {
+            derive pronoun.concord_class = match pronoun {
                 It => Values::ThirdPersonSingular,
-                You => Values::Bare,
+                You => Values::Other,
             };
-            derive verb.agreement = pronoun.agreement;
+            derive verb.concord_class = pronoun.concord_class;
             derive number = Values::Plural;
             form statement = lex(pronoun) verb(VerbLexeme::InventedLemma) noun(noun);
         }
         construction question: Sentence {
             element Question { pronoun: lex Pronoun, }
-            derive pronoun.agreement = match pronoun {
+            derive pronoun.concord_class = match pronoun {
                 It => Values::ThirdPersonSingular,
-                You => Values::Bare,
+                You => Values::Other,
             };
-            derive verb.agreement = pronoun.agreement;
+            derive verb.concord_class = pronoun.concord_class;
             derive number = Values::Singular;
             form question = verb(VerbLexeme::Be) lex(pronoun);
         }
@@ -104,7 +104,7 @@ pub(crate) fn open_verb_tokens() -> proc_macro2::TokenStream {
     quote! {
         construction destroy: VerbPhrase {
             element Destroy { object: NounPhrase, }
-            derive agreement = verb.agreement;
+            derive concord_class = verb.concord_class;
             form destroy = open_verb(KeywordAction, "Destroy") object;
         }
         construction object: NounPhrase {
@@ -113,7 +113,7 @@ pub(crate) fn open_verb_tokens() -> proc_macro2::TokenStream {
         }
         construction imperative: Ability {
             element Imperative { predicate: VerbPhrase, }
-            derive predicate.agreement = Values::Bare;
+            derive predicate.concord_class = Values::Other;
             form imperative = predicate;
         }
         root Ability { punctuation = "."; eoi = true; standalone_render = true; }
@@ -136,7 +136,7 @@ pub(crate) fn invariant_access_semantic_plan() -> crate::semantic::SemanticPlan 
 
             construction leaf: Node {
                 element LeafNode {}
-                derive agreement = Values::Bare;
+                derive concord_class = Values::Other;
                 derive number = Values::Singular;
                 form leaf = "leaf";
             }
@@ -150,17 +150,17 @@ pub(crate) fn invariant_access_semantic_plan() -> crate::semantic::SemanticPlan 
                 }
                 require mode is One;
                 require child is Leaf;
-                derive mode.agreement = match mode {
-                    One => Values::Bare,
+                derive mode.concord_class = match mode {
+                    One => Values::Other,
                     Two => Values::ThirdPersonSingular,
                 };
-                derive agreement = mode.agreement;
+                derive concord_class = mode.concord_class;
                 derive number = child.number;
                 form writer = lex(plain) lex(mode) child identity(spelling) lex(visitor);
             }
             construction root: Root {
                 element RootNode { node: Node, }
-                derive agreement = node.agreement;
+                derive concord_class = node.concord_class;
                 derive number = node.number;
                 form root = node;
             }
@@ -253,13 +253,13 @@ pub(crate) fn synthetic_projection_tokens() -> proc_macro2::TokenStream {
             }
         }
         morphology EnglishNoun { feature = Number; recipe = english_noun; }
-        morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+        morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
 
         construction leaf: Expr {
             element LeafNode { mode: lex Mode, resource: lex Resource, }
-            derive agreement = match mode {
+            derive concord_class = match mode {
                 Solo => Values::ThirdPersonSingular,
-                Group => Values::Bare,
+                Group => Values::Other,
             };
             derive number = match mode {
                 Solo => Values::Singular,
@@ -269,18 +269,18 @@ pub(crate) fn synthetic_projection_tokens() -> proc_macro2::TokenStream {
         }
         construction nested: Expr {
             element NestedNode { next: Expr, marker: lex Marker, }
-            derive agreement = next.agreement;
+            derive concord_class = next.concord_class;
             derive number = next.number;
             form nested = "nest" next lex(marker);
         }
         construction action: Predicate {
             element ActionNode {}
-            derive agreement = verb.agreement;
+            derive concord_class = verb.concord_class;
             form action = verb(ActionStem::Activate);
         }
         construction idle: Predicate {
             element IdleNode {}
-            derive agreement = Values::Bare;
+            derive concord_class = Values::Other;
             form idle = "idle";
         }
         construction solo: Tag {
@@ -296,7 +296,7 @@ pub(crate) fn synthetic_projection_tokens() -> proc_macro2::TokenStream {
                 pair: lex Pair,
             }
             require subject is Leaf;
-            derive predicate.agreement = subject.agreement;
+            derive predicate.concord_class = subject.concord_class;
             form document = subject predicate identity(handle) lex(pair);
         }
 
@@ -340,14 +340,14 @@ pub(crate) fn role_derived_noun_tokens() -> proc_macro2::TokenStream {
 
 pub(crate) fn declaration_verb_tokens(tail: &proc_macro2::TokenStream) -> proc_macro2::TokenStream {
     quote! {
-        morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+        morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
         lexeme CoreVerb using EnglishVerb { Destroy = "destroy", }
         codec TransitiveVerb {
             generate declaration_verb {
                 closed = CoreVerb;
                 position = Verb;
                 tail = [#tail];
-                feature = Agreement;
+                feature = ConcordClass;
             }
         }
         vocab Preposition { For = "for", }
@@ -365,9 +365,9 @@ pub(crate) fn vocab_matched_number_without_noun_tokens() -> proc_macro2::TokenSt
 
         construction source: Source {
             element SourceNode { count: lex Count, }
-            derive agreement = match count {
+            derive concord_class = match count {
                 One => Values::ThirdPersonSingular,
-                Many => Values::Bare,
+                Many => Values::Other,
             };
             derive number = match count {
                 One => Values::Singular,
@@ -377,7 +377,7 @@ pub(crate) fn vocab_matched_number_without_noun_tokens() -> proc_macro2::TokenSt
         }
         construction phrase: Phrase {
             element PhraseNode { source: Source, }
-            derive agreement = source.agreement;
+            derive concord_class = source.concord_class;
             derive number = source.number;
             form phrase = source;
         }
@@ -419,14 +419,14 @@ pub(crate) fn vocab_matched_number_with_two_nouns_tokens() -> proc_macro2::Token
 fn synthetic_projection_fixture_generates() {
     let expansion = synthetic_projection_expansion();
     assert_eq!(expansion.plan().items().len(), 148);
-    let agreement_matches = expansion
+    let concord_class_matches = expansion
         .items()
         .iter()
         .filter_map(|item| match &item.key {
             crate::ItemKey::Named {
                 kind: crate::NamedKind::Function,
                 name,
-            } if name.starts_with("agreement_matches_for_") => Some((
+            } if name.starts_with("concord_class_matches_for_") => Some((
                 name.as_str(),
                 item.origins
                     .iter()
@@ -437,17 +437,17 @@ fn synthetic_projection_fixture_generates() {
         })
         .collect::<Vec<_>>();
     assert_eq!(
-        agreement_matches,
+        concord_class_matches,
         [
             (
-                "agreement_matches_for_expr",
+                "concord_class_matches_for_expr",
                 vec![
                     (crate::SourceDeclarationKind::Construction, "leaf"),
                     (crate::SourceDeclarationKind::Construction, "nested"),
                 ],
             ),
             (
-                "agreement_matches_for_predicate",
+                "concord_class_matches_for_predicate",
                 vec![
                     (crate::SourceDeclarationKind::Construction, "action"),
                     (crate::SourceDeclarationKind::Construction, "idle"),

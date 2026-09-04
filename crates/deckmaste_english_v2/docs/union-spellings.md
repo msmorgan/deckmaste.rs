@@ -352,7 +352,7 @@ Four rules fall out, and they are the collapse:
 4. **One demonstrative word throughout.** All 68 use "that"/"those";
    `\bthose (players?|permanents?|planeswalkers?|creatures?|battles?|opponents?) or `
    is **1 line** — the plural row above — so the singular/plural choice is
-   ordinary number agreement and not a distinct anaphor.
+   ordinary number concord_class and not a distinct anaphor.
 
 Ticket figures for this section: 33 exact echoes, 15 generic with no pair to
 echo, 43 sharing one demonstrative (33 + 10 class-word). Mine: 28 lines name

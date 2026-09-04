@@ -290,19 +290,19 @@ fn graduated_declaration_expands_and_normalizes() {
         row.surfaces,
         vec![
             RealizedSurface {
-                feature: SurfaceFeature::Bare,
+                feature: SurfaceFeature::PLAIN,
                 text: "scry".to_owned(),
                 onset: Onset::Consonant,
                 onset_override: None,
             },
             RealizedSurface {
-                feature: SurfaceFeature::ThirdPersonSingular,
+                feature: SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
                 text: "scries".to_owned(),
                 onset: Onset::Consonant,
                 onset_override: None,
             },
             RealizedSurface {
-                feature: SurfaceFeature::Participle,
+                feature: SurfaceFeature::PAST_PARTICIPLE,
                 text: "scryed".to_owned(),
                 onset: Onset::Consonant,
                 onset_override: None,
@@ -321,19 +321,19 @@ fn nursery_declaration_uses_dumb_verb_morphology() {
         row.surfaces,
         vec![
             RealizedSurface {
-                feature: SurfaceFeature::Bare,
+                feature: SurfaceFeature::PLAIN,
                 text: "destroy".to_owned(),
                 onset: Onset::Consonant,
                 onset_override: None,
             },
             RealizedSurface {
-                feature: SurfaceFeature::ThirdPersonSingular,
+                feature: SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
                 text: "destroys".to_owned(),
                 onset: Onset::Consonant,
                 onset_override: None,
             },
             RealizedSurface {
-                feature: SurfaceFeature::Participle,
+                feature: SurfaceFeature::PAST_PARTICIPLE,
                 text: "destroyed".to_owned(),
                 onset: Onset::Consonant,
                 onset_override: None,
@@ -866,7 +866,7 @@ KeywordAbility(
     let adjective = grammar
         .participial_adjective()
         .expect("the supplemental adjective is retained separately from FixedKeyword");
-    assert_eq!(adjective.feature(), SurfaceFeature::Participle);
+    assert_eq!(adjective.feature(), SurfaceFeature::PAST_PARTICIPLE);
     assert_eq!(adjective.text(), "turned");
     assert_eq!(adjective.onset(), Onset::Consonant);
 }
@@ -891,7 +891,7 @@ KeywordAbility(
         .grammar()
         .and_then(GrammarRow::participial_adjective)
         .expect("the authored participial adjective is retained");
-    assert_eq!(adjective.feature(), SurfaceFeature::Participle);
+    assert_eq!(adjective.feature(), SurfaceFeature::PAST_PARTICIPLE);
     assert_eq!(adjective.text(), "custom-made");
 }
 

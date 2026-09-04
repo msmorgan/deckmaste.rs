@@ -752,7 +752,7 @@ fn subject_auxiliary_spelling_matches(
             if *subject != key.subject {
                 return false;
             }
-            let Agreement { person, number } = subject.agreement();
+            let PersonNumber { person, number } = subject.agreement();
             auxiliaries.iter().any(|&auxiliary| {
                 AuxiliaryFeatures {
                     auxiliary,
@@ -766,20 +766,22 @@ fn subject_auxiliary_spelling_matches(
 }
 
 impl ContractedSubjectKey {
-    fn agreement(self) -> Agreement {
+    fn agreement(self) -> PersonNumber {
         match self {
-            Self::Pronoun(Pronoun::You) => Agreement {
+            Self::Pronoun(Pronoun::You) => PersonNumber {
                 person: Person::Second,
                 number: Number::Singular,
             },
-            Self::Pronoun(Pronoun::They) => Agreement {
+            Self::Pronoun(Pronoun::They) => PersonNumber {
                 person: Person::Third,
                 number: Number::Plural,
             },
-            Self::Pronoun(Pronoun::It(_)) | Self::Demonstrative(Demonstrative::That) => Agreement {
-                person: Person::Third,
-                number: Number::Singular,
-            },
+            Self::Pronoun(Pronoun::It(_)) | Self::Demonstrative(Demonstrative::That) => {
+                PersonNumber {
+                    person: Person::Third,
+                    number: Number::Singular,
+                }
+            }
             Self::Pronoun(
                 Pronoun::EachOther | Pronoun::Itself | Pronoun::Himself | Pronoun::YoursAbsolute,
             )
@@ -1379,12 +1381,12 @@ pub(crate) struct QuantityFeatures {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) struct Agreement {
+pub(crate) struct PersonNumber {
     pub(crate) person: Person,
     pub(crate) number: Number,
 }
 
-impl Agreement {
+impl PersonNumber {
     pub(crate) const fn person(self) -> Person {
         self.person
     }
@@ -1398,7 +1400,7 @@ impl Agreement {
 pub(crate) enum PredicateForm {
     Imperative,
     Infinitive,
-    Finite(Option<Agreement>),
+    Finite(Option<PersonNumber>),
     PresentParticiple,
     PastParticiple,
 }
@@ -1489,8 +1491,8 @@ pub(crate) enum AdjectiveComparisonState {
 /// the `subjunctive` flag under `Subordinator::AsThough`; it is not an
 /// agreement bypass for indicative readings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) enum CopulaAgreement {
-    Indicative(Agreement),
+pub(crate) enum CopulaInflection {
+    Indicative(PersonNumber),
     PastSubjunctive,
 }
 
@@ -1711,7 +1713,7 @@ pub(crate) enum Features {
         recipient_passive_theme: bool,
     },
     NounPhrase {
-        agreement: Option<Agreement>,
+        agreement: Option<PersonNumber>,
         coordination_domain: Option<CoordinationDomain>,
         pronoun_case: Option<PronounCase>,
         adjunct: Option<BareNominalAdjunct>,
@@ -1727,7 +1729,7 @@ pub(crate) enum Features {
         rules_object_followup: bool,
     },
     PossessiveThisCard {
-        agreement: Agreement,
+        agreement: PersonNumber,
     },
     PossessiveNounPhrase {
         form: NounForm,
@@ -1771,7 +1773,7 @@ pub(crate) enum Features {
     InfinitiveClause,
     GerundClause,
     SimpleClause {
-        agreement: Option<Agreement>,
+        agreement: Option<PersonNumber>,
         has_subject: bool,
         standalone: bool,
         has_direct_object: bool,
@@ -1780,7 +1782,7 @@ pub(crate) enum Features {
         subjunctive: bool,
     },
     Clause {
-        agreement: Option<Agreement>,
+        agreement: Option<PersonNumber>,
         standalone: bool,
         finite: bool,
         host_addressee_subject: bool,
@@ -1817,7 +1819,7 @@ pub(crate) enum Features {
     RelativeClause {
         gap: GapState,
         marker: RelativeMarker,
-        antecedent_agreement: Option<Agreement>,
+        antecedent_agreement: Option<PersonNumber>,
         contraction: RelativeContraction,
         distributive_each: bool,
         copular: RelativeCopularClass,
@@ -1835,10 +1837,10 @@ pub(crate) enum Features {
     Existential {
         number: Number,
     },
-    Copula(CopulaAgreement),
+    Copula(CopulaInflection),
     SubjectAuxiliary {
         subject: ContractedSubjectKey,
-        agreement: Agreement,
+        agreement: PersonNumber,
         auxiliary: AuxiliaryFeatures,
     },
     /// A coordinated list of exception clauses gathered under a leading

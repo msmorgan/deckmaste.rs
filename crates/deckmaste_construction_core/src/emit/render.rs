@@ -24,10 +24,10 @@ use crate::plan::ItemKey;
 use crate::plan::NamedKind;
 use crate::plan::SourceDeclarationKind;
 use crate::semantic::AccessorMode;
-use crate::semantic::AgreementAuthorityPlan;
 use crate::semantic::AtomPlan;
 use crate::semantic::AtomTerminal;
 use crate::semantic::BindingRenderPlan;
+use crate::semantic::ConcordClassAuthorityPlan;
 use crate::semantic::ConstructionFieldKind;
 use crate::semantic::ConstructionFieldPlan;
 use crate::semantic::ConstructionPlan;
@@ -112,9 +112,9 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         } else if nested_categories.contains(&category) {
             let helper = render_category_name(&category, true);
             let capability = validated.category_render_capability(&category);
-            if capability.requires_external_agreement() {
+            if capability.requires_external_concord_class() {
                 return Err(internal(
-                    "validated standalone render root requires external agreement",
+                    "validated standalone render root requires external concord_class",
                 ));
             }
             let context = capability.requires_context().then(|| quote! { context });
@@ -255,23 +255,23 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         let helper = render_category_name(&category, root_names.contains(&category));
         let ty = ident(&category);
         let capability = validated.category_render_capability(&category);
-        let takes_agreement = capability.requires_external_agreement();
+        let takes_concord_class = capability.requires_external_concord_class();
         let takes_context = capability.requires_context();
         let allocator = render_allocator(
             validated,
             members,
             false,
             &root_names,
-            takes_agreement,
+            takes_concord_class,
             takes_context,
         )?;
         let mut signature_allocator = allocator.clone();
         let argument = signature_allocator.allocate(&category_argument(&category));
-        let agreement = takes_agreement.then(|| quote! { agreement: Agreement });
+        let concord_class = takes_concord_class.then(|| quote! { concord_class: ConcordClass });
         let context = takes_context.then(|| quote! { context: &ParseContext<'_> });
         let environment = takes_environment
             .then(|| quote! { environment: &crate::environment::ParserEnvironment });
-        let separators = signature_tail(&[agreement, context, environment]);
+        let separators = signature_tail(&[concord_class, context, environment]);
         let arms = render_arms(
             validated,
             members,
@@ -380,7 +380,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
                     english_cardinal_formatter(&format),
                     origin.clone(),
                 ));
-                let agreement = ident(&feature_helper("agreement", codec.codec_name()));
+                let concord_class = ident(&feature_helper("concord_class", codec.codec_name()));
                 let determiner_number =
                     ident(&feature_helper("determiner_number", codec.codec_name()));
                 let number = ident(&feature_helper("number", codec.codec_name()));
@@ -389,14 +389,14 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
                 items.push(GeneratedItem::new(
                     ItemKey::Named {
                         kind: NamedKind::Function,
-                        name: agreement.to_string(),
+                        name: concord_class.to_string(),
                     },
                     quote! {
-                        fn #agreement(value: &#ty) -> Agreement {
+                        fn #concord_class(value: &#ty) -> ConcordClass {
                             if value.magnitude == 1 {
-                                Agreement::ThirdPersonSingular
+                                ConcordClass::ThirdPersonSingular
                             } else {
-                                Agreement::Bare
+                                ConcordClass::Other
                             }
                         }
                     },
@@ -515,7 +515,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
     }
 
     for feature in [
-        Feature::Agreement,
+        Feature::ConcordClass,
         Feature::Cardinality,
         Feature::FusedHeadLicense,
         Feature::PrepositionComplementKind,
@@ -553,24 +553,24 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         }
     }
     for (category, members) in &categories {
-        if validated.category_carries_agreement(category) {
-            items.push(emit_category_agreement_match_helper(
+        if validated.category_carries_concord_class(category) {
+            items.push(emit_category_concord_class_match_helper(
                 validated, category, members,
             )?);
         }
     }
     for sum in validated.sums().iter().filter(|sum| {
-        validated.sum_carries_agreement(sum.name())
-            && !validated.sum_requires_external_agreement(sum.name())
+        validated.sum_carries_concord_class(sum.name())
+            && !validated.sum_requires_external_concord_class(sum.name())
     }) {
-        items.push(emit_sum_agreement_helper(validated, sum)?);
+        items.push(emit_sum_concord_class_helper(validated, sum)?);
     }
     for sum in validated
         .sums()
         .iter()
-        .filter(|sum| validated.sum_carries_agreement(sum.name()))
+        .filter(|sum| validated.sum_carries_concord_class(sum.name()))
     {
-        items.push(emit_sum_agreement_match_helper(validated, sum)?);
+        items.push(emit_sum_concord_class_match_helper(validated, sum)?);
     }
     for feature in [
         Feature::FusedHeadLicense,
@@ -1231,21 +1231,21 @@ fn emit_sum_renderer(
     let function = ident(&function_name);
     let ty = ident(sum.name());
     let value = ident(&snake_case(sum.name()));
-    let agreement_carry = plan.sum_carries_agreement(sum.name());
+    let concord_class_carry = plan.sum_carries_concord_class(sum.name());
     let arms = sum
         .alternatives()
         .iter()
         .map(|alternative| -> syn::Result<TokenStream> {
             let variant = ident(alternative.name());
             let binding = ident("value");
-            let statement = if agreement_carry {
+            let statement = if concord_class_carry {
                 render_structural_value_with_feature(
                     plan,
                     alternative.value(),
                     &quote! { #binding },
                     root_names,
-                    Feature::Agreement,
-                    quote! { agreement },
+                    Feature::ConcordClass,
+                    quote! { concord_class },
                 )?
             } else {
                 render_structural_value(plan, alternative.value(), quote! { #binding }, root_names)?
@@ -1261,7 +1261,7 @@ fn emit_sum_renderer(
     let environment = plan.needs_parser_environment().then(|| {
         quote! { , environment: &crate::environment::ParserEnvironment }
     });
-    let agreement = agreement_carry.then(|| quote! { , agreement: Agreement });
+    let concord_class = concord_class_carry.then(|| quote! { , concord_class: ConcordClass });
     Ok(GeneratedItem::new(
         ItemKey::Named {
             kind: NamedKind::Function,
@@ -1270,7 +1270,7 @@ fn emit_sum_renderer(
         quote! {
             pub(crate) fn #function(
                 writer: &mut Writer,
-                #value: &#ty #agreement,
+                #value: &#ty #concord_class,
                 context: &ParseContext<'_> #environment,
             ) { match #match_value { #(#arms),* } }
         },
@@ -1302,16 +1302,16 @@ fn emit_sequence_renderer(
         crate::identifier::pascal_case(field.name()),
     ));
     let sequence_features = plan.sequence_features(owner, field.name());
-    let agreement = sequence_features.contains(&Feature::Agreement);
+    let concord_class = sequence_features.contains(&Feature::ConcordClass);
     let number = sequence_features.contains(&Feature::Number);
-    let render_value = if agreement {
+    let render_value = if concord_class {
         let render = render_structural_value_with_feature(
             plan,
             item,
             &quote! { value },
             root_names,
-            Feature::Agreement,
-            quote! { sequence_agreement },
+            Feature::ConcordClass,
+            quote! { sequence_concord_class },
         )?;
         if number {
             quote! { let _ = sequence_number; #render }
@@ -1333,7 +1333,7 @@ fn emit_sequence_renderer(
     let feature_parameters = sequence_features
         .iter()
         .filter_map(|feature| match feature {
-            Feature::Agreement => Some(quote! { , sequence_agreement: Agreement }),
+            Feature::ConcordClass => Some(quote! { , sequence_concord_class: ConcordClass }),
             Feature::Number => Some(quote! { , sequence_number: Number }),
             _ => None,
         });
@@ -1416,24 +1416,24 @@ fn render_structural_value_with_feature(
             }
         };
     }
-    if feature != Feature::Agreement {
+    if feature != Feature::ConcordClass {
         return Err(internal("unsupported generated sequence feature renderer"));
     }
     match value {
         ValueKindPlan::Category(category) => {
             let capability = plan.category_render_capability(category);
             let function = render_category_name(category, root_names.contains(category));
-            let agreement = capability
-                .requires_external_agreement()
+            let concord_class = capability
+                .requires_external_concord_class()
                 .then_some(feature_value);
             let context = capability.requires_context().then(|| quote! { context });
             let environment = plan
                 .needs_parser_environment()
                 .then(|| quote! { environment });
-            let tail = signature_tail(&[agreement, context, environment]);
+            let tail = signature_tail(&[concord_class, context, environment]);
             Ok(quote! { #function(writer, #expression #tail); })
         }
-        ValueKindPlan::Sum(sum) if plan.sum_carries_agreement(sum) => {
+        ValueKindPlan::Sum(sum) if plan.sum_carries_concord_class(sum) => {
             let function = ident(&crate::identifier::prefixed("render_", sum));
             let environment = plan
                 .needs_parser_environment()
@@ -1445,9 +1445,9 @@ fn render_structural_value_with_feature(
         ValueKindPlan::Product(_)
         | ValueKindPlan::Sum(_)
         | ValueKindPlan::Lex(_)
-        | ValueKindPlan::Identity(_) => {
-            Err(internal("sequence feature item does not carry agreement"))
-        }
+        | ValueKindPlan::Identity(_) => Err(internal(
+            "sequence feature item does not carry concord_class",
+        )),
     }
 }
 
@@ -1524,23 +1524,23 @@ fn render_structural_value(
     match value {
         ValueKindPlan::Category(category) => {
             let capability = plan.category_render_capability(category);
-            if capability.requires_external_agreement() {
+            if capability.requires_external_concord_class() {
                 return Err(internal(
-                    "structural category rendering cannot supply external agreement",
+                    "structural category rendering cannot supply external concord_class",
                 ));
             }
             let function = render_category_name(category, root_names.contains(category));
             let context = capability.requires_context().then(|| quote! { , context });
             Ok(quote! { #function(writer, #expression #context #environment); })
         }
-        ValueKindPlan::Sum(name) if plan.sum_carries_agreement(name) => {
-            if plan.sum_requires_external_agreement(name) {
+        ValueKindPlan::Sum(name) if plan.sum_carries_concord_class(name) => {
+            if plan.sum_requires_external_concord_class(name) {
                 return Err(internal(
-                    "structural sum rendering cannot supply external agreement",
+                    "structural sum rendering cannot supply external concord_class",
                 ));
             }
             let function = ident(&crate::identifier::prefixed("render_", name));
-            let helper = ident(&feature_helper("agreement", name));
+            let helper = ident(&feature_helper("concord_class", name));
             Ok(quote! {
                 #function(writer, #expression, #helper(#expression), context #environment);
             })
@@ -1793,7 +1793,7 @@ fn emit_vocab_feature_helper(helper: VocabFeatureHelper<'_>) -> GeneratedItem {
     let function = ident(&function_name);
     let ty = emitted_ident(helper.vocab.name(), helper.vocab.name_ident().span());
     let return_ty = match helper.feature {
-        Feature::Agreement => quote! { Agreement },
+        Feature::ConcordClass => quote! { ConcordClass },
         Feature::BareLocativeLicense => quote! { BareLocativeLicense },
         Feature::Cardinality => quote! { Cardinality },
         Feature::Compoundability => quote! { Compoundability },
@@ -1848,7 +1848,7 @@ fn signature_tail(parts: &[Option<TokenStream>]) -> TokenStream {
 fn render_base_allocator(
     validated: &SemanticPlan,
     root_impl: bool,
-    takes_agreement: bool,
+    takes_concord_class: bool,
     takes_context: bool,
 ) -> LocalAllocator {
     let mut allocator = LocalAllocator::default();
@@ -1856,8 +1856,8 @@ fn render_base_allocator(
     if root_impl {
         allocator.reserve("self");
     }
-    if takes_agreement {
-        allocator.reserve("agreement");
+    if takes_concord_class {
+        allocator.reserve("concord_class");
     }
     if takes_context {
         allocator.reserve("context");
@@ -1877,10 +1877,11 @@ fn render_allocator(
     members: &[&ConstructionPlan],
     root_impl: bool,
     root_names: &HashSet<String>,
-    takes_agreement: bool,
+    takes_concord_class: bool,
     takes_context: bool,
 ) -> syn::Result<LocalAllocator> {
-    let mut allocator = render_base_allocator(validated, root_impl, takes_agreement, takes_context);
+    let mut allocator =
+        render_base_allocator(validated, root_impl, takes_concord_class, takes_context);
     for construction in members {
         let fields = construction
             .fields()
@@ -1904,12 +1905,12 @@ fn render_allocator(
                     allocator.reserve(
                         render_category_name(category, root_names.contains(category)).to_string(),
                     );
-                    if validated.category_requires_external_agreement(category)
+                    if validated.category_requires_external_concord_class(category)
                         && let Some(equation) = validated
                             .feature_equations(construction.construction_id())
                             .iter()
                             .find(|equation| {
-                                matches!(equation.target(), FeaturePlace::Role { field, feature: Feature::Agreement } if identifier_key(field) == role.as_str())
+                                matches!(equation.target(), FeaturePlace::Role { field, feature: Feature::ConcordClass } if identifier_key(field) == role.as_str())
                             })
                     {
                         reserve_feature_callees(
@@ -1933,7 +1934,7 @@ fn render_allocator(
                             }
                             let target = FeaturePlace::Role {
                                 field: syn::Ident::new(role, construction.origin_span()),
-                                feature: Feature::Agreement,
+                                feature: Feature::ConcordClass,
                             };
                             if let Some(equation) = validated
                                 .feature_equations(construction.construction_id())
@@ -2007,7 +2008,7 @@ fn render_allocator(
                     allocator.reserve(lexeme_surface_helper(lexeme.name()));
                     let equations = validated.feature_equations(construction.construction_id());
                     if let Some(equation) = equations.iter().find(|equation| {
-                        matches!(equation.target(), FeaturePlace::Role { field, feature: Feature::Agreement } if identifier_key(field) == "verb")
+                        matches!(equation.target(), FeaturePlace::Role { field, feature: Feature::ConcordClass } if identifier_key(field) == "verb")
                     }) {
                         reserve_feature_callees(
                             validated,
@@ -2020,7 +2021,7 @@ fn render_allocator(
                 AtomPlan::OpenDeclaration(_) => {
                     let equations = validated.feature_equations(construction.construction_id());
                     if let Some(equation) = equations.iter().find(|equation| {
-                        matches!(equation.target(), FeaturePlace::Role { field, feature: Feature::Agreement } if identifier_key(field) == "verb")
+                        matches!(equation.target(), FeaturePlace::Role { field, feature: Feature::ConcordClass } if identifier_key(field) == "verb")
                     }) {
                         reserve_feature_callees(
                             validated,
@@ -2163,7 +2164,7 @@ fn reserve_feature_callees(
     }
     if matches!(
         *source_feature,
-        Feature::Agreement | Feature::Cardinality | Feature::DeterminerNumber | Feature::Number
+        Feature::ConcordClass | Feature::Cardinality | Feature::DeterminerNumber | Feature::Number
     ) && field.kind() == ConstructionFieldKind::Lex
         && let Some(codec) = resolved_unsigned_number(validated, field.terminal())?
         && codec.kind() == UnsignedNumberKind::EnglishCardinal
@@ -2790,8 +2791,8 @@ fn render_atom_statement(
             let helper = render_category_name(category, root_names.contains(category));
             let value = field_value(construction, role, locals)?;
             let capability = validated.category_render_capability(category);
-            let agreement = if capability.requires_external_agreement() {
-                role_agreement(validated, construction, role, locals)?
+            let concord_class = if capability.requires_external_concord_class() {
+                role_concord_class(validated, construction, role, locals)?
             } else {
                 None
             };
@@ -2799,7 +2800,7 @@ fn render_atom_statement(
             let environment = validated
                 .needs_parser_environment()
                 .then(|| quote! { environment });
-            let tail = signature_tail(&[agreement, context, environment]);
+            let tail = signature_tail(&[concord_class, context, environment]);
             Ok(quote! { #helper(#call_writer, #value #tail); })
         }
         AtomPlan::Lex { role, .. } => {
@@ -3038,17 +3039,17 @@ fn render_construction_structural_field(
     match field.kind() {
         StructuralFieldKindPlan::Required(kind) => {
             if let ValueKindPlan::Sum(sum) = kind
-                && plan.sum_carries_agreement(sum)
+                && plan.sum_carries_concord_class(sum)
             {
-                let agreement = match role_agreement(plan, construction, role, locals)? {
-                    Some(agreement) => agreement,
-                    None if !plan.sum_requires_external_agreement(sum) => {
-                        let helper = ident(&feature_helper("agreement", sum));
+                let concord_class = match role_concord_class(plan, construction, role, locals)? {
+                    Some(concord_class) => concord_class,
+                    None if !plan.sum_requires_external_concord_class(sum) => {
+                        let helper = ident(&feature_helper("concord_class", sum));
                         quote! { #helper(#value) }
                     }
                     None => {
                         return Err(internal(&format!(
-                            "construction `{}` role `{role}` stores agreement-bearing sum `{sum}` but lacks an agreement writer",
+                            "construction `{}` role `{role}` stores concord_class-bearing sum `{sum}` but lacks an concord_class writer",
                             construction.construction_id(),
                         )));
                     }
@@ -3058,8 +3059,8 @@ fn render_construction_structural_field(
                     kind,
                     &value,
                     root_names,
-                    Feature::Agreement,
-                    agreement,
+                    Feature::ConcordClass,
+                    concord_class,
                 )
             } else {
                 render_structural_value(plan, kind, value, root_names)
@@ -3098,7 +3099,7 @@ fn render_construction_structural_field(
                 .sequence_features(construction.element_type(), field.name())
                 .iter()
                 .copied()
-                .filter(|feature| matches!(feature, Feature::Agreement | Feature::Number))
+                .filter(|feature| matches!(feature, Feature::ConcordClass | Feature::Number))
                 .map(|feature| {
                     sequence_role_feature_value(plan, construction, role, locals, item, feature)
                         .map(|value| quote! { , #value })
@@ -3117,9 +3118,9 @@ fn sequence_role_feature_value(
     item: &ValueKindPlan,
     feature: Feature,
 ) -> syn::Result<TokenStream> {
-    if !matches!(feature, Feature::Agreement | Feature::Number) {
+    if !matches!(feature, Feature::ConcordClass | Feature::Number) {
         return Err(internal(
-            "sequence renderer feature must be homogeneous agreement or number",
+            "sequence renderer feature must be homogeneous concord_class or number",
         ));
     }
     let target = FeaturePlace::Role {
@@ -3133,9 +3134,9 @@ fn sequence_role_feature_value(
     {
         return feature_expr(plan, construction, writer.value(), feature, locals);
     }
-    if feature == Feature::Agreement
+    if feature == Feature::ConcordClass
         && !locals.category.is_empty()
-        && plan.category_requires_external_agreement(construction.category())
+        && plan.category_requires_external_concord_class(construction.category())
         && plan
             .feature_equations(construction.construction_id())
             .iter()
@@ -3143,20 +3144,20 @@ fn sequence_role_feature_value(
                 matches!(
                     (equation.target(), equation.value()),
                     (
-                        FeaturePlace::Construction(Feature::Agreement),
+                        FeaturePlace::Construction(Feature::ConcordClass),
                         FeatureExpr::FromRole {
                             role: source,
-                            feature: Feature::Agreement,
+                            feature: Feature::ConcordClass,
                         },
                     ) if identifier_key(source) == role
                 )
             })
     {
-        return Ok(quote! { agreement });
+        return Ok(quote! { concord_class });
     }
     let helper_owner = match item {
         ValueKindPlan::Category(category) => category,
-        ValueKindPlan::Sum(sum) if plan.sum_carries_agreement(sum) => sum,
+        ValueKindPlan::Sum(sum) if plan.sum_carries_concord_class(sum) => sum,
         ValueKindPlan::Sum(_)
         | ValueKindPlan::Product(_)
         | ValueKindPlan::Lex(_)
@@ -3202,10 +3203,10 @@ fn render_fixed_verb_atom(
     variant: &syn::Path,
 ) -> syn::Result<TokenStream> {
     let method_writer = quote! { writer };
-    let agreement = verb_agreement(validated, construction, locals)?;
+    let concord_class = verb_concord_class(validated, construction, locals)?;
     let lexeme = resolved_lexeme(validated, terminal)?;
     let surface = ident(&lexeme_surface_helper(lexeme.name()));
-    Ok(quote! { #method_writer.word(#surface(#variant, #agreement)); })
+    Ok(quote! { #method_writer.word(#surface(#variant, #concord_class)); })
 }
 
 #[expect(
@@ -3389,7 +3390,7 @@ fn render_owner(
         AtomPlan::VerbFixed {
             terminal, variant, ..
         } => {
-            let agreement = verb_agreement(validated, construction, locals)?;
+            let concord_class = verb_concord_class(validated, construction, locals)?;
             let lexeme = resolved_lexeme(validated, terminal)?;
             let arms = lexeme
                 .surfaces()
@@ -3397,16 +3398,16 @@ fn render_owner(
                 .filter(|row| row.member() == variant)
                 .map(|row| {
                     let feature = match row.feature() {
-                        crate::macro_def::SurfaceFeature::Bare => quote! { Agreement::Bare },
-                        crate::macro_def::SurfaceFeature::ThirdPersonSingular => {
-                            quote! { Agreement::ThirdPersonSingular }
+                        crate::macro_def::SurfaceFeature::PLAIN => quote! { ConcordClass::Other },
+                        crate::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT => {
+                            quote! { ConcordClass::ThirdPersonSingular }
                         }
-                        crate::macro_def::SurfaceFeature::Singular
+                        crate::macro_def::SurfaceFeature::Inflectional(_)
+                        | crate::macro_def::SurfaceFeature::Singular
                         | crate::macro_def::SurfaceFeature::Plural
-                        | crate::macro_def::SurfaceFeature::Participle
                         | crate::macro_def::SurfaceFeature::Fixed
                         | crate::macro_def::SurfaceFeature::BlockLabel => {
-                            unreachable!("validated verb lexeme has the Agreement feature axis")
+                            unreachable!("validated verb lexeme has the ConcordClass feature axis")
                         }
                     };
                     let stable_id =
@@ -3418,15 +3419,15 @@ fn render_owner(
                         )
                     }
                 });
-            Ok(quote! { match #agreement { #(#arms,)* } })
+            Ok(quote! { match #concord_class { #(#arms,)* } })
         }
         AtomPlan::OpenDeclaration(open) => {
-            let agreement = verb_agreement(validated, construction, locals)?;
+            let concord_class = verb_concord_class(validated, construction, locals)?;
             let feature = quote! {
-                match #agreement {
-                    Agreement::Bare => ::deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
-                    Agreement::ThirdPersonSingular => {
-                        ::deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular
+                match #concord_class {
+                    ConcordClass::Other => ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
+                    ConcordClass::ThirdPersonSingular => {
+                        ::deckmaste_construction_core::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT
                     }
                 }
             };
@@ -3451,9 +3452,7 @@ fn render_owner(
                                 quote! { Number::Singular }
                             }
                             crate::macro_def::SurfaceFeature::Plural => quote! { Number::Plural },
-                            crate::macro_def::SurfaceFeature::Bare
-                            | crate::macro_def::SurfaceFeature::ThirdPersonSingular
-                            | crate::macro_def::SurfaceFeature::Participle
+                            crate::macro_def::SurfaceFeature::Inflectional(_)
                             | crate::macro_def::SurfaceFeature::Fixed
                             | crate::macro_def::SurfaceFeature::BlockLabel => {
                                 unreachable!("validated noun lexeme has the Number feature axis")
@@ -3486,9 +3485,7 @@ fn render_owner(
                             let feature = match row.feature() {
                                 crate::macro_def::SurfaceFeature::Singular => quote! { Number::Singular },
                                 crate::macro_def::SurfaceFeature::Plural => quote! { Number::Plural },
-                                crate::macro_def::SurfaceFeature::Bare
-                                | crate::macro_def::SurfaceFeature::ThirdPersonSingular
-                                | crate::macro_def::SurfaceFeature::Participle
+                                crate::macro_def::SurfaceFeature::Inflectional(_)
                                 | crate::macro_def::SurfaceFeature::Fixed
                                 | crate::macro_def::SurfaceFeature::BlockLabel => {
                                     unreachable!("validated noun lexeme has the Number feature axis")
@@ -3632,17 +3629,18 @@ fn render_declaration_verb_atom(
     method_writer: &TokenStream,
 ) -> syn::Result<TokenStream> {
     let (axis_value, feature) = match codec.feature_axis() {
-        Feature::Agreement => {
-            let agreement = projected_verb_agreement(validated, construction, role, locals)?;
-            let feature = quote! { match #agreement {
-                Agreement::Bare => ::deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
-                Agreement::ThirdPersonSingular => ::deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular,
+        Feature::ConcordClass => {
+            let concord_class =
+                projected_verb_concord_class(validated, construction, role, locals)?;
+            let feature = quote! { match #concord_class {
+                ConcordClass::Other => ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
+                ConcordClass::ThirdPersonSingular => ::deckmaste_construction_core::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
             }};
-            (agreement, feature)
+            (concord_class, feature)
         }
         Feature::Participle => (
             quote! { Participle::Participle },
-            quote! { ::deckmaste_construction_core::macro_def::SurfaceFeature::Participle },
+            quote! { ::deckmaste_construction_core::macro_def::SurfaceFeature::PAST_PARTICIPLE },
         ),
         _ => unreachable!("validated declaration verb feature axis is closed"),
     };
@@ -3688,17 +3686,18 @@ fn declaration_verb_owner(
     locals: &RenderLocals,
 ) -> syn::Result<TokenStream> {
     let (axis_value, feature) = match codec.feature_axis() {
-        Feature::Agreement => {
-            let agreement = projected_verb_agreement(validated, construction, role, locals)?;
-            let feature = quote! { match #agreement {
-                Agreement::Bare => ::deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
-                Agreement::ThirdPersonSingular => ::deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular,
+        Feature::ConcordClass => {
+            let concord_class =
+                projected_verb_concord_class(validated, construction, role, locals)?;
+            let feature = quote! { match #concord_class {
+                ConcordClass::Other => ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
+                ConcordClass::ThirdPersonSingular => ::deckmaste_construction_core::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
             }};
-            (agreement, feature)
+            (concord_class, feature)
         }
         Feature::Participle => (
             quote! { Participle::Participle },
-            quote! { ::deckmaste_construction_core::macro_def::SurfaceFeature::Participle },
+            quote! { ::deckmaste_construction_core::macro_def::SurfaceFeature::PAST_PARTICIPLE },
         ),
         _ => unreachable!("validated declaration verb feature axis is closed"),
     };
@@ -3708,17 +3707,22 @@ fn declaration_verb_owner(
         let arms = lexeme.surfaces().iter().map(|row| {
             let member = emitted_ident(row.member(), Span::call_site());
             let axis = match codec.feature_axis() {
-                Feature::Agreement => match row.feature() {
-                    crate::macro_def::SurfaceFeature::Bare => {
-                        quote! { Agreement::Bare }
+                Feature::ConcordClass => match row.feature() {
+                    crate::macro_def::SurfaceFeature::PLAIN => {
+                        quote! { ConcordClass::Other }
                     }
-                    crate::macro_def::SurfaceFeature::ThirdPersonSingular => {
-                        quote! { Agreement::ThirdPersonSingular }
+                    crate::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT => {
+                        quote! { ConcordClass::ThirdPersonSingular }
                     }
-                    _ => unreachable!("validated Agreement declaration verb has Agreement rows"),
+                    _ => unreachable!(
+                        "validated ConcordClass declaration verb has ConcordClass rows"
+                    ),
                 },
                 Feature::Participle => {
-                    debug_assert_eq!(row.feature(), crate::macro_def::SurfaceFeature::Participle);
+                    debug_assert_eq!(
+                        row.feature(),
+                        crate::macro_def::SurfaceFeature::PAST_PARTICIPLE
+                    );
                     quote! { Participle::Participle }
                 }
                 _ => unreachable!("validated declaration verb feature axis is closed"),
@@ -3799,12 +3803,12 @@ fn render_open_declaration(
     locals: &RenderLocals,
     method_writer: &TokenStream,
 ) -> syn::Result<TokenStream> {
-    let agreement = verb_agreement(validated, construction, locals)?;
+    let concord_class = verb_concord_class(validated, construction, locals)?;
     let feature = quote! {
-        match #agreement {
-            Agreement::Bare => ::deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
-            Agreement::ThirdPersonSingular => {
-                ::deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular
+        match #concord_class {
+            ConcordClass::Other => ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
+            ConcordClass::ThirdPersonSingular => {
+                ::deckmaste_construction_core::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT
             }
         }
     };
@@ -3822,7 +3826,7 @@ fn render_open_declaration(
     })
 }
 
-fn role_agreement(
+fn role_concord_class(
     validated: &SemanticPlan,
     construction: &ConstructionPlan,
     role: &str,
@@ -3830,36 +3834,36 @@ fn role_agreement(
 ) -> syn::Result<Option<TokenStream>> {
     let equations = validated.feature_equations(construction.construction_id());
     let equation = equations.iter().find(|equation| {
-        matches!(equation.target(), FeaturePlace::Role { field, feature: Feature::Agreement } if identifier_key(field) == role)
+        matches!(equation.target(), FeaturePlace::Role { field, feature: Feature::ConcordClass } if identifier_key(field) == role)
     });
     if let Some(equation) = equation {
         return feature_expr(
             validated,
             construction,
             equation.value(),
-            Feature::Agreement,
+            Feature::ConcordClass,
             locals,
         )
         .map(Some);
     }
     Ok((!locals.category.is_empty()
-        && validated.category_requires_external_agreement(construction.category())
+        && validated.category_requires_external_concord_class(construction.category())
         && equations.iter().any(|equation| {
             matches!(
                 (equation.target(), equation.value()),
                 (
-                    FeaturePlace::Construction(Feature::Agreement),
+                    FeaturePlace::Construction(Feature::ConcordClass),
                     FeatureExpr::FromRole {
                         role: source,
-                        feature: Feature::Agreement,
+                        feature: Feature::ConcordClass,
                     },
                 ) if identifier_key(source) == role
             )
         }))
-    .then(|| quote! { agreement }))
+    .then(|| quote! { concord_class }))
 }
 
-fn projected_verb_agreement(
+fn projected_verb_concord_class(
     validated: &SemanticPlan,
     construction: &ConstructionPlan,
     role: &str,
@@ -3871,7 +3875,7 @@ fn projected_verb_agreement(
             equation.target(),
             FeaturePlace::Role {
                 field,
-                feature: Feature::Agreement,
+                feature: Feature::ConcordClass,
             } if identifier_key(field) == role
         )
     }) {
@@ -3879,53 +3883,53 @@ fn projected_verb_agreement(
             validated,
             construction,
             equation.value(),
-            Feature::Agreement,
+            Feature::ConcordClass,
             locals,
         );
     }
     if equations.iter().any(|equation| {
         matches!(
             equation.target(),
-            FeaturePlace::Construction(Feature::Agreement)
+            FeaturePlace::Construction(Feature::ConcordClass)
         ) && matches!(
             equation.value(),
             FeatureExpr::FromRole {
                 role: source,
-                feature: Feature::Agreement,
+                feature: Feature::ConcordClass,
             } if identifier_key(source) == role
         )
     }) {
-        return Ok(quote! { agreement });
+        return Ok(quote! { concord_class });
     }
     Err(internal(
-        "projected declaration verb atom lacks validated Agreement flow",
+        "projected declaration verb atom lacks validated ConcordClass flow",
     ))
 }
 
-fn verb_agreement(
+fn verb_concord_class(
     validated: &SemanticPlan,
     construction: &ConstructionPlan,
     locals: &RenderLocals,
 ) -> syn::Result<TokenStream> {
     let equations = validated.feature_equations(construction.construction_id());
     if let Some(equation) = equations.iter().find(|equation| {
-        matches!(equation.target(), FeaturePlace::Role { field, feature: Feature::Agreement } if identifier_key(field) == "verb")
+        matches!(equation.target(), FeaturePlace::Role { field, feature: Feature::ConcordClass } if identifier_key(field) == "verb")
     }) {
         return feature_expr(
             validated,
             construction,
             equation.value(),
-            Feature::Agreement,
+            Feature::ConcordClass,
             locals,
         );
     }
     if equations.iter().any(|equation| {
-        matches!(equation.target(), FeaturePlace::Construction(Feature::Agreement))
-            && matches!(equation.value(), FeatureExpr::FromRole { role, feature: Feature::Agreement } if identifier_key(role) == "verb")
+        matches!(equation.target(), FeaturePlace::Construction(Feature::ConcordClass))
+            && matches!(equation.value(), FeatureExpr::FromRole { role, feature: Feature::ConcordClass } if identifier_key(role) == "verb")
     }) {
-        return Ok(quote! { agreement });
+        return Ok(quote! { concord_class });
     }
-    Err(internal("verb atom lacks validated agreement flow"))
+    Err(internal("verb atom lacks validated concord_class flow"))
 }
 
 #[allow(
@@ -3970,7 +3974,7 @@ fn feature_expr(
                     );
                 }
                 return match source_feature {
-                    Feature::Agreement => Ok(quote! { agreement }),
+                    Feature::ConcordClass => Ok(quote! { concord_class }),
                     Feature::Cardinality => Err(internal("verb slot does not provide cardinality")),
                     Feature::DeterminerNumber => {
                         Err(internal("verb slot does not provide determiner number"))
@@ -4046,8 +4050,8 @@ fn feature_expr(
             {
                 let helper_owner = match (source_feature, item) {
                     (_, ValueKindPlan::Category(category)) => category,
-                    (Feature::Agreement, ValueKindPlan::Sum(sum))
-                        if validated.sum_carries_agreement(sum) =>
+                    (Feature::ConcordClass, ValueKindPlan::Sum(sum))
+                        if validated.sum_carries_concord_class(sum) =>
                     {
                         sum
                     }
@@ -4093,7 +4097,7 @@ fn feature_expr(
             }
             if matches!(
                 *source_feature,
-                Feature::Agreement
+                Feature::ConcordClass
                     | Feature::Cardinality
                     | Feature::DeterminerNumber
                     | Feature::Number
@@ -4236,7 +4240,7 @@ fn implicit_verb_onset(
             )
         })
         .ok_or_else(|| internal("validated verb onset source has no verb atom"))?;
-    let agreement = verb_agreement(validated, construction, locals)?;
+    let concord_class = verb_concord_class(validated, construction, locals)?;
     match atom {
         AtomPlan::VerbFixed {
             terminal, variant, ..
@@ -4250,23 +4254,23 @@ fn implicit_verb_onset(
                 .iter()
                 .filter(|row| row.member() == variant)
                 .map(|row| {
-                    let agreement = match row.feature() {
-                        crate::macro_def::SurfaceFeature::Bare => quote! { Agreement::Bare },
-                        crate::macro_def::SurfaceFeature::ThirdPersonSingular => {
-                            quote! { Agreement::ThirdPersonSingular }
+                    let concord_class = match row.feature() {
+                        crate::macro_def::SurfaceFeature::PLAIN => quote! { ConcordClass::Other },
+                        crate::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT => {
+                            quote! { ConcordClass::ThirdPersonSingular }
                         }
-                        crate::macro_def::SurfaceFeature::Singular
+                        crate::macro_def::SurfaceFeature::Inflectional(_)
+                        | crate::macro_def::SurfaceFeature::Singular
                         | crate::macro_def::SurfaceFeature::Plural
-                        | crate::macro_def::SurfaceFeature::Participle
                         | crate::macro_def::SurfaceFeature::Fixed
                         | crate::macro_def::SurfaceFeature::BlockLabel => {
-                            unreachable!("validated verb lexeme has the Agreement feature axis")
+                            unreachable!("validated verb lexeme has the ConcordClass feature axis")
                         }
                     };
                     let onset = super::onset(row.onset());
-                    quote! { #agreement => #onset }
+                    quote! { #concord_class => #onset }
                 });
-            Ok(quote! { match #agreement { #(#arms,)* } })
+            Ok(quote! { match #concord_class { #(#arms,)* } })
         }
         AtomPlan::OpenDeclaration(open) => {
             let kind = crate::emit::declaration_kind(open.kind());
@@ -4275,10 +4279,10 @@ fn implicit_verb_onset(
                 environment
                     .onset(
                         &::deckmaste_construction_core::macro_def::DeclarationIdentity::new(#kind, #name),
-                        match #agreement {
-                            Agreement::Bare => ::deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
-                            Agreement::ThirdPersonSingular => {
-                                ::deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular
+                        match #concord_class {
+                            ConcordClass::Other => ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
+                            ConcordClass::ThirdPersonSingular => {
+                                ::deckmaste_construction_core::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT
                             }
                         },
                     )
@@ -4535,9 +4539,7 @@ fn lexical_onset_expr(
                     crate::macro_def::SurfaceFeature::Plural => {
                         quote! { Number::Plural }
                     }
-                    crate::macro_def::SurfaceFeature::Bare
-                    | crate::macro_def::SurfaceFeature::ThirdPersonSingular
-                    | crate::macro_def::SurfaceFeature::Participle
+                    crate::macro_def::SurfaceFeature::Inflectional(_)
                     | crate::macro_def::SurfaceFeature::Fixed
                     | crate::macro_def::SurfaceFeature::BlockLabel => {
                         unreachable!("validated noun lexeme has the Number feature axis")
@@ -4625,9 +4627,7 @@ fn declaration_noun_onset_expr(
                     crate::macro_def::SurfaceFeature::Plural => {
                         quote! { Number::Plural }
                     }
-                    crate::macro_def::SurfaceFeature::Bare
-                    | crate::macro_def::SurfaceFeature::ThirdPersonSingular
-                    | crate::macro_def::SurfaceFeature::Participle
+                    crate::macro_def::SurfaceFeature::Inflectional(_)
                     | crate::macro_def::SurfaceFeature::Fixed
                     | crate::macro_def::SurfaceFeature::BlockLabel => {
                         unreachable!("validated noun lexeme has the Number feature axis")
@@ -4668,32 +4668,35 @@ fn declaration_verb_onset_expr(
     if let Some(closed) = codec.closed_lexeme() {
         let lexeme = resolved_lexeme(validated, &closed.to_string())?;
         return match codec.feature_axis() {
-            Feature::Agreement => {
-                let agreement = projected_verb_agreement(validated, construction, role, locals)?;
+            Feature::ConcordClass => {
+                let concord_class =
+                    projected_verb_concord_class(validated, construction, role, locals)?;
                 let closed_arms = lexeme.surfaces().iter().map(|row| {
                     let member = ident(row.member());
-                    let agreement = match row.feature() {
-                        crate::macro_def::SurfaceFeature::Bare => quote! { Agreement::Bare },
-                        crate::macro_def::SurfaceFeature::ThirdPersonSingular => {
-                            quote! { Agreement::ThirdPersonSingular }
+                    let concord_class = match row.feature() {
+                        crate::macro_def::SurfaceFeature::PLAIN => quote! { ConcordClass::Other },
+                        crate::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT => {
+                            quote! { ConcordClass::ThirdPersonSingular }
                         }
                         _ => {
-                            unreachable!("validated Agreement declaration verb has Agreement rows")
+                            unreachable!(
+                                "validated ConcordClass declaration verb has ConcordClass rows"
+                            )
                         }
                     };
                     let onset = super::onset(row.onset());
-                    quote! { (#verb::Lexeme(#closed::#member), #agreement) => #onset }
+                    quote! { (#verb::Lexeme(#closed::#member), #concord_class) => #onset }
                 });
                 Ok(quote! {
-                    match (#role_value, #agreement) {
+                    match (#role_value, #concord_class) {
                         #(#closed_arms,)*
-                        (#verb::Declaration(declaration), agreement) => environment
+                        (#verb::Declaration(declaration), concord_class) => environment
                             .verb_inventory_onset(
                                 declaration.reference(),
-                                match agreement {
-                                    Agreement::Bare => ::deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
-                                    Agreement::ThirdPersonSingular => {
-                                        ::deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular
+                                match concord_class {
+                                    ConcordClass::Other => ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
+                                    ConcordClass::ThirdPersonSingular => {
+                                        ::deckmaste_construction_core::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT
                                     }
                                 },
                             )
@@ -4713,7 +4716,7 @@ fn declaration_verb_onset_expr(
                         #verb::Declaration(declaration) => environment
                             .verb_inventory_onset(
                                 declaration.reference(),
-                                ::deckmaste_construction_core::macro_def::SurfaceFeature::Participle,
+                                ::deckmaste_construction_core::macro_def::SurfaceFeature::PAST_PARTICIPLE,
                             )
                             .expect("stored declaration verb remains in its normalized parser environment"),
                     }
@@ -4723,19 +4726,20 @@ fn declaration_verb_onset_expr(
         };
     }
     let feature = match codec.feature_axis() {
-        Feature::Agreement => {
-            let agreement = projected_verb_agreement(validated, construction, role, locals)?;
+        Feature::ConcordClass => {
+            let concord_class =
+                projected_verb_concord_class(validated, construction, role, locals)?;
             quote! {
-                match #agreement {
-                    Agreement::Bare => ::deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
-                    Agreement::ThirdPersonSingular => {
-                        ::deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular
+                match #concord_class {
+                    ConcordClass::Other => ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
+                    ConcordClass::ThirdPersonSingular => {
+                        ::deckmaste_construction_core::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT
                     }
                 }
             }
         }
         Feature::Participle => {
-            quote! { ::deckmaste_construction_core::macro_def::SurfaceFeature::Participle }
+            quote! { ::deckmaste_construction_core::macro_def::SurfaceFeature::PAST_PARTICIPLE }
         }
         _ => unreachable!("validated declaration verb feature axis is closed"),
     };
@@ -4793,9 +4797,7 @@ fn lexical_possessive_ending_expr(
                     crate::macro_def::SurfaceFeature::Plural => {
                         quote! { Number::Plural }
                     }
-                    crate::macro_def::SurfaceFeature::Bare
-                    | crate::macro_def::SurfaceFeature::ThirdPersonSingular
-                    | crate::macro_def::SurfaceFeature::Participle
+                    crate::macro_def::SurfaceFeature::Inflectional(_)
                     | crate::macro_def::SurfaceFeature::Fixed
                     | crate::macro_def::SurfaceFeature::BlockLabel => {
                         unreachable!("validated noun lexeme has the Number feature axis")
@@ -4822,9 +4824,7 @@ fn lexical_possessive_ending_expr(
                                 quote! { Number::Singular }
                             }
                             crate::macro_def::SurfaceFeature::Plural => quote! { Number::Plural },
-                            crate::macro_def::SurfaceFeature::Bare
-                            | crate::macro_def::SurfaceFeature::ThirdPersonSingular
-                            | crate::macro_def::SurfaceFeature::Participle
+                            crate::macro_def::SurfaceFeature::Inflectional(_)
                             | crate::macro_def::SurfaceFeature::Fixed
                             | crate::macro_def::SurfaceFeature::BlockLabel => {
                                 unreachable!("validated noun lexeme has the Number feature axis")
@@ -4963,7 +4963,7 @@ fn emit_feature_helper(
     }
     let argument = allocator.allocate(&category_argument(category));
     let return_ty = match feature {
-        Feature::Agreement => quote! { Agreement },
+        Feature::ConcordClass => quote! { ConcordClass },
         Feature::BareLocativeLicense => quote! { BareLocativeLicense },
         Feature::Cardinality => quote! { Cardinality },
         Feature::Compoundability => quote! { Compoundability },
@@ -5084,11 +5084,11 @@ fn emit_feature_helper(
     ))
 }
 
-fn emit_sum_agreement_helper(
+fn emit_sum_concord_class_helper(
     validated: &SemanticPlan,
     sum: &crate::semantic::SumPlan,
 ) -> syn::Result<GeneratedItem> {
-    let function_name = feature_helper("agreement", sum.name());
+    let function_name = feature_helper("concord_class", sum.name());
     let function = ident(&function_name);
     let ty = ident(sum.name());
     let arms = sum
@@ -5098,13 +5098,13 @@ fn emit_sum_agreement_helper(
             let variant = ident(alternative.name());
             let helper_name = match alternative.value() {
                 ValueKindPlan::Category(category)
-                    if validated.category_carries_agreement(category) =>
+                    if validated.category_carries_concord_class(category) =>
                 {
                     category
                 }
                 ValueKindPlan::Sum(nested)
-                    if validated.sum_carries_agreement(nested)
-                        && !validated.sum_requires_external_agreement(nested) =>
+                    if validated.sum_carries_concord_class(nested)
+                        && !validated.sum_requires_external_concord_class(nested) =>
                 {
                     nested
                 }
@@ -5114,11 +5114,11 @@ fn emit_sum_agreement_helper(
                 | ValueKindPlan::Lex(_)
                 | ValueKindPlan::Identity(_) => {
                     return Err(internal(
-                        "agreement-bearing sum alternative lacks a generated agreement helper",
+                        "concord_class-bearing sum alternative lacks a generated concord_class helper",
                     ));
                 }
             };
-            let helper = ident(&feature_helper("agreement", helper_name));
+            let helper = ident(&feature_helper("concord_class", helper_name));
             Ok(quote! { #ty::#variant(value) => #helper(value) })
         })
         .collect::<syn::Result<Vec<_>>>()?;
@@ -5128,7 +5128,7 @@ fn emit_sum_agreement_helper(
             name: function_name,
         },
         quote! {
-            fn #function(value: &#ty) -> Agreement {
+            fn #function(value: &#ty) -> ConcordClass {
                 match value { #(#arms),* }
             }
         },
@@ -5184,31 +5184,33 @@ fn emit_sum_feature_helper(
     ))
 }
 
-fn emit_category_agreement_match_helper(
+fn emit_category_concord_class_match_helper(
     validated: &SemanticPlan,
     category: &str,
     members: &[&ConstructionPlan],
 ) -> syn::Result<GeneratedItem> {
-    let function_name = feature_helper("agreement_matches", category);
+    let function_name = feature_helper("concord_class_matches", category);
     let function = ident(&function_name);
     let ty = ident(category);
     let arms = members
         .iter()
         .map(|construction| {
             let variant = ident(construction.category_variant());
-            match validated.construction_agreement_authority(construction) {
-                AgreementAuthorityPlan::Contextual => Ok(quote! { #ty::#variant(_) => true }),
-                AgreementAuthorityPlan::Exact => {
+            match validated.construction_concord_class_authority(construction) {
+                ConcordClassAuthorityPlan::Contextual => Ok(quote! { #ty::#variant(_) => true }),
+                ConcordClassAuthorityPlan::Exact => {
                     let equation = validated
                         .feature_equations(construction.construction_id())
                         .iter()
                         .find(|equation| {
                             matches!(
                                 equation.target(),
-                                FeaturePlace::Construction(Feature::Agreement)
+                                FeaturePlace::Construction(Feature::ConcordClass)
                             )
                         })
-                        .ok_or_else(|| internal("exact Agreement authority lacks its equation"))?;
+                        .ok_or_else(|| {
+                            internal("exact ConcordClass authority lacks its equation")
+                        })?;
                     let mut allocator = LocalAllocator::default();
                     let mut roles = feature_roles(validated, construction, equation.value())?;
                     extend_bound_prefix_guard_roles(
@@ -5231,30 +5233,30 @@ fn emit_category_agreement_match_helper(
                         validated,
                         construction,
                         equation.value(),
-                        Feature::Agreement,
+                        Feature::ConcordClass,
                         &locals,
                     )?;
-                    Ok(quote! { #pattern => (#expected) == agreement })
+                    Ok(quote! { #pattern => (#expected) == concord_class })
                 }
-                AgreementAuthorityPlan::SequenceConstraint { role, target } => {
+                ConcordClassAuthorityPlan::SequenceConstraint { role, target } => {
                     let value = ident("value");
                     let field = construction.field(&role)?;
                     let field_name = field.name();
-                    let helper = ident(&feature_helper("agreement_matches", &target));
+                    let helper = ident(&feature_helper("concord_class_matches", &target));
                     Ok(quote! {
                         #ty::#variant(#value) => #value
                             .#field_name
                             .iter()
-                            .all(|member| #helper(member, agreement))
+                            .all(|member| #helper(member, concord_class))
                     })
                 }
-                AgreementAuthorityPlan::ValueConstraint { role, target } => {
+                ConcordClassAuthorityPlan::ValueConstraint { role, target } => {
                     let value = ident("value");
                     let field = construction.field(&role)?;
                     let field_name = field.name();
-                    let helper = ident(&feature_helper("agreement_matches", &target));
+                    let helper = ident(&feature_helper("concord_class_matches", &target));
                     Ok(quote! {
-                        #ty::#variant(#value) => #helper(&#value.#field_name, agreement)
+                        #ty::#variant(#value) => #helper(&#value.#field_name, concord_class)
                     })
                 }
             }
@@ -5266,7 +5268,7 @@ fn emit_category_agreement_match_helper(
             name: function_name,
         },
         quote! {
-            fn #function(value: &#ty, agreement: Agreement) -> bool {
+            fn #function(value: &#ty, concord_class: ConcordClass) -> bool {
                 match value { #(#arms),* }
             }
         },
@@ -5282,11 +5284,11 @@ fn emit_category_agreement_match_helper(
     ))
 }
 
-fn emit_sum_agreement_match_helper(
+fn emit_sum_concord_class_match_helper(
     validated: &SemanticPlan,
     sum: &crate::semantic::SumPlan,
 ) -> syn::Result<GeneratedItem> {
-    let function_name = feature_helper("agreement_matches", sum.name());
+    let function_name = feature_helper("concord_class_matches", sum.name());
     let function = ident(&function_name);
     let ty = ident(sum.name());
     let arms = sum
@@ -5296,14 +5298,14 @@ fn emit_sum_agreement_match_helper(
             let variant = ident(alternative.name());
             let predicate = match alternative.value() {
                 ValueKindPlan::Category(category)
-                    if validated.category_carries_agreement(category) =>
+                    if validated.category_carries_concord_class(category) =>
                 {
-                    let helper = ident(&feature_helper("agreement_matches", category));
-                    quote! { #helper(value, agreement) }
+                    let helper = ident(&feature_helper("concord_class_matches", category));
+                    quote! { #helper(value, concord_class) }
                 }
-                ValueKindPlan::Sum(nested) if validated.sum_carries_agreement(nested) => {
-                    let helper = ident(&feature_helper("agreement_matches", nested));
-                    quote! { #helper(value, agreement) }
+                ValueKindPlan::Sum(nested) if validated.sum_carries_concord_class(nested) => {
+                    let helper = ident(&feature_helper("concord_class_matches", nested));
+                    quote! { #helper(value, concord_class) }
                 }
                 ValueKindPlan::Category(_)
                 | ValueKindPlan::Sum(_)
@@ -5311,7 +5313,7 @@ fn emit_sum_agreement_match_helper(
                 | ValueKindPlan::Lex(_)
                 | ValueKindPlan::Identity(_) => {
                     return Err(internal(
-                        "agreement-bearing sum alternative lacks agreement authority",
+                        "concord_class-bearing sum alternative lacks concord_class authority",
                     ));
                 }
             };
@@ -5324,7 +5326,7 @@ fn emit_sum_agreement_match_helper(
             name: function_name,
         },
         quote! {
-            fn #function(value: &#ty, agreement: Agreement) -> bool {
+            fn #function(value: &#ty, concord_class: ConcordClass) -> bool {
                 match value { #(#arms),* }
             }
         },
@@ -5543,8 +5545,8 @@ fn feature_constant_pattern(
 
 fn feature_value(value: FeatureValue) -> TokenStream {
     match value {
-        FeatureValue::Bare => quote! { Agreement::Bare },
-        FeatureValue::ThirdPersonSingular => quote! { Agreement::ThirdPersonSingular },
+        FeatureValue::ConcordOther => quote! { ConcordClass::Other },
+        FeatureValue::ThirdPersonSingular => quote! { ConcordClass::ThirdPersonSingular },
         FeatureValue::QualifiedOnly => quote! { BareLocativeLicense::QualifiedOnly },
         FeatureValue::BareAllowed => quote! { BareLocativeLicense::BareAllowed },
         FeatureValue::Singular => quote! { Number::Singular },
@@ -5852,7 +5854,7 @@ fn render_vocab_argument(name: &str) -> String {
 
 fn feature_name(feature: Feature) -> &'static str {
     match feature {
-        Feature::Agreement => "agreement",
+        Feature::ConcordClass => "concord_class",
         Feature::BareLocativeLicense => "bare_locative_license",
         Feature::Cardinality => "cardinality",
         Feature::Compoundability => "compoundability",
@@ -6305,16 +6307,16 @@ mod tests {
     }
 
     #[test]
-    fn abstract_products_derive_intrinsic_sum_agreement_for_every_field_shape() {
+    fn abstract_products_derive_intrinsic_sum_concord_class_for_every_field_shape() {
         let expansion = crate::generate(quote::quote! {
             construction bare: Child {
                 element BareChild {}
-                derive agreement = Values::Bare;
+                derive concord_class = Values::Other;
                 form bare = "bare";
             }
             construction third: Child {
                 element ThirdChild {}
-                derive agreement = Values::ThirdPersonSingular;
+                derive concord_class = Values::ThirdPersonSingular;
                 form third = "third";
             }
             abstract sum Choice { Child, }
@@ -6325,7 +6327,7 @@ mod tests {
             }
             root Child { punctuation = "."; eoi = true; standalone_render = true; }
         })
-        .expect("intrinsic Agreement sums are self-sufficient product fields");
+        .expect("intrinsic ConcordClass sums are self-sufficient product fields");
         let source = expansion
             .items()
             .iter()
@@ -6341,7 +6343,7 @@ mod tests {
             .join("\n");
 
         assert_eq!(
-            source.matches("agreement_for_choice").count(),
+            source.matches("concord_class_for_choice").count(),
             3,
             "{source}"
         );
@@ -6630,10 +6632,10 @@ mod tests {
                     crate::ItemKey::Named {
                         kind: crate::NamedKind::Function,
                         name,
-                    } if name == "agreement_for_node"
+                    } if name == "concord_class_for_node"
                 )
             })
-            .expect("Node agreement helper")
+            .expect("Node concord_class helper")
             .tokens
             .to_string();
         let number_feature = items
@@ -6675,7 +6677,8 @@ mod tests {
             );
         }
         assert!(
-            feature.contains("Node :: Writer (writer) => agreement_for_mode (writer . mode ())"),
+            feature
+                .contains("Node :: Writer (writer) => concord_class_for_mode (writer . mode ())"),
             "feature helper must use the Copy mode accessor: {feature}",
         );
         assert!(!feature.contains("WalkMode {"), "{feature}");
@@ -6754,7 +6757,7 @@ mod tests {
     fn raw_fields_and_keyword_constructions_lower_to_valid_render_locals() {
         let expansion = crate::generate(quote::quote! {
             vocab Marker { One = "marker", }
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme Verbs using EnglishVerb { Act = "act", }
 
             construction payload: PayloadBox {
@@ -6767,7 +6770,7 @@ mod tests {
             }
             construction where: Keyword {
                 element KeywordNode { marker: lex Marker, }
-                derive agreement = Values::Bare;
+                derive concord_class = Values::Other;
                 form where = lex(marker);
             }
             construction root: Root {
@@ -6776,7 +6779,7 @@ mod tests {
                     writer_field: WriterField,
                     keyword: Keyword,
                 }
-                derive verb.agreement = keyword.agreement;
+                derive verb.concord_class = keyword.concord_class;
                 form root = payload writer_field keyword verb(Verbs::Act);
             }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
@@ -6807,7 +6810,7 @@ mod tests {
         let expansion = crate::generate(quote::quote! {
             vocab Marker { One = "marker", }
             vocab WriterWord { One = "writer", }
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme Verbs using EnglishVerb { Act = "act", }
             identity SelfRef {
                 value_type = SelfRef;
@@ -6823,21 +6826,21 @@ mod tests {
 
             construction child: Child {
                 element ChildNode {}
-                derive agreement = Values::Bare;
+                derive concord_class = Values::Other;
                 form child = "child";
             }
             construction contextual: Action {
-                element ContextualAction { agreement: lex Marker, }
-                derive agreement = verb.agreement;
-                form contextual = lex(agreement) verb(Verbs::Act);
+                element ContextualAction { concord_class: lex Marker, }
+                derive concord_class = verb.concord_class;
+                form contextual = lex(concord_class) verb(Verbs::Act);
             }
             construction wrapper: RenderChild {
                 element Wrapper { child: Child, }
                 form wrapper = child;
             }
-            construction wrapped: AgreementForChild {
+            construction wrapped: ConcordClassForChild {
                 element Wrapped { child: Child, }
-                derive agreement = child.agreement;
+                derive concord_class = child.concord_class;
                 form wrapped = child;
             }
             construction writer: WriterRender {
@@ -6850,11 +6853,11 @@ mod tests {
                     context: identity SelfRef,
                     action: Action,
                     wrapper: RenderChild,
-                    wrapped: AgreementForChild,
+                    wrapped: ConcordClassForChild,
                     word: lex WriterWord,
                 }
-                derive action.agreement = Values::Bare;
-                derive verb.agreement = wrapped.agreement;
+                derive action.concord_class = Values::Other;
+                derive verb.concord_class = wrapped.concord_class;
                 form root = lex(writer) identity(context) action wrapper wrapped lex(word)
                     verb(Verbs::Act);
             }
@@ -6874,7 +6877,7 @@ mod tests {
                     name,
                 } => {
                     name.starts_with("render_")
-                        || name.starts_with("agreement_for_")
+                        || name.starts_with("concord_class_for_")
                         || name.starts_with("number_for_")
                 }
                 crate::ItemKey::Named { .. } => false,
@@ -6883,21 +6886,21 @@ mod tests {
             .collect::<Vec<_>>()
             .join("\n");
         for fragment in [
-            "ContextualAction { agreement : agreement_2 }",
-            "render_marker (writer , * agreement_2)",
-            "surface_for_verbs (Verbs :: Act , agreement)",
+            "ContextualAction { concord_class : concord_class_2 }",
+            "render_marker (writer , * concord_class_2)",
+            "surface_for_verbs (Verbs :: Act , concord_class)",
             "Self :: Root (root)",
             "render_marker (writer , * & root . writer)",
             "writer . identity (context . card_name ())",
             "match * & root . context",
-            "render_action (writer , root . action () , Agreement :: Bare)",
+            "render_action (writer , root . action () , ConcordClass :: Other)",
             "fn render_writer_word (writer : & mut Writer , writer_2 : WriterWord)",
             "fn render_render_child (writer : & mut Writer , render_child_2 : & RenderChild)",
             "match render_child_2",
             "render_child (writer , child)",
-            "fn agreement_for_agreement_for_child (agreement_for_child_2 : & AgreementForChild)",
-            "match agreement_for_child_2",
-            "agreement_for_child (child)",
+            "fn concord_class_for_concord_class_for_child (concord_class_for_child_2 : & ConcordClassForChild)",
+            "match concord_class_for_child_2",
+            "concord_class_for_child (child)",
             "WriterRender :: Writer (WriterRenderNode { marker })",
             "render_marker (writer , * marker)",
         ] {
@@ -6907,11 +6910,11 @@ mod tests {
             );
         }
         for shadowed in [
-            "ContextualAction { agreement })",
+            "ContextualAction { concord_class })",
             "RootNode { writer , context",
             "writer : & mut Writer , writer : WriterWord",
             "writer : & mut Writer , render_child : & RenderChild",
-            "fn agreement_for_agreement_for_child (agreement_for_child : & AgreementForChild)",
+            "fn concord_class_for_concord_class_for_child (concord_class_for_child : & ConcordClassForChild)",
         ] {
             assert!(
                 !source.contains(shadowed),
@@ -6954,7 +6957,7 @@ mod tests {
                     crate::ItemKey::Named {
                         kind: crate::NamedKind::Function,
                         name,
-                    } if name == "agreement_for_pronoun"
+                    } if name == "concord_class_for_pronoun"
                 )
             })
             .expect("the vocabulary feature helper is emitted");
@@ -6969,10 +6972,10 @@ mod tests {
         assert_eq!(
             parse(helper),
             syn::parse_quote! {
-                fn agreement_for_pronoun(value: Pronoun) -> Agreement {
+                fn concord_class_for_pronoun(value: Pronoun) -> ConcordClass {
                     match value {
-                        Pronoun::It => Agreement::ThirdPersonSingular,
-                        Pronoun::You => Agreement::Bare,
+                        Pronoun::It => ConcordClass::ThirdPersonSingular,
+                        Pronoun::You => ConcordClass::Other,
                     }
                 }
             }
@@ -6980,46 +6983,46 @@ mod tests {
     }
 
     #[test]
-    fn implicit_agreement_sum_with_vocab_derived_variants_emits_valid_matcher() {
+    fn implicit_concord_class_sum_with_vocab_derived_variants_emits_valid_matcher() {
         let expansion = crate::generate(quote::quote! {
             vocab ObjectPronoun { It = "it", Them = "them", }
             vocab ReflexivePronoun { Itself = "itself", Themselves = "themselves", }
             construction object_nominal: Object {
                 element NominalObject {}
-                derive agreement = Values::ThirdPersonSingular;
+                derive concord_class = Values::ThirdPersonSingular;
                 form object_nominal = "object";
             }
             construction object_pronoun: Object {
                 element PersonalObject { word: lex ObjectPronoun, }
-                derive agreement = match word {
+                derive concord_class = match word {
                     It => Values::ThirdPersonSingular,
-                    Them => Values::Bare,
+                    Them => Values::Other,
                 };
                 form object_pronoun = lex(word);
             }
             construction reflexive_object: Object {
                 element ReflexiveObject { word: lex ReflexivePronoun, }
-                derive agreement = match word {
+                derive concord_class = match word {
                     Itself => Values::ThirdPersonSingular,
-                    Themselves => Values::Bare,
+                    Themselves => Values::Other,
                 };
                 form reflexive_object = lex(word);
             }
             root Object { punctuation = "."; eoi = true; standalone_render = true; }
         })
-        .expect("an implicit Agreement-carrying sum emits valid matcher syntax");
+        .expect("an implicit ConcordClass-carrying sum emits valid matcher syntax");
 
         let matcher = expansion
             .items()
             .iter()
-            .find(|item| matches!(&item.key, crate::ItemKey::Named { kind: crate::NamedKind::Function, name } if name == "agreement_matches_for_object"))
-            .expect("the implicit sum Agreement matcher is generated")
+            .find(|item| matches!(&item.key, crate::ItemKey::Named { kind: crate::NamedKind::Function, name } if name == "concord_class_matches_for_object"))
+            .expect("the implicit sum ConcordClass matcher is generated")
             .tokens
             .to_string();
         assert_eq!(
             matcher.matches("(match").count(),
             2,
-            "both vocabulary-derived Agreement values are grouped before comparison: {matcher}",
+            "both vocabulary-derived ConcordClass values are grouped before comparison: {matcher}",
         );
     }
 
@@ -7030,20 +7033,20 @@ mod tests {
                 vocab Pronoun { It = "it", You = "you", }
                 construction first: Root {
                     element First { pronoun: lex Pronoun, }
-                    derive pronoun.agreement = match pronoun {
+                    derive pronoun.concord_class = match pronoun {
                         It => Values::ThirdPersonSingular,
-                        You => Values::Bare,
+                        You => Values::Other,
                     };
-                    derive agreement = pronoun.agreement;
+                    derive concord_class = pronoun.concord_class;
                     form first = lex(pronoun);
                 }
                 construction second: Root {
                     element Second { pronoun: lex Pronoun, }
-                    derive pronoun.agreement = match pronoun {
-                        It => Values::Bare,
+                    derive pronoun.concord_class = match pronoun {
+                        It => Values::Other,
                         You => Values::ThirdPersonSingular,
                     };
-                    derive agreement = pronoun.agreement;
+                    derive concord_class = pronoun.concord_class;
                     form second = lex(pronoun);
                 }
                 root Root { punctuation = "."; eoi = true; standalone_render = true; }
@@ -7056,7 +7059,7 @@ mod tests {
             .expect_err("one vocabulary helper cannot represent inconsistent sealed mappings");
         assert_eq!(
             error.to_string(),
-            "sealed vocabulary feature mapping is inconsistent for `Pronoun.agreement`",
+            "sealed vocabulary feature mapping is inconsistent for `Pronoun.concord_class`",
         );
     }
 
@@ -7112,19 +7115,19 @@ mod tests {
     fn explicit_lexical_feature_dependencies_drive_render_lowering() {
         let expansion = crate::generate(quote::quote! {
             vocab Person { One = "one", Many = "many", }
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme Verbs using EnglishVerb {
-                Be = "be" { Bare = "are", ThirdPersonSingular = "is", },
+                Be = "be" { Other = "are", ThirdPersonSingular = "is", },
             }
             construction only: Root {
                 element Only { person: lex Person, }
                 require person is One;
-                derive person.agreement = match person {
-                    One => Values::Bare,
+                derive person.concord_class = match person {
+                    One => Values::Other,
                     Many => Values::ThirdPersonSingular,
                 };
-                derive agreement = person.agreement;
-                derive verb.agreement = person.agreement;
+                derive concord_class = person.concord_class;
+                derive verb.concord_class = person.concord_class;
                 form only = lex(person) verb(Verbs::Be);
             }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
@@ -7137,7 +7140,7 @@ mod tests {
             .expect("root write impl");
         let source = implementation.tokens.to_string();
         assert!(
-            source.contains("agreement_for_person (only . person ())"),
+            source.contains("concord_class_for_person (only . person ())"),
             "the consuming verb operand uses the canonical helper from the explicit writer: {source}",
         );
     }
@@ -7149,11 +7152,11 @@ mod tests {
                 vocab Person { One = "one", Many = "many", }
                 construction only: Root {
                     element Only { person: lex Person, }
-                    derive person.agreement = match person {
-                        One => Values::Bare,
+                    derive person.concord_class = match person {
+                        One => Values::Other,
                         Many => Values::ThirdPersonSingular,
                     };
-                    derive agreement = person.agreement;
+                    derive concord_class = person.concord_class;
                     form only = lex(person);
                 }
                 root Root { punctuation = "."; eoi = true; standalone_render = true; }
@@ -7168,7 +7171,7 @@ mod tests {
             plan,
             construction,
             &role,
-            crate::feature::Feature::Agreement,
+            crate::feature::Feature::ConcordClass,
         )
         .expect("the exact role.feature writer is retrievable");
         assert_eq!(writer_role, "person");
@@ -7267,24 +7270,24 @@ mod tests {
     }
 
     #[test]
-    fn non_standalone_root_with_parent_supplied_agreement_reaches_emission() {
+    fn non_standalone_root_with_parent_supplied_concord_class_reaches_emission() {
         let expansion = crate::generate(quote::quote! {
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme Verbs using EnglishVerb { Act = "act", }
             construction action: Child {
                 element ActionNode {}
-                derive agreement = verb.agreement;
+                derive concord_class = verb.concord_class;
                 form action = verb(Verbs::Act);
             }
             construction parent: Parent {
                 element ParentNode { child: Child, }
-                derive child.agreement = Values::Bare;
+                derive child.concord_class = Values::Other;
                 form parent = child;
             }
             root Child { punctuation = "!"; eoi = true; standalone_render = false; }
             root Parent { punctuation = "."; eoi = false; standalone_render = true; }
         })
-        .expect("a nested-only root may receive agreement from its parent");
+        .expect("a nested-only root may receive concord_class from its parent");
 
         let source = expansion
             .items()
@@ -7293,8 +7296,8 @@ mod tests {
             .collect::<Vec<_>>()
             .join("\n");
         assert!(
-            source.contains("render_child (writer , parent . child () , Agreement :: Bare)"),
-            "the parent must supply the nested-only root's agreement: {source}",
+            source.contains("render_child (writer , parent . child () , ConcordClass :: Other)"),
+            "the parent must supply the nested-only root's concord_class: {source}",
         );
         assert!(
             !source.contains("impl Render for Child"),
@@ -7327,7 +7330,7 @@ mod tests {
                     name,
                 } => {
                     name.starts_with("render_")
-                        || name == "agreement_for_expr"
+                        || name == "concord_class_for_expr"
                         || name == "number_for_expr"
                 }
                 _ => false,
@@ -7356,7 +7359,7 @@ mod tests {
                 "render_predicate",
                 "render_tag",
                 "render_mode",
-                "agreement_for_expr",
+                "concord_class_for_expr",
                 "number_for_expr",
             ],
         );
@@ -7387,7 +7390,7 @@ mod tests {
         for fragment in [
             "Self :: Document (document)",
             "render_expr (writer , document . subject ())",
-            "render_predicate (writer , document . predicate () , agreement_for_expr (document . subject ()))",
+            "render_predicate (writer , document . predicate () , concord_class_for_expr (document . subject ()))",
             "Handle :: Primary => writer . identity (context . primary_name ())",
             "Handle :: Alias => writer . identity (context . alias_name ())",
             "render_pair (writer , & document . pair)",
@@ -7396,16 +7399,17 @@ mod tests {
             assert!(root.contains(fragment), "root render lacks `{fragment}`");
         }
 
-        let agreement = parse(render[7]).to_token_stream().to_string();
-        assert!(agreement.contains("Expr :: Leaf"));
+        let concord_class = parse(render[7]).to_token_stream().to_string();
+        assert!(concord_class.contains("Expr :: Leaf"));
+        assert!(concord_class.contains(
+            "mode : Mode :: Solo , resource : _ }) => ConcordClass :: ThirdPersonSingular"
+        ));
         assert!(
-            agreement.contains(
-                "mode : Mode :: Solo , resource : _ }) => Agreement :: ThirdPersonSingular"
-            )
+            concord_class
+                .contains("mode : Mode :: Group , resource : _ }) => ConcordClass :: Other")
         );
-        assert!(agreement.contains("mode : Mode :: Group , resource : _ }) => Agreement :: Bare"));
-        assert!(agreement.contains("Expr :: Nested"));
-        assert!(agreement.contains("agreement_for_expr (next)"));
+        assert!(concord_class.contains("Expr :: Nested"));
+        assert!(concord_class.contains("concord_class_for_expr (next)"));
 
         let number = parse(render[8]).to_token_stream().to_string();
         assert!(number.contains("mode : Mode :: Solo , resource : _ }) => Number :: Singular"));

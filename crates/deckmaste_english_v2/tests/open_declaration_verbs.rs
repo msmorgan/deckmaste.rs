@@ -117,25 +117,25 @@ fn environment_declaration_verb_readings_use_literal_exact_frame_membership() {
     assert_eq!(
         names(
             "act",
-            SurfaceFeature::Bare,
+            SurfaceFeature::PLAIN,
             &[CustomTailAtom::ObjectNounPhrase]
         ),
         ["FirstAct", "SecondAct", "WrongKind"]
     );
-    assert_eq!(names("rest", SurfaceFeature::Bare, &[]), ["Rest"]);
+    assert_eq!(names("rest", SurfaceFeature::PLAIN, &[]), ["Rest"]);
     assert_eq!(
-        names("count", SurfaceFeature::Bare, &[CustomTailAtom::Amount]),
+        names("count", SurfaceFeature::PLAIN, &[CustomTailAtom::Amount]),
         ["Count"]
     );
-    assert_eq!(names("shape", SurfaceFeature::Bare, &[]), ["Shape"]);
+    assert_eq!(names("shape", SurfaceFeature::PLAIN, &[]), ["Shape"]);
     assert_eq!(
-        names("shape", SurfaceFeature::Bare, &[CustomTailAtom::Amount]),
+        names("shape", SurfaceFeature::PLAIN, &[CustomTailAtom::Amount]),
         ["Shape"]
     );
     assert!(
         names(
             "shape",
-            SurfaceFeature::Bare,
+            SurfaceFeature::PLAIN,
             &[CustomTailAtom::ObjectNounPhrase]
         )
         .is_empty()
@@ -143,7 +143,7 @@ fn environment_declaration_verb_readings_use_literal_exact_frame_membership() {
     assert!(
         names(
             "cross",
-            SurfaceFeature::Bare,
+            SurfaceFeature::PLAIN,
             &[CustomTailAtom::ObjectNounPhrase]
         )
         .is_empty()
@@ -151,7 +151,7 @@ fn environment_declaration_verb_readings_use_literal_exact_frame_membership() {
 }
 
 #[test]
-fn environment_declaration_verb_readings_filter_position_surface_and_agreement() {
+fn environment_declaration_verb_readings_filter_position_surface_and_concord_class() {
     let environment = environment_from([
         declaration(
             "/synthetic/actions/Right.ron",
@@ -179,14 +179,14 @@ fn environment_declaration_verb_readings_filter_position_surface_and_agreement()
             .collect::<Vec<_>>()
     };
 
-    assert_eq!(names("echo", SurfaceFeature::Bare), ["Right", "WrongKind"]);
+    assert_eq!(names("echo", SurfaceFeature::PLAIN), ["Right", "WrongKind"]);
     assert_eq!(
-        names("echoes", SurfaceFeature::ThirdPersonSingular),
+        names("echoes", SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT),
         ["Right", "WrongKind"]
     );
-    assert!(names("echo", SurfaceFeature::ThirdPersonSingular).is_empty());
-    assert!(names("wane", SurfaceFeature::ThirdPersonSingular).is_empty());
-    assert!(names("missing", SurfaceFeature::Bare).is_empty());
+    assert!(names("echo", SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT).is_empty());
+    assert!(names("wane", SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT).is_empty());
+    assert!(names("missing", SurfaceFeature::PLAIN).is_empty());
 }
 
 #[test]
@@ -232,11 +232,11 @@ fn parser_build_has_no_fixed_keyword_requirements_and_constructors_fail_closed()
         .is_none()
     );
     Parser::new(missing_feature)
-        .expect("missing agreement surfaces do not become fixed parser requirements");
+        .expect("missing concord_class surfaces do not become fixed parser requirements");
 }
 
 #[test]
-fn open_declaration_synthetic_verbs_parse_and_render_both_agreements_exactly() {
+fn open_declaration_synthetic_verbs_parse_and_render_both_concord_classes_exactly() {
     let parser = parser();
     let context = context();
     for text in [
@@ -254,7 +254,7 @@ fn open_declaration_synthetic_verbs_parse_and_render_both_agreements_exactly() {
     for text in ["It frindle target player.", "That player zorble."] {
         assert!(
             parser.parse(text, &context).is_err(),
-            "wrong agreement parsed: {text}"
+            "wrong concord_class parsed: {text}"
         );
     }
 }

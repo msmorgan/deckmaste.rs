@@ -285,7 +285,7 @@ fn attachment_keywords_declare_their_participial_adjective_surfaces() {
         let adjective = grammar
             .participial_adjective()
             .expect("attachment keyword contributes a participial adjective");
-        assert_eq!(adjective.feature(), SurfaceFeature::Participle);
+        assert_eq!(adjective.feature(), SurfaceFeature::PAST_PARTICIPLE);
         assert_eq!(adjective.text(), surface, "{name}");
     }
 }

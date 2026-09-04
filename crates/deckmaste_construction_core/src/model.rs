@@ -230,7 +230,7 @@ pub struct FeatureSlot {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum Feature {
-    Agreement,
+    ConcordClass,
     BareLocativeComplement,
     BareLocativeLicense,
     Cardinality,

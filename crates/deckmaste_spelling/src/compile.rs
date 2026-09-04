@@ -145,7 +145,7 @@ pub struct Hole {
 /// two would not compare equal. So it rewrites the node to citation form and
 /// records that it did, here.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct AgreementDep {
+pub struct FeatureDep {
     /// The node that was normalized — a `VerbInstance` for
     /// [`AgreeKind::VerbWithHole`], a `NominalPhrase` for
     /// [`AgreeKind::NounNumberFromHole`].
@@ -173,7 +173,7 @@ pub enum AgreeKind {
 pub enum Normalization {
     /// A `VerbSlot`'s agreement features were reset to the citation slot
     /// (third person singular). The fields carry what was there before.
-    VerbAgreement { person: Person, number: Number },
+    VerbPersonNumber { person: Person, number: Number },
     /// A plural head noun was reset to singular.
     NounNumber { from: Number },
 }
@@ -205,7 +205,7 @@ pub struct CompiledFrame {
     /// One entry per hole: param holes first, in ascending param order, then
     /// the `~` hole if there is one.
     pub holes: Vec<Hole>,
-    pub agreement: Vec<AgreementDep>,
+    pub agreement: Vec<FeatureDep>,
     /// One entry per `when:` pre-binding, in the order authored.
     pub guards: Vec<CompiledGuard>,
     /// The frame exactly as authored.
@@ -1061,7 +1061,7 @@ fn clear_hole_dependent_witnesses(tree: &mut ProjectionTree) -> bool {
 /// tree, before relocation, because the role markers it keys off — a
 /// `Subject` beside a `HeadedPredicate` — are exactly the wrappers a hole may
 /// be about to swallow.
-fn agreement_deps(tree: &ProjectionTree, placed: &[PlacedHole]) -> Vec<AgreementDep> {
+fn agreement_deps(tree: &ProjectionTree, placed: &[PlacedHole]) -> Vec<FeatureDep> {
     let mut deps = Vec::new();
     for (path, node) in tree.walk() {
         let Some(construction) = node.construction() else {
@@ -1095,7 +1095,7 @@ fn agreement_deps(tree: &ProjectionTree, placed: &[PlacedHole]) -> Vec<Agreement
         let site = join_paths(&predicate, &relative_verb).then(ProjectionStep::Role("head"));
         for hole in placed {
             if hole.sites.iter().any(|at| subject.is_prefix_of(at)) {
-                deps.push(AgreementDep {
+                deps.push(FeatureDep {
                     site: site.clone(),
                     kind: AgreeKind::VerbWithHole(hole.planned.index),
                     normalized: Vec::new(),
@@ -1119,7 +1119,7 @@ fn agreement_deps(tree: &ProjectionTree, placed: &[PlacedHole]) -> Vec<Agreement
                 if projected_noun_number(head).is_some()
                     && relative_head.0.last() == Some(&ProjectionStep::Role("head"))
                 {
-                    deps.push(AgreementDep {
+                    deps.push(FeatureDep {
                         site: join_paths(&owner, &relative_head),
                         kind: AgreeKind::NounNumberFromHole(hole.planned.index),
                         normalized: Vec::new(),
@@ -1157,7 +1157,7 @@ fn nearest_category_ancestor(
 /// Runs citation normalization over every agreement site. The same rewrite is
 /// shared by frame compilation and card-side unification so both compare in
 /// one canonical person/number form.
-pub(crate) fn normalize_all(tree: &mut ProjectionTree, agreement: &mut [AgreementDep]) {
+pub(crate) fn normalize_all(tree: &mut ProjectionTree, agreement: &mut [FeatureDep]) {
     for dep in agreement {
         dep.normalized = normalize_citation(tree, &dep.site, dep.kind);
     }
@@ -1194,7 +1194,7 @@ fn normalize_citation(
             let was = (person, number);
             let citation = analysis.citation_form();
             if was != (Person::Third, Number::Singular) {
-                applied.push(Normalization::VerbAgreement {
+                applied.push(Normalization::VerbPersonNumber {
                     person: was.0,
                     number: was.1,
                 });

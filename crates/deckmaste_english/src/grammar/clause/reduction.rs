@@ -1,10 +1,10 @@
-use super::Agreement;
 use super::Auxiliary;
 use super::AuxiliaryInflection;
 use super::BareNominalAdjunct;
 #[cfg(test)]
 use super::ContractedSubjectKey;
 use super::Features;
+use super::PersonNumber;
 use super::PredicateAttachmentPhase;
 use super::PredicateComplementKind;
 use super::PredicateForm;
@@ -408,7 +408,7 @@ pub(crate) fn auxiliary_form(
         },
         AuxiliaryInflection::Present { person, number }
         | AuxiliaryInflection::Past { person, number } => {
-            Some(PredicateForm::Finite(Some(Agreement { person, number })))
+            Some(PredicateForm::Finite(Some(PersonNumber { person, number })))
         }
         AuxiliaryInflection::PastSubjunctive => Some(PredicateForm::Finite(None)),
         AuxiliaryInflection::PresentParticiple => Some(PredicateForm::PresentParticiple),

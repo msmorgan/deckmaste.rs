@@ -2,6 +2,37 @@
 //! `constructions!`.
 
 #[cfg(test)]
+mod finite_copula_inflectional_forms {
+    use deckmaste_construction_core::macro_def::InflectionalForm;
+
+    use crate::constructions::FiniteCopula;
+
+    fn inflectional_form(copula: FiniteCopula) -> InflectionalForm {
+        match copula {
+            FiniteCopula::Is | FiniteCopula::Isnt => InflectionalForm::ThirdPersonSingularPresent,
+            FiniteCopula::Are | FiniteCopula::Arent => InflectionalForm::Plain,
+            FiniteCopula::Was | FiniteCopula::Were => InflectionalForm::Preterite,
+        }
+    }
+
+    #[test]
+    fn every_finite_copula_has_its_own_inflectional_form() {
+        for copula in [FiniteCopula::Is, FiniteCopula::Isnt] {
+            assert_eq!(
+                inflectional_form(copula),
+                InflectionalForm::ThirdPersonSingularPresent,
+            );
+        }
+        for copula in [FiniteCopula::Are, FiniteCopula::Arent] {
+            assert_eq!(inflectional_form(copula), InflectionalForm::Plain);
+        }
+        for copula in [FiniteCopula::Was, FiniteCopula::Were] {
+            assert_eq!(inflectional_form(copula), InflectionalForm::Preterite);
+        }
+    }
+}
+
+#[cfg(test)]
 mod coordination_feature_recipes {
     use crate::constructions::*;
 
@@ -60,7 +91,7 @@ mod coordination_feature_recipes {
     }
 
     #[test]
-    fn coordination_scopes_derive_exact_number_and_agreement() {
+    fn coordination_scopes_derive_exact_number_and_concord_class() {
         let singular_shared = noun_phrase(determined(
             determinative(Number::Singular),
             Nominal::SingularCoordinationNominalValue(SingularCoordinationNominalValue {
@@ -113,13 +144,16 @@ mod coordination_feature_recipes {
 
         assert_eq!(number_for_noun_phrase(&singular_shared), Number::Singular);
         assert_eq!(
-            agreement_for_noun_phrase(&singular_shared),
-            Agreement::ThirdPersonSingular
+            concord_class_for_noun_phrase(&singular_shared),
+            ConcordClass::ThirdPersonSingular
         );
         assert_eq!(number_for_noun_phrase(&plural_shared), Number::Plural);
-        assert_eq!(agreement_for_noun_phrase(&plural_shared), Agreement::Bare);
+        assert_eq!(
+            concord_class_for_noun_phrase(&plural_shared),
+            ConcordClass::Other
+        );
         assert_eq!(number_for_noun_phrase(&full_np), Number::Plural);
-        assert_eq!(agreement_for_noun_phrase(&full_np), Agreement::Bare);
+        assert_eq!(concord_class_for_noun_phrase(&full_np), ConcordClass::Other);
     }
 }
 

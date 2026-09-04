@@ -1342,3 +1342,33 @@ verb uses such as *a spell that targets*, is not yet declared and is owned by
 `english-v2-target-verb-subject-selection`. The declared homograph licence
 governs the shared surface without any scanner or grammar guard naming the
 marker, a construction, or a card.
+
+## Amendment: Concord Class and Inflectional Form (2026-09-04)
+
+This amendment supersedes every use of `Agreement` above as the name of the
+compiler feature. The feature is `ConcordClass`, with the derived morphological
+equivalence classes `Other` and `ThirdPersonSingular`. It is not grammatical
+Agreement, underlying Person or Number, Finiteness, or an Inflectional Form.
+The homogeneous-sequence and per-feature-carrier equations are consequently
+`derive members.concord_class = ...` and
+`derive concord_class = members.concord_class`; their propagation and licence
+reader rules are unchanged.
+
+The compiler's transient morphology inventory is the single Inflectional Form
+dimension: plain, third-person-singular present, preterite,
+gerund-participle, and past participle. Plain can occur without a Concord Class
+in nonfinite use or with `Other` where a present finite paradigm selects it;
+third-person-singular present combines with `ThirdPersonSingular`; preterite
+can combine with either class; participial forms carry no Concord Class.
+Finiteness remains a separate syntactic dimension. No authored form tag or
+public AST form tag is stored, and the sealed one-member `Participle` compiler
+axis remains the way participial lexical rows are selected. In particular,
+there is no mixed Finiteness/Inflectional-Form pseudo-paradigm.
+
+The exceptional copula constraints are retained until explicit Person and
+Number land: *was* selects the `ThirdPersonSingular` path and *were* the
+`Other` path, while both remain morphologically preterite. Those constraints
+are pinned independently in finite passive predicates, finite copular
+predicates, existential finite clauses, and copular subject-gap relative
+clauses; the temporary selection split does not reclassify either word as a
+present Inflectional Form.

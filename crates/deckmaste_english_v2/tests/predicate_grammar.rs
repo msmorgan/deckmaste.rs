@@ -582,7 +582,7 @@ fn combat_frames_keep_active_frame_set_passive_agents_and_if_able_distinct() {
     ] {
         assert!(
             parser.parse(crossed, &context).is_err(),
-            "combat agreement and passive-agent syntax reject {crossed:?}",
+            "combat concord_class and passive-agent syntax reject {crossed:?}",
         );
     }
 }
@@ -1286,7 +1286,7 @@ fn fixed_variable_asymmetric_and_crossed_adjustments_share_existing_amounts() {
 }
 
 #[test]
-fn adjustment_sign_slash_pairing_and_agreement_boundaries_are_reciprocal() {
+fn adjustment_sign_slash_pairing_and_concord_class_boundaries_are_reciprocal() {
     let parser = parser();
     let context = context();
 
@@ -1479,7 +1479,7 @@ fn shared_transitive_lexical_verb_phrase_preserves_visit_order_and_literal_claim
 }
 
 #[test]
-fn shared_active_frames_reject_complement_and_agreement_reciprocals() {
+fn shared_active_frames_reject_complement_and_concord_class_reciprocals() {
     let parser = parser();
     let context = context();
     for text in [
@@ -1495,7 +1495,7 @@ fn shared_active_frames_reject_complement_and_agreement_reciprocals() {
     ] {
         assert!(
             parser.parse(text, &context).is_err(),
-            "wrong frame or agreement must reject {text:?}",
+            "wrong frame or concord_class must reject {text:?}",
         );
     }
     assert_selected_with_specificity(&parser, &context, "Connive target player.", true);
@@ -1547,6 +1547,63 @@ fn copular_change_auxiliary_and_passive_minimal_pairs_select() {
                     | "It is turned face up."
                     | "A spell was cast."
             ),
+        );
+    }
+}
+
+#[test]
+fn preterite_copulas_keep_every_supported_construction_path() {
+    let parser = parser();
+    let context = context();
+    for (text, required_path) in [
+        (
+            "It was dealt damage.",
+            "FinitePassivePredicateFinitePassivePredicate",
+        ),
+        (
+            "They were dealt damage.",
+            "FinitePassivePredicateFinitePassivePredicate",
+        ),
+        (
+            "It was legendary.",
+            "FiniteCopularPredicateFiniteCopularPredicate",
+        ),
+        (
+            "They were legendary.",
+            "FiniteCopularPredicateFiniteCopularPredicate",
+        ),
+        ("There was a card.", "FiniteClauseExistentialFiniteClause"),
+        ("There were cards.", "FiniteClauseExistentialFiniteClause"),
+        (
+            "Destroy a creature that was legendary.",
+            "CopularSubjectGapRelativeClauseCopularSubjectGapRelativeClause",
+        ),
+        (
+            "Destroy all permanents that were legendary.",
+            "CopularSubjectGapRelativeClauseCopularSubjectGapRelativeClause",
+        ),
+        (
+            "Tapped creatures you control can block as though they were untapped.",
+            "IrrealisCopularClauseIrrealisCopularClause",
+        ),
+    ] {
+        assert_selected_with_specificity(&parser, &context, text, true);
+        let analysis = parser.analyze(text, &context);
+        let decision = analysis
+            .decision()
+            .expect("selected preterite copula path has a decision");
+        let ordinal = decision
+            .selected()
+            .expect("selected preterite copula path has an ordinal");
+        let path = decision
+            .candidates()
+            .iter()
+            .find(|candidate| candidate.ordinal() == ordinal)
+            .expect("selected ordinal names a retained preterite copula candidate")
+            .construction_path();
+        assert!(
+            path.iter().any(|actual| actual == required_path),
+            "{text:?} must retain {required_path}: {path:?}",
         );
     }
 }
@@ -1635,7 +1692,7 @@ fn finite_clause_generalization_preserves_complements_and_rejects_crossed_forms(
     ] {
         assert!(
             parser.parse(text, &context).is_err(),
-            "crossed agreement, form, or complement must reject {text:?}",
+            "crossed concord_class, form, or complement must reject {text:?}",
         );
     }
     assert_selected_with_specificity(&parser, &context, "It is dealt.", true);
@@ -1807,7 +1864,7 @@ fn scalar_values_compose_genitives_counts_and_post_recipient_equalities() {
 }
 
 #[test]
-fn object_gap_relatives_follow_subject_agreement() {
+fn object_gap_relatives_follow_subject_concord_class() {
     let parser = parser();
     let context = context();
 
@@ -1826,13 +1883,13 @@ fn object_gap_relatives_follow_subject_agreement() {
     ] {
         assert!(
             parser.parse(malformed, &context).is_err(),
-            "singular determiner controller must reject bare agreement in {malformed:?}",
+            "singular determiner controller must reject bare concord_class in {malformed:?}",
         );
     }
 }
 
 #[test]
-fn floated_subject_quantifiers_relay_plural_agreement() {
+fn floated_subject_quantifiers_relay_plural_concord_class() {
     let parser = parser();
     let context = context();
 
@@ -1847,7 +1904,7 @@ fn floated_subject_quantifiers_relay_plural_agreement() {
         parser
             .parse("It each gets +2/+2 until end of turn.", &context)
             .is_err(),
-        "floated each requires a plural-agreement subject",
+        "floated each requires a plural-concord_class subject",
     );
 }
 
@@ -2291,7 +2348,7 @@ fn modal_subject_gap_relatives_modify_ordinary_mass_noun_phrases() {
 }
 
 #[test]
-fn subject_gap_relatives_relay_nominal_agreement_into_finite_predicates() {
+fn subject_gap_relatives_relay_nominal_concord_class_into_finite_predicates() {
     let parser = parser();
     let context = context();
 
@@ -2528,7 +2585,7 @@ fn intervening_existentials_use_the_same_general_finite_clause() {
 }
 
 #[test]
-fn negative_nominal_quantifiers_preserve_singular_and_plural_agreement() {
+fn negative_nominal_quantifiers_preserve_singular_and_plural_concord_class() {
     let parser = parser();
     let context = context();
 
@@ -3125,7 +3182,7 @@ fn target_and_card_name_boundaries_remain_grammatical_and_metadata_governed() {
     let malformed = "Put two stun counters on two target creature.";
     assert!(
         parser.parse(malformed, &context).is_err(),
-        "target determiners and modifiers preserve ordinary number agreement: {malformed:?}",
+        "target determiners and modifiers preserve ordinary number concord_class: {malformed:?}",
     );
 
     let plus_two = ParseContext::new("+2 Mace", false, Onset::Consonant)
@@ -3180,7 +3237,7 @@ fn target_and_card_name_boundaries_remain_grammatical_and_metadata_governed() {
         parser
             .parse("When Zoraline enter, draw a card.", &legendary)
             .is_err(),
-        "singular shortened self-reference requires singular verb agreement",
+        "singular shortened self-reference requires singular verb concord_class",
     );
     assert!(
         parser
@@ -3236,7 +3293,7 @@ fn sentence_root_punctuation_and_document_terminators_keep_distinct_exact_claims
 }
 
 #[test]
-fn typed_complements_reject_reciprocal_agreement_amount_number_and_determiners() {
+fn typed_complements_reject_reciprocal_concord_class_amount_number_and_determiners() {
     let parser = parser();
     let context = context();
     for text in [
@@ -3837,7 +3894,7 @@ fn cost_position_reuses_the_typed_predicate_algebra() {
     ] {
         assert!(
             parser.parse(crossed, &context).is_err(),
-            "cost position enforces bare agreement and document-internal case: {crossed:?}",
+            "cost position enforces bare concord_class and document-internal case: {crossed:?}",
         );
     }
 }

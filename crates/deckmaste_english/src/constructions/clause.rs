@@ -18,11 +18,11 @@ use crate::features::Contraction;
 use crate::features::Number;
 use crate::features::Person;
 use crate::features::PronounCase;
-use crate::grammar::Agreement;
 use crate::grammar::ContractedSubjectAuxiliary;
-use crate::grammar::CopulaAgreement;
+use crate::grammar::CopulaInflection;
 use crate::grammar::CopularRemainder;
 use crate::grammar::Features;
+use crate::grammar::PersonNumber;
 use crate::grammar::PredicateForm;
 use crate::grammar::SimpleClause;
 use crate::grammar::VerbAnalysis;
@@ -736,12 +736,12 @@ fn coordinate_shared_predicate(
 
 #[derive(Clone, Copy)]
 pub(super) enum FiniteInflection {
-    Present(Agreement),
-    Past(Agreement),
+    Present(PersonNumber),
+    Past(PersonNumber),
 }
 
 impl FiniteInflection {
-    const fn agreement(self) -> Agreement {
+    const fn agreement(self) -> PersonNumber {
         match self {
             Self::Present(agreement) | Self::Past(agreement) => agreement,
         }
@@ -749,17 +749,17 @@ impl FiniteInflection {
 
     const fn verb_slot(self) -> VerbSlot {
         match self {
-            Self::Present(Agreement { person, number }) => VerbSlot::Present { person, number },
-            Self::Past(Agreement { person, number }) => VerbSlot::Past { person, number },
+            Self::Present(PersonNumber { person, number }) => VerbSlot::Present { person, number },
+            Self::Past(PersonNumber { person, number }) => VerbSlot::Past { person, number },
         }
     }
 
     const fn auxiliary_inflection(self) -> AuxiliaryInflection {
         match self {
-            Self::Present(Agreement { person, number }) => {
+            Self::Present(PersonNumber { person, number }) => {
                 AuxiliaryInflection::Present { person, number }
             }
-            Self::Past(Agreement { person, number }) => {
+            Self::Past(PersonNumber { person, number }) => {
                 AuxiliaryInflection::Past { person, number }
             }
         }
@@ -814,10 +814,10 @@ pub(super) fn finite_inflection_of_head(head: &PredicateHead) -> Option<FiniteIn
     } else {
         match head.verb.slot {
             VerbSlot::Present { person, number } => {
-                Some(FiniteInflection::Present(Agreement { person, number }))
+                Some(FiniteInflection::Present(PersonNumber { person, number }))
             }
             VerbSlot::Past { person, number } => {
-                Some(FiniteInflection::Past(Agreement { person, number }))
+                Some(FiniteInflection::Past(PersonNumber { person, number }))
             }
             _ => None,
         }
@@ -829,10 +829,10 @@ pub(super) const fn finite_inflection_of_auxiliary(
 ) -> Option<FiniteInflection> {
     match auxiliary.inflection {
         AuxiliaryInflection::Present { person, number } => {
-            Some(FiniteInflection::Present(Agreement { person, number }))
+            Some(FiniteInflection::Present(PersonNumber { person, number }))
         }
         AuxiliaryInflection::Past { person, number } => {
-            Some(FiniteInflection::Past(Agreement { person, number }))
+            Some(FiniteInflection::Past(PersonNumber { person, number }))
         }
         _ => None,
     }
@@ -2568,7 +2568,7 @@ fn is_clause_variable_value_constraint(value: &Clause) -> bool {
     reason = "the fields are the exact SimpleClause chart-feature projection"
 )]
 const fn simple_clause_features(
-    agreement: Option<crate::grammar::Agreement>,
+    agreement: Option<crate::grammar::PersonNumber>,
     has_subject: bool,
     standalone: bool,
     has_direct_object: bool,
@@ -2870,7 +2870,7 @@ fn reduce_shared_grant_base_features(
         return None;
     };
     let predicate_agreement = match slot {
-        VerbSlot::Present { person, number } | VerbSlot::Past { person, number } => Agreement {
+        VerbSlot::Present { person, number } | VerbSlot::Past { person, number } => PersonNumber {
             person: *person,
             number: *number,
         },
@@ -3048,7 +3048,7 @@ fn reduce_shared_copular_predicate_features(
     complement: &Features,
     preposition: &Features,
 ) -> Option<Features> {
-    let Features::Copula(CopulaAgreement::Indicative(agreement)) = copula else {
+    let Features::Copula(CopulaInflection::Indicative(agreement)) = copula else {
         return None;
     };
     if !matches!(complement, Features::NounPhrase { .. })
@@ -3195,13 +3195,13 @@ fn reduce_clause_copular_features(
         return None;
     };
     let (agreement, subjunctive) = match copula {
-        CopulaAgreement::Indicative(copula_agreement) => {
+        CopulaInflection::Indicative(copula_agreement) => {
             if *subject_agreement != *copula_agreement {
                 return None;
             }
             (*subject_agreement, false)
         }
-        CopulaAgreement::PastSubjunctive => (*subject_agreement, true),
+        CopulaInflection::PastSubjunctive => (*subject_agreement, true),
     };
     Some(Features::Clause {
         agreement: Some(agreement),

@@ -2,11 +2,11 @@ use proc_macro2::Span;
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use crate::identifier::AGREEMENT_TYPE;
 use crate::identifier::BUILD_REJECTION_TYPE;
 use crate::identifier::BUILD_VIOLATION_TYPE;
 use crate::identifier::CARDINALITY_TYPE;
 use crate::identifier::CASE_POSITION_TYPE;
+use crate::identifier::CONCORD_CLASS_TYPE;
 use crate::identifier::DECLARATION_CLASS_TYPE;
 use crate::identifier::DECLARATION_LEAF_TYPE;
 use crate::identifier::DECLARATION_MATCHER_TYPE;
@@ -137,10 +137,10 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
     let inventory = RuntimeInventory::from_plan(plan);
     let mut items = vec![
         named_type(
-            AGREEMENT_TYPE,
+            CONCORD_CLASS_TYPE,
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
-                pub(crate) enum Agreement { Bare, ThirdPersonSingular }
+                pub(crate) enum ConcordClass { Other, ThirdPersonSingular }
             },
         ),
         named_type(
@@ -829,8 +829,8 @@ fn emit_generated_roots(plan: &SemanticPlan) -> Vec<GeneratedItem> {
         let category = emitted_ident(root.category(), Span::call_site());
         let name = syn::LitStr::new(root.category(), Span::call_site());
         let eoi = root.is_parse_entry();
-        let agreement = plan
-            .category_carries_agreement(root.category())
+        let concord_class = plan
+            .category_carries_concord_class(root.category())
             .then(|| quote! { , _ });
         let cardinality = plan
             .category_carries_cardinality(root.category())
@@ -877,7 +877,7 @@ fn emit_generated_roots(plan: &SemanticPlan) -> Vec<GeneratedItem> {
 
                     fn from_build(value: BuildValue) -> Option<Self> {
                         match value {
-                            BuildValue::#category(value #agreement #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending #following_onset) => Some(value),
+                            BuildValue::#category(value #concord_class #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending #following_onset) => Some(value),
                             _ => None,
                         }
                     }
@@ -1066,9 +1066,9 @@ fn emit_semantic_runtime_types(plan: &SemanticPlan) -> Vec<GeneratedItem> {
         let name = emitted_ident(item.name, Span::call_site());
         match item.kind {
             super::SemanticTypeKind::Category => {
-                let agreement = plan
-                    .category_carries_agreement(item.name)
-                    .then(|| quote! { , Agreement });
+                let concord_class = plan
+                    .category_carries_concord_class(item.name)
+                    .then(|| quote! { , ConcordClass });
                 let cardinality = plan
                     .category_carries_cardinality(item.name)
                     .then(|| quote! { , Cardinality });
@@ -1090,19 +1090,19 @@ fn emit_semantic_runtime_types(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 let possessive_ending = plan
                     .category_carries_possessive_ending(item.name)
                     .then(|| quote! { , PossessiveEnding });
-                quote! { #name(#name #agreement #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending, FeatureConstraint<Onset>) }
+                quote! { #name(#name #concord_class #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending, FeatureConstraint<Onset>) }
             }
             super::SemanticTypeKind::Product => {
                 quote! { #name(#name) }
             }
             super::SemanticTypeKind::Sum => {
-                let agreement = plan
-                    .sum_carries_agreement(item.name)
-                    .then(|| quote! { , Agreement });
+                let concord_class = plan
+                    .sum_carries_concord_class(item.name)
+                    .then(|| quote! { , ConcordClass });
                 let fused_head_license = plan
                     .carries_feature(item.name, crate::feature::Feature::FusedHeadLicense)
                     .then(|| quote! { , FusedHeadLicense });
-                quote! { #name(#name #agreement #fused_head_license, FeatureConstraint<Onset>) }
+                quote! { #name(#name #concord_class #fused_head_license, FeatureConstraint<Onset>) }
             }
         }
     });
@@ -1227,7 +1227,7 @@ fn emit_required_declarations(plan: &SemanticPlan) -> GeneratedItem {
             })
         })
         .collect::<syn::Result<Vec<_>>>()
-        .expect("validated open declarations have sealed agreement constraints");
+        .expect("validated open declarations have sealed concord_class constraints");
     GeneratedItem::new(
         ItemKey::Named {
             kind: crate::plan::NamedKind::Constant,
@@ -1343,27 +1343,27 @@ fn unsigned_lexical_variants(
 fn declaration_verb_lexical_variants(
     inventory: &RuntimeInventory<'_>,
 ) -> (Option<TokenStream>, Vec<TokenStream>, Option<TokenStream>) {
-    let has_agreement = inventory
+    let has_concord_class = inventory
         .declaration_verbs
         .iter()
-        .any(|(_, codec)| codec.feature_axis() == crate::feature::Feature::Agreement);
+        .any(|(_, codec)| codec.feature_axis() == crate::feature::Feature::ConcordClass);
     let has_participle = inventory
         .declaration_verbs
         .iter()
         .any(|(_, codec)| codec.feature_axis() == crate::feature::Feature::Participle);
-    let agreement =
-        has_agreement.then(|| quote! { DeclarationVerb(usize, FeatureConstraint<Agreement>), });
+    let concord_class = has_concord_class
+        .then(|| quote! { DeclarationVerb(usize, FeatureConstraint<ConcordClass>), });
     let participle = has_participle.then(|| quote! { DeclarationParticiple(usize), });
     let lexical =
-        (!inventory.declaration_verbs.is_empty()).then(|| quote! { #agreement #participle });
+        (!inventory.declaration_verbs.is_empty()).then(|| quote! { #concord_class #participle });
     let leaf = inventory
         .declaration_verbs
         .iter()
         .map(|(_, codec)| {
             let verb = codec.codec_ident();
             match codec.feature_axis() {
-                crate::feature::Feature::Agreement => {
-                    quote! { #verb { verb: #verb, agreement: Agreement, onset: Onset }, }
+                crate::feature::Feature::ConcordClass => {
+                    quote! { #verb { verb: #verb, concord_class: ConcordClass, onset: Onset }, }
                 }
                 crate::feature::Feature::Participle => {
                     quote! { #verb { verb: #verb, onset: Onset }, }
@@ -1447,11 +1447,11 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
 
     let verb_lexical = inventory.verb_lexeme.map(|lexeme| {
         let ident = lexeme.name_ident();
-        quote! { Verb(#ident, FeatureConstraint<Agreement>), }
+        quote! { Verb(#ident, FeatureConstraint<ConcordClass>), }
     });
     let verb_leaf = inventory.verb_lexeme.map(|lexeme| {
         let ident = lexeme.name_ident();
-        quote! { Verb { lexeme: #ident, agreement: Agreement, onset: Onset }, }
+        quote! { Verb { lexeme: #ident, concord_class: ConcordClass, onset: Onset }, }
     });
     let verb_class = inventory.verb_lexeme.map(|_| quote! { VerbLexeme, });
 
@@ -1733,13 +1733,13 @@ fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
         quote! { Lexical::DeclarationTerm(terminal_index) => TerminalClass::DeclarationTerm(terminal_index), }
     });
     let declaration_verb_class_arm = (!inventory.declaration_verbs.is_empty()).then(|| {
-        let agreement = inventory.declaration_verbs.iter().any(|(_, codec)| codec.feature_axis() == crate::feature::Feature::Agreement).then(|| quote! {
+        let concord_class = inventory.declaration_verbs.iter().any(|(_, codec)| codec.feature_axis() == crate::feature::Feature::ConcordClass).then(|| quote! {
             Lexical::DeclarationVerb(terminal_index, _) => TerminalClass::DeclarationVerb(terminal_index),
         });
         let participle = inventory.declaration_verbs.iter().any(|(_, codec)| codec.feature_axis() == crate::feature::Feature::Participle).then(|| quote! {
             Lexical::DeclarationParticiple(terminal_index) => TerminalClass::DeclarationVerb(terminal_index),
         });
-        quote! { #agreement #participle }
+        quote! { #concord_class #participle }
     });
     let verb_class_arm = inventory
         .verb_lexeme
@@ -2158,19 +2158,19 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
         lexeme.surfaces().iter().map(move |row| {
             let member_ident = emitted_ident(row.member(), Span::call_site());
             let member = syn::LitStr::new(row.member(), Span::call_site());
-            let agreement = match row.feature() {
-                crate::macro_def::SurfaceFeature::Bare => {
-                    quote! { Agreement::Bare }
+            let concord_class = match row.feature() {
+                crate::macro_def::SurfaceFeature::PLAIN => {
+                    quote! { ConcordClass::Other }
                 }
-                crate::macro_def::SurfaceFeature::ThirdPersonSingular => {
-                    quote! { Agreement::ThirdPersonSingular }
+                crate::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT => {
+                    quote! { ConcordClass::ThirdPersonSingular }
                 }
-                crate::macro_def::SurfaceFeature::Singular
+                crate::macro_def::SurfaceFeature::Inflectional(_)
+                | crate::macro_def::SurfaceFeature::Singular
                 | crate::macro_def::SurfaceFeature::Plural
-                | crate::macro_def::SurfaceFeature::Participle
                 | crate::macro_def::SurfaceFeature::Fixed
                 | crate::macro_def::SurfaceFeature::BlockLabel => {
-                    unreachable!("validated verb lexeme has the Agreement feature axis")
+                    unreachable!("validated verb lexeme has the ConcordClass feature axis")
                 }
             };
             let stable_id =
@@ -2183,7 +2183,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     },
                     Leaf::Verb {
                         lexeme: #declaration_ident::#member_ident,
-                        agreement: #agreement,
+                        concord_class: #concord_class,
                         ..
                     },
                 ) => Some(LexicalOwner::static_owner(
@@ -2208,9 +2208,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     crate::macro_def::SurfaceFeature::Plural => {
                         quote! { Number::Plural }
                     }
-                    crate::macro_def::SurfaceFeature::Bare
-                    | crate::macro_def::SurfaceFeature::ThirdPersonSingular
-                    | crate::macro_def::SurfaceFeature::Participle
+                    crate::macro_def::SurfaceFeature::Inflectional(_)
                     | crate::macro_def::SurfaceFeature::Fixed
                     | crate::macro_def::SurfaceFeature::BlockLabel => {
                         unreachable!("validated noun lexeme has the Number feature axis")
@@ -2252,9 +2250,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                                     quote! { Number::Singular }
                                 }
                                 crate::macro_def::SurfaceFeature::Plural => quote! { Number::Plural },
-                                crate::macro_def::SurfaceFeature::Bare
-                                | crate::macro_def::SurfaceFeature::ThirdPersonSingular
-                                | crate::macro_def::SurfaceFeature::Participle
+                                crate::macro_def::SurfaceFeature::Inflectional(_)
                                 | crate::macro_def::SurfaceFeature::Fixed
                                 | crate::macro_def::SurfaceFeature::BlockLabel => {
                                     unreachable!(
@@ -2346,20 +2342,20 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                                 &closed.to_string(), row.member(), row.feature(),
                             );
                             match codec.feature_axis() {
-                                crate::feature::Feature::Agreement => {
-                                    let agreement = match row.feature() {
-                                        crate::macro_def::SurfaceFeature::Bare => quote! { Agreement::Bare },
-                                        crate::macro_def::SurfaceFeature::ThirdPersonSingular => quote! { Agreement::ThirdPersonSingular },
-                                        _ => unreachable!("validated Agreement declaration verb has Agreement rows"),
+                                crate::feature::Feature::ConcordClass => {
+                                    let concord_class = match row.feature() {
+                                        crate::macro_def::SurfaceFeature::PLAIN => quote! { ConcordClass::Other },
+                                        crate::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT => quote! { ConcordClass::ThirdPersonSingular },
+                                        _ => unreachable!("validated ConcordClass declaration verb has ConcordClass rows"),
                                     };
                                     quote! {
                                         (LexicalOwnerTemplate::DeclarationVerb(#terminal_index), Leaf::#verb {
-                                            verb: #verb::Lexeme(#closed::#member), agreement: #agreement, ..
+                                            verb: #verb::Lexeme(#closed::#member), concord_class: #concord_class, ..
                                         }) => Some(LexicalOwner::static_owner(LexicalProvenanceKind::Lexeme, #stable_id)),
                                     }
                                 }
                                 crate::feature::Feature::Participle => {
-                                    debug_assert_eq!(row.feature(), crate::macro_def::SurfaceFeature::Participle);
+                                    debug_assert_eq!(row.feature(), crate::macro_def::SurfaceFeature::PAST_PARTICIPLE);
                                     quote! {
                                         (LexicalOwnerTemplate::DeclarationVerb(#terminal_index), Leaf::#verb {
                                             verb: #verb::Lexeme(#closed::#member),
@@ -2377,18 +2373,18 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     quote! { declaration }
                 };
                 match codec.feature_axis() {
-                    crate::feature::Feature::Agreement => quote! {
+                    crate::feature::Feature::ConcordClass => quote! {
                         #(#closed_owner_arms)*
                         (LexicalOwnerTemplate::DeclarationVerb(#terminal_index), Leaf::#verb {
-                            verb: #declaration_pattern, agreement, ..
+                            verb: #declaration_pattern, concord_class, ..
                         }) => Some(match declaration.reference() {
                             crate::environment::VerbInventoryRef::Core(identity) => LexicalOwner::static_owner(
                                 LexicalProvenanceKind::Lexeme,
                                 identity.owner_id(),
                             ),
-                            crate::environment::VerbInventoryRef::Declaration(id) => LexicalOwner::declaration_owner(id.clone(), match agreement {
-                                Agreement::Bare => ::deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
-                                Agreement::ThirdPersonSingular => ::deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular,
+                            crate::environment::VerbInventoryRef::Declaration(id) => LexicalOwner::declaration_owner(id.clone(), match concord_class {
+                                ConcordClass::Other => ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
+                                ConcordClass::ThirdPersonSingular => ::deckmaste_construction_core::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
                             }),
                         }),
                     },
@@ -2401,7 +2397,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                                 LexicalProvenanceKind::Lexeme,
                                 identity.owner_id(),
                             ),
-                            crate::environment::VerbInventoryRef::Declaration(id) => LexicalOwner::declaration_owner(id.clone(), ::deckmaste_construction_core::macro_def::SurfaceFeature::Participle),
+                            crate::environment::VerbInventoryRef::Declaration(id) => LexicalOwner::declaration_owner(id.clone(), ::deckmaste_construction_core::macro_def::SurfaceFeature::PAST_PARTICIPLE),
                         }),
                     },
                     _ => unreachable!("validated declaration verb feature axis is closed"),
@@ -2459,13 +2455,19 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                         ::deckmaste_construction_core::macro_def::DeclarationKind::Designation => "designation",
                     };
                     let feature = match feature {
-                        ::deckmaste_construction_core::macro_def::SurfaceFeature::Bare => "bare",
-                        ::deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular => {
+                        ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN => "bare",
+                        ::deckmaste_construction_core::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT => {
                             "third_person_singular"
                         }
                         ::deckmaste_construction_core::macro_def::SurfaceFeature::Singular => "singular",
                         ::deckmaste_construction_core::macro_def::SurfaceFeature::Plural => "plural",
-                        ::deckmaste_construction_core::macro_def::SurfaceFeature::Participle => "participle",
+                        ::deckmaste_construction_core::macro_def::SurfaceFeature::PAST_PARTICIPLE => "participle",
+                        ::deckmaste_construction_core::macro_def::SurfaceFeature::Inflectional(
+                            ::deckmaste_construction_core::macro_def::InflectionalForm::Preterite,
+                        ) => "preterite",
+                        ::deckmaste_construction_core::macro_def::SurfaceFeature::Inflectional(
+                            ::deckmaste_construction_core::macro_def::InflectionalForm::GerundParticiple,
+                        ) => "gerund_participle",
                         ::deckmaste_construction_core::macro_def::SurfaceFeature::Fixed => "fixed",
                         ::deckmaste_construction_core::macro_def::SurfaceFeature::BlockLabel => "block_label",
                     };

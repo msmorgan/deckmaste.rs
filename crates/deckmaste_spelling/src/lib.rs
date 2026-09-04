@@ -49,9 +49,9 @@ pub mod view;
 pub mod witness;
 
 pub use compile::AgreeKind;
-pub use compile::AgreementDep;
 pub use compile::CompiledFrame;
 pub use compile::CompiledGuard;
+pub use compile::FeatureDep;
 pub use compile::Hole;
 pub use compile::HoleClass;
 pub use compile::Normalization;

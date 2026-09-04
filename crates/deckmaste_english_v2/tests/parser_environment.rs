@@ -97,11 +97,11 @@ fn parser_environment_indexes_open_categories_in_both_directions() {
         Path::new("/synthetic/actions/Quuxify.ron")
     );
     assert_eq!(
-        environment.surface(quuxify.id(), SurfaceFeature::Bare),
+        environment.surface(quuxify.id(), SurfaceFeature::PLAIN),
         Some("quuxify")
     );
     assert_eq!(
-        environment.surface(quuxify.id(), SurfaceFeature::ThirdPersonSingular),
+        environment.surface(quuxify.id(), SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT),
         Some("quuxifies")
     );
     assert_eq!(
@@ -109,7 +109,7 @@ fn parser_environment_indexes_open_categories_in_both_directions() {
         [(
             DeclarationKind::KeywordAction,
             "Quuxify".to_owned(),
-            SurfaceFeature::ThirdPersonSingular,
+            SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
             "quuxifies".to_owned(),
         )]
     );

@@ -628,34 +628,34 @@ mod tests {
     }
 
     #[test]
-    fn agreement_constraint_field_policy_seals_target_and_source_accessors() {
+    fn concord_class_constraint_field_policy_seals_target_and_source_accessors() {
         let semantic = crate::validate_declarations(
             crate::parse_declarations(quote::quote! {
                 vocab Mode { One = "one", Many = "many", }
                 construction bare: Child {
                     element BareChild {}
-                    derive agreement = Values::Bare;
+                    derive concord_class = Values::Other;
                     form bare = "bare";
                 }
                 construction third: Child {
                     element ThirdChild {}
-                    derive agreement = Values::ThirdPersonSingular;
+                    derive concord_class = Values::ThirdPersonSingular;
                     form third = "third";
                 }
                 construction constrained: Root {
                     element Constrained { mode: lex Mode, child: Child, }
-                    derive child.agreement = mode.agreement;
-                    derive mode.agreement = match mode {
-                        One => Values::Bare,
+                    derive child.concord_class = mode.concord_class;
+                    derive mode.concord_class = match mode {
+                        One => Values::Other,
                         Many => Values::ThirdPersonSingular,
                     };
                     form constrained = lex(mode) child;
                 }
                 root Root { punctuation = "."; eoi = true; standalone_render = true; }
             })
-            .expect("Agreement field-policy fixture parses"),
+            .expect("ConcordClass field-policy fixture parses"),
         )
-        .expect("Agreement field-policy fixture validates")
+        .expect("ConcordClass field-policy fixture validates")
         .into_semantic();
         let construction = semantic
             .constructions()
@@ -788,15 +788,15 @@ mod tests {
     #[test]
     fn generated_morphology_terminal_contribution_retains_sealed_projection() {
         let expansion = crate::generate(quote::quote! {
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme VerbLexeme using EnglishVerb {
                 Deal = "deal",
-                Be = "be" { Bare = "are", ThirdPersonSingular = "is", },
+                Be = "be" { Other = "are", ThirdPersonSingular = "is", },
             }
             construction action: Ability {
                 element Action {}
-                derive agreement = verb.agreement;
-                derive verb.agreement = Values::Bare;
+                derive concord_class = verb.concord_class;
+                derive verb.concord_class = Values::Other;
                 form action = verb(VerbLexeme::Deal);
             }
             root Ability { punctuation = "."; eoi = true; standalone_render = true; }
@@ -815,16 +815,16 @@ mod tests {
                 .map(|row| (row.member(), row.feature(), row.surface()))
                 .collect::<Vec<_>>(),
             [
-                ("Deal", crate::macro_def::SurfaceFeature::Bare, "deal"),
+                ("Deal", crate::macro_def::SurfaceFeature::PLAIN, "deal"),
                 (
                     "Deal",
-                    crate::macro_def::SurfaceFeature::ThirdPersonSingular,
+                    crate::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
                     "deals",
                 ),
-                ("Be", crate::macro_def::SurfaceFeature::Bare, "are"),
+                ("Be", crate::macro_def::SurfaceFeature::PLAIN, "are"),
                 (
                     "Be",
-                    crate::macro_def::SurfaceFeature::ThirdPersonSingular,
+                    crate::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
                     "is",
                 ),
             ]
@@ -884,12 +884,12 @@ mod tests {
     fn generated_morphology_terminal_projection_rejects_missing_semantic_match() {
         let semantic = crate::validate_declarations(
             crate::parse_declarations(quote::quote! {
-                morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+                morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
                 lexeme VerbLexeme using EnglishVerb { Deal = "deal", }
                 construction action: Ability {
                     element Action {}
-                    derive agreement = verb.agreement;
-                    derive verb.agreement = Values::Bare;
+                    derive concord_class = verb.concord_class;
+                    derive verb.concord_class = Values::Other;
                     form action = verb(VerbLexeme::Deal);
                 }
                 root Ability { punctuation = "."; eoi = true; standalone_render = true; }
@@ -1031,7 +1031,7 @@ mod tests {
             DeclarationVerbPlan::position(),
             crate::macro_def::GrammarPosition::Verb
         );
-        assert_eq!(object.feature_axis(), crate::feature::Feature::Agreement);
+        assert_eq!(object.feature_axis(), crate::feature::Feature::ConcordClass);
         assert_eq!(object.frame_key().class(), VerbFrameClass::Predicate);
         assert_eq!(
             object.frame_key().atoms(),
@@ -1169,7 +1169,7 @@ mod tests {
                     generate declaration_verb {
                         position = Verb;
                         tail = [];
-                        feature = Agreement;
+                        feature = ConcordClass;
                     }
                 }
                 codec AuxiliaryVerb {
@@ -1177,7 +1177,7 @@ mod tests {
                         class = Auxiliary;
                         position = Verb;
                         tail = [];
-                        feature = Agreement;
+                        feature = ConcordClass;
                     }
                 }
                 codec ProVerb {
@@ -1185,7 +1185,7 @@ mod tests {
                         class = ProVerb;
                         position = Verb;
                         tail = [];
-                        feature = Agreement;
+                        feature = ConcordClass;
                     }
                 }
                 construction only: Root {
@@ -1635,7 +1635,7 @@ mod tests {
             "Lexical :: Words",
             "(\"changed\" , Words :: First)",
             "Leaf :: Words (value)",
-            "(Verbs :: Act , Agreement :: Bare , Onset :: Vowel , \"act\")",
+            "(Verbs :: Act , ConcordClass :: Other , Onset :: Vowel , \"act\")",
             "(Nouns :: Person , Number :: Singular , Onset :: Consonant , \"person\")",
             "Lexical :: Declaration (matcher)",
             "input . declaration_readings (matcher , terminal . right_boundary)",
@@ -2044,7 +2044,7 @@ mod tests {
 
     fn declaration_verb_expansion() -> crate::Expansion {
         crate::generate(quote::quote! {
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme CoreVerb using EnglishVerb { Act = "act", }
             vocab ObjectWord { Object = "object", }
             codec TransitiveVerb {
@@ -2052,12 +2052,12 @@ mod tests {
                     closed = CoreVerb;
                     position = Verb;
                     tail = [ObjectNounPhrase];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 }
             }
             construction transitive: VerbPhrase {
                 element Transitive { head: lex TransitiveVerb, object: lex ObjectWord, }
-                derive head.agreement = Values::Bare;
+                derive head.concord_class = Values::Other;
                 form transitive = verb(head) lex(object);
             }
             root VerbPhrase { punctuation = "."; eoi = true; standalone_render = true; }
@@ -2104,7 +2104,7 @@ mod tests {
                     class = Auxiliary;
                     position = Verb;
                     tail = [];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 }
             }
             codec ProVerb {
@@ -2112,17 +2112,17 @@ mod tests {
                     class = ProVerb;
                     position = Verb;
                     tail = [];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 }
             }
             construction auxiliary: Root {
                 element AuxiliaryUse { head: lex AuxiliaryVerb, }
-                derive head.agreement = Values::Bare;
+                derive head.concord_class = Values::Other;
                 form auxiliary = verb(head);
             }
             construction pro_verb: Root {
                 element ProVerbUse { head: lex ProVerb, }
-                derive head.agreement = Values::Bare;
+                derive head.concord_class = Values::Other;
                 form pro_verb = verb(head);
             }
             construction only: Root {
@@ -2151,8 +2151,8 @@ mod tests {
         let expansion = representative_expansion();
 
         assert_eq!(
-            enum_variants(generated_item(&expansion, "Agreement")),
-            ["Bare", "ThirdPersonSingular"]
+            enum_variants(generated_item(&expansion, "ConcordClass")),
+            ["Other", "ThirdPersonSingular"]
         );
         assert_eq!(
             enum_variants(generated_item(&expansion, "Number")),
@@ -2627,8 +2627,8 @@ mod tests {
         ["Node", "First"].into_iter().map(str::to_owned).collect()
     }
 
-    fn assert_representative_agreement_match(expansion: &crate::Expansion) {
-        let agreement_match = expansion
+    fn assert_representative_concord_class_match(expansion: &crate::Expansion) {
+        let concord_class_match = expansion
             .items()
             .iter()
             .find(|item| {
@@ -2637,12 +2637,12 @@ mod tests {
                     ItemKey::Named {
                         kind: NamedKind::Function,
                         name,
-                    } if name == "agreement_matches_for_action"
+                    } if name == "concord_class_matches_for_action"
                 )
             })
-            .expect("the contextual Action Agreement matcher is planned");
+            .expect("the contextual Action ConcordClass matcher is planned");
         assert_eq!(
-            agreement_match
+            concord_class_match
                 .origins
                 .iter()
                 .map(|origin| (origin.kind(), origin.name()))
@@ -2739,7 +2739,7 @@ mod tests {
             ]
         );
         assert_eq!(keys.len(), 125);
-        assert_representative_agreement_match(&first);
+        assert_representative_concord_class_match(&first);
         assert!(keys.contains(&&ItemKey::Named {
             kind: NamedKind::Trait,
             name: "GeneratedRoot".into(),

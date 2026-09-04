@@ -23,10 +23,10 @@ use crate::plan::GeneratedItem;
 use crate::plan::ItemKey;
 use crate::plan::NamedKind;
 use crate::plan::SourceDeclarationKind;
-use crate::semantic::AgreementAuthorityPlan;
 use crate::semantic::AtomPlan;
 use crate::semantic::AtomTerminal;
 use crate::semantic::BindingBuildExprPlan;
+use crate::semantic::ConcordClassAuthorityPlan;
 use crate::semantic::ConstructionPlan;
 use crate::semantic::FiniteDomainKindPlan;
 use crate::semantic::FiniteValuePlan;
@@ -568,12 +568,12 @@ fn emit_sum_arm(
     for name in ["rule", "children", "context"] {
         binders.reserve(name);
     }
-    let agreement_carry = plan.sum_carries_agreement(sum.name());
+    let concord_class_carry = plan.sum_carries_concord_class(sum.name());
     let fused_head_license_carry = plan.carries_feature(sum.name(), Feature::FusedHeadLicense);
-    let (value, agreement, fused_head_license) = if agreement_carry {
-        let (value, agreement, fused_head_license) =
-            lower_value_with_agreement(plan, alternative.value(), "value", &mut binders)?;
-        (value, Some(agreement), fused_head_license)
+    let (value, concord_class, fused_head_license) = if concord_class_carry {
+        let (value, concord_class, fused_head_license) =
+            lower_value_with_concord_class(plan, alternative.value(), "value", &mut binders)?;
+        (value, Some(concord_class), fused_head_license)
     } else if fused_head_license_carry {
         let (value, fused_head_license) =
             lower_value_with_fused_head_license(plan, alternative.value(), "value", &mut binders)?;
@@ -594,14 +594,14 @@ fn emit_sum_arm(
     let sum_type = ident(sum.name());
     let variant = ident(alternative.name());
     let patterns = vec![value.pattern];
-    let agreement = agreement.map(|agreement| quote! { , *#agreement });
+    let concord_class = concord_class.map(|concord_class| quote! { , *#concord_class });
     let fused_head_license =
         fused_head_license.map(|fused_head_license| quote! { , *#fused_head_license });
     let rule_id = ident(&rule.id);
     Ok(quote! {
         RuleId::#rule_id => match children {
             [#(#patterns),*] => Ok(Some(BuildValue::#sum_type(
-                #sum_type::#variant(#payload) #agreement #fused_head_license, FeatureConstraint::Any
+                #sum_type::#variant(#payload) #concord_class #fused_head_license, FeatureConstraint::Any
             ))),
             _ => Ok(None),
         },
@@ -711,7 +711,7 @@ struct LoweredValue {
 
 #[derive(Default)]
 struct SequenceItemFeatures {
-    agreement: Option<syn::Ident>,
+    concord_class: Option<syn::Ident>,
     number: Option<syn::Ident>,
     onset: Option<syn::Ident>,
     possessive_ending: Option<syn::Ident>,
@@ -739,8 +739,9 @@ fn lower_value_with_sequence_features(
             let variant = ident(name);
             let binding = binders.allocate(preferred);
             let mut item_features = SequenceItemFeatures::default();
-            if features.contains(&Feature::Agreement) {
-                item_features.agreement = Some(binders.allocate(&format!("{preferred}_agreement")));
+            if features.contains(&Feature::ConcordClass) {
+                item_features.concord_class =
+                    Some(binders.allocate(&format!("{preferred}_concord_class")));
             }
             if features.contains(&Feature::Number) {
                 item_features.number = Some(binders.allocate(&format!("{preferred}_number")));
@@ -752,9 +753,9 @@ fn lower_value_with_sequence_features(
                 item_features.possessive_ending =
                     Some(binders.allocate(&format!("{preferred}_possessive_ending")));
             }
-            let agreement = plan.category_carries_agreement(name).then(|| {
+            let concord_class = plan.category_carries_concord_class(name).then(|| {
                 item_features
-                    .agreement
+                    .concord_class
                     .as_ref()
                     .map_or_else(|| quote! { , _ }, |value| quote! { , #value })
             });
@@ -791,28 +792,28 @@ fn lower_value_with_sequence_features(
             let following_onset = carries_following_onset(plan, name).then(|| quote! { , _ });
             Ok((
                 LoweredValue {
-                    pattern: quote! { BuildValue::#variant(#binding #agreement #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending #following_onset) },
+                    pattern: quote! { BuildValue::#variant(#binding #concord_class #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending #following_onset) },
                     expression: quote! { #binding.clone() },
                 },
                 item_features,
             ))
         }
         ValueKindPlan::Sum(name)
-            if features == [Feature::Agreement] && plan.sum_carries_agreement(name) =>
+            if features == [Feature::ConcordClass] && plan.sum_carries_concord_class(name) =>
         {
             let variant = ident(name);
             let binding = binders.allocate(preferred);
-            let agreement = binders.allocate(&format!("{preferred}_agreement"));
+            let concord_class = binders.allocate(&format!("{preferred}_concord_class"));
             let fused_head_license = plan
                 .carries_feature(name, Feature::FusedHeadLicense)
                 .then(|| quote! { , _ });
             Ok((
                 LoweredValue {
-                    pattern: quote! { BuildValue::#variant(#binding, #agreement #fused_head_license, _) },
+                    pattern: quote! { BuildValue::#variant(#binding, #concord_class #fused_head_license, _) },
                     expression: quote! { #binding.clone() },
                 },
                 SequenceItemFeatures {
-                    agreement: Some(agreement),
+                    concord_class: Some(concord_class),
                     ..SequenceItemFeatures::default()
                 },
             ))
@@ -829,7 +830,7 @@ fn lower_value_with_sequence_features(
 
 fn category_carries_sequence_feature(plan: &SemanticPlan, name: &str, feature: Feature) -> bool {
     match feature {
-        Feature::Agreement => plan.category_carries_agreement(name),
+        Feature::ConcordClass => plan.category_carries_concord_class(name),
         Feature::Number => plan.category_carries_number(name),
         Feature::Onset => plan.category_carries_onset(name),
         Feature::PossessiveEnding => plan.category_carries_possessive_ending(name),
@@ -837,15 +838,15 @@ fn category_carries_sequence_feature(plan: &SemanticPlan, name: &str, feature: F
     }
 }
 
-fn lower_value_with_agreement(
+fn lower_value_with_concord_class(
     plan: &SemanticPlan,
     value: &ValueKindPlan,
     preferred: &str,
     binders: &mut LocalAllocator,
 ) -> syn::Result<(LoweredValue, syn::Ident, Option<syn::Ident>)> {
-    let agreement = binders.allocate(&format!("{preferred}_agreement"));
+    let concord_class = binders.allocate(&format!("{preferred}_concord_class"));
     match value {
-        ValueKindPlan::Category(name) if plan.category_carries_agreement(name) => {
+        ValueKindPlan::Category(name) if plan.category_carries_concord_class(name) => {
             let variant = ident(name);
             let binding = binders.allocate(preferred);
             let cardinality = plan
@@ -872,15 +873,15 @@ fn lower_value_with_agreement(
             Ok((
                 LoweredValue {
                     pattern: quote! { BuildValue::#variant(
-                        #binding, #agreement #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending #following_onset
+                        #binding, #concord_class #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending #following_onset
                     ) },
                     expression: quote! { #binding.clone() },
                 },
-                agreement,
+                concord_class,
                 carried_fused_head_license,
             ))
         }
-        ValueKindPlan::Sum(name) if plan.sum_carries_agreement(name) => {
+        ValueKindPlan::Sum(name) if plan.sum_carries_concord_class(name) => {
             let variant = ident(name);
             let binding = binders.allocate(preferred);
             let carried_fused_head_license = plan
@@ -891,10 +892,10 @@ fn lower_value_with_agreement(
                 .map(|value| quote! { , #value });
             Ok((
                 LoweredValue {
-                    pattern: quote! { BuildValue::#variant(#binding, #agreement #fused_head_license, _) },
+                    pattern: quote! { BuildValue::#variant(#binding, #concord_class #fused_head_license, _) },
                     expression: quote! { #binding.clone() },
                 },
-                agreement,
+                concord_class,
                 carried_fused_head_license,
             ))
         }
@@ -903,7 +904,7 @@ fn lower_value_with_agreement(
         | ValueKindPlan::Sum(_)
         | ValueKindPlan::Lex(_)
         | ValueKindPlan::Identity(_) => Err(internal(
-            "agreement-bearing value lowering received a value without agreement",
+            "concord_class-bearing value lowering received a value without concord_class",
         )),
     }
 }
@@ -919,8 +920,8 @@ fn lower_value_with_fused_head_license(
         ValueKindPlan::Category(name) if plan.carries_feature(name, Feature::FusedHeadLicense) => {
             let variant = ident(name);
             let binding = binders.allocate(preferred);
-            let agreement = plan
-                .category_carries_agreement(name)
+            let concord_class = plan
+                .category_carries_concord_class(name)
                 .then(|| quote! { , _ });
             let cardinality = plan
                 .category_carries_cardinality(name)
@@ -940,7 +941,7 @@ fn lower_value_with_fused_head_license(
             Ok((
                 LoweredValue {
                     pattern: quote! { BuildValue::#variant(
-                        #binding #agreement #cardinality #number #determiner_number,
+                        #binding #concord_class #cardinality #number #determiner_number,
                         #fused_head_license #nominal_license #onset #possessive_ending #following_onset
                     ) },
                     expression: quote! { #binding.clone() },
@@ -951,10 +952,10 @@ fn lower_value_with_fused_head_license(
         ValueKindPlan::Sum(name) if plan.carries_feature(name, Feature::FusedHeadLicense) => {
             let variant = ident(name);
             let binding = binders.allocate(preferred);
-            let agreement = plan.sum_carries_agreement(name).then(|| quote! { , _ });
+            let concord_class = plan.sum_carries_concord_class(name).then(|| quote! { , _ });
             Ok((
                 LoweredValue {
-                    pattern: quote! { BuildValue::#variant(#binding #agreement, #fused_head_license, _) },
+                    pattern: quote! { BuildValue::#variant(#binding #concord_class, #fused_head_license, _) },
                     expression: quote! { #binding.clone() },
                 },
                 fused_head_license,
@@ -980,8 +981,8 @@ fn lower_value(
         ValueKindPlan::Category(name) => {
             let variant = ident(name);
             let binding = binders.allocate(preferred);
-            let agreement = plan
-                .category_carries_agreement(name)
+            let concord_class = plan
+                .category_carries_concord_class(name)
                 .then(|| quote! { , _ });
             let cardinality = plan
                 .category_carries_cardinality(name)
@@ -1002,7 +1003,7 @@ fn lower_value(
                 .then(|| quote! { , _ });
             let following_onset = carries_following_onset(plan, name).then(|| quote! { , _ });
             Ok(LoweredValue {
-                pattern: quote! { BuildValue::#variant(#binding #agreement #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending #following_onset) },
+                pattern: quote! { BuildValue::#variant(#binding #concord_class #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending #following_onset) },
                 expression: quote! { #binding.clone() },
             })
         }
@@ -1017,12 +1018,12 @@ fn lower_value(
         ValueKindPlan::Sum(name) => {
             let variant = ident(name);
             let binding = binders.allocate(preferred);
-            let agreement = plan.sum_carries_agreement(name).then(|| quote! { , _ });
+            let concord_class = plan.sum_carries_concord_class(name).then(|| quote! { , _ });
             let fused_head_license = plan
                 .carries_feature(name, Feature::FusedHeadLicense)
                 .then(|| quote! { , _ });
             Ok(LoweredValue {
-                pattern: quote! { BuildValue::#variant(#binding #agreement #fused_head_license, _) },
+                pattern: quote! { BuildValue::#variant(#binding #concord_class #fused_head_license, _) },
                 expression: quote! { #binding.clone() },
             })
         }
@@ -1135,7 +1136,7 @@ fn lower_terminal_value(
             let leaf = plan.codec_ident();
             let binding = binders.allocate(preferred);
             let feature = match plan.feature_axis() {
-                Feature::Agreement => quote! { agreement: _, },
+                Feature::ConcordClass => quote! { concord_class: _, },
                 Feature::Participle => quote! {},
                 _ => unreachable!("validated declaration verb feature axis is closed"),
             };
@@ -1278,8 +1279,8 @@ fn lower_zeroable_owner_value(
             let item = if let ValueKindPlan::Category(name) = item {
                 let variant = ident(name);
                 let binding = lowering.binders.allocate(field.name());
-                let agreement = plan
-                    .category_carries_agreement(name)
+                let concord_class = plan
+                    .category_carries_concord_class(name)
                     .then(|| quote! { , _ });
                 let cardinality = plan
                     .category_carries_cardinality(name)
@@ -1335,7 +1336,7 @@ fn lower_zeroable_owner_value(
                     quote! { , #feature }
                 });
                 LoweredValue {
-                    pattern: quote! { BuildValue::#variant(#binding #agreement #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending #following_onset) },
+                    pattern: quote! { BuildValue::#variant(#binding #concord_class #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending #following_onset) },
                     expression: quote! { #binding.clone() },
                 }
             } else {
@@ -1417,7 +1418,7 @@ fn lower_sequence_owner_value(
         | super::rules::SequenceOwnerState::PositionalEmpty => {
             let parts = exact_sequence_parts(lowered, 0, &rule.state)?;
             debug_assert!(
-                parts.agreements.is_empty()
+                parts.concord_classes.is_empty()
                     && parts.numbers.is_empty()
                     && parts.onsets.is_empty()
                     && parts.possessive_endings.is_empty()
@@ -1432,8 +1433,8 @@ fn lower_sequence_owner_value(
             let (feature_value, guards) = sequence_owner_feature_values(
                 sequence_features,
                 &SequenceFeatureBindings {
-                    agreements: Vec::new(),
-                    tail_agreement: parts.tail_agreement,
+                    concord_classes: Vec::new(),
+                    tail_concord_class: parts.tail_concord_class,
                     numbers: Vec::new(),
                     tail_number: parts.tail_number,
                     onsets: Vec::new(),
@@ -1450,8 +1451,8 @@ fn lower_sequence_owner_value(
             let (feature_value, guards) = sequence_owner_feature_values(
                 sequence_features,
                 &SequenceFeatureBindings {
-                    agreements: parts.agreements,
-                    tail_agreement: None,
+                    concord_classes: parts.concord_classes,
+                    tail_concord_class: None,
                     numbers: parts.numbers,
                     tail_number: None,
                     onsets: parts.onsets,
@@ -1468,8 +1469,8 @@ fn lower_sequence_owner_value(
             let (feature_value, guards) = sequence_owner_feature_values(
                 sequence_features,
                 &SequenceFeatureBindings {
-                    agreements: parts.agreements,
-                    tail_agreement: None,
+                    concord_classes: parts.concord_classes,
+                    tail_concord_class: None,
                     numbers: parts.numbers,
                     tail_number: None,
                     onsets: parts.onsets,
@@ -1489,8 +1490,8 @@ fn lower_sequence_owner_value(
             let (feature_value, guards) = sequence_owner_feature_values(
                 sequence_features,
                 &SequenceFeatureBindings {
-                    agreements: parts.agreements,
-                    tail_agreement: parts.tail_agreement,
+                    concord_classes: parts.concord_classes,
+                    tail_concord_class: parts.tail_concord_class,
                     numbers: parts.numbers,
                     tail_number: parts.tail_number,
                     onsets: parts.onsets,
@@ -1518,8 +1519,8 @@ struct LoweredSequenceRhs {
     patterns: Vec<TokenStream>,
     values: Vec<TokenStream>,
     tail: Option<syn::Ident>,
-    agreements: Vec<syn::Ident>,
-    tail_agreement: Option<syn::Ident>,
+    concord_classes: Vec<syn::Ident>,
+    tail_concord_class: Option<syn::Ident>,
     numbers: Vec<syn::Ident>,
     tail_number: Option<syn::Ident>,
     onsets: Vec<syn::Ident>,
@@ -1540,8 +1541,8 @@ fn lower_sequence_rhs(
     let mut patterns = Vec::new();
     let mut values = Vec::new();
     let mut tail = None;
-    let mut agreements = Vec::new();
-    let mut tail_agreement = None;
+    let mut concord_classes = Vec::new();
+    let mut tail_concord_class = None;
     let mut numbers = Vec::new();
     let mut tail_number = None;
     let mut onsets = Vec::new();
@@ -1561,7 +1562,7 @@ fn lower_sequence_rhs(
                 )?;
                 patterns.push(value.pattern);
                 values.push(value.expression);
-                agreements.extend(item_features.agreement);
+                concord_classes.extend(item_features.concord_class);
                 numbers.extend(item_features.number);
                 onsets.extend(item_features.onset);
                 possessive_endings.extend(item_features.possessive_ending);
@@ -1578,9 +1579,9 @@ fn lower_sequence_rhs(
                     )));
                 }
                 let binding = binders.allocate("tail");
-                let agreement = features
-                    .contains(&Feature::Agreement)
-                    .then(|| binders.allocate("tail_agreement"));
+                let concord_class = features
+                    .contains(&Feature::ConcordClass)
+                    .then(|| binders.allocate("tail_concord_class"));
                 let number = features
                     .contains(&Feature::Number)
                     .then(|| binders.allocate("tail_number"));
@@ -1593,7 +1594,7 @@ fn lower_sequence_rhs(
                 let feature_patterns = features
                     .iter()
                     .map(|feature| match feature {
-                        Feature::Agreement => agreement.as_ref(),
+                        Feature::ConcordClass => concord_class.as_ref(),
                         Feature::Number => number.as_ref(),
                         Feature::Onset => onset.as_ref(),
                         Feature::PossessiveEnding => possessive_ending.as_ref(),
@@ -1602,7 +1603,7 @@ fn lower_sequence_rhs(
                     .map(|feature| feature.expect("validated sequence feature has a binding"));
                 patterns.push(quote! { BuildValue::#carrier(#binding #(, #feature_patterns)*) });
                 tail = Some(binding);
-                tail_agreement = agreement;
+                tail_concord_class = concord_class;
                 tail_number = number;
                 tail_onset = onset;
                 tail_possessive_ending = possessive_ending;
@@ -1623,8 +1624,8 @@ fn lower_sequence_rhs(
         patterns,
         values,
         tail,
-        agreements,
-        tail_agreement,
+        concord_classes,
+        tail_concord_class,
         numbers,
         tail_number,
         onsets,
@@ -1636,7 +1637,7 @@ fn lower_sequence_rhs(
 
 struct ExactSequenceParts {
     values: Vec<TokenStream>,
-    agreements: Vec<syn::Ident>,
+    concord_classes: Vec<syn::Ident>,
     numbers: Vec<syn::Ident>,
     onsets: Vec<syn::Ident>,
     possessive_endings: Vec<syn::Ident>,
@@ -1652,22 +1653,22 @@ fn exact_sequence_parts(
             "{state} sequence RHS must contain exactly {expected} values and no tail"
         )));
     }
-    if lowered.tail_agreement.is_some()
+    if lowered.tail_concord_class.is_some()
         || lowered.tail_number.is_some()
         || lowered.tail_onset.is_some()
         || lowered.tail_possessive_ending.is_some()
-        || (!lowered.agreements.is_empty() && lowered.agreements.len() != expected)
+        || (!lowered.concord_classes.is_empty() && lowered.concord_classes.len() != expected)
         || (!lowered.numbers.is_empty() && lowered.numbers.len() != expected)
         || (!lowered.onsets.is_empty() && lowered.onsets.len() != expected)
         || (!lowered.possessive_endings.is_empty() && lowered.possessive_endings.len() != expected)
     {
         return Err(internal(&format!(
-            "{state} sequence RHS has inconsistent agreement bindings"
+            "{state} sequence RHS has inconsistent concord_class bindings"
         )));
     }
     Ok(ExactSequenceParts {
         values: lowered.values,
-        agreements: lowered.agreements,
+        concord_classes: lowered.concord_classes,
         numbers: lowered.numbers,
         onsets: lowered.onsets,
         possessive_endings: lowered.possessive_endings,
@@ -1677,8 +1678,8 @@ fn exact_sequence_parts(
 struct PrefixedSequenceParts {
     values: Vec<TokenStream>,
     tail: syn::Ident,
-    agreements: Vec<syn::Ident>,
-    tail_agreement: Option<syn::Ident>,
+    concord_classes: Vec<syn::Ident>,
+    tail_concord_class: Option<syn::Ident>,
     numbers: Vec<syn::Ident>,
     tail_number: Option<syn::Ident>,
     onsets: Vec<syn::Ident>,
@@ -1702,20 +1703,20 @@ fn prefixed_sequence_parts(
             "{state} sequence RHS must contain exactly {expected} prefix values"
         )));
     }
-    if (!lowered.agreements.is_empty() && lowered.agreements.len() != expected)
+    if (!lowered.concord_classes.is_empty() && lowered.concord_classes.len() != expected)
         || (!lowered.numbers.is_empty() && lowered.numbers.len() != expected)
         || (!lowered.onsets.is_empty() && lowered.onsets.len() != expected)
         || (!lowered.possessive_endings.is_empty() && lowered.possessive_endings.len() != expected)
     {
         return Err(internal(&format!(
-            "{state} sequence RHS has inconsistent agreement bindings"
+            "{state} sequence RHS has inconsistent concord_class bindings"
         )));
     }
     Ok(PrefixedSequenceParts {
         values: lowered.values,
         tail,
-        agreements: lowered.agreements,
-        tail_agreement: lowered.tail_agreement,
+        concord_classes: lowered.concord_classes,
+        tail_concord_class: lowered.tail_concord_class,
         numbers: lowered.numbers,
         tail_number: lowered.tail_number,
         onsets: lowered.onsets,
@@ -1745,8 +1746,8 @@ fn homogeneous_sequence_feature(
 type SequenceOwnerFeatures = Vec<(Feature, syn::Ident)>;
 
 struct SequenceFeatureBindings {
-    agreements: Vec<syn::Ident>,
-    tail_agreement: Option<syn::Ident>,
+    concord_classes: Vec<syn::Ident>,
+    tail_concord_class: Option<syn::Ident>,
     numbers: Vec<syn::Ident>,
     tail_number: Option<syn::Ident>,
     onsets: Vec<syn::Ident>,
@@ -1763,10 +1764,10 @@ fn sequence_owner_feature_values(
     let mut guards = Vec::new();
     for feature in features {
         let (value, feature_guards) = match feature {
-            Feature::Agreement => {
+            Feature::ConcordClass => {
                 let (value, guards) = homogeneous_sequence_feature(
-                    bindings.agreements.clone(),
-                    bindings.tail_agreement.clone(),
+                    bindings.concord_classes.clone(),
+                    bindings.tail_concord_class.clone(),
                 );
                 (value, guards)
             }
@@ -1811,8 +1812,8 @@ fn emit_exact_sequence_success(
     let (sequence_features, guards) = sequence_owner_feature_values(
         features,
         &SequenceFeatureBindings {
-            agreements: parts.agreements,
-            tail_agreement: None,
+            concord_classes: parts.concord_classes,
+            tail_concord_class: None,
             numbers: parts.numbers,
             tail_number: None,
             onsets: parts.onsets,
@@ -1852,8 +1853,8 @@ fn emit_prefixed_sequence_success(
     let (sequence_features, guards) = sequence_owner_feature_values(
         features,
         &SequenceFeatureBindings {
-            agreements: parts.agreements,
-            tail_agreement: parts.tail_agreement,
+            concord_classes: parts.concord_classes,
+            tail_concord_class: parts.tail_concord_class,
             numbers: parts.numbers,
             tail_number: parts.tail_number,
             onsets: parts.onsets,
@@ -2110,18 +2111,18 @@ fn lower_atom(
         AtomPlan::VerbFixed {
             terminal, variant, ..
         } => {
-            let agreement = verb_agreement_pattern(validated, row, lowering)?;
+            let concord_class = verb_concord_class_pattern(validated, row, lowering)?;
             let onset =
-                verb_onset_pattern(validated, row, lowering, terminal, variant, &agreement)?;
-            let agreement_field = if agreement.to_string() == "agreement" {
-                quote! { agreement }
+                verb_onset_pattern(validated, row, lowering, terminal, variant, &concord_class)?;
+            let concord_class_field = if concord_class.to_string() == "concord_class" {
+                quote! { concord_class }
             } else {
-                quote! { agreement: #agreement }
+                quote! { concord_class: #concord_class }
             };
             let terminal = ident(terminal);
             let variant = ident(variant);
             lowering.patterns.push(quote! {
-                BuildValue::Leaf(Leaf::Verb { lexeme: #terminal::#variant, #agreement_field, onset: #onset })
+                BuildValue::Leaf(Leaf::Verb { lexeme: #terminal::#variant, #concord_class_field, onset: #onset })
             });
         }
         AtomPlan::OpenDeclaration(open) => {
@@ -2142,18 +2143,18 @@ fn lower_atom(
             });
             lowering.guards.push(quote! {
                 matches!(
-                    #surface_feature,
-                    ::deckmaste_construction_core::macro_def::SurfaceFeature::Bare
-                        | ::deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular
+                    *#surface_feature,
+                    ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN
+                        | ::deckmaste_construction_core::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT
                 )
             });
             lowering.role_features.insert(
-                ("verb".to_owned(), Feature::Agreement),
+                ("verb".to_owned(), Feature::ConcordClass),
                 LocalFeatureValue::Computed(quote! {
                     match #surface_feature {
-                        ::deckmaste_construction_core::macro_def::SurfaceFeature::Bare => Agreement::Bare,
-                        ::deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular => {
-                            Agreement::ThirdPersonSingular
+                        ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN => ConcordClass::Other,
+                        ::deckmaste_construction_core::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT => {
+                            ConcordClass::ThirdPersonSingular
                         }
                         _ => unreachable!("open verb matcher admitted a non-verb feature"),
                     }
@@ -2240,7 +2241,7 @@ fn lower_category_role(
         .field_values
         .insert(role_name.clone(), quote! { #role_binding.clone() });
 
-    let carries_agreement = validated.category_carries_agreement(category_name);
+    let carries_concord_class = validated.category_carries_concord_class(category_name);
     let carries_cardinality = validated.category_carries_cardinality(category_name);
     let carries_number = validated.category_carries_number(category_name);
     let carries_determiner_number =
@@ -2250,8 +2251,8 @@ fn lower_category_role(
     let carries_nominal_license = validated.carries_feature(category_name, Feature::NominalLicense);
     let carries_onset = validated.category_carries_onset(category_name);
     let carries_possessive_ending = validated.category_carries_possessive_ending(category_name);
-    let agreement = carries_agreement
-        .then(|| role_agreement_pattern(validated, row, &role, category_name, lowering))
+    let concord_class = carries_concord_class
+        .then(|| role_concord_class_pattern(validated, row, &role, category_name, lowering))
         .transpose()?;
     let cardinality = carries_cardinality.then(|| {
         let name = lowering
@@ -2314,7 +2315,7 @@ fn lower_category_role(
         );
         name
     });
-    let agreement = agreement.map(|value| quote! { , #value });
+    let concord_class = concord_class.map(|value| quote! { , #value });
     let cardinality = cardinality.map(|value| quote! { , #value });
     let number = number.map(|value| quote! { , #value });
     let determiner_number = determiner_number.map(|value| quote! { , #value });
@@ -2324,7 +2325,7 @@ fn lower_category_role(
     let possessive_ending = possessive_ending.map(|value| quote! { , #value });
     lowering
         .patterns
-        .push(quote! { BuildValue::#category(#role_binding #agreement #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending #following_onset) });
+        .push(quote! { BuildValue::#category(#role_binding #concord_class #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending #following_onset) });
     Ok(())
 }
 
@@ -2335,7 +2336,7 @@ fn carries_following_onset(plan: &SemanticPlan, name: &str) -> bool {
         .is_some_and(|item| item.kind != super::SemanticTypeKind::Product)
 }
 
-fn role_agreement_pattern(
+fn role_concord_class_pattern(
     validated: &SemanticPlan,
     row: &ConstructionPlan,
     role: &syn::Ident,
@@ -2344,13 +2345,13 @@ fn role_agreement_pattern(
 ) -> syn::Result<TokenStream> {
     let target = FeaturePlace::Role {
         field: role.clone(),
-        feature: Feature::Agreement,
+        feature: Feature::ConcordClass,
     };
     if let Some(crate::feature::FeatureResolution::Known(value)) =
         validated.feature_resolution(row.construction_id(), &target)
     {
         lowering.role_features.insert(
-            (identifier_key(role), Feature::Agreement),
+            (identifier_key(role), Feature::ConcordClass),
             LocalFeatureValue::Known(value),
         );
         return Ok(feature_value(value));
@@ -2360,19 +2361,19 @@ fn role_agreement_pattern(
             return Err(internal("category role feature cannot be a vocab match"));
         }
         let stem = snake_case(category).trim_end_matches("_phrase").to_owned();
-        let name = lowering.binders.allocate(&format!("{stem}_agreement"));
+        let name = lowering.binders.allocate(&format!("{stem}_concord_class"));
         lowering.role_features.insert(
-            (identifier_key(role), Feature::Agreement),
+            (identifier_key(role), Feature::ConcordClass),
             LocalFeatureValue::Bound(name.clone()),
         );
         return Ok(quote! { #name });
     }
-    if feature_is_read(validated, row, role, Feature::Agreement) {
+    if feature_is_read(validated, row, role, Feature::ConcordClass) {
         let name = lowering
             .binders
-            .allocate(&format!("{}_agreement", identifier_key(role)));
+            .allocate(&format!("{}_concord_class", identifier_key(role)));
         lowering.role_features.insert(
-            (identifier_key(role), Feature::Agreement),
+            (identifier_key(role), Feature::ConcordClass),
             LocalFeatureValue::Bound(name.clone()),
         );
         Ok(quote! { #name })
@@ -2456,8 +2457,8 @@ fn lower_unsigned_number_role(
     role: &syn::Ident,
     lowering: &mut Lowering,
 ) {
-    let agreement_provider = (codec.kind() == UnsignedNumberKind::EnglishCardinal)
-        .then(|| ident(&feature_helper("agreement", codec.codec_name())));
+    let concord_class_provider = (codec.kind() == UnsignedNumberKind::EnglishCardinal)
+        .then(|| ident(&feature_helper("concord_class", codec.codec_name())));
     let determiner_number_provider = (codec.kind() == UnsignedNumberKind::EnglishCardinal)
         .then(|| ident(&feature_helper("determiner_number", codec.codec_name())));
     let number_provider = (codec.kind() == UnsignedNumberKind::EnglishCardinal)
@@ -2465,7 +2466,7 @@ fn lower_unsigned_number_role(
     let cardinality_provider = (codec.kind() == UnsignedNumberKind::EnglishCardinal)
         .then(|| ident(&feature_helper("cardinality", codec.codec_name())));
     for provider in [
-        &agreement_provider,
+        &concord_class_provider,
         &determiner_number_provider,
         &number_provider,
         &cardinality_provider,
@@ -2484,7 +2485,7 @@ fn lower_unsigned_number_role(
         .field_values
         .insert(identifier_key(role), quote! { #value.clone() });
     for (feature, provider) in [
-        (Feature::Agreement, agreement_provider),
+        (Feature::ConcordClass, concord_class_provider),
         (Feature::DeterminerNumber, determiner_number_provider),
         (Feature::Number, number_provider),
         (Feature::Cardinality, cardinality_provider),
@@ -2749,13 +2750,13 @@ fn lower_declaration_verb_role(
         LocalFeatureValue::Bound(onset.clone()),
     );
     let feature_field = match plan.feature_axis() {
-        Feature::Agreement => {
-            let agreement =
-                role_agreement_pattern(validated, row, role, plan.codec_name(), lowering)?;
-            if agreement.to_string() == "agreement" {
-                quote! { agreement, }
+        Feature::ConcordClass => {
+            let concord_class =
+                role_concord_class_pattern(validated, row, role, plan.codec_name(), lowering)?;
+            if concord_class.to_string() == "concord_class" {
+                quote! { concord_class, }
             } else {
-                quote! { agreement: #agreement, }
+                quote! { concord_class: #concord_class, }
             }
         }
         Feature::Participle => quote! {},
@@ -3030,7 +3031,7 @@ fn noun_number_pattern(
     }
 }
 
-fn verb_agreement_pattern(
+fn verb_concord_class_pattern(
     validated: &SemanticPlan,
     row: &ConstructionPlan,
     lowering: &mut Lowering,
@@ -3038,13 +3039,13 @@ fn verb_agreement_pattern(
     let verb = ident("verb");
     let target = FeaturePlace::Role {
         field: verb,
-        feature: Feature::Agreement,
+        feature: Feature::ConcordClass,
     };
     if let Some(crate::feature::FeatureResolution::Known(value)) =
         validated.feature_resolution(row.construction_id(), &target)
     {
         lowering.role_features.insert(
-            ("verb".to_owned(), Feature::Agreement),
+            ("verb".to_owned(), Feature::ConcordClass),
             LocalFeatureValue::Known(value),
         );
         return Ok(feature_value(value));
@@ -3053,14 +3054,14 @@ fn verb_agreement_pattern(
         equation(validated, row, &target).map(crate::feature::FeatureEquation::value),
         Some(FeatureExpr::MatchVocab { .. })
     ) {
-        return Err(internal("verb agreement cannot be a vocab match"));
+        return Err(internal("verb concord_class cannot be a vocab match"));
     }
-    let agreement = lowering.binders.allocate("agreement");
+    let concord_class = lowering.binders.allocate("concord_class");
     lowering.role_features.insert(
-        ("verb".to_owned(), Feature::Agreement),
-        LocalFeatureValue::Bound(agreement.clone()),
+        ("verb".to_owned(), Feature::ConcordClass),
+        LocalFeatureValue::Bound(concord_class.clone()),
     );
-    Ok(quote! { #agreement })
+    Ok(quote! { #concord_class })
 }
 
 fn verb_onset_pattern(
@@ -3069,7 +3070,7 @@ fn verb_onset_pattern(
     lowering: &mut Lowering,
     terminal: &str,
     variant: &str,
-    agreement_pattern: &TokenStream,
+    concord_class_pattern: &TokenStream,
 ) -> syn::Result<TokenStream> {
     let lexeme = validated
         .runtime_verb_lexeme()
@@ -3082,15 +3083,15 @@ fn verb_onset_pattern(
         .collect::<Vec<_>>();
     let target = FeaturePlace::Role {
         field: ident("verb"),
-        feature: Feature::Agreement,
+        feature: Feature::ConcordClass,
     };
-    if let Some(crate::feature::FeatureResolution::Known(agreement)) =
+    if let Some(crate::feature::FeatureResolution::Known(concord_class)) =
         validated.feature_resolution(row.construction_id(), &target)
     {
-        let feature = match agreement {
-            FeatureValue::Bare => crate::macro_def::SurfaceFeature::Bare,
+        let feature = match concord_class {
+            FeatureValue::ConcordOther => crate::macro_def::SurfaceFeature::PLAIN,
             FeatureValue::ThirdPersonSingular => {
-                crate::macro_def::SurfaceFeature::ThirdPersonSingular
+                crate::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT
             }
             FeatureValue::Singular
             | FeatureValue::Plural
@@ -3102,9 +3103,9 @@ fn verb_onset_pattern(
             | FeatureValue::Zero
             | FeatureValue::One
             | FeatureValue::TwoPlus => {
-                return Err(internal("fixed verb resolved a non-Agreement feature"));
+                return Err(internal("fixed verb resolved a non-ConcordClass feature"));
             }
-            _ => return Err(internal("fixed verb resolved a non-Agreement feature")),
+            _ => return Err(internal("fixed verb resolved a non-ConcordClass feature")),
         };
         let onset = rows
             .iter()
@@ -3127,26 +3128,26 @@ fn verb_onset_pattern(
         LocalFeatureValue::Bound(onset.clone()),
     );
     let correlations = rows.iter().map(|surface| {
-        let agreement = match surface.feature() {
-            crate::macro_def::SurfaceFeature::Bare => {
-                quote! { Agreement::Bare }
+        let concord_class = match surface.feature() {
+            crate::macro_def::SurfaceFeature::PLAIN => {
+                quote! { ConcordClass::Other }
             }
-            crate::macro_def::SurfaceFeature::ThirdPersonSingular => {
-                quote! { Agreement::ThirdPersonSingular }
+            crate::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT => {
+                quote! { ConcordClass::ThirdPersonSingular }
             }
-            crate::macro_def::SurfaceFeature::Singular
+            crate::macro_def::SurfaceFeature::Inflectional(_)
+            | crate::macro_def::SurfaceFeature::Singular
             | crate::macro_def::SurfaceFeature::Plural
-            | crate::macro_def::SurfaceFeature::Participle
             | crate::macro_def::SurfaceFeature::Fixed
             | crate::macro_def::SurfaceFeature::BlockLabel => {
-                unreachable!("validated verb lexeme has Agreement rows")
+                unreachable!("validated verb lexeme has ConcordClass rows")
             }
         };
         let expected_onset = match surface.onset() {
             crate::macro_def::Onset::Consonant => quote! { Onset::Consonant },
             crate::macro_def::Onset::Vowel => quote! { Onset::Vowel },
         };
-        quote! { (*#agreement_pattern == #agreement && *#onset == #expected_onset) }
+        quote! { (*#concord_class_pattern == #concord_class && *#onset == #expected_onset) }
     });
     lowering.guards.push(quote! {
         #(#correlations)||*
@@ -3283,7 +3284,7 @@ fn emit_success(
     row: &ConstructionPlan,
     lowering: &mut Lowering,
     overrides: Option<&HashMap<String, TokenStream>>,
-    agreement_override: Option<FeatureValue>,
+    concord_class_override: Option<FeatureValue>,
     number_override: Option<FeatureValue>,
 ) -> syn::Result<TokenStream> {
     let element = ident(row.element_type());
@@ -3304,7 +3305,7 @@ fn emit_success(
             row,
             lowering,
             &result,
-            agreement_override,
+            concord_class_override,
             number_override,
         );
     }
@@ -3327,7 +3328,7 @@ fn emit_success(
     }
     let category_value = quote! { #category::#variant(#element_value) };
     let following_onset = &lowering.output_following_onset;
-    let carries_agreement = validated.category_carries_agreement(row.category());
+    let carries_concord_class = validated.category_carries_concord_class(row.category());
     let carries_cardinality = validated.category_carries_cardinality(row.category());
     let carries_number = validated.category_carries_number(row.category());
     let carries_determiner_number =
@@ -3338,8 +3339,8 @@ fn emit_success(
         validated.carries_feature(row.category(), Feature::NominalLicense);
     let carries_onset = validated.category_carries_onset(row.category());
     let carries_possessive_ending = validated.category_carries_possessive_ending(row.category());
-    let agreement = carries_agreement
-        .then(|| construction_agreement(validated, row, lowering, agreement_override))
+    let concord_class = carries_concord_class
+        .then(|| construction_concord_class(validated, row, lowering, concord_class_override))
         .transpose()?
         .map(|value| quote! { , #value });
     let cardinality = carries_cardinality
@@ -3370,7 +3371,7 @@ fn emit_success(
         .then(|| construction_possessive_ending(validated, row, lowering))
         .transpose()?
         .map(|value| quote! { , #value });
-    let wrapped = quote! { BuildValue::#category(#category_value #agreement #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending, #following_onset) };
+    let wrapped = quote! { BuildValue::#category(#category_value #concord_class #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending, #following_onset) };
     Ok(quote! { Ok(Some(#wrapped)) })
 }
 
@@ -3379,7 +3380,7 @@ fn emit_fallible_element_success(
     row: &ConstructionPlan,
     lowering: &mut Lowering,
     result: &TokenStream,
-    agreement_override: Option<FeatureValue>,
+    concord_class_override: Option<FeatureValue>,
     number_override: Option<FeatureValue>,
 ) -> syn::Result<TokenStream> {
     if validated.explicit_sum_owns_construction_category(row.category()) {
@@ -3389,7 +3390,7 @@ fn emit_fallible_element_success(
     let category = ident(row.category());
     let variant = ident(row.category_variant());
     let following_onset = &lowering.output_following_onset;
-    let carries_agreement = validated.category_carries_agreement(row.category());
+    let carries_concord_class = validated.category_carries_concord_class(row.category());
     let carries_cardinality = validated.category_carries_cardinality(row.category());
     let carries_number = validated.category_carries_number(row.category());
     let carries_determiner_number =
@@ -3400,8 +3401,8 @@ fn emit_fallible_element_success(
         validated.carries_feature(row.category(), Feature::NominalLicense);
     let carries_onset = validated.category_carries_onset(row.category());
     let carries_possessive_ending = validated.category_carries_possessive_ending(row.category());
-    let agreement = carries_agreement
-        .then(|| construction_agreement(validated, row, lowering, agreement_override))
+    let concord_class = carries_concord_class
+        .then(|| construction_concord_class(validated, row, lowering, concord_class_override))
         .transpose()?;
     let cardinality = carries_cardinality
         .then(|| construction_cardinality(validated, row, lowering))
@@ -3429,16 +3430,16 @@ fn emit_fallible_element_success(
         lowering.constructor_map_local = Some(argument.clone());
         argument
     });
-    let agreement_constraint_role = match validated.construction_agreement_authority(row) {
-        AgreementAuthorityPlan::SequenceConstraint { role, .. }
-        | AgreementAuthorityPlan::ValueConstraint { role, .. } => Some(role),
-        AgreementAuthorityPlan::Contextual | AgreementAuthorityPlan::Exact => None,
+    let concord_class_constraint_role = match validated.construction_concord_class_authority(row) {
+        ConcordClassAuthorityPlan::SequenceConstraint { role, .. }
+        | ConcordClassAuthorityPlan::ValueConstraint { role, .. } => Some(role),
+        ConcordClassAuthorityPlan::Contextual | ConcordClassAuthorityPlan::Exact => None,
     };
-    if let Some(role) = agreement_constraint_role {
-        let agreement = agreement
-            .as_ref()
-            .ok_or_else(|| internal("agreement-constrained category lacks carried agreement"))?;
-        let helper = ident(&feature_helper("agreement_matches", row.category()));
+    if let Some(role) = concord_class_constraint_role {
+        let concord_class = concord_class.as_ref().ok_or_else(|| {
+            internal("concord_class-constrained category lacks carried concord_class")
+        })?;
+        let helper = ident(&feature_helper("concord_class_matches", row.category()));
         let owner = syn::LitStr::new(row.element_type(), row.origin_span());
         let role = syn::LitStr::new(&role, row.origin_span());
         let cardinality = cardinality.map(|value| quote! { , #value });
@@ -3452,10 +3453,10 @@ fn emit_fallible_element_success(
             match #result {
                 Ok(#argument) => {
                     let value = #category::#variant(#argument);
-                    if #helper(&value, #agreement) {
+                    if #helper(&value, #concord_class) {
                         Ok(Some(BuildValue::#category(
                             value,
-                            #agreement
+                            #concord_class
                             #cardinality
                             #number
                             #determiner_number
@@ -3470,7 +3471,7 @@ fn emit_fallible_element_success(
                             #owner,
                             #role,
                             BuildViolation::Invariant {
-                                identity: "value matches carried agreement",
+                                identity: "value matches carried concord_class",
                             },
                         ))
                     }
@@ -3479,7 +3480,7 @@ fn emit_fallible_element_success(
             }
         });
     }
-    let agreement = agreement.map(|value| quote! { , #value });
+    let concord_class = concord_class.map(|value| quote! { , #value });
     let cardinality = cardinality.map(|value| quote! { , #value });
     let number = number.map(|value| quote! { , #value });
     let determiner_number = determiner_number.map(|value| quote! { , #value });
@@ -3489,7 +3490,7 @@ fn emit_fallible_element_success(
     let possessive_ending = possessive_ending.map(|value| quote! { , #value });
     Ok(quote! {
         #result
-            .map(|#argument| { BuildValue::#category(#category::#variant(#argument) #agreement #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending, #following_onset) })
+            .map(|#argument| { BuildValue::#category(#category::#variant(#argument) #concord_class #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending, #following_onset) })
             .map(Some)
     })
 }
@@ -3511,17 +3512,17 @@ fn emit_dynamic_match(
             FeatureExpr::MatchVocab { arms, .. } => Some(arms.as_slice()),
             FeatureExpr::Constant(_) | FeatureExpr::FromRole { .. } => None,
         });
-    let agreement_arms = equation(
+    let concord_class_arms = equation(
         validated,
         row,
-        &FeaturePlace::Construction(Feature::Agreement),
+        &FeaturePlace::Construction(Feature::ConcordClass),
     )
     .and_then(|equation| match equation.value() {
         FeatureExpr::MatchVocab { arms, .. } => Some(arms.as_slice()),
         FeatureExpr::Constant(_) | FeatureExpr::FromRole { .. } => None,
     });
     let driving_arms = number_arms
-        .or(agreement_arms)
+        .or(concord_class_arms)
         .ok_or_else(|| internal("dynamic feature match has no vocab arms"))?;
     let ty = ident(terminal_for_role(row, role)?);
     let mut arms = Vec::new();
@@ -3529,7 +3530,7 @@ fn emit_dynamic_match(
         let variant = variant.value();
         let mut overrides = HashMap::new();
         overrides.insert(identifier_key(role), quote! { #ty::#variant });
-        let agreement_value = agreement_arms.and_then(|arms| {
+        let concord_class_value = concord_class_arms.and_then(|arms| {
             arms.iter()
                 .find(|(candidate, _)| identifier_key(candidate.value()) == identifier_key(variant))
                 .map(|(_, value)| *value)
@@ -3544,7 +3545,7 @@ fn emit_dynamic_match(
             row,
             lowering,
             Some(&overrides),
-            agreement_value,
+            concord_class_value,
             number_value,
         )?;
         let variant_pattern = quote! { #ty::#variant };
@@ -3605,20 +3606,20 @@ fn stored_value(
     Ok(value)
 }
 
-fn construction_agreement(
+fn construction_concord_class(
     validated: &SemanticPlan,
     row: &ConstructionPlan,
     lowering: &Lowering,
-    agreement_override: Option<FeatureValue>,
+    concord_class_override: Option<FeatureValue>,
 ) -> syn::Result<TokenStream> {
-    if let Some(agreement) = agreement_override {
-        return Ok(feature_value(agreement));
+    if let Some(concord_class) = concord_class_override {
+        return Ok(feature_value(concord_class));
     }
     let output = resolve_feature_place(
         validated,
         row,
         lowering,
-        &FeaturePlace::Construction(Feature::Agreement),
+        &FeaturePlace::Construction(Feature::ConcordClass),
         &mut HashSet::new(),
     )?;
     Ok(resolved_feature_value_tokens(&output))
@@ -3785,12 +3786,15 @@ fn resolve_feature_place(
                 .get(&identifier_key(role))
                 .ok_or_else(|| internal("vocabulary feature source value was not bound"))?;
             match place {
-                FeaturePlace::Construction(Feature::Agreement)
+                FeaturePlace::Construction(Feature::ConcordClass)
                 | FeaturePlace::Role {
-                    feature: Feature::Agreement,
+                    feature: Feature::ConcordClass,
                     ..
                 } => {
-                    let helper = ident(&feature_helper("agreement", terminal_for_role(row, role)?));
+                    let helper = ident(&feature_helper(
+                        "concord_class",
+                        terminal_for_role(row, role)?,
+                    ));
                     ResolvedFeatureValue::Computed(quote! { #helper(#source) })
                 }
                 FeaturePlace::Construction(Feature::Cardinality | Feature::Number)
@@ -3951,7 +3955,7 @@ fn same_known_feature(left: &ResolvedFeatureValue, right: &ResolvedFeatureValue)
 }
 
 fn dynamic_match_role(validated: &SemanticPlan, row: &ConstructionPlan) -> Option<syn::Ident> {
-    [Feature::Number, Feature::Agreement]
+    [Feature::Number, Feature::ConcordClass]
         .into_iter()
         .find_map(|feature| {
             equation(validated, row, &FeaturePlace::Construction(feature)).and_then(|equation| {
@@ -4027,8 +4031,8 @@ fn terminal_for_role<'a>(row: &'a ConstructionPlan, role: &syn::Ident) -> syn::R
 }
 fn feature_value(value: FeatureValue) -> TokenStream {
     match value {
-        FeatureValue::Bare => quote! { Agreement::Bare },
-        FeatureValue::ThirdPersonSingular => quote! { Agreement::ThirdPersonSingular },
+        FeatureValue::ConcordOther => quote! { ConcordClass::Other },
+        FeatureValue::ThirdPersonSingular => quote! { ConcordClass::ThirdPersonSingular },
         FeatureValue::QualifiedOnly => quote! { BareLocativeLicense::QualifiedOnly },
         FeatureValue::BareAllowed => quote! { BareLocativeLicense::BareAllowed },
         FeatureValue::Singular => quote! { Number::Singular },
@@ -5047,7 +5051,7 @@ mod tests {
     }
 
     #[test]
-    fn agreement_match_with_constant_number_uses_vocab_only_dispatch() {
+    fn concord_class_match_with_constant_number_uses_vocab_only_dispatch() {
         let validated = crate::validate_declarations(
             crate::parse_declarations(quote::quote! {
                 vocab Count { One = "one", Many = "many", }
@@ -5061,9 +5065,9 @@ mod tests {
                 }
                 construction only: Root {
                     element Only { count: lex Count, head: lex Head, }
-                    derive agreement = match count {
+                    derive concord_class = match count {
                         One => Values::ThirdPersonSingular,
-                        Many => Values::Bare,
+                        Many => Values::Other,
                     };
                     derive number = Values::Singular;
                     form only = lex(count) noun(head);
@@ -5074,7 +5078,7 @@ mod tests {
         )
         .unwrap();
         let source = super::emit(validated.semantic())
-            .expect("agreement-only vocab dispatch lowers")
+            .expect("concord_class-only vocab dispatch lowers")
             .remove(0)
             .tokens
             .to_string();
@@ -5083,10 +5087,10 @@ mod tests {
                 "Leaf :: Noun { noun : head , number : Number :: Singular , onset : head_onset , possessive_ending : head_possessive_ending , }"
             ) && source.contains("match count")
                 && source.contains("Count :: One => Ok (Some")
-                && source.contains("Agreement :: ThirdPersonSingular")
+                && source.contains("ConcordClass :: ThirdPersonSingular")
                 && source.contains("Count :: Many => Ok (Some")
-                && source.contains("Agreement :: Bare"),
-            "agreement matching is vocab-only while noun number stays constant: {source}"
+                && source.contains("ConcordClass :: Other"),
+            "concord_class matching is vocab-only while noun number stays constant: {source}"
         );
         assert!(source.contains("_ => Ok (None)"), "{source}");
     }
@@ -5142,22 +5146,22 @@ mod tests {
             vocab Mode { One = "one", Many = "many", }
             construction bare: Child {
                 element BareChild {}
-                derive agreement = Values::Bare;
+                derive concord_class = Values::Other;
                 form bare = "bare";
             }
             construction third: Child {
                 element ThirdChild {}
-                derive agreement = Values::ThirdPersonSingular;
+                derive concord_class = Values::ThirdPersonSingular;
                 form third = "third";
             }
             construction parent: Parent {
                 element ParentNode { mode: lex Mode, child: Child, }
                 require mode is One;
-                derive mode.agreement = match mode {
+                derive mode.concord_class = match mode {
                     One => Values::ThirdPersonSingular,
-                    Many => Values::Bare,
+                    Many => Values::Other,
                 };
-                derive child.agreement = mode.agreement;
+                derive child.concord_class = mode.concord_class;
                 form parent = lex(mode) child;
             }
             root Parent { punctuation = "."; eoi = true; standalone_render = true; }
@@ -5172,8 +5176,8 @@ mod tests {
             .tokens
             .to_string();
         assert!(
-            source.contains("BuildValue :: Child (child , Agreement :: ThirdPersonSingular , child_following_onset)"),
-            "the required Mode::One arm must constrain the child agreement: {source}"
+            source.contains("BuildValue :: Child (child , ConcordClass :: ThirdPersonSingular , child_following_onset)"),
+            "the required Mode::One arm must constrain the child concord_class: {source}"
         );
         assert!(!source.contains("feature source was not bound"), "{source}");
         assert!(source.contains("_ => Ok (None)"), "{source}");
@@ -5414,7 +5418,7 @@ mod tests {
         let validated = crate::validate_declarations(
             crate::parse_declarations(quote::quote! {
                 vocab Marker { One = "one", }
-                morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+                morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
                 lexeme Verbs using EnglishVerb { Act = "act", }
                 codec Pair {
                     atom = lex;
@@ -5435,10 +5439,10 @@ mod tests {
                     element ContextContainerNode { pair: lex Pair, }
                     form context_container = lex(pair);
                 }
-                construction agreement: FeatureContainer {
-                    element AgreementNode { marker: lex Marker, }
-                    derive agreement = verb.agreement;
-                    form agreement = lex(marker) verb(Verbs::Act);
+                construction concord_class: FeatureContainer {
+                    element ConcordClassNode { marker: lex Marker, }
+                    derive concord_class = verb.concord_class;
+                    form concord_class = lex(marker) verb(Verbs::Act);
                 }
                 construction entry: Entry { element EntryNode {} form entry = "entry"; }
                 root Entry { punctuation = "."; eoi = true; standalone_render = true; }
@@ -5456,7 +5460,7 @@ mod tests {
             "Leaf :: Pair (context_2 , children_2 , rule_2)",
             "Pair :: new (context_2 , children_2 , rule_2)",
             "ContextContainer :: ContextContainer (ContextContainerNode { pair : Pair :: new (context_2 , children_2 , rule_2) })",
-            "FeatureContainer :: Agreement (AgreementNode { marker : * marker }) , * agreement",
+            "FeatureContainer :: ConcordClass (ConcordClassNode { marker : * marker }) , * concord_class",
         ] {
             assert!(source.contains(fragment), "missing `{fragment}`: {source}");
         }
@@ -5549,10 +5553,10 @@ mod tests {
         for fragment in [
             "RuleId :: ExprLeaf",
             "Mode :: Solo",
-            "Agreement :: ThirdPersonSingular",
+            "ConcordClass :: ThirdPersonSingular",
             "Number :: Singular",
             "Mode :: Group",
-            "Agreement :: Bare",
+            "ConcordClass :: Other",
             "Number :: Plural",
             "RuleId :: ExprNested",
             "NestedNode {",

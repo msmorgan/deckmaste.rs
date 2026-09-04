@@ -9,7 +9,7 @@ use crate::model;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum Feature {
-    Agreement,
+    ConcordClass,
     BareLocativeComplement,
     BareLocativeLicense,
     Cardinality,
@@ -35,7 +35,7 @@ pub(crate) enum Feature {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum FeatureValue {
-    Bare,
+    ConcordOther,
     ThirdPersonSingular,
     QualifiedOnly,
     BareAllowed,
@@ -146,7 +146,10 @@ impl<T> Spanned<T> {
 impl Feature {
     pub(crate) fn domain(self) -> &'static [FeatureValue] {
         match self {
-            Self::Agreement => &[FeatureValue::Bare, FeatureValue::ThirdPersonSingular],
+            Self::ConcordClass => &[
+                FeatureValue::ConcordOther,
+                FeatureValue::ThirdPersonSingular,
+            ],
             Self::BareLocativeComplement => &[FeatureValue::No, FeatureValue::Yes],
             Self::BareLocativeLicense => &[FeatureValue::QualifiedOnly, FeatureValue::BareAllowed],
             Self::Cardinality => &[FeatureValue::Zero, FeatureValue::One, FeatureValue::TwoPlus],
@@ -244,7 +247,7 @@ impl Feature {
 
     pub(crate) fn key(self) -> &'static str {
         match self {
-            Self::Agreement => "agreement",
+            Self::ConcordClass => "concord_class",
             Self::BareLocativeComplement => "bare_locative_complement",
             Self::BareLocativeLicense => "bare_locative_license",
             Self::Cardinality => "cardinality",
@@ -273,7 +276,7 @@ impl Feature {
 impl FeatureValue {
     pub(crate) fn key(self) -> &'static str {
         match self {
-            Self::Bare => "Bare",
+            Self::ConcordOther | Self::Other => "Other",
             Self::ThirdPersonSingular => "ThirdPersonSingular",
             Self::QualifiedOnly => "QualifiedOnly",
             Self::BareAllowed => "BareAllowed",
@@ -284,7 +287,6 @@ impl FeatureValue {
             Self::Consonant => "Consonant",
             Self::Vowel => "Vowel",
             Self::EndsInS => "EndsInS",
-            Self::Other => "Other",
             Self::Participle => "Participle",
             Self::Zero => "Zero",
             Self::One => "One",
@@ -471,7 +473,7 @@ impl FeatureExpr {
 impl Feature {
     fn snapshot(self) -> &'static str {
         match self {
-            Self::Agreement => "agreement",
+            Self::ConcordClass => "concord_class",
             Self::BareLocativeComplement => "bare_locative_complement",
             Self::BareLocativeLicense => "bare_locative_license",
             Self::Cardinality => "cardinality",
@@ -501,7 +503,7 @@ impl Feature {
 impl FeatureValue {
     pub(crate) fn snapshot(self) -> &'static str {
         match self {
-            Self::Bare => "Bare",
+            Self::ConcordOther | Self::Other => "Other",
             Self::ThirdPersonSingular => "ThirdPersonSingular",
             Self::QualifiedOnly => "QualifiedOnly",
             Self::BareAllowed => "BareAllowed",
@@ -512,7 +514,6 @@ impl FeatureValue {
             Self::Consonant => "Consonant",
             Self::Vowel => "Vowel",
             Self::EndsInS => "EndsInS",
-            Self::Other => "Other",
             Self::Participle => "Participle",
             Self::Zero => "Zero",
             Self::One => "One",
@@ -601,8 +602,8 @@ pub(crate) fn lower_constant(
     };
     let name = identifier::path_key(path);
     let value = match (feature, name.as_str()) {
-        (model::Feature::Agreement, "Bare") => FeatureValue::Bare,
-        (model::Feature::Agreement, "ThirdPersonSingular") => FeatureValue::ThirdPersonSingular,
+        (model::Feature::ConcordClass, "Other") => FeatureValue::ConcordOther,
+        (model::Feature::ConcordClass, "ThirdPersonSingular") => FeatureValue::ThirdPersonSingular,
         (model::Feature::BareLocativeComplement, "No") => FeatureValue::No,
         (model::Feature::BareLocativeComplement, "Yes") => FeatureValue::Yes,
         (model::Feature::BareLocativeLicense, "QualifiedOnly") => FeatureValue::QualifiedOnly,
@@ -704,10 +705,10 @@ pub(crate) fn lower_constant(
             FeatureValue::PostmodifierOnly
         }
         (model::Feature::PrepositionAttachment, "SelectedOnly") => FeatureValue::SelectedOnly,
-        (model::Feature::Agreement, _) => {
+        (model::Feature::ConcordClass, _) => {
             return Err(syn::Error::new_spanned(
                 path,
-                format!("`{name}` is not an agreement value"),
+                format!("`{name}` is not a Concord Class value"),
             ));
         }
         (model::Feature::BareLocativeComplement, _) => {
@@ -843,7 +844,7 @@ pub(crate) fn lower_constant(
 impl From<model::Feature> for Feature {
     fn from(value: model::Feature) -> Self {
         match value {
-            model::Feature::Agreement => Self::Agreement,
+            model::Feature::ConcordClass => Self::ConcordClass,
             model::Feature::BareLocativeComplement => Self::BareLocativeComplement,
             model::Feature::BareLocativeLicense => Self::BareLocativeLicense,
             model::Feature::Cardinality => Self::Cardinality,
@@ -878,12 +879,12 @@ mod tests {
     #[test]
     fn feature_domains_are_closed_and_directional() {
         assert_eq!(
-            lower_constant(Feature::Agreement, &syn::parse_quote!(Anything::Bare)).unwrap(),
-            FeatureValue::Bare
+            lower_constant(Feature::ConcordClass, &syn::parse_quote!(Anything::Other)).unwrap(),
+            FeatureValue::ConcordOther
         );
         assert_eq!(
             lower_constant(
-                Feature::Agreement,
+                Feature::ConcordClass,
                 &syn::parse_quote!(Anything::ThirdPersonSingular),
             )
             .unwrap(),
@@ -893,8 +894,10 @@ mod tests {
             lower_constant(Feature::Number, &syn::parse_quote!(Anything::Singular)).unwrap(),
             FeatureValue::Singular
         );
-        assert!(lower_constant(Feature::Number, &syn::parse_quote!(Anything::Bare)).is_err());
-        assert!(lower_constant(Feature::Agreement, &syn::parse_quote!(Anything::Plural)).is_err());
+        assert!(lower_constant(Feature::Number, &syn::parse_quote!(Anything::Other)).is_err());
+        assert!(
+            lower_constant(Feature::ConcordClass, &syn::parse_quote!(Anything::Plural)).is_err()
+        );
         assert_eq!(
             lower_constant(
                 Feature::Relationality,

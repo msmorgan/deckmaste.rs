@@ -1,5 +1,4 @@
 use super::AdjectiveComparisonState;
-use super::Agreement;
 use super::Child;
 use super::Conjunction;
 use super::CoordinationDomain;
@@ -16,6 +15,7 @@ use super::NounForm;
 use super::NounPhraseCoordinationState;
 use super::Number;
 use super::Person;
+use super::PersonNumber;
 use super::PredicateForm;
 use super::Preposition;
 use super::QuantityFeatures;
@@ -735,7 +735,7 @@ pub(crate) fn reduce_recipient_passive_theme(nominal: &Features) -> Option<Featu
         return None;
     };
     Some(Features::NounPhrase {
-        agreement: Some(Agreement {
+        agreement: Some(PersonNumber {
             person: Person::Third,
             number: match form {
                 NounForm::Plural => Number::Plural,
@@ -1455,7 +1455,7 @@ pub(in crate::grammar) const fn predicate_form(
         crate::features::VerbSlot::Infinitive => super::PredicateForm::Infinitive,
         crate::features::VerbSlot::Present { person, number }
         | crate::features::VerbSlot::Past { person, number } => {
-            super::PredicateForm::Finite(Some(super::Agreement { person, number }))
+            super::PredicateForm::Finite(Some(super::PersonNumber { person, number }))
         }
         crate::features::VerbSlot::PresentParticiple => super::PredicateForm::PresentParticiple,
         crate::features::VerbSlot::PastParticiple => super::PredicateForm::PastParticiple,
@@ -2340,14 +2340,14 @@ fn shared_determiner_coordination_features(
     Some(Features::NounPhrase {
         agreement: coordination_agreement(
             conjunction,
-            Some(Agreement {
+            Some(PersonNumber {
                 person: Person::Third,
                 number: match first.form {
                     NounForm::Plural => Number::Plural,
                     NounForm::Singular | NounForm::Mass => Number::Singular,
                 },
             }),
-            Some(Agreement {
+            Some(PersonNumber {
                 person: Person::Third,
                 number: match last_form {
                     NounForm::Plural => Number::Plural,
@@ -2388,11 +2388,11 @@ fn final_generated_conjunction(
 
 fn coordination_agreement(
     conjunction: Conjunction,
-    first: Option<Agreement>,
-    last: Option<Agreement>,
-) -> Option<Agreement> {
+    first: Option<PersonNumber>,
+    last: Option<PersonNumber>,
+) -> Option<PersonNumber> {
     match conjunction {
-        Conjunction::And => Some(Agreement {
+        Conjunction::And => Some(PersonNumber {
             person: Person::Third,
             number: Number::Plural,
         }),
@@ -2515,7 +2515,7 @@ pub(super) fn article_accepts(article: Option<IndefiniteArticle>, sound: Initial
     dead_code,
     reason = "declaration and diagnostic probes retain the explicit agreement predicate"
 )]
-pub(super) fn slot_agrees(slot: VerbSlot, agreement: Agreement) -> bool {
+pub(super) fn slot_agrees(slot: VerbSlot, agreement: PersonNumber) -> bool {
     matches!(
         slot,
         VerbSlot::Present { person, number } | VerbSlot::Past { person, number }
@@ -2531,7 +2531,7 @@ mod generated_tests {
 
     fn noun_phrase(number: Number) -> Features {
         Features::NounPhrase {
-            agreement: Some(Agreement {
+            agreement: Some(PersonNumber {
                 person: Person::Third,
                 number,
             }),
@@ -2808,7 +2808,7 @@ mod generated_tests {
                 &fields,
             ),
             Some(Features::NounPhrase {
-                agreement: Some(Agreement {
+                agreement: Some(PersonNumber {
                     number: Number::Plural,
                     ..
                 }),
@@ -2825,7 +2825,7 @@ mod generated_tests {
                 &fields,
             ),
             Some(Features::NounPhrase {
-                agreement: Some(Agreement {
+                agreement: Some(PersonNumber {
                     number: Number::Plural,
                     ..
                 }),
@@ -2958,7 +2958,7 @@ mod generated_tests {
                 &[Some(&first), Some(&rest)],
             ),
             Some(Features::NounPhrase {
-                agreement: Some(Agreement {
+                agreement: Some(PersonNumber {
                     number: Number::Plural,
                     ..
                 }),

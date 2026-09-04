@@ -1784,9 +1784,9 @@ fn lex_position(
     } = plan.atom_terminal(terminal)?
     {
         let matcher = match codec.feature_axis() {
-            Feature::Agreement => {
-                let agreement = declaration_verb_feature(plan, construction, role)?;
-                quote! { Lexical::DeclarationVerb(#terminal_index, #agreement) }
+            Feature::ConcordClass => {
+                let concord_class = declaration_verb_feature(plan, construction, role)?;
+                quote! { Lexical::DeclarationVerb(#terminal_index, #concord_class) }
             }
             Feature::Participle => quote! { Lexical::DeclarationParticiple(#terminal_index) },
             _ => unreachable!("validated declaration verb feature axis is closed"),
@@ -1925,11 +1925,11 @@ fn emit_position(
         } => {
             let terminal = ident(terminal);
             let variant = ident(variant);
-            let agreement = closed_verb_feature(plan, construction)?;
+            let concord_class = closed_verb_feature(plan, construction)?;
             let declaration = syn::LitStr::new(&terminal.to_string(), Span::call_site());
             let member = syn::LitStr::new(&variant.to_string(), Span::call_site());
             Ok(lexical_terminal_with_boundary(
-                &quote! { Lexical::Verb(#terminal::#variant, #agreement) },
+                &quote! { Lexical::Verb(#terminal::#variant, #concord_class) },
                 &quote! {
                     LexicalOwnerTemplate::Lexeme { declaration: #declaration, member: #member }
                 },
@@ -2042,35 +2042,27 @@ fn closed_verb_feature(
 ) -> syn::Result<TokenStream> {
     let target = FeaturePlace::Role {
         field: syn::Ident::new("verb", construction.origin_span()),
-        feature: Feature::Agreement,
+        feature: Feature::ConcordClass,
     };
     match plan.feature_resolution(construction.construction_id(), &target) {
         Some(crate::feature::FeatureResolution::Known(value)) => match value {
-            FeatureValue::Bare => Ok(quote! {
-                FeatureConstraint::Exact(Agreement::Bare)
+            FeatureValue::ConcordOther => Ok(quote! {
+                FeatureConstraint::Exact(ConcordClass::Other)
             }),
             FeatureValue::ThirdPersonSingular => Ok(quote! {
-                FeatureConstraint::Exact(Agreement::ThirdPersonSingular)
+                FeatureConstraint::Exact(ConcordClass::ThirdPersonSingular)
             }),
-            FeatureValue::Singular
-            | FeatureValue::Plural
-            | FeatureValue::Consonant
-            | FeatureValue::Vowel
-            | FeatureValue::EndsInS
-            | FeatureValue::Other
-            | FeatureValue::Participle
-            | FeatureValue::Zero
-            | FeatureValue::One
-            | FeatureValue::TwoPlus => {
-                Err(internal("closed verb agreement has a non-agreement value"))
-            }
-            _ => Err(internal("closed verb agreement has a non-agreement value")),
+            _ => Err(internal(
+                "closed verb concord_class has a non-concord_class value",
+            )),
         },
         Some(
             crate::feature::FeatureResolution::External
             | crate::feature::FeatureResolution::Runtime,
         ) => Ok(quote! { FeatureConstraint::Any }),
-        None => Err(internal("closed verb has no sealed agreement resolution")),
+        None => Err(internal(
+            "closed verb has no sealed concord_class resolution",
+        )),
     }
 }
 
@@ -2081,16 +2073,18 @@ fn declaration_verb_feature(
 ) -> syn::Result<TokenStream> {
     let target = FeaturePlace::Role {
         field: syn::Ident::new(role, construction.origin_span()),
-        feature: Feature::Agreement,
+        feature: Feature::ConcordClass,
     };
     match plan.feature_resolution(construction.construction_id(), &target) {
         Some(crate::feature::FeatureResolution::Known(value)) => match value {
-            FeatureValue::Bare => Ok(quote! { FeatureConstraint::Exact(Agreement::Bare) }),
+            FeatureValue::ConcordOther => {
+                Ok(quote! { FeatureConstraint::Exact(ConcordClass::Other) })
+            }
             FeatureValue::ThirdPersonSingular => {
-                Ok(quote! { FeatureConstraint::Exact(Agreement::ThirdPersonSingular) })
+                Ok(quote! { FeatureConstraint::Exact(ConcordClass::ThirdPersonSingular) })
             }
             _ => Err(internal(
-                "declaration verb agreement has a non-agreement value",
+                "declaration verb concord_class has a non-concord_class value",
             )),
         },
         Some(
@@ -2098,7 +2092,7 @@ fn declaration_verb_feature(
             | crate::feature::FeatureResolution::Runtime,
         ) => Ok(quote! { FeatureConstraint::Any }),
         None => Err(internal(
-            "declaration verb has no sealed Agreement resolution",
+            "declaration verb has no sealed ConcordClass resolution",
         )),
     }
 }
@@ -2109,35 +2103,25 @@ pub(crate) fn open_verb_feature(
 ) -> syn::Result<TokenStream> {
     let target = FeaturePlace::Role {
         field: syn::Ident::new("verb", construction.origin_span()),
-        feature: Feature::Agreement,
+        feature: Feature::ConcordClass,
     };
     match plan.feature_resolution(construction.construction_id(), &target) {
         Some(crate::feature::FeatureResolution::Known(value)) => match value {
-            FeatureValue::Bare => Ok(quote! {
-                FeatureConstraint::Exact(::deckmaste_construction_core::macro_def::SurfaceFeature::Bare)
+            FeatureValue::ConcordOther => Ok(quote! {
+                FeatureConstraint::Exact(::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN)
             }),
             FeatureValue::ThirdPersonSingular => Ok(quote! {
-                FeatureConstraint::Exact(::deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular)
+                FeatureConstraint::Exact(::deckmaste_construction_core::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT)
             }),
-            FeatureValue::Singular
-            | FeatureValue::Plural
-            | FeatureValue::Consonant
-            | FeatureValue::Vowel
-            | FeatureValue::EndsInS
-            | FeatureValue::Other
-            | FeatureValue::Participle
-            | FeatureValue::Zero
-            | FeatureValue::One
-            | FeatureValue::TwoPlus => {
-                Err(internal("open verb agreement has a non-agreement value"))
-            }
-            _ => Err(internal("open verb agreement has a non-agreement value")),
+            _ => Err(internal(
+                "open verb concord_class has a non-concord_class value",
+            )),
         },
         Some(
             crate::feature::FeatureResolution::External
             | crate::feature::FeatureResolution::Runtime,
         ) => Ok(quote! { FeatureConstraint::Any }),
-        None => Err(internal("open verb has no sealed agreement resolution")),
+        None => Err(internal("open verb has no sealed concord_class resolution")),
     }
 }
 
@@ -2253,7 +2237,7 @@ fn lexical_variant(plan: &SemanticPlan, name: &str) -> syn::Result<TokenStream> 
             Ok(quote! { Lexical::DeclarationTerm(#terminal_index) })
         }
         AtomTerminal::DeclarationVerb { .. } => Err(internal(
-            "declaration verb lexical matcher requires its sealed index and Agreement",
+            "declaration verb lexical matcher requires its sealed index and ConcordClass",
         )),
     }
 }
@@ -3192,7 +3176,7 @@ mod tests {
             runtime.contains(
                 "Lexical :: Verb (VerbLexeme :: InventedLemma , FeatureConstraint :: Any)"
             ),
-            "runtime agreement did not lower to Any: {runtime}"
+            "runtime concord_class did not lower to Any: {runtime}"
         );
 
         let exact = crate::test_support::representative_expansion()
@@ -3204,9 +3188,9 @@ mod tests {
             .to_string();
         assert!(
             exact.contains(
-                "Lexical :: Verb (Verbs :: Act , FeatureConstraint :: Exact (Agreement :: Bare))"
+                "Lexical :: Verb (Verbs :: Act , FeatureConstraint :: Exact (ConcordClass :: Other))"
             ),
-            "known agreement did not lower to Exact: {exact}"
+            "known concord_class did not lower to Exact: {exact}"
         );
     }
 

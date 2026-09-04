@@ -1,6 +1,6 @@
 #![allow(
     clippy::pub_underscore_fields,
-    reason = "the generated restriction product retains its typed Cast identity even though fixed Bare feature projection does not read the local binding"
+    reason = "the generated restriction product retains its typed Cast identity even though fixed Other Concord Class projection does not read the local binding"
 )]
 
 use RulePosition::Lexical as L;
@@ -18,7 +18,7 @@ use crate::render::Writer;
 
 constructions! {
     vocab ThirdPersonAuxiliary { Doesnt = "doesn't", }
-    vocab BareAgreementAuxiliary { Dont = "don't", }
+    vocab OtherConcordClassAuxiliary { Dont = "don't", }
     vocab PredicateNegator { Not = "not", }
     vocab FiniteCopula {
         Is = "is",
@@ -258,7 +258,7 @@ constructions! {
     }
 
     morphology EnglishVerb {
-        feature = Agreement;
+        feature = ConcordClass;
         recipe = english_verb;
     }
     morphology EnglishNoun {
@@ -495,21 +495,21 @@ constructions! {
         generate declaration_verb {
             position = Verb;
             tail = [];
-            feature = Agreement;
+            feature = ConcordClass;
         }
     }
     codec TransitiveVerb {
         generate declaration_verb {
             position = Verb;
             tail = [ObjectNounPhrase];
-            feature = Agreement;
+            feature = ConcordClass;
         }
     }
     codec MeasureComplementVerb {
         generate declaration_verb {
             position = Verb;
             tail = [Amount];
-            feature = Agreement;
+            feature = ConcordClass;
         }
     }
     codec ObjectForObjectVerb {
@@ -520,7 +520,7 @@ constructions! {
                 lex(Preposition::For),
                 sought: ObjectNounPhrase,
             ];
-            feature = Agreement;
+            feature = ConcordClass;
         }
     }
     codec ToObjectVerb {
@@ -531,21 +531,21 @@ constructions! {
                 lex(Preposition::To),
                 complement: ObjectNounPhrase,
             ];
-            feature = Agreement;
+            feature = ConcordClass;
         }
     }
     codec ForObjectVerb {
         generate declaration_verb {
             position = Verb;
             tail = [lex(Preposition::For), object: ObjectNounPhrase];
-            feature = Agreement;
+            feature = ConcordClass;
         }
     }
     codec ObjectAmountVerb {
         generate declaration_verb {
             position = Verb;
             tail = [object: ObjectNounPhrase, amount: Amount];
-            feature = Agreement;
+            feature = ConcordClass;
         }
     }
     codec ObjectPredicativeComplementVerb {
@@ -555,21 +555,21 @@ constructions! {
                 object: ObjectNounPhrase,
                 complement: PredicativeComplement,
             ];
-            feature = Agreement;
+            feature = ConcordClass;
         }
     }
     codec WithObjectVerb {
         generate declaration_verb {
             position = Verb;
             tail = ["with", object: ObjectNounPhrase];
-            feature = Agreement;
+            feature = ConcordClass;
         }
     }
     codec AmongObjectVerb {
         generate declaration_verb {
             position = Verb;
             tail = ["among", recipient: Object];
-            feature = Agreement;
+            feature = ConcordClass;
         }
     }
     codec ObjectWithObjectVerb {
@@ -580,7 +580,7 @@ constructions! {
                 "with",
                 complement: ObjectNounPhrase,
             ];
-            feature = Agreement;
+            feature = ConcordClass;
         }
     }
     codec ObjectIntoObjectVerb {
@@ -591,19 +591,19 @@ constructions! {
                 lex(Preposition::Into),
                 complement: ObjectNounPhrase,
             ];
-            feature = Agreement;
+            feature = ConcordClass;
         }
     }
-    codec DistributedMeasureVerb { generate declaration_verb { position = Verb; tail = [Amount, MassNoun, DistributionPhrase, DistributionReplacement?]; feature = Agreement; } }
-    codec ObjectEqualityVerb { generate declaration_verb { position = Verb; tail = [object: ObjectNounPhrase, ScalarEquality]; feature = Agreement; } }
-    codec ObjectEqualityToVerb { generate declaration_verb { position = Verb; tail = [object: ObjectNounPhrase, ScalarEquality, lex(Preposition::To), recipient: Object]; feature = Agreement; } }
-    codec ObjectToEqualityVerb { generate declaration_verb { position = Verb; tail = [object: ObjectNounPhrase, lex(Preposition::To), recipient: Object, ScalarEquality]; feature = Agreement; } }
-    codec ManaPhraseVerb { generate declaration_verb { position = Verb; tail = [ManaPhrase]; feature = Agreement; } }
+    codec DistributedMeasureVerb { generate declaration_verb { position = Verb; tail = [Amount, MassNoun, DistributionPhrase, DistributionReplacement?]; feature = ConcordClass; } }
+    codec ObjectEqualityVerb { generate declaration_verb { position = Verb; tail = [object: ObjectNounPhrase, ScalarEquality]; feature = ConcordClass; } }
+    codec ObjectEqualityToVerb { generate declaration_verb { position = Verb; tail = [object: ObjectNounPhrase, ScalarEquality, lex(Preposition::To), recipient: Object]; feature = ConcordClass; } }
+    codec ObjectToEqualityVerb { generate declaration_verb { position = Verb; tail = [object: ObjectNounPhrase, lex(Preposition::To), recipient: Object, ScalarEquality]; feature = ConcordClass; } }
+    codec ManaPhraseVerb { generate declaration_verb { position = Verb; tail = [ManaPhrase]; feature = ConcordClass; } }
     codec ObjectFromVerb {
         generate declaration_verb {
             position = Verb;
             tail = [object: ObjectNounPhrase, lex(Preposition::From), source: FrameComplement];
-            feature = Agreement;
+            feature = ConcordClass;
         }
     }
     codec ObjectFromOntoResultControlVerb {
@@ -617,21 +617,21 @@ constructions! {
                 PredicativeComplement?,
                 control: PrepositionalPhrase?,
             ];
-            feature = Agreement;
+            feature = ConcordClass;
         }
     }
     codec ObjectFromOnVerb {
         generate declaration_verb {
             position = Verb;
             tail = [Object, lex(Preposition::From)?, lex(Preposition::On), destination: FrameComplement];
-            feature = Agreement;
+            feature = ConcordClass;
         }
     }
     codec ObjectToVerb {
         generate declaration_verb {
             position = Verb;
             tail = [Object, lex(Preposition::To), destination: FrameComplement];
-            feature = Agreement;
+            feature = ConcordClass;
         }
     }
     codec ObjectFromToResultControlVerb {
@@ -645,7 +645,7 @@ constructions! {
                 PredicativeComplement?,
                 control: PrepositionalPhrase?,
             ];
-            feature = Agreement;
+            feature = ConcordClass;
         }
     }
     codec PredicativeComplementVerb {
@@ -653,7 +653,7 @@ constructions! {
             class = Predicate;
             position = Verb;
             tail = [PredicativeComplement];
-            feature = Agreement;
+            feature = ConcordClass;
         }
     }
     codec AuxiliaryVerb {
@@ -661,7 +661,7 @@ constructions! {
             class = Auxiliary;
             position = Verb;
             tail = [];
-            feature = Agreement;
+            feature = ConcordClass;
         }
     }
     codec ObjectInfinitiveVerb {
@@ -669,7 +669,7 @@ constructions! {
             class = Predicate;
             position = Verb;
             tail = [Object, "to", VerbPhrase];
-            feature = Agreement;
+            feature = ConcordClass;
         }
     }
     codec ChooseInfinitiveVerb {
@@ -677,7 +677,7 @@ constructions! {
             class = Predicate;
             position = Verb;
             tail = [InfinitiveComplement];
-            feature = Agreement;
+            feature = ConcordClass;
         }
     }
     codec OrderedVerb {
@@ -685,7 +685,7 @@ constructions! {
             class = Predicate;
             position = Verb;
             tail = [Object, lex(Preposition::From)?, lex(Preposition::On), destination: FrameComplement, "in", ObjectOrder, "order"];
-            feature = Agreement;
+            feature = ConcordClass;
         }
     }
     codec HaveKeywordAbilityVerb {
@@ -693,7 +693,7 @@ constructions! {
             class = Predicate;
             position = Verb;
             tail = [KeywordAbility];
-            feature = Agreement;
+            feature = ConcordClass;
         }
     }
     codec CostComparisonVerb {
@@ -701,7 +701,7 @@ constructions! {
             class = Predicate;
             position = Verb;
             tail = [ManaAmount, CostComparisonDirection, ControlledCostAction];
-            feature = Agreement;
+            feature = ConcordClass;
         }
     }
     codec ProVerbHead {
@@ -709,56 +709,56 @@ constructions! {
             class = ProVerb;
             position = Verb;
             tail = [];
-            feature = Agreement;
+            feature = ConcordClass;
         }
     }
     codec EnterWithCountersVerb {
         generate declaration_verb {
             position = Verb;
             tail = ["with", object: ObjectNounPhrase, lex(Preposition::On), recipient: FrameComplement];
-            feature = Agreement;
+            feature = ConcordClass;
         }
     }
     codec EnterLocationVerb {
         generate declaration_verb {
             position = Verb;
             tail = [Object, PredicativeComplement?, control: PrepositionalPhrase?];
-            feature = Agreement;
+            feature = ConcordClass;
         }
     }
     codec EnterControlVerb {
         generate declaration_verb {
             position = Verb;
             tail = ["under", control: Object];
-            feature = Agreement;
+            feature = ConcordClass;
         }
     }
     codec LookAtVerb {
         generate declaration_verb {
             position = Verb;
             tail = [lex(Preposition::At), Object];
-            feature = Agreement;
+            feature = ConcordClass;
         }
     }
     codec QuotedAbilityVerb {
         generate declaration_verb {
             position = Verb;
             tail = [QuotedAbility];
-            feature = Agreement;
+            feature = ConcordClass;
         }
     }
     codec HaveObjectControlVerb {
         generate declaration_verb {
             position = Verb;
             tail = [Object, VerbPhrase];
-            feature = Agreement;
+            feature = ConcordClass;
         }
     }
     codec GetPowerToughnessVerb {
         generate declaration_verb {
             position = Verb;
             tail = [PowerToughnessAdjustment, DurationPhrase?];
-            feature = Agreement;
+            feature = ConcordClass;
         }
     }
     codec MovementParticipleHead {
@@ -1406,7 +1406,7 @@ constructions! {
     }
     construction cost_clause: ActivationCostComponent {
         element CostClause { predicate: Predicate, }
-        derive predicate.agreement = Values::Bare;
+        derive predicate.concord_class = Values::Other;
         form cost_clause = predicate;
     }
     construction activated: Ability {
@@ -1424,7 +1424,7 @@ constructions! {
     }
     construction imperative: Sentence {
         element Imperative { predicate: Predicate, }
-        derive predicate.agreement = Values::Bare;
+        derive predicate.concord_class = Values::Other;
         form imperative = predicate;
     }
     construction declarative: Sentence {
@@ -1445,7 +1445,7 @@ constructions! {
     }
     construction preposed_if_predicate: ClauseAttachment {
         element PreposedIfPredicate { condition: Clause, body: Predicate, }
-        derive body.agreement = Values::Bare;
+        derive body.concord_class = Values::Other;
         form preposed_if_predicate = "if" condition "," body;
     }
     construction postposed_if: ClauseAttachment {
@@ -1454,7 +1454,7 @@ constructions! {
     }
     construction postposed_if_predicate: ClauseAttachment {
         element PostposedIfPredicate { body: Predicate, condition: FiniteClause, }
-        derive body.agreement = Values::Bare;
+        derive body.concord_class = Values::Other;
         form postposed_if_predicate = body "if" condition;
     }
     construction postposed_unless: ClauseAttachment {
@@ -1463,12 +1463,12 @@ constructions! {
     }
     construction postposed_unless_predicate: ClauseAttachment {
         element PostposedUnlessPredicate { body: Predicate, condition: FiniteClause, }
-        derive body.agreement = Values::Bare;
+        derive body.concord_class = Values::Other;
         form postposed_unless_predicate = body "unless" condition;
     }
     construction preposed_as: ClauseAttachment {
         element PreposedAs { condition: FiniteClause, body: Predicate, }
-        derive body.agreement = Values::Bare;
+        derive body.concord_class = Values::Other;
         form preposed_as = "as" condition "," body;
     }
     construction preposed_as_long_as: ClauseAttachment {
@@ -1477,7 +1477,7 @@ constructions! {
     }
     construction preposed_as_long_as_predicate: ClauseAttachment {
         element PreposedAsLongAsPredicate { condition: Clause, body: Predicate, }
-        derive body.agreement = Values::Bare;
+        derive body.concord_class = Values::Other;
         form preposed_as_long_as_predicate = "as" "long" "as" condition "," body;
     }
     construction postposed_as_long_as: ClauseAttachment {
@@ -1486,7 +1486,7 @@ constructions! {
     }
     construction postposed_as_long_as_predicate: ClauseAttachment {
         element PostposedAsLongAsPredicate { body: Predicate, condition: FiniteClause, }
-        derive body.agreement = Values::Bare;
+        derive body.concord_class = Values::Other;
         form postposed_as_long_as_predicate = body "as" "long" "as" condition;
     }
     construction postposed_while_clause: PostposedWhileClause {
@@ -1513,7 +1513,7 @@ constructions! {
             adjunct: PredicateAdjunct,
             body: Predicate,
         }
-        derive body.agreement = Values::Bare;
+        derive body.concord_class = Values::Other;
         form preposed_predicate_adjunct_predicate = adjunct "," body;
     }
     construction preposed_while: ClauseAttachment {
@@ -1522,7 +1522,7 @@ constructions! {
     }
     construction preposed_while_predicate: ClauseAttachment {
         element PreposedWhilePredicate { condition: FiniteClause, body: Predicate, }
-        derive body.agreement = Values::Bare;
+        derive body.concord_class = Values::Other;
         form preposed_while_predicate = "while" condition "," body;
     }
     construction preposed_until: ClauseAttachment {
@@ -1531,7 +1531,7 @@ constructions! {
     }
     construction preposed_until_predicate: ClauseAttachment {
         element PreposedUntilPredicate { condition: FiniteClause, body: Predicate, }
-        derive body.agreement = Values::Bare;
+        derive body.concord_class = Values::Other;
         form preposed_until_predicate = "until" condition "," body;
     }
     construction fixed_duration_phrase: FixedDurationPhrase {
@@ -1564,8 +1564,8 @@ constructions! {
             },
         }
         require len(members) >= 2;
-        derive members.agreement = Values::Bare;
-        derive agreement = members.agreement;
+        derive members.concord_class = Values::Other;
+        derive concord_class = members.concord_class;
         form then_predicate_sequence = members;
     }
     construction bare_then_predicate_sequence: BareThenPredicateSequence {
@@ -1578,8 +1578,8 @@ constructions! {
             },
         }
         require len(members) >= 2;
-        derive members.agreement = Values::Bare;
-        derive agreement = members.agreement;
+        derive members.concord_class = Values::Other;
+        derive concord_class = members.concord_class;
         form bare_then_predicate_sequence = members;
     }
     construction additional_cost: ClauseAttachment {
@@ -1593,7 +1593,7 @@ constructions! {
     }
     construction additional_cost_predicate_body: AdditionalCostBody {
         element AdditionalCostPredicateBody { predicate: Predicate, }
-        derive predicate.agreement = Values::Bare;
+        derive predicate.concord_class = Values::Other;
         form additional_cost_predicate_body = predicate;
     }
     construction additional_cost_finite_body: AdditionalCostBody {
@@ -1614,7 +1614,7 @@ constructions! {
             },
         }
         require len(members) >= 2;
-        derive agreement = members.agreement;
+        derive concord_class = members.concord_class;
         form and_predicate_coordination = members;
     }
     construction or_predicate_coordination: PredicateCoordination {
@@ -1627,7 +1627,7 @@ constructions! {
             },
         }
         require len(members) >= 2;
-        derive agreement = members.agreement;
+        derive concord_class = members.concord_class;
         form or_predicate_coordination = members;
     }
     construction and_or_predicate_coordination: PredicateCoordination {
@@ -1640,7 +1640,7 @@ constructions! {
             },
         }
         require len(members) >= 2;
-        derive agreement = members.agreement;
+        derive concord_class = members.concord_class;
         form and_or_predicate_coordination = members;
     }
     construction bare_and_predicate_coordination: BarePredicateCoordination {
@@ -1653,7 +1653,7 @@ constructions! {
             },
         }
         require len(members) >= 2;
-        derive agreement = members.agreement;
+        derive concord_class = members.concord_class;
         form bare_and_predicate_coordination = members;
     }
     construction bare_or_predicate_coordination: BarePredicateCoordination {
@@ -1666,7 +1666,7 @@ constructions! {
             },
         }
         require len(members) >= 2;
-        derive agreement = members.agreement;
+        derive concord_class = members.concord_class;
         form bare_or_predicate_coordination = members;
     }
     construction bare_and_or_predicate_coordination: BarePredicateCoordination {
@@ -1679,7 +1679,7 @@ constructions! {
             },
         }
         require len(members) >= 2;
-        derive agreement = members.agreement;
+        derive concord_class = members.concord_class;
         form bare_and_or_predicate_coordination = members;
     }
     construction predicative_adjective: PredicativeAdjectiveComplement {
@@ -1733,7 +1733,7 @@ constructions! {
     }
     construction predicative_ability: PredicativeAbilityComplement {
         element PredicativeAbilityValue { predicate: Predicate, }
-        derive predicate.agreement = Values::Bare;
+        derive predicate.concord_class = Values::Other;
         form predicative_ability = "able" licensed("to") predicate;
     }
     construction predicative_power_toughness: PredicativePowerToughnessComplement {
@@ -1756,7 +1756,7 @@ constructions! {
             copula: lex BareCopula,
             complement: PredicativeComplement,
         }
-        derive agreement = Values::Bare;
+        derive concord_class = Values::Other;
         form bare_copular_predicate = lex(copula) complement;
     }
     construction declared_object_passive_predicate: DeclaredObjectPassivePredicate {
@@ -1803,12 +1803,12 @@ constructions! {
             copula: lex BareCopula,
             predicate: PassivePredicate,
         }
-        derive agreement = Values::Bare;
+        derive concord_class = Values::Other;
         form bare_passive_predicate = lex(copula) predicate;
     }
     construction inventory_auxiliary: AuxiliaryHead {
         element InventoryAuxiliary { head: lex AuxiliaryVerb, }
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form inventory_auxiliary = verb(head);
     }
     construction object_infinitive_predicate: ObjectInfinitivePredicate {
@@ -1817,8 +1817,8 @@ constructions! {
             object: Object,
             complement: VerbPhrase,
         }
-        derive agreement = head.agreement;
-        derive complement.agreement = Values::Bare;
+        derive concord_class = head.concord_class;
+        derive complement.concord_class = Values::Other;
         form object_infinitive_predicate = verb(head) object licensed("to") complement;
     }
     construction infinitive_complement: InfinitiveComplement {
@@ -1826,7 +1826,7 @@ constructions! {
             negator: opt lex PredicateNegator,
             predicate: VerbPhrase,
         }
-        derive predicate.agreement = Values::Bare;
+        derive predicate.concord_class = Values::Other;
         form infinitive_complement = lex(negator) licensed("to") predicate;
     }
     construction choose_infinitive_predicate: VerbPhrase {
@@ -1834,7 +1834,7 @@ constructions! {
             head: lex ChooseInfinitiveVerb,
             complement: InfinitiveComplement,
         }
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form choose_infinitive_predicate = verb(head) complement;
     }
     construction requirement_predicate: RequirementPredicate {
@@ -1842,7 +1842,7 @@ constructions! {
             head: lex IntransitiveVerb,
             frequency: NounPhrase,
         }
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form requirement_predicate = verb(head) frequency "if" "able";
     }
     construction transitive_requirement_predicate: TransitiveRequirementPredicate {
@@ -1851,7 +1851,7 @@ constructions! {
             object: Object,
             duration: opt DurationPhrase,
         }
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form transitive_requirement_predicate =
             verb(head) object duration "if" "able";
     }
@@ -1860,7 +1860,7 @@ constructions! {
             predicate: LexicalVerbPhrase,
             condition: CounterfactualClause,
         }
-        derive agreement = predicate.agreement;
+        derive concord_class = predicate.concord_class;
         form as_though_predicate = predicate "as" "though" condition;
     }
     construction ordered_predicate: OrderedPredicate {
@@ -1874,18 +1874,16 @@ constructions! {
         }
         require source.preposition_complement_kind is SourceComplement;
         require order_relation is In;
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form ordered_predicate =
             verb(head) object source lex(Preposition::On) destination lex(order_relation) lex(order) "order";
     }
     construction irrealis_copular_clause: IrrealisCopularClause {
         element IrrealisCopularClauseValue {
             subject: Subject,
-            copula: lex FiniteCopula,
             complement: PredicativeComplement,
         }
-        require copula is Were;
-        form irrealis_copular_clause = subject lex(copula) complement;
+        form irrealis_copular_clause = subject lex(FiniteCopula::Were) complement;
     }
     construction past_possession_clause: FiniteClause {
         element PastPossessionClause {
@@ -1903,7 +1901,7 @@ constructions! {
         element PurposePredicateAdjunct {
             purpose: LexicalVerbPhrase,
         }
-        derive purpose.agreement = Values::Bare;
+        derive purpose.concord_class = Values::Other;
         form purpose_predicate_adjunct = licensed("to") purpose;
     }
     construction duration_predicate_adjunct: PredicateAdjunct {
@@ -1927,7 +1925,7 @@ constructions! {
             predicate: LexicalVerbPhrase,
             adjunct: PredicateAdjunct checked by predicate_adjunct_is_nonprepositional(),
         }
-        derive agreement = predicate.agreement;
+        derive concord_class = predicate.concord_class;
         form predicate_adjunct_predicate = predicate adjunct;
     }
     construction prepositional_predicate_adjunct_predicate: PredicateAdjunctPredicate {
@@ -1935,7 +1933,7 @@ constructions! {
             predicate: PrepositionalPredicateAdjunctHost,
             adjunct: PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
         }
-        derive agreement = predicate.agreement;
+        derive concord_class = predicate.concord_class;
         form prepositional_predicate_adjunct_predicate = predicate adjunct;
     }
     construction stacked_predicate_adjunct_predicate: PredicateAdjunctPredicate {
@@ -1944,7 +1942,7 @@ constructions! {
             leading: PredicateAdjunct checked by predicate_adjunct_is_nonprepositional(),
             trailing: PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
         }
-        derive agreement = predicate.agreement;
+        derive concord_class = predicate.concord_class;
         form stacked_predicate_adjunct_predicate = predicate leading trailing;
     }
     construction passive_duration_predicate_adjunct: PredicateAdjunctPredicate {
@@ -1952,7 +1950,7 @@ constructions! {
             predicate: BarePassivePredicate,
             adjunct: PredicateAdjunct checked by predicate_adjunct_is_duration(),
         }
-        derive agreement = Values::Bare;
+        derive concord_class = Values::Other;
         form passive_duration_predicate_adjunct = predicate adjunct;
     }
     construction instead_predicate: InsteadPredicate {
@@ -1961,7 +1959,7 @@ constructions! {
             replacement: lex DistributionReplacement,
         }
         require replacement is Instead;
-        derive agreement = predicate.agreement;
+        derive concord_class = predicate.concord_class;
         form instead_predicate = predicate lex(replacement);
     }
     // A frequency adverbial counts occurrences of the predicate; "more than
@@ -1994,9 +1992,9 @@ constructions! {
             action: VerbPhrase,
             alternative: LexicalVerbPhrase,
         }
-        derive action.agreement = Values::Bare;
-        derive agreement = action.agreement;
-        derive alternative.agreement = Values::Bare;
+        derive action.concord_class = Values::Other;
+        derive concord_class = action.concord_class;
+        derive alternative.concord_class = Values::Other;
         form alternative_predicate = action "rather" "than" alternative;
     }
     construction without_gerund_object_predicate: WithoutGerundObjectPredicate {
@@ -2005,13 +2003,13 @@ constructions! {
             object: Object,
             complement: Object,
         }
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form without_gerund_object_predicate =
             verb(head) object "without" "paying" complement;
     }
     construction controlled_cost_action: ControlledCostAction {
         element ControlledCostActionValue { head: lex TransitiveVerb, }
-        derive head.agreement = Values::Bare;
+        derive head.concord_class = Values::Other;
         form controlled_cost_action = licensed("to") verb(head);
     }
     construction cost_comparison_predicate: CostComparisonPredicate {
@@ -2021,7 +2019,7 @@ constructions! {
             direction: lex CostComparisonDirection,
             action: ControlledCostAction,
         }
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form cost_comparison_predicate = verb(head) amount lex(direction) action;
     }
     construction restriction_turn: RestrictionTurn {
@@ -2054,8 +2052,8 @@ constructions! {
             restrictions: seq CastingRestriction separated by " and ",
         }
         require len(restrictions) >= 1;
-        derive _head.agreement = Values::Bare;
-        derive agreement = _head.agreement;
+        derive _head.concord_class = Values::Other;
+        derive concord_class = _head.concord_class;
         form action_restriction_predicate = verb(_head) object restrictions;
     }
     construction finite_passive_predicate: FinitePassivePredicate {
@@ -2063,15 +2061,15 @@ constructions! {
             copula: lex FiniteCopula,
             predicate: PassivePredicate,
         }
-        derive copula.agreement = match copula {
+        derive copula.concord_class = match copula {
             Is => Values::ThirdPersonSingular,
             Isnt => Values::ThirdPersonSingular,
-            Are => Values::Bare,
-            Arent => Values::Bare,
+            Are => Values::Other,
+            Arent => Values::Other,
             Was => Values::ThirdPersonSingular,
-            Were => Values::Bare,
+            Were => Values::Other,
         };
-        derive agreement = copula.agreement;
+        derive concord_class = copula.concord_class;
         form finite_passive_predicate = lex(copula) predicate;
     }
     construction auxiliary_predicate: AuxiliaryPredicate {
@@ -2079,8 +2077,8 @@ constructions! {
             auxiliary: AuxiliaryHead,
             predicate: BarePredicate,
         }
-        derive predicate.agreement = Values::Bare;
-        derive agreement = auxiliary.agreement;
+        derive predicate.concord_class = Values::Other;
+        derive concord_class = auxiliary.concord_class;
         form auxiliary_predicate = auxiliary predicate;
     }
     construction finite_copular_predicate: FiniteCopularPredicate {
@@ -2088,20 +2086,20 @@ constructions! {
             copula: lex FiniteCopula,
             complement: PredicativeComplement,
         }
-        derive copula.agreement = match copula {
+        derive copula.concord_class = match copula {
             Is => Values::ThirdPersonSingular,
             Isnt => Values::ThirdPersonSingular,
-            Are => Values::Bare,
-            Arent => Values::Bare,
+            Are => Values::Other,
+            Arent => Values::Other,
             Was => Values::ThirdPersonSingular,
-            Were => Values::Bare,
+            Were => Values::Other,
         };
-        derive agreement = copula.agreement;
+        derive concord_class = copula.concord_class;
         form finite_copular_predicate = lex(copula) complement;
     }
     construction plain_finite_clause: FiniteClause {
         element PlainFiniteClause { subject: Subject, predicate: Predicate, }
-        derive predicate.agreement = subject.agreement;
+        derive predicate.concord_class = subject.concord_class;
         form plain_finite_clause = subject predicate;
     }
     construction contracted_copular_clause: FiniteClause {
@@ -2144,15 +2142,15 @@ constructions! {
             pivot: NounPhrase,
             adjunct: opt ExistentialPredicateAdjunct,
         }
-        derive copula.agreement = match copula {
+        derive copula.concord_class = match copula {
             Is => Values::ThirdPersonSingular,
             Isnt => Values::ThirdPersonSingular,
-            Are => Values::Bare,
-            Arent => Values::Bare,
+            Are => Values::Other,
+            Arent => Values::Other,
             Was => Values::ThirdPersonSingular,
-            Were => Values::Bare,
+            Were => Values::Other,
         };
-        derive pivot.agreement = copula.agreement;
+        derive pivot.concord_class = copula.concord_class;
         form existential_finite_clause = "there" lex(copula) pivot adjunct;
     }
     construction existential_predicate_adjunct: ExistentialPredicateAdjunct {
@@ -2167,8 +2165,8 @@ constructions! {
             quantifier: lex FloatedQuantifier,
             predicate: Predicate,
         }
-        derive subject.agreement = Values::Bare;
-        derive predicate.agreement = Values::Bare;
+        derive subject.concord_class = Values::Other;
+        derive predicate.concord_class = Values::Other;
         form floated_quantifier_finite_clause = subject lex(quantifier) predicate;
     }
     construction third_person_auxiliary_finite_clause: FiniteClause {
@@ -2177,19 +2175,19 @@ constructions! {
             auxiliary: lex ThirdPersonAuxiliary,
             predicate: Predicate,
         }
-        derive subject.agreement = Values::ThirdPersonSingular;
-        derive predicate.agreement = Values::Bare;
+        derive subject.concord_class = Values::ThirdPersonSingular;
+        derive predicate.concord_class = Values::Other;
         form third_person_auxiliary_finite_clause = subject lex(auxiliary) predicate;
     }
-    construction bare_agreement_auxiliary_finite_clause: FiniteClause {
-        element BareAgreementAuxiliaryFiniteClause {
+    construction other_concord_class_auxiliary_finite_clause: FiniteClause {
+        element OtherConcordClassAuxiliaryFiniteClause {
             subject: Subject,
-            auxiliary: lex BareAgreementAuxiliary,
+            auxiliary: lex OtherConcordClassAuxiliary,
             predicate: Predicate,
         }
-        derive subject.agreement = Values::Bare;
-        derive predicate.agreement = Values::Bare;
-        form bare_agreement_auxiliary_finite_clause = subject lex(auxiliary) predicate;
+        derive subject.concord_class = Values::Other;
+        derive predicate.concord_class = Values::Other;
+        form other_concord_class_auxiliary_finite_clause = subject lex(auxiliary) predicate;
     }
     construction and_clause_coordination: ClauseCoordination {
         element AndClauseCoordination {
@@ -2233,28 +2231,28 @@ constructions! {
     }
     construction subject_nominal: Subject {
         element NominalSubject { value: NounPhrase, }
-        derive agreement = value.agreement;
+        derive concord_class = value.concord_class;
         derive number = value.number;
         derive onset = value.onset;
         form subject_nominal = value;
     }
     construction subject_pronoun: Subject {
         element PersonalSubject { word: lex SubjectPronoun, }
-        derive word.agreement = match word {
+        derive word.concord_class = match word {
             He => Values::ThirdPersonSingular,
             It => Values::ThirdPersonSingular,
             She => Values::ThirdPersonSingular,
-            They => Values::Bare,
-            You => Values::Bare,
+            They => Values::Other,
+            You => Values::Other,
         };
-        derive agreement = word.agreement;
+        derive concord_class = word.concord_class;
         derive number = Values::Singular;
         derive onset = word.onset;
         form subject_pronoun = lex(word);
     }
     construction variable_subject: Subject {
         element VariableSubject { variable: lex Variable, }
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = variable.onset;
         form variable_subject = lex(variable);
@@ -2262,7 +2260,7 @@ constructions! {
     construction object_nominal: Object {
         element NominalObject { value: NounPhrase, }
         require value.fused_head_license in [NominalOnly, FusedHead];
-        derive agreement = value.agreement;
+        derive concord_class = value.concord_class;
         derive number = value.number;
         derive onset = value.onset;
         derive relationality = value.relationality;
@@ -2272,7 +2270,7 @@ constructions! {
     construction bare_singular_coordination_object: Object {
         element BareSingularCoordinationObject { value: NominalCoordination, }
         require value.number is Singular;
-        derive agreement = value.agreement;
+        derive concord_class = value.concord_class;
         derive number = value.number;
         derive onset = value.onset;
         derive relationality = Values::NonRelational;
@@ -2281,12 +2279,12 @@ constructions! {
     }
     construction object_pronoun: Object {
         element PersonalObject { word: lex ObjectPronoun, }
-        derive agreement = match word {
+        derive concord_class = match word {
             Her => Values::ThirdPersonSingular,
             Him => Values::ThirdPersonSingular,
             It => Values::ThirdPersonSingular,
-            Them => Values::Bare,
-            You => Values::Bare,
+            Them => Values::Other,
+            You => Values::Other,
         };
         derive number = match word {
             Her => Values::Singular,
@@ -2302,14 +2300,14 @@ constructions! {
     }
     construction reflexive_object: Object {
         element ReflexiveObject { word: lex ReflexivePronoun, }
-        derive agreement = match word {
+        derive concord_class = match word {
             Herself => Values::ThirdPersonSingular,
             Himself => Values::ThirdPersonSingular,
             Itself => Values::ThirdPersonSingular,
-            Themself => Values::Bare,
-            Themselves => Values::Bare,
-            Yourself => Values::Bare,
-            Yourselves => Values::Bare,
+            Themself => Values::Other,
+            Themselves => Values::Other,
+            Yourself => Values::Other,
+            Yourselves => Values::Other,
         };
         derive number = match word {
             Herself => Values::Singular,
@@ -2329,7 +2327,7 @@ constructions! {
         element NounSingularHead { noun: lex Noun, }
         require noun.countability is Count;
         derive noun.number = Values::Singular;
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = noun.onset;
         derive possessive_ending = noun.possessive_ending;
@@ -2341,7 +2339,7 @@ constructions! {
         element NounPluralHead { noun: lex Noun, }
         require noun.countability is Count;
         derive noun.number = Values::Plural;
-        derive agreement = Values::Bare;
+        derive concord_class = Values::Other;
         derive number = Values::Plural;
         derive onset = noun.onset;
         derive possessive_ending = noun.possessive_ending;
@@ -2366,7 +2364,7 @@ constructions! {
     construction color_modifier: NominalModifier {
         element ColorModifier { color: lex Color, }
         derive modifier_license = Values::Unrestricted;
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = color.onset;
         form color_modifier = lex(color);
@@ -2374,7 +2372,7 @@ constructions! {
     construction attributive_adjective_modifier: NominalModifier {
         element AttributiveAdjectiveModifier { adjective: lex AttributiveAdjective, }
         derive modifier_license = adjective.modifier_license;
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = match adjective {
             Additional => Values::Vowel,
@@ -2399,7 +2397,7 @@ constructions! {
     construction targeting_marker_nominal_modifier: NominalModifier {
         element TargetingMarkerNominalModifier { marker: lex TargetingMarker, }
         derive modifier_license = Values::LocalDeterminer;
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = Values::Consonant;
         form targeting_marker_nominal_modifier = lex(marker);
@@ -2407,7 +2405,7 @@ constructions! {
     construction counter_kind_modifier: NominalModifier {
         element CounterKindModifier { kind: CounterKind, }
         derive modifier_license = Values::Unrestricted;
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = kind.onset;
         form counter_kind_modifier = kind;
@@ -2415,7 +2413,7 @@ constructions! {
     construction power_toughness_modifier: NominalModifier {
         element PowerToughnessModifier { value: PredicativePowerToughnessComplement, }
         derive modifier_license = Values::Unrestricted;
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = Values::Consonant;
         form power_toughness_modifier = value;
@@ -2423,7 +2421,7 @@ constructions! {
     construction status_modifier: NominalModifier {
         element StatusModifier { status: lex Status, }
         derive modifier_license = Values::Unrestricted;
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = status.onset;
         form status_modifier = lex(status);
@@ -2431,7 +2429,7 @@ constructions! {
     construction participial_adjective_modifier: NominalModifier {
         element ParticipialAdjectiveModifier { adjective: ParticipialAdjective, }
         derive modifier_license = Values::Unrestricted;
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = adjective.onset;
         form participial_adjective_modifier = adjective;
@@ -2439,7 +2437,7 @@ constructions! {
     construction reduced_relative_modifier: NominalModifier {
         element ReducedRelativeModifier { head: lex DeclaredTransitiveParticipleHead, }
         derive modifier_license = Values::Unrestricted;
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = head.onset;
         form reduced_relative_modifier = verb(head);
@@ -2447,7 +2445,7 @@ constructions! {
     construction supertype_modifier: NominalModifier {
         element SupertypeModifier { supertype: lex Supertype, }
         derive modifier_license = Values::Unrestricted;
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = supertype.onset;
         form supertype_modifier = lex(supertype);
@@ -2457,7 +2455,7 @@ constructions! {
         require noun.compoundability is Compoundable;
         derive modifier_license = Values::Unrestricted;
         derive noun.number = Values::Singular;
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = noun.onset;
         form noun_modifier = noun(noun);
@@ -2465,7 +2463,7 @@ constructions! {
     construction non_color_modifier: NominalModifier {
         element NonColorModifier { color: lex Color, }
         derive modifier_license = Values::Unrestricted;
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = Values::Consonant;
         form non_color_modifier = prefix("non", lex(color));
@@ -2475,7 +2473,7 @@ constructions! {
         require noun.properness is Common;
         derive modifier_license = Values::Unrestricted;
         derive noun.number = Values::Singular;
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = Values::Consonant;
         form non_noun_modifier = prefix("non", noun(noun));
@@ -2485,7 +2483,7 @@ constructions! {
         require noun.properness is Proper;
         derive modifier_license = Values::Unrestricted;
         derive noun.number = Values::Singular;
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = Values::Consonant;
         form non_proper_noun_modifier = prefix("non-", noun(noun));
@@ -2493,7 +2491,7 @@ constructions! {
     construction non_status_modifier: NominalModifier {
         element NonStatusModifier { status: lex Status, }
         derive modifier_license = Values::Unrestricted;
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = Values::Consonant;
         form non_status_modifier = prefix("non", lex(status));
@@ -2501,7 +2499,7 @@ constructions! {
     construction non_supertype_modifier: NominalModifier {
         element NonSupertypeModifier { supertype: lex Supertype, }
         derive modifier_license = Values::Unrestricted;
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = Values::Consonant;
         form non_supertype_modifier = prefix("non", lex(supertype));
@@ -2542,7 +2540,7 @@ constructions! {
         }
         require len(rest) >= 1;
         derive modifier_license = Values::Unrestricted;
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = first.onset;
         form and_shared_head_modifier = first "and" rest;
@@ -2567,7 +2565,7 @@ constructions! {
             tail: SerialAndModifierTail,
         }
         derive modifier_license = Values::Unrestricted;
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = first.onset;
         form serial_and_shared_head_modifier = first "," tail;
@@ -2579,7 +2577,7 @@ constructions! {
         }
         require len(rest) >= 1;
         derive modifier_license = Values::Unrestricted;
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = first.onset;
         form or_shared_head_modifier = first "or" rest;
@@ -2591,7 +2589,7 @@ constructions! {
         }
         require len(rest) >= 1;
         derive modifier_license = Values::Unrestricted;
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = first.onset;
         form and_or_shared_head_modifier = first "and/or" rest;
@@ -2599,7 +2597,7 @@ constructions! {
     construction bare_singular_nominal: Nominal {
         element BareSingularNominal { head: Head, }
         derive head.number = Values::Singular;
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         derive number = head.number;
         derive nominal_form = Values::BareSingularNoun;
         derive onset = head.onset;
@@ -2611,7 +2609,7 @@ constructions! {
     construction bare_plural_nominal: Nominal {
         element BarePluralNominal { head: Head, }
         derive head.number = Values::Plural;
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         derive number = head.number;
         derive nominal_form = Values::BarePluralNoun;
         derive onset = head.onset;
@@ -2627,7 +2625,7 @@ constructions! {
             head: Head,
         }
         derive head.number = Values::Singular;
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         derive number = head.number;
         derive nominal_form = Values::ModifiedSingularNoun;
         derive onset = first.onset;
@@ -2643,7 +2641,7 @@ constructions! {
             head: Head,
         }
         derive head.number = Values::Plural;
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         derive number = head.number;
         derive nominal_form = Values::ModifiedPluralNoun;
         derive onset = first.onset;
@@ -2660,7 +2658,7 @@ constructions! {
         }
         require len(modifiers) >= 2;
         derive head.number = Values::Singular;
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         derive number = head.number;
         derive nominal_form = Values::ModifiedSingularNoun;
         derive onset = Values::Consonant;
@@ -2677,7 +2675,7 @@ constructions! {
         }
         require len(modifiers) >= 2;
         derive head.number = Values::Plural;
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         derive number = head.number;
         derive nominal_form = Values::ModifiedPluralNoun;
         derive onset = Values::Consonant;
@@ -2689,7 +2687,7 @@ constructions! {
     construction bare_relational_reference: UnqualifiedReference {
         element BareRelationalReference { head: lex Noun, }
         require head.relationality is Relational;
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = head.onset;
         derive possessive_ending = head.possessive_ending;
@@ -2705,7 +2703,7 @@ constructions! {
             head: lex Noun,
         }
         require head.relationality is Relational;
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = first.onset;
         derive possessive_ending = head.possessive_ending;
@@ -2719,7 +2717,7 @@ constructions! {
             adjective: ParticipialAdjective,
             head: Head,
         }
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         derive head.number = Values::Singular;
         derive number = Values::Singular;
         derive onset = adjective.onset;
@@ -2736,7 +2734,7 @@ constructions! {
             head: Head,
         }
         require first.modifier_license is LocalDeterminer;
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         derive head.number = Values::Singular;
         derive number = Values::Singular;
         derive onset = first.onset;
@@ -2748,7 +2746,7 @@ constructions! {
     construction bare_singular_coordination_member: CoordinationMember {
         element BareSingularCoordinationMember { head: Head, }
         derive head.number = Values::Singular;
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         derive number = head.number;
         derive onset = head.onset;
         derive possessive_ending = head.possessive_ending;
@@ -2757,7 +2755,7 @@ constructions! {
     construction bare_plural_coordination_member: CoordinationMember {
         element BarePluralCoordinationMember { head: Head, }
         derive head.number = Values::Plural;
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         derive number = head.number;
         derive onset = head.onset;
         derive possessive_ending = head.possessive_ending;
@@ -2769,7 +2767,7 @@ constructions! {
             head: Head,
         }
         derive head.number = Values::Singular;
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         derive number = head.number;
         derive onset = modifier.onset;
         derive possessive_ending = head.possessive_ending;
@@ -2781,7 +2779,7 @@ constructions! {
             head: Head,
         }
         derive head.number = Values::Plural;
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         derive number = head.number;
         derive onset = modifier.onset;
         derive possessive_ending = head.possessive_ending;
@@ -2795,7 +2793,7 @@ constructions! {
         }
         require len(modifiers) >= 2;
         derive head.number = Values::Singular;
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         derive number = head.number;
         derive onset = Values::Consonant;
         derive possessive_ending = head.possessive_ending;
@@ -2809,7 +2807,7 @@ constructions! {
         }
         require len(modifiers) >= 2;
         derive head.number = Values::Plural;
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         derive number = head.number;
         derive onset = Values::Consonant;
         derive possessive_ending = head.possessive_ending;
@@ -2825,7 +2823,7 @@ constructions! {
             },
         }
         require len(members) >= 2;
-        derive agreement = members.agreement;
+        derive concord_class = members.concord_class;
         derive number = members.number;
         derive onset = members.onset;
         derive possessive_ending = Values::Other;
@@ -2841,7 +2839,7 @@ constructions! {
             },
         }
         require len(members) >= 2;
-        derive agreement = members.agreement;
+        derive concord_class = members.concord_class;
         derive number = members.number;
         derive onset = members.onset;
         derive possessive_ending = Values::Other;
@@ -2857,7 +2855,7 @@ constructions! {
             },
         }
         require len(members) >= 2;
-        derive agreement = members.agreement;
+        derive concord_class = members.concord_class;
         derive number = members.number;
         derive onset = members.onset;
         derive possessive_ending = Values::Other;
@@ -2876,7 +2874,7 @@ constructions! {
     }
     construction mass_nominal: Nominal {
         element MassNominal { noun: MassNoun, }
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive nominal_form = Values::MassNoun;
         derive onset = noun.onset;
@@ -2891,7 +2889,7 @@ constructions! {
             rest: seq NominalModifier separated by " ",
             noun: MassNoun,
         }
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive nominal_form = Values::MassNoun;
         derive onset = first.onset;
@@ -2905,7 +2903,7 @@ constructions! {
             coordination: NominalCoordination,
         }
         require coordination.number is Singular;
-        derive agreement = coordination.agreement;
+        derive concord_class = coordination.concord_class;
         derive number = coordination.number;
         derive nominal_form = Values::SingularCoordination;
         derive onset = coordination.onset;
@@ -2919,7 +2917,7 @@ constructions! {
             coordination: NominalCoordination,
         }
         require coordination.number is Plural;
-        derive agreement = coordination.agreement;
+        derive concord_class = coordination.concord_class;
         derive number = coordination.number;
         derive nominal_form = Values::PluralCoordination;
         derive onset = coordination.onset;
@@ -2935,7 +2933,7 @@ constructions! {
             coordination: NominalCoordination,
         }
         require coordination.number is Singular;
-        derive agreement = coordination.agreement;
+        derive concord_class = coordination.concord_class;
         derive number = coordination.number;
         derive nominal_form = Values::SingularCoordination;
         derive onset = first.onset;
@@ -2951,7 +2949,7 @@ constructions! {
             coordination: NominalCoordination,
         }
         require coordination.number is Plural;
-        derive agreement = coordination.agreement;
+        derive concord_class = coordination.concord_class;
         derive number = coordination.number;
         derive nominal_form = Values::PluralCoordination;
         derive onset = first.onset;
@@ -2964,7 +2962,7 @@ constructions! {
         element UnmarkedSingularSelector { nominal: Nominal, }
         require nominal.number is Singular;
         require nominal.nominal_form in [BareSingularNoun, ModifiedSingularNoun];
-        derive agreement = nominal.agreement;
+        derive concord_class = nominal.concord_class;
         derive number = nominal.number;
         derive onset = nominal.onset;
         form unmarked_singular_selector = nominal;
@@ -2975,7 +2973,7 @@ constructions! {
                 head.determiner_number
             ),
         }
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive determiner_number = head.determiner_number;
         derive nominal_license = head.nominal_license;
@@ -2985,7 +2983,7 @@ constructions! {
     }
     construction targeting_marker_determinative: Determinative {
         element TargetingMarkerDeterminative { marker: lex TargetingMarker, }
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive determiner_number = Values::SingularOnly;
         derive nominal_license = Values::CountNominal;
@@ -2999,7 +2997,7 @@ constructions! {
                 head.determiner_number
             ),
         }
-        derive agreement = Values::Bare;
+        derive concord_class = Values::Other;
         derive number = Values::Plural;
         derive determiner_number = head.determiner_number;
         derive nominal_license = head.nominal_license;
@@ -3010,7 +3008,7 @@ constructions! {
     construction cardinal_quantifying_determiner: Determinative {
         element CardinalQuantifyingDeterminer { count: CardinalQuantity, }
         require any(count.cardinality is One, count.cardinality is TwoPlus);
-        derive agreement = count.agreement;
+        derive concord_class = count.concord_class;
         derive number = count.number;
         derive determiner_number = count.determiner_number;
         derive nominal_license = Values::CountNominal;
@@ -3020,7 +3018,7 @@ constructions! {
     }
     construction mass_quantity_determiner: Determinative {
         element MassQuantityDeterminer { amount: Amount, }
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive determiner_number = Values::SingularOnly;
         derive nominal_license = Values::MassOrPluralCount;
@@ -3030,7 +3028,7 @@ constructions! {
     }
     construction mass_comparison_determiner: Determinative {
         element MassComparisonDeterminer { comparison: ScalarComparison, }
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive determiner_number = Values::SingularOnly;
         derive nominal_license = Values::MassOrPluralCount;
@@ -3040,7 +3038,7 @@ constructions! {
     }
     construction mass_cardinal_quantity_determiner: Determinative {
         element MassCardinalQuantityDeterminer { count: CardinalQuantity, }
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive determiner_number = Values::SingularOnly;
         derive nominal_license = Values::MassOrPluralCount;
@@ -3050,7 +3048,7 @@ constructions! {
     }
     construction variable_quantifying_determiner: Determinative {
         element VariableQuantifyingDeterminer { count: lex Variable, }
-        derive agreement = Values::Bare;
+        derive concord_class = Values::Other;
         derive number = Values::Plural;
         derive determiner_number = Values::PluralOnly;
         derive nominal_license = Values::CountNominal;
@@ -3061,7 +3059,7 @@ constructions! {
     construction up_to_quantifying_determiner: Determinative {
         element UpToQuantifyingDeterminer { count: CardinalQuantity, }
         require any(count.cardinality is One, count.cardinality is TwoPlus);
-        derive agreement = count.agreement;
+        derive concord_class = count.concord_class;
         derive number = count.number;
         derive determiner_number = count.determiner_number;
         derive nominal_license = Values::CountNominal;
@@ -3078,7 +3076,7 @@ constructions! {
         require unit.number is Singular;
         require order is Any;
         require relation is Of;
-        derive agreement = Values::Bare;
+        derive concord_class = Values::Other;
         derive number = Values::Plural;
         derive determiner_number = Values::PluralOnly;
         derive nominal_license = Values::CountNominal;
@@ -3089,7 +3087,7 @@ constructions! {
     construction no_more_quantifying_determiner: Determinative {
         element NoMoreQuantifyingDeterminer { direction: lex CostComparisonDirection, }
         require direction is More;
-        derive agreement = Values::Bare;
+        derive concord_class = Values::Other;
         derive number = Values::Plural;
         derive determiner_number = Values::PluralOnly;
         derive nominal_license = Values::CountNominal;
@@ -3099,7 +3097,7 @@ constructions! {
     }
     construction counted_quantifying_determiner: Determinative {
         element CountedQuantifyingDeterminer { count: CountReference, }
-        derive agreement = count.agreement;
+        derive concord_class = count.concord_class;
         derive number = count.number;
         derive determiner_number = Values::Both;
         derive nominal_license = Values::CountNominal;
@@ -3112,7 +3110,7 @@ constructions! {
             count: CardinalQuantity,
             comparison: CountComparison,
         }
-        derive agreement = Values::Bare;
+        derive concord_class = Values::Other;
         derive number = Values::Plural;
         derive determiner_number = Values::PluralOnly;
         derive nominal_license = Values::CountNominal;
@@ -3123,7 +3121,7 @@ constructions! {
     construction named_card_reference: UnqualifiedReference {
         element NamedCardReference { kind: Head, name: identity CardName, }
         require kind.number is Singular;
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = Values::Consonant;
         derive possessive_ending = name.possessive_ending;
@@ -3136,7 +3134,7 @@ constructions! {
             quantity: Amount,
             noun: MassNoun,
         }
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = Values::Consonant;
         derive possessive_ending = noun.possessive_ending;
@@ -3147,7 +3145,7 @@ constructions! {
     construction that_many: CountReference {
         element ThatMany { demonstrative: lex SingularDemonstrative, }
         require demonstrative is That;
-        derive agreement = Values::Bare;
+        derive concord_class = Values::Other;
         derive number = Values::Plural;
         derive onset = Values::Consonant;
         form that_many = lex(demonstrative) "many";
@@ -3161,7 +3159,7 @@ constructions! {
         require possessor.number is Singular;
         require possessed.number is Singular;
         require possessed.nominal_form in [BareSingularNoun, ModifiedSingularNoun];
-        derive agreement = possessed.agreement;
+        derive concord_class = possessed.concord_class;
         derive number = possessed.number;
         derive onset = Values::Consonant;
         derive possessive_ending = possessed.possessive_ending;
@@ -3176,7 +3174,7 @@ constructions! {
         }
         require nominal.number is Singular;
         require nominal.nominal_form in [BareSingularNoun, ModifiedSingularNoun];
-        derive agreement = nominal.agreement;
+        derive concord_class = nominal.concord_class;
         derive number = nominal.number;
         derive onset = possessor.onset;
         derive possessive_ending = nominal.possessive_ending;
@@ -3191,7 +3189,7 @@ constructions! {
         }
         require nominal.number is Plural;
         require nominal.nominal_form in [BarePluralNoun, ModifiedPluralNoun];
-        derive agreement = nominal.agreement;
+        derive concord_class = nominal.concord_class;
         derive number = nominal.number;
         derive onset = possessor.onset;
         derive possessive_ending = nominal.possessive_ending;
@@ -3205,7 +3203,7 @@ constructions! {
             nominal: Nominal,
         }
         require nominal.nominal_form is MassNoun;
-        derive agreement = nominal.agreement;
+        derive concord_class = nominal.concord_class;
         derive number = nominal.number;
         derive onset = possessor.onset;
         derive possessive_ending = nominal.possessive_ending;
@@ -3220,7 +3218,7 @@ constructions! {
         }
         require nominal.number is Singular;
         require nominal.nominal_form in [BareSingularNoun, ModifiedSingularNoun];
-        derive agreement = nominal.agreement;
+        derive concord_class = nominal.concord_class;
         derive number = nominal.number;
         derive onset = Values::Consonant;
         derive possessive_ending = nominal.possessive_ending;
@@ -3235,7 +3233,7 @@ constructions! {
         }
         require nominal.number is Plural;
         require nominal.nominal_form in [BarePluralNoun, ModifiedPluralNoun];
-        derive agreement = nominal.agreement;
+        derive concord_class = nominal.concord_class;
         derive number = nominal.number;
         derive onset = Values::Consonant;
         derive possessive_ending = nominal.possessive_ending;
@@ -3249,7 +3247,7 @@ constructions! {
             nominal: Nominal,
         }
         require nominal.nominal_form is MassNoun;
-        derive agreement = nominal.agreement;
+        derive concord_class = nominal.concord_class;
         derive number = nominal.number;
         derive onset = Values::Consonant;
         derive possessive_ending = nominal.possessive_ending;
@@ -3263,7 +3261,7 @@ constructions! {
             coordination: NominalCoordination,
         }
         require coordination.number is Singular;
-        derive agreement = Values::Bare;
+        derive concord_class = Values::Other;
         derive number = Values::Plural;
         derive onset = Values::Consonant;
         derive possessive_ending = coordination.possessive_ending;
@@ -3273,11 +3271,11 @@ constructions! {
     }
     construction possessive_absolute_reference: UnqualifiedReference {
         element PossessiveAbsoluteReference { word: lex PossessiveAbsolutePronoun, }
-        derive agreement = match word {
+        derive concord_class = match word {
             Hers => Values::ThirdPersonSingular,
             His => Values::ThirdPersonSingular,
-            Theirs => Values::Bare,
-            Yours => Values::Bare,
+            Theirs => Values::Other,
+            Yours => Values::Other,
         };
         derive number = match word {
             Hers => Values::Singular,
@@ -3301,7 +3299,7 @@ constructions! {
             ),
             nominal: Nominal,
         }
-        derive agreement = nominal.agreement;
+        derive concord_class = nominal.concord_class;
         derive number = nominal.number;
         derive onset = nominal.onset;
         derive possessive_ending = nominal.possessive_ending;
@@ -3322,7 +3320,7 @@ constructions! {
         }
         require predeterminer.fused_head_license is PluralPredeterminer;
         require predeterminer.number is Plural;
-        derive agreement = nominal.agreement;
+        derive concord_class = nominal.concord_class;
         derive number = nominal.number;
         derive onset = nominal.onset;
         derive possessive_ending = nominal.possessive_ending;
@@ -3340,7 +3338,7 @@ constructions! {
             },
         }
         require len(members) >= 2;
-        derive agreement = Values::Bare;
+        derive concord_class = Values::Other;
         derive number = Values::Plural;
         derive possessive_ending = members.possessive_ending;
         form full_and_noun_phrase_coordination = members;
@@ -3355,7 +3353,7 @@ constructions! {
             },
         }
         require len(members) >= 2;
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive possessive_ending = members.possessive_ending;
         form full_or_noun_phrase_coordination = members;
@@ -3370,7 +3368,7 @@ constructions! {
             },
         }
         require len(members) >= 2;
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Plural;
         derive possessive_ending = members.possessive_ending;
         form full_and_or_noun_phrase_coordination = members;
@@ -3379,7 +3377,7 @@ constructions! {
         element CoordinatedNounPhrase {
             coordination: FullNounPhraseCoordination checked by full_coordination_is_independent(),
         }
-        derive agreement = coordination.agreement;
+        derive concord_class = coordination.concord_class;
         derive number = coordination.number;
         derive onset = Values::Consonant;
         derive possessive_ending = coordination.possessive_ending;
@@ -3404,7 +3402,7 @@ constructions! {
             coordination: LocativeNounPhraseCoordination checked by
                 locative_coordination_has_modifier(),
         }
-        derive agreement = Values::Bare;
+        derive concord_class = Values::Other;
         derive number = Values::Plural;
         derive fused_head_license = Values::NominalOnly;
         derive onset = Values::Consonant;
@@ -3414,7 +3412,7 @@ constructions! {
     }
     construction self_reference: UnqualifiedReference {
         element SourceSelfReference { spelling: identity SelfReferenceSpelling, }
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = spelling.onset;
         derive possessive_ending = spelling.possessive_ending;
@@ -3441,7 +3439,7 @@ constructions! {
     construction that_much: ScalarReference {
         element ThatMuch { demonstrative: lex SingularDemonstrative, }
         require demonstrative is That;
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = Values::Consonant;
         form that_much = lex(demonstrative) "much";
@@ -3451,7 +3449,7 @@ constructions! {
             subject: Subject,
             head: lex TransitiveVerb,
         }
-        derive head.agreement = subject.agreement;
+        derive head.concord_class = subject.concord_class;
         form positive_object_gap_relative = subject verb(head);
     }
     construction positive_object_gap_relative_with_adjunct: PositiveObjectGapRelativeClause {
@@ -3460,7 +3458,7 @@ constructions! {
             head: lex TransitiveVerb checked by transitive_head_licenses_nonprepositional_adjunct(),
             adjunct: PredicateAdjunct checked by predicate_adjunct_is_nonprepositional(),
         }
-        derive head.agreement = subject.agreement;
+        derive head.concord_class = subject.concord_class;
         form positive_object_gap_relative_with_adjunct = subject verb(head) adjunct;
     }
     construction positive_object_gap_relative_with_prepositional_adjunct: PositiveObjectGapRelativeClause {
@@ -3469,7 +3467,7 @@ constructions! {
             head: lex TransitiveVerb checked by transitive_head_licenses_prepositional_adjunct(),
             adjunct: PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
         }
-        derive head.agreement = subject.agreement;
+        derive head.concord_class = subject.concord_class;
         form positive_object_gap_relative_with_prepositional_adjunct = subject verb(head) adjunct;
     }
     construction auxiliary_object_gap_relative: AuxiliaryObjectGapRelativeClause {
@@ -3478,8 +3476,8 @@ constructions! {
             auxiliary: AuxiliaryHead,
             head: lex TransitiveVerb,
         }
-        derive auxiliary.agreement = subject.agreement;
-        derive head.agreement = Values::Bare;
+        derive auxiliary.concord_class = subject.concord_class;
+        derive head.concord_class = Values::Other;
         form auxiliary_object_gap_relative = subject auxiliary verb(head);
     }
     construction contracted_perfect_object_gap_relative: ContractedPerfectObjectGapRelativeClause {
@@ -3508,11 +3506,11 @@ constructions! {
     construction bare_negative_object_gap_relative: BareNegativeObjectGapRelativeClause {
         element BareNegativeObjectGapRelativeClauseValue {
             subject: Subject,
-            auxiliary: lex BareAgreementAuxiliary,
+            auxiliary: lex OtherConcordClassAuxiliary,
             head: lex TransitiveVerb,
         }
-        derive subject.agreement = Values::Bare;
-        derive head.agreement = Values::Bare;
+        derive subject.concord_class = Values::Other;
+        derive head.concord_class = Values::Other;
         form bare_negative_object_gap_relative = subject lex(auxiliary) verb(head);
     }
     construction third_person_negative_object_gap_relative: ThirdPersonNegativeObjectGapRelativeClause {
@@ -3521,15 +3519,15 @@ constructions! {
             auxiliary: lex ThirdPersonAuxiliary,
             head: lex TransitiveVerb,
         }
-        derive subject.agreement = Values::ThirdPersonSingular;
-        derive head.agreement = Values::Bare;
+        derive subject.concord_class = Values::ThirdPersonSingular;
+        derive head.concord_class = Values::Other;
         form third_person_negative_object_gap_relative = subject lex(auxiliary) verb(head);
     }
     construction singular_partitive_selection: PartitiveSelection {
         element SingularPartitiveSelection { nominal: Nominal, }
         require nominal.number is Singular;
         require nominal.nominal_form in [BareSingularNoun, ModifiedSingularNoun];
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         form singular_partitive_selection = nominal;
     }
@@ -3541,7 +3539,7 @@ constructions! {
         require count.cardinality is TwoPlus;
         require nominal.number is Plural;
         require nominal.nominal_form in [BarePluralNoun, ModifiedPluralNoun];
-        derive agreement = Values::Bare;
+        derive concord_class = Values::Other;
         derive number = Values::Plural;
         form fixed_partitive_selection = count nominal;
     }
@@ -3766,7 +3764,7 @@ constructions! {
     }
     construction unqualified_postmodified_reference: PostmodifiedReference {
         element UnqualifiedPostmodifiedReference { reference: UnqualifiedReference, }
-        derive agreement = reference.agreement;
+        derive concord_class = reference.concord_class;
         derive number = reference.number;
         derive onset = reference.onset;
         derive possessive_ending = reference.possessive_ending;
@@ -3779,7 +3777,7 @@ constructions! {
             reference: PostmodifiedReference,
             clause: ObjectGapRelativeClause,
         }
-        derive agreement = reference.agreement;
+        derive concord_class = reference.concord_class;
         derive number = reference.number;
         derive onset = reference.onset;
         derive possessive_ending = reference.possessive_ending;
@@ -3792,8 +3790,8 @@ constructions! {
             reference: PostmodifiedReference,
             clause: SubjectGapRelativeClause,
         }
-        derive agreement = reference.agreement;
-        derive clause.agreement = reference.agreement;
+        derive concord_class = reference.concord_class;
+        derive clause.concord_class = reference.concord_class;
         derive number = reference.number;
         derive onset = reference.onset;
         derive possessive_ending = reference.possessive_ending;
@@ -3812,7 +3810,7 @@ constructions! {
         require nominal.number is Singular;
         require nominal.nominal_form in [BareSingularNoun, ModifiedSingularNoun];
         require relation is Of;
-        derive agreement = reference.agreement;
+        derive concord_class = reference.concord_class;
         derive number = reference.number;
         derive onset = reference.onset;
         derive possessive_ending = Values::Other;
@@ -3826,7 +3824,7 @@ constructions! {
             reference: PostmodifiedReference,
             clause: PassivePredicate,
         }
-        derive agreement = reference.agreement;
+        derive concord_class = reference.concord_class;
         derive number = reference.number;
         derive onset = reference.onset;
         derive possessive_ending = reference.possessive_ending;
@@ -3840,7 +3838,7 @@ constructions! {
             clause: PassivePredicate checked by passive_predicate_licenses_nonprepositional_adjunct(),
             adjunct: PredicateAdjunct checked by predicate_adjunct_is_nonprepositional(),
         }
-        derive agreement = reference.agreement;
+        derive concord_class = reference.concord_class;
         derive number = reference.number;
         derive onset = reference.onset;
         derive possessive_ending = reference.possessive_ending;
@@ -3854,7 +3852,7 @@ constructions! {
             clause: PassivePredicate checked by passive_predicate_licenses_prepositional_adjunct(),
             adjunct: PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
         }
-        derive agreement = reference.agreement;
+        derive concord_class = reference.concord_class;
         derive number = reference.number;
         derive onset = reference.onset;
         derive possessive_ending = reference.possessive_ending;
@@ -3867,7 +3865,7 @@ constructions! {
             reference: PostmodifiedReference,
             excluded: UnqualifiedReference,
         }
-        derive agreement = reference.agreement;
+        derive concord_class = reference.concord_class;
         derive number = reference.number;
         derive onset = reference.onset;
         derive possessive_ending = excluded.possessive_ending;
@@ -3893,7 +3891,7 @@ constructions! {
             AdjunctCapable,
             PostmodifierOnly
         ];
-        derive agreement = reference.agreement;
+        derive concord_class = reference.concord_class;
         derive number = reference.number;
         derive onset = reference.onset;
         derive possessive_ending = reference.possessive_ending;
@@ -3917,7 +3915,7 @@ constructions! {
             AdjunctCapable,
             PostmodifierOnly
         ];
-        derive agreement = reference.agreement;
+        derive concord_class = reference.concord_class;
         derive number = reference.number;
         derive onset = reference.onset;
         derive possessive_ending = reference.possessive_ending;
@@ -3930,7 +3928,7 @@ constructions! {
             reference: PostmodifiedReference,
             scalar: ScalarQualification,
         }
-        derive agreement = reference.agreement;
+        derive concord_class = reference.concord_class;
         derive number = reference.number;
         derive onset = reference.onset;
         derive possessive_ending = reference.possessive_ending;
@@ -3950,7 +3948,7 @@ constructions! {
             reference: PostmodifiedReference,
             granted: GrantedAbility,
         }
-        derive agreement = reference.agreement;
+        derive concord_class = reference.concord_class;
         derive number = reference.number;
         derive onset = reference.onset;
         derive possessive_ending = reference.possessive_ending;
@@ -3960,7 +3958,7 @@ constructions! {
     }
     construction qualified_noun_phrase: NounPhrase {
         element QualifiedNounPhrase { reference: PostmodifiedReference, }
-        derive agreement = reference.agreement;
+        derive concord_class = reference.concord_class;
         derive number = reference.number;
         derive fused_head_license = Values::NominalOnly;
         derive onset = reference.onset;
@@ -3976,7 +3974,7 @@ constructions! {
         }
         require nominal.number is Plural;
         require nominal.nominal_form in [BarePluralNoun, ModifiedPluralNoun];
-        derive agreement = Values::Bare;
+        derive concord_class = Values::Other;
         derive number = Values::Plural;
         derive fused_head_license = Values::NominalOnly;
         derive onset = Values::Consonant;
@@ -3987,7 +3985,7 @@ constructions! {
     construction fused_determinative_reference: NounPhrase {
         element FusedDeterminativeReference { head: Determinative, }
         require head.fused_head_license in [FusedHead, PluralPredeterminer];
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         derive number = head.number;
         derive fused_head_license = head.fused_head_license;
         derive onset = head.onset;
@@ -4008,7 +4006,7 @@ constructions! {
             ),
         }
         require relation is Of;
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         derive number = head.number;
         derive onset = head.onset;
         derive possessive_ending = Values::Other;
@@ -4024,7 +4022,7 @@ constructions! {
             whole: Object,
         }
         require relation is Of;
-        derive agreement = selection.agreement;
+        derive concord_class = selection.concord_class;
         derive number = selection.number;
         derive fused_head_license = Values::NominalOnly;
         derive onset = Values::Consonant;
@@ -4051,7 +4049,7 @@ constructions! {
             choices: seq CommonNounChoice separated by " or ",
         }
         require len(choices) >= 2;
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive fused_head_license = Values::NominalOnly;
         derive onset = Values::Consonant;
@@ -4061,7 +4059,7 @@ constructions! {
     }
     construction fused_color_nominal: Nominal {
         element FusedColorNominal { color: lex Color, }
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive nominal_form = Values::BareSingularNoun;
         derive onset = color.onset;
@@ -4072,7 +4070,7 @@ constructions! {
     }
     construction indefinite_pronoun_nominal: Nominal {
         element IndefinitePronounNominal { pronoun: lex IndefinitePronoun, }
-        derive agreement = Values::ThirdPersonSingular;
+        derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive nominal_form = Values::BareSingularNoun;
         derive onset = pronoun.onset;
@@ -4208,12 +4206,12 @@ constructions! {
     }
     construction base_verb_phrase: VerbPhrase {
         element BaseVerbPhrase { frame: LexicalVerbPhrase, }
-        derive agreement = frame.agreement;
+        derive concord_class = frame.concord_class;
         form base_verb_phrase = frame;
     }
     construction pro_verb_predicate: VerbPhrase {
         element ProVerbPredicate { head: lex ProVerbHead, }
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form pro_verb_predicate = verb(head);
     }
     construction declared_object_predicative_verb_phrase: VerbPhrase {
@@ -4222,22 +4220,22 @@ constructions! {
             object: Object,
             complement: PredicativeComplement,
         }
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form declared_object_predicative_verb_phrase = verb(head) object complement;
     }
     construction intransitive_predicate: IntransitiveLexicalVerbPhrase {
         element IntransitivePredicate { head: lex IntransitiveVerb, }
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form intransitive_predicate = verb(head);
     }
     construction transitive_predicate: TransitiveLexicalVerbPhrase {
         element TransitivePredicate { head: lex TransitiveVerb, object: Object, }
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form transitive_predicate = verb(head) object;
     }
     construction measure_complement_predicate: MeasureComplementLexicalVerbPhrase {
         element MeasureComplementPredicate { head: lex MeasureComplementVerb, amount: Amount, }
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form measure_complement_predicate = verb(head) amount;
     }
     construction declared_object_amount_lexical_verb_phrase: ObjectAmountLexicalVerbPhrase {
@@ -4246,7 +4244,7 @@ constructions! {
             object: Object,
             amount: Amount,
         }
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form declared_object_amount_lexical_verb_phrase = verb(head) object amount;
     }
     construction declared_with_object_lexical_verb_phrase: WithObjectLexicalVerbPhrase {
@@ -4254,7 +4252,7 @@ constructions! {
             head: lex WithObjectVerb,
             object: Object,
         }
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form declared_with_object_lexical_verb_phrase = verb(head) "with" object;
     }
     construction declared_object_with_object_lexical_verb_phrase: ObjectWithObjectLexicalVerbPhrase {
@@ -4263,7 +4261,7 @@ constructions! {
             object: Object,
             complement: Object,
         }
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form declared_object_with_object_lexical_verb_phrase = verb(head) object "with" complement;
     }
     construction declared_object_for_object_lexical_verb_phrase: ObjectForObjectLexicalVerbPhrase {
@@ -4272,7 +4270,7 @@ constructions! {
             object: Object,
             complement: Object,
         }
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form declared_object_for_object_lexical_verb_phrase =
             verb(head) object lex(Preposition::For) complement;
     }
@@ -4282,7 +4280,7 @@ constructions! {
             object: Object,
             destination: Object,
         }
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form declared_object_into_object_lexical_verb_phrase =
             verb(head) object lex(Preposition::Into) destination;
     }
@@ -4296,7 +4294,7 @@ constructions! {
             relation: lex Preposition,
             recipient: Object,
         }
-        derive head.agreement = Values::Bare;
+        derive head.concord_class = Values::Other;
         require relation is Among;
         form chosen_distribution_phrase =
             "divided" "as" licensed("you") verb(head) lex(relation) recipient;
@@ -4315,14 +4313,14 @@ constructions! {
             auxiliary: AuxiliaryHead,
             predicate: BarePassivePredicate,
         }
-        derive predicate.agreement = Values::Bare;
-        derive agreement = auxiliary.agreement;
+        derive predicate.concord_class = Values::Other;
+        derive concord_class = auxiliary.concord_class;
         form modal_passive_subject_gap_relative_clause =
             licensed("that") auxiliary predicate;
     }
     construction finite_subject_gap_relative_clause: FiniteSubjectGapRelativeClause {
         element FiniteSubjectGapRelativeClauseValue { head: lex IntransitiveVerb, }
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form finite_subject_gap_relative_clause = licensed("that") verb(head);
     }
     construction finite_transitive_subject_gap_relative_clause: FiniteSubjectGapRelativeClause {
@@ -4330,7 +4328,7 @@ constructions! {
             head: lex TransitiveVerb,
             object: Object,
         }
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form finite_transitive_subject_gap_relative_clause =
             licensed("that") verb(head) object;
     }
@@ -4339,8 +4337,8 @@ constructions! {
             auxiliary: AuxiliaryHead,
             head: lex IntransitiveVerb,
         }
-        derive agreement = auxiliary.agreement;
-        derive head.agreement = Values::Bare;
+        derive concord_class = auxiliary.concord_class;
+        derive head.concord_class = Values::Other;
         form modal_subject_gap_relative_clause = licensed("that") auxiliary verb(head);
     }
     construction copular_subject_gap_relative_clause: CopularSubjectGapRelativeClause {
@@ -4348,15 +4346,15 @@ constructions! {
             copula: lex FiniteCopula,
             complement: PredicativeAdjectiveComplement,
         }
-        derive copula.agreement = match copula {
+        derive copula.concord_class = match copula {
             Is => Values::ThirdPersonSingular,
             Isnt => Values::ThirdPersonSingular,
-            Are => Values::Bare,
-            Arent => Values::Bare,
+            Are => Values::Other,
+            Arent => Values::Other,
             Was => Values::ThirdPersonSingular,
-            Were => Values::Bare,
+            Were => Values::Other,
         };
-        derive agreement = copula.agreement;
+        derive concord_class = copula.concord_class;
         form copular_subject_gap_relative_clause = licensed("that") lex(copula) complement;
     }
     construction distributed_measure_predicate: VerbPhrase {
@@ -4367,7 +4365,7 @@ constructions! {
             distribution: DistributionPhrase,
             replacement: opt lex DistributionReplacement,
         }
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form distributed_measure_predicate =
             verb(head) amount measure distribution lex(replacement);
     }
@@ -4378,7 +4376,7 @@ constructions! {
             equality: ScalarEquality,
             recipient: Object,
         }
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form declared_object_equality_to_predicate =
             verb(head) object equality lex(Preposition::To) recipient;
     }
@@ -4389,7 +4387,7 @@ constructions! {
             recipient: Object,
             equality: ScalarEquality,
         }
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form declared_object_to_equality_predicate =
             verb(head) object lex(Preposition::To) recipient equality;
     }
@@ -4399,12 +4397,12 @@ constructions! {
             object: Object,
             equality: ScalarEquality,
         }
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form declared_object_equality_predicate = verb(head) object equality;
     }
     construction mana_phrase: VerbPhrase {
         element ManaVerbPhrase { head: lex ManaPhraseVerb, mana: ManaPhrase, }
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form mana_phrase = verb(head) mana;
     }
     construction declared_object_from_predicate: VerbPhrase {
@@ -4413,7 +4411,7 @@ constructions! {
             object: Object,
             source: FrameComplement,
         }
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form declared_object_from_predicate =
             verb(head) object lex(Preposition::From) source;
     }
@@ -4428,7 +4426,7 @@ constructions! {
         }
         require source.preposition_complement_kind is SourceComplement;
         require control.preposition_attachment is SelectedOnly;
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form put_onto =
             verb(head) object source lex(Preposition::Onto) destination result control;
     }
@@ -4442,7 +4440,7 @@ constructions! {
             control: opt PrepositionalPhrase,
         }
         require control.preposition_attachment is SelectedOnly;
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form put_onto_source_after =
             verb(head) object lex(Preposition::Onto) destination lex(Preposition::From) source result control;
     }
@@ -4454,7 +4452,7 @@ constructions! {
             destination: FrameComplement,
         }
         require source.preposition_complement_kind is SourceComplement;
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form put_on = verb(head) object source lex(Preposition::On) destination;
     }
     construction put_to: VerbPhrase {
@@ -4463,7 +4461,7 @@ constructions! {
             object: Object,
             destination: FrameComplement,
         }
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form put_to = verb(head) object lex(Preposition::To) destination;
     }
     construction return_to: VerbPhrase {
@@ -4477,13 +4475,13 @@ constructions! {
         }
         require source.preposition_complement_kind is SourceComplement;
         require control.preposition_attachment is SelectedOnly;
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form return_to =
             verb(head) object source lex(Preposition::To) destination result control;
     }
     construction predicative_complement_predicate: VerbPhrase {
         element PredicativeComplementPredicate { head: lex PredicativeComplementVerb, complement: PredicativeComplement, }
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form predicative_complement_predicate = verb(head) complement;
     }
     construction declared_with_object_on_predicate: VerbPhrase {
@@ -4492,7 +4490,7 @@ constructions! {
             object: Object,
             recipient: FrameComplement,
         }
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form declared_with_object_on_predicate =
             verb(head) "with" object lex(Preposition::On) recipient;
     }
@@ -4504,7 +4502,7 @@ constructions! {
             control: opt PrepositionalPhrase,
         }
         require control.preposition_attachment is SelectedOnly;
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form enter_location = verb(head) location result control;
     }
     construction enter_control: VerbPhrase {
@@ -4514,12 +4512,12 @@ constructions! {
             control: Object,
         }
         require relation is Under;
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form enter_control = verb(head) lex(relation) control;
     }
     construction look_at: VerbPhrase {
         element LookAt { head: lex LookAtVerb, object: Object, }
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form look_at = verb(head) lex(Preposition::At) object;
     }
     construction declared_to_object_predicate: VerbPhrase {
@@ -4528,7 +4526,7 @@ constructions! {
             object: Object,
             complement: Object,
         }
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form declared_to_object_predicate =
             verb(head) object lex(Preposition::To) complement;
     }
@@ -4537,7 +4535,7 @@ constructions! {
             head: lex ForObjectVerb,
             object: Object,
         }
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form declared_for_object_predicate = verb(head) lex(Preposition::For) object;
     }
     // A quoted granted ability is a document in its own right: its interior
@@ -4553,12 +4551,12 @@ constructions! {
     }
     construction quoted_ability_predicate: VerbPhrase {
         element QuotedAbilityPredicate { head: lex QuotedAbilityVerb, ability: QuotedAbility, }
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form quoted_ability_predicate = verb(head) ability;
     }
     construction have_keyword_ability: VerbPhrase {
         element HaveKeywordAbility { head: lex HaveKeywordAbilityVerb, ability: lex KeywordAbility, }
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form have_keyword_ability = verb(head) lex(ability);
     }
     construction quote_terminated_statement: AbilityBody {
@@ -4581,7 +4579,7 @@ constructions! {
             adjustment: PowerToughnessAdjustment,
             duration: opt DurationPhrase,
         }
-        derive agreement = head.agreement;
+        derive concord_class = head.concord_class;
         form get_power_toughness = verb(head) adjustment duration;
     }
     construction have_object_control: VerbPhrase {
@@ -4590,8 +4588,8 @@ constructions! {
             object: Object,
             predicate: VerbPhrase,
         }
-        derive agreement = head.agreement;
-        derive predicate.agreement = Values::Bare;
+        derive concord_class = head.concord_class;
+        derive predicate.concord_class = Values::Other;
         form have_object_control = verb(head) object predicate;
     }
     construction mana_amount: ManaAmount {
@@ -4650,7 +4648,7 @@ constructions! {
     }
     construction cardinal: CardinalQuantity {
         element CardinalQuantityValue { number: lex CardinalNumber, }
-        derive agreement = number.agreement;
+        derive concord_class = number.concord_class;
         derive cardinality = number.cardinality;
         derive determiner_number = number.determiner_number;
         derive number = number.number;
@@ -4697,7 +4695,7 @@ constructions! {
     }
     construction keyword_cost_predicate: KeywordCostPredicate {
         element KeywordCostPredicateValue { predicate: Predicate, }
-        derive predicate.agreement = Values::Bare;
+        derive predicate.concord_class = Values::Other;
         form keyword_cost_predicate = predicate ".";
     }
     construction keyword_mana_clause_cost: KeywordManaClauseCost {

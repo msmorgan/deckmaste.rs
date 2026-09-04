@@ -888,9 +888,7 @@ impl ScanInput<'_> {
                 let number = match reading.feature() {
                     SurfaceFeature::Singular => Number::Singular,
                     SurfaceFeature::Plural => Number::Plural,
-                    SurfaceFeature::Bare
-                    | SurfaceFeature::ThirdPersonSingular
-                    | SurfaceFeature::Participle
+                    SurfaceFeature::Inflectional(_)
                     | SurfaceFeature::Fixed
                     | SurfaceFeature::BlockLabel => continue,
                 };
@@ -1243,8 +1241,8 @@ mod tests {
     use crate::ast::SubjectPronoun;
     use crate::ast::TriggerMarker;
     use crate::ast::Variable;
-    use crate::constructions::Agreement;
     use crate::constructions::CasePosition;
+    use crate::constructions::ConcordClass;
     use crate::constructions::DeclarationLeaf;
     use crate::constructions::DeclarationMatcher;
     use crate::constructions::FeatureConstraint;
@@ -1503,13 +1501,16 @@ mod tests {
                 })
             })
             .expect("the intransitive frame owns one declaration-verb terminal");
-        for (text, agreement, owner) in [
-            ("Die.", Agreement::Bare, "core-verb:Die"),
-            ("Dies.", Agreement::ThirdPersonSingular, "core-verb:Die"),
+        for (text, concord_class, owner) in [
+            ("Die.", ConcordClass::Other, "core-verb:Die"),
+            ("Dies.", ConcordClass::ThirdPersonSingular, "core-verb:Die"),
         ] {
             let matches = scan(
                 text,
-                Lexical::DeclarationVerb(intransitive_codec, FeatureConstraint::Exact(agreement)),
+                Lexical::DeclarationVerb(
+                    intransitive_codec,
+                    FeatureConstraint::Exact(concord_class),
+                ),
                 LexicalOwnerTemplate::DeclarationVerb(intransitive_codec),
             );
             assert!(matches!(
@@ -1517,11 +1518,11 @@ mod tests {
                 [LexicalMatch {
                     value: Leaf::IntransitiveVerb {
                         verb,
-                        agreement: actual_agreement,
+                        concord_class: actual_concord_class,
                         ..
                     },
                     ..
-                }] if *actual_agreement == agreement
+                }] if *actual_concord_class == concord_class
                     && verb.reference()
                         == &crate::environment::VerbInventoryRef::Core(
                             crate::environment::CoreVerbIdentity::Die,
@@ -1906,7 +1907,7 @@ mod tests {
             scry_matches[0].value,
             Leaf::Declaration(DeclarationLeaf {
                 id: DeclarationId::new(DeclarationKind::KeywordAction, "Scry"),
-                feature: SurfaceFeature::Bare,
+                feature: SurfaceFeature::PLAIN,
                 onset: Onset::Consonant,
             })
         );
@@ -2183,26 +2184,26 @@ mod tests {
                 (
                     "Echo".len(),
                     DeclarationId::new(DeclarationKind::KeywordAction, "Alpha"),
-                    SurfaceFeature::Bare,
+                    SurfaceFeature::PLAIN,
                 ),
                 (
                     "Echo".len(),
                     DeclarationId::new(DeclarationKind::KeywordAction, "Alpha"),
-                    SurfaceFeature::ThirdPersonSingular,
+                    SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
                 ),
             ]
         );
         let alpha_third = scan(terminal(
             DeclarationKind::KeywordAction,
             "Alpha",
-            FeatureConstraint::Exact(SurfaceFeature::ThirdPersonSingular),
+            FeatureConstraint::Exact(SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT),
         ));
         assert_eq!(
             project(&alpha_third),
             [(
                 "Echo".len(),
                 DeclarationId::new(DeclarationKind::KeywordAction, "Alpha"),
-                SurfaceFeature::ThirdPersonSingular,
+                SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
             )]
         );
         assert!(
@@ -2224,7 +2225,7 @@ mod tests {
         let zeta = scan(terminal(
             DeclarationKind::KeywordAction,
             "Zeta",
-            FeatureConstraint::Exact(SurfaceFeature::Bare),
+            FeatureConstraint::Exact(SurfaceFeature::PLAIN),
         ));
         assert!(matches!(
             zeta.as_slice(),
@@ -2234,7 +2235,7 @@ mod tests {
                     Leaf::Declaration(leaf)
                         if leaf.id
                             == DeclarationId::new(DeclarationKind::KeywordAction, "Zeta")
-                            && leaf.feature == SurfaceFeature::Bare
+                            && leaf.feature == SurfaceFeature::PLAIN
                 )
         ));
         assert_eq!(
@@ -2800,10 +2801,10 @@ mod tests {
             (
                 Leaf::Declaration(DeclarationLeaf {
                     id: DeclarationId::new(DeclarationKind::KeywordAction, "Destroy"),
-                    feature: SurfaceFeature::Bare,
+                    feature: SurfaceFeature::PLAIN,
                     onset: Onset::Consonant,
                 }),
-                "Declaration(DeclarationLeaf { id: DeclarationIdentity { kind: KeywordAction, name: \"Destroy\" }, feature: Bare, onset: Consonant })",
+                "Declaration(DeclarationLeaf { id: DeclarationIdentity { kind: KeywordAction, name: \"Destroy\" }, feature: Inflectional(Plain), onset: Consonant })",
             ),
             (
                 Leaf::IntransitiveVerb {
@@ -2815,10 +2816,10 @@ mod tests {
                         )),
                     )
                     .expect("the canonical environment declares intransitive Connive"),
-                    agreement: Agreement::ThirdPersonSingular,
+                    concord_class: ConcordClass::ThirdPersonSingular,
                     onset: Onset::Consonant,
                 },
-                "IntransitiveVerb { verb: DeclarationIntransitiveVerb { reference: Declaration(DeclarationIdentity { kind: KeywordAction, name: \"Connive\" }), prepositional_adjunct_licensed: false, nonprepositional_adjunct_licensed: false }, agreement: ThirdPersonSingular, onset: Consonant }",
+                "IntransitiveVerb { verb: DeclarationIntransitiveVerb { reference: Declaration(DeclarationIdentity { kind: KeywordAction, name: \"Connive\" }), prepositional_adjunct_licensed: false, nonprepositional_adjunct_licensed: false }, concord_class: ThirdPersonSingular, onset: Consonant }",
             ),
             (
                 Leaf::ScalarNumber(ScalarNumber { magnitude: 2 }),
@@ -3170,7 +3171,7 @@ mod tests {
         );
     }
     #[test]
-    fn chart_completion_rejects_invalid_agreement_and_count_facts() {
+    fn chart_completion_rejects_invalid_concord_class_and_count_facts() {
         for text in [
             "You gains X life.",
             "Creatures you control with power 2 or less gains X life.",
@@ -3198,7 +3199,7 @@ mod tests {
                 "Context Card"
             )
             .is_err(),
-            "derived agreement remains a chart-level grammar constraint"
+            "derived concord_class remains a chart-level grammar constraint"
         );
 
         assert!(

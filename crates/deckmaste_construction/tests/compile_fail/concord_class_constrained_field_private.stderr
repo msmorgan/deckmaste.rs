@@ -1,5 +1,5 @@
 error[E0451]: field `choice` of struct `BareDirectOuterMixedRelayEnvelope` is private
-  --> tests/compile_fail/agreement_constrained_field_private.rs:13:9
+  --> tests/compile_fail/concord_class_constrained_field_private.rs:13:9
    |
 12 |     let _ = compiled_consumer::fixture::BareDirectOuterMixedRelayEnvelope {
    |             ------------------------------------------------------------- in this type

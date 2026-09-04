@@ -1,0 +1,5 @@
+error: Holder.optional: ConcordClass-bearing sum `Choice` requires external concord_class, but abstract products cannot declare feature writers
+  --> tests/compile_fail/abstract_product_optional_external_concord_class_sum.rs:12:31
+   |
+12 |     abstract product Holder { optional: opt Choice, }
+   |                               ^^^^^^^^

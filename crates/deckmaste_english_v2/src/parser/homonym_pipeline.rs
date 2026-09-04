@@ -247,14 +247,14 @@ constructions! {
     require len(BoundedPositionalStructural.items) <= 4;
     construction action: Homonym {
         element Action {}
-        derive agreement = verb.agreement;
-        derive verb.agreement = Values::Bare;
+        derive concord_class = verb.concord_class;
+        derive verb.concord_class = Values::Other;
         form action = open_verb(KeywordAction, "Destroy");
     }
     construction ability: Homonym {
         element Ability {}
-        derive agreement = verb.agreement;
-        derive verb.agreement = Values::Bare;
+        derive concord_class = verb.concord_class;
+        derive verb.concord_class = Values::Other;
         form ability = open_verb(KeywordAbility, "Destroy");
     }
     construction nested_root_leaf: NestedRoot {
@@ -896,8 +896,8 @@ fn generated_homonyms_survive_scan_build_and_trace_with_category_safe_identity()
 
     let mut visited = BTreeSet::new();
     for candidate in &built {
-        let BuildValue::Homonym(homonym, Agreement::Bare, _) = candidate.value.as_ref() else {
-            panic!("open homonym materialization retains bare agreement")
+        let BuildValue::Homonym(homonym, ConcordClass::Other, _) = candidate.value.as_ref() else {
+            panic!("open homonym materialization retains bare concord_class")
         };
         assert_eq!(homonym.render(&context, &environment), text);
         let (rendered, claims) = render_homonym_with_claims(homonym, &context, &environment);

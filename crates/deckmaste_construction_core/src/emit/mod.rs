@@ -37,14 +37,24 @@ pub(super) fn onset(value: crate::macro_def::Onset) -> TokenStream {
 
 pub(super) fn surface_feature(value: crate::macro_def::SurfaceFeature) -> TokenStream {
     match value {
-        crate::macro_def::SurfaceFeature::Bare => {
-            quote! { ::deckmaste_construction_core::macro_def::SurfaceFeature::Bare }
+        crate::macro_def::SurfaceFeature::PLAIN => {
+            quote! { ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN }
         }
-        crate::macro_def::SurfaceFeature::ThirdPersonSingular => {
-            quote! { ::deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular }
+        crate::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT => {
+            quote! { ::deckmaste_construction_core::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT }
         }
-        crate::macro_def::SurfaceFeature::Participle => {
-            quote! { ::deckmaste_construction_core::macro_def::SurfaceFeature::Participle }
+        crate::macro_def::SurfaceFeature::PAST_PARTICIPLE => {
+            quote! { ::deckmaste_construction_core::macro_def::SurfaceFeature::PAST_PARTICIPLE }
+        }
+        crate::macro_def::SurfaceFeature::Inflectional(
+            crate::macro_def::InflectionalForm::Preterite,
+        ) => {
+            quote! { ::deckmaste_construction_core::macro_def::SurfaceFeature::Inflectional(::deckmaste_construction_core::macro_def::InflectionalForm::Preterite) }
+        }
+        crate::macro_def::SurfaceFeature::Inflectional(
+            crate::macro_def::InflectionalForm::GerundParticiple,
+        ) => {
+            quote! { ::deckmaste_construction_core::macro_def::SurfaceFeature::Inflectional(::deckmaste_construction_core::macro_def::InflectionalForm::GerundParticiple) }
         }
         crate::macro_def::SurfaceFeature::Singular => {
             quote! { ::deckmaste_construction_core::macro_def::SurfaceFeature::Singular }
@@ -359,7 +369,7 @@ pub(super) fn structural_carrier_type(kind: &StructuralFieldKindPlan) -> TokenSt
 
 pub(super) fn feature_type(feature: crate::feature::Feature) -> TokenStream {
     match feature {
-        crate::feature::Feature::Agreement => quote! { Agreement },
+        crate::feature::Feature::ConcordClass => quote! { ConcordClass },
         crate::feature::Feature::BareLocativeLicense => quote! { BareLocativeLicense },
         crate::feature::Feature::Cardinality => quote! { Cardinality },
         crate::feature::Feature::Compoundability => quote! { Compoundability },
@@ -484,7 +494,7 @@ fn emit_predicate_atom(
                 PredicateSubjectPlan::RoleFeature { optional: true, .. }
             );
             let feature_type = match feature {
-                crate::feature::Feature::Agreement => local_ident("Agreement"),
+                crate::feature::Feature::ConcordClass => local_ident("ConcordClass"),
                 crate::feature::Feature::BareLocativeLicense => local_ident("BareLocativeLicense"),
                 crate::feature::Feature::Cardinality => local_ident("Cardinality"),
                 crate::feature::Feature::Compoundability => local_ident("Compoundability"),
@@ -702,13 +712,19 @@ pub(super) fn closed_lexeme_owner_id(
     feature: crate::macro_def::SurfaceFeature,
 ) -> syn::LitStr {
     let feature = match feature {
-        crate::macro_def::SurfaceFeature::Bare => "bare",
-        crate::macro_def::SurfaceFeature::ThirdPersonSingular => "third_person_singular",
+        crate::macro_def::SurfaceFeature::PLAIN => "bare",
+        crate::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT => "third_person_singular",
         crate::macro_def::SurfaceFeature::Singular => "singular",
         crate::macro_def::SurfaceFeature::Plural => "plural",
-        crate::macro_def::SurfaceFeature::Participle => "participle",
+        crate::macro_def::SurfaceFeature::PAST_PARTICIPLE => "participle",
+        crate::macro_def::SurfaceFeature::Inflectional(
+            crate::macro_def::InflectionalForm::Preterite,
+        ) => "preterite",
+        crate::macro_def::SurfaceFeature::Inflectional(
+            crate::macro_def::InflectionalForm::GerundParticiple,
+        ) => "gerund_participle",
         crate::macro_def::SurfaceFeature::Fixed | crate::macro_def::SurfaceFeature::BlockLabel => {
-            unreachable!("closed lexemes use only Agreement or Number features")
+            unreachable!("closed lexemes use only ConcordClass or Number features")
         }
     };
     syn::LitStr::new(

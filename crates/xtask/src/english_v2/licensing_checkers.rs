@@ -424,7 +424,7 @@ fn is_declared_feature_identifier(identifier: &str) -> bool {
     // Hand-copied from deckmaste_construction_core's sealed `Feature`;
     // `construction-core-feature-key-inventory` publishes the list to consume.
     const FEATURE_NAMES: [&str; 22] = [
-        "agreement",
+        "concord_class",
         "bare_locative_complement",
         "bare_locative_license",
         "cardinality",

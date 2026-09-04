@@ -1081,7 +1081,7 @@ mod tests {
     use crate::ast::WhereClause;
     use crate::ast::WhereClauseCategory;
     use crate::ast::WithWhere;
-    use crate::constructions::Agreement;
+    use crate::constructions::ConcordClass;
     use crate::constructions::Determinative;
     use crate::constructions::DeterminativeHead;
     use crate::constructions::DeterminativeHeadLemma;
@@ -1122,7 +1122,7 @@ mod tests {
         AdjacentNonterminal(Category),
         Lexical(Lexical),
         DeclarationDeterminative,
-        DeclarationVerb(FeatureConstraint<Agreement>),
+        DeclarationVerb(FeatureConstraint<ConcordClass>),
         DeclarationNoun(FeatureConstraint<Number>),
     }
 
@@ -1189,12 +1189,12 @@ mod tests {
         let onset = environment
             .onset(
                 &DeclarationId::new(DeclarationKind::KeywordAction, "Connive"),
-                ::deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
+                ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
             )
             .expect("the canonical Connive row carries onset");
         Leaf::IntransitiveVerb {
             verb: predicate.head,
-            agreement: Agreement::Bare,
+            concord_class: ConcordClass::Other,
             onset,
         }
     }
@@ -1258,7 +1258,7 @@ mod tests {
         let value = BuildValue::Sentence(
             Sentence::Imperative(
                 Imperative::new(Box::new(Predicate::Atomic(Box::new(connive_phrase()))))
-                    .expect("bare test predicate satisfies imperative agreement"),
+                    .expect("bare test predicate satisfies imperative concord_class"),
             ),
             FeatureConstraint::Any,
         );
@@ -1298,7 +1298,7 @@ mod tests {
             [
                 BuildValue::Determinative(
                     determiner,
-                    Agreement::ThirdPersonSingular,
+                    ConcordClass::ThirdPersonSingular,
                     Number::Singular,
                     DeterminerNumber::SingularOnly,
                     FusedHeadLicense::NominalOnly,
@@ -1314,7 +1314,7 @@ mod tests {
                         ))
                         .expect("the Singular nominal accepts a Singular Head"),
                     ),
-                    Agreement::ThirdPersonSingular,
+                    ConcordClass::ThirdPersonSingular,
                     Number::Singular,
                     nominal_onset,
                     PossessiveEnding::Other,
@@ -1337,7 +1337,7 @@ mod tests {
                 ),
                 Ok(Some(BuildValue::UnqualifiedReference(
                     UnqualifiedReference::DeterminedNominal(_),
-                    Agreement::ThirdPersonSingular,
+                    ConcordClass::ThirdPersonSingular,
                     Number::Singular,
                     onset,
                     _,
@@ -1563,7 +1563,7 @@ mod tests {
         });
         let base = Sentence::Imperative(
             Imperative::new(Box::new(Predicate::Atomic(Box::new(connive_phrase()))))
-                .expect("bare test predicate satisfies imperative agreement"),
+                .expect("bare test predicate satisfies imperative concord_class"),
         );
         let once = Sentence::WithWhere(WithWhere {
             body: Box::new(base),

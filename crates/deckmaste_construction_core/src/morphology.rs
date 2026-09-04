@@ -23,7 +23,7 @@ impl MorphologyRecipe {
 
     pub(crate) fn feature(self) -> crate::Feature {
         match self {
-            Self::EnglishVerb => crate::Feature::Agreement,
+            Self::EnglishVerb => crate::Feature::ConcordClass,
             Self::EnglishNoun => crate::Feature::Number,
             Self::EnglishParticiple => crate::Feature::Participle,
         }
@@ -31,19 +31,24 @@ impl MorphologyRecipe {
 
     pub(crate) fn features(self) -> &'static [SurfaceFeature] {
         match self {
-            Self::EnglishVerb => &[SurfaceFeature::Bare, SurfaceFeature::ThirdPersonSingular],
+            Self::EnglishVerb => &[
+                SurfaceFeature::PLAIN,
+                SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
+            ],
             Self::EnglishNoun => &[SurfaceFeature::Singular, SurfaceFeature::Plural],
-            Self::EnglishParticiple => &[SurfaceFeature::Participle],
+            Self::EnglishParticiple => &[SurfaceFeature::PAST_PARTICIPLE],
         }
     }
 
     pub(crate) fn feature_from_ident(self, feature: &syn::Ident) -> Option<SurfaceFeature> {
         match (self, feature.to_string().as_str()) {
-            (Self::EnglishVerb, "Bare") => Some(SurfaceFeature::Bare),
-            (Self::EnglishVerb, "ThirdPersonSingular") => Some(SurfaceFeature::ThirdPersonSingular),
+            (Self::EnglishVerb, "Other") => Some(SurfaceFeature::PLAIN),
+            (Self::EnglishVerb, "ThirdPersonSingular") => {
+                Some(SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT)
+            }
             (Self::EnglishNoun, "Singular") => Some(SurfaceFeature::Singular),
             (Self::EnglishNoun, "Plural") => Some(SurfaceFeature::Plural),
-            (Self::EnglishParticiple, "Participle") => Some(SurfaceFeature::Participle),
+            (Self::EnglishParticiple, "Participle") => Some(SurfaceFeature::PAST_PARTICIPLE),
             _ => None,
         }
     }
@@ -57,11 +62,11 @@ pub(crate) fn derive_surface(
     // Open plurals stay unavailable until attested. Growing the lexical
     // override inventory does not authorize heuristic recipe expansion.
     let surface = match (recipe, feature) {
-        (MorphologyRecipe::EnglishVerb, SurfaceFeature::Bare)
+        (MorphologyRecipe::EnglishVerb, SurfaceFeature::PLAIN)
         | (MorphologyRecipe::EnglishNoun, SurfaceFeature::Singular) => lemma.to_owned(),
-        (MorphologyRecipe::EnglishVerb, SurfaceFeature::ThirdPersonSingular)
+        (MorphologyRecipe::EnglishVerb, SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT)
         | (MorphologyRecipe::EnglishNoun, SurfaceFeature::Plural) => format!("{lemma}s"),
-        (MorphologyRecipe::EnglishParticiple, SurfaceFeature::Participle) => {
+        (MorphologyRecipe::EnglishParticiple, SurfaceFeature::PAST_PARTICIPLE) => {
             format!("{lemma}ed")
         }
         _ => {
@@ -77,6 +82,63 @@ pub(crate) fn derive_surface(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::macro_def::InflectionalForm;
+
+    #[test]
+    fn verb_recipes_share_one_inflectional_form_dimension() {
+        let other = syn::parse_quote!(Other);
+        let third_person_singular = syn::parse_quote!(ThirdPersonSingular);
+        let participle = syn::parse_quote!(Participle);
+        assert_eq!(
+            MorphologyRecipe::EnglishVerb
+                .feature_from_ident(&other)
+                .and_then(SurfaceFeature::inflectional_form),
+            Some(InflectionalForm::Plain)
+        );
+        assert_eq!(
+            MorphologyRecipe::EnglishVerb
+                .feature_from_ident(&third_person_singular)
+                .and_then(SurfaceFeature::inflectional_form),
+            Some(InflectionalForm::ThirdPersonSingularPresent)
+        );
+        assert_eq!(
+            MorphologyRecipe::EnglishParticiple
+                .feature_from_ident(&participle)
+                .and_then(SurfaceFeature::inflectional_form),
+            Some(InflectionalForm::PastParticiple)
+        );
+        assert_eq!(
+            SurfaceFeature::Singular.inflectional_form(),
+            None,
+            "nominal Number must not be treated as an Inflectional Form"
+        );
+
+        let plain = InflectionalForm::Plain.concord_class_applicability();
+        assert!(plain.without_concord_class);
+        assert!(plain.other);
+        assert!(!plain.third_person_singular);
+
+        let third_person =
+            InflectionalForm::ThirdPersonSingularPresent.concord_class_applicability();
+        assert!(!third_person.without_concord_class);
+        assert!(!third_person.other);
+        assert!(third_person.third_person_singular);
+
+        let preterite = InflectionalForm::Preterite.concord_class_applicability();
+        assert!(!preterite.without_concord_class);
+        assert!(preterite.other);
+        assert!(preterite.third_person_singular);
+
+        for participial in [
+            InflectionalForm::GerundParticiple,
+            InflectionalForm::PastParticiple,
+        ] {
+            let applicability = participial.concord_class_applicability();
+            assert!(applicability.without_concord_class);
+            assert!(!applicability.other);
+            assert!(!applicability.third_person_singular);
+        }
+    }
 
     #[test]
     fn strict_s_edge_regression() {
@@ -107,24 +169,24 @@ mod tests {
             ),
             (
                 MorphologyRecipe::EnglishVerb,
-                SurfaceFeature::Bare,
-                SurfaceFeature::ThirdPersonSingular,
+                SurfaceFeature::PLAIN,
+                SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
                 "cross",
                 "cross",
                 "crosss",
             ),
             (
                 MorphologyRecipe::EnglishVerb,
-                SurfaceFeature::Bare,
-                SurfaceFeature::ThirdPersonSingular,
+                SurfaceFeature::PLAIN,
+                SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
                 "try",
                 "try",
                 "trys",
             ),
             (
                 MorphologyRecipe::EnglishVerb,
-                SurfaceFeature::Bare,
-                SurfaceFeature::ThirdPersonSingular,
+                SurfaceFeature::PLAIN,
+                SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
                 "scoff",
                 "scoff",
                 "scoffs",

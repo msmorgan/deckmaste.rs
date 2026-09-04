@@ -1,6 +1,5 @@
 use super::Adjective;
 use super::AdjectiveComparisonState;
-use super::Agreement;
 use super::Auxiliary;
 use super::AuxiliaryInflection;
 use super::AuxiliaryInstance;
@@ -8,7 +7,7 @@ use super::BareNominalAdjunct;
 use super::CatalogSlot;
 use super::CatalogValue;
 use super::CoordinationDomain;
-use super::CopulaAgreement;
+use super::CopulaInflection;
 use super::Demonstrative;
 use super::Determiner;
 use super::EnglishGrammar;
@@ -35,6 +34,7 @@ use super::Numeral;
 use super::OracleSymbol;
 use super::ParseCost;
 use super::Person;
+use super::PersonNumber;
 use super::PowerToughness;
 use super::Preposition;
 use super::Pronoun;
@@ -403,7 +403,7 @@ impl EnglishGrammar<'_, '_> {
                 auxiliaries.iter().filter_map(move |auxiliary| {
                     let surface = SUBJECT_AUXILIARY_SURFACES[*surface_index];
                     self.one_token_match(tokens, start, surface).map(|end| {
-                        let Agreement { person, number } = subject.agreement();
+                        let PersonNumber { person, number } = subject.agreement();
                         let auxiliary = AuxiliaryInstance {
                             auxiliary: *auxiliary,
                             inflection: AuxiliaryInflection::Present { person, number },
@@ -413,7 +413,7 @@ impl EnglishGrammar<'_, '_> {
                             end,
                             features: Features::SubjectAuxiliary {
                                 subject: *subject,
-                                agreement: Agreement { person, number },
+                                agreement: PersonNumber { person, number },
                                 auxiliary: auxiliary.into(),
                             },
                             meaning: MeaningKey::SubjectAuxiliary(SubjectAuxiliaryKey {
@@ -628,7 +628,7 @@ impl EnglishGrammar<'_, '_> {
         vec![LexicalMatch {
             end: start + 1,
             features: Features::NounPhrase {
-                agreement: Some(Agreement {
+                agreement: Some(PersonNumber {
                     person: Person::Third,
                     number: demonstrative.number(),
                 }),
@@ -1009,7 +1009,7 @@ pub(super) fn this_card_matches(
         .map(|number| LexicalMatch {
             end,
             features: Features::NounPhrase {
-                agreement: Some(Agreement {
+                agreement: Some(PersonNumber {
                     person: Person::Third,
                     number,
                 }),
@@ -1034,7 +1034,7 @@ pub(super) fn possessive_this_card_match(
     LexicalMatch {
         end,
         features: Features::PossessiveThisCard {
-            agreement: Agreement {
+            agreement: PersonNumber {
                 person: Person::Third,
                 number: Number::Singular,
             },
@@ -1060,15 +1060,15 @@ pub(super) fn this_card_cost(form: ThisCardForm) -> ParseCost {
 
 pub(super) fn noun_phrase_features(pronoun: Pronoun, case: Option<PronounCase>) -> Features {
     let agreement = match pronoun {
-        Pronoun::You => Some(Agreement {
+        Pronoun::You => Some(PersonNumber {
             person: Person::Second,
             number: Number::Singular,
         }),
-        Pronoun::It(_) => Some(Agreement {
+        Pronoun::It(_) => Some(PersonNumber {
             person: Person::Third,
             number: Number::Singular,
         }),
-        Pronoun::They => Some(Agreement {
+        Pronoun::They => Some(PersonNumber {
             person: Person::Third,
             number: Number::Plural,
         }),
@@ -1088,16 +1088,19 @@ pub(super) fn noun_phrase_features(pronoun: Pronoun, case: Option<PronounCase>) 
 
 pub(super) const fn copula_agreement(
     auxiliary: super::AuxiliaryFeatures,
-) -> Option<CopulaAgreement> {
+) -> Option<CopulaInflection> {
     if !matches!(auxiliary.auxiliary, Auxiliary::Be) {
         return None;
     }
     match auxiliary.inflection {
         AuxiliaryInflection::Present { person, number }
         | AuxiliaryInflection::Past { person, number } => {
-            Some(CopulaAgreement::Indicative(Agreement { person, number }))
+            Some(CopulaInflection::Indicative(PersonNumber {
+                person,
+                number,
+            }))
         }
-        AuxiliaryInflection::PastSubjunctive => Some(CopulaAgreement::PastSubjunctive),
+        AuxiliaryInflection::PastSubjunctive => Some(CopulaInflection::PastSubjunctive),
         AuxiliaryInflection::Base
         | AuxiliaryInflection::PresentParticiple
         | AuxiliaryInflection::PastParticiple => None,

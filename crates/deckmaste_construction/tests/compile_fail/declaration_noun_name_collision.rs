@@ -2,7 +2,7 @@ use deckmaste_construction::constructions;
 
 constructions! {
     morphology EnglishNoun { feature = Number; recipe = english_noun; }
-    morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+    morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
     lexeme NounLexeme using EnglishNoun { Player = "player", }
     lexeme DeclarationNoun using EnglishVerb { Intruder = "intruder", }
     codec Noun {

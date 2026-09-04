@@ -93,11 +93,11 @@ pub(crate) struct CategoryRenderCapability {
 }
 
 impl CategoryRenderCapability {
-    pub(crate) fn carries_agreement(self) -> bool {
+    pub(crate) fn carries_concord_class(self) -> bool {
         self.carries_output
     }
 
-    pub(crate) fn requires_external_agreement(self) -> bool {
+    pub(crate) fn requires_external_concord_class(self) -> bool {
         self.requires_external_input
     }
 
@@ -341,7 +341,7 @@ enum TerminalKind {
 struct TerminalInfo {
     kind: TerminalKind,
     codec_atom: Option<CodecAtomClass>,
-    agreement_verb: bool,
+    concord_class_verb: bool,
     participle_verb: bool,
     variants: HashSet<String>,
     variant_order: Vec<String>,
@@ -382,14 +382,14 @@ pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedD
     let feature_resolutions = seal_feature_resolutions(&raw, &feature_equations, &invariants);
     fold_unit_invariants(&raw, &mut invariants, &feature_resolutions)?;
     let category_render = seal_category_render_capabilities(&raw, &feature_resolutions);
-    let agreement_carry_sums = agreement_carry_sums(&raw);
-    validate_abstract_product_external_agreement_sums(
+    let concord_class_carry_sums = concord_class_carry_sums(&raw);
+    validate_abstract_product_external_concord_class_sums(
         &structural,
         &category_render,
-        &agreement_carry_sums,
+        &concord_class_carry_sums,
     )?;
     let category_reads = seal_category_feature_reads(&raw, &category_render);
-    validate_contextual_agreement_uses(&raw, &category_render)?;
+    validate_contextual_concord_class_uses(&raw, &category_render)?;
     let mut boxed_fields = validate_category_graph(&raw);
     boxed_fields.extend(structural.boxed_fields.iter().cloned());
     validate_roots(&raw, &symbols, &category_render)?;
@@ -409,7 +409,7 @@ pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedD
             feature_resolutions,
             category_render,
             sequence_features,
-            agreement_carry_sums,
+            concord_class_carry_sums,
             atoms_by_construction,
             invariants,
             verb_lexeme_provider.as_deref(),
@@ -506,7 +506,7 @@ fn validate_owned_english_verb_lexemes(
     finish(errors)
 }
 
-fn agreement_carry_sums(raw: &Declarations) -> HashSet<String> {
+fn concord_class_carry_sums(raw: &Declarations) -> HashSet<String> {
     let providers = feature_providers(raw);
     raw.declarations
         .iter()
@@ -516,22 +516,22 @@ fn agreement_carry_sums(raw: &Declarations) -> HashSet<String> {
             };
             let name = identifier_key(&sum.name);
             providers
-                .contains(&(name.clone(), ParsedFeature::Agreement))
+                .contains(&(name.clone(), ParsedFeature::ConcordClass))
                 .then_some(name)
         })
         .collect()
 }
 
-fn validate_abstract_product_external_agreement_sums(
+fn validate_abstract_product_external_concord_class_sums(
     structural: &StructuralSemantics,
     category_render: &HashMap<String, CategoryRenderCapability>,
-    agreement_carry_sums: &HashSet<String>,
+    concord_class_carry_sums: &HashSet<String>,
 ) -> syn::Result<()> {
     let mut external_sums = HashSet::new();
     loop {
         let before = external_sums.len();
         for sum in &structural.sums {
-            if !agreement_carry_sums.contains(sum.name()) {
+            if !concord_class_carry_sums.contains(sum.name()) {
                 continue;
             }
             let requires_external = sum
@@ -540,7 +540,7 @@ fn validate_abstract_product_external_agreement_sums(
                 .any(|alternative| match alternative.value() {
                     ValueKindPlan::Category(category) => category_render
                         .get(category)
-                        .is_some_and(|capability| capability.requires_external_agreement()),
+                        .is_some_and(|capability| capability.requires_external_concord_class()),
                     ValueKindPlan::Sum(nested) => external_sums.contains(nested),
                     ValueKindPlan::Product(_)
                     | ValueKindPlan::Lex(_)
@@ -569,7 +569,7 @@ fn validate_abstract_product_external_agreement_sums(
                 syn::Error::new(
                     field.span(),
                     format!(
-                        "{}.{role}: Agreement-bearing sum `{sum}` requires external agreement, but abstract products cannot declare feature writers",
+                        "{}.{role}: ConcordClass-bearing sum `{sum}` requires external concord_class, but abstract products cannot declare feature writers",
                         product.name(),
                         role = field.name(),
                     ),
@@ -638,7 +638,7 @@ fn validate_sequence_feature_roles(
                         syn::Error::new(
                             span,
                             format!(
-                                "{element}.{role}: sequence feature propagation supports homogeneous agreement or number, first-member onset, or last-member possessive ending, found {}",
+                                "{element}.{role}: sequence feature propagation supports homogeneous concord_class or number, first-member onset, or last-member possessive ending, found {}",
                                 feature_name(feature)
                             ),
                         ),
@@ -672,7 +672,7 @@ fn validate_sequence_feature_roles(
                 }
                 let category = match (feature, item) {
                     (
-                        ParsedFeature::Agreement,
+                        ParsedFeature::ConcordClass,
                         ValueKindPlan::Category(category) | ValueKindPlan::Sum(category),
                     )
                     | (
@@ -682,7 +682,7 @@ fn validate_sequence_feature_roles(
                         ValueKindPlan::Category(category),
                     ) => category,
                     (
-                        ParsedFeature::Agreement,
+                        ParsedFeature::ConcordClass,
                         ValueKindPlan::Lex(_)
                         | ValueKindPlan::Identity(_)
                         | ValueKindPlan::Product(_),
@@ -750,7 +750,7 @@ fn sequence_feature_has_competing_equations(
 
 fn sequence_feature_order(feature: ParsedFeature) -> usize {
     match feature {
-        ParsedFeature::Agreement => 0,
+        ParsedFeature::ConcordClass => 0,
         ParsedFeature::Number => 1,
         ParsedFeature::Onset => 2,
         ParsedFeature::PossessiveEnding => 3,
@@ -760,7 +760,7 @@ fn sequence_feature_order(feature: ParsedFeature) -> usize {
 
 fn supported_sequence_feature(feature: ParsedFeature) -> Option<Feature> {
     match feature {
-        ParsedFeature::Agreement => Some(Feature::Agreement),
+        ParsedFeature::ConcordClass => Some(Feature::ConcordClass),
         ParsedFeature::Number => Some(Feature::Number),
         ParsedFeature::Onset => Some(Feature::Onset),
         ParsedFeature::PossessiveEnding => Some(Feature::PossessiveEnding),
@@ -3534,13 +3534,16 @@ fn validate_declaration_verb_source(
         );
     }
     if let Some(feature) = feature
-        && !matches!(identifier_key(feature).as_str(), "Agreement" | "Participle")
+        && !matches!(
+            identifier_key(feature).as_str(),
+            "ConcordClass" | "Participle"
+        )
     {
         combine(
             errors,
             syn::Error::new(
                 feature.span(),
-                "declaration_verb feature must be `Agreement` or `Participle`",
+                "declaration_verb feature must be `ConcordClass` or `Participle`",
             ),
         );
     }
@@ -3588,7 +3591,7 @@ fn validate_declaration_verb_source(
             Some(lexeme)
                 if feature.is_some_and(|feature| {
                     let expected = match identifier_key(feature).as_str() {
-                        "Agreement" => Some(crate::morphology::MorphologyRecipe::EnglishVerb),
+                        "ConcordClass" => Some(crate::morphology::MorphologyRecipe::EnglishVerb),
                         "Participle" => {
                             Some(crate::morphology::MorphologyRecipe::EnglishParticiple)
                         }
@@ -4052,7 +4055,7 @@ fn seal_category_feature_reads(
         .iter()
         .filter_map(|category| {
             let reads = [
-                Feature::Agreement,
+                Feature::ConcordClass,
                 Feature::Cardinality,
                 Feature::ModifierLicense,
                 Feature::DeterminerNumber,
@@ -4068,10 +4071,10 @@ fn seal_category_feature_reads(
             .into_iter()
             .filter(|feature| {
                 (raw_category_reads_feature(raw, category, *feature)
-                    && !(*feature == Feature::Agreement
-                        && category_render
-                            .get(category)
-                            .is_some_and(|capability| capability.requires_external_agreement())))
+                    && !(*feature == Feature::ConcordClass
+                        && category_render.get(category).is_some_and(|capability| {
+                            capability.requires_external_concord_class()
+                        })))
                     || raw_sequence_reads_inherent_category_feature(
                         raw,
                         category,
@@ -4088,7 +4091,7 @@ fn seal_category_feature_reads(
         let Declaration::AbstractSum(sum) = declaration else {
             continue;
         };
-        if !providers.contains(&(identifier_key(&sum.name), ParsedFeature::Agreement)) {
+        if !providers.contains(&(identifier_key(&sum.name), ParsedFeature::ConcordClass)) {
             continue;
         }
         for alternative in &sum.alternatives {
@@ -4096,12 +4099,12 @@ fn seal_category_feature_reads(
             if categories.contains(&category)
                 && !category_render
                     .get(&category)
-                    .is_some_and(|capability| capability.requires_external_agreement())
+                    .is_some_and(|capability| capability.requires_external_concord_class())
             {
                 reads
                     .entry(category)
                     .or_default()
-                    .insert(Feature::Agreement);
+                    .insert(Feature::ConcordClass);
             }
         }
     }
@@ -4360,7 +4363,7 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
                 terminals.entry(name).or_insert(TerminalInfo {
                     kind: TerminalKind::Vocab,
                     codec_atom: None,
-                    agreement_verb: false,
+                    concord_class_verb: false,
                     participle_verb: false,
                     variants,
                     variant_order,
@@ -4405,7 +4408,7 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
                     codec_atom: noun_morphologies
                         .contains(&identifier_key(&lexeme.morphology))
                         .then_some(CodecAtomClass::Noun),
-                    agreement_verb: false,
+                    concord_class_verb: false,
                     participle_verb: false,
                     variants,
                     variant_order,
@@ -4440,10 +4443,10 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
                 terminals.entry(name).or_insert(TerminalInfo {
                     kind,
                     codec_atom: binding.codec_atom,
-                    agreement_verb: matches!(
+                    concord_class_verb: matches!(
                         &binding.generated,
                         Some(crate::model::GeneratedCodecRecipe::DeclarationVerb(recipe))
-                            if recipe.feature_slots.first().is_some_and(|slot| slot.value == "Agreement")
+                            if recipe.feature_slots.first().is_some_and(|slot| slot.value == "ConcordClass")
                     ),
                     participle_verb: matches!(
                         &binding.generated,
@@ -5096,10 +5099,10 @@ fn generated_name_inventory(
                     );
                     for (feature, parsed_feature, spelling, display, reserve_provider) in [
                         (
-                            Feature::Agreement,
-                            ParsedFeature::Agreement,
-                            "agreement",
-                            "Agreement",
+                            Feature::ConcordClass,
+                            ParsedFeature::ConcordClass,
+                            "concord_class",
+                            "ConcordClass",
                             false,
                         ),
                         (
@@ -5308,7 +5311,7 @@ fn generated_name_inventory(
                         continue;
                     };
                     let (spelling, display) = match feature {
-                        ParsedFeature::Agreement => ("agreement", "Agreement"),
+                        ParsedFeature::ConcordClass => ("concord_class", "ConcordClass"),
                         ParsedFeature::BareLocativeLicense => {
                             ("bare_locative_license", "BareLocativeLicense")
                         }
@@ -5442,7 +5445,7 @@ fn generated_name_inventory(
                         Some(crate::model::GeneratedCodecRecipe::EnglishCardinal(_))
                     ) {
                         for (feature, label) in [
-                            ("agreement", "Agreement"),
+                            ("concord_class", "ConcordClass"),
                             ("determiner_number", "DeterminerNumber"),
                             ("number", "Number"),
                             ("cardinality", "Cardinality"),
@@ -5940,7 +5943,7 @@ fn owner_rule_variant_names(
 
 fn raw_category_reads_feature(raw: &Declarations, category: &str, feature: Feature) -> bool {
     let parsed_feature = match feature {
-        Feature::Agreement => ParsedFeature::Agreement,
+        Feature::ConcordClass => ParsedFeature::ConcordClass,
         Feature::BareLocativeLicense => ParsedFeature::BareLocativeLicense,
         Feature::Cardinality => ParsedFeature::Cardinality,
         Feature::Compoundability => ParsedFeature::Compoundability,
@@ -5993,15 +5996,15 @@ fn raw_sequence_reads_inherent_category_feature(
     feature: Feature,
     category_render: &HashMap<String, CategoryRenderCapability>,
 ) -> bool {
-    if feature == Feature::Agreement
+    if feature == Feature::ConcordClass
         && category_render
             .get(category)
-            .is_some_and(|capability| capability.requires_external_agreement())
+            .is_some_and(|capability| capability.requires_external_concord_class())
     {
         return false;
     }
     let parsed_feature = match feature {
-        Feature::Agreement => ParsedFeature::Agreement,
+        Feature::ConcordClass => ParsedFeature::ConcordClass,
         Feature::BareLocativeLicense => ParsedFeature::BareLocativeLicense,
         Feature::Cardinality => ParsedFeature::Cardinality,
         Feature::Compoundability => ParsedFeature::Compoundability,
@@ -6273,7 +6276,7 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                     .then(|| (identifier_key(field), ParsedFeature::Cardinality)),
                 ParsedFeature::Number => role_provides_number(raw, &fields, field)
                     .then(|| (identifier_key(field), ParsedFeature::Number)),
-                ParsedFeature::Agreement
+                ParsedFeature::ConcordClass
                 | ParsedFeature::BareLocativeLicense
                 | ParsedFeature::Compoundability
                 | ParsedFeature::Countability
@@ -6303,7 +6306,7 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                     &mut errors,
                     syn::Error::new(
                         form.name.span(),
-                        "an MVP form may contain only one agreement-bearing verb slot",
+                        "an MVP form may contain only one concord_class-bearing verb slot",
                     ),
                 );
             }
@@ -6319,7 +6322,7 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                 &mut errors,
                 syn::Error::new(
                     span,
-                    "field `verb` collides with the fixed verb atom's implicit agreement slot",
+                    "field `verb` collides with the fixed verb atom's implicit concord_class slot",
                 ),
             );
         }
@@ -7092,7 +7095,7 @@ fn check_feature_role(
     errors: &mut Option<syn::Error>,
 ) {
     if identifier_key(role) == "verb" && has_fixed_verb {
-        if !matches!(feature, ParsedFeature::Agreement | ParsedFeature::Onset) {
+        if !matches!(feature, ParsedFeature::ConcordClass | ParsedFeature::Onset) {
             combine(
                 errors,
                 syn::Error::new(
@@ -7140,7 +7143,7 @@ fn check_feature_role(
         Some(FieldKind::Sequence { item, .. })
             if matches!(
                 feature,
-                ParsedFeature::Agreement
+                ParsedFeature::ConcordClass
                     | ParsedFeature::Number
                     | ParsedFeature::Onset
                     | ParsedFeature::PossessiveEnding
@@ -7167,9 +7170,9 @@ fn check_feature_role(
             ) && symbols
                 .terminals
                 .get(&path_name(path))
-                .is_some_and(|terminal| terminal.agreement_verb) =>
+                .is_some_and(|terminal| terminal.concord_class_verb) =>
         {
-            if !matches!(feature, ParsedFeature::Agreement | ParsedFeature::Onset) {
+            if !matches!(feature, ParsedFeature::ConcordClass | ParsedFeature::Onset) {
                 combine(
                     errors,
                     syn::Error::new(
@@ -7311,7 +7314,7 @@ fn check_verb_role(
         Some(FieldKind::Lex(path)) => symbols
             .terminals
             .get(&path_name(path))
-            .is_some_and(|info| info.agreement_verb || info.participle_verb),
+            .is_some_and(|info| info.concord_class_verb || info.participle_verb),
         Some(FieldKind::Identity(_)) => false,
         Some(
             FieldKind::Category(_)
@@ -7327,7 +7330,7 @@ fn check_verb_role(
             syn::Error::new(
                 role.span(),
                 format!(
-                    "verb role `{role}` must use an Agreement- or Participle-aware declaration_verb terminal"
+                    "verb role `{role}` must use a ConcordClass- or Participle-aware declaration_verb terminal"
                 ),
             ),
         );
@@ -9221,14 +9224,14 @@ fn validate_features(raw: &Declarations, symbols: &Symbols) -> syn::Result<Featu
             if participle_slot {
                 continue;
             }
-            let direct_writer = writers.contains(&format!("{slot}.agreement"));
+            let direct_writer = writers.contains(&format!("{slot}.concord_class"));
             let equality_writer = construction.equations.iter().any(|equation| {
                 matches!(
                     (&equation.target, &equation.value),
                     (
-                        ParsedFeaturePlace::Construction(ParsedFeature::Agreement),
+                        ParsedFeaturePlace::Construction(ParsedFeature::ConcordClass),
                         ParsedFeatureValue::FromRole(source)
-                    ) if identifier_key(&source.role) == slot && source.feature == ParsedFeature::Agreement
+                    ) if identifier_key(&source.role) == slot && source.feature == ParsedFeature::ConcordClass
                 )
             });
             if !direct_writer && !equality_writer {
@@ -9236,7 +9239,9 @@ fn validate_features(raw: &Declarations, symbols: &Symbols) -> syn::Result<Featu
                     &mut errors,
                     syn::Error::new(
                         construction.forms[0].name.span(),
-                        format!("verb atom requires agreement binding for `{slot}.agreement`"),
+                        format!(
+                            "verb atom requires concord_class binding for `{slot}.concord_class`"
+                        ),
                     ),
                 );
             }
@@ -9294,7 +9299,7 @@ fn seal_feature_resolutions(
                     };
                     Some(feature::FeaturePlace::Role {
                         field,
-                        feature: feature::Feature::Agreement,
+                        feature: feature::Feature::ConcordClass,
                     })
                 }),
         );
@@ -9351,7 +9356,7 @@ fn seal_category_render_capabilities(
         })
         .collect::<Vec<_>>();
     let providers = feature_providers(raw);
-    let mut agreement_contextual = HashSet::new();
+    let mut concord_class_contextual = HashSet::new();
 
     let contextual_sums = |contextual_categories: &HashSet<String>| {
         let mut contextual = HashSet::new();
@@ -9408,7 +9413,7 @@ fn seal_category_render_capabilities(
                     }
                     let place = feature::FeaturePlace::Role {
                         field: syn::Ident::new(&role, construction.forms[0].name.span()),
-                        feature: feature::Feature::Agreement,
+                        feature: feature::Feature::ConcordClass,
                     };
                     resolutions
                         .get(&identifier_key(&construction.name))
@@ -9416,13 +9421,13 @@ fn seal_category_render_capabilities(
                         == Some(&feature::FeatureResolution::External)
                 });
         if has_external_verb {
-            agreement_contextual.insert(path_name(&construction.category));
+            concord_class_contextual.insert(path_name(&construction.category));
         }
     }
 
     loop {
-        let before = agreement_contextual.len();
-        let contextual_sums = contextual_sums(&agreement_contextual);
+        let before = concord_class_contextual.len();
+        let contextual_sums = contextual_sums(&concord_class_contextual);
         for construction in &constructions {
             let passes_external_to_child = construction
                 .forms
@@ -9446,15 +9451,15 @@ fn seal_category_render_capabilities(
                     };
                     let place = feature::FeaturePlace::Role {
                         field: role.clone(),
-                        feature: feature::Feature::Agreement,
+                        feature: feature::Feature::ConcordClass,
                     };
-                    agreement_contextual.contains(&category)
+                    concord_class_contextual.contains(&category)
                         && construction.equations.iter().any(|equation| {
                             matches!(
                                 &equation.target,
                                 ParsedFeaturePlace::Role {
                                     field,
-                                    feature: ParsedFeature::Agreement,
+                                    feature: ParsedFeature::ConcordClass,
                                 } if same_identifier(field, role)
                             )
                         })
@@ -9465,13 +9470,13 @@ fn seal_category_render_capabilities(
                 });
             let relays_external_sequence = construction.equations.iter().any(|equation| {
                 let (
-                    ParsedFeaturePlace::Construction(ParsedFeature::Agreement),
+                    ParsedFeaturePlace::Construction(ParsedFeature::ConcordClass),
                     ParsedFeatureValue::FromRole(source),
                 ) = (&equation.target, &equation.value)
                 else {
                     return false;
                 };
-                source.feature == ParsedFeature::Agreement
+                source.feature == ParsedFeature::ConcordClass
                     && construction.element.fields.iter().any(|field| {
                         same_identifier(&field.name, &source.role)
                             && matches!(
@@ -9479,7 +9484,7 @@ fn seal_category_render_capabilities(
                                 FieldKind::Sequence { item, .. }
                                     if matches!(item.as_ref(), FieldKind::Category(path) if {
                                         let item = path_name(path);
-                                        agreement_contextual.contains(&item)
+                                        concord_class_contextual.contains(&item)
                                             || contextual_sums.contains(&item)
                                     })
                             )
@@ -9487,27 +9492,27 @@ fn seal_category_render_capabilities(
             });
             let relays_external_role = construction.equations.iter().any(|equation| {
                 let (
-                    ParsedFeaturePlace::Construction(ParsedFeature::Agreement),
+                    ParsedFeaturePlace::Construction(ParsedFeature::ConcordClass),
                     ParsedFeatureValue::FromRole(source),
                 ) = (&equation.target, &equation.value)
                 else {
                     return false;
                 };
-                source.feature == ParsedFeature::Agreement
+                source.feature == ParsedFeature::ConcordClass
                     && construction.element.fields.iter().any(|field| {
                         same_identifier(&field.name, &source.role)
                             && matches!(&field.kind, FieldKind::Category(path) if {
                                 let source = path_name(path);
-                                agreement_contextual.contains(&source)
+                                concord_class_contextual.contains(&source)
                                     || contextual_sums.contains(&source)
                             })
                     })
             });
             if passes_external_to_child || relays_external_role || relays_external_sequence {
-                agreement_contextual.insert(path_name(&construction.category));
+                concord_class_contextual.insert(path_name(&construction.category));
             }
         }
-        if agreement_contextual.len() == before {
+        if concord_class_contextual.len() == before {
             break;
         }
     }
@@ -9598,11 +9603,11 @@ fn seal_category_render_capabilities(
         capabilities
             .entry(category.clone())
             .or_insert_with(CategoryRenderCapability::default)
-            .requires_external_input = agreement_contextual.contains(&category);
+            .requires_external_input = concord_class_contextual.contains(&category);
     }
     for (category, capability) in &mut capabilities {
         capability.carries_output =
-            providers.contains(&(category.clone(), ParsedFeature::Agreement));
+            providers.contains(&(category.clone(), ParsedFeature::ConcordClass));
         capability.requires_context = context_required.contains(category);
     }
     capabilities
@@ -9664,7 +9669,7 @@ fn resolve_local_feature(
         || match place {
             feature::FeaturePlace::Role {
                 field,
-                feature: feature::Feature::Agreement,
+                feature: feature::Feature::ConcordClass,
             } if (identifier_key(field) == "verb"
                 && !construction
                     .element
@@ -9746,7 +9751,7 @@ fn equation_for_place<'a>(
     equations.iter().find(|equation| equation.target() == place)
 }
 
-fn validate_contextual_agreement_uses(
+fn validate_contextual_concord_class_uses(
     raw: &Declarations,
     capabilities: &HashMap<String, CategoryRenderCapability>,
 ) -> syn::Result<()> {
@@ -9780,7 +9785,7 @@ fn validate_contextual_agreement_uses(
                     &equation.target,
                     ParsedFeaturePlace::Role {
                         field,
-                        feature: ParsedFeature::Agreement,
+                        feature: ParsedFeature::ConcordClass,
                     } if same_identifier(field, role)
                 )
             });
@@ -9788,9 +9793,9 @@ fn validate_contextual_agreement_uses(
                 matches!(
                     (&equation.target, &equation.value),
                     (
-                        ParsedFeaturePlace::Construction(ParsedFeature::Agreement),
+                        ParsedFeaturePlace::Construction(ParsedFeature::ConcordClass),
                         ParsedFeatureValue::FromRole(source),
-                    ) if source.feature == ParsedFeature::Agreement
+                    ) if source.feature == ParsedFeature::ConcordClass
                         && same_identifier(&source.role, role)
                 )
             });
@@ -9800,7 +9805,7 @@ fn validate_contextual_agreement_uses(
                     syn::Error::new(
                         role.span(),
                         format!(
-                            "contextual category `{category}` requires a `{role}.agreement` writer at every bare role use"
+                            "contextual category `{category}` requires a `{role}.concord_class` writer at every bare role use"
                         ),
                     ),
                 );
@@ -9908,7 +9913,7 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
     declared_terminal_feature_providers(raw, &mut providers);
     for (category, constructions) in categories {
         for feature in [
-            ParsedFeature::Agreement,
+            ParsedFeature::ConcordClass,
             ParsedFeature::BareLocativeComplement,
             ParsedFeature::Cardinality,
             ParsedFeature::ModifierLicense,
@@ -9938,7 +9943,7 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
             Some(crate::model::GeneratedCodecRecipe::EnglishCardinal(_))
         ) {
             let terminal = identifier_key(&binding.name);
-            providers.insert((terminal.clone(), ParsedFeature::Agreement));
+            providers.insert((terminal.clone(), ParsedFeature::ConcordClass));
             providers.insert((terminal.clone(), ParsedFeature::DeterminerNumber));
             providers.insert((terminal.clone(), ParsedFeature::Number));
             providers.insert((terminal, ParsedFeature::Cardinality));
@@ -9987,7 +9992,7 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
             && let Some(feature) = recipe.feature_slots.first()
         {
             let feature = match identifier_key(&feature.value).as_str() {
-                "Agreement" => ParsedFeature::Agreement,
+                "ConcordClass" => ParsedFeature::ConcordClass,
                 "Participle" => ParsedFeature::Participle,
                 _ => continue,
             };
@@ -10000,7 +10005,7 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
             let Declaration::AbstractSum(sum) = declaration else { continue };
             let sum_name = identifier_key(&sum.name);
             for feature in [
-                ParsedFeature::Agreement,
+                ParsedFeature::ConcordClass,
                 ParsedFeature::ModifierLicense,
                 ParsedFeature::DeterminerNumber,
                 ParsedFeature::FusedHeadLicense,
@@ -10038,7 +10043,7 @@ fn place_key(place: &ParsedFeaturePlace) -> String {
 
 fn feature_name(feature: ParsedFeature) -> &'static str {
     match feature {
-        ParsedFeature::Agreement => "agreement",
+        ParsedFeature::ConcordClass => "concord_class",
         ParsedFeature::BareLocativeLicense => "bare_locative_license",
         ParsedFeature::Cardinality => "cardinality",
         ParsedFeature::Compoundability => "compoundability",
@@ -10206,7 +10211,7 @@ fn validate_roots(
                 &mut errors,
                 syn::Error::new_spanned(
                     &root.category,
-                    format!("standalone render root `{category}` requires external agreement"),
+                    format!("standalone render root `{category}` requires external concord_class"),
                 ),
             );
         }
@@ -10467,7 +10472,7 @@ fn validate_lowerable_feature_compositions(
             )
             | (
                 ParsedFeaturePlace::Construction(
-                    ParsedFeature::Agreement
+                    ParsedFeature::ConcordClass
                     | ParsedFeature::Onset
                     | ParsedFeature::PossessiveEnding,
                 ),
@@ -10520,10 +10525,12 @@ fn validate_lowerable_feature_compositions(
             (
                 ParsedFeaturePlace::Role {
                     field,
-                    feature: ParsedFeature::Agreement,
+                    feature: ParsedFeature::ConcordClass,
                 },
                 ParsedFeatureValue::Constant(_) | ParsedFeatureValue::FromRole(_),
-            ) => identifier_key(field) == "verb" || role_provides_agreement(raw, &fields, field),
+            ) => {
+                identifier_key(field) == "verb" || role_provides_concord_class(raw, &fields, field)
+            }
             (ParsedFeaturePlace::Role { field, .. }, ParsedFeatureValue::Match { role, .. }) => {
                 same_identifier(field, role)
                     && matches!(fields.get(&identifier_key(field)), Some(FieldKind::Lex(_)))
@@ -10628,23 +10635,23 @@ fn validate_matched_feature_roles(
                 })
         })
     };
-    let agreement = matched_role(ParsedFeature::Agreement);
+    let concord_class = matched_role(ParsedFeature::ConcordClass);
     let number = matched_role(ParsedFeature::Number);
-    if agreement
+    if concord_class
         .zip(number)
-        .is_some_and(|(agreement, number)| !same_identifier(agreement, number))
+        .is_some_and(|(concord_class, number)| !same_identifier(concord_class, number))
     {
         combine(
             errors,
             syn::Error::new(
                 construction.name.span(),
-                "unimplemented in MVP: `feature equation composition`; construction agreement and number matches must use the same vocabulary role",
+                "unimplemented in MVP: `feature equation composition`; construction concord_class and number matches must use the same vocabulary role",
             ),
         );
     }
 }
 
-fn role_provides_agreement(
+fn role_provides_concord_class(
     raw: &Declarations,
     fields: &HashMap<String, &FieldKind>,
     role: &syn::Ident,
@@ -10764,7 +10771,7 @@ fn validate_category_feature_uniformity(raw: &Declarations, errors: &mut Option<
 
     for (category, members) in categories {
         for feature in [
-            ParsedFeature::Agreement,
+            ParsedFeature::ConcordClass,
             ParsedFeature::Cardinality,
             ParsedFeature::ModifierLicense,
             ParsedFeature::Number,
@@ -10805,7 +10812,7 @@ fn validate_category_feature_uniformity(raw: &Declarations, errors: &mut Option<
 
 fn parsed_feature_name(feature: ParsedFeature) -> &'static str {
     match feature {
-        ParsedFeature::Agreement => "agreement",
+        ParsedFeature::ConcordClass => "concord_class",
         ParsedFeature::BareLocativeLicense => "bare_locative_license",
         ParsedFeature::Cardinality => "cardinality",
         ParsedFeature::Compoundability => "compoundability",
@@ -11070,7 +11077,7 @@ pub(crate) mod tests {
         );
 
         let open_domain = error(quote! {
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme Word using EnglishVerb { One = "one", }
             construction guarded: Cat {
                 element Guarded { word: lex Word, }
@@ -11637,12 +11644,12 @@ pub(crate) mod tests {
     #[test]
     fn implicit_verb_onset_requires_the_same_provider_in_every_form() {
         let missing_source = quote! {
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme Verbs using EnglishVerb { Act = "act", }
             vocab Mode { WithVerb = "with", WithoutVerb = "without", }
             construction guarded: Root {
                 element Guarded { mode: lex Mode, }
-                derive verb.agreement = Values::Bare;
+                derive verb.concord_class = Values::Other;
                 derive onset = verb.onset;
                 form with_verb when mode is WithVerb = lex(mode) verb(Verbs::Act);
                 form without_verb otherwise = lex(mode);
@@ -11668,12 +11675,12 @@ pub(crate) mod tests {
 
         crate::validate_declarations(
             crate::parse_declarations(quote! {
-                morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+                morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
                 lexeme Verbs using EnglishVerb { Act = "act", }
                 vocab Mode { First = "first", Second = "second", }
                 construction guarded: Root {
                     element Guarded { mode: lex Mode, }
-                    derive verb.agreement = Values::Bare;
+                    derive verb.concord_class = Values::Other;
                     derive onset = verb.onset;
                     form first when mode is First = lex(mode) verb(Verbs::Act);
                     form second otherwise = lex(mode) verb(Verbs::Act);
@@ -11734,8 +11741,8 @@ pub(crate) mod tests {
             lexeme VerbLexeme using Missing { Deal = "deal", }
             construction action: Ability {
                 element Action {}
-                derive agreement = verb.agreement;
-                derive verb.agreement = Values::Bare;
+                derive concord_class = verb.concord_class;
+                derive verb.concord_class = Values::Other;
                 form action = verb(VerbLexeme::Deal);
             }
             root Ability { punctuation = "."; eoi = true; standalone_render = true; }
@@ -11747,12 +11754,12 @@ pub(crate) mod tests {
     #[test]
     fn generated_morphology_rejects_unknown_recipe_and_axis_mismatch() {
         let unknown = error(quote! {
-            morphology EnglishVerb { feature = Agreement; recipe = conjectural_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = conjectural_verb; }
             lexeme VerbLexeme using EnglishVerb { Deal = "deal", }
             construction action: Ability {
                 element Action {}
-                derive agreement = verb.agreement;
-                derive verb.agreement = Values::Bare;
+                derive concord_class = verb.concord_class;
+                derive verb.concord_class = Values::Other;
                 form action = verb(VerbLexeme::Deal);
             }
             root Ability { punctuation = "."; eoi = true; standalone_render = true; }
@@ -11767,7 +11774,7 @@ pub(crate) mod tests {
             lexeme VerbLexeme using EnglishVerb { Deal = "deal", }
             construction action: Ability {
                 element Action {}
-                derive agreement = Values::Bare;
+                derive concord_class = Values::Other;
                 form action = verb(VerbLexeme::Deal);
             }
             root Ability { punctuation = "."; eoi = true; standalone_render = true; }
@@ -11781,8 +11788,8 @@ pub(crate) mod tests {
     #[test]
     fn generated_morphology_rejects_duplicate_declarations_members_and_overrides() {
         let declarations = error(quote! {
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
         });
         assert!(
             declarations.contains("duplicate") && declarations.contains("EnglishVerb"),
@@ -11790,7 +11797,7 @@ pub(crate) mod tests {
         );
 
         let members = error(quote! {
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme VerbLexeme using EnglishVerb { Deal = "deal", Deal = "deal", }
         });
         assert!(
@@ -11799,13 +11806,13 @@ pub(crate) mod tests {
         );
 
         let overrides = error(quote! {
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme VerbLexeme using EnglishVerb {
-                Deal = "deal" { Bare = "deal", Bare = "deal", },
+                Deal = "deal" { Other = "deal", Other = "deal", },
             }
         });
         assert!(
-            overrides.contains("duplicate override `Bare`"),
+            overrides.contains("duplicate override `Other`"),
             "{overrides}"
         );
     }
@@ -11813,7 +11820,7 @@ pub(crate) mod tests {
     #[test]
     fn generated_morphology_rejects_unknown_override_feature() {
         let actual = error(quote! {
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme VerbLexeme using EnglishVerb {
                 Deal = "deal" { Singular = "deal", },
             }
@@ -11830,16 +11837,16 @@ pub(crate) mod tests {
         for (source, expected) in [
             (
                 quote! {
-                    morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+                    morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
                     lexeme VerbLexeme using EnglishVerb { Deal = "", }
                 },
                 "lexeme lemma must not be empty",
             ),
             (
                 quote! {
-                    morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+                    morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
                     lexeme VerbLexeme using EnglishVerb {
-                        Deal = "deal" { Bare = "", },
+                        Deal = "deal" { Other = "", },
                     }
                 },
                 "lexeme override surface must not be empty",
@@ -11853,18 +11860,18 @@ pub(crate) mod tests {
     #[test]
     fn generated_morphology_seals_complete_source_ordered_replacement_rows() {
         let semantic = validate(quote! {
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme VerbLexeme using EnglishVerb {
                 Deal = "deal",
                 Be = "be" {
-                    Bare = "are",
+                    Other = "are",
                     ThirdPersonSingular = "is",
                 },
             }
             construction action: Ability {
                 element Action {}
-                derive agreement = verb.agreement;
-                derive verb.agreement = Values::Bare;
+                derive concord_class = verb.concord_class;
+                derive verb.concord_class = Values::Other;
                 form action = verb(VerbLexeme::Deal);
             }
             root Ability { punctuation = "."; eoi = true; standalone_render = true; }
@@ -11887,16 +11894,16 @@ pub(crate) mod tests {
                 .map(|row| (row.member(), row.feature(), row.surface()))
                 .collect::<Vec<_>>(),
             [
-                ("Deal", crate::macro_def::SurfaceFeature::Bare, "deal"),
+                ("Deal", crate::macro_def::SurfaceFeature::PLAIN, "deal"),
                 (
                     "Deal",
-                    crate::macro_def::SurfaceFeature::ThirdPersonSingular,
+                    crate::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
                     "deals",
                 ),
-                ("Be", crate::macro_def::SurfaceFeature::Bare, "are"),
+                ("Be", crate::macro_def::SurfaceFeature::PLAIN, "are"),
                 (
                     "Be",
-                    crate::macro_def::SurfaceFeature::ThirdPersonSingular,
+                    crate::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
                     "is",
                 ),
             ]
@@ -11922,12 +11929,12 @@ pub(crate) mod tests {
     #[test]
     fn generated_morphology_uses_lemmas_not_variant_name_heuristics() {
         let semantic = validate(quote! {
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme VerbLexeme using EnglishVerb { TwoWords = "unrelated", }
             construction action: Ability {
                 element Action {}
-                derive agreement = verb.agreement;
-                derive verb.agreement = Values::Bare;
+                derive concord_class = verb.concord_class;
+                derive verb.concord_class = Values::Other;
                 form action = verb(VerbLexeme::TwoWords);
             }
             root Ability { punctuation = "."; eoi = true; standalone_render = true; }
@@ -11951,18 +11958,18 @@ pub(crate) mod tests {
     #[test]
     fn generated_morphology_seals_resolved_morphology_and_ordered_irregulars() {
         let semantic = validate(quote! {
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme VerbLexeme using EnglishVerb {
                 Deal = "deal",
                 Be = "be" {
                     ThirdPersonSingular = "is",
-                    Bare = "are",
+                    Other = "are",
                 },
             }
             construction action: Ability {
                 element Action {}
-                derive agreement = verb.agreement;
-                derive verb.agreement = Values::Bare;
+                derive concord_class = verb.concord_class;
+                derive verb.concord_class = Values::Other;
                 form action = verb(VerbLexeme::Deal);
             }
             root Ability { punctuation = "."; eoi = true; standalone_render = true; }
@@ -11972,7 +11979,7 @@ pub(crate) mod tests {
 
         let morphology = &semantic.morphologies()[0];
         assert_eq!(morphology.name(), "EnglishVerb");
-        assert_eq!(morphology.feature(), crate::Feature::Agreement);
+        assert_eq!(morphology.feature(), crate::Feature::ConcordClass);
         assert_eq!(
             morphology.recipe(),
             crate::morphology::MorphologyRecipe::EnglishVerb
@@ -11990,8 +11997,11 @@ pub(crate) mod tests {
                 .map(|row| (row.feature(), row.surface()))
                 .collect::<Vec<_>>(),
             [
-                (crate::macro_def::SurfaceFeature::ThirdPersonSingular, "is",),
-                (crate::macro_def::SurfaceFeature::Bare, "are"),
+                (
+                    crate::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
+                    "is",
+                ),
+                (crate::macro_def::SurfaceFeature::PLAIN, "are"),
             ]
         );
     }
@@ -12185,7 +12195,7 @@ pub(crate) mod tests {
 
     fn declaration_verb_source_error(body: &proc_macro2::TokenStream) -> String {
         let raw = crate::parse_declarations(quote! {
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             morphology EnglishNoun { feature = Number; recipe = english_noun; }
             lexeme CoreVerb using EnglishVerb { Destroy = "destroy", }
             lexeme EmptyVerb using EnglishVerb {}
@@ -12203,14 +12213,14 @@ pub(crate) mod tests {
     #[test]
     fn declaration_verb_recipe_validation_is_closed_and_structural() {
         let raw = crate::parse_declarations(quote! {
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme CoreVerb using EnglishVerb { Destroy = "destroy", }
             codec Verb {
                 generate declaration_verb {
                     closed = CoreVerb;
                     position = Verb;
                     tail = ["with", Amount, ObjectNounPhrase];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 }
             }
         })
@@ -12227,7 +12237,7 @@ pub(crate) mod tests {
                         "for",
                         sought: ObjectNounPhrase,
                     ];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 }
             }
         })
@@ -12239,7 +12249,7 @@ pub(crate) mod tests {
             (
                 quote! {
                     tail = [];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 },
                 "declaration_verb requires one `position` field",
             ),
@@ -12248,14 +12258,14 @@ pub(crate) mod tests {
                     position = Verb;
                     position = Verb;
                     tail = [];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 },
                 "duplicate declaration_verb field `position`",
             ),
             (
                 quote! {
                     position = Verb;
-                    feature = Agreement;
+                    feature = ConcordClass;
                 },
                 "declaration_verb requires one `tail` field",
             ),
@@ -12270,8 +12280,8 @@ pub(crate) mod tests {
                 quote! {
                     position = Verb;
                     tail = [];
-                    feature = Agreement;
-                    feature = Agreement;
+                    feature = ConcordClass;
+                    feature = ConcordClass;
                 },
                 "duplicate declaration_verb field `feature`",
             ),
@@ -12281,7 +12291,7 @@ pub(crate) mod tests {
                     closed = CoreVerb;
                     position = Verb;
                     tail = [];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 },
                 "duplicate declaration_verb field `closed`",
             ),
@@ -12291,7 +12301,7 @@ pub(crate) mod tests {
                     class = ProVerb;
                     position = Verb;
                     tail = [];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 },
                 "duplicate declaration_verb field `class`",
             ),
@@ -12300,7 +12310,7 @@ pub(crate) mod tests {
                     class = Infinitive;
                     position = Verb;
                     tail = [];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 },
                 "class must be `Predicate`, `Auxiliary`, or `ProVerb`",
             ),
@@ -12309,7 +12319,7 @@ pub(crate) mod tests {
                     closed = Missing;
                     position = Verb;
                     tail = [];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 },
                 "closed branch must name a lexeme declaration",
             ),
@@ -12318,7 +12328,7 @@ pub(crate) mod tests {
                     closed = EmptyVerb;
                     position = Verb;
                     tail = [];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 },
                 "closed branch must have at least one lexeme member",
             ),
@@ -12327,7 +12337,7 @@ pub(crate) mod tests {
                     closed = Nouns;
                     position = Verb;
                     tail = [];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 },
                 "closed branch morphology must match its feature axis",
             ),
@@ -12335,7 +12345,7 @@ pub(crate) mod tests {
                 quote! {
                     position = Noun;
                     tail = [];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 },
                 "position must be `Verb`",
             ),
@@ -12344,7 +12354,7 @@ pub(crate) mod tests {
                     position = Verb;
                     kinds = [KeywordAbility];
                     tail = [];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 },
                 "declaration_verb recipe accepts only `closed`, `class`, `position`, `tail`, and `feature` fields",
             ),
@@ -12352,7 +12362,7 @@ pub(crate) mod tests {
                 quote! {
                     position = Verb;
                     tail = [""];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 },
                 "tail literals cannot be empty",
             ),
@@ -12360,7 +12370,7 @@ pub(crate) mod tests {
                 quote! {
                     position = Verb;
                     tail = [Amount, Amount];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 },
                 "duplicate declaration_verb tail atom `Amount`",
             ),
@@ -12368,7 +12378,7 @@ pub(crate) mod tests {
                 quote! {
                     position = Verb;
                     tail = ["with", "with"];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 },
                 "duplicate declaration_verb tail atom",
             ),
@@ -12376,7 +12386,7 @@ pub(crate) mod tests {
                 quote! {
                     position = Verb;
                     tail = [location: ObjectNounPhrase, ObjectNounPhrase];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 },
                 "repeated declaration_verb tail atom `ObjectNounPhrase` must label every occurrence",
             ),
@@ -12384,7 +12394,7 @@ pub(crate) mod tests {
                 quote! {
                     position = Verb;
                     tail = [location: ObjectNounPhrase, location: ObjectNounPhrase];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 },
                 "duplicate declaration_verb tail label `location`",
             ),
@@ -12392,7 +12402,7 @@ pub(crate) mod tests {
                 quote! {
                     position = Verb;
                     tail = [preposition: "for"];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 },
                 "declaration_verb tail labels cannot prefix literals",
             ),
@@ -12401,7 +12411,7 @@ pub(crate) mod tests {
                     position = Verb;
                     tail = [];
                     tail = [Amount];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 },
                 "duplicate declaration_verb field `tail`",
             ),
@@ -12411,13 +12421,13 @@ pub(crate) mod tests {
                     tail = [];
                     feature = Number;
                 },
-                "feature must be `Agreement` or `Participle`",
+                "feature must be `ConcordClass` or `Participle`",
             ),
             (
                 quote! {
                     position = Verb;
                     tail = [];
-                    feature = Agreement;
+                    feature = ConcordClass;
                     frame_set = Transitive;
                 },
                 "recipe accepts only `closed`, `class`, `position`, `tail`, and `feature` fields",
@@ -12440,7 +12450,7 @@ pub(crate) mod tests {
                     class = ProVerb;
                     position = Verb;
                     tail = [];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 },
                 "duplicate declaration_verb field `class`",
             ),
@@ -12449,7 +12459,7 @@ pub(crate) mod tests {
                     class = Infinitive;
                     position = Verb;
                     tail = [];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 },
                 "class must be `Predicate`, `Auxiliary`, or `ProVerb`",
             ),
@@ -12469,14 +12479,14 @@ pub(crate) mod tests {
                 generate declaration_verb {
                     position = Verb;
                     tail = [Amount];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 }
             }
             codec LaterVerb {
                 generate declaration_verb {
                     position = Verb;
                     tail = [Amount];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 }
             }
         })
@@ -12496,14 +12506,14 @@ pub(crate) mod tests {
                 generate declaration_verb {
                     position = Verb;
                     tail = [location: ObjectNounPhrase, "for", sought: ObjectNounPhrase];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 }
             }
             codec LaterSearchVerb {
                 generate declaration_verb {
                     position = Verb;
                     tail = [source: ObjectNounPhrase, "for", object: ObjectNounPhrase];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 }
             }
         })
@@ -12523,14 +12533,14 @@ pub(crate) mod tests {
                 generate declaration_verb {
                     position = Verb;
                     tail = [];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 }
             }
             codec MeasureComplementVerb {
                 generate declaration_verb {
                     position = Verb;
                     tail = [Amount];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 }
             }
         })
@@ -12543,7 +12553,7 @@ pub(crate) mod tests {
                 generate declaration_verb {
                     position = Verb;
                     tail = [];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 }
             }
             codec AuxiliaryVerb {
@@ -12551,7 +12561,7 @@ pub(crate) mod tests {
                     class = Auxiliary;
                     position = Verb;
                     tail = [];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 }
             }
             codec ProVerb {
@@ -12559,7 +12569,7 @@ pub(crate) mod tests {
                     class = ProVerb;
                     position = Verb;
                     tail = [];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 }
             }
         })
@@ -12670,7 +12680,7 @@ pub(crate) mod tests {
                     closed = NounLexeme;
                     position = Noun;
                     kinds = [Type, Subtype];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 },
                 "feature must be `Number`",
             ),
@@ -13793,7 +13803,7 @@ pub(crate) mod tests {
     #[test]
     fn rejects_authored_identities_colliding_with_every_fixed_runtime_type() {
         for fixed in [
-            "Agreement",
+            "ConcordClass",
             "Number",
             "FeatureConstraint",
             "CasePosition",
@@ -14157,7 +14167,7 @@ pub(crate) mod tests {
         );
 
         let lexeme_as_plain_lex = error(quote! {
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme Verbs using EnglishVerb { Be = "be", }
             construction only: Cat { element Only { word: lex Verbs, } form only = lex(word); }
             root Cat { punctuation = "."; eoi = true; standalone_render = true; }
@@ -14170,11 +14180,11 @@ pub(crate) mod tests {
 
         let variants = error(quote! {
             vocab Word { One = "one", }
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme Verbs using EnglishVerb { Be = "be", }
             construction only: Cat {
                 element Only { word: lex Word, }
-                derive agreement = Anything::Bare;
+                derive concord_class = Anything::Bare;
                 form only = lex(word) verb(Verbs::Missing);
             }
             root Cat { punctuation = "."; eoi = true; standalone_render = true; }
@@ -14199,9 +14209,9 @@ pub(crate) mod tests {
         );
 
         let wrong_domain = error(quote! {
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme Verbs using EnglishVerb { Be = "be", }
-            construction leaf_node: Branch { element LeafNode {} derive agreement = Anything::Bare; form leaf = verb(Verbs::Be); }
+            construction leaf_node: Branch { element LeafNode {} derive concord_class = Anything::Bare; form leaf = verb(Verbs::Be); }
             construction only: Cat { element Only { leaf: Branch, } require leaf is Be; form only = leaf; }
             root Cat { punctuation = "."; eoi = true; standalone_render = true; }
         });
@@ -14299,31 +14309,31 @@ pub(crate) mod tests {
         let unconstructible = error(quote! {
             construction only: Root {
                 element Only {}
-                require agreement is Bare;
+                require concord_class is Other;
                 form only = "only";
             }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         });
         assert!(
             unconstructible.contains(
-                "construction predicate `agreement` has no constructible feature expression"
+                "construction predicate `concord_class` has no constructible feature expression"
             ),
             "{unconstructible}"
         );
 
         let parse_only = error(quote! {
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme Verbs using EnglishVerb { Act = "act", }
             construction only: Root {
                 element Only {}
-                require verb.agreement is Bare;
-                derive agreement = verb.agreement;
+                require verb.concord_class is Other;
+                derive concord_class = verb.concord_class;
                 form only = verb(Verbs::Act);
             }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         });
         assert!(
-            parse_only.contains("parse-only morphology feature state `verb.agreement`"),
+            parse_only.contains("parse-only morphology feature state `verb.concord_class`"),
             "{parse_only}"
         );
     }
@@ -14375,23 +14385,23 @@ pub(crate) mod tests {
 
     #[test]
     fn require_rejects_generated_new_name_collisions() {
-        let agreement_role_new_collision = error(quote! {
+        let concord_class_role_new_collision = error(quote! {
             vocab Mode { One = "one", Two = "two", }
             construction bare: Child {
                 element BareChild {}
-                derive agreement = Values::Bare;
+                derive concord_class = Values::Other;
                 form bare = "bare";
             }
             construction third: Child {
                 element ThirdChild {}
-                derive agreement = Values::ThirdPersonSingular;
+                derive concord_class = Values::ThirdPersonSingular;
                 form third = "third";
             }
             construction only: Root {
                 element Only { mode: lex Mode, r#new: Child, }
-                derive r#new.agreement = mode.agreement;
-                derive mode.agreement = match mode {
-                    One => Values::Bare,
+                derive r#new.concord_class = mode.concord_class;
+                derive mode.concord_class = match mode {
+                    One => Values::Other,
                     Two => Values::ThirdPersonSingular,
                 };
                 form only = lex(mode) r#new;
@@ -14399,17 +14409,18 @@ pub(crate) mod tests {
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         });
         assert!(
-            agreement_role_new_collision.contains("generated construction associated item `new`"),
-            "{agreement_role_new_collision}"
+            concord_class_role_new_collision
+                .contains("generated construction associated item `new`"),
+            "{concord_class_role_new_collision}"
         );
 
         let transitive_new_collision = error(quote! {
             vocab Mode { One = "one", Two = "two", }
             construction only: Root {
                 element Only { r#new: lex Mode, }
-                require agreement is Bare;
-                derive agreement = match r#new {
-                    One => Values::Bare,
+                require concord_class is Other;
+                derive concord_class = match r#new {
+                    One => Values::Other,
                     Two => Values::ThirdPersonSingular,
                 };
                 form only = lex(r#new);
@@ -14580,12 +14591,12 @@ pub(crate) mod tests {
     #[test]
     fn resolves_recipe_selected_verb_lexeme_provider_without_a_name_switch() {
         let validated = validate(quote! {
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme Actions using EnglishVerb { Go = "go", }
             construction only: Cat {
                 element Only {}
-                derive agreement = verb.agreement;
-                derive verb.agreement = Values::Bare;
+                derive concord_class = verb.concord_class;
+                derive verb.concord_class = Values::Other;
                 form only = verb(Actions::Go);
             }
             root Cat { punctuation = "."; eoi = true; standalone_render = true; }
@@ -14600,19 +14611,19 @@ pub(crate) mod tests {
         assert!(actions.supports_verb_atom());
 
         let inconsistent = error(quote! {
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme VerbLexeme using EnglishVerb { Destroy = "destroy", }
             lexeme NounLexeme using EnglishVerb { Player = "player", }
             construction destroy: Cat {
                 element Destroy {}
-                derive agreement = verb.agreement;
-                derive verb.agreement = Values::Bare;
+                derive concord_class = verb.concord_class;
+                derive verb.concord_class = Values::Other;
                 form destroy = verb(VerbLexeme::Destroy);
             }
             construction player: Cat {
                 element Player {}
-                derive agreement = verb.agreement;
-                derive verb.agreement = Values::Bare;
+                derive concord_class = verb.concord_class;
+                derive verb.concord_class = Values::Other;
                 form player = verb(NounLexeme::Player);
             }
             root Cat { punctuation = "."; eoi = true; standalone_render = true; }
@@ -14628,7 +14639,7 @@ pub(crate) mod tests {
     #[test]
     fn declaration_verb_frames_can_use_distinct_closed_english_verb_lexicons() {
         let validated = validate(quote! {
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme VerbLexeme using EnglishVerb { Be = "be", }
             lexeme CoreIntransitiveVerb using EnglishVerb { Enter = "enter", }
             lexeme CoreTransitiveVerb using EnglishVerb { Control = "control", }
@@ -14638,7 +14649,7 @@ pub(crate) mod tests {
                     closed = CoreIntransitiveVerb;
                     position = Verb;
                     tail = [];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 }
             }
             codec TransitiveVerb {
@@ -14646,7 +14657,7 @@ pub(crate) mod tests {
                     closed = CoreTransitiveVerb;
                     position = Verb;
                     tail = [ObjectNounPhrase];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 }
             }
             codec MeasureComplementVerb {
@@ -14654,13 +14665,13 @@ pub(crate) mod tests {
                     closed = CoreMeasureComplementVerb;
                     position = Verb;
                     tail = [Amount];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 }
             }
             construction only: Cat {
                 element Only {}
-                derive agreement = verb.agreement;
-                derive verb.agreement = Values::Bare;
+                derive concord_class = verb.concord_class;
+                derive verb.concord_class = Values::Other;
                 form only = verb(VerbLexeme::Be);
             }
             root Cat { punctuation = "."; eoi = true; standalone_render = true; }
@@ -14698,7 +14709,7 @@ pub(crate) mod tests {
         }
 
         let direct_second_provider = error(quote! {
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme VerbLexeme using EnglishVerb { Be = "be", }
             lexeme CoreIntransitiveVerb using EnglishVerb { Enter = "enter", }
             codec IntransitiveVerb {
@@ -14706,19 +14717,19 @@ pub(crate) mod tests {
                     closed = CoreIntransitiveVerb;
                     position = Verb;
                     tail = [];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 }
             }
             construction be: Cat {
                 element Be {}
-                derive agreement = verb.agreement;
-                derive verb.agreement = Values::Bare;
+                derive concord_class = verb.concord_class;
+                derive verb.concord_class = Values::Other;
                 form be = verb(VerbLexeme::Be);
             }
             construction enter: Cat {
                 element Enter {}
-                derive agreement = verb.agreement;
-                derive verb.agreement = Values::Bare;
+                derive concord_class = verb.concord_class;
+                derive verb.concord_class = Values::Other;
                 form enter = verb(CoreIntransitiveVerb::Enter);
             }
             root Cat { punctuation = "."; eoi = true; standalone_render = true; }
@@ -14734,13 +14745,13 @@ pub(crate) mod tests {
     #[test]
     fn english_verb_lexicons_must_be_owned_by_a_fixed_atom_or_declaration_frame() {
         let unowned = error(quote! {
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme VerbLexeme using EnglishVerb { Be = "be", }
             lexeme UnownedVerb using EnglishVerb { Drift = "drift", }
             construction be: Cat {
                 element Be {}
-                derive agreement = verb.agreement;
-                derive verb.agreement = Values::Bare;
+                derive concord_class = verb.concord_class;
+                derive verb.concord_class = Values::Other;
                 form be = verb(VerbLexeme::Be);
             }
             root Cat { punctuation = "."; eoi = true; standalone_render = true; }
@@ -14760,7 +14771,7 @@ pub(crate) mod tests {
                 generate declaration_verb {
                     position = Verb;
                     tail = ["with", object: ObjectNounPhrase];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 }
             }
             construction only: Cat { element Only {} form only = "only"; }
@@ -14879,7 +14890,7 @@ pub(crate) mod tests {
     fn rejects_feature_flow_errors_together_within_the_pass() {
         let message = error(quote! {
             vocab NumberWord { One = "one", Two = "two", }
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme Verbs using EnglishVerb { Be = "be", }
             codec Noun {
                 atom = noun;
@@ -14891,8 +14902,8 @@ pub(crate) mod tests {
             }
             construction broken: Cat {
                 element Broken { word: lex NumberWord, noun: lex Noun, }
-                derive agreement = Anything::Plural;
-                derive agreement = Anything::Bare;
+                derive concord_class = Anything::Plural;
+                derive concord_class = Anything::Bare;
                 derive number = match word {
                     One => Anything::Singular,
                     One => Anything::Plural,
@@ -14901,7 +14912,7 @@ pub(crate) mod tests {
             }
             root Cat { punctuation = "."; eoi = true; standalone_render = true; }
         });
-        assert!(message.contains("agreement value"), "{message}");
+        assert!(message.contains("Concord Class value"), "{message}");
         assert!(message.contains("duplicate writer"), "{message}");
         assert!(message.contains("duplicate match arm `One`"), "{message}");
         assert!(message.contains("missing match arm `Two`"), "{message}");
@@ -14913,28 +14924,28 @@ pub(crate) mod tests {
             vocab Person { One = "one", Many = "many", }
             construction valid: Root {
                 element Valid { person: lex Person, }
-                derive person.agreement = match person {
-                    One => Values::Bare,
+                derive person.concord_class = match person {
+                    One => Values::Other,
                     Many => Values::ThirdPersonSingular,
                 };
-                derive agreement = person.agreement;
+                derive concord_class = person.concord_class;
                 form valid = lex(person);
             }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         })
-        .expect("the explicit exhaustive role writer provides agreement");
+        .expect("the explicit exhaustive role writer provides concord_class");
 
         let missing = error(quote! {
             vocab Person { One = "one", Many = "many", }
             construction missing: Root {
                 element Missing { person: lex Person, }
-                derive agreement = person.agreement;
+                derive concord_class = person.concord_class;
                 form missing = lex(person);
             }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         });
         assert!(
-            missing.contains("does not have an exhaustive local agreement writer"),
+            missing.contains("does not have an exhaustive local concord_class writer"),
             "{missing}"
         );
 
@@ -14942,17 +14953,17 @@ pub(crate) mod tests {
             vocab Person { One = "one", Many = "many", }
             construction mismatched: Root {
                 element Mismatched { person: lex Person, other: lex Person, }
-                derive person.agreement = match other {
-                    One => Values::Bare,
+                derive person.concord_class = match other {
+                    One => Values::Other,
                     Many => Values::ThirdPersonSingular,
                 };
-                derive agreement = person.agreement;
+                derive concord_class = person.concord_class;
                 form mismatched = lex(person) lex(other);
             }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         });
         assert!(
-            mismatched.contains("does not have an exhaustive local agreement writer"),
+            mismatched.contains("does not have an exhaustive local concord_class writer"),
             "{mismatched}"
         );
 
@@ -14960,16 +14971,16 @@ pub(crate) mod tests {
             vocab Person { One = "one", Many = "many", }
             construction mixed: Root {
                 element Mixed { person: lex Person, }
-                derive person.agreement = match person {
+                derive person.concord_class = match person {
                     One => Values::Singular,
                     Many => Values::Plural,
                 };
-                derive agreement = person.agreement;
+                derive concord_class = person.concord_class;
                 form mixed = lex(person);
             }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         });
-        assert!(mixed.contains("is not an agreement value"), "{mixed}");
+        assert!(mixed.contains("is not a Concord Class value"), "{mixed}");
     }
 
     #[test]
@@ -15203,19 +15214,22 @@ pub(crate) mod tests {
             construction leaf_node: Branch { element LeafNode {} form leaf = "leaf"; }
             construction parent_node: Parent {
                 element ParentNode { leaf: Branch, }
-                derive agreement = leaf.agreement;
+                derive concord_class = leaf.concord_class;
                 form parent = leaf;
             }
             root Parent { punctuation = "."; eoi = true; standalone_render = true; }
         });
-        assert!(unbound.contains("does not provide agreement"), "{unbound}");
+        assert!(
+            unbound.contains("does not provide concord_class"),
+            "{unbound}"
+        );
 
         let cycle = error(quote! {
-            construction leaf_node: Branch { element LeafNode {} derive agreement = Anything::Bare; form leaf = "leaf"; }
+            construction leaf_node: Branch { element LeafNode {} derive concord_class = Anything::Bare; form leaf = "leaf"; }
             construction parent_node: Parent {
                 element ParentNode { left: Branch, right: Branch, }
-                derive left.agreement = right.agreement;
-                derive right.agreement = left.agreement;
+                derive left.concord_class = right.concord_class;
+                derive right.concord_class = left.concord_class;
                 form parent = left right;
             }
             root Parent { punctuation = "."; eoi = true; standalone_render = true; }
@@ -15223,7 +15237,7 @@ pub(crate) mod tests {
         assert!(cycle.contains("feature equation cycle"), "{cycle}");
 
         let atoms = error(quote! {
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme Verbs using EnglishVerb { Be = "be", }
             codec Nouns {
                 atom = noun;
@@ -15239,7 +15253,10 @@ pub(crate) mod tests {
             }
             root Cat { punctuation = "."; eoi = true; standalone_render = true; }
         });
-        assert!(atoms.contains("verb atom requires agreement"), "{atoms}");
+        assert!(
+            atoms.contains("verb atom requires concord_class"),
+            "{atoms}"
+        );
         assert!(atoms.contains("noun atom requires number"), "{atoms}");
     }
 
@@ -15248,34 +15265,34 @@ pub(crate) mod tests {
         validate(quote! {
             construction bare: Item {
                 element BareItem {}
-                derive agreement = Values::Bare;
+                derive concord_class = Values::Other;
                 form bare = "bare";
             }
             construction third: Item {
                 element ThirdItem {}
-                derive agreement = Values::ThirdPersonSingular;
+                derive concord_class = Values::ThirdPersonSingular;
                 form third = "third";
             }
             construction inbound: Root {
                 element InboundSequence { source: Item, members: seq Item separated by " ", }
                 require len(members) >= 2;
-                derive members.agreement = source.agreement;
+                derive members.concord_class = source.concord_class;
                 form inbound = source members;
             }
             construction outward: Coordinated {
                 element OutwardSequence { members: seq Item separated by " ", }
                 require len(members) >= 2;
-                derive agreement = members.agreement;
+                derive concord_class = members.concord_class;
                 form outward = members;
             }
             construction verified: Root {
                 element CheckedSequence { source: Item, coordinated: Coordinated, }
-                derive coordinated.agreement = source.agreement;
+                derive coordinated.concord_class = source.concord_class;
                 form verified = source coordinated;
             }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         })
-        .expect("uniform inbound and homogeneous outward sequence agreement must validate");
+        .expect("uniform inbound and homogeneous outward sequence concord_class must validate");
 
         let number_expansion = crate::generate(quote! {
             construction singular: Item {
@@ -15333,19 +15350,19 @@ pub(crate) mod tests {
         let empty = error(quote! {
             construction item: Item {
                 element ItemValue {}
-                derive agreement = Values::Bare;
+                derive concord_class = Values::Other;
                 form item = "item";
             }
             construction empty: Root {
                 element EmptySequence { members: seq Item separated by " ", }
-                derive agreement = members.agreement;
+                derive concord_class = members.concord_class;
                 form empty = members;
             }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         });
         assert!(
             empty.contains(
-                "EmptySequence.members: sequence feature agreement requires a statically nonempty sequence"
+                "EmptySequence.members: sequence feature concord_class requires a statically nonempty sequence"
             ),
             "{empty}"
         );
@@ -15355,14 +15372,14 @@ pub(crate) mod tests {
             construction lexical: Root {
                 element LexicalSequence { members: seq lex Word separated by " ", }
                 require len(members) >= 2;
-                derive agreement = members.agreement;
+                derive concord_class = members.concord_class;
                 form lexical = lex(members);
             }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         });
         assert!(
             lexical.contains(
-                "LexicalSequence.members: sequence feature agreement requires feature-bearing category items"
+                "LexicalSequence.members: sequence feature concord_class requires feature-bearing category items"
             ),
             "{lexical}"
         );
@@ -15380,14 +15397,14 @@ pub(crate) mod tests {
                     members: seq identity HandleSpelling separated by " ",
                 }
                 require len(members) >= 2;
-                derive agreement = members.agreement;
+                derive concord_class = members.concord_class;
                 form identity = identity(members);
             }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         });
         assert!(
             identity.contains(
-                "IdentitySequence.members: sequence feature agreement requires feature-bearing category items"
+                "IdentitySequence.members: sequence feature concord_class requires feature-bearing category items"
             ),
             "{identity}"
         );
@@ -15397,14 +15414,15 @@ pub(crate) mod tests {
             construction missing: Root {
                 element MissingProvider { members: seq Item separated by " ", }
                 require len(members) >= 2;
-                derive agreement = members.agreement;
+                derive concord_class = members.concord_class;
                 form missing = members;
             }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         });
         assert!(
-            non_provider
-                .contains("MissingProvider.members: category `Item` does not provide agreement"),
+            non_provider.contains(
+                "MissingProvider.members: category `Item` does not provide concord_class"
+            ),
             "{non_provider}"
         );
 
@@ -15424,7 +15442,7 @@ pub(crate) mod tests {
         });
         assert!(
             unsupported.contains(
-                "UnsupportedSequence.members: sequence feature propagation supports homogeneous agreement or number, first-member onset, or last-member possessive ending, found cardinality"
+                "UnsupportedSequence.members: sequence feature propagation supports homogeneous concord_class or number, first-member onset, or last-member possessive ending, found cardinality"
             ),
             "{unsupported}"
         );
@@ -15432,14 +15450,14 @@ pub(crate) mod tests {
         validate(quote! {
             construction item: Item {
                 element ItemValue {}
-                derive agreement = Values::Bare;
+                derive concord_class = Values::Other;
                 derive number = Values::Singular;
                 form item = "item";
             }
             construction mixed: Root {
                 element MixedSequence { members: seq Item separated by " ", }
                 require len(members) >= 2;
-                derive agreement = members.agreement;
+                derive concord_class = members.concord_class;
                 derive number = members.number;
                 form mixed = members;
             }
@@ -15500,25 +15518,26 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn agreement_sequences_accept_feature_bearing_sums_without_advertising_other_sum_features() {
+    fn concord_class_sequences_accept_feature_bearing_sums_without_advertising_other_sum_features()
+    {
         validate(quote! {
             construction bare: Item {
                 element BareItem {}
-                derive agreement = Values::Bare;
+                derive concord_class = Values::Other;
                 derive number = Values::Singular;
                 form bare = "bare";
             }
-            abstract sum AgreementChoice { Item, }
+            abstract sum ConcordClassChoice { Item, }
             construction coordinated: Root {
-                element SumSequence { members: seq AgreementChoice separated by " ", }
+                element SumSequence { members: seq ConcordClassChoice separated by " ", }
                 require len(members) >= 2;
-                derive members.agreement = Values::Bare;
-                derive agreement = members.agreement;
+                derive members.concord_class = Values::Other;
+                derive concord_class = members.concord_class;
                 form coordinated = members;
             }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         })
-        .expect("agreement-bearing sums have a real transient carrier and helper");
+        .expect("concord_class-bearing sums have a real transient carrier and helper");
 
         let unsupported = error(quote! {
             construction numbered: Item {
@@ -15541,60 +15560,60 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn mixed_sum_agreement_preserves_intrinsic_constraints_and_contextual_relay() {
+    fn mixed_sum_concord_class_preserves_intrinsic_constraints_and_contextual_relay() {
         let plan = validate(quote! {
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme Verbs using EnglishVerb { Act = "act", }
             vocab Marker { One = "one", Many = "many", }
             construction bare: Item {
                 element BareItem {}
-                derive agreement = Values::Bare;
+                derive concord_class = Values::Other;
                 form bare = "bare";
             }
             construction third: Item {
                 element ThirdItem {}
-                derive agreement = Values::ThirdPersonSingular;
+                derive concord_class = Values::ThirdPersonSingular;
                 form third = "third";
             }
             construction contextual: Contextual {
                 element ContextualItem {}
-                derive agreement = verb.agreement;
+                derive concord_class = verb.concord_class;
                 form contextual = verb(Verbs::Act);
             }
             abstract sum MixedChoice { Item, Contextual, }
             construction inbound: InboundRoot {
                 element InboundMixed { members: seq MixedChoice separated by " ", }
                 require len(members) >= 2;
-                derive members.agreement = Values::Bare;
+                derive members.concord_class = Values::Other;
                 form inbound = members;
             }
             construction relay: MixedRelay {
                 element RelayedMixed { members: seq MixedChoice separated by " ", }
                 require len(members) >= 2;
-                derive agreement = members.agreement;
+                derive concord_class = members.concord_class;
                 form relay = members;
             }
             construction fixed_marker: MixedRelay {
                 element CheckedConstant { marker: lex Marker, }
                 require marker is One;
-                derive agreement = Values::Bare;
+                derive concord_class = Values::Other;
                 form fixed_marker = lex(marker);
             }
             construction envelope: EnvelopeRoot {
                 element Envelope { relay: MixedRelay, }
-                derive relay.agreement = Values::Bare;
+                derive relay.concord_class = Values::Other;
                 form envelope = relay;
             }
             root InboundRoot { punctuation = "."; eoi = true; standalone_render = true; }
             root EnvelopeRoot { punctuation = "."; eoi = true; standalone_render = true; }
         })
-        .expect("mixed intrinsic/contextual agreement has generated constraint authority")
+        .expect("mixed intrinsic/contextual concord_class has generated constraint authority")
         .into_semantic();
 
-        assert!(plan.sum_requires_external_agreement("MixedChoice"));
-        assert!(plan.sum_carries_agreement("MixedChoice"));
-        assert!(plan.category_requires_external_agreement("MixedRelay"));
-        assert!(plan.category_carries_agreement("MixedRelay"));
+        assert!(plan.sum_requires_external_concord_class("MixedChoice"));
+        assert!(plan.sum_carries_concord_class("MixedChoice"));
+        assert!(plan.category_requires_external_concord_class("MixedRelay"));
+        assert!(plan.category_carries_concord_class("MixedRelay"));
         let envelope = plan
             .constructions()
             .iter()
@@ -15602,54 +15621,54 @@ pub(crate) mod tests {
             .expect("envelope construction is sealed");
         assert!(plan.construction_requires_checked_ast(envelope));
         let ast = crate::emit::ast::emit(&plan)
-            .expect("required sum agreement constructor checks emit through the AST emitter");
+            .expect("required sum concord_class constructor checks emit through the AST emitter");
         assert!(
             ast.iter().any(|item| item
                 .tokens
                 .to_string()
-                .contains("agreement_matches_for_mixed_choice")),
-            "the required sum agreement helper remains reachable from emitted constructors",
+                .contains("concord_class_matches_for_mixed_choice")),
+            "the required sum concord_class helper remains reachable from emitted constructors",
         );
         crate::emit::build::emit(&plan)
-            .expect("each checked category variant emits from its own Agreement source");
+            .expect("each checked category variant emits from its own ConcordClass source");
     }
 
     #[test]
-    fn contextual_category_relay_uses_the_enclosing_agreement_without_an_exact_helper() {
+    fn contextual_category_relay_uses_the_enclosing_concord_class_without_an_exact_helper() {
         let plan = validate(quote! {
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme Actions using EnglishVerb { Act = "act", }
             construction contextual: Predicate {
                 element ContextualPredicate {}
-                derive agreement = verb.agreement;
+                derive concord_class = verb.concord_class;
                 form contextual = verb(Actions::Act);
             }
             construction adjunct: Predicate {
                 element AdjunctPredicate { predicate: Predicate, }
-                derive agreement = predicate.agreement;
+                derive concord_class = predicate.concord_class;
                 form adjunct = predicate "again";
             }
             construction envelope: Root {
                 element Envelope { predicate: Predicate, }
-                derive predicate.agreement = Values::Bare;
+                derive predicate.concord_class = Values::Other;
                 form envelope = predicate;
             }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         })
-        .expect("a contextual category can relay Agreement through a recursive envelope")
+        .expect("a contextual category can relay ConcordClass through a recursive envelope")
         .into_semantic();
 
-        assert!(plan.category_requires_external_agreement("Predicate"));
-        assert!(!plan.category_reads_feature("Predicate", crate::feature::Feature::Agreement,));
+        assert!(plan.category_requires_external_concord_class("Predicate"));
+        assert!(!plan.category_reads_feature("Predicate", crate::feature::Feature::ConcordClass,));
         crate::emit::render::emit(&plan)
-            .expect("contextual Agreement does not require an impossible exact feature helper");
+            .expect("contextual ConcordClass does not require an impossible exact feature helper");
     }
 
     #[test]
     fn validates_metadata_without_type_name_switches_and_preserves_order() {
         let validated = validate(quote! {
             vocab Pointing { Near = "this", Far = "those", }
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme Actions using EnglishVerb { Exist = "exist", }
             codec ObjectWord {
                 atom = noun;
@@ -15665,8 +15684,8 @@ pub(crate) mod tests {
             }
             construction pointing_rule: Thing {
                 element PointingRule { word: lex Pointing, head: lex ObjectWord, }
-                derive agreement = Whatever::ThirdPersonSingular;
-                derive verb.agreement = Whatever::ThirdPersonSingular;
+                derive concord_class = Whatever::ThirdPersonSingular;
+                derive verb.concord_class = Whatever::ThirdPersonSingular;
                 derive number = match word {
                     Near => Whatever::Singular,
                     Far => Whatever::Plural,
@@ -15709,7 +15728,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn validates_fixed_verb_slots_and_parent_agreement_flow() {
+    fn validates_fixed_verb_slots_and_parent_concord_class_flow() {
         validate(quote! {
             codec Heads {
                 atom = noun;
@@ -15719,7 +15738,7 @@ pub(crate) mod tests {
                 build { pattern = BuildValue::Heads(value); construct = value; }
                 traversal { callback = borrowed; argument = value; call visitor::visit_heads(borrowed(value)); }
             }
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme Actions using EnglishVerb {
                 Destroy = "destroy",
                 Be = "be",
@@ -15728,35 +15747,35 @@ pub(crate) mod tests {
 
             construction noun_node: NounPhrase {
                 element NounNode { head: lex Heads, }
-                derive agreement = Values::ThirdPersonSingular;
+                derive concord_class = Values::ThirdPersonSingular;
                 derive number = Values::Singular;
                 form noun_node = noun(head);
             }
             construction count_node: NounPhrase {
                 element CountNode { head: lex Heads, }
-                derive agreement = Values::Bare;
+                derive concord_class = Values::Other;
                 derive number = Values::Plural;
-                derive verb.agreement = Values::Bare;
+                derive verb.concord_class = Values::Other;
                 form count_node = noun(head) verb(Actions::Control);
             }
             construction destroy: VerbPhrase {
                 element Destroy { object: NounPhrase, }
-                derive agreement = verb.agreement;
+                derive concord_class = verb.concord_class;
                 form destroy = verb(Actions::Destroy) object;
             }
             construction where_clause: Clause {
                 element WhereClause { value: NounPhrase, }
-                derive verb.agreement = Values::ThirdPersonSingular;
+                derive verb.concord_class = Values::ThirdPersonSingular;
                 form where_clause = "where" verb(Actions::Be) value;
             }
             construction imperative: Sentence {
                 element Imperative { predicate: VerbPhrase, }
-                derive predicate.agreement = Values::Bare;
+                derive predicate.concord_class = Values::Other;
                 form imperative = predicate;
             }
             construction declarative: Sentence {
                 element Declarative { subject: NounPhrase, predicate: VerbPhrase, }
-                derive predicate.agreement = subject.agreement;
+                derive predicate.concord_class = subject.concord_class;
                 form declarative = subject predicate;
             }
             root Sentence { punctuation = "."; eoi = true; standalone_render = true; }
@@ -15834,11 +15853,11 @@ pub(crate) mod tests {
     #[test]
     fn rejects_number_reads_from_fixed_verbs_and_unproven_projected_verbs() {
         let fixed = error(quote! {
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme Verbs using EnglishVerb { Be = "be", }
             construction broken: Cat {
                 element Broken {}
-                derive verb.agreement = Values::Bare;
+                derive verb.concord_class = Values::Other;
                 derive number = verb.number;
                 form broken = verb(Verbs::Be);
             }
@@ -15850,11 +15869,11 @@ pub(crate) mod tests {
         );
 
         let projected = error(quote! {
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme Verbs using EnglishVerb { Be = "be", }
             construction broken: Cat {
                 element Broken { word: lex Verbs, }
-                derive word.agreement = Values::Bare;
+                derive word.concord_class = Values::Other;
                 derive number = word.number;
                 form broken = verb(word);
             }
@@ -15862,7 +15881,7 @@ pub(crate) mod tests {
         });
         assert!(
             projected
-                .contains("verb role `word` must use an Agreement- or Participle-aware declaration_verb terminal")
+                .contains("verb role `word` must use a ConcordClass- or Participle-aware declaration_verb terminal")
                 && projected.contains(
                     "lexical role `word` does not have an exhaustive local number writer"
                 ),
@@ -15927,30 +15946,30 @@ pub(crate) mod tests {
     #[test]
     fn projected_english_verb_lexeme_remains_rejected() {
         let message = error(quote! {
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme Verbs using EnglishVerb { Be = "be", }
             construction projected: Cat {
                 element Projected { word: lex Verbs, }
-                derive word.agreement = Values::Bare;
+                derive word.concord_class = Values::Other;
                 form projected = verb(word);
             }
             root Cat { punctuation = "."; eoi = true; standalone_render = true; }
         });
         assert!(
             message
-                .contains("verb role `word` must use an Agreement- or Participle-aware declaration_verb terminal"),
+                .contains("verb role `word` must use a ConcordClass- or Participle-aware declaration_verb terminal"),
             "{message}"
         );
     }
 
     #[test]
-    fn projected_verb_accepts_only_declaration_backed_agreement_terminals() {
+    fn projected_verb_accepts_only_declaration_backed_concord_class_terminals() {
         let validated = validate(quote! {
             codec TransitiveVerb {
                 generate declaration_verb {
                     position = Verb;
                     tail = [ObjectNounPhrase];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 }
             }
             construction transitive: VerbPhrase {
@@ -15958,18 +15977,18 @@ pub(crate) mod tests {
                     head: lex TransitiveVerb,
                     object: Object,
                 }
-                derive agreement = head.agreement;
+                derive concord_class = head.concord_class;
                 form active = verb(head) object;
             }
             construction object: Object { element ObjectValue {} form object = "object"; }
             construction imperative: Sentence {
                 element Imperative { predicate: VerbPhrase, }
-                derive predicate.agreement = Values::Bare;
+                derive predicate.concord_class = Values::Other;
                 form imperative = predicate;
             }
             root Sentence { punctuation = "."; eoi = true; standalone_render = true; }
         })
-        .expect("Agreement-aware declaration verbs permit parent-bound projected verb roles");
+        .expect("ConcordClass-aware declaration verbs permit parent-bound projected verb roles");
         let terminal = validated
             .semantic()
             .terminals()
@@ -15988,7 +16007,7 @@ pub(crate) mod tests {
         });
         assert!(
             non_verb
-                .contains("verb role `word` must use an Agreement- or Participle-aware declaration_verb terminal"),
+                .contains("verb role `word` must use a ConcordClass- or Participle-aware declaration_verb terminal"),
             "{non_verb}"
         );
     }
@@ -16022,7 +16041,7 @@ pub(crate) mod tests {
         .expect("the finite participle terminal projects onset without a stored form tag");
 
         let mismatch = error(quote! {
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme FiniteVerb using EnglishVerb { Deal = "deal", }
             codec PassiveHead {
                 generate declaration_verb {
@@ -16130,18 +16149,18 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn abstract_products_reject_external_agreement_sums_for_every_field_shape() {
+    fn abstract_products_reject_external_concord_class_sums_for_every_field_shape() {
         for (field, role) in [
             (quote! { required: Choice, }, "required"),
             (quote! { optional: opt Choice, }, "optional"),
             (quote! { members: seq Choice separated by " ", }, "members"),
         ] {
             let actual = error(quote! {
-                morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+                morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
                 lexeme Verbs using EnglishVerb { Act = "act", }
                 construction contextual: Child {
                     element ContextualChild {}
-                    derive agreement = verb.agreement;
+                    derive concord_class = verb.concord_class;
                     form contextual = verb(Verbs::Act);
                 }
                 abstract sum Choice { Child, }
@@ -16153,7 +16172,7 @@ pub(crate) mod tests {
                 root Root { punctuation = "."; eoi = true; standalone_render = true; }
             });
             let expected = format!(
-                "Holder.{role}: Agreement-bearing sum `Choice` requires external agreement, but abstract products cannot declare feature writers"
+                "Holder.{role}: ConcordClass-bearing sum `Choice` requires external concord_class, but abstract products cannot declare feature writers"
             );
             assert!(
                 actual.contains(&expected),
@@ -16164,13 +16183,13 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn abstract_products_reject_transitively_external_agreement_sums() {
+    fn abstract_products_reject_transitively_external_concord_class_sums() {
         let actual = error(quote! {
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme Verbs using EnglishVerb { Act = "act", }
             construction contextual: Child {
                 element ContextualChild {}
-                derive agreement = verb.agreement;
+                derive concord_class = verb.concord_class;
                 form contextual = verb(Verbs::Act);
             }
             abstract sum Choice { Inner, }
@@ -16182,7 +16201,7 @@ pub(crate) mod tests {
             }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         });
-        let expected = "Holder.required: Agreement-bearing sum `Choice` requires external agreement, but abstract products cannot declare feature writers";
+        let expected = "Holder.required: ConcordClass-bearing sum `Choice` requires external concord_class, but abstract products cannot declare feature writers";
         assert!(
             actual.contains(expected),
             "expected `{expected}` in {actual}"
@@ -16456,12 +16475,12 @@ pub(crate) mod tests {
             (
                 "generic generated verb variant",
                 quote! {
-                    morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+                    morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
                     lexeme Verbs using EnglishVerb { Act = "act", }
                     construction only: Root {
                         element Only {}
-                        derive agreement = verb.agreement;
-                        derive verb.agreement = Values::Bare;
+                        derive concord_class = verb.concord_class;
+                        derive verb.concord_class = Values::Other;
                         form only = verb(Verbs<u8>::Act);
                     }
                     root Root { punctuation = "."; eoi = true; standalone_render = true; }
@@ -16472,7 +16491,7 @@ pub(crate) mod tests {
                 quote! {
                     construction only: Root {
                         element Only {}
-                        derive agreement = Values<Item = u8>::Bare;
+                        derive concord_class = Values<Item = u8>::Bare;
                         form only = "only";
                     }
                     root Root { punctuation = "."; eoi = true; standalone_render = true; }
@@ -16811,9 +16830,9 @@ pub(crate) mod tests {
             vocab r#Mode { r#One = "one", }
             construction only: Root {
                 element Only { r#mode: lex Mode, }
-                derive agreement = r#mode.agreement;
-                derive mode.agreement = match r#mode {
-                    One => Values::Bare,
+                derive concord_class = r#mode.concord_class;
+                derive mode.concord_class = match r#mode {
+                    One => Values::Other,
                 };
                 form only = lex(mode);
             }
@@ -16825,7 +16844,10 @@ pub(crate) mod tests {
     #[test]
     fn partial_category_feature_providers_fail_validation() {
         for (feature, equation) in [
-            ("agreement", quote! { derive agreement = Values::Bare; }),
+            (
+                "concord_class",
+                quote! { derive concord_class = Values::Other; },
+            ),
             ("number", quote! { derive number = Values::Singular; }),
         ] {
             let message = crate::generate(quote! {
@@ -16875,7 +16897,7 @@ pub(crate) mod tests {
                     #head_binding
                     construction only: Root {
                         element Only { head: lex Head, }
-                        derive agreement = Values::Bare;
+                        derive concord_class = Values::Other;
                         derive number = Values::Singular;
                         form only = noun(head);
                     }
@@ -16927,15 +16949,15 @@ pub(crate) mod tests {
                 },
             ),
             (
-                "agreement match with constant noun number",
+                "concord_class match with constant noun number",
                 quote! {
                     vocab Count { One = "one", Many = "many", }
                     #head_binding
                     construction only: Root {
                         element Only { count: lex Count, head: lex Head, }
-                        derive agreement = match count {
+                        derive concord_class = match count {
                             One => Values::ThirdPersonSingular,
-                            Many => Values::Bare,
+                            Many => Values::Other,
                         };
                         derive number = Values::Singular;
                         form only = lex(count) noun(head);
@@ -16948,13 +16970,13 @@ pub(crate) mod tests {
                 quote! {
                     construction first: Root {
                         element First {}
-                        derive agreement = Values::Bare;
+                        derive concord_class = Values::Other;
                         derive number = Values::Singular;
                         form first = "first";
                     }
                     construction second: Root {
                         element Second {}
-                        derive agreement = Values::ThirdPersonSingular;
+                        derive concord_class = Values::ThirdPersonSingular;
                         derive number = Values::Plural;
                         form second = "second";
                     }
@@ -16978,9 +17000,9 @@ pub(crate) mod tests {
                     vocab Tone { Plain = "plain", Marked = "marked", }
                     construction only: Root {
                         element Only { count: lex Count, tone: lex Tone, }
-                        derive agreement = match count {
+                        derive concord_class = match count {
                             One => Values::ThirdPersonSingular,
-                            Many => Values::Bare,
+                            Many => Values::Other,
                         };
                         derive number = match tone {
                             Plain => Values::Singular,
@@ -17011,11 +17033,11 @@ pub(crate) mod tests {
                 "feature equation composition",
             ),
             (
-                "partial agreement provider",
+                "partial concord_class provider",
                 quote! {
                     construction provider: Root {
                         element Provider {}
-                        derive agreement = Values::Bare;
+                        derive concord_class = Values::Other;
                         form provider = "provider";
                     }
                     construction missing: Root {
@@ -17060,13 +17082,13 @@ pub(crate) mod tests {
                 quote! {
                     construction parent: Parent {
                         element ParentNode { child: Child, }
-                        derive agreement = child.agreement;
-                        derive child.agreement = Values::Bare;
+                        derive concord_class = child.concord_class;
+                        derive child.concord_class = Values::Other;
                         form parent = child;
                     }
                     construction child: Child {
                         element ChildNode {}
-                        derive agreement = Values::Bare;
+                        derive concord_class = Values::Other;
                         form child = "child";
                     }
                     construction entry: Entry { element EntryNode {} form entry = "entry"; }
@@ -17076,12 +17098,12 @@ pub(crate) mod tests {
             (
                 "implicit verb constant to construction",
                 quote! {
-                    morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+                    morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
                     lexeme Verbs using EnglishVerb { Act = "act", }
                     construction action: Action {
                         element ActionNode {}
-                        derive agreement = verb.agreement;
-                        derive verb.agreement = Values::Bare;
+                        derive concord_class = verb.concord_class;
+                        derive verb.concord_class = Values::Other;
                         form action = verb(Verbs::Act);
                     }
                     construction entry: Entry { element EntryNode {} form entry = "entry"; }
@@ -17095,22 +17117,22 @@ pub(crate) mod tests {
                     construction parent: Parent {
                         element ParentNode { child: Child, mode: lex Mode, }
                         require mode is One;
-                        derive agreement = child.agreement;
-                        derive child.agreement = mode.agreement;
-                        derive mode.agreement = match mode {
+                        derive concord_class = child.concord_class;
+                        derive child.concord_class = mode.concord_class;
+                        derive mode.concord_class = match mode {
                             One => Values::ThirdPersonSingular,
-                            Many => Values::Bare,
+                            Many => Values::Other,
                         };
                         form parent = child lex(mode);
                     }
                     construction bare: Child {
                         element BareChild {}
-                        derive agreement = Values::Bare;
+                        derive concord_class = Values::Other;
                         form bare = "bare";
                     }
                     construction third: Child {
                         element ThirdChild {}
-                        derive agreement = Values::ThirdPersonSingular;
+                        derive concord_class = Values::ThirdPersonSingular;
                         form third = "third";
                     }
                     construction entry: Entry { element EntryNode {} form entry = "entry"; }
@@ -17122,18 +17144,18 @@ pub(crate) mod tests {
                 quote! {
                     construction pair: Pair {
                         element PairNode { right: Child, left: Child, }
-                        derive agreement = right.agreement;
-                        derive right.agreement = left.agreement;
+                        derive concord_class = right.concord_class;
+                        derive right.concord_class = left.concord_class;
                         form pair = right left;
                     }
                     construction bare: Child {
                         element BareChild {}
-                        derive agreement = Values::Bare;
+                        derive concord_class = Values::Other;
                         form bare = "bare";
                     }
                     construction third: Child {
                         element ThirdChild {}
-                        derive agreement = Values::ThirdPersonSingular;
+                        derive concord_class = Values::ThirdPersonSingular;
                         form third = "third";
                     }
                     construction entry: Entry { element EntryNode {} form entry = "entry"; }
@@ -17154,11 +17176,11 @@ pub(crate) mod tests {
     #[test]
     fn task_11_contextual_category_requirements_fail_at_roles_and_roots() {
         let nested = crate::generate(quote! {
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme Verbs using EnglishVerb { Act = "act", }
             construction action: Child {
                 element ActionNode {}
-                derive agreement = verb.agreement;
+                derive concord_class = verb.concord_class;
                 form action = verb(Verbs::Act);
             }
             construction parent: Parent {
@@ -17167,18 +17189,18 @@ pub(crate) mod tests {
             }
             root Parent { punctuation = "."; eoi = true; standalone_render = true; }
         })
-        .expect_err("a contextual category role requires an agreement writer")
+        .expect_err("a contextual category role requires an concord_class writer")
         .to_string();
-        assert!(nested.contains("child.agreement"), "{nested}");
+        assert!(nested.contains("child.concord_class"), "{nested}");
         assert!(nested.contains("contextual category `Child`"), "{nested}");
         assert!(!nested.contains("internal"), "{nested}");
 
         let root = crate::generate(quote! {
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme Verbs using EnglishVerb { Act = "act", }
             construction action: Child {
                 element ActionNode {}
-                derive agreement = verb.agreement;
+                derive concord_class = verb.concord_class;
                 form action = verb(Verbs::Act);
             }
             root Child { punctuation = "."; eoi = true; standalone_render = true; }
@@ -17186,7 +17208,7 @@ pub(crate) mod tests {
         .expect_err("a contextual category cannot be a standalone render root")
         .to_string();
         assert!(root.contains("standalone render root `Child`"), "{root}");
-        assert!(root.contains("external agreement"), "{root}");
+        assert!(root.contains("external concord_class"), "{root}");
         assert!(!root.contains("internal"), "{root}");
     }
 
@@ -17473,7 +17495,7 @@ pub(crate) mod tests {
             roots: vec![("Action".to_owned(), true, true)],
             feature_equations: vec![(
                 "action".to_owned(),
-                "agreement = verb.agreement; verb.agreement = Bare".to_owned(),
+                "concord_class = verb.concord_class; verb.concord_class = Other".to_owned(),
             )],
             boxed_fields: vec![("chain".to_owned(), "next".to_owned())],
             dynamic_number_constructions: vec![],
@@ -17621,17 +17643,17 @@ pub(crate) mod tests {
             vec![
                 (
                     "leaf".to_owned(),
-                    "agreement = match mode { Solo => ThirdPersonSingular, Group => Bare }; number = match mode { Solo => Singular, Group => Plural }".to_owned()
+                    "concord_class = match mode { Solo => ThirdPersonSingular, Group => Other }; number = match mode { Solo => Singular, Group => Plural }".to_owned()
                 ),
                 (
                     "nested".to_owned(),
-                    "agreement = next.agreement; number = next.number".to_owned()
+                    "concord_class = next.concord_class; number = next.number".to_owned()
                 ),
-                ("action".to_owned(), "agreement = verb.agreement".to_owned()),
-                ("idle".to_owned(), "agreement = Bare".to_owned()),
+                ("action".to_owned(), "concord_class = verb.concord_class".to_owned()),
+                ("idle".to_owned(), "concord_class = Other".to_owned()),
                 (
                     "document".to_owned(),
-                    "predicate.agreement = subject.agreement".to_owned()
+                    "predicate.concord_class = subject.concord_class".to_owned()
                 ),
             ]
         );
@@ -17664,9 +17686,11 @@ pub(crate) mod tests {
         };
         let semantic = validated.semantic();
 
-        assert!(semantic.category_reads_feature("Expr", crate::feature::Feature::Agreement));
+        assert!(semantic.category_reads_feature("Expr", crate::feature::Feature::ConcordClass));
         assert!(semantic.category_reads_feature("Expr", crate::feature::Feature::Number));
-        assert!(!semantic.category_reads_feature("Predicate", crate::feature::Feature::Agreement));
+        assert!(
+            !semantic.category_reads_feature("Predicate", crate::feature::Feature::ConcordClass)
+        );
         assert!(!semantic.category_reads_feature("Tag", crate::feature::Feature::Number));
 
         assert_eq!(
@@ -17742,32 +17766,32 @@ pub(crate) mod tests {
                 (
                     "leaf".to_owned(),
                     vec![
-                        ("agreement".to_owned(), "Runtime".to_owned()),
+                        ("concord_class".to_owned(), "Runtime".to_owned()),
                         ("number".to_owned(), "Runtime".to_owned())
                     ]
                 ),
                 (
                     "nested".to_owned(),
                     vec![
-                        ("agreement".to_owned(), "Runtime".to_owned()),
+                        ("concord_class".to_owned(), "Runtime".to_owned()),
                         ("number".to_owned(), "Runtime".to_owned())
                     ]
                 ),
                 (
                     "action".to_owned(),
                     vec![
-                        ("agreement".to_owned(), "External".to_owned()),
-                        ("verb.agreement".to_owned(), "External".to_owned())
+                        ("concord_class".to_owned(), "External".to_owned()),
+                        ("verb.concord_class".to_owned(), "External".to_owned())
                     ]
                 ),
                 (
                     "idle".to_owned(),
-                    vec![("agreement".to_owned(), "Known(Bare)".to_owned())]
+                    vec![("concord_class".to_owned(), "Known(Other)".to_owned())]
                 ),
                 ("solo".to_owned(), vec![]),
                 (
                     "document".to_owned(),
-                    vec![("predicate.agreement".to_owned(), "Runtime".to_owned())]
+                    vec![("predicate.concord_class".to_owned(), "Runtime".to_owned())]
                 ),
             ]
         );

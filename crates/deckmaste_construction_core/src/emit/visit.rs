@@ -1748,7 +1748,7 @@ mod tests {
             crate::parse_declarations(quote::quote! {
                 vocab Mode { One = "one", Many = "many", }
                 vocab Marker { Alpha = "alpha", Beta = "beta", }
-                morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+                morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
                 lexeme VerbLexeme using EnglishVerb { Act = "act", }
                 construction child: Child {
                     element ChildNode {}
@@ -1756,14 +1756,14 @@ mod tests {
                 }
                 construction guarded_visit: Root {
                     element GuardedVisit { mode: lex Mode, marker: lex Marker, child: Child, }
-                    derive verb.agreement = Values::Bare;
+                    derive verb.concord_class = Values::Other;
                     form one when mode is One = lex(mode) child lex(marker);
                     form many otherwise = lex(marker) open_verb(KeywordAction, "Draw") child lex(mode);
                 }
                 construction guarded_fixed: FixedRoot {
                     element GuardedFixed { mode: lex Mode, marker: lex Marker, }
-                    derive agreement = verb.agreement;
-                    derive verb.agreement = Values::Bare;
+                    derive concord_class = verb.concord_class;
+                    derive verb.concord_class = Values::Other;
                     form one when mode is One = lex(mode) lex(marker);
                     form many otherwise = lex(marker) verb(VerbLexeme::Act) lex(mode);
                 }
@@ -1798,7 +1798,7 @@ mod tests {
             }
 
             #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-            enum Agreement { Bare, ThirdPersonSingular }
+            enum ConcordClass { Other, ThirdPersonSingular }
 
             #[derive(Debug, Clone, Copy, PartialEq, Eq)]
             enum Mode { One, Many }
@@ -2112,7 +2112,7 @@ mod tests {
     fn generated_walker_locals_are_hygienic_across_abi_and_helper_names() {
         let expansion = crate::generate(quote::quote! {
             vocab Marker { One = "marker", }
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme VisitorLexeme using EnglishVerb { Act = "act", }
             codec Token {
                 atom = lex;
@@ -2166,8 +2166,8 @@ mod tests {
             }
             construction visitor_verb: VerbRoot {
                 element VisitorVerb {}
-                derive agreement = verb.agreement;
-                derive verb.agreement = Values::Bare;
+                derive concord_class = verb.concord_class;
+                derive verb.concord_class = Values::Other;
                 form visitor_verb = verb(VisitorLexeme::Act);
             }
             construction visitor_category: VISITOR {

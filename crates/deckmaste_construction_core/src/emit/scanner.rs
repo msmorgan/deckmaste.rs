@@ -241,7 +241,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
     let declaration_verb_arms = declaration_verb_arms(plan);
     let unknown_declaration_verb_arm = plan
         .runtime_declaration_verbs()
-        .any(|(_, codec)| codec.feature_axis() == crate::feature::Feature::Agreement)
+        .any(|(_, codec)| codec.feature_axis() == crate::feature::Feature::ConcordClass)
         .then(|| quote! { Lexical::DeclarationVerb(_, _) => Vec::new(), });
     let unknown_declaration_participle_arm = plan
         .runtime_declaration_verbs()
@@ -426,35 +426,35 @@ fn verb_lexeme_arm(plan: &SemanticPlan) -> Option<TokenStream> {
         let ty = lexeme.name_ident();
         let candidates = lexeme.surfaces().iter().map(|row| {
             let member = emitted_ident(row.member(), Span::call_site());
-            let agreement = match row.feature() {
-                crate::macro_def::SurfaceFeature::Bare => quote! { Agreement::Bare },
-                crate::macro_def::SurfaceFeature::ThirdPersonSingular => {
-                    quote! { Agreement::ThirdPersonSingular }
+            let concord_class = match row.feature() {
+                crate::macro_def::SurfaceFeature::PLAIN => quote! { ConcordClass::Other },
+                crate::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT => {
+                    quote! { ConcordClass::ThirdPersonSingular }
                 }
-                crate::macro_def::SurfaceFeature::Singular
+                crate::macro_def::SurfaceFeature::Inflectional(_)
+                | crate::macro_def::SurfaceFeature::Singular
                 | crate::macro_def::SurfaceFeature::Plural
-                | crate::macro_def::SurfaceFeature::Participle
                 | crate::macro_def::SurfaceFeature::Fixed
                 | crate::macro_def::SurfaceFeature::BlockLabel => {
-                    unreachable!("validated verb lexeme has the Agreement feature axis")
+                    unreachable!("validated verb lexeme has the ConcordClass feature axis")
                 }
             };
             let surface = syn::LitStr::new(row.surface(), Span::call_site());
             let onset = super::onset(row.onset());
-            quote! { (#ty::#member, #agreement, #onset, #surface) }
+            quote! { (#ty::#member, #concord_class, #onset, #surface) }
         });
         quote! {
             Lexical::Verb(wanted, constraint) => [#(#candidates),*]
                 .into_iter()
                 .filter(|(lexeme, _, _, _)| *lexeme == wanted)
-                .filter(|(_, agreement, _, _)| {
+                .filter(|(_, concord_class, _, _)| {
                     matches!(constraint, FeatureConstraint::Any)
-                        || matches!(constraint, FeatureConstraint::Exact(expected) if expected == *agreement)
+                        || matches!(constraint, FeatureConstraint::Exact(expected) if expected == *concord_class)
                 })
-                .filter_map(|(lexeme, agreement, onset, surface)| {
+                .filter_map(|(lexeme, concord_class, onset, surface)| {
                     input.word_end(surface, terminal.right_boundary).map(|end| LexicalMatch {
                         end,
-                        value: Leaf::Verb { lexeme, agreement, onset },
+                        value: Leaf::Verb { lexeme, concord_class, onset },
                         owner: None,
                     })
                 })
@@ -506,9 +506,7 @@ fn noun_surface_candidates(
             crate::macro_def::SurfaceFeature::Plural => {
                 quote! { Number::Plural }
             }
-            crate::macro_def::SurfaceFeature::Bare
-            | crate::macro_def::SurfaceFeature::ThirdPersonSingular
-            | crate::macro_def::SurfaceFeature::Participle
+            crate::macro_def::SurfaceFeature::Inflectional(_)
             | crate::macro_def::SurfaceFeature::Fixed
             | crate::macro_def::SurfaceFeature::BlockLabel => {
                 unreachable!("validated noun lexeme has the Number feature axis")
@@ -569,7 +567,7 @@ fn declaration_noun_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
         let position = crate::emit::grammar_position(codec.position());
         let number_feature = match codec.feature_axis() {
             crate::feature::Feature::Number => quote! { wanted },
-            crate::feature::Feature::Agreement
+            crate::feature::Feature::ConcordClass
             | crate::feature::Feature::BareLocativeLicense
             | crate::feature::Feature::Cardinality
             | crate::feature::Feature::Compoundability
@@ -745,26 +743,26 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                     .expect("validated declaration_verb closed branch is a verb lexeme");
                 assert_eq!(closed, closed_plan.name());
                 match codec.feature_axis() {
-                    crate::feature::Feature::Agreement => {
+                    crate::feature::Feature::ConcordClass => {
                         let candidates = closed_plan.surfaces().iter().map(|row| {
                             let member = emitted_ident(row.member(), Span::call_site());
-                            let agreement = match row.feature() {
-                                crate::macro_def::SurfaceFeature::Bare => quote! { Agreement::Bare },
-                                crate::macro_def::SurfaceFeature::ThirdPersonSingular => quote! { Agreement::ThirdPersonSingular },
-                                _ => unreachable!("validated Agreement declaration verb has Agreement rows"),
+                            let concord_class = match row.feature() {
+                                crate::macro_def::SurfaceFeature::PLAIN => quote! { ConcordClass::Other },
+                                crate::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT => quote! { ConcordClass::ThirdPersonSingular },
+                                _ => unreachable!("validated ConcordClass declaration verb has ConcordClass rows"),
                             };
                             let surface = syn::LitStr::new(row.surface(), Span::call_site());
                             let onset = crate::emit::onset(row.onset());
-                            quote! { (#closed::#member, #agreement, #onset, #surface) }
+                            quote! { (#closed::#member, #concord_class, #onset, #surface) }
                         });
                         quote! {
-                            for (lexeme, agreement, onset, surface) in [#(#candidates),*] {
+                            for (lexeme, concord_class, onset, surface) in [#(#candidates),*] {
                                 if (matches!(wanted, FeatureConstraint::Any)
-                                    || matches!(wanted, FeatureConstraint::Exact(expected) if expected == agreement))
+                                    || matches!(wanted, FeatureConstraint::Exact(expected) if expected == concord_class))
                                     && let Some(end) = input.word_end(surface, terminal.right_boundary)
                                 {
                                     matches.push(LexicalMatch { end, value: Leaf::#verb {
-                                        verb: #verb::Lexeme(lexeme), agreement, onset,
+                                        verb: #verb::Lexeme(lexeme), concord_class, onset,
                                     }, owner: None });
                                 }
                             }
@@ -772,7 +770,7 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                     }
                     crate::feature::Feature::Participle => {
                         let candidates = closed_plan.surfaces().iter().map(|row| {
-                            debug_assert_eq!(row.feature(), crate::macro_def::SurfaceFeature::Participle);
+                            debug_assert_eq!(row.feature(), crate::macro_def::SurfaceFeature::PAST_PARTICIPLE);
                             let member = emitted_ident(row.member(), Span::call_site());
                             let surface = syn::LitStr::new(row.surface(), Span::call_site());
                             let onset = crate::emit::onset(row.onset());
@@ -797,7 +795,7 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                 quote! { declaration }
             };
             match codec.feature_axis() {
-                crate::feature::Feature::Agreement => quote! {
+                crate::feature::Feature::ConcordClass => quote! {
                     Lexical::DeclarationVerb(#terminal_index, wanted) => {
                     let mut matches = Vec::new();
                     #closed_scan
@@ -805,25 +803,25 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                         #frame_class,
                         &[#(#frame_atoms),*],
                     );
-                    for agreement in [Agreement::Bare, Agreement::ThirdPersonSingular] {
+                    for concord_class in [ConcordClass::Other, ConcordClass::ThirdPersonSingular] {
                         if !matches!(wanted, FeatureConstraint::Any)
-                            && !matches!(wanted, FeatureConstraint::Exact(expected) if expected == agreement)
+                            && !matches!(wanted, FeatureConstraint::Exact(expected) if expected == concord_class)
                         {
                             continue;
                         }
                         for (end, reading) in input.declaration_verb_readings(
                             input.position.byte_offset,
                             &frame,
-                            match agreement {
-                                Agreement::Bare => ::deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
-                                Agreement::ThirdPersonSingular => ::deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular,
+                            match concord_class {
+                                ConcordClass::Other => ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
+                                ConcordClass::ThirdPersonSingular => ::deckmaste_construction_core::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
                             },
                         ) {
                             let reference = reading.reference().clone();
-                            let feature = match agreement {
-                                Agreement::Bare => ::deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
-                                Agreement::ThirdPersonSingular => {
-                                    ::deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular
+                            let feature = match concord_class {
+                                ConcordClass::Other => ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
+                                ConcordClass::ThirdPersonSingular => {
+                                    ::deckmaste_construction_core::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT
                                 }
                             };
                             let onset = reading.onset();
@@ -834,7 +832,7 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                                 end,
                                 value: Leaf::#verb {
                                     verb: #open_value,
-                                    agreement,
+                                    concord_class,
                                     onset,
                                 },
                                 owner: None,
@@ -855,7 +853,7 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                     for (end, reading) in input.declaration_verb_readings(
                         input.position.byte_offset,
                         &frame,
-                            ::deckmaste_construction_core::macro_def::SurfaceFeature::Participle,
+                            ::deckmaste_construction_core::macro_def::SurfaceFeature::PAST_PARTICIPLE,
                         ) {
                             let onset = reading.onset();
                             let Some(declaration) = #declaration::new(input.environment, reading.reference().clone()) else { continue; };
@@ -924,10 +922,10 @@ mod tests {
     fn generated_morphology_scanner_uses_every_sealed_surface_row() {
         let source = generated_scanner_source();
         for row in [
-            "(VerbLexeme :: InventedLemma , Agreement :: Bare , Onset :: Consonant , \"deal\")",
-            "(VerbLexeme :: InventedLemma , Agreement :: ThirdPersonSingular , Onset :: Consonant , \"deals\")",
-            "(VerbLexeme :: Be , Agreement :: Bare , Onset :: Vowel , \"are\")",
-            "(VerbLexeme :: Be , Agreement :: ThirdPersonSingular , Onset :: Vowel , \"is\")",
+            "(VerbLexeme :: InventedLemma , ConcordClass :: Other , Onset :: Consonant , \"deal\")",
+            "(VerbLexeme :: InventedLemma , ConcordClass :: ThirdPersonSingular , Onset :: Consonant , \"deals\")",
+            "(VerbLexeme :: Be , ConcordClass :: Other , Onset :: Vowel , \"are\")",
+            "(VerbLexeme :: Be , ConcordClass :: ThirdPersonSingular , Onset :: Vowel , \"is\")",
             "(NounLexeme :: TwoWords , Number :: Singular , Onset :: Vowel , \"object\")",
             "(NounLexeme :: TwoWords , Number :: Plural , Onset :: Vowel , \"objects\")",
         ] {
@@ -949,15 +947,15 @@ mod tests {
             "closed verb matcher does not carry its sealed feature constraint: {source}"
         );
         assert!(
-            source.contains("Leaf :: Verb { lexeme , agreement , onset }"),
+            source.contains("Leaf :: Verb { lexeme , concord_class , onset }"),
             "closed verb scanner discarded the normalized-row onset: {source}"
         );
         assert!(
             source.contains("matches ! (constraint , FeatureConstraint :: Any)")
                 && source.contains(
-                    "matches ! (constraint , FeatureConstraint :: Exact (expected) if expected == * agreement)"
+                    "matches ! (constraint , FeatureConstraint :: Exact (expected) if expected == * concord_class)"
                 ),
-            "closed verb candidates are not filtered by requested agreement: {source}"
+            "closed verb candidates are not filtered by requested concord_class: {source}"
         );
     }
 

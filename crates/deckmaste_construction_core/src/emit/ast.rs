@@ -710,11 +710,14 @@ fn emit_derived_role_feature_check(
         return Ok(None);
     }
     let (helper_name, identity) = match feature {
-        crate::feature::Feature::Agreement
-            if plan.sum_carries_agreement(constrained.terminal())
-                || plan.category_carries_agreement(constrained.terminal()) =>
+        crate::feature::Feature::ConcordClass
+            if plan.sum_carries_concord_class(constrained.terminal())
+                || plan.category_carries_concord_class(constrained.terminal()) =>
         {
-            ("agreement_matches", "value matches derived agreement")
+            (
+                "concord_class_matches",
+                "value matches derived concord_class",
+            )
         }
         crate::feature::Feature::Number if plan.category_carries_number(constrained.terminal()) => {
             ("number", "value matches derived grammatical Number")
@@ -736,7 +739,7 @@ fn emit_derived_role_feature_check(
     let role = syn::LitStr::new(&constrained.name_key(), field.span());
     let identity = syn::LitStr::new(identity, field.span());
     let matches = match feature {
-        crate::feature::Feature::Agreement => quote! { #helper(&#value, #expected) },
+        crate::feature::Feature::ConcordClass => quote! { #helper(&#value, #expected) },
         crate::feature::Feature::Number => quote! { #helper(&#value) == #expected },
         _ => unreachable!("unsupported checked feature was rejected"),
     };
@@ -770,7 +773,7 @@ fn emit_sequence_feature_check(
     }
     if !matches!(
         feature,
-        crate::feature::Feature::Agreement | crate::feature::Feature::Number
+        crate::feature::Feature::ConcordClass | crate::feature::Feature::Number
     ) {
         return Err(internal("unsupported checked sequence feature"));
     }
@@ -785,11 +788,11 @@ fn emit_sequence_feature_check(
     }
     let feature_owner = match (feature, item) {
         (
-            crate::feature::Feature::Agreement,
+            crate::feature::Feature::ConcordClass,
             crate::semantic::ValueKindPlan::Category(category),
-        ) if plan.category_carries_agreement(category) => category,
-        (crate::feature::Feature::Agreement, crate::semantic::ValueKindPlan::Sum(sum))
-            if plan.sum_carries_agreement(sum) =>
+        ) if plan.category_carries_concord_class(category) => category,
+        (crate::feature::Feature::ConcordClass, crate::semantic::ValueKindPlan::Sum(sum))
+            if plan.sum_carries_concord_class(sum) =>
         {
             sum
         }
@@ -814,7 +817,7 @@ fn emit_sequence_feature_check(
     let role = field.name_key();
     let values = field_local(locals, field)?;
     let helper_name = match feature {
-        crate::feature::Feature::Agreement => "agreement_matches",
+        crate::feature::Feature::ConcordClass => "concord_class_matches",
         crate::feature::Feature::Number => "number",
         _ => unreachable!("unsupported sequence feature was rejected"),
     };
@@ -839,7 +842,7 @@ fn emit_sequence_feature_check(
             locals,
         )?;
         let predicate = match feature {
-            crate::feature::Feature::Agreement => {
+            crate::feature::Feature::ConcordClass => {
                 quote! { #values.iter().all(|value| #helper(value, #expected)) }
             }
             crate::feature::Feature::Number => {
@@ -848,20 +851,20 @@ fn emit_sequence_feature_check(
             _ => unreachable!("unsupported sequence feature was rejected"),
         };
         let identity = match feature {
-            crate::feature::Feature::Agreement => "all members match derived agreement",
+            crate::feature::Feature::ConcordClass => "all members match derived concord_class",
             crate::feature::Feature::Number => "all members match derived grammatical Number",
             _ => unreachable!("unsupported sequence feature was rejected"),
         };
         (predicate, identity)
     } else {
         let predicate = match feature {
-            crate::feature::Feature::Agreement => quote! {
-                [Agreement::Bare, Agreement::ThirdPersonSingular]
+            crate::feature::Feature::ConcordClass => quote! {
+                [ConcordClass::Other, ConcordClass::ThirdPersonSingular]
                     .into_iter()
-                    .any(|agreement| {
+                    .any(|concord_class| {
                         #values
                             .iter()
-                            .all(|value| #helper(value, agreement))
+                            .all(|value| #helper(value, concord_class))
                     })
             },
             crate::feature::Feature::Number => quote! {
@@ -876,7 +879,7 @@ fn emit_sequence_feature_check(
             _ => unreachable!("unsupported sequence feature was rejected"),
         };
         let identity = match feature {
-            crate::feature::Feature::Agreement => "all members share agreement",
+            crate::feature::Feature::ConcordClass => "all members share concord_class",
             crate::feature::Feature::Number => "all members share grammatical Number",
             _ => unreachable!("unsupported sequence feature was rejected"),
         };
@@ -1138,9 +1141,9 @@ fn lower_constructor_feature_expression(
 
 fn feature_value(value: crate::feature::FeatureValue) -> TokenStream {
     match value {
-        crate::feature::FeatureValue::Bare => quote! { Agreement::Bare },
+        crate::feature::FeatureValue::ConcordOther => quote! { ConcordClass::Other },
         crate::feature::FeatureValue::ThirdPersonSingular => {
-            quote! { Agreement::ThirdPersonSingular }
+            quote! { ConcordClass::ThirdPersonSingular }
         }
         crate::feature::FeatureValue::QualifiedOnly => {
             quote! { BareLocativeLicense::QualifiedOnly }
@@ -1373,7 +1376,7 @@ mod tests {
     #[test]
     fn declaration_verb_ast_stores_only_the_category_safe_value() {
         let expansion = crate::generate(quote::quote! {
-            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
             lexeme CoreVerb using EnglishVerb { Act = "act", }
             vocab ObjectWord { Object = "object", }
             codec TransitiveVerb {
@@ -1381,12 +1384,12 @@ mod tests {
                     closed = CoreVerb;
                     position = Verb;
                     tail = [ObjectNounPhrase];
-                    feature = Agreement;
+                    feature = ConcordClass;
                 }
             }
             construction transitive: VerbPhrase {
                 element Transitive { head: lex TransitiveVerb, object: lex ObjectWord, }
-                derive head.agreement = Values::Bare;
+                derive head.concord_class = Values::Other;
                 form transitive = verb(head) lex(object);
             }
             root VerbPhrase { punctuation = "."; eoi = true; standalone_render = true; }
@@ -1608,10 +1611,10 @@ mod tests {
         for required in [
             "matches ! (mode , Mode :: One)",
             "matches ! (& child , Child :: First (_))",
-            "Agreement :: Bare",
+            "ConcordClass :: Other",
             "matches ! (mode , Mode :: Two)",
             "matches ! (& child , Child :: Second (_))",
-            "Agreement :: ThirdPersonSingular",
+            "ConcordClass :: ThirdPersonSingular",
             "Ok (Self { open , mode , child })",
             "BuildRejection :: new",
         ] {
@@ -1722,7 +1725,7 @@ mod tests {
     fn invariant_role_feature_seals_its_category_helper_and_dnf_grouping() {
         let plan = invariant_semantic_plan();
         assert!(
-            plan.category_reads_feature("FeatureChild", crate::feature::Feature::Agreement,),
+            plan.category_reads_feature("FeatureChild", crate::feature::Feature::ConcordClass,),
             "a role-feature predicate seals the category helper inventory used by its constructor",
         );
 
@@ -1845,7 +1848,7 @@ mod tests {
             quote::quote! {
                 fn try_new(
                     child: FeatureChild,
-                    agreement_for_feature_child_2: Mode
+                    concord_class_for_feature_child_2: Mode
                 ) -> Result<Self, BuildRejection>
             }
             .to_string(),
@@ -1853,11 +1856,11 @@ mod tests {
         );
         let body = constructor.block.to_token_stream().to_string();
         assert!(
-            body.contains("agreement_for_feature_child (& child)"),
+            body.contains("concord_class_for_feature_child (& child)"),
             "the category helper call remains unshadowed: {body}",
         );
         assert!(
-            body.contains("agreement_for_feature_child : agreement_for_feature_child_2"),
+            body.contains("concord_class_for_feature_child : concord_class_for_feature_child_2"),
             "the suffixed local initializes the unchanged authored field: {body}",
         );
     }
@@ -1898,25 +1901,25 @@ mod tests {
                 }
             })
             .collect::<Vec<_>>();
-        let agreement_match = super::super::render::emit(&plan)
+        let concord_class_match = super::super::render::emit(&plan)
             .expect("invariant render fixture emits")
             .into_iter()
             .find(|item| {
                 matches!(
                     &item.key,
                     ItemKey::Named { name, .. }
-                        if name == "agreement_matches_for_feature_child"
+                        if name == "concord_class_matches_for_feature_child"
                 )
             })
-            .expect("the constructor's category Agreement matcher is generated");
+            .expect("the constructor's category ConcordClass matcher is generated");
         let runtime = runtime_items.iter().map(|item| &item.tokens);
         let generated = items.iter().map(|item| &item.tokens);
-        let agreement_match = agreement_match.tokens;
+        let concord_class_match = concord_class_match.tokens;
         let source = quote::quote! {
             #![allow(dead_code)]
 
             #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-            enum Agreement { Bare, ThirdPersonSingular }
+            enum ConcordClass { Other, ThirdPersonSingular }
             #[derive(Debug, Clone, Copy, PartialEq, Eq)]
             enum Number { Singular, Plural }
             #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1935,12 +1938,12 @@ mod tests {
 
             #(#runtime)*
             #(#generated)*
-            #agreement_match
+            #concord_class_match
 
-            fn agreement_for_feature_child(child: &FeatureChild) -> Agreement {
+            fn concord_class_for_feature_child(child: &FeatureChild) -> ConcordClass {
                 match child {
-                    FeatureChild::FeatureBare(_) => Agreement::Bare,
-                    FeatureChild::FeatureThird(_) => Agreement::ThirdPersonSingular,
+                    FeatureChild::FeatureBare(_) => ConcordClass::Other,
+                    FeatureChild::FeatureThird(_) => ConcordClass::ThirdPersonSingular,
                 }
             }
 
@@ -1987,7 +1990,7 @@ mod tests {
                 )
                 .expect("the generated helper remains callable beside its namesake field");
                 assert!(matches!(collision.child(), FeatureChild::FeatureBare(_)));
-                assert_eq!(collision.agreement_for_feature_child, Mode::Two);
+                assert_eq!(collision.concord_class_for_feature_child, Mode::Two);
                 assert!(FeatureHelperCollisionNode::new(
                     FeatureChild::FeatureThird(FeatureThird),
                     Mode::One,
@@ -2237,7 +2240,7 @@ mod tests {
                 "Mode",
                 "ObjectStem",
                 "ActionStem",
-                "Agreement",
+                "ConcordClass",
                 "Cardinality",
                 "BareLocativeComplement",
                 "BareLocativeLicense",
@@ -2406,32 +2409,32 @@ mod tests {
                 }
                 construction feature_bare: FeatureChild {
                     element FeatureBare {}
-                    derive agreement = Values::Bare;
+                    derive concord_class = Values::Other;
                     form feature_bare = "feature bare";
                 }
                 construction feature_third: FeatureChild {
                     element FeatureThird {}
-                    derive agreement = Values::ThirdPersonSingular;
+                    derive concord_class = Values::ThirdPersonSingular;
                     form feature_third = "feature third";
                 }
                 construction role_feature_guarded: FeatureRoot {
                     element RoleFeatureGuarded { child: FeatureChild, }
-                    require child.agreement is Bare;
-                    derive agreement = child.agreement;
+                    require child.concord_class is Other;
+                    derive concord_class = child.concord_class;
                     form role_feature_guarded = child;
                 }
                 construction optional_role_feature_guarded: FeatureRoot {
                     element OptionalRoleFeatureGuarded { child: opt FeatureChild, }
-                    require child.agreement is Bare;
-                    derive agreement = Values::Bare;
+                    require child.concord_class is Other;
+                    derive concord_class = Values::Other;
                     form optional_role_feature_guarded = child;
                 }
                 construction construction_feature: FeatureRoot {
                     element ConstructionFeatureNode { mode: lex Mode, }
-                    require agreement is Bare;
-                    derive agreement = mode.agreement;
-                    derive mode.agreement = match mode {
-                        One => Values::Bare,
+                    require concord_class is Other;
+                    derive concord_class = mode.concord_class;
+                    derive mode.concord_class = match mode {
+                        One => Values::Other,
                         Two => Values::ThirdPersonSingular,
                     };
                     form construction_feature = lex(mode);
@@ -2441,11 +2444,11 @@ mod tests {
                         child: FeatureChild,
                         mode: lex Mode,
                     }
-                    require child.agreement is Bare;
-                    derive agreement = child.agreement;
-                    derive child.agreement = mode.agreement;
-                    derive mode.agreement = match mode {
-                        One => Values::Bare,
+                    require child.concord_class is Other;
+                    derive concord_class = child.concord_class;
+                    derive child.concord_class = mode.concord_class;
+                    derive mode.concord_class = match mode {
+                        One => Values::Other,
                         Two => Values::ThirdPersonSingular,
                     };
                     form transitive_role_feature = child lex(mode);
@@ -2453,16 +2456,16 @@ mod tests {
                 construction feature_helper_collision: FeatureRoot {
                     element FeatureHelperCollisionNode {
                         child: FeatureChild,
-                        agreement_for_feature_child: lex Mode,
+                        concord_class_for_feature_child: lex Mode,
                     }
-                    require child.agreement is Bare;
-                    derive agreement = child.agreement;
-                    form feature_helper_collision = child lex(agreement_for_feature_child);
+                    require child.concord_class is Other;
+                    derive concord_class = child.concord_class;
+                    form feature_helper_collision = child lex(concord_class_for_feature_child);
                 }
                 construction constant_feature: FeatureRoot {
                     element ConstantFeatureNode { open: lex OpenValue, }
-                    require agreement is Bare;
-                    derive agreement = Values::Bare;
+                    require concord_class is Other;
+                    derive concord_class = Values::Other;
                     form constant_feature = lex(open);
                 }
                 construction recursive: Child {
@@ -2478,29 +2481,29 @@ mod tests {
                         child: Child,
                     }
                     require any(
-                        all(mode is One, child is First, agreement is Bare),
-                        all(mode is Two, child is Second, agreement is ThirdPersonSingular)
+                        all(mode is One, child is First, concord_class is Other),
+                        all(mode is Two, child is Second, concord_class is ThirdPersonSingular)
                     );
-                    derive agreement = mode.agreement;
-                    derive mode.agreement = match mode {
-                        One => Values::Bare,
+                    derive concord_class = mode.concord_class;
+                    derive mode.concord_class = match mode {
+                        One => Values::Other,
                         Two => Values::ThirdPersonSingular,
                     };
                     form guarded = lex(open) lex(mode) child;
                 }
                 construction contextual: Root {
                     element ContextNode { spelling: identity SelfReferenceSpelling, }
-                    derive agreement = Values::Bare;
+                    derive concord_class = Values::Other;
                     form contextual = identity(spelling);
                 }
                 construction unit: Root {
                     element UnitNode {}
-                    derive agreement = Values::Bare;
+                    derive concord_class = Values::Other;
                     form unit = "unit";
                 }
                 construction open: Root {
                     element OpenNode { open: lex OpenValue, }
-                    derive agreement = Values::Bare;
+                    derive concord_class = Values::Other;
                     form open = lex(open);
                 }
                 root Root { punctuation = "."; eoi = true; standalone_render = true; }

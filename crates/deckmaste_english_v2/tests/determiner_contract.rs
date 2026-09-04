@@ -101,7 +101,7 @@ fn zero_and_quantity_number_are_selected_from_the_complete_determinative() {
                         .any(|step| *step == "PredicateAdjunctDurationPredicateAdjunct")
                 })
             }),
-            "the invalid object agreement has only a syntactic duration reading; temporal semantics is downstream: {analysis:#?}",
+            "the invalid object concord_class has only a syntactic duration reading; temporal semantics is downstream: {analysis:#?}",
         );
     }
 }

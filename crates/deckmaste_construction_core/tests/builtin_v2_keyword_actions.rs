@@ -155,9 +155,9 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
     assert_eq!(
         surfaces(destroy),
         [
-            (SurfaceFeature::Bare, "destroy"),
-            (SurfaceFeature::ThirdPersonSingular, "destroys"),
-            (SurfaceFeature::Participle, "destroyed"),
+            (SurfaceFeature::PLAIN, "destroy"),
+            (SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT, "destroys"),
+            (SurfaceFeature::PAST_PARTICIPLE, "destroyed"),
         ]
     );
 
@@ -178,9 +178,9 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
     assert_eq!(
         surfaces(regenerate),
         [
-            (SurfaceFeature::Bare, "regenerate"),
-            (SurfaceFeature::ThirdPersonSingular, "regenerates"),
-            (SurfaceFeature::Participle, "regenerated"),
+            (SurfaceFeature::PLAIN, "regenerate"),
+            (SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT, "regenerates"),
+            (SurfaceFeature::PAST_PARTICIPLE, "regenerated"),
         ]
     );
 
@@ -196,9 +196,9 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
     assert_eq!(
         surfaces(scry),
         [
-            (SurfaceFeature::Bare, "scry"),
-            (SurfaceFeature::ThirdPersonSingular, "scries"),
-            (SurfaceFeature::Participle, "scryed"),
+            (SurfaceFeature::PLAIN, "scry"),
+            (SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT, "scries"),
+            (SurfaceFeature::PAST_PARTICIPLE, "scryed"),
         ]
     );
     assert!(
@@ -238,9 +238,12 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
     assert_eq!(
         surfaces(manifest_dread),
         [
-            (SurfaceFeature::Bare, "manifest dread"),
-            (SurfaceFeature::ThirdPersonSingular, "manifests dread"),
-            (SurfaceFeature::Participle, "manifest dreaded"),
+            (SurfaceFeature::PLAIN, "manifest dread"),
+            (
+                SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
+                "manifests dread"
+            ),
+            (SurfaceFeature::PAST_PARTICIPLE, "manifest dreaded"),
         ]
     );
 
@@ -285,13 +288,13 @@ fn roll_to_visit_your_attractions_has_its_attested_agreeing_surface() {
     assert_eq!(
         surfaces(action(&declarations, "RollToVisitYourAttractions")),
         [
-            (SurfaceFeature::Bare, "roll to visit your Attractions"),
+            (SurfaceFeature::PLAIN, "roll to visit your Attractions"),
             (
-                SurfaceFeature::ThirdPersonSingular,
+                SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
                 "rolls to visit their Attractions",
             ),
             (
-                SurfaceFeature::Participle,
+                SurfaceFeature::PAST_PARTICIPLE,
                 "roll to visit your Attractionsed",
             ),
         ]

@@ -1085,7 +1085,7 @@ fn atomic(predicate: VerbPhrase) -> Predicate {
 fn finite_clause(subject: Subject, predicate: VerbPhrase) -> FiniteClause {
     FiniteClause::PlainFiniteClause(
         PlainFiniteClause::new(subject, Box::new(atomic(predicate)))
-            .expect("the helper supplies matching subject-predicate agreement"),
+            .expect("the helper supplies matching subject-predicate concord_class"),
     )
 }
 
@@ -1933,12 +1933,12 @@ fn missing_period_reports_chart_derived_literal_expectation() {
 }
 
 #[test]
-fn agreement_mismatch_reports_a_nonempty_chart_failure() {
+fn concord_class_mismatch_reports_a_nonempty_chart_failure() {
     let text = "You gains X life.";
     let Err(ParseError::Failure { span, expectations }) =
         parser().parse(text, &context("Context Card"))
     else {
-        panic!("subject-predicate agreement mismatch must remain a chart failure")
+        panic!("subject-predicate concord_class mismatch must remain a chart failure")
     };
     assert_eq!(span, TextSpan { start: 16, end: 17 });
     assert!(!expectations.is_empty());
