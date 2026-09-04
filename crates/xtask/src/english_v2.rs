@@ -6,6 +6,7 @@ mod corpus;
 mod coverage;
 mod coverage_lock;
 mod diagnostic;
+mod flavor_words;
 mod inspect;
 mod parse;
 mod probe;
@@ -338,6 +339,8 @@ enum EnglishV2Command {
     Ambiguity(AmbiguityArgs),
     /// Report and gate full-corpus lexical ownership coverage.
     Coverage(CoverageArgs),
+    /// Check or regenerate corpus-derived flavor-word declaration stubs.
+    FlavorWords(flavor_words::FlavorWordsArgs),
     /// Trace one explicit input through the bounded parser diagnostics.
     Probe(ProbeArgs),
     /// Trace one exact corpus unit through the bounded parser diagnostics.
@@ -506,6 +509,10 @@ pub fn run(args: &EnglishV2Args) -> anyhow::Result<()> {
         EnglishV2Command::Coverage(args) => {
             let mut stdout = std::io::stdout().lock();
             coverage::run(args, &mut stdout)
+        }
+        EnglishV2Command::FlavorWords(args) => {
+            let mut stdout = std::io::stdout().lock();
+            flavor_words::run(args, &mut stdout)
         }
         EnglishV2Command::Probe(args) => {
             let mut stdout = std::io::stdout().lock();

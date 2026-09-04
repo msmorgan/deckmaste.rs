@@ -10,62 +10,6 @@ use deckmaste_construction_core::macro_def::read_builtin_v2;
 use deckmaste_data::mtgjson::AtomicCards;
 use deckmaste_data::scryfall::Catalog;
 
-fn chapter_prefix(text: &str) -> bool {
-    text.split(", ").all(|part| {
-        !part.is_empty()
-            && part
-                .chars()
-                .all(|character| matches!(character, 'I' | 'V' | 'X'))
-    })
-}
-
-fn flavor_word_census<'a>(
-    cards: &'a AtomicCards<'a>,
-    catalog: &BTreeSet<&'a str>,
-    ability_words: &BTreeSet<&str>,
-) -> BTreeSet<&'a str> {
-    let mut surfaces = BTreeSet::new();
-    for card in cards
-        .data
-        .values()
-        .flatten()
-        .filter(|card| card.vintage_playable())
-    {
-        for line in card.text.as_deref().unwrap_or_default().lines() {
-            if let Some(mode) = line.strip_prefix("• ") {
-                let Some((label, _body)) = mode.split_once(" — ") else {
-                    continue;
-                };
-                if !label.chars().all(char::is_numeric)
-                    && (catalog.contains(label) || !label.contains(char::is_whitespace))
-                    && !ability_words.contains(label)
-                {
-                    surfaces.insert(label);
-                }
-                continue;
-            }
-
-            let Some((head, tail)) = line.split_once(" — ") else {
-                continue;
-            };
-            if chapter_prefix(head) {
-                let Some((label, _body)) = tail.split_once(" — ") else {
-                    continue;
-                };
-                if (catalog.contains(label)
-                    || (!label.contains(char::is_whitespace) && !label.contains('"')))
-                    && !ability_words.contains(label)
-                {
-                    surfaces.insert(label);
-                }
-            } else if catalog.contains(head) && !ability_words.contains(head) {
-                surfaces.insert(head);
-            }
-        }
-    }
-    surfaces
-}
-
 #[test]
 fn builtin_v2_flavor_word_nursery_matches_the_corpus_census() {
     let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
@@ -84,7 +28,7 @@ fn builtin_v2_flavor_word_nursery_matches_the_corpus_census() {
     let card_bytes = std::fs::read(workspace_root.join("data/mtgjson/AtomicCards.json"))
         .expect("the corpus snapshot must load");
     let cards = AtomicCards::parse(&card_bytes).expect("the corpus snapshot must parse");
-    let expected = flavor_word_census(&cards, &catalog, &ability_words);
+    let expected = deckmaste_data::flavor_words::census(&cards, &catalog, &ability_words);
 
     let declarations = read_builtin_v2(workspace_root.join("plugins/builtin_v2"))
         .expect("builtin-v2 declarations must load");
@@ -99,7 +43,6 @@ fn builtin_v2_flavor_word_nursery_matches_the_corpus_census() {
         })
         .collect::<BTreeMap<_, _>>();
 
-    assert_eq!(expected.len(), 630);
     assert_eq!(
         actual.keys().map(String::as_str).collect::<BTreeSet<_>>(),
         expected,

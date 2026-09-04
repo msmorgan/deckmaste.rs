@@ -9,6 +9,7 @@ use serde::Deserialize;
 use serde::Deserializer;
 
 pub mod academyruins;
+pub mod flavor_words;
 pub mod mtgjson;
 pub mod scryfall;
 
