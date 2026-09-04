@@ -1,6 +1,14 @@
 ---
 needs: []
 ---
+Use the [`Ability` and `Static Ability` glossary meanings](../../contexts/game-model/CONTEXT.md): an Ability is a
+rules-defined quality of an Object or Player (or an activated/triggered ability on the stack), and a
+Static Ability is one that is simply true while its Object is in the relevant zone — neither
+describes a state-based action. Aura's actual `enchant` keyword remains an ordinary Static Ability
+([CR#702.5a]), while the Aura type rules remain type rules ([CR#303.4,704.5m]); the two must not be
+collapsed. Apply the same classification audit to Equipment, Fortification, Saga, and the other type
+and subtype conferrals, not to Aura alone.
+
 **[design] Idris grammar: an SBA is not a static ability — hoist `Sba` out of the `Static`
 ability path.** `StaticEffect::Sba` (Rust) / the Idris `Sba` constructor of `StaticEffect`
 (reachable only as `Ability::Static (Sba …)`) models a state-based action ([CR#704]) as a

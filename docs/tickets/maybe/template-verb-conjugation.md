@@ -1,6 +1,13 @@
 ---
-needs: []
+needs: [english-v2-person-number-agreement]
 ---
+Agreement comes from the [`Person`, `Number`, `Agreement`, and `Concord Class`
+model](../../contexts/oracle-english/CONTEXT.md) established by `english-v2-person-number-agreement`,
+which this ticket now follows. Reuse those features; do **not** create a second
+template-only agreement model. That settles dialogue point 2 below — the
+remaining open choice is the template spelling for a conjugable verb and how it
+names its governing Subject, not where (person, number) comes from.
+
 **[design]** Teach the macro `template` grammar **verb conjugation** so a verb
 agrees with its subject's grammatical person and number — in BOTH directions
 (render and parse), since templates are now the bidirectional source of truth

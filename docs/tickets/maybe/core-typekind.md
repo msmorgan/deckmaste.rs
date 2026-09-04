@@ -1,5 +1,5 @@
 ---
-needs: []
+needs: [type-def-permanent-type-flag]
 ---
 DEFERRED to `maybe/` (2026-07-18, with the user): keep `TypeDef.permanent: bool`
 for now — but leave the door open. A structured `TypeKind` might still prove
@@ -13,11 +13,14 @@ Why not now:
   There is no third resolution mode today. A bool is the honest, minimal
   representation for that fork.
 - The structured `TypeKind`'s only real payoff — capabilities as struct fields
-  (`Permanent{can_attack, can_block, …}`) — is exactly what the conferred
-  `May(…)` grants replaced ([Types grant capabilities](../../decisions/types-grant-capabilities.md),
-  [Conferrals come from registries](../../decisions/conferrals-come-from-registries.md)). Reintroducing them as fields creates a second
-  source of truth for combat capability competing with `TypeDef.confers` (folded
-  in `layer.rs fold_conferred_abilities`).
+  (`Permanent{combatant, …}`) — belongs instead in conferred registry data
+  ([Types grant capabilities](../../decisions/types-grant-capabilities.md),
+  [Conferrals come from registries](../../decisions/conferrals-come-from-registries.md)).
+  Reintroducing the Combatant role as a struct field creates a second source of
+  truth competing with `TypeDef.confers` (folded in `layer.rs
+  fold_conferred_abilities`). The planned `engine-combatant-role` correction
+  replaces the current `May(Attack)` proxy with that explicit bundled role; it
+  does not move the role into `TypeKind`.
 - Stripped of the capability fields, a two-variant `Spell | Permanent` enum is
   just nominal typing over a bool with no extensibility actually coming, at the
   cost of migrating ~40 fixtures + the `Type::permanent()` const-fn mirror +
@@ -31,8 +34,16 @@ Revisit if either emerges:
   several readers, where nominal `TypeKind` typing would start to pay for itself.
 
 Guardrail if reopened: keep it to the spell/permanent fork. Do **not** absorb
-capabilities back into fields — combat/casting capability stays conferred data
-in `TypeDef.confers`, per the rulings above.
+capabilities back into fields — the Combatant role and other capabilities stay
+conferred data in `TypeDef.confers`, per the rulings above.
+
+This item now follows the `type-def-permanent-type-flag` rename: the flag it
+would restructure becomes the CR-faithful `TypeDef.permanent_type` first. See
+the glossary's [`Permanent Type`, `Spell`, and `Permanent`
+definitions](../../contexts/game-model/CONTEXT.md) — Permanent Type is a property of a Card
+Type, while Spell and Permanent are nonexclusive *current roles* of an Object.
+So any future enum must not be named or shaped as `Spell | Permanent`; that
+spelling asserts an exclusivity the rules do not have.
 
 Original framing preserved below for the design history.
 
@@ -48,12 +59,11 @@ fork battlefield-entry vs resolve; combat capability is NOT a field — it's
 conferred data (`Creature.ron`'s `TypeDef.confers` grants
 `May(Attack)`/`May(Block)`, default-deny).
 
-Tension to resolve in the design conversation before any restructure: struct
-fields like `can_attack`/`can_block` would sit next to — or compete with — the
-conferred `May(...)` grants that the combatant work just established as THE
-capability mechanism. If `TypeKind` only replaces the spell/permanent fork
-(without absorbing capabilities back into fields), it's a smaller, cleaner
-question: is a two-variant kind worth more than a bool?
+Tension resolved by the later glossary discussion: `Combatant` is a bundled
+creature-like role, not `May(Attack) || May(Block)`, and belongs in conferred
+registry data rather than this enum. If `TypeKind` only replaces the
+spell/permanent fork (without absorbing that role back into fields), it's a
+smaller, cleaner question: is a two-variant kind worth more than a bool?
 
 Requires a design pause with the user; do not implement from this ticket as
 written.

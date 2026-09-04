@@ -1,16 +1,16 @@
 ---
-needs: [engine-combatant-capability, engine-history-tallies-cache]
+needs: [engine-combatant-role, engine-history-tallies-cache]
 ---
 Drop the tracked `GameObject.summoning_sick` bool and derive summoning sickness
 purely from history, once the history-tally cache makes that cheap. After
-`engine-combatant-capability`, the bool has exactly one data consumer — the
-`Creature` type's conditional `Cant` conferral, which reads it via
+`engine-combatant-role`, the bool has exactly one data consumer — the
+Combatant role's conditional `Cant` conferral, which reads it via
 `StatePredicate::SummoningSick` (plus a TUI display read). That predicate is the
 seam this ticket replaces: swap its evaluation from a field read to a history
 query, then delete the field and its four maintenance sites (`step.rs` set on
 ETB / mint / control-change, clear at controller-turn-start).
 
-**The equivalent history query.** A creature is sick iff it "entered its
+**The equivalent history query.** A Combatant is sick iff it "entered its
 controller's battlefield this turn" — i.e. the most recent event that put it
 under its *current* controller happened during that controller's current turn.
 Both events are already recorded facts: ETB is `ZoneChange(→Battlefield)`,
