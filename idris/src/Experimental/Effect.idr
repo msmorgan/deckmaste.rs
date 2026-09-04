@@ -109,6 +109,13 @@ kindSourceIntro (SameAs src) = nomIntro src
 kindSourceIntro _ = bs
 
 
+public export
+record EffProfile (bs : Bindings) where
+  constructor MkEffProfile
+  pre : Bindings
+  announced : Bindings
+  deed : List Binding
+
 mutual
   public export
   record TokenChars (bs : Bindings) where
@@ -1693,92 +1700,7 @@ mutual
 
   public export
   preIntro : {bs : Bindings} -> Effect bs -> Bindings
-  preIntro (DealDamage src amt to) = nomIntro to
-  preIntro (ControllerSacrifices n) = MkBinding TheD Player OneOf PlayerP :: selfSubjIntro n
-  preIntro (Distribute v amt among) = nomIntro among
-  preIntro (Fights a b) = nomIntro b
-  preIntro (TurnOver n) = nomIntro n
-  preIntro (SetStatus _ n) = nomIntro n
-  preIntro (DoesntUntapNext n steps) = amtDelta steps ++ nomIntro n
-  preIntro (SkipsNext w _ count) = amtDelta count ++ nomIntro w
-  preIntro (ExtraTurn w count) = amtDelta count ++ nomIntro w
-  preIntro (AdditionalPart who _ _ count _) = amtDelta count ++ agentIntro who
-  preIntro (SkipsAllOf w _) = nomIntro w
-  preIntro (LosesCounters who _ amt) = optAmtIntro amt
-  preIntro (RemoveFromCombat n) = nomIntro n
-  preIntro (AttachTo _ host) = nomIntro host
-  preIntro (Unattach what) = nomIntro what
-  preIntro (BecomesBlocking _ what) = nomIntro what
-  preIntro (StopsBlocking _ what) = nomIntro what
-  preIntro (BecomesAttacking n NoDefender) = nomIntro n
-  preIntro (BecomesAttacking _ (OneDefender whom)) = nomIntro whom
-  preIntro (Regenerate n) = nomIntro n
-  preIntro (CantBe e _ _) = preIntro e
-  preIntro (GainsDesignation n _ _ _) = nomIntro n
-  preIntro (Unlock door) = doorIntro door
-  preIntro (GameBecomes _) = bs
-  preIntro (Concludes _ who) = nomIntro who
-  preIntro GameDrawn = bs
-  preIntro RestartsGame = bs
-  preIntro (SeparateIntoPiles who grp _ _) = nomIntro grp
-  preIntro (CounterSpell what) = nomIntro what
-  preIntro (Copy _ agent what times exc) = amtIntro times
-  preIntro (ChooseNewTargets what) = nomIntro what
-  preIntro (CopyTargets copy whom) = nomIntro whom
-  preIntro (Choose n _ _) = chosenIntro n
-  preIntro (ChoicesRevealed _) = bs
-  preIntro (Vote _ _ _ _) = bs
-  preIntro (Move what to _) = nomIntro what
-  preIntro (ExchangeLife parties) = nomIntro parties
-  preIntro (ChangeLife who (Up a)) = lifeIntro (Up a)
-  preIntro (ChangeLife who (Down a)) = lifeIntro (Down a)
-  preIntro (ChangeLife who (Set a)) = lifeIntro (Set a)
-  preIntro (AddMana who amt _ _) = amtIntro amt
-  preIntro (Draw who amt) = amtIntro amt
-  preIntro (Expose v who what) = exposedIntro what
-  preIntro (Search who sc q p) =
-    quantDelta q ++ predDelta p ++ searchDelta sc ++ nomIntro who
-  preIntro (Shuffle whose) = nomIntro whose
-  preIntro (FlipCoins who count) = flipScopeIntro count
-  preIntro (RollDice who count _) = amtIntro count
-  preIntro (ResultsTable rows) = bs
-  preIntro (IgnoreOutcomes which) = ignoredOutcomesIntro which
-  preIntro (ShiftResult _ amt) = amtIntro amt
-  preIntro (RollPlanarDie who count) = amtIntro count
-  preIntro (ChaosEnsues Nothing) = bs
-  preIntro (ChaosEnsues (Just what)) = nomIntro what
-  preIntro (StoreResults on) = nomIntro on
-  preIntro (RerollStored _ _ whose) = nomIntro whose
-  preIntro (Continuously se _) = staticIntro se
-  preIntro (Create agent count spec riders) = specDelta spec ++ amtIntro count
-  preIntro (GetsEmblem who _) = nomIntro who
-  preIntro (PutCounters amt kind on) = nomIntro on
-  preIntro (RemoveCounters q kind from) = nomIntro from
-  preIntro (RemoveCountersAmong q kind among) = nomIntro among
-  preIntro (MoveCounters amt kind src dst) = nomIntro dst
-  preIntro (DoubleCounters on) = nomIntro on
-  preIntro (Enact Nothing v (Move what to _)) = nomIntro what
-  preIntro (Enact Nothing _ e) = preIntro e
-  preIntro (Enact (Just s) v e) = doesPreIntro (nounPlur s) s v e
-  preIntro (Pay who c _) = nomIntro who
-  preIntro (May d body did notd) = mayIntro body did notd
-  preIntro (IfDone body did notd) = mayIntro body did notd
-  preIntro (OnlyIf e c oth) = annIntro e
-  preIntro (If c e oth) = bs
-  preIntro (Unless e who c) = annIntro e
-  preIntro (Define l amt) = defineLetter l (amtIntro amt)
-  preIntro (ForEachOf _ _) = bs
-  preIntro (ForEachKindOf _ _ _ _) = bs
-  preIntro (Repeat _) = bs
-  preIntro (Repeated n _) = amtIntro n
-  preIntro (Sequentially es) = preIntros es
-  preIntro (Simultaneously es) = simPres es
-  preIntro (Modal q modes) = quantDelta q ++ bs
-  preIntro (Delayed ev _ _ e) = bs
-  preIntro (Reflexively body trig) = preIntro body
-  preIntro (ThisWay body ev trig) = preIntro body
-  preIntro (InsteadOf replaced repl) = annIntro replaced
-  preIntro (HeldUntil e ev) = annIntro e
+  preIntro e = pre (effProfile e)
 
   public export
   doesPreIntro : {bs : Bindings} -> Plurality -> (s : Noun bs Player) ->
@@ -1817,95 +1739,7 @@ mutual
 
   public export
   annIntro : {bs : Bindings} -> Effect bs -> Bindings
-  annIntro (DealDamage src amt to) = nomIntro to
-  annIntro (ControllerSacrifices n) = MkBinding TheD Player OneOf PlayerP :: selfSubjIntro n
-  annIntro (Distribute v amt among) = nomIntro among
-  annIntro (Fights a b) = nomIntro b
-  annIntro (TurnOver n) = nomIntro n
-  annIntro (SetStatus _ n) = nomIntro n
-  annIntro (DoesntUntapNext n steps) = amtDelta steps ++ nomIntro n
-  annIntro (SkipsNext w _ count) = amtDelta count ++ nomIntro w
-  annIntro (ExtraTurn w count) = turnRefB :: (amtDelta count ++ nomIntro w)
-  annIntro (AdditionalPart who _ _ count _) = amtDelta count ++ agentIntro who
-  annIntro (SkipsAllOf w _) = nomIntro w
-  annIntro (LosesCounters who _ amt) = optAmtIntro amt
-  annIntro (RemoveFromCombat n) = nomIntro n
-  annIntro (AttachTo _ host) = nomIntro host
-  annIntro (Unattach what) = nomIntro what
-  annIntro (BecomesBlocking _ what) = nomIntro what
-  annIntro (StopsBlocking _ what) = nomIntro what
-  annIntro (BecomesAttacking n NoDefender) = nomIntro n
-  annIntro (BecomesAttacking _ (OneDefender whom)) = nomIntro whom
-  annIntro (Regenerate n) = nomIntro n
-  annIntro (CantBe e _ _) = annIntro e
-  annIntro (GainsDesignation n _ _ _) = nomIntro n
-  annIntro (Unlock door) = doorIntro door
-  annIntro (GameBecomes _) = bs
-  annIntro (Concludes _ who) = nomIntro who
-  annIntro GameDrawn = bs
-  annIntro RestartsGame = bs
-  annIntro (SeparateIntoPiles who grp piles faces) =
-    MkBinding TheD Object ManyOf
-              (PileP (nounZone grp) (Just piles) (pileMentionFace faces))
-      :: groupSpent (nomIntro grp)
-  annIntro (CounterSpell what) = nomIntro what
-  annIntro (Copy _ agent what times exc) = amtIntro times
-  annIntro (ChooseNewTargets what) = nomIntro what
-  annIntro (CopyTargets copy whom) = nomIntro whom
-  annIntro (Choose n _ _) = chosenIntro n
-  annIntro (ChoicesRevealed _) = bs
-  annIntro (Vote _ _ _ _) = bs
-  annIntro (Move what to _) = nomIntro what
-  annIntro (ExchangeLife parties) = nomIntro parties
-  annIntro (ChangeLife who (Up a)) = lifeIntro (Up a)
-  annIntro (ChangeLife who (Down a)) = lifeIntro (Down a)
-  annIntro (ChangeLife who (Set a)) = lifeIntro (Set a)
-  annIntro (AddMana who amt _ _) = amtIntro amt
-  annIntro (Draw who amt) = amtIntro amt
-  annIntro (Expose v who what) = exposedIntro what
-  annIntro (Search who sc q p) =
-    quantDelta q ++ predDelta p ++ searchDelta sc ++ nomIntro who
-  annIntro (Shuffle whose) = nomIntro whose
-  annIntro (FlipCoins who count) = flipScopeIntro count
-  annIntro (RollDice who count _) = amtIntro count
-  annIntro (ResultsTable rows) = bs
-  annIntro (IgnoreOutcomes which) = ignoredOutcomesIntro which
-  annIntro (ShiftResult _ amt) = amtIntro amt
-  annIntro (RollPlanarDie who count) = amtIntro count
-  annIntro (ChaosEnsues Nothing) = bs
-  annIntro (ChaosEnsues (Just what)) = nomIntro what
-  annIntro (StoreResults on) = nomIntro on
-  annIntro (RerollStored _ _ whose) = nomIntro whose
-  annIntro (Continuously se _) = staticIntro se
-  annIntro (Create agent count spec riders) = specDelta spec ++ amtIntro count
-  annIntro (GetsEmblem who _) = nomIntro who
-  annIntro (PutCounters amt kind on) = nomIntro on
-  annIntro (RemoveCounters q kind from) = nomIntro from
-  annIntro (RemoveCountersAmong q kind among) = nomIntro among
-  annIntro (MoveCounters amt kind src dst) = nomIntro dst
-  annIntro (DoubleCounters on) = nomIntro on
-  annIntro (Enact Nothing v (Move what to _)) = nomIntro what
-  annIntro (Enact Nothing _ e) = annIntro e
-  annIntro (Enact (Just s) v e) = doesAnnIntro (nounPlur s) s v e
-  annIntro (Pay who c _) = nomIntro who
-  annIntro (May d body did notd) = annIntro body
-  annIntro (IfDone body did notd) = annIntro body
-  annIntro (OnlyIf e c oth) = annIntro e
-  annIntro (If c e oth) = bs
-  annIntro (Unless e who c) = annIntro e
-  annIntro (Define l amt) = defineLetter l (amtIntro amt)
-  annIntro (ForEachOf _ _) = bs
-  annIntro (ForEachKindOf _ _ _ _) = bs
-  annIntro (Repeat _) = bs
-  annIntro (Repeated n _) = amtIntro n
-  annIntro (Sequentially es) = bs
-  annIntro (Simultaneously es) = annSims es
-  annIntro (Modal q modes) = quantDelta q ++ bs
-  annIntro (Delayed ev _ _ e) = bs
-  annIntro (Reflexively body trig) = annIntro body
-  annIntro (ThisWay body ev trig) = annIntro body
-  annIntro (InsteadOf replaced repl) = annIntro replaced
-  annIntro (HeldUntil e ev) = annIntro e
+  annIntro e = announced (effProfile e)
 
   public export
   doesAnnIntro : {bs : Bindings} -> Plurality -> (s : Noun bs Player) ->
@@ -1942,116 +1776,139 @@ mutual
 
   public export
   deedDelta : {bs : Bindings} -> Effect bs -> List Binding
-  deedDelta (DealDamage src amt to) = [outcomeB DamageDealt]
-  deedDelta (ControllerSacrifices _) = []
-  deedDelta (Distribute (DividedDamage _) amt among) = [outcomeB DamageDealt]
-  deedDelta (Distribute (DistributedCounters _) amt among) = []
-  deedDelta (Fights a b) = []
-  deedDelta (TurnOver _) = []
-  deedDelta (SetStatus _ _) = []
-  deedDelta (DoesntUntapNext _ _) = []
-  deedDelta (SkipsNext _ _ _) = []
-  deedDelta (ExtraTurn _ _) = []
-  deedDelta (AdditionalPart _ _ _ _ _) = []
-  deedDelta (SkipsAllOf _ _) = []
-  deedDelta (LosesCounters _ _ _) = []
-  deedDelta (RemoveFromCombat _) = []
-  deedDelta (AttachTo _ _) = []
-  deedDelta (Unattach _) = []
-  deedDelta (BecomesBlocking _ _) = []
-  deedDelta (StopsBlocking _ _) = []
-  deedDelta (BecomesAttacking _ _) = []
-  deedDelta (Regenerate _) = []
-  deedDelta (CantBe e _ _) = deedDelta e
-  deedDelta (GainsDesignation _ _ _ _) = []
-  deedDelta (Unlock _) = []
-  deedDelta (GameBecomes _) = []
-  deedDelta (Concludes _ _) = []
-  deedDelta GameDrawn = []
-  deedDelta RestartsGame = []
-  deedDelta (SeparateIntoPiles who grp piles faces) =
-    [MkBinding TheD Object ManyOf
-               (PileP (nounZone grp) (Just piles) (pileMentionFace faces))]
-  deedDelta (CounterSpell _) = []
-  deedDelta (Copy {k} {ph} src agent what times exc) =
-    [MkBinding TheD k (outputPlur (nounPlur what) (amtPlur times))
-               (copyPayloadIn ph (nounTy what) (copyLandsIn src (nounZone what)))]
-  deedDelta (ChooseNewTargets _) = []
-  deedDelta (CopyTargets _ _) = []
-  deedDelta (Choose n _ _) = []
-  deedDelta (ChoicesRevealed _) = []
-  deedDelta (Vote _ _ _ _) = []
-  deedDelta (Move what to _) = []
-  deedDelta (ExchangeLife _) = [outcomeB LifeGained, outcomeB LifeLost]
-  deedDelta (ChangeLife who (Up a)) = [outcomeB LifeGained]
-  deedDelta (ChangeLife who (Down a)) = [outcomeB LifeLost]
-  deedDelta (ChangeLife who (Set a)) = []
-  deedDelta (AddMana _ _ _ _) = [outcomeB ManaAdded]
-  deedDelta (Draw who amt) = []
-  deedDelta (Expose v who what) = []
-  deedDelta (Search who sc q p) =
-    [MkBinding AD Object (quantPlur q)
-               (ObjectP (seedTy p) (searchZone sc) Nothing Nothing Nothing)]
-  deedDelta (Shuffle whose) = []
-  deedDelta (FlipCoins _ _) = [outcomeB CoinFlipped]
-  deedDelta (RollDice _ _ _) = [outcomeB RollResult]
-  deedDelta (ResultsTable _) = []
-  deedDelta (IgnoreOutcomes _) = []
-  deedDelta (ShiftResult _ _) = []
-  deedDelta (RollPlanarDie _ _) = [outcomeB PlanarRolled]
-  deedDelta (ChaosEnsues _) = []
-  deedDelta (StoreResults _) = []
-  deedDelta (RerollStored _ _ _) = []
-  deedDelta (Continuously se _) = []
-  deedDelta (Create agent count spec riders) =
-    [MkBinding AD Object (outputPlur (nounPlur agent) (amtPlur count))
-               (ObjectP (specHeadTy spec) (Just Battlefield) Nothing (Just TokenOrigin) Nothing)]
-  deedDelta (GetsEmblem _ _) = []
-  deedDelta (PutCounters amt kind on) = []
-  deedDelta (RemoveCounters q kind from) = [outcomeB CountersRemoved]
-  deedDelta (RemoveCountersAmong q kind among) = [outcomeB CountersRemoved]
-  deedDelta (MoveCounters amt kind src dst) = []
-  deedDelta (DoubleCounters on) = []
-  deedDelta (Enact _ _ (Move what to _)) = []
-  deedDelta (Enact _ _ e) = deedDelta e
-  deedDelta (Pay who c _) = []
-  deedDelta (May d body did notd) = []
-  deedDelta (IfDone body did notd) = []
-  deedDelta (OnlyIf e c oth) = []
-  deedDelta (If c e oth) = []
-  deedDelta (Unless e who c) = []
-  deedDelta (Define _ _) = []
-  deedDelta (ForEachOf _ _) = []
-  deedDelta (ForEachKindOf _ _ _ _) = []
-  deedDelta (Repeat _) = []
-  deedDelta (Repeated _ _) = []
-  deedDelta (Sequentially es) = []
-  deedDelta (Simultaneously es) = []
-  deedDelta (Modal q modes) = []
-  deedDelta (Delayed ev _ _ e) = []
-  deedDelta (Reflexively body trig) = deedDelta body
-  deedDelta (ThisWay body ev trig) = deedDelta body
-  deedDelta (InsteadOf replaced repl) = []
-  deedDelta (HeldUntil e ev) = []
+  deedDelta e = deed (effProfile e)
 
   public export
-  record EffProfile (bs : Bindings) where
-    constructor MkEffProfile
-    pre : Bindings
-    deed : List Binding
-    moved : Bool
-    scheduled : Bool
-    agentive : Bool
-    announced : Bindings
-    introduced : Bindings
-    enclosure : EncloseUse
+  sameIntro : Bindings -> List Binding -> EffProfile bs
+  sameIntro b d = MkEffProfile b b d
 
   public export
   effProfile : {bs : Bindings} -> Effect bs -> EffProfile bs
-  effProfile e = MkEffProfile (preIntro e) (deedDelta e)
-                              (heldUntilOk e) (not (thisWayOutcomeOk e))
-                              (costActionOk e) (annIntro e)
-                              (effIntro e) (reflexEncloseUse e)
+  effProfile (DealDamage src amt to) = sameIntro (nomIntro to) [outcomeB DamageDealt]
+  effProfile (ControllerSacrifices n) =
+    sameIntro (MkBinding TheD Player OneOf PlayerP :: selfSubjIntro n)
+              ([])
+  effProfile (Distribute (DividedDamage _) amt among) =
+    sameIntro (nomIntro among)
+              ([outcomeB DamageDealt])
+  effProfile (Distribute (DistributedCounters _) amt among) = sameIntro (nomIntro among) []
+  effProfile (Fights a b) = sameIntro (nomIntro b) []
+  effProfile (TurnOver n) = sameIntro (nomIntro n) []
+  effProfile (SetStatus _ n) = sameIntro (nomIntro n) []
+  effProfile (DoesntUntapNext n steps) = sameIntro (amtDelta steps ++ nomIntro n) []
+  effProfile (SkipsNext w _ count) = sameIntro (amtDelta count ++ nomIntro w) []
+  effProfile (ExtraTurn w count) =
+    MkEffProfile (amtDelta count ++ nomIntro w)
+                 (turnRefB :: (amtDelta count ++ nomIntro w))
+                 ([])
+  effProfile (AdditionalPart who _ _ count _) = sameIntro (amtDelta count ++ agentIntro who) []
+  effProfile (SkipsAllOf w _) = sameIntro (nomIntro w) []
+  effProfile (LosesCounters who _ amt) = sameIntro (optAmtIntro amt) []
+  effProfile (RemoveFromCombat n) = sameIntro (nomIntro n) []
+  effProfile (AttachTo _ host) = sameIntro (nomIntro host) []
+  effProfile (Unattach what) = sameIntro (nomIntro what) []
+  effProfile (BecomesBlocking _ what) = sameIntro (nomIntro what) []
+  effProfile (StopsBlocking _ what) = sameIntro (nomIntro what) []
+  effProfile (BecomesAttacking n NoDefender) = sameIntro (nomIntro n) []
+  effProfile (BecomesAttacking _ (OneDefender whom)) = sameIntro (nomIntro whom) []
+  effProfile (Regenerate n) = sameIntro (nomIntro n) []
+  effProfile (CantBe e _ _) = MkEffProfile (preIntro e) (annIntro e) (deedDelta e)
+  effProfile (GainsDesignation n _ _ _) = sameIntro (nomIntro n) []
+  effProfile (Unlock door) = sameIntro (doorIntro door) []
+  effProfile (GameBecomes _) = sameIntro bs []
+  effProfile (Concludes _ who) = sameIntro (nomIntro who) []
+  effProfile GameDrawn = sameIntro bs []
+  effProfile RestartsGame = sameIntro bs []
+  effProfile (SeparateIntoPiles who grp piles faces) =
+    MkEffProfile (nomIntro grp)
+                 (MkBinding TheD Object ManyOf
+                            (PileP (nounZone grp) (Just piles) (pileMentionFace faces))
+                    :: groupSpent (nomIntro grp))
+                 ([MkBinding TheD Object ManyOf
+                             (PileP (nounZone grp) (Just piles) (pileMentionFace faces))])
+  effProfile (CounterSpell what) = sameIntro (nomIntro what) []
+  effProfile (Copy {k} {ph} src agent what times exc) =
+    sameIntro (amtIntro times)
+              ([MkBinding TheD k (outputPlur (nounPlur what) (amtPlur times))
+                          (copyPayloadIn ph (nounTy what) (copyLandsIn src (nounZone what)))])
+  effProfile (ChooseNewTargets what) = sameIntro (nomIntro what) []
+  effProfile (CopyTargets copy whom) = sameIntro (nomIntro whom) []
+  effProfile (Choose n _ _) = sameIntro (chosenIntro n) []
+  effProfile (ChoicesRevealed _) = sameIntro bs []
+  effProfile (Vote _ _ _ _) = sameIntro bs []
+  effProfile (Move what to _) = sameIntro (nomIntro what) []
+  effProfile (ExchangeLife parties) =
+    sameIntro (nomIntro parties)
+              ([outcomeB LifeGained, outcomeB LifeLost])
+  effProfile (ChangeLife who (Up a)) = sameIntro (lifeIntro (Up a)) [outcomeB LifeGained]
+  effProfile (ChangeLife who (Down a)) = sameIntro (lifeIntro (Down a)) [outcomeB LifeLost]
+  effProfile (ChangeLife who (Set a)) = sameIntro (lifeIntro (Set a)) []
+  effProfile (AddMana who amt _ _) = sameIntro (amtIntro amt) [outcomeB ManaAdded]
+  effProfile (Draw who amt) = sameIntro (amtIntro amt) []
+  effProfile (Expose v who what) = sameIntro (exposedIntro what) []
+  effProfile (Search who sc q p) =
+    sameIntro (quantDelta q ++ predDelta p ++ searchDelta sc ++ nomIntro who)
+              ([MkBinding AD Object (quantPlur q)
+                          (ObjectP (seedTy p) (searchZone sc) Nothing Nothing Nothing)])
+  effProfile (Shuffle whose) = sameIntro (nomIntro whose) []
+  effProfile (FlipCoins who count) = sameIntro (flipScopeIntro count) [outcomeB CoinFlipped]
+  effProfile (RollDice who count _) = sameIntro (amtIntro count) [outcomeB RollResult]
+  effProfile (ResultsTable rows) = sameIntro bs []
+  effProfile (IgnoreOutcomes which) = sameIntro (ignoredOutcomesIntro which) []
+  effProfile (ShiftResult _ amt) = sameIntro (amtIntro amt) []
+  effProfile (RollPlanarDie who count) = sameIntro (amtIntro count) [outcomeB PlanarRolled]
+  effProfile (ChaosEnsues Nothing) = sameIntro bs []
+  effProfile (ChaosEnsues (Just what)) = sameIntro (nomIntro what) []
+  effProfile (StoreResults on) = sameIntro (nomIntro on) []
+  effProfile (RerollStored _ _ whose) = sameIntro (nomIntro whose) []
+  effProfile (Continuously se _) = sameIntro (staticIntro se) []
+  effProfile (Create agent count spec riders) =
+    sameIntro (specDelta spec ++ amtIntro count)
+              ([MkBinding AD Object (outputPlur (nounPlur agent) (amtPlur count))
+                          (ObjectP (specHeadTy spec) (Just Battlefield) Nothing (Just TokenOrigin) Nothing)])
+  effProfile (GetsEmblem who _) = sameIntro (nomIntro who) []
+  effProfile (PutCounters amt kind on) = sameIntro (nomIntro on) []
+  effProfile (RemoveCounters q kind from) = sameIntro (nomIntro from) [outcomeB CountersRemoved]
+  effProfile (RemoveCountersAmong q kind among) =
+    sameIntro (nomIntro among)
+              ([outcomeB CountersRemoved])
+  effProfile (MoveCounters amt kind src dst) = sameIntro (nomIntro dst) []
+  effProfile (DoubleCounters on) = sameIntro (nomIntro on) []
+  effProfile (Enact Nothing v (Move what to _)) = sameIntro (nomIntro what) []
+  effProfile (Enact Nothing _ e) = MkEffProfile (preIntro e) (annIntro e) (deedDelta e)
+  effProfile (Enact (Just s) v e@(Move what to _)) =
+    MkEffProfile (doesPreIntro (nounPlur s) s v e)
+                 (doesAnnIntro (nounPlur s) s v e)
+                 ([])
+  effProfile (Enact (Just s) v e) =
+    MkEffProfile (doesPreIntro (nounPlur s) s v e)
+                 (doesAnnIntro (nounPlur s) s v e)
+                 (deedDelta e)
+  effProfile (Pay who c _) = sameIntro (nomIntro who) []
+  effProfile (May d body did notd) = MkEffProfile (mayIntro body did notd) (annIntro body) []
+  effProfile (IfDone body did notd) = MkEffProfile (mayIntro body did notd) (annIntro body) []
+  effProfile (OnlyIf e c oth) = sameIntro (annIntro e) []
+  effProfile (If c e oth) = sameIntro bs []
+  effProfile (Unless e who c) = sameIntro (annIntro e) []
+  effProfile (Define l amt) = sameIntro (defineLetter l (amtIntro amt)) []
+  effProfile (ForEachOf _ _) = sameIntro bs []
+  effProfile (ForEachKindOf _ _ _ _) = sameIntro bs []
+  effProfile (Repeat _) = sameIntro bs []
+  effProfile (Repeated n _) = sameIntro (amtIntro n) []
+  effProfile (Sequentially es) = MkEffProfile (preIntros es) bs []
+  effProfile (Simultaneously es) = MkEffProfile (simPres es) (annSims es) []
+  effProfile (Modal q modes) = sameIntro (quantDelta q ++ bs) []
+  effProfile (Delayed ev _ _ e) = sameIntro bs []
+  effProfile (Reflexively body trig) =
+    MkEffProfile (preIntro body)
+                 (annIntro body)
+                 (deedDelta body)
+  effProfile (ThisWay body ev trig) =
+    MkEffProfile (preIntro body)
+                 (annIntro body)
+                 (deedDelta body)
+  effProfile (InsteadOf replaced repl) = sameIntro (annIntro replaced) []
+  effProfile (HeldUntil e ev) = sameIntro (annIntro e) []
 
   public export
   preIntros : {bs : Bindings} -> {0 n : Nat} -> Effects n bs -> Bindings

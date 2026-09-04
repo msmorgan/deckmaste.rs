@@ -1,0 +1,195 @@
+#!/usr/bin/env python3
+"""Compare the fused effProfile against the per-constructor tables it replaced.
+
+usage: check-effprofile-fusion BEFORE AFTER
+"""
+
+import re
+import sys
+from pathlib import Path
+
+FIELDS = [("pre", "preIntro"), ("announced", "annIntro"), ("deed", "deedDelta")]
+
+
+def clauses(path, name):
+    lines = Path(path).read_text().splitlines()
+    i = next(i for i, l in enumerate(lines) if l.startswith(f"  {name} : ")) + 1
+    out = []
+    while i < len(lines) and re.match(rf"^  {name}(?: |$)", lines[i]):
+        j = i + 1
+        while j < len(lines) and not re.match(r"^  \S", lines[j]) and lines[j].strip():
+            j += 1
+        out.append("\n".join(lines[i:j]))
+        i = j
+    return out
+
+
+def split(clause, name):
+    rest = clause[len("  " + name + " "):]
+    d = i = 0
+    while i < len(rest):
+        c = rest[i]
+        if c in "([{":
+            d += 1
+        elif c in ")]}":
+            d -= 1
+        elif c == "=" and d == 0:
+            break
+        i += 1
+    body = "\n".join(l.split("--")[0] for l in rest[i + 1:].split("\n"))
+    return rest[:i].strip(), re.sub(r"\s+", " ", body).strip()
+
+
+def toks(pat):
+    p = pat.strip()
+    if p.startswith("(") and p.endswith(")"):
+        d = 0
+        outer = True
+        for i, c in enumerate(p):
+            if c in "([{":
+                d += 1
+            elif c in ")]}":
+                d -= 1
+            if d == 0 and i < len(p) - 1:
+                outer = False
+                break
+        if outer:
+            p = p[1:-1]
+    out, cur, d = [], "", 0
+    for c in p:
+        if c in "([{":
+            d += 1
+        elif c in ")]}":
+            d -= 1
+        if c == " " and d == 0:
+            if cur:
+                out.append(cur)
+                cur = ""
+        else:
+            cur += c
+    if cur:
+        out.append(cur)
+    return out[0], [t for t in out[1:] if not t.startswith("{")]
+
+
+def bare(t):
+    return t.split("@", 1)[1] if "@" in t else t
+
+
+def isvar(t):
+    return "@" not in t and (t == "_" or (t[:1].islower() and t.isidentifier()))
+
+
+def overlap_tok(x, y):
+    """how old argument pattern y relates to fused argument pattern x"""
+    if isvar(y):
+        return "covers"
+    x, y = bare(x), bare(y)
+    if isvar(x):
+        return "partial"
+    if x == y:
+        return "covers"
+    hx, ax = toks(x)
+    hy, ay = toks(y)
+    if hx != hy or len(ax) != len(ay):
+        return "no"
+    verdict = "covers"
+    for a, b in zip(ax, ay):
+        r = overlap_tok(a, b)
+        if r == "no":
+            return "no"
+        if r == "partial":
+            verdict = "partial"
+    return verdict
+
+
+def overlap(q, p):
+    """how old clause pattern p relates to fused clause pattern q"""
+    hq, aq = toks(q)
+    hp, ap = toks(p)
+    if hq != hp or len(aq) != len(ap):
+        return "no"
+    verdict = "covers"
+    for x, y in zip(aq, ap):
+        r = overlap_tok(x, y)
+        if r == "no":
+            return "no"
+        if r == "partial":
+            verdict = "partial"
+    return verdict
+
+
+def meet_tok(x, y):
+    """the more specific of two argument patterns known to overlap"""
+    if isvar(y):
+        return x
+    xb = bare(x)
+    if isvar(xb):
+        return y
+    if xb == y:
+        return x
+    hx, ax = toks(xb)
+    _, ay = toks(y)
+    return "(" + " ".join([hx] + [meet_tok(a, b) for a, b in zip(ax, ay)]) + ")"
+
+
+def meet(q, p):
+    hq, aq = toks(q)
+    _, ap = toks(p)
+    args = [meet_tok(x, y) for x, y in zip(aq, ap)]
+    return "(" + " ".join([hq] + args) + ")" if args else hq
+
+
+def main():
+    if len(sys.argv) != 3:
+        raise SystemExit(__doc__)
+    before, after = sys.argv[1:]
+    fused = [split(c, "effProfile") for c in clauses(after, "effProfile")]
+    checked = 0
+    for field, name in FIELDS:
+        old = [split(c, name) for c in clauses(before, name)]
+        proj = [split(c, name) for c in clauses(after, name)]
+        if proj != [("e", f"{field} (effProfile e)")]:
+            raise SystemExit(f"{name} is not a lone projection of {field}: {proj}")
+        reached = set()
+        for pat, rhs in fused:
+            hit = None
+            for k, (p, r) in enumerate(old):
+                o = overlap(pat, p)
+                if o == "partial":
+                    shadow = meet(pat, p)
+                    if any(overlap(shadow, q) == "covers" for q, _ in fused[:fused.index((pat, rhs))]):
+                        continue
+                    raise SystemExit(f"{name}: old clause {p} splits fused clause {pat}")
+                if o == "covers":
+                    hit = (k, p, r)
+                    break
+            if hit is None:
+                raise SystemExit(f"{name}: no old clause covers {pat}")
+            k, p, r = hit
+            want = value(rhs, field)
+            if want != r:
+                raise SystemExit(f"{name} at {pat}: fused {want!r} != old {r!r}")
+            reached.add(k)
+            checked += 1
+        missing = [old[k][0] for k in range(len(old)) if k not in reached]
+        if missing:
+            raise SystemExit(f"{name}: old clauses never reached: {missing}")
+        print(f"{name}: {len(old)} old clauses -> {field} of {len(fused)} fused clauses")
+    print(f"effProfile: {checked} projection values checked, all equal")
+
+
+def value(rhs, field):
+    """the field-th argument of a sameIntro / MkEffProfile right-hand side"""
+    head, args = toks(f"({rhs})")
+    if head == "sameIntro":
+        args = [args[0], args[0]] + args[1:]
+    elif head != "MkEffProfile":
+        raise SystemExit(f"unexpected effProfile body: {rhs}")
+    idx = [f for f, _ in FIELDS].index(field)
+    a = args[idx]
+    return a[1:-1].strip() if a.startswith("(") and a.endswith(")") else a
+
+
+if __name__ == "__main__":
+    main()
