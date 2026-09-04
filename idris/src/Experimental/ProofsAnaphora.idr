@@ -684,26 +684,26 @@ badReadsShuffledLibraryCard Refl impossible
 ||| "Whenever you scry, …"
 public export
 okPatientlessScry : GameEvent []
-okPatientlessScry = VerbedEvent (Just You) "Scry" Nothing Nothing False
+okPatientlessScry = VerbedEvent (Just You) "Scry" Nothing Nothing
 
 ||| "Whenever you scry a card, …"
 public export
 badScryPatient : Unspellable (GameEvent []) (\ok =>
   VerbedEvent (Just You) "Scry"
-              (Just (Macros.a (InZone (ZoneAt Library BareScope)))) Nothing False
+              (Just (Macros.a (InZone (ZoneAt Library BareScope)))) Nothing
               {pt = ok})
 badScryPatient Oh impossible
 
 ||| "Whenever discards a card, …"
 public export
 badVoicelessAct : Unspellable (GameEvent []) (\ok =>
-  VerbedEvent Nothing "Scry" Nothing Nothing False {vc = ok})
+  VerbedEvent Nothing "Scry" Nothing Nothing {vc = ok})
 badVoicelessAct Oh impossible
 
 ||| "Whenever a card is put, …"
 public export
 badPassiveWithoutParticiple : Unspellable (GameEvent []) (\ok =>
-  VerbedEvent Nothing "Put" (Just (Macros.a IsCard)) Nothing False {vc = ok})
+  VerbedEvent Nothing "Put" (Just (Macros.a IsCard)) Nothing {vc = ok})
 badPassiveWithoutParticiple Oh impossible
 
 ||| "Whenever a creature transforms into a Phyrexian, …"
@@ -711,13 +711,13 @@ public export
 okIntransitiveBecomes : GameEvent []
 okIntransitiveBecomes =
   VerbedEvent Nothing "Transform" (Just (Macros.a Macros.creature))
-              (Just (HasSubtype (creatureType "Phyrexian"))) False
+              (Just (HasSubtype (creatureType "Phyrexian")))
 
 ||| "Whenever a card is milled into a Phyrexian, …"
 public export
 badBecomesWithoutIntransitive : Unspellable (GameEvent []) (\ok =>
   VerbedEvent Nothing "Mill" (Just (Macros.a (InZone (ZoneAt Library BareScope))))
-              (Just (HasSubtype (creatureType "Phyrexian"))) False {bc = ok})
+              (Just (HasSubtype (creatureType "Phyrexian"))) {bc = ok})
 badBecomesWithoutIntransitive Oh impossible
 
 ||| "Whenever you discard a card, …"
@@ -725,20 +725,20 @@ public export
 okDiscardFromHand : GameEvent []
 okDiscardFromHand =
   VerbedEvent (Just You) "Discard" (Just (Macros.a (InZone Macros.handZ)))
-              Nothing False
+              Nothing
 
 ||| "Whenever a card in a graveyard is destroyed, …"
 public export
 badDestroyInGraveyard : Unspellable (GameEvent []) (\ok =>
   VerbedEvent Nothing "Destroy"
-              (Just (Macros.a (InZone Macros.graveyardZ))) Nothing False {zn = ok})
+              (Just (Macros.a (InZone Macros.graveyardZ))) Nothing {zn = ok})
 badDestroyInGraveyard Oh impossible
 
 ||| "Whenever you discard a permanent you control, …"
 public export
 badDiscardFromBattlefield : Unspellable (GameEvent []) (\ok =>
   VerbedEvent (Just You) "Discard"
-              (Just (Macros.a (InZone Macros.battlefieldZ))) Nothing False {zn = ok})
+              (Just (Macros.a (InZone Macros.battlefieldZ))) Nothing {zn = ok})
 badDiscardFromBattlefield Oh impossible
 
 ||| "if you dealt damage to an opponent this turn"

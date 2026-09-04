@@ -1247,7 +1247,7 @@ tourachDiscardTrigger : Ability
 tourachDiscardTrigger =
   Macros.triggered Whenever
     (VerbedEvent (Just Macros.anOpponent) "Discard"
-                 (Just (Macros.a (InZone Macros.handZ))) Nothing False)
+                 (Just (Macros.a (InZone Macros.handZ))) Nothing)
     (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) Macros.thisCreature)
 
 ||| Shimmering Glasskite
@@ -1579,7 +1579,7 @@ marketGnome =
        [ Macros.triggered When (Dies Macros.thisCreature)
            (Sequentially [ Macros.gainsLife You (Lit 1), (Draw You (Lit 1)) ])
        , Macros.triggeredWhile When
-           (VerbedEvent Nothing "Exile" (Just Macros.thisCreature) Nothing False)
+           (VerbedEvent Nothing "Exile" (Just Macros.thisCreature) Nothing)
            (WhileDoing (Activates You
                           (Macros.a (AbilityHead (KeywordClass "Craft")))))
            (Sequentially [ Macros.gainsLife You (Lit 1), (Draw You (Lit 1)) ]) ]

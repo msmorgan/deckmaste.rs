@@ -316,7 +316,7 @@ psychicPurge =
               (CausedBySource
                  (Macros.a (And [ Or [Macros.spell, AbilityHead AnyOnStack]
                                 , HasPossessor ControllerAx (Macros.a Opponent) ])))
-              (VerbedEvent (Just You) "Discard" (Just This) Nothing False))
+              (VerbedEvent (Just You) "Discard" (Just This) Nothing))
            (Macros.losesLife (Macros.That PlayerW OneOf) (Lit 5)) ]
        Nothing
 

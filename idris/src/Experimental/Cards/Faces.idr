@@ -386,7 +386,7 @@ neglectedHeirloom =
                            (PtUp (Lit 1)) (PtUp (Lit 1)))
             , Macros.triggered When
                 (VerbedEvent Nothing "Transform"
-                  (Just (AttachHost Equipped (TypeW Creature))) Nothing False)
+                  (Just (AttachHost Equipped (TypeW Creature))) Nothing)
                 (Macros.transform Macros.thisEquipment)
             , Macros.keywordCosting "Equip" (Mana [Macros.generic 1]) ]
             Nothing)
@@ -431,7 +431,7 @@ cultOfTheWaxingMoon =
            (VerbedEvent Nothing "Transform"
               (Just (Macros.a (And [Permanent, HasPossessor ControllerAx You])))
               (Just (And [Macros.creature,
-                          Not (HasSubtype (creatureType "Human"))])) False)
+                          Not (HasSubtype (creatureType "Human"))])))
            (Macros.create (Lit 1)
               (Macros.creatureTok 2 2 [Green] [creatureType "Wolf"])) ]
        (Just (5, 4))
@@ -543,7 +543,7 @@ balemurkLeech =
               [ Macros.joinedHead Whenever
                   (VerbedEvent (Just You) "Fully Unlock"
                      (Just (Macros.a (HasSubtype (enchantmentType "Room"))))
-                     Nothing False) ]
+                     Nothing) ]
               (Macros.losesLife (Macros.each Opponent) (Lit 1))) ]
        (Just (2, 2))
 

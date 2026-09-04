@@ -1356,8 +1356,7 @@ manaFlare =
   Macros.card "Mana Flare" (Just [Macros.generic 2, Macros.pip Red]) []
        (MkTypeLine [] [Enchantment])
        [ Macros.triggered Whenever
-           (VerbedEvent (Just (Macros.a AnyPlayer)) "Tap"
-                        (Just (Macros.a Macros.land)) Nothing True)
+           (TappedForMana (Just (Macros.a AnyPlayer)) (Macros.a Macros.land))
            (AddMana (Macros.That PlayerW OneOf) (Lit 1)
                     (ProducedByEvent (Macros.That (TypeW Land) OneOf)) []) ]
        Nothing
@@ -1372,8 +1371,7 @@ shimmerwildsGrowth =
        , Static (Macros.entersChoosing Macros.thisAura Color)
        , Static (Becomes (AttachHost Enchanted (TypeW Land)) Sets (ChosenQuality (Macros.ofChosen Color)))
        , Macros.triggered Whenever
-           (VerbedEvent Nothing "Tap"
-                        (Just (AttachHost Enchanted (TypeW Land))) Nothing True)
+           (TappedForMana Nothing (AttachHost Enchanted (TypeW Land)))
            (AddMana (Macros.controllerOf (Macros.That (TypeW Land) OneOf)) (Lit 1)
                     (OfChosenColor Nothing) []) ]
        Nothing

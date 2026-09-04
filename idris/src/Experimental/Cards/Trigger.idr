@@ -674,7 +674,7 @@ public export
 allSeeingArbiterHeader : GameEvent []
 allSeeingArbiterHeader =
   VerbedEvent (Just You) "Discard" (Just (Macros.a (InZone Macros.handZ)))
-              Nothing False
+              Nothing
 
 ||| Liliana's Caress
 public export
@@ -685,7 +685,7 @@ lilianasCaress =
        (MkTypeLine [] [Enchantment])
        [ Macros.triggered Whenever
            (VerbedEvent (Just Macros.anOpponent) "Discard"
-                        (Just (Macros.a (InZone Macros.handZ))) Nothing False)
+                        (Just (Macros.a (InZone Macros.handZ))) Nothing)
            (Macros.losesLife They (Lit 2)) ]
        Nothing
 
@@ -698,7 +698,7 @@ schemingAspirant =
        (MkTypeLine [creatureType "Phyrexian", creatureType "Advisor"]
                    [Creature])
        [ Macros.triggered Whenever
-           (VerbedEvent (Just You) "Proliferate" Nothing Nothing False)
+           (VerbedEvent (Just You) "Proliferate" Nothing Nothing)
            (Sequentially [ Macros.losesLife (Macros.each Opponent) (Lit 2)
                          , Macros.gainsLife You (Lit 2) ]) ]
        (Just (1, 3))
@@ -920,7 +920,6 @@ hostileInvestigatorHeader =
   VerbedEvent (Just (Macros.counted (Macros.atLeast 1) AnyPlayer))
               "Discard"
               (Just (Macros.counted (Macros.atLeast 1) IsCard)) Nothing
-              False
 
 ||| Hallowed Moonlight
 public export
@@ -1019,7 +1018,7 @@ public export
 foulEmissaryLine : Ability
 foulEmissaryLine =
   Macros.triggeredWhile When
-    (VerbedEvent (Just You) "Sacrifice" (Just Macros.thisCreature) Nothing False)
+    (VerbedEvent (Just You) "Sacrifice" (Just Macros.thisCreature) Nothing)
     (WhileDoing (Casts You
                    (Macros.a (And [Macros.spell,
                                    HasKeyword (TheKeyword "Emerge")]))

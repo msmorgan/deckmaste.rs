@@ -929,4 +929,4 @@ conquerorsFlailProhibition =
 
 public export
 whileScrying : Concurrent []
-whileScrying = WhileDoing (VerbedEvent (Just You) "Scry" Nothing Nothing False)
+whileScrying = WhileDoing (VerbedEvent (Just You) "Scry" Nothing Nothing)

@@ -385,29 +385,43 @@ badOpponentPaysYourCost Oh impossible
 
 ||| "Whenever a player taps a land for mana, …"
 public export
-okForManaOnTap : GameEvent []
-okForManaOnTap =
-  VerbedEvent (Just (Macros.a AnyPlayer)) "Tap" (Just (Macros.a Macros.land))
-              Nothing True
+okTappedForMana : GameEvent []
+okTappedForMana =
+  TappedForMana (Just (Macros.a AnyPlayer)) (Macros.a Macros.land)
 
-||| "Whenever you sacrifice a creature for mana, …"
+||| "Whenever a card in a graveyard is tapped for mana, …" — only a permanent
+||| is tapped for mana [CR#106.12].
 public export
-badForManaOnNontap : Unspellable (GameEvent []) (\ok =>
-  VerbedEvent (Just You) "Sacrifice" (Just (Macros.a Macros.creature)) Nothing True
-              {fm = ok})
-badForManaOnNontap Oh impossible
+badTappedForManaOffField : Unspellable (GameEvent []) (\ok =>
+  TappedForMana (Just You) (Macros.a (InZone Macros.graveyardZ)) {zn = ok})
+badTappedForManaOffField Oh impossible
 
 public export
 afterALandTapForMana : Bindings
 afterALandTapForMana =
   eventAfter (the (GameEvent [])
+    (TappedForMana (Just (Macros.a AnyPlayer)) (Macros.a Macros.land)))
+
+public export
+afterAPlainLandTap : Bindings
+afterAPlainLandTap =
+  eventAfter (the (GameEvent [])
     (VerbedEvent (Just (Macros.a AnyPlayer)) "Tap" (Just (Macros.a Macros.land))
-                 Nothing True))
+                 Nothing))
 
 ||| "one mana of any type that land produced"
 public export
 okProducedByTapEvent : ProducedMana ProofsMana.afterALandTapForMana
 okProducedByTapEvent = ProducedByEvent (Macros.That (TypeW Land) OneOf)
+
+||| "Whenever a player taps a land, add one mana of any type that land
+||| produced" — a tap that is not a mana ability resolving produces no mana
+||| [CR#106.12a].
+public export
+badProducedByPlainTap :
+  Unspellable (ProducedMana ProofsMana.afterAPlainLandTap) (\ok =>
+    ProducedByEvent (Macros.That (TypeW Land) OneOf) {pm = ok})
+badProducedByPlainTap Refl impossible
 
 ||| "Add one mana of any type that land produced"
 public export

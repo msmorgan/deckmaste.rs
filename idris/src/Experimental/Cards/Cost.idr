@@ -1109,8 +1109,7 @@ darksteelGarrison =
        [ Static (Gains (AttachHost Fortified (TypeW Land))
                        (Macros.keyword "Indestructible"))
        , Macros.triggered Whenever
-           (VerbedEvent Nothing "Tap"
-                        (Just (AttachHost Fortified (TypeW Land))) Nothing True)
+           (TappedForMana Nothing (AttachHost Fortified (TypeW Land)))
            (Macros.gets (Macros.target Macros.creature)
                         (PtUp (Lit 1)) (PtUp (Lit 1)) (Just Macros.untilEndOfTurn))
        , Macros.keywordCosting "Fortify" (Mana [Macros.generic 3]) ]

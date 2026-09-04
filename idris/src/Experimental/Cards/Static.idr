@@ -818,7 +818,7 @@ public export
 clergyOfTheHolyNimbus : Ability
 clergyOfTheHolyNimbus =
   Static (Intercepts (VerbedEvent Nothing "Destroy"
-                                  (Just Macros.thisCreature) Nothing False)
+                                  (Just Macros.thisCreature) Nothing)
                      [] Nothing
                      (Regenerate ((Macros.It OneOf))) Repeatedly Nothing)
 

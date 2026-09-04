@@ -281,14 +281,18 @@ mutual
     VerbedEvent : (who : Maybe (Noun bs Player)) -> (v : VerbLabel) ->
                   (what : Maybe (Noun (agentIntro who) Object)) ->
                   (becomes : Maybe (Predicate (agentIntro who) Object)) ->
-                  (forMana : Bool) ->
                   {auto 0 kv : KnownAct v} ->
                   {auto 0 pt : So (verbPatientOk v what)} ->
                   {auto 0 zn : ZoneFits (patientZone what) (actZoneOf v)} ->
                   {auto 0 vc : So (verbedVoiceOk v who what)} ->
                   {auto 0 bc : So (verbBecomesOk v becomes)} ->
-                  {auto 0 fm : So (not forMana || verbForManaOk v)} ->
                   GameEvent bs
+    ||| A mana ability with {T} in its cost resolving and producing mana
+    ||| [CR#106.12a].
+    TappedForMana : (who : Maybe (Noun bs Player)) ->
+                    (what : Noun (agentIntro who) Object) ->
+                    {auto 0 zn : ZoneFits (nounZone what) (Just Battlefield)} ->
+                    GameEvent bs
     UnlocksDoor : (who : Noun bs Player) -> (door : Door (nomIntro who)) ->
                   GameEvent bs
     NthOccurrence : (ord : Ordinal) -> (per : Maybe TurnPart) ->
@@ -348,7 +352,8 @@ mutual
   eventName (PaysCost _ out _ _) = paymentEventName out
   eventName (PaysLife _) = LifePayment
   eventName (LifeChanges _ dir) = lifeEventName dir
-  eventName (VerbedEvent _ v _ _ _) = VerbedAct v
+  eventName (VerbedEvent _ v _ _) = VerbedAct v
+  eventName (TappedForMana _ _) = TappedForMana
   eventName (UnlocksDoor _ _) = VerbedAct "Unlock"
   eventName (NthOccurrence _ _ ev) = eventName ev
   eventName (Triggers _) = AbilityTrigger
@@ -398,8 +403,9 @@ mutual
   eventIntro (PaysLife who) = selfSubjIntro who
   eventIntro (LifeChanges who dir) =
     outcomeB (lifeMoveOutcome dir) :: selfSubjIntro who
-  eventIntro (VerbedEvent who _ Nothing _ _) = agentIntro who
-  eventIntro (VerbedEvent _ _ (Just what) _ _) = selfSubjIntro what
+  eventIntro (VerbedEvent who _ Nothing _) = agentIntro who
+  eventIntro (VerbedEvent _ _ (Just what) _) = selfSubjIntro what
+  eventIntro (TappedForMana _ what) = selfSubjIntro what
   eventIntro (UnlocksDoor who door) = doorIntro door
   eventIntro (NthOccurrence _ _ ev) = eventIntro ev
   eventIntro (Triggers what) = selfSubjIntro what
@@ -448,12 +454,11 @@ mutual
   eventAfter (PaysCost _ _ whose _) = nomIntro whose
   eventAfter (PaysLife who) = outcomeB LifeLost :: nomIntro who
   eventAfter (LifeChanges who dir) = outcomeB (lifeMoveOutcome dir) :: nomIntro who
-  eventAfter (VerbedEvent who _ Nothing _ _) = agentIntro who
-  eventAfter (VerbedEvent _ v (Just what) _ True) =
-    outcomeB ManaProduced ::
-      moveIntro (Just v) what (maybe (nounZone what) Just (actDestOf v))
-  eventAfter (VerbedEvent _ v (Just what) _ False) =
+  eventAfter (VerbedEvent who _ Nothing _) = agentIntro who
+  eventAfter (VerbedEvent _ v (Just what) _) =
     moveIntro (Just v) what (maybe (nounZone what) Just (actDestOf v))
+  eventAfter (TappedForMana _ what) =
+    outcomeB ManaProduced :: stampIntro (Just "Tap") what
   eventAfter (UnlocksDoor who door) = doorIntro door
   eventAfter (NthOccurrence _ _ ev) = eventAfter ev
   eventAfter (Triggers what) = nomIntro what
@@ -494,9 +499,11 @@ mutual
   eventSubjectPlur (PaysCost Nothing _ _ _) = OneOf
   eventSubjectPlur (PaysLife who) = nounPlur who
   eventSubjectPlur (LifeChanges who _) = nounPlur who
-  eventSubjectPlur (VerbedEvent (Just who) _ _ _ _) = nounPlur who
-  eventSubjectPlur (VerbedEvent Nothing _ (Just what) _ _) = nounPlur what
-  eventSubjectPlur (VerbedEvent Nothing _ Nothing _ _) = OneOf
+  eventSubjectPlur (VerbedEvent (Just who) _ _ _) = nounPlur who
+  eventSubjectPlur (VerbedEvent Nothing _ (Just what) _) = nounPlur what
+  eventSubjectPlur (VerbedEvent Nothing _ Nothing _) = OneOf
+  eventSubjectPlur (TappedForMana (Just who) _) = nounPlur who
+  eventSubjectPlur (TappedForMana Nothing what) = nounPlur what
   eventSubjectPlur (UnlocksDoor who _) = nounPlur who
   eventSubjectPlur (NthOccurrence _ _ ev) = eventSubjectPlur ev
   eventSubjectPlur (Triggers what) = nounPlur what

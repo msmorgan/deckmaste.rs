@@ -1118,7 +1118,7 @@ mirelurkQueenTrigger =
                  (Just (Macros.counted (Macros.atLeast 1)
                                      (And [Not Macros.land,
                                            InZone Macros.libraryZ])))
-                 Nothing False)
+                 Nothing)
     OncePerTurn
     (Sequentially [ (Draw You (Lit 1))
                   , PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
@@ -1285,7 +1285,7 @@ public export
 nazgulRingTrigger : Ability
 nazgulRingTrigger =
   Macros.triggered Whenever
-    (VerbedEvent (Just You) "The Ring Tempts You" Nothing Nothing False)
+    (VerbedEvent (Just You) "The Ring Tempts You" Nothing Nothing)
     (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
                  (Macros.each (And [HasSubtype (creatureType "Wraith"),
                              HasPossessor ControllerAx You])))

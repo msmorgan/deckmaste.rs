@@ -30,6 +30,7 @@ data EventName = Death | Departure | DamageTaken
                | StateMatch
                | AbilityTrigger
                | CrimeCommission
+               | TappedForMana
 
 public export
 statusEventName : StatusCat -> EventName
@@ -145,6 +146,7 @@ eventIx (VerbedAct _) = 38
 eventIx StateMatch = 39
 eventIx AbilityTrigger = 40
 eventIx CrimeCommission = 41
+eventIx TappedForMana = 42
 
 public export
 sameEventName : EventName -> EventName -> Bool
@@ -254,6 +256,9 @@ eventFactsOf AbilityTrigger =
   MkEventFacts [Object] [] [] False False True True False
 eventFactsOf CrimeCommission =
   MkEventFacts [Player] [] [] False True False True False
+-- a mana ability with {T} in its cost resolving and producing mana [CR#106.12a]
+eventFactsOf TappedForMana =
+  MkEventFacts [Player, Object] [(Player, Object)] [Player] False True False True False
 
 public export
 kindIn : Kind -> List Kind -> Bool
@@ -353,10 +358,6 @@ counterRole : Role -> Role
 counterRole Agent = Patient
 counterRole Patient = Agent
 
-
-public export
-verbForManaOk : VerbLabel -> Bool
-verbForManaOk v = maybe False actForMana (actFactsFor v)
 
 public export
 deedRoleOf : VerbLabel -> Role -> DeedRole
