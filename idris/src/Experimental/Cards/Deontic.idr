@@ -500,9 +500,8 @@ festival : Card
 festival =
   Macros.card "Festival" (Just [Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Static (OnlyDuring Upkeep (Just Macros.anOpponent)
-                   (Macros.deontic This Permit ["Cast"] Patient NoDeonticPatient))
-       , Spell Nothing (Macros.cantAttack (Macros.allOf Macros.creature)
+       [ Spell (Just (DuringPart Upkeep (Just Macros.anOpponent)))
+               (Macros.cantAttack (Macros.allOf Macros.creature)
                                   (Just ThisTurn)) ]
        Nothing
 

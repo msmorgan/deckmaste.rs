@@ -43,6 +43,24 @@ badStaticOnSorcery : Unspellable Card (\ok =>
        [Static (Gets Adds (Macros.allOf Macros.creatureYouControl) (PtUp (Lit 1)) (PtUp (Lit 1)))] Nothing {fl = ok})
 badStaticOnSorcery MkCharacteristicsLaws impossible
 
+||| "Cast this spell only during the declare attackers step. Draw a card."
+public export
+okCastWindowOnSpell : Card
+okCastWindowOnSpell =
+  Macros.card "" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Instant])
+       [Spell (Just (DuringPart DeclareAttackers Nothing)) (Draw You (Lit 1))] Nothing
+
+||| The same sentence spelled as a static permitting the cast. A cast window
+||| is stated by the spell [CR#506.7], which is `okCastWindowOnSpell`'s window
+||| slot, not a permission a spell card's static ability grants.
+public export
+badCastWindowAsDeonticStatic : Unspellable Card (\ok =>
+  Macros.card "" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Instant])
+       [ Static (OnlyDuring DeclareAttackers Nothing
+                   (Macros.deontic This Permit ["Cast"] Patient NoDeonticPatient))
+       , Spell Nothing (Draw You (Lit 1)) ] Nothing {fl = ok})
+badCastWindowAsDeonticStatic MkCharacteristicsLaws impossible
+
 ||| "Flying"
 public export
 badKeywordOnInstant : Unspellable Card (\ok =>

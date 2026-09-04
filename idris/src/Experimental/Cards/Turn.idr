@@ -561,18 +561,15 @@ teleport : Card
 teleport =
   Macros.card "Teleport" (Just [Macros.pip Blue, Macros.pip Blue, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Static (OnlyDuring DeclareAttackers Nothing
-                   (Macros.deontic This Permit ["Cast"] Patient NoDeonticPatient))
-       , Spell Nothing (Macros.cantBeBlocked (Macros.target Macros.creature) (Just ThisTurn)) ]
+       [ Spell (Just (DuringPart DeclareAttackers Nothing))
+               (Macros.cantBeBlocked (Macros.target Macros.creature) (Just ThisTurn)) ]
        Nothing
 
-||| Dazzling Beauty's cast restriction; its targeted effect and delayed
+||| Dazzling Beauty's cast window; its targeted effect and delayed
 ||| "next turn's upkeep" draw need machinery outside this ticket.
 public export
-dazzlingBeautyCastRestriction : Ability
-dazzlingBeautyCastRestriction =
-  Static (OnlyDuring DeclareBlockers Nothing
-            (Macros.deontic This Permit ["Cast"] Patient NoDeonticPatient))
+dazzlingBeautyCastRestriction : Timing []
+dazzlingBeautyCastRestriction = DuringPart DeclareBlockers Nothing
 
 ||| Thawing Glaciers
 public export

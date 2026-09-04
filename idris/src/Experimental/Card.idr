@@ -51,8 +51,6 @@ staticOnSpellCardOk (Deontic _ Forbid deeds Patient _ _ _ _) =
 staticOnSpellCardOk (AltCost This _) = True
 staticOnSpellCardOk (CostsToCast This _) = True
 staticOnSpellCardOk (AddedCost _ _) = True
-staticOnSpellCardOk (OnlyDuring _ _ (Deontic _ Permit deeds Patient _ _ _ _)) =
-  all (\deed => deedZoneOf deed Patient == Just Stack) deeds
 staticOnSpellCardOk (OnlyDuring _ _ se) = staticOnSpellCardOk se
 staticOnSpellCardOk (Conditionally se _ _) = staticOnSpellCardOk se
 staticOnSpellCardOk _ = False
