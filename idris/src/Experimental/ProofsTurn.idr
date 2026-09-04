@@ -429,5 +429,5 @@ badTokenDuplicateSupertype : Unspellable (Instruction []) (\ok =>
   Macros.create (Lit 1)
     (MkSupertypedToken (Just (Lit 20 ** Lit 20)) [Black] [Legendary, Legendary]
        (MkTypeLine [creatureType "Avatar"] [Creature]) [] (Just "Marit Lage"))
-    {wf = ok})
-badTokenDuplicateSupertype (Oh, Oh, Oh, Oh, Oh, Oh) impossible
+    {tc = ok})
+badTokenDuplicateSupertype Oh impossible

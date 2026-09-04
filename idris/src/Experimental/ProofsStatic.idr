@@ -191,12 +191,13 @@ okCreatureBecomesBlocking =
   BecomesBlocking Macros.thisCreature
                   (Macros.a (And [Macros.creature, Attacking]))
 
-||| "Target land blocks an attacking creature."
+||| "Target land blocks an attacking creature.": a land an effect has made a
+||| creature blocks [CR#205.1b,509.1a].
 public export
-badLandBecomesBlocking : Unspellable (Instruction []) (\ok =>
+okLandBecomesBlocking : Instruction []
+okLandBecomesBlocking =
   BecomesBlocking (Macros.target Macros.land)
-                  (Macros.a (And [Macros.creature, Attacking])) {dn = ok})
-badLandBecomesBlocking Oh impossible
+                  (Macros.a (And [Macros.creature, Attacking]))
 
 ||| "This creature blocks target planeswalker."
 public export

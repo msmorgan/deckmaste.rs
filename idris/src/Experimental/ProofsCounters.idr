@@ -132,14 +132,14 @@ badMoveCountersSelf Oh impossible
 public export
 badTokenDuplicateType : Unspellable (Instruction []) (\ok =>
   Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [] (MkTypeLine [] [Creature, Creature])
-                          [] Nothing) {wf = ok})
-badTokenDuplicateType (Oh, Oh, Oh, Oh, Oh, Oh) impossible
+                          [] Nothing) {tc = ok})
+badTokenDuplicateType Oh impossible
 
 ||| "Create a 1/1 white white Soldier creature token."
 public export
 badTokenDuplicateColor : Unspellable (Instruction []) (\ok =>
-  Macros.create (Lit 1) (Macros.creatureTok 1 1 [White, White] [creatureType "Soldier"]) {wf = ok})
-badTokenDuplicateColor (Oh, Oh, Oh, Oh, Oh, Oh) impossible
+  Macros.create (Lit 1) (Macros.creatureTok 1 1 [White, White] [creatureType "Soldier"]) {tc = ok})
+badTokenDuplicateColor Oh impossible
 
 ||| "Target opponent loses 2 life. You gain that much life."
 public export

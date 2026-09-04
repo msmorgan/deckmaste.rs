@@ -357,9 +357,20 @@ public export
 deedKindOk : VerbLabel -> Role -> Kind -> Bool
 deedKindOk v r k = elem k (roleKinds (deedRoleOf v r))
 
+||| An effect can make a permanent of any type a creature that is still its
+||| other types [CR#205.1b], and an effect written on a noncreature permanent
+||| is created even while it isn't one [CR#208.3a]. So the agent slot of a
+||| deed a creature performs fits any permanent head type; what a deed is
+||| done to keeps the set the rules name.
+public export
+deedAnimatedOk : DeedRole -> Role -> CardType -> Bool
+deedAnimatedOk dr Agent t = elem Creature (roleTypes dr) && permanentType t
+deedAnimatedOk dr Patient t = False
+
 public export
 deedTypeOk : VerbLabel -> Role -> CardType -> Bool
 deedTypeOk v r t = elem t (roleTypes (deedRoleOf v r))
+                     || deedAnimatedOk (deedRoleOf v r) r t
 
 public export
 deedBareOk : VerbLabel -> Role -> Bool
@@ -560,7 +571,10 @@ lookbackLocusOk _ _ = False
 public export
 data ChoiceMode : Bindings -> Type where
   Unmarked : ChoiceMode bs
-  TheirChoice : {auto 0 ch : countChoosers bs = 1} -> ChoiceMode bs
+  ||| "of their choice": the chooser is read in a window of the stack, so a
+  ||| clause's own subject shadows any player named before it.
+  TheirChoice : (w : Window) ->
+                {auto 0 ch : countChoosers (view w bs) = 1} -> ChoiceMode bs
   AtRandom : ChoiceMode bs
   YourChoice : ChoiceMode bs
 

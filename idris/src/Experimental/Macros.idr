@@ -599,10 +599,12 @@ a : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
 a p = Described (ADet Unmarked) p {ph} {ok = ()}
 
 public export
+||| "a … of their choice": the chooser is the clause's own subject, the
+||| binding it introduced, not a player named in an earlier clause.
 aTheirChoice : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
-               {auto 0 ch : countChoosers bs = 1} ->
+               {auto 0 ch : countChoosers (view (Top 1) bs) = 1} ->
                Noun bs k
-aTheirChoice p = Described (ADet (TheirChoice {ch})) p {ph} {ok = ()}
+aTheirChoice p = Described (ADet (TheirChoice (Top 1) {ch})) p {ph} {ok = ()}
 
 public export
 aYourChoice : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
@@ -1196,16 +1198,26 @@ typesOnly ts = MkTypeLine [] ts
 
 public export
 create : (count : Amount bs) -> (tok : TokenChars (amtIntro count)) ->
-         {auto 0 wf : TokenWellFormed tok} ->
+         {auto 0 tt : So (tokenTyped tok)} ->
+         {auto 0 tp : So (tokenPtOk tok)} ->
+         {auto 0 sf : So (subsFitLine tok.line.subs tok.line.tys)} ->
+         {auto 0 ta : So (tokenAbilitiesOk tok)} ->
+         {auto 0 tc : So (tokenCanonical tok)} ->
+         {auto 0 qf : So (tokenQualsFit tok)} ->
          Instruction bs
-create count tok = Create You count (TokenWritten tok {wf}) []
+create count tok = Create You count (TokenWritten tok {tt} {tp} {sf} {ta} {tc} {qf}) []
 
 public export
 createTappedAttacking : (count : Amount bs) -> (tok : TokenChars (amtIntro count)) ->
-                        {auto 0 wf : TokenWellFormed tok} ->
+                        {auto 0 tt : So (tokenTyped tok)} ->
+                        {auto 0 tp : So (tokenPtOk tok)} ->
+                        {auto 0 sf : So (subsFitLine tok.line.subs tok.line.tys)} ->
+                        {auto 0 ta : So (tokenAbilitiesOk tok)} ->
+                        {auto 0 tc : So (tokenCanonical tok)} ->
+                        {auto 0 qf : So (tokenQualsFit tok)} ->
                         Instruction bs
 createTappedAttacking count tok =
-  Create You count (TokenWritten tok {wf})
+  Create You count (TokenWritten tok {tt} {tp} {sf} {ta} {tc} {qf})
          [EntersTapped, EntersAttacking NoDefender]
 
 public export

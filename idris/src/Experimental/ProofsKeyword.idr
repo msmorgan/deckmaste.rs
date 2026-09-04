@@ -127,8 +127,8 @@ public export
 badTokenSpellAbility : Unspellable (Instruction []) (\ok =>
   Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [White]
                                  (MkTypeLine [creatureType "Soldier"] [Creature])
-                                 [Spell Nothing (Draw You (Lit 1))] Nothing) {wf = ok})
-badTokenSpellAbility (Oh, Oh, Oh, Oh, Oh, Oh) impossible
+                                 [Spell Nothing (Draw You (Lit 1))] Nothing) {ta = ok})
+badTokenSpellAbility Oh impossible
 
 ||| "Creatures you control have '{T}: Draw a card.'"
 public export
@@ -442,14 +442,22 @@ okCompanionSharedCardType : AbilityAt []
 okCompanionSharedCardType =
   Macros.companion (CardsShare (And [Not Macros.land, IsCard]) CardTypeQ)
 
-||| "Companion — Each nonland card in your starting deck shares a color.": no
-||| printed companion compares a color across the deck, and the sort admits
-||| only the two characteristics they do compare [CR#109.3].
+||| "Companion — Each nonland card in your starting deck shares a color.":
+||| color is a characteristic [CR#109.3] and the deck-building condition is
+||| checked against the starting deck [CR#702.139a].
 public export
-badCompanionSharedColor : Unspellable (AbilityAt []) (\ok =>
+okCompanionSharedColor : AbilityAt []
+okCompanionSharedColor =
+  Macros.companion (CardsShare (And [Not Macros.land, IsCard]) Color)
+
+||| "Companion — Each nonland card in your starting deck shares a counter
+||| kind.": a kind of counter is not among an object's characteristics
+||| [CR#109.3].
+public export
+badCompanionSharedCounterKind : Unspellable (AbilityAt []) (\ok =>
   Macros.companion
-    (CardsShare (And [Not Macros.land, IsCard]) Color {dc = ok}))
-badCompanionSharedColor ComparesCharacteristic impossible
+    (CardsShare (And [Not Macros.land, IsCard]) CounterKindQ {dc = ok}))
+badCompanionSharedCounterKind ComparesCharacteristic impossible
 
 ||| "Each player scries 1.": one scry clause over a distributed player
 ||| reference [CR#701.22a,701.22c].

@@ -809,14 +809,16 @@ badLookAtHandRider : Unspellable (StaticSpec []) (\ok =>
   Visibility LookAt You WholeHand {vo = ok})
 badLookAtHandRider Oh impossible
 
-||| "Lands you control are every creature type."
+||| "Lands you control are every creature type.": an object can't gain a
+||| subtype that corresponds to none of its card types [CR#205.3d].
 public export
 badEveryCreatureTypeOnLand : Unspellable (StaticSpec []) (\ok =>
   Becomes (Macros.allOf (And [Macros.land, HasPossessor ControllerAx You])) Adds (EveryTypeOf CreatureSpace)
                 {ok = ok})
 badEveryCreatureTypeOnLand Oh impossible
 
-||| "Creatures you control are every basic land type."
+||| "Creatures you control are every basic land type.": an object can't gain
+||| a subtype that corresponds to none of its card types [CR#205.3d].
 public export
 badEveryBasicLandTypeOnCreature : Unspellable (StaticSpec []) (\ok =>
   Becomes (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You])) Adds (EveryTypeOf BasicLandSpace)

@@ -293,12 +293,14 @@ okMustAttackCreature =
                                ["Attack"] Agent NoDeonticPatient)
                (Just ThisTurn)
 
-||| "Target land attacks each combat if able."
+||| "Target land attacks each combat if able.": a land an effect has made a
+||| creature can attack [CR#205.1b], and the requirement is created even while
+||| it is not one [CR#208.3a].
 public export
-badMustAttackLand : Unspellable (Instruction []) (\ok =>
-  Continuously (Macros.deontic (Macros.target Macros.land) Require ["Attack"] Agent NoDeonticPatient {dp = ok})
-               (Just ThisTurn))
-badMustAttackLand Oh impossible
+okMustAttackLand : Instruction []
+okMustAttackLand =
+  Continuously (Macros.deontic (Macros.target Macros.land) Require ["Attack"] Agent NoDeonticPatient)
+               (Just ThisTurn)
 
 ||| "your Ring-bearer": a creature holds the Ring-bearer designation for a
 ||| player, so the possessive is written [CR#701.54e].
@@ -361,13 +363,15 @@ okEnchantedCreatureCantBlock =
   Static (Macros.deontic (AttachHost Enchanted (TypeW Creature))
                   Forbid ["Block"] Agent NoDeonticPatient)
 
-||| "Enchanted land gets +1/+1 and can't block."
+||| "Enchanted land gets +1/+1 and can't block.": a land an effect has made a
+||| creature can block [CR#205.1b], and the restriction is created even while
+||| it is not one [CR#208.3a].
 public export
-badCoordinatedLandHostBlocks : Unspellable Ability (\ok =>
+okCoordinatedLandHostBlocks : Ability
+okCoordinatedLandHostBlocks =
   Static (AndAlso Nothing [ Gets Adds (AttachHost Enchanted (TypeW Land))
                          (PtUp (Lit 1)) (PtUp (Lit 1))
-                  , Macros.deontic ((Macros.It OneOf)) Forbid ["Block"] Agent NoDeonticPatient {dp = ok} ]))
-badCoordinatedLandHostBlocks Oh impossible
+                  , Macros.deontic ((Macros.It OneOf)) Forbid ["Block"] Agent NoDeonticPatient ])
 
 ||| "This deals 4 damage to target creature. The damage can't be prevented."
 public export

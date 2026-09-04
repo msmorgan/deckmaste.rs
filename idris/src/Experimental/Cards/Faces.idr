@@ -150,7 +150,7 @@ goblinAssassinCoinTails : Instruction []
 goblinAssassinCoinTails =
   Sequentially [ FlipCoins (Macros.each AnyPlayer) (FlipCount (Lit 1))
                , Macros.sacrifice (Macros.each (And [AnyPlayer, CoinCameUp Tails]))
-                                  (Macros.a Macros.creature) ]
+                                  (Macros.aTheirChoice Macros.creature) ]
 
 ||| Rakdos, the Showstopper
 public export

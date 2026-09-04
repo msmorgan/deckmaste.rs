@@ -582,11 +582,19 @@ okCantAttackCreature : Instruction []
 okCantAttackCreature =
   Macros.cantAttack (Macros.target Macros.creature) (Just ThisTurn)
 
-||| "Target land can't attack this turn."
+||| "Target land can't attack this turn.": the active player chooses which
+||| creatures they control attack [CR#508.1a], a land an effect has made a
+||| creature is one [CR#205.1b], and the restriction is created even while it
+||| is not [CR#208.3a].
 public export
-badCantAttackLand : Unspellable (Instruction []) (\ok =>
-  Macros.cantAttack (Macros.target Macros.land) (Just ThisTurn) {dp = ok})
-badCantAttackLand Oh impossible
+okCantAttackLand : Instruction []
+okCantAttackLand =
+  Macros.cantAttack (Macros.target Macros.land) (Just ThisTurn)
+
+||| "Target land can't attack.": a restriction is written with no duration.
+public export
+okCantAttackLandNoSpan : Instruction []
+okCantAttackLandNoSpan = Macros.cantAttack (Macros.target Macros.land) Nothing
 
 ||| "Target creature can't block this turn."
 public export
@@ -594,11 +602,12 @@ okCantBlockCreature : Instruction []
 okCantBlockCreature =
   Macros.cantBlock (Macros.target Macros.creature) (Just ThisTurn)
 
-||| "Target creature or land can't block this turn."
+||| "Target creature or land can't block this turn.": both head types can be
+||| blocking creatures [CR#205.1b,208.3a].
 public export
-badCantDisjunctSubject : Unspellable (Instruction []) (\ok =>
-  Macros.cantBlock (Macros.target (Or [Macros.creature, Macros.land])) (Just ThisTurn) {dp = ok})
-badCantDisjunctSubject Oh impossible
+okCantDisjunctSubject : Instruction []
+okCantDisjunctSubject =
+  Macros.cantBlock (Macros.target (Or [Macros.creature, Macros.land])) (Just ThisTurn)
 
 ||| "your party": one each of Cleric, Rogue, Warrior and Wizard [CR#700.8].
 public export

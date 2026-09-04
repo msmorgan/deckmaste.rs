@@ -299,12 +299,14 @@ okEnchantedCreatureCantAttack =
   Static (Macros.deontic (AttachHost Enchanted (TypeW Creature))
                   Forbid ["Attack"] Agent NoDeonticPatient)
 
-||| "Enchanted planeswalker can't attack."
+||| "Enchanted planeswalker can't attack.": a planeswalker an effect has made
+||| a creature can attack [CR#205.1b], and the restriction is created even
+||| while it is not one [CR#208.3a].
 public export
-badPlaneswalkerAttacks : Unspellable Ability (\ok =>
+okPlaneswalkerAttacks : Ability
+okPlaneswalkerAttacks =
   Static (Macros.deontic (AttachHost Enchanted (TypeW Planeswalker))
-                  Forbid ["Attack"] Agent NoDeonticPatient {dp = ok}))
-badPlaneswalkerAttacks Oh impossible
+                  Forbid ["Attack"] Agent NoDeonticPatient)
 
 ||| "you pay {2}"
 public export

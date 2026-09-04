@@ -52,15 +52,19 @@ okPileWordAfterPartition =
                   , Macros.move (Macros.That PileW ManyOf) Macros.handZ ]) ]
        Nothing
 
+||| "Reveal the top five cards of your library. An opponent separates those
+||| cards into two piles. Put those cards into your hand.": each object in a
+||| pile is still an individual object [CR#700.3b], so the card word still
+||| reads them.
 public export
-badCardWordReadsPiles : Unspellable Card (\ok =>
+okCardWordReadsPiles : Card
+okCardWordReadsPiles =
   Macros.card "" Nothing [] (MkTypeLine [] [Instant])
        [ Spell Nothing (Sequentially
                   [ Macros.revealCards (Macros.topSlice (Lit 5))
                   , SeparateIntoPiles Macros.anOpponent ((Macros.It ManyOf)) 2 []
-                  , Macros.move (Macros.That CardW ManyOf {ok = ok}) Macros.handZ ]) ]
-       Nothing)
-badCardWordReadsPiles Refl impossible
+                  , Macros.move (Macros.That CardW ManyOf) Macros.handZ ]) ]
+       Nothing
 
 ||| "Reveal the top five cards of your library. Put those piles into your hand."
 public export

@@ -111,11 +111,13 @@ badFightGraveyard : Unspellable (Instruction []) (\ok =>
          (Macros.target Macros.creature))
 badFightGraveyard Oh impossible
 
-||| "Target land fights target creature you don't control."
+||| "Target land fights target creature you don't control.": a land an effect
+||| has made a creature fights, and one that is no longer a creature simply
+||| does not [CR#205.1b,701.14b].
 public export
-badFightLand : Unspellable (Instruction []) (\ok =>
-  Fights (Macros.target (HasType Land)) {ta = ok} (Macros.target Macros.creatureYouDontControl))
-badFightLand Oh impossible
+okFightLand : Instruction []
+okFightLand =
+  Fights (Macros.target (HasType Land)) (Macros.target Macros.creatureYouDontControl)
 
 ||| "Target permanent fights target creature." [CR#701.14a]
 public export
@@ -732,24 +734,29 @@ okSoldierToken =
   Macros.create (Lit 1)
                 (Macros.creatureTok 1 1 [White] [creatureType "Soldier"])
 
-||| "Create a 1/1 black Zombie artifact token."
+||| "Create a 1/1 black Zombie artifact token.": refuses `sf` -- each subtype
+||| is correlated to a card type the object has [CR#205.3c] and Zombie is a
+||| creature type [CR#205.3m].
 public export
 badZombieArtifactToken : Unspellable (Instruction []) (\ok =>
   Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [Black] (MkTypeLine [creatureType "Zombie"] [Artifact])
-                          [] Nothing) {wf = ok})
-badZombieArtifactToken (Oh, Oh, Oh, Oh, Oh, Oh) impossible
+                          [] Nothing) {sf = ok})
+badZombieArtifactToken Oh impossible
 
-||| "Create a white Soldier creature token."
+||| "Create a white Soldier creature token.": refuses `tp` -- a creature has
+||| power and toughness [CR#208.1], and a token has only the characteristics
+||| its creating ability defines [CR#111.3].
 public export
 badCreatureTokenNoPt : Unspellable (Instruction []) (\ok =>
-  Macros.create (Lit 1) (MkToken Nothing [White] (MkTypeLine [creatureType "Soldier"] [Creature]) [] Nothing) {wf = ok})
-badCreatureTokenNoPt (Oh, Oh, Oh, Oh, Oh, Oh) impossible
+  Macros.create (Lit 1) (MkToken Nothing [White] (MkTypeLine [creatureType "Soldier"] [Creature]) [] Nothing) {tp = ok})
+badCreatureTokenNoPt Oh impossible
 
-||| "Create a 1/1 white token."
+||| "Create a 1/1 white token.": refuses `tt` -- a token represents a
+||| permanent [CR#111.1], which carries a permanent card type [CR#110.4a].
 public export
 badTypelessToken : Unspellable (Instruction []) (\ok =>
-  Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [White] (MkTypeLine [] []) [] Nothing) {wf = ok})
-badTypelessToken (Oh, Oh, Oh, Oh, Oh, Oh) impossible
+  Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [White] (MkTypeLine [] []) [] Nothing) {tt = ok})
+badTypelessToken Oh impossible
 
 ||| "You gain life equal to your life total."
 public export

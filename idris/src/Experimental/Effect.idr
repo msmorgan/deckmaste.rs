@@ -253,8 +253,16 @@ mutual
 
   public export
   data TokenSpec : Bindings -> Type where
+    ||| The creating spell or ability defines the token's characteristic
+    ||| values [CR#111.3] and sets its name and subtypes [CR#111.4]; each
+    ||| obligation names one thing it must get right.
     TokenWritten : (t : TokenChars bs) ->
-                   {auto 0 wf : TokenWellFormed t} -> TokenSpec bs
+                   {auto 0 tt : So (tokenTyped t)} ->
+                   {auto 0 tp : So (tokenPtOk t)} ->
+                   {auto 0 sf : So (subsFitLine t.line.subs t.line.tys)} ->
+                   {auto 0 ta : So (tokenAbilitiesOk t)} ->
+                   {auto 0 tc : So (tokenCanonical t)} ->
+                   {auto 0 qf : So (tokenQualsFit t)} -> TokenSpec bs
     TokenAsThose : {auto 0 ok : countTokenSpecs bs = 1} -> TokenSpec bs
     TokenCopyOf : (src : Noun bs Object) -> (exc : List (CopyExcept bs)) ->
                   {auto 0 pm : PerMember src} -> TokenSpec bs
@@ -1786,7 +1794,7 @@ mutual
   instrProfile RestartsGame = sameIntro bs []
   instrProfile (SeparateIntoPiles who grp piles faces) =
     MkInstrProfile (nomIntro grp)
-                 (groupSpent Object (nomIntro grp))
+                 (partsClosed (nomIntro grp))
                  Nothing
                  ([MkBinding TheD Pile ManyOf
                              (PileP (nounZone grp) (Just piles) (pileMentionFace faces))])
@@ -1954,10 +1962,15 @@ mutual
                            DeckReadable p
 
   public export
+  ||| The characteristics [CR#109.3] a deck condition compares; a number and
+  ||| a counter kind are not characteristics.
   deckComparable : QualitySort -> Bool
+  deckComparable Color = True
+  deckComparable (SubtypeQ _) = True
   deckComparable CardName = True
   deckComparable CardTypeQ = True
-  deckComparable _ = False
+  deckComparable Number = False
+  deckComparable CounterKindQ = False
 
   ||| A characteristic a deck condition compares across the deck's cards
   ||| [CR#109.3].
@@ -2254,16 +2267,6 @@ mutual
   public export
   tokenAbilitiesOk : {0 bs : Bindings} -> TokenChars bs -> Bool
   tokenAbilitiesOk t = abilitiesGrantable t.abilities
-
-  public export
-  TokenWellFormed : TokenChars bs -> Type
-  TokenWellFormed t = ( So (tokenTyped t)
-                      , So (tokenPtOk t)
-                      , So (subsFitLine t.line.subs t.line.tys)
-                      , So (tokenAbilitiesOk t)
-                      , So (tokenCanonical t)
-                      , So (tokenQualsFit t)
-                      )
 
   public export
   predRegime : {0 bs : Bindings} -> {0 k : Kind} ->

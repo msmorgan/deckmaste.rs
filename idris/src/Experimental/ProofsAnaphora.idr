@@ -1721,7 +1721,7 @@ sumIsOne (S (S _)) _ Refl impossible
 public export
 theirChoiceReadsOnlyPrefix : (bs : Bindings) -> countChoosers bs = 1 ->
                              ChoiceMode bs
-theirChoiceReadsOnlyPrefix bs ok = TheirChoice {bs} {ch = ok}
+theirChoiceReadsOnlyPrefix bs ok = TheirChoice Whole {bs} {ch = ok}
 
 public export
 theirChoiceResolvesInPrefix :
