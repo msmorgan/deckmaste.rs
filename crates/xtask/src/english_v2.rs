@@ -39,6 +39,7 @@ use deckmaste_english_v2::environment::ParserEnvironment;
 use deckmaste_english_v2::parser::Parser;
 
 const REQUIRE_COMPLETE_OUTCOME_ENV: &str = "DECKMASTE_ENGLISH_V2_REQUIRE_COMPLETE_OUTCOME";
+const CORPUS_WORKERS_ENV: &str = "DECKMASTE_XTASK_WORKERS";
 
 const CARD_NAME_ONSET_OVERRIDES: [(&str, deckmaste_construction_core::macro_def::Onset); 8] = [
     (
@@ -353,12 +354,36 @@ struct CorpusArgs {
     #[arg(long, default_value = "data/mtgjson/AtomicCards.json")]
     data: PathBuf,
     /// Maximum parser workers for this corpus run.
-    #[arg(long, default_value_t = default_corpus_workers(), value_parser = parse_worker_count)]
-    workers: usize,
+    #[arg(long, value_parser = parse_worker_count)]
+    workers: Option<usize>,
 }
 
-fn default_corpus_workers() -> usize {
-    std::thread::available_parallelism().map_or(1, usize::from)
+impl CorpusArgs {
+    fn workers(&self) -> anyhow::Result<usize> {
+        self.workers.map_or_else(default_corpus_workers, Ok)
+    }
+}
+
+fn default_corpus_workers() -> anyhow::Result<usize> {
+    let override_value = std::env::var_os(CORPUS_WORKERS_ENV);
+    resolved_corpus_workers(None, override_value.as_deref())
+}
+
+fn resolved_corpus_workers(
+    explicit_workers: Option<usize>,
+    override_value: Option<&std::ffi::OsStr>,
+) -> anyhow::Result<usize> {
+    if let Some(workers) = explicit_workers {
+        return Ok(workers);
+    }
+    let Some(override_value) = override_value else {
+        return Ok(std::thread::available_parallelism().map_or(1, usize::from));
+    };
+    let override_value = override_value
+        .to_str()
+        .with_context(|| format!("{CORPUS_WORKERS_ENV} must be a positive integer"))?;
+    parse_worker_count(override_value)
+        .map_err(|error| anyhow::anyhow!("{CORPUS_WORKERS_ENV}: {error}"))
 }
 
 fn parse_worker_count(value: &str) -> Result<usize, String> {
@@ -765,5 +790,29 @@ mod tests {
 
         assert!(error.to_string().contains("exactly one"), "{error:#}");
         assert!(output.is_empty());
+    }
+
+    #[test]
+    fn corpus_workers_environment_override_is_applied() {
+        assert_eq!(
+            resolved_corpus_workers(None, Some(std::ffi::OsStr::new("8"))).unwrap(),
+            8
+        );
+    }
+
+    #[test]
+    fn explicit_corpus_workers_win_over_environment_override() {
+        assert_eq!(
+            resolved_corpus_workers(Some(3), Some(std::ffi::OsStr::new("8"))).unwrap(),
+            3
+        );
+    }
+
+    #[test]
+    fn invalid_corpus_workers_environment_override_names_the_variable() {
+        let error = resolved_corpus_workers(None, Some(std::ffi::OsStr::new("0")))
+            .expect_err("zero is not a positive worker count");
+
+        assert!(format!("{error:#}").contains(CORPUS_WORKERS_ENV));
     }
 }

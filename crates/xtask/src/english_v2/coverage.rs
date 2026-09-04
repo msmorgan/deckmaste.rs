@@ -1272,13 +1272,14 @@ where
     Gate: FnMut(&CoverageReport, &Path, CoverageLockMode, &mut dyn Write) -> anyhow::Result<()>,
 {
     let started = std::time::Instant::now();
+    let workers = args.corpus.workers()?;
     observer.record("load_corpus".to_owned());
     let corpus = load_corpus()?;
     observer.record("load_environment".to_owned());
     let parser = load_parser()?;
     let (rows, performance) = map_corpus_units(
         corpus.units(),
-        args.corpus.workers,
+        workers,
         |_, unit| {
             let context = ParseContext::new(
                 unit.context_name(),
@@ -2674,7 +2675,7 @@ mod tests {
         CoverageArgs {
             corpus: CorpusArgs {
                 data: Path::new("fixture.json").to_owned(),
-                workers: 1,
+                workers: Some(1),
             },
             lock: Path::new("fixture.lock").to_owned(),
             json,

@@ -21,10 +21,11 @@ use super::corpus::map_corpus_units;
 
 pub(super) fn run(args: &AmbiguityArgs, output: &mut dyn Write) -> anyhow::Result<()> {
     let started = std::time::Instant::now();
+    let workers = args.corpus.workers()?;
     let corpus = Corpus::load(&args.corpus.data)
         .with_context(|| format!("loading corpus from {}", args.corpus.data.display()))?;
     let parser = crate::english_v2::parser_from_builtin_v2()?;
-    let report = AmbiguityReport::run(&corpus, &parser, args.corpus.workers)?;
+    let report = AmbiguityReport::run(&corpus, &parser, workers)?;
 
     render_report(&report, args.json, output)?;
     output

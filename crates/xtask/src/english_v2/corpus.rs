@@ -470,13 +470,29 @@ pub(super) fn write_corpus_performance(
     elapsed: Duration,
     performance: CorpusPerformance,
 ) -> anyhow::Result<()> {
-    use std::io::Write as _;
-
-    let load = host_load_average();
     let mut diagnostics = std::io::stderr().lock();
+    write_corpus_performance_to(
+        gate,
+        elapsed,
+        performance,
+        std::thread::available_parallelism().map_or(1, usize::from),
+        &mut diagnostics,
+    )
+}
+
+fn write_corpus_performance_to(
+    gate: &str,
+    elapsed: Duration,
+    performance: CorpusPerformance,
+    available_workers: usize,
+    diagnostics: &mut dyn std::io::Write,
+) -> anyhow::Result<()> {
+    let load = host_load_average();
+    let capped_workers = performance.workers < available_workers;
+    let criterion = if capped_workers { "capped_workers" } else { "quiet_host" };
     writeln!(
         diagnostics,
-        "PERFORMANCE english-v2 gate={gate} workers={} elapsed_seconds={:.9} accepted_cpu_micros_per_byte={:.3} accepted_units={} accepted_bytes={} host_load_1m={} host_load_5m={} host_load_15m={}",
+        "PERFORMANCE english-v2 gate={gate} workers={} elapsed_seconds={:.9} accepted_cpu_micros_per_byte={:.3} accepted_units={} accepted_bytes={} ceiling_seconds={CORPUS_WALL_CEILING_SECONDS:.3} criterion={criterion} host_load_1m={} host_load_5m={} host_load_15m={}",
         performance.workers,
         elapsed.as_secs_f64(),
         performance.accepted_cpu_micros_per_byte(),
@@ -495,7 +511,7 @@ pub(super) fn write_corpus_performance(
             |value| format!("{:.2}", value[2])
         ),
     )?;
-    if elapsed.as_secs_f64() > CORPUS_WALL_CEILING_SECONDS {
+    if elapsed.as_secs_f64() > CORPUS_WALL_CEILING_SECONDS && !capped_workers {
         writeln!(
             diagnostics,
             "WARNING english-v2-common-path-performance-regression gate={gate} workers={} elapsed_seconds={:.9} ceiling_seconds={CORPUS_WALL_CEILING_SECONDS:.3} criterion=quiet_host host_load_1m={} host_load_5m={} host_load_15m={}",
@@ -973,6 +989,28 @@ mod tests {
             .expect("thread CPU clock is monotonic");
 
         assert!(cpu_elapsed < Duration::from_millis(10), "{cpu_elapsed:?}");
+    }
+
+    #[test]
+    fn capped_workers_report_the_advisory_criterion_without_a_regression_warning() {
+        let performance = CorpusPerformance {
+            workers: 2,
+            ..CorpusPerformance::default()
+        };
+        let mut diagnostics = Vec::new();
+
+        write_corpus_performance_to(
+            "coverage",
+            Duration::from_secs(17),
+            performance,
+            4,
+            &mut diagnostics,
+        )
+        .unwrap();
+
+        let diagnostics = String::from_utf8(diagnostics).unwrap();
+        assert!(diagnostics.contains("criterion=capped_workers"));
+        assert!(!diagnostics.contains("WARNING english-v2-common-path-performance-regression"));
     }
 
     fn explicit_onsets(
