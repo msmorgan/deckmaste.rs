@@ -100,7 +100,7 @@ acquire spurious agreement values.
 - Positive gates, all foreground on the refreshed tree: `cargo fmt --all --
   --check` clean; strict all-target Clippy for `deckmaste_construction_core`,
   `deckmaste_construction`, `deckmaste_english_v2`, and `xtask` clean; and
-  `cargo test --workspace` reporting 127 suites, **6,112 passed, 0 failed, 6
+  `cargo test --workspace` reporting 127 suites, **6,113 passed, 0 failed, 6
   pre-existing ignored**. `coverage --check` reports schema 9, 16,824
   selected, 16,824 covered, no lock movement, 25 permitted / 0 forbidden
   licence readers, and every failure counter zero. `ambiguity
@@ -108,10 +108,10 @@ acquire spurious agreement values.
   specificity_resolved=5297 unresolved_ties=0 internal_failures=0`. No
   citation changed, so the citation gates were not required.
 - Performance advisory: all corpus commands used 8 workers. On the refreshed
-  tree `coverage --check` took 99.549 s at 131,069 ns/B with host load
-  10.50/10.13/10.15, and `ambiguity` took 95.502 s at 116,978 ns/B with load
-  8.98/10.64/10.34; the trunk baseline `ambiguity --json` took 107.089 s at
-  135,917 ns/B. Each was one foreground gate process. Reviewer contention
+  tree `coverage --check` took 94.327 s at 114,603 ns/B with host load
+  9.48/9.05/9.28, and `ambiguity --require-resolved` took 92.080 s at
+  131,020 ns/B with load 8.38/9.03/9.26; the trunk baseline `ambiguity --json`
+  took 107.089 s at 135,917 ns/B. Each was one foreground gate process. Reviewer contention
   stamp: 0-1 concurrent codex executors plus one other reviewer on the host,
   observed load 8-26 across the run. The readings exceed the 16.26 s
   quiet-host ceiling and are advisory, not a STOP.
@@ -123,8 +123,9 @@ acquire spurious agreement values.
   copula Concord Class / Inflectional Form consistency check, and the
   nine-path preterite copula selection pin); removed 0. The feature-local
   `#[test]` delta is +3; the six ignored workspace tests are pre-existing.
-- Refresh: `kata refresh` completed without conflict; it advanced the stack
-  over coordinator idris and xtask-facts work that does not touch the parser.
+- Refresh: `kata refresh` ran twice, both times without conflict; it advanced
+  the stack over coordinator idris and xtask-facts work that does not touch the
+  parser or the corpus.
   Formatting, strict Clippy, the full workspace suite, coverage, ambiguity,
   the lock comparison, the construction count, the licence-reader census and
   the vocabulary grep were all rerun on the refreshed tree, and the figures
