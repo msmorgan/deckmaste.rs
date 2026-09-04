@@ -1244,9 +1244,9 @@ shimmeringGlasskite =
        [ Macros.keyword "Flying"
        , Macros.triggeredOnlyOnce Whenever
            (BecomesTarget Macros.thisCreature
-              (Macros.a (Joined Macros.spell (AbilityHead AnyOnStack))))
+              (Macros.a (Or [Macros.spell, AbilityHead AnyOnStack])))
            OncePerTurn
-           (CounterSpell (Macros.That AbilityJoinW OneOf)) ]
+           (CounterSpell (Macros.That StackW OneOf)) ]
        (Just (2, 3))
 
 ||| Conqueror's Pledge

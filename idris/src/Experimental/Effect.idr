@@ -78,7 +78,7 @@ data CounterKindSource : Bindings -> Type where
 
 public export
 counterHolderKind : Kind -> Bool
-counterHolderKind k = kindLte k ((Object \/ Player) \/ Ability)
+counterHolderKind k = kindLte k (Object \/ Player)
 
 public export
 counterSourceScope : {0 bs : Bindings} -> CounterKindSource bs -> Kind -> Bool
@@ -348,7 +348,7 @@ mutual
       GainsAbilitiesOf : (n : Noun bs Object) ->
                          (cls : List AbilityClass) ->
                          (src : Noun (nomIntro n) Object) ->
-                         (except : Maybe (Predicate (nomIntro src) Ability)) ->
+                         (except : Maybe (Predicate (nomIntro src) Object)) ->
                          {auto 0 ne : NonEmpty cls} ->
                          {auto 0 dc : So (distinctClasses cls)} ->
                          StaticSpec bs
@@ -362,7 +362,7 @@ mutual
                 {auto 0 ne : NonEmpty deeds} ->
                 {auto 0 dd : So (distinctDeeds deeds)} ->
                 {auto 0 kd : KnownActs deeds} ->
-                {auto 0 dp : DeedFits deeds role k (nounHeadTys n) (nounZone n)} ->
+                {auto 0 dp : DeedFits deeds role k (nounIsAbility n) (nounHeadTys n) (nounZone n)} ->
                 {auto 0 bd : So (deonticBoundOk deeds bound)} ->
                 {auto 0 pt : So (deonticPatientOk n deeds role patient rider)} ->
                 {auto 0 at : So (asThoughOk c deeds asThough)} ->
@@ -383,7 +383,7 @@ mutual
                     (exc : List (CopyExcept (nomIntro src))) ->
                     {auto 0 pm : PerMember src} -> StaticSpec bs
       LosesAllAbilities : (n : Noun bs Object) ->
-                          (except : Maybe (Predicate (selfSubjIntro n) Ability)) ->
+                          (except : Maybe (Predicate (selfSubjIntro n) Object)) ->
                           {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
                           StaticSpec bs
       LosesAbilities : (n : Noun bs Object) -> (abl : List (AbilityLost bs)) ->
@@ -536,7 +536,8 @@ mutual
   counterpartFits : {bs : Bindings} -> {k : Kind} -> Deeds -> Role ->
                     Noun bs k -> Bool -> Bool
   counterpartFits {k} ds r m moved =
-    deedFits ds r k (nounHeadTys m) (if moved then Nothing else nounZone m)
+    deedFits ds r k (nounIsAbility m) (nounHeadTys m)
+             (if moved then Nothing else nounZone m)
 
   public export
   counterpartNotSelf : {bs : Bindings} -> {k : Kind} -> {ka : Kind} ->
@@ -1090,7 +1091,7 @@ mutual
              (what : Noun (riderIntro e) k) ->
              {auto 0 kd : KnownAct deed} ->
              {auto 0 rd : So (deedRidesOk deed)} ->
-             {auto 0 sub : DeedFits [deed] Patient k (nounHeadTys what) (nounZone what)} ->
+             {auto 0 sub : DeedFits [deed] Patient k (nounIsAbility what) (nounHeadTys what) (nounZone what)} ->
              Instruction bs
     GainsDesignation : {k : Kind} -> (n : Noun bs k) -> (d : Designation) ->
                        (w : GivingWarrant d) ->
@@ -1581,7 +1582,8 @@ mutual
   instrIntro (CounterSpell what) = nomIntro what
   instrIntro (Copy {k} {ph} src agent what times exc) =
     MkBinding TheD k (outputPlur (nounPlur what) (amtPlur times))
-              (copyPayloadIn ph (nounTy what) (copyLandsIn src (nounZone what)))
+              (copyPayloadIn ph (nounIsAbility what) (nounTy what)
+                             (copyLandsIn src (nounZone what)))
       :: amtIntro times
   instrIntro (ChooseNewTargets what) = nomIntro what
   instrIntro (CopyTargets copy whom) = nomIntro whom
@@ -1807,7 +1809,8 @@ mutual
   instrProfile (Copy {k} {ph} src agent what times exc) =
     sameIntro (amtIntro times)
               ([MkBinding TheD k (outputPlur (nounPlur what) (amtPlur times))
-                          (copyPayloadIn ph (nounTy what) (copyLandsIn src (nounZone what)))])
+                          (copyPayloadIn ph (nounIsAbility what) (nounTy what)
+                                         (copyLandsIn src (nounZone what)))])
   instrProfile (ChooseNewTargets what) = sameIntro (nomIntro what) []
   instrProfile (CopyTargets copy whom) = sameIntro (nomIntro whom) []
   instrProfile (Choose n _ _) = sameIntro (chosenIntro n) []

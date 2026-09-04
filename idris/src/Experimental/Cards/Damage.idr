@@ -288,7 +288,7 @@ psychicPurge =
        , Macros.triggered When
            (Causes
               (CausedBySource
-                 (Macros.a (And [ Joined Macros.spell (AbilityHead AnyOnStack)
+                 (Macros.a (And [ Or [Macros.spell, AbilityHead AnyOnStack]
                                 , HasPossessor ControllerAx (Macros.a Opponent) ])))
               (VerbedEvent (Just You) "Discard" (Just This) Nothing False))
            (Macros.losesLife (Macros.That PlayerW OneOf) (Lit 5)) ]
@@ -1657,9 +1657,9 @@ disallow =
        (MkTypeLine [] [Instant])
        [ Spell (CounterSpell
                   (Macros.target
-                     (Joined Macros.spell
-                             (Or [AbilityHead AnyActivated,
-                                  AbilityHead AnyTriggered])))) ]
+                     (Or [ Macros.spell
+                         , AbilityHead AnyActivated
+                         , AbilityHead AnyTriggered ]))) ]
        Nothing
 
 ||| Fry

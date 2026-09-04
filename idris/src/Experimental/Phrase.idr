@@ -338,11 +338,11 @@ mutual
                  Predicate bs k
     IsSource : Predicate bs Object
     ManaCostHas : (sym : ManaSymbol) -> Predicate bs Object
-    AbilityHead : (cls : AbilityClass) -> Predicate bs Ability
-    AbilityOf : (src : Noun bs Object) -> Predicate bs Ability
+    AbilityHead : (cls : AbilityClass) -> Predicate bs Object
+    AbilityOf : (src : Noun bs Object) -> Predicate bs Object
     ActivatedBy : (who : Noun bs Player) ->
-                  {auto 0 ps : SoleHolder who} -> Predicate bs Ability
-    IsManaAbility : Predicate bs Ability
+                  {auto 0 ps : SoleHolder who} -> Predicate bs Object
+    IsManaAbility : Predicate bs Object
     Targets : {kt : Kind} -> (m : Noun bs kt) -> (extent : TargetExtent) ->
               {auto 0 tk : Targetable kt} ->
               {auto 0 tr : Targeter k} -> Predicate bs k
@@ -450,6 +450,10 @@ mutual
   seedZone (Targets _ _) = Just Stack
   seedZone (ExiledWith _) = Just Exile
   seedZone (CompareOver dom _ _ _) = seedZone dom
+  seedZone (AbilityHead _) = Just Stack
+  seedZone (AbilityOf _) = Just Stack
+  seedZone (ActivatedBy _) = Just Stack
+  seedZone IsManaAbility = Just Stack
   seedZone (And ps) = seedZoneAll ps
   seedZone (Or ps) = seedZoneJoin ps
   seedZone _ = Nothing
@@ -494,6 +498,28 @@ mutual
   seedsTokenAll : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
   seedsTokenAll [] = False
   seedsTokenAll (p :: ps) = seedsToken p && seedsTokenAll ps
+
+  ||| An activated or triggered ability on the stack is an object [CR#113.1c].
+  public export
+  seedsAbility : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
+  seedsAbility (AbilityHead _) = True
+  seedsAbility (AbilityOf _) = True
+  seedsAbility (ActivatedBy _) = True
+  seedsAbility IsManaAbility = True
+  seedsAbility (And ps) = seedsAbilityAny ps
+  seedsAbility (Or ps) = seedsAbilityAll ps
+  seedsAbility (CompareOver dom _ _ _) = seedsAbility dom
+  seedsAbility _ = False
+
+  public export
+  seedsAbilityAny : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
+  seedsAbilityAny [] = False
+  seedsAbilityAny (p :: ps) = seedsAbility p || seedsAbilityAny ps
+
+  public export
+  seedsAbilityAll : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
+  seedsAbilityAll [] = False
+  seedsAbilityAll (p :: ps) = seedsAbility p && seedsAbilityAll ps
 
   public export
   zoneAdmit : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> List Zone
@@ -1192,7 +1218,6 @@ mutual
   joinHalfPayload PhObject (SoleTy ty) = ObjectP ty Nothing Nothing Nothing Nothing
   joinHalfPayload PhPlayer _ = PlayerP
   joinHalfPayload {k = Quality q} PhQuality _ = QualityP
-  joinHalfPayload PhAbility _ = AbilityP Nothing
   joinHalfPayload (PhJoin l r) (JoinTy a b) =
     JoinP (joinHalfPayload l a) (joinHalfPayload r b)
   joinHalfPayload (PhJoin l r) (SoleTy ty) =
@@ -1201,15 +1226,16 @@ mutual
   public export
   bindFor : Determiner -> Plurality -> {k : Kind} -> Phrasal k -> Predicate bs k -> Binding
   bindFor det plur PhObject p =
-    MkBinding det Object plur
-              (ObjectP (seedTy p)
-                       (Just (zoneOr Battlefield (seedZone p)))
-                       Nothing
-                       (if seedsToken p then Just TokenOrigin else Nothing)
-                       Nothing)
+    if seedsAbility p
+      then MkBinding det Object plur (AbilityP Nothing)
+      else MkBinding det Object plur
+                     (ObjectP (seedTy p)
+                              (Just (zoneOr Battlefield (seedZone p)))
+                              Nothing
+                              (if seedsToken p then Just TokenOrigin else Nothing)
+                              Nothing)
   bindFor det plur PhPlayer p = MkBinding det Player plur PlayerP
   bindFor det plur {k = Quality q} PhQuality p = MkBinding det (Quality q) plur QualityP
-  bindFor det plur PhAbility p = MkBinding det Ability plur (AbilityP Nothing)
   bindFor det plur ph@(PhJoin l r) p =
     MkBinding det k plur (joinHalfPayload ph (seedTys p))
 
@@ -1455,21 +1481,22 @@ mutual
   nounDelta (Designated _ _) = []
 
   public export
-  elemPayload : {k : Kind} -> Phrasal k -> Maybe CardType -> Maybe Zone ->
+  elemPayload : {k : Kind} -> Phrasal k -> Bool -> Maybe CardType -> Maybe Zone ->
                 Maybe Stamp -> Payload k
-  elemPayload PhObject ty zn pv = ObjectP ty zn pv Nothing (Just 1)
-  elemPayload PhPlayer _ _ _ = PlayerP
-  elemPayload {k = Quality q} PhQuality _ _ _ = QualityP
-  elemPayload PhAbility _ _ _ = AbilityP Nothing
-  elemPayload (PhJoin l r) ty zn pv =
-    JoinP (elemPayload l ty zn pv) (elemPayload r ty zn pv)
+  elemPayload PhObject True _ _ _ = AbilityP Nothing
+  elemPayload PhObject False ty zn pv = ObjectP ty zn pv Nothing (Just 1)
+  elemPayload PhPlayer _ _ _ _ = PlayerP
+  elemPayload {k = Quality q} PhQuality _ _ _ _ = QualityP
+  elemPayload (PhJoin l r) ab ty zn pv =
+    JoinP (elemPayload l ab ty zn pv) (elemPayload r ab ty zn pv)
 
   public export
   elemIntro : {bs : Bindings} -> {k : Kind} -> {auto ph : Phrasal k} ->
               Noun bs k -> Bindings
   elemIntro {k} grp =
     MkBinding TheD k OneOf
-              (elemPayload ph (nounTy grp) (nounZone grp) (nounProv grp))
+              (elemPayload ph (nounIsAbility grp) (nounTy grp) (nounZone grp)
+                          (nounProv grp))
       :: nomIntro grp
 
   public export
@@ -2184,19 +2211,16 @@ mutual
   data CostSubject : {0 k : Kind} -> Noun bs k -> Type where
     MkCostSubject : {0 n : Noun bs Object} ->
                     {auto 0 ok : So (costSubjectOk n)} -> CostSubject n
-    AbilityCostSubject : {0 n : Noun bs Ability} -> CostSubject n
 
   public export
   counterKind : Kind -> Bool
   counterKind Object = True
-  counterKind Ability = True
   counterKind (a \/ b) = counterKind a && counterKind b
   counterKind _ = False
 
   public export
   controlKind : Kind -> Bool
   controlKind Object = True
-  controlKind Ability = True
   controlKind (a \/ b) = controlKind a && controlKind b
   controlKind _ = False
 
@@ -2208,7 +2232,6 @@ mutual
   public export
   copyKind : Kind -> Bool
   copyKind Object = True
-  copyKind Ability = True
   copyKind (a \/ b) = copyKind a && copyKind b
   copyKind _ = False
 
@@ -2216,7 +2239,6 @@ mutual
   data StackActOn : (Kind -> Bool) -> {0 k : Kind} -> Noun bs k -> Type where
     StackSpell : {0 n : Noun bs Object} ->
                  {auto 0 zn : ZoneIs (nounZone n) Stack} -> StackActOn p n
-    StackAbility : {0 n : Noun bs Ability} -> StackActOn p n
     StackJoin : {0 ka : Kind} -> {0 kb : Kind} ->
                 {0 n : Noun bs (ka \/ kb)} ->
                 {auto 0 ok : So (p (ka \/ kb))} -> StackActOn p n
@@ -2272,6 +2294,7 @@ mutual
     DealtThisWay : {k : Kind} -> (p : Predicate bs k) ->
                    {auto 0 wy : So (damageDealtInScope bs)} ->
                    {auto 0 rk : So (kindLte k (Object \/ Player))} ->
+                   {auto 0 nz : So (not (zoneIsB (seedZone p) Stack))} ->
                    Condition bs
     PreventedFromSource : (p : Predicate bs Object) ->
                           {auto 0 ok : countOutcomes DamagePrevented bs = 1} ->
@@ -2632,8 +2655,8 @@ mutual
   setZone p z (MkBinding det Gap plur GapP) = MkBinding det Gap plur GapP
   setZone p z (MkBinding det (LetterK l) plur LetterP) = MkBinding det (LetterK l) plur LetterP
   setZone p z (MkBinding det TurnRef plur TurnRefP) = MkBinding det TurnRef plur TurnRefP
-  setZone p z (MkBinding det Ability plur (AbilityP og)) =
-    MkBinding det Ability plur (AbilityP og)
+  setZone p z (MkBinding det Object plur (AbilityP og)) =
+    MkBinding det Object plur (AbilityP og)
   setZone p z (MkBinding det (a \/ b) plur (JoinP l r)) = MkBinding det (a \/ b) plur (JoinP l r)
 
   public export
@@ -2754,6 +2777,21 @@ mutual
   nounZone (PossessorOf _ n) = Nothing
   nounZone (PossessorsOf _ n) = Nothing
   nounZone (Designated _ _) = Nothing
+
+  ||| Whether the noun names an ability on the stack [CR#113.1c] -- read off
+  ||| the description and the reading word, never the antecedent stack, so it
+  ||| reduces where the bindings are still abstract.
+  public export
+  nounIsAbility : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
+  nounIsAbility (Described _ p) = seedsAbility p
+  nounIsAbility (Pro (Word AbilityW) _) = True
+  nounIsAbility (Pro (Word AbilityCopyW) _) = True
+  nounIsAbility (EachOf grp) = nounIsAbility grp
+  nounIsAbility (NamesAgree _ grp) = nounIsAbility grp
+  nounIsAbility (ResolvedPermanent n) = nounIsAbility n
+  nounIsAbility (AsMarker _ n) = nounIsAbility n
+  nounIsAbility (SomeOf _ _ grp) = nounIsAbility grp
+  nounIsAbility _ = False
 
   public export
   nounTy : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Maybe CardType

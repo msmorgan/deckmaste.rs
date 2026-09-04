@@ -250,7 +250,7 @@ mutual
     ChapterMark : (ns : List ChapterNumber) ->
                   {auto 0 cm : ChapterMarks ns} -> GameEvent bs
     Activates : (who : Noun bs Player) ->
-                (what : Noun (nomIntro who) Ability) ->
+                (what : Noun (nomIntro who) Object) ->
                 {auto 0 one : nounPlur what = OneOf} ->
                 {auto 0 nt : Nontarget what} -> GameEvent bs
     StatBecomes : (n : Noun bs Object) -> (c : Characteristic) ->
@@ -285,7 +285,7 @@ mutual
                   GameEvent bs
     NthOccurrence : (ord : Ordinal) -> (per : Maybe TurnPart) ->
                     (ev : GameEvent bs) -> GameEvent bs
-    Triggers : (what : Noun bs Ability) ->
+    Triggers : (what : Noun bs Object) ->
                {auto 0 one : nounPlur what = OneOf} ->
                {auto 0 nt : Nontarget what} -> GameEvent bs
     Causes : (by : Causing bs) -> (what : GameEvent (causingIntro by)) ->

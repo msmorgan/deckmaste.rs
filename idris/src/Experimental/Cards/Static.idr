@@ -51,7 +51,7 @@ public export
 nowhereToRunTargetLine : StaticSpec []
 nowhereToRunTargetLine =
   Macros.canBeTargetedAsThough (Macros.allOf Macros.creatureYourOpponentsControl)
-    (Macros.allOf (Joined Macros.spell (AbilityHead AnyOnStack)))
+    (Macros.allOf (Or [Macros.spell, AbilityHead AnyOnStack]))
     (Not (HasKeyword (TheKeyword "Hexproof")))
 
 ||| Hithlain Rope
@@ -188,7 +188,7 @@ rainOfGore =
        [ Static (Intercepts
                    (Causes
                       (CausedBySource
-                         (Macros.a (Joined Macros.spell (AbilityHead AnyOnStack))))
+                         (Macros.a (Or [Macros.spell, AbilityHead AnyOnStack])))
                       (LifeChanges (Macros.controllerOf ((Macros.It OneOf))) LifeGoesUp))
                    [] Nothing
                    (Macros.losesLife (Macros.That PlayerW OneOf) ThatMuch)

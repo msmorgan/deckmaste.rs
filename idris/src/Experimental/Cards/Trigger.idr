@@ -815,7 +815,7 @@ frostWalker =
        (MkTypeLine [creatureType "Elemental"] [Creature])
        [ Macros.triggered When
            (BecomesTarget Macros.thisCreature
-              (Macros.a (Joined Macros.spell (AbilityHead AnyOnStack))))
+              (Macros.a (Or [Macros.spell, AbilityHead AnyOnStack])))
            (Macros.sacrificeIt You) ]
        (Just (4, 1))
 

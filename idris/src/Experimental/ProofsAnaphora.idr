@@ -162,19 +162,29 @@ badUnionAnaphorOnObject : Unspellable (Instruction []) (\ok =>
                , DealDamage This (Lit 3) (Macros.That JoinW OneOf {ok = ok}) ])
 badUnionAnaphorOnObject Refl impossible
 
-||| "This deals 3 damage to any target. Counter that spell or ability."
+||| "Counter target activated ability. Counter that spell or ability." An
+||| ability on the stack is an object in the stack zone [CR#109.1,113.1c,405.1],
+||| so the one stack read reaches it.
 public export
-badAbilityJoinAnaphorOnPlayerUnion : Unspellable (Instruction []) (\ok =>
-  Sequentially [ DealDamage This (Lit 3) (Macros.target Macros.anyTarget)
-               , CounterSpell (Macros.That AbilityJoinW OneOf {ok = ok}) ])
-badAbilityJoinAnaphorOnPlayerUnion Refl impossible
-
-||| "Counter target activated ability. Counter that spell or ability."
-public export
-badAbilityJoinAnaphorOnAbility : Unspellable (Instruction []) (\ok =>
+okStackAnaphorOnAbility : Instruction []
+okStackAnaphorOnAbility =
   Sequentially [ CounterSpell (Macros.target (AbilityHead AnyActivated))
-               , CounterSpell (Macros.That AbilityJoinW OneOf {ok = ok}) ])
-badAbilityJoinAnaphorOnAbility Refl impossible
+               , CounterSpell (Macros.That StackW OneOf) ]
+
+public export
+afterAnyTargetDamage : Bindings
+afterAnyTargetDamage =
+  instrIntro (the (Instruction [])
+    (DealDamage This (Lit 3) (Macros.target Macros.anyTarget)))
+
+||| "This deals 3 damage to any target. Counter that spell or ability."
+||| Refused: an any-target union is not on the stack. `That JoinW` spells the
+||| permanent-or-player read (`okUnionAnaphorAfterJoin`).
+public export
+badStackAnaphorOnPlayerUnion :
+  Unspellable (Noun ProofsAnaphora.afterAnyTargetDamage Object) (\ok =>
+    Macros.That StackW OneOf {ok = ok})
+badStackAnaphorOnPlayerUnion Refl impossible
 
 ||| "a creature with protection from a color"
 public export
@@ -450,15 +460,45 @@ badSingularSpellReadAfterCopy : Unspellable (Instruction []) (\ok =>
     , Macros.may You (ChooseNewTargets (Macros.That SpellW OneOf {ok = ok})) ])
 badSingularSpellReadAfterCopy Refl impossible
 
-||| "Change the target of target spell or ability with a single target."
+||| "Copy target activated ability twice. You may choose new targets for those
+||| abilities." A copy of an ability is itself an ability [CR#707.10], so the
+||| plural ability read reaches the copies.
 public export
-spellOrAbilityJoin : Payload (Object \/ Ability)
-spellOrAbilityJoin = JoinP (ObjectP Nothing (Just Stack) Nothing Nothing Nothing)
-                             (AbilityP Nothing)
+okPluralAbilityReadAfterCopy : Instruction []
+okPluralAbilityReadAfterCopy =
+  Sequentially
+    [ Copy FromStack You (Macros.target (AbilityHead AnyActivated)) (Lit 2) []
+    , Macros.may You (ChooseNewTargets (Macros.That AbilityW ManyOf)) ]
 
+||| "Copy target activated ability. You may choose new targets for that
+||| ability." Refused: the copy is itself an ability [CR#707.10], so the
+||| singular ability read reaches the original and the copy alike.
+||| `That AbilityCopyW` spells the copy (`okAbilityCopyReadAfterCopy`).
 public export
-abilityUnderSpellOrAbility : So (kindLte Ability (Object \/ Ability))
-abilityUnderSpellOrAbility = kindLteJoinR Object Ability
+badSingularAbilityReadAfterCopy : Unspellable (Instruction []) (\ok =>
+  Sequentially
+    [ Copy FromStack You (Macros.target (AbilityHead AnyActivated)) (Lit 1) []
+    , Macros.may You (ChooseNewTargets (Macros.That AbilityW OneOf {ok = ok})) ])
+badSingularAbilityReadAfterCopy Refl impossible
+
+||| "Copy target activated ability. You may choose new targets for the copy."
+public export
+okAbilityCopyReadAfterCopy : Instruction []
+okAbilityCopyReadAfterCopy =
+  Sequentially
+    [ Copy FromStack You (Macros.target (AbilityHead AnyActivated)) (Lit 1) []
+    , Macros.may You (ChooseNewTargets (Macros.That AbilityCopyW OneOf)) ]
+
+||| "Change the target of target spell or ability with a single target." One
+||| object [CR#109.1]: the reading is one stack-zone payload, not a join.
+public export
+spellOrAbilityPayload : Payload Object
+spellOrAbilityPayload = ObjectP Nothing (Just Stack) Nothing Nothing Nothing
+
+||| An ability goes on the stack with no card associated with it [CR#405.1].
+public export
+abilityIsOnTheStack : payloadZone (AbilityP Nothing) = Just Stack
+abilityIsOnTheStack = Refl
 
 public export
 joinedCreatureTy :
@@ -496,10 +536,14 @@ badDealtThisWayNoDamage : Unspellable (Instruction []) (\ok =>
                , If (DealtThisWay AnyPlayer {wy = ok}) (Draw You (Lit 1)) Nothing ])
 badDealtThisWayNoDamage Oh impossible
 
+||| "This deals 2 damage to any target. If a mana ability is dealt damage this
+||| way, draw a card." Refused: what the description seeds is on the stack, and
+||| nothing on the stack is dealt damage. `DealtThisWay AnyPlayer` spells the
+||| recipient read (`okDealtThisWayAfterDamage`).
 public export
 badDealtThisWayAbility : Unspellable (Instruction []) (\ok =>
   Sequentially [ DealDamage This (Lit 2) (Macros.target Macros.anyTarget)
-               , If (DealtThisWay IsManaAbility {rk = ok}) (Draw You (Lit 1))
+               , If (DealtThisWay IsManaAbility {nz = ok}) (Draw You (Lit 1))
                     Nothing ])
 badDealtThisWayAbility Oh impossible
 
@@ -579,12 +623,14 @@ public export
 okCoinCameUpOnPlayer : Predicate ProofsAnaphora.afterACoinFlip Player
 okCoinCameUpOnPlayer = CoinCameUp Tails
 
-||| "an ability whose coin comes up tails"
+||| "the damage whose coin comes up tails". Refused: only objects and players
+||| flip coins. `CoinCameUp` on a player spells the coin read
+||| (`okCoinCameUpOnPlayer`).
 public export
-badCoinCameUpOnAbility :
-  Unspellable (Predicate ProofsAnaphora.afterACoinFlip Ability) (\ok =>
+badCoinCameUpOnOutcome :
+  Unspellable (Predicate ProofsAnaphora.afterACoinFlip Outcome) (\ok =>
     CoinCameUp Tails {rk = ok})
-badCoinCameUpOnAbility Oh impossible
+badCoinCameUpOnOutcome Oh impossible
 
 ||| "Whenever you roll a 4 or higher, …"
 public export
@@ -848,7 +894,6 @@ countOutcomesIsFold s (MkBinding d (Quality q) p pay :: bs) = countOutcomesIsFol
 countOutcomesIsFold s (MkBinding d Gap p pay :: bs) = countOutcomesIsFold s bs
 countOutcomesIsFold s (MkBinding d (LetterK l) p pay :: bs) = countOutcomesIsFold s bs
 countOutcomesIsFold s (MkBinding d TurnRef p pay :: bs) = countOutcomesIsFold s bs
-countOutcomesIsFold s (MkBinding d Ability p pay :: bs) = countOutcomesIsFold s bs
 countOutcomesIsFold s (MkBinding d (a \/ b) p pay :: bs) = countOutcomesIsFold s bs
 
 public export
@@ -872,7 +917,6 @@ countQuantOutcomesIsFold (MkBinding d (Quality q) p pay :: bs) = countQuantOutco
 countQuantOutcomesIsFold (MkBinding d Gap p pay :: bs) = countQuantOutcomesIsFold bs
 countQuantOutcomesIsFold (MkBinding d (LetterK l) p pay :: bs) = countQuantOutcomesIsFold bs
 countQuantOutcomesIsFold (MkBinding d TurnRef p pay :: bs) = countQuantOutcomesIsFold bs
-countQuantOutcomesIsFold (MkBinding d Ability p pay :: bs) = countQuantOutcomesIsFold bs
 countQuantOutcomesIsFold (MkBinding d (a \/ b) p pay :: bs) = countQuantOutcomesIsFold bs
 
 public export
@@ -1685,7 +1729,7 @@ markTyKeepsOnes j ty (MkBinding det Outcome plur (OutcomeP s)) = Refl
 markTyKeepsOnes j ty (MkBinding det Gap plur GapP) = Refl
 markTyKeepsOnes j ty (MkBinding det (LetterK l) plur LetterP) = Refl
 markTyKeepsOnes j ty (MkBinding det TurnRef plur TurnRefP) = Refl
-markTyKeepsOnes j ty (MkBinding det Ability plur (AbilityP og)) = Refl
+markTyKeepsOnes j ty (MkBinding det Object plur (AbilityP og)) = Refl
 markTyKeepsOnes j ty (MkBinding det (a \/ b) plur (JoinP l r)) = Refl
 
 public export
@@ -1701,7 +1745,7 @@ markTyKeepsAt sl ty (MkBinding det Outcome plur (OutcomeP s)) = Refl
 markTyKeepsAt sl ty (MkBinding det Gap plur GapP) = Refl
 markTyKeepsAt sl ty (MkBinding det (LetterK l) plur LetterP) = Refl
 markTyKeepsAt sl ty (MkBinding det TurnRef plur TurnRefP) = Refl
-markTyKeepsAt sl ty (MkBinding det Ability plur (AbilityP og)) = Refl
+markTyKeepsAt sl ty (MkBinding det Object plur (AbilityP og)) = Refl
 markTyKeepsAt sl ty (MkBinding det (a \/ b) plur (JoinP l r)) = Refl
 
 public export

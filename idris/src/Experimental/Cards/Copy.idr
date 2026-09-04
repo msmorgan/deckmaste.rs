@@ -24,8 +24,8 @@ repeatedReverberation =
                   , Activates You (Macros.a (AbilityHead LoyaltyClass)) ]
                   (Just ThisTurn)
                   (Sequentially
-                     [ Copy FromStack You (Macros.That AbilityJoinW OneOf) (Lit 2) []
-                     , Macros.may You (ChooseNewTargets (Macros.That CopyJoinW ManyOf)) ])) ]
+                     [ Copy FromStack You (Macros.That StackW OneOf) (Lit 2) []
+                     , Macros.may You (ChooseNewTargets (Macros.That CopyW ManyOf)) ])) ]
        Nothing
 
 ||| Frontline Heroism

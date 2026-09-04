@@ -972,7 +972,7 @@ diplomaticEscortLine =
                              , Do ((Macros.discard You (Macros.a (InZone Macros.handZ)))) ])
     (CounterSpell
        (Macros.target
-          (And [ Joined Macros.spell (AbilityHead AnyOnStack)
+          (And [ Or [Macros.spell, AbilityHead AnyOnStack]
                , Targets (Macros.a Macros.creature) SomeTarget ])))
 
 ||| Vorel of the Hull Clade

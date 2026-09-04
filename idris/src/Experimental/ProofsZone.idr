@@ -837,3 +837,8 @@ badPlacementLookback : Unspellable (Condition []) (\ok =>
   Happened Placement (Macros.a Macros.creature) ThisTurn Nothing
            {cw = LeftBare {ok = ok}})
 badPlacementLookback Oh impossible
+
+||| "Counter target activated ability."
+public export
+okCounterAbility : Instruction []
+okCounterAbility = CounterSpell (Macros.target (AbilityHead AnyActivated))

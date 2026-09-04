@@ -1553,7 +1553,7 @@ emissaryOfGrudgesReveal =
   Macros.activatedOnlyOnce
     (Do (Expose Reveal You (ExposedChoice PlayerC)))
     (OnlyIf (ChooseNewTargets
-               (Macros.target (Joined Macros.spell (AbilityHead AnyOnStack))))
+               (Macros.target (Or [Macros.spell, AbilityHead AnyOnStack])))
             (Matches ((Macros.It OneOf)) (HasPossessor ControllerAx (Macros.the ChosenPlayer)))
             Nothing)
     OncePerGame

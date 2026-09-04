@@ -297,7 +297,7 @@ approachOfTheSecondSun =
        Nothing
 
 public export
-loyaltyAbilityOfEnchanted : Noun bs Ability
+loyaltyAbilityOfEnchanted : Noun bs Object
 loyaltyAbilityOfEnchanted =
   Macros.a (And [ AbilityHead LoyaltyClass
                 , AbilityOf (AttachHost Enchanted (TypeW Planeswalker)) ])
@@ -443,11 +443,11 @@ weftwalkingShuffle =
 
 ||| Gaea's Revenge's protection-shaped phrase
 public export
-nongreenSpellsOrAbilities : Predicate [] (Object \/ Ability)
+nongreenSpellsOrAbilities : Predicate [] Object
 nongreenSpellsOrAbilities =
-  Joined (And [Macros.spell, Not (ColorIs Green)])
-         (And [ AbilityHead AnyOnStack
-              , AbilityOf (Macros.a (And [Macros.source, Not (ColorIs Green)])) ])
+  Or [ And [Macros.spell, Not (ColorIs Green)]
+     , And [ AbilityHead AnyOnStack
+           , AbilityOf (Macros.a (And [Macros.source, Not (ColorIs Green)])) ] ]
 
 ||| Hot Pursuit
 public export

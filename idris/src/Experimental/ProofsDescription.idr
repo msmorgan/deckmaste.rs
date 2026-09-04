@@ -453,7 +453,6 @@ public export
 badPlayerTargeter : Unspellable (Predicate [] Player) (\ok =>
   Targets Macros.thisCreature SomeTarget {tr = ok})
 badPlayerTargeter SpellTargets impossible
-badPlayerTargeter AbilityTargets impossible
 badPlayerTargeter (EitherTargets _ _) impossible
 
 ||| "a creature with power or toughness 2 or greater"

@@ -222,7 +222,7 @@ eventFactsOf TokenCreation =
   MkEventFacts [Player] [(Player, Object)] [Player] False True False True False
 eventFactsOf ChapterArrival = MkEventFacts [] [] [] False False False True False
 eventFactsOf AbilityActivation =
-  MkEventFacts [Player] [(Player, Ability)] [Player] False True False True True
+  MkEventFacts [Player] [(Player, Object)] [Player] False True False True True
 eventFactsOf StatValueChange = MkEventFacts [] [] [] False True False True False
 eventFactsOf Regeneration =
   MkEventFacts [Object] [] [] False True False True False
@@ -236,8 +236,7 @@ eventFactsOf LifePayment =
   MkEventFacts [Player] [] [] True True False True False
 eventFactsOf BecomesTarget =
   MkEventFacts [Object, Player]
-               [(Object, Object), (Object, Ability),
-                (Player, Object), (Player, Ability)]
+               [(Object, Object), (Player, Object)]
                [] False True False True False
 eventFactsOf DamageDealing =
   MkEventFacts [Object] [(Object, Object), (Object, Player)]
@@ -435,15 +434,26 @@ deedsZone (d :: ds) r =
     Nothing => if null ds then deedZoneOf d r else Nothing
     Just z => if deedZoneOf d r == Just z then Just z else Nothing
 
+||| The two deed roles an ability on the stack fills [CR#113.1c]; every other
+||| role refuses one, and these two refuse anything else.
 public export
-deedFits : Deeds -> Role -> Kind -> List (List CardType) -> Maybe Zone -> Bool
-deedFits ds r k ts z =
-  all (\d => deedKindOk d r k && deedHeadTysOk d r ts) ds &&
+deedAbilityRole : VerbLabel -> Role -> Bool
+deedAbilityRole v Agent = v == "Trigger"
+deedAbilityRole v Patient = v == "Activate"
+
+public export
+deedAbilityOk : VerbLabel -> Role -> Bool -> Bool
+deedAbilityOk v r ab = ab == deedAbilityRole v r
+
+public export
+deedFits : Deeds -> Role -> Kind -> Bool -> List (List CardType) -> Maybe Zone -> Bool
+deedFits ds r k ab ts z =
+  all (\d => deedKindOk d r k && deedAbilityOk d r ab && deedHeadTysOk d r ts) ds &&
   zoneFits z (deedsZone ds r)
 
 public export
-DeedFits : Deeds -> Role -> Kind -> List (List CardType) -> Maybe Zone -> Type
-DeedFits ds r k ts z = So (deedFits ds r k ts z)
+DeedFits : Deeds -> Role -> Kind -> Bool -> List (List CardType) -> Maybe Zone -> Type
+DeedFits ds r k ab ts z = So (deedFits ds r k ab ts z)
 
 public export
 data StaticKind = PtDelta | KeywordGrant | DeedRestriction | TypeAddition

@@ -237,7 +237,6 @@ public export
 badPlayerTargetingEvent : Unspellable (GameEvent []) (\ok =>
   BecomesTarget You (Macros.a AnyPlayer) {tr = ok})
 badPlayerTargetingEvent SpellTargets impossible
-badPlayerTargetingEvent AbilityTargets impossible
 badPlayerTargetingEvent (EitherTargets _ _) impossible
 
 ||| "If an ability ... triggers, it triggers an additional time."

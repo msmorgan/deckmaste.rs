@@ -209,7 +209,6 @@ data Kind : Type where
   Gap : Kind
   LetterK : Letter -> Kind
   TurnRef : Kind
-  Ability : Kind
   (\/) : Kind -> Kind -> Kind
 
 public export
@@ -221,8 +220,7 @@ kindIx Outcome = 3
 kindIx Gap = 4
 kindIx (LetterK _) = 5
 kindIx TurnRef = 6
-kindIx Ability = 7
-kindIx (_ \/ _) = 8
+kindIx (_ \/ _) = 7
 
 mutual
   public export
@@ -268,7 +266,6 @@ sameKindRefl Outcome = Oh
 sameKindRefl Gap = Oh
 sameKindRefl (LetterK w) = sameLetterRefl w
 sameKindRefl TurnRef = Oh
-sameKindRefl Ability = Oh
 sameKindRefl (a \/ b) = andSo (sameKindRefl a, sameKindRefl b)
 
 public export
@@ -291,7 +288,6 @@ kindLteInL Outcome a b ok = orSo (Left ok)
 kindLteInL Gap a b ok = orSo (Left ok)
 kindLteInL (LetterK _) a b ok = orSo (Left ok)
 kindLteInL TurnRef a b ok = orSo (Left ok)
-kindLteInL Ability a b ok = orSo (Left ok)
 kindLteInL (p \/ q) a b ok =
   andSo (kindLteInL p a b (fst (soAnd ok)), kindLteInL q a b (snd (soAnd ok)))
 
@@ -304,7 +300,6 @@ kindLteInR Outcome a b ok = orSo (Right ok)
 kindLteInR Gap a b ok = orSo (Right ok)
 kindLteInR (LetterK _) a b ok = orSo (Right ok)
 kindLteInR TurnRef a b ok = orSo (Right ok)
-kindLteInR Ability a b ok = orSo (Right ok)
 kindLteInR (p \/ q) a b ok =
   andSo (kindLteInR p a b (fst (soAnd ok)), kindLteInR q a b (snd (soAnd ok)))
 
@@ -317,7 +312,6 @@ kindLteRefl Outcome = Oh
 kindLteRefl Gap = Oh
 kindLteRefl (LetterK w) = sameLetterRefl w
 kindLteRefl TurnRef = Oh
-kindLteRefl Ability = Oh
 kindLteRefl (a \/ b) =
   andSo (kindLteInL a a b (kindLteRefl a), kindLteInR b a b (kindLteRefl b))
 
@@ -705,7 +699,7 @@ actFacts =
       False False Nothing False False True False
   , MkActFacts "Activate"    Nothing Nothing False [] False
       (MkDeedRole [Player] [] True Nothing)
-      (MkDeedRole [Ability] [] True Nothing)
+      (MkDeedRole [Object] [] True (Just Stack))
       False False Nothing False False True False
   , MkActFacts "Regenerate"  Nothing Nothing False [] False
       (MkDeedRole [] [] True Nothing)
@@ -720,7 +714,7 @@ actFacts =
       (MkDeedRole [Object] [] True (Just Library))
       False False Nothing False False True False
   , MkActFacts "Trigger"     Nothing Nothing False [] False
-      (MkDeedRole [Ability] [] True Nothing) noRole
+      (MkDeedRole [Object] [] True (Just Stack)) noRole
       False False Nothing False False True False
   , MkActFacts "LoseGame"    Nothing Nothing False [] False
       (MkDeedRole [Player] [] True Nothing) noRole
@@ -882,7 +876,9 @@ data Payload : Kind -> Type where
   GapP : Payload Gap
   LetterP : Payload (LetterK l)
   TurnRefP : Payload TurnRef
-  AbilityP : (orig : Maybe Origin) -> Payload Ability
+  ||| An ability on the stack: an object with no printed characteristics
+  ||| and no zone of its own [CR#109.1,113.1c,405.1].
+  AbilityP : (orig : Maybe Origin) -> Payload Object
   PileP : (zone : Maybe Zone) -> (size : Maybe Nat) ->
           (face : Maybe PileFace) -> Payload Object
   JoinP : Payload a -> Payload b -> Payload (a \/ b)
@@ -909,7 +905,7 @@ payloadZone (OutcomeP _) = Nothing
 payloadZone GapP = Nothing
 payloadZone LetterP = Nothing
 payloadZone TurnRefP = Nothing
-payloadZone (AbilityP _) = Nothing
+payloadZone (AbilityP _) = Just Stack
 payloadZone (PileP zn _ _) = zn
 payloadZone (JoinP l r) = maybe (payloadZone r) Just (payloadZone l)
 
@@ -1447,13 +1443,13 @@ unionPayload (ObjectP t1 z1 v1 o1 s1) (ObjectP t2 z2 v2 o2 s2) =
                           (agreedField sameOrigin o1 o2)
                           (agreedField (==) s1 s2))
 unionPayload (AbilityP o1) (AbilityP o2) =
-  Just (Ability ** AbilityP (agreedField sameOrigin o1 o2))
+  Just (Object ** AbilityP (agreedField sameOrigin o1 o2))
 unionPayload PlayerP PlayerP = Just (Player ** PlayerP)
 unionPayload ChosenPlayerP ChosenPlayerP = Just (Player ** ChosenPlayerP)
-unionPayload p@(ObjectP _ _ _ _ _) q@(AbilityP _) =
-  Just (Object \/ Ability ** JoinP p q)
-unionPayload p@(AbilityP _) q@(ObjectP _ _ _ _ _) =
-  Just (Object \/ Ability ** JoinP q p)
+unionPayload (ObjectP _ _ _ o1 _) (AbilityP o2) =
+  Just (Object ** ObjectP Nothing (Just Stack) Nothing (agreedField sameOrigin o1 o2) Nothing)
+unionPayload (AbilityP o1) (ObjectP _ _ _ o2 _) =
+  Just (Object ** ObjectP Nothing (Just Stack) Nothing (agreedField sameOrigin o1 o2) Nothing)
 unionPayload p@(ObjectP _ _ _ _ _) PlayerP = Just (Object \/ Player ** JoinP p PlayerP)
 unionPayload PlayerP q@(ObjectP _ _ _ _ _) = Just (Object \/ Player ** JoinP q PlayerP)
 unionPayload _ _ = Nothing
@@ -1587,13 +1583,13 @@ payloadOrig (JoinP l r) = maybe (payloadOrig r) Just (payloadOrig l)
 
 public export
 data NounWord = TypeW CardType | CardW | SpellW | PlayerW
-              | PermanentW | TokenW | CopyW | JoinW | AbilityJoinW
+              | PermanentW | TokenW | CopyW | JoinW
+              | ||| "Counter target spell or ability. ... THAT SPELL OR
+                StackW
               | ||| "Whenever you activate an ability, ... copy THAT
                 AbilityW
               | ||| "Copy target triggered ability you control. You may
                 AbilityCopyW
-              | ||| "When you next cast an instant spell, cast a sorcery
-                CopyJoinW
               | ||| "the exiled creature card", "that land card": the type
                 TypedCardW CardType
               | ||| "Put THAT PILE into your hand and the other into your
@@ -1696,14 +1692,11 @@ wordReaches PermanentW (MkBinding _ _ _ pl@(JoinP _ _)) = halfReaches PermanentW
 wordReaches TokenW (MkBinding _ _ _ (ObjectP _ zn _ og _)) =
   onFieldZone zn && isTokenOrigin og
 wordReaches CopyW (MkBinding _ _ _ (ObjectP _ zn _ og _)) = isCopyOrigin og
-wordReaches AbilityW (MkBinding _ _ _ (AbilityP og)) = not (isCopyOrigin og)
+wordReaches AbilityW (MkBinding _ _ _ (AbilityP _)) = True
 wordReaches AbilityCopyW (MkBinding _ _ _ (AbilityP og)) = isCopyOrigin og
 wordReaches PileW (MkBinding _ _ _ (PileP _ _ _)) = True
 wordReaches JoinW (MkBinding _ kd _ pl) = joinedPayload pl && kindLte Player kd
-wordReaches AbilityJoinW (MkBinding _ kd _ pl) =
-  joinedPayload pl && kindLte Ability kd && not (isCopyOrigin (payloadOrig pl))
-wordReaches CopyJoinW (MkBinding _ kd _ pl) =
-  joinedPayload pl && kindLte Ability kd && isCopyOrigin (payloadOrig pl)
+wordReaches StackW (MkBinding _ _ _ pl) = onStackZone (payloadZone pl)
 wordReaches _ _ = False
 
 public export
@@ -1729,11 +1722,10 @@ kindOfW PermanentW = Object
 kindOfW TokenW = Object
 kindOfW CopyW = Object
 kindOfW JoinW = Object \/ Player
-kindOfW AbilityJoinW = Object \/ Ability
-kindOfW AbilityW = Ability
-kindOfW AbilityCopyW = Ability
+kindOfW StackW = Object
+kindOfW AbilityW = Object
+kindOfW AbilityCopyW = Object
 kindOfW PileW = Object
-kindOfW CopyJoinW = Object \/ Ability
 
 public export
 reachKind : Reach -> Kind
@@ -1955,13 +1947,11 @@ public export
 data Targetable : Kind -> Type where
   ObjectTgt : Targetable Object
   PlayerTgt : Targetable Player
-  AbilityTgt : Targetable Ability
   JoinTgt : Targetable a -> Targetable b -> Targetable (a \/ b)
 
 public export
 data Targeter : Kind -> Type where
   SpellTargets : Targeter Object
-  AbilityTargets : Targeter Ability
   EitherTargets : Targeter a -> Targeter b -> Targeter (a \/ b)
 
 public export
@@ -1984,24 +1974,26 @@ data Phrasal : Kind -> Type where
   PhObject : Phrasal Object
   PhPlayer : Phrasal Player
   PhQuality : Phrasal (Quality q)
-  PhAbility : Phrasal Ability
   PhJoin : Phrasal a -> Phrasal b -> Phrasal (a \/ b)
 
 public export
 targetablePhrasal : Targetable k -> Phrasal k
 targetablePhrasal ObjectTgt = PhObject
 targetablePhrasal PlayerTgt = PhPlayer
-targetablePhrasal AbilityTgt = PhAbility
 targetablePhrasal (JoinTgt l r) =
   PhJoin (targetablePhrasal l) (targetablePhrasal r)
 
 public export
-copyPayloadIn : {k : Kind} -> Phrasal k -> Maybe CardType -> Maybe Zone -> Payload k
-copyPayloadIn PhObject ty z = ObjectP ty z Nothing (Just CopyOrigin) Nothing
-copyPayloadIn PhAbility _ _ = AbilityP (Just CopyOrigin)
-copyPayloadIn (PhJoin l r) ty z = JoinP (copyPayloadIn l ty z) (copyPayloadIn r ty z)
-copyPayloadIn PhPlayer _ _ = PlayerP
-copyPayloadIn {k = Quality q} PhQuality _ _ = QualityP
+||| A copy of an ability is itself an ability [CR#707.10]: the source's
+||| payload shape, not its kind, decides which object the copy is.
+copyPayloadIn : {k : Kind} -> Phrasal k -> Bool -> Maybe CardType -> Maybe Zone ->
+                Payload k
+copyPayloadIn PhObject True _ _ = AbilityP (Just CopyOrigin)
+copyPayloadIn PhObject False ty z = ObjectP ty z Nothing (Just CopyOrigin) Nothing
+copyPayloadIn (PhJoin l r) ab ty z =
+  JoinP (copyPayloadIn l ab ty z) (copyPayloadIn r ab ty z)
+copyPayloadIn PhPlayer _ _ _ = PlayerP
+copyPayloadIn {k = Quality q} PhQuality _ _ _ = QualityP
 
 public export
 data CopySort = FromStack | FromCardZone
@@ -2012,8 +2004,8 @@ copyLandsIn FromStack _ = Just Stack
 copyLandsIn FromCardZone z = z
 
 public export
-copyPayload : {k : Kind} -> Phrasal k -> Maybe CardType -> Payload k
-copyPayload ph ty = copyPayloadIn ph ty (Just Stack)
+copyPayload : {k : Kind} -> Phrasal k -> Bool -> Maybe CardType -> Payload k
+copyPayload ph ab ty = copyPayloadIn ph ab ty (Just Stack)
 
 
 public export

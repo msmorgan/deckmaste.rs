@@ -611,7 +611,7 @@ glaringSpotlight =
        [ Static (Macros.canBeTargetedAsThough
                    (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx (PlayerGroup YourOpponents),
                                 HasKeyword (TheKeyword "Hexproof")]))
-                   (Macros.allOf (And [Joined Macros.spell (AbilityHead AnyOnStack), HasPossessor ControllerAx You]))
+                   (Macros.allOf (And [Or [Macros.spell, AbilityHead AnyOnStack], HasPossessor ControllerAx You]))
                    (Not (HasKeyword (TheKeyword "Hexproof"))))
        , Macros.activated
            (Compound [Mana [Macros.generic 3], Do (Macros.sacrifice You Macros.thisArtifact)])
