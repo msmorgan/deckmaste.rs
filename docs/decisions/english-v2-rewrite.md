@@ -1225,6 +1225,18 @@ attaches freely; "Under your control, draw a card" rejects because
 construction; all of it is declared data.
 
 
+## Ruling: complement attestation is provenance, not admissibility (2026-09-04)
+
+A general English construction is declared from the language, not filtered by
+the current corpus. Attestation supplies provenance and measurements; a
+grammatical variant with zero current witnesses remains declared. In
+particular, `PrepositionalComplement` admits every complement shape that an
+Oracle-English preposition governs. Corpus measurement still determines each
+preposition's `PrepositionAttachment` class, and attachment admissibility
+remains the conjunction of that class and the complement-taking head's
+declared licence.
+
+
 ## Ruling: corpus timing ceiling and acceptance-cost telemetry (2026-09-02)
 
 The gate criterion stays a per-command wall-clock ceiling of 16.26 s,

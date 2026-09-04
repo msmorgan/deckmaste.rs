@@ -53,8 +53,8 @@ declared even at zero witnesses.
 shapes): every selected use is a nominal postmodifier, and none is a free
 predicate adjunct. Verb-selected `with` remains frame data. Admissibility is
 the existing data-driven conjunction: the preposition's attachment class and
-the modified nominal head's declared noun-side licence; no guard names a word,
-construction, verb, noun, preposition, or card.
+the modified nominal head's declared noun-side licence; no added guard names a
+word, construction, verb, noun, preposition, or card.
 
 The complement-shape census is provenance, never a filter:
 
@@ -386,20 +386,24 @@ Deviations and additions:
   `Literal("with")` atoms to `Lex("Preposition", "With")`. These are still
   frame-selected preposition data; the conversion is required by the
   single-owner and overlap rulings.
+- Recorded the coordinator's 2026-09-04 attestation-as-provenance ruling in
+  the rewrite decision because the refreshed file lacked the ruling that this
+  ticket was directed to cite.
 
 Assurance: restored 22 corpus identities; re-spelled 3 existing tests and 2
 fixture helpers; ignored 0; added 7 positive complement examples and 2
 negative power/toughness structural examples; removed 0 tests. The coverage
 lock contains only the 230 audited add-only identities.
 
-Gates before the mandatory final refresh were green: formatting; strict clippy
-for `deckmaste_english_v2` and `xtask`; package tests; coverage with zero
-drops, zero ties, zero ownership failures, and exactly 5 overlaps; ambiguity
-with zero ties; and both byte-exact laws. No construction-core emitter or CR
-citation changed, so workspace tests and cite gates are not in scope. The
-8-worker pre-refresh coverage check took 105.010 s at 121,888 ns/B under host
-load 10.03/11.32/15.73; the recorded current ambiguity census took 118.309 s at
-140,364 ns/B under load 8.34/9.34/11.21. This exceeds the quiet-host advisory
-under shared-host contention and is reported, not treated as a STOP.
+The post-refresh gates are green: formatting; strict clippy for
+`deckmaste_english_v2` and `xtask`; package tests; coverage with zero drops,
+zero ties, zero ownership failures, and exactly 5 overlaps; ambiguity with
+zero ties; and both byte-exact laws. No construction-core emitter or CR
+citation changed, so workspace tests and cite gates are not in scope. With 8
+workers, coverage took 108.928 s at 119,300 ns/B under host load
+5.42/8.60/8.92; ambiguity took 106.404 s at 123,024 ns/B under load
+7.95/8.53/8.85; and roundtrip took 113.332 s at 134,233 ns/B under load
+6.81/8.10/8.65. These exceed the quiet-host advisory under shared-host
+contention and are reported, not treated as a STOP.
 
 STOP: none. Glossary gap: none. Decision wanted: none.
