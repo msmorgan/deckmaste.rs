@@ -999,6 +999,7 @@ enum NonterminalKind {
     PredicativePowerToughnessComplement,
     PowerToughnessValue,
     PredicativeScalarComplement,
+    PredicativeScalarEqualityComplement,
     KeywordLineItem,
     KeywordCost,
     KeywordCostSeparator,
@@ -1093,6 +1094,7 @@ enum NonterminalKind {
     PostmodifiedReference,
     VerbPhrase,
     LexicalVerbPhrase,
+    PredicativeComplementLexicalVerbPhrase,
     IntransitiveLexicalVerbPhrase,
     TransitiveLexicalVerbPhrase,
     GetPowerToughnessLexicalVerbPhrase,
@@ -1705,6 +1707,9 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::PredicativeScalarComplement => {
             NonterminalKind::PredicativeScalarComplement
         }
+        NonterminalCategory::PredicativeScalarEqualityComplement => {
+            NonterminalKind::PredicativeScalarEqualityComplement
+        }
         NonterminalCategory::KeywordLineItem => NonterminalKind::KeywordLineItem,
         NonterminalCategory::KeywordCost => NonterminalKind::KeywordCost,
         NonterminalCategory::KeywordCostSeparator => NonterminalKind::KeywordCostSeparator,
@@ -1825,6 +1830,9 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         }
         NonterminalCategory::VerbPhrase => NonterminalKind::VerbPhrase,
         NonterminalCategory::LexicalVerbPhrase => NonterminalKind::LexicalVerbPhrase,
+        NonterminalCategory::PredicativeComplementLexicalVerbPhrase => {
+            NonterminalKind::PredicativeComplementLexicalVerbPhrase
+        }
         NonterminalCategory::IntransitiveLexicalVerbPhrase => {
             NonterminalKind::IntransitiveLexicalVerbPhrase
         }

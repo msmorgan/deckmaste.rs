@@ -582,7 +582,7 @@ fn write_corpus_performance_to(
         )?;
     }
     #[cfg(feature = "parser-metrics")]
-    write_parser_metrics(&mut diagnostics)?;
+    write_parser_metrics(&mut *diagnostics)?;
     Ok(())
 }
 

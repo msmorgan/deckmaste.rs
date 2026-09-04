@@ -1085,6 +1085,19 @@ fn maximum_hand_size_is_a_typed_copular_scalar_statement() {
 }
 
 #[test]
+fn copular_scalar_equalities_use_the_predicative_complement_sum() {
+    let parser = parser();
+    let context = context();
+
+    for text in [
+        "Context Card's power is equal to the number of cards in your hand.",
+        "Context Card's power and toughness are each equal to the number of cards in your hand.",
+    ] {
+        assert_selected_with_specificity(&parser, &context, text, true);
+    }
+}
+
+#[test]
 fn token_descriptions_share_typed_power_toughness_and_copy_constituents() {
     let parser = parser();
     let context = context();
@@ -2411,6 +2424,21 @@ fn subject_gap_relatives_relay_nominal_concord_class_into_finite_predicates() {
         "Destroy all permanents that is legendary.",
     ] {
         assert!(parser.parse(text, &context).is_err(), "reject {text:?}");
+    }
+}
+
+#[test]
+fn copular_complements_accept_color_nominal_and_duration_witnesses() {
+    let parser = parser();
+    let context = context();
+
+    for text in [
+        "Destroy target creature that is red.",
+        "Destroy target creature that is a Goblin.",
+        "Target land becomes a 3/3 creature.",
+        "Target land becomes a 3/3 creature until end of turn.",
+    ] {
+        assert_selected_with_specificity(&parser, &context, text, true);
     }
 }
 

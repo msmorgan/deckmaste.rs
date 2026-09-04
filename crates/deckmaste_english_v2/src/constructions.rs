@@ -1052,6 +1052,7 @@ constructions! {
         ObjectWithObjectLexicalVerbPhrase,
         ObjectForObjectLexicalVerbPhrase,
         ObjectIntoObjectLexicalVerbPhrase,
+        PredicativeComplementLexicalVerbPhrase,
     }
     abstract sum AdditionalCostBody {
         Predicate: AdditionalCostPredicateBody,
@@ -1223,6 +1224,7 @@ constructions! {
         Orientation: PredicativeFaceOrientation,
         PowerToughness: PredicativePowerToughnessComplement,
         Scalar: PredicativeScalarComplement,
+        ScalarEquality: PredicativeScalarEqualityComplement,
     }
     abstract sum PredicativeStatus {
         Plain: PredicativeStatusComplement,
@@ -1766,6 +1768,13 @@ constructions! {
     construction predicative_scalar: PredicativeScalarComplement {
         element PredicativeScalarValue { value: CardinalQuantity, }
         form predicative_scalar = value;
+    }
+    construction predicative_scalar_equality: PredicativeScalarEqualityComplement {
+        element PredicativeScalarEqualityValue {
+            quantifier: opt lex FloatedQuantifier,
+            equality: ScalarEquality,
+        }
+        form predicative_scalar_equality = lex(quantifier) equality;
     }
     construction predicative_face_orientation: PredicativeFaceOrientation {
         element PredicativeFaceOrientationValue { orientation: lex FaceOrientation, }
@@ -4289,7 +4298,7 @@ constructions! {
     construction copular_subject_gap_relative_clause: CopularSubjectGapRelativeClause {
         element CopularSubjectGapRelativeClauseValue {
             copula: lex FiniteCopula,
-            complement: PredicativeAdjectiveComplement,
+            complement: PredicativeComplement,
         }
         derive copula.concord_class = match copula {
             Is => Values::ThirdPersonSingular,
@@ -4421,7 +4430,7 @@ constructions! {
         form return_to =
             verb(head) object source lex(Preposition::To) destination result marked(Preposition::Under, control);
     }
-    construction predicative_complement_predicate: VerbPhrase {
+    construction predicative_complement_predicate: PredicativeComplementLexicalVerbPhrase {
         element PredicativeComplementPredicate { head: lex PredicativeComplementVerb, complement: PredicativeComplement, }
         derive concord_class = head.concord_class;
         form predicative_complement_predicate = verb(head) complement;
