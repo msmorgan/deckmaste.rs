@@ -63,3 +63,13 @@ schema-4 lock remains 49,352 lines with SHA-256
   `10,000 Needles`) retain explicit consonant-onset metadata; all generated
   files remain byte-identical.
 - No grammar, construction, coverage-lock, or generated-stub bytes changed.
+
+## Erratum (flavor-generator landing review, 2026-09-03)
+
+HIGH: `render_stub` emits `onset: Consonant` for every spelling the
+recipe cannot classify — the inference the builtin-v2 ADR forbids
+("normalization never guesses an onset"); it would write `∞`, `8-Bit`,
+`11th Hour` as Consonant and revert any authored `Vowel` on --regenerate.
+Latent (today's 630 bytes are correct) but a ruling contradiction
+resolved without a STOP; "STOPs: none" is wrong. `--check` is exercised by
+no test or gate. Routed to builtin-v2-flavor-word-generator-onsets.
