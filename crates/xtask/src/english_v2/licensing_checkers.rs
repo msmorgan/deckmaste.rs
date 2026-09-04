@@ -64,7 +64,7 @@ impl LicensingCheckerCensus {
             return Ok(());
         }
         bail!(
-            "English-v2 licensing checker gate rejected forbidden lexical-identity checkers: {unlicensed:?}; only the temporary grandfathered set {GRANDFATHERED_FORBIDDEN:?} is permitted until its retirement ticket lands",
+            "English-v2 licensing checker gate rejected forbidden lexical-identity checkers: {unlicensed:?}; a checker must read a declared feature or a structural predicate, never a lexical identity. Grandfathered exceptions: {GRANDFATHERED_FORBIDDEN:?}",
         )
     }
 }
@@ -485,7 +485,7 @@ mod tests {
         include_str!("../../../deckmaste_english_v2/src/constructions.rs");
 
     #[test]
-    fn production_census_names_every_word_naming_checker() {
+    fn production_census_has_no_word_naming_checker() {
         let census = from_source(PRODUCTION_SOURCE).expect("production census builds");
         let forbidden = census
             .rows()

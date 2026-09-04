@@ -141,3 +141,84 @@ the construction reads a declared feature.
   the required dotted feature expression. The construction, accepted surface,
   and selected analysis are unchanged.
 - Decision wanted: none.
+
+### Review corrections
+
+Reviewed on change `tmytlsprotlr` (post-refresh tree). Findings and fixes:
+
+- MEDIUM — the record claimed "no selected analysis changed" without an audit
+  that could show it: the coverage lock stores identity rows only, and the
+  ambiguity census reports aggregate totals, so neither excludes an analysis
+  swap that leaves the counts equal. Reviewer ran `english_v2 ambiguity --json`
+  on this tree and on the same tree with `crates/` reverted to the claim
+  commit, then compared the selected candidate's `construction_path` for every
+  corpus unit: 32,641 of 32,641 units identical in status and selected path,
+  0 differences. `MannerReferenceThisWay` 36 → 36, `AllPredeterminedNominal`
+  9 → 9, `DeterminativePartitive` 142 → 142,
+  `NounPhraseFusedDeterminativeReference` 576 → 576. The claim is true and is
+  now backed by evidence.
+- MEDIUM — two parser-diagnostic behaviour changes were carried as silent test
+  expectation edits rather than disclosed deltas. Both were confirmed against
+  the pre-change tree and are diagnostic-only; neither changes an accepted
+  string or a selected analysis:
+  - `typed_where_staging_rejects_a_finite_subordinate_clause_in_the_chart`
+    loses three `NounPhraseFusedDeterminativeReference` checked-completion
+    rejections (8..10 twice, 17..18). The fused-head licence is now a carried
+    category feature, so those candidates are pruned by feature-constraint
+    propagation in the chart instead of surviving to a `checked by` callback
+    that rejects them.
+  - `decimal_punctuation_cannot_split_a_signed_number_in_a_complete_document`
+    reports its furthest failure one byte later (6..7 → 7..8) for
+    `Gain 1.0 life.`. The input is still rejected with non-empty expectations.
+- LOW — `enforce_forbidden_policy`'s failure message still told the reader that
+  a "temporary grandfathered set" is "permitted until its retirement ticket
+  lands" and interpolated the now-empty set. Rewritten to state the policy
+  itself.
+- LOW — `production_census_names_every_word_naming_checker` now asserts the
+  census names none; renamed to `production_census_has_no_word_naming_checker`.
+- LOW — both feature commits lacked the crate/subsystem description prefix;
+  re-described as `english-v2:` and `tickets:`.
+
+Verified and not findings: `require demonstrative is This` reads a `vocab`
+member, the exact `role: lex Vocabulary` plus `require role is Member` shape
+the 2026-09-04 closed-class amendment of `english-v2-rewrite.md` prescribes in
+place of a Rust `checked by` naming the word; the new feature domains carry
+grammatical names (`MannerAnaphorClass`, `PartitiveOnly`,
+`PluralPredeterminer`) rather than lemma names, and every construction reads
+them generically; `MannerAnaphorClass`'s emitted helper follows the sealed
+closed-domain idiom of its nine siblings in `emit/terminal.rs`; the
+`predeterminer` rename is forced (`all` is a `require`-expression keyword,
+`parse.rs:547`); `forbidden_policy_rejects_any_added_identity` still exists and
+still fails the gate on an added forbidden checker; assurance counts check out
+against the diff (7 English-v2 plus 7 construction-core/xtask test functions
+re-spelled = 14, 4 helpers, 1 added, 0 removed, 0 ignored); no sibling-feature
+content (no `TargetingMarker`, no collapsed number categories) is present.
+
+### Reviewer gate artifacts
+
+- `cargo fmt --all -- --check` — clean.
+- `cargo clippy -p deckmaste_construction_core -p deckmaste_english_v2 -p xtask
+  --all-targets -- -D warnings` (run per crate) — clean.
+- `cargo test --workspace` — green, no failures (the emit-scope gate).
+- `cargo xtask english_v2 coverage --check --workers 8` — exit 0;
+  `total_units=32641 selected_units=16771 covered_units=16771
+  selected_uncovered_units=0 unresolved_ties=0 internal_failures=0
+  roundtrip_mismatch_units=0 ownership_failure_units=0 gap_spans=0
+  overlap_spans=0 synthetic_claims=0 provenance_plan_mismatches=0
+  licensed_vocab_lexicon_homographs=2 form_literal_vocab_overlaps=25
+  licensing_checker_permitted=26 licensing_checker_forbidden=0`.
+- `cargo xtask english_v2 ambiguity --require-resolved --workers 8` — exit 0;
+  `total=32641 selected=16771 unique=11515 specificity_resolved=5256
+  unresolved_ties=0 exception_resolved=0 exception_uses=0`.
+- No CR citation changed in this landing, so the cite gates were not required.
+
+### Reviewer performance advisory
+
+Re-measured on the reviewed tree with `--workers 8`: coverage
+183,400 ms at 174,473 ns/B (host load 30.28/42.21/50.92); ambiguity
+146,328 ms at 158,646 ns/B (host load 35.04/39.06/48.33). Both exceed the
+16,260 ms quiet-host ceiling; advisory, not a STOP. Contention stamp: the host
+carried 4–5 concurrent codex executors plus this reviewer throughout. The
+implementer's own `pgrep -c -x codex` count of 1 is a sandbox artifact and
+means nothing; the figure to compare against a future quiet-host run is the
+per-byte thread-CPU number, not the wall clock.
