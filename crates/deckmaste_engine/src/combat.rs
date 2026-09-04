@@ -28,9 +28,7 @@ pub fn has_keyword(view: &LayeredView, object: ObjectId, kw: &KeywordAbility) ->
     view.get(object)
         .abilities
         .iter()
-        // Peel `Innate` ([CR#604.1] — a conferred rule-of-the-object
-        // keyword still functions in combat).
-        .any(|a| matches!(a.peel_innate(), Ability::Keyword(k) if k == kw))
+        .any(|a| matches!(a, Ability::Keyword(k) if k == kw))
 }
 
 /// Whether `object` has a keyword named `name` — the look-through seam for

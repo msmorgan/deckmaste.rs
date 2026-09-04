@@ -162,8 +162,8 @@ pub fn sweep(state: &GameState) -> Vec<GameEvent> {
 ///    graveyard rule ([CR#704.5m]) is `StateBased(Not(LegallyAttached(
 ///    Ref(This))), Move(Ref(This), Graveyard))`, an ability-free conferral
 ///    because a [CR#704] game action is not an ability ([CR#704.1,704.1a])
-///    — and the `StaticSpec::Sba` statics an OBJECT carries (peeling
-///    `Innate`), which still spell card-level state-checked statics such as
+///    — and the `StaticSpec::Sba` statics an OBJECT carries, which still
+///    spell card-level state-checked statics such as
 ///    ascend ([CR#702.131b]). For each battlefield object, evaluate `when`
 ///    with `This` = the object; if true, run `then`'s events. Objects a
 ///    firing row removes this sweep are tracked so pass 2 doesn't
@@ -574,8 +574,8 @@ mod tests {
     }
 
     /// End-to-end through the WIZARDS load path ([CR#704.5m]): a graduated
-    /// wizards Aura (Angelic Gift) carries the Aura subtype's `Innate`
-    /// graveyard `Sba` *via the data*, not in-Rust scaffolding. Loaded over the
+    /// wizards Aura (Angelic Gift) carries the Aura subtype's ability-free
+    /// `StateBased` graveyard rule *via the data*, not in-Rust scaffolding. Loaded over the
     /// builtin sibling prelude, put on the battlefield UNATTACHED, the generic
     /// SBA sweep fires its battlefield→graveyard move. This is the regression
     /// the fix targets: the Aura `confers:` lives in builtin and the generator
@@ -586,20 +586,18 @@ mod tests {
         not(wizards_corpus),
         ignore = "requires generated plugins/wizards corpus"
     )]
-    fn wizards_aura_carries_innate_graveyard_sba() {
+    fn wizards_aura_carries_conferred_graveyard_rule() {
         let gift = Arc::new(wizards().card("Angelic Gift").unwrap().core);
         // Sanity: the loaded card actually carries the Aura subtype's confer.
         // (the layer-4 `fold_conferred_abilities` is what flattens it onto the
         // derived object.)
         let face = crate::derive::face(&gift);
         assert!(
-            face.subtypes
+            face.subtypes.iter().any(|s| s
+                .confers
                 .iter()
-                .any(|s| s.confers.iter().any(|p| matches!(
-                    p,
-                    deckmaste_core::Property::Ability(a) if a.is_innate()
-                ))),
-            "the wizards Aura card embeds the Innate confer; subtypes: {:?}",
+                .any(|p| matches!(p, deckmaste_core::Property::StateBased { .. }))),
+            "the wizards Aura card embeds the state-based confer; subtypes: {:?}",
             face.subtypes
         );
 
@@ -623,13 +621,13 @@ mod tests {
         );
         state.zones.battlefield.push(aura);
 
-        // Unattached → `LegallyAttached` is false → the conferred Innate SBA
-        // fires, moving the Aura to its owner's graveyard.
+        // Unattached → `LegallyAttached` is false → the conferred state-based
+        // rule fires, moving the Aura to its owner's graveyard.
         let actions = sba::sweep(&state);
         assert!(
             actions.iter().any(|e| matches!(e,
                 GameEvent::ZoneChange(ZoneChange { snapshot: None, object, to: Zone::Graveyard, .. }) if *object == aura)),
-            "a graduated wizards Aura's Innate graveyard SBA fires when unattached \
+            "a graduated wizards Aura's conferred graveyard rule fires when unattached \
              ([CR#704.5m]); got {actions:?}"
         );
     }
@@ -1166,10 +1164,12 @@ mod tests {
         id
     }
 
-    /// The Aura-subtype shape (scaffolded in-Rust): `Innate(Static([Sba(Not(
-    /// LegallyAttached(Ref(This))), Move(Ref(This), Graveyard))]))`.
+    /// A CARD-LEVEL state-checked static ([CR#604.1], ascend's shape) spelling
+    /// the same graveyard rule: `Static(Sba(Not(LegallyAttached(Ref(This))),
+    /// Move(Ref(This), Graveyard)))`. The Aura SUBTYPE confers its [CR#704.5m]
+    /// rule ability-free instead (`aura_subtype`).
     fn aura_graveyard_sba() -> Ability {
-        Ability::Innate(Arc::new(Ability::r#static(StaticSpec::Sba {
+        Ability::r#static(StaticSpec::Sba {
             when: Arc::new(Condition::Not(Arc::new(Condition::LegallyAttached(
                 Reference::Reg(deckmaste_core::RefId(0)),
             )))),
@@ -1177,22 +1177,20 @@ mod tests {
                 Reference::Reg(deckmaste_core::RefId(0)),
                 Zone::Graveyard,
             ))),
+        })
+    }
+
+    /// The default-deny Enchant grant shape ([CR#702.5a]): `Static(May(Attach(
+    /// what: Ref(This), to: Creature)))` — an attachment that may legally
+    /// attach to a creature host (and to nothing else without a further grant).
+    fn may_attach_creature() -> Ability {
+        Ability::r#static(StaticSpec::Deontic(Deontic::May(DeonticAction::Attach {
+            what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
+            to: Predicate::r#type(Type::Creature),
         })))
     }
 
-    /// The default-deny Equipment/Aura grant shape: `Innate(Static([May(Attach(
-    /// what: Ref(This), to: Creature))]))` — an attachment that may legally
-    /// attach to a creature host (and to nothing else without a further grant).
-    fn may_attach_creature() -> Ability {
-        Ability::Innate(Arc::new(Ability::r#static(StaticSpec::Deontic(
-            Deontic::May(DeonticAction::Attach {
-                what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
-                to: Predicate::r#type(Type::Creature),
-            }),
-        ))))
-    }
-
-    /// [CR#704.5m]: an Aura (carrying the Innate graveyard `Sba`) that is
+    /// [CR#704.5m]: an Aura (carrying the card-level graveyard `Sba`) that is
     /// UNATTACHED fires the SBA → a future-form `ZoneChange(Battlefield →
     /// Graveyard)` for it. Generic — driven by the `Sba` static, not the
     /// subtype.
@@ -1299,7 +1297,8 @@ mod tests {
     }
 
     /// Lock a `LoseAllAbilities` (layer-6, end-of-game) continuous effect onto
-    /// `id` — strips its normal/granted abilities, but NOT its `Innate` rules.
+    /// `id` — strips every ability it has; ability-free type rules are
+    /// untouched because they never entered the list.
     fn lose_all_abilities(state: &mut GameState, id: crate::object::ObjectId) {
         use deckmaste_core::Duration;
         use deckmaste_core::Modification;
@@ -1320,23 +1319,24 @@ mod tests {
         });
     }
 
-    /// Review #7 e2e — the whole point of making the Aura graveyard rule an
-    /// `Innate` SBA ([CR#113.12,704.5m]): an Aura whose normal abilities are
-    /// ALL stripped by an active `LoseAllAbilities` and is UNATTACHED still
-    /// goes to the graveyard. The `Innate(Sba(...))` survives ability
-    /// removal (layer-6 retain), so the sweep still fires it — emitting the
-    /// battlefield→graveyard move, and (driven to completion) landing the
-    /// reminted object in its owner's graveyard.
+    /// Review #7 e2e, re-spelled onto the ability-free conferral
+    /// ([CR#113.12,704.5m]): an Aura whose abilities are ALL stripped by an
+    /// active `LoseAllAbilities` and is UNATTACHED still goes to the
+    /// graveyard. The subtype's `Property::StateBased` rule is not an ability,
+    /// so layer-6 removal cannot reach it and the sweep still fires it —
+    /// emitting the battlefield→graveyard move, and (driven to completion)
+    /// landing the reminted object in its owner's graveyard.
     #[test]
     fn ability_less_aura_still_graveyards() {
         let mut state = game();
-        let aura = on_field(
+        let aura = on_field_with_subtypes(
             &mut state,
             "Test Aura",
             vec![Type::Enchantment],
-            vec![aura_graveyard_sba()],
+            vec![aura_subtype()],
         );
-        // Strip ALL of the Aura's abilities. The Innate SBA must survive.
+        // Strip ALL of the Aura's abilities. The conferred type rule is not
+        // one, so it must survive.
         lose_all_abilities(&mut state, aura);
 
         // The sweep STILL emits the graveyard move for the unattached Aura.
@@ -1344,7 +1344,8 @@ mod tests {
         assert!(
             actions.iter().any(|e| matches!(e,
                 GameEvent::ZoneChange(ZoneChange { snapshot: None, object, to: Zone::Graveyard, .. }) if *object == aura)),
-            "Innate graveyard SBA survives LoseAllAbilities ([CR#113.12,704.5m]); got {actions:?}"
+            "the conferred graveyard rule survives LoseAllAbilities \
+             ([CR#113.12,704.5m]); got {actions:?}"
         );
 
         // Drive it to completion: the Aura ends up in its owner's graveyard.

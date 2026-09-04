@@ -557,7 +557,6 @@ fn validate_ability_regions(ability: &deckmaste_core::Ability) -> anyhow::Result
             // cost, so it defines ahead of the body too.
             deckmaste_core::validate_announced(&ability.effect, &ability.targets, &ability.cost)?;
         }
-        Ability::Innate(inner) => validate_ability_regions(inner)?,
         Ability::Static(region) => deckmaste_core::validate_static(region)?,
         Ability::Keyword(_) => {}
     }
@@ -1083,18 +1082,18 @@ mod tests {
     }
 
     /// The attachment-rule subtypes (Aura/Equipment/Fortification) carry their
-    /// `Innate` `confers:` ([CR#704.5m] graveyard SBA; host-type
-    /// `Cant(Attach)`) even in the WIZARDS corpus — the defs live in
-    /// `builtin`, and the generator no longer emits confers-LESS wizards
-    /// stubs for them, so under "last plugin wins" builtin's
-    /// confers-bearing def is the one in scope. Regression guard: a
+    /// ABILITY-FREE `confers:` ([CR#704.5m] graveyard state-based rule;
+    /// [CR#301.5,301.6] host-type `May(Attach)`) even in the WIZARDS corpus —
+    /// the defs live in `builtin`, and the generator no longer emits
+    /// confers-LESS wizards stubs for them, so under "last plugin wins"
+    /// builtin's confers-bearing def is the one in scope. Regression guard: a
     /// confers-less wizards stub would silently strip these.
     #[test]
     #[cfg_attr(
         not(wizards_corpus),
         ignore = "requires generated plugins/wizards corpus"
     )]
-    fn wizards_attachment_subtypes_carry_innate_confers() {
+    fn wizards_attachment_subtypes_carry_ability_free_confers() {
         use deckmaste_core::Property;
 
         let wizards = wizards_corpus();
@@ -1103,14 +1102,14 @@ mod tests {
                 .subtypes
                 .get(name)
                 .unwrap_or_else(|| panic!("wizards corpus knows the {name} subtype"));
-            let has_innate = subtype
+            let has_rule = subtype
                 .confers
                 .iter()
-                .any(|p| matches!(p, Property::Ability(a) if a.is_innate()));
+                .any(|p| matches!(p, Property::Static(_) | Property::StateBased { .. }));
             assert!(
-                has_innate,
-                "{name} subtype confers an Innate attachment rule in the wizards corpus; \
-                 got confers: {:?}",
+                has_rule,
+                "{name} subtype confers an ability-free attachment rule in the wizards \
+                 corpus; got confers: {:?}",
                 subtype.confers
             );
         }

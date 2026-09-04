@@ -43,16 +43,16 @@ const EXPECTED_TYPES: [ExpectedType; 10] = [
             name:"Creature",
             permanent_type:true,
             confers:[
-                Ability(Static(May(Attack(by:Ref(This))))),
-                Ability(Static(May(Block(by:Ref(This))))),
-                Ability(Static(Conditionally(
+                Static(May(Attack(by:Ref(This)))),
+                Static(May(Block(by:Ref(This)))),
+                Static(Conditionally(
                     And([Matches(This,SummoningSick),Not(Matches(This,Has(Haste)))]),
                     Cant(Attack(by:Ref(This)))
-                ))),
-                Ability(Static(Conditionally(
+                )),
+                Static(Conditionally(
                     And([Matches(This,SummoningSick),Not(Matches(This,Has(Haste)))]),
                     Cant(Activate(what:Ref(This),cost:IncludesTapSymbol))
-                )))
+                ))
             ]
         )"#,
     },
@@ -78,7 +78,7 @@ const EXPECTED_TYPES: [ExpectedType; 10] = [
         body: r#"TypeDef(
             name:"Instant",
             permanent_type:false,
-            confers:[Ability(Static(May(Cast(what:Ref(This),window:InstantSpeed))))]
+            confers:[Static(May(Cast(what:Ref(This),window:InstantSpeed)))]
         )"#,
     },
     ExpectedType {
@@ -96,7 +96,7 @@ const EXPECTED_TYPES: [ExpectedType; 10] = [
         body: r#"TypeDef(
             name:"Land",
             permanent_type:true,
-            confers:[Ability(Static(May(Play(what:Ref(This)))))]
+            confers:[Static(May(Play(what:Ref(This))))]
         )"#,
     },
     ExpectedType {

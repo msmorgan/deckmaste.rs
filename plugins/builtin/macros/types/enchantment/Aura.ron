@@ -19,6 +19,10 @@
         name: "Aura",
         types: [Enchantment],
         confers: [
+            // [CR#704.5m] is a state-based ACTION, not an ability
+            // ([CR#704.1,704.1a]). Authored here in v1's `Sba` static spelling;
+            // `Property::lower` re-homes it onto the ability-free
+            // `Property::StateBased` flavor on the core side.
             Ability(Innate(Static(Sba(
                 when: Not(LegallyAttached(This)),
                 then: Move(This, Graveyard),

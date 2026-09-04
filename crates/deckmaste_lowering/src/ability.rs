@@ -406,11 +406,13 @@ mod tests {
         );
     }
 
+    /// v1's `Innate` wrapper is ERASED at lowering — the inner ability is
+    /// what reaches core, in the ordinary ability hierarchy.
     #[test]
-    fn lowers_ability_innate() {
-        assert_matches!(
+    fn lowers_ability_innate_to_its_inner_ability() {
+        assert_eq!(
             deckmaste_semantics::Ability::Innate(std::sync::Arc::new(minimal_ability())).lower(),
-            deckmaste_core::Ability::Innate(_)
+            minimal_ability().lower()
         );
     }
 
@@ -943,7 +945,12 @@ impl Lower for deckmaste_semantics::Ability {
             Self::Triggered(f0) => deckmaste_core::Ability::Triggered(f0.lower()),
             Self::Spell(f0) => deckmaste_core::Ability::Spell(f0.lower()),
             Self::Keyword(f0) => deckmaste_core::Ability::Keyword(f0.lower()),
-            Self::Innate(f0) => deckmaste_core::Ability::Innate(f0.lower()),
+            // v1's `Innate` marker has no core counterpart: a conferred
+            // ability occupies the ordinary hierarchy, so the wrapper is
+            // simply erased here. Where the marker sat on an ability-FREE type
+            // rule, `Property::lower` re-homes the lowered `Static` onto
+            // `core::Property::Static` instead.
+            Self::Innate(f0) => f0.lower().as_ref().clone(),
             // Invocation provenance does not cross `lower`: the core grammar is
             // a compiled artifact and carries no record of the semantic
             // spelling (spec §12). Prose recovers the semantic term through the

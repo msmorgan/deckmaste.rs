@@ -34,7 +34,7 @@ impl GameState {
     ) -> EnterStatus {
         let mut status = EnterStatus::default();
         for ability in self.enters_fold_abilities(source, entering) {
-            if let Ability::Static(s) = ability.peel_innate()
+            if let Ability::Static(s) = &ability
                 && let StaticSpec::Replacement(replacement) = &s.body
                 && let Replacement::Also { would, also } = &**replacement
                 && would_is_self_enter(would)
@@ -52,11 +52,10 @@ impl GameState {
     /// matches `entering` (`crate::matches`, the same predicate-scope matcher
     /// `global_sba_rules` uses) — a predicate-scoped augment-on-enter
     /// replacement (`Also { would: ThisEnters, .. }`) applies exactly like a
-    /// printed one. A conferred ability arrives `Ability::Innate`-wrapped
-    /// ([`Property::conferred_ability`]), so `as_enters_status` peels
-    /// `Innate` on every ability from this list before matching the
-    /// `Static(Replacement(Also {..}))` shape — a no-op for the printed ones,
-    /// which are never wrapped.
+    /// printed one. A conferred ability arrives unwrapped
+    /// ([`Property::conferred_ability`]), so `as_enters_status` matches the
+    /// `Static(Replacement(Also {..}))` shape on conferred and printed
+    /// abilities alike.
     fn enters_fold_abilities(
         &self,
         source: ObjectSource,

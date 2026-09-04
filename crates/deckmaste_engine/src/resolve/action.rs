@@ -218,7 +218,7 @@ impl GameState {
                         // [CR#701.3b]: no-op on an illegal (what, host) pair —
                         // `attachment_legal` reads the attach deontics
                         // generically (default-deny: the attachment's own
-                        // enchant/Innate `May(Attach)` grant must permit, the
+                        // enchant / type-rule `May(Attach)` grant must permit, the
                         // host's protection `Cant` subtracts), never the
                         // subtype.
                         if !crate::legal::attachment_legal(self, attachment, host) {
@@ -1135,7 +1135,7 @@ mod tests {
     }
 
     /// Mint (on the battlefield, player 0) an Equipment-shaped artifact
-    /// carrying the default-deny `Innate(May(Attach(what: Ref(This), to:
+    /// carrying the default-deny `Static(May(Attach(what: Ref(This), to:
     /// Creature)))` grant — an attachment that may legally attach to a
     /// creature host.
     fn may_attach_creature_equipment(state: &mut GameState) -> ObjectId {
@@ -1148,11 +1148,11 @@ mod tests {
         let card = Card::Normal(CardFace {
             name: "Test Equipment".into(),
             types: vec![Type::Artifact.def()],
-            abilities: vec![Ability::Innate(Arc::new(Ability::r#static(
-                StaticSpec::Deontic(Deontic::May(DeonticAction::Attach {
+            abilities: vec![Ability::r#static(StaticSpec::Deontic(Deontic::May(
+                DeonticAction::Attach {
                     what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                     to: Predicate::creature(),
-                })),
+                },
             )))],
             ..CardFace::default()
         });
@@ -1261,7 +1261,7 @@ mod tests {
     }
 
     /// [CR#701.3b]: `Attach` no-ops on an illegal host — under default-deny the
-    /// attachment carries a conferred `Innate(May(Attach(what: Ref(This), to:
+    /// attachment carries a `Static(May(Attach(what: Ref(This), to:
     /// Creature)))` grant (the Equipment-subtype shape), and the host is a
     /// non-creature, so no grant covers the pair: the link stays `None` and no
     /// `Attached` fact is recorded.
@@ -4785,9 +4785,9 @@ mod tests {
     fn equip_e2e() {
         let mut state = game();
         let host = vanilla_creature(&mut state, "Bear Host");
-        // A real Equipment: the Equipment subtype confer (Innate May(Attach to:
-        // Creature) grant) + the `equip {T}` keyword + "+1/+1 to the equipped
-        // creature".
+        // A real Equipment: the Equipment subtype's ability-free May(Attach
+        // to: Creature) rule + the `equip {T}` keyword + "+1/+1 to the
+        // equipped creature".
         let equipment = mint_on_field(
             &mut state,
             Card::Normal(CardFace {
@@ -4802,8 +4802,8 @@ mod tests {
         assert_eq!(state.layers().power(host), Some(2));
 
         // Drive the equip activated ability: the keyword + host_pump → the
-        // activated ability is at filtered index 0 (no Innate to skew it here,
-        // but resolve via the offered legal action to be faithful).
+        // activated ability is at index 0, but resolve via the offered legal
+        // action to be faithful).
         let frame = frame_src_targets(&state, equipment, vec![host]);
         state.run_effect(
             Instruction::Act(Action::Attach {
@@ -4835,7 +4835,7 @@ mod tests {
         let mut state = game();
         let host = vanilla_creature(&mut state, "Enchanted Bear");
         // A real Aura: Enchant(creature) keyword (targeting Spell + May(Attach)
-        // grant + AsEnters) + the Aura subtype's Innate graveyard SBA +
+        // grant + AsEnters) + the Aura subtype's conferred graveyard rule +
         // "+2/+2".
         let aura_card = Card::Normal(CardFace {
             name: "Test Aura".into(),

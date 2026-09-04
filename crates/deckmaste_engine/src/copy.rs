@@ -336,13 +336,11 @@ fn apply_modification(result: &mut CopiableValues, m: &Modification) {
         Modification::CardTypes(op) => apply_type_op(&mut result.types, op),
         Modification::Subtypes(op) => apply_subtype_op(&mut result.subtypes, op),
         Modification::GainAbility(ability) => result.abilities.push((**ability).clone()),
-        // [CR#113.12]: an `Innate` (rule-of-the-object) ability is immune,
-        // mirroring the live layer-6 `LoseAbility`/`LoseAllAbilities` arms
-        // (`layer.rs`).
+        // Mirrors the live layer-6 `LoseAbility` arm (`layer.rs`).
         Modification::LoseAbility(name) => result
             .abilities
-            .retain(|a| a.is_innate() || !crate::layer::ability_is_named(a, name)),
-        Modification::LoseAllAbilities => result.abilities.retain(Ability::is_innate),
+            .retain(|a| !crate::layer::ability_is_named(a, name)),
+        Modification::LoseAllAbilities => result.abilities.clear(),
         // `Several` is normally flattened away before the engine ever sees it
         // (`Modification::flatten`, `continuous.rs`), but `apply_exceptions`
         // gets no such guarantee from its caller — recurse rather than
@@ -534,10 +532,6 @@ fn minimal_subtype(name: &Ident) -> deckmaste_core::Subtype {
 /// Follow-up: `engine-copy-cda-generalize`.
 fn defines_pt(ability: &Ability, axis: PtAxis) -> bool {
     match ability {
-        // Provenance is erased at `lower` (`deckmaste_lowering`), so no
-        // loaded value reaches here wrapped. The arm survives only because
-        // the variant does; `core-demacro` deletes both.
-        Ability::Innate(inner) => defines_pt(inner, axis),
         Ability::Static(effect) => static_defines_pt(effect, axis),
         Ability::Activated(_) | Ability::Triggered(_) | Ability::Spell(_) | Ability::Keyword(_) => {
             false

@@ -344,12 +344,12 @@ fn rules_defined_conferrals_stay_on_their_subtype_declarations() {
         (
             SubtypeCategory::Artifact,
             "Equipment",
-            "Subtype(name:\"Equipment\",types:[Artifact],confers:[Ability(Innate(Static(May(Attach(what:Ref(This),to:Type(Creature))))))])",
+            "Subtype(name:\"Equipment\",types:[Artifact],confers:[Static(May(Attach(what:Ref(This),to:Type(Creature))))])",
         ),
         (
             SubtypeCategory::Artifact,
             "Fortification",
-            "Subtype(name:\"Fortification\",types:[Artifact],confers:[Ability(Innate(Static(May(Attach(what:Ref(This),to:Type(Land))))))])",
+            "Subtype(name:\"Fortification\",types:[Artifact],confers:[Static(May(Attach(what:Ref(This),to:Type(Land))))])",
         ),
         (
             SubtypeCategory::Enchantment,
@@ -359,7 +359,7 @@ fn rules_defined_conferrals_stay_on_their_subtype_declarations() {
         (
             SubtypeCategory::Enchantment,
             "Saga",
-            "Subtype(name:\"Saga\",types:[Enchantment],confers:[Ability(Innate(Static(Replacement(Also(would:ThisEnters,also:PutCounters(This,LoreCounter,1)))))),TurnBased(at:PrecombatMain,effect:PutCounters(This,LoreCounter,1))])",
+            "Subtype(name:\"Saga\",types:[Enchantment],confers:[Ability(Static(Replacement(Also(would:ThisEnters,also:PutCounters(This,LoreCounter,1))))),TurnBased(at:PrecombatMain,effect:PutCounters(This,LoreCounter,1))])",
         ),
     ];
 

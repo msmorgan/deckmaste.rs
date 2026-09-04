@@ -1036,7 +1036,7 @@ impl GameState {
     pub fn autotap_for_cast(&self, player: PlayerId, object: ObjectId) -> Option<Vec<Action>> {
         // The player's untapped fixed-mana land sources, each recorded with the
         // ability index `legal_actions`/`ActivateAbility` uses (into the
-        // Innate-peeled `usable_abilities` list — see legal.rs).
+        // `usable_abilities` list — see legal.rs).
         struct Src {
             object: ObjectId,
             ability: usize,

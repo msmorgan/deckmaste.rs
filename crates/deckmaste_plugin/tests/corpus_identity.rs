@@ -518,7 +518,6 @@ fn core_nested_abilities(ability: &deckmaste_core::Ability) -> Vec<&deckmaste_co
         deckmaste_core::Ability::Triggered(a) => a.effect.push_abilities(&mut out),
         deckmaste_core::Ability::Spell(a) => a.effect.push_abilities(&mut out),
         deckmaste_core::Ability::Keyword(k) => k.push_abilities(&mut out),
-        deckmaste_core::Ability::Innate(a) => out.push(a),
     }
     out
 }
@@ -574,7 +573,6 @@ fn ability_region_params(ability: &deckmaste_core::Ability) -> Option<&[deckmast
         Ability::Activated(a) => &a.effect.params,
         Ability::Triggered(a) => &a.effect.params,
         Ability::Spell(a) => &a.effect.params,
-        Ability::Innate(inner) => return ability_region_params(inner),
         Ability::Keyword(_) => return None,
     })
 }

@@ -52,11 +52,12 @@ pub fn face_of(state: &GameState, id: ObjectId) -> &CardFace {
 /// object's CURRENT characteristics each layer pass by
 /// `layer::fold_conferred_abilities`, not cached here — which is what makes
 /// conferral track layer-4 type/subtype changes, both ADDs and REMOVALS.
-/// (Conferred abilities still arrive wrapped in `Ability::Innate` via the
-/// ONE emission path, [`Property::conferred_ability`] — a rule of the object
-/// ([CR#305.6,113.12]): a basic land that loses all abilities still taps for
-/// its color, and card-facing ability queries don't see the conferral — that
-/// now happens in the fold, not here.) `Action::ActivateAbility` indexes the
+/// (Conferred abilities arrive through the ONE emission path,
+/// [`Property::conferred_ability`], and occupy the ordinary ability hierarchy
+/// — a basic land type's intrinsic mana ability ([CR#305.6]) is visible and
+/// layer-6-removable like printed text; that fold happens in
+/// `layer::fold_conferred_abilities`, not here.) `Action::ActivateAbility`
+/// indexes the
 /// [`usable_abilities`] view of this list. Computed once per card at setup
 /// (`Cards::push`) and cached on the `CardInstance`.
 #[must_use]
@@ -83,10 +84,9 @@ pub(crate) fn printed_abilities(state: &GameState, id: ObjectId) -> &[Ability] {
 /// rule in `state.conferral_rules` whose `scope` matches `id`
 /// (`crate::matches` — the same predicate-scope matcher `global_sba_rules`
 /// uses, `sba.rs`), the ability it contributes via
-/// [`Property::conferred_ability`] — `Ability::Innate`-wrapped, the SAME
-/// emission path subtype conferral uses, so a predicate-scoped conferral is
-/// exactly as strip-immune / card-facing-invisible as a subtype's
-/// ([CR#305.6,113.12]).
+/// [`Property::conferred_ability`] — the SAME emission path subtype conferral
+/// uses, so a predicate-scoped conferral is an ordinary ability exactly like a
+/// subtype's ([CR#305.6]).
 ///
 /// Deliberately NOT folded into `layer::base_values`/`gather` (the
 /// `layers()` computation itself): `crate::matches` resolves a
@@ -106,33 +106,20 @@ pub(crate) fn conferred_rule_abilities(state: &GameState, id: ObjectId) -> Vec<A
         .collect()
 }
 
-/// The object's USABLE derived abilities after layer 6 — the layer view's
-/// list with every `Innate` wrapper PEELED IN PLACE (same length, same
-/// order): the indexable surface `Action::ActivateAbility { ability }`
-/// points into, shared by `legal_actions`, `decide`'s `ActivateAbility`
-/// arm, `begin_activate`, and the render views ("SAME list, SAME order").
-/// An `Innate` conferral FUNCTIONS for its own controller ([CR#604.1] — a
-/// basic land's conferred mana ability is activatable), it is only
-/// invisible to CARD-FACING queries — that filter is [`abilities`].
+/// The object's USABLE derived abilities after layer 6 — the indexable
+/// surface `Action::ActivateAbility { ability }` points into, shared by
+/// `legal_actions`, `decide`'s `ActivateAbility` arm, `begin_activate`, and
+/// the render views ("SAME list, SAME order").
 ///
 /// Predicate-scoped `ConferralRule` conferrals ([`conferred_rule_abilities`])
-/// are folded in here too, alongside the layer view's own list, and peeled
-/// the same way.
+/// are folded in here, alongside the layer view's own list. Identical in
+/// content to [`abilities`]: no ability class is hidden from card-facing
+/// queries, so the indexable surface and the card-facing surface are ONE list
+/// ([CR#113.12] — a rule of the object is not an ability at all, and so is not
+/// in either).
 #[must_use]
 pub fn usable_abilities(state: &GameState, id: ObjectId) -> Arc<Vec<Ability>> {
-    let view = state.layers();
-    let derived = &view.get(id).abilities;
-    let conferred = conferred_rule_abilities(state, id);
-    if conferred.is_empty() && !derived.iter().any(|a| matches!(a, Ability::Innate(_))) {
-        return Arc::clone(derived);
-    }
-    Arc::new(
-        derived
-            .iter()
-            .chain(conferred.iter())
-            .map(|a| a.peel_innate().clone())
-            .collect(),
-    )
+    abilities(state, id)
 }
 
 /// Grant-time captures for one entry in [`usable_abilities`]. Printed and
@@ -151,46 +138,37 @@ pub(crate) fn usable_ability_captures(
     runtime
         .flattened
         .iter()
-        .find(|entry| entry.ability == *ability.peel_innate())
+        .find(|entry| entry.ability == *ability)
         .map_or_else(Vec::new, |entry| entry.captures.clone())
 }
 
 /// The object's CARD-FACING derived abilities after layer 6
 /// ([CR#305.6,613.1f]): base = intrinsic printed abilities; type/subtype
 /// conferrals are folded in at layer 4 (`fold_conferred_abilities`); layer 6
-/// applies on top. `Innate` abilities are filtered OUT ([CR#113.12]): they are
-/// rules of the object, not abilities other cards can see or count — an object
-/// whose only abilities are `Innate` reads here as having none.
+/// applies on top. Nothing is filtered: a type-conferred ability is an
+/// ordinary ability other cards see and count, while a type's ability-FREE
+/// rules ([`deckmaste_core::Property::Static`], `StateBased`, `TurnBased`) are
+/// not abilities at all ([CR#113.12]) and never reach this list.
 ///
 /// Builds a full `LayeredView` per call — fine for a one-shot read (e.g. at
 /// resolution), but NEVER call it in a loop: build `state.layers()` once and
 /// index the view instead. The layer pipeline itself uses
 /// [`printed_abilities`] internally to break the `layers()` →
-/// `derive::abilities` → `layers()` recursion. Engine machinery that must see
-/// through `Innate` (the SBA sweep, `attachment_legal`, layer
-/// static-application) reads the view's `abilities` directly and peels.
+/// `derive::abilities` → `layers()` recursion.
 ///
 /// Predicate-scoped `ConferralRule` conferrals ([`conferred_rule_abilities`])
-/// are folded in here too — and, being `Innate`, filtered right back out, the
-/// same as a subtype conferral.
+/// are folded in here too, the same as a subtype conferral.
 #[must_use]
 pub fn abilities(state: &GameState, id: ObjectId) -> Arc<Vec<Ability>> {
     let view = state.layers();
     let derived = &view.get(id).abilities;
     let conferred = conferred_rule_abilities(state, id);
-    if conferred.is_empty() && !derived.iter().any(Ability::is_innate) {
-        // No Innate present — return the shared Arc unchanged (the common
+    if conferred.is_empty() {
+        // Nothing to append — return the shared Arc unchanged (the common
         // case).
         return Arc::clone(derived);
     }
-    Arc::new(
-        derived
-            .iter()
-            .chain(conferred.iter())
-            .filter(|a| !a.is_innate())
-            .cloned()
-            .collect(),
-    )
+    Arc::new(derived.iter().chain(conferred.iter()).cloned().collect())
 }
 
 /// The PRINTED abilities of whatever an `ObjectSource` names — the abilities
@@ -258,7 +236,7 @@ pub fn abilities_of_source(state: &GameState, source: ObjectSource) -> Vec<Abili
 ///
 /// Sections 2 and 3 both follow the index-stable prefix; they carry no
 /// index-stable identity (a fired conferred trigger carries its body by value)
-/// and are `Innate`-peeled + composite-spliced the same way. The returned
+/// and are composite-spliced the same way. The returned
 /// `usize` is the length of section 1 only.
 ///
 /// The layer-derived tail is what makes Falkenrath Gorger's printed static
@@ -361,21 +339,13 @@ fn printed_base_len(state: &GameState, id: ObjectId) -> usize {
 /// Splice a composite keyword's members into `out` (recursively — a
 /// composite may carry another); any other ability passes through as-is.
 ///
-/// `Innate` is PEELED here ([CR#113.12,604.1]): this is the engine-internal
-/// enumeration (trigger gathering, the `Has`/keyword reads), which sees the
-/// inner ability, not the wrapper — so an `Innate(Triggered)`/`Innate(Keyword)`
-/// is enumerated like its bare form. The card-facing FILTER lives in
-/// `derive::abilities` (the invisibility surface), not here.
-/// `abilities_of_source` is indexed self-consistently on both ends (trigger
-/// placement + resolution read the same flattened list), so peeling keeps it
-/// consistent.
+/// This is the ENGINE-INTERNAL enumeration (trigger gathering, the
+/// `Has`/keyword reads): a composite's members are executable children of the
+/// named container, so they are spliced here and executed. They never enter
+/// the carrier's card-facing list — `derive::abilities` reads the layer view's
+/// unflattened list, where the container alone stands ([CR#702.21a]: a
+/// permanent with ward has ONE ability, ward, not ward plus its trigger).
 pub(crate) fn flatten_composites(ability: &Ability, out: &mut Vec<Ability>) {
-    // Peel any `Innate` wrapper first, then re-dispatch on the inner ability
-    // (which may itself be a composite keyword to splice).
-    if let Ability::Innate(inner) = ability {
-        flatten_composites(inner, out);
-        return;
-    }
     if let Ability::Keyword(k) = ability
         && let Some(members) = composite_members(k)
     {
@@ -468,13 +438,13 @@ mod tests {
         })
     }
 
-    /// [CR#113.12,604.1]: `abilities_of_source` (the engine-internal
-    /// enumeration the trigger scan consumes) PEELS `Innate` — an
-    /// `Innate(Triggered(...))` is enumerated as the bare `Triggered`, so the
-    /// trigger gathering sees it. (The card-facing FILTER in
-    /// `derive::abilities` is a separate surface and is unaffected.)
+    /// [CR#702.21a]: a composite keyword's members are EXECUTABLE CHILDREN of
+    /// the named container. `abilities_of_source` (the engine-internal
+    /// enumeration the trigger scan consumes) SPLICES them, so ward's
+    /// triggered ability is gathered; the container is what the card-facing
+    /// list carries, so the trigger never enters it as a second ability.
     #[test]
-    fn abilities_of_source_peels_innate_triggered() {
+    fn abilities_of_source_splices_a_composite_keyword_trigger() {
         let mut state = game();
         let trigger = TriggeredAbility {
             ability_word: None,
@@ -495,11 +465,13 @@ mod tests {
             )
             .into(),
         };
+        let keyword = Ability::Keyword(deckmaste_core::KeywordAbility::Composite {
+            name: deckmaste_core::Ident::new("Ward"),
+            abilities: vec![Ability::triggered(trigger.clone())],
+        });
         let card = Card::Normal(CardFace {
-            name: "Innate Triggerer".into(),
-            abilities: vec![Ability::Innate(Arc::new(Ability::triggered(
-                trigger.clone(),
-            )))],
+            name: "Composite Triggerer".into(),
+            abilities: vec![keyword.clone()],
             ..CardFace::default()
         });
         let card_id = state.cards.push(Arc::new(card), PlayerId(0));
@@ -508,8 +480,21 @@ mod tests {
         assert_eq!(
             derived,
             vec![Ability::triggered(trigger)],
-            "abilities_of_source must peel Innate so the trigger scan sees the \
-             Triggered ability (not the opaque Innate wrapper)"
+            "abilities_of_source must splice the composite so the trigger scan \
+             sees the Triggered member"
+        );
+
+        // The card-facing list carries the CONTAINER, never the member.
+        let object = state.objects.mint(
+            ObjectSource::Card(card_id),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(object);
+        assert_eq!(
+            *super::abilities(&state, object),
+            vec![keyword],
+            "the composite's member is not a second card-facing ability"
         );
     }
 

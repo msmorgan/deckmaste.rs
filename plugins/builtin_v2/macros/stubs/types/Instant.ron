@@ -1,3 +1,6 @@
+// Instant ([CR#300.1]) — being castable at instant speed ([CR#601.2,304.1])
+// is a quality of the object, not an ability of it ([CR#113.12]), so the
+// default-deny cast permission is conferred ability-free.
 Type(
     name: "Instant",
     spelling: "instant",
@@ -7,7 +10,7 @@ Type(
         name: "Instant",
         permanent_type: false,
         confers: [
-            Ability(Static(May(Cast(what: Ref(This), window: InstantSpeed)))),
+            Static(May(Cast(what: Ref(This), window: InstantSpeed))),
         ],
     ),
 )

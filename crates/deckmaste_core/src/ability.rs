@@ -237,18 +237,6 @@ pub enum Ability {
     /// The five primitive variants are represented directly; semantic lowering
     /// resolves every other authored keyword to [`KeywordAbility::Composite`].
     Keyword(KeywordAbility),
-    /// A conferred ability that is a *rule of the object* rather than a card
-    /// ability — used sparingly for "this type always behaves like this"
-    /// invariants (the Aura [CR#704.5m] graveyard SBA, the Equipment
-    /// [CR#301.5] / Fortification [CR#301.6] host restriction). The wrapped
-    /// ability is (a) **immune to layer-6 ability removal**: `LoseAllAbilities`
-    /// retains it, `LoseAbility` skips it, a `CantHaveAbility` set never
-    /// suppresses it; and (b) **invisible to card-facing ability queries**
-    /// — an object whose only abilities are `Innate` reads as having no
-    /// abilities to other cards ([CR#113.12]). Engine machinery (the SBA
-    /// sweep, `attachment_legal`, layer static-application) peels `Innate` to
-    /// see the inner ability.
-    Innate(Arc<Ability>),
 }
 
 impl Ability {
@@ -307,7 +295,6 @@ impl Ability {
     pub fn as_activated(&self) -> Option<&ActivatedAbility> {
         match self {
             Ability::Activated(ability) => Some(ability),
-            Ability::Innate(inner) => inner.as_activated(),
             _ => None,
         }
     }
@@ -317,7 +304,6 @@ impl Ability {
     pub fn as_triggered(&self) -> Option<&TriggeredAbility> {
         match self {
             Ability::Triggered(ability) => Some(ability),
-            Ability::Innate(inner) => inner.as_triggered(),
             _ => None,
         }
     }
@@ -338,10 +324,8 @@ impl Ability {
     /// `deckmaste_lowering`.
     #[must_use]
     pub fn mana_profile(&self) -> Option<ActivatedManaProfile> {
-        let ability = match self {
-            Ability::Activated(ability) => ability,
-            Ability::Innate(inner) => return inner.mana_profile(),
-            _ => return None,
+        let Ability::Activated(ability) = self else {
+            return None;
         };
         if ability.limits.contains(&UseLimit::LoyaltyOncePerTurn) {
             return None;
@@ -381,10 +365,8 @@ impl Ability {
     /// could add mana as it resolves.
     #[must_use]
     pub fn is_triggered_mana_ability(&self) -> bool {
-        let ability = match self {
-            Ability::Triggered(ability) => ability,
-            Ability::Innate(inner) => return inner.is_triggered_mana_ability(),
-            _ => return false,
+        let Ability::Triggered(ability) = self else {
+            return false;
         };
         let mut facts = region_mana_facts(&ability.effect);
         facts.targetless &= ability.targets.is_empty();
@@ -429,26 +411,6 @@ impl Ability {
     #[must_use]
     pub fn spell(ability: SpellAbility) -> Self {
         Ability::Spell(Arc::new(ability))
-    }
-
-    /// Peel any `Innate` wrapper to the inner ability — the view engine
-    /// machinery (SBA sweep, `attachment_legal`, layer static-application)
-    /// uses, since `Innate` is consumed normally there ([CR#604.1] statics
-    /// still function). Non-`Innate` abilities pass through unchanged.
-    #[must_use]
-    pub fn peel_innate(&self) -> &Ability {
-        match self {
-            Ability::Innate(inner) => inner.peel_innate(),
-            other => other,
-        }
-    }
-
-    /// Whether this ability is `Innate` ([CR#113.12]) — used to RETAIN it
-    /// through layer-6 ability removal and to FILTER it out of card-facing
-    /// ability queries.
-    #[must_use]
-    pub fn is_innate(&self) -> bool {
-        matches!(self, Ability::Innate(_))
     }
 }
 

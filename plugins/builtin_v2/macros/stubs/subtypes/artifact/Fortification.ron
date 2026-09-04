@@ -1,3 +1,6 @@
+// Fortification ([CR#301.6]) — the Land twin of the Equipment host rule
+// ([CR#301.5]), and a quality of the object in the same way ([CR#113.12]), so
+// it is conferred ability-free.
 Subtype(
     category: Artifact,
     name: "Fortification",
@@ -8,8 +11,7 @@ Subtype(
         name: "Fortification",
         types: [Artifact],
         confers: [
-            Ability(Innate(Static(May(Attach(what: Ref(This), to: Type(Land)))))),
+            Static(May(Attach(what: Ref(This), to: Type(Land)))),
         ],
     ),
 )
-

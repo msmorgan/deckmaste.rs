@@ -524,10 +524,8 @@ fn gather(
         // the already-computed `working` map, never re-entering `layers()`.
         //
         // Flatten the source list the same way the engine-internal enumeration
-        // does (`derive::flatten_composites`): peel `Innate` ([CR#113.12]) — a
-        // subtype rule conferred as `Innate(Static(...))` (the
-        // Aura/Equipment/Fortification attachment rules) still functions as a
-        // [CR#604.1] static — AND splice the members of a composite keyword. A
+        // does (`derive::flatten_composites`): splice the members of a
+        // composite keyword. A
         // `KeywordAbility`-kind macro (Changeling, Devoid) expands to
         // `Keyword(Composite { abilities: [Static(...)] })`; without splicing,
         // the `Static` it carries would never be gathered, so the keyword's
@@ -1622,11 +1620,6 @@ fn distinct_keys_derived(
 pub(crate) fn ability_is_named(a: &Ability, name: &Ident) -> bool {
     match a {
         Ability::Keyword(kw) => name == kw.as_str(),
-        // Engine machinery sees THROUGH the rule-of-the-object wrapper
-        // ([CR#604.1] — the conferred ability still functions); the
-        // layer-6 removal arms guard on `is_innate` BEFORE consulting the
-        // name, so Innate abilities still survive removal.
-        Ability::Innate(inner) => ability_is_named(inner, name),
         _ => false,
     }
 }
@@ -1884,24 +1877,21 @@ fn apply_static(
                 d.ability_runtimes.push(grant_runtime.clone());
             }
         }
-        // [CR#113.12]: "loses all abilities" strips card abilities but NOT
-        // `Innate` subtype rules (the Aura [CR#704.5m] graveyard SBA, the
-        // Equipment/Fortification host restriction) — those are rules of the
-        // object, not abilities it has, so they survive.
+        // "Loses all abilities" strips every ability the object has, printed
+        // and type-conferred alike ([CR#305.7]: a land whose subtype is set
+        // loses the abilities its old land types gave it). A type's
+        // ability-FREE rules are untouched because they are not abilities
+        // ([CR#113.12]) and never entered this list.
         Modification::LoseAllAbilities => {
-            retain_abilities(d, Ability::is_innate);
+            retain_abilities(d, |_| false);
         }
         Modification::LoseAbility(name) => {
-            // [CR#113.12]: never remove an `Innate` ability. (A named-keyword
-            // `LoseAbility` already misses `Innate`, which carries no keyword
-            // name, but guard explicitly so the invariant is local.)
-            retain_abilities(d, |x| x.is_innate() || !ability_is_named(x, name));
+            retain_abilities(d, |x| !ability_is_named(x, name));
         }
         Modification::CantHaveAbility(name) => {
-            // Remove any already-present instance of the named ability (except
-            // `Innate`, [CR#113.12]), then record the prohibition so future
-            // GainAbility skips it.
-            retain_abilities(d, |x| x.is_innate() || !ability_is_named(x, name));
+            // Remove any already-present instance of the named ability, then
+            // record the prohibition so future GainAbility skips it.
+            retain_abilities(d, |x| !ability_is_named(x, name));
             d.cant_have.push(*name);
         }
         // --- Layer 2: control-changing ([CR#613.1b]) ---
@@ -2210,8 +2200,8 @@ fn run_layer_pass(
         // and subtypes, fold any type/subtype-conferred abilities into the
         // derived list — the SINGLE source of type/subtype conferral (the base
         // carries no confer of its own); running here — before layer 6 — lets a
-        // later `LoseAllAbilities` still strip the non-`Innate` grants
-        // ([CR#113.12]).
+        // later `LoseAllAbilities` strip the conferred abilities too
+        // ([CR#305.7]).
         if layer == Layer::L4 {
             fold_conferred_abilities(&mut working);
         }
@@ -2226,7 +2216,7 @@ fn run_layer_pass(
 /// [CR#305.6,611.3]: the SINGLE source of type/subtype conferral. Folds every
 /// object's CURRENT (post-layer-4) `card_types`/`subtypes` `Ability`-flavored
 /// `confers` into its derived ability list, through the ONE emission path
-/// ([`Property::conferred_ability`] → [`Ability::Innate`]) — PRINTED and
+/// ([`Property::conferred_ability`]) — PRINTED and
 /// layer-4-ADDED types/subtypes alike, uniformly (an animate effect's
 /// `Creature` type, a tribal `Subtypes(Add)`, contribute their conferred
 /// abilities exactly like a printed type/subtype does).
@@ -2398,9 +2388,9 @@ mod tests {
 
     /// A self-anthem `Static`: "creatures get +2/+2" — matches the carrying
     /// creature itself (a floating `SelectAll` set, no Stage-3 source-relative
-    /// reference needed). Wrapped or not per `innate`.
-    fn pump_static(innate: bool) -> Ability {
-        let s = Ability::r#static(StaticSpec::Each(
+    /// reference needed).
+    fn pump_static() -> Ability {
+        Ability::r#static(StaticSpec::Each(
             Selection::SelectAll(Arc::new(deckmaste_core::Region::candidate(
                 Predicate::r#type(Type::Creature),
             ))),
@@ -2414,8 +2404,7 @@ mod tests {
                     .into(),
                 ),
             ))),
-        ));
-        if innate { Ability::Innate(Arc::new(s)) } else { s }
+        ))
     }
 
     fn static_candidate_filter(body: Predicate) -> deckmaste_core::Region<Predicate> {
@@ -2486,6 +2475,34 @@ mod tests {
         (state, id)
     }
 
+    /// A 2/2 creature carrying `abilities` and printing one `subtype` whose
+    /// `confers` supply the conferral under test.
+    fn subtyped_creature(
+        mut state: GameState,
+        subtype: deckmaste_core::Subtype,
+        abilities: Vec<Ability>,
+    ) -> (GameState, ObjectId) {
+        use deckmaste_card::Card;
+        use deckmaste_card::CardFace;
+        let card = Card::Normal(CardFace {
+            name: "Test Creature".into(),
+            types: vec![Type::Creature.def()],
+            subtypes: vec![subtype],
+            power: Some(StatValue::Number(2)),
+            toughness: Some(StatValue::Number(2)),
+            abilities,
+            ..CardFace::default()
+        });
+        let card_id = state.cards.push(Arc::new(card), PlayerId(0));
+        let id = state.objects.mint(
+            ObjectSource::Card(card_id),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(id);
+        (state, id)
+    }
+
     /// Lock a `LoseAllAbilities` (layer-6) continuous effect onto `id`.
     fn lose_all_abilities(state: &mut GameState, id: ObjectId) {
         let timestamp = state.objects.next_timestamp();
@@ -2502,8 +2519,8 @@ mod tests {
     }
 
     /// Whether `id`'s DERIVED ability list (what the SBA sweep,
-    /// `attachment_legal`, and the deontic reads consult) carries a `Static`
-    /// (peeling `Innate`). This is the surface layer-6 ability removal acts on
+    /// `attachment_legal`, and the deontic reads consult) carries a `Static`.
+    /// This is the surface layer-6 ability removal acts on
     /// — gather's effect-source collection reads PRINTED abilities to break the
     /// `layers()` recursion (documented in `gather`), so P/T anthem application
     /// is intentionally NOT the right observable here.
@@ -2513,25 +2530,47 @@ mod tests {
             .get(id)
             .abilities
             .iter()
-            .any(|a| matches!(a.peel_innate(), Ability::Static(_)))
+            .any(|a| matches!(a, Ability::Static(_)))
     }
 
-    /// [CR#113.12]: `LoseAllAbilities` strips a normal granted ability (Trample)
-    /// but RETAINS an `Innate` static — the Innate static stays in the derived
-    /// ability list (so the SBA / legality reads still see it), while the
-    /// normal keyword is gone.
+    /// [CR#113.12]: `LoseAllAbilities` strips a granted ability (Trample) but
+    /// cannot reach a type's ability-FREE rule — an Equipment-style
+    /// `Property::Static(May(Attach))` conferral is a quality of the object,
+    /// never entered the ability list, and is still read by the static walk
+    /// afterwards.
     #[test]
-    fn innate_static_survives_lose_all_abilities() {
-        let (mut state, id) = creature_on_field(
+    fn conferred_static_rule_survives_lose_all_abilities() {
+        use deckmaste_core::Deontic;
+        use deckmaste_core::DeonticAction;
+        use deckmaste_core::Property;
+        use deckmaste_core::Subtype;
+
+        let rule = Property::Static(Arc::new(deckmaste_core::Region::candidate(
+            StaticSpec::Deontic(Deontic::May(DeonticAction::Attach {
+                what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
+                to: Predicate::r#type(Type::Creature),
+            })),
+        )));
+        let (mut state, id) = subtyped_creature(
             game(),
-            vec![pump_static(true), Ability::Keyword(KeywordAbility::Trample)],
+            Subtype {
+                name: "Equipment".into(),
+                types: Vec::new().into(),
+                confers: vec![rule].into(),
+            },
+            vec![Ability::Keyword(KeywordAbility::Trample)],
         );
 
-        // Before removal: the Innate static and Trample are both derived.
-        assert!(
-            derived_has_static(&state, id),
-            "innate static present pre-removal"
-        );
+        let may_attach = |state: &GameState| {
+            let view = state.layers();
+            crate::legal::object_has_static(&view, id, &|e: &StaticSpec| {
+                matches!(
+                    e,
+                    StaticSpec::Deontic(Deontic::May(DeonticAction::Attach { .. }))
+                )
+            })
+        };
+        assert!(may_attach(&state), "the conferred rule is read pre-removal");
         assert!(
             state
                 .layers()
@@ -2544,11 +2583,9 @@ mod tests {
 
         lose_all_abilities(&mut state, id);
 
-        // After removal: the Innate static SURVIVES in the derived list, the
-        // normal keyword is GONE.
         assert!(
-            derived_has_static(&state, id),
-            "innate static survives LoseAllAbilities ([CR#113.12])"
+            may_attach(&state),
+            "the ability-free type rule survives LoseAllAbilities ([CR#113.12])"
         );
         assert!(
             !state
@@ -2561,13 +2598,13 @@ mod tests {
         );
     }
 
-    /// [CR#305.6,113.12]: a REGISTRY-conferred basic-land mana ability —
-    /// emitted through the one conferral path (`Property::conferred_ability`,
-    /// which wraps it in `Innate`) — SURVIVES a lose-all-abilities effect:
-    /// the island still taps for blue. The usable (activation) surface keeps
-    /// offering it, while the card-facing list hides it before AND after.
+    /// [CR#305.6]: a REGISTRY-conferred basic-land mana ability — emitted
+    /// through the one conferral path (`Property::conferred_ability`) — is an
+    /// ORDINARY ability of the object: the island HAS it for card-facing
+    /// queries, it is activatable, and a lose-all-abilities effect REMOVES it
+    /// ([CR#305.7]), leaving the island with no ability at all.
     #[test]
-    fn conferred_basic_land_mana_survives_lose_all_abilities() {
+    fn conferred_basic_land_mana_is_an_ordinary_ability() {
         use deckmaste_card::Card;
         use deckmaste_card::CardFace;
         use deckmaste_core::ColorOrColorless;
@@ -2632,21 +2669,12 @@ mod tests {
             })
         };
         assert!(taps_for_blue(&state), "the conferral taps for {{U}}");
-        assert!(
-            crate::derive::abilities(&state, id).is_empty(),
-            "the conferral is invisible to card-facing queries ([CR#113.12])"
-        );
-
-        lose_all_abilities(&mut state, id);
-
-        assert!(
-            taps_for_blue(&state),
-            "the conferred [CR#305.6] mana ability survives LoseAllAbilities — \
-             it is a rule of the object, not a removable ability"
-        );
-        assert!(
-            crate::derive::abilities(&state, id).is_empty(),
-            "still invisible to card-facing queries after removal"
+        // HAS: a type-conferred ability occupies the ordinary hierarchy, so
+        // card-facing queries see it ([CR#305.6] "has the intrinsic ability").
+        assert_eq!(
+            crate::derive::abilities(&state, id).len(),
+            1,
+            "the island HAS its conferred mana ability ([CR#305.6])"
         );
 
         state.begin_payment_proposal(PlayerId(0));
@@ -2697,14 +2725,26 @@ mod tests {
             1,
             "the conferred ability adds {{U}} through the payment protocol"
         );
+
+        // LACKS: "loses all abilities" removes the conferred ability like
+        // printed text ([CR#305.7]) — the island no longer taps for blue and
+        // reads as having no abilities.
+        lose_all_abilities(&mut state, id);
+        assert!(
+            !taps_for_blue(&state),
+            "LoseAllAbilities removes the conferred [CR#305.6] mana ability"
+        );
+        assert!(
+            crate::derive::abilities(&state, id).is_empty(),
+            "the island LACKS every ability after LoseAllAbilities"
+        );
     }
 
-    /// Guard against over-retaining: a NORMAL (non-Innate) conferred static is
-    /// removed from the derived ability list by `LoseAllAbilities` (so the SBA
-    /// / legality reads no longer see it).
+    /// A printed static ability is removed from the derived ability list by
+    /// `LoseAllAbilities` (so the SBA / legality reads no longer see it).
     #[test]
     fn normal_static_is_removed_by_lose_all_abilities() {
-        let (mut state, id) = creature_on_field(game(), vec![pump_static(false)]);
+        let (mut state, id) = creature_on_field(game(), vec![pump_static()]);
         assert!(
             derived_has_static(&state, id),
             "normal static present pre-removal"
@@ -2716,13 +2756,13 @@ mod tests {
         );
     }
 
-    /// [CR#113.12]: `LoseAbility(Trample)` removes the named keyword from the
-    /// derived list but never an `Innate` ability.
+    /// [CR#613.1f]: `LoseAbility(Trample)` removes the NAMED keyword from the
+    /// derived list and nothing else — an unnamed static ability stays.
     #[test]
-    fn lose_ability_does_not_remove_innate() {
+    fn lose_ability_removes_only_the_named_keyword() {
         let (mut state, id) = creature_on_field(
             game(),
-            vec![pump_static(true), Ability::Keyword(KeywordAbility::Trample)],
+            vec![pump_static(), Ability::Keyword(KeywordAbility::Trample)],
         );
         let timestamp = state.objects.next_timestamp();
         state.continuous.push(ContinuousEffect {
@@ -2737,7 +2777,7 @@ mod tests {
         });
         assert!(
             derived_has_static(&state, id),
-            "innate static survives LoseAbility"
+            "an unnamed static survives LoseAbility(Trample)"
         );
         assert!(
             !state
@@ -2750,29 +2790,46 @@ mod tests {
         );
     }
 
-    /// [CR#113.12]: the card-facing `derive::abilities` view filters `Innate`
-    /// OUT — an object whose only ability is `Innate` reads as having none,
-    /// while a co-present normal ability is still visible.
+    /// [CR#113.12]: an ability-free type rule is not an ability, so the
+    /// card-facing `derive::abilities` view never carries it — an object whose
+    /// only conferral is a `Property::Static` rule reads as having no
+    /// abilities, while its printed keyword stays visible.
     #[test]
-    fn derive_abilities_filters_innate_out() {
-        // Innate-only: card-facing list is empty.
-        let (state, id) = creature_on_field(game(), vec![pump_static(true)]);
+    fn derive_abilities_omits_ability_free_type_rules() {
+        use deckmaste_core::Deontic;
+        use deckmaste_core::DeonticAction;
+        use deckmaste_core::Property;
+        use deckmaste_core::Subtype;
+
+        let rule_subtype = || Subtype {
+            name: "Equipment".into(),
+            types: Vec::new().into(),
+            confers: vec![Property::Static(Arc::new(
+                deckmaste_core::Region::candidate(StaticSpec::Deontic(Deontic::May(
+                    DeonticAction::Attach {
+                        what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
+                        to: Predicate::r#type(Type::Creature),
+                    },
+                ))),
+            ))]
+            .into(),
+        };
+
+        // Rule-only: the card-facing list is empty.
+        let (state, id) = subtyped_creature(game(), rule_subtype(), vec![]);
         assert!(
             crate::derive::abilities(&state, id).is_empty(),
-            "an object whose only ability is Innate reads as having none"
+            "an ability-free type rule is no ability at all"
         );
 
-        // Innate + a normal keyword: only the keyword is visible.
-        let (state, id) = creature_on_field(
+        // Rule + a printed keyword: the keyword is the only ability.
+        let (state, id) = subtyped_creature(
             game(),
-            vec![pump_static(true), Ability::Keyword(KeywordAbility::Trample)],
+            rule_subtype(),
+            vec![Ability::Keyword(KeywordAbility::Trample)],
         );
         let facing = crate::derive::abilities(&state, id);
-        assert_eq!(
-            facing.len(),
-            1,
-            "only the non-Innate ability is card-facing"
-        );
+        assert_eq!(facing.len(), 1, "only the printed ability is card-facing");
         assert!(matches!(
             facing[0],
             Ability::Keyword(KeywordAbility::Trample)
@@ -3572,7 +3629,7 @@ mod tests {
             view.get(beneficiary)
                 .abilities
                 .iter()
-                .any(|a| matches!(a.peel_innate(), Ability::Static(_))),
+                .any(|a| matches!(a, Ability::Static(_))),
             "the granted static is present in B's derived ability list (layer 6)"
         );
         // The FIXPOINT payoff: the granted self-pump was re-gathered as an
@@ -3620,7 +3677,7 @@ mod tests {
     #[test]
     fn ordinary_board_converges_unchanged() {
         // A creature directly carrying the self-anthem (+2/+2), no grants.
-        let (state, id) = creature_on_field(game(), vec![pump_static(false)]);
+        let (state, id) = creature_on_field(game(), vec![pump_static()]);
         let view = state.layers();
         // `pump_static` is a `Matching(Creature)` +2/+2 on the lone creature →
         // it catches itself → 4/4. The fixpoint must not double-apply it.

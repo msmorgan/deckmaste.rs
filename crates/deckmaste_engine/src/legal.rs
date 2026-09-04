@@ -36,7 +36,7 @@ fn deontic_action(d: &Deontic) -> &DeonticAction {
 }
 
 /// Whether `id`'s derived view carries any static matching `pred`, looking
-/// through composites and `Innate`/`Each` wrappers at every level. A
+/// through composites and `Each` wrappers at every level. A
 /// short-circuiting wrapper over the single [`statics_on`] walker: it stops
 /// the descent the moment `pred` accepts.
 pub(crate) fn object_has_static<F: Fn(&StaticSpec) -> bool>(
@@ -173,14 +173,12 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
         if view.controller(object) != player {
             continue;
         }
-        // Index the SAME Innate-PEELED list resolution reads ([CR#113.12]):
-        // `begin_activate`, `decide`'s `ActivateAbility` arm, and `render`'s
-        // `activated_ability`/`mana_ability` all index
-        // `derive::usable_abilities` (see the "SAME list, SAME order"
-        // invariant in `render.rs`). Peeling — not filtering — keeps a
-        // conferred `Innate(Activated)` (a basic land's [CR#305.6] mana
-        // ability) activatable by its controller while the indices stay
-        // aligned.
+        // Index the SAME list resolution reads: `begin_activate`, `decide`'s
+        // `ActivateAbility` arm, and `render`'s `activated_ability`/
+        // `mana_ability` all index `derive::usable_abilities` (see the "SAME
+        // list, SAME order" invariant in `render.rs`). A type-conferred
+        // ability (a basic land's [CR#305.6] mana ability) sits in that list
+        // like a printed one.
         for (ability, a) in derive::usable_abilities(state, object).iter().enumerate() {
             if let Some(act) = crate::activate::as_activated(a) {
                 let permitted = if a.is_activated_mana_ability() {
@@ -707,7 +705,7 @@ pub(crate) fn cant_activate(
 /// The single ability-tree walker. Descends an ability list with the
 /// look-through rules every static read needs (static-ability effect lists,
 /// keyword composites — flying's evasion `Cant` lives inside
-/// `Keyword(Composite)` — and `Innate`/`Each` wrappers at every level),
+/// `Keyword(Composite)` — and `Each` wrappers at every level),
 /// calling `visit` on each static effect. The `ControlFlow` return lets a
 /// caller short-circuit: [`object_has_static`] (the boolean "any" form) breaks
 /// on the first match, while the visit-each callers always
@@ -729,9 +727,8 @@ pub(crate) fn cant_activate(
 /// a static (Enchant → `May(Attach)`, [CR#702.5a]) lands as
 /// `Keyword(Composite { abilities: [Static(...)] })`, so a static-read path
 /// that did NOT descend into the composite would silently miss the conferred
-/// row. `Innate` is peeled here too, so subtype-conferred
-/// `Innate(May(Attach))` ([CR#301.5,301.6]) and `Innate(Static([Sba(...)]))`
-/// ([CR#704.5m]) are seen.
+/// row. A type/subtype's own ability-free rules are NOT abilities and so are
+/// not here; [`statics_on`] adds them from the derived types/subtypes.
 pub(crate) fn walk_abilities<B, F, G>(
     abilities: &[Ability],
     enter_conditional: &mut G,
@@ -741,71 +738,75 @@ where
     F: FnMut(&StaticSpec) -> ControlFlow<B>,
     G: FnMut(&deckmaste_core::Condition) -> bool,
 {
-    fn in_ability<B, F, G>(a: &Ability, enter: &mut G, visit: &mut F) -> ControlFlow<B>
-    where
-        F: FnMut(&StaticSpec) -> ControlFlow<B>,
-        G: FnMut(&deckmaste_core::Condition) -> bool,
-    {
-        match a {
-            Ability::Static(s) => in_static(&s.body, enter, visit),
-            Ability::Keyword(k) => in_keyword(k, enter, visit),
-            // Peel `Innate` — its inner static is consumed normally
-            // ([CR#113.12,604.1]).
-            Ability::Innate(inner) => in_ability(inner, enter, visit),
-            _ => ControlFlow::Continue(()),
-        }
-    }
-    fn in_keyword<B, F, G>(k: &KeywordAbility, enter: &mut G, visit: &mut F) -> ControlFlow<B>
-    where
-        F: FnMut(&StaticSpec) -> ControlFlow<B>,
-        G: FnMut(&deckmaste_core::Condition) -> bool,
-    {
-        match k {
-            KeywordAbility::Composite { abilities, .. } => {
-                for a in abilities {
-                    in_ability(a, enter, visit)?;
-                }
-                ControlFlow::Continue(())
-            }
-            _ => ControlFlow::Continue(()),
-        }
-    }
-    fn in_static<B, F, G>(e: &StaticSpec, enter: &mut G, visit: &mut F) -> ControlFlow<B>
-    where
-        F: FnMut(&StaticSpec) -> ControlFlow<B>,
-        G: FnMut(&deckmaste_core::Condition) -> bool,
-    {
-        match e {
-            // Distributed statics ([`StaticSpec::Each`]) are looked through to
-            // their inner effect for this presence scan: the walker's callers
-            // (Cant/Sba/CostModifier row collectors) match on the effect KIND,
-            // not the affected set, so the wrapping `Selection` is immaterial
-            // here.
-            StaticSpec::Each(_, inner) => in_static(&inner.body, enter, visit),
-            // [CR#611.3a]: a `Conditionally` wrapper contributes its inner
-            // effect only when `enter` accepts the condition. Collectors gate on
-            // the live condition; the presence-only walkers pass `|_| true` and
-            // keep the unconditional look-through.
-            StaticSpec::Conditionally(cond, inner) => {
-                if enter(cond) {
-                    in_static(inner, enter, visit)
-                } else {
-                    ControlFlow::Continue(())
-                }
-            }
-            other => visit(other),
-        }
-    }
     for a in abilities {
         in_ability(a, enter_conditional, visit)?;
     }
     ControlFlow::Continue(())
 }
 
+fn in_ability<B, F, G>(a: &Ability, enter: &mut G, visit: &mut F) -> ControlFlow<B>
+where
+    F: FnMut(&StaticSpec) -> ControlFlow<B>,
+    G: FnMut(&deckmaste_core::Condition) -> bool,
+{
+    match a {
+        Ability::Static(s) => walk_static(&s.body, enter, visit),
+        Ability::Keyword(k) => in_keyword(k, enter, visit),
+        _ => ControlFlow::Continue(()),
+    }
+}
+
+fn in_keyword<B, F, G>(k: &KeywordAbility, enter: &mut G, visit: &mut F) -> ControlFlow<B>
+where
+    F: FnMut(&StaticSpec) -> ControlFlow<B>,
+    G: FnMut(&deckmaste_core::Condition) -> bool,
+{
+    match k {
+        KeywordAbility::Composite { abilities, .. } => {
+            for a in abilities {
+                in_ability(a, enter, visit)?;
+            }
+            ControlFlow::Continue(())
+        }
+        _ => ControlFlow::Continue(()),
+    }
+}
+
+/// The static-effect half of [`walk_abilities`], reachable on its own so an
+/// ability-free conferred rule ([`deckmaste_core::Property::Static`]) is read
+/// by exactly the same look-through as a card's own static ability.
+pub(crate) fn walk_static<B, F, G>(e: &StaticSpec, enter: &mut G, visit: &mut F) -> ControlFlow<B>
+where
+    F: FnMut(&StaticSpec) -> ControlFlow<B>,
+    G: FnMut(&deckmaste_core::Condition) -> bool,
+{
+    match e {
+        // Distributed statics ([`StaticSpec::Each`]) are looked through to
+        // their inner effect for this presence scan: the walker's callers
+        // (Cant/Sba/CostModifier row collectors) match on the effect KIND,
+        // not the affected set, so the wrapping `Selection` is immaterial
+        // here.
+        StaticSpec::Each(_, inner) => walk_static(&inner.body, enter, visit),
+        // [CR#611.3a]: a `Conditionally` wrapper contributes its inner
+        // effect only when `enter` accepts the condition. Collectors gate on
+        // the live condition; the presence-only walkers pass `|_| true` and
+        // keep the unconditional look-through.
+        StaticSpec::Conditionally(cond, inner) => {
+            if enter(cond) {
+                walk_static(inner, enter, visit)
+            } else {
+                ControlFlow::Continue(())
+            }
+        }
+        other => visit(other),
+    }
+}
+
 /// The `LayeredView` adapter over [`walk_abilities`]: walks `id`'s derived
-/// ability list, calling `visit` on each static effect and short-circuiting on
-/// the visitor's `Break`. `enter_conditional` gates `Conditionally` statics
-/// (forwarded to the walker).
+/// ability list AND its type/subtype-conferred ability-free static rules
+/// ([`deckmaste_core::Property::Static`]), calling `visit` on each static
+/// effect and short-circuiting on the visitor's `Break`. `enter_conditional`
+/// gates `Conditionally` statics (forwarded to the walker).
 fn statics_on<B, F, G>(
     view: &LayeredView,
     id: ObjectId,
@@ -816,7 +817,26 @@ where
     F: FnMut(&StaticSpec) -> ControlFlow<B>,
     G: FnMut(&deckmaste_core::Condition) -> bool,
 {
-    walk_abilities(&view.get(id).abilities, enter_conditional, visit)
+    let derived = view.get(id);
+    walk_abilities(&derived.abilities, enter_conditional, visit)?;
+    // The ability-free type/subtype rules ([`Property::Static`]) — Land's
+    // `May(Play)` ([CR#305.9]), Creature's combat permissions
+    // ([CR#508.1a,509.1a]), the Equipment/Fortification legal-host rule
+    // ([CR#301.5,301.6]).
+    // Read off the DERIVED types/subtypes, so a layer-4 grant contributes
+    // exactly like a printed type does, and no layer-6 ability removal can
+    // reach them ([CR#113.12] — they are qualities of the object, not
+    // abilities).
+    for spec in derived
+        .card_types
+        .iter()
+        .flat_map(|t| t.confers.iter())
+        .chain(derived.subtypes.iter().flat_map(|s| s.confers.iter()))
+        .filter_map(deckmaste_core::Property::conferred_static)
+    {
+        walk_static(&spec.body, enter_conditional, visit)?;
+    }
+    ControlFlow::Continue(())
 }
 
 /// The non-short-circuiting view over [`statics_on`]: runs `visit` on every
@@ -1136,15 +1156,14 @@ fn premise_removes_keyword(premise: &Predicate) -> Option<&'static str> {
     }
 }
 
-/// Whether `a` is (or wraps, through `Innate`) the keyword ability
-/// named `name` — the mask predicate the counterfactual uses to drop a
+/// Whether `a` is the keyword ability named `name` — the mask predicate the
+/// counterfactual uses to drop a
 /// candidate's keyword. Matches by name via
 /// [`KeywordAbility::as_str`](deckmaste_core::KeywordAbility::as_str), the same
 /// name bridge `Has(K)` matches through.
 fn ability_names_keyword(a: &Ability, name: &str) -> bool {
     match a {
         Ability::Keyword(k) => k.as_str() == name,
-        Ability::Innate(inner) => ability_names_keyword(inner, name),
         _ => false,
     }
 }
@@ -1152,10 +1171,11 @@ fn ability_names_keyword(a: &Ability, name: &str) -> bool {
 /// Every `Cant(Attach)` row in the derived view, with its carrier:
 /// `(carrier source, what, to)`. Both the **attachment-side** restriction
 /// (Enchant's quality bound [CR#702.5a], the Equipment [CR#301.5] /
-/// Fortification [CR#301.6] host rule, conferred `Innate`) and the
+/// Fortification [CR#301.6] host rule, conferred ability-free as
+/// [`Property::Static`](deckmaste_core::Property::Static)) and the
 /// **host-side** restriction (protection's can't-be-equipped clause
 /// [CR#702.16d]) land here — the row is read the same way regardless of which
-/// permanent carries it. The walker peels `Innate` ([CR#113.12]).
+/// permanent carries it.
 #[must_use]
 fn cant_attach_rows(
     state: &GameState,
@@ -1187,9 +1207,10 @@ fn cant_attach_rows(
 /// legality under default-deny: being attachable to a host is a capability
 /// nothing has by default — the Equipment [CR#301.5] / Fortification
 /// [CR#301.6] host rules and Enchant's quality bound [CR#702.5a] are conferred
-/// as `May(Attach)` grants (via `Innate` [CR#113.12], peeled by the walker),
-/// not as restrictions subtracting from a phantom default-permission. Mirror
-/// of `cant_attach_rows`.
+/// as `May(Attach)` grants (the subtype rules ability-free, as
+/// [`Property::Static`](deckmaste_core::Property::Static)), not as
+/// restrictions subtracting from a phantom default-permission. Mirror of
+/// `cant_attach_rows`.
 #[must_use]
 fn may_attach_rows(
     state: &GameState,
@@ -1273,7 +1294,7 @@ impl Drop for AttachLegalDepthGuard {
 /// pair AND no applicable `Cant(Attach(what, to))` row forbids it — `what`
 /// matched against the attachment and `to` against the host, both evaluated
 /// against LIVE/derived characteristics with the row's carrier as `This` (so
-/// protection / type changes / the conferred `Innate` host rules are all seen).
+/// protection / type changes / the conferred host rules are all seen).
 /// This is the **generic** legality read: it never branches on the
 /// Aura/Equipment/Fortification subtype — those carry their permissions as
 /// conferred `May(Attach)` grants ([CR#702.5a,301.5,301.6]), and a `Cant`
@@ -1330,13 +1351,13 @@ pub(crate) fn attachment_legal(state: &GameState, attachment: ObjectId, host: Ob
 
 /// Whether `object`'s derived view confers `May(Play(what: <self>))` — the
 /// default-deny land-play marker ([CR#305.9,116.2a,701.18]). A card's Land type
-/// CONFERS this row (folded into the derived abilities by the layer-4
-/// `fold_conferred_abilities`, from the object's current `card_types`),
-/// so land-play legality (`legal_actions`) AND spell-non-castability
+/// CONFERS this row ability-free, as a
+/// [`Property::Static`](deckmaste_core::Property::Static) rule read off the
+/// object's current `card_types` by `statics_on`, so land-play legality
+/// (`legal_actions`) AND spell-non-castability
 /// (`castable_cost_ignoring_mana`) are both keyed on the capability rather than
 /// a `Type::Land` literal — per-face correct for an MDFC land//spell. Mirrors
-/// how `attachment_legal` reads `May(Attach)`; `object_has_static` peels
-/// `Innate`, so the type-conferred grant is seen. `_state` is unused today (the
+/// how `attachment_legal` reads `May(Attach)`. `_state` is unused today (the
 /// read works off the already-derived `view`) but kept for signature symmetry
 /// with the sibling legality readers.
 #[must_use]
@@ -1579,7 +1600,7 @@ mod tests {
     /// distribution wrapper (its own `Static` — each ability now carries
     /// exactly one `effect`, so what was once two effects on one ability is
     /// now two sibling abilities), a `Static` reached through a `Composite`
-    /// keyword, and a `Static` reached through an `Innate` ability wrapper.
+    /// keyword, and a `Static` reached through a NESTED `Composite`.
     fn sample_tree() -> Vec<Ability> {
         use OutcomeGateKind::CantLose;
         use OutcomeGateKind::CantWin;
@@ -1596,14 +1617,20 @@ mod tests {
                 name: Ident::new("Kw"),
                 abilities: vec![static_ability(gate(CantLose))],
             }),
-            // [2] effect reached through an Innate ability wrapper.
-            Ability::Innate(Arc::new(static_ability(gate(CantWin)))),
+            // [2] effect reached through a nested keyword composite.
+            Ability::Keyword(KeywordAbility::Composite {
+                name: Ident::new("Outer"),
+                abilities: vec![Ability::Keyword(KeywordAbility::Composite {
+                    name: Ident::new("Inner"),
+                    abilities: vec![static_ability(gate(CantWin))],
+                })],
+            }),
         ]
     }
 
     /// The visit-each form sees every static effect, descending through
-    /// `Each` distribution wrappers, keyword composites, and `Innate`
-    /// wrappers at every level — in DFS order.
+    /// `Each` distribution wrappers and keyword composites (nested included)
+    /// at every level — in DFS order.
     #[test]
     fn walk_visits_every_effect_through_all_wrappers() {
         use OutcomeGateKind::CantLose;
@@ -1643,7 +1670,7 @@ mod tests {
         });
         assert!(hit.is_break(), "the matching effect must break the walk");
         // Stops at the SECOND effect (CantLose, then the Each-wrapped CantWin)
-        // — it does not go on to visit the composite/Innate branches.
+        // — it does not go on to visit either composite branch.
         assert_eq!(visited, 2, "the walk must not visit effects past the match");
     }
 
@@ -1708,31 +1735,73 @@ mod tests {
         id
     }
 
-    /// An `Innate` static carrying a single `May(Attach(what, to))` grant — the
-    /// conferred attachable-to-host shape (Equipment/Fortification subtype
-    /// rule) under default-deny attachment.
-    fn innate_may_attach(what: Predicate, to: Predicate) -> Ability {
-        Ability::Innate(Arc::new(Ability::r#static(StaticSpec::Deontic(
-            Deontic::May(DeonticAction::Attach { what, to }),
-        ))))
+    /// The Equipment/Fortification subtype rule ([CR#301.5,301.6]) in its
+    /// structural home: an ability-free `Property::Static` conferral carrying
+    /// one `May(Attach(what, to))` grant under default-deny attachment.
+    fn may_attach_rule(what: Predicate, to: Predicate) -> deckmaste_core::Property {
+        deckmaste_core::Property::Static(Arc::new(deckmaste_core::Region::candidate(
+            StaticSpec::Deontic(Deontic::May(DeonticAction::Attach { what, to })),
+        )))
+    }
+
+    /// A printed `May(Attach(what, to))` static — the shape Enchant's keyword
+    /// grant ([CR#702.5a]) lands in on the Aura itself.
+    fn may_attach_ability(what: Predicate, to: Predicate) -> Ability {
+        Ability::r#static(StaticSpec::Deontic(Deontic::May(DeonticAction::Attach {
+            what,
+            to,
+        })))
+    }
+
+    /// Mint a battlefield object of `types` carrying no printed abilities but
+    /// one subtype named `subtype` whose `confers` is `rules` (player 0).
+    fn obj_on_field_with_subtype(
+        state: &mut GameState,
+        name: &str,
+        types: Vec<Type>,
+        subtype: &str,
+        rules: Vec<deckmaste_core::Property>,
+    ) -> ObjectId {
+        use deckmaste_card::Card;
+        use deckmaste_card::CardFace;
+        let card = Card::Normal(CardFace {
+            name: name.into(),
+            types: types.into_iter().map(Type::def).collect(),
+            subtypes: vec![deckmaste_core::Subtype {
+                name: Ident::new(subtype),
+                types: Vec::new().into(),
+                confers: rules.into(),
+            }],
+            ..CardFace::default()
+        });
+        let card_id = state.cards.push(Arc::new(card), PlayerId(0));
+        let id = state.objects.mint(
+            ObjectSource::Card(card_id),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(id);
+        id
     }
 
     fn creature() -> Predicate {
         Predicate::creature()
     }
 
-    /// [CR#701.3b,301.5]: under default-deny, an attachment with
-    /// `Innate(May(Attach(what: Ref(This), to: Creature)))` (the
-    /// Equipment-subtype grant) is legal on a creature host and illegal on a
-    /// non-creature host — no grant covers the non-creature pair.
+    /// [CR#701.3b,301.5]: under default-deny, an attachment whose subtype
+    /// confers the ability-free `Static(May(Attach(what: Ref(This), to:
+    /// Creature)))` rule (the Equipment-subtype grant) is legal on a creature
+    /// host and illegal on a non-creature host — no grant covers the
+    /// non-creature pair.
     #[test]
     fn attachment_legal_honors_attachment_side_grant() {
         let mut state = game();
-        let equip = obj_on_field(
+        let equip = obj_on_field_with_subtype(
             &mut state,
             "Test Equipment",
             vec![Type::Artifact],
-            vec![innate_may_attach(
+            "Equipment",
+            vec![may_attach_rule(
                 Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 creature(),
             )],
@@ -1783,7 +1852,7 @@ mod tests {
             &mut state,
             "Aura",
             vec![Type::Enchantment],
-            vec![innate_may_attach(
+            vec![may_attach_ability(
                 Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 creature(),
             )],
@@ -1814,7 +1883,7 @@ mod tests {
             &mut state,
             "Aura",
             vec![Type::Enchantment],
-            vec![innate_may_attach(
+            vec![may_attach_ability(
                 Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 creature(),
             )],
@@ -1936,7 +2005,7 @@ mod tests {
             &mut state,
             "Plain Aura",
             vec![Type::Enchantment],
-            vec![innate_may_attach(
+            vec![may_attach_ability(
                 Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 Predicate::Any,
             )],
@@ -1956,7 +2025,7 @@ mod tests {
         );
     }
 
-    // --- I1: Innate filtering must not desync the activated-ability index ----
+    // --- I1: a non-activated ability must not desync the activation index --
 
     /// A tap-for-mana activated ability `tap_mana_ability` recognizes: cost
     /// `[Tap]`, no targets, producing one fixed-colour mana.
@@ -1987,40 +2056,37 @@ mod tests {
         Ability::Activated(Arc::new(ability))
     }
 
-    /// An `Innate` static (any conferred rule): PEELED in place — never
-    /// dropped — by the usable list, so it occupies an index slot.
-    fn innate_static() -> Ability {
-        Ability::Innate(Arc::new(Ability::r#static(StaticSpec::Deontic(
-            Deontic::Cant(DeonticAction::Attach {
-                what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
-                to: Predicate::Not(Arc::new(creature())),
-            }),
-        ))))
+    /// A non-activated static ability, occupying an index slot ahead of the
+    /// activated one.
+    fn deontic_static() -> Ability {
+        Ability::r#static(StaticSpec::Deontic(Deontic::Cant(DeonticAction::Attach {
+            what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
+            to: Predicate::Not(Arc::new(creature())),
+        })))
     }
 
-    /// [CR#113.12,613.1f]: with an `Innate` ability positioned BEFORE an
-    /// activated one, the legal-action list and resolution must share ONE
-    /// index space — the PEELED usable list (`derive::usable_abilities`),
-    /// where the Innate keeps its slot (peeled, never dropped): the offered
-    /// `Action::ActivateAbility { ability }` index is 1, and
+    /// [CR#613.1f]: with a non-activated ability positioned BEFORE an
+    /// activated one, the legal-action list and resolution share ONE index
+    /// space — `derive::usable_abilities`, where every ability keeps its slot:
+    /// the offered `Action::ActivateAbility { ability }` index is 1, and
     /// `begin_activate` resolves THAT ability. The card-facing
-    /// `derive::abilities` still FILTERS the Innate out (the [CR#113.12]
-    /// invisibility surface) — it is no longer the index space.
+    /// `derive::abilities` is the SAME list (no ability class is hidden from
+    /// it), so both abilities are visible.
     #[test]
-    fn innate_before_activated_does_not_desync_the_index() {
+    fn static_before_activated_does_not_desync_the_index() {
         let mut state = game();
-        // Abilities printed in this order: [Innate(Static), Activated(tap
+        // Abilities printed in this order: [Static(Deontic), Activated(tap
         // mana)]. An artifact so the mana-ability path's
         // `tap_forbidden` guard is false.
         let object = obj_on_field(
             &mut state,
             "Manarock",
             vec![Type::Artifact],
-            vec![innate_static(), tap_for_colorless()],
+            vec![deontic_static(), tap_for_colorless()],
         );
 
-        // (a) Exactly one activation is offered, and it indexes the PEELED
-        // usable list: the Innate keeps slot 0, the activated ability is 1.
+        // (a) Exactly one activation is offered, and it indexes the usable
+        // list: the static keeps slot 0, the activated ability is 1.
         let actions = super::legal_actions(&state, PlayerId(0));
         let activations: Vec<_> = actions
             .iter()
@@ -2034,8 +2100,8 @@ mod tests {
         assert_eq!(
             activations,
             vec![1],
-            "the offered activation must index the PEELED usable list (1) — the \
-             Innate keeps its slot"
+            "the offered activation must index the usable list (1) — the static \
+             keeps its slot"
         );
 
         // (b) The offered index resolves to the activated ability in the SAME
@@ -2045,11 +2111,11 @@ mod tests {
             crate::activate::as_activated(&usable[activations[0]]).is_some(),
             "the offered index names the activated ability in the usable list"
         );
-        // The card-facing surface still hides the conferral ([CR#113.12]).
+        // The card-facing surface is the same list — nothing is hidden.
         assert_eq!(
             crate::derive::abilities(&state, object).len(),
-            1,
-            "derive::abilities filters the Innate out of the card-facing list"
+            2,
+            "derive::abilities shows both printed abilities"
         );
         state.begin_activate(object, activations[0]);
         assert!(

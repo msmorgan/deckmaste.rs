@@ -20,9 +20,10 @@
 // is never read; the template's conditional fragment prints the where-X
 // clause only when a caller supplies a real definition.
 //
-// The inner ability is `Innate` — the rule OF THE KEYWORD, not a second
-// card-facing ability beside the Composite; layer-6 removal strips the
-// whole Composite, so "loses all abilities" still loses ward.
+// The inner ability is an executable CHILD of the `Composite` container, not
+// a second card-facing ability beside it: the card-facing ability list carries
+// the ward keyword itself, and layer-6 removal strips the whole Composite, so
+// "loses all abilities" still loses ward.
 (
     name: "Ward",
     template: "ward ${cost}${, where X is #where_x#}",
@@ -30,7 +31,7 @@
     params: { "cost": Cost, "where_x": Default(Count, 0) },
     body: Composite(
         name: "Ward",
-        abilities: [Innate(Triggered(
+        abilities: [Triggered(
             event: BecomesTarget(
                 what: Ref(This),
                 by: ControlledBy(OpponentOf(Ref(You))),
@@ -41,6 +42,6 @@
                 effect: Pay([Splice(Param(cost))]),
                 if_not: Counter(EventObject),
             ),
-        ))],
+        )],
     ),
 )

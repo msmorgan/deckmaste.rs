@@ -278,14 +278,10 @@ impl crate::state::GameState {
                 }
                 return;
             }
-            Ability::Innate(inner) => {
-                self.capture_ability_runtime_into(inner, frame, out);
-                return;
-            }
             Ability::Keyword(_) => return,
         };
         out.push(CapturedAbility {
-            ability: ability.peel_innate().clone(),
+            ability: ability.clone(),
             captures,
         });
     }

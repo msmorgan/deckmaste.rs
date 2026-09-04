@@ -607,6 +607,29 @@ fn animated_enchantment_can_attack() {
     );
 }
 
+/// How many `May(Attack(by: Ref(This)))` rules the object's DERIVED card types
+/// confer ([CR#508.1a]). The Creature type's combat permission is a quality of
+/// the object, not an ability ([CR#113.12]), so it lives in the type's
+/// ability-free `Property::Static` confers rather than in the ability list.
+fn conferred_may_attack_rows(state: &deckmaste_engine::GameState, id: ObjectId) -> usize {
+    use deckmaste_core::Deontic;
+    use deckmaste_core::DeonticAction;
+    use deckmaste_core::Property;
+    use deckmaste_core::StaticSpec;
+
+    state
+        .layers()
+        .get(id)
+        .card_types
+        .iter()
+        .flat_map(|t| t.confers.iter())
+        .filter(|p| {
+            matches!(p, Property::Static(s)
+                if matches!(&s.body, StaticSpec::Deontic(Deontic::May(DeonticAction::Attack { .. }))))
+        })
+        .count()
+}
+
 /// [CR#305.6,611.3]: a permanent that LOSES its `Creature` type via a layer-4
 /// effect is NOT a combatant — the mirror image of
 /// `animated_enchantment_can_attack`. Because conferral is now recomputed from
@@ -616,15 +639,9 @@ fn animated_enchantment_can_attack() {
 /// combatant.
 #[test]
 fn losing_creature_type_removes_the_attack_grant() {
-    use deckmaste_core::Ability;
     use deckmaste_core::CollectionOp;
-    use deckmaste_core::Deontic;
-    use deckmaste_core::DeonticAction;
     use deckmaste_core::Duration;
     use deckmaste_core::Modification;
-    use deckmaste_core::Predicate;
-    use deckmaste_core::Reference;
-    use deckmaste_core::StaticSpec;
     use deckmaste_core::Type;
     use deckmaste_engine::ContinuousEffect;
     use deckmaste_engine::ScopeResolved;
@@ -632,13 +649,6 @@ fn losing_creature_type_removes_the_attack_grant() {
 
     let mut state = two_player_with("Grizzly Bears", 1, 10);
     let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
-
-    let may_attack = Ability::Innate(Arc::new(Ability::r#static(StaticSpec::Deontic(
-        Deontic::May(DeonticAction::Attack {
-            by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
-            on: Predicate::Any,
-        }),
-    ))));
 
     // Sanity: before the effect, the bear is a creature and a legal attacker.
     assert!(
@@ -677,15 +687,11 @@ fn losing_creature_type_removes_the_attack_grant() {
         "a permanent turned into a non-creature is not a legal attacker \
          ([CR#508.1a])"
     );
-    let instances = view
-        .get(bear)
-        .abilities
-        .iter()
-        .filter(|a| **a == may_attack)
-        .count();
+    drop(view);
     assert_eq!(
-        instances, 0,
-        "the Creature type's May(Attack) grant is gone, not stuck from a \
+        conferred_may_attack_rows(&state, bear),
+        0,
+        "the Creature type's May(Attack) rule is gone, not stuck from a \
          frozen cache — conferral is recomputed from CURRENT card_types every \
          pass, not cached once at push ([CR#305.6,611.3])"
     );
@@ -701,35 +707,15 @@ fn losing_creature_type_removes_the_attack_grant() {
 /// 1 → 2.
 #[test]
 fn printed_creature_grant_is_not_doubled_by_the_fold() {
-    use deckmaste_core::Ability;
-    use deckmaste_core::Deontic;
-    use deckmaste_core::DeonticAction;
-    use deckmaste_core::Predicate;
-    use deckmaste_core::Reference;
-    use deckmaste_core::StaticSpec;
-
     let mut state = two_player_with("Grizzly Bears", 1, 10);
     let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
 
-    let may_attack = Ability::Innate(Arc::new(Ability::r#static(StaticSpec::Deontic(
-        Deontic::May(DeonticAction::Attack {
-            by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
-            on: Predicate::Any,
-        }),
-    ))));
-
-    let view = state.layers();
-    let instances = view
-        .get(bear)
-        .abilities
-        .iter()
-        .filter(|a| **a == may_attack)
-        .count();
     assert_eq!(
-        instances, 1,
-        "the Creature type's May(Attack) grant appears exactly once: pushed \
-         only by the layer-4 fold (the base carries no confer of its own), \
-         exactly once per fixpoint pass ([CR#305.6,611.3])"
+        conferred_may_attack_rows(&state, bear),
+        1,
+        "the Creature type's May(Attack) rule appears exactly once: the \
+         derived card-type list carries `Creature` once per fixpoint pass, so \
+         the rule is read once ([CR#305.6,611.3])"
     );
 }
 

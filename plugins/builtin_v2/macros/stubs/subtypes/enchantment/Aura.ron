@@ -4,7 +4,7 @@
 // state-based actions "happen automatically" and "don't use the stack", and
 // [CR#704.1a] reserves the ability hierarchy for things that WATCH state
 // (triggered abilities). So the conferral is the ability-free
-// `StateBased(condition, effect)` flavor, NOT `Ability(Innate(Static(...)))`
+// `StateBased(condition, effect)` flavor, never an `Ability` of any kind
 // ([CR#604.1] static abilities "do something all the time").
 //
 // The targeting + legal-host + enters-attached parts are the Enchant KEYWORD's

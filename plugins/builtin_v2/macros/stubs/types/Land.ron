@@ -1,3 +1,6 @@
+// Land ([CR#300.1]) — being playable as a land ([CR#305.9,116.2a,701.18]) is a
+// quality of the object, not an ability of it ([CR#113.12]), so the default-deny
+// play permission is conferred ability-free.
 Type(
     name: "Land",
     spelling: "land",
@@ -7,7 +10,7 @@ Type(
         name: "Land",
         permanent_type: true,
         confers: [
-            Ability(Static(May(Play(what: Ref(This))))),
+            Static(May(Play(what: Ref(This)))),
         ],
     ),
 )
