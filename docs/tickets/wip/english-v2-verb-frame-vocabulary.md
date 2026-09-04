@@ -30,8 +30,9 @@ and leaves generic `Frame` only where a qualification adds no information.
 
 ## Landing record
 
-Measured before the required final refresh on change `qnnmmtzz`. The frozen
-coverage lock has 49,421 lines and SHA-256
+Measured after the required final refresh on the tree ending at change
+`uqluoopr`. The vocabulary change is `qnnmmtzz`. The frozen coverage lock has
+49,421 lines and SHA-256
 `2cf7f9b716e13b27d626c60638d1266ca6cdc083bbcca87cb1435b4b00cd65ca`.
 
 - Vocabulary: lexeme declarations now expose `VerbFrameSet`, whose custom
@@ -54,26 +55,35 @@ coverage lock has 49,421 lines and SHA-256
 - Selection census: 11,515 unique and 5,256 specificity-resolved selections
   before and after; exception-resolved selections and unresolved ties remain
   zero.
-- Structural census: 397 construction declarations before and after. No
-  construction, `checked by` clause, or `require` clause was added, deleted,
-  or semantically changed.
-- Performance advisory: coverage took 39.367628832 s at 134,942 ns/B with
-  host load 36.60/39.12/32.16; ambiguity took 37.726121501 s at 141,434 ns/B
-  with host load 34.97/38.49/32.25. Each ran as one foreground gate process
+- Structural census: the ticket baseline had 397 construction declarations;
+  the final refreshed parent and this feature both have 395. The intervening
+  -2 belongs to the closed-class sibling landing; direct parent/feature
+  measurement is **395 -> 395**, so this rename added or deleted no
+  construction and did not change any `checked by` or `require` clause.
+- Performance advisory: coverage took 27.204593310 s at 121,693 ns/B with
+  host load 13.24/17.38/20.72; ambiguity took 27.032779599 s at 120,913 ns/B
+  with host load 14.53/17.26/20.55. Each ran as one foreground gate process
   with 24 workers; sibling-process visibility is unavailable in the sandbox.
   Both exceeded the 16.26 s quiet-host ceiling while the host was loaded.
-- Gates before refresh: `cargo fmt --all`; strict all-target Clippy for
+- Gates after refresh: `cargo fmt --all`; strict all-target Clippy for
   `deckmaste_construction_core`, `deckmaste_construction`, `deckmaste_engine`,
-  `deckmaste_english_v2`, and `xtask`; `cargo xtask map enums
-  crates/deckmaste_english_v2/src`; `cargo xtask english_v2 coverage --check`;
-  `cargo xtask english_v2 ambiguity --require-resolved`; `cargo xtask cite
-  check --list-noncompliant`; and `cargo xtask cite check` exited zero. The
-  corpus gates emitted only the loaded-host performance advisory. The first
-  `cargo test --workspace` run reached the unchanged
-  `deckmaste_migrations::resolve::tests::ascend_gate_const_matches_canonical_condition`
-  baseline assertion after all touched-crate suites passed; the exact rerun
-  reproduced its `Candidate(Object)` versus `Candidate(Entity)` mismatch.
-  Final workspace-gate disposition is pending the required concurrent refresh.
+  `deckmaste_english_v2`, `xtask`, and the two gate-surfaced fixture crates
+  `deckmaste_migrations` and `deckmaste_noncanon`; `cargo test --workspace`;
+  `cargo xtask map enums crates/deckmaste_construction_core/src`; `cargo xtask
+  english_v2 coverage --check`; `cargo xtask english_v2 ambiguity
+  --require-resolved`; `cargo xtask cite check --list-noncompliant`; and
+  `cargo xtask cite check` exited zero. Citation checks reported 0
+  non-compliant strings and 0 stale among 18,102 citations. The corpus gates
+  emitted only the loaded-host performance advisory.
+- Refresh: harmony first resolved an overlapping import by retaining the
+  refreshed parent's `DecisionPointKind` and this feature's `ExecutionFrame`.
+  After the closed-class sibling landed, harmony retained its
+  `licensed("for")` ownership annotation and specificity changes while applying
+  `LexicalVerbPhrase` to the affected construction and diagnostic paths; both
+  dated decision amendments were retained. The number-feature and visitor-leaf
+  siblings then refreshed in without conflicts. The final conflict listing is
+  empty, and every gate was rerun after the last changed refresh; the leaf
+  census is 235,683 expected and 235,683 visited with zero failures.
 - Assurance census: restored 0; re-spelled 7 existing test names, with their
   affected assertions and fixtures migrated in place; ignored 0; added 0;
   removed 0.
@@ -81,5 +91,5 @@ coverage lock has 49,421 lines and SHA-256
 
 ### Deviations and additions
 
-- None. The change is vocabulary-only and introduces no grammar, construction,
-  selection, coverage, or execution-semantic movement.
+- None. Intermediate refreshed-parent fixture failures were superseded by the
+  final parent before measurement and do not remain in this feature diff.
