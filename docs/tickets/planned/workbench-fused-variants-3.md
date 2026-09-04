@@ -68,6 +68,8 @@ Also (copies-are-spells residue): after a one-shot `Copy` there is no spelling t
 
 Also (turn-parts residue): `Timing.BeforeAttackersDeclared` is a special case of a generic before-point timing; "only before the combat damage step" (Angus Mackenzie, Berserk, Blood Frenzy) needs `Timing.BeforePart (p : TurnPart)`; fold the special case into it and bench Berserk.
 
+Also (levelers residue): `Words.keywordFacts` has no `LevelUp` row and there is no `Macros.levelUp`, so the three leveler witnesses spell "level up {cost}" as the ability it represents; add the row (the facts-from-ron generator's stub if one exists) and the macro, rewrite the three witnesses through it.
+
 Done when: every constructor and proof named above is gone from the tree and
 `grep` finds no residue; the collapsed families each have a bench witness for
 both former spellings ("the last chosen" and "the chosen", a `Lookback` in
