@@ -85,3 +85,17 @@ lock identities. The measured lock has 49,421 lines and SHA-256
 - STOPs: none. Six required refreshes changed the feature base without a file
   conflict; the sixth added only an unrelated ticket erratum, and all gates
   were rerun after it. Coverage did not drop.
+
+### Erratum (landing review, 2026-09-03)
+
+- Review ACCEPT (0 HIGH, 0 MEDIUM). Coverage summary JSON byte-identical
+  across the fix; per-byte CPU within 0.8% of the parent (103,813 vs 103,002
+  ns/B coverage; 110,155 vs 111,096 ns/B ambiguity) — no parse-time cost.
+- `SentenceInitialLiteral` is load-bearing here, not decorative: `dash_head =
+  clause sentence_initial(" —")` is a sentence-initial literal in final
+  position and its predicate flips to `false`.
+- The `Bound`/`Circumfix` transparency in `emit/final_constituent.rs` is now
+  load-bearing and undocumented: the primitive is "rightmost non-delimiter
+  constituent", not "rightmost surface leaf". A short comment naming that and
+  the two `checked by` call sites it protects is a deliverable of
+  `english-v2-visitor-leaf-traversal-property` (same directory).

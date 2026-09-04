@@ -13,3 +13,9 @@ selected unit, reported in the coverage report as visited/expected leaf counts
 with per-unit failure evidence. Mutation-verify: the leaf-drop mutation must
 fail the gate. Zero grammar change; lock byte-unchanged. Gate scope: emit/
 change → `cargo test --workspace`. Standard constraints apply.
+
+Also (literal-opacity landing review LOW-1, same `emit/` directory): add a
+short comment at the `Bound`/`Circumfix` arms of `emit/final_constituent.rs`
+stating that the fold deliberately looks through delimiters — the predicate is
+"rightmost non-delimiter constituent" — and that `quoted_ability` and the two
+quote-terminator `checked by` sites depend on it. Facts only; no essay.
