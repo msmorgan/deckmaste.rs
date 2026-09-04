@@ -327,8 +327,8 @@ mod tests {
     fn lowers_mana_rider_spend_only() {
         assert_matches!(
             deckmaste_semantics::ManaRider::SpendOnly(minimal_predicate()).lower(),
-            deckmaste_core::ManaRider::SpendOnly(deckmaste_core::Predicate::Kind(
-                deckmaste_core::ObjectKind::Ability
+            deckmaste_core::ManaRider::SpendOnly(deckmaste_core::Predicate::Class(
+                deckmaste_core::ObjectClass::AbilityOnStack
             ))
         );
     }
@@ -359,8 +359,8 @@ mod tests {
                 value: Box::new(minimal_mana_rider())
             })
             .lower(),
-            deckmaste_core::ManaRider::SpendOnly(deckmaste_core::Predicate::Kind(
-                deckmaste_core::ObjectKind::Ability
+            deckmaste_core::ManaRider::SpendOnly(deckmaste_core::Predicate::Class(
+                deckmaste_core::ObjectClass::AbilityOnStack
             ))
         );
     }

@@ -36,7 +36,9 @@ mod tests {
             }
             .lower(),
             deckmaste_core::ConferralRule {
-                scope: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                scope: deckmaste_core::Predicate::Class(
+                    deckmaste_core::ObjectClass::AbilityOnStack
+                ),
                 confer: deckmaste_core::Property::Ability(_)
             }
         );

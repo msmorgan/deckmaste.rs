@@ -169,8 +169,8 @@ fn lower_cost_binder(
             filter,
         )) => {
             let quantity = quantity.lower();
-            let filter = Arc::new(crate::region::candidate_region(|| filter.lower()));
-            let dest = crate::region::define(deckmaste_core::Kind::Objects);
+            let filter = Arc::new(crate::region::predicate_region(|| filter.lower()));
+            let dest = crate::region::define(deckmaste_core::Kind::Entities);
             (
                 vec![deckmaste_core::CostComponent::Sample(
                     deckmaste_core::Sample {
@@ -181,7 +181,7 @@ fn lower_cost_binder(
                 )],
                 BoundValue {
                     reference: dest.into(),
-                    kind: deckmaste_core::Kind::Objects,
+                    kind: deckmaste_core::Kind::Entities,
                     cardinality: crate::region::Cardinality::Many,
                     sort: None,
                 },
@@ -439,9 +439,12 @@ mod tests {
     /// per-candidate REGION; this reads its body and checks it declares its
     /// candidate as parameter zero.
     fn pins_minimal_filter(filter: &deckmaste_core::Region<deckmaste_core::Predicate>) -> bool {
-        filter.body == deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
-            && filter.params[0].provenance == deckmaste_core::Provenance::Candidate
-            && filter.params[0].kind == deckmaste_core::Kind::Object
+        filter.body == deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
+            && matches!(
+                filter.params[0].provenance,
+                deckmaste_core::Provenance::Candidate(_)
+            )
+            && filter.params[0].kind == deckmaste_core::Kind::Entity
     }
 
     /// An `Activated` region declares source(0), controller(1), announced X(2),
@@ -774,10 +777,10 @@ mod tests {
             deckmaste_core::CostComponent::Sample(deckmaste_core::Sample {
                 dest, filter, ..
             }) => {
-                assert_eq!(
+                assert!(matches!(
                     filter.params[0].provenance,
-                    deckmaste_core::Provenance::Candidate,
-                );
+                    deckmaste_core::Provenance::Candidate(_)
+                ));
                 assert!(
                     filter.params.iter().any(|param| {
                         param.provenance == deckmaste_core::Provenance::Controller

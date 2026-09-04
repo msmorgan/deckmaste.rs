@@ -162,7 +162,7 @@ impl PredefinedToken {
         use crate::ManaProduction;
         use crate::ManaRider;
         use crate::ManaSpec;
-        use crate::ObjectKind;
+        use crate::ObjectClass;
         use crate::Predicate;
         use crate::StaticEffect;
         use crate::ability::ActivatedAbility;
@@ -203,7 +203,7 @@ impl PredefinedToken {
         let restricted_colorless = || {
             let nonartifact_spell = Predicate::And(
                 vec![
-                    Predicate::Kind(ObjectKind::Spell),
+                    Predicate::Class(ObjectClass::Spell),
                     Predicate::Not(Arc::new(Predicate::r#type(Type::Artifact))),
                 ]
                 .into(),

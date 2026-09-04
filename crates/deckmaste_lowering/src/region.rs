@@ -315,10 +315,10 @@ fn push_param(params: &mut Vec<Param>, kind: Kind, provenance: Provenance) -> Re
 
 fn context(kind: RegionKind, target_count: usize) -> Context {
     let mut params = Vec::new();
-    let source = Some(push_param(&mut params, Kind::Object, Provenance::Source));
+    let source = Some(push_param(&mut params, Kind::Entity, Provenance::Source));
     let controller = Some(push_param(
         &mut params,
-        Kind::Object,
+        Kind::Entity,
         Provenance::Controller,
     ));
 
@@ -330,22 +330,22 @@ fn context(kind: RegionKind, target_count: usize) -> Context {
         RegionKind::Static | RegionKind::StaticEvent | RegionKind::Triggered => (
             Some(push_param(
                 &mut params,
-                Kind::Object,
+                Kind::Entity,
                 Provenance::EventObject,
             )),
             Some(push_param(
                 &mut params,
-                Kind::Object,
+                Kind::Entity,
                 Provenance::EventPatient,
             )),
             Some(push_param(
                 &mut params,
-                Kind::Object,
+                Kind::Entity,
                 Provenance::EventActor,
             )),
             Some(push_param(
                 &mut params,
-                Kind::Object,
+                Kind::Entity,
                 Provenance::DefendingPlayer,
             )),
             Some(push_param(
@@ -362,7 +362,7 @@ fn context(kind: RegionKind, target_count: usize) -> Context {
         .map(|index| {
             push_param(
                 &mut params,
-                Kind::Objects,
+                Kind::Entities,
                 Provenance::AnnouncedTarget(
                     u32::try_from(index).expect("an ability has at most u32::MAX targets"),
                 ),
@@ -379,7 +379,7 @@ fn context(kind: RegionKind, target_count: usize) -> Context {
     {
         antecedents.push(Antecedent {
             reference,
-            kind: Kind::Object,
+            kind: Kind::Entity,
             cardinality: Cardinality::One,
             sort: None,
             site: Site::Frame,
@@ -534,7 +534,7 @@ pub(crate) fn in_child<T>(
                         Provenance::Capture(_)
                         | Provenance::LoopElement
                         | Provenance::Allotment
-                        | Provenance::Candidate => Provenance::Capture(outer),
+                        | Provenance::Candidate(_) => Provenance::Capture(outer),
                     },
                 );
                 Some(push_param(&mut params, *kind, provenance))
@@ -844,7 +844,7 @@ fn kind_compatible(want: Sort, have: Kind) -> bool {
         | Sort::Spell
         | Sort::StackObject
         | Sort::Permanent
-        | Sort::OfType(_) => matches!(have, Kind::Object | Kind::Objects),
+        | Sort::OfType(_) => matches!(have, Kind::Entity | Kind::Entities),
     }
 }
 
@@ -852,7 +852,7 @@ fn kind_compatible(want: Sort, have: Kind) -> bool {
 fn reachable(antecedent: &Antecedent, cardinality: Cardinality, want: Option<Sort>) -> bool {
     antecedent.cardinality == cardinality
         && want.map_or(
-            matches!(antecedent.kind, Kind::Object | Kind::Objects),
+            matches!(antecedent.kind, Kind::Entity | Kind::Entities),
             |wanted| {
                 antecedent.sort.map_or_else(
                     || kind_compatible(wanted, antecedent.kind),
@@ -974,12 +974,39 @@ pub(crate) fn allotment() -> Option<RefId> {
     resolve(Cardinality::One, Some(Sort::Amount), Some(Site::Allotment))
 }
 
+/// A per-candidate predicate region whose declared Entity domain is the
+/// narrowest one the lowered predicate's own atoms admit ([CR#109.1,102.1] —
+/// ADR law 2). Every predicate region lowering builds goes through here, so a
+/// Player-only filter never declares the Object domain and the reverse.
+pub(crate) fn predicate_region(
+    f: impl FnOnce() -> deckmaste_core::Predicate,
+) -> deckmaste_core::Region<deckmaste_core::Predicate> {
+    let region = candidate_region(f);
+    let domain = region.body.subject_domain();
+    let params: Vec<deckmaste_core::Param> = region
+        .params
+        .iter()
+        .map(|param| match param.provenance {
+            Provenance::Candidate(_) => deckmaste_core::Param {
+                provenance: Provenance::Candidate(domain),
+                ..param.clone()
+            },
+            _ => param.clone(),
+        })
+        .collect();
+    deckmaste_core::Region::new(params.into(), region.body)
+}
+
 pub(crate) fn candidate_region<T>(f: impl FnOnce() -> T) -> deckmaste_core::Region<T> {
     if CONTEXTS.with(|contexts| contexts.borrow().is_empty()) {
         let mut params = Vec::new();
-        let candidate = push_param(&mut params, Kind::Object, Provenance::Candidate);
-        let source = push_param(&mut params, Kind::Object, Provenance::Source);
-        let controller = push_param(&mut params, Kind::Object, Provenance::Controller);
+        let candidate = push_param(
+            &mut params,
+            Kind::Entity,
+            Provenance::Candidate(deckmaste_core::Domain::Entity),
+        );
+        let source = push_param(&mut params, Kind::Entity, Provenance::Source);
+        let controller = push_param(&mut params, Kind::Entity, Provenance::Controller);
         let definitions: Vec<_> = params.iter().map(|param| param.kind).collect();
         let visible = vec![true; definitions.len()];
         let (context, body) = with_pushed_context(
@@ -997,7 +1024,7 @@ pub(crate) fn candidate_region<T>(f: impl FnOnce() -> T) -> deckmaste_core::Regi
                 x: None,
                 antecedents: vec![Antecedent {
                     reference: candidate,
-                    kind: Kind::Object,
+                    kind: Kind::Entity,
                     cardinality: Cardinality::One,
                     sort: None,
                     site: Site::Candidate,
@@ -1010,16 +1037,22 @@ pub(crate) fn candidate_region<T>(f: impl FnOnce() -> T) -> deckmaste_core::Regi
         );
         return deckmaste_core::Region::new(context.params.into(), body);
     }
-    let (params, body) = in_child([(Kind::Object, Provenance::Candidate)], || {
-        push_antecedent(
-            RefId(0),
-            Kind::Object,
-            Cardinality::One,
-            None,
-            Site::Candidate,
-        );
-        f()
-    });
+    let (params, body) = in_child(
+        [(
+            Kind::Entity,
+            Provenance::Candidate(deckmaste_core::Domain::Entity),
+        )],
+        || {
+            push_antecedent(
+                RefId(0),
+                Kind::Entity,
+                Cardinality::One,
+                None,
+                Site::Candidate,
+            );
+            f()
+        },
+    );
     deckmaste_core::Region::new(params, body)
 }
 
@@ -1064,10 +1097,10 @@ mod tests {
         assert_eq!(
             abi(&params),
             vec![
-                (Kind::Object, Provenance::Source),
-                (Kind::Object, Provenance::Controller),
-                (Kind::Objects, Provenance::AnnouncedTarget(0)),
-                (Kind::Objects, Provenance::AnnouncedTarget(1)),
+                (Kind::Entity, Provenance::Source),
+                (Kind::Entity, Provenance::Controller),
+                (Kind::Entities, Provenance::AnnouncedTarget(0)),
+                (Kind::Entities, Provenance::AnnouncedTarget(1)),
                 (Kind::Number, Provenance::AnnouncedX),
             ]
         );
@@ -1082,12 +1115,12 @@ mod tests {
         assert_eq!(
             abi(&params),
             vec![
-                (Kind::Object, Provenance::Source),
-                (Kind::Object, Provenance::Controller),
-                (Kind::Object, Provenance::EventObject),
-                (Kind::Object, Provenance::EventPatient),
-                (Kind::Object, Provenance::EventActor),
-                (Kind::Object, Provenance::DefendingPlayer),
+                (Kind::Entity, Provenance::Source),
+                (Kind::Entity, Provenance::Controller),
+                (Kind::Entity, Provenance::EventObject),
+                (Kind::Entity, Provenance::EventPatient),
+                (Kind::Entity, Provenance::EventActor),
+                (Kind::Entity, Provenance::DefendingPlayer),
                 (Kind::Number, Provenance::EventAmount),
                 (Kind::Number, Provenance::AnnouncedX),
             ]
@@ -1121,9 +1154,9 @@ mod tests {
     fn definitions_continue_the_parameter_sequence() {
         let (params, defs) = super::in_region(RegionKind::Spell, 0, || {
             [
-                super::define(Kind::Objects),
+                super::define(Kind::Entities),
                 super::define(Kind::Number),
-                super::define(Kind::Object),
+                super::define(Kind::Entity),
             ]
         });
         assert_eq!(params.len(), 3, "source, controller, X");
@@ -1136,17 +1169,17 @@ mod tests {
     #[test]
     fn a_nested_region_declares_intrinsics_then_captures_the_enclosing_file() {
         let (_, inner) = super::in_region(RegionKind::Spell, 1, || {
-            let (params, ()) = super::in_child([(Kind::Object, Provenance::LoopElement)], || ());
+            let (params, ()) = super::in_child([(Kind::Entity, Provenance::LoopElement)], || ());
             params
         });
         assert_dense(&inner);
         assert_eq!(
             abi(&inner),
             vec![
-                (Kind::Object, Provenance::LoopElement),
-                (Kind::Object, Provenance::Source),
-                (Kind::Object, Provenance::Controller),
-                (Kind::Objects, Provenance::AnnouncedTarget(0)),
+                (Kind::Entity, Provenance::LoopElement),
+                (Kind::Entity, Provenance::Source),
+                (Kind::Entity, Provenance::Controller),
+                (Kind::Entities, Provenance::AnnouncedTarget(0)),
                 (Kind::Number, Provenance::AnnouncedX),
             ],
             "the element takes register 0 and the enclosing parameters follow"
@@ -1160,9 +1193,9 @@ mod tests {
     #[test]
     fn a_nested_only_role_is_captured_not_repeated() {
         let (_, inner) = super::in_region(RegionKind::Spell, 0, || {
-            let (_, inner) = super::in_child([(Kind::Object, Provenance::LoopElement)], || {
+            let (_, inner) = super::in_child([(Kind::Entity, Provenance::LoopElement)], || {
                 let (params, ()) =
-                    super::in_child([(Kind::Object, Provenance::LoopElement)], || ());
+                    super::in_child([(Kind::Entity, Provenance::LoopElement)], || ());
                 params
             });
             inner
@@ -1170,10 +1203,10 @@ mod tests {
         assert_eq!(
             abi(&inner),
             vec![
-                (Kind::Object, Provenance::LoopElement),
-                (Kind::Object, Provenance::Capture(RefId(0))),
-                (Kind::Object, Provenance::Source),
-                (Kind::Object, Provenance::Controller),
+                (Kind::Entity, Provenance::LoopElement),
+                (Kind::Entity, Provenance::Capture(RefId(0))),
+                (Kind::Entity, Provenance::Source),
+                (Kind::Entity, Provenance::Controller),
                 (Kind::Number, Provenance::AnnouncedX),
             ]
         );
@@ -1198,8 +1231,8 @@ mod tests {
         assert_eq!(
             roles[8..],
             vec![
-                (Kind::Object, Provenance::Capture(RefId(0))),
-                (Kind::Object, Provenance::Capture(RefId(1))),
+                (Kind::Entity, Provenance::Capture(RefId(0))),
+                (Kind::Entity, Provenance::Capture(RefId(1))),
                 (Kind::Number, Provenance::Capture(RefId(2))),
             ],
             "then the enclosing spell region's three registers"
@@ -1210,18 +1243,18 @@ mod tests {
     #[test]
     fn it_resolves_to_the_nearest_antecedent() {
         let (_, reference) = super::in_region(RegionKind::Spell, 0, || {
-            let first = super::define(Kind::Object);
+            let first = super::define(Kind::Entity);
             super::push_antecedent(
                 first.into(),
-                Kind::Object,
+                Kind::Entity,
                 Cardinality::One,
                 None,
                 Site::Frame,
             );
-            let second = super::define(Kind::Object);
+            let second = super::define(Kind::Entity);
             super::push_antecedent(
                 second.into(),
-                Kind::Object,
+                Kind::Entity,
                 Cardinality::One,
                 None,
                 Site::Frame,
@@ -1236,15 +1269,15 @@ mod tests {
     #[test]
     fn it_prefers_a_loop_element_over_a_frame_antecedent() {
         let (_, reference) = super::in_region(RegionKind::Spell, 0, || {
-            let product = super::define(Kind::Object);
+            let product = super::define(Kind::Entity);
             super::push_antecedent(
                 product.into(),
-                Kind::Object,
+                Kind::Entity,
                 Cardinality::One,
                 None,
                 Site::Frame,
             );
-            super::push_antecedent(RefId(0), Kind::Object, Cardinality::One, None, Site::Loop);
+            super::push_antecedent(RefId(0), Kind::Entity, Cardinality::One, None, Site::Loop);
             super::it()
         });
         assert_eq!(reference, Some(RefId(0)));
@@ -1258,10 +1291,10 @@ mod tests {
         let error = crate::lower_for_test(|| {
             super::in_region(RegionKind::Spell, 0, || {
                 for _ in 0..2 {
-                    let def = super::define(Kind::Object);
+                    let def = super::define(Kind::Entity);
                     super::push_antecedent(
                         def.into(),
-                        Kind::Object,
+                        Kind::Entity,
                         Cardinality::One,
                         Some(deckmaste_semantics::Sort::Card),
                         Site::Product,
@@ -1287,10 +1320,10 @@ mod tests {
     fn two_antecedents_at_a_preferred_site_resolve_to_the_nearest() {
         let (_, reference) = super::in_region(RegionKind::Spell, 0, || {
             for _ in 0..2 {
-                let def = super::define(Kind::Object);
+                let def = super::define(Kind::Entity);
                 super::push_antecedent(
                     def.into(),
-                    Kind::Object,
+                    Kind::Entity,
                     Cardinality::One,
                     Some(deckmaste_semantics::Sort::Card),
                     Site::Frame,
@@ -1306,18 +1339,18 @@ mod tests {
     #[test]
     fn an_exact_sort_beats_a_widened_one_without_refusing() {
         let (_, reference) = super::in_region(RegionKind::Spell, 0, || {
-            let permanent = super::define(Kind::Object);
+            let permanent = super::define(Kind::Entity);
             super::push_antecedent(
                 permanent.into(),
-                Kind::Object,
+                Kind::Entity,
                 Cardinality::One,
                 Some(deckmaste_semantics::Sort::Permanent),
                 Site::Frame,
             );
-            let card = super::define(Kind::Object);
+            let card = super::define(Kind::Entity);
             super::push_antecedent(
                 card.into(),
-                Kind::Object,
+                Kind::Entity,
                 Cardinality::One,
                 Some(deckmaste_semantics::Sort::Card),
                 Site::Frame,
@@ -1332,18 +1365,18 @@ mod tests {
     #[test]
     fn a_sorted_anaphor_skips_an_incompatible_antecedent() {
         let (_, reference) = super::in_region(RegionKind::Spell, 0, || {
-            let player = super::define(Kind::Object);
+            let player = super::define(Kind::Entity);
             super::push_antecedent(
                 player.into(),
-                Kind::Object,
+                Kind::Entity,
                 Cardinality::One,
                 Some(deckmaste_semantics::Sort::Player),
                 Site::Frame,
             );
-            let card = super::define(Kind::Object);
+            let card = super::define(Kind::Entity);
             super::push_antecedent(
                 card.into(),
-                Kind::Object,
+                Kind::Entity,
                 Cardinality::One,
                 Some(deckmaste_semantics::Sort::Card),
                 Site::Frame,
@@ -1362,10 +1395,10 @@ mod tests {
     #[test]
     fn cardinality_separates_the_singular_and_plural_anaphors() {
         let (_, (singular, plural)) = super::in_region(RegionKind::Spell, 0, || {
-            let group = super::define(Kind::Objects);
+            let group = super::define(Kind::Entities);
             super::push_antecedent(
                 group.into(),
-                Kind::Objects,
+                Kind::Entities,
                 Cardinality::Many,
                 Some(deckmaste_semantics::Sort::Card),
                 Site::Frame,
@@ -1404,10 +1437,10 @@ mod tests {
     fn a_scoped_block_retires_its_own_definitions() {
         let (_, captured) = super::in_region(RegionKind::Spell, 0, || {
             super::scoped_antecedents(|| {
-                let inner = super::define(Kind::Object);
+                let inner = super::define(Kind::Entity);
                 super::push_antecedent(
                     inner.into(),
-                    Kind::Object,
+                    Kind::Entity,
                     Cardinality::One,
                     None,
                     Site::Frame,
@@ -1419,8 +1452,8 @@ mod tests {
         assert_eq!(
             abi(&captured),
             vec![
-                (Kind::Object, Provenance::Source),
-                (Kind::Object, Provenance::Controller),
+                (Kind::Entity, Provenance::Source),
+                (Kind::Entity, Provenance::Controller),
                 (Kind::Number, Provenance::AnnouncedX),
             ],
             "the closed block's definition is not visible to capture"
@@ -1435,10 +1468,10 @@ mod tests {
     fn a_cost_block_scopes_anaphora_but_keeps_its_definitions_live() {
         let (_, (after, captured)) = super::in_region(RegionKind::Activated, 0, || {
             super::scoped_anaphora(|| {
-                let paid = super::define(Kind::Objects);
+                let paid = super::define(Kind::Entities);
                 super::push_antecedent(
                     paid.into(),
-                    Kind::Objects,
+                    Kind::Entities,
                     Cardinality::One,
                     Some(deckmaste_semantics::Sort::Permanent),
                     Site::Frame,
@@ -1509,9 +1542,12 @@ mod tests {
         assert_eq!(
             abi(&region.params),
             vec![
-                (Kind::Object, Provenance::Candidate),
-                (Kind::Object, Provenance::Source),
-                (Kind::Object, Provenance::Controller),
+                (
+                    Kind::Entity,
+                    Provenance::Candidate(deckmaste_core::Domain::Entity)
+                ),
+                (Kind::Entity, Provenance::Source),
+                (Kind::Entity, Provenance::Controller),
             ]
         );
     }

@@ -727,8 +727,10 @@ fn static_effect_scope(
         )),
         StaticEffect::Each(Selection::SelectAll(filter), inner) => match &inner.body {
             StaticEffect::Modify(deckmaste_core::Reference::Reg(reference), change)
-                if inner.provenance_of(*reference)
-                    == Some(&deckmaste_core::Provenance::Candidate) =>
+                if matches!(
+                    inner.provenance_of(*reference),
+                    Some(deckmaste_core::Provenance::Candidate(_))
+                ) =>
             {
                 Some((
                     Vec::new(),
@@ -976,7 +978,7 @@ fn static_reference_matches(
         .and_then(|params| params.get(reference.0 as usize))
         .map(|param| &param.provenance);
     match (provenance, watcher) {
-        (Some(deckmaste_core::Provenance::Candidate), _) => true,
+        (Some(deckmaste_core::Provenance::Candidate(_)), _) => true,
         (Some(deckmaste_core::Provenance::Source), Some(source)) => {
             state.objects.obj(id).source == source
         }
@@ -1282,8 +1284,8 @@ fn eval_count(
         // count over types/colors sees the values earlier layers produced.
         Count::CountOf(source) => match source {
             // [CR#119.1]: a player-filter's cardinality reads exactly like an
-            // object filter's — players are objects too
-            // (`ObjectKind::Player`), matched by the same `matches_derived`.
+            // object filter's — both range over Entities
+            // (`Entity(Player)`), matched by the same `matches_derived`.
             Countable::Objects(filter) | Countable::Players(filter) => {
                 let count = working
                     .keys()
@@ -2419,17 +2421,17 @@ mod tests {
             Arc::from([
                 Param {
                     def: DefId(0),
-                    kind: Kind::Object,
-                    provenance: Provenance::Candidate,
+                    kind: Kind::Entity,
+                    provenance: Provenance::Candidate(deckmaste_core::Domain::Entity),
                 },
                 Param {
                     def: DefId(1),
-                    kind: Kind::Object,
+                    kind: Kind::Entity,
                     provenance: Provenance::Source,
                 },
                 Param {
                     def: DefId(2),
-                    kind: Kind::Object,
+                    kind: Kind::Entity,
                     provenance: Provenance::Controller,
                 },
             ]),
@@ -2444,12 +2446,12 @@ mod tests {
             Arc::from([
                 Param {
                     def: DefId(0),
-                    kind: Kind::Object,
-                    provenance: Provenance::Candidate,
+                    kind: Kind::Entity,
+                    provenance: Provenance::Candidate(deckmaste_core::Domain::Entity),
                 },
                 Param {
                     def: DefId(1),
-                    kind: Kind::Object,
+                    kind: Kind::Entity,
                     provenance: Provenance::Controller,
                 },
             ]),

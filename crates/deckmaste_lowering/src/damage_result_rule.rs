@@ -36,7 +36,9 @@ mod tests {
             }
             .lower(),
             deckmaste_core::DamageResultRule {
-                recipient: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                recipient: deckmaste_core::Predicate::Class(
+                    deckmaste_core::ObjectClass::AbilityOnStack
+                ),
                 remove: deckmaste_core::CounterRef(_)
             }
         );

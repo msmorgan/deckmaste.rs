@@ -2480,12 +2480,12 @@ fn another_creature() -> Arc<deckmaste_core::Region<deckmaste_core::Predicate>> 
         Arc::from([
             deckmaste_core::Param {
                 def: deckmaste_core::DefId(0),
-                kind: deckmaste_core::Kind::Object,
-                provenance: deckmaste_core::Provenance::Candidate,
+                kind: deckmaste_core::Kind::Entity,
+                provenance: deckmaste_core::Provenance::Candidate(deckmaste_core::Domain::Entity),
             },
             deckmaste_core::Param {
                 def: deckmaste_core::DefId(1),
-                kind: deckmaste_core::Kind::Object,
+                kind: deckmaste_core::Kind::Entity,
                 provenance: deckmaste_core::Provenance::Source,
             },
         ]),

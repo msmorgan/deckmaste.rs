@@ -666,7 +666,7 @@ mod tests {
             }
             .lower(),
             deckmaste_core::EventFilter::ZoneChange {
-                what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                what: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
                 from: None,
                 to: None,
                 cause: None
@@ -685,8 +685,10 @@ mod tests {
             }
             .lower(),
             deckmaste_core::EventFilter::Damage {
-                source: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                to: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                source: deckmaste_core::Predicate::Class(
+                    deckmaste_core::ObjectClass::AbilityOnStack
+                ),
+                to: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
                 combat: None,
                 amount: None
             }
@@ -702,7 +704,7 @@ mod tests {
             }
             .lower(),
             deckmaste_core::EventFilter::LifeGained {
-                who: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                who: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
                 amount: None
             }
         );
@@ -717,7 +719,7 @@ mod tests {
             }
             .lower(),
             deckmaste_core::EventFilter::LifeLost {
-                who: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                who: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
                 amount: None
             }
         );
@@ -732,7 +734,7 @@ mod tests {
             }
             .lower(),
             deckmaste_core::EventFilter::Drawn {
-                who: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                who: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
                 amount: None
             }
         );
@@ -750,8 +752,8 @@ mod tests {
             .lower(),
             deckmaste_core::EventFilter::Act {
                 verb: deckmaste_core::VerbName(_),
-                who: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                on: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                who: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
+                on: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
                 cause: None
             }
         );
@@ -769,7 +771,7 @@ mod tests {
             .lower(),
             deckmaste_core::EventFilter::CounterPlaced {
                 kind: None,
-                on: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                on: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
                 amount: None,
                 cause: None
             }
@@ -788,7 +790,7 @@ mod tests {
             .lower(),
             deckmaste_core::EventFilter::CounterRemoved {
                 kind: None,
-                on: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                on: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
                 amount: None,
                 cause: None
             }
@@ -804,8 +806,8 @@ mod tests {
             }
             .lower(),
             deckmaste_core::EventFilter::Cast {
-                who: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+                who: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
+                what: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
             }
         );
     }
@@ -819,8 +821,8 @@ mod tests {
             }
             .lower(),
             deckmaste_core::EventFilter::Copied {
-                who: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+                who: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
+                what: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
             }
         );
     }
@@ -834,8 +836,8 @@ mod tests {
             }
             .lower(),
             deckmaste_core::EventFilter::Played {
-                who: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+                who: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
+                what: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
             }
         );
     }
@@ -849,8 +851,8 @@ mod tests {
             }
             .lower(),
             deckmaste_core::EventFilter::ActivatedAb {
-                who: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+                who: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
+                what: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
             }
         );
     }
@@ -864,8 +866,10 @@ mod tests {
             }
             .lower(),
             deckmaste_core::EventFilter::AttackDeclared {
-                by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                against: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+                by: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
+                against: deckmaste_core::Predicate::Class(
+                    deckmaste_core::ObjectClass::AbilityOnStack
+                )
             }
         );
     }
@@ -879,8 +883,8 @@ mod tests {
             }
             .lower(),
             deckmaste_core::EventFilter::BlockDeclared {
-                by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                of: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+                by: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
+                of: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
             }
         );
     }
@@ -894,8 +898,8 @@ mod tests {
             }
             .lower(),
             deckmaste_core::EventFilter::Attached {
-                what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                to: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+                what: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
+                to: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
             }
         );
     }
@@ -910,7 +914,7 @@ mod tests {
             }
             .lower(),
             deckmaste_core::EventFilter::StateBecame {
-                of: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                of: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
                 becomes: deckmaste_core::StateChange::Tapped,
                 cause: None
             }
@@ -927,8 +931,8 @@ mod tests {
             }
             .lower(),
             deckmaste_core::EventFilter::BecomesTarget {
-                what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                what: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
+                by: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
                 source: None
             }
         );
@@ -958,8 +962,8 @@ mod tests {
             }
             .lower(),
             deckmaste_core::EventFilter::ControlChanged {
-                of: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                to: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+                of: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
+                to: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
             }
         );
     }
@@ -975,7 +979,7 @@ mod tests {
             .lower(),
             deckmaste_core::EventFilter::DesignationChanged {
                 name,
-                of: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                of: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
                 to: Some(value),
             } if name.as_ref() == "X" && value.as_ref() == "Y"
         );
@@ -990,8 +994,8 @@ mod tests {
             }
             .lower(),
             deckmaste_core::EventFilter::TokenCreated {
-                what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+                what: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
+                by: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
             }
         );
     }
@@ -1004,7 +1008,7 @@ mod tests {
             }
             .lower(),
             deckmaste_core::EventFilter::Shuffled {
-                by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+                by: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
             }
         );
     }
@@ -1017,7 +1021,7 @@ mod tests {
             }
             .lower(),
             deckmaste_core::EventFilter::Revealed {
-                what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+                what: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
             }
         );
     }
@@ -1044,7 +1048,7 @@ mod tests {
             }
             .lower(),
             deckmaste_core::EventFilter::CoinFlipped {
-                by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                by: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
                 won: None
             }
         );
@@ -1058,7 +1062,7 @@ mod tests {
             }
             .lower(),
             deckmaste_core::EventFilter::DiceRolled {
-                by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+                by: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
             }
         );
     }
@@ -1072,8 +1076,8 @@ mod tests {
             }
             .lower(),
             deckmaste_core::EventFilter::TapForMana {
-                what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+                what: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
+                by: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
             }
         );
     }
@@ -1087,7 +1091,7 @@ mod tests {
             }
             .lower(),
             deckmaste_core::EventFilter::RollPlanarDie {
-                by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                by: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
                 face: None
             }
         );
@@ -1191,7 +1195,7 @@ mod tests {
             })
             .lower(),
             deckmaste_core::EventFilter::ZoneChange {
-                what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                what: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
                 from: None,
                 to: None,
                 cause: None

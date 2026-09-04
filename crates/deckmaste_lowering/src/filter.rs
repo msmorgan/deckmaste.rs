@@ -4,19 +4,26 @@
 
 use crate::Lower;
 
-impl Lower for deckmaste_semantics::ObjectKind {
-    type Target = deckmaste_core::ObjectKind;
-    fn lower(self) -> <Self as Lower>::Target {
-        match self {
-            Self::Ability => deckmaste_core::ObjectKind::Ability,
-            Self::Card => deckmaste_core::ObjectKind::Card,
-            Self::CardCopy => deckmaste_core::ObjectKind::CardCopy,
-            Self::Emblem => deckmaste_core::ObjectKind::Emblem,
-            Self::Player => deckmaste_core::ObjectKind::Player,
-            Self::Spell => deckmaste_core::ObjectKind::Spell,
-            Self::Token => deckmaste_core::ObjectKind::Token,
+/// The core predicate for semantics' exclusive object-kind axis
+/// ([CR#109.1]). `Player` is an Entity-level classification — a player is not
+/// an object ([CR#102.1]) — and every other member names one CR object class,
+/// which core tests independently of the rest.
+#[must_use]
+pub fn object_kind_predicate(kind: deckmaste_semantics::ObjectKind) -> deckmaste_core::Predicate {
+    use deckmaste_core::ObjectClass as C;
+    use deckmaste_semantics::ObjectKind as K;
+    let class = match kind {
+        K::Player => {
+            return deckmaste_core::Predicate::Entity(deckmaste_core::EntityClass::Player);
         }
-    }
+        K::Ability => C::AbilityOnStack,
+        K::Card => C::Card,
+        K::CardCopy => C::CopyOfACard,
+        K::Emblem => C::Emblem,
+        K::Spell => C::Spell,
+        K::Token => C::Token,
+    };
+    deckmaste_core::Predicate::Class(class)
 }
 
 impl Lower for deckmaste_semantics::CharacteristicPredicate {
@@ -91,7 +98,7 @@ impl Lower for deckmaste_semantics::Predicate {
     type Target = deckmaste_core::Predicate;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
-            Self::Kind(f0) => deckmaste_core::Predicate::Kind(f0.lower()),
+            Self::Kind(f0) => object_kind_predicate(f0),
             Self::Characteristic(f0) => deckmaste_core::Predicate::Characteristic(f0.lower()),
             Self::State(f0) => deckmaste_core::Predicate::State(f0.lower()),
             Self::Relation(f0) => deckmaste_core::Predicate::Relation(f0.lower()),
@@ -127,6 +134,7 @@ mod tests {
 
     use std::assert_matches;
 
+    use super::object_kind_predicate;
     use crate::Lower;
     use crate::assert_lowers;
     use crate::minimal::*;
@@ -134,56 +142,56 @@ mod tests {
     #[test]
     fn lowers_object_kind_ability() {
         assert_matches!(
-            deckmaste_semantics::ObjectKind::Ability.lower(),
-            deckmaste_core::ObjectKind::Ability
+            object_kind_predicate(deckmaste_semantics::ObjectKind::Ability),
+            deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
         );
     }
 
     #[test]
     fn lowers_object_kind_card() {
         assert_matches!(
-            deckmaste_semantics::ObjectKind::Card.lower(),
-            deckmaste_core::ObjectKind::Card
+            object_kind_predicate(deckmaste_semantics::ObjectKind::Card),
+            deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::Card)
         );
     }
 
     #[test]
     fn lowers_object_kind_card_copy() {
         assert_matches!(
-            deckmaste_semantics::ObjectKind::CardCopy.lower(),
-            deckmaste_core::ObjectKind::CardCopy
+            object_kind_predicate(deckmaste_semantics::ObjectKind::CardCopy),
+            deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::CopyOfACard)
         );
     }
 
     #[test]
     fn lowers_object_kind_emblem() {
         assert_matches!(
-            deckmaste_semantics::ObjectKind::Emblem.lower(),
-            deckmaste_core::ObjectKind::Emblem
+            object_kind_predicate(deckmaste_semantics::ObjectKind::Emblem),
+            deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::Emblem)
         );
     }
 
     #[test]
     fn lowers_object_kind_player() {
         assert_matches!(
-            deckmaste_semantics::ObjectKind::Player.lower(),
-            deckmaste_core::ObjectKind::Player
+            object_kind_predicate(deckmaste_semantics::ObjectKind::Player),
+            deckmaste_core::Predicate::Entity(deckmaste_core::EntityClass::Player)
         );
     }
 
     #[test]
     fn lowers_object_kind_spell() {
         assert_matches!(
-            deckmaste_semantics::ObjectKind::Spell.lower(),
-            deckmaste_core::ObjectKind::Spell
+            object_kind_predicate(deckmaste_semantics::ObjectKind::Spell),
+            deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::Spell)
         );
     }
 
     #[test]
     fn lowers_object_kind_token() {
         assert_matches!(
-            deckmaste_semantics::ObjectKind::Token.lower(),
-            deckmaste_core::ObjectKind::Token
+            object_kind_predicate(deckmaste_semantics::ObjectKind::Token),
+            deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::Token)
         );
     }
 
@@ -482,7 +490,7 @@ mod tests {
     fn lowers_predicate_kind() {
         assert_matches!(
             deckmaste_semantics::Predicate::Kind(minimal_object_kind()).lower(),
-            deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+            deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
         );
     }
 
@@ -613,7 +621,7 @@ mod tests {
                 value: Box::new(minimal_predicate())
             })
             .lower(),
-            deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+            deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
         );
     }
 }

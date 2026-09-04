@@ -47,7 +47,7 @@ mod tests {
         assert_matches!(
             deckmaste_semantics::Duration::UntilEvent(minimal_event_filter()).lower(),
             deckmaste_core::Duration::UntilEvent(deckmaste_core::EventFilter::ZoneChange {
-                what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                what: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
                 from: None,
                 to: None,
                 cause: None
@@ -425,8 +425,12 @@ mod tests {
             deckmaste_semantics::StaticEffect::Deontic(minimal_deontic()).lower(),
             deckmaste_core::StaticEffect::Deontic(deckmaste_core::Deontic::May(
                 deckmaste_core::DeonticAction::Attack {
-                    by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                    on: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+                    by: deckmaste_core::Predicate::Class(
+                        deckmaste_core::ObjectClass::AbilityOnStack
+                    ),
+                    on: deckmaste_core::Predicate::Class(
+                        deckmaste_core::ObjectClass::AbilityOnStack
+                    )
                 }
             ))
         );
@@ -441,7 +445,7 @@ mod tests {
             }
             .lower(),
             deckmaste_core::StaticEffect::CostModifier {
-                of: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                of: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
                 change: deckmaste_core::CostChange::Increase(_)
             }
         );
@@ -470,13 +474,17 @@ mod tests {
             .lower(),
             deckmaste_core::StaticEffect::TriggerMultiplier {
                 cause: deckmaste_core::EventFilter::ZoneChange {
-                    what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                    what: deckmaste_core::Predicate::Class(
+                        deckmaste_core::ObjectClass::AbilityOnStack
+                    ),
                     from: None,
                     to: None,
                     cause: None
                 },
                 extra: deckmaste_core::Count::X,
-                affected: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+                affected: deckmaste_core::Predicate::Class(
+                    deckmaste_core::ObjectClass::AbilityOnStack
+                )
             }
         );
     }
@@ -519,8 +527,8 @@ mod tests {
             }
             .lower(),
             deckmaste_core::StaticEffect::CantPrevent {
-                from: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                to: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+                from: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
+                to: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
             }
         );
     }
@@ -534,7 +542,9 @@ mod tests {
             }
             .lower(),
             deckmaste_core::StaticEffect::SpendAsThough {
-                mana_from: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                mana_from: deckmaste_core::Predicate::Class(
+                    deckmaste_core::ObjectClass::AbilityOnStack
+                ),
                 as_: deckmaste_core::SymbolPred::AnyColor
             }
         );
@@ -545,7 +555,9 @@ mod tests {
         assert_matches!(
             deckmaste_semantics::StaticEffect::AsThough(minimal_as_though()).lower(),
             deckmaste_core::StaticEffect::AsThough(deckmaste_core::AsThough::Counterfactual {
-                premise: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                premise: deckmaste_core::Predicate::Class(
+                    deckmaste_core::ObjectClass::AbilityOnStack
+                ),
                 then: _
             })
         );
@@ -560,7 +572,7 @@ mod tests {
             }
             .lower(),
             deckmaste_core::StaticEffect::OutcomeGate {
-                who: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                who: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
                 gate: deckmaste_core::OutcomeGateKind::CantLose
             }
         );
@@ -571,7 +583,7 @@ mod tests {
         assert_matches!(
             deckmaste_semantics::StaticEffect::CantHappen(minimal_event_filter()).lower(),
             deckmaste_core::StaticEffect::CantHappen(deckmaste_core::EventFilter::ZoneChange {
-                what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                what: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
                 from: None,
                 to: None,
                 cause: None
@@ -590,7 +602,9 @@ mod tests {
             .lower(),
             deckmaste_core::StaticEffect::ReplaceRoll {
                 query: deckmaste_core::EventFilter::ZoneChange {
-                    what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                    what: deckmaste_core::Predicate::Class(
+                        deckmaste_core::ObjectClass::AbilityOnStack
+                    ),
                     from: None,
                     to: None,
                     cause: None
@@ -608,8 +622,8 @@ mod tests {
                 .lower(),
             deckmaste_core::StaticEffect::PayPips(
                 deckmaste_core::PipClass::Generic,
-                deckmaste_core::PayAct::TapToPay(deckmaste_core::Predicate::Kind(
-                    deckmaste_core::ObjectKind::Ability
+                deckmaste_core::PayAct::TapToPay(deckmaste_core::Predicate::Class(
+                    deckmaste_core::ObjectClass::AbilityOnStack
                 ))
             )
         );
@@ -686,8 +700,8 @@ mod tests {
     fn lowers_pay_act_tap_to_pay() {
         assert_matches!(
             deckmaste_semantics::PayAct::TapToPay(minimal_predicate()).lower(),
-            deckmaste_core::PayAct::TapToPay(deckmaste_core::Predicate::Kind(
-                deckmaste_core::ObjectKind::Ability
+            deckmaste_core::PayAct::TapToPay(deckmaste_core::Predicate::Class(
+                deckmaste_core::ObjectClass::AbilityOnStack
             ))
         );
     }
@@ -696,8 +710,8 @@ mod tests {
     fn lowers_pay_act_exile_to_pay() {
         assert_matches!(
             deckmaste_semantics::PayAct::ExileToPay(minimal_predicate()).lower(),
-            deckmaste_core::PayAct::ExileToPay(deckmaste_core::Predicate::Kind(
-                deckmaste_core::ObjectKind::Ability
+            deckmaste_core::PayAct::ExileToPay(deckmaste_core::Predicate::Class(
+                deckmaste_core::ObjectClass::AbilityOnStack
             ))
         );
     }

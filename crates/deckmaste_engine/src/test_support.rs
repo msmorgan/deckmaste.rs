@@ -52,9 +52,9 @@ pub(crate) fn frame_src_targets(
                 u32::try_from(index).expect("fixture parameter count fits u32"),
             ),
             kind: match provenance {
-                deckmaste_core::Provenance::AnnouncedTarget(_) => deckmaste_core::Kind::Objects,
+                deckmaste_core::Provenance::AnnouncedTarget(_) => deckmaste_core::Kind::Entities,
                 deckmaste_core::Provenance::AnnouncedX => deckmaste_core::Kind::Number,
-                _ => deckmaste_core::Kind::Object,
+                _ => deckmaste_core::Kind::Entity,
             },
             provenance,
         })

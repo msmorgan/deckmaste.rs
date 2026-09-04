@@ -924,7 +924,7 @@ mod tests {
     use deckmaste_core::Action;
     use deckmaste_core::ChosenValueKind;
     use deckmaste_core::Count;
-    use deckmaste_core::ObjectKind;
+    use deckmaste_core::ObjectClass;
     use deckmaste_core::OneShotEffect;
     use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
@@ -1622,7 +1622,32 @@ mod tests {
             .collect();
         assert_eq!(tokens.len(), 2, "two tokens on the battlefield");
         for &t in &tokens {
-            assert_eq!(crate::target::object_kind(&state, t), ObjectKind::Token);
+            assert!(crate::target::is_object_class(
+                &state,
+                t,
+                ObjectClass::Token
+            ));
+            // A token on the battlefield is a Token AND a Permanent
+            // ([CR#111.1,110.1]), and is NOT a Card ([CR#108.2b]) — the
+            // classes are independently testable and overlap.
+            assert!(crate::target::is_object_class(
+                &state,
+                t,
+                ObjectClass::Permanent
+            ));
+            assert!(!crate::target::is_object_class(
+                &state,
+                t,
+                ObjectClass::Card
+            ));
+            assert!(obj_matches(
+                &state,
+                t,
+                &Predicate::And(std::sync::Arc::from([
+                    Predicate::Class(ObjectClass::Token),
+                    Predicate::Class(ObjectClass::Permanent),
+                ]))
+            ));
             assert_eq!(
                 state.owner_of(t),
                 PlayerId(0),
@@ -1680,7 +1705,11 @@ mod tests {
             .iter()
             .find(|&&id| id != src)
             .expect("the Treasure token on the battlefield");
-        assert_eq!(crate::target::object_kind(&state, t), ObjectKind::Token);
+        assert!(crate::target::is_object_class(
+            &state,
+            t,
+            ObjectClass::Token
+        ));
         let card = state.objects.obj(t).card_id().expect("card-backed");
         assert!(
             state
@@ -1718,7 +1747,11 @@ mod tests {
             .iter()
             .find(|&&id| id != src)
             .expect("the Treasure token on the battlefield");
-        assert_eq!(crate::target::object_kind(&state, t), ObjectKind::Token);
+        assert!(crate::target::is_object_class(
+            &state,
+            t,
+            ObjectClass::Token
+        ));
         let card = state.objects.obj(t).card_id().expect("card-backed");
         // Subtype asserted on the card entry directly — `Predicate::Subtype`
         // evaluation is the `engine-filter-breadth` item.
@@ -1788,7 +1821,11 @@ mod tests {
             "[CR#707.1]: exactly one copy token is minted"
         );
         let t = created[0];
-        assert_eq!(crate::target::object_kind(&state, t), ObjectKind::Token);
+        assert!(crate::target::is_object_class(
+            &state,
+            t,
+            ObjectClass::Token
+        ));
         let card = state.objects.obj(t).card_id().expect("card-backed");
         let face = crate::derive::face(&state.cards.get(card).def);
         assert_eq!(
@@ -2033,9 +2070,8 @@ mod tests {
             .iter()
             .find(|&id| !exclude.contains(id))
             .expect("a freshly minted copy token on the battlefield");
-        assert_eq!(
-            crate::target::object_kind(state, t),
-            ObjectKind::Token,
+        assert!(
+            crate::target::is_object_class(state, t, ObjectClass::Token),
             "[CR#111.1]: the copy is a token"
         );
         let card = state.objects.obj(t).card_id().expect("card-backed");
@@ -2677,7 +2713,7 @@ mod tests {
     /// the stack, [CR#707.10a] — is `off_stack_copy_classifies_as_card_copy`
     /// in `tests/stack.rs`, since it needs the stack-copy harness, not this
     /// token-mint one.) Both classifications go through the SAME
-    /// `object_kind` / `Predicate::Kind` path an SBA `scope` predicate
+    /// `is_object_class` / `Predicate::Class` path an SBA `scope` predicate
     /// evaluates (`sba.rs`'s `if !crate::matches(state, id, &rule.scope)`
     /// calls the exact `crate::matches` used here).
     #[test]
@@ -2737,14 +2773,13 @@ mod tests {
         assert_eq!(created.len(), 2, "both tokens minted");
 
         for &t in &created {
-            assert_eq!(
-                crate::target::object_kind(&state, t),
-                ObjectKind::Token,
+            assert!(
+                crate::target::is_object_class(&state, t, ObjectClass::Token),
                 "[CR#109.1,111.1]: every minted token — copy or not — \
                  classifies as Token, never CardCopy"
             );
             assert!(
-                !obj_matches(&state, t, &Predicate::Kind(ObjectKind::CardCopy)),
+                !obj_matches(&state, t, &Predicate::Class(ObjectClass::CopyOfACard)),
                 "[CR#707.10a]: Filter::CardCopy must not match a token — a \
                  token's cease rule is [CR#111.7], not the copy-cease SBA"
             );

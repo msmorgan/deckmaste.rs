@@ -127,8 +127,8 @@ mod tests {
     fn lowers_condition_exists() {
         assert_matches!(
             deckmaste_semantics::Condition::Exists(minimal_predicate()).lower(),
-            deckmaste_core::Condition::Exists(deckmaste_core::Predicate::Kind(
-                deckmaste_core::ObjectKind::Ability
+            deckmaste_core::Condition::Exists(deckmaste_core::Predicate::Class(
+                deckmaste_core::ObjectClass::AbilityOnStack
             ))
         );
     }
@@ -140,7 +140,7 @@ mod tests {
                 .lower(),
             deckmaste_core::Condition::Matches(
                 deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
-                deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+                deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
             )
         );
     }
@@ -213,8 +213,8 @@ mod tests {
     fn lowers_condition_turn_of() {
         assert_matches!(
             deckmaste_semantics::Condition::TurnOf(minimal_predicate()).lower(),
-            deckmaste_core::Condition::TurnOf(deckmaste_core::Predicate::Kind(
-                deckmaste_core::ObjectKind::Ability
+            deckmaste_core::Condition::TurnOf(deckmaste_core::Predicate::Class(
+                deckmaste_core::ObjectClass::AbilityOnStack
             ))
         );
     }

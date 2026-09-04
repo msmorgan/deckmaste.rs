@@ -46,7 +46,7 @@ mod tests {
         .lower();
         assert_matches!(
             lowered.region.body.scope,
-            deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+            deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
         );
         assert_matches!(
             lowered.region.body.when,

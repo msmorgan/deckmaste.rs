@@ -689,7 +689,7 @@ impl Action {
             body: crate::Region::new(
                 Arc::from([crate::Param {
                     def: crate::DefId(0),
-                    kind: crate::Kind::Object,
+                    kind: crate::Kind::Entity,
                     provenance: crate::Provenance::LoopElement,
                 }]),
                 crate::OneShotEffect::act(Action::discard_what(Reference::Reg(crate::RefId(0))))

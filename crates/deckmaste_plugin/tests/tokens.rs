@@ -72,8 +72,8 @@ fn artifact_subtype(name: &str) -> Subtype {
 
 fn ability_region(effect: OneShotEffect) -> Region {
     let provenances = [
-        (Kind::Object, Provenance::Source),
-        (Kind::Object, Provenance::Controller),
+        (Kind::Entity, Provenance::Source),
+        (Kind::Entity, Provenance::Controller),
         (Kind::Number, Provenance::AnnouncedX),
     ];
     let params = provenances
@@ -304,7 +304,7 @@ fn vibranium_token_parses() {
     use deckmaste_core::KeywordAbility;
     use deckmaste_core::ManaProduction;
     use deckmaste_core::ManaRider;
-    use deckmaste_core::ObjectKind;
+    use deckmaste_core::ObjectClass;
     use deckmaste_core::Predicate;
     use deckmaste_core::StaticEffect;
 
@@ -335,7 +335,7 @@ fn vibranium_token_parses() {
             riders: vec![ManaRider::SpendOnly(Predicate::Not(Arc::new(
                 Predicate::And(
                     vec![
-                        Predicate::Kind(ObjectKind::Spell),
+                        Predicate::Class(ObjectClass::Spell),
                         Predicate::Not(Arc::new(Predicate::r#type(Type::Artifact))),
                     ]
                     .into(),

@@ -468,6 +468,46 @@ badMixedAxisComparison : Unspellable (Predicate [] Object) (\ok =>
   Compare [CharAxis Power, PlayerStatAxis LifeTotal] Greater (Lit 1) {at = ok})
 badMixedAxisComparison (NextAxis _ (LastAxis _)) impossible
 
+||| "a player with 13 or less life"
+public export
+okPlayerReadInPlayerDomain : Predicate [] Player
+okPlayerReadInPlayerDomain =
+  And [AnyPlayer, Compare [PlayerStatAxis LifeTotal] AtMost (Lit 13)]
+
+||| "an object with 13 or less life"
+public export
+badPlayerReadInObjectDomain : Unspellable (Predicate [] Object) (\ok =>
+  Compare [PlayerStatAxis LifeTotal] AtMost (Lit 13) {at = ok})
+badPlayerReadInObjectDomain (LastAxis _) impossible
+
+||| "target card on the stack"
+public export
+okCardAndSpell : Predicate [] Object
+okCardAndSpell = Macros.cardOnTheStack
+
+||| "each token on the battlefield"
+public export
+okTokenAndPermanent : Predicate [] Object
+okTokenAndPermanent = Macros.tokenOnTheBattlefield
+
+||| "a card token"
+public export
+badCardToken : Unspellable (Predicate [] Object) (\ok =>
+  And [IsCard, IsToken] {cf = ok})
+badCardToken Oh impossible
+
+||| "an emblem permanent"
+public export
+badEmblemPermanent : Unspellable (Predicate [] Object) (\ok =>
+  And [Macros.emblem, Permanent] {cf = ok})
+badEmblemPermanent Oh impossible
+
+||| "a card that is a copy of a card"
+public export
+badCardCopyOfACard : Unspellable (Predicate [] Object) (\ok =>
+  And [IsCard, Macros.copyOfACard] {cf = ok})
+badCardCopyOfACard Oh impossible
+
 ||| "Target creature can't attack this turn."
 public export
 okCantAttackCreature : Effect []

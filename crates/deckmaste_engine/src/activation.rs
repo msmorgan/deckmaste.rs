@@ -351,7 +351,7 @@ impl crate::state::GameState {
         kind: deckmaste_core::Kind,
     ) -> Value {
         match kind {
-            deckmaste_core::Kind::Objects | deckmaste_core::Kind::Pile => {
+            deckmaste_core::Kind::Entities | deckmaste_core::Kind::Pile => {
                 let objects = self.activation_objects(frame.activation, reference);
                 if objects.is_empty() {
                     self.frozen_register(frame, reference)
@@ -361,7 +361,7 @@ impl crate::state::GameState {
                     Value::Objects(pack_objects(self, &objects))
                 }
             }
-            deckmaste_core::Kind::Object => self
+            deckmaste_core::Kind::Entity => self
                 .activation_product(frame.activation, reference)
                 .map_or_else(|| self.frozen_register(frame, reference), Value::Object),
             deckmaste_core::Kind::Number | deckmaste_core::Kind::Symbol => {
@@ -470,9 +470,11 @@ impl crate::state::GameState {
                 Provenance::Linked(cell) => self.memory_cell(context.source, cell),
                 provenance @ (Provenance::LoopElement
                 | Provenance::Allotment
-                | Provenance::Candidate) => supplied
+                | Provenance::Candidate(_)) => supplied
                     .iter()
-                    .find(|(candidate, _)| candidate == provenance)
+                    .find(|(candidate, _)| {
+                        std::mem::discriminant(candidate) == std::mem::discriminant(provenance)
+                    })
                     .map_or(Value::Unavailable, |(_, value)| value.clone()),
             })
             .collect();
@@ -661,7 +663,7 @@ impl crate::state::GameState {
             | Provenance::Linked(_)
             | Provenance::LoopElement
             | Provenance::Allotment
-            | Provenance::Candidate => None,
+            | Provenance::Candidate(_) => None,
         }
     }
 
@@ -1004,7 +1006,12 @@ impl crate::state::GameState {
                 .next()
                 .expect("one candidate"),
         );
-        self.enter_region_with(region, frame, &[(Provenance::Candidate, value)], &[])
+        self.enter_region_with(
+            region,
+            frame,
+            &[(Provenance::Candidate(region.candidate_domain()), value)],
+            &[],
+        )
     }
 
     /// A GONE candidate's region entry: the candidate binds as the snapshot
@@ -1029,7 +1036,12 @@ impl crate::state::GameState {
             current: self.objects.get(candidate.object).map(|_| candidate.object),
             lki: Some(candidate.clone()),
         });
-        self.enter_region_with(region, frame, &[(Provenance::Candidate, value)], &[])
+        self.enter_region_with(
+            region,
+            frame,
+            &[(Provenance::Candidate(region.candidate_domain()), value)],
+            &[],
+        )
     }
 
     pub(crate) fn enter_loop_region(
@@ -1354,7 +1366,11 @@ mod tests {
         let snapshot = LkiSnapshot::capture(&state, candidate);
         state.objects.remove(candidate);
 
-        let region = Region::unary(deckmaste_core::Kind::Object, Provenance::Candidate, ());
+        let region = Region::unary(
+            deckmaste_core::Kind::Entity,
+            Provenance::Candidate(deckmaste_core::Domain::Entity),
+            (),
+        );
         let frame = Frame::bare(source, PlayerId(0));
 
         let by_id = state.enter_candidate_region(&region, &frame, candidate);

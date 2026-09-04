@@ -9,7 +9,7 @@ impl Lower for deckmaste_semantics::Selection {
     fn lower(self) -> <Self as Lower>::Target {
         match self {
             Self::SelectAll(f0) => deckmaste_core::Selection::SelectAll(std::sync::Arc::new(
-                crate::region::candidate_region(|| f0.lower()),
+                crate::region::predicate_region(|| f0.lower()),
             )),
             Self::Union(f0) => deckmaste_core::Selection::Union(f0.lower()),
             Self::InChosenOrder(f0, f1) => {
@@ -125,7 +125,7 @@ mod tests {
             deckmaste_semantics::Selection::Random(minimal_quantity(), minimal_predicate()).lower(),
             deckmaste_core::Selection::Random(
                 deckmaste_core::Quantity::Range(None, None),
-                deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+                deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
             )
         );
     }
@@ -261,10 +261,10 @@ mod tests {
     #[test]
     fn lowers_selection_they_to_the_group_register() {
         let (_, lowered) = crate::region::in_region(crate::region::RegionKind::Spell, 0, || {
-            let group = crate::region::define(deckmaste_core::Kind::Objects);
+            let group = crate::region::define(deckmaste_core::Kind::Entities);
             crate::region::push_antecedent(
                 group.into(),
-                deckmaste_core::Kind::Objects,
+                deckmaste_core::Kind::Entities,
                 crate::region::Cardinality::Many,
                 None,
                 crate::region::Site::Frame,
@@ -282,18 +282,18 @@ mod tests {
     #[test]
     fn lowers_selection_them_to_the_sorted_group_register() {
         let (_, lowered) = crate::region::in_region(crate::region::RegionKind::Spell, 0, || {
-            let cards = crate::region::define(deckmaste_core::Kind::Objects);
+            let cards = crate::region::define(deckmaste_core::Kind::Entities);
             crate::region::push_antecedent(
                 cards.into(),
-                deckmaste_core::Kind::Objects,
+                deckmaste_core::Kind::Entities,
                 crate::region::Cardinality::Many,
                 Some(deckmaste_semantics::Sort::Card),
                 crate::region::Site::Frame,
             );
-            let players = crate::region::define(deckmaste_core::Kind::Objects);
+            let players = crate::region::define(deckmaste_core::Kind::Entities);
             crate::region::push_antecedent(
                 players.into(),
-                deckmaste_core::Kind::Objects,
+                deckmaste_core::Kind::Entities,
                 crate::region::Cardinality::Many,
                 Some(deckmaste_semantics::Sort::Player),
                 crate::region::Site::Frame,

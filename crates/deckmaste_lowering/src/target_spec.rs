@@ -10,7 +10,7 @@ impl Lower for deckmaste_semantics::TargetSpec {
         match self {
             Self::Target(f0, f1) => deckmaste_core::TargetSpec::Target(
                 f0.lower(),
-                std::sync::Arc::new(crate::region::candidate_region(|| f1.lower())),
+                std::sync::Arc::new(crate::region::predicate_region(|| f1.lower())),
             ),
             Self::Distinct(f0, f1) => deckmaste_core::TargetSpec::Distinct(f0.lower(), f1.lower()),
             // Invocation provenance does not cross `lower`: the core grammar is

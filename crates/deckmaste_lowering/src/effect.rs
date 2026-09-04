@@ -613,7 +613,7 @@ mod tests {
             each.body.params[0],
             deckmaste_core::Param {
                 def: deckmaste_core::DefId(0),
-                kind: deckmaste_core::Kind::Object,
+                kind: deckmaste_core::Kind::Entity,
                 provenance: deckmaste_core::Provenance::LoopElement,
             },
             "the body declares its element as parameter zero"
@@ -681,12 +681,12 @@ mod tests {
         assert_eq!(reveal.passed, deckmaste_core::DefId(4));
         assert_eq!(
             reveal.matches.params[0].provenance,
-            deckmaste_core::Provenance::Candidate,
-            "the match test is a per-candidate region"
+            deckmaste_core::Provenance::Candidate(deckmaste_core::Domain::Object),
+            "the match test is a per-candidate region over the Object domain"
         );
         assert_eq!(
             reveal.matches.body,
-            deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+            deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
         );
     }
 
@@ -1222,13 +1222,13 @@ fn lower_existing_each(
 ) -> Instr {
     let (params, body) = crate::region::in_child(
         [(
-            deckmaste_core::Kind::Object,
+            deckmaste_core::Kind::Entity,
             deckmaste_core::Provenance::LoopElement,
         )],
         || {
             crate::region::push_antecedent(
                 deckmaste_core::RefId(0),
-                deckmaste_core::Kind::Object,
+                deckmaste_core::Kind::Entity,
                 crate::region::Cardinality::One,
                 None,
                 crate::region::Site::Loop,
@@ -1287,10 +1287,10 @@ fn lower_action(action: deckmaste_semantics::Action) -> Vec<Instr> {
     let action = action.lower();
     match &action {
         deckmaste_core::Action::Move(_, destination, _, _) => {
-            let dest = crate::region::define(deckmaste_core::Kind::Object);
+            let dest = crate::region::define(deckmaste_core::Kind::Entity);
             crate::region::push_antecedent(
                 dest.into(),
-                deckmaste_core::Kind::Object,
+                deckmaste_core::Kind::Entity,
                 crate::region::Cardinality::One,
                 Some(destination_sort(destination)),
                 crate::region::Site::Product,
@@ -1298,10 +1298,10 @@ fn lower_action(action: deckmaste_semantics::Action) -> Vec<Instr> {
             vec![Instr::producing(dest, action)]
         }
         deckmaste_core::Action::MoveGroup { to, .. } => {
-            let dest = crate::region::define(deckmaste_core::Kind::Objects);
+            let dest = crate::region::define(deckmaste_core::Kind::Entities);
             crate::region::push_antecedent(
                 dest.into(),
-                deckmaste_core::Kind::Objects,
+                deckmaste_core::Kind::Entities,
                 crate::region::Cardinality::Many,
                 Some(destination_sort(to)),
                 crate::region::Site::Product,
@@ -1309,10 +1309,10 @@ fn lower_action(action: deckmaste_semantics::Action) -> Vec<Instr> {
             vec![Instr::producing(dest, action)]
         }
         deckmaste_core::Action::Create { .. } => {
-            let dest = crate::region::define(deckmaste_core::Kind::Objects);
+            let dest = crate::region::define(deckmaste_core::Kind::Entities);
             crate::region::push_antecedent(
                 dest.into(),
-                deckmaste_core::Kind::Objects,
+                deckmaste_core::Kind::Entities,
                 crate::region::Cardinality::Many,
                 Some(deckmaste_semantics::Sort::Token),
                 crate::region::Site::Product,
@@ -1320,10 +1320,10 @@ fn lower_action(action: deckmaste_semantics::Action) -> Vec<Instr> {
             vec![Instr::producing(dest, action)]
         }
         deckmaste_core::Action::DrawCard(_) => {
-            let dest = crate::region::define(deckmaste_core::Kind::Object);
+            let dest = crate::region::define(deckmaste_core::Kind::Entity);
             crate::region::push_antecedent(
                 dest.into(),
-                deckmaste_core::Kind::Object,
+                deckmaste_core::Kind::Entity,
                 crate::region::Cardinality::One,
                 Some(deckmaste_semantics::Sort::Card),
                 crate::region::Site::Product,
@@ -1466,7 +1466,7 @@ pub(crate) fn lower_binder(binder: deckmaste_semantics::Binder) -> (Vec<Instr>, 
     match binder {
         Binder::TheRef(reference) => {
             let reference = reference.lower();
-            let dest = crate::region::define(deckmaste_core::Kind::Object);
+            let dest = crate::region::define(deckmaste_core::Kind::Entity);
             (
                 vec![Instr::Let(deckmaste_core::Let {
                     dest,
@@ -1474,7 +1474,7 @@ pub(crate) fn lower_binder(binder: deckmaste_semantics::Binder) -> (Vec<Instr>, 
                 })],
                 BoundValue {
                     reference: dest.into(),
-                    kind: deckmaste_core::Kind::Object,
+                    kind: deckmaste_core::Kind::Entity,
                     cardinality: crate::region::Cardinality::One,
                     sort: None,
                 },
@@ -1483,8 +1483,8 @@ pub(crate) fn lower_binder(binder: deckmaste_semantics::Binder) -> (Vec<Instr>, 
         Binder::ChooseOne { filter, by } => {
             let sort = predicate_sort(&filter);
             let by = by.lower();
-            let filter = std::sync::Arc::new(crate::region::candidate_region(|| filter.lower()));
-            let dest = crate::region::define(deckmaste_core::Kind::Objects);
+            let filter = std::sync::Arc::new(crate::region::predicate_region(|| filter.lower()));
+            let dest = crate::region::define(deckmaste_core::Kind::Entities);
             (
                 vec![Instr::Choose(deckmaste_core::Choose {
                     dest,
@@ -1494,7 +1494,7 @@ pub(crate) fn lower_binder(binder: deckmaste_semantics::Binder) -> (Vec<Instr>, 
                 })],
                 BoundValue {
                     reference: dest.into(),
-                    kind: deckmaste_core::Kind::Objects,
+                    kind: deckmaste_core::Kind::Entities,
                     cardinality: crate::region::Cardinality::One,
                     sort,
                 },
@@ -1507,8 +1507,8 @@ pub(crate) fn lower_binder(binder: deckmaste_semantics::Binder) -> (Vec<Instr>, 
         } => {
             let by = by.lower();
             let quantity = quantity.lower();
-            let filter = std::sync::Arc::new(crate::region::candidate_region(|| filter.lower()));
-            let dest = crate::region::define(deckmaste_core::Kind::Objects);
+            let filter = std::sync::Arc::new(crate::region::predicate_region(|| filter.lower()));
+            let dest = crate::region::define(deckmaste_core::Kind::Entities);
             (
                 vec![Instr::Choose(deckmaste_core::Choose {
                     dest,
@@ -1518,7 +1518,7 @@ pub(crate) fn lower_binder(binder: deckmaste_semantics::Binder) -> (Vec<Instr>, 
                 })],
                 BoundValue {
                     reference: dest.into(),
-                    kind: deckmaste_core::Kind::Objects,
+                    kind: deckmaste_core::Kind::Entities,
                     cardinality: crate::region::Cardinality::Many,
                     sort: None,
                 },
@@ -1526,7 +1526,7 @@ pub(crate) fn lower_binder(binder: deckmaste_semantics::Binder) -> (Vec<Instr>, 
         }
         Binder::Existing(selection) => {
             let selection = selection.lower();
-            let dest = crate::region::define(deckmaste_core::Kind::Objects);
+            let dest = crate::region::define(deckmaste_core::Kind::Entities);
             (
                 vec![Instr::Let(deckmaste_core::Let {
                     dest,
@@ -1534,7 +1534,7 @@ pub(crate) fn lower_binder(binder: deckmaste_semantics::Binder) -> (Vec<Instr>, 
                 })],
                 BoundValue {
                     reference: dest.into(),
-                    kind: deckmaste_core::Kind::Objects,
+                    kind: deckmaste_core::Kind::Entities,
                     cardinality: crate::region::Cardinality::Many,
                     sort: None,
                 },
@@ -1544,22 +1544,22 @@ pub(crate) fn lower_binder(binder: deckmaste_semantics::Binder) -> (Vec<Instr>, 
             let action = std::sync::Arc::unwrap_or_clone(action).lower();
             let (kind, cardinality, sort) = match &action {
                 deckmaste_core::Action::Move(_, to, _, _) => (
-                    deckmaste_core::Kind::Object,
+                    deckmaste_core::Kind::Entity,
                     crate::region::Cardinality::One,
                     Some(destination_sort(to)),
                 ),
                 deckmaste_core::Action::MoveGroup { to, .. } => (
-                    deckmaste_core::Kind::Objects,
+                    deckmaste_core::Kind::Entities,
                     crate::region::Cardinality::Many,
                     Some(destination_sort(to)),
                 ),
                 deckmaste_core::Action::Create { .. } => (
-                    deckmaste_core::Kind::Objects,
+                    deckmaste_core::Kind::Entities,
                     crate::region::Cardinality::Many,
                     Some(deckmaste_semantics::Sort::Token),
                 ),
                 _ => (
-                    deckmaste_core::Kind::Object,
+                    deckmaste_core::Kind::Entity,
                     crate::region::Cardinality::One,
                     None,
                 ),
@@ -1619,13 +1619,13 @@ fn lower_search(
     let by = by.lower();
     let whose = whose.lower();
     let from = from.lower();
-    let filter = std::sync::Arc::new(crate::region::candidate_region(|| filter.lower()));
+    let filter = std::sync::Arc::new(crate::region::predicate_region(|| filter.lower()));
     let if_none = crate::region::scoped_antecedents(|| {
         if_none.map_or_else(deckmaste_core::Block::default, |effect| {
             lower_block(std::sync::Arc::unwrap_or_clone(effect))
         })
     });
-    let dest = crate::region::define(deckmaste_core::Kind::Objects);
+    let dest = crate::region::define(deckmaste_core::Kind::Entities);
     (
         vec![Instr::Search(deckmaste_core::Search {
             dest,
@@ -1638,7 +1638,7 @@ fn lower_search(
         })],
         BoundValue {
             reference: dest.into(),
-            kind: deckmaste_core::Kind::Objects,
+            kind: deckmaste_core::Kind::Entities,
             cardinality: crate::region::Cardinality::Many,
             sort: Some(deckmaste_semantics::Sort::Card),
         },
@@ -1741,13 +1741,13 @@ fn lower_instructions(effect: deckmaste_semantics::OneShotEffect) -> Vec<Instr> 
             let over = deckmaste_core::Selection::Reg(bound.reference);
             let (params, body) = crate::region::in_child(
                 [(
-                    deckmaste_core::Kind::Object,
+                    deckmaste_core::Kind::Entity,
                     deckmaste_core::Provenance::LoopElement,
                 )],
                 || {
                     crate::region::push_antecedent(
                         deckmaste_core::RefId(0),
-                        deckmaste_core::Kind::Object,
+                        deckmaste_core::Kind::Entity,
                         crate::region::Cardinality::One,
                         bound.sort,
                         crate::region::Site::Loop,
@@ -1768,7 +1768,7 @@ fn lower_instructions(effect: deckmaste_semantics::OneShotEffect) -> Vec<Instr> 
                 let (params, body) = crate::region::in_child(
                     [
                         (
-                            deckmaste_core::Kind::Object,
+                            deckmaste_core::Kind::Entity,
                             deckmaste_core::Provenance::LoopElement,
                         ),
                         (
@@ -1779,7 +1779,7 @@ fn lower_instructions(effect: deckmaste_semantics::OneShotEffect) -> Vec<Instr> 
                     || {
                         crate::region::push_antecedent(
                             deckmaste_core::RefId(0),
-                            deckmaste_core::Kind::Object,
+                            deckmaste_core::Kind::Entity,
                             crate::region::Cardinality::One,
                             None,
                             crate::region::Site::Loop,
@@ -1805,7 +1805,7 @@ fn lower_instructions(effect: deckmaste_semantics::OneShotEffect) -> Vec<Instr> 
             let (params, body) = crate::region::in_child(
                 [
                     (
-                        deckmaste_core::Kind::Object,
+                        deckmaste_core::Kind::Entity,
                         deckmaste_core::Provenance::LoopElement,
                     ),
                     (
@@ -1816,7 +1816,7 @@ fn lower_instructions(effect: deckmaste_semantics::OneShotEffect) -> Vec<Instr> 
                 || {
                     crate::region::push_antecedent(
                         deckmaste_core::RefId(0),
-                        deckmaste_core::Kind::Object,
+                        deckmaste_core::Kind::Entity,
                         crate::region::Cardinality::One,
                         bound.sort,
                         crate::region::Site::Loop,
@@ -1841,19 +1841,19 @@ fn lower_instructions(effect: deckmaste_semantics::OneShotEffect) -> Vec<Instr> 
         S::RevealUntil(reveal) => {
             let whose = reveal.whose.lower();
             let matches =
-                std::sync::Arc::new(crate::region::candidate_region(|| reveal.matches.lower()));
-            let found = crate::region::define(deckmaste_core::Kind::Object);
-            let passed = crate::region::define(deckmaste_core::Kind::Objects);
+                std::sync::Arc::new(crate::region::predicate_region(|| reveal.matches.lower()));
+            let found = crate::region::define(deckmaste_core::Kind::Entity);
+            let passed = crate::region::define(deckmaste_core::Kind::Entities);
             crate::region::push_antecedent(
                 found.into(),
-                deckmaste_core::Kind::Object,
+                deckmaste_core::Kind::Entity,
                 crate::region::Cardinality::One,
                 Some(deckmaste_semantics::Sort::Card),
                 crate::region::Site::Loop,
             );
             crate::region::push_antecedent(
                 passed.into(),
-                deckmaste_core::Kind::Objects,
+                deckmaste_core::Kind::Entities,
                 crate::region::Cardinality::Many,
                 Some(deckmaste_semantics::Sort::Card),
                 crate::region::Site::Frame,

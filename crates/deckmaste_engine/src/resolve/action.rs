@@ -5509,17 +5509,17 @@ mod tests {
             Arc::from([
                 deckmaste_core::Param {
                     def: deckmaste_core::DefId(0),
-                    kind: deckmaste_core::Kind::Object,
+                    kind: deckmaste_core::Kind::Entity,
                     provenance: deckmaste_core::Provenance::LoopElement,
                 },
                 deckmaste_core::Param {
                     def: deckmaste_core::DefId(1),
-                    kind: deckmaste_core::Kind::Object,
+                    kind: deckmaste_core::Kind::Entity,
                     provenance: deckmaste_core::Provenance::Source,
                 },
                 deckmaste_core::Param {
                     def: deckmaste_core::DefId(2),
-                    kind: deckmaste_core::Kind::Object,
+                    kind: deckmaste_core::Kind::Entity,
                     provenance: deckmaste_core::Provenance::Controller,
                 },
             ]),
@@ -6046,7 +6046,7 @@ mod tests {
                     ),
                     OneShotEffect::Remember(deckmaste_core::Remember {
                         cell: deckmaste_core::Ident::from("milled"),
-                        kind: deckmaste_core::Kind::Objects,
+                        kind: deckmaste_core::Kind::Entities,
                         value: FIRST_DEF.into(),
                     }),
                 ]
@@ -6073,17 +6073,17 @@ mod tests {
             Arc::from([
                 deckmaste_core::Param {
                     def: deckmaste_core::DefId(0),
-                    kind: deckmaste_core::Kind::Object,
+                    kind: deckmaste_core::Kind::Entity,
                     provenance: deckmaste_core::Provenance::Source,
                 },
                 deckmaste_core::Param {
                     def: deckmaste_core::DefId(1),
-                    kind: deckmaste_core::Kind::Object,
+                    kind: deckmaste_core::Kind::Entity,
                     provenance: deckmaste_core::Provenance::Controller,
                 },
                 deckmaste_core::Param {
                     def: deckmaste_core::DefId(2),
-                    kind: deckmaste_core::Kind::Objects,
+                    kind: deckmaste_core::Kind::Entities,
                     provenance: deckmaste_core::Provenance::Linked(deckmaste_core::Ident::from(
                         "milled",
                     )),

@@ -535,17 +535,17 @@ mod tests {
                         Arc::from([
                             Param {
                                 def: DefId(0),
-                                kind: Kind::Object,
-                                provenance: Provenance::Candidate,
+                                kind: Kind::Entity,
+                                provenance: Provenance::Candidate(deckmaste_core::Domain::Entity),
                             },
                             Param {
                                 def: DefId(1),
-                                kind: Kind::Object,
+                                kind: Kind::Entity,
                                 provenance: Provenance::Source,
                             },
                             Param {
                                 def: DefId(2),
-                                kind: Kind::Object,
+                                kind: Kind::Entity,
                                 provenance: Provenance::Controller,
                             },
                         ]),

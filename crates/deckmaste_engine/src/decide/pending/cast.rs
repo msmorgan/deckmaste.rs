@@ -91,7 +91,7 @@ impl DecisionHandler for ChooseTargets {
         // `g.placing_trigger` is `Some` only while a triggered
         // ability's placement-time target choice is in flight, an
         // orthogonal discriminator from the `by` filter's
-        // `ObjectKind::Ability` collapse (which stays untouched —
+        // `ObjectClass::AbilityOnStack` collapse (which stays untouched —
         // it still lets a filter match "activated or triggered
         // ability" for Stifle-style effects).
         if g.placing_trigger.is_none() {

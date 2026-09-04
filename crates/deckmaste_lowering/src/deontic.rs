@@ -198,7 +198,9 @@ mod tests {
             }
             .lower(),
             deckmaste_core::AsThough::Counterfactual {
-                premise: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                premise: deckmaste_core::Predicate::Class(
+                    deckmaste_core::ObjectClass::AbilityOnStack
+                ),
                 then: _
             }
         );
@@ -215,7 +217,9 @@ mod tests {
             })
             .lower(),
             deckmaste_core::AsThough::Counterfactual {
-                premise: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                premise: deckmaste_core::Predicate::Class(
+                    deckmaste_core::ObjectClass::AbilityOnStack
+                ),
                 then: _
             }
         );
@@ -285,8 +289,8 @@ mod tests {
             }
             .lower(),
             deckmaste_core::DeonticAction::Attack {
-                by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                on: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+                by: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
+                on: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
             }
         );
     }
@@ -301,8 +305,8 @@ mod tests {
             }
             .lower(),
             deckmaste_core::DeonticAction::Block {
-                by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                on: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                by: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
+                on: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
                 count: None
             }
         );
@@ -321,7 +325,7 @@ mod tests {
                     stack_object: None,
                     source: None
                 },
-                on: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+                on: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
             }
         );
     }
@@ -335,8 +339,8 @@ mod tests {
             }
             .lower(),
             deckmaste_core::DeonticAction::Attach {
-                what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                to: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+                what: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
+                to: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
             }
         );
     }
@@ -354,8 +358,8 @@ mod tests {
             }
             .lower(),
             deckmaste_core::DeonticAction::Cast {
-                what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                what: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
+                by: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
                 from: None,
                 window: None,
                 cost: None,
@@ -374,8 +378,8 @@ mod tests {
             }
             .lower(),
             deckmaste_core::DeonticAction::Play {
-                what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                what: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
+                by: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
                 from: None
             }
         );
@@ -391,8 +395,8 @@ mod tests {
             }
             .lower(),
             deckmaste_core::DeonticAction::Activate {
-                what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                what: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
+                by: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
                 cost: None
             }
         );
@@ -407,8 +411,8 @@ mod tests {
             }
             .lower(),
             deckmaste_core::DeonticAction::Regenerate {
-                by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                on: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+                by: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
+                on: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
             }
         );
     }
@@ -422,8 +426,8 @@ mod tests {
             }
             .lower(),
             deckmaste_core::DeonticAction::Counter {
-                by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                on: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+                by: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
+                on: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
             }
         );
     }
@@ -436,7 +440,7 @@ mod tests {
             }
             .lower(),
             deckmaste_core::DeonticAction::Untap {
-                what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+                what: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
             }
         );
     }
@@ -452,8 +456,8 @@ mod tests {
             })
             .lower(),
             deckmaste_core::DeonticAction::Attack {
-                by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                on: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+                by: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
+                on: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
             }
         );
     }
@@ -463,8 +467,8 @@ mod tests {
         assert_matches!(
             deckmaste_semantics::Deontic::May(minimal_deontic_action()).lower(),
             deckmaste_core::Deontic::May(deckmaste_core::DeonticAction::Attack {
-                by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                on: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+                by: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
+                on: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
             })
         );
     }
@@ -474,8 +478,8 @@ mod tests {
         assert_matches!(
             deckmaste_semantics::Deontic::Cant(minimal_deontic_action()).lower(),
             deckmaste_core::Deontic::Cant(deckmaste_core::DeonticAction::Attack {
-                by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                on: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+                by: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
+                on: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
             })
         );
     }
@@ -485,8 +489,8 @@ mod tests {
         assert_matches!(
             deckmaste_semantics::Deontic::Must(minimal_deontic_action()).lower(),
             deckmaste_core::Deontic::Must(deckmaste_core::DeonticAction::Attack {
-                by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                on: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+                by: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
+                on: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
             })
         );
     }
@@ -497,8 +501,12 @@ mod tests {
             deckmaste_semantics::Deontic::Gate(minimal_deontic_action(), [].into()).lower(),
             deckmaste_core::Deontic::Gate(
                 deckmaste_core::DeonticAction::Attack {
-                    by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                    on: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+                    by: deckmaste_core::Predicate::Class(
+                        deckmaste_core::ObjectClass::AbilityOnStack
+                    ),
+                    on: deckmaste_core::Predicate::Class(
+                        deckmaste_core::ObjectClass::AbilityOnStack
+                    )
                 },
                 _
             )
@@ -516,8 +524,8 @@ mod tests {
             })
             .lower(),
             deckmaste_core::Deontic::May(deckmaste_core::DeonticAction::Attack {
-                by: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                on: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+                by: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
+                on: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
             })
         );
     }

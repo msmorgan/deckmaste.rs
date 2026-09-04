@@ -247,8 +247,9 @@ pub use stack::StackObject;
 
 mod target;
 pub use target::candidates;
+pub use target::entity_class;
+pub use target::is_object_class;
 pub use target::matches;
-pub use target::object_kind;
 
 mod transform;
 

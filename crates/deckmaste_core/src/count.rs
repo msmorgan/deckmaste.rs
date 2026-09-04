@@ -87,8 +87,9 @@ pub enum Countable {
     /// `Aggregate(MaxOf, Projection { of: Players(<all players>), by:
     /// PlayerStatOf(It, Life) })` reads "the highest life total among all
     /// players" (Arbiter of Knollridge). The boxed `Predicate` is the SAME
-    /// unified type `Objects` boxes — players are objects too
-    /// ([`crate::ObjectKind::Player`]) — boxed for the same size reason.
+    /// unified type `Objects` boxes — both range over Entities, and a player
+    /// is an Entity, not an object ([CR#109.1,102.1]) — boxed for the same
+    /// size reason.
     /// Idris's `Projectable`/`readableOn` gate what a `Players` source can
     /// feed (`Aggregate`/`CountOf`, never `CountDistinct`/`Pick` — those stay
     /// pinned to `Objects`/`Singleton`); the engine mirrors that by fizzling

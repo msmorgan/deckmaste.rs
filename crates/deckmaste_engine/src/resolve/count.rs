@@ -496,7 +496,7 @@ impl GameState {
             // (Idris's own gate); a `ManaSymbols`/`Singleton`/
             // `ManaSpentMatching` source fizzles to the empty set. Each
             // candidate — object OR player proxy, `candidates_with` doesn't
-            // distinguish (players are objects too) — binds `It` in a cloned
+            // distinguish (both are Entities) — binds `It` in a cloned
             // sub-frame, exactly as `Selection::Pick` does. Unlike `Pick`'s
             // frameless `candidates` (it has no real card needing a
             // carrier-relative `of` yet), a devotion-shaped `of` ("permanents
@@ -2231,17 +2231,19 @@ mod tests {
             Arc::from([
                 deckmaste_core::Param {
                     def: deckmaste_core::DefId(0),
-                    kind: deckmaste_core::Kind::Object,
-                    provenance: deckmaste_core::Provenance::Candidate,
+                    kind: deckmaste_core::Kind::Entity,
+                    provenance: deckmaste_core::Provenance::Candidate(
+                        deckmaste_core::Domain::Entity,
+                    ),
                 },
                 deckmaste_core::Param {
                     def: deckmaste_core::DefId(1),
-                    kind: deckmaste_core::Kind::Object,
+                    kind: deckmaste_core::Kind::Entity,
                     provenance: deckmaste_core::Provenance::Source,
                 },
                 deckmaste_core::Param {
                     def: deckmaste_core::DefId(2),
-                    kind: deckmaste_core::Kind::Object,
+                    kind: deckmaste_core::Kind::Entity,
                     provenance: deckmaste_core::Provenance::Controller,
                 },
             ]),
@@ -2483,7 +2485,7 @@ mod tests {
     #[test]
     fn player_aggregate_folds_life_totals_and_fizzles_to_zero_on_empty() {
         use deckmaste_core::AggregateOp;
-        use deckmaste_core::ObjectKind;
+        use deckmaste_core::EntityClass;
         use deckmaste_core::PlayerAttr;
         use deckmaste_core::Projection;
 
@@ -2505,7 +2507,7 @@ mod tests {
                 },
             )
         };
-        let all_players = || Predicate::Kind(ObjectKind::Player);
+        let all_players = || Predicate::Entity(EntityClass::Player);
         assert_eq!(
             state.eval_count(&life_fold(AggregateOp::MaxOf, all_players()), &frame),
             20,

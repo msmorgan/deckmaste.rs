@@ -1601,7 +1601,7 @@ fn by_matcher_fires_only_for_damage_from_its_own_source() {
 #[test]
 fn infect_source_gives_player_poison_not_life_loss() {
     let infect_player = damage_as_counters_static(
-        Predicate::Kind(deckmaste_core::ObjectKind::Player),
+        Predicate::Entity(deckmaste_core::EntityClass::Player),
         Reference::Reg(deckmaste_core::RefId(3)),
         "Poison",
     );
@@ -1661,7 +1661,7 @@ fn infect_source_puts_minus_counters_on_a_creature() {
 #[test]
 fn ten_poison_counters_lose_the_game() {
     let infect_player = damage_as_counters_static(
-        Predicate::Kind(deckmaste_core::ObjectKind::Player),
+        Predicate::Entity(deckmaste_core::EntityClass::Player),
         Reference::Reg(deckmaste_core::RefId(3)),
         "Poison",
     );
@@ -1868,7 +1868,7 @@ fn event_patient_object_reads_the_damage_recipient_creature() {
 #[test]
 fn event_patient_player_reads_the_damage_recipient_player() {
     let infect_player = damage_as_counters_static(
-        Predicate::Kind(deckmaste_core::ObjectKind::Player),
+        Predicate::Entity(deckmaste_core::EntityClass::Player),
         Reference::Reg(deckmaste_core::RefId(3)),
         "Poison",
     );

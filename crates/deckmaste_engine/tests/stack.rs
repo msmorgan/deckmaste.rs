@@ -3491,17 +3491,17 @@ fn inline_blink() -> Card {
     let params: Arc<[Param]> = Arc::from([
         Param {
             def: DefId(0),
-            kind: Kind::Object,
+            kind: Kind::Entity,
             provenance: Provenance::Source,
         },
         Param {
             def: DefId(1),
-            kind: Kind::Object,
+            kind: Kind::Entity,
             provenance: Provenance::Controller,
         },
         Param {
             def: DefId(2),
-            kind: Kind::Objects,
+            kind: Kind::Entities,
             provenance: Provenance::AnnouncedTarget(0),
         },
         Param {
@@ -4248,7 +4248,7 @@ fn off_stack_copy_ceases_via_sba() {
 }
 
 /// core-copy-grammar Task 4: [CR#109.1] a card-less spell copy classifies
-/// through `object_kind`/`Predicate::Kind` — the SAME predicate-evaluation
+/// through `is_object_class`/`Predicate::Class` — the SAME predicate-evaluation
 /// path an SBA `scope` uses (`sba.rs`'s `crate::matches(state, id,
 /// &rule.scope)`) — as `Spell` while genuinely on the stack ([CR#707.10]:
 /// "a copy of a spell is itself a spell"), and as `CardCopy` once stranded
@@ -4257,16 +4257,15 @@ fn off_stack_copy_ceases_via_sba() {
 /// planned `scope` predicate (core-copy-grammar Task 5) will select over.
 #[test]
 fn off_stack_copy_classifies_as_card_copy() {
-    use deckmaste_core::ObjectKind;
+    use deckmaste_core::ObjectClass;
     use deckmaste_core::Predicate;
 
     let mut state = copy_game(1, 2);
     let (_bolt, copy, _face) = cast_and_copy_bolt_at_face(&mut state);
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
 
-    assert_eq!(
-        deckmaste_engine::object_kind(&state, copy),
-        ObjectKind::Spell,
+    assert!(
+        deckmaste_engine::is_object_class(&state, copy, ObjectClass::Spell),
         "[CR#707.10]: still genuinely on the stack, the copy is a Spell"
     );
 
@@ -4276,14 +4275,13 @@ fn off_stack_copy_classifies_as_card_copy() {
     // mid-transition). `state.stack` still carries the copy's entry.
     state.objects.obj_mut(copy).zone = Some(Zone::Graveyard);
 
-    assert_eq!(
-        deckmaste_engine::object_kind(&state, copy),
-        ObjectKind::CardCopy,
+    assert!(
+        deckmaste_engine::is_object_class(&state, copy, ObjectClass::CopyOfACard),
         "[CR#109.1,707.10a]: stranded off the stack, the card-less copy \
          entry classifies as CardCopy"
     );
     assert!(
-        deckmaste_engine::matches(&state, copy, &Predicate::Kind(ObjectKind::CardCopy)),
+        deckmaste_engine::matches(&state, copy, &Predicate::Class(ObjectClass::CopyOfACard)),
         "Filter::CardCopy matches through the same predicate path an SBA \
          scope evaluates"
     );

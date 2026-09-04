@@ -351,7 +351,8 @@ fn runnable_predicate_is_bound(predicate: &crate::Predicate) -> bool {
         // Conditions can embed every event/action/reference family. Keep the
         // checked cost representation closed until a complete visitor exists.
         Predicate::Where(_) => false,
-        Predicate::Kind(_)
+        Predicate::Entity(_)
+        | Predicate::Class(_)
         | Predicate::Characteristic(_)
         | Predicate::State(_)
         | Predicate::Any => true,
@@ -1032,12 +1033,12 @@ mod tests {
             Arc::from([
                 crate::Param {
                     def: crate::DefId(0),
-                    kind: crate::Kind::Object,
+                    kind: crate::Kind::Entity,
                     provenance: crate::Provenance::Source,
                 },
                 crate::Param {
                     def: crate::DefId(1),
-                    kind: crate::Kind::Object,
+                    kind: crate::Kind::Entity,
                     provenance: crate::Provenance::Controller,
                 },
             ]),

@@ -286,6 +286,9 @@ mutual
     Permanent : Predicate bs Object
     IsCard : Predicate bs Object
     IsToken : Predicate bs Object
+    IsSpell : Predicate bs Object
+    IsEmblem : Predicate bs Object
+    IsCopyOfACard : Predicate bs Object
     IsHistoric : Predicate bs Object
     IsTransformed : Predicate bs Object
     HasStatus : {c : StatusCat} -> (v : StatusVal c) -> Predicate bs Object
@@ -440,6 +443,8 @@ mutual
   seedZone (AttachedBy _ _) = Just Battlefield
   seedZone (AttachedTo _) = Just Battlefield
   seedZone IsToken = Just Battlefield
+  seedZone IsSpell = Just Stack
+  seedZone IsEmblem = Just Command
   seedZone IsTransformed = Just Battlefield
   seedZone (HasStatus _) = Just Battlefield
   seedZone (Targets _ _) = Just Stack
@@ -552,6 +557,9 @@ mutual
   hasHead Permanent = True
   hasHead IsCard = True
   hasHead IsToken = True
+  hasHead IsSpell = True
+  hasHead IsEmblem = True
+  hasHead IsCopyOfACard = True
   hasHead (CompareOver dom _ _ _) = hasHead dom
   hasHead (InZone _) = True
   hasHead (ExiledWith _) = True
@@ -746,6 +754,12 @@ mutual
   predEq IsCard _ = False
   predEq IsToken IsToken = True
   predEq IsToken _ = False
+  predEq IsSpell IsSpell = True
+  predEq IsSpell _ = False
+  predEq IsEmblem IsEmblem = True
+  predEq IsEmblem _ = False
+  predEq IsCopyOfACard IsCopyOfACard = True
+  predEq IsCopyOfACard _ = False
   predEq IsHistoric IsHistoric = True
   predEq IsHistoric _ = False
   predEq IsTransformed IsTransformed = True
@@ -826,6 +840,14 @@ mutual
                      Predicate bs k -> Predicate bs k -> Bool
   cardTokenClashOf IsCard IsToken = True
   cardTokenClashOf IsToken IsCard = True
+  cardTokenClashOf IsEmblem IsCard = True
+  cardTokenClashOf IsCard IsEmblem = True
+  cardTokenClashOf IsEmblem Permanent = True
+  cardTokenClashOf Permanent IsEmblem = True
+  cardTokenClashOf IsEmblem IsToken = True
+  cardTokenClashOf IsToken IsEmblem = True
+  cardTokenClashOf IsCard IsCopyOfACard = True
+  cardTokenClashOf IsCopyOfACard IsCard = True
   cardTokenClashOf _ _ = False
 
   public export

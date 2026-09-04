@@ -976,7 +976,7 @@ mod tests {
     /// structurally (the native scan's domain is `state.stack` only, and a
     /// token never rides a `StackEntry` — it isn't cast), but this pins it
     /// behaviorally: mint a token COPY (the shape most likely to be
-    /// confused for a `CardCopy`, per `target::object_kind`'s [CR#109.1]
+    /// confused for a `CopyOfACard`, per `target::is_object_class`'s [CR#109.1]
     /// carve-out —
     /// `token_copy_and_plain_token_both_classify_as_token_not_card_copy`,
     /// `resolve/player_action.rs`, pins the same carve-out at the
@@ -989,7 +989,7 @@ mod tests {
         use deckmaste_core::CopySource;
         use deckmaste_core::CopySpec;
         use deckmaste_core::Count;
-        use deckmaste_core::ObjectKind;
+        use deckmaste_core::ObjectClass;
         use deckmaste_core::OneShotEffect;
         use deckmaste_core::Reference;
 
@@ -1021,9 +1021,8 @@ mod tests {
             .find(|&&id| id != bear)
             .expect("the token copy on the battlefield");
 
-        assert_eq!(
-            crate::target::object_kind(&state, copy_token),
-            ObjectKind::Token,
+        assert!(
+            crate::target::is_object_class(&state, copy_token, ObjectClass::Token),
             "[CR#109.1,111.1]: a minted token copy classifies as Token, never \
              CardCopy — the copy-cease SBA's scope would never select it even \
              if data-fied"
@@ -1109,12 +1108,14 @@ mod tests {
             Arc::from([
                 deckmaste_core::Param {
                     def: deckmaste_core::DefId(0),
-                    kind: deckmaste_core::Kind::Object,
-                    provenance: deckmaste_core::Provenance::Candidate,
+                    kind: deckmaste_core::Kind::Entity,
+                    provenance: deckmaste_core::Provenance::Candidate(
+                        deckmaste_core::Domain::Entity,
+                    ),
                 },
                 deckmaste_core::Param {
                     def: deckmaste_core::DefId(1),
-                    kind: deckmaste_core::Kind::Object,
+                    kind: deckmaste_core::Kind::Entity,
                     provenance: deckmaste_core::Provenance::Controller,
                 },
             ]),

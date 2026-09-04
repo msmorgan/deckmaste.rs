@@ -193,7 +193,7 @@ commandZ = ZoneAt Command Bare
 
 public export
 spell : Predicate bs Object
-spell = InZone (ZoneAt Stack Bare)
+spell = IsSpell
 
 public export
 frontFace : (name : String) -> (cost : Maybe ManaCost) ->
@@ -422,6 +422,22 @@ faceDown = HasStatus FaceDown
 public export
 nontoken : Predicate bs Object
 nontoken = Not IsToken
+
+public export
+emblem : Predicate bs Object
+emblem = IsEmblem
+
+public export
+copyOfACard : Predicate bs Object
+copyOfACard = IsCopyOfACard
+
+public export
+cardOnTheStack : Predicate bs Object
+cardOnTheStack = And [IsCard, IsSpell]
+
+public export
+tokenOnTheBattlefield : Predicate bs Object
+tokenOnTheBattlefield = And [IsToken, Permanent]
 
 
 public export

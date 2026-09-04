@@ -233,8 +233,8 @@ mod tests {
     fn lowers_designation_def_derived() {
         assert_matches!(
             deckmaste_semantics::DesignationDef::Derived(minimal_predicate()).lower(),
-            deckmaste_core::DesignationDef::Derived(deckmaste_core::Predicate::Kind(
-                deckmaste_core::ObjectKind::Ability
+            deckmaste_core::DesignationDef::Derived(deckmaste_core::Predicate::Class(
+                deckmaste_core::ObjectClass::AbilityOnStack
             ))
         );
     }

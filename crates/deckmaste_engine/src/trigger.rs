@@ -3116,7 +3116,7 @@ mod tests {
     /// ([CR#601.2i]) — and not an opponent's cast or a creature spell.
     #[test]
     fn performed_cast_matches_own_noncreature_cast() {
-        use deckmaste_core::ObjectKind;
+        use deckmaste_core::ObjectClass;
 
         let (mut state, bear) = bear_on_field();
         let watcher_source = state.objects.obj(bear).source;
@@ -3124,7 +3124,7 @@ mod tests {
             who: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(1))),
             what: Predicate::And(
                 vec![
-                    Predicate::Kind(ObjectKind::Spell),
+                    Predicate::Class(ObjectClass::Spell),
                     Predicate::Not(Arc::new(Predicate::r#type(Type::Creature))),
                 ]
                 .into(),
@@ -4828,7 +4828,7 @@ mod tests {
     #[test]
     fn rabblemaster_mints_a_goblin_at_beginning_of_combat() {
         use deckmaste_core::CombatStep;
-        use deckmaste_core::ObjectKind;
+        use deckmaste_core::ObjectClass;
         use deckmaste_core::PhaseStep;
 
         use crate::agenda::WorkItem;
@@ -4849,7 +4849,7 @@ mod tests {
         ))]);
         let goblin_exists = |state: &GameState| {
             state.zones.battlefield.iter().any(|&id| {
-                id != rabble && crate::target::object_kind(state, id) == ObjectKind::Token
+                id != rabble && crate::target::is_object_class(state, id, ObjectClass::Token)
             })
         };
         for _ in 0..200 {
@@ -4882,9 +4882,8 @@ mod tests {
             1,
             "exactly one Goblin token minted at beginning of combat"
         );
-        assert_eq!(
-            crate::target::object_kind(&state, goblins[0]),
-            ObjectKind::Token,
+        assert!(
+            crate::target::is_object_class(&state, goblins[0], ObjectClass::Token),
             "[CR#111.6]: it is a token, not a card"
         );
     }
@@ -6210,7 +6209,7 @@ mod tests {
     /// in the command zone.
     #[test]
     fn emblem_static_ability_functions_from_command_zone() {
-        use deckmaste_core::ObjectKind;
+        use deckmaste_core::ObjectClass;
 
         let (mut state, bear) = bear_on_field(); // player 0's 2/2 Grizzly Bears
         assert_eq!(state.layers().power(bear), Some(2), "baseline 2/2 bear");
@@ -6226,9 +6225,8 @@ mod tests {
             .command
             .last()
             .expect("emblem in the command zone");
-        assert_eq!(
-            crate::target::object_kind(&state, emblem),
-            ObjectKind::Emblem,
+        assert!(
+            crate::target::is_object_class(&state, emblem, ObjectClass::Emblem),
             "the object presents as an Emblem ([CR#114.5])"
         );
         assert_eq!(
@@ -6510,12 +6508,14 @@ mod tests {
             Arc::from([
                 deckmaste_core::Param {
                     def: deckmaste_core::DefId(0),
-                    kind: deckmaste_core::Kind::Object,
-                    provenance: deckmaste_core::Provenance::Candidate,
+                    kind: deckmaste_core::Kind::Entity,
+                    provenance: deckmaste_core::Provenance::Candidate(
+                        deckmaste_core::Domain::Entity,
+                    ),
                 },
                 deckmaste_core::Param {
                     def: deckmaste_core::DefId(1),
-                    kind: deckmaste_core::Kind::Object,
+                    kind: deckmaste_core::Kind::Entity,
                     provenance: deckmaste_core::Provenance::Source,
                 },
             ]),

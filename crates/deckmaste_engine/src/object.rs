@@ -69,13 +69,13 @@ pub struct CardInstance {
     pub def: Arc<Card>,
     pub owner: PlayerId,
     /// [CR#111.6]: a token isn't a card. Set for entries synthesized by
-    /// `TokenCreated`; `object_kind` reports `Token` (so
+    /// `TokenCreated`; `is_object_class` reports `Token` (so
     /// `Predicate::Kind(Card)` excludes them) and the ceases-to-exist SBA
     /// ([CR#704.5d]) keys on it.
     pub is_token: bool,
     /// [CR#114.5]: an emblem is neither a card nor a permanent, and "Emblem"
     /// isn't a card type. Set for entries synthesized by `EmblemCreated`; the
-    /// def carries only the emblem's abilities ([CR#114.3]), and `object_kind`
+    /// def carries only the emblem's abilities ([CR#114.3]), and `is_object_class`
     /// reports `Emblem` so every card/type/permanent filter excludes it.
     pub is_emblem: bool,
     /// Base copiable values for the FRONT face ([CR#712.8d]) — the face every
@@ -268,9 +268,11 @@ pub struct DamageMark {
     pub amount: Uint,
 }
 
-/// An object in the game ([CR#109]). An object whose `zone ==
-/// Some(Battlefield)` is a permanent ([CR#110.1]). A player proxy has `source =
-/// Player(..)` and `zone == None` (players are objects here, but in no zone).
+/// An addressable Entity in the game — an object ([CR#109]) or, through a
+/// proxy, a player ([CR#102.1]). An object whose `zone == Some(Battlefield)` is
+/// a permanent ([CR#110.1]). A player proxy has `source = Player(..)` and
+/// `zone == None`: a player is not in a Zone ([CR#400.1]), and the shared
+/// `ObjectId` store is storage, not a claim about the CR classification.
 #[derive(Debug, Clone)]
 pub struct GameObject {
     pub id: ObjectId,

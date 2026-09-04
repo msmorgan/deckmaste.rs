@@ -2,8 +2,9 @@
 //! the arms the corpus's `AnyTarget` reaches; the rest are `todo!`.
 
 use deckmaste_core::CharacteristicPredicate;
+use deckmaste_core::EntityClass;
 use deckmaste_core::Ident;
-use deckmaste_core::ObjectKind;
+use deckmaste_core::ObjectClass;
 use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
 use deckmaste_core::RelationPredicate;
@@ -17,67 +18,85 @@ use crate::stack::Frame;
 use crate::stack::StackObject;
 use crate::state::GameState;
 
-/// The object's kind ([CR#109.1]) as the corpus needs it: an activated/
-/// triggered ability on the stack is an `Ability`; a player proxy is a
-/// `Player`; a card on the stack is a `Spell` (a copy of a spell is itself a
-/// spell — [CR#707.10] — so this holds for a card-less stack copy too, see
-/// `StackEntry.copy`) — but a card-less copy stranded OFF the stack
-/// ([CR#707.10a]) is a `CardCopy`; a created token is a `Token`
-/// ([CR#111.6] — not a card) EVEN when it's a copy ([CR#707.1]): [CR#109.1]
-/// lists "a copy of a card" and "a token" as distinct kinds, [CR#111.1]
-/// carves out no exception for a copy-token, and [CR#707.10a]'s copy-cease
-/// SBA targets a copy of a spell/card, never a token — a token (copy or
-/// not) ceases under its OWN rule ([CR#111.7]) instead; otherwise a `Card`.
-///
-/// The ability check outranks all the source-based ones: an ability on the
-/// stack ([CR#602.2a,603.3]) carries a freshly minted `StackEntry.id` that
-/// *shares the source's `ObjectSource`* (the card/player it came from), so the
-/// match below would misread it as a `Spell` (card-in-stack) or `Player`. Its
-/// stack identity is the only place its abilityhood is knowable, so consult the
-/// stack first — that also covers an ability minted from a token source (the
-/// ability on the stack, not the token itself).
+/// Which Entity `id` is ([CR#109.1,102.1]): the engine addresses a player
+/// through a proxy carrying an `ObjectId`, and that proxy is the adapter — a
+/// player is an Entity, never an object.
 #[must_use]
-pub fn object_kind(state: &GameState, id: ObjectId) -> ObjectKind {
-    if state.stack.iter().any(|e| {
+pub fn entity_class(state: &GameState, id: ObjectId) -> EntityClass {
+    match state.objects.obj(id).source {
+        ObjectSource::Player(_) => EntityClass::Player,
+        ObjectSource::Card(_) => EntityClass::Object,
+    }
+}
+
+/// Whether `id` is an activated or triggered ability on the stack
+/// ([CR#602.2a,603.3]).
+///
+/// The stack is the only place abilityhood is knowable: an ability on the
+/// stack carries a freshly minted `StackEntry.id` that *shares the source's
+/// `ObjectSource`* (the card or player it came from), so every source-based
+/// test would misread it as a spell or a player. That also covers an ability
+/// minted from a token source — the ability on the stack, not the token.
+fn is_ability_on_stack(state: &GameState, id: ObjectId) -> bool {
+    state.stack.iter().any(|e| {
         e.id == id
             && matches!(
                 e.object,
                 StackObject::Triggered { .. } | StackObject::Activated { .. }
             )
-    }) {
-        return ObjectKind::Ability;
+    })
+}
+
+/// Whether `id` is a card-less copy ([CR#707.10]) — the engine's
+/// `StackEntry.copy` marker. A copy TOKEN is not one: its copiable values are
+/// baked into its definition at mint ([CR#707.1]) and it ceases under
+/// [CR#111.7] rather than [CR#707.10a]'s copy-cease SBA. The marker is the
+/// only per-object, non-aliased signal available, because a card-less copy's
+/// `ObjectSource::Card` aliases the ORIGINAL's `CardId`.
+fn is_cardless_copy(state: &GameState, id: ObjectId) -> bool {
+    matches!(state.objects.obj(id).source, ObjectSource::Card(_))
+        && state.stack.iter().any(|e| e.id == id && e.copy)
+}
+
+/// Whether `id` is in the CR object class `class` ([CR#109.1]). The classes
+/// are independently testable and overlap: a card on the stack answers `true`
+/// to both `Card` and `Spell`, and a battlefield token to both `Token` and
+/// `Permanent`. A player answers `false` to every class.
+#[must_use]
+pub fn is_object_class(state: &GameState, id: ObjectId, class: ObjectClass) -> bool {
+    if entity_class(state, id) == EntityClass::Player {
+        return false;
+    }
+    let ability = is_ability_on_stack(state, id);
+    if class == ObjectClass::AbilityOnStack {
+        return ability;
+    }
+    // An ability on the stack has no card and no characteristics of its own,
+    // so it is in no other class ([CR#405.1,113.7a]).
+    if ability {
+        return false;
     }
     let obj = state.objects.obj(id);
-    match obj.source {
-        ObjectSource::Player(_) => ObjectKind::Player,
-        ObjectSource::Card(_) if obj.zone == Some(Zone::Stack) => ObjectKind::Spell,
-        // [CR#109.1,707.10a]: a card-less spell copy (`StackEntry.copy`)
-        // that's been stranded off the stack — its entry lingers pending
-        // the copy-cease SBA sweep (the `sba.rs` safety net, or its planned
-        // data-driven successor) — reads `CardCopy` here. "A copy of a
-        // spell is itself a spell" ([CR#707.10]) only holds while it's
-        // genuinely on the stack (the arm above); this entry can't be
-        // classified via `CardInstance` the way a copy TOKEN is — its
-        // `ObjectSource::Card` aliases the ORIGINAL's `CardId` (`Copied`'s
-        // apply reuses `source`), so marking that shared `CardInstance`
-        // would misclassify the original too. `state.stack` (already
-        // consulted for the ability check above) is the only per-object,
-        // non-aliased signal available.
-        ObjectSource::Card(_) if state.stack.iter().any(|e| e.id == id && e.copy) => {
-            ObjectKind::CardCopy
-        }
-        // [CR#114.5]: an emblem is neither a card nor a permanent — check it
-        // before the token/card arms so every card/type filter excludes it.
-        ObjectSource::Card(c) if state.cards.get(c).is_emblem => ObjectKind::Emblem,
-        // [CR#111.6]: a token isn't a card — including a token that's a
-        // COPY ([CR#707.1]). [CR#109.1] lists "a copy of a card" and "a
-        // token" as distinct kinds; a token copy is a `Token`, never
-        // `CardCopy` — its copiable values are already baked into its
-        // definition at mint, and its cease rule is [CR#111.7], not
-        // [CR#707.10a]'s copy-cease SBA (which targets a card-less copy
-        // only, the arm above).
-        ObjectSource::Card(c) if state.cards.get(c).is_token => ObjectKind::Token,
-        ObjectSource::Card(_) => ObjectKind::Card,
+    let ObjectSource::Card(card) = obj.source else {
+        return false;
+    };
+    let is_emblem = state.cards.get(card).is_emblem;
+    let is_token = state.cards.get(card).is_token;
+    let copy = is_cardless_copy(state, id);
+    match class {
+        ObjectClass::AbilityOnStack => unreachable!("answered above"),
+        // [CR#108.2]: represented by a Magic card. A token is not a card
+        // ([CR#108.2b]), an emblem is neither a card nor a permanent
+        // ([CR#114.5]), and a card-less copy has no card ([CR#707.10]).
+        ObjectClass::Card => !is_token && !is_emblem && !copy,
+        ObjectClass::CopyOfACard => copy,
+        ObjectClass::Emblem => is_emblem,
+        // [CR#110.1]: a card or token on the battlefield.
+        ObjectClass::Permanent => obj.zone == Some(Zone::Battlefield) && !is_emblem,
+        // [CR#112.1]: a card on the stack — and a copy of a spell is itself a
+        // spell even with no card ([CR#112.1a,707.10]).
+        ObjectClass::Spell => obj.zone == Some(Zone::Stack),
+        ObjectClass::Token => is_token,
     }
 }
 
@@ -98,7 +117,7 @@ pub fn matches(state: &GameState, id: ObjectId, filter: &Predicate) -> bool {
 /// independently of its source) — the LKI read there is an engine-breadth
 /// seam.
 pub(crate) fn source_of(state: &GameState, id: ObjectId) -> Option<ObjectId> {
-    if object_kind(state, id) == ObjectKind::Ability {
+    if is_ability_on_stack(state, id) {
         let source = state.objects.obj(id).source;
         state
             .objects
@@ -172,7 +191,8 @@ pub(crate) fn matches_with_activation(
         return result;
     }
     match filter {
-        Predicate::Kind(k) => object_kind(state, id) == *k,
+        Predicate::Entity(class) => entity_class(state, id) == *class,
+        Predicate::Class(class) => is_object_class(state, id, *class),
         Predicate::Characteristic(CharacteristicPredicate::Type(t)) => {
             has_type(state, id, t.name())
         }
@@ -192,7 +212,7 @@ pub(crate) fn matches_with_activation(
         // ability on the stack whose SOURCE (the generating object,
         // [CR#113.7]) matches the inner filter.
         Predicate::FromSource(inner) => {
-            object_kind(state, id) == ObjectKind::Ability
+            is_ability_on_stack(state, id)
                 && source_of(state, id).is_some_and(|src| {
                     matches_with_activation(state, src, inner, watcher, activation)
                 })
@@ -936,6 +956,10 @@ pub(crate) fn candidates_with_activation(
         .collect()
 }
 
+/// Whether `id` matches a predicate REGION. The region's declared candidate
+/// domain gates the Entity boundary before the predicate runs ([CR#109.1,102.1]
+/// — ADR law 2): an Object-domain region never sees a player, and a
+/// Player-domain region never sees an object.
 #[must_use]
 pub(crate) fn matches_region_with_activation(
     state: &GameState,
@@ -944,6 +968,9 @@ pub(crate) fn matches_region_with_activation(
     watcher: Option<ObjectSource>,
     activation: crate::ActivationId,
 ) -> bool {
+    if !region.candidate_domain().admits(entity_class(state, id)) {
+        return false;
+    }
     let (source, controller) = if activation == crate::ActivationId::NONE {
         let Some((source, controller)) = watcher.and_then(|wanted| {
             state
@@ -1649,13 +1676,13 @@ mod tests {
         assert!(matches(&state, p1, &opponent));
     }
 
-    /// An activated/triggered ability on the stack is `ObjectKind::Ability`,
-    /// not `Spell`, even though its freshly minted stack id shares the
-    /// source card's `ObjectSource` ([CR#602.2a,603.3]). A real spell
-    /// stays a `Spell`, and the ability is a `Kind(Ability)` target
-    /// candidate.
+    /// An activated/triggered ability on the stack is `AbilityOnStack`, not
+    /// `Spell` and not `Card`, even though its freshly minted stack id shares
+    /// the source card's `ObjectSource` ([CR#602.2a,603.3,405.1]). A real
+    /// spell stays a `Spell`, and the ability is a `Class(AbilityOnStack)`
+    /// target candidate.
     #[test]
-    fn ability_on_stack_is_kind_ability_not_spell() {
+    fn ability_on_stack_is_the_ability_class_not_spell() {
         use crate::stack::StackEntry;
         use crate::stack::StackObject;
         use crate::trigger::TriggerBindings;
@@ -1703,33 +1730,49 @@ mod tests {
             copy: false,
         });
 
-        assert_eq!(object_kind(&state, ability_id), ObjectKind::Ability);
+        assert!(is_object_class(
+            &state,
+            ability_id,
+            ObjectClass::AbilityOnStack
+        ));
+        assert!(!is_object_class(&state, ability_id, ObjectClass::Card));
         assert!(matches(
             &state,
             ability_id,
-            &Predicate::Kind(ObjectKind::Ability)
+            &Predicate::Class(ObjectClass::AbilityOnStack)
         ));
         assert!(!matches(
             &state,
             ability_id,
-            &Predicate::Kind(ObjectKind::Spell)
+            &Predicate::Class(ObjectClass::Spell)
         ));
 
-        assert_eq!(object_kind(&state, spell_id), ObjectKind::Spell);
+        assert!(is_object_class(&state, spell_id, ObjectClass::Spell));
+        // A card on the stack is a Card AND a Spell ([CR#108.2,112.1]) — the
+        // two classes are independently testable and overlap.
+        assert!(is_object_class(&state, spell_id, ObjectClass::Card));
         assert!(matches(
             &state,
             spell_id,
-            &Predicate::Kind(ObjectKind::Spell)
+            &Predicate::And(Arc::from([
+                Predicate::Class(ObjectClass::Card),
+                Predicate::Class(ObjectClass::Spell),
+            ]))
+        ));
+        assert!(matches(
+            &state,
+            spell_id,
+            &Predicate::Class(ObjectClass::Spell)
         ));
         assert!(!matches(
             &state,
             spell_id,
-            &Predicate::Kind(ObjectKind::Ability)
+            &Predicate::Class(ObjectClass::AbilityOnStack)
         ));
 
         // "counter target ability": the ability is a candidate, the spell
         // isn't.
-        let abilities = candidates(&state, &Predicate::Kind(ObjectKind::Ability));
+        let abilities = candidates(&state, &Predicate::Class(ObjectClass::AbilityOnStack));
         assert!(abilities.contains(&ability_id));
         assert!(!abilities.contains(&spell_id));
     }
@@ -2063,12 +2106,14 @@ mod tests {
             Arc::from([
                 deckmaste_core::Param {
                     def: deckmaste_core::DefId(0),
-                    kind: deckmaste_core::Kind::Object,
-                    provenance: deckmaste_core::Provenance::Candidate,
+                    kind: deckmaste_core::Kind::Entity,
+                    provenance: deckmaste_core::Provenance::Candidate(
+                        deckmaste_core::Domain::Entity,
+                    ),
                 },
                 deckmaste_core::Param {
                     def: deckmaste_core::DefId(1),
-                    kind: deckmaste_core::Kind::Object,
+                    kind: deckmaste_core::Kind::Entity,
                     provenance: deckmaste_core::Provenance::Source,
                 },
             ]),
@@ -2266,12 +2311,14 @@ mod tests {
             Arc::from([
                 deckmaste_core::Param {
                     def: deckmaste_core::DefId(0),
-                    kind: deckmaste_core::Kind::Object,
-                    provenance: deckmaste_core::Provenance::Candidate,
+                    kind: deckmaste_core::Kind::Entity,
+                    provenance: deckmaste_core::Provenance::Candidate(
+                        deckmaste_core::Domain::Entity,
+                    ),
                 },
                 deckmaste_core::Param {
                     def: deckmaste_core::DefId(1),
-                    kind: deckmaste_core::Kind::Object,
+                    kind: deckmaste_core::Kind::Entity,
                     provenance: deckmaste_core::Provenance::Capture(deckmaste_core::RefId(0)),
                 },
             ]),

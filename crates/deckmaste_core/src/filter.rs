@@ -17,28 +17,86 @@ use crate::Supertype;
 use crate::Type;
 use crate::Zone;
 
-/// What kind of object something is ([CR#109.1]). Players are objects here
-/// too — the engine gives players `ObjectId`s.
+/// Which Entity a candidate is ([Game Model glossary]). A Player and an
+/// Object are both Entities; a Player is NOT an Object — [CR#109.1] lists what
+/// an object is and a player is not among them ([CR#102.1]).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
-pub enum ObjectKind {
-    /// An activated or triggered ability on the stack
-    /// ([CR#602.2a,603.3]). Distinct from `Spell` (a card on the
-    /// stack): an ability on the stack has no card identity of its own. The
-    /// `Kind(Ability)` filter is what "counter target activated ability" /
-    /// "target activated or triggered ability" (Stifle, Disallow) selects
-    /// over.
-    Ability,
-    Card,
-    /// A copy of a card ([CR#109.1] lists it as its own object kind,
-    /// distinct from `Card`): what copy effects that create card copies in
-    /// non-stack zones produce ([CR#707.12]). A copy of a SPELL on the stack
-    /// is a `Spell`; the engine's `object_kind` (`deckmaste_engine::target`)
-    /// classifies copies as `CardCopy`.
-    CardCopy,
-    Emblem,
+pub enum EntityClass {
+    /// One of the people in the game ([CR#102.1]).
     Player,
+    /// An object ([CR#109.1]).
+    Object,
+}
+
+/// One of the overlapping ways [CR#109.1] classifies an object. The classes
+/// are independently testable and NONEXCLUSIVE: a card on the stack is both
+/// `Card` and `Spell` ([CR#108.2,112.1]); a token on the battlefield is both
+/// `Token` and `Permanent` ([CR#111.1,110.1]). `Spell` and `Permanent` are
+/// derived from zone and stack state, but they are the CR classes rather than
+/// storage tags — nothing outside the engine classifier reads the storage.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub enum ObjectClass {
+    /// An activated or triggered ability on the stack ([CR#602.2a,603.3]) —
+    /// on the stack without a card ([CR#405.1]), so never `Card` or `Spell`.
+    /// What "counter target activated ability" / "target activated or
+    /// triggered ability" (Stifle, Disallow) selects over.
+    AbilityOnStack,
+    /// A Magic card or an object represented by a Magic card ([CR#108.2]). A
+    /// token is not a card ([CR#108.2b]) and an emblem is neither a card nor
+    /// a permanent ([CR#114.5]).
+    Card,
+    /// A copy of a card ([CR#109.1]) with no card of its own ([CR#707.10]):
+    /// what a copy effect creating a card copy produces ([CR#707.12]). A copy
+    /// of a spell is itself a spell ([CR#112.1a]), so a card copy on the
+    /// stack is `Spell` as well as `CopyOfACard`.
+    CopyOfACard,
+    /// A marker representing an object that has abilities but usually no
+    /// other characteristics ([CR#114.1]).
+    Emblem,
+    /// A card or token on the battlefield ([CR#110.1]).
+    Permanent,
+    /// A card on the stack ([CR#112.1]); a copy of a spell is itself a spell
+    /// even with no card ([CR#112.1a,707.10]).
     Spell,
+    /// A marker representing a permanent that is not represented by a card
+    /// ([CR#111.1]) — not a card ([CR#108.2b]).
     Token,
+}
+
+/// The Entity domain a predicate region's candidate ranges over — the typed
+/// provenance rider on [`Provenance::Candidate(Domain::Entity)`](crate::Provenance::Candidate(Domain::Entity))
+/// (ADR law 2). It fixes what the engine enumerates before any predicate runs:
+/// `Player` enumerates the players, `Object` the objects, `Entity` both.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub enum Domain {
+    Player,
+    Object,
+    /// Either — the widest domain, for a candidate a card describes as "any
+    /// target" or leaves unrestricted.
+    Entity,
+}
+
+impl Domain {
+    /// Whether a candidate of `class` can appear in this domain.
+    #[must_use]
+    pub fn admits(self, class: EntityClass) -> bool {
+        match self {
+            Domain::Entity => true,
+            Domain::Player => class == EntityClass::Player,
+            Domain::Object => class == EntityClass::Object,
+        }
+    }
+
+    /// The narrower of two domains, or [`Domain::Entity`] when they disagree
+    /// (nothing narrower is sound for the pair).
+    #[must_use]
+    pub fn meet(self, other: Domain) -> Domain {
+        match (self, other) {
+            (Domain::Entity, d) | (d, Domain::Entity) => d,
+            (a, b) if a == b => a,
+            _ => Domain::Entity,
+        }
+    }
 }
 
 /// Characteristic atoms ([CR#109.3]): facts printed on or defined for the
@@ -180,7 +238,17 @@ pub enum Adjacency {
 /// predicate even where engine context would make parts redundant.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 pub enum Predicate {
-    Kind(ObjectKind),
+    /// Which Entity the candidate is ([CR#109.1,102.1]) — the Entity-level
+    /// half of the classification. `Entity(Player)` is the "a player" filter;
+    /// `Entity(Object)` is "an object". Nonexclusive with nothing: exactly one
+    /// of the two holds of any candidate.
+    Entity(EntityClass),
+    /// The candidate is in the named CR object class ([CR#109.1]) — the
+    /// Object-level half, one independently testable class per atom.
+    /// Conjunction is `And`: a card on the stack is
+    /// `And([Class(Card), Class(Spell)])`, a battlefield token is
+    /// `And([Class(Token), Class(Permanent)])`.
+    Class(ObjectClass),
     Characteristic(CharacteristicPredicate),
     State(StatePredicate),
     Relation(RelationPredicate),
@@ -247,11 +315,88 @@ impl Predicate {
         Predicate::r#type(Type::Creature)
     }
 
+    /// Matches a player ([CR#102.1]) — the Entity-level class, spelled
+    /// without its compartment.
+    #[must_use]
+    pub fn player() -> Predicate {
+        Predicate::Entity(EntityClass::Player)
+    }
+
+    /// The narrowest Entity domain this predicate's own subject can inhabit.
+    /// `Entity` means "either" — the atom constrains nothing at the Entity
+    /// boundary. Lowering declares a candidate region's domain from this, and
+    /// [`crate::validate`] refuses a predicate whose subject cannot inhabit
+    /// the declared domain.
+    #[must_use]
+    pub fn subject_domain(&self) -> Domain {
+        match self {
+            Predicate::Entity(EntityClass::Player) | Predicate::PlayerStatCmp(..) => Domain::Player,
+            Predicate::Entity(EntityClass::Object)
+            | Predicate::Class(_)
+            | Predicate::Characteristic(_)
+            | Predicate::State(_)
+            | Predicate::Adjacent(..)
+            | Predicate::FromSource(_) => Domain::Object,
+            Predicate::Relation(relation) => relation.subject_domain(),
+            Predicate::And(parts) => parts
+                .iter()
+                .fold(Domain::Entity, |acc, part| acc.meet(part.subject_domain())),
+            // A disjunct that admits either side widens the whole disjunction.
+            Predicate::Or(parts) => {
+                let mut parts = parts.iter().map(Predicate::subject_domain);
+                match parts.next() {
+                    None => Domain::Entity,
+                    Some(first) => {
+                        if parts.all(|d| d == first) {
+                            first
+                        } else {
+                            Domain::Entity
+                        }
+                    }
+                }
+            }
+            Predicate::Not(_) | Predicate::Ref(_) | Predicate::Where(_) | Predicate::Any => {
+                Domain::Entity
+            }
+        }
+    }
+
     /// Whether this filter is exactly the self-reference (`Ref(This)`) — the
     /// "~ itself" predicate rendering and the replacement layer test for.
     #[must_use]
     pub fn is_this(&self) -> bool {
         matches!(self, Predicate::Ref(Reference::Reg(crate::RefId(0))))
+    }
+}
+
+impl RelationPredicate {
+    /// The Entity domain of the relation's SUBJECT — the candidate the
+    /// relation is asserted of ([CR#109.5,108.3,301.5]).
+    #[must_use]
+    pub fn subject_domain(&self) -> Domain {
+        match self {
+            RelationPredicate::ControlledBy(_)
+            | RelationPredicate::Owner(_)
+            | RelationPredicate::AttachedTo(_)
+            | RelationPredicate::Attachment(_) => Domain::Object,
+            RelationPredicate::Controls(_)
+            | RelationPredicate::OpponentOf(_)
+            | RelationPredicate::TeammateOf(_) => Domain::Player,
+        }
+    }
+
+    /// The related filter and the Entity domain ITS subject ranges over.
+    #[must_use]
+    pub fn relatum(&self) -> (&Predicate, Domain) {
+        match self {
+            RelationPredicate::ControlledBy(p)
+            | RelationPredicate::Owner(p)
+            | RelationPredicate::OpponentOf(p)
+            | RelationPredicate::TeammateOf(p) => (p, Domain::Player),
+            RelationPredicate::Controls(p)
+            | RelationPredicate::AttachedTo(p)
+            | RelationPredicate::Attachment(p) => (p, Domain::Object),
+        }
     }
 }
 

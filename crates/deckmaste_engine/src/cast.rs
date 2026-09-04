@@ -3242,8 +3242,8 @@ mod tests {
         let life_mode = |amount| Mode {
             targets: vec![TargetSpec::Target(
                 Quantity::one(),
-                Arc::new(deckmaste_core::Region::candidate(Predicate::Kind(
-                    deckmaste_core::ObjectKind::Player,
+                Arc::new(deckmaste_core::Region::candidate(Predicate::Entity(
+                    deckmaste_core::EntityClass::Player,
                 ))),
             )]
             .into(),
@@ -3251,17 +3251,17 @@ mod tests {
                 vec![
                     deckmaste_core::Param {
                         def: deckmaste_core::DefId(0),
-                        kind: deckmaste_core::Kind::Object,
+                        kind: deckmaste_core::Kind::Entity,
                         provenance: deckmaste_core::Provenance::Source,
                     },
                     deckmaste_core::Param {
                         def: deckmaste_core::DefId(1),
-                        kind: deckmaste_core::Kind::Object,
+                        kind: deckmaste_core::Kind::Entity,
                         provenance: deckmaste_core::Provenance::Controller,
                     },
                     deckmaste_core::Param {
                         def: deckmaste_core::DefId(2),
-                        kind: deckmaste_core::Kind::Objects,
+                        kind: deckmaste_core::Kind::Entities,
                         provenance: deckmaste_core::Provenance::AnnouncedTarget(0),
                     },
                     deckmaste_core::Param {

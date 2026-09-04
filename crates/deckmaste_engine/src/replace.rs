@@ -560,19 +560,21 @@ mod tests {
                     Arc::from([
                         deckmaste_core::Param {
                             def: deckmaste_core::DefId(0),
-                            kind: deckmaste_core::Kind::Object,
-                            provenance: deckmaste_core::Provenance::Candidate,
+                            kind: deckmaste_core::Kind::Entity,
+                            provenance: deckmaste_core::Provenance::Candidate(
+                                deckmaste_core::Domain::Entity,
+                            ),
                         },
                         deckmaste_core::Param {
                             def: deckmaste_core::DefId(1),
-                            kind: deckmaste_core::Kind::Object,
+                            kind: deckmaste_core::Kind::Entity,
                             provenance: deckmaste_core::Provenance::Capture(deckmaste_core::RefId(
                                 0,
                             )),
                         },
                         deckmaste_core::Param {
                             def: deckmaste_core::DefId(2),
-                            kind: deckmaste_core::Kind::Object,
+                            kind: deckmaste_core::Kind::Entity,
                             provenance: deckmaste_core::Provenance::Capture(deckmaste_core::RefId(
                                 1,
                             )),
@@ -973,8 +975,8 @@ mod tests {
     fn nested_candidate_region(body: Predicate) -> Arc<deckmaste_core::Region<Predicate>> {
         let mut params = vec![deckmaste_core::Param {
             def: deckmaste_core::DefId(0),
-            kind: deckmaste_core::Kind::Object,
-            provenance: deckmaste_core::Provenance::Candidate,
+            kind: deckmaste_core::Kind::Entity,
+            provenance: deckmaste_core::Provenance::Candidate(deckmaste_core::Domain::Entity),
         }];
         params.extend(
             deckmaste_core::event_region_params()

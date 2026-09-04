@@ -291,7 +291,7 @@ impl Ability {
                 .collect::<Vec<_>>();
             params.extend(ability.targets.iter().enumerate().map(|(index, _)| {
                 (
-                    crate::Kind::Objects,
+                    crate::Kind::Entities,
                     crate::Provenance::AnnouncedTarget(
                         u32::try_from(index).expect("target index fits u32"),
                     ),

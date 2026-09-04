@@ -1505,17 +1505,19 @@ mod tests {
             Arc::from([
                 deckmaste_core::Param {
                     def: deckmaste_core::DefId(0),
-                    kind: deckmaste_core::Kind::Object,
-                    provenance: deckmaste_core::Provenance::Candidate,
+                    kind: deckmaste_core::Kind::Entity,
+                    provenance: deckmaste_core::Provenance::Candidate(
+                        deckmaste_core::Domain::Entity,
+                    ),
                 },
                 deckmaste_core::Param {
                     def: deckmaste_core::DefId(1),
-                    kind: deckmaste_core::Kind::Object,
+                    kind: deckmaste_core::Kind::Entity,
                     provenance: deckmaste_core::Provenance::Source,
                 },
                 deckmaste_core::Param {
                     def: deckmaste_core::DefId(2),
-                    kind: deckmaste_core::Kind::Object,
+                    kind: deckmaste_core::Kind::Entity,
                     provenance: deckmaste_core::Provenance::Controller,
                 },
             ]),
@@ -1561,7 +1563,7 @@ mod tests {
     /// doesn't block payment.
     #[test]
     fn search_cost_step_is_always_payable_even_over_an_empty_library() {
-        use deckmaste_core::ObjectKind;
+        use deckmaste_core::ObjectClass;
         use deckmaste_core::Quantity;
 
         let mut state = game();
@@ -1583,8 +1585,8 @@ mod tests {
                 whose: Reference::Reg(deckmaste_core::RefId(1)),
                 from: vec![Zone::Library].into(),
                 quantity: quantity.clone(),
-                filter: Arc::new(deckmaste_core::Region::candidate(Predicate::Kind(
-                    ObjectKind::Card,
+                filter: Arc::new(deckmaste_core::Region::candidate(Predicate::Class(
+                    ObjectClass::Card,
                 ))),
                 if_none: deckmaste_core::Block::default(),
             });

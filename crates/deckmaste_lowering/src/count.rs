@@ -692,10 +692,10 @@ impl Lower for deckmaste_semantics::Countable {
     fn lower(self) -> <Self as Lower>::Target {
         match self {
             Self::Objects(f0) => deckmaste_core::Countable::Objects(std::sync::Arc::new(
-                crate::region::candidate_region(|| std::sync::Arc::unwrap_or_clone(f0).lower()),
+                crate::region::predicate_region(|| std::sync::Arc::unwrap_or_clone(f0).lower()),
             )),
             Self::Players(f0) => deckmaste_core::Countable::Players(std::sync::Arc::new(
-                crate::region::candidate_region(|| std::sync::Arc::unwrap_or_clone(f0).lower()),
+                crate::region::predicate_region(|| std::sync::Arc::unwrap_or_clone(f0).lower()),
             )),
             Self::ManaSymbols(f0, f1) => {
                 deckmaste_core::Countable::ManaSymbols(f0.lower(), f1.lower())

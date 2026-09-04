@@ -20,8 +20,9 @@ use crate::SupportsMacros;
 use crate::Type;
 use crate::Zone;
 
-/// What kind of object something is ([CR#109.1]). Players are objects here
-/// too — the engine gives players `ObjectId`s.
+/// What kind of object something is ([CR#109.1]). The v1 axis also carries a
+/// `Player` member even though a player is not an object — the engine gives
+/// players `ObjectId`s. `deckmaste_core` splits the two questions apart.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum ObjectKind {
     /// An activated or triggered ability on the stack

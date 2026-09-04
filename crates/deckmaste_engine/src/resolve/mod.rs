@@ -652,7 +652,7 @@ mod tests {
         let body = deckmaste_core::Region::new(
             Arc::from([deckmaste_core::Param {
                 def: deckmaste_core::DefId(0),
-                kind: deckmaste_core::Kind::Object,
+                kind: deckmaste_core::Kind::Entity,
                 provenance: deckmaste_core::Provenance::LoopElement,
             }]),
             deckmaste_core::Block::default(),

@@ -110,8 +110,9 @@ mod tests {
 /// the position, or by a binder) and referenced later. References name
 /// *objects*; amounts live in [`crate::Quantity`].
 ///
-/// Players are objects: the controller region parameter and the results of
-/// `ControllerOf` and `OwnerOf` resolve to player objects.
+/// A reference names an Entity, so it reaches a player as readily as an
+/// object ([CR#109.1,102.1]): the controller region parameter and the results
+/// of `ControllerOf` and `OwnerOf` resolve to players.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 pub enum Reference {
     /// An indexed read from the current region's activation record.

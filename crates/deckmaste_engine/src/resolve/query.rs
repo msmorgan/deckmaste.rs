@@ -525,7 +525,7 @@ impl GameState {
 pub(crate) fn search_is_bare_quantity(filter: &deckmaste_core::Predicate) -> bool {
     matches!(
         filter,
-        deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Card)
+        deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::Card)
             | deckmaste_core::Predicate::Any
     )
 }
@@ -582,11 +582,11 @@ mod tests {
             .map(|(index, provenance)| Param {
                 def: DefId(u32::try_from(index).expect("fixture parameter index fits u32")),
                 kind: if index == 6 {
-                    Kind::Objects
+                    Kind::Entities
                 } else if index == 7 {
                     Kind::Number
                 } else {
-                    Kind::Object
+                    Kind::Entity
                 },
                 provenance,
             })
@@ -742,7 +742,9 @@ mod tests {
             "Single resolves a singleton selection"
         );
         let ambiguous_players = Reference::Single(Arc::new(Selection::SelectAll(Arc::new(
-            deckmaste_core::Region::candidate(Predicate::Kind(deckmaste_core::ObjectKind::Player)),
+            deckmaste_core::Region::candidate(Predicate::Entity(
+                deckmaste_core::EntityClass::Player,
+            )),
         ))));
         assert!(
             state.eval_reference(&ambiguous_players, &frame).is_null(),
@@ -859,17 +861,19 @@ mod tests {
             Arc::from([
                 deckmaste_core::Param {
                     def: deckmaste_core::DefId(0),
-                    kind: deckmaste_core::Kind::Object,
-                    provenance: deckmaste_core::Provenance::Candidate,
+                    kind: deckmaste_core::Kind::Entity,
+                    provenance: deckmaste_core::Provenance::Candidate(
+                        deckmaste_core::Domain::Entity,
+                    ),
                 },
                 deckmaste_core::Param {
                     def: deckmaste_core::DefId(1),
-                    kind: deckmaste_core::Kind::Object,
+                    kind: deckmaste_core::Kind::Entity,
                     provenance: deckmaste_core::Provenance::Source,
                 },
                 deckmaste_core::Param {
                     def: deckmaste_core::DefId(2),
-                    kind: deckmaste_core::Kind::Object,
+                    kind: deckmaste_core::Kind::Entity,
                     provenance: deckmaste_core::Provenance::Controller,
                 },
             ]),

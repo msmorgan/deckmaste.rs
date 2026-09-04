@@ -37,10 +37,13 @@ impl From<DefId> for RefId {
 /// The runtime shape of a region register.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum Kind {
-    /// One card, token, spell, ability, emblem, or player proxy.
-    Object,
-    /// A group of objects, preserving its semantic order.
-    Objects,
+    /// One Entity — an object ([CR#109.1]) or a player ([CR#102.1]). The
+    /// engine still addresses a player through a proxy carrying an
+    /// `ObjectId`; that adapter is storage, and this register shape names the
+    /// Entity it stands for rather than calling a player an object.
+    Entity,
+    /// A group of Entities, preserving its semantic order.
+    Entities,
     /// One temporary pile: an object group whose members remain individual
     /// objects ([CR#700.3b]).
     Pile,
@@ -83,8 +86,12 @@ pub enum Provenance {
     LoopElement,
     /// Reserved by the discourse stage.
     Allotment,
-    /// Reserved by candidate-region lowering.
-    Candidate,
+    /// The per-candidate subject of a predicate region, carrying the Entity
+    /// domain it ranges over ([CR#109.1,102.1] — ADR law 2). The domain fixes
+    /// what the engine enumerates before the predicate runs, and
+    /// [`crate::validate`] refuses a predicate whose subject cannot inhabit
+    /// it — a Player-only predicate never enters the Object domain.
+    Candidate(crate::Domain),
 }
 
 /// One declared input to a closed region.
@@ -104,32 +111,32 @@ pub fn event_region_params() -> Arc<[Param]> {
     Arc::from([
         Param {
             def: DefId(0),
-            kind: Kind::Object,
+            kind: Kind::Entity,
             provenance: Provenance::Source,
         },
         Param {
             def: DefId(1),
-            kind: Kind::Object,
+            kind: Kind::Entity,
             provenance: Provenance::Controller,
         },
         Param {
             def: DefId(2),
-            kind: Kind::Object,
+            kind: Kind::Entity,
             provenance: Provenance::EventObject,
         },
         Param {
             def: DefId(3),
-            kind: Kind::Object,
+            kind: Kind::Entity,
             provenance: Provenance::EventPatient,
         },
         Param {
             def: DefId(4),
-            kind: Kind::Object,
+            kind: Kind::Entity,
             provenance: Provenance::EventActor,
         },
         Param {
             def: DefId(5),
-            kind: Kind::Object,
+            kind: Kind::Entity,
             provenance: Provenance::DefendingPlayer,
         },
         Param {
@@ -207,10 +214,32 @@ impl<T> Region<T> {
         )
     }
 
-    /// Construct a predicate-like region whose subject is register zero.
+    /// Construct a predicate-like region whose subject is register zero,
+    /// ranging over the widest Entity domain.
     #[must_use]
     pub fn candidate(body: T) -> Self {
-        Self::unary(Kind::Object, Provenance::Candidate, body)
+        Self::candidate_in(crate::Domain::Entity, body)
+    }
+
+    /// Construct a predicate-like region whose subject is register zero and
+    /// ranges over `domain` ([CR#109.1,102.1]).
+    #[must_use]
+    pub fn candidate_in(domain: crate::Domain, body: T) -> Self {
+        Self::unary(Kind::Entity, Provenance::Candidate(domain), body)
+    }
+
+    /// The Entity domain this region's candidate ranges over
+    /// ([CR#109.1,102.1]), or [`crate::Domain::Entity`] when it declares no
+    /// candidate parameter.
+    #[must_use]
+    pub fn candidate_domain(&self) -> crate::Domain {
+        self.params
+            .iter()
+            .find_map(|param| match param.provenance {
+                Provenance::Candidate(domain) => Some(domain),
+                _ => None,
+            })
+            .unwrap_or(crate::Domain::Entity)
     }
 
     /// Return the register declared for `provenance`, if this region has one.
@@ -256,6 +285,19 @@ impl<T> Region<T> {
     }
 }
 
+impl Region<crate::Predicate> {
+    /// A predicate region whose declared candidate domain is the narrowest
+    /// one the predicate's own atoms admit ([CR#109.1,102.1]). Lowering builds
+    /// every per-candidate region this way, so a filter that only Objects can
+    /// satisfy declares the Object domain and one that only Players can
+    /// satisfy declares the Player domain.
+    #[must_use]
+    pub fn over(body: crate::Predicate) -> Self {
+        let domain = body.subject_domain();
+        Self::candidate_in(domain, body)
+    }
+}
+
 impl From<OneShotEffect> for Region<Block> {
     fn from(effect: OneShotEffect) -> Self {
         Self::new(Arc::from([]), effect.into())
@@ -274,8 +316,8 @@ impl Expr {
     #[must_use]
     pub fn kind(&self) -> Kind {
         match self {
-            Self::Object(_) => Kind::Object,
-            Self::Objects(_) => Kind::Objects,
+            Self::Object(_) => Kind::Entity,
+            Self::Objects(_) => Kind::Entities,
             Self::Number(_) => Kind::Number,
         }
     }
@@ -308,6 +350,13 @@ pub enum ValidationError {
     },
     /// Pure expressions cannot contain a player/random decision.
     DecisionInExpression,
+    /// A predicate's subject cannot inhabit the candidate domain its region
+    /// declares — a Player-only predicate in the Object domain, or the
+    /// reverse ([CR#109.1,102.1]).
+    CandidateDomain {
+        declared: crate::Domain,
+        subject: crate::Domain,
+    },
     /// Serialization failed while walking the core grammar.
     Walk(String),
 }
@@ -363,6 +412,11 @@ impl fmt::Display for ValidationError {
             Self::DecisionInExpression => {
                 write!(f, "a decision-bearing selection cannot appear inside Let")
             }
+            Self::CandidateDomain { declared, subject } => write!(
+                f,
+                "a predicate whose subject is a {subject:?} cannot appear in a region whose \
+                 candidate domain is {declared:?}"
+            ),
             Self::Walk(message) => write!(f, "could not validate region: {message}"),
         }
     }
@@ -523,8 +577,8 @@ fn validate_region(
             | Provenance::EventActor
             | Provenance::DefendingPlayer
             | Provenance::LoopElement
-            | Provenance::Candidate => Some(Kind::Object),
-            Provenance::AnnouncedTarget(_) => Some(Kind::Objects),
+            | Provenance::Candidate(_) => Some(Kind::Entity),
+            Provenance::AnnouncedTarget(_) => Some(Kind::Entities),
             Provenance::AnnouncedX | Provenance::EventAmount | Provenance::Allotment => {
                 Some(Kind::Number)
             }
@@ -597,9 +651,9 @@ fn validate_instructions(
                     } else {
                         match action {
                             crate::Action::MoveGroup { .. } | crate::Action::Create { .. } => {
-                                Kind::Objects
+                                Kind::Entities
                             }
-                            _ => Kind::Object,
+                            _ => Kind::Entity,
                         }
                     };
                     append_definition(definitions, *dest, kind)?;
@@ -609,7 +663,7 @@ fn validate_instructions(
                 choice.by.serialize(definitions.walker())?;
                 choice.quantity.serialize(definitions.walker())?;
                 validate_predicate_region(&choice.filter, &definitions.params)?;
-                append_definition(definitions, choice.dest, Kind::Objects)?;
+                append_definition(definitions, choice.dest, Kind::Entities)?;
             }
             E::ChooseValue(choice) => {
                 choice.by.serialize(definitions.walker())?;
@@ -653,7 +707,7 @@ fn validate_instructions(
                 let outer = definitions.params.len();
                 validate_instructions(&search.if_none, definitions)?;
                 definitions.hide_since(outer);
-                append_definition(definitions, search.dest, Kind::Objects)?;
+                append_definition(definitions, search.dest, Kind::Entities)?;
             }
             E::Let(binding) => {
                 validate_pure_expr(&binding.expr)?;
@@ -719,8 +773,8 @@ fn validate_instructions(
             E::RevealUntil(reveal) => {
                 reveal.whose.serialize(definitions.walker())?;
                 validate_predicate_region(&reveal.matches, &definitions.params)?;
-                append_definition(definitions, reveal.found, Kind::Object)?;
-                append_definition(definitions, reveal.passed, Kind::Objects)?;
+                append_definition(definitions, reveal.found, Kind::Entity)?;
+                append_definition(definitions, reveal.passed, Kind::Entities)?;
                 validate_region(&reveal.body, Some(&definitions.params), None)?;
             }
             E::Delayed(ability) | E::Reflexive(ability) => {
@@ -775,9 +829,9 @@ fn validate_cost(cost: &crate::Cost, definitions: &mut Definitions) -> Result<()
                 if let Some(dest) = dest {
                     let kind = match action.as_action() {
                         crate::Action::MoveGroup { .. } | crate::Action::Create { .. } => {
-                            Kind::Objects
+                            Kind::Entities
                         }
-                        _ => Kind::Object,
+                        _ => Kind::Entity,
                     };
                     append_definition(definitions, *dest, kind)?;
                 }
@@ -786,12 +840,12 @@ fn validate_cost(cost: &crate::Cost, definitions: &mut Definitions) -> Result<()
                 choice.by.serialize(definitions.walker())?;
                 choice.quantity.serialize(definitions.walker())?;
                 validate_predicate_region(&choice.filter, &definitions.params)?;
-                append_definition(definitions, choice.dest, Kind::Objects)?;
+                append_definition(definitions, choice.dest, Kind::Entities)?;
             }
             CostComponent::Sample(sample) => {
                 sample.quantity.serialize(definitions.walker())?;
                 validate_predicate_region(&sample.filter, &definitions.params)?;
-                append_definition(definitions, sample.dest, Kind::Objects)?;
+                append_definition(definitions, sample.dest, Kind::Entities)?;
             }
             CostComponent::Search(search) => {
                 search.by.serialize(definitions.walker())?;
@@ -801,7 +855,7 @@ fn validate_cost(cost: &crate::Cost, definitions: &mut Definitions) -> Result<()
                 let outer = definitions.params.len();
                 validate_instructions(&search.if_none, definitions)?;
                 definitions.hide_since(outer);
-                append_definition(definitions, search.dest, Kind::Objects)?;
+                append_definition(definitions, search.dest, Kind::Entities)?;
             }
             CostComponent::Let(binding) => {
                 validate_pure_expr(&binding.expr)?;
@@ -893,7 +947,52 @@ fn validate_predicate_region(
     outer: &[Param],
 ) -> Result<(), ValidationError> {
     validate_value_region(region, outer)?;
+    validate_candidate_domain(region.candidate_domain(), &region.body)?;
     validate_predicate_regions(&region.body, &region.params)
+}
+
+/// Refuse a predicate whose subject cannot inhabit `declared` — a player is
+/// not an object ([CR#109.1,102.1]). Combinators keep the domain; a
+/// relation's related filter switches to the relatum's own domain.
+fn validate_candidate_domain(
+    declared: crate::Domain,
+    predicate: &crate::Predicate,
+) -> Result<(), ValidationError> {
+    use crate::Predicate as P;
+    let subject = predicate.subject_domain();
+    if subject != crate::Domain::Entity && !declared.admits(entity_class(subject)) {
+        return Err(ValidationError::CandidateDomain { declared, subject });
+    }
+    match predicate {
+        P::And(parts) | P::Or(parts) => {
+            for part in parts.iter() {
+                validate_candidate_domain(declared, part)?;
+            }
+            Ok(())
+        }
+        P::Not(part) => validate_candidate_domain(declared, part),
+        P::FromSource(part) => validate_candidate_domain(crate::Domain::Object, part),
+        P::State(crate::StatePredicate::RelatedBy(_, part)) => {
+            validate_candidate_domain(crate::Domain::Object, part)
+        }
+        P::State(crate::StatePredicate::Targets(part)) => {
+            validate_candidate_domain(crate::Domain::Entity, part)
+        }
+        P::Relation(relation) => {
+            let (part, domain) = relation.relatum();
+            validate_candidate_domain(domain, part)
+        }
+        _ => Ok(()),
+    }
+}
+
+/// The Entity class a narrowed domain names. `Entity` has no single class and
+/// is filtered out before this is called.
+fn entity_class(domain: crate::Domain) -> crate::EntityClass {
+    match domain {
+        crate::Domain::Player => crate::EntityClass::Player,
+        crate::Domain::Object | crate::Domain::Entity => crate::EntityClass::Object,
+    }
 }
 
 fn validate_predicate_regions(
@@ -972,7 +1071,7 @@ fn validate_selection_regions(
 ) -> Result<(), ValidationError> {
     use crate::Selection as S;
     match selection {
-        S::Reg(reference) => validate_read(definitions, *reference, Some(Kind::Objects)),
+        S::Reg(reference) => validate_read(definitions, *reference, Some(Kind::Entities)),
         S::SelectAll(region) => validate_predicate_region(region, definitions),
         S::Union(parts) => {
             for part in parts {
@@ -1198,9 +1297,9 @@ fn validate_read(
         });
     };
     if let Some(expected) = expected {
-        let object_compatible = matches!(expected, Kind::Object | Kind::Objects)
-            && matches!(param.kind, Kind::Object | Kind::Objects);
-        let pile_group = expected == Kind::Objects && param.kind == Kind::Pile;
+        let object_compatible = matches!(expected, Kind::Entity | Kind::Entities)
+            && matches!(param.kind, Kind::Entity | Kind::Entities);
+        let pile_group = expected == Kind::Entities && param.kind == Kind::Pile;
         if param.kind != expected && !object_compatible && !pile_group {
             return Err(ValidationError::KindMismatch {
                 reference,
@@ -1367,8 +1466,8 @@ impl<'a> serde::Serializer for RegisterWalker<'a> {
             })?);
             let expected = match name {
                 "Count" => Some(Kind::Number),
-                "Selection" => Some(Kind::Objects),
-                "Reference" => Some(Kind::Object),
+                "Selection" => Some(Kind::Entities),
+                "Reference" => Some(Kind::Entity),
                 _ => None,
             };
             if self
@@ -1650,9 +1749,128 @@ mod tests {
     fn param(def: u32, provenance: Provenance) -> Param {
         Param {
             def: DefId(def),
-            kind: Kind::Object,
+            kind: Kind::Entity,
             provenance,
         }
+    }
+
+    /// A card on the stack is a Card AND a Spell ([CR#108.2,112.1]): the two
+    /// classes are independently testable, so the conjunction is
+    /// representable and the region it lowers into declares the Object
+    /// domain.
+    #[test]
+    fn a_card_on_the_stack_is_both_card_and_spell() {
+        let predicate = crate::Predicate::And(Arc::from([
+            crate::Predicate::Class(crate::ObjectClass::Card),
+            crate::Predicate::Class(crate::ObjectClass::Spell),
+        ]));
+        let region = Region::over(predicate);
+        assert_eq!(region.candidate_domain(), crate::Domain::Object);
+        assert_eq!(validate_predicate_region(&region, &[]), Ok(()));
+    }
+
+    /// A token on the battlefield is a Token AND a Permanent
+    /// ([CR#111.1,110.1]) — the second nonexclusive pair the exclusive kind
+    /// axis could not state.
+    #[test]
+    fn a_battlefield_token_is_both_token_and_permanent() {
+        let predicate = crate::Predicate::And(Arc::from([
+            crate::Predicate::Class(crate::ObjectClass::Token),
+            crate::Predicate::Class(crate::ObjectClass::Permanent),
+        ]));
+        let region = Region::over(predicate);
+        assert_eq!(region.candidate_domain(), crate::Domain::Object);
+        assert_eq!(validate_predicate_region(&region, &[]), Ok(()));
+    }
+
+    /// A player is not an object ([CR#109.1,102.1]), so a Player-only
+    /// predicate is refused at load in an Object-domain region — both the
+    /// Entity-level class and the player-scope numeric read.
+    #[test]
+    fn a_player_only_predicate_is_refused_in_the_object_domain() {
+        let object_domain = |body| Region::candidate_in(crate::Domain::Object, body);
+        let refusal = ValidationError::CandidateDomain {
+            declared: crate::Domain::Object,
+            subject: crate::Domain::Player,
+        };
+        assert_eq!(
+            validate_predicate_region(&object_domain(crate::Predicate::player()), &[]),
+            Err(refusal.clone())
+        );
+        assert_eq!(
+            validate_predicate_region(
+                &object_domain(crate::Predicate::PlayerStatCmp(
+                    crate::PlayerAttr::Life,
+                    crate::Cmp::AtMost,
+                    crate::Count::Literal(13),
+                )),
+                &[]
+            ),
+            Err(refusal.clone())
+        );
+        // Nested under a combinator too — the domain travels through And.
+        assert_eq!(
+            validate_predicate_region(
+                &object_domain(crate::Predicate::And(Arc::from([
+                    crate::Predicate::Class(crate::ObjectClass::Permanent),
+                    crate::Predicate::player(),
+                ]))),
+                &[]
+            ),
+            Err(refusal)
+        );
+        // The same predicate is fine where players are the candidates.
+        assert_eq!(
+            validate_predicate_region(
+                &Region::candidate_in(crate::Domain::Player, crate::Predicate::player()),
+                &[]
+            ),
+            Ok(())
+        );
+    }
+
+    /// The mirror refusal: an Object-only predicate cannot range over players.
+    #[test]
+    fn an_object_only_predicate_is_refused_in_the_player_domain() {
+        assert_eq!(
+            validate_predicate_region(
+                &Region::candidate_in(
+                    crate::Domain::Player,
+                    crate::Predicate::Class(crate::ObjectClass::Token)
+                ),
+                &[]
+            ),
+            Err(ValidationError::CandidateDomain {
+                declared: crate::Domain::Player,
+                subject: crate::Domain::Object,
+            })
+        );
+    }
+
+    /// A relation's related filter switches domain: "controlled by an
+    /// opponent" is an Object-domain predicate whose relatum is a player
+    /// ([CR#109.5,102.2]).
+    #[test]
+    fn a_relation_switches_the_domain_of_its_relatum() {
+        let controlled_by_a_player =
+            |who| crate::Predicate::Relation(crate::RelationPredicate::ControlledBy(Arc::new(who)));
+        let region = Region::over(controlled_by_a_player(crate::Predicate::player()));
+        assert_eq!(region.candidate_domain(), crate::Domain::Object);
+        assert_eq!(validate_predicate_region(&region, &[]), Ok(()));
+        // The relatum of `ControlledBy` is a player, so an object class there
+        // is refused even though the region's own domain is Object.
+        assert_eq!(
+            validate_predicate_region(
+                &Region::over(controlled_by_a_player(crate::Predicate::Class(
+                    crate::ObjectClass::Token
+                ))),
+                &[]
+            ),
+            Err(ValidationError::CandidateDomain {
+                declared: crate::Domain::Player,
+                subject: crate::Domain::Object,
+            })
+        );
     }
 
     #[test]
@@ -1715,7 +1933,7 @@ mod tests {
             Err(ValidationError::KindMismatch {
                 reference: RefId(0),
                 expected: Kind::Number,
-                found: Kind::Object,
+                found: Kind::Entity,
             })
         );
     }
@@ -1860,12 +2078,12 @@ mod tests {
             Arc::from([
                 Param {
                     def: DefId(0),
-                    kind: Kind::Objects,
+                    kind: Kind::Entities,
                     provenance: Provenance::AnnouncedTarget(0),
                 },
                 Param {
                     def: DefId(1),
-                    kind: Kind::Objects,
+                    kind: Kind::Entities,
                     provenance: Provenance::AnnouncedTarget(0),
                 },
             ]),
@@ -1920,7 +2138,7 @@ mod tests {
         let body = Region::new(
             Arc::from([Param {
                 def: DefId(0),
-                kind: Kind::Object,
+                kind: Kind::Entity,
                 provenance: Provenance::Capture(RefId(3)),
             }]),
             OneShotEffect::act(crate::Action::Counter(crate::Reference::Reg(RefId(0)))).into(),
@@ -1945,7 +2163,7 @@ mod tests {
         let body = Region::new(
             Arc::from([Param {
                 def: DefId(0),
-                kind: Kind::Object,
+                kind: Kind::Entity,
                 provenance: Provenance::Capture(RefId(0)),
             }]),
             OneShotEffect::act(crate::Action::Counter(crate::Reference::Reg(RefId(0)))).into(),
@@ -1965,7 +2183,7 @@ mod tests {
         let root = Region::new(
             Arc::from([Param {
                 def: DefId(0),
-                kind: Kind::Object,
+                kind: Kind::Entity,
                 provenance: Provenance::Capture(RefId(0)),
             }]),
             Block::default(),
@@ -1987,7 +2205,7 @@ mod tests {
             Arc::from([param(0, Provenance::Source)]),
             OneShotEffect::Remember(crate::Remember {
                 cell: crate::Ident::from("exiled"),
-                kind: Kind::Object,
+                kind: Kind::Entity,
                 value: RefId(0),
             })
             .into(),
@@ -1998,7 +2216,7 @@ mod tests {
             Arc::from([param(0, Provenance::Source)]),
             OneShotEffect::Remember(crate::Remember {
                 cell: crate::Ident::from("exiled"),
-                kind: Kind::Object,
+                kind: Kind::Entity,
                 value: RefId(1),
             })
             .into(),
@@ -2049,12 +2267,12 @@ mod tests {
                 param(0, Provenance::Source),
                 Param {
                     def: DefId(1),
-                    kind: Kind::Objects,
+                    kind: Kind::Entities,
                     provenance: Provenance::Capture(RefId(4)),
                 },
                 Param {
                     def: DefId(2),
-                    kind: Kind::Object,
+                    kind: Kind::Entity,
                     provenance: Provenance::Linked(crate::Ident::from("exiled")),
                 },
             ]),
@@ -2062,13 +2280,13 @@ mod tests {
         );
         assert_eq!(
             body.captures().collect::<Vec<_>>(),
-            vec![(RefId(1), RefId(4), Kind::Objects)]
+            vec![(RefId(1), RefId(4), Kind::Entities)]
         );
         assert_eq!(
             body.linked_cells()
                 .map(|(here, cell, kind)| (here, cell.to_string(), kind))
                 .collect::<Vec<_>>(),
-            vec![(RefId(2), "exiled".to_owned(), Kind::Object)]
+            vec![(RefId(2), "exiled".to_owned(), Kind::Entity)]
         );
     }
 
@@ -2080,7 +2298,7 @@ mod tests {
         let loop_body = Region::new(
             Arc::from([Param {
                 def: DefId(0),
-                kind: Kind::Object,
+                kind: Kind::Entity,
                 provenance: Provenance::LoopElement,
             }]),
             Block::default(),
@@ -2129,7 +2347,7 @@ mod tests {
             Err(ValidationError::KindMismatch {
                 reference: RefId(0),
                 expected: Kind::Pile,
-                found: Kind::Object,
+                found: Kind::Entity,
             })
         );
     }

@@ -670,8 +670,10 @@ impl GameState {
                     // here.
                     StaticEffect::Each(Selection::SelectAll(f), inner) => match &inner.body {
                         StaticEffect::Modify(Reference::Reg(reference), change)
-                            if inner.provenance_of(*reference)
-                                == Some(&deckmaste_core::Provenance::Candidate) =>
+                            if matches!(
+                                inner.provenance_of(*reference),
+                                Some(deckmaste_core::Provenance::Candidate(_))
+                            ) =>
                         {
                             (
                                 ScopeResolved::Floating(f.clone()),
@@ -1882,7 +1884,7 @@ mod tests {
     use deckmaste_core::Count;
     use deckmaste_core::Countable;
     use deckmaste_core::LifeOp;
-    use deckmaste_core::ObjectKind;
+    use deckmaste_core::ObjectClass;
     use deckmaste_core::OneShotEffect;
     use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
@@ -3222,17 +3224,17 @@ mod tests {
                 Arc::from([
                     Param {
                         def: DefId(0),
-                        kind: Kind::Object,
+                        kind: Kind::Entity,
                         provenance: Provenance::Source,
                     },
                     Param {
                         def: DefId(1),
-                        kind: Kind::Object,
+                        kind: Kind::Entity,
                         provenance: Provenance::Controller,
                     },
                     Param {
                         def: DefId(captured_controller.0),
-                        kind: Kind::Object,
+                        kind: Kind::Entity,
                         provenance: Provenance::Capture(RefId(1)),
                     },
                 ]),
@@ -3254,12 +3256,12 @@ mod tests {
             Arc::from([
                 Param {
                     def: DefId(0),
-                    kind: Kind::Object,
+                    kind: Kind::Entity,
                     provenance: Provenance::Source,
                 },
                 Param {
                     def: DefId(1),
-                    kind: Kind::Object,
+                    kind: Kind::Entity,
                     provenance: Provenance::Controller,
                 },
             ]),
@@ -5382,17 +5384,17 @@ mod tests {
             Arc::from([
                 param(
                     0,
-                    deckmaste_core::Kind::Object,
+                    deckmaste_core::Kind::Entity,
                     deckmaste_core::Provenance::LoopElement,
                 ),
                 param(
                     1,
-                    deckmaste_core::Kind::Object,
+                    deckmaste_core::Kind::Entity,
                     deckmaste_core::Provenance::Source,
                 ),
                 param(
                     2,
-                    deckmaste_core::Kind::Object,
+                    deckmaste_core::Kind::Entity,
                     deckmaste_core::Provenance::Controller,
                 ),
             ]),
@@ -5407,7 +5409,7 @@ mod tests {
             Arc::from([
                 param(
                     0,
-                    deckmaste_core::Kind::Object,
+                    deckmaste_core::Kind::Entity,
                     deckmaste_core::Provenance::LoopElement,
                 ),
                 param(
@@ -5417,12 +5419,12 @@ mod tests {
                 ),
                 param(
                     2,
-                    deckmaste_core::Kind::Object,
+                    deckmaste_core::Kind::Entity,
                     deckmaste_core::Provenance::Source,
                 ),
                 param(
                     3,
-                    deckmaste_core::Kind::Object,
+                    deckmaste_core::Kind::Entity,
                     deckmaste_core::Provenance::Controller,
                 ),
             ]),
@@ -5679,22 +5681,22 @@ mod tests {
             Arc::from([
                 param(
                     0,
-                    deckmaste_core::Kind::Object,
-                    deckmaste_core::Provenance::Candidate,
+                    deckmaste_core::Kind::Entity,
+                    deckmaste_core::Provenance::Candidate(deckmaste_core::Domain::Entity),
                 ),
                 param(
                     1,
-                    deckmaste_core::Kind::Object,
+                    deckmaste_core::Kind::Entity,
                     deckmaste_core::Provenance::Capture(deckmaste_core::RefId(0)),
                 ),
                 param(
                     2,
-                    deckmaste_core::Kind::Object,
+                    deckmaste_core::Kind::Entity,
                     deckmaste_core::Provenance::Source,
                 ),
                 param(
                     3,
-                    deckmaste_core::Kind::Object,
+                    deckmaste_core::Kind::Entity,
                     deckmaste_core::Provenance::Controller,
                 ),
             ]),
@@ -5870,7 +5872,9 @@ mod tests {
         let frame = frame_src(&state, src);
 
         let effect = OneShotEffect::Each(deckmaste_core::Each {
-            over: Selection::SelectAll(candidate_region(Predicate::Kind(ObjectKind::Player))),
+            over: Selection::SelectAll(candidate_region(Predicate::Entity(
+                deckmaste_core::EntityClass::Player,
+            ))),
             body: loop_region(OneShotEffect::Act(Action::deal_damage(
                 Reference::Reg(ELEMENT),
                 Count::Literal(20),
@@ -5903,7 +5907,9 @@ mod tests {
         let frame = frame_src(&state, bear);
         state.run_effect(
             OneShotEffect::Each(deckmaste_core::Each {
-                over: Selection::SelectAll(candidate_region(Predicate::Kind(ObjectKind::Player))),
+                over: Selection::SelectAll(candidate_region(Predicate::Entity(
+                    deckmaste_core::EntityClass::Player,
+                ))),
                 body: loop_region(OneShotEffect::Act(Action::deal_damage(
                     Reference::Reg(ELEMENT),
                     Count::Literal(1),
@@ -5937,12 +5943,12 @@ mod tests {
             Arc::from([
                 param(
                     0,
-                    deckmaste_core::Kind::Object,
+                    deckmaste_core::Kind::Entity,
                     deckmaste_core::Provenance::LoopElement,
                 ),
                 param(
                     1,
-                    deckmaste_core::Kind::Object,
+                    deckmaste_core::Kind::Entity,
                     deckmaste_core::Provenance::Capture(deckmaste_core::RefId(0)),
                 ),
                 param(
@@ -6255,7 +6261,7 @@ mod tests {
         state.run_effect(
             search_library(
                 deckmaste_core::Quantity::one(),
-                Predicate::Kind(ObjectKind::Card),
+                Predicate::Class(ObjectClass::Card),
                 deckmaste_core::Block::default(),
             ),
             &frame,
@@ -6296,7 +6302,7 @@ mod tests {
                 vec![
                     search_library(
                         deckmaste_core::Quantity::one(),
-                        Predicate::Kind(ObjectKind::Card),
+                        Predicate::Class(ObjectClass::Card),
                         deckmaste_core::Block::default(),
                     ),
                     shuffle_your_library(),
@@ -6909,7 +6915,9 @@ mod tests {
 
         state.run_effect(
             OneShotEffect::Each(deckmaste_core::Each {
-                over: Selection::SelectAll(candidate_region(Predicate::Kind(ObjectKind::Player))),
+                over: Selection::SelectAll(candidate_region(Predicate::Entity(
+                    deckmaste_core::EntityClass::Player,
+                ))),
                 body: loop_region(OneShotEffect::Sequentially(
                     vec![
                         OneShotEffect::Let(deckmaste_core::Let {
@@ -7034,7 +7042,7 @@ mod tests {
                     delayed(
                         created_body_params(&[(
                             FIRST_DEF_ONE_TARGET.into(),
-                            deckmaste_core::Kind::Objects,
+                            deckmaste_core::Kind::Entities,
                         )]),
                         OneShotEffect::Act(Action::Move(
                             Reference::Reg(deckmaste_core::RefId(8)),
@@ -7106,7 +7114,7 @@ mod tests {
                     delayed(
                         created_body_params(&[(
                             FIRST_DEF_ONE_TARGET.into(),
-                            deckmaste_core::Kind::Objects,
+                            deckmaste_core::Kind::Entities,
                         )]),
                         OneShotEffect::Act(Action::Move(
                             Reference::Reg(deckmaste_core::RefId(8)),
@@ -7173,22 +7181,22 @@ mod tests {
                     Arc::from([
                         param(
                             0,
-                            deckmaste_core::Kind::Object,
+                            deckmaste_core::Kind::Entity,
                             deckmaste_core::Provenance::LoopElement,
                         ),
                         param(
                             1,
-                            deckmaste_core::Kind::Object,
+                            deckmaste_core::Kind::Entity,
                             deckmaste_core::Provenance::Source,
                         ),
                         param(
                             2,
-                            deckmaste_core::Kind::Object,
+                            deckmaste_core::Kind::Entity,
                             deckmaste_core::Provenance::Controller,
                         ),
                     ]),
                     delayed(
-                        created_body_params(&[(ELEMENT, deckmaste_core::Kind::Object)]),
+                        created_body_params(&[(ELEMENT, deckmaste_core::Kind::Entity)]),
                         OneShotEffect::Act(Action::destroy(Reference::Reg(deckmaste_core::RefId(
                             8,
                         )))),
@@ -7255,7 +7263,7 @@ mod tests {
                     ),
                     OneShotEffect::Remember(deckmaste_core::Remember {
                         cell: deckmaste_core::Ident::from("exiled"),
-                        kind: deckmaste_core::Kind::Objects,
+                        kind: deckmaste_core::Kind::Entities,
                         value: FIRST_DEF_ONE_TARGET.into(),
                     }),
                 ]
@@ -7273,17 +7281,17 @@ mod tests {
             Arc::from([
                 param(
                     0,
-                    deckmaste_core::Kind::Object,
+                    deckmaste_core::Kind::Entity,
                     deckmaste_core::Provenance::Source,
                 ),
                 param(
                     1,
-                    deckmaste_core::Kind::Object,
+                    deckmaste_core::Kind::Entity,
                     deckmaste_core::Provenance::Controller,
                 ),
                 param(
                     2,
-                    deckmaste_core::Kind::Objects,
+                    deckmaste_core::Kind::Entities,
                     deckmaste_core::Provenance::Linked(deckmaste_core::Ident::from("exiled")),
                 ),
             ]),
@@ -7330,7 +7338,7 @@ mod tests {
                     ),
                     OneShotEffect::Remember(deckmaste_core::Remember {
                         cell: deckmaste_core::Ident::from("exiled"),
-                        kind: deckmaste_core::Kind::Objects,
+                        kind: deckmaste_core::Kind::Entities,
                         value: FIRST_DEF_ONE_TARGET.into(),
                     }),
                 ]
@@ -7349,17 +7357,17 @@ mod tests {
             Arc::from([
                 param(
                     0,
-                    deckmaste_core::Kind::Object,
+                    deckmaste_core::Kind::Entity,
                     deckmaste_core::Provenance::Source,
                 ),
                 param(
                     1,
-                    deckmaste_core::Kind::Object,
+                    deckmaste_core::Kind::Entity,
                     deckmaste_core::Provenance::Controller,
                 ),
                 param(
                     2,
-                    deckmaste_core::Kind::Objects,
+                    deckmaste_core::Kind::Entities,
                     deckmaste_core::Provenance::Linked(deckmaste_core::Ident::from("exiled")),
                 ),
             ]),

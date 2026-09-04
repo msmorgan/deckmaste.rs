@@ -290,10 +290,10 @@ mod tests {
     #[test]
     fn lowers_reference_it_to_the_nearest_antecedents_register() {
         let (_, lowered) = crate::region::in_region(crate::region::RegionKind::Spell, 0, || {
-            let product = crate::region::define(deckmaste_core::Kind::Object);
+            let product = crate::region::define(deckmaste_core::Kind::Entity);
             crate::region::push_antecedent(
                 product.into(),
-                deckmaste_core::Kind::Object,
+                deckmaste_core::Kind::Entity,
                 crate::region::Cardinality::One,
                 None,
                 crate::region::Site::Frame,
@@ -312,18 +312,18 @@ mod tests {
     #[test]
     fn lowers_reference_that_to_the_nearest_sorted_antecedents_register() {
         let (_, lowered) = crate::region::in_region(crate::region::RegionKind::Spell, 0, || {
-            let card = crate::region::define(deckmaste_core::Kind::Object);
+            let card = crate::region::define(deckmaste_core::Kind::Entity);
             crate::region::push_antecedent(
                 card.into(),
-                deckmaste_core::Kind::Object,
+                deckmaste_core::Kind::Entity,
                 crate::region::Cardinality::One,
                 Some(deckmaste_semantics::Sort::Card),
                 crate::region::Site::Frame,
             );
-            let player = crate::region::define(deckmaste_core::Kind::Object);
+            let player = crate::region::define(deckmaste_core::Kind::Entity);
             crate::region::push_antecedent(
                 player.into(),
-                deckmaste_core::Kind::Object,
+                deckmaste_core::Kind::Entity,
                 crate::region::Cardinality::One,
                 Some(deckmaste_semantics::Sort::Player),
                 crate::region::Site::Frame,

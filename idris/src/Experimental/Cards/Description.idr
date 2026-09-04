@@ -473,6 +473,27 @@ public export
 permanentCardAnywhere : Predicate [] Object
 permanentCardAnywhere = And [Permanent, IsCard]
 
+||| "target card on the stack"
+public export
+targetCardOnTheStack : Noun [] Object
+targetCardOnTheStack = Macros.target Macros.cardOnTheStack
+
+||| "each token on the battlefield"
+public export
+eachTokenOnTheBattlefield : Noun [] Object
+eachTokenOnTheBattlefield = Macros.allOf Macros.tokenOnTheBattlefield
+
+||| "each emblem you own"
+public export
+eachEmblemYouOwn : Noun [] Object
+eachEmblemYouOwn =
+  Macros.allOf (And [Macros.emblem, HasPossessor OwnerAx You])
+
+||| "a copy of a card"
+public export
+aCopyOfACard : Noun [] Object
+aCopyOfACard = Macros.a Macros.copyOfACard
+
 ||| Keeper of the Flame, Keeper of the Light
 public export
 opponentWithMoreLifeThanYou : Predicate [] Player

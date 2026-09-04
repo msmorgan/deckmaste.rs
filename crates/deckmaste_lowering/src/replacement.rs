@@ -69,8 +69,8 @@ mod tests {
             .lower(),
             deckmaste_core::Prevention::PreventNext {
                 n: deckmaste_core::Count::X,
-                from: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                to: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                from: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
+                to: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
                 duration: None
             }
         );
@@ -85,8 +85,8 @@ mod tests {
             }
             .lower(),
             deckmaste_core::Prevention::PreventNextInstance {
-                from: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                to: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability)
+                from: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
+                to: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
             }
         );
     }
@@ -101,8 +101,8 @@ mod tests {
             }
             .lower(),
             deckmaste_core::Prevention::PreventAll {
-                from: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                to: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                from: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
+                to: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
                 duration: None
             }
         );
@@ -123,7 +123,7 @@ mod tests {
         assert_matches!(
             would,
             deckmaste_core::EventFilter::ZoneChange {
-                what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                what: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
                 from: None,
                 to: None,
                 cause: None
@@ -151,7 +151,7 @@ mod tests {
         assert_matches!(
             would,
             deckmaste_core::EventFilter::ZoneChange {
-                what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                what: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
                 from: None,
                 to: None,
                 cause: None
@@ -175,7 +175,7 @@ mod tests {
         assert_matches!(
             would,
             deckmaste_core::EventFilter::ZoneChange {
-                what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
+                what: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
                 from: None,
                 to: None,
                 cause: None
