@@ -89,3 +89,15 @@ lock identities.
   three adjacent generated-lock additions by regenerating the lock from the
   merged grammar; the source merge itself had no textual conflict.
 - STOPs: none.
+
+## Erratum (quoted-terminator landing review, 2026-09-03)
+
+Accounting: of the +154, only 40 contain ` with "` (32 token, 8 other,
+0 of 86 `emblem with "`); 114 are gains/has/multi-sentence shapes. The
+` with "` residue is 272 (not 158), of which 66 fail at or after the quote
+for unrelated reasons (comma-terminated quoted blocks, "Activate only as a
+sorcery", mode bullets). Added witnesses undercounted (4 shapes + 2 claim
+traces); collisions omitted from the census table (59 -> 59). Ledger: the
+final-constituent check is 16 hand-written functions mirroring the
+grammar's rightmost spine — routed to
+construction-core-final-constituent-primitive.
