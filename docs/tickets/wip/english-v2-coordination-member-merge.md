@@ -35,9 +35,11 @@ constraints apply.
 
 ## Landing record
 
-- Measured tree: change `rlvlmwxrnlky`, refreshed with `kata refresh` before
-  the final gate pass. The coverage lock is schema 4, byte-unchanged, and has
-  17,068 covered identities.
+- Measured tree: change `kzxzvrwzvsyr` (the reviewed tree: `rlvlmwxrnlky`
+  refreshed with `kata refresh`, plus the review corrections below). All
+  numbers below were re-measured by review on that tree. The coverage lock is
+  schema 4, byte-unchanged against the refreshed base, and has 17,068 covered
+  identities.
 - Construction count: 388 before / 385 after on the refreshed base, exactly
   -3. The three replacements are `bare_coordination_member`,
   `modified_coordination_member`, and `negative_modified_coordination_member`.
@@ -51,7 +53,8 @@ constraints apply.
   traversal failures, leaf-traversal failures, gaps, overlaps, synthetic
   claims, or provenance-plan mismatches. The report-mode lock delta is
   `+0/-0`; no identities were newly covered or lost. Permitted licensing
-  checkers: 20; forbidden: 0.
+  checkers: 20; forbidden: 0. The `environment.rs` word-naming load-error
+  tests are untouched by the diff and pass in the gate run above.
 - Selection neutrality: refreshed-base `ambiguity --json` and final
   `ambiguity --json --require-resolved` each report 17,068 selected (13,452
   unique / 3,616 specificity-resolved / 0 exception-resolved). Comparing every
@@ -74,16 +77,44 @@ constraints apply.
   counter above. `ambiguity --require-resolved` passed with 0 unresolved ties.
   `roundtrip --require-clean` printed `parse accepted 17068`, `clean 17068`,
   and `mismatched 0`. No citations changed, so cite gates were not required.
-- Performance advisory (8 workers; host load only, concurrent-process count is
-  not observable in this sandbox): coverage 124.039 s / 133,411 ns/B at
-  18.46/22.89/17.83; ambiguity 121.120 s / 163,226 ns/B at
-  12.15/17.89/17.40; roundtrip 121.337 s / 135,956 ns/B at
-  12.51/14.52/16.10. All exceed the 16.26-second quiet-host ceiling under
-  concurrent load and are advisory.
+- Performance advisory (8 workers), re-measured by review on the reviewed tree
+  under a true contention of 3 concurrent executors and 2 concurrent reviews:
+  coverage 107.310 s / 124,210 ns/B at 6.75/12.91/15.03; ambiguity 113.566 s /
+  124,285 ns/B at 8.58/11.60/14.26; roundtrip 137.432 s / 143,366 ns/B at
+  19.79/14.11/14.22; the trunk-baseline ambiguity run in the scratch copy took
+  113.889 s / 137,354 ns/B. All exceed the 16.26-second quiet-host ceiling
+  under that load and are advisory. The implementer's own advisory reported a
+  concurrent-process count of "not observable"; the count above replaces it.
 - Assurance: restored 0; re-spelled 4 existing test functions (feature recipe,
   exact selected paths, constructor rejection, and checked-rejection
   inventory); ignored 0; added 0 test functions (the constructor-rejection
-  witness now also asserts mixed Number members are unconstructible); removed
-  0.
+  witness now also asserts that mixed-Number members are unconstructible for
+  all three coordinators); removed 0. The checked-rejection inventory in
+  `tests/parser.rs` lost its two
+  `CoordinationMemberBarePluralCoordinationMember` rows because the deleted
+  downward imposition was what produced them; the test's asserted outcome
+  (failure span, expectations, the surviving `NominalBarePluralNominal` rows)
+  is unchanged.
 - Deviations and additions: none. Glossary gaps: none. STOP: none.
 - Wall clock: start 2026-09-04 15:10 PDT; end 2026-09-04 15:33 PDT.
+
+### Review corrections
+
+- MEDIUM — the coordinator-authorized note resolving the open question left by
+  `english-v2-number-feature-unification` was not written. Fixed: a dated line
+  appended to `docs/tickets/done/english-v2-number-feature-unification.md`
+  recording that this landing resolved it by the upward relay.
+- LOW — the added mixed-Number witness covered only `AndNominalCoordination`.
+  Fixed: `tests/nominal_grammar.rs` now asserts the rejection for all three
+  coordinators (`And`, `Or`, `And/Or`) through a shared `mixed_number`
+  builder, which also keeps the function under the `too_many_lines` ceiling.
+- LOW — the performance advisory carried an unobservable contention count and
+  numbers measured before the final refresh. Fixed: re-measured on the
+  reviewed tree with the true contention stamp.
+- Independent verification by review: construction count 388 (trunk) / 385
+  (tree) counted from `constructions.rs`; selection neutrality re-proved from a
+  trunk-vs-tree `ambiguity --json` per-unit comparison run in a scratch reflink
+  copy — after normalizing the six retired construction/element names onto
+  their three unified names, 0 status changes, 0 resolution changes, 0
+  selected-analysis changes, 0 gained or lost selections, and 0 units with a
+  changed candidate count.

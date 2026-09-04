@@ -242,3 +242,7 @@ count to 391. That trades the pinned downward imposition for the pinned upward
 relay at those roles and collapses six public AST element variants into three,
 which is a design choice this ticket did not pin, so it was not taken
 unilaterally in review. Route it as a follow-up if the count is wanted.
+
+2026-09-04: resolved by `english-v2-coordination-member-merge`, which took the
+upward relay (`derive number = head.number` on each member) and merged the six
+Constructions into three.

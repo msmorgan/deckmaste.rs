@@ -2802,13 +2802,15 @@ fn coordination_minimum_arity_and_concord_class_are_unconstructible_when_inconsi
     assert!(
         AndOrNominalCoordination::new(vec![coordination_member(plural_head("Artifact"))]).is_none()
     );
-    assert!(
-        AndNominalCoordination::new(vec![
+    let mixed_number = || {
+        vec![
             coordination_member(head("Artifact")),
             coordination_member(plural_head("Artifact")),
-        ])
-        .is_none()
-    );
+        ]
+    };
+    assert!(AndNominalCoordination::new(mixed_number()).is_none());
+    assert!(OrNominalCoordination::new(mixed_number()).is_none());
+    assert!(AndOrNominalCoordination::new(mixed_number()).is_none());
     let determined = DeterminedNominal::new(
         Determiner::Headed(Determinative::TargetingMarkerDeterminative(
             TargetingMarkerDeterminative {
