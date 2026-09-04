@@ -1549,7 +1549,7 @@ mod tests {
 
         let noun_codec = RULES
             .iter()
-            .find(|rule| rule.id == RuleId::SingularHeadNounSingularHead)
+            .find(|rule| rule.id == RuleId::HeadNounSingularHead)
             .and_then(|rule| {
                 rule.rhs.iter().find_map(|position| match position {
                     RulePosition::Lexical(terminal) => match terminal.matcher {
@@ -2295,7 +2295,7 @@ mod tests {
         .unwrap();
         let codec = RULES
             .iter()
-            .find(|rule| rule.id == RuleId::SingularHeadNounSingularHead)
+            .find(|rule| rule.id == RuleId::HeadNounSingularHead)
             .and_then(|rule| {
                 rule.rhs.iter().find_map(|position| match position {
                     RulePosition::Lexical(terminal) => match terminal.matcher {

@@ -179,22 +179,19 @@ impl Visitor for SubjectStructureVisitor {
         deckmaste_english_v2::visit::walk_nominal(self, value);
     }
 
-    fn visit_singular_nominal_coordination(&mut self, value: &SingularNominalCoordination) {
-        self.0.push("SingularNominalCoordination");
-        deckmaste_english_v2::visit::walk_singular_nominal_coordination(self, value);
+    fn visit_nominal_coordination(&mut self, value: &NominalCoordination) {
+        self.0.push("NominalCoordination");
+        deckmaste_english_v2::visit::walk_nominal_coordination(self, value);
     }
 
-    fn visit_singular_or_nominal_coordination(&mut self, value: &SingularOrNominalCoordination) {
-        self.0.push("SingularOrNominalCoordination");
-        deckmaste_english_v2::visit::walk_singular_or_nominal_coordination(self, value);
+    fn visit_or_nominal_coordination(&mut self, value: &OrNominalCoordination) {
+        self.0.push("OrNominalCoordination");
+        deckmaste_english_v2::visit::walk_or_nominal_coordination(self, value);
     }
 
-    fn visit_singular_and_or_nominal_coordination(
-        &mut self,
-        value: &SingularAndOrNominalCoordination,
-    ) {
-        self.0.push("SingularAndOrNominalCoordination");
-        deckmaste_english_v2::visit::walk_singular_and_or_nominal_coordination(self, value);
+    fn visit_and_or_nominal_coordination(&mut self, value: &AndOrNominalCoordination) {
+        self.0.push("AndOrNominalCoordination");
+        deckmaste_english_v2::visit::walk_and_or_nominal_coordination(self, value);
     }
 
     fn visit_full_or_noun_phrase_coordination(&mut self, value: &FullOrNounPhraseCoordination) {
@@ -240,8 +237,8 @@ fn finite_subject_coordination_and_exclusion_are_linguistic_structure() {
                 "DeterminedNominal",
                 "Determinative",
                 "Nominal",
-                "SingularNominalCoordination",
-                "SingularOrNominalCoordination",
+                "NominalCoordination",
+                "OrNominalCoordination",
                 "DeterminedNominal",
                 "Determinative",
                 "Nominal",
@@ -251,7 +248,7 @@ fn finite_subject_coordination_and_exclusion_are_linguistic_structure() {
             ][..],
             &[
                 "determinative:DeterminativeHead/IndefiniteArticle",
-                "structural:SingularOrNominalCoordination/members/separator/pair/0",
+                "structural:OrNominalCoordination/members/separator/pair/0",
             ][..],
         ),
         (
@@ -285,8 +282,8 @@ fn finite_subject_coordination_and_exclusion_are_linguistic_structure() {
                 "DeterminedNominal",
                 "Determinative",
                 "Nominal",
-                "SingularNominalCoordination",
-                "SingularOrNominalCoordination",
+                "NominalCoordination",
+                "OrNominalCoordination",
                 "DeterminedNominal",
                 "Determinative",
                 "Nominal",
@@ -296,7 +293,7 @@ fn finite_subject_coordination_and_exclusion_are_linguistic_structure() {
             ][..],
             &[
                 "determinative:DeterminativeHead/IndefiniteArticle",
-                "structural:SingularOrNominalCoordination/members/separator/pair/0",
+                "structural:OrNominalCoordination/members/separator/pair/0",
             ][..],
         ),
         (
@@ -346,8 +343,8 @@ fn finite_subject_coordination_and_exclusion_are_linguistic_structure() {
                 "DeterminedNominal",
                 "Determinative",
                 "Nominal",
-                "SingularNominalCoordination",
-                "SingularAndOrNominalCoordination",
+                "NominalCoordination",
+                "AndOrNominalCoordination",
                 "DeterminedNominal",
                 "Determinative",
                 "Nominal",
@@ -357,7 +354,7 @@ fn finite_subject_coordination_and_exclusion_are_linguistic_structure() {
             ][..],
             &[
                 "determinative:DeterminativeHead/Another",
-                "structural:SingularAndOrNominalCoordination/members/separator/pair/0",
+                "structural:AndOrNominalCoordination/members/separator/pair/0",
             ][..],
         ),
         (
@@ -371,6 +368,7 @@ fn finite_subject_coordination_and_exclusion_are_linguistic_structure() {
                 "GenitiveDeterminerSingularReference",
                 "DeterminedNominal",
                 "Determinative",
+                "Nominal",
                 "Nominal",
                 "DeterminedNominal",
                 "Determinative",
@@ -538,7 +536,7 @@ fn existential_there_preserves_its_pivot_before_the_predicate_boundary() {
         "FiniteConditionFiniteCondition",
         "FiniteClauseExistentialFiniteClause",
         "UnqualifiedReferenceDeterminedNominal",
-        "PluralNominalModifiedPluralNominal",
+        "NominalModifiedPluralNominal",
         "NominalModifierSupertypeModifier",
         "NominalModifierNounModifier",
         "PrepositionalPhrasePrepositionalPhrase",
@@ -755,6 +753,7 @@ fn existential_there_derives_be_agreement_and_visits_the_complete_structure() {
             "PrepositionalPhraseValue",
             "DeterminedNominal",
             "Determinative",
+            "Nominal",
             "Nominal",
             "ConditionClause",
             "ExistentialFiniteClause",
@@ -2429,11 +2428,9 @@ fn is_indefinite_player(reference: &UnqualifiedReference) -> bool {
     det.head == DeterminativeHead::Closed(DeterminativeHeadLemma::IndefiniteArticle)
         && matches!(
             &determined.nominal,
-            Nominal::SingularNominalValue(SingularNominalValue {
-                nominal: SingularNominal::BareSingularNominal(BareSingularNominal {
-                    head: SingularHead::NounSingularHead(head),
-                }),
-            }) if head.noun() == &Noun::Lexeme(CommonNoun::Player)
+            Nominal::BareSingularNominal(nominal)
+                if matches!(nominal.head(), Head::NounSingularHead(head)
+                    if head.noun() == &Noun::Lexeme(CommonNoun::Player))
         )
 }
 
@@ -2441,14 +2438,13 @@ fn indefinite_player_reference() -> UnqualifiedReference {
     let det = Determinative::SingularSimpleDeterminative(SingularSimpleDeterminative {
         head: DeterminativeHead::Closed(DeterminativeHeadLemma::IndefiniteArticle),
     });
-    let nominal = Nominal::SingularNominalValue(SingularNominalValue {
-        nominal: SingularNominal::BareSingularNominal(BareSingularNominal {
-            head: SingularHead::NounSingularHead(
-                NounSingularHead::new(Noun::Lexeme(CommonNoun::Player))
-                    .expect("player is a count noun"),
-            ),
-        }),
-    });
+    let nominal = Nominal::BareSingularNominal(
+        BareSingularNominal::new(Head::NounSingularHead(
+            NounSingularHead::new(Noun::Lexeme(CommonNoun::Player))
+                .expect("player is a count noun"),
+        ))
+        .expect("the Singular nominal accepts a Singular Head"),
+    );
     UnqualifiedReference::DeterminedNominal(
         DeterminedNominal::new(Determiner::Headed(det), nominal)
             .expect("an indefinite determiner agrees with a singular player nominal"),

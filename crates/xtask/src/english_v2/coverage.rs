@@ -2815,7 +2815,7 @@ mod tests {
         );
         assert_eq!(json["summary"]["licensed_vocab_lexicon_homographs"], 2);
         assert_eq!(json["summary"]["form_literal_vocab_overlaps"], 25);
-        assert_eq!(json["summary"]["licensing_checker_permitted"], 26);
+        assert_eq!(json["summary"]["licensing_checker_permitted"], 25);
         assert_eq!(json["summary"]["licensing_checker_forbidden"], 0);
     }
 

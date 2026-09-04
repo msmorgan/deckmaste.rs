@@ -183,22 +183,24 @@ fn self_reference(spelling: SelfReferenceSpelling, card_name: &str) -> SourceSel
     SourceSelfReference::new(spelling, &context).expect("test spelling is valid for its context")
 }
 
-fn singular_nominal(noun: Noun) -> SingularNominal {
-    SingularNominal::BareSingularNominal(BareSingularNominal {
-        head: SingularHead::NounSingularHead(
+fn singular_nominal(noun: Noun) -> Nominal {
+    Nominal::BareSingularNominal(
+        BareSingularNominal::new(Head::NounSingularHead(
             NounSingularHead::new(noun).expect("test noun is countable"),
-        ),
-    })
+        ))
+        .expect("the Singular nominal accepts a Singular Head"),
+    )
 }
 
-fn plural_nominal(noun: Noun) -> PluralNominal {
-    PluralNominal::BarePluralNominal(BarePluralNominal {
-        head: plural_head(noun),
-    })
+fn plural_nominal(noun: Noun) -> Nominal {
+    Nominal::BarePluralNominal(
+        BarePluralNominal::new(plural_head(noun))
+            .expect("the Plural nominal accepts a Plural Head"),
+    )
 }
 
-fn plural_head(noun: Noun) -> PluralHead {
-    PluralHead::NounPluralHead(NounPluralHead::new(noun).expect("test noun is countable"))
+fn plural_head(noun: Noun) -> Head {
+    Head::NounPluralHead(NounPluralHead::new(noun).expect("test noun is countable"))
 }
 
 fn noun_phrase(reference: UnqualifiedReference) -> NounPhrase {
@@ -219,9 +221,7 @@ fn target_noun(noun: Noun) -> NounPhrase {
     let determiner = Determinative::TargetingMarkerDeterminative(TargetingMarkerDeterminative {
         marker: TargetingMarker::Target,
     });
-    let nominal = Nominal::SingularNominalValue(SingularNominalValue {
-        nominal: singular_nominal(noun),
-    });
+    let nominal = singular_nominal(noun);
     noun_phrase(UnqualifiedReference::DeterminedNominal(
         DeterminedNominal::new(Determiner::Headed(determiner), nominal)
             .expect("the targeting marker determinative agrees with its singular nominal"),
@@ -232,9 +232,7 @@ fn determined_singular(determiner: DeterminativeHeadLemma, noun: Noun) -> NounPh
     let determiner = Determinative::SingularSimpleDeterminative(SingularSimpleDeterminative {
         head: DeterminativeHead::Closed(determiner),
     });
-    let nominal = Nominal::SingularNominalValue(SingularNominalValue {
-        nominal: singular_nominal(noun),
-    });
+    let nominal = singular_nominal(noun);
     noun_phrase(UnqualifiedReference::DeterminedNominal(
         DeterminedNominal::new(Determiner::Headed(determiner), nominal)
             .expect("test determiner agrees with its singular nominal"),
@@ -242,9 +240,7 @@ fn determined_singular(determiner: DeterminativeHeadLemma, noun: Noun) -> NounPh
 }
 
 fn determined_plural(determiner: Determiner, noun: Noun) -> NounPhrase {
-    let nominal = Nominal::PluralNominalValue(PluralNominalValue {
-        nominal: plural_nominal(noun),
-    });
+    let nominal = plural_nominal(noun);
     noun_phrase(UnqualifiedReference::DeterminedNominal(
         DeterminedNominal::new(determiner, nominal)
             .expect("test determiner agrees with its plural nominal"),
@@ -263,9 +259,7 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
                                     reference: Box::new(UnqualifiedReference::DeterminedNominal(
                                         DeterminedNominal::new(
                                             Determiner::Zero,
-                                            Nominal::PluralNominalValue(PluralNominalValue {
-                                                nominal: plural_nominal(creatures()),
-                                            }),
+                                            plural_nominal(creatures()),
                                         )
                                         .expect("a zero determiner agrees with a plural nominal"),
                                     )),
@@ -287,9 +281,12 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
                     },
                 )),
                 scalar: ScalarQualification::ScalarQualification(ScalarQualificationValue {
-                    measure: ScalarMeasure::NominalScalarMeasure(NominalScalarMeasure {
-                        nominal: singular_nominal(Noun::Lexeme(CommonNoun::Power)),
-                    }),
+                    measure: ScalarMeasure::NominalScalarMeasure(
+                        NominalScalarMeasure::new(singular_nominal(Noun::Lexeme(
+                            CommonNoun::Power,
+                        )))
+                        .expect("power is a Singular nominal scalar measure"),
+                    ),
                     comparison: ScalarComparison::ScalarOrLess(
                         ScalarOrLess::new(
                             ScalarThreshold::FixedScalarThreshold(FixedScalarThreshold {
@@ -313,9 +310,7 @@ fn number_of(counted: Object) -> NounPhrase {
                     head: DeterminativeHead::Closed(DeterminativeHeadLemma::DefiniteArticle),
                 },
             )),
-            Nominal::SingularNominalValue(SingularNominalValue {
-                nominal: singular_nominal(Noun::Lexeme(CommonNoun::Number)),
-            }),
+            singular_nominal(Noun::Lexeme(CommonNoun::Number)),
         )
         .expect("the agrees with the singular number nominal"),
     );

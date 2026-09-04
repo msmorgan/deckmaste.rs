@@ -114,16 +114,13 @@ fn indefinite_articles_are_guarded_by_frozen_onset_without_ast_article_state() {
             panic!("the public staged indefinite AST stores its noun head: {parsed:?}")
         };
         let UnqualifiedReference::DeterminedNominal(DeterminedNominal {
-            nominal:
-                Nominal::SingularNominalValue(SingularNominalValue {
-                    nominal: SingularNominal::BareSingularNominal(BareSingularNominal { head }),
-                }),
+            nominal: Nominal::BareSingularNominal(nominal),
             ..
         }) = unqualified_reference(object.value())
         else {
             panic!("the public staged indefinite AST stores its noun head: {parsed:?}")
         };
-        assert!(matches!(head, SingularHead::NounSingularHead(_)));
+        assert!(matches!(nominal.head(), Head::NounSingularHead(_)));
         assert_eq!(parsed.render(&context, &environment), text);
         let ownership = parser
             .analyze(text, &context)
@@ -422,34 +419,32 @@ fn self_reference(spelling: SelfReferenceSpelling, card_name: &str) -> SourceSel
     SourceSelfReference::new(spelling, &context).expect("test spelling is valid for its context")
 }
 
-fn singular_nominal(noun: Noun) -> SingularNominal {
-    SingularNominal::BareSingularNominal(BareSingularNominal {
-        head: SingularHead::NounSingularHead(
+fn singular_nominal(noun: Noun) -> Nominal {
+    Nominal::BareSingularNominal(
+        BareSingularNominal::new(Head::NounSingularHead(
             NounSingularHead::new(noun).expect("test noun is countable"),
-        ),
-    })
+        ))
+        .expect("the Singular nominal accepts a Singular Head"),
+    )
 }
 
-fn plural_nominal(noun: Noun) -> PluralNominal {
-    PluralNominal::BarePluralNominal(BarePluralNominal {
-        head: plural_head(noun),
-    })
+fn plural_nominal(noun: Noun) -> Nominal {
+    Nominal::BarePluralNominal(
+        BarePluralNominal::new(plural_head(noun))
+            .expect("the Plural nominal accepts a Plural Head"),
+    )
 }
 
-fn plural_head(noun: Noun) -> PluralHead {
-    PluralHead::NounPluralHead(NounPluralHead::new(noun).expect("test noun is countable"))
+fn plural_head(noun: Noun) -> Head {
+    Head::NounPluralHead(NounPluralHead::new(noun).expect("test noun is countable"))
 }
 
 fn singular_nominal_value(noun: Noun) -> Nominal {
-    Nominal::SingularNominalValue(SingularNominalValue {
-        nominal: singular_nominal(noun),
-    })
+    singular_nominal(noun)
 }
 
 fn plural_nominal_value(noun: Noun) -> Nominal {
-    Nominal::PluralNominalValue(PluralNominalValue {
-        nominal: plural_nominal(noun),
-    })
+    plural_nominal(noun)
 }
 
 fn singular_simple_determinative(head: DeterminativeHeadLemma) -> Determinative {
@@ -541,9 +536,12 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
                     },
                 )),
                 scalar: ScalarQualification::ScalarQualification(ScalarQualificationValue {
-                    measure: ScalarMeasure::NominalScalarMeasure(NominalScalarMeasure {
-                        nominal: singular_nominal(Noun::Lexeme(CommonNoun::Power)),
-                    }),
+                    measure: ScalarMeasure::NominalScalarMeasure(
+                        NominalScalarMeasure::new(singular_nominal(Noun::Lexeme(
+                            CommonNoun::Power,
+                        )))
+                        .expect("power is a Singular nominal scalar measure"),
+                    ),
                     comparison: ScalarComparison::ScalarOrLess(
                         ScalarOrLess::new(
                             ScalarThreshold::FixedScalarThreshold(FixedScalarThreshold {
@@ -939,7 +937,11 @@ fn typed_where_staging_rejects_a_finite_subordinate_clause_in_the_chart() {
             .map(|rejection| (rejection.rule_name_v1(), rejection.start(), rejection.end(),))
             .collect::<Vec<_>>(),
         [
+            ("CoordinationMemberBarePluralCoordinationMember", 18, 25),
+            ("CoordinationMemberBarePluralCoordinationMember", 18, 25),
             ("DeterminativePluralSimpleDeterminative", 17, 18),
+            ("NominalBarePluralNominal", 18, 25),
+            ("NominalBarePluralNominal", 18, 25),
             (
                 "PredicateAdjunctPredicatePrepositionalPredicateAdjunctPredicate",
                 3,
@@ -1421,9 +1423,8 @@ fn parser_analysis_repeats_exactly_and_preserves_selected_rendered_bytes() {
             "PostmodifiedReferenceUnqualifiedPostmodifiedReference".to_owned(),
             "UnqualifiedReferenceDeterminedNominal".to_owned(),
             "DeterminativeTargetingMarkerDeterminative".to_owned(),
-            "NominalSingularNominalValue".to_owned(),
-            "SingularNominalBareSingularNominal".to_owned(),
-            "SingularHeadNounSingularHead".to_owned(),
+            "NominalBareSingularNominal".to_owned(),
+            "HeadNounSingularHead".to_owned(),
         ]
     );
     assert_eq!(parser.parse(text, &context), first.into_parse_result(),);
@@ -1739,10 +1740,10 @@ fn parser_trace_selected_projection_is_exact_bounded_repeatable_and_private_resu
 
         if limit > 0 {
             let candidate = &trace.materialized_candidates().items()[0];
-            assert_eq!(candidate.construction_path().total(), 13);
-            assert_eq!(candidate.construction_path().shown(), usize::min(limit, 13));
-            assert_eq!(candidate.specificity().total(), 15);
-            assert_eq!(candidate.specificity().shown(), usize::min(limit, 15));
+            assert_eq!(candidate.construction_path().total(), 12);
+            assert_eq!(candidate.construction_path().shown(), usize::min(limit, 12));
+            assert_eq!(candidate.specificity().total(), 14);
+            assert_eq!(candidate.specificity().shown(), usize::min(limit, 14));
         }
 
         if limit == usize::MAX {
@@ -1766,12 +1767,11 @@ fn parser_trace_selected_projection_is_exact_bounded_repeatable_and_private_resu
                     "PostmodifiedReferenceUnqualifiedPostmodifiedReference",
                     "UnqualifiedReferenceDeterminedNominal",
                     "DeterminativeTargetingMarkerDeterminative",
-                    "NominalSingularNominalValue",
-                    "SingularNominalBareSingularNominal",
-                    "SingularHeadNounSingularHead",
+                    "NominalBareSingularNominal",
+                    "HeadNounSingularHead",
                 ]
             );
-            assert_eq!(candidate.specificity().total(), 15);
+            assert_eq!(candidate.specificity().total(), 14);
             assert!(selection.unselected_candidates().items().is_empty());
             assert_eq!(selection.resolution(), complete.resolution());
             assert_eq!(selection.survivors().items(), complete.survivors());

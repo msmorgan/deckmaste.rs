@@ -8,11 +8,14 @@ constructions! {
         form item = "item";
     }
     construction invalid: Root {
-        element MixedSequence { members: seq Item separated by " ", }
+        element DuplicateNumberSequence {
+            source: Item,
+            members: seq Item separated by " ",
+        }
         require len(members) >= 2;
-        derive agreement = members.agreement;
         derive number = members.number;
-        form invalid = members;
+        derive source.number = members.number;
+        form invalid = source members;
     }
     root Root { punctuation = "."; eoi = true; standalone_render = true; }
 }

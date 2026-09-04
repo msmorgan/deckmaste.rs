@@ -1061,6 +1061,7 @@ mod tests {
     use crate::ast::CommonNoun;
     use crate::ast::DeclarationIntransitiveVerb;
     use crate::ast::FiniteClause;
+    use crate::ast::Head;
     use crate::ast::Imperative;
     use crate::ast::IntransitiveLexicalVerbPhrase;
     use crate::ast::IntransitivePredicate;
@@ -1073,8 +1074,6 @@ mod tests {
     use crate::ast::ScalarNumber;
     use crate::ast::SelfReferenceSpelling;
     use crate::ast::Sentence;
-    use crate::ast::SingularHead;
-    use crate::ast::SingularNominal;
     use crate::ast::Subject;
     use crate::ast::SubjectPronoun;
     use crate::ast::UnqualifiedReference;
@@ -1095,7 +1094,6 @@ mod tests {
     use crate::constructions::Number;
     use crate::constructions::Onset;
     use crate::constructions::PossessiveEnding;
-    use crate::constructions::SingularNominalValue;
     use crate::constructions::SingularSimpleDeterminative;
     use crate::context::ParseContext;
     use crate::environment::DeclarationId;
@@ -1309,14 +1307,13 @@ mod tests {
                     FeatureConstraint::Any,
                 ),
                 BuildValue::Nominal(
-                    Nominal::SingularNominalValue(SingularNominalValue {
-                        nominal: SingularNominal::BareSingularNominal(BareSingularNominal {
-                            head: SingularHead::NounSingularHead(
-                                NounSingularHead::new(Noun::Lexeme(CommonNoun::Player))
-                                    .expect("player is a count noun"),
-                            ),
-                        }),
-                    }),
+                    Nominal::BareSingularNominal(
+                        BareSingularNominal::new(Head::NounSingularHead(
+                            NounSingularHead::new(Noun::Lexeme(CommonNoun::Player))
+                                .expect("player is a count noun"),
+                        ))
+                        .expect("the Singular nominal accepts a Singular Head"),
+                    ),
                     Agreement::ThirdPersonSingular,
                     Number::Singular,
                     nominal_onset,
@@ -1939,9 +1936,8 @@ mod tests {
                 Construction::PostmodifiedReferenceUnqualifiedPostmodifiedReference,
                 Construction::UnqualifiedReferenceDeterminedNominal,
                 Construction::DeterminativeTargetingMarkerDeterminative,
-                Construction::NominalSingularNominalValue,
-                Construction::SingularNominalBareSingularNominal,
-                Construction::SingularHeadNounSingularHead,
+                Construction::NominalBareSingularNominal,
+                Construction::HeadNounSingularHead,
             ]
         );
         assert_eq!(
@@ -1959,8 +1955,7 @@ mod tests {
                 RulePosition::Nonterminal(Category::Determinative),
                 RulePosition::Nonterminal(Category::Nominal),
                 RulePosition::Lexical(Lexical::TargetingMarker),
-                RulePosition::Nonterminal(Category::SingularNominal),
-                RulePosition::Nonterminal(Category::SingularHead),
+                RulePosition::Nonterminal(Category::Head),
                 RulePosition::Lexical(Lexical::DeclarationNoun(
                     0,
                     FeatureConstraint::Exact(Number::Singular),

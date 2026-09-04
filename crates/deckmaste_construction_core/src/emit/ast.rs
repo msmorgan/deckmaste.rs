@@ -654,78 +654,103 @@ fn emit_invariant_checks(
             .iter()
             .filter_map(|field| {
                 let structural = field.structural_plan()?;
-                let feature =
-                    plan.sequence_feature(construction.element_type(), structural.name())?;
-                Some(emit_sequence_feature_check(
-                    plan,
-                    construction,
-                    field,
-                    structural,
-                    feature,
-                    structural_owner,
-                    locals,
-                ))
+                Some(
+                    plan.sequence_features(construction.element_type(), structural.name())
+                        .iter()
+                        .copied()
+                        .map(|feature| {
+                            emit_sequence_feature_check(
+                                plan,
+                                construction,
+                                field,
+                                structural,
+                                feature,
+                                structural_owner,
+                                locals,
+                            )
+                        }),
+                )
             })
+            .flatten()
             .collect::<syn::Result<Vec<_>>>()?,
     );
-    length_checks.extend(
-        plan.feature_equations(construction.construction_id())
-            .iter()
-            .filter_map(|equation| {
-                let crate::feature::FeaturePlace::Role {
-                    field,
-                    feature: crate::feature::Feature::Agreement,
-                } = equation.target()
-                else {
-                    return None;
-                };
-                let Ok(constrained) = construction.field(&identifier_key(field)) else {
-                    return None;
-                };
-                if constrained.kind() != crate::semantic::ConstructionFieldKind::Category
-                    || matches!(
-                        constrained.structural_kind(),
-                        Some(
-                            crate::semantic::StructuralFieldKindPlan::Zeroable(_)
-                                | crate::semantic::StructuralFieldKindPlan::Optional(_)
-                                | crate::semantic::StructuralFieldKindPlan::Sequence { .. }
-                        )
-                    )
-                    || !(plan.sum_carries_agreement(constrained.terminal())
-                        || plan.category_carries_agreement(constrained.terminal()))
-                {
-                    return None;
-                }
-                Some((|| {
-                    let expected = resolve_constructor_feature(
-                        plan,
-                        construction,
-                        equation.target(),
-                        &mut std::collections::HashSet::new(),
-                        locals,
-                    )?;
-                    let value = field_local(locals, constrained)?;
-                    let helper = emitted_ident(
-                        &feature_helper("agreement_matches", constrained.terminal()),
-                        proc_macro2::Span::call_site(),
-                    );
-                    let role = syn::LitStr::new(&constrained.name_key(), field.span());
-                    Ok(quote! {
-                        if !#helper(&#value, #expected) {
-                            return Err(BuildRejection::new(
-                                #structural_owner,
-                                #role,
-                                BuildViolation::Invariant {
-                                    identity: "value matches derived agreement",
-                                },
-                            ));
-                        }
-                    })
-                })())
-            })
-            .collect::<syn::Result<Vec<_>>>()?,
-    );
+    for equation in plan.feature_equations(construction.construction_id()) {
+        if let Some(check) =
+            emit_derived_role_feature_check(plan, construction, equation, structural_owner, locals)?
+        {
+            length_checks.push(check);
+        }
+    }
     Ok((predicate_check, context_checks, length_checks))
+}
+
+fn emit_derived_role_feature_check(
+    plan: &SemanticPlan,
+    construction: &ConstructionPlan,
+    equation: &crate::feature::FeatureEquation,
+    structural_owner: &syn::LitStr,
+    locals: &HashMap<String, syn::Ident>,
+) -> syn::Result<Option<TokenStream>> {
+    let crate::feature::FeaturePlace::Role { field, feature } = equation.target() else {
+        return Ok(None);
+    };
+    let Ok(constrained) = construction.field(&identifier_key(field)) else {
+        return Ok(None);
+    };
+    if constrained.kind() != crate::semantic::ConstructionFieldKind::Category
+        || matches!(
+            constrained.structural_kind(),
+            Some(
+                crate::semantic::StructuralFieldKindPlan::Zeroable(_)
+                    | crate::semantic::StructuralFieldKindPlan::Optional(_)
+                    | crate::semantic::StructuralFieldKindPlan::Sequence { .. }
+            )
+        )
+    {
+        return Ok(None);
+    }
+    let (helper_name, identity) = match feature {
+        crate::feature::Feature::Agreement
+            if plan.sum_carries_agreement(constrained.terminal())
+                || plan.category_carries_agreement(constrained.terminal()) =>
+        {
+            ("agreement_matches", "value matches derived agreement")
+        }
+        crate::feature::Feature::Number if plan.category_carries_number(constrained.terminal()) => {
+            ("number", "value matches derived grammatical Number")
+        }
+        _ => return Ok(None),
+    };
+    let expected = resolve_constructor_feature(
+        plan,
+        construction,
+        equation.target(),
+        &mut std::collections::HashSet::new(),
+        locals,
+    )?;
+    let value = field_local(locals, constrained)?;
+    let helper = emitted_ident(
+        &feature_helper(helper_name, constrained.terminal()),
+        proc_macro2::Span::call_site(),
+    );
+    let role = syn::LitStr::new(&constrained.name_key(), field.span());
+    let identity = syn::LitStr::new(identity, field.span());
+    let matches = match feature {
+        crate::feature::Feature::Agreement => quote! { #helper(&#value, #expected) },
+        crate::feature::Feature::Number => quote! { #helper(&#value) == #expected },
+        _ => unreachable!("unsupported checked feature was rejected"),
+    };
+    Ok(Some(quote! {
+        if !(#matches) {
+            return Err(BuildRejection::new(
+                #structural_owner,
+                #role,
+                BuildViolation::Invariant {
+                    identity: #identity,
+                },
+            ));
+        }
+    }))
 }
 
 fn emit_sequence_feature_check(
@@ -743,7 +768,10 @@ fn emit_sequence_feature_check(
     ) {
         return Ok(TokenStream::new());
     }
-    if feature != crate::feature::Feature::Agreement {
+    if !matches!(
+        feature,
+        crate::feature::Feature::Agreement | crate::feature::Feature::Number
+    ) {
         return Err(internal("unsupported checked sequence feature"));
     }
     let crate::semantic::StructuralFieldKindPlan::Sequence { item, bounds, .. } = structural.kind()
@@ -755,27 +783,43 @@ fn emit_sequence_feature_check(
             "checked sequence feature role is not statically nonempty",
         ));
     }
-    let feature_owner = match item {
-        crate::semantic::ValueKindPlan::Category(category)
-            if plan.category_carries_agreement(category) =>
+    let feature_owner = match (feature, item) {
+        (
+            crate::feature::Feature::Agreement,
+            crate::semantic::ValueKindPlan::Category(category),
+        ) if plan.category_carries_agreement(category) => category,
+        (crate::feature::Feature::Agreement, crate::semantic::ValueKindPlan::Sum(sum))
+            if plan.sum_carries_agreement(sum) =>
+        {
+            sum
+        }
+        (crate::feature::Feature::Number, crate::semantic::ValueKindPlan::Category(category))
+            if plan.category_carries_number(category) =>
         {
             category
         }
-        crate::semantic::ValueKindPlan::Sum(sum) if plan.sum_carries_agreement(sum) => sum,
-        crate::semantic::ValueKindPlan::Category(_)
-        | crate::semantic::ValueKindPlan::Sum(_)
-        | crate::semantic::ValueKindPlan::Product(_)
-        | crate::semantic::ValueKindPlan::Lex(_)
-        | crate::semantic::ValueKindPlan::Identity(_) => {
+        (
+            _,
+            crate::semantic::ValueKindPlan::Category(_)
+            | crate::semantic::ValueKindPlan::Sum(_)
+            | crate::semantic::ValueKindPlan::Product(_)
+            | crate::semantic::ValueKindPlan::Lex(_)
+            | crate::semantic::ValueKindPlan::Identity(_),
+        ) => {
             return Err(internal(
-                "checked sequence feature item does not carry agreement",
+                "checked sequence feature item does not carry its declared feature",
             ));
         }
     };
     let role = field.name_key();
     let values = field_local(locals, field)?;
+    let helper_name = match feature {
+        crate::feature::Feature::Agreement => "agreement_matches",
+        crate::feature::Feature::Number => "number",
+        _ => unreachable!("unsupported sequence feature was rejected"),
+    };
     let helper = emitted_ident(
-        &feature_helper("agreement_matches", feature_owner),
+        &feature_helper(helper_name, feature_owner),
         proc_macro2::Span::call_site(),
     );
     let target = crate::feature::FeaturePlace::Role {
@@ -794,11 +838,24 @@ fn emit_sequence_feature_check(
             &mut std::collections::HashSet::new(),
             locals,
         )?;
-        let predicate = quote! { #values.iter().all(|value| #helper(value, #expected)) };
-        (predicate, "all members match derived agreement")
+        let predicate = match feature {
+            crate::feature::Feature::Agreement => {
+                quote! { #values.iter().all(|value| #helper(value, #expected)) }
+            }
+            crate::feature::Feature::Number => {
+                quote! { #values.iter().all(|value| #helper(value) == #expected) }
+            }
+            _ => unreachable!("unsupported sequence feature was rejected"),
+        };
+        let identity = match feature {
+            crate::feature::Feature::Agreement => "all members match derived agreement",
+            crate::feature::Feature::Number => "all members match derived grammatical Number",
+            _ => unreachable!("unsupported sequence feature was rejected"),
+        };
+        (predicate, identity)
     } else {
-        (
-            quote! {
+        let predicate = match feature {
+            crate::feature::Feature::Agreement => quote! {
                 [Agreement::Bare, Agreement::ThirdPersonSingular]
                     .into_iter()
                     .any(|agreement| {
@@ -807,8 +864,23 @@ fn emit_sequence_feature_check(
                             .all(|value| #helper(value, agreement))
                     })
             },
-            "all members share agreement",
-        )
+            crate::feature::Feature::Number => quote! {
+                [Number::Singular, Number::Plural]
+                    .into_iter()
+                    .any(|number| {
+                        #values
+                            .iter()
+                            .all(|value| #helper(value) == number)
+                    })
+            },
+            _ => unreachable!("unsupported sequence feature was rejected"),
+        };
+        let identity = match feature {
+            crate::feature::Feature::Agreement => "all members share agreement",
+            crate::feature::Feature::Number => "all members share grammatical Number",
+            _ => unreachable!("unsupported sequence feature was rejected"),
+        };
+        (predicate, identity)
     };
     let role = syn::LitStr::new(&role, field.name().span());
     let identity = syn::LitStr::new(identity, field.name().span());

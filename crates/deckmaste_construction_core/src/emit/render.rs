@@ -1301,23 +1301,42 @@ fn emit_sequence_renderer(
         crate::identifier::pascal_case(owner),
         crate::identifier::pascal_case(field.name()),
     ));
-    let sequence_feature = plan.sequence_feature(owner, field.name());
-    let render_value = if sequence_feature == Some(Feature::Agreement) {
-        render_structural_value_with_feature(
+    let sequence_features = plan.sequence_features(owner, field.name());
+    let agreement = sequence_features.contains(&Feature::Agreement);
+    let number = sequence_features.contains(&Feature::Number);
+    let render_value = if agreement {
+        let render = render_structural_value_with_feature(
             plan,
             item,
             &quote! { value },
             root_names,
             Feature::Agreement,
-            quote! { sequence_feature },
+            quote! { sequence_agreement },
+        )?;
+        if number {
+            quote! { let _ = sequence_number; #render }
+        } else {
+            render
+        }
+    } else if number {
+        render_structural_value_with_feature(
+            plan,
+            item,
+            &quote! { value },
+            root_names,
+            Feature::Number,
+            quote! { sequence_number },
         )?
     } else {
         render_structural_value(plan, item, quote! { value }, root_names)?
     };
-    let feature_parameter = (sequence_feature == Some(Feature::Agreement)).then(|| {
-        let ty = super::feature_type(Feature::Agreement);
-        quote! { , sequence_feature: #ty }
-    });
+    let feature_parameters = sequence_features
+        .iter()
+        .filter_map(|feature| match feature {
+            Feature::Agreement => Some(quote! { , sequence_agreement: Agreement }),
+            Feature::Number => Some(quote! { , sequence_number: Number }),
+            _ => None,
+        });
     let context = structural_value_requires_context(plan, item)?
         .then(|| quote! { , context: &ParseContext<'_> });
     let environment = plan.needs_parser_environment().then(|| {
@@ -1331,7 +1350,7 @@ fn emit_sequence_renderer(
         quote! {
             fn #function(
                 writer: &mut Writer,
-                values: &[#item_ty] #feature_parameter #context #environment,
+                values: &[#item_ty] #(#feature_parameters)* #context #environment,
             ) {
                 for (index, value) in values.iter().enumerate() {
                     #render_value
@@ -1380,6 +1399,23 @@ fn render_structural_value_with_feature(
     feature: Feature,
     feature_value: TokenStream,
 ) -> syn::Result<TokenStream> {
+    if feature == Feature::Number {
+        return match value {
+            ValueKindPlan::Category(_) => {
+                let render = render_structural_value(plan, value, expression.clone(), root_names)?;
+                Ok(quote! {
+                    let _ = #feature_value;
+                    #render
+                })
+            }
+            ValueKindPlan::Product(_)
+            | ValueKindPlan::Sum(_)
+            | ValueKindPlan::Lex(_)
+            | ValueKindPlan::Identity(_) => {
+                Err(internal("sequence feature item does not carry number"))
+            }
+        };
+    }
     if feature != Feature::Agreement {
         return Err(internal("unsupported generated sequence feature renderer"));
     }
@@ -3044,15 +3080,17 @@ fn render_construction_structural_field(
             let environment = plan
                 .needs_parser_environment()
                 .then(|| quote! { , environment });
-            let feature = plan
-                .sequence_feature(construction.element_type(), field.name())
-                .filter(|feature| *feature == Feature::Agreement)
+            let features = plan
+                .sequence_features(construction.element_type(), field.name())
+                .iter()
+                .copied()
+                .filter(|feature| matches!(feature, Feature::Agreement | Feature::Number))
                 .map(|feature| {
                     sequence_role_feature_value(plan, construction, role, locals, item, feature)
                         .map(|value| quote! { , #value })
                 })
-                .transpose()?;
-            Ok(quote! { #function(writer, #value #feature #context #environment); })
+                .collect::<syn::Result<Vec<_>>>()?;
+            Ok(quote! { #function(writer, #value #(#features)* #context #environment); })
         }
     }
 }
@@ -3065,8 +3103,10 @@ fn sequence_role_feature_value(
     item: &ValueKindPlan,
     feature: Feature,
 ) -> syn::Result<TokenStream> {
-    if feature != Feature::Agreement {
-        return Err(internal("sequence renderer feature must be agreement"));
+    if !matches!(feature, Feature::Agreement | Feature::Number) {
+        return Err(internal(
+            "sequence renderer feature must be homogeneous agreement or number",
+        ));
     }
     let target = FeaturePlace::Role {
         field: syn::Ident::new(role, construction.origin_span()),
@@ -3107,7 +3147,9 @@ fn sequence_role_feature_value(
         | ValueKindPlan::Product(_)
         | ValueKindPlan::Lex(_)
         | ValueKindPlan::Identity(_) => {
-            return Err(internal("sequence feature item does not carry agreement"));
+            return Err(internal(
+                "sequence feature item does not carry its homogeneous feature",
+            ));
         }
     };
     let values = field_value(construction, role, locals)?;
@@ -3971,8 +4013,9 @@ fn feature_expr(
             let role_value = field_value(construction, &role_key, locals)?;
             if let Some(structural) = field.structural_plan()
                 && let StructuralFieldKindPlan::Sequence { item, .. } = structural.kind()
-                && validated.sequence_feature(construction.element_type(), &role_key)
-                    == Some(*source_feature)
+                && validated
+                    .sequence_features(construction.element_type(), &role_key)
+                    .contains(source_feature)
             {
                 let helper_owner = match (source_feature, item) {
                     (_, ValueKindPlan::Category(category)) => category,

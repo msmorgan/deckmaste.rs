@@ -1064,18 +1064,13 @@ enum NonterminalKind {
     PowerToughnessAdjustmentMagnitude,
     PositiveCounterMagnitude,
     NegativeCounterMagnitude,
-    SingularHead,
-    PluralHead,
+    Head,
     NominalModifier,
     NegativeNominalModifier,
     CoordinatedNominalModifier,
     SerialAndModifierTail,
-    SingularNominal,
-    PluralNominal,
-    SingularCoordinationMember,
-    PluralCoordinationMember,
-    SingularNominalCoordination,
-    PluralNominalCoordination,
+    CoordinationMember,
+    NominalCoordination,
     Nominal,
     Determinative,
     SingularSelector,
@@ -1790,26 +1785,15 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         }
         NonterminalCategory::PositiveCounterMagnitude => NonterminalKind::PositiveCounterMagnitude,
         NonterminalCategory::NegativeCounterMagnitude => NonterminalKind::NegativeCounterMagnitude,
-        NonterminalCategory::SingularHead => NonterminalKind::SingularHead,
-        NonterminalCategory::PluralHead => NonterminalKind::PluralHead,
+        NonterminalCategory::Head => NonterminalKind::Head,
         NonterminalCategory::NominalModifier => NonterminalKind::NominalModifier,
         NonterminalCategory::NegativeNominalModifier => NonterminalKind::NegativeNominalModifier,
         NonterminalCategory::CoordinatedNominalModifier => {
             NonterminalKind::CoordinatedNominalModifier
         }
         NonterminalCategory::SerialAndModifierTail => NonterminalKind::SerialAndModifierTail,
-        NonterminalCategory::SingularNominal => NonterminalKind::SingularNominal,
-        NonterminalCategory::PluralNominal => NonterminalKind::PluralNominal,
-        NonterminalCategory::SingularCoordinationMember => {
-            NonterminalKind::SingularCoordinationMember
-        }
-        NonterminalCategory::PluralCoordinationMember => NonterminalKind::PluralCoordinationMember,
-        NonterminalCategory::SingularNominalCoordination => {
-            NonterminalKind::SingularNominalCoordination
-        }
-        NonterminalCategory::PluralNominalCoordination => {
-            NonterminalKind::PluralNominalCoordination
-        }
+        NonterminalCategory::CoordinationMember => NonterminalKind::CoordinationMember,
+        NonterminalCategory::NominalCoordination => NonterminalKind::NominalCoordination,
         NonterminalCategory::Nominal => NonterminalKind::Nominal,
         NonterminalCategory::Determinative => NonterminalKind::Determinative,
         NonterminalCategory::SingularSelector => NonterminalKind::SingularSelector,

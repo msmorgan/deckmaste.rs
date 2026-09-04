@@ -1584,10 +1584,11 @@ constructions! {
     }
     construction additional_cost: ClauseAttachment {
         element AdditionalCost {
-            cost: SingularHead,
+            cost: Head,
             action: InfinitiveComplement,
             body: AdditionalCostBody,
         }
+        require cost.number is Singular;
         form additional_cost = "as" "an" "additional" cost action "," body;
     }
     construction additional_cost_predicate_body: AdditionalCostBody {
@@ -2267,7 +2268,8 @@ constructions! {
         form object_nominal = value;
     }
     construction bare_singular_coordination_object: Object {
-        element BareSingularCoordinationObject { value: SingularNominalCoordination, }
+        element BareSingularCoordinationObject { value: NominalCoordination, }
+        require value.number is Singular;
         derive agreement = value.agreement;
         derive number = value.number;
         derive onset = value.onset;
@@ -2321,7 +2323,7 @@ constructions! {
         derive locative_temporal_license = Values::OfInAndOnLicensed;
         form reflexive_object = lex(word);
     }
-    construction noun_singular_head: SingularHead {
+    construction noun_singular_head: Head {
         element NounSingularHead { noun: lex Noun, }
         require noun.countability is Count;
         derive noun.number = Values::Singular;
@@ -2333,7 +2335,7 @@ constructions! {
         derive locative_temporal_license = noun.locative_temporal_license;
         form noun_singular_head = noun(noun);
     }
-    construction noun_plural_head: PluralHead {
+    construction noun_plural_head: Head {
         element NounPluralHead { noun: lex Noun, }
         require noun.countability is Count;
         derive noun.number = Values::Plural;
@@ -2592,8 +2594,9 @@ constructions! {
         derive onset = first.onset;
         form and_or_shared_head_modifier = first "and/or" rest;
     }
-    construction bare_singular_nominal: SingularNominal {
-        element BareSingularNominal { head: SingularHead, }
+    construction bare_singular_nominal: Nominal {
+        element BareSingularNominal { head: Head, }
+        derive head.number = Values::Singular;
         derive agreement = head.agreement;
         derive number = head.number;
         derive nominal_form = Values::BareSingularNoun;
@@ -2603,12 +2606,25 @@ constructions! {
         derive locative_temporal_license = head.locative_temporal_license;
         form bare_singular_nominal = head;
     }
-    construction modified_singular_nominal: SingularNominal {
+    construction bare_plural_nominal: Nominal {
+        element BarePluralNominal { head: Head, }
+        derive head.number = Values::Plural;
+        derive agreement = head.agreement;
+        derive number = head.number;
+        derive nominal_form = Values::BarePluralNoun;
+        derive onset = head.onset;
+        derive possessive_ending = head.possessive_ending;
+        derive relationality = head.relationality;
+        derive locative_temporal_license = head.locative_temporal_license;
+        form bare_plural_nominal = head;
+    }
+    construction modified_singular_nominal: Nominal {
         element ModifiedSingularNominal {
             first: NominalModifier,
             rest: seq NominalModifier separated by " ",
-            head: SingularHead,
+            head: Head,
         }
+        derive head.number = Values::Singular;
         derive agreement = head.agreement;
         derive number = head.number;
         derive nominal_form = Values::ModifiedSingularNoun;
@@ -2618,13 +2634,30 @@ constructions! {
         derive locative_temporal_license = head.locative_temporal_license;
         form modified_singular_nominal = first rest head;
     }
-    construction negative_modified_singular_nominal: SingularNominal {
+    construction modified_plural_nominal: Nominal {
+        element ModifiedPluralNominal {
+            first: NominalModifier,
+            rest: seq NominalModifier separated by " ",
+            head: Head,
+        }
+        derive head.number = Values::Plural;
+        derive agreement = head.agreement;
+        derive number = head.number;
+        derive nominal_form = Values::ModifiedPluralNoun;
+        derive onset = first.onset;
+        derive possessive_ending = head.possessive_ending;
+        derive relationality = head.relationality;
+        derive locative_temporal_license = head.locative_temporal_license;
+        form modified_plural_nominal = first rest head;
+    }
+    construction negative_modified_singular_nominal: Nominal {
         element NegativeModifiedSingularNominal {
             leading: opt NominalModifier,
             modifiers: seq NegativeNominalModifier separated by ", ",
-            head: SingularHead,
+            head: Head,
         }
         require len(modifiers) >= 2;
+        derive head.number = Values::Singular;
         derive agreement = head.agreement;
         derive number = head.number;
         derive nominal_form = Values::ModifiedSingularNoun;
@@ -2633,6 +2666,23 @@ constructions! {
         derive relationality = head.relationality;
         derive locative_temporal_license = head.locative_temporal_license;
         form negative_modified_singular_nominal = leading modifiers head;
+    }
+    construction negative_modified_plural_nominal: Nominal {
+        element NegativeModifiedPluralNominal {
+            leading: opt NominalModifier,
+            modifiers: seq NegativeNominalModifier separated by ", ",
+            head: Head,
+        }
+        require len(modifiers) >= 2;
+        derive head.number = Values::Plural;
+        derive agreement = head.agreement;
+        derive number = head.number;
+        derive nominal_form = Values::ModifiedPluralNoun;
+        derive onset = Values::Consonant;
+        derive possessive_ending = head.possessive_ending;
+        derive relationality = head.relationality;
+        derive locative_temporal_license = head.locative_temporal_license;
+        form negative_modified_plural_nominal = leading modifiers head;
     }
     construction bare_relational_reference: UnqualifiedReference {
         element BareRelationalReference { head: lex Noun, }
@@ -2665,7 +2715,7 @@ constructions! {
     construction participial_singular_reference: UnqualifiedReference {
         element ParticipialSingularReference {
             adjective: ParticipialAdjective,
-            head: SingularHead,
+            head: Head,
         }
         derive agreement = head.agreement;
         derive head.number = Values::Singular;
@@ -2681,7 +2731,7 @@ constructions! {
             first: NominalModifier,
             rest: seq NominalModifier separated by " ",
             adjective: ParticipialAdjective,
-            head: SingularHead,
+            head: Head,
         }
         require first.modifier_license is LocalDeterminer;
         derive agreement = head.agreement;
@@ -2693,115 +2743,79 @@ constructions! {
         derive locative_temporal_license = head.locative_temporal_license;
         form premodified_participial_singular_reference = first rest adjective head;
     }
-    construction bare_plural_nominal: PluralNominal {
-        element BarePluralNominal { head: PluralHead, }
-        derive agreement = head.agreement;
-        derive number = head.number;
-        derive nominal_form = Values::BarePluralNoun;
-        derive onset = head.onset;
-        derive possessive_ending = head.possessive_ending;
-        derive relationality = head.relationality;
-        derive locative_temporal_license = head.locative_temporal_license;
-        form bare_plural_nominal = head;
-    }
-    construction modified_plural_nominal: PluralNominal {
-        element ModifiedPluralNominal {
-            first: NominalModifier,
-            rest: seq NominalModifier separated by " ",
-            head: PluralHead,
-        }
-        derive agreement = head.agreement;
-        derive number = head.number;
-        derive nominal_form = Values::ModifiedPluralNoun;
-        derive onset = first.onset;
-        derive possessive_ending = head.possessive_ending;
-        derive relationality = head.relationality;
-        derive locative_temporal_license = head.locative_temporal_license;
-        form modified_plural_nominal = first rest head;
-    }
-    construction negative_modified_plural_nominal: PluralNominal {
-        element NegativeModifiedPluralNominal {
-            leading: opt NominalModifier,
-            modifiers: seq NegativeNominalModifier separated by ", ",
-            head: PluralHead,
-        }
-        require len(modifiers) >= 2;
-        derive agreement = head.agreement;
-        derive number = head.number;
-        derive nominal_form = Values::ModifiedPluralNoun;
-        derive onset = Values::Consonant;
-        derive possessive_ending = head.possessive_ending;
-        derive relationality = head.relationality;
-        derive locative_temporal_license = head.locative_temporal_license;
-        form negative_modified_plural_nominal = leading modifiers head;
-    }
-    construction bare_singular_coordination_member: SingularCoordinationMember {
-        element BareSingularCoordinationMember { head: SingularHead, }
+    construction bare_singular_coordination_member: CoordinationMember {
+        element BareSingularCoordinationMember { head: Head, }
+        derive head.number = Values::Singular;
         derive agreement = head.agreement;
         derive number = head.number;
         derive onset = head.onset;
         derive possessive_ending = head.possessive_ending;
         form bare_singular_coordination_member = head;
     }
-    construction modified_singular_coordination_member: SingularCoordinationMember {
-        element ModifiedSingularCoordinationMember {
-            modifier: CoordinatedNominalModifier,
-            head: SingularHead,
-        }
-        derive agreement = head.agreement;
-        derive number = head.number;
-        derive onset = modifier.onset;
-        derive possessive_ending = head.possessive_ending;
-        form modified_singular_coordination_member = modifier head;
-    }
-    construction negative_modified_singular_coordination_member: SingularCoordinationMember {
-        element NegativeModifiedSingularCoordinationMember {
-            leading: opt CoordinatedNominalModifier,
-            modifiers: seq NegativeNominalModifier separated by ", ",
-            head: SingularHead,
-        }
-        require len(modifiers) >= 2;
-        derive agreement = head.agreement;
-        derive number = head.number;
-        derive onset = Values::Consonant;
-        derive possessive_ending = head.possessive_ending;
-        form negative_modified_singular_coordination_member = leading modifiers head;
-    }
-    construction bare_plural_coordination_member: PluralCoordinationMember {
-        element BarePluralCoordinationMember { head: PluralHead, }
+    construction bare_plural_coordination_member: CoordinationMember {
+        element BarePluralCoordinationMember { head: Head, }
+        derive head.number = Values::Plural;
         derive agreement = head.agreement;
         derive number = head.number;
         derive onset = head.onset;
         derive possessive_ending = head.possessive_ending;
         form bare_plural_coordination_member = head;
     }
-    construction modified_plural_coordination_member: PluralCoordinationMember {
+    construction modified_singular_coordination_member: CoordinationMember {
+        element ModifiedSingularCoordinationMember {
+            modifier: CoordinatedNominalModifier,
+            head: Head,
+        }
+        derive head.number = Values::Singular;
+        derive agreement = head.agreement;
+        derive number = head.number;
+        derive onset = modifier.onset;
+        derive possessive_ending = head.possessive_ending;
+        form modified_singular_coordination_member = modifier head;
+    }
+    construction modified_plural_coordination_member: CoordinationMember {
         element ModifiedPluralCoordinationMember {
             modifier: CoordinatedNominalModifier,
-            head: PluralHead,
+            head: Head,
         }
+        derive head.number = Values::Plural;
         derive agreement = head.agreement;
         derive number = head.number;
         derive onset = modifier.onset;
         derive possessive_ending = head.possessive_ending;
         form modified_plural_coordination_member = modifier head;
     }
-    construction negative_modified_plural_coordination_member: PluralCoordinationMember {
+    construction negative_modified_singular_coordination_member: CoordinationMember {
+        element NegativeModifiedSingularCoordinationMember {
+            leading: opt CoordinatedNominalModifier,
+            modifiers: seq NegativeNominalModifier separated by ", ",
+            head: Head,
+        }
+        require len(modifiers) >= 2;
+        derive head.number = Values::Singular;
+        derive agreement = head.agreement;
+        derive number = head.number;
+        derive onset = Values::Consonant;
+        derive possessive_ending = head.possessive_ending;
+        form negative_modified_singular_coordination_member = leading modifiers head;
+    }
+    construction negative_modified_plural_coordination_member: CoordinationMember {
         element NegativeModifiedPluralCoordinationMember {
             leading: opt CoordinatedNominalModifier,
             modifiers: seq NegativeNominalModifier separated by ", ",
-            head: PluralHead,
+            head: Head,
         }
         require len(modifiers) >= 2;
+        derive head.number = Values::Plural;
         derive agreement = head.agreement;
         derive number = head.number;
         derive onset = Values::Consonant;
         derive possessive_ending = head.possessive_ending;
         form negative_modified_plural_coordination_member = leading modifiers head;
     }
-    construction singular_and_nominal_coordination: SingularNominalCoordination {
-        element SingularAndNominalCoordination {
-            members: seq SingularCoordinationMember separated by position {
+    construction and_nominal_coordination: NominalCoordination {
+        element AndNominalCoordination {
+            members: seq CoordinationMember separated by position {
                 pair = " and ";
                 first = ", ";
                 middle = ", ";
@@ -2809,16 +2823,15 @@ constructions! {
             },
         }
         require len(members) >= 2;
-        derive agreement = Values::ThirdPersonSingular;
-        derive number = Values::Singular;
-        derive nominal_form = Values::SingularCoordination;
+        derive agreement = members.agreement;
+        derive number = members.number;
         derive onset = members.onset;
         derive possessive_ending = Values::Other;
-        form singular_and_nominal_coordination = members;
+        form and_nominal_coordination = members;
     }
-    construction singular_or_nominal_coordination: SingularNominalCoordination {
-        element SingularOrNominalCoordination {
-            members: seq SingularCoordinationMember separated by position {
+    construction or_nominal_coordination: NominalCoordination {
+        element OrNominalCoordination {
+            members: seq CoordinationMember separated by position {
                 pair = " or ";
                 first = ", ";
                 middle = ", ";
@@ -2826,16 +2839,15 @@ constructions! {
             },
         }
         require len(members) >= 2;
-        derive agreement = Values::ThirdPersonSingular;
-        derive number = Values::Singular;
-        derive nominal_form = Values::SingularCoordination;
+        derive agreement = members.agreement;
+        derive number = members.number;
         derive onset = members.onset;
         derive possessive_ending = Values::Other;
-        form singular_or_nominal_coordination = members;
+        form or_nominal_coordination = members;
     }
-    construction singular_and_or_nominal_coordination: SingularNominalCoordination {
-        element SingularAndOrNominalCoordination {
-            members: seq SingularCoordinationMember separated by position {
+    construction and_or_nominal_coordination: NominalCoordination {
+        element AndOrNominalCoordination {
+            members: seq CoordinationMember separated by position {
                 pair = " and/or ";
                 first = ", ";
                 middle = ", ";
@@ -2843,85 +2855,11 @@ constructions! {
             },
         }
         require len(members) >= 2;
-        derive agreement = Values::ThirdPersonSingular;
-        derive number = Values::Singular;
-        derive nominal_form = Values::SingularCoordination;
+        derive agreement = members.agreement;
+        derive number = members.number;
         derive onset = members.onset;
         derive possessive_ending = Values::Other;
-        form singular_and_or_nominal_coordination = members;
-    }
-    construction plural_and_nominal_coordination: PluralNominalCoordination {
-        element PluralAndNominalCoordination {
-            members: seq PluralCoordinationMember separated by position {
-                pair = " and ";
-                first = ", ";
-                middle = ", ";
-                last = ", and ";
-            },
-        }
-        require len(members) >= 2;
-        derive agreement = Values::Bare;
-        derive number = Values::Plural;
-        derive nominal_form = Values::PluralCoordination;
-        derive onset = Values::Consonant;
-        derive possessive_ending = Values::Other;
-        form plural_and_nominal_coordination = members;
-    }
-    construction plural_or_nominal_coordination: PluralNominalCoordination {
-        element PluralOrNominalCoordination {
-            members: seq PluralCoordinationMember separated by position {
-                pair = " or ";
-                first = ", ";
-                middle = ", ";
-                last = ", or ";
-            },
-        }
-        require len(members) >= 2;
-        derive agreement = Values::Bare;
-        derive number = Values::Plural;
-        derive nominal_form = Values::PluralCoordination;
-        derive onset = Values::Consonant;
-        derive possessive_ending = Values::Other;
-        form plural_or_nominal_coordination = members;
-    }
-    construction plural_and_or_nominal_coordination: PluralNominalCoordination {
-        element PluralAndOrNominalCoordination {
-            members: seq PluralCoordinationMember separated by position {
-                pair = " and/or ";
-                first = ", ";
-                middle = ", ";
-                last = ", and/or ";
-            },
-        }
-        require len(members) >= 2;
-        derive agreement = Values::Bare;
-        derive number = Values::Plural;
-        derive nominal_form = Values::PluralCoordination;
-        derive onset = Values::Consonant;
-        derive possessive_ending = Values::Other;
-        form plural_and_or_nominal_coordination = members;
-    }
-    construction singular_nominal_value: Nominal {
-        element SingularNominalValue { nominal: SingularNominal, }
-        derive agreement = nominal.agreement;
-        derive number = nominal.number;
-        derive nominal_form = nominal.nominal_form;
-        derive onset = nominal.onset;
-        derive possessive_ending = nominal.possessive_ending;
-        derive relationality = nominal.relationality;
-        derive locative_temporal_license = nominal.locative_temporal_license;
-        form singular_nominal_value = nominal;
-    }
-    construction plural_nominal_value: Nominal {
-        element PluralNominalValue { nominal: PluralNominal, }
-        derive agreement = nominal.agreement;
-        derive number = nominal.number;
-        derive nominal_form = nominal.nominal_form;
-        derive onset = nominal.onset;
-        derive possessive_ending = nominal.possessive_ending;
-        derive relationality = nominal.relationality;
-        derive locative_temporal_license = nominal.locative_temporal_license;
-        form plural_nominal_value = nominal;
+        form and_or_nominal_coordination = members;
     }
     construction mass_noun: MassNoun {
         element MassNounValue { noun: lex Noun, }
@@ -2962,11 +2900,12 @@ constructions! {
     }
     construction singular_coordination_nominal_value: Nominal {
         element SingularCoordinationNominalValue {
-            coordination: SingularNominalCoordination,
+            coordination: NominalCoordination,
         }
+        require coordination.number is Singular;
         derive agreement = coordination.agreement;
         derive number = coordination.number;
-        derive nominal_form = coordination.nominal_form;
+        derive nominal_form = Values::SingularCoordination;
         derive onset = coordination.onset;
         derive possessive_ending = coordination.possessive_ending;
         derive relationality = Values::NonRelational;
@@ -2975,11 +2914,12 @@ constructions! {
     }
     construction plural_coordination_nominal_value: Nominal {
         element PluralCoordinationNominalValue {
-            coordination: PluralNominalCoordination,
+            coordination: NominalCoordination,
         }
+        require coordination.number is Plural;
         derive agreement = coordination.agreement;
         derive number = coordination.number;
-        derive nominal_form = coordination.nominal_form;
+        derive nominal_form = Values::PluralCoordination;
         derive onset = coordination.onset;
         derive possessive_ending = coordination.possessive_ending;
         derive relationality = Values::NonRelational;
@@ -2990,11 +2930,12 @@ constructions! {
         element ModifiedSingularCoordinationNominalValue {
             first: NominalModifier,
             rest: seq NominalModifier separated by " ",
-            coordination: SingularNominalCoordination,
+            coordination: NominalCoordination,
         }
+        require coordination.number is Singular;
         derive agreement = coordination.agreement;
         derive number = coordination.number;
-        derive nominal_form = coordination.nominal_form;
+        derive nominal_form = Values::SingularCoordination;
         derive onset = first.onset;
         derive possessive_ending = coordination.possessive_ending;
         derive relationality = Values::NonRelational;
@@ -3005,11 +2946,12 @@ constructions! {
         element ModifiedPluralCoordinationNominalValue {
             first: NominalModifier,
             rest: seq NominalModifier separated by " ",
-            coordination: PluralNominalCoordination,
+            coordination: NominalCoordination,
         }
+        require coordination.number is Plural;
         derive agreement = coordination.agreement;
         derive number = coordination.number;
-        derive nominal_form = coordination.nominal_form;
+        derive nominal_form = Values::PluralCoordination;
         derive onset = first.onset;
         derive possessive_ending = coordination.possessive_ending;
         derive relationality = Values::NonRelational;
@@ -3017,7 +2959,9 @@ constructions! {
         form modified_plural_coordination_nominal_value = first rest coordination;
     }
     construction unmarked_singular_selector: SingularSelector {
-        element UnmarkedSingularSelector { nominal: SingularNominal, }
+        element UnmarkedSingularSelector { nominal: Nominal, }
+        require nominal.number is Singular;
+        require nominal.nominal_form in [BareSingularNoun, ModifiedSingularNoun];
         derive agreement = nominal.agreement;
         derive number = nominal.number;
         derive onset = nominal.onset;
@@ -3126,9 +3070,10 @@ constructions! {
     construction any_number_quantifying_determiner: Determinative {
         element AnyNumberQuantifyingDeterminer {
             order: lex ObjectOrder,
-            unit: SingularHead,
+            unit: Head,
             relation: lex Preposition,
         }
+        require unit.number is Singular;
         require order is Any;
         require relation is Of;
         derive agreement = Values::Bare;
@@ -3174,7 +3119,8 @@ constructions! {
         form count_comparison_quantifying_determiner = count comparison;
     }
     construction named_card_reference: UnqualifiedReference {
-        element NamedCardReference { kind: SingularHead, name: identity CardName, }
+        element NamedCardReference { kind: Head, name: identity CardName, }
+        require kind.number is Singular;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = Values::Consonant;
@@ -3208,9 +3154,11 @@ constructions! {
         element DemonstrativePossessiveReference {
             demonstrative: lex SingularDemonstrative,
             possessor: Possessive,
-            possessed: SingularNominal,
+            possessed: Nominal,
         }
         require possessor.number is Singular;
+        require possessed.number is Singular;
+        require possessed.nominal_form in [BareSingularNoun, ModifiedSingularNoun];
         derive agreement = possessed.agreement;
         derive number = possessed.number;
         derive onset = Values::Consonant;
@@ -3222,8 +3170,10 @@ constructions! {
     construction possessed_singular_reference: UnqualifiedReference {
         element PossessedSingularReference {
             possessor: lex PossessiveDeterminerPronoun,
-            nominal: SingularNominal,
+            nominal: Nominal,
         }
+        require nominal.number is Singular;
+        require nominal.nominal_form in [BareSingularNoun, ModifiedSingularNoun];
         derive agreement = nominal.agreement;
         derive number = nominal.number;
         derive onset = possessor.onset;
@@ -3235,8 +3185,10 @@ constructions! {
     construction possessed_plural_reference: UnqualifiedReference {
         element PossessedPluralReference {
             possessor: lex PossessiveDeterminerPronoun,
-            nominal: PluralNominal,
+            nominal: Nominal,
         }
+        require nominal.number is Plural;
+        require nominal.nominal_form in [BarePluralNoun, ModifiedPluralNoun];
         derive agreement = nominal.agreement;
         derive number = nominal.number;
         derive onset = possessor.onset;
@@ -3262,9 +3214,11 @@ constructions! {
     construction genitive_determiner_singular_reference: UnqualifiedReference {
         element GenitiveDeterminerSingularReference {
             possessor: Possessive,
-            nominal: SingularNominal,
+            nominal: Nominal,
         }
         require possessor.number is Singular;
+        require nominal.number is Singular;
+        require nominal.nominal_form in [BareSingularNoun, ModifiedSingularNoun];
         derive agreement = nominal.agreement;
         derive number = nominal.number;
         derive onset = Values::Consonant;
@@ -3276,9 +3230,11 @@ constructions! {
     construction genitive_determiner_plural_reference: UnqualifiedReference {
         element GenitiveDeterminerPluralReference {
             possessor: Possessive,
-            nominal: PluralNominal,
+            nominal: Nominal,
         }
         require possessor.number is Singular;
+        require nominal.number is Plural;
+        require nominal.nominal_form in [BarePluralNoun, ModifiedPluralNoun];
         derive agreement = nominal.agreement;
         derive number = nominal.number;
         derive onset = Values::Consonant;
@@ -3290,9 +3246,11 @@ constructions! {
     construction plural_genitive_determiner_singular_reference: UnqualifiedReference {
         element PluralGenitiveDeterminerSingularReference {
             possessor: Possessive,
-            nominal: SingularNominal,
+            nominal: Nominal,
         }
         require possessor.number is Plural;
+        require nominal.number is Singular;
+        require nominal.nominal_form in [BareSingularNoun, ModifiedSingularNoun];
         derive agreement = nominal.agreement;
         derive number = nominal.number;
         derive onset = Values::Consonant;
@@ -3304,9 +3262,11 @@ constructions! {
     construction plural_genitive_determiner_plural_reference: UnqualifiedReference {
         element PluralGenitiveDeterminerPluralReference {
             possessor: Possessive,
-            nominal: PluralNominal,
+            nominal: Nominal,
         }
         require possessor.number is Plural;
+        require nominal.number is Plural;
+        require nominal.nominal_form in [BarePluralNoun, ModifiedPluralNoun];
         derive agreement = nominal.agreement;
         derive number = nominal.number;
         derive onset = Values::Consonant;
@@ -3352,8 +3312,9 @@ constructions! {
     construction genitive_determiner_coordination_reference: UnqualifiedReference {
         element GenitiveDeterminerCoordinationReference {
             possessor: Possessive,
-            coordination: SingularNominalCoordination,
+            coordination: NominalCoordination,
         }
+        require coordination.number is Singular;
         derive agreement = Values::Bare;
         derive number = Values::Plural;
         derive onset = Values::Consonant;
@@ -3617,7 +3578,9 @@ constructions! {
         form third_person_negative_object_gap_relative = subject lex(auxiliary) verb(head);
     }
     construction singular_partitive_selection: PartitiveSelection {
-        element SingularPartitiveSelection { nominal: SingularNominal, }
+        element SingularPartitiveSelection { nominal: Nominal, }
+        require nominal.number is Singular;
+        require nominal.nominal_form in [BareSingularNoun, ModifiedSingularNoun];
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         form singular_partitive_selection = nominal;
@@ -3625,9 +3588,11 @@ constructions! {
     construction fixed_partitive_selection: PartitiveSelection {
         element FixedPartitiveSelection {
             count: CardinalQuantity,
-            nominal: PluralNominal,
+            nominal: Nominal,
         }
         require count.cardinality is TwoPlus;
+        require nominal.number is Plural;
+        require nominal.nominal_form in [BarePluralNoun, ModifiedPluralNoun];
         derive agreement = Values::Bare;
         derive number = Values::Plural;
         form fixed_partitive_selection = count nominal;
@@ -3706,7 +3671,9 @@ constructions! {
         form variable_scalar_threshold = lex(value);
     }
     construction nominal_scalar_measure: ScalarMeasure {
-        element NominalScalarMeasure { nominal: SingularNominal, }
+        element NominalScalarMeasure { nominal: Nominal, }
+        require nominal.number is Singular;
+        require nominal.nominal_form in [BareSingularNoun, ModifiedSingularNoun];
         form nominal_scalar_measure = nominal;
     }
     construction scalar_or_less: ScalarComparison {
@@ -3809,10 +3776,11 @@ constructions! {
     }
     construction number_of_scalar_value: ScalarValue {
         element NumberOfScalarValue {
-            measure: SingularHead,
+            measure: Head,
             relation: lex Preposition,
             counted: Object,
         }
+        require measure.number is Singular;
         require relation is Of;
         form number_of_scalar_value = "the" measure lex(relation) counted;
     }
@@ -3888,11 +3856,13 @@ constructions! {
     construction contracted_copular_relative_reference: PostmodifiedReference {
         element ContractedCopularRelativeReference {
             reference: PostmodifiedReference,
-            nominal: SingularNominal,
+            nominal: Nominal,
             relation: lex Preposition,
             complement: Object,
         }
         require reference.number is Singular;
+        require nominal.number is Singular;
+        require nominal.nominal_form in [BareSingularNoun, ModifiedSingularNoun];
         require relation is Of;
         derive agreement = reference.agreement;
         derive number = reference.number;
@@ -4053,9 +4023,11 @@ constructions! {
     construction comparative_quantified_reference: NounPhrase {
         element ComparativeQuantifiedReference {
             quantifier: lex ComparativeQuantifier,
-            nominal: PluralNominal,
+            nominal: Nominal,
             standard: Object,
         }
+        require nominal.number is Plural;
+        require nominal.nominal_form in [BarePluralNoun, ModifiedPluralNoun];
         derive agreement = Values::Bare;
         derive number = Values::Plural;
         derive fused_head_license = Values::NominalOnly;
@@ -4162,7 +4134,8 @@ constructions! {
         form indefinite_pronoun_nominal = lex(pronoun);
     }
     construction possessive_plural_noun: PossessiveOwner {
-        element PossessiveNoun { head: PluralHead, }
+        element PossessiveNoun { head: Head, }
+        require head.number is Plural;
         derive number = Values::Plural;
         derive possessive_ending = head.possessive_ending;
         form possessive_plural_noun = head;
@@ -4175,11 +4148,47 @@ constructions! {
     }
     construction possessive_singular_nominal: PossessiveOwner {
         element PossessiveSingularNominal {
-            nominal: SingularNominal checked by singular_nominal_is_proper(),
+            head: lex Noun,
         }
+        require all(
+            head.countability is Count,
+            head.properness is Proper
+        );
+        derive head.number = Values::Singular;
         derive number = Values::Singular;
-        derive possessive_ending = nominal.possessive_ending;
-        form possessive_singular_nominal = nominal;
+        derive possessive_ending = head.possessive_ending;
+        form possessive_singular_nominal = noun(head);
+    }
+    construction possessive_modified_singular_nominal: PossessiveOwner {
+        element PossessiveModifiedSingularNominal {
+            first: NominalModifier,
+            rest: seq NominalModifier separated by " ",
+            head: lex Noun,
+        }
+        require all(
+            head.countability is Count,
+            head.properness is Proper
+        );
+        derive head.number = Values::Singular;
+        derive number = Values::Singular;
+        derive possessive_ending = head.possessive_ending;
+        form possessive_modified_singular_nominal = first rest noun(head);
+    }
+    construction possessive_negative_modified_singular_nominal: PossessiveOwner {
+        element PossessiveNegativeModifiedSingularNominal {
+            leading: opt NominalModifier,
+            modifiers: seq NegativeNominalModifier separated by ", ",
+            head: lex Noun,
+        }
+        require len(modifiers) >= 2;
+        require all(
+            head.countability is Count,
+            head.properness is Proper
+        );
+        derive head.number = Values::Singular;
+        derive number = Values::Singular;
+        derive possessive_ending = head.possessive_ending;
+        form possessive_negative_modified_singular_nominal = leading modifiers noun(head);
     }
     construction possessive_singular_reference: PossessiveOwner {
         element PossessiveSingularReference { reference: UnqualifiedReference, }
@@ -5290,16 +5299,6 @@ fn noun_has_distinct_number_surfaces(noun: &Noun) -> bool {
         Noun::Lexeme(_) => true,
         Noun::Declaration(noun) => !noun.number_invariant(),
     }
-}
-
-fn singular_nominal_is_proper(nominal: &SingularNominal) -> bool {
-    let head = match nominal {
-        SingularNominal::BareSingularNominal(value) => &value.head,
-        SingularNominal::ModifiedSingularNominal(value) => &value.head,
-        SingularNominal::NegativeModifiedSingularNominal(value) => &value.head,
-    };
-    let SingularHead::NounSingularHead(value) = head;
-    properness_for_noun(&value.noun) == Properness::Proper
 }
 
 fn partitive_whole_is_licensed(

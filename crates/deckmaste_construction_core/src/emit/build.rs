@@ -502,7 +502,7 @@ fn emit_product_arm(
         let (mut field_patterns, mut value) = if let Some(state) = state {
             match state.state {
                 super::rules::OwnerFieldBuildState::Sequence(_) => {
-                    let (patterns, value, agreement, guards) = lower_sequence_owner_value(
+                    let (patterns, value, features, guards) = lower_sequence_owner_value(
                         plan,
                         rule,
                         product.name(),
@@ -510,7 +510,7 @@ fn emit_product_arm(
                         state,
                         &mut binders,
                     )?;
-                    debug_assert!(agreement.is_none());
+                    debug_assert!(features.is_empty());
                     debug_assert!(guards.is_empty());
                     (patterns, value)
                 }
@@ -666,13 +666,13 @@ fn emit_sequence_arm(
     for name in ["rule", "children", "context"] {
         binders.reserve(name);
     }
-    let sequence_feature = plan.sequence_feature(owner_name, field.name());
+    let sequence_features = plan.sequence_features(owner_name, field.name());
     let lowered = lower_sequence_rhs(
         plan,
         &rule.rhs,
         &carrier,
         helper_category,
-        sequence_feature,
+        sequence_features,
         &rule.state,
         &mut binders,
     )?;
@@ -680,20 +680,20 @@ fn emit_sequence_arm(
     let success = match state {
         super::rules::SequenceBuildState::Singleton => {
             let parts = exact_sequence_parts(lowered, 1, &rule.state)?;
-            emit_exact_sequence_success(&carrier, sequence_feature, parts)
+            emit_exact_sequence_success(&carrier, sequence_features, parts)
         }
         super::rules::SequenceBuildState::Exact(length)
         | super::rules::SequenceBuildState::PositionalExactTail(length) => {
             let parts = exact_sequence_parts(lowered, length, &rule.state)?;
-            emit_exact_sequence_success(&carrier, sequence_feature, parts)
+            emit_exact_sequence_success(&carrier, sequence_features, parts)
         }
         super::rules::SequenceBuildState::Last => {
             let parts = exact_sequence_parts(lowered, 2, &rule.state)?;
-            emit_exact_sequence_success(&carrier, sequence_feature, parts)
+            emit_exact_sequence_success(&carrier, sequence_features, parts)
         }
         super::rules::SequenceBuildState::Recursive | super::rules::SequenceBuildState::Middle => {
             let parts = prefixed_sequence_parts(lowered, 1, &rule.state)?;
-            emit_prefixed_sequence_success(&carrier, sequence_feature, parts)
+            emit_prefixed_sequence_success(&carrier, sequence_features, parts)
         }
     };
     Ok(quote! {
@@ -707,6 +707,134 @@ fn emit_sequence_arm(
 struct LoweredValue {
     pattern: TokenStream,
     expression: TokenStream,
+}
+
+#[derive(Default)]
+struct SequenceItemFeatures {
+    agreement: Option<syn::Ident>,
+    number: Option<syn::Ident>,
+    onset: Option<syn::Ident>,
+    possessive_ending: Option<syn::Ident>,
+}
+
+fn lower_value_with_sequence_features(
+    plan: &SemanticPlan,
+    value: &ValueKindPlan,
+    preferred: &str,
+    features: &[Feature],
+    binders: &mut LocalAllocator,
+) -> syn::Result<(LoweredValue, SequenceItemFeatures)> {
+    if features.is_empty() {
+        return Ok((
+            lower_value(plan, value, preferred, binders)?,
+            SequenceItemFeatures::default(),
+        ));
+    }
+    match value {
+        ValueKindPlan::Category(name)
+            if features
+                .iter()
+                .all(|feature| category_carries_sequence_feature(plan, name, *feature)) =>
+        {
+            let variant = ident(name);
+            let binding = binders.allocate(preferred);
+            let mut item_features = SequenceItemFeatures::default();
+            if features.contains(&Feature::Agreement) {
+                item_features.agreement = Some(binders.allocate(&format!("{preferred}_agreement")));
+            }
+            if features.contains(&Feature::Number) {
+                item_features.number = Some(binders.allocate(&format!("{preferred}_number")));
+            }
+            if features.contains(&Feature::Onset) {
+                item_features.onset = Some(binders.allocate(&format!("{preferred}_onset")));
+            }
+            if features.contains(&Feature::PossessiveEnding) {
+                item_features.possessive_ending =
+                    Some(binders.allocate(&format!("{preferred}_possessive_ending")));
+            }
+            let agreement = plan.category_carries_agreement(name).then(|| {
+                item_features
+                    .agreement
+                    .as_ref()
+                    .map_or_else(|| quote! { , _ }, |value| quote! { , #value })
+            });
+            let cardinality = plan
+                .category_carries_cardinality(name)
+                .then(|| quote! { , _ });
+            let number = plan.category_carries_number(name).then(|| {
+                item_features
+                    .number
+                    .as_ref()
+                    .map_or_else(|| quote! { , _ }, |value| quote! { , #value })
+            });
+            let determiner_number = plan
+                .carries_feature(name, Feature::DeterminerNumber)
+                .then(|| quote! { , _ });
+            let fused_head_license = plan
+                .carries_feature(name, Feature::FusedHeadLicense)
+                .then(|| quote! { , _ });
+            let nominal_license = plan
+                .carries_feature(name, Feature::NominalLicense)
+                .then(|| quote! { , _ });
+            let onset = plan.category_carries_onset(name).then(|| {
+                item_features
+                    .onset
+                    .as_ref()
+                    .map_or_else(|| quote! { , _ }, |value| quote! { , #value })
+            });
+            let possessive_ending = plan.category_carries_possessive_ending(name).then(|| {
+                item_features
+                    .possessive_ending
+                    .as_ref()
+                    .map_or_else(|| quote! { , _ }, |value| quote! { , #value })
+            });
+            let following_onset = carries_following_onset(plan, name).then(|| quote! { , _ });
+            Ok((
+                LoweredValue {
+                    pattern: quote! { BuildValue::#variant(#binding #agreement #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending #following_onset) },
+                    expression: quote! { #binding.clone() },
+                },
+                item_features,
+            ))
+        }
+        ValueKindPlan::Sum(name)
+            if features == [Feature::Agreement] && plan.sum_carries_agreement(name) =>
+        {
+            let variant = ident(name);
+            let binding = binders.allocate(preferred);
+            let agreement = binders.allocate(&format!("{preferred}_agreement"));
+            let fused_head_license = plan
+                .carries_feature(name, Feature::FusedHeadLicense)
+                .then(|| quote! { , _ });
+            Ok((
+                LoweredValue {
+                    pattern: quote! { BuildValue::#variant(#binding, #agreement #fused_head_license, _) },
+                    expression: quote! { #binding.clone() },
+                },
+                SequenceItemFeatures {
+                    agreement: Some(agreement),
+                    ..SequenceItemFeatures::default()
+                },
+            ))
+        }
+        ValueKindPlan::Product(_)
+        | ValueKindPlan::Category(_)
+        | ValueKindPlan::Sum(_)
+        | ValueKindPlan::Lex(_)
+        | ValueKindPlan::Identity(_) => Err(internal(
+            "sequence-feature value lowering received a value without every feature",
+        )),
+    }
+}
+
+fn category_carries_sequence_feature(plan: &SemanticPlan, name: &str, feature: Feature) -> bool {
+    match feature {
+        Feature::Agreement => plan.category_carries_agreement(name),
+        Feature::Number => plan.category_carries_number(name),
+        Feature::Onset => plan.category_carries_onset(name),
+        Feature::PossessiveEnding => plan.category_carries_possessive_ending(name),
+        _ => false,
+    }
 }
 
 fn lower_value_with_agreement(
@@ -838,106 +966,6 @@ fn lower_value_with_fused_head_license(
         | ValueKindPlan::Lex(_)
         | ValueKindPlan::Identity(_) => Err(internal(
             "fused-head-bearing value lowering received a value without that feature",
-        )),
-    }
-}
-
-fn lower_value_with_onset(
-    plan: &SemanticPlan,
-    value: &ValueKindPlan,
-    preferred: &str,
-    binders: &mut LocalAllocator,
-) -> syn::Result<(LoweredValue, syn::Ident)> {
-    let onset = binders.allocate(&format!("{preferred}_onset"));
-    match value {
-        ValueKindPlan::Category(name) if plan.category_carries_onset(name) => {
-            let variant = ident(name);
-            let binding = binders.allocate(preferred);
-            let agreement = plan
-                .category_carries_agreement(name)
-                .then(|| quote! { , _ });
-            let cardinality = plan
-                .category_carries_cardinality(name)
-                .then(|| quote! { , _ });
-            let number = plan.category_carries_number(name).then(|| quote! { , _ });
-            let determiner_number = plan
-                .carries_feature(name, Feature::DeterminerNumber)
-                .then(|| quote! { , _ });
-            let fused_head_license = plan
-                .carries_feature(name, Feature::FusedHeadLicense)
-                .then(|| quote! { , _ });
-            let nominal_license = plan
-                .carries_feature(name, Feature::NominalLicense)
-                .then(|| quote! { , _ });
-            let possessive_ending = plan
-                .category_carries_possessive_ending(name)
-                .then(|| quote! { , _ });
-            let following_onset = carries_following_onset(plan, name).then(|| quote! { , _ });
-            Ok((
-                LoweredValue {
-                    pattern: quote! { BuildValue::#variant(
-                        #binding #agreement #cardinality #number #determiner_number #fused_head_license #nominal_license, #onset #possessive_ending #following_onset
-                    ) },
-                    expression: quote! { #binding.clone() },
-                },
-                onset,
-            ))
-        }
-        ValueKindPlan::Category(_)
-        | ValueKindPlan::Product(_)
-        | ValueKindPlan::Sum(_)
-        | ValueKindPlan::Lex(_)
-        | ValueKindPlan::Identity(_) => Err(internal(
-            "onset-bearing value lowering received a value without onset",
-        )),
-    }
-}
-
-fn lower_value_with_possessive_ending(
-    plan: &SemanticPlan,
-    value: &ValueKindPlan,
-    preferred: &str,
-    binders: &mut LocalAllocator,
-) -> syn::Result<(LoweredValue, syn::Ident)> {
-    let ending = binders.allocate(&format!("{preferred}_possessive_ending"));
-    match value {
-        ValueKindPlan::Category(name) if plan.category_carries_possessive_ending(name) => {
-            let variant = ident(name);
-            let binding = binders.allocate(preferred);
-            let agreement = plan
-                .category_carries_agreement(name)
-                .then(|| quote! { , _ });
-            let cardinality = plan
-                .category_carries_cardinality(name)
-                .then(|| quote! { , _ });
-            let number = plan.category_carries_number(name).then(|| quote! { , _ });
-            let determiner_number = plan
-                .carries_feature(name, Feature::DeterminerNumber)
-                .then(|| quote! { , _ });
-            let fused_head_license = plan
-                .carries_feature(name, Feature::FusedHeadLicense)
-                .then(|| quote! { , _ });
-            let nominal_license = plan
-                .carries_feature(name, Feature::NominalLicense)
-                .then(|| quote! { , _ });
-            let onset = plan.category_carries_onset(name).then(|| quote! { , _ });
-            let following_onset = carries_following_onset(plan, name).then(|| quote! { , _ });
-            Ok((
-                LoweredValue {
-                    pattern: quote! { BuildValue::#variant(
-                        #binding #agreement #cardinality #number #determiner_number #fused_head_license #nominal_license #onset, #ending #following_onset
-                    ) },
-                    expression: quote! { #binding.clone() },
-                },
-                ending,
-            ))
-        }
-        ValueKindPlan::Category(_)
-        | ValueKindPlan::Product(_)
-        | ValueKindPlan::Sum(_)
-        | ValueKindPlan::Lex(_)
-        | ValueKindPlan::Identity(_) => Err(internal(
-            "possessive-ending-bearing value lowering received a value without possessive ending",
         )),
     }
 }
@@ -1335,7 +1363,7 @@ fn lower_sequence_owner_field(
         lower_sequence_owner_value(plan, rule, owner, field, state, &mut lowering.binders)?;
     lowering.patterns.extend(patterns);
     lowering.field_values.insert(field.name().to_owned(), value);
-    if let Some((feature, value)) = sequence_feature {
+    for (feature, value) in sequence_feature {
         lowering.role_features.insert(
             (field.name().to_owned(), feature),
             LocalFeatureValue::Bound(value),
@@ -1348,7 +1376,7 @@ fn lower_sequence_owner_field(
 type LoweredSequenceOwnerValue = (
     Vec<TokenStream>,
     TokenStream,
-    Option<(Feature, syn::Ident)>,
+    Vec<(Feature, syn::Ident)>,
     Vec<TokenStream>,
 );
 
@@ -1373,13 +1401,13 @@ fn lower_sequence_owner_value(
         .get(state.rhs_start..state.rhs_end)
         .ok_or_else(|| internal("sequence owner RHS range exceeds the lowered rule"))?;
     let carrier = ident(&carrier_variant(owner, field)?);
-    let sequence_feature = plan.sequence_feature(owner, field.name());
+    let sequence_features = plan.sequence_features(owner, field.name());
     let lowered = lower_sequence_rhs(
         plan,
         symbols,
         &carrier,
         state.helper_category.as_deref(),
-        sequence_feature,
+        sequence_features,
         &rule.state,
         binders,
     )?;
@@ -1390,54 +1418,65 @@ fn lower_sequence_owner_value(
             let parts = exact_sequence_parts(lowered, 0, &rule.state)?;
             debug_assert!(
                 parts.agreements.is_empty()
+                    && parts.numbers.is_empty()
                     && parts.onsets.is_empty()
                     && parts.possessive_endings.is_empty()
             );
             let values = parts.values;
-            (quote! { vec![#(#values),*] }, None, Vec::new())
+            (quote! { vec![#(#values),*] }, Vec::new(), Vec::new())
         }
         super::rules::SequenceOwnerState::UniformNonEmpty => {
             let parts = prefixed_sequence_parts(lowered, 0, &rule.state)?;
             debug_assert!(parts.values.is_empty());
             let tail = parts.tail;
-            let feature_value = match sequence_feature {
-                Some(Feature::Agreement) => parts
-                    .tail_agreement
-                    .map(|value| (Feature::Agreement, value)),
-                Some(Feature::Onset) => parts.tail_onset.map(|value| (Feature::Onset, value)),
-                Some(Feature::PossessiveEnding) => parts
-                    .tail_possessive_ending
-                    .map(|value| (Feature::PossessiveEnding, value)),
-                None => None,
-                Some(_) => return Err(internal("unsupported sequence owner feature")),
-            };
-            (quote! { #tail.clone() }, feature_value, Vec::new())
+            let (feature_value, guards) = sequence_owner_feature_values(
+                sequence_features,
+                &SequenceFeatureBindings {
+                    agreements: Vec::new(),
+                    tail_agreement: parts.tail_agreement,
+                    numbers: Vec::new(),
+                    tail_number: parts.tail_number,
+                    onsets: Vec::new(),
+                    tail_onset: parts.tail_onset,
+                    possessive_endings: Vec::new(),
+                    tail_possessive_ending: parts.tail_possessive_ending,
+                },
+            )?;
+            (quote! { #tail.clone() }, feature_value, guards)
         }
         super::rules::SequenceOwnerState::PositionalSingleton => {
             let parts = exact_sequence_parts(lowered, 1, &rule.state)?;
             let values = parts.values;
-            let (feature_value, guards) = sequence_owner_feature_value(
-                sequence_feature,
-                parts.agreements,
-                parts.onsets,
-                parts.possessive_endings,
-                None,
-                None,
-                None,
+            let (feature_value, guards) = sequence_owner_feature_values(
+                sequence_features,
+                &SequenceFeatureBindings {
+                    agreements: parts.agreements,
+                    tail_agreement: None,
+                    numbers: parts.numbers,
+                    tail_number: None,
+                    onsets: parts.onsets,
+                    tail_onset: None,
+                    possessive_endings: parts.possessive_endings,
+                    tail_possessive_ending: None,
+                },
             )?;
             (quote! { vec![#(#values),*] }, feature_value, guards)
         }
         super::rules::SequenceOwnerState::PositionalPair => {
             let parts = exact_sequence_parts(lowered, 2, &rule.state)?;
             let values = parts.values;
-            let (feature_value, guards) = sequence_owner_feature_value(
-                sequence_feature,
-                parts.agreements,
-                parts.onsets,
-                parts.possessive_endings,
-                None,
-                None,
-                None,
+            let (feature_value, guards) = sequence_owner_feature_values(
+                sequence_features,
+                &SequenceFeatureBindings {
+                    agreements: parts.agreements,
+                    tail_agreement: None,
+                    numbers: parts.numbers,
+                    tail_number: None,
+                    onsets: parts.onsets,
+                    tail_onset: None,
+                    possessive_endings: parts.possessive_endings,
+                    tail_possessive_ending: None,
+                },
             )?;
             (quote! { vec![#(#values),*] }, feature_value, guards)
         }
@@ -1447,14 +1486,18 @@ fn lower_sequence_owner_value(
             let values = parts.values;
             let tail = parts.tail;
             let prefix_len = values.len();
-            let (feature_value, guards) = sequence_owner_feature_value(
-                sequence_feature,
-                parts.agreements,
-                parts.onsets,
-                parts.possessive_endings,
-                parts.tail_agreement,
-                parts.tail_onset,
-                parts.tail_possessive_ending,
+            let (feature_value, guards) = sequence_owner_feature_values(
+                sequence_features,
+                &SequenceFeatureBindings {
+                    agreements: parts.agreements,
+                    tail_agreement: parts.tail_agreement,
+                    numbers: parts.numbers,
+                    tail_number: parts.tail_number,
+                    onsets: parts.onsets,
+                    tail_onset: parts.tail_onset,
+                    possessive_endings: parts.possessive_endings,
+                    tail_possessive_ending: parts.tail_possessive_ending,
+                },
             )?;
             (
                 quote! {{
@@ -1477,6 +1520,8 @@ struct LoweredSequenceRhs {
     tail: Option<syn::Ident>,
     agreements: Vec<syn::Ident>,
     tail_agreement: Option<syn::Ident>,
+    numbers: Vec<syn::Ident>,
+    tail_number: Option<syn::Ident>,
     onsets: Vec<syn::Ident>,
     tail_onset: Option<syn::Ident>,
     possessive_endings: Vec<syn::Ident>,
@@ -1488,7 +1533,7 @@ fn lower_sequence_rhs(
     symbols: &[super::rules::RuleSymbolPlan],
     carrier: &syn::Ident,
     helper_category: Option<&str>,
-    feature: Option<Feature>,
+    features: &[Feature],
     state: &str,
     binders: &mut LocalAllocator,
 ) -> syn::Result<LoweredSequenceRhs> {
@@ -1497,6 +1542,8 @@ fn lower_sequence_rhs(
     let mut tail = None;
     let mut agreements = Vec::new();
     let mut tail_agreement = None;
+    let mut numbers = Vec::new();
+    let mut tail_number = None;
     let mut onsets = Vec::new();
     let mut tail_onset = None;
     let mut possessive_endings = Vec::new();
@@ -1505,43 +1552,19 @@ fn lower_sequence_rhs(
         match symbol {
             super::rules::RuleSymbolPlan::Value(value)
             | super::rules::RuleSymbolPlan::AdjacentValue(value) => {
-                let (value, agreement, onset, possessive_ending) = match feature {
-                    Some(Feature::Agreement) => {
-                        let (value, agreement, _) = lower_value_with_agreement(
-                            plan,
-                            value,
-                            &format!("item_{index}"),
-                            binders,
-                        )?;
-                        (value, Some(agreement), None, None)
-                    }
-                    Some(Feature::Onset) => {
-                        let (value, onset) =
-                            lower_value_with_onset(plan, value, &format!("item_{index}"), binders)?;
-                        (value, None, Some(onset), None)
-                    }
-                    Some(Feature::PossessiveEnding) => {
-                        let (value, possessive_ending) = lower_value_with_possessive_ending(
-                            plan,
-                            value,
-                            &format!("item_{index}"),
-                            binders,
-                        )?;
-                        (value, None, None, Some(possessive_ending))
-                    }
-                    None => (
-                        lower_value(plan, value, &format!("item_{index}"), binders)?,
-                        None,
-                        None,
-                        None,
-                    ),
-                    Some(_) => return Err(internal("unsupported sequence carrier feature")),
-                };
+                let (value, item_features) = lower_value_with_sequence_features(
+                    plan,
+                    value,
+                    &format!("item_{index}"),
+                    features,
+                    binders,
+                )?;
                 patterns.push(value.pattern);
                 values.push(value.expression);
-                agreements.extend(agreement);
-                onsets.extend(onset);
-                possessive_endings.extend(possessive_ending);
+                agreements.extend(item_features.agreement);
+                numbers.extend(item_features.number);
+                onsets.extend(item_features.onset);
+                possessive_endings.extend(item_features.possessive_ending);
             }
             super::rules::RuleSymbolPlan::Helper(category) => {
                 if Some(category.as_str()) != helper_category {
@@ -1555,20 +1578,32 @@ fn lower_sequence_rhs(
                     )));
                 }
                 let binding = binders.allocate("tail");
-                let agreement = (feature == Some(Feature::Agreement))
+                let agreement = features
+                    .contains(&Feature::Agreement)
                     .then(|| binders.allocate("tail_agreement"));
-                let onset =
-                    (feature == Some(Feature::Onset)).then(|| binders.allocate("tail_onset"));
-                let possessive_ending = (feature == Some(Feature::PossessiveEnding))
+                let number = features
+                    .contains(&Feature::Number)
+                    .then(|| binders.allocate("tail_number"));
+                let onset = features
+                    .contains(&Feature::Onset)
+                    .then(|| binders.allocate("tail_onset"));
+                let possessive_ending = features
+                    .contains(&Feature::PossessiveEnding)
                     .then(|| binders.allocate("tail_possessive_ending"));
-                let feature_pattern = agreement
-                    .as_ref()
-                    .or(onset.as_ref())
-                    .or(possessive_ending.as_ref())
-                    .map(|feature| quote! { , #feature });
-                patterns.push(quote! { BuildValue::#carrier(#binding #feature_pattern) });
+                let feature_patterns = features
+                    .iter()
+                    .map(|feature| match feature {
+                        Feature::Agreement => agreement.as_ref(),
+                        Feature::Number => number.as_ref(),
+                        Feature::Onset => onset.as_ref(),
+                        Feature::PossessiveEnding => possessive_ending.as_ref(),
+                        _ => None,
+                    })
+                    .map(|feature| feature.expect("validated sequence feature has a binding"));
+                patterns.push(quote! { BuildValue::#carrier(#binding #(, #feature_patterns)*) });
                 tail = Some(binding);
                 tail_agreement = agreement;
+                tail_number = number;
                 tail_onset = onset;
                 tail_possessive_ending = possessive_ending;
             }
@@ -1590,6 +1625,8 @@ fn lower_sequence_rhs(
         tail,
         agreements,
         tail_agreement,
+        numbers,
+        tail_number,
         onsets,
         tail_onset,
         possessive_endings,
@@ -1600,6 +1637,7 @@ fn lower_sequence_rhs(
 struct ExactSequenceParts {
     values: Vec<TokenStream>,
     agreements: Vec<syn::Ident>,
+    numbers: Vec<syn::Ident>,
     onsets: Vec<syn::Ident>,
     possessive_endings: Vec<syn::Ident>,
 }
@@ -1615,9 +1653,11 @@ fn exact_sequence_parts(
         )));
     }
     if lowered.tail_agreement.is_some()
+        || lowered.tail_number.is_some()
         || lowered.tail_onset.is_some()
         || lowered.tail_possessive_ending.is_some()
         || (!lowered.agreements.is_empty() && lowered.agreements.len() != expected)
+        || (!lowered.numbers.is_empty() && lowered.numbers.len() != expected)
         || (!lowered.onsets.is_empty() && lowered.onsets.len() != expected)
         || (!lowered.possessive_endings.is_empty() && lowered.possessive_endings.len() != expected)
     {
@@ -1628,6 +1668,7 @@ fn exact_sequence_parts(
     Ok(ExactSequenceParts {
         values: lowered.values,
         agreements: lowered.agreements,
+        numbers: lowered.numbers,
         onsets: lowered.onsets,
         possessive_endings: lowered.possessive_endings,
     })
@@ -1638,6 +1679,8 @@ struct PrefixedSequenceParts {
     tail: syn::Ident,
     agreements: Vec<syn::Ident>,
     tail_agreement: Option<syn::Ident>,
+    numbers: Vec<syn::Ident>,
+    tail_number: Option<syn::Ident>,
     onsets: Vec<syn::Ident>,
     tail_onset: Option<syn::Ident>,
     possessive_endings: Vec<syn::Ident>,
@@ -1660,6 +1703,7 @@ fn prefixed_sequence_parts(
         )));
     }
     if (!lowered.agreements.is_empty() && lowered.agreements.len() != expected)
+        || (!lowered.numbers.is_empty() && lowered.numbers.len() != expected)
         || (!lowered.onsets.is_empty() && lowered.onsets.len() != expected)
         || (!lowered.possessive_endings.is_empty() && lowered.possessive_endings.len() != expected)
     {
@@ -1672,6 +1716,8 @@ fn prefixed_sequence_parts(
         tail,
         agreements: lowered.agreements,
         tail_agreement: lowered.tail_agreement,
+        numbers: lowered.numbers,
+        tail_number: lowered.tail_number,
         onsets: lowered.onsets,
         tail_onset: lowered.tail_onset,
         possessive_endings: lowered.possessive_endings,
@@ -1680,73 +1726,106 @@ fn prefixed_sequence_parts(
 }
 
 fn homogeneous_sequence_feature(
-    agreements: Vec<syn::Ident>,
-    tail_agreement: Option<syn::Ident>,
+    values: Vec<syn::Ident>,
+    tail_value: Option<syn::Ident>,
 ) -> (Option<syn::Ident>, Vec<TokenStream>) {
-    let mut all = agreements;
-    all.extend(tail_agreement);
+    let mut all = values;
+    all.extend(tail_value);
     let Some(first) = all.first().cloned() else {
         return (None, Vec::new());
     };
     let guards = all
         .iter()
         .skip(1)
-        .map(|agreement| quote! { #first == #agreement })
+        .map(|value| quote! { #first == #value })
         .collect();
     (Some(first), guards)
 }
 
-type SequenceOwnerFeature = Option<(Feature, syn::Ident)>;
+type SequenceOwnerFeatures = Vec<(Feature, syn::Ident)>;
 
-fn sequence_owner_feature_value(
-    feature: Option<Feature>,
+struct SequenceFeatureBindings {
     agreements: Vec<syn::Ident>,
-    onsets: Vec<syn::Ident>,
-    possessive_endings: Vec<syn::Ident>,
     tail_agreement: Option<syn::Ident>,
+    numbers: Vec<syn::Ident>,
+    tail_number: Option<syn::Ident>,
+    onsets: Vec<syn::Ident>,
     tail_onset: Option<syn::Ident>,
+    possessive_endings: Vec<syn::Ident>,
     tail_possessive_ending: Option<syn::Ident>,
-) -> syn::Result<(SequenceOwnerFeature, Vec<TokenStream>)> {
-    match feature {
-        Some(Feature::Agreement) => {
-            let (value, guards) = homogeneous_sequence_feature(agreements, tail_agreement);
-            Ok((value.map(|value| (Feature::Agreement, value)), guards))
+}
+
+fn sequence_owner_feature_values(
+    features: &[Feature],
+    bindings: &SequenceFeatureBindings,
+) -> syn::Result<(SequenceOwnerFeatures, Vec<TokenStream>)> {
+    let mut values = Vec::new();
+    let mut guards = Vec::new();
+    for feature in features {
+        let (value, feature_guards) = match feature {
+            Feature::Agreement => {
+                let (value, guards) = homogeneous_sequence_feature(
+                    bindings.agreements.clone(),
+                    bindings.tail_agreement.clone(),
+                );
+                (value, guards)
+            }
+            Feature::Number => {
+                let (value, guards) = homogeneous_sequence_feature(
+                    bindings.numbers.clone(),
+                    bindings.tail_number.clone(),
+                );
+                (value, guards)
+            }
+            Feature::Onset => (
+                bindings
+                    .onsets
+                    .first()
+                    .cloned()
+                    .or(bindings.tail_onset.clone()),
+                Vec::new(),
+            ),
+            Feature::PossessiveEnding => (
+                bindings
+                    .tail_possessive_ending
+                    .clone()
+                    .or_else(|| bindings.possessive_endings.last().cloned()),
+                Vec::new(),
+            ),
+            _ => return Err(internal("unsupported sequence owner feature")),
+        };
+        if let Some(value) = value {
+            values.push((*feature, value));
         }
-        Some(Feature::Onset) => Ok((
-            onsets
-                .into_iter()
-                .next()
-                .or(tail_onset)
-                .map(|value| (Feature::Onset, value)),
-            Vec::new(),
-        )),
-        Some(Feature::PossessiveEnding) => Ok((
-            tail_possessive_ending
-                .or_else(|| possessive_endings.into_iter().last())
-                .map(|value| (Feature::PossessiveEnding, value)),
-            Vec::new(),
-        )),
-        None => Ok((None, Vec::new())),
-        Some(_) => Err(internal("unsupported sequence owner feature")),
+        guards.extend(feature_guards);
     }
+    Ok((values, guards))
 }
 
 fn emit_exact_sequence_success(
     carrier: &syn::Ident,
-    feature: Option<Feature>,
+    features: &[Feature],
     parts: ExactSequenceParts,
 ) -> TokenStream {
     let values = parts.values;
-    let (sequence_feature, guards) = match feature {
-        Some(Feature::Agreement) => homogeneous_sequence_feature(parts.agreements, None),
-        Some(Feature::Onset) => (parts.onsets.into_iter().next(), Vec::new()),
-        Some(Feature::PossessiveEnding) => {
-            (parts.possessive_endings.into_iter().last(), Vec::new())
-        }
-        None => (None, Vec::new()),
-        Some(_) => unreachable!("validated sequence feature is supported"),
-    };
-    if let Some(sequence_feature) = sequence_feature {
+    let (sequence_features, guards) = sequence_owner_feature_values(
+        features,
+        &SequenceFeatureBindings {
+            agreements: parts.agreements,
+            tail_agreement: None,
+            numbers: parts.numbers,
+            tail_number: None,
+            onsets: parts.onsets,
+            tail_onset: None,
+            possessive_endings: parts.possessive_endings,
+            tail_possessive_ending: None,
+        },
+    )
+    .expect("validated sequence features are supported");
+    if sequence_features.is_empty() {
+        quote! { Ok(Some(BuildValue::#carrier(vec![#(#values),*]))) }
+    } else {
+        let sequence_features = sequence_features.iter().map(|(_, value)| value);
         let predicate = if guards.is_empty() {
             quote! { true }
         } else {
@@ -1754,39 +1833,45 @@ fn emit_exact_sequence_success(
         };
         quote! {
             if #predicate {
-                Ok(Some(BuildValue::#carrier(vec![#(#values),*], *#sequence_feature)))
+                Ok(Some(BuildValue::#carrier(vec![#(#values),*] #(, *#sequence_features)*)))
             } else {
                 Ok(None)
             }
         }
-    } else {
-        quote! { Ok(Some(BuildValue::#carrier(vec![#(#values),*]))) }
     }
 }
 
 fn emit_prefixed_sequence_success(
     carrier: &syn::Ident,
-    feature: Option<Feature>,
+    features: &[Feature],
     parts: PrefixedSequenceParts,
 ) -> TokenStream {
     let values = parts.values;
     let tail = parts.tail;
     let prefix_len = values.len();
-    let (sequence_feature, guards) = match feature {
-        Some(Feature::Agreement) => {
-            homogeneous_sequence_feature(parts.agreements, parts.tail_agreement)
-        }
-        Some(Feature::Onset) => (parts.onsets.into_iter().next(), Vec::new()),
-        Some(Feature::PossessiveEnding) => (
-            parts
-                .tail_possessive_ending
-                .or_else(|| parts.possessive_endings.into_iter().last()),
-            Vec::new(),
-        ),
-        None => (None, Vec::new()),
-        Some(_) => unreachable!("validated sequence feature is supported"),
-    };
-    if let Some(sequence_feature) = sequence_feature {
+    let (sequence_features, guards) = sequence_owner_feature_values(
+        features,
+        &SequenceFeatureBindings {
+            agreements: parts.agreements,
+            tail_agreement: parts.tail_agreement,
+            numbers: parts.numbers,
+            tail_number: parts.tail_number,
+            onsets: parts.onsets,
+            tail_onset: parts.tail_onset,
+            possessive_endings: parts.possessive_endings,
+            tail_possessive_ending: parts.tail_possessive_ending,
+        },
+    )
+    .expect("validated sequence features are supported");
+    if sequence_features.is_empty() {
+        quote! {{
+            let mut values = Vec::with_capacity(#prefix_len + #tail.len());
+            #(values.push(#values);)*
+            values.extend(#tail.iter().cloned());
+            Ok(Some(BuildValue::#carrier(values)))
+        }}
+    } else {
+        let sequence_features = sequence_features.iter().map(|(_, value)| value);
         let predicate = if guards.is_empty() {
             quote! { true }
         } else {
@@ -1797,18 +1882,11 @@ fn emit_prefixed_sequence_success(
                 let mut values = Vec::with_capacity(#prefix_len + #tail.len());
                 #(values.push(#values);)*
                 values.extend(#tail.iter().cloned());
-                Ok(Some(BuildValue::#carrier(values, *#sequence_feature)))
+                Ok(Some(BuildValue::#carrier(values #(, *#sequence_features)*)))
             } else {
                 Ok(None)
             }
         }
-    } else {
-        quote! {{
-            let mut values = Vec::with_capacity(#prefix_len + #tail.len());
-            #(values.push(#values);)*
-            values.extend(#tail.iter().cloned());
-            Ok(Some(BuildValue::#carrier(values)))
-        }}
     }
 }
 
@@ -1962,24 +2040,26 @@ fn lower_atom(
                 }
                 let variant = ident(&carrier_variant(row.element_type(), structural)?);
                 let binding = lowering.binders.allocate(role);
-                let sequence_feature = validated
-                    .sequence_feature(row.element_type(), structural.name())
+                let sequence_features = validated
+                    .sequence_features(row.element_type(), structural.name())
+                    .iter()
                     .map(|feature| {
                         let feature_binding = lowering
                             .binders
                             .allocate(&format!("{role}_{}", feature.key()));
                         lowering.role_features.insert(
-                            (role.to_owned(), feature),
+                            (role.to_owned(), *feature),
                             LocalFeatureValue::Bound(feature_binding.clone()),
                         );
-                        quote! { , #feature_binding }
-                    });
+                        feature_binding
+                    })
+                    .collect::<Vec<_>>();
                 if let AtomPlan::Circumfix { prefix, .. } = atom {
                     push_fixed_form_literal(lowering, prefix);
                 }
                 lowering
                     .patterns
-                    .push(quote! { BuildValue::#variant(#binding #sequence_feature) });
+                    .push(quote! { BuildValue::#variant(#binding #(, #sequence_features)*) });
                 lowering
                     .field_values
                     .insert(role.to_owned(), quote! { #binding.clone() });
@@ -2302,6 +2382,19 @@ fn role_number_pattern(
     role: &syn::Ident,
     lowering: &mut Lowering,
 ) -> TokenStream {
+    let target = FeaturePlace::Role {
+        field: role.clone(),
+        feature: Feature::Number,
+    };
+    if let Some(crate::feature::FeatureResolution::Known(value)) =
+        validated.feature_resolution(row.construction_id(), &target)
+    {
+        lowering.role_features.insert(
+            (identifier_key(role), Feature::Number),
+            LocalFeatureValue::Known(value),
+        );
+        return feature_value(value);
+    }
     if role_number_is_needed_in_build(validated, row, form, role) {
         let name = lowering
             .binders
@@ -3899,6 +3992,15 @@ fn role_number_is_needed_in_build(
     role: &syn::Ident,
 ) -> bool {
     feature_is_read(validated, row, role, Feature::Number)
+        || equation(
+            validated,
+            row,
+            &FeaturePlace::Role {
+                field: role.clone(),
+                feature: Feature::Number,
+            },
+        )
+        .is_some()
         || matches!(
             equation(
                 validated,

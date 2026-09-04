@@ -163,6 +163,27 @@ relay preserves that constraint through materialization and requires every
 enclosing Agreement writer to satisfy it, without storing the chosen feature
 in the public AST.
 
+**Plan 08 homogeneous-Number amendment (2026-09-04):** by coordinator ruling,
+grammatical `Number` has the same homogeneous-sequence propagation and the same
+declaration-error discipline as `Agreement`: `derive members.number = ...`
+imposes one Number on every member, while `derive number = members.number`
+relays one homogeneous Number outward. Number remains an alternative to
+Agreement, first-member Onset, and last-member possessive ending for a sequence;
+mixed sequence-feature reads remain declaration errors.
+
+**Plan 08 per-feature sequence amendment (2026-09-04, second amendment):** by
+coordinator ruling, “alternative” and “mixed” above refer to contending
+equations for the same feature on one sequence role. Distinct features on that
+role are permitted when each has exactly one equation, so homogeneous Number
+may relay beside first-Conjunct Onset and last-member possessive ending. The
+compiler's private sequence carrier therefore holds one transient value per
+feature; a second equation contending for the same feature remains a
+declaration error.
+
+**Plan 08 unified-membership clarification (2026-09-04):** re-spelling former
+Category membership as a `nominal_form` requirement is the unified shape's
+replacement for the deleted Category, not a narrowing.
+
 Agreement-constrained construction roles use the same checked-public-boundary
 policy as `require`: the constrained role and every stored role used to derive
 its expected Agreement are private, with generated copy or borrow accessors.

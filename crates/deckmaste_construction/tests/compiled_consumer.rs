@@ -2717,6 +2717,74 @@ pub mod fixture {
             derive members.agreement = Values::Bare;
             form singleton_children = members;
         }
+        construction singular_number: NumberItem {
+            element SingularNumberItem {}
+            derive agreement = Values::Bare;
+            derive number = Values::Singular;
+            derive onset = Values::Consonant;
+            form singular_number = "one";
+        }
+        construction plural_number: NumberItem {
+            element PluralNumberItem {}
+            derive agreement = Values::Bare;
+            derive number = Values::Plural;
+            derive onset = Values::Consonant;
+            form plural_number = "many";
+        }
+        construction artifact_number: NumberItem {
+            element ArtifactNumberItem {}
+            derive agreement = Values::Bare;
+            derive number = Values::Singular;
+            derive onset = Values::Vowel;
+            form artifact_number = "artifact";
+        }
+        construction enchantment_number: NumberItem {
+            element EnchantmentNumberItem {}
+            derive agreement = Values::Bare;
+            derive number = Values::Singular;
+            derive onset = Values::Vowel;
+            form enchantment_number = "enchantment";
+        }
+        construction spell_number: NumberItem {
+            element SpellNumberItem {}
+            derive agreement = Values::Bare;
+            derive number = Values::Singular;
+            derive onset = Values::Consonant;
+            form spell_number = "spell";
+        }
+        construction ability_number: NumberItem {
+            element AbilityNumberItem {}
+            derive agreement = Values::Bare;
+            derive number = Values::Singular;
+            derive onset = Values::Vowel;
+            form ability_number = "ability";
+        }
+        construction homogeneous_singular_numbers: HomogeneousNumberSequence {
+            element HomogeneousSingularNumbers {
+                members: seq NumberItem separated by " ",
+            }
+            require len(members) >= 2;
+            derive members.number = Values::Singular;
+            form homogeneous_singular_numbers = members;
+        }
+        construction relayed_numbers: RelayedNumberSequence {
+            element RelayedNumbers {
+                members: seq NumberItem separated by " or ",
+            }
+            require len(members) >= 2;
+            derive agreement = members.agreement;
+            derive number = members.number;
+            derive onset = members.onset;
+            form relayed_numbers = members;
+        }
+        construction singular_number_sequence_envelope: NumberSequenceEnvelope {
+            element SingularNumberSequenceEnvelope {
+                sequence: RelayedNumberSequence,
+            }
+            derive sequence.number = Values::Singular;
+            form an when sequence.onset is Vowel = "an" sequence;
+            form a otherwise = "a" sequence;
+        }
         construction uniform_child_choices: HomogeneousChoiceSequence {
             element UniformChildChoices {
                 members: seq AgreementChild separated by " ",
@@ -3200,6 +3268,9 @@ pub mod fixture {
         root HomogeneousSequence { punctuation = "."; eoi = true; standalone_render = true; }
         root RelayedSequence { punctuation = "."; eoi = true; standalone_render = true; }
         root SingletonSequence { punctuation = "."; eoi = true; standalone_render = true; }
+        root HomogeneousNumberSequence { punctuation = "."; eoi = true; standalone_render = true; }
+        root RelayedNumberSequence { punctuation = "."; eoi = true; standalone_render = true; }
+        root NumberSequenceEnvelope { punctuation = "."; eoi = true; standalone_render = true; }
         root HomogeneousChoiceSequence { punctuation = "."; eoi = true; standalone_render = true; }
         root RelayedChoiceSequence { punctuation = "."; eoi = true; standalone_render = true; }
         root MixedChoiceSequence { punctuation = "."; eoi = true; standalone_render = true; }
@@ -6374,6 +6445,110 @@ pub mod fixture {
         assert_eq!(Render::render(&sequence, &context), "Bare bare bare.");
     }
 
+    pub(super) fn assert_sequence_number_is_homogeneous_across_every_boundary() {
+        let singular = || NumberItem::SingularNumber(SingularNumberItem);
+        let plural = || NumberItem::PluralNumber(PluralNumberItem);
+        let artifact = || NumberItem::ArtifactNumber(ArtifactNumberItem);
+        let enchantment = || NumberItem::EnchantmentNumber(EnchantmentNumberItem);
+        let spell = || NumberItem::SpellNumber(SpellNumberItem);
+        let ability = || NumberItem::AbilityNumber(AbilityNumberItem);
+
+        for length in [2, 3, 4] {
+            let members = (0..length).map(|_| singular()).collect::<Vec<_>>();
+            let downward = HomogeneousSingularNumbers::try_new(members.clone())
+                .expect("two through four singular members satisfy the downward Number writer");
+            assert_eq!(downward.members(), members);
+            let outward = RelayedNumbers::try_new(members)
+                .expect("two through four members relay one homogeneous Number outward");
+            assert_eq!(outward.members().len(), length);
+        }
+
+        let downward_rejection =
+            HomogeneousSingularNumbers::try_new(vec![singular(), plural(), singular()])
+                .expect_err("a mismatched middle member rejects the downward Number writer");
+        assert_eq!(downward_rejection.owner(), "HomogeneousSingularNumbers");
+        assert_eq!(downward_rejection.role(), "members");
+        assert_eq!(
+            downward_rejection.violation(),
+            &BuildViolation::Invariant {
+                identity: "all members match derived grammatical Number",
+            },
+        );
+
+        let relay_rejection = RelayedNumbers::try_new(vec![plural(), singular(), plural()])
+            .expect_err("a mixed sequence cannot relay one homogeneous Number outward");
+        assert_eq!(relay_rejection.owner(), "RelayedNumbers");
+        assert_eq!(relay_rejection.role(), "members");
+        assert_eq!(
+            relay_rejection.violation(),
+            &BuildViolation::Invariant {
+                identity: "all members share grammatical Number",
+            },
+        );
+
+        let singular_relay = RelayedNumberSequence::RelayedNumbers(
+            RelayedNumbers::try_new(vec![singular(), singular()])
+                .expect("the relay is internally homogeneous at Singular"),
+        );
+        let envelope = SingularNumberSequenceEnvelope::try_new(singular_relay)
+            .expect("the enclosing downward writer accepts the relayed Singular Number");
+        assert_eq!(
+            Render::render(
+                &NumberSequenceEnvelope::SingularNumberSequenceEnvelope(envelope),
+                &ParseContext::default(),
+            ),
+            "A one or one.",
+        );
+
+        for (members, expected) in [
+            (
+                vec![artifact(), enchantment()],
+                "An artifact or enchantment.",
+            ),
+            (vec![spell(), ability()], "A spell or ability."),
+        ] {
+            let relayed = RelayedNumberSequence::RelayedNumbers(
+                RelayedNumbers::try_new(members)
+                    .expect("distinct sequence features relay independently"),
+            );
+            let envelope = SingularNumberSequenceEnvelope::try_new(relayed)
+                .expect("the Singular Number gate accepts the coordinated members");
+            assert_eq!(
+                Render::render(
+                    &NumberSequenceEnvelope::SingularNumberSequenceEnvelope(envelope),
+                    &ParseContext::default(),
+                ),
+                expected,
+            );
+        }
+
+        let plural_relay = RelayedNumberSequence::RelayedNumbers(
+            RelayedNumbers::try_new(vec![plural(), plural()])
+                .expect("the relay is internally homogeneous at Plural"),
+        );
+        let envelope_rejection = SingularNumberSequenceEnvelope::try_new(plural_relay)
+            .expect_err("the enclosing Singular writer rejects a relayed Plural Number");
+        assert_eq!(envelope_rejection.owner(), "SingularNumberSequenceEnvelope");
+        assert_eq!(envelope_rejection.role(), "sequence");
+        assert_eq!(
+            envelope_rejection.violation(),
+            &BuildViolation::Invariant {
+                identity: "value matches derived grammatical Number",
+            },
+        );
+
+        let context = ParseContext::default();
+        let accepted = parse_structural(Category::NumberSequenceEnvelope, "A one or one", &context);
+        assert_eq!(accepted.accepted_root_ids().count(), 1);
+        let rejected =
+            parse_structural(Category::NumberSequenceEnvelope, "A many or many", &context);
+        assert_eq!(
+            rejected.accepted_root_ids().count(),
+            1,
+            "the scanner preserves the Plural reading before checked materialization rejects it",
+        );
+    }
+
     pub(super) fn assert_singleton_sequence_agreement_crosses_every_runtime_boundary() {
         let bare = || Child::Bare(BareChild);
         let third = || Child::Third(ThirdChild);
@@ -7471,6 +7646,11 @@ fn nonzero_unsigned_decimal_is_typed_canonical_and_exact() {
 #[test]
 fn sequence_agreement_is_uniform_across_every_member_and_boundary() {
     fixture::assert_sequence_agreement_is_uniform_across_every_member();
+}
+
+#[test]
+fn sequence_number_is_homogeneous_across_checked_build_render_scan_and_materialization() {
+    fixture::assert_sequence_number_is_homogeneous_across_every_boundary();
 }
 
 #[test]

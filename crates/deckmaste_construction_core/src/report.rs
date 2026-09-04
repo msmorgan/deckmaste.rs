@@ -319,7 +319,7 @@ fn structural_report_inventory(plan: &SemanticPlan) -> StructuralReportInventory
                 }
                 StructuralFieldKindPlan::Sequence { surface, .. } => {
                     sequence_roles.push(role.clone());
-                    if let Some(feature) = plan.sequence_feature(&owner, &field) {
+                    for feature in plan.sequence_features(&owner, &field) {
                         sequence_feature_roles.push(format!("{role}.{}", feature.key()));
                     }
                     match surface.separator() {

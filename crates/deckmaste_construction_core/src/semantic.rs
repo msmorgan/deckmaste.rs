@@ -1396,7 +1396,7 @@ pub(crate) struct FeaturePlan {
     equations: HashMap<String, Vec<feature::FeatureEquation>>,
     resolutions: HashMap<String, HashMap<feature::FeaturePlace, feature::FeatureResolution>>,
     category_render: HashMap<String, CategoryRenderCapability>,
-    sequence_features: HashMap<(String, String), Feature>,
+    sequence_features: HashMap<(String, String), Vec<Feature>>,
     agreement_carry_sums: HashSet<String>,
     cardinality_carry_categories: HashSet<String>,
     number_carry_categories: HashSet<String>,
@@ -1523,7 +1523,7 @@ impl SemanticPlan {
         equations: HashMap<String, Vec<feature::FeatureEquation>>,
         resolutions: HashMap<String, HashMap<feature::FeaturePlace, feature::FeatureResolution>>,
         category_render: HashMap<String, CategoryRenderCapability>,
-        sequence_features: HashMap<(String, String), Feature>,
+        sequence_features: HashMap<(String, String), Vec<Feature>>,
         agreement_carry_sums: HashSet<String>,
         mut atoms_by_construction: HashMap<String, (Span, Vec<AtomContribution>)>,
         mut invariants_by_construction: HashMap<String, (Span, InvariantPlan)>,
@@ -2094,6 +2094,7 @@ impl SemanticPlan {
         self.category_render_capability(category)
             .carries_agreement()
             || self.features.agreement_carry_sums.contains(category)
+            || self.carries_feature(category, Feature::Agreement)
     }
 
     pub(crate) fn sum_carries_agreement(&self, sum: &str) -> bool {
@@ -2168,11 +2169,12 @@ impl SemanticPlan {
         requires(self, sum, &mut HashSet::new())
     }
 
-    pub(crate) fn sequence_feature(&self, owner: &str, role: &str) -> Option<Feature> {
+    pub(crate) fn sequence_features(&self, owner: &str, role: &str) -> &[Feature] {
         self.features
             .sequence_features
             .get(&(owner.to_owned(), role.to_owned()))
-            .copied()
+            .map(Vec::as_slice)
+            .unwrap_or_default()
     }
 
     pub(crate) fn category_requires_external_agreement(&self, category: &str) -> bool {
@@ -2280,19 +2282,23 @@ impl SemanticPlan {
                 .feature_equations(construction.construction_id())
                 .iter()
                 .any(|equation| {
-                    let feature::FeaturePlace::Role {
-                        field,
-                        feature: Feature::Agreement,
-                    } = equation.target()
-                    else {
+                    let feature::FeaturePlace::Role { field, feature } = equation.target() else {
                         return false;
                     };
                     construction
                         .field(&identifier_key(field))
                         .is_ok_and(|field| {
-                            field.kind() == ConstructionFieldKind::Category
-                                && (self.sum_carries_agreement(field.terminal())
-                                    || self.category_carries_agreement(field.terminal()))
+                            if field.kind() != ConstructionFieldKind::Category {
+                                return false;
+                            }
+                            match feature {
+                                Feature::Agreement => {
+                                    self.sum_carries_agreement(field.terminal())
+                                        || self.category_carries_agreement(field.terminal())
+                                }
+                                Feature::Number => self.category_carries_number(field.terminal()),
+                                _ => false,
+                            }
                         })
                 })
     }
@@ -3218,25 +3224,34 @@ fn invariant_feature_dependencies(
         )?;
     }
     for equation in equations {
-        let feature::FeaturePlace::Role {
-            field,
-            feature: Feature::Agreement,
-        } = equation.target()
-        else {
+        let feature::FeaturePlace::Role { field, feature } = equation.target() else {
             continue;
         };
         let Ok(constrained) = construction.field(&identifier_key(field)) else {
             continue;
         };
-        if constrained.kind() != ConstructionFieldKind::Category
-            || !(agreement_carry_sums.contains(constrained.terminal())
-                || category_render
-                    .get(constrained.terminal())
-                    .is_some_and(|capability| capability.carries_agreement()))
-        {
+        if constrained.kind() != ConstructionFieldKind::Category {
+            continue;
+        }
+        let carries_feature = match feature {
+            Feature::Agreement => {
+                agreement_carry_sums.contains(constrained.terminal())
+                    || category_render
+                        .get(constrained.terminal())
+                        .is_some_and(|capability| capability.carries_agreement())
+            }
+            Feature::Number => true,
+            _ => false,
+        };
+        if !carries_feature {
             continue;
         }
         dependencies.fields.insert(constrained.name_key());
+        if *feature == Feature::Number {
+            dependencies
+                .category_reads
+                .insert((constrained.terminal().to_owned(), Feature::Number));
+        }
         collect_invariant_feature_dependencies(
             construction,
             equations,
@@ -4899,6 +4914,38 @@ fn number_carry_categories(
                 .then_some(category.clone())
         })
         .collect::<HashSet<_>>();
+    for construction in constructions {
+        for equation in equations
+            .get(&construction.construction_id)
+            .into_iter()
+            .flatten()
+        {
+            let FeaturePlace::Role {
+                field,
+                feature: Feature::Number,
+            } = equation.target()
+            else {
+                continue;
+            };
+            let Some(field) = construction
+                .fields
+                .iter()
+                .find(|candidate| candidate.name_key() == identifier_key(field))
+            else {
+                continue;
+            };
+            if field.kind() == ConstructionFieldKind::Category {
+                carried.insert(field.terminal().to_owned());
+            }
+            if let Some(StructuralFieldKindPlan::Sequence {
+                item: ValueKindPlan::Category(category),
+                ..
+            }) = field.structural_plan().map(StructuralFieldPlan::kind)
+            {
+                carried.insert(category.clone());
+            }
+        }
+    }
     loop {
         let before = carried.len();
         for construction in constructions {

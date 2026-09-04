@@ -1099,11 +1099,11 @@ fn emit_semantic_runtime_types(plan: &SemanticPlan) -> Vec<GeneratedItem> {
     let helper_variants = super::structural_carriers(plan).into_iter().map(|carrier| {
         let name = emitted_ident(&carrier.value_variant(), Span::call_site());
         let ty = super::structural_carrier_type(carrier.field.kind());
-        let feature = plan
-            .sequence_feature(carrier.owner, carrier.field.name())
-            .map(super::feature_type)
-            .map(|ty| quote! { , #ty });
-        quote! { #name(#ty #feature) }
+        let features = plan
+            .sequence_features(carrier.owner, carrier.field.name())
+            .iter()
+            .map(|feature| super::feature_type(*feature));
+        quote! { #name(#ty #(, #features)*) }
     });
     let nonterminal_variants = semantic_types
         .iter()

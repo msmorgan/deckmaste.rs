@@ -1,5 +1,5 @@
-error: MixedSequence.members: a sequence feature role cannot mix agreement and number
-  --> tests/compile_fail/sequence_feature_mixed.rs:13:28
+error: DuplicateNumberSequence.members: sequence feature number has more than one equation
+  --> tests/compile_fail/sequence_feature_mixed.rs:16:25
    |
-13 |         derive agreement = members.agreement;
-   |                            ^^^^^^^
+16 |         derive number = members.number;
+   |                         ^^^^^^^

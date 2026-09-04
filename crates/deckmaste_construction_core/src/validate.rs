@@ -572,7 +572,7 @@ fn validate_abstract_product_external_agreement_sums(
 fn validate_sequence_feature_roles(
     raw: &Declarations,
     structural: &StructuralSemantics,
-) -> syn::Result<HashMap<(String, String), Feature>> {
+) -> syn::Result<HashMap<(String, String), Vec<Feature>>> {
     let providers = feature_providers(raw);
     let mut errors = None;
     let mut result = HashMap::new();
@@ -588,123 +588,169 @@ fn validate_sequence_feature_roles(
             .collect::<HashMap<_, _>>();
         let uses = sequence_feature_uses(construction, &fields, &element, &mut errors);
         for (role, uses) in uses {
-            let distinct = uses
+            let mut distinct = uses
                 .iter()
-                .map(|(feature, _)| *feature)
-                .collect::<HashSet<_>>();
-            if distinct.len() > 1 {
-                let mut names = distinct
+                .map(|(feature, _, _, _)| *feature)
+                .collect::<HashSet<_>>()
+                .into_iter()
+                .collect::<Vec<_>>();
+            distinct.sort_unstable_by_key(|feature| sequence_feature_order(*feature));
+            let duplicate = distinct
+                .iter()
+                .find(|feature| sequence_feature_has_competing_equations(&uses, **feature));
+            if let Some(feature) = duplicate {
+                combine(
+                    &mut errors,
+                    syn::Error::new(
+                        uses.iter()
+                            .find(|(used, _, _, _)| used == feature)
+                            .expect("duplicate feature has a use")
+                            .1,
+                        format!(
+                            "{element}.{role}: sequence feature {} has more than one equation",
+                            feature_name(*feature),
+                        ),
+                    ),
+                );
+                continue;
+            }
+            let mut resolved_features = Vec::new();
+            for feature in distinct {
+                let span = uses
                     .iter()
-                    .map(|feature| feature_name(*feature))
-                    .collect::<Vec<_>>();
-                names.sort_unstable();
-                combine(
-                    &mut errors,
-                    syn::Error::new(
-                        uses[0].1,
-                        format!(
-                            "{element}.{role}: a sequence feature role cannot mix {}",
-                            names.join(" and ")
-                        ),
-                    ),
-                );
-                continue;
-            }
-            let feature = uses[0].0;
-            let Some(resolved_feature) = supported_sequence_feature(feature) else {
-                combine(
-                    &mut errors,
-                    syn::Error::new(
-                        uses[0].1,
-                        format!(
-                            "{element}.{role}: sequence feature propagation supports agreement, first-member onset, or last-member possessive ending, found {}",
-                            feature_name(feature)
-                        ),
-                    ),
-                );
-                continue;
-            };
-            let Some(field) = fields.get(&role) else { continue };
-            let FieldKind::Sequence { .. } = &field.kind else { continue };
-            let Some(structural_field) = structural
-                .construction_fields
-                .get(&(construction_id.clone(), role.clone()))
-            else {
-                continue;
-            };
-            let StructuralFieldKindPlan::Sequence { item, bounds, .. } = structural_field.kind()
-            else {
-                continue;
-            };
-            if bounds.min() == 0 {
-                combine(
-                    &mut errors,
-                    syn::Error::new(
-                        uses[0].1,
-                        format!(
-                            "{element}.{role}: sequence feature {} requires a statically nonempty sequence",
-                            feature_name(feature),
-                        ),
-                    ),
-                );
-            }
-            let category = match (feature, item) {
-                (
-                    ParsedFeature::Agreement,
-                    ValueKindPlan::Category(category) | ValueKindPlan::Sum(category),
-                )
-                | (
-                    ParsedFeature::Onset | ParsedFeature::PossessiveEnding,
-                    ValueKindPlan::Category(category),
-                ) => category,
-                (
-                    ParsedFeature::Agreement,
-                    ValueKindPlan::Lex(_) | ValueKindPlan::Identity(_) | ValueKindPlan::Product(_),
-                )
-                | (
-                    ParsedFeature::Onset | ParsedFeature::PossessiveEnding,
-                    ValueKindPlan::Sum(_)
-                    | ValueKindPlan::Lex(_)
-                    | ValueKindPlan::Identity(_)
-                    | ValueKindPlan::Product(_),
-                ) => {
+                    .find(|(used, _, _, _)| *used == feature)
+                    .expect("distinct feature has a use")
+                    .1;
+                let Some(resolved_feature) = supported_sequence_feature(feature) else {
                     combine(
                         &mut errors,
                         syn::Error::new(
-                            uses[0].1,
+                            span,
                             format!(
-                                "{element}.{role}: sequence feature {} requires feature-bearing category items",
+                                "{element}.{role}: sequence feature propagation supports homogeneous agreement or number, first-member onset, or last-member possessive ending, found {}",
+                                feature_name(feature)
+                            ),
+                        ),
+                    );
+                    continue;
+                };
+                let Some(field) = fields.get(&role) else { continue };
+                let FieldKind::Sequence { .. } = &field.kind else { continue };
+                let Some(structural_field) = structural
+                    .construction_fields
+                    .get(&(construction_id.clone(), role.clone()))
+                else {
+                    continue;
+                };
+                let StructuralFieldKindPlan::Sequence { item, bounds, .. } =
+                    structural_field.kind()
+                else {
+                    continue;
+                };
+                if bounds.min() == 0 {
+                    combine(
+                        &mut errors,
+                        syn::Error::new(
+                            span,
+                            format!(
+                                "{element}.{role}: sequence feature {} requires a statically nonempty sequence",
+                                feature_name(feature),
+                            ),
+                        ),
+                    );
+                }
+                let category = match (feature, item) {
+                    (
+                        ParsedFeature::Agreement,
+                        ValueKindPlan::Category(category) | ValueKindPlan::Sum(category),
+                    )
+                    | (
+                        ParsedFeature::Number
+                        | ParsedFeature::Onset
+                        | ParsedFeature::PossessiveEnding,
+                        ValueKindPlan::Category(category),
+                    ) => category,
+                    (
+                        ParsedFeature::Agreement,
+                        ValueKindPlan::Lex(_)
+                        | ValueKindPlan::Identity(_)
+                        | ValueKindPlan::Product(_),
+                    )
+                    | (
+                        ParsedFeature::Number
+                        | ParsedFeature::Onset
+                        | ParsedFeature::PossessiveEnding,
+                        ValueKindPlan::Sum(_)
+                        | ValueKindPlan::Lex(_)
+                        | ValueKindPlan::Identity(_)
+                        | ValueKindPlan::Product(_),
+                    ) => {
+                        combine(
+                            &mut errors,
+                            syn::Error::new(
+                                span,
+                                format!(
+                                    "{element}.{role}: sequence feature {} requires feature-bearing category items",
+                                    feature_name(feature),
+                                ),
+                            ),
+                        );
+                        continue;
+                    }
+                    _ => unreachable!("unsupported sequence feature was rejected"),
+                };
+                if !providers.contains(&(category.clone(), feature)) {
+                    combine(
+                        &mut errors,
+                        syn::Error::new(
+                            span,
+                            format!(
+                                "{element}.{role}: category `{category}` does not provide {}",
                                 feature_name(feature),
                             ),
                         ),
                     );
                     continue;
                 }
-                _ => unreachable!("unsupported sequence feature was rejected"),
-            };
-            if !providers.contains(&(category.clone(), feature)) {
-                combine(
-                    &mut errors,
-                    syn::Error::new(
-                        uses[0].1,
-                        format!(
-                            "{element}.{role}: category `{category}` does not provide {}",
-                            feature_name(feature),
-                        ),
-                    ),
-                );
-                continue;
+                resolved_features.push(resolved_feature);
             }
-            result.insert((element.clone(), role), resolved_feature);
+            if !resolved_features.is_empty() {
+                result.insert((element.clone(), role), resolved_features);
+            }
         }
     }
     finish(errors)?;
     Ok(result)
 }
 
+fn sequence_feature_has_competing_equations(
+    uses: &[(ParsedFeature, proc_macro2::Span, usize, bool)],
+    feature: ParsedFeature,
+) -> bool {
+    [false, true].into_iter().any(|is_writer| {
+        uses.iter()
+            .filter(|(used, _, _, writer)| *used == feature && *writer == is_writer)
+            .map(|(_, _, equation, _)| *equation)
+            .collect::<HashSet<_>>()
+            .len()
+            > 1
+    })
+}
+
+fn sequence_feature_order(feature: ParsedFeature) -> usize {
+    match feature {
+        ParsedFeature::Agreement => 0,
+        ParsedFeature::Number => 1,
+        ParsedFeature::Onset => 2,
+        ParsedFeature::PossessiveEnding => 3,
+        _ => 4,
+    }
+}
+
 fn supported_sequence_feature(feature: ParsedFeature) -> Option<Feature> {
     match feature {
         ParsedFeature::Agreement => Some(Feature::Agreement),
+        ParsedFeature::Number => Some(Feature::Number),
         ParsedFeature::Onset => Some(Feature::Onset),
         ParsedFeature::PossessiveEnding => Some(Feature::PossessiveEnding),
         _ => None,
@@ -716,9 +762,10 @@ fn sequence_feature_uses(
     fields: &HashMap<String, &crate::model::Field>,
     element: &str,
     errors: &mut Option<syn::Error>,
-) -> HashMap<String, Vec<(ParsedFeature, proc_macro2::Span)>> {
-    let mut uses: HashMap<String, Vec<(ParsedFeature, proc_macro2::Span)>> = HashMap::new();
-    for equation in &construction.equations {
+) -> HashMap<String, Vec<(ParsedFeature, proc_macro2::Span, usize, bool)>> {
+    let mut uses: HashMap<String, Vec<(ParsedFeature, proc_macro2::Span, usize, bool)>> =
+        HashMap::new();
+    for (equation_index, equation) in construction.equations.iter().enumerate() {
         if let ParsedFeaturePlace::Role { field, feature } = &equation.target
             && matches!(
                 fields.get(&identifier_key(field)).map(|field| &field.kind),
@@ -738,9 +785,12 @@ fn sequence_feature_uses(
                     ),
                 );
             } else {
-                uses.entry(identifier_key(field))
-                    .or_default()
-                    .push((*feature, field.span()));
+                uses.entry(identifier_key(field)).or_default().push((
+                    *feature,
+                    field.span(),
+                    equation_index,
+                    true,
+                ));
             }
         }
         if let ParsedFeatureValue::FromRole(source) = &equation.value
@@ -751,9 +801,12 @@ fn sequence_feature_uses(
                 Some(FieldKind::Sequence { .. })
             )
         {
-            uses.entry(identifier_key(&source.role))
-                .or_default()
-                .push((source.feature, source.role.span()));
+            uses.entry(identifier_key(&source.role)).or_default().push((
+                source.feature,
+                source.role.span(),
+                equation_index,
+                false,
+            ));
         }
     }
     uses
@@ -5917,14 +5970,15 @@ fn raw_sequence_reads_inherent_category_feature(
                                         if matches!(item.as_ref(), FieldKind::Category(path) if path_name(path) == category)
                                 )
                         })
-                        && !construction.equations.iter().any(|writer| {
-                            matches!(
-                                &writer.target,
-                                ParsedFeaturePlace::Role { field, feature }
-                                    if same_identifier(field, &source.role)
-                                        && *feature == parsed_feature
-                            )
-                        })
+                        && (feature == Feature::Number
+                            || !construction.equations.iter().any(|writer| {
+                                matches!(
+                                    &writer.target,
+                                    ParsedFeaturePlace::Role { field, feature }
+                                        if same_identifier(field, &source.role)
+                                            && *feature == parsed_feature
+                                )
+                            }))
             )
         })
     })
@@ -6998,6 +7052,7 @@ fn check_feature_role(
             if matches!(
                 feature,
                 ParsedFeature::Agreement
+                    | ParsedFeature::Number
                     | ParsedFeature::Onset
                     | ParsedFeature::PossessiveEnding
             )
@@ -10536,7 +10591,9 @@ fn role_provides_number(
     role: &syn::Ident,
 ) -> bool {
     match fields.get(&identifier_key(role)) {
-        Some(FieldKind::Zeroable { .. } | FieldKind::Category(_)) => true,
+        Some(FieldKind::Zeroable { .. } | FieldKind::Category(_) | FieldKind::Sequence { .. }) => {
+            true
+        }
         Some(FieldKind::Lex(path)) => {
             raw.declarations
                 .iter()
@@ -10562,8 +10619,7 @@ fn role_provides_number(
                     _ => false,
                 })
         }
-        Some(FieldKind::Identity(_) | FieldKind::Optional(_) | FieldKind::Sequence { .. })
-        | None => false,
+        Some(FieldKind::Identity(_) | FieldKind::Optional(_)) | None => false,
     }
 }
 
@@ -15095,7 +15151,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn homogeneous_nonempty_category_sequences_support_uniform_agreement_flow() {
+    fn homogeneous_nonempty_category_sequences_support_homogeneous_feature_flow() {
         validate(quote! {
             construction bare: Item {
                 element BareItem {}
@@ -15127,6 +15183,59 @@ pub(crate) mod tests {
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         })
         .expect("uniform inbound and homogeneous outward sequence agreement must validate");
+
+        let number_expansion = crate::generate(quote! {
+            construction singular: Item {
+                element SingularItem {}
+                derive number = Values::Singular;
+                derive onset = Values::Consonant;
+                form singular = "singular";
+            }
+            construction plural: Item {
+                element PluralItem {}
+                derive number = Values::Plural;
+                derive onset = Values::Vowel;
+                form plural = "plural";
+            }
+            construction downward: Root {
+                element DownwardNumberSequence { source: Item, members: seq Item separated by " ", }
+                require len(members) >= 2;
+                derive members.number = source.number;
+                form downward = source members;
+            }
+            construction outward: Coordinated {
+                element OutwardNumberSequence { members: seq Item separated by " ", }
+                require len(members) >= 2;
+                derive number = members.number;
+                derive onset = members.onset;
+                form outward = members;
+            }
+            construction verified: Root {
+                element CheckedNumberSequence { source: Item, coordinated: Coordinated, }
+                derive coordinated.number = source.number;
+                form verified = source coordinated;
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("homogeneous downward and outward sequence Number must validate");
+        let number_source = number_expansion
+            .items()
+            .iter()
+            .map(|item| item.tokens.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        for required in [
+            "fn number_for_item",
+            "OutwardNumberSequenceMembersSequence (Vec < Item > , Number , Onset)",
+            "number_for_item (value) ==",
+            "item_0_number == item_2_number",
+            "item_0_onset",
+        ] {
+            assert!(
+                number_source.contains(required),
+                "generated homogeneous Number support is missing {required:?}: {number_source}",
+            );
+        }
 
         let empty = error(quote! {
             construction item: Item {
@@ -15207,27 +15316,27 @@ pub(crate) mod tests {
         );
 
         let unsupported = error(quote! {
-            construction numbered: Item {
-                element NumberedItem {}
-                derive number = Values::Singular;
+            construction cardinal: Item {
+                element CardinalItem {}
+                derive cardinality = Values::One;
                 form numbered = "item";
             }
             construction unsupported: Root {
                 element UnsupportedSequence { members: seq Item separated by " ", }
                 require len(members) >= 2;
-                derive number = members.number;
+                derive cardinality = members.cardinality;
                 form unsupported = members;
             }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         });
         assert!(
             unsupported.contains(
-                "UnsupportedSequence.members: sequence feature propagation supports agreement, first-member onset, or last-member possessive ending, found number"
+                "UnsupportedSequence.members: sequence feature propagation supports homogeneous agreement or number, first-member onset, or last-member possessive ending, found cardinality"
             ),
             "{unsupported}"
         );
 
-        let mixed = error(quote! {
+        validate(quote! {
             construction item: Item {
                 element ItemValue {}
                 derive agreement = Values::Bare;
@@ -15242,12 +15351,58 @@ pub(crate) mod tests {
                 form mixed = members;
             }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("distinct features may each have one equation on one sequence role");
+
+        let duplicate = error(quote! {
+            construction item: Item {
+                element ItemValue {}
+                derive number = Values::Singular;
+                form item = "item";
+            }
+            construction duplicate: Root {
+                element DuplicateNumberSequence {
+                    source: Item,
+                    members: seq Item separated by " ",
+                }
+                require len(members) >= 2;
+                derive number = members.number;
+                derive source.number = members.number;
+                form duplicate = source members;
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
         });
         assert!(
-            mixed.contains(
-                "MixedSequence.members: a sequence feature role cannot mix agreement and number"
+            duplicate.contains(
+                "DuplicateNumberSequence.members: sequence feature number has more than one equation"
             ),
-            "{mixed}"
+            "{duplicate}"
+        );
+
+        let contending_writers = error(quote! {
+            construction item: Item {
+                element ItemValue {}
+                derive number = Values::Singular;
+                form item = "item";
+            }
+            construction contending: Root {
+                element ContendingNumberSequence {
+                    first: Item,
+                    second: Item,
+                    members: seq Item separated by " ",
+                }
+                require len(members) >= 2;
+                derive members.number = first.number;
+                derive members.number = second.number;
+                form contending = first second members;
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            contending_writers.contains(
+                "ContendingNumberSequence.members: sequence feature number has more than one equation"
+            ),
+            "{contending_writers}"
         );
     }
 

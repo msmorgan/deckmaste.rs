@@ -15,25 +15,25 @@ mod coordination_feature_recipes {
         })
     }
 
-    fn singular_member(noun: CommonNoun) -> SingularCoordinationMember {
-        SingularCoordinationMember::BareSingularCoordinationMember(BareSingularCoordinationMember {
-            head: SingularHead::NounSingularHead(NounSingularHead {
+    fn singular_member(noun: CommonNoun) -> CoordinationMember {
+        CoordinationMember::BareSingularCoordinationMember(BareSingularCoordinationMember {
+            head: Head::NounSingularHead(NounSingularHead {
                 noun: Noun::Lexeme(noun),
             }),
         })
     }
 
-    fn plural_member(noun: CommonNoun) -> PluralCoordinationMember {
-        PluralCoordinationMember::BarePluralCoordinationMember(BarePluralCoordinationMember {
-            head: PluralHead::NounPluralHead(NounPluralHead {
+    fn plural_member(noun: CommonNoun) -> CoordinationMember {
+        CoordinationMember::BarePluralCoordinationMember(BarePluralCoordinationMember {
+            head: Head::NounPluralHead(NounPluralHead {
                 noun: Noun::Lexeme(noun),
             }),
         })
     }
 
-    fn singular_nominal(noun: CommonNoun) -> SingularNominal {
-        SingularNominal::BareSingularNominal(BareSingularNominal {
-            head: SingularHead::NounSingularHead(NounSingularHead {
+    fn singular_nominal(noun: CommonNoun) -> Nominal {
+        Nominal::BareSingularNominal(BareSingularNominal {
+            head: Head::NounSingularHead(NounSingularHead {
                 noun: Noun::Lexeme(noun),
             }),
         })
@@ -64,8 +64,8 @@ mod coordination_feature_recipes {
         let singular_shared = noun_phrase(determined(
             determinative(Number::Singular),
             Nominal::SingularCoordinationNominalValue(SingularCoordinationNominalValue {
-                coordination: SingularNominalCoordination::SingularOrNominalCoordination(
-                    SingularOrNominalCoordination::new(vec![
+                coordination: NominalCoordination::OrNominalCoordination(
+                    OrNominalCoordination::new(vec![
                         singular_member(CommonNoun::Player),
                         singular_member(CommonNoun::Opponent),
                     ])
@@ -76,8 +76,8 @@ mod coordination_feature_recipes {
         let plural_shared = noun_phrase(determined(
             determinative(Number::Plural),
             Nominal::PluralCoordinationNominalValue(PluralCoordinationNominalValue {
-                coordination: PluralNominalCoordination::PluralOrNominalCoordination(
-                    PluralOrNominalCoordination::new(vec![
+                coordination: NominalCoordination::OrNominalCoordination(
+                    OrNominalCoordination::new(vec![
                         plural_member(CommonNoun::Player),
                         plural_member(CommonNoun::Opponent),
                     ])
@@ -93,9 +93,7 @@ mod coordination_feature_recipes {
                             UnqualifiedPostmodifiedReference {
                                 reference: Box::new(determined(
                                     determinative(Number::Singular),
-                                    Nominal::SingularNominalValue(SingularNominalValue {
-                                        nominal: singular_nominal(CommonNoun::Player),
-                                    }),
+                                    singular_nominal(CommonNoun::Player),
                                 )),
                             },
                         ),
@@ -103,9 +101,7 @@ mod coordination_feature_recipes {
                             UnqualifiedPostmodifiedReference {
                                 reference: Box::new(determined(
                                     determinative(Number::Singular),
-                                    Nominal::SingularNominalValue(SingularNominalValue {
-                                        nominal: singular_nominal(CommonNoun::Opponent),
-                                    }),
+                                    singular_nominal(CommonNoun::Opponent),
                                 )),
                             },
                         ),
@@ -147,11 +143,9 @@ mod reference_onset_recipes {
                 Determiner::Headed(Determinative::VariableQuantifyingDeterminer(
                     VariableQuantifyingDeterminer { count },
                 )),
-                Nominal::PluralNominalValue(PluralNominalValue {
-                    nominal: PluralNominal::BarePluralNominal(BarePluralNominal {
-                        head: PluralHead::NounPluralHead(NounPluralHead {
-                            noun: Noun::Lexeme(CommonNoun::Player),
-                        }),
+                Nominal::BarePluralNominal(BarePluralNominal {
+                    head: Head::NounPluralHead(NounPluralHead {
+                        noun: Noun::Lexeme(CommonNoun::Player),
                     }),
                 }),
             )
@@ -233,10 +227,10 @@ mod preposition_license_recipes {
 
     fn possessed_singular_complement(noun: CommonNoun) -> PrepositionalComplement {
         let noun = Noun::Lexeme(noun);
-        let head = SingularHead::NounSingularHead(
+        let head = Head::NounSingularHead(
             NounSingularHead::new(noun).expect("licensed complement head is a count noun"),
         );
-        let nominal = SingularNominal::BareSingularNominal(BareSingularNominal { head });
+        let nominal = Nominal::BareSingularNominal(BareSingularNominal { head });
         let reference =
             UnqualifiedReference::PossessedSingularReference(PossessedSingularReference {
                 possessor: PossessiveDeterminerPronoun::Your,
@@ -266,16 +260,15 @@ mod preposition_license_recipes {
             locative_temporal_license_for_noun(&noun),
             LocativeTemporalLicense::OfAndTemporalLicensed,
         );
-        let head = SingularHead::NounSingularHead(
-            NounSingularHead::new(noun).expect("turn is a count noun"),
-        );
+        let head =
+            Head::NounSingularHead(NounSingularHead::new(noun).expect("turn is a count noun"));
         assert_eq!(
-            locative_temporal_license_for_singular_head(&head),
+            locative_temporal_license_for_head(&head),
             LocativeTemporalLicense::OfAndTemporalLicensed,
         );
-        let nominal = SingularNominal::BareSingularNominal(BareSingularNominal { head });
+        let nominal = Nominal::BareSingularNominal(BareSingularNominal { head });
         assert_eq!(
-            locative_temporal_license_for_singular_nominal(&nominal),
+            locative_temporal_license_for_nominal(&nominal),
             LocativeTemporalLicense::OfAndTemporalLicensed,
         );
         let reference =
