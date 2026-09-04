@@ -60,3 +60,33 @@ Complement, Verb Frame Key. Record any gap.
 Baseline, measured on change `oulzkkoqmvuv` (388 constructions, 17,052 / 32,641
 covered) — re-measure at claim. Standard constraints apply; `cargo test
 --workspace` (touches `deckmaste_construction_core/src/emit/`).
+
+## Routed in, 2026-09-04 (from `english-v2-form-template-defects`, R5 item 4)
+
+R5's item 4 — "`codec EnterWithCountersVerb` confines a general frame to one
+verb" — is struck there and lands here, because the confinement is not in the
+codec. `EnterWithCountersVerb` names no verb; a verb reaches it by declaring
+`Predicate([Lex("Preposition", "With"), ObjectNounPhrase, Lex("Preposition",
+"On"), Role("FrameComplement")])`, which `core_verbs.ron` does for `Enter`. Two
+mechanism gaps stop the attested sentences:
+
+- **No role atom in a declaration tail.** The family is
+  `exile it with four time counters on it` / `Exile Arc Blade with three time
+  counters on it` / `Return target creature card … with a finality counter on
+  it` — *exile* and *return* here are keyword-action declarations, whose frames
+  are `CustomTailAtom` with exactly five variants (`Literal`, `Lex`, `Amount`,
+  `ObjectNounPhrase`, `PredicativeComplement`;
+  `crates/deckmaste_construction_core/src/macro_def.rs:416`). There is no
+  `Role`, so a declaration cannot name `FrameComplement` at all, and the two
+  frame-atom vocabularies (core-verb `VerbFrameAtom`, declaration
+  `CustomTailAtom`) have drifted apart. Unifying them is this ticket's "whether
+  `core_verbs.ron`'s `Predicate([...])` and the stub `Custom(frames: [...])`
+  surface unify" dimension.
+- **The attested tail is a different frame.** `EnterWithCountersVerb`'s tail has
+  no direct-object slot (*enter* is intransitive there). The written sentences
+  are `V ‹obj› with ‹obj› on ‹complement›`, so even with a role atom the frame
+  space would have to gain a tail no codec spells — the "~33 tails are the
+  realizable frame space" problem above, in one instance.
+
+Add both to the design's worked examples; the acceptance should show one of
+these sentences selecting.

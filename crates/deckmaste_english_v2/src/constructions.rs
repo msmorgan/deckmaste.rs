@@ -254,6 +254,7 @@ constructions! {
         Green = "G",
     }
     vocab EdgePosition { Top = "top", Bottom = "bottom", }
+    vocab DefiniteMarker { The = "the", }
     vocab Supertype {
         Basic = "basic",
         Legendary = "legendary",
@@ -1787,10 +1788,10 @@ constructions! {
         element PassiveMovementPredicateValue {
             head: lex MovementParticipleHead,
             destination: FrameComplement,
-            source: FrameComplement,
+            source: opt FrameComplement,
         }
         form passive_movement_predicate =
-            verb(head) lex(Preposition::Into) destination lex(Preposition::From) source;
+            verb(head) lex(Preposition::Into) destination marked(Preposition::From, source);
     }
     construction passive_orientation_predicate: PassiveOrientationPredicate {
         element PassiveOrientationPredicateValue {
@@ -3577,6 +3578,7 @@ constructions! {
     }
     construction edge_of_phrase: EdgeOfPhrase {
         element EdgeOfPhraseValue {
+            definiteness: opt lex DefiniteMarker,
             position: lex EdgePosition,
             relation: lex Preposition,
             whole: Object,
@@ -3584,8 +3586,7 @@ constructions! {
         require relation is Of;
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = whole.locative_temporal_license;
-        form top when position is Top = lex(position) lex(relation) whole;
-        form bottom otherwise = "the" lex(position) lex(relation) whole;
+        form edge_of_phrase = lex(definiteness) lex(position) lex(relation) whole;
     }
     construction fixed_scalar_threshold: ScalarThreshold {
         element FixedScalarThreshold { value: lex ScalarNumber, }
