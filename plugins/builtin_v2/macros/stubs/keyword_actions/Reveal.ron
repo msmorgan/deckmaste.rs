@@ -3,6 +3,6 @@ KeywordAction(
     spelling: "reveal",
     grammar: Verb(
         bare: "reveal",
-        valence: Transitive,
+        frame_set: Transitive,
     ),
 )

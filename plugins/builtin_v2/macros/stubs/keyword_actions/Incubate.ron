@@ -3,6 +3,6 @@ KeywordAction(
     spelling: "incubate",
     grammar: Verb(
         bare: "incubate",
-        valence: Numerative,
+        frame_set: MeasureComplement,
     ),
 )

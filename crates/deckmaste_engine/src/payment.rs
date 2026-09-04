@@ -48,7 +48,7 @@ use crate::object::ObjectId;
 use crate::player::ManaActionId;
 use crate::player::ManaUnit;
 use crate::player::PlayerId;
-use crate::stack::Frame;
+use crate::stack::ExecutionFrame;
 use crate::state::GameImage;
 use crate::state::GameState;
 
@@ -86,7 +86,7 @@ pub enum PaymentPurpose {
     Optional {
         if_did: Option<Arc<deckmaste_core::Instruction>>,
         if_not: Option<Arc<deckmaste_core::Instruction>>,
-        frame: Box<Frame>,
+        frame: Box<ExecutionFrame>,
     },
 }
 
@@ -165,7 +165,7 @@ pub struct PaymentPrompt {
 pub struct LockedPayment {
     pub payer: PlayerId,
     pub subject: PaymentSubject,
-    pub frame: Frame,
+    pub frame: ExecutionFrame,
     pub ious: Vec<PaymentIou>,
     pub stage: PaymentStage,
     pub has_mana_payment: bool,
@@ -180,7 +180,11 @@ impl LockedPayment {
             .collect()
     }
 
-    fn proposal_placeholder(payer: PlayerId, subject: PaymentSubject, frame: Frame) -> Self {
+    fn proposal_placeholder(
+        payer: PlayerId,
+        subject: PaymentSubject,
+        frame: ExecutionFrame,
+    ) -> Self {
         Self {
             payer,
             subject,
@@ -233,7 +237,7 @@ pub struct PaymentFrame {
     /// The negative branch of a resolution-time `May(Cast)` announcement.
     /// Submission leaves the queued `if_did` continuation intact; decline
     /// restores `proposal_base` and schedules this branch instead.
-    pub(crate) announcement_if_not: Option<(Arc<deckmaste_core::Instruction>, Box<Frame>)>,
+    pub(crate) announcement_if_not: Option<(Arc<deckmaste_core::Instruction>, Box<ExecutionFrame>)>,
     /// The activated mana action whose announcement this nested frame owns.
     /// Root announcements and optional payments leave this absent.
     pub(crate) mana_action: Option<ManaActionId>,
@@ -312,7 +316,7 @@ impl PaymentFrame {
     pub(crate) fn proposal(working: GameImage, payer: PlayerId) -> Self {
         let source = working.players[payer.index()].object;
         let subject = PaymentSubject::Effect { source };
-        let frame = Frame::bare(source, payer);
+        let frame = ExecutionFrame::bare(source, payer);
         Self::new(
             working,
             PaymentPurpose::Announcement,
@@ -466,7 +470,7 @@ pub(crate) fn automatic_activation_cost_usable(
         return false;
     }
     let controller = object.controller;
-    let frame = Frame::bare(source, controller);
+    let frame = ExecutionFrame::bare(source, controller);
     let mana = state.resolve_cost_mana(&summary, source, controller);
     if !crate::cast::can_pay(&state.spendable_pool(controller, source), &mana)
         || summary
@@ -499,7 +503,11 @@ pub(crate) fn automatic_activation_cost_usable(
 
 /// Whether the automatic payer can satisfy one cost instruction against
 /// `frame` ([CR#601.2b]) — the gate half of [`automatic_step_witness`].
-fn automatic_step_is_satisfiable(state: &GameState, step: &CostComponent, frame: &Frame) -> bool {
+fn automatic_step_is_satisfiable(
+    state: &GameState,
+    step: &CostComponent,
+    frame: &ExecutionFrame,
+) -> bool {
     !matches!(step, CostComponent::Choose(_) | CostComponent::Sample(_))
         || automatic_step_witness(state, step, frame).is_some()
 }
@@ -511,7 +519,7 @@ fn automatic_step_is_satisfiable(state: &GameState, step: &CostComponent, frame:
 fn automatic_step_witness(
     state: &GameState,
     step: &CostComponent,
-    frame: &Frame,
+    frame: &ExecutionFrame,
 ) -> Option<FulfillmentWitness> {
     let watcher = Some(state.frame_watcher(frame));
     match step {
@@ -573,7 +581,7 @@ fn automatic_search_candidates(
     whose: &Reference,
     from: &[Zone],
     filter: &Predicate,
-    frame: &Frame,
+    frame: &ExecutionFrame,
 ) -> Vec<ObjectId> {
     let Some(owner) = state.eval_player_ref(whose, frame) else {
         return Vec::new();
@@ -595,7 +603,7 @@ fn automatic_tap_total_subset(
     cmp: Cmp,
     count: Uint,
     filter: &Predicate,
-    frame: &Frame,
+    frame: &ExecutionFrame,
 ) -> Option<Vec<ObjectId>> {
     fn search(
         candidates: &[(ObjectId, Uint)],
@@ -1086,7 +1094,7 @@ impl GameState {
     pub(crate) fn configure_resolution_cast_decline(
         &mut self,
         resume: &[crate::agenda::WorkItem],
-        if_not: Option<(Arc<deckmaste_core::Instruction>, Box<Frame>)>,
+        if_not: Option<(Arc<deckmaste_core::Instruction>, Box<ExecutionFrame>)>,
     ) {
         let frame = self
             .payment
@@ -1110,7 +1118,7 @@ impl GameState {
         cost: Cost,
         if_did: Option<Arc<deckmaste_core::Instruction>>,
         if_not: Option<Arc<deckmaste_core::Instruction>>,
-        frame: Frame,
+        frame: ExecutionFrame,
     ) {
         // A cost's `You` is its payer. Fork the containing effect activation
         // so payment decisions and their registers are isolated from sibling
@@ -2311,7 +2319,7 @@ pub fn lock_cost(
     state: &GameState,
     payer: PlayerId,
     subject: PaymentSubject,
-    frame: &Frame,
+    frame: &ExecutionFrame,
     cost: &Cost,
     pay_pips: &[(PipClass, PayAct)],
 ) -> Result<LockedPayment, PaymentLockError> {
@@ -2344,7 +2352,7 @@ pub fn lock_cost(
 
 struct LockBuilder<'a> {
     state: &'a GameState,
-    frame: &'a Frame,
+    frame: &'a ExecutionFrame,
     pay_pips: &'a [(PipClass, PayAct)],
     ious: Vec<PaymentIou>,
     next_iou: u64,
@@ -2526,7 +2534,7 @@ mod tests {
     use crate::StepOutcome;
     use crate::SymbolChoice;
     use crate::concretize;
-    use crate::stack::Frame;
+    use crate::stack::ExecutionFrame;
 
     fn fixture(printed_mana: &str) -> (GameState, PlayerId, crate::ObjectId) {
         let payer = PlayerId(0);
@@ -2595,7 +2603,7 @@ mod tests {
             &state,
             payer,
             PaymentSubject::Spell(subject),
-            &Frame::bare(subject, payer),
+            &ExecutionFrame::bare(subject, payer),
             &cost(components),
             &[],
         )
@@ -2668,7 +2676,7 @@ mod tests {
             &state,
             payer,
             PaymentSubject::Spell(subject),
-            &Frame::bare(subject, payer),
+            &ExecutionFrame::bare(subject, payer),
             &cost(vec![CostComponent::Mana("{1}{G}".parse().unwrap())]),
             &[],
         )
@@ -2701,7 +2709,7 @@ mod tests {
             &state,
             payer,
             PaymentSubject::Spell(subject),
-            &Frame::bare(subject, payer),
+            &ExecutionFrame::bare(subject, payer),
             &cost(vec![CostComponent::ManaCostOf(Reference::Reg(
                 deckmaste_core::RefId(0),
             ))]),
@@ -2752,7 +2760,7 @@ mod tests {
             &state,
             payer,
             PaymentSubject::Spell(subject),
-            &Frame::bare(subject, payer),
+            &ExecutionFrame::bare(subject, payer),
             &cost(vec![CostComponent::Mana("{S}".parse().unwrap())]),
             &[],
         )
@@ -2801,7 +2809,7 @@ mod tests {
             &state,
             payer,
             PaymentSubject::Spell(subject),
-            &Frame::bare(subject, payer),
+            &ExecutionFrame::bare(subject, payer),
             &cost(vec![CostComponent::Mana("{G}".parse().unwrap())]),
             &[],
         )
@@ -2831,7 +2839,7 @@ mod tests {
             &state,
             payer,
             PaymentSubject::Spell(subject),
-            &Frame::bare(subject, payer),
+            &ExecutionFrame::bare(subject, payer),
             &cost(vec![CostComponent::Mana("{1}".parse().unwrap())]),
             &[(PipClass::Generic, PayAct::TapToPay(Predicate::Any))],
         )
@@ -2855,7 +2863,7 @@ mod tests {
         let (mut state, payer, subject) = fixture("");
         state.agenda.clear();
         let before_life = state.player(payer).life;
-        let frame = Frame::bare(subject, payer);
+        let frame = ExecutionFrame::bare(subject, payer);
         state.run_effect(
             may_pay(
                 cost(vec![CostComponent::Mana("{G}".parse().unwrap())]),
@@ -2892,7 +2900,7 @@ mod tests {
         let (mut state, payer, subject) = fixture("");
         state.agenda.clear();
         let before_life = state.player(payer).life;
-        let frame = Frame::bare(subject, payer);
+        let frame = ExecutionFrame::bare(subject, payer);
         state.run_effect(
             may_pay(
                 cost(vec![CostComponent::do_action(Action::ChangeLife(
@@ -2949,7 +2957,7 @@ mod tests {
                 None,
                 None,
             ),
-            &Frame::bare(subject, payer),
+            &ExecutionFrame::bare(subject, payer),
         );
         let Some(DecisionPointKind::Payment(prompt)) = state.pending.as_ref() else {
             panic!("nested May(Pay) should open an optional payment frame");
@@ -2990,7 +2998,7 @@ mod tests {
                 None,
                 None,
             ),
-            &Frame::bare(subject, payer),
+            &ExecutionFrame::bare(subject, payer),
         );
         let Some(DecisionPointKind::Payment(prompt)) = state.pending.as_ref() else {
             panic!("nested May(Pay) should open an optional payment frame");
@@ -3058,7 +3066,7 @@ mod tests {
         state.zones.battlefield.push(shield);
 
         let life_before = state.player(payer).life;
-        let frame = Frame::bare(subject, payer);
+        let frame = ExecutionFrame::bare(subject, payer);
         state.run_effect(
             may_pay(
                 cost(vec![CostComponent::do_action(Action::Sacrifice(
@@ -3109,7 +3117,7 @@ mod tests {
         let (mut state, payer, subject) = fixture("");
         state.agenda.clear();
         state.begin_test_frame();
-        let frame = Frame::bare(subject, payer);
+        let frame = ExecutionFrame::bare(subject, payer);
         state.run_effect(
             may_pay(
                 cost(vec![CostComponent::Mana("{G}".parse().unwrap())]),

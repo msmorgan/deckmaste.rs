@@ -828,6 +828,8 @@ pub(crate) enum VerbFrameClass {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+/// Compiler compatibility key for matching a realized Lexical Verb Phrase
+/// against a declared Verb Frame.
 pub(crate) struct VerbFrameKey {
     class: VerbFrameClass,
     atoms: Vec<VerbFrameAtom>,
@@ -843,19 +845,19 @@ impl VerbFrameKey {
     }
 
     #[cfg(test)]
-    pub(crate) fn matches_valence(&self, valence: &crate::macro_def::VerbValence) -> bool {
-        use crate::macro_def::VerbValence;
+    pub(crate) fn matches_frame_set(&self, frame_set: &crate::macro_def::VerbFrameSet) -> bool {
+        use crate::macro_def::VerbFrameSet;
 
         if self.class != VerbFrameClass::Predicate {
             return false;
         }
-        match valence.frame() {
-            VerbValence::Intransitive => self.atoms.is_empty(),
-            VerbValence::Transitive => self.atoms == [VerbFrameAtom::ObjectNounPhrase],
-            VerbValence::Numerative => self.atoms == [VerbFrameAtom::Amount],
-            VerbValence::Custom { shapes } => shapes.iter().any(|shape| {
-                shape.len() == self.atoms.len()
-                    && shape.iter().zip(&self.atoms).all(|(source, planned)| {
+        match frame_set.frame_set() {
+            VerbFrameSet::Intransitive => self.atoms.is_empty(),
+            VerbFrameSet::Transitive => self.atoms == [VerbFrameAtom::ObjectNounPhrase],
+            VerbFrameSet::MeasureComplement => self.atoms == [VerbFrameAtom::Amount],
+            VerbFrameSet::Custom { frames } => frames.iter().any(|frame| {
+                frame.len() == self.atoms.len()
+                    && frame.iter().zip(&self.atoms).all(|(source, planned)| {
                         match (source, planned) {
                             (
                                 crate::macro_def::CustomTailAtom::Literal(source),
@@ -877,8 +879,8 @@ impl VerbFrameKey {
                         }
                     })
             }),
-            VerbValence::AdjunctLicensed(_) | VerbValence::NonprepositionalAdjunctLicensed(_) => {
-                unreachable!("frame() removes licence wrappers")
+            VerbFrameSet::AdjunctLicensed(_) | VerbFrameSet::NonprepositionalAdjunctLicensed(_) => {
+                unreachable!("frame_set() removes licence wrappers")
             }
         }
     }

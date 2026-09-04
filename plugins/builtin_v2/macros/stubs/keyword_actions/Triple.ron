@@ -3,6 +3,6 @@ KeywordAction(
     spelling: "triple",
     grammar: Verb(
         bare: "triple",
-        valence: Transitive,
+        frame_set: Transitive,
     ),
 )

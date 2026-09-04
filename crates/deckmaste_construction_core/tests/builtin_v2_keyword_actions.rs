@@ -6,7 +6,7 @@ use deckmaste_construction_core::macro_def::GrammarRecipe;
 use deckmaste_construction_core::macro_def::NormalizedDeclaration;
 use deckmaste_construction_core::macro_def::SpellingPart;
 use deckmaste_construction_core::macro_def::SurfaceFeature;
-use deckmaste_construction_core::macro_def::VerbValence;
+use deckmaste_construction_core::macro_def::VerbFrameSet;
 use deckmaste_construction_core::macro_def::read_builtin_v2;
 
 const EXPECTED_NAMES: &[&str] = &[
@@ -149,7 +149,7 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
     assert_eq!(
         destroy.grammar().unwrap().recipe(),
         &GrammarRecipe::Verb {
-            valence: VerbValence::Transitive,
+            frame_set: VerbFrameSet::Transitive,
         }
     );
     assert_eq!(
@@ -164,7 +164,7 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
     assert_eq!(
         action(&declarations, "Explore").grammar().unwrap().recipe(),
         &GrammarRecipe::Verb {
-            valence: VerbValence::Intransitive,
+            frame_set: VerbFrameSet::Intransitive,
         }
     );
 
@@ -172,7 +172,7 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
     assert_eq!(
         regenerate.grammar().unwrap().recipe(),
         &GrammarRecipe::Verb {
-            valence: VerbValence::Transitive,
+            frame_set: VerbFrameSet::Transitive,
         }
     );
     assert_eq!(
@@ -188,8 +188,8 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
     assert_eq!(
         scry.grammar().unwrap().recipe(),
         &GrammarRecipe::Verb {
-            valence: VerbValence::Custom {
-                shapes: vec![vec![], vec![CustomTailAtom::Amount]],
+            frame_set: VerbFrameSet::Custom {
+                frames: vec![vec![], vec![CustomTailAtom::Amount]],
             },
         }
     );
@@ -212,8 +212,8 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
     assert_eq!(
         action(&declarations, "Connive").grammar().unwrap().recipe(),
         &GrammarRecipe::Verb {
-            valence: VerbValence::Custom {
-                shapes: vec![vec![], vec![CustomTailAtom::Amount]],
+            frame_set: VerbFrameSet::Custom {
+                frames: vec![vec![], vec![CustomTailAtom::Amount]],
             },
         }
     );
@@ -221,8 +221,8 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
     assert_eq!(
         action(&declarations, "Vote").grammar().unwrap().recipe(),
         &GrammarRecipe::Verb {
-            valence: VerbValence::Custom {
-                shapes: vec![
+            frame_set: VerbFrameSet::Custom {
+                frames: vec![
                     vec![],
                     vec![CustomTailAtom::ObjectNounPhrase],
                     vec![
@@ -310,8 +310,8 @@ fn exchange_has_every_attested_representable_tail_shape() {
             .unwrap()
             .recipe(),
         &GrammarRecipe::Verb {
-            valence: VerbValence::Custom {
-                shapes: vec![
+            frame_set: VerbFrameSet::Custom {
+                frames: vec![
                     vec![CustomTailAtom::ObjectNounPhrase],
                     vec![
                         CustomTailAtom::ObjectNounPhrase,
@@ -338,8 +338,8 @@ fn shuffle_has_every_attested_representable_tail_shape() {
     assert_eq!(
         action(&declarations, "Shuffle").grammar().unwrap().recipe(),
         &GrammarRecipe::Verb {
-            valence: VerbValence::Custom {
-                shapes: vec![
+            frame_set: VerbFrameSet::Custom {
+                frames: vec![
                     vec![],
                     vec![CustomTailAtom::ObjectNounPhrase],
                     vec![
@@ -362,8 +362,8 @@ fn exile_declares_its_object_resultative_frame() {
     assert_eq!(
         action(&declarations, "Exile").grammar().unwrap().recipe(),
         &GrammarRecipe::Verb {
-            valence: VerbValence::Custom {
-                shapes: vec![
+            frame_set: VerbFrameSet::Custom {
+                frames: vec![
                     vec![CustomTailAtom::ObjectNounPhrase],
                     vec![
                         CustomTailAtom::ObjectNounPhrase,

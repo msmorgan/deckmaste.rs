@@ -1093,10 +1093,10 @@ enum NonterminalKind {
     ScalarQualification,
     PostmodifiedReference,
     VerbPhrase,
-    BaseVerbFrame,
-    IntransitiveFrame,
-    TransitiveFrame,
-    NumerativeFrame,
+    LexicalVerbPhrase,
+    IntransitiveLexicalVerbPhrase,
+    TransitiveLexicalVerbPhrase,
+    MeasureComplementLexicalVerbPhrase,
     PossessiveOwner,
     Possessive,
     Amount,
@@ -1125,11 +1125,11 @@ enum NonterminalKind {
     FiniteSubjectGapRelativeClause,
     ModalSubjectGapRelativeClause,
     CopularSubjectGapRelativeClause,
-    ObjectAmountFrame,
-    ObjectForObjectFrame,
+    ObjectAmountLexicalVerbPhrase,
+    ObjectForObjectLexicalVerbPhrase,
     ObjectGapRelativeClause,
-    ObjectIntoObjectFrame,
-    ObjectWithObjectFrame,
+    ObjectIntoObjectLexicalVerbPhrase,
+    ObjectWithObjectLexicalVerbPhrase,
     OrScalarDegreePhrase,
     PositiveObjectGapRelativeClause,
     PostposedForAsLongAsClause,
@@ -1141,7 +1141,7 @@ enum NonterminalKind {
     TemporalEndpoint,
     ThirdPersonNegativeObjectGapRelativeClause,
     UntilDurationPhrase,
-    WithObjectFrame,
+    WithObjectLexicalVerbPhrase,
     AndManaCoordination,
     AndOrManaCoordination,
     OnlyTemporalClauseRestriction,
@@ -1830,10 +1830,16 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
             NonterminalKind::LocativeNounPhraseCoordination
         }
         NonterminalCategory::VerbPhrase => NonterminalKind::VerbPhrase,
-        NonterminalCategory::BaseVerbFrame => NonterminalKind::BaseVerbFrame,
-        NonterminalCategory::IntransitiveFrame => NonterminalKind::IntransitiveFrame,
-        NonterminalCategory::TransitiveFrame => NonterminalKind::TransitiveFrame,
-        NonterminalCategory::NumerativeFrame => NonterminalKind::NumerativeFrame,
+        NonterminalCategory::LexicalVerbPhrase => NonterminalKind::LexicalVerbPhrase,
+        NonterminalCategory::IntransitiveLexicalVerbPhrase => {
+            NonterminalKind::IntransitiveLexicalVerbPhrase
+        }
+        NonterminalCategory::TransitiveLexicalVerbPhrase => {
+            NonterminalKind::TransitiveLexicalVerbPhrase
+        }
+        NonterminalCategory::MeasureComplementLexicalVerbPhrase => {
+            NonterminalKind::MeasureComplementLexicalVerbPhrase
+        }
         NonterminalCategory::PossessiveOwner => NonterminalKind::PossessiveOwner,
         NonterminalCategory::Possessive => NonterminalKind::Possessive,
         NonterminalCategory::Amount => NonterminalKind::Amount,
@@ -1874,10 +1880,16 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::CopularSubjectGapRelativeClause => {
             NonterminalKind::CopularSubjectGapRelativeClause
         }
-        NonterminalCategory::ObjectAmountFrame => NonterminalKind::ObjectAmountFrame,
-        NonterminalCategory::ObjectForObjectFrame => NonterminalKind::ObjectForObjectFrame,
+        NonterminalCategory::ObjectAmountLexicalVerbPhrase => {
+            NonterminalKind::ObjectAmountLexicalVerbPhrase
+        }
+        NonterminalCategory::ObjectForObjectLexicalVerbPhrase => {
+            NonterminalKind::ObjectForObjectLexicalVerbPhrase
+        }
         NonterminalCategory::ObjectGapRelativeClause => NonterminalKind::ObjectGapRelativeClause,
-        NonterminalCategory::ObjectIntoObjectFrame => NonterminalKind::ObjectIntoObjectFrame,
+        NonterminalCategory::ObjectIntoObjectLexicalVerbPhrase => {
+            NonterminalKind::ObjectIntoObjectLexicalVerbPhrase
+        }
         NonterminalCategory::OrScalarDegreePhrase => NonterminalKind::OrScalarDegreePhrase,
         NonterminalCategory::PositiveObjectGapRelativeClause => {
             NonterminalKind::PositiveObjectGapRelativeClause
@@ -1925,8 +1937,12 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::OnlyTemporalClauseRestriction => {
             NonterminalKind::OnlyTemporalClauseRestriction
         }
-        NonterminalCategory::WithObjectFrame => NonterminalKind::WithObjectFrame,
-        NonterminalCategory::ObjectWithObjectFrame => NonterminalKind::ObjectWithObjectFrame,
+        NonterminalCategory::WithObjectLexicalVerbPhrase => {
+            NonterminalKind::WithObjectLexicalVerbPhrase
+        }
+        NonterminalCategory::ObjectWithObjectLexicalVerbPhrase => {
+            NonterminalKind::ObjectWithObjectLexicalVerbPhrase
+        }
     }
 }
 

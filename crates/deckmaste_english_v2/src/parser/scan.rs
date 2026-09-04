@@ -1492,7 +1492,7 @@ mod tests {
         };
         let intransitive_codec = RULES
             .iter()
-            .find(|rule| rule.id == RuleId::IntransitiveFrameIntransitivePredicate)
+            .find(|rule| rule.id == RuleId::IntransitiveLexicalVerbPhraseIntransitivePredicate)
             .and_then(|rule| {
                 rule.rhs.iter().find_map(|position| match position {
                     RulePosition::Lexical(terminal) => match terminal.matcher {
@@ -1611,7 +1611,7 @@ mod tests {
             .map(|surface| format!(r#",third_person:"{surface}""#))
             .unwrap_or_default();
         let source = format!(
-            r#"KeywordAction(name:"{name}",spelling:"{bare}",grammar:Verb(bare:"{bare}"{override_field},valence:Numerative))"#
+            r#"KeywordAction(name:"{name}",spelling:"{bare}",grammar:Verb(bare:"{bare}"{override_field},frame_set:MeasureComplement))"#
         );
         let declaration = read_str(format!("/synthetic/{name}.ron"), &source)
             .expect("synthetic keyword action is valid");
@@ -1636,7 +1636,7 @@ mod tests {
     #[test]
     fn owned_declaration_owner_ids_outlive_the_source_and_include_feature() {
         let source = String::from(
-            r#"KeywordAction(name:"Novel",spelling:"novel",grammar:Verb(bare:"novel",valence:Intransitive))"#,
+            r#"KeywordAction(name:"Novel",spelling:"novel",grammar:Verb(bare:"novel",frame_set:Intransitive))"#,
         );
         let declaration = read_str("/synthetic/Novel.ron", &source).unwrap();
         let environment = ParserEnvironment::try_from_declarations([declaration]).unwrap();
@@ -1665,7 +1665,7 @@ mod tests {
         let sources = [
             (
                 "/synthetic/Novel.ron",
-                r#"KeywordAction(name:"Novel",spelling:"novel",grammar:Verb(bare:"novel",valence:Intransitive))"#,
+                r#"KeywordAction(name:"Novel",spelling:"novel",grammar:Verb(bare:"novel",frame_set:Intransitive))"#,
             ),
             (
                 "/synthetic/Other.ron",
@@ -1724,7 +1724,7 @@ mod tests {
                 .map(|surface| format!(r#",third_person:"{surface}""#))
                 .unwrap_or_default();
             let source = format!(
-                r#"KeywordAction(name:"{name}",spelling:"{bare}",grammar:Verb(bare:"{bare}"{override_field},valence:Numerative))"#
+                r#"KeywordAction(name:"{name}",spelling:"{bare}",grammar:Verb(bare:"{bare}"{override_field},frame_set:MeasureComplement))"#
             );
             declarations.push(
                 read_str(format!("/synthetic/{name}.ron"), &source)
@@ -2127,11 +2127,11 @@ mod tests {
         let declarations = [
             (
                 "/synthetic/Alpha.ron",
-                r#"KeywordAction(name:"Alpha",spelling:"echo",grammar:Verb(bare:"echo",third_person:"echo",valence:Intransitive))"#,
+                r#"KeywordAction(name:"Alpha",spelling:"echo",grammar:Verb(bare:"echo",third_person:"echo",frame_set:Intransitive))"#,
             ),
             (
                 "/synthetic/Zeta.ron",
-                r#"KeywordAction(name:"Zeta",spelling:"echo",grammar:Verb(bare:"echo",valence:Intransitive))"#,
+                r#"KeywordAction(name:"Zeta",spelling:"echo",grammar:Verb(bare:"echo",frame_set:Intransitive))"#,
             ),
         ]
         .into_iter()
@@ -2718,7 +2718,7 @@ mod tests {
             "FiniteClausePlainFiniteClause",
             "WhereClauseCategoryWhere",
             "VerbPhraseBaseVerbPhrase",
-            "IntransitiveFrameIntransitivePredicate",
+            "IntransitiveLexicalVerbPhraseIntransitivePredicate",
         ] {
             assert!(
                 unique_rule_names.contains(stable_name),

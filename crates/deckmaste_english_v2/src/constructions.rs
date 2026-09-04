@@ -502,7 +502,7 @@ constructions! {
             feature = Agreement;
         }
     }
-    codec NumerativeVerb {
+    codec MeasureComplementVerb {
         generate declaration_verb {
             position = Verb;
             tail = [Amount];
@@ -1037,15 +1037,15 @@ constructions! {
         Keyword: KeywordPossessiveComplement,
         Quoted: QuotedAbility,
     }
-    abstract sum BaseVerbFrame {
-        IntransitiveFrame,
-        TransitiveFrame,
-        NumerativeFrame,
-        ObjectAmountFrame,
-        WithObjectFrame,
-        ObjectWithObjectFrame,
-        ObjectForObjectFrame,
-        ObjectIntoObjectFrame,
+    abstract sum LexicalVerbPhrase {
+        IntransitiveLexicalVerbPhrase,
+        TransitiveLexicalVerbPhrase,
+        MeasureComplementLexicalVerbPhrase,
+        ObjectAmountLexicalVerbPhrase,
+        WithObjectLexicalVerbPhrase,
+        ObjectWithObjectLexicalVerbPhrase,
+        ObjectForObjectLexicalVerbPhrase,
+        ObjectIntoObjectLexicalVerbPhrase,
     }
     abstract sum AdditionalCostBody {
         Predicate: AdditionalCostPredicateBody,
@@ -1857,7 +1857,7 @@ constructions! {
     }
     construction as_though_predicate: AsThoughPredicate {
         element AsThoughPredicateValue {
-            predicate: BaseVerbFrame,
+            predicate: LexicalVerbPhrase,
             condition: CounterfactualClause,
         }
         derive agreement = predicate.agreement;
@@ -1901,7 +1901,7 @@ constructions! {
     }
     construction purpose_predicate_adjunct: PredicateAdjunct {
         element PurposePredicateAdjunct {
-            purpose: BaseVerbFrame,
+            purpose: LexicalVerbPhrase,
         }
         derive purpose.agreement = Values::Bare;
         form purpose_predicate_adjunct = licensed("to") purpose;
@@ -1924,7 +1924,7 @@ constructions! {
     }
     construction predicate_adjunct_predicate: PredicateAdjunctPredicate {
         element PredicateAdjunctPredicateValue {
-            predicate: BaseVerbFrame,
+            predicate: LexicalVerbPhrase,
             adjunct: PredicateAdjunct checked by predicate_adjunct_is_nonprepositional(),
         }
         derive agreement = predicate.agreement;
@@ -1940,7 +1940,7 @@ constructions! {
     }
     construction stacked_predicate_adjunct_predicate: PredicateAdjunctPredicate {
         element StackedPredicateAdjunctPredicate {
-            predicate: TransitiveFrame,
+            predicate: TransitiveLexicalVerbPhrase,
             leading: PredicateAdjunct checked by predicate_adjunct_is_nonprepositional(),
             trailing: PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
         }
@@ -1992,7 +1992,7 @@ constructions! {
     construction alternative_predicate: AlternativePredicate {
         element AlternativePredicateValue {
             action: VerbPhrase,
-            alternative: BaseVerbFrame,
+            alternative: LexicalVerbPhrase,
         }
         derive action.agreement = Values::Bare;
         derive agreement = action.agreement;
@@ -4229,7 +4229,7 @@ constructions! {
         form declared_counter = lex(kind);
     }
     construction base_verb_phrase: VerbPhrase {
-        element BaseVerbPhrase { frame: BaseVerbFrame, }
+        element BaseVerbPhrase { frame: LexicalVerbPhrase, }
         derive agreement = frame.agreement;
         form base_verb_phrase = frame;
     }
@@ -4247,65 +4247,65 @@ constructions! {
         derive agreement = head.agreement;
         form declared_object_predicative_verb_phrase = verb(head) object complement;
     }
-    construction intransitive_predicate: IntransitiveFrame {
+    construction intransitive_predicate: IntransitiveLexicalVerbPhrase {
         element IntransitivePredicate { head: lex IntransitiveVerb, }
         derive agreement = head.agreement;
         form intransitive_predicate = verb(head);
     }
-    construction transitive_predicate: TransitiveFrame {
+    construction transitive_predicate: TransitiveLexicalVerbPhrase {
         element TransitivePredicate { head: lex TransitiveVerb, object: Object, }
         derive agreement = head.agreement;
         form transitive_predicate = verb(head) object;
     }
-    construction numerative_predicate: NumerativeFrame {
-        element NumerativePredicate { head: lex NumerativeVerb, amount: Amount, }
+    construction measure_complement_predicate: MeasureComplementLexicalVerbPhrase {
+        element MeasureComplementPredicate { head: lex MeasureComplementVerb, amount: Amount, }
         derive agreement = head.agreement;
-        form numerative_predicate = verb(head) amount;
+        form measure_complement_predicate = verb(head) amount;
     }
-    construction declared_object_amount_frame: ObjectAmountFrame {
-        element DeclaredObjectAmountFrame {
+    construction declared_object_amount_lexical_verb_phrase: ObjectAmountLexicalVerbPhrase {
+        element DeclaredObjectAmountLexicalVerbPhrase {
             head: lex ObjectAmountVerb,
             object: Object,
             amount: Amount,
         }
         derive agreement = head.agreement;
-        form declared_object_amount_frame = verb(head) object amount;
+        form declared_object_amount_lexical_verb_phrase = verb(head) object amount;
     }
-    construction declared_with_object_frame: WithObjectFrame {
-        element DeclaredWithObjectFrame {
+    construction declared_with_object_lexical_verb_phrase: WithObjectLexicalVerbPhrase {
+        element DeclaredWithObjectLexicalVerbPhrase {
             head: lex WithObjectVerb,
             object: Object,
         }
         derive agreement = head.agreement;
-        form declared_with_object_frame = verb(head) "with" object;
+        form declared_with_object_lexical_verb_phrase = verb(head) "with" object;
     }
-    construction declared_object_with_object_frame: ObjectWithObjectFrame {
-        element DeclaredObjectWithObjectFrame {
+    construction declared_object_with_object_lexical_verb_phrase: ObjectWithObjectLexicalVerbPhrase {
+        element DeclaredObjectWithObjectLexicalVerbPhrase {
             head: lex ObjectWithObjectVerb,
             object: Object,
             complement: Object,
         }
         derive agreement = head.agreement;
-        form declared_object_with_object_frame = verb(head) object "with" complement;
+        form declared_object_with_object_lexical_verb_phrase = verb(head) object "with" complement;
     }
-    construction declared_object_for_object_frame: ObjectForObjectFrame {
-        element DeclaredObjectForObjectFrame {
+    construction declared_object_for_object_lexical_verb_phrase: ObjectForObjectLexicalVerbPhrase {
+        element DeclaredObjectForObjectLexicalVerbPhrase {
             head: lex ObjectForObjectVerb,
             object: Object,
             complement: Object,
         }
         derive agreement = head.agreement;
-        form declared_object_for_object_frame =
+        form declared_object_for_object_lexical_verb_phrase =
             verb(head) object licensed("for") complement;
     }
-    construction declared_object_into_object_frame: ObjectIntoObjectFrame {
-        element DeclaredObjectIntoObjectFrame {
+    construction declared_object_into_object_lexical_verb_phrase: ObjectIntoObjectLexicalVerbPhrase {
+        element DeclaredObjectIntoObjectLexicalVerbPhrase {
             head: lex ObjectIntoObjectVerb,
             object: Object,
             destination: Object,
         }
         derive agreement = head.agreement;
-        form declared_object_into_object_frame = verb(head) object "into" destination;
+        form declared_object_into_object_lexical_verb_phrase = verb(head) object "into" destination;
     }
     construction object_distribution_recipient: DistributionRecipient {
         element ObjectDistributionRecipient { object: Object, }

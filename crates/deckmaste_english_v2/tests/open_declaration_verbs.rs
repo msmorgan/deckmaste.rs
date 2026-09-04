@@ -27,11 +27,11 @@ fn synthetic_verb_rows() -> Vec<NormalizedDeclaration> {
     vec![
         declaration(
             "/synthetic/actions/Destroy.ron",
-            r#"KeywordAction(name:"Destroy",spelling:"frindle",grammar:Verb(bare:"frindle",third_person:"frondles",valence:Transitive))"#,
+            r#"KeywordAction(name:"Destroy",spelling:"frindle",grammar:Verb(bare:"frindle",third_person:"frondles",frame_set:Transitive))"#,
         ),
         declaration(
             "/synthetic/actions/Connive.ron",
-            r#"KeywordAction(name:"Connive",spelling:"zorble",grammar:Verb(bare:"zorble",third_person:"zurbles",valence:Intransitive))"#,
+            r#"KeywordAction(name:"Connive",spelling:"zorble",grammar:Verb(bare:"zorble",third_person:"zurbles",frame_set:Intransitive))"#,
         ),
     ]
 }
@@ -74,31 +74,31 @@ fn environment_declaration_verb_readings_use_literal_exact_frame_membership() {
     let environment = environment_from([
         declaration(
             "/synthetic/actions/FirstAct.ron",
-            r#"KeywordAction(name:"FirstAct",spelling:"act",grammar:Verb(bare:"act",valence:Transitive))"#,
+            r#"KeywordAction(name:"FirstAct",spelling:"act",grammar:Verb(bare:"act",frame_set:Transitive))"#,
         ),
         declaration(
             "/synthetic/actions/SecondAct.ron",
-            r#"KeywordAction(name:"SecondAct",spelling:"act",grammar:Verb(bare:"act",valence:Custom(shapes:[[ObjectNounPhrase]])))"#,
+            r#"KeywordAction(name:"SecondAct",spelling:"act",grammar:Verb(bare:"act",frame_set:Custom(frames:[[ObjectNounPhrase]])))"#,
         ),
         declaration(
             "/synthetic/actions/Rest.ron",
-            r#"KeywordAction(name:"Rest",spelling:"rest",grammar:Verb(bare:"rest",valence:Intransitive))"#,
+            r#"KeywordAction(name:"Rest",spelling:"rest",grammar:Verb(bare:"rest",frame_set:Intransitive))"#,
         ),
         declaration(
             "/synthetic/actions/Count.ron",
-            r#"KeywordAction(name:"Count",spelling:"count",grammar:Verb(bare:"count",valence:Numerative))"#,
+            r#"KeywordAction(name:"Count",spelling:"count",grammar:Verb(bare:"count",frame_set:MeasureComplement))"#,
         ),
         declaration(
             "/synthetic/actions/Shape.ron",
-            r#"KeywordAction(name:"Shape",spelling:"shape",grammar:Verb(bare:"shape",valence:Custom(shapes:[[],[Amount]])))"#,
+            r#"KeywordAction(name:"Shape",spelling:"shape",grammar:Verb(bare:"shape",frame_set:Custom(frames:[[],[Amount]])))"#,
         ),
         declaration(
             "/synthetic/actions/Cross.ron",
-            r#"KeywordAction(name:"Cross",spelling:"cross",grammar:Verb(bare:"cross",third_person:"crosses",valence:Custom(shapes:[[ObjectNounPhrase,Amount]])))"#,
+            r#"KeywordAction(name:"Cross",spelling:"cross",grammar:Verb(bare:"cross",third_person:"crosses",frame_set:Custom(frames:[[ObjectNounPhrase,Amount]])))"#,
         ),
         declaration(
             "/synthetic/abilities/WrongKind.ron",
-            r#"KeywordAbility(name:"WrongKind",spelling:"act",grammar:Verb(bare:"act",valence:Transitive))"#,
+            r#"KeywordAbility(name:"WrongKind",spelling:"act",grammar:Verb(bare:"act",frame_set:Transitive))"#,
         ),
         declaration(
             "/synthetic/actions/WrongPosition.ron",
@@ -155,11 +155,11 @@ fn environment_declaration_verb_readings_filter_position_surface_and_agreement()
     let environment = environment_from([
         declaration(
             "/synthetic/actions/Right.ron",
-            r#"KeywordAction(name:"Right",spelling:"echo",grammar:Verb(bare:"echo",third_person:"echoes",valence:Transitive))"#,
+            r#"KeywordAction(name:"Right",spelling:"echo",grammar:Verb(bare:"echo",third_person:"echoes",frame_set:Transitive))"#,
         ),
         declaration(
             "/synthetic/abilities/WrongKind.ron",
-            r#"KeywordAbility(name:"WrongKind",spelling:"echo",grammar:Verb(bare:"echo",third_person:"echoes",valence:Transitive))"#,
+            r#"KeywordAbility(name:"WrongKind",spelling:"echo",grammar:Verb(bare:"echo",third_person:"echoes",frame_set:Transitive))"#,
         ),
         declaration(
             "/synthetic/actions/WrongPosition.ron",
@@ -167,7 +167,7 @@ fn environment_declaration_verb_readings_filter_position_surface_and_agreement()
         ),
         declaration(
             "/synthetic/actions/MissingThird.ron",
-            r#"KeywordAction(name:"MissingThird",spelling:"wane",grammar:Verb(bare:"wane",third_person:Unavailable,valence:Transitive))"#,
+            r#"KeywordAction(name:"MissingThird",spelling:"wane",grammar:Verb(bare:"wane",third_person:Unavailable,frame_set:Transitive))"#,
         ),
     ])
     .expect("synthetic declaration filters freeze");
@@ -201,7 +201,7 @@ fn parser_build_has_no_fixed_keyword_requirements_and_constructors_fail_closed()
         ),
         declaration(
             "/synthetic/actions/Connive.ron",
-            r#"KeywordAction(name:"Connive",spelling:"connive",grammar:Verb(bare:"connive",valence:Intransitive))"#,
+            r#"KeywordAction(name:"Connive",spelling:"connive",grammar:Verb(bare:"connive",frame_set:Intransitive))"#,
         ),
     ])
     .unwrap();
@@ -215,11 +215,11 @@ fn parser_build_has_no_fixed_keyword_requirements_and_constructors_fail_closed()
     let missing_feature = environment_from([
         declaration(
             "/synthetic/actions/Destroy.ron",
-            r#"KeywordAction(name:"Destroy",spelling:"destroy",grammar:Verb(bare:"destroy",third_person:Unavailable,valence:Transitive))"#,
+            r#"KeywordAction(name:"Destroy",spelling:"destroy",grammar:Verb(bare:"destroy",third_person:Unavailable,frame_set:Transitive))"#,
         ),
         declaration(
             "/synthetic/actions/Connive.ron",
-            r#"KeywordAction(name:"Connive",spelling:"connive",grammar:Verb(bare:"connive",valence:Intransitive))"#,
+            r#"KeywordAction(name:"Connive",spelling:"connive",grammar:Verb(bare:"connive",frame_set:Intransitive))"#,
         ),
     ])
     .unwrap();
@@ -264,7 +264,7 @@ fn category_homonyms_remain_distinct_declaration_identities() {
     let mut rows = synthetic_verb_rows();
     rows.push(declaration(
         "/synthetic/abilities/Destroy.ron",
-        r#"KeywordAbility(name:"Destroy",spelling:"frindle",grammar:Verb(bare:"frindle",third_person:"frondles",valence:Transitive))"#,
+        r#"KeywordAbility(name:"Destroy",spelling:"frindle",grammar:Verb(bare:"frindle",third_person:"frondles",frame_set:Transitive))"#,
     ));
     let environment = environment_from(rows).unwrap();
     assert_eq!(
@@ -280,7 +280,7 @@ fn category_homonyms_remain_distinct_declaration_identities() {
 
     let ability_only = environment_from([declaration(
         "/synthetic/abilities/Destroy.ron",
-        r#"KeywordAbility(name:"Destroy",spelling:"frindle",grammar:Verb(bare:"frindle",third_person:"frondles",valence:Transitive))"#,
+        r#"KeywordAbility(name:"Destroy",spelling:"frindle",grammar:Verb(bare:"frindle",third_person:"frondles",frame_set:Transitive))"#,
     )])
     .unwrap();
     let parser = Parser::new(ability_only).expect("declaration categories share the open frame");

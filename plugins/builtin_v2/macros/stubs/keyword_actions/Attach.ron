@@ -4,8 +4,8 @@ KeywordAction(
     grammar: Verb(
         bare: "attach",
         third_person: "attaches",
-        valence: Custom(
-            shapes: [[ObjectNounPhrase, Literal("to"), ObjectNounPhrase]],
+        frame_set: Custom(
+            frames: [[ObjectNounPhrase, Literal("to"), ObjectNounPhrase]],
         ),
     ),
 )

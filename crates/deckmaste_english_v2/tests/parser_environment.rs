@@ -7,7 +7,7 @@ use deckmaste_construction_core::macro_def::NormalizedDeclaration;
 use deckmaste_construction_core::macro_def::Onset;
 use deckmaste_construction_core::macro_def::SubtypeCategory;
 use deckmaste_construction_core::macro_def::SurfaceFeature;
-use deckmaste_construction_core::macro_def::VerbValence;
+use deckmaste_construction_core::macro_def::VerbFrameSet;
 use deckmaste_construction_core::macro_def::read_str;
 use deckmaste_english_v2::ast::CatalogProvider;
 use deckmaste_english_v2::context::ParseContext;
@@ -28,7 +28,7 @@ fn synthetic_declarations() -> Vec<NormalizedDeclaration> {
     vec![
         declaration(
             "/synthetic/actions/Quuxify.ron",
-            r#"KeywordAction(name:"Quuxify",spelling:"quuxify",grammar:Verb(bare:"quuxify",third_person:"quuxifies",valence:Numerative))"#,
+            r#"KeywordAction(name:"Quuxify",spelling:"quuxify",grammar:Verb(bare:"quuxify",third_person:"quuxifies",frame_set:MeasureComplement))"#,
         ),
         declaration(
             "/synthetic/abilities/Zorblance.ron",
@@ -91,7 +91,7 @@ fn parser_environment_indexes_open_categories_in_both_directions() {
     assert_eq!(quuxify.id().kind(), DeclarationKind::KeywordAction);
     assert_eq!(quuxify.id().name(), "Quuxify");
     assert!(matches!(quuxify.recipe(), Some(GrammarRecipe::Verb { .. })));
-    assert_eq!(quuxify.valence(), Some(&VerbValence::Numerative));
+    assert_eq!(quuxify.frame_set(), Some(&VerbFrameSet::MeasureComplement));
     assert_eq!(
         quuxify.provenance(),
         Path::new("/synthetic/actions/Quuxify.ron")
@@ -417,11 +417,11 @@ fn parser_constructor_rejects_missing_generated_catalog_provider() {
 fn parser_environment_rejects_duplicate_category_safe_identity() {
     let first = declaration(
         "/synthetic/first/Quuxify.ron",
-        r#"KeywordAction(name:"Quuxify",spelling:"quuxify",grammar:Verb(bare:"quuxify",valence:Numerative))"#,
+        r#"KeywordAction(name:"Quuxify",spelling:"quuxify",grammar:Verb(bare:"quuxify",frame_set:MeasureComplement))"#,
     );
     let duplicate = declaration(
         "/synthetic/duplicate/Quuxify.ron",
-        r#"KeywordAction(name:"Quuxify",spelling:"quuxify",grammar:Verb(bare:"quuxify",third_person:"quuxifies",valence:Numerative))"#,
+        r#"KeywordAction(name:"Quuxify",spelling:"quuxify",grammar:Verb(bare:"quuxify",third_person:"quuxifies",frame_set:MeasureComplement))"#,
     );
 
     let error = ParserEnvironment::try_from_declarations([first, duplicate])

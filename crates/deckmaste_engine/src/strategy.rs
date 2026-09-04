@@ -1,4 +1,4 @@
-//! Strategy evaluation context: the `Frame` a data-driven strategy's sensing
+//! Strategy evaluation context: the `ExecutionFrame` a data-driven strategy's sensing
 //! (`Condition`/`Count`/`Reference`) is evaluated against. The controller
 //! parameter binds to the deciding seat; the source parameter binds to the
 //! candidate option being scored. The engine's existing
@@ -15,7 +15,7 @@ use crate::Decision;
 use crate::DecisionPointKind;
 use crate::object::ObjectId;
 use crate::player::PlayerId;
-use crate::stack::Frame;
+use crate::stack::ExecutionFrame;
 use crate::state::GameState;
 use crate::strategy_def::BlockPolicy;
 use crate::strategy_def::Extremum;
@@ -31,8 +31,12 @@ use crate::strategy_def::Strategy as StrategyDef;
 /// `eval_count`/`condition_holds`/ `eval_reference` evaluate a strategy's
 /// `Count`/`Condition`/`Reference` against this exactly as they do during
 /// effect resolution.
-pub(crate) fn eval_frame(state: &GameState, seat: PlayerId, candidate: Option<ObjectId>) -> Frame {
-    Frame::bare(candidate.unwrap_or_else(|| state.player(seat).object), seat)
+pub(crate) fn eval_frame(
+    state: &GameState,
+    seat: PlayerId,
+    candidate: Option<ObjectId>,
+) -> ExecutionFrame {
+    ExecutionFrame::bare(candidate.unwrap_or_else(|| state.player(seat).object), seat)
 }
 
 /// A data-driven seat: answers the engine's decisions by walking a

@@ -3,8 +3,8 @@ KeywordAction(
     spelling: "exchange",
     grammar: Verb(
         bare: "exchange",
-        valence: Custom(
-            shapes: [
+        frame_set: Custom(
+            frames: [
                 [ObjectNounPhrase],
                 [ObjectNounPhrase, Literal("with"), ObjectNounPhrase],
                 [ObjectNounPhrase, Literal("for"), ObjectNounPhrase],

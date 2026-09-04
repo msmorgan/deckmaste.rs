@@ -29,7 +29,7 @@ use crate::event::AbilityUsed;
 use crate::lki::LkiSnapshot;
 use crate::object::ObjectId;
 use crate::player::PlayerId;
-use crate::stack::Frame;
+use crate::stack::ExecutionFrame;
 use crate::stack::PendingStackEntry;
 use crate::stack::StackObject;
 use crate::state::GameState;
@@ -218,7 +218,7 @@ impl GameState {
         if summary.mana_cost_of.is_empty() {
             return summary.mana.clone();
         }
-        let frame = Frame::bare(source, controller);
+        let frame = ExecutionFrame::bare(source, controller);
         let mut symbols: Vec<ManaSymbol> = summary.mana.iter().copied().collect();
         for reference in &summary.mana_cost_of {
             let object = self.eval_reference(reference, &frame);
@@ -335,7 +335,7 @@ impl GameState {
         // The gate runs before targets are chosen, so the frame carries none;
         // `Ref(This)`/`Is(This, …)` anchors to the live source.
         if let Some(c) = &ability.condition {
-            let frame = Frame::bare(object, player);
+            let frame = ExecutionFrame::bare(object, player);
             if !self.condition_holds(c, &frame) {
                 return false;
             }
@@ -442,7 +442,7 @@ impl GameState {
                     watcher,
                     crate::ActivationId::NONE,
                 );
-                let frame = Frame::bare(source, controller);
+                let frame = ExecutionFrame::bare(source, controller);
                 let (lo, _hi) = choice.quantity.bounds();
                 let need = lo.map_or(0, |c| self.eval_count(c, &frame));
                 Uint::try_from(candidates.len()).unwrap_or(Uint::MAX) >= need
@@ -454,7 +454,7 @@ impl GameState {
                     watcher,
                     crate::ActivationId::NONE,
                 );
-                let frame = Frame::bare(source, controller);
+                let frame = ExecutionFrame::bare(source, controller);
                 let (lo, _) = sample.quantity.bounds();
                 let need = lo.map_or(0, |count| self.eval_count(count, &frame));
                 Uint::try_from(candidates.len()).unwrap_or(Uint::MAX) >= need
@@ -537,7 +537,7 @@ impl GameState {
         // reads as removing zero counters. The real payment protocol binds and
         // pays the announced X. Without this binding, `eval_count(Count::X, …)`
         // on an X-less frame would panic.
-        let mut frame = Frame::bare(subject, player);
+        let mut frame = ExecutionFrame::bare(subject, player);
         self.frame_set_x(&mut frame, Some(0));
         // TODO(engine-cost-payment / deontics): [CR#119.8] "can't pay life" is
         // NOT YET ENFORCED. Under a continuous effect saying a player can't
@@ -565,7 +565,12 @@ impl GameState {
         clippy::match_same_arms,
         reason = "the always-payable verb groups are kept separate to carry their distinct scope/TODO comments (Sacrifice/Move/Tap/Untap vs the loyalty-`+N` PutCounters arm vs the out-of-scope Reveal seam)"
     )]
-    pub(crate) fn verb_cost_payable(&self, verb: &Action, player: PlayerId, frame: &Frame) -> bool {
+    pub(crate) fn verb_cost_payable(
+        &self,
+        verb: &Action,
+        player: PlayerId,
+        frame: &ExecutionFrame,
+    ) -> bool {
         match verb {
             // [CR#701.21a]: "a player can't sacrifice something that isn't a
             // permanent, or something that's a permanent they don't control."
@@ -702,7 +707,7 @@ impl GameState {
         // this same id into the committed entry.
         let src = self.objects.obj(object).source;
         let id = self.objects.mint(src, controller, Some(Zone::Stack));
-        let mut frame = crate::stack::Frame::bare(object, controller);
+        let mut frame = crate::stack::ExecutionFrame::bare(object, controller);
         self.frame_set_source_lki(&mut frame, bindings.this.clone());
         let activation = self.enter_created_region(&ability.effect, &frame, &captures);
         self.announcing = Some(PendingStackEntry {

@@ -4,8 +4,8 @@ KeywordAction(
     grammar: Verb(
         bare: "clash",
         third_person: "clashes",
-        valence: Custom(
-            shapes: [[], [Literal("with"), ObjectNounPhrase]],
+        frame_set: Custom(
+            frames: [[], [Literal("with"), ObjectNounPhrase]],
         ),
     ),
 )

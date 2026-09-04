@@ -3,6 +3,6 @@ KeywordAction(
     spelling: "surveil",
     grammar: Verb(
         bare: "surveil",
-        valence: Numerative,
+        frame_set: MeasureComplement,
     ),
 )

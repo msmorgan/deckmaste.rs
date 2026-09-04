@@ -22,79 +22,79 @@ fn environment() -> ParserEnvironment {
     let declarations = [
         (
             "/synthetic/actions/Destroy.ron",
-            r#"KeywordAction(name:"Destroy",spelling:"destroy",grammar:Verb(bare:"destroy",valence:Transitive))"#,
+            r#"KeywordAction(name:"Destroy",spelling:"destroy",grammar:Verb(bare:"destroy",frame_set:Transitive))"#,
         ),
         (
             "/synthetic/actions/Sacrifice.ron",
-            r#"KeywordAction(name:"Sacrifice",spelling:"sacrifice",grammar:Verb(bare:"sacrifice",participle:"sacrificed",valence:NonprepositionalAdjunctLicensed(Transitive)))"#,
+            r#"KeywordAction(name:"Sacrifice",spelling:"sacrifice",grammar:Verb(bare:"sacrifice",participle:"sacrificed",frame_set:NonprepositionalAdjunctLicensed(Transitive)))"#,
         ),
         (
             "/synthetic/actions/Connive.ron",
-            r#"KeywordAction(name:"Connive",spelling:"connive",grammar:Verb(bare:"connive",valence:Intransitive))"#,
+            r#"KeywordAction(name:"Connive",spelling:"connive",grammar:Verb(bare:"connive",frame_set:Intransitive))"#,
         ),
         (
             "/synthetic/actions/Scry.ron",
-            r#"KeywordAction(name:"Scry",spelling:"scry",grammar:Verb(bare:"scry",third_person:"scries",valence:Custom(shapes:[[],[Amount]])))"#,
+            r#"KeywordAction(name:"Scry",spelling:"scry",grammar:Verb(bare:"scry",third_person:"scries",frame_set:Custom(frames:[[],[Amount]])))"#,
         ),
         (
             "/synthetic/actions/Surveil.ron",
-            r#"KeywordAction(name:"Surveil",spelling:"surveil",grammar:Verb(bare:"surveil",valence:Numerative))"#,
+            r#"KeywordAction(name:"Surveil",spelling:"surveil",grammar:Verb(bare:"surveil",frame_set:MeasureComplement))"#,
         ),
         (
             "/synthetic/actions/Discard.ron",
-            r#"KeywordAction(name:"Discard",spelling:"discard",grammar:Verb(bare:"discard",valence:NonprepositionalAdjunctLicensed(Transitive)))"#,
+            r#"KeywordAction(name:"Discard",spelling:"discard",grammar:Verb(bare:"discard",frame_set:NonprepositionalAdjunctLicensed(Transitive)))"#,
         ),
         (
             "/synthetic/actions/Create.ron",
-            r#"KeywordAction(name:"Create",spelling:"create",grammar:Verb(bare:"create",valence:Transitive))"#,
+            r#"KeywordAction(name:"Create",spelling:"create",grammar:Verb(bare:"create",frame_set:Transitive))"#,
         ),
         (
             "/synthetic/actions/Exile.ron",
-            r#"KeywordAction(name:"Exile",spelling:"exile",grammar:Verb(bare:"exile",participle:"exiled",valence:Custom(shapes:[[ObjectNounPhrase],[ObjectNounPhrase,PredicativeComplement]])))"#,
+            r#"KeywordAction(name:"Exile",spelling:"exile",grammar:Verb(bare:"exile",participle:"exiled",frame_set:Custom(frames:[[ObjectNounPhrase],[ObjectNounPhrase,PredicativeComplement]])))"#,
         ),
         (
             "/synthetic/actions/Regenerate.ron",
-            r#"KeywordAction(name:"Regenerate",spelling:"regenerate",grammar:Verb(bare:"regenerate",participle:"regenerated",valence:Transitive))"#,
+            r#"KeywordAction(name:"Regenerate",spelling:"regenerate",grammar:Verb(bare:"regenerate",participle:"regenerated",frame_set:Transitive))"#,
         ),
         (
             "/synthetic/actions/Declare.ron",
-            r#"KeywordAction(name:"Declare",spelling:"proclaim",grammar:Verb(bare:"proclaim",valence:Transitive))"#,
+            r#"KeywordAction(name:"Declare",spelling:"proclaim",grammar:Verb(bare:"proclaim",frame_set:Transitive))"#,
         ),
         (
             "/synthetic/actions/Cast.ron",
-            r#"KeywordAction(name:"Cast",spelling:"cast",grammar:Verb(bare:"cast",participle:"cast",valence:AdjunctLicensed(Transitive)))"#,
+            r#"KeywordAction(name:"Cast",spelling:"cast",grammar:Verb(bare:"cast",participle:"cast",frame_set:AdjunctLicensed(Transitive)))"#,
         ),
         (
             "/synthetic/actions/Search.ron",
-            r#"KeywordAction(name:"Search",spelling:"search",grammar:Verb(bare:"search",third_person:"searches",valence:Custom(shapes:[[ObjectNounPhrase],[Literal("for"),ObjectNounPhrase],[ObjectNounPhrase,Literal("for"),ObjectNounPhrase]])))"#,
+            r#"KeywordAction(name:"Search",spelling:"search",grammar:Verb(bare:"search",third_person:"searches",frame_set:Custom(frames:[[ObjectNounPhrase],[Literal("for"),ObjectNounPhrase],[ObjectNounPhrase,Literal("for"),ObjectNounPhrase]])))"#,
         ),
         (
             "/synthetic/actions/Reveal.ron",
-            r#"KeywordAction(name:"Reveal",spelling:"reveal",grammar:Verb(bare:"reveal",valence:Transitive))"#,
+            r#"KeywordAction(name:"Reveal",spelling:"reveal",grammar:Verb(bare:"reveal",frame_set:Transitive))"#,
         ),
         (
             "/synthetic/actions/Shuffle.ron",
-            r#"KeywordAction(name:"Shuffle",spelling:"shuffle",grammar:Verb(bare:"shuffle",valence:Custom(shapes:[[],[ObjectNounPhrase],[ObjectNounPhrase,Literal("into"),ObjectNounPhrase]])))"#,
+            r#"KeywordAction(name:"Shuffle",spelling:"shuffle",grammar:Verb(bare:"shuffle",frame_set:Custom(frames:[[],[ObjectNounPhrase],[ObjectNounPhrase,Literal("into"),ObjectNounPhrase]])))"#,
         ),
         (
             "/synthetic/actions/Attach.ron",
-            r#"KeywordAction(name:"Attach",spelling:"attach",grammar:Verb(bare:"attach",third_person:"attaches",valence:Custom(shapes:[[ObjectNounPhrase,Literal("to"),ObjectNounPhrase]])))"#,
+            r#"KeywordAction(name:"Attach",spelling:"attach",grammar:Verb(bare:"attach",third_person:"attaches",frame_set:Custom(frames:[[ObjectNounPhrase,Literal("to"),ObjectNounPhrase]])))"#,
         ),
         (
             "/synthetic/actions/Amass.ron",
-            r#"KeywordAction(name:"Amass",spelling:"amass",grammar:Verb(bare:"amass",third_person:"amasses",valence:Custom(shapes:[[ObjectNounPhrase,Amount]])))"#,
+            r#"KeywordAction(name:"Amass",spelling:"amass",grammar:Verb(bare:"amass",third_person:"amasses",frame_set:Custom(frames:[[ObjectNounPhrase,Amount]])))"#,
         ),
         (
             "/synthetic/actions/Clash.ron",
-            r#"KeywordAction(name:"Clash",spelling:"clash",grammar:Verb(bare:"clash",third_person:"clashes",valence:Custom(shapes:[[],[Literal("with"),ObjectNounPhrase]])))"#,
+            r#"KeywordAction(name:"Clash",spelling:"clash",grammar:Verb(bare:"clash",third_person:"clashes",frame_set:Custom(frames:[[],[Literal("with"),ObjectNounPhrase]])))"#,
         ),
         (
             "/synthetic/actions/Exchange.ron",
-            r#"KeywordAction(name:"Exchange",spelling:"exchange",grammar:Verb(bare:"exchange",valence:Custom(shapes:[[ObjectNounPhrase],[ObjectNounPhrase,Literal("with"),ObjectNounPhrase],[ObjectNounPhrase,Literal("for"),ObjectNounPhrase]])))"#,
+            r#"KeywordAction(name:"Exchange",spelling:"exchange",grammar:Verb(bare:"exchange",frame_set:Custom(frames:[[ObjectNounPhrase],[ObjectNounPhrase,Literal("with"),ObjectNounPhrase],[ObjectNounPhrase,Literal("for"),ObjectNounPhrase]])))"#,
         ),
         (
             "/synthetic/actions/Vote.ron",
-            r#"KeywordAction(name:"Vote",spelling:"vote",grammar:Verb(bare:"vote",valence:Custom(shapes:[[],[ObjectNounPhrase],[Literal("for"),ObjectNounPhrase]])))"#,
+            r#"KeywordAction(name:"Vote",spelling:"vote",grammar:Verb(bare:"vote",frame_set:Custom(frames:[[],[ObjectNounPhrase],[Literal("for"),ObjectNounPhrase]])))"#,
         ),
         (
             "/synthetic/keyword_abilities/Flash.ron",
@@ -178,11 +178,11 @@ fn environment() -> ParserEnvironment {
         ),
         (
             "/synthetic/actions/Activate.ron",
-            r#"KeywordAction(name:"Activate",spelling:"activate",grammar:Verb(bare:"activate",participle:"activated",valence:Transitive))"#,
+            r#"KeywordAction(name:"Activate",spelling:"activate",grammar:Verb(bare:"activate",participle:"activated",frame_set:Transitive))"#,
         ),
         (
             "/synthetic/actions/Untap.ron",
-            r#"KeywordAction(name:"Untap",spelling:"untap",grammar:Verb(bare:"untap",valence:Custom(shapes:[[],[ObjectNounPhrase]])))"#,
+            r#"KeywordAction(name:"Untap",spelling:"untap",grammar:Verb(bare:"untap",frame_set:Custom(frames:[[],[ObjectNounPhrase]])))"#,
         ),
         (
             "/synthetic/counters/ChargeCounter.ron",
@@ -258,14 +258,14 @@ fn imperative_atomic(parser: &Parser, context: &ParseContext<'_>, text: &str) ->
     *predicate.clone()
 }
 
-fn transitive_frame(predicate: &VerbPhrase) -> &TransitivePredicate {
+fn transitive_lexical_verb_phrase(predicate: &VerbPhrase) -> &TransitivePredicate {
     let VerbPhrase::BaseVerbPhrase(base) = predicate else {
         panic!("transitive predicate has the shared base-frame envelope")
     };
-    let BaseVerbFrame::TransitiveFrame(frame) = base.frame.as_ref() else {
-        panic!("transitive predicate has the transitive valence frame")
+    let LexicalVerbPhrase::TransitiveLexicalVerbPhrase(frame) = base.frame.as_ref() else {
+        panic!("transitive predicate has the transitive frame_set frame")
     };
-    let TransitiveFrame::TransitivePredicate(predicate) = frame.as_ref();
+    let TransitiveLexicalVerbPhrase::TransitivePredicate(predicate) = frame.as_ref();
     predicate
 }
 
@@ -274,7 +274,7 @@ fn imperative_transitive(
     context: &ParseContext<'_>,
     text: &str,
 ) -> TransitivePredicate {
-    transitive_frame(&imperative_atomic(parser, context, text)).clone()
+    transitive_lexical_verb_phrase(&imperative_atomic(parser, context, text)).clone()
 }
 
 fn declarative_atomic(parser: &Parser, context: &ParseContext<'_>, text: &str) -> VerbPhrase {
@@ -512,22 +512,22 @@ fn builds_keep_new_products_in_the_existing_typed_algebra() {
 }
 
 #[test]
-fn combat_frames_keep_active_valence_passive_agents_and_if_able_distinct() {
+fn combat_frames_keep_active_frame_set_passive_agents_and_if_able_distinct() {
     let parser = parser();
     let context = context();
 
     for (text, expected_path_member) in [
         (
             "Whenever this creature attacks, draw a card.",
-            "IntransitiveFrameIntransitivePredicate",
+            "IntransitiveLexicalVerbPhraseIntransitivePredicate",
         ),
         (
             "Whenever this creature attacks a player, draw a card.",
-            "TransitiveFrameTransitivePredicate",
+            "TransitiveLexicalVerbPhraseTransitivePredicate",
         ),
         (
             "Whenever this creature blocks a creature, draw a card.",
-            "TransitiveFrameTransitivePredicate",
+            "TransitiveLexicalVerbPhraseTransitivePredicate",
         ),
     ] {
         let analysis = parser.analyze(text, &context);
@@ -1011,7 +1011,7 @@ fn inventory_information_heads_parse_copy_and_flip_without_action_declarations()
 }
 
 #[test]
-fn exchange_uses_declared_object_valence_and_a_typed_control_reference() {
+fn exchange_uses_declared_object_frame_set_and_a_typed_control_reference() {
     let parser = parser();
     let context = context();
     let text = "Exchange control of two target creatures.";
@@ -1028,7 +1028,7 @@ fn exchange_uses_declared_object_valence_and_a_typed_control_reference() {
 }
 
 #[test]
-fn declared_custom_valences_select_one_frame_per_linguistic_shape() {
+fn declared_custom_frame_sets_select_one_lexical_verb_phrase_per_verb_frame() {
     let parser = parser();
     let context = context();
 
@@ -1329,7 +1329,8 @@ fn ordinary_ability_nouns_parse_while_keyword_interiors_remain_deferred() {
     let context = context();
     let text = "Target creature loses all abilities.";
     let ability = assert_selected(&parser, &context, text);
-    let predicate = transitive_frame(&declarative_atomic(&parser, &context, text)).clone();
+    let predicate =
+        transitive_lexical_verb_phrase(&declarative_atomic(&parser, &context, text)).clone();
     assert!(matches!(
         predicate.head.reference(),
         VerbInventoryRef::Core(CoreVerbIdentity::Lose)
@@ -1384,7 +1385,7 @@ fn shared_active_frames_reuse_core_and_declared_heads_across_sentence_shapes() {
     let Predicate::Atomic(predicate) = imperative.predicate() else {
         panic!("declared object verb has an atomic predicate envelope")
     };
-    let predicate = transitive_frame(predicate.as_ref());
+    let predicate = transitive_lexical_verb_phrase(predicate.as_ref());
     assert!(matches!(
         predicate.head.reference(),
         VerbInventoryRef::Declaration(id) if id.name() == "Sacrifice"
@@ -1399,7 +1400,7 @@ fn shared_active_frames_reuse_core_and_declared_heads_across_sentence_shapes() {
     let Predicate::Atomic(predicate) = imperative.predicate() else {
         panic!("core object verb has an atomic predicate envelope")
     };
-    let predicate = transitive_frame(predicate.as_ref());
+    let predicate = transitive_lexical_verb_phrase(predicate.as_ref());
     assert!(matches!(
         predicate.head.reference(),
         VerbInventoryRef::Core(CoreVerbIdentity::Control)
@@ -1424,7 +1425,7 @@ impl Visitor for LexicalVisitor {
 }
 
 #[test]
-fn shared_transitive_frame_preserves_visit_order_and_literal_claims() {
+fn shared_transitive_lexical_verb_phrase_preserves_visit_order_and_literal_claims() {
     let parser = parser();
     let context = context();
     let text = "You sacrifice target player and control target player.";
@@ -1941,7 +1942,7 @@ fn predicate_adjuncts_pin_postposed_prepositions_outside_their_objects() {
 }
 
 #[test]
-fn object_gap_adjunct_attachment_follows_the_declared_valence_row() {
+fn object_gap_adjunct_attachment_follows_the_declared_frame_set_row() {
     let parser = parser();
     let context = context();
 
@@ -2276,7 +2277,7 @@ fn modal_subject_gap_relatives_modify_ordinary_mass_noun_phrases() {
     };
     assert!(matches!(
         value.predicate.as_ref(),
-        BaseVerbFrame::TransitiveFrame(_)
+        LexicalVerbPhrase::TransitiveLexicalVerbPhrase(_)
     ));
     assert!(matches!(
         value.adjunct.as_ref(),
@@ -2659,7 +2660,7 @@ fn all_plus_nominal_is_a_transitive_object_not_an_object_predicative_split() {
         .construction_path();
     assert!(
         path.iter()
-            .any(|name| name == "TransitiveFrameTransitivePredicate"),
+            .any(|name| name == "TransitiveLexicalVerbPhraseTransitivePredicate"),
         "{path:?}",
     );
     assert!(
@@ -3617,7 +3618,7 @@ fn this_way_keeps_a_specific_manner_reading_beside_downstream_semantic_rivals() 
         selected
             .construction_path()
             .iter()
-            .any(|item| item == "TransitiveFrameTransitivePredicate")
+            .any(|item| item == "TransitiveLexicalVerbPhraseTransitivePredicate")
     );
 }
 

@@ -86,7 +86,7 @@ pub struct ContinuousEffect {
     /// `This`/`You` through it ([CR#603.10a]). `None` for every marker /
     /// `EndOfGame` duration, whose sweep needs no such context. Boxed so the
     /// common `None` case keeps `ContinuousEffect` small.
-    pub origin: Option<Box<crate::stack::Frame>>,
+    pub origin: Option<Box<crate::stack::ExecutionFrame>>,
     pub is_cda: bool,
 }
 
@@ -579,7 +579,7 @@ fn gather(
                 let grant_runtimes = state.capture_grant_runtimes_in_created_region(
                     &changes,
                     effect,
-                    &crate::stack::Frame::bare(obj.id, obj.controller),
+                    &crate::stack::ExecutionFrame::bare(obj.id, obj.controller),
                     captures,
                 );
                 effects.push(ActiveEffect {
@@ -688,7 +688,7 @@ fn gather(
 /// Resolve one gathered `StaticSpec` (a static ability's `effect`, or a
 /// counter's conferred `Property::Continuous` lowered to the same shape by the
 /// caller) into a `(ScopeResolved, flattened changes)` pair, SOURCE-RELATIVE
-/// (no [`Frame`](crate::resolve::Frame); mirrors [`resolve_source_relative`]).
+/// (no [`ExecutionFrame`](crate::resolve::ExecutionFrame); mirrors [`resolve_source_relative`]).
 ///
 /// `Modify(reference, change)` — the single-object shape — resolves the one
 /// reference and LOCKS it ([CR#613.6]: the affected set is fixed at first
@@ -759,16 +759,16 @@ fn static_effect_scope(
 /// Resolve a `Reference` inside a static ability's effect (its `Modify`/`Each`
 /// references) to concrete object ids, SOURCE-RELATIVE: `This` is the static's
 /// source object `source` (the carrying permanent), and `gather` has **no**
-/// [`Frame`], so only the references whose value is fixed by the source's own
+/// [`ExecutionFrame`], so only the references whose value is fixed by the source's own
 /// relations are resolvable here. The rest are a documented seam (see below)
 /// and resolve to the empty set.
 ///
-/// Returns a (possibly empty) vec — the empty set both for a Frame-dependent
+/// Returns a (possibly empty) vec — the empty set both for a ExecutionFrame-dependent
 /// reference and for a relation that isn't established (an unattached
 /// attachment's `AttachHostOf(This)` has no host yet). The caller LOCKS the
 /// result ([CR#613.6]: the affected set is fixed at first application).
 ///
-/// [`Frame`]: crate::resolve::Frame
+/// [`ExecutionFrame`]: crate::resolve::ExecutionFrame
 fn resolve_source_relative(
     state: &GameState,
     source: ObjectId,
@@ -801,9 +801,9 @@ fn resolve_source_relative(
                 .filter_map(|id| state.objects.get(id).and_then(|o| o.attached_to))
                 .collect()
         }
-        // Frame-dependent references only: `Target`, bindings (`Bound`,
+        // ExecutionFrame-dependent references only: `Target`, bindings (`Bound`,
         // `Linked`, `EventObject`, `EventActor`) — and the player-valued
-        // `You`/`ControllerOf`/`OwnerOf` — cannot be resolved without a `Frame`
+        // `You`/`ControllerOf`/`OwnerOf` — cannot be resolved without a `ExecutionFrame`
         // in gather, so they stay an empty locked set (a documented seam; these
         // need `eval_reference`, which `gather` deliberately lacks to avoid the
         // layers()→eval recursion).
@@ -1102,7 +1102,10 @@ fn condition_holds_derived(
             .iter()
             .find(|object| Some(object.source) == watcher)
             .is_some_and(|source| {
-                state.condition_holds(condition, &crate::stack::Frame::bare(source.id, controller))
+                state.condition_holds(
+                    condition,
+                    &crate::stack::ExecutionFrame::bare(source.id, controller),
+                )
             }),
         // `LegallyAttached` needs the deontic attachment view, which cannot be
         // rebuilt recursively while this view is in progress. A crossing gate
@@ -1130,7 +1133,7 @@ fn effect_conditions_hold(
 /// pass, anchoring carrier refs (`This`, `AttachHostOf(This)`, …) to the
 /// effect's `watcher` ([CR#611.2c]). The watcher's live carrier object (the one
 /// whose `source == watcher`) is the `This` `resolve_source_relative` resolves
-/// from. A `Frame`-only reference (`Target`, bindings, the player-valued
+/// from. A `ExecutionFrame`-only reference (`Target`, bindings, the player-valued
 /// `You`/`ControllerOf`/`OwnerOf`) yields nothing here — the same documented
 /// seam `resolve_source_relative` carries — so a count built on it defaults to
 /// `0`.
@@ -1206,7 +1209,7 @@ fn eval_divide(mode: deckmaste_core::RoundMode, a: Int, b: Int) -> Int {
 
 /// Evaluate a `Count` to an `Int` against the IN-PROGRESS derived map
 /// (`working`) being built this pass — never `self.layers()` (that would
-/// recurse the layer build) and never a `Frame` (which the layer pass lacks).
+/// recurse the layer build) and never a `ExecutionFrame` (which the layer pass lacks).
 /// This is the layer-side sibling of `resolve.rs::eval_count`, mirroring each
 /// variant's meaning but sourcing derived P/T from `working` instead of a
 /// rebuilt view.
@@ -1533,16 +1536,16 @@ fn eval_count(
         // the variant does; `core-demacro` deletes both.
         // Announce-time / history context (`X`, `ThatMuch`, `EventCount`,
         // `EventSum`, `Noted`) is unavailable during layer derivation — those
-        // need a resolution `Frame` (`resolve.rs::eval_count`), so a continuous
+        // need a resolution `ExecutionFrame` (`resolve.rs::eval_count`), so a continuous
         // effect built on one defaults to `0` here (a documented seam).
         //
         // [CR#107.1]: `Aggregate`'s per-element fold binds `It` via a resolution
-        // `Frame` sub-binding (`resolve.rs::eval_count`'s `Selection::Pick`-style
-        // loop) — the layer pass has no `Frame` to bind against, so a CDA built
+        // `ExecutionFrame` sub-binding (`resolve.rs::eval_count`'s `Selection::Pick`-style
+        // loop) — the layer pass has no `ExecutionFrame` to bind against, so a CDA built
         // on an aggregate fold defaults to `0` here too (unforced: no CDA needs
         // one yet).
         // [CR#115.9a]: `TargetsOf` reads the announcing stack entry's target
-        // list — announce-time context this Frame-less layer pass lacks
+        // list — announce-time context this ExecutionFrame-less layer pass lacks
         // (same seam as `TimesPaid`'s paid-cost record) — defaults to 0.
         Count::Reg(_)
         | Count::X
@@ -1943,7 +1946,7 @@ fn retain_abilities(d: &mut DerivedObject, mut keep: impl FnMut(&Ability) -> boo
 /// player. Per [CR#611.2c] the effect's references are locked when it is
 /// created, so the controller parameter resolves to the effect's controller (the happy
 /// path: "you gain control of …"). General `Reference` resolution needs the
-/// resolve-time `Frame` machinery (`engine-resolve-effects`); any other
+/// resolve-time `ExecutionFrame` machinery (`engine-resolve-effects`); any other
 /// reference is a documented seam that leaves the controller unchanged.
 fn resolve_new_controller(
     reference: &deckmaste_core::Reference,
@@ -1952,7 +1955,7 @@ fn resolve_new_controller(
     if reference == &deckmaste_core::Reference::controller_parameter() {
         Some(effect_controller)
     } else {
-        // SEAM: opponent / each-player / bound references need a `Frame` to
+        // SEAM: opponent / each-player / bound references need a `ExecutionFrame` to
         // resolve a specific player; not reachable by current control fixtures.
         None
     }

@@ -9,7 +9,7 @@ use deckmaste_core::Uint;
 
 use crate::lki::LkiSnapshot;
 use crate::object::ObjectId;
-use crate::stack::Frame;
+use crate::stack::ExecutionFrame;
 use crate::trigger::EventPatient;
 
 /// Stable identity of one entered core region during a resolution.
@@ -165,7 +165,11 @@ impl crate::state::GameState {
 
     /// Enter `region`, populating its declared parameter prefix from the
     /// resolution inputs carried by `frame`.
-    pub(crate) fn enter_region<T>(&self, region: &Region<T>, frame: &Frame) -> ActivationId {
+    pub(crate) fn enter_region<T>(
+        &self,
+        region: &Region<T>,
+        frame: &ExecutionFrame,
+    ) -> ActivationId {
         self.enter_region_with(region, frame, &[], &[])
     }
 
@@ -178,7 +182,7 @@ impl crate::state::GameState {
     pub(crate) fn with_temporary_region_activation<T, R>(
         &self,
         region: &Region<T>,
-        frame: &Frame,
+        frame: &ExecutionFrame,
         probe: impl FnOnce(ActivationId) -> R,
     ) -> R {
         let next_activation = self.next_activation.get();
@@ -209,7 +213,7 @@ impl crate::state::GameState {
     pub(crate) fn enter_created_region<T>(
         &self,
         region: &Region<T>,
-        frame: &Frame,
+        frame: &ExecutionFrame,
         captures: &[(RefId, Value)],
     ) -> ActivationId {
         self.enter_region_with(region, frame, &[], captures)
@@ -233,7 +237,7 @@ impl crate::state::GameState {
     pub(crate) fn capture_snapshot<T>(
         &self,
         region: &Region<T>,
-        frame: &Frame,
+        frame: &ExecutionFrame,
     ) -> Vec<(RefId, Value)> {
         region
             .captures()
@@ -248,7 +252,7 @@ impl crate::state::GameState {
     pub(crate) fn capture_ability_runtime(
         &self,
         ability: &deckmaste_core::Ability,
-        frame: &Frame,
+        frame: &ExecutionFrame,
     ) -> AbilityRuntime {
         let mut flattened = Vec::new();
         self.capture_ability_runtime_into(ability, frame, &mut flattened);
@@ -258,7 +262,7 @@ impl crate::state::GameState {
     fn capture_ability_runtime_into(
         &self,
         ability: &deckmaste_core::Ability,
-        frame: &Frame,
+        frame: &ExecutionFrame,
         out: &mut Vec<CapturedAbility>,
     ) {
         use deckmaste_core::Ability;
@@ -291,7 +295,7 @@ impl crate::state::GameState {
     pub(crate) fn capture_grant_runtimes(
         &self,
         changes: &[deckmaste_core::Modification],
-        frame: &Frame,
+        frame: &ExecutionFrame,
     ) -> Vec<AbilityRuntime> {
         changes
             .iter()
@@ -310,12 +314,12 @@ impl crate::state::GameState {
         &self,
         changes: &[deckmaste_core::Modification],
         region: &Region<T>,
-        frame: &Frame,
+        frame: &ExecutionFrame,
         captures: &[(RefId, Value)],
     ) -> Vec<AbilityRuntime> {
         let next_activation = self.next_activation.get();
         let activation = self.enter_created_region(region, frame, captures);
-        let created = Frame {
+        let created = ExecutionFrame {
             activation,
             payment: frame.payment,
         };
@@ -339,7 +343,7 @@ impl crate::state::GameState {
     /// chased again ([CR#603.7c]).
     pub(crate) fn snapshot_register(
         &self,
-        frame: &Frame,
+        frame: &ExecutionFrame,
         reference: RefId,
         kind: deckmaste_core::Kind,
     ) -> Value {
@@ -366,7 +370,7 @@ impl crate::state::GameState {
     /// The raw stored value of one register, with no chase — the fallback when
     /// the chasing read finds nothing live, so a departed object still carries
     /// its last known information across the boundary ([CR#608.2h]).
-    fn frozen_register(&self, frame: &Frame, reference: RefId) -> Value {
+    fn frozen_register(&self, frame: &ExecutionFrame, reference: RefId) -> Value {
         self.activations
             .borrow()
             .get(&frame.activation)
@@ -378,7 +382,7 @@ impl crate::state::GameState {
     fn enter_region_with<T>(
         &self,
         region: &Region<T>,
-        frame: &Frame,
+        frame: &ExecutionFrame,
         supplied: &[(Provenance, Value)],
         captures: &[(RefId, Value)],
     ) -> ActivationId {
@@ -660,7 +664,7 @@ impl crate::state::GameState {
         }
     }
 
-    fn materialize_frame(&self, frame: &mut Frame) {
+    fn materialize_frame(&self, frame: &mut ExecutionFrame) {
         if matches!(frame.activation, ActivationId::Stored(_)) {
             return;
         }
@@ -681,7 +685,7 @@ impl crate::state::GameState {
     /// Clone one activation for a child continuation while keeping it in the
     /// same resolution family. Subsequent parameter writes are isolated from
     /// sibling work items.
-    pub(crate) fn fork_frame(&self, frame: &Frame) -> Frame {
+    pub(crate) fn fork_frame(&self, frame: &ExecutionFrame) -> ExecutionFrame {
         let context = self.activation_context(frame.activation);
         let (root, params, values) = self
             .activations
@@ -709,7 +713,11 @@ impl crate::state::GameState {
         clippy::needless_pass_by_value,
         reason = "the setter takes ownership of the optional snapshot stored in the activation"
     )]
-    pub(crate) fn frame_set_source_lki(&self, frame: &mut Frame, lki: Option<LkiSnapshot>) {
+    pub(crate) fn frame_set_source_lki(
+        &self,
+        frame: &mut ExecutionFrame,
+        lki: Option<LkiSnapshot>,
+    ) {
         self.materialize_frame(frame);
         let mut activations = self.activations.borrow_mut();
         let record = activations
@@ -731,7 +739,7 @@ impl crate::state::GameState {
 
     pub(crate) fn frame_set_defending_player(
         &self,
-        frame: &mut Frame,
+        frame: &mut ExecutionFrame,
         player: Option<crate::player::PlayerId>,
     ) {
         self.materialize_frame(frame);
@@ -756,7 +764,11 @@ impl crate::state::GameState {
     /// resolution-time optional payment, semantic `You` inside the cost names
     /// the payer, while the consequence resumes with the containing effect's
     /// original controller.
-    pub(crate) fn frame_set_controller(&self, frame: &mut Frame, player: crate::player::PlayerId) {
+    pub(crate) fn frame_set_controller(
+        &self,
+        frame: &mut ExecutionFrame,
+        player: crate::player::PlayerId,
+    ) {
         self.materialize_frame(frame);
         let mut activations = self.activations.borrow_mut();
         let record = activations
@@ -775,7 +787,7 @@ impl crate::state::GameState {
 
     pub(crate) fn frame_set_event_bindings(
         &self,
-        frame: &mut Frame,
+        frame: &mut ExecutionFrame,
         object: Option<LkiSnapshot>,
         actor: Option<crate::player::PlayerId>,
         patient: Option<EventPatient>,
@@ -968,12 +980,12 @@ impl crate::state::GameState {
         }
     }
 
-    pub(crate) fn frame_set_targets(&self, frame: &mut Frame, targets: &[Vec<ObjectId>]) {
+    pub(crate) fn frame_set_targets(&self, frame: &mut ExecutionFrame, targets: &[Vec<ObjectId>]) {
         self.materialize_frame(frame);
         self.activation_set_targets(frame.activation, targets);
     }
 
-    pub(crate) fn frame_set_x(&self, frame: &mut Frame, x: Option<Uint>) {
+    pub(crate) fn frame_set_x(&self, frame: &mut ExecutionFrame, x: Option<Uint>) {
         self.materialize_frame(frame);
         let mut activations = self.activations.borrow_mut();
         let record = activations
@@ -990,7 +1002,7 @@ impl crate::state::GameState {
     pub(crate) fn enter_candidate_region<T>(
         &self,
         region: &Region<T>,
-        frame: &Frame,
+        frame: &ExecutionFrame,
         candidate: ObjectId,
     ) -> ActivationId {
         let value = Value::Object(
@@ -1022,7 +1034,7 @@ impl crate::state::GameState {
     pub(crate) fn enter_candidate_region_snapshot<T>(
         &self,
         region: &Region<T>,
-        frame: &Frame,
+        frame: &ExecutionFrame,
         candidate: &LkiSnapshot,
     ) -> ActivationId {
         let value = Value::Object(ReferenceProduct {
@@ -1040,7 +1052,7 @@ impl crate::state::GameState {
     pub(crate) fn enter_loop_region(
         &self,
         region: &Region,
-        frame: &Frame,
+        frame: &ExecutionFrame,
         element: ObjectId,
         allotment: Option<Uint>,
     ) -> ActivationId {
@@ -1133,7 +1145,7 @@ impl crate::state::GameState {
 
     pub(crate) fn frame_set_event_extras(
         &self,
-        frame: &mut Frame,
+        frame: &mut ExecutionFrame,
         amount: Option<Uint>,
         produced_mana: Vec<deckmaste_core::ColorOrColorless>,
         crossed: Option<(Uint, Uint)>,
@@ -1155,7 +1167,7 @@ impl crate::state::GameState {
 
     pub(crate) fn frame_set_action_context(
         &self,
-        frame: &mut Frame,
+        frame: &mut ExecutionFrame,
         inherited: std::collections::HashSet<crate::replace_registry::ReplacementKey>,
         contained: bool,
     ) {
@@ -1302,7 +1314,7 @@ mod tests {
     use super::*;
     use crate::object::ObjectSource;
     use crate::player::PlayerId;
-    use crate::stack::Frame;
+    use crate::stack::ExecutionFrame;
     use crate::state::GameConfig;
     use crate::state::GameState;
     use crate::state::PlayerConfig;
@@ -1328,8 +1340,8 @@ mod tests {
         let mut state = bare_game();
         let source = state.player(PlayerId(0)).object;
         let region = Region::closed(());
-        let root = state.enter_region(&region, &Frame::bare(source, PlayerId(0)));
-        let mut nested_frame = Frame::bare(source, PlayerId(0));
+        let root = state.enter_region(&region, &ExecutionFrame::bare(source, PlayerId(0)));
+        let mut nested_frame = ExecutionFrame::bare(source, PlayerId(0));
         nested_frame.activation = root;
         let nested = state.enter_region(&region, &nested_frame);
         let cloned = state.clone_activation(nested);
@@ -1364,7 +1376,7 @@ mod tests {
             Provenance::Candidate(deckmaste_core::Domain::Entity),
             (),
         );
-        let frame = Frame::bare(source, PlayerId(0));
+        let frame = ExecutionFrame::bare(source, PlayerId(0));
 
         let by_id = state.enter_candidate_region(&region, &frame, candidate);
         assert_eq!(
@@ -1395,7 +1407,7 @@ mod tests {
         let state = bare_game();
         let source = state.player(PlayerId(0)).object;
         let region = Region::closed(());
-        let activation = state.enter_region(&region, &Frame::bare(source, PlayerId(0)));
+        let activation = state.enter_region(&region, &ExecutionFrame::bare(source, PlayerId(0)));
         state.activation_write(
             activation,
             deckmaste_core::DefId(0),

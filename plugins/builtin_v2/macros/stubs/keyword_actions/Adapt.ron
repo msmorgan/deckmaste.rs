@@ -3,6 +3,6 @@ KeywordAction(
     spelling: "adapt",
     grammar: Verb(
         bare: "adapt",
-        valence: Numerative,
+        frame_set: MeasureComplement,
     ),
 )

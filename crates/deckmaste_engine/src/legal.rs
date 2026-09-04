@@ -828,7 +828,7 @@ where
 ///
 /// [CR#611.3a]: a `Conditionally` static is GATED — its inner effect is visited
 /// only when the wrapper's condition holds for `id`, evaluated with `This`
-/// bound to `id` (a `Frame::bare` on the object's controller).
+/// bound to `id` (a `ExecutionFrame::bare` on the object's controller).
 pub(crate) fn for_each_static<F: FnMut(&StaticSpec)>(
     state: &GameState,
     view: &LayeredView,
@@ -842,7 +842,7 @@ pub(crate) fn for_each_static<F: FnMut(&StaticSpec)>(
     // non-recursive `state.layers()` — the escape `conferred_rule_abilities`
     // uses ([CR#611.3a]).
     let controller = state.objects.obj(id).controller;
-    let frame = crate::stack::Frame::bare(id, controller);
+    let frame = crate::stack::ExecutionFrame::bare(id, controller);
     let mut enter = |cond: &deckmaste_core::Condition| state.condition_holds(cond, &frame);
     // The visitor never breaks, so the only outcome is the run-to-completion
     // `Continue(())`, deliberately discarded.
@@ -907,8 +907,10 @@ pub(crate) fn arrangement_forbidden_by(
             // than its power" — `StatOf(This, Power)`) evaluates instead of
             // panicking. `Ref(This)`/`StatOf(This)` anchor on the carrier, so
             // build a carrier-source frame with no resolution context.
-            let frame =
-                crate::stack::Frame::bare(r.carrier_id, state.objects.obj(r.carrier_id).controller);
+            let frame = crate::stack::ExecutionFrame::bare(
+                r.carrier_id,
+                state.objects.obj(r.carrier_id).controller,
+            );
             r.count
                 .as_ref()
                 .expect("filtered to Some")
@@ -1105,7 +1107,7 @@ fn masked_self_rows_forbid(
         .cloned()
         .collect();
     let controller = state.objects.obj(target).controller;
-    let frame = crate::stack::Frame::bare(target, controller);
+    let frame = crate::stack::ExecutionFrame::bare(target, controller);
     let mut enter = |cond: &deckmaste_core::Condition| state.condition_holds(cond, &frame);
     let hit = walk_abilities(&abilities, &mut enter, &mut |e: &StaticSpec| {
         if let StaticSpec::Deontic(d) = e
@@ -1903,7 +1905,7 @@ mod tests {
         // (b) The condition itself, read top-level, also TERMINATES and reads
         // `false` — this is exactly the Aura-graveyard SBA trigger's read
         // (`Sba(Not(LegallyAttached(Ref(This))), …)`), which must not hang.
-        let frame = crate::stack::Frame::bare(aura, PlayerId(0));
+        let frame = crate::stack::ExecutionFrame::bare(aura, PlayerId(0));
         assert!(
             !state.condition_holds(
                 &Condition::LegallyAttached(Reference::Reg(deckmaste_core::RefId(0))),

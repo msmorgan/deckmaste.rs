@@ -1010,7 +1010,8 @@ mod tests {
     #[test]
     fn declaration_verb_tail_is_a_normalized_semantic_frame_key() {
         use crate::macro_def::CustomTailAtom;
-        use crate::macro_def::VerbValence;
+        use crate::macro_def::VerbFrameSet as Set;
+        use crate::semantic::{DeclarationVerbPlan, VerbFrameAtom, VerbFrameClass};
 
         let object_plan = declaration_verb_plan_for(&quote::quote! { ObjectNounPhrase });
         let (terminal_index, object) = sole_declaration_verb(&object_plan);
@@ -1023,61 +1024,59 @@ mod tests {
         );
         assert_eq!(object.closed_lexeme().expect("closed branch"), "CoreVerb");
         assert_eq!(
-            crate::semantic::DeclarationVerbPlan::position(),
+            DeclarationVerbPlan::position(),
             crate::macro_def::GrammarPosition::Verb
         );
         assert_eq!(object.feature_axis(), crate::feature::Feature::Agreement);
-        assert_eq!(
-            object.frame_key().class(),
-            crate::semantic::VerbFrameClass::Predicate
-        );
+        assert_eq!(object.frame_key().class(), VerbFrameClass::Predicate);
         assert_eq!(
             object.frame_key().atoms(),
-            [crate::semantic::VerbFrameAtom::ObjectNounPhrase]
+            [VerbFrameAtom::ObjectNounPhrase]
         );
-        assert!(object.frame_key().matches_valence(&VerbValence::Transitive));
-        assert!(!object.frame_key().matches_valence(&VerbValence::Numerative));
-        assert!(object.frame_key().matches_valence(&VerbValence::Custom {
-            shapes: vec![vec![CustomTailAtom::ObjectNounPhrase]],
+        assert!(object.frame_key().matches_frame_set(&Set::Transitive));
+        assert!(
+            !object
+                .frame_key()
+                .matches_frame_set(&Set::MeasureComplement)
+        );
+        assert!(object.frame_key().matches_frame_set(&Set::Custom {
+            frames: vec![vec![CustomTailAtom::ObjectNounPhrase]],
         }));
 
         let amount_plan = declaration_verb_plan_for(&quote::quote! { Amount });
         let (_, amount) = sole_declaration_verb(&amount_plan);
-        assert_eq!(
-            amount.frame_key().atoms(),
-            [crate::semantic::VerbFrameAtom::Amount]
+        assert_eq!(amount.frame_key().atoms(), [VerbFrameAtom::Amount]);
+        assert!(
+            amount
+                .frame_key()
+                .matches_frame_set(&Set::MeasureComplement)
         );
-        assert!(amount.frame_key().matches_valence(&VerbValence::Numerative));
-        assert!(!amount.frame_key().matches_valence(&VerbValence::Transitive));
+        assert!(!amount.frame_key().matches_frame_set(&Set::Transitive));
 
         let predicative_plan = declaration_verb_plan_for(&quote::quote! { PredicativeComplement });
         let (_, predicative) = sole_declaration_verb(&predicative_plan);
         assert_eq!(
             predicative.frame_key().atoms(),
-            [crate::semantic::VerbFrameAtom::PredicativeComplement]
+            [VerbFrameAtom::PredicativeComplement]
         );
-        assert!(
-            predicative
-                .frame_key()
-                .matches_valence(&VerbValence::Custom {
-                    shapes: vec![vec![CustomTailAtom::PredicativeComplement]],
-                })
-        );
+        assert!(predicative.frame_key().matches_frame_set(&Set::Custom {
+            frames: vec![vec![CustomTailAtom::PredicativeComplement]],
+        }));
 
         let optional_predicative_plan =
             declaration_verb_plan_for(&quote::quote! { PredicativeComplement? });
         let (_, optional_predicative) = sole_declaration_verb(&optional_predicative_plan);
         assert_eq!(
             optional_predicative.frame_key().atoms(),
-            [crate::semantic::VerbFrameAtom::OptionalRole(
-                "PredicativeComplement".to_owned(),
+            [VerbFrameAtom::OptionalRole(
+                "PredicativeComplement".to_owned()
             )]
         );
         assert!(
             !optional_predicative
                 .frame_key()
-                .matches_valence(&VerbValence::Custom {
-                    shapes: vec![vec![CustomTailAtom::PredicativeComplement]],
+                .matches_frame_set(&Set::Custom {
+                    frames: vec![vec![CustomTailAtom::PredicativeComplement]],
                 })
         );
 
@@ -1087,8 +1086,8 @@ mod tests {
         assert_eq!(
             rich_role.frame_key().atoms(),
             [
-                crate::semantic::VerbFrameAtom::Role("ToDestination".to_owned()),
-                crate::semantic::VerbFrameAtom::OptionalRole("PostState".to_owned()),
+                VerbFrameAtom::Role("ToDestination".to_owned()),
+                VerbFrameAtom::OptionalRole("PostState".to_owned()),
             ]
         );
 
@@ -1101,63 +1100,55 @@ mod tests {
         assert_eq!(
             search.frame_key().atoms(),
             [
-                crate::semantic::VerbFrameAtom::ObjectNounPhrase,
-                crate::semantic::VerbFrameAtom::Literal("for".to_owned()),
-                crate::semantic::VerbFrameAtom::ObjectNounPhrase,
+                VerbFrameAtom::ObjectNounPhrase,
+                VerbFrameAtom::Literal("for".to_owned()),
+                VerbFrameAtom::ObjectNounPhrase,
             ]
         );
-        assert!(search.frame_key().matches_valence(&VerbValence::Custom {
-            shapes: vec![vec![
+        assert!(search.frame_key().matches_frame_set(&Set::Custom {
+            frames: vec![vec![
                 CustomTailAtom::ObjectNounPhrase,
                 CustomTailAtom::Literal("for".to_owned()),
                 CustomTailAtom::ObjectNounPhrase,
             ]],
         }));
-        assert!(!search.frame_key().matches_valence(&VerbValence::Transitive));
+        assert!(!search.frame_key().matches_frame_set(&Set::Transitive));
 
         let empty_plan = declaration_verb_plan_for(&quote::quote! {});
         let (_, empty) = sole_declaration_verb(&empty_plan);
-        assert!(
-            empty
-                .frame_key()
-                .matches_valence(&VerbValence::Intransitive)
-        );
-        assert!(empty.frame_key().matches_valence(&VerbValence::Custom {
-            shapes: vec![vec![], vec![CustomTailAtom::Amount]],
+        assert!(empty.frame_key().matches_frame_set(&Set::Intransitive));
+        assert!(empty.frame_key().matches_frame_set(&Set::Custom {
+            frames: vec![vec![], vec![CustomTailAtom::Amount]],
         }));
-        assert!(!empty.frame_key().matches_valence(&VerbValence::Transitive));
+        assert!(!empty.frame_key().matches_frame_set(&Set::Transitive));
 
         let custom_plan = declaration_verb_plan_for(&quote::quote! { "with", ObjectNounPhrase });
         let (_, custom) = sole_declaration_verb(&custom_plan);
         assert_eq!(
             custom.frame_key().atoms(),
             [
-                crate::semantic::VerbFrameAtom::Literal("with".to_owned()),
-                crate::semantic::VerbFrameAtom::ObjectNounPhrase,
+                VerbFrameAtom::Literal("with".to_owned()),
+                VerbFrameAtom::ObjectNounPhrase,
             ]
         );
-        assert!(custom.frame_key().matches_valence(&VerbValence::Custom {
-            shapes: vec![vec![
+        assert!(custom.frame_key().matches_frame_set(&Set::Custom {
+            frames: vec![vec![
                 CustomTailAtom::Literal("with".to_owned()),
                 CustomTailAtom::ObjectNounPhrase,
             ]],
         }));
-        assert!(!custom.frame_key().matches_valence(&VerbValence::Custom {
-            shapes: vec![vec![
+        assert!(!custom.frame_key().matches_frame_set(&Set::Custom {
+            frames: vec![vec![
                 CustomTailAtom::Literal("with".to_owned()),
                 CustomTailAtom::Amount,
             ]],
         }));
-        assert!(
-            !custom
-                .frame_key()
-                .matches_valence(&VerbValence::Intransitive)
-        );
+        assert!(!custom.frame_key().matches_frame_set(&Set::Intransitive));
     }
 
     #[test]
     fn declaration_verb_frame_classes_are_sealed_and_semantic() {
-        use crate::macro_def::VerbValence;
+        use crate::macro_def::VerbFrameSet;
 
         let plan = crate::validate_declarations(
             crate::parse_declarations(quote::quote! {
@@ -1214,17 +1205,17 @@ mod tests {
         assert!(
             recipes[0]
                 .frame_key()
-                .matches_valence(&VerbValence::Intransitive)
+                .matches_frame_set(&VerbFrameSet::Intransitive)
         );
         assert!(
             !recipes[1]
                 .frame_key()
-                .matches_valence(&VerbValence::Intransitive)
+                .matches_frame_set(&VerbFrameSet::Intransitive)
         );
         assert!(
             !recipes[2]
                 .frame_key()
-                .matches_valence(&VerbValence::Intransitive)
+                .matches_frame_set(&VerbFrameSet::Intransitive)
         );
     }
 

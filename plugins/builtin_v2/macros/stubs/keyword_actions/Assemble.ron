@@ -3,6 +3,6 @@ KeywordAction(
     spelling: "assemble",
     grammar: Verb(
         bare: "assemble",
-        valence: Transitive,
+        frame_set: Transitive,
     ),
 )

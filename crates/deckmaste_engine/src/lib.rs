@@ -240,7 +240,7 @@ pub use runner::Runner;
 mod sba;
 
 mod stack;
-pub use stack::Frame;
+pub use stack::ExecutionFrame;
 pub use stack::PendingStackEntry;
 pub use stack::StackEntry;
 pub use stack::StackObject;

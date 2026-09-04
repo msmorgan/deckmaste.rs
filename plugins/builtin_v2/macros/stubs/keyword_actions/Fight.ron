@@ -3,6 +3,6 @@ KeywordAction(
     spelling: "fight",
     grammar: Verb(
         bare: "fight",
-        valence: Transitive,
+        frame_set: Transitive,
     ),
 )

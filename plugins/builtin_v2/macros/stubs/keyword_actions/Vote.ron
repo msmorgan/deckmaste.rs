@@ -3,8 +3,8 @@ KeywordAction(
     spelling: "vote",
     grammar: Verb(
         bare: "vote",
-        valence: Custom(
-            shapes: [
+        frame_set: Custom(
+            frames: [
                 [],
                 [ObjectNounPhrase],
                 [Literal("for"), ObjectNounPhrase],

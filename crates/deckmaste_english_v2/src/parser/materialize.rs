@@ -1057,14 +1057,14 @@ mod tests {
     use super::materialize_node;
     use super::materialize_observed;
     use crate::ast::BareSingularNominal;
-    use crate::ast::BaseVerbFrame;
     use crate::ast::BaseVerbPhrase;
     use crate::ast::CommonNoun;
     use crate::ast::DeclarationIntransitiveVerb;
     use crate::ast::FiniteClause;
     use crate::ast::Imperative;
-    use crate::ast::IntransitiveFrame;
+    use crate::ast::IntransitiveLexicalVerbPhrase;
     use crate::ast::IntransitivePredicate;
+    use crate::ast::LexicalVerbPhrase;
     use crate::ast::Noun;
     use crate::ast::NounSingularHead;
     use crate::ast::PersonalSubject;
@@ -1169,8 +1169,8 @@ mod tests {
         )
         .expect("the canonical environment declares intransitive Connive");
         VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
-            frame: Box::new(BaseVerbFrame::IntransitiveFrame(
-                IntransitiveFrame::IntransitivePredicate(IntransitivePredicate {
+            frame: Box::new(LexicalVerbPhrase::IntransitiveLexicalVerbPhrase(
+                IntransitiveLexicalVerbPhrase::IntransitivePredicate(IntransitivePredicate {
                     head: declaration,
                 }),
             )),
@@ -1182,8 +1182,9 @@ mod tests {
         let VerbPhrase::BaseVerbPhrase(BaseVerbPhrase { frame }) = connive_phrase() else {
             unreachable!("the helper constructs an intransitive predicate")
         };
-        let BaseVerbFrame::IntransitiveFrame(IntransitiveFrame::IntransitivePredicate(predicate)) =
-            *frame
+        let LexicalVerbPhrase::IntransitiveLexicalVerbPhrase(
+            IntransitiveLexicalVerbPhrase::IntransitivePredicate(predicate),
+        ) = *frame
         else {
             unreachable!("the helper constructs an intransitive predicate")
         };
@@ -1523,7 +1524,7 @@ mod tests {
                     }],
                 },
                 PackedNode {
-                    rule: RuleId::BaseVerbFrameIntransitiveFrame,
+                    rule: RuleId::LexicalVerbPhraseIntransitiveLexicalVerbPhrase,
                     start: 0,
                     end: 0,
                     families: vec![Family {
@@ -1531,7 +1532,7 @@ mod tests {
                     }],
                 },
                 PackedNode {
-                    rule: RuleId::IntransitiveFrameIntransitivePredicate,
+                    rule: RuleId::IntransitiveLexicalVerbPhraseIntransitivePredicate,
                     start: 0,
                     end: 0,
                     families: vec![Family {
@@ -1598,17 +1599,17 @@ mod tests {
                 Construction::SentenceWithWhere,
                 Construction::SentenceImperative,
                 Construction::VerbPhraseBaseVerbPhrase,
-                Construction::IntransitiveFrameIntransitivePredicate,
+                Construction::IntransitiveLexicalVerbPhraseIntransitivePredicate,
                 Construction::WhereClauseCategoryWhere,
                 Construction::FiniteClausePlainFiniteClause,
                 Construction::SubjectSubjectPronoun,
                 Construction::VerbPhraseBaseVerbPhrase,
-                Construction::IntransitiveFrameIntransitivePredicate,
+                Construction::IntransitiveLexicalVerbPhraseIntransitivePredicate,
                 Construction::WhereClauseCategoryWhere,
                 Construction::FiniteClausePlainFiniteClause,
                 Construction::SubjectSubjectPronoun,
                 Construction::VerbPhraseBaseVerbPhrase,
-                Construction::IntransitiveFrameIntransitivePredicate,
+                Construction::IntransitiveLexicalVerbPhraseIntransitivePredicate,
             ]
         );
         assert_eq!(
@@ -1621,21 +1622,21 @@ mod tests {
                 RulePosition::Lexical(Lexical::Literal(",")),
                 RulePosition::Nonterminal(Category::WhereClauseCategory),
                 RulePosition::Nonterminal(Category::Predicate),
-                RulePosition::Nonterminal(Category::BaseVerbFrame),
+                RulePosition::Nonterminal(Category::LexicalVerbPhrase),
                 RulePosition::Lexical(Lexical::DeclarationVerb(0, FeatureConstraint::Any,)),
                 RulePosition::Lexical(Lexical::Literal("where")),
                 RulePosition::Nonterminal(Category::FiniteClause),
                 RulePosition::Nonterminal(Category::Subject),
                 RulePosition::Nonterminal(Category::Predicate),
                 RulePosition::Lexical(Lexical::SubjectPronoun),
-                RulePosition::Nonterminal(Category::BaseVerbFrame),
+                RulePosition::Nonterminal(Category::LexicalVerbPhrase),
                 RulePosition::Lexical(Lexical::DeclarationVerb(0, FeatureConstraint::Any,)),
                 RulePosition::Lexical(Lexical::Literal("where")),
                 RulePosition::Nonterminal(Category::FiniteClause),
                 RulePosition::Nonterminal(Category::Subject),
                 RulePosition::Nonterminal(Category::Predicate),
                 RulePosition::Lexical(Lexical::SubjectPronoun),
-                RulePosition::Nonterminal(Category::BaseVerbFrame),
+                RulePosition::Nonterminal(Category::LexicalVerbPhrase),
                 RulePosition::Lexical(Lexical::DeclarationVerb(0, FeatureConstraint::Any,)),
             ]),
         );
@@ -1932,7 +1933,7 @@ mod tests {
                 Construction::AbilityBodySentences,
                 Construction::SentenceImperative,
                 Construction::VerbPhraseBaseVerbPhrase,
-                Construction::TransitiveFrameTransitivePredicate,
+                Construction::TransitiveLexicalVerbPhraseTransitivePredicate,
                 Construction::ObjectObjectNominal,
                 Construction::NounPhraseQualifiedNounPhrase,
                 Construction::PostmodifiedReferenceUnqualifiedPostmodifiedReference,
@@ -1949,7 +1950,7 @@ mod tests {
                 RulePosition::Nonterminal(Category::AbilityBody),
                 RulePosition::Nonterminal(Category::SentencesSentencesSequenceCategory),
                 RulePosition::Nonterminal(Category::Predicate),
-                RulePosition::Nonterminal(Category::BaseVerbFrame),
+                RulePosition::Nonterminal(Category::LexicalVerbPhrase),
                 RulePosition::Lexical(Lexical::DeclarationVerb(0, FeatureConstraint::Any,)),
                 RulePosition::Nonterminal(Category::Object),
                 RulePosition::Nonterminal(Category::NounPhrase),

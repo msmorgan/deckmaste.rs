@@ -160,12 +160,12 @@ pub struct PendingStackEntry {
 }
 
 /// A cost payment in progress ([CR#118.10]): stamped on every
-/// [`Frame`] the payment's own drain runs against (each cost-eligible verb,
+/// [`ExecutionFrame`] the payment's own drain runs against (each cost-eligible verb,
 /// each toll component), never on the frame of what comes AFTER a payment
 /// (`if_did`/`if_not`) — those name the CONSEQUENCE, not the payment. `id` is a
 /// fresh monotonic id minted once per
 /// payment ([`crate::state::GameState::mint_payment`]) and shared by every
-/// `Frame` in that one payment's drain — the representation [CR#118.10]
+/// `ExecutionFrame` in that one payment's drain — the representation [CR#118.10]
 /// needs to be checkable ("a payment... applies to only one spell, ability,
 /// or effect"; no event belongs to two payments), though nothing reads it
 /// back yet ([CR#118.10] correction — see the T4 brief). Presence alone
@@ -181,24 +181,24 @@ pub struct Payment {
 /// live in the activation table; cloning a frame never clones the region's
 /// register file.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Frame {
+pub struct ExecutionFrame {
     /// The one shared activation record for this region entry.
     pub activation: crate::activation::ActivationId,
     /// `Some` iff this frame is running as part of a cost payment's drain
     /// ([CR#118.10]) — see [`Payment`]. `None` (the default, via
-    /// [`Frame::bare`]) keeps every existing `Cause::*` construction exactly
+    /// [`ExecutionFrame::bare`]) keeps every existing `Cause::*` construction exactly
     /// as `Agency::EffectInstruction`.
     pub payment: Option<Payment>,
 }
 
-impl Frame {
+impl ExecutionFrame {
     /// A bare resolution frame: the exophoric `source`/`controller`, no trigger
     /// snapshot (a spell frame's source parameter reads the live `source`), no
     /// combat defender, and not a payment. The common
     /// starting shape for gate/payability/instant frames.
     #[must_use]
     pub fn bare(source: ObjectId, controller: PlayerId) -> Self {
-        Frame {
+        ExecutionFrame {
             activation: crate::activation::ActivationId::bare(source, controller),
             payment: None,
         }

@@ -3,6 +3,6 @@ KeywordAction(
     spelling: "cloak",
     grammar: Verb(
         bare: "cloak",
-        valence: Transitive,
+        frame_set: Transitive,
     ),
 )

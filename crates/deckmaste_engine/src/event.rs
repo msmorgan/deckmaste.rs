@@ -822,7 +822,7 @@ pub enum GameEvent {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ActContents {
     pub body: deckmaste_core::Instruction,
-    pub frame: crate::stack::Frame,
+    pub frame: crate::stack::ExecutionFrame,
 }
 
 /// How a permanent enters the battlefield ([CR#110.5] status; face-down is

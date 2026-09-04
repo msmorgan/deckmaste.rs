@@ -34,7 +34,7 @@ use deckmaste_engine::CardId;
 use deckmaste_engine::DamageDealt;
 use deckmaste_engine::Decision;
 use deckmaste_engine::DecisionPointKind;
-use deckmaste_engine::Frame;
+use deckmaste_engine::ExecutionFrame;
 use deckmaste_engine::GameConfig;
 use deckmaste_engine::GameState;
 use deckmaste_engine::LifeGained;
@@ -581,7 +581,7 @@ fn resolve_and_drive(state: &mut GameState, effect: Instruction, source: ObjectI
     let controller = state.objects.obj(source).controller;
     state.agenda.push_front(WorkItem::RunEffect {
         effect: Arc::new(effect),
-        frame: Frame::bare(source, controller),
+        frame: ExecutionFrame::bare(source, controller),
     });
     drive(state);
 }
@@ -671,7 +671,7 @@ fn regenerate_effect(subject_ref: Reference) -> Instruction {
 /// Resolve `effect` as an activated ability of `source` ([CR#602.2a]), then
 /// drive until stable — the region-anchored twin of [`resolve_and_drive`].
 ///
-/// A `Let` destination is a register WRITE and `Frame::bare` carries no stored
+/// A `Let` destination is a register WRITE and `ExecutionFrame::bare` carries no stored
 /// register file, so a body that pins a product has to run under a real region
 /// entry. Putting the body on the stack as an activated ability is the
 /// production path that mints one; `resolve_and_drive`'s bare frame would

@@ -3,6 +3,6 @@ KeywordAction(
     spelling: "meld",
     grammar: Verb(
         bare: "meld",
-        valence: Transitive,
+        frame_set: Transitive,
     ),
 )

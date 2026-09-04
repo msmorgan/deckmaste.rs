@@ -3,6 +3,6 @@ KeywordAction(
     spelling: "endure",
     grammar: Verb(
         bare: "endure",
-        valence: Numerative,
+        frame_set: MeasureComplement,
     ),
 )

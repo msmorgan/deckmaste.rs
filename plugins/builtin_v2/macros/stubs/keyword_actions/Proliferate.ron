@@ -3,6 +3,6 @@ KeywordAction(
     spelling: "proliferate",
     grammar: Verb(
         bare: "proliferate",
-        valence: Intransitive,
+        frame_set: Intransitive,
     ),
 )

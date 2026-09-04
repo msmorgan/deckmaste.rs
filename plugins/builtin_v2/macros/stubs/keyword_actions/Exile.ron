@@ -4,7 +4,7 @@ KeywordAction(
     grammar: Verb(
         bare: "exile",
         participle: "exiled",
-        valence: Custom(shapes: [
+        frame_set: Custom(frames: [
             [ObjectNounPhrase],
             [ObjectNounPhrase, PredicativeComplement],
         ]),

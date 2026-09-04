@@ -8,7 +8,7 @@ use deckmaste_core::Condition;
 use deckmaste_core::PhaseStep;
 
 use crate::player::PlayerId;
-use crate::stack::Frame;
+use crate::stack::ExecutionFrame;
 use crate::state::GameState;
 
 impl GameState {
@@ -21,7 +21,7 @@ impl GameState {
     /// the trigger-fire gate build a minimal frame from what is known then (no
     /// targets), and the resolution recheck of an intervening-if ([CR#603.4])
     /// passes the resolving entry's full frame.
-    pub(crate) fn condition_holds(&self, cond: &Condition, frame: &Frame) -> bool {
+    pub(crate) fn condition_holds(&self, cond: &Condition, frame: &ExecutionFrame) -> bool {
         let you = frame.controller(self);
         match cond {
             // "if you control a creature" / "if a creature is on the battlefield"
@@ -284,7 +284,7 @@ mod tests {
     use crate::lki::LkiSnapshot;
     use crate::object::ObjectSource;
     use crate::player::PlayerId;
-    use crate::stack::Frame;
+    use crate::stack::ExecutionFrame;
     use crate::state::GameConfig;
     use crate::state::GameState;
     use crate::state::PlayerConfig;
@@ -657,7 +657,7 @@ mod tests {
                 "the dying object's id is stale after removal"
             );
 
-            let mut frame = Frame::bare(bear, PlayerId(0));
+            let mut frame = ExecutionFrame::bare(bear, PlayerId(0));
             state.frame_set_source_lki(&mut frame, Some(snapshot));
             let cond = Condition::Matches(
                 Reference::Reg(deckmaste_core::RefId(0)),

@@ -1283,12 +1283,12 @@ pub mod declaration_verb_fixture {
                         .then_some((declaration, grammar))
                 })
                 .filter(|(declaration, grammar)| {
-                    let deckmaste_construction_core::macro_def::GrammarRecipe::Verb { valence } =
+                    let deckmaste_construction_core::macro_def::GrammarRecipe::Verb { frame_set } =
                         grammar.recipe()
                     else {
                         return false;
                     };
-                    fixture_frames_for(declaration.identity().name(), valence)
+                    fixture_frames_for(declaration.identity().name(), frame_set)
                         .contains(&frame.atoms())
                 })
                 .filter_map(|(declaration, grammar)| {
@@ -1331,10 +1331,10 @@ pub mod declaration_verb_fixture {
 
     fn fixture_frames_for(
         name: &str,
-        valence: &deckmaste_construction_core::macro_def::VerbValence,
+        frame_set: &deckmaste_construction_core::macro_def::VerbFrameSet,
     ) -> &'static [&'static [VerbFrameAtom]] {
         use deckmaste_construction_core::macro_def::CustomTailAtom;
-        use deckmaste_construction_core::macro_def::VerbValence;
+        use deckmaste_construction_core::macro_def::VerbFrameSet;
 
         const EMPTY: &[VerbFrameAtom] = &[];
         const OBJECT: &[VerbFrameAtom] = &[VerbFrameAtom::ObjectNounPhrase];
@@ -1344,25 +1344,25 @@ pub mod declaration_verb_fixture {
         const EXTRA: &[VerbFrameAtom] = &[VerbFrameAtom::Amount, VerbFrameAtom::Literal("extra")];
         const NO_FRAMES: &[&[VerbFrameAtom]] = &[];
         const TRANSITIVE: &[&[VerbFrameAtom]] = &[OBJECT];
-        const NUMERATIVE: &[&[VerbFrameAtom]] = &[AMOUNT];
+        const MEASURE_COMPLEMENT: &[&[VerbFrameAtom]] = &[AMOUNT];
         const SHAPE: &[&[VerbFrameAtom]] = &[EMPTY, AMOUNT];
         const CROSSED_ONLY: &[&[VerbFrameAtom]] = &[CROSSED];
         const DUPLICATED_ONLY: &[&[VerbFrameAtom]] = &[DUPLICATED];
         const EXTRA_ONLY: &[&[VerbFrameAtom]] = &[EXTRA];
 
-        match (name, valence) {
+        match (name, frame_set) {
             (
                 "FirstAct" | "SecondAct" | "Cast" | "MissingAgreement" | "WrongKind",
-                VerbValence::Transitive,
+                VerbFrameSet::Transitive,
             ) => TRANSITIVE,
-            ("FirstAct" | "Count", VerbValence::Numerative) => NUMERATIVE,
-            ("Shape", VerbValence::Custom { shapes })
-                if shapes.as_slice() == [Vec::new(), vec![CustomTailAtom::Amount]] =>
+            ("FirstAct" | "Count", VerbFrameSet::MeasureComplement) => MEASURE_COMPLEMENT,
+            ("Shape", VerbFrameSet::Custom { frames })
+                if frames.as_slice() == [Vec::new(), vec![CustomTailAtom::Amount]] =>
             {
                 SHAPE
             }
-            ("Crossed", VerbValence::Custom { shapes })
-                if shapes.as_slice()
+            ("Crossed", VerbFrameSet::Custom { frames })
+                if frames.as_slice()
                     == [vec![
                         CustomTailAtom::ObjectNounPhrase,
                         CustomTailAtom::Amount,
@@ -1370,13 +1370,13 @@ pub mod declaration_verb_fixture {
             {
                 CROSSED_ONLY
             }
-            ("DuplicatedTail", VerbValence::Custom { shapes })
-                if shapes.as_slice() == [vec![CustomTailAtom::Amount, CustomTailAtom::Amount]] =>
+            ("DuplicatedTail", VerbFrameSet::Custom { frames })
+                if frames.as_slice() == [vec![CustomTailAtom::Amount, CustomTailAtom::Amount]] =>
             {
                 DUPLICATED_ONLY
             }
-            ("Extra", VerbValence::Custom { shapes })
-                if shapes.as_slice()
+            ("Extra", VerbFrameSet::Custom { frames })
+                if frames.as_slice()
                     == [vec![
                         CustomTailAtom::Amount,
                         CustomTailAtom::Literal("extra".to_owned()),
@@ -1402,7 +1402,7 @@ pub mod declaration_verb_fixture {
                 feature = Agreement;
             }
         }
-        codec NumerativeVerb {
+        codec MeasureComplementVerb {
             generate declaration_verb {
                 position = Verb;
                 tail = [Amount];
@@ -1431,13 +1431,13 @@ pub mod declaration_verb_fixture {
             derive head.agreement = Values::Bare;
             form transitive = verb(head) lex(object);
         }
-        construction numerative: NumerativePhrase {
-            element Numerative {
-                head: lex NumerativeVerb,
+        construction measure_complement: MeasureComplementPhrase {
+            element MeasureComplement {
+                head: lex MeasureComplementVerb,
                 amount: lex AmountWord,
             }
             derive head.agreement = Values::Bare;
-            form numerative = verb(head) lex(amount);
+            form measure_complement = verb(head) lex(amount);
         }
         construction intransitive: IntransitivePhrase {
             element Intransitive { head: lex IntransitiveVerb, }
@@ -1452,7 +1452,7 @@ pub mod declaration_verb_fixture {
             form participle = verb(head) lex(object);
         }
         root VerbPhrase { punctuation = "."; eoi = true; standalone_render = true; }
-        root NumerativePhrase { punctuation = "."; eoi = true; standalone_render = true; }
+        root MeasureComplementPhrase { punctuation = "."; eoi = true; standalone_render = true; }
         root IntransitivePhrase { punctuation = "."; eoi = true; standalone_render = true; }
         root ParticiplePhrase { punctuation = "."; eoi = true; standalone_render = true; }
     }
@@ -1469,12 +1469,12 @@ pub mod declaration_verb_fixture {
             if id.kind() != deckmaste_construction_core::macro_def::DeclarationKind::KeywordAction {
                 return false;
             }
-            let Some(deckmaste_construction_core::macro_def::GrammarRecipe::Verb { valence }) =
+            let Some(deckmaste_construction_core::macro_def::GrammarRecipe::Verb { frame_set }) =
                 self.grammar_recipe(id)
             else {
                 return false;
             };
-            fixture_frames_for(id.name(), valence).contains(&frame.atoms())
+            fixture_frames_for(id.name(), frame_set).contains(&frame.atoms())
         }
 
         fn verb_frame_prepositional_adjunct_licensed(
@@ -1486,13 +1486,13 @@ pub mod declaration_verb_fixture {
                 return false;
             };
             self.grammar_recipe(id).is_some_and(|recipe| {
-                let deckmaste_construction_core::macro_def::GrammarRecipe::Verb { valence } =
+                let deckmaste_construction_core::macro_def::GrammarRecipe::Verb { frame_set } =
                     recipe
                 else {
                     return false;
                 };
-                fixture_frames_for(id.name(), valence).contains(&frame.atoms())
-                    && valence.prepositional_adjunct_licensed()
+                fixture_frames_for(id.name(), frame_set).contains(&frame.atoms())
+                    && frame_set.prepositional_adjunct_licensed()
             })
         }
 
@@ -1505,13 +1505,13 @@ pub mod declaration_verb_fixture {
                 return false;
             };
             self.grammar_recipe(id).is_some_and(|recipe| {
-                let deckmaste_construction_core::macro_def::GrammarRecipe::Verb { valence } =
+                let deckmaste_construction_core::macro_def::GrammarRecipe::Verb { frame_set } =
                     recipe
                 else {
                     return false;
                 };
-                fixture_frames_for(id.name(), valence).contains(&frame.atoms())
-                    && valence.nonprepositional_adjunct_licensed()
+                fixture_frames_for(id.name(), frame_set).contains(&frame.atoms())
+                    && frame_set.nonprepositional_adjunct_licensed()
             })
         }
     }
@@ -1536,39 +1536,39 @@ pub mod declaration_verb_fixture {
         vec![
             declaration(
                 "/synthetic/actions/FirstAct.ron",
-                r#"KeywordAction(name:"FirstAct",spelling:"act",grammar:Verb(bare:"act",valence:Transitive))"#,
+                r#"KeywordAction(name:"FirstAct",spelling:"act",grammar:Verb(bare:"act",frame_set:Transitive))"#,
             ),
             declaration(
                 "/synthetic/actions/Cast.ron",
-                r#"KeywordAction(name:"Cast",spelling:"cast",grammar:Verb(bare:"cast",participle:"cast",valence:Transitive))"#,
+                r#"KeywordAction(name:"Cast",spelling:"cast",grammar:Verb(bare:"cast",participle:"cast",frame_set:Transitive))"#,
             ),
             declaration(
                 "/synthetic/actions/SecondAct.ron",
-                r#"KeywordAction(name:"SecondAct",spelling:"act",grammar:Verb(bare:"act",valence:Transitive))"#,
+                r#"KeywordAction(name:"SecondAct",spelling:"act",grammar:Verb(bare:"act",frame_set:Transitive))"#,
             ),
             declaration(
                 "/synthetic/actions/Count.ron",
-                r#"KeywordAction(name:"Count",spelling:"count",grammar:Verb(bare:"count",valence:Numerative))"#,
+                r#"KeywordAction(name:"Count",spelling:"count",grammar:Verb(bare:"count",frame_set:MeasureComplement))"#,
             ),
             declaration(
                 "/synthetic/actions/Shape.ron",
-                r#"KeywordAction(name:"Shape",spelling:"shape",grammar:Verb(bare:"shape",valence:Custom(shapes:[[],[Amount]])))"#,
+                r#"KeywordAction(name:"Shape",spelling:"shape",grammar:Verb(bare:"shape",frame_set:Custom(frames:[[],[Amount]])))"#,
             ),
             declaration(
                 "/synthetic/actions/Crossed.ron",
-                r#"KeywordAction(name:"Crossed",spelling:"cross",grammar:Verb(bare:"cross",valence:Custom(shapes:[[ObjectNounPhrase,Amount]])))"#,
+                r#"KeywordAction(name:"Crossed",spelling:"cross",grammar:Verb(bare:"cross",frame_set:Custom(frames:[[ObjectNounPhrase,Amount]])))"#,
             ),
             declaration(
                 "/synthetic/actions/DuplicatedTail.ron",
-                r#"KeywordAction(name:"DuplicatedTail",spelling:"double",grammar:Verb(bare:"double",valence:Custom(shapes:[[Amount,Amount]])))"#,
+                r#"KeywordAction(name:"DuplicatedTail",spelling:"double",grammar:Verb(bare:"double",frame_set:Custom(frames:[[Amount,Amount]])))"#,
             ),
             declaration(
                 "/synthetic/actions/Extra.ron",
-                r#"KeywordAction(name:"Extra",spelling:"extend",grammar:Verb(bare:"extend",valence:Custom(shapes:[[Amount,Literal("extra")]])))"#,
+                r#"KeywordAction(name:"Extra",spelling:"extend",grammar:Verb(bare:"extend",frame_set:Custom(frames:[[Amount,Literal("extra")]])))"#,
             ),
             declaration(
                 "/synthetic/actions/WrongKind.ron",
-                r#"KeywordAbility(name:"WrongKind",spelling:"mimic",grammar:Verb(bare:"mimic",valence:Transitive))"#,
+                r#"KeywordAbility(name:"WrongKind",spelling:"mimic",grammar:Verb(bare:"mimic",frame_set:Transitive))"#,
             ),
             declaration(
                 "/synthetic/actions/WrongPosition.ron",
@@ -1576,7 +1576,7 @@ pub mod declaration_verb_fixture {
             ),
             declaration(
                 "/synthetic/actions/MissingAgreement.ron",
-                r#"KeywordAction(name:"MissingAgreement",spelling:"wane",grammar:Verb(bare:"wane",third_person:Unavailable,valence:Transitive))"#,
+                r#"KeywordAction(name:"MissingAgreement",spelling:"wane",grammar:Verb(bare:"wane",third_person:Unavailable,frame_set:Transitive))"#,
             ),
         ]
     }
@@ -1663,7 +1663,7 @@ pub mod declaration_verb_fixture {
                     verb: TransitiveVerb::Declaration(value),
                     ..
                 } => Some(declaration_id(value.reference()).name().to_owned()),
-                Leaf::NumerativeVerb { verb, .. } => {
+                Leaf::MeasureComplementVerb { verb, .. } => {
                     Some(declaration_id(verb.reference()).name().to_owned())
                 }
                 Leaf::IntransitiveVerb { verb, .. } => {
@@ -1892,10 +1892,14 @@ pub mod declaration_verb_fixture {
         assert!(
             DeclarationTransitiveVerb::new(&environment, id(&environment, "FirstAct")).is_some()
         );
-        assert!(DeclarationNumerativeVerb::new(&environment, id(&environment, "Count")).is_some());
+        assert!(
+            DeclarationMeasureComplementVerb::new(&environment, id(&environment, "Count"))
+                .is_some()
+        );
         assert!(DeclarationTransitiveVerb::new(&environment, id(&environment, "Count")).is_none());
         assert!(
-            DeclarationNumerativeVerb::new(&environment, id(&environment, "FirstAct")).is_none()
+            DeclarationMeasureComplementVerb::new(&environment, id(&environment, "FirstAct"))
+                .is_none()
         );
         assert!(
             DeclarationTransitiveVerb::new(&environment, id(&environment, "WrongKind")).is_none()
@@ -1915,7 +1919,7 @@ pub mod declaration_verb_fixture {
 
         let absent = environment_from_sources(vec![declaration(
             "/disposable/Absent.ron",
-            r#"KeywordAction(name:"Absent",spelling:"absent",grammar:Verb(bare:"absent",valence:Transitive))"#,
+            r#"KeywordAction(name:"Absent",spelling:"absent",grammar:Verb(bare:"absent",frame_set:Transitive))"#,
         )]);
         assert!(DeclarationTransitiveVerb::new(&environment, id(&absent, "Absent")).is_none());
     }
@@ -1923,7 +1927,7 @@ pub mod declaration_verb_fixture {
     pub(crate) fn run_custom_shapes() {
         let environment = environment();
         let transitive = first_terminal(RuleId::VerbPhraseTransitive);
-        let numerative = first_terminal(RuleId::NumerativePhraseNumerative);
+        let measure_complement = first_terminal(RuleId::MeasureComplementPhraseMeasureComplement);
         let intransitive = first_terminal(RuleId::IntransitivePhraseIntransitive);
 
         assert_eq!(
@@ -1931,14 +1935,17 @@ pub mod declaration_verb_fixture {
             ["Shape"]
         );
         assert_eq!(
-            scanned_declaration_names(&environment, "Shape one.", numerative),
+            scanned_declaration_names(&environment, "Shape one.", measure_complement),
             ["Shape"]
         );
         assert!(scanned_declaration_names(&environment, "Shape object.", transitive).is_empty());
         assert!(
             DeclarationIntransitiveVerb::new(&environment, id(&environment, "Shape")).is_some()
         );
-        assert!(DeclarationNumerativeVerb::new(&environment, id(&environment, "Shape")).is_some());
+        assert!(
+            DeclarationMeasureComplementVerb::new(&environment, id(&environment, "Shape"))
+                .is_some()
+        );
         assert!(DeclarationTransitiveVerb::new(&environment, id(&environment, "Shape")).is_none());
 
         for (name, surface) in [
@@ -1946,7 +1953,7 @@ pub mod declaration_verb_fixture {
             ("DuplicatedTail", "Double"),
             ("Extra", "Extend"),
         ] {
-            for terminal in [intransitive, numerative, transitive] {
+            for terminal in [intransitive, measure_complement, transitive] {
                 assert!(
                     scanned_declaration_names(&environment, surface, terminal).is_empty(),
                     "{name} must not enter a construction with a merely similar tail",
@@ -1954,13 +1961,15 @@ pub mod declaration_verb_fixture {
             }
             let declaration = id(&environment, name);
             assert!(DeclarationIntransitiveVerb::new(&environment, declaration.clone()).is_none());
-            assert!(DeclarationNumerativeVerb::new(&environment, declaration.clone()).is_none());
+            assert!(
+                DeclarationMeasureComplementVerb::new(&environment, declaration.clone()).is_none()
+            );
             assert!(DeclarationTransitiveVerb::new(&environment, declaration).is_none());
         }
 
         let unsupported = deckmaste_construction_core::macro_def::read_sources(vec![declaration(
             "/disposable/Unsupported.ron",
-            r#"KeywordAction(name:"Unsupported",spelling:"unsupported",grammar:Verb(bare:"unsupported",valence:Custom(shapes:[[Clause]])))"#,
+            r#"KeywordAction(name:"Unsupported",spelling:"unsupported",grammar:Verb(bare:"unsupported",frame_set:Custom(frames:[[Clause]])))"#,
         )]);
         assert!(
             unsupported.is_err(),
@@ -2005,13 +2014,14 @@ pub mod declaration_verb_fixture {
     pub(crate) fn run_open_only_runtime_boundaries() {
         let environment = environment();
         let context = ParseContext::default();
-        let (verb_terminal, amount_terminal) = rule_terminals(RuleId::NumerativePhraseNumerative);
+        let (verb_terminal, amount_terminal) =
+            rule_terminals(RuleId::MeasureComplementPhraseMeasureComplement);
         let verbs = scan(&environment, &context, "Count one.", verb_terminal);
         let amounts = scan(&environment, &context, "One.", amount_terminal);
         let [verb] = verbs.as_slice() else {
-            panic!("the open-only numerative codec yields exactly one Count identity")
+            panic!("the open-only measure_complement codec yields exactly one Count identity")
         };
-        let Leaf::NumerativeVerb {
+        let Leaf::MeasureComplementVerb {
             verb: identity,
             agreement: Agreement::Bare,
             onset: deckmaste_construction_core::macro_def::Onset::Consonant,
@@ -2032,10 +2042,10 @@ pub mod declaration_verb_fixture {
         );
 
         let [amount] = amounts.as_slice() else {
-            panic!("the numerative tail yields exactly one amount word")
+            panic!("the measure_complement tail yields exactly one amount word")
         };
         let value = build(
-            RuleId::NumerativePhraseNumerative,
+            RuleId::MeasureComplementPhraseMeasureComplement,
             &[
                 BuildValue::Leaf(verb.value.clone()),
                 BuildValue::Leaf(amount.value.clone()),
@@ -2043,10 +2053,10 @@ pub mod declaration_verb_fixture {
             &context,
         )
         .expect("the open-only declaration verb builds through its generated rule");
-        let BuildValue::NumerativePhrase(phrase, _) = value else {
-            panic!("the generated rule builds its numerative category")
+        let BuildValue::MeasureComplementPhrase(phrase, _) = value else {
+            panic!("the generated rule builds its measure_complement category")
         };
-        let NumerativePhrase::Numerative(stored) = &phrase;
+        let MeasureComplementPhrase::MeasureComplement(stored) = &phrase;
         assert_eq!(declaration_id(stored.head.reference()).name(), "Count");
         assert_eq!(
             Render::render(&phrase, &context, &environment),
@@ -2054,7 +2064,7 @@ pub mod declaration_verb_fixture {
         );
 
         let mut recorder = Recorder(Vec::new());
-        walk_numerative_phrase(&mut recorder, &phrase);
+        walk_measure_complement_phrase(&mut recorder, &phrase);
         assert_eq!(
             recorder.0,
             [
@@ -2064,7 +2074,7 @@ pub mod declaration_verb_fixture {
         );
 
         let (rendered, claims) =
-            render_numerative_phrase_with_claims(&phrase, &context, &environment);
+            render_measure_complement_phrase_with_claims(&phrase, &context, &environment);
         assert_eq!(rendered, "Count one.");
         assert_eq!(
             claims
@@ -2074,13 +2084,13 @@ pub mod declaration_verb_fixture {
             [
                 (0, 5, "lexeme:keyword_action/Count/bare"),
                 (5, 9, "vocab:AmountWord/One"),
-                (9, 10, "root:NumerativePhrase/punctuation"),
+                (9, 10, "root:MeasureComplementPhrase/punctuation"),
             ],
             "open-only rendering owns one exact disjoint complete lexical partition",
         );
     }
 
-    pub(crate) fn run_valence_perturbation() {
+    pub(crate) fn run_frame_set_perturbation() {
         let baseline_sources = sources();
         let baseline_bytes = baseline_sources
             .iter()
@@ -2088,32 +2098,33 @@ pub mod declaration_verb_fixture {
             .expect("the perturbed declaration exists")
             .source
             .clone();
-        assert_eq!(baseline_bytes.matches("valence:Transitive").count(), 1);
+        assert_eq!(baseline_bytes.matches("frame_set:Transitive").count(), 1);
 
         let baseline = environment_from_sources(baseline_sources.clone());
         let transitive = first_terminal(RuleId::VerbPhraseTransitive);
-        let numerative = first_terminal(RuleId::NumerativePhraseNumerative);
+        let measure_complement = first_terminal(RuleId::MeasureComplementPhraseMeasureComplement);
         assert_eq!(
             scanned_declaration_names(&baseline, "Act object.", transitive),
             ["FirstAct", "SecondAct"]
         );
-        assert!(scanned_declaration_names(&baseline, "Act one.", numerative).is_empty());
+        assert!(scanned_declaration_names(&baseline, "Act one.", measure_complement).is_empty());
 
         let mut perturbed_sources = baseline_sources.clone();
         let perturbed = perturbed_sources
             .iter_mut()
             .find(|source| source.path.ends_with("FirstAct.ron"))
             .expect("the disposable declaration copy exists");
-        perturbed.source = perturbed
-            .source
-            .replacen("valence:Transitive", "valence:Numerative", 1);
+        perturbed.source =
+            perturbed
+                .source
+                .replacen("frame_set:Transitive", "frame_set:MeasureComplement", 1);
         let perturbed_environment = environment_from_sources(perturbed_sources.clone());
         assert_eq!(
             scanned_declaration_names(&perturbed_environment, "Act object.", transitive),
             ["SecondAct"]
         );
         assert_eq!(
-            scanned_declaration_names(&perturbed_environment, "Act one.", numerative),
+            scanned_declaration_names(&perturbed_environment, "Act one.", measure_complement),
             ["FirstAct"]
         );
 
@@ -2136,7 +2147,7 @@ pub mod declaration_verb_fixture {
             scanned_declaration_names(&restored, "Act object.", transitive),
             ["FirstAct", "SecondAct"]
         );
-        assert!(scanned_declaration_names(&restored, "Act one.", numerative).is_empty());
+        assert!(scanned_declaration_names(&restored, "Act one.", measure_complement).is_empty());
     }
 }
 
@@ -3928,7 +3939,7 @@ pub mod fixture {
                 } else {
                     assert!(
                         built.is_none(),
-                        "rule {rule_index} accepted same-shape partition value {value_index}",
+                        "rule {rule_index} accepted same-frame partition value {value_index}",
                     );
                 }
             }
@@ -7358,8 +7369,8 @@ fn declaration_verb_open_only_codec_crosses_every_runtime_boundary() {
 }
 
 #[test]
-fn declaration_verb_valence_perturbation_moves_frame_availability() {
-    declaration_verb_fixture::run_valence_perturbation();
+fn declaration_verb_frame_set_perturbation_moves_frame_availability() {
+    declaration_verb_fixture::run_frame_set_perturbation();
 }
 
 #[test]

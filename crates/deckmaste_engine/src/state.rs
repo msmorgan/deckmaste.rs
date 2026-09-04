@@ -166,7 +166,7 @@ pub enum DecisionContinuation {
     /// continue with `if_none` when the choice produced no objects.
     BindChoice {
         dest: deckmaste_core::DefId,
-        frame: crate::stack::Frame,
+        frame: crate::stack::ExecutionFrame,
         if_none: deckmaste_core::Block,
     },
     BindNumber {
@@ -181,13 +181,13 @@ pub enum DecisionContinuation {
     /// then `if_did`; false → `if_not` (or nothing).
     May {
         may: deckmaste_core::May,
-        frame: crate::stack::Frame,
+        frame: crate::stack::ExecutionFrame,
     },
     /// A `ChooseModes` answer for `Instruction::Modal` ([CR#700.2]): run the
     /// chosen modes' effects in the order they were picked.
     Modal {
         modes: Vec<deckmaste_core::Mode>,
-        frame: crate::stack::Frame,
+        frame: crate::stack::ExecutionFrame,
     },
     /// [CR#401.4]: walking the post-pick arrange decisions — `current` is the
     /// pile whose order choice is open, `remaining` the piles still to arrange.
@@ -487,7 +487,7 @@ pub struct GameImage {
     /// cost payment a scheduler starts (`crate::cast::pay_cost`'s spell/
     /// activation arms, the `May(Pay)` toll path, an `AdditionalCost` arm)
     /// mints one fresh id here (`mint_payment`) and stamps it on every
-    /// `Frame` that payment's drain runs against
+    /// `ExecutionFrame` that payment's drain runs against
     /// ([`crate::stack::Payment`]). Deliberately separate from `next_batch`
     /// — a batch is [CR#603.2c] SIMULTANEITY grouping, a wholly different
     /// concept from a payment; conflating them would corrupt history reads.
@@ -792,7 +792,7 @@ impl GameState {
 
     /// Mints a fresh [`crate::stack::Payment`] id ([CR#118.10]) — call
     /// ONCE per cost payment (never per verb) and stamp the result on every
-    /// `Frame` that payment's drain runs against, so the whole payment
+    /// `ExecutionFrame` that payment's drain runs against, so the whole payment
     /// shares one id.
     pub(crate) fn mint_payment(&mut self) -> crate::stack::Payment {
         let id = self.next_payment;
@@ -1188,7 +1188,10 @@ impl GameState {
         for (i, s) in self.shields.iter().enumerate() {
             if let ForAsLongAs(cond) = &s.duration
                 && let Some(obj) = self.objects.get(s.source)
-                && !self.condition_holds(cond, &crate::stack::Frame::bare(s.source, obj.controller))
+                && !self.condition_holds(
+                    cond,
+                    &crate::stack::ExecutionFrame::bare(s.source, obj.controller),
+                )
             {
                 drop_sh[i] = true;
             }

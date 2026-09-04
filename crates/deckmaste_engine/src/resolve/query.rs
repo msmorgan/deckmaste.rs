@@ -9,7 +9,7 @@ use slotmap::Key;
 
 use crate::object::ObjectId;
 use crate::object::ObjectSource;
-use crate::stack::Frame;
+use crate::stack::ExecutionFrame;
 use crate::state::GameState;
 
 impl GameState {
@@ -35,7 +35,11 @@ impl GameState {
     ///
     /// Panics if `who` resolves to a non-player object — a player verb's agent
     /// must be a player ([CR#608.2]).
-    pub(crate) fn acting_player(&self, who: &Reference, frame: &Frame) -> crate::player::PlayerId {
+    pub(crate) fn acting_player(
+        &self,
+        who: &Reference,
+        frame: &ExecutionFrame,
+    ) -> crate::player::PlayerId {
         let object = self.eval_reference(who, frame);
         match self.objects.get(object).map(|o| o.source) {
             Some(ObjectSource::Player(p)) => p,
@@ -53,7 +57,7 @@ impl GameState {
     pub(crate) fn eval_player_ref(
         &self,
         reference: &Reference,
-        frame: &Frame,
+        frame: &ExecutionFrame,
     ) -> Option<crate::player::PlayerId> {
         let id = self.eval_reference(reference, frame);
         match self.objects.get(id).map(|o| o.source) {
@@ -70,7 +74,7 @@ impl GameState {
         &self,
         quantity: &deckmaste_core::Quantity,
         n: usize,
-        frame: &Frame,
+        frame: &ExecutionFrame,
     ) -> (Uint, Uint) {
         let cap = Uint::try_from(n).expect("candidate count fits Uint");
         let ev = |c: &Count| self.eval_count(c, frame).min(cap);
@@ -87,7 +91,7 @@ impl GameState {
     /// excluded ([CR#608.2b] partial fizzle; mirrors `StatePredicate::Targets`
     /// ignoring a gone target), so a wholly-departed slot reads empty and its
     /// verb no-ops. An out-of-range index reads empty (never-crash).
-    fn live_target_slot(&self, frame: &Frame, n: usize) -> Vec<ObjectId> {
+    fn live_target_slot(&self, frame: &ExecutionFrame, n: usize) -> Vec<ObjectId> {
         self.activation_target_objects(frame.activation, n)
             .into_iter()
             .filter(|&target| self.objects.get(target).is_some())
@@ -107,7 +111,7 @@ impl GameState {
     /// `None` when the reference names no live stack entry (the caller
     /// fizzles). An entry with no target slots yields the EMPTY set: it could
     /// target nothing.
-    fn could_target_set(&self, spell: &Reference, frame: &Frame) -> Option<Vec<ObjectId>> {
+    fn could_target_set(&self, spell: &Reference, frame: &ExecutionFrame) -> Option<Vec<ObjectId>> {
         let id = self.eval_reference(spell, frame);
         let entry = self.stack.iter().find(|e| e.id == id)?;
         let view = self.layers();
@@ -130,7 +134,11 @@ impl GameState {
     /// `They`/`TheGroup`/`TopOfLibrary` name an already-bound group. A
     /// per-object instruction runs over this set via an enclosing `Each`/
     /// `Distribute`/`With`, never the verb itself.
-    pub(crate) fn eval_selection_set(&self, sel: &Selection, frame: &Frame) -> Vec<ObjectId> {
+    pub(crate) fn eval_selection_set(
+        &self,
+        sel: &Selection,
+        frame: &ExecutionFrame,
+    ) -> Vec<ObjectId> {
         match sel {
             Selection::Reg(reference) => {
                 let values = self.activation_objects(frame.activation, *reference);
@@ -360,7 +368,11 @@ impl GameState {
     /// vector keeps the verb arms' batch-shaped `.into_iter()…` bodies; null
     /// and departed current-only patients become the empty set so no action
     /// event is constructed for them ([CR#608.2b]).
-    pub(crate) fn eval_reference_set(&self, reference: &Reference, frame: &Frame) -> Vec<ObjectId> {
+    pub(crate) fn eval_reference_set(
+        &self,
+        reference: &Reference,
+        frame: &ExecutionFrame,
+    ) -> Vec<ObjectId> {
         let object = self.eval_reference(reference, frame);
         self.objects
             .get(object)
@@ -374,7 +386,7 @@ impl GameState {
     pub(crate) fn eval_reference_product(
         &self,
         reference: &Reference,
-        frame: &Frame,
+        frame: &ExecutionFrame,
     ) -> crate::activation::ReferenceProduct {
         if let Reference::Reg(register) = reference {
             let product = self
@@ -409,7 +421,7 @@ impl GameState {
     /// anaphor, or an `AttachHostOf`/`AttachedTo` over an
     /// attachment/host with no live link (the reference is only well-defined
     /// where the relation is established).
-    pub(crate) fn eval_reference(&self, reference: &Reference, frame: &Frame) -> ObjectId {
+    pub(crate) fn eval_reference(&self, reference: &Reference, frame: &ExecutionFrame) -> ObjectId {
         match reference {
             Reference::Reg(_) => {
                 let product = self.eval_reference_product(reference, frame);

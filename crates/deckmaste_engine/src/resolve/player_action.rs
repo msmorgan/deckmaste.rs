@@ -37,7 +37,7 @@ use crate::event::Revealed;
 use crate::event::Tapped;
 use crate::event::TokenCreated;
 use crate::event::ZoneChange;
-use crate::stack::Frame;
+use crate::stack::ExecutionFrame;
 use crate::state::GameState;
 
 /// "Any color" ([CR#106.1b]): the five colors ([CR#105.1]) — a player asked to
@@ -60,7 +60,11 @@ impl GameState {
         clippy::too_many_lines,
         reason = "one arm per player verb; splitting would scatter the dispatch"
     )]
-    pub(super) fn player_action_items(&self, action: &Action, frame: &Frame) -> Vec<WorkItem> {
+    pub(super) fn player_action_items(
+        &self,
+        action: &Action,
+        frame: &ExecutionFrame,
+    ) -> Vec<WorkItem> {
         use crate::event::Occurrence;
         // [CR#601.2h]: a cost-eligible verb performed to pay a cost is that
         // AGENCY, not a plain effect instruction — see the mirrored
@@ -2050,7 +2054,7 @@ mod tests {
     fn run_test_region(
         state: &mut GameState,
         region: &deckmaste_core::Region,
-        mut frame: crate::stack::Frame,
+        mut frame: crate::stack::ExecutionFrame,
     ) {
         frame.activation = state.enter_region(region, &frame);
         for instruction in region.body.iter().cloned() {

@@ -4,6 +4,6 @@ KeywordAction(
     grammar: Verb(
         bare: "regenerate",
         participle: "regenerated",
-        valence: Transitive,
+        frame_set: Transitive,
     ),
 )

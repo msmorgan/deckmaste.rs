@@ -159,7 +159,7 @@ pub(crate) fn distinct_siblings(spec: &TargetSpec) -> &[usize] {
 
 /// A LITERAL target-count bound the count check can evaluate frameless — the
 /// count twin of the frameless `target::const_count`. A dynamic bound (`X`,
-/// `CountOf`, …) would need a carrier `Frame` the set-level sites don't hold.
+/// `CountOf`, …) would need a carrier `ExecutionFrame` the set-level sites don't hold.
 ///
 /// AUDITED invariant (engine-candidate-frame-context), not a guess: every
 /// `TargetSpec` `Quantity` bound across the corpus (canon, builtin, demo,
@@ -176,7 +176,7 @@ fn const_target_count(count: &Count) -> Uint {
             debug_assert!(
                 false,
                 "engine invariant violated: dynamic target-count bound {other:?} — no corpus \
-                 TargetSpec uses one; a carrier Frame would be needed to evaluate it"
+                 TargetSpec uses one; a carrier ExecutionFrame would be needed to evaluate it"
             );
             0
         }

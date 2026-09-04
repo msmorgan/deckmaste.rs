@@ -3,6 +3,6 @@ KeywordAction(
     spelling: "counter",
     grammar: Verb(
         bare: "counter",
-        valence: Transitive,
+        frame_set: Transitive,
     ),
 )

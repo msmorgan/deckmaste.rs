@@ -3,6 +3,6 @@ KeywordAction(
     spelling: "planeswalk",
     grammar: Verb(
         bare: "planeswalk",
-        valence: Intransitive,
+        frame_set: Intransitive,
     ),
 )

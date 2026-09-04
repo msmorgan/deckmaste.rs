@@ -3,6 +3,6 @@ KeywordAction(
     spelling: "play",
     grammar: Verb(
         bare: "play",
-        valence: Transitive,
+        frame_set: Transitive,
     ),
 )

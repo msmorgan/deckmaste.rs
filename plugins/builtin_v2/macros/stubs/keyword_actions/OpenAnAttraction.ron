@@ -4,6 +4,6 @@ KeywordAction(
     grammar: Verb(
         bare: "open an Attraction",
         third_person: "opens an Attraction",
-        valence: Intransitive,
+        frame_set: Intransitive,
     ),
 )

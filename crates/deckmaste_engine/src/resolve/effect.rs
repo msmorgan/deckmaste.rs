@@ -34,7 +34,7 @@ use crate::layer::ContinuousEffect;
 use crate::layer::ScopeResolved;
 use crate::object::ObjectId;
 use crate::object::ObjectSource;
-use crate::stack::Frame;
+use crate::stack::ExecutionFrame;
 use crate::state::GameState;
 
 impl GameState {
@@ -48,7 +48,7 @@ impl GameState {
         replacement: deckmaste_core::Replacement,
         duration: deckmaste_core::Duration,
         one_shot: bool,
-        frame: &Frame,
+        frame: &ExecutionFrame,
     ) {
         // Same canonical guard the continuous-effect mint uses
         // ([CR#611.2,614.3]): a shield may carry only a SWEEPABLE
@@ -93,7 +93,11 @@ impl GameState {
     /// (a static filter like "creatures you control") locks nothing and is
     /// left unchanged — the row still exists, evaluated against live
     /// objects by its (still-LOUD) reader.
-    fn lock_deontic_subject(&self, deontic: &Deontic, frame: &Frame) -> (Vec<ObjectId>, Deontic) {
+    fn lock_deontic_subject(
+        &self,
+        deontic: &Deontic,
+        frame: &ExecutionFrame,
+    ) -> (Vec<ObjectId>, Deontic) {
         let mut locked = deontic.clone();
         let mut ids = Vec::new();
         for slot in deontic_subject_slots(deontic_action_mut(&mut locked)) {
@@ -111,7 +115,7 @@ impl GameState {
     /// not APPLIED to the destruction, and stays unconsumed); every OTHER rider
     /// kind is LOUD (its enforcement belongs to a future ticket), as is a
     /// `Regenerate` whose `on` is not a bare object reference.
-    fn resolve_no_regen_riders(&self, parts: &[StaticSpec], frame: &Frame) -> Vec<ObjectId> {
+    fn resolve_no_regen_riders(&self, parts: &[StaticSpec], frame: &ExecutionFrame) -> Vec<ObjectId> {
         let mut ids = Vec::new();
         for part in parts {
             let StaticSpec::Deontic(Deontic::Cant(action)) = part else {
@@ -141,7 +145,7 @@ impl GameState {
     fn iteration_selection(
         &mut self,
         selection: &deckmaste_core::Selection,
-        frame: &Frame,
+        frame: &ExecutionFrame,
     ) -> Vec<crate::object::ObjectId> {
         use deckmaste_core::Selection;
 
@@ -186,7 +190,7 @@ impl GameState {
     pub(crate) fn may_cast_referent(
         &self,
         may: &deckmaste_core::May,
-        frame: &Frame,
+        frame: &ExecutionFrame,
     ) -> Option<(
         crate::player::PlayerId,
         crate::object::ObjectId,
@@ -209,7 +213,7 @@ impl GameState {
         clippy::too_many_lines,
         reason = "one arm per effect-frame variant; splitting would scatter the dispatch"
     )]
-    pub(crate) fn run_effect(&mut self, effect: Instruction, frame: &Frame) {
+    pub(crate) fn run_effect(&mut self, effect: Instruction, frame: &ExecutionFrame) {
         match effect {
             Instruction::Act { dest, action } => {
                 // A verb acts on an already-bound `Reference` — choosing is a
@@ -465,7 +469,7 @@ impl GameState {
                     changes: Vec<Modification>,
                     grant_runtimes: Vec<crate::activation::AbilityRuntime>,
                     duration: deckmaste_core::Duration,
-                    origin: Option<Box<Frame>>,
+                    origin: Option<Box<ExecutionFrame>>,
                 }
                 enum Member {
                     Events(Vec<GameEvent>),
@@ -523,7 +527,7 @@ impl GameState {
                             // applies ([CR#608.2h]), and
                             // `resolve_new_controller`'s
                             // apply-time pass only understands `You` anyway (it
-                            // has no Frame to chase a live `Target`/
+                            // has no ExecutionFrame to chase a live `Target`/
                             // `ControllerOf` read) — so Avarice Totem's
                             // exchange resolves and freezes the new controller
                             // here, against the pre-exchange state, rewriting
@@ -1321,7 +1325,7 @@ impl GameState {
     /// WHOLE aggregate here too — no window at all, matching
     /// `composite_items`'s discipline exactly ([CR#701.8a,701.9a,701.17a]) —
     /// never a panic.
-    fn batch_act_head(&self, unit: &BatchUnit<'_>, frame: &Frame) -> Option<BatchActHead> {
+    fn batch_act_head(&self, unit: &BatchUnit<'_>, frame: &ExecutionFrame) -> Option<BatchActHead> {
         use deckmaste_core::Agency;
         let agent = Some((frame.source(self), frame.controller(self)));
         let (name, body) = match unit {
@@ -1458,7 +1462,7 @@ impl GameState {
     fn created_trigger_context(
         &self,
         ability: &deckmaste_core::TriggeredAbility,
-        frame: &Frame,
+        frame: &ExecutionFrame,
     ) -> (ObjectSource, crate::trigger::TriggerBindings) {
         let this = frame
             .source_lki(self)
@@ -1488,7 +1492,7 @@ impl GameState {
     /// it, so the source id was reminted). The declared source register is the
     /// binding to chase — never the newest object in the register file, which
     /// would just as happily hand back an unrelated token the body created.
-    fn moved_source_snapshot(&self, frame: &Frame) -> Option<crate::lki::LkiSnapshot> {
+    fn moved_source_snapshot(&self, frame: &ExecutionFrame) -> Option<crate::lki::LkiSnapshot> {
         let product = self.chase_moved(frame.source(self));
         self.objects
             .get(product)
@@ -1506,7 +1510,7 @@ impl GameState {
     fn scan_created_reflexive(
         &mut self,
         ability: &deckmaste_core::TriggeredAbility,
-        frame: &Frame,
+        frame: &ExecutionFrame,
     ) -> bool {
         let (source, base) = self.created_trigger_context(ability, frame);
         let mut emits = Vec::new();
@@ -1591,7 +1595,7 @@ impl GameState {
     /// an `If`-guarded body looks through to the branch its condition selects.
     /// The move verbs (destroy/discard/mill) vet their coordinates directly in
     /// `composite_items` instead.
-    pub(crate) fn composite_body_would_act(&self, body: &Instruction, frame: &Frame) -> bool {
+    pub(crate) fn composite_body_would_act(&self, body: &Instruction, frame: &ExecutionFrame) -> bool {
         match body {
             Instruction::Each(each) => !self.eval_selection_set(&each.over, frame).is_empty(),
             Instruction::If(i) => {
@@ -1616,7 +1620,7 @@ impl GameState {
     fn price_variable_cost(
         &self,
         cost: Vec<deckmaste_core::CostComponent>,
-        frame: &Frame,
+        frame: &ExecutionFrame,
     ) -> Vec<deckmaste_core::CostComponent> {
         use deckmaste_core::CostComponent;
         use deckmaste_core::ManaSymbol;
@@ -1903,7 +1907,7 @@ mod tests {
     use crate::object::ObjectSource;
     use crate::player::PlayerId;
     use crate::resolve::fixtures::*;
-    use crate::stack::Frame;
+    use crate::stack::ExecutionFrame;
     use crate::stack::StackEntry;
     use crate::stack::StackObject;
     use crate::state::GameState;
@@ -3284,7 +3288,7 @@ mod tests {
         );
         let bare = frame_src(&state, fixture);
         let activation = state.enter_region(&grant_region, &bare);
-        let grant_frame = Frame {
+        let grant_frame = ExecutionFrame {
             activation,
             payment: None,
         };
@@ -3308,7 +3312,7 @@ mod tests {
             panic!("the granted ability is the pending activation")
         };
         let body = ability.effect.body[0].clone();
-        let frame = Frame {
+        let frame = ExecutionFrame {
             activation: pending.activation,
             payment: None,
         };
@@ -5241,7 +5245,7 @@ mod tests {
         state.zones.libraries[p0.index()].push_back(b);
         state.zones.libraries[p0.index()].push_back(c);
         let source = state.player(p0).object;
-        let frame = Frame::bare(source, p0);
+        let frame = ExecutionFrame::bare(source, p0);
 
         // BottomOfLibrary(count:2) → the bottom two, nearest-to-bottom first.
         let bottom2 = state.eval_selection_set(
@@ -5306,7 +5310,7 @@ mod tests {
         state.zones.graveyards[p0.index()].push(b);
         state.zones.graveyards[p0.index()].push(c);
         let source = state.player(p0).object;
-        let frame = Frame::bare(source, p0);
+        let frame = ExecutionFrame::bare(source, p0);
 
         let top1 = state.eval_selection_set(
             &Selection::TopOfGraveyard {
@@ -5333,7 +5337,7 @@ mod tests {
                 count: Count::Literal(1),
                 of: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
             },
-            &Frame::bare(a, p0),
+            &ExecutionFrame::bare(a, p0),
         );
         assert_eq!(
             bad,
@@ -5446,7 +5450,7 @@ mod tests {
     /// A player-anchored frame with a STORED activation (unlike
     /// `frame_for`'s bare one), so a deciding instruction has a register file
     /// to write its product into.
-    fn player_frame(state: &GameState, player: PlayerId) -> crate::stack::Frame {
+    fn player_frame(state: &GameState, player: PlayerId) -> crate::stack::ExecutionFrame {
         frame_src(state, state.player(player).object)
     }
 
@@ -7295,7 +7299,7 @@ mod tests {
             ))
             .into(),
         );
-        let mut reading = Frame::bare(a, PlayerId(0));
+        let mut reading = ExecutionFrame::bare(a, PlayerId(0));
         reading.activation = state.enter_region(&reader, &reading);
         state.run_effect(Instruction::Sequentially(reader.body.0.clone()), &reading);
         run_injected(&mut state);
@@ -7371,7 +7375,7 @@ mod tests {
             ))
             .into(),
         );
-        let mut reading = Frame::bare(other, PlayerId(1));
+        let mut reading = ExecutionFrame::bare(other, PlayerId(1));
         reading.activation = state.enter_region(&reader, &reading);
         state.run_effect(Instruction::Sequentially(reader.body.0.clone()), &reading);
         run_injected(&mut state);

@@ -433,8 +433,8 @@ fn gain_life(amount: Amount) -> VerbPhrase {
     )
     .expect("the core inventory declares Gain with a transitive frame");
     VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
-        frame: Box::new(BaseVerbFrame::TransitiveFrame(Box::new(
-            TransitiveFrame::TransitivePredicate(TransitivePredicate {
+        frame: Box::new(LexicalVerbPhrase::TransitiveLexicalVerbPhrase(Box::new(
+            TransitiveLexicalVerbPhrase::TransitivePredicate(TransitivePredicate {
                 head,
                 object: quantified_mass_object(amount, CommonNoun::Life),
             }),
@@ -487,8 +487,8 @@ fn destroy(object: Object) -> VerbPhrase {
     )
     .expect("the builtin grammar declares transitive Destroy");
     VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
-        frame: Box::new(BaseVerbFrame::TransitiveFrame(Box::new(
-            TransitiveFrame::TransitivePredicate(TransitivePredicate { head, object }),
+        frame: Box::new(LexicalVerbPhrase::TransitiveLexicalVerbPhrase(Box::new(
+            TransitiveLexicalVerbPhrase::TransitivePredicate(TransitivePredicate { head, object }),
         ))),
     })
 }
@@ -504,8 +504,8 @@ fn connive() -> VerbPhrase {
     )
     .expect("the builtin grammar declares intransitive Connive");
     VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
-        frame: Box::new(BaseVerbFrame::IntransitiveFrame(
-            IntransitiveFrame::IntransitivePredicate(IntransitivePredicate { head }),
+        frame: Box::new(LexicalVerbPhrase::IntransitiveLexicalVerbPhrase(
+            IntransitiveLexicalVerbPhrase::IntransitivePredicate(IntransitivePredicate { head }),
         )),
     })
 }
@@ -513,20 +513,25 @@ fn connive() -> VerbPhrase {
 fn declared_action_name(predicate: &VerbPhrase) -> Option<&str> {
     match predicate {
         VerbPhrase::BaseVerbPhrase(BaseVerbPhrase { frame }) => match frame.as_ref() {
-            BaseVerbFrame::IntransitiveFrame(IntransitiveFrame::IntransitivePredicate(
-                IntransitivePredicate { head },
-            )) => match head.reference() {
+            LexicalVerbPhrase::IntransitiveLexicalVerbPhrase(
+                IntransitiveLexicalVerbPhrase::IntransitivePredicate(IntransitivePredicate {
+                    head,
+                }),
+            ) => match head.reference() {
                 VerbInventoryRef::Declaration(id) => Some(id.name()),
                 VerbInventoryRef::Core(_) => None,
             },
-            BaseVerbFrame::TransitiveFrame(transitive_frame) => match transitive_frame.as_ref() {
-                TransitiveFrame::TransitivePredicate(TransitivePredicate { head, .. }) => {
-                    match head.reference() {
+            LexicalVerbPhrase::TransitiveLexicalVerbPhrase(transitive_lexical_verb_phrase) => {
+                match transitive_lexical_verb_phrase.as_ref() {
+                    TransitiveLexicalVerbPhrase::TransitivePredicate(TransitivePredicate {
+                        head,
+                        ..
+                    }) => match head.reference() {
                         VerbInventoryRef::Declaration(id) => Some(id.name()),
                         VerbInventoryRef::Core(_) => None,
-                    }
+                    },
                 }
-            },
+            }
             _ => None,
         },
         _ => None,

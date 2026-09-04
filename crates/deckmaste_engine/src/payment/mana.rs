@@ -19,7 +19,7 @@ use crate::object::ObjectId;
 use crate::object::ObjectSource;
 use crate::player::ManaActionId;
 use crate::player::PlayerId;
-use crate::stack::Frame;
+use crate::stack::ExecutionFrame;
 use crate::stack::StackObject;
 use crate::state::GameState;
 use crate::trigger::TriggerBindings;
@@ -454,7 +454,7 @@ impl GameState {
             "a nested payment activation must announce a lowering-classified mana mode"
         );
 
-        let mut frame = Frame {
+        let mut frame = ExecutionFrame {
             activation: pending.activation,
             payment: None,
         };
@@ -714,7 +714,7 @@ impl GameState {
                 ability: ability_u,
             }),
         );
-        let mut seed = Frame::bare(source, controller);
+        let mut seed = ExecutionFrame::bare(source, controller);
         self.frame_set_source_lki(&mut seed, bindings.this.clone());
         self.frame_set_defending_player(&mut seed, bindings.defending_player);
         self.frame_set_event_bindings(
@@ -724,7 +724,7 @@ impl GameState {
             bindings.that_patient.clone(),
         );
         let activation = self.enter_created_region(&triggered.effect, &seed, &bindings.captures);
-        let mut frame = Frame {
+        let mut frame = ExecutionFrame {
             activation,
             payment: None,
         };

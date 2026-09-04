@@ -149,7 +149,7 @@ pub enum WorkItem {
         /// A `May(Cast)` branch that runs only if its announcement payment is
         /// declined. The successful `if_did` branch rides after `SpellCast`
         /// in the ordinary announce schedule instead.
-        if_not: Option<(Arc<deckmaste_core::Instruction>, Box<crate::stack::Frame>)>,
+        if_not: Option<(Arc<deckmaste_core::Instruction>, Box<crate::stack::ExecutionFrame>)>,
     },
     /// [CR#602.2a,602.2b]: stage a non-mana activated ability — snapshot the
     /// ability text + source LKI into the announce slot. The shared
@@ -292,7 +292,7 @@ pub enum WorkItem {
     /// ([CR#608.2]).
     RunEffect {
         effect: Arc<deckmaste_core::Instruction>,
-        frame: crate::stack::Frame,
+        frame: crate::stack::ExecutionFrame,
     },
     /// [CR#611.2a,701.19c]: install the instruction-scoped "can't be
     /// regenerated" rider for the destroy that runs IMMEDIATELY next. Minted

@@ -14,7 +14,7 @@ use deckmaste_core::Zone;
 
 use crate::object::ObjectId;
 use crate::object::ObjectSource;
-use crate::stack::Frame;
+use crate::stack::ExecutionFrame;
 use crate::stack::StackObject;
 use crate::state::GameState;
 
@@ -238,7 +238,7 @@ pub(crate) fn matches_with_activation(
                 {
                     None => false,
                     Some((carrier, controller)) => {
-                        let mut frame = crate::stack::Frame::bare(carrier, controller);
+                        let mut frame = crate::stack::ExecutionFrame::bare(carrier, controller);
                         if activation != crate::ActivationId::NONE {
                             frame.activation = activation;
                         }
@@ -298,7 +298,7 @@ pub(crate) fn matches_with_activation(
         // armor to express "the enchanted permanent" as the watched subject of
         // a static other-watching replacement ([CR#702.89a]).
         //
-        // Only `inner = This` is resolvable from the carrier alone (no Frame).
+        // Only `inner = This` is resolvable from the carrier alone (no ExecutionFrame).
         // The general `AttachHostOf(inner)` case needs `eval_reference` and is
         // therefore left as a seam.
         Predicate::Ref(Reference::AttachHostOf(inner))
@@ -619,7 +619,7 @@ pub(crate) fn matches_with_activation(
         // may name the register it derives from: resolve it against the same
         // activation record + carrier the `Reg` arm above reads, and match iff
         // it lands on THIS candidate. Unresolvable (a gone register, no
-        // carrier, or a shape needing the selection evaluator's `Frame` —
+        // carrier, or a shape needing the selection evaluator's `ExecutionFrame` —
         // `Single`/`Source`) reads `false`, the same never-crash fizzle
         // `Predicate::Adjacent` takes.
         Predicate::Ref(r) => resolve_frameless_reference(state, r, watcher, activation)
@@ -631,7 +631,7 @@ pub(crate) fn matches_with_activation(
 /// holds: the register file addressed by `activation` plus the carrier
 /// `watcher`. `None` — never a panic — for a register with no live product, a
 /// derivation over one, or a shape that genuinely needs a
-/// [`crate::stack::Frame`].
+/// [`crate::stack::ExecutionFrame`].
 ///
 /// Derived references are pure expressions over a register
 /// (`docs/decisions/core-explicit-regions.md` law 4), introducing no binding,
@@ -699,7 +699,7 @@ fn resolve_frameless_reference(
             .iter()
             .find_map(|inner| resolve_frameless_reference(state, inner, watcher, activation)),
         // `Single` demotes a SELECTION, which only
-        // `resolve::eval_selection_set` evaluates and only from a `Frame`.
+        // `resolve::eval_selection_set` evaluates and only from an `ExecutionFrame`.
         Reference::Single(_) => None,
     }
 }
@@ -857,7 +857,7 @@ fn const_count(count: &deckmaste_core::Count) -> Uint {
 
 /// A `Count` bound for the live matcher, general enough to cover a dynamic
 /// bound: a literal evaluates directly; anything else resolves through the
-/// full evaluator ([`GameState::eval_count`]) via a bare [`Frame`] anchored on
+/// full evaluator ([`GameState::eval_count`]) via a bare [`ExecutionFrame`] anchored on
 /// the watcher's live carrier — `This`/`You` inside the bound read that
 /// carrier, mirroring the `Ref(This)`/`Ref(You)` arms above. Reachable: Skulk
 /// ([CR#702.118b]) is `Stat(Power, Greater, StatOf(This, Power))`, evaluated
@@ -876,7 +876,7 @@ fn resolve_count(
     if let Some(w) = watcher
         && let Some(carrier) = state.objects.iter().find(|o| o.source == w)
     {
-        let mut frame = Frame::bare(carrier.id, carrier.controller);
+        let mut frame = ExecutionFrame::bare(carrier.id, carrier.controller);
         if activation != crate::ActivationId::NONE {
             frame.activation = activation;
         }
@@ -985,7 +985,7 @@ pub(crate) fn matches_region_with_activation(
             state.activation_controller(activation),
         )
     };
-    let mut frame = crate::stack::Frame::bare(source, controller);
+    let mut frame = crate::stack::ExecutionFrame::bare(source, controller);
     if activation != crate::ActivationId::NONE {
         frame.activation = activation;
     }
@@ -2513,7 +2513,7 @@ mod tests {
     /// reference the matcher genuinely cannot resolve reads "no match" instead
     /// of aborting the process ([Invalid semantic input
     /// fizzles](../../../docs/decisions/invalid-semantic-input-fizzles.md)).
-    /// `Single` needs the selection evaluator's `Frame`.
+    /// `Single` needs the selection evaluator's `ExecutionFrame`.
     #[test]
     fn unresolvable_ref_in_filter_fizzles_instead_of_asserting() {
         let (state, bear) = game_with_a_bear_on_the_field();

@@ -3,6 +3,6 @@ KeywordAction(
     spelling: "mill",
     grammar: Verb(
         bare: "mill",
-        valence: Transitive,
+        frame_set: Transitive,
     ),
 )

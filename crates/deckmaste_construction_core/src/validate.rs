@@ -436,7 +436,7 @@ pub(crate) fn validate_declaration_verb_consumers(semantic: &SemanticPlan) -> sy
                 syn::Error::new(
                     proc_macro2::Span::call_site(),
                     format!(
-                        "declaration_verb codec `{name}` has no construction consumer; every declared valence must build through the grammar"
+                        "declaration_verb codec `{name}` has no construction consumer; every declared frame_set must build through the grammar"
                     ),
                 ),
             );
@@ -12252,7 +12252,7 @@ pub(crate) mod tests {
                     position = Verb;
                     tail = [];
                     feature = Agreement;
-                    valence = Transitive;
+                    frame_set = Transitive;
                 },
                 "recipe accepts only `closed`, `class`, `position`, `tail`, and `feature` fields",
             ),
@@ -12360,7 +12360,7 @@ pub(crate) mod tests {
                     feature = Agreement;
                 }
             }
-            codec NumerativeVerb {
+            codec MeasureComplementVerb {
                 generate declaration_verb {
                     position = Verb;
                     tail = [Amount];
@@ -14466,7 +14466,7 @@ pub(crate) mod tests {
             lexeme VerbLexeme using EnglishVerb { Be = "be", }
             lexeme CoreIntransitiveVerb using EnglishVerb { Enter = "enter", }
             lexeme CoreTransitiveVerb using EnglishVerb { Control = "control", }
-            lexeme CoreNumerativeVerb using EnglishVerb { Draw = "draw", }
+            lexeme CoreMeasureComplementVerb using EnglishVerb { Draw = "draw", }
             codec IntransitiveVerb {
                 generate declaration_verb {
                     closed = CoreIntransitiveVerb;
@@ -14483,9 +14483,9 @@ pub(crate) mod tests {
                     feature = Agreement;
                 }
             }
-            codec NumerativeVerb {
+            codec MeasureComplementVerb {
                 generate declaration_verb {
-                    closed = CoreNumerativeVerb;
+                    closed = CoreMeasureComplementVerb;
                     position = Verb;
                     tail = [Amount];
                     feature = Agreement;
@@ -14511,7 +14511,7 @@ pub(crate) mod tests {
         for (codec, closed) in [
             ("IntransitiveVerb", "CoreIntransitiveVerb"),
             ("TransitiveVerb", "CoreTransitiveVerb"),
-            ("NumerativeVerb", "CoreNumerativeVerb"),
+            ("MeasureComplementVerb", "CoreMeasureComplementVerb"),
         ] {
             let (_, plan) = semantic
                 .runtime_declaration_verb_for(codec)
@@ -14588,7 +14588,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn declaration_verb_valences_require_a_construction_consumer() {
+    fn declaration_verb_frame_sets_require_a_construction_consumer() {
         let orphaned = crate::generate(quote! {
             codec WithObjectVerb {
                 generate declaration_verb {
@@ -14606,7 +14606,7 @@ pub(crate) mod tests {
         assert!(
             orphaned
                 .contains("declaration_verb codec `WithObjectVerb` has no construction consumer")
-                && orphaned.contains("every declared valence must build through the grammar"),
+                && orphaned.contains("every declared frame_set must build through the grammar"),
             "{orphaned}",
         );
     }

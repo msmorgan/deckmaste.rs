@@ -26,7 +26,7 @@ use crate::event::Occurrence;
 use crate::event::Unattached;
 use crate::event::ZoneChange;
 use crate::object::ObjectId;
-use crate::stack::Frame;
+use crate::stack::ExecutionFrame;
 use crate::stack::StackObject;
 use crate::state::GameState;
 
@@ -42,7 +42,7 @@ impl GameState {
         clippy::too_many_lines,
         reason = "one exhaustive match lowering every Action variant into work items; the per-variant arms are cohesive and better read together than split across helpers"
     )]
-    pub(crate) fn action_items(&self, action: &Action, frame: &Frame) -> Vec<WorkItem> {
+    pub(crate) fn action_items(&self, action: &Action, frame: &ExecutionFrame) -> Vec<WorkItem> {
         match action {
             // [CR#701,616.1]: a named keyword action is lowered to the
             // uniform ONE-window lane by `composite_items` — resolve the verb's
@@ -514,7 +514,7 @@ impl GameState {
         destination: &Destination,
         guard: Option<Zone>,
         riders: &[EnterRider],
-        frame: &Frame,
+        frame: &ExecutionFrame,
     ) -> Vec<WorkItem> {
         let mut items: Vec<WorkItem> = Vec::new();
         let mut zone_events: Vec<GameEvent> = Vec::new();
@@ -602,7 +602,7 @@ impl GameState {
     fn anchor_end_offset(
         &self,
         anchor: &Anchor,
-        frame: &Frame,
+        frame: &ExecutionFrame,
     ) -> (crate::agenda::LibraryEnd, Uint) {
         match anchor {
             Anchor::FromTop(c) => (crate::agenda::LibraryEnd::Top, self.eval_count(c, frame)),
@@ -615,7 +615,7 @@ impl GameState {
     /// index itself (`0` = top); `FromBottom(n)` is `len - n` (`0` = the very
     /// bottom). The apply clamps an index past the bottom to the bottom, so a
     /// from-bottom anchor on a card entering from elsewhere lands correctly.
-    fn library_index(&self, object: ObjectId, anchor: &Anchor, frame: &Frame) -> Uint {
+    fn library_index(&self, object: ObjectId, anchor: &Anchor, frame: &ExecutionFrame) -> Uint {
         match anchor {
             Anchor::FromTop(c) => self.eval_count(c, frame),
             Anchor::FromBottom(c) => {
@@ -652,7 +652,7 @@ impl GameState {
         &self,
         name: &deckmaste_core::VerbName,
         body: &deckmaste_core::Instruction,
-        frame: &Frame,
+        frame: &ExecutionFrame,
     ) -> Vec<WorkItem> {
         // The future window event. `contents` rides only when the apply must
         // unwrap a body it cannot rebuild from these flat coordinates (mill's
@@ -4179,7 +4179,7 @@ mod tests {
         assert_ne!(state.zones.graveyards[0][0], bear, "reminted");
     }
 
-    /// [CR#118.10]: a `Frame.payment` (minted by `GameState::mint_payment`)
+    /// [CR#118.10]: a `ExecutionFrame.payment` (minted by `GameState::mint_payment`)
     /// is the sole signal a `Cause::*` construction site reads to choose
     /// `Agency::CostPayment` over the default `EffectInstruction` — and the
     /// SAME payment id rides the cause. Two mints are distinct; a
@@ -5600,7 +5600,7 @@ mod tests {
     fn run_effect_scheduled(
         state: &mut GameState,
         effect: Instruction,
-        frame: &crate::stack::Frame,
+        frame: &crate::stack::ExecutionFrame,
     ) {
         state.schedule_front(vec![WorkItem::RunEffect {
             effect: Arc::new(effect),
@@ -6100,7 +6100,7 @@ mod tests {
             })
             .into(),
         );
-        let mut reading = crate::stack::Frame::bare(a, PlayerId(0));
+        let mut reading = crate::stack::ExecutionFrame::bare(a, PlayerId(0));
         reading.activation = state.enter_region(&reader, &reading);
         state.run_effect(Instruction::Sequentially(reader.body.0.clone()), &reading);
         run_injected(&mut state);

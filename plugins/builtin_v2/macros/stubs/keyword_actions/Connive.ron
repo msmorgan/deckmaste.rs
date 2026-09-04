@@ -3,6 +3,6 @@ KeywordAction(
     spelling: "connive",
     grammar: Verb(
         bare: "connive",
-        valence: Custom(shapes: [[], [Amount]]),
+        frame_set: Custom(frames: [[], [Amount]]),
     ),
 )

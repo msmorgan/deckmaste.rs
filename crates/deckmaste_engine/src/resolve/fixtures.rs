@@ -182,7 +182,7 @@ pub(super) fn schedule_lowered_effect(
     state: &mut GameState,
     effect: deckmaste_semantics::OneShotEffect,
     target_count: usize,
-    frame: &crate::stack::Frame,
+    frame: &crate::stack::ExecutionFrame,
 ) {
     use deckmaste_lowering::Lower;
 

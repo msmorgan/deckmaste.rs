@@ -3,6 +3,6 @@ KeywordAction(
     spelling: "destroy",
     grammar: Verb(
         bare: "destroy",
-        valence: Transitive,
+        frame_set: Transitive,
     ),
 )

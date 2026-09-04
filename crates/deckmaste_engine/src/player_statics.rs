@@ -11,7 +11,7 @@
 //! Scope today: the controller parameter resolves to the source permanent's controller
 //! (the "you" default both cards use); other player references and dynamic
 //! (non-literal) `Count` magnitudes are documented seams that need the
-//! resolve-time `Frame` machinery (`engine-resolve-effects`).
+//! resolve-time `ExecutionFrame` machinery (`engine-resolve-effects`).
 
 use deckmaste_core::Ability;
 use deckmaste_core::Count;
@@ -29,7 +29,7 @@ use crate::state::GameState;
 /// Evaluate a `ModifyPlayer` magnitude. Only `Count::Literal` is supported
 /// here (the canonical cards are literal `1`s); a dynamic count is a documented
 /// seam — it contributes `0` to a `Raise`/`Lower` and an unevaluated `0` to a
-/// `SetTo`, which is the conservative no-op until the `Frame`-bearing evaluator
+/// `SetTo`, which is the conservative no-op until the `ExecutionFrame`-bearing evaluator
 /// is threaded in.
 fn literal(count: &Count) -> Int {
     match count {
@@ -40,7 +40,7 @@ fn literal(count: &Count) -> Int {
 
 /// Resolve a `ModifyPlayer`'s affected-player reference. `You` is the source
 /// permanent's controller ([CR#611.2c]); other references need the resolve-time
-/// `Frame` and are skipped (a documented seam).
+/// `ExecutionFrame` and are skipped (a documented seam).
 fn resolve_player_ref(
     reference: &Reference,
     controller: PlayerId,

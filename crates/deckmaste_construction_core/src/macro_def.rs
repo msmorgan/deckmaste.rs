@@ -253,7 +253,7 @@ pub enum Grammar {
         participle: DerivedSurface,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         participle_onset: Option<Onset>,
-        valence: VerbValence,
+        frame_set: VerbFrameSet,
     },
     Noun {
         singular: String,
@@ -396,41 +396,44 @@ impl Serialize for DerivedSurface {
     }
 }
 
-/// The grammatical complement family of one verb definition.
+/// One ordered lexical schema for the complements and fixed markers a verb licenses.
+pub type VerbFrame = Vec<CustomTailAtom>;
+
+/// The grammatical Verb Frames owned by one verb definition.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
-pub enum VerbValence {
+pub enum VerbFrameSet {
     Intransitive,
     Transitive,
-    Numerative,
+    MeasureComplement,
     Custom {
-        shapes: Vec<Vec<CustomTailAtom>>,
+        frames: Vec<VerbFrame>,
     },
-    /// The wrapped valence admits a post-head predicate adjunct.
-    AdjunctLicensed(Box<VerbValence>),
-    /// The wrapped valence admits only a nonprepositional post-head adjunct.
-    NonprepositionalAdjunctLicensed(Box<VerbValence>),
+    /// The wrapped Verb Frame Set admits a post-head predicate adjunct.
+    AdjunctLicensed(Box<VerbFrameSet>),
+    /// The wrapped Verb Frame Set admits only a nonprepositional post-head adjunct.
+    NonprepositionalAdjunctLicensed(Box<VerbFrameSet>),
 }
 
-impl VerbValence {
-    /// Returns the grammatical frame independently of its adjunct licence.
+impl VerbFrameSet {
+    /// Returns the Verb Frame Set independently of its adjunct licence.
     #[must_use]
-    pub fn frame(&self) -> &Self {
+    pub fn frame_set(&self) -> &Self {
         match self {
-            Self::AdjunctLicensed(frame) | Self::NonprepositionalAdjunctLicensed(frame) => {
-                frame.frame()
+            Self::AdjunctLicensed(frame_set) | Self::NonprepositionalAdjunctLicensed(frame_set) => {
+                frame_set.frame_set()
             }
-            frame => frame,
+            frame_set => frame_set,
         }
     }
 
-    /// Returns whether this valence admits a post-head predicate adjunct.
+    /// Returns whether this Verb Frame Set admits a post-head predicate adjunct.
     #[must_use]
     pub fn prepositional_adjunct_licensed(&self) -> bool {
         matches!(self, Self::AdjunctLicensed(_))
     }
 
-    /// Returns whether this valence admits a nonprepositional predicate adjunct.
+    /// Returns whether this Verb Frame Set admits a nonprepositional predicate adjunct.
     #[must_use]
     pub fn nonprepositional_adjunct_licensed(&self) -> bool {
         matches!(
@@ -602,7 +605,7 @@ impl GrammarRow {
 /// Closed recipe information retained after surface sealing.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GrammarRecipe {
-    Verb { valence: VerbValence },
+    Verb { frame_set: VerbFrameSet },
     Noun,
     FixedTerm,
     FixedClause,
@@ -727,7 +730,7 @@ enum GrammarSourceMap {
         bare: SourcePosition,
         third_person: Option<SourcePosition>,
         participle: Option<SourcePosition>,
-        valence: SourcePosition,
+        frame_set: SourcePosition,
     },
     Noun {
         singular: SourcePosition,
@@ -804,7 +807,7 @@ enum DiagnosticGrammar<'a> {
         #[serde(default, borrow)]
         participle: Option<&'a RawValue>,
         #[serde(borrow)]
-        valence: &'a RawValue,
+        frame_set: &'a RawValue,
     },
     Noun {
         #[serde(borrow)]
@@ -913,10 +916,10 @@ pub enum ValidationError {
         field: &'static str,
         surface: String,
     },
-    #[error("Custom valence requires a nonempty shape set")]
-    EmptyCustomShapeSet,
-    #[error("Custom valence repeats tail shape {shape:?}")]
-    DuplicateCustomShape { shape: Vec<CustomTailAtom> },
+    #[error("Custom Verb Frame Set requires a nonempty frame set")]
+    EmptyCustomVerbFrameSet,
+    #[error("Custom Verb Frame Set repeats Verb Frame {frame:?}")]
+    DuplicateVerbFrame { frame: VerbFrame },
     #[error("Custom Literal atoms must contain a nonempty, trimmed, single-line terminal span")]
     InvalidCustomLiteral,
     #[error(
@@ -1101,7 +1104,7 @@ impl GrammarSourceMap {
                 bare,
                 third_person,
                 participle,
-                valence,
+                frame_set,
             } => Ok(Self::Verb {
                 bare: raw_position(path, source, bare, declaration)?,
                 third_person: third_person
@@ -1110,7 +1113,7 @@ impl GrammarSourceMap {
                 participle: participle
                     .map(|value| raw_position(path, source, value, declaration))
                     .transpose()?,
-                valence: raw_position(path, source, valence, declaration)?,
+                frame_set: raw_position(path, source, frame_set, declaration)?,
             }),
             DiagnosticGrammar::Noun { singular, plural } => Ok(Self::Noun {
                 singular: raw_position(path, source, singular, declaration)?,
@@ -1687,17 +1690,17 @@ fn normalize_grammar(
                     third_person_onset,
                     participle,
                     participle_onset,
-                    valence,
+                    frame_set,
                 },
                 GrammarSourceMap::Verb {
                     bare: bare_position,
                     third_person: third_person_position,
                     participle: participle_position,
-                    valence: valence_position,
+                    frame_set: frame_set_position,
                 },
             ) => {
                 validate_surface(path, *bare_position, "bare", &bare)?;
-                validate_valence(path, *valence_position, &valence)?;
+                validate_frame_set(path, *frame_set_position, &frame_set)?;
                 let third_person = realize_derived_surface(
                     path,
                     *bare_position,
@@ -1738,7 +1741,8 @@ fn normalize_grammar(
                         text,
                     });
                 }
-                (bare, GrammarRecipe::Verb { valence }, surfaces, None, None)
+                let recipe = GrammarRecipe::Verb { frame_set };
+                (bare, recipe, surfaces, None, None)
             }
             (
                 Grammar::Noun {
@@ -2134,33 +2138,33 @@ fn english_noun(singular: &str) -> String {
     format!("{singular}s")
 }
 
-fn validate_valence(
+fn validate_frame_set(
     path: &Path,
     position: SourcePosition,
-    valence: &VerbValence,
+    frame_set: &VerbFrameSet,
 ) -> Result<(), ReadError> {
-    let VerbValence::Custom { shapes } = valence.frame() else {
+    let VerbFrameSet::Custom { frames } = frame_set.frame_set() else {
         return Ok(());
     };
-    if shapes.is_empty() {
+    if frames.is_empty() {
         return Err(validation_error_at(
             path,
             position,
-            ValidationError::EmptyCustomShapeSet,
+            ValidationError::EmptyCustomVerbFrameSet,
         ));
     }
     let mut seen = HashSet::new();
-    for shape in shapes {
-        if !seen.insert(shape) {
+    for frame in frames {
+        if !seen.insert(frame) {
             return Err(validation_error_at(
                 path,
                 position,
-                ValidationError::DuplicateCustomShape {
-                    shape: shape.clone(),
+                ValidationError::DuplicateVerbFrame {
+                    frame: frame.clone(),
                 },
             ));
         }
-        for atom in shape {
+        for atom in frame {
             if let CustomTailAtom::Literal(literal) = atom
                 && !valid_surface(literal)
             {

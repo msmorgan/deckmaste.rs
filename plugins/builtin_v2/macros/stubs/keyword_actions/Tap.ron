@@ -3,6 +3,6 @@ KeywordAction(
     spelling: "tap",
     grammar: Verb(
         bare: "tap",
-        valence: Transitive,
+        frame_set: Transitive,
     ),
 )

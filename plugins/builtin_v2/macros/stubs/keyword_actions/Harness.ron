@@ -5,6 +5,6 @@ KeywordAction(
         bare: "harness",
         // No Oracle or Comprehensive Rules occurrence of "harnesses" was found in the 2026-08-18 morphology audit.
         third_person: Unavailable,
-        valence: Transitive,
+        frame_set: Transitive,
     ),
 )

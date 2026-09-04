@@ -72,7 +72,7 @@ use crate::lki::LkiSnapshot;
 use crate::object::ObjectId;
 use crate::object::ObjectSource;
 use crate::player::PlayerId;
-use crate::stack::Frame;
+use crate::stack::ExecutionFrame;
 use crate::state::GameState;
 
 /// The consumer position a pattern is evaluated in. Per-atom lane admission
@@ -119,7 +119,7 @@ pub(crate) enum Lane {
 #[derive(Clone, Copy)]
 pub(crate) struct Bindings<'a> {
     pub watcher: ObjectSource,
-    pub frame: Option<&'a Frame>,
+    pub frame: Option<&'a ExecutionFrame>,
     /// Floating-shield gather mode ([CR#614.3]): participant slots are
     /// skipped (the shield already matched its subject by IDENTITY — its
     /// `what` is typically a `Ref(EventObject)` no frameless gather could
@@ -1479,10 +1479,10 @@ impl GameState {
     /// `None` when the carrier is gone (`This`/`You` would be unresolvable;
     /// the pattern then matches nothing, mirroring the live `Predicate::Where`
     /// discipline).
-    fn watcher_frame(&self, watcher: ObjectSource) -> Option<Frame> {
+    fn watcher_frame(&self, watcher: ObjectSource) -> Option<ExecutionFrame> {
         self.objects
             .iter()
             .find(|ob| ob.source == watcher)
-            .map(|ob| Frame::bare(ob.id, ob.controller))
+            .map(|ob| ExecutionFrame::bare(ob.id, ob.controller))
     }
 }

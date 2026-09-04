@@ -25,7 +25,7 @@ use crate::event::Occurrence;
 use crate::event::Tapped;
 use crate::object::ObjectId;
 use crate::player::FloatingManaId;
-use crate::stack::Frame;
+use crate::stack::ExecutionFrame;
 use crate::state::GameState;
 
 /// Return the outstanding obligations currently admitted by [CR#601.2h]. The
@@ -757,7 +757,7 @@ impl GameState {
         whose: &deckmaste_core::Reference,
         from: &[Zone],
         filter: &Predicate,
-        frame: &Frame,
+        frame: &ExecutionFrame,
     ) -> Vec<ObjectId> {
         let whose = self.acting_player(whose, frame);
         let watcher = Some(self.frame_watcher(frame));
@@ -780,7 +780,7 @@ impl GameState {
         min: Uint,
         max: Uint,
         filter: &deckmaste_core::Region<Predicate>,
-        frame: &Frame,
+        frame: &ExecutionFrame,
     ) -> Result<(), DecisionError> {
         let len = Uint::try_from(objects.len()).unwrap_or(Uint::MAX);
         let distinct: std::collections::HashSet<ObjectId> = objects.iter().copied().collect();
@@ -816,7 +816,7 @@ impl GameState {
         outstanding: &[PaymentIou],
         writer: IouId,
         payer: crate::player::PlayerId,
-        frame: &Frame,
+        frame: &ExecutionFrame,
     ) -> bool {
         outstanding
             .iter()
@@ -837,7 +837,7 @@ impl GameState {
         &mut self,
         action: &Action,
         payer: crate::player::PlayerId,
-        frame: &Frame,
+        frame: &ExecutionFrame,
     ) -> bool {
         match action {
             Action::Sacrifice(agent, subject) => {
@@ -1008,7 +1008,7 @@ impl GameState {
         &mut self,
         effect: &deckmaste_core::Instruction,
         payer: crate::player::PlayerId,
-        frame: &Frame,
+        frame: &ExecutionFrame,
     ) -> bool {
         match effect {
             deckmaste_core::Instruction::Act { action, .. } => {
@@ -1047,7 +1047,7 @@ impl GameState {
     }
 
     /// Write a pinned payment subject's register ([CR#608.2h]).
-    fn write_let(&self, binding: &deckmaste_core::Let, frame: &Frame) {
+    fn write_let(&self, binding: &deckmaste_core::Let, frame: &ExecutionFrame) {
         match &binding.expr {
             deckmaste_core::Expr::Object(reference) => {
                 let object = self.eval_reference(reference, frame);
@@ -1071,7 +1071,7 @@ impl GameState {
         cmp: Cmp,
         count: Uint,
         filter: &Predicate,
-        frame: &Frame,
+        frame: &ExecutionFrame,
     ) -> bool {
         let distinct: std::collections::HashSet<ObjectId> = objects.iter().copied().collect();
         if distinct.len() != objects.len() {
@@ -1186,7 +1186,7 @@ impl GameState {
         cmp: Cmp,
         count: Uint,
         filter: &Predicate,
-        frame: &Frame,
+        frame: &ExecutionFrame,
     ) {
         if index == candidates.len() {
             if self.tap_total_witness_is_legal(selected, stat, cmp, count, filter, frame) {

@@ -3,6 +3,6 @@ KeywordAction(
     spelling: "discover",
     grammar: Verb(
         bare: "discover",
-        valence: Numerative,
+        frame_set: MeasureComplement,
     ),
 )

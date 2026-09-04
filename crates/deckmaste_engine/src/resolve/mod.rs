@@ -14,7 +14,7 @@ use crate::event::GameEvent;
 use crate::event::Occurrence;
 use crate::event::ZoneChange;
 use crate::object::ObjectId;
-use crate::stack::Frame;
+use crate::stack::ExecutionFrame;
 use crate::stack::StackObject;
 use crate::state::GameState;
 
@@ -51,14 +51,14 @@ impl GameState {
         targets: &[Vec<ObjectId>],
         x: Option<deckmaste_core::Uint>,
         bindings: Option<&crate::trigger::TriggerBindings>,
-    ) -> Frame {
+    ) -> ExecutionFrame {
         if matches!(activation, crate::ActivationId::Stored(_)) {
-            return Frame {
+            return ExecutionFrame {
                 activation,
                 payment: None,
             };
         }
-        let mut frame = Frame::bare(source, controller);
+        let mut frame = ExecutionFrame::bare(source, controller);
         if let Some(bindings) = bindings {
             self.frame_set_source_lki(&mut frame, bindings.this.clone());
             self.frame_set_defending_player(&mut frame, bindings.defending_player);
@@ -394,7 +394,7 @@ impl GameState {
     /// evaluation for `frame`: the announce-time snapshot's source when the
     /// frame carries bindings (the live object may be gone, [CR#603.10a]),
     /// else the live source object's.
-    pub(crate) fn frame_watcher(&self, frame: &Frame) -> crate::object::ObjectSource {
+    pub(crate) fn frame_watcher(&self, frame: &ExecutionFrame) -> crate::object::ObjectSource {
         frame
             .source_lki(self)
             .as_ref()

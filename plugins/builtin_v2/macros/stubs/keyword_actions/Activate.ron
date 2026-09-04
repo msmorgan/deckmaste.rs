@@ -4,6 +4,6 @@ KeywordAction(
     grammar: Verb(
         bare: "activate",
         participle: "activated",
-        valence: Transitive,
+        frame_set: Transitive,
     ),
 )

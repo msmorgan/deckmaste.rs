@@ -1343,7 +1343,7 @@ mod tests {
                 ("head".to_owned(), "TransitiveVerb".to_owned()),
                 ("object".to_owned(), "ObjectWord".to_owned()),
             ],
-            "the AST stores declaration identity through its codec sum, never frame or valence tags",
+            "the AST stores declaration identity through its codec sum, never frame or frame_set tags",
         );
     }
 

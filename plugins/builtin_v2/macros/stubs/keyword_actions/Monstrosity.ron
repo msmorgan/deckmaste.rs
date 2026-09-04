@@ -5,6 +5,6 @@ KeywordAction(
         bare: "monstrosity",
         // No Oracle or Comprehensive Rules third-person verb form of "monstrosity" was found in the 2026-08-18 morphology audit.
         third_person: Unavailable,
-        valence: Numerative,
+        frame_set: MeasureComplement,
     ),
 )

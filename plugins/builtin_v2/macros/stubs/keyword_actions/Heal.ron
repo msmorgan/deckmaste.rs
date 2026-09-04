@@ -3,6 +3,6 @@ KeywordAction(
     spelling: "heal",
     grammar: Verb(
         bare: "heal",
-        valence: Transitive,
+        frame_set: Transitive,
     ),
 )

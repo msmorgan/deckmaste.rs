@@ -3,6 +3,6 @@ KeywordAction(
     spelling: "earthbend",
     grammar: Verb(
         bare: "earthbend",
-        valence: Numerative,
+        frame_set: MeasureComplement,
     ),
 )

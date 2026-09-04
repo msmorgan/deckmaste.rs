@@ -5,6 +5,6 @@ KeywordAction(
         bare: "populate",
         // No Oracle or Comprehensive Rules occurrence of "populates" was found in the 2026-08-18 morphology audit.
         third_person: Unavailable,
-        valence: Intransitive,
+        frame_set: Intransitive,
     ),
 )

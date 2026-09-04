@@ -1,44 +1,44 @@
 [
-    (identity: Add, bare: "add", third_person: "adds", valences: [
+    (identity: Add, bare: "add", third_person: "adds", frames: [
         Predicate([ObjectNounPhrase]),
         Predicate([Role("ManaPhrase")]),
     ]),
-    (identity: Attack, bare: "attack", third_person: "attacks", participle: Some("attacked"), valences: [
+    (identity: Attack, bare: "attack", third_person: "attacks", participle: Some("attacked"), frames: [
         Predicate([]),
         Predicate([ObjectNounPhrase]),
     ]),
-    (identity: Become, bare: "become", third_person: "becomes", valences: [
+    (identity: Become, bare: "become", third_person: "becomes", frames: [
         Predicate([PredicativeComplement]),
     ]),
-    (identity: Block, bare: "block", third_person: "blocks", participle: Some("blocked"), valences: [
+    (identity: Block, bare: "block", third_person: "blocks", participle: Some("blocked"), frames: [
         Predicate([]),
         Predicate([ObjectNounPhrase]),
     ]),
-    (identity: Can, bare: "can", third_person: "can", valences: [Auxiliary]),
-    (identity: Cant, bare: "can't", third_person: "can't", valences: [Auxiliary]),
-    (identity: Cause, bare: "cause", third_person: "causes", valences: [
+    (identity: Can, bare: "can", third_person: "can", frames: [Auxiliary]),
+    (identity: Cant, bare: "can't", third_person: "can't", frames: [Auxiliary]),
+    (identity: Cause, bare: "cause", third_person: "causes", frames: [
         Predicate([Role("Object"), Literal("to"), Role("VerbPhrase")]),
     ]),
-    (identity: Choose, bare: "choose", third_person: "chooses", participle: Some("chosen"), valences: [
+    (identity: Choose, bare: "choose", third_person: "chooses", participle: Some("chosen"), frames: [
         Predicate([ObjectNounPhrase]),
         Predicate([Literal("among"), Role("Object")]),
         Predicate([Role("InfinitiveComplement")]),
     ]),
-    (identity: Control, bare: "control", third_person: "controls", valences: [
+    (identity: Control, bare: "control", third_person: "controls", frames: [
         Predicate([ObjectNounPhrase]),
     ]),
-    (identity: Copy, bare: "copy", third_person: "copies", valences: [
+    (identity: Copy, bare: "copy", third_person: "copies", frames: [
         Predicate([ObjectNounPhrase]),
     ]),
-    (identity: Cost, bare: "cost", third_person: "costs", valences: [
+    (identity: Cost, bare: "cost", third_person: "costs", frames: [
         Predicate([
             Role("ManaAmount"),
             Role("CostComparisonDirection"),
             Role("ControlledCostAction"),
         ]),
     ]),
-    (identity: Cycle, bare: "cycle", third_person: "cycles", valences: [Predicate([])]),
-    (identity: Deal, bare: "deal", third_person: "deals", participle: Some("dealt"), valences: [
+    (identity: Cycle, bare: "cycle", third_person: "cycles", frames: [Predicate([])]),
+    (identity: Deal, bare: "deal", third_person: "deals", participle: Some("dealt"), frames: [
         Predicate([
             Amount,
             Role("MassNoun"),
@@ -51,64 +51,64 @@
         NonprepositionalAdjunctLicensedPredicate([ObjectNounPhrase]),
         Predicate([ObjectNounPhrase, Literal("to"), ObjectNounPhrase]),
     ]),
-    (identity: Die, bare: "die", third_person: "dies", valences: [Predicate([])]),
-    (identity: Didnt, bare: "didn't", third_person: "didn't", valences: [Auxiliary]),
-    (identity: Do, bare: "do", third_person: "does", valences: [ProVerb]),
-    (identity: Draw, bare: "draw", third_person: "draws", participle: Some("drawn"), valences: [
+    (identity: Die, bare: "die", third_person: "dies", frames: [Predicate([])]),
+    (identity: Didnt, bare: "didn't", third_person: "didn't", frames: [Auxiliary]),
+    (identity: Do, bare: "do", third_person: "does", frames: [ProVerb]),
+    (identity: Draw, bare: "draw", third_person: "draws", participle: Some("drawn"), frames: [
         NonprepositionalAdjunctLicensedPredicate([ObjectNounPhrase]),
         Predicate([ObjectNounPhrase, Role("ScalarEquality")]),
         Predicate([Amount]),
     ]),
-    (identity: Enter, bare: "enter", third_person: "enters", valences: [
+    (identity: Enter, bare: "enter", third_person: "enters", frames: [
         Predicate([]),
         Predicate([PredicativeComplement]),
         Predicate([Literal("with"), ObjectNounPhrase, Literal("on"), Role("FrameComplement")]),
         Predicate([Role("Object"), OptionalRole("PredicativeComplement"), OptionalRole("PrepositionalPhrase")]),
         Predicate([Literal("under"), Role("Object")]),
     ]),
-    (identity: Flip, bare: "flip", third_person: "flips", valences: [
+    (identity: Flip, bare: "flip", third_person: "flips", frames: [
         Predicate([ObjectNounPhrase]),
     ]),
-    (identity: Gain, bare: "gain", third_person: "gains", valences: [
+    (identity: Gain, bare: "gain", third_person: "gains", frames: [
         Predicate([ObjectNounPhrase]),
         Predicate([ObjectNounPhrase, Role("ScalarEquality")]),
         Predicate([Role("QuotedAbility")]),
         Predicate([Role("KeywordAbility")]),
     ]),
-    (identity: Get, bare: "get", third_person: "gets", valences: [
+    (identity: Get, bare: "get", third_person: "gets", frames: [
         Predicate([Role("PowerToughnessAdjustment"), OptionalRole("DurationPhrase")]),
     ]),
-    (identity: Have, bare: "have", third_person: "has", valences: [
+    (identity: Have, bare: "have", third_person: "has", frames: [
         Predicate([Role("QuotedAbility")]),
         Predicate([ObjectNounPhrase, PredicativeComplement]),
         Predicate([Role("Object"), Role("VerbPhrase")]),
         Predicate([ObjectNounPhrase]),
         Predicate([Role("KeywordAbility")]),
     ]),
-    (identity: Leave, bare: "leave", third_person: "leaves", valences: [
+    (identity: Leave, bare: "leave", third_person: "leaves", frames: [
         Predicate([]),
         Predicate([ObjectNounPhrase]),
     ]),
-    (identity: Look, bare: "look", third_person: "looks", valences: [
+    (identity: Look, bare: "look", third_person: "looks", frames: [
         Predicate([Literal("at"), Role("Object")]),
     ]),
-    (identity: Lose, bare: "lose", third_person: "loses", valences: [
+    (identity: Lose, bare: "lose", third_person: "loses", frames: [
         Predicate([ObjectNounPhrase]),
         Predicate([ObjectNounPhrase, Role("ScalarEquality")]),
     ]),
-    (identity: May, bare: "may", third_person: "may", valences: [Auxiliary]),
-    (identity: Must, bare: "must", third_person: "must", valences: [Auxiliary]),
-    (identity: Own, bare: "own", third_person: "owns", valences: [
+    (identity: May, bare: "may", third_person: "may", frames: [Auxiliary]),
+    (identity: Must, bare: "must", third_person: "must", frames: [Auxiliary]),
+    (identity: Own, bare: "own", third_person: "owns", frames: [
         Predicate([ObjectNounPhrase]),
     ]),
-    (identity: Pay, bare: "pay", third_person: "pays", valences: [
+    (identity: Pay, bare: "pay", third_person: "pays", frames: [
         Predicate([ObjectNounPhrase]),
         Predicate([Role("ManaPhrase")]),
     ]),
-    (identity: Prevent, bare: "prevent", third_person: "prevents", participle: Some("prevented"), valences: [
+    (identity: Prevent, bare: "prevent", third_person: "prevents", participle: Some("prevented"), frames: [
         Predicate([ObjectNounPhrase]),
     ]),
-    (identity: Put, bare: "put", third_person: "puts", participle: Some("put"), valences: [
+    (identity: Put, bare: "put", third_person: "puts", participle: Some("put"), frames: [
         Predicate([
             Role("Object"),
             OptionalRole("PrepositionalPhrase"),
@@ -131,10 +131,10 @@
             Literal("order"),
         ]),
     ]),
-    (identity: Remove, bare: "remove", third_person: "removes", valences: [
+    (identity: Remove, bare: "remove", third_person: "removes", frames: [
         Predicate([ObjectNounPhrase, Literal("from"), Role("FrameComplement")]),
     ]),
-    (identity: Return, bare: "return", third_person: "returns", valences: [
+    (identity: Return, bare: "return", third_person: "returns", frames: [
         Predicate([
             Role("Object"),
             OptionalRole("PrepositionalPhrase"),
@@ -144,17 +144,17 @@
             OptionalRole("PrepositionalPhrase"),
         ]),
     ]),
-    (identity: Roll, bare: "roll", third_person: "rolls", valences: [
+    (identity: Roll, bare: "roll", third_person: "rolls", frames: [
         Predicate([ObjectNounPhrase]),
     ]),
-    (identity: Skip, bare: "skip", third_person: "skips", valences: [
+    (identity: Skip, bare: "skip", third_person: "skips", frames: [
         Predicate([ObjectNounPhrase]),
     ]),
-    (identity: Turn, bare: "turn", third_person: "turns", participle: Some("turned"), valences: [
+    (identity: Turn, bare: "turn", third_person: "turns", participle: Some("turned"), frames: [
         Predicate([Literal("face"), Literal("up")]),
     ]),
-    (identity: Unattach, bare: "unattach", third_person: "unattaches", valences: [
+    (identity: Unattach, bare: "unattach", third_person: "unattaches", frames: [
         Predicate([ObjectNounPhrase]),
     ]),
-    (identity: Would, bare: "would", third_person: "would", valences: [Auxiliary]),
+    (identity: Would, bare: "would", third_person: "would", frames: [Auxiliary]),
 ]

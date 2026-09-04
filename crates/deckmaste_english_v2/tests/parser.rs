@@ -101,13 +101,15 @@ fn indefinite_articles_are_guarded_by_frozen_onset_without_ast_article_state() {
         let VerbPhrase::BaseVerbPhrase(BaseVerbPhrase { frame }) = predicate.as_ref() else {
             panic!("the public staged indefinite AST stores its noun head: {parsed:?}")
         };
-        let BaseVerbFrame::TransitiveFrame(transitive_frame) = frame.as_ref() else {
+        let LexicalVerbPhrase::TransitiveLexicalVerbPhrase(transitive_lexical_verb_phrase) =
+            frame.as_ref()
+        else {
             panic!("the public staged indefinite AST stores its noun head: {parsed:?}")
         };
-        let TransitiveFrame::TransitivePredicate(TransitivePredicate {
+        let TransitiveLexicalVerbPhrase::TransitivePredicate(TransitivePredicate {
             head: _,
             object: Object::ObjectNominal(NominalObject { value }),
-        }) = transitive_frame.as_ref()
+        }) = transitive_lexical_verb_phrase.as_ref()
         else {
             panic!("the public staged indefinite AST stores its noun head: {parsed:?}")
         };
@@ -1129,8 +1131,8 @@ fn quantified_mass_object(amount: Amount, noun: CommonNoun) -> Object {
 fn gain_life(amount: Amount) -> VerbPhrase {
     let head = core_transitive_head(CoreVerbIdentity::Gain);
     VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
-        frame: Box::new(BaseVerbFrame::TransitiveFrame(Box::new(
-            TransitiveFrame::TransitivePredicate(TransitivePredicate {
+        frame: Box::new(LexicalVerbPhrase::TransitiveLexicalVerbPhrase(Box::new(
+            TransitiveLexicalVerbPhrase::TransitivePredicate(TransitivePredicate {
                 head,
                 object: quantified_mass_object(amount, CommonNoun::Life),
             }),
@@ -1162,8 +1164,8 @@ fn destroy(object: Object) -> VerbPhrase {
     )
     .expect("the builtin grammar declares transitive Destroy");
     VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
-        frame: Box::new(BaseVerbFrame::TransitiveFrame(Box::new(
-            TransitiveFrame::TransitivePredicate(TransitivePredicate { head, object }),
+        frame: Box::new(LexicalVerbPhrase::TransitiveLexicalVerbPhrase(Box::new(
+            TransitiveLexicalVerbPhrase::TransitivePredicate(TransitivePredicate { head, object }),
         ))),
     })
 }
@@ -1179,8 +1181,8 @@ fn connive() -> VerbPhrase {
     )
     .expect("the builtin grammar declares intransitive Connive");
     VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
-        frame: Box::new(BaseVerbFrame::IntransitiveFrame(
-            IntransitiveFrame::IntransitivePredicate(IntransitivePredicate { head }),
+        frame: Box::new(LexicalVerbPhrase::IntransitiveLexicalVerbPhrase(
+            IntransitiveLexicalVerbPhrase::IntransitivePredicate(IntransitivePredicate { head }),
         )),
     })
 }
@@ -1414,7 +1416,7 @@ fn parser_analysis_repeats_exactly_and_preserves_selected_rendered_bytes() {
             "AbilityBodySentences".to_owned(),
             "SentenceImperative".to_owned(),
             "VerbPhraseBaseVerbPhrase".to_owned(),
-            "TransitiveFrameTransitivePredicate".to_owned(),
+            "TransitiveLexicalVerbPhraseTransitivePredicate".to_owned(),
             "ObjectObjectNominal".to_owned(),
             "NounPhraseQualifiedNounPhrase".to_owned(),
             "PostmodifiedReferenceUnqualifiedPostmodifiedReference".to_owned(),
@@ -1522,13 +1524,15 @@ fn explicit_named_card_identity_scans_exact_longest_renders_and_owns() {
     let VerbPhrase::BaseVerbPhrase(BaseVerbPhrase { frame }) = predicate.as_ref() else {
         panic!("explicit card name has its generated AST construction: {parsed:?}");
     };
-    let BaseVerbFrame::TransitiveFrame(transitive_frame) = frame.as_ref() else {
+    let LexicalVerbPhrase::TransitiveLexicalVerbPhrase(transitive_lexical_verb_phrase) =
+        frame.as_ref()
+    else {
         panic!("explicit card name has its generated AST construction: {parsed:?}");
     };
-    let TransitiveFrame::TransitivePredicate(TransitivePredicate {
+    let TransitiveLexicalVerbPhrase::TransitivePredicate(TransitivePredicate {
         head: _,
         object: Object::ObjectNominal(NominalObject { value }),
-    }) = transitive_frame.as_ref()
+    }) = transitive_lexical_verb_phrase.as_ref()
     else {
         panic!("explicit card name has its generated AST construction: {parsed:?}");
     };
@@ -1757,7 +1761,7 @@ fn parser_trace_selected_projection_is_exact_bounded_repeatable_and_private_resu
                     "AbilityBodySentences",
                     "SentenceImperative",
                     "VerbPhraseBaseVerbPhrase",
-                    "TransitiveFrameTransitivePredicate",
+                    "TransitiveLexicalVerbPhraseTransitivePredicate",
                     "ObjectObjectNominal",
                     "NounPhraseQualifiedNounPhrase",
                     "PostmodifiedReferenceUnqualifiedPostmodifiedReference",

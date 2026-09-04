@@ -3,6 +3,6 @@ KeywordAction(
     spelling: "convert",
     grammar: Verb(
         bare: "convert",
-        valence: Transitive,
+        frame_set: Transitive,
     ),
 )

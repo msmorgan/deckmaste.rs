@@ -3,6 +3,6 @@ KeywordAction(
     spelling: "blight",
     grammar: Verb(
         bare: "blight",
-        valence: Numerative,
+        frame_set: MeasureComplement,
     ),
 )

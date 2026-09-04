@@ -48,7 +48,7 @@ use crate::lki::LkiSnapshot;
 use crate::object::ObjectId;
 use crate::object::ObjectSource;
 use crate::player::PlayerId;
-use crate::stack::Frame;
+use crate::stack::ExecutionFrame;
 use crate::stack::StackEntry;
 use crate::stack::StackObject;
 use crate::state::GameState;
@@ -199,7 +199,7 @@ impl GameState {
         pattern: &EventFilter,
         event: &GameEvent,
         watcher: ObjectSource,
-        frame: &Frame,
+        frame: &ExecutionFrame,
     ) -> bool {
         self.event_matches_with_bindings(
             pattern,
@@ -260,7 +260,7 @@ impl GameState {
         pattern: &EventFilter,
         event: &GameEvent,
         watcher: ObjectSource,
-        frame: &Frame,
+        frame: &ExecutionFrame,
     ) -> bool {
         self.event_matches_with_bindings(
             pattern,
@@ -553,7 +553,7 @@ impl GameState {
             {
                 None => false,
                 Some((carrier, controller)) => {
-                    let mut frame = Frame::bare(carrier, controller);
+                    let mut frame = ExecutionFrame::bare(carrier, controller);
                     if activation != crate::ActivationId::NONE {
                         frame.activation = activation;
                     }
@@ -744,12 +744,16 @@ impl GameState {
     /// controller from [CR#603.7d,603.7e], and the firing event's endophoric
     /// roles (no targets chosen at the gate). Mirrors the printed-trigger
     /// gate in `scan_event`.
-    fn created_gate_frame(&self, ct: &CreatedTrigger, bindings: &TriggerBindings) -> Frame {
+    fn created_gate_frame(
+        &self,
+        ct: &CreatedTrigger,
+        bindings: &TriggerBindings,
+    ) -> ExecutionFrame {
         let source = bindings
             .this
             .as_ref()
             .map_or_else(|| self.player(ct.controller).object, |s| s.object);
-        let mut frame = Frame::bare(source, ct.controller);
+        let mut frame = ExecutionFrame::bare(source, ct.controller);
         self.frame_set_source_lki(&mut frame, bindings.this.clone());
         self.frame_set_defending_player(&mut frame, bindings.defending_player);
         self.frame_set_event_bindings(
@@ -1415,12 +1419,12 @@ impl GameState {
         region: &deckmaste_core::Region<T>,
         controller: PlayerId,
         bindings: &TriggerBindings,
-    ) -> Frame {
+    ) -> ExecutionFrame {
         let source = bindings.this.as_ref().map_or_else(
             || self.player(controller).object,
             |snapshot| snapshot.object,
         );
-        let mut frame = crate::stack::Frame::bare(source, controller);
+        let mut frame = crate::stack::ExecutionFrame::bare(source, controller);
         self.frame_set_source_lki(&mut frame, bindings.this.clone());
         self.frame_set_defending_player(&mut frame, bindings.defending_player);
         self.frame_set_event_bindings(
@@ -1633,7 +1637,7 @@ mod tests {
     use crate::object::ObjectId;
     use crate::object::ObjectSource;
     use crate::player::PlayerId;
-    use crate::stack::Frame;
+    use crate::stack::ExecutionFrame;
     use crate::state::GameConfig;
     use crate::state::GameState;
     use crate::state::PlayerConfig;
@@ -1642,8 +1646,8 @@ mod tests {
 
     /// A minimal player-anchored gate frame (no bindings, no targets) for the
     /// trigger-fire intervening-if check ([CR#603.4]).
-    fn gate_frame(state: &GameState, player: PlayerId) -> Frame {
-        Frame::bare(state.player(player).object, player)
+    fn gate_frame(state: &GameState, player: PlayerId) -> ExecutionFrame {
+        ExecutionFrame::bare(state.player(player).object, player)
     }
 
     fn builtin() -> Plugin {
@@ -2340,8 +2344,8 @@ mod tests {
         dead_code,
         reason = "shared fixture retained for neighboring trigger cases"
     )]
-    fn carrier_gate_frame(state: &GameState, carrier: ObjectId) -> Frame {
-        let mut frame = Frame::bare(carrier, PlayerId(0));
+    fn carrier_gate_frame(state: &GameState, carrier: ObjectId) -> ExecutionFrame {
+        let mut frame = ExecutionFrame::bare(carrier, PlayerId(0));
         state.frame_set_source_lki(
             &mut frame,
             Some(crate::lki::LkiSnapshot::capture(state, carrier)),
@@ -4527,11 +4531,11 @@ mod tests {
         use deckmaste_core::Instruction;
         use deckmaste_core::Predicate;
 
-        use crate::stack::Frame;
+        use crate::stack::ExecutionFrame;
 
         let mut state = empty_game();
         let src = put_synthetic_on_field(&mut state, upkeep_trigger_from(None), PlayerId(0));
-        let frame = Frame::bare(src, PlayerId(0));
+        let frame = ExecutionFrame::bare(src, PlayerId(0));
         let ability = draw_on(EventFilter::LifeGained {
             who: Predicate::any(),
             amount: None,
@@ -4586,7 +4590,7 @@ mod tests {
         use deckmaste_core::Instruction;
         use deckmaste_core::Predicate;
 
-        use crate::stack::Frame;
+        use crate::stack::ExecutionFrame;
 
         let ability = draw_on(EventFilter::LifeGained {
             who: Predicate::any(),
@@ -4597,7 +4601,7 @@ mod tests {
         // registers for a FUTURE occurrence and fires nothing now.
         let mut state = empty_game();
         let src = put_synthetic_on_field(&mut state, upkeep_trigger_from(None), PlayerId(0));
-        let frame = Frame::bare(src, PlayerId(0));
+        let frame = ExecutionFrame::bare(src, PlayerId(0));
         state.run_effect(Instruction::Delayed(Arc::new(ability.clone())), &frame);
         assert_eq!(
             total_fired(&state),
@@ -4615,7 +4619,7 @@ mod tests {
         // unification) and is NOT registered.
         let mut state = empty_game();
         let src = put_synthetic_on_field(&mut state, upkeep_trigger_from(None), PlayerId(0));
-        let frame = Frame::bare(src, PlayerId(0));
+        let frame = ExecutionFrame::bare(src, PlayerId(0));
         state
             .resolution_events
             .push(GameEvent::LifeGained(LifeGained {
@@ -6466,7 +6470,7 @@ mod tests {
             },
             deckmaste_core::Lookback::ThisGame,
         );
-        let frame = Frame::bare(bear, controller);
+        let frame = ExecutionFrame::bare(bear, controller);
         assert!(!state.condition_holds(&gate, &frame), "no use recorded yet");
         state.record_history_fact(
             1,
@@ -6481,7 +6485,7 @@ mod tests {
             "Happened(Used(of: This)) sees the recorded self-use"
         );
         // Another object's use is NOT this object's ([CR#400.7]).
-        let other_gate_frame = Frame::bare(state.player(controller).object, controller);
+        let other_gate_frame = ExecutionFrame::bare(state.player(controller).object, controller);
         assert!(
             !state.condition_holds(&gate, &other_gate_frame),
             "object-scoped: a different carrier does not match"

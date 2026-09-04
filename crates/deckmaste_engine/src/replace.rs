@@ -99,7 +99,7 @@ impl GameState {
         effect: &Instruction,
         entering: crate::object::ObjectId,
         status: &mut EnterStatus,
-        frame: &crate::stack::Frame,
+        frame: &crate::stack::ExecutionFrame,
     ) {
         match effect {
             // `Tap` is agent-silent, so the `AsEnters` sugar expands to
@@ -184,7 +184,7 @@ impl GameState {
         }
     }
 
-    /// The minimal resolution `Frame` for an enters-replacement fold: source =
+    /// The minimal resolution `ExecutionFrame` for an enters-replacement fold: source =
     /// the entering object, controller = its controller (the "you" a gate
     /// condition reads), no targets/bindings/chosen/x/subject. Shared by the
     /// counter-count and conditional-gate folds.
@@ -192,8 +192,9 @@ impl GameState {
         &self,
         entering: crate::object::ObjectId,
         region: &deckmaste_core::Region<T>,
-    ) -> crate::stack::Frame {
-        let mut frame = crate::stack::Frame::bare(entering, self.objects.obj(entering).controller);
+    ) -> crate::stack::ExecutionFrame {
+        let mut frame =
+            crate::stack::ExecutionFrame::bare(entering, self.objects.obj(entering).controller);
         frame.activation = self.enter_region(region, &frame);
         frame
     }

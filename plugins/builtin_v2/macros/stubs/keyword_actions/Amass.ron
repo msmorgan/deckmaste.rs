@@ -4,6 +4,6 @@ KeywordAction(
     grammar: Verb(
         bare: "amass",
         third_person: "amasses",
-        valence: Custom(shapes: [[ObjectNounPhrase, Amount]]),
+        frame_set: Custom(frames: [[ObjectNounPhrase, Amount]]),
     ),
 )

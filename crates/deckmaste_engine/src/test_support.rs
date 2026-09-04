@@ -3,20 +3,20 @@
 //! call sites stay focused on the behavior under test.
 
 use crate::player::PlayerId;
-use crate::stack::Frame;
+use crate::stack::ExecutionFrame;
 use crate::state::GameState;
 
 /// A minimal player-anchored frame (no bindings, no targets) — the gate-time
 /// shape, enough to evaluate the context-free conditions these unit tests
 /// exercise.
-pub(crate) fn frame_for(state: &GameState, player: PlayerId) -> Frame {
-    Frame::bare(state.player(player).object, player)
+pub(crate) fn frame_for(state: &GameState, player: PlayerId) -> ExecutionFrame {
+    ExecutionFrame::bare(state.player(player).object, player)
 }
 
 /// A plain resolution frame anchored on `source` (controlled by player 0) with
 /// no targets, bindings, choice, or X — the shape most effect/action tests
 /// build to drive `run_effect`/`eval_*`.
-pub(crate) fn frame_src(state: &GameState, source: crate::object::ObjectId) -> Frame {
+pub(crate) fn frame_src(state: &GameState, source: crate::object::ObjectId) -> ExecutionFrame {
     frame_src_targets(state, source, Vec::new())
 }
 
@@ -26,8 +26,8 @@ pub(crate) fn frame_src_targets(
     state: &GameState,
     source: crate::object::ObjectId,
     targets: Vec<crate::object::ObjectId>,
-) -> Frame {
-    let mut frame = Frame::bare(source, PlayerId(0));
+) -> ExecutionFrame {
+    let mut frame = ExecutionFrame::bare(source, PlayerId(0));
     let slots: Vec<_> = targets.into_iter().map(|target| vec![target]).collect();
     state.frame_set_targets(&mut frame, &slots);
     let provenances = [

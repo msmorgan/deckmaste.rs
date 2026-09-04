@@ -274,12 +274,12 @@ fn environment() -> ParserEnvironment {
     ParserEnvironment::try_from_declarations([
         deckmaste_construction_core::macro_def::read_str(
             "/synthetic/actions/Destroy.ron",
-            r#"KeywordAction(name:"Destroy",spelling:"homonym",grammar:Verb(bare:"homonym",valence:Intransitive))"#,
+            r#"KeywordAction(name:"Destroy",spelling:"homonym",grammar:Verb(bare:"homonym",frame_set:Intransitive))"#,
         )
         .unwrap(),
         deckmaste_construction_core::macro_def::read_str(
             "/synthetic/abilities/Destroy.ron",
-            r#"KeywordAbility(name:"Destroy",spelling:"homonym",grammar:Verb(bare:"homonym",valence:Intransitive))"#,
+            r#"KeywordAbility(name:"Destroy",spelling:"homonym",grammar:Verb(bare:"homonym",frame_set:Intransitive))"#,
         )
         .unwrap(),
     ])

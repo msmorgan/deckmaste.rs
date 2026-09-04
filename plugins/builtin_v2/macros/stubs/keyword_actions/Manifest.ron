@@ -3,6 +3,6 @@ KeywordAction(
     spelling: "manifest",
     grammar: Verb(
         bare: "manifest",
-        valence: Transitive,
+        frame_set: Transitive,
     ),
 )

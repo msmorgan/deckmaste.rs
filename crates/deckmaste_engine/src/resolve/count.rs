@@ -15,7 +15,7 @@ use crate::event::LifeGained;
 use crate::event::LifeLost;
 use crate::event::ZoneChange;
 use crate::object::ObjectId;
-use crate::stack::Frame;
+use crate::stack::ExecutionFrame;
 use crate::state::GameState;
 
 impl GameState {
@@ -72,7 +72,7 @@ impl GameState {
         clippy::too_many_lines,
         reason = "one arm per Count kind — the value language's full surface"
     )]
-    pub(crate) fn eval_count(&self, qty: &Count, frame: &Frame) -> Uint {
+    pub(crate) fn eval_count(&self, qty: &Count, frame: &ExecutionFrame) -> Uint {
         match qty {
             Count::Reg(register) => self
                 .activation_number(frame.activation, *register)
@@ -562,7 +562,7 @@ impl GameState {
     /// [`Count::ManaAvailable`](deckmaste_core::Count::ManaAvailable), the
     /// mana-available reader a data-driven strategy's ramp gate senses. A
     /// non-player reference fizzles to 0 (never-crash), like `Opponents`.
-    fn floated_mana(&self, reference: &Reference, frame: &Frame) -> Uint {
+    fn floated_mana(&self, reference: &Reference, frame: &ExecutionFrame) -> Uint {
         self.eval_player_ref(reference, frame).map_or(0, |p| {
             Uint::try_from(self.player(p).mana_pool.units().len()).expect("mana pool fits Uint")
         })
@@ -732,7 +732,7 @@ mod tests {
     use crate::object::ObjectSource;
     use crate::player::PlayerId;
     use crate::resolve::fixtures::*;
-    use crate::stack::Frame;
+    use crate::stack::ExecutionFrame;
     use crate::state::GameConfig;
     use crate::state::GameState;
     use crate::state::PlayerConfig;
@@ -1438,7 +1438,7 @@ mod tests {
     #[test]
     fn count_x_reads_announced_value() {
         let (state, src) = bear_on_field();
-        let mut frame = Frame::bare(src, PlayerId(0));
+        let mut frame = ExecutionFrame::bare(src, PlayerId(0));
         state.frame_set_x(&mut frame, Some(3));
         assert_eq!(state.eval_count(&Count::X, &frame), 3);
     }
@@ -1546,7 +1546,7 @@ mod tests {
         state.objects.remove(bear);
         assert!(state.objects.get(bear).is_none(), "the object is gone");
 
-        let mut frame = Frame::bare(bear, PlayerId(0));
+        let mut frame = ExecutionFrame::bare(bear, PlayerId(0));
         state.frame_set_source_lki(&mut frame, Some(snapshot));
 
         assert_eq!(

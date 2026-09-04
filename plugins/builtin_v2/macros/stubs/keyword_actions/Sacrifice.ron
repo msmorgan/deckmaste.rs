@@ -4,6 +4,6 @@ KeywordAction(
     grammar: Verb(
         bare: "sacrifice",
         participle: "sacrificed",
-        valence: NonprepositionalAdjunctLicensed(Transitive),
+        frame_set: NonprepositionalAdjunctLicensed(Transitive),
     ),
 )

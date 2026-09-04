@@ -17,7 +17,7 @@ use deckmaste_construction_core::macro_def::NounLocativeTemporalLicense;
 use deckmaste_construction_core::macro_def::NounRelationality;
 use deckmaste_construction_core::macro_def::Onset;
 use deckmaste_construction_core::macro_def::SurfaceFeature;
-use deckmaste_construction_core::macro_def::VerbValence;
+use deckmaste_construction_core::macro_def::VerbFrameSet;
 use deckmaste_construction_core::macro_def::normalize_surface_onset;
 use serde::Deserialize;
 
@@ -207,11 +207,11 @@ struct CoreVerbDeclaration {
     third_person: String,
     #[serde(default)]
     participle: Option<String>,
-    valences: Vec<CoreVerbValence>,
+    frames: Vec<CoreVerbFrame>,
 }
 
 #[derive(Debug, Deserialize)]
-enum CoreVerbValence {
+enum CoreVerbFrame {
     Predicate(Vec<CoreVerbTailAtom>),
     AdjunctLicensedPredicate(Vec<CoreVerbTailAtom>),
     NonprepositionalAdjunctLicensedPredicate(Vec<CoreVerbTailAtom>),
@@ -289,11 +289,11 @@ impl DeclarationRecord {
         &self.params
     }
 
-    /// Returns the verb valence when this is a verb declaration.
+    /// Returns the Verb Frame Set when this is a verb declaration.
     #[must_use]
-    pub fn valence(&self) -> Option<&VerbValence> {
+    pub fn frame_set(&self) -> Option<&VerbFrameSet> {
         match self.recipe.as_ref() {
-            Some(GrammarRecipe::Verb { valence }) => Some(valence),
+            Some(GrammarRecipe::Verb { frame_set }) => Some(frame_set),
             Some(
                 GrammarRecipe::Noun
                 | GrammarRecipe::FixedTerm
@@ -913,8 +913,8 @@ impl ParserEnvironment {
             .filter(|reading| reading.feature() == feature)
             .filter(|reading| {
                 self.declaration(reading.id().kind(), reading.id().name())
-                    .and_then(DeclarationRecord::valence)
-                    .is_some_and(|valence| valence_licenses_frame(valence, frame))
+                    .and_then(DeclarationRecord::frame_set)
+                    .is_some_and(|frame_set| frame_set_licenses_frame(frame_set, frame))
             })
             .collect()
     }
@@ -1243,14 +1243,14 @@ fn reject_literal_lexicon_collisions_from_surfaces(
     )
 }
 
-fn valence_licenses_frame(valence: &VerbValence, frame: &[CustomTailAtom]) -> bool {
-    match valence.frame() {
-        VerbValence::Intransitive => frame.is_empty(),
-        VerbValence::Transitive => frame == [CustomTailAtom::ObjectNounPhrase],
-        VerbValence::Numerative => frame == [CustomTailAtom::Amount],
-        VerbValence::Custom { shapes } => shapes.iter().any(|shape| shape.as_slice() == frame),
-        VerbValence::AdjunctLicensed(_) | VerbValence::NonprepositionalAdjunctLicensed(_) => {
-            unreachable!("frame() removes licence wrappers")
+fn frame_set_licenses_frame(frame_set: &VerbFrameSet, candidate: &[CustomTailAtom]) -> bool {
+    match frame_set.frame_set() {
+        VerbFrameSet::Intransitive => candidate.is_empty(),
+        VerbFrameSet::Transitive => candidate == [CustomTailAtom::ObjectNounPhrase],
+        VerbFrameSet::MeasureComplement => candidate == [CustomTailAtom::Amount],
+        VerbFrameSet::Custom { frames } => frames.iter().any(|frame| frame.as_slice() == candidate),
+        VerbFrameSet::AdjunctLicensed(_) | VerbFrameSet::NonprepositionalAdjunctLicensed(_) => {
+            unreachable!("frame_set() removes licence wrappers")
         }
     }
 }
@@ -1281,19 +1281,19 @@ impl OwnedVerbFrameAtom {
     }
 }
 
-fn normalize_plugin_valence(valence: &VerbValence) -> Vec<OwnedVerbFrameKey> {
-    let shapes = match valence.frame() {
-        VerbValence::Intransitive => vec![Vec::new()],
-        VerbValence::Transitive => vec![vec![CustomTailAtom::ObjectNounPhrase]],
-        VerbValence::Numerative => vec![vec![CustomTailAtom::Amount]],
-        VerbValence::Custom { shapes } => shapes.clone(),
-        VerbValence::AdjunctLicensed(_) | VerbValence::NonprepositionalAdjunctLicensed(_) => {
-            unreachable!("frame() removes licence wrappers")
+fn normalize_plugin_frame_set(frame_set: &VerbFrameSet) -> Vec<OwnedVerbFrameKey> {
+    let declared_frames = match frame_set.frame_set() {
+        VerbFrameSet::Intransitive => vec![Vec::new()],
+        VerbFrameSet::Transitive => vec![vec![CustomTailAtom::ObjectNounPhrase]],
+        VerbFrameSet::MeasureComplement => vec![vec![CustomTailAtom::Amount]],
+        VerbFrameSet::Custom { frames } => frames.clone(),
+        VerbFrameSet::AdjunctLicensed(_) | VerbFrameSet::NonprepositionalAdjunctLicensed(_) => {
+            unreachable!("frame_set() removes licence wrappers")
         }
     };
     let mut frames = Vec::new();
-    for shape in shapes {
-        let atoms = shape
+    for frame in declared_frames {
+        let atoms = frame
             .into_iter()
             .map(|atom| match atom {
                 CustomTailAtom::Literal(value) => OwnedVerbFrameAtom::Literal(value),
@@ -1305,8 +1305,8 @@ fn normalize_plugin_valence(valence: &VerbValence) -> Vec<OwnedVerbFrameKey> {
         let frame = OwnedVerbFrameKey {
             class: VerbFrameClass::Predicate,
             atoms,
-            prepositional_adjunct_licensed: valence.prepositional_adjunct_licensed(),
-            nonprepositional_adjunct_licensed: valence.nonprepositional_adjunct_licensed(),
+            prepositional_adjunct_licensed: frame_set.prepositional_adjunct_licensed(),
+            nonprepositional_adjunct_licensed: frame_set.nonprepositional_adjunct_licensed(),
         };
         if !frames.contains(&frame) {
             frames.push(frame);
@@ -1323,7 +1323,7 @@ fn normalized_verb_inventory(
         .map(|record| (record.reference.clone(), record))
         .collect::<BTreeMap<_, _>>();
     for record in declarations.values().flat_map(BTreeMap::values) {
-        let Some(valence) = record.valence() else {
+        let Some(frame_set) = record.frame_set() else {
             continue;
         };
         let reference = VerbInventoryRef::Declaration(record.id.clone());
@@ -1331,7 +1331,7 @@ fn normalized_verb_inventory(
             reference.clone(),
             VerbInventoryRecord {
                 reference,
-                frames: normalize_plugin_valence(valence),
+                frames: normalize_plugin_frame_set(frame_set),
                 surfaces: record.surfaces.clone(),
                 provenance: VerbProvenance::Declaration(record.provenance.clone()),
             },
@@ -1400,16 +1400,16 @@ fn core_verb_declaration_records() -> Result<Vec<VerbInventoryRecord>, ParserEnv
             bare,
             third_person,
             participle,
-            valences,
+            frames: declared_frames,
         } = declaration;
         if !seen.insert(identity) {
             return Err(ParserEnvironmentError::InvalidCoreVerbDeclarations {
                 detail: format!("duplicate identity {identity:?}"),
             });
         }
-        if valences.is_empty() {
+        if declared_frames.is_empty() {
             return Err(ParserEnvironmentError::InvalidCoreVerbDeclarations {
-                detail: format!("{identity:?} declares no valence"),
+                detail: format!("{identity:?} declares no Verb Frame"),
             });
         }
 
@@ -1431,22 +1431,22 @@ fn core_verb_declaration_records() -> Result<Vec<VerbInventoryRecord>, ParserEnv
             surfaces.push(surface(SurfaceFeature::Participle, participle)?);
         }
 
-        let frames = valences
+        let frames = declared_frames
             .into_iter()
-            .map(|valence| match valence {
-                CoreVerbValence::Predicate(atoms) => OwnedVerbFrameKey {
+            .map(|frame| match frame {
+                CoreVerbFrame::Predicate(atoms) => OwnedVerbFrameKey {
                     class: VerbFrameClass::Predicate,
                     atoms: owned_core_verb_frame_atoms(atoms),
                     prepositional_adjunct_licensed: false,
                     nonprepositional_adjunct_licensed: false,
                 },
-                CoreVerbValence::AdjunctLicensedPredicate(atoms) => OwnedVerbFrameKey {
+                CoreVerbFrame::AdjunctLicensedPredicate(atoms) => OwnedVerbFrameKey {
                     class: VerbFrameClass::Predicate,
                     atoms: owned_core_verb_frame_atoms(atoms),
                     prepositional_adjunct_licensed: true,
                     nonprepositional_adjunct_licensed: true,
                 },
-                CoreVerbValence::NonprepositionalAdjunctLicensedPredicate(atoms) => {
+                CoreVerbFrame::NonprepositionalAdjunctLicensedPredicate(atoms) => {
                     OwnedVerbFrameKey {
                         class: VerbFrameClass::Predicate,
                         atoms: owned_core_verb_frame_atoms(atoms),
@@ -1454,13 +1454,13 @@ fn core_verb_declaration_records() -> Result<Vec<VerbInventoryRecord>, ParserEnv
                         nonprepositional_adjunct_licensed: true,
                     }
                 }
-                CoreVerbValence::Auxiliary => OwnedVerbFrameKey {
+                CoreVerbFrame::Auxiliary => OwnedVerbFrameKey {
                     class: VerbFrameClass::Auxiliary,
                     atoms: Vec::new(),
                     prepositional_adjunct_licensed: false,
                     nonprepositional_adjunct_licensed: false,
                 },
-                CoreVerbValence::ProVerb => OwnedVerbFrameKey {
+                CoreVerbFrame::ProVerb => OwnedVerbFrameKey {
                     class: VerbFrameClass::ProVerb,
                     atoms: Vec::new(),
                     prepositional_adjunct_licensed: false,
@@ -1474,7 +1474,7 @@ fn core_verb_declaration_records() -> Result<Vec<VerbInventoryRecord>, ParserEnv
             .any(|(index, frame)| frames[..index].contains(frame))
         {
             return Err(ParserEnvironmentError::InvalidCoreVerbDeclarations {
-                detail: format!("{identity:?} repeats a valence"),
+                detail: format!("{identity:?} repeats a Verb Frame"),
             });
         }
 
@@ -1563,7 +1563,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn core_verb_declarations_have_exact_surfaces_and_deduplicated_valences() {
+    fn core_verb_declarations_have_exact_surfaces_and_deduplicated_frames() {
         let records = core_verb_declaration_records().expect("embedded declarations are valid");
         let expected = [
             (CoreVerbIdentity::Add, "add", "adds", None, 2),
@@ -1690,7 +1690,7 @@ mod tests {
     fn normalized_verb_inventory_uses_one_frame_lookup_for_core_and_plugin_rows() {
         let declaration = deckmaste_construction_core::macro_def::read_str(
             "/synthetic/Act.ron",
-            r#"KeywordAction(name:"Act",spelling:"act",grammar:Verb(bare:"act",valence:Transitive))"#,
+            r#"KeywordAction(name:"Act",spelling:"act",grammar:Verb(bare:"act",frame_set:Transitive))"#,
         )
         .expect("synthetic keyword action is valid");
         let environment = ParserEnvironment::try_from_declarations([declaration])
@@ -1740,7 +1740,7 @@ mod tests {
 
         let untap = deckmaste_construction_core::macro_def::read_str(
             "/synthetic/Untap.ron",
-            r#"KeywordAction(name:"Untap",spelling:"untap",grammar:Verb(bare:"untap",valence:Transitive))"#,
+            r#"KeywordAction(name:"Untap",spelling:"untap",grammar:Verb(bare:"untap",frame_set:Transitive))"#,
         )
         .expect("synthetic untap verb is valid");
         let licensed = ParserEnvironment::try_from_declarations([untap])
@@ -1773,7 +1773,7 @@ mod tests {
 
         let colliding_tail = deckmaste_construction_core::macro_def::read_str(
             "/synthetic/Act.ron",
-            r#"KeywordAction(name:"Act",spelling:"act",grammar:Verb(bare:"act",valence:Custom(shapes:[[Literal("act")]])))"#,
+            r#"KeywordAction(name:"Act",spelling:"act",grammar:Verb(bare:"act",frame_set:Custom(frames:[[Literal("act")]])))"#,
         )
         .expect("synthetic verb is valid");
         assert!(matches!(
@@ -1789,7 +1789,7 @@ mod tests {
 
         let case_distinct_tail = deckmaste_construction_core::macro_def::read_str(
             "/synthetic/Act.ron",
-            r#"KeywordAction(name:"Act",spelling:"act",grammar:Verb(bare:"act",valence:Custom(shapes:[[Literal("Act")]])))"#,
+            r#"KeywordAction(name:"Act",spelling:"act",grammar:Verb(bare:"act",frame_set:Custom(frames:[[Literal("Act")]])))"#,
         )
         .expect("synthetic verb is valid");
         ParserEnvironment::try_from_declarations([case_distinct_tail])

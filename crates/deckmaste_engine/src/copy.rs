@@ -56,7 +56,7 @@ use deckmaste_core::Token;
 use deckmaste_core::Type;
 use deckmaste_core::TypeDef;
 
-use crate::Frame;
+use crate::ExecutionFrame;
 use crate::GameState;
 use crate::ObjectId;
 
@@ -71,7 +71,11 @@ use crate::ObjectId;
 /// zone" (its doc comment) — exactly `frame.source(self)`, the exophoric binding
 /// that the region's source parameter itself reads in a spell frame.
 #[must_use]
-pub fn resolve_source(state: &GameState, frame: &Frame, source: &CopySource) -> Option<ObjectId> {
+pub fn resolve_source(
+    state: &GameState,
+    frame: &ExecutionFrame,
+    source: &CopySource,
+) -> Option<ObjectId> {
     let id = match source {
         CopySource::Object(reference) => state.eval_reference(reference, frame),
         CopySource::SelfCard => frame.source(state),
@@ -194,7 +198,7 @@ pub fn has_unbuilt_enter_rider(riders: &[EnterRider]) -> bool {
 #[must_use]
 pub(crate) fn enter_status_from_riders(
     state: &GameState,
-    frame: &Frame,
+    frame: &ExecutionFrame,
     riders: &[EnterRider],
     default_controller: crate::player::PlayerId,
     owner: crate::player::PlayerId,
@@ -897,7 +901,7 @@ mod tests {
     fn resolve_source_self_card_is_the_frame_source() {
         let mut state = bare_game();
         let id = mint_card(&mut state, CardFace::default());
-        let frame = Frame::bare(id, PlayerId(0));
+        let frame = ExecutionFrame::bare(id, PlayerId(0));
         assert_eq!(
             resolve_source(&state, &frame, &CopySource::SelfCard),
             Some(id)
@@ -908,7 +912,7 @@ mod tests {
     fn resolve_source_nonexistent_object_is_none() {
         let state = bare_game();
         let dead = ObjectId::from_raw(999);
-        let frame = Frame::bare(dead, PlayerId(0));
+        let frame = ExecutionFrame::bare(dead, PlayerId(0));
         assert_eq!(resolve_source(&state, &frame, &CopySource::SelfCard), None);
     }
 

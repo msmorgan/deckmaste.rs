@@ -4,6 +4,6 @@ KeywordAction(
     grammar: Verb(
         bare: "manifest dread",
         third_person: "manifests dread",
-        valence: Intransitive,
+        frame_set: Intransitive,
     ),
 )

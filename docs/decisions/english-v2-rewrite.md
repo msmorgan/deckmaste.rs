@@ -1256,8 +1256,6 @@ one packed candidate; the adjunct node is hoisted to the highest site and
 carries the set of admissible lower sites as a value. Semantics chooses. An
 attachment-only tie is therefore one candidate, not a STOP; any other tie
 remains a STOP. Ticket: `english-v2-underspecified-adjunct-attachment`.
-
-
 ## Amendment: closed-class ownership and the licensed form atom (2026-09-04)
 
 One closed-class word has one owner. Where a form literal spells a word a
@@ -1280,3 +1278,19 @@ pinned exactly, with the admitted rows named in the failure; and unlicensed
 form-literal/vocabulary overlaps as a ceiling that only decreases. The former
 single `literal_lexicon_collisions` count mixed both and could be raised by
 either cause.
+
+## Amendment: Verb Frame and execution-context vocabulary (2026-09-04)
+
+This amendment supersedes the verb-valence and base-frame vocabulary above
+without changing any production, selection rule, or semantic contract. A
+lexeme owns a `VerbFrameSet` containing `VerbFrame` schemas. The
+amount-selecting role is `MeasureComplement`, and a realized lexical verb
+together with its selected Complements is a `LexicalVerbPhrase` inside the
+larger `VerbPhrase` category. `VerbFrameKey` is only the compiler
+compatibility key between a declared Verb Frame and its realization.
+
+The Game Model evaluation context is `ExecutionFrame`. It is not a Verb
+Frame or a Lexical Verb Phrase, and English-v2 does not use that Game Model
+name for syntax. Historical uses of “valence,” “Numerative,” “base verb
+frame,” and unqualified engine “Frame” remain above as the record of the
+superseded vocabulary.

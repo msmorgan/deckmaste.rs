@@ -12,7 +12,7 @@ KeywordAction(
     grammar: Verb(
         bare: "scry",
         third_person: "scries",
-        valence: Numerative,
+        frame_set: MeasureComplement,
     ),
     body: Scry(Param(0)),
 )
@@ -24,7 +24,7 @@ KeywordAction(
     spelling: "destroy",
     grammar: Verb(
         bare: "destroy",
-        valence: Transitive,
+        frame_set: Transitive,
     ),
 )
 "#;
@@ -162,7 +162,7 @@ fn source_schema_rejects_legacy_and_unknown_fields() {
             spelling: "scry",
             grammar: Verb(
                 bare: "scry",
-                valence: Numerative,
+                frame_set: MeasureComplement,
                 repetition: "*",
             ),
         )"#,
@@ -202,7 +202,7 @@ fn morphology_uses_only_dumb_defaults_and_whole_surface_replacements() {
 
     let turn_face_up = read_str(
         source_path("TurnFaceUp.ron"),
-        r#"KeywordAction(name:"TurnFaceUp",spelling:"turn face up",grammar:Verb(bare:"turn face up",third_person:"turns face up",valence:Transitive))"#,
+        r#"KeywordAction(name:"TurnFaceUp",spelling:"turn face up",grammar:Verb(bare:"turn face up",third_person:"turns face up",frame_set:Transitive))"#,
     )
     .unwrap();
     assert_eq!(
@@ -234,7 +234,7 @@ fn verb_participles_use_one_regular_surface_and_explicit_whole_surface_overrides
             grammar:Verb(
                 bare:"deal",
                 participle:"dealt",
-                valence:Transitive,
+                frame_set:Transitive,
             ),
         )"#,
     )
@@ -246,7 +246,7 @@ fn verb_participles_use_one_regular_surface_and_explicit_whole_surface_overrides
         r#"KeywordAction(
             name:"Turn",
             spelling:"turn",
-            grammar:Verb(bare:"turn",valence:Transitive),
+            grammar:Verb(bare:"turn",frame_set:Transitive),
         )"#,
     )
     .expect("regular participles derive without a declaration callback");
@@ -283,7 +283,7 @@ fn graduated_declaration_expands_and_normalizes() {
     assert_eq!(
         row.recipe,
         GrammarRecipe::Verb {
-            valence: VerbValence::Numerative,
+            frame_set: VerbFrameSet::MeasureComplement,
         }
     );
     assert_eq!(
@@ -424,7 +424,7 @@ KeywordAction(
     grammar: Verb(
         bare: "scry",
         third_person: "",
-        valence: Numerative,
+        frame_set: MeasureComplement,
     ),
 )
 "#,
@@ -441,20 +441,20 @@ KeywordAction(
 KeywordAction(
     name: "Scry",
     spelling: "scry",
-    grammar: Verb(bare: "scry", third_person: 3, valence: Numerative),
+    grammar: Verb(bare: "scry", third_person: 3, frame_set: MeasureComplement),
 )
 "#,
     );
 }
 
 #[test]
-fn custom_valence_has_exact_finite_atom_shapes() {
+fn custom_frame_set_has_exact_finite_atom_shapes() {
     let expected = [
-        VerbValence::Intransitive,
-        VerbValence::Transitive,
-        VerbValence::Numerative,
-        VerbValence::Custom {
-            shapes: vec![
+        VerbFrameSet::Intransitive,
+        VerbFrameSet::Transitive,
+        VerbFrameSet::MeasureComplement,
+        VerbFrameSet::Custom {
+            frames: vec![
                 vec![],
                 vec![
                     CustomTailAtom::Literal("with".to_owned()),
@@ -465,23 +465,23 @@ fn custom_valence_has_exact_finite_atom_shapes() {
             ],
         },
     ];
-    for (index, valence) in [
+    for (index, frame_set) in [
         "Intransitive",
         "Transitive",
-        "Numerative",
-        "Custom(shapes: [[], [Literal(\"with\"), Amount, ObjectNounPhrase, PredicativeComplement]])",
+        "MeasureComplement",
+        "Custom(frames: [[], [Literal(\"with\"), Amount, ObjectNounPhrase, PredicativeComplement]])",
     ]
     .into_iter()
     .enumerate()
     {
         let source = format!(
-            "KeywordAction(name:\"Verb{index}\",spelling:\"verb{index}\",grammar:Verb(bare:\"verb{index}\",valence:{valence}))"
+            "KeywordAction(name:\"Verb{index}\",spelling:\"verb{index}\",grammar:Verb(bare:\"verb{index}\",frame_set:{frame_set}))"
         );
         let declaration = read_str(source_path(&format!("Verb{index}.ron")), &source).unwrap();
         assert_eq!(
             declaration.grammar.unwrap().recipe,
             GrammarRecipe::Verb {
-                valence: expected[index].clone(),
+                frame_set: expected[index].clone(),
             }
         );
     }
@@ -494,7 +494,7 @@ KeywordAction(
     spelling: "connive",
     grammar: Verb(
         bare: "connive",
-        valence: Custom(shapes: [[], [Amount]]),
+        frame_set: Custom(frames: [[], [Amount]]),
     ),
 )
 "#,
@@ -503,8 +503,8 @@ KeywordAction(
     assert_eq!(
         connive.grammar.unwrap().recipe,
         GrammarRecipe::Verb {
-            valence: VerbValence::Custom {
-                shapes: vec![vec![], vec![CustomTailAtom::Amount]],
+            frame_set: VerbFrameSet::Custom {
+                frames: vec![vec![], vec![CustomTailAtom::Amount]],
             },
         }
     );
@@ -514,11 +514,11 @@ KeywordAction(
 KeywordAction(
     name: "Connive",
     spelling: "connive",
-    grammar: Verb(bare: "connive", valence: Custom(shapes: [])),
+    grammar: Verb(bare: "connive", frame_set: Custom(frames: [])),
 )
 "#,
     );
-    assert!(matches!(error, ValidationError::EmptyCustomShapeSet));
+    assert!(matches!(error, ValidationError::EmptyCustomVerbFrameSet));
 
     let error = validation(
         r#"
@@ -527,15 +527,12 @@ KeywordAction(
     spelling: "connive",
     grammar: Verb(
         bare: "connive",
-        valence: Custom(shapes: [[Amount], [Amount]]),
+        frame_set: Custom(frames: [[Amount], [Amount]]),
     ),
 )
 "#,
     );
-    assert!(matches!(
-        error,
-        ValidationError::DuplicateCustomShape { .. }
-    ));
+    assert!(matches!(error, ValidationError::DuplicateVerbFrame { .. }));
 
     let error = validation(
         r#"
@@ -544,7 +541,7 @@ KeywordAction(
     spelling: "clash",
     grammar: Verb(
         bare: "clash",
-        valence: Custom(shapes: [[Literal("")]]),
+        frame_set: Custom(frames: [[Literal("")]]),
     ),
 )
 "#,
@@ -558,7 +555,7 @@ KeywordAction(
     spelling: "clash",
     grammar: Verb(
         bare: "clash",
-        valence: Custom(shapes: [[Clause]]),
+        frame_set: Custom(frames: [[Clause]]),
     ),
 )
 "#,
@@ -574,7 +571,7 @@ KeywordAction(
     );
     for literal in ["Literal(\" \")", "Literal(\"line\\nbreak\")"] {
         let source = format!(
-            "KeywordAction(name:\"Clash\",spelling:\"clash\",grammar:Verb(bare:\"clash\",valence:Custom(shapes:[[{literal}]])))"
+            "KeywordAction(name:\"Clash\",spelling:\"clash\",grammar:Verb(bare:\"clash\",frame_set:Custom(frames:[[{literal}]])))"
         );
         assert!(matches!(
             validation(&source),
@@ -771,7 +768,7 @@ fn validation_locations_ignore_comment_string_and_raw_string_decoys() {
 KeywordAction(
     name: "Mill",
     params: [Amount],
-    grammar: Verb(bare: "mill", valence: Numerative),
+    grammar: Verb(bare: "mill", frame_set: MeasureComplement),
     spelling:
         "scry <Param(0)>",
 )"#;
@@ -819,7 +816,7 @@ KeywordAction(
     name: "Mill",
     params: [Amount],
     spelling: "scry <Param(0)>",
-    grammar: Verb(bare: "mill", valence: Numerative),
+    grammar: Verb(bare: "mill", frame_set: MeasureComplement),
 )
 "#,
     );
@@ -944,7 +941,7 @@ fn normalization_keeps_category_safe_identities_and_surface_ambiguity() {
     let rows = read_sources(vec![
         DeclarationSource::new(
             source_path("action/Flying.ron"),
-            r#"KeywordAction(name:"Flying",spelling:"fly",grammar:Verb(bare:"fly",valence:Intransitive))"#,
+            r#"KeywordAction(name:"Flying",spelling:"fly",grammar:Verb(bare:"fly",frame_set:Intransitive))"#,
         ),
         DeclarationSource::new(
             source_path("ability/Flying.ron"),
@@ -1018,7 +1015,7 @@ fn builtin_reader_authenticates_every_final_path_family() {
     for (relative, source, kind, name) in [
         (
             "keyword_actions/Scry.ron",
-            r#"KeywordAction(name:"Scry",spelling:"scry",grammar:Verb(bare:"scry",valence:Numerative))"#,
+            r#"KeywordAction(name:"Scry",spelling:"scry",grammar:Verb(bare:"scry",frame_set:MeasureComplement))"#,
             DeclarationKind::KeywordAction,
             "Scry",
         ),
@@ -1121,7 +1118,7 @@ fn builtin_reader_uses_final_paths_and_is_iteration_independent() {
 KeywordAction(
     name: "Scry",
     spelling: "scry",
-    grammar: Verb(bare: "scry", third_person: "scries", valence: Numerative),
+    grammar: Verb(bare: "scry", third_person: "scries", frame_set: MeasureComplement),
 )
 "#,
     );
@@ -1148,7 +1145,7 @@ KeywordAction(
 KeywordAction(
     name: "Scry",
     spelling: "scry",
-    grammar: Verb(bare: "scry", third_person: "scries", valence: Numerative),
+    grammar: Verb(bare: "scry", third_person: "scries", frame_set: MeasureComplement),
 )
 "#,
     );
@@ -1254,7 +1251,7 @@ Subtype(
 KeywordAction(
     name: "Surveil",
     spelling: "surveil",
-    grammar: Verb(bare: "surveil", valence: Numerative),
+    grammar: Verb(bare: "surveil", frame_set: MeasureComplement),
 )
 "#,
     );

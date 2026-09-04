@@ -3,6 +3,6 @@ KeywordAction(
     spelling: "create",
     grammar: Verb(
         bare: "create",
-        valence: Transitive,
+        frame_set: Transitive,
     ),
 )

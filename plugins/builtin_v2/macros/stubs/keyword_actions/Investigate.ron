@@ -3,6 +3,6 @@ KeywordAction(
     spelling: "investigate",
     grammar: Verb(
         bare: "investigate",
-        valence: Intransitive,
+        frame_set: Intransitive,
     ),
 )

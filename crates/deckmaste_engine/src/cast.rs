@@ -33,7 +33,7 @@ use crate::object::ObjectId;
 use crate::object::ObjectSource;
 use crate::player::ManaPool;
 use crate::player::PlayerId;
-use crate::stack::Frame;
+use crate::stack::ExecutionFrame;
 use crate::stack::PendingStackEntry;
 use crate::stack::StackObject;
 use crate::state::GameState;
@@ -495,7 +495,7 @@ fn cost_step_items(
                 step,
                 &deckmaste_core::Reference::controller_parameter(),
             )),
-            frame: Frame {
+            frame: ExecutionFrame {
                 activation,
                 payment: Some(payment),
             },
@@ -511,7 +511,7 @@ fn verb_payment_items(
     verbs
         .iter()
         .map(|verb| {
-            let frame = Frame {
+            let frame = ExecutionFrame {
                 activation,
                 payment: Some(payment),
             };
@@ -736,7 +736,7 @@ fn announced_mode_cost_components(
 pub(crate) fn announced_effect_items(
     state: &mut GameState,
     effect: &deckmaste_core::Region,
-    frame: &Frame,
+    frame: &ExecutionFrame,
     chosen_modes: &[Uint],
     targets: &[Vec<ObjectId>],
 ) -> Vec<WorkItem> {
@@ -866,7 +866,7 @@ impl GameState {
             if crate::resolve::announced_prefix_len(&specs) != 0 {
                 return self.with_temporary_region_activation(
                     effect,
-                    &Frame::bare(source, controller),
+                    &ExecutionFrame::bare(source, controller),
                     |activation| self.target_announcement_satisfiable(&specs, source, activation),
                 );
             }
@@ -880,7 +880,7 @@ impl GameState {
             return selection_satisfiable(&[]);
         };
         let options = Uint::try_from(modal.modes.len()).expect("mode count fits Uint");
-        let frame = Frame::bare(source, controller);
+        let frame = ExecutionFrame::bare(source, controller);
         let (lo, hi) = modal.choose.count.bounds();
         let lo = lo.map_or(0, |count| self.eval_count(count, &frame));
         let hi = hi.map_or(options, |count| self.eval_count(count, &frame));
@@ -1226,7 +1226,10 @@ impl GameState {
                 Instruction::Sequentially(Arc::from([])).into(),
             )
         });
-        let activation = self.enter_region(&region, &crate::stack::Frame::bare(object, controller));
+        let activation = self.enter_region(
+            &region,
+            &crate::stack::ExecutionFrame::bare(object, controller),
+        );
         self.announcing = Some(PendingStackEntry {
             optional_components: Vec::new(),
             paid_costs: Vec::new(),
@@ -1359,7 +1362,7 @@ impl GameState {
         alternative_cost: Option<deckmaste_core::Cost>,
         if_did: Option<Arc<Instruction>>,
         if_not: Option<Arc<Instruction>>,
-        frame: Frame,
+        frame: ExecutionFrame,
     ) -> Vec<WorkItem> {
         let origin = self
             .objects
@@ -1410,7 +1413,7 @@ impl GameState {
             return 0;
         };
         let options = Uint::try_from(modal.modes.len()).expect("mode count fits Uint");
-        let frame = Frame::bare(source, controller);
+        let frame = ExecutionFrame::bare(source, controller);
         let (lo, hi) = modal.choose.count.bounds();
         let lo = lo.map_or(0, |count| self.eval_count(count, &frame));
         let hi = hi.map_or(options, |count| self.eval_count(count, &frame));
@@ -2013,7 +2016,7 @@ impl GameState {
                 );
                 (
                     crate::payment::PaymentSubject::Spell(object),
-                    Frame::bare(object, payer),
+                    ExecutionFrame::bare(object, payer),
                     components,
                     self.payment_pip_alternatives(object),
                 )
@@ -2031,7 +2034,7 @@ impl GameState {
                         ability: pending.id,
                         source,
                     },
-                    Frame::bare(source, payer),
+                    ExecutionFrame::bare(source, payer),
                     components,
                     Vec::new(),
                 )
@@ -2409,9 +2412,12 @@ impl GameState {
     /// `Scaled` count all read relative to the ability's own carrier, whether
     /// that is the spell itself (affinity) or a battlefield permanent (a
     /// sphere taxer).
-    fn cost_modifier_rows(&self, object: ObjectId) -> Vec<(Frame, deckmaste_core::CostChange)> {
+    fn cost_modifier_rows(
+        &self,
+        object: ObjectId,
+    ) -> Vec<(ExecutionFrame, deckmaste_core::CostChange)> {
         use std::ops::ControlFlow;
-        let mut rows: Vec<(Frame, deckmaste_core::CostChange)> = Vec::new();
+        let mut rows: Vec<(ExecutionFrame, deckmaste_core::CostChange)> = Vec::new();
         // The spell's own rows (the card being cast is not on the battlefield,
         // so the statics walk below never sees it).
         let source = self.objects.obj(object).source;
@@ -2426,7 +2432,7 @@ impl GameState {
                     && self.filter_matches_live(of, object, source)
                 {
                     rows.push((
-                        Frame::bare(object, self.objects.obj(object).controller),
+                        ExecutionFrame::bare(object, self.objects.obj(object).controller),
                         change.clone(),
                     ));
                 }
@@ -2441,7 +2447,7 @@ impl GameState {
                     && self.filter_matches_live(of, object, self.objects.obj(id).source)
                 {
                     rows.push((
-                        Frame::bare(id, self.objects.obj(id).controller),
+                        ExecutionFrame::bare(id, self.objects.obj(id).controller),
                         change.clone(),
                     ));
                 }
@@ -2458,7 +2464,7 @@ impl GameState {
                 if let deckmaste_core::StaticSpec::CostModifier { of, change } = row
                     && self.filter_matches_live(of, object, source)
                 {
-                    rows.push((Frame::bare(carrier, ce.controller), change.clone()));
+                    rows.push((ExecutionFrame::bare(carrier, ce.controller), change.clone()));
                 }
             }
         }
@@ -2476,7 +2482,7 @@ impl GameState {
         &self,
         cost: &mut Vec<ManaSymbol>,
         change: &deckmaste_core::CostChange,
-        frame: &Frame,
+        frame: &ExecutionFrame,
         phase: ChangePhase,
         times: Uint,
     ) {

@@ -3,6 +3,6 @@ KeywordAction(
     spelling: "airbend",
     grammar: Verb(
         bare: "airbend",
-        valence: Transitive,
+        frame_set: Transitive,
     ),
 )

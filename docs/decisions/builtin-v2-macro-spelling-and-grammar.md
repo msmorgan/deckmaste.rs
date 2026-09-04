@@ -452,3 +452,21 @@ creature", which the determinative model could not express. The macros'
 only the lexical category moved. The generic reference-NP construction
 consuming a sole-determiner class remains for members that genuinely are
 determiners.
+
+
+## Amendment: Verb Frame vocabulary (2026-09-04)
+
+This amendment supersedes the verb-valence vocabulary above without changing
+the grammar. A verb declaration owns a `VerbFrameSet`; every member is one
+ordered `VerbFrame`. The serialized `Verb` field is `frame_set`, the `Custom`
+member field is `frames`, and the amount-selecting member is
+`MeasureComplement`. `VerbFrameKey` remains an internal compiler compatibility
+key that matches a realized phrase against a declared Verb Frame; it is not
+itself the lexical schema.
+
+The realized syntax tree calls an instantiated lexical verb plus its selected
+Complements a `LexicalVerbPhrase`. Generic `VerbPhrase` remains the larger
+category that may add auxiliary or other clause structure. Historical uses of
+“valence,” “Numerative,” and “base verb frame” above are retained as the
+record of the earlier decision but no longer name current declarations, roles,
+or syntax-tree values.
