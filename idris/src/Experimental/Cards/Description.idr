@@ -404,10 +404,16 @@ roguesGallery =
 
 ||| Bioplasm
 public export
+bioplasmAttack : GameEvent []
+bioplasmAttack = Attacks Macros.thisCreature NoDefender
+
+public export
+bioplasmExile : Instruction (eventAfter Description.bioplasmAttack)
+bioplasmExile = Macros.exile You (Macros.topSlice (Lit 1))
+
+public export
 bioplasmAfterExile : Bindings
-bioplasmAfterExile =
-  instrIntro {bs = eventAfter {bs = []} (Attacks Macros.thisCreature NoDefender)}
-           (Macros.exile You (Macros.topSlice (Lit 1)))
+bioplasmAfterExile = instrIntro Description.bioplasmExile
 
 public export
 bioplasmExiledCard : Noun Description.bioplasmAfterExile Object
@@ -419,8 +425,11 @@ playersTopCardSlice = LibrarySlice OnTop (Lit 1) (PlayerGroup AllPlayers)
 
 ||| Deepglow Skate's recipient
 public export
-deepglowSkateRecipientRefused :
-  perMemberOk (Described {bs = []} (TargetDet Macros.anyNumber) Permanent) = False
+deepglowSkateRecipient : Noun [] Object
+deepglowSkateRecipient = Described (TargetDet Macros.anyNumber) Permanent
+
+public export
+deepglowSkateRecipientRefused : perMemberOk Description.deepglowSkateRecipient = False
 deepglowSkateRecipientRefused = Refl
 
 ||| Weftwalking
@@ -582,6 +591,9 @@ doubleYourOwnCounters : Instruction []
 doubleYourOwnCounters = DoubleCounters You
 
 public export
-permanentCardIsPlaceless :
-  phraseZone (And {bs = []} [Permanent, IsCard]) = Nothing
+permanentCardPhrase : Predicate [] Object
+permanentCardPhrase = And [Permanent, IsCard]
+
+public export
+permanentCardIsPlaceless : phraseZone Description.permanentCardPhrase = Nothing
 permanentCardIsPlaceless = Refl

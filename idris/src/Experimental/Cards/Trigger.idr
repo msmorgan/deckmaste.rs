@@ -275,10 +275,13 @@ chubToad =
 
 ||| Giggling Skitterspike
 public export
-gigglingSkitterspikeArms : AltEvent {bs = []} Whenever
-                             [ Blocks Macros.thisCreature Nothing
-                             , BecomesTarget Macros.thisCreature
-                                             (Macros.a Macros.spell) ]
+gigglingSkitterspikeTriggers : List (GameEvent [])
+gigglingSkitterspikeTriggers =
+  [ Blocks Macros.thisCreature Nothing
+  , BecomesTarget Macros.thisCreature (Macros.a Macros.spell) ]
+
+public export
+gigglingSkitterspikeArms : AltEvent Whenever Trigger.gigglingSkitterspikeTriggers
 gigglingSkitterspikeArms = MoreAlt
 
 ||| Naban, Dean of Iteration
@@ -446,7 +449,7 @@ unstableShapeshifter =
        (MkTypeLine [creatureType "Shapeshifter"] [Creature])
        [ Macros.triggered Whenever
                           (Enters (Macros.a (And [Macros.creature, OtherThan This])) Nothing)
-                          (Continuously {ts = StaticFirstDone}
+                          (Continuously
                       (BecomesCopy Macros.thisCreature (Macros.That (TypeW Creature) OneOf)
                                    [ExceptThisAbility])
                       Nothing) ]
@@ -512,9 +515,9 @@ admiralsOrder =
   Macros.card "Admiral's Order"
        (Just [Macros.generic 1, Macros.pip Blue, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Static (Macros.asLongAs
-                   (Macros.happened AttackDeclaration You Lookback.ThisTurn)
-                   (AltCost This (Just (Mana [Macros.pip Blue]))))
+       [ Static (Macros.onlyWhile
+                   (AltCost This (Just (Mana [Macros.pip Blue])))
+                   (Macros.happened AttackDeclaration You Lookback.ThisTurn))
        , Spell (CounterSpell (Macros.target Macros.spell)) ]
        Nothing
 
@@ -943,7 +946,7 @@ gatherSpecimens =
   Macros.card "Gather Specimens"
        (Just [Macros.generic 3, Macros.pip Blue, Macros.pip Blue, Macros.pip Blue])
        [] (MkTypeLine [] [Instant])
-       [ Spell (Continuously {ts = StaticFirstDone}
+       [ Spell (Continuously
                   (EntersRider
                      (Macros.a (And [Macros.creature,
                                      HasPossessor ControllerAx Macros.anOpponent]))

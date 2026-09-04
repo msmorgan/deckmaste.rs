@@ -311,26 +311,34 @@ eachCreatureThatSplitControls :
 eachCreatureThatSplitControls =
   Macros.each (And [Macros.creature, HasPossessor ControllerAx (Macros.splitOverPlaneswalker {ck} {pk})])
 
+public export
+anyTargetAnnounced : Noun [] (Object \/ Player)
+anyTargetAnnounced = Macros.target Macros.anyTarget
+
+public export
+playerOrPlaneswalkerAnnounced : Noun [] (Object \/ Player)
+playerOrPlaneswalkerAnnounced = Description.targetPlayerOrPlaneswalker
+
 ||| Chain of Plasma
 public export
-chainOfPlasmaOfferee : Noun (nomIntro {bs = []} (Macros.target Macros.anyTarget)) Player
+chainOfPlasmaOfferee : Noun (nomIntro Anaphora.anyTargetAnnounced) Player
 chainOfPlasmaOfferee = Macros.splitOverPermanent
 
 ||| Chain Lightning
 public export
-chainLightningPayer : Noun (nomIntro {bs = []} (Macros.target Macros.anyTarget)) Player
+chainLightningPayer : Noun (nomIntro Anaphora.anyTargetAnnounced) Player
 chainLightningPayer = Macros.splitOverPermanent
 
 ||| Flames of the Blood Hand
 public export
 flamesOfTheBloodHandSubject :
-  Noun (nomIntro {bs = []} Description.targetPlayerOrPlaneswalker) Player
+  Noun (nomIntro Anaphora.playerOrPlaneswalkerAnnounced) Player
 flamesOfTheBloodHandSubject = Macros.splitOverPlaneswalker
 
 ||| Flaming Gambit
 public export
 flamingGambitOfferee :
-  Noun (nomIntro {bs = []} Description.targetPlayerOrPlaneswalker) Player
+  Noun (nomIntro Anaphora.playerOrPlaneswalkerAnnounced) Player
 flamingGambitOfferee = Macros.splitOverPlaneswalker
 
 ||| Ertai's Trickery
@@ -381,11 +389,18 @@ blessedRespiteShuffle =
 
 ||| Nekrataal
 public export
+nekrataalEntry : GameEvent []
+nekrataalEntry = Enters Macros.thisCreature Nothing
+
+public export
+nekrataalDestroy : Instruction (eventAfter Anaphora.nekrataalEntry)
+nekrataalDestroy =
+  Macros.destroy (Macros.target
+     (And [Macros.creature, Not Macros.artifact, Not (ColorIs Black)]))
+
+public export
 nekrataalRider : Bindings
-nekrataalRider =
-  riderIntro {bs = eventAfter {bs = []} (Enters Macros.thisCreature Nothing)}
-    (Macros.destroy (Macros.target
-       (And [Macros.creature, Not Macros.artifact, Not (ColorIs Black)])))
+nekrataalRider = riderIntro Anaphora.nekrataalDestroy
 
 public export
 nekrataalOneCreatureWord : countReach (Word (TypeW Creature)) OneOf Anaphora.nekrataalRider = 1
@@ -396,11 +411,14 @@ nekrataalOneDestroyed : countReach (Stamped "Destroy") OneOf Anaphora.nekrataalR
 nekrataalOneDestroyed = Refl
 
 public export
+sequencedRiderBody : Instruction []
+sequencedRiderBody =
+  Sequentially [ Macros.exile You (Macros.target Macros.artifact)
+               , Macros.destroy (Macros.target Macros.creature) ]
+
+public export
 sequencedRider : Bindings
-sequencedRider =
-  riderIntro {bs = []}
-    (Sequentially [ Macros.exile You (Macros.target Macros.artifact)
-                  , Macros.destroy (Macros.target Macros.creature) ])
+sequencedRider = riderIntro Anaphora.sequencedRiderBody
 
 public export
 sequencedRiderOneDestroyed : countReach (Stamped "Destroy") OneOf Anaphora.sequencedRider = 1
@@ -412,9 +430,12 @@ sequencedRiderOneExiled = Refl
 
 ||| Engulfing Flames
 public export
+engulfingFlamesBody : Instruction []
+engulfingFlamesBody = DealDamage This (Lit 1) (Macros.target Macros.creature)
+
+public export
 engulfingFlamesRider : Bindings
-engulfingFlamesRider =
-  riderIntro {bs = []} (DealDamage This (Lit 1) (Macros.target Macros.creature))
+engulfingFlamesRider = riderIntro Anaphora.engulfingFlamesBody
 
 public export
 engulfingFlamesNoDestroyStamp :
@@ -469,16 +490,21 @@ bioplasmTypedCardReadWrites = Refl
 
 ||| Scapeshift
 public export
+scapeshiftSacrifice : Instruction []
+scapeshiftSacrifice =
+  Macros.sacrifice You (Macros.counted Macros.anyNumber Macros.land)
+
+public export
 scapeshiftSacrificed : Bindings
-scapeshiftSacrificed =
-  instrIntro {bs = []}
-           (Macros.sacrifice You (Macros.counted Macros.anyNumber Macros.land))
+scapeshiftSacrificed = instrIntro Anaphora.scapeshiftSacrifice
+
+public export
+scapeshiftSearch : Instruction Anaphora.scapeshiftSacrificed
+scapeshiftSearch = Macros.searchLibraryFor (UpToOf GroupSize) Macros.land
 
 public export
 scapeshiftAfterSearch : Bindings
-scapeshiftAfterSearch =
-  instrIntro {bs = Anaphora.scapeshiftSacrificed}
-           (Macros.searchLibraryFor (UpToOf GroupSize) Macros.land)
+scapeshiftAfterSearch = instrIntro Anaphora.scapeshiftSearch
 
 public export
 scapeshiftTwoGroups : countReach Bare ManyOf Anaphora.scapeshiftAfterSearch = 2
@@ -568,14 +594,18 @@ greatestCardsAPlayerDiscardedThisWay : Amount []
 greatestCardsAPlayerDiscardedThisWay =
   AggregateOver MaxOf AnyPlayer
     (Macros.eventCountInvolving (VerbedAct "Discard") They ThisWay
-       (Macros.allOf {k = Object} (And [])))
+       Macros.everyObject)
 
 public export
-eachPlayerBindsNoSingular : countOnes Player (nomIntro (Macros.each {bs = []} AnyPlayer)) = 0
+eachPlayerBase : Noun [] Player
+eachPlayerBase = Macros.each AnyPlayer
+
+public export
+eachPlayerBindsNoSingular : countOnes Player (nomIntro Anaphora.eachPlayerBase) = 0
 eachPlayerBindsNoSingular = Refl
 
 public export
-eachPlayerBindsAGroup : countManys Player (nomIntro (Macros.each {bs = []} AnyPlayer)) = 1
+eachPlayerBindsAGroup : countManys Player (nomIntro Anaphora.eachPlayerBase) = 1
 eachPlayerBindsAGroup = Refl
 
 ||| Soul Ransom
@@ -586,21 +616,29 @@ soulRansomRansom =
                , Draw They (Lit 2) ]
 
 public export
+thisAurasController : Noun [] Player
+thisAurasController = Macros.controllerOf Macros.thisAura
+
+public export
+targetCreaturesController : Noun [] Player
+targetCreaturesController = Macros.controllerOf (Macros.target Macros.creature)
+
+public export
 possessiveDeicticIsReadableByIt :
   countReach (AtSlot PermanentSlot) OneOf
-    (nomIntro (Macros.controllerOf (Macros.thisAura {bs = []}))) = 1
+    (nomIntro Anaphora.thisAurasController) = 1
 possessiveDeicticIsReadableByIt = Refl
 
 public export
 possessiveDeicticIsNotADemonstrative :
   countReach (Word (TypeW Enchantment)) OneOf
-    (nomIntro (Macros.controllerOf (Macros.thisAura {bs = []}))) = 0
+    (nomIntro Anaphora.thisAurasController) = 0
 possessiveDeicticIsNotADemonstrative = Refl
 
 public export
 possessiveDescribedBaseUnchanged :
   countReach (AtSlot PermanentSlot) OneOf
-    (nomIntro (Macros.controllerOf (Macros.target Macros.creature {bs = []}))) = 1
+    (nomIntro Anaphora.targetCreaturesController) = 1
 possessiveDescribedBaseUnchanged = Refl
 
 ||| Bile Blight
@@ -664,38 +702,39 @@ codecrackerHoundLook =
     , Macros.move Macros.theOther Macros.graveyardZ ]
 
 public export
+oneOfTheTopTwo : Noun [] Object
+oneOfTheTopTwo = Macros.someOf (Macros.exactly 1) (LibrarySlice OnTop (Lit 2) You)
+
+public export
+oneOfAnUncountedTop : Noun [] Object
+oneOfAnUncountedTop =
+  Macros.someOf (Macros.exactly 1)
+                (LibrarySlice OnTop (Macros.countOf Macros.creature) You)
+
+public export
+theArtifactsAmongTheTopFive : Noun [] Object
+theArtifactsAmongTheTopFive =
+  Macros.allAmong Macros.artifact (LibrarySlice OnTop (Lit 5) You)
+
+public export
 theOtherAfterATwoCardLook :
-  theOtherOk (nomIntro (SomeOf {bs = []}
-                        (CountedSlice (Macros.exactly 1) {nz = MaxAtLeastOne} {wf = Oh})
-                        Nothing
-                               (LibrarySlice OnTop (Lit 2) You)
-                               {gm = Oh})) = True
+  theOtherOk (nomIntro Anaphora.oneOfTheTopTwo) = True
 theOtherAfterATwoCardLook = Refl
 
 public export
 theOtherNeedsAStatedCount :
-  theOtherOk (nomIntro (SomeOf {bs = []}
-                        (CountedSlice (Macros.exactly 1) {nz = MaxAtLeastOne} {wf = Oh})
-                        Nothing
-                               (LibrarySlice OnTop (Macros.countOf Macros.creature) You)
-                               {gm = Oh})) = False
+  theOtherOk (nomIntro Anaphora.oneOfAnUncountedTop) = False
 theOtherNeedsAStatedCount = Refl
 
 public export
 theRestStandsWhereTheOtherRefuses :
-  theRestOk (nomIntro (SomeOf {bs = []}
-                        (CountedSlice (Macros.exactly 1) {nz = MaxAtLeastOne} {wf = Oh})
-                        Nothing
-                              (LibrarySlice OnTop (Macros.countOf Macros.creature) You)
-                              {gm = Oh})) = True
+  theRestOk (nomIntro Anaphora.oneOfAnUncountedTop) = True
 theRestStandsWhereTheOtherRefuses = Refl
 
 public export
 theOtherRefusesTheUniversalSlice :
-  (theOtherOk (nomIntro (SomeOf {bs = []} WholeSlice (Just Macros.artifact)
-                                (LibrarySlice OnTop (Lit 5) You) {gm = Oh})),
-   theRestOk (nomIntro (SomeOf {bs = []} WholeSlice (Just Macros.artifact)
-                               (LibrarySlice OnTop (Lit 5) You) {gm = Oh})))
+  (theOtherOk (nomIntro Anaphora.theArtifactsAmongTheTopFive),
+   theRestOk (nomIntro Anaphora.theArtifactsAmongTheTopFive))
     = (False, True)
 theOtherRefusesTheUniversalSlice = Refl
 
@@ -747,10 +786,13 @@ bioplasmTestMintsNothing : countOnes Object Anaphora.bioplasmAfterTest = 2
 bioplasmTestMintsNothing = Refl
 
 public export
+wholeSliceAtBase : SliceCount []
+wholeSliceAtBase = WholeSlice
+
+public export
 wholeSliceIsPluralAndUncounted :
-  (nounPlur (SomeOf {bs = []} WholeSlice (Just Macros.artifact)
-                    (LibrarySlice OnTop (Lit 5) You) {gm = Oh}),
-   sliceExact (WholeSlice {bs = []})) = (ManyOf, Nothing)
+  (nounPlur Anaphora.theArtifactsAmongTheTopFive,
+   sliceExact Anaphora.wholeSliceAtBase) = (ManyOf, Nothing)
 wholeSliceIsPluralAndUncounted = Refl
 
 public export

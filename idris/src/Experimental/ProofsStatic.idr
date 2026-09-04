@@ -9,20 +9,20 @@ import Experimental.Unspellable
 %unbound_implicits off
 
 
-||| "As long as this creature is attacking, this creature gets +2/+0."
+||| "This creature gets +2/+0 as long as this creature is attacking."
 public export
 okGetsBattlefieldSubject : Ability
 okGetsBattlefieldSubject =
-  Static (Macros.asLongAs (Matches Macros.thisCreature Attacking)
-                          (Gets Adds Macros.thisCreature (PtUp (Lit 2))
-                                (PtUp (Lit 0))))
+  Static (Macros.onlyWhile (Gets Adds Macros.thisCreature (PtUp (Lit 2))
+                                 (PtUp (Lit 0)))
+                           (Matches Macros.thisCreature Attacking))
 
-||| "As long as this creature is attacking, that creature gets +2/+0."
+||| "That creature gets +2/+0 as long as this creature is attacking."
 public export
 badThatCreatureIsCondSubject : Unspellable Ability (\ok =>
-  Static (Macros.asLongAs (Matches Macros.thisCreature Attacking)
-                          (Gets Adds (Macros.That (TypeW Creature) OneOf {ok = Builtin.fst ok}) (PtUp (Lit 2)) (PtUp (Lit 0))
-                                {ok = Builtin.snd ok})))
+  Static (Macros.onlyWhile (Gets Adds (Macros.That (TypeW Creature) OneOf {ok = Builtin.fst ok}) (PtUp (Lit 2)) (PtUp (Lit 0))
+                                 {ok = Builtin.snd ok})
+                           (Matches Macros.thisCreature Attacking)))
 badThatCreatureIsCondSubject (Refl, _) impossible
 
 ||| "Equipped creature gets +1/+1."
@@ -87,14 +87,14 @@ badGrantedPtDefinition Oh impossible
 public export
 okContinuousClause : Instruction []
 okContinuousClause =
-  Continuously {ts = StaticFirstDone}
+  Continuously
                (Gets Adds (Macros.allOf Macros.creatureYouControl)
                      (PtUp (Lit 1)) (PtUp (Lit 1)))
                (Just Macros.untilEndOfTurn)
 
 public export
 badPtDefinitionClause : Unspellable (Instruction []) (\ok =>
-  Continuously {ts = StaticFirstDone} (DefinesPt Macros.thisCreature BothEach
+  Continuously (DefinesPt Macros.thisCreature BothEach
                           (Macros.countOf Macros.creatureYouControl))
                Nothing {cl = ok})
 badPtDefinitionClause Oh impossible
@@ -173,15 +173,15 @@ badChapterReplacement Oh impossible
 public export
 okUnlessOverNegatedCondition : StaticSpec []
 okUnlessOverNegatedCondition =
-  Conditionally (NotCond (Macros.exists (And [Macros.artifact,
-                                              HasPossessor ControllerAx You])))
-                (AltCost This Nothing) Unless {st = Static.CondFirstDone}
+  Conditionally (AltCost This Nothing)
+                (NotCond (Macros.exists (And [Macros.artifact,
+                                              HasPossessor ControllerAx You]))) Unless
 
 public export
 badUnlessConjunction : Unspellable (StaticSpec []) (\ok =>
-  Conditionally (AndCond [ Macros.exists (And [Macros.artifact, HasPossessor ControllerAx You])
-                         , Macros.exists (And [Macros.enchantment, HasPossessor ControllerAx You]) ])
-                (AltCost This Nothing) Unless {st = Static.CondFirstDone} {mk = ok})
+  Conditionally (AltCost This Nothing)
+                (AndCond [ Macros.exists (And [Macros.artifact, HasPossessor ControllerAx You])
+                         , Macros.exists (And [Macros.enchantment, HasPossessor ControllerAx You]) ]) Unless {mk = ok})
 badUnlessConjunction MkMarkingOk impossible
 
 ||| "This creature blocks an attacking creature."

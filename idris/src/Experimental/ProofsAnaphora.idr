@@ -1884,7 +1884,7 @@ onlyWhileThreadsPrefix : (bs : Bindings) -> (se : StaticSpec bs) ->
                          (c : Condition (staticIntro se)) ->
                          MarkingOk AsLongAs c -> StaticSpec bs
 onlyWhileThreadsPrefix bs se c mk =
-  Conditionally {bs} c se AsLongAs {st = Static.StaticFirstDone} {mk}
+  Conditionally {bs} se c AsLongAs {mk}
 
 public export
 thisWayThreadsPrefix : (bs : Bindings) -> (body : Instruction bs) ->

@@ -240,7 +240,7 @@ badAddedCostLoyaltySymbol AddedPaymentWritten impossible
 ||| "You may sacrifice a Mountain rather than pay this spell's mana cost"
 public export
 badAltCostClause : Unspellable (Instruction []) (\ok =>
-  Continuously {ts = StaticFirstDone} (AltCost This (Just (Do (Macros.sacrifice You
+  Continuously (AltCost This (Just (Do (Macros.sacrifice You
                   (Macros.a (And [Macros.land, HasSubtype (landType "Mountain")]))))))
                Nothing {cl = ok})
 badAltCostClause Oh impossible

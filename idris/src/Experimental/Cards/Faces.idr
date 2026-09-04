@@ -46,7 +46,7 @@ missyFaceDownReturn =
     (Sequentially
        [ Move ((Macros.It OneOf)) Macros.battlefieldZ
               [EntersAs FaceDown, EntersTapped, Under You]
-       , Continuously {ts = StaticFirstDone}
+       , Continuously
            (Becomes ((Macros.It OneOf)) Sets (Bundle (MkToken (Just (Lit 2 ** Lit 2)) []
                               (MkTypeLine [creatureType "Cyberman"] [Artifact, Creature])
                               [] Nothing) Nothing))
@@ -66,7 +66,7 @@ yedoraGraveGardener =
               (Sequentially
                  [ Move ((Macros.It OneOf)) Macros.battlefieldZ
                         [EntersAs FaceDown, Under (Macros.ownerOf ((Macros.It OneOf)))]
-                 , Continuously {ts = StaticFirstDone}
+                 , Continuously
                      (Becomes ((Macros.It OneOf)) Sets (Bundle (MkToken Nothing []
                                         (MkTypeLine [landType "Forest"] [Land])
                                         [] Nothing) Nothing))
@@ -328,7 +328,7 @@ vesuvanShapeshifterCopySpan :
   Instruction [MkBinding AD Object OneOf
             (ObjectP (Just Creature) (Just Battlefield) Nothing Nothing Nothing)]
 vesuvanShapeshifterCopySpan =
-  Continuously {ts = StaticFirstDone}
+  Continuously
     (BecomesCopy Macros.thisCreature (Macros.That (TypeW Creature) OneOf)
        [ExceptAbility
           (Macros.triggered At (BeginningOf ThePart Upkeep (ByPlayer You))
@@ -343,7 +343,7 @@ arlinnKord =
     (Macros.frontFace "Arlinn Kord" (Just [Macros.generic 2, Macros.pip Red, Macros.pip Green])
             [Legendary] (MkTypeLine [planeswalkerType "Arlinn"] [Planeswalker])
             [ Macros.activated (LoyaltySymbol (LoyaltyUp 1))
-                (Continuously {ts = StaticFirstDone}
+                (Continuously
                    (AndAlso Nothing [ Gets Adds (Described (TargetDet (Macros.upTo 1)) Macros.creature)
                                    (PtUp (Lit 2)) (PtUp (Lit 2))
                             , Gains ((Macros.It OneOf)) (Macros.keyword "Vigilance")
@@ -358,7 +358,7 @@ arlinnKord =
     (Macros.backFace "Arlinn, Embraced by the Moon" [Legendary]
                (MkTypeLine [planeswalkerType "Arlinn"] [Planeswalker])
                [ Macros.activated (LoyaltySymbol (LoyaltyUp 1))
-                   (Continuously {ts = StaticFirstDone}
+                   (Continuously
                       (AndAlso Nothing [ Gets Adds (Macros.allOf Macros.creatureYouControl)
                                       (PtUp (Lit 1)) (PtUp (Lit 1))
                                , Gains ((Macros.It ManyOf)) (Macros.keyword "Trample") ])
@@ -413,10 +413,11 @@ harvestHand =
                (MkTypeLine [artifactType "Equipment"] [Artifact])
                [ Static (Gets Adds (AttachHost Equipped (TypeW Creature))
                               (PtUp (Lit 1)) (PtUp (Lit 1)))
-               , Static (Macros.asLongAs
+               , Static (Macros.onlyWhile
+                           (Gains (AttachHost Equipped (TypeW Creature))
+                                  (Macros.keyword "Menace"))
                            (Matches (AttachHost Equipped (TypeW Creature))
-                                    (HasSubtype (creatureType "Human")))
-                           (Gains ((Macros.It OneOf)) (Macros.keyword "Menace")))
+                                    (HasSubtype (creatureType "Human"))))
                , Macros.keywordCosting "Equip" (Mana [Macros.generic 2]) ]
                Nothing)
 
@@ -444,7 +445,7 @@ chitteringHostOnScavengers =
             [ Macros.keyword "Haste"
             , Macros.keyword "Menace"
             , Macros.triggered When (Enters Macros.thisCreature Nothing)
-                (Continuously {ts = StaticFirstDone}
+                (Continuously
                    (AndAlso Nothing [ Gets Adds (Macros.allOf (Macros.otherCreatureYouControl Macros.thisCreature))
                                    (PtUp (Lit 1)) (PtUp (Lit 0))
                             , Gains ((Macros.It ManyOf)) (Macros.keyword "Menace") ])
@@ -460,7 +461,7 @@ chitteringHostOnGrafRats =
             [ Macros.keyword "Haste"
             , Macros.keyword "Menace"
             , Macros.triggered When (Enters Macros.thisCreature Nothing)
-                (Continuously {ts = StaticFirstDone}
+                (Continuously
                    (AndAlso Nothing [ Gets Adds (Macros.allOf (Macros.otherCreatureYouControl Macros.thisCreature))
                                    (PtUp (Lit 1)) (PtUp (Lit 0))
                             , Gains ((Macros.It ManyOf)) (Macros.keyword "Menace") ])
@@ -659,7 +660,7 @@ garrukRelentless =
                          , Macros.shuffle ])) Nothing))
                , Macros.activated (LoyaltySymbol (LoyaltyDown 3))
                    (Sequentially
-                      [ Continuously {ts = StaticFirstDone}
+                      [ Continuously
                           (AndAlso Nothing
                              [ Gains (Macros.allOf Macros.creatureYouControl)
                                      (Macros.keyword "Trample")

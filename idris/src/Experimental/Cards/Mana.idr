@@ -161,7 +161,7 @@ mishrasFactory =
   Macros.card "Mishra's Factory" Nothing [] (MkTypeLine [] [Land])
        [ Macros.activated TapSymbol (AddMana You (Lit 1) (Runs [[Colorless]]) [])
        , Macros.activated (Mana [Macros.generic 1])
-                          (Continuously {ts = StaticFirstDone}
+                          (Continuously
                       (Becomes Macros.thisLand Sets (Bundle (MkToken (Just (Lit 2 ** Lit 2)) []
                                          (MkTypeLine [creatureType "AssemblyWorker"] [Artifact, Creature])
                                          [] Nothing) (Just Land)))
@@ -178,7 +178,7 @@ mutavault =
   Macros.card "Mutavault" Nothing [] (MkTypeLine [] [Land])
        [ Macros.activated TapSymbol (AddMana You (Lit 1) (Runs [[Colorless]]) [])
        , Macros.activated (Mana [Macros.generic 1])
-                          (Continuously {ts = StaticFirstDone}
+                          (Continuously
                       (Becomes Macros.thisLand Sets (Bundle (MkTokenChars (Just (Lit 2 ** Lit 2)) [] []
                                               (MkTypeLine [] [Creature])
                                               [] Nothing
@@ -193,7 +193,7 @@ soulstoneSanctuary =
   Macros.card "Soulstone Sanctuary" Nothing [] (MkTypeLine [] [Land])
        [ Macros.activated TapSymbol (AddMana You (Lit 1) (Runs [[Colorless]]) [])
        , Macros.activated (Mana [Macros.generic 4])
-                          (Continuously {ts = StaticFirstDone}
+                          (Continuously
                       (Becomes Macros.thisLand Sets (Bundle (MkTokenChars (Just (Lit 3 ** Lit 3)) [] []
                                               (MkTypeLine [] [Creature])
                                               [Macros.keyword "Vigilance"] Nothing
@@ -209,7 +209,7 @@ ragingRavine =
                           (AddMana You (Lit 1)
                             (Runs [[OfColor Red], [OfColor Green]]) [])
        , Macros.activated (Mana [Macros.generic 2, Macros.pip Red, Macros.pip Green])
-                          (Continuously {ts = StaticFirstDone}
+                          (Continuously
                       (Becomes Macros.thisLand Sets (Bundle (MkToken (Just (Lit 3 ** Lit 3)) [Red, Green]
                                          (MkTypeLine [creatureType "Elemental"] [Creature])
                                          [ Macros.triggered Whenever
@@ -441,7 +441,7 @@ unstableFrontier =
   Macros.card "Unstable Frontier" Nothing [] (MkTypeLine [] [Land])
        [ Macros.activated TapSymbol (AddMana You (Lit 1) (Runs [[Colorless]]) [])
        , Macros.activated TapSymbol
-                          (Continuously {ts = StaticFirstDone}
+                          (Continuously
                       (Becomes (Macros.target (And [Macros.land, HasPossessor ControllerAx You])) Sets (ChosenQuality (OfYourChoice (SubtypeQ Land) (Just BasicTypesOnly))))
                       (Just Macros.untilEndOfTurn)) ]
        Nothing
@@ -502,7 +502,7 @@ theFlux =
            (ChapterMark [ChapterII, ChapterIII, ChapterIV, ChapterV])
            (Sequentially
               [ Macros.exile You (Macros.topSlice (Lit 1))
-              , Continuously {ts = StaticFirstDone} ((Macros.mayPlayDeed "Play" You (Macros.That CardW OneOf) Nothing (PlayRider Nothing Nothing Nothing False ItsOwnCost)))
+              , Continuously ((Macros.mayPlayDeed "Play" You (Macros.That CardW OneOf) Nothing (PlayRider Nothing Nothing Nothing False ItsOwnCost)))
                              (Just ThisTurn) ])
        , Macros.triggered When (ChapterMark [ChapterVI])
            (AddMana You (Lit 6) (Runs [[OfColor Red]]) []) ]
@@ -562,7 +562,7 @@ shiningShoal =
                    (Macros.a (And [ColorIs White,
                                    Compare [CharAxis ManaValue] Eq (LetterVal X),
                                    InZone (Macros.handOf You)]))))))
-       , Spell (Continuously {ts = StaticFirstDone}
+       , Spell (Continuously
                   (DamageRule AnyDamage (DealtBy (Macros.aYourChoice Macros.source)) (ToRecipient
                                 (Macros.youAnd (Macros.allOf (And [Macros.creature,
                                                      HasPossessor ControllerAx You])))) (Redirect (Shield (LetterVal X)) (Macros.target Macros.anyTarget)) Repeatedly)
@@ -672,7 +672,7 @@ entrancingMelody =
   Macros.card "Entrancing Melody"
        (Just [Variable, Macros.pip Blue, Macros.pip Blue]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Continuously {ts = StaticFirstDone}
+       [ Spell (Continuously
                   (GainsControl You
                      (Macros.target (And [Macros.creature,
                                           Compare [CharAxis ManaValue] Eq (LetterVal X)])))
@@ -1237,7 +1237,7 @@ delightedHalflingMana =
     (AddMana You (Lit 1) (AnyColor SameColor)
       [ OnSpent AffectsIt True
                 (Macros.a (And [HasSupertype Legendary, Macros.spell]))
-                (Continuously {ts = StaticFirstDone} (Macros.objectCant "Counter" (Macros.That SpellW OneOf)) Nothing) ])
+                (Continuously (Macros.objectCant "Counter" (Macros.That SpellW OneOf)) Nothing) ])
 
 ||| Boseiju, Who Shelters All
 public export
@@ -1247,7 +1247,7 @@ boseijuMana =
     (AddMana You (Lit 1) (Runs [[Colorless]])
       [ OnSpent AffectsIt False
                 (Macros.a (And [Macros.instantOrSorcery, Macros.spell]))
-                (Continuously {ts = StaticFirstDone} (Macros.objectCant "Counter" (Macros.That SpellW OneOf))
+                (Continuously (Macros.objectCant "Counter" (Macros.That SpellW OneOf))
                               Nothing) ])
 
 ||| Generator Servant
@@ -1278,7 +1278,7 @@ animalAttendant =
              [ OnSpent AffectsIt False
                        (Macros.a (And [Not (HasSubtype (creatureType "Human")),
                                        Macros.creature, Macros.spell]))
-                       (Continuously {ts = StaticFirstDone}
+                       (Continuously
                           (EntersRider (ResolvedPermanent (Macros.That SpellW OneOf))
                                        (WithCounters (Lit 1)
                                               (PrintedKind Macros.plusOnePlusOne)
@@ -1302,7 +1302,7 @@ suChiCaveGuardDies =
        [ AddMana You (Lit 1)
                  (Runs [[Colorless, Colorless, Colorless, Colorless,
                          Colorless, Colorless, Colorless, Colorless]]) []
-       , Continuously {ts = StaticFirstDone} (KeepsUnspentMana You ThisMana)
+       , Continuously (KeepsUnspentMana You ThisMana)
                       (Just Macros.untilEndOfTurn) ])
 
 ||| Omnath, Locus of Mana
@@ -1404,7 +1404,7 @@ tolaria =
   Macros.card "Tolaria" Nothing [Legendary] (MkTypeLine [] [Land])
        [ Macros.activated TapSymbol (AddMana You (Lit 1) (Runs [[OfColor Blue]]) [])
        , Activated (Compound [TapSymbol])
-           (Continuously {ts = StaticFirstDone}
+           (Continuously
               (LosesAbilities (Macros.target Macros.creature)
                               [ LostWritten (Macros.keyword "Banding")
                               , LostTerm bandsWithOtherAbilities ])

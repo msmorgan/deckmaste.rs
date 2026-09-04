@@ -16,9 +16,9 @@ thoughtReflection =
 
 jorKadeen : Ability
 jorKadeen =
-  Static (Macros.asLongAs (CompareAmt (Macros.countOf (And [Macros.artifact, HasPossessor ControllerAx You]))
-                               AtLeast (Lit 3))
-                   (Gets Adds (Macros.allOf Macros.creatureYouControl) (PtUp (Lit 3)) (PtUp (Lit 0))))
+  Static (Macros.onlyWhile (Gets Adds (Macros.allOf Macros.creatureYouControl) (PtUp (Lit 3)) (PtUp (Lit 0)))
+                   (CompareAmt (Macros.countOf (And [Macros.artifact, HasPossessor ControllerAx You]))
+                        AtLeast (Lit 3)))
 
 abandonedOutpost : Ability
 abandonedOutpost = Static (Macros.entersTapped Macros.thisLand)
@@ -43,8 +43,8 @@ anthemOfChampions =
 
 adantoVanguard : Ability
 adantoVanguard =
-  Static (Macros.asLongAs (Matches Macros.thisCreature Attacking)
-                          (Gets Adds (Macros.It OneOf) (PtUp (Lit 2)) (PtUp (Lit 0))))
+  Static (Macros.onlyWhile (Gets Adds Macros.thisCreature (PtUp (Lit 2)) (PtUp (Lit 0)))
+                          (Matches Macros.thisCreature Attacking))
 
 ||| Nowhere to Run
 public export
@@ -76,7 +76,7 @@ theGoldenThrone =
 
 stunningReversal : Ability
 stunningReversal =
-  Spell (Continuously {ts = StaticFirstDone} (Intercepts (LosesGame You) [] Nothing
+  Spell (Continuously (Intercepts (LosesGame You) [] Nothing
                                   (Sequentially [Draw You (Lit 7),
                                                  Macros.lifeTotalBecomes You (Lit 1)])
                                   NextTimeOnly Nothing)
@@ -84,9 +84,9 @@ stunningReversal =
 
 pathOfBravery : Ability
 pathOfBravery =
-  Static (Macros.asLongAs (CompareAmt (PlayerStatOf LifeTotal You) AtLeast
-                                      (PlayerStatOf StartingLifeTotal You))
-                          (Gets Adds (Macros.allOf Macros.creatureYouControl) (PtUp (Lit 1)) (PtUp (Lit 1))))
+  Static (Macros.onlyWhile (Gets Adds (Macros.allOf Macros.creatureYouControl) (PtUp (Lit 1)) (PtUp (Lit 1)))
+                          (CompareAmt (PlayerStatOf LifeTotal You) AtLeast
+                                      (PlayerStatOf StartingLifeTotal You)))
 
 deathsShadow : Card
 deathsShadow =
@@ -134,13 +134,13 @@ diminish : Card
 diminish =
   Macros.card "Diminish" (Just [Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously {ts = StaticFirstDone} (Macros.hasBasePt (Macros.target Macros.creature) (Lit 1) (Lit 1))
+       [ Spell (Continuously (Macros.hasBasePt (Macros.target Macros.creature) (Lit 1) (Lit 1))
                              (Just Macros.untilEndOfTurn)) ]
        Nothing
 
 cycleOfLife : Instruction []
 cycleOfLife =
-  Continuously {ts = StaticFirstDone} (Macros.hasBasePt (Macros.target (And [Macros.creature, Macros.castBy You]))
+  Continuously (Macros.hasBasePt (Macros.target (And [Macros.creature, Macros.castBy You]))
                           (Lit 0) (Lit 1))
                (Just Macros.untilYourNextUpkeep)
 
@@ -148,7 +148,7 @@ aboutFace : Card
 aboutFace =
   Macros.card "About Face" (Just [Macros.pip Red]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously {ts = StaticFirstDone} (SwitchesPt (Macros.target Macros.creature))
+       [ Spell (Continuously (SwitchesPt (Macros.target Macros.creature))
                              (Just Macros.untilEndOfTurn)) ]
        Nothing
 
@@ -221,7 +221,7 @@ naturalAffinity : Card
 naturalAffinity =
   Macros.card "Natural Affinity" (Just [Macros.generic 2, Macros.pip Green]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously {ts = StaticFirstDone}
+       [ Spell (Continuously
                   (Becomes (Macros.allOf Macros.land) Sets (Bundle (MkToken (Just (Lit 2 ** Lit 2)) []
                                      (MkTypeLine [] [Creature]) [] Nothing) (Just Land)))
                   (Just Macros.untilEndOfTurn)) ]
@@ -231,7 +231,7 @@ turnToFrog : Card
 turnToFrog =
   Macros.card "Turn to Frog" (Just [Macros.generic 1, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously {ts = StaticFirstDone}
+       [ Spell (Continuously
                   (AndAlso Nothing [ LosesAllAbilities (Macros.target Macros.creature) Nothing
                            , Becomes ((Macros.It OneOf)) Sets (Bundle (MkToken Nothing [Blue]
                                                   (MkTypeLine [creatureType "Frog"] []) [] Nothing) Nothing)
@@ -284,7 +284,7 @@ silence : Card
 silence =
   Macros.card "Silence" (Just [Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously {ts = StaticFirstDone}
+       [ Spell (Continuously
                   (Macros.playerCant "Cast" (PlayerGroup YourOpponents))
                   (Just ThisTurn)) ]
        Nothing
@@ -296,7 +296,7 @@ shadowOfDoubt =
        (Just [Macros.hybridPip Blue Black, Macros.hybridPip Blue Black]) []
        (MkTypeLine [] [Instant])
        [ Spell (Sequentially
-                  [ Continuously {ts = StaticFirstDone}
+                  [ Continuously
                       (Macros.playerCant "Search" (PlayerGroup AllPlayers))
                       (Just ThisTurn)
                   , (Draw You (Lit 1)) ]) ]
@@ -309,7 +309,7 @@ omenMachineDraw = Static (Macros.playerCant "Draw" (PlayerGroup AllPlayers))
 public export
 solfataraLandLock : Instruction []
 solfataraLandLock =
-  Continuously {ts = StaticFirstDone} (Macros.playerCant "Play" (Macros.target AnyPlayer))
+  Continuously (Macros.playerCant "Play" (Macros.target AnyPlayer))
                (Just ThisTurn)
 
 public export
@@ -449,7 +449,7 @@ nightcreep : Card
 nightcreep =
   Macros.card "Nightcreep" (Just [Macros.pip Black, Macros.pip Black]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously {ts = StaticFirstDone}
+       [ Spell (Continuously
                   (AndAlso Nothing [ Becomes (Macros.allOf Macros.creature) Sets (Colored (SomeColors [Black]))
                            , Becomes (Macros.allOf Macros.land) Sets (Bundle (MkToken Nothing []
                                                (Macros.basicLandLine [landType "Swamp"])
@@ -565,7 +565,7 @@ volatileClaws =
   Macros.card "Volatile Claws"
        (Just [Macros.generic 2, Macros.pip Red]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously {ts = StaticFirstDone}
+       [ Spell (Continuously
            (AndAlso Nothing
              [ Gets Adds (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You]))
                     (PtUp (Lit 2)) (PtUp (Lit 0))
@@ -577,7 +577,7 @@ volatileClaws =
 public export
 namelessInversionBody : Instruction []
 namelessInversionBody =
-  Continuously {ts = StaticFirstDone} (AndAlso Nothing [ Gets Adds (Macros.target Macros.creature)
+  Continuously (AndAlso Nothing [ Gets Adds (Macros.target Macros.creature)
                                (PtUp (Lit 3)) (PtDown (Lit 3))
                         , Becomes ((Macros.It OneOf)) Loses (EveryTypeOf CreatureSpace) ])
                (Just Macros.untilEndOfTurn)
@@ -586,7 +586,7 @@ namelessInversionBody =
 public export
 egoErasureBody : Instruction []
 egoErasureBody =
-  Continuously {ts = StaticFirstDone} (AndAlso Nothing [ Gets Adds (Macros.allOf (And [Macros.creature,
+  Continuously (AndAlso Nothing [ Gets Adds (Macros.allOf (And [Macros.creature,
                                             HasPossessor ControllerAx (Macros.target AnyPlayer)]))
                                (PtDown (Lit 2)) (PtUp (Lit 0))
                         , Becomes ((Macros.It ManyOf)) Loses (EveryTypeOf CreatureSpace) ])
@@ -606,7 +606,7 @@ energybending =
   Macros.card "Energybending" (Just [Macros.generic 2]) []
        (MkTypeLine [spellType "Lesson"] [Instant])
        [ Spell (Sequentially
-                  [ Continuously {ts = StaticFirstDone}
+                  [ Continuously
                       (Becomes (Macros.allOf (And [Macros.land, HasPossessor ControllerAx You])) Adds (EveryTypeOf BasicLandSpace))
                       (Just Macros.untilEndOfTurn)
                   , (Draw You (Lit 1)) ]) ]
@@ -651,7 +651,7 @@ blatantThievery =
               Macros.pip Blue]) []
        (MkTypeLine [] [Sorcery])
        [ Spell (ForEachOf (Macros.each Opponent)
-                  (Continuously {ts = StaticFirstDone}
+                  (Continuously
                      (GainsControl You (Macros.target (HasPossessor ControllerAx (Macros.That PlayerW OneOf))))
                      Nothing)) ]
        Nothing
@@ -713,13 +713,13 @@ moggSalvage : Card
 moggSalvage =
   Macros.card "Mogg Salvage" (Just [Macros.generic 2, Macros.pip Red]) []
        (MkTypeLine [] [Instant])
-       [ Static (Macros.asLongAs
+       [ Static (Macros.onlyWhile
+                   (AltCost This Nothing)
                    (AndCond
                       [ Macros.exists (And [Macros.land, HasSubtype (landType "Island"),
                                      HasPossessor ControllerAx Macros.anOpponent])
                       , Macros.exists (And [Macros.land, HasSubtype (landType "Mountain"),
-                                     HasPossessor ControllerAx You]) ])
-                   (AltCost This Nothing))
+                                     HasPossessor ControllerAx You]) ]))
        , Spell (Macros.destroy (Macros.target Macros.artifact)) ]
        Nothing
 
@@ -766,13 +766,13 @@ massacre =
   Macros.card "Massacre"
        (Just [Macros.generic 2, Macros.pip Black, Macros.pip Black]) []
        (MkTypeLine [] [Sorcery])
-       [ Static (Macros.asLongAs
+       [ Static (Macros.onlyWhile
+                   (AltCost This Nothing)
                    (AndCond
                       [ Macros.exists (And [Macros.land, HasSubtype (landType "Plains"),
                                      HasPossessor ControllerAx Macros.anOpponent])
                       , Macros.exists (And [Macros.land, HasSubtype (landType "Swamp"),
-                                     HasPossessor ControllerAx You]) ])
-                   (AltCost This Nothing))
+                                     HasPossessor ControllerAx You]) ]))
        , Spell (Macros.gets (Macros.allOf Macros.creature)
                             (PtDown (Lit 2)) (PtDown (Lit 2))
                             (Just Macros.untilEndOfTurn)) ]
@@ -783,9 +783,9 @@ rouse : Card
 rouse =
   Macros.card "Rouse" (Just [Macros.generic 1, Macros.pip Black]) []
        (MkTypeLine [] [Instant])
-       [ Static (Macros.asLongAs
-                   (Macros.exists (And [Macros.land, HasSubtype (landType "Swamp"), HasPossessor ControllerAx You]))
-                   (AltCost This (Just (Macros.payLife You 2))))
+       [ Static (Macros.onlyWhile
+                   (AltCost This (Just (Macros.payLife You 2)))
+                   (Macros.exists (And [Macros.land, HasSubtype (landType "Swamp"), HasPossessor ControllerAx You])))
        , Spell (Macros.gets (Macros.target Macros.creature)
                             (PtUp (Lit 2)) (PtUp (Lit 0))
                             (Just Macros.untilEndOfTurn)) ]
@@ -894,11 +894,11 @@ invigorate =
   Macros.card "Invigorate"
        (Just [Macros.generic 2, Macros.pip Green]) []
        (MkTypeLine [] [Instant])
-       [ Static (Macros.asLongAs
-                   (Macros.exists (And [Macros.land, HasSubtype (landType "Forest"),
-                                 HasPossessor ControllerAx You]))
+       [ Static (Macros.onlyWhile
                    (AltCost This (Just (Do (Macros.gainsLife Macros.anOpponent
-                                                            (Lit 3))))))
+                                                            (Lit 3)))))
+                   (Macros.exists (And [Macros.land, HasSubtype (landType "Forest"),
+                                 HasPossessor ControllerAx You])))
        , Spell (Macros.gets (Macros.target Macros.creature)
                             (PtUp (Lit 4)) (PtUp (Lit 4))
                             (Just Macros.untilEndOfTurn)) ]
@@ -908,9 +908,9 @@ invigorate =
 public export
 deflectingSwatCommanderAltCost : Ability
 deflectingSwatCommanderAltCost =
-  Static (Macros.asLongAs
-            (Macros.exists (And [HasDesignation CommanderD, HasPossessor ControllerAx You]))
-            (AltCost This Nothing))
+  Static (Macros.onlyWhile
+            (AltCost This Nothing)
+            (Macros.exists (And [HasDesignation CommanderD, HasPossessor ControllerAx You])))
 
 ||| Fist of Suns
 public export
@@ -1105,10 +1105,10 @@ skillBorrower =
        (MkTypeLine [creatureType "Human", creatureType "Wizard"]
                    [Artifact, Creature])
        [ Static (Visibility Reveal You TopOfLibrary)
-       , Static (Macros.asLongAs
-                   (Matches (Macros.topSlice (Lit 1)) (Or [Macros.artifact, Macros.creature]))
+       , Static (Macros.onlyWhile
                    (GainsAbilitiesOf Macros.thisCreature [AnyActivated]
-                                     (Macros.That CardW OneOf) Nothing)) ]
+                                     (Macros.topSlice (Lit 1)) Nothing)
+                   (Matches (Macros.topSlice (Lit 1)) (Or [Macros.artifact, Macros.creature]))) ]
        (Just (1, 3))
 
 ||| Emissary of Grudges

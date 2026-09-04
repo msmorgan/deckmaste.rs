@@ -51,7 +51,7 @@ cheeringFanatic =
        [ Macros.triggered Whenever (Macros.attacks Macros.thisCreature)
                           (Sequentially
                      [ Macros.choose (Macros.a (Macros.quality CardName))
-                     , Continuously {ts = StaticFirstDone}
+                     , Continuously
                          (CostsToCast (Macros.allOf (And [Macros.spell, OfChosen CardName]))
                                       (CostLess (Lit 1) Nothing))
                          (Just ThisTurn) ]) ]
@@ -88,13 +88,13 @@ yasminKhan : Ability
 yasminKhan =
   Macros.activated TapSymbol
                    (Sequentially [Macros.exile You (Macros.topSlice (Lit 1)),
-                           Continuously {ts = StaticFirstDone} ((Macros.mayPlayDeed "Play" You ((Macros.It OneOf)) Nothing (PlayRider Nothing Nothing Nothing False ItsOwnCost))) (Just Macros.untilYourNextEndStep)])
+                           Continuously ((Macros.mayPlayDeed "Play" You ((Macros.It OneOf)) Nothing (PlayRider Nothing Nothing Nothing False ItsOwnCost))) (Just Macros.untilYourNextEndStep)])
 
 ||| Brazen Cannonade
 brazenCannonadePermission : Instruction []
 brazenCannonadePermission =
   Sequentially [Macros.exile You (Macros.topSlice (Lit 1)),
-                Continuously {ts = StaticFirstDone} ((Macros.mayPlayDeed "Play" You ((Macros.It OneOf)) Nothing (PlayRider Nothing Nothing Nothing False ItsOwnCost))) (Just (Until (EndOf Combat (Just You))))]
+                Continuously ((Macros.mayPlayDeed "Play" You ((Macros.It OneOf)) Nothing (PlayRider Nothing Nothing Nothing False ItsOwnCost))) (Just (Until (EndOf Combat (Just You))))]
 
 thousandMoonsCrackshot : Ability
 thousandMoonsCrackshot =
@@ -147,7 +147,7 @@ scourgeOfNelToth =
 escapeToTheWilds : Instruction []
 escapeToTheWilds =
   Sequentially [Macros.exile You ((Macros.topSlice (Lit 5))),
-                Continuously {ts = StaticFirstDone}
+                Continuously
                   ((Macros.mayPlayDeed "Play" You (Macros.TheVerbed "Exile" CardW ThisWay ManyOf) Nothing (PlayRider Nothing Nothing Nothing False ItsOwnCost)))
                   (Just (Until (EndOf Turn (Just You))))]
 
@@ -156,7 +156,7 @@ museVesselPlay : Ability
 museVesselPlay =
   Macros.activated (Mana [Macros.generic 1])
                    (Sequentially [Macros.choose (Macros.a Macros.exiledWithThisArtifact),
-                           Continuously {ts = StaticFirstDone} ((Macros.mayPlayDeed "Play" You (Macros.That CardW OneOf) Nothing (PlayRider Nothing Nothing Nothing False ItsOwnCost))) (Just ThisTurn)])
+                           Continuously ((Macros.mayPlayDeed "Play" You (Macros.That CardW OneOf) Nothing (PlayRider Nothing Nothing Nothing False ItsOwnCost))) (Just ThisTurn)])
 
 demonicConsultationChoice : Instruction []
 demonicConsultationChoice = Macros.choose (Macros.a (Macros.quality CardName))
@@ -265,7 +265,7 @@ reefShaman =
   Macros.card "Reef Shaman" (Just [Macros.pip Blue]) []
        (MkTypeLine [creatureType "Merfolk", creatureType "Shaman"] [Creature])
        [ Macros.activated TapSymbol
-                          (Continuously {ts = StaticFirstDone}
+                          (Continuously
                              (Becomes (Macros.target Macros.land) Sets (ChosenQuality (OfYourChoice (SubtypeQ Land) (Just BasicTypesOnly))))
                              (Just Macros.untilEndOfTurn)) ]
        (Just (0, 2))
@@ -276,7 +276,7 @@ grixisIllusionist =
   Macros.card "Grixis Illusionist" (Just [Macros.pip Blue]) []
        (MkTypeLine [creatureType "Human", creatureType "Wizard"] [Creature])
        [ Macros.activated TapSymbol
-                          (Continuously {ts = StaticFirstDone}
+                          (Continuously
                       (Becomes (Macros.target (And [Macros.land, HasPossessor ControllerAx You])) Sets (ChosenQuality (OfYourChoice (SubtypeQ Land) (Just BasicTypesOnly))))
                       (Just Macros.untilEndOfTurn)) ]
        (Just (1, 1))
@@ -384,7 +384,7 @@ mistformDreamer =
        (MkTypeLine [creatureType "Illusion"] [Creature])
        [ Macros.keyword "Flying"
        , Macros.activated (Mana [Macros.generic 1])
-                          (Continuously {ts = StaticFirstDone}
+                          (Continuously
                       (Becomes Macros.thisCreature Sets (ChosenQuality (OfYourChoice (SubtypeQ Creature) Nothing)))
                       (Just Macros.untilEndOfTurn)) ]
        (Just (2, 1))
@@ -429,7 +429,7 @@ imagecrafter =
        [ Macros.activated TapSymbol
            (Sequentially
               [ Macros.choose (Macros.a (Macros.qualityFrom (SubtypeQ Creature) (TypeOtherThan (creatureType "Wall"))))
-              , Continuously {ts = StaticFirstDone} (Becomes (Macros.target Macros.creature) Sets (ChosenQuality (OfChosen (SubtypeQ Creature))))
+              , Continuously (Becomes (Macros.target Macros.creature) Sets (ChosenQuality (OfChosen (SubtypeQ Creature))))
                              (Just Macros.untilEndOfTurn) ]) ]
        (Just (1, 1))
 
@@ -441,7 +441,7 @@ unnaturalSelection =
        [ Macros.activated (Mana [Macros.generic 1])
            (Sequentially
               [ Macros.choose (Macros.a (Macros.qualityFrom (SubtypeQ Creature) (TypeOtherThan (creatureType "Wall"))))
-              , Continuously {ts = StaticFirstDone} (Becomes (Macros.target Macros.creature) Sets (ChosenQuality (OfChosen (SubtypeQ Creature))))
+              , Continuously (Becomes (Macros.target Macros.creature) Sets (ChosenQuality (OfChosen (SubtypeQ Creature))))
                              (Just Macros.untilEndOfTurn) ]) ]
        Nothing
 
@@ -452,7 +452,7 @@ standardize =
        (MkTypeLine [] [Instant])
        [ Spell (Sequentially
               [ Macros.choose (Macros.a (Macros.qualityFrom (SubtypeQ Creature) (TypeOtherThan (creatureType "Wall"))))
-              , Continuously {ts = StaticFirstDone} (Becomes (Macros.each Macros.creature) Sets (ChosenQuality (OfChosen (SubtypeQ Creature))))
+              , Continuously (Becomes (Macros.each Macros.creature) Sets (ChosenQuality (OfChosen (SubtypeQ Creature))))
                              (Just Macros.untilEndOfTurn) ]) ]
        Nothing
 
@@ -538,7 +538,7 @@ conjurersBan =
        (MkTypeLine [] [Sorcery])
        [ Spell (Sequentially
            [ Macros.choose (Macros.a (Macros.quality CardName))
-           , Continuously {ts = StaticFirstDone}
+           , Continuously
                (AndAlso Nothing [ Macros.objectCant "Cast"
                             (Macros.allOf (And [Macros.spell, Named ChosenName]))
                         , Macros.objectCant "Play"
@@ -615,7 +615,7 @@ borneUponAWind : Card
 borneUponAWind =
   Macros.card "Borne Upon a Wind" (Just [Macros.generic 1, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously {ts = StaticFirstDone}
+       [ Spell (Continuously
                   (Macros.mayPlayDeed "Cast" You (Macros.allOf Macros.spell)
                      (Just (AsThoughOf (HasKeyword (TheKeyword "Flash"))))
                      (PlayRider Nothing Nothing Nothing False ItsOwnCost))
@@ -644,7 +644,7 @@ playLandsAndCastSpellsFromTop =
 public export
 playAndCastFromGraveyardThisTurn : Instruction []
 playAndCastFromGraveyardThisTurn =
-  Continuously {ts = StaticFirstDone}
+  Continuously
     (AndAlso Nothing [ (Macros.mayPlayDeed "Play" You (Macros.allOf Macros.land) Nothing (PlayRider (Just (Macros.graveyardOf You)) Nothing Nothing False ItsOwnCost))
              , (Macros.mayPlayDeed "Cast" You (Macros.allOf Macros.spell) Nothing (PlayRider (Just (Macros.graveyardOf You)) Nothing Nothing False ItsOwnCost)) ])
     (Just Macros.untilEndOfTurn)
@@ -738,7 +738,7 @@ summerBloom =
   Macros.card "Summer Bloom"
        (Just [Macros.generic 1, Macros.pip Green]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Continuously {ts = StaticFirstDone} (Macros.mayPlayAdditionalLands You (Macros.upTo 3))
+       [ Spell (Continuously (Macros.mayPlayAdditionalLands You (Macros.upTo 3))
                              (Just ThisTurn)) ]
        Nothing
 
@@ -748,7 +748,7 @@ explore =
   Macros.card "Explore" (Just [Macros.generic 1, Macros.pip Green]) []
        (MkTypeLine [] [Sorcery])
        [ Spell (Sequentially
-           [ Continuously {ts = StaticFirstDone} (Macros.mayPlayAdditionalLands You (Macros.exactly 1))
+           [ Continuously (Macros.mayPlayAdditionalLands You (Macros.exactly 1))
                           (Just ThisTurn)
            , (Draw You (Lit 1)) ]) ]
        Nothing
@@ -761,7 +761,7 @@ urbanEvolution =
        (MkTypeLine [] [Sorcery])
        [ Spell (Sequentially
            [ Draw You (Lit 3)
-           , Continuously {ts = StaticFirstDone} (Macros.mayPlayAdditionalLands You (Macros.exactly 1))
+           , Continuously (Macros.mayPlayAdditionalLands You (Macros.exactly 1))
                           (Just ThisTurn) ]) ]
        Nothing
 
@@ -1136,7 +1136,7 @@ memoryPlunder =
        (Just [Macros.hybridPip Blue Black, Macros.hybridPip Blue Black,
               Macros.hybridPip Blue Black, Macros.hybridPip Blue Black]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously {ts = StaticFirstDone}
+       [ Spell (Continuously
                   ((Macros.mayPlayDeed "Cast" You (Macros.target (And [Macros.instantOrSorcery, IsCard])) Nothing (PlayRider (Just (Macros.graveyardOf Macros.anOpponent)) Nothing Nothing False WithoutPaying)))
                   Nothing) ]
        Nothing
@@ -1297,13 +1297,17 @@ millThenPutFromAmongMilled =
                                 Macros.handZ) ]
 
 public export
+eachPlayerOffered : Noun [] Player
+eachPlayerOffered = Macros.each AnyPlayer
+
+public export
 eachPlayerOfferBindsOneMember :
-  countOnes Player (mayCtx (Macros.each {bs = []} AnyPlayer)) = 1
+  countOnes Player (mayCtx Choice.eachPlayerOffered) = 1
 eachPlayerOfferBindsOneMember = Refl
 
 public export
 eachPlayerOfferDropsTheGroup :
-  countManys Player (mayCtx (Macros.each {bs = []} AnyPlayer)) = 0
+  countManys Player (mayCtx Choice.eachPlayerOffered) = 0
 eachPlayerOfferDropsTheGroup = Refl
 
 ||| Nautiloid Ship
@@ -1437,10 +1441,11 @@ haakonStromgaldScourge =
        (Just [Macros.generic 1, Macros.pip Black, Macros.pip Black]) [Legendary]
        (MkTypeLine [creatureType "Zombie", creatureType "Knight"] [Creature])
        [ Static ((Macros.mayPlayDeed "Cast" You This Nothing (PlayRider (Just (Macros.graveyardOf You)) Nothing Nothing True ItsOwnCost)))
-       , Static (Conditionally (Matches This (InZone Macros.battlefieldZ))
+       , Static (Conditionally
                    ((Macros.mayPlayDeed "Cast" You (Macros.allOf (And [Macros.spell,
                                    HasSubtype (creatureType "Knight")])) Nothing (PlayRider (Just (Macros.graveyardOf You)) Nothing Nothing False ItsOwnCost)))
-                   AsLongAs {st = Static.CondFirstDone})
+                   (Matches This (InZone Macros.battlefieldZ))
+                   AsLongAs)
        , Macros.triggered When (Dies Macros.thisCreature)
            (Macros.losesLife You (Lit 2)) ]
        (Just (3, 3))
@@ -1451,7 +1456,7 @@ apexOfPowerCast : Instruction []
 apexOfPowerCast =
   Sequentially
     [ Macros.exile You (LibrarySlice OnTop (Lit 7) You)
-    , Continuously {ts = StaticFirstDone}
+    , Continuously
         (Macros.mayPlayDeed "Cast" You
              (Macros.fromAmong Macros.anyNumber Macros.spell ((Macros.It ManyOf))) Nothing
              (PlayRider Nothing Nothing Nothing False ItsOwnCost))
@@ -1505,9 +1510,9 @@ akiriUnattachOffer =
 public export
 summoningMateriaTopCast : Ability
 summoningMateriaTopCast =
-  Static (Macros.asLongAs
-            (Matches Macros.thisEquipment (AttachedTo (Macros.a Macros.creature)))
-            ((Macros.mayPlayDeed "Cast" You (Macros.allOf (And [Macros.spell, Macros.creature])) Nothing (PlayRider (Just Macros.onTopZ) Nothing Nothing False ItsOwnCost))))
+  Static (Macros.onlyWhile
+            ((Macros.mayPlayDeed "Cast" You (Macros.allOf (And [Macros.spell, Macros.creature])) Nothing (PlayRider (Just Macros.onTopZ) Nothing Nothing False ItsOwnCost)))
+            (Matches Macros.thisEquipment (AttachedTo (Macros.a Macros.creature))))
 
 ||| Vizier of the Menagerie
 public export
@@ -1525,10 +1530,10 @@ conspicuousSnoop =
        [ Static (Visibility Reveal You TopOfLibrary)
        , Static ((Macros.mayPlayDeed "Play" You (Macros.allOf (And [Macros.spell,
                                 HasSubtype (creatureType "Goblin")])) Nothing (PlayRider (Just Macros.onTopZ) Nothing Nothing False ItsOwnCost)))
-       , Static (Macros.asLongAs
-                   (Matches (Macros.topSlice (Lit 1)) (HasSubtype (creatureType "Goblin")))
+       , Static (Macros.onlyWhile
                    (GainsAbilitiesOf Macros.thisCreature [AnyActivated]
-                                     (Macros.That CardW OneOf) Nothing)) ]
+                                     (Macros.topSlice (Lit 1)) Nothing)
+                   (Matches (Macros.topSlice (Lit 1)) (HasSubtype (creatureType "Goblin")))) ]
        (Just (2, 2))
 
 ||| Ballot Broker

@@ -193,7 +193,11 @@ finalFortune =
                                             (Concludes LoseGame You)])] Nothing
 
 public export
-finalFortuneThatTurn : Noun (instrIntro {bs = []} (ExtraTurn You (Lit 1))) TurnRef
+finalFortuneExtraTurn : Instruction []
+finalFortuneExtraTurn = ExtraTurn You (Lit 1)
+
+public export
+finalFortuneThatTurn : Noun (instrIntro Turn.finalFortuneExtraTurn) TurnRef
 finalFortuneThatTurn = Macros.thatTurn
 
 public export
@@ -212,7 +216,7 @@ chanceForGlory =
        (Just [Macros.generic 1, Macros.pip Red, Macros.pip White]) []
        (MkTypeLine [] [Instant])
        [Spell (Sequentially
-         [ Continuously {ts = StaticFirstDone} (Gains (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You]))
+         [ Continuously (Gains (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You]))
                                (Macros.keyword "Indestructible")) Nothing
          , ExtraTurn You (Lit 1)
          , Macros.delayed (BeginningOf ThePart EndStep (Macros.thatTurns))
@@ -319,7 +323,7 @@ odricLunarchMarshal =
                                (BeginningOf ThePart Combat (ByPlayer (Macros.each AnyPlayer)))
                                (Macros.exists (And [Macros.creature, HasPossessor ControllerAx You,
                                              HasKeyword (TheKeyword "FirstStrike")]))
-                               (Continuously {ts = StaticFirstDone}
+                               (Continuously
                                   (Gains (Macros.allOf Macros.creatureYouControl)
                                          (Macros.keyword "FirstStrike"))
                                   (Just Macros.untilEndOfTurn)))
@@ -340,7 +344,7 @@ bleedingEffect =
                                (Macros.exists (And [Macros.creature,
                                              InZone (Macros.graveyardOf You),
                                              HasKeyword (TheKeyword "Flying")]))
-                               (Continuously {ts = StaticFirstDone}
+                               (Continuously
                                   (Gains (Macros.allOf Macros.creatureYouControl)
                                          (Macros.keyword "Flying"))
                                   (Just Macros.untilEndOfTurn)))
@@ -473,7 +477,7 @@ concertedEffort =
                                (BeginningOf ThePart Upkeep (ByPlayer (Macros.each AnyPlayer)))
                                (Macros.exists (And [Macros.creature, HasPossessor ControllerAx You,
                                              HasKeyword (TheKeyword "Flying")]))
-                               (Continuously {ts = StaticFirstDone}
+                               (Continuously
                                   (Gains (Macros.allOf Macros.creatureYouControl)
                                          (Macros.keyword "Flying"))
                                   (Just Macros.untilEndOfTurn)))

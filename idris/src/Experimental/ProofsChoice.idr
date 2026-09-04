@@ -164,7 +164,7 @@ badStaticPlayerCantTargets Oh impossible
 
 public export
 badChosenBasicTypeOnCreature : Unspellable (Instruction []) (\ok =>
-  Continuously {ts = StaticFirstDone} (Becomes (Macros.target Macros.creature) Sets (ChosenQuality (OfYourChoice (SubtypeQ Land) (Just BasicTypesOnly)))
+  Continuously (Becomes (Macros.target Macros.creature) Sets (ChosenQuality (OfYourChoice (SubtypeQ Land) (Just BasicTypesOnly)))
                                   {ok = ok})
                (Just Macros.untilEndOfTurn))
 badChosenBasicTypeOnCreature Oh impossible
@@ -190,14 +190,14 @@ badNonCreatureTypeExclusion Refl impossible
 public export
 setsEveryBasicLandType : Instruction []
 setsEveryBasicLandType =
-  Continuously {ts = StaticFirstDone} (Becomes (Macros.target Macros.land) Sets (EveryTypeOf BasicLandSpace))
+  Continuously (Becomes (Macros.target Macros.land) Sets (EveryTypeOf BasicLandSpace))
                (Just Macros.untilEndOfTurn)
 
 ||| "Target creature loses the creature type of your choice until end of turn."
 public export
 losesChosenCreatureType : Instruction []
 losesChosenCreatureType =
-  Continuously {ts = StaticFirstDone} (Becomes (Macros.target Macros.creature) Loses
+  Continuously (Becomes (Macros.target Macros.creature) Loses
                         (ChosenQuality (OfYourChoice (SubtypeQ Creature) Nothing)))
                (Just Macros.untilEndOfTurn)
 
@@ -205,7 +205,7 @@ losesChosenCreatureType =
 public export
 losesAllColors : Instruction []
 losesAllColors =
-  Continuously {ts = StaticFirstDone} (Becomes (Macros.target Macros.creature) Loses (Colored EveryColor))
+  Continuously (Becomes (Macros.target Macros.creature) Loses (Colored EveryColor))
                (Just Macros.untilEndOfTurn)
 
 public export

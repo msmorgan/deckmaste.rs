@@ -13,7 +13,7 @@ import Experimental.Unspellable
 public export
 okCantBeBlocked : Instruction []
 okCantBeBlocked =
-  Continuously {ts = StaticFirstDone}
+  Continuously
     (Macros.deontic (Macros.target Macros.creature) Forbid ["Block"] Patient
                     NoDeonticPatient)
     (Just ThisTurn)
@@ -21,7 +21,7 @@ okCantBeBlocked =
 ||| "Target creature can't be attacked this turn."
 public export
 badCantBeAttacked : Unspellable (Instruction []) (\ok =>
-  Continuously {ts = StaticFirstDone} (Macros.deontic (Macros.target Macros.creature) Forbid ["Attack"] Patient NoDeonticPatient {dp = ok}) (Just ThisTurn))
+  Continuously (Macros.deontic (Macros.target Macros.creature) Forbid ["Attack"] Patient NoDeonticPatient {dp = ok}) (Just ThisTurn))
 badCantBeAttacked Oh impossible
 
 ||| "Target creature card in a graveyard can't block this turn."
@@ -156,7 +156,7 @@ badStaticTargets Oh impossible
 public export
 okPlayFromGraveyard : Instruction []
 okPlayFromGraveyard =
-  Continuously {ts = StaticFirstDone}
+  Continuously
                (Deontic You Permit ["Play"] Agent Nothing
                   (DeonticCounterpart (Macros.a (InZone Macros.graveyardZ)))
                   Nothing (PlayRider Nothing Nothing Nothing False ItsOwnCost))
@@ -165,7 +165,7 @@ okPlayFromGraveyard =
 ||| "You may play a creature this turn."
 public export
 badPlayFromBattlefield : Unspellable (Instruction []) (\ok =>
-  Continuously {ts = StaticFirstDone} (Deontic You Permit ["Play"] Agent Nothing
+  Continuously (Deontic You Permit ["Play"] Agent Nothing
                   (DeonticCounterpart (Macros.a Macros.creature)) Nothing
                   (PlayRider Nothing Nothing Nothing False ItsOwnCost) {rd = ok})
                (Just ThisTurn))
@@ -175,7 +175,7 @@ badPlayFromBattlefield Oh impossible
 public export
 okPlayLandFromGraveyard : Instruction []
 okPlayLandFromGraveyard =
-  Continuously {ts = StaticFirstDone}
+  Continuously
     (Deontic You Permit ["Play"] Agent Nothing
        (DeonticCounterpart
           (Macros.a (And [Macros.land,
@@ -188,7 +188,7 @@ okPlayLandFromGraveyard =
 ||| "You may play a spell this turn."
 public export
 badPlayFromStack : Unspellable (Instruction []) (\ok =>
-  Continuously {ts = StaticFirstDone} (Deontic You Permit ["Play"] Agent Nothing
+  Continuously (Deontic You Permit ["Play"] Agent Nothing
                   (DeonticCounterpart (Macros.a Macros.spell)) Nothing
                   (PlayRider Nothing Nothing Nothing False ItsOwnCost) {rd = ok})
                (Just ThisTurn))
@@ -198,7 +198,7 @@ badPlayFromStack Oh impossible
 public export
 okCastCreatureFromGraveyard : Instruction []
 okCastCreatureFromGraveyard =
-  Continuously {ts = StaticFirstDone}
+  Continuously
     (Deontic You Permit ["Cast"] Agent Nothing
        (DeonticCounterpart
           (Macros.a (And [Macros.creature,
@@ -211,7 +211,7 @@ okCastCreatureFromGraveyard =
 ||| "You may cast a land card from your graveyard this turn."
 public export
 badCastALand : Unspellable (Instruction []) (\ok =>
-  Continuously {ts = StaticFirstDone} (Deontic You Permit ["Cast"] Agent Nothing
+  Continuously (Deontic You Permit ["Cast"] Agent Nothing
                   (DeonticCounterpart
                      (Macros.a (And [Macros.land, InZone (Macros.graveyardOf You)])))
                   Nothing (PlayRider Nothing Nothing Nothing False ItsOwnCost)
@@ -222,7 +222,7 @@ badCastALand Oh impossible
 ||| "You may play a creature card in exile from your graveyard this turn."
 public export
 badPlayFromWrongZone : Unspellable (Instruction []) (\ok =>
-  Continuously {ts = StaticFirstDone} (Deontic You Permit ["Play"] Agent Nothing
+  Continuously (Deontic You Permit ["Play"] Agent Nothing
                   (DeonticCounterpart
                      (Macros.a (And [Macros.creature, InZone Macros.exileZ])))
                   Nothing
@@ -237,18 +237,18 @@ public export
 okUnlessOnNegated : Ability
 okUnlessOnNegated =
   Static (Conditionally
-            (NotCond (Macros.exists (And [Macros.artifact,
-                                          HasPossessor ControllerAx You])))
             (Macros.deontic Macros.thisCreature Forbid ["Attack"] Agent
                             NoDeonticPatient)
-            Unless {st = Static.CondFirstDone})
+            (NotCond (Macros.exists (And [Macros.artifact,
+                                          HasPossessor ControllerAx You])))
+            Unless)
 
 ||| "unless"
 public export
 badUnlessOnPositive : Unspellable Ability (\ok =>
-  Static (Conditionally (Macros.exists (And [Macros.artifact, HasPossessor ControllerAx You]))
-                        (Macros.deontic Macros.thisCreature Forbid ["Attack"] Agent NoDeonticPatient)
-                        Unless {st = Static.CondFirstDone} {mk = ok}))
+  Static (Conditionally (Macros.deontic Macros.thisCreature Forbid ["Attack"] Agent NoDeonticPatient)
+                        (Macros.exists (And [Macros.artifact, HasPossessor ControllerAx You]))
+                        Unless {mk = ok}))
 badUnlessOnPositive MkMarkingOk impossible
 
 ||| a trigger header watching a permanent become unflipped
@@ -261,7 +261,7 @@ badUnflipEvent Oh impossible
 public export
 okMustAttackCreature : Instruction []
 okMustAttackCreature =
-  Continuously {ts = StaticFirstDone}
+  Continuously
                (Macros.deontic (Macros.target Macros.creature) Require
                                ["Attack"] Agent NoDeonticPatient)
                (Just ThisTurn)
@@ -269,7 +269,7 @@ okMustAttackCreature =
 ||| "Target land attacks each combat if able."
 public export
 badMustAttackLand : Unspellable (Instruction []) (\ok =>
-  Continuously {ts = StaticFirstDone} (Macros.deontic (Macros.target Macros.land) Require ["Attack"] Agent NoDeonticPatient {dp = ok})
+  Continuously (Macros.deontic (Macros.target Macros.land) Require ["Attack"] Agent NoDeonticPatient {dp = ok})
                (Just ThisTurn))
 badMustAttackLand Oh impossible
 
@@ -284,7 +284,7 @@ badRingBearerInGraveyard Oh impossible
 public export
 okForbidAttackPlaneswalker : Instruction []
 okForbidAttackPlaneswalker =
-  Continuously {ts = StaticFirstDone}
+  Continuously
                (Macros.deontic Macros.thisCreature Forbid ["Attack"] Agent
                         (DeonticCounterpart
                            (Macros.target (HasType Planeswalker))))
@@ -293,7 +293,7 @@ okForbidAttackPlaneswalker =
 ||| "This creature can't attack target creature this turn."
 public export
 badForbidAttackWithPatient : Unspellable (Instruction []) (\ok =>
-  Continuously {ts = StaticFirstDone} (Macros.deontic Macros.thisCreature Forbid ["Attack"] Agent
+  Continuously (Macros.deontic Macros.thisCreature Forbid ["Attack"] Agent
                         (DeonticCounterpart (Macros.target Macros.creature)) {pt = ok})
                (Just ThisTurn))
 badForbidAttackWithPatient Oh impossible
@@ -301,7 +301,7 @@ badForbidAttackWithPatient Oh impossible
 ||| "Target creature blocks it this turn"
 public export
 badBlocksItself : Unspellable (Instruction []) (\ok =>
-  Continuously {ts = StaticFirstDone} (Macros.deontic (Macros.target Macros.creature) Require ["Block"] Agent
+  Continuously (Macros.deontic (Macros.target Macros.creature) Require ["Block"] Agent
                                (DeonticCounterpart ((Macros.It OneOf))) {pt = ok})
                (Just ThisTurn))
 badBlocksItself Oh impossible
@@ -326,7 +326,7 @@ public export
 okTheDamageAfterDealing : Instruction []
 okTheDamageAfterDealing =
   Sequentially [ DealDamage This (Lit 4) (Macros.target Macros.creature)
-               , Continuously {ts = StaticFirstDone}
+               , Continuously
                    (CantPrevent AnyDamage ThatDamage NoPreventionOnly) Nothing ]
 
 ||| "The damage can't be prevented."
@@ -339,7 +339,7 @@ badTheDamageUnannounced Oh impossible
 public export
 badTheDamageAfterLifeGain : Unspellable (Instruction []) (\ok =>
   Sequentially [ ChangeLife You (Up (Lit 3))
-               , Continuously {ts = StaticFirstDone}
+               , Continuously
                    (CantPrevent AnyDamage (ThatDamage {ok}) NoPreventionOnly) Nothing ])
 badTheDamageAfterLifeGain Oh impossible
 

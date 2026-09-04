@@ -29,9 +29,16 @@ tezzeretsGatebreaker =
        Nothing
 
 public export
+twoCardsAtRandom : Noun [] Object
+twoCardsAtRandom = Macros.countedAtRandom (Macros.exactly 2) (InZone Macros.handZ)
+
+public export
+twoCardsChosen : Noun [] Object
+twoCardsChosen = Macros.counted (Macros.exactly 2) (InZone Macros.handZ)
+
+public export
 atRandomModeIsAnnouncementNeutral :
-  nounDelta (Macros.countedAtRandom {bs = []} (Macros.exactly 2) (InZone Macros.handZ))
-    = nounDelta (Macros.counted {bs = []} ((Macros.exactly 2)) (InZone Macros.handZ))
+  nounDelta Piles.twoCardsAtRandom = nounDelta Piles.twoCardsChosen
 atRandomModeIsAnnouncementNeutral = Refl
 
 ||| Tyrant's Choice
@@ -237,7 +244,5 @@ lilianaOfTheVeil =
        (Macros.loyaltyBox 3)
 
 public export
-countedAtRandomIsPlural :
-  nounPlur (Macros.countedAtRandom {bs = []} (Macros.exactly 2) (InZone Macros.handZ))
-    = ManyOf
+countedAtRandomIsPlural : nounPlur Piles.twoCardsAtRandom = ManyOf
 countedAtRandomIsPlural = Refl

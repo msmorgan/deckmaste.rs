@@ -55,7 +55,7 @@ flawlessForgeryLine =
                                        , InZone (Macros.graveyardOf
                                                    (Macros.a Opponent)) ]))
     , Copy FromCardZone You (Macros.That CardW OneOf) (Lit 1) []
-    , Continuously {ts = StaticFirstDone} (Macros.mayPlayDeed "Cast" You (Macros.That CopyW OneOf) Nothing
+    , Continuously (Macros.mayPlayDeed "Cast" You (Macros.That CopyW OneOf) Nothing
                        (PlayRider Nothing Nothing Nothing False WithoutPaying))
                    Nothing ]
 

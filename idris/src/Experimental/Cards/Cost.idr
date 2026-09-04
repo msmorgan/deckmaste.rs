@@ -266,14 +266,14 @@ chillerpillar =
        (MkTypeLine [creatureType "Insect"] [Creature])
        [ Macros.activated (Mana [Macros.generic 4, SnowMana, SnowMana])
                           (Macros.monstrosity (Lit 2))
-       , Static (Macros.asLongAs (Matches Macros.thisCreature (HasDesignation Monstrous))
-                                 (Gains ((Macros.It OneOf)) (Macros.keyword "Flying"))) ]
+       , Static (Macros.onlyWhile (Gains Macros.thisCreature (Macros.keyword "Flying"))
+                                 (Matches Macros.thisCreature (HasDesignation Monstrous))) ]
        (Just (3, 3))
 
 nullhideFerox : Ability
 nullhideFerox =
   Macros.activated (Mana [Macros.generic 2])
-                   (Continuously {ts = StaticFirstDone} (LosesAllAbilities Macros.thisCreature Nothing)
+                   (Continuously (LosesAllAbilities Macros.thisCreature Nothing)
                           (Just Macros.untilEndOfTurn))
 
 causticTar : Card
@@ -354,12 +354,12 @@ mizziumTransreliquat =
   Macros.card "Mizzium Transreliquat" (Just [Macros.generic 3]) []
        (MkTypeLine [] [Artifact])
        [ Macros.activated (Mana [Macros.generic 3])
-                          (Continuously {ts = StaticFirstDone}
+                          (Continuously
                       (BecomesCopy Macros.thisArtifact
                                    (Macros.target Macros.artifact) [])
                       (Just Macros.untilEndOfTurn))
        , Macros.activated (Mana [Macros.generic 1, Macros.pip Blue, Macros.pip Red])
-                          (Continuously {ts = StaticFirstDone}
+                          (Continuously
                       (BecomesCopy Macros.thisArtifact
                                    (Macros.target Macros.artifact)
                                    [ExceptThisAbility])
@@ -466,7 +466,7 @@ ersatzGnomes =
   Macros.card "Ersatz Gnomes" (Just [Macros.generic 3]) []
        (MkTypeLine [creatureType "Gnome"] [Artifact, Creature])
        [ Macros.activated TapSymbol
-           (Continuously {ts = StaticFirstDone} (Becomes (Macros.target Macros.spell) Sets (Colored (SomeColors [])))
+           (Continuously (Becomes (Macros.target Macros.spell) Sets (Colored (SomeColors [])))
                          Nothing)
        , Macros.activated TapSymbol
            (Macros.becomesColor (Macros.target Permanent) (SomeColors [])
@@ -492,7 +492,7 @@ indigoFaerie =
        (MkTypeLine [creatureType "Faerie", creatureType "Wizard"] [Creature])
        [ Macros.keyword "Flying"
        , Macros.activated (Mana [Macros.pip Blue])
-                          (Continuously {ts = StaticFirstDone} (Becomes (Macros.target Permanent) Adds
+                          (Continuously (Becomes (Macros.target Permanent) Adds
                                                  (Colored (SomeColors [Blue])))
                                         (Just Macros.untilEndOfTurn)) ]
        (Just (1, 1))
@@ -503,13 +503,13 @@ arcumsWeathervane : Card
 arcumsWeathervane =
   Macros.card "Arcum's Weathervane" (Just [Macros.generic 2]) [] (MkTypeLine [] [Artifact])
        [ Macros.activated (Compound [Mana [Macros.generic 2], TapSymbol])
-           (Continuously {ts = StaticFirstDone}
+           (Continuously
               (Becomes (Macros.target (And [Macros.land, HasSupertype Snow])) Loses
                        (Bundle (MkTokenChars Nothing [] [Snow] (MkTypeLine [] []) [] Nothing [])
                                Nothing))
               Nothing)
        , Macros.activated (Compound [Mana [Macros.generic 2], TapSymbol])
-           (Continuously {ts = StaticFirstDone}
+           (Continuously
               (Becomes (Macros.target (And [Macros.land, HasSupertype Basic,
                                             Not (HasSupertype Snow)])) Adds
                        (Bundle (MkTokenChars Nothing [] [Snow] (MkTypeLine [] []) [] Nothing [])
@@ -565,10 +565,10 @@ public export
 amoeboidChangelingTypeAbilities : AbilitySeq []
 amoeboidChangelingTypeAbilities =
   [ Macros.activated TapSymbol
-      (Continuously {ts = StaticFirstDone} (Becomes (Macros.target Macros.creature) Adds (EveryTypeOf CreatureSpace))
+      (Continuously (Becomes (Macros.target Macros.creature) Adds (EveryTypeOf CreatureSpace))
                     (Just Macros.untilEndOfTurn))
   , Macros.activated TapSymbol
-      (Continuously {ts = StaticFirstDone} (Becomes (Macros.target Macros.creature) Loses (EveryTypeOf CreatureSpace))
+      (Continuously (Becomes (Macros.target Macros.creature) Loses (EveryTypeOf CreatureSpace))
                     (Just Macros.untilEndOfTurn)) ]
 
 ||| Fluctuator
@@ -660,7 +660,7 @@ vexingShusher =
        (MkTypeLine [creatureType "Goblin", creatureType "Shaman"] [Creature])
        [ Static (Macros.objectCant "Counter" This)
        , Macros.activated (Mana [Macros.hybridPip Red Green])
-           (Continuously {ts = StaticFirstDone}
+           (Continuously
               (Macros.objectCant "Counter" (Macros.target Macros.spell))
               Nothing) ]
        (Just (2, 2))
@@ -806,7 +806,7 @@ public export
 hurrJackalAbility : Ability
 hurrJackalAbility =
   Macros.activated TapSymbol
-    (Continuously {ts = StaticFirstDone} (Macros.objectCant "Regenerate" (Macros.target Macros.creature))
+    (Continuously (Macros.objectCant "Regenerate" (Macros.target Macros.creature))
                   (Just ThisTurn))
 
 public export
@@ -890,7 +890,7 @@ elspethsTalent =
                                      (Macros.creatureTok 1 1 [White] [creatureType "Soldier"]))))
        , Macros.triggered Whenever
                           (Activates You loyaltyAbilityOfEnchanted)
-                          (Continuously {ts = StaticFirstDone}
+                          (Continuously
                       (AndAlso Nothing [ Gets Adds (Macros.allOf Macros.creatureYouControl)
                                       (PtUp (Lit 2)) (PtUp (Lit 2))
                                , Gains ((Macros.It ManyOf)) (Macros.keyword "Vigilance") ])
@@ -995,8 +995,11 @@ prosperityCostLetters :
 prosperityCostLetters = Refl
 
 public export
-prosperityTextReadsCostLetter :
-  amtDelta (LetterVal X {bs = costLetters (Just [Variable, Macros.pip Blue])}) = []
+prosperityTextLetter : Amount (costLetters (Just [Variable, Macros.pip Blue]))
+prosperityTextLetter = LetterVal X
+
+public export
+prosperityTextReadsCostLetter : amtDelta Cost.prosperityTextLetter = []
 prosperityTextReadsCostLetter = Refl
 
 public export
@@ -1074,10 +1077,10 @@ deathMaskDuplicant =
                                    (And [Macros.creature,
                                          InZone (Macros.graveyardOf You)]))))
        , AlsoForKeywords
-           (Static (Macros.asLongAs
+           (Static (Macros.onlyWhile
+                      (Gains Macros.thisCreature (Macros.keyword "Flying"))
                       (Macros.exists (And [ExiledWith Macros.thisCreature,
-                                    HasKeyword (TheKeyword "Flying")]))
-                      (Gains Macros.thisCreature (Macros.keyword "Flying"))))
+                                    HasKeyword (TheKeyword "Flying")]))))
            [ TheKeyword "Fear", TheKeyword "FirstStrike"
            , TheKeyword "DoubleStrike", TheKeyword "Haste"
            , landwalkAbilities, protectionAbilities, TheKeyword "Trample" ] ]
@@ -1209,7 +1212,7 @@ public export
 shadowspearStrip : Ability
 shadowspearStrip =
   Macros.activated (Mana [Macros.generic 1])
-    (Continuously {ts = StaticFirstDone}
+    (Continuously
        (LosesAbilities
           (Macros.allOf (And [Permanent, HasPossessor ControllerAx (PlayerGroup YourOpponents)]))
           [ LostWritten (Macros.keyword "Hexproof")
@@ -1221,7 +1224,7 @@ public export
 shayCormacStrip : Ability
 shayCormacStrip =
   Macros.activated (Mana [Macros.generic 1])
-    (Continuously {ts = StaticFirstDone}
+    (Continuously
        (LosesAbilities
           (Macros.allOf (And [Permanent, HasPossessor ControllerAx (PlayerGroup YourOpponents)]))
           [ LostWritten (Macros.keyword "Hexproof")
@@ -1239,7 +1242,7 @@ shelkinBrownie =
        (Just [Macros.generic 1, Macros.pip Green]) []
        (MkTypeLine [creatureType "Ouphe"] [Creature])
        [ Macros.activated (Compound [TapSymbol])
-           (Continuously {ts = StaticFirstDone}
+           (Continuously
               (LosesAbilities (Macros.target Macros.creature)
                               [LostTerm bandsWithOtherAbilities])
               (Just Macros.untilEndOfTurn)) ]
@@ -1367,6 +1370,9 @@ missyChaosBranch : Instruction []
 missyChaosBranch = Sequentially [(Draw You (Lit 1)), Macros.chaosEnsues]
 
 public export
-textAloneOnceMintedItsOwnLetter :
-  amtDelta (LetterVal X {bs = []}) = [letterB X]
+bareTextLetter : Amount []
+bareTextLetter = LetterVal X
+
+public export
+textAloneOnceMintedItsOwnLetter : amtDelta Cost.bareTextLetter = [letterB X]
 textAloneOnceMintedItsOwnLetter = Refl

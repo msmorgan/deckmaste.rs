@@ -654,7 +654,7 @@ testOfFaith : Card
 testOfFaith =
   Macros.card "Test of Faith" (Just [Macros.generic 1, Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously {ts = StaticFirstDone}
+       [ Spell (Continuously
                   (DamageRule AnyDamage Unattributed (ToRecipient (Macros.target Macros.creature)) (Prevent (Shield (Lit 3)) (Just (PutCounters Macros.preventedThisWay
                                                (PrintedKind Macros.plusOnePlusOne)
                                                (Macros.That (TypeW Creature) OneOf)))) Repeatedly)
@@ -666,7 +666,7 @@ temper : Card
 temper =
   Macros.card "Temper" (Just [Variable, Macros.generic 1, Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously {ts = StaticFirstDone}
+       [ Spell (Continuously
                   (DamageRule AnyDamage Unattributed (ToRecipient (Macros.target Macros.creature)) (Prevent (Shield (LetterVal X)) (Just (PutCounters Macros.preventedThisWay
                                                (PrintedKind Macros.plusOnePlusOne)
                                                (Macros.That (TypeW Creature) OneOf)))) Repeatedly)
@@ -930,9 +930,9 @@ urborgScavengers =
                                [ Macros.exile You (Macros.target (InZone Macros.graveyardZ))
                                , PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) Macros.thisCreature ])
        , AlsoForKeywords
-           (Static (Macros.asLongAs
-                      (Macros.exists (And [ExiledWith Macros.thisCreature, HasKeyword (TheKeyword "Flying")]))
-                      (Gains Macros.thisCreature (Macros.keyword "Flying"))))
+           (Static (Macros.onlyWhile
+                      (Gains Macros.thisCreature (Macros.keyword "Flying"))
+                      (Macros.exists (And [ExiledWith Macros.thisCreature, HasKeyword (TheKeyword "Flying")]))))
            (map TheKeyword
               ["FirstStrike", "DoubleStrike", "Deathtouch", "Haste", "Hexproof", "Indestructible",
                "Lifelink", "Menace", "Reach", "Trample", "Vigilance"]) ]
@@ -960,7 +960,7 @@ mildManneredLibrarian =
        (MkTypeLine [creatureType "Human"] [Creature])
        [ Macros.activatedOnlyOnce (Mana [Macros.generic 3, Macros.pip Green])
                                   (Sequentially
-                                     [ Continuously {ts = StaticFirstDone} (Becomes Macros.thisCreature Sets (Bundle (MkToken Nothing [] (Macros.subtypesOnly [creatureType "Werewolf"]) [] Nothing) Nothing)) Nothing
+                                     [ Continuously (Becomes Macros.thisCreature Sets (Bundle (MkToken Nothing [] (Macros.subtypesOnly [creatureType "Werewolf"]) [] Nothing) Nothing)) Nothing
                                      , PutCounters (Lit 2) (PrintedKind Macros.plusOnePlusOne) ((Macros.It OneOf))
                                      , (Draw You (Lit 1)) ])
                                   OncePerGame ]

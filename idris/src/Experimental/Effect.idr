@@ -317,17 +317,6 @@ mutual
 
   namespace Static
     public export
-    data StaticThreads : (base, condBase, condAfter,
-                          staticBase, staticAfter : Bindings) -> Type where [noHints]
-      CondFirstDone : StaticThreads bs bs mid mid after
-      StaticFirstDone : StaticThreads bs mid after bs mid
-
-    public export
-    %hint
-    conditionFirstThreads : StaticThreads bs bs mid mid after
-    conditionFirstThreads = CondFirstDone
-
-    public export
     data StaticSpec : Bindings -> Type where
       Gets : (op : CharOp) -> (n : Noun bs Object) ->
              (pow : PtShift (selfSubjIntro n)) ->
@@ -421,11 +410,8 @@ mutual
       CantPrevent : (kind : DamageKind) -> (what : Unpreventable bs) ->
                     (ban : PreventionBan) -> StaticSpec bs
       Conditionally : {0 bs : Bindings} ->
-                      {condBase, staticBase : Bindings} ->
-                      (c : Condition condBase) ->
-                      (se : StaticSpec staticBase) ->
-                      {auto 0 st : StaticThreads bs condBase (condIntro c)
-                                                   staticBase (staticIntro se)} ->
+                      (se : StaticSpec bs) ->
+                      (c : Condition (staticIntro se)) ->
                       (marking : CondMarking) ->
                       {auto 0 mk : MarkingOk marking c} -> StaticSpec bs
       OnlyDuring : (p : TurnPart) -> (w : Maybe (Noun bs Player)) ->
@@ -811,7 +797,7 @@ mutual
   staticIntro (DamageRule kind src scope op use) = damageOpIntro op
   staticIntro (CantPrevent kind what ban) = unpreventableIntro what
   staticIntro (OnlyDuring _ _ se) = staticIntro se
-  staticIntro (Conditionally c se _) = staticIntro se
+  staticIntro (Conditionally se c _) = condIntro c
   staticIntro (AlsoOffBattlefield se) = staticIntro se
   staticIntro (DoesntRemove _ n) = nomIntro n
   staticIntro (NoLossFromZeroLife who) = nomIntro who
@@ -1053,18 +1039,6 @@ mutual
   rowCount (_ :: rs) = S (rowCount rs)
 
   public export
-  data SpanStaticThreads : (base, staticBase, staticAfter,
-                            spanBase : Bindings) ->
-                           Maybe (Duration spanBase) -> Type where [noHints]
-    StaticFirstDone : SpanStaticThreads bs bs mid mid dur
-    SpanFirstDone : SpanStaticThreads bs (spanIntro dur) after bs (Just dur)
-
-  public export
-  %hint
-  continuousStaticFirstThreads : SpanStaticThreads bs bs mid mid dur
-  continuousStaticFirstThreads = StaticFirstDone
-
-  public export
   data Instruction : Bindings -> Type where
     DealDamage : {k : Kind} -> (src : Noun bs Object) -> (amt : Amount (nomIntro src)) ->
                  (to : Noun (amtIntro amt) k) ->
@@ -1207,11 +1181,8 @@ mutual
                    {auto 0 wf : WellFormedQ q} ->
                    {auto 0 one : nounPlur whose = OneOf} -> Instruction bs
     Continuously : {0 bs : Bindings} ->
-                   {staticBase, spanBase : Bindings} ->
-                   (se : StaticSpec staticBase) ->
-                   (span : Maybe (Duration spanBase)) ->
-                   {auto 0 ts : SpanStaticThreads bs staticBase (staticIntro se)
-                                                  spanBase span} ->
+                   (se : StaticSpec bs) ->
+                   (span : Maybe (Duration (staticIntro se))) ->
                    {auto 0 sp : SpanOk span} ->
                    {auto 0 cl : ClauseStatic se} -> Instruction bs
     Create : (agent : Noun bs Player) -> (count : Amount (nomIntro agent)) ->
@@ -2116,7 +2087,7 @@ mutual
 
   public export
   statKeyword : {0 bs : Bindings} -> StaticSpec bs -> Maybe KeywordLabel
-  statKeyword (Conditionally _ se _) = statKeyword se
+  statKeyword (Conditionally se _ _) = statKeyword se
   statKeyword (Gains _ ab) = grantedKeyword ab
   statKeyword _ = Nothing
 

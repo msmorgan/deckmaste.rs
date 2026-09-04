@@ -87,6 +87,10 @@ allOf : (p : Predicate bs k) -> {auto ph : Phrasal k} -> Noun bs k
 allOf p = Described AllDet p {ph} {ok = ()}
 
 public export
+everyObject : Noun bs Object
+everyObject = allOf (And [])
+
+public export
 bare : (p : Predicate bs k) -> {auto ph : Phrasal k} -> Noun bs k
 bare p = Described BareDet p {ph} {ok = ()}
 
@@ -715,14 +719,6 @@ untilYourNextEndStep : Duration bs
 untilYourNextEndStep = Until (StartOf EndStep (Just You))
 
 public export
-asLongAs : {bs : Bindings} -> (c : Condition bs) -> (se : StaticSpec (condIntro c)) -> StaticSpec bs
-asLongAs {bs} c se = Conditionally {bs} c se AsLongAs
-
-public export
-unlessSo : {bs : Bindings} -> (c : Condition bs) -> (se : StaticSpec (condIntro (NotCond c))) -> StaticSpec bs
-unlessSo {bs} c se = Conditionally {bs} (NotCond c) se Unless
-
-public export
 entersTapped : (n : Noun bs Object) ->
                {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
                StaticSpec bs
@@ -1169,6 +1165,11 @@ someOf : (q : Quantity bs) -> (grp : Noun bs Object) ->
          {auto 0 nz : NonZeroQ q} ->
          {auto 0 wf : WellFormedQ q} -> Noun bs Object
 someOf q grp = SomeOf (CountedSlice q {nz} {wf}) Nothing grp {gm}
+
+public export
+allAmong : (descr : Predicate bs Object) -> (grp : Noun bs Object) ->
+           {auto 0 gm : PartitiveBase grp} -> Noun bs Object
+allAmong descr grp = SomeOf WholeSlice (Just descr) grp {gm}
 
 public export
 onePile : {auto 0 ok : countReach (Word PileW) ManyOf bs = 1} -> Noun bs Object
@@ -2386,21 +2387,21 @@ ifThen c e = If c e Nothing
 
 public export
 onlyWhile : {bs : Bindings} -> (se : StaticSpec bs) -> (c : Condition (staticIntro se)) -> StaticSpec bs
-onlyWhile {bs} se c = Conditionally {bs} c se AsLongAs {st = Static.StaticFirstDone}
+onlyWhile {bs} se c = Conditionally {bs} se c AsLongAs
 
 public export
 onlyUnless : {bs : Bindings} -> (se : StaticSpec bs) -> (c : Condition (staticIntro se)) -> StaticSpec bs
-onlyUnless {bs} se c = Conditionally {bs} (NotCond c) se Unless {st = Static.StaticFirstDone}
+onlyUnless {bs} se c = Conditionally {bs} se (NotCond c) Unless
 
 public export
 onlyIfSo : {bs : Bindings} -> (se : StaticSpec bs) -> (c : Condition (staticIntro se)) -> StaticSpec bs
-onlyIfSo {bs} se c = Conditionally {bs} c se IfSo {st = Static.StaticFirstDone}
+onlyIfSo {bs} se c = Conditionally {bs} se c IfSo
 
 public export
-throughout : {bs : Bindings} -> (span : Duration bs) -> (se : StaticSpec (spanIntro span)) ->
+throughout : {bs : Bindings} -> (se : StaticSpec bs) -> (span : Duration (staticIntro se)) ->
              {auto 0 sp : SpanOk (Just span)} ->
              {auto 0 cl : ClauseStatic se} -> Instruction bs
-throughout {bs} span se = Continuously {bs} se (Just span) {ts = SpanFirstDone} {sp} {cl}
+throughout {bs} se span = Continuously {bs} se (Just span) {sp} {cl}
 
 public export
 fromTo : Nat -> Nat -> Quantity bs

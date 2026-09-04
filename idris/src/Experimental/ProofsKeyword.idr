@@ -233,10 +233,9 @@ public export
 okKeywordListOverGrant : Ability
 okKeywordListOverGrant =
   AlsoForKeywords (Static (Conditionally
+                             (Gains Macros.thisCreature (KeywordAbility "Flying" Nothing Nothing))
                              (Macros.exists (And [ExiledWith Macros.thisCreature,
-                                           HasKeyword (TheKeyword "Flying")]))
-                             (Gains Macros.thisCreature (KeywordAbility "Flying" Nothing Nothing)) AsLongAs
-                             {st = Static.CondFirstDone}))
+                                           HasKeyword (TheKeyword "Flying")])) AsLongAs))
                   [TheKeyword "Menace", TheKeyword "Trample"]
 
 ||| "Creatures you control get +1/+1. The same is true for menace and trample."
@@ -251,20 +250,18 @@ badKeywordListOnPlainLine (Oh, _) impossible
 public export
 badEmptyKeywordList : Unspellable Ability (\ok =>
   AlsoForKeywords (Static (Conditionally
+                             (Gains Macros.thisCreature (KeywordAbility "Flying" Nothing Nothing))
                              (Macros.exists (And [ExiledWith Macros.thisCreature,
-                                           HasKeyword (TheKeyword "Flying")]))
-                             (Gains Macros.thisCreature (KeywordAbility "Flying" Nothing Nothing)) AsLongAs
-                             {st = Static.CondFirstDone}))
+                                           HasKeyword (TheKeyword "Flying")])) AsLongAs))
                   [] {lk = ok})
 badEmptyKeywordList Oh impossible
 
 public export
 badKeywordListRepeatingBase : Unspellable Ability (\ok =>
   AlsoForKeywords (Static (Conditionally
+                             (Gains Macros.thisCreature (KeywordAbility "Flying" Nothing Nothing))
                              (Macros.exists (And [ExiledWith Macros.thisCreature,
-                                           HasKeyword (TheKeyword "Flying")]))
-                             (Gains Macros.thisCreature (KeywordAbility "Flying" Nothing Nothing)) AsLongAs
-                             {st = Static.CondFirstDone}))
+                                           HasKeyword (TheKeyword "Flying")])) AsLongAs))
                   [TheKeyword "Menace", TheKeyword "Flying",
                    TheKeyword "Trample"] {lk = ok})
 badKeywordListRepeatingBase Oh impossible
@@ -272,10 +269,9 @@ badKeywordListRepeatingBase Oh impossible
 public export
 badParameterisedKeywordInList : Unspellable Ability (\ok =>
   AlsoForKeywords (Static (Conditionally
+                             (Gains Macros.thisCreature (KeywordAbility "Flying" Nothing Nothing))
                              (Macros.exists (And [ExiledWith Macros.thisCreature,
-                                           HasKeyword (TheKeyword "Flying")]))
-                             (Gains Macros.thisCreature (KeywordAbility "Flying" Nothing Nothing)) AsLongAs
-                             {st = Static.CondFirstDone}))
+                                           HasKeyword (TheKeyword "Flying")])) AsLongAs))
                   [TheKeyword "Ward"] {lk = ok})
 badParameterisedKeywordInList Oh impossible
 

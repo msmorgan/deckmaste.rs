@@ -29,7 +29,7 @@ cowardKiller = Sequentially [Macros.cantBlock (Macros.target Macros.creature) (J
 auriokSiegeSledDenial : Ability
 auriokSiegeSledDenial =
   Macros.activated (Mana [Macros.generic 1])
-                   (Continuously {ts = StaticFirstDone} (Macros.cantDoTo "Block"
+                   (Continuously (Macros.cantDoTo "Block"
                                     (Macros.target (And [Macros.artifact, Macros.creature]))
                                     Macros.thisCreature)
                                  (Just ThisTurn))
@@ -51,8 +51,8 @@ glacialChasmCant = Static (Macros.deontic (Macros.allOf Macros.creatureYouContro
 
 desperateCastaways : Ability
 desperateCastaways =
-  Static (Macros.unlessSo (Macros.exists (And [Macros.artifact, HasPossessor ControllerAx You]))
-                   (Macros.deontic Macros.thisCreature Forbid ["Attack"] Agent NoDeonticPatient))
+  Static (Macros.onlyUnless (Macros.deontic Macros.thisCreature Forbid ["Attack"] Agent NoDeonticPatient)
+                   (Macros.exists (And [Macros.artifact, HasPossessor ControllerAx You])))
 
 munghaWurm : Ability
 munghaWurm = Static (Macros.cantMoreThan You "Untap" 1 Macros.land)
@@ -65,13 +65,13 @@ smoke = Static (Macros.cantMoreThan (PlayerGroup AllPlayers) "Untap" 1 Macros.cr
 
 winterOrb : Ability
 winterOrb =
-  Static (Macros.asLongAs (Matches Macros.thisArtifact Macros.untapped)
-                          (Macros.cantMoreThan (PlayerGroup AllPlayers) "Untap" 1 Macros.land))
+  Static (Macros.onlyWhile (Macros.cantMoreThan (PlayerGroup AllPlayers) "Untap" 1 Macros.land)
+                          (Matches Macros.thisArtifact Macros.untapped))
 
 staticOrb : Ability
 staticOrb =
-  Static (Macros.asLongAs (Matches Macros.thisArtifact Macros.untapped)
-                          (Macros.cantMoreThan (PlayerGroup AllPlayers) "Untap" 2 Permanent))
+  Static (Macros.onlyWhile (Macros.cantMoreThan (PlayerGroup AllPlayers) "Untap" 2 Permanent)
+                          (Matches Macros.thisArtifact Macros.untapped))
 
 ||| Rule of Law
 public export
@@ -100,7 +100,7 @@ winterMoon =
 leitmotifComposer : Ability
 leitmotifComposer =
   Macros.activated (Mana [Macros.generic 2, Macros.pip Blue])
-                   (Continuously {ts = StaticFirstDone} (Macros.deontic (Macros.allOf (And [Macros.creature,
+                   (Continuously (Macros.deontic (Macros.allOf (And [Macros.creature,
                                                 Named (PrintedName "Leitmotif Composer")]))
                                    Forbid ["Block"] Patient NoDeonticPatient)
                           (Just ThisTurn))
@@ -111,14 +111,14 @@ berserkersOfBloodRidge = Static (Macros.deontic Macros.thisCreature Require ["At
 trumpetingArmodon : Ability
 trumpetingArmodon =
   Macros.activated (Mana [Macros.generic 1, Macros.pip Green])
-                   (Continuously {ts = StaticFirstDone} (Macros.deontic (Macros.target Macros.creature) Require ["Block"] Agent
+                   (Continuously (Macros.deontic (Macros.target Macros.creature) Require ["Block"] Agent
                                    (DeonticCounterpart Macros.thisCreature))
                           (Just ThisTurn))
 
 loathsomeCatoblepas : Ability
 loathsomeCatoblepas =
   Macros.activated (Mana [Macros.generic 2, Macros.pip Green])
-                   (Continuously {ts = StaticFirstDone} (Macros.deontic Macros.thisCreature Require ["Block"] Patient NoDeonticPatient)
+                   (Continuously (Macros.deontic Macros.thisCreature Require ["Block"] Patient NoDeonticPatient)
                           (Just ThisTurn))
 
 hipparion : Ability
@@ -130,8 +130,8 @@ hipparion =
 
 frodoBaggins : Ability
 frodoBaggins =
-  Static (Macros.asLongAs (Matches Macros.thisCreature (HasDesignation RingBearer))
-                          (Macros.deontic ((Macros.It OneOf)) Require ["Block"] Patient NoDeonticPatient))
+  Static (Macros.onlyWhile (Macros.deontic Macros.thisCreature Require ["Block"] Patient NoDeonticPatient)
+                          (Matches Macros.thisCreature (HasDesignation RingBearer)))
 
 bloodshedFever : Card
 bloodshedFever =
@@ -157,7 +157,7 @@ pacifism =
 public export
 everybodyLivesGateLine : Instruction []
 everybodyLivesGateLine =
-  Continuously {ts = StaticFirstDone} (Macros.deontic (PlayerGroup AllPlayers) Forbid ["LoseGame", "WinGame"]
+  Continuously (Macros.deontic (PlayerGroup AllPlayers) Forbid ["LoseGame", "WinGame"]
                                Agent NoDeonticPatient)
                (Just ThisTurn)
 
@@ -203,8 +203,8 @@ brainwash =
 
 enkiraHostileScavenger : Ability
 enkiraHostileScavenger =
-  Static (Macros.asLongAs (Matches Macros.thisCreature (IsAttached Equipped))
-                          (Macros.deontic ((Macros.It OneOf)) Require ["Block"] Patient NoDeonticPatient))
+  Static (Macros.onlyWhile (Macros.deontic Macros.thisCreature Require ["Block"] Patient NoDeonticPatient)
+                          (Matches Macros.thisCreature (IsAttached Equipped)))
 
 anglerTurtle : Ability
 anglerTurtle =
@@ -230,7 +230,7 @@ undercoverButler =
                                          (Macros.the (And [AnyPlayer,
                                              Superlative MaxOf (PlayerStatAxis LifeTotal)
                                                          AnyPlayer])))
-                          (Continuously {ts = StaticFirstDone} (Macros.deontic ((Macros.It OneOf)) Forbid ["Block"] Patient NoDeonticPatient)
+                          (Continuously (Macros.deontic ((Macros.It OneOf)) Forbid ["Block"] Patient NoDeonticPatient)
                                  (Just ThisTurn)) ]
        (Just (2, 3))
 
@@ -259,7 +259,7 @@ flaringPain : Card
 flaringPain =
   Macros.card "Flaring Pain" (Just [Macros.generic 1, Macros.pip Red]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously {ts = StaticFirstDone} (CantPrevent AnyDamage (DamageDescribed Unattributed Everywhere) NoPreventionOnly)
+       [ Spell (Continuously (CantPrevent AnyDamage (DamageDescribed Unattributed Everywhere) NoPreventionOnly)
                              (Just ThisTurn))
        , Macros.keywordCosting "Flashback" (Mana [Macros.pip Red]) ]
        Nothing
@@ -271,16 +271,17 @@ gideonJura =
        (Just [Macros.generic 3, Macros.pip White, Macros.pip White]) [Legendary]
        (MkTypeLine [planeswalkerType "Gideon"] [Planeswalker])
        [ Macros.activated (LoyaltySymbol (LoyaltyUp 2))
-           (Macros.throughout (DuringNextTurnOf (Macros.target Opponent))
+           (Macros.throughout
                        (Macros.deontic (Macros.allOf (And [Macros.creature,
-                                             HasPossessor ControllerAx (Macros.That PlayerW OneOf)]))
+                                             HasPossessor ControllerAx (Macros.target Opponent)]))
                                 Require ["Attack"] Agent
-                                (DefendingPlayer Macros.thisPlaneswalker)))
+                                (DefendingPlayer Macros.thisPlaneswalker))
+                       (DuringNextTurnOf (Macros.That PlayerW OneOf)))
        , Macros.activated (LoyaltySymbol (LoyaltyDown 2))
            (Macros.destroy (Macros.target (And [Macros.creature, Macros.tapped])))
        , Macros.activated (LoyaltySymbol LoyaltyZero)
            (Sequentially
-              [ Continuously {ts = StaticFirstDone}
+              [ Continuously
                   (Becomes Macros.thisPlaneswalker Sets (Bundle (MkToken (Just (Lit 6 ** Lit 6)) []
                                      (MkTypeLine [creatureType "Human",
                                                   creatureType "Soldier"] [Creature])
@@ -298,14 +299,14 @@ pinpointAvalanche =
        (MkTypeLine [] [Instant])
        [ Spell (Sequentially
                   [ DealDamage This (Lit 4) (Macros.target Macros.creature)
-                  , Continuously {ts = StaticFirstDone}
+                  , Continuously
                       (CantPrevent AnyDamage ThatDamage NoPreventionOnly) Nothing ]) ]
        Nothing
 
 public export
 whippoorwillImmunity : Instruction []
 whippoorwillImmunity =
-  Continuously {ts = StaticFirstDone}
+  Continuously
     (CantPrevent AnyDamage
                  (DamageDescribed Unattributed (ToRecipient (Macros.a Macros.creature)))
                  NoRedirectEither)
@@ -318,10 +319,10 @@ callInAProfessional =
        (Just [Macros.generic 2, Macros.pip Red]) []
        (MkTypeLine [] [Instant])
        [ Spell (Sequentially
-                  [ Continuously {ts = StaticFirstDone}
+                  [ Continuously
                       (Macros.playerCant "GainLife" (PlayerGroup AllPlayers))
                       (Just ThisTurn)
-                  , Continuously {ts = StaticFirstDone}
+                  , Continuously
                       (CantPrevent AnyDamage (DamageDescribed Unattributed Everywhere) NoPreventionOnly)
                       (Just ThisTurn)
                   , DealDamage This (Lit 3) (Macros.target Macros.anyTarget) ]) ]
@@ -351,7 +352,7 @@ complyNameLock : Instruction []
 complyNameLock =
   Sequentially
     [ Macros.choose (Macros.a (Macros.quality CardName))
-    , Continuously {ts = StaticFirstDone}
+    , Continuously
         (Macros.cantDoTo "Cast" (PlayerGroup YourOpponents)
            (Macros.allOf (And [Macros.spell, Named ChosenName])))
         (Just Macros.untilYourNextTurn) ]
@@ -377,7 +378,7 @@ academicProbationNameMode =
   Sequentially
     [ Macros.choose (Macros.a (Macros.qualityFrom CardName
                                  (NameOfCard (Not Macros.land))))
-    , Continuously {ts = StaticFirstDone}
+    , Continuously
         (Macros.cantDoTo "Cast" (PlayerGroup YourOpponents)
            (Macros.allOf (And [Macros.spell, Named ChosenName])))
         (Just Macros.untilYourNextTurn) ]
@@ -531,10 +532,10 @@ snuffOut : Card
 snuffOut =
   Macros.card "Snuff Out" (Just [Macros.generic 3, Macros.pip Black]) []
        (MkTypeLine [] [Instant])
-       [ Static (Macros.asLongAs
+       [ Static (Macros.onlyWhile
+                   (AltCost This (Just (Macros.payLife You 4)))
                    (Macros.exists (And [Macros.land, HasSubtype (landType "Swamp"),
-                                 HasPossessor ControllerAx You]))
-                   (AltCost This (Just (Macros.payLife You 4))))
+                                 HasPossessor ControllerAx You])))
        , Spell (CantBe (Macros.destroy (Macros.target
                   (And [Macros.creature, Not (ColorIs Black)])))
                 "Regenerate" (Macros.ItVerbed "Destroy" OneOf)) ]
@@ -583,7 +584,7 @@ cullingMark : Card
 cullingMark =
   Macros.card "Culling Mark" (Just [Macros.generic 2, Macros.pip Green]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Continuously {ts = StaticFirstDone} (Macros.deontic (Macros.target Macros.creature)
+       [ Spell (Continuously (Macros.deontic (Macros.target Macros.creature)
                                       Require ["Block"] Agent NoDeonticPatient)
                              (Just ThisTurn)) ]
        Nothing
@@ -597,7 +598,7 @@ blazingArchonCant =
 public export
 goadedAttacksOther : Instruction []
 goadedAttacksOther =
-  Continuously {ts = StaticFirstDone} (Macros.deontic (Macros.target Macros.creature) Require ["Attack"] Agent
+  Continuously (Macros.deontic (Macros.target Macros.creature) Require ["Attack"] Agent
                         (DefendingPlayer (Macros.a (Macros.otherPlayer))))
                (Just Macros.untilYourNextTurn)
 
@@ -645,7 +646,7 @@ berserkersFrenzyLowRoll : Instruction []
 berserkersFrenzyLowRoll =
   Sequentially
     [ Macros.choose (Macros.counted Macros.anyNumber Macros.creature)
-    , Continuously {ts = StaticFirstDone} (Macros.deontic ((Macros.It ManyOf)) Require ["Block"] Agent NoDeonticPatient)
+    , Continuously (Macros.deontic ((Macros.It ManyOf)) Require ["Block"] Agent NoDeonticPatient)
                    (Just ThisTurn) ]
 
 ||| Damn
@@ -676,7 +677,7 @@ concussiveBolt =
     [ DealDamage This (Lit 4) Description.targetPlayerOrPlaneswalker
     , If (CompareAmt (Macros.countOf (And [Macros.artifact, HasPossessor ControllerAx You]))
                      AtLeast (Lit 3))
-         (Continuously {ts = StaticFirstDone}
+         (Continuously
             (Macros.deontic (Macros.allOf (And [Macros.creature,
                                   HasPossessor ControllerAx Macros.splitOverPlaneswalker]))
                      Forbid ["Block"] Agent NoDeonticPatient)
@@ -724,22 +725,22 @@ ghostlyPrisonWhole =
 public export
 archangelOfTithesBlockToll : Ability
 archangelOfTithesBlockToll =
-  Static (Macros.asLongAs (Matches Macros.thisCreature Attacking)
-            (Macros.deontic (Macros.allOf Macros.creature)
-               (GatedBy (ScaledMana GenericUnit (Macros.times 1 GroupSize)))
-               ["Block"] Agent NoDeonticPatient))
+  Static (Macros.onlyWhile (Macros.deontic (Macros.allOf Macros.creature)
+                              (GatedBy (ScaledMana GenericUnit (Macros.times 1 GroupSize)))
+                              ["Block"] Agent NoDeonticPatient)
+            (Matches Macros.thisCreature Attacking))
 
 ||| Archangel of Tithes
 public export
 archangelOfTithesAttackToll : Ability
 archangelOfTithesAttackToll =
-  Static (Macros.asLongAs (Matches Macros.thisCreature Macros.untapped)
-            (Macros.deontic (Macros.allOf Macros.creature)
-               (GatedBy (ScaledMana GenericUnit (Macros.times 1 GroupSize)))
-               ["Attack"] Agent
-               (DefendingPlayer (Macros.youOr
-                                   (Macros.allOf (And [HasType Planeswalker,
-                                                HasPossessor ControllerAx You]))))))
+  Static (Macros.onlyWhile (Macros.deontic (Macros.allOf Macros.creature)
+                              (GatedBy (ScaledMana GenericUnit (Macros.times 1 GroupSize)))
+                              ["Attack"] Agent
+                              (DefendingPlayer (Macros.youOr
+                                                  (Macros.allOf (And [HasType Planeswalker,
+                                                               HasPossessor ControllerAx You])))))
+            (Matches Macros.thisCreature Macros.untapped))
 
 ||| Archon of Absolution
 public export
@@ -921,9 +922,9 @@ arrest =
 public export
 conquerorsFlailProhibition : StaticSpec []
 conquerorsFlailProhibition =
-  Macros.asLongAs (Matches This (AttachedTo (Macros.a Macros.creature)))
-    (OnlyDuring Turn (Just You)
-       (Macros.cantDoTo "Cast" (PlayerGroup YourOpponents) (Macros.allOf Macros.spell)))
+  Macros.onlyWhile (OnlyDuring Turn (Just You)
+                      (Macros.cantDoTo "Cast" (PlayerGroup YourOpponents) (Macros.allOf Macros.spell)))
+    (Matches This (AttachedTo (Macros.a Macros.creature)))
 
 public export
 whileScrying : Concurrent []

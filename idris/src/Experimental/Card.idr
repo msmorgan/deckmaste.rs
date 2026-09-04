@@ -54,7 +54,7 @@ staticOnSpellCardOk (AddedCost _ _) = True
 staticOnSpellCardOk (OnlyDuring _ _ (Deontic _ Permit deeds Patient _ _ _ _)) =
   all (\deed => deedZoneOf deed Patient == Just Stack) deeds
 staticOnSpellCardOk (OnlyDuring _ _ se) = staticOnSpellCardOk se
-staticOnSpellCardOk (Conditionally _ se _) = staticOnSpellCardOk se
+staticOnSpellCardOk (Conditionally se _ _) = staticOnSpellCardOk se
 staticOnSpellCardOk _ = False
 
 public export
@@ -131,7 +131,7 @@ boxPt _ = Nothing
 public export
 staticDefinesPt : {0 bs : Bindings} -> StaticSpec bs -> Maybe DefinedSlots
 staticDefinesPt (DefinesPt _ sl _) = Just sl
-staticDefinesPt (Conditionally _ se _) = staticDefinesPt se
+staticDefinesPt (Conditionally se _ _) = staticDefinesPt se
 staticDefinesPt _ = Nothing
 
 public export

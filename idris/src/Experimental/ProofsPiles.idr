@@ -127,15 +127,10 @@ manaRunReductionFloor =
 public export
 nestedStaticConditionals : StaticSpec []
 nestedStaticConditionals =
-  Conditionally {bs = []} {condBase = []}
-    {staticBase = condIntro (Macros.exists {bs = []} AnyPlayer)}
-    (Macros.exists {bs = []} AnyPlayer)
-    (Conditionally {bs = condIntro (Macros.exists {bs = []} AnyPlayer)}
-      {condBase = condIntro (Macros.exists {bs = []} AnyPlayer)}
-      {staticBase = condIntro
-        (Macros.exists {bs = condIntro (Macros.exists {bs = []} AnyPlayer)} AnyPlayer)}
-      (Macros.exists {bs = condIntro (Macros.exists {bs = []} AnyPlayer)} AnyPlayer)
-      (KeepsUnspentMana You (UnspentMana Nothing)) IfSo) IfSo
+  Conditionally
+    (Conditionally (KeepsUnspentMana You (UnspentMana Nothing))
+                   (Macros.exists AnyPlayer) IfSo)
+    (Macros.exists AnyPlayer) IfSo
 
 public export
 nestedTurnPartWindows : StaticSpec []

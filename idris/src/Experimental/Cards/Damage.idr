@@ -333,7 +333,7 @@ dazzlingReflection =
        (MkTypeLine [] [Instant])
        [ Spell (Sequentially
                   [ Macros.gainsLife You (StatOf Power (Macros.target Macros.creature))
-                  , Continuously {ts = StaticFirstDone}
+                  , Continuously
                       (DamageRule AnyDamage (DealtBy (Macros.That (TypeW Creature) OneOf)) Everywhere (Prevent CutAll Nothing) NextTimeOnly)
                       (Just ThisTurn) ]) ]
        Nothing
@@ -343,8 +343,8 @@ thunderstaff : Card
 thunderstaff =
   Macros.card "Thunderstaff" (Just [Macros.generic 3]) []
        (MkTypeLine [] [Artifact])
-       [ Static (Macros.asLongAs (Matches Macros.thisArtifact Macros.untapped)
-                                 (DamageRule CombatOnly (DealtBy (Macros.a Macros.creature)) (ToRecipient You) (Prevent (CutSome (Lit 1)) Nothing) Repeatedly))
+       [ Static (Macros.onlyWhile (DamageRule CombatOnly (DealtBy (Macros.a Macros.creature)) (ToRecipient You) (Prevent (CutSome (Lit 1)) Nothing) Repeatedly)
+                                 (Matches Macros.thisArtifact Macros.untapped))
        , Macros.activated (Compound [Mana [Macros.generic 2], TapSymbol])
                           (Macros.gets (Macros.allOf (And [Macros.creature, Attacking]))
                                 (PtUp (Lit 1)) (PtUp (Lit 0))
@@ -359,7 +359,7 @@ gideonAllyOfZendikar =
        (MkTypeLine [planeswalkerType "Gideon"] [Planeswalker])
        [ Macros.activated (LoyaltySymbol (LoyaltyUp 1))
                           (Sequentially
-                      [ Continuously {ts = StaticFirstDone}
+                      [ Continuously
                           (Becomes Macros.thisPlaneswalker Sets (Bundle (MkToken (Just (Lit 5 ** Lit 5)) []
                                              (MkTypeLine [creatureType "Human", creatureType "Soldier", creatureType "Ally"] [Creature])
                                              [Macros.keyword "Indestructible"] Nothing) (Just Planeswalker)))
@@ -379,7 +379,7 @@ turnTheTables =
   Macros.card "Turn the Tables"
        (Just [Macros.generic 3, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously {ts = StaticFirstDone}
+       [ Spell (Continuously
                   (DamageRule CombatOnly Unattributed (ToRecipient You) (Redirect CutAll (Macros.target (And [Macros.creature, Attacking]))) Repeatedly)
                   (Just ThisTurn)) ]
        Nothing
@@ -399,8 +399,8 @@ martyrsOfKorlis =
   Macros.card "Martyrs of Korlis"
        (Just [Macros.generic 3, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [creatureType "Human"] [Creature])
-       [ Static (Macros.asLongAs (Matches Macros.thisCreature Macros.untapped)
-                                 (DamageRule AnyDamage (DealtBy (Macros.allOf Macros.artifact)) (ToRecipient You) (Redirect CutAll Macros.thisCreature) Repeatedly)) ]
+       [ Static (Macros.onlyWhile (DamageRule AnyDamage (DealtBy (Macros.allOf Macros.artifact)) (ToRecipient You) (Redirect CutAll Macros.thisCreature) Repeatedly)
+                                 (Matches Macros.thisCreature Macros.untapped)) ]
        (Just (1, 6))
 
 public export
@@ -410,7 +410,7 @@ wardOfPiety =
        (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject "Enchant" Macros.creature
        , Macros.activated (Mana [Macros.generic 1, Macros.pip White])
-                          (Continuously {ts = StaticFirstDone}
+                          (Continuously
                       (DamageRule AnyDamage Unattributed (ToRecipient (AttachHost Enchanted (TypeW Creature))) (Redirect (Shield (Lit 1)) (Macros.target Macros.anyTarget)) Repeatedly)
                       (Just ThisTurn)) ]
        Nothing
@@ -421,7 +421,7 @@ mirrorwoodTreefolk =
   Macros.card "Mirrorwood Treefolk" (Just [Macros.generic 3, Macros.pip Green]) []
        (MkTypeLine [creatureType "Treefolk"] [Creature])
        [ Macros.activated (Mana [Macros.generic 2, Macros.pip Red, Macros.pip White])
-                          (Continuously {ts = StaticFirstDone}
+                          (Continuously
                       (DamageRule AnyDamage Unattributed (ToRecipient Macros.thisCreature) (Redirect CutAll (Macros.target Macros.anyTarget)) NextTimeOnly)
                       (Just ThisTurn)) ]
        (Just (2, 4))
@@ -432,7 +432,7 @@ carom =
   Macros.card "Carom" (Just [Macros.generic 1, Macros.pip White]) []
        (MkTypeLine [] [Instant])
        [ Spell (Sequentially
-                  [ Continuously {ts = StaticFirstDone}
+                  [ Continuously
                       (DamageRule AnyDamage Unattributed (ToRecipient (Macros.target Macros.creature)) (Redirect (Shield (Lit 1)) (Macros.target (And [Macros.creature, Other]))) Repeatedly)
                       (Just ThisTurn)
                   , (Draw You (Lit 1)) ]) ]
@@ -445,7 +445,7 @@ daughterOfAutumn =
        (Just [Macros.generic 2, Macros.pip Green, Macros.pip Green]) [Legendary]
        (MkTypeLine [creatureType "Avatar"] [Creature])
        [ Macros.activated (Mana [Macros.pip White])
-                          (Continuously {ts = StaticFirstDone}
+                          (Continuously
                       (DamageRule AnyDamage Unattributed (ToRecipient
                                     (Macros.target (And [Macros.creature, ColorIs White]))) (Redirect (Shield (Lit 1)) Macros.thisCreature) Repeatedly)
                       (Just ThisTurn)) ]
@@ -457,7 +457,7 @@ aegisOfHonor =
   Macros.card "Aegis of Honor" (Just [Macros.pip White]) []
        (MkTypeLine [] [Enchantment])
        [ Macros.activated (Mana [Macros.generic 1])
-                          (Continuously {ts = StaticFirstDone}
+                          (Continuously
                       (DamageRule AnyDamage (DealtBy (Macros.a Macros.instantOrSorcery)) (ToRecipient You) (Redirect CutAll (Macros.controllerOf ((Macros.It OneOf)))) NextTimeOnly)
                       (Just ThisTurn)) ]
        Nothing
@@ -467,7 +467,7 @@ candlesGlow : Card
 candlesGlow =
   Macros.card "Candles' Glow" (Just [Macros.generic 1, Macros.pip White]) []
        (MkTypeLine [spellType "Arcane"] [Instant])
-       [ Spell (Continuously {ts = StaticFirstDone}
+       [ Spell (Continuously
                   (DamageRule AnyDamage Unattributed (ToRecipient (Macros.target Macros.anyTarget)) (Prevent (Shield (Lit 3)) (Just (Macros.gainsLife You Macros.preventedThisWay))) Repeatedly)
                   (Just ThisTurn)) ]
        Nothing
@@ -475,7 +475,7 @@ candlesGlow =
 ||| Inkshield
 inkshieldRider : Instruction []
 inkshieldRider =
-  Continuously {ts = StaticFirstDone}
+  Continuously
     (DamageRule AnyDamage Unattributed (ToRecipient You) (Prevent CutAll (Just (Macros.create Macros.preventedThisWay
                                    (Macros.creatureTok 2 1 [White, Black] [])))) Repeatedly)
     (Just ThisTurn)
@@ -495,7 +495,7 @@ circleOfProtectionRed =
        (Just [Macros.generic 1, Macros.pip White]) []
        (MkTypeLine [] [Enchantment])
        [ Macros.activated (Mana [Macros.generic 1])
-                          (Continuously {ts = StaticFirstDone}
+                          (Continuously
                       (DamageRule AnyDamage (DealtBy (Macros.aYourChoice
                                                 (And [Macros.source, ColorIs Red]))) (ToRecipient You) (Prevent CutAll Nothing) NextTimeOnly)
                       (Just ThisTurn)) ]
@@ -507,7 +507,7 @@ healingGrace =
   Macros.card "Healing Grace" (Just [Macros.pip White]) []
        (MkTypeLine [] [Instant])
        [ Spell (Sequentially
-                  [ Continuously {ts = StaticFirstDone}
+                  [ Continuously
                       (DamageRule AnyDamage (DealtBy (Macros.aYourChoice Macros.source)) (ToRecipient (Macros.target Macros.anyTarget)) (Prevent (Shield (Lit 3)) Nothing) Repeatedly)
                       (Just ThisTurn)
                   , Macros.gainsLife You (Lit 3) ]) ]
@@ -519,7 +519,7 @@ reverseDamage =
   Macros.card "Reverse Damage"
        (Just [Macros.generic 1, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously {ts = StaticFirstDone}
+       [ Spell (Continuously
                   (DamageRule AnyDamage (DealtBy (Macros.aYourChoice Macros.source)) (ToRecipient You) (Prevent CutAll (Just (Macros.gainsLife You Macros.preventedThisWay))) NextTimeOnly)
                   (Just ThisTurn)) ]
        Nothing
@@ -529,7 +529,7 @@ deflectingPalm : Card
 deflectingPalm =
   Macros.card "Deflecting Palm" (Just [Macros.pip Red, Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously {ts = StaticFirstDone}
+       [ Spell (Continuously
                   (DamageRule AnyDamage (DealtBy (Macros.aYourChoice Macros.source)) (ToRecipient You) (Prevent CutAll (Just (DealDamage This ThatMuch (Macros.controllerOf ((Macros.It OneOf)))))) NextTimeOnly)
                   (Just ThisTurn)) ]
        Nothing
@@ -552,7 +552,7 @@ darkSphere =
        (MkTypeLine [] [Artifact])
        [ Macros.activated
            (Compound [TapSymbol, Do (Macros.sacrifice You Macros.thisArtifact)])
-                          (Continuously {ts = StaticFirstDone}
+                          (Continuously
                              (DamageRule AnyDamage (DealtBy (Macros.aYourChoice Macros.source)) (ToRecipient You) (Prevent (CutHalf RoundDown) Nothing) NextTimeOnly)
                              (Just ThisTurn)) ]
        Nothing
@@ -562,7 +562,7 @@ shadowbane : Card
 shadowbane =
   Macros.card "Shadowbane" (Just [Macros.generic 1, Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously {ts = StaticFirstDone}
+       [ Spell (Continuously
                   (DamageRule AnyDamage (DealtBy (Macros.aYourChoice Macros.source)) (ToRecipient
                                    (Macros.youAnd (Macros.allOf Macros.creatureYouControl))) (Prevent CutAll (Just (If (PreventedFromSource
                                              (And [Macros.source, ColorIs Black]))
@@ -621,7 +621,7 @@ forcefield =
   Macros.card "Forcefield" (Just [Macros.generic 3]) []
        (MkTypeLine [] [Artifact])
        [ Macros.activated (Mana [Macros.generic 1])
-           (Continuously {ts = StaticFirstDone}
+           (Continuously
               (DamageRule CombatOnly (DealtBy (Macros.aYourChoice
                                         (And [Macros.creature, Macros.unblocked]))) (ToRecipient You) (Prevent (CutAllBut (Lit 1)) Nothing) NextTimeOnly)
               (Just ThisTurn)) ]
@@ -645,7 +645,7 @@ harmsWay : Card
 harmsWay =
   Macros.card "Harm's Way" (Just [Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously {ts = StaticFirstDone}
+       [ Spell (Continuously
                   (DamageRule AnyDamage (DealtBy (Macros.aYourChoice Macros.source)) (ToRecipient
                                 (Macros.youAnd (Macros.allOf (And [Permanent,
                                                      HasPossessor ControllerAx You])))) (Redirect (Shield (Lit 2)) (Macros.target Macros.anyTarget)) Repeatedly)
@@ -657,7 +657,7 @@ divineDeflection : Card
 divineDeflection =
   Macros.card "Divine Deflection" (Just [Variable, Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously {ts = StaticFirstDone}
+       [ Spell (Continuously
                   (DamageRule AnyDamage Unattributed (ToRecipient
                                (Macros.youAnd (Macros.allOf (And [Permanent,
                                                     HasPossessor ControllerAx You])))) (Prevent (Shield (LetterVal X)) (Just (DealDamage This ThatMuch
@@ -669,7 +669,7 @@ public export
 glarecasterShield : Ability
 glarecasterShield =
   Macros.activated (Mana [Macros.generic 5, Macros.pip White])
-                   (Continuously {ts = StaticFirstDone}
+                   (Continuously
                (DamageRule AnyDamage Unattributed (ToRecipient (Macros.youAnd Macros.thisCreature)) (Redirect CutAll (Macros.target Macros.anyTarget)) NextTimeOnly)
                (Just ThisTurn))
 
@@ -853,7 +853,7 @@ screamingNemesis =
                                  (Macros.target (And [Macros.anyTarget,
                                                       OtherThan This]))
                              , If (DealtThisWay AnyPlayer)
-                                  (Continuously {ts = StaticFirstDone} (Macros.playerCant "GainLife" They)
+                                  (Continuously (Macros.playerCant "GainLife" They)
                                                 (Just RestOfGame))
                                   Nothing ]) ]
        (Just (3, 3))
@@ -987,7 +987,7 @@ incinerate =
        (MkTypeLine [] [Instant])
        [ Spell (Sequentially
                   [ DealDamage This (Lit 3) (Macros.target Macros.anyTarget)
-                  , Continuously {ts = StaticFirstDone}
+                  , Continuously
                       (Macros.objectCant "Regenerate"
                          (Macros.a (And [Macros.creature,
                                          HappenedTo DamageTaken Lookback.ThisWay
@@ -1560,11 +1560,11 @@ blindFury =
        (Just [Macros.generic 2, Macros.pip Red, Macros.pip Red]) []
        (MkTypeLine [] [Instant])
        [ Spell (Sequentially
-                  [ Continuously {ts = StaticFirstDone}
+                  [ Continuously
                       (LosesAbilities (Macros.allOf Macros.creature)
                                       [LostWritten (Macros.keyword "Trample")])
                       (Just Macros.untilEndOfTurn)
-                  , Continuously {ts = StaticFirstDone}
+                  , Continuously
                       (DamageRule CombatOnly (DealtBy (Macros.a Macros.creature)) (ToRecipient (Macros.a Macros.creature)) (Scale (Multiplied Doubled)) Repeatedly)
                       (Just ThisTurn) ]) ]
        Nothing

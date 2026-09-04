@@ -81,11 +81,11 @@ bristlepackSentry =
   Macros.card "Bristlepack Sentry" (Just [Macros.generic 1, Macros.pip Green]) []
        (MkTypeLine [creatureType "Plant", creatureType "Wolf"] [Creature])
        [ Macros.keyword "Defender"
-       , Static (Macros.asLongAs
-                   (Macros.exists (And [Macros.creature, HasPossessor ControllerAx You,
-                                 Compare [CharAxis Power] AtLeast (Lit 4)]))
+       , Static (Macros.onlyWhile
                    (Macros.canDoAsThough Macros.thisCreature "Attack"
-                                         (Not (HasKeyword (TheKeyword "Defender"))))) ]
+                                         (Not (HasKeyword (TheKeyword "Defender"))))
+                   (Macros.exists (And [Macros.creature, HasPossessor ControllerAx You,
+                                 Compare [CharAxis Power] AtLeast (Lit 4)]))) ]
        (Just (3, 3))
 
 platinumAngel : Card
@@ -257,8 +257,8 @@ bombur =
        (Just [Macros.generic 2, Macros.pip Red]) [Legendary]
        (MkTypeLine [creatureType "Dwarf", creatureType "Bard"] [Creature])
        [ Macros.keyword "Storied"
-       , Static (Macros.unlessSo (Matches You (HasDesignation EnduringStory))
-                                 (Macros.doesntUntap Macros.thisCreature (Just You))) ]
+       , Static (Macros.onlyUnless (Macros.doesntUntap Macros.thisCreature (Just You))
+                                 (Matches You (HasDesignation EnduringStory))) ]
        (Just (5, 3))
 
 drachNyen : Card
@@ -356,7 +356,7 @@ awakenTheBear : Card
 awakenTheBear =
   Macros.card "Awaken the Bear" (Just [Macros.generic 2, Macros.pip Green]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously {ts = StaticFirstDone}
+       [ Spell (Continuously
                   (AndAlso Nothing [ Gets Adds (Macros.target Macros.creature)
                                   (PtUp (Lit 3)) (PtUp (Lit 3))
                            , Gains ((Macros.It OneOf)) (Macros.keyword "Trample") ])
@@ -601,7 +601,7 @@ crimsonWisps =
   Macros.card "Crimson Wisps" (Just [Macros.pip Red]) []
        (MkTypeLine [] [Instant])
        [ Spell (Sequentially
-                  [ Continuously {ts = StaticFirstDone}
+                  [ Continuously
                       (AndAlso Nothing [ Becomes (Macros.target Macros.creature) Sets (Colored (SomeColors [Red]))
                                , Gains ((Macros.It OneOf)) (Macros.keyword "Haste") ])
                       (Just Macros.untilEndOfTurn)
@@ -827,13 +827,13 @@ kyrenLegate : Card
 kyrenLegate =
   Macros.card "Kyren Legate" (Just [Macros.generic 1, Macros.pip Red]) []
        (MkTypeLine [creatureType "Goblin"] [Creature])
-       [ Static (Macros.asLongAs
+       [ Static (Macros.onlyWhile
+                   (AltCost This Nothing)
                    (AndCond
                       [ Macros.exists (And [Macros.land, HasSubtype (landType "Plains"),
                                      HasPossessor ControllerAx Macros.anOpponent])
                       , Macros.exists (And [Macros.land, HasSubtype (landType "Mountain"),
-                                     HasPossessor ControllerAx You]) ])
-                   (AltCost This Nothing))
+                                     HasPossessor ControllerAx You]) ]))
        , Macros.keyword "Haste" ]
        (Just (1, 1))
 
@@ -911,13 +911,13 @@ brightspearZealot =
   Macros.card "Brightspear Zealot" (Just [Macros.generic 2, Macros.pip White]) []
        (MkTypeLine [creatureType "Human", creatureType "Soldier"] [Creature])
        [ Macros.keyword "Vigilance"
-       , Static (Macros.asLongAs
+       , Static (Macros.onlyWhile
+           (Gets Adds Macros.thisCreature (PtUp (Lit 2)) (PtUp (Lit 0)))
            (CompareAmt (Macros.eventCountInvolving SpellCast
                                                    You
                                                    Lookback.ThisTurn
                                                    (Macros.a Macros.spell))
-                       AtLeast (Lit 2))
-           (Gets Adds Macros.thisCreature (PtUp (Lit 2)) (PtUp (Lit 0)))) ]
+                       AtLeast (Lit 2))) ]
        (Just (2, 4))
 
 public export
@@ -930,14 +930,14 @@ deepwayNavigator =
            (SetStatus Untapped
               (Macros.each (And [HasSubtype (creatureType "Merfolk"), HasPossessor ControllerAx You,
                           OtherThan Macros.thisCreature])))
-       , Static (Macros.asLongAs
+       , Static (Macros.onlyWhile
+           (Gets Adds (Macros.allOf (And [HasSubtype (creatureType "Merfolk"), HasPossessor ControllerAx You]))
+                 (PtUp (Lit 1)) (PtUp (Lit 0)))
            (Macros.happenedInvolving AttackDeclaration
                                      You
                                      Lookback.ThisTurn
                                      (Macros.counted (Macros.atLeast 3)
-                                        (HasSubtype (creatureType "Merfolk"))))
-           (Gets Adds (Macros.allOf (And [HasSubtype (creatureType "Merfolk"), HasPossessor ControllerAx You]))
-                 (PtUp (Lit 1)) (PtUp (Lit 0)))) ]
+                                        (HasSubtype (creatureType "Merfolk"))))) ]
        (Just (2, 2))
 
 public export
@@ -945,11 +945,11 @@ bloodfireEnforcers : Card
 bloodfireEnforcers =
   Macros.card "Bloodfire Enforcers" (Just [Macros.generic 3, Macros.pip Red]) []
        (MkTypeLine [creatureType "Human", creatureType "Monk"] [Creature])
-       [ Static (Macros.asLongAs
-                   (AndCond [ Macros.exists (And [Macros.instant, InZone (Macros.graveyardOf You)])
-                            , Macros.exists (And [Macros.sorcery, InZone (Macros.graveyardOf You)]) ])
+       [ Static (Macros.onlyWhile
                    (AndAlso Nothing [ Gains Macros.thisCreature (Macros.keyword "FirstStrike")
-                            , Gains ((Macros.It OneOf)) (Macros.keyword "Trample") ])) ]
+                            , Gains ((Macros.It OneOf)) (Macros.keyword "Trample") ])
+                   (AndCond [ Macros.exists (And [Macros.instant, InZone (Macros.graveyardOf You)])
+                            , Macros.exists (And [Macros.sorcery, InZone (Macros.graveyardOf You)]) ])) ]
        (Just (5, 2))
 
 public export
@@ -1301,9 +1301,9 @@ predatoryWurm =
   Macros.card "Predatory Wurm" (Just [Macros.generic 3, Macros.pip Green]) []
        (MkTypeLine [creatureType "Wurm"] [Creature])
        [ Macros.keyword "Vigilance"
-       , Static (Macros.asLongAs
-                   (Macros.exists (And [HasSubtype (planeswalkerType "Garruk"), HasPossessor ControllerAx You]))
-                   (Gets Adds Macros.thisCreature (PtUp (Lit 2)) (PtUp (Lit 2)))) ]
+       , Static (Macros.onlyWhile
+                   (Gets Adds Macros.thisCreature (PtUp (Lit 2)) (PtUp (Lit 2)))
+                   (Macros.exists (And [HasSubtype (planeswalkerType "Garruk"), HasPossessor ControllerAx You]))) ]
        (Just (4, 4))
 
 ||| Tower Winder
@@ -1333,7 +1333,7 @@ aimHigh =
        (MkTypeLine [] [Instant])
        [ Spell (Sequentially
                   [ Macros.untap (Macros.target Macros.creature)
-                  , Continuously {ts = StaticFirstDone}
+                  , Continuously
                       (AndAlso Nothing [ Gets Adds (Macros.ItVerbed "Untap" OneOf) (PtUp (Lit 2)) (PtUp (Lit 2))
                                , Gains (Macros.ItVerbed "Untap" OneOf) (Macros.keyword "Reach") ])
                       (Just Macros.untilEndOfTurn) ]) ]
@@ -1390,7 +1390,7 @@ veilingOddityLine =
   Macros.triggeredWhile When
     (Macros.lastCounterRemoved (Named "Time") This)
     (WhileTrue (Matches This (InZone Macros.exileZ)))
-    (Continuously {ts = StaticFirstDone} (Macros.deontic (Macros.allOf Macros.creature) Forbid ["Block"] Patient
+    (Continuously (Macros.deontic (Macros.allOf Macros.creature) Forbid ["Block"] Patient
                            NoDeonticPatient)
                   (Just ThisTurn))
 
@@ -1408,9 +1408,9 @@ wizenedSnitches =
 public export
 darkbladeAgentDeathtouch : Ability
 darkbladeAgentDeathtouch =
-  Static (Conditionally (Macros.happened (VerbedAct "Surveil") You ThisTurn)
-                        (Gains Macros.thisCreature (Macros.keyword "Deathtouch"))
-                        AsLongAs {st = Static.CondFirstDone})
+  Static (Conditionally (Gains Macros.thisCreature (Macros.keyword "Deathtouch"))
+                        (Macros.happened (VerbedAct "Surveil") You ThisTurn)
+                        AsLongAs)
 
 ||| Frenzied Gorespawn
 public export
@@ -1495,10 +1495,10 @@ cairnWanderer =
        (MkTypeLine [creatureType "Shapeshifter"] [Creature])
        [ Macros.keyword "Changeling"
        , AlsoForKeywords
-           (Static (Macros.asLongAs
+           (Static (Macros.onlyWhile
+                      (Gains Macros.thisCreature (Macros.keyword "Flying"))
                       (Macros.exists (And [Macros.creature, InZone Macros.graveyardZ,
-                                    HasKeyword (TheKeyword "Flying")]))
-                      (Gains Macros.thisCreature (Macros.keyword "Flying"))))
+                                    HasKeyword (TheKeyword "Flying")]))))
            [ TheKeyword "Fear", TheKeyword "FirstStrike"
            , TheKeyword "DoubleStrike", TheKeyword "Deathtouch"
            , TheKeyword "Haste", landwalkAbilities, TheKeyword "Lifelink"
@@ -1566,12 +1566,12 @@ escapedShapeshifter =
        (Just [Macros.generic 3, Macros.pip Blue, Macros.pip Blue]) []
        (MkTypeLine [creatureType "Shapeshifter"] [Creature])
        [ AlsoForKeywords
-           (Static (Macros.asLongAs
+           (Static (Macros.onlyWhile
+                      (Gains Macros.thisCreature (Macros.keyword "Flying"))
                       (Macros.exists (And [Macros.creature,
                                     HasPossessor ControllerAx Macros.anOpponent,
                                     HasKeyword (TheKeyword "Flying"),
-                                    Not (Named (PrintedName "Escaped Shapeshifter"))]))
-                      (Gains Macros.thisCreature (Macros.keyword "Flying"))))
+                                    Not (Named (PrintedName "Escaped Shapeshifter"))]))))
            [ TheKeyword "FirstStrike", TheKeyword "Trample"
            , protectionFromAnyColor ] ]
        (Just (3, 4))
@@ -1783,7 +1783,7 @@ battlegateMimic =
        [ Macros.triggered Whenever
            (Casts You (Macros.a (And [Macros.spell, ColorIs Red,
                                       ColorIs White])) Nothing)
-           (Continuously {ts = StaticFirstDone}
+           (Continuously
               (AndAlso Nothing [ Macros.hasBasePt Macros.thisCreature (Lit 4) (Lit 2)
                        , Gains Macros.thisCreature
                                (Macros.keyword "FirstStrike") ])
