@@ -25,7 +25,7 @@ use super::corpus::Corpus;
 use super::corpus::CorpusUnit;
 use super::corpus::map_corpus_units;
 
-const REPORT_SCHEMA_VERSION: u32 = 8;
+const REPORT_SCHEMA_VERSION: u32 = 9;
 const LICENSED_VOCAB_LEXICON_HOMOGRAPHS: usize = 2;
 const FORM_LITERAL_VOCAB_OVERLAPS_CEILING: usize = 25;
 
@@ -2356,7 +2356,7 @@ mod tests {
     fn report_and_summary_json_have_the_exact_reviewed_fields() {
         let report = independently_derived_report();
         let json = serde_json::to_value(&report).unwrap();
-        assert_eq!(json["schema_version"], 7);
+        assert_eq!(json["schema_version"], 9);
         assert_eq!(json["rows"][0]["exception_resolved"], false);
         assert_eq!(json["rows"][0]["exception_uses"], 0);
         assert_eq!(json["rows"][0]["selected"]["nonterminal_nodes"], 17);
