@@ -15,17 +15,8 @@ owned; zero ties, exceptions, and counters; the coverage lock is the sole
 retention proof. Genuine tie or contradiction = STOP-and-report. Standard
 constraints apply.
 
-Fold-ins from the 13-10 landing review (2026-09-02): the labelled and
-modal structure of every family now parses; what remains is body-sentence
-grammar — Saga chapter bodies (181 faces), leveler band bodies (5), Class
-residues (33), Spree and bulleted mode bodies (~420), conditional-sentence
-modal heads (36, shape already right), `choose one that hasn't been
-chosen` (23, relative clause on a fused quantity head), coordinated
-`with`-grants (~190, the coordination family), and `emblem` into the noun
-inventory (88). The four `needs` added that day carry the infrastructure
-this loop cannot supply: sentence-final quoted blocks, the compiler onset
-and nested-document gaps (pawprint), the flavor-word class, and the
-declaration-side frame path for `gains "…"` (135).
+The remaining families and their counts live in `docs/tickets/fog.md`
+under "Tail families"; that register, not this ticket, is what the loop reads.
 
 Loop model (2026-09-02): this umbrella is worked as coordinator-minted
 per-family tickets — each iteration, the coordinator reads the frontier

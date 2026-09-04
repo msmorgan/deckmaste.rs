@@ -112,6 +112,28 @@ does, and its three form-literal re-routes are handled by
 Hangs on: the noun-feature work; `english-v2-number-feature-unification` as the
 feature-collapse precedent.
 
+### Tail families (the frontier register for `english-v2-stage-5-grammar-buildout-14-10`)
+
+The umbrella ticket is never claimed directly; each iteration the coordinator
+re-runs the failure census, takes the largest remaining family, mints one
+`english-v2-tail-<family>` ticket sized to that family, and deletes the family
+from this list when the ticket lands. Counts are from the 13-10 landing review
+(2026-09-02) and go stale with every landing; re-measure before minting.
+
+- Spree and bulleted mode bodies (~420)
+- coordinated `with`-grants (~190; the same landing as `english-v2-with-preposition`, never two)
+- Saga chapter bodies (181 faces)
+- `emblem` into the noun inventory (88)
+- conditional-sentence modal heads (36; shape already right)
+- Class residues (33)
+- `choose one that hasn't been chosen` (23; relative clause on a fused quantity head)
+- leveler band bodies (5)
+- coordination families generally: v1's coordination modules are a phenomenon
+  checklist (coordinable categories, serial-list comma conventions, and/or/nor,
+  scope, agreement), never code or vocabulary to import
+
+Hangs on: nothing; this is the live frontier.
+
 ### Shared gaps (neither v1 nor v2 covers)
 
 Recorded for the record, attributed to neither grammar — no ticket owns these, and
