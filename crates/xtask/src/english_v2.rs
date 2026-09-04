@@ -353,20 +353,17 @@ enum EnglishV2Command {
 struct CorpusArgs {
     #[arg(long, default_value = "data/mtgjson/AtomicCards.json")]
     data: PathBuf,
-    /// Maximum parser workers for this corpus run.
+    /// Maximum parser workers for this corpus run; defaults to
+    /// `DECKMASTE_XTASK_WORKERS` when set, else `available_parallelism()`.
     #[arg(long, value_parser = parse_worker_count)]
     workers: Option<usize>,
 }
 
 impl CorpusArgs {
     fn workers(&self) -> anyhow::Result<usize> {
-        self.workers.map_or_else(default_corpus_workers, Ok)
+        let override_value = std::env::var_os(CORPUS_WORKERS_ENV);
+        resolved_corpus_workers(self.workers, override_value.as_deref())
     }
-}
-
-fn default_corpus_workers() -> anyhow::Result<usize> {
-    let override_value = std::env::var_os(CORPUS_WORKERS_ENV);
-    resolved_corpus_workers(None, override_value.as_deref())
 }
 
 fn resolved_corpus_workers(
@@ -376,6 +373,10 @@ fn resolved_corpus_workers(
     if let Some(workers) = explicit_workers {
         return Ok(workers);
     }
+    default_corpus_workers(override_value)
+}
+
+fn default_corpus_workers(override_value: Option<&std::ffi::OsStr>) -> anyhow::Result<usize> {
     let Some(override_value) = override_value else {
         return Ok(std::thread::available_parallelism().map_or(1, usize::from));
     };
@@ -810,9 +811,14 @@ mod tests {
 
     #[test]
     fn invalid_corpus_workers_environment_override_names_the_variable() {
-        let error = resolved_corpus_workers(None, Some(std::ffi::OsStr::new("0")))
-            .expect_err("zero is not a positive worker count");
+        for value in ["0", "-1", "abc", ""] {
+            let error = resolved_corpus_workers(None, Some(std::ffi::OsStr::new(value)))
+                .expect_err("invalid worker counts are refused");
 
-        assert!(format!("{error:#}").contains(CORPUS_WORKERS_ENV));
+            assert!(
+                format!("{error:#}").contains(CORPUS_WORKERS_ENV),
+                "{value:?}"
+            );
+        }
     }
 }

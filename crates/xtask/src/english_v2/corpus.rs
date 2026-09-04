@@ -1009,8 +1009,31 @@ mod tests {
         .unwrap();
 
         let diagnostics = String::from_utf8(diagnostics).unwrap();
+        assert!(diagnostics.contains("workers=2"));
         assert!(diagnostics.contains("criterion=capped_workers"));
         assert!(!diagnostics.contains("WARNING english-v2-common-path-performance-regression"));
+    }
+
+    #[test]
+    fn full_parallelism_reports_the_quiet_host_criterion_with_the_regression_warning() {
+        let performance = CorpusPerformance {
+            workers: 4,
+            ..CorpusPerformance::default()
+        };
+        let mut diagnostics = Vec::new();
+
+        write_corpus_performance_to(
+            "coverage",
+            Duration::from_secs(17),
+            performance,
+            4,
+            &mut diagnostics,
+        )
+        .unwrap();
+
+        let diagnostics = String::from_utf8(diagnostics).unwrap();
+        assert!(diagnostics.contains("criterion=quiet_host"));
+        assert!(diagnostics.contains("WARNING english-v2-common-path-performance-regression"));
     }
 
     fn explicit_onsets(
