@@ -108,7 +108,7 @@ fn indefinite_articles_are_guarded_by_frozen_onset_without_ast_article_state() {
         };
         let TransitiveLexicalVerbPhrase::TransitivePredicate(TransitivePredicate {
             head: _,
-            object: Object::ObjectNominal(NominalObject { value }),
+            object: Object::ObjectNominal(object),
         }) = transitive_lexical_verb_phrase.as_ref()
         else {
             panic!("the public staged indefinite AST stores its noun head: {parsed:?}")
@@ -119,7 +119,7 @@ fn indefinite_articles_are_guarded_by_frozen_onset_without_ast_article_state() {
                     nominal: SingularNominal::BareSingularNominal(BareSingularNominal { head }),
                 }),
             ..
-        }) = unqualified_reference(value)
+        }) = unqualified_reference(object.value())
         else {
             panic!("the public staged indefinite AST stores its noun head: {parsed:?}")
         };
@@ -628,9 +628,9 @@ fn nominal_subject(value: NounPhrase) -> Subject {
 }
 
 fn nominal_object(value: NounPhrase) -> Object {
-    Object::ObjectNominal(NominalObject {
-        value: Box::new(value),
-    })
+    Object::ObjectNominal(
+        NominalObject::new(Box::new(value)).expect("ordinary noun phrase is licensed as an object"),
+    )
 }
 
 fn subject_you() -> Subject {
@@ -940,9 +940,6 @@ fn typed_where_staging_rejects_a_finite_subordinate_clause_in_the_chart() {
             .collect::<Vec<_>>(),
         [
             ("DeterminativePluralSimpleDeterminative", 17, 18),
-            ("NounPhraseFusedDeterminativeReference", 8, 10),
-            ("NounPhraseFusedDeterminativeReference", 8, 10),
-            ("NounPhraseFusedDeterminativeReference", 17, 18),
             (
                 "PredicateAdjunctPredicatePrepositionalPredicateAdjunctPredicate",
                 3,
@@ -1533,13 +1530,13 @@ fn explicit_named_card_identity_scans_exact_longest_renders_and_owns() {
     };
     let TransitiveLexicalVerbPhrase::TransitivePredicate(TransitivePredicate {
         head: _,
-        object: Object::ObjectNominal(NominalObject { value }),
+        object: Object::ObjectNominal(object),
     }) = transitive_lexical_verb_phrase.as_ref()
     else {
         panic!("explicit card name has its generated AST construction: {parsed:?}");
     };
     let UnqualifiedReference::NamedCardReference(NamedCardReference { name, .. }) =
-        unqualified_reference(value)
+        unqualified_reference(object.value())
     else {
         panic!("explicit card name has its generated AST construction: {parsed:?}");
     };
@@ -2019,7 +2016,7 @@ fn decimal_punctuation_cannot_split_a_signed_number_in_a_complete_document() {
         panic!("a decimal fraction is outside the signed-decimal grammar");
     };
 
-    assert_eq!(span, TextSpan { start: 6, end: 7 });
+    assert_eq!(span, TextSpan { start: 7, end: 8 });
     assert!(!expectations.is_empty());
 }
 

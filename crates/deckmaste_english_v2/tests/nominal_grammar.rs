@@ -1029,13 +1029,10 @@ fn former_count_fixture_has_exact_compositional_ast_and_ownership() {
         head.reference(),
         &VerbInventoryRef::Core(CoreVerbIdentity::Gain)
     );
-    let deckmaste_english_v2::ast::Object::ObjectNominal(
-        deckmaste_english_v2::ast::NominalObject { value },
-    ) = object
-    else {
+    let deckmaste_english_v2::ast::Object::ObjectNominal(object) = object else {
         panic!("gain-life comparison has a nominal object")
     };
-    let deckmaste_english_v2::ast::NounPhrase::QualifiedNounPhrase(qualified) = value.as_ref()
+    let deckmaste_english_v2::ast::NounPhrase::QualifiedNounPhrase(qualified) = object.value()
     else {
         panic!("gain-life object uses the ordinary noun-phrase pipeline")
     };
@@ -1231,14 +1228,11 @@ fn deictic_manner_count_and_scalar_forms_are_distinct_generated_categories() {
     let manner = manner_analysis
         .selected()
         .unwrap_or_else(|| panic!("the manner deictic selects: {manner_analysis:?}"));
-    assert_eq!(
-        manner,
-        &MannerReference::ThisWay(ThisWay {
-            demonstrative: SingularDemonstrative::This,
-            noun: Noun::Lexeme(CommonNoun::Way),
-        }),
-        "the public AST stores the closed demonstrative and aggregate noun",
-    );
+    let MannerReference::ThisWay(this_way) = manner else {
+        panic!("the manner deictic uses its dedicated construction: {manner:?}")
+    };
+    assert_eq!(this_way.demonstrative(), SingularDemonstrative::This);
+    assert_eq!(this_way.noun(), &Noun::Lexeme(CommonNoun::Way));
     assert_eq!(manner.render(&context, parser.environment()), "This way");
     let mut manner_visitor = DeicticVisitor::default();
     manner_visitor.visit_manner_reference(manner);
@@ -1319,6 +1313,12 @@ fn deictic_manner_count_and_scalar_forms_are_distinct_generated_categories() {
     assert!(parser.parse_count_reference("This way", &context).is_err());
     assert!(parser.parse_count_reference("That much", &context).is_err());
     assert!(parser.parse_scalar_reference("This way", &context).is_err());
+    assert!(parser.parse_manner_reference("That way", &context).is_err());
+    assert!(
+        parser
+            .parse_manner_reference("This card", &context)
+            .is_err()
+    );
     assert!(
         parser
             .parse_scalar_reference("That many", &context)

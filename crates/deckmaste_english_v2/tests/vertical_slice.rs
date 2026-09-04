@@ -380,9 +380,9 @@ fn nominal_subject(value: NounPhrase) -> Subject {
 }
 
 fn nominal_object(value: NounPhrase) -> Object {
-    Object::ObjectNominal(NominalObject {
-        value: Box::new(value),
-    })
+    Object::ObjectNominal(
+        NominalObject::new(Box::new(value)).expect("ordinary noun phrase is licensed as an object"),
+    )
 }
 
 fn subject_you() -> Subject {

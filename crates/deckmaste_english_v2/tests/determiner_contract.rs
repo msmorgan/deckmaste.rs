@@ -175,3 +175,41 @@ fn zero_and_all_mass_nominals_share_the_determined_nominal_path() {
         "the zero determiner still refuses a bare singular count nominal",
     );
 }
+
+#[test]
+fn any_and_all_keep_their_declared_fusedness_distributions() {
+    let parser = parser();
+    let context = context();
+
+    for (text, construction) in [
+        ("Destroy any of them.", "DeterminativePartitive"),
+        (
+            "Exile all the cards from your hand.",
+            "AllPredeterminedNominal",
+        ),
+    ] {
+        let analysis = parser.analyze(text, &context);
+        let selected = analysis
+            .selected()
+            .unwrap_or_else(|| panic!("{text:?} must select: {analysis:#?}"));
+        assert_eq!(selected.render(&context, parser.environment()), text);
+        let decision = analysis.decision().expect("selected parse has a decision");
+        let selected_ordinal = decision
+            .selected()
+            .expect("decision has a selected candidate");
+        assert!(
+            decision.candidates()[selected_ordinal]
+                .construction_path()
+                .iter()
+                .any(|step| step.contains(construction)),
+            "{text:?} keeps its declared determinative route",
+        );
+    }
+
+    for text in ["Destroy any.", "Destroy all."] {
+        assert!(
+            parser.parse(text, &context).is_err(),
+            "{text:?} must not admit a bare nominal object",
+        );
+    }
+}

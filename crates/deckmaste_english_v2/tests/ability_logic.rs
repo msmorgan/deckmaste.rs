@@ -2326,15 +2326,18 @@ fn gain_life(amount: Amount) -> VerbPhrase {
         DeterminedNominal::new(determiner, nominal)
             .expect("a quantity determiner licenses the mass noun life"),
     );
-    let object = Object::ObjectNominal(NominalObject {
-        value: Box::new(NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
-            reference: Box::new(PostmodifiedReference::UnqualifiedPostmodifiedReference(
-                UnqualifiedPostmodifiedReference {
-                    reference: Box::new(reference),
-                },
-            )),
-        })),
-    });
+    let object = Object::ObjectNominal(
+        NominalObject::new(Box::new(NounPhrase::QualifiedNounPhrase(
+            QualifiedNounPhrase {
+                reference: Box::new(PostmodifiedReference::UnqualifiedPostmodifiedReference(
+                    UnqualifiedPostmodifiedReference {
+                        reference: Box::new(reference),
+                    },
+                )),
+            },
+        )))
+        .expect("ordinary noun phrase is licensed as an object"),
+    );
     VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
         frame: Box::new(LexicalVerbPhrase::TransitiveLexicalVerbPhrase(Box::new(
             TransitiveLexicalVerbPhrase::TransitivePredicate(TransitivePredicate { head, object }),
@@ -2396,10 +2399,11 @@ fn gain_life_magnitude(predicate: &VerbPhrase) -> Option<u32> {
     if head.reference() != &VerbInventoryRef::Core(CoreVerbIdentity::Gain) {
         return None;
     }
-    let Object::ObjectNominal(NominalObject { value }) = object else {
+    let Object::ObjectNominal(object) = object else {
         return None;
     };
-    let UnqualifiedReference::DeterminedNominal(determined) = unqualified_reference(value) else {
+    let UnqualifiedReference::DeterminedNominal(determined) = unqualified_reference(object.value())
+    else {
         return None;
     };
     let Determiner::Headed(Determinative::MassQuantityDeterminer(MassQuantityDeterminer {

@@ -21,6 +21,7 @@ pub(crate) const AGREEMENT_TYPE: &str = "Agreement";
 pub(crate) const CARDINALITY_TYPE: &str = "Cardinality";
 pub(crate) const DETERMINER_NUMBER_TYPE: &str = "DeterminerNumber";
 pub(crate) const FUSED_HEAD_LICENSE_TYPE: &str = "FusedHeadLicense";
+pub(crate) const MANNER_ANAPHOR_CLASS_TYPE: &str = "MannerAnaphorClass";
 pub(crate) const NOMINAL_FORM_TYPE: &str = "NominalForm";
 pub(crate) const NOMINAL_LICENSE_TYPE: &str = "NominalLicense";
 pub(crate) const NUMBER_TYPE: &str = "Number";
@@ -52,6 +53,7 @@ pub(crate) const FIXED_RUNTIME_TYPE_NAMES: &[&str] = &[
     CARDINALITY_TYPE,
     DETERMINER_NUMBER_TYPE,
     FUSED_HEAD_LICENSE_TYPE,
+    MANNER_ANAPHOR_CLASS_TYPE,
     NOMINAL_FORM_TYPE,
     NOMINAL_LICENSE_TYPE,
     NUMBER_TYPE,

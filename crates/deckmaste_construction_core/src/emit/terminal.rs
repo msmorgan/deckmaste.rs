@@ -162,6 +162,12 @@ pub(crate) fn emit(
                     items.push(emit_lexeme_countability_helper(row, origin.clone()));
                 }
                 if row
+                    .feature_members(crate::feature::Feature::MannerAnaphorClass)
+                    .is_some()
+                {
+                    items.push(emit_lexeme_manner_anaphor_class_helper(row, origin.clone()));
+                }
+                if row
                     .feature_members(crate::feature::Feature::ModifierLicense)
                     .is_some()
                 {
@@ -621,6 +627,9 @@ pub(crate) fn emit(
                     },
                     vec![origin.clone()],
                 ));
+                items.push(emit_declaration_determinative_fused_head_license_helper(
+                    row,
+                ));
             }
             TerminalPlan::DeclarationTerm(row) => {
                 let origin = row.origin().clone();
@@ -732,6 +741,47 @@ pub(crate) fn emit(
         ));
     }
     Ok((items, contributions))
+}
+
+fn emit_declaration_determinative_fused_head_license_helper(
+    determinative: &crate::semantic::DeclarationDeterminativePlan,
+) -> GeneratedItem {
+    let function_name = feature_helper("fused_head_license", determinative.codec_name());
+    let function = emitted_ident(&function_name, determinative.codec_ident().span());
+    let ty = determinative.codec_ident();
+    let lemma = determinative.lemma_ident();
+    let members = determinative.closed().iter().map(|member| {
+        let member_name = member.lemma();
+        let value = match member.fused_head_license() {
+            crate::macro_def::DeterminativeFusedHeadLicense::NominalOnly => {
+                quote! { FusedHeadLicense::NominalOnly }
+            }
+            crate::macro_def::DeterminativeFusedHeadLicense::PartitiveOnly => {
+                quote! { FusedHeadLicense::PartitiveOnly }
+            }
+            crate::macro_def::DeterminativeFusedHeadLicense::FusedHead => {
+                quote! { FusedHeadLicense::FusedHead }
+            }
+            crate::macro_def::DeterminativeFusedHeadLicense::PluralPredeterminer => {
+                quote! { FusedHeadLicense::PluralPredeterminer }
+            }
+        };
+        quote! { #lemma::#member_name => #value }
+    });
+    GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function_name,
+        },
+        quote! {
+            fn #function(value: impl ::std::borrow::Borrow<#ty>) -> FusedHeadLicense {
+                match ::std::borrow::Borrow::borrow(&value) {
+                    #ty::Closed(lemma) => match lemma { #(#members),* },
+                }
+            }
+        },
+        vec![determinative.origin().clone()],
+    )
 }
 
 fn emit_vocab_modifier_license_helper(
@@ -901,6 +951,7 @@ fn emit_lexeme_surface_helper(
         | crate::Feature::Compoundability
         | crate::Feature::Countability
         | crate::Feature::HomographLicense
+        | crate::Feature::MannerAnaphorClass
         | crate::Feature::ModifierLicense
         | crate::Feature::DeterminerNumber
         | crate::Feature::FusedHeadLicense
@@ -1057,6 +1108,40 @@ fn emit_lexeme_countability_helper(
             name: function_name,
         },
         quote! { fn #function(value: #ty) -> Countability { match value { #(#members),* } } },
+        vec![origin],
+    )
+}
+
+fn emit_lexeme_manner_anaphor_class_helper(
+    lexeme: &crate::semantic::LexemePlan,
+    origin: DeclarationKey,
+) -> GeneratedItem {
+    let function_name = feature_helper("manner_anaphor_class", lexeme.name());
+    let function = emitted_ident(&function_name, lexeme.name_ident().span());
+    let ty = emitted_ident(lexeme.name(), lexeme.name_ident().span());
+    let members = lexeme
+        .feature_members(crate::feature::Feature::MannerAnaphorClass)
+        .expect("requested sealed manner-anaphor-class metadata")
+        .iter()
+        .map(|(member, value)| {
+            let member = emitted_ident(member, lexeme.name_ident().span());
+            let value = match value {
+                crate::feature::FeatureValue::OtherNoun => {
+                    quote! { MannerAnaphorClass::OtherNoun }
+                }
+                crate::feature::FeatureValue::MannerAnaphor => {
+                    quote! { MannerAnaphorClass::MannerAnaphor }
+                }
+                _ => unreachable!("sealed manner-anaphor class has its closed domain"),
+            };
+            quote! { #ty::#member => #value }
+        });
+    GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function_name,
+        },
+        quote! { fn #function(value: #ty) -> MannerAnaphorClass { match value { #(#members),* } } },
         vec![origin],
     )
 }
@@ -1218,6 +1303,12 @@ fn emit_aggregate_noun_feature_helpers(
         &feature_helper("countability", closed.name()),
         closed_ident.span(),
     );
+    let manner_anaphor_class_name = feature_helper("manner_anaphor_class", noun.codec_name());
+    let manner_anaphor_class = emitted_ident(&manner_anaphor_class_name, ty.span());
+    let closed_manner_anaphor_class = emitted_ident(
+        &feature_helper("manner_anaphor_class", closed.name()),
+        closed_ident.span(),
+    );
     let properness_name = feature_helper("properness", noun.codec_name());
     let properness = emitted_ident(&properness_name, ty.span());
     let closed_properness = emitted_ident(
@@ -1294,6 +1385,28 @@ fn emit_aggregate_noun_feature_helpers(
                     match ::std::borrow::Borrow::borrow(&value) {
                         #ty::Lexeme(value) => #closed_countability(*value),
                         #ty::Declaration(_) => Countability::Count,
+                    }
+                }
+            },
+            vec![origin.clone()],
+        ));
+    }
+    if closed
+        .feature_members(crate::feature::Feature::MannerAnaphorClass)
+        .is_some()
+    {
+        items.push(GeneratedItem::new(
+            ItemKey::Named {
+                kind: NamedKind::Function,
+                name: manner_anaphor_class_name,
+            },
+            quote! {
+                fn #manner_anaphor_class(
+                    value: impl ::std::borrow::Borrow<#ty>,
+                ) -> MannerAnaphorClass {
+                    match ::std::borrow::Borrow::borrow(&value) {
+                        #ty::Lexeme(value) => #closed_manner_anaphor_class(*value),
+                        #ty::Declaration(_) => MannerAnaphorClass::OtherNoun,
                     }
                 }
             },

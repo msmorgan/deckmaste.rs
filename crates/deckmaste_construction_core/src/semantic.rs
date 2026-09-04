@@ -1872,12 +1872,14 @@ impl SemanticPlan {
                         .and_then(|closed| self.lexeme(&closed.to_string()))
                         .is_some_and(|closed| closed.feature_members(feature).is_some())
             }
+            TerminalPlan::DeclarationDeterminative(codec) => {
+                codec.codec_name() == name && feature == Feature::FusedHeadLicense
+            }
             TerminalPlan::Binding(_)
             | TerminalPlan::ContextIdentity(_)
             | TerminalPlan::CatalogIdentity(_)
             | TerminalPlan::SignedDecimal(_)
             | TerminalPlan::UnsignedNumber(_)
-            | TerminalPlan::DeclarationDeterminative(_)
             | TerminalPlan::DeclarationTerm(_) => false,
         })
     }
@@ -1935,6 +1937,14 @@ impl SemanticPlan {
                 };
                 (index, codec)
             })
+    }
+
+    pub(crate) fn runtime_declaration_determinative_for(
+        &self,
+        value_type: &str,
+    ) -> Option<(usize, &DeclarationDeterminativePlan)> {
+        self.runtime_declaration_determinatives()
+            .find(|(_, codec)| codec.codec_name() == value_type)
     }
 
     pub(crate) fn runtime_declaration_terms(
@@ -6222,7 +6232,13 @@ impl DeclarationDeterminativePlan {
                         "NominalOnly" => {
                             crate::macro_def::DeterminativeFusedHeadLicense::NominalOnly
                         }
+                        "PartitiveOnly" => {
+                            crate::macro_def::DeterminativeFusedHeadLicense::PartitiveOnly
+                        }
                         "FusedHead" => crate::macro_def::DeterminativeFusedHeadLicense::FusedHead,
+                        "PluralPredeterminer" => {
+                            crate::macro_def::DeterminativeFusedHeadLicense::PluralPredeterminer
+                        }
                         _ => unreachable!("validated fused-head license is closed"),
                     };
                 let realizations = member.realization_slots[0]

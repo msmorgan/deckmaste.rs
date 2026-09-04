@@ -333,7 +333,9 @@ pub enum DeterminativeNominalLicense {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum DeterminativeFusedHeadLicense {
     NominalOnly,
+    PartitiveOnly,
     FusedHead,
+    PluralPredeterminer,
 }
 
 /// The phrase-number condition of one Determinative surface realization.

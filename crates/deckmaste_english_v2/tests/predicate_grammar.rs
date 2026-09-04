@@ -2334,7 +2334,7 @@ fn determinative_partitives_take_ordinary_reference_phrase_complements() {
         let Object::ObjectNominal(nominal) = predicate.object else {
             panic!("partitive probe keeps its nominal object: {text:?}")
         };
-        let NounPhrase::QualifiedNounPhrase(qualified) = nominal.value.as_ref() else {
+        let NounPhrase::QualifiedNounPhrase(qualified) = nominal.value() else {
             panic!("partitive probe enters the ordinary qualification stages: {text:?}")
         };
         let PostmodifiedReference::UnqualifiedPostmodifiedReference(reference) =

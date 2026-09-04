@@ -273,6 +273,7 @@ constructions! {
         feature BareLocativeLicense = QualifiedOnly;
         feature Compoundability = Compoundable;
         feature Countability = Count;
+        feature MannerAnaphorClass = OtherNoun;
         feature Properness = Common;
         Ability = "ability" {
             Plural = "abilities",
@@ -477,6 +478,7 @@ constructions! {
         },
         Way = "way" {
             feature LocativeTemporalLicense = Unlicensed;
+            feature MannerAnaphorClass = MannerAnaphor;
             feature Relationality = NonRelational;
         },
         Die = "die" {
@@ -957,7 +959,7 @@ constructions! {
                 All {
                     number_license = Both;
                     nominal_license = MassOrPluralCount;
-                    fused_head_license = FusedHead;
+                    fused_head_license = PluralPredeterminer;
                     realizations = [{ surface = "all"; }];
                 },
                 Both {
@@ -975,7 +977,7 @@ constructions! {
                 Any {
                     number_license = Both;
                     nominal_license = AnyNominal;
-                    fused_head_license = FusedHead;
+                    fused_head_license = PartitiveOnly;
                     realizations = [{ surface = "any"; }];
                 },
                 AnyOne {
@@ -2255,9 +2257,8 @@ constructions! {
         form variable_subject = lex(variable);
     }
     construction object_nominal: Object {
-        element NominalObject {
-            value: NounPhrase checked by nominal_object_is_not_fused_all(),
-        }
+        element NominalObject { value: NounPhrase, }
+        require value.fused_head_license in [NominalOnly, FusedHead];
         derive agreement = value.agreement;
         derive number = value.number;
         derive onset = value.onset;
@@ -3401,7 +3402,7 @@ constructions! {
     }
     construction all_predetermined_nominal: UnqualifiedReference {
         element AllPredeterminedNominal {
-            all: Determinative checked by determinative_is_plural_all(all.number),
+            predeterminer: Determinative,
             det: Determinative checked by headed_determiner_licenses_nominal(
                 det.determiner_number,
                 det.nominal_license,
@@ -3410,13 +3411,15 @@ constructions! {
             ),
             nominal: Nominal,
         }
+        require predeterminer.fused_head_license is PluralPredeterminer;
+        require predeterminer.number is Plural;
         derive agreement = nominal.agreement;
         derive number = nominal.number;
         derive onset = nominal.onset;
         derive possessive_ending = nominal.possessive_ending;
         derive relationality = nominal.relationality;
         derive locative_temporal_license = nominal.locative_temporal_license;
-        form all_predetermined_nominal = all det nominal;
+        form all_predetermined_nominal = predeterminer det nominal;
     }
     construction full_and_noun_phrase_coordination: FullNounPhraseCoordination {
         element FullAndNounPhraseCoordination {
@@ -3494,6 +3497,7 @@ constructions! {
         }
         derive agreement = Values::Bare;
         derive number = Values::Plural;
+        derive fused_head_license = Values::NominalOnly;
         derive onset = Values::Consonant;
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::OfInAndOnLicensed;
@@ -3511,9 +3515,11 @@ constructions! {
     }
     construction this_way: MannerReference {
         element ThisWay {
-            demonstrative: lex SingularDemonstrative checked by singular_demonstrative_is_this(),
-            noun: lex Noun checked by noun_is_way(),
+            demonstrative: lex SingularDemonstrative,
+            noun: lex Noun,
         }
+        require demonstrative is This;
+        require noun.manner_anaphor_class is MannerAnaphor;
         derive noun.number = Values::Singular;
         derive number = Values::Singular;
         form this_way = lex(demonstrative) noun(noun);
@@ -4038,6 +4044,7 @@ constructions! {
         element QualifiedNounPhrase { reference: PostmodifiedReference, }
         derive agreement = reference.agreement;
         derive number = reference.number;
+        derive fused_head_license = Values::NominalOnly;
         derive onset = reference.onset;
         derive relationality = reference.relationality;
         derive locative_temporal_license = reference.locative_temporal_license;
@@ -4051,19 +4058,18 @@ constructions! {
         }
         derive agreement = Values::Bare;
         derive number = Values::Plural;
+        derive fused_head_license = Values::NominalOnly;
         derive onset = Values::Consonant;
         derive relationality = nominal.relationality;
         derive locative_temporal_license = nominal.locative_temporal_license;
         form comparative_quantified_reference = lex(quantifier) nominal "than" standard;
     }
     construction fused_determinative_reference: NounPhrase {
-        element FusedDeterminativeReference {
-            head: Determinative checked by determinative_is_independent_fused(
-                head.fused_head_license
-            ),
-        }
+        element FusedDeterminativeReference { head: Determinative, }
+        require head.fused_head_license in [FusedHead, PluralPredeterminer];
         derive agreement = head.agreement;
         derive number = head.number;
+        derive fused_head_license = head.fused_head_license;
         derive onset = head.onset;
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::OfInAndOnLicensed;
@@ -4100,6 +4106,7 @@ constructions! {
         require relation is Of;
         derive agreement = selection.agreement;
         derive number = selection.number;
+        derive fused_head_license = Values::NominalOnly;
         derive onset = Values::Consonant;
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::OfInAndOnLicensed;
@@ -4126,6 +4133,7 @@ constructions! {
         require len(choices) >= 2;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
+        derive fused_head_license = Values::NominalOnly;
         derive onset = Values::Consonant;
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::OfInAndOnLicensed;
@@ -5269,37 +5277,12 @@ fn bare_preposition_complement_is_licensed(
 
 fn determinative_is_fused(head: &Determinative, fused_head_license: FusedHeadLicense) -> bool {
     let _ = head;
-    fused_head_license == FusedHeadLicense::FusedHead
-}
-
-fn determinative_is_independent_fused(
-    head: &Determinative,
-    fused_head_license: FusedHeadLicense,
-) -> bool {
-    let is_bare_any = match head {
-        Determinative::SingularSimpleDeterminative(det) => matches!(
-            det.head,
-            DeterminativeHead::Closed(DeterminativeHeadLemma::Any)
-        ),
-        Determinative::PluralSimpleDeterminative(det) => matches!(
-            det.head,
-            DeterminativeHead::Closed(DeterminativeHeadLemma::Any)
-        ),
-        _ => false,
-    };
-    fused_head_license == FusedHeadLicense::FusedHead && !is_bare_any
-}
-
-#[allow(
-    clippy::trivially_copy_pass_by_ref,
-    reason = "checked-field callbacks receive borrowed lexical values"
-)]
-fn singular_demonstrative_is_this(demonstrative: &SingularDemonstrative) -> bool {
-    *demonstrative == SingularDemonstrative::This
-}
-
-fn noun_is_way(noun: &Noun) -> bool {
-    matches!(noun, Noun::Lexeme(CommonNoun::Way))
+    matches!(
+        fused_head_license,
+        FusedHeadLicense::PartitiveOnly
+            | FusedHeadLicense::FusedHead
+            | FusedHeadLicense::PluralPredeterminer
+    )
 }
 
 fn noun_has_distinct_number_surfaces(noun: &Noun) -> bool {
@@ -5307,32 +5290,6 @@ fn noun_has_distinct_number_surfaces(noun: &Noun) -> bool {
         Noun::Lexeme(_) => true,
         Noun::Declaration(noun) => !noun.number_invariant(),
     }
-}
-
-fn determinative_is_all(head: &Determinative) -> bool {
-    match head {
-        Determinative::SingularSimpleDeterminative(det) => matches!(
-            det.head,
-            DeterminativeHead::Closed(DeterminativeHeadLemma::All)
-        ),
-        Determinative::PluralSimpleDeterminative(det) => matches!(
-            det.head,
-            DeterminativeHead::Closed(DeterminativeHeadLemma::All)
-        ),
-        _ => false,
-    }
-}
-
-fn determinative_is_plural_all(head: &Determinative, number: Number) -> bool {
-    number == Number::Plural && determinative_is_all(head)
-}
-
-fn nominal_object_is_not_fused_all(value: &NounPhrase) -> bool {
-    !matches!(
-        value,
-        NounPhrase::FusedDeterminativeReference(FusedDeterminativeReference { head })
-            if determinative_is_all(head)
-    )
 }
 
 fn singular_nominal_is_proper(nominal: &SingularNominal) -> bool {

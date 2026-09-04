@@ -262,7 +262,11 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
         ),
         named_type(
             FUSED_HEAD_LICENSE_TYPE,
-            quote! { #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)] pub(crate) enum FusedHeadLicense { NominalOnly, FusedHead } },
+            quote! { #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)] pub(crate) enum FusedHeadLicense { NominalOnly, PartitiveOnly, FusedHead, PluralPredeterminer } },
+        ),
+        named_type(
+            crate::identifier::MANNER_ANAPHOR_CLASS_TYPE,
+            quote! { #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)] pub(crate) enum MannerAnaphorClass { OtherNoun, MannerAnaphor } },
         ),
         named_type(
             NOMINAL_FORM_TYPE,
@@ -830,6 +834,15 @@ fn emit_generated_roots(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 crate::feature::Feature::DeterminerNumber,
             )
             .then(|| quote! { , _ });
+        let fused_head_license = plan
+            .carries_feature(
+                root.category(),
+                crate::feature::Feature::FusedHeadLicense,
+            )
+            .then(|| quote! { , _ });
+        let nominal_license = plan
+            .carries_feature(root.category(), crate::feature::Feature::NominalLicense)
+            .then(|| quote! { , _ });
         let onset = plan
             .category_carries_onset(root.category())
             .then(|| quote! { , _ });
@@ -854,7 +867,7 @@ fn emit_generated_roots(plan: &SemanticPlan) -> Vec<GeneratedItem> {
 
                     fn from_build(value: BuildValue) -> Option<Self> {
                         match value {
-                            BuildValue::#category(value #agreement #cardinality #number #determiner_number #onset #possessive_ending #following_onset) => Some(value),
+                            BuildValue::#category(value #agreement #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending #following_onset) => Some(value),
                             _ => None,
                         }
                     }
@@ -1076,7 +1089,10 @@ fn emit_semantic_runtime_types(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 let agreement = plan
                     .sum_carries_agreement(item.name)
                     .then(|| quote! { , Agreement });
-                quote! { #name(#name #agreement, FeatureConstraint<Onset>) }
+                let fused_head_license = plan
+                    .carries_feature(item.name, crate::feature::Feature::FusedHeadLicense)
+                    .then(|| quote! { , FusedHeadLicense });
+                quote! { #name(#name #agreement #fused_head_license, FeatureConstraint<Onset>) }
             }
         }
     });

@@ -329,6 +329,9 @@ fn emit_arm_from_plan(
                     let value = if plan
                         .runtime_declaration_noun_for(field.terminal())
                         .is_some()
+                        || plan
+                            .runtime_declaration_determinative_for(field.terminal())
+                            .is_some()
                     {
                         quote! { &#value }
                     } else {
@@ -465,6 +468,9 @@ fn lower_checked_field_arguments(
                     if plan
                         .runtime_declaration_noun_for(source.terminal())
                         .is_some()
+                        || plan
+                            .runtime_declaration_determinative_for(source.terminal())
+                            .is_some()
                     {
                         Ok(quote! { #helper(&#value) })
                     } else {
@@ -563,13 +569,19 @@ fn emit_sum_arm(
         binders.reserve(name);
     }
     let agreement_carry = plan.sum_carries_agreement(sum.name());
-    let (value, agreement) = if agreement_carry {
-        let (value, agreement) =
+    let fused_head_license_carry = plan.carries_feature(sum.name(), Feature::FusedHeadLicense);
+    let (value, agreement, fused_head_license) = if agreement_carry {
+        let (value, agreement, fused_head_license) =
             lower_value_with_agreement(plan, alternative.value(), "value", &mut binders)?;
-        (value, Some(agreement))
+        (value, Some(agreement), fused_head_license)
+    } else if fused_head_license_carry {
+        let (value, fused_head_license) =
+            lower_value_with_fused_head_license(plan, alternative.value(), "value", &mut binders)?;
+        (value, None, Some(fused_head_license))
     } else {
         (
             lower_value(plan, alternative.value(), "value", &mut binders)?,
+            None,
             None,
         )
     };
@@ -583,11 +595,13 @@ fn emit_sum_arm(
     let variant = ident(alternative.name());
     let patterns = vec![value.pattern];
     let agreement = agreement.map(|agreement| quote! { , *#agreement });
+    let fused_head_license =
+        fused_head_license.map(|fused_head_license| quote! { , *#fused_head_license });
     let rule_id = ident(&rule.id);
     Ok(quote! {
         RuleId::#rule_id => match children {
             [#(#patterns),*] => Ok(Some(BuildValue::#sum_type(
-                #sum_type::#variant(#payload) #agreement, FeatureConstraint::Any
+                #sum_type::#variant(#payload) #agreement #fused_head_license, FeatureConstraint::Any
             ))),
             _ => Ok(None),
         },
@@ -700,7 +714,7 @@ fn lower_value_with_agreement(
     value: &ValueKindPlan,
     preferred: &str,
     binders: &mut LocalAllocator,
-) -> syn::Result<(LoweredValue, syn::Ident)> {
+) -> syn::Result<(LoweredValue, syn::Ident, Option<syn::Ident>)> {
     let agreement = binders.allocate(&format!("{preferred}_agreement"));
     match value {
         ValueKindPlan::Category(name) if plan.category_carries_agreement(name) => {
@@ -713,9 +727,12 @@ fn lower_value_with_agreement(
             let determiner_number = plan
                 .carries_feature(name, Feature::DeterminerNumber)
                 .then(|| quote! { , _ });
-            let fused_head_license = plan
+            let carried_fused_head_license = plan
                 .carries_feature(name, Feature::FusedHeadLicense)
-                .then(|| quote! { , _ });
+                .then(|| binders.allocate(&format!("{preferred}_fused_head_license")));
+            let fused_head_license = carried_fused_head_license
+                .as_ref()
+                .map(|value| quote! { , #value });
             let nominal_license = plan
                 .carries_feature(name, Feature::NominalLicense)
                 .then(|| quote! { , _ });
@@ -732,17 +749,25 @@ fn lower_value_with_agreement(
                     expression: quote! { #binding.clone() },
                 },
                 agreement,
+                carried_fused_head_license,
             ))
         }
         ValueKindPlan::Sum(name) if plan.sum_carries_agreement(name) => {
             let variant = ident(name);
             let binding = binders.allocate(preferred);
+            let carried_fused_head_license = plan
+                .carries_feature(name, Feature::FusedHeadLicense)
+                .then(|| binders.allocate(&format!("{preferred}_fused_head_license")));
+            let fused_head_license = carried_fused_head_license
+                .as_ref()
+                .map(|value| quote! { , #value });
             Ok((
                 LoweredValue {
-                    pattern: quote! { BuildValue::#variant(#binding, #agreement, _) },
+                    pattern: quote! { BuildValue::#variant(#binding, #agreement #fused_head_license, _) },
                     expression: quote! { #binding.clone() },
                 },
                 agreement,
+                carried_fused_head_license,
             ))
         }
         ValueKindPlan::Category(_)
@@ -751,6 +776,68 @@ fn lower_value_with_agreement(
         | ValueKindPlan::Lex(_)
         | ValueKindPlan::Identity(_) => Err(internal(
             "agreement-bearing value lowering received a value without agreement",
+        )),
+    }
+}
+
+fn lower_value_with_fused_head_license(
+    plan: &SemanticPlan,
+    value: &ValueKindPlan,
+    preferred: &str,
+    binders: &mut LocalAllocator,
+) -> syn::Result<(LoweredValue, syn::Ident)> {
+    let fused_head_license = binders.allocate(&format!("{preferred}_fused_head_license"));
+    match value {
+        ValueKindPlan::Category(name) if plan.carries_feature(name, Feature::FusedHeadLicense) => {
+            let variant = ident(name);
+            let binding = binders.allocate(preferred);
+            let agreement = plan
+                .category_carries_agreement(name)
+                .then(|| quote! { , _ });
+            let cardinality = plan
+                .category_carries_cardinality(name)
+                .then(|| quote! { , _ });
+            let number = plan.category_carries_number(name).then(|| quote! { , _ });
+            let determiner_number = plan
+                .carries_feature(name, Feature::DeterminerNumber)
+                .then(|| quote! { , _ });
+            let nominal_license = plan
+                .carries_feature(name, Feature::NominalLicense)
+                .then(|| quote! { , _ });
+            let onset = plan.category_carries_onset(name).then(|| quote! { , _ });
+            let possessive_ending = plan
+                .category_carries_possessive_ending(name)
+                .then(|| quote! { , _ });
+            let following_onset = carries_following_onset(plan, name).then(|| quote! { , _ });
+            Ok((
+                LoweredValue {
+                    pattern: quote! { BuildValue::#variant(
+                        #binding #agreement #cardinality #number #determiner_number,
+                        #fused_head_license #nominal_license #onset #possessive_ending #following_onset
+                    ) },
+                    expression: quote! { #binding.clone() },
+                },
+                fused_head_license,
+            ))
+        }
+        ValueKindPlan::Sum(name) if plan.carries_feature(name, Feature::FusedHeadLicense) => {
+            let variant = ident(name);
+            let binding = binders.allocate(preferred);
+            let agreement = plan.sum_carries_agreement(name).then(|| quote! { , _ });
+            Ok((
+                LoweredValue {
+                    pattern: quote! { BuildValue::#variant(#binding #agreement, #fused_head_license, _) },
+                    expression: quote! { #binding.clone() },
+                },
+                fused_head_license,
+            ))
+        }
+        ValueKindPlan::Category(_)
+        | ValueKindPlan::Product(_)
+        | ValueKindPlan::Sum(_)
+        | ValueKindPlan::Lex(_)
+        | ValueKindPlan::Identity(_) => Err(internal(
+            "fused-head-bearing value lowering received a value without that feature",
         )),
     }
 }
@@ -903,8 +990,11 @@ fn lower_value(
             let variant = ident(name);
             let binding = binders.allocate(preferred);
             let agreement = plan.sum_carries_agreement(name).then(|| quote! { , _ });
+            let fused_head_license = plan
+                .carries_feature(name, Feature::FusedHeadLicense)
+                .then(|| quote! { , _ });
             Ok(LoweredValue {
-                pattern: quote! { BuildValue::#variant(#binding #agreement, _) },
+                pattern: quote! { BuildValue::#variant(#binding #agreement #fused_head_license, _) },
                 expression: quote! { #binding.clone() },
             })
         }
@@ -1417,7 +1507,7 @@ fn lower_sequence_rhs(
             | super::rules::RuleSymbolPlan::AdjacentValue(value) => {
                 let (value, agreement, onset, possessive_ending) = match feature {
                     Some(Feature::Agreement) => {
-                        let (value, agreement) = lower_value_with_agreement(
+                        let (value, agreement, _) = lower_value_with_agreement(
                             plan,
                             value,
                             &format!("item_{index}"),
@@ -3622,6 +3712,7 @@ fn resolve_feature_place(
                     | Feature::Compoundability
                     | Feature::Countability
                     | Feature::HomographLicense
+                    | Feature::MannerAnaphorClass
                     | Feature::LocativeTemporalLicense
                     | Feature::Properness
                     | Feature::Relationality,
@@ -3632,6 +3723,7 @@ fn resolve_feature_place(
                         | Feature::Compoundability
                         | Feature::Countability
                         | Feature::HomographLicense
+                        | Feature::MannerAnaphorClass
                         | Feature::LocativeTemporalLicense
                         | Feature::Properness
                         | Feature::Relationality,
@@ -3847,6 +3939,8 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::Mass => quote! { Countability::Mass },
         FeatureValue::HomographUnlicensed => quote! { HomographLicense::Unlicensed },
         FeatureValue::HomographLicensed => quote! { HomographLicense::Licensed },
+        FeatureValue::OtherNoun => quote! { MannerAnaphorClass::OtherNoun },
+        FeatureValue::MannerAnaphor => quote! { MannerAnaphorClass::MannerAnaphor },
         FeatureValue::Unrestricted => quote! { ModifierLicense::Unrestricted },
         FeatureValue::LocalDeterminer => quote! { ModifierLicense::LocalDeterminer },
         FeatureValue::No => quote! { BareLocativeComplement::No },
@@ -3889,7 +3983,9 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::PluralOnly => quote! { DeterminerNumber::PluralOnly },
         FeatureValue::Both => quote! { DeterminerNumber::Both },
         FeatureValue::NominalOnly => quote! { FusedHeadLicense::NominalOnly },
+        FeatureValue::PartitiveOnly => quote! { FusedHeadLicense::PartitiveOnly },
         FeatureValue::FusedHead => quote! { FusedHeadLicense::FusedHead },
+        FeatureValue::PluralPredeterminer => quote! { FusedHeadLicense::PluralPredeterminer },
         FeatureValue::BareSingularNoun => quote! { NominalForm::BareSingularNoun },
         FeatureValue::ModifiedSingularNoun => quote! { NominalForm::ModifiedSingularNoun },
         FeatureValue::SingularCoordination => quote! { NominalForm::SingularCoordination },

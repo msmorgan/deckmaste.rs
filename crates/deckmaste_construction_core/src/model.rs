@@ -237,6 +237,7 @@ pub enum Feature {
     Compoundability,
     Countability,
     HomographLicense,
+    MannerAnaphorClass,
     ModifierLicense,
     DeterminerNumber,
     FusedHeadLicense,

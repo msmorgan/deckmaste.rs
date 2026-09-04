@@ -517,6 +517,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
     for feature in [
         Feature::Agreement,
         Feature::Cardinality,
+        Feature::FusedHeadLicense,
         Feature::PrepositionComplementKind,
         Feature::LocativeTemporalLicense,
         Feature::ModifierLicense,
@@ -572,6 +573,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         items.push(emit_sum_agreement_match_helper(validated, sum)?);
     }
     for feature in [
+        Feature::FusedHeadLicense,
         Feature::PrepositionComplementKind,
         Feature::LocativeTemporalLicense,
         Feature::ModifierLicense,
@@ -1761,6 +1763,7 @@ fn emit_vocab_feature_helper(helper: VocabFeatureHelper<'_>) -> GeneratedItem {
         Feature::Compoundability => quote! { Compoundability },
         Feature::Countability => quote! { Countability },
         Feature::HomographLicense => quote! { HomographLicense },
+        Feature::MannerAnaphorClass => quote! { MannerAnaphorClass },
         Feature::ModifierLicense => quote! { ModifierLicense },
         Feature::DeterminerNumber => quote! { DeterminerNumber },
         Feature::FusedHeadLicense => quote! { FusedHeadLicense },
@@ -2105,6 +2108,7 @@ fn reserve_feature_callees(
     if matches!(
         *source_feature,
         Feature::BareLocativeComplement
+            | Feature::FusedHeadLicense
             | Feature::PrepositionComplementKind
             | Feature::LocativeTemporalLicense
             | Feature::ModifierLicense
@@ -3923,6 +3927,7 @@ fn feature_expr(
                     }
                     Feature::Countability
                     | Feature::HomographLicense
+                    | Feature::MannerAnaphorClass
                     | Feature::Properness
                     | Feature::Relationality => {
                         Err(internal("noun classification is closed lexical metadata"))
@@ -4073,6 +4078,7 @@ fn feature_expr(
             if matches!(
                 *source_feature,
                 Feature::BareLocativeComplement
+                    | Feature::FusedHeadLicense
                     | Feature::PrepositionComplementKind
                     | Feature::LocativeTemporalLicense
                     | Feature::ModifierLicense
@@ -4085,7 +4091,9 @@ fn feature_expr(
                     feature_name(*source_feature),
                     field.terminal(),
                 ));
-                let value = if terminal_is_declaration_noun(validated, field.terminal())? {
+                let value = if terminal_is_declaration_noun(validated, field.terminal())?
+                    || resolved_declaration_determinative(validated, field.terminal())?.is_some()
+                {
                     role_value
                 } else {
                     copy_value(construction, &role_key, role_value)?
@@ -4890,6 +4898,7 @@ fn emit_feature_helper(
         Feature::Compoundability => quote! { Compoundability },
         Feature::Countability => quote! { Countability },
         Feature::HomographLicense => quote! { HomographLicense },
+        Feature::MannerAnaphorClass => quote! { MannerAnaphorClass },
         Feature::ModifierLicense => quote! { ModifierLicense },
         Feature::DeterminerNumber => quote! { DeterminerNumber },
         Feature::FusedHeadLicense => quote! { FusedHeadLicense },
@@ -5483,6 +5492,8 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::Mass => quote! { Countability::Mass },
         FeatureValue::HomographUnlicensed => quote! { HomographLicense::Unlicensed },
         FeatureValue::HomographLicensed => quote! { HomographLicense::Licensed },
+        FeatureValue::OtherNoun => quote! { MannerAnaphorClass::OtherNoun },
+        FeatureValue::MannerAnaphor => quote! { MannerAnaphorClass::MannerAnaphor },
         FeatureValue::Unrestricted => quote! { ModifierLicense::Unrestricted },
         FeatureValue::LocalDeterminer => quote! { ModifierLicense::LocalDeterminer },
         FeatureValue::No => quote! { BareLocativeComplement::No },
@@ -5525,7 +5536,9 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::PluralOnly => quote! { DeterminerNumber::PluralOnly },
         FeatureValue::Both => quote! { DeterminerNumber::Both },
         FeatureValue::NominalOnly => quote! { FusedHeadLicense::NominalOnly },
+        FeatureValue::PartitiveOnly => quote! { FusedHeadLicense::PartitiveOnly },
         FeatureValue::FusedHead => quote! { FusedHeadLicense::FusedHead },
+        FeatureValue::PluralPredeterminer => quote! { FusedHeadLicense::PluralPredeterminer },
         FeatureValue::BareSingularNoun => quote! { NominalForm::BareSingularNoun },
         FeatureValue::ModifiedSingularNoun => quote! { NominalForm::ModifiedSingularNoun },
         FeatureValue::SingularCoordination => quote! { NominalForm::SingularCoordination },
@@ -5774,6 +5787,7 @@ fn feature_name(feature: Feature) -> &'static str {
         Feature::Compoundability => "compoundability",
         Feature::Countability => "countability",
         Feature::HomographLicense => "homograph_license",
+        Feature::MannerAnaphorClass => "manner_anaphor_class",
         Feature::ModifierLicense => "modifier_license",
         Feature::Number => "number",
         Feature::Onset => "onset",

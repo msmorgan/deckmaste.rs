@@ -2111,6 +2111,7 @@ fn validate_lexeme_declaration_shape(
                 | crate::model::Feature::Compoundability
                 | crate::model::Feature::Countability
                 | crate::model::Feature::LocativeTemporalLicense
+                | crate::model::Feature::MannerAnaphorClass
                 | crate::model::Feature::ModifierLicense
                 | crate::model::Feature::Properness
                 | crate::model::Feature::Relationality
@@ -2119,7 +2120,7 @@ fn validate_lexeme_declaration_shape(
                 errors,
                 syn::Error::new(
                     default.value.span(),
-                    "closed lexeme metadata supports only BareLocativeLicense, Compoundability, Countability, LocativeTemporalLicense, ModifierLicense, Properness, and Relationality",
+                    "closed lexeme metadata supports only BareLocativeLicense, Compoundability, Countability, LocativeTemporalLicense, MannerAnaphorClass, ModifierLicense, Properness, and Relationality",
                 ),
             );
         }
@@ -2187,6 +2188,7 @@ fn validate_lexeme_declaration_shape(
                     | crate::model::Feature::Compoundability
                     | crate::model::Feature::Countability
                     | crate::model::Feature::LocativeTemporalLicense
+                    | crate::model::Feature::MannerAnaphorClass
                     | crate::model::Feature::ModifierLicense
                     | crate::model::Feature::Properness
                     | crate::model::Feature::Relationality
@@ -2195,7 +2197,7 @@ fn validate_lexeme_declaration_shape(
                     errors,
                     syn::Error::new(
                         override_.value.span(),
-                        "closed lexeme metadata supports only BareLocativeLicense, Compoundability, Countability, LocativeTemporalLicense, ModifierLicense, Properness, and Relationality",
+                        "closed lexeme metadata supports only BareLocativeLicense, Compoundability, Countability, LocativeTemporalLicense, MannerAnaphorClass, ModifierLicense, Properness, and Relationality",
                     ),
                 );
             }
@@ -2658,7 +2660,12 @@ fn validate_determinative_member(
         &member.fused_head_license_slots,
         &member.lemma,
         "fused_head_license",
-        &["NominalOnly", "FusedHead"],
+        &[
+            "NominalOnly",
+            "PartitiveOnly",
+            "FusedHead",
+            "PluralPredeterminer",
+        ],
         errors,
     );
     validate_determinative_member_slot(
@@ -5187,6 +5194,9 @@ fn generated_name_inventory(
                         ParsedFeature::HomographLicense => {
                             ("homograph_license", "HomographLicense")
                         }
+                        ParsedFeature::MannerAnaphorClass => {
+                            ("manner_anaphor_class", "MannerAnaphorClass")
+                        }
                         ParsedFeature::ModifierLicense => ("modifier_license", "ModifierLicense"),
                         ParsedFeature::DeterminerNumber => {
                             ("determiner_number", "DeterminerNumber")
@@ -5812,6 +5822,7 @@ fn raw_category_reads_feature(raw: &Declarations, category: &str, feature: Featu
         Feature::Compoundability => ParsedFeature::Compoundability,
         Feature::Countability => ParsedFeature::Countability,
         Feature::HomographLicense => ParsedFeature::HomographLicense,
+        Feature::MannerAnaphorClass => ParsedFeature::MannerAnaphorClass,
         Feature::ModifierLicense => ParsedFeature::ModifierLicense,
         Feature::DeterminerNumber => ParsedFeature::DeterminerNumber,
         Feature::FusedHeadLicense => ParsedFeature::FusedHeadLicense,
@@ -5872,6 +5883,7 @@ fn raw_sequence_reads_inherent_category_feature(
         Feature::Compoundability => ParsedFeature::Compoundability,
         Feature::Countability => ParsedFeature::Countability,
         Feature::HomographLicense => ParsedFeature::HomographLicense,
+        Feature::MannerAnaphorClass => ParsedFeature::MannerAnaphorClass,
         Feature::ModifierLicense => ParsedFeature::ModifierLicense,
         Feature::DeterminerNumber => ParsedFeature::DeterminerNumber,
         Feature::FusedHeadLicense => ParsedFeature::FusedHeadLicense,
@@ -6140,6 +6152,7 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                 | ParsedFeature::Compoundability
                 | ParsedFeature::Countability
                 | ParsedFeature::HomographLicense
+                | ParsedFeature::MannerAnaphorClass
                 | ParsedFeature::ModifierLicense
                 | ParsedFeature::DeterminerNumber
                 | ParsedFeature::FusedHeadLicense
@@ -9883,6 +9896,7 @@ fn feature_name(feature: ParsedFeature) -> &'static str {
         ParsedFeature::Compoundability => "compoundability",
         ParsedFeature::Countability => "countability",
         ParsedFeature::HomographLicense => "homograph_license",
+        ParsedFeature::MannerAnaphorClass => "manner_anaphor_class",
         ParsedFeature::ModifierLicense => "modifier_license",
         ParsedFeature::DeterminerNumber => "determiner_number",
         ParsedFeature::FusedHeadLicense => "fused_head_license",
@@ -10329,6 +10343,7 @@ fn validate_lowerable_feature_compositions(
                     | ParsedFeature::Compoundability
                     | ParsedFeature::Countability
                     | ParsedFeature::HomographLicense
+                    | ParsedFeature::MannerAnaphorClass
                     | ParsedFeature::Properness,
                 ),
                 _,
@@ -10389,6 +10404,7 @@ fn validate_lowerable_feature_compositions(
                         | ParsedFeature::Compoundability
                         | ParsedFeature::Countability
                         | ParsedFeature::HomographLicense
+                        | ParsedFeature::MannerAnaphorClass
                         | ParsedFeature::Properness
                         | ParsedFeature::Relationality,
                     ..
@@ -10646,6 +10662,7 @@ fn parsed_feature_name(feature: ParsedFeature) -> &'static str {
         ParsedFeature::Compoundability => "compoundability",
         ParsedFeature::Countability => "countability",
         ParsedFeature::HomographLicense => "homograph_license",
+        ParsedFeature::MannerAnaphorClass => "manner_anaphor_class",
         ParsedFeature::ModifierLicense => "modifier_license",
         ParsedFeature::DeterminerNumber => "determiner_number",
         ParsedFeature::FusedHeadLicense => "fused_head_license",
@@ -17013,7 +17030,7 @@ pub(crate) mod tests {
         assert_eq!(validated.semantic().constructions().len(), 6);
         assert_eq!(validated.semantic().terminals().len(), 8);
         assert_eq!(validated.semantic().roots().len(), 1);
-        assert_eq!(expansion.plan().items().len(), 147);
+        assert_eq!(expansion.plan().items().len(), 148);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -17378,7 +17395,7 @@ pub(crate) mod tests {
             snapshot.dynamic_number_constructions,
             vec!["leaf".to_owned()]
         );
-        assert_eq!(expansion.plan().items().len(), 147);
+        assert_eq!(expansion.plan().items().len(), 148);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -17518,7 +17535,7 @@ pub(crate) mod tests {
 
         let emission = crate::plan::plan_emission(validated.semantic())
             .expect("the already validated semantic plan emits");
-        assert_eq!(emission.items().len(), 147);
+        assert_eq!(emission.items().len(), 148);
         assert!(emission.items().iter().any(|item| {
             matches!(
                 &item.key,

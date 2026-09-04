@@ -409,7 +409,9 @@ fn declaration_determinative_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
             };
             let fused_head = match member.fused_head_license() {
                 crate::macro_def::DeterminativeFusedHeadLicense::NominalOnly => quote! { FusedHeadLicense::NominalOnly },
+                crate::macro_def::DeterminativeFusedHeadLicense::PartitiveOnly => quote! { FusedHeadLicense::PartitiveOnly },
                 crate::macro_def::DeterminativeFusedHeadLicense::FusedHead => quote! { FusedHeadLicense::FusedHead },
+                crate::macro_def::DeterminativeFusedHeadLicense::PluralPredeterminer => quote! { FusedHeadLicense::PluralPredeterminer },
             };
             quote! { if let Some(end) = input.word_end(#surface, terminal.right_boundary) { matches.push(LexicalMatch { end, value: Leaf::#ty { value: #ty::Closed(#lemma::#member_name), onset: #onset, following_onset: #following_onset, number_license: #number, fused_head_license: #fused_head, nominal_license: #nominal }, owner: None }); } }
         }));
@@ -573,6 +575,7 @@ fn declaration_noun_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
             | crate::feature::Feature::Compoundability
             | crate::feature::Feature::Countability
             | crate::feature::Feature::HomographLicense
+            | crate::feature::Feature::MannerAnaphorClass
             | crate::feature::Feature::ModifierLicense
             | crate::feature::Feature::DeterminerNumber
             | crate::feature::Feature::FusedHeadLicense

@@ -14,15 +14,8 @@ use serde::Deserialize;
 use serde::Serialize;
 use syn::visit::Visit as _;
 
-/// The word-naming `checked by` guards `english-v2-this-way-lexeme-guard`
-/// retires. The gate accepts exactly these and rejects a sixth.
-const GRANDFATHERED_FORBIDDEN: [&str; 5] = [
-    "determinative_is_independent_fused",
-    "determinative_is_plural_all",
-    "nominal_object_is_not_fused_all",
-    "noun_is_way",
-    "singular_demonstrative_is_this",
-];
+/// No word-naming `checked by` guard is grandfathered.
+const GRANDFATHERED_FORBIDDEN: [&str; 0] = [];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -430,7 +423,7 @@ impl BodyClassifier<'_> {
 fn is_declared_feature_identifier(identifier: &str) -> bool {
     // Hand-copied from deckmaste_construction_core's sealed `Feature`;
     // `construction-core-feature-key-inventory` publishes the list to consume.
-    const FEATURE_NAMES: [&str; 21] = [
+    const FEATURE_NAMES: [&str; 22] = [
         "agreement",
         "bare_locative_complement",
         "bare_locative_license",
@@ -441,6 +434,7 @@ fn is_declared_feature_identifier(identifier: &str) -> bool {
         "fused_head_license",
         "homograph_license",
         "locative_temporal_license",
+        "manner_anaphor_class",
         "modifier_license",
         "nominal_form",
         "nominal_license",
@@ -500,23 +494,14 @@ mod tests {
             .map(LicensingChecker::identity)
             .collect::<Vec<_>>();
 
-        assert_eq!(
-            forbidden,
-            [
-                "determinative_is_independent_fused",
-                "determinative_is_plural_all",
-                "nominal_object_is_not_fused_all",
-                "noun_is_way",
-                "singular_demonstrative_is_this",
-            ]
-        );
+        assert!(forbidden.is_empty());
         assert_eq!(
             census.permitted_total() + census.forbidden_total(),
             census.rows().len()
         );
         census
             .enforce_forbidden_policy()
-            .expect("the grandfathered five remain accepted until retirement");
+            .expect("production has no word-naming checker");
     }
 
     #[test]

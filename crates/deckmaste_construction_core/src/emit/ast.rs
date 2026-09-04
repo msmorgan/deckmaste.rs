@@ -996,6 +996,9 @@ fn resolve_constructor_feature(
             if plan
                 .runtime_declaration_noun_for(stored.terminal())
                 .is_some()
+                || plan
+                    .runtime_declaration_determinative_for(stored.terminal())
+                    .is_some()
             {
                 quote! { #function(&#field) }
             } else {
@@ -1095,6 +1098,8 @@ fn feature_value(value: crate::feature::FeatureValue) -> TokenStream {
         crate::feature::FeatureValue::HomographLicensed => {
             quote! { HomographLicense::Licensed }
         }
+        crate::feature::FeatureValue::OtherNoun => quote! { MannerAnaphorClass::OtherNoun },
+        crate::feature::FeatureValue::MannerAnaphor => quote! { MannerAnaphorClass::MannerAnaphor },
         crate::feature::FeatureValue::Unrestricted => quote! { ModifierLicense::Unrestricted },
         crate::feature::FeatureValue::LocalDeterminer => {
             quote! { ModifierLicense::LocalDeterminer }
@@ -1165,7 +1170,11 @@ fn feature_value(value: crate::feature::FeatureValue) -> TokenStream {
         crate::feature::FeatureValue::PluralOnly => quote! { DeterminerNumber::PluralOnly },
         crate::feature::FeatureValue::Both => quote! { DeterminerNumber::Both },
         crate::feature::FeatureValue::NominalOnly => quote! { FusedHeadLicense::NominalOnly },
+        crate::feature::FeatureValue::PartitiveOnly => quote! { FusedHeadLicense::PartitiveOnly },
         crate::feature::FeatureValue::FusedHead => quote! { FusedHeadLicense::FusedHead },
+        crate::feature::FeatureValue::PluralPredeterminer => {
+            quote! { FusedHeadLicense::PluralPredeterminer }
+        }
         crate::feature::FeatureValue::BareSingularNoun => quote! { NominalForm::BareSingularNoun },
         crate::feature::FeatureValue::ModifiedSingularNoun => {
             quote! { NominalForm::ModifiedSingularNoun }
@@ -2171,6 +2180,7 @@ mod tests {
                 "Relationality",
                 "DeterminerNumber",
                 "FusedHeadLicense",
+                "MannerAnaphorClass",
                 "NominalForm",
                 "NominalLicense",
                 "Number",
