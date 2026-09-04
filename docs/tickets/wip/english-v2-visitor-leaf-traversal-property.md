@@ -74,14 +74,16 @@ lock identities. The measured lock has 49,421 lines and SHA-256
   clippy probe reached ten pre-existing `unneeded_wildcard_pattern` findings in
   refreshed-parent `deckmaste_lowering/src/card.rs`; this feature does not
   touch that file.
-- Performance advisory: with `pgrep -c -x codex` equal to 1 before each run,
-  measured-tree coverage took 30.265 s at 141,752 accepted thread-CPU
-  nanoseconds per byte (load 20.51 / 22.27 / 18.21), and ambiguity took 28.369
-  s at 129,314 ns/B (load 19.34 / 21.73 / 18.22). Direct refreshed-parent
-  coverage took 31.554 s at 121,563 ns/B (load 34.46 / 24.58 / 18.36), and
-  ambiguity took 23.472 s at 113,578 ns/B (load 27.96 / 24.30 / 18.53). All
-  four exceeded the 16.26 s quiet-host ceiling under elevated load; the
-  advisory fired and both gates remained green.
+- Performance advisory: after the post-commit changed refresh,
+  measured-tree coverage took 25.704 s at 111,764 accepted thread-CPU
+  nanoseconds per byte (load 22.99 / 22.01 / 23.17), and ambiguity took 24.134
+  s at 112,330 ns/B (load 21.26 / 21.85 / 23.18), with `pgrep -c -x codex`
+  equal to 1 before both. Direct refreshed-parent coverage took 23.275 s at
+  106,088 ns/B (load 12.75 / 19.54 / 22.69) with 4 Codex processes, and
+  ambiguity took 27.644 s at 125,567 ns/B (load 21.63 / 20.95 / 23.03) with 3.
+  All four used 24 workers and exceeded the 16.26 s quiet-host ceiling under
+  elevated load or concurrent Codex activity; the advisory fired and both
+  gates remained green.
 - Assurance census: restored 0; re-spelled 0; ignored with blockers 0; added 0
   standalone test functions; removed 0. Six existing test functions were
   extended: three emitter fixtures and three coverage/report fixtures. An
@@ -97,6 +99,7 @@ lock identities. The measured lock has 49,421 lines and SHA-256
   English glossary entries define Construction, Constituent, and Lexeme, but
   do not name this evidence stream.
 - STOPs: none. One refresh was delayed by a sibling workspace's divergent
-  change; it was left untouched and the later refresh succeeded. Coverage did
-  not drop, no tie appeared, and no newly covered negative or wrong parse was
-  admitted.
+  change; it was left untouched and the later refresh succeeded. The required
+  post-commit refresh rewrote the stack, so the parent and measured tree were
+  both remeasured and this record was updated. Coverage did not drop, no tie
+  appeared, and no newly covered negative or wrong parse was admitted.
