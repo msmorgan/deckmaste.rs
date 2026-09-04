@@ -95,6 +95,16 @@ Authority: `docs/decisions/english-v2-rewrite.md` (cutover plan). Until cutover:
   many" replacement, so infect, wither, and doubled mill were all dead on
   trunk until the restoration round.
 
+## Gate scope for compiler changes
+
+- Any diff touching `crates/deckmaste_construction_core/src/emit/` (or the
+  emitter↔environment contract the generated code relies on) gates on
+  `cargo test --workspace` — never an enumerated `-p` list. The generated
+  code is exercised only by downstream consumer crates
+  (`deckmaste_construction`'s compiled-consumer fixture among them), so an
+  enumerated list cannot reach the break; three landings shipped a red
+  workspace suite that way before this rule (2026-09-03).
+
 ## Model economy
 
 - **If you are Fable: Fable is expensive.** A sequence of mechanical edits or
