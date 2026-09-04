@@ -837,135 +837,136 @@ impl CoverageSummary {
                 }
             }
             let Some(selected) = &row.selected else { continue };
-            add_field(
-                &mut summary.nonterminal_nodes,
-                selected.nonterminal_nodes,
-                "nonterminal_nodes",
-            )?;
-            add_field(
-                &mut summary.visited_constructions,
-                selected.visited_constructions,
-                "visited_constructions",
-            )?;
-            if selected.traversal_failure.is_some() {
-                checked_increment(
-                    &mut summary.traversal_failure_units,
-                    "traversal_failure_units",
-                )?;
-            }
-            add_field(
-                &mut summary.expected_leaves,
-                selected.expected_leaves,
-                "expected_leaves",
-            )?;
-            add_field(
-                &mut summary.visited_leaves,
-                selected.visited_leaves,
-                "visited_leaves",
-            )?;
-            if selected.leaf_traversal_failure.is_some() {
-                checked_increment(
-                    &mut summary.leaf_traversal_failure_units,
-                    "leaf_traversal_failure_units",
-                )?;
-            }
+            summary.accumulate_traversal(selected)?;
             summary.longest_form_literal_bytes = summary
                 .longest_form_literal_bytes
                 .max(selected.longest_form_literal_bytes);
-            let ownership = &selected.ownership;
             if selected.roundtrip_failure.is_some() {
                 checked_increment(
                     &mut summary.roundtrip_mismatch_units,
                     "roundtrip_mismatch_units",
                 )?;
             }
-            if !ownership.failures.is_empty() {
-                checked_increment(
-                    &mut summary.ownership_failure_units,
-                    "ownership_failure_units",
-                )?;
-            }
-            add_field(&mut summary.claims, ownership.claims, "claims")?;
-            add_field(
-                &mut summary.claimed_bytes,
-                ownership.claimed_bytes,
-                "claimed_bytes",
-            )?;
-            add_field(
-                &mut summary.form_literal_claims,
-                ownership.form_literal_claims,
-                "form_literal_claims",
-            )?;
-            add_field(
-                &mut summary.form_literal_bytes,
-                ownership.form_literal_bytes,
-                "form_literal_bytes",
-            )?;
-            add_field(
-                &mut summary.vocab_claims,
-                ownership.vocab_claims,
-                "vocab_claims",
-            )?;
-            add_field(
-                &mut summary.vocab_bytes,
-                ownership.vocab_bytes,
-                "vocab_bytes",
-            )?;
-            add_field(
-                &mut summary.lexeme_claims,
-                ownership.lexeme_claims,
-                "lexeme_claims",
-            )?;
-            add_field(
-                &mut summary.lexeme_bytes,
-                ownership.lexeme_bytes,
-                "lexeme_bytes",
-            )?;
-            add_field(
-                &mut summary.codec_claims,
-                ownership.codec_claims,
-                "codec_claims",
-            )?;
-            add_field(
-                &mut summary.codec_bytes,
-                ownership.codec_bytes,
-                "codec_bytes",
-            )?;
-            add_field(
-                &mut summary.identity_claims,
-                ownership.identity_claims,
-                "identity_claims",
-            )?;
-            add_field(
-                &mut summary.identity_bytes,
-                ownership.identity_bytes,
-                "identity_bytes",
-            )?;
-            add_field(&mut summary.gap_spans, ownership.gap_spans, "gap_spans")?;
-            add_field(&mut summary.gap_bytes, ownership.gap_bytes, "gap_bytes")?;
-            add_field(
-                &mut summary.overlap_spans,
-                ownership.overlap_spans,
-                "overlap_spans",
-            )?;
-            add_field(
-                &mut summary.overlap_bytes,
-                ownership.overlap_bytes,
-                "overlap_bytes",
-            )?;
-            add_field(
-                &mut summary.synthetic_claims,
-                ownership.synthetic_claims,
-                "synthetic_claims",
-            )?;
-            add_field(
-                &mut summary.provenance_plan_mismatches,
-                ownership.provenance_plan_mismatches,
-                "provenance_plan_mismatches",
-            )?;
+            summary.accumulate_ownership(&selected.ownership)?;
         }
         summary.validate()?;
         Ok(summary)
+    }
+
+    fn accumulate_traversal(
+        &mut self,
+        selected: &SelectedCoverage,
+    ) -> Result<(), CoverageValidationError> {
+        add_field(
+            &mut self.nonterminal_nodes,
+            selected.nonterminal_nodes,
+            "nonterminal_nodes",
+        )?;
+        add_field(
+            &mut self.visited_constructions,
+            selected.visited_constructions,
+            "visited_constructions",
+        )?;
+        if selected.traversal_failure.is_some() {
+            checked_increment(&mut self.traversal_failure_units, "traversal_failure_units")?;
+        }
+        add_field(
+            &mut self.expected_leaves,
+            selected.expected_leaves,
+            "expected_leaves",
+        )?;
+        add_field(
+            &mut self.visited_leaves,
+            selected.visited_leaves,
+            "visited_leaves",
+        )?;
+        if selected.leaf_traversal_failure.is_some() {
+            checked_increment(
+                &mut self.leaf_traversal_failure_units,
+                "leaf_traversal_failure_units",
+            )?;
+        }
+        Ok(())
+    }
+
+    fn accumulate_ownership(
+        &mut self,
+        ownership: &CoverageOwnership,
+    ) -> Result<(), CoverageValidationError> {
+        if !ownership.failures.is_empty() {
+            checked_increment(&mut self.ownership_failure_units, "ownership_failure_units")?;
+        }
+        add_field(&mut self.claims, ownership.claims, "claims")?;
+        add_field(
+            &mut self.claimed_bytes,
+            ownership.claimed_bytes,
+            "claimed_bytes",
+        )?;
+        add_field(
+            &mut self.form_literal_claims,
+            ownership.form_literal_claims,
+            "form_literal_claims",
+        )?;
+        add_field(
+            &mut self.form_literal_bytes,
+            ownership.form_literal_bytes,
+            "form_literal_bytes",
+        )?;
+        add_field(
+            &mut self.vocab_claims,
+            ownership.vocab_claims,
+            "vocab_claims",
+        )?;
+        add_field(&mut self.vocab_bytes, ownership.vocab_bytes, "vocab_bytes")?;
+        add_field(
+            &mut self.lexeme_claims,
+            ownership.lexeme_claims,
+            "lexeme_claims",
+        )?;
+        add_field(
+            &mut self.lexeme_bytes,
+            ownership.lexeme_bytes,
+            "lexeme_bytes",
+        )?;
+        add_field(
+            &mut self.codec_claims,
+            ownership.codec_claims,
+            "codec_claims",
+        )?;
+        add_field(&mut self.codec_bytes, ownership.codec_bytes, "codec_bytes")?;
+        add_field(
+            &mut self.identity_claims,
+            ownership.identity_claims,
+            "identity_claims",
+        )?;
+        add_field(
+            &mut self.identity_bytes,
+            ownership.identity_bytes,
+            "identity_bytes",
+        )?;
+        add_field(&mut self.gap_spans, ownership.gap_spans, "gap_spans")?;
+        add_field(&mut self.gap_bytes, ownership.gap_bytes, "gap_bytes")?;
+        add_field(
+            &mut self.overlap_spans,
+            ownership.overlap_spans,
+            "overlap_spans",
+        )?;
+        add_field(
+            &mut self.overlap_bytes,
+            ownership.overlap_bytes,
+            "overlap_bytes",
+        )?;
+        add_field(
+            &mut self.synthetic_claims,
+            ownership.synthetic_claims,
+            "synthetic_claims",
+        )?;
+        add_field(
+            &mut self.provenance_plan_mismatches,
+            ownership.provenance_plan_mismatches,
+            "provenance_plan_mismatches",
+        )?;
+        Ok(())
     }
 
     fn validate(&self) -> Result<(), CoverageValidationError> {
@@ -2355,7 +2356,7 @@ mod tests {
     fn report_and_summary_json_have_the_exact_reviewed_fields() {
         let report = independently_derived_report();
         let json = serde_json::to_value(&report).unwrap();
-        assert_eq!(json["schema_version"], super::REPORT_SCHEMA_VERSION);
+        assert_eq!(json["schema_version"], 7);
         assert_eq!(json["rows"][0]["exception_resolved"], false);
         assert_eq!(json["rows"][0]["exception_uses"], 0);
         assert_eq!(json["rows"][0]["selected"]["nonterminal_nodes"], 17);

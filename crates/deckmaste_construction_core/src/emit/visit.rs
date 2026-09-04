@@ -1530,6 +1530,9 @@ fn enter_leaf_call(plan: &SemanticPlan, terminal: &str) -> syn::Result<TokenStre
     Ok(quote! { visitor.enter_leaf(#label); })
 }
 
+// Renders the same label the emitted `TerminalClass::label` arms in
+// `emit/runtime.rs` render for this terminal. The leaf traversal property
+// compares the two renderings, so a divergence fails the coverage gate.
 fn terminal_label(plan: &SemanticPlan, terminal: &str) -> syn::Result<String> {
     for planned in plan.terminals() {
         let label = match planned {
