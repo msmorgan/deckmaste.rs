@@ -166,3 +166,77 @@ Deviations and additions:
 STOP: none. No shape choice contradicted a recorded ruling or the ticket's
 letter; every printed card shape reachable before stays reachable, and the
 `workbench-ability-kind-fold` overlap is left open as the ADR §3 sweep expects.
+
+### Follow-up: candidate-domain drift (2026-09-04)
+
+**Root cause.** The round narrowed the candidate domain only on the lowering
+path (`region::predicate_region` retags from `Predicate::subject_domain`) and
+left `deckmaste_core::Region::candidate` — the constructor every hand-built
+region uses — declaring the widest `Domain::Entity`, so the Ascend gate's
+Object-only census declared `Candidate(Object)` when lowered and
+`Candidate(Entity)` everywhere else; `deckmaste_migrations` and
+`deckmaste_noncanon` were outside the round's test gate, so neither resulting
+breakage was seen before integrate.
+
+**Fix.**
+
+- `Region::candidate` no longer takes the widest domain: it reads the declared
+  domain from the body through a new `deckmaste_core::CandidateBody` trait
+  (`Predicate` answers `subject_domain()`; `Condition`, `Count`,
+  `StaticEffect`, and `Block` answer `Domain::Entity`, since a value or effect
+  computed per candidate says nothing about the candidate's Entity class).
+  `Region::over` is now the predicate-named spelling of the same thing, so
+  core, engine, and lowering cannot disagree by construction.
+- The migrations drift guard's hand-written canonical carried a stale
+  `Domain::Entity` where the gate's atoms (`InZone(Battlefield)`,
+  `ControlledBy`) admit only objects; corrected to `Domain::Object`. The
+  `ASCEND_GATE` constant and every other field of the canonical `Condition`
+  are untouched.
+- `crates/deckmaste_noncanon/strategies/sped_red.ron` still spelled the
+  retired core `Kind(Player)`; re-spelled `Entity(Player)` (plus the matching
+  prose in `strategy.rs`).
+
+**New test.**
+`deckmaste_lowering::region::tests::both_predicate_region_paths_declare_the_same_candidate_domain`
+— lowers three semantic predicates and asserts lowering's `predicate_region`,
+`Region::over`, and `Region::candidate` all declare the same domain, and that
+it is `Object` for the Ascend gate's body, `Player` for `Kind(Player)`, and
+`Entity` for `Any`.
+
+Gates (foreground, last line of each):
+
+- `cargo check --workspace` → ``Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.06s``
+- `cargo fmt --check` → exit 0, no diff
+- `cargo test --workspace` → 6085 passed, 0 failed, 6 ignored across 127 test
+  binaries; `resolve::tests::ascend_gate_const_matches_canonical_condition ... ok`
+- `cargo xtask cite check --list-noncompliant` → `0 non-compliant citation-looking string(s)`
+- `cargo xtask cite check` → `checked 18049 citations against cr.txt (eff. 2026-08-07); 0 stale`
+- `jj --no-pager diff --git | cargo xtask cite audit --diff` → `audited 3 citation site(s)`, each read against its claim
+- `idris/` unchanged, so its build was not re-run.
+
+Assurance counts: restored 0; re-spelled 1; ignored-with-blocker 0; added 1;
+removed 0. The re-spelling is `deckmaste_engine::condition::tests::compare_counts_stack_census`,
+whose fixture minted the in-flight announce's occupant as `ObjectSource::Player`
+— a player proxy standing in for a spell. `Objects(InZone(Stack))` now correctly
+declares the Object domain and does not count a player, so the fixture mints a
+card-backed occupant instead. Same subject, same asserted outcome.
+
+**Deviations and additions.**
+
+- **The brief's premise that both sides of the drift guard are lowerings is
+  wrong**, and the correction changes one token in the guard. The `canonical`
+  side is a hand-typed `Condition` literal inside the test; the landing round
+  re-spelled its `Provenance::Candidate` → `Provenance::Candidate(Domain::Entity)`
+  mechanically without applying the round's own new narrowing rule. Since
+  `Objects(InZone(Battlefield) ∧ ControlledBy(You))` is an Object-domain count
+  — which the brief itself names as the expected answer — the literal had to
+  become `Domain::Object`. The guard's subject (the `ASCEND_GATE` RON string
+  and the whole rest of the lowered `Condition`) is unchanged, so this restores
+  the guard rather than weakening it.
+- **`deckmaste_noncanon` fixed too**, beyond the brief's core/lowering scope: it
+  carried a second, independent breakage from the same landing round's gate gap
+  and blocked `cargo test --workspace`.
+- **One test-helper signature gained a bound** (`resolve::effect::tests::candidate_region`
+  now requires `T: CandidateBody`) — mechanical, compiler-driven.
+
+STOP: none.

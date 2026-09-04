@@ -58,7 +58,7 @@ impl Strategy for MatchupStrategy {
             }
             // Burn targeting (aim at the opponent's face) is now pure RON: the
             // strategy `among` filter resolves `Ref(You)` from the acting seat,
-            // so `AllOf([Kind(Player), Not(Ref(You))])` names the opponent.
+            // so `AllOf([Entity(Player), Not(Ref(You))])` names the opponent.
             _ => self.inner.decide(state, pending),
         }
     }

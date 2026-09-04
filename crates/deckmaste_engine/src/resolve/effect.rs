@@ -5434,7 +5434,9 @@ mod tests {
     }
 
     /// A per-candidate predicate region.
-    fn candidate_region<T>(body: T) -> Arc<deckmaste_core::Region<T>> {
+    fn candidate_region<T: deckmaste_core::CandidateBody>(
+        body: T,
+    ) -> Arc<deckmaste_core::Region<T>> {
         Arc::new(deckmaste_core::Region::candidate(body))
     }
 

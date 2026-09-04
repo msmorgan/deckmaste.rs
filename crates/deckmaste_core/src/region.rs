@@ -215,10 +215,17 @@ impl<T> Region<T> {
     }
 
     /// Construct a predicate-like region whose subject is register zero,
-    /// ranging over the widest Entity domain.
+    /// declaring the narrowest Entity domain the body's own subject admits
+    /// ([CR#109.1,102.1] — ADR law 2). The declared domain is a function of
+    /// the body alone, so a region built here and the same region built by
+    /// lowering declare the same domain.
     #[must_use]
-    pub fn candidate(body: T) -> Self {
-        Self::candidate_in(crate::Domain::Entity, body)
+    pub fn candidate(body: T) -> Self
+    where
+        T: CandidateBody,
+    {
+        let domain = body.candidate_domain();
+        Self::candidate_in(domain, body)
     }
 
     /// Construct a predicate-like region whose subject is register zero and
@@ -291,12 +298,47 @@ impl Region<crate::Predicate> {
     /// every per-candidate region this way, so a filter that only Objects can
     /// satisfy declares the Object domain and one that only Players can
     /// satisfy declares the Player domain.
+    ///
+    /// The predicate-named spelling of [`Region::candidate`]; both declare the
+    /// same domain for the same body.
     #[must_use]
     pub fn over(body: crate::Predicate) -> Self {
-        let domain = body.subject_domain();
-        Self::candidate_in(domain, body)
+        Self::candidate(body)
     }
 }
+
+/// A body a candidate region can carry, and the Entity domain its subject
+/// admits ([CR#109.1,102.1] — ADR law 2).
+///
+/// [`Region::candidate`] reads the declared domain from here rather than
+/// taking it as an argument, so every construction of the same candidate
+/// region agrees — core, engine, and lowering alike. Only a predicate body
+/// classifies its own subject; every other body leaves the candidate
+/// unconstrained at the Entity boundary and answers [`crate::Domain::Entity`].
+pub trait CandidateBody {
+    /// The narrowest Entity domain this body's candidate can inhabit.
+    fn candidate_domain(&self) -> crate::Domain;
+}
+
+impl CandidateBody for crate::Predicate {
+    fn candidate_domain(&self) -> crate::Domain {
+        self.subject_domain()
+    }
+}
+
+/// Bodies that say nothing about their candidate's Entity class: a value or
+/// effect computed PER candidate, whose domain the enclosing selection fixes.
+macro_rules! unconstrained_candidate_body {
+    ($($body:ty),+ $(,)?) => {$(
+        impl CandidateBody for $body {
+            fn candidate_domain(&self) -> crate::Domain {
+                crate::Domain::Entity
+            }
+        }
+    )+};
+}
+
+unconstrained_candidate_body!(crate::Condition, crate::Count, crate::StaticEffect, Block,);
 
 impl From<OneShotEffect> for Region<Block> {
     fn from(effect: OneShotEffect) -> Self {

@@ -217,6 +217,7 @@ pub use quantity::Quantity;
 
 mod region;
 pub use region::Block;
+pub use region::CandidateBody;
 pub use region::DefId;
 pub use region::Expr;
 pub use region::Kind;

@@ -801,9 +801,15 @@ mod tests {
             "Compare(CountOf(InZone(Stack)), Eq, Literal(0)) should hold on a fresh game (stack empty)"
         );
 
-        // In-flight announce: the slot counts as a stack occupant.
+        // In-flight announce: the slot counts as a stack occupant. The
+        // occupant is card-backed — `Objects(InZone(Stack))` declares the
+        // Object domain, so a player proxy is not a candidate for it.
+        let card = state.cards.push(
+            Arc::new(canon().card("Grizzly Bears").unwrap().core),
+            PlayerId(0),
+        );
         let spell = state.objects.mint(
-            crate::object::ObjectSource::Player(PlayerId(0)),
+            crate::object::ObjectSource::Card(card),
             PlayerId(0),
             Some(deckmaste_core::Zone::Stack),
         );

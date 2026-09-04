@@ -1570,4 +1570,44 @@ mod tests {
         let (_, two) = super::in_region(RegionKind::Spell, 2, super::it);
         assert_eq!(two, None, "two slots are ambiguous — name them");
     }
+
+    /// Drift guard for the Entity boundary: the SAME predicate must declare
+    /// the same candidate domain whichever path builds its region
+    /// ([CR#109.1,102.1] — ADR law 2). The two paths are lowering's
+    /// [`super::predicate_region`] and core's `Region::over`/`Region::candidate`;
+    /// the first case is the Ascend gate's count, an Object-domain census on
+    /// both. A hand-written region that disagrees with either is drift.
+    #[test]
+    fn both_predicate_region_paths_declare_the_same_candidate_domain() {
+        use crate::Lower as _;
+
+        for (spelling, expected) in [
+            (
+                "And([InZone(Battlefield), ControlledBy(Ref(You))])",
+                deckmaste_core::Domain::Object,
+            ),
+            ("Kind(Player)", deckmaste_core::Domain::Player),
+            ("Any", deckmaste_core::Domain::Entity),
+        ] {
+            let semantic: deckmaste_semantics::Predicate = deckmaste_semantics::ron::options()
+                .from_str(spelling)
+                .expect("the spelling parses as a semantic predicate");
+            let lowered = super::predicate_region(|| semantic.lower());
+            assert_eq!(
+                lowered.candidate_domain(),
+                expected,
+                "lowering declared the wrong domain for `{spelling}`"
+            );
+            assert_eq!(
+                deckmaste_core::Region::over(lowered.body.clone()).candidate_domain(),
+                lowered.candidate_domain(),
+                "`Region::over` disagrees with lowering for `{spelling}`"
+            );
+            assert_eq!(
+                deckmaste_core::Region::candidate(lowered.body.clone()).candidate_domain(),
+                lowered.candidate_domain(),
+                "`Region::candidate` disagrees with lowering for `{spelling}`"
+            );
+        }
+    }
 }

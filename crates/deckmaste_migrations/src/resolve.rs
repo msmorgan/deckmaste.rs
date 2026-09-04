@@ -536,7 +536,7 @@ mod tests {
                             Param {
                                 def: DefId(0),
                                 kind: Kind::Entity,
-                                provenance: Provenance::Candidate(deckmaste_core::Domain::Entity),
+                                provenance: Provenance::Candidate(deckmaste_core::Domain::Object),
                             },
                             Param {
                                 def: DefId(1),
