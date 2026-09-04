@@ -9,8 +9,14 @@ use std::path::PathBuf;
 use anyhow::Context;
 use anyhow::ensure;
 use clap::Args;
+use deckmaste_construction_core::macro_def::Onset;
 use deckmaste_data::mtgjson::AtomicCards;
 use deckmaste_data::scryfall::Catalog;
+
+const AUTHORED_ONSET_OVERRIDES: &[(&str, Onset)] = &[
+    ("... Catch", Onset::Consonant),
+    ("10,000 Needles", Onset::Consonant),
+];
 
 #[derive(Debug, Args)]
 pub(super) struct FlavorWordsArgs {
@@ -93,18 +99,60 @@ fn expected_stubs(args: &FlavorWordsArgs) -> anyhow::Result<BTreeMap<String, Vec
     let cards = AtomicCards::parse(&card_bytes)
         .with_context(|| format!("parsing {}", args.data.display()))?;
 
+    let surfaces = deckmaste_data::flavor_words::census(&cards, &catalog, &ability_words);
+    let onset_overrides = authored_onset_overrides(&surfaces)?;
     let mut stubs = BTreeMap::new();
     let mut identities = BTreeMap::new();
-    for surface in deckmaste_data::flavor_words::census(&cards, &catalog, &ability_words) {
+    for surface in surfaces {
         let name = declaration_name(surface)?;
         if let Some(other) = identities.insert(name.clone(), surface) {
             anyhow::bail!(
                 "flavor words {other:?} and {surface:?} collide on declaration name {name:?}",
             );
         }
-        stubs.insert(format!("{name}.ron"), render_stub(&name, surface)?);
+        stubs.insert(
+            format!("{name}.ron"),
+            render_stub(&name, surface, &onset_overrides)?,
+        );
     }
     Ok(stubs)
+}
+
+fn authored_onset_overrides(
+    surfaces: &BTreeSet<&str>,
+) -> anyhow::Result<BTreeMap<&'static str, Onset>> {
+    let mut overrides = BTreeMap::new();
+    for &(surface, onset) in AUTHORED_ONSET_OVERRIDES {
+        ensure!(
+            overrides.insert(surface, onset).is_none(),
+            "flavor-word onset override inventory contains duplicate surface {surface:?}",
+        );
+    }
+
+    let stale = overrides
+        .keys()
+        .filter(|surface| !surfaces.contains(**surface))
+        .copied()
+        .collect::<Vec<_>>();
+    ensure!(
+        stale.is_empty(),
+        "flavor-word onset override inventory contains surfaces absent from the census: {stale:?}",
+    );
+
+    let missing = surfaces
+        .iter()
+        .filter(|surface| {
+            deckmaste_construction_core::macro_def::normalize_surface_onset(surface, None).is_none()
+                && !overrides.contains_key(**surface)
+        })
+        .copied()
+        .collect::<Vec<_>>();
+    ensure!(
+        missing.is_empty(),
+        "flavor-word surfaces require authored onset overrides: {missing:?}",
+    );
+
+    Ok(overrides)
 }
 
 fn declaration_name(surface: &str) -> anyhow::Result<String> {
@@ -131,16 +179,25 @@ fn declaration_name(surface: &str) -> anyhow::Result<String> {
     Ok(name)
 }
 
-fn render_stub(name: &str, surface: &str) -> anyhow::Result<Vec<u8>> {
+fn render_stub(
+    name: &str,
+    surface: &str,
+    onset_overrides: &BTreeMap<&str, Onset>,
+) -> anyhow::Result<Vec<u8>> {
     let name = serde_json::to_string(name).context("serializing a flavor-word declaration name")?;
     let serialized_surface =
         serde_json::to_string(surface).context("serializing a flavor-word surface")?;
-    let onset = if deckmaste_construction_core::macro_def::normalize_surface_onset(surface, None)
-        .is_none()
-    {
-        ", onset: Consonant"
-    } else {
-        ""
+    let onset = match onset_overrides.get(surface) {
+        Some(Onset::Consonant) => ", onset: Consonant",
+        Some(Onset::Vowel) => ", onset: Vowel",
+        None => {
+            ensure!(
+                deckmaste_construction_core::macro_def::normalize_surface_onset(surface, None)
+                    .is_some(),
+                "flavor word {surface:?} has no classifiable onset or authored override",
+            );
+            ""
+        }
     };
     Ok(format!(
         "FlavorWord(\n    name: {name},\n    spelling: {serialized_surface},\n    grammar: FixedTerm(surface: {serialized_surface}{onset}),\n)\n"
@@ -238,6 +295,26 @@ impl fmt::Display for StubDiff {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn authored_onset_is_explicit_even_when_the_recipe_can_classify_the_surface() {
+        let overrides = BTreeMap::from([("Aerial Blast", Onset::Vowel)]);
+
+        let stub = render_stub("AerialBlast", "Aerial Blast", &overrides).unwrap();
+
+        assert!(String::from_utf8(stub).unwrap().contains("onset: Vowel"));
+    }
+
+    #[test]
+    fn unclassifiable_surface_without_an_authored_onset_is_rejected() {
+        let error = render_stub("Infinity", "∞", &BTreeMap::new()).unwrap_err();
+
+        assert!(
+            error
+                .to_string()
+                .contains("has no classifiable onset or authored override")
+        );
+    }
 
     #[test]
     fn declaration_names_are_stable_for_punctuation_and_numeric_initials() {

@@ -101,6 +101,9 @@ jobs:
           cargo xtask catalogs check
           cargo xtask catalogs text
 
+      - name: check English-v2 flavor-word nursery
+        run: cargo xtask english_v2 flavor-words --check
+
       # Generate the gitignored `plugins/wizards` corpus from the staged mtgjson
       # AtomicCards, so each crate's build.rs sets `wizards_corpus` and the
       # otherwise-`ignored` corpus tests run. `generate` runs subtype stubs +
