@@ -61,3 +61,14 @@ schema-4 lock remains 49,352 lines with SHA-256
   after deriving its corpus and catalog inputs.
 - No flavor-word stub, grammar declaration, construction, or coverage-lock
   byte changed.
+
+### Erratum (landing review, 2026-09-03)
+
+- Performance advisory (measured by the reviewer, absent from the record):
+  `coverage --check` elapsed 18.74s wall (ceiling 16.26s quiet-host; host load
+  34–46 from concurrent executors, so the warning is load, not regression),
+  accepted CPU 114.7 µs/B; `ambiguity --require-resolved` 42.9s, 148.7 µs/B.
+- The `stale` and `duplicate` override-inventory branches in
+  `crates/xtask/src/english_v2/flavor_words.rs` are unpinned (only `missing`
+  is backstopped by a tested `ensure!`). Follow-up:
+  `builtin-v2-flavor-word-override-inventory-closure`.
