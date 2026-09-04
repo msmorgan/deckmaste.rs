@@ -2211,6 +2211,10 @@ keywordStackRegime : KeywordLabel -> Maybe StackRegime
 keywordStackRegime k = keywordFactsFor k >>= regime
 
 public export
+keywordFunctionsOnStack : KeywordLabel -> Bool
+keywordFunctionsOnStack k = maybe False functionsOnStack (keywordFactsFor k)
+
+public export
 data PaidCostName : Type where
   ByKeyword : (kw : KeywordLabel) -> PaidCostName
   ByNthKeyword : (ord : Ordinal) -> (kw : KeywordLabel) -> PaidCostName

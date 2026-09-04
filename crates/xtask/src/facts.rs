@@ -149,6 +149,7 @@ struct Row {
     extra: &'static [Shape],
     counter_eligible: bool,
     regime: Option<Regime>,
+    functions_on_stack: bool,
     on_permanent_card: bool,
     on_spell_card: bool,
     paid_cost: bool,
@@ -163,6 +164,7 @@ const D: Row = Row {
     extra: &[],
     counter_eligible: false,
     regime: None,
+    functions_on_stack: false,
     on_permanent_card: true,
     on_spell_card: false,
     paid_cost: false,
@@ -224,18 +226,21 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Convoke",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_spell_card: true,
             ..D
         },
         Row {
             label: "Improvise",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_spell_card: true,
             ..D
         },
         Row {
             label: "Storm",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_spell_card: true,
             bodied: true,
             ..D
@@ -294,12 +299,14 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Flash",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_spell_card: true,
             ..D
         },
         Row {
             label: "Kicker",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_spell_card: true,
             paid_cost: true,
             ..D
@@ -308,6 +315,7 @@ fn overlay() -> Vec<Row> {
             label: "Multikicker",
             extra: &[Shape::Cost],
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_spell_card: true,
             paid_cost: true,
             ..D
@@ -387,6 +395,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Warp",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_spell_card: true,
             paid_cost: true,
             ..D
@@ -411,6 +420,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Affinity",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_spell_card: true,
             ..D
         },
@@ -455,6 +465,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Emerge",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_spell_card: true,
             paid_cost: true,
             ..D
@@ -473,6 +484,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Prowl",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_spell_card: true,
             paid_cost: true,
             ..D
@@ -480,6 +492,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Surge",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_spell_card: true,
             paid_cost: true,
             ..D
@@ -487,6 +500,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Spectacle",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_spell_card: true,
             paid_cost: true,
             ..D
@@ -494,6 +508,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Freerunning",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_spell_card: true,
             paid_cost: true,
             ..D
@@ -501,6 +516,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Sneak",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_spell_card: true,
             paid_cost: true,
             ..D
@@ -526,6 +542,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Entwine",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_spell_card: true,
             paid_cost: true,
             wants_modes: true,
@@ -534,6 +551,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Escalate",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_spell_card: true,
             paid_cost: true,
             wants_modes: true,
@@ -542,6 +560,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Fuse",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_permanent_card: false,
             on_spell_card: true,
             ..D
@@ -571,12 +590,14 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Mutate",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             paid_cost: true,
             ..D
         },
         Row {
             label: "Overload",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_permanent_card: false,
             on_spell_card: true,
             paid_cost: true,
@@ -585,6 +606,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Dash",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             paid_cost: true,
             ..D
         },
@@ -596,12 +618,14 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Blitz",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             paid_cost: true,
             ..D
         },
         Row {
             label: "Cleave",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_permanent_card: false,
             on_spell_card: true,
             paid_cost: true,
@@ -617,12 +641,14 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Impending",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             paid_cost: true,
             ..D
         },
         Row {
             label: "Awaken",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_permanent_card: false,
             on_spell_card: true,
             paid_cost: true,
@@ -631,6 +657,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Buyback",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_permanent_card: false,
             on_spell_card: true,
             paid_cost: true,
@@ -639,6 +666,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Casualty",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_spell_card: true,
             paid_cost: true,
             ..D
@@ -646,18 +674,21 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Squad",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             paid_cost: true,
             ..D
         },
         Row {
             label: "Offspring",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             paid_cost: true,
             ..D
         },
         Row {
             label: "Gift",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_spell_card: true,
             paid_cost: true,
             ..D
@@ -665,6 +696,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Replicate",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_permanent_card: false,
             on_spell_card: true,
             paid_cost: true,
@@ -675,7 +707,8 @@ fn overlay() -> Vec<Row> {
         // while the spell is on the stack [CR#702.66a] (the convoke shape);
         // cascade [CR#702.85a] and prowess [CR#702.108a] are triggered
         // abilities with a quoted cast trigger, so they are bodied at
-        // casting; exalted [CR#702.83a] is triggered off an attack, so its
+        // casting, though only cascade's functions on the stack [CR#113.6];
+        // exalted [CR#702.83a] is triggered off an attack, so its
         // body carries no stack regime; decayed [CR#702.147a] is a static
         // ability AND a triggered one, so it is not bodied; infect
         // [CR#702.90a] modifies damage, like deathtouch and lifelink; split
@@ -685,6 +718,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Delve",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_spell_card: true,
             ..D
         },
@@ -696,6 +730,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Cascade",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_spell_card: true,
             bodied: true,
             ..D
@@ -739,9 +774,11 @@ fn overlay() -> Vec<Row> {
         // The rowless stubs, rowed. Each gate column follows the keyword's own
         // CR entry [CR#702]: `bodied` where the entry defines one triggered
         // ability with a quoted expansion, `paidCost` where it names a
-        // "[keyword] cost" [CR#702.1a], `regime` `AtCasting` where the ability
-        // functions while the spell is on the stack and `AtResolution` where it
-        // modifies the damage its source deals [CR#120.3], `onPermanentCard` /
+        // "[keyword] cost" [CR#702.1a], `regime` `AtCasting` where the body
+        // keys on a spell cast and `AtResolution` where it modifies the damage
+        // its source deals [CR#120.3], `functionsOnStack` where the ability
+        // functions only while the object is on the stack [CR#113.6],
+        // `onPermanentCard` /
         // `onSpellCard` from the entry's own card-type wording and the printed
         // corpus, `wantsModes` for the modal-spell keywords [CR#702.172a,702.183a].
         // No new row is a keyword counter [CR#122.1b].
@@ -767,6 +804,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Assist",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_spell_card: true,
             ..D
         },
@@ -783,6 +821,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Bargain",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_spell_card: true,
             ..D
         },
@@ -802,6 +841,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Cipher",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_permanent_card: false,
             on_spell_card: true,
             ..D
@@ -813,6 +853,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Conspire",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_spell_card: true,
             paid_cost: true,
             ..D
@@ -824,6 +865,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Demonstrate",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_spell_card: true,
             bodied: true,
             ..D
@@ -928,6 +970,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Gravestorm",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_spell_card: true,
             bodied: true,
             ..D
@@ -1035,6 +1078,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Offering",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             ..D
         },
         Row {
@@ -1088,6 +1132,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Rebound",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_permanent_card: false,
             on_spell_card: true,
             ..D
@@ -1114,6 +1159,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Ripple",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_spell_card: true,
             bodied: true,
             ..D
@@ -1149,6 +1195,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Spree",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_spell_card: true,
             wants_modes: true,
             ..D
@@ -1168,12 +1215,14 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Teamwork",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_spell_card: true,
             ..D
         },
         Row {
             label: "Tiered",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_spell_card: true,
             wants_modes: true,
             ..D
@@ -1209,6 +1258,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Undaunted",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_spell_card: true,
             ..D
         },
@@ -1232,6 +1282,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "WebSlinging",
             regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             paid_cost: true,
             ..D
         },
@@ -1345,6 +1396,9 @@ fn render(root: &Path) -> anyhow::Result<String> {
         if let Some(regime) = row.regime {
             fields.push(format!("regime := Just {}", regime.idris()));
         }
+        if row.functions_on_stack {
+            fields.push("functionsOnStack := True".to_owned());
+        }
         if !row.on_permanent_card {
             fields.push("onPermanentCard := False".to_owned());
         }
@@ -1427,8 +1481,9 @@ const DESIGNATION_SCOPE: &str = "both directions bind, through the stub-name →
                                  constructor mapping below, because a stub name is not the Idris \
                                  constructor name.";
 
-const GATE_COLUMNS: &str = "gate columns (counterEligible, regime, onPermanentCard, onSpellCard, \
-                            paidCost, bodied, wantsModes) stay hand-kept in xtask's overlay: \
+const GATE_COLUMNS: &str = "gate columns (counterEligible, regime, functionsOnStack, \
+                            onPermanentCard, onSpellCard, paidCost, bodied, wantsModes) stay \
+                            hand-kept in xtask's overlay: \
                             plugins/builtin_v2/macros/meta/KeywordAbility.ron declares no field \
                             that could carry them, and its `metadata` block is read into \
                             deckmaste_construction_core::macro_def::Metadata, which is \
@@ -1444,15 +1499,19 @@ const ROLE_COLUMNS: &str = "actFacts role columns (agentRole, patientRole) stay 
                             so each is authored as a bench sentence spells its deed. The \
                             destination column is a CR fact and is authored from the entry.";
 
-const REGIME_AXIS: &str = "regime carries two facts on one axis: Effect.keywordBodyFits reads it \
-                           as `the keyword's triggered body keys on a spell cast`, \
-                           Effect.grantSubjectFits as `the keyword functions only while its \
-                           object is on the stack`. Prowess, extort and increment are triggered \
-                           abilities of permanents [CR#702.108a,702.101a,702.191a], which \
-                           function on the battlefield [CR#113.6], so their Just AtCasting makes \
-                           `Other creatures you control have prowess` (Bria, Riptide Rogue) \
-                           unspellable. Separating the two columns rewrites Effect.abRegime, so \
-                           it is recorded here rather than taken.";
+const REGIME_AXIS: &str = "regime and functionsOnStack are two columns because they are two \
+                           facts: Effect.keywordBodyFits reads regime as `the keyword's \
+                           triggered body keys on a spell cast`, Effect.grantSubjectFits reads \
+                           functionsOnStack as `the keyword's ability functions only while its \
+                           object is on the stack` [CR#113.6,113.6d,113.6e]. The 46 cost, \
+                           alternative-cast and cast-trigger keywords carry both; prowess, \
+                           extort and increment carry regime alone, because each is a triggered \
+                           ability of a permanent [CR#702.108a,702.101a,702.191a] and so \
+                           functions on the battlefield [CR#113.6]. A keyword whose ability also \
+                           functions in the zone a grant subject sits in — flashback \
+                           [CR#702.34a] and its graveyard-cast siblings [CR#113.6e] — carries \
+                           neither, so `Target instant or sorcery card in your graveyard gains \
+                           flashback` stays spellable.";
 
 /// Keyword-ability stubs the workbench does not row.
 const KEYWORD_STUBS_EXEMPT: &[Exempt] = &[Exempt {
@@ -1766,6 +1825,31 @@ mod tests {
             "a row rendered with no admitted parameter shape"
         );
         assert_eq!(text.matches("paramShapes := ").count(), overlay().len());
+    }
+
+    #[test]
+    fn the_stack_column_is_the_grant_gate_and_the_regime_column_is_the_body_axis() {
+        let text = render(&root()).expect("rendering the keyword facts module");
+        for label in ["Prowess", "Extort", "Increment"] {
+            assert!(
+                text.contains(&format!(
+                    "{{ word := \"{label}\", paramShapes := [NoParam], regime := Just \
+                     AtCasting, bodied := True }}"
+                )),
+                "{label}: a triggered ability of a permanent must carry regime alone"
+            );
+        }
+        assert!(text.contains(
+            "{ word := \"Convoke\", paramShapes := [NoParam], regime := Just AtCasting, \
+             functionsOnStack := True"
+        ));
+        for row in overlay() {
+            assert!(
+                !row.functions_on_stack || row.regime == Some(Regime::AtCasting),
+                "{}: functionsOnStack without an AtCasting body regime",
+                row.label
+            );
+        }
     }
 
     #[test]

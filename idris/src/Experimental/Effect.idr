@@ -2343,9 +2343,15 @@ mutual
   abRegime MayBeginOnBattlefield = Nothing
 
   public export
-  castingOnly : Maybe StackRegime -> Bool
-  castingOnly (Just AtCasting) = True
-  castingOnly _ = False
+  abFunctionsOnStack : {0 bs : Bindings} -> AbilityAt bs -> Bool
+  abFunctionsOnStack (KeywordAbility k _ _) = keywordFunctionsOnStack k
+  abFunctionsOnStack (Activated _ _ _ _ _ _) = False
+  abFunctionsOnStack (Triggered _ _ _ _ _ _ _ _ _) = False
+  abFunctionsOnStack (Static _) = False
+  abFunctionsOnStack (AlsoForKeywords ab _) = abFunctionsOnStack ab
+  abFunctionsOnStack (ItalicHead _ ab) = abFunctionsOnStack ab
+  abFunctionsOnStack (Spell _) = False
+  abFunctionsOnStack MayBeginOnBattlefield = False
 
   public export
   regimeMatches : Maybe StackRegime -> Maybe StackRegime -> Bool
@@ -2362,7 +2368,7 @@ mutual
   grantSubjectFits zn reg ab =
     if onStackZone zn
       then regimeMatches (abRegime ab) reg
-      else not (castingOnly (abRegime ab))
+      else not (abFunctionsOnStack ab)
 
   public export
   GrantSubject : {bs : Bindings} -> AbilityAt bs -> Noun bs Object -> Type

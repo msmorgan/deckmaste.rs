@@ -163,6 +163,20 @@ firesongAndSunspeaker =
                              HasPossessor ControllerAx You]))
                 (Macros.keyword "Lifelink"))
 
+briaRiptideRogue : Ability
+briaRiptideRogue =
+  Static (Gains (Macros.allOf (Macros.otherCreatureYouControl Macros.thisCreature))
+                (Macros.keyword "Prowess"))
+
+narsetEnlightenedExile : Ability
+narsetEnlightenedExile =
+  Static (Gains (Macros.allOf Macros.creatureYouControl) (Macros.keyword "Prowess"))
+
+pontiffOfBlight : Ability
+pontiffOfBlight =
+  Static (Gains (Macros.allOf (Macros.otherCreatureYouControl Macros.thisCreature))
+                (Macros.keyword "Extort"))
+
 prismariTheInspiration : Card
 prismariTheInspiration =
   Macros.card "Prismari, the Inspiration"

@@ -84,6 +84,8 @@ record KeywordFacts where
   paramShapes : List KeywordParamShape
   counterEligible : Bool
   regime : Maybe StackRegime
+  ||| True where the ability is the spell's own, so no permanent holds it [CR#113.6].
+  functionsOnStack : Bool
   onPermanentCard : Bool
   onSpellCard : Bool
   paidCost : Bool
@@ -93,4 +95,4 @@ record KeywordFacts where
 
 public export
 defaultKeywordFacts : KeywordFacts
-defaultKeywordFacts = MkKeywordFacts "" [] False Nothing True False False False False
+defaultKeywordFacts = MkKeywordFacts "" [] False Nothing False True False False False False
