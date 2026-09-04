@@ -3,6 +3,6 @@ KeywordAction(
     spelling: "explore",
     grammar: Verb(
         bare: "explore",
-        frame_set: Intransitive,
+        frame_set: Custom(frames: [[], [ObjectNounPhrase]]),
     ),
 )

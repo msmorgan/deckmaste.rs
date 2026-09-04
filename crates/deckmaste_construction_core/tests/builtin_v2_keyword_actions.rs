@@ -164,7 +164,9 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
     assert_eq!(
         action(&declarations, "Explore").grammar().unwrap().recipe(),
         &GrammarRecipe::Verb {
-            frame_set: VerbFrameSet::Intransitive,
+            frame_set: VerbFrameSet::Custom {
+                frames: vec![vec![], vec![CustomTailAtom::ObjectNounPhrase]],
+            },
         }
     );
 
@@ -189,7 +191,11 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
         scry.grammar().unwrap().recipe(),
         &GrammarRecipe::Verb {
             frame_set: VerbFrameSet::Custom {
-                frames: vec![vec![], vec![CustomTailAtom::Amount]],
+                frames: vec![
+                    vec![],
+                    vec![CustomTailAtom::Amount],
+                    vec![CustomTailAtom::ObjectNounPhrase],
+                ],
             },
         }
     );

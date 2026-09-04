@@ -1492,15 +1492,16 @@ fn shared_active_frames_reject_complement_and_concord_class_reciprocals() {
         "You sacrifices target player.",
         "It connive.",
         "You connives.",
+        "Connive target player.",
+        "Scry target player.",
+        "Scry 2 target player.",
     ] {
         assert!(
             parser.parse(text, &context).is_err(),
             "wrong frame or Concord Class must reject {text:?}",
         );
     }
-    assert_selected_with_specificity(&parser, &context, "Connive target player.", true);
-    assert_selected_with_specificity(&parser, &context, "Scry target player.", true);
-    assert_selected_with_specificity(&parser, &context, "Scry 2 target player.", true);
+    assert_selected_with_specificity(&parser, &context, "Scry 2.", true);
     assert_selected_with_specificity(&parser, &context, "Enter target player.", true);
 }
 
@@ -2970,6 +2971,9 @@ fn distributed_quantifiers_and_declared_participle_modifiers_compose() {
     for malformed in [
         "Destroy target activate ability.",
         "Discard up to two card.",
+        "Destroy each X target creatures.",
+        "Destroy each of X target creature.",
+        "Discard up to one cards.",
     ] {
         let result = parser.parse(malformed, &context);
         assert!(
@@ -2977,14 +2981,6 @@ fn distributed_quantifiers_and_declared_participle_modifiers_compose() {
             "malformed distributed nominal must reject {malformed:?}: {result:#?}",
         );
     }
-    assert_selected_with_specificity(&parser, &context, "Destroy each X target creatures.", true);
-    assert_selected_with_specificity(
-        &parser,
-        &context,
-        "Destroy each of X target creature.",
-        true,
-    );
-    assert_selected_with_specificity(&parser, &context, "Discard up to one cards.", true);
 }
 
 #[test]
@@ -3320,6 +3316,8 @@ fn typed_complements_reject_reciprocal_concord_class_amount_number_and_determine
         "Remove a time counter on this card.",
         "Create token.",
         "Target player discards at random two cards.",
+        "Draw 2 cards.",
+        "Destroy two target creature.",
     ] {
         assert!(
             parser.parse(text, &context).is_err(),
@@ -3329,10 +3327,8 @@ fn typed_complements_reject_reciprocal_concord_class_amount_number_and_determine
     assert_selected_with_specificity(&parser, &context, "Deal two damage to any target.", true);
     assert_selected_with_specificity(&parser, &context, "Gain two life.", true);
     assert_selected_with_specificity(&parser, &context, "Lose two life.", true);
-    assert_selected_with_specificity(&parser, &context, "Draw 2 cards.", true);
-    for text in ["Roll one die.", "Destroy two target creature."] {
-        assert_selected_with_specificity(&parser, &context, text, true);
-    }
+    assert_selected_with_specificity(&parser, &context, "Draw two cards.", true);
+    assert_selected_with_specificity(&parser, &context, "Roll one die.", true);
     assert_selected_with_specificity(&parser, &context, "Destroy target creatures.", true);
     assert_selected_with_specificity(
         &parser,
@@ -3475,18 +3471,13 @@ fn movement_location_and_control_frames_reject_reciprocal_heads_prepositions_and
         "You have one or fewer card in hand.",
         "You have three or fewer cards on hand.",
         "Put that card under your control onto the battlefield.",
+        "Search your library a creature card.",
     ] {
         assert!(
             parser.parse(text, &context).is_err(),
             "wrong head, preposition, or tail must reject {text:?}",
         );
     }
-    assert_selected_with_specificity(
-        &parser,
-        &context,
-        "Search your library a creature card.",
-        true,
-    );
 }
 
 #[derive(Default)]
@@ -3644,7 +3635,7 @@ fn this_way_keeps_a_specific_manner_reading_beside_downstream_semantic_rivals() 
     let analysis = parser.analyze(text, &context);
     assert_eq!(analysis.outcome(), ParseAnalysisOutcome::Selected);
     let decision = analysis.decision().expect("syntactic rivals are retained");
-    assert_eq!(decision.candidates().len(), 3);
+    assert_eq!(decision.candidates().len(), 2);
     assert_eq!(decision.resolution(), SelectionResolution::Specificity);
     assert!(decision.exception_uses().is_empty());
     assert!(decision.candidates().iter().any(|candidate| {
@@ -3653,7 +3644,7 @@ fn this_way_keeps_a_specific_manner_reading_beside_downstream_semantic_rivals() 
             .iter()
             .any(|item| item == "PredicateAdjunctMannerPredicateAdjunct")
     }));
-    assert!(decision.candidates().iter().any(|candidate| {
+    assert!(!decision.candidates().iter().any(|candidate| {
         candidate
             .construction_path()
             .iter()
@@ -3780,30 +3771,14 @@ fn attachment_movement_does_not_silently_change_scope() {
         );
     }
 
-    let downstream_only = "You didn't create this way a token.";
-    let analysis = parser.analyze(downstream_only, &context);
-    assert_eq!(analysis.outcome(), ParseAnalysisOutcome::Selected);
-    let selected = analysis
-        .decision()
-        .and_then(|decision| {
-            decision
-                .candidates()
-                .iter()
-                .find(|candidate| Some(candidate.ordinal()) == decision.selected())
-        })
-        .expect("the syntactic reading is explicit");
+    let object_internal_move = "You didn't create this way a token.";
+    let analysis = parser.analyze(object_internal_move, &context);
+    assert_eq!(analysis.outcome(), ParseAnalysisOutcome::ParseFailure);
     assert!(
-        selected
-            .construction_path()
-            .iter()
-            .any(|item| item == "PredicateAdjunctDurationPredicateAdjunct")
+        analysis.selected().is_none(),
+        "an object-internal manner surface has no duration rescue: {analysis:?}"
     );
-    assert!(
-        !selected
-            .construction_path()
-            .iter()
-            .any(|item| item == "PredicateAdjunctMannerPredicateAdjunct")
-    );
+    assert!(parser.parse(object_internal_move, &context).is_err());
 }
 
 #[test]
@@ -3905,7 +3880,7 @@ fn object_internal_discarded_this_way_remains_a_downstream_semantic_decision() {
     let decision = analysis
         .decision()
         .expect("the syntactic reading is explicit");
-    assert_eq!(decision.resolution(), SelectionResolution::Specificity);
+    assert_eq!(decision.resolution(), SelectionResolution::Unique);
     assert!(decision.exception_uses().is_empty());
     let selected = decision
         .candidates()

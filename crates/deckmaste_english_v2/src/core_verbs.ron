@@ -37,7 +37,7 @@
             Role("ControlledCostAction"),
         ]),
     ]),
-    (identity: Cycle, bare: "cycle", third_person: "cycles", frames: [Predicate([])]),
+    (identity: Cycle, bare: "cycle", third_person: "cycles", frames: [Predicate([]), Predicate([ObjectNounPhrase])]),
     (identity: Deal, bare: "deal", third_person: "deals", participle: Some("dealt"), frames: [
         Predicate([
             Amount,

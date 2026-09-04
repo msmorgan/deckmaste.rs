@@ -4,6 +4,6 @@ KeywordAction(
     grammar: Verb(
         bare: "scry",
         third_person: "scries",
-        frame_set: Custom(frames: [[], [Amount]]),
+        frame_set: Custom(frames: [[], [Amount], [ObjectNounPhrase]]),
     ),
 )

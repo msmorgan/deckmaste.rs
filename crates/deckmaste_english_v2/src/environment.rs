@@ -1543,7 +1543,7 @@ mod tests {
             ),
             (CoreVerbIdentity::Control, "control", "controls", None, 1),
             (CoreVerbIdentity::Copy, "copy", "copies", None, 1),
-            (CoreVerbIdentity::Cycle, "cycle", "cycles", None, 1),
+            (CoreVerbIdentity::Cycle, "cycle", "cycles", None, 2),
             (CoreVerbIdentity::Deal, "deal", "deals", Some("dealt"), 6),
             (CoreVerbIdentity::Die, "die", "dies", None, 1),
             (CoreVerbIdentity::Draw, "draw", "draws", Some("drawn"), 3),

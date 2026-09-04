@@ -1874,13 +1874,8 @@ fn assert_selected_activated(parser: &Parser, context: &ParseContext<'_>, text: 
     let decision = analysis
         .decision()
         .expect("a selected activation has a selection decision");
-    if text.contains(" X life.") {
-        assert_eq!(decision.candidates().len(), 2, "{text}: {decision:#?}");
-        assert_eq!(decision.resolution(), SelectionResolution::Specificity);
-    } else {
-        assert_eq!(decision.candidates().len(), 1, "{text}: {decision:#?}");
-        assert_eq!(decision.resolution(), SelectionResolution::Unique);
-    }
+    assert_eq!(decision.candidates().len(), 1, "{text}: {decision:#?}");
+    assert_eq!(decision.resolution(), SelectionResolution::Unique);
     assert_eq!(decision.survivors(), [0], "{text}: {decision:#?}");
     assert_eq!(decision.selected(), Some(0), "{text}: {decision:#?}");
     assert!(decision.exception_uses().is_empty(), "{text}");
@@ -2086,10 +2081,10 @@ fn mixed_activation_has_exact_ast_render_build_visit_and_byte_ownership() {
     let decision = analysis
         .decision()
         .expect("selected mixed activation has a decision");
-    assert_eq!(decision.candidates().len(), 2, "{decision:#?}");
+    assert_eq!(decision.candidates().len(), 1, "{decision:#?}");
     assert_eq!(decision.survivors(), [0], "{decision:#?}");
     assert_eq!(decision.selected(), Some(0), "{decision:#?}");
-    assert_eq!(decision.resolution(), SelectionResolution::Specificity);
+    assert_eq!(decision.resolution(), SelectionResolution::Unique);
     assert!(decision.exception_uses().is_empty());
     assert_eq!(selected.render(&context, parser.environment()), text);
 

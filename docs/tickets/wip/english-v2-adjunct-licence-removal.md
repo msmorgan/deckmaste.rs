@@ -259,3 +259,35 @@ under contention; reported, not a STOP.
 Assurance counts after review: restored 0, re-spelled 8, ignored 0, added 1,
 removed 0. The folded duplicate loop is not an assurance removal — both of its
 witnesses remain asserted in the surviving loop.
+
+### Review corrections, round 2 — coordinator ruling of 2026-09-04
+
+The coordinator ruled that the narrowing closing H1 belongs to this landing and
+folded `english-v2-fixed-duration-endpoint` into this claim. The narrowing, its
+negative witness, the re-measurement and the remaining blockers are recorded in
+`docs/tickets/wip/english-v2-fixed-duration-endpoint.md`. In summary:
+
+- H1 is closed. On Wings of Gold, Red Guardian Super-Soldier and Zedruu the
+  Greathearted no longer parse; the three identities this landing legitimately
+  covers are Veilstone Amulet, Display of Dominance and Deepfathom Echo, each
+  re-read after the narrowing and each the recorded attachment-misselection
+  class with correct constituency.
+- Coverage 16,824 → 16,825 (+3 newly covered, −2 retired). The lock is left at
+  the parent-tip content and is NOT blessed: the two retirements are a
+  coordinator ruling.
+- `licensing_checker_permitted` 25 → 20, forbidden 0. The six deleted readers
+  are the licence predicates this ticket removed; the one addition is the
+  narrowing's `temporal_endpoint_denotes_a_time`, classified
+  `declared_license_feature`.
+- The earlier round-1 numbers in this record (16,830, +6, unique 11,515 /
+  specificity 5,315, the 40-row winner-change census, the 42/40/29/6 counts,
+  and both lock SHA-256s) describe the pre-narrowing tree and are superseded by
+  the endpoint ticket's Numbers section. The +6 they report includes the three
+  wrong analyses.
+- Assurance for the combined landing is counted in the endpoint ticket's
+  record, not here.
+
+Not integrated. Two blocking decisions are listed under "Decision wanted"
+there: the two-identity retirement, and three verb-frame additions
+(`Cycle`, `Explore`, `Scry`) taken to keep the narrowing from dropping 50
+identities instead of 2.

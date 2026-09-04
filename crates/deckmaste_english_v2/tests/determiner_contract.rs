@@ -86,22 +86,22 @@ fn zero_and_quantity_number_are_selected_from_the_complete_determinative() {
         );
     }
 
-    for duration_rival in [
+    // These were rescued by a duration reading of the mis-agreeing object
+    // until the fixed duration phrase required a temporal endpoint.
+    for rescued in [
         "Destroy each creatures.",
         "Destroy one or more target creature.",
         "Destroy up to one target creatures.",
+        "Context Card deals 2 damage to each creatures.",
     ] {
-        let analysis = parser.analyze(duration_rival, &context);
+        let analysis = parser.analyze(rescued, &context);
         assert!(
-            analysis.decision().is_some_and(|decision| {
-                decision.candidates().iter().all(|candidate| {
-                    candidate
-                        .construction_path()
-                        .iter()
-                        .any(|step| *step == "PredicateAdjunctDurationPredicateAdjunct")
-                })
-            }),
-            "the invalid object concord_class has only a syntactic duration reading; temporal semantics is downstream: {analysis:#?}",
+            analysis.selected().is_none(),
+            "the invalid object concord class has no duration rescue: {analysis:#?}",
+        );
+        assert!(
+            parser.parse(rescued, &context).is_err(),
+            "{rescued:?} must be rejected"
         );
     }
 }

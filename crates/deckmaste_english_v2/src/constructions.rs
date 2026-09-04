@@ -1535,7 +1535,9 @@ constructions! {
         form preposed_until_predicate = "until" condition "," body;
     }
     construction fixed_duration_phrase: FixedDurationPhrase {
-        element FixedDurationPhraseValue { endpoint: TemporalEndpoint, }
+        element FixedDurationPhraseValue {
+            endpoint: TemporalEndpoint checked by temporal_endpoint_denotes_a_time(),
+        }
         form fixed_duration_phrase = endpoint;
     }
     construction until_duration_phrase: UntilDurationPhrase {
@@ -5192,6 +5194,18 @@ fn partitive_whole_is_licensed(
         DeterminerNumber::PluralOnly => head_number == Number::Plural && plural_or_mass,
         DeterminerNumber::Both => head_number == whole_number,
     }
+}
+
+// A marker-less duration phrase carries no preposition, so its endpoint is the
+// only thing bounding it: any nominal beside the verb can otherwise be absorbed
+// as a duration. The endpoint's head must therefore carry the declared temporal
+// licence, which is the feature that says the noun denotes a time.
+fn temporal_endpoint_denotes_a_time(endpoint: &TemporalEndpoint) -> bool {
+    let TemporalEndpoint::Reference(reference) = endpoint;
+    matches!(
+        locative_temporal_license_for_noun_phrase(reference),
+        LocativeTemporalLicense::TemporalLicensed | LocativeTemporalLicense::OfAndTemporalLicensed
+    )
 }
 
 fn object_is_mass_nominal(value: &Object) -> bool {

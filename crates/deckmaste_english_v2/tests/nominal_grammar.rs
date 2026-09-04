@@ -231,35 +231,35 @@ fn authentic_nominal_and_selector_sentences_parse() {
             text: "Destroy X target artifacts.",
             path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveLexicalVerbPhraseTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceDeterminedNominal/DeterminativeVariableQuantifyingDeterminer/NominalModifiedPluralNominal/NominalModifierTargetingMarkerNominalModifier/HeadNounPluralHead",
             specificity: "NNNNTNNNNNNTNNTT",
-            candidates: 2,
+            candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Destroy Y target artifacts.",
             path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveLexicalVerbPhraseTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceDeterminedNominal/DeterminativeVariableQuantifyingDeterminer/NominalModifiedPluralNominal/NominalModifierTargetingMarkerNominalModifier/HeadNounPluralHead",
             specificity: "NNNNTNNNNNNTNNTT",
-            candidates: 2,
+            candidates: 1,
         },
         Witness {
             card_name: "Rain of Salt",
             text: "Destroy two target lands.",
             path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveLexicalVerbPhraseTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceDeterminedNominal/DeterminativeCardinalQuantifyingDeterminer/CardinalQuantityCardinal/NominalModifiedPluralNominal/NominalModifierTargetingMarkerNominalModifier/HeadNounPluralHead",
             specificity: "NNNNTNNNNNNNTNNTT",
-            candidates: 2,
+            candidates: 1,
         },
         Witness {
             card_name: "Aetherjacket",
             text: "Destroy another target artifact.",
             path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveLexicalVerbPhraseTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceDeterminedNominal/DeterminativeSingularSimpleDeterminative/NominalModifiedSingularNominal/NominalModifierTargetingMarkerNominalModifier/HeadNounSingularHead",
             specificity: "NNNNTNNNNNNTNNTT",
-            candidates: 2,
+            candidates: 1,
         },
         Witness {
             card_name: "Gearbane Orangutan",
             text: "Destroy up to one target artifact.",
             path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveLexicalVerbPhraseTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceDeterminedNominal/DeterminativeUpToQuantifyingDeterminer/CardinalQuantityCardinal/NominalModifiedSingularNominal/NominalModifierTargetingMarkerNominalModifier/HeadNounSingularHead",
             specificity: "NNNNTNNNNNNLLNTNNTT",
-            candidates: 2,
+            candidates: 1,
         },
         Witness {
             card_name: "Context Card",
@@ -273,7 +273,7 @@ fn authentic_nominal_and_selector_sentences_parse() {
             text: "Destroy up to three target artifacts.",
             path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveLexicalVerbPhraseTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceDeterminedNominal/DeterminativeUpToQuantifyingDeterminer/CardinalQuantityCardinal/NominalModifiedPluralNominal/NominalModifierTargetingMarkerNominalModifier/HeadNounPluralHead",
             specificity: "NNNNTNNNNNNLLNTNNTT",
-            candidates: 2,
+            candidates: 1,
         },
         Witness {
             card_name: "Context Card",
@@ -357,7 +357,7 @@ fn authentic_nominal_and_selector_sentences_parse() {
             text: "Destroy one or more target creatures.",
             path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveLexicalVerbPhraseTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceDeterminedNominal/DeterminativeCountComparisonQuantifyingDeterminer/CardinalQuantityCardinal/CountComparisonCountOrMore/NominalModifiedPluralNominal/NominalModifierTargetingMarkerNominalModifier/HeadNounPluralHead",
             specificity: "NNNNTNNNNNNNNTLTNNTT",
-            candidates: 2,
+            candidates: 1,
         },
         Witness {
             card_name: "Context Card",
@@ -763,33 +763,16 @@ fn restricted_postmodifier_paths_ownership_and_ambiguity_are_exact() {
             .selected()
             .unwrap_or_else(|| panic!("{text:?} must select: {analysis:?}"));
         let decision = analysis.decision().expect("selected parse has a decision");
-        let expected_candidates =
-            if text.contains("gain X life") || text.starts_with("Destroy two or ") {
-                2
-            } else {
-                1
-            };
         assert_eq!(
             decision.candidates().len(),
-            expected_candidates,
+            1,
             "candidate census: {text:?}: {decision:?}",
         );
-        assert_eq!(
-            decision.resolution(),
-            if expected_candidates == 1 {
-                SelectionResolution::Unique
-            } else {
-                SelectionResolution::Specificity
-            }
-        );
+        assert_eq!(decision.resolution(), SelectionResolution::Unique);
         assert_eq!(decision.selected(), Some(0), "{text:?}");
         let selected_ordinal = decision.selected().expect("selected parse has an ordinal");
         assert_eq!(decision.survivors(), [selected_ordinal]);
-        if expected_candidates == 1 {
-            assert!(decision.comparisons().is_empty());
-        } else {
-            assert_eq!(decision.comparisons().len(), 1);
-        }
+        assert!(decision.comparisons().is_empty());
         assert!(decision.exception_uses().is_empty());
         assert_eq!(decision.candidates()[0].ordinal(), 0);
         let actual_path = decision.candidates()[0].construction_path().join("/");
@@ -1069,6 +1052,10 @@ fn former_count_fixture_has_exact_compositional_ast_and_ownership() {
     );
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "the witness table carries its expected ordinal per row rather than keying off the text"
+)]
 #[test]
 fn every_selector_family_enters_the_repeatable_order_free_postmodifier_position() {
     let parser = parser();
@@ -1442,23 +1429,13 @@ fn quantity_determinatives_exclude_zero_and_derive_number() {
         );
     }
 
-    let semantic_rival = "Destroy up to one target creatures.";
-    let analysis = parser.analyze(semantic_rival, &context);
-    let decision = analysis
-        .decision()
-        .expect("the syntactic temporal-adjunct rival reaches selection");
-    let selected = decision
-        .candidates()
-        .iter()
-        .find(|candidate| Some(candidate.ordinal()) == decision.selected())
-        .expect("the selected ordinal names a candidate");
+    let agreement_violation = "Destroy up to one target creatures.";
+    let analysis = parser.analyze(agreement_violation, &context);
     assert!(
-        selected
-            .construction_path()
-            .iter()
-            .any(|item| item == "PredicateAdjunctDurationPredicateAdjunct"),
-        "rejecting an object noun as a temporal endpoint belongs downstream: {decision:#?}",
+        analysis.selected().is_none(),
+        "a plural head under `up to one` no longer reaches selection through a duration adjunct: {analysis:#?}",
     );
+    assert!(parser.parse(agreement_violation, &context).is_err());
 }
 
 #[test]
@@ -1733,19 +1710,10 @@ fn target_determiner_and_modifier_distributions_select_uniquely() {
             .selected()
             .unwrap_or_else(|| panic!("{text:?} must select: {analysis:?}"));
         let decision = analysis.decision().expect("selected parse has a decision");
-        let expected_candidates = if text == "Destroy target creature." { 1 } else { 2 };
-        assert_eq!(
-            decision.candidates().len(),
-            expected_candidates,
-            "{text:?}: {decision:?}"
-        );
+        assert_eq!(decision.candidates().len(), 1, "{text:?}: {decision:?}");
         assert_eq!(
             decision.resolution(),
-            if expected_candidates == 1 {
-                SelectionResolution::Unique
-            } else {
-                SelectionResolution::Specificity
-            },
+            SelectionResolution::Unique,
             "{text:?}"
         );
         assert_eq!(selected.render(&context, parser.environment()), text);
@@ -1958,8 +1926,8 @@ fn other_target_plurals_are_compositional_determiner_phrases() {
         ),
         (
             "Destroy two other target creatures.",
-            2,
-            SelectionResolution::Specificity,
+            1,
+            SelectionResolution::Unique,
             &[
                 "UnqualifiedReferenceDeterminedNominal",
                 "DeterminativeCardinalQuantifyingDeterminer",
@@ -1972,8 +1940,8 @@ fn other_target_plurals_are_compositional_determiner_phrases() {
         ),
         (
             "Destroy X other target creatures.",
-            2,
-            SelectionResolution::Specificity,
+            1,
+            SelectionResolution::Unique,
             &[
                 "UnqualifiedReferenceDeterminedNominal",
                 "DeterminativeVariableQuantifyingDeterminer",
@@ -1985,8 +1953,8 @@ fn other_target_plurals_are_compositional_determiner_phrases() {
         ),
         (
             "Destroy up to three other target creatures.",
-            2,
-            SelectionResolution::Specificity,
+            1,
+            SelectionResolution::Unique,
             &[
                 "UnqualifiedReferenceDeterminedNominal",
                 "DeterminativeUpToQuantifyingDeterminer",
@@ -2717,16 +2685,8 @@ fn singular_and_plural_negative_modifier_sequences_have_exact_ast_scope() {
             .unwrap_or_else(|| panic!("{text:?} must select: {analysis:?}"));
         assert_eq!(parsed.render(&context, parser.environment()), text);
         let decision = analysis.decision().expect("selected parse has a decision");
-        let expected_candidates = if text.starts_with("Destroy two ") { 2 } else { 1 };
-        assert_eq!(decision.candidates().len(), expected_candidates);
-        assert_eq!(
-            decision.resolution(),
-            if expected_candidates == 1 {
-                SelectionResolution::Unique
-            } else {
-                SelectionResolution::Specificity
-            }
-        );
+        assert_eq!(decision.candidates().len(), 1);
+        assert_eq!(decision.resolution(), SelectionResolution::Unique);
         assert_eq!(decision.selected(), Some(0));
         assert_eq!(decision.candidates()[0].construction_path(), expected_path);
     }
@@ -3000,27 +2960,13 @@ fn compound_classifier_nominals_admit_every_positive_modifier_and_reject_negativ
         let decision = analysis
             .decision()
             .expect("selected compound classifier has a decision");
-        let expected_candidates = if witness.text.contains("blue artifact type") {
-            3
-        } else if witness.text.contains("Equipment") || witness.text.contains("Plains") {
-            2
-        } else {
-            1
-        };
         assert_eq!(
             decision.candidates().len(),
-            expected_candidates,
+            1,
             "{:?}: {decision:#?}",
             witness.text
         );
-        assert_eq!(
-            decision.resolution(),
-            if expected_candidates == 1 {
-                SelectionResolution::Unique
-            } else {
-                SelectionResolution::Specificity
-            }
-        );
+        assert_eq!(decision.resolution(), SelectionResolution::Unique);
         assert_eq!(decision.survivors(), [0]);
         assert_eq!(decision.selected(), Some(0));
         assert!(decision.exception_uses().is_empty());
@@ -3151,7 +3097,7 @@ fn indefinite_full_noun_phrase_members_derive_each_article_from_their_own_onset(
 }
 
 #[test]
-fn any_one_is_one_closed_determiner_and_beats_the_generic_duration_rival() {
+fn any_one_is_one_closed_determiner_with_no_generic_duration_rival() {
     let parser = parser();
     let context = context("Grammar Witness");
     let text = "Add two mana of any one color.";
@@ -3160,9 +3106,9 @@ fn any_one_is_one_closed_determiner_and_beats_the_generic_duration_rival() {
     assert_eq!(analysis.outcome(), ParseAnalysisOutcome::Selected);
     let decision = analysis
         .decision()
-        .expect("the selected reading records its syntactic rival");
-    assert_eq!(decision.candidates().len(), 2);
-    assert_eq!(decision.resolution(), SelectionResolution::Specificity);
+        .expect("the selected reading records its decision");
+    assert_eq!(decision.candidates().len(), 1);
+    assert_eq!(decision.resolution(), SelectionResolution::Unique);
     let selected_ordinal = decision.selected().expect("one reading is selected");
     assert_eq!(decision.survivors(), [selected_ordinal]);
     assert!(decision.exception_uses().is_empty());
@@ -3177,19 +3123,12 @@ fn any_one_is_one_closed_determiner_and_beats_the_generic_duration_rival() {
             .iter()
             .any(|item| item == "PredicateAdjunctDurationPredicateAdjunct")
     );
-    assert!(
-        decision
-            .candidates()
+    assert!(!decision.candidates().iter().any(|candidate| {
+        candidate
+            .construction_path()
             .iter()
-            .enumerate()
-            .any(|(ordinal, candidate)| {
-                ordinal != selected_ordinal
-                    && candidate
-                        .construction_path()
-                        .iter()
-                        .any(|item| item == "PredicateAdjunctDurationPredicateAdjunct")
-            })
-    );
+            .any(|item| item == "PredicateAdjunctDurationPredicateAdjunct")
+    }));
 
     let selected = analysis
         .selected()

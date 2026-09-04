@@ -1791,12 +1791,12 @@ mod tests {
             (
                 "Whenever a player connives, you gain X life.",
                 "Context Card",
-                2,
+                1,
             ),
             (
                 "You gain X life, where X is the number of creatures you control with power 2 or less.",
                 "Context Card",
-                6,
+                3,
             ),
             (
                 "Zacama deals 3 damage to target creature.",
@@ -1890,7 +1890,7 @@ mod tests {
         let context = context("Context Card");
         let environment = canonical_test_environment();
         let candidates = materialize::<crate::ast::Ability>(&forest, &context, &environment);
-        assert_eq!(candidates.len(), 2);
+        assert_eq!(candidates.len(), 1);
         assert!(
             candidates
                 .iter()
@@ -1902,14 +1902,14 @@ mod tests {
         assert_eq!(
             analysis
                 .decision()
-                .expect("the generic duration rival requires selection")
+                .expect("the finite clause is the only reading")
                 .resolution(),
-            SelectionResolution::Specificity,
+            SelectionResolution::Unique,
         );
         assert_eq!(
             analysis
                 .selected()
-                .expect("specificity selects the finite clause")
+                .expect("the finite clause selects")
                 .render(&context, parser.environment()),
             text,
         );
