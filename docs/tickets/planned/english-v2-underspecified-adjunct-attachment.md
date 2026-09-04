@@ -1,5 +1,5 @@
 ---
-needs: [english-v2-adjunct-licence-removal, english-v2-role-preemption-depth]
+needs: [english-v2-adjunct-licence-removal, english-v2-role-preemption-depth, english-v2-attachment-class-declared]
 ---
 DESIGN TICKET — needs a design brief before implementation; do not claim
 directly. Authority: rewrite ADR "Ruling: adjunct licences removed; attachment

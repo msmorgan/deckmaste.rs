@@ -1,5 +1,5 @@
 ---
-needs: [english-v2-require-through-optional-role]
+needs: [english-v2-require-through-optional-role, english-v2-attachment-class-declared]
 ---
 Frame-role preemption must be structural at every depth (require-through
 landing review HIGH-2). `right_edge_nominal_postmodifier_kind` in
@@ -28,4 +28,28 @@ only. Verify by census: the ≤52 units become unique (specificity-resolved
 count falls by exactly that number), zero winner changes, coverage unchanged.
 If any of those units has a reading where the nested PP is genuinely NOT the
 frame role and the frame role is absent, that is a STOP with the unit named.
+
+2026-09-04 (second): extended from depth to **breadth** by coordinator ruling
+after the fallout audit (F7) — was: depth only, "`right_edge_nominal_
+postmodifier_kind` … inspects only the outermost postmodifier". The pin above
+already reads "a right-peripheral PP **whose preposition the frame declares as a
+role**"; the implementation does not. `object_has_no_selected_source_
+postmodifier` (`crates/deckmaste_english_v2/src/constructions.rs:5075`) tests
+`!= Some(PrepositionComplementKind::SourceComplement)` and nothing else, and is
+attached at four sites (`:1885, 4425, 4452, 4472`), each paired with
+`require source.preposition_complement_kind is SourceComplement`. So the general
+amendment is implemented for exactly `from` — the one preposition where a tie was
+observed. Frames declaring `to`, `into`, `onto`, `on` or `under` roles get no
+preemption at all.
+
+Breadth pin: the preemption reads the frame's declared role preposition through
+the generated accessor and eliminates the noun-postmodifier derivation of **that**
+preposition, whatever it is — one derivation-level rule over the declared Verb
+Frame, not one checker per preposition and not a list of complement kinds. The
+four call sites collapse to that rule. Report the census for every affected
+preposition separately, and STOP on any unit whose nested PP is genuinely not the
+frame role while the frame role is absent (unchanged from the depth pin).
+`english-v2-attachment-class-declared` lands first: widening attachment classes
+changes which PPs are candidates at these sites.
+
 Standard constraints apply.

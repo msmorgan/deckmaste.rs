@@ -1,5 +1,5 @@
 ---
-needs: [english-v2-np-postmodifiers]
+needs: [english-v2-np-postmodifiers, english-v2-lexeme-owned-verb-frames]
 ---
 Route keyword-subject modifiers through the general staged reference stack
 (separator-admission review M1/M3). `KeywordSubjectModifier` is a new

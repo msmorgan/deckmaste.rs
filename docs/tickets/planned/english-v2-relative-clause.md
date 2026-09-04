@@ -1,5 +1,5 @@
 ---
-needs: [english-v2-subordinate-clause]
+needs: [english-v2-subordinate-clause, english-v2-lexeme-owned-verb-frames]
 ---
 Relative clauses (A5): a relative-marker slot {that, who, zero} feeding ONE
 general relative body (subject-gap and object-gap as feature values). "who"

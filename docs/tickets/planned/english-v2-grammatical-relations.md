@@ -1,5 +1,5 @@
 ---
-needs: [english-v2-np-postmodifiers]
+needs: [english-v2-np-postmodifiers, english-v2-lexeme-owned-verb-frames]
 ---
 **Separate grammatical relations from constituent categories in English v2.**
 Use the [`Subject`, grammatical `Object`, `Complement`, `Nominal`, and `Noun

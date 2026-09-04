@@ -1,5 +1,5 @@
 ---
-needs: [english-v2-subordinate-clause]
+needs: [english-v2-subordinate-clause, english-v2-lexeme-owned-verb-frames]
 ---
 **Lower the cost-family categories to ordinary linguistic constituents.** The
 rewrite decision's Plan 09 amendment (`docs/decisions/english-v2-rewrite.md`,

@@ -1,5 +1,5 @@
 ---
-needs: [english-v2-np-postmodifiers]
+needs: [english-v2-np-postmodifiers, english-v2-lexeme-owned-verb-frames]
 ---
 One subordinate-clause construction with a subordinator lexical slot (A4) —
 v1 had 15 subordinators in one slot; v2 has 25 constructions (per

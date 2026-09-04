@@ -1,5 +1,5 @@
 ---
-needs: []
+needs: [english-v2-lexeme-owned-verb-frames]
 ---
 **Keyword-ability grants are a verb frame, not a bespoke predicate.** `Target
 creature gains flying until end of turn.` fails while `Target creature gets

@@ -1,5 +1,5 @@
 ---
-needs: [english-v2-closed-class-single-owner]
+needs: [english-v2-closed-class-single-owner, english-v2-lexeme-owned-verb-frames]
 ---
 Adjective lexeme tier (vocab-surface ruling 2026-09-02; homograph-feature
 ledger). Adjectives are content words with no legal home but a vocab:
