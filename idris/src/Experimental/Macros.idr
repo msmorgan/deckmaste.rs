@@ -1792,11 +1792,11 @@ proliferate : {bs : Bindings} ->
               Instruction bs
 proliferate =
   Enact Nothing "Proliferate" {kn = ActInFactsTable}
-        (Sequentially [ Choose
+        (Sequentially [ Choose Nothing
                           (counted Macros.anyNumber
                             (kindJoin (Compare [AnyCounterAxis Player] AtLeast (Lit 1))
                                       (And [Permanent, HasCounters Nothing])))
-                          Nothing Openly
+                          Openly
                       , PutCounters (Lit 1) OwnKinds (EachOf (Pro (Word JoinW) ManyOf {ok = mj})) ])
 
 public export
@@ -2226,7 +2226,7 @@ public export
 choose : {k : Kind} -> (n : Noun bs k) ->
          {auto 0 ch : ChoiceClause (the (Maybe (Noun bs Player)) Nothing) n} ->
          Instruction bs
-choose n = Choose n Nothing Openly {ch}
+choose n = Choose Nothing n Openly {ch}
 
 public export
 armyYouControl : {bs : Bindings} -> Predicate bs Object
@@ -2264,14 +2264,16 @@ amass sub n =
 
 
 public export
-chooses : {k : Kind} -> (who : Noun bs Player) -> (n : Noun bs k) ->
+chooses : {k : Kind} -> (who : Noun bs Player) ->
+          (n : Noun (Experimental.Phrase.agentIntro who) k) ->
           {auto 0 ch : ChoiceClause (Just who) n} -> Instruction bs
-chooses who n = Choose n (Just who) Openly {ch}
+chooses who n = Choose (Just who) n Openly {ch}
 
 public export
-secretlyChooses : {k : Kind} -> (who : Noun bs Player) -> (n : Noun bs k) ->
+secretlyChooses : {k : Kind} -> (who : Noun bs Player) ->
+                  (n : Noun (Experimental.Phrase.agentIntro who) k) ->
                   {auto 0 ch : ChoiceClause (Just who) n} -> Instruction bs
-secretlyChooses who n = Choose n (Just who) Secretly {ch}
+secretlyChooses who n = Choose (Just who) n Secretly {ch}
 
 public export
 itPrior : {bs : Bindings} -> (prev : Instruction bs) ->

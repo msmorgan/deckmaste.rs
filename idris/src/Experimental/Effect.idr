@@ -1100,8 +1100,8 @@ mutual
                         (piles : Nat) -> (faces : List PileFace) ->
                         {auto 0 ff : FacesFit faces piles} ->
                         {auto 0 pl : nounPlur grp = ManyOf} -> Instruction bs
-    Choose : {k : Kind} -> (n : Noun bs k) ->
-             (by : Maybe (Noun bs Player)) -> (disc : Disclosure) ->
+    Choose : {k : Kind} -> (by : Maybe (Noun bs Player)) ->
+             (n : Noun (agentCtx by) k) -> (disc : Disclosure) ->
              {auto 0 ch : ChoiceClause by n} -> Instruction bs
     ChoicesRevealed : (s : HiddenSort) -> Instruction bs
     Vote : (first : Maybe (Noun bs Player)) ->
@@ -1440,7 +1440,7 @@ mutual
   costActionOk (Copy _ _ what _ _) = costNounOk what
   costActionOk (ChooseNewTargets what) = costNounOk what
   costActionOk (CopyTargets copy _) = costNounOk copy
-  costActionOk (Choose n _ _) = costNounOk n
+  costActionOk (Choose _ n _) = costNounOk n
   costActionOk (Move what _ _) = costNounOk what
   costActionOk (ExchangeLife parties) = costNounOk parties
   costActionOk (ChangeLife _ _) = True
@@ -1595,8 +1595,7 @@ mutual
       :: amtIntro times
   instrIntro (ChooseNewTargets what) = nomIntro what
   instrIntro (CopyTargets copy whom) = nomIntro whom
-  instrIntro (Choose n Nothing _) = chosenIntro n
-  instrIntro (Choose n (Just b) _) = nounDelta b ++ chosenIntro n
+  instrIntro (Choose by n _) = chooseIntro by n
   instrIntro (ChoicesRevealed _) = bs
   instrIntro (Vote _ _ _ _) = bs
   instrIntro (Move what to _) =
@@ -1820,7 +1819,7 @@ mutual
                                          (copyLandsIn src (nounZone what)))])
   instrProfile (ChooseNewTargets what) = sameIntro (nomIntro what) []
   instrProfile (CopyTargets copy whom) = sameIntro (nomIntro whom) []
-  instrProfile (Choose n _ _) = sameIntro (chosenIntro n) []
+  instrProfile (Choose by n _) = sameIntro (chooseAnn by n) []
   instrProfile (ChoicesRevealed _) = sameIntro bs []
   instrProfile (Vote _ _ _ _) = sameIntro bs []
   instrProfile (Move what to _) = sameIntro (nomIntro what) []
@@ -2376,7 +2375,7 @@ mutual
 
   public export
   instrChoiceDelta : {0 bs : Bindings} -> Instruction bs -> List Binding
-  instrChoiceDelta (Choose {k} (Described (ADet _) _) _ _) = choiceDeltaAt k
+  instrChoiceDelta (Choose {k} _ (Described (ADet _) _) _) = choiceDeltaAt k
   instrChoiceDelta (Choose _ _ _) = []
   instrChoiceDelta (Sequentially es) = instrsChoiceDelta es
   instrChoiceDelta (May _ body _ _) = instrChoiceDelta body

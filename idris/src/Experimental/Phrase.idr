@@ -1667,6 +1667,30 @@ mutual
   chosenIntro n = chosenDelta n ++ bs
 
   public export
+  chosenIntroBy : {bs : Bindings} -> {k : Kind} -> Plurality ->
+                  (by : Noun bs Player) -> Noun (agentIntro by) k -> Bindings
+  chosenIntroBy OneOf by n = nounDelta by ++ (chosenDelta n ++ bs)
+  chosenIntroBy ManyOf by n = pluralizeDelta (chosenDelta n) ++ nomIntro by
+
+  public export
+  chosenAnnBy : {bs : Bindings} -> {k : Kind} -> Plurality ->
+                (by : Noun bs Player) -> Noun (agentIntro by) k -> Bindings
+  chosenAnnBy OneOf by n = chosenDelta n ++ bs
+  chosenAnnBy ManyOf by n = pluralizeDelta (chosenDelta n) ++ bs
+
+  public export
+  chooseIntro : {bs : Bindings} -> {k : Kind} ->
+                (by : Maybe (Noun bs Player)) -> Noun (agentCtx by) k -> Bindings
+  chooseIntro Nothing n = chosenIntro n
+  chooseIntro (Just by) n = chosenIntroBy (nounPlur by) by n
+
+  public export
+  chooseAnn : {bs : Bindings} -> {k : Kind} ->
+              (by : Maybe (Noun bs Player)) -> Noun (agentCtx by) k -> Bindings
+  chooseAnn Nothing n = chosenIntro n
+  chooseAnn (Just by) n = chosenAnnBy (nounPlur by) by n
+
+  public export
   complementDelta : {bs : Bindings} -> {0 ev : EventName} -> {0 ks : Kind} ->
                     Maybe (EventComplement bs ev ks) -> List Binding
   complementDelta Nothing = []
@@ -2116,10 +2140,10 @@ mutual
 
   public export
   data ChoiceClause : {0 bs : Bindings} -> {0 k : Kind} ->
-                      Maybe (Noun bs Player) -> Noun bs k -> Type where
+                      (by : Maybe (Noun bs Player)) -> Noun (agentCtx by) k -> Type where
     BareChoice : {0 n : Noun bs k} ->
                  {auto 0 ok : So (choosable n)} -> ChoiceClause Nothing n
-    AgentChoice : {0 by : Noun bs Player} -> {0 n : Noun bs k} ->
+    AgentChoice : {0 by : Noun bs Player} -> {0 n : Noun (agentIntro by) k} ->
                   {auto 0 ok : So (agentChoosable n)} ->
                   ChoiceClause (Just by) n
 

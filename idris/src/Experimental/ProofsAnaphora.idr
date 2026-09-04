@@ -20,13 +20,13 @@ identicalModesAllowed =
 public export
 okChoosePlayerOrPlaneswalker : Instruction []
 okChoosePlayerOrPlaneswalker =
-  Choose (Macros.a (Macros.kindJoin AnyPlayer (HasType Planeswalker))) Nothing
+  Choose Nothing (Macros.a (Macros.kindJoin AnyPlayer (HasType Planeswalker)))
          Openly
 
 ||| "Choose you."
 public export
 badChooseYou : Unspellable (Instruction []) (\ok =>
-  Choose You Nothing Openly {ch = ok})
+  Choose Nothing You Openly {ch = ok})
 badChooseYou BareChoice impossible
 
 public export
@@ -62,12 +62,12 @@ public export
 okAgentChoiceOfSome : Instruction []
 okAgentChoiceOfSome =
   Sequentially [Macros.lookAt (Macros.topSlice (Lit 4)),
-                Choose (Macros.someOf (Macros.exactly 1) (Macros.It ManyOf)) (Just You) Openly]
+                Choose (Just You) (Macros.someOf (Macros.exactly 1) (Macros.It ManyOf)) Openly]
 
 ||| "Look at the top four cards of your library. Choose one of them."
 public export
 badChooseSomeOf : Unspellable (Instruction []) (\ok =>
-  Sequentially [Macros.lookAt ((Macros.topSlice (Lit 4))), Choose (Macros.someOf (Macros.exactly 1) ((Macros.It ManyOf))) Nothing Openly {ch = ok}])
+  Sequentially [Macros.lookAt ((Macros.topSlice (Lit 4))), Choose Nothing (Macros.someOf (Macros.exactly 1) ((Macros.It ManyOf))) Openly {ch = ok}])
 badChooseSomeOf BareChoice impossible
 
 ||| "Exile target creature."
@@ -129,14 +129,14 @@ badStateMatchLookback MkLookbackSubject impossible
 ||| "Choose a creature you control."
 public export
 okChooseIndefinite : Instruction []
-okChooseIndefinite = Choose (Macros.a Macros.creatureYouControl) Nothing Openly
+okChooseIndefinite = Choose Nothing (Macros.a Macros.creatureYouControl) Openly
 
 ||| "Choose the creature with the least toughness among creatures you control."
 public export
 badChooseDefinite : Unspellable (Instruction []) (\ok =>
-  Choose (Macros.the (And [Macros.creature,
+  Choose Nothing (Macros.the (And [Macros.creature,
                          Superlative MinOf (StatAxis Toughness)
-                                     Macros.creatureYouControl])) Nothing Openly {ch = ok})
+                                     Macros.creatureYouControl])) Openly {ch = ok})
 badChooseDefinite BareChoice impossible
 
 ||| "This deals 1 damage to that permanent or player."

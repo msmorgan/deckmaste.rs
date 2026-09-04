@@ -38,13 +38,13 @@ badChosenNumberRead Oh impossible
 public export
 okSinglePower : Instruction []
 okSinglePower =
-  Sequentially [Choose (Macros.target Macros.creature) Nothing Openly,
+  Sequentially [Choose Nothing (Macros.target Macros.creature) Openly,
                 Macros.gainsLife You (StatOf Power (Macros.It OneOf))]
 
 ||| "Choose two target creatures. You gain life equal to their power."
 public export
 badGroupPower : Unspellable (Instruction []) (\ok =>
-  Sequentially [Choose (Described (TargetDet (Macros.exactly 2)) Macros.creature) Nothing Openly,
+  Sequentially [Choose Nothing (Described (TargetDet (Macros.exactly 2)) Macros.creature) Openly,
                 Macros.gainsLife You (StatOf Power ((Macros.It ManyOf)) {one = ok})])
 badGroupPower Refl impossible
 
@@ -52,37 +52,37 @@ badGroupPower Refl impossible
 public export
 okSingleOwner : Instruction []
 okSingleOwner =
-  Sequentially [Choose (Macros.target Macros.creature) Nothing Openly,
+  Sequentially [Choose Nothing (Macros.target Macros.creature) Openly,
                 Macros.losesLife (Macros.ownerOf (Macros.It OneOf)) (Lit 1)]
 
 ||| "Choose two target creatures. Their owners each lose 1 life."
 public export
 okGroupOwners : Instruction []
 okGroupOwners =
-  Sequentially [Choose (Described (TargetDet (Macros.exactly 2)) Macros.creature) Nothing Openly,
+  Sequentially [Choose Nothing (Described (TargetDet (Macros.exactly 2)) Macros.creature) Openly,
                 Macros.losesLife (Macros.ownerOf (Macros.It ManyOf)) (Lit 1)]
 
 ||| "Choose target creature."
 public export
 okTargetCreature : Instruction []
-okTargetCreature = Choose (Macros.target Macros.creature) Nothing Openly
+okTargetCreature = Choose Nothing (Macros.target Macros.creature) Openly
 
 ||| "Choose target color."
 public export
 badTargetColor : Unspellable (Instruction []) (\ok =>
-  Choose (Macros.target (QualityNoun Color Nothing) {tk = ok}) Nothing Openly)
+  Choose Nothing (Macros.target (QualityNoun Color Nothing) {tk = ok}) Openly)
 badTargetColor ObjectTgt impossible
 
 ||| "Choose two target creatures."
 public export
 okTwoGroup : Instruction []
 okTwoGroup =
-  Choose (Described (TargetDet (Macros.exactly 2)) Macros.creature) Nothing Openly
+  Choose Nothing (Described (TargetDet (Macros.exactly 2)) Macros.creature) Openly
 
 ||| "Choose zero target creatures."
 public export
 badZeroGroup : Unspellable (Instruction []) (\ok =>
-  Choose (Described (TargetDet (Macros.exactly 0)) Macros.creature {ok}) Nothing Openly)
+  Choose Nothing (Described (TargetDet (Macros.exactly 0)) Macros.creature {ok}) Openly)
 badZeroGroup (MaxAtLeastOne, _, _) impossible
 
 ||| "Choose up to one — Destroy target artifact; or destroy target enchantment."
@@ -312,3 +312,37 @@ badNotChosenAfterTwoChoices : Unspellable (Instruction []) (\ok =>
     , DealDamage This (Lit 3)
                  (Macros.each (And [Macros.creature, NotChosen {cs = ok}])) ])
 badNotChosenAfterTwoChoices OneChoiceStands impossible
+
+||| "Each player chooses a creature they control." [CR#700.8d]
+public export
+okAgentScopedChoice : Instruction []
+okAgentScopedChoice =
+  Macros.chooses (Macros.each AnyPlayer)
+    (Macros.a (And [Macros.creature, HasPossessor ControllerAx Macros.They]))
+
+||| "Choose a creature they control." — the chooserless spelling has no
+||| antecedent for "they" (`okAgentScopedChoice` is the same noun under a
+||| chooser, which publishes one).
+public export
+badUnchooseredTheyControl : Unspellable (Instruction []) (\ok =>
+  Macros.choose (Macros.a (And [Macros.creature,
+                                HasPossessor ControllerAx (Macros.They {ok})])))
+badUnchooseredTheyControl Refl impossible
+
+||| "Each player chooses a creature. Exile them."
+public export
+okDistributedChoiceReadsAsGroup : Instruction []
+okDistributedChoiceReadsAsGroup =
+  Sequentially
+    [ Macros.chooses (Macros.each AnyPlayer) (Macros.a Macros.creature)
+    , Macros.exile You (Macros.It ManyOf) ]
+
+||| "Each player chooses a creature. Exile it." — a distributive choice stands
+||| as one per chooser, so the singular read has no antecedent
+||| (`okDistributedChoiceReadsAsGroup` is the plural read).
+public export
+badDistributedChoiceReadSingular : Unspellable (Instruction []) (\ok =>
+  Sequentially
+    [ Macros.chooses (Macros.each AnyPlayer) (Macros.a Macros.creature)
+    , Macros.exile You ((Macros.It OneOf) {ok}) ])
+badDistributedChoiceReadSingular Refl impossible

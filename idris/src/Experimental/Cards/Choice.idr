@@ -257,7 +257,7 @@ runeSnag =
 public export
 tahngarthChoosesDefender : Instruction []
 tahngarthChoosesDefender =
-  Choose (Macros.a (Macros.kindJoin AnyPlayer (HasType Planeswalker))) Nothing Openly
+  Choose Nothing (Macros.a (Macros.kindJoin AnyPlayer (HasType Planeswalker))) Openly
 
 public export
 reefShaman : Card
@@ -847,8 +847,8 @@ public export
 forgottenLoreRepeat : Instruction []
 forgottenLoreRepeat =
   Sequentially
-    [ Choose (Macros.a (InZone (Macros.graveyardOf You)))
-             (Just (Macros.target Opponent)) Openly
+    [ Choose (Just (Macros.target Opponent))
+             (Macros.a (InZone (Macros.graveyardOf You))) Openly
     , (May You (Pay You (Mana [Macros.pip Green]) PaidOnce) (Just (Repeat AgainExcludingChosen)) Nothing) ]
 
 ||| Leyline of the Meek
@@ -1663,6 +1663,29 @@ rustlerRampage =
                   , (Just (Mana [Macros.generic 1]),
                      Macros.gains (Macros.target Macros.creature) (Macros.keyword "DoubleStrike")
                                   (Just Macros.untilEndOfTurn)) ]) ]
+       Nothing
+
+||| Consuming Tide
+public export
+consumingTide : Card
+consumingTide =
+  Macros.card "Consuming Tide"
+       (Just [Macros.generic 2, Macros.pip Blue, Macros.pip Blue]) []
+       (MkTypeLine [] [Sorcery])
+       [ Spell (Sequentially
+                  [ Macros.chooses (Macros.each AnyPlayer)
+                      (Macros.a (And [Permanent, Not Macros.land,
+                                      HasPossessor ControllerAx Macros.They]))
+                  , Macros.returnTo
+                      (Macros.allOf (And [Permanent, Not Macros.land, NotChosen]))
+                      Macros.handZ []
+                  , ForEachOf
+                      (Macros.each
+                         (CompareOver Opponent
+                            (Macros.countOf (InZone (Macros.handOf Macros.They)))
+                            Greater
+                            (Macros.countOf (InZone (Macros.handOf You)))))
+                      (Draw You (Lit 1)) ]) ]
        Nothing
 
 ||| Stick Together: a chosen party is four up-to-one choices, not the group the
