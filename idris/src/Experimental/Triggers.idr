@@ -155,6 +155,14 @@ mutual
   verbedVoiceOk v Nothing what =
     isJust what && (actNamesParticiple v || actIntransitiveOf v)
 
+  ||| A crime is one player's action against an opponent [CR#700.13], so the
+  ||| committing player is a single player: the whole player set has no
+  ||| opponent, hence no opponent-owned object a crime could target.
+  public export
+  data CrimeSubject : {0 bs : Bindings} -> Noun bs Player -> Type where
+    OneCriminal : {0 bs : Bindings} -> {0 n : Noun bs Player} ->
+                  {auto 0 ok : So (isOne (nounPlur n))} -> CrimeSubject n
+
   public export
   damageSourceZone : DamageKind -> Maybe Zone
   damageSourceZone AnyDamage = Nothing
@@ -288,6 +296,8 @@ mutual
     Triggers : (what : Noun bs Object) ->
                {auto 0 one : nounPlur what = OneOf} ->
                {auto 0 nt : Nontarget what} -> GameEvent bs
+    CommitsCrime : (who : Noun bs Player) ->
+                   {auto 0 sc : CrimeSubject who} -> GameEvent bs
     Causes : (by : Causing bs) -> (what : GameEvent (causingIntro by)) ->
              GameEvent bs
 
@@ -342,6 +352,7 @@ mutual
   eventName (UnlocksDoor _ _) = VerbedAct "Unlock"
   eventName (NthOccurrence _ _ ev) = eventName ev
   eventName (Triggers _) = AbilityTrigger
+  eventName (CommitsCrime _) = CrimeCommission
   eventName (Causes _ what) = eventName what
 
   public export
@@ -392,6 +403,7 @@ mutual
   eventIntro (UnlocksDoor who door) = doorIntro door
   eventIntro (NthOccurrence _ _ ev) = eventIntro ev
   eventIntro (Triggers what) = selfSubjIntro what
+  eventIntro (CommitsCrime who) = selfSubjIntro who
   eventIntro (Causes _ what) = eventIntro what
 
   public export
@@ -445,6 +457,7 @@ mutual
   eventAfter (UnlocksDoor who door) = doorIntro door
   eventAfter (NthOccurrence _ _ ev) = eventAfter ev
   eventAfter (Triggers what) = nomIntro what
+  eventAfter (CommitsCrime who) = nomIntro who
   eventAfter (Causes _ what) = eventAfter what
 
   public export
@@ -487,6 +500,7 @@ mutual
   eventSubjectPlur (UnlocksDoor who _) = nounPlur who
   eventSubjectPlur (NthOccurrence _ _ ev) = eventSubjectPlur ev
   eventSubjectPlur (Triggers what) = nounPlur what
+  eventSubjectPlur (CommitsCrime who) = nounPlur who
   eventSubjectPlur (Causes _ what) = eventSubjectPlur what
 
   public export

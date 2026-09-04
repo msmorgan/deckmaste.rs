@@ -602,6 +602,20 @@ primalVigor =
                    Repeatedly Nothing) ]
        Nothing
 
+||| Patrolling Peacemaker
+public export
+patrollingPeacemaker : Card
+patrollingPeacemaker =
+  Macros.card "Patrolling Peacemaker"
+       (Just [Macros.generic 2, Macros.pip White]) []
+       (MkTypeLine [creatureType "Robot", creatureType "Soldier"]
+                   [Artifact, Creature])
+       [ Static (Macros.entersWithCounters Macros.thisCreature (Lit 2)
+                                           Macros.plusOnePlusOne)
+       , Macros.triggered Whenever (CommitsCrime Macros.anOpponent)
+                          Macros.proliferate ]
+       (Just (0, 0))
+
 ||| Galloping Lizrog
 public export
 gallopingLizrog : Card

@@ -272,3 +272,21 @@ public export
 badExchangePluralParty : Unspellable (Instruction []) (\ok =>
   ExchangeLife (Both You (PlayerGroup YourOpponents)) {tp = ok})
 badExchangePluralParty Oh impossible
+
+||| "Whenever an opponent commits a crime, draw a card."
+public export
+okCrimeBySinglePlayer : Ability
+okCrimeBySinglePlayer =
+  Triggered Whenever (CommitsCrime Macros.anOpponent) [] Nothing [] Nothing
+            Nothing Nothing (Draw You (Lit 1))
+
+||| "Whenever all players commit a crime, draw a card."
+||| A crime targets an opponent, something an opponent controls, or a card in
+||| an opponent's graveyard [CR#700.13]; the whole player set has no opponent,
+||| so such a crime has no opponent-owned object. One player at a time commits
+||| one (`okCrimeBySinglePlayer`).
+public export
+badCrimeByAllPlayers : Unspellable Ability (\ok =>
+  Triggered Whenever (CommitsCrime (Macros.allOf AnyPlayer) {sc = ok}) []
+            Nothing [] Nothing Nothing Nothing (Draw You (Lit 1)))
+badCrimeByAllPlayers OneCriminal impossible

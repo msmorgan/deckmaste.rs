@@ -282,3 +282,33 @@ badGetsGraveyard : Unspellable (Instruction []) (\ok =>
   Sequentially [Macros.destroy (Macros.target Macros.creature),
                 Macros.gets ((Macros.It OneOf)) (PtUp (Lit 3)) (PtUp (Lit 3)) (Just Macros.untilEndOfTurn) {ok}])
 badGetsGraveyard Oh impossible
+
+||| "Choose a creature. This deals 3 damage to each creature not chosen this
+||| way."
+public export
+okNotChosenAfterOneChoice : Instruction []
+okNotChosenAfterOneChoice =
+  Sequentially
+    [ Macros.chooses You (Macros.a Macros.creature)
+    , DealDamage This (Lit 3) (Macros.each (And [Macros.creature, NotChosen])) ]
+
+||| "This deals 3 damage to each creature not chosen this way."
+||| Nothing was chosen, so "this way" reads back no choice
+||| (`okNotChosenAfterOneChoice` is the same read with one standing).
+public export
+badNotChosenWithoutAChoice : Unspellable (Instruction []) (\ok =>
+  DealDamage This (Lit 3)
+             (Macros.each (And [Macros.creature, NotChosen {cs = ok}])))
+badNotChosenWithoutAChoice OneChoiceStands impossible
+
+||| "Choose a creature. Choose a creature. This deals 3 damage to each
+||| creature not chosen this way." — two choices stand, so the exclusion has
+||| no unique antecedent.
+public export
+badNotChosenAfterTwoChoices : Unspellable (Instruction []) (\ok =>
+  Sequentially
+    [ Macros.chooses You (Macros.a Macros.creature)
+    , Macros.chooses You (Macros.a Macros.creature)
+    , DealDamage This (Lit 3)
+                 (Macros.each (And [Macros.creature, NotChosen {cs = ok}])) ])
+badNotChosenAfterTwoChoices OneChoiceStands impossible

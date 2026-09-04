@@ -181,6 +181,13 @@ mutual
              {auto 0 ok : So (lookbackLocusOk ev (zoneSort z))} ->
              EventComplement bs ev ks
 
+  ||| "that weren't chosen this way" reads back the choices one prior clause
+  ||| made, so exactly one such choice of a compatible kind must stand.
+  public export
+  data ChoiceInScope : (k : Kind) -> Bindings -> Type where
+    OneChoiceStands : {0 k : Kind} -> {0 bs : Bindings} ->
+                      {auto 0 ok : countParts k bs = 1} -> ChoiceInScope k bs
+
   public export
   data ComplementWritten : {0 bs : Bindings} -> {0 ev : EventName} ->
                            {0 ks : Kind} ->
@@ -337,6 +344,7 @@ mutual
          {auto 0 dd : DistinctDisjuncts ps} -> Predicate bs k
     Not : (p : Predicate bs k) -> {auto 0 ng : Negatable p} -> Predicate bs k
     Other : {auto 0 ok : So (anyTargeted k bs)} -> Predicate bs k
+    NotChosen : {auto 0 cs : ChoiceInScope k bs} -> Predicate bs k
     OtherThan : {kn : Kind} -> (n : Noun bs kn) ->
                 {auto 0 ca : ComplementAnchor n} -> Predicate bs k
     Joined : {ka : Kind} -> {kb : Kind} -> (l : Predicate bs ka) ->
@@ -820,6 +828,8 @@ mutual
   predEq (Not _) _ = False
   predEq Other Other = True
   predEq Other _ = False
+  predEq NotChosen NotChosen = True
+  predEq NotChosen _ = False
   predEq (OtherThan _) _ = False
   predEq (Joined _ _) _ = False
 

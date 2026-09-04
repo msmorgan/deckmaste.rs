@@ -29,6 +29,7 @@ data EventName = Death | Departure | DamageTaken
                | VerbedAct VerbLabel
                | StateMatch
                | AbilityTrigger
+               | CrimeCommission
 
 public export
 statusEventName : StatusCat -> EventName
@@ -143,6 +144,7 @@ eventIx DamageDealing = 37
 eventIx (VerbedAct _) = 38
 eventIx StateMatch = 39
 eventIx AbilityTrigger = 40
+eventIx CrimeCommission = 41
 
 public export
 sameEventName : EventName -> EventName -> Bool
@@ -250,6 +252,8 @@ eventFactsOf (VerbedAct v) =
 eventFactsOf StateMatch = MkEventFacts [] [] [] False True False True False
 eventFactsOf AbilityTrigger =
   MkEventFacts [Object] [] [] False False True True False
+eventFactsOf CrimeCommission =
+  MkEventFacts [Player] [] [] False True False True False
 
 public export
 kindIn : Kind -> List Kind -> Bool

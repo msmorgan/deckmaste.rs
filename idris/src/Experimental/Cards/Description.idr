@@ -656,3 +656,27 @@ atKnifepointOutlaws : Ability
 atKnifepointOutlaws =
   Static (OnlyDuring Turn (Just You)
            (Gains (Macros.allOf Macros.outlawYouControl) (Macros.keyword "FirstStrike")))
+
+public export
+atKnifepointCrime : Ability
+atKnifepointCrime =
+  Triggered Whenever (CommitsCrime You) [] Nothing [] Nothing (Just OncePerTurn)
+            Nothing
+            (Macros.create (Lit 1)
+               (MkToken (Just (Lit 1 ** Lit 1)) [Red]
+                        (MkTypeLine [creatureType "Mercenary"] [Creature])
+                        [ Macros.activatedOnlyDuring TapSymbol
+                            (Macros.gets (Macros.target Macros.creatureYouControl)
+                                         (PtUp (Lit 1)) (PtUp (Lit 0))
+                                         (Just Macros.untilEndOfTurn))
+                            AsSorcery ]
+                        Nothing))
+
+public export
+atKnifepoint : Card
+atKnifepoint =
+  Macros.card "At Knifepoint"
+       (Just [Macros.generic 1, Macros.pip Black, Macros.pip Red]) []
+       (MkTypeLine [] [Enchantment])
+       [ Description.atKnifepointOutlaws, Description.atKnifepointCrime ]
+       Nothing

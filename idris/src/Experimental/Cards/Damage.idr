@@ -107,6 +107,32 @@ wordsOfWar = Macros.nextTimeWouldInstead (Draws You)
                                   (DealDamage This (Lit 2) (Macros.target Macros.anyTarget))
                                   (Just ThisTurn)
 
+||| Thunderwave
+public export
+thunderwave : Card
+thunderwave =
+  Macros.card "Thunderwave"
+       (Just [Macros.generic 2, Macros.pip Red, Macros.pip Red]) []
+       (MkTypeLine [] [Sorcery])
+       [ Spell (Sequentially
+                  [ Macros.rollDice You 1 20
+                  , Macros.resultsTable
+                      [ Macros.rollRow (Macros.fromTo 1 9)
+                          (DealDamage This (Lit 3) (Macros.each Macros.creature))
+                      , Macros.rollRow (Macros.fromTo 10 19)
+                          (Sequentially
+                             [ Macros.may You
+                                 (Macros.chooses You (Macros.a Macros.creature))
+                             , DealDamage This (Lit 3)
+                                 (Macros.each (And [Macros.creature, NotChosen])) ])
+                      , Macros.rollRow (Macros.fromTo 20 20)
+                          (DealDamage This (Lit 6)
+                             (Macros.each
+                                (And [Macros.creature,
+                                      HasPossessor ControllerAx
+                                        (PlayerGroup YourOpponents)]))) ] ]) ]
+       Nothing
+
 ||| Fog, Holy Day, Darkness, Root Snare
 fog : Instruction []
 fog = Macros.preventAll CombatOnly Everywhere (Just ThisTurn)
