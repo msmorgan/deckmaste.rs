@@ -145,56 +145,44 @@ fn card_name(card: &deckmaste_semantics::Card) -> Arc<str> {
     }
 }
 
-/// Compile one card, returning its refusal as a [`Diagnostic`] instead of
-/// unwinding.
+#[cfg(test)]
+fn lower_for_test<T>(f: impl FnOnce() -> T) -> Result<T, Diagnostic> {
+    let card: Arc<str> = Arc::from("Lowering Test");
+    region::in_card(&card, f).map_err(|message| Diagnostic { card, message })
+}
+
+/// Compile one card, returning a context-sensitive refusal as a [`Diagnostic`].
 ///
 /// This is the entry a corpus compiler uses: a card whose text names an
 /// antecedent the resolver cannot pin (R2) is reported against that card and
-/// the rest of the corpus still compiles. `Lower` itself stays a total map —
-/// every arm is an identity or a documented divergence — so the refusal
-/// travels as an unwind from the resolver and is converted here.
+/// the rest of the corpus still compiles. `Lower` itself stays an infallible
+/// recursive map; the card-level compiler context carries the refusal, and
+/// this walk entry is the only layer that observes it as a `Result`.
 ///
 /// # Errors
 ///
 /// Returns a [`Diagnostic`] when the card's text cannot be lowered: an
-/// ambiguous or unbound discourse anaphor, or an unbound role.
+/// ambiguous or unbound discourse anaphor, or another explicit resolver
+/// refusal.
 pub fn lower_card(card: deckmaste_semantics::Card) -> Result<deckmaste_card::Card, Diagnostic> {
     let name = card_name(&card);
-    // The resolver's refusal is an unwind (see `region::refuse`). Silence the
-    // default hook for the duration so a REPORTED diagnostic does not also
-    // spray a panic message and backtrace over the compile log.
-    let hook = std::panic::take_hook();
-    std::panic::set_hook(Box::new(|_| {}));
-    let lowered = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        region::in_card(&name, || {
-            // [CR#607.1]: linkage is between two abilities printed on ONE
-            // object, so a cell read in one ability and written in another is
-            // not knowable from either ability alone. Pass one collects the
-            // card's cell reads and writes; pass two runs only when the card
-            // actually reads a cell, and declares the surviving ones as
-            // `Provenance::Linked` parameters (ADR law 8).
-            let (plan, first) = region::collect_cells(|| card.clone().lower());
-            if region::plan_is_empty(&plan) {
-                first
-            } else {
-                region::with_cells(plan, || card.lower())
-            }
-        })
-    }));
-    std::panic::set_hook(hook);
-    lowered.map_err(|payload| Diagnostic {
-        card: Arc::clone(&name),
-        message: panic_message(&payload)
-            .unwrap_or_else(|| format!("{name}: lowering failed with a non-string panic")),
+    region::in_card(&name, || {
+        // [CR#607.1]: linkage is between two abilities printed on ONE
+        // object, so a cell read in one ability and written in another is
+        // not knowable from either ability alone. Pass one collects the
+        // card's cell reads and writes; pass two runs only when the card
+        // actually reads a cell, and declares the surviving ones as
+        // `Provenance::Linked` parameters (ADR law 8).
+        let (plan, first) = region::collect_cells(|| card.clone().lower());
+        if region::plan_is_empty(&plan) {
+            first
+        } else {
+            region::with_cells(plan, || card.lower())
+        }
     })
-}
-
-/// The text of an unwind payload, when it carries one.
-fn panic_message(payload: &Box<dyn std::any::Any + Send>) -> Option<String> {
-    payload.downcast_ref::<String>().cloned().or_else(|| {
-        payload
-            .downcast_ref::<&'static str>()
-            .map(|s| (*s).to_owned())
+    .map_err(|message| Diagnostic {
+        card: Arc::clone(&name),
+        message,
     })
 }
 

@@ -26,7 +26,8 @@ impl Lower for deckmaste_semantics::Selection {
                         crate::region::refuse(&format!(
                             "noted selection `{name}` has no declared cell — no ability on this \
                              card writes it ([CR#607.1])"
-                        ))
+                        ));
+                        deckmaste_core::RefId(0)
                     }),
             ),
             Self::TopOfLibrary { count, whose } => deckmaste_core::Selection::TopOfLibrary {
@@ -55,9 +56,12 @@ impl Lower for deckmaste_semantics::Selection {
             Self::Them(sort) => deckmaste_core::Selection::Reg(
                 crate::region::they(Some(sort)).expect("unbound sorted plural during lowering"),
             ),
-            Self::PilesOf { .. } => crate::region::refuse(
-                "noted pile sets have no register spelling yet; owner: engine-piles",
-            ),
+            Self::PilesOf { .. } => {
+                crate::region::refuse(
+                    "noted pile sets have no register spelling yet; owner: engine-piles",
+                );
+                deckmaste_core::Selection::Union([].into())
+            }
             Self::Pick { op, proj } => deckmaste_core::Selection::Pick {
                 op: op.lower(),
                 proj: proj.lower(),
@@ -200,13 +204,23 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "noted pile sets have no register spelling yet")]
     fn lowers_selection_piles_of() {
-        let _ = deckmaste_semantics::Selection::PilesOf {
-            note: "X".into(),
-            of: minimal_reference(),
-        }
-        .lower();
+        let error = crate::lower_for_test(|| {
+            deckmaste_semantics::Selection::PilesOf {
+                note: "X".into(),
+                of: minimal_reference(),
+            }
+            .lower()
+        })
+        .expect_err("an unimplemented noted pile set is refused");
+        assert_eq!(&*error.card, "Lowering Test");
+        assert!(
+            error
+                .message
+                .contains("noted pile sets have no register spelling yet"),
+            "the returned diagnostic carries the refusal, got {:?}",
+            error.message
+        );
     }
 
     #[test]

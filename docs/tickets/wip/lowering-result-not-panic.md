@@ -51,3 +51,40 @@ Acceptance:
   is the gate that a refusal did not quietly become a success.
 
 Standard constraints apply. Effort: **M**.
+
+## Landing record
+
+Implemented by a Codex delegate; gates re-run and diff reviewed by the
+orchestrator before commit.
+
+**Shape pinned.** A card-scoped `CompilerContext` carries the card identity and
+the first refusal. `Lower` stays infallible; only the internal card-walk entry
+`region::in_card` changed signature. `lower_card` keeps
+`Result<deckmaste_card::Card, Diagnostic>`. Refused partial output is discarded;
+genuine invariant panics remain panics rather than becoming diagnostics.
+
+**Decision the ticket left open — first refusal wins.** Infallible lowering may
+finish the current walk over placeholder values, but a walk that refused never
+returns its partial result. This keeps `Lower`'s public shape while removing
+both the panic transport and the process-wide hook mutation.
+
+**Tests.** added 1 · re-spelled 6 · restored 0 · removed 0 · ignored 0. The
+refusal tests assert a returned `Diagnostic` rather than a caught unwind.
+
+**Gates**, re-run by the orchestrator on the final tree:
+
+- `cargo test -p deckmaste_lowering -p deckmaste_core` — 53 / 737 / 4 / 4 / 0 / 0
+  passed, 0 failed, 0 ignored on every line.
+- `grep -rn 'set_hook\|take_hook\|catch_unwind' crates/deckmaste_lowering/` — no
+  output, as the acceptance requires.
+- `cargo xtask idris-check plugins/canon --differential` — `differential OK: 0
+  disagreements`, unchanged. This is the gate that proves a refusal did not
+  quietly become a success.
+- `cargo clippy -p deckmaste_lowering -p deckmaste_core --all-targets` — 10
+  warnings, all `crates/deckmaste_lowering/src/card.rs:166-184`, all
+  **pre-existing**: the same 10 reproduce on the default line, and this change
+  touches none of that file. Not introduced here; noted for a separate sweep.
+
+**Deviations and additions.** None beyond the ticket's letter. Scope held to
+`deckmaste_lowering`: six files, all in that crate plus its own test.
+

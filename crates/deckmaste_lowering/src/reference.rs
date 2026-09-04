@@ -74,7 +74,8 @@ impl Lower for deckmaste_semantics::Reference {
                         crate::region::refuse(&format!(
                             "linked-memory read `{name}` has no declared cell — no ability on \
                              this card writes it ([CR#607.1])"
-                        ))
+                        ));
+                        deckmaste_core::RefId(0)
                     }),
             ),
             Self::ControllerOf(f0) => deckmaste_core::Reference::ControllerOf(f0.lower()),
@@ -210,11 +211,19 @@ mod tests {
     /// Re-spelled from `lowers_reference_linked`, whose target variant this
     /// stage deletes.
     #[test]
-    #[should_panic(expected = "has no declared cell")]
     fn linked_read_without_a_declared_cell_is_a_lowering_error() {
-        let _ = crate::region::in_region(crate::region::RegionKind::Spell, 0, || {
-            deckmaste_semantics::Reference::Linked("X".into()).lower()
-        });
+        let error = crate::lower_for_test(|| {
+            crate::region::in_region(crate::region::RegionKind::Spell, 0, || {
+                deckmaste_semantics::Reference::Linked("X".into()).lower()
+            })
+        })
+        .expect_err("a linked read without a card cell is refused");
+        assert_eq!(&*error.card, "Lowering Test");
+        assert!(
+            error.message.contains("has no declared cell"),
+            "the returned diagnostic carries the refusal, got {:?}",
+            error.message
+        );
     }
 
     #[test]

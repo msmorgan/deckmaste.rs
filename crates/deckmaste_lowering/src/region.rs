@@ -113,43 +113,89 @@ thread_local! {
     /// two passes agree on the numbering.
     static ABILITY: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
     static NEXT_ABILITY: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
-    /// The card whose text is being compiled, so an R1/R2 refusal names it.
-    /// The ADR makes ambiguity a compilation error with provenance (law 12),
-    /// and provenance starts with which card failed to compile.
-    static CARD: RefCell<Option<Arc<str>>> = const { RefCell::new(None) };
+    /// The card-level compiler context. Per-node [`crate::Lower`] calls stay
+    /// infallible; a context-sensitive refusal is recorded here and observed
+    /// by the card walk after the recursive lowering returns.
+    static COMPILER: RefCell<CompilerContext> = const { RefCell::new(CompilerContext::new()) };
 }
 
-/// Compile `f` with `card` as the diagnostic context. Nests: text lowered
-/// inside another card's text (a created token's granted ability) restores the
-/// outer name when it finishes.
-pub(crate) fn in_card<T>(card: &str, f: impl FnOnce() -> T) -> T {
-    let previous = CARD.with(|slot| slot.replace(Some(Arc::from(card))));
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f));
-    CARD.with(|slot| *slot.borrow_mut() = previous);
-    match result {
-        Ok(value) => value,
-        Err(payload) => std::panic::resume_unwind(payload),
+struct CompilerContext {
+    card: Option<Arc<str>>,
+    refusal: Option<String>,
+}
+
+struct CompilerGuard {
+    previous: Option<CompilerContext>,
+}
+
+impl CompilerGuard {
+    fn install(card: &str) -> Self {
+        let previous = COMPILER.with(|slot| {
+            slot.replace(CompilerContext {
+                card: Some(Arc::from(card)),
+                refusal: None,
+            })
+        });
+        Self {
+            previous: Some(previous),
+        }
+    }
+
+    fn finish(mut self) -> CompilerContext {
+        let previous = self.previous.take().expect("installed compiler context");
+        COMPILER.with(|slot| slot.replace(previous))
     }
 }
 
-/// The card being compiled, or a placeholder when lowering runs outside one (a
-/// unit test, a bare macro expansion).
-fn card_context() -> String {
-    CARD.with(|slot| {
-        slot.borrow()
-            .as_ref()
-            .map_or_else(|| "<unknown card>".to_owned(), ToString::to_string)
-    })
+impl Drop for CompilerGuard {
+    fn drop(&mut self) {
+        if let Some(previous) = self.previous.take() {
+            COMPILER.with(|slot| {
+                slot.replace(previous);
+            });
+        }
+    }
+}
+
+impl CompilerContext {
+    const fn new() -> Self {
+        Self {
+            card: None,
+            refusal: None,
+        }
+    }
+}
+
+/// Compile `f` with one explicit card-level compiler context. Only this walk
+/// entry observes the refusal channel; the recursive [`crate::Lower`] map
+/// remains infallible and its partially built value is discarded on refusal.
+///
+/// The previous context is restored before returning, so nested card lowering
+/// keeps the outer card's diagnostic identity.
+pub(crate) fn in_card<T>(card: &str, f: impl FnOnce() -> T) -> Result<T, String> {
+    let guard = CompilerGuard::install(card);
+    let value = f();
+    let completed = guard.finish();
+    completed.refusal.map_or(Ok(value), Err)
 }
 
 /// Refuse to compile the card's text, naming the card and the reason.
 ///
 /// The ADR routes R1/R2 refusals here (law 12: resolution happens once, in
-/// lowering, "as per-card diagnostics"). [`crate::lower_card`] turns the
-/// refusal into a [`crate::Diagnostic`] for callers compiling a corpus; a
-/// refusal that escapes it is a card-authoring bug and stays LOUD.
-pub(crate) fn refuse(reason: &str) -> ! {
-    panic!("{}: {reason}", card_context())
+/// lowering, "as per-card diagnostics"). The first refusal wins; lowering may
+/// finish the current infallible arm, but [`crate::lower_card`] discards its
+/// image and returns the recorded [`crate::Diagnostic`]. Outside a card walk,
+/// a refusal remains loud so isolated per-node lowering cannot lose it.
+pub(crate) fn refuse(reason: &str) {
+    COMPILER.with(|slot| {
+        let mut context = slot.borrow_mut();
+        let Some(card) = context.card.as_ref() else {
+            panic!("<unknown card>: {reason}");
+        };
+        if context.refusal.is_none() {
+            context.refusal = Some(format!("{card}: {reason}"));
+        }
+    });
 }
 
 /// Pass one: lower `f` with linked reads RECORDED instead of refused, and
@@ -157,26 +203,20 @@ pub(crate) fn refuse(reason: &str) -> ! {
 pub(crate) fn collect_cells<T>(f: impl FnOnce() -> T) -> (CellPlan, T) {
     COLLECT.with(|slot| *slot.borrow_mut() = Some(CellPlan::default()));
     NEXT_ABILITY.with(|next| next.set(0));
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f));
+    let value = f();
     let plan = COLLECT
         .with(|slot| slot.borrow_mut().take())
         .unwrap_or_default();
-    match result {
-        Ok(value) => (plan, value),
-        Err(payload) => std::panic::resume_unwind(payload),
-    }
+    (plan, value)
 }
 
 /// Pass two: lower `f` with `plan`'s cells declared as region parameters.
 pub(crate) fn with_cells<T>(plan: CellPlan, f: impl FnOnce() -> T) -> T {
     PLAN.with(|slot| *slot.borrow_mut() = Some(plan));
     NEXT_ABILITY.with(|next| next.set(0));
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f));
+    let value = f();
     PLAN.with(|slot| *slot.borrow_mut() = None);
-    match result {
-        Ok(value) => value,
-        Err(payload) => std::panic::resume_unwind(payload),
-    }
+    value
 }
 
 /// Whether the plan the first pass produced needs a second pass at all.
@@ -230,12 +270,9 @@ fn in_ability_region<T>(f: impl FnOnce(u32) -> T) -> T {
         ordinal
     });
     let previous = ABILITY.with(|current| current.replace(ordinal));
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| f(ordinal)));
+    let value = f(ordinal);
     ABILITY.with(|current| current.set(previous));
-    match result {
-        Ok(value) => value,
-        Err(payload) => std::panic::resume_unwind(payload),
-    }
+    value
 }
 
 /// Push this ability region's declared linked-memory parameters ([CR#607.1]).
@@ -258,14 +295,11 @@ fn declare_linked(context: &mut Context, ability: u32) {
 
 fn with_pushed_context<T>(context: Context, f: impl FnOnce() -> T) -> (Context, T) {
     CONTEXTS.with(|contexts| contexts.borrow_mut().push(context));
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f));
+    let value = f();
     let context = CONTEXTS
         .with(|contexts| contexts.borrow_mut().pop())
         .expect("region context");
-    match result {
-        Ok(value) => (context, value),
-        Err(payload) => std::panic::resume_unwind(payload),
-    }
+    (context, value)
 }
 
 fn push_param(params: &mut Vec<Param>, kind: Kind, provenance: Provenance) -> RefId {
@@ -830,7 +864,8 @@ fn reachable(antecedent: &Antecedent, cardinality: Cardinality, want: Option<Sor
 
 /// R1/R2 over one discourse tier, nearest first. `None` when the tier holds no
 /// compatible antecedent; a panic when it holds two that the exact-then-widened
-/// carve-out does not separate.
+/// carve-out does not separate. A refusal records the collision on the
+/// compiler context and returns the first register as a discarded placeholder.
 fn resolve_tier<'a>(
     antecedents: impl Iterator<Item = &'a Antecedent>,
     cardinality: Cardinality,
@@ -1219,21 +1254,29 @@ mod tests {
     /// refusal, not a silent pick — the resolver never guesses between two
     /// equally good readings.
     #[test]
-    #[should_panic(expected = "ambiguous discourse anaphor")]
     fn a_second_compatible_antecedent_refuses() {
-        let _ = super::in_region(RegionKind::Spell, 0, || {
-            for _ in 0..2 {
-                let def = super::define(Kind::Object);
-                super::push_antecedent(
-                    def.into(),
-                    Kind::Object,
-                    Cardinality::One,
-                    Some(deckmaste_semantics::Sort::Card),
-                    Site::Product,
-                );
-            }
-            super::that(deckmaste_semantics::Sort::Card)
-        });
+        let error = crate::lower_for_test(|| {
+            super::in_region(RegionKind::Spell, 0, || {
+                for _ in 0..2 {
+                    let def = super::define(Kind::Object);
+                    super::push_antecedent(
+                        def.into(),
+                        Kind::Object,
+                        Cardinality::One,
+                        Some(deckmaste_semantics::Sort::Card),
+                        Site::Product,
+                    );
+                }
+                super::that(deckmaste_semantics::Sort::Card)
+            })
+        })
+        .expect_err("two compatible antecedents are ambiguous");
+        assert_eq!(&*error.card, "Lowering Test");
+        assert!(
+            error.message.contains("ambiguous discourse anaphor"),
+            "the returned diagnostic carries the refusal, got {:?}",
+            error.message
+        );
     }
 
     /// R1 is what a SITE-preferred search runs: among the antecedents at the

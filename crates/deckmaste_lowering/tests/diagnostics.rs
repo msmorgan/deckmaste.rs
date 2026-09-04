@@ -98,6 +98,30 @@ fn a_refusal_does_not_poison_the_next_card() {
     assert_eq!(&*lowered.name, "Good Card");
 }
 
+/// Only explicit resolver refusals use the diagnostic channel. An invariant
+/// panic is still a panic, so `lower_card` cannot misreport a compiler bug as
+/// a problem with the card being walked.
+#[test]
+#[should_panic(expected = "unbound role `missing` during semantic lowering")]
+fn an_invariant_panic_is_not_rewritten_as_a_card_diagnostic() {
+    let card = sem::Card::Normal(face(
+        "Innocent Card",
+        vec![sem::Ability::Spell(
+            sem::SpellAbility {
+                ability_word: None,
+                effect: sem::OneShotEffect::Act(sem::Action::Move(
+                    sem::Reference::Bound("missing".into()),
+                    sem::Destination::Zone(sem::Zone::Exile),
+                    [].into(),
+                    None,
+                )),
+            }
+            .into(),
+        )],
+    ));
+    let _ = deckmaste_lowering::lower_card(card);
+}
+
 /// A card that compiles returns its lowered image, so `lower_card` is the
 /// ordinary entry and not just an error probe.
 #[test]

@@ -228,20 +228,30 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "noted pile sets have no register spelling yet")]
     fn lowers_pile_source_noted() {
-        let _ = in_spell_region(|| {
-            deckmaste_semantics::ChoosePile {
-                from: deckmaste_semantics::PileSource::Noted {
-                    note: "X".into(),
-                    of: minimal_reference(),
-                },
-                by: minimal_reference(),
-                random: false,
-                then: std::sync::Arc::new(minimal_one_shot_effect()),
-            }
-            .lower()
-        });
+        let error = crate::lower_for_test(|| {
+            in_spell_region(|| {
+                deckmaste_semantics::ChoosePile {
+                    from: deckmaste_semantics::PileSource::Noted {
+                        note: "X".into(),
+                        of: minimal_reference(),
+                    },
+                    by: minimal_reference(),
+                    random: false,
+                    then: std::sync::Arc::new(minimal_one_shot_effect()),
+                }
+                .lower()
+            })
+        })
+        .expect_err("an unimplemented noted pile source is refused");
+        assert_eq!(&*error.card, "Lowering Test");
+        assert!(
+            error
+                .message
+                .contains("noted pile sets have no register spelling yet"),
+            "the returned diagnostic carries the refusal, got {:?}",
+            error.message
+        );
     }
 
     // ---- Instruction lowering, restored from the discourse landing ----
@@ -880,23 +890,31 @@ mod tests {
     /// scope the resolver refuses (R2) rather than picking one, so the change
     /// is loud at compile time instead of a wrong object at resolution.
     #[test]
-    #[should_panic(expected = "ambiguous discourse anaphor")]
     fn a_clause_inserted_between_binder_and_mention_re_resolves() {
         // Sanity: without the insertion the mention resolves — see
         // `exile_and_return_reads_the_exiles_product_definition`.
-        let _ = lower_targeted_spell(sem::OneShotEffect::Sequentially(
-            [
-                move_to(sem::Reference::Target(0), sem::Zone::Exile),
-                // The inserted producing clause: it defines a second card-sorted
-                // product between the binder and its mention.
-                move_to(sem::Reference::This, sem::Zone::Graveyard),
-                move_to(
-                    sem::Reference::That(sem::Sort::Card),
-                    sem::Zone::Battlefield,
-                ),
-            ]
-            .into(),
-        ));
+        let error = crate::lower_for_test(|| {
+            lower_targeted_spell(sem::OneShotEffect::Sequentially(
+                [
+                    move_to(sem::Reference::Target(0), sem::Zone::Exile),
+                    // The inserted producing clause: it defines a second card-sorted
+                    // product between the binder and its mention.
+                    move_to(sem::Reference::This, sem::Zone::Graveyard),
+                    move_to(
+                        sem::Reference::That(sem::Sort::Card),
+                        sem::Zone::Battlefield,
+                    ),
+                ]
+                .into(),
+            ))
+        })
+        .expect_err("two compatible products are ambiguous");
+        assert_eq!(&*error.card, "Lowering Test");
+        assert!(
+            error.message.contains("ambiguous discourse anaphor"),
+            "the returned diagnostic carries the refusal, got {:?}",
+            error.message
+        );
     }
 
     /// FIXTURE — a multi-sentence anaphora card. "Create a Treasure token.
@@ -1033,9 +1051,16 @@ mod tests {
     /// other, exercised by
     /// `that_much_in_a_loop_body_reads_the_bodys_own_magnitude`.
     #[test]
-    #[should_panic(expected = "ambiguous discourse anaphor")]
     fn a_bare_that_much_after_two_magnitudes_is_refused() {
-        let _ = two_magnitudes_then(sem::Count::ThatMuch, None).lower();
+        let error =
+            crate::lower_for_test(|| two_magnitudes_then(sem::Count::ThatMuch, None).lower())
+                .expect_err("two compatible magnitudes are ambiguous");
+        assert_eq!(&*error.card, "Lowering Test");
+        assert!(
+            error.message.contains("ambiguous discourse anaphor"),
+            "the returned diagnostic carries the refusal, got {:?}",
+            error.message
+        );
     }
 
     /// FIXTURE — a two-magnitude card, half four: the loop body's own
@@ -1964,14 +1989,18 @@ impl Lower for deckmaste_semantics::ChoosePile {
                     crate::region::named(label).unwrap_or_else(|| {
                         crate::region::refuse(&format!(
                             "pile label `{label}` has no dominating SeparatePiles definition"
-                        ))
+                        ));
+                        deckmaste_core::RefId(0)
                     })
                 })
                 .collect::<Vec<_>>()
                 .into(),
-            deckmaste_semantics::PileSource::Noted { .. } => crate::region::refuse(
-                "noted pile sets have no register spelling yet; owner: engine-piles",
-            ),
+            deckmaste_semantics::PileSource::Noted { .. } => {
+                crate::region::refuse(
+                    "noted pile sets have no register spelling yet; owner: engine-piles",
+                );
+                std::sync::Arc::from([])
+            }
         };
         let by = self.by.lower();
         let dest = crate::region::define(deckmaste_core::Kind::Pile);
