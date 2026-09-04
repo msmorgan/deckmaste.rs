@@ -3513,11 +3513,14 @@ lastType [t] = Just t
 lastType (_ :: ts) = lastType ts
 
 
+||| The combat phase's declare-attackers and declare-blockers steps [CR#508.1,509.1],
+||| its combat damage step [CR#510.1] and the cleanup step [CR#514.1].
 public export
 data TurnPart = Turn | Upkeep | EndStep | Combat | UntapStep | EndOfCombat
               | FirstMain | PostcombatMain | DrawStep
               | MainPhase
               | BeginningPhase
+              | DeclareAttackers | DeclareBlockers | CombatDamage | Cleanup
 
 public export
 data RankPeriod : Type where
@@ -3537,6 +3540,10 @@ turnPartIx PostcombatMain = 7
 turnPartIx DrawStep = 8
 turnPartIx MainPhase = 9
 turnPartIx BeginningPhase = 10
+turnPartIx DeclareAttackers = 11
+turnPartIx DeclareBlockers = 12
+turnPartIx CombatDamage = 13
+turnPartIx Cleanup = 14
 
 public export
 Eq TurnPart where

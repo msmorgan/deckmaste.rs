@@ -550,3 +550,38 @@ waxWane =
     (Macros.frontFace "Wane" (Just [Macros.pip White]) [] (MkTypeLine [] [Instant])
             [ Spell (Macros.destroy (Macros.target Macros.enchantment)) ]
             Nothing)
+
+||| Teleport
+public export
+teleport : Card
+teleport =
+  Macros.card "Teleport" (Just [Macros.pip Blue, Macros.pip Blue, Macros.pip Blue]) []
+       (MkTypeLine [] [Instant])
+       [ Static (OnlyDuring DeclareAttackers Nothing
+                   (Macros.deontic This Permit ["Cast"] Patient NoDeonticPatient))
+       , Spell (Macros.cantBeBlocked (Macros.target Macros.creature) (Just ThisTurn)) ]
+       Nothing
+
+||| Dazzling Beauty's cast restriction; its targeted effect and delayed
+||| "next turn's upkeep" draw need machinery outside this ticket.
+public export
+dazzlingBeautyCastRestriction : Ability
+dazzlingBeautyCastRestriction =
+  Static (OnlyDuring DeclareBlockers Nothing
+            (Macros.deontic This Permit ["Cast"] Patient NoDeonticPatient))
+
+||| Thawing Glaciers
+public export
+thawingGlaciers : Card
+thawingGlaciers =
+  Macros.card "Thawing Glaciers" Nothing [] (MkTypeLine [] [Land])
+       [ Static (Macros.entersTapped Macros.thisLand)
+       , Macros.activated (Compound [Mana [Macros.generic 1], TapSymbol])
+           (Sequentially
+              [ Macros.searchLibraryFor (Macros.exactly 1)
+                  (And [Macros.land, HasSupertype Basic])
+              , Macros.putOntoBattlefieldTapped (Macros.That CardW OneOf)
+              , Macros.shuffle
+              , Macros.delayed (BeginningOf ThePart Cleanup NoPossessor)
+                  (Macros.move Macros.thisLand Macros.handZ) ]) ]
+       Nothing
