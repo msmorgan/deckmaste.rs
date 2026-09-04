@@ -8,8 +8,9 @@
 //!    gate-column overlay below.
 //!  - `facts check` — regenerate in memory and fail if the committed module
 //!    differs, so the generated file can't be hand-edited into drift.
-//!  - `facts labels` — the two-way label-set report: every stub wants a
-//!    table row and every table row wants a stub. Fails on any difference.
+//!  - `facts labels` — the two-way label-set report over four tables, each
+//!    printed with the scope rule that says which directions bind and with
+//!    the recorded reason for every label the scope rule exempts.
 
 use std::fs;
 use std::path::Path;
@@ -63,6 +64,7 @@ fn repo_root(args: &PathArgs) -> PathBuf {
 const KEYWORD_STUBS: &str = "plugins/builtin_v2/macros/stubs/keyword_abilities";
 const ACTION_STUBS: &str = "plugins/builtin_v2/macros/stubs/keyword_actions";
 const COUNTER_STUBS: &str = "plugins/builtin_v2/macros/stubs/counter_kinds";
+const DESIGNATION_STUBS: &str = "plugins/builtin_v2/macros/stubs/designations";
 const WORDS: &str = "idris/src/Experimental/Words.idr";
 const GENERATED: &str = "idris/src/Experimental/FactsGen.idr";
 
@@ -734,6 +736,510 @@ fn overlay() -> Vec<Row> {
             label: "Companion",
             ..D
         },
+        // The rowless stubs, rowed. Each gate column follows the keyword's own
+        // CR entry [CR#702]: `bodied` where the entry defines one triggered
+        // ability with a quoted expansion, `paidCost` where it names a
+        // "[keyword] cost" [CR#702.1a], `regime` `AtCasting` where the ability
+        // functions while the spell is on the stack and `AtResolution` where it
+        // modifies the damage its source deals [CR#120.3], `onPermanentCard` /
+        // `onSpellCard` from the entry's own card-type wording and the printed
+        // corpus, `wantsModes` for the modal-spell keywords [CR#702.172a,702.183a].
+        // No new row is a keyword counter [CR#122.1b].
+        Row {
+            label: "Absorb",
+            ..D
+        },
+        Row {
+            label: "Afflict",
+            bodied: true,
+            ..D
+        },
+        Row {
+            label: "Aftermath",
+            on_permanent_card: false,
+            on_spell_card: true,
+            ..D
+        },
+        Row {
+            label: "Amplify",
+            ..D
+        },
+        Row {
+            label: "Assist",
+            regime: Some(Regime::AtCasting),
+            on_spell_card: true,
+            ..D
+        },
+        Row {
+            label: "AuraSwap",
+            paid_cost: true,
+            ..D
+        },
+        Row {
+            label: "Backup",
+            bodied: true,
+            ..D
+        },
+        Row {
+            label: "Bargain",
+            regime: Some(Regime::AtCasting),
+            on_spell_card: true,
+            ..D
+        },
+        Row {
+            label: "BattleCry",
+            bodied: true,
+            ..D
+        },
+        Row {
+            label: "Bloodthirst",
+            ..D
+        },
+        Row {
+            label: "Champion",
+            ..D
+        },
+        Row {
+            label: "Cipher",
+            regime: Some(Regime::AtCasting),
+            on_permanent_card: false,
+            on_spell_card: true,
+            ..D
+        },
+        Row {
+            label: "Compleated",
+            ..D
+        },
+        Row {
+            label: "Conspire",
+            regime: Some(Regime::AtCasting),
+            on_spell_card: true,
+            paid_cost: true,
+            ..D
+        },
+        Row {
+            label: "Daybound",
+            ..D
+        },
+        Row {
+            label: "Demonstrate",
+            regime: Some(Regime::AtCasting),
+            on_spell_card: true,
+            bodied: true,
+            ..D
+        },
+        Row {
+            label: "Dethrone",
+            bodied: true,
+            ..D
+        },
+        Row {
+            label: "Devoid",
+            on_spell_card: true,
+            ..D
+        },
+        Row {
+            label: "Devour",
+            ..D
+        },
+        Row {
+            label: "Embalm",
+            paid_cost: true,
+            ..D
+        },
+        Row {
+            label: "Encore",
+            paid_cost: true,
+            ..D
+        },
+        Row {
+            label: "Enlist",
+            ..D
+        },
+        Row {
+            label: "Epic",
+            on_spell_card: true,
+            ..D
+        },
+        Row {
+            label: "Eternalize",
+            paid_cost: true,
+            ..D
+        },
+        Row {
+            label: "Evolve",
+            bodied: true,
+            ..D
+        },
+        Row {
+            label: "Exploit",
+            bodied: true,
+            ..D
+        },
+        Row {
+            label: "Extort",
+            regime: Some(Regime::AtCasting),
+            bodied: true,
+            ..D
+        },
+        Row {
+            label: "Fabricate",
+            bodied: true,
+            ..D
+        },
+        Row {
+            label: "Fading",
+            ..D
+        },
+        Row {
+            label: "Firebending",
+            bodied: true,
+            ..D
+        },
+        Row {
+            label: "Flanking",
+            bodied: true,
+            ..D
+        },
+        Row {
+            label: "ForMirrodin",
+            bodied: true,
+            ..D
+        },
+        Row {
+            label: "Forecast",
+            on_spell_card: true,
+            ..D
+        },
+        Row {
+            label: "Fortify",
+            paid_cost: true,
+            ..D
+        },
+        Row {
+            label: "Frenzy",
+            bodied: true,
+            ..D
+        },
+        Row {
+            label: "Graft",
+            ..D
+        },
+        Row {
+            label: "Gravestorm",
+            regime: Some(Regime::AtCasting),
+            on_spell_card: true,
+            bodied: true,
+            ..D
+        },
+        Row {
+            label: "Haunt",
+            on_spell_card: true,
+            bodied: true,
+            ..D
+        },
+        Row {
+            label: "HiddenAgenda",
+            ..D
+        },
+        Row {
+            label: "Hideaway",
+            bodied: true,
+            ..D
+        },
+        Row {
+            label: "Horsemanship",
+            ..D
+        },
+        Row {
+            label: "Increment",
+            regime: Some(Regime::AtCasting),
+            bodied: true,
+            ..D
+        },
+        Row {
+            label: "Infinity",
+            ..D
+        },
+        Row {
+            label: "Ingest",
+            bodied: true,
+            ..D
+        },
+        Row {
+            label: "Intimidate",
+            ..D
+        },
+        Row {
+            label: "JobSelect",
+            bodied: true,
+            ..D
+        },
+        Row {
+            label: "JumpStart",
+            on_permanent_card: false,
+            on_spell_card: true,
+            ..D
+        },
+        Row {
+            label: "LevelUp",
+            paid_cost: true,
+            ..D
+        },
+        Row {
+            label: "LivingMetal",
+            ..D
+        },
+        Row {
+            label: "LivingWeapon",
+            bodied: true,
+            ..D
+        },
+        Row {
+            label: "MaxSpeed",
+            ..D
+        },
+        Row {
+            label: "Melee",
+            bodied: true,
+            ..D
+        },
+        Row {
+            label: "Mentor",
+            bodied: true,
+            ..D
+        },
+        Row {
+            label: "Mobilize",
+            bodied: true,
+            ..D
+        },
+        Row {
+            label: "Modular",
+            ..D
+        },
+        Row {
+            label: "MoreThanMeetsTheEye",
+            paid_cost: true,
+            ..D
+        },
+        Row {
+            label: "Myriad",
+            bodied: true,
+            ..D
+        },
+        Row {
+            label: "Nightbound",
+            ..D
+        },
+        Row {
+            label: "Offering",
+            regime: Some(Regime::AtCasting),
+            ..D
+        },
+        Row {
+            label: "Outlast",
+            paid_cost: true,
+            ..D
+        },
+        Row {
+            label: "Paradigm",
+            on_spell_card: true,
+            ..D
+        },
+        Row {
+            label: "Partner",
+            ..D
+        },
+        Row {
+            label: "Persist",
+            bodied: true,
+            ..D
+        },
+        Row {
+            label: "Plot",
+            on_spell_card: true,
+            paid_cost: true,
+            ..D
+        },
+        Row {
+            label: "Poisonous",
+            bodied: true,
+            ..D
+        },
+        Row {
+            label: "Provoke",
+            bodied: true,
+            ..D
+        },
+        Row {
+            label: "Rampage",
+            bodied: true,
+            ..D
+        },
+        Row {
+            label: "Ravenous",
+            ..D
+        },
+        Row {
+            label: "ReadAhead",
+            ..D
+        },
+        Row {
+            label: "Rebound",
+            regime: Some(Regime::AtCasting),
+            on_permanent_card: false,
+            on_spell_card: true,
+            ..D
+        },
+        Row {
+            label: "Reconfigure",
+            paid_cost: true,
+            ..D
+        },
+        Row {
+            label: "Recover",
+            on_spell_card: true,
+            paid_cost: true,
+            bodied: true,
+            ..D
+        },
+        Row {
+            label: "Reinforce",
+            on_spell_card: true,
+            paid_cost: true,
+            ..D
+        },
+        Row { label: "Riot", ..D },
+        Row {
+            label: "Ripple",
+            regime: Some(Regime::AtCasting),
+            on_spell_card: true,
+            bodied: true,
+            ..D
+        },
+        Row {
+            label: "Scavenge",
+            paid_cost: true,
+            ..D
+        },
+        Row {
+            label: "Solved",
+            ..D
+        },
+        Row {
+            label: "Soulbond",
+            ..D
+        },
+        Row {
+            label: "Soulshift",
+            bodied: true,
+            ..D
+        },
+        Row {
+            label: "SpaceSculptor",
+            ..D
+        },
+        Row {
+            label: "Splice",
+            on_spell_card: true,
+            paid_cost: true,
+            ..D
+        },
+        Row {
+            label: "Spree",
+            regime: Some(Regime::AtCasting),
+            on_spell_card: true,
+            wants_modes: true,
+            ..D
+        },
+        Row {
+            label: "StartYourEngines",
+            ..D
+        },
+        Row {
+            label: "Station",
+            ..D
+        },
+        Row {
+            label: "Sunburst",
+            ..D
+        },
+        Row {
+            label: "Teamwork",
+            regime: Some(Regime::AtCasting),
+            on_spell_card: true,
+            ..D
+        },
+        Row {
+            label: "Tiered",
+            regime: Some(Regime::AtCasting),
+            on_spell_card: true,
+            wants_modes: true,
+            ..D
+        },
+        Row {
+            label: "Toxic",
+            ..D
+        },
+        Row {
+            label: "Training",
+            bodied: true,
+            ..D
+        },
+        Row {
+            label: "Transfigure",
+            paid_cost: true,
+            ..D
+        },
+        Row {
+            label: "Transmute",
+            on_spell_card: true,
+            paid_cost: true,
+            ..D
+        },
+        Row {
+            label: "Tribute",
+            ..D
+        },
+        Row {
+            label: "UmbraArmor",
+            ..D
+        },
+        Row {
+            label: "Undaunted",
+            regime: Some(Regime::AtCasting),
+            on_spell_card: true,
+            ..D
+        },
+        Row {
+            label: "Undying",
+            bodied: true,
+            ..D
+        },
+        Row {
+            label: "Unleash",
+            ..D
+        },
+        Row {
+            label: "Vanishing",
+            ..D
+        },
+        Row {
+            label: "Visit",
+            ..D
+        },
+        Row {
+            label: "WebSlinging",
+            regime: Some(Regime::AtCasting),
+            paid_cost: true,
+            ..D
+        },
+        Row {
+            label: "Wither",
+            regime: Some(Regime::AtResolution),
+            ..D
+        },
     ]
 }
 
@@ -895,6 +1401,92 @@ fn run_check(root: &Path) -> anyhow::Result<()> {
 // `facts labels`
 // ---------------------------------------------------------------------
 
+/// A label the check does not require on the other side, and the reason it
+/// prints. A gap closes with a row, with a stub, or with a reason here.
+#[derive(Debug, Clone, Copy)]
+struct Exempt {
+    label: &'static str,
+    reason: &'static str,
+}
+
+const KEYWORD_SCOPE: &str = "both directions bind — every keyword-ability stub [CR#702] wants a \
+                             `keywordFacts` row and every row wants a stub.";
+
+const ACT_SCOPE: &str = "every keyword-action stub [CR#701] wants an `actFacts` row; a row need \
+                         not have a stub — `actFacts` also carries the turn-and-game deed \
+                         vocabulary (attack, block, draw, …), which is wider than [CR#701], so \
+                         the row-without-a-stub direction is informational.";
+
+const COUNTER_SCOPE: &str = "every counter-kind stub wants a `counterFacts` row; a row need not \
+                             have a stub — `counterFacts` carries the counter kinds the CR names \
+                             [CR#122.1] and the printed ones the corpus attests, which is wider \
+                             than the RON counter-kind macros, so the row-without-a-stub \
+                             direction is informational.";
+
+const DESIGNATION_SCOPE: &str = "both directions bind, through the stub-name → `Designation` \
+                                 constructor mapping below, because a stub name is not the Idris \
+                                 constructor name.";
+
+const GATE_COLUMNS: &str = "gate columns (counterEligible, regime, onPermanentCard, onSpellCard, \
+                            paidCost, bodied, wantsModes) stay hand-kept in xtask's overlay: \
+                            plugins/builtin_v2/macros/meta/KeywordAbility.ron declares no field \
+                            that could carry them.";
+
+/// Keyword-ability stubs the workbench does not row.
+const KEYWORD_STUBS_EXEMPT: &[Exempt] = &[Exempt {
+    label: "Prototype",
+    reason: "its `[Cost, Power, Toughness]` signature wants a KeywordParamShape carrying a \
+             second power/toughness pair beside the cost [CR#702.160a] — a new sort, which is \
+             design work beyond a row",
+}];
+
+/// Rows whose label is a CR-defined variant of a keyword that has its own
+/// stub, so the RON vocabulary spells the variant through that stub.
+const KEYWORD_ROWS_EXEMPT: &[Exempt] = &[
+    Exempt {
+        label: "Multikicker",
+        reason: "a variant of the kicker ability [CR#702.33c], spelled through the Kicker stub",
+    },
+    Exempt {
+        label: "BandsWithOther",
+        reason: "a special form of banding [CR#702.22b], spelled through the Banding stub",
+    },
+    Exempt {
+        label: "PartnerWith",
+        reason: "one of the partner abilities [CR#702.124j], spelled through the Partner stub",
+    },
+];
+
+/// Designation stubs with no `Words.Designation` constructor. Each wants a
+/// constructor and a `designationFacts` row whose scope, persistence and
+/// carrier columns are hand-authored, which is design work beyond a mapping.
+const DESIGNATION_STUBS_EXEMPT: &[Exempt] = &[
+    Exempt {
+        label: "Harnessed",
+        reason: "the harnessed designation [CR#701.64b] has no `Designation` constructor",
+    },
+    Exempt {
+        label: "Level",
+        reason: "the level designation [CR#716.2b] has no `Designation` constructor",
+    },
+    Exempt {
+        label: "Sector",
+        reason: "the sector designations [CR#702.158b] have no `Designation` constructor",
+    },
+    Exempt {
+        label: "Solved",
+        reason: "the solved designation [CR#719.3b] has no `Designation` constructor",
+    },
+];
+
+/// The designation stubs whose name is not the Idris constructor's; every
+/// other stub name is the constructor name.
+const DESIGNATION_MAP: &[(&str, &[&str])] = &[
+    ("Commander", &["CommanderD"]),
+    ("Initiative", &["TheInitiative"]),
+    ("DayNight", &["Day", "Night"]),
+];
+
 /// A label reduced to its comparable core: the workbench spells a multi-word
 /// label with spaces ("The Ring Tempts You") where the stub file names it in
 /// one word, and a counter's stub gives its printed spelling ("double
@@ -919,36 +1511,133 @@ fn table_labels(src: &str, ctor: &str) -> Vec<String> {
         .collect()
 }
 
-/// One table's two-way difference, printed. Returns whether it matched.
-fn report(table: &str, stubs: &[String], rows: &[String]) -> bool {
-    let stub_keys: Vec<String> = stubs.iter().map(|s| normalize(s)).collect();
-    let row_keys: Vec<String> = rows.iter().map(|s| normalize(s)).collect();
-    let missing_rows: Vec<&String> = stubs
+/// The `Designation` constructors, read off the `designationFacts` clauses.
+fn designation_ctors(src: &str) -> Vec<String> {
+    src.lines()
+        .filter_map(|line| {
+            let rest = line.strip_prefix("designationFacts ")?;
+            let (ctor, _) = rest.split_once(' ')?;
+            ctor.starts_with(char::is_uppercase)
+                .then(|| ctor.to_owned())
+        })
+        .collect()
+}
+
+/// A designation stub's constructor names.
+fn designation_labels(stubs: &[String]) -> Vec<String> {
+    stubs
         .iter()
-        .zip(&stub_keys)
-        .filter(|(_, k)| !row_keys.contains(k))
-        .map(|(s, _)| s)
-        .collect();
-    let missing_stubs: Vec<&String> = rows
+        .flat_map(
+            |stub| match DESIGNATION_MAP.iter().find(|(s, _)| s == stub) {
+                Some((_, ctors)) => ctors.iter().map(|c| (*c).to_owned()).collect::<Vec<_>>(),
+                None => vec![stub.clone()],
+            },
+        )
+        .collect()
+}
+
+/// One table's two-way difference, with its scope rule and its recorded
+/// reasons printed beside it.
+struct Table<'a> {
+    name: &'a str,
+    scope: &'a str,
+    stubs: Vec<String>,
+    rows: Vec<String>,
+    /// Stubs that need no row.
+    stub_exempt: &'a [Exempt],
+    /// Rows that need no stub.
+    row_exempt: &'a [Exempt],
+    /// Whether a row without a stub fails, or only reports.
+    rows_bind: bool,
+}
+
+fn missing(theirs: &[String], keys: &[String], exempt: &[Exempt]) -> Vec<String> {
+    let exempt: Vec<String> = exempt.iter().map(|e| normalize(e.label)).collect();
+    theirs
         .iter()
-        .zip(&row_keys)
-        .filter(|(_, k)| !stub_keys.contains(k))
-        .map(|(s, _)| s)
-        .collect();
+        .filter(|label| {
+            let key = normalize(label);
+            !keys.contains(&key) && !exempt.contains(&key)
+        })
+        .cloned()
+        .collect()
+}
+
+/// A recorded reason for a label that is present on both sides is stale, and
+/// stale reasons are how a scope rule quietly stops meaning anything.
+fn stale(exempt: &[Exempt], keys: &[String]) -> Vec<&'static str> {
+    exempt
+        .iter()
+        .filter(|e| keys.contains(&normalize(e.label)))
+        .map(|e| e.label)
+        .collect()
+}
+
+/// Reports the table, and returns whether it is within its scope rule.
+fn report(t: &Table) -> bool {
+    let stub_keys: Vec<String> = t.stubs.iter().map(|s| normalize(s)).collect();
+    let row_keys: Vec<String> = t.rows.iter().map(|s| normalize(s)).collect();
+    let missing_rows = missing(&t.stubs, &row_keys, t.stub_exempt);
+    let missing_stubs = missing(&t.rows, &stub_keys, t.row_exempt);
+    let stale_reasons = [
+        stale(t.stub_exempt, &row_keys),
+        stale(t.row_exempt, &stub_keys),
+    ]
+    .concat();
+
     println!(
-        "{table}: {} stubs, {} rows, {} stubs without a row, {} rows without a stub",
-        stubs.len(),
-        rows.len(),
+        "{}: {} stubs, {} rows, {} stubs without a row, {} rows without a stub{}",
+        t.name,
+        t.stubs.len(),
+        t.rows.len(),
         missing_rows.len(),
-        missing_stubs.len()
+        missing_stubs.len(),
+        if t.rows_bind { "" } else { " (informational)" }
     );
+    println!("  scope: {}", t.scope);
+    for e in t.stub_exempt {
+        println!(
+            "  stub with no row, recorded reason: {} — {}",
+            e.label, e.reason
+        );
+    }
+    for e in t.row_exempt {
+        println!(
+            "  row with no stub, recorded reason: {} — {}",
+            e.label, e.reason
+        );
+    }
     for label in &missing_rows {
         println!("  stub without a row: {label}");
     }
     for label in &missing_stubs {
         println!("  row without a stub: {label}");
     }
-    missing_rows.is_empty() && missing_stubs.is_empty()
+    for label in &stale_reasons {
+        println!("  stale recorded reason (the label is on both sides): {label}");
+    }
+    missing_rows.is_empty()
+        && stale_reasons.is_empty()
+        && (!t.rows_bind || missing_stubs.is_empty())
+}
+
+/// The counter stubs' printed spellings. The workbench spells the +1/+1 and
+/// -1/-1 counters as `BoostCounter`, not as a label, and a keyword counter
+/// [CR#122.1b] as the eligible keyword's own row.
+fn counter_stub_spellings(dir: &Path) -> anyhow::Result<Vec<String>> {
+    let mut spellings = Vec::new();
+    for name in stub_names(dir)? {
+        if name == "P1P1Counter" || name == "M1M1Counter" {
+            continue;
+        }
+        let path = dir.join(format!("{name}.ron"));
+        let src =
+            fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
+        let spelling =
+            stub_field(&src, "spelling").with_context(|| format!("{name}: no `spelling` field"))?;
+        spellings.push(spelling.trim_matches('"').to_owned());
+    }
+    Ok(spellings)
 }
 
 fn run_labels(root: &Path) -> anyhow::Result<()> {
@@ -956,35 +1645,6 @@ fn run_labels(root: &Path) -> anyhow::Result<()> {
     let words = fs::read_to_string(&words_path)
         .with_context(|| format!("reading {}", words_path.display()))?;
 
-    let keyword_rows: Vec<String> = overlay().iter().map(|r| r.label.to_owned()).collect();
-    let mut ok = report(
-        "keyword abilities",
-        &stub_names(&root.join(KEYWORD_STUBS))?,
-        &keyword_rows,
-    );
-
-    ok &= report(
-        "keyword actions",
-        &stub_names(&root.join(ACTION_STUBS))?,
-        &table_labels(&words, "MkActFacts"),
-    );
-
-    // A counter stub names its printed spelling; the workbench spells the
-    // +1/+1 and -1/-1 counters as `BoostCounter`, not as a label, and a
-    // keyword counter [CR#122.1b] as the eligible keyword's own row.
-    let counter_dir = root.join(COUNTER_STUBS);
-    let mut counter_stubs = Vec::new();
-    for name in stub_names(&counter_dir)? {
-        if name == "P1P1Counter" || name == "M1M1Counter" {
-            continue;
-        }
-        let path = counter_dir.join(format!("{name}.ron"));
-        let src =
-            fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
-        let spelling =
-            stub_field(&src, "spelling").with_context(|| format!("{name}: no `spelling` field"))?;
-        counter_stubs.push(spelling.trim_matches('"').to_owned());
-    }
     let mut counter_rows = table_labels(&words, "MkCounterFacts");
     counter_rows.extend(
         overlay()
@@ -992,7 +1652,55 @@ fn run_labels(root: &Path) -> anyhow::Result<()> {
             .filter(|r| r.counter_eligible)
             .map(|r| r.label.to_owned()),
     );
-    ok &= report("counter kinds", &counter_stubs, &counter_rows);
+    let designation_stubs = stub_names(&root.join(DESIGNATION_STUBS))?;
+
+    let tables = [
+        Table {
+            name: "keyword abilities",
+            scope: KEYWORD_SCOPE,
+            stubs: stub_names(&root.join(KEYWORD_STUBS))?,
+            rows: overlay().iter().map(|r| r.label.to_owned()).collect(),
+            stub_exempt: KEYWORD_STUBS_EXEMPT,
+            row_exempt: KEYWORD_ROWS_EXEMPT,
+            rows_bind: true,
+        },
+        Table {
+            name: "keyword actions",
+            scope: ACT_SCOPE,
+            stubs: stub_names(&root.join(ACTION_STUBS))?,
+            rows: table_labels(&words, "MkActFacts"),
+            stub_exempt: &[],
+            row_exempt: &[],
+            rows_bind: false,
+        },
+        Table {
+            name: "counter kinds",
+            scope: COUNTER_SCOPE,
+            stubs: counter_stub_spellings(&root.join(COUNTER_STUBS))?,
+            rows: counter_rows,
+            stub_exempt: &[],
+            row_exempt: &[],
+            rows_bind: false,
+        },
+        Table {
+            name: "designations",
+            scope: DESIGNATION_SCOPE,
+            stubs: designation_labels(&designation_stubs),
+            rows: designation_ctors(&words),
+            stub_exempt: DESIGNATION_STUBS_EXEMPT,
+            row_exempt: &[],
+            rows_bind: true,
+        },
+    ];
+
+    let mut ok = true;
+    for table in &tables {
+        ok &= report(table);
+    }
+    for (stub, ctors) in DESIGNATION_MAP {
+        println!("  designation mapping: {stub} → {}", ctors.join(", "));
+    }
+    println!("{GATE_COLUMNS}");
 
     anyhow::ensure!(ok, "the stub and table label sets differ");
     Ok(())
@@ -1053,6 +1761,56 @@ mod tests {
     #[test]
     fn the_committed_module_matches_the_stubs() {
         run_check(&root()).expect("`cargo xtask facts check` must pass on a clean tree");
+    }
+
+    #[test]
+    fn every_stub_has_a_row_or_a_recorded_reason() {
+        run_labels(&root()).expect("`cargo xtask facts labels` must pass on a clean tree");
+    }
+
+    #[test]
+    fn recorded_reasons_name_labels_that_are_really_there() {
+        let stubs = stub_names(&root().join(KEYWORD_STUBS)).expect("reading the keyword stubs");
+        for e in KEYWORD_STUBS_EXEMPT {
+            assert!(
+                stubs.contains(&e.label.to_owned()),
+                "{}: no such stub",
+                e.label
+            );
+        }
+        let rows: Vec<&str> = overlay().iter().map(|r| r.label).collect();
+        for e in KEYWORD_ROWS_EXEMPT {
+            assert!(rows.contains(&e.label), "{}: no such row", e.label);
+        }
+        let designations =
+            stub_names(&root().join(DESIGNATION_STUBS)).expect("reading the designation stubs");
+        for e in DESIGNATION_STUBS_EXEMPT {
+            assert!(
+                designations.contains(&e.label.to_owned()),
+                "{}: no such stub",
+                e.label
+            );
+        }
+        for (stub, _) in DESIGNATION_MAP {
+            assert!(
+                designations.contains(&(*stub).to_owned()),
+                "{stub}: no such stub"
+            );
+        }
+    }
+
+    #[test]
+    fn the_designation_map_reaches_the_idris_constructors() {
+        let words = fs::read_to_string(root().join(WORDS)).expect("reading Words.idr");
+        let ctors = designation_ctors(&words);
+        assert!(ctors.contains(&"CommanderD".to_owned()));
+        assert!(ctors.contains(&"Day".to_owned()) && ctors.contains(&"Night".to_owned()));
+        assert!(
+            !ctors.iter().any(|c| c == ":"),
+            "a type signature was read as a constructor"
+        );
+        let mapped = designation_labels(&["DayNight".to_owned(), "Goaded".to_owned()]);
+        assert_eq!(mapped, vec!["Day", "Night", "Goaded"]);
     }
 
     #[test]

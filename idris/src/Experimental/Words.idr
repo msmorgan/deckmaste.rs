@@ -743,6 +743,147 @@ actFacts =
   , MkActFacts "Venture Into The Dungeon" Nothing Nothing False [] False
       noRole noRole
       False False Nothing False False False False
+  , MkActFacts "Abandon" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Adapt" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Airbend" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Amass" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Assemble" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Attach" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Behold" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Blight" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Bolster" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Clash" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Cloak" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Collect Evidence" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Connive" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Create" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Detain" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Discover" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Double" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Earthbend" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Endure" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Exchange" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Exert" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Explore" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Face A Villainous Choice" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Fateseal" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Fight" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Forage" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Goad" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Harness" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Heal" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Incubate" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Investigate" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Learn" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Manifest" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Manifest Dread" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Monstrosity" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Open An Attraction" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Planeswalk" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Populate" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Recruit" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Reveal" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Roll To Visit Your Attractions" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Set In Motion" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Support" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Suspect" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Time Travel" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Triple" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
+  , MkActFacts "Waterbend" Nothing Nothing False [] False
+      noRole noRole
+      False False Nothing False False False False
   ]
 
 public export
