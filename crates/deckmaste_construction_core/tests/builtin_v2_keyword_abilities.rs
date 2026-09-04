@@ -3,9 +3,11 @@ use std::path::Path;
 
 use deckmaste_construction_core::macro_def::DeclarationKind;
 use deckmaste_construction_core::macro_def::GrammarRecipe;
+use deckmaste_construction_core::macro_def::KeywordParameterClass;
 use deckmaste_construction_core::macro_def::NormalizedDeclaration;
 use deckmaste_construction_core::macro_def::SpellingPart;
 use deckmaste_construction_core::macro_def::SurfaceFeature;
+use deckmaste_construction_core::macro_def::UnsupportedKeywordParameterClass;
 use deckmaste_construction_core::macro_def::read_builtin_v2;
 
 fn declaration_name(head: &str) -> String {
@@ -233,6 +235,37 @@ fn builtin_v2_keyword_ability_nursery_is_complete_and_normalized() {
         );
         assert_eq!(declaration.grammar().unwrap().surfaces()[0].text(), surface);
     }
+}
+
+#[test]
+fn unsupported_keyword_parameter_families_are_explicitly_deferred() {
+    let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let declarations = read_builtin_v2(workspace_root.join("plugins/builtin_v2"))
+        .expect("builtin-v2 declarations must load");
+
+    for name in [
+        "Boast", "Exhaust", "Forecast", "Infinity", "MaxSpeed", "PowerUp", "Solved", "Visit",
+    ] {
+        assert_eq!(
+            ability(&declarations, name).keyword_parameter_class(),
+            Some(KeywordParameterClass::Unsupported(
+                UnsupportedKeywordParameterClass::Ability
+            )),
+            "{name}",
+        );
+    }
+    assert_eq!(
+        ability(&declarations, "Companion").keyword_parameter_class(),
+        Some(KeywordParameterClass::Unsupported(
+            UnsupportedKeywordParameterClass::Condition
+        )),
+    );
+    assert_eq!(
+        ability(&declarations, "Prototype").keyword_parameter_class(),
+        Some(KeywordParameterClass::Unsupported(
+            UnsupportedKeywordParameterClass::CostPowerToughness
+        )),
+    );
 }
 
 #[test]

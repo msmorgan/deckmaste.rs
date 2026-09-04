@@ -999,22 +999,22 @@ enum NonterminalKind {
     PredicativePowerToughnessComplement,
     PredicativeScalarComplement,
     KeywordLineItem,
+    KeywordCost,
+    KeywordCostSeparator,
+    KeywordManaCost,
+    KeywordManaClauseCost,
+    SpacedKeywordCost,
+    DashedKeywordCost,
     KeywordQuality,
     KeywordSubject,
-    KeywordRelativeSubject,
+    KeywordSubjectModifier,
     KeywordCostPredicate,
     BareKeywordLineItem,
-    ManaCostedKeywordLineItem,
-    ClauseCostedKeywordLineItem,
-    ManaClauseCostedKeywordLineItem,
+    CostedKeywordLineItem,
     AmountKeywordLineItem,
-    AmountManaCostKeywordLineItem,
-    AmountClauseCostKeywordLineItem,
-    AmountManaClauseCostKeywordLineItem,
+    AmountCostKeywordLineItem,
     QualifiedKeywordLineItem,
-    QualityManaCostKeywordLineItem,
-    QualityClauseCostKeywordLineItem,
-    QualityManaClauseCostKeywordLineItem,
+    QualityCostKeywordLineItem,
     SubjectKeywordLineItem,
     KeywordQualityCoordination,
     KeywordLine,
@@ -1703,23 +1703,21 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
             NonterminalKind::PredicativeScalarComplement
         }
         NonterminalCategory::KeywordLineItem => NonterminalKind::KeywordLineItem,
+        NonterminalCategory::KeywordCost => NonterminalKind::KeywordCost,
+        NonterminalCategory::KeywordCostSeparator => NonterminalKind::KeywordCostSeparator,
+        NonterminalCategory::KeywordManaCost => NonterminalKind::KeywordManaCost,
+        NonterminalCategory::KeywordManaClauseCost => NonterminalKind::KeywordManaClauseCost,
+        NonterminalCategory::SpacedKeywordCost => NonterminalKind::SpacedKeywordCost,
+        NonterminalCategory::DashedKeywordCost => NonterminalKind::DashedKeywordCost,
         NonterminalCategory::KeywordQuality => NonterminalKind::KeywordQuality,
         NonterminalCategory::KeywordSubject => NonterminalKind::KeywordSubject,
-        NonterminalCategory::KeywordRelativeSubject => NonterminalKind::KeywordRelativeSubject,
+        NonterminalCategory::KeywordSubjectModifier => NonterminalKind::KeywordSubjectModifier,
         NonterminalCategory::KeywordCostPredicate => NonterminalKind::KeywordCostPredicate,
         NonterminalCategory::BareKeywordLineItem => NonterminalKind::BareKeywordLineItem,
-        NonterminalCategory::ManaCostedKeywordLineItem => {
-            NonterminalKind::ManaCostedKeywordLineItem
-        }
-        NonterminalCategory::ClauseCostedKeywordLineItem => {
-            NonterminalKind::ClauseCostedKeywordLineItem
-        }
-        NonterminalCategory::ManaClauseCostedKeywordLineItem => {
-            NonterminalKind::ManaClauseCostedKeywordLineItem
-        }
+        NonterminalCategory::CostedKeywordLineItem => NonterminalKind::CostedKeywordLineItem,
         NonterminalCategory::AmountKeywordLineItem => NonterminalKind::AmountKeywordLineItem,
-        NonterminalCategory::AmountManaCostKeywordLineItem => {
-            NonterminalKind::AmountManaCostKeywordLineItem
+        NonterminalCategory::AmountCostKeywordLineItem => {
+            NonterminalKind::AmountCostKeywordLineItem
         }
         NonterminalCategory::QualifiedKeywordLineItem => NonterminalKind::QualifiedKeywordLineItem,
         NonterminalCategory::SubjectKeywordLineItem => NonterminalKind::SubjectKeywordLineItem,
@@ -1904,20 +1902,8 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::PredicativeAbilityComplement => {
             NonterminalKind::PredicativeAbilityComplement
         }
-        NonterminalCategory::AmountClauseCostKeywordLineItem => {
-            NonterminalKind::AmountClauseCostKeywordLineItem
-        }
-        NonterminalCategory::AmountManaClauseCostKeywordLineItem => {
-            NonterminalKind::AmountManaClauseCostKeywordLineItem
-        }
-        NonterminalCategory::QualityManaCostKeywordLineItem => {
-            NonterminalKind::QualityManaCostKeywordLineItem
-        }
-        NonterminalCategory::QualityClauseCostKeywordLineItem => {
-            NonterminalKind::QualityClauseCostKeywordLineItem
-        }
-        NonterminalCategory::QualityManaClauseCostKeywordLineItem => {
-            NonterminalKind::QualityManaClauseCostKeywordLineItem
+        NonterminalCategory::QualityCostKeywordLineItem => {
+            NonterminalKind::QualityCostKeywordLineItem
         }
         NonterminalCategory::FiniteSubjectGapRelativeClause => {
             NonterminalKind::FiniteSubjectGapRelativeClause

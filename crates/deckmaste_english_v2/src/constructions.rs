@@ -4590,62 +4590,62 @@ constructions! {
 
     abstract sum KeywordLineItem {
         Bare: BareKeywordLineItem,
-        ManaCosted: ManaCostedKeywordLineItem,
-        ClauseCosted: ClauseCostedKeywordLineItem,
-        ManaClauseCosted: ManaClauseCostedKeywordLineItem,
+        Costed: CostedKeywordLineItem,
         Amounted: AmountKeywordLineItem,
-        AmountManaCosted: AmountManaCostKeywordLineItem,
-        AmountClauseCosted: AmountClauseCostKeywordLineItem,
-        AmountManaClauseCosted: AmountManaClauseCostKeywordLineItem,
+        AmountCosted: AmountCostKeywordLineItem,
         Qualified: QualifiedKeywordLineItem,
-        QualityManaCosted: QualityManaCostKeywordLineItem,
-        QualityClauseCosted: QualityClauseCostKeywordLineItem,
-        QualityManaClauseCosted: QualityManaClauseCostKeywordLineItem,
+        QualityCosted: QualityCostKeywordLineItem,
         Subject: SubjectKeywordLineItem,
+    }
+    abstract sum KeywordCost {
+        Mana: KeywordManaCost,
+        Clause: KeywordCostPredicate,
+        ManaClause: KeywordManaClauseCost,
+    }
+    abstract sum KeywordCostSeparator {
+        Space: SpacedKeywordCost,
+        Dash: DashedKeywordCost,
     }
     abstract sum KeywordQuality {
         Reference: Nominal,
         Coordination: KeywordQualityCoordination,
     }
-    abstract sum KeywordSubject {
-        Nominal: SingularNominal,
-        Coordination: SingularNominalCoordination,
-        Relative: KeywordRelativeSubject,
-    }
     construction bare_keyword_line_item: BareKeywordLineItem {
         element BareKeywordLineItemValue { keyword: lex BareKeywordAbility, }
         form bare_keyword_line_item = lex(keyword);
     }
-    construction mana_costed_keyword_line_item: ManaCostedKeywordLineItem {
-        element ManaCostedKeywordLineItemValue {
+    construction costed_keyword_line_item: CostedKeywordLineItem {
+        element CostedKeywordLineItemValue {
             keyword: lex CostedKeywordAbility,
-            cost: ActivationCostComponent,
+            cost: KeywordCostSeparator,
         }
+        form costed_keyword_line_item = lex(keyword) cost;
+    }
+    construction keyword_mana_cost: KeywordManaCost {
+        element KeywordManaCostValue { cost: ActivationCostComponent, }
         require cost is SymbolRun;
-        form mana_costed_keyword_line_item = lex(keyword) cost;
+        form keyword_mana_cost = cost;
     }
     construction keyword_cost_predicate: KeywordCostPredicate {
         element KeywordCostPredicateValue { predicate: Predicate, }
         derive predicate.agreement = Values::Bare;
         form keyword_cost_predicate = predicate ".";
     }
-    construction clause_costed_keyword_line_item: ClauseCostedKeywordLineItem {
-        element ClauseCostedKeywordLineItemValue {
-            keyword: lex CostedKeywordAbility,
-            cost: KeywordCostPredicate,
-        }
-        form clause_costed_keyword_line_item =
-            lex(keyword) sentence_initial("—") cost;
-    }
-    construction mana_clause_costed_keyword_line_item: ManaClauseCostedKeywordLineItem {
-        element ManaClauseCostedKeywordLineItemValue {
-            keyword: lex CostedKeywordAbility,
+    construction keyword_mana_clause_cost: KeywordManaClauseCost {
+        element KeywordManaClauseCostValue {
             mana: ActivationCostComponent,
-            cost: KeywordCostPredicate,
+            clause: KeywordCostPredicate,
         }
         require mana is SymbolRun;
-        form mana_clause_costed_keyword_line_item = lex(keyword)
-            sentence_initial("—") mana sentence_initial(", ") cost;
+        form keyword_mana_clause_cost = mana sentence_initial(", ") clause;
+    }
+    construction spaced_keyword_cost: KeywordCostSeparator {
+        element SpacedKeywordCost { cost: KeywordManaCost, }
+        form spaced_keyword_cost = cost;
+    }
+    construction dashed_keyword_cost: KeywordCostSeparator {
+        element DashedKeywordCost { cost: KeywordCost, }
+        form dashed_keyword_cost = sentence_initial("—") cost;
     }
     construction amount_keyword_line_item: AmountKeywordLineItem {
         element AmountKeywordLineItemValue {
@@ -4654,35 +4654,13 @@ constructions! {
         }
         form amount_keyword_line_item = lex(keyword) amount;
     }
-    construction amount_mana_cost_keyword_line_item: AmountManaCostKeywordLineItem {
-        element AmountManaCostKeywordLineItemValue {
+    construction amount_cost_keyword_line_item: AmountCostKeywordLineItem {
+        element AmountCostKeywordLineItemValue {
             keyword: lex AmountCostKeywordAbility,
             amount: Amount,
-            cost: ActivationCostComponent,
+            cost: KeywordCostSeparator,
         }
-        require cost is SymbolRun;
-        form amount_mana_cost_keyword_line_item =
-            lex(keyword) amount sentence_initial("—") cost;
-    }
-    construction amount_clause_cost_keyword_line_item: AmountClauseCostKeywordLineItem {
-        element AmountClauseCostKeywordLineItemValue {
-            keyword: lex AmountCostKeywordAbility,
-            amount: Amount,
-            cost: KeywordCostPredicate,
-        }
-        form amount_clause_cost_keyword_line_item = lex(keyword) amount
-            sentence_initial("—") cost;
-    }
-    construction amount_mana_clause_cost_keyword_line_item: AmountManaClauseCostKeywordLineItem {
-        element AmountManaClauseCostKeywordLineItemValue {
-            keyword: lex AmountCostKeywordAbility,
-            amount: Amount,
-            mana: ActivationCostComponent,
-            cost: KeywordCostPredicate,
-        }
-        require mana is SymbolRun;
-        form amount_mana_clause_cost_keyword_line_item = lex(keyword) amount
-            sentence_initial("—") mana sentence_initial(", ") cost;
+        form amount_cost_keyword_line_item = lex(keyword) amount cost;
     }
     construction keyword_quality_coordination: KeywordQualityCoordination {
         element KeywordQualityCoordinationValue {
@@ -4703,35 +4681,13 @@ constructions! {
         }
         form qualified_keyword_line_item = lex(keyword) quality;
     }
-    construction quality_mana_cost_keyword_line_item: QualityManaCostKeywordLineItem {
-        element QualityManaCostKeywordLineItemValue {
+    construction quality_cost_keyword_line_item: QualityCostKeywordLineItem {
+        element QualityCostKeywordLineItemValue {
             keyword: lex QualityCostKeywordAbility,
             quality: KeywordQuality,
-            cost: ActivationCostComponent,
+            cost: KeywordCostSeparator,
         }
-        require cost is SymbolRun;
-        form quality_mana_cost_keyword_line_item =
-            lex(keyword) quality sentence_initial("—") cost;
-    }
-    construction quality_clause_cost_keyword_line_item: QualityClauseCostKeywordLineItem {
-        element QualityClauseCostKeywordLineItemValue {
-            keyword: lex QualityCostKeywordAbility,
-            quality: KeywordQuality,
-            cost: KeywordCostPredicate,
-        }
-        form quality_clause_cost_keyword_line_item = lex(keyword) quality
-            sentence_initial("—") cost;
-    }
-    construction quality_mana_clause_cost_keyword_line_item: QualityManaClauseCostKeywordLineItem {
-        element QualityManaClauseCostKeywordLineItemValue {
-            keyword: lex QualityCostKeywordAbility,
-            quality: KeywordQuality,
-            mana: ActivationCostComponent,
-            cost: KeywordCostPredicate,
-        }
-        require mana is SymbolRun;
-        form quality_mana_clause_cost_keyword_line_item = lex(keyword) quality
-            sentence_initial("—") mana sentence_initial(", ") cost;
+        form quality_cost_keyword_line_item = lex(keyword) quality cost;
     }
     construction subject_keyword_line_item: SubjectKeywordLineItem {
         element SubjectKeywordLineItemValue {
@@ -4740,12 +4696,42 @@ constructions! {
         }
         form subject_keyword_line_item = lex(keyword) subject;
     }
-    construction keyword_relative_subject: KeywordRelativeSubject {
-        element KeywordRelativeSubjectValue {
-            nominal: SingularNominal,
-            clause: ObjectGapRelativeClause,
+    construction reference_keyword_subject: KeywordSubject {
+        element ReferenceKeywordSubject { subject: NounPhrase, }
+        form reference_keyword_subject = subject;
+    }
+    construction bare_keyword_subject: KeywordSubject {
+        element BareKeywordSubject { subject: Nominal, }
+        require subject.number is Singular;
+        form bare_keyword_subject = subject;
+    }
+    construction qualified_bare_keyword_subject: KeywordSubject {
+        element QualifiedBareKeywordSubject {
+            subject: Nominal,
+            modifier: KeywordSubjectModifier,
         }
-        form keyword_relative_subject = nominal clause;
+        require subject.number is Singular;
+        form qualified_bare_keyword_subject = subject modifier;
+    }
+    construction keyword_relative_subject_modifier: KeywordSubjectModifier {
+        element KeywordRelativeSubjectModifier { modifier: ObjectGapRelativeClause, }
+        form keyword_relative_subject_modifier = modifier;
+    }
+    construction keyword_prepositional_subject_modifier: KeywordSubjectModifier {
+        element KeywordPrepositionalSubjectModifier { modifier: PrepositionalPhrase, }
+        form keyword_prepositional_subject_modifier = modifier;
+    }
+    construction keyword_scalar_subject_modifier: KeywordSubjectModifier {
+        element KeywordScalarSubjectModifier { modifier: ScalarQualification, }
+        form keyword_scalar_subject_modifier = modifier;
+    }
+    construction keyword_with_subject_modifier: KeywordSubjectModifier {
+        element KeywordWithSubjectModifier { complement: Object, }
+        form keyword_with_subject_modifier = "with" complement;
+    }
+    construction keyword_without_subject_modifier: KeywordSubjectModifier {
+        element KeywordWithoutSubjectModifier { ability: lex KeywordAbility, }
+        form keyword_without_subject_modifier = "without" lex(ability);
     }
     construction keyword_line: KeywordLine {
         element KeywordLineValue {

@@ -3152,6 +3152,14 @@ fn validate_declaration_term_params(
     source: &crate::model::DeclarationTermSource,
     errors: &mut Option<syn::Error>,
 ) {
+    for slot in &source.param_slots {
+        for parameter in &slot.kinds {
+            let name = identifier_key(parameter);
+            if let Err(reason) = crate::macro_def::ParameterType::new(name) {
+                combine(errors, syn::Error::new(parameter.span(), reason));
+            }
+        }
+    }
     let parameter_fields = source
         .param_slots
         .iter()
@@ -11950,6 +11958,14 @@ pub(crate) mod tests {
                 feature = Participle;
             })
             .contains("declaration_term params policy must be `Any`")
+        );
+        assert!(
+            declaration_term_error(&quote! {
+                position = FixedKeyword;
+                kinds = [KeywordAbility];
+                params = [Mystery];
+            })
+            .contains("unknown parameter type `Mystery`")
         );
         assert!(
             declaration_term_error(&quote! {

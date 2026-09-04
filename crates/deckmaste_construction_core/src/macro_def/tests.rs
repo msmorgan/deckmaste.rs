@@ -147,6 +147,8 @@ fn source_schema_rejects_legacy_and_unknown_fields() {
     for extra in [
         r#"template: "scry <Param(0)>","#,
         r#"frames: ["scry <Param(0)>"],"#,
+        r#"separator: "—","#,
+        "layout: Dash,",
         r"kinds: [OneShotEffect],",
         r#"callback: "plugin_hook","#,
     ] {
@@ -665,6 +667,39 @@ KeywordAction(
             ValidationError::InvalidSpelling { .. }
         ));
     }
+}
+
+#[test]
+fn keyword_parameter_signatures_are_closed_or_explicitly_deferred() {
+    let unknown_type = validation(
+        r#"KeywordAbility(
+    name: "Quorbling",
+    params: [Mystery],
+    spelling: "quorbling",
+    grammar: FixedKeyword(surface: "quorbling"),
+)"#,
+    );
+    assert_eq!(
+        unknown_type,
+        ValidationError::UnknownParameterType {
+            name: "Mystery".to_owned(),
+        }
+    );
+
+    let unsupported_vector = validation(
+        r#"KeywordAbility(
+    name: "Quorbling",
+    params: [Cost, Amount],
+    spelling: "quorbling",
+    grammar: FixedKeyword(surface: "quorbling"),
+)"#,
+    );
+    assert_eq!(
+        unsupported_vector,
+        ValidationError::UnsupportedKeywordParameterSignature {
+            signature: "Cost, Amount".to_owned(),
+        }
+    );
 }
 
 #[test]

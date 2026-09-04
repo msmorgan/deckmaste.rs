@@ -166,26 +166,72 @@ impl fmt::Display for SubtypeCategory {
 }
 
 /// One normalized positional semantic parameter type.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
-pub struct ParameterType(String);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
+pub enum ParameterType {
+    Ability,
+    Amount,
+    Condition,
+    Cost,
+    Power,
+    Quality,
+    Subject,
+    Toughness,
+}
 
 impl ParameterType {
-    /// Constructs a checked bare parameter type.
+    /// Constructs a parameter type from its declaration spelling.
     ///
     /// # Errors
-    /// If `name` is not an ASCII RON identifier.
+    /// If `name` is not in the closed v2 semantic parameter vocabulary.
     pub fn new(name: impl Into<String>) -> Result<Self, String> {
         let name = name.into();
-        if !is_bare_ident(&name) {
-            return Err(format!("parameter type `{name}` is not a bare identifier"));
+        match name.as_str() {
+            "Ability" => Ok(Self::Ability),
+            "Amount" => Ok(Self::Amount),
+            "Condition" => Ok(Self::Condition),
+            "Cost" => Ok(Self::Cost),
+            "Power" => Ok(Self::Power),
+            "Quality" => Ok(Self::Quality),
+            "Subject" => Ok(Self::Subject),
+            "Toughness" => Ok(Self::Toughness),
+            _ => Err(format!("unknown parameter type `{name}`")),
         }
-        Ok(Self(name))
     }
 
     #[must_use]
     pub fn as_str(&self) -> &str {
-        &self.0
+        match self {
+            Self::Ability => "Ability",
+            Self::Amount => "Amount",
+            Self::Condition => "Condition",
+            Self::Cost => "Cost",
+            Self::Power => "Power",
+            Self::Quality => "Quality",
+            Self::Subject => "Subject",
+            Self::Toughness => "Toughness",
+        }
     }
+}
+
+/// Parameter families deliberately not admitted by the keyword-line grammar.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
+pub enum UnsupportedKeywordParameterClass {
+    Ability,
+    Condition,
+    CostPowerToughness,
+}
+
+/// The closed relationship between a keyword declaration and its line codec.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
+pub enum KeywordParameterClass {
+    Nullary,
+    Amount,
+    Cost,
+    AmountCost,
+    Quality,
+    QualityCost,
+    Subject,
+    Unsupported(UnsupportedKeywordParameterClass),
 }
 
 /// Closed grammar recipes accepted from a v2 declaration.
@@ -418,6 +464,7 @@ impl SourceProvenance {
 pub struct NormalizedDeclaration {
     identity: DeclarationIdentity,
     params: Option<Vec<ParameterType>>,
+    keyword_parameter_class: Option<KeywordParameterClass>,
     spelling: Vec<SpellingPart>,
     grammar: Option<GrammarRow>,
     noun_class: Option<NounClassSemantics>,
@@ -434,6 +481,12 @@ impl NormalizedDeclaration {
     #[must_use]
     pub fn params(&self) -> Option<&[ParameterType]> {
         self.params.as_deref()
+    }
+
+    /// Returns the keyword-line codec class for an explicitly signed keyword.
+    #[must_use]
+    pub fn keyword_parameter_class(&self) -> Option<KeywordParameterClass> {
+        self.keyword_parameter_class
     }
 
     #[must_use]
@@ -797,6 +850,10 @@ pub enum ValidationError {
     NamedParameters,
     #[error("v2 semantic declaration parameters must be plain type names")]
     DecoratedParameter,
+    #[error("unknown v2 semantic parameter type `{name}`")]
+    UnknownParameterType { name: String },
+    #[error("keyword parameter signature [{signature}] has no consuming or deferred codec class")]
+    UnsupportedKeywordParameterSignature { signature: String },
     #[error("invalid spelling: {reason}")]
     InvalidSpelling { reason: String },
     #[error("{location} references Param({index}), but the positional signature has length {len}")]
@@ -1310,6 +1367,14 @@ fn normalize(
     let name = definition.name.as_str().to_owned();
     let kind = normalized_kind(&path, source_map, definition)?;
     let params = normalized_params(&path, source_map, definition)?;
+    let keyword_parameter_class = if kind == DeclarationKind::KeywordAbility {
+        params
+            .as_deref()
+            .map(|params| normalized_keyword_parameter_class(&path, source_map, params))
+            .transpose()?
+    } else {
+        None
+    };
     let Metadata {
         spelling,
         grammar,
@@ -1417,6 +1482,7 @@ fn normalize(
     Ok(NormalizedDeclaration {
         identity,
         params,
+        keyword_parameter_class,
         spelling: spelling_parts,
         grammar,
         noun_class,
@@ -1496,12 +1562,57 @@ fn normalized_params(
                     ValidationError::DecoratedParameter,
                 ));
             }
-            ParameterType::new(param.name.as_str()).map_err(|reason| {
-                validation_error_at(path, position, ValidationError::InvalidBody { reason })
+            ParameterType::new(param.name.as_str()).map_err(|_| {
+                validation_error_at(
+                    path,
+                    position,
+                    ValidationError::UnknownParameterType {
+                        name: param.name.as_str().to_owned(),
+                    },
+                )
             })
         })
         .collect::<Result<Vec<_>, _>>()
         .map(Some)
+}
+
+fn normalized_keyword_parameter_class(
+    path: &Path,
+    source_map: &ValidationSourceMap,
+    params: &[ParameterType],
+) -> Result<KeywordParameterClass, ReadError> {
+    use KeywordParameterClass as Class;
+    use ParameterType as Type;
+    use UnsupportedKeywordParameterClass as Unsupported;
+
+    let class = match params {
+        [] => Class::Nullary,
+        [Type::Amount] => Class::Amount,
+        [Type::Cost] => Class::Cost,
+        [Type::Amount, Type::Cost] => Class::AmountCost,
+        [Type::Quality] => Class::Quality,
+        [Type::Quality, Type::Cost] => Class::QualityCost,
+        [Type::Subject] => Class::Subject,
+        [Type::Ability] => Class::Unsupported(Unsupported::Ability),
+        [Type::Condition] => Class::Unsupported(Unsupported::Condition),
+        [Type::Cost, Type::Power, Type::Toughness] => {
+            Class::Unsupported(Unsupported::CostPowerToughness)
+        }
+        _ => {
+            return Err(validation_error_at(
+                path,
+                source_map.params.unwrap_or(source_map.declaration),
+                ValidationError::UnsupportedKeywordParameterSignature {
+                    signature: params
+                        .iter()
+                        .map(ParameterType::as_str)
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                },
+            ));
+        }
+    };
+    Ok(class)
 }
 
 type NormalizedGrammarParts = (

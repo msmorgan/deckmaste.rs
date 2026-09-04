@@ -810,13 +810,16 @@ mod tests {
                 ("lexeme:CommonNoun/Die", vec![("plural", "dice")]),
             ],
         );
-        assert!(report.morphology_irregulars.iter().all(|irregular| {
-            !irregular.identity.starts_with("lexeme:VerbLexeme/")
-                && !matches!(
-                    irregular.identity.as_str(),
-                    "lexeme:VerbLexeme/Have" | "lexeme:VerbLexeme/Be"
-                )
-        }));
+        assert!(
+            report.morphology_irregulars.iter().all(|irregular| {
+                !irregular.identity.starts_with("lexeme:VerbLexeme/")
+                    || matches!(
+                        irregular.identity.as_str(),
+                        "lexeme:VerbLexeme/Have" | "lexeme:VerbLexeme/Be"
+                    )
+            }),
+            "only the two intentionally irregular verb lexemes remain"
+        );
         assert!(report.handwritten_codecs.is_empty());
         assert!(
             report.stored_form_tags.is_empty(),

@@ -89,13 +89,24 @@ fn declared_keyword_lines_parse_render_visit_and_own_exactly() {
         ("Equip {2}", vec!["Equip"]),
         ("Kicker {2}", vec!["Kicker"]),
         ("Cycling {2}", vec!["Cycling"]),
+        ("Cycling—{2}", vec!["Cycling"]),
         ("Ward {2}", vec!["Ward"]),
+        ("Ward—{2}", vec!["Ward"]),
         ("Ward—Pay 3 life.", vec!["Ward"]),
         ("Ward—{2}, Pay 2 life.", vec!["Ward"]),
         ("Reinforce 3—{1}{G}", vec!["Reinforce"]),
+        ("Reinforce 3 {1}{G}", vec!["Reinforce"]),
         ("Toxic 2", vec!["Toxic"]),
         ("Enchant creature you control", vec!["Enchant"]),
         ("Enchant creature or Vehicle", vec!["Enchant"]),
+        ("Enchant artifact an opponent controls", vec!["Enchant"]),
+        ("Enchant creature card in a graveyard", vec!["Enchant"]),
+        ("Enchant creature with power 3 or less", vec!["Enchant"]),
+        (
+            "Enchant creature with another Aura attached to it",
+            vec!["Enchant"],
+        ),
+        ("Enchant creature without flying", vec!["Enchant", "Flying"]),
         ("Protection from black", vec!["Protection"]),
         ("LEVEL 1-3\n4/4", vec!["LevelUp"]),
         ("Protection from everything", vec!["Protection"]),
@@ -129,6 +140,19 @@ fn declared_keyword_lines_parse_render_visit_and_own_exactly() {
             assert_eq!(creature_subtypes, ["Vampire", "Werewolf", "Zombie"]);
         }
     }
+}
+
+#[test]
+fn sentence_shaped_keyword_cost_requires_its_constituent_dash() {
+    let environment = environment(declarations());
+    let parser = Parser::new(environment).expect("keyword-line grammar initializes");
+    let context = context();
+
+    assert!(
+        parser
+            .parse_oracle_text("Ward Pay 3 life.", &context)
+            .is_err()
+    );
 }
 
 #[test]

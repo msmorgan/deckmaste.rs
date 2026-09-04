@@ -43,6 +43,13 @@ fn builtin_v2_designations_preserve_identity_surfaces_and_definitions() {
             "Suspected",
         ],
     );
+    // `planar controller` deliberately has no nursery row: no supported card
+    // text reads or writes it, so a declaration would contribute no consumer.
+    assert!(
+        designations
+            .iter()
+            .all(|declaration| declaration.identity().name() != "PlanarController")
+    );
     for declaration in &designations {
         assert_eq!(declaration.params(), Some([].as_slice()));
         assert_eq!(
