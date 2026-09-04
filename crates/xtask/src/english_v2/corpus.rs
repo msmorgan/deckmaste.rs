@@ -92,17 +92,23 @@ impl CorpusPatchLedger {
         Ok(())
     }
 
+    fn unused_marks(&self) -> Vec<bool> {
+        vec![false; self.patches.len()]
+    }
+
     fn apply(
         &self,
         card_name: &str,
         face_name: Option<&str>,
         source_text: &str,
+        used: &mut [bool],
     ) -> anyhow::Result<String> {
         let mut text = source_text.to_owned();
-        for patch in self
+        for (patch, used) in self
             .patches
             .iter()
-            .filter(|patch| patch.applies_to(card_name, face_name))
+            .zip(used)
+            .filter(|(patch, _)| patch.applies_to(card_name, face_name))
         {
             let occurrences = text.matches(&patch.find).count();
             ensure!(
@@ -112,8 +118,23 @@ impl CorpusPatchLedger {
                 patch.reason,
             );
             text = text.replacen(&patch.find, &patch.replace, 1);
+            *used = true;
         }
         Ok(text)
+    }
+
+    /// A patch naming no corpus unit is a stale ledger entry, so it fails the
+    /// load rather than passing as a silent no-op.
+    fn ensure_every_patch_used(&self, used: &[bool]) -> anyhow::Result<()> {
+        for (index, patch) in self.patches.iter().enumerate() {
+            ensure!(
+                used[index],
+                "corpus patch {index} matched no corpus unit; card or face names {:?}; reason: {}",
+                patch.card_or_face_names,
+                patch.reason,
+            );
+        }
+        Ok(())
     }
 }
 
@@ -281,6 +302,7 @@ impl Corpus {
         patches: &CorpusPatchLedger,
     ) -> anyhow::Result<Self> {
         let cards = AtomicCards::parse(bytes).context("parsing MTGJSON atomic-card snapshot")?;
+        let mut used_patches = patches.unused_marks();
         let mut units = cards
             .data
             .values()
@@ -305,7 +327,12 @@ impl Corpus {
                     )
                 })?;
                 let source_text = card.text.as_deref().unwrap_or_default();
-                let patched_text = patches.apply(&card_name, face_name.as_deref(), source_text)?;
+                let patched_text = patches.apply(
+                    &card_name,
+                    face_name.as_deref(),
+                    source_text,
+                    &mut used_patches,
+                )?;
                 let text = normalize_oracle_text(&card_name, &patched_text)?;
                 Ok(corpus_unit(
                     &card_name,
@@ -319,6 +346,7 @@ impl Corpus {
                 ))
             })
             .collect::<anyhow::Result<Vec<_>>>()?;
+        patches.ensure_every_patch_used(&used_patches)?;
         units.sort_by(|left, right| corpus_sort_key(left).cmp(&corpus_sort_key(right)));
         validate_contexts(&units)?;
 
@@ -1135,6 +1163,37 @@ mod tests {
         assert_eq!(
             ledger.patches[0].reason,
             "The source snapshot misspells creature."
+        );
+    }
+
+    #[test]
+    fn corpus_patch_matching_no_corpus_unit_fails_the_load() {
+        let snapshot = br#"{"data":{"Patch Fixture":[{
+            "name":"Patch Fixture", "layout":"normal", "types":["Creature"],
+            "supertypes":[], "subtypes":[], "legalities":{"vintage":"Legal"},
+            "text":"Patch Fixture enters tapped."
+        }]}}"#;
+        let ledger = CorpusPatchLedger::parse(
+            r#"CorpusPatchLedger(
+                patches: [
+                    CorpusTextPatch(
+                        reason: "The source snapshot drops a comma.",
+                        card_or_face_names: ["Absent Fixture"],
+                        find: "enters tapped",
+                        replace: "enters the battlefield tapped",
+                    ),
+                ],
+            )"#,
+        )
+        .expect("fixture patch ledger loads");
+        let onsets = explicit_onsets([("Patch Fixture", Onset::Consonant)]);
+
+        let error = Corpus::from_bytes_with_context_onsets_and_patches(snapshot, &onsets, &ledger)
+            .expect_err("a patch naming no corpus unit fails the load");
+
+        assert!(
+            error.to_string().contains("matched no corpus unit"),
+            "unexpected error: {error}"
         );
     }
 
