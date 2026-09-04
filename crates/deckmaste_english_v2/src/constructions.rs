@@ -3213,12 +3213,11 @@ constructions! {
         derive locative_temporal_license = nominal.locative_temporal_license;
         form possessed_mass_reference = lex(possessor) nominal;
     }
-    construction genitive_determiner_singular_reference: UnqualifiedReference {
-        element GenitiveDeterminerSingularReference {
+    construction genitive_determiner_reference: UnqualifiedReference {
+        element GenitiveDeterminerReference {
             possessor: Possessive,
             nominal: Nominal,
         }
-        require possessor.number is Singular;
         require nominal.number is Singular;
         require nominal.nominal_form in [BareSingularNoun, ModifiedSingularNoun];
         derive agreement = nominal.agreement;
@@ -3227,14 +3226,13 @@ constructions! {
         derive possessive_ending = nominal.possessive_ending;
         derive relationality = nominal.relationality;
         derive locative_temporal_license = nominal.locative_temporal_license;
-        form genitive_determiner_singular_reference = possessor nominal;
+        form genitive_determiner_reference = possessor nominal;
     }
     construction genitive_determiner_plural_reference: UnqualifiedReference {
         element GenitiveDeterminerPluralReference {
             possessor: Possessive,
             nominal: Nominal,
         }
-        require possessor.number is Singular;
         require nominal.number is Plural;
         require nominal.nominal_form in [BarePluralNoun, ModifiedPluralNoun];
         derive agreement = nominal.agreement;
@@ -3245,47 +3243,12 @@ constructions! {
         derive locative_temporal_license = nominal.locative_temporal_license;
         form genitive_determiner_plural_reference = possessor nominal;
     }
-    construction plural_genitive_determiner_singular_reference: UnqualifiedReference {
-        element PluralGenitiveDeterminerSingularReference {
-            possessor: Possessive,
-            nominal: Nominal,
-        }
-        require possessor.number is Plural;
-        require nominal.number is Singular;
-        require nominal.nominal_form in [BareSingularNoun, ModifiedSingularNoun];
-        derive agreement = nominal.agreement;
-        derive number = nominal.number;
-        derive onset = Values::Consonant;
-        derive possessive_ending = nominal.possessive_ending;
-        derive relationality = nominal.relationality;
-        derive locative_temporal_license = nominal.locative_temporal_license;
-        form plural_genitive_determiner_singular_reference = possessor nominal;
-    }
-    construction plural_genitive_determiner_plural_reference: UnqualifiedReference {
-        element PluralGenitiveDeterminerPluralReference {
-            possessor: Possessive,
-            nominal: Nominal,
-        }
-        require possessor.number is Plural;
-        require nominal.number is Plural;
-        require nominal.nominal_form in [BarePluralNoun, ModifiedPluralNoun];
-        derive agreement = nominal.agreement;
-        derive number = nominal.number;
-        derive onset = Values::Consonant;
-        derive possessive_ending = nominal.possessive_ending;
-        derive relationality = nominal.relationality;
-        derive locative_temporal_license = nominal.locative_temporal_license;
-        form plural_genitive_determiner_plural_reference = possessor nominal;
-    }
     construction genitive_determiner_mass_reference: UnqualifiedReference {
         element GenitiveDeterminerMassReference {
             possessor: Possessive,
             nominal: Nominal,
         }
-        require all(
-            possessor.number is Singular,
-            nominal.nominal_form is MassNoun
-        );
+        require nominal.nominal_form is MassNoun;
         derive agreement = nominal.agreement;
         derive number = nominal.number;
         derive onset = Values::Consonant;
@@ -3293,23 +3256,6 @@ constructions! {
         derive relationality = nominal.relationality;
         derive locative_temporal_license = nominal.locative_temporal_license;
         form genitive_determiner_mass_reference = possessor nominal;
-    }
-    construction plural_genitive_determiner_mass_reference: UnqualifiedReference {
-        element PluralGenitiveDeterminerMassReference {
-            possessor: Possessive,
-            nominal: Nominal,
-        }
-        require all(
-            possessor.number is Plural,
-            nominal.nominal_form is MassNoun
-        );
-        derive agreement = nominal.agreement;
-        derive number = nominal.number;
-        derive onset = Values::Consonant;
-        derive possessive_ending = nominal.possessive_ending;
-        derive relationality = nominal.relationality;
-        derive locative_temporal_license = nominal.locative_temporal_license;
-        form plural_genitive_determiner_mass_reference = possessor nominal;
     }
     construction genitive_determiner_coordination_reference: UnqualifiedReference {
         element GenitiveDeterminerCoordinationReference {
@@ -5334,8 +5280,7 @@ fn object_is_mass_nominal(value: &Object) -> bool {
             nominal_form_for_nominal(&determined.nominal) == NominalForm::MassNoun
         }
         UnqualifiedReference::PossessedMassReference(_)
-        | UnqualifiedReference::GenitiveDeterminerMassReference(_)
-        | UnqualifiedReference::PluralGenitiveDeterminerMassReference(_) => true,
+        | UnqualifiedReference::GenitiveDeterminerMassReference(_) => true,
         _ => false,
     }
 }

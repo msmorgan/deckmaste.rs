@@ -212,12 +212,9 @@ impl Visitor for SubjectStructureVisitor {
         deckmaste_english_v2::visit::walk_demonstrative_possessive_reference(self, value);
     }
 
-    fn visit_genitive_determiner_singular_reference(
-        &mut self,
-        value: &GenitiveDeterminerSingularReference,
-    ) {
-        self.0.push("GenitiveDeterminerSingularReference");
-        deckmaste_english_v2::visit::walk_genitive_determiner_singular_reference(self, value);
+    fn visit_genitive_determiner_reference(&mut self, value: &GenitiveDeterminerReference) {
+        self.0.push("GenitiveDeterminerReference");
+        deckmaste_english_v2::visit::walk_genitive_determiner_reference(self, value);
     }
 }
 
@@ -365,7 +362,7 @@ fn finite_subject_coordination_and_exclusion_are_linguistic_structure() {
                 "DeterminedNominal",
                 "Determinative",
                 "Nominal",
-                "GenitiveDeterminerSingularReference",
+                "GenitiveDeterminerReference",
                 "DeterminedNominal",
                 "Determinative",
                 "Nominal",
