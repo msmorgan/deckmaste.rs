@@ -513,15 +513,16 @@ fn outlast_confers_sorcery_speed_tap_put_counter() {
 }
 
 /// [CR#702.131b]: **Ascend** on a permanent confers a state-checked static —
-/// modeled as the generic `Sba { when, then }` primitive (the same shape the
-/// Aura graveyard rule uses, swept generically). Proves the macro expands to a
-/// `Static` ability whose effects carry a reachable `StaticSpec::Sba`.
+/// v1's generic `Sba { when, then }` primitive, which lowers onto core's
+/// `ConditionallyDo` (the same shape the Aura graveyard rule uses, swept
+/// generically). Proves the macro expands to a `Static` ability whose effects
+/// carry a reachable `StaticSpec::ConditionallyDo`.
 #[test]
-fn ascend_macro_expands_to_static_sba() {
+fn ascend_macro_expands_to_static_conditionally_do() {
     use deckmaste_core::Ability;
     use deckmaste_core::StaticSpec;
 
-    // Walk every Static effect (peel Expanded) and look for an Sba row.
+    // Walk every Static effect (peel Expanded) and look for a state-checked row.
     fn statics(a: &Ability, out: &mut Vec<StaticSpec>) {
         if let Ability::Static(s) = a {
             out.push(s.body.clone());
@@ -545,14 +546,17 @@ fn ascend_macro_expands_to_static_sba() {
     let when = effs
         .iter()
         .find_map(|e| match peel(e) {
-            StaticSpec::Sba { when, .. } => Some(when.clone()),
+            StaticSpec::ConditionallyDo { when, .. } => Some(when.clone()),
             _ => None,
         })
         .unwrap_or_else(|| {
-            panic!("Ascend confers a Static carrying an Sba ([CR#702.131b]); got {effs:?}")
+            panic!(
+                "Ascend confers a Static carrying a ConditionallyDo ([CR#702.131b]); got \
+                 {effs:?}"
+            )
         });
 
-    // Drift guard: the macro's Sba `when` must equal the canonical Ascend gate
+    // Drift guard: the macro's `when` must equal the canonical Ascend gate
     // ([CR#702.131a,702.131b]) — the same typed `Condition` the spell-form
     // `ASCEND_GATE` and the engine helper use. A macro edit that diverges
     // fails.
@@ -568,15 +572,15 @@ fn ascend_macro_expands_to_static_sba() {
     let Ability::Static(canonical) = canonical.lower() else {
         panic!("canonical Ascend gate lowers as a Static ability");
     };
-    let StaticSpec::Sba {
+    let StaticSpec::ConditionallyDo {
         when: canonical, ..
     } = &canonical.body
     else {
-        panic!("canonical Ascend gate lowers as an Sba");
+        panic!("canonical Ascend gate lowers as a ConditionallyDo");
     };
     assert_eq!(
         &when, canonical,
-        "Ascend macro's Sba gate drifted from the canonical Ascend gate"
+        "Ascend macro's gate drifted from the canonical Ascend gate"
     );
 }
 

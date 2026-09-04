@@ -37,9 +37,10 @@ fn ability_conferral(ability: std::sync::Arc<deckmaste_core::Ability>) -> deckma
     if let deckmaste_core::Ability::Static(region) = ability.as_ref() {
         // A rules-defined state-based action is a GAME ACTION, not an ability
         // of any kind ([CR#704.1,704.1a]) — the Aura must-be-attached rule
-        // ([CR#704.5m]). v1 spells it as a `Sba` static; core's home for it is
-        // the ability-free `StateBased` flavor.
-        if let deckmaste_core::StaticSpec::Sba { when, then } = &region.body {
+        // ([CR#704.5m]). v1 spells it as an `Sba` static (lowered to
+        // `ConditionallyDo`); core's home for it is the ability-free
+        // `StateBased` flavor.
+        if let deckmaste_core::StaticSpec::ConditionallyDo { when, then } = &region.body {
             return deckmaste_core::Property::StateBased {
                 condition: std::sync::Arc::clone(when),
                 effect: std::sync::Arc::clone(then),

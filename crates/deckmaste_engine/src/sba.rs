@@ -162,14 +162,14 @@ pub fn sweep(state: &GameState) -> Vec<GameEvent> {
 ///    graveyard rule ([CR#704.5m]) is `StateBased(Not(LegallyAttached(
 ///    Ref(This))), Move(Ref(This), Graveyard))`, an ability-free conferral
 ///    because a [CR#704] game action is not an ability ([CR#704.1,704.1a])
-///    — and the `StaticSpec::Sba` statics an OBJECT carries, which still
-///    spell card-level state-checked statics such as
-///    ascend ([CR#702.131b]). For each battlefield object, evaluate `when`
+///    — and the `StaticSpec::ConditionallyDo` statics an OBJECT carries,
+///    which still spell card-level state-checked statics such as ascend
+///    ([CR#702.131b]). For each battlefield object, evaluate `when`
 ///    with `This` = the object; if true, run `then`'s events. Objects a
 ///    firing row removes this sweep are tracked so pass 2 doesn't
 ///    double-handle them.
 /// 2. **Generic illegal-attachment cleanup.** Any object attached to an illegal
-///    host (per `attachment_legal`) that no firing `Sba` removed → becomes
+///    host (per `attachment_legal`) that no firing row removed → becomes
 ///    unattached and stays ([CR#704.5n] Equipment/Fortification; [CR#704.5p]
 ///    creature / battle / other permanent — engine-identical).
 fn attachment_sbas(state: &GameState, view: &crate::layer::LayeredView) -> Vec<GameEvent> {
@@ -201,7 +201,7 @@ fn attachment_sbas(state: &GameState, view: &crate::layer::LayeredView) -> Vec<G
             }
         }
         crate::legal::for_each_static(state, view, id, |e| {
-            if let deckmaste_core::StaticSpec::Sba { when, then } = e {
+            if let deckmaste_core::StaticSpec::ConditionallyDo { when, then } = e {
                 rows.push((when.as_ref().clone(), (**then).clone()));
             }
         });
@@ -1165,11 +1165,11 @@ mod tests {
     }
 
     /// A CARD-LEVEL state-checked static ([CR#604.1], ascend's shape) spelling
-    /// the same graveyard rule: `Static(Sba(Not(LegallyAttached(Ref(This))),
-    /// Move(Ref(This), Graveyard)))`. The Aura SUBTYPE confers its [CR#704.5m]
-    /// rule ability-free instead (`aura_subtype`).
+    /// the same graveyard rule: `Static(ConditionallyDo(Not(LegallyAttached(
+    /// Ref(This))), Move(Ref(This), Graveyard)))`. The Aura SUBTYPE confers its
+    /// [CR#704.5m] rule ability-free instead (`aura_subtype`).
     fn aura_graveyard_sba() -> Ability {
-        Ability::r#static(StaticSpec::Sba {
+        Ability::r#static(StaticSpec::ConditionallyDo {
             when: Arc::new(Condition::Not(Arc::new(Condition::LegallyAttached(
                 Reference::Reg(deckmaste_core::RefId(0)),
             )))),
@@ -1190,9 +1190,9 @@ mod tests {
         })))
     }
 
-    /// [CR#704.5m]: an Aura (carrying the card-level graveyard `Sba`) that is
+    /// [CR#704.5m]: an Aura (carrying the card-level graveyard row) that is
     /// UNATTACHED fires the SBA → a future-form `ZoneChange(Battlefield →
-    /// Graveyard)` for it. Generic — driven by the `Sba` static, not the
+    /// Graveyard)` for it. Generic — driven by the static, not the
     /// subtype.
     #[test]
     fn sba_attach_unattached_aura_goes_to_graveyard() {
@@ -1215,7 +1215,7 @@ mod tests {
     /// The Aura SUBTYPE's own declaration, conferring its [CR#704.5m] rule the
     /// ability-free way: `Property::StateBased { condition, effect }`. A
     /// [CR#704] state-based action is not an ability ([CR#704.1,704.1a]), so it
-    /// is not `Property::Ability(Static(Sba(..)))`.
+    /// is not `Property::Ability(Static(ConditionallyDo(..)))`.
     fn aura_subtype() -> deckmaste_core::Subtype {
         deckmaste_core::Subtype {
             name: "Aura".into(),
@@ -1387,7 +1387,7 @@ mod tests {
         );
     }
 
-    /// [CR#704.5n]: an Equipment (no firing `Sba`) attached to an ILLEGAL host
+    /// [CR#704.5n]: an Equipment (no firing row) attached to an ILLEGAL host
     /// (a non-creature its `May(Attach to: Creature)` grant does NOT cover)
     /// becomes unattached and stays — the generic illegal-attachment cleanup,
     /// NO subtype branch. Illegal because the grant doesn't reach this
@@ -1412,7 +1412,7 @@ mod tests {
                 if *attachment == equip && *former_host == rock)),
             "illegally-attached Equipment becomes unattached ([CR#704.5n]); got {actions:?}"
         );
-        // It does NOT go to the graveyard (no firing Sba).
+        // It does NOT go to the graveyard (no firing row).
         assert!(
             !actions
                 .iter()
@@ -1506,7 +1506,7 @@ mod tests {
             ]
             .into(),
         );
-        let ascend = Ability::r#static(StaticSpec::Sba {
+        let ascend = Ability::r#static(StaticSpec::ConditionallyDo {
             when: Arc::new(gate),
             then: Arc::new(Instruction::act(Action::GetDesignation(
                 Reference::Reg(deckmaste_core::RefId(1)),
@@ -1577,10 +1577,10 @@ mod tests {
 
         // The Ascend static, built typed (mirrors the builtin macro's
         // expansion). `ControlledBy(Ref(You))` resolves `You` to the carrying
-        // object's controller via the Sba frame, so each ascender counts ITS
+        // object's controller via the static's frame, so each ascender counts ITS
         // controller's permanents and grants to that controller.
         let ascend = || {
-            Ability::r#static(StaticSpec::Sba {
+            Ability::r#static(StaticSpec::ConditionallyDo {
                 when: Arc::new(Condition::And(
                     vec![
                         Condition::Compare(

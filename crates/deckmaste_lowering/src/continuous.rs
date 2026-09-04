@@ -801,14 +801,14 @@ mod tests {
     }
 
     #[test]
-    fn lowers_static_effect_sba() {
+    fn lowers_static_effect_sba_onto_conditionally_do() {
         assert_matches!(
             in_spell_region(|| deckmaste_semantics::StaticEffect::Sba {
                 when: std::sync::Arc::new(minimal_condition()),
                 then: std::sync::Arc::new(minimal_one_shot_effect())
             }
             .lower()),
-            deckmaste_core::StaticSpec::Sba { when: _, then: _ }
+            deckmaste_core::StaticSpec::ConditionallyDo { when: _, then: _ }
         );
     }
 }
@@ -936,7 +936,7 @@ impl Lower for deckmaste_semantics::StaticEffect {
                 as_: as_.lower(),
             },
             Self::AsThough(f0) => deckmaste_core::StaticSpec::AsThough(f0.lower()),
-            Self::Sba { when, then } => deckmaste_core::StaticSpec::Sba {
+            Self::Sba { when, then } => deckmaste_core::StaticSpec::ConditionallyDo {
                 when: when.lower(),
                 then: then.lower(),
             },

@@ -104,8 +104,8 @@ impl GameState {
             // passes `attachment_legal` (the same predicate the attach no-op
             // uses). Unattached / illegal-host / self-attached all read false —
             // exactly the Aura graveyard SBA's "or is not attached" trigger
-            // (`Sba(Not(LegallyAttached(Ref(This))), …)`). Generic: no subtype
-            // branch.
+            // (`ConditionallyDo(Not(LegallyAttached(Ref(This))), …)`). Generic: no
+            // subtype branch.
             Condition::LegallyAttached(reference) => {
                 let object = self.eval_reference(reference, frame);
                 self.objects

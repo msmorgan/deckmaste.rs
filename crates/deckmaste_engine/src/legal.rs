@@ -783,7 +783,7 @@ where
     match e {
         // Distributed statics ([`StaticSpec::Each`]) are looked through to
         // their inner effect for this presence scan: the walker's callers
-        // (Cant/Sba/CostModifier row collectors) match on the effect KIND,
+        // (Cant/state-checked/CostModifier row collectors) match on the effect KIND,
         // not the affected set, so the wrapping `Selection` is immaterial
         // here.
         StaticSpec::Each(_, inner) => walk_static(&inner.body, enter, visit),
@@ -843,8 +843,8 @@ where
 /// static effect of `id` (no early exit). The visit-each callers
 /// (`attack_rows`/`block_rows`/`target_rows`/`may_cast_rows`) collect rows
 /// through this, leaving the `ControlFlow` plumbing to the one walker. Also
-/// the entry point for the [CR#704] SBA sweep, which collects `Sba` rows the
-/// same look-through way.
+/// the entry point for the [CR#704] SBA sweep, which collects the
+/// `ConditionallyDo` rows the same look-through way.
 ///
 /// [CR#611.3a]: a `Conditionally` static is GATED — its inner effect is visited
 /// only when the wrapper's condition holds for `id`, evaluated with `This`
@@ -1309,8 +1309,9 @@ pub(crate) fn attachment_legal(state: &GameState, attachment: ObjectId, host: Ob
     // this is a true no-op for every non-pathological call: a
     // `Conditionally(LegallyAttached(This), May(Attach))` bootstrap drops
     // its own grant (can't attach → never legally attached — a consistent
-    // fixpoint), and a `Sba(Not(LegallyAttached(This)), Move→Graveyard)`
-    // aura instead reads `Not(false)` = true and dies unattached.
+    // fixpoint), and a `ConditionallyDo(Not(LegallyAttached(This)),
+    // Move→Graveyard)` aura instead reads `Not(false)` = true and dies
+    // unattached.
     if ATTACH_LEGAL_DEPTH.with(Cell::get) >= ATTACH_LEGAL_DEPTH_CAP {
         #[cfg(test)]
         ATTACH_LEGAL_REENTRY_DENIALS.with(|c| c.set(c.get() + 1));
@@ -1970,7 +1971,8 @@ mod tests {
 
         // (b) The condition itself, read top-level, also TERMINATES and reads
         // `false` — this is exactly the Aura-graveyard SBA trigger's read
-        // (`Sba(Not(LegallyAttached(Ref(This))), …)`), which must not hang.
+        // (`ConditionallyDo(Not(LegallyAttached(Ref(This))), …)`), which must
+        // not hang.
         let frame = state.frame(aura, PlayerId(0));
         assert!(
             !state.condition_holds(

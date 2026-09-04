@@ -648,7 +648,7 @@ fn validate_static_effect(
             validate_static_effect(body, definitions)
         }
         crate::StaticSpec::Deontic(deontic) => validate_deontic(deontic, definitions),
-        crate::StaticSpec::Sba { when, then } => {
+        crate::StaticSpec::ConditionallyDo { when, then } => {
             when.serialize(definitions.walker())?;
             validate_condition_regions(when, &definitions.params)?;
             let outer = definitions.params.len();

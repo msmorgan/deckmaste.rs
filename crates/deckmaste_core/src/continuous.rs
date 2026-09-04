@@ -376,11 +376,13 @@ pub enum StaticSpec {
     },
     /// A scoped counterfactual premise ([CR#609.4]) — see [`AsThough`].
     AsThough(AsThough),
-    /// A state-checked static ([CR#604.1]): whenever `when` holds (evaluated
-    /// with `This` = the carrying object), perform `then` as part of the SBA
-    /// sweep. Ascend on a permanent is the type case — [CR#702.131b] calls it
-    /// a static ability, and its "any time you control ten or more permanents"
-    /// gate is exactly this shape.
+    /// A conditional static ([CR#604.1]) — "any time `when` holds, do
+    /// `then`". The instruction-payload sibling of `Conditionally`, which
+    /// gates another static instead: `when` is evaluated with `This` = the
+    /// carrying object, and `then` runs as part of the SBA sweep. Ascend on a
+    /// permanent is the type case — [CR#702.131b] calls it a static ability,
+    /// and its "any time you control ten or more permanents" gate is exactly
+    /// this shape.
     ///
     /// NOT the home for a rules-defined state-based action ([CR#704.1] — an
     /// SBA is a game action, not an ability of any kind). A type or subtype's
@@ -392,7 +394,7 @@ pub enum StaticSpec {
     ///
     /// `then` is boxed (an `Instruction` dominates `StaticSpec`'s size;
     /// `Box` only for the size cycle, per the "Box only for cycles" rule).
-    Sba {
+    ConditionallyDo {
         when: Arc<Condition>,
         then: Arc<crate::Instruction>,
     },
