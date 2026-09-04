@@ -1378,6 +1378,20 @@ groupSpent k (b :: bs) =
   if objGroup k b then groupSpent k bs else b :: groupSpent k bs
 
 public export
+partsClosed : Bindings -> Bindings
+partsClosed [] = []
+partsClosed (MkBinding PartD j pl p :: bs) =
+  MkBinding TheD j pl p :: partsClosed bs
+partsClosed (b :: bs) = b :: partsClosed bs
+
+public export
+partsDistributed : Bindings -> Bool
+partsDistributed [] = True
+partsDistributed (MkBinding PartD _ pl _ :: bs) =
+  not (isOne pl) && partsDistributed bs
+partsDistributed (_ :: bs) = partsDistributed bs
+
+public export
 restSource : Kind -> Bindings -> Maybe Binding
 restSource k [] = Nothing
 restSource k (b@(MkBinding PartD _ _ _) :: bs) =

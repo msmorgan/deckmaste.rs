@@ -181,12 +181,14 @@ mutual
              {auto 0 ok : So (lookbackLocusOk ev (zoneSort z))} ->
              EventComplement bs ev ks
 
-  ||| "that weren't chosen this way" reads back the choices one prior clause
-  ||| made, so exactly one such choice of a compatible kind must stand.
+  ||| "that weren't chosen this way" names the manner, so it excludes every
+  ||| choice of a compatible kind standing, however many chose [CR#101.4,700.8d];
+  ||| with none standing there is nothing to read back.
   public export
   data ChoiceInScope : (k : Kind) -> Bindings -> Type where
-    OneChoiceStands : {0 k : Kind} -> {0 bs : Bindings} ->
-                      {auto 0 ok : countParts k bs = 1} -> ChoiceInScope k bs
+    ChoicesStand : {0 k : Kind} -> {0 bs : Bindings} ->
+                   {auto 0 ok : So (not (countParts k bs == Z))} ->
+                   ChoiceInScope k bs
 
   public export
   data ComplementWritten : {0 bs : Bindings} -> {0 ev : EventName} ->

@@ -1538,10 +1538,21 @@ mutual
   KeepsOuter : {bs : Bindings} -> Instruction bs -> Type
   KeepsOuter {bs} e = KeepsOuterOf bs (instrIntro e)
 
+  ||| A distributive deed either only adds to the agent stack, or closes the
+  ||| partitives its own agents' choices published — "each player … sacrifices
+  ||| the rest" [CR#700.8d] — which spends nothing the table shares
+  ||| [CR#701.21a].
+  public export
+  data EachStackOk : (outer : Bindings) -> (out : Bindings) -> Type where
+    EachOnlyAdds : {auto 0 ko : KeepsOuterOf outer out} -> EachStackOk outer out
+    EachClosesOwnParts : {auto 0 ds : So (partsDistributed outer)} ->
+                         {auto 0 cp : out = partsClosed outer} ->
+                         EachStackOk outer out
+
   public export
   KeepsOuterEach : Plurality -> (outer : Bindings) -> (out : Bindings) -> Type
   KeepsOuterEach OneOf outer out = ()
-  KeepsOuterEach ManyOf outer out = KeepsOuterOf outer out
+  KeepsOuterEach ManyOf outer out = EachStackOk outer out
 
   public export
   EnactKeepsOuter : {bs : Bindings} -> (subj : Maybe (Noun bs Player)) ->
@@ -1668,6 +1679,8 @@ mutual
   public export
   doesInstrIntro : {bs : Bindings} -> Plurality -> (s : Noun bs Player) ->
                  (v : VerbLabel) -> Instruction (agentIntro s) -> Bindings
+  doesInstrIntro ManyOf s v (Move (TheRest _ _) to _) =
+    afterMoveTo to (partsClosed (nomIntro s))
   doesInstrIntro ManyOf s v (Move what to _) =
     afterMoveTo to (distributedDelta s (moveIntro (Just v) what (Just (zoneSort to)))
                       ++ nomIntro s)

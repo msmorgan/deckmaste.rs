@@ -1693,22 +1693,21 @@ consumingTide =
 public export
 stickTogether : Instruction []
 stickTogether =
-  ForEachOf (Macros.each AnyPlayer)
-    (Sequentially
-       [ Macros.chooses Macros.They
-           (Macros.counted (Macros.upTo 1)
-              (And [Macros.creature, HasSubtype (creatureType "Cleric"),
-                    HasPossessor ControllerAx Macros.They]))
-       , Macros.chooses Macros.They
-           (Macros.counted (Macros.upTo 1)
-              (And [Macros.creature, HasSubtype (creatureType "Rogue"),
-                    HasPossessor ControllerAx Macros.They]))
-       , Macros.chooses Macros.They
-           (Macros.counted (Macros.upTo 1)
-              (And [Macros.creature, HasSubtype (creatureType "Warrior"),
-                    HasPossessor ControllerAx Macros.They]))
-       , Macros.chooses Macros.They
-           (Macros.counted (Macros.upTo 1)
-              (And [Macros.creature, HasSubtype (creatureType "Wizard"),
-                    HasPossessor ControllerAx Macros.They]))
-       , Macros.sacrifice Macros.They (Macros.theRest Object) ])
+  Sequentially
+    [ Macros.chooses (Macros.each AnyPlayer)
+        (Macros.counted (Macros.upTo 1)
+           (And [Macros.creature, HasSubtype (creatureType "Cleric"),
+                 HasPossessor ControllerAx Macros.They]))
+    , Macros.chooses (Macros.each AnyPlayer)
+        (Macros.counted (Macros.upTo 1)
+           (And [Macros.creature, HasSubtype (creatureType "Rogue"),
+                 HasPossessor ControllerAx Macros.They]))
+    , Macros.chooses (Macros.each AnyPlayer)
+        (Macros.counted (Macros.upTo 1)
+           (And [Macros.creature, HasSubtype (creatureType "Warrior"),
+                 HasPossessor ControllerAx Macros.They]))
+    , Macros.chooses (Macros.each AnyPlayer)
+        (Macros.counted (Macros.upTo 1)
+           (And [Macros.creature, HasSubtype (creatureType "Wizard"),
+                 HasPossessor ControllerAx Macros.They]))
+    , Macros.sacrifice (Macros.each AnyPlayer) (Macros.theRest Object) ]

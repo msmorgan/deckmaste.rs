@@ -142,7 +142,8 @@ badDistributedZoneMoveRead : Unspellable (Instruction []) (\ok =>
   Sequentially [ Macros.tap (Macros.target Macros.creature)
                , Macros.exile (Macros.each Opponent) (Macros.It OneOf) {ke = ok}
                , Macros.untap (Macros.It OneOf) ])
-badDistributedZoneMoveRead Refl impossible
+badDistributedZoneMoveRead EachOnlyAdds impossible
+badDistributedZoneMoveRead EachClosesOwnParts impossible
 
 ||| "When target creature dies this turn, return that card to the battlefield."
 public export

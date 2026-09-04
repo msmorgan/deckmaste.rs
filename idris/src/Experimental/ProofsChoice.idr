@@ -262,6 +262,59 @@ badChoiceRestDisposedTwice :
   Unspellable (Noun ProofsChoice.afterChoiceRestDisposed Object) (\ok => Macros.theRest Object {ok})
 badChoiceRestDisposedTwice Oh impossible
 
+||| "Each player chooses up to one creature they control, then sacrifices the
+||| rest." The per-agent rest closes only the partitives the same distributive
+||| chooser published [CR#700.8d], so nothing the table shares is spent.
+public export
+okDistributedRestOfOwnChoice : Instruction []
+okDistributedRestOfOwnChoice =
+  Sequentially
+    [ Macros.chooses (Macros.each AnyPlayer)
+        (Macros.counted (Macros.upTo 1)
+           (And [Macros.creature, HasPossessor ControllerAx Macros.They]))
+    , Macros.sacrifice (Macros.each AnyPlayer) (Macros.theRest Object) ]
+
+public export
+afterDistributedRestSacrificed : Bindings
+afterDistributedRestSacrificed =
+  instrIntro (the (Instruction []) ProofsChoice.okDistributedRestOfOwnChoice)
+
+||| "Each player chooses up to one creature they control, then sacrifices the
+||| rest, then sacrifices the rest." — the per-agent rest closes the partitives
+||| it spent, so no rest stands to spend again.
+public export
+badDistributedRestDisposedTwice :
+  Unspellable (Noun ProofsChoice.afterDistributedRestSacrificed Object)
+              (\ok => Macros.theRest Object {ok})
+badDistributedRestDisposedTwice Oh impossible
+
+||| "Tap all creatures. Each player chooses up to one creature they control,
+||| then sacrifices the rest." — the rest here spends the group the whole
+||| table shares, and a player can't sacrifice a permanent they don't control
+||| ([CR#701.21a]; `okDistributedRestOfOwnChoice` is the same deed with only
+||| the chooser's own partitives standing).
+public export
+badDistributedRestOfSharedGroup : Unspellable (Instruction []) (\ok =>
+  Sequentially
+    [ Macros.tap (Macros.allOf Macros.creature)
+    , Macros.chooses (Macros.each AnyPlayer)
+        (Macros.counted (Macros.upTo 1)
+           (And [Macros.creature, HasPossessor ControllerAx Macros.They]))
+    , Macros.sacrifice (Macros.each AnyPlayer) (Macros.theRest Object) {ke = ok} ])
+badDistributedRestOfSharedGroup EachOnlyAdds impossible
+badDistributedRestOfSharedGroup EachClosesOwnParts impossible
+
+||| "Choose up to one creature. Each player sacrifices the rest." — one
+||| chooser leaves one shared leftover, not a partition per player, so the
+||| other players would sacrifice permanents they don't control [CR#701.21a].
+public export
+badDistributedRestOfSingularChoice : Unspellable (Instruction []) (\ok =>
+  Sequentially
+    [ Macros.choose (Macros.counted (Macros.upTo 1) Macros.creature)
+    , Macros.sacrifice (Macros.each AnyPlayer) (Macros.theRest Object) {ke = ok} ])
+badDistributedRestOfSingularChoice EachOnlyAdds impossible
+badDistributedRestOfSingularChoice EachClosesOwnParts impossible
+
 ||| "an opponent who controls more lands than they control"
 public export
 badMemberInComparisonBound : Unspellable (Predicate [] Player) (\ok =>
@@ -299,19 +352,31 @@ public export
 badNotChosenWithoutAChoice : Unspellable (Instruction []) (\ok =>
   DealDamage This (Lit 3)
              (Macros.each (And [Macros.creature, NotChosen {cs = ok}])))
-badNotChosenWithoutAChoice OneChoiceStands impossible
+badNotChosenWithoutAChoice ChoicesStand impossible
 
 ||| "Choose a creature. Choose a creature. This deals 3 damage to each
-||| creature not chosen this way." — two choices stand, so the exclusion has
-||| no unique antecedent.
+||| creature not chosen this way." — "this way" names the manner, so both
+||| standing choices are excluded together [CR#700.8d].
 public export
-badNotChosenAfterTwoChoices : Unspellable (Instruction []) (\ok =>
+okNotChosenAfterTwoChoices : Instruction []
+okNotChosenAfterTwoChoices =
   Sequentially
     [ Macros.chooses You (Macros.a Macros.creature)
     , Macros.chooses You (Macros.a Macros.creature)
     , DealDamage This (Lit 3)
-                 (Macros.each (And [Macros.creature, NotChosen {cs = ok}])) ])
-badNotChosenAfterTwoChoices OneChoiceStands impossible
+                 (Macros.each (And [Macros.creature, NotChosen])) ]
+
+||| "Choose a creature you control, then each opponent chooses a creature they
+||| control. Destroy each creature not chosen this way." — Sculpted Sunburst's
+||| exclusion, whose two standing choices have different choosers [CR#101.4].
+public export
+okNotChosenAcrossChoosers : Instruction []
+okNotChosenAcrossChoosers =
+  Sequentially
+    [ Macros.choose (Macros.a Macros.creatureYouControl)
+    , Macros.chooses (Macros.each Opponent)
+        (Macros.a (And [Macros.creature, HasPossessor ControllerAx Macros.They]))
+    , Macros.destroy (Macros.each (And [Macros.creature, NotChosen])) ]
 
 ||| "Each player chooses a creature they control." [CR#700.8d]
 public export
