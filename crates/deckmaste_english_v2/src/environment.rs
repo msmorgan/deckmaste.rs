@@ -1835,7 +1835,7 @@ mod tests {
             &core(CoreVerbIdentity::Put),
             predicate(&[
                 Role("Object"),
-                OptionalRole("SourcePhrase"),
+                OptionalRole("PrepositionalPhrase"),
                 Literal("on"),
                 Role("FrameComplement"),
                 Literal("in"),

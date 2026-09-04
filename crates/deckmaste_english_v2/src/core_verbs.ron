@@ -63,7 +63,7 @@
         Predicate([]),
         Predicate([PredicativeComplement]),
         Predicate([Literal("with"), ObjectNounPhrase, Literal("on"), Role("FrameComplement")]),
-        Predicate([Role("Object"), OptionalRole("PredicativeComplement"), OptionalRole("ControlPhrase")]),
+        Predicate([Role("Object"), OptionalRole("PredicativeComplement"), OptionalRole("PrepositionalPhrase")]),
         Predicate([Literal("under"), Role("Object")]),
     ]),
     (identity: Flip, bare: "flip", third_person: "flips", valences: [
@@ -111,19 +111,19 @@
     (identity: Put, bare: "put", third_person: "puts", participle: Some("put"), valences: [
         Predicate([
             Role("Object"),
-            OptionalRole("SourcePhrase"),
+            OptionalRole("PrepositionalPhrase"),
             Literal("onto"),
             Role("FrameComplement"),
             OptionalRole("PredicativeComplement"),
-            OptionalRole("ControlPhrase"),
+            OptionalRole("PrepositionalPhrase"),
         ]),
-        Predicate([Role("Object"), OptionalRole("SourcePhrase"), Literal("on"), Role("FrameComplement")]),
+        Predicate([Role("Object"), OptionalRole("PrepositionalPhrase"), Literal("on"), Role("FrameComplement")]),
         Predicate([Role("Object"), Literal("to"), Role("FrameComplement")]),
         NonprepositionalAdjunctLicensedPredicate([ObjectNounPhrase, Literal("into"), ObjectNounPhrase]),
         Predicate([ObjectNounPhrase, Literal("on"), ObjectNounPhrase]),
         Predicate([
             Role("Object"),
-            OptionalRole("SourcePhrase"),
+            OptionalRole("PrepositionalPhrase"),
             Literal("on"),
             Role("FrameComplement"),
             Literal("in"),
@@ -137,11 +137,11 @@
     (identity: Return, bare: "return", third_person: "returns", valences: [
         Predicate([
             Role("Object"),
-            OptionalRole("SourcePhrase"),
+            OptionalRole("PrepositionalPhrase"),
             Literal("to"),
             Role("FrameComplement"),
             OptionalRole("PredicativeComplement"),
-            OptionalRole("ControlPhrase"),
+            OptionalRole("PrepositionalPhrase"),
         ]),
     ]),
     (identity: Roll, bare: "roll", third_person: "rolls", valences: [

@@ -8469,10 +8469,16 @@ fn resolve_predicate_atom(
                     ),
                 ));
             }
+            let optional = matches!(
+                fields.get(&role_name),
+                Some(FieldKind::Optional(inner))
+                    if matches!(inner.as_ref(), FieldKind::Category(_))
+            );
             (
                 PredicateSubjectPlan::RoleFeature {
                     role: role.clone(),
                     feature: internal,
+                    optional,
                 },
                 PredicateDomain::Feature(internal),
             )
@@ -8766,6 +8772,7 @@ fn feature_place_is_constructible(
                         )
                             && matches!(kind, FieldKind::Lex(_) | FieldKind::Identity(_)))
                             || matches!(kind, FieldKind::Category(path) | FieldKind::Lex(path) if providers.contains(&(path_name(path), *feature)))
+                            || matches!(kind, FieldKind::Optional(item) if matches!(item.as_ref(), FieldKind::Category(path) if providers.contains(&(path_name(path), *feature))))
                             || matches!(kind, FieldKind::Zeroable { item, .. } if matches!(item.as_ref(), FieldKind::Category(path) if providers.contains(&(path_name(path), *feature))))
                             || matches!(kind, FieldKind::Sequence { item, .. } if matches!(item.as_ref(), FieldKind::Category(path) if providers.contains(&(path_name(path), *feature))))
                     }),

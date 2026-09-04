@@ -478,6 +478,10 @@ fn emit_predicate_atom(
         }
         PredicateSubjectPlan::RoleFeature { feature, .. }
         | PredicateSubjectPlan::ConstructionFeature(feature) => {
+            let optional = matches!(
+                subject,
+                PredicateSubjectPlan::RoleFeature { optional: true, .. }
+            );
             let feature_type = match feature {
                 crate::feature::Feature::Agreement => local_ident("Agreement"),
                 crate::feature::Feature::BareLocativeLicense => local_ident("BareLocativeLicense"),
@@ -525,7 +529,11 @@ fn emit_predicate_atom(
                     Ok(local_ident(member.value().key()))
                 })
                 .collect::<syn::Result<Vec<_>>>()?;
-            Ok(quote! { matches!(#expression, #(#feature_type::#members)|*) })
+            if optional {
+                Ok(quote! { matches!(#expression, None | Some(#(#feature_type::#members)|*)) })
+            } else {
+                Ok(quote! { matches!(#expression, #(#feature_type::#members)|*) })
+            }
         }
     }
 }

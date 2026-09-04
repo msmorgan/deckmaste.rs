@@ -870,16 +870,27 @@ fn constructor_subject_expression(
                 Ok(quote! { #name.is_some() })
             }
         }
-        PredicateSubjectPlan::RoleFeature { role, feature } => resolve_constructor_feature(
-            plan,
-            construction,
-            &crate::feature::FeaturePlace::Role {
+        PredicateSubjectPlan::RoleFeature {
+            role,
+            feature,
+            optional,
+        } => {
+            let place = crate::feature::FeaturePlace::Role {
                 field: role.clone(),
                 feature: *feature,
-            },
-            &mut std::collections::HashSet::new(),
-            locals,
-        ),
+            };
+            if *optional {
+                resolve_optional_constructor_feature(plan, construction, &place, locals)
+            } else {
+                resolve_constructor_feature(
+                    plan,
+                    construction,
+                    &place,
+                    &mut std::collections::HashSet::new(),
+                    locals,
+                )
+            }
+        }
         PredicateSubjectPlan::ConstructionFeature(feature) => resolve_constructor_feature(
             plan,
             construction,
@@ -888,6 +899,59 @@ fn constructor_subject_expression(
             locals,
         ),
     }
+}
+
+fn resolve_optional_constructor_feature(
+    plan: &SemanticPlan,
+    construction: &ConstructionPlan,
+    place: &crate::feature::FeaturePlace,
+    locals: &HashMap<String, syn::Ident>,
+) -> syn::Result<TokenStream> {
+    let crate::feature::FeaturePlace::Role { field, feature } = place else {
+        return Err(internal("optional feature subject is not a role"));
+    };
+    let stored = construction.field(&identifier_key(field))?;
+    if stored.kind() != ConstructionFieldKind::Category
+        || !matches!(
+            stored.structural_kind(),
+            Some(crate::semantic::StructuralFieldKindPlan::Optional(_))
+        )
+    {
+        return Err(internal(
+            "optional role-feature subject is inconsistent with its field",
+        ));
+    }
+    let local = field_local(locals, stored)?;
+    let optional = if is_boxed(plan, construction, stored) {
+        quote! { #local.as_ref() }
+    } else {
+        quote! { &#local }
+    };
+    if let Some(crate::feature::FeatureResolution::Known(value)) =
+        plan.feature_resolution(construction.construction_id(), place)
+    {
+        let value = feature_value(value);
+        return Ok(quote! { (#optional).as_ref().map(|_| #value) });
+    }
+    if plan
+        .feature_equations(construction.construction_id())
+        .iter()
+        .any(|equation| equation.target() == place)
+    {
+        let value = resolve_constructor_feature(
+            plan,
+            construction,
+            place,
+            &mut std::collections::HashSet::new(),
+            locals,
+        )?;
+        return Ok(quote! { (#optional).as_ref().map(|_| #value) });
+    }
+    let function = emitted_ident(
+        &feature_helper(feature.key(), stored.terminal()),
+        proc_macro2::Span::call_site(),
+    );
+    Ok(quote! { (#optional).as_ref().map(#function) })
 }
 
 fn resolve_constructor_feature(
@@ -1828,6 +1892,14 @@ mod tests {
                     FeatureChild::FeatureThird(FeatureThird),
                 ).is_none());
 
+                assert!(OptionalRoleFeatureGuarded::new(None).is_some());
+                assert!(OptionalRoleFeatureGuarded::new(Some(
+                    FeatureChild::FeatureBare(FeatureBare),
+                )).is_some());
+                assert!(OptionalRoleFeatureGuarded::new(Some(
+                    FeatureChild::FeatureThird(FeatureThird),
+                )).is_none());
+
                 let collision = FeatureHelperCollisionNode::new(
                     FeatureChild::FeatureBare(FeatureBare),
                     Mode::Two,
@@ -2265,6 +2337,12 @@ mod tests {
                     require child.agreement is Bare;
                     derive agreement = child.agreement;
                     form role_feature_guarded = child;
+                }
+                construction optional_role_feature_guarded: FeatureRoot {
+                    element OptionalRoleFeatureGuarded { child: opt FeatureChild, }
+                    require child.agreement is Bare;
+                    derive agreement = Values::Bare;
+                    form optional_role_feature_guarded = child;
                 }
                 construction construction_feature: FeatureRoot {
                     element ConstructionFeatureNode { mode: lex Mode, }

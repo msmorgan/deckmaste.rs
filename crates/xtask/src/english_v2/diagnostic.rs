@@ -901,8 +901,6 @@ enum Expectation {
 #[serde(rename_all = "snake_case")]
 enum NonterminalKind {
     FrameComplement,
-    SourcePhrase,
-    ControlPhrase,
     PrepositionalPhrase,
     PrepositionalComplement,
     ExistentialPredicateAdjunct,
@@ -1575,8 +1573,6 @@ fn expectation(expectation: &RuntimeExpectation) -> Expectation {
 fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
     match kind {
         NonterminalCategory::FrameComplement => NonterminalKind::FrameComplement,
-        NonterminalCategory::SourcePhrase => NonterminalKind::SourcePhrase,
-        NonterminalCategory::ControlPhrase => NonterminalKind::ControlPhrase,
         NonterminalCategory::PrepositionalPhrase => NonterminalKind::PrepositionalPhrase,
         NonterminalCategory::PrepositionalComplement => NonterminalKind::PrepositionalComplement,
         NonterminalCategory::ExistentialPredicateAdjunct => {

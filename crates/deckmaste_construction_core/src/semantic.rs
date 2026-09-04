@@ -637,6 +637,7 @@ pub(crate) enum PredicateSubjectPlan {
     RoleFeature {
         role: syn::Ident,
         feature: feature::Feature,
+        optional: bool,
     },
     ConstructionFeature(feature::Feature),
 }
@@ -3181,10 +3182,12 @@ fn invariant_feature_dependencies(
         .map(PredicateAtomPlan::subject)
     {
         let place = match subject {
-            PredicateSubjectPlan::RoleFeature { role, feature } => feature::FeaturePlace::Role {
-                field: role.clone(),
-                feature: *feature,
-            },
+            PredicateSubjectPlan::RoleFeature { role, feature, .. } => {
+                feature::FeaturePlace::Role {
+                    field: role.clone(),
+                    feature: *feature,
+                }
+            }
             PredicateSubjectPlan::ConstructionFeature(feature) => {
                 feature::FeaturePlace::Construction(*feature)
             }
@@ -4578,7 +4581,7 @@ impl PredicateSubjectPlan {
             Self::OptionalPresenceRole { role } => {
                 format!("optional-presence:{}", identifier_key(role))
             }
-            Self::RoleFeature { role, feature } => {
+            Self::RoleFeature { role, feature, .. } => {
                 format!("feature:{}.{}", identifier_key(role), feature.key())
             }
             Self::ConstructionFeature(feature) => format!("feature:{}", feature.key()),
@@ -4590,7 +4593,7 @@ impl PredicateSubjectPlan {
             Self::CategoryRole { role, .. }
             | Self::VocabRole { role, .. }
             | Self::OptionalPresenceRole { role } => identifier_key(role),
-            Self::RoleFeature { role, feature } => {
+            Self::RoleFeature { role, feature, .. } => {
                 format!("{}.{}", identifier_key(role), feature.key())
             }
             Self::ConstructionFeature(feature) => feature.key().to_owned(),
@@ -4603,7 +4606,7 @@ impl PredicateSubjectPlan {
             Self::CategoryRole { role, .. }
             | Self::VocabRole { role, .. }
             | Self::OptionalPresenceRole { role } => role.to_string(),
-            Self::RoleFeature { role, feature } => format!("{role}.{}", feature.key()),
+            Self::RoleFeature { role, feature, .. } => format!("{role}.{}", feature.key()),
             Self::ConstructionFeature(feature) => feature.key().to_owned(),
         }
     }

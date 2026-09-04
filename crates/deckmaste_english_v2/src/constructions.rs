@@ -608,11 +608,11 @@ constructions! {
             position = Verb;
             tail = [
                 Object,
-                SourcePhrase?,
+                source: PrepositionalPhrase?,
                 "onto",
                 destination: FrameComplement,
                 PredicativeComplement?,
-                ControlPhrase?,
+                control: PrepositionalPhrase?,
             ];
             feature = Agreement;
         }
@@ -620,7 +620,7 @@ constructions! {
     codec ObjectFromOnVerb {
         generate declaration_verb {
             position = Verb;
-            tail = [Object, SourcePhrase?, "on", destination: FrameComplement];
+            tail = [Object, source: PrepositionalPhrase?, "on", destination: FrameComplement];
             feature = Agreement;
         }
     }
@@ -636,11 +636,11 @@ constructions! {
             position = Verb;
             tail = [
                 Object,
-                SourcePhrase?,
+                source: PrepositionalPhrase?,
                 "to",
                 destination: FrameComplement,
                 PredicativeComplement?,
-                ControlPhrase?,
+                control: PrepositionalPhrase?,
             ];
             feature = Agreement;
         }
@@ -681,7 +681,7 @@ constructions! {
         generate declaration_verb {
             class = Predicate;
             position = Verb;
-            tail = [Object, SourcePhrase?, "on", destination: FrameComplement, "in", ObjectOrder, "order"];
+            tail = [Object, source: PrepositionalPhrase?, "on", destination: FrameComplement, "in", ObjectOrder, "order"];
             feature = Agreement;
         }
     }
@@ -719,7 +719,7 @@ constructions! {
     codec EnterLocationVerb {
         generate declaration_verb {
             position = Verb;
-            tail = [Object, PredicativeComplement?, ControlPhrase?];
+            tail = [Object, PredicativeComplement?, control: PrepositionalPhrase?];
             feature = Agreement;
         }
     }
@@ -1866,11 +1866,12 @@ constructions! {
         element OrderedPredicateValue {
             head: lex OrderedVerb,
             object: Object,
-            source: opt SourcePhrase,
+            source: opt PrepositionalPhrase,
             destination: FrameComplement,
             order_relation: lex Preposition,
             order: lex ObjectOrder,
         }
+        require source.preposition_complement_kind is SourceComplement;
         require order_relation is In;
         derive agreement = head.agreement;
         form ordered_predicate =
@@ -3655,20 +3656,6 @@ constructions! {
         form from_among_prepositional_phrase =
             lex(source_relation) lex(selection_relation) complement;
     }
-    // Two frame roles whose preposition is declared valence data. They exist
-    // because a codec tail cannot carry an optional literal.
-    construction source_phrase: SourcePhrase {
-        element SourcePhraseValue { complement: FrameComplement, }
-        form source_phrase = "from" complement;
-    }
-    construction control_phrase: ControlPhrase {
-        element ControlPhraseValue {
-            relation: lex Preposition,
-            complement: Object,
-        }
-        require relation is Under;
-        form control_phrase = lex(relation) complement;
-    }
     construction edge_of_phrase: EdgeOfPhrase {
         element EdgeOfPhraseValue {
             position: lex EdgePosition,
@@ -4407,11 +4394,13 @@ constructions! {
         element PutOnto {
             head: lex ObjectFromOntoResultControlVerb,
             object: Object,
-            source: opt SourcePhrase,
+            source: opt PrepositionalPhrase,
             destination: FrameComplement,
             result: opt PredicativeComplement,
-            control: opt ControlPhrase,
+            control: opt PrepositionalPhrase,
         }
+        require source.preposition_complement_kind is SourceComplement;
+        require control.preposition_attachment is SelectedOnly;
         derive agreement = head.agreement;
         form put_onto = verb(head) object source "onto" destination result control;
     }
@@ -4422,8 +4411,9 @@ constructions! {
             destination: FrameComplement,
             source: FrameComplement,
             result: opt PredicativeComplement,
-            control: opt ControlPhrase,
+            control: opt PrepositionalPhrase,
         }
+        require control.preposition_attachment is SelectedOnly;
         derive agreement = head.agreement;
         form put_onto_source_after =
             verb(head) object "onto" destination "from" source result control;
@@ -4432,9 +4422,10 @@ constructions! {
         element PutOn {
             head: lex ObjectFromOnVerb,
             object: Object,
-            source: opt SourcePhrase,
+            source: opt PrepositionalPhrase,
             destination: FrameComplement,
         }
+        require source.preposition_complement_kind is SourceComplement;
         derive agreement = head.agreement;
         form put_on = verb(head) object source "on" destination;
     }
@@ -4451,11 +4442,13 @@ constructions! {
         element ReturnTo {
             head: lex ObjectFromToResultControlVerb,
             object: Object,
-            source: opt SourcePhrase,
+            source: opt PrepositionalPhrase,
             destination: FrameComplement,
             result: opt PredicativeComplement,
-            control: opt ControlPhrase,
+            control: opt PrepositionalPhrase,
         }
+        require source.preposition_complement_kind is SourceComplement;
+        require control.preposition_attachment is SelectedOnly;
         derive agreement = head.agreement;
         form return_to = verb(head) object source "to" destination result control;
     }
@@ -4479,8 +4472,9 @@ constructions! {
             head: lex EnterLocationVerb,
             location: Object,
             result: opt PredicativeComplement,
-            control: opt ControlPhrase,
+            control: opt PrepositionalPhrase,
         }
+        require control.preposition_attachment is SelectedOnly;
         derive agreement = head.agreement;
         form enter_location = verb(head) location result control;
     }
